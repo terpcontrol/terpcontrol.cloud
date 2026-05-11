@@ -171,6 +171,16 @@ public:
   inline bool isConnected() const { return isWifiConnected() && isMqttConnected(); }; // Return true if everything is connected
   inline bool isWifiConnected() const { return _wifiConnected; }; // Return true if wifi is connected
   inline bool isMqttConnected() const { return _mqttConnected; }; // Return true if mqtt is connected
+
+  // Force-disconnect the MQTT client (closes the underlying TCP socket).
+  // Useful to recover from a half-open / stuck socket where writes block forever.
+  // The library's main loop() will reconnect automatically after the regular
+  // reconnection delay.
+  inline void disconnect() {
+    _mqttClient.disconnect();
+    _mqttConnected = false;
+    _nextMqttConnectionAttemptMillis = millis() + _mqttReconnectionAttemptDelay;
+  };
   inline unsigned int getConnectionEstablishedCount() const { return _connectionEstablishedCount; }; // Return the number of time onConnectionEstablished has been called since the beginning.
 
   inline const char* getMqttClientName() { return _mqttClientName; };

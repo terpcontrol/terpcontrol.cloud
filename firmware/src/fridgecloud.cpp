@@ -97,10 +97,19 @@ namespace fg {
 
     client->setMaxPacketSize(1024);
 
+    // Each of the following subscribe()/publish() calls may invoke
+    // WiFiClient::write() which, in case of a stuck TCP send buffer, can
+    // block for ~10s while retrying. Doing 6 subscribes + 1 publish back to
+    // back can therefore exceed the 25s task watchdog and reboot the device.
+    // Feed the watchdog between each call so a temporarily slow link does
+    // not become a reset.
+    esp_task_wdt_reset();
+
     client->subscribe(topic_configuration.c_str(), [&](const String & topic, const String & payload) {
       Serial.println("new config");
       config_subject.next(payload);
     });
+    esp_task_wdt_reset();
 
     client->subscribe(topic_firmware.c_str(), [&](const String & topic, const String & payload) {
       Serial.println("loading firmware: " + payload);
@@ -112,6 +121,7 @@ namespace fg {
       }
 #endif
     });
+    esp_task_wdt_reset();
 
     client->subscribe(topic_fwupdate.c_str(), [&](const String & topic, const String & payload) {
       DynamicJsonDocument doc(1024);
@@ -130,6 +140,7 @@ namespace fg {
       }
 #endif
     });
+    esp_task_wdt_reset();
 
     client->subscribe(topic_command.c_str(), [&](const String & topic, const String & payload) {
       DynamicJsonDocument doc(1024);
@@ -141,11 +152,13 @@ namespace fg {
 
       command_subject.next(doc);
     });
+    esp_task_wdt_reset();
 
     client->subscribe(topic_control.c_str(), [&](const String & topic, const String & payload) {
       auto output = topic.substring(topic_control.length() - 1);      
       control_subject.next(std::pair<std::string, std::string>(output.c_str(), payload.c_str()));
     });
+    esp_task_wdt_reset();
 
     client->subscribe(topic_tunnel_write.c_str(), [&](const String & topic, const String & payload) {
       DynamicJsonDocument doc(1024);
@@ -236,6 +249,7 @@ namespace fg {
     });
 
     client->publish(topic_fetch.c_str(), "hello");
+    esp_task_wdt_reset();
 
     Serial.println("Connected to mqtt server");
   }
@@ -245,17 +259,26 @@ namespace fg {
   }
 
   void Fridgecloud::loop() {
+    // Feed the WDT at the start of our loop so a temporarily blocking
+    // MQTT/WiFiClient write (errno 11 / EAGAIN on a stuck send buffer) does
+    // not push the loopTask past the 25s task-watchdog and reboot the device.
+    esp_task_wdt_reset();
+
     client->loop();
+    esp_task_wdt_reset();
+
     if(connected != client->isMqttConnected()) {
       connected = client->isMqttConnected();
       if(connected) {
         Serial.println("(re)connected to mqtt server.");
+        publish_failure_count = 0;
         StaticJsonDocument<1024> message_json;
         message_json["firmware_id"] = FIRMWARE_VERSION;
         std::stringstream stream;
         serializeJson(message_json, stream);
 
         client->publish(topic_fetch.c_str(), stream.str().c_str());
+        esp_task_wdt_reset();
         connect();
       }
       else {
@@ -265,6 +288,7 @@ namespace fg {
     if(connected) {
       handleTunnelCloses();
       handleTunnelReads();
+      esp_task_wdt_reset();
 
       while(log_queue.size()) {
         StaticJsonDocument<1024> message_json;
@@ -276,11 +300,31 @@ namespace fg {
         if(client->publish(topic_log.c_str(), stream.str().c_str())) {
           Serial.println(log_queue.front().first.c_str());
           log_queue.pop();
+          publish_failure_count = 0;
         }
         else {
+          notePublishFailure();
           break;
         }
+        esp_task_wdt_reset();
       }
+    }
+  }
+
+  void Fridgecloud::notePublishFailure() {
+    // After a few consecutive publish failures we assume the underlying
+    // TCP socket is wedged (typical symptom: WiFiClient::write() returning
+    // errno 11 "No more processes" every second because the LWIP send
+    // buffer is full and the peer never ACKs). Force the MQTT client to
+    // drop the broken socket so EspMQTTClient opens a fresh one on its
+    // next reconnection attempt. Without this the broken socket can stay
+    // stuck for minutes, each publish call blocking ~10s and eventually
+    // triggering the 25s task-watchdog reboot.
+    if(++publish_failure_count >= MAX_PUBLISH_FAILURES) {
+      Serial.println("forcing mqtt reconnect after repeated publish failures");
+      client->disconnect();
+      publish_failure_count = 0;
+      connected = false;
     }
   }
 
@@ -346,11 +390,17 @@ namespace fg {
 
     try {
       while(status_buffer.size()) {
+        // A single publish() can block ~10s when the socket is stuck
+        // (errno 11 EAGAIN). Feed the WDT between iterations.
+        esp_task_wdt_reset();
         if(!client->publish(topic_bulk.c_str(), status_buffer[0].c_str())) {
           Serial.println("mqtt publish error");
+          esp_task_wdt_reset();
+          notePublishFailure();
           return;
         }
         status_buffer.erase(status_buffer.begin());
+        publish_failure_count = 0;
       }
       status_buffer.clear();
     }

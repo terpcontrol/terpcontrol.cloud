@@ -62,6 +62,13 @@ namespace fg {
     bool connected = false;
     unsigned int current_sample = 0;
 
+    // Count of consecutive failed client->publish() calls. When the socket
+    // is stuck (LWIP send buffer full, errno 11) every publish blocks ~10s
+    // and returns false. After MAX_PUBLISH_FAILURES we force-disconnect the
+    // MQTT client to recover instead of starving the task watchdog.
+    static constexpr unsigned int MAX_PUBLISH_FAILURES = 3;
+    unsigned int publish_failure_count = 0;
+
     static constexpr int TUNNEL_COUNT = 3;
     struct Tunnel {
       WiFiClient client;
@@ -103,6 +110,7 @@ namespace fg {
     bool registerWithCloud(std::string url, std::string password);
     void handleTunnelCloses();
     void handleTunnelReads();
+    void notePublishFailure();
     inline bool directMode() { return custom_mqtt; }
   };
 
