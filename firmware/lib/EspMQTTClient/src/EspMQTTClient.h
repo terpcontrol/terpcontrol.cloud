@@ -192,7 +192,15 @@ public:
   // write that returns EAGAIN (full LWIP send buffer). Default is several
   // seconds; lowering it prevents a single publish() from monopolising the
   // loop when the TCP socket is wedged.
-  inline void setWriteTimeout(uint32_t milliseconds) { _wifiClient.setTimeout(milliseconds); };
+  //
+  // NOTE: WiFiClient::setTimeout() on Arduino-ESP32 2.x takes SECONDS
+  // (it internally multiplies by 1000 to get ms). Keeping the parameter
+  // name in seconds here so the API matches reality and setSocketTimeout
+  // above. Also note that this only bounds the initial select() inside
+  // WiFiClient::write(); the EAGAIN retry loop is hardcoded to
+  // WIFI_CLIENT_MAX_WRITE_RETRY (10) iterations of 1s and cannot be
+  // shortened from the application.
+  inline void setWriteTimeout(uint32_t seconds) { _wifiClient.setTimeout(seconds); };
   inline unsigned int getConnectionEstablishedCount() const { return _connectionEstablishedCount; }; // Return the number of time onConnectionEstablished has been called since the beginning.
 
   inline const char* getMqttClientName() { return _mqttClientName; };
