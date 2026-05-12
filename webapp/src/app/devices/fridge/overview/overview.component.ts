@@ -4,6 +4,7 @@ import {AlertController, IonModal, ToastController} from '@ionic/angular';
 import {combineLatest, Subscription} from 'rxjs';
 import {DataService} from 'src/app/services/data.service';
 import {DeviceService} from 'src/app/services/devices.service';
+import {LogTranslateService} from 'src/app/services/log-translate.service';
 import TimeAgo from 'javascript-time-ago'
 import type { DeviceLog } from '@fg2/shared-types';
 
@@ -64,7 +65,7 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
 
   public deviceImageUrl: string | undefined = '';
 
-  constructor(private devices: DeviceService, public data: DataService, private route: ActivatedRoute, private router: Router, private renderer: Renderer2, private alertController: AlertController, private toastController: ToastController) { }
+  constructor(private devices: DeviceService, public data: DataService, private route: ActivatedRoute, private router: Router, private renderer: Renderer2, private alertController: AlertController, private toastController: ToastController, public logTranslate: LogTranslateService) { }
 
   editName() {
     this.editingName = true;

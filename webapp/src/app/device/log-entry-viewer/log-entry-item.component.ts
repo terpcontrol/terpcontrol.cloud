@@ -4,7 +4,7 @@ import { getDiaryDataFieldUnit } from '../diary/diary-entry-modal/diary-entry-mo
 import { ModalController } from '@ionic/angular';
 import { ImageViewerModalComponent } from '../diary/image-viewer-modal/image-viewer-modal.component';
 import {DeviceService} from "../../services/devices.service";
-import { TranslateService } from '@ngx-translate/core';
+import { LogTranslateService } from '../../services/log-translate.service';
 
 @Component({
   selector: 'app-log-entry-item',
@@ -22,7 +22,7 @@ export class LogEntryItemComponent implements OnChanges {
   @Output() edit = new EventEmitter<LogEntryViewerLog>();
   @Output() delete = new EventEmitter<LogEntryViewerLog>();
 
-  constructor(private modalController: ModalController, private devices: DeviceService, private translate: TranslateService) {}
+  constructor(private modalController: ModalController, private devices: DeviceService, private logTranslate: LogTranslateService) {}
 
   public imageIdToUrl = new Map<string, string>();
 
@@ -78,35 +78,11 @@ export class LogEntryItemComponent implements OnChanges {
     await modal.present();
   }
 
-  getEntryTitle(entry: LogEntryViewerLog): string {
-    return this.translateLogText(entry?.title || '', 'title');
+  getEntryTitle(entry: Pick<LogEntryViewerLog, 'title' | 'raw'>): string {
+    return this.logTranslate.getEntryTitle(entry);
   }
 
-  getEntryMessage(entry: LogEntryViewerLog): string {
-    const message = entry?.message || '';
-    if (!message) {
-      return '';
-    }
-
-    if (entry.raw) {
-      return message;
-    }
-
-    return this.translateLogText(message, 'text');
-  }
-
-  private translateLogText(value: string, suffix: 'title' | 'text'): string {
-    const directKey = `${value}-${suffix}`;
-    const directTranslation = this.translate.instant(directKey);
-    if (directTranslation !== directKey) {
-      return directTranslation;
-    }
-
-    const separatorIndex = value.indexOf(':');
-    const baseKey = separatorIndex >= 0 ? value.slice(0, separatorIndex) : value;
-    const paramValue = separatorIndex >= 0 ? value.slice(separatorIndex + 1) : undefined;
-    const fallbackKey = `${baseKey}-${suffix}`;
-    const keyedTranslation = this.translate.instant(fallbackKey, { value: paramValue });
-    return keyedTranslation !== fallbackKey ? keyedTranslation : value;
+  getEntryMessage(entry: Pick<LogEntryViewerLog, 'message' | 'raw'>): string {
+    return this.logTranslate.getEntryMessage(entry);
   }
 }

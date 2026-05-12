@@ -4,6 +4,7 @@ import { IonModal } from '@ionic/angular';
 import { combineLatest } from 'rxjs';
 import { DataService } from 'src/app/services/data.service';
 import { DeviceWithParsedSettings, DeviceService } from 'src/app/services/devices.service';
+import { LogTranslateService } from 'src/app/services/log-translate.service';
 
 @Component({
   selector: 'plug-overview',
@@ -32,7 +33,7 @@ export class PlugOverviewComponent implements OnInit {
   public showDeviceLog:boolean = false;
   public editingName:boolean = false;
 
-  constructor(private devices: DeviceService, public data: DataService, private route: ActivatedRoute, private renderer: Renderer2) { }
+  constructor(private devices: DeviceService, public data: DataService, private route: ActivatedRoute, private renderer: Renderer2, public logTranslate: LogTranslateService) { }
 
   editName() {
     this.editingName = true;
