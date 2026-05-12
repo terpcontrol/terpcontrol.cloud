@@ -1145,7 +1145,7 @@ bool httpGet(const std::string& url, std::string* response) {
 }
 
 bool parseSmartSocketIp(const std::string& body, std::string& socket_ip) {
-  DynamicJsonDocument response(256);
+  StaticJsonDocument<256> response;
   if(deserializeJson(response, body.c_str())) {
     return false;
   }

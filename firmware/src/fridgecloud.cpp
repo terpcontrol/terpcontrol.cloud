@@ -5,6 +5,7 @@
 #include <HTTPClient.h>
 #include <WiFiClient.h>
 #include <esp_task_wdt.h>
+#include <esp_system.h>
 
 #include "fridgecloud.h"
 #include "observeable.h"
@@ -27,6 +28,27 @@ namespace fg {
     time_t now;
     time(&now);
     return now;
+  }
+
+  // Short, stable identifier for esp_reset_reason() used in the
+  // 'message-device-booted:<reason>' log message so the cloud (and the user)
+  // can tell apart a brownout from a panic from a watchdog from a normal
+  // power-on. Keep these strings stable - the webapp translation key
+  // 'message-device-booted-text' interpolates them as {{value}}.
+  static const char* resetReasonStr(esp_reset_reason_t r) {
+    switch(r) {
+      case ESP_RST_POWERON:   return "POWERON";
+      case ESP_RST_EXT:       return "EXT";
+      case ESP_RST_SW:        return "SW";
+      case ESP_RST_PANIC:     return "PANIC";
+      case ESP_RST_INT_WDT:   return "INT_WDT";
+      case ESP_RST_TASK_WDT:  return "TASK_WDT";
+      case ESP_RST_WDT:       return "WDT";
+      case ESP_RST_DEEPSLEEP: return "DEEPSLEEP";
+      case ESP_RST_BROWNOUT:  return "BROWNOUT";
+      case ESP_RST_SDIO:      return "SDIO";
+      default:                return "UNKNOWN";
+    }
   }
 
   void Fridgecloud::init() {
@@ -101,7 +123,13 @@ namespace fg {
     client->setSocketTimeout(5);
     client->setWriteTimeout(5);
 
-    log("message-device-booted");
+    // Append the previous reboot reason so the cloud-side log distinguishes
+    // a normal POWERON from a TASK_WDT / PANIC / BROWNOUT etc. The webapp
+    // translates 'message-device-booted' and interpolates the suffix as
+    // {{value}} (see fridge overview template + i18n files).
+    std::string boot_msg = "message-device-booted:";
+    boot_msg += resetReasonStr(esp_reset_reason());
+    log(boot_msg);
   }
 
   void Fridgecloud::connect() {
@@ -136,7 +164,7 @@ namespace fg {
     esp_task_wdt_reset();
 
     client->subscribe(topic_fwupdate.c_str(), [&](const String & topic, const String & payload) {
-      DynamicJsonDocument doc(1024);
+      StaticJsonDocument<1024> doc;
       DeserializationError error = deserializeJson(doc, payload);
       if (error) {
         Serial.println("error parsing received command");
@@ -155,7 +183,7 @@ namespace fg {
     esp_task_wdt_reset();
 
     client->subscribe(topic_command.c_str(), [&](const String & topic, const String & payload) {
-      DynamicJsonDocument doc(1024);
+      StaticJsonDocument<1024> doc;
       DeserializationError error = deserializeJson(doc, payload);
       if (error) {
         Serial.println("error parsing received command");
@@ -340,7 +368,7 @@ namespace fg {
     }
   }
 
-  bool Fridgecloud::updateStatus(DynamicJsonDocument status) {
+  bool Fridgecloud::updateStatus(JsonDocument &status) {
     time_t now;
     struct tm * ptm;
     struct tm timeinfo;

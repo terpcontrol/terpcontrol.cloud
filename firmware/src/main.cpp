@@ -1,6 +1,8 @@
 #include <Ticker.h>
 #include <ArduinoJson.h>
 #include <esp_task_wdt.h>
+#include <esp_system.h>
+#include <WiFi.h>
 #include "soc/rtc_wdt.h"
 #include <sstream>
 
@@ -22,6 +24,29 @@ void automationTick();
 std::unique_ptr<fg::AutomationController> control;
 fg::UserInterface ui;
 fg::Fridgecloud fgc(ui);
+
+// Returns a short human-readable string for esp_reset_reason() so we can log
+// *why* the device rebooted (panic, task-watchdog, brownout, ...). Knowing the
+// cause is critical when debugging field reboots on devices with bad uplinks.
+static const char* resetReasonStr(esp_reset_reason_t r) {
+  switch(r) {
+    case ESP_RST_POWERON:   return "POWERON";
+    case ESP_RST_EXT:       return "EXT";
+    case ESP_RST_SW:        return "SW";
+    case ESP_RST_PANIC:     return "PANIC";
+    case ESP_RST_INT_WDT:   return "INT_WDT";
+    case ESP_RST_TASK_WDT:  return "TASK_WDT";
+    case ESP_RST_WDT:       return "WDT";
+    case ESP_RST_DEEPSLEEP: return "DEEPSLEEP";
+    case ESP_RST_BROWNOUT:  return "BROWNOUT";
+    case ESP_RST_SDIO:      return "SDIO";
+    default:                return "UNKNOWN";
+  }
+}
+
+// Last reset reason captured during setup() so we can publish it as part of
+// the health log once MQTT is up.
+static esp_reset_reason_t g_last_reset_reason = ESP_RST_UNKNOWN;
 
 #define ROTA 27
 #define ROTB 14
@@ -130,6 +155,20 @@ void setup()
   Serial.begin(115200);
   while (!Serial);
 
+  // Capture and print the reason for the previous reboot. This is the single
+  // most useful piece of diagnostic information when chasing field reboots:
+  // TASK_WDT means a stuck loop, PANIC means a crash/abort, BROWNOUT means
+  // a power-supply dip (very common on devices with a bad uplink where the
+  // radio TX power spikes draw current the supply can't deliver), POWERON
+  // means the device actually lost power.
+  g_last_reset_reason = esp_reset_reason();
+  Serial.printf("[boot] reset_reason=%s (%d)\n", resetReasonStr(g_last_reset_reason),
+                (int)g_last_reset_reason);
+  Serial.printf("[boot] heap free=%u largest_block=%u min_free=%u\n",
+                (unsigned)ESP.getFreeHeap(),
+                (unsigned)ESP.getMaxAllocHeap(),
+                (unsigned)ESP.getMinFreeHeap());
+
 
   control = createController(fgc);
   control->init();
@@ -173,6 +212,27 @@ void loop()
   try {
     static TickType_t last_controll_tick = 0;
     static TickType_t last_ui_tick = 0;
+    static TickType_t last_health_tick = 0;
+
+    // Periodic health diagnostics. Logging free heap + largest free block
+    // every 60s lets us correlate field reboots with heap exhaustion or
+    // fragmentation, and tracking RSSI helps confirm whether reboots
+    // correlate with bad RF conditions on flaky uplinks. The boot reason
+    // itself is pushed to the cloud via the existing 'message-device-booted'
+    // log from Fridgecloud::init() (now suffixed with ':<reason>').
+    static constexpr TickType_t HEALTH_TICK_INTERVAL = 60 * configTICK_RATE_HZ;
+    if((xTaskGetTickCount() - last_health_tick) > HEALTH_TICK_INTERVAL) {
+      last_health_tick = xTaskGetTickCount();
+      int8_t rssi = WiFi.isConnected() ? WiFi.RSSI() : 0;
+      Serial.printf("[health] uptime=%lus free=%u largest=%u min_free=%u rssi=%d reset=%s\n",
+                    (unsigned long)(millis() / 1000),
+                    (unsigned)ESP.getFreeHeap(),
+                    (unsigned)ESP.getMaxAllocHeap(),
+                    (unsigned)ESP.getMinFreeHeap(),
+                    (int)rssi,
+                    resetReasonStr(g_last_reset_reason));
+    }
+
     if((xTaskGetTickCount() - last_controll_tick) > CONTROL_TICK_INTERVAL) {
       last_controll_tick = xTaskGetTickCount();
 
