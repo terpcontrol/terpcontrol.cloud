@@ -181,6 +181,18 @@ public:
     _mqttConnected = false;
     _nextMqttConnectionAttemptMillis = millis() + _mqttReconnectionAttemptDelay;
   };
+
+  // Bound how long the MQTT layer (PubSubClient) may wait on a single
+  // socket read (CONNACK, keepalive PINGRESP, ...). Default is 15s which
+  // can easily exceed our 25s task watchdog when combined with other
+  // blocking calls in the same loop iteration.
+  inline void setSocketTimeout(uint16_t seconds) { _mqttClient.setSocketTimeout(seconds); };
+
+  // Bound how long the underlying WiFiClient may block while retrying a
+  // write that returns EAGAIN (full LWIP send buffer). Default is several
+  // seconds; lowering it prevents a single publish() from monopolising the
+  // loop when the TCP socket is wedged.
+  inline void setWriteTimeout(uint32_t milliseconds) { _wifiClient.setTimeout(milliseconds); };
   inline unsigned int getConnectionEstablishedCount() const { return _connectionEstablishedCount; }; // Return the number of time onConnectionEstablished has been called since the beginning.
 
   inline const char* getMqttClientName() { return _mqttClientName; };

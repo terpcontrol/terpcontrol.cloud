@@ -238,11 +238,20 @@ void wifiTick() {
   }
 
   if(smart_socket_outputs_reported) {
+    // Each of these may issue an HTTP request to a possibly-unreachable
+    // smart socket. Feed the WDT between them so a chain of timeouts does
+    // not panic the loop task.
+    esp_task_wdt_reset();
     syncSmartSocketRole("dehumidifier", smart_socket_output_states.dehumidifier_on, smart_socket_state_dehumidifier);
+    esp_task_wdt_reset();
     syncSmartSocketRole("heater", smart_socket_output_states.heater_on, smart_socket_state_heater);
+    esp_task_wdt_reset();
     syncSmartSocketRole("light", smart_socket_output_states.light_on, smart_socket_state_light);
+    esp_task_wdt_reset();
     syncSmartSocketRole("secondary_light", smart_socket_output_states.secondary_light_on, smart_socket_state_secondary_light);
+    esp_task_wdt_reset();
     syncSmartSocketRole("co2", smart_socket_output_states.co2_on, smart_socket_state_co2);
+    esp_task_wdt_reset();
   }
 }
 
@@ -1122,7 +1131,10 @@ bool httpGet(const std::string& url, std::string* response) {
     return false;
   }
 
-  http.setTimeout(5000);
+  // Bound both the TCP connect and the read so an unreachable smart-socket
+  // can never block the main loop long enough to trip the 25s task watchdog.
+  http.setConnectTimeout(3000);
+  http.setTimeout(3000);
   int code = http.GET();
   if(response != nullptr && code > 0) {
     *response = std::string(http.getString().c_str());

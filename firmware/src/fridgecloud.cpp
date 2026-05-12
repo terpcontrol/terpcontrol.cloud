@@ -89,6 +89,14 @@ namespace fg {
       device_id.c_str()     // Client name that uniquely identify your device
     ));
 
+    // Keep blocking I/O bounded so a wedged TCP socket can never starve the
+    // 25s task watchdog from inside client->loop() / publish().
+    // - PubSubClient socket timeout governs CONNACK and PINGRESP waits.
+    // - WiFiClient write timeout governs how long a single write() retries
+    //   while the LWIP send buffer is full (errno 11 EAGAIN).
+    client->setSocketTimeout(5);
+    client->setWriteTimeout(2000);
+
     log("message-device-booted");
   }
 
@@ -587,7 +595,12 @@ namespace fg {
           std::stringstream stream;
           serializeJson(message_json, stream);
 
+          // Each publish() can block for the configured WiFiClient write
+          // timeout. Feed the WDT between iterations so closing multiple
+          // tunnels at once can never trip the 25s task watchdog.
+          esp_task_wdt_reset();
           client->publish(topic_tunnel_read.c_str(), stream.str().c_str());
+          esp_task_wdt_reset();
         }
     }
   }
@@ -619,8 +632,15 @@ namespace fg {
               std::stringstream stream;
               serializeJson(message_json, stream);
 
-              if (!client->publish(topic_tunnel_read.c_str(), stream.str().c_str())) {
+              // Tunnel forwarding can issue up to TUNNEL_PACKET_PER_LOOP_COUNT
+              // publishes in a row; without WDT feeds between them a stuck
+              // socket would have the cumulative budget to reboot us.
+              esp_task_wdt_reset();
+              bool ok = client->publish(topic_tunnel_read.c_str(), stream.str().c_str());
+              esp_task_wdt_reset();
+              if (!ok) {
                 t.client.stop();
+                notePublishFailure();
                 break;
               }
 
