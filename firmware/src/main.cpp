@@ -148,7 +148,14 @@ void setup()
 
   attachInterrupt(BTN, isr2, CHANGE);
 
-  esp_task_wdt_init(25, true); //enable panic so ESP32 restarts
+  // Task watchdog. The 25s value used previously was too tight: on
+  // Arduino-ESP32 the WiFiClient::write() retry loop is hardcoded to up to
+  // 10 * 1s (WIFI_CLIENT_MAX_WRITE_RETRY) when the LWIP send buffer is
+  // full, and one MQTT publish issues several writes. The TCP-connect path
+  // (PubSubClient/HTTPClient) can also block for several seconds. Sizing
+  // the WDT at 60s gives ~2x headroom over the worst-case bounded blocking
+  // calls while still catching genuine hangs.
+  esp_task_wdt_init(60, true); //enable panic so ESP32 restarts
   esp_task_wdt_add(NULL); //add current thread to WDT watch
 
 

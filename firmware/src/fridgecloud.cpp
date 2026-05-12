@@ -90,12 +90,16 @@ namespace fg {
     ));
 
     // Keep blocking I/O bounded so a wedged TCP socket can never starve the
-    // 25s task watchdog from inside client->loop() / publish().
+    // task watchdog from inside client->loop() / publish().
     // - PubSubClient socket timeout governs CONNACK and PINGRESP waits.
-    // - WiFiClient write timeout governs how long a single write() retries
-    //   while the LWIP send buffer is full (errno 11 EAGAIN).
+    // - WiFiClient::setTimeout takes SECONDS on Arduino-ESP32 2.x (it
+    //   internally multiplies by 1000). Note: it only bounds the *initial*
+    //   select() in WiFiClient::write(); the EAGAIN retry loop is
+    //   hardcoded to WIFI_CLIENT_MAX_WRITE_RETRY (10) * 1s and CANNOT be
+    //   shortened from the application. That hardcoded budget is the
+    //   reason the task watchdog must be sized generously (see main.cpp).
     client->setSocketTimeout(5);
-    client->setWriteTimeout(2000);
+    client->setWriteTimeout(5);
 
     log("message-device-booted");
   }
