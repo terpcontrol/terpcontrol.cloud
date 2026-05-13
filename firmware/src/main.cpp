@@ -3,6 +3,7 @@
 #include <esp_task_wdt.h>
 #include <esp_system.h>
 #include <WiFi.h>
+#include <exception>
 #include "soc/rtc_wdt.h"
 #include <sstream>
 
@@ -47,6 +48,64 @@ static const char* resetReasonStr(esp_reset_reason_t r) {
 // Last reset reason captured during setup() so we can publish it as part of
 // the health log once MQTT is up.
 static esp_reset_reason_t g_last_reset_reason = ESP_RST_UNKNOWN;
+
+// Per-phase exception accounting. The previous bare catch(...) in loop()
+// swallowed *every* C++ exception with no clue about origin, type, or
+// system state. When a single phase starts throwing every tick (typical
+// symptom: std::bad_alloc from a JSON / std::stringstream allocation under
+// heap pressure) we want to know:
+//   - WHICH phase is throwing
+//   - WHAT type / message
+//   - what the heap looks like at the moment of the throw
+// without filling the serial port with thousands of identical lines per
+// second. So we count occurrences per phase and emit a diagnostic line
+// only on the first occurrence and then every Nth occurrence afterwards.
+struct PhaseStats {
+  const char* name;
+  uint32_t count;
+};
+
+static PhaseStats g_phase_stats[] = {
+  { "control.loop", 0 },
+  { "control.fastloop", 0 },
+  { "wifi.tick", 0 },
+  { "fgc.loop", 0 },
+};
+
+static void reportException(PhaseStats& phase, const char* what) {
+  ++phase.count;
+  // Print on first occurrence and then logarithmically (every 1, 2, 4, 8,
+  // 16, ... occurrences) so a sustained per-tick throw produces a manageable
+  // amount of output but we never miss the very first instance.
+  bool should_log = phase.count == 1 ||
+                    (phase.count & (phase.count - 1)) == 0;
+  if(!should_log) {
+    return;
+  }
+  Serial.printf("[exc] phase=%s n=%u what=%s free=%u largest=%u min_free=%u\n",
+                phase.name,
+                (unsigned)phase.count,
+                what ? what : "<unknown>",
+                (unsigned)ESP.getFreeHeap(),
+                (unsigned)ESP.getMaxAllocHeap(),
+                (unsigned)ESP.getMinFreeHeap());
+}
+
+// Run a phase callable, isolating it from the rest of the loop so one
+// failing subsystem cannot poison the others, and surface diagnostics that
+// the bare catch(...) used to throw away.
+template<typename F>
+static void runPhase(PhaseStats& phase, F&& fn) {
+  try {
+    fn();
+  }
+  catch(const std::exception& e) {
+    reportException(phase, e.what());
+  }
+  catch(...) {
+    reportException(phase, "non-std exception");
+  }
+}
 
 #define ROTA 27
 #define ROTB 14
@@ -209,71 +268,70 @@ void onConnectionEstablished()
 
 void loop()
 {
-  try {
-    static TickType_t last_controll_tick = 0;
-    static TickType_t last_ui_tick = 0;
-    static TickType_t last_health_tick = 0;
+  static TickType_t last_controll_tick = 0;
+  static TickType_t last_ui_tick = 0;
+  static TickType_t last_health_tick = 0;
 
-    // Periodic health diagnostics. Logging free heap + largest free block
-    // every 60s lets us correlate field reboots with heap exhaustion or
-    // fragmentation, and tracking RSSI helps confirm whether reboots
-    // correlate with bad RF conditions on flaky uplinks. The boot reason
-    // itself is pushed to the cloud via the existing 'message-device-booted'
-    // log from Fridgecloud::init() (now suffixed with ':<reason>').
-    static constexpr TickType_t HEALTH_TICK_INTERVAL = 60 * configTICK_RATE_HZ;
-    if((xTaskGetTickCount() - last_health_tick) > HEALTH_TICK_INTERVAL) {
-      last_health_tick = xTaskGetTickCount();
-      int8_t rssi = WiFi.isConnected() ? WiFi.RSSI() : 0;
-      Serial.printf("[health] uptime=%lus free=%u largest=%u min_free=%u rssi=%d reset=%s\n",
-                    (unsigned long)(millis() / 1000),
-                    (unsigned)ESP.getFreeHeap(),
-                    (unsigned)ESP.getMaxAllocHeap(),
-                    (unsigned)ESP.getMinFreeHeap(),
-                    (int)rssi,
-                    resetReasonStr(g_last_reset_reason));
+  // Periodic health diagnostics. Logging free heap + largest free block
+  // every 60s lets us correlate field reboots with heap exhaustion or
+  // fragmentation, and tracking RSSI helps confirm whether reboots
+  // correlate with bad RF conditions on flaky uplinks. The boot reason
+  // itself is pushed to the cloud via the existing 'message-device-booted'
+  // log from Fridgecloud::init() (now suffixed with ':<reason>').
+  static constexpr TickType_t HEALTH_TICK_INTERVAL = 60 * configTICK_RATE_HZ;
+  if((xTaskGetTickCount() - last_health_tick) > HEALTH_TICK_INTERVAL) {
+    last_health_tick = xTaskGetTickCount();
+    int8_t rssi = WiFi.isConnected() ? WiFi.RSSI() : 0;
+    Serial.printf("[health] uptime=%lus free=%u largest=%u min_free=%u rssi=%d reset=%s exc[cl=%u cfl=%u wt=%u fl=%u]\n",
+                  (unsigned long)(millis() / 1000),
+                  (unsigned)ESP.getFreeHeap(),
+                  (unsigned)ESP.getMaxAllocHeap(),
+                  (unsigned)ESP.getMinFreeHeap(),
+                  (int)rssi,
+                  resetReasonStr(g_last_reset_reason),
+                  (unsigned)g_phase_stats[0].count,
+                  (unsigned)g_phase_stats[1].count,
+                  (unsigned)g_phase_stats[2].count,
+                  (unsigned)g_phase_stats[3].count);
+  }
+
+  if((xTaskGetTickCount() - last_controll_tick) > CONTROL_TICK_INTERVAL) {
+    last_controll_tick = xTaskGetTickCount();
+    runPhase(g_phase_stats[0], []{ control->loop(); });
+  }
+
+  // Rotary input runs every iteration. Kept outside runPhase: the read is
+  // a single GPIO sample and cannot throw, and we don't want a UI/encoder
+  // bug to be silently swallowed.
+  static int8_t c,val;
+  if( val=read_rotary() ) {
+    if(val == -1) {
+      ui.prev();
     }
-
-    if((xTaskGetTickCount() - last_controll_tick) > CONTROL_TICK_INTERVAL) {
-      last_controll_tick = xTaskGetTickCount();
-
-      control->loop();
-    }
-
-    static int8_t c,val;
-    if( val=read_rotary() ) {
-      if(val == -1) {
-        ui.prev();
-      }
-      else {
-        ui.next();
-      }
-    }
-
-    if((xTaskGetTickCount() - last_ui_tick) > UI_TICK_INTERVAL) {
-      last_ui_tick = xTaskGetTickCount();
-
-      ui.loop();
-      ui.cleanup();
-      //updateWifiUi(&ui);
-    }
-
-    control->fastloop();
-
-    wifiTick();
-    if(wifiIsConnected()) {
-      fgc.loop();
-    }
-    esp_task_wdt_reset();
-
-    if(Serial.available()) {
-      if(Serial.read() == 'r') {
-        // Serial.println("factory reset");
-        // resetCredentials();
-        ESP.restart();
-      }
+    else {
+      ui.next();
     }
   }
-  catch(...) {
-    Serial.println("EXCEPTION DURING LOOP!!!");
+
+  if((xTaskGetTickCount() - last_ui_tick) > UI_TICK_INTERVAL) {
+    last_ui_tick = xTaskGetTickCount();
+    ui.loop();
+    ui.cleanup();
+    //updateWifiUi(&ui);
+  }
+
+  runPhase(g_phase_stats[1], []{ control->fastloop(); });
+  runPhase(g_phase_stats[2], []{ wifiTick(); });
+  if(wifiIsConnected()) {
+    runPhase(g_phase_stats[3], []{ fgc.loop(); });
+  }
+  esp_task_wdt_reset();
+
+  if(Serial.available()) {
+    if(Serial.read() == 'r') {
+      // Serial.println("factory reset");
+      // resetCredentials();
+      ESP.restart();
+    }
   }
 }
