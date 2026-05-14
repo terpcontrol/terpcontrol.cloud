@@ -272,20 +272,18 @@ void loop()
   static TickType_t last_ui_tick = 0;
   static TickType_t last_health_tick = 0;
 
-  // Periodic health diagnostics. Logging free heap + largest free block
-  // every 60s lets us correlate field reboots with heap exhaustion or
-  // fragmentation, and tracking RSSI helps confirm whether reboots
-  // correlate with bad RF conditions on flaky uplinks. The boot reason
-  // itself is pushed to the cloud via the existing 'message-device-booted'
-  // log from Fridgecloud::init() (now suffixed with ':<reason>').
   static constexpr TickType_t HEALTH_TICK_INTERVAL = 60 * configTICK_RATE_HZ;
+  static constexpr uint32_t LOW_HEAP_THRESHOLD = 25000;
+  static constexpr uint32_t LOW_HEAP_RESTART_TICKS = 5;
+  static uint32_t low_heap_ticks = 0;
   if((xTaskGetTickCount() - last_health_tick) > HEALTH_TICK_INTERVAL) {
     last_health_tick = xTaskGetTickCount();
     int8_t rssi = WiFi.isConnected() ? WiFi.RSSI() : 0;
+    uint32_t largest = ESP.getMaxAllocHeap();
     Serial.printf("[health] uptime=%lus free=%u largest=%u min_free=%u rssi=%d reset=%s exc[cl=%u cfl=%u wt=%u fl=%u]\n",
                   (unsigned long)(millis() / 1000),
                   (unsigned)ESP.getFreeHeap(),
-                  (unsigned)ESP.getMaxAllocHeap(),
+                  (unsigned)largest,
                   (unsigned)ESP.getMinFreeHeap(),
                   (int)rssi,
                   resetReasonStr(g_last_reset_reason),
@@ -293,6 +291,21 @@ void loop()
                   (unsigned)g_phase_stats[1].count,
                   (unsigned)g_phase_stats[2].count,
                   (unsigned)g_phase_stats[3].count);
+
+    if(largest < LOW_HEAP_THRESHOLD) {
+      ++low_heap_ticks;
+      Serial.printf("[health] low heap streak=%u/%u\n",
+                    (unsigned)low_heap_ticks,
+                    (unsigned)LOW_HEAP_RESTART_TICKS);
+      if(low_heap_ticks >= LOW_HEAP_RESTART_TICKS) {
+        Serial.println("[health] sustained low heap, restarting to recover");
+        Serial.flush();
+        ESP.restart();
+      }
+    }
+    else {
+      low_heap_ticks = 0;
+    }
   }
 
   if((xTaskGetTickCount() - last_controll_tick) > CONTROL_TICK_INTERVAL) {

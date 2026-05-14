@@ -25,6 +25,8 @@ namespace fg {
     static constexpr unsigned int SAMPLE_INTERVAL = 5;
     static constexpr unsigned int UPLOAD_INTERVAL = 1;
 
+    static constexpr unsigned int MAX_LOG_QUEUE_LEN = 32;
+
     std::unique_ptr<EspMQTTClient> client;
     std::queue<std::pair<std::string, unsigned int>> log_queue;
 

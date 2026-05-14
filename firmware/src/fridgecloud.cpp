@@ -30,11 +30,6 @@ namespace fg {
     return now;
   }
 
-  // Short, stable identifier for esp_reset_reason() used in the
-  // 'message-device-booted:<reason>' log message so the cloud (and the user)
-  // can tell apart a brownout from a panic from a watchdog from a normal
-  // power-on. Keep these strings stable - the webapp translation key
-  // 'message-device-booted-text' interpolates them as {{value}}.
   static const char* resetReasonStr(esp_reset_reason_t r) {
     switch(r) {
       case ESP_RST_POWERON:   return "POWERON";
@@ -111,22 +106,9 @@ namespace fg {
       device_id.c_str()     // Client name that uniquely identify your device
     ));
 
-    // Keep blocking I/O bounded so a wedged TCP socket can never starve the
-    // task watchdog from inside client->loop() / publish().
-    // - PubSubClient socket timeout governs CONNACK and PINGRESP waits.
-    // - WiFiClient::setTimeout takes SECONDS on Arduino-ESP32 2.x (it
-    //   internally multiplies by 1000). Note: it only bounds the *initial*
-    //   select() in WiFiClient::write(); the EAGAIN retry loop is
-    //   hardcoded to WIFI_CLIENT_MAX_WRITE_RETRY (10) * 1s and CANNOT be
-    //   shortened from the application. That hardcoded budget is the
-    //   reason the task watchdog must be sized generously (see main.cpp).
     client->setSocketTimeout(5);
     client->setWriteTimeout(5);
 
-    // Append the previous reboot reason so the cloud-side log distinguishes
-    // a normal POWERON from a TASK_WDT / PANIC / BROWNOUT etc. The webapp
-    // translates 'message-device-booted' and interpolates the suffix as
-    // {{value}} (see fridge overview template + i18n files).
     std::string boot_msg = "message-device-booted:";
     boot_msg += resetReasonStr(esp_reset_reason());
     log(boot_msg);
@@ -295,6 +277,9 @@ namespace fg {
   }
 
   void Fridgecloud::log(std::string message, unsigned int severity) {
+    if(log_queue.size() >= MAX_LOG_QUEUE_LEN) {
+      return;
+    }
     log_queue.push({message, severity});
   }
 

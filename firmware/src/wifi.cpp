@@ -1126,6 +1126,15 @@ std::string urlEncode(const std::string& value) {
 }
 
 bool httpGet(const std::string& url, std::string* response) {
+  static constexpr uint32_t HTTP_MIN_FREE_HEAP = 30000;
+  if(ESP.getFreeHeap() < HTTP_MIN_FREE_HEAP) {
+    Serial.printf("[httpGet] skip (low heap free=%u largest=%u): %s\n",
+                  (unsigned)ESP.getFreeHeap(),
+                  (unsigned)ESP.getMaxAllocHeap(),
+                  url.c_str());
+    return false;
+  }
+
   HTTPClient http;
   if(!http.begin(url.c_str())) {
     return false;
