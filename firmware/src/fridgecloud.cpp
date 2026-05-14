@@ -361,12 +361,12 @@ namespace fg {
 
     if(!custom_mqtt) {
       if(++current_sample >= SAMPLE_INTERVAL) {
-        if(status_buffer.size() > MAX_BUFFER_LEN) {
-          status_buffer.erase(status_buffer.begin());
+        if(status_buffer.size() >= MAX_BUFFER_LEN) {
           if(!overflow) {
             overflow = true;
             log("message-buffer-overflow", 1);
           }
+          return false;
         }
         else {
           overflow = false;
