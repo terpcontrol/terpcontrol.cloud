@@ -90,6 +90,8 @@ namespace fg {
     static constexpr uint8_t SENSOR_TYPE_SLAVE = 3;
 
     static constexpr float LIGHT_TEMP_HYST = 1.0f;
+    static constexpr float LIGHT_TEMP_OFF_OFFSET = 5.0f;
+    static constexpr float LIGHT_MIN_DIM = 0.15f;
     static constexpr float LIGHT_CONTROL_SPEED = 0.01f;
 
     static constexpr int CO2_SAMPLE_DELAY = 100;

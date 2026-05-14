@@ -210,7 +210,14 @@ namespace fg {
       float t_min = settings.day.temperature + LIGHT_TEMP_HYST;
       float t_max = t_min + LIGHT_TEMP_HYST;
 
-      float out = 1.0f - (state.temperature - t_min) / (t_max - t_min);
+      float out;
+      if (state.temperature > t_max + LIGHT_TEMP_OFF_OFFSET) {
+        out = 0.0f;
+      }
+      else {
+        out = 1.0f - (state.temperature - t_min) / (t_max - t_min) * (1.0f - LIGHT_MIN_DIM);
+        if (out < LIGHT_MIN_DIM) out = LIGHT_MIN_DIM;
+      }
 
       float max_out = 1.0f;
       if (xTaskGetTickCount() <= pause_until_tick) {
