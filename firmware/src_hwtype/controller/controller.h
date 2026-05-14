@@ -30,6 +30,7 @@ namespace fg {
 	  float maxDehumidifySeconds = 0;
       float targetHumidityDiff = 5.0;
       float useLongHumidityAvg = 1.0;
+      uint32_t minimalDehumidifierOffTime = 240;
     } daynight;
 
     struct {
@@ -93,7 +94,6 @@ namespace fg {
 
     static constexpr int CO2_SAMPLE_DELAY = 100;
     static constexpr int WARN_LEVEL_CO2_MIN = 100;
-    static constexpr int MINIMAL_DEHUMIDIFIER_OFF_TIME = 240;
 
     static constexpr double HEATER_MAX_TEMPERATURE = 80.0;
     static constexpr double HEATER_PID_P = 0.5;

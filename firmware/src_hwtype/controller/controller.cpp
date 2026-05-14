@@ -294,7 +294,7 @@ namespace fg {
           state.out_dehumidifier = 0;
     }
     else if(dehumidify && temperature_override) {
-      if(state.timeofday - turn_off_time > MINIMAL_DEHUMIDIFIER_OFF_TIME) {
+      if(state.timeofday - turn_off_time > settings.daynight.minimalDehumidifierOffTime) {
         state.out_dehumidifier = 1;
       }
     }
@@ -335,7 +335,7 @@ namespace fg {
       state.out_dehumidifier = 0;
     }
     else if(cool) {
-      if(state.timeofday - turn_off_time > MINIMAL_DEHUMIDIFIER_OFF_TIME) {
+      if(state.timeofday - turn_off_time > settings.daynight.minimalDehumidifierOffTime) {
         state.out_dehumidifier = 1;
       }
     }
@@ -430,6 +430,7 @@ namespace fg {
 	  loadIfAvaliable(new_settings.daynight.maxDehumidifySeconds, doc["daynight"]["maxDehumidifySeconds"]);
       loadIfAvaliable(new_settings.daynight.targetHumidityDiff, doc["daynight"]["targetHumidityDiff"]);
       loadIfAvaliable(new_settings.daynight.useLongHumidityAvg, doc["daynight"]["useLongHumidityAvg"]);
+      loadIfAvaliable(new_settings.daynight.minimalDehumidifierOffTime, doc["daynight"]["minimalDehumidifierOffTime"]);
       loadIfAvaliable(new_settings.co2.target, doc["co2"]["target"]);
       loadIfAvaliable(new_settings.day.temperature, doc["day"]["temperature"]);
       loadIfAvaliable(new_settings.day.humidity, doc["day"]["humidity"]);
@@ -449,6 +450,7 @@ namespace fg {
 	Serial.printf("new_settings.daynight.maxDehumidifySeconds: %lu\n\r", new_settings.daynight.maxDehumidifySeconds);
     Serial.printf("new_settings.daynight.targetHumidityDiff: %f\n\r", new_settings.daynight.targetHumidityDiff);
     Serial.printf("new_settings.daynight.useLongHumidityAvg: %f\n\r", new_settings.daynight.useLongHumidityAvg);
+    Serial.printf("new_settings.daynight.minimalDehumidifierOffTime: %lu\n\r", new_settings.daynight.minimalDehumidifierOffTime);
     Serial.printf("new_settings.co2.target: %.0f\n\r", new_settings.co2.target);
     Serial.printf("new_settings.day.temperature: %.2f\n\r", new_settings.day.temperature);
     Serial.printf("new_settings.day.humidity: %.0f\n\r", new_settings.day.humidity);
@@ -477,6 +479,7 @@ namespace fg {
 	doc["daynight"]["maxDehumidifySeconds"] = settings.daynight.maxDehumidifySeconds;
     doc["daynight"]["targetHumidityDiff"] = settings.daynight.targetHumidityDiff;
     doc["daynight"]["useLongHumidityAvg"] = settings.daynight.useLongHumidityAvg;
+    doc["daynight"]["minimalDehumidifierOffTime"] = settings.daynight.minimalDehumidifierOffTime;
     doc["co2"]["target"] = settings.co2.target;
     doc["day"]["temperature"] = settings.day.temperature;
     doc["day"]["humidity"] = settings.day.humidity;
