@@ -257,6 +257,31 @@
       </ion-item>
     </ng-container>
 
+    <ng-container *ngIf="cloudSettings?.betaFeatures">
+      <ion-item>
+        <ion-label>
+          {{'settings.minimalDehumidifierOffTime' | translate}}
+          <ion-button fill="clear" id="settings-minimalDehumidifierOffTime-popover">
+            <ion-icon name="help-circle-outline"></ion-icon>
+          </ion-button>
+        </ion-label>
+        <ion-button size="small" fill="clear" [hidden]="minimalDehumidifierOffTimeEditMode" (click)="minimalDehumidifierOffTimeEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
+        <ion-item lines="none">{{settings.daynight.minimalDehumidifierOffTime}} s</ion-item>
+        <ion-popover trigger="settings-minimalDehumidifierOffTime-popover" [dismissOnSelect]="true">
+          <ng-template>
+            <ion-content class="ion-padding">
+              {{'settings.minimalDehumidifierOffTimeHint' | translate}}
+            </ion-content>
+          </ng-template>
+        </ion-popover>
+      </ion-item>
+      <ion-item [hidden]="!minimalDehumidifierOffTimeEditMode">
+        <ion-button size="small" fill="clear" (click)="settings.daynight.minimalDehumidifierOffTime = settings.daynight.minimalDehumidifierOffTime - 10" [disabled]="settings.daynight.minimalDehumidifierOffTime <= 30"><ion-icon name="remove-circle"></ion-icon></ion-button>
+        <ion-range [(ngModel)]="settings.daynight.minimalDehumidifierOffTime" min="30" max="900" step="10" (ionChange)="onSettingsChanged()"></ion-range>
+        <ion-button size="small" fill="clear" (click)="settings.daynight.minimalDehumidifierOffTime = settings.daynight.minimalDehumidifierOffTime + 10" [disabled]="settings.daynight.minimalDehumidifierOffTime >= 900"><ion-icon name="add-circle"></ion-icon></ion-button>
+      </ion-item>
+    </ng-container>
+
   </ion-card-content>
 </ion-card>
 

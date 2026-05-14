@@ -328,7 +328,7 @@ namespace fg {
           state.out_dehumidifier = 0;
     }
     else if(dehumidify && temperature_override) {
-      if(state.timeofday - turn_off_time > MINIMAL_DEHUMIDIFIER_OFF_TIME) {
+      if(state.timeofday - turn_off_time > settings.daynight.minimalDehumidifierOffTime) {
         state.out_dehumidifier = 1;
       }
     }
@@ -366,7 +366,7 @@ namespace fg {
       state.out_dehumidifier = 0;
     }
     else if(cool) {
-      if(state.timeofday - turn_off_time > MINIMAL_DEHUMIDIFIER_OFF_TIME) {
+      if(state.timeofday - turn_off_time > settings.daynight.minimalDehumidifierOffTime) {
         state.out_dehumidifier = 1;
       }
     }
@@ -469,6 +469,7 @@ namespace fg {
       loadIfAvaliable(new_settings.daynight.targetHumidityDiff, doc["daynight"]["targetHumidityDiff"]);
       loadIfAvaliable(new_settings.daynight.useLongHumidityAvg, doc["daynight"]["useLongHumidityAvg"]);
       loadIfAvaliable(new_settings.daynight.linearChange, doc["daynight"]["linearChange"]);
+      loadIfAvaliable(new_settings.daynight.minimalDehumidifierOffTime, doc["daynight"]["minimalDehumidifierOffTime"]);
       loadIfAvaliable(new_settings.co2.target, doc["co2"]["target"]);
       loadIfAvaliable(new_settings.co2.sunsetOff, doc["co2"]["sunsetOff"]);
       loadIfAvaliable(new_settings.day.temperature, doc["day"]["temperature"]);
@@ -491,6 +492,7 @@ namespace fg {
     Serial.printf("new_settings.daynight.targetHumidityDiff: %f\n\r", new_settings.daynight.targetHumidityDiff);
     Serial.printf("new_settings.daynight.useLongHumidityAvg: %f\n\r", new_settings.daynight.useLongHumidityAvg);
     Serial.printf("new_settings.daynight.linearChange: %f\n\r", new_settings.daynight.linearChange);
+    Serial.printf("new_settings.daynight.minimalDehumidifierOffTime: %lu\n\r", new_settings.daynight.minimalDehumidifierOffTime);
     Serial.printf("new_settings.co2.target: %.0f\n\r", new_settings.co2.target);
     Serial.printf("new_settings.co2.sunsetOff: %.0f\n\r", new_settings.co2.sunsetOff);
     Serial.printf("new_settings.day.temperature: %.2f\n\r", new_settings.day.temperature);
@@ -518,6 +520,7 @@ namespace fg {
     doc["daynight"]["targetHumidityDiff"] = settings.daynight.targetHumidityDiff;
     doc["daynight"]["useLongHumidityAvg"] = settings.daynight.useLongHumidityAvg;
     doc["daynight"]["linearChange"] = settings.daynight.linearChange;
+    doc["daynight"]["minimalDehumidifierOffTime"] = settings.daynight.minimalDehumidifierOffTime;
     doc["co2"]["target"] = settings.co2.target;
     doc["co2"]["sunsetOff"] = settings.co2.sunsetOff;
     doc["day"]["temperature"] = settings.day.temperature;

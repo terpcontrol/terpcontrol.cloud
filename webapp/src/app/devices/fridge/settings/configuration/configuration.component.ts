@@ -48,6 +48,7 @@ export class FridgeSettingsConfigurationComponent implements OnChanges {
   public floatingLightDurationEditMode:boolean = false;
   public maxDehumidifySecondsEditMode:boolean = false;
   public targetHumidityDiffEditMode:boolean = false;
+  public minimalDehumidifierOffTimeEditMode:boolean = false;
 
   public changeWorkmode() {
     switch(this.settings.workmode) {
@@ -127,6 +128,7 @@ export class FridgeSettingsConfigurationComponent implements OnChanges {
         "targetHumidityDiff": device_settings?.daynight?.targetHumidityDiff ?? 5,
         "useLongHumidityAvg": device_settings?.daynight?.useLongHumidityAvg || false,
         "linearChange": device_settings?.daynight?.linearChange || false,
+        "minimalDehumidifierOffTime": device_settings?.daynight?.minimalDehumidifierOffTime ?? 240,
       },
       "day": {
         "humidity": device_settings?.day?.humidity ?? 60,
@@ -177,6 +179,7 @@ export class FridgeSettingsConfigurationComponent implements OnChanges {
         targetHumidityDiff: this.settings.daynight.targetHumidityDiff,
         useLongHumidityAvg: this.settings.daynight.useLongHumidityAvg,
         linearChange: this.settings.daynight.linearChange,
+        minimalDehumidifierOffTime: this.settings.daynight.minimalDehumidifierOffTime,
       },
 
       co2: {
