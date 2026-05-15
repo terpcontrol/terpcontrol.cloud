@@ -25,6 +25,9 @@
 #define WIFI_SCAN_TIMEOUT 30000
 
 static constexpr TickType_t SMART_SOCKET_RESEND_PERIOD = configTICK_RATE_HZ * 60;
+static constexpr TickType_t SMART_SOCKET_MIN_SEND_INTERVAL = configTICK_RATE_HZ * 30;
+static constexpr TickType_t SMART_SOCKET_FAILURE_BACKOFF = configTICK_RATE_HZ * 300;
+static constexpr uint8_t SMART_SOCKET_FAILURES_BEFORE_BACKOFF = 3;
 
 
 namespace fg {
@@ -176,6 +179,8 @@ struct SmartSocketSyncState {
   bool initialized = false;
   bool last_target = false;
   TickType_t last_send_tick = 0;
+  TickType_t disabled_until_tick = 0;
+  uint8_t consecutive_failures = 0;
 };
 
 static SmartSocketOutputStates smart_socket_output_states;
@@ -192,6 +197,8 @@ static void syncSmartSocketRole(const char* role, bool target_on, SmartSocketSyn
 bool initializeWifi() {
   WiFi.persistent(false);
   WiFi.disconnect();
+  WiFi.setAutoReconnect(true);
+  WiFi.setAutoConnect(true);
 
   //handleRoot();
 
@@ -217,6 +224,7 @@ bool initializeWifi() {
 
 void wifiTick() {
   static TickType_t last_conncheck = xTaskGetTickCount();
+  static TickType_t last_reconnect_attempt = 0;
 
   if(server_active) {
     try {
@@ -230,11 +238,37 @@ void wifiTick() {
   if(wifi_configured && xTaskGetTickCount() - last_conncheck > 30000) {
     last_conncheck = xTaskGetTickCount();
     if(!wifiIsConnected()) {
-      WiFi.mode(WIFI_OFF);
-      delay(100);
+      Serial.printf("[wifi] disconnected, status=%d\n", WiFi.status());
       WiFi.mode(WIFI_STA);
-      connectToWifi(primary_ssid, primary_password);
+      WiFi.setAutoReconnect(true);
+      WiFi.reconnect();
+      last_reconnect_attempt = xTaskGetTickCount();
     }
+    else if(last_reconnect_attempt > 0) {
+      Serial.println("[wifi] reconnected");
+      last_reconnect_attempt = 0;
+    }
+  }
+
+  // If the SDK auto-reconnect has not recovered after a while, restart the
+  // station interface and issue a fresh begin().  Keep this path infrequent:
+  // WiFi.begin() is blocking-ish and can starve other loop work if spammed.
+  if(wifi_configured && !wifiIsConnected() && last_reconnect_attempt > 0 &&
+     xTaskGetTickCount() - last_reconnect_attempt > 120000) {
+    Serial.println("[wifi] reconnect timeout, restarting STA");
+    WiFi.disconnect(false, false);
+    WiFi.mode(WIFI_OFF);
+    delay(100);
+    WiFi.mode(WIFI_STA);
+    WiFi.setAutoReconnect(true);
+    WiFi.setAutoConnect(true);
+    if(primary_password != "") {
+      WiFi.begin(primary_ssid.c_str(), primary_password.c_str());
+    }
+    else {
+      WiFi.begin(primary_ssid.c_str());
+    }
+    last_reconnect_attempt = xTaskGetTickCount();
   }
 
   if(smart_socket_outputs_reported) {
@@ -265,14 +299,39 @@ static void syncSmartSocketRole(const char* role, bool target_on, SmartSocketSyn
   bool state_changed = !role_state.initialized || role_state.last_target != target_on;
   bool periodic_resend = role_state.initialized && (now - role_state.last_send_tick >= SMART_SOCKET_RESEND_PERIOD);
 
+  if(role_state.disabled_until_tick > now) {
+    return;
+  }
+
   if(!state_changed && !periodic_resend) {
     return;
   }
 
+  // Do not hammer HTTP smart sockets when an output oscillates around its
+  // threshold (notably PID heater output >0 / ==0). During a bad uplink this
+  // quickly exhausts LWIP sockets/buffers and shows up as errno 11 / socket
+  // 105, followed by a LoadProhibited panic in WiFiClient/HTTPClient.
+  if(role_state.initialized && (now - role_state.last_send_tick < SMART_SOCKET_MIN_SEND_INTERVAL)) {
+    return;
+  }
+
   bool ok = sendSmartSocketPower(role, target_on);
-  if(!ok && smart_socket_cloud_handle != nullptr) {
-    std::string message = std::string("message-smart-socket-cmd-failed:") + role + ":" + (target_on ? "on" : "off");
-    smart_socket_cloud_handle->log(message, 1);
+  if(ok) {
+    role_state.consecutive_failures = 0;
+  }
+  else {
+    if(role_state.consecutive_failures < 255) {
+      ++role_state.consecutive_failures;
+    }
+    if(smart_socket_cloud_handle != nullptr) {
+      std::string message = std::string("message-smart-socket-cmd-failed:") + role + ":" + (target_on ? "on" : "off");
+      smart_socket_cloud_handle->log(message, 1);
+    }
+    if(role_state.consecutive_failures >= SMART_SOCKET_FAILURES_BEFORE_BACKOFF) {
+      Serial.printf("[smart-socket] backing off role=%s failures=%u\n", role, (unsigned)role_state.consecutive_failures);
+      role_state.disabled_until_tick = now + SMART_SOCKET_FAILURE_BACKOFF;
+      role_state.consecutive_failures = 0;
+    }
   }
   role_state.last_target = target_on;
   role_state.last_send_tick = now;
@@ -320,22 +379,32 @@ static void updateSmartSocketSyncStateForRole(const std::string& role) {
   if(role == "dehumidifier") {
     smart_socket_state_dehumidifier.last_send_tick = now;
     smart_socket_state_dehumidifier.initialized = true;
+    smart_socket_state_dehumidifier.consecutive_failures = 0;
+    smart_socket_state_dehumidifier.disabled_until_tick = 0;
   }
   else if(role == "heater") {
     smart_socket_state_heater.last_send_tick = now;
     smart_socket_state_heater.initialized = true;
+    smart_socket_state_heater.consecutive_failures = 0;
+    smart_socket_state_heater.disabled_until_tick = 0;
   }
   else if(role == "light") {
     smart_socket_state_light.last_send_tick = now;
     smart_socket_state_light.initialized = true;
+    smart_socket_state_light.consecutive_failures = 0;
+    smart_socket_state_light.disabled_until_tick = 0;
   }
   else if(role == "secondary_light") {
     smart_socket_state_secondary_light.last_send_tick = now;
     smart_socket_state_secondary_light.initialized = true;
+    smart_socket_state_secondary_light.consecutive_failures = 0;
+    smart_socket_state_secondary_light.disabled_until_tick = 0;
   }
   else if(role == "co2") {
     smart_socket_state_co2.last_send_tick = now;
     smart_socket_state_co2.initialized = true;
+    smart_socket_state_co2.consecutive_failures = 0;
+    smart_socket_state_co2.disabled_until_tick = 0;
   }
 }
 
@@ -840,9 +909,11 @@ bool connectToWifi(std::string ssid, std::string password) {
   Serial.print(F("Connecting to wifi network "));
   Serial.println(ssid.c_str());
   delay(1000);
+  WiFi.setAutoReconnect(true);
+  WiFi.setAutoConnect(true);
 
   if(wifiIsConnected()) {
-    WiFi.disconnect();
+    WiFi.disconnect(false, false);
     while(wifiIsConnected()) {
       vTaskDelay(1000 / portTICK_PERIOD_MS);
       status = WiFi.status();
@@ -881,15 +952,13 @@ bool connectToWifi(std::string ssid, std::string password) {
       default:
         Serial.println(F("Connection failed."));
         Serial.println(status);
-        WiFi.disconnect();
-        WiFi.setAutoConnect(false);
+        WiFi.disconnect(false, false);
         return false;
     }
 
     if(timeout++ > 1000) {
       Serial.println(F("Connection timeout."));
-      WiFi.disconnect();
-      WiFi.setAutoConnect(false);
+      WiFi.disconnect(false, false);
       return false;
     }
     delay(10);
@@ -1126,7 +1195,7 @@ std::string urlEncode(const std::string& value) {
 }
 
 bool httpGet(const std::string& url, std::string* response) {
-  static constexpr uint32_t HTTP_MIN_FREE_HEAP = 30000;
+  static constexpr uint32_t HTTP_MIN_FREE_HEAP = 45000;
   if(ESP.getFreeHeap() < HTTP_MIN_FREE_HEAP) {
     Serial.printf("[httpGet] skip (low heap free=%u largest=%u): %s\n",
                   (unsigned)ESP.getFreeHeap(),

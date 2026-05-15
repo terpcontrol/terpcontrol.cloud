@@ -4,6 +4,7 @@
 #include <EspMQTTClient.h>
 #include <HTTPClient.h>
 #include <WiFiClient.h>
+#include <WiFi.h>
 #include <esp_task_wdt.h>
 #include <esp_system.h>
 
@@ -347,9 +348,34 @@ namespace fg {
     // triggering the 25s task-watchdog reboot.
     if(++publish_failure_count >= MAX_PUBLISH_FAILURES) {
       Serial.println("forcing mqtt reconnect after repeated publish failures");
-      client->disconnect();
+      client->forceDisconnect();
+      // Repeated MQTT publish failures with errno 11 usually mean LWIP is
+      // out of socket/send buffers, not that the MQTT credentials are bad.
+      // Kick the station reconnect path so the TCP/IP stack gets a chance to
+      // release stale resources instead of keeping the half-dead socket alive.
+      if(WiFi.isConnected()) {
+        WiFi.disconnect(false, false);
+        WiFi.reconnect();
+      }
       publish_failure_count = 0;
       connected = false;
+    }
+  }
+
+  void Fridgecloud::resetConnection() {
+    Serial.println("resetting cloud connection");
+    connected = false;
+    publish_failure_count = 0;
+
+    for(auto &tunnel : tunnels) {
+      tunnel.client.stop();
+      tunnel.connectionId = "";
+      tunnel.sequence = 0;
+      tunnel.openedAt = 0;
+    }
+
+    if(client) {
+      client->forceDisconnect();
     }
   }
 

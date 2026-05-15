@@ -182,6 +182,15 @@ public:
     _nextMqttConnectionAttemptMillis = millis() + _mqttReconnectionAttemptDelay;
   };
 
+  // Hard-close the underlying TCP socket without writing an MQTT DISCONNECT
+  // packet. Use this when writes are already failing with EAGAIN/ENOMEM;
+  // PubSubClient::disconnect() itself may otherwise block/retry in write().
+  inline void forceDisconnect() {
+    _wifiClient.stop();
+    _mqttConnected = false;
+    _nextMqttConnectionAttemptMillis = millis() + _mqttReconnectionAttemptDelay;
+  };
+
   // Bound how long the MQTT layer (PubSubClient) may wait on a single
   // socket read (CONNACK, keepalive PINGRESP, ...). Default is 15s which
   // can easily exceed our 25s task watchdog when combined with other

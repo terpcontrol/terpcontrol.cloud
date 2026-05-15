@@ -271,18 +271,28 @@ void loop()
   static TickType_t last_controll_tick = 0;
   static TickType_t last_ui_tick = 0;
   static TickType_t last_health_tick = 0;
+  static bool last_wifi_connected = wifiIsConnected();
+
+  bool wifi_connected = wifiIsConnected();
+  if(wifi_connected != last_wifi_connected) {
+    Serial.printf("[wifi] state changed: %s\n", wifi_connected ? "connected" : "disconnected");
+    fgc.resetConnection();
+    last_wifi_connected = wifi_connected;
+  }
 
   static constexpr TickType_t HEALTH_TICK_INTERVAL = 60 * configTICK_RATE_HZ;
-  static constexpr uint32_t LOW_HEAP_THRESHOLD = 25000;
-  static constexpr uint32_t LOW_HEAP_RESTART_TICKS = 5;
+  static constexpr uint32_t LOW_LARGEST_BLOCK_THRESHOLD = 25000;
+  static constexpr uint32_t LOW_FREE_HEAP_THRESHOLD = 42000;
+  static constexpr uint32_t LOW_HEAP_RESTART_TICKS = 3;
   static uint32_t low_heap_ticks = 0;
   if((xTaskGetTickCount() - last_health_tick) > HEALTH_TICK_INTERVAL) {
     last_health_tick = xTaskGetTickCount();
     int8_t rssi = WiFi.isConnected() ? WiFi.RSSI() : 0;
+    uint32_t free = ESP.getFreeHeap();
     uint32_t largest = ESP.getMaxAllocHeap();
     Serial.printf("[health] uptime=%lus free=%u largest=%u min_free=%u rssi=%d reset=%s exc[cl=%u cfl=%u wt=%u fl=%u]\n",
                   (unsigned long)(millis() / 1000),
-                  (unsigned)ESP.getFreeHeap(),
+                  (unsigned)free,
                   (unsigned)largest,
                   (unsigned)ESP.getMinFreeHeap(),
                   (int)rssi,
@@ -292,7 +302,7 @@ void loop()
                   (unsigned)g_phase_stats[2].count,
                   (unsigned)g_phase_stats[3].count);
 
-    if(largest < LOW_HEAP_THRESHOLD) {
+    if(free < LOW_FREE_HEAP_THRESHOLD || largest < LOW_LARGEST_BLOCK_THRESHOLD) {
       ++low_heap_ticks;
       Serial.printf("[health] low heap streak=%u/%u\n",
                     (unsigned)low_heap_ticks,
@@ -335,9 +345,7 @@ void loop()
 
   runPhase(g_phase_stats[1], []{ control->fastloop(); });
   runPhase(g_phase_stats[2], []{ wifiTick(); });
-  if(wifiIsConnected()) {
-    runPhase(g_phase_stats[3], []{ fgc.loop(); });
-  }
+  runPhase(g_phase_stats[3], []{ fgc.loop(); });
   esp_task_wdt_reset();
 
   if(Serial.available()) {

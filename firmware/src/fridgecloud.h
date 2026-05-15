@@ -107,6 +107,7 @@ namespace fg {
     void updateConfig(const char* data);
     void log(std::string message, unsigned int severity = 0);
     void loop();
+    void resetConnection();
     void updateFirmware(std::string fw_id);
     void updateFirmwareFromUrl(std::string update_url);
     bool registerWithCloud(std::string url, std::string password);
