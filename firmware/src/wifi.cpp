@@ -352,6 +352,21 @@ std::string custom_mqtt_pass;
 std::string custom_mqtt_id;
 uint8_t custom_mqtt_enabled;
 
+// Tasmota PulseTime watchdog value per role. Values follow the Tasmota
+// encoding: 1..111 = 0.1s steps, 112..64900 = (value - 100) seconds.
+// The controller resends Power commands every ~60s, so the timeout has to
+// outlive normal operation but expire quickly enough to avoid damage when
+// the controller drops off the network. Each Power command restarts the
+// timer (per Tasmota docs).
+uint16_t socketRolePulseTimeValue(const std::string& role) {
+  if(role == "heater") return 400;            // 300s
+  if(role == "dehumidifier") return 700;      // 600s
+  if(role == "co2") return 220;               // 120s
+  if(role == "light") return 1900;            // 1800s
+  if(role == "secondary_light") return 1900;  // 1800s
+  return 400;                                 // 300s default
+}
+
 bool sendSmartSocketPower(const std::string& role, bool turn_on) {
   const std::string key = socketRoleKey(role);
   const std::string socket_ip = sanitizeSettingString(fg::settings().getStr(key.c_str()));
@@ -651,11 +666,36 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
     });
 
     menu->addOption("clear saved wifi", [ui](){
-      resetCredentials();
-      ui_handle->push<TextDisplay>("wifi connection cleared");
-      ui_handle->loop();
-      vTaskDelay(10000 / portTICK_PERIOD_MS);
-      ESP.restart();
+      auto perform_clear = []() {
+        resetCredentials();
+        ui_handle->push<TextDisplay>("wifi connection cleared");
+        ui_handle->loop();
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
+        ESP.restart();
+      };
+
+      bool any_socket_configured = false;
+      const std::vector<std::string>& roles = getSocketRolesList();
+      for(size_t i = 0; i < roles.size(); ++i) {
+        if(roles[i] == "back") continue;
+        if(isSocketRoleConnected(roles[i])) {
+          any_socket_configured = true;
+          break;
+        }
+      }
+
+      if(!any_socket_configured) {
+        perform_clear();
+        return;
+      }
+
+      std::vector<std::string> confirm_options = {"cancel", "clear anyway"};
+      ui_handle->push<fg::SelectInput>("sockets will be cleared", 0, confirm_options, [perform_clear](unsigned selected) {
+        ui_handle->pop();
+        if(selected == 1) {
+          perform_clear();
+        }
+      });
     });
 
 #ifdef ENABLE_CUSTOM_MQTT
@@ -1023,6 +1063,18 @@ void saveWifiCredentials() {
 
 void resetCredentials() {
   fg::settings().erase("pssid");
+
+  smart_socket_outputs_reported = false;
+  const std::vector<std::string>& roles = getSocketRolesList();
+  for(size_t i = 0; i < roles.size(); ++i) {
+    if(roles[i] == "back") continue;
+    fg::settings().erase(socketRoleKey(roles[i]).c_str());
+  }
+  fg::settings().erase("sock_oth1");
+  fg::settings().erase("sock_oth2");
+  fg::settings().erase("sock_oth3");
+  fg::settings().erase("sock_misc");
+
   fg::settings().commit();
 }
 
@@ -1357,9 +1409,12 @@ bool provisionSmartSocket(const std::string& socket_role, const std::string& hom
 
   emit_status("config socket...");
   delayWithWatchdog(2000);
+  const uint16_t pulse_value = socketRolePulseTimeValue(socket_role);
   std::string config_url = "http://192.168.4.1/cm?cmnd=Backlog%20"
                          + urlEncode("DeviceName " + socket_name + "; ")
                          + urlEncode("Hostname " + socket_name + "; ")
+                         + urlEncode("PowerOnState 0; ")
+                         + urlEncode("PulseTime " + std::to_string(pulse_value) + "; ")
                          + urlEncode("WiFiTest2 " + home_ssid_clean + "+" + home_password_clean + "; ")
                          + urlEncode("WebPassword " + mqtt_password);
 
