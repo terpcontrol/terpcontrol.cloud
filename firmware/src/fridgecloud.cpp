@@ -46,6 +46,18 @@ namespace fg {
     }
   }
 
+  static String trimFirmwareVersion(const char* version) {
+    String trimmed = version ? version : "";
+    trimmed.trim();
+    return trimmed;
+  }
+
+  static String trimFirmwareVersion(const String& version) {
+    String trimmed = version;
+    trimmed.trim();
+    return trimmed;
+  }
+
   void Fridgecloud::init() {
 
     SettingsManager provisioning(NVS_PART, "fg_provisioning");
@@ -134,12 +146,13 @@ namespace fg {
     esp_task_wdt_reset();
 
     client->subscribe(topic_firmware.c_str(), [&](const String & topic, const String & payload) {
-      Serial.println("loading firmware: " + payload);
+      String firmwareVersion = trimFirmwareVersion(payload);
+      Serial.println("loading firmware: " + firmwareVersion);
 #ifndef NO_FIRMWARE_UPDATE
-      if(payload != FIRMWARE_VERSION) {
+      if(firmwareVersion.length() > 0 && firmwareVersion != FIRMWARE_VERSION) {
         log("message-device-firmware-update");
         update_subject.next(true);
-        updateFirmware(payload.c_str());
+        updateFirmware(firmwareVersion.c_str());
       }
 #endif
     });
@@ -153,9 +166,10 @@ namespace fg {
         return;
       }
 
-      Serial.printf("loading firmware: %s\n\r", doc["version"]);
+      String firmwareVersion = trimFirmwareVersion(doc["version"] | "");
+      Serial.printf("loading firmware: %s\n\r", firmwareVersion.c_str());
 #ifndef NO_FIRMWARE_UPDATE
-      if(doc["version"] != FIRMWARE_VERSION) {
+      if(firmwareVersion.length() > 0 && firmwareVersion != FIRMWARE_VERSION) {
         log("message-device-firmware-update");
         update_subject.next(true);
         updateFirmwareFromUrl(doc["url"]);
@@ -686,4 +700,3 @@ namespace fg {
       }
   }
 }
-

@@ -29,6 +29,7 @@ export type StatusMessage = {
 const UPGRADE_TIMEOUT: number = 10 * 60 * 1000;
 const UPGRADE_INSTRUCTION_DELAY: number = 30 * 1000;
 export const ONLINE_TIMEOUT: number = 10 * 60 * 1000;
+const MAX_OTA_FIRMWARE_BINARY_BYTES = 2 * 1024 * 1024;
 
 const minimal_classes = [
   {
@@ -1072,9 +1073,14 @@ class DeviceService {
 
   public async createFirmware(classname: string, version: string): Promise<DeviceFirmware> {
     const deviceclass = await deviceClassModel.findOne({ name: classname });
+    if (!deviceclass) {
+      throw new HttpException(404, 'Class not found');
+    }
+
     return await deviceFirmwareModel.create({
       firmware_id: uuidv4(),
       class_id: deviceclass.class_id,
+      name: classname,
       version: version,
     });
   }
@@ -1085,11 +1091,28 @@ class DeviceService {
   }
 
   public async createFirmwareBinary(fw_id: string, name: string, data: Buffer): Promise<DeviceFirmwareBinary> {
-    return await deviceFirmwareBinaryModel.create({
-      firmware_id: fw_id,
-      name: name,
-      data: data,
-    });
+    if (name === 'firmware.bin' && data.length > MAX_OTA_FIRMWARE_BINARY_BYTES) {
+      throw new HttpException(
+        413,
+        `Firmware binary is ${data.length} bytes, exceeding the ${MAX_OTA_FIRMWARE_BINARY_BYTES} byte OTA partition limit`,
+      );
+    }
+
+    const binary = await deviceFirmwareBinaryModel.findOneAndUpdate(
+      { firmware_id: fw_id, name: name },
+      {
+        firmware_id: fw_id,
+        name: name,
+        data: data,
+      },
+      { new: true, upsert: true },
+    );
+
+    if (!binary) {
+      throw new HttpException(500, 'Could not store firmware binary');
+    }
+
+    return binary;
   }
 
   public async findFirmwareByNameVersion(name: string, version: string): Promise<DeviceFirmware> {
