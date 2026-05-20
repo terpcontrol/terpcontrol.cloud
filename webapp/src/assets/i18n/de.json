@@ -460,6 +460,8 @@
   "message-maintenance-mode-activated-remote-text": "Das Modul wurde über das Portal manuell für {{value}} Minuten in den Pflegemodus versetzt. Alarme werden während dieser Zeit deaktiviert.",
   "message-firmware-update-complete-title": "Firmware-Update abgeschlossen",
   "message-firmware-update-complete-text": "Die Firmware deines Geräts wurde erfolgreich aktualisiert.",
+  "message-firmware-update-complete-with-ids-title": "Firmware-Update abgeschlossen",
+  "message-firmware-update-complete-with-ids-text": "Die Firmware deines Geräts wurde erfolgreich aktualisiert: {{value}}",
   "message-recipe-step-awaiting-confirmation-title": "Rezeptschritt wartet auf Bestätigung",
   "message-recipe-step-awaiting-confirmation-text": "Rezeptschritt {{value}} wartet auf Bestätigung.",
   "message-recipe-advanced-title": "Rezept fortgeschritten",

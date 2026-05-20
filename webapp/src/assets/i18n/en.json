@@ -478,6 +478,8 @@
   "message-maintenance-mode-activated-remote-text": "Your device was manually put into maintenance mode for {{value}} minutes via the portal. Alarms will be disabled during this time",
   "message-firmware-update-complete-title": "Firmware update complette",
   "message-firmware-update-complete-text": "You device's firmware update was completed",
+  "message-firmware-update-complete-with-ids-title": "Firmware update complete",
+  "message-firmware-update-complete-with-ids-text": "Your device's firmware update was completed: {{value}}",
   "message-recipe-step-awaiting-confirmation-title": "Recipe step awaiting confirmation",
   "message-recipe-step-awaiting-confirmation-text": "Recipe step {{value}} is awaiting confirmation.",
   "message-recipe-advanced-title": "Recipe advanced",
