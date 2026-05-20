@@ -40,6 +40,10 @@ export class AddDeviceClassDto {
   @IsString()
   @IsOptional()
   public beta_firmware_id: string;
+
+  @IsString()
+  @IsOptional()
+  public alpha_firmware_id: string;
 }
 
 export class AddDeviceFirmwareDto {

@@ -30,6 +30,10 @@ const deviceClassSchema: Schema = new Schema({
     type: String,
     required: false,
   },
+  alpha_firmware_id: {
+    type: String,
+    required: false,
+  },
 });
 
 const deviceClassModel = model<DeviceClass & Document>('DeviceClass', deviceClassSchema);

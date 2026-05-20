@@ -206,7 +206,15 @@ class DeviceController {
   public createClass = async (req: any, res: Response, next: NextFunction) => {
     try {
       const class_info: AddDeviceClassDto = req.body;
-      await deviceService.createClass(class_info.name, class_info.description, class_info.concurrent, class_info.maxfails, class_info.firmware_id);
+      await deviceService.createClass(
+        class_info.name,
+        class_info.description,
+        class_info.concurrent,
+        class_info.maxfails,
+        class_info.firmware_id,
+        class_info.beta_firmware_id,
+        class_info.alpha_firmware_id,
+      );
       res.status(200).json({ status: 'ok' });
     } catch (error) {
       console.log(error);
@@ -225,6 +233,7 @@ class DeviceController {
         class_info.maxfails,
         class_info.firmware_id,
         class_info.beta_firmware_id,
+        class_info.alpha_firmware_id,
       );
       res.status(200).json({ status: 'ok' });
     } catch (error) {

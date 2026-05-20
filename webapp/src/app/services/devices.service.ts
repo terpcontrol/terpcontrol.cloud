@@ -56,12 +56,22 @@ export class DeviceAdminService {
         maxfails: parseInt(maxfails + ''),
         firmware_id,
         beta_firmware_id: firmware_id,
+        alpha_firmware_id: firmware_id,
       }
     ))
     return device_class;
   }
 
-  public async updateClass(class_id: string, name:string, description: string, concurrent: number, maxfails: number, firmware_id:string, beta_firmware_id:string) {
+  public async updateClass(
+    class_id: string,
+    name:string,
+    description: string,
+    concurrent: number,
+    maxfails: number,
+    firmware_id:string,
+    beta_firmware_id:string,
+    alpha_firmware_id:string,
+  ) {
     let device_class = await firstValueFrom( this.http.post<DeviceClass>(
       environment.API_URL + '/device/class/' + class_id,
       {
@@ -71,6 +81,7 @@ export class DeviceAdminService {
         maxfails: parseInt(maxfails + ''),
         firmware_id,
         beta_firmware_id,
+        alpha_firmware_id,
       }
     ) )
     return device_class;

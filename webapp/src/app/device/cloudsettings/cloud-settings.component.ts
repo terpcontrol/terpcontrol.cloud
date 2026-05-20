@@ -1,4 +1,4 @@
-import {Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output} from "@angular/core";
+import {Component, EventEmitter, Input, OnChanges, Output} from "@angular/core";
 import {ToastController} from "@ionic/angular";
 import {DeviceService} from "../../services/devices.service";
 import {Router} from "@angular/router";
@@ -8,7 +8,7 @@ import {Router} from "@angular/router";
   templateUrl: './cloud-settings.component.html',
   styleUrls: ['./cloud-settings.component.scss'],
 })
-export class CloudSettingsComponent {
+export class CloudSettingsComponent implements OnChanges {
   @Input() cloudSettings: any;
 
   @Input() deviceId: string = '';
@@ -17,15 +17,51 @@ export class CloudSettingsComponent {
 
   constructor(private toastController: ToastController, private devices: DeviceService, private router: Router) {}
 
+  ngOnChanges() {
+    this.ensureDefaultFirmwareChannel();
+  }
+
+  onAutoFirmwareUpdateChanged() {
+    this.ensureDefaultFirmwareChannel();
+    this.cloudSettingsChange.emit(this.cloudSettings);
+    void this.onFirmwareUpdateChanged();
+  }
+
+  onBetaFeaturesChanged() {
+    if (this.cloudSettings.firmwareChannel !== 'alpha') {
+      this.cloudSettings.firmwareChannel = this.defaultFirmwareChannel();
+    }
+    this.cloudSettingsChange.emit(this.cloudSettings);
+    void this.onFirmwareUpdateChanged();
+  }
+
   async onFirmwareUpdateChanged() {
-    if (this.cloudSettings.autoFirmwareUpdate && this.cloudSettings.betaFeatures) {
+    if (this.cloudSettings.autoFirmwareUpdate && this.cloudSettings.firmwareChannel && this.cloudSettings.firmwareChannel !== 'stable') {
       const toast = await this.toastController.create({
-        message: 'Caution: After saving, your module will automatically update to the latest beta firmware',
+        message: `Caution: After saving, your module will automatically update to the latest ${this.cloudSettings.firmwareChannel} firmware`,
         duration: 10000,
         position: 'top',
       });
       await toast.present();
     }
+  }
+
+  private ensureDefaultFirmwareChannel() {
+    if (!this.cloudSettings) {
+      return;
+    }
+
+    if (!this.isFirmwareChannel(this.cloudSettings?.firmwareChannel)) {
+      this.cloudSettings.firmwareChannel = this.defaultFirmwareChannel();
+    }
+  }
+
+  private defaultFirmwareChannel() {
+    return this.cloudSettings?.betaFeatures ? 'beta' : 'stable';
+  }
+
+  private isFirmwareChannel(channel: unknown) {
+    return channel === 'stable' || channel === 'beta' || channel === 'alpha';
   }
 
   async deleteDevice() {

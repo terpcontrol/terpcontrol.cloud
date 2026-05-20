@@ -107,8 +107,19 @@
       <ion-label>{{'settings.autoFirmwareUpdate' | translate}}</ion-label>
       <ion-checkbox
         [(ngModel)]="cloudSettings.autoFirmwareUpdate"
-        (ngModelChange)="cloudSettingsChange.emit(cloudSettings); onFirmwareUpdateChanged()"
+        (ngModelChange)="onAutoFirmwareUpdateChanged()"
       ></ion-checkbox>
+    </ion-item>
+    <ion-item lines="none" *ngIf="cloudSettings.autoFirmwareUpdate">
+      <ion-label>{{'settings.firmwareChannel' | translate}}</ion-label>
+      <ion-select
+        [(ngModel)]="cloudSettings.firmwareChannel"
+        (ngModelChange)="cloudSettingsChange.emit(cloudSettings); onFirmwareUpdateChanged()"
+        class="ion-text-right">
+        <ion-select-option value="stable">{{'settings.firmwareChannels.stable' | translate}}</ion-select-option>
+        <ion-select-option value="beta">{{'settings.firmwareChannels.beta' | translate}}</ion-select-option>
+        <ion-select-option value="alpha">{{'settings.firmwareChannels.alpha' | translate}}</ion-select-option>
+      </ion-select>
     </ion-item>
     <ion-item lines="none">
       <ion-label>
@@ -133,7 +144,7 @@
       <ion-label>{{'settings.betaFeatures' | translate}}</ion-label>
       <ion-checkbox
         [(ngModel)]="cloudSettings.betaFeatures"
-        (ngModelChange)="cloudSettingsChange.emit(cloudSettings); onFirmwareUpdateChanged()"
+        (ngModelChange)="onBetaFeaturesChanged()"
       ></ion-checkbox>
     </ion-item>
     <ion-item-divider />

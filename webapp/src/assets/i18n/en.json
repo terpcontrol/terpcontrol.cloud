@@ -112,6 +112,12 @@
     "vpdLeafTempOffsetDay": "Day VPD leaf temp. offset",
     "vpdLeafTempOffsetNight": "Night VPD leaf temp. offset",
     "autoFirmwareUpdate": "Automatic Firmware Updates",
+    "firmwareChannel": "Firmware channel",
+    "firmwareChannels": {
+      "stable": "Stable",
+      "beta": "Beta (early testers)",
+      "alpha": "Alpha (experimental)"
+    },
     "betaFeatures": "Beta features",
     "publicRead": "Public read",
     "publicReadHint": "If enabled, other people can view the charts page, diary page, and all webcam images when they have the link.",

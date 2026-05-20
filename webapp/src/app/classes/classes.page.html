@@ -35,6 +35,10 @@
           <ion-col>{{cls.class.firmware_id}}</ion-col>
         </ion-row>
         <ion-row>
+          <ion-col>Alpha Firmware:</ion-col>
+          <ion-col><ion-input label="alpha firmware" [(ngModel)]="cls.class.alpha_firmware_id"></ion-input></ion-col>
+        </ion-row>
+        <ion-row>
           <ion-col>
             <ion-button color="secondary" (click)="updateClass(cls.class);">update</ion-button>
           </ion-col>
@@ -51,12 +55,14 @@
           <ion-col>avg</ion-col>
           <ion-col>max</ion-col>
           <ion-col>beta</ion-col>
+          <ion-col>alpha</ion-col>
           <ion-col>rollout</ion-col>
           <ion-col>delete</ion-col>
         </ion-row>
         <ion-row *ngFor="let fw of cls.versions"
-                 [class.active]="fw.fw.firmware_id == cls.class.firmware_id"
-                 [class.beta]="fw.fw.firmware_id != cls.class.firmware_id && fw.fw.firmware_id == cls.class.beta_firmware_id">
+                  [class.active]="fw.fw.firmware_id == cls.class.firmware_id"
+                  [class.beta]="fw.fw.firmware_id != cls.class.firmware_id && fw.fw.firmware_id == cls.class.beta_firmware_id"
+                  [class.alpha]="fw.fw.firmware_id != cls.class.firmware_id && fw.fw.firmware_id == cls.class.alpha_firmware_id">
           <ion-col size="3">{{fw.fw.firmware_id || "unknown"}}</ion-col>
           <ion-col>{{fw.fw.version}}</ion-col>
           <ion-col>{{fw.online}}</ion-col>
@@ -69,10 +75,20 @@
             <ion-button
               *ngIf="fw.fw.firmware_id"
               color="secondary"
-              (click)="rollout(cls.class, fw.fw.firmware_id, true);"
+              (click)="rollout(cls.class, fw.fw.firmware_id, 'beta');"
               [disabled]="fw.fw.deleted || fw.fw.firmware_id === cls.class.beta_firmware_id"
             >
               beta
+            </ion-button>
+          </ion-col>
+          <ion-col>
+            <ion-button
+              *ngIf="fw.fw.firmware_id"
+              color="secondary"
+              (click)="rollout(cls.class, fw.fw.firmware_id, 'alpha');"
+              [disabled]="fw.fw.deleted || fw.fw.firmware_id === cls.class.alpha_firmware_id"
+            >
+              alpha
             </ion-button>
           </ion-col>
           <ion-col>

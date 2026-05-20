@@ -1,4 +1,13 @@
-import { Alarm, CloudSettings, Device, DeviceAccessInfo, DeviceClass, DeviceFirmware, DeviceFirmwareBinary } from '@fg2/shared-types';
+import {
+  Alarm,
+  CloudSettings,
+  Device,
+  DeviceAccessInfo,
+  DeviceClass,
+  DeviceFirmware,
+  DeviceFirmwareBinary,
+  FirmwareChannel,
+} from '@fg2/shared-types';
 import deviceModel from '@models/device.model';
 import deviceLogModel from '@models/devicelog.model';
 import deviceClassModel from '@/models/deviceclass.model';
@@ -205,17 +214,48 @@ class DeviceService {
   private async findUpgradeableDevices() {
     const classes = await deviceClassModel.find();
     for (const device_class of classes) {
-      await this.findUpgradeableDevicesByClass(device_class, device_class.firmware_id, { 'cloudSettings.betaFeatures': { $ne: true } });
+      await this.findUpgradeableDevicesByClass(device_class, device_class.firmware_id, this.firmwareChannelQuery('stable'));
       if (device_class.beta_firmware_id) {
-        await this.findUpgradeableDevicesByClass(device_class, device_class.beta_firmware_id, { 'cloudSettings.betaFeatures': true });
+        await this.findUpgradeableDevicesByClass(device_class, device_class.beta_firmware_id, this.firmwareChannelQuery('beta'));
+      }
+      if (device_class.alpha_firmware_id) {
+        await this.findUpgradeableDevicesByClass(device_class, device_class.alpha_firmware_id, this.firmwareChannelQuery('alpha'));
       }
     }
   }
 
+  private firmwareChannelQuery(channel: FirmwareChannel): object {
+    if (channel === 'stable') {
+      return {
+        $or: [
+          { 'cloudSettings.firmwareChannel': 'stable' },
+          {
+            'cloudSettings.firmwareChannel': { $exists: false },
+            'cloudSettings.betaFeatures': { $ne: true },
+          },
+        ],
+      };
+    }
+
+    if (channel === 'beta') {
+      return {
+        $or: [
+          { 'cloudSettings.firmwareChannel': 'beta' },
+          {
+            'cloudSettings.firmwareChannel': { $exists: false },
+            'cloudSettings.betaFeatures': true,
+          },
+        ],
+      };
+    }
+
+    return { 'cloudSettings.firmwareChannel': channel };
+  }
+
   private async findUpgradeableDevicesByClass(
-    device_class: Omit<DeviceClass, 'firmware_id' | 'beta_firmware_id'>,
+    device_class: Omit<DeviceClass, 'firmware_id' | 'beta_firmware_id' | 'alpha_firmware_id'>,
     firmwareId: string,
-    addtionalQueryConditions?: object,
+    additionalQueryConditions?: object,
   ) {
     const currently_upgrading = await deviceModel
       .where({
@@ -223,7 +263,7 @@ class DeviceService {
         class_id: device_class.class_id,
         current_firmware: { $ne: firmwareId },
         fwupdate_start: { $gte: Date.now() - UPGRADE_TIMEOUT },
-        ...addtionalQueryConditions,
+        ...(additionalQueryConditions ? { $and: [additionalQueryConditions] } : {}),
       })
       .countDocuments();
 
@@ -233,7 +273,7 @@ class DeviceService {
         class_id: device_class.class_id,
         current_firmware: { $ne: firmwareId },
         fwupdate_start: { $lte: Date.now() - UPGRADE_TIMEOUT },
-        ...addtionalQueryConditions,
+        ...(additionalQueryConditions ? { $and: [additionalQueryConditions] } : {}),
       })
       .countDocuments();
 
@@ -243,8 +283,10 @@ class DeviceService {
           lastseen: { $gte: Date.now() - ONLINE_TIMEOUT },
           class_id: device_class.class_id,
           pending_firmware: { $ne: firmwareId },
-          $or: [{ 'firmwareSettings.autoUpdate': true }, { 'cloudSettings.autoFirmwareUpdate': true }],
-          ...addtionalQueryConditions,
+          $and: [
+            { $or: [{ 'firmwareSettings.autoUpdate': true }, { 'cloudSettings.autoFirmwareUpdate': true }] },
+            ...(additionalQueryConditions ? [additionalQueryConditions] : []),
+          ],
         })
         .limit(device_class.concurrent - currently_upgrading);
 
@@ -893,9 +935,14 @@ class DeviceService {
       throw new HttpException(404, 'Device not found or access denied');
     }
 
-    device.cloudSettings = settings;
+    const normalizedSettings = this.normalizeCloudSettings(settings);
+    if (!this.isFirmwareChannel(normalizedSettings.firmwareChannel)) {
+      throw new HttpException(400, 'Invalid firmware channel');
+    }
 
-    await deviceModel.updateOne({ device_id: device_id }, { cloudSettings: settings, firmwareSettings: {} });
+    device.cloudSettings = normalizedSettings;
+
+    await deviceModel.updateOne({ device_id: device_id }, { cloudSettings: normalizedSettings, firmwareSettings: {} });
     imageService.reportDeviceConfigured(device_id);
   }
 
@@ -921,6 +968,10 @@ class DeviceService {
   private normalizeCloudSettings(cloudSettings: CloudSettings | undefined, firmwareSettings?: { autoUpdate?: boolean }) {
     const settings: CloudSettings = cloudSettings ?? { autoFirmwareUpdate: firmwareSettings?.autoUpdate ?? false };
 
+    if (settings.firmwareChannel === undefined) {
+      settings.firmwareChannel = settings.betaFeatures ? 'beta' : 'stable';
+    }
+
     if (settings.publicRead === undefined) {
       settings.publicRead = false;
     }
@@ -942,6 +993,10 @@ class DeviceService {
     }
 
     return settings;
+  }
+
+  private isFirmwareChannel(channel: unknown): channel is FirmwareChannel {
+    return channel === 'stable' || channel === 'beta' || channel === 'alpha';
   }
 
   public async getDeviceCloudSettings(device_id: string) {
@@ -1002,7 +1057,15 @@ class DeviceService {
     return classes;
   }
 
-  public async createClass(name: string, description: string, concurrent: number, maxfails: number, firmware_id: string): Promise<DeviceClass> {
+  public async createClass(
+    name: string,
+    description: string,
+    concurrent: number,
+    maxfails: number,
+    firmware_id: string,
+    beta_firmware_id?: string,
+    alpha_firmware_id?: string,
+  ): Promise<DeviceClass> {
     const device_class: DeviceClass = {
       class_id: uuidv4(),
       name: name,
@@ -1010,6 +1073,8 @@ class DeviceService {
       concurrent: concurrent,
       maxfails: maxfails,
       firmware_id: firmware_id,
+      beta_firmware_id,
+      alpha_firmware_id,
     };
 
     await deviceClassModel.create(device_class);
@@ -1050,19 +1115,26 @@ class DeviceService {
     concurrent: number,
     maxfails: number,
     firmware_id: string,
-    beta_firmware_id: string,
+    beta_firmware_id?: string,
+    alpha_firmware_id?: string,
   ): Promise<DeviceClass> {
-    const update = await deviceClassModel.findOneAndUpdate(
-      { class_id: class_id },
-      {
-        name,
-        description,
-        concurrent,
-        maxfails,
-        firmware_id,
-        beta_firmware_id,
-      },
-    );
+    const updateClass: Partial<DeviceClass> = {
+      name,
+      description,
+      concurrent,
+      maxfails,
+      firmware_id,
+    };
+
+    if (beta_firmware_id !== undefined) {
+      updateClass.beta_firmware_id = beta_firmware_id;
+    }
+
+    if (alpha_firmware_id !== undefined) {
+      updateClass.alpha_firmware_id = alpha_firmware_id;
+    }
+
+    const update = await deviceClassModel.findOneAndUpdate({ class_id: class_id }, updateClass);
 
     if (update) {
       return update;

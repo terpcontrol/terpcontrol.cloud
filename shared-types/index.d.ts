@@ -29,8 +29,11 @@ export interface FirmwareSettings {
   autoUpdate?: boolean;
 }
 
+export type FirmwareChannel = 'stable' | 'beta' | 'alpha';
+
 export interface CloudSettings {
   autoFirmwareUpdate?: boolean;
+  firmwareChannel?: FirmwareChannel;
   publicRead?: boolean;
   vpdLeafTempOffsetDay?: number;
   vpdLeafTempOffsetNight?: number;
@@ -129,6 +132,7 @@ export interface DeviceClass {
   maxfails: number;
   firmware_id: string;
   beta_firmware_id?: string;
+  alpha_firmware_id?: string;
 }
 
 export interface DeviceClassCount {
@@ -203,4 +207,3 @@ export type RecipeTemplate = {
   updatedAt?: number;
   steps: RecipeTemplateStep[];
 };
-
