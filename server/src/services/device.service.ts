@@ -27,6 +27,7 @@ export type StatusMessage = {
 };
 
 const UPGRADE_TIMEOUT: number = 10 * 60 * 1000;
+const UPGRADE_INSTRUCTION_DELAY: number = 30 * 1000;
 export const ONLINE_TIMEOUT: number = 10 * 60 * 1000;
 
 const minimal_classes = [
@@ -77,6 +78,8 @@ const DEVICE_MESSAGE_CATEGORY_MAPPING = {
 } as const;
 
 class DeviceService {
+  private readonly upgradeInstructionTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
   constructor() {
     void this.checkDeviceClasses();
 
@@ -122,7 +125,6 @@ class DeviceService {
               await this.statusMessage(device, JSON.parse(message.message));
               break;
             case 'fetch':
-              await this.checkAndUpgrade(device);
               let parsedMessage;
               try {
                 parsedMessage = JSON.parse(message.message);
@@ -131,6 +133,7 @@ class DeviceService {
               }
 
               await this.fetchMessage(device, parsedMessage);
+              await this.checkAndUpgrade(device);
               break;
             case 'log':
               const msg = JSON.parse(message.message);
@@ -169,10 +172,32 @@ class DeviceService {
   private async checkAndUpgrade(device: Device) {
     await deviceModel.findOneAndUpdate({ device_id: device.device_id }, { lastseen: Date.now() });
     if (device.current_firmware != device.pending_firmware && device.pending_firmware && device.pending_firmware != '') {
+      if (this.upgradeInstructionTimers.has(device.device_id)) {
+        return;
+      }
+
+      const timer = setTimeout(() => {
+        void this.sendUpgradeInstruction(device.device_id);
+      }, UPGRADE_INSTRUCTION_DELAY);
+      this.upgradeInstructionTimers.set(device.device_id, timer);
+    }
+  }
+
+  private async sendUpgradeInstruction(deviceId: string) {
+    try {
+      const device = await deviceModel.findOne({ device_id: deviceId });
+      if (!device || device.current_firmware == device.pending_firmware || !device.pending_firmware || device.pending_firmware == '') {
+        return;
+      }
+
       console.log(
         `Sending instruction to upgrade device ${device.device_id} to firmware ${device.pending_firmware} from firmware ${device.current_firmware}`,
       );
       mqttclient.publish('/devices/' + device.device_id + '/firmware', device.pending_firmware);
+    } catch (error) {
+      console.log(error);
+    } finally {
+      this.upgradeInstructionTimers.delete(deviceId);
     }
   }
 
