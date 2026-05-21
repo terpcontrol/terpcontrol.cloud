@@ -181,24 +181,36 @@ namespace fg {
     }
 
     if (state.is_day) {
-      bool is_sunrise = (state.timeofday + SECONDS_PER_DAY) < (settings.daynight.day + SECONDS_PER_DAY + settings.lights.sunrise * 60);
-      bool is_sunset = (state.timeofday + SECONDS_PER_DAY) > (settings.daynight.night + SECONDS_PER_DAY - settings.lights.sunset * 60);
+      bool is_sunrise = settings.lights.sunrise > 0 && (state.timeofday + SECONDS_PER_DAY) < (settings.daynight.day + SECONDS_PER_DAY + settings.lights.sunrise * 60);
+      bool is_sunset = settings.lights.sunset > 0 && (state.timeofday + SECONDS_PER_DAY) > (settings.daynight.night + SECONDS_PER_DAY - settings.lights.sunset * 60);
 
-      if (is_sunrise && settings.daynight.linearChange > 0) {
+      if (is_sunrise) {
         state.sunrise_factor = static_cast<float>(state.timeofday - settings.daynight.day) / (settings.lights.sunrise * 60.0f);
       } else {
         state.sunrise_factor = 1;
       }
 
-      if (is_sunset && settings.daynight.linearChange > 0) {
+      if (is_sunset) {
         state.sunset_factor = static_cast<float>(settings.daynight.night - state.timeofday) / (settings.lights.sunset * 60.0f);
       } else {
         state.sunset_factor = 1;
       }
 
-      float target_factor = (state.sunrise_factor < 1 ? state.sunrise_factor : 0) + (state.sunset_factor < 1 ? 1 - state.sunset_factor : 0);
-      state.target_humidity = settings.day.humidity - (settings.day.humidity - settings.night.humidity) * target_factor;
-      state.target_temperature = settings.day.temperature - (settings.day.temperature - settings.night.temperature) * target_factor;
+      state.sunrise_factor = state.sunrise_factor > 1.0f ? 1.0f : state.sunrise_factor;
+      state.sunrise_factor = state.sunrise_factor < 0.0f ? 0.0f : state.sunrise_factor;
+      state.sunset_factor = state.sunset_factor > 1.0f ? 1.0f : state.sunset_factor;
+      state.sunset_factor = state.sunset_factor < 0.0f ? 0.0f : state.sunset_factor;
+
+      if (settings.daynight.linearChange > 0 && state.sunrise_factor < 1.0f) {
+        state.target_humidity = settings.night.humidity + (settings.day.humidity - settings.night.humidity) * state.sunrise_factor;
+        state.target_temperature = settings.night.temperature + (settings.day.temperature - settings.night.temperature) * state.sunrise_factor;
+      } else if (settings.daynight.linearChange > 0 && state.sunset_factor < 1.0f) {
+        state.target_humidity = settings.night.humidity + (settings.day.humidity - settings.night.humidity) * state.sunset_factor;
+        state.target_temperature = settings.night.temperature + (settings.day.temperature - settings.night.temperature) * state.sunset_factor;
+      } else {
+        state.target_humidity = settings.day.humidity;
+        state.target_temperature = settings.day.temperature;
+      }
     } else {
       state.sunrise_factor = 0;
       state.sunset_factor = 0;

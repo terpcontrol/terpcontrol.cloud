@@ -225,15 +225,18 @@ namespace fg {
       }
       else
       {
-          if((state.timeofday + SECONDS_PER_DAY) < (settings.daynight.day + SECONDS_PER_DAY + settings.lights.sunrise * 60)) {
+          if(settings.lights.sunrise > 0 && (state.timeofday + SECONDS_PER_DAY) < (settings.daynight.day + SECONDS_PER_DAY + settings.lights.sunrise * 60)) {
             //LOG("TON: %d\n", state.time - settings.daynight.day);
             max_out = static_cast<float>(state.timeofday - settings.daynight.day) / (settings.lights.sunrise * 60.0f);
           }
-          if((state.timeofday + SECONDS_PER_DAY) > (settings.daynight.night + SECONDS_PER_DAY - settings.lights.sunset * 60)) {
+          if(settings.lights.sunset > 0 && (state.timeofday + SECONDS_PER_DAY) > (settings.daynight.night + SECONDS_PER_DAY - settings.lights.sunset * 60)) {
             //LOG("TOFF: %d\n", state.time - settings.daynight.night);
             max_out = static_cast<float>(settings.daynight.night - state.timeofday) / (settings.lights.sunset * 60.0f);
           }
       }
+
+      max_out = max_out > 1.0f ? 1.0f : max_out;
+      max_out = max_out < 0.0f ? 0.0f : max_out;
 
       out = out > 1 ? 1 : out;
       out = out < 0 ? 0 : out;
