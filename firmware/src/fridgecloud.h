@@ -113,10 +113,10 @@ namespace fg {
     bool registerWithCloud(std::string url, std::string password);
     void handleTunnelCloses();
     void handleTunnelReads();
+    void publishFetchMessage();
     void notePublishFailure();
     inline bool directMode() { return custom_mqtt; }
     inline bool isConnected() const { return connected; }
   };
 
 }
-

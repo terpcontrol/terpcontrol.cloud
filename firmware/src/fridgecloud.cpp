@@ -284,10 +284,29 @@ namespace fg {
       }
     });
 
-    client->publish(topic_fetch.c_str(), "hello");
+    publishFetchMessage();
     esp_task_wdt_reset();
 
     Serial.println("Connected to mqtt server");
+  }
+
+  void Fridgecloud::publishFetchMessage() {
+    if(!client || !client->isMqttConnected()) {
+      return;
+    }
+
+    StaticJsonDocument<1024> message_json;
+    message_json["firmware_id"] = FIRMWARE_VERSION;
+    std::stringstream stream;
+    serializeJson(message_json, stream);
+
+    if(!client->publish(topic_fetch.c_str(), stream.str().c_str())) {
+      Serial.println("failed to publish firmware fetch message");
+      notePublishFailure();
+      return;
+    }
+
+    publish_failure_count = 0;
   }
 
   void Fridgecloud::log(std::string message, unsigned int severity) {
@@ -311,13 +330,6 @@ namespace fg {
       if(connected) {
         Serial.println("(re)connected to mqtt server.");
         publish_failure_count = 0;
-        StaticJsonDocument<1024> message_json;
-        message_json["firmware_id"] = FIRMWARE_VERSION;
-        std::stringstream stream;
-        serializeJson(message_json, stream);
-
-        client->publish(topic_fetch.c_str(), stream.str().c_str());
-        esp_task_wdt_reset();
         connect();
       }
       else {
