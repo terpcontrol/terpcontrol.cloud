@@ -1,0 +1,192 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      description:
+        description: 'Firmware description (FW_UPLOAD_VERSION). Max 63 chars, [A-Za-z0-9._-]. Leave blank to auto-generate.'
+        required: false
+        type: string
+        default: ''
+      hardwares:
+        description: 'Firmware variants to build (space-separated). Leave blank to auto-detect from changed paths. Use "none" to skip firmware.'
+        required: false
+        type: string
+        default: ''
+      skip_deploy:
+        description: 'Skip webapp/server deploy step'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+  DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+  DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+  PRODUCTION_HARDWARES: 'fridge controller plug fan light'
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      hardwares: ${{ steps.resolve.outputs.hardwares }}
+      firmware_needed: ${{ steps.resolve.outputs.firmware_needed }}
+      description: ${{ steps.resolve.outputs.description }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed paths
+        id: changes
+        if: github.event_name == 'push'
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            shared:
+              - 'firmware/src/**'
+              - 'firmware/include/**'
+              - 'firmware/lib/**'
+              - 'firmware/scripts/**'
+              - 'firmware/boards/**'
+              - 'firmware/platformio.ini'
+              - 'firmware/default_*'
+              - 'firmware/fg_partitions.csv'
+              - 'firmware/pioenv.py'
+              - 'fw-buildcontainer/**'
+              - 'build-fw.sh'
+            fridge:
+              - 'firmware/src_hwtype/fridge/**'
+            controller:
+              - 'firmware/src_hwtype/controller/**'
+            plug:
+              - 'firmware/src_hwtype/plug/**'
+            fan:
+              - 'firmware/src_hwtype/fan/**'
+            light:
+              - 'firmware/src_hwtype/light/**'
+
+      - name: Resolve hardwares + description
+        id: resolve
+        env:
+          INPUT_HARDWARES: ${{ github.event.inputs.hardwares }}
+          INPUT_DESCRIPTION: ${{ github.event.inputs.description }}
+          CHG_SHARED: ${{ steps.changes.outputs.shared }}
+          CHG_FRIDGE: ${{ steps.changes.outputs.fridge }}
+          CHG_CONTROLLER: ${{ steps.changes.outputs.controller }}
+          CHG_PLUG: ${{ steps.changes.outputs.plug }}
+          CHG_FAN: ${{ steps.changes.outputs.fan }}
+          CHG_LIGHT: ${{ steps.changes.outputs.light }}
+        run: |
+          set -euo pipefail
+
+          # --- Hardwares ---
+          if [ "${INPUT_HARDWARES}" = "none" ]; then
+            HW=""
+          elif [ -n "${INPUT_HARDWARES}" ]; then
+            HW="${INPUT_HARDWARES}"
+          elif [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            HW="${PRODUCTION_HARDWARES}"
+          elif [ "${CHG_SHARED}" = "true" ]; then
+            HW="${PRODUCTION_HARDWARES}"
+          else
+            HW=""
+            [ "${CHG_FRIDGE}" = "true" ]     && HW="$HW fridge"
+            [ "${CHG_CONTROLLER}" = "true" ] && HW="$HW controller"
+            [ "${CHG_PLUG}" = "true" ]       && HW="$HW plug"
+            [ "${CHG_FAN}" = "true" ]        && HW="$HW fan"
+            [ "${CHG_LIGHT}" = "true" ]      && HW="$HW light"
+          fi
+          HW="$(echo "$HW" | xargs || true)"
+
+          if [ -z "$HW" ]; then
+            echo "firmware_needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "firmware_needed=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "hardwares=$HW" >> "$GITHUB_OUTPUT"
+          echo "Hardwares resolved: '$HW'"
+
+          # --- Description ---
+          if [ -n "${INPUT_DESCRIPTION}" ]; then
+            DESC="${INPUT_DESCRIPTION}"
+          else
+            DESC="master-$(echo "${GITHUB_SHA}" | cut -c1-7)"
+          fi
+          if ! printf '%s' "$DESC" | grep -Eq '^[A-Za-z0-9._-]{1,63}$'; then
+            echo "Invalid description '$DESC' (must match ^[A-Za-z0-9._-]{1,63}\$)" >&2
+            exit 1
+          fi
+          echo "description=$DESC" >> "$GITHUB_OUTPUT"
+          echo "Description resolved: '$DESC'"
+
+  firmware:
+    needs: detect
+    if: needs.detect.outputs.firmware_needed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build + upload firmware
+        env:
+          API_URL_EXTERNAL: ${{ secrets.API_URL_EXTERNAL }}
+          MQTT_HOST_EXTERNAL: ${{ secrets.MQTT_HOST_EXTERNAL }}
+          MQTT_PORT_EXTERNAL: ${{ secrets.MQTT_PORT_EXTERNAL }}
+          AUTOMATION_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+          FW_UPLOAD_VERSION: ${{ needs.detect.outputs.description }}
+          HARDWARES: ${{ needs.detect.outputs.hardwares }}
+        run: |
+          set -euo pipefail
+          echo "Building firmware variants: $HARDWARES"
+          echo "FW_UPLOAD_VERSION=$FW_UPLOAD_VERSION"
+          ./build-fw.sh $HARDWARES
+
+  deploy:
+    needs: [detect, firmware]
+    # Run if firmware succeeded OR was skipped; never if it failed.
+    if: |
+      always() &&
+      (needs.firmware.result == 'success' || needs.firmware.result == 'skipped') &&
+      github.event.inputs.skip_deploy != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Rsync repo to host
+        run: |
+          set -euo pipefail
+          rsync -az --delete \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='node_modules/' \
+            --exclude='.pio/' \
+            --exclude='**/dist/' \
+            --exclude='**/build/' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='.idea/' \
+            --exclude='.claude/' \
+            ./ "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
+
+      - name: docker compose up
+        run: |
+          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "cd '${DEPLOY_PATH}' && docker compose up --build -d --remove-orphans"

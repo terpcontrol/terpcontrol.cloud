@@ -4,8 +4,6 @@
 name: FG2 build
 
 on:
-  push:
-    branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
 
@@ -64,7 +62,6 @@ jobs:
     
   firmware:
     runs-on: ubuntu-latest
-    if: ${{ github.event.pull_request.base.ref == 'master' }}
     steps:
     - uses: actions/checkout@v4
     - run: |
