@@ -29,6 +29,7 @@ env:
   DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
   DEPLOY_USER: ${{ vars.DEPLOY_USER }}
   DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+  TERPCONTROL_ENV_FILE: ${{ vars.TERPCONTROL_ENV_FILE }}
   PRODUCTION_HARDWARES: 'fridge controller plug fan light'
 
 jobs:
@@ -188,5 +189,9 @@ jobs:
 
       - name: docker compose up
         run: |
+          ENV_FLAG=""
+          if [ -n "${TERPCONTROL_ENV_FILE}" ]; then
+            ENV_FLAG="--env-file ${TERPCONTROL_ENV_FILE}"
+          fi
           ssh "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "cd '${DEPLOY_PATH}' && docker compose up --build -d --remove-orphans"
+            "cd '${DEPLOY_PATH}' && docker compose ${ENV_FLAG} up --build -d --remove-orphans"

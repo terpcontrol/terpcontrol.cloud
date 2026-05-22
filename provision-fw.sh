@@ -8,8 +8,9 @@ if [ -z "$DEVICE_TYPE" ]; then
     exit 1
 fi
 
-if [ -f .env ]; then
-    export $(grep -v '^#' .env | grep -v CUSTOM_LINKS_HTML | xargs)
+ENV_FILE="${TERPCONTROL_ENV_FILE:-.env}"
+if [ -f "$ENV_FILE" ]; then
+    export $(grep -v '^#' "$ENV_FILE" | grep -v CUSTOM_LINKS_HTML | xargs)
 fi
 
 docker build -t plantalytix-buildcontainer fw-buildcontainer

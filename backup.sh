@@ -2,8 +2,9 @@
 set -e
 BACKUP_TARGET="$1"
 
-if [ -f .env ]; then
-    export $(grep -v '^#' .env | grep -v CUSTOM_LINKS_HTML | xargs)
+ENV_FILE="${TERPCONTROL_ENV_FILE:-.env}"
+if [ -f "$ENV_FILE" ]; then
+    export $(grep -v '^#' "$ENV_FILE" | grep -v CUSTOM_LINKS_HTML | xargs)
 fi
 
 if [ -z "$BACKUP_FILENAME" ]; then

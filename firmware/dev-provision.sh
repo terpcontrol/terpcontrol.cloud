@@ -8,7 +8,9 @@ if [ -z "$DEVICE_TYPE" ]; then
     exit 1
 fi
 
-if [ -f .env ]; then
+if [ -n "$TERPCONTROL_ENV_FILE" ] && [ -f "$TERPCONTROL_ENV_FILE" ]; then
+    export $(grep -v '^#' "$TERPCONTROL_ENV_FILE" | grep -v CUSTOM_LINKS_HTML | xargs)
+elif [ -f .env ]; then
     export $(grep -v '^#' .env | grep -v CUSTOM_LINKS_HTML | xargs)
 elif [ -f ../.env ]; then
     export $(grep -v '^#' ../.env | grep -v CUSTOM_LINKS_HTML | xargs)
