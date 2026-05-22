@@ -126,6 +126,7 @@ namespace fg {
     log(boot_msg);
 
     log("hardware-info:claimcode_auth=on");
+    log(std::string("hardware-info:firmware_version=") + FIRMWARE_VERSION);
   }
 
   void Fridgecloud::connect() {

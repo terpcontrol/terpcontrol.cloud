@@ -179,18 +179,25 @@ jobs:
       (needs.deploy.result == 'success' || needs.deploy.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Build + upload firmware
+      - name: Configure SSH
         env:
-          API_URL_EXTERNAL: ${{ secrets.API_URL_EXTERNAL }}
-          MQTT_HOST_EXTERNAL: ${{ secrets.MQTT_HOST_EXTERNAL }}
-          MQTT_PORT_EXTERNAL: ${{ secrets.MQTT_PORT_EXTERNAL }}
-          AUTOMATION_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Build + upload firmware on host
+        env:
           FW_UPLOAD_VERSION: ${{ needs.detect.outputs.description }}
           HARDWARES: ${{ needs.detect.outputs.hardwares }}
         run: |
           set -euo pipefail
-          echo "Building firmware variants: $HARDWARES"
-          echo "FW_UPLOAD_VERSION=$FW_UPLOAD_VERSION"
-          ./build-fw.sh $HARDWARES
+          echo "Building firmware variants on ${DEPLOY_HOST}: ${HARDWARES}"
+          echo "FW_UPLOAD_VERSION=${FW_UPLOAD_VERSION}"
+          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "cd '${DEPLOY_PATH}' && TERPCONTROL_ENV_FILE='${TERPCONTROL_ENV_FILE}' FW_UPLOAD_VERSION='${FW_UPLOAD_VERSION}' ./build-fw.sh ${HARDWARES}"
