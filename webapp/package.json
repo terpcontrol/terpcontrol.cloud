@@ -5,6 +5,8 @@
   "homepage": "https://ionicframework.com/",
   "scripts": {
     "ng": "ng",
+    "set-env": "node scripts/set-env.js",
+    "prestart": "npm run set-env",
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
