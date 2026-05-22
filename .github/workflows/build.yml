@@ -1,6 +1,3 @@
-# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
-
 name: FG2 build
 
 on:
@@ -8,67 +5,135 @@ on:
     branches: [ "master" ]
 
 jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      webapp: ${{ steps.changes.outputs.webapp }}
+      server: ${{ steps.changes.outputs.server }}
+      docker_webapp: ${{ steps.changes.outputs.docker_webapp }}
+      docker_server: ${{ steps.changes.outputs.docker_server }}
+      firmware: ${{ steps.changes.outputs.firmware }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            webapp:
+              - 'webapp/**'
+              - 'shared-types/**'
+              - '.github/workflows/build.yml'
+            server:
+              - 'server/**'
+              - 'shared-types/**'
+              - '.github/workflows/build.yml'
+            docker_webapp:
+              - 'webapp/**'
+              - 'shared-types/**'
+              - 'docker-compose.yaml'
+              - '.dockerignore'
+              - '.github/workflows/build.yml'
+            docker_server:
+              - 'server/**'
+              - 'shared-types/**'
+              - 'docker-compose.yaml'
+              - '.dockerignore'
+              - '.github/workflows/build.yml'
+            firmware:
+              - 'firmware/**'
+              - 'fw-buildcontainer/**'
+              - 'build-fw.sh'
+              - '.github/workflows/build.yml'
+
   webapp:
+    needs: detect
+    if: needs.detect.outputs.webapp == 'true'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: 18.x
-        cache: 'npm'
-        cache-dependency-path: webapp/package-lock.json
-    - run: |
-        cd webapp/
-        npm ci
-        npm run lint:fix
-        if [ -n "$(git status --porcelain)" ]; then 
-          echo 1>&2 'You need run "npm run lint:fix" before committing' 
-          exit 1
-        fi
-        npm run build
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: 'npm'
+          cache-dependency-path: webapp/package-lock.json
+      - run: |
+          cd webapp/
+          npm ci
+          npm run lint:fix
+          if [ -n "$(git status --porcelain)" ]; then
+            echo 1>&2 'You need run "npm run lint:fix" before committing'
+            exit 1
+          fi
+          npm run build
+
+  server:
+    needs: detect
+    if: needs.detect.outputs.server == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+      - run: |
+          cd server/
+          npm ci
+          npm run lint:fix
+          if [ -n "$(git status --porcelain)" ]; then
+            echo 1>&2 'You need run "npm run lint:fix" before committing'
+            exit 1
+          fi
+          npm run build
 
   docker-server:
+    needs: detect
+    if: needs.detect.outputs.docker_server == 'true'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - run: docker compose build server
-    
-  server:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-        cache-dependency-path: server/package-lock.json
-    - run: |
-        cd server/
-        npm ci
-        npm run lint:fix
-        if [ -n "$(git status --porcelain)" ]; then 
-          echo 1>&2 'You need run "npm run lint:fix" before committing' 
-          exit 1
-        fi
-        npm run build
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: server/Dockerfile
+          push: false
+          cache-from: type=gha,scope=docker-server
+          cache-to: type=gha,mode=max,scope=docker-server
 
   docker-webapp:
+    needs: detect
+    if: needs.detect.outputs.docker_webapp == 'true'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - run: docker compose build webapp
-    
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: webapp/Dockerfile
+          push: false
+          cache-from: type=gha,scope=docker-webapp
+          cache-to: type=gha,mode=max,scope=docker-webapp
+
   firmware:
+    needs: detect
+    if: needs.detect.outputs.firmware == 'true'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - run: |
-        export API_URL_EXTERNAL=http://192.168.0.100:8081
-        export MQTT_HOST_EXTERNAL=192.168.0.100
-        export MQTT_PORT_EXTERNAL=1883
-        export FW_UPLOAD_VERSION=ci-test
-        export FW_VERSION_ID=ci-test
-        export FW_NO_UPLOAD=1 
-        ./build-fw.sh
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build firmware (no upload)
+        env:
+          API_URL_EXTERNAL: http://192.168.0.100:8081
+          MQTT_HOST_EXTERNAL: 192.168.0.100
+          MQTT_PORT_EXTERNAL: 1883
+          FW_UPLOAD_VERSION: ci-test
+          FW_VERSION_ID: ci-test
+          FW_NO_UPLOAD: 1
+          FW_BUILDCONTAINER_CACHE_FROM: type=gha,scope=fw-buildcontainer
+          FW_BUILDCONTAINER_CACHE_TO: type=gha,mode=max,scope=fw-buildcontainer
+        run: ./build-fw.sh

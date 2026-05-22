@@ -6,7 +6,14 @@ if [ -f "$ENV_FILE" ]; then
     export $(grep -v '^#' "$ENV_FILE" | grep -v CUSTOM_LINKS_HTML | xargs)
 fi
 
-docker build -t plantalytix-buildcontainer fw-buildcontainer
+if [ -n "$FW_BUILDCONTAINER_CACHE_FROM" ] || [ -n "$FW_BUILDCONTAINER_CACHE_TO" ]; then
+  BUILDX_ARGS=""
+  [ -n "$FW_BUILDCONTAINER_CACHE_FROM" ] && BUILDX_ARGS="$BUILDX_ARGS --cache-from=$FW_BUILDCONTAINER_CACHE_FROM"
+  [ -n "$FW_BUILDCONTAINER_CACHE_TO" ]   && BUILDX_ARGS="$BUILDX_ARGS --cache-to=$FW_BUILDCONTAINER_CACHE_TO"
+  docker buildx build $BUILDX_ARGS --load -t plantalytix-buildcontainer fw-buildcontainer
+else
+  docker build -t plantalytix-buildcontainer fw-buildcontainer
+fi
 
 # copy firmware to docker volume (for mac os/windows compatibility)
 docker rm -f fw-temp-container 2>/dev/null 1>&2 || true
