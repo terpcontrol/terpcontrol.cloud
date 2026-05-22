@@ -25,154 +25,269 @@ class AuthRoute implements Routes {
 
   private initializeRoutes() {
     /**
-     * @apiDefine authentication
-     *
-     * @apiHeader {String} Authorization userToken
-     *
-     */
-
-    /**
-     * @api {post} /signup Sign up new User
-     * @apiName signup
-     * @apiGroup auth
-     *
-     * @apiBody {String} username valid email address used as username
-     * @apiBody {String} password password for the new user
-     *
-     * @apiSuccess {String} message "created"
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 201 CREATED
-     *     {
-     *       "message": "created"
-     *     }
-     *
+     * @openapi
+     * /signup:
+     *   post:
+     *     summary: Sign up new user
+     *     tags: [Auth]
+     *     security: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required: [username, password]
+     *             properties:
+     *               username:
+     *                 type: string
+     *                 format: email
+     *                 description: Email address used as login name
+     *               password:
+     *                 type: string
+     *     responses:
+     *       '201':
+     *         description: User created
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/MessageResponse'
+     *       '400':
+     *         $ref: '#/components/responses/BadRequest'
      */
     this.router.post(`${this.path}signup`, validationMiddleware(SignupDto, 'body'), this.authController.signUp);
 
     /**
-     * @api {post} /activate Activate user
-     * @apiName activate
-     * @apiGroup auth
-     *
-     * @apiBody {String} activation_code activation code sent to registered email address
-     *
-     * @apiSuccess {String} message "activated"
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 201 CREATED
-     *     {
-     *       "message": "activated"
-     *     }
-     *
+     * @openapi
+     * /activate:
+     *   post:
+     *     summary: Activate a freshly signed-up user
+     *     tags: [Auth]
+     *     security: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required: [activation_code]
+     *             properties:
+     *               activation_code:
+     *                 type: string
+     *                 description: Activation code delivered to the user's email address
+     *     responses:
+     *       '201':
+     *         description: Account activated
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/MessageResponse'
      */
     this.router.post(`${this.path}activate`, validationMiddleware(ActivationDto, 'body'), this.authController.activate);
 
     /**
-     * @api {post} /login Login user
-     * @apiName login
-     * @apiGroup auth
-     *
-     * @apiBody {String} username email address of the user
-     * @apiBody {String} password password of the user
-     *
-     * @apiSuccess {Object} user login information
-     * @apiSuccess {String} user.username username of the current user
-     * @apiSuccess {String} user.user_id id of the current user
-     * @apiSuccess {Boolean} user.is_admin user has admnin permissions
-     * @apiSuccess {String} userToken login token used to authenticate further api calls
-     * @apiSuccess {String} refreshToken refreshToken used to refresh userToken
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *       "user": {
-     *          "username": "myuser",
-     *          "user_id": "12345",
-     *          "is_admin": false
-     *       },
-     *       userToken: "12345",
-     *       refreshToken: "12345"
-     *     }
-     *
+     * @openapi
+     * /login:
+     *   post:
+     *     summary: Log in with username and password
+     *     tags: [Auth]
+     *     security: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required: [username, password]
+     *             properties:
+     *               username:
+     *                 type: string
+     *                 format: email
+     *               password:
+     *                 type: string
+     *               stayLoggedIn:
+     *                 type: boolean
+     *     responses:
+     *       '200':
+     *         description: Token pair and user information
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/LoginResponse'
+     *       '401':
+     *         $ref: '#/components/responses/Unauthorized'
      */
     this.router.post(`${this.path}login`, validationMiddleware(LoginDto, 'body'), this.authController.logIn);
+
+    /**
+     * @openapi
+     * /tokenlogin:
+     *   post:
+     *     summary: Log in with a one-time token
+     *     description: Exchanges a short-lived token (e.g. emailed magic link) for a user token. Rate limited to 20 requests/min per IP.
+     *     tags: [Auth]
+     *     security: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required: [token]
+     *             properties:
+     *               token:
+     *                 type: string
+     *     responses:
+     *       '200':
+     *         description: New user token
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 userToken:
+     *                   type: object
+     *                   properties:
+     *                     token: { type: string }
+     *                     expiresIn: { type: integer }
+     *       '401':
+     *         $ref: '#/components/responses/Unauthorized'
+     *       '429':
+     *         description: Rate limit exceeded
+     */
     this.router.post(`${this.path}tokenlogin`, tokenLoginLimiter, this.authController.loginWithToken);
 
     /**
-     * @api {post} /refresh refresh userTiken
-     * @apiName refresh
-     * @apiGroup auth
-     *
-     * @apiBody {String} token valid refreshToken
-     *
-     * @apiSuccess {String} userToken login token used to authenticate further api calls
-     * @apiSuccess {String} refreshToken refreshToken used to refresh userToken
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *       userToken: "12345",
-     *       refreshToken: "12345"
-     *     }
-     *
+     * @openapi
+     * /refresh:
+     *   post:
+     *     summary: Refresh user/refresh tokens
+     *     tags: [Auth]
+     *     security: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required: [token]
+     *             properties:
+     *               token:
+     *                 type: string
+     *                 description: Valid refresh token previously issued by /login
+     *     responses:
+     *       '200':
+     *         description: New token pair
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/TokenPair'
+     *       '401':
+     *         $ref: '#/components/responses/Unauthorized'
+     *       '404':
+     *         description: Authentication token missing
      */
     this.router.post(`${this.path}refresh`, this.authController.refresh);
 
     /**
-     * @api {post} /getreset request password reset link/token
-     * @apiName getreset
-     * @apiGroup auth
-     *
-     * @apiBody {String} username email address of the user
-     * @apiBody {String} password empty string
-     *
-     * @apiSuccess {String} message "sent"
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 201 CREATED
-     *     {
-     *       "message": "sent"
-     *     }
-     *
+     * @openapi
+     * /getreset:
+     *   post:
+     *     summary: Request a password reset token
+     *     description: Sends a password reset email to the given username, if it exists. Always responds 201 to avoid leaking account presence.
+     *     tags: [Auth]
+     *     security: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required: [username, password]
+     *             properties:
+     *               username:
+     *                 type: string
+     *                 format: email
+     *               password:
+     *                 type: string
+     *                 description: Unused, may be empty
+     *     responses:
+     *       '201':
+     *         description: Reset email sent (if account exists)
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/MessageResponse'
      */
     this.router.post(`${this.path}getreset`, validationMiddleware(LoginDto, 'body'), this.authController.getPasswordToken);
 
     /**
-     * @api {post} /reset reset password
-     * @apiName reset
-     * @apiGroup auth
-     *
-     * @apiBody {String} token password reset token
-     * @apiBody {String} password new password
-     *
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *     }
-     *
+     * @openapi
+     * /reset:
+     *   post:
+     *     summary: Reset password using a reset token
+     *     tags: [Auth]
+     *     security: []
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required: [token, password]
+     *             properties:
+     *               token:
+     *                 type: string
+     *                 description: Token from the password reset email
+     *               password:
+     *                 type: string
+     *                 description: New password
+     *     responses:
+     *       '200':
+     *         description: Password changed
      */
     this.router.post(`${this.path}reset`, validationMiddleware(PasswordResetDto, 'body'), this.authController.resetPassword);
 
+    /**
+     * @openapi
+     * /logout:
+     *   post:
+     *     summary: Log out the current user
+     *     description: Clears the `Authorization` cookie. The bearer token itself remains valid until it expires.
+     *     tags: [Auth]
+     *     responses:
+     *       '200':
+     *         description: Logged out
+     *       '401':
+     *         $ref: '#/components/responses/Unauthorized'
+     */
     this.router.post(`${this.path}logout`, authMiddleware, this.authController.logOut);
 
     /**
-     * @api {post} /changepass change password
-     * @apiName changepass
-     * @apiGroup auth
-     *
-     * @apiUse authentication
-     *
-     * @apiBody {String} username email address of the user
-     * @apiBody {String} password new password
-     *
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *     }
-     *
+     * @openapi
+     * /changepass:
+     *   post:
+     *     summary: Change the current user's password
+     *     tags: [Auth]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required: [username, password]
+     *             properties:
+     *               username:
+     *                 type: string
+     *                 format: email
+     *               password:
+     *                 type: string
+     *                 description: New password
+     *     responses:
+     *       '200':
+     *         description: Password changed
+     *       '401':
+     *         $ref: '#/components/responses/Unauthorized'
      */
     this.router.post(`${this.path}changepass`, authMiddleware, validationMiddleware(LoginDto), this.authController.changePassword);
   }

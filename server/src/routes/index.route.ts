@@ -12,7 +12,34 @@ class IndexRoute implements Routes {
   }
 
   private initializeRoutes() {
+    /**
+     * @openapi
+     * /:
+     *   get:
+     *     summary: Health check
+     *     description: Returns 200 if the API process is running.
+     *     tags: [Index]
+     *     security: []
+     *     responses:
+     *       '200':
+     *         description: OK
+     */
     this.router.get(`${this.path}`, this.indexController.index);
+
+    /**
+     * @openapi
+     * /readycheck:
+     *   get:
+     *     summary: Readiness check
+     *     description: Returns 200 once the database connection is ready and the admin user is provisioned. Returns 501 otherwise.
+     *     tags: [Index]
+     *     security: []
+     *     responses:
+     *       '200':
+     *         description: Ready
+     *       '501':
+     *         description: Not ready
+     */
     this.router.get('/readycheck', this.indexController.readycheck);
   }
 }

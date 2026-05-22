@@ -13,54 +13,83 @@ class DataRoute implements Routes {
 
   private initializeRoutes() {
     /**
-     * @api {get} /data/series get historic values of measurement
-     * @apiName data series
-     * @apiGroup data
-     *
-     * @apiDescription Returns series data for owned devices and also for devices with public read enabled.
-     *
-     * @apiSuccess {Array} list of devices paired to user account
-     * @apiParam {String} device_id device uuid
-     * @apiParam {String} measure measurement
-     *
-     * @apiQuery {String} from start of measurement as fluxql time format (eg '-1d')
-     * @apiQuery {String} to end of measurement as fluxql time format (eg 'now()')
-     * @apiQuery {String} interval interval between measurements (eg '10s')
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 200 OK
-     *     [
-     *       {
-     *         "_time":"2025-06-16T09:19:40Z",
-     *         "_value":27.05348,
-     *       },
-     *       {
-     *         "_time":"2025-06-16T09:20:00Z",
-     *         "_value":27.032787499999998,
-     *       },
-     *       ...
-     *     ]
-     *
+     * @openapi
+     * /data/series/{device_id}/{measure}:
+     *   get:
+     *     summary: Get aggregated time-series data for a measurement
+     *     description: Returns aggregated series points for the given device and measurement. Works for owned devices and for devices that have `publicRead` enabled.
+     *     tags: [Data]
+     *     security:
+     *       - bearerAuth: []
+     *       - {}
+     *     parameters:
+     *       - in: path
+     *         name: device_id
+     *         required: true
+     *         schema: { type: string }
+     *       - in: path
+     *         name: measure
+     *         required: true
+     *         schema: { type: string }
+     *         description: The InfluxDB field name to query (e.g. `temperature`).
+     *       - in: query
+     *         name: from
+     *         schema: { type: string }
+     *         description: Flux time expression for the start of the range (e.g. `-1d`).
+     *       - in: query
+     *         name: to
+     *         schema: { type: string }
+     *         description: Flux time expression for the end of the range (e.g. `now()`).
+     *       - in: query
+     *         name: interval
+     *         schema: { type: string }
+     *         description: Aggregation bucket size (e.g. `10s`, `5m`).
+     *       - in: query
+     *         name: method
+     *         schema: { type: string }
+     *         description: Aggregation function (e.g. `mean`, `last`).
+     *     responses:
+     *       '201':
+     *         description: Series points
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: array
+     *               items:
+     *                 $ref: '#/components/schemas/SeriesPoint'
+     *       '401':
+     *         $ref: '#/components/responses/Unauthorized'
      */
     this.router.get(`${this.path}/series/:device_id/:measure`, this.controller.getSeries);
 
     /**
-     * @api {get} /data/latest get latest value of measurement
-     * @apiName data latest
-     * @apiGroup data
-     *
-     * @apiDescription Returns the latest value for owned devices and also for devices with public read enabled.
-     *
-     * @apiSuccess {Array} list of devices paired to user account
-     * @apiParam {String} device_id device uuid
-     * @apiParam {String} measure measurement
-     *
-     *
-     * @apiSuccessExample Success-Response:
-     *     HTTP/1.1 200 OK
-     *     {
-     *         "value":27.05348,
-     *     }
+     * @openapi
+     * /data/latest/{device_id}/{measure}:
+     *   get:
+     *     summary: Get the latest value of a measurement
+     *     description: Returns the most recent value for the given device and measurement. Works for owned devices and for devices that have `publicRead` enabled.
+     *     tags: [Data]
+     *     security:
+     *       - bearerAuth: []
+     *       - {}
+     *     parameters:
+     *       - in: path
+     *         name: device_id
+     *         required: true
+     *         schema: { type: string }
+     *       - in: path
+     *         name: measure
+     *         required: true
+     *         schema: { type: string }
+     *     responses:
+     *       '201':
+     *         description: Latest value
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/LatestValue'
+     *       '401':
+     *         $ref: '#/components/responses/Unauthorized'
      */
     this.router.get(`${this.path}/latest/:device_id/:measure`, this.controller.getLatest);
   }

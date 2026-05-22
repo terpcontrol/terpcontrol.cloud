@@ -6,6 +6,7 @@
       "dynamicImport": true,
       "decorators": true
     },
+    "preserveAllComments": true,
     "transform": {
       "legacyDecorator": true,
       "decoratorMetadata": true

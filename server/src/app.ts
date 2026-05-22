@@ -6,14 +6,13 @@ import helmet from 'helmet';
 import hpp from 'hpp';
 import morgan from 'morgan';
 import { connect, set, connection } from 'mongoose';
-import swaggerJSDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { NODE_ENV, PORT, LOG_FORMAT, ORIGIN, CREDENTIALS, API_URL_EXTERNAL } from '@config';
 import { dbConnection } from '@databases';
 import { Routes } from '@interfaces/routes.interface';
 import errorMiddleware from '@middlewares/error.middleware';
 import { logger, stream } from '@utils/logger';
-import { readFileSync } from 'fs';
+import { buildSwaggerSpec } from '@utils/swagger';
 const fileUpload = require('express-fileupload');
 
 class App {
@@ -84,22 +83,13 @@ class App {
   }
 
   private initializeSwagger() {
-    const path = require('path');
-    const yamlPath = path.resolve(__dirname, '../swagger.yaml');
-    const yamlContent = readFileSync(yamlPath, 'utf8').replace(/#API_URL_EXTERNAL#/g, API_URL_EXTERNAL);
+    const swaggerSpec = buildSwaggerSpec(API_URL_EXTERNAL);
 
-    this.app.get('/swagger.yaml', (req, res) => {
-      res.type('application/x-yaml').send(yamlContent);
+    this.app.get('/swagger.json', (req, res) => {
+      res.json(swaggerSpec);
     });
 
-    this.app.use(
-      '/api-docs',
-      swaggerUi.serve,
-      swaggerUi.setup(undefined, {
-        explorer: true,
-        swaggerOptions: { url: API_URL_EXTERNAL + '/swagger.yaml' },
-      }),
-    );
+    this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, { explorer: true }));
   }
 
   private initializeErrorHandling() {

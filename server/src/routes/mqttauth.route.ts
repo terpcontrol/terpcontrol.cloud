@@ -3,6 +3,7 @@ import MqttAuthController from '@controllers/mqttauth.controller';
 import { Routes } from '@interfaces/routes.interface';
 import { mqttAuthSecretMiddleware } from '@middlewares/mqttauth.middleware';
 
+// Internal RabbitMQ HTTP auth backend - intentionally excluded from the public OpenAPI docs.
 class MqttAuthRoute implements Routes {
   public path = '/mqttauth/:secret/';
   public router = Router();
