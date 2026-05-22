@@ -8,6 +8,8 @@
     "set-env": "node scripts/set-env.js",
     "prestart": "npm run set-env",
     "start": "ng serve",
+    "prestart:public": "npm run set-env",
+    "start:public": "ng serve --host 0.0.0.0 --disable-host-check",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
