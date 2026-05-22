@@ -465,11 +465,19 @@ class DeviceService {
         if (payload.firmware_id != device.current_firmware) {
           if (payload.firmware_id == device.pending_firmware) {
             const previousFirmwareId = device.current_firmware || 'unknown';
+            const [previousFw, newFw] = await Promise.all([
+              previousFirmwareId !== 'unknown'
+                ? deviceFirmwareModel.findOne({ firmware_id: previousFirmwareId }, { version: 1 })
+                : null,
+              deviceFirmwareModel.findOne({ firmware_id: payload.firmware_id }, { version: 1 }),
+            ]);
+            const previousFirmwareLabel = previousFw?.version || previousFirmwareId;
+            const newFirmwareLabel = newFw?.version || payload.firmware_id;
             await deviceModel.findByIdAndUpdate(device._id, { current_firmware: payload.firmware_id, fwupdate_end: Date.now() });
             console.log('device ' + device.device_id + ' finished firmware update, time: ' + (Date.now() - device.fwupdate_start) / 1000 + 's');
             await deviceService.logMessage(device.device_id, {
               title: 'message-firmware-update-complete-with-ids',
-              message: `message-firmware-update-complete-with-ids:${previousFirmwareId} -> ${payload.firmware_id}`,
+              message: `message-firmware-update-complete-with-ids:${previousFirmwareLabel} -> ${newFirmwareLabel}`,
               severity: 0,
               categories: ['device', 'device-firmware'],
             });
