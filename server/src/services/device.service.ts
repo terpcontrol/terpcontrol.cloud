@@ -194,8 +194,7 @@ class DeviceService {
   private async checkAndUpgrade(device: Device) {
     await deviceModel.findOneAndUpdate({ device_id: device.device_id }, { lastseen: Date.now() });
 
-    const needsUpgrade =
-      device.current_firmware != device.pending_firmware && device.pending_firmware && device.pending_firmware != '';
+    const needsUpgrade = device.current_firmware != device.pending_firmware && device.pending_firmware && device.pending_firmware != '';
     if (!needsUpgrade) {
       this.resetUpgradeInstructionBackoff(device.device_id);
       return;
@@ -231,8 +230,7 @@ class DeviceService {
       mqttclient.publish('/devices/' + device.device_id + '/firmware', device.pending_firmware);
 
       const existing = this.upgradeInstructionBackoff.get(deviceId);
-      const baseDelay =
-        existing?.firmwareId === device.pending_firmware ? existing.nextDelayMs : UPGRADE_INSTRUCTION_INITIAL_DELAY;
+      const baseDelay = existing?.firmwareId === device.pending_firmware ? existing.nextDelayMs : UPGRADE_INSTRUCTION_INITIAL_DELAY;
       this.upgradeInstructionBackoff.set(deviceId, {
         firmwareId: device.pending_firmware,
         nextDelayMs: Math.min(baseDelay * 2, UPGRADE_INSTRUCTION_MAX_DELAY),
@@ -499,9 +497,7 @@ class DeviceService {
           if (payload.firmware_id == device.pending_firmware) {
             const previousFirmwareId = device.current_firmware || 'unknown';
             const [previousFw, newFw] = await Promise.all([
-              previousFirmwareId !== 'unknown'
-                ? deviceFirmwareModel.findOne({ firmware_id: previousFirmwareId }, { version: 1 })
-                : null,
+              previousFirmwareId !== 'unknown' ? deviceFirmwareModel.findOne({ firmware_id: previousFirmwareId }, { version: 1 }) : null,
               deviceFirmwareModel.findOne({ firmware_id: payload.firmware_id }, { version: 1 }),
             ]);
             const previousFirmwareLabel = previousFw?.version || previousFirmwareId;
@@ -1221,6 +1217,14 @@ class DeviceService {
   public async deleteFirmware(firmware_id: string): Promise<void> {
     await deviceFirmwareBinaryModel.deleteMany({ firmware_id: firmware_id });
     await deviceFirmwareModel.deleteOne({ firmware_id: firmware_id });
+  }
+
+  public async updateFirmwareVersion(firmware_id: string, version: string): Promise<DeviceFirmware> {
+    const updated = await deviceFirmwareModel.findOneAndUpdate({ firmware_id: firmware_id }, { version: version }, { new: true });
+    if (!updated) {
+      throw new HttpException(404, 'Firmware not found');
+    }
+    return updated;
   }
 
   public async createFirmwareBinary(fw_id: string, name: string, data: Buffer): Promise<DeviceFirmwareBinary> {

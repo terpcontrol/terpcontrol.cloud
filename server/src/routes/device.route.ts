@@ -733,6 +733,40 @@ class DeviceRoute implements Routes {
 
     /**
      * @openapi
+     * /device/firmware/{firmware_id}:
+     *   put:
+     *     summary: Update a firmware record's version (admin)
+     *     tags: [Devices]
+     *     parameters:
+     *       - in: path
+     *         name: firmware_id
+     *         required: true
+     *         schema: { type: string }
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required: [version]
+     *             properties:
+     *               version: { type: string }
+     *     responses:
+     *       '200':
+     *         description: Firmware updated
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/DeviceFirmware'
+     *       '404':
+     *         $ref: '#/components/responses/NotFound'
+     *       '401':
+     *         $ref: '#/components/responses/Unauthorized'
+     */
+    this.router.put(`${this.path}/firmware/:firmware_id`, authAdminMiddleware, this.deviceController.updateFirmware);
+
+    /**
+     * @openapi
      * /auth/v0.0.1/device/firmware/{firmware_id}/{binary}:
      *   get:
      *     summary: Legacy alias for the firmware download endpoint

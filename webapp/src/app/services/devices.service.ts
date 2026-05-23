@@ -91,6 +91,12 @@ export class DeviceAdminService {
     return await firstValueFrom( this.http.delete(environment.API_URL + '/device/firmware/' + firmware_id) )
   }
 
+  public async updateFirmwareVersion(firmware_id:string, version:string) {
+    return await firstValueFrom(
+      this.http.put(environment.API_URL + '/device/firmware/' + firmware_id, { version })
+    );
+  }
+
   public async createFirmware(file:File, name:string, version:string) {
     const formData = new FormData();
     formData.append("file", file, file.name);

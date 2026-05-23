@@ -362,6 +362,19 @@ class DeviceController {
     }
   };
 
+  public updateFirmware = async (req: any, res: Response, next: NextFunction) => {
+    try {
+      const version = typeof req.body?.version === 'string' ? req.body.version.trim() : '';
+      if (!version) {
+        return res.status(400).json({ error: 'Missing or invalid version' });
+      }
+      const fw = await deviceService.updateFirmwareVersion(req.params.firmware_id, version);
+      res.status(200).json({ firmware_id: fw.firmware_id, name: fw.name, version: fw.version });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   public getDeviceLogs = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
       if (await isUserDeviceOrPublicReadMiddelware(req, res, req.params.device_id)) {

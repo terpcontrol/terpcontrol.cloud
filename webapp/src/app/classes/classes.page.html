@@ -35,10 +35,6 @@
           <ion-col>{{cls.class.firmware_id}}</ion-col>
         </ion-row>
         <ion-row>
-          <ion-col>Alpha Firmware:</ion-col>
-          <ion-col><ion-input label="alpha firmware" [(ngModel)]="cls.class.alpha_firmware_id"></ion-input></ion-col>
-        </ion-row>
-        <ion-row>
           <ion-col>
             <ion-button color="secondary" (click)="updateClass(cls.class);">update</ion-button>
           </ion-col>
@@ -64,7 +60,16 @@
                   [class.beta]="fw.fw.firmware_id != cls.class.firmware_id && fw.fw.firmware_id == cls.class.beta_firmware_id"
                   [class.alpha]="fw.fw.firmware_id != cls.class.firmware_id && fw.fw.firmware_id == cls.class.alpha_firmware_id">
           <ion-col size="3">{{fw.fw.firmware_id || "unknown"}}</ion-col>
-          <ion-col>{{fw.fw.version}}</ion-col>
+          <ion-col>
+            <ion-input
+              *ngIf="fw.fw.firmware_id"
+              [(ngModel)]="fw.fw.version"
+              (keyup.enter)="updateFirmwareVersion(fw.fw);"
+              (ionBlur)="updateFirmwareVersion(fw.fw);"
+              [disabled]="fw.fw.deleted"
+            ></ion-input>
+            <ng-container *ngIf="!fw.fw.firmware_id">{{fw.fw.version}}</ng-container>
+          </ion-col>
           <ion-col>{{fw.online}}</ion-col>
           <ion-col>{{fw.total}}</ion-col>
           <ion-col>{{fw.updating}}</ion-col>
