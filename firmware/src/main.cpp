@@ -2,10 +2,9 @@
 #include <ArduinoJson.h>
 #include <esp_task_wdt.h>
 #include <esp_system.h>
+#include <esp_bt.h>
 #include <WiFi.h>
-#include <exception>
 #include "soc/rtc_wdt.h"
-#include <sstream>
 
 #include "Wire.h"
 #include "fridgecloud.h"
@@ -56,64 +55,6 @@ static esp_reset_reason_t g_last_reset_reason = ESP_RST_UNKNOWN;
 // Cleared when MQTT actually connects (re-arms the watchdog) or when the
 // reset reason is not ESP_RST_SW (WDT, panic, brownout, power-on).
 RTC_DATA_ATTR static bool g_connection_reboot = false;
-
-// Per-phase exception accounting. The previous bare catch(...) in loop()
-// swallowed *every* C++ exception with no clue about origin, type, or
-// system state. When a single phase starts throwing every tick (typical
-// symptom: std::bad_alloc from a JSON / std::stringstream allocation under
-// heap pressure) we want to know:
-//   - WHICH phase is throwing
-//   - WHAT type / message
-//   - what the heap looks like at the moment of the throw
-// without filling the serial port with thousands of identical lines per
-// second. So we count occurrences per phase and emit a diagnostic line
-// only on the first occurrence and then every Nth occurrence afterwards.
-struct PhaseStats {
-  const char* name;
-  uint32_t count;
-};
-
-static PhaseStats g_phase_stats[] = {
-  { "control.loop", 0 },
-  { "control.fastloop", 0 },
-  { "wifi.tick", 0 },
-  { "fgc.loop", 0 },
-};
-
-static void reportException(PhaseStats& phase, const char* what) {
-  ++phase.count;
-  // Print on first occurrence and then logarithmically (every 1, 2, 4, 8,
-  // 16, ... occurrences) so a sustained per-tick throw produces a manageable
-  // amount of output but we never miss the very first instance.
-  bool should_log = phase.count == 1 ||
-                    (phase.count & (phase.count - 1)) == 0;
-  if(!should_log) {
-    return;
-  }
-  Serial.printf("[exc] phase=%s n=%u what=%s free=%u largest=%u min_free=%u\n",
-                phase.name,
-                (unsigned)phase.count,
-                what ? what : "<unknown>",
-                (unsigned)ESP.getFreeHeap(),
-                (unsigned)ESP.getMaxAllocHeap(),
-                (unsigned)ESP.getMinFreeHeap());
-}
-
-// Run a phase callable, isolating it from the rest of the loop so one
-// failing subsystem cannot poison the others, and surface diagnostics that
-// the bare catch(...) used to throw away.
-template<typename F>
-static void runPhase(PhaseStats& phase, F&& fn) {
-  try {
-    fn();
-  }
-  catch(const std::exception& e) {
-    reportException(phase, e.what());
-  }
-  catch(...) {
-    reportException(phase, "non-std exception");
-  }
-}
 
 #define ROTA 27
 #define ROTB 14
@@ -222,6 +163,12 @@ void setup()
   Serial.begin(115200);
   while (!Serial);
 
+  // We never init the Bluetooth controller, but the precompiled arduino-esp32
+  // framework still reserves the controller's RAM. Releasing it here gives the
+  // app ~60 KB of additional heap to work with on the ESP32. Must be called
+  // before any code that might init BT (we never do, but be defensive).
+  esp_bt_controller_mem_release(ESP_BT_MODE_BTDM);
+
   // Capture and print the reason for the previous reboot. This is the single
   // most useful piece of diagnostic information when chasing field reboots:
   // TASK_WDT means a stuck loop, PANIC means a crash/abort, BROWNOUT means
@@ -304,17 +251,13 @@ void loop()
     int8_t rssi = WiFi.isConnected() ? WiFi.RSSI() : 0;
     uint32_t free = ESP.getFreeHeap();
     uint32_t largest = ESP.getMaxAllocHeap();
-    Serial.printf("[health] uptime=%lus free=%u largest=%u min_free=%u rssi=%d reset=%s exc[cl=%u cfl=%u wt=%u fl=%u]\n",
+    Serial.printf("[health] uptime=%lus free=%u largest=%u min_free=%u rssi=%d reset=%s\n",
                   (unsigned long)(millis() / 1000),
                   (unsigned)free,
                   (unsigned)largest,
                   (unsigned)ESP.getMinFreeHeap(),
                   (int)rssi,
-                  resetReasonStr(g_last_reset_reason),
-                  (unsigned)g_phase_stats[0].count,
-                  (unsigned)g_phase_stats[1].count,
-                  (unsigned)g_phase_stats[2].count,
-                  (unsigned)g_phase_stats[3].count);
+                  resetReasonStr(g_last_reset_reason));
 
     if(free < LOW_FREE_HEAP_THRESHOLD || largest < LOW_LARGEST_BLOCK_THRESHOLD) {
       ++low_heap_ticks;
@@ -334,12 +277,9 @@ void loop()
 
   if((xTaskGetTickCount() - last_controll_tick) > CONTROL_TICK_INTERVAL) {
     last_controll_tick = xTaskGetTickCount();
-    runPhase(g_phase_stats[0], []{ control->loop(); });
+    control->loop();
   }
 
-  // Rotary input runs every iteration. Kept outside runPhase: the read is
-  // a single GPIO sample and cannot throw, and we don't want a UI/encoder
-  // bug to be silently swallowed.
   static int8_t c,val;
   if( val=read_rotary() ) {
     if(val == -1) {
@@ -357,9 +297,9 @@ void loop()
     //updateWifiUi(&ui);
   }
 
-  runPhase(g_phase_stats[1], []{ control->fastloop(); });
-  runPhase(g_phase_stats[2], []{ wifiTick(); });
-  runPhase(g_phase_stats[3], []{ fgc.loop(); });
+  control->fastloop();
+  wifiTick();
+  fgc.loop();
 
   // Connection watchdog: reboot once if the cloud has been unreachable for
   // 15 min. g_connection_reboot prevents a reboot-loop if the outage persists

@@ -343,9 +343,11 @@ class DeviceController {
   public getFirmware = async (req: any, res: Response, next: NextFunction) => {
     try {
       const fw: Buffer = await deviceService.getFirmwareBinary(req.params.firmware_id, req.params.binary);
-      res.setHeader('Content-disposition', 'attachment; filename=firmware.bin');
-      res.setHeader('Content-type', 'application/octet-stream');
-      res.send(fw);
+      res.setHeader('Content-Disposition', 'attachment; filename=firmware.bin');
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Length', fw.length);
+      res.setHeader('Cache-Control', 'no-transform');
+      res.end(fw);
     } catch (error) {
       next(error);
     }

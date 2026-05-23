@@ -12,7 +12,7 @@
 #include "ArduinoJson.h"
 #include "time.h"
 
-#include "cppcodec/base64_rfc4648.hpp"
+#include "base64_min.h"
 
 #ifndef FIRMWARE_VERSION
   #warning Firmware version undefinded!
@@ -22,7 +22,7 @@
 
 
 namespace fg {
-  using base64 = cppcodec::base64_rfc4648;
+  namespace base64 = fg_base64;
 
   static unsigned long getTime() {
     time_t now;
@@ -453,38 +453,28 @@ namespace fg {
       return;
     }
 
-    try {
-      while(status_buffer.size()) {
-        // A single publish() can block ~10s when the socket is stuck
-        // (errno 11 EAGAIN). Feed the WDT between iterations.
+    while(status_buffer.size()) {
+      // A single publish() can block ~10s when the socket is stuck
+      // (errno 11 EAGAIN). Feed the WDT between iterations.
+      esp_task_wdt_reset();
+      if(!client->publish(topic_bulk.c_str(), status_buffer[0].c_str())) {
+        Serial.println("mqtt publish error");
         esp_task_wdt_reset();
-        if(!client->publish(topic_bulk.c_str(), status_buffer[0].c_str())) {
-          Serial.println("mqtt publish error");
-          esp_task_wdt_reset();
-          notePublishFailure();
-          return;
-        }
-        status_buffer.erase(status_buffer.begin());
-        publish_failure_count = 0;
+        notePublishFailure();
+        return;
       }
-      status_buffer.clear();
+      status_buffer.erase(status_buffer.begin());
+      publish_failure_count = 0;
     }
-    catch(...) {
-      Serial.println("exception uploading status!");
-    }
+    status_buffer.clear();
     Serial.println("uploadStatus done");
   }
 
   void Fridgecloud::updateConfig(const char* data) {
     if(!connected) { return; }
-    try {
-      Serial.println("sending config to cloud");
-      Serial.println(reinterpret_cast<uint32_t>(client.get()));
-      client->publish(topic_configuration.c_str(), data);
-    }
-    catch(...) {
-      Serial.println("exception uploading config!");
-    }
+    Serial.println("sending config to cloud");
+    Serial.println(reinterpret_cast<uint32_t>(client.get()));
+    client->publish(topic_configuration.c_str(), data);
   }
 
   void Fridgecloud::updateFirmware(std::string fw_id) {
@@ -511,12 +501,16 @@ namespace fg {
       Serial.println(httpResponseCode);
       auto str = http.getStream();
 
-      if (!Update.begin(0XFFFFFFFF)) { //start with max available size
-        Update.printError(Serial);
-      }
-
       // get length of document (is -1 when Server sends no Content-Length header)
       int len = http.getSize();
+
+      // Erase only as much OTA partition as we will actually write. Passing
+      // UPDATE_SIZE_UNKNOWN (0xFFFFFFFF) forces a ~5-10s upfront full-2MB
+      // erase during which TCP can stall and the OTA download fails on flaky
+      // links. When Content-Length is missing fall back to the full erase.
+      if (!Update.begin(len > 0 ? (size_t)len : UPDATE_SIZE_UNKNOWN)) {
+        Update.printError(Serial);
+      }
 
       // create buffer for read
       uint8_t buff[128] = { 0 };

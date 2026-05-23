@@ -28,22 +28,16 @@ namespace fg {
 
     float temperature, humidity;
 
-    try {
-      uint8_t tries = 0;
-      for(; tries < 10; tries++) {
-        if (sht.readSample()) {
-          temperature = sht.getTemperature();
-          humidity = sht.getHumidity();
-          break;
-        }
-      }
-      if(tries >= 10) {
-        Serial.println("failed to read from sensor!!!");
-        return;
+    uint8_t tries = 0;
+    for(; tries < 10; tries++) {
+      if (sht.readSample()) {
+        temperature = sht.getTemperature();
+        humidity = sht.getHumidity();
+        break;
       }
     }
-    catch(...) {
-      Serial.println("caught exception reading from sensor!!!");
+    if(tries >= 10) {
+      Serial.println("failed to read from sensor!!!");
       return;
     }
 
@@ -79,37 +73,32 @@ namespace fg {
 
   void LightController::loop() {
 
-  try {
-    updateSensors();
-    checkDayCycle();
+  updateSensors();
+  checkDayCycle();
 
-    if(settings.mqttcontrol) {
-      Serial.println("Direct control mode active");;
+  if(settings.mqttcontrol) {
+    Serial.println("Direct control mode active");;
 
-      if(directmode_timer < xTaskGetTickCount()) {
-        Serial.println("DIRECTMODE TIMEOUT! REVERTING!");
-        auto saved_settings = fg::settings().getStr("config");
-        loadSettings(saved_settings.c_str());
-      }
+    if(directmode_timer < xTaskGetTickCount()) {
+      Serial.println("DIRECTMODE TIMEOUT! REVERTING!");
+      auto saved_settings = fg::settings().getStr("config");
+      loadSettings(saved_settings.c_str());
     }
-    else {
-      controlLight();
-    }
-
-
-    Serial.printf("%s T:%.2f°C H:%.0f%% L:%.0f\n\r",
-      state.is_day ? "DAY" : "NIGHT", state.temperature, state.humidity, state.out_light);
-
-    DynamicJsonDocument status(1024);
-    status["sensors"]["temperature"] = state.temperature;
-    status["sensors"]["humidity"] = state.humidity;
-    status["outputs"]["light"] = state.out_light;
-
-    cloud.updateStatus(status);
   }
-  catch(...) {
-    Serial.println("Exception in control function!");
+  else {
+    controlLight();
   }
+
+
+  Serial.printf("%s T:%.2f°C H:%.0f%% L:%.0f\n\r",
+    state.is_day ? "DAY" : "NIGHT", state.temperature, state.humidity, state.out_light);
+
+  DynamicJsonDocument status(1024);
+  status["sensors"]["temperature"] = state.temperature;
+  status["sensors"]["humidity"] = state.humidity;
+  status["outputs"]["light"] = state.out_light;
+
+  cloud.updateStatus(status);
 
   if (sntp_get_sync_status()) {
     printf("got time from sntp server\n");

@@ -19,7 +19,7 @@
 
 #include "fridgecloud.h"
 
-#include "cppcodec/base64_rfc4648.hpp"
+#include "base64_min.h"
 #include "html_compressed/index.html.h"
 
 #define WIFI_SCAN_TIMEOUT 30000
@@ -227,12 +227,7 @@ void wifiTick() {
   static TickType_t last_reconnect_attempt = 0;
 
   if(server_active) {
-    try {
-      server.handleClient();
-    }
-    catch(...) {
-      Serial.println("EXCEPTION!");
-    }
+    server.handleClient();
   }
 
   if(wifi_configured && xTaskGetTickCount() - last_conncheck > 30000) {
@@ -1081,7 +1076,7 @@ void resetCredentials() {
 #define CHUNK_LEN 2048
 
 void handleRoot() {
-  using base64 = cppcodec::base64_rfc4648;
+  namespace base64 = fg_base64;
 
   auto len = strlen(INDEX_HTML_COMPRESSED);
   auto pos = 0;
@@ -1094,25 +1089,18 @@ void handleRoot() {
   server.setContentLength(INDEX_HTML_SIZE);
   server.send ( 200, "text/html", "" );
 
-  try {
-    // HTML Content
-    while(pos < len) {
-      strncpy_P(chunk, INDEX_HTML_COMPRESSED + pos, CHUNK_LEN);
-      chunk[CHUNK_LEN] = '\0';
-      std::vector<uint8_t> decoded = base64::decode(chunk);
-      decoded.push_back('\0');
-      Serial.println((int)decoded.size());
-      const char* html = reinterpret_cast<const char*>(decoded.data());
-      server.sendContent(html);
-      pos += CHUNK_LEN;
-    }
-
-    server.client().stop();
-  }
-  catch(...) {
-    Serial.println("exceptioN!!!");
+  while(pos < len) {
+    strncpy_P(chunk, INDEX_HTML_COMPRESSED + pos, CHUNK_LEN);
+    chunk[CHUNK_LEN] = '\0';
+    std::vector<uint8_t> decoded = base64::decode(chunk);
+    decoded.push_back('\0');
+    Serial.println((int)decoded.size());
+    const char* html = reinterpret_cast<const char*>(decoded.data());
+    server.sendContent(html);
+    pos += CHUNK_LEN;
   }
 
+  server.client().stop();
 }
 
 /** Wifi config page handler */

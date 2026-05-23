@@ -33,22 +33,16 @@ namespace fg {
 
     float temperature, humidity;
 
-    try {
-      uint8_t tries = 0;
-      for(; tries < 10; tries++) {
-        if (sht.readSample()) {
-          temperature = sht.getTemperature();
-          humidity = sht.getHumidity();
-          break;
-        }
-      }
-      if(tries >= 10) {
-        Serial.println("failed to read from sensor!!!");
-        return;
+    uint8_t tries = 0;
+    for(; tries < 10; tries++) {
+      if (sht.readSample()) {
+        temperature = sht.getTemperature();
+        humidity = sht.getHumidity();
+        break;
       }
     }
-    catch(...) {
-      Serial.println("caught exception reading from sensor!!!");
+    if(tries >= 10) {
+      Serial.println("failed to read from sensor!!!");
       return;
     }
 
@@ -163,89 +157,79 @@ void FanController::fastloop() {
 
 void FanController::loop() {
 
-  try {
-    updateSensors();
-    checkDayCycle();
+  updateSensors();
+  checkDayCycle();
 
-    if(settings.mqttcontrol) {
-      Serial.println("Direct control mode active");;
+  if(settings.mqttcontrol) {
+    Serial.println("Direct control mode active");;
 
-      if(directmode_timer < xTaskGetTickCount()) {
-        Serial.println("DIRECTMODE TIMEOUT! REVERTING!");
-        auto saved_settings = fg::settings().getStr("config");
-        loadSettings(saved_settings.c_str());
-      }
-    }
-    else {
-      controlFan();
-    }
-
-    state.rpm = (float)rpm * 60.0f / 2.0f;
-    rpm = 0;
-
-    DynamicJsonDocument status(1024);
-    status["sensors"]["temperature"] = state.temperature;
-    status["sensors"]["humidity"] = state.humidity;
-    status["sensors"]["rpm"] = state.rpm;
-    status["sensors"]["day"] = state.is_day ? 1.0 : 0.0;
-    status["outputs"]["fan"] = state.fanspeed;
-
-    cloud.updateStatus(status);
-
-    Serial.printf("%s T:%.2f°C H:%.0f%% F:%.0f\n\r",
-      state.is_day ? "DAY" : "NIGHT", state.temperature, state.humidity, state.fanspeed);
-
-    if (sntp_get_sync_status()) {
-      printf("got time from sntp server\n");
-      time_t now;
-      struct tm timeinfo;
-      time(&now);
+    if(directmode_timer < xTaskGetTickCount()) {
+      Serial.println("DIRECTMODE TIMEOUT! REVERTING!");
+      auto saved_settings = fg::settings().getStr("config");
+      loadSettings(saved_settings.c_str());
     }
   }
-  catch(...) {
-    Serial.println("Exception in control function!");
+  else {
+    controlFan();
+  }
+
+  state.rpm = (float)rpm * 60.0f / 2.0f;
+  rpm = 0;
+
+  DynamicJsonDocument status(1024);
+  status["sensors"]["temperature"] = state.temperature;
+  status["sensors"]["humidity"] = state.humidity;
+  status["sensors"]["rpm"] = state.rpm;
+  status["sensors"]["day"] = state.is_day ? 1.0 : 0.0;
+  status["outputs"]["fan"] = state.fanspeed;
+
+  cloud.updateStatus(status);
+
+  Serial.printf("%s T:%.2f°C H:%.0f%% F:%.0f\n\r",
+    state.is_day ? "DAY" : "NIGHT", state.temperature, state.humidity, state.fanspeed);
+
+  if (sntp_get_sync_status()) {
+    printf("got time from sntp server\n");
+    time_t now;
+    struct tm timeinfo;
+    time(&now);
   }
 }
 
 void FanController::saveAnduploadSettings() {
   Serial.print("this: ");
   Serial.println(reinterpret_cast<uint32_t>(this));
-  try {
-    fg::settings().setFloat("d_t", settings.day.temperature);
-    fg::settings().setFloat("d_h", settings.day.humidity);
-    fg::settings().setFloat("d_fs", settings.day.fixed_speed);
-    fg::settings().setFloat("d_ms", settings.day.max_speed);
-    fg::settings().setFloat("n_t", settings.night.temperature);
-    fg::settings().setFloat("n_h", settings.night.humidity);
-    fg::settings().setFloat("n_fs", settings.night.fixed_speed);
-    fg::settings().setFloat("n_ms", settings.night.max_speed);
-    fg::settings().setU8("m", settings.mode);
-    fg::settings().setU8("ms", settings.min_speed);
-    fg::settings().commit();
+  fg::settings().setFloat("d_t", settings.day.temperature);
+  fg::settings().setFloat("d_h", settings.day.humidity);
+  fg::settings().setFloat("d_fs", settings.day.fixed_speed);
+  fg::settings().setFloat("d_ms", settings.day.max_speed);
+  fg::settings().setFloat("n_t", settings.night.temperature);
+  fg::settings().setFloat("n_h", settings.night.humidity);
+  fg::settings().setFloat("n_fs", settings.night.fixed_speed);
+  fg::settings().setFloat("n_ms", settings.night.max_speed);
+  fg::settings().setU8("m", settings.mode);
+  fg::settings().setU8("ms", settings.min_speed);
+  fg::settings().commit();
 
-    StaticJsonDocument<512> config;
-    config["day"]["temperature"] = settings.day.temperature;
-    config["day"]["humidity"] = settings.day.humidity;
+  StaticJsonDocument<512> config;
+  config["day"]["temperature"] = settings.day.temperature;
+  config["day"]["humidity"] = settings.day.humidity;
 
-    config["day"]["fixed_speed"] = settings.day.fixed_speed;
-    config["day"]["max_speed"] = settings.day.max_speed;
-    config["night"]["temperature"] = settings.night.temperature;
-    config["night"]["humidity"] = settings.night.humidity;
-    config["night"]["fixed_speed"] = settings.night.fixed_speed;
-    config["night"]["max_speed"] = settings.night.max_speed;
-    config["mode"] = settings.mode;
-    config["min_speed"] = settings.min_speed;
+  config["day"]["fixed_speed"] = settings.day.fixed_speed;
+  config["day"]["max_speed"] = settings.day.max_speed;
+  config["night"]["temperature"] = settings.night.temperature;
+  config["night"]["humidity"] = settings.night.humidity;
+  config["night"]["fixed_speed"] = settings.night.fixed_speed;
+  config["night"]["max_speed"] = settings.night.max_speed;
+  config["mode"] = settings.mode;
+  config["min_speed"] = settings.min_speed;
 
-    std::stringstream stream;
-    serializeJson(config, stream);
+  std::stringstream stream;
+  serializeJson(config, stream);
 
-    Serial.println(stream.str().c_str());
+  Serial.println(stream.str().c_str());
 
-    cloud.updateConfig(stream.str().c_str());
-  }
-  catch(...) {
-    Serial.println("EXCEPTION saving settings!");
-  }
+  cloud.updateConfig(stream.str().c_str());
 }
 
   void FanController::initStatusMenu(UserInterface* ui) {
