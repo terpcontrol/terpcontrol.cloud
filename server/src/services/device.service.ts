@@ -37,7 +37,8 @@ export type StatusMessage = {
 };
 
 const UPGRADE_TIMEOUT: number = 10 * 60 * 1000;
-const UPGRADE_INSTRUCTION_DELAY: number = 30 * 1000;
+const UPGRADE_INSTRUCTION_INITIAL_DELAY: number = 30 * 1000;
+const UPGRADE_INSTRUCTION_MAX_DELAY: number = 24 * 60 * 60 * 1000;
 export const ONLINE_TIMEOUT: number = 10 * 60 * 1000;
 const MAX_OTA_FIRMWARE_BINARY_BYTES = 2 * 1024 * 1024;
 
@@ -90,6 +91,7 @@ const DEVICE_MESSAGE_CATEGORY_MAPPING = {
 
 class DeviceService {
   private readonly upgradeInstructionTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly upgradeInstructionBackoff = new Map<string, { firmwareId: string; nextDelayMs: number }>();
 
   constructor() {
     void this.checkDeviceClasses();
@@ -180,24 +182,46 @@ class DeviceService {
     }
   }
 
+  private resetUpgradeInstructionBackoff(deviceId: string) {
+    const timer = this.upgradeInstructionTimers.get(deviceId);
+    if (timer) {
+      clearTimeout(timer);
+      this.upgradeInstructionTimers.delete(deviceId);
+    }
+    this.upgradeInstructionBackoff.delete(deviceId);
+  }
+
   private async checkAndUpgrade(device: Device) {
     await deviceModel.findOneAndUpdate({ device_id: device.device_id }, { lastseen: Date.now() });
-    if (device.current_firmware != device.pending_firmware && device.pending_firmware && device.pending_firmware != '') {
-      if (this.upgradeInstructionTimers.has(device.device_id)) {
-        return;
-      }
 
-      const timer = setTimeout(() => {
-        void this.sendUpgradeInstruction(device.device_id);
-      }, UPGRADE_INSTRUCTION_DELAY);
-      this.upgradeInstructionTimers.set(device.device_id, timer);
+    const needsUpgrade =
+      device.current_firmware != device.pending_firmware && device.pending_firmware && device.pending_firmware != '';
+    if (!needsUpgrade) {
+      this.resetUpgradeInstructionBackoff(device.device_id);
+      return;
     }
+
+    if (this.upgradeInstructionTimers.has(device.device_id)) {
+      return;
+    }
+
+    let backoff = this.upgradeInstructionBackoff.get(device.device_id);
+    if (!backoff || backoff.firmwareId !== device.pending_firmware) {
+      backoff = { firmwareId: device.pending_firmware, nextDelayMs: UPGRADE_INSTRUCTION_INITIAL_DELAY };
+      this.upgradeInstructionBackoff.set(device.device_id, backoff);
+    }
+
+    const timer = setTimeout(() => {
+      void this.sendUpgradeInstruction(device.device_id);
+    }, backoff.nextDelayMs);
+    this.upgradeInstructionTimers.set(device.device_id, timer);
   }
 
   private async sendUpgradeInstruction(deviceId: string) {
     try {
       const device = await deviceModel.findOne({ device_id: deviceId });
       if (!device || device.current_firmware == device.pending_firmware || !device.pending_firmware || device.pending_firmware == '') {
+        this.upgradeInstructionBackoff.delete(deviceId);
         return;
       }
 
@@ -205,6 +229,14 @@ class DeviceService {
         `Sending instruction to upgrade device ${device.device_id} to firmware ${device.pending_firmware} from firmware ${device.current_firmware}`,
       );
       mqttclient.publish('/devices/' + device.device_id + '/firmware', device.pending_firmware);
+
+      const existing = this.upgradeInstructionBackoff.get(deviceId);
+      const baseDelay =
+        existing?.firmwareId === device.pending_firmware ? existing.nextDelayMs : UPGRADE_INSTRUCTION_INITIAL_DELAY;
+      this.upgradeInstructionBackoff.set(deviceId, {
+        firmwareId: device.pending_firmware,
+        nextDelayMs: Math.min(baseDelay * 2, UPGRADE_INSTRUCTION_MAX_DELAY),
+      });
     } catch (error) {
       console.log(error);
     } finally {
@@ -294,6 +326,7 @@ class DeviceService {
       for (const device of devices) {
         console.log('upgrading device ' + device.device_id + ' to firmware ' + firmwareId);
         await deviceModel.findByIdAndUpdate(device._id, { pending_firmware: firmwareId, fwupdate_start: Date.now() });
+        this.resetUpgradeInstructionBackoff(device.device_id);
       }
     }
     // const stuck_devices: Device[] = await deviceModel.find({
