@@ -42,8 +42,8 @@
       </ion-grid>
       <ion-grid>
         <ion-row>
-          <ion-col size="3">ID</ion-col>
-          <ion-col>Version</ion-col>
+          <ion-col size="2">ID</ion-col>
+          <ion-col size="3">Version</ion-col>
           <ion-col>online</ion-col>
           <ion-col>total</ion-col>
           <ion-col>upgrading</ion-col>
@@ -59,10 +59,11 @@
                   [class.active]="fw.fw.firmware_id == cls.class.firmware_id"
                   [class.beta]="fw.fw.firmware_id != cls.class.firmware_id && fw.fw.firmware_id == cls.class.beta_firmware_id"
                   [class.alpha]="fw.fw.firmware_id != cls.class.firmware_id && fw.fw.firmware_id == cls.class.alpha_firmware_id">
-          <ion-col size="3">{{fw.fw.firmware_id || "unknown"}}</ion-col>
-          <ion-col>
+          <ion-col size="2" class="firmware-id-col">{{fw.fw.firmware_id || "unknown"}}</ion-col>
+          <ion-col size="3">
             <ion-input
               *ngIf="fw.fw.firmware_id"
+              class="version-input"
               [(ngModel)]="fw.fw.version"
               (keyup.enter)="updateFirmwareVersion(fw.fw);"
               (ionBlur)="updateFirmwareVersion(fw.fw);"
