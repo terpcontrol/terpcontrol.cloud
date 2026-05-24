@@ -8,17 +8,9 @@
   background-color: lightsalmon;
 }
 
-.firmware-id-col {
-  overflow-wrap: anywhere;
-  word-break: break-all;
-}
-
-.version-input {
-  width: 100%;
-  border: 1px solid var(--ion-color-light-shade, #d7d8da);
-  border-radius: 4px;
-  --padding-start: 6px;
-  --padding-end: 6px;
-  --padding-top: 4px;
-  --padding-bottom: 4px;
+.version-label {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
 }

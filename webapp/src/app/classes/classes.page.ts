@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { AlertController } from '@ionic/angular';
 import { DeviceAdminService } from '../services/devices.service';
 
 @Component({
@@ -8,18 +9,13 @@ import { DeviceAdminService } from '../services/devices.service';
 })
 export class ClassesPage implements OnInit {
 
-  constructor(private device: DeviceAdminService) { }
+  constructor(private device: DeviceAdminService, private alertController: AlertController) { }
 
   public classes: any;
 
   ngOnInit() {
     this.device.device_classes.subscribe((classes) => {
       this.classes = classes
-      for (const cls of this.classes ?? []) {
-        for (const fw of cls.versions ?? []) {
-          if (fw?.fw) fw.fw._savedVersion = fw.fw.version;
-        }
-      }
     })
   }
 
@@ -51,12 +47,29 @@ export class ClassesPage implements OnInit {
     await this.device.fetch()
   }
 
-  async updateFirmwareVersion(fw: any) {
+  async editVersion(fw: any) {
     if (!fw?.firmware_id || fw.deleted) return;
-    const newVersion = (fw.version ?? '').toString();
-    if (newVersion === fw._savedVersion) return;
-    fw._savedVersion = newVersion;
-    await this.device.updateFirmwareVersion(fw.firmware_id, newVersion);
+    const alert = await this.alertController.create({
+      header: 'Edit firmware version',
+      subHeader: fw.firmware_id,
+      inputs: [
+        { name: 'version', type: 'text', value: fw.version ?? '', placeholder: 'Version' },
+      ],
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        {
+          text: 'Save',
+          handler: async (data) => {
+            const next = (data?.version ?? '').toString().trim();
+            if (!next || next === fw.version) return true;
+            await this.device.updateFirmwareVersion(fw.firmware_id, next);
+            fw.version = next;
+            return true;
+          },
+        },
+      ],
+    });
+    await alert.present();
   }
 
 }
