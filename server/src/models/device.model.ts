@@ -128,6 +128,7 @@ const deviceSchema: Schema = new Schema({
             durationUnit: { type: String, enum: ['minutes', 'hours', 'days', 'weeks'], required: true },
             duration: { type: Number, required: true },
             waitForConfirmation: { type: Boolean, required: true },
+            name: { type: String, required: false },
             confirmationMessage: { type: String, required: false },
             lastTimeApplied: { type: Number, required: false },
             notified: { type: Boolean, required: false },
