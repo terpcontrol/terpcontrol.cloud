@@ -101,6 +101,8 @@ jobs:
           context: .
           file: server/Dockerfile
           push: false
+          build-args: |
+            DOCKER_NODE_SERVER_IMAGE=node:20-alpine
           cache-from: type=gha,scope=docker-server
           cache-to: type=gha,mode=max,scope=docker-server
 
@@ -116,6 +118,11 @@ jobs:
           context: .
           file: webapp/Dockerfile
           push: false
+          build-args: |
+            DOCKER_NODE_WEBAPP_IMAGE=node:16-alpine
+            DOCKER_NGINX_IMAGE=nginx:1-alpine
+            API_URL_EXTERNAL=http://localhost
+            CUSTOM_LINKS_HTML=
           cache-from: type=gha,scope=docker-webapp
           cache-to: type=gha,mode=max,scope=docker-webapp
 
