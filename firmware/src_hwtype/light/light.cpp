@@ -93,7 +93,8 @@ namespace fg {
   Serial.printf("%s T:%.2f°C H:%.0f%% L:%.0f\n\r",
     state.is_day ? "DAY" : "NIGHT", state.temperature, state.humidity, state.out_light);
 
-  DynamicJsonDocument status(1024);
+  // Stack-allocated to avoid a 1 KiB heap alloc/free every tick (issue #24).
+  StaticJsonDocument<1024> status;
   status["sensors"]["temperature"] = state.temperature;
   status["sensors"]["humidity"] = state.humidity;
   status["outputs"]["light"] = state.out_light;

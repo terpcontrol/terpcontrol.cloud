@@ -801,7 +801,8 @@ namespace fg {
     Serial.printf("%s T:%.2f°C H:%.0f%% CO2:%.0fppm OUT:%s\n\r",
       state.is_day ? "DAY" : "NIGHT", state.temperature, state.humidity, state.co2, out_relais.get() ? "ON" : "OFF");
 
-    DynamicJsonDocument status(1024);
+    // Stack-allocated to avoid a 1 KiB heap alloc/free every tick (issue #24).
+    StaticJsonDocument<1024> status;
 
     state.out = out_relais.get();
 

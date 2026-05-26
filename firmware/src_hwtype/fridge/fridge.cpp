@@ -937,7 +937,8 @@ namespace fg {
       state.is_day ? "DAY" : "NIGHT", state.temperature, state.humidity, state.co2,
       state.out_heater, state.out_dehumidifier, state.out_light, state.out_co2);
 
-    DynamicJsonDocument status(1024);
+    // Stack-allocated to avoid a 1 KiB heap alloc/free every tick (issue #24).
+    StaticJsonDocument<1024> status;
 
     status["sensors"]["temperature"] = state.temperature;
     status["sensors"]["humidity"] = state.humidity;

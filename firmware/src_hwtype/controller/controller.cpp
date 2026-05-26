@@ -942,7 +942,10 @@ namespace fg {
 	Serial.printf("\n\r");
 
 
-	DynamicJsonDocument status(1024);
+	// Stack-allocated to avoid a 1 KiB heap alloc/free every tick. Sustained
+	// per-second heap churn here was the dominant fragmentation driver on
+	// long-running controllers (see issue #24 investigation).
+	StaticJsonDocument<1024> status;
 
 	status["sensors"]["temperature"] = state.temperature;
 	status["sensors"]["humidity"] = state.humidity;

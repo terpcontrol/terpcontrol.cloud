@@ -176,7 +176,8 @@ void FanController::loop() {
   state.rpm = (float)rpm * 60.0f / 2.0f;
   rpm = 0;
 
-  DynamicJsonDocument status(1024);
+  // Stack-allocated to avoid a 1 KiB heap alloc/free every tick (issue #24).
+  StaticJsonDocument<1024> status;
   status["sensors"]["temperature"] = state.temperature;
   status["sensors"]["humidity"] = state.humidity;
   status["sensors"]["rpm"] = state.rpm;
