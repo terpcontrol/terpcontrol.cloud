@@ -196,7 +196,7 @@ export interface PasswordToken {
   token: string;
 }
 
-export type RecipeTemplateStep = Omit<RecipeStep, 'lastTimeApplied'>;
+export type RecipeTemplateStep = Omit<RecipeStep, 'lastTimeApplied' | 'notified'>;
 
 export type RecipeTemplate = {
   _id?: string;
