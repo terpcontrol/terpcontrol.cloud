@@ -63,7 +63,7 @@ export class ClassesPage implements OnInit {
             const next = (data?.version ?? '').toString().trim();
             if (!next || next === fw.version) return true;
             await this.device.updateFirmwareVersion(fw.firmware_id, next);
-            fw.version = next;
+            await this.device.fetch();
             return true;
           },
         },

@@ -1220,10 +1220,12 @@ class DeviceService {
   }
 
   public async updateFirmwareVersion(firmware_id: string, version: string): Promise<DeviceFirmware> {
-    const updated = await deviceFirmwareModel.findOneAndUpdate({ firmware_id: firmware_id }, { version: version }, { new: true });
-    if (!updated) {
+    const original = await deviceFirmwareModel.findOne({ firmware_id: firmware_id });
+    if (!original) {
       throw new HttpException(404, 'Firmware not found');
     }
+    await deviceFirmwareModel.updateMany({ version: original.version }, { version: version });
+    const updated = await deviceFirmwareModel.findOne({ firmware_id: firmware_id });
     return updated;
   }
 
