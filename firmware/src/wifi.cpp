@@ -127,7 +127,7 @@ std::vector<std::string> scanSmartSocketSsids();
 std::string smartSocketDisplayName(const std::string& ssid);
 std::string sanitizeSettingString(const std::string& value);
 std::string urlEncode(const std::string& value);
-bool httpGet(const std::string& url, std::string* response = nullptr);
+bool httpGet(const char* url, std::string* response = nullptr);
 bool parseSmartSocketIp(const std::string& body, std::string& socket_ip);
 void delayWithWatchdog(uint32_t delay_ms);
 bool provisionSmartSocket(const std::string& socket_role, const std::string& home_ssid, const std::string& home_password, std::string& socket_ip, std::string& error_message, const std::function<void(const char*)>& progress_callback);
@@ -363,24 +363,34 @@ uint16_t socketRolePulseTimeValue(const std::string& role) {
 }
 
 bool sendSmartSocketPower(const std::string& role, bool turn_on) {
-  const std::string key = socketRoleKey(role);
-  const std::string socket_ip = sanitizeSettingString(fg::settings().getStr(key.c_str()));
+  const std::string socket_ip = sanitizeSettingString(fg::settings().getStr(socketRoleKey(role).c_str()));
   if(socket_ip.empty()) {
     return true;
   }
 
-  std::string mqtt_password = sanitizeSettingString(fg::settings().getStr("mqtt_pass"));
-  if(mqtt_password.empty()) {
-    fg::SettingsManager provisioning(NVS_PART, "fg_provisioning");
-    mqtt_password = sanitizeSettingString(provisioning.getStr("mqtt_password"));
-  }
-  if(mqtt_password.empty()) {
-    return false;
+  // The auth segment is constant for the lifetime of the device — the MQTT
+  // password is set at provisioning and never rotates. Cache its URL-encoded
+  // form on first valid use so the hot path becomes one snprintf instead of
+  // five std::string concatenations per call.
+  static std::string cached_auth_query;
+  if(cached_auth_query.empty()) {
+    std::string mqtt_password = sanitizeSettingString(fg::settings().getStr("mqtt_pass"));
+    if(mqtt_password.empty()) {
+      fg::SettingsManager provisioning(NVS_PART, "fg_provisioning");
+      mqtt_password = sanitizeSettingString(provisioning.getStr("mqtt_password"));
+    }
+    if(mqtt_password.empty()) {
+      return false;
+    }
+    cached_auth_query = "user=admin&password=" + urlEncode(mqtt_password) + "&";
   }
 
-  const std::string auth = "user=admin&password=" + urlEncode(mqtt_password) + "&";
-  const std::string command = turn_on ? "Power%20On" : "Power%20Off";
-  return httpGet("http://" + socket_ip + "/cm?" + auth + "cmnd=" + command);
+  char url[192];
+  snprintf(url, sizeof(url), "http://%s/cm?%scmnd=%s",
+           socket_ip.c_str(),
+           cached_auth_query.c_str(),
+           turn_on ? "Power%20On" : "Power%20Off");
+  return httpGet(url);
 }
 
 static void updateSmartSocketSyncStateForRole(const std::string& role) {
@@ -633,7 +643,8 @@ void showSmartSocketsUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
 
       if(!socket_ip.empty() && !mqtt_password.empty()) {
         const std::string auth_query = "user=admin&password=" + urlEncode(mqtt_password) + "&";
-        httpGet("http://" + socket_ip + "/cm?" + auth_query + "cmnd=Reset%201");
+        const std::string reset_url = "http://" + socket_ip + "/cm?" + auth_query + "cmnd=Reset%201";
+        httpGet(reset_url.c_str());
       }
 
       ui_handle->push<TextDisplay>("socket disconnected", 1, []() {
@@ -1234,18 +1245,17 @@ std::string urlEncode(const std::string& value) {
   return encoded;
 }
 
-bool httpGet(const std::string& url, std::string* response) {
-  static constexpr uint32_t HTTP_MIN_FREE_HEAP = 45000;
+bool httpGet(const char* url, std::string* response) {
   if(ESP.getFreeHeap() < HTTP_MIN_FREE_HEAP) {
     Serial.printf("[httpGet] skip (low heap free=%u largest=%u): %s\n",
                   (unsigned)ESP.getFreeHeap(),
                   (unsigned)ESP.getMaxAllocHeap(),
-                  url.c_str());
+                  url);
     return false;
   }
 
   HTTPClient http;
-  if(!http.begin(url.c_str())) {
+  if(!http.begin(url)) {
     return false;
   }
 
@@ -1406,7 +1416,7 @@ bool provisionSmartSocket(const std::string& socket_role, const std::string& hom
                          + urlEncode("WiFiTest2 " + home_ssid_clean + "+" + home_password_clean + "; ")
                          + urlEncode("WebPassword " + mqtt_password);
 
-  if(!httpGet(config_url)) {
+  if(!httpGet(config_url.c_str())) {
     return fail_with_reconnect("config fail");
   }
 
@@ -1420,10 +1430,10 @@ bool provisionSmartSocket(const std::string& socket_role, const std::string& hom
 
   std::string ip_response;
   std::string ip_url = "http://192.168.4.1/cm?" + auth_query + "cmnd=IPAddress1";
-  bool ip_command_ok = httpGet(ip_url, &ip_response);
+  bool ip_command_ok = httpGet(ip_url.c_str(), &ip_response);
 
   std::string ap_url = "http://192.168.4.1/cm?" + auth_query + "cmnd=Ap%202";
-  bool ap_command_ok = httpGet(ap_url);
+  bool ap_command_ok = httpGet(ap_url.c_str());
 
   if(!reconnect_home()) {
     error_message = "reconnect fail";

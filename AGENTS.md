@@ -3,6 +3,7 @@
 ## Code style
 - Keep code short and concise.
 - Only add comments when they remain useful in the long run. Skip comments that just restate what the code does.
+- Don't reference specific issues, tasks, or conversations in code comments (e.g. "see issue #24", "fix from PR #2", "as discussed"). Comments must stand on their own — explain the *why* in general terms so they still make sense in isolation a year from now. Issue/PR references belong in the commit message, not in the source.
 
 ## Running the stack
 - The full application launches with `docker compose up --build -d --remove-orphans`.

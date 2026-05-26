@@ -176,7 +176,15 @@ void FanController::loop() {
   state.rpm = (float)rpm * 60.0f / 2.0f;
   rpm = 0;
 
-  DynamicJsonDocument status(1024);
+  // Stack-allocated so this hot per-tick document never hits the heap
+  // allocator. Capacity is sized for the keys populated below — bump it
+  // (and the JSON_OBJECT_SIZE() terms) whenever a new field is added.
+  StaticJsonDocument<
+      JSON_OBJECT_SIZE(2)   // top: sensors, outputs
+    + JSON_OBJECT_SIZE(4)   // sensors: temperature, humidity, rpm, day
+    + JSON_OBJECT_SIZE(1)   // outputs: fan
+    + 32                    // small headroom
+  > status;
   status["sensors"]["temperature"] = state.temperature;
   status["sensors"]["humidity"] = state.humidity;
   status["sensors"]["rpm"] = state.rpm;

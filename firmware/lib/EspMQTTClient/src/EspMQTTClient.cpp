@@ -483,8 +483,18 @@ bool EspMQTTClient::subscribe(const String &topic, MessageReceivedCallbackWithTo
 {
   if(subscribe(topic, (MessageReceivedCallback)NULL, qos))
   {
-    _topicSubscriptionList[_topicSubscriptionList.size()-1].callbackWithTopic = messageReceivedCallback;
-    return true;
+    // The basic subscribe() dedupes by topic and does NOT push a new entry
+    // when one already exists. In that case _topicSubscriptionList.size()-1
+    // points to some *other* topic — writing callbackWithTopic there would
+    // silently overwrite an unrelated callback. Find the right slot.
+    for(std::size_t i = 0; i < _topicSubscriptionList.size(); i++)
+    {
+      if(_topicSubscriptionList[i].topic.equals(topic))
+      {
+        _topicSubscriptionList[i].callbackWithTopic = messageReceivedCallback;
+        return true;
+      }
+    }
   }
   return false;
 }

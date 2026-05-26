@@ -942,7 +942,15 @@ namespace fg {
 	Serial.printf("\n\r");
 
 
-	DynamicJsonDocument status(1024);
+	// Stack-allocated so this hot per-tick document never hits the heap
+	// allocator. Capacity is sized for the keys populated below — bump it
+	// (and the JSON_OBJECT_SIZE() terms) whenever a new field is added.
+	StaticJsonDocument<
+	    JSON_OBJECT_SIZE(2)   // top: sensors, outputs
+	  + JSON_OBJECT_SIZE(4)   // sensors: temperature, humidity, sensor_type, co2
+	  + JSON_OBJECT_SIZE(7)   // outputs: dehumidifier, heater, light, co2, fan-internal, fan-external, fan-backwall
+	  + 32                    // small headroom
+	> status;
 
 	status["sensors"]["temperature"] = state.temperature;
 	status["sensors"]["humidity"] = state.humidity;

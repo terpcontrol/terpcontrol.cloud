@@ -801,7 +801,15 @@ namespace fg {
     Serial.printf("%s T:%.2f°C H:%.0f%% CO2:%.0fppm OUT:%s\n\r",
       state.is_day ? "DAY" : "NIGHT", state.temperature, state.humidity, state.co2, out_relais.get() ? "ON" : "OFF");
 
-    DynamicJsonDocument status(1024);
+    // Stack-allocated so this hot per-tick document never hits the heap
+    // allocator. Capacity is sized for the keys populated below — bump it
+    // (and the JSON_OBJECT_SIZE() terms) whenever a new field is added.
+    StaticJsonDocument<
+        JSON_OBJECT_SIZE(2)   // top: sensors, outputs
+      + JSON_OBJECT_SIZE(4)   // sensors: temperature, humidity, co2, sensor_type
+      + JSON_OBJECT_SIZE(1)   // outputs: relais
+      + 32                    // small headroom
+    > status;
 
     state.out = out_relais.get();
 
