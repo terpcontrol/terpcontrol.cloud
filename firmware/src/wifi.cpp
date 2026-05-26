@@ -1254,13 +1254,23 @@ bool httpGet(const char* url, std::string* response) {
     return false;
   }
 
-  HTTPClient http;
+  // Persistent so the internal Arduino Strings (_host, _uri, _protocol) get
+  // reassigned in place across calls rather than reallocated each time —
+  // similar-length URLs (like the Smart Socket commands we issue most often)
+  // then reuse the existing String capacity. end() below still closes the
+  // TCP socket cleanly every call, so no keep-alive / host-tracking
+  // gymnastics are needed: Smart Socket commands alternate between hosts,
+  // which would invalidate keep-alive on every call anyway.
+  //
+  // httpGet only runs on the loop task; single-threaded, static is safe.
+  static HTTPClient http;
+
   if(!http.begin(url)) {
     return false;
   }
 
   // Bound both the TCP connect and the read so an unreachable smart-socket
-  // can never block the main loop long enough to trip the 25s task watchdog.
+  // can never block the main loop long enough to trip the task watchdog.
   http.setConnectTimeout(3000);
   http.setTimeout(3000);
   int code = http.GET();
