@@ -3,6 +3,13 @@
 #include "fghmi.h"
 #include "fridgecloud.h"
 
+// Outgoing HTTP requests (Smart Socket control, claim/provisioning, etc.) are
+// skipped when free heap is below this threshold to avoid tripping the task
+// watchdog inside HTTPClient. The health watchdog in main.cpp uses the same
+// value so a sustained shortage that keeps httpGet skipping also reboots the
+// device, instead of leaving outputs uncontrolled indefinitely (see issue #24).
+static constexpr uint32_t HTTP_MIN_FREE_HEAP = 45000;
+
 namespace fg {
   class WifiApDash: public MenuItem {
     std::string ssid;

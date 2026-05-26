@@ -243,7 +243,11 @@ void loop()
 
   static constexpr TickType_t HEALTH_TICK_INTERVAL = 60 * configTICK_RATE_HZ;
   static constexpr uint32_t LOW_LARGEST_BLOCK_THRESHOLD = 25000;
-  static constexpr uint32_t LOW_FREE_HEAP_THRESHOLD = 42000;
+  // Match the httpGet skip threshold so that whenever outgoing HTTP is being
+  // refused for low heap, the streak counter accumulates and we eventually
+  // reboot — instead of leaving the device unable to control its outputs
+  // for ~hour-long stretches as in issue #24.
+  static constexpr uint32_t LOW_FREE_HEAP_THRESHOLD = HTTP_MIN_FREE_HEAP;
   static constexpr uint32_t LOW_HEAP_RESTART_TICKS = 3;
   static uint32_t low_heap_ticks = 0;
   if((xTaskGetTickCount() - last_health_tick) > HEALTH_TICK_INTERVAL) {
