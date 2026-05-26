@@ -292,12 +292,12 @@ namespace fg {
       return;
     }
 
-    StaticJsonDocument<1024> message_json;
+    StaticJsonDocument<JSON_OBJECT_SIZE(1) + 32> message_json;
     message_json["firmware_id"] = FIRMWARE_VERSION;
-    std::stringstream stream;
-    serializeJson(message_json, stream);
+    char buf[128];
+    serializeJson(message_json, buf, sizeof(buf));
 
-    if(!client->publish(topic_fetch.c_str(), stream.str().c_str())) {
+    if(!client->publish(topic_fetch.c_str(), buf)) {
       Serial.println("failed to publish firmware fetch message");
       notePublishFailure();
       return;
@@ -339,13 +339,13 @@ namespace fg {
       esp_task_wdt_reset();
 
       while(log_queue.size()) {
-        StaticJsonDocument<1024> message_json;
+        StaticJsonDocument<JSON_OBJECT_SIZE(2) + 32> message_json;
         message_json["severity"] = log_queue.front().second;
         message_json["message"] =  log_queue.front().first.c_str();
-        std::stringstream stream;
-        serializeJson(message_json, stream);
+        char buf[384];
+        serializeJson(message_json, buf, sizeof(buf));
 
-        if(client->publish(topic_log.c_str(), stream.str().c_str())) {
+        if(client->publish(topic_log.c_str(), buf)) {
           Serial.println(log_queue.front().first.c_str());
           log_queue.pop();
           publish_failure_count = 0;
@@ -417,9 +417,9 @@ namespace fg {
         if(epochTime > 1000000000) { // ignore invalid system time
           status["timestamp"] = epochTime;
 
-          std::stringstream stream;
-          serializeJson(status, stream);
-          status_buffer.push_back(stream.str());
+          char buf[512];
+          size_t len = serializeJson(status, buf, sizeof(buf));
+          status_buffer.emplace_back(buf, len);
 
           if(status_buffer.size() >= UPLOAD_INTERVAL) {
             uploadStatus();
@@ -457,13 +457,13 @@ namespace fg {
       // A single publish() can block ~10s when the socket is stuck
       // (errno 11 EAGAIN). Feed the WDT between iterations.
       esp_task_wdt_reset();
-      if(!client->publish(topic_bulk.c_str(), status_buffer[0].c_str())) {
+      if(!client->publish(topic_bulk.c_str(), status_buffer.front().c_str())) {
         Serial.println("mqtt publish error");
         esp_task_wdt_reset();
         notePublishFailure();
         return;
       }
-      status_buffer.erase(status_buffer.begin());
+      status_buffer.pop_front();
       publish_failure_count = 0;
     }
     status_buffer.clear();
@@ -639,19 +639,19 @@ namespace fg {
         auto &t = tunnels[i];
         if (!t.client.connected() && t.openedAt > 0) {
           t.openedAt = 0;
-          StaticJsonDocument<1024> message_json;
+          StaticJsonDocument<JSON_OBJECT_SIZE(3) + 32> message_json;
           message_json["connection_id"] = t.connectionId.c_str();
           message_json["sequence"] = t.sequence++;
           message_json["disconnected"] = true;
 
-          std::stringstream stream;
-          serializeJson(message_json, stream);
+          char buf[128];
+          serializeJson(message_json, buf, sizeof(buf));
 
           // Each publish() can block for the configured WiFiClient write
           // timeout. Feed the WDT between iterations so closing multiple
           // tunnels at once can never trip the 25s task watchdog.
           esp_task_wdt_reset();
-          client->publish(topic_tunnel_read.c_str(), stream.str().c_str());
+          client->publish(topic_tunnel_read.c_str(), buf);
           esp_task_wdt_reset();
         }
     }
@@ -675,20 +675,20 @@ namespace fg {
             if (len >= TUNNEL_PAYLOAD_LEN - 1 || (!t.client.available() && len > 0)) {
               std::string payloadEncoded = base64::encode(reinterpret_cast<const uint8_t*>(buffer), len);
 
-              StaticJsonDocument<1024> message_json;
+              StaticJsonDocument<JSON_OBJECT_SIZE(4) + 32> message_json;
               message_json["connection_id"] = t.connectionId.c_str();
               message_json["length"] = static_cast<int>(len);
               message_json["sequence"] = t.sequence++;
               message_json["payload"] = payloadEncoded.c_str();
 
-              std::stringstream stream;
-              serializeJson(message_json, stream);
+              char buf[384];
+              serializeJson(message_json, buf, sizeof(buf));
 
               // Tunnel forwarding can issue up to TUNNEL_PACKET_PER_LOOP_COUNT
               // publishes in a row; without WDT feeds between them a stuck
               // socket would have the cumulative budget to reboot us.
               esp_task_wdt_reset();
-              bool ok = client->publish(topic_tunnel_read.c_str(), stream.str().c_str());
+              bool ok = client->publish(topic_tunnel_read.c_str(), buf);
               esp_task_wdt_reset();
               if (!ok) {
                 t.client.stop();

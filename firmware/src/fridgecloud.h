@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <queue>
+#include <deque>
 #include <EspMQTTClient.h>
 #include <HTTPClient.h>
 
@@ -57,7 +58,10 @@ namespace fg {
 
     bool custom_mqtt = false;
 
-    std::vector<std::string> status_buffer;
+    // std::deque so the drain path in uploadStatus() can pop the head in O(1)
+    // instead of std::vector::erase(begin()) shifting up to MAX_BUFFER_LEN
+    // strings every iteration.
+    std::deque<std::string> status_buffer;
 
     UserInterface& ui;
 
