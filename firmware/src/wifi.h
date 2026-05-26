@@ -7,7 +7,7 @@
 // skipped when free heap is below this threshold to avoid tripping the task
 // watchdog inside HTTPClient. The health watchdog in main.cpp uses the same
 // value so a sustained shortage that keeps httpGet skipping also reboots the
-// device, instead of leaving outputs uncontrolled indefinitely (see issue #24).
+// device, instead of leaving outputs uncontrolled indefinitely.
 static constexpr uint32_t HTTP_MIN_FREE_HEAP = 45000;
 
 namespace fg {

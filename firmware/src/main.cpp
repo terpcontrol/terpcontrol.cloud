@@ -246,7 +246,7 @@ void loop()
   // Match the httpGet skip threshold so that whenever outgoing HTTP is being
   // refused for low heap, the streak counter accumulates and we eventually
   // reboot — instead of leaving the device unable to control its outputs
-  // for ~hour-long stretches as in issue #24.
+  // for sustained periods.
   static constexpr uint32_t LOW_FREE_HEAP_THRESHOLD = HTTP_MIN_FREE_HEAP;
   static constexpr uint32_t LOW_HEAP_RESTART_TICKS = 3;
   static uint32_t low_heap_ticks = 0;

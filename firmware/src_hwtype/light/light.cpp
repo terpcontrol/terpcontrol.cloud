@@ -93,8 +93,15 @@ namespace fg {
   Serial.printf("%s T:%.2f°C H:%.0f%% L:%.0f\n\r",
     state.is_day ? "DAY" : "NIGHT", state.temperature, state.humidity, state.out_light);
 
-  // Stack-allocated to avoid a 1 KiB heap alloc/free every tick (issue #24).
-  StaticJsonDocument<1024> status;
+  // Stack-allocated so this hot per-tick document never hits the heap
+  // allocator. Capacity is sized for the keys populated below — bump it
+  // (and the JSON_OBJECT_SIZE() terms) whenever a new field is added.
+  StaticJsonDocument<
+      JSON_OBJECT_SIZE(2)   // top: sensors, outputs
+    + JSON_OBJECT_SIZE(2)   // sensors: temperature, humidity
+    + JSON_OBJECT_SIZE(1)   // outputs: light
+    + 32                    // small headroom
+  > status;
   status["sensors"]["temperature"] = state.temperature;
   status["sensors"]["humidity"] = state.humidity;
   status["outputs"]["light"] = state.out_light;
