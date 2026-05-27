@@ -239,7 +239,7 @@
       <ion-item [hidden]="!maxDehumidifySecondsEditMode">
         <ion-button size="small" fill="clear" (click)="settings.daynight.maxDehumidifySeconds = settings.daynight.maxDehumidifySeconds - 10" [disabled]="settings.daynight.maxDehumidifySeconds <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
         <ion-range [(ngModel)]="settings.daynight.maxDehumidifySeconds" min="0" max="7200" step="10" (ionChange)="onSettingsChanged()"></ion-range>
-        <ion-button size="small" fill="clear" (click)="settings.daynight.maxDehumidifySeconds = settings.daynight.maxDehumidifySeconds + 10" [disabled]="settings.daynight.maxDehumidifySeconds >= 1200"><ion-icon name="add-circle"></ion-icon></ion-button>
+        <ion-button size="small" fill="clear" (click)="settings.daynight.maxDehumidifySeconds = settings.daynight.maxDehumidifySeconds + 10" [disabled]="settings.daynight.maxDehumidifySeconds >= 7200"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
       <ion-item>
         <ion-label>{{'settings.targetHumidityDiff' | translate}}</ion-label>
