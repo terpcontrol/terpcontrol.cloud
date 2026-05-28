@@ -166,6 +166,7 @@ export interface DeviceFirmware {
   version: string;
   class_id: string;
   createdAt?: number;
+  wasStable?: boolean;
 }
 
 export interface DeviceFirmwareBinary {

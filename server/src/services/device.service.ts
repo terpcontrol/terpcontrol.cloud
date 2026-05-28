@@ -121,6 +121,18 @@ class DeviceService {
       if (missing.length > 0) {
         console.log(`Backfilled createdAt for ${missing.length} firmware records`);
       }
+
+      const classes = await deviceClassModel.find({}, { firmware_id: 1 });
+      const stableIds = classes.map(c => c.firmware_id).filter((id): id is string => !!id);
+      if (stableIds.length > 0) {
+        const result = await deviceFirmwareModel.updateMany(
+          { firmware_id: { $in: stableIds }, wasStable: { $ne: true } },
+          { $set: { wasStable: true } },
+        );
+        if (result.modifiedCount > 0) {
+          console.log(`Marked ${result.modifiedCount} firmware records as wasStable`);
+        }
+      }
     } catch (e) {
       console.log('Failed to backfill firmware createdAt:', e);
     }
@@ -1200,7 +1212,15 @@ class DeviceService {
     };
 
     await deviceClassModel.create(device_class);
+    await this.markStableFirmware(firmware_id);
     return device_class;
+  }
+
+  private async markStableFirmware(firmware_id: string | undefined) {
+    if (!firmware_id) {
+      return;
+    }
+    await deviceFirmwareModel.updateOne({ firmware_id: firmware_id }, { $set: { wasStable: true } });
   }
 
   public async testOutputs(device_id: string, outputs: TestDeviceDto) {
@@ -1259,6 +1279,7 @@ class DeviceService {
     const update = await deviceClassModel.findOneAndUpdate({ class_id: class_id }, updateClass);
 
     if (update) {
+      await this.markStableFirmware(firmware_id);
       return update;
     } else {
       throw new HttpException(404, 'Class not found');
@@ -1296,15 +1317,24 @@ class DeviceService {
   }
 
   public async listFirmwaresForDevice(device_id: string, user_id: string): Promise<UserFirmwareList> {
-    const device = await deviceModel.findOne({ device_id, owner_id: user_id }, { class_id: 1, current_firmware: 1 });
+    const device = await deviceModel.findOne(
+      { device_id, owner_id: user_id },
+      { class_id: 1, current_firmware: 1, 'cloudSettings.pendingFirmware': 1, pending_firmware: 1 },
+    );
     if (!device) {
       throw new HttpException(404, 'Device not found or access denied');
     }
 
     const [device_class, firmwares] = await Promise.all([
       deviceClassModel.findOne({ class_id: device.class_id }),
-      deviceFirmwareModel.find({ class_id: device.class_id }, { _id: 0, firmware_id: 1, version: 1, createdAt: 1 }).sort({ createdAt: -1 }),
+      deviceFirmwareModel
+        .find({ class_id: device.class_id }, { _id: 0, firmware_id: 1, version: 1, createdAt: 1, wasStable: 1 })
+        .sort({ createdAt: -1 }),
     ]);
+
+    const stableCutoff = firmwares.filter(fw => fw.wasStable).reduce((max, fw) => Math.max(max, fw.createdAt ?? 0), -Infinity);
+    const pinnedIds = new Set([device.current_firmware, this.effectivePendingFirmware(device)].filter(Boolean));
+    const visible = firmwares.filter(fw => fw.wasStable || (fw.createdAt ?? 0) > stableCutoff || pinnedIds.has(fw.firmware_id));
 
     const channelByFirmwareId = new Map<string, FirmwareChannel[]>();
     if (device_class?.firmware_id) {
@@ -1323,7 +1353,7 @@ class DeviceService {
 
     return {
       current_firmware: device.current_firmware ?? '',
-      firmwares: firmwares.map(fw => ({
+      firmwares: visible.map(fw => ({
         firmware_id: fw.firmware_id,
         version: fw.version,
         createdAt: fw.createdAt,
