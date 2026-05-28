@@ -119,7 +119,7 @@
       "manual": "Manuell (Version wählen)"
     },
     "firmwareVersion": "Firmware-Version",
-    "betaFeatures": "Beta Funktione (Cloud)",
+    "betaFeatures": "Beta Funktionen (Cloud)",
     "publicRead": "Öffentlich lesen",
     "publicReadHint": "Falls aktiviert, können andere Personen die Graphen-Seite, die Tagebuch-Seite und alle Webcam-Bilder sehen, wenn sie den Link haben.",
     "rtspStream": "Webcam Stream URL",
