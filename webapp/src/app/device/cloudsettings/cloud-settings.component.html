@@ -122,6 +122,13 @@
       </ion-select>
     </ion-item>
     <ion-item lines="none">
+      <ion-label>{{'settings.betaFeatures' | translate}}</ion-label>
+      <ion-checkbox
+        [(ngModel)]="cloudSettings.betaFeatures"
+        (ngModelChange)="onBetaFeaturesChanged()"
+      ></ion-checkbox>
+    </ion-item>
+    <ion-item lines="none">
       <ion-label>
         {{'settings.publicRead' | translate}}
         <ion-button fill="clear" id="cloudSettings-publicRead-popover">
@@ -139,13 +146,6 @@
           </ion-content>
         </ng-template>
       </ion-popover>
-    </ion-item>
-    <ion-item lines="none">
-      <ion-label>{{'settings.betaFeatures' | translate}}</ion-label>
-      <ion-checkbox
-        [(ngModel)]="cloudSettings.betaFeatures"
-        (ngModelChange)="onBetaFeaturesChanged()"
-      ></ion-checkbox>
     </ion-item>
     <ion-item-divider />
     <ion-item lines="none">

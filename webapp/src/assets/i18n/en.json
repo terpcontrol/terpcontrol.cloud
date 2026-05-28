@@ -118,7 +118,7 @@
       "beta": "Beta (early testers)",
       "alpha": "Alpha (experimental)"
     },
-    "betaFeatures": "Beta features",
+    "betaFeatures": "Beta features (Cloud)",
     "publicRead": "Public read",
     "publicReadHint": "If enabled, other people can view the charts page, diary page, and all webcam images when they have the link.",
     "rtspStream": "Webcam stream URL",
