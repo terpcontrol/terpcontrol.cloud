@@ -11,6 +11,7 @@ import type {
   DeviceClass,
   Recipe,
   Device,
+  UserFirmwareList,
 } from '@fg2/shared-types';
 
 export type DeviceWithParsedSettings = Device & {
@@ -250,6 +251,10 @@ export class DeviceService {
 
   public async setCloudSettings(device_id: string, cloudSettings: any) {
     await firstValueFrom( this.http.post(environment.API_URL + '/device/cloudsettings', { device_id: device_id, cloud_settings: cloudSettings }) );
+  }
+
+  public async listFirmwares(device_id: string): Promise<UserFirmwareList> {
+    return await firstValueFrom(this.http.get<UserFirmwareList>(environment.API_URL + '/device/firmwares/' + device_id));
   }
 
   public async setName(device_id:string, name: string) {

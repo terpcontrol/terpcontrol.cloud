@@ -658,6 +658,45 @@ class DeviceRoute implements Routes {
 
     /**
      * @openapi
+     * /device/firmwares/{device_id}:
+     *   get:
+     *     summary: List firmware versions available for a device (owner)
+     *     description: Returns firmware versions available for the device's class, tagged with which channels (stable/beta/alpha) they currently represent and which one is the device's current firmware.
+     *     tags: [Devices]
+     *     parameters:
+     *       - in: path
+     *         name: device_id
+     *         required: true
+     *         schema: { type: string }
+     *     responses:
+     *       '200':
+     *         description: Firmware list for the device
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 current_firmware: { type: string }
+     *                 firmwares:
+     *                   type: array
+     *                   items:
+     *                     type: object
+     *                     properties:
+     *                       firmware_id: { type: string }
+     *                       version: { type: string }
+     *                       channels:
+     *                         type: array
+     *                         items: { type: string, enum: [stable, beta, alpha, manual] }
+     *                       current: { type: boolean }
+     *       '401':
+     *         $ref: '#/components/responses/Unauthorized'
+     *       '404':
+     *         $ref: '#/components/responses/NotFound'
+     */
+    this.router.get(`${this.path}/firmwares/:device_id`, authMiddleware, this.deviceController.listFirmwaresForDevice);
+
+    /**
+     * @openapi
      * /device/firmware/find:
      *   get:
      *     summary: Find a firmware image by name and version (admin)

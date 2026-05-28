@@ -19,6 +19,11 @@ const deviceFirmwareSchema: Schema = new Schema({
     type: String,
     required: true,
   },
+  createdAt: {
+    type: Number,
+    required: false,
+    default: () => Date.now(),
+  },
 });
 
 export const deviceFirmwareModel = model<DeviceFirmware & Document>('DeviceFirmware', deviceFirmwareSchema);

@@ -113,7 +113,8 @@ export function buildSwaggerSpec(serverUrl?: string): object {
             type: 'object',
             properties: {
               autoFirmwareUpdate: { type: 'boolean' },
-              firmwareChannel: { type: 'string', enum: ['stable', 'beta', 'alpha'] },
+              firmwareChannel: { type: 'string', enum: ['stable', 'beta', 'alpha', 'manual'] },
+              pendingFirmware: { type: 'string' },
               publicRead: { type: 'boolean' },
               vpdLeafTempOffsetDay: { type: 'number' },
               vpdLeafTempOffsetNight: { type: 'number' },
@@ -174,7 +175,7 @@ export function buildSwaggerSpec(serverUrl?: string): object {
               serialnumber: { type: 'number' },
               lastseen: { type: 'number' },
               current_firmware: { type: 'string' },
-              pending_firmware: { type: 'string' },
+              pending_firmware: { type: 'string', description: 'Deprecated. Use cloudSettings.pendingFirmware.' },
               fwupdate_start: { type: 'number' },
               fwupdate_end: { type: 'number' },
               configuration: { type: 'string' },
@@ -215,6 +216,7 @@ export function buildSwaggerSpec(serverUrl?: string): object {
               name: { type: 'string' },
               version: { type: 'string' },
               class_id: { type: 'string' },
+              createdAt: { type: 'number' },
             },
           },
           ClaimCode: {

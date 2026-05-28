@@ -318,6 +318,18 @@ class DeviceController {
     }
   };
 
+  public listFirmwaresForDevice = async (req: RequestWithUser, res: Response, next: NextFunction) => {
+    try {
+      const device_id = req.params.device_id;
+      if (await isUserDeviceMiddelware(req, res, device_id)) {
+        const list = await deviceService.listFirmwaresForDevice(device_id, req.user_id);
+        res.status(200).json(list);
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+
   public listFirmware = async (req: any, res: Response, next: NextFunction) => {
     try {
       const fw = await deviceService.findAllFirmware();

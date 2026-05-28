@@ -15,6 +15,7 @@
 ## Firmware
 - Roll out new firmware with `./build-fw.sh`. Pass one or more device types (`fridge`, `controller`, `plug`, `fan`, `light`) to limit the build, otherwise all are built.
 - After a rollout, wait ~7 minutes for the update to complete, then verify the device reconnects successfully.
+- When testing firmware-related behavior end-to-end, run the test against the `fridge` device first before any other device. (Unless the change doesn't apply to `fridge`.)
 
 ## Before committing
 - Read the **Development** section of `README.md` and run the listed lint/build steps for any subproject you touched (`webapp/`, `server/`).

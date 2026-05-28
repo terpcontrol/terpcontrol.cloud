@@ -114,11 +114,26 @@
       <ion-label>{{'settings.firmwareChannel' | translate}}</ion-label>
       <ion-select
         [(ngModel)]="cloudSettings.firmwareChannel"
-        (ngModelChange)="cloudSettingsChange.emit(cloudSettings); onFirmwareUpdateChanged()"
+        (ngModelChange)="onFirmwareChannelChanged()"
         class="ion-text-right">
         <ion-select-option value="stable">{{'settings.firmwareChannels.stable' | translate}}</ion-select-option>
         <ion-select-option value="beta">{{'settings.firmwareChannels.beta' | translate}}</ion-select-option>
         <ion-select-option value="alpha">{{'settings.firmwareChannels.alpha' | translate}}</ion-select-option>
+        <ion-select-option value="manual">{{'settings.firmwareChannels.manual' | translate}}</ion-select-option>
+      </ion-select>
+    </ion-item>
+    <ion-item lines="none" *ngIf="cloudSettings.autoFirmwareUpdate && cloudSettings.firmwareChannel === 'manual'">
+      <ion-label>{{'settings.firmwareVersion' | translate}}</ion-label>
+      <ion-select
+        [(ngModel)]="cloudSettings.pendingFirmware"
+        (ngModelChange)="cloudSettingsChange.emit(cloudSettings); onFirmwareUpdateChanged()"
+        [selectedText]="selectedFirmwareLabel()"
+        interface="alert"
+        [interfaceOptions]="{ cssClass: 'wide-firmware-select' }"
+        class="ion-text-right">
+        <ion-select-option *ngFor="let fw of firmwares" [value]="fw.firmware_id">
+          {{ firmwareOptionLabel(fw) }}
+        </ion-select-option>
       </ion-select>
     </ion-item>
     <ion-item lines="none">

@@ -257,7 +257,7 @@
       </ion-item>
     </ng-container>
 
-    <ng-container *ngIf="cloudSettings?.betaFeatures">
+    <ng-container *ngIf="cloudSettings?.betaFeatures && settings.workmode !== 'off'">
       <ion-item>
         <ion-label>
           {{'settings.minimalDehumidifierOffTime' | translate}}

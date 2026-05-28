@@ -29,11 +29,12 @@ export interface FirmwareSettings {
   autoUpdate?: boolean;
 }
 
-export type FirmwareChannel = 'stable' | 'beta' | 'alpha';
+export type FirmwareChannel = 'stable' | 'beta' | 'alpha' | 'manual';
 
 export interface CloudSettings {
   autoFirmwareUpdate?: boolean;
   firmwareChannel?: FirmwareChannel;
+  pendingFirmware?: string;
   publicRead?: boolean;
   vpdLeafTempOffsetDay?: number;
   vpdLeafTempOffsetNight?: number;
@@ -43,6 +44,19 @@ export interface CloudSettings {
   logRtspStreamErrors?: boolean;
   tunnelRtspStream?: boolean;
   maintenanceWebcamOff?: boolean;
+}
+
+export interface UserFirmwareInfo {
+  firmware_id: string;
+  version: string;
+  createdAt?: number;
+  channels: FirmwareChannel[];
+  current: boolean;
+}
+
+export interface UserFirmwareList {
+  current_firmware: string;
+  firmwares: UserFirmwareInfo[];
 }
 
 export interface DeviceAccessInfo {
@@ -113,7 +127,8 @@ export interface Device {
   serialnumber: number;
   lastseen: number;
   current_firmware: string;
-  pending_firmware: string;
+  /** @deprecated Use cloudSettings.pendingFirmware. Kept for reading legacy devices. */
+  pending_firmware?: string;
   fwupdate_start: number;
   fwupdate_end: number;
   alarms?: [Alarm];
@@ -150,6 +165,7 @@ export interface DeviceFirmware {
   name: string;
   version: string;
   class_id: string;
+  createdAt?: number;
 }
 
 export interface DeviceFirmwareBinary {

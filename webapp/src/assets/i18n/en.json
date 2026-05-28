@@ -116,8 +116,10 @@
     "firmwareChannels": {
       "stable": "Stable",
       "beta": "Beta (early testers)",
-      "alpha": "Alpha (experimental)"
+      "alpha": "Alpha (experimental)",
+      "manual": "Manual (pick a version)"
     },
+    "firmwareVersion": "Firmware version",
     "betaFeatures": "Beta features (Cloud)",
     "publicRead": "Public read",
     "publicReadHint": "If enabled, other people can view the charts page, diary page, and all webcam images when they have the link.",

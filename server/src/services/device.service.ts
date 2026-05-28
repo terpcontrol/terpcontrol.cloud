@@ -7,6 +7,7 @@ import {
   DeviceFirmware,
   DeviceFirmwareBinary,
   FirmwareChannel,
+  UserFirmwareList,
 } from '@fg2/shared-types';
 import deviceModel from '@models/device.model';
 import deviceLogModel from '@models/devicelog.model';
@@ -95,6 +96,7 @@ class DeviceService {
 
   constructor() {
     void this.checkDeviceClasses();
+    void this.backfillFirmwareCreatedAt();
 
     setTimeout(() => {
       void this.connectMqtt();
@@ -105,6 +107,23 @@ class DeviceService {
     setInterval(async () => {
       await this.runRecipes();
     }, 20000);
+  }
+
+  private async backfillFirmwareCreatedAt() {
+    try {
+      const missing = await deviceFirmwareModel.find({ createdAt: { $exists: false } }, { _id: 1 });
+      for (const doc of missing) {
+        const created = (doc._id as any).getTimestamp?.()?.getTime?.();
+        if (typeof created === 'number') {
+          await deviceFirmwareModel.updateOne({ _id: doc._id }, { $set: { createdAt: created } });
+        }
+      }
+      if (missing.length > 0) {
+        console.log(`Backfilled createdAt for ${missing.length} firmware records`);
+      }
+    } catch (e) {
+      console.log('Failed to backfill firmware createdAt:', e);
+    }
   }
 
   private async checkDeviceClasses() {
@@ -191,10 +210,15 @@ class DeviceService {
     this.upgradeInstructionBackoff.delete(deviceId);
   }
 
+  private effectivePendingFirmware(device: { pending_firmware?: string; cloudSettings?: { pendingFirmware?: string } }): string {
+    return device.cloudSettings?.pendingFirmware || device.pending_firmware || '';
+  }
+
   private async checkAndUpgrade(device: Device) {
     await deviceModel.findOneAndUpdate({ device_id: device.device_id }, { lastseen: Date.now() });
 
-    const needsUpgrade = device.current_firmware != device.pending_firmware && device.pending_firmware && device.pending_firmware != '';
+    const pendingFirmware = this.effectivePendingFirmware(device);
+    const needsUpgrade = device.current_firmware != pendingFirmware && !!pendingFirmware;
     if (!needsUpgrade) {
       this.resetUpgradeInstructionBackoff(device.device_id);
       return;
@@ -205,8 +229,8 @@ class DeviceService {
     }
 
     let backoff = this.upgradeInstructionBackoff.get(device.device_id);
-    if (!backoff || backoff.firmwareId !== device.pending_firmware) {
-      backoff = { firmwareId: device.pending_firmware, nextDelayMs: UPGRADE_INSTRUCTION_INITIAL_DELAY };
+    if (!backoff || backoff.firmwareId !== pendingFirmware) {
+      backoff = { firmwareId: pendingFirmware, nextDelayMs: UPGRADE_INSTRUCTION_INITIAL_DELAY };
       this.upgradeInstructionBackoff.set(device.device_id, backoff);
     }
 
@@ -219,20 +243,21 @@ class DeviceService {
   private async sendUpgradeInstruction(deviceId: string) {
     try {
       const device = await deviceModel.findOne({ device_id: deviceId });
-      if (!device || device.current_firmware == device.pending_firmware || !device.pending_firmware || device.pending_firmware == '') {
+      const pendingFirmware = device ? this.effectivePendingFirmware(device) : '';
+      if (!device || device.current_firmware == pendingFirmware || !pendingFirmware) {
         this.upgradeInstructionBackoff.delete(deviceId);
         return;
       }
 
       console.log(
-        `Sending instruction to upgrade device ${device.device_id} to firmware ${device.pending_firmware} from firmware ${device.current_firmware}`,
+        `Sending instruction to upgrade device ${device.device_id} to firmware ${pendingFirmware} from firmware ${device.current_firmware}`,
       );
-      mqttclient.publish('/devices/' + device.device_id + '/firmware', device.pending_firmware);
+      mqttclient.publish('/devices/' + device.device_id + '/firmware', pendingFirmware);
 
       const existing = this.upgradeInstructionBackoff.get(deviceId);
-      const baseDelay = existing?.firmwareId === device.pending_firmware ? existing.nextDelayMs : UPGRADE_INSTRUCTION_INITIAL_DELAY;
+      const baseDelay = existing?.firmwareId === pendingFirmware ? existing.nextDelayMs : UPGRADE_INSTRUCTION_INITIAL_DELAY;
       this.upgradeInstructionBackoff.set(deviceId, {
-        firmwareId: device.pending_firmware,
+        firmwareId: pendingFirmware,
         nextDelayMs: Math.min(baseDelay * 2, UPGRADE_INSTRUCTION_MAX_DELAY),
       });
     } catch (error) {
@@ -283,6 +308,16 @@ class DeviceService {
     return { 'cloudSettings.firmwareChannel': channel };
   }
 
+  private pendingFirmwareMatches(firmwareId: string): object {
+    return { $or: [{ pending_firmware: firmwareId }, { 'cloudSettings.pendingFirmware': firmwareId }] };
+  }
+
+  private pendingFirmwareNotEquals(firmwareId: string): object {
+    return {
+      $nor: [{ pending_firmware: firmwareId }, { 'cloudSettings.pendingFirmware': firmwareId }],
+    };
+  }
+
   private async findUpgradeableDevicesByClass(
     device_class: Omit<DeviceClass, 'firmware_id' | 'beta_firmware_id' | 'alpha_firmware_id'>,
     firmwareId: string,
@@ -290,21 +325,19 @@ class DeviceService {
   ) {
     const currently_upgrading = await deviceModel
       .where({
-        pending_firmware: firmwareId,
         class_id: device_class.class_id,
         current_firmware: { $ne: firmwareId },
         fwupdate_start: { $gte: Date.now() - UPGRADE_TIMEOUT },
-        ...(additionalQueryConditions ? { $and: [additionalQueryConditions] } : {}),
+        $and: [this.pendingFirmwareMatches(firmwareId), ...(additionalQueryConditions ? [additionalQueryConditions] : [])],
       })
       .countDocuments();
 
     const failed = await deviceModel
       .where({
-        pending_firmware: firmwareId,
         class_id: device_class.class_id,
         current_firmware: { $ne: firmwareId },
         fwupdate_start: { $lte: Date.now() - UPGRADE_TIMEOUT },
-        ...(additionalQueryConditions ? { $and: [additionalQueryConditions] } : {}),
+        $and: [this.pendingFirmwareMatches(firmwareId), ...(additionalQueryConditions ? [additionalQueryConditions] : [])],
       })
       .countDocuments();
 
@@ -313,8 +346,8 @@ class DeviceService {
         .find({
           lastseen: { $gte: Date.now() - ONLINE_TIMEOUT },
           class_id: device_class.class_id,
-          pending_firmware: { $ne: firmwareId },
           $and: [
+            this.pendingFirmwareNotEquals(firmwareId),
             { $or: [{ 'firmwareSettings.autoUpdate': true }, { 'cloudSettings.autoFirmwareUpdate': true }] },
             ...(additionalQueryConditions ? [additionalQueryConditions] : []),
           ],
@@ -323,7 +356,13 @@ class DeviceService {
 
       for (const device of devices) {
         console.log('upgrading device ' + device.device_id + ' to firmware ' + firmwareId);
-        await deviceModel.findByIdAndUpdate(device._id, { pending_firmware: firmwareId, fwupdate_start: Date.now() });
+        await deviceModel.findByIdAndUpdate(device._id, {
+          $set: {
+            'cloudSettings.pendingFirmware': firmwareId,
+            fwupdate_start: Date.now(),
+          },
+          $unset: { pending_firmware: '' },
+        });
         this.resetUpgradeInstructionBackoff(device.device_id);
       }
     }
@@ -494,7 +533,7 @@ class DeviceService {
     try {
       if (payload.firmware_id) {
         if (payload.firmware_id != device.current_firmware) {
-          if (payload.firmware_id == device.pending_firmware) {
+          if (payload.firmware_id == this.effectivePendingFirmware(device)) {
             const previousFirmwareId = device.current_firmware || 'unknown';
             const [previousFw, newFw] = await Promise.all([
               previousFirmwareId !== 'unknown' ? deviceFirmwareModel.findOne({ firmware_id: previousFirmwareId }, { version: 1 }) : null,
@@ -727,8 +766,11 @@ class DeviceService {
         device_type: info.device_type,
       },
       {
-        pending_firmware: device_class.firmware_id,
-        'cloudSettings.autoFirmwareUpdate': false,
+        $set: {
+          'cloudSettings.pendingFirmware': device_class.firmware_id,
+          'cloudSettings.autoFirmwareUpdate': false,
+        },
+        $unset: { pending_firmware: '' },
       },
     );
 
@@ -765,11 +807,11 @@ class DeviceService {
       configuration: '',
       owner_id: '',
       serialnumber: serial,
-      pending_firmware: device_class.firmware_id,
       current_firmware: '',
       lastseen: 0,
       fwupdate_end: 0,
       fwupdate_start: 0,
+      cloudSettings: { pendingFirmware: device_class.firmware_id },
     };
 
     try {
@@ -810,11 +852,11 @@ class DeviceService {
       configuration: '',
       owner_id: '',
       serialnumber: serial,
-      pending_firmware: device_class.firmware_id,
       current_firmware: '',
       lastseen: 0,
       fwupdate_end: 0,
       fwupdate_start: 0,
+      cloudSettings: { pendingFirmware: device_class.firmware_id },
     };
 
     await deviceModel.create(device);
@@ -997,9 +1039,32 @@ class DeviceService {
       throw new HttpException(400, 'Invalid firmware channel');
     }
 
+    const previousPending = this.effectivePendingFirmware(device);
+
+    if (normalizedSettings.firmwareChannel === 'manual') {
+      const requested = normalizedSettings.pendingFirmware?.trim();
+      if (!requested) {
+        throw new HttpException(400, 'Manual channel requires a firmware version');
+      }
+
+      const firmware = await deviceFirmwareModel.findOne({ firmware_id: requested, class_id: device.class_id });
+      if (!firmware) {
+        throw new HttpException(400, 'Selected firmware is not available for this device');
+      }
+
+      normalizedSettings.pendingFirmware = requested;
+    } else {
+      normalizedSettings.pendingFirmware = previousPending || undefined;
+    }
+
     device.cloudSettings = normalizedSettings;
 
-    await deviceModel.updateOne({ device_id: device_id }, { cloudSettings: normalizedSettings, firmwareSettings: {} });
+    const set: Record<string, any> = { cloudSettings: normalizedSettings, firmwareSettings: {} };
+    if (normalizedSettings.firmwareChannel === 'manual' && normalizedSettings.pendingFirmware !== previousPending) {
+      set.fwupdate_start = Date.now();
+    }
+
+    await deviceModel.updateOne({ device_id: device_id }, { $set: set, $unset: { pending_firmware: '' } });
     imageService.reportDeviceConfigured(device_id);
   }
 
@@ -1053,7 +1118,7 @@ class DeviceService {
   }
 
   private isFirmwareChannel(channel: unknown): channel is FirmwareChannel {
-    return channel === 'stable' || channel === 'beta' || channel === 'alpha';
+    return channel === 'stable' || channel === 'beta' || channel === 'alpha' || channel === 'manual';
   }
 
   public async getDeviceCloudSettings(device_id: string) {
@@ -1211,6 +1276,7 @@ class DeviceService {
       class_id: deviceclass.class_id,
       name: classname,
       version: version,
+      createdAt: Date.now(),
     });
   }
 
@@ -1227,6 +1293,44 @@ class DeviceService {
     await deviceFirmwareModel.updateMany({ version: original.version }, { version: version });
     const updated = await deviceFirmwareModel.findOne({ firmware_id: firmware_id });
     return updated;
+  }
+
+  public async listFirmwaresForDevice(device_id: string, user_id: string): Promise<UserFirmwareList> {
+    const device = await deviceModel.findOne({ device_id, owner_id: user_id }, { class_id: 1, current_firmware: 1 });
+    if (!device) {
+      throw new HttpException(404, 'Device not found or access denied');
+    }
+
+    const [device_class, firmwares] = await Promise.all([
+      deviceClassModel.findOne({ class_id: device.class_id }),
+      deviceFirmwareModel.find({ class_id: device.class_id }, { _id: 0, firmware_id: 1, version: 1, createdAt: 1 }).sort({ createdAt: -1 }),
+    ]);
+
+    const channelByFirmwareId = new Map<string, FirmwareChannel[]>();
+    if (device_class?.firmware_id) {
+      channelByFirmwareId.set(device_class.firmware_id, ['stable']);
+    }
+    if (device_class?.beta_firmware_id) {
+      const list = channelByFirmwareId.get(device_class.beta_firmware_id) ?? [];
+      list.push('beta');
+      channelByFirmwareId.set(device_class.beta_firmware_id, list);
+    }
+    if (device_class?.alpha_firmware_id) {
+      const list = channelByFirmwareId.get(device_class.alpha_firmware_id) ?? [];
+      list.push('alpha');
+      channelByFirmwareId.set(device_class.alpha_firmware_id, list);
+    }
+
+    return {
+      current_firmware: device.current_firmware ?? '',
+      firmwares: firmwares.map(fw => ({
+        firmware_id: fw.firmware_id,
+        version: fw.version,
+        createdAt: fw.createdAt,
+        channels: channelByFirmwareId.get(fw.firmware_id) ?? [],
+        current: fw.firmware_id === device.current_firmware,
+      })),
+    };
   }
 
   public async createFirmwareBinary(fw_id: string, name: string, data: Buffer): Promise<DeviceFirmwareBinary> {
@@ -1337,7 +1441,7 @@ class DeviceService {
                   fwupdate_start: { $gte: Date.now() - UPGRADE_TIMEOUT },
                   current_firmware: { $ne: fwversion.firmware_id },
                   class_id: deviceclass.class_id,
-                  pending_firmware: fwversion.firmware_id,
+                  ...this.pendingFirmwareMatches(fwversion.firmware_id),
                 })
                 .countDocuments(),
               failed: await deviceModel
@@ -1345,7 +1449,7 @@ class DeviceService {
                   fwupdate_start: { $lte: Date.now() - UPGRADE_TIMEOUT },
                   current_firmware: { $ne: fwversion.firmware_id },
                   class_id: deviceclass.class_id,
-                  pending_firmware: fwversion.firmware_id,
+                  ...this.pendingFirmwareMatches(fwversion.firmware_id),
                 })
                 .countDocuments(),
               avgtime: upgrade_time?.avgTime || 0,
