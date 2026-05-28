@@ -1059,9 +1059,11 @@ class DeviceService {
         throw new HttpException(400, 'Manual channel requires a firmware version');
       }
 
-      const firmware = await deviceFirmwareModel.findOne({ firmware_id: requested, class_id: device.class_id });
-      if (!firmware) {
-        throw new HttpException(400, 'Selected firmware is not available for this device');
+      if (requested !== previousPending) {
+        const firmware = await deviceFirmwareModel.findOne({ firmware_id: requested, class_id: device.class_id });
+        if (!firmware) {
+          throw new HttpException(400, 'Selected firmware is not available for this device');
+        }
       }
 
       normalizedSettings.pendingFirmware = requested;
