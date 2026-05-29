@@ -166,7 +166,7 @@ class AlarmService {
   private async handleEmailAlarm(alarm: Alarm, deviceId: string, value: number) {
     const event = alarm.isTriggered ? 'triggered' : 'resolved';
     const name = 'Alarm' + (alarm.name ? ' ' + alarm.name : '');
-    const emailSubject = `[FG2] ${name} ${event} for Device ${deviceId}`;
+    const emailSubject = `[TERP CONTROL] ${name} ${event} for Device ${deviceId}`;
     const emailBody =
       `An alarm has been ${event} for device ${deviceId}.\n\n` +
       `Sensor: ${alarm.sensorType}\n` +
