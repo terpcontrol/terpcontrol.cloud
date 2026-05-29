@@ -7,6 +7,8 @@ export const ENABLE_SELF_REGISTRATION = process.env.ENABLE_SELF_REGISTRATION ===
 export const SMTP_SECURE = process.env.SMTP_SECURE === 'true';
 export const REQUIRE_ACTIVATION = process.env.REQUIRE_ACTIVATION === 'true';
 
+export const EMAIL_PREFIX = process.env.EMAIL_PREFIX ?? '[FG2]';
+
 export const {
   NODE_ENV,
   PORT,

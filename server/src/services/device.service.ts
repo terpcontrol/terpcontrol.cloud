@@ -19,7 +19,7 @@ import { AddDeviceDto, RegisterDeviceDto, TestDeviceDto } from '@/dtos/device.dt
 import { mqttclient } from '../databases/mqttclient';
 import { dataService } from './data.service';
 import { HttpException } from '@/exceptions/HttpException';
-import { ENABLE_SELF_REGISTRATION, SELF_REGISTRATION_PASSWORD, SMTP_SENDER } from '@/config';
+import { EMAIL_PREFIX, ENABLE_SELF_REGISTRATION, SELF_REGISTRATION_PASSWORD, SMTP_SENDER } from '@/config';
 import { alarmService } from '@services/alarm.service';
 import { isNumeric } from 'influx/lib/src/grammar';
 import { mailTransport } from '@services/auth.service';
@@ -415,7 +415,7 @@ class DeviceService {
       if (remainingMs <= 0) {
         if (activeStep.waitForConfirmation) {
           if (device.recipe.notifications !== 'off' && !activeStep.notified) {
-            emailSubject = `[FG2] Recipe step #${device.recipe.activeStepIndex + 1} waiting for confirmation on device ${device.device_id}`;
+            emailSubject = `${EMAIL_PREFIX} Recipe step #${device.recipe.activeStepIndex + 1} waiting for confirmation on device ${device.device_id}`;
             emailBody = `Please confirm the completion of step #${device.recipe.activeStepIndex + 1} ${activeStep.name}: ${
               activeStep.confirmationMessage || 'No additional information provided.'
             }`;
@@ -445,7 +445,7 @@ class DeviceService {
             console.log('Advancing to next recipe step ' + device.recipe.activeStepIndex + ' for device ' + device.device_id);
 
             if (device.recipe.notifications === 'onStep') {
-              emailSubject = `[FG2] Recipe advanced to step #${device.recipe.activeStepIndex + 1} on device ${device.device_id}`;
+              emailSubject = `${EMAIL_PREFIX} Recipe advanced to step #${device.recipe.activeStepIndex + 1} on device ${device.device_id}`;
               emailBody = `The recipe has advanced to step #${device.recipe.activeStepIndex + 1} ${activeStep.name}`;
             }
 
@@ -467,7 +467,7 @@ class DeviceService {
             console.log('Looping recipe to step 0 for device ' + device.device_id);
 
             if (device.recipe.notifications === 'onStep') {
-              emailSubject = `[FG2] Recipe looped to step #1 on device ${device.device_id}`;
+              emailSubject = `${EMAIL_PREFIX} Recipe looped to step #1 on device ${device.device_id}`;
               emailBody = `The recipe has looped back to step #1 ${activeStep.name}.`;
             }
 
@@ -487,7 +487,7 @@ class DeviceService {
             console.log('Recipe completed for device ' + device.device_id);
 
             if (device.recipe.notifications === 'onStep') {
-              emailSubject = `[FG2] Recipe completed on device ${device.device_id}`;
+              emailSubject = `${EMAIL_PREFIX} Recipe completed on device ${device.device_id}`;
               emailBody = `The recipe has completed all steps on device ${device.device_id}.`;
             }
 

@@ -1,7 +1,7 @@
 import { deviceService, ONLINE_TIMEOUT, StatusMessage } from '@services/device.service';
 import deviceModel from '@models/device.model';
 import { Alarm, Device } from '@fg2/shared-types';
-import { SMTP_SENDER } from '@config';
+import { EMAIL_PREFIX, SMTP_SENDER } from '@config';
 import { mailTransport } from '@services/auth.service';
 import { request as httpRequest } from 'http';
 import { request as httpsRequest } from 'https';
@@ -166,7 +166,7 @@ class AlarmService {
   private async handleEmailAlarm(alarm: Alarm, deviceId: string, value: number) {
     const event = alarm.isTriggered ? 'triggered' : 'resolved';
     const name = 'Alarm' + (alarm.name ? ' ' + alarm.name : '');
-    const emailSubject = `[FG2] ${name} ${event} for Device ${deviceId}`;
+    const emailSubject = `${EMAIL_PREFIX} ${name} ${event} for Device ${deviceId}`;
     const emailBody =
       `An alarm has been ${event} for device ${deviceId}.\n\n` +
       `Sensor: ${alarm.sensorType}\n` +
