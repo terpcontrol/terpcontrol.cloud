@@ -144,7 +144,8 @@ namespace fg {
     TickType_t co2_inject_start = 0;
     TickType_t co2_inject_end = 0;
     TickType_t co2_valve_close = 0;
-    TickType_t pause_until_tick = 0;
+    TickType_t pause_start_tick = 0;
+    TickType_t pause_duration_ticks = 0;   // 0 == not paused
 
     TickType_t directmode_timer = 0;
 
@@ -187,6 +188,14 @@ namespace fg {
 
     Pid heater_day_pid;
     Pid heater_night_pid;
+
+    // Overflow-safe maintenance-pause check. Comparing absolute ticks breaks
+    // when xTaskGetTickCount() wraps (~49.7 days at 1 kHz); the modular
+    // difference stays correct as long as the pause duration is < ~24 days.
+    bool isPaused() const {
+      return pause_duration_ticks != 0 &&
+             (xTaskGetTickCount() - pause_start_tick) < pause_duration_ticks;
+    }
 
     void updateSensors();
     void checkDayCycle();
