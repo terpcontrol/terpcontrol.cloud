@@ -14,8 +14,10 @@
 
 ## Firmware
 - Roll out new firmware with `./build-fw.sh`. Pass one or more device types (`fridge`, `controller`, `plug`, `fan`, `light`) to limit the build, otherwise all are built.
+- Ignore the `dryer` hardware type — do not build, roll out, or test it.
 - After a rollout, wait ~7 minutes for the update to complete, then verify the device reconnects successfully.
 - When testing firmware-related behavior end-to-end, run the test against the `fridge` device first before any other device. (Unless the change doesn't apply to `fridge`.)
+- Before rolling out, confirm the target devices are online. Log in to the API and `GET /device`; each device's `lastseen` (epoch ms) is online when it is within the last 10 minutes (`ONLINE_TIMEOUT`). To compile-check without touching any device, build in the container with `FW_NO_UPLOAD=1 FW_VERSION_ID=<any> ./build-fw.sh <types>`.
 
 ## Before committing
 - Read the **Development** section of `README.md` and run the listed lint/build steps for any subproject you touched (`webapp/`, `server/`).

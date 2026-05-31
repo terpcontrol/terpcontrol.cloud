@@ -173,8 +173,8 @@ namespace fg {
     co2_inject_start = xTaskGetTickCount();
 
     if(state.is_day) {
-      if(co2_inject_end < xTaskGetTickCount()) {
-        if((co2_avg.avg() < settings.co2.target && xTaskGetTickCount() > pause_until_tick)) {
+      if(tickPassed(co2_inject_end)) {
+        if((co2_avg.avg() < settings.co2.target && !isPaused())) {
           state.out_co2 = 1;
 		  out_co2.set(state.out_co2);
           co2_valve_close = co2_inject_start + co2_inject_count * CO2_INJECT_DURATION;
@@ -220,7 +220,7 @@ namespace fg {
       }
 
       float max_out = 1.0f;
-      if (xTaskGetTickCount() <= pause_until_tick) {
+      if (isPaused()) {
           max_out = 0.15f;
       }
       else
@@ -300,7 +300,7 @@ namespace fg {
       }
     }
 
-    if (xTaskGetTickCount() <= pause_until_tick) {
+    if (isPaused()) {
           state.out_dehumidifier = 0;
     }
     else if(dehumidify && temperature_override) {
@@ -341,7 +341,7 @@ namespace fg {
     }
 
 
-    if (xTaskGetTickCount() <= pause_until_tick) {
+    if (isPaused()) {
       state.out_dehumidifier = 0;
     }
     else if(cool) {
@@ -362,7 +362,7 @@ namespace fg {
 
   void ControllerController::controlHeater() {
 
-    if (xTaskGetTickCount() <= pause_until_tick) {
+    if (isPaused()) {
       state.out_heater = 0;
     }
     else if(state.is_day) {
@@ -374,7 +374,7 @@ namespace fg {
 
     heater_turn_off = (float)xTaskGetTickCount() + (float)configTICK_RATE_HZ * state.out_heater;
 
-    if (xTaskGetTickCount() < pause_until_tick) {
+    if (isPaused()) {
       state.out_heater = 0;
 	  out_heater.set(state.out_heater);
     }
@@ -571,7 +571,8 @@ namespace fg {
       } else if(command["action"] && command["action"] == std::string("maintenance")) {
         float durationMinutes = command["durationMinutes"].as<float>();
         char buf[64];
-        pause_until_tick = xTaskGetTickCount() + configTICK_RATE_HZ * durationMinutes * 60;
+        pause_start_tick = xTaskGetTickCount();
+        pause_duration_ticks = (TickType_t)(configTICK_RATE_HZ * durationMinutes * 60);
         snprintf(buf, sizeof(buf), "message-maintenance-mode-activated-remote:%d", (int)roundf(durationMinutes));
         cloud.log(buf);
       }
@@ -746,14 +747,14 @@ namespace fg {
 
 
   void ControllerController::fastloop() {
-    if(heater_turn_off < xTaskGetTickCount()) {
+    if(tickPassed(heater_turn_off)) {
       out_heater.set(0);
     }
     if(testmode_duration == 0 && hasCo2Sensor() && out_co2.get()) {
       state.out_co2 += xTaskGetTickCount() - co2_inject_start;
       co2_inject_start = xTaskGetTickCount();
 
-      if(co2_valve_close < xTaskGetTickCount()) {
+      if(tickPassed(co2_valve_close)) {
         out_co2.set(0);
       }
     }
@@ -779,7 +780,7 @@ namespace fg {
     else if(settings.mqttcontrol) {
       Serial.println("Direct control mode active");;
 
-      if(directmode_timer < xTaskGetTickCount()) {
+      if(tickPassed(directmode_timer)) {
         Serial.println("DIRECTMODE TIMEOUT! REVERTING!");
         auto saved_settings = fg::settings().getStr("config");
         loadSettings(saved_settings.c_str());
@@ -887,7 +888,7 @@ namespace fg {
         out_fan_backwall.set(0);
       }
 
-      if (settings.lights.maintenanceOn > 0 && xTaskGetTickCount() <= pause_until_tick) {
+      if (settings.lights.maintenanceOn > 0 && isPaused()) {
           state.out_light = 15.0f;
           out_light.set(255.0f * (state.out_light / 100.0f));
       }
@@ -1006,7 +1007,8 @@ namespace fg {
       ui->push<FloatInput>("Pause fridge for", 30, "min", 0, 120, 5, 0, [ui, this](float value) {
         char buf[64];
 
-        pause_until_tick = xTaskGetTickCount() + configTICK_RATE_HZ * value * 60;
+        pause_start_tick = xTaskGetTickCount();
+        pause_duration_ticks = (TickType_t)(configTICK_RATE_HZ * value * 60);
         snprintf(buf, sizeof(buf), "message-maintenance-mode-activated:%d", (int)roundf(value));
         cloud.log(buf);
         ui->pop();
