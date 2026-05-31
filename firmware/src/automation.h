@@ -6,6 +6,14 @@
 
 namespace fg {
 
+  // Overflow-safe "has this absolute tick deadline passed?" check. A plain
+  // `deadline < xTaskGetTickCount()` breaks when the FreeRTOS tick counter
+  // wraps (~49.7 days at 1 kHz). The signed modular difference stays correct
+  // as long as the deadline is less than ~24 days away.
+  inline bool tickPassed(TickType_t deadline) {
+    return (int32_t)(xTaskGetTickCount() - deadline) > 0;
+  }
+
   class AutomationController {
   public:
     virtual void init() = 0;

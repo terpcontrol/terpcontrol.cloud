@@ -173,7 +173,7 @@ namespace fg {
     co2_inject_start = xTaskGetTickCount();
 
     if(state.is_day) {
-      if(co2_inject_end < xTaskGetTickCount()) {
+      if(tickPassed(co2_inject_end)) {
         if((co2_avg.avg() < settings.co2.target && !isPaused())) {
           state.out_co2 = 1;
 		  out_co2.set(state.out_co2);
@@ -747,14 +747,14 @@ namespace fg {
 
 
   void ControllerController::fastloop() {
-    if(heater_turn_off < xTaskGetTickCount()) {
+    if(tickPassed(heater_turn_off)) {
       out_heater.set(0);
     }
     if(testmode_duration == 0 && hasCo2Sensor() && out_co2.get()) {
       state.out_co2 += xTaskGetTickCount() - co2_inject_start;
       co2_inject_start = xTaskGetTickCount();
 
-      if(co2_valve_close < xTaskGetTickCount()) {
+      if(tickPassed(co2_valve_close)) {
         out_co2.set(0);
       }
     }
@@ -780,7 +780,7 @@ namespace fg {
     else if(settings.mqttcontrol) {
       Serial.println("Direct control mode active");;
 
-      if(directmode_timer < xTaskGetTickCount()) {
+      if(tickPassed(directmode_timer)) {
         Serial.println("DIRECTMODE TIMEOUT! REVERTING!");
         auto saved_settings = fg::settings().getStr("config");
         loadSettings(saved_settings.c_str());

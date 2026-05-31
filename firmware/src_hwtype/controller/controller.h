@@ -188,9 +188,13 @@ namespace fg {
     // Overflow-safe maintenance-pause check. Comparing absolute ticks breaks
     // when xTaskGetTickCount() wraps (~49.7 days at 1 kHz); the modular
     // difference stays correct as long as the pause duration is < ~24 days.
-    bool isPaused() const {
-      return pause_duration_ticks != 0 &&
-             (xTaskGetTickCount() - pause_start_tick) < pause_duration_ticks;
+    // Clears the duration once expired so a later tick rollover can't
+    // re-trigger a long-finished pause.
+    bool isPaused() {
+      if (pause_duration_ticks == 0) return false;
+      if ((xTaskGetTickCount() - pause_start_tick) < pause_duration_ticks) return true;
+      pause_duration_ticks = 0;
+      return false;
     }
 
     void updateSensors();

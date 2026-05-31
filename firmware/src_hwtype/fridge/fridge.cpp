@@ -226,7 +226,7 @@ namespace fg {
     co2_inject_start = xTaskGetTickCount();
 
     if(state.is_day) {
-      if(co2_inject_end < xTaskGetTickCount()) {
+      if(tickPassed(co2_inject_end)) {
         if((co2_avg.avg() < settings.co2.target && !isPaused()) && (settings.co2.sunsetOff <= 0 || state.sunset_factor >= 1)) {
           out_co2.set(1);
           co2_valve_close = co2_inject_start + co2_inject_count * CO2_INJECT_DURATION;
@@ -773,14 +773,14 @@ namespace fg {
   }
 
   void FridgeController::fastloop() {
-    if(heater_turn_off < xTaskGetTickCount()) {
+    if(tickPassed(heater_turn_off)) {
       out_heater.set(0);
     }
     if(testmode_duration == 0 && out_co2.get()) {
       state.out_co2 += xTaskGetTickCount() - co2_inject_start;
       co2_inject_start = xTaskGetTickCount();
 
-      if(co2_valve_close < xTaskGetTickCount()) {
+      if(tickPassed(co2_valve_close)) {
         out_co2.set(0);
       }
     }
@@ -813,7 +813,7 @@ namespace fg {
         Serial.println("!!!!!!!!   HEATER THROTTLING !!!!!!!!!!");
       }
 
-      if(directmode_timer < xTaskGetTickCount()) {
+      if(tickPassed(directmode_timer)) {
         Serial.println("DIRECTMODE TIMEOUT! REVERTING!");
         auto saved_settings = fg::settings().getStr("config");
         loadSettings(saved_settings.c_str());

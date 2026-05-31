@@ -725,11 +725,11 @@ namespace fg {
   }
 
   void PlugController::fastloop() {
-    if(heater_turn_off < xTaskGetTickCount()) {
+    if(tickPassed(heater_turn_off)) {
       // out_heater.set(0);
     }
     if(testmode_duration == 0) {
-      if(co2_inject_start + CO2_INJECT_DURATION < xTaskGetTickCount()) {
+      if(tickPassed(co2_inject_start + CO2_INJECT_DURATION)) {
         // out_co2.set(0);
       }
     }
@@ -746,7 +746,7 @@ namespace fg {
     else if(settings.mqttcontrol) {
       Serial.println("Direct control mode active");;
 
-      if(directmode_timer < xTaskGetTickCount()) {
+      if(tickPassed(directmode_timer)) {
         Serial.println("DIRECTMODE TIMEOUT! REVERTING!");
         auto saved_settings = fg::settings().getStr("config");
         loadSettings(saved_settings.c_str());
