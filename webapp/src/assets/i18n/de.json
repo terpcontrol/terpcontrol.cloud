@@ -59,6 +59,7 @@
     "maxDehumidifySeconds": "Max. Kühlschrank AN Sekunden",
     "minimalDehumidifierOffTime": "Min. Kühlschrank Aus-Zeit in Sekunden",
     "minimalDehumidifierOffTimeHint": "Mindestzeit in Sekunden, die der Kühlschrank/Entfeuchter aus bleibt, bevor er wieder eingeschaltet werden kann. Verhindert häufiges Takten des Kompressors.",
+    "minimalDehumidifierOffTimeWarning": "Warnung: Werte unter 240s können den Kompressor des Kühlschranks durch häufiges Takten beschädigen!",
     "targetHumidityDiff": "Ziel RLF Differenz",
     "useLongHumidityAvg": "Lange RLF Durchschnittswerte verwenden (240 statt 100 Werte)",
     "use-daynight": "Tag/Nacht Zyklus verwenden",

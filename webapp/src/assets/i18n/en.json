@@ -59,6 +59,7 @@
     "maxDehumidifySeconds": "Max. dehumidifier ON seconds",
     "minimalDehumidifierOffTime": "Min. dehumidifier off seconds",
     "minimalDehumidifierOffTimeHint": "Minimum time in seconds the fridge/dehumidifier stays off before it can turn on again. Prevents short-cycling of the compressor.",
+    "minimalDehumidifierOffTimeWarning": "Warning: Values below 240s may damage the fridge compressor due to short-cycling!",
     "targetHumidityDiff": "Target humidity difference",
     "useLongHumidityAvg": "Use long humidity average (240 instead of 100 values)",
     "use-daynight": "Use Day/Night Cycle",
