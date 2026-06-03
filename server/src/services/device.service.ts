@@ -781,6 +781,7 @@ class DeviceService {
         $set: {
           'cloudSettings.pendingFirmware': device_class.firmware_id,
           'cloudSettings.autoFirmwareUpdate': false,
+          'hardwareInfo.claimcode_auth': 'off',
         },
         $unset: { pending_firmware: '' },
       },
