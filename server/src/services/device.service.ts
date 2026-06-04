@@ -84,7 +84,6 @@ const DEVICE_MESSAGE_CATEGORY_MAPPING = {
   'message-ext-sensor-fail': ['device-sensor'],
   'message-ext-sensor-deviate': ['device-sensor'],
   'message-device-booted': ['device-boot'],
-  'message-device-reboot-remote': ['device-reboot'],
   'message-device-firmware-update': ['device-firmware'],
   'message-buffer-overflow': ['device-connection'],
   'message-smart-socket-disconnected': ['device-socket'],

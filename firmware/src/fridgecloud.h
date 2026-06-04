@@ -69,7 +69,7 @@ namespace fg {
     unsigned int current_sample = 0;
 
     // Set when a remote reboot command arrives. The restart is deferred to
-    // loop() so the queued log message is published before the device resets.
+    // loop() so any pending log messages are flushed before the device resets.
     bool reboot_requested = false;
 
     // Count of consecutive failed client->publish() calls. When the socket
