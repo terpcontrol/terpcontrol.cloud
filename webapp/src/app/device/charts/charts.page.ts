@@ -191,6 +191,9 @@ export class ChartsPage implements OnInit, OnDestroy {
 
   public currentImageTimestamp: number | undefined = undefined;
 
+  // Playback progress (0-100) of the currently shown timelapse video.
+  public videoProgress = 0;
+
   private currentDataLoadStartTime: number = 0;
 
   @ViewChild(BaseChartDirective) chart?: BaseChartDirective;
@@ -589,6 +592,16 @@ export class ChartsPage implements OnInit, OnDestroy {
     }
   }
 
+  // The timelapse video for the current selection is the one covering the end
+  // of the visible window (getSelectedDateMs() + timespan). The server picks the
+  // video whose aligned start is at or before this timestamp, so using the window
+  // end keeps the video in sync with the graph window. Using the window start
+  // instead would request the previous video, causing navigation to skip one.
+  private getAnimatedImageTimestamp(): number {
+    const windowEndMs = this.getSelectedDateMs() + this.getSelectedTimespanDurationMs();
+    return Math.ceil(windowEndMs / 5000) * 5000;
+  }
+
   private shiftSelectedDateByTimespan(direction: -1 | 1) {
     const durationMs = this.getSelectedTimespanDurationMs();
     if (durationMs <= 0) {
@@ -746,7 +759,9 @@ export class ChartsPage implements OnInit, OnDestroy {
     // this.lineChartData.datasets[2].data = await this.data.getSeries(room_id, 'co2', span, interval);
     // this.chart?.update();
 
-    this.currentImageTimestamp = series?.[0]?.data?.[(series?.[0]?.data?.length ?? 1) - 1]?.[0];
+    this.currentImageTimestamp = this.isAnimatedImage()
+      ? this.getAnimatedImageTimestamp()
+      : series?.[0]?.data?.[(series?.[0]?.data?.length ?? 1) - 1]?.[0];
     void this.loadDeviceImage(this.currentImageTimestamp);
     if (this.showLightOffsetControls() && this.showImage && !this.selectedTimespan.imageIntervalMs) {
       this.selectedTimespan = this.getAvailableTimespans()[0];
@@ -801,7 +816,7 @@ export class ChartsPage implements OnInit, OnDestroy {
       this.chartInstance?.zoomOut();
 
       if (this.isAnimatedImage()) {
-        this.currentImageTimestamp = Math.ceil(this.getSelectedDateMs() / 5000) * 5000;
+        this.currentImageTimestamp = this.getAnimatedImageTimestamp();
         void this.loadDeviceImage(this.currentImageTimestamp);
       }
     });
@@ -863,7 +878,17 @@ export class ChartsPage implements OnInit, OnDestroy {
     const url = await this.devices.getDeviceImageUrl(this.device_id, format, timestamp, duration);
 
     if (url && this.currentImageTimestamp === timestamp) {
+      if (url !== this.deviceImageUrl) {
+        this.videoProgress = 0;
+      }
       this.deviceImageUrl = url;
+    }
+  }
+
+  public onVideoTimeUpdate(event: Event) {
+    const video = event.target as HTMLVideoElement;
+    if (video && Number.isFinite(video.duration) && video.duration > 0) {
+      this.videoProgress = (video.currentTime / video.duration) * 100;
     }
   }
 

@@ -194,7 +194,17 @@
     <ion-col *ngIf="showImage || showLogs" [style.width]="hasEnabledMeasures() ? '50%' : '100%'">
       <div *ngIf="showImage">
         <img *ngIf="!isAnimatedImage()" [src]="deviceImageUrl ?? ''" alt="Device Image" style="width: 100%"/>
-        <video *ngIf="isAnimatedImage()" [src]="deviceImageUrl ?? ''" autoplay muted loop style="width: 100%"></video>
+        <div *ngIf="isAnimatedImage()" class="timelapse-video-wrapper">
+          <video
+            [src]="deviceImageUrl ?? ''"
+            autoplay
+            muted
+            loop
+            playsinline
+            (timeupdate)="onVideoTimeUpdate($event)"
+          ></video>
+          <div class="timelapse-progress" [style.width.%]="videoProgress"></div>
+        </div>
         <br />
         {{ currentImageTimestamp | date: (isAnimatedImage() ? 'mediumDate' : 'medium') }}
       </div>

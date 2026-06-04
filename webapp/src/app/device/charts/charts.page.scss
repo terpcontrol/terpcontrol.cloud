@@ -4,6 +4,27 @@ highcharts-chart {
   display:block;
 }
 
+.timelapse-video-wrapper {
+  position: relative;
+  width: 100%;
+  line-height: 0;
+
+  video {
+    width: 100%;
+    display: block;
+  }
+
+  .timelapse-progress {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 3px;
+    background: #ff0000;
+    pointer-events: none;
+    transition: width 0.1s linear;
+  }
+}
+
 .measure-select {
   border:1px solid black;
   margin: 2px;
