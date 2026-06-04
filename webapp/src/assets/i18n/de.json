@@ -447,6 +447,8 @@
   "message-buffer-overflow-text": "Daten konnten nicht zum Server übertragen werden. Bitte Internetverbindung und WLAN überprüfen.",
   "message-co2-low-title": "Niedriger CO2 Wert",
   "message-co2-low-text": "CO2 Flasche prüfen!",
+  "message-device-reboot-remote-title": "Geräteneustart",
+  "message-device-reboot-remote-text": "Dein Gerät wurde über das Portal neu gestartet.",
   "message-device-firmware-update-title": "Update",
   "message-device-firmware-update-text": "Die Software von deinem Gerät wurde geupdated.",
   "message-ext-sensor-deviate-title": "Abweichung externer und interner Sensor",

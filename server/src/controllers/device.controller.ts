@@ -79,6 +79,19 @@ class DeviceController {
     }
   };
 
+  public rebootDevice = async (req: RequestWithUser, res: Response, next: NextFunction) => {
+    try {
+      if (req.is_admin || (await isUserDeviceMiddelware(req, res, req.body.device_id))) {
+        await deviceService.rebootDevice(req.body.device_id);
+        res.status(200).json({ status: 'ok' });
+      } else {
+        res.status(401);
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+
   public getClaimCode = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
       const code = await deviceService.getClaimCode(req.body.device_id, req.body.password);

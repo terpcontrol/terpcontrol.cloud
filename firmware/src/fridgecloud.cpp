@@ -183,6 +183,12 @@ namespace fg {
         return;
       }
 
+      if(doc["action"] == "reboot") {
+        log("message-device-reboot-remote");
+        reboot_requested = true;
+        return;
+      }
+
       command_subject.next(doc);
     });
     esp_task_wdt_reset();
@@ -355,6 +361,12 @@ namespace fg {
           break;
         }
         esp_task_wdt_reset();
+      }
+
+      if(reboot_requested && log_queue.empty()) {
+        Serial.println("reboot command received, restarting...");
+        Serial.flush();
+        ESP.restart();
       }
     }
   }

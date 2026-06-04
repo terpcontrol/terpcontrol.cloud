@@ -890,7 +890,7 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
   menu->addOption("reboot", [ui](){
     ui_handle->push<TextDisplay>("rebooting...", 1, []() {
       ESP.restart();
-    });
+    }, 3000);
   });
 
 }

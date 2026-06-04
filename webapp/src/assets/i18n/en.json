@@ -465,6 +465,8 @@
   "message-buffer-overflow-text": "Data could not be transfered to the server and was lost. Please check your internet connection or wifi.",
   "message-co2-low-title": "Low CO2",
   "message-co2-low-text": "Check your CO2 bottle!",
+  "message-device-reboot-remote-title": "Device reboot",
+  "message-device-reboot-remote-text": "Your device was restarted via the portal.",
   "message-device-firmware-update-title": "Update",
   "message-device-firmware-update-text": "The software of your device was updated",
   "message-ext-sensor-deviate-title": "External and internal sensor deviation",

@@ -84,6 +84,7 @@ const DEVICE_MESSAGE_CATEGORY_MAPPING = {
   'message-ext-sensor-fail': ['device-sensor'],
   'message-ext-sensor-deviate': ['device-sensor'],
   'message-device-booted': ['device-boot'],
+  'message-device-reboot-remote': ['device-reboot'],
   'message-device-firmware-update': ['device-firmware'],
   'message-buffer-overflow': ['device-connection'],
   'message-smart-socket-disconnected': ['device-socket'],
@@ -745,6 +746,17 @@ class DeviceService {
     );
 
     await alarmService.maintenanceActivatedForDevice(device_id, durationMinutes);
+  }
+
+  public async rebootDevice(device_id: string): Promise<void> {
+    console.log('Rebooting device ' + device_id);
+
+    mqttclient.publish(
+      '/devices/' + device_id + '/command',
+      JSON.stringify({
+        action: 'reboot',
+      }),
+    );
   }
 
   public async findUserDevices(user_id: string): Promise<Device[]> {
