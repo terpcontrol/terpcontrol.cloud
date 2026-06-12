@@ -397,7 +397,7 @@ namespace fg {
   }
 
   void DryerController::fastloop() {
-    if(heater_turn_off < xTaskGetTickCount()) {
+    if(tickPassed(heater_turn_off)) {
       out_heater.set(0);
     }
   }
@@ -417,7 +417,7 @@ namespace fg {
         Serial.println("!!!!!!!!   HEATER THROTTLING !!!!!!!!!!");
       }
 
-      if(directmode_timer < xTaskGetTickCount()) {
+      if(tickPassed(directmode_timer)) {
         Serial.println("DIRECTMODE TIMEOUT! REVERTING!");
         auto saved_settings = fg::settings().getStr("config");
         loadSettings(saved_settings.c_str());

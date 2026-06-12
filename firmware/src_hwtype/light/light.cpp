@@ -79,7 +79,7 @@ namespace fg {
   if(settings.mqttcontrol) {
     Serial.println("Direct control mode active");;
 
-    if(directmode_timer < xTaskGetTickCount()) {
+    if(tickPassed(directmode_timer)) {
       Serial.println("DIRECTMODE TIMEOUT! REVERTING!");
       auto saved_settings = fg::settings().getStr("config");
       loadSettings(saved_settings.c_str());

@@ -750,7 +750,7 @@ class DeviceService {
   public async findUserDevices(user_id: string): Promise<Device[]> {
     const devices: Device[] = await deviceModel.find(
       { owner_id: user_id },
-      { device_id: 1, configuration: 1, device_type: 1, name: 1, maintenance_mode_until: 1, cloudSettings: 1, hardwareInfo: 1 },
+      { device_id: 1, configuration: 1, device_type: 1, name: 1, maintenance_mode_until: 1, cloudSettings: 1, hardwareInfo: 1, lastseen: 1 },
     );
     // const users: Device[] = await deviceModel.aggregate([{$match: {owner_id: user_id}}, {$lookup: {from: 'deviceclasses', localField:'class_id', foreignField: 'class_id', as:'device_class'}}]);
     return devices;
