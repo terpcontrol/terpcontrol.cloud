@@ -747,6 +747,17 @@ class DeviceService {
     await alarmService.maintenanceActivatedForDevice(device_id, durationMinutes);
   }
 
+  public async rebootDevice(device_id: string): Promise<void> {
+    console.log('Rebooting device ' + device_id);
+
+    mqttclient.publish(
+      '/devices/' + device_id + '/command',
+      JSON.stringify({
+        action: 'reboot',
+      }),
+    );
+  }
+
   public async findUserDevices(user_id: string): Promise<Device[]> {
     const devices: Device[] = await deviceModel.find(
       { owner_id: user_id },

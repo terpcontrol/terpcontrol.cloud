@@ -1012,7 +1012,7 @@ namespace fg {
         }
         ui->push<TextDisplay>(buf, 1, [ui, this](){
           ui->pop();
-        });
+        }, 5000);
       });
     });
 

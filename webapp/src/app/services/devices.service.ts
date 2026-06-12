@@ -282,4 +282,8 @@ export class DeviceService {
   public async activateMaintenanceMode(device_id: string, durationMinutes: number) {
     await firstValueFrom(this.http.post(environment.API_URL + "/device/maintenancemode", { device_id: device_id, duration_minutes: durationMinutes }));
   }
+
+  public async rebootDevice(device_id: string) {
+    await firstValueFrom(this.http.post(environment.API_URL + "/device/reboot", { device_id: device_id }));
+  }
 }

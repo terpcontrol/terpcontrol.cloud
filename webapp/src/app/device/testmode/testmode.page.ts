@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { AlertController, ToastController } from '@ionic/angular';
 import { combineLatest, firstValueFrom } from 'rxjs';
 import { DataService } from 'src/app/services/data.service';
 import { DeviceWithParsedSettings, DeviceService } from 'src/app/services/devices.service';
@@ -24,7 +25,13 @@ export class TestmodePage implements OnInit {
     fanbw: 0
   }
 
-  constructor(private devices: DeviceService, public data: DataService, private route: ActivatedRoute) { }
+  constructor(
+    private devices: DeviceService,
+    public data: DataService,
+    private route: ActivatedRoute,
+    private alertController: AlertController,
+    private toastController: ToastController,
+  ) { }
 
   async ngOnInit() {
     this.device_id = this.route.snapshot.paramMap.get('device_id') || "";
@@ -51,6 +58,30 @@ export class TestmodePage implements OnInit {
     this.outputs.fanbw = parseInt('' + this.outputs.fanbw);
 
     this.devices.testOutputs(this.device_id, this.outputs);
+  }
+
+  async reboot() {
+    const alert = await this.alertController.create({
+      header: 'Reboot device',
+      message: 'The device will restart and briefly go offline. Continue?',
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        {
+          text: 'Reboot',
+          handler: async () => {
+            try {
+              await this.devices.rebootDevice(this.device_id);
+              const toast = await this.toastController.create({ message: 'Reboot command sent', duration: 5000 });
+              await toast.present();
+            } catch (e: any) {
+              const toast = await this.toastController.create({ message: 'Failed to reboot device: ' + e.message, duration: 5000 });
+              await toast.present();
+            }
+          }
+        }
+      ]
+    });
+    await alert.present();
   }
 
   ionViewDidLeave() {

@@ -68,6 +68,10 @@ namespace fg {
     bool connected = false;
     unsigned int current_sample = 0;
 
+    // Set when a remote reboot command arrives. The restart is deferred to
+    // loop() so any pending log messages are flushed before the device resets.
+    bool reboot_requested = false;
+
     // Count of consecutive failed client->publish() calls. When the socket
     // is stuck (LWIP send buffer full, errno 11) every publish blocks ~10s
     // and returns false. After MAX_PUBLISH_FAILURES we force-disconnect the

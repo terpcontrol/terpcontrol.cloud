@@ -461,6 +461,7 @@
   "message-device-booted:DEEPSLEEP-text": "Your device has rebooted. The reason was a wake-up from deep sleep mode.",
   "message-device-booted:SDIO-text": "Your device has rebooted. The reason was a restart over the SDIO interface.",
   "message-device-booted:UNKNOWN-text": "Your device has rebooted. The reason was not reported by the device. If this message appears regularly please check your power connection and internet uplink.",
+  "message-device-booted:REMOTE-text": "Your device has rebooted. The reason was an intentional restart triggered remotely via the portal.",
   "message-buffer-overflow-title": "Connection problem",
   "message-buffer-overflow-text": "Data could not be transfered to the server and was lost. Please check your internet connection or wifi.",
   "message-co2-low-title": "Low CO2",

@@ -21,6 +21,11 @@
 #endif
 
 
+// Set just before a portal-triggered ESP.restart(). Survives the soft reset
+// (RTC memory) but is cleared on power-on, so the next boot can report the
+// reboot reason as REMOTE instead of the generic SW software reset.
+RTC_DATA_ATTR static bool g_remote_reboot = false;
+
 namespace fg {
   namespace base64 = fg_base64;
 
@@ -121,8 +126,12 @@ namespace fg {
     client->setSocketTimeout(5);
     client->setWriteTimeout(5);
 
+    esp_reset_reason_t reset_reason = esp_reset_reason();
     std::string boot_msg = "message-device-booted:";
-    boot_msg += resetReasonStr(esp_reset_reason());
+    // A portal-triggered reboot is a software reset; surface it as its own
+    // reason so it is distinguishable from other SW resets (config/firmware).
+    boot_msg += (g_remote_reboot && reset_reason == ESP_RST_SW) ? "REMOTE" : resetReasonStr(reset_reason);
+    g_remote_reboot = false;
     log(boot_msg);
 
     log("hardware-info:claimcode_auth=on");
@@ -180,6 +189,12 @@ namespace fg {
       DeserializationError error = deserializeJson(doc, payload);
       if (error) {
         Serial.println("error parsing received command");
+        return;
+      }
+
+      if(doc["action"] == "reboot") {
+        g_remote_reboot = true;
+        reboot_requested = true;
         return;
       }
 
@@ -355,6 +370,12 @@ namespace fg {
           break;
         }
         esp_task_wdt_reset();
+      }
+
+      if(reboot_requested && log_queue.empty()) {
+        Serial.println("reboot command received, restarting...");
+        Serial.flush();
+        ESP.restart();
       }
     }
   }

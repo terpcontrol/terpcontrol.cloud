@@ -1345,6 +1345,34 @@ class DeviceRoute implements Routes {
 
     /**
      * @openapi
+     * /device/reboot:
+     *   post:
+     *     summary: Reboot a device
+     *     description: Sends a command instructing the device to restart immediately.
+     *     tags: [Devices]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required: [device_id]
+     *             properties:
+     *               device_id: { type: string }
+     *     responses:
+     *       '200':
+     *         description: Reboot command sent
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/StatusOk'
+     *       '401':
+     *         $ref: '#/components/responses/Unauthorized'
+     */
+    this.router.post(`${this.path}/reboot`, authMiddleware, this.deviceController.rebootDevice);
+
+    /**
+     * @openapi
      * /device/onlinedevices:
      *   get:
      *     summary: List currently online devices (admin)
