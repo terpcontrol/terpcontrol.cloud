@@ -1314,8 +1314,14 @@ class DeviceService {
     if (!original) {
       throw new HttpException(404, 'Firmware not found');
     }
-    await deviceFirmwareModel.updateMany({ version: original.version }, { version: version });
-    const updated = await deviceFirmwareModel.findOne({ firmware_id: firmware_id });
+    // Update the firmware being edited.
+    const updated = await deviceFirmwareModel.findOneAndUpdate({ firmware_id: firmware_id }, { version: version }, { new: true });
+    // Propagate the new label to a firmware in another class that carries the
+    // same version label, but only when exactly one such match exists.
+    const matches = await deviceFirmwareModel.find({ version: original.version, class_id: { $ne: original.class_id } });
+    if (matches.length === 1) {
+      await deviceFirmwareModel.updateOne({ firmware_id: matches[0].firmware_id }, { version: version });
+    }
     return updated;
   }
 
