@@ -50,57 +50,33 @@ Skip the per-PR loop if any preflight check fails; the whole point of preflight 
 
 ## One check cycle
 
-A "check cycle" = build + rollout + verify. Per PR/branch, run two cycles back-to-back with different version tags.
+A "check cycle" = build + rollout + verify. Per PR/branch, run two cycles back-to-back with different version tags. The unique tag is what lets you tell the test firmwares apart in `/device/firmware` listings later; it isn't load-bearing for the test itself.
 
+Hardware list: by default `fridge controller plug fan light` (the default in `build-fw.sh`). Per `AGENTS.md`, run `fridge` first if you are scoping down. Skip `dryer`.
+
+### Run a cycle
+
+Two helper scripts live in `.claude/skills/firmware-check/scripts/`. Run them from the repository root so `build-fw.sh` and `.env` resolve correctly:
+
+```bash
+TAG=check-pr<N>-$(date +%s)-1
+./.claude/skills/firmware-check/scripts/run-cycle.sh "$TAG" fridge controller plug fan light
+./.claude/skills/firmware-check/scripts/verify.py /tmp/fw_state_${TAG}
 ```
-TAG1=check-pr<N>-<unix-ts>-1       # or check-<branch-slug>-<ts>-1 if no PR
-TAG2=check-pr<N>-<unix-ts>-2
-```
 
-The unique tag is what lets you tell the test firmwares apart in `/device/firmware` listings later; it isn't load-bearing for the test itself.
+`run-cycle.sh` does **build + rollout** for every hardware type listed:
 
-### Steps for one cycle
+1. `POST /device/firmware` with the tag to pre-create a firmware record per type, capturing the new id.
+2. `FW_VERSION_ID=<id> FW_UPLOAD_VERSION=<tag> ./build-fw.sh <hw>` so the binaries upload against the pre-created record. Setting `FW_UPLOAD_VERSION` deliberately **suppresses** `build-fw.sh`'s auto-rollout (see `firmware/dev-build.sh`) — we control rollout ourselves so we can verify the exact id afterwards.
+3. `POST /device/class/<class_id>` with `firmware_id` and `beta_firmware_id` both set to the new id (reading the existing `concurrent` / `maxfails` first to keep them).
 
-Hardware list: by default build `fridge controller plug fan light` (the default in `build-fw.sh`). Per `AGENTS.md`, run `fridge` first if you are scoping down. Skip `dryer`.
+It writes `/tmp/fw_state_<tag>` — one `<hw> <firmware_id>` line per type — which `verify.py` reads.
 
-1. **Pre-create the firmware record per hardware type** so the id is known up-front:
-   ```bash
-   ADMIN=$(curl -s -X POST "$API_URL_EXTERNAL/tokenlogin" \
-     -H 'Content-Type: application/json' \
-     -d "{\"token\":\"$AUTOMATION_TOKEN\"}" | jq -r .userToken.token)
-   FW_ID=$(curl -s -X POST "$API_URL_EXTERNAL/device/firmware" \
-     -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' \
-     -d "{\"name\":\"$HW\",\"version\":\"$TAG\"}" | jq -r .firmware_id)
-   ```
-   `name` must be the hardware type (`fridge`, `controller`, ...). The tokenlogin token only lasts 300 s, so refresh it whenever a call returns 401.
+`verify.py` polls `GET /device` (user token, not admin) every 15 s. Success for a device = `hardwareInfo.firmware_version == <target id>` AND `lastseen` within the last 60 s (proves the device rebooted and came back). Timeout is **15 min per cycle**. Empirically a single device takes 6–9 min, and devices roll one at a time per class (`concurrent: 1`), so wait for the slowest, not the first. Exit 0 = all good; exit 1 = timeout (stop, do **not** start cycle 2).
 
-2. **Build with that id** so `build-fw.sh` uploads the binaries against the pre-created record instead of creating a new one:
-   ```bash
-   FW_VERSION_ID="$FW_ID" FW_UPLOAD_VERSION="$TAG" ./build-fw.sh "$HW"
-   ```
-   Setting `FW_UPLOAD_VERSION` deliberately **suppresses** the script's auto-rollout (see `firmware/dev-build.sh`) — we want to control rollout ourselves so we can verify the exact id afterwards.
+### After cycle 1 succeeds, run cycle 2 with a `-2` tag
 
-3. **Roll out** by updating the device class to point both `firmware_id` and `beta_firmware_id` at the new id. Read the class first to keep `concurrent` / `maxfails` unchanged:
-   ```bash
-   CLASS=$(curl -s "$API_URL_EXTERNAL/device/class/find/$HW" -H "Authorization: Bearer $ADMIN")
-   CLASS_ID=$(echo "$CLASS" | jq -r .class_id)
-   BODY=$(echo "$CLASS" | jq -c --arg fw "$FW_ID" \
-     '{name, description, firmware_id:$fw, beta_firmware_id:$fw, concurrent, maxfails}')
-   curl -s -X POST "$API_URL_EXTERNAL/device/class/$CLASS_ID" \
-     -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' -d "$BODY"
-   ```
-
-4. **Verify** by polling `GET /device` (user token, not admin). For every device of that hardware type, success means:
-   - `hardwareInfo.firmware_version == FW_ID`, **and**
-   - `lastseen` within the last 60 s (device is back online after the reboot).
-
-   Poll every ~30 s. Empirically a single device completes in 6–9 min; give it up to **15 min per device** before declaring failure. Devices roll one at a time per class (`concurrent: 1`), so for hardware types with multiple devices wait for the slowest, not the first.
-
-   If a device hasn't come back after the timeout, dump its `lastseen` age and `cloudSettings.pendingFirmware`, and stop — do **not** start cycle 2.
-
-### After cycle 1 succeeds, run cycle 2 with the second tag
-
-Same steps, same hardware list, new `FW_ID`s. Cycle 2 is what proves "still accepts further updates" — if cycle 1 left the OTA partition in a bad state, cycle 2 will hang in `pendingFirmware`.
+Same hardware list, new tag, fresh firmware ids. Cycle 2 is what proves "still accepts further updates" — if cycle 1 left the OTA partition in a bad state, cycle 2 will hang in `pendingFirmware`.
 
 ## After both cycles succeed
 
