@@ -1020,6 +1020,10 @@ bool connectToWifi(std::string ssid, std::string password) {
   return true;
 }
 
+bool wifiIsConfigured() {
+  return wifi_configured;
+}
+
 bool wifiIsConnected() {
   auto wifi_status = WiFi.status();
   switch(wifi_status) {

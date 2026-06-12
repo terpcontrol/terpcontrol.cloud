@@ -308,8 +308,18 @@ void loop()
   // Connection watchdog: reboot once if the cloud has been unreachable for
   // 15 min. g_connection_reboot prevents a reboot-loop if the outage persists
   // after the reboot; it is cleared when MQTT actually reconnects.
+  //
+  // Backup recovery: the MQTT retry loop cannot recover from every failure
+  // mode (e.g. exhausted LWIP sockets/fds after hours of failed connects
+  // against an open-but-unresponsive port). If the cloud is still
+  // unreachable a full day after the quick reboot above, allow one recovery
+  // reboot per day, but only while the light output is off so the
+  // photoperiod is never interrupted. Each reboot restarts the 24h timer,
+  // so even a permanent outage causes at most one reboot per day — never a
+  // reboot loop.
   {
     static constexpr TickType_t CONNECTION_WATCHDOG_TICKS = 15UL * 60 * configTICK_RATE_HZ;
+    static constexpr TickType_t DAILY_RECOVERY_WATCHDOG_TICKS = 24UL * 60 * 60 * configTICK_RATE_HZ;
     static TickType_t last_connected_tick = xTaskGetTickCount();
     if(fgc.isConnected()) {
       last_connected_tick = xTaskGetTickCount();
@@ -319,6 +329,13 @@ void loop()
       Serial.println("[watchdog] no cloud connection for 15 min, rebooting");
       Serial.flush();
       g_connection_reboot = true;
+      ESP.restart();
+    }
+    if(g_connection_reboot && wifiIsConfigured() &&
+       (xTaskGetTickCount() - last_connected_tick) > DAILY_RECOVERY_WATCHDOG_TICKS &&
+       !control->isLightOn()) {
+      Serial.println("[watchdog] no cloud connection for 24 h, recovery reboot while lights are off");
+      Serial.flush();
       ESP.restart();
     }
   }

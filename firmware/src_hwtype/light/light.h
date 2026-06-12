@@ -71,6 +71,7 @@ namespace fg {
     void fastloop() override;
     void initStatusMenu(UserInterface* ui) override;
     void initSettingsMenu(UserInterface* ui) override;
+    bool isLightOn() override { return state.out_light > 0; }
   };
 
 }

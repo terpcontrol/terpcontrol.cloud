@@ -233,6 +233,9 @@ namespace fg {
     void fastloop() override;
     void initStatusMenu(UserInterface* ui) override;
     void initSettingsMenu(UserInterface* ui) override;
+    // The relay can drive any load, including a light, so only allow the
+    // recovery reboot while the relay is off.
+    bool isLightOn() override { return state.out > 0; }
     void loadSettings(const String& settings);
     void saveAndUploadSettings();
 
