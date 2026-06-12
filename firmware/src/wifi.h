@@ -59,6 +59,7 @@ bool initializeWifi();
 void resetCredentials();
 void wifiTick();
 bool wifiIsConnected();
+bool wifiIsConfigured();
 void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud);
 void showSmartSocketsUi(fg::UserInterface* ui, fg::Fridgecloud* cloud);
 bool sendSmartSocketPower(const std::string& role, bool turn_on);
