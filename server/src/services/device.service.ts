@@ -1316,11 +1316,19 @@ class DeviceService {
     }
     // Update the firmware being edited.
     const updated = await deviceFirmwareModel.findOneAndUpdate({ firmware_id: firmware_id }, { version: version }, { new: true });
-    // Propagate the new label to a firmware in another class that carries the
-    // same version label, but only when exactly one such match exists.
+    // For each other class: propagate the new label only when the old label
+    // appears exactly once within that class (unambiguous 1-to-1 match).
     const matches = await deviceFirmwareModel.find({ version: original.version, class_id: { $ne: original.class_id } });
-    if (matches.length === 1) {
-      await deviceFirmwareModel.updateOne({ firmware_id: matches[0].firmware_id }, { version: version });
+    const byClass = new Map<string, (typeof matches)[number][]>();
+    for (const m of matches) {
+      const list = byClass.get(m.class_id) ?? [];
+      list.push(m);
+      byClass.set(m.class_id, list);
+    }
+    for (const firmwares of byClass.values()) {
+      if (firmwares.length === 1) {
+        await deviceFirmwareModel.updateOne({ firmware_id: firmwares[0].firmware_id }, { version: version });
+      }
     }
     return updated;
   }
