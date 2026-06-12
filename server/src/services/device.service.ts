@@ -1319,7 +1319,7 @@ class DeviceService {
     // For each other class: propagate the new label only when the old label
     // appears exactly once within that class (unambiguous 1-to-1 match).
     const matches = await deviceFirmwareModel.find({ version: original.version, class_id: { $ne: original.class_id } });
-    const byClass = new Map<string, (typeof matches)[number][]>();
+    const byClass = new Map<string, typeof matches[number][]>();
     for (const m of matches) {
       const list = byClass.get(m.class_id) ?? [];
       list.push(m);
