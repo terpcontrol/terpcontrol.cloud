@@ -5,6 +5,7 @@ import { UserLite } from '../services/users.service';
 import { DateTime, Interval } from "luxon";
 import { environment } from 'src/environments/environment';
 import { Router } from '@angular/router';
+import { MenuController, NavController } from '@ionic/angular';
 
 const EXPIRE_SAFETY_SECONDS = 10;
 
@@ -23,7 +24,7 @@ export class AuthService implements OnDestroy {
   public current_user: BehaviorSubject<UserLite|null> = new BehaviorSubject<UserLite|null>(null);
   private waitForToken: Promise<void> | null = null;
 
-  constructor(private http: HttpClient, public router: Router) {
+  constructor(private http: HttpClient, public router: Router, private navCtrl: NavController, private menuCtrl: MenuController) {
   }
 
   public ngOnDestroy(): void {
@@ -120,6 +121,16 @@ export class AuthService implements OnDestroy {
   }
 
   public async logout() {
+    // The side menu sets `pointer-events: none` on the main content while it is
+    // open. Logout is usually triggered from that open menu, and flipping
+    // `authenticated` to false immediately removes the menu (it is rendered with
+    // *ngIf="authenticated"), so the menu never runs its close lifecycle that
+    // restores pointer-events. The result is an unclickable app until a full
+    // page reload. Close the menu first and wait for it before tearing it down.
+    try {
+      await this.menuCtrl.close();
+    } catch (err) {}
+
     this.authenticated.next(false);
     this.current_user.next(null);
     localStorage.removeItem('id_token');
@@ -127,7 +138,11 @@ export class AuthService implements OnDestroy {
     localStorage.removeItem('expires_at');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('refresh_expires_at');
-    await this.router.navigate(['login']);
+    // Reset the Ionic navigation stack instead of pushing/popping. Navigating
+    // with the plain Router pops back to the cached (and now detached) login
+    // page that is still sitting in the ion-router-outlet stack, leaving it
+    // unresponsive until a full page reload. navigateRoot rebuilds it fresh.
+    await this.navCtrl.navigateRoot(['login']);
   }
 
   public async changePassword(new_password:string) {
