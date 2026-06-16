@@ -125,6 +125,8 @@ export class ChartsPage implements OnInit, OnDestroy {
     { title: 'Humidity', icon: 'humidity', color: '#00f', name: 'humidity', txt: 'H', unit: '%', enabled: false, right: false, nav: false, types: ['fridge', 'fridge2', 'fan', 'light', 'plug', 'dryer', 'controller'], max: 100},
     { title: 'VPD', icon: 'vpd', color: '#0f0', name: 'vpd', txt: 'V', unit: 'kPa', enabled: false, right: false, nav: false, types: ['fridge', 'fridge2', 'fan', 'light', 'plug', 'dryer', 'controller'], max: 1.6},
     { title: 'CO2', icon: 'co2', color: '#000', name: 'co2', txt: 'CO2', unit: 'ppm', enabled: false, right: false, nav: false, types: ['fridge', 'fridge2', 'plug', 'controller'], max: 1},
+    { title: 'Leaf Temperature', icon: 'temperature', color: '#964B00', name: 'leaf_temperature', txt: 'LT', unit: '°C', enabled: false, right: false, nav: false, types: ['controller'], max: 30},
+    { title: 'PPFD', icon: 'light', color: '#fc0', name: 'ppfd', txt: 'PPFD', unit: 'µmol/m²/s', enabled: false, right: false, nav: false, types: ['controller'], max: 1000},
     { title: 'Heater', icon: 'heating', color: '#f00', name: 'out_heater', txt: 'T', unit: '', enabled: false, right: false, nav: false, types: ['fridge', 'fridge2', 'dryer', 'controller'], max: 1},
     // { title: 'P', icon: 'heating', color: '#f00', name: 'p', txt: 'P', unit: '', enabled: false, right: false, nav: false, types: ['fridge', 'foo']},
     // { title: 'I', icon: 'heating', color: '#f00', name: 'i', txt: 'I', unit: '', enabled: false, right: false, nav: false, types: ['fridge', 'foo']},

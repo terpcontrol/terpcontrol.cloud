@@ -38,6 +38,7 @@ export interface CloudSettings {
   publicRead?: boolean;
   vpdLeafTempOffsetDay?: number;
   vpdLeafTempOffsetNight?: number;
+  ppfdLuxFactor?: number;
   betaFeatures?: boolean;
   rtspStream?: string;
   rtspStreamTransport?: string;

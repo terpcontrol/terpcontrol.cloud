@@ -2,16 +2,33 @@
 #include "dashboard.h"
 #include "wifi.h"
 #include <MCP7940.h>
+#include <Adafruit_MLX90632.h>
+#include <Adafruit_VEML7700.h>
 #include <sstream>
 
 #include "time.h"
 #include "esp_sntp.h"
 
-#define SCD4X_I2C_ADDRESS 0x62 //plug
+#define SCD4X_I2C_ADDRESS 0x62 // SCD40/SCD41
+#define VEML7700_I2C_ADDRESS 0x10
+#define MLX90632_I2C_ADDRESS 0x3A
 
 const uint8_t  SPRINTF_BUFFER_SIZE{32};
 MCP7940_Class MCP7940;
 char          inputBuffer[32];
+
+// Zusätzliche I2C-Sensoren auf dem Sensor-Bus
+Adafruit_MLX90632 mlx90632 = Adafruit_MLX90632();
+Adafruit_VEML7700 veml7700 = Adafruit_VEML7700();
+
+static bool mlx90632_found = false;
+static bool veml7700_found = false;
+
+static float mlx90632_object_temperature = NAN;
+static float mlx90632_ambient_temperature = NAN;
+static float veml7700_lux = NAN;
+static uint16_t veml7700_als = 0;
+static uint16_t veml7700_white = 0;
 
 static double ntcToTemp(uint16_t adc_val) {
   double R1 = 100000.0;   // voltage divider resistor value
@@ -29,6 +46,31 @@ static double ntcToTemp(uint16_t adc_val) {
 }
 
 namespace fg {
+
+  static void readAuxSensors() {
+    if (mlx90632_found) {
+      if (mlx90632.isNewData()) {
+        double ambient = mlx90632.getAmbientTemperature();
+        double object = mlx90632.getObjectTemperature();
+
+        if (!isnan(ambient)) {
+          mlx90632_ambient_temperature = (float)ambient;
+        }
+        if (!isnan(object)) {
+          mlx90632_object_temperature = (float)object;
+        }
+
+        mlx90632.resetNewData();
+      }
+    }
+
+    if (veml7700_found) {
+      veml7700_lux = veml7700.readLux();
+      veml7700_als = veml7700.readALS();
+      veml7700_white = veml7700.readWhite();
+    }
+  }
+
 
   std::unique_ptr<AutomationController> createController(Fridgecloud& cloud) {
     return std::unique_ptr<AutomationController>(new ControllerController(cloud));
@@ -110,6 +152,10 @@ namespace fg {
         sensor_fails = 0;
       }
     }
+
+    // MLX90632 und VEML7700 werden zusätzlich gelesen, unabhängig davon,
+    // ob der Hauptsensor ein SCD41 oder ein SHT41 ist.
+    readAuxSensors();
 
     Wire.end();
     Wire.begin(PIN_SDA, PIN_SCL);
@@ -737,6 +783,47 @@ namespace fg {
     Serial.println(xTaskGetTickCount() - time);
     time = xTaskGetTickCount();
 
+    // Zusätzliche Sensoren initialisieren: MLX90632 + VEML7700.
+    // Diese Sensoren sind optional und ändern state.sensor_type nicht.
+    mlx90632_found = false;
+    veml7700_found = false;
+
+    if (mlx90632.begin(MLX90632_I2C_ADDRESS, &Wire)) {
+      Serial.println("FOUND MLX90632 SENSOR");
+      mlx90632_found = true;
+
+      // Kontinuierliche Messung, damit updateSensors() nur neue Daten abholt.
+      if (!mlx90632.reset()) {
+        Serial.println("MLX90632 reset failed");
+      }
+      if (!mlx90632.setMode(MLX90632_MODE_CONTINUOUS)) {
+        Serial.println("MLX90632 set continuous mode failed");
+      }
+      if (!mlx90632.setMeasurementSelect(MLX90632_MEAS_EXTENDED_RANGE)) {
+        Serial.println("MLX90632 set measurement select failed");
+      }
+      if (!mlx90632.setRefreshRate(MLX90632_REFRESH_2HZ)) {
+        Serial.println("MLX90632 set refresh rate failed");
+      }
+      mlx90632.resetNewData();
+    }
+    else {
+      Serial.println("NO MLX90632 SENSOR");
+    }
+
+    if (veml7700.begin(&Wire)) {
+      Serial.println("FOUND VEML7700 SENSOR");
+      veml7700_found = true;
+      veml7700.setGain(VEML7700_GAIN_1_8);
+      veml7700.setIntegrationTime(VEML7700_IT_100MS);
+    }
+    else {
+      Serial.println("NO VEML7700 SENSOR");
+    }
+
+    Serial.printf("AUX SENSOR DELAY: ");
+    Serial.println(xTaskGetTickCount() - time);
+
     Wire.end();
     return found_sensor;
   }
@@ -770,6 +857,22 @@ namespace fg {
       if(co2_sensor_now != last_co2_sensor_logged) {
         cloud.log(co2_sensor_now ? "hardware-info:co2=on" : "hardware-info:co2=off");
         last_co2_sensor_logged = co2_sensor_now;
+      }
+
+      // Presence of the optional aux sensors so the cloud can show/hide their
+      // tiles. PPFD is derived from the VEML7700, so it tracks that sensor.
+      static int last_leaf_temp_logged = -1;
+      int leaf_temp_now = mlx90632_found ? 1 : 0;
+      if(leaf_temp_now != last_leaf_temp_logged) {
+        cloud.log(leaf_temp_now ? "hardware-info:leaf_temp=on" : "hardware-info:leaf_temp=off");
+        last_leaf_temp_logged = leaf_temp_now;
+      }
+
+      static int last_ppfd_logged = -1;
+      int ppfd_now = veml7700_found ? 1 : 0;
+      if(ppfd_now != last_ppfd_logged) {
+        cloud.log(ppfd_now ? "hardware-info:ppfd=on" : "hardware-info:ppfd=off");
+        last_ppfd_logged = ppfd_now;
       }
     }
 
@@ -940,6 +1043,34 @@ namespace fg {
       Serial.printf(" C:%.0f", state.out_co2);
 	}
 
+
+    // Zusätzliche Sensoren seriell ausgeben
+    if(mlx90632_found)
+    {
+      Serial.printf(
+        " MLX90632:OBJ=%.2f°C AMB=%.2f°C",
+        mlx90632_object_temperature,
+        mlx90632_ambient_temperature
+      );
+    }
+    else
+    {
+      Serial.printf(" MLX90632:n/a");
+    }
+
+    if(veml7700_found)
+    {
+      Serial.printf(
+        " VEML7700:LUX=%.2f ALS=%u WHITE=%u",
+        veml7700_lux,
+        veml7700_als,
+        veml7700_white
+      );
+    }
+    else
+    {
+      Serial.printf(" VEML7700:n/a");
+    }
 	Serial.printf("\n\r");
 
 
@@ -948,15 +1079,25 @@ namespace fg {
 	// (and the JSON_OBJECT_SIZE() terms) whenever a new field is added.
 	StaticJsonDocument<
 	    JSON_OBJECT_SIZE(2)   // top: sensors, outputs
-	  + JSON_OBJECT_SIZE(4)   // sensors: temperature, humidity, sensor_type, co2
+	  + JSON_OBJECT_SIZE(6)   // sensors: temperature, humidity, sensor_type, co2, leaf_temperature, lux
 	  + JSON_OBJECT_SIZE(7)   // outputs: dehumidifier, heater, light, co2, fan-internal, fan-external, fan-backwall
-	  + 32                    // small headroom
+	  + 64                    // small headroom
 	> status;
 
 	status["sensors"]["temperature"] = state.temperature;
 	status["sensors"]["humidity"] = state.humidity;
 	status["sensors"]["sensor_type"] = state.sensor_type;
     status["sensors"]["co2"] = hasCo2Sensor() ? state.co2 : -1;
+
+    // Optionale Zusatzsensoren: Werte nur senden, wenn der Sensor erkannt wurde,
+    // damit keine Platzhalter in den Verlaufsdaten landen. PPFD wird serverseitig
+    // aus dem rohen Lux-Wert abgeleitet.
+    if (mlx90632_found && !isnan(mlx90632_object_temperature)) {
+      status["sensors"]["leaf_temperature"] = mlx90632_object_temperature;
+    }
+    if (veml7700_found && !isnan(veml7700_lux)) {
+      status["sensors"]["lux"] = veml7700_lux;
+    }
 
 
 	// Outputs

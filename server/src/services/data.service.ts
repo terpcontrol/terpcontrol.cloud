@@ -9,7 +9,12 @@ const INFLUXDB_DB = 'devices';
 // You can generate a Token from the "Tokens Tab" in the UI
 
 const influxdb_client = new InfluxDB({ url: 'http://influxdb:8086', token: INFLUXDB_TOKEN });
-export const VALID_SENSORS = ['temperature', 'humidity', 'avg', 'p', 'i', 'd', 'co2', 'rpm', 'day', 'sensor_type'];
+export const VALID_SENSORS = ['temperature', 'humidity', 'avg', 'p', 'i', 'd', 'co2', 'rpm', 'day', 'sensor_type', 'leaf_temperature', 'lux'];
+
+// Lux→PPFD depends on the light spectrum, so it is a per-device calibration
+// constant rather than a fixed physical conversion. Default assumes a white
+// full-spectrum LED; growers can override it per device in cloud settings.
+const DEFAULT_PPFD_LUX_FACTOR = 0.015;
 
 export const VALID_OUTPUTS = ['heater', 'dehumidifier', 'co2', 'light', 'fan', 'relais', 'fan-internal', 'fan-external', 'fan-backwall'];
 
@@ -62,6 +67,10 @@ class DataService {
       return this.getSeriesVpd(device_id, measure, from, to, interval, method);
     }
 
+    if (measure === 'ppfd') {
+      return this.getSeriesPpfd(device_id, from, to, interval, method);
+    }
+
     const allowedMethods = ['mean', 'min', 'max', 'sum'];
     if (!allowedMethods.includes(method)) {
       method = allowedMethods[0];
@@ -89,6 +98,7 @@ class DataService {
     const tempSeries = await this.getSeries(device_id, 'temperature', from, to, interval, method);
     const humiditySeries = await this.getSeries(device_id, 'humidity', from, to, interval, method);
     const lightSeries = await this.getSeries(device_id, 'out_light', from, to, interval, method);
+    const leafTempSeries = await this.getSeries(device_id, 'leaf_temperature', from, to, interval, method);
 
     const combinedSeries = new Map();
     tempSeries.forEach(t => {
@@ -104,6 +114,11 @@ class DataService {
         combinedSeries.get(l._time).light = l._value;
       }
     });
+    leafTempSeries.forEach(lt => {
+      if (combinedSeries.has(lt._time)) {
+        combinedSeries.get(lt._time).leafTemp = lt._value;
+      }
+    });
 
     const cloudSettings = await deviceService.getDeviceCloudSettings(device_id);
 
@@ -115,8 +130,8 @@ class DataService {
       const isDay = (values.light ?? 0) > 0.5;
 
       if (values.temp && values.humidity && ((dayOnly && isDay) || (nightOnly && !isDay) || (!dayOnly && !nightOnly))) {
-        const leafTempOffset = isDay ? cloudSettings?.vpdLeafTempOffsetDay : cloudSettings?.vpdLeafTempOffsetNight;
-        const vpd = calculateVpd(values.temp, values.temp + leafTempOffset, values.humidity);
+        const leafTemp = this.leafTemperature(values.temp, values.leafTemp, isDay, cloudSettings);
+        const vpd = calculateVpd(values.temp, leafTemp, values.humidity);
         result.push({ _time: time, _value: vpd });
       } else {
         result.push({ _time: time, _value: NaN });
@@ -126,9 +141,31 @@ class DataService {
     return result;
   }
 
+  // Prefer a measured leaf temperature (e.g. MLX90632) when present, otherwise
+  // fall back to air temperature plus the configured day/night offset.
+  private leafTemperature(airTemp: number, measuredLeafTemp: number | undefined, isDay: boolean, cloudSettings: any): number {
+    if (measuredLeafTemp != null && !isNaN(measuredLeafTemp)) {
+      return measuredLeafTemp;
+    }
+    const leafTempOffset = isDay ? cloudSettings?.vpdLeafTempOffsetDay : cloudSettings?.vpdLeafTempOffsetNight;
+    return airTemp + (leafTempOffset ?? 0);
+  }
+
+  private async getSeriesPpfd(device_id, from, to, interval, method): Promise<{ _time: string; _value: number }[]> {
+    const luxSeries = await this.getSeries(device_id, 'lux', from, to, interval, method);
+    const cloudSettings = await deviceService.getDeviceCloudSettings(device_id);
+    const factor = cloudSettings?.ppfdLuxFactor ?? DEFAULT_PPFD_LUX_FACTOR;
+
+    return luxSeries.map(l => ({ _time: l._time, _value: l._value == null || isNaN(l._value) ? NaN : l._value * factor }));
+  }
+
   public async getLatest(device_id, measure): Promise<number> {
     if (measure === 'vpd') {
       return this.getLatestVpd(device_id);
+    }
+
+    if (measure === 'ppfd') {
+      return this.getLatestPpfd(device_id);
     }
 
     const queryApi = influxdb_client.getQueryApi(INFLUXDB_ORG);
@@ -155,15 +192,26 @@ class DataService {
     const temp = await this.getLatest(device_id, 'temperature');
     const humidity = await this.getLatest(device_id, 'humidity');
     const light = await this.getLatest(device_id, 'out_light');
+    const measuredLeafTemp = await this.getLatest(device_id, 'leaf_temperature');
     const cloudSettings = await deviceService.getDeviceCloudSettings(device_id);
 
     if (temp && humidity) {
       const isDay = (light ?? 0) > 0.5;
-      const leafTempOffset = isDay ? cloudSettings?.vpdLeafTempOffsetDay : cloudSettings?.vpdLeafTempOffsetNight;
-      return calculateVpd(temp, temp + leafTempOffset, humidity);
+      const leafTemp = this.leafTemperature(temp, measuredLeafTemp, isDay, cloudSettings);
+      return calculateVpd(temp, leafTemp, humidity);
     }
 
     return NaN;
+  }
+
+  private async getLatestPpfd(device_id): Promise<number> {
+    const lux = await this.getLatest(device_id, 'lux');
+    if (lux == null || isNaN(lux)) {
+      return NaN;
+    }
+    const cloudSettings = await deviceService.getDeviceCloudSettings(device_id);
+    const factor = cloudSettings?.ppfdLuxFactor ?? DEFAULT_PPFD_LUX_FACTOR;
+    return lux * factor;
   }
 }
 export const dataService = new DataService();

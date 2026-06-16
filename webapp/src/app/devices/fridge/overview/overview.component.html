@@ -130,6 +130,32 @@
         [limit-max]="co2_h"
       ></value-display>
     </ion-col>
+    <ion-col size="6" size-sm="3" size-xl="2" *ngIf="showLeafTempDisplay">
+      <value-display
+        style="cursor: pointer;"
+        (click)="measureSelected('leaf_temperature')"
+        name="Leaf Temp"
+        icon="temperature_neutral"
+        unit="°C"
+        [value]="data.measure(device_id, 'leaf_temperature') | async | round"
+        [average-value]="(data.measureAvg(device_id, 'leaf_temperature') | async | round)"
+        scale-min="0"
+        scale-max="50"
+      ></value-display>
+    </ion-col>
+    <ion-col size="6" size-sm="3" size-xl="2" *ngIf="showPpfdDisplay">
+      <value-display
+        style="cursor: pointer;"
+        (click)="measureSelected('ppfd')"
+        name="PPFD"
+        icon="light_neutral"
+        unit="µmol/m²/s"
+        [value]="data.measure(device_id, 'ppfd') | async | nofract"
+        [average-value]="(data.measureAvg(device_id, 'ppfd') | async | nofract)"
+        scale-min="0"
+        scale-max="2000"
+      ></value-display>
+    </ion-col>
     <ion-col *ngIf="deviceImageUrl">
       <img
         [src]="deviceImageUrl"

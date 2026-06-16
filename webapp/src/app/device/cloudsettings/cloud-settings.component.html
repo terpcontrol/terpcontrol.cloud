@@ -21,6 +21,22 @@
       <ion-text>&deg;C</ion-text>
     </ion-item>
     <ion-item lines="none">
+      <ion-label>{{ 'settings.ppfdLuxFactor' | translate}}</ion-label>
+      <ion-button fill="clear" id="cloudSettings-ppfdLuxFactor-popover">
+        <ion-icon name="help-circle-outline"></ion-icon>
+      </ion-button>
+      <ion-input type="number"
+                 [(ngModel)]="cloudSettings.ppfdLuxFactor"
+                 (ngModelChange)="cloudSettingsChange.emit(cloudSettings)"
+                 placeholder="0.015"
+                 class="ion-text-right"></ion-input>
+      <ion-popover trigger="cloudSettings-ppfdLuxFactor-popover" [dismissOnSelect]="true">
+        <ng-template>
+          <ion-content class="ion-padding">{{'settings.ppfdLuxFactorHint' | translate}}</ion-content>
+        </ng-template>
+      </ion-popover>
+    </ion-item>
+    <ion-item lines="none">
       <ion-label>{{'settings.rtspStream' | translate}}</ion-label>
       <ion-button fill="clear" id="cloudSettings-rtspStream-popover">
         <ion-icon name="help-circle-outline"></ion-icon>
