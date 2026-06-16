@@ -15,6 +15,7 @@ import { DeviceWithParsedSettings, DeviceService } from 'src/app/services/device
 export class SettingsPage implements OnInit {
   public device_id:string = "";
   public device_type:string = ""
+  public hardwareInfo: Record<string, string> | undefined;
 
   constructor(
     private devices: DeviceService,
@@ -28,7 +29,9 @@ export class SettingsPage implements OnInit {
   async ngOnInit() {
     this.device_id = this.route.snapshot.paramMap.get('device_id') || "";
     this.devices.devices.subscribe((devices) => {
-      this.device_type = devices.find((device) => device.device_id == this.device_id)?.device_type || '';
+      const device = devices.find((device) => device.device_id == this.device_id);
+      this.device_type = device?.device_type || '';
+      this.hardwareInfo = device?.hardwareInfo;
     })
   }
 }

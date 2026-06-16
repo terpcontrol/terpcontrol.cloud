@@ -14,6 +14,8 @@ export class CloudSettingsComponent implements OnChanges {
 
   @Input() deviceId: string = '';
 
+  @Input() hardwareInfo: Record<string, string> | undefined;
+
   @Output() cloudSettingsChange = new EventEmitter<any>();
 
   public firmwares: UserFirmwareInfo[] = [];

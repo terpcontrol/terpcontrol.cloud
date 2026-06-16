@@ -59,6 +59,8 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
   public recipe:any = null;
   private refreshLogsTimer: NodeJS.Timeout|undefined = undefined;
   public showCo2Display:boolean = true;
+  public showLeafTempDisplay:boolean = false;
+  public showPpfdDisplay:boolean = false;
 
   // timer used to refresh remaining time every second
   private timerId: any = null;
@@ -93,6 +95,10 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
 
     // Hide CO2 tile for controllers only when hardware reports no CO2 sensor
     this.showCo2Display = this.hardware_info?.['co2'] !== 'off';
+
+    // Optional aux sensors: show their tiles only once the hardware reports them
+    this.showLeafTempDisplay = this.hardware_info?.['leaf_temp'] === 'on';
+    this.showPpfdDisplay = this.hardware_info?.['ppfd'] === 'on';
 
     // Compute VPD and online state from live measurements
     combineLatest([

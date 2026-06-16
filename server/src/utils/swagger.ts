@@ -118,6 +118,7 @@ export function buildSwaggerSpec(serverUrl?: string): object {
               publicRead: { type: 'boolean' },
               vpdLeafTempOffsetDay: { type: 'number' },
               vpdLeafTempOffsetNight: { type: 'number' },
+              ppfdLuxFactor: { type: 'number' },
               betaFeatures: { type: 'boolean' },
               rtspStream: { type: 'string' },
               rtspStreamTransport: { type: 'string' },

@@ -111,6 +111,8 @@
     "cloudSettings": "Cloud Einstellungen",
     "vpdLeafTempOffsetDay": "Tages VPD Blatt Temp. Offset",
     "vpdLeafTempOffsetNight": "Nacht VPD Blatt Temp. Offset",
+    "ppfdLuxFactor": "PPFD Lux-Faktor",
+    "ppfdLuxFactorHint": "PPFD wird als Lux × diesem Faktor geschätzt. Er hängt vom Lichtspektrum ab (Weiß-LED ≈ 0,015, HPS ≈ 0,0122, Sonnenlicht ≈ 0,0185). Auf die eigene Grow-Lampe kalibrieren. Standard 0,015.",
     "autoFirmwareUpdate": "Automatische Firmware Updates",
     "firmwareChannel": "Firmware-Kanal",
     "firmwareChannels": {
