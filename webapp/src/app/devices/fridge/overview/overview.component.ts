@@ -5,6 +5,7 @@ import {combineLatest, Subscription} from 'rxjs';
 import {DataService} from 'src/app/services/data.service';
 import {DeviceService} from 'src/app/services/devices.service';
 import {LogTranslateService} from 'src/app/services/log-translate.service';
+import {AuthService} from 'src/app/auth/auth.service';
 import TimeAgo from 'javascript-time-ago'
 import type { DeviceLog } from '@fg2/shared-types';
 
@@ -65,7 +66,11 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
 
   public deviceImageUrl: string | undefined = '';
 
-  constructor(private devices: DeviceService, public data: DataService, private route: ActivatedRoute, private router: Router, private renderer: Renderer2, private alertController: AlertController, private toastController: ToastController, public logTranslate: LogTranslateService) { }
+  constructor(private devices: DeviceService, public data: DataService, private route: ActivatedRoute, private router: Router, private renderer: Renderer2, private alertController: AlertController, private toastController: ToastController, public logTranslate: LogTranslateService, private auth: AuthService) { }
+
+  public get is_admin(): boolean {
+    return !!this.auth.current_user.value?.is_admin;
+  }
 
   editName() {
     this.editingName = true;

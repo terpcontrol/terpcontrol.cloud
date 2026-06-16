@@ -209,7 +209,7 @@
     <ion-col size-md="2" size-sm="3" size="12" style="z-index: 1000">
       <ion-button expand="block" [routerLink]="['/device', device_id, 'settings']">{{'devices.button-settings' | translate}}</ion-button>
     </ion-col>
-    <ion-col size-md="2" size-sm="3" size="12" style="z-index: 1000" *ngIf="cloud_settings?.betaFeatures && workmode === 'off' && device_online">
+    <ion-col size-md="2" size-sm="3" size="12" style="z-index: 1000" *ngIf="is_admin && workmode === 'off' && device_online">
       <ion-button expand="block" [routerLink]="['/device', device_id, 'testmode']">Testmode</ion-button>
     </ion-col>
     <ion-col size-md="2" size-sm="3" size="12" style="z-index: 1000">
