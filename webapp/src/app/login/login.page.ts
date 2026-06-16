@@ -2,7 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../auth/auth.service';
 import { filter, Subject, take, takeUntil } from 'rxjs';
-import { ModalController } from '@ionic/angular';
+import { ModalController, NavController } from '@ionic/angular';
 import { DsgvoModalPage } from './dsgvo/dsgvo.page';
 
 
@@ -32,7 +32,8 @@ export class LoginPage implements OnInit, OnDestroy {
     private _route: ActivatedRoute,
     private _router: Router,
     private _authService: AuthService,
-    public modalController: ModalController
+    public modalController: ModalController,
+    private _navCtrl: NavController
   ) {
     this.returnUrl = this._route.snapshot.queryParams['returnUrl'] || '/list';
     this.activation_code = this._route.snapshot.queryParams['code'];
@@ -43,7 +44,7 @@ export class LoginPage implements OnInit, OnDestroy {
   public ngOnInit(): void {
     const authSubscription = this._authService.authenticated.subscribe(authenticated => {
       if (authenticated) {
-        return this._router.navigateByUrl(this.returnUrl)
+        return this._navCtrl.navigateRoot(this.returnUrl)
       } else {
         return Promise.resolve();
       }
@@ -98,9 +99,8 @@ export class LoginPage implements OnInit, OnDestroy {
     this.working = true;
     try {
       await this._authService.login(this.username, this.password, this.stayLoggedIn)
-      console.log("auth")
       // this.loginValid = true;
-      this._router.navigateByUrl('/list');
+      this._navCtrl.navigateRoot('/list');
     }
     catch(err:any) {
       console.log(err)
