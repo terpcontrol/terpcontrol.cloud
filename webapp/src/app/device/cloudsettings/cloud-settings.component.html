@@ -20,7 +20,7 @@
                  class="ion-text-right"></ion-input>
       <ion-text>&deg;C</ion-text>
     </ion-item>
-    <ion-item lines="none">
+    <ion-item lines="none" *ngIf="hardwareInfo?.['ppfd'] === 'on'">
       <ion-label>{{ 'settings.ppfdLuxFactor' | translate}}</ion-label>
       <ion-button fill="clear" id="cloudSettings-ppfdLuxFactor-popover">
         <ion-icon name="help-circle-outline"></ion-icon>
