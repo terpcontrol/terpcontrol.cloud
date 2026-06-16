@@ -814,7 +814,12 @@ namespace fg {
     if (veml7700.begin(&Wire)) {
       Serial.println("FOUND VEML7700 SENSOR");
       veml7700_found = true;
-      veml7700.setGain(VEML7700_GAIN_1_8);
+      // Sensor zeigt im Gehaeuse nach unten und misst nur indirektes/
+      // reflektiertes Raumlicht (nicht direkt der LED ausgesetzt). Daher
+      // hoeherer Gain als bei Direktlicht: GAIN_1 (8x empfindlicher als
+      // GAIN_1_8), Saettigung bei ~3800 lux. readLux() ist gain-kompensiert,
+      // die Lux-Skala und der serverseitige PPFD-Faktor bleiben unveraendert.
+      veml7700.setGain(VEML7700_GAIN_1);
       veml7700.setIntegrationTime(VEML7700_IT_100MS);
     }
     else {
