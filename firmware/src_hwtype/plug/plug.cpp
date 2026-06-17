@@ -287,16 +287,19 @@ namespace fg {
   void PlugController::controlTimer() {
     bool inside_timer = false;
     for(auto timeframe : settings.timer.timeframes) {
+      uint32_t end = timeframe.ontime + timeframe.duration * 60;
       Serial.printf("ON: %d DUR: %d TIME: %d\n\r", timeframe.ontime, timeframe.duration * 60, state.timeofday);
-      Serial.printf("ON: %d DUR: %d TIME: %d\n\r", timeframe.ontime, timeframe.ontime + timeframe.duration * 60, state.timeofday);
+      Serial.printf("ON: %d END: %d TIME: %d\n\r", timeframe.ontime, end, state.timeofday);
 
-      if(timeframe.ontime + timeframe.duration * 60 > 24 * 3600) {
-        if(state.timeofday < timeframe.ontime + timeframe.duration * 60 - 24 * 3600) {
+      if(end > 24 * 3600) {
+        // Window crosses UTC midnight: ON from ontime until 24:00 (pre-midnight
+        // part) and from 00:00 until end-24h (post-midnight part).
+        if(state.timeofday >= timeframe.ontime || state.timeofday < end - 24 * 3600) {
           inside_timer = true;
         }
       }
       else {
-        if(state.timeofday > timeframe.ontime && state.timeofday < timeframe.ontime + timeframe.duration * 60) {
+        if(state.timeofday >= timeframe.ontime && state.timeofday < end) {
           inside_timer = true;
         }
       }
@@ -1236,7 +1239,7 @@ namespace fg {
           });
 
           menu->addOption(duration_name, ICON_SETTINGS, [ui, this, duration_name, &timeframe](){
-            ui->push<FloatInput>(duration_name, timeframe.duration, "min", 0, 720, 1, 0, [ui, this, &timeframe](float value) {
+            ui->push<FloatInput>(duration_name, timeframe.duration, "min", 0, 1080, 1, 0, [ui, this, &timeframe](float value) {
               timeframe.duration = value;
               saveAndUploadSettings();
               ui->pop();
