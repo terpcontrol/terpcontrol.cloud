@@ -1313,6 +1313,16 @@ namespace fg {
         });
       }
 
+      if(settings.workmode != ControllerControllerSettings::MODE_OFF) {
+        menu->addOption("Fan Speed", ICON_FAN, [ui, this](){
+          ui->push<FloatInput>("Fan Speed", settings.fans.external, "%", 0, 100, 5, 0, [ui, this](float value) {
+            settings.fans.external = value;
+            saveAndUploadSettings();
+            ui->pop();
+          });
+        });
+      }
+
 
 
     menu->addOption("Smart Sockets", ICON_SETTINGS, [ui, this](){
