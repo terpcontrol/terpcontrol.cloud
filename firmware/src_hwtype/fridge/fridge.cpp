@@ -1149,20 +1149,22 @@ namespace fg {
 
     // }
 
-    menu->addOption("External Fan", ICON_FAN, [ui, this](){
-      ui->push<FloatInput>("External Fan", settings.fans.external, "%", 0, 100, 1, 0, [ui, this](float value) {
-        settings.fans.external = value;
-        saveAndUploadSettings();
-        ui->pop();
+    if(settings.workmode != FridgeControllerSettings::MODE_OFF) {
+      menu->addOption("External Fan", ICON_FAN, [ui, this](){
+        ui->push<FloatInput>("External Fan", settings.fans.external, "%", 0, 100, 1, 0, [ui, this](float value) {
+          settings.fans.external = value;
+          saveAndUploadSettings();
+          ui->pop();
+        });
       });
-    });
-    menu->addOption("Internal Fan (min)", ICON_FAN, [ui, this](){
-      ui->push<FloatInput>("Internal Fan (min)", settings.fans.internal, "%", 10, 100, 1, 0, [ui, this](float value) {
-        settings.fans.internal = value;
-        saveAndUploadSettings();
-        ui->pop();
+      menu->addOption("Internal Fan (min)", ICON_FAN, [ui, this](){
+        ui->push<FloatInput>("Internal Fan (min)", settings.fans.internal, "%", 10, 100, 1, 0, [ui, this](float value) {
+          settings.fans.internal = value;
+          saveAndUploadSettings();
+          ui->pop();
+        });
       });
-    });
+    }
 
 
     menu->addOption("Smart Sockets", ICON_SETTINGS, [ui, this](){
