@@ -293,6 +293,10 @@ class DeviceService {
   }
 
   private firmwareChannelQuery(channel: FirmwareChannel): object {
+    const legacyAutoUpdateOptedIn = {
+      $or: [{ 'cloudSettings.autoFirmwareUpdate': true }, { 'firmwareSettings.autoUpdate': true }],
+    };
+
     if (channel === 'stable') {
       return {
         $or: [
@@ -300,6 +304,7 @@ class DeviceService {
           {
             'cloudSettings.firmwareChannel': { $exists: false },
             'cloudSettings.betaFeatures': { $ne: true },
+            ...legacyAutoUpdateOptedIn,
           },
         ],
       };
@@ -312,6 +317,7 @@ class DeviceService {
           {
             'cloudSettings.firmwareChannel': { $exists: false },
             'cloudSettings.betaFeatures': true,
+            ...legacyAutoUpdateOptedIn,
           },
         ],
       };
@@ -358,11 +364,7 @@ class DeviceService {
         .find({
           lastseen: { $gte: Date.now() - ONLINE_TIMEOUT },
           class_id: device_class.class_id,
-          $and: [
-            this.pendingFirmwareNotEquals(firmwareId),
-            { $or: [{ 'firmwareSettings.autoUpdate': true }, { 'cloudSettings.autoFirmwareUpdate': true }] },
-            ...(additionalQueryConditions ? [additionalQueryConditions] : []),
-          ],
+          $and: [this.pendingFirmwareNotEquals(firmwareId), ...(additionalQueryConditions ? [additionalQueryConditions] : [])],
         })
         .limit(device_class.concurrent - currently_upgrading);
 
@@ -791,10 +793,10 @@ class DeviceService {
       {
         $set: {
           'cloudSettings.pendingFirmware': device_class.firmware_id,
-          'cloudSettings.autoFirmwareUpdate': false,
+          'cloudSettings.firmwareChannel': 'manual',
           'hardwareInfo.claimcode_auth': 'off',
         },
-        $unset: { pending_firmware: '' },
+        $unset: { 'cloudSettings.autoFirmwareUpdate': '', pending_firmware: '' },
       },
     );
 
@@ -1114,10 +1116,15 @@ class DeviceService {
   }
 
   private normalizeCloudSettings(cloudSettings: CloudSettings | undefined, firmwareSettings?: { autoUpdate?: boolean }) {
-    const settings: CloudSettings = cloudSettings ?? { autoFirmwareUpdate: firmwareSettings?.autoUpdate ?? false };
+    const settings: CloudSettings = cloudSettings ?? {};
 
     if (settings.firmwareChannel === undefined) {
-      settings.firmwareChannel = settings.betaFeatures ? 'beta' : 'stable';
+      const legacyAutoUpdate = settings.autoFirmwareUpdate ?? firmwareSettings?.autoUpdate;
+      if (legacyAutoUpdate === true) {
+        settings.firmwareChannel = settings.betaFeatures ? 'beta' : 'stable';
+      } else {
+        settings.firmwareChannel = 'manual';
+      }
     }
 
     if (settings.publicRead === undefined) {

@@ -32,6 +32,7 @@ export interface FirmwareSettings {
 export type FirmwareChannel = 'stable' | 'beta' | 'alpha' | 'manual';
 
 export interface CloudSettings {
+  /** @deprecated Use firmwareChannel: 'manual' to disable automatic updates. Kept for reading legacy devices. */
   autoFirmwareUpdate?: boolean;
   firmwareChannel?: FirmwareChannel;
   pendingFirmware?: string;
