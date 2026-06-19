@@ -31,12 +31,6 @@ export class CloudSettingsComponent implements OnChanges {
     }
   }
 
-  onAutoFirmwareUpdateChanged() {
-    this.ensureDefaultFirmwareChannel();
-    this.cloudSettingsChange.emit(this.cloudSettings);
-    void this.onFirmwareUpdateChanged();
-  }
-
   onBetaFeaturesChanged() {
     if (this.cloudSettings.firmwareChannel !== 'alpha' && this.cloudSettings.firmwareChannel !== 'manual') {
       this.cloudSettings.firmwareChannel = this.defaultFirmwareChannel();
@@ -57,7 +51,7 @@ export class CloudSettingsComponent implements OnChanges {
   }
 
   async onFirmwareUpdateChanged() {
-    if (this.cloudSettings.autoFirmwareUpdate && this.cloudSettings.firmwareChannel && this.cloudSettings.firmwareChannel !== 'stable') {
+    if (this.cloudSettings.firmwareChannel && this.cloudSettings.firmwareChannel !== 'stable') {
       const target = this.cloudSettings.firmwareChannel === 'manual'
         ? this.firmwareLabel(this.cloudSettings.pendingFirmware) || 'selected'
         : `latest ${this.cloudSettings.firmwareChannel}`;
@@ -118,7 +112,9 @@ export class CloudSettingsComponent implements OnChanges {
     }
 
     if (!this.isFirmwareChannel(this.cloudSettings?.firmwareChannel)) {
-      this.cloudSettings.firmwareChannel = this.defaultFirmwareChannel();
+      this.cloudSettings.firmwareChannel = this.cloudSettings?.autoFirmwareUpdate === true
+        ? this.defaultFirmwareChannel()
+        : 'manual';
     }
   }
 

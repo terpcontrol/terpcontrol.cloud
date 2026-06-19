@@ -120,13 +120,6 @@
       </ion-popover>
     </ion-item>
     <ion-item lines="none">
-      <ion-label>{{'settings.autoFirmwareUpdate' | translate}}</ion-label>
-      <ion-checkbox
-        [(ngModel)]="cloudSettings.autoFirmwareUpdate"
-        (ngModelChange)="onAutoFirmwareUpdateChanged()"
-      ></ion-checkbox>
-    </ion-item>
-    <ion-item lines="none" *ngIf="cloudSettings.autoFirmwareUpdate">
       <ion-label>{{'settings.firmwareChannel' | translate}}</ion-label>
       <ion-select
         [(ngModel)]="cloudSettings.firmwareChannel"
@@ -138,7 +131,7 @@
         <ion-select-option value="manual">{{'settings.firmwareChannels.manual' | translate}}</ion-select-option>
       </ion-select>
     </ion-item>
-    <ion-item lines="none" *ngIf="cloudSettings.autoFirmwareUpdate && cloudSettings.firmwareChannel === 'manual'">
+    <ion-item lines="none" *ngIf="cloudSettings.firmwareChannel === 'manual'">
       <ion-label>{{'settings.firmwareVersion' | translate}}</ion-label>
       <ion-select
         [(ngModel)]="cloudSettings.pendingFirmware"
