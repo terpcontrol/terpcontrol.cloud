@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       description:
-        description: 'Firmware description suffix. Prefixed with short commit SHA; final FW_UPLOAD_VERSION is "<sha>-<this>". Max 55 chars, [A-Za-z0-9._-]. Leave blank for just "<sha>".'
+        description: 'Firmware description suffix. Prefixed with short commit SHA; final FW_UPLOAD_VERSION is "<sha>-<this>". Max 55 chars, [A-Za-z0-9._-]. Leave blank to auto-derive a slug from the commit subject.'
         required: false
         type: string
         default: ''
@@ -117,7 +117,21 @@ jobs:
           # --- Description ---
           SHORT_SHA="$(echo "${GITHUB_SHA}" | cut -c1-7)"
           if [ -n "${INPUT_DESCRIPTION}" ]; then
-            DESC="${SHORT_SHA}-${INPUT_DESCRIPTION}"
+            SUFFIX="${INPUT_DESCRIPTION}"
+          else
+            # Auto-slug from commit subject: strip trailing "(#NNN)", lowercase,
+            # replace any run of non-[a-z0-9._-] with a single dash, trim dashes,
+            # and cap at 55 chars so "<sha>-<slug>" fits the 63-char limit.
+            SUBJECT="$(git log -1 --format=%s "${GITHUB_SHA}")"
+            SUFFIX="$(printf '%s' "$SUBJECT" \
+              | sed -E 's/[[:space:]]*\(#[0-9]+\)[[:space:]]*$//' \
+              | tr '[:upper:]' '[:lower:]' \
+              | sed -E 's/[^a-z0-9._-]+/-/g; s/-+/-/g; s/^[-._]+//; s/[-._]+$//' \
+              | cut -c1-55 \
+              | sed -E 's/[-._]+$//')"
+          fi
+          if [ -n "$SUFFIX" ]; then
+            DESC="${SHORT_SHA}-${SUFFIX}"
           else
             DESC="${SHORT_SHA}"
           fi
