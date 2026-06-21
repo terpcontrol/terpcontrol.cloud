@@ -289,6 +289,39 @@ void wifiReportSmartSocketOutputs(const SmartSocketOutputStates& states) {
   smart_socket_outputs_reported = true;
 }
 
+void wifiForceAllSmartSocketsOff() {
+  // Called synchronously when a firmware update starts. The OTA download
+  // blocks the single loop task until reboot, so wifiTick() will not run
+  // again to flush the cached state via syncSmartSocketRole(). We therefore
+  // push the OFF command to every socket right here, bypassing the rate
+  // limiter / resend throttle. The cached state and per-role sync state are
+  // also marked OFF so control resumes consistently if the update aborts
+  // (updateFirmwareFromUrl returns without rebooting on failure).
+  SmartSocketOutputStates off;  // all fields default to false
+  smart_socket_output_states = off;
+  smart_socket_outputs_reported = true;
+
+  struct RoleEntry { const char* role; SmartSocketSyncState* state; };
+  const RoleEntry roles[] = {
+    {"dehumidifier", &smart_socket_state_dehumidifier},
+    {"heater", &smart_socket_state_heater},
+    {"light", &smart_socket_state_light},
+    {"secondary_light", &smart_socket_state_secondary_light},
+    {"co2", &smart_socket_state_co2},
+  };
+
+  for(const auto& entry : roles) {
+    esp_task_wdt_reset();
+    sendSmartSocketPower(entry.role, false);
+    entry.state->last_target = false;
+    entry.state->last_send_tick = xTaskGetTickCount();
+    entry.state->initialized = true;
+    entry.state->consecutive_failures = 0;
+    entry.state->disabled_until_tick = 0;
+  }
+  esp_task_wdt_reset();
+}
+
 static void syncSmartSocketRole(const char* role, bool target_on, SmartSocketSyncState& role_state) {
   TickType_t now = xTaskGetTickCount();
   bool state_changed = !role_state.initialized || role_state.last_target != target_on;

@@ -64,3 +64,4 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud);
 void showSmartSocketsUi(fg::UserInterface* ui, fg::Fridgecloud* cloud);
 bool sendSmartSocketPower(const std::string& role, bool turn_on);
 void wifiReportSmartSocketOutputs(const SmartSocketOutputStates& states);
+void wifiForceAllSmartSocketsOff();
