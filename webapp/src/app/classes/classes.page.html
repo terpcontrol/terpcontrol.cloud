@@ -8,6 +8,13 @@
 </ion-header>
 
 <ion-content>
+  <ion-item>
+    <ion-label>
+      User-visible firmware only
+      <p>Show only what users can pick on the manual channel: stable builds and anything newer than the latest stable.</p>
+    </ion-label>
+    <ion-toggle slot="end" [(ngModel)]="filterStable" aria-label="User-visible firmware only"></ion-toggle>
+  </ion-item>
   <ng-container *ngFor="let cls of classes">
     <ion-item>
       <ion-label>{{cls.class.name}} - {{cls.class.description}}</ion-label>
@@ -55,7 +62,7 @@
           <ion-col>rollout</ion-col>
           <ion-col>delete</ion-col>
         </ion-row>
-        <ion-row *ngFor="let fw of cls.versions"
+        <ion-row *ngFor="let fw of visibleVersions(cls)"
                   [class.active]="fw.fw.firmware_id == cls.class.firmware_id"
                   [class.beta]="fw.fw.firmware_id != cls.class.firmware_id && fw.fw.firmware_id == cls.class.beta_firmware_id"
                   [class.alpha]="fw.fw.firmware_id != cls.class.firmware_id && fw.fw.firmware_id == cls.class.alpha_firmware_id">
