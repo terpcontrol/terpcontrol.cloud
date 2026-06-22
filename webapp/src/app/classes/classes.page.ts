@@ -13,10 +13,40 @@ export class ClassesPage implements OnInit {
 
   public classes: any;
 
+  // When enabled, the firmware list is filtered the same way users see it when
+  // picking firmware on the manual channel: only firmwares that were ever stable,
+  // anything newer than the most recent stable build, plus the firmwares that are
+  // currently rolled out on a channel (stable/beta/alpha) for the class.
+  public filterStable = false;
+
   ngOnInit() {
     this.device.device_classes.subscribe((classes) => {
       this.classes = classes
     })
+  }
+
+  visibleVersions(cls: any): any[] {
+    const versions: any[] = cls?.versions ?? [];
+    if (!this.filterStable) {
+      return versions;
+    }
+
+    const stableCutoff = versions
+      .filter(v => v.fw?.wasStable)
+      .reduce((max, v) => Math.max(max, v.fw?.createdAt ?? 0), -Infinity);
+
+    const pinnedIds = new Set(
+      [cls?.class?.firmware_id, cls?.class?.beta_firmware_id, cls?.class?.alpha_firmware_id].filter(Boolean),
+    );
+
+    return versions.filter(v => {
+      // Always keep the synthetic "unknown" row (no firmware_id) so the count of
+      // devices on unrecognised firmware stays visible.
+      if (!v.fw?.firmware_id) {
+        return true;
+      }
+      return v.fw?.wasStable || (v.fw?.createdAt ?? 0) > stableCutoff || pinnedIds.has(v.fw.firmware_id);
+    });
   }
 
   async rollout(cls:any, firmware_id: string, channel: 'stable' | 'beta' | 'alpha' = 'stable') {
