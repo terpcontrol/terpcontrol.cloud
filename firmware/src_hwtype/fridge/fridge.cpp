@@ -642,6 +642,20 @@ namespace fg {
         out_dehumidifier.set(0);
         out_co2.set(0);
         out_light.set(0);
+
+        // Reset the logical outputs too: smart sockets are commanded from
+        // state.out_*, not the physical out_* pins. Without this the cached
+        // socket state stays "on".
+        state.out_heater = 0;
+        state.out_dehumidifier = 0;
+        state.out_co2 = 0;
+        state.out_light = 0;
+
+        // The OTA download blocks the loop task until reboot, so loop() and
+        // wifiTick() will not run again to push the OFF command to the smart
+        // sockets. Flush it synchronously here, otherwise a socket-controlled
+        // output (e.g. the heater) stays on through the whole update.
+        wifiForceAllSmartSocketsOff();
       }
     });
 
