@@ -51,6 +51,10 @@ EOF
     printf '%s' "$MQTTS_CA_PEM_B64" | base64 -d > "$CERTS_DIR/ca.crt"
     echo "ssl_options.cacertfile = $CERTS_DIR/ca.crt" >> "$CONF"
   fi
+
+  # The wrapper runs as root before the base entrypoint drops privileges to
+  # the rabbitmq user; without chown the rabbitmq process can't read the 600 key.
+  chown -R rabbitmq:rabbitmq "$CERTS_DIR"
 else
   echo "No MQTTS cert/key configured; starting with plaintext MQTT only." >&2
 fi
