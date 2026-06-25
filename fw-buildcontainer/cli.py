@@ -67,6 +67,11 @@ def api_post(url, **extra_args):
   return requests.post(API_URL + url, headers=headers, **extra_args)
 
 def gen_provisioning_bin(device_id:str, mqtt_user:str, mqtt_password:str, mqtt_host:str, mqtt_port:str, api_url:str):
+  # MQTTS is opt-in: only provision the TLS flag + CA cert when a CA path is
+  # supplied. Without them the device keeps using the plaintext listener.
+  mqtt_tls = os.environ.get("FG_MQTT_TLS", "")
+  mqtt_ca_path = os.environ.get("FG_MQTT_CA_CERT", "")
+
   provisioning_data= '''\
 key,type,encoding,value
 fg_provisioning,namespace,,
@@ -77,6 +82,12 @@ mqtt_host,data,string,{mqtt_host}
 mqtt_port,data,string,{mqtt_port}
 api_url,data,string,{api_url}
 '''.format(device_id=device_id, mqtt_user=mqtt_user, mqtt_password=mqtt_password, mqtt_host=mqtt_host, mqtt_port=mqtt_port, api_url=api_url)
+
+  if mqtt_ca_path:
+    if mqtt_tls in ("1", "true"):
+      provisioning_data += "mqtt_tls,data,string,1\n"
+    # 'file' encoding reads the PEM contents from the given path into NVS.
+    provisioning_data += "mqtt_ca_cert,file,string,{ca}\n".format(ca=mqtt_ca_path)
 
   open("/tmp/provisioning.csv", 'wt').write(provisioning_data)
 

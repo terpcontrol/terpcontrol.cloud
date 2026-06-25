@@ -101,6 +101,23 @@ EspMQTTClient::~EspMQTTClient()
 
 // =============== Configuration functions, most of them must be called before the first loop() call ==============
 
+#ifndef ESP8266
+bool EspMQTTClient::enableTLS(const char* caCertPem)
+{
+  // Refuse to enable TLS without a trust anchor: connecting without verifying
+  // the broker certificate would give encryption with no authentication, which
+  // is no better than plaintext against an active attacker.
+  if (caCertPem == nullptr || caCertPem[0] == '\0')
+    return false;
+
+  _wifiClientSecure.setCACert(caCertPem);
+  _mqttClient.setClient(_wifiClientSecure);
+  _activeClient = &_wifiClientSecure;
+  _tlsEnabled = true;
+  return true;
+}
+#endif
+
 void EspMQTTClient::enableDebuggingMessages(const bool enabled)
 {
   _enableSerialLogs = enabled;

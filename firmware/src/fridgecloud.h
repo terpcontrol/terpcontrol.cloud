@@ -49,7 +49,9 @@ namespace fg {
     std::string mqtt_password;
     std::string mqtt_host;
     std::string mqtt_port;
+    std::string mqtt_ca_cert;
     std::string api_url;
+    bool mqtt_tls = false;
 
     Subject<const String &> config_subject;
     Subject<JsonDocument> command_subject;

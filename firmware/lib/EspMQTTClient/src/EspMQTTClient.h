@@ -20,6 +20,7 @@
 #else // for ESP32
 
   #include <WiFiClient.h>
+  #include <WiFiClientSecure.h>
   #include <WebServer.h>
   #include <ESPmDNS.h>
   #include "ESP32HTTPUpdateServer.h"
@@ -49,6 +50,15 @@ private:
   const char* _wifiSsid;
   const char* _wifiPassword;
   WiFiClient _wifiClient;
+#ifndef ESP8266
+  // Optional TLS transport. Stays unused unless enableTLS() is called, so the
+  // default plaintext path is byte-for-byte unchanged for existing clients.
+  WiFiClientSecure _wifiClientSecure;
+  bool _tlsEnabled = false;
+#endif
+  // Points at whichever transport PubSubClient is actually driving, so socket
+  // teardown (forceDisconnect) acts on the live client regardless of TLS.
+  Client* _activeClient = &_wifiClient;
 
   // MQTT related
   bool _mqttConnected;
@@ -144,6 +154,14 @@ public:
   void enableLastWillMessage(const char* topic, const char* message, const bool retain = false); // Must be set before the first loop() call.
   void enableDrasticResetOnConnectionFailures() {_drasticResetOnConnectionFailures = true;} // Can be usefull in special cases where the ESP board hang and need resetting (#59)
 
+#ifndef ESP8266
+  // Switch the MQTT transport to TLS. Must be called before the first loop().
+  // A CA certificate is required so the broker is authenticated; without one
+  // this returns false and leaves the plaintext transport in place rather than
+  // silently disabling verification. ESP32 only.
+  bool enableTLS(const char* caCertPem);
+#endif
+
   /// Main loop, to call at each sketch loop()
   void loop();
 
@@ -186,7 +204,7 @@ public:
   // packet. Use this when writes are already failing with EAGAIN/ENOMEM;
   // PubSubClient::disconnect() itself may otherwise block/retry in write().
   inline void forceDisconnect() {
-    _wifiClient.stop();
+    _activeClient->stop();
     _mqttConnected = false;
     _nextMqttConnectionAttemptMillis = millis() + _mqttReconnectionAttemptDelay;
   };
@@ -209,7 +227,7 @@ public:
   // WiFiClient::write(); the EAGAIN retry loop is hardcoded to
   // WIFI_CLIENT_MAX_WRITE_RETRY (10) iterations of 1s and cannot be
   // shortened from the application.
-  inline void setWriteTimeout(uint32_t seconds) { _wifiClient.setTimeout(seconds); };
+  inline void setWriteTimeout(uint32_t seconds) { _activeClient->setTimeout(seconds); };
   inline unsigned int getConnectionEstablishedCount() const { return _connectionEstablishedCount; }; // Return the number of time onConnectionEstablished has been called since the beginning.
 
   inline const char* getMqttClientName() { return _mqttClientName; };
