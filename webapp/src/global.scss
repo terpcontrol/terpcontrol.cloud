@@ -9,40 +9,10 @@
  * https://ionicframework.com/docs/layout/global-stylesheets
  */
 
-/*
- * TerpControl brand webfont — "Widescreen UEx" (Thin / X-Bold / Black).
- * Fonts made from Web Fonts (https://www.onlinewebfonts.com), licensed CC BY 4.0.
- * Attribution is required by the license; see assets/fonts/OnlineWebFonts-License.txt.
- * Credit: Fonts made from <a href="https://www.onlinewebfonts.com">Web Fonts</a> is licensed by CC BY 4.0
- */
-@font-face {
-  font-family: 'TerpControl';
-  src: url('/assets/fonts/TerpControl-Thin.woff2') format('woff2'),
-       url('/assets/fonts/TerpControl-Thin.woff') format('woff');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'TerpControl';
-  src: url('/assets/fonts/TerpControl-XBold.woff2') format('woff2'),
-       url('/assets/fonts/TerpControl-XBold.woff') format('woff');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'TerpControl';
-  src: url('/assets/fonts/TerpControl-Black.woff2') format('woff2'),
-       url('/assets/fonts/TerpControl-Black.woff') format('woff');
-  font-weight: 900;
-  font-style: normal;
-  font-display: swap;
-}
+@import url('https://fonts.googleapis.com/css2?family=Poppins&display=swap');
 
 :root {
-  /* "Thin" is the main UI font (weight 400); X-Bold (700) and Black (900) for emphasis/headings. */
-  --ion-font-family: 'TerpControl', 'Poppins', sans-serif;
+  --ion-font-family: Poppins;
 }
 
 /* Core CSS required for Ionic components to work properly */
