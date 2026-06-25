@@ -1,4 +1,0 @@
-# Never commit private keys or certificates.
-*
-!.gitignore
-!README.md

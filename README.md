@@ -42,14 +42,24 @@ server url specified in your .env file.
 
 The broker exposes two MQTT listeners:
 - **1883 (plaintext)** — always available, kept for legacy firmware that cannot speak TLS.
-- **8883 (MQTTS / TLS)** — enabled automatically when broker certificates are present.
+- **8883 (MQTTS / TLS)** — enabled when a cert/key are supplied via config.
 
-To enable MQTTS, place `server.crt` and `server.key` (optionally `ca.crt`) in the
-directory referenced by `MQTTS_CERTS_DIR` (default `./rabbitmq/certs`). See
-[`rabbitmq/certs/README.md`](rabbitmq/certs/README.md) for how to generate a self-signed
-certificate for testing. Both listeners use the same HTTP auth backend, so credentials
-and topic permissions apply identically. If no certs are supplied, the broker starts with
-the plaintext listener only.
+To enable MQTTS, set `MQTTS_CERT_PEM_B64` and `MQTTS_KEY_PEM_B64` (and optionally
+`MQTTS_CA_PEM_B64`) in `.env` to the base64-encoded PEM of the broker certificate and
+key. Generate a self-signed pair for testing with:
+
+```sh
+./scripts/gen-mqtts-certs.sh <your-mqtt-host>
+```
+
+which prints the env values ready to paste in. The entrypoint writes them to files at
+startup. Both listeners use the same HTTP auth backend, so credentials and topic
+permissions apply identically. If no cert/key are configured, the broker starts with the
+plaintext listener only.
+
+New firmware can connect over MQTTS when provisioned with `FG_MQTT_TLS=1`, the MQTTS port
+(`FG_MQTT_PORT=8883`), and a CA cert (`FG_MQTT_CA_CERT=<path>`). Without these it uses the
+plaintext listener, so existing devices are unaffected.
 
 ## Management
 
