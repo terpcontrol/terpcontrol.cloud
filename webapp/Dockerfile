@@ -8,7 +8,7 @@ WORKDIR /usr/src
 COPY shared-types ./shared-types
 COPY webapp/package.json webapp/package-lock.json ./app/
 WORKDIR /usr/src/app
-RUN npm install
+RUN npm ci
 ARG API_URL_EXTERNAL
 ARG CUSTOM_LINKS_HTML
 COPY webapp/ .
