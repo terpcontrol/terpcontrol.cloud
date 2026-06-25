@@ -196,7 +196,7 @@
     "button-diary": "Diary",
 
     "fridge": {
-      "title": "Plantalytix FRIDGE GROW",
+      "title": "Terp Control FRIDGE GROW",
       "workmode": "Control mode",
       "workmode-small": "Small Plants",
       "workmode-full": "Big Plants",
@@ -267,7 +267,7 @@
     },
 
     "dryer": {
-      "title": "Plantalytix FRIDGE DRY",
+      "title": "Terp Control FRIDGE DRY",
       "presets": "Presets",
       "preset-none": "Custom settings",
       "preset-slow": "Slow drying",
@@ -276,7 +276,7 @@
     },
 
     "fan": {
-      "title": "Plantalytix AIR",
+      "title": "Terp Control AIR",
       "workmode": "Control mode",
       "workmode-fixed": "Fixed Speed",
       "workmode-temp": "Temperature controlled",
@@ -290,11 +290,11 @@
     },
 
     "light": {
-      "title": "Plantalytix LIGHT"
+      "title": "Terp Control LIGHT"
     },
 
     "plug": {
-      "title": "Plantalytix SMART SOCKET",
+      "title": "Terp Control SMART SOCKET",
       "workmode": "Control mode",
       "workmode-heater": "Heating",
       "workmode-cooler": "Cooling",
