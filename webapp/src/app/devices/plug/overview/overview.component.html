@@ -19,16 +19,7 @@
           </ion-toolbar>
         </ion-header>
         <ion-content class="ion-padding">
-          <ion-accordion-group>
-            <ng-container  *ngFor="let message of logs" >
-              <ion-accordion toggleIcon="caret-down" toggleIconSlot="start">
-                <ion-item slot="header" [color]="message.severity == 1 ? 'warning' : message.severity == 2 ? 'danger' : 'light'">
-                  <ion-label><span class="timestamp">{{ message.time | timeAgo }}</span> {{ logTranslate.getEntryTitle({ title: message.title || message.message, raw: message.raw }) }}</ion-label>
-                </ion-item>
-                <div class="ion-padding" slot="content">{{ logTranslate.getEntryMessage(message) }}</div>
-              </ion-accordion>
-            </ng-container>
-          </ion-accordion-group>
+          <app-log-entry-viewer [logs]="logs"></app-log-entry-viewer>
 
         </ion-content>
         <ion-footer>
