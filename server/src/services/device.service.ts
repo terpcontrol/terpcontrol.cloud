@@ -25,7 +25,7 @@ import { isNumeric } from 'influx/lib/src/grammar';
 import { mailTransport } from '@services/auth.service';
 import { imageService } from '@services/image.service';
 import { tunnelService } from '@services/tunnel.service';
-import { timingSafeEqual } from 'crypto';
+import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
 
 export type StatusMessage = {
   sensors: {
@@ -783,25 +783,34 @@ class DeviceService {
 
     const device_class = await deviceClassModel.findOne({ name: info.device_type });
 
-    const existingDevice = await deviceModel.findOneAndUpdate(
-      {
-        device_id: info.device_id,
-        username: info.username,
-        password: info.password,
-        device_type: info.device_type,
-      },
-      {
+    const existingDevice = await deviceModel.findOne({
+      device_id: info.device_id,
+      username: info.username,
+      device_type: info.device_type,
+    });
+
+    if (existingDevice) {
+      const { matches, legacy } = await verifyDevicePassword(info.password, existingDevice.password);
+      if (!matches) {
+        console.log('WRONG DEVICE PASSWORD');
+        return false;
+      }
+
+      const update: any = {
         $set: {
           'cloudSettings.pendingFirmware': device_class.firmware_id,
           'cloudSettings.firmwareChannel': 'manual',
           'hardwareInfo.claimcode_auth': 'off',
         },
         $unset: { 'cloudSettings.autoFirmwareUpdate': '', pending_firmware: '' },
-      },
-    );
+      };
+      // Migrate legacy plaintext records to a hash on successful re-registration.
+      if (legacy) {
+        update.$set.password = await hashDevicePassword(info.password);
+      }
+      await deviceModel.updateOne({ _id: existingDevice._id }, update);
 
-    if (existingDevice) {
-      console.log('Re-registered existing device:', existingDevice);
+      console.log('Re-registered existing device:', existingDevice.device_id);
       return { fw: device_class.firmware_id };
     }
 
@@ -827,7 +836,7 @@ class DeviceService {
     const device: Device = {
       device_id: info.device_id,
       username: info.username,
-      password: info.password,
+      password: await hashDevicePassword(info.password),
       class_id: device_class.class_id,
       device_type: info.device_type,
       configuration: '',
@@ -869,10 +878,11 @@ class DeviceService {
 
     const device_class = await deviceClassModel.findOne({ class_id: info.class_id });
 
+    const plainPassword = uuidv4();
     const device: Device = {
       device_id: uuidv4(),
       username: uuidv4(),
-      password: uuidv4(),
+      password: plainPassword,
       class_id: info.class_id,
       device_type: info.device_type,
       configuration: '',
@@ -885,7 +895,8 @@ class DeviceService {
       cloudSettings: { pendingFirmware: device_class.firmware_id },
     };
 
-    await deviceModel.create(device);
+    await deviceModel.create({ ...device, password: await hashDevicePassword(plainPassword) });
+    // Return the plaintext password so it can be flashed onto the hardware; only the hash is persisted.
     return device;
   }
 
@@ -943,10 +954,12 @@ class DeviceService {
       if (typeof password !== 'string' || typeof device.password !== 'string') {
         return false;
       }
-      const a = Buffer.from(password);
-      const b = Buffer.from(device.password);
-      if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      const { matches, legacy } = await verifyDevicePassword(password, device.password);
+      if (!matches) {
         return false;
+      }
+      if (legacy) {
+        await deviceModel.updateOne({ _id: device._id }, { $set: { password: await hashDevicePassword(password) } });
       }
     }
 

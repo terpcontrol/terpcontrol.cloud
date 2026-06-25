@@ -3,6 +3,7 @@ import { AuthUserDto, AuthVhostDto, AuthResourceDto, AuthTopicDto } from '@/dtos
 import { Device } from '@fg2/shared-types';
 import deviceModel from '@models/device.model';
 import { isEmpty } from '@utils/util';
+import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
 import { v4 as uuidv4 } from 'uuid';
 import { mqttclient } from '../databases/mqttclient';
 
@@ -26,7 +27,18 @@ class MqttAuthService {
       return false;
     }
 
-    return authData.password === findDevice.password;
+    const { matches, legacy } = await verifyDevicePassword(authData.password, findDevice.password);
+    if (!matches) {
+      return false;
+    }
+
+    // Migrate legacy plaintext records to a hash once they authenticate successfully.
+    if (legacy) {
+      const hashed = await hashDevicePassword(authData.password);
+      await this.devices.updateOne({ username: findDevice.username, password: findDevice.password }, { $set: { password: hashed } });
+    }
+
+    return true;
   }
 
   public async vhost(authData: AuthVhostDto): Promise<boolean> {
