@@ -74,7 +74,7 @@
         </ng-template>
       </ion-popover>
     </ion-item>
-    <ion-item lines="none" *ngIf="cloudSettings?.rtspStream?.startsWith('rtsp://') && cloudSettings.betaFeatures">
+    <ion-item lines="none" *ngIf="cloudSettings?.rtspStream?.startsWith('rtsp://')">
       <ion-label>
         {{ 'settings.tunnelRtspStream' | translate}}
         <ion-button fill="clear" id="cloudSettings-tunnelRtspStream-popover">

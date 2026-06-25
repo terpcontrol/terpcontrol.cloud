@@ -87,6 +87,18 @@ export class FridgeSettingsConfigurationComponent implements OnChanges {
     temperature:       {min: 5, max: 40},
     humidity:   {min: 10, max: 90},
     co2:        {min: 100, max: 10000},
+    maxDehumidifySeconds: {
+      min: 30,
+      max: 2400,
+      betaMin: 0,
+      betaMax: 7200,
+    },
+    minimalDehumidifierOffTime: {
+      min: 240,
+      max: 900,
+      betaMin: 0,
+      betaMax: 3600,
+    },
   };
 
   public hysteresis = {
