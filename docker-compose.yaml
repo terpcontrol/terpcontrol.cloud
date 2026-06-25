@@ -51,9 +51,13 @@ services:
     restart: always
     ports:
       - ${MQTT_PORT_EXTERNAL}:1883
+      - ${MQTTS_PORT_EXTERNAL:-8883}:8883
       - ${MQTT_MANAGEMENT_PORT_EXTERNAL:-8072}:15672
     networks:
       - main
+    volumes:
+      # Drop a CA/server cert+key here to enable the TLS MQTT listener on 8883.
+      - ${MQTTS_CERTS_DIR:-./rabbitmq/certs}:/etc/rabbitmq/certs:ro
     environment:
       MQTTAUTH_SHARED_SECRET: ${MQTTAUTH_SHARED_SECRET:-terpcontrol}
 

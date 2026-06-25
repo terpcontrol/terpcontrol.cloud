@@ -26,5 +26,26 @@ encoded=$(printf '%s' "$MQTTAUTH_SHARED_SECRET" | awk '
 escaped=$(printf '%s' "$encoded" | sed -e 's/[\\|&]/\\&/g')
 sed -i "s|@MQTTAUTH_SHARED_SECRET@|${escaped}|g" "$CONF"
 
+# Enable the TLS MQTT listener only when certs are mounted, so deployments without
+# certificates keep working on the plaintext listener alone. The HTTP auth backend
+# from the base config applies to this listener too.
+CERTS_DIR=/etc/rabbitmq/certs
+if [ -f "$CERTS_DIR/server.crt" ] && [ -f "$CERTS_DIR/server.key" ]; then
+  echo "MQTTS certs found; enabling TLS MQTT listener on 8883." >&2
+  cat >> "$CONF" <<EOF
+
+mqtt.listeners.ssl.default = 8883
+ssl_options.certfile = $CERTS_DIR/server.crt
+ssl_options.keyfile  = $CERTS_DIR/server.key
+ssl_options.verify   = verify_none
+ssl_options.fail_if_no_peer_cert = false
+EOF
+  if [ -f "$CERTS_DIR/ca.crt" ]; then
+    echo "ssl_options.cacertfile = $CERTS_DIR/ca.crt" >> "$CONF"
+  fi
+else
+  echo "No MQTTS certs at $CERTS_DIR; starting with plaintext MQTT only." >&2
+fi
+
 exec docker-entrypoint.sh "$@"
 

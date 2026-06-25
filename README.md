@@ -38,6 +38,19 @@ server url specified in your .env file.
 1. `docker compose up --build -d --remove-orphans`
 1. `./build-fw.sh` (if you want to update the firmware as well)
 
+## MQTT transport
+
+The broker exposes two MQTT listeners:
+- **1883 (plaintext)** — always available, kept for legacy firmware that cannot speak TLS.
+- **8883 (MQTTS / TLS)** — enabled automatically when broker certificates are present.
+
+To enable MQTTS, place `server.crt` and `server.key` (optionally `ca.crt`) in the
+directory referenced by `MQTTS_CERTS_DIR` (default `./rabbitmq/certs`). See
+[`rabbitmq/certs/README.md`](rabbitmq/certs/README.md) for how to generate a self-signed
+certificate for testing. Both listeners use the same HTTP auth backend, so credentials
+and topic permissions apply identically. If no certs are supplied, the broker starts with
+the plaintext listener only.
+
 ## Management
 
 ### Admin tools
