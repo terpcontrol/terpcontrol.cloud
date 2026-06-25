@@ -12,15 +12,17 @@ COPY server/package.json server/package-lock.json ./server/
 WORKDIR /app/server
 
 
-RUN rm -rf node_modules
-RUN rm -rf dist
-#RUN rm -rf package-lock.json
-RUN npm cache clean --force
-RUN npm install
+RUN npm ci
 
 COPY server/ .
 EXPOSE 3000
 
 ENV NODE_ENV production
+
+# Run as the non-root user shipped with the base image; ensure the app
+# directory and log directory are writable by it.
+ENV LOG_DIR=/var/log/terpcontrol
+RUN mkdir -p ${LOG_DIR} && chown -R node:node /app ${LOG_DIR}
+USER node
 
 CMD ["npm", "run", "start"]
