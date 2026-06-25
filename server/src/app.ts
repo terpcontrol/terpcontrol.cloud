@@ -62,6 +62,10 @@ class App {
   }
 
   private initializeMiddlewares() {
+    // Behind a single nginx reverse proxy: trust one hop so the real client IP
+    // (X-Forwarded-For) is used for rate limiting instead of the proxy's address.
+    this.app.set('trust proxy', 1);
+
     if (LOG_FORMAT !== 'disabled') {
       this.app.use(morgan(LOG_FORMAT, { stream }));
     }

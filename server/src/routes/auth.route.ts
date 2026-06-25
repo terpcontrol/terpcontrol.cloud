@@ -14,6 +14,30 @@ const tokenLoginLimiter = rateLimit({
   message: { message: 'Too many token-login attempts, please try again later.' },
 });
 
+const loginLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many login attempts, please try again later.' },
+});
+
+const signupLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many sign-up attempts, please try again later.' },
+});
+
+const passwordResetLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many password-reset requests, please try again later.' },
+});
+
 class AuthRoute implements Routes {
   public path = '/';
   public router = Router();
@@ -55,7 +79,7 @@ class AuthRoute implements Routes {
      *       '400':
      *         $ref: '#/components/responses/BadRequest'
      */
-    this.router.post(`${this.path}signup`, validationMiddleware(SignupDto, 'body'), this.authController.signUp);
+    this.router.post(`${this.path}signup`, signupLimiter, validationMiddleware(SignupDto, 'body'), this.authController.signUp);
 
     /**
      * @openapi
@@ -117,7 +141,7 @@ class AuthRoute implements Routes {
      *       '401':
      *         $ref: '#/components/responses/Unauthorized'
      */
-    this.router.post(`${this.path}login`, validationMiddleware(LoginDto, 'body'), this.authController.logIn);
+    this.router.post(`${this.path}login`, loginLimiter, validationMiddleware(LoginDto, 'body'), this.authController.logIn);
 
     /**
      * @openapi
@@ -219,7 +243,7 @@ class AuthRoute implements Routes {
      *             schema:
      *               $ref: '#/components/schemas/MessageResponse'
      */
-    this.router.post(`${this.path}getreset`, validationMiddleware(LoginDto, 'body'), this.authController.getPasswordToken);
+    this.router.post(`${this.path}getreset`, passwordResetLimiter, validationMiddleware(LoginDto, 'body'), this.authController.getPasswordToken);
 
     /**
      * @openapi
