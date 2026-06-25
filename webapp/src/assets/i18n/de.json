@@ -189,7 +189,7 @@
     "button-diary": "Tagebuch",
 
     "fridge": {
-      "title": "Plantalytix FRIDGE GROW",
+      "title": "TerpControl FRIDGE GROW",
       "workmode": "Arbeitsmodus",
       "workmode-small": "Kleine Pflanzen",
       "workmode-full": "Große Pflanzen",
@@ -260,7 +260,7 @@
     },
 
     "fan": {
-      "title": "Plantalytix AIR",
+      "title": "TerpControl AIR",
       "workmode": "Arbeitsmodus",
       "workmode-fixed": "Konstante Geschwindigkeit",
       "workmode-temp": "Temperaturgeregelt",
@@ -268,17 +268,17 @@
       "workmode-temphum": "Temperatur- & Luftfeuchtigkeitsgeregelt",
       "co2inject": {
         "name": "Automatische Geschwindigkeitsreduktion",
-        "description": "Dieser Lüfter ist mit einer Plantalytix Smart Socket im CO2 Modus verbunden und seine Geschwindigkeit wird wärend der CO2 Begasung automatisch reduziert!",
+        "description": "Dieser Lüfter ist mit einer TerpControl Smart Socket im CO2 Modus verbunden und seine Geschwindigkeit wird wärend der CO2 Begasung automatisch reduziert!",
         "clear": "Verbindung aufheben"
       }
     },
 
     "light": {
-      "title": "Plantalytix LIGHT"
+      "title": "TerpControl LIGHT"
     },
 
     "plug": {
-      "title": "Plantalytix SMART SOCKET",
+      "title": "TerpControl SMART SOCKET",
       "workmode": "Arbeitsmodus",
       "workmode-heater": "Heizung",
       "workmode-cooler": "Kühlung",

@@ -51,7 +51,7 @@ export class PlugOverviewComponent implements OnInit {
 
   async ngOnInit() {
     if(this.device_name == "" || this.device_name == undefined) {
-      this.device_name = "Plantalytix Smart Socket"
+      this.device_name = "TerpControl Smart Socket"
     }
     combineLatest([
       this.data.measure(this.device_id, 'temperature'),
