@@ -44,22 +44,24 @@ The broker exposes two MQTT listeners:
 - **1883 (plaintext)** — always available, kept for legacy firmware that cannot speak TLS.
 - **8883 (MQTTS / TLS)** — enabled when a cert/key are supplied via config.
 
-To enable MQTTS, set `MQTTS_CERT_PEM_B64` and `MQTTS_KEY_PEM_B64` (and optionally
-`MQTTS_CA_PEM_B64`) in `.env` to the base64-encoded PEM of the broker certificate and
-key. Generate a self-signed pair for testing with:
+To enable MQTTS, run:
 
 ```sh
-./scripts/gen-mqtts-certs.sh <your-mqtt-host>
+./scripts/setup-mqtts.sh
 ```
 
-which prints the env values ready to paste in. The entrypoint writes them to files at
-startup. Both listeners use the same HTTP auth backend, so credentials and topic
-permissions apply identically. If no cert/key are configured, the broker starts with the
-plaintext listener only.
+It reads `MQTT_HOST_EXTERNAL` from `.env`, generates a fresh RSA cert/key pair (CN/SAN
+matches what devices connect to), and writes the base64-encoded PEM values for
+`MQTTS_CERT_PEM_B64`, `MQTTS_KEY_PEM_B64`, and `MQTTS_CA_PEM_B64` into `.env`. Re-running
+the script rotates the cert in place. Both broker listeners use the same HTTP auth
+backend, so credentials and topic permissions apply identically.
 
-New firmware can connect over MQTTS when provisioned with `FG_MQTT_TLS=1`, the MQTTS port
-(`FG_MQTT_PORT=8883`), and a CA cert (`FG_MQTT_CA_CERT=<path>`). Without these it uses the
-plaintext listener, so existing devices are unaffected.
+`build-fw.sh` reads the same `.env`: when `MQTTS_CA_PEM_B64` is present it bakes the CA
+into the firmware build and points the device at the MQTTS port instead of the plaintext
+one. OTAing this firmware switches the device's MQTT transport to TLS on its next
+connect. If `MQTTS_CA_PEM_B64` is empty, the broker starts plaintext-only and the
+firmware build keeps using the plaintext listener — existing deployments stay
+backward-compatible by simply not configuring it.
 
 ## Management
 
