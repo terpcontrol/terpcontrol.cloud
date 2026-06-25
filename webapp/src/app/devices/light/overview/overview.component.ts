@@ -51,7 +51,7 @@ export class LightOverviewComponent implements OnInit {
 
   async ngOnInit() {
     if(this.device_name == "" || this.device_name == undefined) {
-      this.device_name = "TerpControl Light"
+      this.device_name = "Terp Control Light"
     }
     combineLatest([
       this.data.measure(this.device_id, 'temperature'),

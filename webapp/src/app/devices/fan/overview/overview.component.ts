@@ -57,7 +57,7 @@ export class FanOverviewComponent implements OnInit {
 
   async ngOnInit() {
     if(this.device_name == "" || this.device_name == undefined) {
-      this.device_name = "TerpControl Fan"
+      this.device_name = "Terp Control Fan"
     }
     combineLatest([
       this.data.measure(this.device_id, 'temperature'),
