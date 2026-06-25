@@ -27,6 +27,10 @@ class App {
     this.env = NODE_ENV || 'development';
     this.port = PORT || 3000;
     this.routes = routes;
+
+    // Behind the nginx reverse proxy, the TLS connection terminates at the proxy,
+    // so trust its X-Forwarded-* headers to recover the original protocol and client IP.
+    this.app.set('trust proxy', true);
   }
 
   public async run() {
