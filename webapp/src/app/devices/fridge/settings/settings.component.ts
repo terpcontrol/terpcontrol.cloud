@@ -15,6 +15,13 @@ import {calculateVpd} from "../../../util/calculateVpd";
 export class FridgeSettingComponent implements OnInit, OnDestroy {
   @Input() device_id:string = "";
   @Input() hardwareInfo: Record<string, string> | undefined;
+  @Input() deviceType: string = "";
+
+  // The controller drives everything via smart sockets and has no fan outputs,
+  // so the fan speed settings are hidden for it.
+  public get hideFanSettings(): boolean {
+    return this.deviceType === 'controller';
+  }
   public deviceSettings: any = {};
   public alarms:any = [];
   public cloudSettings:any = {};

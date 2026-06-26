@@ -23,6 +23,7 @@ export class FridgeSettingsConfigurationComponent implements OnChanges {
 
   @Input() deviceSettings: any = {};
   @Input() cloudSettings: any = {};
+  @Input() hideFanSettings: boolean = false;
   @Output() deviceSettingsChange = new EventEmitter<any>();
   public settings:any = null
   public offset:number;
