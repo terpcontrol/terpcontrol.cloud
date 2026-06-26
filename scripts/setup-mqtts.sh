@@ -41,6 +41,10 @@ fi
 env_value() { grep -E "^$1=" "$ENV_FILE" | head -n1 | sed 's/^[^=]*=//'; }
 b64() { base64 < "$1" | tr -d '\n'; }
 
+# Where the CA private key is saved on first run and read from on rotation.
+# Override with MQTTS_CA_KEY_FILE. It is gitignored; treat it as a secret.
+CA_KEY_FILE="${MQTTS_CA_KEY_FILE:-./mqtts-ca.key}"
+
 # SAN must use IP: for a literal IPv4 and DNS: for a hostname, otherwise
 # OpenSSL rejects the value.
 if printf '%s' "$HOST" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
@@ -60,17 +64,36 @@ if [ -n "$EXISTING_CA" ]; then
   echo "Existing MQTTS CA detected in $ENV_FILE; rotating the server certificate." >&2
   printf '%s' "$EXISTING_CA" | base64 -d > "$TMP/ca.crt"
 
-  CA_KEY_B64="${MQTTS_CA_KEY_B64:-}"
-  if [ -z "$CA_KEY_B64" ]; then
-    printf 'Paste the CA private key (base64, single line) and press enter: ' >&2
-    IFS= read -r CA_KEY_B64
+  # Load the CA private key into $TMP/ca.key. Pasting a ~2KB base64 blob at a
+  # prompt is unreliable — terminals cap one line of canonical input at 1024
+  # bytes (MAX_CANON) and silently truncate — so the key is read from a FILE.
+  # Sources, in order: $MQTTS_CA_KEY_B64 (automation), $CA_KEY_FILE if it
+  # exists, otherwise prompt for a path. A file may hold either the PEM itself
+  # or its base64 encoding; both are accepted.
+  load_ca_key() {
+    src="$1"
+    # PEM or base64? Detect on the first line.
+    if head -n1 "$src" | grep -q 'BEGIN .*PRIVATE KEY'; then
+      cp "$src" "$TMP/ca.key"
+    else
+      tr -d '\n' < "$src" | base64 -d > "$TMP/ca.key" 2>/dev/null \
+        || { echo "error: $src is neither a PEM key nor valid base64." >&2; return 1; }
+    fi
+  }
+
+  if [ -n "${MQTTS_CA_KEY_B64:-}" ]; then
+    printf '%s' "$MQTTS_CA_KEY_B64" | base64 -d > "$TMP/ca.key" 2>/dev/null \
+      || { echo "error: MQTTS_CA_KEY_B64 is not valid base64." >&2; exit 1; }
+  elif [ -f "$CA_KEY_FILE" ]; then
+    echo "Using CA private key from $CA_KEY_FILE." >&2
+    load_ca_key "$CA_KEY_FILE" || exit 1
+  else
+    printf 'Path to the saved CA private key file: ' >&2
+    IFS= read -r KEY_PATH
+    [ -n "$KEY_PATH" ] && [ -f "$KEY_PATH" ] \
+      || { echo "error: no readable CA key file provided; cannot sign a new server cert." >&2; exit 1; }
+    load_ca_key "$KEY_PATH" || exit 1
   fi
-  if [ -z "$CA_KEY_B64" ]; then
-    echo "error: no CA private key provided; cannot sign a new server cert." >&2
-    exit 1
-  fi
-  printf '%s' "$CA_KEY_B64" | base64 -d > "$TMP/ca.key" 2>/dev/null \
-    || { echo "error: CA private key is not valid base64." >&2; exit 1; }
 
   # Fail early if the supplied key does not match the CA cert on file.
   CRT_MOD=$(openssl x509 -noout -modulus -in "$TMP/ca.crt" | openssl md5)
@@ -85,6 +108,15 @@ else
   openssl genrsa -out "$TMP/ca.key" 2048 2>/dev/null
   openssl req -x509 -new -nodes -key "$TMP/ca.key" -sha256 -days 3650 \
     -subj "/CN=$HOST MQTTS CA" -out "$TMP/ca.crt" 2>/dev/null
+
+  # Persist the CA key to a file so rotation can read it back without an
+  # error-prone interactive paste. Refuse to clobber an unrelated key file.
+  if [ -e "$CA_KEY_FILE" ]; then
+    echo "error: $CA_KEY_FILE already exists; refusing to overwrite. Move it aside or set MQTTS_CA_KEY_FILE." >&2
+    exit 1
+  fi
+  cp "$TMP/ca.key" "$CA_KEY_FILE"
+  chmod 600 "$CA_KEY_FILE"
 fi
 
 # Issue the server cert signed by the CA (same path for first run and rotation).
@@ -124,16 +156,14 @@ Next steps:
   1. docker compose up -d rabbitmq   # serve the new server cert on 8883
 EOF
 else
-  CA_KEY_OUT=$(b64 "$TMP/ca.key")
   cat >&2 <<EOF
 
 Generated a new MQTTS CA and server certificate (CN=$HOST).
 MQTTS_CERT/KEY/CA_PEM_B64 written into $ENV_FILE.
 
->>> SAVE THIS CA PRIVATE KEY (base64). It is NOT stored anywhere else and is
->>> required to rotate the server cert later via this same script:
-
-MQTTS_CA_KEY_B64=$CA_KEY_OUT
+>>> The CA PRIVATE KEY was saved to: $CA_KEY_FILE  (chmod 600, gitignored)
+>>> This is the secret needed to rotate the server cert later. Keep a backup
+>>> somewhere safe; rotation reads it from this path automatically.
 
 Next steps:
   1. docker compose up -d rabbitmq   # picks up the new cert, enables 8883

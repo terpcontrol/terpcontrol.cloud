@@ -53,15 +53,18 @@ To enable MQTTS, run:
 On the **first run** it reads `MQTT_HOST_EXTERNAL` from `.env`, generates a CA and a
 server certificate signed by it, and writes `MQTTS_CERT_PEM_B64`, `MQTTS_KEY_PEM_B64`
 (the server cert/key the broker serves on 8883) and `MQTTS_CA_PEM_B64` (the CA the
-firmware trusts) into `.env`. It then prints the **CA private key** once — save it
-somewhere safe; it is the secret needed to rotate the server cert later and is
-deliberately not stored in `.env`.
+firmware trusts) into `.env`. The **CA private key** — the secret needed to rotate the
+server cert later — is saved to `./mqtts-ca.key` (chmod 600, gitignored) and is
+deliberately *not* stored in `.env`. Keep a backup of it somewhere safe; override the
+path with `MQTTS_CA_KEY_FILE`.
 
 Devices pin the **CA**, not the server cert. To **rotate** the server certificate, run
-the script again: it detects the existing CA, asks for the saved CA private key (or reads
-`MQTTS_CA_KEY_B64`), and issues a fresh server cert signed by the same CA. Because the CA
-is unchanged, already-deployed devices keep trusting the broker with no firmware update —
-just `docker compose up -d rabbitmq` to serve the new cert.
+the script again: it detects the existing CA, reads the CA private key from
+`./mqtts-ca.key` (or `$MQTTS_CA_KEY_FILE`, or `$MQTTS_CA_KEY_B64`), and issues a fresh
+server cert signed by the same CA. Because the CA is unchanged, already-deployed devices
+keep trusting the broker with no firmware update — just `docker compose up -d rabbitmq`
+to serve the new cert. The key is read from a file rather than pasted because terminals
+truncate a pasted line at 1024 bytes and the key is larger than that.
 
 `build-fw.sh` reads the same `.env`: when `MQTTS_CA_PEM_B64` is present it bakes the CA
 into the firmware build and points the device at the MQTTS port instead of the plaintext
