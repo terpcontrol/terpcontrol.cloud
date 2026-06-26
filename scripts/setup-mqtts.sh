@@ -106,7 +106,7 @@ else
   # --- First run: create the CA ---
   echo "No MQTTS CA in $ENV_FILE; generating a new CA and server certificate." >&2
   openssl genrsa -out "$TMP/ca.key" 2048 2>/dev/null
-  openssl req -x509 -new -nodes -key "$TMP/ca.key" -sha256 -days 3650 \
+  openssl req -x509 -new -nodes -key "$TMP/ca.key" -sha256 -days 7300 \
     -subj "/CN=$HOST MQTTS CA" -out "$TMP/ca.crt" 2>/dev/null
 
   # Persist the CA key to a file so rotation can read it back without an
