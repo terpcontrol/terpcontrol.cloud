@@ -198,22 +198,21 @@ namespace fg {
   }
 
   void ControllerController::controlCo2() {
-    
+
 	if(!hasCo2Sensor()) {
       Serial.println("CO2 deaktiviert - kein SCD Sensor");
 
-      if(out_co2.get()) {
-        state.out_co2 = 0;
-		out_co2.set(state.out_co2);
-      }
+      co2_valve_open = false;
+      state.out_co2 = 0;
       co2_valve_close = 0;
       co2_inject_end = xTaskGetTickCount();
 
       return;
     }
 	Serial.println("CO2 Regelung aktiv");
-	
-    if (out_co2.get()) {
+
+    // Accumulate open runtime for the cloud report while the valve is open.
+    if (co2_valve_open) {
       state.out_co2 += xTaskGetTickCount() - co2_inject_start;
     }
     co2_inject_start = xTaskGetTickCount();
@@ -221,13 +220,8 @@ namespace fg {
     if(state.is_day) {
       if(tickPassed(co2_inject_end)) {
         if((co2_avg.avg() < settings.co2.target && !isPaused())) {
-          state.out_co2 = 1;
-		  out_co2.set(state.out_co2);
-          co2_valve_close = co2_inject_start + co2_inject_count * CO2_INJECT_DURATION;
-          co2_inject_count = co2_inject_count < CO2_INJECT_MAX_COUNT ? co2_inject_count * 2 : co2_inject_count;
-        }
-        else {
-          co2_inject_count = co2_inject_count >= 2 ? co2_inject_count / 2 : 1;
+          co2_valve_open = true;
+          co2_valve_close = co2_inject_start + CO2_INJECT_DURATION;  // fixed 2 s
         }
         co2_inject_end = xTaskGetTickCount() + CO2_INJECT_PERIOD;
       }
@@ -235,14 +229,19 @@ namespace fg {
     else {
       co2_inject_end = xTaskGetTickCount();
       co2_valve_close = 0;
+      co2_valve_open = false;
       state.out_co2 = 0;
-	  out_co2.set(state.out_co2);
     }
 
     if(co2_avg.avg() > settings.co2.target + CO2_OVERSWING_ABORT) {
       co2_valve_close = 0;
+      co2_valve_open = false;
       state.out_co2 = 0;
-	  out_co2.set(state.out_co2);
+    }
+
+    // 2 s injection window elapsed -> close. Evaluated in the 1 s control loop.
+    if(co2_valve_open && tickPassed(co2_valve_close)) {
+      co2_valve_open = false;
     }
   }
 
@@ -414,7 +413,6 @@ namespace fg {
 	 
  
 	cloud(cloud),
-    out_co2(PIN_CO2),
     out_light(PIN_LIGHT, 0),
     heater_day_pid(HEATER_PID_P, HEATER_PID_I, HEATER_PID_D),
     heater_night_pid(HEATER_PID_P, HEATER_PID_I, HEATER_PID_D),
@@ -562,7 +560,7 @@ namespace fg {
 
     cloud.onUpdate([&](bool updating) {
       if(updating) {
-        out_co2.set(0);
+        co2_valve_open = false;
         out_light.set(0);
 
         // Reset the logical outputs too: smart sockets are commanded from
@@ -748,14 +746,8 @@ namespace fg {
 
 
   void ControllerController::fastloop() {
-    if(hasCo2Sensor() && out_co2.get()) {
-      state.out_co2 += xTaskGetTickCount() - co2_inject_start;
-      co2_inject_start = xTaskGetTickCount();
-
-      if(tickPassed(co2_valve_close)) {
-        out_co2.set(0);
-      }
-    }
+    // CO2 valve timing now runs entirely in the 1 s control loop and is
+    // actuated via a smart socket, so there is nothing to do per fast tick.
   }
 
   void ControllerController::loop() {
@@ -791,7 +783,8 @@ namespace fg {
       Serial.println("SENSOR ERROR!!! FAILSAVE MODE!!!");
       state.out_heater = 0;
       state.out_dehumidifier = 0;
-      out_co2.set(0);
+      co2_valve_open = false;
+      state.out_co2 = 0;
       out_light.set(0);
       state.out_light = 0;
     }
@@ -805,8 +798,8 @@ namespace fg {
         }
         else {
           Serial.printf("CO2 CONTROL DISABLED (SHT sensor detected, sensor_type=%d)\n", state.sensor_type);
-		  state.out_co2 = 0;
-          out_co2.set(0);
+		  co2_valve_open = false;
+          state.out_co2 = 0;
         }
 		
         controlLight();
@@ -822,8 +815,8 @@ namespace fg {
         }
         else {
           Serial.printf("CO2 CONTROL DISABLED (SHT sensor detected, sensor_type=%d)\n", state.sensor_type);
-		  state.out_co2 = 0;
-          out_co2.set(0);
+		  co2_valve_open = false;
+          state.out_co2 = 0;
         }
 		
         controlLight();
@@ -842,8 +835,8 @@ namespace fg {
         }
         else {
           Serial.printf("CO2 CONTROL DISABLED (SHT sensor detected, sensor_type=%d)\n", state.sensor_type);
-		  state.out_co2 = 0;
-          out_co2.set(0);
+		  co2_valve_open = false;
+          state.out_co2 = 0;
         }
 		
       }
@@ -851,7 +844,8 @@ namespace fg {
         Serial.println("MODE DRY");
         controlDehumidifier();
         controlHeater();
-        out_co2.set(0);
+        co2_valve_open = false;
+        state.out_co2 = 0;
         out_light.set(0);
         state.out_light = 0;
       }
@@ -859,7 +853,8 @@ namespace fg {
         Serial.println("MODE BREED");
         controlHeater();
         controlCooling();
-        out_co2.set(0);
+        co2_valve_open = false;
+        state.out_co2 = 0;
         out_light.set(0);
         state.out_light = 0;
       }
@@ -867,7 +862,8 @@ namespace fg {
         Serial.println("MODE OFF");
         state.out_heater = 0;
         state.out_dehumidifier = 0;
-        out_co2.set(0);
+        co2_valve_open = false;
+        state.out_co2 = 0;
         out_light.set(0);
         state.out_light = 0;
       }
@@ -882,7 +878,7 @@ namespace fg {
       socket_states.heater_on = state.out_heater > 0;
       socket_states.light_on = state.out_light > 0;
       socket_states.secondary_light_on = state.out_light > 0;
-      socket_states.co2_on = state.out_co2 > 0;
+      socket_states.co2_on = co2_valve_open;
       wifiReportSmartSocketOutputs(socket_states);
 
 	  if(hasCo2Sensor()){

@@ -60,7 +60,6 @@ namespace fg {
 
 
   class ControllerController : public AutomationController {
-    static constexpr uint8_t PIN_CO2 = 18;
     static constexpr uint8_t PIN_LIGHT = 21;
 
 
@@ -89,10 +88,8 @@ namespace fg {
     static constexpr double HEATER_PID_D = 100.0;
 
     static constexpr TickType_t CO2_INJECT_PERIOD = configTICK_RATE_HZ * 120.0;
-    static constexpr TickType_t CO2_INJECT_DURATION = configTICK_RATE_HZ * 0.2;
-    static constexpr TickType_t CO2_INJECT_MAX_DURATION = configTICK_RATE_HZ * 10;
+    static constexpr TickType_t CO2_INJECT_DURATION = configTICK_RATE_HZ * 2.0;
     static constexpr TickType_t CO2_INJECT_DELAY = configTICK_RATE_HZ * 120.0;
-    static constexpr uint32_t CO2_INJECT_MAX_COUNT = CO2_INJECT_MAX_DURATION / CO2_INJECT_DURATION;
     static constexpr float CO2_LEVEL_CRITICAL = 200.0;
     static constexpr float CO2_OVERSWING_ABORT = 300.0;
 
@@ -102,14 +99,16 @@ namespace fg {
     SensirionI2CScd4x scd4x;
     SHTSensor sht21;
 
-    PinOutput out_co2;
     PwmOutput out_light;
 
     float co2_turnoff_value = 0.0f;
     uint32_t co2_turnoff_time = 0;
     uint32_t stuck_count = 0;
-    uint32_t co2_inject_count = 1;
     uint8_t co2_low_count = 0;
+
+    // CO2 valve is actuated via a smart socket (no physical pin). This is the
+    // logical open/closed state the socket command is derived from.
+    bool co2_valve_open = false;
 
     TickType_t co2_inject_start = 0;
     TickType_t co2_inject_end = 0;
