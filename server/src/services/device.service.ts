@@ -629,7 +629,12 @@ class DeviceService {
     if (is_admin) {
       device = await deviceModel.findOne({ device_id: device_id }, { device_id: 1 });
     } else if (user_id) {
-      device = await deviceModel.findOne({ device_id: device_id, owner_id: user_id }, { device_id: 1 });
+      // An authenticated viewer may be the owner or may be reading someone else's public chart,
+      // so accept either ownership or publicRead here (access was already authorized by the controller).
+      device = await deviceModel.findOne(
+        { device_id: device_id, $or: [{ owner_id: user_id }, { 'cloudSettings.publicRead': true }] },
+        { device_id: 1 },
+      );
     } else {
       device = await deviceModel.findOne({ device_id: device_id, 'cloudSettings.publicRead': true }, { device_id: 1 });
     }
