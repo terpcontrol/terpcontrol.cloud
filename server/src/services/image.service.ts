@@ -36,6 +36,15 @@ const FFMPEG_THROTTLE_MS = 1_000;
 const FFMPEG_TIMEOUT_MS = 90_000;
 const IMAGE_RETENTION_DAYS = 3 * 365;
 
+// Gradually thin out raw camera images as they age: once an image is older than
+// `afterMs`, no more than one is kept per `minIntervalMs`. Ordered oldest-boundary
+// last so each tier only thins images younger than the next, coarser tier.
+const IMAGE_THINNING_TIERS = [
+  { afterMs: 7 * MS_IN_A_DAY, minIntervalMs: 60 * 1000 },
+  { afterMs: 90 * MS_IN_A_DAY, minIntervalMs: 15 * 60 * 1000 },
+  { afterMs: 365 * MS_IN_A_DAY, minIntervalMs: 60 * 60 * 1000 },
+];
+
 const TIMELAPSE_DAY_FRAMEINTERVAL_MS = 2 * 60 * 1000;
 const TIMELAPSE_FRAME_RATE = 25;
 
@@ -200,6 +209,8 @@ class ImageService {
         await this.compressRtspStreamRange(device, MS_IN_A_DAY, TIMELAPSE_DAY_FRAMEINTERVAL_MS, '1d');
         await this.compressRtspStreamRange(device, 7 * MS_IN_A_DAY, 7 * TIMELAPSE_DAY_FRAMEINTERVAL_MS, '1w');
         await this.compressRtspStreamRange(device, 30 * MS_IN_A_DAY, 30 * TIMELAPSE_DAY_FRAMEINTERVAL_MS, '1m');
+
+        await this.thinRtspStreamImages(device);
       }
     } finally {
       setTimeout(() => {
@@ -284,6 +295,45 @@ class ImageService {
         return;
       }
     }
+  }
+
+  private async thinRtspStreamImages(device: Device): Promise<void> {
+    const now = Date.now();
+    for (let i = 0; i < IMAGE_THINNING_TIERS.length; i++) {
+      const tier = IMAGE_THINNING_TIERS[i];
+      const coarserTier = IMAGE_THINNING_TIERS[i + 1];
+      const maxTimestamp = now - tier.afterMs;
+      const minTimestamp = coarserTier ? now - coarserTier.afterMs : 0;
+      await this.thinImageRange(device.device_id, minTimestamp, maxTimestamp, tier.minIntervalMs);
+    }
+  }
+
+  private async thinImageRange(deviceId: string, minTimestamp: number, maxTimestamp: number, minIntervalMs: number): Promise<void> {
+    const cursor = imageModel
+      .find({ device_id: deviceId, format: 'jpeg', timestamp: { $gte: minTimestamp, $lt: maxTimestamp } })
+      .sort({ timestamp: 1 })
+      .select({ image_id: 1, timestamp: 1 })
+      .cursor();
+
+    let lastKeptTimestamp = -Infinity;
+    let toDelete: string[] = [];
+    const flush = async () => {
+      if (toDelete.length === 0) return;
+      await imageModel.deleteMany({ image_id: { $in: toDelete } });
+      toDelete = [];
+    };
+
+    for (let image = await cursor.next(); image != null; image = await cursor.next()) {
+      if (image.timestamp - lastKeptTimestamp < minIntervalMs) {
+        toDelete.push(image.image_id);
+        if (toDelete.length >= 500) {
+          await flush();
+        }
+      } else {
+        lastKeptTimestamp = image.timestamp;
+      }
+    }
+    await flush();
   }
 
   private async compressRtspStreamImages(device: Device, images: Omit<Image, 'data'>[]): Promise<Buffer | undefined> {
