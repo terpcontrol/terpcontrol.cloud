@@ -24,6 +24,15 @@ docker exec -i fw-temp-container sh -c 'perl -p -e '"'"'s/#API_URL_EXTERNAL#/$EN
 docker exec -i fw-temp-container rm /firmware/src/wifi.cpp.tmpl
 docker rm -f fw-temp-container
 
+# Mirror build-fw.sh: when MQTTS is configured in .env, provision the device
+# with the TLS port and the CA cert so the freshly-flashed firmware connects
+# over MQTTS from boot.
+if [ -n "$MQTTS_CA_PEM_B64" ]; then
+  PROV_MQTT_PORT=${MQTTS_PORT_EXTERNAL:-8883}
+else
+  PROV_MQTT_PORT=${MQTT_PORT_EXTERNAL}
+fi
+
 docker run -i --rm \
   --privileged \
   -v /dev/bus/usb:/dev/bus/usb \
@@ -32,7 +41,8 @@ docker run -i --rm \
   -e FG_AUTOMATION_URL=${API_URL_EXTERNAL} \
   -e FG_API_URL=${API_URL_EXTERNAL} \
   -e FG_MQTT_HOST=${MQTT_HOST_EXTERNAL} \
-  -e FG_MQTT_PORT=${MQTT_PORT_EXTERNAL} \
+  -e FG_MQTT_PORT=${PROV_MQTT_PORT} \
+  -e FG_MQTT_CA_PEM_B64="${MQTTS_CA_PEM_B64}" \
   plantalytix-buildcontainer sh -c "cd /firmware; ./dev-provision.sh \"$DEVICE_TYPE\""
 
 docker volume rm fg2_firmware

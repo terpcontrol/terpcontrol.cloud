@@ -11,6 +11,19 @@ import { logger } from '@utils/logger';
 class AuthController {
   public authService = new AuthService();
 
+  // Issues the Authorization cookie for the just-minted user token. Secure is set only
+  // when the original request reached us over HTTPS so plain-HTTP deployments keep working;
+  // this relies on `trust proxy` to honour X-Forwarded-Proto behind the reverse proxy.
+  private setAuthCookie(req: Request, res: Response, token: string, maxAgeSeconds: number) {
+    res.cookie('Authorization', token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: req.secure,
+      maxAge: maxAgeSeconds * 1000,
+      path: '/',
+    });
+  }
+
   public signUp = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userData: SignupDto = req.body;
@@ -37,6 +50,8 @@ class AuthController {
     try {
       const userData: LoginDto = req.body;
       const { userToken, refreshToken, imageToken, findUser } = await this.authService.login(userData);
+
+      this.setAuthCookie(req, res, userToken.token, userToken.expiresIn);
 
       res.status(200).json({
         user: { username: findUser.username, user_id: findUser.user_id, is_admin: findUser.is_admin },
@@ -75,6 +90,8 @@ class AuthController {
         if (verificationResponse.user_id && verificationResponse.token_type === 'refresh') {
           const { userToken, refreshToken, imageToken } = await this.authService.refresh(verificationResponse);
 
+          this.setAuthCookie(req, res, userToken.token, userToken.expiresIn);
+
           res.status(200).json({
             userToken: userToken,
             refreshToken: refreshToken,
@@ -94,7 +111,7 @@ class AuthController {
 
   public logOut = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
-      res.setHeader('Set-Cookie', ['Authorization=; Max-age=0']);
+      res.clearCookie('Authorization', { httpOnly: true, sameSite: 'lax', secure: req.secure, path: '/' });
       res.status(200).json({});
     } catch (error) {
       next(error);

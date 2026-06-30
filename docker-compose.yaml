@@ -51,11 +51,17 @@ services:
     restart: always
     ports:
       - ${MQTT_PORT_EXTERNAL}:1883
+      - ${MQTTS_PORT_EXTERNAL:-8883}:8883
       - ${MQTT_MANAGEMENT_PORT_EXTERNAL:-8072}:15672
     networks:
       - main
     environment:
       MQTTAUTH_SHARED_SECRET: ${MQTTAUTH_SHARED_SECRET:-terpcontrol}
+      # Base64-encoded PEM cert/key (and optional CA) enable the TLS listener on 8883.
+      # Leave empty to run with the plaintext listener only.
+      MQTTS_CERT_PEM_B64: ${MQTTS_CERT_PEM_B64:-}
+      MQTTS_KEY_PEM_B64: ${MQTTS_KEY_PEM_B64:-}
+      MQTTS_CA_PEM_B64: ${MQTTS_CA_PEM_B64:-}
 
   webapp:
     build:

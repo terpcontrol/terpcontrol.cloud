@@ -30,6 +30,15 @@ if [ -z "$HARDWARES" ]; then
   HARDWARES="fridge controller plug fan light"
 fi
 
+# When MQTTS is configured in .env, point the firmware at the TLS port and
+# pass the CA through so dev-build.sh can bake it into the image. Otherwise
+# the firmware keeps building plaintext on MQTT_PORT_EXTERNAL.
+if [ -n "$MQTTS_CA_PEM_B64" ]; then
+  FW_MQTT_PORT=${MQTTS_PORT_EXTERNAL:-8883}
+else
+  FW_MQTT_PORT=${MQTT_PORT_EXTERNAL}
+fi
+
 for hardware in $HARDWARES; do
   echo "Building firmware for ${hardware}..."
   docker run -i --rm \
@@ -38,7 +47,8 @@ for hardware in $HARDWARES; do
     -e FG_AUTOMATION_URL=${API_URL_EXTERNAL} \
     -e FG_API_URL=${API_URL_EXTERNAL} \
     -e FG_MQTT_HOST=${MQTT_HOST_EXTERNAL} \
-    -e FG_MQTT_PORT=${MQTT_PORT_EXTERNAL} \
+    -e FG_MQTT_PORT=${FW_MQTT_PORT} \
+    -e FG_MQTT_CA_PEM_B64="${MQTTS_CA_PEM_B64}" \
     -e FW_UPLOAD_VERSION="${FW_UPLOAD_VERSION}" \
     -e FW_NO_UPLOAD=${FW_NO_UPLOAD} \
     -e FW_VERSION_ID=${FW_VERSION_ID} \

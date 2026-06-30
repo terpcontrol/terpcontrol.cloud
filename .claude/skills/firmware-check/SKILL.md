@@ -39,6 +39,14 @@ git merge --no-ff --no-edit fw-check-pr<N>
 - Build and test from this merged state. Throw the temp branches away when done (`git branch -D fw-check-merge-<N> fw-check-pr<N>`).
 - For the bare-branch form (`/firmware-check <branch-name>`), skip the merge entirely — just check out the branch and test it as-is.
 
+After checking out the merged state, run `docker compose up -d` so any
+`docker-compose.yaml`, `.env`, image, or entrypoint changes in the PR take
+effect before the firmware is built/rolled out. Without this step you'd
+be testing new firmware against the **pre-merge** broker/server, which can
+silently mask or fake "successes" — e.g. a PR that moves the MQTT listener
+to a new port appears to fail because the device can't reach the new port
+on the still-running old container.
+
 ## Preflight — do this once at the start
 
 Skip the per-PR loop if any preflight check fails; the whole point of preflight is that any later failure is attributable to the new firmware, not to the environment.

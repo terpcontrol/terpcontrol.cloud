@@ -13,6 +13,7 @@
 #include "time.h"
 
 #include "base64_min.h"
+#include "mqtt_ca.gen.h"
 
 #ifndef FIRMWARE_VERSION
   #warning Firmware version undefinded!
@@ -85,6 +86,22 @@ namespace fg {
       mqtt_port = MQTT_PORT;
       api_url = API_URL;
 
+      // Per-device NVS provisioning wins so site-specific certs can override
+      // the build-time defaults; otherwise fall back to the cert baked in
+      // from .env via build-fw.sh (MQTT_TLS_DEFAULT / MQTT_CA_CERT_PEM). A CA
+      // cert must be present in one of the two — without it we stay on
+      // plaintext rather than connecting without verifying the broker.
+      std::string tls_flag = provisioning.getStr("mqtt_tls");
+      mqtt_ca_cert = provisioning.getStr("mqtt_ca_cert");
+#if MQTT_TLS_DEFAULT
+      if (mqtt_ca_cert.empty()) {
+        mqtt_ca_cert = MQTT_CA_CERT_PEM;
+      }
+      if (tls_flag.empty()) {
+        tls_flag = "1";
+      }
+#endif
+      mqtt_tls = (tls_flag == "1" || tls_flag == "true") && !mqtt_ca_cert.empty();
     }
 
     Serial.print("FIRMWARE VERSION: ");
@@ -122,6 +139,15 @@ namespace fg {
       mqtt_password.c_str(),   // Can be omitted if not needed
       device_id.c_str()     // Client name that uniquely identify your device
     ));
+
+    if(mqtt_tls) {
+      if(client->enableTLS(mqtt_ca_cert.c_str())) {
+        Serial.println("mqtt: TLS enabled");
+      }
+      else {
+        Serial.println("mqtt: TLS requested but no CA cert; staying on plaintext");
+      }
+    }
 
     client->setSocketTimeout(5);
     client->setWriteTimeout(5);

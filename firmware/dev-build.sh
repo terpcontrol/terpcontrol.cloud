@@ -13,6 +13,32 @@ export MQTT_HOST=${FG_MQTT_HOST}
 export MQTT_PORT=${FG_MQTT_PORT}
 export API_URL=${FG_API_URL}
 
+# Generate src/mqtt_ca.gen.h. Always writing the file (even when MQTTS is not
+# configured) keeps fridgecloud.cpp's #include unconditional and avoids stale
+# state on rebuilds. The CA PEM is embedded as a C++ raw string literal so the
+# newlines in the cert don't need escaping.
+CA_GEN_HEADER="src/mqtt_ca.gen.h"
+if [ -n "$FG_MQTT_CA_PEM_B64" ]; then
+  CA_PEM=$(printf '%s' "$FG_MQTT_CA_PEM_B64" | base64 -d)
+  # A raw string literal in a normal declaration can span multiple physical
+  # lines; the same payload inside a #define is harder to make portable across
+  # preprocessors, so we use a plain `static const char[]` here. Only
+  # fridgecloud.cpp includes this header so the per-TU copy is irrelevant.
+  cat > "$CA_GEN_HEADER" <<EOF
+#pragma once
+#define MQTT_TLS_DEFAULT 1
+static const char MQTT_CA_CERT_PEM[] = R"PEM(
+${CA_PEM}
+)PEM";
+EOF
+else
+  cat > "$CA_GEN_HEADER" <<'EOF'
+#pragma once
+#define MQTT_TLS_DEFAULT 0
+static const char MQTT_CA_CERT_PEM[] = "";
+EOF
+fi
+
 if [ -z "$FW_VERSION_ID" ]
 then
   echo "failed to get version id";

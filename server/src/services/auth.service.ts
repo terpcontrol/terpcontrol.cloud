@@ -115,7 +115,6 @@ class AuthService {
     if (!findUser.is_active) throw new HttpException(409, 'User not activated');
 
     const { userToken, refreshToken, imageToken } = this.createTokensFromUser(findUser, userData.stayLoggedIn);
-    // const cookie = this.createCookie(tokenData);
 
     return { userToken, refreshToken, findUser, imageToken };
   }
