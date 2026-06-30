@@ -31,6 +31,7 @@ const READ_IMAGE_CHECK_INTERVAL_MS = 5_000;
 const IMAGE_LOAD_INTERVAL_MS = 30_000;
 const IMAGE_LOAD_MAX_BACKOFF_INTERVAL_MS = 120 * 60_000;
 const COMPRESS_INTERVAL_MS = 60 * 60 * 1000;
+const THIN_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 const FFMPEG_THROTTLE_MS = 1_000;
 const FFMPEG_TIMEOUT_MS = 90_000;
@@ -51,6 +52,7 @@ const TIMELAPSE_FRAME_RATE = 25;
 class ImageService {
   private ffmpegLimit = pLimit(10);
   private deviceIdToLastRtspState = new Map<string, { lastTry: number; failureCount: number }>();
+  private lastThinningRun = 0;
 
   constructor() {
     setTimeout(() => {
@@ -194,6 +196,8 @@ class ImageService {
     try {
       const devices = await deviceModel.find({ 'cloudSettings.rtspStream': { $exists: true, $ne: '' } });
 
+      const shouldThin = Date.now() - this.lastThinningRun >= THIN_INTERVAL_MS;
+
       for (const device of devices) {
         const oldImages = await imageModel
           .find({
@@ -210,7 +214,13 @@ class ImageService {
         await this.compressRtspStreamRange(device, 7 * MS_IN_A_DAY, 7 * TIMELAPSE_DAY_FRAMEINTERVAL_MS, '1w');
         await this.compressRtspStreamRange(device, 30 * MS_IN_A_DAY, 30 * TIMELAPSE_DAY_FRAMEINTERVAL_MS, '1m');
 
-        await this.thinRtspStreamImages(device);
+        if (shouldThin) {
+          await this.thinRtspStreamImages(device);
+        }
+      }
+
+      if (shouldThin) {
+        this.lastThinningRun = Date.now();
       }
     } finally {
       setTimeout(() => {
