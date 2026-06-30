@@ -44,7 +44,7 @@ const IMAGE_THINNING_TIERS = [
   { afterMs: MS_IN_A_DAY, minIntervalMs: 60 * 1000 },
   { afterMs: 7 * MS_IN_A_DAY, minIntervalMs: 5 * 60 * 1000 },
   { afterMs: 30 * MS_IN_A_DAY, minIntervalMs: 15 * 60 * 1000 },
-  { afterMs: 365 * MS_IN_A_DAY, minIntervalMs: 60 * 60 * 1000 },
+  { afterMs: 90 * MS_IN_A_DAY, minIntervalMs: 60 * 60 * 1000 },
 ];
 
 const TIMELAPSE_DAY_FRAMEINTERVAL_MS = 2 * 60 * 1000;
