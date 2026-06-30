@@ -22,7 +22,9 @@
 # explicit host as the first argument to override.
 set -eu
 
-ENV_FILE="${TERPCONTROL_ENV_FILE:-.env}"
+# Resolve $ENV_FILE via the shared helper. This script reads and rewrites the
+# file in place rather than exporting it, so it does not call terpcontrol_load_env.
+. "$(dirname "$0")/load-env.sh"
 if [ ! -f "$ENV_FILE" ]; then
   echo "error: $ENV_FILE not found. Copy .env.sample first." >&2
   exit 1

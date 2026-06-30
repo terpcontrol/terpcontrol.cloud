@@ -8,12 +8,14 @@ if [ -z "$DEVICE_TYPE" ]; then
     exit 1
 fi
 
-if [ -n "$TERPCONTROL_ENV_FILE" ] && [ -f "$TERPCONTROL_ENV_FILE" ]; then
-    export $(grep -v '^#' "$TERPCONTROL_ENV_FILE" | grep -v CUSTOM_LINKS_HTML | xargs)
-elif [ -f .env ]; then
-    export $(grep -v '^#' .env | grep -v CUSTOM_LINKS_HTML | xargs)
-elif [ -f ../.env ]; then
-    export $(grep -v '^#' ../.env | grep -v CUSTOM_LINKS_HTML | xargs)
+# On the host the shared helper resolves and loads the env file (honouring
+# TERPCONTROL_ENV_FILE, then ./.env, then ../.env). Inside the build container
+# scripts/ is not copied in and the env arrives via `docker run -e`, so the
+# helper is sourced only when present.
+ENV_HELPER="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/scripts/load-env.sh"
+if [ -f "$ENV_HELPER" ]; then
+    . "$ENV_HELPER"
+    terpcontrol_load_env
 fi
 
 if [ -z "$FG_AUTOMATION_TOKEN" ]; then
