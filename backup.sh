@@ -33,7 +33,7 @@ fi
 
 if [ "$BACKUP_TARGET" != "mongo" ]; then
   docker compose exec -T influxdb rm -rf /influxdb-backup.tar /influxdb-backup/ || true
-  docker compose exec -T influxdb influx backup /influxdb-backup
+  docker compose exec -T influxdb influx backup --token "$INFLUXDB_TOKEN" /influxdb-backup
   docker compose exec -T influxdb tar cf /influxdb-backup.tar /influxdb-backup
   docker cp "$INFLUX_CONTAINER":/influxdb-backup.tar "${BACKUP_FILENAME}.influxdump"
   docker compose exec -T influxdb rm -rf /influxdb-backup.tar /influxdb-backup/ || true
