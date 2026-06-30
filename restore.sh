@@ -1,10 +1,8 @@
 #!/bin/bash
 set -e
 
-ENV_FILE="${TERPCONTROL_ENV_FILE:-.env}"
-if [ -f "$ENV_FILE" ]; then
-    export $(grep -v '^#' "$ENV_FILE" | grep -v CUSTOM_LINKS_HTML | xargs)
-fi
+. "$(dirname "${BASH_SOURCE[0]}")/scripts/load-env.sh"
+terpcontrol_load_env
 
 if [ -z "$BACKUP_FILENAME" ]; then
     export BACKUP_FILENAME="$1"
