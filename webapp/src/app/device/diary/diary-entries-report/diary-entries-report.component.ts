@@ -132,7 +132,7 @@ export class DiaryEntriesReportComponent implements OnInit, OnChanges, OnDestroy
         title: result.data.title ?? '',
         message: result.data.message ?? result.data.title ?? '',
         time: result.data.time,
-        raw: true,
+        raw: !(result.data.category && result.data.category in defaultDiaryEntries),
         categories: ['diary', result.data.category || 'unknown'],
         data: result.data.data,
         images: result.data.images,
