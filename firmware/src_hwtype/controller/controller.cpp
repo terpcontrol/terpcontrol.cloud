@@ -198,22 +198,21 @@ namespace fg {
   }
 
   void ControllerController::controlCo2() {
-    
+
 	if(!hasCo2Sensor()) {
       Serial.println("CO2 deaktiviert - kein SCD Sensor");
 
-      if(out_co2.get()) {
-        state.out_co2 = 0;
-		out_co2.set(state.out_co2);
-      }
+      co2_valve_open = false;
+      state.out_co2 = 0;
       co2_valve_close = 0;
       co2_inject_end = xTaskGetTickCount();
 
       return;
     }
 	Serial.println("CO2 Regelung aktiv");
-	
-    if (out_co2.get()) {
+
+    // Accumulate open runtime for the cloud report while the valve is open.
+    if (co2_valve_open) {
       state.out_co2 += xTaskGetTickCount() - co2_inject_start;
     }
     co2_inject_start = xTaskGetTickCount();
@@ -221,13 +220,8 @@ namespace fg {
     if(state.is_day) {
       if(tickPassed(co2_inject_end)) {
         if((co2_avg.avg() < settings.co2.target && !isPaused())) {
-          state.out_co2 = 1;
-		  out_co2.set(state.out_co2);
-          co2_valve_close = co2_inject_start + co2_inject_count * CO2_INJECT_DURATION;
-          co2_inject_count = co2_inject_count < CO2_INJECT_MAX_COUNT ? co2_inject_count * 2 : co2_inject_count;
-        }
-        else {
-          co2_inject_count = co2_inject_count >= 2 ? co2_inject_count / 2 : 1;
+          co2_valve_open = true;
+          co2_valve_close = co2_inject_start + CO2_INJECT_DURATION;  // fixed 2 s
         }
         co2_inject_end = xTaskGetTickCount() + CO2_INJECT_PERIOD;
       }
@@ -235,14 +229,19 @@ namespace fg {
     else {
       co2_inject_end = xTaskGetTickCount();
       co2_valve_close = 0;
+      co2_valve_open = false;
       state.out_co2 = 0;
-	  out_co2.set(state.out_co2);
     }
 
     if(co2_avg.avg() > settings.co2.target + CO2_OVERSWING_ABORT) {
       co2_valve_close = 0;
+      co2_valve_open = false;
       state.out_co2 = 0;
-	  out_co2.set(state.out_co2);
+    }
+
+    // 2 s injection window elapsed -> close. Evaluated in the 1 s control loop.
+    if(co2_valve_open && tickPassed(co2_valve_close)) {
+      co2_valve_open = false;
     }
   }
 
@@ -361,14 +360,6 @@ namespace fg {
       state.out_dehumidifier = 0;
     }
 	
-    if(state.out_dehumidifier) {
-      out_dehumidifier.set(1);
-      out_fan_backwall.set(fridge_on_fanspeed);
-    }
-    else {
-      out_dehumidifier.set(0);
-      out_fan_backwall.set(fridge_off_fanspeed);
-    }
   }
 
 
@@ -402,8 +393,6 @@ namespace fg {
       state.out_dehumidifier = 0;
     }
 
-    out_dehumidifier.set(state.out_dehumidifier);
-    out_fan_backwall.set(255);
   }
 
   void ControllerController::controlHeater() {
@@ -418,28 +407,13 @@ namespace fg {
       state.out_heater = heater_night_pid.tick(state.temperature, settings.night.temperature);
     }
 
-    heater_turn_off = (float)xTaskGetTickCount() + (float)configTICK_RATE_HZ * state.out_heater;
-
-    if (isPaused()) {
-      state.out_heater = 0;
-	  out_heater.set(state.out_heater);
-    }
-    else {
-	  out_heater.set(state.out_heater);
-    }
   }
   
   ControllerController::ControllerController(Fridgecloud& cloud) :
 	 
  
 	cloud(cloud),
-    out_heater(PIN_HEATER),
-    out_dehumidifier(PIN_DEHUMIDIFIER),
-    out_co2(PIN_CO2),
     out_light(PIN_LIGHT, 0),
-    out_fan_internal(PIN_FAN_INTERNAL, 1, 0, 30000),
-    out_fan_external(PIN_FAN_EXTERNAL, 2, 0, 30000),
-    out_fan_backwall(PIN_FAN_BACKWALL, 3, 0, 30000),
     heater_day_pid(HEATER_PID_P, HEATER_PID_I, HEATER_PID_D),
     heater_night_pid(HEATER_PID_P, HEATER_PID_I, HEATER_PID_D),
     sht21(SHTSensor::SHTSensorType::SHT4X)
@@ -479,7 +453,6 @@ namespace fg {
     else {
       Serial.println(settings_json);
 
-      loadIfAvaliable(new_settings.mqttcontrol, doc["mqttcontrol"]);
       loadIfAvaliable(new_settings.workmode, doc["workmode"]);
       loadIfAvaliable(new_settings.daynight.day, doc["daynight"]["day"]);
       loadIfAvaliable(new_settings.daynight.night, doc["daynight"]["night"]);
@@ -495,8 +468,6 @@ namespace fg {
       loadIfAvaliable(new_settings.lights.sunrise, doc["lights"]["sunrise"]);
       loadIfAvaliable(new_settings.lights.sunset, doc["lights"]["sunset"]);
       loadIfAvaliable(new_settings.lights.limit, doc["lights"]["limit"]);
-      loadIfAvaliable(new_settings.fans.external, doc["fans"]["external"]);
-      loadIfAvaliable(new_settings.fans.internal, doc["fans"]["internal"]);
     }
 
     Serial.printf("#################################################\n\r");
@@ -515,8 +486,6 @@ namespace fg {
     Serial.printf("new_settings.lights.sunrise: %f\n\r", new_settings.lights.sunrise);
     Serial.printf("new_settings.lights.sunset: %f\n\r", new_settings.lights.sunset);
     Serial.printf("new_settings.lights.limit: %f\n\r", new_settings.lights.limit);
-    Serial.printf("new_settings.fans.external: %f\n\r", new_settings.fans.external);
-    Serial.printf("new_settings.fans.internal: %f\n\r", new_settings.fans.internal);
     Serial.printf("#################################################\n\r");
 
     settings = new_settings;
@@ -544,8 +513,6 @@ namespace fg {
     doc["lights"]["sunrise"] = settings.lights.sunrise;
     doc["lights"]["sunset"] = settings.lights.sunset;
     doc["lights"]["limit"] = settings.lights.limit;
-    doc["fans"]["external"] = settings.fans.external;
-    doc["fans"]["internal"] = settings.fans.internal;
 
 
     std::stringstream stream;
@@ -573,48 +540,15 @@ namespace fg {
       Serial.println("received new configuration");
       loadSettings(payload);
 
-      if(settings.mqttcontrol) {
-        directmode_timer = xTaskGetTickCount() + DIRECTMODE_TIMEOUT;
-      }
-      else {
-        fg::settings().setStr("config", payload.c_str());
-        fg::settings().commit();
-      }
+      fg::settings().setStr("config", payload.c_str());
+      fg::settings().commit();
 
       loop();
 
     });
 
     cloud.onCommand([&](const JsonDocument& command) {
-      if(command["action"] && command["action"] == std::string("test")) {
-        testmode_duration = TESTMODE_MAX_DURATION;
-
-        testmode_heater_power = command["outputs"]["heater"].as<float>();
-        out_dehumidifier.set(command["outputs"]["dehumidifier"].as<uint8_t>());
-        out_co2.set(command["outputs"]["co2"].as<uint8_t>());
-        out_light.set(command["outputs"]["lights"].as<float>() * 2.55);
-        out_fan_internal.set(command["outputs"]["fanint"].as<float>() * 2.55);
-        out_fan_external.set(command["outputs"]["fanext"].as<float>() * 2.55);
-        out_fan_backwall.set(command["outputs"]["fanbw"].as<float>() * 2.55);
-
-        Serial.print("TEST HEATER:       ");
-        Serial.println(command["outputs"]["heater"].as<uint8_t>());
-        Serial.print("TEST DEHUMIDIFIER: ");
-        Serial.println(command["outputs"]["dehumidifier"].as<uint8_t>());
-        Serial.print("TEST CO2:          ");
-        Serial.println(command["outputs"]["co2"].as<uint8_t>());
-        Serial.print("TEST LIGHTS:       ");
-        Serial.println(command["outputs"]["lights"].as<float>());
-        Serial.print("TEST FANS INTERNAL:       ");
-        Serial.println(command["outputs"]["fanint"].as<float>());
-        Serial.print("TEST FANS EXTERNAL:       ");
-        Serial.println(command["outputs"]["fanext"].as<float>());
-        Serial.print("TEST FANS BACKWALL:       ");
-        Serial.println(command["outputs"]["fanbw"].as<float>());
-      }
-      else if(command["action"] && command["action"] == std::string("stoptest")) {
-        testmode_duration = 0;
-      } else if(command["action"] && command["action"] == std::string("maintenance")) {
+      if(command["action"] && command["action"] == std::string("maintenance")) {
         float durationMinutes = command["durationMinutes"].as<float>();
         char buf[64];
         pause_start_tick = xTaskGetTickCount();
@@ -626,9 +560,7 @@ namespace fg {
 
     cloud.onUpdate([&](bool updating) {
       if(updating) {
-        out_heater.set(0);
-        out_dehumidifier.set(0);
-        out_co2.set(0);
+        co2_valve_open = false;
         out_light.set(0);
 
         // Reset the logical outputs too: smart sockets are commanded from
@@ -644,45 +576,6 @@ namespace fg {
         // sockets. Flush it synchronously here, otherwise a socket-controlled
         // output (e.g. the heater) stays on through the whole update.
         wifiForceAllSmartSocketsOff();
-      }
-    });
-
-    cloud.onControl([&](std::pair<std::string, std::string> output) {
-      if(settings.mqttcontrol) {
-        if(output.first == std::string("heater")) {
-          testmode_heater_power = atof(output.second.c_str());
-          state.out_heater = testmode_heater_power;
-        }
-        if(output.first == std::string("dehumidifier")) {
-          auto dehumidifier = atoi(output.second.c_str());
-          state.out_dehumidifier = dehumidifier;
-          out_dehumidifier.set(dehumidifier);
-        }
-        if(output.first == std::string("co2") && hasCo2Sensor()) {
-          auto co2 = atoi(output.second.c_str());
-          if(co2 != 0) {
-            co2_valve_close = xTaskGetTickCount() + co2;
-            state.out_co2 = 1;
-            out_co2.set(1);
-          }
-        }
-        if(output.first == std::string("light")) {
-          auto lights = atof(output.second.c_str());
-          state.out_light = lights;
-          out_light.set(lights * 255.0f);
-        }
-        if(output.first == std::string("fan-internal")) {
-          auto fan = atof(output.second.c_str()) * 255.0f;
-          directmode_fan_internal = fan;
-        }
-        if(output.first == std::string("fan-external")) {
-          auto fan = atof(output.second.c_str()) * 255.0f;
-          out_fan_external.set(fan);
-        }
-        if(output.first == std::string("fan-backwall")) {
-          auto fan = atof(output.second.c_str()) * 255.0f;
-          out_fan_backwall.set(fan);
-        }
       }
     });
 
@@ -853,17 +746,8 @@ namespace fg {
 
 
   void ControllerController::fastloop() {
-    if(tickPassed(heater_turn_off)) {
-      out_heater.set(0);
-    }
-    if(testmode_duration == 0 && hasCo2Sensor() && out_co2.get()) {
-      state.out_co2 += xTaskGetTickCount() - co2_inject_start;
-      co2_inject_start = xTaskGetTickCount();
-
-      if(tickPassed(co2_valve_close)) {
-        out_co2.set(0);
-      }
-    }
+    // CO2 valve timing now runs entirely in the 1 s control loop and is
+    // actuated via a smart socket, so there is nothing to do per fast tick.
   }
 
   void ControllerController::loop() {
@@ -895,34 +779,18 @@ namespace fg {
       }
     }
 
-	if(testmode_duration > 0) {
-      testmode_duration--;
-      Serial.println("TESTMODE ACTIVE!");
-    }
-    else if(settings.mqttcontrol) {
-      Serial.println("Direct control mode active");;
-
-      if(tickPassed(directmode_timer)) {
-        Serial.println("DIRECTMODE TIMEOUT! REVERTING!");
-        auto saved_settings = fg::settings().getStr("config");
-        loadSettings(saved_settings.c_str());
-      }
-    }
-    else if(sensors_valid == false) {
+	if(sensors_valid == false) {
       Serial.println("SENSOR ERROR!!! FAILSAVE MODE!!!");
-      out_heater.set(0);
       state.out_heater = 0;
-      out_dehumidifier.set(0);
       state.out_dehumidifier = 0;
-      out_co2.set(0);
+      co2_valve_open = false;
+      state.out_co2 = 0;
       out_light.set(0);
       state.out_light = 0;
     }
     else {
       if(settings.workmode == ControllerControllerSettings::MODE_FULL) {
         Serial.println("MODE FULL");
-        fridge_off_fanspeed = 0;
-        fridge_on_fanspeed = 255;
 		
         if(hasCo2Sensor()) {
           Serial.printf("CO2 CONTROL ACTIVE (sensor_type=%d)\n", state.sensor_type);
@@ -930,19 +798,16 @@ namespace fg {
         }
         else {
           Serial.printf("CO2 CONTROL DISABLED (SHT sensor detected, sensor_type=%d)\n", state.sensor_type);
-		  state.out_co2 = 0;
-          out_co2.set(0);
+		  co2_valve_open = false;
+          state.out_co2 = 0;
         }
 		
         controlLight();
         controlDehumidifier();
         controlHeater();
-        out_fan_external.set(settings.fans.external * 2.55);
       }
       else if(settings.workmode == ControllerControllerSettings::MODE_SMALL) {
         Serial.println("MODE SMALL");
-        fridge_off_fanspeed = 128;
-        fridge_on_fanspeed = 255;
 		
         if(hasCo2Sensor()) {
           Serial.printf("CO2 CONTROL ACTIVE (sensor_type=%d)\n", state.sensor_type);
@@ -950,14 +815,13 @@ namespace fg {
         }
         else {
           Serial.printf("CO2 CONTROL DISABLED (SHT sensor detected, sensor_type=%d)\n", state.sensor_type);
-		  state.out_co2 = 0;
-          out_co2.set(0);
+		  co2_valve_open = false;
+          state.out_co2 = 0;
         }
 		
         controlLight();
         controlDehumidifier();
         controlHeater();
-        out_fan_external.set(settings.fans.external * 2.55);
       }
       else if(settings.workmode == ControllerControllerSettings::MODE_TEMP) {
         Serial.println("MODE TEMP");
@@ -971,43 +835,37 @@ namespace fg {
         }
         else {
           Serial.printf("CO2 CONTROL DISABLED (SHT sensor detected, sensor_type=%d)\n", state.sensor_type);
-		  state.out_co2 = 0;
-          out_co2.set(0);
+		  co2_valve_open = false;
+          state.out_co2 = 0;
         }
 		
-        out_fan_external.set(settings.fans.external * 2.55);
       }
       else if(settings.workmode == ControllerControllerSettings::MODE_DRY) {
         Serial.println("MODE DRY");
         controlDehumidifier();
         controlHeater();
-        out_co2.set(0);
+        co2_valve_open = false;
+        state.out_co2 = 0;
         out_light.set(0);
         state.out_light = 0;
-        out_fan_external.set(settings.fans.external * 2.55);
       }
       else if(settings.workmode == ControllerControllerSettings::MODE_BREED) {
         Serial.println("MODE BREED");
         controlHeater();
         controlCooling();
-        out_co2.set(0);
+        co2_valve_open = false;
+        state.out_co2 = 0;
         out_light.set(0);
         state.out_light = 0;
-        out_fan_external.set(settings.fans.external * 2.55);
       }
       else {
         Serial.println("MODE OFF");
-        out_heater.set(0);
         state.out_heater = 0;
-        out_dehumidifier.set(0);
         state.out_dehumidifier = 0;
-        out_co2.set(0);
+        co2_valve_open = false;
+        state.out_co2 = 0;
         out_light.set(0);
         state.out_light = 0;
-
-        out_fan_internal.set(0);
-        out_fan_external.set(0);
-        out_fan_backwall.set(0);
       }
 
       if (settings.lights.maintenanceOn > 0 && isPaused()) {
@@ -1020,7 +878,7 @@ namespace fg {
       socket_states.heater_on = state.out_heater > 0;
       socket_states.light_on = state.out_light > 0;
       socket_states.secondary_light_on = state.out_light > 0;
-      socket_states.co2_on = state.out_co2 > 0;
+      socket_states.co2_on = co2_valve_open;
       wifiReportSmartSocketOutputs(socket_states);
 
 	  if(hasCo2Sensor()){
@@ -1099,7 +957,7 @@ namespace fg {
 	StaticJsonDocument<
 	    JSON_OBJECT_SIZE(2)   // top: sensors, outputs
 	  + JSON_OBJECT_SIZE(6)   // sensors: temperature, humidity, sensor_type, co2, leaf_temperature, lux
-	  + JSON_OBJECT_SIZE(7)   // outputs: dehumidifier, heater, light, co2, fan-internal, fan-external, fan-backwall
+	  + JSON_OBJECT_SIZE(4)   // outputs: dehumidifier, heater, light, co2
 	  + 64                    // small headroom
 	> status;
 
@@ -1124,13 +982,6 @@ namespace fg {
 	status["outputs"]["heater"] = state.out_heater;
 	status["outputs"]["light"] = state.out_light;
 	status["outputs"]["co2"] = hasCo2Sensor() ? state.out_co2 : -1;
-
-	if(cloud.directMode())
-	{
-      status["outputs"]["fan-internal"] = out_fan_internal.get() / 255.0f;
-      status["outputs"]["fan-external"] = out_fan_external.get() / 255.0f;
-      status["outputs"]["fan-backwall"] = out_fan_backwall.get() / 255.0f;
-	}
 
 
 	if (cloud.updateStatus(status) && hasCo2Sensor())
@@ -1326,18 +1177,6 @@ namespace fg {
           });
         });
       }
-
-      if(settings.workmode != ControllerControllerSettings::MODE_OFF) {
-        menu->addOption("Fan Speed", ICON_FAN, [ui, this](){
-          ui->push<FloatInput>("Fan Speed", settings.fans.external, "%", 0, 100, 5, 0, [ui, this](float value) {
-            settings.fans.external = value;
-            saveAndUploadSettings();
-            ui->pop();
-          });
-        });
-      }
-
-
 
     menu->addOption("Smart Sockets", ICON_SETTINGS, [ui, this](){
       showSmartSocketsUi(ui, &cloud);

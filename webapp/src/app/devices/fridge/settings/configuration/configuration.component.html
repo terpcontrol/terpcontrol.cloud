@@ -206,7 +206,7 @@
       <ion-checkbox [(ngModel)]="settings.lights.maintenanceOn" (ionChange)="onSettingsChanged()">{{'settings.lightsOnMaintenanceMode' | translate}}</ion-checkbox>
     </ion-item>
 
-    <ng-container *ngIf="settings.workmode !== 'off'">
+    <ng-container *ngIf="settings.workmode !== 'off' && deviceType !== 'controller'">
       <ion-item>
         <ion-label>{{'settings.externalfan' | translate}}</ion-label>
         <ion-button size="small" fill="clear" [hidden]="externalFanEditMode" (click)="externalFanEditMode = true">{{'settings.edit-value' | translate}}</ion-button>

@@ -193,6 +193,7 @@ static SmartSocketSyncState smart_socket_state_co2;
 static fg::Fridgecloud* smart_socket_cloud_handle = nullptr;
 
 static void syncSmartSocketRole(const char* role, bool target_on, SmartSocketSyncState& role_state);
+static TickType_t socketRoleMinSendInterval(const std::string& role);
 
 bool initializeWifi() {
   WiFi.persistent(false);
@@ -339,7 +340,7 @@ static void syncSmartSocketRole(const char* role, bool target_on, SmartSocketSyn
   // threshold (notably PID heater output >0 / ==0). During a bad uplink this
   // quickly exhausts LWIP sockets/buffers and shows up as errno 11 / socket
   // 105, followed by a LoadProhibited panic in WiFiClient/HTTPClient.
-  if(role_state.initialized && (now - role_state.last_send_tick < SMART_SOCKET_MIN_SEND_INTERVAL)) {
+  if(role_state.initialized && (now - role_state.last_send_tick < socketRoleMinSendInterval(role))) {
     return;
   }
 
@@ -393,6 +394,16 @@ uint16_t socketRolePulseTimeValue(const std::string& role) {
   if(role == "light") return 1900;            // 1800s
   if(role == "secondary_light") return 1900;  // 1800s
   return 400;                                 // 300s default
+}
+
+// Minimum interval between two HTTP commands for a role. The 30s default
+// throttles outputs that oscillate around their threshold (e.g. the heater
+// PID) to avoid exhausting LWIP sockets. CO2 is exempt: it fires at most one
+// ON+OFF pair per ~120s injection window, so it needs a short interval to
+// deliver its ~2s valve pulse (the OFF must follow the ON within seconds).
+static TickType_t socketRoleMinSendInterval(const std::string& role) {
+  if(role == "co2") return configTICK_RATE_HZ * 1;  // 1s
+  return SMART_SOCKET_MIN_SEND_INTERVAL;            // 30s
 }
 
 bool sendSmartSocketPower(const std::string& role, bool turn_on) {

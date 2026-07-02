@@ -23,6 +23,9 @@ export class FridgeSettingsConfigurationComponent implements OnChanges {
 
   @Input() deviceSettings: any = {};
   @Input() cloudSettings: any = {};
+  // The controller drives everything via smart sockets and has no fan outputs,
+  // so the fan speed settings are hidden for it.
+  @Input() deviceType: string = "";
   @Output() deviceSettingsChange = new EventEmitter<any>();
   public settings:any = null
   public offset:number;
