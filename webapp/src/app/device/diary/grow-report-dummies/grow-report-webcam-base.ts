@@ -1,12 +1,15 @@
-import { Directive } from '@angular/core';
+import { Component } from '@angular/core';
 import { GrowReportComponent, TimelineDayGroup } from '../grow-report/grow-report.component';
 
 /**
  * Shared webcam-image helpers for the dummy grow report variations.
  * The variations are throwaway prototypes to compare interaction models
  * before one of them is merged into the real grow report.
+ *
+ * A directive must not extend a component (NG0903), so this abstract base
+ * is itself a component with an empty template; it is never rendered.
  */
-@Directive()
+@Component({ template: '' })
 export abstract class GrowReportWebcamBaseComponent extends GrowReportComponent {
   public webcamImageUrl = '';
   public webcamImageDay?: TimelineDayGroup;
