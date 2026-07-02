@@ -67,6 +67,49 @@ class ImageRoute implements Routes {
 
     /**
      * @openapi
+     * /image/test/{device_id}:
+     *   post:
+     *     summary: Test a webcam stream URL by capturing a single image
+     *     description: Downloads one frame from the given webcam stream URL on demand (without storing it) so the user can verify the URL before saving the cloud settings. Only accessible for device owners.
+     *     tags: [Images]
+     *     parameters:
+     *       - in: path
+     *         name: device_id
+     *         required: true
+     *         schema: { type: string }
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required: [rtspStream]
+     *             properties:
+     *               rtspStream:
+     *                 type: string
+     *                 description: Webcam stream URL to test.
+     *               rtspStreamTransport:
+     *                 type: string
+     *                 enum: [tcp, http, https]
+     *               tunnelRtspStream:
+     *                 type: boolean
+     *     responses:
+     *       '200':
+     *         description: Captured image
+     *         content:
+     *           image/jpeg:
+     *             schema: { type: string, format: binary }
+     *       '400':
+     *         $ref: '#/components/responses/BadRequest'
+     *       '401':
+     *         $ref: '#/components/responses/Unauthorized'
+     *       '502':
+     *         description: Reading an image from the stream failed
+     */
+    this.router.post(`${this.path}/test/:device_id`, authMiddleware, this.imageController.testDeviceWebcam);
+
+    /**
+     * @openapi
      * /image/{device_id}:
      *   post:
      *     summary: Upload a manual image for a device

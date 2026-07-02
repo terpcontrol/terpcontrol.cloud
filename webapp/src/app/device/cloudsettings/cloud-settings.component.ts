@@ -1,4 +1,5 @@
-import {Component, EventEmitter, Input, OnChanges, Output} from "@angular/core";
+import {Component, EventEmitter, Input, OnChanges, OnDestroy, Output} from "@angular/core";
+import {DomSanitizer, SafeUrl} from "@angular/platform-browser";
 import {ToastController} from "@ionic/angular";
 import {DeviceService} from "../../services/devices.service";
 import {Router} from "@angular/router";
@@ -9,7 +10,7 @@ import {UserFirmwareInfo} from "@fg2/shared-types";
   templateUrl: './cloud-settings.component.html',
   styleUrls: ['./cloud-settings.component.scss'],
 })
-export class CloudSettingsComponent implements OnChanges {
+export class CloudSettingsComponent implements OnChanges, OnDestroy {
   @Input() cloudSettings: any;
 
   @Input() deviceId: string = '';
@@ -22,7 +23,21 @@ export class CloudSettingsComponent implements OnChanges {
   private firmwaresLoadedForDeviceId: string | null = null;
   private duplicateVersions = new Set<string>();
 
-  constructor(private toastController: ToastController, private devices: DeviceService, private router: Router) {}
+  public rtspStreamTestLoading = false;
+  public rtspStreamTestError: string | null = null;
+  public rtspStreamTestImageUrl: SafeUrl | null = null;
+  private rtspStreamTestObjectUrl: string | null = null;
+
+  constructor(
+    private toastController: ToastController,
+    private devices: DeviceService,
+    private router: Router,
+    private sanitizer: DomSanitizer,
+  ) {}
+
+  ngOnDestroy() {
+    this.clearRtspStreamTestImage();
+  }
 
   ngOnChanges() {
     this.ensureDefaultFirmwareChannel();
@@ -124,6 +139,54 @@ export class CloudSettingsComponent implements OnChanges {
 
   private isFirmwareChannel(channel: unknown) {
     return channel === 'stable' || channel === 'beta' || channel === 'alpha' || channel === 'manual';
+  }
+
+  async testRtspStream() {
+    const rtspStream = this.cloudSettings?.rtspStream?.trim();
+    if (!rtspStream || this.rtspStreamTestLoading) {
+      return;
+    }
+
+    this.rtspStreamTestLoading = true;
+    this.rtspStreamTestError = null;
+    this.clearRtspStreamTestImage();
+
+    try {
+      const image = await this.devices.testWebcamStream(this.deviceId, {
+        rtspStream,
+        rtspStreamTransport: this.cloudSettings?.rtspStreamTransport,
+        tunnelRtspStream: !!this.cloudSettings?.tunnelRtspStream,
+      });
+      this.rtspStreamTestObjectUrl = URL.createObjectURL(image);
+      this.rtspStreamTestImageUrl = this.sanitizer.bypassSecurityTrustUrl(this.rtspStreamTestObjectUrl);
+    } catch (e) {
+      this.rtspStreamTestError = await this.extractRtspStreamTestError(e);
+    } finally {
+      this.rtspStreamTestLoading = false;
+    }
+  }
+
+  private async extractRtspStreamTestError(e: any): Promise<string> {
+    // Errors of the blob request arrive as a Blob containing the JSON error body.
+    if (e?.error instanceof Blob) {
+      try {
+        const message = JSON.parse(await e.error.text())?.message;
+        if (message) {
+          return String(message);
+        }
+      } catch {
+        // fall through to the generic message
+      }
+    }
+    return String(e?.message ?? e ?? 'unknown error');
+  }
+
+  private clearRtspStreamTestImage() {
+    if (this.rtspStreamTestObjectUrl) {
+      URL.revokeObjectURL(this.rtspStreamTestObjectUrl);
+      this.rtspStreamTestObjectUrl = null;
+    }
+    this.rtspStreamTestImageUrl = null;
   }
 
   async deleteDevice() {

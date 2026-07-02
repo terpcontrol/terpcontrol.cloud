@@ -210,6 +210,12 @@ export class DeviceService {
     return `${environment.API_URL}/image/${device_id}?timestamp=${timestamp ?? (imageId ? '' : (Math.ceil(Date.now()/5000)*5000))}${tokenQuery}&format=${format}&duration=${duration ?? ''}&image_id=${imageId ?? ''}`;
   }
 
+  public async testWebcamStream(device_id: string, settings: { rtspStream: string; rtspStreamTransport?: string; tunnelRtspStream?: boolean }): Promise<Blob> {
+    return await firstValueFrom(
+      this.http.post(environment.API_URL + '/image/test/' + device_id, settings, { responseType: 'blob' })
+    );
+  }
+
   public async uploadDeviceImage(device_id: string, file: File, timestamp?: number): Promise<string> {
     const formData = new FormData();
     formData.append('image', file, file.name);

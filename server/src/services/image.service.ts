@@ -196,6 +196,13 @@ class ImageService {
     }, READ_IMAGE_CHECK_INTERVAL_MS);
   }
 
+  public async testRtspStream(
+    device_id: string,
+    settings: Pick<CloudSettings, 'rtspStream' | 'rtspStreamTransport' | 'tunnelRtspStream'>,
+  ): Promise<Buffer> {
+    return this.ffmpegLimit(() => this.readRtspStreamImage({ ...settings, logRtspStreamErrors: false }, device_id));
+  }
+
   public reportDeviceConfigured(device_id: string): void {
     const state = this.deviceIdToLastRtspState.get(device_id);
     if (state) {
