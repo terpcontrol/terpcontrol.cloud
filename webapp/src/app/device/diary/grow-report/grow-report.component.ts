@@ -1,7 +1,6 @@
 import {Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges} from '@angular/core';
 import {DeviceService} from "../../../services/devices.service";
 import {Subscription} from "rxjs";
-import {defaultDiaryEntries} from "../diary-entry-modal/diary-entry-modal.component";
 import {collectLogCategories, filterLogsByCategory, LogEntryViewerLog} from "../../log-entry-viewer/log-entry-viewer.component";
 import {ActivatedRoute, Router} from "@angular/router";
 import type { DiaryEntryData, DeviceLog } from '@fg2/shared-types';
@@ -30,14 +29,14 @@ export type GrowCycle = {
   events: Partial<Record<DiaryEntryData['newLifecycleStage'], DeviceLog>>;
 }
 
-type TimelineEvent = {
+export type TimelineEvent = {
   log: LogEntryViewerLog;
   time: Date;
   stage: DiaryEntryData['newLifecycleStage'];
   isLifecycle: boolean;
 };
 
-type TimelineDayGroup = {
+export type TimelineDayGroup = {
   dayKey: string;
   date: Date;
   dayNumberInCycle: number;
@@ -47,7 +46,7 @@ type TimelineDayGroup = {
   gapLabel?: string;
 };
 
-type TimelinePhaseGroup = {
+export type TimelinePhaseGroup = {
   stage: DiaryEntryData['newLifecycleStage'];
   eventsByDay: TimelineDayGroup[];
 };
@@ -59,7 +58,7 @@ type PhaseSummary = {
   totalDaysFromStart: number;
 };
 
-type GrowCycleTimeline = GrowCycle & {
+export type GrowCycleTimeline = GrowCycle & {
   phaseTimeline: TimelinePhaseGroup[];
   phaseSummaries: PhaseSummary[];
   lastEventDate?: Date;
@@ -90,7 +89,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   private lifecycleLogs: LogEntryViewerLog[] = [];
   private static readonly LIFECYCLE_CATEGORIES = ['diary-plant-lifecycle', 'plant-lifecycle'] as const;
 
-  constructor(private devices: DeviceService, private router: Router, private route: ActivatedRoute) {
+  constructor(protected devices: DeviceService, protected router: Router, protected route: ActivatedRoute) {
   }
 
   ngOnInit() {
@@ -232,7 +231,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     this.selectedCycleIndex = Math.min(this.selectedCycleIndex, this.growCycles.length - 1);
   }
 
-  private rebuildTimelines(): void {
+  protected rebuildTimelines(): void {
     const filtered = filterLogsByCategory(this.allLogs, this.selectedLogCategories);
     const merged = this.mergeLifecycleLogs(filtered).sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
 

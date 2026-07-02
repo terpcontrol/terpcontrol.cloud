@@ -7,7 +7,7 @@ import { ModalController } from '@ionic/angular';
 import {DiaryEntryModalComponent, defaultDiaryEntries} from './diary-entry-modal/diary-entry-modal.component';
 import {OverlayEventDetail} from "@ionic/core/components";
 import type { DiaryEntry } from '@fg2/shared-types';
-import { DEFAULT_DIARY_REPORT, mergeDiaryQueryParams, parseDiaryReport } from './diary-query-params';
+import { DEFAULT_DIARY_REPORT, DiaryReport, mergeDiaryQueryParams, parseDiaryReport } from './diary-query-params';
 
 @Component({
   selector: 'app-diary',
@@ -21,7 +21,7 @@ export class DiaryPage implements OnInit, OnDestroy {
   public isPublic = false;
   public canEdit = true;
 
-  public selectedReport: 'co2report' | 'entries' | 'growreport' = 'entries';
+  public selectedReport: DiaryReport = 'entries';
 
   private queryParamsSubscription?: Subscription;
 
