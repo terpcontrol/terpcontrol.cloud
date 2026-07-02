@@ -4,7 +4,7 @@ import {ActivatedRoute, Router} from '@angular/router';
 import { Subscription } from 'rxjs';
 import {DeviceService} from 'src/app/services/devices.service';
 import { ModalController } from '@ionic/angular';
-import {DiaryEntryModalComponent} from './diary-entry-modal/diary-entry-modal.component';
+import {DiaryEntryModalComponent, defaultDiaryEntries} from './diary-entry-modal/diary-entry-modal.component';
 import {OverlayEventDetail} from "@ionic/core/components";
 import type { DiaryEntry } from '@fg2/shared-types';
 import { DEFAULT_DIARY_REPORT, mergeDiaryQueryParams, parseDiaryReport } from './diary-query-params';
@@ -78,7 +78,7 @@ export class DiaryPage implements OnInit, OnDestroy {
         title: result.data?.title ?? '',
         message: result.data?.message ?? result.data?.title ?? '',
         time: result.data?.time,
-        raw: true,
+        raw: !(result.data?.category && result.data.category in defaultDiaryEntries),
         categories: ['diary', result.data?.category || 'unknown'],
         data: result.data?.data,
         images: result.data?.images,
