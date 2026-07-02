@@ -18,8 +18,9 @@ export type TranslatableLogEntry = Pick<DeviceLog, 'title' | 'message' | 'raw'>;
  *   2. `<message-before-colon>-<suffix>`   with `{ value: <part-after-colon> }`
  *   3. the original message string (as a last-resort fallback)
  *
- * Entries flagged as `raw` (free-form user text, e.g. diary entries) bypass
- * translation entirely.
+ * The lookup always falls back to the original string when no matching key
+ * exists, so free-form text (e.g. `raw` diary entries) renders unchanged
+ * without needing to be special-cased here.
  */
 @Injectable({ providedIn: 'root' })
 export class LogTranslateService {
@@ -30,9 +31,6 @@ export class LogTranslateService {
     if (!title) {
       return '';
     }
-    if (entry?.raw) {
-      return title;
-    }
     return this.translateLogText(title, 'title');
   }
 
@@ -40,9 +38,6 @@ export class LogTranslateService {
     const message = entry?.message || '';
     if (!message) {
       return '';
-    }
-    if (entry?.raw) {
-      return message;
     }
     return this.translateLogText(message, 'text');
   }
