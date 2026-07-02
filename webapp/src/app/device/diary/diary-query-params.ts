@@ -1,13 +1,15 @@
 import { ActivatedRoute, Router } from '@angular/router';
 
-export type DiaryReport = 'entries' | 'growreport' | 'co2report';
+export type DiaryReport = 'entries' | 'growreport' | 'co2report' | 'growreport-dummy-a' | 'growreport-dummy-b' | 'growreport-dummy-c';
+
+const DIARY_REPORTS: readonly DiaryReport[] = ['entries', 'growreport', 'co2report', 'growreport-dummy-a', 'growreport-dummy-b', 'growreport-dummy-c'];
 
 export const DEFAULT_DIARY_REPORT: DiaryReport = 'entries';
 export const DEFAULT_ENTRY_CATEGORIES = ['diary'];
 export const DEFAULT_GROW_CATEGORIES = ['device-configuration', 'recipe', 'diary'];
 
 export function parseDiaryReport(value: string | null | undefined): DiaryReport {
-  return value === 'growreport' || value === 'co2report' || value === 'entries' ? value : DEFAULT_DIARY_REPORT;
+  return DIARY_REPORTS.includes(value as DiaryReport) ? value as DiaryReport : DEFAULT_DIARY_REPORT;
 }
 
 export function parseStringArrayQueryParam(value: string | null | undefined): string[] | undefined {

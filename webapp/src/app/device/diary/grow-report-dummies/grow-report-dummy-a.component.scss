@@ -1,0 +1,89 @@
+.grow-split {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.timeline-column {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.webcam-panel {
+  flex: 0 0 40%;
+  max-width: 480px;
+  position: sticky;
+  top: 8px;
+  order: 2;
+}
+
+.webcam-frame {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--ion-color-step-100, #f0f0f0);
+
+  img {
+    display: block;
+    width: 100%;
+  }
+}
+
+.webcam-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.webcam-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 0.85em;
+}
+
+.webcam-hint {
+  color: var(--ion-color-medium, #666);
+  font-size: 0.85em;
+  font-style: italic;
+  margin-top: 0.5rem;
+}
+
+.day-section {
+  cursor: pointer;
+}
+
+.day-section.day-active {
+  background: var(--ion-color-step-50, rgba(56, 128, 255, 0.08));
+  border-radius: 6px;
+
+  .day-dot {
+    box-shadow: 0 0 0 3px var(--ion-color-primary-tint, #4c8dff);
+  }
+}
+
+@media (max-width: 768px) {
+  .grow-split {
+    flex-direction: column;
+  }
+
+  .webcam-panel {
+    order: 0;
+    flex: none;
+    width: 100%;
+    max-width: none;
+    top: 0;
+    z-index: 10;
+    background: var(--ion-card-background, var(--ion-background-color, #fff));
+    padding-bottom: 4px;
+
+    .webcam-hint {
+      margin: 0.25rem 0 0;
+    }
+  }
+}

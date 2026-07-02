@@ -16,6 +16,9 @@ import { Co2ReportComponent } from './co2-report/co2-report.component';
 import { DiaryEntryModalComponent } from './diary-entry-modal/diary-entry-modal.component';
 import { DiaryEntriesReportComponent } from './diary-entries-report/diary-entries-report.component';
 import { GrowReportComponent } from './grow-report/grow-report.component';
+import { GrowReportDummyAComponent } from './grow-report-dummies/grow-report-dummy-a.component';
+import { GrowReportDummyBComponent } from './grow-report-dummies/grow-report-dummy-b.component';
+import { GrowReportDummyCComponent } from './grow-report-dummies/grow-report-dummy-c.component';
 import { LogEntryViewerModule } from '../log-entry-viewer/log-entry-viewer.module';
 
 @NgModule({
@@ -37,6 +40,9 @@ import { LogEntryViewerModule } from '../log-entry-viewer/log-entry-viewer.modul
     DiaryEntryModalComponent,
     DiaryEntriesReportComponent,
     GrowReportComponent,
+    GrowReportDummyAComponent,
+    GrowReportDummyBComponent,
+    GrowReportDummyCComponent,
   ]
 })
 export class DiaryPageModule {}

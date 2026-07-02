@@ -23,6 +23,9 @@
         >
           <ion-select-option value="entries">{{ 'diary.entriesReport' | translate}}</ion-select-option>
           <ion-select-option value="growreport">{{ 'diary.growReport' | translate}}</ion-select-option>
+          <ion-select-option value="growreport-dummy-a">{{ 'diary.growReport' | translate}} — Dummy A: Hover Panel</ion-select-option>
+          <ion-select-option value="growreport-dummy-b">{{ 'diary.growReport' | translate}} — Dummy B: Photo Buttons</ion-select-option>
+          <ion-select-option value="growreport-dummy-c">{{ 'diary.growReport' | translate}} — Dummy C: Floating Viewer</ion-select-option>
           <ion-select-option value="co2report">{{ 'diary.co2Report' | translate}}</ion-select-option>
         </ion-select>
       </ion-card-content>
@@ -41,6 +44,27 @@
       [isPublic]="isPublic"
       [lastUpdated]="lastUpdated"
     ></app-grow-report>
+
+    <app-grow-report-dummy-a
+      *ngIf="selectedReport === 'growreport-dummy-a'"
+      [deviceId]="deviceId"
+      [isPublic]="isPublic"
+      [lastUpdated]="lastUpdated"
+    ></app-grow-report-dummy-a>
+
+    <app-grow-report-dummy-b
+      *ngIf="selectedReport === 'growreport-dummy-b'"
+      [deviceId]="deviceId"
+      [isPublic]="isPublic"
+      [lastUpdated]="lastUpdated"
+    ></app-grow-report-dummy-b>
+
+    <app-grow-report-dummy-c
+      *ngIf="selectedReport === 'growreport-dummy-c'"
+      [deviceId]="deviceId"
+      [isPublic]="isPublic"
+      [lastUpdated]="lastUpdated"
+    ></app-grow-report-dummy-c>
 
     <app-diary-entries-report
       *ngIf="selectedReport === 'entries'"

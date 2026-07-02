@@ -1,0 +1,164 @@
+<ion-card>
+  <ion-card-header>
+    <ion-card-title>{{ 'diary.growReport' | translate }} — Dummy A: Hover Panel</ion-card-title>
+    <ion-card-subtitle>Timeline and photo side by side; hover or tap a day to update the photo</ion-card-subtitle>
+  </ion-card-header>
+  <ion-card-content>
+    <app-log-category-selector
+      *ngIf="availableLogCategories.length > 0"
+      [availableCategories]="availableLogCategories"
+      [selectedCategories]="selectedLogCategories"
+      (selectedCategoriesChange)="onCategoryChanged($event)"
+    ></app-log-category-selector>
+
+    <ion-item *ngIf="growCycles.length > 0">
+      <ion-label>{{ 'diary.selectGrowCycle' | translate }}</ion-label>
+      <ion-select
+        [(ngModel)]="selectedCycleIndex"
+        (ionChange)="onCycleSelected($event)"
+        [interfaceOptions]="{'cssClass': 'wider-popover'}"
+      >
+        <ion-select-option *ngFor="let cycle of growCycles; let index = index" [value]="index">
+          {{ cycle.name }}
+        </ion-select-option>
+      </ion-select>
+    </ion-item>
+  </ion-card-content>
+</ion-card>
+
+<ion-item *ngIf="loading">
+  <ion-spinner name="dots"></ion-spinner>
+  <ion-label>{{ 'misc.loading' | translate }}</ion-label>
+</ion-item>
+
+<div *ngIf="!loading && growCycles.length === 0" class="ion-padding">
+  <p>{{ 'diary.growReportNoData' | translate }}</p>
+</div>
+
+<div *ngIf="!loading && selectedCycleTimeline" class="ion-padding-top">
+  <ion-card>
+    <ion-card-header>
+      <ion-card-subtitle>
+        {{ selectedCycleTimeline.name }}
+        <ion-button fill="clear" size="small" (click)="navigateToChartsForCycle()" title="{{ 'diary.viewCycleChart' | translate }}">
+          <ion-icon name="analytics-outline"></ion-icon>
+        </ion-button>
+      </ion-card-subtitle>
+    </ion-card-header>
+    <ion-card-content>
+      <ion-list>
+        <ion-item>
+          <ion-label>
+            <h3>{{ 'diary.startDate' | translate }}</h3>
+            <p>{{ selectedCycleTimeline.timestampStart | date:'medium' }}</p>
+          </ion-label>
+        </ion-item>
+        <ion-item *ngIf="selectedCycleTimeline.timestampEnd">
+          <ion-label>
+            <h3>{{ 'diary.endDate' | translate }}</h3>
+            <p>{{ selectedCycleTimeline.timestampEnd | date:'medium' }}</p>
+          </ion-label>
+        </ion-item>
+        <ion-item>
+          <ion-label>
+            <h3>{{ 'diary.eventCount' | translate }}</h3>
+            <p>{{ totalEventsInSelectedCycle }}</p>
+          </ion-label>
+        </ion-item>
+      </ion-list>
+
+      <!-- Phase Summary -->
+      <div *ngIf="selectedCycleTimeline.phaseSummaries.length > 0" class="phase-summary ion-padding-top">
+        <h3>{{ 'diary.phaseSummary' | translate }}</h3>
+        <ion-list>
+          <ion-item
+            *ngFor="let summary of selectedCycleTimeline.phaseSummaries"
+            class="phase-summary-item"
+          >
+            <ion-label (click)="scrollToPhase(summary.stage)" style="cursor: pointer;">
+              <h4>{{ ('diary.lifecycleStages.' + summary.stage) | translate }}</h4>
+              <p>
+                {{ summary.startDate | date:'mediumDate' }}
+                <span class="phase-duration">• {{ summary.durationDays }} {{ summary.durationDays === 1 ? ('diary.day' | translate) : ('diary.days' | translate) }} ({{ 'diary.totalDay' | translate }}: {{ summary.totalDaysFromStart }} - {{ summary.totalDaysFromStart + summary.durationDays - 1 }})</span>
+              </p>
+            </ion-label>
+            <ion-button fill="clear" slot="end" (click)="navigateToCharts(summary)" title="{{ 'diary.viewChart' | translate }}">
+              <ion-icon name="analytics-outline"></ion-icon>
+            </ion-button>
+            <ion-icon name="chevron-forward-outline" slot="end" (click)="scrollToPhase(summary.stage)" style="cursor: pointer;"></ion-icon>
+          </ion-item>
+        </ion-list>
+      </div>
+
+      <div class="grow-split ion-padding-top">
+        <div class="webcam-panel" *ngIf="timelineDays.length > 0">
+          <div class="webcam-frame">
+            <img
+              *ngIf="webcamImageUrl"
+              [src]="webcamImageUrl"
+              alt="Webcam"
+              (load)="onWebcamImageSettled()"
+              (error)="onWebcamImageSettled()"
+            />
+            <ion-spinner *ngIf="webcamImageLoading" class="webcam-spinner"></ion-spinner>
+            <div class="webcam-caption" *ngIf="webcamImageDay">
+              {{ 'diary.day' | translate }} {{ webcamImageDay.dayNumberInCycle }} • {{ webcamImageDay.date | date:'mediumDate' }}
+            </div>
+          </div>
+          <p class="webcam-hint">Hover or tap a day on the timeline to update the photo.</p>
+        </div>
+
+        <div class="timeline-column">
+          <div class="timeline">
+            <div *ngFor="let phase of selectedCycleTimeline.phaseTimeline" class="phase-section" [id]="'phase-' + phase.stage">
+              <div class="phase-header">{{ ('diary.lifecycleStages.' + phase.stage) | translate }}</div>
+              <div class="gap-indicator">
+                <div class="gap-line-vertical"></div>
+              </div>
+
+              <div
+                *ngFor="let day of phase.eventsByDay"
+                class="day-section"
+                [class.day-active]="webcamImageDay?.dayKey === day.dayKey"
+                (mouseenter)="showWebcamImageForDay(day)"
+                (click)="showWebcamImageForDay(day, 0)"
+              >
+                <div class="day-header">
+                  <div class="day-dot"></div>
+                  <div>
+                    <div class="day-title">{{ 'diary.day' | translate }} {{ day.dayNumberInCycle }} ({{ 'diary.dayInPhase' | translate }}: {{ day.dayNumberInPhase }}) • {{ day.date | date:'mediumDate' }}</div>
+                  </div>
+                </div>
+
+                <div class="event-list">
+                  <div *ngFor="let entry of day.events" class="event-card">
+                    <app-log-entry-item
+                      style="width: 100%;"
+                      [entry]="entry.log"
+                      [showCategories]="true"
+                      [showEdit]="false"
+                      [showDelete]="false"
+                      [timeOnly]="true"
+                    ></app-log-entry-item>
+                  </div>
+                </div>
+
+                <div *ngIf="day.gapLabel" class="gap-indicator">
+                  <div class="gap-line-vertical"></div>
+                  <span class="gap-label">{{ day.gapLabel }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="day-header">
+              <div class="day-dot"></div>
+              <div>
+                {{ 'diary.today' | translate }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ion-card-content>
+  </ion-card>
+</div>
