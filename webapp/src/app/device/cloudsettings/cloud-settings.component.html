@@ -94,6 +94,21 @@
       </ion-popover>
     </ion-item>
     <ion-item lines="none" [hidden]="!cloudSettings?.rtspStream">
+      <ion-label>{{'settings.rtspStreamTest' | translate}}</ion-label>
+      <ion-button slot="end" (click)="testRtspStream()" [disabled]="rtspStreamTestLoading">
+        <ion-spinner *ngIf="rtspStreamTestLoading" name="crescent"></ion-spinner>
+        <span *ngIf="!rtspStreamTestLoading">{{'settings.rtspStreamTestButton' | translate}}</span>
+      </ion-button>
+    </ion-item>
+    <ion-item lines="none" *ngIf="rtspStreamTestError">
+      <ion-text color="danger" class="rtsp-stream-test-error">
+        {{'settings.rtspStreamTestError' | translate}}: {{rtspStreamTestError}}
+      </ion-text>
+    </ion-item>
+    <ion-item lines="none" *ngIf="rtspStreamTestImageUrl">
+      <img class="rtsp-stream-test-image" [src]="rtspStreamTestImageUrl" alt="Webcam test image"/>
+    </ion-item>
+    <ion-item lines="none" [hidden]="!cloudSettings?.rtspStream">
       <ion-label>{{'settings.logRtspStreamErrors' | translate}}</ion-label>
       <ion-checkbox
         [(ngModel)]="cloudSettings.logRtspStreamErrors"

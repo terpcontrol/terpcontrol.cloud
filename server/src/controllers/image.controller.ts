@@ -81,6 +81,36 @@ class ImageController {
     }
   };
 
+  public testDeviceWebcam = async (req: RequestWithUser, res: Response, next: NextFunction) => {
+    try {
+      if (!(await isUserDeviceMiddelware(req, res, req.params.device_id, 'user'))) {
+        return;
+      }
+
+      const rtspStream = typeof req.body?.rtspStream === 'string' ? req.body.rtspStream.trim() : '';
+      if (!rtspStream) {
+        res.status(400).json({ message: 'rtspStream is missing or invalid' });
+        return;
+      }
+
+      try {
+        const image = await imageService.testRtspStream(req.params.device_id, {
+          rtspStream,
+          rtspStreamTransport: typeof req.body?.rtspStreamTransport === 'string' ? req.body.rtspStreamTransport : undefined,
+          tunnelRtspStream: !!req.body?.tunnelRtspStream,
+        });
+
+        res.setHeader('Content-type', 'image/jpeg');
+        res.setHeader('Cache-Control', 'no-store');
+        res.send(image);
+      } catch (e) {
+        res.status(502).json({ message: String(e?.message ?? 'Failed to read an image from the webcam stream').slice(0, 2000) });
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+
   public deleteImage = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
       const image = await imageService.getImageById(req.params.image_id);
