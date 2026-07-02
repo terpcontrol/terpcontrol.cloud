@@ -78,11 +78,15 @@ export class LogEntryItemComponent implements OnChanges {
     await modal.present();
   }
 
+  // Some entries (e.g. legacy diary logs) were saved with raw:true even
+  // though their title/message is a translation key. LogTranslateService
+  // falls back to the original text when no key matches, so it's safe to
+  // always attempt translation here.
   getEntryTitle(entry: Pick<LogEntryViewerLog, 'title' | 'raw'>): string {
-    return this.logTranslate.getEntryTitle(entry);
+    return this.logTranslate.getEntryTitle({ ...entry, raw: false });
   }
 
   getEntryMessage(entry: Pick<LogEntryViewerLog, 'message' | 'raw'>): string {
-    return this.logTranslate.getEntryMessage(entry);
+    return this.logTranslate.getEntryMessage({ ...entry, raw: false });
   }
 }
