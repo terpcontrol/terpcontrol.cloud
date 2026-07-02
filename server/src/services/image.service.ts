@@ -42,6 +42,10 @@ const FFMPEG_TIMEOUT_MS = 90_000;
 // decoder/demuxer corruption indicators are discarded instead of saved.
 const FFMPEG_CORRUPT_FRAME_PATTERN =
   /EOI missing|No JPEG data found|error while decoding|concealing \d+|Packet corrupt|corrupt decoded frame|incomplete frame|RTP: missed|truncat/i;
+
+// A corrupt frame means the camera was reachable and streaming, so unlike
+// connection failures it does not count towards the retry backoff.
+class CorruptFrameError extends Error {}
 const IMAGE_RETENTION_DAYS = 3 * 365;
 
 // Gradually thin out raw camera images as they age: once an image is older than
@@ -172,7 +176,7 @@ class ImageService {
               })
               .catch(e => {
                 console.log(`Error reading RTSP stream ${device.cloudSettings.rtspStream} for device ${device.device_id}:`, e?.message);
-                state.failureCount = (state.failureCount ?? 0) + 1;
+                state.failureCount = e instanceof CorruptFrameError ? 0 : (state.failureCount ?? 0) + 1;
                 return Promise.resolve();
               })
               .finally(() => {
@@ -440,7 +444,12 @@ class ImageService {
                 categories: ['webcam', 'error'],
               });
             }
-            reject(error ?? new Error(corruptionIndicator ? `discarding corrupt frame ("${corruptionIndicator}")` : 'ffmpeg produced no output'));
+            reject(
+              error ??
+                (corruptionIndicator
+                  ? new CorruptFrameError(`discarding corrupt frame ("${corruptionIndicator}")`)
+                  : new Error('ffmpeg produced no output')),
+            );
           } else {
             resolve(stdout);
           }
