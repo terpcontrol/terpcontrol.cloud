@@ -138,6 +138,17 @@ class ImageService {
     }
   }
 
+  private getDeviceWorkmode(configuration?: string): string | undefined {
+    if (!configuration) {
+      return undefined;
+    }
+    try {
+      return JSON.parse(configuration)?.workmode;
+    } catch {
+      return undefined;
+    }
+  }
+
   private async readFromRtspStreams(): Promise<void> {
     const devices = await deviceModel.find({
       'cloudSettings.rtspStream': { $exists: true, $ne: '' },
@@ -149,8 +160,12 @@ class ImageService {
         this.deviceIdToLastRtspState.set(device.device_id, { lastTry: 0, failureCount: 0 });
       }
 
-      if (device.cloudSettings?.maintenanceWebcamOff && device.maintenance_mode_until && device.maintenance_mode_until > Date.now()) {
-        continue;
+      if (device.cloudSettings?.maintenanceWebcamOff) {
+        const isInMaintenanceMode = !!device.maintenance_mode_until && device.maintenance_mode_until > Date.now();
+        const isWorkmodeOff = this.getDeviceWorkmode(device.configuration) === 'off';
+        if (isInMaintenanceMode || isWorkmodeOff) {
+          continue;
+        }
       }
 
       const state = this.deviceIdToLastRtspState.get(device.device_id);
