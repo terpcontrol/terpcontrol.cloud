@@ -35,6 +35,13 @@ const THIN_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 const FFMPEG_THROTTLE_MS = 1_000;
 const FFMPEG_TIMEOUT_MS = 90_000;
+
+// When the connection to a camera drops mid-frame (e.g. through a firmware tunnel),
+// ffmpeg still emits the partially decoded frame and exits successfully, only noting
+// the corruption on stderr at warning level. Frames whose stderr matches one of these
+// decoder/demuxer corruption indicators are discarded instead of saved.
+const FFMPEG_CORRUPT_FRAME_PATTERN =
+  /EOI missing|No JPEG data found|error while decoding|concealing \d+|Packet corrupt|corrupt decoded frame|incomplete frame|RTP: missed|truncat/i;
 const IMAGE_RETENTION_DAYS = 3 * 365;
 
 // Gradually thin out raw camera images as they age: once an image is older than
@@ -399,8 +406,10 @@ class ImageService {
       execFile(
         'ffmpeg',
         [
+          // Decoder messages about corrupt/truncated frames (e.g. "EOI missing,
+          // emulating") are logged at warning level, so "error" would hide them.
           '-loglevel',
-          'error',
+          'warning',
           '-threads',
           '1',
           '-y',
@@ -421,7 +430,8 @@ class ImageService {
           encoding: 'buffer',
         },
         (error, stdout, stderr) => {
-          if (error || !stdout || stdout.length === 0) {
+          const corruptionIndicator = !error && FFMPEG_CORRUPT_FRAME_PATTERN.exec(String(stderr))?.[0];
+          if (error || !stdout || stdout.length === 0 || corruptionIndicator) {
             if (cloudSettings.logRtspStreamErrors) {
               void deviceService.logMessage(deviceId, {
                 title: 'message-rtsp-stream-error',
@@ -430,7 +440,7 @@ class ImageService {
                 categories: ['webcam', 'error'],
               });
             }
-            reject(error);
+            reject(error ?? new Error(corruptionIndicator ? `discarding corrupt frame ("${corruptionIndicator}")` : 'ffmpeg produced no output'));
           } else {
             resolve(stdout);
           }
