@@ -61,6 +61,26 @@ export function serializeNumberQueryParam(value: number | undefined, defaultValu
   return String(value);
 }
 
+export function parseBooleanQueryParam(value: string | null | undefined): boolean | undefined {
+  if (value === null || value === undefined || value === '') {
+    return undefined;
+  }
+
+  return value === 'true';
+}
+
+export function serializeBooleanQueryParam(value: boolean | undefined, defaultValue?: boolean): string | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (defaultValue !== undefined && value === defaultValue) {
+    return null;
+  }
+
+  return String(value);
+}
+
 export async function mergeDiaryQueryParams(
   router: Router,
   route: ActivatedRoute,
