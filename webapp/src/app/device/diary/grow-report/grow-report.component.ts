@@ -875,20 +875,17 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
 
   private scrubToClientY(clientY: number, debounceMs: number): void {
     const container = this.getTimelineContainer();
-    const anchors = this.computeWebcamDayAnchors();
-    if (!container || !anchors) {
+    const layout = this.computeWebcamDayAnchors();
+    if (!container || !layout) {
       return;
     }
 
     const y = clientY - container.getBoundingClientRect().top;
-    const index = this.dayIndexFromTimelineY(y, anchors);
-    if (index === null) {
-      return;
-    }
+    const index = this.dayIndexFromTimelineY(y, layout.anchors, layout.regionStarts);
 
     this.lastManualScrubAt = Date.now();
     if (index !== this.webcamScrubIndex || this.webcamMarkerTop === null) {
-      this.selectWebcamDay(index, anchors[index], debounceMs);
+      this.selectWebcamDay(index, layout.anchors[index], debounceMs);
     }
   }
 
@@ -908,40 +905,45 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
 
   private syncWebcamToScrollPosition(): void {
     const container = this.getTimelineContainer();
-    const anchors = this.computeWebcamDayAnchors();
-    if (!container || !anchors) {
+    const layout = this.computeWebcamDayAnchors();
+    if (!container || !layout) {
       return;
     }
 
     // The day at roughly a third of the viewport height is "being read".
     const focusY = window.innerHeight * 0.35 - container.getBoundingClientRect().top;
-    if (focusY < anchors[0] || focusY > anchors[anchors.length - 1]) {
+    if (focusY < layout.anchors[0] || focusY > layout.anchors[layout.anchors.length - 1]) {
       return;
     }
 
-    const index = this.dayIndexFromTimelineY(focusY, anchors);
-    if (index === null || index === this.webcamScrubIndex) {
+    const index = this.dayIndexFromTimelineY(focusY, layout.anchors, layout.regionStarts);
+    if (index === this.webcamScrubIndex) {
       return;
     }
 
-    this.zone.run(() => this.selectWebcamDay(index, anchors[index], 300));
+    this.zone.run(() => this.selectWebcamDay(index, layout.anchors[index], 300));
   }
 
   private getTimelineContainer(): HTMLElement | null {
     return this.elementRef.nativeElement.querySelector('.timeline');
   }
 
-  // Vertical position (relative to the timeline container) of every scrub
-  // day: days with entries anchor to their dot, the days in between are
-  // spread along the time-scaled gap line that follows the previous entry.
-  private computeWebcamDayAnchors(): number[] | null {
+  // Vertical layout (relative to the timeline container) of every scrub day.
+  // `anchors` is where the marker sits for a day; `regionStarts` is where a
+  // day's region begins going down the timeline. A day with entries anchors
+  // to its dot and owns everything down to the start of its gap line, so the
+  // gap only starts counting below the entries; the days in between are laid
+  // out along the time-scaled gap line.
+  private computeWebcamDayAnchors(): { anchors: number[]; regionStarts: number[] } | null {
     const container = this.getTimelineContainer();
     if (!container || !this.webcamScrubDays.length) {
       return null;
     }
 
     const containerTop = container.getBoundingClientRect().top;
-    const anchors: number[] = new Array<number>(this.webcamScrubDays.length).fill(Number.NaN);
+    const total = this.webcamScrubDays.length;
+    const anchors = new Array<number>(total).fill(Number.NaN);
+    const regionStarts = new Array<number>(total).fill(Number.NaN);
 
     this.webcamScrubDays.forEach((day, index) => {
       if (!day.hasEvents) {
@@ -955,14 +957,16 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
 
       const rect = dot.getBoundingClientRect();
       anchors[index] = rect.top - containerTop + rect.height / 2;
+      regionStarts[index] = rect.top - containerTop;
     });
 
-    const lastIndex = anchors.length - 1;
+    const lastIndex = total - 1;
     if (Number.isNaN(anchors[lastIndex])) {
       const todayDot = container.querySelector('.day-dot-today');
       if (todayDot) {
         const rect = todayDot.getBoundingClientRect();
         anchors[lastIndex] = rect.top - containerTop + rect.height / 2;
+        regionStarts[lastIndex] = rect.top - containerTop;
       }
     }
 
@@ -974,8 +978,9 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
 
       if (previous < 0) {
         anchors.fill(anchors[i], 0, i);
+        regionStarts.fill(regionStarts[i], 0, i);
       } else {
-        this.fillAnchorsBetween(anchors, container, containerTop, previous, i);
+        this.fillAnchorsBetween(anchors, regionStarts, container, containerTop, previous, i);
       }
       previous = i;
     }
@@ -984,16 +989,13 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
       return null;
     }
     anchors.fill(anchors[previous], previous + 1);
+    regionStarts.fill(regionStarts[previous], previous + 1);
 
-    return anchors;
+    return { anchors, regionStarts };
   }
 
-  private fillAnchorsBetween(anchors: number[], container: HTMLElement, containerTop: number, from: number, to: number): void {
-    const count = to - from;
-    if (count <= 1) {
-      return;
-    }
-
+  private fillAnchorsBetween(anchors: number[], regionStarts: number[], container: HTMLElement, containerTop: number, from: number, to: number): void {
+    const inBetween = to - from - 1;
     const fromDay = this.webcamScrubDays[from];
     const gapLine = fromDay.hasEvents
       ? container.querySelector(`.day-section[data-day-key="${CSS.escape(fromDay.dayKey)}"] .gap-line-vertical`)
@@ -1002,26 +1004,31 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     if (gapLine) {
       const rect = gapLine.getBoundingClientRect();
       const top = rect.top - containerTop;
-      for (let k = 1; k < count; k++) {
-        anchors[from + k] = top + (rect.height * k) / count;
+      const step = rect.height / Math.max(1, inBetween);
+      for (let k = 1; k <= inBetween; k++) {
+        regionStarts[from + k] = top + (k - 1) * step;
+        anchors[from + k] = top + (k - 0.5) * step;
       }
-    } else {
-      for (let k = 1; k < count; k++) {
-        anchors[from + k] = anchors[from] + ((anchors[to] - anchors[from]) * k) / count;
+      regionStarts[to] = top + rect.height;
+    } else if (inBetween > 0) {
+      const step = (anchors[to] - anchors[from]) / (inBetween + 1);
+      for (let k = 1; k <= inBetween; k++) {
+        anchors[from + k] = anchors[from] + k * step;
+        regionStarts[from + k] = anchors[from + k] - step / 2;
       }
+      regionStarts[to] = anchors[to] - step / 2;
     }
   }
 
-  private dayIndexFromTimelineY(y: number, anchors: number[]): number | null {
-    let nearest = 0;
-    for (let i = 1; i < anchors.length; i++) {
-      if (Math.abs(anchors[i] - y) < Math.abs(anchors[nearest] - y)) {
-        nearest = i;
+  private dayIndexFromTimelineY(y: number, anchors: number[], regionStarts: number[]): number {
+    let index = 0;
+    for (let i = 0; i < regionStarts.length; i++) {
+      if (regionStarts[i] <= y) {
+        index = i;
       }
     }
 
     // Days with entries win within the snap radius so they are easy to hit.
-    let best = nearest;
     let bestEntryDistance = Number.POSITIVE_INFINITY;
     for (let i = 0; i < anchors.length; i++) {
       if (!this.webcamScrubDays[i].hasEvents) {
@@ -1031,11 +1038,11 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
       const distance = Math.abs(anchors[i] - y);
       if (distance <= WEBCAM_ENTRY_SNAP_PX && distance < bestEntryDistance) {
         bestEntryDistance = distance;
-        best = i;
+        index = i;
       }
     }
 
-    return best;
+    return index;
   }
 
   private scheduleWebcamMarkerUpdate(): void {
@@ -1048,9 +1055,9 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    const anchors = this.computeWebcamDayAnchors();
+    const layout = this.computeWebcamDayAnchors();
     const index = this.webcamScrubDays.findIndex(day => day.dayKey === this.webcamImageDay?.dayKey);
-    this.webcamMarkerTop = anchors && index >= 0 && Number.isFinite(anchors[index]) ? anchors[index] : null;
+    this.webcamMarkerTop = layout && index >= 0 && Number.isFinite(layout.anchors[index]) ? layout.anchors[index] : null;
   }
 
   private scrollTimelineToDay(day: WebcamScrubDay): void {
