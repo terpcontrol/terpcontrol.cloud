@@ -33,6 +33,14 @@ const IMAGE_LOAD_MAX_BACKOFF_INTERVAL_MS = 120 * 60_000;
 const COMPRESS_INTERVAL_MS = 60 * 60 * 1000;
 const THIN_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
+// The weekly/monthly timelapses cover far more source frames than the daily one, so
+// recompressing them every time a single new frame arrives wastes CPU for little
+// visible benefit. Only rebuild them once enough new frames have accumulated since
+// the last rebuild (tracked via the existing timelapse's timestampEnd).
+const DAILY_COMPRESS_REFRESH_MS = 60 * 60 * 1000;
+const WEEKLY_COMPRESS_REFRESH_MS = 4 * 60 * 60 * 1000;
+const MONTHLY_COMPRESS_REFRESH_MS = 12 * 60 * 60 * 1000;
+
 const FFMPEG_THROTTLE_MS = 1_000;
 const FFMPEG_TIMEOUT_MS = 90_000;
 
@@ -244,9 +252,9 @@ class ImageService {
           await imageModel.deleteOne({ image_id: oldImage.image_id });
         }
 
-        await this.compressRtspStreamRange(device, MS_IN_A_DAY, TIMELAPSE_DAY_FRAMEINTERVAL_MS, '1d');
-        await this.compressRtspStreamRange(device, 7 * MS_IN_A_DAY, 7 * TIMELAPSE_DAY_FRAMEINTERVAL_MS, '1w');
-        await this.compressRtspStreamRange(device, 30 * MS_IN_A_DAY, 30 * TIMELAPSE_DAY_FRAMEINTERVAL_MS, '1m');
+        await this.compressRtspStreamRange(device, MS_IN_A_DAY, TIMELAPSE_DAY_FRAMEINTERVAL_MS, '1d', DAILY_COMPRESS_REFRESH_MS);
+        await this.compressRtspStreamRange(device, 7 * MS_IN_A_DAY, 7 * TIMELAPSE_DAY_FRAMEINTERVAL_MS, '1w', WEEKLY_COMPRESS_REFRESH_MS);
+        await this.compressRtspStreamRange(device, 30 * MS_IN_A_DAY, 30 * TIMELAPSE_DAY_FRAMEINTERVAL_MS, '1m', MONTHLY_COMPRESS_REFRESH_MS);
 
         if (shouldThin) {
           await this.thinRtspStreamImages(device);
@@ -268,8 +276,10 @@ class ImageService {
     timeStep: number,
     minFrameIntervalMs: number,
     targetDuration: '1d' | '1w' | '1m',
+    refreshIntervalMs: number,
   ): Promise<void> {
-    let endTimestamp = Math.ceil(Date.now() / timeStep) * timeStep;
+    const currentPeriodEndTimestamp = Math.ceil(Date.now() / timeStep) * timeStep;
+    let endTimestamp = currentPeriodEndTimestamp;
 
     while (true) {
       const startTimestamp = endTimestamp - timeStep;
@@ -298,7 +308,16 @@ class ImageService {
 
       const newestImage = (await getImages(endTimestamp, 1))?.[0];
 
-      if (newestImage && (!compressedImage || compressedImage.timestampEnd < newestImage?.timestamp)) {
+      // Only the still-open (current) period gets new frames appended repeatedly, so only
+      // throttle it; a closed/past period is rebuilt once as soon as it's complete either way.
+      const isCurrentPeriod = endTimestamp === currentPeriodEndTimestamp;
+      const staleEnoughToRefresh =
+        !compressedImage ||
+        (isCurrentPeriod
+          ? newestImage?.timestamp - compressedImage.timestampEnd >= refreshIntervalMs
+          : compressedImage.timestampEnd < (newestImage?.timestamp ?? -Infinity));
+
+      if (newestImage && staleEnoughToRefresh) {
         const images = newestImage ? [newestImage] : [];
 
         let imagesAdded = true;
