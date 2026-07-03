@@ -113,6 +113,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   private webcamRequestCounter = 0;
   private lastManualScrubAt = 0;
   private scrollRafPending = false;
+  private webcamScrollAnimationFrame?: number;
   private ionScrollElement?: HTMLElement;
   private destroyed = false;
 
@@ -161,6 +162,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     this.queryParamsSubscription?.unsubscribe();
     document.removeEventListener('scroll', this.onDocumentScroll, true);
     this.ionScrollElement?.removeEventListener('scroll', this.onDocumentScroll);
+    this.cancelWebcamScrollAnimation();
     if (this.webcamDebounceTimer) {
       clearTimeout(this.webcamDebounceTimer);
     }
@@ -809,6 +811,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
+    this.cancelWebcamScrollAnimation();
     this.webcamScrubIndex = index;
     this.lastManualScrubAt = Date.now();
     this.showWebcamImageForDay(day, 150);
@@ -896,6 +899,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     const y = clientY - container.getBoundingClientRect().top;
     const index = this.dayIndexFromTimelineY(y, layout.anchors, layout.regionStarts);
 
+    this.cancelWebcamScrollAnimation();
     this.lastManualScrubAt = Date.now();
     if (index !== this.webcamScrubIndex || this.webcamMarkerTop === null) {
       this.selectWebcamDay(index, layout.anchors[index], debounceMs);
@@ -934,7 +938,37 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
       return;
     }
 
-    this.zone.run(() => this.selectWebcamDay(index, layout.anchors[index], 300));
+    this.animateWebcamTowardsIndex(index, layout.anchors);
+  }
+
+  private cancelWebcamScrollAnimation(): void {
+    if (this.webcamScrollAnimationFrame !== undefined) {
+      cancelAnimationFrame(this.webcamScrollAnimationFrame);
+      this.webcamScrollAnimationFrame = undefined;
+    }
+  }
+
+  // Fast scrolling can move the focus across a whole gap within one frame;
+  // step the marker through the days in between instead of teleporting it.
+  private animateWebcamTowardsIndex(targetIndex: number, anchors: number[]): void {
+    this.cancelWebcamScrollAnimation();
+
+    const step = () => {
+      this.webcamScrollAnimationFrame = undefined;
+      const remaining = targetIndex - this.webcamScrubIndex;
+      if (remaining === 0) {
+        return;
+      }
+
+      const delta = Math.sign(remaining) * Math.max(1, Math.floor(Math.abs(remaining) / 4));
+      const index = this.webcamScrubIndex + delta;
+      this.zone.run(() => this.selectWebcamDay(index, anchors[index], 300));
+      if (index !== targetIndex) {
+        this.webcamScrollAnimationFrame = requestAnimationFrame(step);
+      }
+    };
+
+    step();
   }
 
   private getTimelineContainer(): HTMLElement | null {
