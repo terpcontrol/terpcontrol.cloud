@@ -80,6 +80,8 @@ const WEBCAM_MANUAL_SCRUB_HOLDOFF_MS = 2500;
 const WEBCAM_ENTRY_SNAP_PX = 10;
 // Minimum time the marker stays on a day while catching up with scrolling.
 const WEBCAM_STEP_INTERVAL_MS = 90;
+// Vertical distance between two consecutive days on a gap line.
+const WEBCAM_GAP_DAY_SPACING_PX = 14;
 
 @Component({
   selector: 'app-grow-report',
@@ -766,21 +768,21 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
       && GrowReportComponent.LIFECYCLE_CATEGORIES.some(category => log.categories?.includes(category));
   }
 
-  // The gap line grows with the elapsed time, sub-linearly and capped so
-  // long pauses don't dominate the timeline.
+  // The gap line grows linearly with the elapsed time: a fixed distance per
+  // day, so the day markers are always evenly spaced.
   private gapLineHeightPx(gapDays: number): number {
-    return Math.min(48 + Math.round(56 * Math.log2(Math.max(1, gapDays))), 280);
+    return Math.max(1, gapDays) * WEBCAM_GAP_DAY_SPACING_PX;
   }
 
   // Positions of the in-between days along the gap line, matching the webcam
-  // day anchors; omitted when the days would be too dense to render.
+  // day anchors.
   private gapDayFractions(gapDays: number): number[] | undefined {
     const inBetween = gapDays - 1;
-    if (inBetween <= 0 || inBetween > this.gapLineHeightPx(gapDays) / 7) {
+    if (inBetween <= 0) {
       return undefined;
     }
 
-    return Array.from({ length: inBetween }, (_, index) => (index + 0.5) / inBetween);
+    return Array.from({ length: inBetween }, (_, index) => (index + 1) / gapDays);
   }
 
   toggleWebcamViewer(): void {
@@ -951,10 +953,10 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  // A scroll step can move the focus across a whole gap at once; instead of
-  // teleporting, the marker ticks through the days in between at a humanly
-  // visible pace, no matter how often the scroll retargets it. Large
-  // distances take bigger steps so it still catches up.
+  // A scroll fling can move the focus across a whole gap at once; instead of
+  // teleporting, the marker ticks through every single day in between at a
+  // humanly visible pace, no matter how often the scroll retargets it. Long
+  // distances tick faster so the marker still catches up quickly.
   private animateWebcamTowardsIndex(targetIndex: number, anchors: number[]): void {
     this.cancelWebcamScrollAnimation();
 
@@ -965,18 +967,18 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
         return;
       }
 
-      const wait = this.lastWebcamStepAt + WEBCAM_STEP_INTERVAL_MS - Date.now();
+      const interval = Math.max(25, Math.min(WEBCAM_STEP_INTERVAL_MS, Math.round(600 / Math.abs(remaining))));
+      const wait = this.lastWebcamStepAt + interval - Date.now();
       if (wait > 0) {
         this.webcamStepTimer = setTimeout(step, wait);
         return;
       }
 
       this.lastWebcamStepAt = Date.now();
-      const delta = Math.sign(remaining) * Math.max(1, Math.round(Math.abs(remaining) / 8));
-      const index = this.webcamScrubIndex + delta;
+      const index = this.webcamScrubIndex + Math.sign(remaining);
       this.zone.run(() => this.selectWebcamDay(index, anchors[index], 300));
       if (index !== targetIndex) {
-        this.webcamStepTimer = setTimeout(step, WEBCAM_STEP_INTERVAL_MS);
+        this.webcamStepTimer = setTimeout(step, interval);
       }
     };
 
@@ -1054,7 +1056,8 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   private fillAnchorsBetween(anchors: number[], regionStarts: number[], container: HTMLElement, containerTop: number, from: number, to: number): void {
-    const inBetween = to - from - 1;
+    const count = to - from;
+    const inBetween = count - 1;
     const fromDay = this.webcamScrubDays[from];
     const gapLine = fromDay.hasEvents
       ? container.querySelector(`.day-section[data-day-key="${CSS.escape(fromDay.dayKey)}"] .gap-line-vertical`)
@@ -1063,14 +1066,14 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     if (gapLine) {
       const rect = gapLine.getBoundingClientRect();
       const top = rect.top - containerTop;
-      const step = rect.height / Math.max(1, inBetween);
+      const step = rect.height / count;
       for (let k = 1; k <= inBetween; k++) {
-        regionStarts[from + k] = top + (k - 1) * step;
-        anchors[from + k] = top + (k - 0.5) * step;
+        anchors[from + k] = top + k * step;
+        regionStarts[from + k] = top + (k - 0.5) * step;
       }
-      regionStarts[to] = top + rect.height;
+      regionStarts[to] = top + rect.height - step / 2;
     } else if (inBetween > 0) {
-      const step = (anchors[to] - anchors[from]) / (inBetween + 1);
+      const step = (anchors[to] - anchors[from]) / count;
       for (let k = 1; k <= inBetween; k++) {
         anchors[from + k] = anchors[from] + k * step;
         regionStarts[from + k] = anchors[from + k] - step / 2;
