@@ -112,6 +112,8 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   private webcamRequestCounter = 0;
   private lastManualScrubAt = 0;
   private scrollRafPending = false;
+  private ionScrollElement?: HTMLElement;
+  private destroyed = false;
 
   private allLogs: LogEntryViewerLog[] = [];
   private lifecycleLogs: LogEntryViewerLog[] = [];
@@ -127,12 +129,14 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnInit() {
-    // Capture-phase listener also catches the ion-content shadow scroller;
-    // registered outside the zone so plain scrolling doesn't trigger change
-    // detection.
+    // Scroll listeners are registered outside the zone so plain scrolling
+    // doesn't trigger change detection. Scroll events don't escape the
+    // ion-content shadow root, so its scroller needs its own listener next
+    // to the document-level one.
     this.zone.runOutsideAngular(() => {
       document.addEventListener('scroll', this.onDocumentScroll, true);
     });
+    void this.attachIonContentScrollListener();
 
     this.queryParamsSubscription = this.route.queryParamMap.subscribe(params => {
       this.selectedLogCategories = parseStringArrayQueryParam(params.get('growCategories')) ?? [...DEFAULT_GROW_CATEGORIES];
@@ -151,12 +155,31 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnDestroy() {
+    this.destroyed = true;
     this.devicesSubscription?.unsubscribe();
     this.queryParamsSubscription?.unsubscribe();
     document.removeEventListener('scroll', this.onDocumentScroll, true);
+    this.ionScrollElement?.removeEventListener('scroll', this.onDocumentScroll);
     if (this.webcamDebounceTimer) {
       clearTimeout(this.webcamDebounceTimer);
     }
+  }
+
+  private async attachIonContentScrollListener(): Promise<void> {
+    const content = this.elementRef.nativeElement.closest('ion-content') as any;
+    if (typeof content?.getScrollElement !== 'function') {
+      return;
+    }
+
+    const scrollElement: HTMLElement = await content.getScrollElement();
+    if (this.destroyed) {
+      return;
+    }
+
+    this.ionScrollElement = scrollElement;
+    this.zone.runOutsideAngular(() => {
+      scrollElement.addEventListener('scroll', this.onDocumentScroll, { passive: true });
+    });
   }
 
   ngOnChanges(changes: SimpleChanges) {
@@ -749,21 +772,21 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
 
   openWebcamViewerAtGap(event: MouseEvent): void {
     this.webcamViewerOpen = true;
+    this.scrubToClientY(event.clientY, 0);
+  }
 
-    const container = this.getTimelineContainer();
-    const anchors = this.computeWebcamDayAnchors();
-    if (!container || !anchors) {
+  onScrubStripPointerMove(event: PointerEvent): void {
+    // Hovering scrubs with the mouse; touch input still scrolls normally
+    // and uses taps or the marker instead.
+    if (event.pointerType !== 'mouse') {
       return;
     }
 
-    const y = event.clientY - container.getBoundingClientRect().top;
-    const index = this.dayIndexFromTimelineY(y, anchors);
-    if (index === null) {
-      return;
-    }
+    this.scrubToClientY(event.clientY, 200);
+  }
 
-    this.lastManualScrubAt = Date.now();
-    this.selectWebcamDay(index, anchors[index], 0);
+  onScrubStripClick(event: MouseEvent): void {
+    this.scrubToClientY(event.clientY, 0);
   }
 
   onWebcamScrub(event: any): void {
@@ -815,7 +838,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     this.webcamScrubDays = days;
 
     const currentIndex = this.webcamImageDay ? days.findIndex(day => day.dayKey === this.webcamImageDay?.dayKey) : -1;
-    this.webcamScrubIndex = currentIndex >= 0 ? currentIndex : Math.max(0, days.length - 1);
+    this.webcamScrubIndex = currentIndex >= 0 ? currentIndex : 0;
     this.showWebcamImageForDay(days[this.webcamScrubIndex], 0);
   }
 
@@ -832,21 +855,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     event.preventDefault();
-    const container = this.getTimelineContainer();
-    const anchors = this.computeWebcamDayAnchors();
-    if (!container || !anchors) {
-      return;
-    }
-
-    const y = event.clientY - container.getBoundingClientRect().top;
-    const clampedY = Math.min(Math.max(y, anchors[0]), anchors[anchors.length - 1]);
-    const index = this.dayIndexFromTimelineY(clampedY, anchors);
-    if (index === null) {
-      return;
-    }
-
-    this.lastManualScrubAt = Date.now();
-    this.selectWebcamDay(index, anchors[index], 150);
+    this.scrubToClientY(event.clientY, 150);
   }
 
   onWebcamMarkerPointerUp(event: PointerEvent): void {
@@ -862,6 +871,25 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     this.webcamScrubIndex = index;
     this.webcamMarkerTop = markerTop;
     this.showWebcamImageForDay(this.webcamScrubDays[index], debounceMs);
+  }
+
+  private scrubToClientY(clientY: number, debounceMs: number): void {
+    const container = this.getTimelineContainer();
+    const anchors = this.computeWebcamDayAnchors();
+    if (!container || !anchors) {
+      return;
+    }
+
+    const y = clientY - container.getBoundingClientRect().top;
+    const index = this.dayIndexFromTimelineY(y, anchors);
+    if (index === null) {
+      return;
+    }
+
+    this.lastManualScrubAt = Date.now();
+    if (index !== this.webcamScrubIndex || this.webcamMarkerTop === null) {
+      this.selectWebcamDay(index, anchors[index], debounceMs);
+    }
   }
 
   // Keep the marker and photo in sync with the day the user scrolls to.

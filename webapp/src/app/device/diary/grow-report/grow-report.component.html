@@ -96,6 +96,12 @@
 
       <div class="ion-padding-top timeline">
         <div
+          *ngIf="webcamViewerOpen"
+          class="webcam-scrub-strip"
+          (pointermove)="onScrubStripPointerMove($event)"
+          (click)="onScrubStripClick($event)"
+        ></div>
+        <div
           *ngIf="webcamViewerOpen && webcamMarkerTop !== null"
           class="webcam-marker"
           [class.dragging]="webcamMarkerDragging"
