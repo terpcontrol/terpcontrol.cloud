@@ -1,4 +1,4 @@
-import {Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges} from '@angular/core';
+import {Component, ElementRef, Input, NgZone, OnChanges, OnDestroy, OnInit, SimpleChanges} from '@angular/core';
 import {DeviceService} from "../../../services/devices.service";
 import {Subscription} from "rxjs";
 import {collectLogCategories, filterLogsByCategory, LogEntryViewerLog} from "../../log-entry-viewer/log-entry-viewer.component";
@@ -75,6 +75,8 @@ type WebcamScrubDay = {
 };
 
 const WEBCAM_MANUAL_SCRUB_HOLDOFF_MS = 2500;
+// Radius in px within which the timeline marker clamps to a day with entries.
+const WEBCAM_ENTRY_SNAP_PX = 10;
 
 @Component({
   selector: 'app-grow-report',
@@ -103,20 +105,35 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   public webcamImageUrl = '';
   public webcamImageDay?: WebcamScrubDay;
   public webcamImageLoading = false;
+  public webcamMarkerTop: number | null = null;
+  public webcamMarkerDragging = false;
 
   private webcamDebounceTimer?: ReturnType<typeof setTimeout>;
   private webcamRequestCounter = 0;
-  private dayObserver?: IntersectionObserver;
   private lastManualScrubAt = 0;
+  private scrollRafPending = false;
 
   private allLogs: LogEntryViewerLog[] = [];
   private lifecycleLogs: LogEntryViewerLog[] = [];
   private static readonly LIFECYCLE_CATEGORIES = ['diary-plant-lifecycle', 'plant-lifecycle'] as const;
 
-  constructor(private devices: DeviceService, private router: Router, private route: ActivatedRoute, private elementRef: ElementRef<HTMLElement>) {
+  constructor(
+    private devices: DeviceService,
+    private router: Router,
+    private route: ActivatedRoute,
+    private elementRef: ElementRef<HTMLElement>,
+    private zone: NgZone,
+  ) {
   }
 
   ngOnInit() {
+    // Capture-phase listener also catches the ion-content shadow scroller;
+    // registered outside the zone so plain scrolling doesn't trigger change
+    // detection.
+    this.zone.runOutsideAngular(() => {
+      document.addEventListener('scroll', this.onDocumentScroll, true);
+    });
+
     this.queryParamsSubscription = this.route.queryParamMap.subscribe(params => {
       this.selectedLogCategories = parseStringArrayQueryParam(params.get('growCategories')) ?? [...DEFAULT_GROW_CATEGORIES];
       this.requestedCycleStart = parseNumberQueryParam(params.get('growCycle'));
@@ -136,7 +153,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   ngOnDestroy() {
     this.devicesSubscription?.unsubscribe();
     this.queryParamsSubscription?.unsubscribe();
-    this.dayObserver?.disconnect();
+    document.removeEventListener('scroll', this.onDocumentScroll, true);
     if (this.webcamDebounceTimer) {
       clearTimeout(this.webcamDebounceTimer);
     }
@@ -270,7 +287,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
 
     this.cycleTimelines = this.growCycles.map((cycle) => this.buildTimelineForCycle(cycle, merged, dayGaps));
     this.rebuildWebcamScrubDays();
-    this.setupWebcamScrollSync();
+    this.scheduleWebcamMarkerUpdate();
   }
 
   private calculateDayGaps(logs: LogEntryViewerLog[]): Map<string, { gapToNextDays: number; gapLabel: string }> {
@@ -727,24 +744,26 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
 
   toggleWebcamViewer(): void {
     this.webcamViewerOpen = !this.webcamViewerOpen;
-    if (this.webcamViewerOpen) {
-      this.setupWebcamScrollSync();
-    }
+    this.scheduleWebcamMarkerUpdate();
   }
 
-  openWebcamViewerAfter(day: TimelineDayGroup): void {
-    const nextDay = new Date(day.date);
-    nextDay.setDate(nextDay.getDate() + 1);
-    const index = this.webcamScrubDays.findIndex(scrubDay => scrubDay.dayKey === this.toDayKey(nextDay));
-    if (index < 0) {
+  openWebcamViewerAtGap(event: MouseEvent): void {
+    this.webcamViewerOpen = true;
+
+    const container = this.getTimelineContainer();
+    const anchors = this.computeWebcamDayAnchors();
+    if (!container || !anchors) {
       return;
     }
 
-    this.webcamViewerOpen = true;
+    const y = event.clientY - container.getBoundingClientRect().top;
+    const index = this.dayIndexFromTimelineY(y, anchors);
+    if (index === null) {
+      return;
+    }
+
     this.lastManualScrubAt = Date.now();
-    this.webcamScrubIndex = index;
-    this.showWebcamImageForDay(this.webcamScrubDays[index], 0);
-    this.setupWebcamScrollSync();
+    this.selectWebcamDay(index, anchors[index], 0);
   }
 
   onWebcamScrub(event: any): void {
@@ -800,40 +819,210 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     this.showWebcamImageForDay(days[this.webcamScrubIndex], 0);
   }
 
-  // Keep the webcam viewer in sync with the day the user has scrolled to.
-  private setupWebcamScrollSync(): void {
-    setTimeout(() => {
-      this.dayObserver?.disconnect();
-      const dayElements = this.elementRef.nativeElement.querySelectorAll('.day-section[data-day-key]');
-      if (!dayElements.length) {
+  onWebcamMarkerPointerDown(event: PointerEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.webcamMarkerDragging = true;
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  }
+
+  onWebcamMarkerPointerMove(event: PointerEvent): void {
+    if (!this.webcamMarkerDragging) {
+      return;
+    }
+
+    event.preventDefault();
+    const container = this.getTimelineContainer();
+    const anchors = this.computeWebcamDayAnchors();
+    if (!container || !anchors) {
+      return;
+    }
+
+    const y = event.clientY - container.getBoundingClientRect().top;
+    const clampedY = Math.min(Math.max(y, anchors[0]), anchors[anchors.length - 1]);
+    const index = this.dayIndexFromTimelineY(clampedY, anchors);
+    if (index === null) {
+      return;
+    }
+
+    this.lastManualScrubAt = Date.now();
+    this.selectWebcamDay(index, anchors[index], 150);
+  }
+
+  onWebcamMarkerPointerUp(event: PointerEvent): void {
+    if (!this.webcamMarkerDragging) {
+      return;
+    }
+
+    this.webcamMarkerDragging = false;
+    (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+  }
+
+  private selectWebcamDay(index: number, markerTop: number, debounceMs: number): void {
+    this.webcamScrubIndex = index;
+    this.webcamMarkerTop = markerTop;
+    this.showWebcamImageForDay(this.webcamScrubDays[index], debounceMs);
+  }
+
+  // Keep the marker and photo in sync with the day the user scrolls to.
+  private onDocumentScroll = (): void => {
+    if (!this.webcamViewerOpen || this.webcamMarkerDragging || this.scrollRafPending
+      || Date.now() - this.lastManualScrubAt < WEBCAM_MANUAL_SCRUB_HOLDOFF_MS) {
+      return;
+    }
+
+    this.scrollRafPending = true;
+    requestAnimationFrame(() => {
+      this.scrollRafPending = false;
+      this.syncWebcamToScrollPosition();
+    });
+  };
+
+  private syncWebcamToScrollPosition(): void {
+    const container = this.getTimelineContainer();
+    const anchors = this.computeWebcamDayAnchors();
+    if (!container || !anchors) {
+      return;
+    }
+
+    // The day at roughly a third of the viewport height is "being read".
+    const focusY = window.innerHeight * 0.35 - container.getBoundingClientRect().top;
+    if (focusY < anchors[0] || focusY > anchors[anchors.length - 1]) {
+      return;
+    }
+
+    const index = this.dayIndexFromTimelineY(focusY, anchors);
+    if (index === null || index === this.webcamScrubIndex) {
+      return;
+    }
+
+    this.zone.run(() => this.selectWebcamDay(index, anchors[index], 300));
+  }
+
+  private getTimelineContainer(): HTMLElement | null {
+    return this.elementRef.nativeElement.querySelector('.timeline');
+  }
+
+  // Vertical position (relative to the timeline container) of every scrub
+  // day: days with entries anchor to their dot, the days in between are
+  // spread along the time-scaled gap line that follows the previous entry.
+  private computeWebcamDayAnchors(): number[] | null {
+    const container = this.getTimelineContainer();
+    if (!container || !this.webcamScrubDays.length) {
+      return null;
+    }
+
+    const containerTop = container.getBoundingClientRect().top;
+    const anchors: number[] = new Array<number>(this.webcamScrubDays.length).fill(Number.NaN);
+
+    this.webcamScrubDays.forEach((day, index) => {
+      if (!day.hasEvents) {
         return;
       }
 
-      this.dayObserver = new IntersectionObserver(entries => this.onDaysScrolledIntoView(entries), {
-        rootMargin: '-20% 0px -60% 0px',
-      });
-      dayElements.forEach(element => this.dayObserver?.observe(element));
+      const dot = container.querySelector(`.day-section[data-day-key="${CSS.escape(day.dayKey)}"] .day-dot`);
+      if (!dot) {
+        return;
+      }
+
+      const rect = dot.getBoundingClientRect();
+      anchors[index] = rect.top - containerTop + rect.height / 2;
     });
+
+    const lastIndex = anchors.length - 1;
+    if (Number.isNaN(anchors[lastIndex])) {
+      const todayDot = container.querySelector('.day-dot-today');
+      if (todayDot) {
+        const rect = todayDot.getBoundingClientRect();
+        anchors[lastIndex] = rect.top - containerTop + rect.height / 2;
+      }
+    }
+
+    let previous = -1;
+    for (let i = 0; i <= lastIndex; i++) {
+      if (Number.isNaN(anchors[i])) {
+        continue;
+      }
+
+      if (previous < 0) {
+        anchors.fill(anchors[i], 0, i);
+      } else {
+        this.fillAnchorsBetween(anchors, container, containerTop, previous, i);
+      }
+      previous = i;
+    }
+
+    if (previous < 0) {
+      return null;
+    }
+    anchors.fill(anchors[previous], previous + 1);
+
+    return anchors;
   }
 
-  private onDaysScrolledIntoView(entries: IntersectionObserverEntry[]): void {
-    if (!this.webcamViewerOpen || Date.now() - this.lastManualScrubAt < WEBCAM_MANUAL_SCRUB_HOLDOFF_MS) {
+  private fillAnchorsBetween(anchors: number[], container: HTMLElement, containerTop: number, from: number, to: number): void {
+    const count = to - from;
+    if (count <= 1) {
       return;
     }
 
-    const visible = entries.find(entry => entry.isIntersecting);
-    if (!visible) {
+    const fromDay = this.webcamScrubDays[from];
+    const gapLine = fromDay.hasEvents
+      ? container.querySelector(`.day-section[data-day-key="${CSS.escape(fromDay.dayKey)}"] .gap-line-vertical`)
+      : null;
+
+    if (gapLine) {
+      const rect = gapLine.getBoundingClientRect();
+      const top = rect.top - containerTop;
+      for (let k = 1; k < count; k++) {
+        anchors[from + k] = top + (rect.height * k) / count;
+      }
+    } else {
+      for (let k = 1; k < count; k++) {
+        anchors[from + k] = anchors[from] + ((anchors[to] - anchors[from]) * k) / count;
+      }
+    }
+  }
+
+  private dayIndexFromTimelineY(y: number, anchors: number[]): number | null {
+    let nearest = 0;
+    for (let i = 1; i < anchors.length; i++) {
+      if (Math.abs(anchors[i] - y) < Math.abs(anchors[nearest] - y)) {
+        nearest = i;
+      }
+    }
+
+    // Days with entries win within the snap radius so they are easy to hit.
+    let best = nearest;
+    let bestEntryDistance = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < anchors.length; i++) {
+      if (!this.webcamScrubDays[i].hasEvents) {
+        continue;
+      }
+
+      const distance = Math.abs(anchors[i] - y);
+      if (distance <= WEBCAM_ENTRY_SNAP_PX && distance < bestEntryDistance) {
+        bestEntryDistance = distance;
+        best = i;
+      }
+    }
+
+    return best;
+  }
+
+  private scheduleWebcamMarkerUpdate(): void {
+    setTimeout(() => this.updateWebcamMarkerPosition());
+  }
+
+  private updateWebcamMarkerPosition(): void {
+    if (!this.webcamViewerOpen || !this.webcamImageDay) {
+      this.webcamMarkerTop = null;
       return;
     }
 
-    const dayKey = (visible.target as HTMLElement).dataset['dayKey'];
-    const index = this.webcamScrubDays.findIndex(day => day.dayKey === dayKey);
-    if (index < 0) {
-      return;
-    }
-
-    this.webcamScrubIndex = index;
-    this.showWebcamImageForDay(this.webcamScrubDays[index], 300);
+    const anchors = this.computeWebcamDayAnchors();
+    const index = this.webcamScrubDays.findIndex(day => day.dayKey === this.webcamImageDay?.dayKey);
+    this.webcamMarkerTop = anchors && index >= 0 && Number.isFinite(anchors[index]) ? anchors[index] : null;
   }
 
   private scrollTimelineToDay(day: WebcamScrubDay): void {
@@ -854,6 +1043,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     this.webcamImageDay = day;
+    this.scheduleWebcamMarkerUpdate();
     if (this.webcamDebounceTimer) {
       clearTimeout(this.webcamDebounceTimer);
     }

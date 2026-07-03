@@ -95,6 +95,19 @@
       </div>
 
       <div class="ion-padding-top timeline">
+        <div
+          *ngIf="webcamViewerOpen && webcamMarkerTop !== null"
+          class="webcam-marker"
+          [class.dragging]="webcamMarkerDragging"
+          [style.top.px]="webcamMarkerTop"
+          (pointerdown)="onWebcamMarkerPointerDown($event)"
+          (pointermove)="onWebcamMarkerPointerMove($event)"
+          (pointerup)="onWebcamMarkerPointerUp($event)"
+          (pointercancel)="onWebcamMarkerPointerUp($event)"
+        >
+          <ion-icon name="camera"></ion-icon>
+        </div>
+
         <div *ngFor="let phase of selectedCycleTimeline.phaseTimeline" class="phase-section" [id]="'phase-' + phase.stage">
           <div class="phase-header">{{ ('diary.lifecycleStages.' + phase.stage) | translate }}</div>
           <div class="gap-indicator">
@@ -130,7 +143,7 @@
             <div
               *ngIf="day.gapLabel"
               class="gap-indicator gap-clickable"
-              (click)="openWebcamViewerAfter(day)"
+              (click)="openWebcamViewerAtGap($event)"
               title="{{ 'diary.gapPhotos' | translate }}"
             >
               <div class="gap-line-vertical" [style.height.px]="day.gapHeightPx || 24"></div>
@@ -140,7 +153,7 @@
         </div>
 
         <div class="day-header">
-          <div class="day-dot"></div>
+          <div class="day-dot day-dot-today"></div>
           <div>
             {{ 'diary.today' | translate }}
           </div>
