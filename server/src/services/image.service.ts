@@ -253,20 +253,8 @@ class ImageService {
         }
 
         await this.compressRtspStreamRange(device, MS_IN_A_DAY, TIMELAPSE_DAY_FRAMEINTERVAL_MS, '1d', DAILY_COMPRESS_REFRESH_MS);
-        await this.compressRtspStreamRange(
-          device,
-          7 * MS_IN_A_DAY,
-          7 * TIMELAPSE_DAY_FRAMEINTERVAL_MS,
-          '1w',
-          WEEKLY_COMPRESS_REFRESH_MS,
-        );
-        await this.compressRtspStreamRange(
-          device,
-          30 * MS_IN_A_DAY,
-          30 * TIMELAPSE_DAY_FRAMEINTERVAL_MS,
-          '1m',
-          MONTHLY_COMPRESS_REFRESH_MS,
-        );
+        await this.compressRtspStreamRange(device, 7 * MS_IN_A_DAY, 7 * TIMELAPSE_DAY_FRAMEINTERVAL_MS, '1w', WEEKLY_COMPRESS_REFRESH_MS);
+        await this.compressRtspStreamRange(device, 30 * MS_IN_A_DAY, 30 * TIMELAPSE_DAY_FRAMEINTERVAL_MS, '1m', MONTHLY_COMPRESS_REFRESH_MS);
 
         if (shouldThin) {
           await this.thinRtspStreamImages(device);
