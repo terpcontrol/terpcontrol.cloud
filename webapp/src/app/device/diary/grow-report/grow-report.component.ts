@@ -1,4 +1,4 @@
-import {Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges} from '@angular/core';
+import {Component, ElementRef, Input, OnChanges, OnDestroy, OnInit, SimpleChanges} from '@angular/core';
 import {DeviceService} from "../../../services/devices.service";
 import {Subscription} from "rxjs";
 import {collectLogCategories, filterLogsByCategory, LogEntryViewerLog} from "../../log-entry-viewer/log-entry-viewer.component";
@@ -29,14 +29,14 @@ export type GrowCycle = {
   events: Partial<Record<DiaryEntryData['newLifecycleStage'], DeviceLog>>;
 }
 
-export type TimelineEvent = {
+type TimelineEvent = {
   log: LogEntryViewerLog;
   time: Date;
   stage: DiaryEntryData['newLifecycleStage'];
   isLifecycle: boolean;
 };
 
-export type TimelineDayGroup = {
+type TimelineDayGroup = {
   dayKey: string;
   date: Date;
   dayNumberInCycle: number;
@@ -44,9 +44,10 @@ export type TimelineDayGroup = {
   events: TimelineEvent[];
   gapToNextDays?: number;
   gapLabel?: string;
+  gapHeightPx?: number;
 };
 
-export type TimelinePhaseGroup = {
+type TimelinePhaseGroup = {
   stage: DiaryEntryData['newLifecycleStage'];
   eventsByDay: TimelineDayGroup[];
 };
@@ -58,11 +59,22 @@ type PhaseSummary = {
   totalDaysFromStart: number;
 };
 
-export type GrowCycleTimeline = GrowCycle & {
+type GrowCycleTimeline = GrowCycle & {
   phaseTimeline: TimelinePhaseGroup[];
   phaseSummaries: PhaseSummary[];
   lastEventDate?: Date;
 };
+
+// One calendar day of the selected cycle, scrubbable in the webcam viewer.
+// Unlike TimelineDayGroup this also covers days without any entries.
+type WebcamScrubDay = {
+  dayKey: string;
+  date: Date;
+  dayNumberInCycle: number;
+  hasEvents: boolean;
+};
+
+const WEBCAM_MANUAL_SCRUB_HOLDOFF_MS = 2500;
 
 @Component({
   selector: 'app-grow-report',
@@ -85,11 +97,23 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   public availableLogCategories: string[] = [];
   public selectedLogCategories: string[] = ['device-configuration', 'recipe', 'diary'];
 
+  public webcamViewerOpen = false;
+  public webcamScrubIndex = 0;
+  public webcamScrubDays: WebcamScrubDay[] = [];
+  public webcamImageUrl = '';
+  public webcamImageDay?: WebcamScrubDay;
+  public webcamImageLoading = false;
+
+  private webcamDebounceTimer?: ReturnType<typeof setTimeout>;
+  private webcamRequestCounter = 0;
+  private dayObserver?: IntersectionObserver;
+  private lastManualScrubAt = 0;
+
   private allLogs: LogEntryViewerLog[] = [];
   private lifecycleLogs: LogEntryViewerLog[] = [];
   private static readonly LIFECYCLE_CATEGORIES = ['diary-plant-lifecycle', 'plant-lifecycle'] as const;
 
-  constructor(protected devices: DeviceService, protected router: Router, protected route: ActivatedRoute) {
+  constructor(private devices: DeviceService, private router: Router, private route: ActivatedRoute, private elementRef: ElementRef<HTMLElement>) {
   }
 
   ngOnInit() {
@@ -112,6 +136,10 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   ngOnDestroy() {
     this.devicesSubscription?.unsubscribe();
     this.queryParamsSubscription?.unsubscribe();
+    this.dayObserver?.disconnect();
+    if (this.webcamDebounceTimer) {
+      clearTimeout(this.webcamDebounceTimer);
+    }
   }
 
   ngOnChanges(changes: SimpleChanges) {
@@ -128,6 +156,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
       this.availableLogCategories = [];
       this.selectedLogCategories = [];
       this.selectedCycleIndex = 0;
+      this.rebuildWebcamScrubDays();
       return;
     }
 
@@ -150,6 +179,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
         this.availableLogCategories = [];
         this.selectedLogCategories = [];
         this.selectedCycleIndex = 0;
+        this.rebuildWebcamScrubDays();
         return;
       }
 
@@ -231,7 +261,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     this.selectedCycleIndex = Math.min(this.selectedCycleIndex, this.growCycles.length - 1);
   }
 
-  protected rebuildTimelines(): void {
+  private rebuildTimelines(): void {
     const filtered = filterLogsByCategory(this.allLogs, this.selectedLogCategories);
     const merged = this.mergeLifecycleLogs(filtered).sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
 
@@ -239,6 +269,8 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     const dayGaps = this.calculateDayGaps(merged);
 
     this.cycleTimelines = this.growCycles.map((cycle) => this.buildTimelineForCycle(cycle, merged, dayGaps));
+    this.rebuildWebcamScrubDays();
+    this.setupWebcamScrollSync();
   }
 
   private calculateDayGaps(logs: LogEntryViewerLog[]): Map<string, { gapToNextDays: number; gapLabel: string }> {
@@ -338,6 +370,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
           events: [],
           gapToNextDays: gap?.gapToNextDays,
           gapLabel: gap?.gapLabel,
+          gapHeightPx: gap ? this.gapLineHeightPx(gap.gapToNextDays) : undefined,
         };
         phaseGroup.eventsByDay.push(dayGroup);
       }
@@ -684,6 +717,163 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   private isLifecycleLog(log: DeviceLog): boolean {
     return Array.isArray(log.categories)
       && GrowReportComponent.LIFECYCLE_CATEGORIES.some(category => log.categories?.includes(category));
+  }
+
+  // The gap line grows with the elapsed time, sub-linearly and capped so
+  // long pauses don't dominate the timeline.
+  private gapLineHeightPx(gapDays: number): number {
+    return Math.min(24 + Math.round(28 * Math.log2(Math.max(1, gapDays))), 140);
+  }
+
+  toggleWebcamViewer(): void {
+    this.webcamViewerOpen = !this.webcamViewerOpen;
+    if (this.webcamViewerOpen) {
+      this.setupWebcamScrollSync();
+    }
+  }
+
+  openWebcamViewerAfter(day: TimelineDayGroup): void {
+    const nextDay = new Date(day.date);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const index = this.webcamScrubDays.findIndex(scrubDay => scrubDay.dayKey === this.toDayKey(nextDay));
+    if (index < 0) {
+      return;
+    }
+
+    this.webcamViewerOpen = true;
+    this.lastManualScrubAt = Date.now();
+    this.webcamScrubIndex = index;
+    this.showWebcamImageForDay(this.webcamScrubDays[index], 0);
+    this.setupWebcamScrollSync();
+  }
+
+  onWebcamScrub(event: any): void {
+    const index = Number(event.detail.value);
+    const day = this.webcamScrubDays[index];
+    if (!day || index === this.webcamScrubIndex) {
+      return;
+    }
+
+    this.webcamScrubIndex = index;
+    this.lastManualScrubAt = Date.now();
+    this.showWebcamImageForDay(day, 150);
+    this.scrollTimelineToDay(day);
+  }
+
+  onWebcamImageSettled(): void {
+    this.webcamImageLoading = false;
+  }
+
+  private rebuildWebcamScrubDays(): void {
+    const timeline = this.selectedCycleTimeline;
+    if (!timeline) {
+      this.webcamScrubDays = [];
+      this.webcamScrubIndex = 0;
+      this.webcamImageDay = undefined;
+      return;
+    }
+
+    const start = this.toStartOfDay(new Date(timeline.timestampStart));
+    const endSource = timeline.timestampEnd ? new Date(timeline.timestampEnd).getTime() : Date.now();
+    const end = this.toStartOfDay(new Date(Math.min(endSource, Date.now())));
+
+    const eventDayKeys = new Set(
+      timeline.phaseTimeline.flatMap(phase => phase.eventsByDay.map(day => day.dayKey))
+    );
+
+    const days: WebcamScrubDay[] = [];
+    for (const cursor = new Date(start); cursor.getTime() <= end.getTime() && days.length < 3660; cursor.setDate(cursor.getDate() + 1)) {
+      const date = new Date(cursor);
+      const dayKey = this.toDayKey(date);
+      days.push({
+        dayKey,
+        date,
+        dayNumberInCycle: this.calculateDayCount(start, date) + 1,
+        hasEvents: eventDayKeys.has(dayKey),
+      });
+    }
+
+    this.webcamScrubDays = days;
+
+    const currentIndex = this.webcamImageDay ? days.findIndex(day => day.dayKey === this.webcamImageDay?.dayKey) : -1;
+    this.webcamScrubIndex = currentIndex >= 0 ? currentIndex : Math.max(0, days.length - 1);
+    this.showWebcamImageForDay(days[this.webcamScrubIndex], 0);
+  }
+
+  // Keep the webcam viewer in sync with the day the user has scrolled to.
+  private setupWebcamScrollSync(): void {
+    setTimeout(() => {
+      this.dayObserver?.disconnect();
+      const dayElements = this.elementRef.nativeElement.querySelectorAll('.day-section[data-day-key]');
+      if (!dayElements.length) {
+        return;
+      }
+
+      this.dayObserver = new IntersectionObserver(entries => this.onDaysScrolledIntoView(entries), {
+        rootMargin: '-20% 0px -60% 0px',
+      });
+      dayElements.forEach(element => this.dayObserver?.observe(element));
+    });
+  }
+
+  private onDaysScrolledIntoView(entries: IntersectionObserverEntry[]): void {
+    if (!this.webcamViewerOpen || Date.now() - this.lastManualScrubAt < WEBCAM_MANUAL_SCRUB_HOLDOFF_MS) {
+      return;
+    }
+
+    const visible = entries.find(entry => entry.isIntersecting);
+    if (!visible) {
+      return;
+    }
+
+    const dayKey = (visible.target as HTMLElement).dataset['dayKey'];
+    const index = this.webcamScrubDays.findIndex(day => day.dayKey === dayKey);
+    if (index < 0) {
+      return;
+    }
+
+    this.webcamScrubIndex = index;
+    this.showWebcamImageForDay(this.webcamScrubDays[index], 300);
+  }
+
+  private scrollTimelineToDay(day: WebcamScrubDay): void {
+    const index = this.webcamScrubDays.indexOf(day);
+    const nearestEventDay = this.webcamScrubDays.slice(0, index + 1).reverse().find(scrubDay => scrubDay.hasEvents)
+      ?? this.webcamScrubDays.slice(index + 1).find(scrubDay => scrubDay.hasEvents);
+    if (!nearestEventDay) {
+      return;
+    }
+
+    const element = this.elementRef.nativeElement.querySelector(`.day-section[data-day-key="${CSS.escape(nearestEventDay.dayKey)}"]`);
+    element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  private showWebcamImageForDay(day: WebcamScrubDay | undefined, debounceMs: number): void {
+    if (!day || this.webcamImageDay?.dayKey === day.dayKey) {
+      return;
+    }
+
+    this.webcamImageDay = day;
+    if (this.webcamDebounceTimer) {
+      clearTimeout(this.webcamDebounceTimer);
+    }
+    this.webcamDebounceTimer = setTimeout(() => void this.loadWebcamImage(day), debounceMs);
+  }
+
+  private async loadWebcamImage(day: WebcamScrubDay): Promise<void> {
+    const requestId = ++this.webcamRequestCounter;
+    // The server returns the newest image at or before the timestamp, so the
+    // end of the day yields that day's last photo.
+    const endOfDay = new Date(day.date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    this.webcamImageLoading = true;
+    const url = await this.devices.getDeviceImageUrl(this.deviceId, 'jpeg', Math.min(endOfDay.getTime(), Date.now()));
+    if (requestId !== this.webcamRequestCounter) {
+      return;
+    }
+
+    this.webcamImageUrl = `${url}&width=800`;
   }
 
   onCycleSelected(event: any) {

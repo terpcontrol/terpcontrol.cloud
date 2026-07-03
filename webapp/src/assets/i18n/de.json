@@ -426,7 +426,11 @@
     "untilToday": "bis heute",
     "today": "Heute",
     "viewChart": "Chart anzeigen",
-    "viewCycleChart": "Zyklus-Chart anzeigen"
+    "viewCycleChart": "Zyklus-Chart anzeigen",
+    "showWebcam": "Webcam-Fotos anzeigen",
+    "hideWebcam": "Webcam-Fotos ausblenden",
+    "gapPhotos": "Fotos der Tage dazwischen anzeigen",
+    "noEntries": "keine Einträge"
   },
 
   "message-lost-connection-title": "Verbindungsproblem",
