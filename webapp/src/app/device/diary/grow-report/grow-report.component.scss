@@ -90,6 +90,25 @@
   margin-bottom: 0;
 }
 
+.gap-line-wrap {
+  position: relative;
+
+  .gap-line-vertical {
+    height: 100%;
+  }
+}
+
+.gap-day-dot {
+  position: absolute;
+  left: 1px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ion-color-step-400, #b3b3b3);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
 .gap-label {
   color: var(--ion-color-medium, #666);
   font-size: 0.85em;

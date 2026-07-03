@@ -45,6 +45,7 @@ type TimelineDayGroup = {
   gapToNextDays?: number;
   gapLabel?: string;
   gapHeightPx?: number;
+  gapDayFractions?: number[];
 };
 
 type TimelinePhaseGroup = {
@@ -411,6 +412,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
           gapToNextDays: gap?.gapToNextDays,
           gapLabel: gap?.gapLabel,
           gapHeightPx: gap ? this.gapLineHeightPx(gap.gapToNextDays) : undefined,
+          gapDayFractions: gap ? this.gapDayFractions(gap.gapToNextDays) : undefined,
         };
         phaseGroup.eventsByDay.push(dayGroup);
       }
@@ -762,7 +764,18 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   // The gap line grows with the elapsed time, sub-linearly and capped so
   // long pauses don't dominate the timeline.
   private gapLineHeightPx(gapDays: number): number {
-    return Math.min(24 + Math.round(28 * Math.log2(Math.max(1, gapDays))), 140);
+    return Math.min(48 + Math.round(56 * Math.log2(Math.max(1, gapDays))), 280);
+  }
+
+  // Positions of the in-between days along the gap line, matching the webcam
+  // day anchors; omitted when the days would be too dense to render.
+  private gapDayFractions(gapDays: number): number[] | undefined {
+    const inBetween = gapDays - 1;
+    if (inBetween <= 0 || inBetween > this.gapLineHeightPx(gapDays) / 7) {
+      return undefined;
+    }
+
+    return Array.from({ length: inBetween }, (_, index) => (index + 0.5) / inBetween);
   }
 
   toggleWebcamViewer(): void {

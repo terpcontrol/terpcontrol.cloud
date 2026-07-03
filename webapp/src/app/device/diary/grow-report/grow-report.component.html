@@ -152,7 +152,14 @@
               (click)="openWebcamViewerAtGap($event)"
               title="{{ 'diary.gapPhotos' | translate }}"
             >
-              <div class="gap-line-vertical" [style.height.px]="day.gapHeightPx || 24"></div>
+              <div class="gap-line-wrap" [style.height.px]="day.gapHeightPx || 48">
+                <div class="gap-line-vertical"></div>
+                <div
+                  *ngFor="let fraction of day.gapDayFractions"
+                  class="gap-day-dot"
+                  [style.top.%]="fraction * 100"
+                ></div>
+              </div>
               <span class="gap-label">{{ day.gapLabel }}</span>
             </div>
           </div>
