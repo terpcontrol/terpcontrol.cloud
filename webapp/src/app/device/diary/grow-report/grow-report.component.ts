@@ -78,6 +78,8 @@ type WebcamScrubDay = {
 const WEBCAM_MANUAL_SCRUB_HOLDOFF_MS = 2500;
 // Radius in px within which the timeline marker clamps to a day with entries.
 const WEBCAM_ENTRY_SNAP_PX = 10;
+// Minimum time the marker stays on a day while catching up with scrolling.
+const WEBCAM_STEP_INTERVAL_MS = 90;
 
 @Component({
   selector: 'app-grow-report',
@@ -113,7 +115,8 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   private webcamRequestCounter = 0;
   private lastManualScrubAt = 0;
   private scrollRafPending = false;
-  private webcamScrollAnimationFrame?: number;
+  private webcamStepTimer?: ReturnType<typeof setTimeout>;
+  private lastWebcamStepAt = 0;
   private ionScrollElement?: HTMLElement;
   private destroyed = false;
 
@@ -942,29 +945,38 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   private cancelWebcamScrollAnimation(): void {
-    if (this.webcamScrollAnimationFrame !== undefined) {
-      cancelAnimationFrame(this.webcamScrollAnimationFrame);
-      this.webcamScrollAnimationFrame = undefined;
+    if (this.webcamStepTimer !== undefined) {
+      clearTimeout(this.webcamStepTimer);
+      this.webcamStepTimer = undefined;
     }
   }
 
-  // Fast scrolling can move the focus across a whole gap within one frame;
-  // step the marker through the days in between instead of teleporting it.
+  // A scroll step can move the focus across a whole gap at once; instead of
+  // teleporting, the marker ticks through the days in between at a humanly
+  // visible pace, no matter how often the scroll retargets it. Large
+  // distances take bigger steps so it still catches up.
   private animateWebcamTowardsIndex(targetIndex: number, anchors: number[]): void {
     this.cancelWebcamScrollAnimation();
 
     const step = () => {
-      this.webcamScrollAnimationFrame = undefined;
+      this.webcamStepTimer = undefined;
       const remaining = targetIndex - this.webcamScrubIndex;
       if (remaining === 0) {
         return;
       }
 
-      const delta = Math.sign(remaining) * Math.max(1, Math.floor(Math.abs(remaining) / 4));
+      const wait = this.lastWebcamStepAt + WEBCAM_STEP_INTERVAL_MS - Date.now();
+      if (wait > 0) {
+        this.webcamStepTimer = setTimeout(step, wait);
+        return;
+      }
+
+      this.lastWebcamStepAt = Date.now();
+      const delta = Math.sign(remaining) * Math.max(1, Math.round(Math.abs(remaining) / 8));
       const index = this.webcamScrubIndex + delta;
       this.zone.run(() => this.selectWebcamDay(index, anchors[index], 300));
       if (index !== targetIndex) {
-        this.webcamScrollAnimationFrame = requestAnimationFrame(step);
+        this.webcamStepTimer = setTimeout(step, WEBCAM_STEP_INTERVAL_MS);
       }
     };
 
