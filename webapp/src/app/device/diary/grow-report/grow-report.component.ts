@@ -7,8 +7,10 @@ import type { DiaryEntryData, DeviceLog } from '@fg2/shared-types';
 import {
   DEFAULT_GROW_CATEGORIES,
   mergeDiaryQueryParams,
+  parseBooleanQueryParam,
   parseNumberQueryParam,
   parseStringArrayQueryParam,
+  serializeBooleanQueryParam,
   serializeNumberQueryParam,
   serializeStringArrayQueryParam,
 } from '../diary-query-params';
@@ -152,6 +154,10 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     this.queryParamsSubscription = this.route.queryParamMap.subscribe(params => {
       this.selectedLogCategories = parseStringArrayQueryParam(params.get('growCategories')) ?? [...DEFAULT_GROW_CATEGORIES];
       this.requestedCycleStart = parseNumberQueryParam(params.get('growCycle'));
+      const parsedWebcamViewerOpen = parseBooleanQueryParam(params.get('webcamViewer'));
+      if (parsedWebcamViewerOpen !== undefined) {
+        this.webcamViewerOpen = parsedWebcamViewerOpen;
+      }
 
       if (this.growCycles.length > 0) {
         this.ensureSelectedCategories();
@@ -811,6 +817,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   toggleWebcamViewer(): void {
     this.webcamViewerOpen = !this.webcamViewerOpen;
     this.scheduleWebcamMarkerUpdate();
+    void this.syncQueryParams();
   }
 
   openWebcamViewerAtGap(event: MouseEvent): void {
@@ -1235,6 +1242,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     await mergeDiaryQueryParams(this.router, this.route, {
       growCategories: serializeStringArrayQueryParam(this.selectedLogCategories, DEFAULT_GROW_CATEGORIES),
       growCycle: serializeNumberQueryParam(this.selectedCycle ? new Date(this.selectedCycle.timestampStart).getTime() : undefined),
+      webcamViewer: serializeBooleanQueryParam(this.webcamViewerOpen, false),
     });
   }
 
