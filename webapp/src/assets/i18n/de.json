@@ -430,7 +430,7 @@
     "showWebcam": "Webcam-Fotos anzeigen",
     "hideWebcam": "Webcam-Fotos ausblenden",
     "gapPhotos": "Fotos der Tage dazwischen anzeigen",
-    "noEntries": "keine Einträge"
+    "webcamTime": "Uhrzeit des Fotos"
   },
 
   "message-lost-connection-title": "Verbindungsproblem",

@@ -178,14 +178,35 @@
 
 <div class="webcam-float" *ngIf="webcamViewerOpen && webcamScrubDays.length > 0">
   <div class="webcam-float-header">
-    <span *ngIf="webcamImageDay">
+    <span class="webcam-day-label" *ngIf="webcamImageDay">
       {{ 'diary.day' | translate }} {{ webcamImageDay.dayNumberInCycle }} • {{ webcamImageDay.date | date:'mediumDate' }}
-      <span *ngIf="!webcamImageDay.hasEvents" class="webcam-no-entries">({{ 'diary.noEntries' | translate }})</span>
+    </span>
+    <span
+      *ngIf="webcamImageDay"
+      class="webcam-time"
+      (click)="openWebcamTimePopover($event)"
+      title="{{ 'diary.webcamTime' | translate }}"
+    >
+      {{ webcamTimeValue }}
+      <ion-icon name="time-outline"></ion-icon>
     </span>
     <ion-button fill="clear" size="small" (click)="toggleWebcamViewer()">
       <ion-icon name="close-outline"></ion-icon>
     </ion-button>
   </div>
+  <ion-popover
+    [isOpen]="webcamTimePopoverOpen"
+    [event]="webcamTimePopoverEvent"
+    (didDismiss)="webcamTimePopoverOpen = false"
+  >
+    <ng-template>
+      <ion-datetime
+        presentation="time"
+        [value]="webcamTimeValue"
+        (ionChange)="onWebcamTimePicked($event)"
+      ></ion-datetime>
+    </ng-template>
+  </ion-popover>
   <div class="webcam-float-frame">
     <img
       *ngIf="webcamImageUrl"

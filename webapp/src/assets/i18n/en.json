@@ -448,7 +448,7 @@
     "showWebcam": "Show webcam photos",
     "hideWebcam": "Hide webcam photos",
     "gapPhotos": "View photos from the days in between",
-    "noEntries": "no entries"
+    "webcamTime": "Time of day of the photo"
   },
 
   "message-lost-connection-title": "Connection problem",

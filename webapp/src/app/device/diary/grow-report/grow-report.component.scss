@@ -219,9 +219,23 @@
   }
 }
 
-.webcam-no-entries {
+.webcam-day-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.webcam-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   color: var(--ion-color-medium, #666);
   font-weight: normal;
+  font-size: 0.95em;
+  cursor: pointer;
+
+  ion-icon {
+    font-size: 14px;
+  }
 }
 
 .webcam-float-frame {

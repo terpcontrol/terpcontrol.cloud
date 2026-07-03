@@ -73,6 +73,7 @@ type WebcamScrubDay = {
   date: Date;
   dayNumberInCycle: number;
   hasEvents: boolean;
+  lastEventTime?: Date;
 };
 
 const WEBCAM_MANUAL_SCRUB_HOLDOFF_MS = 2500;
@@ -112,6 +113,9 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   public webcamImageLoading = false;
   public webcamMarkerTop: number | null = null;
   public webcamMarkerDragging = false;
+  public webcamTimeMinutes = 23 * 60 + 59;
+  public webcamTimePopoverOpen = false;
+  public webcamTimePopoverEvent?: Event;
 
   private webcamDebounceTimer?: ReturnType<typeof setTimeout>;
   private webcamRequestCounter = 0;
@@ -859,9 +863,17 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     const endSource = timeline.timestampEnd ? new Date(timeline.timestampEnd).getTime() : Date.now();
     const end = this.toStartOfDay(new Date(Math.min(endSource, Date.now())));
 
-    const eventDayKeys = new Set(
-      timeline.phaseTimeline.flatMap(phase => phase.eventsByDay.map(day => day.dayKey))
-    );
+    const lastEventTimeByDay = new Map<string, Date>();
+    for (const phase of timeline.phaseTimeline) {
+      for (const day of phase.eventsByDay) {
+        for (const event of day.events) {
+          const current = lastEventTimeByDay.get(day.dayKey);
+          if (!current || event.time.getTime() > current.getTime()) {
+            lastEventTimeByDay.set(day.dayKey, event.time);
+          }
+        }
+      }
+    }
 
     const days: WebcamScrubDay[] = [];
     for (const cursor = new Date(start); cursor.getTime() <= end.getTime() && days.length < 3660; cursor.setDate(cursor.getDate() + 1)) {
@@ -871,7 +883,8 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
         dayKey,
         date,
         dayNumberInCycle: this.calculateDayCount(start, date) + 1,
-        hasEvents: eventDayKeys.has(dayKey),
+        hasEvents: lastEventTimeByDay.has(dayKey),
+        lastEventTime: lastEventTimeByDay.get(dayKey),
       });
     }
 
@@ -1159,22 +1172,53 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     this.webcamImageDay = day;
+    // Days with entries overwrite the viewing time; the days in between keep
+    // it, so their photos stay comparable while scrubbing through a gap.
+    if (day.lastEventTime) {
+      this.webcamTimeMinutes = day.lastEventTime.getHours() * 60 + day.lastEventTime.getMinutes();
+    }
     this.scheduleWebcamMarkerUpdate();
+    this.queueWebcamImageLoad(day, debounceMs);
+  }
+
+  private queueWebcamImageLoad(day: WebcamScrubDay, debounceMs: number): void {
     if (this.webcamDebounceTimer) {
       clearTimeout(this.webcamDebounceTimer);
     }
     this.webcamDebounceTimer = setTimeout(() => void this.loadWebcamImage(day), debounceMs);
   }
 
+  get webcamTimeValue(): string {
+    const hours = Math.floor(this.webcamTimeMinutes / 60);
+    const minutes = this.webcamTimeMinutes % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
+
+  openWebcamTimePopover(event: Event): void {
+    this.webcamTimePopoverEvent = event;
+    this.webcamTimePopoverOpen = true;
+  }
+
+  onWebcamTimePicked(event: any): void {
+    const match = String(event.detail?.value ?? '').match(/(?:T|^)(\d{2}):(\d{2})/);
+    if (!match) {
+      return;
+    }
+
+    this.webcamTimeMinutes = Number(match[1]) * 60 + Number(match[2]);
+    if (this.webcamImageDay) {
+      this.queueWebcamImageLoad(this.webcamImageDay, 250);
+    }
+  }
+
   private async loadWebcamImage(day: WebcamScrubDay): Promise<void> {
     const requestId = ++this.webcamRequestCounter;
-    // The server returns the newest image at or before the timestamp, so the
-    // end of the day yields that day's last photo.
-    const endOfDay = new Date(day.date);
-    endOfDay.setHours(23, 59, 59, 999);
+    // The server returns the newest image at or before the requested time.
+    const atTime = new Date(day.date);
+    atTime.setHours(Math.floor(this.webcamTimeMinutes / 60), this.webcamTimeMinutes % 60, 59, 999);
 
     this.webcamImageLoading = true;
-    const url = await this.devices.getDeviceImageUrl(this.deviceId, 'jpeg', Math.min(endOfDay.getTime(), Date.now()));
+    const url = await this.devices.getDeviceImageUrl(this.deviceId, 'jpeg', Math.min(atTime.getTime(), Date.now()));
     if (requestId !== this.webcamRequestCounter) {
       return;
     }
