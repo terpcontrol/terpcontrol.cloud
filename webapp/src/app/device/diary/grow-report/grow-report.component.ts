@@ -440,6 +440,25 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
       }
     }
 
+    // A day is split into two sections when the stage changes mid-day; the
+    // gap to the next day belongs after its last events only.
+    const dayGroupsByKey = new Map<string, TimelineDayGroup[]>();
+    for (const phase of phaseTimeline) {
+      for (const day of phase.eventsByDay) {
+        const groups = dayGroupsByKey.get(day.dayKey) ?? [];
+        groups.push(day);
+        dayGroupsByKey.set(day.dayKey, groups);
+      }
+    }
+    dayGroupsByKey.forEach(groups => {
+      for (let i = 0; i < groups.length - 1; i++) {
+        groups[i].gapToNextDays = undefined;
+        groups[i].gapLabel = undefined;
+        groups[i].gapHeightPx = undefined;
+        groups[i].gapDayFractions = undefined;
+      }
+    });
+
     return {
       ...cycle,
       phaseTimeline,
