@@ -440,6 +440,18 @@ class ImageService {
           '1',
           '-y',
           ...(cloudSettings.rtspStream.startsWith('rtsp://') ? ['-rtsp_transport', cloudSettings.rtspStreamTransport ?? 'tcp'] : []),
+          // Skip ffmpeg's default stream analysis and non-keyframe decoding: we only need a
+          // single still frame, so grabbing the next keyframe immediately is far cheaper.
+          '-fflags',
+          'nobuffer',
+          '-flags',
+          'low_delay',
+          '-probesize',
+          '32',
+          '-analyzeduration',
+          '0',
+          '-skip_frame',
+          'nokey',
           '-i',
           streamUrl,
           '-q:v',
