@@ -22,6 +22,11 @@
         </ion-select-option>
       </ion-select>
     </ion-item>
+
+    <ion-button *ngIf="growCycles.length > 0" fill="outline" size="small" (click)="toggleWebcamViewer()">
+      <ion-icon [name]="webcamViewerOpen ? 'eye-off-outline' : 'camera-outline'" slot="start"></ion-icon>
+      {{ (webcamViewerOpen ? 'diary.hideWebcam' : 'diary.showWebcam') | translate }}
+    </ion-button>
   </ion-card-content>
 </ion-card>
 
@@ -90,13 +95,37 @@
       </div>
 
       <div class="ion-padding-top timeline">
+        <div
+          *ngIf="webcamViewerOpen"
+          class="webcam-scrub-strip"
+          (pointermove)="onScrubStripPointerMove($event)"
+          (click)="onScrubStripClick($event)"
+        ></div>
+        <div
+          *ngIf="webcamViewerOpen && webcamMarkerTop !== null"
+          class="webcam-marker"
+          [class.dragging]="webcamMarkerDragging"
+          [style.top.px]="webcamMarkerTop"
+          (pointerdown)="onWebcamMarkerPointerDown($event)"
+          (pointermove)="onWebcamMarkerPointerMove($event)"
+          (pointerup)="onWebcamMarkerPointerUp($event)"
+          (pointercancel)="onWebcamMarkerPointerUp($event)"
+        >
+          <ion-icon name="camera"></ion-icon>
+        </div>
+
         <div *ngFor="let phase of selectedCycleTimeline.phaseTimeline" class="phase-section" [id]="'phase-' + phase.stage">
           <div class="phase-header">{{ ('diary.lifecycleStages.' + phase.stage) | translate }}</div>
           <div class="gap-indicator">
             <div class="gap-line-vertical"></div>
           </div>
 
-          <div *ngFor="let day of phase.eventsByDay" class="day-section">
+          <div
+            *ngFor="let day of phase.eventsByDay"
+            class="day-section"
+            [attr.data-day-key]="day.dayKey"
+            [class.day-active]="webcamViewerOpen && webcamImageDay?.dayKey === day.dayKey"
+          >
             <div class="day-header">
               <div class="day-dot"></div>
               <div>
@@ -117,15 +146,27 @@
               </div>
             </div>
 
-            <div *ngIf="day.gapLabel" class="gap-indicator">
-              <div class="gap-line-vertical"></div>
+            <div
+              *ngIf="day.gapLabel"
+              class="gap-indicator gap-clickable"
+              (click)="openWebcamViewerAtGap($event)"
+              title="{{ 'diary.gapPhotos' | translate }}"
+            >
+              <div class="gap-line-wrap" [style.height.px]="day.gapHeightPx || 14">
+                <div class="gap-line-vertical"></div>
+                <div
+                  *ngFor="let fraction of day.gapDayFractions"
+                  class="gap-day-dot"
+                  [style.top.%]="fraction * 100"
+                ></div>
+              </div>
               <span class="gap-label">{{ day.gapLabel }}</span>
             </div>
           </div>
         </div>
 
         <div class="day-header">
-          <div class="day-dot"></div>
+          <div class="day-dot day-dot-today"></div>
           <div>
             {{ 'diary.today' | translate }}
           </div>
@@ -133,5 +174,55 @@
       </div>
     </ion-card-content>
   </ion-card>
+</div>
+
+<div class="webcam-float" *ngIf="webcamViewerOpen && webcamScrubDays.length > 0">
+  <div class="webcam-float-header">
+    <span class="webcam-day-label" *ngIf="webcamImageDay">
+      {{ 'diary.day' | translate }} {{ webcamImageDay.dayNumberInCycle }} • {{ webcamImageDay.date | date:'mediumDate' }}
+    </span>
+    <span
+      *ngIf="webcamImageDay"
+      class="webcam-time"
+      (click)="openWebcamTimePopover($event)"
+      title="{{ 'diary.webcamTime' | translate }}"
+    >
+      {{ webcamTimeValue }}
+      <ion-icon name="time-outline"></ion-icon>
+    </span>
+    <ion-button fill="clear" size="small" (click)="toggleWebcamViewer()">
+      <ion-icon name="close-outline"></ion-icon>
+    </ion-button>
+  </div>
+  <ion-popover
+    [isOpen]="webcamTimePopoverOpen"
+    [event]="webcamTimePopoverEvent"
+    (didDismiss)="webcamTimePopoverOpen = false"
+  >
+    <ng-template>
+      <ion-datetime
+        presentation="time"
+        [value]="webcamTimeValue"
+        (ionChange)="onWebcamTimePicked($event)"
+      ></ion-datetime>
+    </ng-template>
+  </ion-popover>
+  <div class="webcam-float-frame">
+    <img
+      *ngIf="webcamImageUrl"
+      [src]="webcamImageUrl"
+      alt="Webcam"
+      (load)="onWebcamImageSettled()"
+      (error)="onWebcamImageSettled()"
+    />
+    <ion-spinner *ngIf="webcamImageLoading" class="webcam-spinner"></ion-spinner>
+  </div>
+  <ion-range
+    min="0"
+    [max]="webcamScrubDays.length - 1"
+    step="1"
+    [value]="webcamScrubIndex"
+    (ionChange)="onWebcamScrub($event)"
+  ></ion-range>
 </div>
 
