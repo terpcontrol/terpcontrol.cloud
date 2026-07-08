@@ -181,7 +181,7 @@ namespace fg {
 
     state.timeofday = ptm->tm_sec + 60 * ptm->tm_min + 60 * 60 * ptm->tm_hour;
 
-    if(settings.workmode == ControllerControllerSettings::MODE_EXP || settings.workmode == ControllerControllerSettings::MODE_SMALL || settings.workmode == ControllerControllerSettings::MODE_TEMP) {
+    if(settings.workmode == ControllerControllerSettings::MODE_SMALL || settings.workmode == ControllerControllerSettings::MODE_TEMP) {
       if(settings.daynight.day > settings.daynight.night) {
         state.is_day = state.timeofday > settings.daynight.day || state.timeofday < settings.daynight.night;
       }

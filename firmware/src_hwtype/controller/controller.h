@@ -22,7 +22,6 @@ namespace fg {
     static constexpr const char* MODE_DRY = "dry";
     static constexpr const char* MODE_BREED = "breed";
     static constexpr const char* MODE_OFF = "off";
-    static constexpr const char* MODE_EXP = "exp";
 
     struct {
       uint32_t day = 21600;
