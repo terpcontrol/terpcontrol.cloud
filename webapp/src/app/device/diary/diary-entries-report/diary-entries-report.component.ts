@@ -27,6 +27,8 @@ export class DiaryEntriesReportComponent implements OnInit, OnChanges, OnDestroy
   @Input() deviceId = '';
   @Input() lastUpdated: number | undefined;
   @Input() readOnly = false;
+  // View-only share link: the category filter is locked to the shared view.
+  @Input() locked = false;
 
   public logs: LogEntry[] = [];
   private allLogs: LogEntry[] = [];

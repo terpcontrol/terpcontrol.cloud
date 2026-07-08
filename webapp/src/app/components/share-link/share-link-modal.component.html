@@ -1,0 +1,59 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>{{ 'share.title' | translate }}</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="close()">{{ 'misc.close' | translate }}</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <p class="share-intro">{{ 'share.intro.' + page | translate }}</p>
+
+  <ion-radio-group [(ngModel)]="editable" (ngModelChange)="optionsChanged()">
+    <ion-item lines="none">
+      <ion-radio slot="start" [value]="false"></ion-radio>
+      <ion-label class="ion-text-wrap">
+        <h3>{{ 'share.viewOnly' | translate }}</h3>
+        <p>{{ 'share.viewOnlyHint' | translate }}</p>
+      </ion-label>
+    </ion-item>
+    <ion-item lines="none">
+      <ion-radio slot="start" [value]="true"></ion-radio>
+      <ion-label class="ion-text-wrap">
+        <h3>{{ 'share.interactive' | translate }}</h3>
+        <p>{{ 'share.interactiveHint.' + page | translate }}</p>
+      </ion-label>
+    </ion-item>
+  </ion-radio-group>
+
+  <ion-item lines="none">
+    <ion-label>{{ 'share.expiry' | translate }}</ion-label>
+    <ion-select [(ngModel)]="validDays" (ngModelChange)="optionsChanged()" interface="popover">
+      <ion-select-option [value]="1">{{ 'share.expiresIn.day' | translate }}</ion-select-option>
+      <ion-select-option [value]="7">{{ 'share.expiresIn.week' | translate }}</ion-select-option>
+      <ion-select-option [value]="30">{{ 'share.expiresIn.month' | translate }}</ion-select-option>
+      <ion-select-option [value]="null">{{ 'share.expiresIn.never' | translate }}</ion-select-option>
+    </ion-select>
+  </ion-item>
+
+  <ion-button *ngIf="!createdLink" expand="block" (click)="createLink()" [disabled]="creating">
+    <ion-spinner *ngIf="creating" name="crescent"></ion-spinner>
+    <span *ngIf="!creating">{{ 'share.createLink' | translate }}</span>
+  </ion-button>
+
+  <ion-text color="danger" *ngIf="error">
+    <p>{{ 'misc.errorOccurred' | translate }}</p>
+  </ion-text>
+
+  <ng-container *ngIf="createdLink">
+    <ion-item lines="none">
+      <ion-input readonly [value]="createdLink"></ion-input>
+      <ion-button slot="end" (click)="copyLink()">
+        <ion-icon [name]="copied ? 'checkmark-outline' : 'copy-outline'" slot="start"></ion-icon>
+        {{ (copied ? 'share.copied' : 'share.copy') | translate }}
+      </ion-button>
+    </ion-item>
+    <p class="share-hint">{{ 'share.manageHint' | translate }}</p>
+  </ng-container>
+</ion-content>

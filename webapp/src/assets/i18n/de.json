@@ -17,7 +17,6 @@
     "unableToSaveSettings": "Einstellungen konnten nicht gespeichert werden",
     "unableToLoadSettings": "Einstellungen konnten nicht geladen werden"
   },
-
   "settings": {
     "title": "Einstellungen",
     "daynight": "Tag/Nacht Zyklus",
@@ -122,8 +121,6 @@
     },
     "firmwareVersion": "Firmware-Version",
     "betaFeatures": "Beta Funktionen (Cloud)",
-    "publicRead": "Öffentlich lesen",
-    "publicReadHint": "Falls aktiviert, können andere Personen die Graphen-Seite, die Tagebuch-Seite und alle Webcam-Bilder sehen, wenn sie den Link haben.",
     "rtspStream": "Webcam Stream URL",
     "rtspStreamHint": "Trage hier die URL deiner Webcam ein um Webcam Streaming im Portal zu aktivieren, z.B. \"rtsp://user:password@my-public-hostname-or-ip.com:554/\". Die Eingabe hier muss durch FFMPEG verarbeitet werden können.",
     "rtspStreamTransport": "RTSP Transportprotokoll",
@@ -138,12 +135,62 @@
     "dangerZone": "Gefahrenzone",
     "deleteDevice": "Gerät löschen"
   },
-
   "menu": {
     "devices": "Geräte",
+    "shares": "Geteilte Links",
     "account": "Benutzer",
     "logout": "Ausloggen",
     "darkMode": "Dark Mode"
+  },
+  "share": {
+    "button": "Teilen",
+    "title": "Diese Seite teilen",
+    "pageTitle": "Geteilte Links",
+    "intro": {
+      "charts": "Erstelle einen Link, mit dem jeder diese Graphen-Seite ansehen kann - ganz ohne Konto.",
+      "diary": "Erstelle einen Link, mit dem jeder dieses Tagebuch ansehen kann - ganz ohne Konto."
+    },
+    "viewOnly": "Nur ansehen",
+    "viewOnlyHint": "Besucher sehen genau diese Ansicht und können sie nicht verändern.",
+    "interactive": "Interaktiv",
+    "interactiveHint": {
+      "charts": "Besucher können Zeitraum, Messwerte und Log-Filter ändern.",
+      "diary": "Besucher können Berichte wechseln, Strain und Filter ändern und die Webcam ansehen."
+    },
+    "expiry": "Link läuft ab",
+    "expiresIn": {
+      "day": "Nach 1 Tag",
+      "week": "Nach 1 Woche",
+      "month": "Nach 1 Monat",
+      "never": "Nie"
+    },
+    "createLink": "Link erstellen",
+    "copy": "Kopieren",
+    "copied": "Kopiert!",
+    "manageHint": "Unter „Geteilte Links“ im Menü siehst du, wie oft der Link geöffnet wurde, und kannst ihn jederzeit zurückziehen.",
+    "activeLinks": "Aktive Links",
+    "inactiveLinks": "Abgelaufene & zurückgezogene Links",
+    "noLinks": "Noch keine geteilten Links. Nutze den Teilen-Button auf einer Graphen- oder Tagebuch-Seite, um einen zu erstellen.",
+    "page": {
+      "charts": "Graph",
+      "diary": "Tagebuch"
+    },
+    "status": {
+      "active": "Aktiv",
+      "expired": "Abgelaufen",
+      "revoked": "Zurückgezogen"
+    },
+    "created": "Erstellt",
+    "expires": "Läuft ab",
+    "expired": "Abgelaufen",
+    "revoked": "Zurückgezogen",
+    "neverExpires": "Läuft nie ab",
+    "openCount": "Aufrufe: {{count}}",
+    "revoke": "Zurückziehen",
+    "revokeConfirmTitle": "Link zurückziehen?",
+    "revokeConfirmText": "Der Link funktioniert sofort nicht mehr. Das kann nicht rückgängig gemacht werden.",
+    "delete": "Löschen",
+    "deleteInactive": "Alle abgelaufenen & zurückgezogenen Links löschen"
   },
   "account": {
     "title": "Benutzer",
@@ -179,7 +226,6 @@
     "logsNoFilteredEntries": "Keine Log-Meldungen für die gewählten Filter",
     "moreHiddenMessages": "Es gibt {{count}} weitere Log-Meldungen. Bitte Auswahl reduzieren."
   },
-
   "devices": {
     "button-settings": "Einstellungen",
     "button-maintenance-mode": "Wartungsmodus",
@@ -190,7 +236,6 @@
     "device-log": "Logs",
     "clear-log": "Logs löschen",
     "button-diary": "Tagebuch",
-
     "fridge": {
       "title": "Terp Control FRIDGE GROW",
       "workmode": "Arbeitsmodus",
@@ -261,7 +306,6 @@
         "emailAddress": "E-Mail Adresse"
       }
     },
-
     "fan": {
       "title": "Terp Control AIR",
       "workmode": "Arbeitsmodus",
@@ -275,11 +319,9 @@
         "clear": "Verbindung aufheben"
       }
     },
-
     "light": {
       "title": "Terp Control LIGHT"
     },
-
     "plug": {
       "title": "Terp Control SMART SOCKET",
       "workmode": "Arbeitsmodus",
@@ -364,7 +406,6 @@
       }
     }
   },
-
   "diary": {
     "title": "Tagebuch",
     "addEntry": "Eintrag hinzufügen",
@@ -435,7 +476,6 @@
     "gapPhotos": "Fotos der Tage dazwischen anzeigen",
     "webcamTime": "Uhrzeit des Fotos"
   },
-
   "message-lost-connection-title": "Verbindungsproblem",
   "message-lost-connection-text": "Die Verbindung zwischen deinem Gerät und unserem Server ist abgebrochen und wurde wiederhergestellt. Wenn dieser Fehler oft auftritt überprüfe bitte dein WLAN und deine Internetverbindung.",
   "message-device-booted-title": "Gerät hat neu gestartet",

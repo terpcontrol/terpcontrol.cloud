@@ -357,11 +357,8 @@ class DeviceRoute implements Routes {
      * /device/cloudsettings/{device_id}:
      *   get:
      *     summary: Get device access info and cloud settings
-     *     description: Returns a unified payload with device metadata, whether the viewer is treated as public, and the effective cloud settings. If `publicRead` is enabled this endpoint is reachable without authentication.
+     *     description: Returns a unified payload with device metadata and the effective cloud settings. Owner only; share-link visitors use `/share/resolve/{share_id}` instead.
      *     tags: [Devices]
-     *     security:
-     *       - bearerAuth: []
-     *       - {}
      *     parameters:
      *       - in: path
      *         name: device_id
@@ -1112,7 +1109,7 @@ class DeviceRoute implements Routes {
      * /device/logs/{device_id}:
      *   get:
      *     summary: Get device log entries
-     *     description: Returns log entries for owned devices and for devices with `publicRead` enabled.
+     *     description: Returns log entries for owned devices and for devices opened through a valid share link (`share` query parameter or `X-Share-Token` header).
      *     tags: [Devices]
      *     security:
      *       - bearerAuth: []

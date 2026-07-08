@@ -104,7 +104,6 @@ const deviceSchema: Schema = new Schema({
       autoFirmwareUpdate: { type: Boolean, required: false },
       firmwareChannel: { type: String, enum: ['stable', 'beta', 'alpha', 'manual'], required: false },
       pendingFirmware: { type: String, required: false },
-      publicRead: { type: Boolean, required: false },
       vpdLeafTempOffsetDay: { type: Number, required: false },
       vpdLeafTempOffsetNight: { type: Number, required: false },
       ppfdLuxFactor: { type: Number, required: false },

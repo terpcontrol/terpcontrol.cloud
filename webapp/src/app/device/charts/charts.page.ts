@@ -7,9 +7,10 @@ import {DataService} from 'src/app/services/data.service';
 import * as Highcharts from 'highcharts/highstock';
 import {YAxisOptions} from 'highcharts/highstock';
 import {DeviceService} from 'src/app/services/devices.service';
-import {IonModal} from "@ionic/angular";
+import {IonModal, ModalController} from "@ionic/angular";
 import {collectLogCategories, matchesLogCategory,} from '../log-entry-viewer/log-entry-viewer.component';
-import type { DeviceLog } from '@fg2/shared-types';
+import type { DeviceLog, ShareAccess } from '@fg2/shared-types';
+import { ShareLinkModalComponent } from '../../components/share-link/share-link-modal.component';
 
 declare var require: any;
 let Boost = require('highcharts/modules/boost');
@@ -153,6 +154,10 @@ export class ChartsPage implements OnInit, OnDestroy {
   public device_type: string = "";
   public cloudSettings: any = {};
   public isPublic = false;
+  public share?: ShareAccess;
+  // A view-only share link: the visitor sees the shared view but cannot change it.
+  public locked = false;
+  private shareToken: string | null = null;
 
   public autoUpdate: boolean = false;
 
@@ -205,7 +210,13 @@ export class ChartsPage implements OnInit, OnDestroy {
 
   public selectedLogs: DeviceLog[] = [];
 
-  constructor(private route: ActivatedRoute, private router: Router, private data: DataService, private devices: DeviceService) {
+  constructor(
+    private route: ActivatedRoute,
+    private router: Router,
+    private data: DataService,
+    private devices: DeviceService,
+    private modalController: ModalController,
+  ) {
     this.chartOptions = {
       chart: {
         animation: true,
@@ -452,6 +463,7 @@ export class ChartsPage implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.device_id = this.route.snapshot.paramMap.get('device_id') || '';
+    this.shareToken = this.route.snapshot.queryParamMap.get('share');
     if (this.route.snapshot.queryParams?.['measures']) {
       const selectedMeasures = String(this.route.snapshot.queryParams['measures']).split(',');
       this.measures.forEach(measure => measure.enabled = selectedMeasures.includes(measure.name));
@@ -501,6 +513,8 @@ export class ChartsPage implements OnInit, OnDestroy {
     void this.devices.resolveDeviceAccessInfo(this.device_id)
       .then(deviceAccessInfo => {
         this.isPublic = deviceAccessInfo.isPublic;
+        this.share = deviceAccessInfo.share;
+        this.locked = !!this.share && !this.share.editable;
         this.device_type = deviceAccessInfo.device_type || '';
         this.cloudSettings = deviceAccessInfo.cloudSettings || {};
 
@@ -786,6 +800,7 @@ export class ChartsPage implements OnInit, OnDestroy {
       timespan: this.selectedTimespan?.name ?? '',
       interval: this.selectedInterval ?? '',
       logs: this.showLogs ? this.selectedLogCategories.join(',') : '',
+      ...(this.shareToken ? { share: this.shareToken } : {}),
     };
     await this.router.navigate(['device', this.device_id, 'charts'], {queryParams, replaceUrl: true});
   }
@@ -857,6 +872,18 @@ export class ChartsPage implements OnInit, OnDestroy {
 
   public onChartInstance(chart: Highcharts.Chart) {
     this.chartInstance = chart;
+  }
+
+  public async openShareModal() {
+    const modal = await this.modalController.create({
+      component: ShareLinkModalComponent,
+      componentProps: {
+        deviceId: this.device_id,
+        page: 'charts',
+        webcamActive: this.showImage,
+      },
+    });
+    await modal.present();
   }
 
   public showLightOffsetControls(): boolean {

@@ -9,7 +9,7 @@
     </ion-item>
 
     <app-log-category-selector
-      *ngIf="!loading && availableLogCategories.length > 0"
+      *ngIf="!loading && availableLogCategories.length > 0 && !locked"
       [availableCategories]="availableLogCategories"
       [selectedCategories]="selectedLogCategories"
       (selectedCategoriesChange)="logCategoryChanged($event)"

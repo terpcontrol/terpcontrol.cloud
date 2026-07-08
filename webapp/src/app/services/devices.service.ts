@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Subject, firstValueFrom } from 'rxjs';
 import { environment } from 'src/environments/environment';
 import { AuthService } from '../auth/auth.service';
+import { ShareService, currentShareToken } from './share.service';
 import type {
   CloudSettings,
   DiaryEntryData,
@@ -116,7 +117,7 @@ export class DeviceService {
 
   public devices: BehaviorSubject<DeviceWithParsedSettings[]> = new BehaviorSubject<DeviceWithParsedSettings[]>([]);
 
-  constructor(private http: HttpClient, private auth: AuthService) {
+  constructor(private http: HttpClient, private auth: AuthService, private shares: ShareService) {
     this.fetchDevices();
   }
 
@@ -186,7 +187,20 @@ export class DeviceService {
       };
     }
 
-    return this.getDeviceAccessInfo(device_id);
+    const shareToken = currentShareToken();
+
+    try {
+      return await this.getDeviceAccessInfo(device_id);
+    } catch (error) {
+      // Not the owner: the page must have been opened through a share link.
+      if (shareToken) {
+        const accessInfo = await this.shares.resolve(shareToken);
+        if (accessInfo.device_id === device_id) {
+          return accessInfo;
+        }
+      }
+      throw error;
+    }
   }
 
   public async getRecipe(device_id:string): Promise<Recipe | null> {
@@ -207,7 +221,9 @@ export class DeviceService {
   public async getDeviceImageUrl(device_id: string, format: 'mp4' | 'jpeg' | 'user/jpeg', timestamp?: number, duration?: string, imageId?: string): Promise<string> {
     const token = await this.auth.getImageToken();
     const tokenQuery = token ? `&token=${token}` : '';
-    return `${environment.API_URL}/image/${device_id}?timestamp=${timestamp ?? (imageId ? '' : (Math.ceil(Date.now()/5000)*5000))}${tokenQuery}&format=${format}&duration=${duration ?? ''}&image_id=${imageId ?? ''}`;
+    const shareToken = currentShareToken();
+    const shareQuery = shareToken ? `&share=${encodeURIComponent(shareToken)}` : '';
+    return `${environment.API_URL}/image/${device_id}?timestamp=${timestamp ?? (imageId ? '' : (Math.ceil(Date.now()/5000)*5000))}${tokenQuery}${shareQuery}&format=${format}&duration=${duration ?? ''}&image_id=${imageId ?? ''}`;
   }
 
   public async testWebcamStream(device_id: string, settings: { rtspStream: string; rtspStreamTransport?: string; tunnelRtspStream?: boolean }): Promise<Blob> {

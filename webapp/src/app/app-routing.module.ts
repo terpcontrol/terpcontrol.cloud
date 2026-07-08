@@ -49,6 +49,11 @@ const routes: Routes = [
     loadChildren: () => import('./account/account.module').then( m => m.AccountPageModule)
   },
   {
+    path: 'shares',
+    canActivate:[AuthGuard],
+    loadChildren: () => import('./shares/shares.module').then( m => m.SharesPageModule)
+  },
+  {
     path: 'classes',
     loadChildren: () => import('./classes/classes.module').then( m => m.ClassesPageModule)
   }

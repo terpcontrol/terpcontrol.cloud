@@ -4,6 +4,11 @@
       <ion-menu-button></ion-menu-button>
     </ion-buttons>
     <ion-title>{{'diary.title' | translate}}</ion-title>
+    <ion-buttons slot="end" *ngIf="canEdit">
+      <ion-button (click)="openShareModal()" [title]="'share.button' | translate">
+        <ion-icon slot="icon-only" name="share-social-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 <ion-content>
@@ -19,6 +24,7 @@
           [(ngModel)]="selectedReport"
           [interfaceOptions]="{'cssClass': 'wider-popover'}"
           (ngModelChange)="reportSelected()"
+          [disabled]="locked"
           class="ion-float-right"
         >
           <ion-select-option value="entries">{{ 'diary.entriesReport' | translate}}</ion-select-option>
@@ -39,6 +45,8 @@
       *ngIf="selectedReport === 'growreport'"
       [deviceId]="deviceId"
       [isPublic]="isPublic"
+      [locked]="locked"
+      [webcamAllowed]="webcamAllowed"
       [lastUpdated]="lastUpdated"
     ></app-grow-report>
 
@@ -46,6 +54,7 @@
       *ngIf="selectedReport === 'entries'"
       [deviceId]="deviceId"
       [readOnly]="!canEdit"
+      [locked]="locked"
       [lastUpdated]="lastUpdated"
     ></app-diary-entries-report>
   </ng-container>

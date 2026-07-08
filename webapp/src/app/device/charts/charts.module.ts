@@ -12,6 +12,7 @@ import { ChartsPage } from './charts.page';
 import { PipesModule } from 'src/app/pipes/pipes.module';
 import { TranslateModule } from '@ngx-translate/core';
 import { LogEntryViewerModule } from '../log-entry-viewer/log-entry-viewer.module';
+import { ShareLinkModule } from '../../components/share-link/share-link.module';
 
 @NgModule({
   imports: [
@@ -24,6 +25,7 @@ import { LogEntryViewerModule } from '../log-entry-viewer/log-entry-viewer.modul
     PipesModule,
     TranslateModule.forChild(),
     LogEntryViewerModule,
+    ShareLinkModule,
   ],
   declarations: [ChartsPage]
 })

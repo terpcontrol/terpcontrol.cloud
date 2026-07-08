@@ -4,7 +4,7 @@
   </ion-card-header>
   <ion-card-content>
     <app-log-category-selector
-      *ngIf="availableLogCategories.length > 0"
+      *ngIf="availableLogCategories.length > 0 && !locked"
       [availableCategories]="availableLogCategories"
       [selectedCategories]="selectedLogCategories"
       (selectedCategoriesChange)="onCategoryChanged($event)"
@@ -16,6 +16,7 @@
         [(ngModel)]="selectedCycleIndex"
         (ionChange)="onCycleSelected($event)"
         [interfaceOptions]="{'cssClass': 'wider-popover'}"
+        [disabled]="locked"
       >
         <ion-select-option *ngFor="let cycle of growCycles; let index = index" [value]="index">
           {{ cycle.name }}
@@ -23,7 +24,7 @@
       </ion-select>
     </ion-item>
 
-    <ion-button *ngIf="growCycles.length > 0" fill="outline" size="small" (click)="toggleWebcamViewer()">
+    <ion-button *ngIf="growCycles.length > 0 && webcamAllowed && !locked" fill="outline" size="small" (click)="toggleWebcamViewer()">
       <ion-icon [name]="webcamViewerOpen ? 'eye-off-outline' : 'camera-outline'" slot="start"></ion-icon>
       {{ (webcamViewerOpen ? 'diary.hideWebcam' : 'diary.showWebcam') | translate }}
     </ion-button>
@@ -44,7 +45,7 @@
     <ion-card-header>
       <ion-card-subtitle>
         {{ selectedCycleTimeline.name }}
-        <ion-button fill="clear" size="small" (click)="navigateToChartsForCycle()" title="{{ 'diary.viewCycleChart' | translate }}">
+        <ion-button *ngIf="!isPublic" fill="clear" size="small" (click)="navigateToChartsForCycle()" title="{{ 'diary.viewCycleChart' | translate }}">
           <ion-icon name="analytics-outline"></ion-icon>
         </ion-button>
       </ion-card-subtitle>
@@ -86,7 +87,7 @@
                 <span class="phase-duration">• {{ summary.durationDays }} {{ summary.durationDays === 1 ? ('diary.day' | translate) : ('diary.days' | translate) }} ({{ 'diary.totalDay' | translate }}: {{ summary.totalDaysFromStart }} - {{ summary.totalDaysFromStart + summary.durationDays - 1 }})</span>
               </p>
             </ion-label>
-            <ion-button fill="clear" slot="end" (click)="navigateToCharts(summary)" title="{{ 'diary.viewChart' | translate }}">
+            <ion-button *ngIf="!isPublic" fill="clear" slot="end" (click)="navigateToCharts(summary)" title="{{ 'diary.viewChart' | translate }}">
               <ion-icon name="analytics-outline"></ion-icon>
             </ion-button>
             <ion-icon name="chevron-forward-outline" slot="end" (click)="scrollToPhase(summary.stage)" style="cursor: pointer;"></ion-icon>
@@ -190,7 +191,7 @@
       {{ webcamTimeValue }}
       <ion-icon name="time-outline"></ion-icon>
     </span>
-    <ion-button fill="clear" size="small" (click)="toggleWebcamViewer()">
+    <ion-button *ngIf="!locked" fill="clear" size="small" (click)="toggleWebcamViewer()">
       <ion-icon name="close-outline"></ion-icon>
     </ion-button>
   </div>

@@ -6,8 +6,9 @@ import {DeviceService} from 'src/app/services/devices.service';
 import { ModalController } from '@ionic/angular';
 import {DiaryEntryModalComponent, defaultDiaryEntries} from './diary-entry-modal/diary-entry-modal.component';
 import {OverlayEventDetail} from "@ionic/core/components";
-import type { DiaryEntry } from '@fg2/shared-types';
+import type { DiaryEntry, ShareAccess } from '@fg2/shared-types';
 import { DEFAULT_DIARY_REPORT, DiaryReport, mergeDiaryQueryParams, parseDiaryReport } from './diary-query-params';
+import { ShareLinkModalComponent } from '../../components/share-link/share-link-modal.component';
 
 @Component({
   selector: 'app-diary',
@@ -20,6 +21,10 @@ export class DiaryPage implements OnInit, OnDestroy {
   public lastUpdated: number | undefined;
   public isPublic = false;
   public canEdit = true;
+  public share?: ShareAccess;
+  // A view-only share link: the visitor sees the shared view but cannot change it.
+  public locked = false;
+  public webcamAllowed = true;
 
   public selectedReport: DiaryReport = 'entries';
 
@@ -44,6 +49,9 @@ export class DiaryPage implements OnInit, OnDestroy {
       .then(deviceAccessInfo => {
         this.isPublic = deviceAccessInfo.isPublic;
         this.canEdit = !deviceAccessInfo.isPublic;
+        this.share = deviceAccessInfo.share;
+        this.locked = !!this.share && !this.share.editable;
+        this.webcamAllowed = !deviceAccessInfo.isPublic || !!this.share?.webcam;
         this.cloudSettings = deviceAccessInfo.cloudSettings || {};
       })
       .catch(() => {
@@ -95,5 +103,17 @@ export class DiaryPage implements OnInit, OnDestroy {
     void mergeDiaryQueryParams(this.router, this.route, {
       report: this.selectedReport === DEFAULT_DIARY_REPORT ? null : this.selectedReport,
     });
+  }
+
+  async openShareModal() {
+    const modal = await this.modalController.create({
+      component: ShareLinkModalComponent,
+      componentProps: {
+        deviceId: this.deviceId,
+        page: 'diary',
+        webcamActive: this.route.snapshot.queryParamMap.get('webcamViewer') === 'true',
+      },
+    });
+    await modal.present();
   }
 }

@@ -8,3 +8,7 @@ firmware/src/mqtt_ca.gen.h
 
 # MQTTS CA private key saved by scripts/setup-mqtts.sh (secret).
 mqtts-ca.key
+
+# Local compose overrides for development.
+docker-compose.override.yml
+

@@ -95,6 +95,9 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   @Input() deviceId = '';
   @Input() lastUpdated: number | undefined;
   @Input() isPublic = false;
+  // View-only share link: filters, cycle selection, and the webcam toggle are locked.
+  @Input() locked = false;
+  @Input() webcamAllowed = true;
 
   private devicesSubscription: Subscription | undefined;
   private queryParamsSubscription: Subscription | undefined;
@@ -156,7 +159,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
       this.requestedCycleStart = parseNumberQueryParam(params.get('growCycle'));
       const parsedWebcamViewerOpen = parseBooleanQueryParam(params.get('webcamViewer'));
       if (parsedWebcamViewerOpen !== undefined) {
-        this.webcamViewerOpen = parsedWebcamViewerOpen;
+        this.webcamViewerOpen = parsedWebcamViewerOpen && this.webcamAllowed;
       }
 
       if (this.growCycles.length > 0) {
@@ -204,6 +207,11 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     if ((changes['lastUpdated'] && !changes['lastUpdated'].firstChange)
       || (changes['deviceId'] && !changes['deviceId'].firstChange)) {
       void this.loadData();
+    }
+
+    // Access info resolves async: close the viewer if webcam access turns out to be excluded.
+    if (changes['webcamAllowed'] && !this.webcamAllowed && this.webcamViewerOpen) {
+      this.webcamViewerOpen = false;
     }
   }
 
