@@ -14,6 +14,8 @@ namespace fg {
 
   struct ControllerControllerSettings {
 
+    // "full" (Big Plant) was removed on the controller. The constant is kept
+    // only to map legacy settings to MODE_SMALL in loadSettings().
     static constexpr const char* MODE_FULL = "full";
     static constexpr const char* MODE_SMALL = "small";
     static constexpr const char* MODE_TEMP = "temp";
