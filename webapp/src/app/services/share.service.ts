@@ -42,7 +42,8 @@ export class ShareService {
     page: SharePage;
     editable: boolean;
     webcam: boolean;
-    valid_days: number | null;
+    /** Epoch ms when the link expires; null for a link that never expires. */
+    expires_at: number | null;
     query?: string;
   }): Promise<ShareLink> {
     return await firstValueFrom(this.http.post<ShareLink>(environment.API_URL + '/share', options));

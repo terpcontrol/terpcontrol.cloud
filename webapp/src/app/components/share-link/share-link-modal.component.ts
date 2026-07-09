@@ -16,7 +16,9 @@ export class ShareLinkModalComponent {
   @Input() webcamActive = false;
 
   public editable = false;
-  public validDays: number | null = 7;
+  // Date (YYYY-MM-DD) at whose end the link expires; empty means it never expires.
+  public expiresDate = ShareLinkModalComponent.toDateString(new Date(Date.now() + 7 * 86400000));
+  public minExpiresDate = ShareLinkModalComponent.toDateString(new Date());
   public creating = false;
   public createdLink = '';
   public copied = false;
@@ -24,9 +26,33 @@ export class ShareLinkModalComponent {
 
   constructor(private modalController: ModalController, private shares: ShareService) {}
 
+  private static toDateString(date: Date): string {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
+
   public optionsChanged() {
     this.createdLink = '';
     this.copied = false;
+  }
+
+  public expiryPicked(modal: { dismiss: () => Promise<boolean> }) {
+    this.optionsChanged();
+    void modal.dismiss();
+  }
+
+  public clearExpiry(modal: { dismiss: () => Promise<boolean> }) {
+    this.expiresDate = '';
+    this.optionsChanged();
+    void modal.dismiss();
+  }
+
+  private expiresAt(): number | null {
+    if (!this.expiresDate) {
+      return null;
+    }
+
+    const [year, month, day] = this.expiresDate.slice(0, 10).split('-').map(Number);
+    return new Date(year, month - 1, day, 23, 59, 59, 999).getTime();
   }
 
   public async createLink() {
@@ -41,7 +67,7 @@ export class ShareLinkModalComponent {
         page: this.page,
         editable: this.editable,
         webcam: this.webcamActive,
-        valid_days: this.validDays,
+        expires_at: this.expiresAt(),
         query: query.toString(),
       });
 

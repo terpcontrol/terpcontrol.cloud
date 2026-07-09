@@ -81,10 +81,10 @@ class ShareRoute implements Routes {
      *               webcam:
      *                 type: boolean
      *                 description: Whether webcam images are included in a view-only link.
-     *               valid_days:
+     *               expires_at:
      *                 type: number
      *                 nullable: true
-     *                 description: Days until the link expires. Omit or null for a link that never expires.
+     *                 description: Epoch ms when the link expires (must be in the future). Omit or null for a link that never expires.
      *     responses:
      *       '201':
      *         description: Created share link

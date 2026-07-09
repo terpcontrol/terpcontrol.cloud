@@ -29,12 +29,36 @@
 
   <ion-item lines="none">
     <ion-label>{{ 'share.expiry' | translate }}</ion-label>
-    <ion-select [(ngModel)]="validDays" (ngModelChange)="optionsChanged()" interface="popover">
-      <ion-select-option [value]="1">{{ 'share.expiresIn.day' | translate }}</ion-select-option>
-      <ion-select-option [value]="7">{{ 'share.expiresIn.week' | translate }}</ion-select-option>
-      <ion-select-option [value]="30">{{ 'share.expiresIn.month' | translate }}</ion-select-option>
-      <ion-select-option [value]="null">{{ 'share.expiresIn.never' | translate }}</ion-select-option>
-    </ion-select>
+    <ion-button id="share-expiry-trigger" fill="outline" size="small" slot="end">
+      {{ expiresDate ? ('share.endOfDate' | translate: { date: (expiresDate | date: 'mediumDate') }) : ('share.never' | translate) }}
+    </ion-button>
+    <ion-modal #shareExpiryModal trigger="share-expiry-trigger" [keepContentsMounted]="true">
+      <ng-template>
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>{{ 'share.expiry' | translate }}</ion-title>
+            <ion-buttons slot="end">
+              <ion-button (click)="shareExpiryModal.dismiss()">{{ 'misc.close' | translate }}</ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content>
+          <ion-datetime
+            presentation="date"
+            [min]="minExpiresDate"
+            [(ngModel)]="expiresDate"
+            (ionChange)="expiryPicked(shareExpiryModal)"
+          ></ion-datetime>
+        </ion-content>
+        <ion-footer>
+          <ion-toolbar>
+            <ion-buttons slot="end">
+              <ion-button (click)="clearExpiry(shareExpiryModal)">{{ 'share.neverExpires' | translate }}</ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-footer>
+      </ng-template>
+    </ion-modal>
   </ion-item>
 
   <ion-button *ngIf="!createdLink" expand="block" (click)="createLink()" [disabled]="creating">

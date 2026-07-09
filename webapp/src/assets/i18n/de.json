@@ -158,12 +158,8 @@
       "diary": "Besucher können Berichte wechseln, Strain und Filter ändern und die Webcam ansehen."
     },
     "expiry": "Link läuft ab",
-    "expiresIn": {
-      "day": "Nach 1 Tag",
-      "week": "Nach 1 Woche",
-      "month": "Nach 1 Monat",
-      "never": "Nie"
-    },
+    "never": "Nie",
+    "endOfDate": "Ende des {{date}}",
     "createLink": "Link erstellen",
     "copy": "Kopieren",
     "copied": "Kopiert!",

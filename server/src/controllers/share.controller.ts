@@ -15,15 +15,15 @@ const inactiveShareFilter = () => ({ $or: [{ revokedAt: { $ne: null } }, { expir
 class ShareController {
   public create = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
-      const { device_id, page, editable, webcam, valid_days, query } = req.body ?? {};
+      const { device_id, page, editable, webcam, expires_at, query } = req.body ?? {};
 
       if (!device_id || !SHARE_PAGES.includes(page)) {
         return res.status(400).json({ error: 'Missing device_id or invalid page' });
       }
 
-      const validDays = valid_days === null || valid_days === undefined ? null : Number(valid_days);
-      if (validDays !== null && (!Number.isFinite(validDays) || validDays <= 0)) {
-        return res.status(400).json({ error: 'Invalid valid_days' });
+      const expiresAt = expires_at === null || expires_at === undefined ? null : Number(expires_at);
+      if (expiresAt !== null && (!Number.isFinite(expiresAt) || expiresAt <= Date.now())) {
+        return res.status(400).json({ error: 'expires_at must be in the future' });
       }
 
       if (!(await isUserDeviceMiddelware(req, res, device_id))) {
@@ -40,7 +40,7 @@ class ShareController {
         webcam: !!editable || !!webcam,
         query: typeof query === 'string' ? query.slice(0, 2000) : undefined,
         createdAt: Date.now(),
-        expiresAt: validDays === null ? null : Date.now() + validDays * 86400000,
+        expiresAt,
       });
 
       res.status(201).json(share);

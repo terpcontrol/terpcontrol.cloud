@@ -161,12 +161,8 @@
       "diary": "Visitors can switch reports, change strain and filters, and view the webcam."
     },
     "expiry": "Link expires",
-    "expiresIn": {
-      "day": "After 1 day",
-      "week": "After 1 week",
-      "month": "After 1 month",
-      "never": "Never"
-    },
+    "never": "Never",
+    "endOfDate": "End of {{date}}",
     "createLink": "Create link",
     "copy": "Copy",
     "copied": "Copied!",
