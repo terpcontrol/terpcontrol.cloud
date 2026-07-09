@@ -203,10 +203,14 @@
       <div *ngIf="showImage">
         <img *ngIf="!isAnimatedImage()" [src]="deviceImageUrl ?? ''" alt="Device Image" style="width: 100%"/>
         <div *ngIf="isAnimatedImage()" class="timelapse-video-wrapper">
+          <!-- [muted] must be a property binding: the attribute alone does not set
+               the muted property on dynamically created elements, so browsers treat
+               the video as unmuted and block autoplay for visitors who have not
+               interacted with the site yet (share links then show a frozen frame). -->
           <video
             [src]="deviceImageUrl ?? ''"
             autoplay
-            muted
+            [muted]="true"
             loop
             playsinline
             (timeupdate)="onVideoTimeUpdate($event)"
