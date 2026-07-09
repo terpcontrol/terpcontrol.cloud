@@ -17,6 +17,7 @@ import { DiaryEntryModalComponent } from './diary-entry-modal/diary-entry-modal.
 import { DiaryEntriesReportComponent } from './diary-entries-report/diary-entries-report.component';
 import { GrowReportComponent } from './grow-report/grow-report.component';
 import { LogEntryViewerModule } from '../log-entry-viewer/log-entry-viewer.module';
+import { ShareLinkModule } from '../../components/share-link/share-link.module';
 
 @NgModule({
   imports: [
@@ -30,6 +31,7 @@ import { LogEntryViewerModule } from '../log-entry-viewer/log-entry-viewer.modul
     TranslateModule,
     DevicesModule,
     LogEntryViewerModule,
+    ShareLinkModule,
   ],
   declarations: [
     DiaryPage,

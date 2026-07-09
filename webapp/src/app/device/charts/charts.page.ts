@@ -7,9 +7,11 @@ import {DataService} from 'src/app/services/data.service';
 import * as Highcharts from 'highcharts/highstock';
 import {YAxisOptions} from 'highcharts/highstock';
 import {DeviceService} from 'src/app/services/devices.service';
-import {IonModal} from "@ionic/angular";
+import {IonModal, ModalController} from "@ionic/angular";
 import {collectLogCategories, matchesLogCategory,} from '../log-entry-viewer/log-entry-viewer.component';
-import type { DeviceLog } from '@fg2/shared-types';
+import type { DeviceLog, ShareAccess } from '@fg2/shared-types';
+import { ShareLinkModalComponent } from '../../components/share-link/share-link-modal.component';
+import { ThemeService } from '../../services/theme.service';
 
 declare var require: any;
 let Boost = require('highcharts/modules/boost');
@@ -153,6 +155,10 @@ export class ChartsPage implements OnInit, OnDestroy {
   public device_type: string = "";
   public cloudSettings: any = {};
   public isPublic = false;
+  public share?: ShareAccess;
+  // A view-only share link: the visitor sees the shared view but cannot change it.
+  public locked = false;
+  private shareToken: string | null = null;
 
   public autoUpdate: boolean = false;
 
@@ -205,7 +211,14 @@ export class ChartsPage implements OnInit, OnDestroy {
 
   public selectedLogs: DeviceLog[] = [];
 
-  constructor(private route: ActivatedRoute, private router: Router, private data: DataService, private devices: DeviceService) {
+  constructor(
+    private route: ActivatedRoute,
+    private router: Router,
+    private data: DataService,
+    private devices: DeviceService,
+    private modalController: ModalController,
+    public theme: ThemeService,
+  ) {
     this.chartOptions = {
       chart: {
         animation: true,
@@ -452,45 +465,7 @@ export class ChartsPage implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.device_id = this.route.snapshot.paramMap.get('device_id') || '';
-    if (this.route.snapshot.queryParams?.['measures']) {
-      const selectedMeasures = String(this.route.snapshot.queryParams['measures']).split(',');
-      this.measures.forEach(measure => measure.enabled = selectedMeasures.includes(measure.name));
-      this.showImage = selectedMeasures.includes('image');
-      this.showLogs = selectedMeasures.includes('logs');
-    }
-    if (this.route.snapshot.queryParams?.['vpdMode']) {
-      this.vpdMode = this.route.snapshot.queryParams['vpdMode'] as 'all' | 'day' | 'night';
-    }
-    if (this.route.snapshot.queryParams?.['autoUpdate']) {
-      this.autoUpdate = this.route.snapshot.queryParams['autoUpdate'] === 'true';
-    }
-    if (this.route.snapshot.queryParams?.['useCustom']) {
-      this.useCustom = this.route.snapshot.queryParams['useCustom'] === 'true';
-    }
-    if (this.route.snapshot.queryParams?.['timespan']) {
-      this.selectedTimespan = this.timespans.find(ts => ts.name === this.route.snapshot.queryParams['timespan'])!;
-      this.selectedInterval = this.selectedTimespan.defaultInterval;
-    }
-    if (this.route.snapshot.queryParams?.['interval']) {
-      this.selectedInterval = this.route.snapshot.queryParams['interval'];
-    }
-    if (this.route.snapshot.queryParams?.['date']) {
-      this.selectedDate = this.route.snapshot.queryParams['date'];
-    } else {
-      this.selectedDate = '';
-    }
-    if (this.route.snapshot.queryParams?.['dateEnd']) {
-      this.selectedDateEnd = this.route.snapshot.queryParams['dateEnd'];
-    } else {
-      this.selectedDateEnd = '';
-    }
-    if (this.route.snapshot.queryParams?.['logs']) {
-      this.selectedLogCategories = String(this.route.snapshot.queryParams['logs']).split(',');
-    }
-
-    if (this.selectedDate) {
-      this.autoUpdate = false;
-    }
+    this.shareToken = this.route.snapshot.queryParamMap.get('share');
 
     this.themeObserver = new MutationObserver(() => {
       this.applyChartTheme();
@@ -501,8 +476,16 @@ export class ChartsPage implements OnInit, OnDestroy {
     void this.devices.resolveDeviceAccessInfo(this.device_id)
       .then(deviceAccessInfo => {
         this.isPublic = deviceAccessInfo.isPublic;
+        this.share = deviceAccessInfo.share;
+        this.locked = !!this.share && !this.share.editable;
         this.device_type = deviceAccessInfo.device_type || '';
         this.cloudSettings = deviceAccessInfo.cloudSettings || {};
+
+        // View-only links render the view stored with the link; URL parameters
+        // cannot override it.
+        this.applyViewParams(this.locked
+          ? Object.fromEntries(new URLSearchParams(this.share?.query ?? ''))
+          : this.route.snapshot.queryParams);
 
         if (this.device_type != "") {
           this.filtered_measures = this.measures
@@ -531,6 +514,43 @@ export class ChartsPage implements OnInit, OnDestroy {
       .catch(() => {
         this.loaded = true;
       });
+  }
+
+  private applyViewParams(queryParams: Record<string, string>) {
+    if (queryParams?.['measures']) {
+      const selectedMeasures = String(queryParams['measures']).split(',');
+      this.measures.forEach(measure => measure.enabled = selectedMeasures.includes(measure.name));
+      this.showImage = selectedMeasures.includes('image');
+      this.showLogs = selectedMeasures.includes('logs');
+    }
+    if (queryParams?.['vpdMode']) {
+      this.vpdMode = queryParams['vpdMode'] as 'all' | 'day' | 'night';
+    }
+    if (queryParams?.['autoUpdate']) {
+      this.autoUpdate = queryParams['autoUpdate'] === 'true';
+    }
+    if (queryParams?.['useCustom']) {
+      this.useCustom = queryParams['useCustom'] === 'true';
+    }
+    if (queryParams?.['timespan']) {
+      const timespan = this.timespans.find(ts => ts.name === queryParams['timespan']);
+      if (timespan) {
+        this.selectedTimespan = timespan;
+        this.selectedInterval = this.selectedTimespan.defaultInterval;
+      }
+    }
+    if (queryParams?.['interval']) {
+      this.selectedInterval = queryParams['interval'];
+    }
+    this.selectedDate = queryParams?.['date'] || '';
+    this.selectedDateEnd = queryParams?.['dateEnd'] || '';
+    if (queryParams?.['logs']) {
+      this.selectedLogCategories = String(queryParams['logs']).split(',');
+    }
+
+    if (this.selectedDate) {
+      this.autoUpdate = false;
+    }
   }
 
   ngOnDestroy() {
@@ -786,6 +806,7 @@ export class ChartsPage implements OnInit, OnDestroy {
       timespan: this.selectedTimespan?.name ?? '',
       interval: this.selectedInterval ?? '',
       logs: this.showLogs ? this.selectedLogCategories.join(',') : '',
+      ...(this.shareToken ? { share: this.shareToken } : {}),
     };
     await this.router.navigate(['device', this.device_id, 'charts'], {queryParams, replaceUrl: true});
   }
@@ -857,6 +878,18 @@ export class ChartsPage implements OnInit, OnDestroy {
 
   public onChartInstance(chart: Highcharts.Chart) {
     this.chartInstance = chart;
+  }
+
+  public async openShareModal() {
+    const modal = await this.modalController.create({
+      component: ShareLinkModalComponent,
+      componentProps: {
+        deviceId: this.device_id,
+        page: 'charts',
+        webcamActive: this.showImage,
+      },
+    });
+    await modal.present();
   }
 
   public showLightOffsetControls(): boolean {

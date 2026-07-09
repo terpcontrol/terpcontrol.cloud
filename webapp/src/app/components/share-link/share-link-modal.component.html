@@ -1,0 +1,83 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>{{ 'share.title' | translate }}</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="close()">{{ 'misc.close' | translate }}</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <p class="share-intro">{{ 'share.intro.' + page | translate }}</p>
+
+  <ion-radio-group [(ngModel)]="editable" (ngModelChange)="optionsChanged()">
+    <ion-item lines="none">
+      <ion-radio slot="start" [value]="false"></ion-radio>
+      <ion-label class="ion-text-wrap">
+        <h3>{{ 'share.viewOnly' | translate }}</h3>
+        <p>{{ 'share.viewOnlyHint' | translate }}</p>
+      </ion-label>
+    </ion-item>
+    <ion-item lines="none">
+      <ion-radio slot="start" [value]="true"></ion-radio>
+      <ion-label class="ion-text-wrap">
+        <h3>{{ 'share.interactive' | translate }}</h3>
+        <p>{{ 'share.interactiveHint.' + page | translate }}</p>
+      </ion-label>
+    </ion-item>
+  </ion-radio-group>
+
+  <ion-item lines="none">
+    <ion-label>{{ 'share.expiry' | translate }}</ion-label>
+    <ion-button id="share-expiry-trigger" fill="outline" size="small" slot="end">
+      {{ expiresDate ? ('share.endOfDate' | translate: { date: (expiresDate | date: 'mediumDate') }) : ('share.never' | translate) }}
+    </ion-button>
+    <ion-modal #shareExpiryModal trigger="share-expiry-trigger" [keepContentsMounted]="true">
+      <ng-template>
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>{{ 'share.expiry' | translate }}</ion-title>
+            <ion-buttons slot="end">
+              <ion-button (click)="shareExpiryModal.dismiss()">{{ 'misc.close' | translate }}</ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content>
+          <ion-datetime
+            presentation="date"
+            [min]="minExpiresDate"
+            [(ngModel)]="expiresDate"
+            (ionChange)="expiryPicked(shareExpiryModal)"
+          ></ion-datetime>
+        </ion-content>
+        <ion-footer>
+          <ion-toolbar>
+            <ion-buttons slot="end">
+              <ion-button (click)="clearExpiry(shareExpiryModal)">{{ 'share.neverExpires' | translate }}</ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-footer>
+      </ng-template>
+    </ion-modal>
+  </ion-item>
+
+  <ion-button *ngIf="!createdLink" expand="block" (click)="createLink()" [disabled]="creating">
+    <ion-spinner *ngIf="creating" name="crescent"></ion-spinner>
+    <span *ngIf="!creating">{{ 'share.createLink' | translate }}</span>
+  </ion-button>
+
+  <ion-text color="danger" *ngIf="error">
+    <p>{{ 'misc.errorOccurred' | translate }}</p>
+  </ion-text>
+
+  <ng-container *ngIf="createdLink">
+    <ion-item lines="none">
+      <ion-input readonly [value]="createdLink"></ion-input>
+      <ion-button slot="end" (click)="copyLink()">
+        <ion-icon [name]="copied ? 'checkmark-outline' : 'copy-outline'" slot="start"></ion-icon>
+        {{ (copied ? 'share.copied' : 'share.copy') | translate }}
+      </ion-button>
+    </ion-item>
+    <p class="share-hint">{{ 'share.manageHint' | translate }}</p>
+  </ng-container>
+</ion-content>

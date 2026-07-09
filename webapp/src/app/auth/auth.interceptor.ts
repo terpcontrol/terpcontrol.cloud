@@ -7,6 +7,7 @@ import {
 } from '@angular/common/http';
 import {from, lastValueFrom, Observable} from 'rxjs';
 import {AuthService} from "./auth.service";
+import {currentShareToken} from "../services/share.service";
 
 @Injectable()
 export class AuthInterceptor implements HttpInterceptor {
@@ -19,6 +20,13 @@ export class AuthInterceptor implements HttpInterceptor {
   }
 
   async handle(req: HttpRequest<any>, next: HttpHandler): Promise<HttpEvent<any>> {
+      // While viewing a shared page, every API call carries the share token so the
+      // server can authorize visitors (and non-owner users) without an account.
+      const shareToken = currentShareToken();
+      if (shareToken) {
+        req = req.clone({ headers: req.headers.set('X-Share-Token', shareToken) });
+      }
+
       if (!req.headers.has('Authorization')) {
         try {
           const idToken = await this.authService.getToken();

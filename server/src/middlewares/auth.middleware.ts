@@ -4,7 +4,8 @@ import { SECRET_KEY } from '@config';
 import { HttpException } from '@exceptions/HttpException';
 import { DataStoredInToken, RequestWithUser } from '@interfaces/auth.interface';
 import deviceModel from '@/models/device.model';
-import { Device } from '@fg2/shared-types';
+import shareModel from '@/models/share.model';
+import { Device, ShareLink } from '@fg2/shared-types';
 
 const isImageQueryTokenAllowed = (req: RequestWithUser): boolean => req.method === 'GET' && req.path.startsWith('/image/');
 
@@ -25,9 +26,21 @@ const getAuthorization = (req: RequestWithUser) => {
   return null;
 };
 
-const hasPublicReadAccess = async (device_id: string): Promise<boolean> => {
-  const device = await deviceModel.findOne({ device_id, 'cloudSettings.publicRead': true }, { device_id: 1 });
-  return !!device;
+const getShareToken = (req: RequestWithUser): string | null => {
+  if (typeof req.query.share === 'string' && req.query.share) return req.query.share;
+  return req.header('X-Share-Token') || null;
+};
+
+export const findValidShare = async (req: RequestWithUser, device_id?: string): Promise<ShareLink | null> => {
+  const token = getShareToken(req);
+  if (!token) return null;
+
+  return shareModel.findOne({
+    share_id: token,
+    ...(device_id ? { device_id } : {}),
+    revokedAt: null,
+    $or: [{ expiresAt: null }, { expiresAt: { $gt: Date.now() } }],
+  });
 };
 
 export const authMiddleware = async (req: RequestWithUser, res: Response, next: NextFunction) => {
@@ -115,7 +128,7 @@ export const isUserDeviceMiddelware = async (
   }
 };
 
-export const isUserDeviceOrPublicReadMiddelware = async (
+export const isUserDeviceOrShareMiddelware = async (
   req: RequestWithUser,
   res: Response,
   device_id: string,
@@ -142,11 +155,13 @@ export const isUserDeviceOrPublicReadMiddelware = async (
         }
       }
     } catch (_error) {
-      // Fall back to public-read check.
+      // Fall back to the share-link check.
     }
   }
 
-  if (await hasPublicReadAccess(device_id)) {
+  const share = await findValidShare(req, device_id);
+  if (share) {
+    req.share = share;
     return true;
   }
 

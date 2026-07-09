@@ -4,10 +4,20 @@
       <ion-menu-button></ion-menu-button>
     </ion-buttons>
     <ion-title>{{'diary.title' | translate}}</ion-title>
+    <ion-buttons slot="end">
+      <ion-button *ngIf="canEdit" (click)="openShareModal()" [title]="'share.button' | translate">
+        <ion-icon slot="icon-only" name="share-social-outline"></ion-icon>
+      </ion-button>
+      <ion-button *ngIf="isPublic" (click)="theme.toggle()" [title]="'menu.darkMode' | translate">
+        <ion-icon slot="icon-only" [name]="theme.darkMode ? 'sunny-outline' : 'moon-outline'"></ion-icon>
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 <ion-content>
-  <ng-container>
+  <!-- The reports only render once access info resolved, so view-only links
+       start from the stored view instead of tamperable URL parameters. -->
+  <ng-container *ngIf="resolved">
     <ion-card>
       <ion-card-content>
         <ion-button *ngIf="canEdit" color="primary" (click)="openEntryModal()">
@@ -19,6 +29,7 @@
           [(ngModel)]="selectedReport"
           [interfaceOptions]="{'cssClass': 'wider-popover'}"
           (ngModelChange)="reportSelected()"
+          [disabled]="locked"
           class="ion-float-right"
         >
           <ion-select-option value="entries">{{ 'diary.entriesReport' | translate}}</ion-select-option>
@@ -39,6 +50,9 @@
       *ngIf="selectedReport === 'growreport'"
       [deviceId]="deviceId"
       [isPublic]="isPublic"
+      [locked]="locked"
+      [lockedParams]="lockedParams"
+      [webcamAllowed]="webcamAllowed"
       [lastUpdated]="lastUpdated"
     ></app-grow-report>
 
@@ -46,6 +60,8 @@
       *ngIf="selectedReport === 'entries'"
       [deviceId]="deviceId"
       [readOnly]="!canEdit"
+      [locked]="locked"
+      [lockedParams]="lockedParams"
       [lastUpdated]="lastUpdated"
     ></app-diary-entries-report>
   </ng-container>

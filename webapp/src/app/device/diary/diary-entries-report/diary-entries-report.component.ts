@@ -27,6 +27,10 @@ export class DiaryEntriesReportComponent implements OnInit, OnChanges, OnDestroy
   @Input() deviceId = '';
   @Input() lastUpdated: number | undefined;
   @Input() readOnly = false;
+  // View-only share link: the category filter is locked to the shared view.
+  @Input() locked = false;
+  // When locked, the view stored with the share link replaces the URL parameters.
+  @Input() lockedParams?: { get(name: string): string | null };
 
   public logs: LogEntry[] = [];
   private allLogs: LogEntry[] = [];
@@ -47,7 +51,8 @@ export class DiaryEntriesReportComponent implements OnInit, OnChanges, OnDestroy
 
   ngOnInit(): void {
     this.queryParamsSubscription = this.route.queryParamMap.subscribe(params => {
-      this.selectedLogCategories = parseStringArrayQueryParam(params.get('entryCategories')) ?? [...DEFAULT_ENTRY_CATEGORIES];
+      const source = this.lockedParams ?? params;
+      this.selectedLogCategories = parseStringArrayQueryParam(source.get('entryCategories')) ?? [...DEFAULT_ENTRY_CATEGORIES];
     });
 
     void this.loadData();

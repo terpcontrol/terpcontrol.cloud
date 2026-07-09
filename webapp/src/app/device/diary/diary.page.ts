@@ -6,8 +6,10 @@ import {DeviceService} from 'src/app/services/devices.service';
 import { ModalController } from '@ionic/angular';
 import {DiaryEntryModalComponent, defaultDiaryEntries} from './diary-entry-modal/diary-entry-modal.component';
 import {OverlayEventDetail} from "@ionic/core/components";
-import type { DiaryEntry } from '@fg2/shared-types';
+import type { DiaryEntry, ShareAccess } from '@fg2/shared-types';
 import { DEFAULT_DIARY_REPORT, DiaryReport, mergeDiaryQueryParams, parseDiaryReport } from './diary-query-params';
+import { ShareLinkModalComponent } from '../../components/share-link/share-link-modal.component';
+import { ThemeService } from '../../services/theme.service';
 
 @Component({
   selector: 'app-diary',
@@ -20,6 +22,13 @@ export class DiaryPage implements OnInit, OnDestroy {
   public lastUpdated: number | undefined;
   public isPublic = false;
   public canEdit = true;
+  public share?: ShareAccess;
+  // A view-only share link: the visitor sees the shared view but cannot change it.
+  public locked = false;
+  // Set when locked: the view stored with the link, overriding URL parameters.
+  public lockedParams?: URLSearchParams;
+  public webcamAllowed = true;
+  public resolved = false;
 
   public selectedReport: DiaryReport = 'entries';
 
@@ -29,7 +38,8 @@ export class DiaryPage implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private devices: DeviceService,
-    private modalController: ModalController
+    private modalController: ModalController,
+    public theme: ThemeService
   ) {
   }
 
@@ -37,19 +47,29 @@ export class DiaryPage implements OnInit, OnDestroy {
     this.deviceId = this.route.snapshot.paramMap.get('device_id') || '';
 
     this.queryParamsSubscription = this.route.queryParamMap.subscribe(params => {
-      this.selectedReport = parseDiaryReport(params.get('report'));
+      this.selectedReport = parseDiaryReport((this.lockedParams ?? params).get('report'));
     });
 
     void this.devices.resolveDeviceAccessInfo(this.deviceId)
       .then(deviceAccessInfo => {
         this.isPublic = deviceAccessInfo.isPublic;
         this.canEdit = !deviceAccessInfo.isPublic;
+        this.share = deviceAccessInfo.share;
+        this.locked = !!this.share && !this.share.editable;
+        this.webcamAllowed = !deviceAccessInfo.isPublic || !!this.share?.webcam;
         this.cloudSettings = deviceAccessInfo.cloudSettings || {};
+
+        if (this.locked) {
+          this.lockedParams = new URLSearchParams(this.share?.query ?? '');
+          this.selectedReport = parseDiaryReport(this.lockedParams.get('report'));
+        }
+        this.resolved = true;
       })
       .catch(() => {
         this.isPublic = false;
         this.canEdit = false;
         this.cloudSettings = {};
+        this.resolved = true;
       });
   }
 
@@ -95,5 +115,17 @@ export class DiaryPage implements OnInit, OnDestroy {
     void mergeDiaryQueryParams(this.router, this.route, {
       report: this.selectedReport === DEFAULT_DIARY_REPORT ? null : this.selectedReport,
     });
+  }
+
+  async openShareModal() {
+    const modal = await this.modalController.create({
+      component: ShareLinkModalComponent,
+      componentProps: {
+        deviceId: this.deviceId,
+        page: 'diary',
+        webcamActive: this.route.snapshot.queryParamMap.get('webcamViewer') === 'true',
+      },
+    });
+    await modal.present();
   }
 }

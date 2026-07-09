@@ -18,7 +18,7 @@ class ImageRoute implements Routes {
      * /image/{device_id}:
      *   get:
      *     summary: Get a device image or timelapse
-     *     description: Returns the binary image (jpeg) or timelapse (mp4) for a device. Accessible for owners and for devices with `publicRead` enabled. Falls back to a placeholder asset when no image exists.
+     *     description: Returns the binary image (jpeg) or timelapse (mp4) for a device. Accessible for owners and through a valid share link (`share` query parameter). Falls back to a placeholder asset when no image exists.
      *     tags: [Images]
      *     security:
      *       - bearerAuth: []

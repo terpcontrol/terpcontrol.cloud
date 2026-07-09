@@ -20,14 +20,14 @@
             <ion-label>{{ 'menu.darkMode' | translate }}</ion-label>
             <ion-toggle
               slot="end"
-              [checked]="darkMode"
-              (ionChange)="onDarkModeChange($any($event).detail.checked)"
+              [checked]="theme.darkMode"
+              (ionChange)="theme.set($any($event).detail.checked)"
               aria-label="Dark mode"
             ></ion-toggle>
           </ion-item>
 
           <ion-item routerDirection="root" lines="none" (click)="auth.logout()" detail="false">
-            <ion-icon slot="start" [ios]="'user-outline'" [md]="'user-sharp'"></ion-icon>
+            <ion-icon slot="start" [ios]="'log-out-outline'" [md]="'log-out-sharp'"></ion-icon>
             <ion-label>{{ 'menu.logout' | translate }}</ion-label>
           </ion-item>
         </ion-list>

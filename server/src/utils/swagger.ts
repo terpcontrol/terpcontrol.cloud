@@ -26,6 +26,7 @@ export function buildSwaggerSpec(serverUrl?: string): object {
         { name: 'Devices', description: 'Device management, configuration and firmware' },
         { name: 'Data', description: 'Time-series and latest sensor measurements' },
         { name: 'Images', description: 'Device image and timelapse access' },
+        { name: 'Shares', description: 'Share links granting read access to a device page' },
       ],
       components: {
         securitySchemes: {
@@ -115,7 +116,6 @@ export function buildSwaggerSpec(serverUrl?: string): object {
               autoFirmwareUpdate: { type: 'boolean' },
               firmwareChannel: { type: 'string', enum: ['stable', 'beta', 'alpha', 'manual'] },
               pendingFirmware: { type: 'string' },
-              publicRead: { type: 'boolean' },
               vpdLeafTempOffsetDay: { type: 'number' },
               vpdLeafTempOffsetNight: { type: 'number' },
               ppfdLuxFactor: { type: 'number' },
@@ -195,6 +195,34 @@ export function buildSwaggerSpec(serverUrl?: string): object {
               name: { type: 'string' },
               isPublic: { type: 'boolean' },
               cloudSettings: { $ref: '#/components/schemas/CloudSettings' },
+              share: {
+                type: 'object',
+                description: 'Set when access was granted through a share link.',
+                properties: {
+                  share_id: { type: 'string' },
+                  page: { type: 'string', enum: ['charts', 'diary'] },
+                  editable: { type: 'boolean' },
+                  webcam: { type: 'boolean' },
+                  query: { type: 'string', description: 'Query string capturing the shared view.' },
+                  expiresAt: { type: 'number', nullable: true },
+                },
+              },
+            },
+          },
+          ShareLink: {
+            type: 'object',
+            properties: {
+              share_id: { type: 'string' },
+              device_id: { type: 'string' },
+              owner_id: { type: 'string' },
+              page: { type: 'string', enum: ['charts', 'diary'] },
+              editable: { type: 'boolean' },
+              webcam: { type: 'boolean' },
+              createdAt: { type: 'number' },
+              expiresAt: { type: 'number', nullable: true },
+              revokedAt: { type: 'number', nullable: true },
+              openCount: { type: 'integer' },
+              lastOpenedAt: { type: 'number', nullable: true },
             },
           },
           DeviceClass: {

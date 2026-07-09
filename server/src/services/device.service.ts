@@ -7,6 +7,7 @@ import {
   DeviceFirmware,
   DeviceFirmwareBinary,
   FirmwareChannel,
+  ShareLink,
   UserFirmwareList,
 } from '@fg2/shared-types';
 import deviceModel from '@models/device.model';
@@ -616,28 +617,9 @@ class DeviceService {
     });
   }
 
-  public async getDeviceLogs(
-    device_id: string,
-    user_id: string | undefined,
-    is_admin: boolean,
-    timestampFrom: number,
-    timestampTo: number,
-    deleted: boolean,
-    categories?: string[],
-  ) {
-    let device;
-    if (is_admin) {
-      device = await deviceModel.findOne({ device_id: device_id }, { device_id: 1 });
-    } else if (user_id) {
-      // An authenticated viewer may be the owner or may be reading someone else's public chart,
-      // so accept either ownership or publicRead here (access was already authorized by the controller).
-      device = await deviceModel.findOne(
-        { device_id: device_id, $or: [{ owner_id: user_id }, { 'cloudSettings.publicRead': true }] },
-        { device_id: 1 },
-      );
-    } else {
-      device = await deviceModel.findOne({ device_id: device_id, 'cloudSettings.publicRead': true }, { device_id: 1 });
-    }
+  public async getDeviceLogs(device_id: string, timestampFrom: number, timestampTo: number, deleted: boolean, categories?: string[]) {
+    // Access (ownership, admin, or share link) was already authorized by the controller.
+    const device = await deviceModel.findOne({ device_id: device_id }, { device_id: 1 });
     if (device) {
       const logs = await deviceLogModel
         .find({
@@ -1145,10 +1127,6 @@ class DeviceService {
       }
     }
 
-    if (settings.publicRead === undefined) {
-      settings.publicRead = false;
-    }
-
     if (settings.vpdLeafTempOffsetDay === undefined) {
       settings.vpdLeafTempOffsetDay = -2;
     }
@@ -1189,17 +1167,7 @@ class DeviceService {
     const cloudSettings = this.normalizeCloudSettings(device.cloudSettings, device.firmwareSettings);
     const isOwned = is_admin || (!!user_id && device.owner_id === user_id);
 
-    if (isOwned) {
-      return {
-        device_id: device_id,
-        device_type: device.device_type,
-        name: device.name,
-        isPublic: false,
-        cloudSettings,
-      };
-    }
-
-    if (!cloudSettings.publicRead) {
+    if (!isOwned) {
       return null;
     }
 
@@ -1207,10 +1175,41 @@ class DeviceService {
       device_id: device_id,
       device_type: device.device_type,
       name: device.name,
+      isPublic: false,
+      cloudSettings,
+    };
+  }
+
+  // Access info handed to visitors of a share link: no secrets (the RTSP URL is
+  // reduced to a presence flag) and the webcam only when the link includes it.
+  public async getSharedDeviceAccessInfo(share: ShareLink): Promise<DeviceAccessInfo | null> {
+    // lean() returns plain objects, so spreading below cannot leak mongoose internals.
+    const device = await deviceModel
+      .findOne({ device_id: share.device_id }, { firmwareSettings: 1, cloudSettings: 1, device_type: 1, name: 1 })
+      .lean();
+    if (!device) {
+      return null;
+    }
+
+    const cloudSettings = this.normalizeCloudSettings(device.cloudSettings, device.firmwareSettings);
+
+    return {
+      device_id: share.device_id,
+      device_type: device.device_type,
+      name: device.name,
       isPublic: true,
       cloudSettings: {
         ...cloudSettings,
-        rtspStream: cloudSettings.rtspStream ? '1' : undefined,
+        rtspStream: cloudSettings.rtspStream && share.webcam ? '1' : undefined,
+      },
+      share: {
+        share_id: share.share_id,
+        page: share.page,
+        editable: share.editable,
+        webcam: share.webcam,
+        // View-only visitors render the view stored with the link, not the URL.
+        query: share.query,
+        expiresAt: share.expiresAt ?? null,
       },
     };
   }

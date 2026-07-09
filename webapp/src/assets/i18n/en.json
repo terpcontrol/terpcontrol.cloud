@@ -17,7 +17,6 @@
     "unableToSaveSettings": "Unable to save settings",
     "unableToLoadSettings": "Unable to load settings"
   },
-
   "settings": {
     "title": "Settings",
     "daynight": "Day/Night cycle",
@@ -123,8 +122,6 @@
     },
     "firmwareVersion": "Firmware version",
     "betaFeatures": "Beta features (Cloud)",
-    "publicRead": "Public read",
-    "publicReadHint": "If enabled, other people can view the charts page, diary page, and all webcam images when they have the link.",
     "rtspStream": "Webcam stream URL",
     "rtspStreamHint": "Enter the URL of your webcam here to enable webcam streaming in the portal, e.g. \"rtsp://user:password@my-public-hostname-or-ip.com:554/\". The input here must be processable by FFMPEG.",
     "rtspStreamTransport": "RTSP transport protocol",
@@ -139,14 +136,63 @@
     "dangerZone": "Danger zone",
     "deleteDevice": "Delete device"
   },
-
   "menu": {
     "devices": "Devices",
+    "shares": "Shared links",
     "account": "Account",
     "logout": "Logout",
     "diagnostics": "Diagnostics",
     "fleet": "Fleet",
     "darkMode": "Dark mode"
+  },
+  "share": {
+    "button": "Share",
+    "title": "Share this page",
+    "pageTitle": "Shared links",
+    "intro": {
+      "charts": "Create a link that lets anyone view this chart page - no account needed.",
+      "diary": "Create a link that lets anyone view this diary - no account needed."
+    },
+    "viewOnly": "View only",
+    "viewOnlyHint": "Visitors see exactly this view and cannot change it.",
+    "interactive": "Interactive",
+    "interactiveHint": {
+      "charts": "Visitors can change the time frame, measures, and log filter.",
+      "diary": "Visitors can switch reports, change strain and filters, and view the webcam."
+    },
+    "expiry": "Link expires",
+    "never": "Never",
+    "endOfDate": "End of {{date}}",
+    "createLink": "Create link",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "manageHint": "Under “Shared links” in the menu you can see how often the link was opened and revoke it at any time.",
+    "activeLinks": "Active links",
+    "inactiveLinks": "Expired & revoked links",
+    "noLinks": "No shared links yet. Use the share button on a chart or diary page to create one.",
+    "page": {
+      "charts": "Chart",
+      "diary": "Diary"
+    },
+    "status": {
+      "active": "Active",
+      "expired": "Expired",
+      "revoked": "Revoked"
+    },
+    "created": "Created",
+    "expires": "Expires",
+    "expired": "Expired",
+    "revoked": "Revoked",
+    "neverExpires": "Never expires",
+    "openCount": "Views: {{count}}",
+    "revoke": "Revoke",
+    "revokeConfirmTitle": "Revoke link?",
+    "revokeConfirmText": "The link stops working immediately. This cannot be undone.",
+    "delete": "Delete",
+    "deleteInactive": "Delete all expired & revoked links",
+    "expiredTitle": "This link is no longer valid",
+    "expiredText": "The share link has expired or was revoked by its owner.",
+    "goToLogin": "Go to login"
   },
   "account": {
     "title": "Account",
@@ -186,7 +232,6 @@
     "serialnumber": "Device serial number",
     "show": "Show data"
   },
-
   "devices": {
     "button-settings": "Settings",
     "button-maintenance-mode": "Maintenance mode",
@@ -197,7 +242,6 @@
     "device-log": "Logs",
     "clear-log": "Clear log",
     "button-diary": "Diary",
-
     "fridge": {
       "title": "Terp Control FRIDGE GROW",
       "workmode": "Control mode",
@@ -268,7 +312,6 @@
         "emailAddress": "Email address"
       }
     },
-
     "dryer": {
       "title": "Terp Control FRIDGE DRY",
       "presets": "Presets",
@@ -277,7 +320,6 @@
       "preset-medium": "Normal drying",
       "preset-fast": "Fast drying"
     },
-
     "fan": {
       "title": "Terp Control AIR",
       "workmode": "Control mode",
@@ -291,11 +333,9 @@
         "clear": "Clear pairing"
       }
     },
-
     "light": {
       "title": "Terp Control LIGHT"
     },
-
     "plug": {
       "title": "Terp Control SMART SOCKET",
       "workmode": "Control mode",
@@ -380,7 +420,6 @@
       }
     }
   },
-
   "diary": {
     "title": "Diary",
     "addEntry": "Add entry",
@@ -427,7 +466,6 @@
       "selectImages": "Select images"
     },
     "confirmDelete": "Delete this diary entry?",
-
     "defaults": {
       "co2RefillTitle": "CO2 cylinder was refilled"
     },
@@ -453,7 +491,6 @@
     "gapPhotos": "View photos from the days in between",
     "webcamTime": "Time of day of the photo"
   },
-
   "message-lost-connection-title": "Connection problem",
   "message-lost-connection-text": "The connection between your device and our sever was lost and has been reestablished. If this messages appeares regulary please check your wifi and internet connection",
   "message-device-booted-title": "Device rebooted",

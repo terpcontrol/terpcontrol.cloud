@@ -36,7 +36,6 @@ export interface CloudSettings {
   autoFirmwareUpdate?: boolean;
   firmwareChannel?: FirmwareChannel;
   pendingFirmware?: string;
-  publicRead?: boolean;
   vpdLeafTempOffsetDay?: number;
   vpdLeafTempOffsetNight?: number;
   ppfdLuxFactor?: number;
@@ -61,12 +60,37 @@ export interface UserFirmwareList {
   firmwares: UserFirmwareInfo[];
 }
 
+export type SharePage = 'charts' | 'diary';
+
+export interface ShareLink {
+  share_id: string;
+  device_id: string;
+  owner_id?: string;
+  page: SharePage;
+  /** Visitors may change the view (time frame, measures, filters, webcam). */
+  editable: boolean;
+  /** Visitors may load webcam images/timelapses (diary photos are always visible). */
+  webcam: boolean;
+  /** Query string capturing the shared view (time frame, measures, filters). */
+  query?: string;
+  createdAt: number;
+  /** Epoch ms; null means the link never expires. */
+  expiresAt?: number | null;
+  revokedAt?: number | null;
+  openCount: number;
+  lastOpenedAt?: number | null;
+}
+
+export type ShareAccess = Pick<ShareLink, 'share_id' | 'page' | 'editable' | 'webcam' | 'query' | 'expiresAt'>;
+
 export interface DeviceAccessInfo {
   device_id: string;
   device_type: string;
   name?: string;
   isPublic: boolean;
   cloudSettings: CloudSettings;
+  /** Set when access was granted through a share link. */
+  share?: ShareAccess;
 }
 
 export type DiaryLifecycleStage = 'germination' | 'seedling' | 'vegetative' | 'flowering' | 'drying' | 'curing';

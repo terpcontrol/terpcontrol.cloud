@@ -17,7 +17,7 @@ class DataRoute implements Routes {
      * /data/series/{device_id}/{measure}:
      *   get:
      *     summary: Get aggregated time-series data for a measurement
-     *     description: Returns aggregated series points for the given device and measurement. Works for owned devices and for devices that have `publicRead` enabled.
+     *     description: Returns aggregated series points for the given device and measurement. Works for owned devices and through a valid share link (`share` query parameter or `X-Share-Token` header).
      *     tags: [Data]
      *     security:
      *       - bearerAuth: []
@@ -67,7 +67,7 @@ class DataRoute implements Routes {
      * /data/latest/{device_id}/{measure}:
      *   get:
      *     summary: Get the latest value of a measurement
-     *     description: Returns the most recent value for the given device and measurement. Works for owned devices and for devices that have `publicRead` enabled.
+     *     description: Returns the most recent value for the given device and measurement. Works for owned devices and through a valid share link (`share` query parameter or `X-Share-Token` header).
      *     tags: [Data]
      *     security:
      *       - bearerAuth: []

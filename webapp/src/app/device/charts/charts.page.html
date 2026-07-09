@@ -4,6 +4,14 @@
       <ion-menu-button></ion-menu-button>
     </ion-buttons>
     <ion-title>{{'charts.title' | translate}}</ion-title>
+    <ion-buttons slot="end">
+      <ion-button *ngIf="loaded && !isPublic" (click)="openShareModal()" [title]="'share.button' | translate">
+        <ion-icon slot="icon-only" name="share-social-outline"></ion-icon>
+      </ion-button>
+      <ion-button *ngIf="isPublic" (click)="theme.toggle()" [title]="'menu.darkMode' | translate">
+        <ion-icon slot="icon-only" [name]="theme.darkMode ? 'sunny-outline' : 'moon-outline'"></ion-icon>
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
@@ -15,7 +23,7 @@
     <button [class.active]="m.enabled" (click)="toggleMeasure(m)" *ngFor="let m of measures">{{m.name}}</button>
   </div> -->
 
-  <ion-row>
+  <ion-row *ngIf="!locked">
     <ng-container *ngFor="let m of filtered_measures">
       <ion-col [class]="'onoff ' + m.name" style="cursor: pointer;" [class.on]="m.enabled" (click)="toggleMeasure(m)">
         <img class="icon-on" src="assets/icon/{{m.icon}}.svg" [alt]="'Measure ' + m.name + ' on'" />
@@ -55,7 +63,7 @@
     </ng-container>
   </ion-row>
 
-  <ion-row [hidden]="(!useCustom && !showLightOffsetControls()) || (autoUpdate && (showImage || showLogs) && !hasEnabledMeasures())">
+  <ion-row [hidden]="locked || (!useCustom && !showLightOffsetControls()) || (autoUpdate && (showImage || showLogs) && !hasEnabledMeasures())">
     <ng-container>
       <ion-col [hidden]="hasFixedDateRange()">
         <ion-item lines="none">
@@ -159,7 +167,7 @@
     </ng-container>
   </ion-row>
 
-  <ion-row [hidden]="useCustom || !hasEnabledMeasures() || hasFixedDateRange()">
+  <ion-row [hidden]="locked || useCustom || !hasEnabledMeasures() || hasFixedDateRange()">
     <ion-col>
       <ion-button
         *ngFor="let tf of timespans"
@@ -216,7 +224,7 @@
                 <ion-col>
                   <h1>{{'charts.logsTitle' | translate}} ({{ filteredLogsUngroupedCount }})</h1>
                 </ion-col>
-                <ion-col class="ion-text-right" [hidden]="deviceLogCategories.length <= 0">
+                <ion-col class="ion-text-right" [hidden]="deviceLogCategories.length <= 0 || locked">
                   <app-log-category-selector
                     [availableCategories]="deviceLogCategories"
                     [selectedCategories]="selectedLogCategories"

@@ -1,0 +1,85 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+    </ion-buttons>
+    <ion-title>{{ 'share.pageTitle' | translate }}</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-item *ngIf="loading">
+    <ion-spinner name="dots"></ion-spinner>
+    <ion-label>{{ 'misc.loading' | translate }}</ion-label>
+  </ion-item>
+
+  <ion-card *ngIf="!loading && activeShares.length === 0 && inactiveShares.length === 0">
+    <ion-card-content>
+      {{ 'share.noLinks' | translate }}
+    </ion-card-content>
+  </ion-card>
+
+  <ion-card *ngIf="activeShares.length > 0">
+    <ion-card-header>
+      <ion-card-title>{{ 'share.activeLinks' | translate }}</ion-card-title>
+    </ion-card-header>
+    <ion-card-content>
+      <ion-list>
+        <ion-item *ngFor="let share of activeShares" lines="full">
+          <ion-label class="ion-text-wrap">
+            <h2>
+              {{ deviceName(share) }} — {{ 'share.page.' + share.page | translate }}
+              <ion-badge color="success">{{ statusKey(share) | translate }}</ion-badge>
+            </h2>
+            <p>{{ (share.editable ? 'share.interactive' : 'share.viewOnly') | translate }}</p>
+            <p>
+              {{ 'share.created' | translate }}: {{ share.createdAt | date: 'medium' }}
+              •
+              <ng-container *ngIf="share.expiresAt">{{ 'share.expires' | translate }}: {{ share.expiresAt | date: 'medium' }}</ng-container>
+              <ng-container *ngIf="!share.expiresAt">{{ 'share.neverExpires' | translate }}</ng-container>
+            </p>
+            <p>{{ 'share.openCount' | translate: { count: share.openCount } }}</p>
+          </ion-label>
+          <ion-button slot="end" fill="clear" (click)="copyLink(share)" [title]="'share.copy' | translate">
+            <ion-icon slot="icon-only" [name]="copiedShareId === share.share_id ? 'checkmark-outline' : 'copy-outline'"></ion-icon>
+          </ion-button>
+          <ion-button slot="end" color="danger" fill="outline" (click)="revoke(share)">
+            {{ 'share.revoke' | translate }}
+          </ion-button>
+        </ion-item>
+      </ion-list>
+    </ion-card-content>
+  </ion-card>
+
+  <ion-card *ngIf="inactiveShares.length > 0">
+    <ion-card-header>
+      <ion-card-title>{{ 'share.inactiveLinks' | translate }}</ion-card-title>
+    </ion-card-header>
+    <ion-card-content>
+      <ion-list>
+        <ion-item *ngFor="let share of inactiveShares" lines="full">
+          <ion-label class="ion-text-wrap">
+            <h2>
+              {{ deviceName(share) }} — {{ 'share.page.' + share.page | translate }}
+              <ion-badge color="medium">{{ statusKey(share) | translate }}</ion-badge>
+            </h2>
+            <p>{{ (share.editable ? 'share.interactive' : 'share.viewOnly') | translate }}</p>
+            <p>
+              {{ 'share.created' | translate }}: {{ share.createdAt | date: 'medium' }}
+              <ng-container *ngIf="share.revokedAt"> • {{ 'share.revoked' | translate }}: {{ share.revokedAt | date: 'medium' }}</ng-container>
+              <ng-container *ngIf="!share.revokedAt && share.expiresAt"> • {{ 'share.expired' | translate }}: {{ share.expiresAt | date: 'medium' }}</ng-container>
+            </p>
+            <p>{{ 'share.openCount' | translate: { count: share.openCount } }}</p>
+          </ion-label>
+          <ion-button slot="end" color="danger" fill="clear" (click)="remove(share)" [title]="'share.delete' | translate">
+            <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+          </ion-button>
+        </ion-item>
+      </ion-list>
+      <ion-button expand="block" fill="outline" color="danger" (click)="removeInactive()">
+        <ion-icon name="trash-outline" slot="start"></ion-icon>
+        {{ 'share.deleteInactive' | translate }}
+      </ion-button>
+    </ion-card-content>
+  </ion-card>
+</ion-content>
