@@ -17,7 +17,7 @@ export class ShareLinkModalComponent {
 
   public editable = false;
   // Date (YYYY-MM-DD) at whose end the link expires; empty means it never expires.
-  public expiresDate = ShareLinkModalComponent.toDateString(new Date(Date.now() + 7 * 86400000));
+  public expiresDate = '';
   public minExpiresDate = ShareLinkModalComponent.toDateString(new Date());
   public creating = false;
   public createdLink = '';

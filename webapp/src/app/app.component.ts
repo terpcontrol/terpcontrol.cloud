@@ -11,9 +11,9 @@ import { TranslateService } from '@ngx-translate/core';
 })
 export class AppComponent {
   private publicPages = [
-    { title: 'menu.devices', url: '/list', icon: 'mail' },
+    { title: 'menu.devices', url: '/list', icon: 'hardware-chip' },
     { title: 'menu.shares', url: '/shares', icon: 'share-social' },
-    { title: 'menu.account', url: '/account', icon: 'mail' },
+    { title: 'menu.account', url: '/account', icon: 'person' },
   ];
   private adminPages = [
     { title: 'menu.diagnostics', url: '/diagnostics', icon: 'mail' },
