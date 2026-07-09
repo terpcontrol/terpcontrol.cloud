@@ -186,7 +186,10 @@
     "revokeConfirmTitle": "Link zurückziehen?",
     "revokeConfirmText": "Der Link funktioniert sofort nicht mehr. Das kann nicht rückgängig gemacht werden.",
     "delete": "Löschen",
-    "deleteInactive": "Alle abgelaufenen & zurückgezogenen Links löschen"
+    "deleteInactive": "Alle abgelaufenen & zurückgezogenen Links löschen",
+    "expiredTitle": "Dieser Link ist nicht mehr gültig",
+    "expiredText": "Der geteilte Link ist abgelaufen oder wurde vom Besitzer zurückgezogen.",
+    "goToLogin": "Zur Anmeldung"
   },
   "account": {
     "title": "Benutzer",

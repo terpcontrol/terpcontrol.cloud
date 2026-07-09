@@ -36,6 +36,11 @@ export class AuthGuard implements CanActivate {
           return true;
         }
       } catch (_error) {}
+
+      // The visitor arrived with a share link that no longer works
+      // (expired, revoked, or not matching this page).
+      await this.router.navigate(['link-expired']);
+      return false;
     }
 
     await this.router.navigate(['login']);

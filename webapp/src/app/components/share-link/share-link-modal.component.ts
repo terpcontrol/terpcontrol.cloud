@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, ElementRef, Input } from '@angular/core';
 import { ModalController } from '@ionic/angular';
 import type { SharePage } from '@fg2/shared-types';
 import { ShareService, copyToClipboard } from '../../services/share.service';
@@ -24,7 +24,11 @@ export class ShareLinkModalComponent {
   public copied = false;
   public error = false;
 
-  constructor(private modalController: ModalController, private shares: ShareService) {}
+  constructor(
+    private modalController: ModalController,
+    private shares: ShareService,
+    private elementRef: ElementRef<HTMLElement>,
+  ) {}
 
   private static toDateString(date: Date): string {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -80,7 +84,7 @@ export class ShareLinkModalComponent {
   }
 
   public async copyLink() {
-    if (await copyToClipboard(this.createdLink)) {
+    if (await copyToClipboard(this.createdLink, this.elementRef.nativeElement)) {
       this.copied = true;
       setTimeout(() => this.copied = false, 2000);
     }

@@ -16,8 +16,10 @@ export function isShareActive(share: ShareLink): boolean {
 }
 
 // navigator.clipboard only exists in secure contexts (HTTPS/localhost); plain
-// HTTP deployments fall back to a hidden textarea and execCommand.
-export async function copyToClipboard(text: string): Promise<boolean> {
+// HTTP deployments fall back to a hidden textarea and execCommand. Pass a
+// container when copying from inside an overlay: ion-modal traps focus, so the
+// textarea must live inside the overlay to be focusable at all.
+export async function copyToClipboard(text: string, container: HTMLElement = document.body): Promise<boolean> {
   if (window.isSecureContext && navigator.clipboard) {
     try {
       await navigator.clipboard.writeText(text);
@@ -32,7 +34,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   textarea.setAttribute('readonly', '');
   textarea.style.position = 'fixed';
   textarea.style.opacity = '0';
-  document.body.appendChild(textarea);
+  container.appendChild(textarea);
   textarea.focus();
   textarea.select();
   try {

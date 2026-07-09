@@ -189,7 +189,10 @@
     "revokeConfirmTitle": "Revoke link?",
     "revokeConfirmText": "The link stops working immediately. This cannot be undone.",
     "delete": "Delete",
-    "deleteInactive": "Delete all expired & revoked links"
+    "deleteInactive": "Delete all expired & revoked links",
+    "expiredTitle": "This link is no longer valid",
+    "expiredText": "The share link has expired or was revoked by its owner.",
+    "goToLogin": "Go to login"
   },
   "account": {
     "title": "Account",

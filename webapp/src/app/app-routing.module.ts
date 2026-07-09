@@ -44,6 +44,10 @@ const routes: Routes = [
     loadChildren: () => import('./login/login.module').then( m => m.LoginPageModule)
   },
   {
+    path: 'link-expired',
+    loadChildren: () => import('./link-expired/link-expired.module').then( m => m.LinkExpiredPageModule)
+  },
+  {
     path: 'account',
     canActivate:[AuthGuard],
     loadChildren: () => import('./account/account.module').then( m => m.AccountPageModule)
