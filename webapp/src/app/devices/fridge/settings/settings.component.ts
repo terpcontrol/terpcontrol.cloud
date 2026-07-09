@@ -60,6 +60,7 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
       this.deviceSettings = JSON.parse(await this.devices.getConfig(this.device_id));
       this.recipe = await this.devices.getRecipe(this.device_id);
       this.recipe?.steps?.forEach((step: any) => step.settings = JSON.parse(step.settings));
+      this.normalizeWorkmodes();
 
       if (!this.recipe.notifications) {
         this.recipe.notifications = 'off';
@@ -275,6 +276,26 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
     return stepDurationMs - elapsedMs;
   }
 
+  // The controller firmware dropped the "full" (Große Pflanzen) workmode and
+  // maps legacy values to "small". Mirror that for device settings and recipe
+  // steps still stored with "full", so the UI shows (and re-saves) what the
+  // device will actually do. Fridges keep "full", so only map for controllers.
+  private normalizeWorkmodes() {
+    if (this.deviceType !== 'controller') {
+      return;
+    }
+
+    if (this.deviceSettings?.workmode === 'full') {
+      this.deviceSettings.workmode = 'small';
+    }
+
+    this.recipe?.steps?.forEach((step: any) => {
+      if (step.settings?.workmode === 'full') {
+        step.settings.workmode = 'small';
+      }
+    });
+  }
+
   parseWorkmode(workmode: string): { hasDaycycle: boolean, hasHumidity: boolean, hasCo2: boolean } {
     switch(workmode) {
       case 'exp':
@@ -406,6 +427,7 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
                   settings: typeof s.settings === 'string' ? JSON.parse(s.settings) : s.settings,
                 }));
                 this.recipe.steps.push(...tpl.steps);
+                this.normalizeWorkmodes();
                 const toast = await this.toastController.create({ message: 'Template loaded', duration: 2000 });
                 await toast.present();
               } catch (e) {
@@ -431,6 +453,7 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
                 this.recipe.activeStepIndex = 0;
                 this.recipe.activeSince = 0;
                 this.recipe.loop = false;
+                this.normalizeWorkmodes();
                 const toast = await this.toastController.create({ message: 'Template loaded', duration: 2000 });
                 await toast.present();
               } catch (e) {

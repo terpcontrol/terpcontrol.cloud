@@ -181,7 +181,7 @@ namespace fg {
 
     state.timeofday = ptm->tm_sec + 60 * ptm->tm_min + 60 * 60 * ptm->tm_hour;
 
-    if(settings.workmode == ControllerControllerSettings::MODE_FULL || settings.workmode == ControllerControllerSettings::MODE_EXP || settings.workmode == ControllerControllerSettings::MODE_SMALL || settings.workmode == ControllerControllerSettings::MODE_TEMP) {
+    if(settings.workmode == ControllerControllerSettings::MODE_SMALL || settings.workmode == ControllerControllerSettings::MODE_TEMP) {
       if(settings.daynight.day > settings.daynight.night) {
         state.is_day = state.timeofday > settings.daynight.day || state.timeofday < settings.daynight.night;
       }
@@ -454,6 +454,12 @@ namespace fg {
       Serial.println(settings_json);
 
       loadIfAvaliable(new_settings.workmode, doc["workmode"]);
+      // "full" (Big Plant) no longer exists on the controller; it behaved
+      // identically to "small" here, so map legacy settings to keep devices
+      // running instead of falling back to OFF.
+      if(new_settings.workmode == ControllerControllerSettings::MODE_FULL) {
+        new_settings.workmode = ControllerControllerSettings::MODE_SMALL;
+      }
       loadIfAvaliable(new_settings.daynight.day, doc["daynight"]["day"]);
       loadIfAvaliable(new_settings.daynight.night, doc["daynight"]["night"]);
 	  loadIfAvaliable(new_settings.daynight.maxDehumidifySeconds, doc["daynight"]["maxDehumidifySeconds"]);
@@ -789,24 +795,7 @@ namespace fg {
       state.out_light = 0;
     }
     else {
-      if(settings.workmode == ControllerControllerSettings::MODE_FULL) {
-        Serial.println("MODE FULL");
-		
-        if(hasCo2Sensor()) {
-          Serial.printf("CO2 CONTROL ACTIVE (sensor_type=%d)\n", state.sensor_type);
-		  controlCo2();
-        }
-        else {
-          Serial.printf("CO2 CONTROL DISABLED (SHT sensor detected, sensor_type=%d)\n", state.sensor_type);
-		  co2_valve_open = false;
-          state.out_co2 = 0;
-        }
-		
-        controlLight();
-        controlDehumidifier();
-        controlHeater();
-      }
-      else if(settings.workmode == ControllerControllerSettings::MODE_SMALL) {
+      if(settings.workmode == ControllerControllerSettings::MODE_SMALL) {
         Serial.println("MODE SMALL");
 		
         if(hasCo2Sensor()) {
@@ -998,12 +987,11 @@ namespace fg {
     }
   }
 
-  std::array<const char*, 6> modes = {
+  std::array<const char*, 5> modes = {
     ControllerControllerSettings::MODE_OFF,
     ControllerControllerSettings::MODE_BREED,
     ControllerControllerSettings::MODE_TEMP,
     ControllerControllerSettings::MODE_SMALL,
-    ControllerControllerSettings::MODE_FULL,
     ControllerControllerSettings::MODE_DRY,
   };
 
@@ -1062,7 +1050,7 @@ namespace fg {
           }
         }
 
-        ui->push<SelectInput>("Control Mode", mode, std::vector<std::string>{"OFF", "Germination", "Greenhouse", "Small Plant", "Big Plant", "Drying"}, [ui, this](uint32_t mode) {
+        ui->push<SelectInput>("Control Mode", mode, std::vector<std::string>{"OFF", "Germination", "Greenhouse", "Small Plant", "Drying"}, [ui, this](uint32_t mode) {
 
           settings.workmode = modes[mode];
           Serial.print("MODE:");
@@ -1086,7 +1074,7 @@ namespace fg {
           });
         });
       }
-      if(settings.workmode == ControllerControllerSettings::MODE_TEMP || settings.workmode == ControllerControllerSettings::MODE_FULL || settings.workmode == ControllerControllerSettings::MODE_SMALL) {
+      if(settings.workmode == ControllerControllerSettings::MODE_TEMP || settings.workmode == ControllerControllerSettings::MODE_SMALL) {
         menu->addOption("Dayrise (UTC)", ICON_DAY, [ui, this](){
           ui->push<TimeEntry>("Dayrise (UTC)", settings.daynight.day, [ui, this](uint32_t value) {
             settings.daynight.day = value;
@@ -1119,7 +1107,7 @@ namespace fg {
         });
       }
 
-      if(settings.workmode == ControllerControllerSettings::MODE_FULL || settings.workmode == ControllerControllerSettings::MODE_SMALL || settings.workmode == ControllerControllerSettings::MODE_DRY) {
+      if(settings.workmode == ControllerControllerSettings::MODE_SMALL || settings.workmode == ControllerControllerSettings::MODE_DRY) {
         menu->addOption("Day Humidity", ICON_HUMIDITY, [ui, this](){
           ui->push<FloatInput>("Day Humidity", settings.day.humidity, "%", 0, 100, 1, 0, [ui, this](float value) {
             settings.day.humidity = value;
@@ -1138,7 +1126,6 @@ namespace fg {
 
       if(hasCo2Sensor() && (
         settings.workmode == ControllerControllerSettings::MODE_TEMP
-        || settings.workmode == ControllerControllerSettings::MODE_FULL
         || settings.workmode == ControllerControllerSettings::MODE_SMALL
       )) {
         menu->addOption("CO2", ICON_HUMIDITY, [ui, this](){
@@ -1154,7 +1141,7 @@ namespace fg {
         Serial.println("SettingsMenu: CO2 hidden (no CO2 sensor)"); //SHT oder SCD
       }
 
-      if(settings.workmode == ControllerControllerSettings::MODE_TEMP || settings.workmode == ControllerControllerSettings::MODE_FULL || settings.workmode == ControllerControllerSettings::MODE_SMALL) {
+      if(settings.workmode == ControllerControllerSettings::MODE_TEMP || settings.workmode == ControllerControllerSettings::MODE_SMALL) {
         menu->addOption("Sunrise", ICON_DAY, [ui, this](){
           ui->push<FloatInput>("Sunrise", settings.lights.sunrise, "min", 0, 60, 1, 0, [ui, this](float value) {
             settings.lights.sunrise = value;

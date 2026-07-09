@@ -233,7 +233,12 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
     const co2:any = cfg?.co2 || {};
 
     // keep current workmode around for the UI label and masking rules
-    const mode:string = (cfg ? (cfg?.workmode || 'unknown') : 'loading') + '';
+    let mode:string = (cfg ? (cfg?.workmode || 'unknown') : 'loading') + '';
+    // The controller firmware dropped "full" and maps it to "small"; show the
+    // mapped mode when the cloud still has the legacy value stored.
+    if (this.device_type === 'controller' && mode === 'full') {
+      mode = 'small';
+    }
     this.workmode = mode;
 
     let t = this.is_day ? toNum(day.temperature) : toNum(night.temperature);
