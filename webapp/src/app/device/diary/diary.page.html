@@ -4,9 +4,12 @@
       <ion-menu-button></ion-menu-button>
     </ion-buttons>
     <ion-title>{{'diary.title' | translate}}</ion-title>
-    <ion-buttons slot="end" *ngIf="canEdit">
-      <ion-button (click)="openShareModal()" [title]="'share.button' | translate">
+    <ion-buttons slot="end">
+      <ion-button *ngIf="canEdit" (click)="openShareModal()" [title]="'share.button' | translate">
         <ion-icon slot="icon-only" name="share-social-outline"></ion-icon>
+      </ion-button>
+      <ion-button *ngIf="isPublic" (click)="theme.toggle()" [title]="'menu.darkMode' | translate">
+        <ion-icon slot="icon-only" [name]="theme.darkMode ? 'sunny-outline' : 'moon-outline'"></ion-icon>
       </ion-button>
     </ion-buttons>
   </ion-toolbar>

@@ -20,8 +20,8 @@
             <ion-label>{{ 'menu.darkMode' | translate }}</ion-label>
             <ion-toggle
               slot="end"
-              [checked]="darkMode"
-              (ionChange)="onDarkModeChange($any($event).detail.checked)"
+              [checked]="theme.darkMode"
+              (ionChange)="theme.set($any($event).detail.checked)"
               aria-label="Dark mode"
             ></ion-toggle>
           </ion-item>

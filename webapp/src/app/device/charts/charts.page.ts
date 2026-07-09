@@ -11,6 +11,7 @@ import {IonModal, ModalController} from "@ionic/angular";
 import {collectLogCategories, matchesLogCategory,} from '../log-entry-viewer/log-entry-viewer.component';
 import type { DeviceLog, ShareAccess } from '@fg2/shared-types';
 import { ShareLinkModalComponent } from '../../components/share-link/share-link-modal.component';
+import { ThemeService } from '../../services/theme.service';
 
 declare var require: any;
 let Boost = require('highcharts/modules/boost');
@@ -216,6 +217,7 @@ export class ChartsPage implements OnInit, OnDestroy {
     private data: DataService,
     private devices: DeviceService,
     private modalController: ModalController,
+    public theme: ThemeService,
   ) {
     this.chartOptions = {
       chart: {

@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { AuthService } from './auth/auth.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
+import { ThemeService } from './services/theme.service';
 
 
 @Component({
@@ -21,18 +22,14 @@ export class AppComponent {
   ];
   public appPages:any = [];
   public authenticated = false;
-  public darkMode = false;
-
-  private readonly themeStorageKey = 'app-dark-mode';
 
   constructor(
     public auth: AuthService,
+    public theme: ThemeService,
     private _router: Router,
     private _route: ActivatedRoute,
     private translate: TranslateService
   ) {
-    this.initTheme();
-
     auth.authenticated.subscribe((authenticated) => {
       this.authenticated = authenticated;
       if(!authenticated) {
@@ -71,19 +68,4 @@ export class AppComponent {
     }
   }
 
-  private initTheme() {
-    const savedPreference = localStorage.getItem(this.themeStorageKey);
-    this.darkMode = savedPreference === 'true';
-    this.setDarkMode(this.darkMode);
-  }
-
-  public onDarkModeChange(enabled: boolean) {
-    this.setDarkMode(enabled);
-    localStorage.setItem(this.themeStorageKey, String(enabled));
-  }
-
-  private setDarkMode(enabled: boolean) {
-    this.darkMode = enabled;
-    document.body.classList.toggle('dark', enabled);
-  }
 }

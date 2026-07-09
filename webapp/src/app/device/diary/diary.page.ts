@@ -9,6 +9,7 @@ import {OverlayEventDetail} from "@ionic/core/components";
 import type { DiaryEntry, ShareAccess } from '@fg2/shared-types';
 import { DEFAULT_DIARY_REPORT, DiaryReport, mergeDiaryQueryParams, parseDiaryReport } from './diary-query-params';
 import { ShareLinkModalComponent } from '../../components/share-link/share-link-modal.component';
+import { ThemeService } from '../../services/theme.service';
 
 @Component({
   selector: 'app-diary',
@@ -37,7 +38,8 @@ export class DiaryPage implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private devices: DeviceService,
-    private modalController: ModalController
+    private modalController: ModalController,
+    public theme: ThemeService
   ) {
   }
 
