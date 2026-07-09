@@ -57,22 +57,31 @@ describe('GET /image/:device_id authorization', () => {
   });
 
   it('accepts an owner authenticated only by the user-token cookie', async () => {
-    await get('').set('Cookie', `Authorization=${makeToken('user')}`).expect(200);
+    await get('')
+      .set('Cookie', `Authorization=${makeToken('user')}`)
+      .expect(200);
   });
 
   it('accepts a valid image query token next to an expired cookie', async () => {
     const expired = sign({ user_id: OWNER_ID, is_admin: false, token_type: 'user', secret: 's' }, SECRET_KEY, { expiresIn: '-1s' });
-    await get(`&token=${makeToken('image')}`).set('Cookie', `Authorization=${expired}`).expect(200);
+    await get(`&token=${makeToken('image')}`)
+      .set('Cookie', `Authorization=${expired}`)
+      .expect(200);
   });
 
   it('rejects a user who does not own the device and has no share link', async () => {
-    await get('').set('Cookie', `Authorization=${makeToken('user', '60706478aad6c9ad19a31c99')}`).expect(401);
+    await get('')
+      .set('Cookie', `Authorization=${makeToken('user', '60706478aad6c9ad19a31c99')}`)
+      .expect(401);
   });
 
   it('rejects an image token on non-image-typed access', async () => {
     // The URL-embeddable image token must not unlock user-level endpoints,
     // so the widening only goes from 'user' down to 'image'.
-    await request(app.getServer()).post(`/image/${DEVICE_ID}`).set('Authorization', `Bearer ${makeToken('image')}`).expect(401);
+    await request(app.getServer())
+      .post(`/image/${DEVICE_ID}`)
+      .set('Authorization', `Bearer ${makeToken('image')}`)
+      .expect(401);
   });
 
   it('serves webcam images through a share link that includes the webcam', async () => {
