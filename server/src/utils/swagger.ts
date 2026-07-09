@@ -116,7 +116,6 @@ export function buildSwaggerSpec(serverUrl?: string): object {
               autoFirmwareUpdate: { type: 'boolean' },
               firmwareChannel: { type: 'string', enum: ['stable', 'beta', 'alpha', 'manual'] },
               pendingFirmware: { type: 'string' },
-              publicRead: { type: 'boolean', description: 'Deprecated. Replaced by per-page share links.' },
               vpdLeafTempOffsetDay: { type: 'number' },
               vpdLeafTempOffsetNight: { type: 'number' },
               ppfdLuxFactor: { type: 'number' },

@@ -36,8 +36,6 @@ export interface CloudSettings {
   autoFirmwareUpdate?: boolean;
   firmwareChannel?: FirmwareChannel;
   pendingFirmware?: string;
-  /** @deprecated Replaced by per-page share links. Kept for reading legacy devices. */
-  publicRead?: boolean;
   vpdLeafTempOffsetDay?: number;
   vpdLeafTempOffsetNight?: number;
   ppfdLuxFactor?: number;
