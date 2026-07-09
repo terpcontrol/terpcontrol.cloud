@@ -1,4 +1,4 @@
-import {Component, OnDestroy, OnInit} from '@angular/core';
+import {Component, OnDestroy, OnInit, ViewChild} from '@angular/core';
 import 'chartjs-adapter-luxon';
 import {ActivatedRoute, Router} from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -10,6 +10,7 @@ import type { DiaryEntry, ShareAccess } from '@fg2/shared-types';
 import { DEFAULT_DIARY_REPORT, DiaryReport, mergeDiaryQueryParams, parseDiaryReport } from './diary-query-params';
 import { ShareLinkModalComponent } from '../../components/share-link/share-link-modal.component';
 import { ThemeService } from '../../services/theme.service';
+import { GrowReportComponent } from './grow-report/grow-report.component';
 
 @Component({
   selector: 'app-diary',
@@ -31,6 +32,8 @@ export class DiaryPage implements OnInit, OnDestroy {
   public resolved = false;
 
   public selectedReport: DiaryReport = 'entries';
+
+  @ViewChild(GrowReportComponent) private growReport?: GrowReportComponent;
 
   private queryParamsSubscription?: Subscription;
 
@@ -123,7 +126,9 @@ export class DiaryPage implements OnInit, OnDestroy {
       componentProps: {
         deviceId: this.deviceId,
         page: 'diary',
-        webcamActive: this.route.snapshot.queryParamMap.get('webcamViewer') === 'true',
+        // The component state, not the URL parameter: the viewer can be opened
+        // in ways that only sync the URL asynchronously (or not at all).
+        webcamActive: !!this.growReport?.webcamViewerOpen,
       },
     });
     await modal.present();

@@ -832,8 +832,15 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   openWebcamViewerAtGap(event: MouseEvent): void {
+    if (!this.webcamAllowed) {
+      return;
+    }
+
     this.webcamViewerOpen = true;
     this.scrubToClientY(event.clientY, 0);
+    // Keep the URL in sync just like the toggle button: a share link created
+    // now must capture that the webcam viewer is part of the view.
+    void this.syncQueryParams();
   }
 
   onScrubStripPointerMove(event: PointerEvent): void {
