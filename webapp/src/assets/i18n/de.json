@@ -157,6 +157,9 @@
       "charts": "Besucher können Zeitraum, Messwerte und Log-Filter ändern.",
       "diary": "Besucher können Berichte wechseln, Strain und Filter ändern und die Webcam ansehen."
     },
+    "includeCharts": "Funktionierende Diagramm-Links",
+    "includeChartsHint": "Besucher können die im Grow-Report verlinkten Diagrammansichten öffnen.",
+    "withCharts": "inkl. Diagramm-Links",
     "expiry": "Link läuft ab",
     "never": "Nie",
     "endOfDate": "Ende des {{date}}",

@@ -29,6 +29,7 @@ export class DiaryPage implements OnInit, OnDestroy {
   // Set when locked: the view stored with the link, overriding URL parameters.
   public lockedParams?: URLSearchParams;
   public webcamAllowed = true;
+  public chartsAllowed = true;
   public resolved = false;
 
   public selectedReport: DiaryReport = 'entries';
@@ -60,6 +61,7 @@ export class DiaryPage implements OnInit, OnDestroy {
         this.share = deviceAccessInfo.share;
         this.locked = !!this.share && !this.share.editable;
         this.webcamAllowed = !deviceAccessInfo.isPublic || !!this.share?.webcam;
+        this.chartsAllowed = !deviceAccessInfo.isPublic || !!this.share?.charts;
         this.cloudSettings = deviceAccessInfo.cloudSettings || {};
 
         if (this.locked) {

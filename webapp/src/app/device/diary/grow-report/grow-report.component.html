@@ -45,7 +45,7 @@
     <ion-card-header>
       <ion-card-subtitle>
         {{ selectedCycleTimeline.name }}
-        <ion-button *ngIf="!isPublic" fill="clear" size="small" (click)="navigateToChartsForCycle()" title="{{ 'diary.viewCycleChart' | translate }}">
+        <ion-button *ngIf="chartsAllowed" fill="clear" size="small" (click)="navigateToChartsForCycle()" title="{{ 'diary.viewCycleChart' | translate }}">
           <ion-icon name="analytics-outline"></ion-icon>
         </ion-button>
       </ion-card-subtitle>
@@ -87,7 +87,7 @@
                 <span class="phase-duration">• {{ summary.durationDays }} {{ summary.durationDays === 1 ? ('diary.day' | translate) : ('diary.days' | translate) }} ({{ 'diary.totalDay' | translate }}: {{ summary.totalDaysFromStart }} - {{ summary.totalDaysFromStart + summary.durationDays - 1 }})</span>
               </p>
             </ion-label>
-            <ion-button *ngIf="!isPublic" fill="clear" slot="end" (click)="navigateToCharts(summary)" title="{{ 'diary.viewChart' | translate }}">
+            <ion-button *ngIf="chartsAllowed" fill="clear" slot="end" (click)="navigateToCharts(summary)" title="{{ 'diary.viewChart' | translate }}">
               <ion-icon name="analytics-outline"></ion-icon>
             </ion-button>
             <ion-icon name="chevron-forward-outline" slot="end" (click)="scrollToPhase(summary.stage)" style="cursor: pointer;"></ion-icon>

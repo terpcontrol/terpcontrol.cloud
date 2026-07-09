@@ -81,6 +81,9 @@ class ShareRoute implements Routes {
      *               webcam:
      *                 type: boolean
      *                 description: Whether webcam images are included in a view-only link.
+     *               charts:
+     *                 type: boolean
+     *                 description: Diary links only - whether visitors may open the chart views linked from the grow report.
      *               expires_at:
      *                 type: number
      *                 nullable: true

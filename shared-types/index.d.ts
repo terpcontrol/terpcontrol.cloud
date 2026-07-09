@@ -71,6 +71,8 @@ export interface ShareLink {
   editable: boolean;
   /** Visitors may load webcam images/timelapses (diary photos are always visible). */
   webcam: boolean;
+  /** Diary links: visitors may open the chart views linked from the grow report. */
+  charts?: boolean;
   /** Query string capturing the shared view (time frame, measures, filters). */
   query?: string;
   createdAt: number;
@@ -81,7 +83,7 @@ export interface ShareLink {
   lastOpenedAt?: number | null;
 }
 
-export type ShareAccess = Pick<ShareLink, 'share_id' | 'page' | 'editable' | 'webcam' | 'query' | 'expiresAt'>;
+export type ShareAccess = Pick<ShareLink, 'share_id' | 'page' | 'editable' | 'webcam' | 'charts' | 'query' | 'expiresAt'>;
 
 export interface DeviceAccessInfo {
   device_id: string;

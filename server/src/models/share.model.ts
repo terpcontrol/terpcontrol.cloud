@@ -30,6 +30,11 @@ const shareSchema: Schema = new Schema({
     type: Boolean,
     required: true,
   },
+  charts: {
+    type: Boolean,
+    required: false,
+    default: false,
+  },
   query: {
     type: String,
     required: false,

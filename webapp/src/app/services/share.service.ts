@@ -73,6 +73,8 @@ export class ShareService {
     page: SharePage;
     editable: boolean;
     webcam: boolean;
+    /** Diary links: visitors may open the chart views linked from the grow report. */
+    charts?: boolean;
     /** Epoch ms when the link expires; null for a link that never expires. */
     expires_at: number | null;
     query?: string;
