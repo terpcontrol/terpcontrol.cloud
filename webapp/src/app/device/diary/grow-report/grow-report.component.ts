@@ -1,5 +1,6 @@
 import {Component, ElementRef, Input, NgZone, OnChanges, OnDestroy, OnInit, SimpleChanges} from '@angular/core';
 import {DeviceService} from "../../../services/devices.service";
+import {currentShareToken} from "../../../services/share.service";
 import {Subscription} from "rxjs";
 import {collectLogCategories, filterLogsByCategory, LogEntryViewerLog} from "../../log-entry-viewer/log-entry-viewer.component";
 import {ActivatedRoute, Router} from "@angular/router";
@@ -100,6 +101,8 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   // When locked, the view stored with the share link replaces the URL parameters.
   @Input() lockedParams?: { get(name: string): string | null };
   @Input() webcamAllowed = true;
+  // Share-link visitors may only open the linked chart views when the link includes them.
+  @Input() chartsAllowed = true;
 
   private devicesSubscription: Subscription | undefined;
   private queryParamsSubscription: Subscription | undefined;
@@ -649,6 +652,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   private navigateToChartsWithDateRange(startDate: Date, endDate: Date): void {
+    const shareToken = currentShareToken();
     const queryParams = {
       date: startDate.toISOString(),
       dateEnd: endDate.toISOString(),
@@ -657,6 +661,8 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
       vpdMode: 'day',
       interval: '1h',
       logs: this.selectedLogCategories?.join(',') || '',
+      // Share-link visitors keep their access token across the navigation.
+      ...(shareToken ? { share: shareToken } : {}),
     };
 
     void this.router.navigate(['device', this.deviceId, 'charts'], { queryParams });
@@ -832,8 +838,15 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   openWebcamViewerAtGap(event: MouseEvent): void {
+    if (!this.webcamAllowed) {
+      return;
+    }
+
     this.webcamViewerOpen = true;
     this.scrubToClientY(event.clientY, 0);
+    // Keep the URL in sync just like the toggle button: a share link created
+    // now must capture that the webcam viewer is part of the view.
+    void this.syncQueryParams();
   }
 
   onScrubStripPointerMove(event: PointerEvent): void {

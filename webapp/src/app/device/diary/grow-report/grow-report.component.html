@@ -24,7 +24,7 @@
       </ion-select>
     </ion-item>
 
-    <ion-button *ngIf="growCycles.length > 0 && webcamAllowed && !locked" fill="outline" size="small" (click)="toggleWebcamViewer()">
+    <ion-button *ngIf="growCycles.length > 0 && webcamAllowed" fill="outline" size="small" (click)="toggleWebcamViewer()">
       <ion-icon [name]="webcamViewerOpen ? 'eye-off-outline' : 'camera-outline'" slot="start"></ion-icon>
       {{ (webcamViewerOpen ? 'diary.hideWebcam' : 'diary.showWebcam') | translate }}
     </ion-button>
@@ -45,7 +45,7 @@
     <ion-card-header>
       <ion-card-subtitle>
         {{ selectedCycleTimeline.name }}
-        <ion-button *ngIf="!isPublic" fill="clear" size="small" (click)="navigateToChartsForCycle()" title="{{ 'diary.viewCycleChart' | translate }}">
+        <ion-button *ngIf="chartsAllowed" fill="clear" size="small" (click)="navigateToChartsForCycle()" title="{{ 'diary.viewCycleChart' | translate }}">
           <ion-icon name="analytics-outline"></ion-icon>
         </ion-button>
       </ion-card-subtitle>
@@ -87,7 +87,7 @@
                 <span class="phase-duration">• {{ summary.durationDays }} {{ summary.durationDays === 1 ? ('diary.day' | translate) : ('diary.days' | translate) }} ({{ 'diary.totalDay' | translate }}: {{ summary.totalDaysFromStart }} - {{ summary.totalDaysFromStart + summary.durationDays - 1 }})</span>
               </p>
             </ion-label>
-            <ion-button *ngIf="!isPublic" fill="clear" slot="end" (click)="navigateToCharts(summary)" title="{{ 'diary.viewChart' | translate }}">
+            <ion-button *ngIf="chartsAllowed" fill="clear" slot="end" (click)="navigateToCharts(summary)" title="{{ 'diary.viewChart' | translate }}">
               <ion-icon name="analytics-outline"></ion-icon>
             </ion-button>
             <ion-icon name="chevron-forward-outline" slot="end" (click)="scrollToPhase(summary.stage)" style="cursor: pointer;"></ion-icon>
@@ -149,9 +149,10 @@
 
             <div
               *ngIf="day.gapLabel"
-              class="gap-indicator gap-clickable"
+              class="gap-indicator"
+              [class.gap-clickable]="webcamAllowed"
               (click)="openWebcamViewerAtGap($event)"
-              title="{{ 'diary.gapPhotos' | translate }}"
+              [title]="webcamAllowed ? ('diary.gapPhotos' | translate) : ''"
             >
               <div class="gap-line-wrap" [style.height.px]="day.gapHeightPx || 14">
                 <div class="gap-line-vertical"></div>
@@ -191,7 +192,7 @@
       {{ webcamTimeValue }}
       <ion-icon name="time-outline"></ion-icon>
     </span>
-    <ion-button *ngIf="!locked" fill="clear" size="small" (click)="toggleWebcamViewer()">
+    <ion-button fill="clear" size="small" (click)="toggleWebcamViewer()">
       <ion-icon name="close-outline"></ion-icon>
     </ion-button>
   </div>

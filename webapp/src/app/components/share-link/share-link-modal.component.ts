@@ -16,6 +16,8 @@ export class ShareLinkModalComponent {
   @Input() webcamActive = false;
 
   public editable = false;
+  // Diary links only: let visitors open the chart views linked from the grow report.
+  public includeCharts = false;
   // Date (YYYY-MM-DD) at whose end the link expires; empty means it never expires.
   public expiresDate = '';
   public minExpiresDate = ShareLinkModalComponent.toDateString(new Date());
@@ -71,6 +73,7 @@ export class ShareLinkModalComponent {
         page: this.page,
         editable: this.editable,
         webcam: this.webcamActive,
+        charts: this.page === 'diary' && this.includeCharts,
         expires_at: this.expiresAt(),
         query: query.toString(),
       });

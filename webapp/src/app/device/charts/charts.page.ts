@@ -477,7 +477,11 @@ export class ChartsPage implements OnInit, OnDestroy {
       .then(deviceAccessInfo => {
         this.isPublic = deviceAccessInfo.isPublic;
         this.share = deviceAccessInfo.share;
-        this.locked = !!this.share && !this.share.editable;
+        // Visitors coming from a diary link's grow report (share.charts) always
+        // render the URL parameters: the link's stored query describes the diary
+        // page, and the whole point is opening specific cycle/phase chart views.
+        const viaDiaryLink = this.share?.page === 'diary';
+        this.locked = !!this.share && !this.share.editable && !viaDiaryLink;
         this.device_type = deviceAccessInfo.device_type || '';
         this.cloudSettings = deviceAccessInfo.cloudSettings || {};
 

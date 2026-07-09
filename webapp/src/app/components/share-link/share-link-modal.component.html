@@ -27,6 +27,14 @@
     </ion-item>
   </ion-radio-group>
 
+  <ion-item lines="none" *ngIf="page === 'diary'">
+    <ion-checkbox slot="start" [(ngModel)]="includeCharts" (ngModelChange)="optionsChanged()"></ion-checkbox>
+    <ion-label class="ion-text-wrap">
+      <h3>{{ 'share.includeCharts' | translate }}</h3>
+      <p>{{ 'share.includeChartsHint' | translate }}</p>
+    </ion-label>
+  </ion-item>
+
   <ion-item lines="none">
     <ion-label>{{ 'share.expiry' | translate }}</ion-label>
     <ion-button id="share-expiry-trigger" fill="outline" size="small" slot="end">

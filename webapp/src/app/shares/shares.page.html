@@ -31,7 +31,7 @@
               {{ deviceName(share) }} — {{ 'share.page.' + share.page | translate }}
               <ion-badge color="success">{{ statusKey(share) | translate }}</ion-badge>
             </h2>
-            <p>{{ (share.editable ? 'share.interactive' : 'share.viewOnly') | translate }}</p>
+            <p>{{ (share.editable ? 'share.interactive' : 'share.viewOnly') | translate }}<ng-container *ngIf="share.charts"> • {{ 'share.withCharts' | translate }}</ng-container></p>
             <p>
               {{ 'share.created' | translate }}: {{ share.createdAt | date: 'medium' }}
               •
@@ -63,7 +63,7 @@
               {{ deviceName(share) }} — {{ 'share.page.' + share.page | translate }}
               <ion-badge color="medium">{{ statusKey(share) | translate }}</ion-badge>
             </h2>
-            <p>{{ (share.editable ? 'share.interactive' : 'share.viewOnly') | translate }}</p>
+            <p>{{ (share.editable ? 'share.interactive' : 'share.viewOnly') | translate }}<ng-container *ngIf="share.charts"> • {{ 'share.withCharts' | translate }}</ng-container></p>
             <p>
               {{ 'share.created' | translate }}: {{ share.createdAt | date: 'medium' }}
               <ng-container *ngIf="share.revokedAt"> • {{ 'share.revoked' | translate }}: {{ share.revokedAt | date: 'medium' }}</ng-container>

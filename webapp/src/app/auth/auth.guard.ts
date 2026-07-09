@@ -32,7 +32,10 @@ export class AuthGuard implements CanActivate {
     if (page && deviceId && shareToken) {
       try {
         const result = await this.shares.resolve(shareToken);
-        if (result.device_id === deviceId && result.share?.page === page) {
+        // A diary link may additionally open the charts page when the owner
+        // enabled working chart links for the grow report.
+        const pageAllowed = result.share?.page === page || (page === 'charts' && !!result.share?.charts);
+        if (result.device_id === deviceId && pageAllowed) {
           return true;
         }
       } catch (_error) {}

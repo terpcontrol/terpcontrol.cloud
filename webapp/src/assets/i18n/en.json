@@ -160,6 +160,9 @@
       "charts": "Visitors can change the time frame, measures, and log filter.",
       "diary": "Visitors can switch reports, change strain and filters, and view the webcam."
     },
+    "includeCharts": "Working chart links",
+    "includeChartsHint": "Visitors can open the chart views linked from the grow report.",
+    "withCharts": "incl. chart links",
     "expiry": "Link expires",
     "never": "Never",
     "endOfDate": "End of {{date}}",

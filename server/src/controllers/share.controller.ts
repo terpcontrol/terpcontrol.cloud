@@ -15,7 +15,7 @@ const inactiveShareFilter = () => ({ $or: [{ revokedAt: { $ne: null } }, { expir
 class ShareController {
   public create = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
-      const { device_id, page, editable, webcam, expires_at, query } = req.body ?? {};
+      const { device_id, page, editable, webcam, charts, expires_at, query } = req.body ?? {};
 
       if (!device_id || !SHARE_PAGES.includes(page)) {
         return res.status(400).json({ error: 'Missing device_id or invalid page' });
@@ -38,6 +38,8 @@ class ShareController {
         editable: !!editable,
         // An interactive link always includes the webcam, since visitors could turn it on anyway.
         webcam: !!editable || !!webcam,
+        // Only diary links carry chart links (from the grow report) that need extra access.
+        charts: page === 'diary' && !!charts,
         query: typeof query === 'string' ? query.slice(0, 2000) : undefined,
         createdAt: Date.now(),
         expiresAt,
