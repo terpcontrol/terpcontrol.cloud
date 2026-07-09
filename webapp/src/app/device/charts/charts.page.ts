@@ -464,45 +464,6 @@ export class ChartsPage implements OnInit, OnDestroy {
   ngOnInit() {
     this.device_id = this.route.snapshot.paramMap.get('device_id') || '';
     this.shareToken = this.route.snapshot.queryParamMap.get('share');
-    if (this.route.snapshot.queryParams?.['measures']) {
-      const selectedMeasures = String(this.route.snapshot.queryParams['measures']).split(',');
-      this.measures.forEach(measure => measure.enabled = selectedMeasures.includes(measure.name));
-      this.showImage = selectedMeasures.includes('image');
-      this.showLogs = selectedMeasures.includes('logs');
-    }
-    if (this.route.snapshot.queryParams?.['vpdMode']) {
-      this.vpdMode = this.route.snapshot.queryParams['vpdMode'] as 'all' | 'day' | 'night';
-    }
-    if (this.route.snapshot.queryParams?.['autoUpdate']) {
-      this.autoUpdate = this.route.snapshot.queryParams['autoUpdate'] === 'true';
-    }
-    if (this.route.snapshot.queryParams?.['useCustom']) {
-      this.useCustom = this.route.snapshot.queryParams['useCustom'] === 'true';
-    }
-    if (this.route.snapshot.queryParams?.['timespan']) {
-      this.selectedTimespan = this.timespans.find(ts => ts.name === this.route.snapshot.queryParams['timespan'])!;
-      this.selectedInterval = this.selectedTimespan.defaultInterval;
-    }
-    if (this.route.snapshot.queryParams?.['interval']) {
-      this.selectedInterval = this.route.snapshot.queryParams['interval'];
-    }
-    if (this.route.snapshot.queryParams?.['date']) {
-      this.selectedDate = this.route.snapshot.queryParams['date'];
-    } else {
-      this.selectedDate = '';
-    }
-    if (this.route.snapshot.queryParams?.['dateEnd']) {
-      this.selectedDateEnd = this.route.snapshot.queryParams['dateEnd'];
-    } else {
-      this.selectedDateEnd = '';
-    }
-    if (this.route.snapshot.queryParams?.['logs']) {
-      this.selectedLogCategories = String(this.route.snapshot.queryParams['logs']).split(',');
-    }
-
-    if (this.selectedDate) {
-      this.autoUpdate = false;
-    }
 
     this.themeObserver = new MutationObserver(() => {
       this.applyChartTheme();
@@ -517,6 +478,12 @@ export class ChartsPage implements OnInit, OnDestroy {
         this.locked = !!this.share && !this.share.editable;
         this.device_type = deviceAccessInfo.device_type || '';
         this.cloudSettings = deviceAccessInfo.cloudSettings || {};
+
+        // View-only links render the view stored with the link; URL parameters
+        // cannot override it.
+        this.applyViewParams(this.locked
+          ? Object.fromEntries(new URLSearchParams(this.share?.query ?? ''))
+          : this.route.snapshot.queryParams);
 
         if (this.device_type != "") {
           this.filtered_measures = this.measures
@@ -545,6 +512,43 @@ export class ChartsPage implements OnInit, OnDestroy {
       .catch(() => {
         this.loaded = true;
       });
+  }
+
+  private applyViewParams(queryParams: Record<string, string>) {
+    if (queryParams?.['measures']) {
+      const selectedMeasures = String(queryParams['measures']).split(',');
+      this.measures.forEach(measure => measure.enabled = selectedMeasures.includes(measure.name));
+      this.showImage = selectedMeasures.includes('image');
+      this.showLogs = selectedMeasures.includes('logs');
+    }
+    if (queryParams?.['vpdMode']) {
+      this.vpdMode = queryParams['vpdMode'] as 'all' | 'day' | 'night';
+    }
+    if (queryParams?.['autoUpdate']) {
+      this.autoUpdate = queryParams['autoUpdate'] === 'true';
+    }
+    if (queryParams?.['useCustom']) {
+      this.useCustom = queryParams['useCustom'] === 'true';
+    }
+    if (queryParams?.['timespan']) {
+      const timespan = this.timespans.find(ts => ts.name === queryParams['timespan']);
+      if (timespan) {
+        this.selectedTimespan = timespan;
+        this.selectedInterval = this.selectedTimespan.defaultInterval;
+      }
+    }
+    if (queryParams?.['interval']) {
+      this.selectedInterval = queryParams['interval'];
+    }
+    this.selectedDate = queryParams?.['date'] || '';
+    this.selectedDateEnd = queryParams?.['dateEnd'] || '';
+    if (queryParams?.['logs']) {
+      this.selectedLogCategories = String(queryParams['logs']).split(',');
+    }
+
+    if (this.selectedDate) {
+      this.autoUpdate = false;
+    }
   }
 
   ngOnDestroy() {

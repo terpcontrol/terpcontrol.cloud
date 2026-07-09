@@ -81,7 +81,7 @@ export interface ShareLink {
   lastOpenedAt?: number | null;
 }
 
-export type ShareAccess = Pick<ShareLink, 'share_id' | 'page' | 'editable' | 'webcam' | 'expiresAt'>;
+export type ShareAccess = Pick<ShareLink, 'share_id' | 'page' | 'editable' | 'webcam' | 'query' | 'expiresAt'>;
 
 export interface DeviceAccessInfo {
   device_id: string;

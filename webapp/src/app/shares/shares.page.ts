@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { AlertController, ToastController } from '@ionic/angular';
 import { TranslateService } from '@ngx-translate/core';
 import type { ShareLink } from '@fg2/shared-types';
-import { ShareService, isShareActive } from '../services/share.service';
+import { ShareService, copyToClipboard, isShareActive } from '../services/share.service';
 import { DeviceService } from '../services/devices.service';
 
 @Component({
@@ -52,11 +52,10 @@ export class SharesPage {
   }
 
   public async copyLink(share: ShareLink) {
-    try {
-      await navigator.clipboard.writeText(this.shares.linkFor(share));
+    if (await copyToClipboard(this.shares.linkFor(share))) {
       this.copiedShareId = share.share_id;
       setTimeout(() => this.copiedShareId = '', 2000);
-    } catch (_error) {
+    } else {
       const toast = await this.toastController.create({ message: this.translate.instant('misc.errorOccurred'), duration: 2000 });
       await toast.present();
     }

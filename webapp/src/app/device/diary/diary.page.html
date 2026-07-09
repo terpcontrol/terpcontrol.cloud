@@ -12,7 +12,9 @@
   </ion-toolbar>
 </ion-header>
 <ion-content>
-  <ng-container>
+  <!-- The reports only render once access info resolved, so view-only links
+       start from the stored view instead of tamperable URL parameters. -->
+  <ng-container *ngIf="resolved">
     <ion-card>
       <ion-card-content>
         <ion-button *ngIf="canEdit" color="primary" (click)="openEntryModal()">
@@ -46,6 +48,7 @@
       [deviceId]="deviceId"
       [isPublic]="isPublic"
       [locked]="locked"
+      [lockedParams]="lockedParams"
       [webcamAllowed]="webcamAllowed"
       [lastUpdated]="lastUpdated"
     ></app-grow-report>
@@ -55,6 +58,7 @@
       [deviceId]="deviceId"
       [readOnly]="!canEdit"
       [locked]="locked"
+      [lockedParams]="lockedParams"
       [lastUpdated]="lastUpdated"
     ></app-diary-entries-report>
   </ng-container>

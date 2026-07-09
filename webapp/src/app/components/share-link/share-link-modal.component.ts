@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core';
 import { ModalController } from '@ionic/angular';
 import type { SharePage } from '@fg2/shared-types';
-import { ShareService } from '../../services/share.service';
+import { ShareService, copyToClipboard } from '../../services/share.service';
 
 @Component({
   selector: 'app-share-link-modal',
@@ -80,12 +80,9 @@ export class ShareLinkModalComponent {
   }
 
   public async copyLink() {
-    try {
-      await navigator.clipboard.writeText(this.createdLink);
+    if (await copyToClipboard(this.createdLink)) {
       this.copied = true;
       setTimeout(() => this.copied = false, 2000);
-    } catch (_error) {
-      // Clipboard unavailable (insecure context): the link stays selectable in the input.
     }
   }
 

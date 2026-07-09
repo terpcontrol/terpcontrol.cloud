@@ -24,7 +24,10 @@ export class DiaryPage implements OnInit, OnDestroy {
   public share?: ShareAccess;
   // A view-only share link: the visitor sees the shared view but cannot change it.
   public locked = false;
+  // Set when locked: the view stored with the link, overriding URL parameters.
+  public lockedParams?: URLSearchParams;
   public webcamAllowed = true;
+  public resolved = false;
 
   public selectedReport: DiaryReport = 'entries';
 
@@ -42,7 +45,7 @@ export class DiaryPage implements OnInit, OnDestroy {
     this.deviceId = this.route.snapshot.paramMap.get('device_id') || '';
 
     this.queryParamsSubscription = this.route.queryParamMap.subscribe(params => {
-      this.selectedReport = parseDiaryReport(params.get('report'));
+      this.selectedReport = parseDiaryReport((this.lockedParams ?? params).get('report'));
     });
 
     void this.devices.resolveDeviceAccessInfo(this.deviceId)
@@ -53,11 +56,18 @@ export class DiaryPage implements OnInit, OnDestroy {
         this.locked = !!this.share && !this.share.editable;
         this.webcamAllowed = !deviceAccessInfo.isPublic || !!this.share?.webcam;
         this.cloudSettings = deviceAccessInfo.cloudSettings || {};
+
+        if (this.locked) {
+          this.lockedParams = new URLSearchParams(this.share?.query ?? '');
+          this.selectedReport = parseDiaryReport(this.lockedParams.get('report'));
+        }
+        this.resolved = true;
       })
       .catch(() => {
         this.isPublic = false;
         this.canEdit = false;
         this.cloudSettings = {};
+        this.resolved = true;
       });
   }
 

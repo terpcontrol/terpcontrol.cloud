@@ -1207,6 +1207,8 @@ class DeviceService {
         page: share.page,
         editable: share.editable,
         webcam: share.webcam,
+        // View-only visitors render the view stored with the link, not the URL.
+        query: share.query,
         expiresAt: share.expiresAt ?? null,
       },
     };

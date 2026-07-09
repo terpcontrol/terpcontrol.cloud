@@ -203,6 +203,7 @@ export function buildSwaggerSpec(serverUrl?: string): object {
                   page: { type: 'string', enum: ['charts', 'diary'] },
                   editable: { type: 'boolean' },
                   webcam: { type: 'boolean' },
+                  query: { type: 'string', description: 'Query string capturing the shared view.' },
                   expiresAt: { type: 'number', nullable: true },
                 },
               },

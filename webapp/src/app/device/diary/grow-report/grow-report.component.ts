@@ -97,6 +97,8 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   @Input() isPublic = false;
   // View-only share link: filters, cycle selection, and the webcam toggle are locked.
   @Input() locked = false;
+  // When locked, the view stored with the share link replaces the URL parameters.
+  @Input() lockedParams?: { get(name: string): string | null };
   @Input() webcamAllowed = true;
 
   private devicesSubscription: Subscription | undefined;
@@ -155,9 +157,10 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     void this.attachIonContentScrollListener();
 
     this.queryParamsSubscription = this.route.queryParamMap.subscribe(params => {
-      this.selectedLogCategories = parseStringArrayQueryParam(params.get('growCategories')) ?? [...DEFAULT_GROW_CATEGORIES];
-      this.requestedCycleStart = parseNumberQueryParam(params.get('growCycle'));
-      const parsedWebcamViewerOpen = parseBooleanQueryParam(params.get('webcamViewer'));
+      const source = this.lockedParams ?? params;
+      this.selectedLogCategories = parseStringArrayQueryParam(source.get('growCategories')) ?? [...DEFAULT_GROW_CATEGORIES];
+      this.requestedCycleStart = parseNumberQueryParam(source.get('growCycle'));
+      const parsedWebcamViewerOpen = parseBooleanQueryParam(source.get('webcamViewer'));
       if (parsedWebcamViewerOpen !== undefined) {
         this.webcamViewerOpen = parsedWebcamViewerOpen && this.webcamAllowed;
       }
@@ -1247,6 +1250,10 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   private async syncQueryParams(): Promise<void> {
+    if (this.locked) {
+      return;
+    }
+
     await mergeDiaryQueryParams(this.router, this.route, {
       growCategories: serializeStringArrayQueryParam(this.selectedLogCategories, DEFAULT_GROW_CATEGORIES),
       growCycle: serializeNumberQueryParam(this.selectedCycle ? new Date(this.selectedCycle.timestampStart).getTime() : undefined),
