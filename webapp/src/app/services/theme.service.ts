@@ -9,7 +9,18 @@ export class ThemeService {
   public darkMode = false;
 
   constructor() {
-    this.apply(localStorage.getItem(this.storageKey) === 'true');
+    const stored = localStorage.getItem(this.storageKey);
+    if (stored !== null) {
+      this.apply(stored === 'true');
+    } else {
+      this.apply(window.matchMedia('(prefers-color-scheme: dark)').matches);
+    }
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      if (localStorage.getItem(this.storageKey) === null) {
+        this.apply(e.matches);
+      }
+    });
   }
 
   public toggle() {
