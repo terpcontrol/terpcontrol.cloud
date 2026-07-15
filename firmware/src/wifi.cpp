@@ -938,7 +938,7 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
     }, 1500);
   });
 
-  menu->addOption("reboot watchdog", [ui](){
+  menu->addOption("Connection Loss Reboot", [ui](){
     showRebootWatchdogUi(ui);
   });
 
