@@ -68,7 +68,7 @@ namespace fg {
     auto menu = ui->push<SelectMenu>();
     menu->addOption("back...", [ui](){ ui->pop(); });
 
-    menu->addOption("Reboot Timeout", [ui](){
+    menu->addOption("Reboot Delay", [ui](){
       ui->push<SelectInput>("Reboot after loss", initialTimeoutIndex(), initialTimeoutOptions(), [ui](uint32_t index) {
         fg::settings().setU8("rbt_init_min", (uint8_t)(index + 1));
         fg::settings().commit();
@@ -76,7 +76,7 @@ namespace fg {
       });
     });
 
-    menu->addOption("Timeout: Lights Off", [ui](){
+    menu->addOption("Delay: Lights Off", [ui](){
       uint32_t current = rebootWatchdogInitialLightsOffOnly() ? 1 : 0;
       ui->push<SelectInput>("Only while lights off", current, std::vector<std::string>{"no", "yes"}, [ui](uint32_t selected) {
         fg::settings().setU8("rbt_init_lt", (uint8_t)selected);
