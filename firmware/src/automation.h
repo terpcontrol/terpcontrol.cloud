@@ -23,10 +23,10 @@ namespace fg {
     virtual void initSettingsMenu(UserInterface* ui) = 0;
 
     // Whether the device is currently driving a grow light (directly or via
-    // a smart socket). The connection-recovery watchdog in main.cpp only
-    // performs its backup reboot while this returns false, so a reboot can
-    // never interrupt the photoperiod. Controllers without a light output
-    // keep the default.
+    // a smart socket). The connection-loss reboot watchdog in main.cpp
+    // (see rebootwatchdog.h) can optionally be restricted to only reboot
+    // while this returns false, so it never interrupts the photoperiod.
+    // Controllers without a light output keep the default.
     virtual bool isLightOn() { return false; }
   };
 

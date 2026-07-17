@@ -18,6 +18,7 @@
 #include <HTTPClient.h>
 
 #include "fridgecloud.h"
+#include "rebootwatchdog.h"
 
 #include "base64_min.h"
 #include "html_compressed/index.html.h"
@@ -935,6 +936,10 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
     ui_handle->push<TextDisplay>("rebooting...", 1, []() {
       ESP.restart();
     }, 1500);
+  });
+
+  menu->addOption("Conn. Loss Reboot", [ui](){
+    showRebootWatchdogUi(ui);
   });
 
 }

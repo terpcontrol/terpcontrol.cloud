@@ -10,6 +10,7 @@
 #include "fridgecloud.h"
 #include "wifi.h"
 #include "automation.h"
+#include "rebootwatchdog.h"
 
 #include "observeable.h"
 #include "ui.h"
@@ -306,35 +307,43 @@ void loop()
   fgc.loop();
 
   // Connection watchdog: reboot once if the cloud has been unreachable for
-  // 15 min. g_connection_reboot prevents a reboot-loop if the outage persists
-  // after the reboot; it is cleared when MQTT actually reconnects.
+  // the configured timeout. g_connection_reboot prevents a reboot-loop if
+  // the outage persists after the reboot; it is cleared when MQTT actually
+  // reconnects. Both the timeout and the "only while lights are off" gating
+  // are configured locally through the on-device menu (rebootwatchdog.h) —
+  // they are not part of the cloud-synced configuration.
   //
   // Backup recovery: the MQTT retry loop cannot recover from every failure
   // mode (e.g. exhausted LWIP sockets/fds after hours of failed connects
   // against an open-but-unresponsive port). If the cloud is still
-  // unreachable a full day after the quick reboot above, allow one recovery
-  // reboot per day, but only while the light output is off so the
-  // photoperiod is never interrupted. Each reboot restarts the 24h timer,
-  // so even a permanent outage causes at most one reboot per day — never a
-  // reboot loop.
+  // unreachable a full day later, allow one recovery reboot per day
+  // (independently toggleable, with its own lights-off gating). Each
+  // reboot restarts the 24h timer, so even a permanent outage causes at
+  // most one reboot per day — never a reboot loop.
   {
-    static constexpr TickType_t CONNECTION_WATCHDOG_TICKS = 15UL * 60 * configTICK_RATE_HZ;
     static constexpr TickType_t DAILY_RECOVERY_WATCHDOG_TICKS = 24UL * 60 * 60 * configTICK_RATE_HZ;
     static TickType_t last_connected_tick = xTaskGetTickCount();
     if(fgc.isConnected()) {
       last_connected_tick = xTaskGetTickCount();
       g_connection_reboot = false;
     }
-    if(!g_connection_reboot && (xTaskGetTickCount() - last_connected_tick) > CONNECTION_WATCHDOG_TICKS) {
-      Serial.println("[watchdog] no cloud connection for 15 min, rebooting");
+
+    int initial_reboot_minutes = fg::rebootWatchdogInitialMinutes();
+    TickType_t initial_watchdog_ticks = (TickType_t)initial_reboot_minutes * 60 * configTICK_RATE_HZ;
+
+    if(initial_reboot_minutes > 0 && !g_connection_reboot &&
+       (xTaskGetTickCount() - last_connected_tick) > initial_watchdog_ticks &&
+       (!fg::rebootWatchdogInitialLightsOffOnly() || !control->isLightOn())) {
+      Serial.printf("[watchdog] no cloud connection for %d min, rebooting\n", initial_reboot_minutes);
       Serial.flush();
       g_connection_reboot = true;
       ESP.restart();
     }
-    if(g_connection_reboot && wifiIsConfigured() &&
+
+    if(fg::rebootWatchdogDailyEnabled() && wifiIsConfigured() &&
        (xTaskGetTickCount() - last_connected_tick) > DAILY_RECOVERY_WATCHDOG_TICKS &&
-       !control->isLightOn()) {
-      Serial.println("[watchdog] no cloud connection for 24 h, recovery reboot while lights are off");
+       (!fg::rebootWatchdogDailyLightsOffOnly() || !control->isLightOn())) {
+      Serial.println("[watchdog] no cloud connection for 24 h, daily recovery reboot");
       Serial.flush();
       ESP.restart();
     }
