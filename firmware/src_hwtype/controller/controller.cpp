@@ -316,7 +316,9 @@ namespace fg {
 
     float target_humidity = state.is_day ? settings.day.humidity : settings.night.humidity;
     float target_temperature = state.is_day ? settings.day.temperature : settings.night.temperature;
-    float temp_limit = target_temperature - 1;
+    // Shared with controlHeater(): the point where the fridge has cooled the
+    // room too far to keep dehumidifying, and where the heater counteracts.
+    float temp_limit = target_temperature - settings.heater.dehumidifyLimit;
 	float humidity_avg = settings.daynight.useLongHumidityAvg > 0 ? humidity_avg_long.avg() : humidity_avg_short.avg();
 
     static uint8_t dehumidify = 0;
@@ -327,7 +329,7 @@ namespace fg {
     if(state.temperature < temp_limit) {
       temperature_override = 0;
     }
-    if(state.temperature > temp_limit + 1) {
+    if(state.temperature > temp_limit + DEHUMIDIFY_OVERRIDE_HYST) {
       temperature_override = 1;
     }
 
@@ -396,17 +398,64 @@ namespace fg {
   }
 
   void ControllerController::controlHeater() {
+    // The cabinet heater is a mains relay behind a smart socket: it can only be
+    // fully on or fully off, so it is driven by hysteresis. A PID duty cycle
+    // has no meaning here — the socket would switch on any output above zero
+    // and end up following the controller's noise rather than the temperature.
+    bool heating = state.out_heater > 0;
+    float target_temperature = state.is_day ? settings.day.temperature : settings.night.temperature;
+
+    // The fridge doubles as the dehumidifier, so it drags the temperature down
+    // whenever it runs. Some sag is expected and must not be fought, or the two
+    // would burn power against each other for the whole dehumidify cycle. The
+    // heater therefore only steps in at the limit that suspends dehumidifying
+    // anyway, which is exactly where the drop has become too steep.
+    bool cooling_active = state.out_dehumidifier > 0;
+    float on_below = target_temperature - settings.heater.hysteresis;
+    float off_above = target_temperature;
+
+    if(cooling_active) {
+      // Start assisting a lead above the point where controlDehumidifier()
+      // gives up (target - dehumidifyLimit). Both used to sit on the same
+      // temperature, and since controlDehumidifier() runs first in the same
+      // tick, the fridge had already switched off by the time the heater
+      // looked — so `cooling_active` was never true down here and assisting
+      // could not engage at all.
+      //
+      // The band is capped at the idle-fridge band: assisting must never make
+      // the heater more eager than it is with the fridge off.
+      float assist_on = target_temperature - settings.heater.dehumidifyLimit + settings.heater.assistLead;
+      float normal_on = target_temperature - settings.heater.hysteresis;
+      on_below = assist_on < normal_on ? assist_on : normal_on;
+      off_above = on_below + settings.heater.hysteresis;
+    }
+
+    TickType_t now = xTaskGetTickCount();
+    TickType_t held_for = now - heater_last_change_tick;
 
     if (isPaused()) {
-      state.out_heater = 0;
+      heating = false;
     }
-    else if(state.is_day) {
-      state.out_heater = heater_day_pid.tick(state.temperature, settings.day.temperature);
+    else if(cooling_active && settings.heater.dehumidifyAssist <= 0) {
+      if(heating && held_for >= (TickType_t)(configTICK_RATE_HZ * settings.heater.minOnTime)) {
+        heating = false;
+      }
     }
-    else {
-      state.out_heater = heater_night_pid.tick(state.temperature, settings.night.temperature);
+    else if(!heating && state.temperature < on_below) {
+      if(held_for >= (TickType_t)(configTICK_RATE_HZ * settings.heater.minOffTime)) {
+        heating = true;
+      }
+    }
+    else if(heating && state.temperature > off_above) {
+      if(held_for >= (TickType_t)(configTICK_RATE_HZ * settings.heater.minOnTime)) {
+        heating = false;
+      }
     }
 
+    if(heating != (state.out_heater > 0)) {
+      heater_last_change_tick = now;
+    }
+    state.out_heater = heating ? 1.0f : 0.0f;
   }
   
   ControllerController::ControllerController(Fridgecloud& cloud) :
@@ -414,8 +463,6 @@ namespace fg {
  
 	cloud(cloud),
     out_light(PIN_LIGHT, 0),
-    heater_day_pid(HEATER_PID_P, HEATER_PID_I, HEATER_PID_D),
-    heater_night_pid(HEATER_PID_P, HEATER_PID_I, HEATER_PID_D),
     sht21(SHTSensor::SHTSensorType::SHT4X)
 	
   {
@@ -442,7 +489,7 @@ namespace fg {
 
   void ControllerController::loadSettings(const String& settings_json) {
     ControllerControllerSettings new_settings;
-    DynamicJsonDocument doc(2048);
+    DynamicJsonDocument doc(3072);
     DeserializationError error = deserializeJson(doc, settings_json);
 
     // Test if parsing succeeds.
@@ -467,6 +514,12 @@ namespace fg {
       loadIfAvaliable(new_settings.daynight.useLongHumidityAvg, doc["daynight"]["useLongHumidityAvg"]);
       loadIfAvaliable(new_settings.daynight.minimalDehumidifierOffTime, doc["daynight"]["minimalDehumidifierOffTime"]);
       loadIfAvaliable(new_settings.co2.target, doc["co2"]["target"]);
+      loadIfAvaliable(new_settings.heater.hysteresis, doc["heater"]["hysteresis"]);
+      loadIfAvaliable(new_settings.heater.dehumidifyLimit, doc["heater"]["dehumidifyLimit"]);
+      loadIfAvaliable(new_settings.heater.dehumidifyAssist, doc["heater"]["dehumidifyAssist"]);
+      loadIfAvaliable(new_settings.heater.assistLead, doc["heater"]["assistLead"]);
+      loadIfAvaliable(new_settings.heater.minOnTime, doc["heater"]["minOnTime"]);
+      loadIfAvaliable(new_settings.heater.minOffTime, doc["heater"]["minOffTime"]);
       loadIfAvaliable(new_settings.day.temperature, doc["day"]["temperature"]);
       loadIfAvaliable(new_settings.day.humidity, doc["day"]["humidity"]);
       loadIfAvaliable(new_settings.night.temperature, doc["night"]["temperature"]);
@@ -485,6 +538,12 @@ namespace fg {
     Serial.printf("new_settings.daynight.useLongHumidityAvg: %f\n\r", new_settings.daynight.useLongHumidityAvg);
     Serial.printf("new_settings.daynight.minimalDehumidifierOffTime: %lu\n\r", new_settings.daynight.minimalDehumidifierOffTime);
     Serial.printf("new_settings.co2.target: %.0f\n\r", new_settings.co2.target);
+    Serial.printf("new_settings.heater.hysteresis: %.2f\n\r", new_settings.heater.hysteresis);
+    Serial.printf("new_settings.heater.dehumidifyLimit: %.2f\n\r", new_settings.heater.dehumidifyLimit);
+    Serial.printf("new_settings.heater.dehumidifyAssist: %.0f\n\r", new_settings.heater.dehumidifyAssist);
+    Serial.printf("new_settings.heater.assistLead: %.2f\n\r", new_settings.heater.assistLead);
+    Serial.printf("new_settings.heater.minOnTime: %.0f\n\r", new_settings.heater.minOnTime);
+    Serial.printf("new_settings.heater.minOffTime: %.0f\n\r", new_settings.heater.minOffTime);
     Serial.printf("new_settings.day.temperature: %.2f\n\r", new_settings.day.temperature);
     Serial.printf("new_settings.day.humidity: %.0f\n\r", new_settings.day.humidity);
     Serial.printf("new_settings.night.temperature: %.2f\n\r", new_settings.night.temperature);
@@ -502,7 +561,7 @@ namespace fg {
   }
 
   void ControllerController::saveAndUploadSettings() {
-    DynamicJsonDocument doc(2048);
+    DynamicJsonDocument doc(3072);
 
     doc["workmode"] = settings.workmode;
     doc["daynight"]["day"] = settings.daynight.day;
@@ -512,6 +571,12 @@ namespace fg {
     doc["daynight"]["useLongHumidityAvg"] = settings.daynight.useLongHumidityAvg;
     doc["daynight"]["minimalDehumidifierOffTime"] = settings.daynight.minimalDehumidifierOffTime;
     doc["co2"]["target"] = settings.co2.target;
+    doc["heater"]["hysteresis"] = settings.heater.hysteresis;
+    doc["heater"]["dehumidifyLimit"] = settings.heater.dehumidifyLimit;
+    doc["heater"]["dehumidifyAssist"] = settings.heater.dehumidifyAssist;
+    doc["heater"]["assistLead"] = settings.heater.assistLead;
+    doc["heater"]["minOnTime"] = settings.heater.minOnTime;
+    doc["heater"]["minOffTime"] = settings.heater.minOffTime;
     doc["day"]["temperature"] = settings.day.temperature;
     doc["day"]["humidity"] = settings.day.humidity;
     doc["night"]["temperature"] = settings.night.temperature;
@@ -840,8 +905,10 @@ namespace fg {
       }
       else if(settings.workmode == ControllerControllerSettings::MODE_BREED) {
         Serial.println("MODE BREED");
-        controlHeater();
+        // Cooling first: controlHeater() decides against the fridge state of
+        // this tick, not the previous one.
         controlCooling();
+        controlHeater();
         co2_valve_open = false;
         state.out_co2 = 0;
         out_light.set(0);
@@ -1122,6 +1189,60 @@ namespace fg {
             ui->pop();
           });
         });
+      }
+
+      if(settings.workmode != ControllerControllerSettings::MODE_OFF) {
+        menu->addOption("Heater Hysteresis", ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>("Heater Hysteresis", settings.heater.hysteresis, "C", 0.2, 3.0, 0.1, 1, [ui, this](float value) {
+            settings.heater.hysteresis = value;
+            saveAndUploadSettings();
+            ui->pop();
+          });
+        });
+
+        menu->addOption("Heater Min ON", ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>("Heater Min ON", settings.heater.minOnTime, "s", 30, 600, 10, 0, [ui, this](float value) {
+            settings.heater.minOnTime = value;
+            saveAndUploadSettings();
+            ui->pop();
+          });
+        });
+
+        menu->addOption("Heater Min OFF", ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>("Heater Min OFF", settings.heater.minOffTime, "s", 30, 900, 10, 0, [ui, this](float value) {
+            settings.heater.minOffTime = value;
+            saveAndUploadSettings();
+            ui->pop();
+          });
+        });
+      }
+
+      if(settings.workmode == ControllerControllerSettings::MODE_SMALL || settings.workmode == ControllerControllerSettings::MODE_DRY) {
+        menu->addOption("Fridge Temp Limit", ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>("Fridge Temp Limit", settings.heater.dehumidifyLimit, "C", 0.5, 5.0, 0.5, 1, [ui, this](float value) {
+            settings.heater.dehumidifyLimit = value;
+            saveAndUploadSettings();
+            ui->pop();
+          });
+        });
+
+        menu->addOption("Heat vs. Fridge", ICON_TEMPERATURE, [ui, this](){
+          ui->push<SelectInput>("Heat vs. Fridge", settings.heater.dehumidifyAssist > 0 ? 1 : 0, std::vector<std::string>{"OFF", "ON"}, [ui, this](uint32_t value) {
+            settings.heater.dehumidifyAssist = value ? 1.0f : 0.0f;
+            saveAndUploadSettings();
+            ui->pop();
+          });
+        });
+
+        if(settings.heater.dehumidifyAssist > 0) {
+          menu->addOption("Heat Assist Lead", ICON_TEMPERATURE, [ui, this](){
+            ui->push<FloatInput>("Heat Assist Lead", settings.heater.assistLead, "C", 0.0, 3.0, 0.1, 1, [ui, this](float value) {
+              settings.heater.assistLead = value;
+              saveAndUploadSettings();
+              ui->pop();
+            });
+          });
+        }
       }
 
       if(hasCo2Sensor() && (

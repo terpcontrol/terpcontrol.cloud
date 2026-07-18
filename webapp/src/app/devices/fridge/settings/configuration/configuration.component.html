@@ -286,6 +286,124 @@
       </ion-item>
     </ng-container>
 
+    <!-- The controller heats with a cabinet heater switched by a smart socket,
+         so it is controlled by hysteresis rather than a duty cycle. The other
+         devices drive their heater directly and do not expose these. -->
+    <ng-container *ngIf="settings.workmode !== 'off' && deviceType === 'controller'">
+      <ion-item>
+        <ion-label>
+          {{'settings.heaterHysteresis' | translate}}
+          <ion-button fill="clear" id="settings-heaterHysteresis-popover">
+            <ion-icon name="help-circle-outline"></ion-icon>
+          </ion-button>
+        </ion-label>
+        <ion-button size="small" fill="clear" [hidden]="heaterHysteresisEditMode" (click)="heaterHysteresisEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
+        <ion-item lines="none">{{settings.heater.hysteresis}} °C</ion-item>
+        <ion-popover trigger="settings-heaterHysteresis-popover" [dismissOnSelect]="true">
+          <ng-template>
+            <ion-content class="ion-padding">
+              {{'settings.heaterHysteresisHint' | translate}}
+            </ion-content>
+          </ng-template>
+        </ion-popover>
+      </ion-item>
+      <ion-item [hidden]="!heaterHysteresisEditMode">
+        <ion-button size="small" fill="clear" (click)="settings.heater.hysteresis = stepValue(settings.heater.hysteresis, -0.1, limits.heaterHysteresis)" [disabled]="settings.heater.hysteresis <= limits.heaterHysteresis.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
+        <ion-range [(ngModel)]="settings.heater.hysteresis" [min]="limits.heaterHysteresis.min" [max]="limits.heaterHysteresis.max" step="0.1" (ionChange)="onSettingsChanged()"></ion-range>
+        <ion-button size="small" fill="clear" (click)="settings.heater.hysteresis = stepValue(settings.heater.hysteresis, 0.1, limits.heaterHysteresis)" [disabled]="settings.heater.hysteresis >= limits.heaterHysteresis.max"><ion-icon name="add-circle"></ion-icon></ion-button>
+      </ion-item>
+
+      <ion-item>
+        <ion-label>
+          {{'settings.heaterMinOnTime' | translate}}
+          <ion-button fill="clear" id="settings-heaterMinOnTime-popover">
+            <ion-icon name="help-circle-outline"></ion-icon>
+          </ion-button>
+        </ion-label>
+        <ion-button size="small" fill="clear" [hidden]="heaterMinOnTimeEditMode" (click)="heaterMinOnTimeEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
+        <ion-item lines="none">{{settings.heater.minOnTime}} s</ion-item>
+        <ion-popover trigger="settings-heaterMinOnTime-popover" [dismissOnSelect]="true">
+          <ng-template>
+            <ion-content class="ion-padding">
+              {{'settings.heaterDwellHint' | translate}}
+            </ion-content>
+          </ng-template>
+        </ion-popover>
+      </ion-item>
+      <ion-item [hidden]="!heaterMinOnTimeEditMode">
+        <ion-button size="small" fill="clear" (click)="settings.heater.minOnTime = settings.heater.minOnTime - 10" [disabled]="settings.heater.minOnTime <= limits.heaterMinOnTime.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
+        <ion-range [(ngModel)]="settings.heater.minOnTime" [min]="limits.heaterMinOnTime.min" [max]="limits.heaterMinOnTime.max" step="10" (ionChange)="onSettingsChanged()"></ion-range>
+        <ion-button size="small" fill="clear" (click)="settings.heater.minOnTime = settings.heater.minOnTime + 10" [disabled]="settings.heater.minOnTime >= limits.heaterMinOnTime.max"><ion-icon name="add-circle"></ion-icon></ion-button>
+      </ion-item>
+
+      <ion-item>
+        <ion-label>{{'settings.heaterMinOffTime' | translate}}</ion-label>
+        <ion-button size="small" fill="clear" [hidden]="heaterMinOffTimeEditMode" (click)="heaterMinOffTimeEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
+        <ion-item lines="none">{{settings.heater.minOffTime}} s</ion-item>
+      </ion-item>
+      <ion-item [hidden]="!heaterMinOffTimeEditMode">
+        <ion-button size="small" fill="clear" (click)="settings.heater.minOffTime = settings.heater.minOffTime - 10" [disabled]="settings.heater.minOffTime <= limits.heaterMinOffTime.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
+        <ion-range [(ngModel)]="settings.heater.minOffTime" [min]="limits.heaterMinOffTime.min" [max]="limits.heaterMinOffTime.max" step="10" (ionChange)="onSettingsChanged()"></ion-range>
+        <ion-button size="small" fill="clear" (click)="settings.heater.minOffTime = settings.heater.minOffTime + 10" [disabled]="settings.heater.minOffTime >= limits.heaterMinOffTime.max"><ion-icon name="add-circle"></ion-icon></ion-button>
+      </ion-item>
+
+      <ng-container *ngIf="has_humidity">
+        <ion-item>
+          <ion-label>
+            {{'settings.heaterDehumidifyLimit' | translate}}
+            <ion-button fill="clear" id="settings-heaterDehumidifyLimit-popover">
+              <ion-icon name="help-circle-outline"></ion-icon>
+            </ion-button>
+          </ion-label>
+          <ion-button size="small" fill="clear" [hidden]="heaterDehumidifyLimitEditMode" (click)="heaterDehumidifyLimitEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
+          <ion-item lines="none">-{{settings.heater.dehumidifyLimit}} °C</ion-item>
+          <ion-popover trigger="settings-heaterDehumidifyLimit-popover" [dismissOnSelect]="true">
+            <ng-template>
+              <ion-content class="ion-padding">
+                {{'settings.heaterDehumidifyLimitHint' | translate}}
+              </ion-content>
+            </ng-template>
+          </ion-popover>
+        </ion-item>
+        <ion-item [hidden]="!heaterDehumidifyLimitEditMode">
+          <ion-button size="small" fill="clear" (click)="settings.heater.dehumidifyLimit = stepValue(settings.heater.dehumidifyLimit, -0.5, limits.heaterDehumidifyLimit)" [disabled]="settings.heater.dehumidifyLimit <= limits.heaterDehumidifyLimit.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
+          <ion-range [(ngModel)]="settings.heater.dehumidifyLimit" [min]="limits.heaterDehumidifyLimit.min" [max]="limits.heaterDehumidifyLimit.max" step="0.5" (ionChange)="onSettingsChanged()"></ion-range>
+          <ion-button size="small" fill="clear" (click)="settings.heater.dehumidifyLimit = stepValue(settings.heater.dehumidifyLimit, 0.5, limits.heaterDehumidifyLimit)" [disabled]="settings.heater.dehumidifyLimit >= limits.heaterDehumidifyLimit.max"><ion-icon name="add-circle"></ion-icon></ion-button>
+        </ion-item>
+
+        <ion-item>
+          <ion-checkbox [(ngModel)]="settings.heater.dehumidifyAssist" (ionChange)="onSettingsChanged()" labelPlacement="end" class="ion-text-wrap">{{'settings.heaterDehumidifyAssist' | translate}}</ion-checkbox>
+        </ion-item>
+
+        <!-- Only meaningful while assisting is enabled: it shifts the assist
+             band above the point where the fridge stops dehumidifying. -->
+        <ng-container *ngIf="settings.heater.dehumidifyAssist">
+          <ion-item>
+            <ion-label>
+              {{'settings.heaterAssistLead' | translate}}
+              <ion-button fill="clear" id="settings-heaterAssistLead-popover">
+                <ion-icon name="help-circle-outline"></ion-icon>
+              </ion-button>
+            </ion-label>
+            <ion-button size="small" fill="clear" [hidden]="heaterAssistLeadEditMode" (click)="heaterAssistLeadEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
+            <ion-item lines="none">{{settings.heater.assistLead}} °C</ion-item>
+            <ion-popover trigger="settings-heaterAssistLead-popover" [dismissOnSelect]="true">
+              <ng-template>
+                <ion-content class="ion-padding">
+                  {{'settings.heaterAssistLeadHint' | translate}}
+                </ion-content>
+              </ng-template>
+            </ion-popover>
+          </ion-item>
+          <ion-item [hidden]="!heaterAssistLeadEditMode">
+            <ion-button size="small" fill="clear" (click)="settings.heater.assistLead = stepValue(settings.heater.assistLead, -0.1, limits.heaterAssistLead)" [disabled]="settings.heater.assistLead <= limits.heaterAssistLead.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
+            <ion-range [(ngModel)]="settings.heater.assistLead" [min]="limits.heaterAssistLead.min" [max]="limits.heaterAssistLead.max" step="0.1" (ionChange)="onSettingsChanged()"></ion-range>
+            <ion-button size="small" fill="clear" (click)="settings.heater.assistLead = stepValue(settings.heater.assistLead, 0.1, limits.heaterAssistLead)" [disabled]="settings.heater.assistLead >= limits.heaterAssistLead.max"><ion-icon name="add-circle"></ion-icon></ion-button>
+          </ion-item>
+        </ng-container>
+      </ng-container>
+    </ng-container>
+
   </ion-card-content>
 </ion-card>
 

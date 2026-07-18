@@ -36,6 +36,27 @@ namespace fg {
       float target = 300;
     } co2;
 
+    // The cabinet heater is a smart socket (mains relay), so it is driven by
+    // hysteresis instead of a duty cycle. The dwell times keep the relay and
+    // the socket's HTTP uplink from being switched faster than they can
+    // usefully follow; see the note on minOffTime in controlHeater().
+    struct {
+      float hysteresis = 0.5;
+      float dehumidifyLimit = 1.0;
+      float dehumidifyAssist = 1.0;
+      // How far above the fridge's give-up point the heater starts assisting.
+      // The heater's warmth arrives late — roughly 1 C of overrun measured on
+      // the test cabinet — so starting it at the give-up point itself only
+      // lands once the temperature has already fallen through.
+      //
+      // Defaults to 0, which reproduces the previous behaviour: assisting never
+      // actually engages. Existing cabinets therefore keep running exactly as
+      // before after an update, and the lead has to be dialled in deliberately.
+      float assistLead = 0.0;
+      float minOnTime = 60;
+      float minOffTime = 120;
+    } heater;
+
     struct {
       float temperature = 25.0;
       float humidity = 60.0;
@@ -84,9 +105,10 @@ namespace fg {
     static constexpr int CO2_SAMPLE_DELAY = 100;
     static constexpr int WARN_LEVEL_CO2_MIN = 100;
 
-    static constexpr double HEATER_PID_P = 0.5;
-    static constexpr double HEATER_PID_I = 0.001;
-    static constexpr double HEATER_PID_D = 100.0;
+    // Re-arm band for the dehumidify temperature override. Once the fridge has
+    // pulled the temperature down to the limit, it stays suspended until the
+    // room has recovered this far above it again.
+    static constexpr float DEHUMIDIFY_OVERRIDE_HYST = 1.0f;
 
     static constexpr TickType_t CO2_INJECT_PERIOD = configTICK_RATE_HZ * 120.0;
     static constexpr TickType_t CO2_INJECT_DURATION = configTICK_RATE_HZ * 2.0;
@@ -145,8 +167,9 @@ namespace fg {
       uint32_t out_co2 = 0;
     } state;
 
-    Pid heater_day_pid;
-    Pid heater_night_pid;
+    // Tick of the last heater relay transition, for the dwell times. Compared
+    // with the same overflow-safe modular difference as isPaused().
+    TickType_t heater_last_change_tick = 0;
 
     // Overflow-safe maintenance-pause check. Comparing absolute ticks breaks
     // when xTaskGetTickCount() wraps (~49.7 days at 1 kHz); the modular
