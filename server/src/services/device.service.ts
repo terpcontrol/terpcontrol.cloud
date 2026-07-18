@@ -27,6 +27,7 @@ import { mailTransport } from '@services/auth.service';
 import { imageService } from '@services/image.service';
 import { tunnelService } from '@services/tunnel.service';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
+import { mergeConfiguration } from '@utils/mergeConfiguration';
 
 export type StatusMessage = {
   sensors: {
@@ -980,16 +981,19 @@ class DeviceService {
   }
 
   public async configureDevice(device_id: string, user_id: string, config: string): Promise<boolean> {
+    const existing = await deviceModel.findOne({ device_id: device_id, owner_id: user_id }, { configuration: 1 });
+    const mergedConfig = mergeConfiguration(existing?.configuration, config);
+
     const oldDdevice = await deviceModel.findOneAndUpdate(
       { device_id: device_id, owner_id: user_id },
-      { configuration: config },
+      { configuration: mergedConfig },
       { returnOriginal: true },
     );
-    mqttclient.publish('/devices/' + device_id + '/configuration', config);
+    mqttclient.publish('/devices/' + device_id + '/configuration', mergedConfig);
     await claimCodeModel.deleteMany({ device_id: device_id });
 
-    const diffStr = this.diffConfigs(oldDdevice.configuration, config);
-    if (oldDdevice.configuration !== config && diffStr.length > 0) {
+    const diffStr = this.diffConfigs(oldDdevice.configuration, mergedConfig);
+    if (oldDdevice.configuration !== mergedConfig && diffStr.length > 0) {
       await this.logMessage(device_id, {
         title: 'message-device-configuration-updated',
         message: `message-device-configuration-updated:${diffStr}`,
