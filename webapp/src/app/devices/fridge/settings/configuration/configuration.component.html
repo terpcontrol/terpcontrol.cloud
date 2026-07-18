@@ -372,7 +372,8 @@
         </ion-item>
 
         <ion-item>
-          <ion-checkbox [(ngModel)]="settings.heater.dehumidifyAssist" (ionChange)="onSettingsChanged()" labelPlacement="end" class="ion-text-wrap">{{'settings.heaterDehumidifyAssist' | translate}}</ion-checkbox>
+          <ion-label class="ion-text-wrap">{{ 'settings.heaterDehumidifyAssist' | translate }}</ion-label>
+          <ion-checkbox [(ngModel)]="settings.heater.dehumidifyAssist" (ionChange)="onSettingsChanged()">{{'settings.heaterDehumidifyAssist' | translate}}</ion-checkbox>
         </ion-item>
 
         <!-- Only meaningful while assisting is enabled: it shifts the assist
