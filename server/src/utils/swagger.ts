@@ -27,6 +27,7 @@ export function buildSwaggerSpec(serverUrl?: string): object {
         { name: 'Data', description: 'Time-series and latest sensor measurements' },
         { name: 'Images', description: 'Device image and timelapse access' },
         { name: 'Shares', description: 'Share links granting read access to a device page' },
+        { name: 'Chart presets', description: 'Saved chart views (measures, timespan) of the current user' },
       ],
       components: {
         securitySchemes: {
@@ -125,6 +126,13 @@ export function buildSwaggerSpec(serverUrl?: string): object {
               logRtspStreamErrors: { type: 'boolean' },
               tunnelRtspStream: { type: 'boolean' },
               maintenanceWebcamOff: { type: 'boolean' },
+              controlProfile: {
+                type: 'string',
+                enum: ['full', 'light_only', 'monitor'],
+                description:
+                  'What the device actually actuates, chosen by the user. Absent means full. ' +
+                  'monitor = sensors only, light_only = built-in lamp output only; the app then presents climate targets as reference values.',
+              },
             },
           },
           RecipeStep: {
@@ -138,6 +146,11 @@ export function buildSwaggerSpec(serverUrl?: string): object {
               confirmationMessage: { type: 'string' },
               lastTimeApplied: { type: 'number' },
               notified: { type: 'boolean' },
+              stage: {
+                type: 'string',
+                enum: ['germination', 'seedling', 'vegetative', 'flowering', 'drying', 'curing'],
+                description: 'Grow lifecycle stage this step represents. Stage changes of a running plan are logged to the grow diary.',
+              },
             },
           },
           Recipe: {
@@ -225,6 +238,20 @@ export function buildSwaggerSpec(serverUrl?: string): object {
               revokedAt: { type: 'number', nullable: true },
               openCount: { type: 'integer' },
               lastOpenedAt: { type: 'number', nullable: true },
+            },
+          },
+          ChartPreset: {
+            type: 'object',
+            properties: {
+              preset_id: { type: 'string' },
+              owner_id: { type: 'string' },
+              name: { type: 'string' },
+              device_type: { type: 'string' },
+              query: {
+                type: 'string',
+                description: 'Query string capturing the chart view (measures, timespan, interval, vpdMode), in the charts page URL format.',
+              },
+              createdAt: { type: 'number' },
             },
           },
           DeviceClass: {

@@ -460,6 +460,10 @@ class DeviceService {
                 categories: ['recipe', 'recipe-step'],
               });
             }
+
+            if (activeStep.stage) {
+              await this.logStageTransitionIfChanged(device.device_id, activeStep.stage);
+            }
           } else if (device.recipe.loop) {
             device.recipe.activeStepIndex = 0;
             device.recipe.activeSince = now;
@@ -481,6 +485,10 @@ class DeviceService {
                 severity: 0,
                 categories: ['recipe', 'recipe-step', 'recipe-looped'],
               });
+            }
+
+            if (activeStep.stage) {
+              await this.logStageTransitionIfChanged(device.device_id, activeStep.stage);
             }
           } else {
             device.recipe.activeSince = 0;
@@ -614,6 +622,35 @@ class DeviceService {
       images: msg.images,
       deleted: msg.deleted,
       time: msg.time ? new Date(msg.time) : undefined,
+    });
+  }
+
+  /**
+   * Writes a diary lifecycle entry when a grow plan moves the device into a new
+   * stage. Comparing against the previously logged stage keeps repeated stages
+   * (e.g. two consecutive flowering steps) and plain re-saves from spamming the
+   * grow diary.
+   */
+  public async logStageTransitionIfChanged(deviceId: string, stage: string) {
+    const lastEntry = await deviceLogModel
+      .findOne({ device_id: deviceId, categories: 'diary-plant-lifecycle', deleted: { $ne: true } })
+      .sort({ time: -1 });
+
+    if (lastEntry?.data?.newLifecycleStage === stage) {
+      return;
+    }
+
+    await this.logMessage(deviceId, {
+      title: 'message-diary-plant-lifecycle',
+      message: '',
+      severity: 0,
+      categories: ['diary-plant-lifecycle'],
+      data: {
+        newLifecycleStage: stage,
+        // Keep the grow report's cycle grouping intact by carrying the plant
+        // name of the running cycle forward.
+        ...(lastEntry?.data?.lifecycleName ? { lifecycleName: lastEntry.data.lifecycleName } : {}),
+      },
     });
   }
 

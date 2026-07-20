@@ -577,6 +577,13 @@ class DeviceController {
         });
       }
 
+      // Starting a plan or manually activating a step counts as a stage
+      // transition for the grow diary, just like an automatic advance.
+      const manuallyActivatedStage = recipePayload?.steps?.[recipePayload?.activeStepIndex]?.stage;
+      if (activeStepChanged && recipePayload?.activeSince > 0 && manuallyActivatedStage) {
+        await deviceService.logStageTransitionIfChanged(device_id, manuallyActivatedStage);
+      }
+
       const updated = await deviceModel.findOneAndUpdate({ device_id }, { $set: { recipe: recipePayload } }, { new: true });
 
       if (!updated) {

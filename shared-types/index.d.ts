@@ -31,6 +31,15 @@ export interface FirmwareSettings {
 
 export type FirmwareChannel = 'stable' | 'beta' | 'alpha' | 'manual';
 
+/**
+ * What the device actually actuates. Chosen by the user (there is no reliable
+ * hardware signal for connected sockets); absent means 'full' for backward
+ * compatibility. Controllers sold without Smart Sockets run as 'light_only'
+ * (built-in 0-10V lamp output) or 'monitor' (sensors only) — the app then
+ * presents targets as reference values instead of implying regulation.
+ */
+export type ControlProfile = 'full' | 'light_only' | 'monitor';
+
 export interface CloudSettings {
   /** @deprecated Use firmwareChannel: 'manual' to disable automatic updates. Kept for reading legacy devices. */
   autoFirmwareUpdate?: boolean;
@@ -45,6 +54,7 @@ export interface CloudSettings {
   logRtspStreamErrors?: boolean;
   tunnelRtspStream?: boolean;
   maintenanceWebcamOff?: boolean;
+  controlProfile?: ControlProfile;
 }
 
 export interface UserFirmwareInfo {
@@ -130,6 +140,8 @@ export interface RecipeStep {
   confirmationMessage?: string;
   lastTimeApplied?: number;
   notified?: boolean;
+  /** Grow lifecycle stage this step represents; lets the app label steps and log diary stage transitions. */
+  stage?: DiaryLifecycleStage;
 }
 
 export interface Recipe {
@@ -252,3 +264,14 @@ export type RecipeTemplate = {
   updatedAt?: number;
   steps: RecipeTemplateStep[];
 };
+
+export interface ChartPreset {
+  preset_id: string;
+  owner_id?: string;
+  name: string;
+  /** Device type the preset was saved from; informational only. */
+  device_type?: string;
+  /** Query string capturing the chart view (measures, timespan, interval, vpdMode). */
+  query: string;
+  createdAt: number;
+}
