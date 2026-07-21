@@ -168,11 +168,14 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
     }
     this.severity = Math.max(...this.logs.map((o: { severity: number; }) => {return isNaN(o.severity) ? 0 : o.severity}))
 
+    // Refreshes the plan day counter / progress. Those change on a scale of
+    // days — a 1s cadence forced a full change-detection pass every second
+    // (every impure pipe re-ran), which made the list crawl on phones.
     this.timerId = setInterval(() => {
       if (this.recipe?.activeSince > 0) {
-        this.tick = Date.now(); // trigger change detection / getter recalculation
+        this.tick = Date.now();
       }
-    }, 1000);
+    }, 60000);
   }
 
   async loadLogs(): Promise<(DeviceLog & { count: number })[]> {

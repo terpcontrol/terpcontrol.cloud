@@ -131,7 +131,9 @@ export class GrowAssistantCardComponent implements OnInit, OnDestroy {
     if (!this.planRunning || duration <= 0) {
       return 0;
     }
-    return Math.min(1, (Date.now() - this.recipe.activeSince) / duration);
+    // Quantized so the binding only changes when the bar visibly moves —
+    // a raw Date.now() ratio dirtied the DOM on every change detection.
+    return Math.min(1, Math.round(((Date.now() - this.recipe.activeSince) / duration) * 1000) / 1000);
   }
 
   get waitingForConfirmation(): boolean {
@@ -164,10 +166,23 @@ export class GrowAssistantCardComponent implements OnInit, OnDestroy {
     return this.activeTargets !== null && Number.isFinite(this.currentTemperature) && Number.isFinite(this.currentHumidity);
   }
 
+  // Memoized: change detection runs these getters constantly, and returning
+  // fresh arrays/objects each time made ngFor/routerLink rework the DOM on
+  // every pass.
+  private deviationsCache: { key: string; value: RangeDeviation[] } = { key: '', value: [] };
+
   get deviations(): RangeDeviation[] {
     const targets = this.activeTargets;
     if (!targets || !this.rangeAvailable) {
-      return [];
+      if (this.deviationsCache.key !== '' || this.deviationsCache.value.length > 0) {
+        this.deviationsCache = { key: '', value: [] };
+      }
+      return this.deviationsCache.value;
+    }
+
+    const key = [this.currentTemperature, this.currentHumidity, targets.temperature, targets.humidity, this.settings?.workmode].join('|');
+    if (this.deviationsCache.key === key) {
+      return this.deviationsCache.value;
     }
 
     const result: RangeDeviation[] = [];
@@ -188,14 +203,17 @@ export class GrowAssistantCardComponent implements OnInit, OnDestroy {
         targetValue: targets.humidity,
       });
     }
+    this.deviationsCache = { key, value: result };
     return result;
   }
 
+  private static readonly DRYING_CHART_PARAMS = { measures: 'temperature,humidity', timespan: '2w' };
+  private static readonly DEFAULT_CHART_PARAMS = { measures: 'temperature,humidity,vpd', timespan: '1d' };
+
   get chartQueryParams(): Record<string, string> {
-    if (this.stage === 'drying') {
-      return { measures: 'temperature,humidity', timespan: '2w' };
-    }
-    return { measures: 'temperature,humidity,vpd', timespan: '1d' };
+    return this.stage === 'drying'
+      ? GrowAssistantCardComponent.DRYING_CHART_PARAMS
+      : GrowAssistantCardComponent.DEFAULT_CHART_PARAMS;
   }
 
   get showTips(): boolean {
