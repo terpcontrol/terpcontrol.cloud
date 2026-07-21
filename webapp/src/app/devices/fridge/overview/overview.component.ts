@@ -1,4 +1,4 @@
-import {Component, ElementRef, Input, OnDestroy, OnInit, Renderer2, ViewChild} from '@angular/core';
+import {Component, ElementRef, EventEmitter, Input, OnDestroy, OnInit, Output, Renderer2, ViewChild} from '@angular/core';
 import {ActivatedRoute, Router} from '@angular/router';
 import {AlertController, IonModal, ToastController} from '@ionic/angular';
 import {combineLatest, Subscription} from 'rxjs';
@@ -31,6 +31,7 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
   @Input() maintenance_mode_until:number = 0;
   @Input() cloud_settings:any = {};
   @Input() hardware_info: Record<string, string> | undefined = {};
+  @Output() setup = new EventEmitter<void>();
   @ViewChild("nameedit", { read: ElementRef }) private nameInput: ElementRef | undefined;
   @ViewChild(IonModal) modal!: IonModal;
 

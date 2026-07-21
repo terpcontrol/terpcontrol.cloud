@@ -258,6 +258,121 @@
       "passwordChangedText": "Dein Passwort wurde geändert, du kannst dich jetzt anmelden:"
     }
   },
+  "growPresets": {
+    "seedling": {
+      "name": "Keimung & Sämling"
+    },
+    "vegetative": {
+      "name": "Wachstum"
+    },
+    "flowering": {
+      "name": "Blüte"
+    },
+    "late_flowering": {
+      "name": "Späte Blüte"
+    },
+    "drying": {
+      "name": "Trocknung"
+    },
+    "custom": {
+      "name": "Eigene Werte",
+      "subtitle": "Alles selbst einstellen"
+    },
+    "stages": {
+      "seedling": "Sämling",
+      "vegetative": "Wachstum",
+      "flowering": "Blüte",
+      "lateFlowering": "Späte Blüte",
+      "drying": "Trocknung"
+    },
+    "plans": {
+      "photoperiod": {
+        "name": "Photoperiodisch",
+        "description": "Klassische Samen, ca. 16 Wochen. Die Blüte startet mit der 12/12-Lichtumstellung."
+      },
+      "autoflower": {
+        "name": "Autoflower",
+        "description": "Automatische Blüte, ca. 11 Wochen. Das Licht bleibt bei 18 Stunden."
+      }
+    },
+    "confirmations": {
+      "startFlowering": "Bereit für die Blüte? Ab jetzt läuft das Licht 12/12 — bestätige, um umzustellen.",
+      "harvest": "Prüfe die Trichome: milchig mit ersten Bernsteintönen? Dann ernten und bestätigen — danach startet die Trocknung.",
+      "dryingDone": "Knacken die Zweige statt zu biegen? Dann ist die Trocknung fertig — ab in die Curing-Gläser."
+    }
+  },
+  "wizard": {
+    "title": "Einrichtungsassistent",
+    "back": "Zurück",
+    "next": "Weiter",
+    "apply": "Einrichtung abschließen",
+    "errorSaving": "Speichern fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.",
+    "name": {
+      "title": "Gib deinem Gerät einen Namen",
+      "text": "Wähle einen Namen, den du wiedererkennst — zum Beispiel „Zelt Wohnzimmer“ oder „Kühlschrank Keller“.",
+      "label": "Gerätename"
+    },
+    "connections": {
+      "title": "Was ist an deinem Controller angeschlossen?",
+      "text": "Du kannst das später jederzeit in den Einstellungen ändern.",
+      "full": "Lampe + Klima",
+      "fullText": "Smart Sockets oder Tasmota-Steckdosen regeln Heizung, Feuchte oder CO₂.",
+      "lightOnly": "Nur die Lampe",
+      "lightOnlyText": "Der Controller dimmt deine Lampe; Klimawerte werden nur überwacht.",
+      "monitor": "Nur überwachen",
+      "monitorText": "Es wird nichts geschaltet — Sensoren, Charts, Tagebuch und Alarme."
+    },
+    "co2": {
+      "title": "Begasst du mit CO₂?",
+      "text": "Mit CO₂-Flasche und Ventil werden die Zielwerte für schnelleres Wachstum angehoben. Ohne bleibt das CO₂-Ziel auf Umgebungsniveau, damit nie ein Ventil öffnet.",
+      "no": "Kein CO₂-Setup",
+      "noText": "Ziel bleibt auf Umgebungsniveau (400 ppm).",
+      "yes": "CO₂-Setup vorhanden",
+      "yesText": "Phasen-Ziele bis 1000 ppm."
+    },
+    "stage": {
+      "title": "Wo steht dein Grow gerade?",
+      "text": "Wir tragen bewährte Zielwerte für diese Phase ein — feinjustieren kannst du später alles."
+    },
+    "plan": {
+      "title": "Nur Zielwerte oder gleich ein Grow-Plan?",
+      "text": "Der Grow-Plan führt dich durch die Phasen, passt die Zielwerte automatisch an und fragt vor großen Schritten nach.",
+      "textMonitor": "Im Überwachungsmodus begleitet der Plan deine Phasen, hält das Tagebuch aktuell und zeigt dir die empfohlenen Bereiche je Phase.",
+      "targets": "Nur Zielwerte übernehmen",
+      "targetsMonitor": "Nur Richtwerte setzen",
+      "targetsText": "Werte für die gewählte Phase einmalig setzen.",
+      "durationsTitle": "Phasendauern (anpassbar)",
+      "days": "Tage",
+      "total": "Gesamt: etwa {{days}} Tage ({{weeks}} Wochen).",
+      "confirmNote": "Vor dem Blüte-Umstieg, der Ernte und dem Ende der Trocknung wartet der Plan auf deine Bestätigung — du behältst die Kontrolle.",
+      "photoperiod": "Photoperiodisch",
+      "autoflower": "Autoflower"
+    },
+    "done": {
+      "title": "Das war's — ab jetzt übernimmt die Automatik",
+      "titleMonitor": "Das war's — deine Überwachung läuft",
+      "text": "Dein Gerät regelt jetzt rund um die Uhr auf die Zielwerte. Wenn alles optimal läuft, musst du gar nichts tun.",
+      "textMonitor": "Du siehst jetzt Live-Werte, Verlaufsgrafiken und bekommst Alarme, wenn etwas aus dem Ruder läuft. Deine Zielwerte dienen als Richtbereiche.",
+      "step1": "Eingesteckt und verbunden",
+      "step2": "Zielwerte für deine Phase gesetzt",
+      "step3": "Regelung läuft automatisch",
+      "step3Monitor": "Überwachung und Alarme sind aktiv",
+      "close": "Fertig"
+    }
+  },
+  "onboarding": {
+    "welcomeTitle": "Willkommen in deinem Grow-Portal",
+    "welcomeText": "Verbinde dein erstes Terp Control Gerät und lass die Automatik übernehmen — du behältst von überall den Überblick.",
+    "step1Title": "Gerät einstecken",
+    "step1Text": "Schalte dein Gerät ein und verbinde es mit deinem WLAN — das Display führt dich durch.",
+    "step2Title": "Code am Display ablesen",
+    "step2Text": "Dein Gerät zeigt unter „Connect to portal“ einen kurzen Kopplungscode an.",
+    "step3Title": "Code hier eingeben",
+    "step3Text": "Das Gerät erscheint in deinem Portal und der Einrichtungsassistent übernimmt.",
+    "codePlaceholder": "Kopplungscode",
+    "claimFailed": "Der Code hat nicht funktioniert. Prüfe den Code am Geräte-Display und versuche es erneut.",
+    "helpText": "Hilfe beim Verbinden? Alle Anleitungen findest du auf"
+  },
   "device-list": {
     "title": "Meine Geräte",
     "claim": "GERÄTECODE HIER EINGEBEN",
@@ -458,7 +573,8 @@
           }
         }
       }
-    }
+    },
+    "button-setup": "Einrichten"
   },
   "diary": {
     "title": "Tagebuch",

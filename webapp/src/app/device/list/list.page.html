@@ -8,6 +8,60 @@
 </ion-header>
 
 <ion-content>
+  <div class="list-loading" *ngIf="loading && all_devices.length === 0">
+    <ion-spinner name="crescent"></ion-spinner>
+  </div>
+
+  <div class="tc-hero onboarding-hero" *ngIf="!loading && all_devices.length === 0">
+    <span class="tc-eyebrow">Smart Grow Automation</span>
+    <h1>{{'onboarding.welcomeTitle' | translate}}</h1>
+    <p>{{'onboarding.welcomeText' | translate}}</p>
+
+    <div class="onboarding-steps">
+      <div class="onboarding-step">
+        <span class="tc-step-badge">1</span>
+        <div>
+          <h4>{{'onboarding.step1Title' | translate}}</h4>
+          <p>{{'onboarding.step1Text' | translate}}</p>
+        </div>
+      </div>
+      <div class="onboarding-step">
+        <span class="tc-step-badge">2</span>
+        <div>
+          <h4>{{'onboarding.step2Title' | translate}}</h4>
+          <p>{{'onboarding.step2Text' | translate}}</p>
+        </div>
+      </div>
+      <div class="onboarding-step">
+        <span class="tc-step-badge">3</span>
+        <div>
+          <h4>{{'onboarding.step3Title' | translate}}</h4>
+          <p>{{'onboarding.step3Text' | translate}}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="onboarding-claim">
+      <ion-item lines="none">
+        <ion-input
+          [placeholder]="'onboarding.codePlaceholder' | translate"
+          [(ngModel)]="id"
+          (keydown.enter)="claimDevice()"
+          autocapitalize="characters"
+        ></ion-input>
+      </ion-item>
+      <ion-button color="secondary" (click)="claimDevice()" [disabled]="claiming || !id.trim()">
+        <ion-spinner *ngIf="claiming" name="crescent"></ion-spinner>
+        <ng-container *ngIf="!claiming">{{'device-list.claim-button' | translate}}</ng-container>
+      </ion-button>
+    </div>
+
+    <p class="onboarding-help">
+      {{'onboarding.helpText' | translate}}
+      <a href="https://terpcontrol.com/so-funktioniert-es.html" target="_blank" rel="noopener">terpcontrol.com</a>
+    </p>
+  </div>
+
   <ion-card class="device-card" *ngFor="let device of all_devices">
     <ion-card-content [ngSwitch]="device.device_type">
       <fan-overview
@@ -22,6 +76,7 @@
         [maintenance_mode_until]="device.maintenance_mode_until ?? 0"
         [cloud_settings]="device.cloudSettings"
         [hardware_info]="device.hardwareInfo"
+        (setup)="openWizard(device)"
         *ngSwitchCase="'fridge2'"></fridge-overview>
       <fridge-overview
         [device_id]="device.device_id"
@@ -30,6 +85,7 @@
         [maintenance_mode_until]="device.maintenance_mode_until ?? 0"
         [cloud_settings]="device.cloudSettings"
         [hardware_info]="device.hardwareInfo"
+        (setup)="openWizard(device)"
         *ngSwitchCase="'fridge'"></fridge-overview>
       <fridge-overview
         [device_id]="device.device_id"
@@ -38,6 +94,7 @@
         [maintenance_mode_until]="device.maintenance_mode_until ?? 0"
         [cloud_settings]="device.cloudSettings"
         [hardware_info]="device.hardwareInfo"
+        (setup)="openWizard(device)"
         *ngSwitchCase="'controller'"></fridge-overview>
       <light-overview
         [device_id]="device.device_id"
@@ -54,36 +111,28 @@
         [device_name]="device.name || ''"
         [cloud_settings]="device.cloudSettings"
         *ngSwitchCase="'dryer'"></dryer-overview>
-      <!-- <hr>
-      <p>{{device.device_id}}</p>
-      <p>{{device.device_class[0].name}}</p>
-      <p>{{data.measure(device.device_id, 'temperature') | async | round:1}}°C</p>
-      <p>{{data.measure(device.device_id, 'humidity') | async | round}}%</p>
-      <p>{{data.measure(device.device_id, 'co2') | async | round}}PPM</p>
-
-      <p>heat: {{data.measure(device.device_id, 'out_heater') | async | onoff}}</p>
-      <p>dehum: {{data.measure(device.device_id, 'out_dehumidifier') | async | onoff}}</p>
-      <p>co2: {{data.measure(device.device_id, 'out_co2') | async | onoff}}</p>
-      <p>light: {{data.measure(device.device_id, 'out_light') | async | nofract}}%</p>
-
-      <a [routerLink]="['/device', device.device_id]">Show</a>&nbsp;
-      <a [routerLink]="['/device', device.device_id, 'charts']">Charts</a>&nbsp;
-      <a [routerLink]="['/device', device.device_id, 'settings']">Settings</a>&nbsp;
-      <a [routerLink]="['/device', device.device_id, 'testmode']">Testmode</a>
-      <a style="float:right" (click)="unClaimDevice(device.device_id)">delete</a>
-      <hr> -->
     </ion-card-content>
   </ion-card>
 
-  <ion-card>
+  <ion-card *ngIf="all_devices.length > 0">
     <ion-card-content>
-      <ion-item>
-        <ion-label position="floating">{{'device-list.claim' | translate}}</ion-label>
-        <ion-input placeholder="device_id" [(ngModel)]="id"></ion-input>
-      </ion-item>
-      <ion-button color="secondary" expand="block" (click)="claimDevice();">{{'device-list.claim-button' | translate}}</ion-button>
+      <div class="claim-row">
+        <ion-item lines="none">
+          <ion-label position="floating">{{'device-list.claim' | translate}}</ion-label>
+          <ion-input [(ngModel)]="id" (keydown.enter)="claimDevice()" autocapitalize="characters"></ion-input>
+        </ion-item>
+        <ion-button color="secondary" (click)="claimDevice()" [disabled]="claiming || !id.trim()">
+          <ion-spinner *ngIf="claiming" name="crescent"></ion-spinner>
+          <ng-container *ngIf="!claiming">{{'device-list.claim-button' | translate}}</ng-container>
+        </ion-button>
+      </div>
     </ion-card-content>
   </ion-card>
 
+  <ion-modal [isOpen]="!!wizardDevice" (willDismiss)="closeWizard()" [backdropDismiss]="false" class="wizard-modal">
+    <ng-template>
+      <setup-wizard *ngIf="wizardDevice" [device]="wizardDevice" (closed)="closeWizard()"></setup-wizard>
+    </ng-template>
+  </ion-modal>
 
 </ion-content>

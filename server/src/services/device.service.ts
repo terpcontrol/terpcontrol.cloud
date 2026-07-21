@@ -999,16 +999,16 @@ class DeviceService {
     return { claim_code: code };
   }
 
-  public async claimDevice(claim_code: string, user_id: string): Promise<boolean> {
+  public async claimDevice(claim_code: string, user_id: string): Promise<string | null> {
     const dev = await claimCodeModel.findOne({ claim_code: claim_code });
     if (dev) {
       console.log('Claiming device ' + dev.device_id + ' for user ' + user_id);
       claimCodeModel.deleteOne({ claim_code: claim_code });
       await deviceModel.findOneAndUpdate({ device_id: dev.device_id }, { owner_id: user_id });
-      return true;
+      return dev.device_id;
     } else {
       console.log('Invalid claim code ' + claim_code + ' for user ' + user_id);
-      return false;
+      return null;
     }
   }
 

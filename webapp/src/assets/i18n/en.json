@@ -261,6 +261,121 @@
       "passwordChangedText": "Your password has been changed, you can now log in:"
     }
   },
+  "growPresets": {
+    "seedling": {
+      "name": "Germination & seedling"
+    },
+    "vegetative": {
+      "name": "Vegetative"
+    },
+    "flowering": {
+      "name": "Flowering"
+    },
+    "late_flowering": {
+      "name": "Late flowering"
+    },
+    "drying": {
+      "name": "Drying"
+    },
+    "custom": {
+      "name": "Own values",
+      "subtitle": "Set everything yourself"
+    },
+    "stages": {
+      "seedling": "Seedling",
+      "vegetative": "Vegetative",
+      "flowering": "Flowering",
+      "lateFlowering": "Late flowering",
+      "drying": "Drying"
+    },
+    "plans": {
+      "photoperiod": {
+        "name": "Photoperiod",
+        "description": "Classic seeds, approx. 16 weeks. Flowering starts with the 12/12 light switch."
+      },
+      "autoflower": {
+        "name": "Autoflower",
+        "description": "Automatic flowering, approx. 11 weeks. Light stays at 18 hours."
+      }
+    },
+    "confirmations": {
+      "startFlowering": "Ready for flowering? From now on the light runs 12/12 — confirm to start the switch.",
+      "harvest": "Check the trichomes: milky with first amber tones? Then harvest and confirm — drying starts next.",
+      "dryingDone": "Do the branches snap instead of bending? Then drying is done — off to the curing jars."
+    }
+  },
+  "wizard": {
+    "title": "Setup assistant",
+    "back": "Back",
+    "next": "Next",
+    "apply": "Finish setup",
+    "errorSaving": "Saving failed. Check your connection and try again.",
+    "name": {
+      "title": "Name your device",
+      "text": "Pick a name you'll recognize — for example \"Tent living room\" or \"Fridge basement\".",
+      "label": "Device name"
+    },
+    "connections": {
+      "title": "What is connected to your controller?",
+      "text": "You can change this anytime later in the settings.",
+      "full": "Lamp + climate",
+      "fullText": "Smart Sockets or Tasmota plugs regulate heating, humidity or CO2.",
+      "lightOnly": "Only the lamp",
+      "lightOnlyText": "The controller dims your grow light; climate values are monitored only.",
+      "monitor": "Monitoring only",
+      "monitorText": "Nothing is switched — sensors, charts, diary and alarms."
+    },
+    "co2": {
+      "title": "Do you add CO2?",
+      "text": "With a CO2 bottle and valve, the targets are raised for faster growth. Without one, the CO2 target stays at the ambient level so no valve ever opens.",
+      "no": "No CO2 setup",
+      "noText": "Target stays at ambient level (400 ppm).",
+      "yes": "CO2 setup available",
+      "yesText": "Stage targets up to 1000 ppm."
+    },
+    "stage": {
+      "title": "Where is your grow right now?",
+      "text": "We fill in proven target values for this stage — you can fine-tune everything later."
+    },
+    "plan": {
+      "title": "Just targets, or a full grow plan?",
+      "text": "The grow plan moves through the stages for you, adjusts the targets automatically and asks before big changes.",
+      "textMonitor": "In monitoring mode the plan tracks your stages, keeps the diary up to date and shows you the recommended ranges per stage.",
+      "targets": "Only apply targets",
+      "targetsMonitor": "Only set reference values",
+      "targetsText": "Set values for the chosen stage once.",
+      "durationsTitle": "Stage durations (adjustable)",
+      "days": "days",
+      "total": "Total: about {{days}} days ({{weeks}} weeks).",
+      "confirmNote": "Before the flowering switch, harvest and the end of drying, the plan waits for your confirmation — you stay in charge.",
+      "photoperiod": "Photoperiod",
+      "autoflower": "Autoflower"
+    },
+    "done": {
+      "title": "That's it — the automation takes over",
+      "titleMonitor": "That's it — your monitoring is live",
+      "text": "Your device now regulates towards the target values around the clock. If everything runs well, you don't have to do a thing.",
+      "textMonitor": "You now see live values, history charts and get alarms when something drifts off. Your targets serve as reference ranges.",
+      "step1": "Plugged in and connected",
+      "step2": "Targets set for your stage",
+      "step3": "Regulation runs automatically",
+      "step3Monitor": "Monitoring and alarms are active",
+      "close": "Done"
+    }
+  },
+  "onboarding": {
+    "welcomeTitle": "Welcome to your grow portal",
+    "welcomeText": "Connect your first Terp Control device and let the automation take over — you keep an eye on everything from anywhere.",
+    "step1Title": "Plug in your device",
+    "step1Text": "Power it up and connect it to your WiFi — the display guides you through it.",
+    "step2Title": "Read the code off the display",
+    "step2Text": "Your device shows a short pairing code under \"Connect to portal\".",
+    "step3Title": "Enter the code here",
+    "step3Text": "The device appears in your portal and the setup assistant takes over.",
+    "codePlaceholder": "Pairing code",
+    "claimFailed": "That code didn't work. Check the code on the device display and try again.",
+    "helpText": "Need help getting connected? All guides are on"
+  },
   "device-list": {
     "title": "Device list",
     "claim": "ENTER DEVICE CODE",
@@ -473,7 +588,8 @@
           }
         }
       }
-    }
+    },
+    "button-setup": "Set up"
   },
   "diary": {
     "title": "Diary",

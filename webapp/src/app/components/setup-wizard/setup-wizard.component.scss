@@ -1,0 +1,81 @@
+.wizard-progress {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.wizard-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ion-color-step-200);
+
+  &.active {
+    background: var(--ion-color-primary);
+  }
+
+  &.completed {
+    background: var(--ion-color-secondary);
+  }
+}
+
+section h2 {
+  margin: 4px 0 6px;
+  font-size: 1.25rem;
+}
+
+.wizard-sub {
+  color: var(--ion-color-medium);
+  margin: 4px 0 14px;
+  line-height: 1.5;
+}
+
+.wizard-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+
+  ion-icon {
+    font-size: 30px;
+    color: var(--ion-color-primary);
+  }
+}
+
+.wizard-durations-title {
+  margin: 18px 0 6px;
+  font-size: 1rem;
+}
+
+.wizard-duration-item {
+  --background: transparent;
+
+  ion-input {
+    max-width: 70px;
+    text-align: right;
+  }
+}
+
+.wizard-done .tc-hero {
+  margin-top: 8px;
+}
+
+.wizard-done-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 420px;
+  margin: 14px auto;
+  text-align: left;
+}
+
+.wizard-done-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  p {
+    margin: 0;
+    color: var(--ion-text-color);
+  }
+}

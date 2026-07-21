@@ -10,6 +10,7 @@ import { ListPage } from './list.page';
 import { TranslateModule } from '@ngx-translate/core';
 import { PipesModule } from 'src/app/pipes/pipes.module';
 import { DevicesModule } from 'src/app/devices/devices.module';
+import { ComponentsModule } from 'src/app/components/components.module';
 
 @NgModule({
   imports: [
@@ -18,6 +19,7 @@ import { DevicesModule } from 'src/app/devices/devices.module';
     IonicModule,
     ListPageRoutingModule,
     DevicesModule,
+    ComponentsModule,
     TranslateModule.forChild(),
     PipesModule
   ],

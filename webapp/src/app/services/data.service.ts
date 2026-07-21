@@ -28,6 +28,17 @@ export class DataService {
     }, 10000);
   }
 
+  /** One-shot latest value; null when there is no recent data point. */
+  public async latest(device: string, measure: string): Promise<number | null> {
+    try {
+      const data: any = await firstValueFrom(this.http.get(environment.API_URL + '/data/latest/' + device + '/' + measure));
+      const value = Number(data?.value);
+      return Number.isFinite(value) ? value : null;
+    } catch {
+      return null;
+    }
+  }
+
   public measure(device:string, measure:string) : BehaviorSubject<number> {
     let sub = this.measure_subjects.get(device)?.get(measure);
     if(!sub) {

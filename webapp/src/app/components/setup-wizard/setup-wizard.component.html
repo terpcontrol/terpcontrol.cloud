@@ -1,0 +1,170 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>{{ 'wizard.title' | translate }}</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="close()">{{ 'misc.close' | translate }}</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div class="wizard-progress" *ngIf="step !== 'done'">
+    <span
+      *ngFor="let s of steps; let i = index"
+      class="wizard-dot"
+      [class.active]="i === stepIndex"
+      [class.completed]="i < stepIndex"
+      [hidden]="s === 'done'"
+    ></span>
+  </div>
+
+  <ng-container [ngSwitch]="step">
+
+    <section *ngSwitchCase="'name'">
+      <h2>{{ 'wizard.name.title' | translate }}</h2>
+      <p class="wizard-sub">{{ 'wizard.name.text' | translate }}</p>
+      <ion-item>
+        <ion-label position="floating">{{ 'wizard.name.label' | translate }}</ion-label>
+        <ion-input [(ngModel)]="deviceName" (keydown.enter)="next()" maxlength="40"></ion-input>
+      </ion-item>
+    </section>
+
+    <section *ngSwitchCase="'connections'">
+      <h2>{{ 'wizard.connections.title' | translate }}</h2>
+      <p class="wizard-sub">{{ 'wizard.connections.text' | translate }}</p>
+      <div class="wizard-options">
+        <div class="tc-preset-card" [class.active]="controlProfile === 'full'" (click)="controlProfile = 'full'">
+          <ion-icon name="hardware-chip-outline"></ion-icon>
+          <span class="tc-preset-card__title">{{ 'wizard.connections.full' | translate }}</span>
+          <span class="tc-preset-card__subtitle">{{ 'wizard.connections.fullText' | translate }}</span>
+        </div>
+        <div class="tc-preset-card" [class.active]="controlProfile === 'light_only'" (click)="controlProfile = 'light_only'">
+          <ion-icon name="sunny-outline"></ion-icon>
+          <span class="tc-preset-card__title">{{ 'wizard.connections.lightOnly' | translate }}</span>
+          <span class="tc-preset-card__subtitle">{{ 'wizard.connections.lightOnlyText' | translate }}</span>
+        </div>
+        <div class="tc-preset-card" [class.active]="controlProfile === 'monitor'" (click)="controlProfile = 'monitor'">
+          <ion-icon name="eye-outline"></ion-icon>
+          <span class="tc-preset-card__title">{{ 'wizard.connections.monitor' | translate }}</span>
+          <span class="tc-preset-card__subtitle">{{ 'wizard.connections.monitorText' | translate }}</span>
+        </div>
+      </div>
+    </section>
+
+    <section *ngSwitchCase="'co2'">
+      <h2>{{ 'wizard.co2.title' | translate }}</h2>
+      <p class="wizard-sub">{{ 'wizard.co2.text' | translate }}</p>
+      <div class="wizard-options">
+        <div class="tc-preset-card" [class.active]="!hasCo2" (click)="hasCo2 = false">
+          <ion-icon name="close-circle-outline"></ion-icon>
+          <span class="tc-preset-card__title">{{ 'wizard.co2.no' | translate }}</span>
+          <span class="tc-preset-card__subtitle">{{ 'wizard.co2.noText' | translate }}</span>
+        </div>
+        <div class="tc-preset-card" [class.active]="hasCo2" (click)="hasCo2 = true">
+          <ion-icon name="cloud-outline"></ion-icon>
+          <span class="tc-preset-card__title">{{ 'wizard.co2.yes' | translate }}</span>
+          <span class="tc-preset-card__subtitle">{{ 'wizard.co2.yesText' | translate }}</span>
+        </div>
+      </div>
+    </section>
+
+    <section *ngSwitchCase="'stage'">
+      <h2>{{ 'wizard.stage.title' | translate }}</h2>
+      <p class="wizard-sub">{{ 'wizard.stage.text' | translate }}</p>
+      <stage-preset-picker [(selected)]="selectedStage"></stage-preset-picker>
+    </section>
+
+    <section *ngSwitchCase="'plan'">
+      <h2>{{ 'wizard.plan.title' | translate }}</h2>
+      <p class="wizard-sub">{{ (isMonitor ? 'wizard.plan.textMonitor' : 'wizard.plan.text') | translate }}</p>
+      <div class="wizard-options">
+        <div class="tc-preset-card" [class.active]="planChoice === 'targets'" (click)="planChoice = 'targets'; onPlanChoiceChange()">
+          <ion-icon name="options-outline"></ion-icon>
+          <span class="tc-preset-card__title">{{ (isMonitor ? 'wizard.plan.targetsMonitor' : 'wizard.plan.targets') | translate }}</span>
+          <span class="tc-preset-card__subtitle">{{ 'wizard.plan.targetsText' | translate }}</span>
+        </div>
+        <div
+          *ngFor="let template of planTemplates"
+          class="tc-preset-card"
+          [class.active]="planChoice === template.id"
+          (click)="planChoice = template.id; onPlanChoiceChange()"
+        >
+          <ion-icon name="calendar-outline"></ion-icon>
+          <span class="tc-preset-card__title">{{ template.nameKey | translate }}</span>
+          <span class="tc-preset-card__subtitle">{{ template.descriptionKey | translate }}</span>
+        </div>
+      </div>
+
+      <ng-container *ngIf="selectedTemplate as template">
+        <h3 class="wizard-durations-title">{{ 'wizard.plan.durationsTitle' | translate }}</h3>
+        <ion-item *ngFor="let templateStep of template.steps; let i = index" lines="none" class="wizard-duration-item">
+          <ion-label>{{ templateStep.nameKey | translate }}</ion-label>
+          <ion-input
+            type="number"
+            inputmode="numeric"
+            min="1"
+            max="99"
+            [ngModel]="durations[i]"
+            (ngModelChange)="durations[i] = $event"
+          ></ion-input>
+          <ion-note slot="end">{{ 'wizard.plan.days' | translate }}</ion-note>
+        </ion-item>
+        <p class="wizard-sub">
+          {{ 'wizard.plan.total' | translate: { days: totalPlanDays, weeks: (totalPlanDays / 7).toFixed(1) } }}
+        </p>
+        <p class="wizard-sub">{{ 'wizard.plan.confirmNote' | translate }}</p>
+      </ng-container>
+
+      <ion-item color="danger" *ngIf="errorSaving" lines="none">
+        <ion-icon slot="start" name="warning-outline"></ion-icon>
+        <ion-label class="ion-text-wrap">{{ 'wizard.errorSaving' | translate }}</ion-label>
+      </ion-item>
+    </section>
+
+    <section *ngSwitchCase="'done'" class="wizard-done">
+      <div class="tc-hero">
+        <span class="tc-eyebrow">Smart Grow Automation</span>
+        <h2>{{ (isMonitor ? 'wizard.done.titleMonitor' : 'wizard.done.title') | translate }}</h2>
+        <p>{{ (isMonitor ? 'wizard.done.textMonitor' : 'wizard.done.text') | translate }}</p>
+        <div class="wizard-done-steps">
+          <div class="wizard-done-step">
+            <span class="tc-step-badge">1</span>
+            <p>{{ 'wizard.done.step1' | translate }}</p>
+          </div>
+          <div class="wizard-done-step">
+            <span class="tc-step-badge">2</span>
+            <p>{{ 'wizard.done.step2' | translate }}</p>
+          </div>
+          <div class="wizard-done-step">
+            <span class="tc-step-badge">3</span>
+            <p>{{ (isMonitor ? 'wizard.done.step3Monitor' : 'wizard.done.step3') | translate }}</p>
+          </div>
+        </div>
+        <ion-button color="secondary" [routerLink]="['/device', device.device_id, 'charts']" (click)="close()">
+          {{ 'devices.button-charts' | translate }}
+        </ion-button>
+        <ion-button fill="outline" color="primary" (click)="close()">{{ 'wizard.done.close' | translate }}</ion-button>
+      </div>
+    </section>
+
+  </ng-container>
+</ion-content>
+
+<ion-footer *ngIf="step !== 'done'" class="ion-no-border">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="back()" [disabled]="stepIndex === 0 || saving">
+        <ion-icon slot="start" name="chevron-back-outline"></ion-icon>{{ 'wizard.back' | translate }}
+      </ion-button>
+    </ion-buttons>
+    <ion-buttons slot="end">
+      <ion-button color="secondary" fill="solid" (click)="next()" [disabled]="!canContinue() || saving">
+        <ion-spinner *ngIf="saving" name="crescent"></ion-spinner>
+        <ng-container *ngIf="!saving">
+          {{ (isLastInputStep() ? 'wizard.apply' : 'wizard.next') | translate }}
+          <ion-icon slot="end" name="chevron-forward-outline"></ion-icon>
+        </ng-container>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-footer>

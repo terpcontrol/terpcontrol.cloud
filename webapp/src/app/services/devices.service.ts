@@ -148,9 +148,10 @@ export class DeviceService {
     }
   }
 
-  public async claim(claim_code:string) {
-    await firstValueFrom( this.http.post<DeviceWithParsedSettings>(environment.API_URL + '/device', {claim_code: claim_code}) )
+  public async claim(claim_code:string): Promise<DeviceWithParsedSettings | undefined> {
+    const result = await firstValueFrom( this.http.post<{ status: string; device_id?: string }>(environment.API_URL + '/device', {claim_code: claim_code}) )
     await this.refetchDevices();
+    return this.devices.getValue().find(device => device.device_id === result?.device_id);
   }
 
   public async unclaim(device_id:string) {
