@@ -30,7 +30,7 @@
   </ion-content>
 
   <div style="height: 20px"></div>
-  <h1 style="z-index: 1000" (click)="editName()" *ngIf="!editingName">{{device_name}}</h1>
+  <h1 style="z-index: 1000" (click)="editName()" *ngIf="show_name && !editingName">{{device_name}}</h1>
   <input style="display: none; font-size: 24px;" #nameedit type="text" [(ngModel)]="device_name" (blur)="doneEdit()"/>
   <h3 class="device-type-label">{{'devices.fridge.title' | translate}}</h3>
   <h3 style="text-align:center; margin-top: 6px; margin-bottom: 12px;">

@@ -31,6 +31,8 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
   @Input() maintenance_mode_until:number = 0;
   @Input() cloud_settings:any = {};
   @Input() hardware_info: Record<string, string> | undefined = {};
+  /** Hidden in single-device dashboard mode, where the page header carries the name. */
+  @Input() show_name = true;
   @Output() setup = new EventEmitter<void>();
   @ViewChild("nameedit", { read: ElementRef }) private nameInput: ElementRef | undefined;
   @ViewChild(IonModal) modal!: IonModal;

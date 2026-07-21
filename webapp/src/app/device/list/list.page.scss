@@ -3,6 +3,20 @@
   overflow: hidden;
 }
 
+/* Single-device dashboard: the one card fills the page more generously. */
+.dashboard-card {
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.add-device-button {
+  display: block;
+  width: max-content;
+  margin: 2px auto 0;
+  color: var(--ion-color-medium);
+}
+
 ion-content {
   --padding-bottom: 24px;
 }

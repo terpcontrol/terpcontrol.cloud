@@ -3,7 +3,7 @@
     <ion-buttons slot="start">
       <ion-menu-button></ion-menu-button>
     </ion-buttons>
-    <ion-title>{{'device-list.title' | translate}}</ion-title>
+    <ion-title>{{ singleDevice ? (singleDevice.name || ('device-list.title' | translate)) : ('device-list.title' | translate) }}</ion-title>
   </ion-toolbar>
 </ion-header>
 
@@ -62,7 +62,7 @@
     </p>
   </div>
 
-  <ion-card class="device-card" *ngFor="let device of all_devices">
+  <ion-card class="device-card" [class.dashboard-card]="!!singleDevice" *ngFor="let device of all_devices">
     <ion-card-content [ngSwitch]="device.device_type">
       <fan-overview
         [device_id]="device.device_id"
@@ -76,6 +76,7 @@
         [maintenance_mode_until]="device.maintenance_mode_until ?? 0"
         [cloud_settings]="device.cloudSettings"
         [hardware_info]="device.hardwareInfo"
+        [show_name]="!singleDevice"
         (setup)="openWizard(device)"
         *ngSwitchCase="'fridge2'"></fridge-overview>
       <fridge-overview
@@ -85,6 +86,7 @@
         [maintenance_mode_until]="device.maintenance_mode_until ?? 0"
         [cloud_settings]="device.cloudSettings"
         [hardware_info]="device.hardwareInfo"
+        [show_name]="!singleDevice"
         (setup)="openWizard(device)"
         *ngSwitchCase="'fridge'"></fridge-overview>
       <fridge-overview
@@ -94,6 +96,7 @@
         [maintenance_mode_until]="device.maintenance_mode_until ?? 0"
         [cloud_settings]="device.cloudSettings"
         [hardware_info]="device.hardwareInfo"
+        [show_name]="!singleDevice"
         (setup)="openWizard(device)"
         *ngSwitchCase="'controller'"></fridge-overview>
       <light-overview
@@ -114,7 +117,18 @@
     </ion-card-content>
   </ion-card>
 
-  <ion-card *ngIf="all_devices.length > 0">
+  <ion-button
+    *ngIf="singleDevice && !showClaimInput"
+    class="add-device-button"
+    fill="clear"
+    size="small"
+    (click)="showClaimInput = true"
+  >
+    <ion-icon slot="start" name="add-outline"></ion-icon>
+    {{ 'device-list.addDevice' | translate }}
+  </ion-button>
+
+  <ion-card *ngIf="all_devices.length > 1 || (singleDevice && showClaimInput)">
     <ion-card-content>
       <div class="claim-row">
         <ion-item lines="none">

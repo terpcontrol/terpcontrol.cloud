@@ -17,8 +17,19 @@ export class ListPage implements OnInit {
   public loading = true;
   public claiming = false;
   public wizardDevice: DeviceWithParsedSettings | null = null;
+  /** Dashboard mode: the claim input stays tucked behind "+ add device". */
+  public showClaimInput = false;
 
   private reloaded = false;
+
+  /**
+   * Most users own exactly one device — the page then acts as that device's
+   * dashboard (its name in the header, claim input collapsed) instead of a
+   * one-item list. A second device switches back to the normal list.
+   */
+  get singleDevice(): DeviceWithParsedSettings | null {
+    return !this.loading && this.all_devices.length === 1 ? this.all_devices[0] : null;
+  }
 
   constructor(
     private deviceService: DeviceService,
