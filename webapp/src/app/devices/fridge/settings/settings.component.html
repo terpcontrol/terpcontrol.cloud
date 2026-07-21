@@ -40,6 +40,14 @@
     (startPlanRequested)="openPlanWizard()"
   ></fridge-simple-settings>
 
+  <simple-alarms-card
+    *ngIf="uiMode === 'simple' && !loading"
+    [(alarms)]="alarms"
+    [deviceType]="deviceType"
+    [hasCo2]="deviceHasCo2Sensor"
+    [stage]="activePlanStage"
+  ></simple-alarms-card>
+
   <ion-card *ngIf="uiMode === 'expert'">
     <ion-card-header>
       <ion-card-title>{{'devices.fridge.settingsmode' | translate}}</ion-card-title>
@@ -266,7 +274,7 @@
   <ng-container *ngIf="uiMode === 'expert'">
     <cloud-settings [(cloudSettings)]="cloudSettings" [deviceId]="device_id" [deviceType]="deviceType" [hardwareInfo]="hardwareInfo" [showWebcam]="false" />
 
-    <alarms [(alarms)]="alarms" [availableSensorTypes]="['temperature', 'humidity', 'co2', 'co2_valve', 'light', 'dehumidifier', 'heater']" [cloud_settings]="cloudSettings" />
+    <alarms [(alarms)]="alarms" [availableSensorTypes]="['temperature', 'humidity', 'co2', 'co2_valve', 'light', 'dehumidifier', 'heater']" [cloud_settings]="cloudSettings" [deviceType]="deviceType" [hasCo2]="deviceHasCo2Sensor" [stage]="activePlanStage" />
   </ng-container>
 
   <ion-card *ngIf="errorSaving">
@@ -296,6 +304,18 @@
 
     </ion-card-content>
   </ion-card>
+
+  <ion-button
+    *ngIf="uiMode === 'simple'"
+    class="simple-delete-button"
+    fill="clear"
+    size="small"
+    color="danger"
+    (click)="deleteDevice()"
+  >
+    <ion-icon slot="start" name="trash-outline"></ion-icon>
+    {{ 'settings.deleteDevice' | translate }}
+  </ion-button>
 
   <ion-modal [isOpen]="planWizardOpen" (willDismiss)="onPlanWizardClosed()" [backdropDismiss]="false" class="wizard-modal">
     <ng-template>

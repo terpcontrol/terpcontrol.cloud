@@ -18,6 +18,30 @@
     <ion-progress-bar [value]="stageProgress" color="secondary"></ion-progress-bar>
     <p class="plan-next" *ngIf="nextStep">{{ 'simpleSettings.plan.next' | translate: { name: nextStep.name } }}</p>
 
+    <div class="plan-upcoming" *ngIf="upcomingSteps.length > 0">
+      <p class="plan-upcoming-title">{{ 'simpleSettings.plan.upcomingTitle' | translate }}</p>
+      <div class="plan-upcoming-row" *ngFor="let item of upcomingSteps">
+        <img *ngIf="stageIconFor(item.step)" [src]="stageIconFor(item.step)!" alt=""/>
+        <div class="plan-upcoming-info">
+          <span class="plan-upcoming-name">{{ item.step.name }}</span>
+          <span class="plan-upcoming-eta">
+            {{ 'simpleSettings.plan.upcomingFrom' | translate: { date: (stepStartEta(item.index) | date: 'mediumDate') } }}
+          </span>
+        </div>
+        <ion-button *ngIf="editingDurationIndex === item.index" size="small" fill="clear" (click)="adjustStepDuration(item.step, -1)">
+          <ion-icon slot="icon-only" name="remove-outline"></ion-icon>
+        </ion-button>
+        <span class="field-value" [class.editing]="editingDurationIndex === item.index" (click)="toggleDurationEdit(item.index)">
+          {{ item.step.duration }} {{ 'devices.fridge.recipe.step.durationUnit.' + (item.step.durationUnit || 'days') | translate }}
+          <ion-icon name="create-outline"></ion-icon>
+        </span>
+        <ion-button *ngIf="editingDurationIndex === item.index" size="small" fill="clear" (click)="adjustStepDuration(item.step, 1)">
+          <ion-icon slot="icon-only" name="add-outline"></ion-icon>
+        </ion-button>
+      </div>
+      <p class="plan-upcoming-hint">{{ 'simpleSettings.plan.upcomingHint' | translate }}</p>
+    </div>
+
     <ion-item *ngIf="waitingForConfirmation" lines="none" class="plan-confirm">
       <ion-icon slot="start" name="warning-outline" color="warning"></ion-icon>
       <ion-label class="ion-text-wrap">{{ activeStep?.confirmationMessage || ('devices.fridge.recipe.waitingForConfirmation' | translate) }}</ion-label>

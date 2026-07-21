@@ -41,7 +41,7 @@
   margin-bottom: 10px;
 }
 
-body.dark .login-logo {
+:host-context(body.dark) .login-logo {
   filter: brightness(0) invert(1);
 }
 

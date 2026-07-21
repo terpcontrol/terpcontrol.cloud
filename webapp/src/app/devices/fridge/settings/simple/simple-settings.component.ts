@@ -98,6 +98,57 @@ export class FridgeSimpleSettingsComponent {
     this.editingField = this.editingField === field ? null : field;
   }
 
+  /** Upcoming plan steps stay editable in simple mode (durations only). */
+  public editingDurationIndex: number | null = null;
+
+  get upcomingSteps(): { step: any; index: number }[] {
+    if (!this.planRunning || !Array.isArray(this.recipe?.steps)) {
+      return [];
+    }
+    return this.recipe.steps
+      .map((step: any, index: number) => ({ step, index }))
+      .slice((this.recipe.activeStepIndex ?? 0) + 1);
+  }
+
+  toggleDurationEdit(index: number) {
+    this.editingDurationIndex = this.editingDurationIndex === index ? null : index;
+  }
+
+  adjustStepDuration(step: any, delta: number) {
+    step.duration = Math.min(99, Math.max(1, Math.round((Number(step.duration) || 1) + delta)));
+  }
+
+  private durationToMs(step: any): number {
+    const value = Number(step?.duration) || 0;
+    switch (step?.durationUnit) {
+      case 'minutes':
+        return value * 60_000;
+      case 'hours':
+        return value * 3_600_000;
+      case 'weeks':
+        return value * 7 * 86_400_000;
+      default:
+        return value * 86_400_000;
+    }
+  }
+
+  /** Estimated start of an upcoming step (confirmation waits can delay it). */
+  stepStartEta(index: number): number {
+    let eta = Number(this.recipe?.activeSince) || Date.now();
+    for (let i = this.recipe.activeStepIndex ?? 0; i < index; i++) {
+      eta += this.durationToMs(this.recipe.steps[i]);
+    }
+    return eta;
+  }
+
+  stageIconFor(step: any): string | null {
+    if (!step?.stage) {
+      return null;
+    }
+    const name = step.stage === 'vegetative' ? 'vegetation' : step.stage === 'flowering' ? 'flower' : step.stage;
+    return 'assets/icon/presets/' + name + '.svg';
+  }
+
   /** Clamped stepping without accumulating float drift. */
   stepValue(section: any, key: string, delta: number, limit: { min: number; max: number }) {
     if (!section) {

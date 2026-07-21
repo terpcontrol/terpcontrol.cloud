@@ -11,7 +11,7 @@ ion-menu ion-content {
 }
 
 /* The logo is dark blue/green on transparent — flip it to white on dark surfaces. */
-body.dark .menu-logo {
+:host-context(body.dark) .menu-logo {
   filter: brightness(0) invert(1);
 }
 

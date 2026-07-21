@@ -1,6 +1,7 @@
 import {Component, EventEmitter, Input, OnChanges, OnDestroy, Output} from "@angular/core";
 import {DomSanitizer, SafeUrl} from "@angular/platform-browser";
-import {ToastController} from "@ionic/angular";
+import {AlertController, ToastController} from "@ionic/angular";
+import {TranslateService} from "@ngx-translate/core";
 import {DeviceService} from "../../services/devices.service";
 import {Router} from "@angular/router";
 import {UserFirmwareInfo} from "@fg2/shared-types";
@@ -37,6 +38,8 @@ export class CloudSettingsComponent implements OnChanges, OnDestroy {
     private devices: DeviceService,
     private router: Router,
     private sanitizer: DomSanitizer,
+    private alertController: AlertController,
+    private translate: TranslateService,
   ) {}
 
   ngOnDestroy() {
@@ -194,11 +197,27 @@ export class CloudSettingsComponent implements OnChanges, OnDestroy {
   }
 
   async deleteDevice() {
-    if (confirm('Are you sure you want to delete this device? This action cannot be undone.')) {
-      if (confirm('This is your last chance to back out. Do you really want to delete this device?')) {
-        await this.devices.unclaim(this.deviceId);
-        await this.router.navigateByUrl('/list', { replaceUrl: true });
-      }
+    if (!(await this.confirmDelete(this.translate.instant('settings.deleteDeviceConfirmText')))) {
+      return;
     }
+    if (!(await this.confirmDelete(this.translate.instant('settings.deleteDeviceConfirmAgain')))) {
+      return;
+    }
+    await this.devices.unclaim(this.deviceId);
+    await this.router.navigateByUrl('/list', { replaceUrl: true });
+  }
+
+  private async confirmDelete(message: string): Promise<boolean> {
+    const alert = await this.alertController.create({
+      header: this.translate.instant('settings.deleteDeviceConfirmTitle'),
+      message,
+      buttons: [
+        { text: this.translate.instant('misc.cancel'), role: 'cancel' },
+        { text: this.translate.instant('settings.deleteDeviceConfirmButton'), role: 'destructive' },
+      ],
+    });
+    await alert.present();
+    const { role } = await alert.onDidDismiss();
+    return role === 'destructive';
   }
 }

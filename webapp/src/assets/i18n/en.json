@@ -116,7 +116,19 @@
       "webhookResolvedPayload": "Resolved payload",
       "webhookResolvedPayloadHint": "Custom payload sent when the alarm is resolved (for POST/PUT). Leave empty to send the default payload.",
       "tunnelWebhook": "Tunnel requests through module",
-      "tunnelWebhookHint": "If enabled, webhook requests will be tunneled through the module. This is helpful if your webhook URL is not directly reachable from the internet. WARNING: HTTPS may not work properly when tunneling is enabled."
+      "tunnelWebhookHint": "If enabled, webhook requests will be tunneled through the module. This is helpful if your webhook URL is not directly reachable from the internet. WARNING: HTTPS may not work properly when tunneling is enabled.",
+      "addFromTemplate": "Add from template",
+      "webhookTarget": "Service",
+      "sensorTypes": {
+        "temperature": "Temperature",
+        "humidity": "Humidity",
+        "co2": "CO2",
+        "co2_valve": "CO2 valve",
+        "light": "Light",
+        "dehumidifier": "Dehumidifier / cooling",
+        "heater": "Heater",
+        "fan": "Fan"
+      }
     },
     "edit-value": "Edit Value",
     "cloudSettings": "Cloud settings",
@@ -145,13 +157,17 @@
     "tunnelRtspStream": "Tunnel webcam stream",
     "tunnelRtspStreamHint": "If enabled, the webcam stream will be tunneled through the module. This is helpful if your webcam is not directly reachable from the internet.",
     "dangerZone": "Danger zone",
-    "deleteDevice": "Delete device",
+    "deleteDevice": "Remove device",
     "controlProfile": "Control profile",
     "controlProfile-full": "Lamp + climate",
     "controlProfile-light_only": "Only the lamp",
     "controlProfile-monitor": "Monitoring only",
     "controlProfileHint": "What your controller actually switches. With \"Monitoring only\" nothing is actuated — targets are shown as reference values, while charts, diary and alarms keep working. You can change this anytime.",
-    "pleaseStart": "Please start the plan first"
+    "pleaseStart": "Please start the plan first",
+    "deleteDeviceConfirmTitle": "Remove device?",
+    "deleteDeviceConfirmText": "This removes the device from your account — it disappears from the app until it's claimed again.",
+    "deleteDeviceConfirmAgain": "Really remove the device now?",
+    "deleteDeviceConfirmButton": "Remove"
   },
   "menu": {
     "devices": "Devices",
@@ -814,7 +830,10 @@
       "dayOf": "Day {{day}} of {{total}} in this stage",
       "next": "Next stage: {{name}}",
       "editHint": "The values below apply to the current stage. Saving keeps the plan running.",
-      "stop": "Stop plan"
+      "stop": "Stop plan",
+      "upcomingTitle": "Upcoming phases",
+      "upcomingFrom": "from ~ {{date}}",
+      "upcomingHint": "Tap a duration to adjust the remaining plan. Changes apply when you save."
     },
     "light": {
       "title": "Light & day rhythm",
@@ -840,6 +859,27 @@
       "target": "CO2 target",
       "hint": "Only useful with a CO2 bottle and valve. Without one, keep 400 ppm (ambient level) — the valve then never opens.",
       "text": "Without CO2 enrichment leave this at 400 ppm. With a CO2 setup, 900–1200 ppm speeds up growth."
+    },
+    "notifications": {
+      "title": "Notifications & alarms",
+      "empty": "No alarms yet. Add one from a template — e.g. heat, humidity or an empty CO2 bottle.",
+      "add": "Add alarm",
+      "pickPreset": "What do you want to watch?",
+      "pickChannel": "how do you want to be notified?",
+      "create": "Create alarm",
+      "savedNote": "Alarms are stored when you save the settings.",
+      "runsFor": "Runs non-stop for {{minutes}} min",
+      "forMinutes": "≥ {{minutes}} min",
+      "emailLabel": "E-mail address",
+      "channels": {
+        "info": "App log",
+        "email": "E-mail",
+        "discord": "Discord",
+        "telegram": "Telegram",
+        "ntfy": "ntfy.sh",
+        "home_assistant": "Home Assistant",
+        "webhook": "Webhook"
+      }
     }
   },
   "auxDevices": {
@@ -899,6 +939,64 @@
       "removeConfirmText": "The \"{{role}}\" socket will be unpaired and reset. This takes effect immediately.",
       "offlineHint": "The device is offline — socket changes need a connected device.",
       "pairOnDevice": "Removal takes effect immediately. To pair a new socket use the controller's display."
+    }
+  },
+  "alarmPresets": {
+    "heat_day": {
+      "name": "Too hot during the day",
+      "description": "Above 30 °C for 5 minutes"
+    },
+    "cold_night": {
+      "name": "Too cold at night",
+      "description": "Below 15 °C for 5 minutes"
+    },
+    "humidity_high": {
+      "name": "Humidity too high",
+      "description": "Mold risk — threshold follows the stage (60% in flower, 75% otherwise)"
+    },
+    "humidity_low": {
+      "name": "Humidity too low",
+      "description": "Below 35% for 15 minutes"
+    },
+    "co2_empty": {
+      "name": "CO2 bottle empty",
+      "description": "CO2 stays below 350 ppm despite enrichment"
+    },
+    "running_continuously": {
+      "name": "Dehumidifier running non-stop",
+      "nameFridge": "Fridge running non-stop",
+      "description": "Output on for more than 30 minutes straight"
+    }
+  },
+  "webhookTargets": {
+    "msgTriggered": "Alarm",
+    "msgResolved": "Resolved",
+    "discord": {
+      "name": "Discord",
+      "url": "Discord webhook URL",
+      "hint": "Discord → channel settings → Integrations → Webhooks → New webhook, then paste the URL here."
+    },
+    "telegram": {
+      "name": "Telegram",
+      "botToken": "Bot token",
+      "chatId": "Chat ID",
+      "hint": "Create a bot with @BotFather, add it to your chat and get the chat ID e.g. via @userinfobot."
+    },
+    "ntfy": {
+      "name": "ntfy.sh",
+      "topic": "Topic name",
+      "server": "Server",
+      "hint": "Install the ntfy app and subscribe to the same topic — no account needed. Pick a hard-to-guess topic name."
+    },
+    "home_assistant": {
+      "name": "Home Assistant",
+      "baseUrl": "Home Assistant URL",
+      "webhookId": "Webhook ID",
+      "hint": "Create a webhook trigger in an automation; local instances are reached through your device's tunnel automatically."
+    },
+    "custom": {
+      "name": "Custom",
+      "hint": "Configure URL, method, headers and payload yourself below."
     }
   }
 }

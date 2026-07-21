@@ -1,11 +1,13 @@
 import {Component, Input, OnDestroy, OnInit} from '@angular/core';
 import {ActivatedRoute, Router} from '@angular/router';
+import {TranslateService} from '@ngx-translate/core';
 import {DataService} from 'src/app/services/data.service';
 import {DeviceService, DeviceWithParsedSettings} from 'src/app/services/devices.service';
 import {AlertController, AlertInput, ToastController} from "@ionic/angular";
 import {RecipeService} from 'src/app/services/recipe.service';
 import {alarm} from "ionicons/icons";
 import {calculateVpd} from "../../../util/calculateVpd";
+import {deviceHasCo2} from "src/app/util/grow-presets";
 
 const EXPERT_MODE_STORAGE_KEY = 'app-settings-expert';
 
@@ -53,6 +55,7 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
     private toastController: ToastController,
     private alertController: AlertController,
     private recipes: RecipeService,
+    private translate: TranslateService,
   ) {
     this.offset = new Date().getTimezoneOffset()*60;
   }
@@ -594,6 +597,52 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
 
   getVpd(temperatureAir: number, temperatureLeaf: number, humidity: number): number {
     return calculateVpd(temperatureAir, temperatureLeaf, humidity);
+  }
+
+  get deviceHasCo2Sensor(): boolean {
+    return deviceHasCo2({ device_type: this.deviceType, hardwareInfo: this.hardwareInfo });
+  }
+
+  /** Stage of the running plan's active step (stage-aware alarm presets). */
+  get activePlanStage(): string | null {
+    if (!(this.recipe?.activeSince > 0)) {
+      return null;
+    }
+    return this.recipe?.steps?.[this.recipe.activeStepIndex]?.stage ?? null;
+  }
+
+  async deleteDevice() {
+    const confirmed = await this.presentDeleteConfirm(
+      this.translate.instant('settings.deleteDeviceConfirmTitle'),
+      this.translate.instant('settings.deleteDeviceConfirmText'),
+    );
+    if (!confirmed) {
+      return;
+    }
+    const reallyConfirmed = await this.presentDeleteConfirm(
+      this.translate.instant('settings.deleteDeviceConfirmTitle'),
+      this.translate.instant('settings.deleteDeviceConfirmAgain'),
+    );
+    if (!reallyConfirmed) {
+      return;
+    }
+
+    await this.devices.unclaim(this.device_id);
+    await this._router.navigateByUrl('/list', { replaceUrl: true });
+  }
+
+  private async presentDeleteConfirm(header: string, message: string): Promise<boolean> {
+    const alert = await this.alertController.create({
+      header,
+      message,
+      buttons: [
+        { text: this.translate.instant('misc.cancel'), role: 'cancel' },
+        { text: this.translate.instant('settings.deleteDeviceConfirmButton'), role: 'destructive' },
+      ],
+    });
+    await alert.present();
+    const { role } = await alert.onDidDismiss();
+    return role === 'destructive';
   }
 }
 

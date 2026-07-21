@@ -40,9 +40,58 @@
     font-size: 0.85rem;
     margin: 12px 0 8px;
   }
+
+  .plan-upcoming-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin: 14px 0 4px;
+  }
+
+  .plan-upcoming-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+
+    img {
+      height: 22px;
+    }
+
+    ion-button {
+      margin: 0;
+      --padding-start: 2px;
+      --padding-end: 2px;
+    }
+  }
+
+  .plan-upcoming-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.3;
+  }
+
+  .plan-upcoming-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .plan-upcoming-eta,
+  .plan-upcoming-hint {
+    color: var(--ion-color-medium);
+    font-size: 0.78rem;
+  }
+
+  .plan-upcoming-hint {
+    margin: 6px 0 0;
+  }
 }
 
-body.dark .plan-card .plan-stage-icon {
+:host-context(body.dark) .plan-card .plan-upcoming-row img {
+  filter: invert(0.88);
+}
+
+:host-context(body.dark) .plan-card .plan-stage-icon {
   filter: invert(0.88);
 }
 
@@ -108,7 +157,7 @@ body.dark .plan-card .plan-stage-icon {
   }
 }
 
-body.dark .field-label .field-value.editing {
+:host-context(body.dark) .field-label .field-value.editing {
   color: var(--ion-color-secondary);
 }
 

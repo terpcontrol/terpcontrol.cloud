@@ -1,0 +1,68 @@
+.alarms-empty {
+  color: var(--ion-color-medium);
+  font-size: 0.9rem;
+  margin: 0 0 10px;
+}
+
+.alarm-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+
+  .alarm-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+
+    &.disabled {
+      opacity: 0.5;
+    }
+  }
+
+  .alarm-name {
+    font-weight: 600;
+    font-size: 0.92rem;
+  }
+
+  .alarm-summary {
+    color: var(--ion-color-medium);
+    font-size: 0.8rem;
+  }
+
+  ion-button {
+    margin: 0;
+  }
+}
+
+.simple-alarm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+
+  ion-icon {
+    font-size: 26px;
+    color: var(--ion-color-primary);
+  }
+
+  &.channels {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    margin-bottom: 8px;
+  }
+}
+
+.modal-sub {
+  color: var(--ion-color-medium);
+  margin: 4px 0 12px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+
+.simple-alarm-modal {
+  --width: min(560px, 96vw);
+  --height: min(620px, 92vh);
+}

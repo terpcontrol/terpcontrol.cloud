@@ -20,7 +20,7 @@
   min-width: 34px;
 }
 
-body.dark .assistant-stage-icon {
+:host-context(body.dark) .assistant-stage-icon {
   filter: invert(0.88);
 }
 
@@ -57,7 +57,7 @@ body.dark .assistant-stage-icon {
   text-decoration: none;
 }
 
-body.dark .assistant-confirm {
+:host-context(body.dark) .assistant-confirm {
   color: var(--ion-color-warning);
 }
 

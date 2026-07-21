@@ -116,7 +116,19 @@
       "webhookResolvedPayload": "Payload Behebung",
       "webhookResolvedPayloadHint": "Benutzerdefinierte Payload, die bei Behebung des Alarms gesendet wird (für POST/PUT). Leer lassen, um die Standard-Payload zu verwenden.",
       "tunnelWebhook": "Webhook durch Modul tunneln",
-      "tunnelWebhookHint": "Falls aktiviert, wird der Webhook durch das Modul getunnelt, was hilfreich sein kann wenn dein Modul hinter einem NAT oder einer Firewall ist. ACHTUNG: Die Unterstützung von HTTPS kann in diesem Modus nicht garantiert werden."
+      "tunnelWebhookHint": "Falls aktiviert, wird der Webhook durch das Modul getunnelt, was hilfreich sein kann wenn dein Modul hinter einem NAT oder einer Firewall ist. ACHTUNG: Die Unterstützung von HTTPS kann in diesem Modus nicht garantiert werden.",
+      "addFromTemplate": "Aus Vorlage hinzufügen",
+      "webhookTarget": "Dienst",
+      "sensorTypes": {
+        "temperature": "Temperatur",
+        "humidity": "Luftfeuchte",
+        "co2": "CO2",
+        "co2_valve": "CO2-Ventil",
+        "light": "Licht",
+        "dehumidifier": "Entfeuchter / Kühlung",
+        "heater": "Heizung",
+        "fan": "Lüfter"
+      }
     },
     "cloudSettings": "Cloud Einstellungen",
     "vpdLeafTempOffsetDay": "Tages VPD Blatt Temp. Offset",
@@ -144,14 +156,18 @@
     "tunnelRtspStream": "Webcam Stream tunneln",
     "tunnelRtspStreamHint": "Falls aktiviert, wird der Webcam Stream durch das Modul getunnelt, was hilfreich sein kann wenn dein Modul hinter einem NAT oder einer Firewall ist.",
     "dangerZone": "Gefahrenzone",
-    "deleteDevice": "Gerät löschen",
+    "deleteDevice": "Gerät entfernen",
     "controlProfile": "Steuerungsprofil",
     "controlProfile-full": "Lampe + Klima",
     "controlProfile-light_only": "Nur die Lampe",
     "controlProfile-monitor": "Nur überwachen",
     "controlProfileHint": "Was dein Controller tatsächlich schaltet. Bei „Nur überwachen“ wird nichts geschaltet — Zielwerte dienen als Richtwerte, während Charts, Tagebuch und Alarme normal weiterlaufen. Du kannst das jederzeit ändern.",
     "pleaseStart": "Bitte starte zuerst den Plan",
-    "edit-value": "Wert ändern"
+    "edit-value": "Wert ändern",
+    "deleteDeviceConfirmTitle": "Gerät entfernen?",
+    "deleteDeviceConfirmText": "Das Gerät wird aus deinem Konto entfernt — es verschwindet aus der App, bis es erneut verbunden wird.",
+    "deleteDeviceConfirmAgain": "Das Gerät jetzt wirklich entfernen?",
+    "deleteDeviceConfirmButton": "Entfernen"
   },
   "menu": {
     "devices": "Geräte",
@@ -811,7 +827,10 @@
       "dayOf": "Tag {{day}} von {{total}} in dieser Phase",
       "next": "Nächste Phase: {{name}}",
       "editHint": "Die Werte unten gelten für die aktuelle Phase. Beim Speichern läuft der Plan weiter.",
-      "stop": "Plan stoppen"
+      "stop": "Plan stoppen",
+      "upcomingTitle": "Kommende Phasen",
+      "upcomingFrom": "ab ~ {{date}}",
+      "upcomingHint": "Tippe auf eine Dauer, um den restlichen Plan anzupassen. Änderungen gelten nach dem Speichern."
     },
     "light": {
       "title": "Licht & Tagesrhythmus",
@@ -837,6 +856,27 @@
       "target": "CO₂-Ziel",
       "hint": "Nur sinnvoll mit CO₂-Flasche und Ventil. Ohne Anlage bei 400 ppm (Umgebungsniveau) lassen — dann öffnet nie ein Ventil.",
       "text": "Ohne CO₂-Begasung bei 400 ppm lassen. Mit CO₂-Anlage beschleunigen 900–1200 ppm das Wachstum."
+    },
+    "notifications": {
+      "title": "Benachrichtigungen & Alarme",
+      "empty": "Noch keine Alarme. Füge einen aus einer Vorlage hinzu — z. B. Hitze, Luftfeuchte oder eine leere CO2-Flasche.",
+      "add": "Alarm hinzufügen",
+      "pickPreset": "Worauf möchtest du achten?",
+      "pickChannel": "wie möchtest du benachrichtigt werden?",
+      "create": "Alarm erstellen",
+      "savedNote": "Alarme werden beim Speichern der Einstellungen übernommen.",
+      "runsFor": "Läuft {{minutes}} min am Stück",
+      "forMinutes": "≥ {{minutes}} min",
+      "emailLabel": "E-Mail-Adresse",
+      "channels": {
+        "info": "Nur Protokoll",
+        "email": "E-Mail",
+        "discord": "Discord",
+        "telegram": "Telegram",
+        "ntfy": "ntfy.sh",
+        "home_assistant": "Home Assistant",
+        "webhook": "Webhook"
+      }
     }
   },
   "auxDevices": {
@@ -896,6 +936,64 @@
       "removeConfirmText": "Die Steckdose „{{role}}“ wird entkoppelt und zurückgesetzt. Das passiert sofort.",
       "offlineHint": "Das Gerät ist offline — Steckdosen-Änderungen brauchen ein verbundenes Gerät.",
       "pairOnDevice": "Das Entfernen wirkt sofort. Neue Steckdosen koppelst du über das Display des Controllers."
+    }
+  },
+  "alarmPresets": {
+    "heat_day": {
+      "name": "Zu heiß am Tag",
+      "description": "Über 30 °C für 5 Minuten"
+    },
+    "cold_night": {
+      "name": "Zu kalt in der Nacht",
+      "description": "Unter 15 °C für 5 Minuten"
+    },
+    "humidity_high": {
+      "name": "Luftfeuchte zu hoch",
+      "description": "Schimmelgefahr — Schwelle folgt der Phase (60% in der Blüte, sonst 75%)"
+    },
+    "humidity_low": {
+      "name": "Luftfeuchte zu niedrig",
+      "description": "Unter 35% für 15 Minuten"
+    },
+    "co2_empty": {
+      "name": "CO2-Flasche leer",
+      "description": "CO2 bleibt trotz Anreicherung unter 350 ppm"
+    },
+    "running_continuously": {
+      "name": "Entfeuchter läuft dauerhaft",
+      "nameFridge": "Kühlschrank läuft dauerhaft",
+      "description": "Ausgang länger als 30 Minuten am Stück an"
+    }
+  },
+  "webhookTargets": {
+    "msgTriggered": "Alarm",
+    "msgResolved": "Wieder ok",
+    "discord": {
+      "name": "Discord",
+      "url": "Discord Webhook-URL",
+      "hint": "Discord → Kanaleinstellungen → Integrationen → Webhooks → Neuer Webhook, dann die URL hier einfügen."
+    },
+    "telegram": {
+      "name": "Telegram",
+      "botToken": "Bot-Token",
+      "chatId": "Chat-ID",
+      "hint": "Erstelle einen Bot mit @BotFather, füge ihn deinem Chat hinzu und hole die Chat-ID z. B. über @userinfobot."
+    },
+    "ntfy": {
+      "name": "ntfy.sh",
+      "topic": "Topic-Name",
+      "server": "Server",
+      "hint": "Installiere die ntfy-App und abonniere dasselbe Topic — ganz ohne Konto. Wähle einen schwer zu erratenden Topic-Namen."
+    },
+    "home_assistant": {
+      "name": "Home Assistant",
+      "baseUrl": "Home-Assistant-URL",
+      "webhookId": "Webhook-ID",
+      "hint": "Lege in einer Automatisierung einen Webhook-Trigger an; lokale Instanzen werden automatisch über den Tunnel deines Geräts erreicht."
+    },
+    "custom": {
+      "name": "Eigener Webhook",
+      "hint": "URL, Methode, Header und Payload stellst du unten selbst ein."
     }
   }
 }
