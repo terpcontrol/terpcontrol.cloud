@@ -523,7 +523,6 @@
         "startTime": "Startzeit Schritt",
         "etaTime": "Rezept-Ende ETA",
         "remainingTime": "Rezept beendet nach",
-        "stepEta": "Schritt-Ende ETA",
         "stepRemainingTime": "Schritt beendet nach",
         "loop": "Endlosschleife",
         "step": {

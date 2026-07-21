@@ -20,7 +20,7 @@
 
     <div class="plan-upcoming" *ngIf="upcomingSteps.length > 0">
       <p class="plan-upcoming-title">{{ 'simpleSettings.plan.upcomingTitle' | translate }}</p>
-      <div class="plan-upcoming-row" *ngFor="let item of upcomingSteps">
+      <div class="plan-upcoming-row" *ngFor="let item of upcomingSteps; trackBy: trackByStepIndex">
         <img *ngIf="stageIconFor(item.step)" [src]="stageIconFor(item.step)!" alt=""/>
         <div class="plan-upcoming-info">
           <span class="plan-upcoming-name">{{ item.step.name }}</span>

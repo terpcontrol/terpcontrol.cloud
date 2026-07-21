@@ -601,29 +601,21 @@
       "co2sensor-text": "This mode requires an optional CO2 sensor to work.",
       "settings": {
         "heater-name": "Heating",
-        "heater-day": "Heating - Daytime",
-        "heater-night": "Heating - Nighttime",
         "heater-on": "Turn ON Point",
         "heater-on-desc": "Turns output ON when the measured temperature falls BELOW this value",
         "heater-off": "Turn OFF Point",
         "heater-off-desc": "Turns output OFF when the measured temperature rises ABOVE this value",
         "cooler-name": "Cooling",
-        "cooler-day": "Cooling - Daytime",
-        "cooler-night": "Cooling - Nighttime",
         "cooler-on": "Turn ON Point",
         "cooler-on-desc": "Turns output ON when the measured temperature rises ABOVE this value",
         "cooler-off": "Turn OFF Point",
         "cooler-off-desc": "Turns output OFF when the measured temperature falls BELOW this value",
         "humidify-name": "Humidification",
-        "humidify-day": "Humidification - Daytime",
-        "humidify-night": "Humidification - Nighttime",
         "humidify-on": "Turn ON Point",
         "humidify-on-desc": "Turns output ON when the measured humidity falls BELOW this value",
         "humidify-off": "Turn OFF Point",
         "humidify-off-desc": "Turns output OFF when the measured humidity rises ABOVE this value",
         "dehumidify-name": "Dehumidification",
-        "dehumidify-day": "Dehumidification - Daytime",
-        "dehumidify-night": "Dehumidification - Nighttime",
         "dehumidify-on": "Turn ON Point",
         "dehumidify-on-desc": "Turns output ON when the measured humidity rises ABOVE this value",
         "dehumidify-off": "Turn OFF Point",
@@ -665,7 +657,15 @@
             "min_off": "Minimal OFF time",
             "min_off-desc": "Socket will not turn on for a minimum of this time after being turned off"
           }
-        }
+        },
+        "cooler-name-day": "Cooling - day",
+        "cooler-name-night": "Cooling - night",
+        "heater-name-day": "Heating - day",
+        "heater-name-night": "Heating - night",
+        "dehumidify-name-day": "Dehumidify - day",
+        "dehumidify-name-night": "Dehumidify - night",
+        "humidify-name-day": "Humidify - day",
+        "humidify-name-night": "Humidify - night"
       }
     },
     "button-setup": "Set up"
