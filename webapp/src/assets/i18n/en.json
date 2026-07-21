@@ -310,6 +310,50 @@
       "dryingDone": "Do the branches snap instead of bending? Then drying is done — off to the curing jars."
     }
   },
+  "assistant": {
+    "allGood": "All in the green",
+    "confirmationPending": "Your plan is waiting for a confirmation — open settings",
+    "deviationMonitorHint": "Your device only monitors — adjust this manually in your setup.",
+    "tipsTitle": "Tips for this stage",
+    "matchingChart": "Open the matching chart view",
+    "bannerText": "Let a grow plan guide you through the stages — targets adjust automatically, and you confirm the big steps.",
+    "deviation": {
+      "temperature": {
+        "above": "Temperature {{current}} °C — above target ({{target}} °C)",
+        "below": "Temperature {{current}} °C — below target ({{target}} °C)"
+      },
+      "humidity": {
+        "above": "Humidity {{current}} % — above target ({{target}} %)",
+        "below": "Humidity {{current}} % — below target ({{target}} %)"
+      }
+    },
+    "tips": {
+      "seedling": {
+        "1": "Keep the medium slightly moist, never soaking wet — seedlings drown faster than they dry out.",
+        "2": "High humidity (65–75 %) helps young roots; a propagator dome works great in the first days.",
+        "3": "Keep the light dimmed (around 40 %) and at a good distance — bleached or curled leaves mean it's too strong.",
+        "4": "Don't feed yet: the seed carries nutrients for the first two weeks."
+      },
+      "vegetative": {
+        "1": "Water when the top few centimeters of the medium feel dry — lifting the pot tells you more than a schedule.",
+        "2": "Now is training time: topping or bending (LST) creates an even canopy and more bud sites.",
+        "3": "Raise light intensity step by step towards 80–100 % as the plants toughen up.",
+        "4": "Watch the VPD chart: 0.8–1.1 kPa keeps transpiration and growth in balance."
+      },
+      "flowering": {
+        "1": "Keep humidity at or below 50 % — dense buds plus high humidity is how mold starts.",
+        "2": "Don't change the light schedule anymore; interruptions of the dark period stress photoperiod plants.",
+        "3": "Feed bloom nutrients and watch leaf color — fading towards the end is normal.",
+        "4": "Check the trichomes in the last weeks: cloudy with the first amber ones usually means harvest time."
+      },
+      "drying": {
+        "1": "16–20 °C and 55–60 % humidity, dark and with gentle air movement — slow drying preserves the terpenes.",
+        "2": "Plan for 10–14 days. If it's done after 5, it was too warm or too dry.",
+        "3": "The snap test: when small branches crack instead of bending, the buds are ready for curing jars.",
+        "4": "Open the jars daily in the first curing week ('burping') to let moisture escape."
+      }
+    }
+  },
   "wizard": {
     "title": "Setup assistant",
     "back": "Back",

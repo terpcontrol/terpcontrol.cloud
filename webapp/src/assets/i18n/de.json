@@ -307,6 +307,50 @@
       "dryingDone": "Knacken die Zweige statt zu biegen? Dann ist die Trocknung fertig — ab in die Curing-Gläser."
     }
   },
+  "assistant": {
+    "allGood": "Alles im grünen Bereich",
+    "confirmationPending": "Dein Plan wartet auf eine Bestätigung — Einstellungen öffnen",
+    "deviationMonitorHint": "Dein Gerät überwacht nur — passe das manuell in deinem Setup an.",
+    "tipsTitle": "Tipps für diese Phase",
+    "matchingChart": "Passende Chart-Ansicht öffnen",
+    "bannerText": "Lass dich von einem Grow-Plan durch die Phasen führen — Zielwerte passen sich automatisch an, große Schritte bestätigst du.",
+    "deviation": {
+      "temperature": {
+        "above": "Temperatur {{current}} °C — über dem Ziel ({{target}} °C)",
+        "below": "Temperatur {{current}} °C — unter dem Ziel ({{target}} °C)"
+      },
+      "humidity": {
+        "above": "Luftfeuchte {{current}} % — über dem Ziel ({{target}} %)",
+        "below": "Luftfeuchte {{current}} % — unter dem Ziel ({{target}} %)"
+      }
+    },
+    "tips": {
+      "seedling": {
+        "1": "Halte das Medium leicht feucht, nie klatschnass — Sämlinge ertrinken schneller, als sie vertrocknen.",
+        "2": "Hohe Luftfeuchte (65–75 %) hilft jungen Wurzeln; eine Anzuchthaube wirkt in den ersten Tagen Wunder.",
+        "3": "Licht gedimmt lassen (ca. 40 %) und Abstand halten — ausgebleichte oder eingerollte Blätter heißen: zu viel.",
+        "4": "Noch nicht düngen: Der Samen bringt Nährstoffe für die ersten zwei Wochen mit."
+      },
+      "vegetative": {
+        "1": "Gieße, wenn die oberen Zentimeter des Mediums trocken sind — der Topf-Hebetest sagt mehr als ein Zeitplan.",
+        "2": "Jetzt ist Trainingszeit: Topping oder Herunterbinden (LST) sorgt für ein ebenes Blätterdach und mehr Blütenansätze.",
+        "3": "Steigere die Lichtintensität Schritt für Schritt Richtung 80–100 %, sobald die Pflanzen kräftiger werden.",
+        "4": "Behalte den VPD-Chart im Blick: 0,8–1,1 kPa halten Verdunstung und Wachstum im Gleichgewicht."
+      },
+      "flowering": {
+        "1": "Halte die Luftfeuchte bei maximal 50 % — dichte Buds plus hohe Feuchte ist der Anfang von Schimmel.",
+        "2": "Ändere den Lichtzyklus jetzt nicht mehr; Unterbrechungen der Dunkelphase stressen photoperiodische Pflanzen.",
+        "3": "Dünge Blütedünger und beobachte die Blattfarbe — ein Ausbleichen gegen Ende ist normal.",
+        "4": "Prüfe in den letzten Wochen die Trichome: milchig mit ersten Bernsteintönen heißt meist Erntezeit."
+      },
+      "drying": {
+        "1": "16–20 °C und 55–60 % Luftfeuchte, dunkel und mit sanfter Luftbewegung — langsames Trocknen erhält die Terpene.",
+        "2": "Plane 10–14 Tage ein. Ist nach 5 Tagen alles trocken, war es zu warm oder zu trocken.",
+        "3": "Der Knacktest: Wenn kleine Zweige brechen statt sich zu biegen, sind die Buds bereit fürs Curing-Glas.",
+        "4": "Öffne die Gläser in der ersten Curing-Woche täglich kurz („Burping“), damit Restfeuchte entweichen kann."
+      }
+    }
+  },
   "wizard": {
     "title": "Einrichtungsassistent",
     "back": "Zurück",

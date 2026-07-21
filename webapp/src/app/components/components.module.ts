@@ -4,6 +4,7 @@ import { RouterModule } from '@angular/router';
 import { ValuedisplayComponent } from './valuedisplay/valuedisplay.component';
 import { StagePresetPickerComponent } from './stage-preset-picker/stage-preset-picker.component';
 import { SetupWizardComponent } from './setup-wizard/setup-wizard.component';
+import { GrowAssistantCardComponent } from './grow-assistant/grow-assistant-card.component';
 import { IonicModule } from '@ionic/angular';
 import { PipesModule } from 'src/app/pipes/pipes.module';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -14,11 +15,13 @@ import { TranslateModule } from '@ngx-translate/core';
     ValuedisplayComponent,
     StagePresetPickerComponent,
     SetupWizardComponent,
+    GrowAssistantCardComponent,
   ],
   exports: [
     ValuedisplayComponent,
     StagePresetPickerComponent,
     SetupWizardComponent,
+    GrowAssistantCardComponent,
   ],
   imports: [
     CommonModule,

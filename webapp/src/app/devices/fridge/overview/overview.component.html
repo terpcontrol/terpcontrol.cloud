@@ -35,17 +35,17 @@
   <h3 class="device-type-label">{{'devices.fridge.title' | translate}}</h3>
   <h3 style="text-align:center; margin-top: 6px; margin-bottom: 12px;">
     <a href="#" class="tc-pill workmode-pill" (click)="$event.preventDefault(); measureSelected('logs')">{{ 'devices.fridge.workmode-' + workmode | translate }}</a>
-    <p *ngIf="recipe?.activeSince > 0">
-      #{{ recipe.activeStepIndex + 1 }} {{ recipe.steps?.[recipe.activeStepIndex]?.name }}
-      [{{ getRecipeStepRemainingDuration(recipe.steps?.[recipe.activeStepIndex])}}]
-    </p>
-    <p *ngIf="recipe?.activeSince > 0 && getRecipeConfirmationMessage(recipe.steps?.[recipe.activeStepIndex]) as confirmMsg">
-      <ion-text color="warning">
-        <ion-icon name="warning" color="warning"></ion-icon>
-        {{ confirmMsg }}
-      </ion-text>
-    </p>
   </h3>
+
+  <grow-assistant-card
+    [device_id]="device_id"
+    [deviceType]="device_type"
+    [recipe]="recipe"
+    [settings]="config"
+    [cloudSettings]="cloud_settings"
+    [isDay]="is_day"
+    (startPlan)="setup.emit()"
+  ></grow-assistant-card>
   <ion-row class="ion-justify-content-center">
     <ion-col size="6" size-sm="3" size-xl="2">
       <value-display
