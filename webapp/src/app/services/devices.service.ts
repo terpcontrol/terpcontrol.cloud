@@ -159,6 +159,15 @@ export class DeviceService {
     await this.refetchDevices();
   }
 
+  /**
+   * Fire-and-forget command about a device-managed auxiliary (e.g. removing a
+   * paired smart socket). The device confirms by re-reporting its hardware
+   * info, so callers should refetch devices afterwards.
+   */
+  public async sendAuxCommand(device_id: string, action: 'socket_remove', role: string) {
+    await firstValueFrom(this.http.post(environment.API_URL + '/device/auxcommand', { device_id, action, role }));
+  }
+
   public async getConfig(device_id:string) {
     return await firstValueFrom( this.http.get<string>(environment.API_URL + '/device/config/' + device_id) )
   }

@@ -16,6 +16,7 @@ export class SettingsPage implements OnInit {
   public device_id:string = "";
   public device_type:string = ""
   public hardwareInfo: Record<string, string> | undefined;
+  public lastseen: number | undefined;
 
   constructor(
     private devices: DeviceService,
@@ -32,6 +33,7 @@ export class SettingsPage implements OnInit {
       const device = devices.find((device) => device.device_id == this.device_id);
       this.device_type = device?.device_type || '';
       this.hardwareInfo = device?.hardwareInfo;
+      this.lastseen = device?.lastseen;
     })
   }
 }

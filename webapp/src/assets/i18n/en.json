@@ -15,7 +15,8 @@
     "settings": "Settings",
     "errorOccurred": "An error occurred",
     "unableToSaveSettings": "Unable to save settings",
-    "unableToLoadSettings": "Unable to load settings"
+    "unableToLoadSettings": "Unable to load settings",
+    "cancel": "Cancel"
   },
   "settings": {
     "title": "Settings",
@@ -839,6 +840,65 @@
       "target": "CO2 target",
       "hint": "Only useful with a CO2 bottle and valve. Without one, keep 400 ppm (ambient level) — the valve then never opens.",
       "text": "Without CO2 enrichment leave this at 400 ppm. With a CO2 setup, 900–1200 ppm speeds up growth."
+    }
+  },
+  "auxDevices": {
+    "title": "Connected devices",
+    "webcam": {
+      "title": "Webcam",
+      "intro": "Watch your grow live and in the diary timelapse. Pick your camera:",
+      "models": {
+        "terp_cam": {
+          "name": "Terp Control Cam",
+          "subtitle": "Our camera — connects via your controller"
+        },
+        "tapo_c200": {
+          "name": "TP-Link Tapo C200",
+          "subtitle": "RTSP template"
+        },
+        "reolink": {
+          "name": "Reolink",
+          "subtitle": "RTSP template"
+        },
+        "hikvision": {
+          "name": "Hikvision",
+          "subtitle": "RTSP template"
+        },
+        "custom": {
+          "name": "Custom",
+          "subtitle": "Any stream URL"
+        }
+      },
+      "terpCamFound": "Terp Control Cam detected — your controller reported its stream URL.",
+      "terpCamActive": "Terp Control Cam connected. The stream is tunneled through your controller.",
+      "terpCamUse": "Use this camera",
+      "terpCamMissing": "No Terp Control Cam reported yet. Connect it on your controller first: Settings → Terp Cam → connect cam.",
+      "user": "Camera username",
+      "password": "Camera password",
+      "host": "IP address or hostname",
+      "hostHintTunnel": "Local IP of the camera in your home network — the stream is fetched through your device's tunnel.",
+      "hostHintPublic": "Public IP or DDNS name reachable from the internet. Enable tunneling to use a local IP instead.",
+      "remove": "Remove webcam",
+      "savedNote": "Webcam changes are stored when you save the settings."
+    },
+    "sockets": {
+      "title": "Smart Sockets",
+      "intro": "Your controller switches these sockets. Pairing happens directly on the controller (Settings → Smart Sockets).",
+      "unknownFirmware": "This firmware doesn't report its sockets yet. Update the device firmware or manage sockets on the device.",
+      "connected": "Connected",
+      "notConnected": "Not connected",
+      "roles": {
+        "dehumidifier": "Dehumidifier",
+        "heater": "Heater",
+        "light": "Light",
+        "secondary_light": "Second light",
+        "co2": "CO2 valve"
+      },
+      "remove": "Remove",
+      "removeConfirmTitle": "Remove socket?",
+      "removeConfirmText": "The \"{{role}}\" socket will be unpaired and reset. This takes effect immediately.",
+      "offlineHint": "The device is offline — socket changes need a connected device.",
+      "pairOnDevice": "Removal takes effect immediately. To pair a new socket use the controller's display."
     }
   }
 }

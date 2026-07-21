@@ -18,6 +18,8 @@ export class CloudSettingsComponent implements OnChanges, OnDestroy {
   @Input() deviceType: string = '';
 
   @Input() hardwareInfo: Record<string, string> | undefined;
+  /** Fridge/controller settings render the webcam in the aux-devices card instead. */
+  @Input() showWebcam = true;
 
   @Output() cloudSettingsChange = new EventEmitter<any>();
 

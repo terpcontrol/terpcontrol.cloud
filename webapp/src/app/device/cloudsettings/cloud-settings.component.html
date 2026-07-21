@@ -56,7 +56,7 @@
         </ng-template>
       </ion-popover>
     </ion-item>
-    <ion-item lines="none">
+    <ion-item lines="none" *ngIf="showWebcam">
       <ion-label>{{'settings.rtspStream' | translate}}</ion-label>
       <ion-button fill="clear" id="cloudSettings-rtspStream-popover">
         <ion-icon name="help-circle-outline"></ion-icon>
@@ -75,7 +75,7 @@
         </ng-template>
       </ion-popover>
     </ion-item>
-    <ion-item lines="none" *ngIf="cloudSettings?.rtspStream?.startsWith('rtsp://')">
+    <ion-item lines="none" *ngIf="showWebcam && cloudSettings?.rtspStream?.startsWith('rtsp://')">
       <ion-label>{{'settings.rtspStreamTransport' | translate}}</ion-label>
       <ion-select
         [(ngModel)]="cloudSettings.rtspStreamTransport"
@@ -94,7 +94,7 @@
         </ng-template>
       </ion-popover>
     </ion-item>
-    <ion-item lines="none" *ngIf="cloudSettings?.rtspStream?.startsWith('rtsp://')">
+    <ion-item lines="none" *ngIf="showWebcam && cloudSettings?.rtspStream?.startsWith('rtsp://')">
       <ion-label>
         {{ 'settings.tunnelRtspStream' | translate}}
         <ion-button fill="clear" id="cloudSettings-tunnelRtspStream-popover">
@@ -113,29 +113,29 @@
         </ng-template>
       </ion-popover>
     </ion-item>
-    <ion-item lines="none" [hidden]="!cloudSettings?.rtspStream">
+    <ion-item lines="none" [hidden]="!showWebcam || !cloudSettings?.rtspStream">
       <ion-label>{{'settings.rtspStreamTest' | translate}}</ion-label>
       <ion-button slot="end" (click)="testRtspStream()" [disabled]="rtspStreamTestLoading">
         <ion-spinner *ngIf="rtspStreamTestLoading" name="crescent"></ion-spinner>
         <span *ngIf="!rtspStreamTestLoading">{{'settings.rtspStreamTestButton' | translate}}</span>
       </ion-button>
     </ion-item>
-    <ion-item lines="none" *ngIf="rtspStreamTestError">
+    <ion-item lines="none" *ngIf="showWebcam && rtspStreamTestError">
       <ion-text color="danger" class="rtsp-stream-test-error">
         {{'settings.rtspStreamTestError' | translate}}: {{rtspStreamTestError}}
       </ion-text>
     </ion-item>
-    <ion-item lines="none" *ngIf="rtspStreamTestImageUrl">
+    <ion-item lines="none" *ngIf="showWebcam && rtspStreamTestImageUrl">
       <img class="rtsp-stream-test-image" [src]="rtspStreamTestImageUrl" alt="Webcam test image"/>
     </ion-item>
-    <ion-item lines="none" [hidden]="!cloudSettings?.rtspStream">
+    <ion-item lines="none" [hidden]="!showWebcam || !cloudSettings?.rtspStream">
       <ion-label>{{'settings.logRtspStreamErrors' | translate}}</ion-label>
       <ion-checkbox
         [(ngModel)]="cloudSettings.logRtspStreamErrors"
         (ngModelChange)="cloudSettingsChange.emit(cloudSettings)"
       ></ion-checkbox>
     </ion-item>
-    <ion-item lines="none" [hidden]="!cloudSettings?.rtspStream">
+    <ion-item lines="none" [hidden]="!showWebcam || !cloudSettings?.rtspStream">
       <ion-label>
         {{'settings.maintenanceWebcamOff' | translate}}
         <ion-button fill="clear" id="cloudSettings-maintenanceWebcamOff-popover">

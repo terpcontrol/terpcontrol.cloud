@@ -1,0 +1,152 @@
+<ion-card class="aux-card">
+  <ion-card-header>
+    <ion-card-title>{{ 'auxDevices.title' | translate }}</ion-card-title>
+  </ion-card-header>
+  <ion-card-content>
+
+    <!-- Webcam -->
+    <h3 class="aux-section-title">
+      <ion-icon name="videocam-outline"></ion-icon>
+      {{ 'auxDevices.webcam.title' | translate }}
+    </h3>
+    <p class="aux-hint">{{ 'auxDevices.webcam.intro' | translate }}</p>
+
+    <div class="aux-model-grid">
+      <div
+        class="tc-preset-card"
+        *ngFor="let model of webcamModels; trackBy: trackByModel"
+        [class.active]="selectedModel === model.id"
+        (click)="selectModel(model.id)"
+      >
+        <ion-icon [name]="model.icon"></ion-icon>
+        <span class="tc-preset-card__title">{{ model.nameKey | translate }}</span>
+        <span class="tc-preset-card__subtitle">{{ model.subtitleKey | translate }}</span>
+      </div>
+    </div>
+
+    <!-- Terp Control Cam: paired on the device, URL arrives via hardware-info -->
+    <ng-container *ngIf="selectedModel === 'terp_cam'">
+      <ng-container *ngIf="terpCamUrl; else terpCamMissing">
+        <ion-item lines="none" class="aux-terpcam-found">
+          <ion-icon slot="start" name="checkmark-circle-outline" color="secondary"></ion-icon>
+          <ion-label class="ion-text-wrap">
+            {{ (terpCamApplied ? 'auxDevices.webcam.terpCamActive' : 'auxDevices.webcam.terpCamFound') | translate }}
+          </ion-label>
+        </ion-item>
+        <ion-button *ngIf="!terpCamApplied" size="small" color="secondary" (click)="applyTerpCam()">
+          {{ 'auxDevices.webcam.terpCamUse' | translate }}
+        </ion-button>
+      </ng-container>
+      <ng-template #terpCamMissing>
+        <p class="aux-hint">{{ 'auxDevices.webcam.terpCamMissing' | translate }}</p>
+      </ng-template>
+    </ng-container>
+
+    <!-- Brand templates: credentials + host build the stream URL -->
+    <ng-container *ngIf="isBrandTemplate">
+      <ion-item>
+        <ion-label position="floating">{{ 'auxDevices.webcam.user' | translate }}</ion-label>
+        <ion-input [(ngModel)]="fields.user" (ngModelChange)="rebuildUrlFromFields()" autocomplete="off"></ion-input>
+      </ion-item>
+      <ion-item>
+        <ion-label position="floating">{{ 'auxDevices.webcam.password' | translate }}</ion-label>
+        <ion-input type="password" [(ngModel)]="fields.password" (ngModelChange)="rebuildUrlFromFields()" autocomplete="off"></ion-input>
+      </ion-item>
+      <ion-item>
+        <ion-label position="floating">{{ 'auxDevices.webcam.host' | translate }}</ion-label>
+        <ion-input [(ngModel)]="fields.host" (ngModelChange)="rebuildUrlFromFields()" placeholder="192.168.1.50" autocomplete="off"></ion-input>
+      </ion-item>
+      <span class="tc-field-hint">
+        {{ (cloudSettings.tunnelRtspStream ? 'auxDevices.webcam.hostHintTunnel' : 'auxDevices.webcam.hostHintPublic') | translate }}
+      </span>
+      <p class="aux-url-preview" *ngIf="hasWebcam">{{ cloudSettings.rtspStream }}</p>
+    </ng-container>
+
+    <!-- Custom: raw URL as before -->
+    <ng-container *ngIf="selectedModel === 'custom'">
+      <ion-item>
+        <ion-label position="floating">{{ 'settings.rtspStream' | translate }}</ion-label>
+        <ion-input [(ngModel)]="cloudSettings.rtspStream" autocomplete="off"></ion-input>
+      </ion-item>
+      <ion-item lines="none" *ngIf="isRtsp">
+        <ion-label>{{ 'settings.rtspStreamTransport' | translate }}</ion-label>
+        <ion-select [(ngModel)]="cloudSettings.rtspStreamTransport" interface="popover">
+          <ion-select-option value="tcp">tcp</ion-select-option>
+          <ion-select-option value="http">http</ion-select-option>
+          <ion-select-option value="https">https</ion-select-option>
+        </ion-select>
+      </ion-item>
+    </ng-container>
+
+    <!-- Shared webcam options -->
+    <ng-container *ngIf="selectedModel && selectedModel !== 'terp_cam' || hasWebcam">
+      <ion-item lines="none" *ngIf="selectedModel !== 'terp_cam'">
+        <ion-checkbox slot="start" [(ngModel)]="cloudSettings.tunnelRtspStream"></ion-checkbox>
+        <ion-label class="ion-text-wrap">{{ 'settings.tunnelRtspStream' | translate }}</ion-label>
+      </ion-item>
+      <ion-item lines="none" *ngIf="hasWebcam">
+        <ion-checkbox slot="start" [(ngModel)]="cloudSettings.logRtspStreamErrors"></ion-checkbox>
+        <ion-label class="ion-text-wrap">{{ 'settings.logRtspStreamErrors' | translate }}</ion-label>
+      </ion-item>
+      <ion-item lines="none" *ngIf="hasWebcam">
+        <ion-checkbox slot="start" [(ngModel)]="cloudSettings.maintenanceWebcamOff"></ion-checkbox>
+        <ion-label class="ion-text-wrap">{{ 'settings.maintenanceWebcamOff' | translate }}</ion-label>
+      </ion-item>
+
+      <div class="aux-webcam-actions" *ngIf="hasWebcam">
+        <ion-button size="small" fill="outline" (click)="testStream()" [disabled]="testLoading">
+          <ion-spinner *ngIf="testLoading" name="crescent"></ion-spinner>
+          <ng-container *ngIf="!testLoading">{{ 'settings.rtspStreamTest' | translate }}</ng-container>
+        </ion-button>
+        <ion-button size="small" fill="clear" color="danger" (click)="removeWebcam()">
+          {{ 'auxDevices.webcam.remove' | translate }}
+        </ion-button>
+      </div>
+      <p class="aux-error" *ngIf="testError">{{ testError }}</p>
+      <img class="aux-test-image" *ngIf="testImageUrl" [src]="testImageUrl" alt=""/>
+      <span class="tc-field-hint" *ngIf="hasWebcam">{{ 'auxDevices.webcam.savedNote' | translate }}</span>
+    </ng-container>
+
+    <!-- Smart sockets (controller only) -->
+    <ng-container *ngIf="isController">
+      <h3 class="aux-section-title aux-sockets-title">
+        <ion-icon name="flash-outline"></ion-icon>
+        {{ 'auxDevices.sockets.title' | translate }}
+      </h3>
+      <p class="aux-hint">{{ 'auxDevices.sockets.intro' | translate }}</p>
+
+      <p class="aux-hint aux-unknown" *ngIf="!socketsReported">
+        <ion-icon name="information-circle-outline"></ion-icon>
+        {{ 'auxDevices.sockets.unknownFirmware' | translate }}
+      </p>
+
+      <ng-container *ngIf="socketsReported">
+        <div class="aux-socket-row" *ngFor="let role of socketRoles; trackBy: trackByRole">
+          <span class="aux-socket-name">{{ 'auxDevices.sockets.roles.' + role | translate }}</span>
+          <span
+            class="tc-pill"
+            [class.tc-pill--green]="socketState(role) === 'connected'"
+            [class.tc-pill--muted]="socketState(role) !== 'connected'"
+          >
+            {{ (socketState(role) === 'connected' ? 'auxDevices.sockets.connected' : 'auxDevices.sockets.notConnected') | translate }}
+          </span>
+          <ion-button
+            *ngIf="socketState(role) === 'connected'"
+            size="small"
+            fill="clear"
+            color="danger"
+            (click)="removeSocket(role)"
+            [disabled]="deviceOffline || removingRoles.has(role)"
+          >
+            <ion-spinner *ngIf="removingRoles.has(role)" name="crescent"></ion-spinner>
+            <ion-icon *ngIf="!removingRoles.has(role)" slot="icon-only" name="trash-outline"></ion-icon>
+          </ion-button>
+        </div>
+
+        <span class="tc-field-hint" *ngIf="deviceOffline">{{ 'auxDevices.sockets.offlineHint' | translate }}</span>
+        <span class="tc-field-hint" *ngIf="!deviceOffline">{{ 'auxDevices.sockets.pairOnDevice' | translate }}</span>
+      </ng-container>
+    </ng-container>
+
+  </ion-card-content>
+</ion-card>

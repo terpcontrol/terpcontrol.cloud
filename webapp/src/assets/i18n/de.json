@@ -15,7 +15,8 @@
     "settings": "Einstellungen",
     "errorOccurred": "Fehler aufgetreten",
     "unableToSaveSettings": "Einstellungen konnten nicht gespeichert werden",
-    "unableToLoadSettings": "Einstellungen konnten nicht geladen werden"
+    "unableToLoadSettings": "Einstellungen konnten nicht geladen werden",
+    "cancel": "Abbrechen"
   },
   "settings": {
     "title": "Einstellungen",
@@ -836,6 +837,65 @@
       "target": "CO₂-Ziel",
       "hint": "Nur sinnvoll mit CO₂-Flasche und Ventil. Ohne Anlage bei 400 ppm (Umgebungsniveau) lassen — dann öffnet nie ein Ventil.",
       "text": "Ohne CO₂-Begasung bei 400 ppm lassen. Mit CO₂-Anlage beschleunigen 900–1200 ppm das Wachstum."
+    }
+  },
+  "auxDevices": {
+    "title": "Angeschlossene Geräte",
+    "webcam": {
+      "title": "Webcam",
+      "intro": "Behalte deinen Grow live und im Tagebuch-Zeitraffer im Blick. Wähle deine Kamera:",
+      "models": {
+        "terp_cam": {
+          "name": "Terp Control Cam",
+          "subtitle": "Unsere Kamera — verbindet sich über deinen Controller"
+        },
+        "tapo_c200": {
+          "name": "TP-Link Tapo C200",
+          "subtitle": "RTSP-Vorlage"
+        },
+        "reolink": {
+          "name": "Reolink",
+          "subtitle": "RTSP-Vorlage"
+        },
+        "hikvision": {
+          "name": "Hikvision",
+          "subtitle": "RTSP-Vorlage"
+        },
+        "custom": {
+          "name": "Eigene URL",
+          "subtitle": "Beliebige Stream-URL"
+        }
+      },
+      "terpCamFound": "Terp Control Cam erkannt — dein Controller hat die Stream-URL gemeldet.",
+      "terpCamActive": "Terp Control Cam verbunden. Der Stream wird über deinen Controller getunnelt.",
+      "terpCamUse": "Kamera übernehmen",
+      "terpCamMissing": "Noch keine Terp Control Cam gemeldet. Verbinde sie zuerst an deinem Controller: Einstellungen → Terp Cam → connect cam.",
+      "user": "Kamera-Benutzername",
+      "password": "Kamera-Passwort",
+      "host": "IP-Adresse oder Hostname",
+      "hostHintTunnel": "Lokale IP der Kamera in deinem Heimnetz — der Stream wird über den Tunnel deines Geräts geholt.",
+      "hostHintPublic": "Öffentliche IP oder DDNS-Name, aus dem Internet erreichbar. Aktiviere Tunneling, um stattdessen eine lokale IP zu nutzen.",
+      "remove": "Webcam entfernen",
+      "savedNote": "Webcam-Änderungen werden beim Speichern der Einstellungen übernommen."
+    },
+    "sockets": {
+      "title": "Smart Sockets",
+      "intro": "Dein Controller schaltet diese Steckdosen. Die Kopplung passiert direkt am Controller (Einstellungen → Smart Sockets).",
+      "unknownFirmware": "Diese Firmware meldet ihre Steckdosen noch nicht. Aktualisiere die Geräte-Firmware oder verwalte die Steckdosen am Gerät.",
+      "connected": "Verbunden",
+      "notConnected": "Nicht verbunden",
+      "roles": {
+        "dehumidifier": "Entfeuchter",
+        "heater": "Heizung",
+        "light": "Licht",
+        "secondary_light": "Zweites Licht",
+        "co2": "CO2-Ventil"
+      },
+      "remove": "Entfernen",
+      "removeConfirmTitle": "Steckdose entfernen?",
+      "removeConfirmText": "Die Steckdose „{{role}}“ wird entkoppelt und zurückgesetzt. Das passiert sofort.",
+      "offlineHint": "Das Gerät ist offline — Steckdosen-Änderungen brauchen ein verbundenes Gerät.",
+      "pairOnDevice": "Das Entfernen wirkt sofort. Neue Steckdosen koppelst du über das Display des Controllers."
     }
   }
 }

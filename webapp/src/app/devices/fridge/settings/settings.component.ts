@@ -18,6 +18,7 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
   @Input() device_id:string = "";
   @Input() hardwareInfo: Record<string, string> | undefined;
   @Input() deviceType: string = "";
+  @Input() lastseen: number | undefined;
 
   public deviceSettings: any = {};
   public alarms:any = [];
