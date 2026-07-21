@@ -445,7 +445,7 @@
   },
   "device-list": {
     "title": "Device list",
-    "claim": "ENTER DEVICE CODE",
+    "claim": "Enter device code",
     "claim-button": "Claim"
   },
   "charts": {

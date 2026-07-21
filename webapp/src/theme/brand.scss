@@ -11,42 +11,44 @@ ion-title {
   letter-spacing: -0.02em;
 }
 
-ion-card {
+html ion-card {
   border-radius: var(--tc-radius-md);
   box-shadow: var(--tc-shadow-sm);
   border: 1px solid var(--ion-border-color);
   background: var(--ion-card-background);
 }
 
-ion-card-title {
+html ion-card-title {
   font-size: 1.15rem;
   color: var(--ion-text-color);
 }
 
-ion-button {
+/* Ionic attaches its shadow styles after the page CSS, so the inherited
+   typography needs !important to win deterministically. */
+html ion-button {
   --border-radius: var(--tc-radius-sm);
   font-weight: 600;
-  text-transform: none;
-  letter-spacing: 0;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
 }
 
-ion-modal {
+html ion-modal {
   --border-radius: var(--tc-radius-lg);
 }
 
-ion-popover {
+html ion-popover {
   --box-shadow: var(--tc-shadow-lg);
 }
 
-ion-badge {
+html ion-badge {
   border-radius: 999px;
   font-weight: 600;
   padding: 4px 10px;
 }
 
-ion-segment-button {
-  text-transform: none;
-  letter-spacing: 0;
+html ion-segment-button {
+  text-transform: none !important;
+  letter-spacing: 0 !important;
   font-weight: 600;
   min-height: 36px;
 }

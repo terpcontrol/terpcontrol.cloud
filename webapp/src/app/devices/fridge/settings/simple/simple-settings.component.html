@@ -70,18 +70,9 @@
       <ng-container *ngIf="!floatingDayActive">
         <ion-item lines="none">
           <ion-label>{{ 'simpleSettings.light.start' | translate }}</ion-label>
-          <ion-datetime-button datetime="simple-light-start"></ion-datetime-button>
-          <ion-modal [keepContentsMounted]="true">
-            <ng-template>
-              <ion-datetime
-                id="simple-light-start"
-                presentation="time"
-                minuteValues="0,15,30,45"
-                [value]="lightStart"
-                (ionChange)="onLightStartChange($any($event).detail.value)"
-              ></ion-datetime>
-            </ng-template>
-          </ion-modal>
+          <ion-select [ngModel]="lightStart" (ngModelChange)="onLightStartChange($event)" interface="popover">
+            <ion-select-option *ngFor="let time of lightStartOptions" [value]="time">{{ time }}</ion-select-option>
+          </ion-select>
         </ion-item>
         <ion-item lines="none">
           <ion-label>{{ 'simpleSettings.light.duration' | translate }}</ion-label>

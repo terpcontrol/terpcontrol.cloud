@@ -149,14 +149,17 @@
     "controlProfile-light_only": "Nur die Lampe",
     "controlProfile-monitor": "Nur überwachen",
     "controlProfileHint": "Was dein Controller tatsächlich schaltet. Bei „Nur überwachen“ wird nichts geschaltet — Zielwerte dienen als Richtwerte, während Charts, Tagebuch und Alarme normal weiterlaufen. Du kannst das jederzeit ändern.",
-    "pleaseStart": "Bitte starte zuerst den Plan"
+    "pleaseStart": "Bitte starte zuerst den Plan",
+    "edit-value": "Wert ändern"
   },
   "menu": {
     "devices": "Geräte",
     "shares": "Geteilte Links",
     "account": "Benutzer",
     "logout": "Ausloggen",
-    "darkMode": "Dark Mode"
+    "darkMode": "Dark Mode",
+    "diagnostics": "Diagnose",
+    "fleet": "Flotte"
   },
   "share": {
     "button": "Teilen",
@@ -442,7 +445,7 @@
   },
   "device-list": {
     "title": "Meine Geräte",
-    "claim": "GERÄTECODE HIER EINGEBEN",
+    "claim": "Gerätecode eingeben",
     "claim-button": "Hinzufügen"
   },
   "charts": {
@@ -540,7 +543,8 @@
         "emailNotifications-onConfirmation": "Nur bei Bestätigungen",
         "additionalInfo": "Log-Meldung bei Schrittwechsel",
         "emailAddress": "E-Mail Adresse",
-        "pleaseStart": "Bitte starte zuerst den Plan"
+        "pleaseStart": "Bitte starte zuerst den Plan",
+        "stepEtaTime": "Schritt-Ende ETA"
       }
     },
     "fan": {
@@ -642,7 +646,15 @@
         }
       }
     },
-    "button-setup": "Einrichten"
+    "button-setup": "Einrichten",
+    "dryer": {
+      "title": "Terp Control FRIDGE DRY",
+      "presets": "Voreinstellungen",
+      "preset-none": "Eigene Werte",
+      "preset-slow": "Langsame Trocknung",
+      "preset-medium": "Normale Trocknung",
+      "preset-fast": "Schnelle Trocknung"
+    }
   },
   "diary": {
     "title": "Tagebuch",
@@ -671,7 +683,8 @@
       "tdsMeasurement": "TDS-Messung",
       "ecMeasurement": "EC-Messung",
       "outsideTemperatureMeasurement": "Außentemperatur",
-      "phMeasurement": "pH-Messung"
+      "phMeasurement": "pH-Messung",
+      "lifecycleName": "Name der Pflanze"
     },
     "lifecycleStages": {
       "germination": "Keimung",

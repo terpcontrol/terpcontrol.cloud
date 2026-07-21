@@ -24,6 +24,7 @@ export class FridgeSimpleSettingsComponent {
   @Output() startPlanRequested = new EventEmitter<void>();
 
   public lightDurations = [12, 14, 16, 18, 20];
+  public baseLightStartOptions = Array.from({ length: 24 }, (_, hour) => `${hour.toString().padStart(2, '0')}:00`);
   public limits = {
     temperature: { min: 5, max: 40 },
     humidity: { min: 10, max: 90 },
@@ -127,6 +128,13 @@ export class FridgeSimpleSettingsComponent {
     const hours = Math.floor(local / 3600);
     const minutes = Math.floor((local % 3600) / 60);
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  }
+
+  get lightStartOptions(): string[] {
+    const current = this.lightStart;
+    return this.baseLightStartOptions.includes(current)
+      ? this.baseLightStartOptions
+      : [...this.baseLightStartOptions, current].sort();
   }
 
   onLightStartChange(value: string | null | undefined) {

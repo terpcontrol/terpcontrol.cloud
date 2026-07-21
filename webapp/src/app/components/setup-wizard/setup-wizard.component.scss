@@ -1,3 +1,19 @@
+/* The modal delegate wraps the template in a flex-column .ion-page; the
+   host must grow inside it, otherwise ion-content collapses to zero height. */
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.wizard-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .wizard-progress {
   display: flex;
   justify-content: center;
