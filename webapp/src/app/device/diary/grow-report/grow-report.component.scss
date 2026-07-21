@@ -1,10 +1,3 @@
-.day-count {
-  font-size: 0.85em;
-  font-weight: normal;
-  color: var(--ion-color-medium, #999);
-  margin-left: 0.5em;
-}
-
 .timeline {
   position: relative;
 }
@@ -13,10 +6,31 @@
   margin-bottom: 0;
 }
 
+.day-count {
+  font-size: 0.85em;
+  font-weight: normal;
+  margin-left: 0.5em;
+}
+
+.day-count,
+.event-time,
+.gap-label,
+.webcam-time,
+.phase-summary-item .phase-duration {
+  color: var(--ion-color-medium);
+}
+
+.day-title,
+.event-title,
+.phase-summary h3,
+.phase-summary-item h4 {
+  font-weight: 600;
+}
+
 .phase-header {
   font-weight: 600;
   font-size: 1.3em;
-  border-bottom: 2px solid var(--ion-color-step-300, #ccc);
+  border-bottom: 2px solid var(--ion-color-step-300);
   margin-bottom: 0;
   margin-left: 5px;
   padding-left: 19px;
@@ -36,32 +50,23 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: var(--ion-color-primary, #3880ff);
+  background: var(--ion-color-primary);
   margin-right: 0.75rem;
   flex-shrink: 0;
-}
-
-.day-title {
-  font-weight: 600;
 }
 
 .event-list {
   margin-left: 5px;
 }
 
+.event-card,
+.gap-label {
+  border-left: 2px solid var(--ion-color-step-300);
+}
+
 .event-card {
-  border-left: 2px solid var(--ion-color-step-300, #ccc);
   padding-left: 0.75rem;
   margin-bottom: 0;
-}
-
-.event-time {
-  font-size: 0.85em;
-  color: var(--ion-color-medium, #666);
-}
-
-.event-title {
-  font-weight: 600;
 }
 
 .event-message {
@@ -86,7 +91,7 @@
 .gap-line-vertical {
   width: 2px;
   height: 24px;
-  background: var(--ion-color-step-300, #ccc);
+  background: var(--ion-color-step-300);
   margin-bottom: 0;
 }
 
@@ -104,36 +109,23 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--ion-color-step-400, #b3b3b3);
+  background: var(--ion-color-step-400);
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
 
 .gap-label {
-  color: var(--ion-color-medium, #666);
   font-size: 0.85em;
   font-style: italic;
   padding-left: 19px;
-  border-left: 2px solid var(--ion-color-step-300, #ccc);
 }
 
-.phase-summary {
-  h3 {
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-  }
+.phase-summary h3 {
+  margin-bottom: 0.5rem;
 }
 
 .phase-summary-item {
   cursor: pointer;
-
-  h4 {
-    font-weight: 600;
-  }
-
-  .phase-duration {
-    color: var(--ion-color-medium, #666);
-  }
 }
 
 .days-until-today {
@@ -141,15 +133,15 @@
 }
 
 .day-dot-today {
-  background: var(--ion-color-success, #2dd36f);
+  background: var(--ion-color-success);
 }
 
 .day-section.day-active {
-  background: var(--ion-color-step-50, rgba(56, 128, 255, 0.08));
-  border-radius: 6px;
+  background: rgba(var(--ion-color-primary-rgb), 0.08);
+  border-radius: var(--tc-radius-sm);
 
   .day-dot {
-    box-shadow: 0 0 0 3px var(--ion-color-primary-tint, #4c8dff);
+    box-shadow: 0 0 0 3px rgba(var(--ion-color-primary-rgb), 0.3);
   }
 }
 
@@ -157,7 +149,7 @@
   cursor: pointer;
 
   &:hover .gap-label {
-    color: var(--ion-color-primary, #3880ff);
+    color: var(--ion-color-primary);
   }
 }
 
@@ -181,10 +173,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--ion-color-primary, #3880ff);
-  color: #fff;
+  background: var(--ion-color-primary);
+  color: var(--ion-color-primary-contrast);
   font-size: 14px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--tc-shadow-md);
   cursor: grab;
   touch-action: none;
   z-index: 20;
@@ -200,10 +192,11 @@
   bottom: 16px;
   width: min(360px, calc(100vw - 32px));
   z-index: 1000;
-  border-radius: 12px;
+  border-radius: var(--tc-radius-md);
   overflow: hidden;
-  background: var(--ion-card-background, var(--ion-background-color, #fff));
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  background: var(--ion-card-background);
+  border: 1px solid var(--ion-border-color);
+  box-shadow: var(--tc-shadow-lg);
 }
 
 .webcam-float-header {
@@ -228,7 +221,6 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  color: var(--ion-color-medium, #666);
   font-weight: normal;
   font-size: 0.95em;
   cursor: pointer;
@@ -241,7 +233,7 @@
 .webcam-float-frame {
   position: relative;
   min-height: 60px;
-  background: var(--ion-color-step-100, #f0f0f0);
+  background: var(--ion-color-step-100);
 
   img {
     display: block;

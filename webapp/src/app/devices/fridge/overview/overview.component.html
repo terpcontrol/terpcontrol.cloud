@@ -32,9 +32,9 @@
   <div style="height: 20px"></div>
   <h1 style="z-index: 1000" (click)="editName()" *ngIf="!editingName">{{device_name}}</h1>
   <input style="display: none; font-size: 24px;" #nameedit type="text" [(ngModel)]="device_name" (blur)="doneEdit()"/>
-  <h3>{{'devices.fridge.title' | translate}}</h3>
-  <h3 style="text-align:center; margin-top: 4px; margin-bottom: 12px;">
-    <a href="#" (click)="$event.preventDefault(); measureSelected('logs')">{{ 'devices.fridge.workmode-' + workmode | translate }}</a>
+  <h3 class="device-type-label">{{'devices.fridge.title' | translate}}</h3>
+  <h3 style="text-align:center; margin-top: 6px; margin-bottom: 12px;">
+    <a href="#" class="tc-pill workmode-pill" (click)="$event.preventDefault(); measureSelected('logs')">{{ 'devices.fridge.workmode-' + workmode | translate }}</a>
     <p *ngIf="recipe?.activeSince > 0">
       #{{ recipe.activeStepIndex + 1 }} {{ recipe.steps?.[recipe.activeStepIndex]?.name }}
       [{{ getRecipeStepRemainingDuration(recipe.steps?.[recipe.activeStepIndex])}}]
@@ -210,21 +210,29 @@
       </div>
     </ion-col>
   </ion-row>
-  <ion-row>
+  <ion-row class="action-row">
     <ion-col size-md="2" size-sm="3" size="12" style="z-index: 1000">
-      <ion-button expand="block" [routerLink]="['/device', device_id, 'charts']">{{'devices.button-charts' | translate}}</ion-button>
+      <ion-button expand="block" fill="outline" [routerLink]="['/device', device_id, 'charts']">
+        <ion-icon slot="start" name="stats-chart-outline"></ion-icon>{{'devices.button-charts' | translate}}
+      </ion-button>
     </ion-col>
     <ion-col size-md="2" size-sm="3" size="12" style="z-index: 1000">
-      <ion-button expand="block" [routerLink]="['/device', device_id, 'settings']">{{'devices.button-settings' | translate}}</ion-button>
+      <ion-button expand="block" fill="outline" [routerLink]="['/device', device_id, 'settings']">
+        <ion-icon slot="start" name="options-outline"></ion-icon>{{'devices.button-settings' | translate}}
+      </ion-button>
     </ion-col>
     <ion-col size-md="2" size-sm="3" size="12" style="z-index: 1000" *ngIf="is_admin && workmode === 'off' && device_online">
-      <ion-button expand="block" [routerLink]="['/device', device_id, 'testmode']">Testmode</ion-button>
+      <ion-button expand="block" fill="outline" color="medium" [routerLink]="['/device', device_id, 'testmode']">Testmode</ion-button>
     </ion-col>
     <ion-col size-md="2" size-sm="3" size="12" style="z-index: 1000">
-      <ion-button expand="block" (click)="maintenanceMode()">{{'devices.button-maintenance-mode' | translate}}</ion-button>
+      <ion-button expand="block" fill="outline" color="medium" (click)="maintenanceMode()">
+        <ion-icon slot="start" name="construct-outline"></ion-icon>{{'devices.button-maintenance-mode' | translate}}
+      </ion-button>
     </ion-col>
     <ion-col size-md="2" size-sm="3" size="12" style="z-index: 1000">
-      <ion-button expand="block" [routerLink]="['/device', device_id, 'diary']">{{'devices.button-diary' | translate}}</ion-button>
+      <ion-button expand="block" fill="outline" [routerLink]="['/device', device_id, 'diary']">
+        <ion-icon slot="start" name="book-outline"></ion-icon>{{'devices.button-diary' | translate}}
+      </ion-button>
     </ion-col>
   </ion-row>
 </ion-card-content>

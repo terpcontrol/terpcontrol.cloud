@@ -28,8 +28,8 @@ i {
 }
 
 :host {
-  --value-display-text-primary: var(--ion-text-color, #f3f5f8);
-  --value-display-text-secondary: var(--ion-color-step-700, #c4c4c4);
+  --value-display-text-primary: var(--ion-text-color);
+  --value-display-text-secondary: var(--ion-color-step-700);
 }
 
 svg .primary-text {

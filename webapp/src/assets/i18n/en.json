@@ -219,6 +219,48 @@
       "changed": "Your password was changed"
     }
   },
+  "login": {
+    "welcomeTitle": "Welcome back",
+    "welcomeSubtitle": "Monitor and control your grow — from anywhere.",
+    "registerTitle": "Create your account",
+    "registerSubtitle": "One portal for all your Terp Control devices.",
+    "email": "Email",
+    "password": "Password",
+    "newPassword": "New password",
+    "repeatPassword": "Repeat password",
+    "stayLoggedIn": "Stay logged in",
+    "login": "Login",
+    "createAccount": "Create account",
+    "backToLogin": "Back to login",
+    "forgotPassword": "Forgot password?",
+    "sendRecovery": "Send recovery link",
+    "changePassword": "Change password",
+    "acceptPrivacyBefore": "I accept the",
+    "acceptPrivacyLink": "privacy policy",
+    "legacy": {
+      "toggle": "Moving over from the old Fridge Grow 2.0 / Plantalytix cloud?",
+      "intro": "Connect your existing module to the Terp Control cloud (instructions in German):"
+    },
+    "messages": {
+      "loginFailedTitle": "Login failed",
+      "errorTitle": "Error",
+      "successTitle": "Success",
+      "wrongCredentials": "Incorrect email or password.",
+      "notActivated": "You need to activate your account first. Please check your inbox.",
+      "connectionError": "Connection error. Please try again.",
+      "passwordMismatch": "The passwords don't match.",
+      "invalidActivationCode": "Invalid activation code.",
+      "accountCreatedTitle": "Account created",
+      "accountCreatedText": "An activation code has been sent to your email address.",
+      "accountActivatedTitle": "Account activated",
+      "accountActivatedText": "Your account has been activated, you can now log in:",
+      "emailInUse": "This email address is already in use.",
+      "recoverySentTitle": "Sent",
+      "recoverySentText": "The recovery link was sent.",
+      "wrongRecoveryToken": "This recovery link is invalid or has expired.",
+      "passwordChangedText": "Your password has been changed, you can now log in:"
+    }
+  },
   "device-list": {
     "title": "Device list",
     "claim": "ENTER DEVICE CODE",

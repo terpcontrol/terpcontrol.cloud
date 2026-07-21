@@ -216,6 +216,48 @@
       "changed": "Passwort wurde geändert"
     }
   },
+  "login": {
+    "welcomeTitle": "Willkommen zurück",
+    "welcomeSubtitle": "Überwache und steuere deinen Grow — von überall.",
+    "registerTitle": "Account erstellen",
+    "registerSubtitle": "Ein Portal für alle deine Terp Control Geräte.",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "newPassword": "Neues Passwort",
+    "repeatPassword": "Passwort wiederholen",
+    "stayLoggedIn": "Angemeldet bleiben",
+    "login": "Anmelden",
+    "createAccount": "Account erstellen",
+    "backToLogin": "Zurück zur Anmeldung",
+    "forgotPassword": "Passwort vergessen?",
+    "sendRecovery": "Wiederherstellungslink senden",
+    "changePassword": "Passwort ändern",
+    "acceptPrivacyBefore": "Ich akzeptiere die",
+    "acceptPrivacyLink": "Datenschutzbedingungen",
+    "legacy": {
+      "toggle": "Du kommst von der alten Fridge Grow 2.0 / Plantalytix Cloud?",
+      "intro": "So verbindest du dein bestehendes Modul mit der Terp Control Cloud:"
+    },
+    "messages": {
+      "loginFailedTitle": "Anmeldung fehlgeschlagen",
+      "errorTitle": "Fehler",
+      "successTitle": "Geschafft",
+      "wrongCredentials": "E-Mail oder Passwort ist falsch.",
+      "notActivated": "Du musst deinen Account zuerst aktivieren. Schau in dein E-Mail-Postfach.",
+      "connectionError": "Verbindungsfehler. Bitte versuche es erneut.",
+      "passwordMismatch": "Die Passwörter stimmen nicht überein.",
+      "invalidActivationCode": "Ungültiger Aktivierungscode.",
+      "accountCreatedTitle": "Account erstellt",
+      "accountCreatedText": "Ein Aktivierungscode wurde an deine E-Mail-Adresse gesendet.",
+      "accountActivatedTitle": "Account aktiviert",
+      "accountActivatedText": "Dein Account wurde aktiviert, du kannst dich jetzt anmelden:",
+      "emailInUse": "Diese E-Mail-Adresse wird bereits verwendet.",
+      "recoverySentTitle": "Gesendet",
+      "recoverySentText": "Der Wiederherstellungslink wurde gesendet.",
+      "wrongRecoveryToken": "Dieser Wiederherstellungslink ist ungültig oder abgelaufen.",
+      "passwordChangedText": "Dein Passwort wurde geändert, du kannst dich jetzt anmelden:"
+    }
+  },
   "device-list": {
     "title": "Meine Geräte",
     "claim": "GERÄTECODE HIER EINGEBEN",

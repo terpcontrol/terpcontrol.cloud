@@ -2,6 +2,11 @@ highcharts-chart {
   width: 100%;
   height:calc(100vh - 180px);
   display:block;
+  box-sizing: border-box;
+  border: 1px solid var(--ion-border-color);
+  border-radius: var(--tc-radius-md);
+  overflow: hidden;
+  box-shadow: var(--tc-shadow-sm);
 }
 
 .timelapse-video-wrapper {
@@ -19,7 +24,7 @@ highcharts-chart {
     left: 0;
     bottom: 0;
     height: 3px;
-    background: #ff0000;
+    background: var(--ion-color-danger);
     pointer-events: none;
     transition: width 0.1s linear;
   }
@@ -134,13 +139,15 @@ chart {
 .onoff {
   text-align: center;
   padding: 0px 0px;
+  border: 1px solid var(--ion-border-color);
+  border-radius: var(--tc-radius-sm);
+  background: var(--ion-card-background);
+  margin: 2px;
+  transition: border-color 0.15s ease, background 0.15s ease;
   i {
-    color: grey;
+    color: var(--ion-color-medium);
     font-size: 40px;
   }
-  // .name {
-  //   // font-size: 8px;
-  // }
   .icon-on {
     display: none;
   }
@@ -150,26 +157,16 @@ chart {
 }
 
 .onoff.on {
+  border-color: rgba(var(--ion-color-secondary-rgb), 0.6);
+  background: rgba(var(--ion-color-secondary-rgb), 0.08);
   i {
-    color: red;
+    color: var(--ion-color-secondary);
   }
   .icon-on {
     display: block;
   }
   .icon-off {
     display: none;
-  }
-}
-
-.onoff.cooling.on {
-  i {
-    color: blue;
-  }
-}
-
-.onoff.lights.on {
-  i {
-    color: #ffe300;
   }
 }
 

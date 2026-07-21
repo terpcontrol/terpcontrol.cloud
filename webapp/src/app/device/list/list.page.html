@@ -8,7 +8,7 @@
 </ion-header>
 
 <ion-content>
-  <ion-card *ngFor="let device of all_devices">
+  <ion-card class="device-card" *ngFor="let device of all_devices">
     <ion-card-content [ngSwitch]="device.device_type">
       <fan-overview
         [device_id]="device.device_id"

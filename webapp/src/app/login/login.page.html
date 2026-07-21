@@ -1,208 +1,204 @@
-<!-- <ion-content [fullscreen]="true">
-  <div id="container">
-    <ion-item>
-      <ion-label position="floating">Username</ion-label>
-      <ion-input placeholder="user" [(ngModel)]="username" (keydown.enter)="login()" type="text"></ion-input>
-    </ion-item>
-    <ion-item lines="none">
-      <ion-label position="floating">Password</ion-label>
-      <ion-input placeholder="password" [(ngModel)]="password" (keydown.enter)="login()" type="password"></ion-input>
-    </ion-item>
-
-    <ion-button color="secondary" expand="block" (click)="login()">{{'buttons.login'}}</ion-button>
-  </div>
-</ion-content> -->
-<ion-content class="maxwidth">
+<ion-content class="login-content">
   <div class="outer">
     <div class="inner">
-    <div style="text-align: center;">
-      <img src="assets/terpcontrol_logo.png" style="width:60%;height:auto"/>
-    </div>
 
-    <ion-card color="info" *ngIf="message == 0">
-      <ion-card-header>
-        <ion-card-title>RIP Microgreenbox ♡</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>
-        <p>Fork der offiziellen Fridge Grow 2.0 Cloud Oberfläche von Plantalytix</p>
-        <p>
-          <strong>Zum Verbinden:</strong>
-        </p>
-        <ol *ngIf="showInstructions">
-          <li>
-            Neuen Account erstellen (die alten wurden nicht migriert und es wird auch keine Bestätigungsmail verschickt)
-          </li>
-          <li>
-            Am Modul unter "Wifi Connection" den Punkt "Change Server" aufrufen. (Tipp: Die Eingabe scheint besser zu
-            funktionieren, wenn man vorher auf den "Off"-Modus wechselt.)
+      <div class="login-hero">
+        <img src="assets/terpcontrol_logo.png" class="login-logo" alt="Terp Control"/>
+        <ng-container *ngIf="message === 0 && mode === 0">
+          <h1>{{'login.welcomeTitle' | translate}}</h1>
+          <p class="login-sub">{{'login.welcomeSubtitle' | translate}}</p>
+        </ng-container>
+        <ng-container *ngIf="message === 0 && mode === 1">
+          <h1>{{'login.registerTitle' | translate}}</h1>
+          <p class="login-sub">{{'login.registerSubtitle' | translate}}</p>
+        </ng-container>
+      </div>
 
-            <br/><br/>Falls der Punkt "Change Server" nicht vorhanden ist, muss man zunächst
-            <a href="https://github.com/novazer/fg2/blob/master/UPGRADING-FIRMWARE.md" target="_blank">eine neue
-              Firmware aufspielen</a> und danach dennoch ALLE Schritte dieser Anleitung befolgen!.<br/><br/>
-          </li>
-          <li>
-            Dort die Adresse "#API_URL_EXTERNAL#" eingeben. (Achtung, man muss dafür erst das "://" löschen, um das
-            "s" hinzuzufügen.)
-          </li>
-          <li>
-            Bei Kennwort ein einfaches "a" eingeben (Tipp: Das a auch tatsächlich eingeben! Es muss aa da stehen,
-            bevor man auf Done geht.)
-          </li>
-          <li>Jetzt warten, bis das Firmware Update durch ist und das Modul neu gestartet hat</li>
-          <li>
-            Falls an der Stelle "Connection failed" auftaucht, dann muss das Modul neu gestartet werden. Sonst kommt
-            man aus dem Menü nicht mehr raus.
-          </li>
-          <li>Nun kann die Funktion "Connect to portal" aufgerufen werden.</li>
-        </ol>
-        <a href="#" *ngIf="!showInstructions" (click)="showInstructions = true; $event.preventDefault()">Anleitung anzeigen</a>
-      </ion-card-content>
-    </ion-card>
+      <ion-card color="danger" *ngIf="message === 1">
+        <ion-card-header>
+          <ion-card-title>{{'login.messages.loginFailedTitle' | translate}}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>{{'login.messages.wrongCredentials' | translate}}</ion-card-content>
+      </ion-card>
 
-    <ion-card color="danger" *ngIf="message == 1">
-      <ion-card-header>
-        <ion-card-title>Login failed</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>Incorrect email/password</ion-card-content>
-    </ion-card>
+      <ion-card color="danger" *ngIf="message === 2">
+        <ion-card-header>
+          <ion-card-title>{{'login.messages.loginFailedTitle' | translate}}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>{{'login.messages.notActivated' | translate}}</ion-card-content>
+      </ion-card>
 
-    <ion-card color="danger" *ngIf="message == 2">
-      <ion-card-header>
-        <ion-card-title>Login failed</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>You need to activate your account first</ion-card-content>
-    </ion-card>
+      <ion-card color="danger" *ngIf="message === 3">
+        <ion-card-header>
+          <ion-card-title>{{'login.messages.errorTitle' | translate}}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>{{'login.messages.connectionError' | translate}}</ion-card-content>
+      </ion-card>
 
-    <ion-card color="danger" *ngIf="message == 3">
-      <ion-card-header>
-        <ion-card-title>Login failed</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>Connection error</ion-card-content>
-    </ion-card>
+      <ion-card color="danger" *ngIf="message === 4">
+        <ion-card-header>
+          <ion-card-title>{{'login.messages.errorTitle' | translate}}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>{{'login.messages.passwordMismatch' | translate}}</ion-card-content>
+      </ion-card>
 
-    <ion-card color="danger" *ngIf="message == 4">
-      <ion-card-header>
-        <ion-card-title>Error</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>Passwords don't match</ion-card-content>
-    </ion-card>
+      <ion-card color="danger" *ngIf="message === 5">
+        <ion-card-header>
+          <ion-card-title>{{'login.messages.errorTitle' | translate}}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>{{'login.messages.invalidActivationCode' | translate}}</ion-card-content>
+      </ion-card>
 
-    <ion-card color="danger" *ngIf="message == 5">
-      <ion-card-header>
-        <ion-card-title>Error</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>Invalid activation code</ion-card-content>
-    </ion-card>
+      <ion-card color="success" *ngIf="message === 6">
+        <ion-card-header>
+          <ion-card-title>{{'login.messages.accountCreatedTitle' | translate}}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>{{'login.messages.accountCreatedText' | translate}}</ion-card-content>
+      </ion-card>
 
-    <ion-card color="success" *ngIf="message == 6">
-      <ion-card-header>
-        <ion-card-title>Account created</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>An activation code has been sent to your email address.</ion-card-content>
-    </ion-card>
+      <ion-card color="success" *ngIf="message === 7">
+        <ion-card-header>
+          <ion-card-title>{{'login.messages.accountActivatedTitle' | translate}}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>{{'login.messages.accountActivatedText' | translate}} <a href="/login">{{'login.login' | translate}}</a></ion-card-content>
+      </ion-card>
 
-    <ion-card color="success" *ngIf="message == 7">
-      <ion-card-header>
-        <ion-card-title>Account activated</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>Your account has been activated, you can now <a href="/login">login</a></ion-card-content>
-    </ion-card>
+      <ion-card color="danger" *ngIf="message === 8">
+        <ion-card-header>
+          <ion-card-title>{{'login.messages.errorTitle' | translate}}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>{{'login.messages.emailInUse' | translate}}</ion-card-content>
+      </ion-card>
 
-    <ion-card color="danger" *ngIf="message == 8">
-      <ion-card-header>
-        <ion-card-title>Error</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>Email allready in use</ion-card-content>
-    </ion-card>
+      <ion-card color="success" *ngIf="message === 9">
+        <ion-card-header>
+          <ion-card-title>{{'login.messages.recoverySentTitle' | translate}}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>{{'login.messages.recoverySentText' | translate}}</ion-card-content>
+      </ion-card>
 
-    <ion-card color="success" *ngIf="message == 9">
-      <ion-card-header>
-        <ion-card-title>Sent</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>Recovery link was sent</ion-card-content>
-    </ion-card>
+      <ion-card color="danger" *ngIf="message === 10">
+        <ion-card-header>
+          <ion-card-title>{{'login.messages.errorTitle' | translate}}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>{{'login.messages.wrongRecoveryToken' | translate}}</ion-card-content>
+      </ion-card>
 
-    <ion-card color="danger" *ngIf="message == 10">
-      <ion-card-header>
-        <ion-card-title>Error</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>Wrong password token</ion-card-content>
-    </ion-card>
+      <ion-card class="login-card">
+        <ion-card-content>
 
-    <ng-container *ngIf="mode == 0">
-      <ion-item>
-        <ion-label position="floating">email</ion-label>
-        <ion-input placeholder="user" [(ngModel)]="username" (keydown.enter)="login()" type="text"></ion-input>
-      </ion-item>
-      <ion-item lines="none">
-        <ion-label position="floating">password</ion-label>
-        <ion-input placeholder="password" [(ngModel)]="password" (keydown.enter)="login()" type="password"></ion-input>
-      </ion-item>
-      <ion-item lines="none">
-        <ion-checkbox slot="start" [(ngModel)]="stayLoggedIn"></ion-checkbox>
-        <ion-label>stay logged in</ion-label>
-      </ion-item>
-    </ng-container>
+          <ng-container *ngIf="mode === 0">
+            <ion-item>
+              <ion-label position="floating">{{'login.email' | translate}}</ion-label>
+              <ion-input [(ngModel)]="username" (keydown.enter)="login()" type="email" autocomplete="email"></ion-input>
+            </ion-item>
+            <ion-item lines="none">
+              <ion-label position="floating">{{'login.password' | translate}}</ion-label>
+              <ion-input [(ngModel)]="password" (keydown.enter)="login()" type="password" autocomplete="current-password"></ion-input>
+            </ion-item>
+            <ion-item lines="none">
+              <ion-checkbox slot="start" [(ngModel)]="stayLoggedIn"></ion-checkbox>
+              <ion-label>{{'login.stayLoggedIn' | translate}}</ion-label>
+            </ion-item>
+          </ng-container>
 
-    <ng-container *ngIf="mode == 1">
-      <ion-item>
-        <ion-label position="floating">email</ion-label>
-        <ion-input placeholder="user" [(ngModel)]="username" (keydown.enter)="register()" type="text"></ion-input>
-      </ion-item>
-      <ion-item>
-        <ion-label position="floating">password</ion-label>
-        <ion-input placeholder="password" [(ngModel)]="password" (keydown.enter)="register()" type="password"></ion-input>
-      </ion-item>
-      <ion-item lines="none">
-        <ion-label position="floating">repeat password</ion-label>
-        <ion-input placeholder="password" [(ngModel)]="repeat" (keydown.enter)="register()" type="password"></ion-input>
-      </ion-item>
-      <ion-item lines="none">
-        <ion-label>Ich akzeptiere die <a (click)="presentModal()">Datenschutzbedingungen</a></ion-label>
-        <ion-checkbox [(ngModel)]="dsvgo_agreed" slot="start" ></ion-checkbox>
-      </ion-item>
-    </ng-container>
+          <ng-container *ngIf="mode === 1">
+            <ion-item>
+              <ion-label position="floating">{{'login.email' | translate}}</ion-label>
+              <ion-input [(ngModel)]="username" (keydown.enter)="register()" type="email" autocomplete="email"></ion-input>
+            </ion-item>
+            <ion-item>
+              <ion-label position="floating">{{'login.password' | translate}}</ion-label>
+              <ion-input [(ngModel)]="password" (keydown.enter)="register()" type="password" autocomplete="new-password"></ion-input>
+            </ion-item>
+            <ion-item lines="none">
+              <ion-label position="floating">{{'login.repeatPassword' | translate}}</ion-label>
+              <ion-input [(ngModel)]="repeat" (keydown.enter)="register()" type="password" autocomplete="new-password"></ion-input>
+            </ion-item>
+            <ion-item lines="none">
+              <ion-checkbox [(ngModel)]="dsvgo_agreed" slot="start"></ion-checkbox>
+              <ion-label>{{'login.acceptPrivacyBefore' | translate}} <a (click)="presentModal()">{{'login.acceptPrivacyLink' | translate}}</a></ion-label>
+            </ion-item>
+          </ng-container>
 
-    <ion-button [disabled]="working" color="secondary" expand="block" (click)="login()" *ngIf="mode == 0">Login</ion-button>
-    <ion-button [disabled]="working || !dsvgo_agreed" color="secondary" expand="block" (click)="register()" *ngIf="mode == 1">Create Account</ion-button>
+          <ng-container *ngIf="mode === 2">
+            <ion-item lines="none">
+              <ion-label position="floating">{{'login.email' | translate}}</ion-label>
+              <ion-input [(ngModel)]="username" (keydown.enter)="sendRecovery()" type="email" autocomplete="email"></ion-input>
+            </ion-item>
+          </ng-container>
 
-    <ion-button [disabled]="working" color="secondary" expand="block" (click)="mode = 1; message = 0" *ngIf="mode == 0">Create Account</ion-button>
-    <ion-button [disabled]="working" color="secondary" expand="block" (click)="mode = 0; message = 0" *ngIf="mode == 1">Login existing Account</ion-button>
+          <ng-container *ngIf="mode === 3">
+            <ion-item>
+              <ion-label position="floating">{{'login.newPassword' | translate}}</ion-label>
+              <ion-input [(ngModel)]="password" (keydown.enter)="recover()" type="password" autocomplete="new-password"></ion-input>
+            </ion-item>
+            <ion-item lines="none">
+              <ion-label position="floating">{{'login.repeatPassword' | translate}}</ion-label>
+              <ion-input [(ngModel)]="repeat" (keydown.enter)="recover()" type="password" autocomplete="new-password"></ion-input>
+            </ion-item>
+          </ng-container>
 
-    <ng-container *ngIf="mode == 2">
-      <ion-item lines="none">
-        <ion-label position="floating">email</ion-label>
-        <ion-input placeholder="user" [(ngModel)]="username" (keydown.enter)="sendRecovery()" type="text"></ion-input>
-      </ion-item>
-    </ng-container>
+          <ion-card color="success" *ngIf="mode === 4">
+            <ion-card-header>
+              <ion-card-title>{{'login.messages.successTitle' | translate}}</ion-card-title>
+            </ion-card-header>
+            <ion-card-content>{{'login.messages.passwordChangedText' | translate}} <a (click)="mode=0">{{'login.login' | translate}}</a></ion-card-content>
+          </ion-card>
 
-    <ion-button [disabled]="working" color="secondary" expand="block" (click)="sendRecovery()" *ngIf="mode == 2">Send recovery link</ion-button>
+          <div class="login-actions">
+            <ion-button [disabled]="working" color="secondary" expand="block" (click)="login()" *ngIf="mode === 0">{{'login.login' | translate}}</ion-button>
+            <ion-button [disabled]="working || !dsvgo_agreed" color="secondary" expand="block" (click)="register()" *ngIf="mode === 1">{{'login.createAccount' | translate}}</ion-button>
+            <ion-button [disabled]="working" color="secondary" expand="block" (click)="sendRecovery()" *ngIf="mode === 2">{{'login.sendRecovery' | translate}}</ion-button>
+            <ion-button [disabled]="working" color="secondary" expand="block" (click)="recover()" *ngIf="mode === 3">{{'login.changePassword' | translate}}</ion-button>
 
-    <p style="text-align: center;" *ngIf="mode == 0"><a (click)="mode = 2">forgot password</a></p>
-    <p style="text-align: center;" *ngIf="mode == 2"><a (click)="mode = 0">back to login</a></p>
+            <ion-button [disabled]="working" fill="outline" color="primary" expand="block" (click)="mode = 1; message = 0" *ngIf="mode === 0">{{'login.createAccount' | translate}}</ion-button>
+            <ion-button [disabled]="working" fill="outline" color="primary" expand="block" (click)="mode = 0; message = 0" *ngIf="mode === 1">{{'login.backToLogin' | translate}}</ion-button>
+          </div>
 
-    <ng-container *ngIf="mode == 3">
-      <ion-item>
-        <ion-label position="floating">password</ion-label>
-        <ion-input placeholder="password" [(ngModel)]="password" (keydown.enter)="recover()" type="password"></ion-input>
-      </ion-item>
-      <ion-item lines="none">
-        <ion-label position="floating">repeat password</ion-label>
-        <ion-input placeholder="password" [(ngModel)]="repeat" (keydown.enter)="recover()" type="password"></ion-input>
-      </ion-item>
-    </ng-container>
+          <p class="login-link-row" *ngIf="mode === 0"><a (click)="mode = 2">{{'login.forgotPassword' | translate}}</a></p>
+          <p class="login-link-row" *ngIf="mode === 2"><a (click)="mode = 0">{{'login.backToLogin' | translate}}</a></p>
 
-    <ion-button [disabled]="working" color="secondary" expand="block" (click)="recover()" *ngIf="mode == 3">Change Password</ion-button>
+        </ion-card-content>
+      </ion-card>
 
-    <ion-card color="success" *ngIf="mode == 4">
-      <ion-card-header>
-        <ion-card-title>Success</ion-card-title>
-      </ion-card-header>
-      <ion-card-content>Password was changed, you can now <a (click)="mode=0">login</a></ion-card-content>
-    </ion-card>
+      <ion-card class="login-legacy" *ngIf="message === 0 && (mode === 0 || mode === 1)">
+        <ion-card-content>
+          <a (click)="showInstructions = !showInstructions" class="login-legacy-toggle">{{'login.legacy.toggle' | translate}}</a>
+          <div *ngIf="showInstructions" class="login-legacy-body">
+            <p>{{'login.legacy.intro' | translate}}</p>
+            <ol>
+              <li>
+                Neuen Account erstellen (Accounts der alten Plantalytix-Cloud wurden nicht migriert).
+              </li>
+              <li>
+                Am Modul unter "Wifi Connection" den Punkt "Change Server" aufrufen. (Tipp: Die Eingabe scheint besser zu
+                funktionieren, wenn man vorher auf den "Off"-Modus wechselt.)
 
+                <br/><br/>Falls der Punkt "Change Server" nicht vorhanden ist, muss man zunächst
+                <a href="https://github.com/novazer/fg2/blob/master/UPGRADING-FIRMWARE.md" target="_blank">eine neue
+                  Firmware aufspielen</a> und danach dennoch ALLE Schritte dieser Anleitung befolgen!<br/><br/>
+              </li>
+              <li>
+                Dort die Adresse "#API_URL_EXTERNAL#" eingeben. (Achtung, man muss dafür erst das "://" löschen, um das
+                "s" hinzuzufügen.)
+              </li>
+              <li>
+                Bei Kennwort ein einfaches "a" eingeben (Tipp: Das a auch tatsächlich eingeben! Es muss aa da stehen,
+                bevor man auf Done geht.)
+              </li>
+              <li>Jetzt warten, bis das Firmware Update durch ist und das Modul neu gestartet hat.</li>
+              <li>
+                Falls an der Stelle "Connection failed" auftaucht, dann muss das Modul neu gestartet werden. Sonst kommt
+                man aus dem Menü nicht mehr raus.
+              </li>
+              <li>Nun kann die Funktion "Connect to portal" aufgerufen werden.</li>
+            </ol>
+          </div>
+        </ion-card-content>
+      </ion-card>
 
-      <ion-card color="info" *ngIf="message == 0">
+      <ion-card class="login-links" *ngIf="message === 0">
         <ion-card-content class="ion-text-center">
           #CUSTOM_LINKS_HTML#
 
@@ -211,7 +207,3 @@
     </div>
   </div>
 </ion-content>
-<!-- <ion-grid style="height: 100%">
-  <ion-row justify-content-center align-items-center style="height: 100%">
-  </ion-row>
-</ion-grid> -->
