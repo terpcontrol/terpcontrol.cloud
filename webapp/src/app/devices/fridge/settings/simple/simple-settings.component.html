@@ -85,11 +85,15 @@
       </ng-container>
 
       <div class="field-row" *ngIf="!isMonitor && target?.lights">
-        <div class="field-label">
+        <div class="field-label" (click)="toggleEdit('intensity')">
           <span>{{ 'simpleSettings.light.intensity' | translate }}</span>
-          <span class="field-value">{{ target.lights.limit }} %</span>
+          <span class="field-value" [class.editing]="editingField === 'intensity'">{{ target.lights.limit }} % <ion-icon name="create-outline"></ion-icon></span>
         </div>
-        <ion-range min="0" max="100" step="1" [(ngModel)]="target.lights.limit"></ion-range>
+        <div class="field-edit" *ngIf="editingField === 'intensity'">
+          <ion-button size="small" fill="clear" (click)="stepValue(target.lights, 'limit', -1, { min: 0, max: 100 })"><ion-icon slot="icon-only" name="remove-circle"></ion-icon></ion-button>
+          <ion-range min="0" max="100" step="1" [(ngModel)]="target.lights.limit"></ion-range>
+          <ion-button size="small" fill="clear" (click)="stepValue(target.lights, 'limit', 1, { min: 0, max: 100 })"><ion-icon slot="icon-only" name="add-circle"></ion-icon></ion-button>
+        </div>
         <div class="section-hint">{{ 'simpleSettings.light.intensityHint' | translate }}</div>
       </div>
     </ng-container>
@@ -98,18 +102,26 @@
     <ng-container *ngIf="hasDaycycle && target?.day">
       <h3 class="group-title">{{ 'simpleSettings.day.title' | translate }}</h3>
       <div class="field-row">
-        <div class="field-label">
+        <div class="field-label" (click)="toggleEdit('dayTemperature')">
           <span>{{ 'simpleSettings.temperature' | translate }}</span>
-          <span class="field-value">{{ target.day.temperature }} °C</span>
+          <span class="field-value" [class.editing]="editingField === 'dayTemperature'">{{ target.day.temperature }} °C <ion-icon name="create-outline"></ion-icon></span>
         </div>
-        <ion-range [min]="limits.temperature.min" [max]="limits.temperature.max" step="1" [(ngModel)]="target.day.temperature"></ion-range>
+        <div class="field-edit" *ngIf="editingField === 'dayTemperature'">
+          <ion-button size="small" fill="clear" (click)="stepValue(target.day, 'temperature', -1, limits.temperature)"><ion-icon slot="icon-only" name="remove-circle"></ion-icon></ion-button>
+          <ion-range [min]="limits.temperature.min" [max]="limits.temperature.max" step="1" [(ngModel)]="target.day.temperature"></ion-range>
+          <ion-button size="small" fill="clear" (click)="stepValue(target.day, 'temperature', 1, limits.temperature)"><ion-icon slot="icon-only" name="add-circle"></ion-icon></ion-button>
+        </div>
       </div>
       <div class="field-row" *ngIf="hasHumidity">
-        <div class="field-label">
+        <div class="field-label" (click)="toggleEdit('dayHumidity')">
           <span>{{ 'simpleSettings.humidity' | translate }}</span>
-          <span class="field-value">{{ target.day.humidity }} %</span>
+          <span class="field-value" [class.editing]="editingField === 'dayHumidity'">{{ target.day.humidity }} % <ion-icon name="create-outline"></ion-icon></span>
         </div>
-        <ion-range [min]="limits.humidity.min" [max]="limits.humidity.max" step="1" [(ngModel)]="target.day.humidity"></ion-range>
+        <div class="field-edit" *ngIf="editingField === 'dayHumidity'">
+          <ion-button size="small" fill="clear" (click)="stepValue(target.day, 'humidity', -1, limits.humidity)"><ion-icon slot="icon-only" name="remove-circle"></ion-icon></ion-button>
+          <ion-range [min]="limits.humidity.min" [max]="limits.humidity.max" step="1" [(ngModel)]="target.day.humidity"></ion-range>
+          <ion-button size="small" fill="clear" (click)="stepValue(target.day, 'humidity', 1, limits.humidity)"><ion-icon slot="icon-only" name="add-circle"></ion-icon></ion-button>
+        </div>
         <div class="section-hint">{{ 'settings.vpdPreview' | translate: { vpd: getDayVpd() | number: '1.2-2', humidity: target.day.humidity } }}</div>
       </div>
     </ng-container>
@@ -118,18 +130,26 @@
     <ng-container *ngIf="target?.night">
       <h3 class="group-title">{{ (hasDaycycle ? 'simpleSettings.night.title' : 'simpleSettings.climate.title') | translate }}</h3>
       <div class="field-row">
-        <div class="field-label">
+        <div class="field-label" (click)="toggleEdit('nightTemperature')">
           <span>{{ 'simpleSettings.temperature' | translate }}</span>
-          <span class="field-value">{{ target.night.temperature }} °C</span>
+          <span class="field-value" [class.editing]="editingField === 'nightTemperature'">{{ target.night.temperature }} °C <ion-icon name="create-outline"></ion-icon></span>
         </div>
-        <ion-range [min]="limits.temperature.min" [max]="limits.temperature.max" step="1" [(ngModel)]="target.night.temperature"></ion-range>
+        <div class="field-edit" *ngIf="editingField === 'nightTemperature'">
+          <ion-button size="small" fill="clear" (click)="stepValue(target.night, 'temperature', -1, limits.temperature)"><ion-icon slot="icon-only" name="remove-circle"></ion-icon></ion-button>
+          <ion-range [min]="limits.temperature.min" [max]="limits.temperature.max" step="1" [(ngModel)]="target.night.temperature"></ion-range>
+          <ion-button size="small" fill="clear" (click)="stepValue(target.night, 'temperature', 1, limits.temperature)"><ion-icon slot="icon-only" name="add-circle"></ion-icon></ion-button>
+        </div>
       </div>
       <div class="field-row" *ngIf="hasHumidity">
-        <div class="field-label">
+        <div class="field-label" (click)="toggleEdit('nightHumidity')">
           <span>{{ 'simpleSettings.humidity' | translate }}</span>
-          <span class="field-value">{{ target.night.humidity }} %</span>
+          <span class="field-value" [class.editing]="editingField === 'nightHumidity'">{{ target.night.humidity }} % <ion-icon name="create-outline"></ion-icon></span>
         </div>
-        <ion-range [min]="limits.humidity.min" [max]="limits.humidity.max" step="1" [(ngModel)]="target.night.humidity"></ion-range>
+        <div class="field-edit" *ngIf="editingField === 'nightHumidity'">
+          <ion-button size="small" fill="clear" (click)="stepValue(target.night, 'humidity', -1, limits.humidity)"><ion-icon slot="icon-only" name="remove-circle"></ion-icon></ion-button>
+          <ion-range [min]="limits.humidity.min" [max]="limits.humidity.max" step="1" [(ngModel)]="target.night.humidity"></ion-range>
+          <ion-button size="small" fill="clear" (click)="stepValue(target.night, 'humidity', 1, limits.humidity)"><ion-icon slot="icon-only" name="add-circle"></ion-icon></ion-button>
+        </div>
         <div class="section-hint">{{ 'settings.vpdPreview' | translate: { vpd: getNightVpd() | number: '1.2-2', humidity: target.night.humidity } }}</div>
       </div>
     </ng-container>
@@ -143,11 +163,15 @@
         </ion-popover>
       </h3>
       <div class="field-row">
-        <div class="field-label">
+        <div class="field-label" (click)="toggleEdit('co2Target')">
           <span>{{ 'simpleSettings.co2.target' | translate }}</span>
-          <span class="field-value">{{ target.co2.target }} ppm</span>
+          <span class="field-value" [class.editing]="editingField === 'co2Target'">{{ target.co2.target }} ppm <ion-icon name="create-outline"></ion-icon></span>
         </div>
-        <ion-range [min]="limits.co2.min" [max]="limits.co2.max" step="100" [(ngModel)]="target.co2.target"></ion-range>
+        <div class="field-edit" *ngIf="editingField === 'co2Target'">
+          <ion-button size="small" fill="clear" (click)="stepValue(target.co2, 'target', -100, limits.co2)"><ion-icon slot="icon-only" name="remove-circle"></ion-icon></ion-button>
+          <ion-range [min]="limits.co2.min" [max]="limits.co2.max" step="100" [(ngModel)]="target.co2.target"></ion-range>
+          <ion-button size="small" fill="clear" (click)="stepValue(target.co2, 'target', 100, limits.co2)"><ion-icon slot="icon-only" name="add-circle"></ion-icon></ion-button>
+        </div>
         <div class="section-hint">{{ 'simpleSettings.co2.text' | translate }}</div>
       </div>
     </ng-container>

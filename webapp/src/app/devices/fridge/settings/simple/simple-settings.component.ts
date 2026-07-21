@@ -25,6 +25,9 @@ export class FridgeSimpleSettingsComponent {
 
   public lightDurations = [12, 14, 16, 18, 20];
   public baseLightStartOptions = Array.from({ length: 24 }, (_, hour) => `${hour.toString().padStart(2, '0')}:00`);
+
+  /** Sliders are hidden behind a tap on the value so scrolling on mobile can't change them. */
+  public editingField: string | null = null;
   public limits = {
     temperature: { min: 5, max: 40 },
     humidity: { min: 10, max: 90 },
@@ -85,6 +88,19 @@ export class FridgeSimpleSettingsComponent {
 
   get floatingDayActive(): boolean {
     return !!this.target?.daynight?.floating;
+  }
+
+  toggleEdit(field: string) {
+    this.editingField = this.editingField === field ? null : field;
+  }
+
+  /** Clamped stepping without accumulating float drift. */
+  stepValue(section: any, key: string, delta: number, limit: { min: number; max: number }) {
+    if (!section) {
+      return;
+    }
+    const next = Math.round(((Number(section[key]) || 0) + delta) * 10) / 10;
+    section[key] = Math.min(limit.max, Math.max(limit.min, next));
   }
 
   selectPreset(id: GrowStagePresetId | 'custom') {
