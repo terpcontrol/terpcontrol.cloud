@@ -1,0 +1,102 @@
+.reference-banner ion-card-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ion-color-medium);
+
+  ion-icon {
+    font-size: 22px;
+    min-width: 22px;
+    color: var(--ion-color-primary);
+  }
+}
+
+.plan-card {
+  .plan-stage-icon {
+    height: 26px;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  .plan-day {
+    font-weight: 600;
+    margin: 0 0 6px;
+  }
+
+  .plan-next {
+    color: var(--ion-color-medium);
+    font-size: 0.85rem;
+    margin: 8px 0 0;
+  }
+
+  .plan-confirm {
+    --background: rgba(var(--ion-color-warning-rgb), 0.12);
+    border-radius: var(--tc-radius-sm);
+    margin-top: 10px;
+  }
+
+  .plan-hint {
+    color: var(--ion-color-medium);
+    font-size: 0.85rem;
+    margin: 12px 0 8px;
+  }
+}
+
+body.dark .plan-card .plan-stage-icon {
+  filter: invert(0.88);
+}
+
+.plan-start {
+  margin-top: 14px;
+}
+
+.group-title {
+  display: flex;
+  align-items: center;
+  font-size: 1rem;
+  margin: 18px 0 4px;
+
+  ion-button {
+    --padding-start: 4px;
+    --padding-end: 4px;
+    height: 22px;
+  }
+}
+
+.group-title:first-of-type {
+  margin-top: 4px;
+}
+
+.field-row {
+  margin-bottom: 4px;
+
+  ion-range {
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+}
+
+.field-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.92rem;
+
+  .field-value {
+    font-weight: 600;
+    color: var(--ion-color-primary);
+  }
+}
+
+.section-hint {
+  color: var(--ion-color-medium);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  margin: 2px 0 10px;
+}
+
+.expert-hint {
+  color: var(--ion-color-medium);
+  font-size: 0.82rem;
+  margin-top: 16px;
+}

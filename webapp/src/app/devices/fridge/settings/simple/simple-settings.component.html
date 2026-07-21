@@ -1,0 +1,172 @@
+<ion-card *ngIf="isReference" class="reference-banner">
+  <ion-card-content>
+    <ion-icon name="eye-outline"></ion-icon>
+    {{ (isMonitor ? 'simpleSettings.referenceBannerMonitor' : 'simpleSettings.referenceBannerLightOnly') | translate }}
+  </ion-card-content>
+</ion-card>
+
+<!-- Running grow plan -->
+<ion-card *ngIf="planRunning" class="plan-card">
+  <ion-card-header>
+    <ion-card-title>
+      <img *ngIf="activeStep?.stage" class="plan-stage-icon" [src]="'assets/icon/presets/' + (activeStep.stage === 'vegetative' ? 'vegetation' : activeStep.stage === 'flowering' ? 'flower' : activeStep.stage) + '.svg'" alt=""/>
+      {{ stageTitleKey ? (stageTitleKey! | translate) : (activeStep?.name || ('simpleSettings.plan.title' | translate)) }}
+    </ion-card-title>
+  </ion-card-header>
+  <ion-card-content>
+    <p class="plan-day">{{ 'simpleSettings.plan.dayOf' | translate: { day: dayInStage, total: stageDurationDays } }}</p>
+    <ion-progress-bar [value]="stageProgress" color="secondary"></ion-progress-bar>
+    <p class="plan-next" *ngIf="nextStep">{{ 'simpleSettings.plan.next' | translate: { name: nextStep.name } }}</p>
+
+    <ion-item *ngIf="waitingForConfirmation" lines="none" class="plan-confirm">
+      <ion-icon slot="start" name="warning-outline" color="warning"></ion-icon>
+      <ion-label class="ion-text-wrap">{{ activeStep?.confirmationMessage || ('devices.fridge.recipe.waitingForConfirmation' | translate) }}</ion-label>
+    </ion-item>
+    <ion-button *ngIf="waitingForConfirmation" expand="block" color="warning" (click)="confirmStepRequested.emit()">
+      {{ 'devices.fridge.recipe.confirmStep' | translate }}
+    </ion-button>
+
+    <p class="plan-hint">{{ 'simpleSettings.plan.editHint' | translate }}</p>
+    <ion-button size="small" fill="outline" color="danger" (click)="stopPlanRequested.emit()">
+      {{ 'simpleSettings.plan.stop' | translate }}
+    </ion-button>
+  </ion-card-content>
+</ion-card>
+
+<!-- No plan: stage presets -->
+<ion-card *ngIf="!planRunning">
+  <ion-card-header>
+    <ion-card-title>{{ 'simpleSettings.stageTitle' | translate }}</ion-card-title>
+  </ion-card-header>
+  <ion-card-content>
+    <p class="section-hint">{{ (isReference ? 'simpleSettings.stageTextReference' : 'simpleSettings.stageText') | translate }}</p>
+    <stage-preset-picker [selected]="activePreset" [showCustom]="true" (selectedChange)="selectPreset($event)"></stage-preset-picker>
+
+    <ion-button expand="block" fill="outline" color="secondary" class="plan-start" (click)="startPlanRequested.emit()">
+      <ion-icon slot="start" name="calendar-outline"></ion-icon>
+      {{ 'simpleSettings.startPlan' | translate }}
+    </ion-button>
+  </ion-card-content>
+</ion-card>
+
+<!-- Essential targets -->
+<ion-card>
+  <ion-card-header>
+    <ion-card-title>{{ (isReference ? 'simpleSettings.targetsTitleReference' : 'simpleSettings.targetsTitle') | translate }}</ion-card-title>
+  </ion-card-header>
+  <ion-card-content *ngIf="!isOff; else offNote">
+
+    <!-- Light rhythm -->
+    <ng-container *ngIf="hasDaycycle">
+      <h3 class="group-title">{{ 'simpleSettings.light.title' | translate }}
+        <ion-button fill="clear" size="small" id="hint-light"><ion-icon name="help-circle-outline"></ion-icon></ion-button>
+        <ion-popover trigger="hint-light" [dismissOnSelect]="true">
+          <ng-template><ion-content class="ion-padding">{{ (isMonitor ? 'simpleSettings.light.hintMonitor' : 'simpleSettings.light.hint') | translate }}</ion-content></ng-template>
+        </ion-popover>
+      </h3>
+
+      <div *ngIf="floatingDayActive" class="section-hint">{{ 'simpleSettings.light.floatingNote' | translate }}</div>
+
+      <ng-container *ngIf="!floatingDayActive">
+        <ion-item lines="none">
+          <ion-label>{{ 'simpleSettings.light.start' | translate }}</ion-label>
+          <ion-datetime-button datetime="simple-light-start"></ion-datetime-button>
+          <ion-modal [keepContentsMounted]="true">
+            <ng-template>
+              <ion-datetime
+                id="simple-light-start"
+                presentation="time"
+                minuteValues="0,15,30,45"
+                [value]="lightStart"
+                (ionChange)="onLightStartChange($any($event).detail.value)"
+              ></ion-datetime>
+            </ng-template>
+          </ion-modal>
+        </ion-item>
+        <ion-item lines="none">
+          <ion-label>{{ 'simpleSettings.light.duration' | translate }}</ion-label>
+          <ion-select [ngModel]="lightHours" (ngModelChange)="onLightHoursChange($event)" interface="popover">
+            <ion-select-option *ngFor="let h of lightDurations" [value]="h">{{ h }} h</ion-select-option>
+            <ion-select-option *ngIf="!lightDurations.includes(lightHours)" [value]="lightHours">{{ lightHours }} h</ion-select-option>
+          </ion-select>
+        </ion-item>
+        <div class="section-hint">{{ 'simpleSettings.light.scheduleText' | translate }}</div>
+      </ng-container>
+
+      <div class="field-row" *ngIf="!isMonitor && target?.lights">
+        <div class="field-label">
+          <span>{{ 'simpleSettings.light.intensity' | translate }}</span>
+          <span class="field-value">{{ target.lights.limit }} %</span>
+        </div>
+        <ion-range min="0" max="100" step="1" [(ngModel)]="target.lights.limit"></ion-range>
+        <div class="section-hint">{{ 'simpleSettings.light.intensityHint' | translate }}</div>
+      </div>
+    </ng-container>
+
+    <!-- Day targets -->
+    <ng-container *ngIf="hasDaycycle && target?.day">
+      <h3 class="group-title">{{ 'simpleSettings.day.title' | translate }}</h3>
+      <div class="field-row">
+        <div class="field-label">
+          <span>{{ 'simpleSettings.temperature' | translate }}</span>
+          <span class="field-value">{{ target.day.temperature }} °C</span>
+        </div>
+        <ion-range [min]="limits.temperature.min" [max]="limits.temperature.max" step="1" [(ngModel)]="target.day.temperature"></ion-range>
+      </div>
+      <div class="field-row" *ngIf="hasHumidity">
+        <div class="field-label">
+          <span>{{ 'simpleSettings.humidity' | translate }}</span>
+          <span class="field-value">{{ target.day.humidity }} %</span>
+        </div>
+        <ion-range [min]="limits.humidity.min" [max]="limits.humidity.max" step="1" [(ngModel)]="target.day.humidity"></ion-range>
+        <div class="section-hint">{{ 'settings.vpdPreview' | translate: { vpd: getDayVpd() | number: '1.2-2', humidity: target.day.humidity } }}</div>
+      </div>
+    </ng-container>
+
+    <!-- Night / single targets -->
+    <ng-container *ngIf="target?.night">
+      <h3 class="group-title">{{ (hasDaycycle ? 'simpleSettings.night.title' : 'simpleSettings.climate.title') | translate }}</h3>
+      <div class="field-row">
+        <div class="field-label">
+          <span>{{ 'simpleSettings.temperature' | translate }}</span>
+          <span class="field-value">{{ target.night.temperature }} °C</span>
+        </div>
+        <ion-range [min]="limits.temperature.min" [max]="limits.temperature.max" step="1" [(ngModel)]="target.night.temperature"></ion-range>
+      </div>
+      <div class="field-row" *ngIf="hasHumidity">
+        <div class="field-label">
+          <span>{{ 'simpleSettings.humidity' | translate }}</span>
+          <span class="field-value">{{ target.night.humidity }} %</span>
+        </div>
+        <ion-range [min]="limits.humidity.min" [max]="limits.humidity.max" step="1" [(ngModel)]="target.night.humidity"></ion-range>
+        <div class="section-hint">{{ 'settings.vpdPreview' | translate: { vpd: getNightVpd() | number: '1.2-2', humidity: target.night.humidity } }}</div>
+      </div>
+    </ng-container>
+
+    <!-- CO2 -->
+    <ng-container *ngIf="hasCo2 && target?.co2">
+      <h3 class="group-title">{{ 'simpleSettings.co2.title' | translate }}
+        <ion-button fill="clear" size="small" id="hint-co2"><ion-icon name="help-circle-outline"></ion-icon></ion-button>
+        <ion-popover trigger="hint-co2" [dismissOnSelect]="true">
+          <ng-template><ion-content class="ion-padding">{{ 'simpleSettings.co2.hint' | translate }}</ion-content></ng-template>
+        </ion-popover>
+      </h3>
+      <div class="field-row">
+        <div class="field-label">
+          <span>{{ 'simpleSettings.co2.target' | translate }}</span>
+          <span class="field-value">{{ target.co2.target }} ppm</span>
+        </div>
+        <ion-range [min]="limits.co2.min" [max]="limits.co2.max" step="100" [(ngModel)]="target.co2.target"></ion-range>
+        <div class="section-hint">{{ 'simpleSettings.co2.text' | translate }}</div>
+      </div>
+    </ng-container>
+
+    <p class="expert-hint">{{ 'simpleSettings.expertHint' | translate }}</p>
+  </ion-card-content>
+
+  <ng-template #offNote>
+    <ion-card-content>
+      <p class="section-hint">{{ 'simpleSettings.deviceOff' | translate }}</p>
+    </ion-card-content>
+  </ng-template>
+</ion-card>

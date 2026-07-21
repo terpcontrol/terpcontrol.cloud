@@ -143,7 +143,13 @@
     "tunnelRtspStream": "Webcam Stream tunneln",
     "tunnelRtspStreamHint": "Falls aktiviert, wird der Webcam Stream durch das Modul getunnelt, was hilfreich sein kann wenn dein Modul hinter einem NAT oder einer Firewall ist.",
     "dangerZone": "Gefahrenzone",
-    "deleteDevice": "Gerät löschen"
+    "deleteDevice": "Gerät löschen",
+    "controlProfile": "Steuerungsprofil",
+    "controlProfile-full": "Lampe + Klima",
+    "controlProfile-light_only": "Nur die Lampe",
+    "controlProfile-monitor": "Nur überwachen",
+    "controlProfileHint": "Was dein Controller tatsächlich schaltet. Bei „Nur überwachen“ wird nichts geschaltet — Zielwerte dienen als Richtwerte, während Charts, Tagebuch und Alarme normal weiterlaufen. Du kannst das jederzeit ändern.",
+    "pleaseStart": "Bitte starte zuerst den Plan"
   },
   "menu": {
     "devices": "Geräte",
@@ -472,7 +478,8 @@
         "emailNotifications-onStep": "Bei jedem Schrittwechsel",
         "emailNotifications-onConfirmation": "Nur bei Bestätigungen",
         "additionalInfo": "Log-Meldung bei Schrittwechsel",
-        "emailAddress": "E-Mail Adresse"
+        "emailAddress": "E-Mail Adresse",
+        "pleaseStart": "Bitte starte zuerst den Plan"
       }
     },
     "fan": {
@@ -714,5 +721,53 @@
   "message-smart-socket-connected-title": "Smart-Steckdose verbunden",
   "message-smart-socket-connected-text": "Eine Smart-Steckdose wurde für die Rolle «{{value}}» verbunden.",
   "message-smart-socket-disconnected-title": "Smart-Steckdose getrennt",
-  "message-smart-socket-disconnected-text": "Die Smart-Steckdosen-Zuordnung für die Rolle «{{value}}» wurde entfernt."
+  "message-smart-socket-disconnected-text": "Die Smart-Steckdosen-Zuordnung für die Rolle «{{value}}» wurde entfernt.",
+  "simpleSettings": {
+    "modeSimple": "Einfach",
+    "modeExpert": "Experte",
+    "referenceBannerMonitor": "Dieser Controller überwacht nur. Deine Zielwerte dienen als Richtbereiche für Charts, Assistent und Alarme — geschaltet wird nichts.",
+    "referenceBannerLightOnly": "Dieser Controller steuert nur die Lampe. Klima-Zielwerte dienen als Richtbereiche — Heizung oder Feuchte werden nicht geschaltet.",
+    "stageTitle": "Deine Grow-Phase",
+    "stageText": "Wähle die Phase deiner Pflanzen — wir setzen bewährte Zielwerte. Darunter kannst du alles feinjustieren.",
+    "stageTextReference": "Wähle die Phase deiner Pflanzen — wir setzen bewährte Richtwerte. Darunter kannst du alles feinjustieren.",
+    "startPlan": "Grow-Plan starten",
+    "targetsTitle": "Zielwerte",
+    "targetsTitleReference": "Richtwerte",
+    "temperature": "Temperatur",
+    "humidity": "Luftfeuchte",
+    "deviceOff": "Das Gerät ist ausgeschaltet. Wähle oben eine Grow-Phase, um mit der Regelung zu starten.",
+    "expertHint": "Feintuning wie Heizverhalten, Entfeuchter-Timing oder Alarme findest du im Expertenmodus (Umschalter oben).",
+    "plan": {
+      "title": "Grow-Plan",
+      "dayOf": "Tag {{day}} von {{total}} in dieser Phase",
+      "next": "Nächste Phase: {{name}}",
+      "editHint": "Die Werte unten gelten für die aktuelle Phase. Beim Speichern läuft der Plan weiter.",
+      "stop": "Plan stoppen"
+    },
+    "light": {
+      "title": "Licht & Tagesrhythmus",
+      "hint": "Legt fest, wann deine Lampe an ist und wie hell sie läuft. Die Tag-Zielwerte unten gelten, solange das Licht an ist.",
+      "hintMonitor": "Legt fest, welche Stunden als Tag zählen. Die Tag-Zielwerte unten werden in diesen Stunden bewertet.",
+      "start": "Licht an um",
+      "duration": "Stunden Licht",
+      "scheduleText": "Sämlinge und Wachstum bekommen meist 18 h, die Blüte läuft mit 12 h. Autoflowers bleiben durchgehend bei 18 h.",
+      "intensity": "Lichtintensität",
+      "intensityHint": "Sämlinge gedimmt starten (ca. 40 %) und zur Blüte Richtung 100 % steigern."
+    },
+    "day": {
+      "title": "Zielwerte am Tag (Licht an)"
+    },
+    "night": {
+      "title": "Zielwerte in der Nacht (Licht aus)"
+    },
+    "climate": {
+      "title": "Klima-Zielwerte"
+    },
+    "co2": {
+      "title": "CO₂",
+      "target": "CO₂-Ziel",
+      "hint": "Nur sinnvoll mit CO₂-Flasche und Ventil. Ohne Anlage bei 400 ppm (Umgebungsniveau) lassen — dann öffnet nie ein Ventil.",
+      "text": "Ohne CO₂-Begasung bei 400 ppm lassen. Mit CO₂-Anlage beschleunigen 900–1200 ppm das Wachstum."
+    }
+  }
 }

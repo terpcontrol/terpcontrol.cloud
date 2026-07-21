@@ -17,6 +17,7 @@ import { PlugSettingsComponent } from './plug/settings/settings.component';
 import { DryerOverviewComponent } from './dryer/overview/overview.component';
 import { DryerSettingComponent } from './dryer/settings/settings.component';
 import {FridgeSettingsConfigurationComponent} from "./fridge/settings/configuration/configuration.component";
+import {FridgeSimpleSettingsComponent} from "./fridge/settings/simple/simple-settings.component";
 import {AlarmsModule} from "../device/alarms/alarms.module";
 import {CloudSettingsModule} from "../device/cloudsettings/cloud-settings.module";
 import {LogEntryViewerModule} from "../device/log-entry-viewer/log-entry-viewer.module";
@@ -27,6 +28,7 @@ import {LogEntryViewerModule} from "../device/log-entry-viewer/log-entry-viewer.
     FridgeOverviewComponent,
     FridgeSettingComponent,
     FridgeSettingsConfigurationComponent,
+    FridgeSimpleSettingsComponent,
     FanOverviewComponent,
     FanSettingsComponent,
     LightOverviewComponent,
@@ -40,6 +42,7 @@ import {LogEntryViewerModule} from "../device/log-entry-viewer/log-entry-viewer.
     FridgeOverviewComponent,
     FridgeSettingComponent,
     FridgeSettingsConfigurationComponent,
+    FridgeSimpleSettingsComponent,
     FanOverviewComponent,
     FanSettingsComponent,
     LightOverviewComponent,

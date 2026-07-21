@@ -144,7 +144,13 @@
     "tunnelRtspStream": "Tunnel webcam stream",
     "tunnelRtspStreamHint": "If enabled, the webcam stream will be tunneled through the module. This is helpful if your webcam is not directly reachable from the internet.",
     "dangerZone": "Danger zone",
-    "deleteDevice": "Delete device"
+    "deleteDevice": "Delete device",
+    "controlProfile": "Control profile",
+    "controlProfile-full": "Lamp + climate",
+    "controlProfile-light_only": "Only the lamp",
+    "controlProfile-monitor": "Monitoring only",
+    "controlProfileHint": "What your controller actually switches. With \"Monitoring only\" nothing is actuated — targets are shown as reference values, while charts, diary and alarms keep working. You can change this anytime.",
+    "pleaseStart": "Please start the plan first"
   },
   "menu": {
     "devices": "Devices",
@@ -479,7 +485,8 @@
         "emailNotifications-onStep": "On every step change",
         "emailNotifications-onConfirmation": "Only on confirmations",
         "additionalInfo": "Log messages on step changes",
-        "emailAddress": "Email address"
+        "emailAddress": "Email address",
+        "pleaseStart": "Please start the plan first"
       }
     },
     "dryer": {
@@ -730,5 +737,53 @@
   "message-smart-socket-connected-title": "Smart socket connected",
   "message-smart-socket-connected-text": "A smart socket was connected for role: {{value}}",
   "message-smart-socket-disconnected-title": "Smart socket disconnected",
-  "message-smart-socket-disconnected-text": "The smart socket assignment was removed for role: {{value}}"
+  "message-smart-socket-disconnected-text": "The smart socket assignment was removed for role: {{value}}",
+  "simpleSettings": {
+    "modeSimple": "Simple",
+    "modeExpert": "Expert",
+    "referenceBannerMonitor": "This controller only monitors. Your targets act as reference ranges for charts, the assistant and alarms — nothing is switched.",
+    "referenceBannerLightOnly": "This controller only drives the lamp. Climate targets act as reference ranges — heating or humidity are not switched.",
+    "stageTitle": "Your grow stage",
+    "stageText": "Pick the stage your plants are in — we set proven targets. Fine-tune anything below.",
+    "stageTextReference": "Pick the stage your plants are in — we set proven reference values. Fine-tune anything below.",
+    "startPlan": "Start a grow plan",
+    "targetsTitle": "Targets",
+    "targetsTitleReference": "Reference values",
+    "temperature": "Temperature",
+    "humidity": "Humidity",
+    "deviceOff": "The device is switched off. Pick a grow stage above to start regulating.",
+    "expertHint": "Fine-tuning like heater behavior, dehumidify timing or alarms lives in expert mode (switch at the top).",
+    "plan": {
+      "title": "Grow plan",
+      "dayOf": "Day {{day}} of {{total}} in this stage",
+      "next": "Next stage: {{name}}",
+      "editHint": "The values below apply to the current stage. Saving keeps the plan running.",
+      "stop": "Stop plan"
+    },
+    "light": {
+      "title": "Light & day rhythm",
+      "hint": "Defines when your lamp is on and how bright it runs. The day targets below apply while the light is on.",
+      "hintMonitor": "Defines which hours count as day. The day targets below are evaluated during these hours.",
+      "start": "Light on at",
+      "duration": "Hours of light",
+      "scheduleText": "Seedlings and vegetative plants usually get 18 h, flowering runs at 12 h. Autoflowers stay at 18 h all the way.",
+      "intensity": "Light intensity",
+      "intensityHint": "Start seedlings dimmed (about 40%) and increase towards 100% in flowering."
+    },
+    "day": {
+      "title": "Daytime targets (light on)"
+    },
+    "night": {
+      "title": "Nighttime targets (light off)"
+    },
+    "climate": {
+      "title": "Climate targets"
+    },
+    "co2": {
+      "title": "CO2",
+      "target": "CO2 target",
+      "hint": "Only useful with a CO2 bottle and valve. Without one, keep 400 ppm (ambient level) — the valve then never opens.",
+      "text": "Without CO2 enrichment leave this at 400 ppm. With a CO2 setup, 900–1200 ppm speeds up growth."
+    }
+  }
 }

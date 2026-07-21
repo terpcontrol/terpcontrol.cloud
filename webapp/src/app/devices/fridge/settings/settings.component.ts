@@ -1,11 +1,13 @@
 import {Component, Input, OnDestroy, OnInit} from '@angular/core';
 import {ActivatedRoute, Router} from '@angular/router';
 import {DataService} from 'src/app/services/data.service';
-import {DeviceService} from 'src/app/services/devices.service';
+import {DeviceService, DeviceWithParsedSettings} from 'src/app/services/devices.service';
 import {AlertController, AlertInput, ToastController} from "@ionic/angular";
 import {RecipeService} from 'src/app/services/recipe.service';
 import {alarm} from "ionicons/icons";
 import {calculateVpd} from "../../../util/calculateVpd";
+
+const EXPERT_MODE_STORAGE_KEY = 'app-settings-expert';
 
 @Component({
   selector: 'fridge-settings',
@@ -23,6 +25,10 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
   public offset:number;
   public settingsmode: 'manual' | 'recipe' = 'manual';
   public recipe:any = { steps: [] };
+
+  public uiMode: 'simple' | 'expert' = localStorage.getItem(EXPERT_MODE_STORAGE_KEY) === 'true' ? 'expert' : 'simple';
+  public planWizardOpen = false;
+  public deviceForWizard: DeviceWithParsedSettings | null = null;
 
 
   // timer used to refresh remaining time every second
@@ -51,6 +57,12 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit() {
+    await this.loadAll();
+  }
+
+  private async loadAll() {
+    this.loading = true;
+    this.errorLoading = false;
     try {
       this.alarms = await this.devices.getAlarms(this.device_id);
       this.alarms?.forEach((alarm: any) => {
@@ -72,6 +84,9 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
       if (this.recipe.activeSince > 0) {
         this.startTimer();
         this.settingsmode = 'recipe';
+      } else {
+        this.stopTimer();
+        this.settingsmode = 'manual';
       }
     }
     catch(error) {
@@ -80,6 +95,34 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
     } finally {
       this.loading = false;
     }
+  }
+
+  onUiModeChange() {
+    localStorage.setItem(EXPERT_MODE_STORAGE_KEY, this.uiMode === 'expert' ? 'true' : 'false');
+  }
+
+  /** Simple mode: stop the running plan and continue editing its targets manually. */
+  onStopPlanRequested() {
+    const activeStep = this.recipe?.steps?.[this.recipe.activeStepIndex];
+    if (activeStep?.settings) {
+      this.deviceSettings = JSON.parse(JSON.stringify(activeStep.settings));
+    }
+    this.setRunning(false);
+    this.settingsmode = 'manual';
+  }
+
+  openPlanWizard() {
+    this.deviceForWizard = this.devices.devices.getValue().find(device => device.device_id === this.device_id) ?? null;
+    if (this.deviceForWizard) {
+      this.planWizardOpen = true;
+    }
+  }
+
+  async onPlanWizardClosed() {
+    this.planWizardOpen = false;
+    this.deviceForWizard = null;
+    // The wizard saves settings/recipe itself; reload so this page shows them.
+    await this.loadAll();
   }
 
   async saveSettings() {

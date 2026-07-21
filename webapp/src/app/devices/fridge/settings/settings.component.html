@@ -17,7 +17,29 @@
     </div>
   </div>
 
-  <ion-card>
+  <div class="ui-mode-switch">
+    <ion-segment [(ngModel)]="uiMode" (ionChange)="onUiModeChange()">
+      <ion-segment-button value="simple">
+        <ion-label>{{'simpleSettings.modeSimple' | translate}}</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="expert">
+        <ion-label>{{'simpleSettings.modeExpert' | translate}}</ion-label>
+      </ion-segment-button>
+    </ion-segment>
+  </div>
+
+  <fridge-simple-settings
+    *ngIf="uiMode === 'simple'"
+    [(deviceSettings)]="deviceSettings"
+    [recipe]="recipe"
+    [cloudSettings]="cloudSettings"
+    [deviceType]="deviceType"
+    (stopPlanRequested)="onStopPlanRequested()"
+    (confirmStepRequested)="confirmCurrentStep()"
+    (startPlanRequested)="openPlanWizard()"
+  ></fridge-simple-settings>
+
+  <ion-card *ngIf="uiMode === 'expert'">
     <ion-card-header>
       <ion-card-title>{{'devices.fridge.settingsmode' | translate}}</ion-card-title>
     </ion-card-header>
@@ -45,7 +67,7 @@
     </ion-card-content>
   </ion-card>
 
-  <ion-card *ngIf="settingsmode === 'recipe'">
+  <ion-card *ngIf="uiMode === 'expert' && settingsmode === 'recipe'">
     <ion-card-header>
       <ion-card-title> {{'devices.fridge.recipe.title' + (recipe.activeSince > 0 ? '-active' : '-inactive') | translate}}</ion-card-title>
     </ion-card-header>
@@ -229,11 +251,13 @@
     </ion-card-content>
   </ion-card>
 
-  <fridge-settings-config *ngIf="settingsmode === 'manual'" [(deviceSettings)]="deviceSettings" [cloudSettings]="cloudSettings" [deviceType]="deviceType" />
+  <fridge-settings-config *ngIf="uiMode === 'expert' && settingsmode === 'manual'" [(deviceSettings)]="deviceSettings" [cloudSettings]="cloudSettings" [deviceType]="deviceType" />
 
-  <cloud-settings [(cloudSettings)]="cloudSettings" [deviceId]="device_id" [hardwareInfo]="hardwareInfo" />
+  <ng-container *ngIf="uiMode === 'expert'">
+    <cloud-settings [(cloudSettings)]="cloudSettings" [deviceId]="device_id" [deviceType]="deviceType" [hardwareInfo]="hardwareInfo" />
 
-  <alarms [(alarms)]="alarms" [availableSensorTypes]="['temperature', 'humidity', 'co2', 'co2_valve', 'light', 'dehumidifier', 'heater']" [cloud_settings]="cloudSettings" />
+    <alarms [(alarms)]="alarms" [availableSensorTypes]="['temperature', 'humidity', 'co2', 'co2_valve', 'light', 'dehumidifier', 'heater']" [cloud_settings]="cloudSettings" />
+  </ng-container>
 
   <ion-card *ngIf="errorSaving">
     <ion-card-header>
@@ -248,7 +272,7 @@
     <ion-card-content>
       <ion-text *ngIf="settingsmode === 'recipe' && !(recipe.activeSince > 0)">
         <ion-icon name="warning" color="warning"></ion-icon>
-        Please start the recipe
+        {{'devices.fridge.recipe.pleaseStart' | translate}}
         <br/>
       </ion-text>
 
@@ -262,5 +286,11 @@
 
     </ion-card-content>
   </ion-card>
+
+  <ion-modal [isOpen]="planWizardOpen" (willDismiss)="onPlanWizardClosed()" [backdropDismiss]="false" class="wizard-modal">
+    <ng-template>
+      <setup-wizard *ngIf="deviceForWizard" [device]="deviceForWizard" [startAt]="'stage'" (closed)="onPlanWizardClosed()"></setup-wizard>
+    </ng-template>
+  </ion-modal>
 
 </ng-container>
