@@ -224,3 +224,14 @@ body.dark .tc-preset-card img {
   line-height: 1.45;
   padding: 2px 16px 10px;
 }
+
+/* Guarded sliders (see RangeGuardDirective): inert and dimmed until tapped. */
+ion-range.range-guard {
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+ion-range.range-guard-armed {
+  opacity: 1;
+  --knob-box-shadow: 0 0 0 4px rgba(var(--ion-color-secondary-rgb), 0.3);
+}

@@ -59,7 +59,7 @@
         </ion-item>
         <ion-item lines="none">
           <ion-button size="small" fill="clear" (click)="settings.day.temperature = settings.day.temperature - 1" [disabled]="settings.day.temperature <= limits.temperature.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.day.temperature" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1" (ngModelChange)="dirty()"></ion-range>
+          <ion-range rangeGuard [(ngModel)]="settings.day.temperature" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1" (ngModelChange)="dirty()"></ion-range>
           <ion-button size="small" fill="clear" (click)="settings.day.temperature = settings.day.temperature + 1" [disabled]="settings.day.temperature >= limits.temperature.max"><ion-icon name="add-circle"></ion-icon></ion-button>
         </ion-item>
       </ng-container>
@@ -71,7 +71,7 @@
         </ion-item>
         <ion-item lines="none">
           <ion-button size="small" fill="clear" (click)="settings.day.humidity = settings.day.humidity - 1" [disabled]="settings.day.humidity <= limits.humidity.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.day.humidity" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1" (ngModelChange)="dirty()"></ion-range>
+          <ion-range rangeGuard [(ngModel)]="settings.day.humidity" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1" (ngModelChange)="dirty()"></ion-range>
           <ion-button size="small" fill="clear" (click)="settings.day.humidity = settings.day.humidity + 1" [disabled]="settings.day.humidity >= limits.humidity.max"><ion-icon name="add-circle"></ion-icon></ion-button>
         </ion-item>
       </ng-container>
@@ -83,7 +83,7 @@
         </ion-item>
         <ion-item lines="none">
           <ion-button size="small" fill="clear" (click)="settings.day.fixed_speed = settings.day.fixed_speed - 1" [disabled]="settings.day.fixed_speed <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.day.fixed_speed" min="0" max="100" step="1" (ngModelChange)="dirty()"></ion-range>
+          <ion-range rangeGuard [(ngModel)]="settings.day.fixed_speed" min="0" max="100" step="1" (ngModelChange)="dirty()"></ion-range>
           <ion-button size="small" fill="clear" (click)="settings.day.fixed_speed = settings.day.fixed_speed + 1" [disabled]="settings.day.fixed_speed >= 100"><ion-icon name="add-circle"></ion-icon></ion-button>
         </ion-item>
       </ng-container>
@@ -95,7 +95,7 @@
         </ion-item>
         <ion-item lines="none">
           <ion-button size="small" fill="clear" (click)="settings.day.max_speed = settings.day.max_speed - 1" [disabled]="settings.day.max_speed <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.day.max_speed" min="0" max="100" step="1" (ngModelChange)="dirty()"></ion-range>
+          <ion-range rangeGuard [(ngModel)]="settings.day.max_speed" min="0" max="100" step="1" (ngModelChange)="dirty()"></ion-range>
           <ion-button size="small" fill="clear" (click)="settings.day.max_speed = settings.day.max_speed + 1" [disabled]="settings.day.max_speed >= 100"><ion-icon name="add-circle"></ion-icon></ion-button>
         </ion-item>
       </ng-container>
@@ -117,7 +117,7 @@
         </ion-item>
         <ion-item lines="none">
           <ion-button size="small" fill="clear" (click)="settings.night.temperature = settings.night.temperature - 1" [disabled]="settings.night.temperature <= limits.temperature.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.night.temperature" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1" (ngModelChange)="dirty()"></ion-range>
+          <ion-range rangeGuard [(ngModel)]="settings.night.temperature" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1" (ngModelChange)="dirty()"></ion-range>
           <ion-button size="small" fill="clear" (click)="settings.night.temperature = settings.night.temperature + 1" [disabled]="settings.night.temperature >= limits.temperature.max"><ion-icon name="add-circle"></ion-icon></ion-button>
         </ion-item>
       </ng-container>
@@ -129,7 +129,7 @@
         </ion-item>
         <ion-item lines="none">
           <ion-button size="small" fill="clear" (click)="settings.night.humidity = settings.night.humidity - 1" [disabled]="settings.night.humidity <= limits.humidity.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.night.humidity" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1" (ngModelChange)="dirty()"></ion-range>
+          <ion-range rangeGuard [(ngModel)]="settings.night.humidity" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1" (ngModelChange)="dirty()"></ion-range>
           <ion-button size="small" fill="clear" (click)="settings.night.humidity = settings.night.humidity + 1" [disabled]="settings.night.humidity >= limits.humidity.max"><ion-icon name="add-circle"></ion-icon></ion-button>
         </ion-item>
       </ng-container>
@@ -141,7 +141,7 @@
         </ion-item>
         <ion-item lines="none">
           <ion-button size="small" fill="clear" (click)="settings.night.fixed_speed = settings.night.fixed_speed - 1" [disabled]="settings.night.fixed_speed <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.night.fixed_speed" min="0" max="100" step="1" (ngModelChange)="dirty()"></ion-range>
+          <ion-range rangeGuard [(ngModel)]="settings.night.fixed_speed" min="0" max="100" step="1" (ngModelChange)="dirty()"></ion-range>
           <ion-button size="small" fill="clear" (click)="settings.night.fixed_speed = settings.night.fixed_speed + 1" [disabled]="settings.night.fixed_speed >= 100"><ion-icon name="add-circle"></ion-icon></ion-button>
         </ion-item>
       </ng-container>
@@ -153,7 +153,7 @@
         </ion-item>
         <ion-item lines="none">
           <ion-button size="small" fill="clear" (click)="settings.night.max_speed = settings.night.max_speed - 1" [disabled]="settings.night.max_speed <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.night.max_speed" min="0" max="100" step="1" (ngModelChange)="dirty()"></ion-range>
+          <ion-range rangeGuard [(ngModel)]="settings.night.max_speed" min="0" max="100" step="1" (ngModelChange)="dirty()"></ion-range>
           <ion-button size="small" fill="clear" (click)="settings.night.max_speed = settings.night.max_speed + 1" [disabled]="settings.night.max_speed >= 100"><ion-icon name="add-circle"></ion-icon></ion-button>
         </ion-item>
       </ng-container>
@@ -173,7 +173,7 @@
       </ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.min_speed = settings.min_speed - 1" [disabled]="settings.min_speed <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.min_speed" min="0" max="100" step="1" (ngModelChange)="dirty()"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.min_speed" min="0" max="100" step="1" (ngModelChange)="dirty()"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.min_speed = settings.min_speed + 1" [disabled]="settings.min_speed >= 100"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
     </ion-card-content>

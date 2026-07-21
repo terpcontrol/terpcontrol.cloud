@@ -70,7 +70,7 @@
           </ion-item>
           <ion-item lines="none">
             <ion-button size="small" fill="clear" (click)="settings.daynight.day_duration = settings.daynight.day_duration - 0.25" [disabled]="settings.daynight.day_duration <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-            <ion-range [(ngModel)]="settings.daynight.day_duration" min="0" max="48" step="0.25"></ion-range>
+            <ion-range rangeGuard [(ngModel)]="settings.daynight.day_duration" min="0" max="48" step="0.25"></ion-range>
             <ion-button size="small" fill="clear" (click)="settings.daynight.day_duration = settings.daynight.day_duration + 0.25" [disabled]="settings.daynight.day_duration >= 48"><ion-icon name="add-circle"></ion-icon></ion-button>
           </ion-item>
 
@@ -80,7 +80,7 @@
           </ion-item>
           <ion-item lines="none">
             <ion-button size="small" fill="clear" (click)="settings.daynight.light_duration = settings.daynight.light_duration - 0.25" [disabled]="settings.daynight.light_duration <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-            <ion-range [(ngModel)]="settings.daynight.light_duration" min="0" [max]="settings.daynight.day_duration" step="0.25"></ion-range>
+            <ion-range rangeGuard [(ngModel)]="settings.daynight.light_duration" min="0" [max]="settings.daynight.day_duration" step="0.25"></ion-range>
             <ion-button size="small" fill="clear" (click)="settings.daynight.light_duration = settings.daynight.light_duration + 0.25" [disabled]="settings.daynight.light_duration >= settings.daynight.day_duration"><ion-icon name="add-circle"></ion-icon></ion-button>
           </ion-item>
         </ng-container>
@@ -161,7 +161,7 @@
       <ion-item lines="none"><p>{{'devices.plug.settings.heater-on-desc' | translate}}</p></ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.heater.day.on = settings.heater.day.on - 1" [disabled]="settings.heater.day.on <= limits.temperature.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.heater.day.on" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.heater.day.on" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.heater.day.on = settings.heater.day.on + 1" [disabled]="settings.heater.day.on >= limits.temperature.max"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
       <ion-item lines="none">
@@ -171,7 +171,7 @@
       <ion-item lines="none"><p>{{'devices.plug.settings.heater-off-desc' | translate}}</p></ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.heater.day.off = settings.heater.day.off - 1" [disabled]="settings.heater.day.off <= limits.temperature.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.heater.day.off" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.heater.day.off" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.heater.day.off = settings.heater.day.off + 1" [disabled]="settings.heater.day.off >= limits.temperature.max"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
     </ion-card-content>
@@ -189,7 +189,7 @@
       <ion-item lines="none"><p>{{'devices.plug.settings.heater-on-desc' | translate}}</p></ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.heater.night.on = settings.heater.night.on - 1" [disabled]="settings.heater.night.on <= limits.temperature.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.heater.night.on" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.heater.night.on" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.heater.night.on = settings.heater.night.on + 1" [disabled]="settings.heater.night.on >= limits.temperature.max"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
       <ion-item lines="none">
@@ -199,7 +199,7 @@
       <ion-item lines="none"><p>{{'devices.plug.settings.heater-off-desc' | translate}}</p></ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.heater.night.off = settings.heater.night.off - 1" [disabled]="settings.heater.night.off <= limits.temperature.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.heater.night.off" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.heater.night.off" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.heater.night.off = settings.heater.night.off + 1" [disabled]="settings.heater.night.off >= limits.temperature.max"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
     </ion-card-content>
@@ -218,7 +218,7 @@
       <ion-item lines="none"><p>{{'devices.plug.settings.cooler-on-desc' | translate}}</p></ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.cooler.day.on = settings.cooler.day.on - 1" [disabled]="settings.cooler.day.on <= limits.temperature.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.cooler.day.on" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.cooler.day.on" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.cooler.day.on = settings.cooler.day.on + 1" [disabled]="settings.cooler.day.on >= limits.temperature.max"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
       <ion-item lines="none">
@@ -228,7 +228,7 @@
       <ion-item lines="none"><p>{{'devices.plug.settings.cooler-off-desc' | translate}}</p></ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.cooler.day.off = settings.cooler.day.off - 1" [disabled]="settings.cooler.day.off <= limits.temperature.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.cooler.day.off" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.cooler.day.off" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.cooler.day.off = settings.cooler.day.off + 1" [disabled]="settings.cooler.day.off >= limits.temperature.max"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
     </ion-card-content>
@@ -246,7 +246,7 @@
       <ion-item lines="none"><p>{{'devices.plug.settings.cooler-on-desc' | translate}}</p></ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.cooler.night.on = settings.cooler.night.on - 1" [disabled]="settings.cooler.night.on <= limits.temperature.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.cooler.night.on" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.cooler.night.on" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.cooler.night.on = settings.cooler.night.on + 1" [disabled]="settings.cooler.night.on >= limits.temperature.max"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
       <ion-item lines="none">
@@ -256,7 +256,7 @@
       <ion-item lines="none"><p>{{'devices.plug.settings.cooler-off-desc' | translate}}</p></ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.cooler.night.off = settings.cooler.night.off - 1" [disabled]="settings.cooler.night.off <= limits.temperature.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.cooler.night.off" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.cooler.night.off" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.cooler.night.off = settings.cooler.night.off + 1" [disabled]="settings.cooler.night.off >= limits.temperature.max"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
     </ion-card-content>
@@ -276,7 +276,7 @@
       <ion-item lines="none"><p>{{'devices.plug.settings.humidify-on-desc' | translate}}</p></ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.humidify.day.on = settings.humidify.day.on - 1" [disabled]="settings.humidify.day.on <= limits.humidity.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.humidify.day.on" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.humidify.day.on" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.humidify.day.on = settings.humidify.day.on + 1" [disabled]="settings.humidify.day.on >= limits.humidity.max"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
       <ion-item lines="none">
@@ -286,7 +286,7 @@
       <ion-item lines="none"><p>{{'devices.plug.settings.humidify-off-desc' | translate}}</p></ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.humidify.day.off = settings.humidify.day.off - 1" [disabled]="settings.humidify.day.off <= limits.humidity.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.humidify.day.off" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.humidify.day.off" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.humidify.day.off = settings.humidify.day.off + 1" [disabled]="settings.humidify.day.off >= limits.humidity.max"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
     </ion-card-content>
@@ -304,7 +304,7 @@
       <ion-item lines="none"><p>{{'devices.plug.settings.humidify-on-desc' | translate}}</p></ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.humidify.night.on = settings.humidify.night.on - 1" [disabled]="settings.humidify.night.on <= limits.humidity.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.humidify.night.on" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.humidify.night.on" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.humidify.night.on = settings.humidify.night.on + 1" [disabled]="settings.humidify.night.on >= limits.humidity.max"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
       <ion-item lines="none">
@@ -314,7 +314,7 @@
       <ion-item lines="none"><p>{{'devices.plug.settings.humidify-off-desc' | translate}}</p></ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.humidify.night.off = settings.humidify.night.off - 1" [disabled]="settings.humidify.night.off <= limits.humidity.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.humidify.night.off" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.humidify.night.off" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.humidify.night.off = settings.humidify.night.off + 1" [disabled]="settings.humidify.night.off >= limits.humidity.max"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
     </ion-card-content>
@@ -333,7 +333,7 @@
       <ion-item lines="none"><p>{{'devices.plug.settings.dehumidify-on-desc' | translate}}</p></ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.dehumidify.day.on = settings.dehumidify.day.on - 1" [disabled]="settings.dehumidify.day.on <= limits.humidity.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.dehumidify.day.on" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.dehumidify.day.on" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.dehumidify.day.on = settings.dehumidify.day.on + 1" [disabled]="settings.dehumidify.day.on >= limits.humidity.max"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
       <ion-item lines="none">
@@ -343,7 +343,7 @@
       <ion-item lines="none"><p>{{'devices.plug.settings.dehumidify-off-desc' | translate}}</p></ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.dehumidify.day.off = settings.dehumidify.day.off - 1" [disabled]="settings.dehumidify.day.off <= limits.humidity.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.dehumidify.day.off" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.dehumidify.day.off" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.dehumidify.day.off = settings.dehumidify.day.off + 1" [disabled]="settings.dehumidify.day.off >= limits.humidity.max"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
     </ion-card-content>
@@ -361,7 +361,7 @@
       <ion-item lines="none"><p>{{'devices.plug.settings.dehumidify-on-desc' | translate}}</p></ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.dehumidify.night.on = settings.dehumidify.night.on - 1" [disabled]="settings.dehumidify.night.on <= limits.humidity.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.dehumidify.night.on" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.dehumidify.night.on" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.dehumidify.night.on = settings.dehumidify.night.on + 1" [disabled]="settings.dehumidify.night.on >= limits.humidity.max"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
       <ion-item lines="none">
@@ -371,7 +371,7 @@
       <ion-item lines="none"><p>{{'devices.plug.settings.dehumidify-off-desc' | translate}}</p></ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.dehumidify.night.off = settings.dehumidify.night.off - 1" [disabled]="settings.dehumidify.night.off <= limits.humidity.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.dehumidify.night.off" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.dehumidify.night.off" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.dehumidify.night.off = settings.dehumidify.night.off + 1" [disabled]="settings.dehumidify.night.off >= limits.humidity.max"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
     </ion-card-content>
@@ -447,7 +447,7 @@
           </ion-item>
           <ion-item lines="none">
             <ion-button size="small" fill="clear" (click)="settings.co2.period = settings.co2.period - 1" [disabled]="settings.co2.period <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-            <ion-range [(ngModel)]="settings.co2.period" min="0" max="120" step="1"></ion-range>
+            <ion-range rangeGuard [(ngModel)]="settings.co2.period" min="0" max="120" step="1"></ion-range>
             <ion-button size="small" fill="clear" (click)="settings.co2.period = settings.co2.period + 1" [disabled]="settings.co2.period >= 100"><ion-icon name="add-circle"></ion-icon></ion-button>
           </ion-item>
           <ion-item lines="none">
@@ -456,7 +456,7 @@
           </ion-item>
           <ion-item lines="none">
             <ion-button size="small" fill="clear" (click)="settings.co2.duration = settings.co2.duration - 1" [disabled]="settings.co2.duration <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-            <ion-range [(ngModel)]="settings.co2.duration" min="0" max="60" step="1"></ion-range>
+            <ion-range rangeGuard [(ngModel)]="settings.co2.duration" min="0" max="60" step="1"></ion-range>
             <ion-button size="small" fill="clear" (click)="settings.co2.duration = settings.co2.duration + 1" [disabled]="settings.co2.duration >= 100"><ion-icon name="add-circle"></ion-icon></ion-button>
           </ion-item>
         </ion-card-content>
@@ -479,7 +479,7 @@
             </ion-item>
             <ion-item lines="none">
               <ion-button size="small" fill="clear" (click)="settings.fan.speed = settings.fan.speed - 1" [disabled]="settings.fan.speed <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-              <ion-range [(ngModel)]="settings.fan.speed" min="0" max="100" step="1"></ion-range>
+              <ion-range rangeGuard [(ngModel)]="settings.fan.speed" min="0" max="100" step="1"></ion-range>
               <ion-button size="small" fill="clear" (click)="settings.fan.speed = settings.fan.speed + 1" [disabled]="settings.fan.speed >= 100"><ion-icon name="add-circle"></ion-icon></ion-button>
             </ion-item>
           </ng-container>
@@ -499,7 +499,7 @@
         </ion-item>
         <ion-item lines="none">
           <ion-button size="small" fill="clear" (click)="settings.co2.on = settings.co2.on - 1" [disabled]="settings.co2.on <= limits.co2.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.co2.on" min="{{limits.co2.min}}" max="{{limits.co2.max}}" step="1"></ion-range>
+          <ion-range rangeGuard [(ngModel)]="settings.co2.on" min="{{limits.co2.min}}" max="{{limits.co2.max}}" step="1"></ion-range>
           <ion-button size="small" fill="clear" (click)="settings.co2.on = settings.co2.on + 1" [disabled]="settings.co2.on >= limits.co2.max"><ion-icon name="add-circle"></ion-icon></ion-button>
         </ion-item>
         <ion-item lines="none">
@@ -508,7 +508,7 @@
         </ion-item>
         <ion-item lines="none">
           <ion-button size="small" fill="clear" (click)="settings.co2.off = settings.co2.off - 1" [disabled]="settings.co2.off <= limits.co2.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.co2.off" min="{{limits.co2.min}}" max="{{limits.co2.max}}" step="1"></ion-range>
+          <ion-range rangeGuard [(ngModel)]="settings.co2.off" min="{{limits.co2.min}}" max="{{limits.co2.max}}" step="1"></ion-range>
           <ion-button size="small" fill="clear" (click)="settings.co2.off = settings.off + 1" [disabled]="settings.co2.off >= limits.co2.max"><ion-icon name="add-circle"></ion-icon></ion-button>
         </ion-item>
       </ion-card-content>
@@ -532,7 +532,7 @@
         <ion-item lines="none"><p>{{'devices.plug.settings.limits.overtemperature.limit-desc' | translate}}</p></ion-item>
         <ion-item lines="none">
           <ion-button size="small" fill="clear" (click)="settings.limits.overtemperature.limit = settings.limits.overtemperature.limit - 1" [disabled]="settings.limits.overtemperature.limit <= limits.temperature.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.limits.overtemperature.limit" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
+          <ion-range rangeGuard [(ngModel)]="settings.limits.overtemperature.limit" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
           <ion-button size="small" fill="clear" (click)="settings.limits.overtemperature.limit = settings.limits.overtemperature.limit + 1" [disabled]="settings.limits.overtemperature.limit >= limits.temperature.max"><ion-icon name="add-circle"></ion-icon></ion-button>
         </ion-item>
         <ion-item lines="none">
@@ -542,7 +542,7 @@
         <ion-item lines="none"><p>{{'devices.plug.settings.limits.overtemperature.hysteresis-desc' | translate}}</p></ion-item>
         <ion-item lines="none">
           <ion-button size="small" fill="clear" (click)="settings.limits.overtemperature.hysteresis = settings.limits.overtemperature.hysteresis - 1" [disabled]="settings.limits.overtemperature.hysteresis <= 1"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.limits.overtemperature.hysteresis" min="1" max="10" step="1"></ion-range>
+          <ion-range rangeGuard [(ngModel)]="settings.limits.overtemperature.hysteresis" min="1" max="10" step="1"></ion-range>
           <ion-button size="small" fill="clear" (click)="settings.limits.overtemperature.hysteresis = settings.limits.overtemperature.hysteresis + 1" [disabled]="settings.limits.overtemperature.hysteresis >= 10"><ion-icon name="add-circle"></ion-icon></ion-button>
         </ion-item>
       </ng-container>
@@ -559,7 +559,7 @@
         <ion-item lines="none"><p>{{'devices.plug.settings.limits.undertemperature.limit-desc' | translate}}</p></ion-item>
         <ion-item lines="none">
           <ion-button size="small" fill="clear" (click)="settings.limits.undertemperature.limit = settings.limits.undertemperature.limit - 1" [disabled]="settings.limits.undertemperature.limit <= limits.temperature.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.limits.undertemperature.limit" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
+          <ion-range rangeGuard [(ngModel)]="settings.limits.undertemperature.limit" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1"></ion-range>
           <ion-button size="small" fill="clear" (click)="settings.limits.undertemperature.limit = settings.limits.undertemperature.limit + 1" [disabled]="settings.limits.undertemperature.limit >= limits.temperature.max"><ion-icon name="add-circle"></ion-icon></ion-button>
         </ion-item>
         <ion-item lines="none">
@@ -569,7 +569,7 @@
         <ion-item lines="none"><p>{{'devices.plug.settings.limits.undertemperature.hysteresis-desc' | translate}}</p></ion-item>
         <ion-item lines="none">
           <ion-button size="small" fill="clear" (click)="settings.limits.undertemperature.hysteresis = settings.limits.undertemperature.hysteresis - 1" [disabled]="settings.limits.undertemperature.hysteresis <= 1"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.limits.undertemperature.hysteresis" min="1" max="10" step="1"></ion-range>
+          <ion-range rangeGuard [(ngModel)]="settings.limits.undertemperature.hysteresis" min="1" max="10" step="1"></ion-range>
           <ion-button size="small" fill="clear" (click)="settings.limits.undertemperature.hysteresis = settings.limits.undertemperature.hysteresis + 1" [disabled]="settings.limits.undertemperature.hysteresis >= 10"><ion-icon name="add-circle"></ion-icon></ion-button>
         </ion-item>
       </ng-container>
@@ -586,7 +586,7 @@
         <ion-item lines="none"><p>{{'devices.plug.settings.limits.time.min_on-desc' | translate}}</p></ion-item>
         <ion-item lines="none">
           <ion-button size="small" fill="clear" (click)="settings.limits.time.min_on = settings.limits.time.min_on - 10" [disabled]="settings.limits.time.min_on <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.limits.time.min_on" min="0" max="1800" step="10"></ion-range>
+          <ion-range rangeGuard [(ngModel)]="settings.limits.time.min_on" min="0" max="1800" step="10"></ion-range>
           <ion-button size="small" fill="clear" (click)="settings.limits.time.min_on = settings.limits.time.min_on + 10" [disabled]="settings.limits.time.min_on >= 1800"><ion-icon name="add-circle"></ion-icon></ion-button>
         </ion-item>
         <ion-item lines="none">
@@ -596,7 +596,7 @@
         <ion-item lines="none"><p>{{'devices.plug.settings.limits.time.min_off-desc' | translate}}</p></ion-item>
         <ion-item lines="none">
           <ion-button size="small" fill="clear" (click)="settings.limits.time.min_off = settings.limits.time.min_off - 10" [disabled]="settings.limits.time.min_off <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.limits.time.min_off" min="0" max="1800" step="10"></ion-range>
+          <ion-range rangeGuard [(ngModel)]="settings.limits.time.min_off" min="0" max="1800" step="10"></ion-range>
           <ion-button size="small" fill="clear" (click)="settings.limits.time.min_off = settings.limits.time.min_off + 10" [disabled]="settings.limits.time.min_off >= 1800"><ion-icon name="add-circle"></ion-icon></ion-button>
         </ion-item>
       </ng-container>
