@@ -62,6 +62,17 @@ bool wifiIsConnected();
 bool wifiIsConfigured();
 void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud);
 void showSmartSocketsUi(fg::UserInterface* ui, fg::Fridgecloud* cloud);
+void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud);
 bool sendSmartSocketPower(const std::string& role, bool turn_on);
 void wifiReportSmartSocketOutputs(const SmartSocketOutputStates& states);
 void wifiForceAllSmartSocketsOff();
+
+// Reports the aux-device state (paired smart sockets, Terp Cam URL) to the
+// cloud via hardware-info logs. Log messages are queued, so this is safe to
+// call before the cloud connection is up (and without any network at all).
+void wifiInitAuxCloudReporting(fg::Fridgecloud* cloud);
+
+// Removes a paired smart socket by role. Idempotent for known roles: removing
+// an unpaired role just re-reports the current state. Returns false only for
+// unknown roles.
+bool wifiRemoveSmartSocket(const std::string& role);

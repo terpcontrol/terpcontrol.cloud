@@ -627,7 +627,15 @@ namespace fg {
         snprintf(buf, sizeof(buf), "message-maintenance-mode-activated-remote:%d", (int)roundf(durationMinutes));
         cloud.log(buf);
       }
+      else if(command["action"] && command["action"] == std::string("socket_remove")) {
+        const std::string role = command["role"] | "";
+        if(!wifiRemoveSmartSocket(role)) {
+          cloud.log(std::string("message-aux-command-failed:socket_remove:") + role, 1);
+        }
+      }
     });
+
+    wifiInitAuxCloudReporting(&cloud);
 
     cloud.onUpdate([&](bool updating) {
       if(updating) {
@@ -1288,6 +1296,10 @@ namespace fg {
 
     menu->addOption("Smart Sockets", ICON_SETTINGS, [ui, this](){
       showSmartSocketsUi(ui, &cloud);
+    });
+
+    menu->addOption("Terp Cam", ICON_SETTINGS, [ui, this](){
+      showTerpCamUi(ui, &cloud);
     });
 
     menu->addOption("WiFi Connection", ICON_WIFI_FULL, [ui, this](){
