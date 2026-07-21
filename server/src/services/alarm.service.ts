@@ -9,6 +9,7 @@ import * as console from 'node:console';
 import { dataService } from '@services/data.service';
 import { tunnelService } from '@services/tunnel.service';
 import { Mutex, MutexInterface, withTimeout } from 'async-mutex';
+import { applyWebhookTemplate } from '@utils/webhookTemplate';
 
 const CACHE_EXPIRATION_SECONDS = 600;
 const MAINTENANCE_MODE_COOLDOWN_MILLIS = 10 * 60 * 1000;
@@ -191,7 +192,7 @@ class AlarmService {
   }
 
   private async handleWebhookAlarm(alarm: Alarm, deviceId: string, value: number) {
-    const actionTarget = this.getActionTarget(alarm);
+    let actionTarget = this.getActionTarget(alarm);
     if (!actionTarget) {
       console.error(`No webhook URL provided for alarm on device ${deviceId}`);
       return;
@@ -211,11 +212,30 @@ class AlarmService {
       extremeValue: !alarm.isTriggered && this.hasThresholds(alarm) ? alarm.extremeValue : undefined,
     });
 
-    let webhookPayload;
-    if (alarm.isTriggered) {
-      webhookPayload = alarm.webhookTriggeredPayload || defaultPayload;
-    } else {
-      webhookPayload = alarm.webhookResolvedPayload || defaultPayload;
+    const customPayload = alarm.isTriggered ? alarm.webhookTriggeredPayload : alarm.webhookResolvedPayload;
+    let webhookPayload = customPayload || defaultPayload;
+
+    // {{placeholder}} templating applies only to user-authored payloads and
+    // the target URL; the default payload is already structured JSON.
+    if (customPayload?.includes('{{') || actionTarget.includes('{{')) {
+      const device = await deviceModel.findOne({ device_id: deviceId }, { name: 1 }).lean();
+      const templateVars: Record<string, unknown> = {
+        deviceId,
+        deviceName: device?.name || deviceId,
+        sensorType: alarm.sensorType,
+        value,
+        upperThreshold: this.hasThresholds(alarm) ? alarm.upperThreshold : undefined,
+        lowerThreshold: this.hasThresholds(alarm) ? alarm.lowerThreshold : undefined,
+        event: alarm.isTriggered ? 'triggered' : 'resolved',
+        timestamp: new Date().toISOString(),
+        alarmName: alarm.name || alarm.alarmId,
+        alarmId: alarm.alarmId,
+        extremeValue: !alarm.isTriggered && this.hasThresholds(alarm) ? alarm.extremeValue : undefined,
+      };
+      if (customPayload) {
+        webhookPayload = applyWebhookTemplate(customPayload, templateVars, 'json');
+      }
+      actionTarget = applyWebhookTemplate(actionTarget, templateVars, 'url');
     }
 
     const originalUrl = new URL(actionTarget);

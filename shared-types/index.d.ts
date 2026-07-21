@@ -40,6 +40,14 @@ export type FirmwareChannel = 'stable' | 'beta' | 'alpha' | 'manual';
  */
 export type ControlProfile = 'full' | 'light_only' | 'monitor';
 
+/**
+ * Which camera the webcam stream URL was built for. 'terp_cam' is the Terp
+ * Control Cam (URL reported by the device via hardware-info after local
+ * pairing); brand values are RTSP URL templates; 'custom' is a raw URL.
+ * Only a presentation hint — the stream itself is always cloudSettings.rtspStream.
+ */
+export type WebcamModel = 'terp_cam' | 'tapo_c200' | 'reolink' | 'hikvision' | 'custom';
+
 export interface CloudSettings {
   /** @deprecated Use firmwareChannel: 'manual' to disable automatic updates. Kept for reading legacy devices. */
   autoFirmwareUpdate?: boolean;
@@ -55,6 +63,7 @@ export interface CloudSettings {
   tunnelRtspStream?: boolean;
   maintenanceWebcamOff?: boolean;
   controlProfile?: ControlProfile;
+  webcamModel?: WebcamModel;
 }
 
 export interface UserFirmwareInfo {

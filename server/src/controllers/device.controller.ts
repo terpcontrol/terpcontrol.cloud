@@ -92,6 +92,19 @@ class DeviceController {
     }
   };
 
+  public sendAuxCommand = async (req: RequestWithUser, res: Response, next: NextFunction) => {
+    try {
+      if (req.is_admin || (await isUserDeviceMiddelware(req, res, req.body.device_id))) {
+        await deviceService.sendAuxDeviceCommand(req.body.device_id, req.body.action, req.body.role);
+        res.status(200).json({ status: 'ok' });
+      } else {
+        res.status(401);
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+
   public getClaimCode = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
       const code = await deviceService.getClaimCode(req.body.device_id, req.body.password);

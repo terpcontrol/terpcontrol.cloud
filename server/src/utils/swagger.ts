@@ -105,7 +105,13 @@ export function buildSwaggerSpec(serverUrl?: string): object {
               latestDataPointTime: { type: 'number' },
               webhookMethod: { type: 'string', enum: ['GET', 'POST', 'PUT'] },
               webhookHeaders: { type: 'object', additionalProperties: { type: 'string' } },
-              webhookTriggeredPayload: { type: 'string' },
+              webhookTriggeredPayload: {
+                type: 'string',
+                description:
+                  'Raw request body. Supports {{placeholder}} substitution: alarmName, deviceName, deviceId, sensorType, ' +
+                  'value, upperThreshold, lowerThreshold, event, timestamp, alarmId, extremeValue. ' +
+                  'Values are JSON-escaped in payloads and URL-encoded in the target URL; strings without {{ are sent verbatim.',
+              },
               webhookResolvedPayload: { type: 'string' },
               reportWebhookErrors: { type: 'boolean' },
               tunnelWebhook: { type: 'boolean' },
@@ -132,6 +138,13 @@ export function buildSwaggerSpec(serverUrl?: string): object {
                 description:
                   'What the device actually actuates, chosen by the user. Absent means full. ' +
                   'monitor = sensors only, light_only = built-in lamp output only; the app then presents climate targets as reference values.',
+              },
+              webcamModel: {
+                type: 'string',
+                enum: ['terp_cam', 'tapo_c200', 'reolink', 'hikvision', 'custom'],
+                description:
+                  'Which camera the rtspStream URL was built for (presentation hint only). ' +
+                  'terp_cam = Terp Control Cam whose URL the device reports via hardware-info after local pairing.',
               },
             },
           },

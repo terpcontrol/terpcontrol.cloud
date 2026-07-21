@@ -585,11 +585,20 @@ class DeviceService {
   }
 
   private async logHardwareInfo(deviceId: string, infoPayload: string) {
-    // Parse "key=value" pairs, e.g. "co2=on"
-    const [infoKey, infoValue] = infoPayload.split('=');
-    if (infoKey && infoValue !== undefined) {
-      await deviceModel.findOneAndUpdate({ device_id: deviceId }, { $set: { [`hardwareInfo.${infoKey}`]: infoValue } });
+    // Parse a single "key=value" pair, e.g. "co2=on". Values may themselves
+    // contain "=" (URLs), so only the first "=" separates key and value.
+    const separatorIndex = infoPayload.indexOf('=');
+    if (separatorIndex <= 0) {
+      return;
     }
+    const infoKey = infoPayload.slice(0, separatorIndex).trim();
+    const infoValue = infoPayload.slice(separatorIndex + 1);
+    // The key becomes part of a Mongo update path — reject anything that could
+    // escape the hardwareInfo subtree or bloat the document.
+    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(infoKey) || infoValue.length > 512) {
+      return;
+    }
+    await deviceModel.findOneAndUpdate({ device_id: deviceId }, { $set: { [`hardwareInfo.${infoKey}`]: infoValue } });
   }
 
   public async logMessage(
@@ -780,6 +789,28 @@ class DeviceService {
       '/devices/' + device_id + '/command',
       JSON.stringify({
         action: 'reboot',
+      }),
+    );
+  }
+
+  // Commands for auxiliary devices managed by the device itself (smart sockets,
+  // Terp Control Cam). Whitelisted so the endpoint can never publish arbitrary
+  // actions to the device command topic.
+  private static readonly AUX_COMMAND_WHITELIST: Record<string, string[]> = {
+    socket_remove: ['dehumidifier', 'heater', 'light', 'secondary_light', 'co2'],
+  };
+
+  public async sendAuxDeviceCommand(device_id: string, action: string, role: string): Promise<void> {
+    const allowedRoles = DeviceService.AUX_COMMAND_WHITELIST[action];
+    if (!allowedRoles || !allowedRoles.includes(role)) {
+      throw new HttpException(400, 'Unknown aux command');
+    }
+
+    mqttclient.publish(
+      '/devices/' + device_id + '/command',
+      JSON.stringify({
+        action,
+        role,
       }),
     );
   }
@@ -1178,6 +1209,12 @@ class DeviceService {
 
     if (!settings.rtspStreamTransport) {
       settings.rtspStreamTransport = 'tcp';
+    }
+
+    // An out-of-enum webcamModel would make the strict schema fail the whole
+    // save — drop it instead so older/foreign clients keep working.
+    if (settings.webcamModel !== undefined && !['terp_cam', 'tapo_c200', 'reolink', 'hikvision', 'custom'].includes(settings.webcamModel)) {
+      delete settings.webcamModel;
     }
 
     return settings;
