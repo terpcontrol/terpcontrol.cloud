@@ -43,3 +43,7 @@ svg .secondary-text {
 :host-context(body.dark) svg image {
   filter: brightness(1.5) contrast(0.1);
 }
+
+svg .gauge-track {
+  stroke: var(--ion-color-step-100);
+}
