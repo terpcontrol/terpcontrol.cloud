@@ -354,6 +354,23 @@
       }
     }
   },
+  "chartPresets": {
+    "curated": {
+      "climate": "Climate check",
+      "vpd": "VPD analysis",
+      "co2": "CO2 check",
+      "light": "Light & canopy",
+      "drying": "Drying"
+    },
+    "saveView": "Save view",
+    "saveTitle": "Save this view as a preset",
+    "namePlaceholder": "Preset name",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "deleteTitle": "Delete this preset?",
+    "saveFailed": "Saving the preset failed."
+  },
   "wizard": {
     "title": "Setup assistant",
     "back": "Back",

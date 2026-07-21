@@ -136,6 +136,39 @@ chart {
     height: 60px;
   }
 }
+.preset-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px 0;
+}
+
+.preset-chip {
+  --background: var(--ion-card-background);
+  border: 1px solid var(--ion-border-color);
+  font-weight: 600;
+  font-size: 0.78rem;
+  height: 28px;
+
+  ion-icon {
+    color: var(--ion-color-primary);
+    font-size: 15px;
+  }
+}
+
+.preset-chip--user ion-icon:last-child {
+  color: var(--ion-color-medium);
+}
+
+.preset-chip--save {
+  border-style: dashed;
+
+  ion-icon {
+    color: var(--ion-color-secondary);
+  }
+}
+
 .onoff {
   text-align: center;
   padding: 0px 0px;

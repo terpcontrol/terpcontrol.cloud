@@ -7,11 +7,15 @@ import {DataService} from 'src/app/services/data.service';
 import * as Highcharts from 'highcharts/highstock';
 import {YAxisOptions} from 'highcharts/highstock';
 import {DeviceService} from 'src/app/services/devices.service';
-import {IonModal, ModalController} from "@ionic/angular";
+import {AlertController, IonModal, ModalController, ToastController} from "@ionic/angular";
 import {collectLogCategories, matchesLogCategory,} from '../log-entry-viewer/log-entry-viewer.component';
-import type { DeviceLog, ShareAccess } from '@fg2/shared-types';
+import type { ChartPreset, DeviceLog, ShareAccess } from '@fg2/shared-types';
 import { ShareLinkModalComponent } from '../../components/share-link/share-link-modal.component';
 import { ThemeService } from '../../services/theme.service';
+import { AuthService } from '../../auth/auth.service';
+import { ChartPresetsService } from '../../services/chart-presets.service';
+import { TranslateService } from '@ngx-translate/core';
+import { availableCuratedPresets, CuratedChartPreset } from '../../util/chart-presets';
 
 declare var require: any;
 let Boost = require('highcharts/modules/boost');
@@ -211,12 +215,23 @@ export class ChartsPage implements OnInit, OnDestroy {
 
   public selectedLogs: DeviceLog[] = [];
 
+  public curatedPresets: CuratedChartPreset[] = [];
+
+  public userPresets: ChartPreset[] = [];
+
+  public showPresetBar = false;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private data: DataService,
     private devices: DeviceService,
     private modalController: ModalController,
+    private alertController: AlertController,
+    private toastController: ToastController,
+    private auth: AuthService,
+    private chartPresets: ChartPresetsService,
+    private translate: TranslateService,
     public theme: ThemeService,
   ) {
     this.chartOptions = {
@@ -504,6 +519,14 @@ export class ChartsPage implements OnInit, OnDestroy {
         if (this.device_type != "") {
           this.filtered_measures = this.measures
             .filter((measure) => measure.types.includes(this.device_type));
+
+          // Presets need an authenticated owner session — never on share links
+          // or public visits, which have no user token.
+          this.showPresetBar = !this.isPublic && !this.locked && !this.shareToken && !!this.auth.current_user.getValue();
+          if (this.showPresetBar) {
+            this.curatedPresets = availableCuratedPresets(this.filtered_measures.map(measure => measure.name));
+            void this.loadUserPresets();
+          }
 
           if (!this.cloudSettings.rtspStream) {
             this.showImage = false;
@@ -827,6 +850,115 @@ export class ChartsPage implements OnInit, OnDestroy {
 
   public hasEnabledMeasures() {
     return Boolean(this.filtered_measures.find(m => m.enabled));
+  }
+
+  private async loadUserPresets() {
+    try {
+      this.userPresets = await this.chartPresets.list();
+    } catch (error) {
+      console.log('Failed loading chart presets:', error);
+    }
+  }
+
+  public applyCuratedPreset(preset: CuratedChartPreset) {
+    this.filtered_measures.forEach(measure => measure.enabled = preset.measures.includes(measure.name));
+    if (preset.vpdMode) {
+      this.vpdMode = preset.vpdMode;
+    }
+    const timespan = this.timespans.find(ts => ts.name === preset.timespan);
+    if (timespan) {
+      this.selectedTimespan = timespan;
+      this.selectedInterval = preset.interval ?? timespan.defaultInterval;
+    }
+    this.showLogs = false;
+    this.showImage = false;
+    this.selectedDate = '';
+    this.selectedDateEnd = '';
+    this.selectedLogs.splice(0, this.selectedLogs.length);
+    void this.loadData();
+  }
+
+  public applyUserPreset(preset: ChartPreset) {
+    this.applyViewParams(Object.fromEntries(new URLSearchParams(preset.query ?? '')) as Record<string, string>);
+    this.selectedLogs.splice(0, this.selectedLogs.length);
+    void this.loadData();
+  }
+
+  /** The current view in the charts URL format, minus date/share/auto-update state. */
+  private buildPresetQuery(): string {
+    const params = new URLSearchParams();
+    params.set('measures', [
+      ...this.filtered_measures.filter(m => m.enabled).map(m => m.name),
+      ...(this.showImage ? ['image'] : []),
+      ...(this.showLogs ? ['logs'] : []),
+    ].join(','));
+    if (this.isMeasureEnabled('vpd')) {
+      params.set('vpdMode', this.vpdMode);
+    }
+    params.set('useCustom', this.useCustom?.toString() ?? 'false');
+    params.set('timespan', this.selectedTimespan?.name ?? '');
+    params.set('interval', this.selectedInterval ?? '');
+    if (this.showLogs && this.selectedLogCategories.length > 0) {
+      params.set('logs', this.selectedLogCategories.join(','));
+    }
+    return params.toString();
+  }
+
+  public async saveCurrentViewAsPreset() {
+    const alert = await this.alertController.create({
+      header: this.translate.instant('chartPresets.saveTitle'),
+      inputs: [{ name: 'name', type: 'text', placeholder: this.translate.instant('chartPresets.namePlaceholder') }],
+      buttons: [
+        { text: this.translate.instant('chartPresets.cancel'), role: 'cancel' },
+        {
+          text: this.translate.instant('chartPresets.save'),
+          handler: async (data: { name: string }) => {
+            const name = data?.name?.trim();
+            if (!name) {
+              return false;
+            }
+            try {
+              await this.chartPresets.create(name, this.buildPresetQuery(), this.device_type);
+              await this.loadUserPresets();
+            } catch (error) {
+              console.log('Failed saving chart preset:', error);
+              const toast = await this.toastController.create({
+                message: this.translate.instant('chartPresets.saveFailed'),
+                duration: 4000,
+                color: 'danger',
+              });
+              await toast.present();
+            }
+            return true;
+          },
+        },
+      ],
+    });
+    await alert.present();
+  }
+
+  public async deleteUserPreset(preset: ChartPreset, event: Event) {
+    event.stopPropagation();
+    const alert = await this.alertController.create({
+      header: this.translate.instant('chartPresets.deleteTitle'),
+      message: preset.name,
+      buttons: [
+        { text: this.translate.instant('chartPresets.cancel'), role: 'cancel' },
+        {
+          text: this.translate.instant('chartPresets.delete'),
+          role: 'destructive',
+          handler: async () => {
+            try {
+              await this.chartPresets.remove(preset.preset_id);
+              this.userPresets = this.userPresets.filter(existing => existing.preset_id !== preset.preset_id);
+            } catch (error) {
+              console.log('Failed deleting chart preset:', error);
+            }
+          },
+        },
+      ],
+    });
+    await alert.present();
   }
 
   public prevOffset() {

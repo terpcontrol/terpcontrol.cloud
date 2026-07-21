@@ -23,6 +23,22 @@
     <button [class.active]="m.enabled" (click)="toggleMeasure(m)" *ngFor="let m of measures">{{m.name}}</button>
   </div> -->
 
+  <div class="preset-bar" *ngIf="showPresetBar">
+    <ion-chip *ngFor="let preset of curatedPresets" (click)="applyCuratedPreset(preset)" class="preset-chip">
+      <ion-icon [name]="preset.icon"></ion-icon>
+      <ion-label>{{ 'chartPresets.curated.' + preset.id | translate }}</ion-label>
+    </ion-chip>
+    <ion-chip *ngFor="let preset of userPresets" (click)="applyUserPreset(preset)" class="preset-chip preset-chip--user">
+      <ion-icon name="bookmark-outline"></ion-icon>
+      <ion-label>{{ preset.name }}</ion-label>
+      <ion-icon name="close-circle" (click)="deleteUserPreset(preset, $event)"></ion-icon>
+    </ion-chip>
+    <ion-chip (click)="saveCurrentViewAsPreset()" class="preset-chip preset-chip--save">
+      <ion-icon name="add-outline"></ion-icon>
+      <ion-label>{{ 'chartPresets.saveView' | translate }}</ion-label>
+    </ion-chip>
+  </div>
+
   <ion-row *ngIf="!locked">
     <ng-container *ngFor="let m of filtered_measures">
       <ion-col [class]="'onoff ' + m.name" style="cursor: pointer;" [class.on]="m.enabled" (click)="toggleMeasure(m)">
@@ -95,7 +111,7 @@
         </ion-item>
       </ion-col>
 
-      <ion-col [hidden]="!isMeasureEnabled('vpd') || !['fridge', 'fridge2', 'light'].includes(device_type)">
+      <ion-col [hidden]="!isMeasureEnabled('vpd') || !['fridge', 'fridge2', 'light', 'controller'].includes(device_type)">
         <ion-item lines="none">
           <ion-label>{{ 'charts.vpd-mode-label' | translate }}</ion-label>
           <ion-select

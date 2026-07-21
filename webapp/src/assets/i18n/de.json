@@ -351,6 +351,23 @@
       }
     }
   },
+  "chartPresets": {
+    "curated": {
+      "climate": "Klima-Check",
+      "vpd": "VPD-Analyse",
+      "co2": "CO₂-Check",
+      "light": "Licht & Blattdach",
+      "drying": "Trocknung"
+    },
+    "saveView": "Ansicht speichern",
+    "saveTitle": "Diese Ansicht als Preset speichern",
+    "namePlaceholder": "Name des Presets",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "deleteTitle": "Dieses Preset löschen?",
+    "saveFailed": "Das Preset konnte nicht gespeichert werden."
+  },
   "wizard": {
     "title": "Einrichtungsassistent",
     "back": "Zurück",
