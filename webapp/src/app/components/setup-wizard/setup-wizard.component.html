@@ -52,23 +52,6 @@
       </div>
     </section>
 
-    <section *ngSwitchCase="'co2'">
-      <h2>{{ 'wizard.co2.title' | translate }}</h2>
-      <p class="wizard-sub">{{ 'wizard.co2.text' | translate }}</p>
-      <div class="wizard-options">
-        <div class="tc-preset-card" [class.active]="!hasCo2" (click)="hasCo2 = false">
-          <ion-icon name="close-circle-outline"></ion-icon>
-          <span class="tc-preset-card__title">{{ 'wizard.co2.no' | translate }}</span>
-          <span class="tc-preset-card__subtitle">{{ 'wizard.co2.noText' | translate }}</span>
-        </div>
-        <div class="tc-preset-card" [class.active]="hasCo2" (click)="hasCo2 = true">
-          <ion-icon name="cloud-outline"></ion-icon>
-          <span class="tc-preset-card__title">{{ 'wizard.co2.yes' | translate }}</span>
-          <span class="tc-preset-card__subtitle">{{ 'wizard.co2.yesText' | translate }}</span>
-        </div>
-      </div>
-    </section>
-
     <section *ngSwitchCase="'stage'">
       <h2>{{ 'wizard.stage.title' | translate }}</h2>
       <p class="wizard-sub">{{ 'wizard.stage.text' | translate }}</p>
@@ -141,10 +124,8 @@
             <p>{{ (isMonitor ? 'wizard.done.step3Monitor' : 'wizard.done.step3') | translate }}</p>
           </div>
         </div>
-        <ion-button color="secondary" [routerLink]="['/device', device.device_id, 'charts']" (click)="close()">
-          {{ 'devices.button-charts' | translate }}
-        </ion-button>
-        <ion-button fill="outline" color="primary" (click)="close()">{{ 'wizard.done.close' | translate }}</ion-button>
+        <p class="wizard-aux-hint" *ngIf="isController && !isMonitor">{{ 'wizard.done.auxHint' | translate }}</p>
+        <ion-button color="secondary" (click)="close()">{{ 'wizard.done.close' | translate }}</ion-button>
       </div>
     </section>
 

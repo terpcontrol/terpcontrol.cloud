@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { calculateVpd } from 'src/app/util/calculateVpd';
-import { applyStagePreset, detectActiveStagePreset, GrowStagePresetId } from 'src/app/util/grow-presets';
+import { applyStagePreset, detectActiveStagePreset, deviceHasCo2, GrowStagePresetId } from 'src/app/util/grow-presets';
 
 /**
  * Novice-friendly settings for fridge/controller devices: grow-stage presets
@@ -19,6 +19,7 @@ export class FridgeSimpleSettingsComponent {
   @Input() recipe: any = null;
   @Input() cloudSettings: any = {};
   @Input() deviceType = '';
+  @Input() hardwareInfo: Record<string, string> | undefined;
   @Output() stopPlanRequested = new EventEmitter<void>();
   @Output() confirmStepRequested = new EventEmitter<void>();
   @Output() startPlanRequested = new EventEmitter<void>();
@@ -79,7 +80,10 @@ export class FridgeSimpleSettingsComponent {
   }
 
   get hasCo2(): boolean {
-    return ['exp', 'full', 'small', 'temp'].includes(this.workmode);
+    return (
+      ['exp', 'full', 'small', 'temp'].includes(this.workmode) &&
+      deviceHasCo2({ device_type: this.deviceType, hardwareInfo: this.hardwareInfo })
+    );
   }
 
   get isOff(): boolean {
@@ -108,8 +112,8 @@ export class FridgeSimpleSettingsComponent {
       return;
     }
 
-    // Preserve an enriched CO2 setup when switching stages.
-    const hasCo2 = Number(this.target?.co2?.target) > 500;
+    // CO2 enrichment follows the hardware, same as the setup wizard.
+    const hasCo2 = deviceHasCo2({ device_type: this.deviceType, hardwareInfo: this.hardwareInfo });
     const updated = applyStagePreset(this.target, id, { hasCo2 });
 
     if (this.activeStep) {

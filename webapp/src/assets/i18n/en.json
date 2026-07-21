@@ -275,7 +275,7 @@
       "name": "Vegetative"
     },
     "flowering": {
-      "name": "Flowering"
+      "name": "Early flowering"
     },
     "late_flowering": {
       "name": "Late flowering"
@@ -290,7 +290,7 @@
     "stages": {
       "seedling": "Seedling",
       "vegetative": "Vegetative",
-      "flowering": "Flowering",
+      "flowering": "Early flowering",
       "lateFlowering": "Late flowering",
       "drying": "Drying"
     },
@@ -392,14 +392,6 @@
       "monitor": "Monitoring only",
       "monitorText": "Nothing is switched — sensors, charts, diary and alarms."
     },
-    "co2": {
-      "title": "Do you add CO2?",
-      "text": "With a CO2 bottle and valve, the targets are raised for faster growth. Without one, the CO2 target stays at the ambient level so no valve ever opens.",
-      "no": "No CO2 setup",
-      "noText": "Target stays at ambient level (400 ppm).",
-      "yes": "CO2 setup available",
-      "yesText": "Stage targets up to 1000 ppm."
-    },
     "stage": {
       "title": "Where is your grow right now?",
       "text": "We fill in proven target values for this stage — you can fine-tune everything later."
@@ -427,7 +419,8 @@
       "step2": "Targets set for your stage",
       "step3": "Regulation runs automatically",
       "step3Monitor": "Monitoring and alarms are active",
-      "close": "Done"
+      "close": "Done",
+      "auxHint": "You can connect your webcam and Smart Sockets anytime in the device settings under \"Connected devices\"."
     }
   },
   "onboarding": {

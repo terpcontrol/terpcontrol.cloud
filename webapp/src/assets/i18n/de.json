@@ -275,7 +275,7 @@
       "name": "Wachstum"
     },
     "flowering": {
-      "name": "Blüte"
+      "name": "Frühe Blüte"
     },
     "late_flowering": {
       "name": "Späte Blüte"
@@ -290,7 +290,7 @@
     "stages": {
       "seedling": "Sämling",
       "vegetative": "Wachstum",
-      "flowering": "Blüte",
+      "flowering": "Frühe Blüte",
       "lateFlowering": "Späte Blüte",
       "drying": "Trocknung"
     },
@@ -392,14 +392,6 @@
       "monitor": "Nur überwachen",
       "monitorText": "Es wird nichts geschaltet — Sensoren, Charts, Tagebuch und Alarme."
     },
-    "co2": {
-      "title": "Begasst du mit CO₂?",
-      "text": "Mit CO₂-Flasche und Ventil werden die Zielwerte für schnelleres Wachstum angehoben. Ohne bleibt das CO₂-Ziel auf Umgebungsniveau, damit nie ein Ventil öffnet.",
-      "no": "Kein CO₂-Setup",
-      "noText": "Ziel bleibt auf Umgebungsniveau (400 ppm).",
-      "yes": "CO₂-Setup vorhanden",
-      "yesText": "Phasen-Ziele bis 1000 ppm."
-    },
     "stage": {
       "title": "Wo steht dein Grow gerade?",
       "text": "Wir tragen bewährte Zielwerte für diese Phase ein — feinjustieren kannst du später alles."
@@ -427,7 +419,8 @@
       "step2": "Zielwerte für deine Phase gesetzt",
       "step3": "Regelung läuft automatisch",
       "step3Monitor": "Überwachung und Alarme sind aktiv",
-      "close": "Fertig"
+      "close": "Fertig",
+      "auxHint": "Webcam und Smart Sockets verbindest du jederzeit in den Geräte-Einstellungen unter „Angeschlossene Geräte“."
     }
   },
   "onboarding": {

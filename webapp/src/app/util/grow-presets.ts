@@ -79,7 +79,7 @@ export const GROW_STAGE_PRESETS: GrowStagePreset[] = [
   {
     id: 'late_flowering',
     stage: 'flowering',
-    icon: 'assets/icon/presets/flower.svg',
+    icon: 'assets/icon/presets/flower-late.svg',
     workmode: 'small',
     dayTemperature: 24,
     nightTemperature: 18,
@@ -90,7 +90,7 @@ export const GROW_STAGE_PRESETS: GrowStagePreset[] = [
     co2Enriched: 400,
     co2Ambient: 400,
     vpdRange: [1.3, 1.6],
-    showInPicker: false,
+    showInPicker: true,
   },
   {
     id: 'drying',
@@ -116,6 +116,21 @@ export function getStagePreset(id: GrowStagePresetId): GrowStagePreset {
     throw new Error(`Unknown grow stage preset: ${id}`);
   }
   return preset;
+}
+
+/**
+ * Whether the device has a CO2 sensor: controllers report it via hardware-info
+ * ('off' when the SCD4x is absent), fridges have it built in. Nothing is asked
+ * of the user anymore.
+ */
+export function deviceHasCo2(device: { device_type?: string; hardwareInfo?: Record<string, string> } | null | undefined): boolean {
+  if (!device) {
+    return true;
+  }
+  if (device.device_type === 'controller') {
+    return device.hardwareInfo?.['co2'] !== 'off';
+  }
+  return true;
 }
 
 const TEMPERATURE_TOLERANCE = 0.5;

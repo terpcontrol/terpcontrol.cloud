@@ -2,16 +2,16 @@ import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { ControlProfile } from '@fg2/shared-types';
 import { AuthService } from 'src/app/auth/auth.service';
-import { DataService } from 'src/app/services/data.service';
 import { DeviceService, DeviceWithParsedSettings } from 'src/app/services/devices.service';
 import {
   applyStagePreset,
   buildRecipeFromTemplate,
+  deviceHasCo2,
   GROW_PLAN_TEMPLATES,
   GrowStagePresetId,
 } from 'src/app/util/grow-presets';
 
-type WizardStep = 'name' | 'connections' | 'co2' | 'stage' | 'plan' | 'done';
+type WizardStep = 'name' | 'connections' | 'stage' | 'plan' | 'done';
 
 const CLIMATE_DEVICE_TYPES = ['fridge', 'fridge2', 'controller'];
 
@@ -26,11 +26,9 @@ export class SetupWizardComponent implements OnInit {
   @Input() startAt?: 'stage';
   @Output() closed = new EventEmitter<void>();
 
-  public steps: WizardStep[] = [];
   public stepIndex = 0;
   public deviceName = '';
   public controlProfile: ControlProfile = 'full';
-  public hasCo2 = false;
   public selectedStage: GrowStagePresetId | 'custom' | null = null;
   public planChoice: 'targets' | 'photoperiod' | 'autoflower' = 'targets';
   public durations: number[] = [];
@@ -41,13 +39,33 @@ export class SetupWizardComponent implements OnInit {
 
   constructor(
     private devices: DeviceService,
-    private data: DataService,
     private auth: AuthService,
     private translate: TranslateService,
   ) {}
 
   get step(): WizardStep {
     return this.steps[this.stepIndex];
+  }
+
+  /**
+   * The step sequence adapts live to the chosen control profile: a
+   * monitoring-only controller is not asked for a grow stage or plan — unless
+   * the wizard was explicitly opened to start a plan (startAt 'stage').
+   */
+  get steps(): WizardStep[] {
+    if (!this.isClimateDevice) {
+      return ['name', 'done'];
+    }
+    const head: WizardStep[] = this.isController ? ['name', 'connections'] : ['name'];
+    if (this.isMonitor && this.startAt !== 'stage') {
+      return [...head, 'done'];
+    }
+    return [...head, 'stage', 'plan', 'done'];
+  }
+
+  /** CO2 presence comes from the hardware, not from a wizard question. */
+  get hasCo2(): boolean {
+    return this.isClimateDevice && deviceHasCo2(this.device);
   }
 
   get isClimateDevice(): boolean {
@@ -74,24 +92,8 @@ export class SetupWizardComponent implements OnInit {
     this.deviceName = this.device?.name ?? '';
     this.controlProfile = this.device?.cloudSettings?.controlProfile ?? 'full';
 
-    if (this.isClimateDevice) {
-      this.steps = ['name', ...(this.isController ? (['connections'] as WizardStep[]) : []), 'co2', 'stage', 'plan', 'done'];
-    } else {
-      this.steps = ['name', 'done'];
-    }
-
     if (this.startAt === 'stage' && this.isClimateDevice) {
       this.stepIndex = this.steps.indexOf('stage');
-    }
-
-    void this.prefillCo2();
-  }
-
-  /** A CO2 sensor reports plausible ppm; without one the controller reports -1 or nothing. */
-  private async prefillCo2() {
-    const co2 = await this.data.latest(this.device.device_id, 'co2');
-    if (co2 !== null && co2 > 0) {
-      this.hasCo2 = true;
     }
   }
 
