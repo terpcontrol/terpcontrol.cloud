@@ -35,5 +35,8 @@ export class SettingsPage implements OnInit {
       this.hardwareInfo = device?.hardwareInfo;
       this.lastseen = device?.lastseen;
     })
+    // The devices snapshot can be as old as the app session — refresh it so
+    // lastseen and hardwareInfo (sockets, webcam) are current on this page.
+    void this.devices.refetchDevices();
   }
 }

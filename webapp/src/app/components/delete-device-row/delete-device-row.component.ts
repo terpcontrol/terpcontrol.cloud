@@ -18,6 +18,11 @@ import { DeviceService } from 'src/app/services/devices.service';
   `,
   styles: [
     `
+      :host {
+        display: block;
+        text-align: center;
+      }
+
       .delete-device-button {
         margin: 18px 0 8px;
         opacity: 0.9;

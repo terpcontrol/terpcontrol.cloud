@@ -30,6 +30,7 @@ export class FridgeSimpleSettingsComponent {
   @Output() stopPlanRequested = new EventEmitter<void>();
   @Output() confirmStepRequested = new EventEmitter<void>();
   @Output() startPlanRequested = new EventEmitter<void>();
+  @Output() skipStepRequested = new EventEmitter<void>();
 
   public lightDurations = [12, 14, 16, 18, 20];
   public baseLightStartOptions = Array.from({ length: 24 }, (_, hour) => `${hour.toString().padStart(2, '0')}:00`);
@@ -126,29 +127,27 @@ export class FridgeSimpleSettingsComponent {
     this.editingDurationIndex = this.editingDurationIndex === index ? null : index;
   }
 
-  adjustStepDuration(step: any, delta: number) {
-    step.duration = Math.min(99, Math.max(1, Math.round((Number(step.duration) || 1) + delta)));
+  adjustStepDuration(step: any, delta: number, min = 1) {
+    step.duration = Math.max(min, Math.min(99, Math.round((Number(step.duration) || 1) + delta)));
   }
 
-  private durationToMs(step: any): number {
-    const value = Number(step?.duration) || 0;
-    switch (step?.durationUnit) {
-      case 'minutes':
-        return value * 60_000;
-      case 'hours':
-        return value * 3_600_000;
-      case 'weeks':
-        return value * 7 * 86_400_000;
-      default:
-        return value * 86_400_000;
+  /**
+   * The running phase can only be shortened down to the day (unit) currently
+   * in progress — ending it immediately is the explicit skip button's job.
+   */
+  get activeStepMinDuration(): number {
+    if (!this.planRunning || !this.activeStep) {
+      return 1;
     }
+    const elapsed = Date.now() - this.recipe.activeSince;
+    return Math.max(1, Math.floor(elapsed / this.durationUnitMs(this.activeStep)) + 1);
   }
 
   /** Estimated start of an upcoming step (confirmation waits can delay it). */
   stepStartEta(index: number): number {
     let eta = Number(this.recipe?.activeSince) || Date.now();
     for (let i = this.recipe.activeStepIndex ?? 0; i < index; i++) {
-      eta += this.durationToMs(this.recipe.steps[i]);
+      eta += this.stepDurationMs(this.recipe.steps[i]);
     }
     return eta;
   }
@@ -274,9 +273,23 @@ export class FridgeSimpleSettingsComponent {
     }
   }
 
+  // Missing/unknown durationUnit counts as minutes, matching the parent
+  // settings component (and the server's recipe engine).
+  private durationUnitMs(step: any): number {
+    switch (step?.durationUnit) {
+      case 'weeks':
+        return 7 * 86_400_000;
+      case 'days':
+        return 86_400_000;
+      case 'hours':
+        return 3_600_000;
+      default:
+        return 60_000;
+    }
+  }
+
   private stepDurationMs(step: any): number {
-    const unitMinutes = step?.durationUnit === 'weeks' ? 7 * 24 * 60 : step?.durationUnit === 'days' ? 24 * 60 : step?.durationUnit === 'hours' ? 60 : 1;
-    return (Number(step?.duration) || 0) * unitMinutes * 60 * 1000;
+    return (Number(step?.duration) || 0) * this.durationUnitMs(step);
   }
 
   get dayInStage(): number {

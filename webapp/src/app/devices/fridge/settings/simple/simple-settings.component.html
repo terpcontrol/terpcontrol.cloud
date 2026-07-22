@@ -16,6 +16,15 @@
   <ion-card-content>
     <p class="plan-day">{{ 'simpleSettings.plan.dayOf' | translate: { day: dayInStage, total: stageDurationDays } }}</p>
     <ion-progress-bar [value]="stageProgress" color="secondary"></ion-progress-bar>
+
+    <div class="plan-current-duration" *ngIf="activeStep">
+      <span class="plan-current-duration-label">{{ 'simpleSettings.plan.currentDuration' | translate }}</span>
+      <ng-container
+        [ngTemplateOutlet]="durationEditor"
+        [ngTemplateOutletContext]="{ step: activeStep, index: recipe.activeStepIndex, min: activeStepMinDuration, name: ('simpleSettings.plan.currentDuration' | translate) }"
+      ></ng-container>
+    </div>
+
     <p class="plan-next" *ngIf="nextStep">{{ 'simpleSettings.plan.next' | translate: { name: nextStep.name } }}</p>
 
     <div class="plan-upcoming" *ngIf="upcomingSteps.length > 0">
@@ -28,35 +37,10 @@
             {{ 'simpleSettings.plan.upcomingFrom' | translate: { date: (stepStartEta(item.index) | date: 'mediumDate') } }}
           </span>
         </div>
-        <ion-button
-          *ngIf="editingDurationIndex === item.index"
-          size="small"
-          fill="clear"
-          (click)="adjustStepDuration(item.step, -1)"
-          [attr.aria-label]="item.step.name + ': ' + ('misc.decrease' | translate)"
-        >
-          <ion-icon slot="icon-only" name="remove-outline" aria-hidden="true"></ion-icon>
-        </ion-button>
-        <button
-          type="button"
-          class="field-value"
-          [class.editing]="editingDurationIndex === item.index"
-          (click)="toggleDurationEdit(item.index)"
-          [attr.aria-expanded]="editingDurationIndex === item.index"
-          [attr.aria-label]="item.step.name + ': ' + item.step.duration + ' ' + ('devices.fridge.recipe.step.durationUnit.' + (item.step.durationUnit || 'days') | translate) + '. ' + ('settings.edit-value' | translate)"
-        >
-          {{ item.step.duration }} {{ 'devices.fridge.recipe.step.durationUnit.' + (item.step.durationUnit || 'days') | translate }}
-          <ion-icon name="create-outline" aria-hidden="true"></ion-icon>
-        </button>
-        <ion-button
-          *ngIf="editingDurationIndex === item.index"
-          size="small"
-          fill="clear"
-          (click)="adjustStepDuration(item.step, 1)"
-          [attr.aria-label]="item.step.name + ': ' + ('misc.increase' | translate)"
-        >
-          <ion-icon slot="icon-only" name="add-outline" aria-hidden="true"></ion-icon>
-        </ion-button>
+        <ng-container
+          [ngTemplateOutlet]="durationEditor"
+          [ngTemplateOutletContext]="{ step: item.step, index: item.index, min: 1, name: item.step.name || '' }"
+        ></ng-container>
       </div>
       <p class="plan-upcoming-hint">{{ 'simpleSettings.plan.upcomingHint' | translate }}</p>
     </div>
@@ -70,11 +54,49 @@
     </ion-button>
 
     <p class="plan-hint">{{ 'simpleSettings.plan.editHint' | translate }}</p>
-    <ion-button size="small" fill="outline" color="danger" (click)="stopPlanRequested.emit()">
-      {{ 'simpleSettings.plan.stop' | translate }}
-    </ion-button>
+    <div class="plan-actions">
+      <ion-button *ngIf="!waitingForConfirmation" size="small" fill="outline" class="plan-skip" (click)="skipStepRequested.emit()">
+        {{ 'simpleSettings.plan.skip' | translate }}
+      </ion-button>
+      <ion-button size="small" fill="outline" color="danger" (click)="stopPlanRequested.emit()">
+        {{ 'simpleSettings.plan.stop' | translate }}
+      </ion-button>
+    </div>
   </ion-card-content>
 </ion-card>
+
+<!-- Duration pill + steppers, shared by the current phase and upcoming steps. -->
+<ng-template #durationEditor let-step="step" let-index="index" let-min="min" let-name="name">
+  <ion-button
+    *ngIf="editingDurationIndex === index"
+    size="small"
+    fill="clear"
+    (click)="adjustStepDuration(step, -1, min)"
+    [attr.aria-label]="name + ': ' + ('misc.decrease' | translate)"
+  >
+    <ion-icon slot="icon-only" name="remove-outline" aria-hidden="true"></ion-icon>
+  </ion-button>
+  <button
+    type="button"
+    class="field-value"
+    [class.editing]="editingDurationIndex === index"
+    (click)="toggleDurationEdit(index)"
+    [attr.aria-expanded]="editingDurationIndex === index"
+    [attr.aria-label]="name + ': ' + step.duration + ' ' + ('devices.fridge.recipe.step.durationUnit.' + (step.durationUnit || 'days') | translate) + '. ' + ('settings.edit-value' | translate)"
+  >
+    {{ step.duration }} {{ 'devices.fridge.recipe.step.durationUnit.' + (step.durationUnit || 'days') | translate }}
+    <ion-icon name="create-outline" aria-hidden="true"></ion-icon>
+  </button>
+  <ion-button
+    *ngIf="editingDurationIndex === index"
+    size="small"
+    fill="clear"
+    (click)="adjustStepDuration(step, 1, min)"
+    [attr.aria-label]="name + ': ' + ('misc.increase' | translate)"
+  >
+    <ion-icon slot="icon-only" name="add-outline" aria-hidden="true"></ion-icon>
+  </ion-button>
+</ng-template>
 
 <!-- No plan: stage presets -->
 <ion-card *ngIf="!planRunning">

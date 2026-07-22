@@ -27,7 +27,7 @@
         size="small"
         fill="clear"
         (click)="testSocket(role)"
-        [disabled]="deviceOffline || testedRoles.has(role)"
+        [disabled]="testedRoles.has(role)"
         [title]="'auxDevices.sockets.test' | translate"
       >
         <ion-icon slot="icon-only" [name]="testedRoles.has(role) ? 'hourglass-outline' : 'flash-outline'"></ion-icon>
@@ -36,7 +36,6 @@
         size="small"
         fill="clear"
         (click)="startEditSocket(role)"
-        [disabled]="deviceOffline"
         [color]="editingRole === role ? 'secondary' : undefined"
         [title]="'auxDevices.sockets.edit' | translate"
       >
@@ -47,7 +46,7 @@
         fill="clear"
         color="danger"
         (click)="removeSocket(role)"
-        [disabled]="deviceOffline || pendingRoles.has(role)"
+        [disabled]="pendingRoles.has(role)"
         [title]="'auxDevices.sockets.remove' | translate"
       >
         <ion-spinner *ngIf="pendingRoles.has(role)" name="crescent"></ion-spinner>
@@ -73,7 +72,6 @@
     color="secondary"
     fill="outline"
     (click)="startAddSocket()"
-    [disabled]="deviceOffline"
   >
     <ion-icon slot="start" name="add-outline"></ion-icon>
     {{ 'auxDevices.sockets.add' | translate }}

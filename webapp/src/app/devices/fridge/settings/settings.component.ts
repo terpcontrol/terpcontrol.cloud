@@ -114,6 +114,42 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
     this.settingsmode = 'manual';
   }
 
+  /** Simple mode: end the running phase now — confirm, then advance like a step confirmation. */
+  async onSkipStepRequested() {
+    const steps = this.recipe?.steps ?? [];
+    const hasNext = this.recipe.activeStepIndex < steps.length - 1;
+    const next = hasNext ? steps[this.recipe.activeStepIndex + 1] : (this.recipe.loop ? steps[0] : null);
+    const nextName = next ? this.stepDisplayName(next) : '';
+    const message = next
+      ? (nextName
+        ? this.translate.instant('simpleSettings.plan.skipConfirmNext', { name: nextName })
+        : this.translate.instant('simpleSettings.plan.skipConfirmNextGeneric'))
+      : this.translate.instant('simpleSettings.plan.skipConfirmEnd');
+
+    const alert = await this.alertController.create({
+      header: this.translate.instant('simpleSettings.plan.skipConfirmTitle'),
+      message,
+      buttons: [
+        { text: this.translate.instant('misc.cancel'), role: 'cancel' },
+        { text: this.translate.instant('simpleSettings.plan.skipConfirmButton'), role: 'destructive' },
+      ],
+    });
+    await alert.present();
+    const { role } = await alert.onDidDismiss();
+    if (role === 'destructive') {
+      this.confirmCurrentStep();
+    }
+  }
+
+  /** Step name for dialogs — custom name first, else the translated stage. */
+  private stepDisplayName(step: any): string {
+    if (step?.name) {
+      return step.name;
+    }
+    const stages = ['seedling', 'vegetative', 'flowering', 'drying'];
+    return stages.includes(step?.stage) ? this.translate.instant('growPresets.stages.' + step.stage) : '';
+  }
+
   openPlanWizard() {
     this.deviceForWizard = this.devices.devices.getValue().find(device => device.device_id === this.device_id) ?? null;
     if (this.deviceForWizard) {
