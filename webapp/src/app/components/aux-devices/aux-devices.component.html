@@ -133,8 +133,8 @@
       </ng-container>
     </ng-container>
 
-    <!-- Smart sockets (controller only) -->
-    <ng-container *ngIf="isController">
+    <!-- Smart sockets (controller + fridge run the socket firmware) -->
+    <ng-container *ngIf="supportsSockets">
       <h3 class="aux-section-title aux-sockets-title">
         <ion-icon name="flash-outline"></ion-icon>
         {{ 'auxDevices.sockets.title' | translate }}

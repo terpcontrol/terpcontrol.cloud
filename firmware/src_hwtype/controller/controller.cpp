@@ -627,29 +627,8 @@ namespace fg {
         snprintf(buf, sizeof(buf), "message-maintenance-mode-activated-remote:%d", (int)roundf(durationMinutes));
         cloud.log(buf);
       }
-      else if(command["action"] && command["action"] == std::string("socket_remove")) {
-        const std::string role = command["role"] | "";
-        if(!wifiRemoveSmartSocket(role)) {
-          cloud.log(std::string("message-aux-command-failed:socket_remove:") + role, 1);
-        }
-      }
-      else if(command["action"] && command["action"] == std::string("socket_set")) {
-        const std::string role = command["role"] | "";
-        const std::string ip = command["ip"] | "";
-        const std::string user = command["user"] | "";
-        const std::string password = command["password"] | "";
-        if(!wifiSetSmartSocket(role, ip, user, password)) {
-          cloud.log(std::string("message-aux-command-failed:socket_set:") + role, 1);
-        }
-      }
-      else if(command["action"] && command["action"] == std::string("socket_test")) {
-        const std::string role = command["role"] | "";
-        if(!wifiTestSmartSocket(role)) {
-          cloud.log(std::string("message-smart-socket-cmd-failed:") + role + ":test", 1);
-        }
-        else {
-          cloud.log(std::string("message-smart-socket-tested:") + role, 0);
-        }
+      else if(wifiHandleAuxCommand(command, &cloud)) {
+        // Shared socket_remove / socket_set / socket_test handling.
       }
     });
 

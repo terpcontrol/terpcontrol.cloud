@@ -1660,6 +1660,46 @@ bool wifiTestSmartSocket(const std::string& role) {
   return on_ok && off_ok;
 }
 
+bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
+  if(!command["action"]) {
+    return false;
+  }
+
+  if(command["action"] == std::string("socket_remove")) {
+    const std::string role = command["role"] | "";
+    if(!wifiRemoveSmartSocket(role) && cloud) {
+      cloud->log(std::string("message-aux-command-failed:socket_remove:") + role, 1);
+    }
+    return true;
+  }
+
+  if(command["action"] == std::string("socket_set")) {
+    const std::string role = command["role"] | "";
+    const std::string ip = command["ip"] | "";
+    const std::string user = command["user"] | "";
+    const std::string password = command["password"] | "";
+    if(!wifiSetSmartSocket(role, ip, user, password) && cloud) {
+      cloud->log(std::string("message-aux-command-failed:socket_set:") + role, 1);
+    }
+    return true;
+  }
+
+  if(command["action"] == std::string("socket_test")) {
+    const std::string role = command["role"] | "";
+    if(!wifiTestSmartSocket(role)) {
+      if(cloud) {
+        cloud->log(std::string("message-smart-socket-cmd-failed:") + role + ":test", 1);
+      }
+    }
+    else if(cloud) {
+      cloud->log(std::string("message-smart-socket-tested:") + role, 0);
+    }
+    return true;
+  }
+
+  return false;
+}
+
 std::vector<std::string> getSocketRoleOptions() {
   const std::vector<std::string>& base_roles = getSocketRolesList();
 

@@ -131,7 +131,7 @@
             <p>{{ (isMonitor ? 'wizard.done.step3Monitor' : 'wizard.done.step3') | translate }}</p>
           </div>
         </div>
-        <p class="wizard-aux-hint" *ngIf="isController">{{ 'wizard.done.auxHint' | translate }}</p>
+        <p class="wizard-aux-hint" *ngIf="isClimateDevice">{{ 'wizard.done.auxHint' | translate }}</p>
         <ion-button color="secondary" (click)="close()">{{ 'wizard.done.close' | translate }}</ion-button>
       </div>
     </section>

@@ -23,9 +23,10 @@ const SOCKET_TEST_RESET_MS = 6000;
 
 /**
  * "Connected devices" card: one webcam (added via a model picker, then shown
- * as the single configured camera) and the smart sockets the controller
- * manages. Webcam fields follow the page's Save button; socket commands
- * (test / set / remove) go to the device immediately.
+ * as the single configured camera) and the smart sockets the device manages
+ * (controllers and fridges both run the socket firmware). Webcam fields
+ * follow the page's Save button; socket commands (test / set / remove) go to
+ * the device immediately.
  */
 @Component({
   selector: 'aux-devices',
@@ -87,6 +88,11 @@ export class AuxDevicesComponent implements OnChanges, OnDestroy {
 
   get isController(): boolean {
     return this.deviceType === 'controller';
+  }
+
+  /** Controllers AND fridges drive smart sockets (both run the socket firmware). */
+  get supportsSockets(): boolean {
+    return ['controller', 'fridge', 'fridge2'].includes(this.deviceType);
   }
 
   get hasWebcam(): boolean {

@@ -85,3 +85,9 @@ bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const st
 // Pulses a connected socket ON for ~2s and back OFF (blocking, watchdog-fed).
 // The control loop re-asserts the desired state within its resend window.
 bool wifiTestSmartSocket(const std::string& role);
+
+// Handles the cloud aux-device commands shared by all socket-capable
+// hwtypes (socket_remove / socket_set / socket_test). Returns true when the
+// command was one of these actions; hwtype-specific commands stay with the
+// caller.
+bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud);
