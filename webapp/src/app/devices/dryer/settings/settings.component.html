@@ -88,6 +88,7 @@
   <aux-devices [deviceId]="device_id" [deviceType]="'dryer'" [cloudSettings]="cloudSettings"></aux-devices>
 
   <cloud-settings [(cloudSettings)]="cloudSettings" [deviceId]="device_id" />
+  <delete-device-row [deviceId]="device_id"></delete-device-row>
 
   <alarms [(alarms)]="alarms" [availableSensorTypes]="['temperature', 'humidity', 'dehumidifier', 'heater']" [cloud_settings]="cloudSettings" />
 

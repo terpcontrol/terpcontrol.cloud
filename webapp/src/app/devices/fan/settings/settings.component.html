@@ -182,6 +182,7 @@
   <aux-devices [deviceId]="device_id" [deviceType]="'fan'" [cloudSettings]="cloudSettings"></aux-devices>
 
   <cloud-settings [(cloudSettings)]="cloudSettings" [deviceId]="device_id" />
+  <delete-device-row [deviceId]="device_id"></delete-device-row>
 
   <alarms [(alarms)]="alarms" [availableSensorTypes]="['temperature', 'humidity', 'fan']" [cloud_settings]="cloudSettings" />
 

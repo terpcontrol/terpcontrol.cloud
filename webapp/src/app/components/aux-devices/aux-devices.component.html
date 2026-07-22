@@ -34,9 +34,6 @@
           <span class="tc-preset-card__subtitle">{{ model.subtitleKey | translate }}</span>
         </div>
       </div>
-      <ion-button size="small" fill="clear" color="medium" (click)="cancelAddWebcam()">
-        {{ 'misc.cancel' | translate }}
-      </ion-button>
     </ng-container>
 
     <!-- Configured or being configured -->
@@ -137,6 +134,13 @@
         <span class="tc-field-hint">{{ 'auxDevices.webcam.savedNote' | translate }}</span>
       </ng-container>
     </ng-container>
+
+    <!-- Cancelling the add flow sits below the whole webcam section. -->
+    <div class="aux-webcam-cancel" *ngIf="addingWebcam">
+      <ion-button size="small" fill="clear" color="medium" (click)="cancelAddWebcam()">
+        {{ 'misc.cancel' | translate }}
+      </ion-button>
+    </div>
 
     <!-- Smart sockets (controller + fridge run the socket firmware) -->
     <ng-container *ngIf="supportsSockets">

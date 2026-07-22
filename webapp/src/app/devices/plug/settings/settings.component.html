@@ -612,6 +612,7 @@
   <aux-devices [deviceId]="device_id" [deviceType]="'plug'" [cloudSettings]="cloudSettings"></aux-devices>
 
   <cloud-settings [(cloudSettings)]="cloudSettings" [deviceId]="device_id" />
+  <delete-device-row [deviceId]="device_id"></delete-device-row>
 
   <alarms [(alarms)]="alarms" [availableSensorTypes]="['temperature', 'humidity', 'co2']" [cloud_settings]="cloudSettings" />
 

@@ -7,6 +7,7 @@ import { SetupWizardComponent } from './setup-wizard/setup-wizard.component';
 import { GrowAssistantCardComponent } from './grow-assistant/grow-assistant-card.component';
 import { AuxDevicesComponent } from './aux-devices/aux-devices.component';
 import { ValueEditRowComponent } from './value-edit-row/value-edit-row.component';
+import { DeleteDeviceRowComponent } from './delete-device-row/delete-device-row.component';
 import { RangeGuardDirective } from './range-guard.directive';
 import { IonicModule } from '@ionic/angular';
 import { PipesModule } from 'src/app/pipes/pipes.module';
@@ -21,6 +22,7 @@ import { TranslateModule } from '@ngx-translate/core';
     GrowAssistantCardComponent,
     AuxDevicesComponent,
     ValueEditRowComponent,
+    DeleteDeviceRowComponent,
     RangeGuardDirective,
   ],
   exports: [
@@ -30,6 +32,7 @@ import { TranslateModule } from '@ngx-translate/core';
     GrowAssistantCardComponent,
     AuxDevicesComponent,
     ValueEditRowComponent,
+    DeleteDeviceRowComponent,
     RangeGuardDirective,
   ],
   imports: [

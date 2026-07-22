@@ -306,17 +306,8 @@
     </ion-card-content>
   </ion-card>
 
-  <ion-button
-    *ngIf="uiMode === 'simple'"
-    class="simple-delete-button"
-    fill="clear"
-    size="small"
-    color="danger"
-    (click)="deleteDevice()"
-  >
-    <ion-icon slot="start" name="trash-outline"></ion-icon>
-    {{ 'settings.deleteDevice' | translate }}
-  </ion-button>
+  <!-- One shared delete action for both modes. -->
+  <delete-device-row [deviceId]="device_id"></delete-device-row>
 
   <ion-modal [isOpen]="planWizardOpen" (willDismiss)="onPlanWizardClosed()" [backdropDismiss]="false" class="wizard-modal">
     <ng-template>

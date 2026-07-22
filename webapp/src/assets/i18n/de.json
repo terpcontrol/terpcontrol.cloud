@@ -158,7 +158,6 @@
     "maintenanceWebcamOffHint": "Falls aktiviert, stoppt die Webcam automatisch die Aufnahme wenn das Gerät im Wartungsmodus ist oder der Modus des Geräts auf AUS steht.",
     "tunnelRtspStream": "Webcam Stream tunneln",
     "tunnelRtspStreamHint": "Falls aktiviert, wird der Webcam Stream durch das Modul getunnelt, was hilfreich sein kann wenn dein Modul hinter einem NAT oder einer Firewall ist.",
-    "dangerZone": "Gefahrenzone",
     "deleteDevice": "Gerät entfernen",
     "pleaseStart": "Bitte starte zuerst den Plan",
     "edit-value": "Wert ändern",

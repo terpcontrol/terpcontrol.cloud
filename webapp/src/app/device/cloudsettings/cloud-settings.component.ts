@@ -1,13 +1,12 @@
 import {Component, EventEmitter, Input, OnChanges, Output} from "@angular/core";
-import {AlertController, ToastController} from "@ionic/angular";
-import {TranslateService} from "@ngx-translate/core";
+import {ToastController} from "@ionic/angular";
 import {DeviceService} from "../../services/devices.service";
-import {Router} from "@angular/router";
 import {UserFirmwareInfo} from "@fg2/shared-types";
 
 /**
- * Cloud-side device settings (VPD offsets, firmware channel, danger zone).
- * The webcam lives in the shared <aux-devices> card on every settings page.
+ * Cloud-side device settings (VPD offsets, firmware channel). The webcam
+ * lives in the shared <aux-devices> card and device deletion in the shared
+ * <delete-device-row> on every settings page.
  */
 @Component({
   selector: 'cloud-settings',
@@ -32,9 +31,6 @@ export class CloudSettingsComponent implements OnChanges {
   constructor(
     private toastController: ToastController,
     private devices: DeviceService,
-    private router: Router,
-    private alertController: AlertController,
-    private translate: TranslateService,
   ) {}
 
   ngOnChanges() {
@@ -139,28 +135,4 @@ export class CloudSettingsComponent implements OnChanges {
     return channel === 'stable' || channel === 'beta' || channel === 'alpha' || channel === 'manual';
   }
 
-  async deleteDevice() {
-    if (!(await this.confirmDelete(this.translate.instant('settings.deleteDeviceConfirmText')))) {
-      return;
-    }
-    if (!(await this.confirmDelete(this.translate.instant('settings.deleteDeviceConfirmAgain')))) {
-      return;
-    }
-    await this.devices.unclaim(this.deviceId);
-    await this.router.navigateByUrl('/list', { replaceUrl: true });
-  }
-
-  private async confirmDelete(message: string): Promise<boolean> {
-    const alert = await this.alertController.create({
-      header: this.translate.instant('settings.deleteDeviceConfirmTitle'),
-      message,
-      buttons: [
-        { text: this.translate.instant('misc.cancel'), role: 'cancel' },
-        { text: this.translate.instant('settings.deleteDeviceConfirmButton'), role: 'destructive' },
-      ],
-    });
-    await alert.present();
-    const { role } = await alert.onDidDismiss();
-    return role === 'destructive';
-  }
 }

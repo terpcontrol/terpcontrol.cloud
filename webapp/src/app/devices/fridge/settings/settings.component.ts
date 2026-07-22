@@ -610,39 +610,6 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
     return this.recipe?.steps?.[this.recipe.activeStepIndex]?.stage ?? null;
   }
 
-  async deleteDevice() {
-    const confirmed = await this.presentDeleteConfirm(
-      this.translate.instant('settings.deleteDeviceConfirmTitle'),
-      this.translate.instant('settings.deleteDeviceConfirmText'),
-    );
-    if (!confirmed) {
-      return;
-    }
-    const reallyConfirmed = await this.presentDeleteConfirm(
-      this.translate.instant('settings.deleteDeviceConfirmTitle'),
-      this.translate.instant('settings.deleteDeviceConfirmAgain'),
-    );
-    if (!reallyConfirmed) {
-      return;
-    }
-
-    await this.devices.unclaim(this.device_id);
-    await this._router.navigateByUrl('/list', { replaceUrl: true });
-  }
-
-  private async presentDeleteConfirm(header: string, message: string): Promise<boolean> {
-    const alert = await this.alertController.create({
-      header,
-      message,
-      buttons: [
-        { text: this.translate.instant('misc.cancel'), role: 'cancel' },
-        { text: this.translate.instant('settings.deleteDeviceConfirmButton'), role: 'destructive' },
-      ],
-    });
-    await alert.present();
-    const { role } = await alert.onDidDismiss();
-    return role === 'destructive';
-  }
 }
 
 export const msToDuration = (milliSeconds: number): string => {

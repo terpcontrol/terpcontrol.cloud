@@ -159,7 +159,6 @@
     "maintenanceWebcamOffHint": "If enabled, the webcam will automatically stop capturing images when the device is in maintenance mode or the device's mode is set to OFF.",
     "tunnelRtspStream": "Tunnel webcam stream",
     "tunnelRtspStreamHint": "If enabled, the webcam stream will be tunneled through the module. This is helpful if your webcam is not directly reachable from the internet.",
-    "dangerZone": "Danger zone",
     "deleteDevice": "Remove device",
     "pleaseStart": "Please start the plan first",
     "deleteDeviceConfirmTitle": "Remove device?",
