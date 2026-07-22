@@ -1,17 +1,20 @@
-import {Component, EventEmitter, Input, OnChanges, OnDestroy, Output} from "@angular/core";
-import {DomSanitizer, SafeUrl} from "@angular/platform-browser";
+import {Component, EventEmitter, Input, OnChanges, Output} from "@angular/core";
 import {AlertController, ToastController} from "@ionic/angular";
 import {TranslateService} from "@ngx-translate/core";
 import {DeviceService} from "../../services/devices.service";
 import {Router} from "@angular/router";
 import {UserFirmwareInfo} from "@fg2/shared-types";
 
+/**
+ * Cloud-side device settings (VPD offsets, firmware channel, danger zone).
+ * The webcam lives in the shared <aux-devices> card on every settings page.
+ */
 @Component({
   selector: 'cloud-settings',
   templateUrl: './cloud-settings.component.html',
   styleUrls: ['./cloud-settings.component.scss'],
 })
-export class CloudSettingsComponent implements OnChanges, OnDestroy {
+export class CloudSettingsComponent implements OnChanges {
   @Input() cloudSettings: any;
 
   @Input() deviceId: string = '';
@@ -19,8 +22,6 @@ export class CloudSettingsComponent implements OnChanges, OnDestroy {
   @Input() deviceType: string = '';
 
   @Input() hardwareInfo: Record<string, string> | undefined;
-  /** Fridge/controller settings render the webcam in the aux-devices card instead. */
-  @Input() showWebcam = true;
 
   @Output() cloudSettingsChange = new EventEmitter<any>();
 
@@ -28,23 +29,13 @@ export class CloudSettingsComponent implements OnChanges, OnDestroy {
   private firmwaresLoadedForDeviceId: string | null = null;
   private duplicateVersions = new Set<string>();
 
-  public rtspStreamTestLoading = false;
-  public rtspStreamTestError: string | null = null;
-  public rtspStreamTestImageUrl: SafeUrl | null = null;
-  private rtspStreamTestObjectUrl: string | null = null;
-
   constructor(
     private toastController: ToastController,
     private devices: DeviceService,
     private router: Router,
-    private sanitizer: DomSanitizer,
     private alertController: AlertController,
     private translate: TranslateService,
   ) {}
-
-  ngOnDestroy() {
-    this.clearRtspStreamTestImage();
-  }
 
   ngOnChanges() {
     this.ensureDefaultFirmwareChannel();
@@ -146,54 +137,6 @@ export class CloudSettingsComponent implements OnChanges, OnDestroy {
 
   private isFirmwareChannel(channel: unknown) {
     return channel === 'stable' || channel === 'beta' || channel === 'alpha' || channel === 'manual';
-  }
-
-  async testRtspStream() {
-    const rtspStream = this.cloudSettings?.rtspStream?.trim();
-    if (!rtspStream || this.rtspStreamTestLoading) {
-      return;
-    }
-
-    this.rtspStreamTestLoading = true;
-    this.rtspStreamTestError = null;
-    this.clearRtspStreamTestImage();
-
-    try {
-      const image = await this.devices.testWebcamStream(this.deviceId, {
-        rtspStream,
-        rtspStreamTransport: this.cloudSettings?.rtspStreamTransport,
-        tunnelRtspStream: !!this.cloudSettings?.tunnelRtspStream,
-      });
-      this.rtspStreamTestObjectUrl = URL.createObjectURL(image);
-      this.rtspStreamTestImageUrl = this.sanitizer.bypassSecurityTrustUrl(this.rtspStreamTestObjectUrl);
-    } catch (e) {
-      this.rtspStreamTestError = await this.extractRtspStreamTestError(e);
-    } finally {
-      this.rtspStreamTestLoading = false;
-    }
-  }
-
-  private async extractRtspStreamTestError(e: any): Promise<string> {
-    // Errors of the blob request arrive as a Blob containing the JSON error body.
-    if (e?.error instanceof Blob) {
-      try {
-        const message = JSON.parse(await e.error.text())?.message;
-        if (message) {
-          return String(message);
-        }
-      } catch {
-        // fall through to the generic message
-      }
-    }
-    return String(e?.message ?? e ?? 'unknown error');
-  }
-
-  private clearRtspStreamTestImage() {
-    if (this.rtspStreamTestObjectUrl) {
-      URL.revokeObjectURL(this.rtspStreamTestObjectUrl);
-      this.rtspStreamTestObjectUrl = null;
-    }
-    this.rtspStreamTestImageUrl = null;
   }
 
   async deleteDevice() {

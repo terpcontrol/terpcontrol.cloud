@@ -272,7 +272,7 @@
   ></aux-devices>
 
   <ng-container *ngIf="uiMode === 'expert'">
-    <cloud-settings [(cloudSettings)]="cloudSettings" [deviceId]="device_id" [deviceType]="deviceType" [hardwareInfo]="hardwareInfo" [showWebcam]="false" />
+    <cloud-settings [(cloudSettings)]="cloudSettings" [deviceId]="device_id" [deviceType]="deviceType" [hardwareInfo]="hardwareInfo" />
 
     <alarms [(alarms)]="alarms" [availableSensorTypes]="['temperature', 'humidity', 'co2', 'co2_valve', 'light', 'dehumidifier', 'heater']" [cloud_settings]="cloudSettings" [deviceType]="deviceType" [hasCo2]="deviceHasCo2Sensor" [stage]="activePlanStage" />
   </ng-container>

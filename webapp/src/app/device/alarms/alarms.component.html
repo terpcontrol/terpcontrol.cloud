@@ -4,31 +4,19 @@
   </ion-card-header>
   <ion-card-content>
     <ion-button color="primary" (click)="addAlarm()">{{'settings.alarms.add' | translate}}</ion-button>
-    <ion-button color="secondary" fill="outline" (click)="presetModalOpen = true" *ngIf="presets.length > 0">
+    <ion-button color="secondary" fill="outline" (click)="presetModalOpen = true">
       {{'settings.alarms.addFromTemplate' | translate}}
     </ion-button>
 
-    <ion-modal [isOpen]="presetModalOpen" (willDismiss)="presetModalOpen = false" class="alarm-preset-modal">
-      <ng-template>
-        <ion-header>
-          <ion-toolbar>
-            <ion-title>{{'settings.alarms.addFromTemplate' | translate}}</ion-title>
-            <ion-buttons slot="end">
-              <ion-button (click)="presetModalOpen = false">{{'misc.close' | translate}}</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
-        <ion-content class="ion-padding">
-          <div class="alarm-preset-grid">
-            <div class="tc-preset-card" *ngFor="let preset of presets" (click)="addFromPreset(preset)">
-              <ion-icon [name]="preset.icon"></ion-icon>
-              <span class="tc-preset-card__title">{{ presetName(preset) | translate }}</span>
-              <span class="tc-preset-card__subtitle">{{ 'alarmPresets.' + preset.id + '.description' | translate }}</span>
-            </div>
-          </div>
-        </ion-content>
-      </ng-template>
-    </ion-modal>
+    <alarm-add-modal
+      [isOpen]="presetModalOpen"
+      [deviceType]="deviceType"
+      [hasCo2]="hasCo2"
+      [stage]="stage"
+      [availableSensorTypes]="availableSensorTypes"
+      (closed)="presetModalOpen = false"
+      (created)="onPresetCreated($event)"
+    ></alarm-add-modal>
     <ion-card *ngFor="let alarm of alarms">
 
       <ion-card-content>

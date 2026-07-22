@@ -34,35 +34,3 @@
     margin: 0;
   }
 }
-
-.simple-alarm-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
-
-  ion-icon {
-    font-size: 26px;
-    color: var(--ion-color-primary);
-  }
-
-  &.channels {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    margin-bottom: 8px;
-  }
-}
-
-.modal-sub {
-  color: var(--ion-color-medium);
-  margin: 4px 0 12px;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 16px;
-}
-
-.simple-alarm-modal {
-  --width: min(560px, 96vw);
-  --height: min(620px, 92vh);
-}

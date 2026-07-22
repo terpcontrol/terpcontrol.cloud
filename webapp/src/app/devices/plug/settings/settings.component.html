@@ -609,6 +609,8 @@
     </ion-card-header>
   </ion-card>
 
+  <aux-devices [deviceId]="device_id" [deviceType]="'plug'" [cloudSettings]="cloudSettings"></aux-devices>
+
   <cloud-settings [(cloudSettings)]="cloudSettings" [deviceId]="device_id" />
 
   <alarms [(alarms)]="alarms" [availableSensorTypes]="['temperature', 'humidity', 'co2']" [cloud_settings]="cloudSettings" />

@@ -1,6 +1,5 @@
 import {Component, EventEmitter, Input, OnDestroy, OnInit, Output} from "@angular/core";
 import {TranslateService} from "@ngx-translate/core";
-import {AlarmPresetDef, availableAlarmPresets, buildAlarmFromPreset, presetNameKey} from "src/app/util/alarm-presets";
 import {detectWebhookTarget, getWebhookTarget, WEBHOOK_TARGETS, WebhookTargetId} from "src/app/util/webhook-targets";
 
 @Component({
@@ -23,12 +22,8 @@ export class AlarmsComponent {
 
   constructor(private translate: TranslateService) {}
 
-  get presets(): AlarmPresetDef[] {
-    return availableAlarmPresets({ hasCo2: this.hasCo2 }).filter(preset => this.availableSensorTypes.includes(preset.sensorType));
-  }
-
-  presetName(def: AlarmPresetDef): string {
-    return presetNameKey(def, this.deviceType);
+  onPresetCreated(alarm: Record<string, any>) {
+    this.alarmsChange.emit([alarm, ...(this.alarms || [])]);
   }
 
   addAlarm() {
@@ -44,16 +39,6 @@ export class AlarmsComponent {
       additionalInfo: true,
     };
     this.alarmsChange.emit([newAlarm, ...(this.alarms || [])]);
-  }
-
-  addFromPreset(def: AlarmPresetDef) {
-    const alarm = buildAlarmFromPreset(def, {
-      stage: this.stage,
-      deviceType: this.deviceType,
-      translate: key => this.translate.instant(key),
-    });
-    this.presetModalOpen = false;
-    this.alarmsChange.emit([alarm, ...(this.alarms || [])]);
   }
 
   /**

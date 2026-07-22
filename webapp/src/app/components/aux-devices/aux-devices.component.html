@@ -188,19 +188,7 @@
           </div>
 
           <div class="aux-socket-edit" *ngIf="editingRole === role">
-            <ion-item>
-              <ion-label position="floating">{{ 'auxDevices.sockets.ip' | translate }}</ion-label>
-              <ion-input [(ngModel)]="socketDraft.ip" placeholder="192.168.1.60" autocomplete="off"></ion-input>
-            </ion-item>
-            <ion-item>
-              <ion-label position="floating">{{ 'auxDevices.sockets.user' | translate }}</ion-label>
-              <ion-input [(ngModel)]="socketDraft.user" placeholder="admin" autocomplete="off"></ion-input>
-            </ion-item>
-            <ion-item>
-              <ion-label position="floating">{{ 'auxDevices.sockets.password' | translate }}</ion-label>
-              <ion-input type="password" [(ngModel)]="socketDraft.password" autocomplete="off"></ion-input>
-            </ion-item>
-            <span class="tc-field-hint">{{ 'auxDevices.sockets.editHint' | translate }}</span>
+            <ng-container *ngTemplateOutlet="socketCredentialFields"></ng-container>
             <div class="aux-socket-edit-actions">
               <ion-button size="small" fill="clear" color="medium" (click)="editingRole = null">{{ 'misc.cancel' | translate }}</ion-button>
               <ion-button size="small" color="secondary" (click)="applySocketDraft(role)" [disabled]="!socketDraftValid">
@@ -248,19 +236,7 @@
                 </ion-select-option>
               </ion-select>
             </ion-item>
-            <ion-item>
-              <ion-label position="floating">{{ 'auxDevices.sockets.ip' | translate }}</ion-label>
-              <ion-input [(ngModel)]="socketDraft.ip" placeholder="192.168.1.60" autocomplete="off"></ion-input>
-            </ion-item>
-            <ion-item>
-              <ion-label position="floating">{{ 'auxDevices.sockets.user' | translate }}</ion-label>
-              <ion-input [(ngModel)]="socketDraft.user" placeholder="admin" autocomplete="off"></ion-input>
-            </ion-item>
-            <ion-item>
-              <ion-label position="floating">{{ 'auxDevices.sockets.password' | translate }}</ion-label>
-              <ion-input type="password" [(ngModel)]="socketDraft.password" autocomplete="off"></ion-input>
-            </ion-item>
-            <span class="tc-field-hint">{{ 'auxDevices.sockets.editHint' | translate }}</span>
+            <ng-container *ngTemplateOutlet="socketCredentialFields"></ng-container>
           </div>
 
           <div class="aux-socket-edit-actions">
@@ -286,3 +262,20 @@
 
   </ion-card-content>
 </ion-card>
+
+<!-- Shared IP/credential fields for socket add + edit (bound to socketDraft). -->
+<ng-template #socketCredentialFields>
+  <ion-item>
+    <ion-label position="floating">{{ 'auxDevices.sockets.ip' | translate }}</ion-label>
+    <ion-input [(ngModel)]="socketDraft.ip" placeholder="192.168.1.60" autocomplete="off"></ion-input>
+  </ion-item>
+  <ion-item>
+    <ion-label position="floating">{{ 'auxDevices.sockets.user' | translate }}</ion-label>
+    <ion-input [(ngModel)]="socketDraft.user" placeholder="admin" autocomplete="off"></ion-input>
+  </ion-item>
+  <ion-item>
+    <ion-label position="floating">{{ 'auxDevices.sockets.password' | translate }}</ion-label>
+    <ion-input type="password" [(ngModel)]="socketDraft.password" autocomplete="off"></ion-input>
+  </ion-item>
+  <span class="tc-field-hint">{{ 'auxDevices.sockets.editHint' | translate }}</span>
+</ng-template>
