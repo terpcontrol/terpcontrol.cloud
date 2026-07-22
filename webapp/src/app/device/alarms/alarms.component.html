@@ -130,7 +130,7 @@
 
         <ng-container *ngIf="alarm.actionType === 'webhook'">
           <ion-item lines="none" *ngFor="let field of webhookTargetFields(alarm)">
-            <ion-label position="floating">{{ field.labelKey | translate }}</ion-label>
+            <ion-label position="floating" [color]="targetFieldMissing(alarm, field) ? 'danger' : ''">{{ field.labelKey | translate }}</ion-label>
             <ion-input
               [type]="field.type ?? 'text'"
               [placeholder]="field.placeholder ?? ''"
@@ -146,7 +146,7 @@
           </ion-item>
         </ng-container>
 
-        <ion-item lines="none" [hidden]="alarm.actionType !== 'webhook'">
+        <ion-item lines="none" class="alarm-raw-method" [hidden]="alarm.actionType !== 'webhook' || !isCustomWebhook(alarm)">
           <ion-label>
             {{ 'settings.alarms.webhookMethod' | translate }}
           </ion-label>
@@ -157,7 +157,7 @@
           </ion-select>
         </ion-item>
 
-        <ion-item lines="none" [hidden]="alarm.actionType === 'info'">
+        <ion-item lines="none" class="alarm-raw-target" [hidden]="alarm.actionType === 'info' || (alarm.actionType === 'webhook' && !isCustomWebhook(alarm))">
           <ion-label [color]="(!alarm.actionTarget && alarm.actionType !== 'info' && !alarm.disabled) ? 'danger' : ''">
             {{'settings.alarms.actionTarget' | translate}}
           </ion-label>
@@ -197,7 +197,7 @@
           </ion-popover>
         </ion-item>
 
-        <ion-item lines="none" [hidden]="alarm.actionType !== 'webhook'">
+        <ion-item lines="none" class="alarm-raw-headers" [hidden]="alarm.actionType !== 'webhook' || !isCustomWebhook(alarm)">
           <ion-label>
             {{ 'settings.alarms.webhookHeaders' | translate }}
           </ion-label>
@@ -213,7 +213,7 @@
           </ion-item>
         </ion-item>
 
-        <ion-item lines="none" [hidden]="alarm.actionType !== 'webhook'" *ngFor="let header of alarm.webhookHeaders | keyvalue; let index = index; trackBy: trackByMethod(alarm)">
+        <ion-item lines="none" [hidden]="alarm.actionType !== 'webhook' || !isCustomWebhook(alarm)" *ngFor="let header of alarm.webhookHeaders | keyvalue; let index = index; trackBy: trackByMethod(alarm)">
           <ion-item slot="end">
             <ion-label style="font-family: monospace">{{ header.key }}:</ion-label>
             <ion-input
@@ -227,7 +227,7 @@
           </ion-item>
         </ion-item>
 
-        <ion-item lines="none" [hidden]="alarm.actionType !== 'webhook' || alarm.webhookMethod === 'GET'">
+        <ion-item lines="none" class="alarm-raw-payload-triggered" [hidden]="alarm.actionType !== 'webhook' || alarm.webhookMethod === 'GET' || !isCustomWebhook(alarm)">
           <ion-label>
             {{'settings.alarms.webhookTriggeredPayload' | translate}}
           </ion-label>
@@ -250,7 +250,7 @@
           </ion-popover>
         </ion-item>
 
-        <ion-item lines="none" [hidden]="alarm.actionType !== 'webhook' || alarm.webhookMethod === 'GET'">
+        <ion-item lines="none" class="alarm-raw-payload-resolved" [hidden]="alarm.actionType !== 'webhook' || alarm.webhookMethod === 'GET' || !isCustomWebhook(alarm)">
           <ion-label>
             {{'settings.alarms.webhookResolvedPayload' | translate}}
           </ion-label>

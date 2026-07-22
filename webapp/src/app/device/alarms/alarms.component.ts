@@ -74,6 +74,20 @@ export class AlarmsComponent {
     return (getWebhookTarget(this.webhookTargetType(alarm))?.tunnel ?? 'optional') !== 'none';
   }
 
+  /**
+   * Raw webhook fields (URL, method, headers, payloads) only show for the
+   * custom target — the known services build all of that from their guided
+   * fields. Switching a service alarm to "custom" reveals its raw values.
+   */
+  isCustomWebhook(alarm: any): boolean {
+    return this.webhookTargetType(alarm) === 'custom';
+  }
+
+  /** Danger cue for a required guided field that is still empty. */
+  targetFieldMissing(alarm: any, field: { key: string; required?: boolean }): boolean {
+    return !!field.required && !(this.ensureTargetDraft(alarm)[field.key] ?? '').trim() && !alarm.disabled;
+  }
+
   applyWebhookTarget(alarm: any) {
     const def = getWebhookTarget(this.webhookTargetType(alarm));
     if (!def?.apply) {
