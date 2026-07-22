@@ -16,7 +16,10 @@
     "errorOccurred": "Fehler aufgetreten",
     "unableToSaveSettings": "Einstellungen konnten nicht gespeichert werden",
     "unableToLoadSettings": "Einstellungen konnten nicht geladen werden",
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "help": "Hilfe",
+    "increase": "erhöhen",
+    "decrease": "verringern"
   },
   "settings": {
     "title": "Einstellungen",
@@ -157,17 +160,13 @@
     "tunnelRtspStreamHint": "Falls aktiviert, wird der Webcam Stream durch das Modul getunnelt, was hilfreich sein kann wenn dein Modul hinter einem NAT oder einer Firewall ist.",
     "dangerZone": "Gefahrenzone",
     "deleteDevice": "Gerät entfernen",
-    "controlProfile": "Steuerungsprofil",
-    "controlProfile-full": "Lampe + Klima",
-    "controlProfile-light_only": "Nur die Lampe",
-    "controlProfile-monitor": "Nur überwachen",
-    "controlProfileHint": "Was dein Controller tatsächlich schaltet. Bei „Nur überwachen“ wird nichts geschaltet — Zielwerte dienen als Richtwerte, während Charts, Tagebuch und Alarme normal weiterlaufen. Du kannst das jederzeit ändern.",
     "pleaseStart": "Bitte starte zuerst den Plan",
     "edit-value": "Wert ändern",
     "deleteDeviceConfirmTitle": "Gerät entfernen?",
     "deleteDeviceConfirmText": "Das Gerät wird aus deinem Konto entfernt — es verschwindet aus der App, bis es erneut verbunden wird.",
     "deleteDeviceConfirmAgain": "Das Gerät jetzt wirklich entfernen?",
-    "deleteDeviceConfirmButton": "Entfernen"
+    "deleteDeviceConfirmButton": "Entfernen",
+    "forever": "unbegrenzt"
   },
   "menu": {
     "devices": "Geräte",
@@ -400,14 +399,15 @@
       "label": "Gerätename"
     },
     "connections": {
-      "title": "Was ist an deinem Controller angeschlossen?",
-      "text": "Du kannst das später jederzeit in den Einstellungen ändern.",
-      "full": "Lampe + Klima",
-      "fullText": "Smart Sockets oder Tasmota-Steckdosen regeln Heizung, Feuchte oder CO₂.",
-      "lightOnly": "Nur die Lampe",
-      "lightOnlyText": "Der Controller dimmt deine Lampe; Klimawerte werden nur überwacht.",
-      "monitor": "Nur überwachen",
-      "monitorText": "Es wird nichts geschaltet — Sensoren, Charts, Tagebuch und Alarme."
+      "title": "Was schaltet dein Controller?",
+      "text": "Dein Controller schaltet über gekoppelte Smart Sockets — die App erkennt automatisch, was verbunden ist. Koppeln kannst du direkt am Controller (Einstellungen → Smart Sockets).",
+      "connected": "Verbunden",
+      "noSockets": "Noch keine Steckdosen gekoppelt — es wird nur überwacht. Du kannst jederzeit welche am Controller koppeln, die App passt sich automatisch an.",
+      "unknown": "Dein Controller meldet den Steckdosen-Status erst nach einem Firmware-Update. Bis dahin zeigen wir alle Steuerungs-Optionen an.",
+      "detected-full": "Erkannt: Dein Controller regelt das Klima.",
+      "detected-light_only": "Erkannt: Dein Controller schaltet nur das Licht — Klimawerte werden überwacht und Zielwerte dienen als Richtwerte.",
+      "detected-monitor": "Erkannt: Nur Überwachung — es wird nichts geschaltet, Zielwerte dienen als Richtwerte.",
+      "refresh": "Neu prüfen"
     },
     "stage": {
       "title": "Wo steht dein Grow gerade?",
@@ -891,8 +891,8 @@
           "subtitle": "Unsere Kamera — verbindet sich über deinen Controller"
         },
         "tapo_c200": {
-          "name": "TP-Link Tapo C200",
-          "subtitle": "RTSP-Vorlage"
+          "name": "TP-Link Tapo",
+          "subtitle": "z. B. C100/C200/C210/C310 — RTSP-Vorlage"
         },
         "reolink": {
           "name": "Reolink",
@@ -921,7 +921,9 @@
       "add": "Webcam hinzufügen",
       "pickModel": "Welche Kamera hast du? (eine Webcam pro Gerät)",
       "fillPlaceholders": "Platzhalter ausfüllen",
-      "placeholderHint": "Ersetze <user>, <password> und <ip> in der URL durch die Werte deiner Kamera."
+      "placeholderHint": "Ersetze <user>, <password> und <ip> in der URL durch die Werte deiner Kamera.",
+      "customHint": "Format: rtsp://benutzer:passwort@ip-oder-hostname:554/pfad — den Stream-Pfad findest du im Handbuch deiner Kamera. Auch HTTP(S)-Snapshot- oder MJPEG-URLs funktionieren.",
+      "customHintTunnel": "Steht die Kamera bei deinem Gerät im selben Netzwerk, aktiviere „Webcam Stream tunneln“ und nutze ihre lokale IP."
     },
     "sockets": {
       "title": "Smart Sockets",
@@ -963,7 +965,8 @@
           "subtitle": "Beliebige Tasmota-Steckdose per IP",
           "hint": ""
         }
-      }
+      },
+      "reachabilityHint": "Geschaltet wird immer lokal vom Controller aus — die Steckdose muss nur für ihn erreichbar sein. Eine Freigabe ins Internet ist nicht nötig."
     }
   },
   "alarmPresets": {

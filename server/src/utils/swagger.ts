@@ -132,13 +132,6 @@ export function buildSwaggerSpec(serverUrl?: string): object {
               logRtspStreamErrors: { type: 'boolean' },
               tunnelRtspStream: { type: 'boolean' },
               maintenanceWebcamOff: { type: 'boolean' },
-              controlProfile: {
-                type: 'string',
-                enum: ['full', 'light_only', 'monitor'],
-                description:
-                  'What the device actually actuates, chosen by the user. Absent means full. ' +
-                  'monitor = sensors only, light_only = built-in lamp output only; the app then presents climate targets as reference values.',
-              },
               webcamModel: {
                 type: 'string',
                 enum: ['terp_cam', 'tapo_c200', 'reolink', 'hikvision', 'custom'],

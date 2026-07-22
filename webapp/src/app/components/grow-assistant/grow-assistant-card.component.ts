@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { DataService } from 'src/app/services/data.service';
+import { deviceControlCapability } from 'src/app/util/grow-presets';
 
 const TEMPERATURE_TOLERANCE = 1.5;
 const HUMIDITY_TOLERANCE = 7;
@@ -33,6 +34,7 @@ export class GrowAssistantCardComponent implements OnInit, OnDestroy {
   @Input() recipe: any = null;
   @Input() settings: any = null;
   @Input() cloudSettings: any = null;
+  @Input() hardwareInfo: Record<string, string> | undefined;
   @Input() isDay = false;
   @Output() startPlan = new EventEmitter<void>();
 
@@ -66,12 +68,9 @@ export class GrowAssistantCardComponent implements OnInit, OnDestroy {
     localStorage.setItem(this.dismissKey, 'true');
   }
 
-  get controlProfile(): string {
-    return (this.deviceType === 'controller' ? this.cloudSettings?.controlProfile : undefined) ?? 'full';
-  }
-
   get isReference(): boolean {
-    return this.controlProfile === 'monitor' || this.controlProfile === 'light_only';
+    const capability = deviceControlCapability({ device_type: this.deviceType, hardwareInfo: this.hardwareInfo });
+    return capability === 'monitor' || capability === 'light_only';
   }
 
   get planRunning(): boolean {

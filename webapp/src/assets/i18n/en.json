@@ -16,7 +16,10 @@
     "errorOccurred": "An error occurred",
     "unableToSaveSettings": "Unable to save settings",
     "unableToLoadSettings": "Unable to load settings",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "help": "Help",
+    "increase": "increase",
+    "decrease": "decrease"
   },
   "settings": {
     "title": "Settings",
@@ -158,16 +161,12 @@
     "tunnelRtspStreamHint": "If enabled, the webcam stream will be tunneled through the module. This is helpful if your webcam is not directly reachable from the internet.",
     "dangerZone": "Danger zone",
     "deleteDevice": "Remove device",
-    "controlProfile": "Control profile",
-    "controlProfile-full": "Lamp + climate",
-    "controlProfile-light_only": "Only the lamp",
-    "controlProfile-monitor": "Monitoring only",
-    "controlProfileHint": "What your controller actually switches. With \"Monitoring only\" nothing is actuated — targets are shown as reference values, while charts, diary and alarms keep working. You can change this anytime.",
     "pleaseStart": "Please start the plan first",
     "deleteDeviceConfirmTitle": "Remove device?",
     "deleteDeviceConfirmText": "This removes the device from your account — it disappears from the app until it's claimed again.",
     "deleteDeviceConfirmAgain": "Really remove the device now?",
-    "deleteDeviceConfirmButton": "Remove"
+    "deleteDeviceConfirmButton": "Remove",
+    "forever": "forever"
   },
   "menu": {
     "devices": "Devices",
@@ -400,14 +399,15 @@
       "label": "Device name"
     },
     "connections": {
-      "title": "What is connected to your controller?",
-      "text": "You can change this anytime later in the settings.",
-      "full": "Lamp + climate",
-      "fullText": "Smart Sockets or Tasmota plugs regulate heating, humidity or CO2.",
-      "lightOnly": "Only the lamp",
-      "lightOnlyText": "The controller dims your grow light; climate values are monitored only.",
-      "monitor": "Monitoring only",
-      "monitorText": "Nothing is switched — sensors, charts, diary and alarms."
+      "title": "What does your controller switch?",
+      "text": "Your controller switches through paired smart sockets — the app detects automatically what is connected. Pairing happens right on the controller (Settings → Smart Sockets).",
+      "connected": "Connected",
+      "noSockets": "No sockets paired yet — monitoring only. You can pair some on the controller anytime; the app adapts automatically.",
+      "unknown": "Your controller reports its socket status only after a firmware update. Until then all control options are shown.",
+      "detected-full": "Detected: your controller regulates the climate.",
+      "detected-light_only": "Detected: your controller only switches the light — climate values are monitored and targets act as reference values.",
+      "detected-monitor": "Detected: monitoring only — nothing is switched, targets act as reference values.",
+      "refresh": "Check again"
     },
     "stage": {
       "title": "Where is your grow right now?",
@@ -895,8 +895,8 @@
           "subtitle": "Our camera — connects via your controller"
         },
         "tapo_c200": {
-          "name": "TP-Link Tapo C200",
-          "subtitle": "RTSP template"
+          "name": "TP-Link Tapo",
+          "subtitle": "e.g. C100/C200/C210/C310 — RTSP template"
         },
         "reolink": {
           "name": "Reolink",
@@ -925,7 +925,9 @@
       "add": "Add webcam",
       "pickModel": "Which camera do you have? (one webcam per device)",
       "fillPlaceholders": "Fill in placeholders",
-      "placeholderHint": "Replace <user>, <password> and <ip> in the URL with your camera's values."
+      "placeholderHint": "Replace <user>, <password> and <ip> in the URL with your camera's values.",
+      "customHint": "Format: rtsp://user:password@ip-or-hostname:554/path — you can find the stream path in your camera’s manual. HTTP(S) snapshot or MJPEG URLs work too.",
+      "customHintTunnel": "If the camera sits on the same network as your device, enable “Tunnel webcam stream” and use its local IP."
     },
     "sockets": {
       "title": "Smart Sockets",
@@ -967,7 +969,8 @@
           "subtitle": "Any Tasmota socket by IP",
           "hint": ""
         }
-      }
+      },
+      "reachabilityHint": "Switching always happens locally from the controller — the socket only needs to be reachable by it. No internet exposure is required."
     }
   },
   "alarmPresets": {

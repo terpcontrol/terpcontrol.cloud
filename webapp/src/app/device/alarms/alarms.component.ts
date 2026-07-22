@@ -53,12 +53,23 @@ export class AlarmsComponent {
   setWebhookTargetType(alarm: any, type: WebhookTargetId) {
     alarm._webhookTargetType = type;
     alarm._targetDraft = alarm._targetDraft ?? {};
-    getWebhookTarget(type)?.fields.forEach(field => {
+    const def = getWebhookTarget(type);
+    def?.fields.forEach(field => {
       if (field.defaultValue && !alarm._targetDraft[field.key]) {
         alarm._targetDraft[field.key] = field.defaultValue;
       }
     });
+    if (def?.tunnel === 'none') {
+      // Public services are reached directly — a stale tunnel flag from a
+      // previous target choice would only break delivery.
+      alarm.tunnelWebhook = false;
+    }
     this.applyWebhookTarget(alarm);
+  }
+
+  /** Whether the tunnel toggle makes sense for the alarm's target type. */
+  tunnelAllowed(alarm: any): boolean {
+    return (getWebhookTarget(this.webhookTargetType(alarm))?.tunnel ?? 'optional') !== 'none';
   }
 
   applyWebhookTarget(alarm: any) {

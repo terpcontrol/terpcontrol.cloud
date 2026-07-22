@@ -133,6 +133,38 @@ export function deviceHasCo2(device: { device_type?: string; hardwareInfo?: Reco
   return true;
 }
 
+export type ControlCapability = 'full' | 'light_only' | 'monitor';
+
+const CLIMATE_SOCKET_ROLES = ['dehumidifier', 'heater', 'co2'];
+const LIGHT_SOCKET_ROLES = ['light', 'secondary_light'];
+
+/**
+ * What the device can actually switch, derived from its hardware instead of a
+ * stored setting: fridges have built-in actuators, controllers act through
+ * their paired smart sockets (reported as `hardwareInfo.sockets`). A
+ * controller without an up-to-date sockets report (older firmware) is treated
+ * as fully controlling so nothing gets hidden by mistake.
+ */
+export function deviceControlCapability(
+  device: { device_type?: string; hardwareInfo?: Record<string, string> } | null | undefined,
+): ControlCapability {
+  if (!device || device.device_type !== 'controller') {
+    return 'full';
+  }
+  const csv = device.hardwareInfo?.['sockets'];
+  if (csv === undefined) {
+    return 'full';
+  }
+  const roles = csv === 'none' ? [] : csv.split(',').filter(role => role.length > 0);
+  if (roles.some(role => CLIMATE_SOCKET_ROLES.includes(role))) {
+    return 'full';
+  }
+  if (roles.some(role => LIGHT_SOCKET_ROLES.includes(role))) {
+    return 'light_only';
+  }
+  return 'monitor';
+}
+
 const TEMPERATURE_TOLERANCE = 0.5;
 const HUMIDITY_TOLERANCE = 2;
 const LIGHT_LIMIT_TOLERANCE = 5;

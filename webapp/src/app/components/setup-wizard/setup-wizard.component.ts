@@ -1,11 +1,12 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
-import { ControlProfile } from '@fg2/shared-types';
 import { AuthService } from 'src/app/auth/auth.service';
 import { DeviceService, DeviceWithParsedSettings } from 'src/app/services/devices.service';
 import {
   applyStagePreset,
   buildRecipeFromTemplate,
+  ControlCapability,
+  deviceControlCapability,
   deviceHasCo2,
   GROW_PLAN_TEMPLATES,
   GrowPlanTemplateStep,
@@ -30,7 +31,6 @@ export class SetupWizardComponent implements OnInit {
 
   public stepIndex = 0;
   public deviceName = '';
-  public controlProfile: ControlProfile = 'full';
   public selectedStage: GrowStagePresetId | 'custom' | null = null;
   public planChoice: 'targets' | 'photoperiod' | 'autoflower' = 'targets';
   public durations: number[] = [];
@@ -38,6 +38,10 @@ export class SetupWizardComponent implements OnInit {
   public errorSaving = false;
 
   public planTemplates = GROW_PLAN_TEMPLATES;
+
+  /** Live copy of the device's hardware report, refreshable mid-wizard. */
+  public hardwareInfo: Record<string, string> | undefined;
+  public refreshingSockets = false;
 
   constructor(
     private devices: DeviceService,
@@ -50,9 +54,10 @@ export class SetupWizardComponent implements OnInit {
   }
 
   /**
-   * The step sequence adapts live to the chosen control profile: a
-   * monitoring-only controller is not asked for a grow stage or plan — unless
-   * the wizard was explicitly opened to start a plan (startAt 'stage').
+   * The step sequence adapts live to what the hardware can do: a controller
+   * without any paired sockets only monitors, so it is not asked for a grow
+   * stage or plan — unless the wizard was explicitly opened to start a plan
+   * (startAt 'stage'; reference plans are deliberate there).
    */
   get steps(): WizardStep[] {
     if (!this.isClimateDevice) {
@@ -78,8 +83,47 @@ export class SetupWizardComponent implements OnInit {
     return this.device?.device_type === 'controller';
   }
 
+  /** What the controller can switch, derived from its paired sockets. */
+  get controlCapability(): ControlCapability {
+    return deviceControlCapability({ device_type: this.device?.device_type, hardwareInfo: this.hardwareInfo });
+  }
+
   get isMonitor(): boolean {
-    return this.isController && this.controlProfile === 'monitor';
+    return this.isController && this.controlCapability === 'monitor';
+  }
+
+  get socketsReported(): boolean {
+    return this.hardwareInfo?.['sockets'] !== undefined;
+  }
+
+  // Memoized: template ngFor needs stable array identity across change detection.
+  private socketRolesCache: { key: string; value: string[] } = { key: '', value: [] };
+
+  get connectedSocketRoles(): string[] {
+    const csv = this.hardwareInfo?.['sockets'] ?? '';
+    if (this.socketRolesCache.key !== csv) {
+      this.socketRolesCache = {
+        key: csv,
+        value: csv === 'none' ? [] : csv.split(',').filter(role => role.length > 0),
+      };
+    }
+    return this.socketRolesCache.value;
+  }
+
+  /** Re-reads the socket report, e.g. after pairing on the device mid-wizard. */
+  async refreshSockets() {
+    this.refreshingSockets = true;
+    try {
+      await this.devices.refetchDevices();
+      const fresh = this.devices.devices.getValue().find(device => device.device_id === this.device?.device_id);
+      this.hardwareInfo = fresh?.hardwareInfo ?? this.hardwareInfo;
+    } finally {
+      this.refreshingSockets = false;
+    }
+  }
+
+  trackByRole(_index: number, role: string): string {
+    return role;
   }
 
   get selectedTemplate() {
@@ -127,7 +171,7 @@ export class SetupWizardComponent implements OnInit {
 
   ngOnInit() {
     this.deviceName = this.device?.name ?? '';
-    this.controlProfile = this.device?.cloudSettings?.controlProfile ?? 'full';
+    this.hardwareInfo = this.device?.hardwareInfo;
 
     if (this.startAt === 'stage' && this.isClimateDevice) {
       this.stepIndex = this.steps.indexOf('stage');
@@ -189,13 +233,6 @@ export class SetupWizardComponent implements OnInit {
 
       if (name && name !== this.device.name) {
         await this.devices.setName(device_id, name);
-      }
-
-      if (this.isController && this.controlProfile !== (this.device.cloudSettings?.controlProfile ?? 'full')) {
-        // Cloud settings are stored as a whole object, so merge to keep
-        // firmware channel and webcam configuration intact.
-        const currentCloudSettings = await this.devices.getCloudSettings(device_id);
-        await this.devices.setCloudSettings(device_id, { ...currentCloudSettings, controlProfile: this.controlProfile });
       }
 
       if (this.isClimateDevice && this.selectedStage && this.selectedStage !== 'custom') {

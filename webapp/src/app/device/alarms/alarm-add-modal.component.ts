@@ -97,6 +97,15 @@ export class AlarmAddModalComponent {
     return this.channel !== 'info' && this.channel !== 'email';
   }
 
+  /**
+   * Public services (Discord, Telegram, ntfy) are always reachable directly,
+   * so tunneling them through the device makes no sense — the option only
+   * shows for LAN-style targets like Home Assistant.
+   */
+  get showTunnelOption(): boolean {
+    return this.isWebhookChannel && (getWebhookTarget(this.channel as WebhookTargetId)?.tunnel ?? 'none') !== 'none';
+  }
+
   pickChannel(channel: ChannelId) {
     this.channel = channel;
 
@@ -111,8 +120,8 @@ export class AlarmAddModalComponent {
       this.valuesByChannel[channel] = values;
     }
     this.targetValues = values;
-    // Home Assistant instances usually live on the LAN behind the device tunnel.
-    this.tunnelWebhook = this.tunnelByChannel[channel] ?? channel === 'home_assistant';
+    this.tunnelWebhook =
+      this.tunnelByChannel[channel] ?? getWebhookTarget(channel as WebhookTargetId)?.tunnel === 'default_on';
     this.channelGridOpen = false;
   }
 
@@ -151,8 +160,9 @@ export class AlarmAddModalComponent {
       const target = getWebhookTarget(this.channel);
       alarm['actionType'] = 'webhook';
       target?.apply?.(alarm, this.targetValues, key => this.translate.instant(key));
-      // The explicit toggle wins over any target-specific default.
-      alarm['tunnelWebhook'] = this.tunnelWebhook;
+      // The explicit toggle wins over any target-specific default; targets
+      // without a tunnel option are always delivered directly.
+      alarm['tunnelWebhook'] = this.showTunnelOption ? this.tunnelWebhook : false;
     }
 
     this.created.emit(alarm);

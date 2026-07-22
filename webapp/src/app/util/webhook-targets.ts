@@ -14,6 +14,13 @@ export interface WebhookTargetDef {
   icon: string;
   fields: WebhookTargetField[];
   /**
+   * Whether tunneling the webhook through the device makes sense: public
+   * services ('none') are always reachable directly, while LAN endpoints like
+   * Home Assistant default to the tunnel ('default_on'). 'optional' leaves
+   * the choice open (custom URLs).
+   */
+  tunnel: 'none' | 'optional' | 'default_on';
+  /**
    * Writes actionTarget/method/payloads (and tunnelWebhook where sensible)
    * onto the alarm. Payload texts contain {{placeholders}} the server
    * substitutes at send time; the surrounding wording is translated once at
@@ -42,6 +49,7 @@ export const WEBHOOK_TARGETS: WebhookTargetDef[] = [
   {
     id: 'discord',
     icon: 'logo-discord',
+    tunnel: 'none',
     fields: [
       {
         key: 'webhookUrl',
@@ -56,12 +64,14 @@ export const WEBHOOK_TARGETS: WebhookTargetDef[] = [
       alarm['webhookMethod'] = 'POST';
       alarm['webhookTriggeredPayload'] = discordPayload('🚨', translate('webhookTargets.msgTriggered'));
       alarm['webhookResolvedPayload'] = discordPayload('✅', translate('webhookTargets.msgResolved'));
+      alarm['tunnelWebhook'] = false;
     },
     matches: target => target.includes('discord.com/api/webhooks') || target.includes('discordapp.com/api/webhooks'),
   },
   {
     id: 'telegram',
     icon: 'paper-plane-outline',
+    tunnel: 'none',
     fields: [
       { key: 'botToken', labelKey: 'webhookTargets.telegram.botToken', placeholder: '123456:ABC-DEF…', type: 'password', required: true },
       { key: 'chatId', labelKey: 'webhookTargets.telegram.chatId', placeholder: '-1001234567890', required: true },
@@ -71,12 +81,14 @@ export const WEBHOOK_TARGETS: WebhookTargetDef[] = [
       alarm['webhookMethod'] = 'POST';
       alarm['webhookTriggeredPayload'] = telegramPayload((values['chatId'] ?? '').trim(), '🚨', translate('webhookTargets.msgTriggered'));
       alarm['webhookResolvedPayload'] = telegramPayload((values['chatId'] ?? '').trim(), '✅', translate('webhookTargets.msgResolved'));
+      alarm['tunnelWebhook'] = false;
     },
     matches: target => target.includes('api.telegram.org/bot'),
   },
   {
     id: 'ntfy',
     icon: 'notifications-outline',
+    tunnel: 'none',
     fields: [
       { key: 'topic', labelKey: 'webhookTargets.ntfy.topic', placeholder: 'mein-grow-alarm', required: true },
       { key: 'server', labelKey: 'webhookTargets.ntfy.server', defaultValue: 'https://ntfy.sh', type: 'url' },
@@ -88,12 +100,14 @@ export const WEBHOOK_TARGETS: WebhookTargetDef[] = [
       alarm['webhookMethod'] = 'POST';
       alarm['webhookTriggeredPayload'] = ntfyPayload((values['topic'] ?? '').trim(), '🚨', translate('webhookTargets.msgTriggered'), 4);
       alarm['webhookResolvedPayload'] = ntfyPayload((values['topic'] ?? '').trim(), '✅', translate('webhookTargets.msgResolved'), 3);
+      alarm['tunnelWebhook'] = false;
     },
     matches: target => target.includes('ntfy'),
   },
   {
     id: 'home_assistant',
     icon: 'home-outline',
+    tunnel: 'default_on',
     fields: [
       { key: 'baseUrl', labelKey: 'webhookTargets.home_assistant.baseUrl', placeholder: 'http://homeassistant.local:8123', type: 'url', required: true },
       { key: 'webhookId', labelKey: 'webhookTargets.home_assistant.webhookId', required: true },
@@ -113,6 +127,7 @@ export const WEBHOOK_TARGETS: WebhookTargetDef[] = [
   {
     id: 'custom',
     icon: 'code-working-outline',
+    tunnel: 'optional',
     fields: [],
   },
 ];

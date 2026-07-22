@@ -1,6 +1,12 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { calculateVpd } from 'src/app/util/calculateVpd';
-import { applyStagePreset, detectActiveStagePreset, deviceHasCo2, GrowStagePresetId } from 'src/app/util/grow-presets';
+import {
+  applyStagePreset,
+  detectActiveStagePreset,
+  deviceControlCapability,
+  deviceHasCo2,
+  GrowStagePresetId,
+} from 'src/app/util/grow-presets';
 
 /**
  * Novice-friendly settings for fridge/controller devices: grow-stage presets
@@ -27,8 +33,6 @@ export class FridgeSimpleSettingsComponent {
   public lightDurations = [12, 14, 16, 18, 20];
   public baseLightStartOptions = Array.from({ length: 24 }, (_, hour) => `${hour.toString().padStart(2, '0')}:00`);
 
-  /** Sliders are hidden behind a tap on the value so scrolling on mobile can't change them. */
-  public editingField: string | null = null;
   public limits = {
     temperature: { min: 5, max: 40 },
     humidity: { min: 10, max: 90 },
@@ -50,17 +54,18 @@ export class FridgeSimpleSettingsComponent {
     return this.activeStep?.settings ?? this.deviceSettings;
   }
 
-  get controlProfile(): string {
-    return (this.deviceType === 'controller' ? this.cloudSettings?.controlProfile : undefined) ?? 'full';
+  /** Derived from the paired sockets — not a setting (see deviceControlCapability). */
+  get controlCapability(): string {
+    return deviceControlCapability({ device_type: this.deviceType, hardwareInfo: this.hardwareInfo });
   }
 
   /** Targets are reference values when the controller doesn't actuate the climate. */
   get isReference(): boolean {
-    return this.controlProfile === 'monitor' || this.controlProfile === 'light_only';
+    return this.controlCapability === 'monitor' || this.controlCapability === 'light_only';
   }
 
   get isMonitor(): boolean {
-    return this.controlProfile === 'monitor';
+    return this.controlCapability === 'monitor';
   }
 
   get activePreset(): GrowStagePresetId | 'custom' | null {
@@ -92,10 +97,6 @@ export class FridgeSimpleSettingsComponent {
 
   get floatingDayActive(): boolean {
     return !!this.target?.daynight?.floating;
-  }
-
-  toggleEdit(field: string) {
-    this.editingField = this.editingField === field ? null : field;
   }
 
   /** Upcoming plan steps stay editable in simple mode (durations only). */
@@ -161,15 +162,6 @@ export class FridgeSimpleSettingsComponent {
     }
     const name = step.stage === 'vegetative' ? 'vegetation' : step.stage === 'flowering' ? 'flower' : step.stage;
     return 'assets/icon/presets/' + name + '.svg';
-  }
-
-  /** Clamped stepping without accumulating float drift. */
-  stepValue(section: any, key: string, delta: number, limit: { min: number; max: number }) {
-    if (!section) {
-      return;
-    }
-    const next = Math.round(((Number(section[key]) || 0) + delta) * 10) / 10;
-    section[key] = Math.min(limit.max, Math.max(limit.min, next));
   }
 
   selectPreset(id: GrowStagePresetId | 'custom') {

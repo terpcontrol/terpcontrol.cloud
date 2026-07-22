@@ -113,7 +113,6 @@ const deviceSchema: Schema = new Schema({
       rtspStreamTransport: { type: String, required: false },
       tunnelRtspStream: { type: Boolean, required: false },
       maintenanceWebcamOff: { type: Boolean, required: false },
-      controlProfile: { type: String, enum: ['full', 'light_only', 'monitor'], required: false },
       webcamModel: { type: String, enum: ['terp_cam', 'tapo_c200', 'reolink', 'hikvision', 'custom'], required: false },
     },
     required: false,

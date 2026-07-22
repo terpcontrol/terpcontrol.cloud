@@ -61,7 +61,7 @@
               autocomplete="off"
             ></ion-input>
           </ion-item>
-          <ion-item lines="none" *ngIf="isWebhookChannel">
+          <ion-item lines="none" *ngIf="showTunnelOption">
             <ion-checkbox slot="start" [(ngModel)]="tunnelWebhook" (ngModelChange)="onTunnelChanged()"></ion-checkbox>
             <ion-label class="ion-text-wrap">{{ 'settings.alarms.tunnelWebhook' | translate }}</ion-label>
           </ion-item>

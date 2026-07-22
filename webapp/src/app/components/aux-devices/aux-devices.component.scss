@@ -127,3 +127,43 @@
   gap: 6px;
   margin-top: 6px;
 }
+
+.aux-role-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+
+.aux-role-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+
+  .aux-role-chip {
+    border: 1px solid rgba(var(--ion-color-secondary-rgb), 0.5);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ion-color-dark);
+    font-size: 0.85rem;
+    font-family: inherit;
+    padding: 6px 12px;
+    cursor: pointer;
+
+    &.active {
+      background: var(--ion-color-secondary);
+      border-color: var(--ion-color-secondary);
+      color: var(--ion-color-secondary-contrast);
+      font-weight: 600;
+    }
+  }
+}
+
+:host-context(body.dark) .aux-role-chips .aux-role-chip {
+  color: var(--ion-color-light);
+
+  &.active {
+    color: var(--ion-color-secondary-contrast);
+  }
+}

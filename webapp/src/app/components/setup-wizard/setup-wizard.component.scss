@@ -103,3 +103,23 @@ section h2 {
     color: var(--ion-text-color);
   }
 }
+
+.wizard-socket-status {
+  margin: 10px 0;
+  border: 1px solid rgba(var(--ion-color-secondary-rgb), 0.35);
+  border-radius: 10px;
+  overflow: hidden;
+
+  ion-item {
+    --min-height: 40px;
+  }
+
+  ion-note {
+    font-size: 0.8rem;
+    color: var(--ion-color-secondary);
+  }
+}
+
+.wizard-capability {
+  font-weight: 600;
+}

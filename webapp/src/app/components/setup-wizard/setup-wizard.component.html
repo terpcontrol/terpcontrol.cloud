@@ -33,23 +33,29 @@
     <section *ngSwitchCase="'connections'">
       <h2>{{ 'wizard.connections.title' | translate }}</h2>
       <p class="wizard-sub">{{ 'wizard.connections.text' | translate }}</p>
-      <div class="wizard-options">
-        <div class="tc-preset-card" [class.active]="controlProfile === 'full'" (click)="controlProfile = 'full'">
-          <ion-icon name="hardware-chip-outline"></ion-icon>
-          <span class="tc-preset-card__title">{{ 'wizard.connections.full' | translate }}</span>
-          <span class="tc-preset-card__subtitle">{{ 'wizard.connections.fullText' | translate }}</span>
+
+      <ng-container *ngIf="socketsReported; else socketsUnknown">
+        <div class="wizard-socket-status" *ngIf="connectedSocketRoles.length > 0">
+          <ion-item lines="none" *ngFor="let role of connectedSocketRoles; trackBy: trackByRole">
+            <ion-icon slot="start" name="flash-outline" color="secondary"></ion-icon>
+            <ion-label>{{ 'auxDevices.sockets.roles.' + role | translate }}</ion-label>
+            <ion-note slot="end">{{ 'wizard.connections.connected' | translate }}</ion-note>
+          </ion-item>
         </div>
-        <div class="tc-preset-card" [class.active]="controlProfile === 'light_only'" (click)="controlProfile = 'light_only'">
-          <ion-icon name="sunny-outline"></ion-icon>
-          <span class="tc-preset-card__title">{{ 'wizard.connections.lightOnly' | translate }}</span>
-          <span class="tc-preset-card__subtitle">{{ 'wizard.connections.lightOnlyText' | translate }}</span>
-        </div>
-        <div class="tc-preset-card" [class.active]="controlProfile === 'monitor'" (click)="controlProfile = 'monitor'">
-          <ion-icon name="eye-outline"></ion-icon>
-          <span class="tc-preset-card__title">{{ 'wizard.connections.monitor' | translate }}</span>
-          <span class="tc-preset-card__subtitle">{{ 'wizard.connections.monitorText' | translate }}</span>
-        </div>
-      </div>
+        <p class="wizard-sub" *ngIf="connectedSocketRoles.length === 0">{{ 'wizard.connections.noSockets' | translate }}</p>
+      </ng-container>
+      <ng-template #socketsUnknown>
+        <p class="wizard-sub">{{ 'wizard.connections.unknown' | translate }}</p>
+      </ng-template>
+
+      <p class="wizard-sub wizard-capability" *ngIf="socketsReported">
+        {{ 'wizard.connections.detected-' + controlCapability | translate }}
+      </p>
+
+      <ion-button size="small" fill="outline" color="secondary" (click)="refreshSockets()" [disabled]="refreshingSockets">
+        <ion-spinner *ngIf="refreshingSockets" name="crescent"></ion-spinner>
+        <ng-container *ngIf="!refreshingSockets">{{ 'wizard.connections.refresh' | translate }}</ng-container>
+      </ion-button>
     </section>
 
     <section *ngSwitchCase="'stage'">
@@ -125,7 +131,7 @@
             <p>{{ (isMonitor ? 'wizard.done.step3Monitor' : 'wizard.done.step3') | translate }}</p>
           </div>
         </div>
-        <p class="wizard-aux-hint" *ngIf="isController && !isMonitor">{{ 'wizard.done.auxHint' | translate }}</p>
+        <p class="wizard-aux-hint" *ngIf="isController">{{ 'wizard.done.auxHint' | translate }}</p>
         <ion-button color="secondary" (click)="close()">{{ 'wizard.done.close' | translate }}</ion-button>
       </div>
     </section>

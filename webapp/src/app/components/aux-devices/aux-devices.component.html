@@ -85,12 +85,17 @@
           <ion-input [(ngModel)]="cloudSettings.rtspStream" autocomplete="off"></ion-input>
         </ion-item>
         <span class="tc-field-hint" *ngIf="urlHasPlaceholders">{{ 'auxDevices.webcam.placeholderHint' | translate }}</span>
-        <span class="tc-field-hint" *ngIf="!urlHasPlaceholders && isRtsp">
+        <ng-container *ngIf="currentModel?.id === 'custom'">
+          <span class="tc-field-hint">{{ 'auxDevices.webcam.customHint' | translate }}</span>
+          <span class="tc-field-hint" *ngIf="!cloudSettings.tunnelRtspStream">{{ 'auxDevices.webcam.customHintTunnel' | translate }}</span>
+        </ng-container>
+        <span class="tc-field-hint" *ngIf="!urlHasPlaceholders && isRtsp && currentModel?.id !== 'custom'">
           {{ (cloudSettings.tunnelRtspStream ? 'auxDevices.webcam.hostHintTunnel' : 'auxDevices.webcam.hostHintPublic') | translate }}
         </span>
         <ion-item lines="none" *ngIf="isRtsp">
           <ion-label>{{ 'settings.rtspStreamTransport' | translate }}</ion-label>
-          <ion-select [(ngModel)]="cloudSettings.rtspStreamTransport" interface="popover">
+          <!-- Default (alert) interface: the popover select variant does not open reliably. -->
+          <ion-select [(ngModel)]="cloudSettings.rtspStreamTransport">
             <ion-select-option value="tcp">tcp</ion-select-option>
             <ion-select-option value="http">http</ion-select-option>
             <ion-select-option value="https">https</ion-select-option>
@@ -228,14 +233,18 @@
           <p class="aux-hint" *ngIf="addSocketBrand === 'terp'">{{ 'auxDevices.sockets.brands.terp.hint' | translate }}</p>
 
           <div class="aux-socket-edit" *ngIf="addSocketBrand === 'tasmota'">
-            <ion-item>
-              <ion-label>{{ 'auxDevices.sockets.role' | translate }}</ion-label>
-              <ion-select [(ngModel)]="addSocketRole" interface="popover">
-                <ion-select-option *ngFor="let role of freeSocketRoles; trackBy: trackByRole" [value]="role">
-                  {{ 'auxDevices.sockets.roles.' + role | translate }}
-                </ion-select-option>
-              </ion-select>
-            </ion-item>
+            <span class="aux-role-label">{{ 'auxDevices.sockets.role' | translate }}</span>
+            <div class="aux-role-chips">
+              <button
+                type="button"
+                class="aux-role-chip"
+                *ngFor="let role of freeSocketRoles; trackBy: trackByRole"
+                [class.active]="addSocketRole === role"
+                (click)="addSocketRole = role"
+              >
+                {{ 'auxDevices.sockets.roles.' + role | translate }}
+              </button>
+            </div>
             <ng-container *ngTemplateOutlet="socketCredentialFields"></ng-container>
           </div>
 
@@ -278,4 +287,5 @@
     <ion-input type="password" [(ngModel)]="socketDraft.password" autocomplete="off"></ion-input>
   </ion-item>
   <span class="tc-field-hint">{{ 'auxDevices.sockets.editHint' | translate }}</span>
+  <span class="tc-field-hint">{{ 'auxDevices.sockets.reachabilityHint' | translate }}</span>
 </ng-template>

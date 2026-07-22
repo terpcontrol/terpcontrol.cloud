@@ -32,15 +32,6 @@ export interface FirmwareSettings {
 export type FirmwareChannel = 'stable' | 'beta' | 'alpha' | 'manual';
 
 /**
- * What the device actually actuates. Chosen by the user (there is no reliable
- * hardware signal for connected sockets); absent means 'full' for backward
- * compatibility. Controllers sold without Smart Sockets run as 'light_only'
- * (built-in 0-10V lamp output) or 'monitor' (sensors only) — the app then
- * presents targets as reference values instead of implying regulation.
- */
-export type ControlProfile = 'full' | 'light_only' | 'monitor';
-
-/**
  * Which camera the webcam stream URL was built for. 'terp_cam' is the Terp
  * Control Cam (URL reported by the device via hardware-info after local
  * pairing); brand values are RTSP URL templates; 'custom' is a raw URL.
@@ -62,7 +53,6 @@ export interface CloudSettings {
   logRtspStreamErrors?: boolean;
   tunnelRtspStream?: boolean;
   maintenanceWebcamOff?: boolean;
-  controlProfile?: ControlProfile;
   webcamModel?: WebcamModel;
 }
 

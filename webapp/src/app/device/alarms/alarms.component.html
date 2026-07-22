@@ -180,7 +180,7 @@
           </ion-popover>
         </ion-item>
 
-        <ion-item lines="none" [hidden]="alarm.actionType !== 'webhook'">
+        <ion-item lines="none" [hidden]="alarm.actionType !== 'webhook' || !tunnelAllowed(alarm)">
           <ion-label>
             {{ 'settings.alarms.tunnelWebhook' | translate }}
             <ion-button fill="clear" id="tunnelWebhook-popover-{{alarm.alarmId}}">

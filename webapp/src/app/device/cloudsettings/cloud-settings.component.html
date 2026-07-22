@@ -3,26 +3,6 @@
     <ion-card-title> {{'settings.cloudSettings' | translate}}</ion-card-title>
   </ion-card-header>
   <ion-card-content>
-    <ion-item lines="none" *ngIf="deviceType === 'controller'">
-      <ion-label>{{ 'settings.controlProfile' | translate}}</ion-label>
-      <ion-button fill="clear" id="cloudSettings-controlProfile-popover">
-        <ion-icon name="help-circle-outline"></ion-icon>
-      </ion-button>
-      <ion-select
-        [ngModel]="cloudSettings.controlProfile ?? 'full'"
-        (ngModelChange)="cloudSettings.controlProfile = $event; cloudSettingsChange.emit(cloudSettings)"
-        interface="popover"
-        class="ion-text-right">
-        <ion-select-option value="full">{{ 'settings.controlProfile-full' | translate }}</ion-select-option>
-        <ion-select-option value="light_only">{{ 'settings.controlProfile-light_only' | translate }}</ion-select-option>
-        <ion-select-option value="monitor">{{ 'settings.controlProfile-monitor' | translate }}</ion-select-option>
-      </ion-select>
-      <ion-popover trigger="cloudSettings-controlProfile-popover" [dismissOnSelect]="true">
-        <ng-template>
-          <ion-content class="ion-padding">{{'settings.controlProfileHint' | translate}}</ion-content>
-        </ng-template>
-      </ion-popover>
-    </ion-item>
     <ion-item lines="none">
       <ion-label>{{ 'settings.vpdLeafTempOffsetDay' | translate}}</ion-label>
       <ion-input

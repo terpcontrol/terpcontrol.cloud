@@ -181,9 +181,10 @@
             </ion-label>
           </ion-item>
           <div class="ion-padding" slot="content">
+            <!-- Stacked labels: side-by-side label+input runs out of space on phones. -->
             <ion-item lines="none">
-              <ion-label>{{'devices.fridge.recipe.step.name' | translate}}</ion-label>
-              <ion-input type="text" [(ngModel)]="step.name" class="ion-text-right"></ion-input>
+              <ion-label position="stacked">{{'devices.fridge.recipe.step.name' | translate}}</ion-label>
+              <ion-input type="text" [(ngModel)]="step.name"></ion-input>
             </ion-item>
 
             <ion-item lines="none">
@@ -192,14 +193,14 @@
             </ion-item>
 
             <ion-item lines="none" [hidden]="!step.waitForConfirmation">
-              <ion-label>{{'devices.fridge.recipe.step.confirmationMessage' | translate}}</ion-label>
-              <ion-input type="text" [(ngModel)]="step.confirmationMessage" class="ion-text-right"></ion-input>
+              <ion-label position="stacked">{{'devices.fridge.recipe.step.confirmationMessage' | translate}}</ion-label>
+              <ion-input type="text" [(ngModel)]="step.confirmationMessage"></ion-input>
             </ion-item>
 
             <ion-item lines="none">
               <ion-label>{{'devices.fridge.recipe.step.duration' | translate}}</ion-label>
-              <ion-input type="number" [(ngModel)]="step.duration" class="ion-text-right"></ion-input>
-              <ion-select [(ngModel)]="step.durationUnit" class="ion-text-right" style="width: 100px; margin-left: 10px;">
+              <ion-input type="number" [(ngModel)]="step.duration" class="ion-text-right" [attr.aria-label]="'devices.fridge.recipe.step.duration' | translate"></ion-input>
+              <ion-select [(ngModel)]="step.durationUnit" class="ion-text-right" style="width: 100px; margin-left: 10px;" [attr.aria-label]="'devices.fridge.recipe.step.duration' | translate">
                 <ion-select-option value="minutes">{{'devices.fridge.recipe.step.durationUnit.minutes' | translate}}</ion-select-option>
                 <ion-select-option value="hours">{{'devices.fridge.recipe.step.durationUnit.hours' | translate}}</ion-select-option>
                 <ion-select-option value="days">{{'devices.fridge.recipe.step.durationUnit.days' | translate}}</ion-select-option>

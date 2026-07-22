@@ -116,65 +116,39 @@
   margin-top: 4px;
 }
 
-.field-row {
-  margin-bottom: 4px;
-
-  ion-range {
-    padding-top: 2px;
-    padding-bottom: 2px;
-  }
-}
-
-.field-label {
-  display: flex;
+/* Duration pill in the plan card — a real <button> for screen readers. */
+button.field-value {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  font-size: 0.92rem;
+  gap: 5px;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
   cursor: pointer;
-  min-height: 38px;
+  color: var(--ion-color-primary);
+  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.3);
+  border-radius: 999px;
+  padding: 3px 12px;
+  background: rgba(var(--ion-color-primary-rgb), 0.06);
+  white-space: nowrap;
 
-  .field-value {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-weight: 600;
-    color: var(--ion-color-primary);
-    border: 1px solid rgba(var(--ion-color-primary-rgb), 0.3);
-    border-radius: 999px;
-    padding: 3px 12px;
-    background: rgba(var(--ion-color-primary-rgb), 0.06);
+  ion-icon {
+    font-size: 14px;
+    opacity: 0.7;
+  }
 
-    ion-icon {
-      font-size: 14px;
-      opacity: 0.7;
-    }
-
-    &.editing {
-      color: var(--ion-color-secondary-shade);
-      border-color: rgba(var(--ion-color-secondary-rgb), 0.5);
-      background: rgba(var(--ion-color-secondary-rgb), 0.1);
-    }
+  &.editing {
+    color: var(--ion-color-secondary-shade);
+    border-color: rgba(var(--ion-color-secondary-rgb), 0.5);
+    background: rgba(var(--ion-color-secondary-rgb), 0.1);
   }
 }
 
-:host-context(body.dark) .field-label .field-value.editing {
-  color: var(--ion-color-secondary);
-}
+:host-context(body.dark) button.field-value {
+  color: var(--ion-color-primary-tint);
 
-.field-edit {
-  display: flex;
-  align-items: center;
-
-  ion-range {
-    flex: 1;
-    padding-top: 2px;
-    padding-bottom: 2px;
-  }
-
-  ion-button {
-    margin: 0;
-    --padding-start: 4px;
-    --padding-end: 4px;
+  &.editing {
+    color: var(--ion-color-secondary);
   }
 }
 
