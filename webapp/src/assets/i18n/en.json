@@ -880,7 +880,8 @@
         "ntfy": "ntfy.sh",
         "home_assistant": "Home Assistant",
         "webhook": "Webhook"
-      }
+      },
+      "changeChannel": "Change"
     }
   },
   "auxDevices": {

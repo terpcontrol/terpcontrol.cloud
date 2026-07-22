@@ -31,6 +31,13 @@ export class AlarmAddModalComponent {
   public channel: ChannelId = 'info';
   public email = '';
   public targetValues: Record<string, string> = {};
+  public tunnelWebhook = false;
+  /** Collapsed after a pick so taps near the fields can't switch the channel. */
+  public channelGridOpen = true;
+
+  // Entered values survive channel switches (incl. accidental taps).
+  private valuesByChannel: Record<string, Record<string, string>> = {};
+  private tunnelByChannel: Record<string, boolean> = {};
 
   public channels: ChannelId[] = ['info', 'email', 'discord', 'telegram', 'ntfy', 'home_assistant'];
 
@@ -72,23 +79,45 @@ export class AlarmAddModalComponent {
     this.addStep = 'preset';
     this.selectedPreset = null;
     this.channel = 'info';
+    this.channelGridOpen = true;
     this.email = this.auth.current_user.getValue()?.username ?? '';
     this.targetValues = {};
+    this.tunnelWebhook = false;
+    this.valuesByChannel = {};
+    this.tunnelByChannel = {};
   }
 
   pickPreset(def: AlarmPresetDef) {
     this.selectedPreset = def;
     this.addStep = 'channel';
+    this.channelGridOpen = true;
+  }
+
+  get isWebhookChannel(): boolean {
+    return this.channel !== 'info' && this.channel !== 'email';
   }
 
   pickChannel(channel: ChannelId) {
     this.channel = channel;
-    this.targetValues = {};
-    this.webhookFields.forEach(field => {
-      if (field.defaultValue) {
-        this.targetValues[field.key] = field.defaultValue;
-      }
-    });
+
+    let values = this.valuesByChannel[channel];
+    if (!values) {
+      values = {};
+      getWebhookTarget(channel as WebhookTargetId)?.fields.forEach(field => {
+        if (field.defaultValue) {
+          values![field.key] = field.defaultValue;
+        }
+      });
+      this.valuesByChannel[channel] = values;
+    }
+    this.targetValues = values;
+    // Home Assistant instances usually live on the LAN behind the device tunnel.
+    this.tunnelWebhook = this.tunnelByChannel[channel] ?? channel === 'home_assistant';
+    this.channelGridOpen = false;
+  }
+
+  onTunnelChanged() {
+    this.tunnelByChannel[this.channel] = this.tunnelWebhook;
   }
 
   canCreate(): boolean {
@@ -122,6 +151,8 @@ export class AlarmAddModalComponent {
       const target = getWebhookTarget(this.channel);
       alarm['actionType'] = 'webhook';
       target?.apply?.(alarm, this.targetValues, key => this.translate.instant(key));
+      // The explicit toggle wins over any target-specific default.
+      alarm['tunnelWebhook'] = this.tunnelWebhook;
     }
 
     this.created.emit(alarm);

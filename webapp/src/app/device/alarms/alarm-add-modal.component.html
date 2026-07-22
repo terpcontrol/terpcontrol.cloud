@@ -26,7 +26,7 @@
           <strong *ngIf="selectedPreset">{{ presetName(selectedPreset!) | translate }}</strong>
           — {{ 'simpleSettings.notifications.pickChannel' | translate }}
         </p>
-        <div class="alarm-add-grid channels">
+        <div class="alarm-add-grid channels" *ngIf="channelGridOpen">
           <div
             class="tc-preset-card"
             *ngFor="let option of channels"
@@ -38,23 +38,37 @@
           </div>
         </div>
 
-        <ion-item *ngIf="channel === 'email'">
-          <ion-label position="floating">{{ 'simpleSettings.notifications.emailLabel' | translate }}</ion-label>
-          <ion-input type="email" [(ngModel)]="email" autocomplete="off"></ion-input>
+        <!-- Picked: compact summary; the grid stays away from the input fields
+             so a tap after the keyboard closes can't switch the channel. -->
+        <ion-item lines="none" class="channel-summary" *ngIf="!channelGridOpen" button detail="false" (click)="channelGridOpen = true">
+          <ion-icon slot="start" [name]="channelIcon(channel)" color="primary"></ion-icon>
+          <ion-label>{{ 'simpleSettings.notifications.channels.' + channel | translate }}</ion-label>
+          <ion-note slot="end">{{ 'simpleSettings.notifications.changeChannel' | translate }}</ion-note>
         </ion-item>
 
-        <ion-item *ngFor="let field of webhookFields">
-          <ion-label position="floating">{{ field.labelKey | translate }}</ion-label>
-          <ion-input
-            [type]="field.type ?? 'text'"
-            [placeholder]="field.placeholder ?? ''"
-            [(ngModel)]="targetValues[field.key]"
-            autocomplete="off"
-          ></ion-input>
-        </ion-item>
-        <span class="tc-field-hint" *ngIf="channel !== 'info' && channel !== 'email'">
-          {{ 'webhookTargets.' + channel + '.hint' | translate }}
-        </span>
+        <ng-container *ngIf="!channelGridOpen">
+          <ion-item *ngIf="channel === 'email'">
+            <ion-label position="floating">{{ 'simpleSettings.notifications.emailLabel' | translate }}</ion-label>
+            <ion-input type="email" [(ngModel)]="email" autocomplete="off"></ion-input>
+          </ion-item>
+
+          <ion-item *ngFor="let field of webhookFields">
+            <ion-label position="floating">{{ field.labelKey | translate }}</ion-label>
+            <ion-input
+              [type]="field.type ?? 'text'"
+              [placeholder]="field.placeholder ?? ''"
+              [(ngModel)]="targetValues[field.key]"
+              autocomplete="off"
+            ></ion-input>
+          </ion-item>
+          <ion-item lines="none" *ngIf="isWebhookChannel">
+            <ion-checkbox slot="start" [(ngModel)]="tunnelWebhook" (ngModelChange)="onTunnelChanged()"></ion-checkbox>
+            <ion-label class="ion-text-wrap">{{ 'settings.alarms.tunnelWebhook' | translate }}</ion-label>
+          </ion-item>
+          <span class="tc-field-hint" *ngIf="isWebhookChannel">
+            {{ 'webhookTargets.' + channel + '.hint' | translate }}
+          </span>
+        </ng-container>
 
         <div class="modal-actions">
           <ion-button fill="clear" (click)="addStep = 'preset'">
