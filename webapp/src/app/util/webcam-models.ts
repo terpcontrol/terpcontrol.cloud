@@ -13,16 +13,14 @@ export interface WebcamModelTemplate {
   icon: string;
   /** Terp Control hardware connects through the controller itself. */
   ownDevice?: boolean;
-  /** Builds the RTSP URL from credential fields (brand templates only). */
-  buildUrl?: (fields: WebcamCredentialFields) => string;
+  /**
+   * Brand templates only pre-populate the stream URL with placeholder tokens
+   * the user replaces inline (<user>, <password>, <ip>).
+   */
+  placeholderUrl?: string;
   /** Brand cameras usually sit on the LAN, reachable via the device tunnel. */
   defaultTunnel?: boolean;
 }
-
-const rtspUrl = (fields: WebcamCredentialFields, path: string): string => {
-  const auth = fields.user ? `${encodeURIComponent(fields.user)}:${encodeURIComponent(fields.password)}@` : '';
-  return `rtsp://${auth}${fields.host.trim()}:554/${path}`;
-};
 
 export const WEBCAM_MODELS: WebcamModelTemplate[] = [
   {
@@ -38,7 +36,7 @@ export const WEBCAM_MODELS: WebcamModelTemplate[] = [
     icon: 'videocam-outline',
     nameKey: 'auxDevices.webcam.models.tapo_c200.name',
     subtitleKey: 'auxDevices.webcam.models.tapo_c200.subtitle',
-    buildUrl: fields => rtspUrl(fields, 'stream1'),
+    placeholderUrl: 'rtsp://<user>:<password>@<ip>:554/stream1',
     defaultTunnel: true,
   },
   {
@@ -46,7 +44,7 @@ export const WEBCAM_MODELS: WebcamModelTemplate[] = [
     icon: 'videocam-outline',
     nameKey: 'auxDevices.webcam.models.reolink.name',
     subtitleKey: 'auxDevices.webcam.models.reolink.subtitle',
-    buildUrl: fields => rtspUrl(fields, 'h264Preview_01_main'),
+    placeholderUrl: 'rtsp://<user>:<password>@<ip>:554/h264Preview_01_main',
     defaultTunnel: true,
   },
   {
@@ -54,7 +52,7 @@ export const WEBCAM_MODELS: WebcamModelTemplate[] = [
     icon: 'videocam-outline',
     nameKey: 'auxDevices.webcam.models.hikvision.name',
     subtitleKey: 'auxDevices.webcam.models.hikvision.subtitle',
-    buildUrl: fields => rtspUrl(fields, 'Streaming/Channels/101'),
+    placeholderUrl: 'rtsp://<user>:<password>@<ip>:554/Streaming/Channels/101',
     defaultTunnel: true,
   },
   {
@@ -69,14 +67,19 @@ export function getWebcamModel(id: WebcamModel | undefined): WebcamModelTemplate
   return WEBCAM_MODELS.find(model => model.id === id);
 }
 
+/** True while the URL still contains unreplaced template tokens. */
+export function hasPlaceholders(url: string | undefined): boolean {
+  return !!url && /<[a-z-]+>/i.test(url);
+}
+
 /**
- * Extracts user/password/host from an rtsp:// URL so a brand template form can
- * be re-populated from the stored stream URL (nothing else is persisted).
- * Returns null for anything unparseable — including the share-link redaction
- * placeholder '1'.
+ * Extracts user/password/host from an rtsp:// URL so the Terp Control Cam
+ * fields can be edited (nothing besides the URL is persisted). Returns null
+ * for anything unparseable — including placeholder tokens and the share-link
+ * redaction value '1'.
  */
 export function parseRtspUrl(url: string | undefined): WebcamCredentialFields | null {
-  if (!url || !url.startsWith('rtsp://')) {
+  if (!url || !url.startsWith('rtsp://') || hasPlaceholders(url)) {
     return null;
   }
   const match = url.match(/^rtsp:\/\/(?:([^:@/]*)(?::([^@/]*))?@)?([^:/@]+)(?::\d+)?(?:\/|$)/);
@@ -91,4 +94,14 @@ export function parseRtspUrl(url: string | undefined): WebcamCredentialFields | 
     }
   };
   return { user: decode(match[1]), password: decode(match[2]), host: match[3] };
+}
+
+/**
+ * Replaces the auth+host part of an rtsp:// URL while keeping port and path —
+ * used to edit the Terp Control Cam connection without losing its stream path.
+ */
+export function replaceRtspAuthHost(url: string, fields: WebcamCredentialFields): string {
+  const tail = url.replace(/^rtsp:\/\/(?:[^@/]*@)?[^:/@]+/, '');
+  const auth = fields.user ? `${encodeURIComponent(fields.user)}:${encodeURIComponent(fields.password)}@` : '';
+  return `rtsp://${auth}${fields.host.trim()}${tail}`;
 }

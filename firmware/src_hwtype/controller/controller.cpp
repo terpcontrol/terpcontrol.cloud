@@ -633,6 +633,24 @@ namespace fg {
           cloud.log(std::string("message-aux-command-failed:socket_remove:") + role, 1);
         }
       }
+      else if(command["action"] && command["action"] == std::string("socket_set")) {
+        const std::string role = command["role"] | "";
+        const std::string ip = command["ip"] | "";
+        const std::string user = command["user"] | "";
+        const std::string password = command["password"] | "";
+        if(!wifiSetSmartSocket(role, ip, user, password)) {
+          cloud.log(std::string("message-aux-command-failed:socket_set:") + role, 1);
+        }
+      }
+      else if(command["action"] && command["action"] == std::string("socket_test")) {
+        const std::string role = command["role"] | "";
+        if(!wifiTestSmartSocket(role)) {
+          cloud.log(std::string("message-smart-socket-cmd-failed:") + role + ":test", 1);
+        }
+        else {
+          cloud.log(std::string("message-smart-socket-tested:") + role, 0);
+        }
+      }
     });
 
     wifiInitAuxCloudReporting(&cloud);

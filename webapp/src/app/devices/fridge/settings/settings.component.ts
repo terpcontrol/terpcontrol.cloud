@@ -8,8 +8,7 @@ import {RecipeService} from 'src/app/services/recipe.service';
 import {alarm} from "ionicons/icons";
 import {calculateVpd} from "../../../util/calculateVpd";
 import {deviceHasCo2} from "src/app/util/grow-presets";
-
-const EXPERT_MODE_STORAGE_KEY = 'app-settings-expert';
+import {EXPERT_MODE_STORAGE_KEY} from "src/app/util/ui-mode";
 
 @Component({
   selector: 'fridge-settings',

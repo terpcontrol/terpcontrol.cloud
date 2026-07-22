@@ -70,7 +70,7 @@
 .aux-socket-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   min-height: 40px;
 
   .aux-socket-name {
@@ -80,5 +80,33 @@
 
   ion-button {
     margin: 0;
+    --padding-start: 6px;
+    --padding-end: 6px;
   }
+}
+
+.aux-cam-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 4px;
+  font-weight: 600;
+
+  ion-icon {
+    font-size: 20px;
+    color: var(--ion-color-primary);
+  }
+}
+
+.aux-socket-edit {
+  border-left: 2px solid rgba(var(--ion-color-secondary-rgb), 0.4);
+  padding-left: 10px;
+  margin: 2px 0 10px;
+}
+
+.aux-socket-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 6px;
 }

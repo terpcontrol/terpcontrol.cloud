@@ -76,3 +76,12 @@ void wifiInitAuxCloudReporting(fg::Fridgecloud* cloud);
 // an unpaired role just re-reports the current state. Returns false only for
 // unknown roles.
 bool wifiRemoveSmartSocket(const std::string& role);
+
+// Assigns/updates a socket by IP (cloud-managed, e.g. a foreign Tasmota plug
+// that was never paired via the AP flow). Empty password keeps the default
+// admin/mqtt_pass credentials; otherwise user+password are stored per role.
+bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const std::string& user, const std::string& password);
+
+// Pulses a connected socket ON for ~2s and back OFF (blocking, watchdog-fed).
+// The control loop re-asserts the desired state within its resend window.
+bool wifiTestSmartSocket(const std::string& role);

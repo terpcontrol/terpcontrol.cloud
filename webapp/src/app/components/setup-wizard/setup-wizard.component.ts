@@ -8,8 +8,10 @@ import {
   buildRecipeFromTemplate,
   deviceHasCo2,
   GROW_PLAN_TEMPLATES,
+  GrowPlanTemplateStep,
   GrowStagePresetId,
 } from 'src/app/util/grow-presets';
+import { EXPERT_MODE_STORAGE_KEY } from 'src/app/util/ui-mode';
 
 type WizardStep = 'name' | 'connections' | 'stage' | 'plan' | 'done';
 
@@ -84,8 +86,43 @@ export class SetupWizardComponent implements OnInit {
     return this.planTemplates.find(template => template.id === this.planChoice);
   }
 
+  /** Index of the step matching the chosen stage — the plan starts there. */
+  get planStartIndex(): number {
+    const template = this.selectedTemplate;
+    if (!template) {
+      return 0;
+    }
+    return Math.max(0, template.steps.findIndex(step => step.presetId === this.selectedStage));
+  }
+
+  /**
+   * Only the phases still ahead are editable — asking for the length of a
+   * phase the grow has already passed makes no sense. Memoized so change
+   * detection sees stable row objects.
+   */
+  private remainingStepsCache: { key: string; value: { step: GrowPlanTemplateStep; index: number }[] } = { key: '', value: [] };
+
+  get remainingPlanSteps(): { step: GrowPlanTemplateStep; index: number }[] {
+    const template = this.selectedTemplate;
+    if (!template) {
+      return [];
+    }
+    const key = `${template.id}|${this.planStartIndex}`;
+    if (this.remainingStepsCache.key !== key) {
+      this.remainingStepsCache = {
+        key,
+        value: template.steps.map((step, index) => ({ step, index })).slice(this.planStartIndex),
+      };
+    }
+    return this.remainingStepsCache.value;
+  }
+
+  trackByPlanIndex(_position: number, item: { index: number }): number {
+    return item.index;
+  }
+
   get totalPlanDays(): number {
-    return this.durations.reduce((sum, days) => sum + (Number(days) || 0), 0);
+    return this.durations.slice(this.planStartIndex).reduce((sum, days) => sum + (Number(days) || 0), 0);
   }
 
   ngOnInit() {
@@ -187,8 +224,7 @@ export class SetupWizardComponent implements OnInit {
           });
 
           // Start the plan at the stage the grow is currently in.
-          const startIndex = template.steps.findIndex(step => step.presetId === this.selectedStage);
-          recipe.activeStepIndex = Math.max(0, startIndex);
+          recipe.activeStepIndex = this.planStartIndex;
           recipe.activeSince = Date.now();
 
           const activeSettings = recipe.steps[recipe.activeStepIndex].settings;
@@ -203,6 +239,8 @@ export class SetupWizardComponent implements OnInit {
       }
 
       await this.devices.refetchDevices();
+      // A guided setup should land the user in the guided settings view.
+      localStorage.setItem(EXPERT_MODE_STORAGE_KEY, 'false');
       this.stepIndex = this.steps.indexOf('done');
     } catch (error) {
       console.log('Setup wizard failed to apply:', error);

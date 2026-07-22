@@ -139,11 +139,14 @@ void delayWithWatchdog(uint32_t delay_ms);
 bool provisionSmartSocket(const std::string& socket_role, const std::string& home_ssid, const std::string& home_password, std::string& socket_ip, std::string& error_message, const std::function<void(const char*)>& progress_callback);
 bool isSocketRoleConnected(const std::string& role);
 std::string socketRoleKey(const std::string& role);
+std::string socketRoleUserKey(const std::string& role);
+std::string socketRolePasswordKey(const std::string& role);
 const std::vector<std::string>& getSocketRolesList();
 std::vector<std::string> getSocketRoleOptions();
 static std::string connectedSocketRolesCsv();
 static void reportSocketsHardwareInfo();
 static bool isTerpCamSsid(const std::string& value);
+static bool isKnownSocketRole(const std::string& role);
 boolean createConfigurationAP();
 bool connectToWifi(std::string ssid, std::string password);
 
@@ -415,16 +418,21 @@ static TickType_t socketRoleMinSendInterval(const std::string& role) {
   return SMART_SOCKET_MIN_SEND_INTERVAL;            // 30s
 }
 
-bool sendSmartSocketPower(const std::string& role, bool turn_on) {
-  const std::string socket_ip = sanitizeSettingString(fg::settings().getStr(socketRoleKey(role).c_str()));
-  if(socket_ip.empty()) {
-    return true;
+// Per-role auth override (cloud-managed foreign sockets); empty when the role
+// uses the default admin/mqtt_pass credentials set during provisioning.
+static std::string socketRoleAuthQuery(const std::string& role) {
+  const std::string user = sanitizeSettingString(fg::settings().getStr(socketRoleUserKey(role).c_str()));
+  const std::string password = sanitizeSettingString(fg::settings().getStr(socketRolePasswordKey(role).c_str()));
+  if(password.empty()) {
+    return std::string();
   }
+  return "user=" + urlEncode(user.empty() ? "admin" : user) + "&password=" + urlEncode(password) + "&";
+}
 
-  // The auth segment is constant for the lifetime of the device — the MQTT
-  // password is set at provisioning and never rotates. Cache its URL-encoded
-  // form on first valid use so the hot path becomes one snprintf instead of
-  // five std::string concatenations per call.
+static std::string defaultSocketAuthQuery() {
+  // The default auth segment is constant for the lifetime of the device — the
+  // MQTT password is set at provisioning and never rotates. Cache its
+  // URL-encoded form on first valid use.
   static std::string cached_auth_query;
   if(cached_auth_query.empty()) {
     std::string mqtt_password = sanitizeSettingString(fg::settings().getStr("mqtt_pass"));
@@ -432,16 +440,31 @@ bool sendSmartSocketPower(const std::string& role, bool turn_on) {
       fg::SettingsManager provisioning(NVS_PART, "fg_provisioning");
       mqtt_password = sanitizeSettingString(provisioning.getStr("mqtt_password"));
     }
-    if(mqtt_password.empty()) {
-      return false;
+    if(!mqtt_password.empty()) {
+      cached_auth_query = "user=admin&password=" + urlEncode(mqtt_password) + "&";
     }
-    cached_auth_query = "user=admin&password=" + urlEncode(mqtt_password) + "&";
+  }
+  return cached_auth_query;
+}
+
+bool sendSmartSocketPower(const std::string& role, bool turn_on) {
+  const std::string socket_ip = sanitizeSettingString(fg::settings().getStr(socketRoleKey(role).c_str()));
+  if(socket_ip.empty()) {
+    return true;
   }
 
-  char url[192];
+  std::string auth_query = socketRoleAuthQuery(role);
+  if(auth_query.empty()) {
+    auth_query = defaultSocketAuthQuery();
+  }
+  if(auth_query.empty()) {
+    return false;
+  }
+
+  char url[256];
   snprintf(url, sizeof(url), "http://%s/cm?%scmnd=%s",
            socket_ip.c_str(),
-           cached_auth_query.c_str(),
+           auth_query.c_str(),
            turn_on ? "Power%20On" : "Power%20Off");
   return httpGet(url);
 }
@@ -1463,6 +1486,14 @@ std::string socketRoleKey(const std::string& role) {
   return "sock_misc";
 }
 
+std::string socketRoleUserKey(const std::string& role) {
+  return "su_" + socketRoleKey(role).substr(5);   // e.g. su_dehum, <= 15 chars
+}
+
+std::string socketRolePasswordKey(const std::string& role) {
+  return "sp_" + socketRoleKey(role).substr(5);   // e.g. sp_dehum, <= 15 chars
+}
+
 const std::vector<std::string>& getSocketRolesList() {
   static const std::vector<std::string> roles = {
     "back",
@@ -1515,16 +1546,18 @@ void wifiInitAuxCloudReporting(fg::Fridgecloud* cloud) {
   }
 }
 
-bool wifiRemoveSmartSocket(const std::string& role) {
+static bool isKnownSocketRole(const std::string& role) {
   const std::vector<std::string>& roles = getSocketRolesList();
-  bool known_role = false;
   for(const auto& candidate : roles) {
     if(candidate != "back" && candidate == role) {
-      known_role = true;
-      break;
+      return true;
     }
   }
-  if(!known_role) {
+  return false;
+}
+
+bool wifiRemoveSmartSocket(const std::string& role) {
+  if(!isKnownSocketRole(role)) {
     return false;
   }
 
@@ -1532,23 +1565,23 @@ bool wifiRemoveSmartSocket(const std::string& role) {
     const std::string key = socketRoleKey(role);
     const std::string socket_ip = sanitizeSettingString(fg::settings().getStr(key.c_str()));
 
+    std::string auth_query = socketRoleAuthQuery(role);
+    if(auth_query.empty()) {
+      auth_query = defaultSocketAuthQuery();
+    }
+
     fg::settings().erase(key.c_str());
+    fg::settings().erase(socketRoleUserKey(role).c_str());
+    fg::settings().erase(socketRolePasswordKey(role).c_str());
     fg::settings().commit();
 
     if(smart_socket_cloud_handle != nullptr) {
       smart_socket_cloud_handle->log(std::string("message-smart-socket-disconnected:") + role, 0);
     }
 
-    std::string mqtt_password = sanitizeSettingString(fg::settings().getStr("mqtt_pass"));
-    if(mqtt_password.empty()) {
-      fg::SettingsManager provisioning(NVS_PART, "fg_provisioning");
-      mqtt_password = sanitizeSettingString(provisioning.getStr("mqtt_password"));
-    }
-
     // Best effort: factory-reset the socket so it reopens its pairing AP.
     // httpGet is heap-guarded and simply fails when offline.
-    if(!socket_ip.empty() && !mqtt_password.empty()) {
-      const std::string auth_query = "user=admin&password=" + urlEncode(mqtt_password) + "&";
+    if(!socket_ip.empty() && !auth_query.empty()) {
       const std::string reset_url = "http://" + socket_ip + "/cm?" + auth_query + "cmnd=Reset%201";
       httpGet(reset_url.c_str());
     }
@@ -1556,6 +1589,54 @@ bool wifiRemoveSmartSocket(const std::string& role) {
 
   reportSocketsHardwareInfo();
   return true;
+}
+
+bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const std::string& user, const std::string& password) {
+  if(!isKnownSocketRole(role)) {
+    return false;
+  }
+
+  const std::string clean_ip = sanitizeSettingString(ip);
+  if(clean_ip.empty() || clean_ip.size() > 64 || clean_ip.find(' ') != std::string::npos) {
+    return false;
+  }
+
+  const std::string clean_user = sanitizeSettingString(user);
+  const std::string clean_password = sanitizeSettingString(password);
+  if(clean_user.size() > 48 || clean_password.size() > 48) {
+    return false;
+  }
+
+  fg::settings().setStr(socketRoleKey(role).c_str(), clean_ip.c_str());
+  if(clean_password.empty()) {
+    // Back to the default admin/mqtt_pass credentials.
+    fg::settings().erase(socketRoleUserKey(role).c_str());
+    fg::settings().erase(socketRolePasswordKey(role).c_str());
+  }
+  else {
+    fg::settings().setStr(socketRoleUserKey(role).c_str(), clean_user.c_str());
+    fg::settings().setStr(socketRolePasswordKey(role).c_str(), clean_password.c_str());
+  }
+  fg::settings().commit();
+
+  if(smart_socket_cloud_handle != nullptr) {
+    smart_socket_cloud_handle->log(std::string("message-smart-socket-connected:") + role, 0);
+  }
+  reportSocketsHardwareInfo();
+  return true;
+}
+
+bool wifiTestSmartSocket(const std::string& role) {
+  if(!isKnownSocketRole(role) || !isSocketRoleConnected(role)) {
+    return false;
+  }
+
+  // Short ON pulse ending OFF; the control loop re-asserts the desired state
+  // within its regular resend window afterwards.
+  const bool on_ok = sendSmartSocketPower(role, true);
+  delayWithWatchdog(2000);
+  const bool off_ok = sendSmartSocketPower(role, false);
+  return on_ok && off_ok;
 }
 
 std::vector<std::string> getSocketRoleOptions() {

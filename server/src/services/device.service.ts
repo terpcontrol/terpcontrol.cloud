@@ -796,23 +796,38 @@ class DeviceService {
   // Commands for auxiliary devices managed by the device itself (smart sockets,
   // Terp Control Cam). Whitelisted so the endpoint can never publish arbitrary
   // actions to the device command topic.
-  private static readonly AUX_COMMAND_WHITELIST: Record<string, string[]> = {
-    socket_remove: ['dehumidifier', 'heater', 'light', 'secondary_light', 'co2'],
-  };
+  private static readonly SOCKET_ROLES = ['dehumidifier', 'heater', 'light', 'secondary_light', 'co2'];
+  private static readonly AUX_COMMAND_ACTIONS = ['socket_remove', 'socket_test', 'socket_set'];
 
-  public async sendAuxDeviceCommand(device_id: string, action: string, role: string): Promise<void> {
-    const allowedRoles = DeviceService.AUX_COMMAND_WHITELIST[action];
-    if (!allowedRoles || !allowedRoles.includes(role)) {
+  public async sendAuxDeviceCommand(
+    device_id: string,
+    action: string,
+    role: string,
+    options?: { ip?: string; user?: string; password?: string },
+  ): Promise<void> {
+    if (!DeviceService.AUX_COMMAND_ACTIONS.includes(action) || !DeviceService.SOCKET_ROLES.includes(role)) {
       throw new HttpException(400, 'Unknown aux command');
     }
 
-    mqttclient.publish(
-      '/devices/' + device_id + '/command',
-      JSON.stringify({
-        action,
-        role,
-      }),
-    );
+    const payload: Record<string, string> = { action, role };
+
+    if (action === 'socket_set') {
+      const ip = String(options?.ip ?? '').trim();
+      const user = String(options?.user ?? '').trim();
+      const password = String(options?.password ?? '').trim();
+      // Host or IP the device will call over plain HTTP — keep it simple and bounded.
+      if (!ip || ip.length > 64 || !/^[a-zA-Z0-9._-]+$/.test(ip)) {
+        throw new HttpException(400, 'Invalid socket address');
+      }
+      if (user.length > 48 || password.length > 48) {
+        throw new HttpException(400, 'Credentials too long');
+      }
+      payload['ip'] = ip;
+      payload['user'] = user;
+      payload['password'] = password;
+    }
+
+    mqttclient.publish('/devices/' + device_id + '/command', JSON.stringify(payload));
   }
 
   public async findUserDevices(user_id: string): Promise<Device[]> {

@@ -425,7 +425,8 @@
       "total": "Gesamt: etwa {{days}} Tage ({{weeks}} Wochen).",
       "confirmNote": "Vor dem Blüte-Umstieg, der Ernte und dem Ende der Trocknung wartet der Plan auf deine Bestätigung — du behältst die Kontrolle.",
       "photoperiod": "Photoperiodisch",
-      "autoflower": "Autoflower"
+      "autoflower": "Autoflower",
+      "startsAtStage": "Bereits vergangene Phasen behalten ihre Standardwerte — du planst nur ab deiner aktuellen Phase."
     },
     "done": {
       "title": "Das war's — ab jetzt übernimmt die Automatik",
@@ -915,7 +916,11 @@
       "hostHintTunnel": "Lokale IP der Kamera in deinem Heimnetz — der Stream wird über den Tunnel deines Geräts geholt.",
       "hostHintPublic": "Öffentliche IP oder DDNS-Name, aus dem Internet erreichbar. Aktiviere Tunneling, um stattdessen eine lokale IP zu nutzen.",
       "remove": "Webcam entfernen",
-      "savedNote": "Webcam-Änderungen werden beim Speichern der Einstellungen übernommen."
+      "savedNote": "Webcam-Änderungen werden beim Speichern der Einstellungen übernommen.",
+      "add": "Webcam hinzufügen",
+      "pickModel": "Welche Kamera hast du? (eine Webcam pro Gerät)",
+      "fillPlaceholders": "Platzhalter ausfüllen",
+      "placeholderHint": "Ersetze <user>, <password> und <ip> in der URL durch die Werte deiner Kamera."
     },
     "sockets": {
       "title": "Smart Sockets",
@@ -934,7 +939,16 @@
       "removeConfirmTitle": "Steckdose entfernen?",
       "removeConfirmText": "Die Steckdose „{{role}}“ wird entkoppelt und zurückgesetzt. Das passiert sofort.",
       "offlineHint": "Das Gerät ist offline — Steckdosen-Änderungen brauchen ein verbundenes Gerät.",
-      "pairOnDevice": "Das Entfernen wirkt sofort. Neue Steckdosen koppelst du über das Display des Controllers."
+      "pairOnDevice": "Das Entfernen wirkt sofort. Neue Steckdosen koppelst du über das Display des Controllers.",
+      "pending": "Wird aktualisiert…",
+      "test": "Testen",
+      "edit": "Bearbeiten",
+      "ip": "IP-Adresse",
+      "user": "Benutzername (optional)",
+      "password": "Passwort (leer = Geräte-Standard)",
+      "apply": "Übernehmen",
+      "editHint": "Der Controller schaltet die Steckdose unter dieser Adresse (Tasmota-HTTP). Passwort leer lassen, um die Kopplungs-Zugangsdaten zu behalten.",
+      "testNote": "Testen schaltet die Steckdose für ca. 2 Sekunden ein."
     }
   },
   "alarmPresets": {

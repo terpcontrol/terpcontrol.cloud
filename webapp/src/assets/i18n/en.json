@@ -425,7 +425,8 @@
       "total": "Total: about {{days}} days ({{weeks}} weeks).",
       "confirmNote": "Before the flowering switch, harvest and the end of drying, the plan waits for your confirmation — you stay in charge.",
       "photoperiod": "Photoperiod",
-      "autoflower": "Autoflower"
+      "autoflower": "Autoflower",
+      "startsAtStage": "Phases you're already past keep their defaults — you only plan from your current phase onward."
     },
     "done": {
       "title": "That's it — the automation takes over",
@@ -919,7 +920,11 @@
       "hostHintTunnel": "Local IP of the camera in your home network — the stream is fetched through your device's tunnel.",
       "hostHintPublic": "Public IP or DDNS name reachable from the internet. Enable tunneling to use a local IP instead.",
       "remove": "Remove webcam",
-      "savedNote": "Webcam changes are stored when you save the settings."
+      "savedNote": "Webcam changes are stored when you save the settings.",
+      "add": "Add webcam",
+      "pickModel": "Which camera do you have? (one webcam per device)",
+      "fillPlaceholders": "Fill in placeholders",
+      "placeholderHint": "Replace <user>, <password> and <ip> in the URL with your camera's values."
     },
     "sockets": {
       "title": "Smart Sockets",
@@ -938,7 +943,16 @@
       "removeConfirmTitle": "Remove socket?",
       "removeConfirmText": "The \"{{role}}\" socket will be unpaired and reset. This takes effect immediately.",
       "offlineHint": "The device is offline — socket changes need a connected device.",
-      "pairOnDevice": "Removal takes effect immediately. To pair a new socket use the controller's display."
+      "pairOnDevice": "Removal takes effect immediately. To pair a new socket use the controller's display.",
+      "pending": "Updating…",
+      "test": "Test",
+      "edit": "Edit",
+      "ip": "IP address",
+      "user": "Username (optional)",
+      "password": "Password (empty = device default)",
+      "apply": "Apply",
+      "editHint": "The controller switches the socket at this address (Tasmota HTTP). Leave the password empty to keep the pairing credentials.",
+      "testNote": "Test switches the socket on for about 2 seconds."
     }
   },
   "alarmPresets": {

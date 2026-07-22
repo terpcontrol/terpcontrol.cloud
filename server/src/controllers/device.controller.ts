@@ -95,7 +95,11 @@ class DeviceController {
   public sendAuxCommand = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
       if (req.is_admin || (await isUserDeviceMiddelware(req, res, req.body.device_id))) {
-        await deviceService.sendAuxDeviceCommand(req.body.device_id, req.body.action, req.body.role);
+        await deviceService.sendAuxDeviceCommand(req.body.device_id, req.body.action, req.body.role, {
+          ip: req.body.ip,
+          user: req.body.user,
+          password: req.body.password,
+        });
         res.status(200).json({ status: 'ok' });
       } else {
         res.status(401);

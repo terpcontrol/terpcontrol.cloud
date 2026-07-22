@@ -81,15 +81,16 @@
 
       <ng-container *ngIf="selectedTemplate as template">
         <h3 class="wizard-durations-title">{{ 'wizard.plan.durationsTitle' | translate }}</h3>
-        <ion-item *ngFor="let templateStep of template.steps; let i = index" lines="none" class="wizard-duration-item">
-          <ion-label>{{ templateStep.nameKey | translate }}</ion-label>
+        <p class="wizard-sub" *ngIf="planStartIndex > 0">{{ 'wizard.plan.startsAtStage' | translate }}</p>
+        <ion-item *ngFor="let item of remainingPlanSteps; trackBy: trackByPlanIndex" lines="none" class="wizard-duration-item">
+          <ion-label>{{ item.step.nameKey | translate }}</ion-label>
           <ion-input
             type="number"
             inputmode="numeric"
             min="1"
             max="99"
-            [ngModel]="durations[i]"
-            (ngModelChange)="durations[i] = $event"
+            [ngModel]="durations[item.index]"
+            (ngModelChange)="durations[item.index] = $event"
           ></ion-input>
           <ion-note slot="end">{{ 'wizard.plan.days' | translate }}</ion-note>
         </ion-item>

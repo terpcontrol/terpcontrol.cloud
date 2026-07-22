@@ -6,7 +6,9 @@ import { WebcamModel } from '@fg2/shared-types';
 import { DeviceService } from 'src/app/services/devices.service';
 import {
   getWebcamModel,
+  hasPlaceholders,
   parseRtspUrl,
+  replaceRtspAuthHost,
   WEBCAM_MODELS,
   WebcamCredentialFields,
   WebcamModelTemplate,
@@ -15,14 +17,15 @@ import {
 export const SOCKET_ROLES = ['dehumidifier', 'heater', 'light', 'secondary_light', 'co2'] as const;
 
 const DEVICE_ONLINE_TIMEOUT_MS = 10 * 60 * 1000;
-const SOCKET_REMOVE_POLLS = 3;
-const SOCKET_REMOVE_POLL_MS = 5000;
+const SOCKET_CONFIRM_POLLS = 3;
+const SOCKET_CONFIRM_POLL_MS = 5000;
+const SOCKET_TEST_RESET_MS = 6000;
 
 /**
- * "Connected devices" card: the webcam (with camera-model templates, incl. the
- * Terp Control Cam paired on the device itself) and the smart sockets the
- * controller manages locally. Webcam fields follow the page's Save button;
- * socket removal is sent to the device immediately.
+ * "Connected devices" card: one webcam (added via a model picker, then shown
+ * as the single configured camera) and the smart sockets the controller
+ * manages. Webcam fields follow the page's Save button; socket commands
+ * (test / set / remove) go to the device immediately.
  */
 @Component({
   selector: 'aux-devices',
@@ -38,15 +41,21 @@ export class AuxDevicesComponent implements OnChanges, OnDestroy {
 
   public webcamModels = WEBCAM_MODELS;
   public socketRoles = [...SOCKET_ROLES];
-  public selectedModel: WebcamModel | null = null;
-  public fields: WebcamCredentialFields = { user: '', password: '', host: '' };
-  public removingRoles = new Set<string>();
+
+  /** The model grid only shows while adding — there is exactly one webcam. */
+  public addingWebcam = false;
+  public terpCamFields: WebcamCredentialFields = { user: '', password: '', host: '' };
+
+  public editingRole: string | null = null;
+  public socketDraft = { ip: '', user: '', password: '' };
+  public pendingRoles = new Set<string>();
+  public testedRoles = new Set<string>();
 
   public testLoading = false;
   public testError: string | null = null;
   public testImageUrl: SafeUrl | null = null;
   private testObjectUrl: string | null = null;
-  private pollTimers: ReturnType<typeof setTimeout>[] = [];
+  private timers: ReturnType<typeof setTimeout>[] = [];
 
   constructor(
     private devices: DeviceService,
@@ -57,34 +66,22 @@ export class AuxDevicesComponent implements OnChanges, OnDestroy {
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['cloudSettings']) {
-      this.selectedModel = this.cloudSettings?.webcamModel ?? (this.cloudSettings?.rtspStream ? 'custom' : null);
-      this.fields = parseRtspUrl(this.cloudSettings?.rtspStream) ?? { user: '', password: '', host: '' };
+      this.addingWebcam = false;
+      this.terpCamFields = parseRtspUrl(this.cloudSettings?.rtspStream) ?? { user: '', password: '', host: '' };
     }
-    if (changes['hardwareInfo'] && this.removingRoles.size > 0) {
-      // The device confirms a removal by re-reporting its socket csv.
-      for (const role of [...this.removingRoles]) {
-        if (this.socketState(role) !== 'connected') {
-          this.removingRoles.delete(role);
-        }
-      }
+    if (changes['hardwareInfo'] && this.pendingRoles.size > 0) {
+      // The device confirms socket changes by re-reporting its csv.
+      this.pendingRoles.clear();
     }
   }
 
   ngOnDestroy() {
-    this.pollTimers.forEach(timer => clearTimeout(timer));
+    this.timers.forEach(timer => clearTimeout(timer));
     this.clearTestImage();
   }
 
   get isController(): boolean {
     return this.deviceType === 'controller';
-  }
-
-  get currentTemplate(): WebcamModelTemplate | undefined {
-    return getWebcamModel(this.selectedModel ?? undefined);
-  }
-
-  get isBrandTemplate(): boolean {
-    return !!this.currentTemplate?.buildUrl;
   }
 
   get hasWebcam(): boolean {
@@ -95,14 +92,26 @@ export class AuxDevicesComponent implements OnChanges, OnDestroy {
     return !!this.cloudSettings?.rtspStream?.startsWith('rtsp://');
   }
 
+  get urlHasPlaceholders(): boolean {
+    return hasPlaceholders(this.cloudSettings?.rtspStream);
+  }
+
+  get currentModel(): WebcamModelTemplate | undefined {
+    return getWebcamModel(this.cloudSettings?.webcamModel) ?? (this.hasWebcam ? getWebcamModel('custom') : undefined);
+  }
+
+  get isTerpCam(): boolean {
+    return this.cloudSettings?.webcamModel === 'terp_cam';
+  }
+
   /** URL the device reported for a locally paired Terp Control Cam. */
   get terpCamUrl(): string | null {
     const url = this.hardwareInfo?.['webcam_url'];
     return url && url !== 'none' ? url : null;
   }
 
-  get terpCamApplied(): boolean {
-    return this.cloudSettings?.webcamModel === 'terp_cam' && !!this.terpCamUrl && this.cloudSettings?.rtspStream === this.terpCamUrl;
+  get terpCamUrlDiffers(): boolean {
+    return !!this.terpCamUrl && this.isTerpCam && this.cloudSettings?.rtspStream !== this.terpCamUrl;
   }
 
   get socketsReported(): boolean {
@@ -121,27 +130,34 @@ export class AuxDevicesComponent implements OnChanges, OnDestroy {
     return csv.split(',').includes(role) ? 'connected' : 'not_connected';
   }
 
-  selectModel(model: WebcamModel) {
-    this.selectedModel = model;
-    this.cloudSettings.webcamModel = model;
-    if (model !== 'terp_cam' && this.cloudSettings.tunnelRtspStream === undefined) {
-      this.cloudSettings.tunnelRtspStream = !!this.currentTemplate?.defaultTunnel;
-    }
-    this.rebuildUrlFromFields();
+  // --- Webcam -------------------------------------------------------------
+
+  startAddWebcam() {
+    this.addingWebcam = true;
   }
 
-  /** Brand templates write the stream URL live from the credential fields. */
-  rebuildUrlFromFields() {
-    const template = this.currentTemplate;
-    if (!template?.buildUrl) {
-      return;
+  cancelAddWebcam() {
+    this.addingWebcam = false;
+    this.cloudSettings.rtspStream = '';
+    this.cloudSettings.webcamModel = undefined;
+    this.cloudSettings.tunnelRtspStream = undefined;
+  }
+
+  selectModel(model: WebcamModel) {
+    const template = getWebcamModel(model);
+    this.cloudSettings.webcamModel = model;
+
+    if (template?.placeholderUrl) {
+      this.cloudSettings.rtspStream = template.placeholderUrl;
+    } else if (model === 'custom') {
+      this.cloudSettings.rtspStream = this.urlHasPlaceholders ? '' : this.cloudSettings.rtspStream ?? '';
     }
-    if (!this.fields.host.trim()) {
-      return;
-    }
-    this.cloudSettings.rtspStream = template.buildUrl(this.fields);
-    if (!this.cloudSettings.rtspStreamTransport) {
-      this.cloudSettings.rtspStreamTransport = 'tcp';
+
+    if (model !== 'terp_cam') {
+      this.cloudSettings.tunnelRtspStream = !!template?.defaultTunnel;
+      if (!this.cloudSettings.rtspStreamTransport) {
+        this.cloudSettings.rtspStreamTransport = 'tcp';
+      }
     }
   }
 
@@ -155,22 +171,30 @@ export class AuxDevicesComponent implements OnChanges, OnDestroy {
     if (!this.cloudSettings.rtspStreamTransport) {
       this.cloudSettings.rtspStreamTransport = 'tcp';
     }
-    this.selectedModel = 'terp_cam';
+    this.terpCamFields = parseRtspUrl(this.terpCamUrl) ?? { user: '', password: '', host: '' };
+    this.addingWebcam = false;
+  }
+
+  /** Terp Control Cam connection edits keep the reported stream path. */
+  onTerpCamFieldsChange() {
+    if (!this.cloudSettings?.rtspStream || !this.terpCamFields.host.trim()) {
+      return;
+    }
+    this.cloudSettings.rtspStream = replaceRtspAuthHost(this.cloudSettings.rtspStream, this.terpCamFields);
   }
 
   removeWebcam() {
     this.cloudSettings.rtspStream = '';
     this.cloudSettings.webcamModel = undefined;
     this.cloudSettings.tunnelRtspStream = undefined;
-    this.selectedModel = null;
-    this.fields = { user: '', password: '', host: '' };
+    this.addingWebcam = false;
     this.testError = null;
     this.clearTestImage();
   }
 
   async testStream() {
     const rtspStream = this.cloudSettings?.rtspStream?.trim();
-    if (!rtspStream || this.testLoading) {
+    if (!rtspStream || this.testLoading || this.urlHasPlaceholders) {
       return;
     }
 
@@ -193,6 +217,49 @@ export class AuxDevicesComponent implements OnChanges, OnDestroy {
     }
   }
 
+  // --- Smart sockets ------------------------------------------------------
+
+  startEditSocket(role: string) {
+    if (this.editingRole === role) {
+      this.editingRole = null;
+      return;
+    }
+    this.editingRole = role;
+    this.socketDraft = { ip: '', user: '', password: '' };
+  }
+
+  get socketDraftValid(): boolean {
+    const ip = this.socketDraft.ip.trim();
+    return ip.length > 0 && ip.length <= 64 && /^[a-zA-Z0-9._-]+$/.test(ip);
+  }
+
+  async applySocketDraft(role: string) {
+    if (!this.socketDraftValid) {
+      return;
+    }
+    try {
+      await this.devices.sendAuxCommand(this.deviceId, 'socket_set', role, {
+        ip: this.socketDraft.ip.trim(),
+        user: this.socketDraft.user.trim(),
+        password: this.socketDraft.password.trim(),
+      });
+      this.editingRole = null;
+      this.markPending(role);
+    } catch (e) {
+      console.log('Socket set failed:', e);
+    }
+  }
+
+  async testSocket(role: string) {
+    try {
+      await this.devices.sendAuxCommand(this.deviceId, 'socket_test', role);
+      this.testedRoles.add(role);
+      this.timers.push(setTimeout(() => this.testedRoles.delete(role), SOCKET_TEST_RESET_MS));
+    } catch (e) {
+      console.log('Socket test failed:', e);
+    }
+  }
+
   async removeSocket(role: string) {
     const alert = await this.alertController.create({
       header: this.translate.instant('auxDevices.sockets.removeConfirmTitle'),
@@ -212,13 +279,17 @@ export class AuxDevicesComponent implements OnChanges, OnDestroy {
 
     try {
       await this.devices.sendAuxCommand(this.deviceId, 'socket_remove', role);
-      this.removingRoles.add(role);
-      // The device re-reports its sockets; poll a few refetches to pick it up.
-      for (let i = 1; i <= SOCKET_REMOVE_POLLS; i++) {
-        this.pollTimers.push(setTimeout(() => void this.devices.refetchDevices(), i * SOCKET_REMOVE_POLL_MS));
-      }
+      this.markPending(role);
     } catch (e) {
       console.log('Socket removal failed:', e);
+    }
+  }
+
+  private markPending(role: string) {
+    this.pendingRoles.add(role);
+    // The device re-reports its sockets; poll a few refetches to pick it up.
+    for (let i = 1; i <= SOCKET_CONFIRM_POLLS; i++) {
+      this.timers.push(setTimeout(() => void this.devices.refetchDevices(), i * SOCKET_CONFIRM_POLL_MS));
     }
   }
 

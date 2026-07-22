@@ -1391,10 +1391,19 @@ class DeviceRoute implements Routes {
      *               device_id: { type: string }
      *               action:
      *                 type: string
-     *                 enum: [socket_remove]
+     *                 enum: [socket_remove, socket_test, socket_set]
      *               role:
      *                 type: string
      *                 enum: [dehumidifier, heater, light, secondary_light, co2]
+     *               ip:
+     *                 type: string
+     *                 description: socket_set only — host/IP of the socket on the device's network.
+     *               user:
+     *                 type: string
+     *                 description: socket_set only — HTTP auth user; empty keeps the device default.
+     *               password:
+     *                 type: string
+     *                 description: socket_set only — HTTP auth password; empty keeps the device default.
      *     responses:
      *       '200':
      *         description: Command published
