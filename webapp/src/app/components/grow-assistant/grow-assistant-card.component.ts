@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angu
 import { Subscription } from 'rxjs';
 import { DataService } from 'src/app/services/data.service';
 import { deviceControlCapability } from 'src/app/util/grow-presets';
+import { KeyedCache } from 'src/app/util/keyed-cache';
 
 const TEMPERATURE_TOLERANCE = 1.5;
 const HUMIDITY_TOLERANCE = 7;
@@ -168,22 +169,19 @@ export class GrowAssistantCardComponent implements OnInit, OnDestroy {
   // Memoized: change detection runs these getters constantly, and returning
   // fresh arrays/objects each time made ngFor/routerLink rework the DOM on
   // every pass.
-  private deviationsCache: { key: string; value: RangeDeviation[] } = { key: '', value: [] };
+  private deviationsCache = new KeyedCache<RangeDeviation[]>();
 
   get deviations(): RangeDeviation[] {
     const targets = this.activeTargets;
     if (!targets || !this.rangeAvailable) {
-      if (this.deviationsCache.key !== '' || this.deviationsCache.value.length > 0) {
-        this.deviationsCache = { key: '', value: [] };
-      }
-      return this.deviationsCache.value;
+      return this.deviationsCache.get('none', () => []);
     }
 
     const key = [this.currentTemperature, this.currentHumidity, targets.temperature, targets.humidity, this.settings?.workmode].join('|');
-    if (this.deviationsCache.key === key) {
-      return this.deviationsCache.value;
-    }
+    return this.deviationsCache.get(key, () => this.buildDeviations(targets));
+  }
 
+  private buildDeviations(targets: { temperature: number; humidity: number }): RangeDeviation[] {
     const result: RangeDeviation[] = [];
     if (Math.abs(this.currentTemperature - targets.temperature) > TEMPERATURE_TOLERANCE) {
       result.push({
@@ -202,7 +200,6 @@ export class GrowAssistantCardComponent implements OnInit, OnDestroy {
         targetValue: targets.humidity,
       });
     }
-    this.deviationsCache = { key, value: result };
     return result;
   }
 

@@ -1,0 +1,35 @@
+/* Shared styling for the connected-devices sections (webcam + smart sockets).
+ * Imported by both child components — parent styles cannot cross the view
+ * encapsulation boundary. */
+
+.aux-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  margin: 4px 0 2px;
+
+  ion-icon {
+    color: var(--ion-color-primary);
+    font-size: 20px;
+  }
+}
+
+.aux-hint {
+  color: var(--ion-color-medium);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 2px 0 10px;
+}
+
+.aux-model-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+
+  ion-icon {
+    font-size: 26px;
+    color: var(--ion-color-primary);
+  }
+}

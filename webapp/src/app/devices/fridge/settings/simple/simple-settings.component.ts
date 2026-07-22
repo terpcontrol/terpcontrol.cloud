@@ -1,5 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { calculateVpd } from 'src/app/util/calculateVpd';
+import { KeyedCache } from 'src/app/util/keyed-cache';
 import {
   applyStagePreset,
   detectActiveStagePreset,
@@ -103,22 +104,18 @@ export class FridgeSimpleSettingsComponent {
   public editingDurationIndex: number | null = null;
   // Memoized so change detection sees stable row objects (a fresh array of
   // wrappers per cycle would make ngFor rebuild the DOM continuously).
-  private upcomingCache: { key: string; value: { step: any; index: number }[] } = { key: '', value: [] };
+  private upcomingCache = new KeyedCache<{ step: any; index: number }[]>();
 
   get upcomingSteps(): { step: any; index: number }[] {
     if (!this.planRunning || !Array.isArray(this.recipe?.steps)) {
-      return [];
+      return this.upcomingCache.get('none', () => []);
     }
     const key = `${this.recipe.activeStepIndex}|${this.recipe.steps.length}|${this.recipe.activeSince}`;
-    if (this.upcomingCache.key !== key) {
-      this.upcomingCache = {
-        key,
-        value: this.recipe.steps
-          .map((step: any, index: number) => ({ step, index }))
-          .slice((this.recipe.activeStepIndex ?? 0) + 1),
-      };
-    }
-    return this.upcomingCache.value;
+    return this.upcomingCache.get(key, () =>
+      this.recipe.steps
+        .map((step: any, index: number) => ({ step, index }))
+        .slice((this.recipe.activeStepIndex ?? 0) + 1),
+    );
   }
 
   trackByStepIndex(_position: number, item: { index: number }): number {

@@ -6,6 +6,8 @@ import { StagePresetPickerComponent } from './stage-preset-picker/stage-preset-p
 import { SetupWizardComponent } from './setup-wizard/setup-wizard.component';
 import { GrowAssistantCardComponent } from './grow-assistant/grow-assistant-card.component';
 import { AuxDevicesComponent } from './aux-devices/aux-devices.component';
+import { WebcamConfigComponent } from './aux-devices/webcam-config.component';
+import { SmartSocketsComponent } from './aux-devices/smart-sockets.component';
 import { ValueEditRowComponent } from './value-edit-row/value-edit-row.component';
 import { DeleteDeviceRowComponent } from './delete-device-row/delete-device-row.component';
 import { RangeGuardDirective } from './range-guard.directive';
@@ -21,6 +23,8 @@ import { TranslateModule } from '@ngx-translate/core';
     SetupWizardComponent,
     GrowAssistantCardComponent,
     AuxDevicesComponent,
+    WebcamConfigComponent,
+    SmartSocketsComponent,
     ValueEditRowComponent,
     DeleteDeviceRowComponent,
     RangeGuardDirective,

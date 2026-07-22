@@ -18,8 +18,6 @@ export class CloudSettingsComponent implements OnChanges {
 
   @Input() deviceId: string = '';
 
-  @Input() deviceType: string = '';
-
   @Input() hardwareInfo: Record<string, string> | undefined;
 
   @Output() cloudSettingsChange = new EventEmitter<any>();

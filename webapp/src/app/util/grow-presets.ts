@@ -1,4 +1,5 @@
 import { DiaryLifecycleStage, Recipe, RecipeStep } from '@fg2/shared-types';
+import { parseSocketRoles } from './socket-info';
 
 export type GrowStagePresetId = 'seedling' | 'vegetative' | 'flowering' | 'late_flowering' | 'drying';
 
@@ -155,7 +156,7 @@ export function deviceControlCapability(
   if (csv === undefined) {
     return 'full';
   }
-  const roles = csv === 'none' ? [] : csv.split(',').filter(role => role.length > 0);
+  const roles = parseSocketRoles(csv);
   if (roles.some(role => CLIMATE_SOCKET_ROLES.includes(role))) {
     return 'full';
   }

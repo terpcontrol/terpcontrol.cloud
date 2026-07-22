@@ -1,70 +1,12 @@
-.aux-section-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 1rem;
-  margin: 4px 0 2px;
-
-  ion-icon {
-    color: var(--ion-color-primary);
-    font-size: 20px;
-  }
-}
+@import './aux-shared';
 
 .aux-sockets-title {
   margin-top: 22px;
 }
 
-.aux-hint {
-  color: var(--ion-color-medium);
-  font-size: 0.85rem;
-  line-height: 1.5;
-  margin: 2px 0 10px;
-}
-
 .aux-unknown ion-icon {
   vertical-align: -3px;
   margin-right: 4px;
-}
-
-.aux-model-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 8px;
-  margin-bottom: 12px;
-
-  ion-icon {
-    font-size: 26px;
-    color: var(--ion-color-primary);
-  }
-}
-
-.aux-url-preview {
-  font-family: monospace;
-  font-size: 0.78rem;
-  color: var(--ion-color-medium);
-  word-break: break-all;
-  margin: 8px 0 0;
-}
-
-.aux-webcam-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.aux-error {
-  color: var(--ion-color-danger);
-  font-size: 0.85rem;
-}
-
-.aux-test-image {
-  max-width: 320px;
-  width: 100%;
-  border-radius: var(--tc-radius-sm);
-  border: 1px solid var(--ion-border-color);
-  margin-top: 8px;
 }
 
 .aux-socket-row {
@@ -82,19 +24,6 @@
     margin: 0;
     --padding-start: 6px;
     --padding-end: 6px;
-  }
-}
-
-.aux-cam-summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 6px 0 4px;
-  font-weight: 600;
-
-  ion-icon {
-    font-size: 20px;
-    color: var(--ion-color-primary);
   }
 }
 

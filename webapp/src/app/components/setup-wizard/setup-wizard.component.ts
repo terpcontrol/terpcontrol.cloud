@@ -12,6 +12,8 @@ import {
   GrowPlanTemplateStep,
   GrowStagePresetId,
 } from 'src/app/util/grow-presets';
+import { KeyedCache } from 'src/app/util/keyed-cache';
+import { parseSocketRoles } from 'src/app/util/socket-info';
 import { EXPERT_MODE_STORAGE_KEY } from 'src/app/util/ui-mode';
 
 type WizardStep = 'name' | 'connections' | 'stage' | 'plan' | 'done';
@@ -99,17 +101,11 @@ export class SetupWizardComponent implements OnInit {
   }
 
   // Memoized: template ngFor needs stable array identity across change detection.
-  private socketRolesCache: { key: string; value: string[] } = { key: '', value: [] };
+  private socketRolesCache = new KeyedCache<string[]>();
 
   get connectedSocketRoles(): string[] {
     const csv = this.hardwareInfo?.['sockets'] ?? '';
-    if (this.socketRolesCache.key !== csv) {
-      this.socketRolesCache = {
-        key: csv,
-        value: csv === 'none' ? [] : csv.split(',').filter(role => role.length > 0),
-      };
-    }
-    return this.socketRolesCache.value;
+    return this.socketRolesCache.get(csv, () => parseSocketRoles(csv));
   }
 
   /** Re-reads the socket report, e.g. after pairing on the device mid-wizard. */
@@ -146,21 +142,16 @@ export class SetupWizardComponent implements OnInit {
    * phase the grow has already passed makes no sense. Memoized so change
    * detection sees stable row objects.
    */
-  private remainingStepsCache: { key: string; value: { step: GrowPlanTemplateStep; index: number }[] } = { key: '', value: [] };
+  private remainingStepsCache = new KeyedCache<{ step: GrowPlanTemplateStep; index: number }[]>();
 
   get remainingPlanSteps(): { step: GrowPlanTemplateStep; index: number }[] {
     const template = this.selectedTemplate;
     if (!template) {
-      return [];
+      return this.remainingStepsCache.get('none', () => []);
     }
-    const key = `${template.id}|${this.planStartIndex}`;
-    if (this.remainingStepsCache.key !== key) {
-      this.remainingStepsCache = {
-        key,
-        value: template.steps.map((step, index) => ({ step, index })).slice(this.planStartIndex),
-      };
-    }
-    return this.remainingStepsCache.value;
+    return this.remainingStepsCache.get(`${template.id}|${this.planStartIndex}`, () =>
+      template.steps.map((step, index) => ({ step, index })).slice(this.planStartIndex),
+    );
   }
 
   trackByPlanIndex(_position: number, item: { index: number }): number {
