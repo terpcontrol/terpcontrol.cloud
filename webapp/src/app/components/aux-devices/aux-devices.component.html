@@ -48,17 +48,18 @@
         <span class="tc-pill tc-pill--warning" *ngIf="urlHasPlaceholders">{{ 'auxDevices.webcam.fillPlaceholders' | translate }}</span>
       </div>
 
-      <!-- Terp Control Cam: connection from the device, fields editable -->
+      <!-- Terp Control Cam: pairs on the device; manual entry is an explicit skip. -->
       <ng-container *ngIf="isTerpCam || (addingWebcam && cloudSettings.webcamModel === 'terp_cam')">
-        <ng-container *ngIf="terpCamUrl || hasWebcam; else terpCamMissing">
-          <ion-item lines="none" class="aux-terpcam-found" *ngIf="terpCamUrlDiffers || !hasWebcam">
+        <ng-container *ngIf="terpCamUrl || hasWebcam || terpCamManual; else terpCamMissing">
+          <ion-item lines="none" class="aux-terpcam-found" *ngIf="terpCamUrl && (terpCamUrlDiffers || !hasWebcam)">
             <ion-icon slot="start" name="checkmark-circle-outline" color="secondary"></ion-icon>
             <ion-label class="ion-text-wrap">{{ 'auxDevices.webcam.terpCamFound' | translate }}</ion-label>
             <ion-button slot="end" size="small" color="secondary" (click)="applyTerpCam()">
               {{ 'auxDevices.webcam.terpCamUse' | translate }}
             </ion-button>
           </ion-item>
-          <ng-container *ngIf="hasWebcam">
+          <!-- Connection fields: once connected — or entering the address manually. -->
+          <ng-container *ngIf="hasWebcam || terpCamManual">
             <ion-item>
               <ion-label position="floating">{{ 'auxDevices.webcam.user' | translate }}</ion-label>
               <ion-input [(ngModel)]="terpCamFields.user" (ngModelChange)="onTerpCamFieldsChange()" autocomplete="off"></ion-input>
@@ -71,10 +72,14 @@
               <ion-label position="floating">{{ 'auxDevices.webcam.host' | translate }}</ion-label>
               <ion-input [(ngModel)]="terpCamFields.host" (ngModelChange)="onTerpCamFieldsChange()" autocomplete="off"></ion-input>
             </ion-item>
+            <span class="tc-field-hint">{{ 'auxDevices.webcam.terpCamTunnelNote' | translate }}</span>
           </ng-container>
         </ng-container>
         <ng-template #terpCamMissing>
           <p class="aux-hint">{{ 'auxDevices.webcam.terpCamMissing' | translate }}</p>
+          <ion-button size="small" fill="clear" color="medium" (click)="startTerpCamManual()">
+            {{ 'auxDevices.manualSetup' | translate }}
+          </ion-button>
         </ng-template>
       </ng-container>
 
@@ -218,21 +223,26 @@
 
         <ng-container *ngIf="addingSocket">
           <div class="aux-model-grid aux-socket-brands">
-            <div class="tc-preset-card" [class.active]="addSocketBrand === 'terp'" (click)="addSocketBrand = 'terp'">
+            <div class="tc-preset-card" [class.active]="addSocketBrand === 'terp'" (click)="pickSocketBrand('terp')">
               <ion-icon name="flash"></ion-icon>
               <span class="tc-preset-card__title">{{ 'auxDevices.sockets.brands.terp.name' | translate }}</span>
               <span class="tc-preset-card__subtitle">{{ 'auxDevices.sockets.brands.terp.subtitle' | translate }}</span>
             </div>
-            <div class="tc-preset-card" [class.active]="addSocketBrand === 'tasmota'" (click)="addSocketBrand = 'tasmota'">
+            <div class="tc-preset-card" [class.active]="addSocketBrand === 'tasmota'" (click)="pickSocketBrand('tasmota')">
               <ion-icon name="flash-outline"></ion-icon>
               <span class="tc-preset-card__title">{{ 'auxDevices.sockets.brands.tasmota.name' | translate }}</span>
               <span class="tc-preset-card__subtitle">{{ 'auxDevices.sockets.brands.tasmota.subtitle' | translate }}</span>
             </div>
           </div>
 
-          <p class="aux-hint" *ngIf="addSocketBrand === 'terp'">{{ 'auxDevices.sockets.brands.terp.hint' | translate }}</p>
+          <ng-container *ngIf="addSocketBrand === 'terp' && !terpSocketManual">
+            <p class="aux-hint">{{ 'auxDevices.sockets.brands.terp.hint' | translate }}</p>
+            <ion-button size="small" fill="clear" color="medium" (click)="terpSocketManual = true">
+              {{ 'auxDevices.manualSetup' | translate }}
+            </ion-button>
+          </ng-container>
 
-          <div class="aux-socket-edit" *ngIf="addSocketBrand === 'tasmota'">
+          <div class="aux-socket-edit" *ngIf="socketFormVisible">
             <span class="aux-role-label">{{ 'auxDevices.sockets.role' | translate }}</span>
             <div class="aux-role-chips">
               <button
@@ -251,7 +261,7 @@
           <div class="aux-socket-edit-actions">
             <ion-button size="small" fill="clear" color="medium" (click)="cancelAddSocket()">{{ 'misc.cancel' | translate }}</ion-button>
             <ion-button
-              *ngIf="addSocketBrand === 'tasmota'"
+              *ngIf="socketFormVisible"
               size="small"
               color="secondary"
               (click)="applyAddSocket()"

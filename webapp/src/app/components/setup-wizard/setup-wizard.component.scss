@@ -123,3 +123,11 @@ section h2 {
 .wizard-capability {
   font-weight: 600;
 }
+
+.wizard-error-detail {
+  font-size: 0.75rem;
+  font-family: monospace;
+  opacity: 0.9;
+  margin: 4px 0 0;
+  word-break: break-all;
+}

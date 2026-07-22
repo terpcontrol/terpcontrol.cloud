@@ -36,6 +36,8 @@ export class SetupWizardComponent implements OnInit {
   public durations: number[] = [];
   public saving = false;
   public errorSaving = false;
+  /** Technical detail of the failed call, so support tickets carry the cause. */
+  public errorDetail = '';
 
   public planTemplates = GROW_PLAN_TEMPLATES;
 
@@ -226,6 +228,7 @@ export class SetupWizardComponent implements OnInit {
   private async finish() {
     this.saving = true;
     this.errorSaving = false;
+    this.errorDetail = '';
 
     try {
       const device_id = this.device.device_id;
@@ -279,8 +282,14 @@ export class SetupWizardComponent implements OnInit {
       // A guided setup should land the user in the guided settings view.
       localStorage.setItem(EXPERT_MODE_STORAGE_KEY, 'false');
       this.stepIndex = this.steps.indexOf('done');
-    } catch (error) {
+    } catch (error: any) {
       console.log('Setup wizard failed to apply:', error);
+      // Surface what actually failed — "saving failed" alone is undebuggable
+      // from a user report.
+      const status = error?.status !== undefined ? `HTTP ${error.status}` : '';
+      const url = typeof error?.url === 'string' ? error.url.replace(/^https?:\/\/[^/]+/, '') : '';
+      const message = error?.error?.message ?? error?.error?.error ?? error?.message ?? String(error);
+      this.errorDetail = [status, url, message].filter(part => !!part).join(' — ');
       this.errorSaving = true;
     } finally {
       this.saving = false;

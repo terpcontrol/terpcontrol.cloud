@@ -928,7 +928,8 @@
       "fillPlaceholders": "Fill in placeholders",
       "placeholderHint": "Replace <user>, <password> and <ip> in the URL with your camera's values.",
       "customHint": "Format: rtsp://user:password@ip-or-hostname:554/path — you can find the stream path in your camera’s manual. HTTP(S) snapshot or MJPEG URLs work too.",
-      "customHintTunnel": "If the camera sits on the same network as your device, enable “Tunnel webcam stream” and use its local IP."
+      "customHintTunnel": "If the camera sits on the same network as your device, enable “Tunnel webcam stream” and use its local IP.",
+      "terpCamTunnelNote": "The Terp Control Cam is always tunnelled through your device — its local address is all it needs."
     },
     "sockets": {
       "title": "Smart Sockets",
@@ -971,8 +972,9 @@
           "hint": ""
         }
       },
-      "reachabilityHint": "Switching always happens locally from your device — the socket only needs to be reachable by it. No internet exposure is required."
-    }
+      "reachabilityHint": "Switching always happens locally from your device (permanently tunnelled) — the socket only needs to be reachable by your device. No internet exposure is required."
+    },
+    "manualSetup": "Set up manually instead"
   },
   "alarmPresets": {
     "heat_day": {

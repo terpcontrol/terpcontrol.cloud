@@ -46,6 +46,8 @@ export class AuxDevicesComponent implements OnChanges, OnDestroy {
   /** The model grid only shows while adding — there is exactly one webcam. */
   public addingWebcam = false;
   public terpCamFields: WebcamCredentialFields = { user: '', password: '', host: '' };
+  /** Terp hardware pairs on the device; manual entry is an explicit skip. */
+  public terpCamManual = false;
 
   public editingRole: string | null = null;
   public socketDraft = { ip: '', user: '', password: '' };
@@ -56,6 +58,7 @@ export class AuxDevicesComponent implements OnChanges, OnDestroy {
   public addingSocket = false;
   public addSocketBrand: 'terp' | 'tasmota' | null = null;
   public addSocketRole = '';
+  public terpSocketManual = false;
 
   public testLoading = false;
   public testError: string | null = null;
@@ -73,6 +76,7 @@ export class AuxDevicesComponent implements OnChanges, OnDestroy {
   ngOnChanges(changes: SimpleChanges) {
     if (changes['cloudSettings']) {
       this.addingWebcam = false;
+      this.terpCamManual = false;
       this.terpCamFields = parseRtspUrl(this.cloudSettings?.rtspStream) ?? { user: '', password: '', host: '' };
     }
     if (changes['hardwareInfo'] && this.pendingRoles.size > 0) {
@@ -163,6 +167,7 @@ export class AuxDevicesComponent implements OnChanges, OnDestroy {
 
   cancelAddWebcam() {
     this.addingWebcam = false;
+    this.terpCamManual = false;
     this.cloudSettings.rtspStream = '';
     this.cloudSettings.webcamModel = undefined;
     this.cloudSettings.tunnelRtspStream = undefined;
@@ -171,6 +176,7 @@ export class AuxDevicesComponent implements OnChanges, OnDestroy {
   selectModel(model: WebcamModel) {
     const template = getWebcamModel(model);
     this.cloudSettings.webcamModel = model;
+    this.terpCamManual = false;
 
     if (template?.placeholderUrl) {
       this.cloudSettings.rtspStream = template.placeholderUrl;
@@ -200,12 +206,30 @@ export class AuxDevicesComponent implements OnChanges, OnDestroy {
     this.addingWebcam = false;
   }
 
+  /** Skip pairing and type the cam's address by hand. */
+  startTerpCamManual() {
+    this.terpCamManual = true;
+    this.cloudSettings.tunnelRtspStream = true;
+    if (!this.cloudSettings.rtspStreamTransport) {
+      this.cloudSettings.rtspStreamTransport = 'tcp';
+    }
+  }
+
   /** Terp Control Cam connection edits keep the reported stream path. */
   onTerpCamFieldsChange() {
-    if (!this.cloudSettings?.rtspStream || !this.terpCamFields.host.trim()) {
+    const host = this.terpCamFields.host.trim();
+    if (!host) {
       return;
     }
-    this.cloudSettings.rtspStream = replaceRtspAuthHost(this.cloudSettings.rtspStream, this.terpCamFields);
+    if (this.cloudSettings?.rtspStream) {
+      this.cloudSettings.rtspStream = replaceRtspAuthHost(this.cloudSettings.rtspStream, this.terpCamFields);
+    } else {
+      // Manual setup without a device report: default Terp Cam stream path.
+      const auth = this.terpCamFields.user
+        ? `${encodeURIComponent(this.terpCamFields.user)}:${encodeURIComponent(this.terpCamFields.password)}@`
+        : '';
+      this.cloudSettings.rtspStream = `rtsp://${auth}${host}:554/stream1`;
+    }
   }
 
   removeWebcam() {
@@ -213,6 +237,7 @@ export class AuxDevicesComponent implements OnChanges, OnDestroy {
     this.cloudSettings.webcamModel = undefined;
     this.cloudSettings.tunnelRtspStream = undefined;
     this.addingWebcam = false;
+    this.terpCamManual = false;
     this.testError = null;
     this.clearTestImage();
   }
@@ -250,11 +275,23 @@ export class AuxDevicesComponent implements OnChanges, OnDestroy {
     this.addSocketRole = this.freeSocketRoles[0] ?? '';
     this.socketDraft = { ip: '', user: '', password: '' };
     this.editingRole = null;
+    this.terpSocketManual = false;
+  }
+
+  pickSocketBrand(brand: 'terp' | 'tasmota') {
+    this.addSocketBrand = brand;
+    this.terpSocketManual = false;
   }
 
   cancelAddSocket() {
     this.addingSocket = false;
     this.addSocketBrand = null;
+    this.terpSocketManual = false;
+  }
+
+  /** Terp sockets normally pair on the device; the form is the manual skip. */
+  get socketFormVisible(): boolean {
+    return this.addSocketBrand === 'tasmota' || (this.addSocketBrand === 'terp' && this.terpSocketManual);
   }
 
   async applyAddSocket() {

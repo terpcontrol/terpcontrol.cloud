@@ -52,8 +52,10 @@ export class AlarmsComponent {
 
   setWebhookTargetType(alarm: any, type: WebhookTargetId) {
     alarm._webhookTargetType = type;
-    alarm._targetDraft = alarm._targetDraft ?? {};
     const def = getWebhookTarget(type);
+    // Fresh draft per type: values from the stored alarm when switching back
+    // to its own type, defaults otherwise.
+    alarm._targetDraft = (type === detectWebhookTarget(alarm.actionTarget) ? def?.parse?.(alarm) : {}) ?? {};
     def?.fields.forEach(field => {
       if (field.defaultValue && !alarm._targetDraft[field.key]) {
         alarm._targetDraft[field.key] = field.defaultValue;
@@ -90,7 +92,13 @@ export class AlarmsComponent {
   }
 
   ensureTargetDraft(alarm: any): Record<string, string> {
-    alarm._targetDraft = alarm._targetDraft ?? {};
+    if (!alarm._targetDraft) {
+      // Start from the stored configuration: an empty draft would show blank
+      // fields for an existing alarm and rebuild its target with missing
+      // pieces (e.g. a Telegram URL without the bot token) on the first edit.
+      const def = getWebhookTarget(this.webhookTargetType(alarm));
+      alarm._targetDraft = def?.parse?.(alarm) ?? {};
+    }
     return alarm._targetDraft;
   }
 

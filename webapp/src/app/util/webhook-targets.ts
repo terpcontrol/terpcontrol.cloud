@@ -29,7 +29,24 @@ export interface WebhookTargetDef {
   apply?: (alarm: Record<string, any>, values: Record<string, string>, translate: (key: string) => string) => void;
   /** Display-only recognition of an existing alarm's target type. */
   matches?: (actionTarget: string) => boolean;
+  /**
+   * Recovers the guided field values from a stored alarm, so editing an
+   * existing alarm starts from its real configuration instead of an empty
+   * draft (which would rebuild the target with missing pieces).
+   */
+  parse?: (alarm: Record<string, any>) => Record<string, string>;
 }
+
+const parseJsonPayload = (payload: unknown): Record<string, any> => {
+  if (typeof payload !== 'string' || !payload.trim().startsWith('{')) {
+    return {};
+  }
+  try {
+    return JSON.parse(payload);
+  } catch {
+    return {};
+  }
+};
 
 const discordPayload = (emoji: string, eventText: string): string =>
   JSON.stringify({ content: `${emoji} ${eventText}: {{alarmName}} — {{sensorType}} {{value}} ({{deviceName}})` });
@@ -67,6 +84,7 @@ export const WEBHOOK_TARGETS: WebhookTargetDef[] = [
       alarm['tunnelWebhook'] = false;
     },
     matches: target => target.includes('discord.com/api/webhooks') || target.includes('discordapp.com/api/webhooks'),
+    parse: alarm => ({ webhookUrl: (alarm['actionTarget'] ?? '').split('|')[0].trim() }),
   },
   {
     id: 'telegram',
@@ -84,6 +102,10 @@ export const WEBHOOK_TARGETS: WebhookTargetDef[] = [
       alarm['tunnelWebhook'] = false;
     },
     matches: target => target.includes('api.telegram.org/bot'),
+    parse: alarm => ({
+      botToken: ((alarm['actionTarget'] ?? '').match(/api\.telegram\.org\/bot([^/|]+)/) ?? [])[1] ?? '',
+      chatId: String(parseJsonPayload(alarm['webhookTriggeredPayload'])['chat_id'] ?? ''),
+    }),
   },
   {
     id: 'ntfy',
@@ -103,6 +125,10 @@ export const WEBHOOK_TARGETS: WebhookTargetDef[] = [
       alarm['tunnelWebhook'] = false;
     },
     matches: target => target.includes('ntfy'),
+    parse: alarm => ({
+      server: (alarm['actionTarget'] ?? '').split('|')[0].trim(),
+      topic: String(parseJsonPayload(alarm['webhookTriggeredPayload'])['topic'] ?? ''),
+    }),
   },
   {
     id: 'home_assistant',
@@ -123,6 +149,11 @@ export const WEBHOOK_TARGETS: WebhookTargetDef[] = [
       alarm['tunnelWebhook'] = !/^https:\/\//.test(base) || /\.local|192\.168\.|10\.|127\./.test(base);
     },
     matches: target => target.includes('/api/webhook/'),
+    parse: alarm => {
+      const target = (alarm['actionTarget'] ?? '').split('|')[0].trim();
+      const split = target.split('/api/webhook/');
+      return { baseUrl: split[0] ?? '', webhookId: split[1] ?? '' };
+    },
   },
   {
     id: 'custom',

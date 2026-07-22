@@ -108,7 +108,10 @@
 
       <ion-item color="danger" *ngIf="errorSaving" lines="none">
         <ion-icon slot="start" name="warning-outline"></ion-icon>
-        <ion-label class="ion-text-wrap">{{ 'wizard.errorSaving' | translate }}</ion-label>
+        <ion-label class="ion-text-wrap">
+          {{ 'wizard.errorSaving' | translate }}
+          <p class="wizard-error-detail" *ngIf="errorDetail">{{ errorDetail }}</p>
+        </ion-label>
       </ion-item>
     </section>
 
