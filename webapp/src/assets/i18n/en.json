@@ -175,7 +175,8 @@
     "logout": "Logout",
     "diagnostics": "Diagnostics",
     "fleet": "Fleet",
-    "darkMode": "Dark mode"
+    "darkMode": "Dark mode",
+    "installApp": "Install app"
   },
   "share": {
     "button": "Share",
@@ -1030,5 +1031,15 @@
       "name": "Custom",
       "hint": "Configure URL, method, headers and payload yourself below."
     }
+  },
+  "install": {
+    "iosIntro": "Install Terp Control as an app on your home screen:",
+    "iosStep1": "Open this page in Safari and tap the share icon",
+    "iosStep2": "Choose “Add to Home Screen”.",
+    "iosStep3": "Tap “Add” — done.",
+    "androidIntro": "Install Terp Control as an app on your home screen:",
+    "androidStep1": "Open the browser menu",
+    "androidStep2": "Choose “Install app” or “Add to Home screen”.",
+    "note": "Terp Control then launches full-screen with its own icon — just like a regular app."
   }
 }

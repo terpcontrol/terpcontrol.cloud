@@ -26,6 +26,11 @@
             ></ion-toggle>
           </ion-item>
 
+          <ion-item *ngIf="!pwa.isStandalone" lines="none" detail="false" button (click)="installApp()">
+            <ion-icon slot="start" [ios]="'download-outline'" [md]="'download-sharp'"></ion-icon>
+            <ion-label>{{ 'menu.installApp' | translate }}</ion-label>
+          </ion-item>
+
           <ion-item routerDirection="root" lines="none" (click)="auth.logout()" detail="false">
             <ion-icon slot="start" [ios]="'log-out-outline'" [md]="'log-out-sharp'"></ion-icon>
             <ion-label>{{ 'menu.logout' | translate }}</ion-label>
@@ -35,4 +40,36 @@
     </ion-menu>
     <ion-router-outlet id="main-content"></ion-router-outlet>
   </ion-split-pane>
+
+  <!-- Add-to-home-screen help for browsers without an install prompt (iOS Safari & co). -->
+  <ion-modal [isOpen]="installHelpOpen" (willDismiss)="installHelpOpen = false" class="install-help-modal">
+    <ng-template>
+      <ion-header>
+        <ion-toolbar>
+          <ion-title>{{ 'menu.installApp' | translate }}</ion-title>
+          <ion-buttons slot="end">
+            <ion-button (click)="installHelpOpen = false">{{ 'misc.close' | translate }}</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content class="ion-padding">
+        <ng-container *ngIf="pwa.isIos; else androidHelp">
+          <p>{{ 'install.iosIntro' | translate }}</p>
+          <ol class="install-steps">
+            <li>{{ 'install.iosStep1' | translate }} <ion-icon name="share-outline" aria-hidden="true"></ion-icon></li>
+            <li>{{ 'install.iosStep2' | translate }}</li>
+            <li>{{ 'install.iosStep3' | translate }}</li>
+          </ol>
+        </ng-container>
+        <ng-template #androidHelp>
+          <p>{{ 'install.androidIntro' | translate }}</p>
+          <ol class="install-steps">
+            <li>{{ 'install.androidStep1' | translate }} <ion-icon name="ellipsis-vertical" aria-hidden="true"></ion-icon></li>
+            <li>{{ 'install.androidStep2' | translate }}</li>
+          </ol>
+        </ng-template>
+        <p class="install-note">{{ 'install.note' | translate }}</p>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
 </ion-app>

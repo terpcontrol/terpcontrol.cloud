@@ -120,3 +120,32 @@ ion-item.selected {
 .theme-toggle-item {
   --inner-padding-end: 10px;
 }
+
+.install-help-modal {
+  --max-width: 440px;
+  --max-height: 480px;
+
+  ion-content {
+    --padding-bottom: 18px;
+  }
+}
+
+.install-steps {
+  margin: 10px 0;
+  padding-left: 22px;
+
+  li {
+    margin-bottom: 8px;
+    line-height: 1.5;
+
+    ion-icon {
+      vertical-align: -2px;
+      color: var(--ion-color-primary);
+    }
+  }
+}
+
+.install-note {
+  color: var(--ion-color-medium);
+  font-size: 0.85rem;
+}
