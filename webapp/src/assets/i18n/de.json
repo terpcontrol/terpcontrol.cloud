@@ -948,7 +948,21 @@
       "password": "Passwort (leer = Geräte-Standard)",
       "apply": "Übernehmen",
       "editHint": "Der Controller schaltet die Steckdose unter dieser Adresse (Tasmota-HTTP). Passwort leer lassen, um die Kopplungs-Zugangsdaten zu behalten.",
-      "testNote": "Testen schaltet die Steckdose für ca. 2 Sekunden ein."
+      "testNote": "Testen schaltet die Steckdose für ca. 2 Sekunden ein.",
+      "add": "Smart Socket hinzufügen",
+      "role": "Funktion",
+      "brands": {
+        "terp": {
+          "name": "Terp Control Smart Socket",
+          "subtitle": "Unsere Steckdose — koppelt über den Controller",
+          "hint": "Kopple sie direkt an deinem Controller: Einstellungen → Smart Sockets → connect socket. Danach erscheint sie hier automatisch."
+        },
+        "tasmota": {
+          "name": "Tasmota / andere",
+          "subtitle": "Beliebige Tasmota-Steckdose per IP",
+          "hint": ""
+        }
+      }
     }
   },
   "alarmPresets": {

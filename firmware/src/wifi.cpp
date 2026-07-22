@@ -1527,11 +1527,32 @@ static std::string connectedSocketRolesCsv() {
   return csv;
 }
 
+// role@ip pairs for the cloud UI ("heater@192.168.1.60,..."); addresses are
+// sanitized on write and never contain ',' or '@'.
+static std::string connectedSocketIpsCsv() {
+  const std::vector<std::string>& roles = getSocketRolesList();
+  std::string csv;
+  for(const auto& role : roles) {
+    if(role == "back" || !isSocketRoleConnected(role)) {
+      continue;
+    }
+    if(!csv.empty()) {
+      csv += ",";
+    }
+    csv += role + "@" + sanitizeSettingString(fg::settings().getStr(socketRoleKey(role).c_str()));
+  }
+  if(csv.empty()) {
+    csv = "none";
+  }
+  return csv;
+}
+
 static void reportSocketsHardwareInfo() {
   if(smart_socket_cloud_handle == nullptr) {
     return;
   }
   smart_socket_cloud_handle->log("hardware-info:sockets=" + connectedSocketRolesCsv(), 0);
+  smart_socket_cloud_handle->log("hardware-info:socket_ips=" + connectedSocketIpsCsv(), 0);
 }
 
 void wifiInitAuxCloudReporting(fg::Fridgecloud* cloud) {

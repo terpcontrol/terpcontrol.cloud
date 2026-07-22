@@ -98,6 +98,23 @@
   }
 }
 
+.aux-socket-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+
+  .aux-socket-ip {
+    color: var(--ion-color-medium);
+    font-size: 0.78rem;
+    font-family: monospace;
+  }
+}
+
+.aux-socket-brands {
+  margin-top: 8px;
+}
+
 .aux-socket-edit {
   border-left: 2px solid rgba(var(--ion-color-secondary-rgb), 0.4);
   padding-left: 10px;

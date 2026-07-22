@@ -952,7 +952,21 @@
       "password": "Password (empty = device default)",
       "apply": "Apply",
       "editHint": "The controller switches the socket at this address (Tasmota HTTP). Leave the password empty to keep the pairing credentials.",
-      "testNote": "Test switches the socket on for about 2 seconds."
+      "testNote": "Test switches the socket on for about 2 seconds.",
+      "add": "Add smart socket",
+      "role": "Function",
+      "brands": {
+        "terp": {
+          "name": "Terp Control Smart Socket",
+          "subtitle": "Our socket — pairs via the controller",
+          "hint": "Pair it directly on your controller: Settings → Smart Sockets → connect socket. It appears here automatically afterwards."
+        },
+        "tasmota": {
+          "name": "Tasmota / other",
+          "subtitle": "Any Tasmota socket by IP",
+          "hint": ""
+        }
+      }
     }
   },
   "alarmPresets": {

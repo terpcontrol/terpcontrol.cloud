@@ -143,20 +143,19 @@
 
       <ng-container *ngIf="socketsReported">
         <ng-container *ngFor="let role of socketRoles; trackBy: trackByRole">
-          <div class="aux-socket-row">
-            <span class="aux-socket-name">{{ 'auxDevices.sockets.roles.' + role | translate }}</span>
+          <div class="aux-socket-row" *ngIf="socketState(role) === 'connected' || pendingRoles.has(role)">
+            <div class="aux-socket-info">
+              <span class="aux-socket-name">{{ 'auxDevices.sockets.roles.' + role | translate }}</span>
+              <span class="aux-socket-ip" *ngIf="socketIp(role)">{{ socketIp(role) }}</span>
+            </div>
             <span
               class="tc-pill"
-              [class.tc-pill--green]="socketState(role) === 'connected'"
-              [class.tc-pill--muted]="socketState(role) !== 'connected'"
+              [class.tc-pill--green]="!pendingRoles.has(role)"
+              [class.tc-pill--muted]="pendingRoles.has(role)"
             >
-              {{ (pendingRoles.has(role)
-                    ? 'auxDevices.sockets.pending'
-                    : socketState(role) === 'connected' ? 'auxDevices.sockets.connected' : 'auxDevices.sockets.notConnected'
-                 ) | translate }}
+              {{ (pendingRoles.has(role) ? 'auxDevices.sockets.pending' : 'auxDevices.sockets.connected') | translate }}
             </span>
             <ion-button
-              *ngIf="socketState(role) === 'connected'"
               size="small"
               fill="clear"
               (click)="testSocket(role)"
@@ -176,7 +175,6 @@
               <ion-icon slot="icon-only" name="create-outline"></ion-icon>
             </ion-button>
             <ion-button
-              *ngIf="socketState(role) === 'connected'"
               size="small"
               fill="clear"
               color="danger"
@@ -212,9 +210,76 @@
           </div>
         </ng-container>
 
+        <!-- Add socket: brand choice like the webcam add flow -->
+        <ion-button
+          *ngIf="!addingSocket && freeSocketRoles.length > 0"
+          size="small"
+          color="secondary"
+          fill="outline"
+          (click)="startAddSocket()"
+          [disabled]="deviceOffline"
+        >
+          <ion-icon slot="start" name="add-outline"></ion-icon>
+          {{ 'auxDevices.sockets.add' | translate }}
+        </ion-button>
+
+        <ng-container *ngIf="addingSocket">
+          <div class="aux-model-grid aux-socket-brands">
+            <div class="tc-preset-card" [class.active]="addSocketBrand === 'terp'" (click)="addSocketBrand = 'terp'">
+              <ion-icon name="flash"></ion-icon>
+              <span class="tc-preset-card__title">{{ 'auxDevices.sockets.brands.terp.name' | translate }}</span>
+              <span class="tc-preset-card__subtitle">{{ 'auxDevices.sockets.brands.terp.subtitle' | translate }}</span>
+            </div>
+            <div class="tc-preset-card" [class.active]="addSocketBrand === 'tasmota'" (click)="addSocketBrand = 'tasmota'">
+              <ion-icon name="flash-outline"></ion-icon>
+              <span class="tc-preset-card__title">{{ 'auxDevices.sockets.brands.tasmota.name' | translate }}</span>
+              <span class="tc-preset-card__subtitle">{{ 'auxDevices.sockets.brands.tasmota.subtitle' | translate }}</span>
+            </div>
+          </div>
+
+          <p class="aux-hint" *ngIf="addSocketBrand === 'terp'">{{ 'auxDevices.sockets.brands.terp.hint' | translate }}</p>
+
+          <div class="aux-socket-edit" *ngIf="addSocketBrand === 'tasmota'">
+            <ion-item>
+              <ion-label>{{ 'auxDevices.sockets.role' | translate }}</ion-label>
+              <ion-select [(ngModel)]="addSocketRole" interface="popover">
+                <ion-select-option *ngFor="let role of freeSocketRoles; trackBy: trackByRole" [value]="role">
+                  {{ 'auxDevices.sockets.roles.' + role | translate }}
+                </ion-select-option>
+              </ion-select>
+            </ion-item>
+            <ion-item>
+              <ion-label position="floating">{{ 'auxDevices.sockets.ip' | translate }}</ion-label>
+              <ion-input [(ngModel)]="socketDraft.ip" placeholder="192.168.1.60" autocomplete="off"></ion-input>
+            </ion-item>
+            <ion-item>
+              <ion-label position="floating">{{ 'auxDevices.sockets.user' | translate }}</ion-label>
+              <ion-input [(ngModel)]="socketDraft.user" placeholder="admin" autocomplete="off"></ion-input>
+            </ion-item>
+            <ion-item>
+              <ion-label position="floating">{{ 'auxDevices.sockets.password' | translate }}</ion-label>
+              <ion-input type="password" [(ngModel)]="socketDraft.password" autocomplete="off"></ion-input>
+            </ion-item>
+            <span class="tc-field-hint">{{ 'auxDevices.sockets.editHint' | translate }}</span>
+          </div>
+
+          <div class="aux-socket-edit-actions">
+            <ion-button size="small" fill="clear" color="medium" (click)="cancelAddSocket()">{{ 'misc.cancel' | translate }}</ion-button>
+            <ion-button
+              *ngIf="addSocketBrand === 'tasmota'"
+              size="small"
+              color="secondary"
+              (click)="applyAddSocket()"
+              [disabled]="!socketDraftValid || !addSocketRole"
+            >
+              {{ 'auxDevices.sockets.apply' | translate }}
+            </ion-button>
+          </div>
+        </ng-container>
+
         <span class="tc-field-hint" *ngIf="deviceOffline">{{ 'auxDevices.sockets.offlineHint' | translate }}</span>
         <span class="tc-field-hint" *ngIf="!deviceOffline">
-          {{ 'auxDevices.sockets.pairOnDevice' | translate }} {{ 'auxDevices.sockets.testNote' | translate }}
+          {{ 'auxDevices.sockets.testNote' | translate }}
         </span>
       </ng-container>
     </ng-container>

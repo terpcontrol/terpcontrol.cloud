@@ -51,6 +51,11 @@ export class AuxDevicesComponent implements OnChanges, OnDestroy {
   public pendingRoles = new Set<string>();
   public testedRoles = new Set<string>();
 
+  /** Add-socket flow, mirroring the webcam add flow. */
+  public addingSocket = false;
+  public addSocketBrand: 'terp' | 'tasmota' | null = null;
+  public addSocketRole = '';
+
   public testLoading = false;
   public testError: string | null = null;
   public testImageUrl: SafeUrl | null = null;
@@ -128,6 +133,20 @@ export class AuxDevicesComponent implements OnChanges, OnDestroy {
       return 'unknown';
     }
     return csv.split(',').includes(role) ? 'connected' : 'not_connected';
+  }
+
+  /** Address the controller reported for a role ("role@ip" pairs). */
+  socketIp(role: string): string | null {
+    const csv = this.hardwareInfo?.['socket_ips'];
+    if (!csv || csv === 'none') {
+      return null;
+    }
+    const entry = csv.split(',').find(pair => pair.startsWith(role + '@'));
+    return entry ? entry.slice(role.length + 1) : null;
+  }
+
+  get freeSocketRoles(): string[] {
+    return this.socketRoles.filter(role => this.socketState(role) !== 'connected');
   }
 
   // --- Webcam -------------------------------------------------------------
@@ -219,13 +238,46 @@ export class AuxDevicesComponent implements OnChanges, OnDestroy {
 
   // --- Smart sockets ------------------------------------------------------
 
+  startAddSocket() {
+    this.addingSocket = true;
+    this.addSocketBrand = null;
+    this.addSocketRole = this.freeSocketRoles[0] ?? '';
+    this.socketDraft = { ip: '', user: '', password: '' };
+    this.editingRole = null;
+  }
+
+  cancelAddSocket() {
+    this.addingSocket = false;
+    this.addSocketBrand = null;
+  }
+
+  async applyAddSocket() {
+    if (!this.addSocketRole || !this.socketDraftValid) {
+      return;
+    }
+    try {
+      await this.devices.sendAuxCommand(this.deviceId, 'socket_set', this.addSocketRole, {
+        ip: this.socketDraft.ip.trim(),
+        user: this.socketDraft.user.trim(),
+        password: this.socketDraft.password.trim(),
+      });
+      this.markPending(this.addSocketRole);
+      this.addingSocket = false;
+      this.addSocketBrand = null;
+    } catch (e) {
+      console.log('Socket add failed:', e);
+    }
+  }
+
   startEditSocket(role: string) {
     if (this.editingRole === role) {
       this.editingRole = null;
       return;
     }
     this.editingRole = role;
-    this.socketDraft = { ip: '', user: '', password: '' };
+    this.addingSocket = false;
+    // Prefill the reported address; credentials are write-only (empty = keep).
+    this.socketDraft = { ip: this.socketIp(role) ?? '', user: '', password: '' };
   }
 
   get socketDraftValid(): boolean {
