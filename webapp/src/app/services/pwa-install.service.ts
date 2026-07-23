@@ -42,7 +42,12 @@ export class PwaInstallService {
     return /iPad|iPhone|iPod/.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   }
 
-  /** Shows the browser's install dialog; false = no prompt available (or declined). */
+  /**
+   * Shows the browser's install dialog. Returns false only when no native
+   * prompt is available, so the caller can offer manual instructions instead.
+   * A dismissed dialog still returns true: the browser handled the
+   * interaction, and instructions on top of a fresh "no" would be noise.
+   */
   async promptInstall(): Promise<boolean> {
     const prompt = this.deferredPrompt;
     if (!prompt) {

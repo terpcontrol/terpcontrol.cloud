@@ -157,8 +157,26 @@ chart {
   }
 }
 
-.preset-chip--user ion-icon:last-child {
-  color: var(--ion-color-medium);
+/* Delete affordance is a real button so keyboard/screen-reader users get it. */
+.preset-chip-delete {
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-inline-start: 2px;
+  cursor: pointer;
+
+  ion-icon {
+    color: var(--ion-color-medium);
+    font-size: 16px;
+  }
+}
+
+.preset-chip:focus-visible,
+.preset-chip-delete:focus-visible {
+  outline: 2px solid var(--ion-color-primary);
+  outline-offset: 1px;
 }
 
 .preset-chip--save {

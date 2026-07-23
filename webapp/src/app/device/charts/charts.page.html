@@ -24,17 +24,51 @@
   </div> -->
 
   <div class="preset-bar" *ngIf="showPresetBar">
-    <ion-chip *ngFor="let preset of curatedPresets" (click)="applyCuratedPreset(preset)" class="preset-chip">
-      <ion-icon [name]="preset.icon"></ion-icon>
+    <ion-chip
+      *ngFor="let preset of curatedPresets"
+      (click)="applyCuratedPreset(preset)"
+      (keydown.enter)="applyCuratedPreset(preset)"
+      (keydown.space)="applyCuratedPreset(preset); $event.preventDefault()"
+      tabindex="0"
+      role="button"
+      class="preset-chip"
+    >
+      <ion-icon [name]="preset.icon" aria-hidden="true"></ion-icon>
       <ion-label>{{ 'chartPresets.curated.' + preset.id | translate }}</ion-label>
     </ion-chip>
-    <ion-chip *ngFor="let preset of userPresets" (click)="applyUserPreset(preset)" class="preset-chip preset-chip--user">
-      <ion-icon name="bookmark-outline"></ion-icon>
+    <ion-chip
+      *ngFor="let preset of userPresets"
+      (click)="applyUserPreset(preset)"
+      (keydown.enter)="applyUserPreset(preset)"
+      (keydown.space)="applyUserPreset(preset); $event.preventDefault()"
+      tabindex="0"
+      role="button"
+      class="preset-chip preset-chip--user"
+    >
+      <ion-icon name="bookmark-outline" aria-hidden="true"></ion-icon>
       <ion-label>{{ preset.name }}</ion-label>
-      <ion-icon name="close-circle" (click)="deleteUserPreset(preset, $event)"></ion-icon>
+      <!-- Real button: keyboard-activatable; keydown stops here so Enter
+           can't bubble into the chip and apply the preset it deletes. -->
+      <button
+        type="button"
+        class="preset-chip-delete"
+        (click)="deleteUserPreset(preset, $event)"
+        (keydown.enter)="$event.stopPropagation()"
+        (keydown.space)="$event.stopPropagation()"
+        [attr.aria-label]="('chartPresets.delete' | translate) + ': ' + preset.name"
+      >
+        <ion-icon name="close-circle" aria-hidden="true"></ion-icon>
+      </button>
     </ion-chip>
-    <ion-chip (click)="saveCurrentViewAsPreset()" class="preset-chip preset-chip--save">
-      <ion-icon name="add-outline"></ion-icon>
+    <ion-chip
+      (click)="saveCurrentViewAsPreset()"
+      (keydown.enter)="saveCurrentViewAsPreset()"
+      (keydown.space)="saveCurrentViewAsPreset(); $event.preventDefault()"
+      tabindex="0"
+      role="button"
+      class="preset-chip preset-chip--save"
+    >
+      <ion-icon name="add-outline" aria-hidden="true"></ion-icon>
       <ion-label>{{ 'chartPresets.saveView' | translate }}</ion-label>
     </ion-chip>
   </div>
