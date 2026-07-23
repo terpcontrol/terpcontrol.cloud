@@ -1370,6 +1370,56 @@ class DeviceRoute implements Routes {
 
     /**
      * @openapi
+     * /device/auxcommand:
+     *   post:
+     *     summary: Send an auxiliary-device command to a device
+     *     description: >
+     *       Sends a whitelisted command concerning an auxiliary device the
+     *       device manages locally (e.g. removing a paired smart socket).
+     *       The command is fire-and-forget over MQTT — an offline device
+     *       will not receive it. The device confirms by re-reporting its
+     *       hardware info (e.g. the `sockets` key).
+     *     tags: [Devices]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required: [device_id, action, role]
+     *             properties:
+     *               device_id: { type: string }
+     *               action:
+     *                 type: string
+     *                 enum: [socket_remove, socket_test, socket_set]
+     *               role:
+     *                 type: string
+     *                 enum: [dehumidifier, heater, light, secondary_light, co2]
+     *               ip:
+     *                 type: string
+     *                 description: socket_set only — host/IP of the socket on the device's network.
+     *               user:
+     *                 type: string
+     *                 description: socket_set only — HTTP auth user; empty keeps the device default.
+     *               password:
+     *                 type: string
+     *                 description: socket_set only — HTTP auth password; empty keeps the device default.
+     *     responses:
+     *       '200':
+     *         description: Command published
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/StatusOk'
+     *       '400':
+     *         description: Unknown action or role
+     *       '401':
+     *         $ref: '#/components/responses/Unauthorized'
+     */
+    this.router.post(`${this.path}/auxcommand`, authMiddleware, this.deviceController.sendAuxCommand);
+
+    /**
+     * @openapi
      * /device/onlinedevices:
      *   get:
      *     summary: List currently online devices (admin)

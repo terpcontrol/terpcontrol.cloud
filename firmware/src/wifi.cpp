@@ -113,6 +113,11 @@ static const std::array<std::string, 2> SMART_SOCKET_SSID_PREFIXES = {
   "tasmota-",
 };
 
+// Terp Control Cam: pairing ships with the camera hardware; until then the
+// device only scans for the AP and keeps the NVS slot + cloud reporting ready.
+static const std::string TERP_CAM_SSID_PREFIX = "terpcam-";
+static const char* TERP_CAM_URL_NVS_KEY = "terpcam_url";
+
 std::string primary_ssid;
 std::string primary_password;
 std::string secondary_ssid;
@@ -134,8 +139,14 @@ void delayWithWatchdog(uint32_t delay_ms);
 bool provisionSmartSocket(const std::string& socket_role, const std::string& home_ssid, const std::string& home_password, std::string& socket_ip, std::string& error_message, const std::function<void(const char*)>& progress_callback);
 bool isSocketRoleConnected(const std::string& role);
 std::string socketRoleKey(const std::string& role);
+std::string socketRoleUserKey(const std::string& role);
+std::string socketRolePasswordKey(const std::string& role);
 const std::vector<std::string>& getSocketRolesList();
 std::vector<std::string> getSocketRoleOptions();
+static std::string connectedSocketRolesCsv();
+static void reportSocketsHardwareInfo();
+static bool isTerpCamSsid(const std::string& value);
+static bool isKnownSocketRole(const std::string& role);
 boolean createConfigurationAP();
 bool connectToWifi(std::string ssid, std::string password);
 
@@ -407,16 +418,21 @@ static TickType_t socketRoleMinSendInterval(const std::string& role) {
   return SMART_SOCKET_MIN_SEND_INTERVAL;            // 30s
 }
 
-bool sendSmartSocketPower(const std::string& role, bool turn_on) {
-  const std::string socket_ip = sanitizeSettingString(fg::settings().getStr(socketRoleKey(role).c_str()));
-  if(socket_ip.empty()) {
-    return true;
+// Per-role auth override (cloud-managed foreign sockets); empty when the role
+// uses the default admin/mqtt_pass credentials set during provisioning.
+static std::string socketRoleAuthQuery(const std::string& role) {
+  const std::string user = sanitizeSettingString(fg::settings().getStr(socketRoleUserKey(role).c_str()));
+  const std::string password = sanitizeSettingString(fg::settings().getStr(socketRolePasswordKey(role).c_str()));
+  if(password.empty()) {
+    return std::string();
   }
+  return "user=" + urlEncode(user.empty() ? "admin" : user) + "&password=" + urlEncode(password) + "&";
+}
 
-  // The auth segment is constant for the lifetime of the device — the MQTT
-  // password is set at provisioning and never rotates. Cache its URL-encoded
-  // form on first valid use so the hot path becomes one snprintf instead of
-  // five std::string concatenations per call.
+static std::string defaultSocketAuthQuery() {
+  // The default auth segment is constant for the lifetime of the device — the
+  // MQTT password is set at provisioning and never rotates. Cache its
+  // URL-encoded form on first valid use.
   static std::string cached_auth_query;
   if(cached_auth_query.empty()) {
     std::string mqtt_password = sanitizeSettingString(fg::settings().getStr("mqtt_pass"));
@@ -424,16 +440,31 @@ bool sendSmartSocketPower(const std::string& role, bool turn_on) {
       fg::SettingsManager provisioning(NVS_PART, "fg_provisioning");
       mqtt_password = sanitizeSettingString(provisioning.getStr("mqtt_password"));
     }
-    if(mqtt_password.empty()) {
-      return false;
+    if(!mqtt_password.empty()) {
+      cached_auth_query = "user=admin&password=" + urlEncode(mqtt_password) + "&";
     }
-    cached_auth_query = "user=admin&password=" + urlEncode(mqtt_password) + "&";
+  }
+  return cached_auth_query;
+}
+
+bool sendSmartSocketPower(const std::string& role, bool turn_on) {
+  const std::string socket_ip = sanitizeSettingString(fg::settings().getStr(socketRoleKey(role).c_str()));
+  if(socket_ip.empty()) {
+    return true;
   }
 
-  char url[192];
+  std::string auth_query = socketRoleAuthQuery(role);
+  if(auth_query.empty()) {
+    auth_query = defaultSocketAuthQuery();
+  }
+  if(auth_query.empty()) {
+    return false;
+  }
+
+  char url[256];
   snprintf(url, sizeof(url), "http://%s/cm?%scmnd=%s",
            socket_ip.c_str(),
-           cached_auth_query.c_str(),
+           auth_query.c_str(),
            turn_on ? "Power%20On" : "Power%20Off");
   return httpGet(url);
 }
@@ -669,32 +700,96 @@ void showSmartSocketsUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
         return;
       }
 
-      const std::string selected_role = disconnect_options[selected];
-      const std::string key = socketRoleKey(selected_role);
-      const std::string socket_ip = sanitizeSettingString(fg::settings().getStr(key.c_str()));
-
-      fg::settings().erase(key.c_str());
-      fg::settings().commit();
-
-      if(smart_socket_cloud_handle != nullptr) {
-        smart_socket_cloud_handle->log(std::string("message-smart-socket-disconnected:") + selected_role, 0);
-      }
-
-      std::string mqtt_password = sanitizeSettingString(fg::settings().getStr("mqtt_pass"));
-      if(mqtt_password.empty()) {
-        fg::SettingsManager provisioning(NVS_PART, "fg_provisioning");
-        mqtt_password = sanitizeSettingString(provisioning.getStr("mqtt_password"));
-      }
-
-      if(!socket_ip.empty() && !mqtt_password.empty()) {
-        const std::string auth_query = "user=admin&password=" + urlEncode(mqtt_password) + "&";
-        const std::string reset_url = "http://" + socket_ip + "/cm?" + auth_query + "cmnd=Reset%201";
-        httpGet(reset_url.c_str());
-      }
+      wifiRemoveSmartSocket(disconnect_options[selected]);
 
       ui_handle->push<TextDisplay>("socket disconnected", 1, []() {
         ui_handle->pop();
       });
+    });
+  });
+}
+
+static bool isTerpCamSsid(const std::string& value) {
+  if(value.rfind(TERP_CAM_SSID_PREFIX, 0) != 0) {
+    return false;
+  }
+
+  // Same "<6 hex>-<4 hex>" suffix convention as the smart sockets.
+  std::string suffix = value.substr(TERP_CAM_SSID_PREFIX.size());
+  auto divider_pos = suffix.find('-');
+  if(divider_pos == std::string::npos || suffix.find('-', divider_pos + 1) != std::string::npos) {
+    return false;
+  }
+
+  return isHexSegment(suffix.substr(0, divider_pos), 6) && isHexSegment(suffix.substr(divider_pos + 1), 4);
+}
+
+void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
+  using namespace fg;
+  ui_handle = ui;
+  smart_socket_cloud_handle = cloud;
+
+  auto menu = ui->push<SelectMenu>();
+  menu->addOption("back...", [ui]() { ui->pop(); });
+
+  menu->addOption("connect cam", []() {
+    if(!wifi_configured) {
+      ui_handle->push<TextDisplay>("wifi not configured", 1, []() {
+        ui_handle->pop();
+      });
+      return;
+    }
+
+    ui_handle->push<TextDisplay>("scanning...");
+    ui_handle->loop();
+
+    std::vector<std::string> all_ssids = scanWifiNetworks();
+    bool cam_found = false;
+    for(const auto& network_ssid : all_ssids) {
+      if(isTerpCamSsid(network_ssid)) {
+        cam_found = true;
+        break;
+      }
+    }
+
+    ui_handle->pop();
+    if(!cam_found) {
+      ui_handle->push<TextDisplay>("no cam found", 1, []() {
+        ui_handle->pop();
+      });
+      return;
+    }
+
+    // The pairing procedure ships with the Terp Control Cam hardware; this
+    // firmware only detects the camera AP so far.
+    if(smart_socket_cloud_handle != nullptr) {
+      smart_socket_cloud_handle->log("message-terp-cam-pairing-unsupported", 1);
+    }
+    ui_handle->push<TextDisplay>("cam found - fw\nupdate required", 1, []() {
+      ui_handle->pop();
+    });
+  });
+
+  menu->addOption("disconnect cam", []() {
+    fg::settings().erase(TERP_CAM_URL_NVS_KEY);
+    fg::settings().commit();
+
+    if(smart_socket_cloud_handle != nullptr) {
+      smart_socket_cloud_handle->log("hardware-info:webcam_url=none", 0);
+    }
+
+    ui_handle->push<TextDisplay>("cam disconnected", 1, []() {
+      ui_handle->pop();
+    });
+  });
+
+  menu->addOption("show url", []() {
+    std::string url = sanitizeSettingString(fg::settings().getStr(TERP_CAM_URL_NVS_KEY));
+    if(url.empty()) {
+      url = "none";
+    }
+    ui_handle->push<TextDisplay>(url.c_str(), 1, []() {
+      ui_handle->pop();
     });
   });
 }
@@ -1391,6 +1486,14 @@ std::string socketRoleKey(const std::string& role) {
   return "sock_misc";
 }
 
+std::string socketRoleUserKey(const std::string& role) {
+  return "su_" + socketRoleKey(role).substr(5);   // e.g. su_dehum, <= 15 chars
+}
+
+std::string socketRolePasswordKey(const std::string& role) {
+  return "sp_" + socketRoleKey(role).substr(5);   // e.g. sp_dehum, <= 15 chars
+}
+
 const std::vector<std::string>& getSocketRolesList() {
   static const std::vector<std::string> roles = {
     "back",
@@ -1401,6 +1504,200 @@ const std::vector<std::string>& getSocketRolesList() {
     "co2",
   };
   return roles;
+}
+
+static std::string connectedSocketRolesCsv() {
+  const std::vector<std::string>& roles = getSocketRolesList();
+  std::string csv;
+  for(const auto& role : roles) {
+    if(role == "back" || !isSocketRoleConnected(role)) {
+      continue;
+    }
+    if(!csv.empty()) {
+      csv += ",";
+    }
+    csv += role;
+  }
+
+  // "none" (instead of an empty value) lets the cloud distinguish "nothing
+  // paired" from "old firmware that never reports".
+  if(csv.empty()) {
+    csv = "none";
+  }
+  return csv;
+}
+
+// role@ip pairs for the cloud UI ("heater@192.168.1.60,..."); addresses are
+// sanitized on write and never contain ',' or '@'.
+static std::string connectedSocketIpsCsv() {
+  const std::vector<std::string>& roles = getSocketRolesList();
+  std::string csv;
+  for(const auto& role : roles) {
+    if(role == "back" || !isSocketRoleConnected(role)) {
+      continue;
+    }
+    if(!csv.empty()) {
+      csv += ",";
+    }
+    csv += role + "@" + sanitizeSettingString(fg::settings().getStr(socketRoleKey(role).c_str()));
+  }
+  if(csv.empty()) {
+    csv = "none";
+  }
+  return csv;
+}
+
+static void reportSocketsHardwareInfo() {
+  if(smart_socket_cloud_handle == nullptr) {
+    return;
+  }
+  smart_socket_cloud_handle->log("hardware-info:sockets=" + connectedSocketRolesCsv(), 0);
+  smart_socket_cloud_handle->log("hardware-info:socket_ips=" + connectedSocketIpsCsv(), 0);
+}
+
+void wifiInitAuxCloudReporting(fg::Fridgecloud* cloud) {
+  smart_socket_cloud_handle = cloud;
+  reportSocketsHardwareInfo();
+
+  if(cloud != nullptr) {
+    const std::string cam_url = sanitizeSettingString(fg::settings().getStr(TERP_CAM_URL_NVS_KEY));
+    if(!cam_url.empty() && cam_url.size() < 200) {
+      cloud->log("hardware-info:webcam_url=" + cam_url, 0);
+    }
+  }
+}
+
+static bool isKnownSocketRole(const std::string& role) {
+  const std::vector<std::string>& roles = getSocketRolesList();
+  for(const auto& candidate : roles) {
+    if(candidate != "back" && candidate == role) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool wifiRemoveSmartSocket(const std::string& role) {
+  if(!isKnownSocketRole(role)) {
+    return false;
+  }
+
+  if(isSocketRoleConnected(role)) {
+    const std::string key = socketRoleKey(role);
+    const std::string socket_ip = sanitizeSettingString(fg::settings().getStr(key.c_str()));
+
+    std::string auth_query = socketRoleAuthQuery(role);
+    if(auth_query.empty()) {
+      auth_query = defaultSocketAuthQuery();
+    }
+
+    fg::settings().erase(key.c_str());
+    fg::settings().erase(socketRoleUserKey(role).c_str());
+    fg::settings().erase(socketRolePasswordKey(role).c_str());
+    fg::settings().commit();
+
+    if(smart_socket_cloud_handle != nullptr) {
+      smart_socket_cloud_handle->log(std::string("message-smart-socket-disconnected:") + role, 0);
+    }
+
+    // Best effort: factory-reset the socket so it reopens its pairing AP.
+    // httpGet is heap-guarded and simply fails when offline.
+    if(!socket_ip.empty() && !auth_query.empty()) {
+      const std::string reset_url = "http://" + socket_ip + "/cm?" + auth_query + "cmnd=Reset%201";
+      httpGet(reset_url.c_str());
+    }
+  }
+
+  reportSocketsHardwareInfo();
+  return true;
+}
+
+bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const std::string& user, const std::string& password) {
+  if(!isKnownSocketRole(role)) {
+    return false;
+  }
+
+  const std::string clean_ip = sanitizeSettingString(ip);
+  if(clean_ip.empty() || clean_ip.size() > 64 || clean_ip.find(' ') != std::string::npos) {
+    return false;
+  }
+
+  const std::string clean_user = sanitizeSettingString(user);
+  const std::string clean_password = sanitizeSettingString(password);
+  if(clean_user.size() > 48 || clean_password.size() > 48) {
+    return false;
+  }
+
+  fg::settings().setStr(socketRoleKey(role).c_str(), clean_ip.c_str());
+  if(clean_password.empty()) {
+    // Back to the default admin/mqtt_pass credentials.
+    fg::settings().erase(socketRoleUserKey(role).c_str());
+    fg::settings().erase(socketRolePasswordKey(role).c_str());
+  }
+  else {
+    fg::settings().setStr(socketRoleUserKey(role).c_str(), clean_user.c_str());
+    fg::settings().setStr(socketRolePasswordKey(role).c_str(), clean_password.c_str());
+  }
+  fg::settings().commit();
+
+  if(smart_socket_cloud_handle != nullptr) {
+    smart_socket_cloud_handle->log(std::string("message-smart-socket-connected:") + role, 0);
+  }
+  reportSocketsHardwareInfo();
+  return true;
+}
+
+bool wifiTestSmartSocket(const std::string& role) {
+  if(!isKnownSocketRole(role) || !isSocketRoleConnected(role)) {
+    return false;
+  }
+
+  // Short ON pulse ending OFF; the control loop re-asserts the desired state
+  // within its regular resend window afterwards.
+  const bool on_ok = sendSmartSocketPower(role, true);
+  delayWithWatchdog(2000);
+  const bool off_ok = sendSmartSocketPower(role, false);
+  return on_ok && off_ok;
+}
+
+bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
+  if(!command["action"]) {
+    return false;
+  }
+
+  if(command["action"] == std::string("socket_remove")) {
+    const std::string role = command["role"] | "";
+    if(!wifiRemoveSmartSocket(role) && cloud) {
+      cloud->log(std::string("message-aux-command-failed:socket_remove:") + role, 1);
+    }
+    return true;
+  }
+
+  if(command["action"] == std::string("socket_set")) {
+    const std::string role = command["role"] | "";
+    const std::string ip = command["ip"] | "";
+    const std::string user = command["user"] | "";
+    const std::string password = command["password"] | "";
+    if(!wifiSetSmartSocket(role, ip, user, password) && cloud) {
+      cloud->log(std::string("message-aux-command-failed:socket_set:") + role, 1);
+    }
+    return true;
+  }
+
+  if(command["action"] == std::string("socket_test")) {
+    const std::string role = command["role"] | "";
+    if(!wifiTestSmartSocket(role)) {
+      if(cloud) {
+        cloud->log(std::string("message-smart-socket-cmd-failed:") + role + ":test", 1);
+      }
+    }
+    else if(cloud) {
+      cloud->log(std::string("message-smart-socket-tested:") + role, 0);
+    }
+    return true;
+  }
+
+  return false;
 }
 
 std::vector<std::string> getSocketRoleOptions() {
@@ -1520,6 +1817,7 @@ bool provisionSmartSocket(const std::string& socket_role, const std::string& hom
   if(smart_socket_cloud_handle != nullptr) {
     smart_socket_cloud_handle->log(std::string("message-smart-socket-connected:") + socket_role, 0);
   }
+  reportSocketsHardwareInfo();
 
 
   emit_status("socket configured");

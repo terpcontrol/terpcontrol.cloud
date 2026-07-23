@@ -1,0 +1,34 @@
+<ion-card>
+  <ion-card-header>
+    <ion-card-title>{{ 'simpleSettings.notifications.title' | translate }}</ion-card-title>
+  </ion-card-header>
+  <ion-card-content>
+    <p class="alarms-empty" *ngIf="!alarms?.length">{{ 'simpleSettings.notifications.empty' | translate }}</p>
+
+    <div class="alarm-row" *ngFor="let alarm of alarms; trackBy: trackByIndex">
+      <div class="alarm-info" [class.disabled]="alarm.disabled">
+        <span class="alarm-name">{{ alarm.name }}</span>
+        <span class="alarm-summary">{{ summary(alarm) }} · {{ channelLabel(alarm) }}</span>
+      </div>
+      <ion-toggle [checked]="!alarm.disabled" (ionChange)="toggle(alarm)" color="secondary"></ion-toggle>
+      <ion-button fill="clear" size="small" color="danger" (click)="remove(alarm)">
+        <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+      </ion-button>
+    </div>
+
+    <ion-button size="small" color="secondary" fill="outline" (click)="addOpen = true">
+      <ion-icon slot="start" name="add-outline"></ion-icon>
+      {{ 'simpleSettings.notifications.add' | translate }}
+    </ion-button>
+    <span class="tc-field-hint">{{ 'simpleSettings.notifications.savedNote' | translate }}</span>
+  </ion-card-content>
+</ion-card>
+
+<alarm-add-modal
+  [isOpen]="addOpen"
+  [deviceType]="deviceType"
+  [hasCo2]="hasCo2"
+  [stage]="stage"
+  (closed)="addOpen = false"
+  (created)="onCreated($event)"
+></alarm-add-modal>

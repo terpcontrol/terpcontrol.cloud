@@ -7,11 +7,15 @@ import {DataService} from 'src/app/services/data.service';
 import * as Highcharts from 'highcharts/highstock';
 import {YAxisOptions} from 'highcharts/highstock';
 import {DeviceService} from 'src/app/services/devices.service';
-import {IonModal, ModalController} from "@ionic/angular";
+import {AlertController, IonModal, ModalController, ToastController} from "@ionic/angular";
 import {collectLogCategories, matchesLogCategory,} from '../log-entry-viewer/log-entry-viewer.component';
-import type { DeviceLog, ShareAccess } from '@fg2/shared-types';
+import type { ChartPreset, DeviceLog, ShareAccess } from '@fg2/shared-types';
 import { ShareLinkModalComponent } from '../../components/share-link/share-link-modal.component';
 import { ThemeService } from '../../services/theme.service';
+import { AuthService } from '../../auth/auth.service';
+import { ChartPresetsService } from '../../services/chart-presets.service';
+import { TranslateService } from '@ngx-translate/core';
+import { availableCuratedPresets, CuratedChartPreset } from '../../util/chart-presets';
 
 declare var require: any;
 let Boost = require('highcharts/modules/boost');
@@ -113,7 +117,7 @@ export class ChartsPage implements OnInit, OnDestroy {
     {
       title: 'Temperature',
       icon: 'temperature',
-      color: '#f00',
+      color: '#e05a4e',
       name: 'temperature',
       txt: 'T',
       unit: '°C',
@@ -124,23 +128,23 @@ export class ChartsPage implements OnInit, OnDestroy {
       max: 30
     },
     // { title: 'AVG', icon: 'temperature', color: '#f00', name: 'avg', txt: 'avg', unit: '°C', enabled: true, right: false, nav: false, types: ['fridge']},
-    { title: 'Humidity', icon: 'humidity', color: '#00f', name: 'humidity', txt: 'H', unit: '%', enabled: false, right: false, nav: false, types: ['fridge', 'fridge2', 'fan', 'light', 'plug', 'dryer', 'controller'], max: 100},
-    { title: 'VPD', icon: 'vpd', color: '#0f0', name: 'vpd', txt: 'V', unit: 'kPa', enabled: false, right: false, nav: false, types: ['fridge', 'fridge2', 'fan', 'light', 'plug', 'dryer', 'controller'], max: 1.6},
-    { title: 'CO2', icon: 'co2', color: '#000', name: 'co2', txt: 'CO2', unit: 'ppm', enabled: false, right: false, nav: false, types: ['fridge', 'fridge2', 'plug', 'controller'], max: 1},
-    { title: 'Leaf Temperature', icon: 'temperature', color: '#964B00', name: 'leaf_temperature', txt: 'LT', unit: '°C', enabled: false, right: false, nav: false, types: ['controller'], max: 30},
-    { title: 'PPFD', icon: 'light', color: '#fc0', name: 'ppfd', txt: 'PPFD', unit: 'µmol/m²/s', enabled: false, right: false, nav: false, types: ['controller'], max: 1000},
-    { title: 'Heater', icon: 'heating', color: '#f00', name: 'out_heater', txt: 'T', unit: '', enabled: false, right: false, nav: false, types: ['fridge', 'fridge2', 'dryer', 'controller'], max: 1},
+    { title: 'Humidity', icon: 'humidity', color: '#4870c0', name: 'humidity', txt: 'H', unit: '%', enabled: false, right: false, nav: false, types: ['fridge', 'fridge2', 'fan', 'light', 'plug', 'dryer', 'controller'], max: 100},
+    { title: 'VPD', icon: 'vpd', color: '#50a030', name: 'vpd', txt: 'V', unit: 'kPa', enabled: false, right: false, nav: false, types: ['fridge', 'fridge2', 'fan', 'light', 'plug', 'dryer', 'controller'], max: 1.6},
+    { title: 'CO2', icon: 'co2', color: '#7a5fb0', name: 'co2', txt: 'CO2', unit: 'ppm', enabled: false, right: false, nav: false, types: ['fridge', 'fridge2', 'plug', 'controller'], max: 1},
+    { title: 'Leaf Temperature', icon: 'temperature', color: '#b0743c', name: 'leaf_temperature', txt: 'LT', unit: '°C', enabled: false, right: false, nav: false, types: ['controller'], max: 30},
+    { title: 'PPFD', icon: 'light', color: '#e3a008', name: 'ppfd', txt: 'PPFD', unit: 'µmol/m²/s', enabled: false, right: false, nav: false, types: ['controller'], max: 1000},
+    { title: 'Heater', icon: 'heating', color: '#c2483c', name: 'out_heater', txt: 'T', unit: '', enabled: false, right: false, nav: false, types: ['fridge', 'fridge2', 'dryer', 'controller'], max: 1},
     // { title: 'P', icon: 'heating', color: '#f00', name: 'p', txt: 'P', unit: '', enabled: false, right: false, nav: false, types: ['fridge', 'foo']},
     // { title: 'I', icon: 'heating', color: '#f00', name: 'i', txt: 'I', unit: '', enabled: false, right: false, nav: false, types: ['fridge', 'foo']},
     // { title: 'D', icon: 'heating', color: '#f00', name: 'd', txt: 'D', unit: '', enabled: false, right: false, nav: false, types: ['fridge', 'foo']},
-    { title: 'Dehumidifier', icon: 'dehumidify', color: '#00f', name: 'out_dehumidifier', txt: 'H', unit: '', enabled: false, right: false, nav: false, types: ['fridge', 'fridge2', 'dryer', 'controller'], max: 1},
-    { title: 'Fan', icon: 'fan_out', color: '#00f', name: 'out_fan', txt: 'Fan', unit: '%', enabled: false, right: false, nav: false, types: ['fan'], max: 1},
-    { title: 'CO2 Valve', icon: 'co2_valve', color: '#000', name: 'out_co2', txt: 'CO2 Valve', unit: ' ticks', enabled: false, right: false, nav: false, types: ['fridge', 'fridge2', 'controller'], method: 'sum'},
-    { title: 'Lights', icon: 'light', color: '#000', name: 'out_light', txt: 'Lights', unit: '', enabled: false, right: false, nav: false, types: ['fridge', 'fridge2', 'light', 'controller'], max: 100},
-    { title: 'Day', icon: 'light', color: '#000', name: 'day', txt: 'Day', unit: '', enabled: false, right: false, nav: false, types: ['fan'], max: 1},
-    { title: 'Fan (internal)', icon: 'fan_internal', color: 'orange', name: 'out_fan-internal', txt: 'fan-internal', unit: '',  enabled: false, right: false, nav: false, types: ['fridge', 'fridge2'], max: 1},
-    { title: 'Fan (external)', icon: 'fan_external', color: 'yellow', name: 'out_fan-external', txt: 'fan-external', unit: '',  enabled: false, right: false, nav: false, types: ['fridge', 'fridge2'], max: 1},
-    { title: 'Fan (backwall)', icon: 'fan_backwall', color: 'pink', name: 'out_fan-backwall', txt: 'fan-backwall', unit: '',  enabled: false, right: false, nav: false, types: ['fridge', 'fridge2'], max: 1},
+    { title: 'Dehumidifier', icon: 'dehumidify', color: '#3e8fbf', name: 'out_dehumidifier', txt: 'H', unit: '', enabled: false, right: false, nav: false, types: ['fridge', 'fridge2', 'dryer', 'controller'], max: 1},
+    { title: 'Fan', icon: 'fan_out', color: '#2e9e8f', name: 'out_fan', txt: 'Fan', unit: '%', enabled: false, right: false, nav: false, types: ['fan'], max: 1},
+    { title: 'CO2 Valve', icon: 'co2_valve', color: '#8e6fc0', name: 'out_co2', txt: 'CO2 Valve', unit: ' ticks', enabled: false, right: false, nav: false, types: ['fridge', 'fridge2', 'controller'], method: 'sum'},
+    { title: 'Lights', icon: 'light', color: '#c8a23c', name: 'out_light', txt: 'Lights', unit: '', enabled: false, right: false, nav: false, types: ['fridge', 'fridge2', 'light', 'controller'], max: 100},
+    { title: 'Day', icon: 'light', color: '#c8a23c', name: 'day', txt: 'Day', unit: '', enabled: false, right: false, nav: false, types: ['fan'], max: 1},
+    { title: 'Fan (internal)', icon: 'fan_internal', color: '#2e9e8f', name: 'out_fan-internal', txt: 'fan-internal', unit: '',  enabled: false, right: false, nav: false, types: ['fridge', 'fridge2'], max: 1},
+    { title: 'Fan (external)', icon: 'fan_external', color: '#d98e2b', name: 'out_fan-external', txt: 'fan-external', unit: '',  enabled: false, right: false, nav: false, types: ['fridge', 'fridge2'], max: 1},
+    { title: 'Fan (backwall)', icon: 'fan_backwall', color: '#c75d8a', name: 'out_fan-backwall', txt: 'fan-backwall', unit: '',  enabled: false, right: false, nav: false, types: ['fridge', 'fridge2'], max: 1},
   ];
 
 
@@ -211,12 +215,23 @@ export class ChartsPage implements OnInit, OnDestroy {
 
   public selectedLogs: DeviceLog[] = [];
 
+  public curatedPresets: CuratedChartPreset[] = [];
+
+  public userPresets: ChartPreset[] = [];
+
+  public showPresetBar = false;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private data: DataService,
     private devices: DeviceService,
     private modalController: ModalController,
+    private alertController: AlertController,
+    private toastController: ToastController,
+    private auth: AuthService,
+    private chartPresets: ChartPresetsService,
+    private translate: TranslateService,
     public theme: ThemeService,
   ) {
     this.chartOptions = {
@@ -301,10 +316,10 @@ export class ChartsPage implements OnInit, OnDestroy {
         axisLineColor: '#c8cfda',
         tooltipBackground: '#ffffff',
         tooltipBorder: '#ced4e0',
-        navigatorMaskFill: 'rgba(125, 140, 170, 0.2)',
+        navigatorMaskFill: 'rgba(45, 75, 149, 0.14)',
         navigatorOutlineColor: '#c8cfda',
-        navigatorSeriesColor: '#4f74d9',
-        navigatorSeriesFill: 'rgba(79, 116, 217, 0.12)',
+        navigatorSeriesColor: '#4870c0',
+        navigatorSeriesFill: 'rgba(72, 112, 192, 0.12)',
         rangeButtonFill: '#f3f5f9',
         rangeButtonStroke: '#cfd6e2',
         rangeButtonText: '#283044',
@@ -322,14 +337,14 @@ export class ChartsPage implements OnInit, OnDestroy {
 
     return {
       isDark: true,
-      backgroundColor: '#161a22',
+      backgroundColor: '#1a1f2b',
       textColor: '#e7ecf5',
       mutedTextColor: '#b8c1d4',
       gridLineColor: '#313a4a',
       axisLineColor: '#4a5568',
       tooltipBackground: '#1d2330',
       tooltipBorder: '#3b475c',
-      navigatorMaskFill: 'rgba(122, 138, 172, 0.28)',
+      navigatorMaskFill: 'rgba(115, 150, 221, 0.24)',
       navigatorOutlineColor: '#58657d',
       navigatorSeriesColor: '#8fb0ff',
       navigatorSeriesFill: 'rgba(143, 176, 255, 0.2)',
@@ -340,11 +355,21 @@ export class ChartsPage implements OnInit, OnDestroy {
       rangeButtonSelectedFill: '#3a4862',
       noDataColor: '#b8c1d4',
       measureColorOverrides: {
-        co2: '#b7c6ff',
-        out_co2: '#b7c6ff',
+        temperature: '#ff7a6b',
+        humidity: '#8fb0ff',
+        vpd: '#6fbe4a',
+        co2: '#b7a6e8',
+        leaf_temperature: '#d69a62',
+        ppfd: '#f3c24b',
+        out_heater: '#f08578',
+        out_dehumidifier: '#6fb4e8',
+        out_co2: '#b7a6e8',
         out_light: '#f3e27b',
         day: '#f3e27b',
-        'out_fan-external': '#ffe082',
+        out_fan: '#5bc4b4',
+        'out_fan-internal': '#5bc4b4',
+        'out_fan-external': '#ffce7a',
+        'out_fan-backwall': '#e88ab0',
       },
       logColors: {
         info: '#6db3ff',
@@ -494,6 +519,14 @@ export class ChartsPage implements OnInit, OnDestroy {
         if (this.device_type != "") {
           this.filtered_measures = this.measures
             .filter((measure) => measure.types.includes(this.device_type));
+
+          // Presets need an authenticated owner session — never on share links
+          // or public visits, which have no user token.
+          this.showPresetBar = !this.isPublic && !this.locked && !this.shareToken && !!this.auth.current_user.getValue();
+          if (this.showPresetBar) {
+            this.curatedPresets = availableCuratedPresets(this.filtered_measures.map(measure => measure.name));
+            void this.loadUserPresets();
+          }
 
           if (!this.cloudSettings.rtspStream) {
             this.showImage = false;
@@ -817,6 +850,115 @@ export class ChartsPage implements OnInit, OnDestroy {
 
   public hasEnabledMeasures() {
     return Boolean(this.filtered_measures.find(m => m.enabled));
+  }
+
+  private async loadUserPresets() {
+    try {
+      this.userPresets = await this.chartPresets.list();
+    } catch (error) {
+      console.log('Failed loading chart presets:', error);
+    }
+  }
+
+  public applyCuratedPreset(preset: CuratedChartPreset) {
+    this.filtered_measures.forEach(measure => measure.enabled = preset.measures.includes(measure.name));
+    if (preset.vpdMode) {
+      this.vpdMode = preset.vpdMode;
+    }
+    const timespan = this.timespans.find(ts => ts.name === preset.timespan);
+    if (timespan) {
+      this.selectedTimespan = timespan;
+      this.selectedInterval = preset.interval ?? timespan.defaultInterval;
+    }
+    this.showLogs = false;
+    this.showImage = false;
+    this.selectedDate = '';
+    this.selectedDateEnd = '';
+    this.selectedLogs.splice(0, this.selectedLogs.length);
+    void this.loadData();
+  }
+
+  public applyUserPreset(preset: ChartPreset) {
+    this.applyViewParams(Object.fromEntries(new URLSearchParams(preset.query ?? '')) as Record<string, string>);
+    this.selectedLogs.splice(0, this.selectedLogs.length);
+    void this.loadData();
+  }
+
+  /** The current view in the charts URL format, minus date/share/auto-update state. */
+  private buildPresetQuery(): string {
+    const params = new URLSearchParams();
+    params.set('measures', [
+      ...this.filtered_measures.filter(m => m.enabled).map(m => m.name),
+      ...(this.showImage ? ['image'] : []),
+      ...(this.showLogs ? ['logs'] : []),
+    ].join(','));
+    if (this.isMeasureEnabled('vpd')) {
+      params.set('vpdMode', this.vpdMode);
+    }
+    params.set('useCustom', this.useCustom?.toString() ?? 'false');
+    params.set('timespan', this.selectedTimespan?.name ?? '');
+    params.set('interval', this.selectedInterval ?? '');
+    if (this.showLogs && this.selectedLogCategories.length > 0) {
+      params.set('logs', this.selectedLogCategories.join(','));
+    }
+    return params.toString();
+  }
+
+  public async saveCurrentViewAsPreset() {
+    const alert = await this.alertController.create({
+      header: this.translate.instant('chartPresets.saveTitle'),
+      inputs: [{ name: 'name', type: 'text', placeholder: this.translate.instant('chartPresets.namePlaceholder') }],
+      buttons: [
+        { text: this.translate.instant('chartPresets.cancel'), role: 'cancel' },
+        {
+          text: this.translate.instant('chartPresets.save'),
+          handler: async (data: { name: string }) => {
+            const name = data?.name?.trim();
+            if (!name) {
+              return false;
+            }
+            try {
+              await this.chartPresets.create(name, this.buildPresetQuery(), this.device_type);
+              await this.loadUserPresets();
+            } catch (error) {
+              console.log('Failed saving chart preset:', error);
+              const toast = await this.toastController.create({
+                message: this.translate.instant('chartPresets.saveFailed'),
+                duration: 4000,
+                color: 'danger',
+              });
+              await toast.present();
+            }
+            return true;
+          },
+        },
+      ],
+    });
+    await alert.present();
+  }
+
+  public async deleteUserPreset(preset: ChartPreset, event: Event) {
+    event.stopPropagation();
+    const alert = await this.alertController.create({
+      header: this.translate.instant('chartPresets.deleteTitle'),
+      message: preset.name,
+      buttons: [
+        { text: this.translate.instant('chartPresets.cancel'), role: 'cancel' },
+        {
+          text: this.translate.instant('chartPresets.delete'),
+          role: 'destructive',
+          handler: async () => {
+            try {
+              await this.chartPresets.remove(preset.preset_id);
+              this.userPresets = this.userPresets.filter(existing => existing.preset_id !== preset.preset_id);
+            } catch (error) {
+              console.log('Failed deleting chart preset:', error);
+            }
+          },
+        },
+      ],
+    });
+    await alert.present();
   }
 
   public prevOffset() {

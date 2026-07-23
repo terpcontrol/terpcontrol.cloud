@@ -34,29 +34,8 @@ export class FridgeSettingsConfigurationComponent implements OnChanges {
   public has_humidity:boolean = false;
   public has_co2:boolean = false;
 
-  // Edit mode for slider fields
-  public dayTempEditMode:boolean = false;
-  public dayHumidityEditMode:boolean = false;
-  public nightTempEditMode:boolean = false;
-  public nightHumidityEditMode:boolean = false;
-  public co2EditMode:boolean = false;
-  public sunriseEditMode:boolean = false;
-  public sunsetEditMode:boolean = false;
-  public maxLightEditMode:boolean = false;
-  public internalFanEditMode:boolean = false;
-  public externalFanEditMode:boolean = false;
-  public nightfallEditMode:boolean = false;
-  public daybreakEditMode:boolean = false;
-  public floatingDayDurationEditMode:boolean = false;
-  public floatingLightDurationEditMode:boolean = false;
-  public maxDehumidifySecondsEditMode:boolean = false;
-  public targetHumidityDiffEditMode:boolean = false;
-  public minimalDehumidifierOffTimeEditMode:boolean = false;
-  public heaterHysteresisEditMode:boolean = false;
-  public heaterDehumidifyLimitEditMode:boolean = false;
-  public heaterMinOnTimeEditMode:boolean = false;
-  public heaterMinOffTimeEditMode:boolean = false;
-  public heaterAssistLeadEditMode:boolean = false;
+  // Value rows expand into their own editors (value-edit-row); no per-field
+  // edit-mode flags needed anymore.
 
   public changeWorkmode() {
     switch(this.settings.workmode) {
@@ -210,13 +189,6 @@ export class FridgeSettingsConfigurationComponent implements OnChanges {
     }
 
     this.changeWorkmode();
-  }
-
-  // Steps a fractional value without accumulating binary float drift, which
-  // would otherwise send values like 0.30000000000000004 to the device.
-  stepValue(current: number, delta: number, limit: {min: number, max: number}) {
-    const next = Math.round((current + delta) * 10) / 10;
-    return Math.min(limit.max, Math.max(limit.min, next));
   }
 
   onSettingsChanged() {

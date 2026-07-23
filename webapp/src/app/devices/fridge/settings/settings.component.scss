@@ -5,13 +5,13 @@
   right: 0px;
   bottom: 0px;
   z-index: 100;
-  background-color: rgba(0,0,0,0.7);
+  background-color: rgba(var(--ion-background-color-rgb), 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
 
   .inner {
-    color: white;
+    color: var(--ion-text-color);
     text-align: center;
     ion-spinner {
       width: 100px;
@@ -24,3 +24,24 @@
   width: 100%; //or w/e width
 }
 
+.ui-mode-switch {
+  margin: 12px 16px 4px;
+
+  ion-segment {
+    max-width: 340px;
+    margin: 0 auto;
+  }
+}
+
+.wizard-modal {
+  --width: min(680px, 96vw);
+  --height: min(720px, 94vh);
+}
+
+
+.simple-delete-button {
+  display: block;
+  width: max-content;
+  margin: 0 auto 20px;
+  opacity: 0.85;
+}

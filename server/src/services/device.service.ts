@@ -460,6 +460,10 @@ class DeviceService {
                 categories: ['recipe', 'recipe-step'],
               });
             }
+
+            if (activeStep.stage) {
+              await this.logStageTransitionIfChanged(device.device_id, activeStep.stage);
+            }
           } else if (device.recipe.loop) {
             device.recipe.activeStepIndex = 0;
             device.recipe.activeSince = now;
@@ -481,6 +485,10 @@ class DeviceService {
                 severity: 0,
                 categories: ['recipe', 'recipe-step', 'recipe-looped'],
               });
+            }
+
+            if (activeStep.stage) {
+              await this.logStageTransitionIfChanged(device.device_id, activeStep.stage);
             }
           } else {
             device.recipe.activeSince = 0;
@@ -577,11 +585,20 @@ class DeviceService {
   }
 
   private async logHardwareInfo(deviceId: string, infoPayload: string) {
-    // Parse "key=value" pairs, e.g. "co2=on"
-    const [infoKey, infoValue] = infoPayload.split('=');
-    if (infoKey && infoValue !== undefined) {
-      await deviceModel.findOneAndUpdate({ device_id: deviceId }, { $set: { [`hardwareInfo.${infoKey}`]: infoValue } });
+    // Parse a single "key=value" pair, e.g. "co2=on". Values may themselves
+    // contain "=" (URLs), so only the first "=" separates key and value.
+    const separatorIndex = infoPayload.indexOf('=');
+    if (separatorIndex <= 0) {
+      return;
     }
+    const infoKey = infoPayload.slice(0, separatorIndex).trim();
+    const infoValue = infoPayload.slice(separatorIndex + 1);
+    // The key becomes part of a Mongo update path — reject anything that could
+    // escape the hardwareInfo subtree or bloat the document.
+    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(infoKey) || infoValue.length > 512) {
+      return;
+    }
+    await deviceModel.findOneAndUpdate({ device_id: deviceId }, { $set: { [`hardwareInfo.${infoKey}`]: infoValue } });
   }
 
   public async logMessage(
@@ -614,6 +631,35 @@ class DeviceService {
       images: msg.images,
       deleted: msg.deleted,
       time: msg.time ? new Date(msg.time) : undefined,
+    });
+  }
+
+  /**
+   * Writes a diary lifecycle entry when a grow plan moves the device into a new
+   * stage. Comparing against the previously logged stage keeps repeated stages
+   * (e.g. two consecutive flowering steps) and plain re-saves from spamming the
+   * grow diary.
+   */
+  public async logStageTransitionIfChanged(deviceId: string, stage: string) {
+    const lastEntry = await deviceLogModel
+      .findOne({ device_id: deviceId, categories: 'diary-plant-lifecycle', deleted: { $ne: true } })
+      .sort({ time: -1 });
+
+    if (lastEntry?.data?.newLifecycleStage === stage) {
+      return;
+    }
+
+    await this.logMessage(deviceId, {
+      title: 'message-diary-plant-lifecycle',
+      message: '',
+      severity: 0,
+      categories: ['diary-plant-lifecycle'],
+      data: {
+        newLifecycleStage: stage,
+        // Keep the grow report's cycle grouping intact by carrying the plant
+        // name of the running cycle forward.
+        ...(lastEntry?.data?.lifecycleName ? { lifecycleName: lastEntry.data.lifecycleName } : {}),
+      },
     });
   }
 
@@ -745,6 +791,43 @@ class DeviceService {
         action: 'reboot',
       }),
     );
+  }
+
+  // Commands for auxiliary devices managed by the device itself (smart sockets,
+  // Terp Control Cam). Whitelisted so the endpoint can never publish arbitrary
+  // actions to the device command topic.
+  private static readonly SOCKET_ROLES = ['dehumidifier', 'heater', 'light', 'secondary_light', 'co2'];
+  private static readonly AUX_COMMAND_ACTIONS = ['socket_remove', 'socket_test', 'socket_set'];
+
+  public async sendAuxDeviceCommand(
+    device_id: string,
+    action: string,
+    role: string,
+    options?: { ip?: string; user?: string; password?: string },
+  ): Promise<void> {
+    if (!DeviceService.AUX_COMMAND_ACTIONS.includes(action) || !DeviceService.SOCKET_ROLES.includes(role)) {
+      throw new HttpException(400, 'Unknown aux command');
+    }
+
+    const payload: Record<string, string> = { action, role };
+
+    if (action === 'socket_set') {
+      const ip = String(options?.ip ?? '').trim();
+      const user = String(options?.user ?? '').trim();
+      const password = String(options?.password ?? '').trim();
+      // Host or IP the device will call over plain HTTP — keep it simple and bounded.
+      if (!ip || ip.length > 64 || !/^[a-zA-Z0-9._-]+$/.test(ip)) {
+        throw new HttpException(400, 'Invalid socket address');
+      }
+      if (user.length > 48 || password.length > 48) {
+        throw new HttpException(400, 'Credentials too long');
+      }
+      payload['ip'] = ip;
+      payload['user'] = user;
+      payload['password'] = password;
+    }
+
+    mqttclient.publish('/devices/' + device_id + '/command', JSON.stringify(payload));
   }
 
   public async findUserDevices(user_id: string): Promise<Device[]> {
@@ -962,16 +1045,16 @@ class DeviceService {
     return { claim_code: code };
   }
 
-  public async claimDevice(claim_code: string, user_id: string): Promise<boolean> {
+  public async claimDevice(claim_code: string, user_id: string): Promise<string | null> {
     const dev = await claimCodeModel.findOne({ claim_code: claim_code });
     if (dev) {
       console.log('Claiming device ' + dev.device_id + ' for user ' + user_id);
       claimCodeModel.deleteOne({ claim_code: claim_code });
       await deviceModel.findOneAndUpdate({ device_id: dev.device_id }, { owner_id: user_id });
-      return true;
+      return dev.device_id;
     } else {
       console.log('Invalid claim code ' + claim_code + ' for user ' + user_id);
-      return false;
+      return null;
     }
   }
 
@@ -1141,6 +1224,12 @@ class DeviceService {
 
     if (!settings.rtspStreamTransport) {
       settings.rtspStreamTransport = 'tcp';
+    }
+
+    // An out-of-enum webcamModel would make the strict schema fail the whole
+    // save — drop it instead so older/foreign clients keep working.
+    if (settings.webcamModel !== undefined && !['terp_cam', 'tapo_c200', 'reolink', 'hikvision', 'custom'].includes(settings.webcamModel)) {
+      delete settings.webcamModel;
     }
 
     return settings;

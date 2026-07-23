@@ -92,6 +92,23 @@ class DeviceController {
     }
   };
 
+  public sendAuxCommand = async (req: RequestWithUser, res: Response, next: NextFunction) => {
+    try {
+      if (req.is_admin || (await isUserDeviceMiddelware(req, res, req.body.device_id))) {
+        await deviceService.sendAuxDeviceCommand(req.body.device_id, req.body.action, req.body.role, {
+          ip: req.body.ip,
+          user: req.body.user,
+          password: req.body.password,
+        });
+        res.status(200).json({ status: 'ok' });
+      } else {
+        res.status(401);
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+
   public getClaimCode = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
       const code = await deviceService.getClaimCode(req.body.device_id, req.body.password);
@@ -107,13 +124,13 @@ class DeviceController {
 
   public claimDevice = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
-      const success = await deviceService.claimDevice(req.body.claim_code, req.user_id);
+      const device_id = await deviceService.claimDevice(req.body.claim_code, req.user_id);
 
-      if (!success) {
+      if (!device_id) {
         return res.status(400).json({ status: 'invalid claim code or device not found' });
       }
 
-      res.status(200).json({ status: 'ok' });
+      res.status(200).json({ status: 'ok', device_id });
     } catch (error) {
       next(error);
     }
@@ -575,6 +592,13 @@ class DeviceController {
           categories: ['recipe'],
           deleted: true,
         });
+      }
+
+      // Starting a plan or manually activating a step counts as a stage
+      // transition for the grow diary, just like an automatic advance.
+      const manuallyActivatedStage = recipePayload?.steps?.[recipePayload?.activeStepIndex]?.stage;
+      if (activeStepChanged && recipePayload?.activeSince > 0 && manuallyActivatedStage) {
+        await deviceService.logStageTransitionIfChanged(device_id, manuallyActivatedStage);
       }
 
       const updated = await deviceModel.findOneAndUpdate({ device_id }, { $set: { recipe: recipePayload } }, { new: true });

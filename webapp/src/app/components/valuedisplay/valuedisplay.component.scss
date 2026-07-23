@@ -28,8 +28,8 @@ i {
 }
 
 :host {
-  --value-display-text-primary: var(--ion-text-color, #f3f5f8);
-  --value-display-text-secondary: var(--ion-color-step-700, #c4c4c4);
+  --value-display-text-primary: var(--ion-text-color);
+  --value-display-text-secondary: var(--ion-color-step-700);
 }
 
 svg .primary-text {
@@ -42,4 +42,8 @@ svg .secondary-text {
 
 :host-context(body.dark) svg image {
   filter: brightness(1.5) contrast(0.1);
+}
+
+svg .gauge-track {
+  stroke: var(--ion-color-step-100);
 }

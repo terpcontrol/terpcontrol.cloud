@@ -15,7 +15,11 @@
     "settings": "Settings",
     "errorOccurred": "An error occurred",
     "unableToSaveSettings": "Unable to save settings",
-    "unableToLoadSettings": "Unable to load settings"
+    "unableToLoadSettings": "Unable to load settings",
+    "cancel": "Cancel",
+    "help": "Help",
+    "increase": "increase",
+    "decrease": "decrease"
   },
   "settings": {
     "title": "Settings",
@@ -37,10 +41,6 @@
     "nightVpd": "Night VPD",
     "co2": "CO2",
     "co2SunsetOff": "No CO2 during sunset",
-    "co2-day": "CO2 Daytime",
-    "co2-night": "CO2 Nighttime",
-    "co2-on": "Injection Start",
-    "co2-off": "Injection End",
     "lights": "Lights",
     "sunrise": "Sunrise period",
     "sunset": "Sunset period",
@@ -107,15 +107,25 @@
       "webhookMethodPOST": "POST",
       "webhookMethodGET": "GET",
       "webhookMethodPUT": "PUT",
-      "webhookMethodHint": "Choose HTTP method for webhook requests.",
       "webhookHeaders": "Custom Headers",
-      "webhookHeadersHint": "Add custom HTTP headers to be sent with the webhook request.",
       "webhookTriggeredPayload": "Triggered payload",
       "webhookTriggeredPayloadHint": "Custom payload sent when the alarm is triggered (for POST/PUT). Leave empty to send the default payload.",
       "webhookResolvedPayload": "Resolved payload",
       "webhookResolvedPayloadHint": "Custom payload sent when the alarm is resolved (for POST/PUT). Leave empty to send the default payload.",
       "tunnelWebhook": "Tunnel requests through module",
-      "tunnelWebhookHint": "If enabled, webhook requests will be tunneled through the module. This is helpful if your webhook URL is not directly reachable from the internet. WARNING: HTTPS may not work properly when tunneling is enabled."
+      "tunnelWebhookHint": "If enabled, webhook requests will be tunneled through the module. This is helpful if your webhook URL is not directly reachable from the internet. WARNING: HTTPS may not work properly when tunneling is enabled.",
+      "addFromTemplate": "Add from template",
+      "webhookTarget": "Service",
+      "sensorTypes": {
+        "temperature": "Temperature",
+        "humidity": "Humidity",
+        "co2": "CO2",
+        "co2_valve": "CO2 valve",
+        "light": "Light",
+        "dehumidifier": "Dehumidifier / cooling",
+        "heater": "Heater",
+        "fan": "Fan"
+      }
     },
     "edit-value": "Edit Value",
     "cloudSettings": "Cloud settings",
@@ -133,18 +143,17 @@
     "firmwareVersion": "Firmware version",
     "betaFeatures": "Beta features (Cloud)",
     "rtspStream": "Webcam stream URL",
-    "rtspStreamHint": "Enter the URL of your webcam here to enable webcam streaming in the portal, e.g. \"rtsp://user:password@my-public-hostname-or-ip.com:554/\". The input here must be processable by FFMPEG.",
     "rtspStreamTransport": "RTSP transport protocol",
     "rtspStreamTest": "Test webcam stream",
-    "rtspStreamTestButton": "Test",
-    "rtspStreamTestError": "Webcam test failed",
     "logRtspStreamErrors": "Log webcam stream errors",
     "maintenanceWebcamOff": "Webcam OFF on maintenance mode or mode OFF",
-    "maintenanceWebcamOffHint": "If enabled, the webcam will automatically stop capturing images when the device is in maintenance mode or the device's mode is set to OFF.",
     "tunnelRtspStream": "Tunnel webcam stream",
-    "tunnelRtspStreamHint": "If enabled, the webcam stream will be tunneled through the module. This is helpful if your webcam is not directly reachable from the internet.",
-    "dangerZone": "Danger zone",
-    "deleteDevice": "Delete device"
+    "deleteDevice": "Remove device",
+    "deleteDeviceConfirmTitle": "Remove device?",
+    "deleteDeviceConfirmText": "This removes the device from your account — it disappears from the app until it's claimed again.",
+    "deleteDeviceConfirmAgain": "Really remove the device now?",
+    "deleteDeviceConfirmButton": "Remove",
+    "forever": "forever"
   },
   "menu": {
     "devices": "Devices",
@@ -153,7 +162,8 @@
     "logout": "Logout",
     "diagnostics": "Diagnostics",
     "fleet": "Fleet",
-    "darkMode": "Dark mode"
+    "darkMode": "Dark mode",
+    "installApp": "Install app"
   },
   "share": {
     "button": "Share",
@@ -219,10 +229,222 @@
       "changed": "Your password was changed"
     }
   },
+  "login": {
+    "welcomeTitle": "Welcome back",
+    "welcomeSubtitle": "Monitor and control your grow — from anywhere.",
+    "registerTitle": "Create your account",
+    "registerSubtitle": "One portal for all your Terp Control devices.",
+    "email": "Email",
+    "password": "Password",
+    "newPassword": "New password",
+    "repeatPassword": "Repeat password",
+    "stayLoggedIn": "Stay logged in",
+    "login": "Login",
+    "createAccount": "Create account",
+    "backToLogin": "Back to login",
+    "forgotPassword": "Forgot password?",
+    "sendRecovery": "Send recovery link",
+    "changePassword": "Change password",
+    "acceptPrivacyBefore": "I accept the",
+    "acceptPrivacyLink": "privacy policy",
+    "legacy": {
+      "toggle": "Moving over from the old Fridge Grow 2.0 / Plantalytix cloud?",
+      "intro": "Connect your existing module to the Terp Control cloud (instructions in German):"
+    },
+    "messages": {
+      "loginFailedTitle": "Login failed",
+      "errorTitle": "Error",
+      "successTitle": "Success",
+      "wrongCredentials": "Incorrect email or password.",
+      "notActivated": "You need to activate your account first. Please check your inbox.",
+      "connectionError": "Connection error. Please try again.",
+      "passwordMismatch": "The passwords don't match.",
+      "invalidActivationCode": "Invalid activation code.",
+      "accountCreatedTitle": "Account created",
+      "accountCreatedText": "An activation code has been sent to your email address.",
+      "accountActivatedTitle": "Account activated",
+      "accountActivatedText": "Your account has been activated, you can now log in:",
+      "emailInUse": "This email address is already in use.",
+      "recoverySentTitle": "Sent",
+      "recoverySentText": "The recovery link was sent.",
+      "wrongRecoveryToken": "This recovery link is invalid or has expired.",
+      "passwordChangedText": "Your password has been changed, you can now log in:"
+    }
+  },
+  "growPresets": {
+    "seedling": {
+      "name": "Germination & seedling"
+    },
+    "vegetative": {
+      "name": "Vegetative"
+    },
+    "flowering": {
+      "name": "Early flowering"
+    },
+    "late_flowering": {
+      "name": "Late flowering"
+    },
+    "drying": {
+      "name": "Drying"
+    },
+    "custom": {
+      "name": "Own values",
+      "subtitle": "Set everything yourself"
+    },
+    "stages": {
+      "seedling": "Seedling",
+      "vegetative": "Vegetative",
+      "flowering": "Early flowering",
+      "lateFlowering": "Late flowering",
+      "drying": "Drying"
+    },
+    "plans": {
+      "photoperiod": {
+        "name": "Photoperiod",
+        "description": "Classic seeds, approx. 16 weeks. Flowering starts with the 12/12 light switch."
+      },
+      "autoflower": {
+        "name": "Autoflower",
+        "description": "Automatic flowering, approx. 11 weeks. Light stays at 18 hours."
+      }
+    },
+    "confirmations": {
+      "startFlowering": "Ready for flowering? From now on the light runs 12/12 — confirm to start the switch.",
+      "harvest": "Check the trichomes: milky with first amber tones? Then harvest and confirm — drying starts next.",
+      "dryingDone": "Do the branches snap instead of bending? Then drying is done — off to the curing jars."
+    }
+  },
+  "assistant": {
+    "allGood": "All in the green",
+    "confirmationPending": "Your plan is waiting for a confirmation — open settings",
+    "deviationMonitorHint": "Your device only monitors — adjust this manually in your setup.",
+    "tipsTitle": "Tips for this stage",
+    "matchingChart": "Open the matching chart view",
+    "bannerText": "Let a grow plan guide you through the stages — targets adjust automatically, and you confirm the big steps.",
+    "deviation": {
+      "temperature": {
+        "above": "Temperature {{current}} °C — above target ({{target}} °C)",
+        "below": "Temperature {{current}} °C — below target ({{target}} °C)"
+      },
+      "humidity": {
+        "above": "Humidity {{current}} % — above target ({{target}} %)",
+        "below": "Humidity {{current}} % — below target ({{target}} %)"
+      }
+    },
+    "tips": {
+      "seedling": {
+        "1": "Keep the medium slightly moist, never soaking wet — seedlings drown faster than they dry out.",
+        "2": "High humidity (65–75 %) helps young roots; a propagator dome works great in the first days.",
+        "3": "Keep the light dimmed (around 40 %) and at a good distance — bleached or curled leaves mean it's too strong.",
+        "4": "Don't feed yet: the seed carries nutrients for the first two weeks."
+      },
+      "vegetative": {
+        "1": "Water when the top few centimeters of the medium feel dry — lifting the pot tells you more than a schedule.",
+        "2": "Now is training time: topping or bending (LST) creates an even canopy and more bud sites.",
+        "3": "Raise light intensity step by step towards 80–100 % as the plants toughen up.",
+        "4": "Watch the VPD chart: 0.8–1.1 kPa keeps transpiration and growth in balance."
+      },
+      "flowering": {
+        "1": "Keep humidity at or below 50 % — dense buds plus high humidity is how mold starts.",
+        "2": "Don't change the light schedule anymore; interruptions of the dark period stress photoperiod plants.",
+        "3": "Feed bloom nutrients and watch leaf color — fading towards the end is normal.",
+        "4": "Check the trichomes in the last weeks: cloudy with the first amber ones usually means harvest time."
+      },
+      "drying": {
+        "1": "16–20 °C and 55–60 % humidity, dark and with gentle air movement — slow drying preserves the terpenes.",
+        "2": "Plan for 10–14 days. If it's done after 5, it was too warm or too dry.",
+        "3": "The snap test: when small branches crack instead of bending, the buds are ready for curing jars.",
+        "4": "Open the jars daily in the first curing week ('burping') to let moisture escape."
+      }
+    }
+  },
+  "chartPresets": {
+    "curated": {
+      "climate": "Climate check",
+      "vpd": "VPD analysis",
+      "co2": "CO2 check",
+      "light": "Light & canopy",
+      "drying": "Drying"
+    },
+    "saveView": "Save view",
+    "saveTitle": "Save this view as a preset",
+    "namePlaceholder": "Preset name",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "deleteTitle": "Delete this preset?",
+    "saveFailed": "Saving the preset failed."
+  },
+  "wizard": {
+    "title": "Setup assistant",
+    "back": "Back",
+    "next": "Next",
+    "apply": "Finish setup",
+    "errorSaving": "Saving failed. Check your connection and try again.",
+    "name": {
+      "title": "Name your device",
+      "text": "Pick a name you'll recognize — for example \"Tent living room\" or \"Fridge basement\".",
+      "label": "Device name"
+    },
+    "connections": {
+      "title": "What does your controller switch?",
+      "text": "Your controller switches through paired smart sockets — the app detects automatically what is connected. Pairing happens right on the controller (Settings → Smart Sockets).",
+      "connected": "Connected",
+      "noSockets": "No sockets paired yet — monitoring only. You can pair some on the controller anytime; the app adapts automatically.",
+      "unknown": "Your controller reports its socket status only after a firmware update. Until then all control options are shown.",
+      "detected-full": "Detected: your controller regulates the climate.",
+      "detected-light_only": "Detected: your controller only switches the light — climate values are monitored and targets act as reference values.",
+      "detected-monitor": "Detected: monitoring only — nothing is switched, targets act as reference values.",
+      "refresh": "Check again"
+    },
+    "stage": {
+      "title": "Where is your grow right now?",
+      "text": "We fill in proven target values for this stage — you can fine-tune everything later."
+    },
+    "plan": {
+      "title": "Just targets, or a full grow plan?",
+      "text": "The grow plan moves through the stages for you, adjusts the targets automatically and asks before big changes.",
+      "textMonitor": "In monitoring mode the plan tracks your stages, keeps the diary up to date and shows you the recommended ranges per stage.",
+      "targets": "Only apply targets",
+      "targetsMonitor": "Only set reference values",
+      "targetsText": "Set values for the chosen stage once.",
+      "durationsTitle": "Stage durations (adjustable)",
+      "days": "days",
+      "total": "Total: about {{days}} days ({{weeks}} weeks).",
+      "confirmNote": "Before the flowering switch, harvest and the end of drying, the plan waits for your confirmation — you stay in charge.",
+      "startsAtStage": "Phases you're already past keep their defaults — you only plan from your current phase onward."
+    },
+    "done": {
+      "title": "That's it — the automation takes over",
+      "titleMonitor": "That's it — your monitoring is live",
+      "text": "Your device now regulates towards the target values around the clock. If everything runs well, you don't have to do a thing.",
+      "textMonitor": "You now see live values, history charts and get alarms when something drifts off. Your targets serve as reference ranges.",
+      "step1": "Plugged in and connected",
+      "step2": "Targets set for your stage",
+      "step3": "Regulation runs automatically",
+      "step3Monitor": "Monitoring and alarms are active",
+      "close": "Done",
+      "auxHint": "You can connect your webcam and Smart Sockets anytime in the device settings under \"Connected devices\"."
+    }
+  },
+  "onboarding": {
+    "welcomeTitle": "Welcome to your grow portal",
+    "welcomeText": "Connect your first Terp Control device and let the automation take over — you keep an eye on everything from anywhere.",
+    "step1Title": "Plug in your device",
+    "step1Text": "Power it up and connect it to your WiFi — the display guides you through it.",
+    "step2Title": "Read the code off the display",
+    "step2Text": "Your device shows a short pairing code under \"Connect to portal\".",
+    "step3Title": "Enter the code here",
+    "step3Text": "The device appears in your portal and the setup assistant takes over.",
+    "codePlaceholder": "Pairing code",
+    "claimFailed": "That code didn't work. Check the code on the device display and try again.",
+    "helpText": "Need help getting connected? All guides are on"
+  },
   "device-list": {
     "title": "Device list",
-    "claim": "ENTER DEVICE CODE",
-    "claim-button": "Claim"
+    "claim": "Enter device code",
+    "claim-button": "Claim",
+    "addDevice": "Add device"
   },
   "charts": {
     "title": "Charts",
@@ -322,7 +544,8 @@
         "emailNotifications-onStep": "On every step change",
         "emailNotifications-onConfirmation": "Only on confirmations",
         "additionalInfo": "Log messages on step changes",
-        "emailAddress": "Email address"
+        "emailAddress": "Email address",
+        "pleaseStart": "Please start the plan first"
       }
     },
     "dryer": {
@@ -365,29 +588,21 @@
       "co2sensor-text": "This mode requires an optional CO2 sensor to work.",
       "settings": {
         "heater-name": "Heating",
-        "heater-day": "Heating - Daytime",
-        "heater-night": "Heating - Nighttime",
         "heater-on": "Turn ON Point",
         "heater-on-desc": "Turns output ON when the measured temperature falls BELOW this value",
         "heater-off": "Turn OFF Point",
         "heater-off-desc": "Turns output OFF when the measured temperature rises ABOVE this value",
         "cooler-name": "Cooling",
-        "cooler-day": "Cooling - Daytime",
-        "cooler-night": "Cooling - Nighttime",
         "cooler-on": "Turn ON Point",
         "cooler-on-desc": "Turns output ON when the measured temperature rises ABOVE this value",
         "cooler-off": "Turn OFF Point",
         "cooler-off-desc": "Turns output OFF when the measured temperature falls BELOW this value",
         "humidify-name": "Humidification",
-        "humidify-day": "Humidification - Daytime",
-        "humidify-night": "Humidification - Nighttime",
         "humidify-on": "Turn ON Point",
         "humidify-on-desc": "Turns output ON when the measured humidity falls BELOW this value",
         "humidify-off": "Turn OFF Point",
         "humidify-off-desc": "Turns output OFF when the measured humidity rises ABOVE this value",
         "dehumidify-name": "Dehumidification",
-        "dehumidify-day": "Dehumidification - Daytime",
-        "dehumidify-night": "Dehumidification - Nighttime",
         "dehumidify-on": "Turn ON Point",
         "dehumidify-on-desc": "Turns output ON when the measured humidity rises ABOVE this value",
         "dehumidify-off": "Turn OFF Point",
@@ -429,9 +644,18 @@
             "min_off": "Minimal OFF time",
             "min_off-desc": "Socket will not turn on for a minimum of this time after being turned off"
           }
-        }
+        },
+        "cooler-name-day": "Cooling - day",
+        "cooler-name-night": "Cooling - night",
+        "heater-name-day": "Heating - day",
+        "heater-name-night": "Heating - night",
+        "dehumidify-name-day": "Dehumidify - day",
+        "dehumidify-name-night": "Dehumidify - night",
+        "humidify-name-day": "Humidify - day",
+        "humidify-name-night": "Humidify - night"
       }
-    }
+    },
+    "button-setup": "Set up"
   },
   "diary": {
     "title": "Diary",
@@ -572,5 +796,241 @@
   "message-smart-socket-connected-title": "Smart socket connected",
   "message-smart-socket-connected-text": "A smart socket was connected for role: {{value}}",
   "message-smart-socket-disconnected-title": "Smart socket disconnected",
-  "message-smart-socket-disconnected-text": "The smart socket assignment was removed for role: {{value}}"
+  "message-smart-socket-disconnected-text": "The smart socket assignment was removed for role: {{value}}",
+  "simpleSettings": {
+    "modeSimple": "Simple",
+    "modeExpert": "Expert",
+    "referenceBannerMonitor": "This controller only monitors. Your targets act as reference ranges for charts, the assistant and alarms — nothing is switched.",
+    "referenceBannerLightOnly": "This controller only drives the lamp. Climate targets act as reference ranges — heating or humidity are not switched.",
+    "stageTitle": "Your grow stage",
+    "stageText": "Pick the stage your plants are in — we set proven targets. Fine-tune anything below.",
+    "stageTextReference": "Pick the stage your plants are in — we set proven reference values. Fine-tune anything below.",
+    "startPlan": "Start a grow plan",
+    "targetsTitle": "Targets",
+    "targetsTitleReference": "Reference values",
+    "temperature": "Temperature",
+    "humidity": "Humidity",
+    "deviceOff": "The device is switched off. Pick a grow stage above to start regulating.",
+    "expertHint": "Fine-tuning like heater behavior, dehumidify timing or alarms lives in expert mode (switch at the top).",
+    "plan": {
+      "title": "Grow plan",
+      "dayOf": "Day {{day}} of {{total}} in this stage",
+      "next": "Next stage: {{name}}",
+      "editHint": "The values below apply to the current stage. Saving keeps the plan running.",
+      "stop": "Stop plan",
+      "currentDuration": "Duration of this stage",
+      "skip": "End stage now",
+      "skipConfirmTitle": "End this stage?",
+      "skipConfirmNext": "The current stage ends immediately and {{name}} starts. Remember to save afterwards.",
+      "skipConfirmNextGeneric": "The current stage ends immediately and the next stage starts. Remember to save afterwards.",
+      "skipConfirmEnd": "The current stage ends and the plan is completed. Remember to save afterwards.",
+      "skipConfirmButton": "End stage",
+      "upcomingTitle": "Upcoming phases",
+      "upcomingFrom": "from ~ {{date}}",
+      "upcomingHint": "Tap a duration to adjust the remaining plan. Changes apply when you save."
+    },
+    "light": {
+      "title": "Light & day rhythm",
+      "hint": "Defines when your lamp is on and how bright it runs. The day targets below apply while the light is on.",
+      "hintMonitor": "Defines which hours count as day. The day targets below are evaluated during these hours.",
+      "start": "Light on at",
+      "duration": "Hours of light",
+      "scheduleText": "Seedlings and vegetative plants usually get 18 h, flowering runs at 12 h. Autoflowers stay at 18 h all the way.",
+      "intensity": "Light intensity",
+      "intensityHint": "Start seedlings dimmed (about 40%) and increase towards 100% in flowering."
+    },
+    "day": {
+      "title": "Daytime targets (light on)"
+    },
+    "night": {
+      "title": "Nighttime targets (light off)"
+    },
+    "climate": {
+      "title": "Climate targets"
+    },
+    "co2": {
+      "title": "CO2",
+      "target": "CO2 target",
+      "hint": "Only useful with a CO2 bottle and valve. Without one, keep 400 ppm (ambient level) — the valve then never opens.",
+      "text": "Without CO2 enrichment leave this at 400 ppm. With a CO2 setup, 900–1200 ppm speeds up growth."
+    },
+    "notifications": {
+      "title": "Notifications & alarms",
+      "empty": "No alarms yet. Add one from a template — e.g. heat, humidity or an empty CO2 bottle.",
+      "add": "Add alarm",
+      "pickPreset": "What do you want to watch?",
+      "pickChannel": "how do you want to be notified?",
+      "create": "Create alarm",
+      "savedNote": "Alarms are stored when you save the settings.",
+      "runsFor": "Runs non-stop for {{minutes}} min",
+      "forMinutes": "≥ {{minutes}} min",
+      "emailLabel": "E-mail address",
+      "channels": {
+        "info": "App log",
+        "email": "E-mail",
+        "discord": "Discord",
+        "telegram": "Telegram",
+        "ntfy": "ntfy.sh",
+        "home_assistant": "Home Assistant",
+        "webhook": "Webhook"
+      },
+      "changeChannel": "Change"
+    }
+  },
+  "auxDevices": {
+    "title": "Connected devices",
+    "webcam": {
+      "title": "Webcam",
+      "intro": "Watch your grow live and in the diary timelapse. Pick your camera:",
+      "models": {
+        "terp_cam": {
+          "name": "Terp Control Cam",
+          "subtitle": "Our camera — connects via your controller"
+        },
+        "tapo_c200": {
+          "name": "TP-Link Tapo",
+          "subtitle": "e.g. C100/C200/C210/C310 — RTSP template"
+        },
+        "reolink": {
+          "name": "Reolink",
+          "subtitle": "RTSP template"
+        },
+        "hikvision": {
+          "name": "Hikvision",
+          "subtitle": "RTSP template"
+        },
+        "custom": {
+          "name": "Custom",
+          "subtitle": "Any stream URL"
+        }
+      },
+      "terpCamFound": "Terp Control Cam detected — your controller reported its stream URL.",
+      "terpCamUse": "Use this camera",
+      "terpCamMissing": "No Terp Control Cam reported yet. Connect it on your controller first: Settings → Terp Cam → connect cam.",
+      "user": "Camera username",
+      "password": "Camera password",
+      "host": "IP address or hostname",
+      "hostHintTunnel": "Local IP of the camera in your home network — the stream is fetched through your device's tunnel.",
+      "hostHintPublic": "Public IP or DDNS name reachable from the internet. Enable tunneling to use a local IP instead.",
+      "remove": "Remove webcam",
+      "savedNote": "Webcam changes are stored when you save the settings.",
+      "add": "Add webcam",
+      "pickModel": "Which camera do you have? (one webcam per device)",
+      "fillPlaceholders": "Fill in placeholders",
+      "placeholderHint": "Replace <user>, <password> and <ip> in the URL with your camera's values.",
+      "customHint": "Format: rtsp://user:password@ip-or-hostname:554/path — you can find the stream path in your camera’s manual. HTTP(S) snapshot or MJPEG URLs work too.",
+      "customHintTunnel": "If the camera sits on the same network as your device, enable “Tunnel webcam stream” and use its local IP.",
+      "terpCamTunnelNote": "The Terp Control Cam is always tunnelled through your device — its local address is all it needs."
+    },
+    "sockets": {
+      "title": "Smart Sockets",
+      "intro": "Your device switches these sockets. Pairing happens right on the device (Settings → Smart Sockets).",
+      "unknownFirmware": "This firmware doesn't report its sockets yet. Update the device firmware or manage sockets on the device.",
+      "connected": "Connected",
+      "roles": {
+        "dehumidifier": "Dehumidifier",
+        "heater": "Heater",
+        "light": "Light",
+        "secondary_light": "Second light",
+        "co2": "CO2 valve"
+      },
+      "remove": "Remove",
+      "removeConfirmTitle": "Remove socket?",
+      "removeConfirmText": "The \"{{role}}\" socket will be unpaired and reset. This takes effect immediately.",
+      "offlineHint": "The device looks offline right now — socket commands may not reach it.",
+      "pending": "Updating…",
+      "test": "Test",
+      "edit": "Edit",
+      "ip": "IP address",
+      "user": "Username (optional)",
+      "password": "Password (empty = device default)",
+      "apply": "Apply",
+      "editHint": "Your device switches the socket at this address (Tasmota HTTP). Leave the password empty to keep the pairing credentials.",
+      "testNote": "Test switches the socket on for about 2 seconds.",
+      "add": "Add smart socket",
+      "role": "Function",
+      "brands": {
+        "terp": {
+          "name": "Terp Control Smart Socket",
+          "subtitle": "Our socket — pairs through your device",
+          "hint": "Pair it right on your device: Settings → Smart Sockets → connect socket. It shows up here automatically afterwards."
+        },
+        "tasmota": {
+          "name": "Tasmota / other",
+          "subtitle": "Any Tasmota socket by IP",
+          "hint": ""
+        }
+      },
+      "reachabilityHint": "Switching always happens locally from your device (permanently tunnelled) — the socket only needs to be reachable by your device. No internet exposure is required."
+    },
+    "manualSetup": "Set up manually instead"
+  },
+  "alarmPresets": {
+    "heat_day": {
+      "name": "Too hot during the day",
+      "description": "Above 30 °C for 5 minutes"
+    },
+    "cold_night": {
+      "name": "Too cold at night",
+      "description": "Below 15 °C for 5 minutes"
+    },
+    "humidity_high": {
+      "name": "Humidity too high",
+      "description": "Mold risk — threshold follows the stage (60% in flower, 75% otherwise)"
+    },
+    "humidity_low": {
+      "name": "Humidity too low",
+      "description": "Below 35% for 15 minutes"
+    },
+    "co2_empty": {
+      "name": "CO2 bottle empty",
+      "description": "CO2 stays below 350 ppm despite enrichment"
+    },
+    "running_continuously": {
+      "name": "Dehumidifier running non-stop",
+      "nameFridge": "Fridge running non-stop",
+      "description": "Output on for more than 30 minutes straight"
+    }
+  },
+  "webhookTargets": {
+    "msgTriggered": "Alarm",
+    "msgResolved": "Resolved",
+    "discord": {
+      "name": "Discord",
+      "url": "Discord webhook URL",
+      "hint": "Discord → channel settings → Integrations → Webhooks → New webhook, then paste the URL here."
+    },
+    "telegram": {
+      "name": "Telegram",
+      "botToken": "Bot token",
+      "chatId": "Chat ID",
+      "hint": "Create a bot with @BotFather, add it to your chat and get the chat ID e.g. via @userinfobot."
+    },
+    "ntfy": {
+      "name": "ntfy.sh",
+      "topic": "Topic name",
+      "server": "Server",
+      "hint": "Install the ntfy app and subscribe to the same topic — no account needed. Pick a hard-to-guess topic name."
+    },
+    "home_assistant": {
+      "name": "Home Assistant",
+      "baseUrl": "Home Assistant URL",
+      "webhookId": "Webhook ID",
+      "hint": "Create a webhook trigger in an automation; local instances are reached through your device's tunnel automatically."
+    },
+    "custom": {
+      "name": "Custom",
+      "hint": "Configure URL, method, headers and payload yourself below."
+    }
+  },
+  "install": {
+    "iosIntro": "Install Terp Control as an app on your home screen:",
+    "iosStep1": "Open this page in Safari and tap the share icon",
+    "iosStep2": "Choose “Add to Home Screen”.",
+    "iosStep3": "Tap “Add” — done.",
+    "androidIntro": "Install Terp Control as an app on your home screen:",
+    "androidStep1": "Open the browser menu",
+    "androidStep2": "Choose “Install app” or “Add to Home screen”.",
+    "note": "Terp Control then launches full-screen with its own icon — just like a regular app."
+  }
 }

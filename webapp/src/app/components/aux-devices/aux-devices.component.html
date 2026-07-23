@@ -1,0 +1,14 @@
+<ion-card class="aux-card">
+  <ion-card-header>
+    <ion-card-title>{{ 'auxDevices.title' | translate }}</ion-card-title>
+  </ion-card-header>
+  <ion-card-content>
+    <webcam-config [deviceId]="deviceId" [cloudSettings]="cloudSettings" [hardwareInfo]="hardwareInfo"></webcam-config>
+    <smart-sockets
+      *ngIf="supportsSockets"
+      [deviceId]="deviceId"
+      [hardwareInfo]="hardwareInfo"
+      [lastseen]="lastseen"
+    ></smart-sockets>
+  </ion-card-content>
+</ion-card>

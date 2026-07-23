@@ -1,24 +1,16 @@
-// mat-card {
-//   max-width: 400px;
-//   margin: 2em auto;
-//   text-align: center;
-// }
-
-// mat-form-field {
-//   display: block;
-//   input {
-//     width: 100%;
-//   }
-// }
+.login-content {
+  --background: var(--tc-halo), var(--ion-background-color);
+}
 
 .outer {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  min-height:100%;
-  width:400px;
+  min-height: 100%;
+  width: 400px;
   margin: auto;
+  padding: 24px 0;
 }
 
 .inner {
@@ -27,7 +19,92 @@
 
 @media (min-width: 480px) {
   .outer {
-    width:480px;
+    width: 480px;
     margin: auto;
   }
+}
+
+.login-hero {
+  text-align: center;
+  padding: 8px 12px 4px;
+
+  h1 {
+    font-size: 1.5rem;
+    margin: 4px 0;
+  }
+}
+
+.login-logo {
+  width: 68%;
+  max-width: 280px;
+  height: auto;
+  margin-bottom: 10px;
+}
+
+:host-context(body.dark) .login-logo {
+  filter: brightness(0) invert(1);
+}
+
+.login-sub {
+  color: var(--ion-color-medium);
+  margin: 4px 0 8px;
+  line-height: 1.55;
+}
+
+.login-card {
+  ion-item {
+    --background: transparent;
+  }
+}
+
+.login-actions {
+  margin-top: 16px;
+
+  ion-button {
+    margin-top: 8px;
+  }
+}
+
+.login-link-row {
+  text-align: center;
+  margin: 14px 0 4px;
+
+  a {
+    color: var(--ion-color-primary);
+    cursor: pointer;
+    font-weight: 500;
+  }
+}
+
+.login-legacy {
+  ion-card-content {
+    font-size: 0.85rem;
+  }
+}
+
+.login-legacy-toggle {
+  cursor: pointer;
+  color: var(--ion-color-medium);
+  font-weight: 500;
+  display: block;
+  text-align: center;
+}
+
+.login-legacy-body {
+  margin-top: 12px;
+  color: var(--ion-color-medium);
+
+  ol {
+    padding-left: 18px;
+  }
+
+  li {
+    margin-bottom: 6px;
+  }
+}
+
+.login-links {
+  box-shadow: none;
+  background: transparent;
+  border: none;
 }

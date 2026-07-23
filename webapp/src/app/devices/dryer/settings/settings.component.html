@@ -44,7 +44,7 @@
       </ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.temperature = settings.temperature - 1" [disabled]="settings.temperature <= limits.temperature.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.temperature" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1" (ngModelChange)="selectCustomPreset()"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.temperature" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1" (ngModelChange)="selectCustomPreset()"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.temperature = settings.temperature + 1" [disabled]="settings.temperature >= limits.temperature.max"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
       <ion-item lines="none">
@@ -53,7 +53,7 @@
       </ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.humidity = settings.humidity - 1" [disabled]="settings.humidity <= limits.humidity.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.humidity" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1" (ngModelChange)="selectCustomPreset()"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.humidity" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1" (ngModelChange)="selectCustomPreset()"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.humidity = settings.humidity + 1" [disabled]="settings.humidity >= limits.humidity.max"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
     </ion-card-content>
@@ -70,7 +70,7 @@
       </ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.externalfan = settings.externalfan - 1" [disabled]="settings.externalfan <= 100"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.externalfan" min="0" max="100" step="1"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.externalfan" min="0" max="100" step="1"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.externalfan = settings.externalfan + 1" [disabled]="settings.externalfan >= 0"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
       <ion-item lines="none">
@@ -79,13 +79,16 @@
       </ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.internalfan = settings.internalfan - 1" [disabled]="settings.internalfan <= 100"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.internalfan" min="10" max="100" step="1"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.internalfan" min="10" max="100" step="1"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.internalfan = settings.internalfan + 1" [disabled]="settings.internalfan >= 10"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
     </ion-card-content>
   </ion-card>
 
+  <aux-devices [deviceId]="device_id" [deviceType]="'dryer'" [cloudSettings]="cloudSettings"></aux-devices>
+
   <cloud-settings [(cloudSettings)]="cloudSettings" [deviceId]="device_id" />
+  <delete-device-row [deviceId]="device_id"></delete-device-row>
 
   <alarms [(alarms)]="alarms" [availableSensorTypes]="['temperature', 'humidity', 'dehumidifier', 'heater']" [cloud_settings]="cloudSettings" />
 

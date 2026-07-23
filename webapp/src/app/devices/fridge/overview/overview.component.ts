@@ -1,4 +1,4 @@
-import {Component, ElementRef, Input, OnDestroy, OnInit, Renderer2, ViewChild} from '@angular/core';
+import {Component, ElementRef, EventEmitter, Input, OnDestroy, OnInit, Output, Renderer2, ViewChild} from '@angular/core';
 import {ActivatedRoute, Router} from '@angular/router';
 import {AlertController, IonModal, ToastController} from '@ionic/angular';
 import {combineLatest, Subscription} from 'rxjs';
@@ -31,6 +31,9 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
   @Input() maintenance_mode_until:number = 0;
   @Input() cloud_settings:any = {};
   @Input() hardware_info: Record<string, string> | undefined = {};
+  /** Hidden in single-device dashboard mode, where the page header carries the name. */
+  @Input() show_name = true;
+  @Output() setup = new EventEmitter<void>();
   @ViewChild("nameedit", { read: ElementRef }) private nameInput: ElementRef | undefined;
   @ViewChild(IonModal) modal!: IonModal;
 
@@ -165,11 +168,14 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
     }
     this.severity = Math.max(...this.logs.map((o: { severity: number; }) => {return isNaN(o.severity) ? 0 : o.severity}))
 
+    // Refreshes the plan day counter / progress. Those change on a scale of
+    // days — a 1s cadence forced a full change-detection pass every second
+    // (every impure pipe re-ran), which made the list crawl on phones.
     this.timerId = setInterval(() => {
       if (this.recipe?.activeSince > 0) {
-        this.tick = Date.now(); // trigger change detection / getter recalculation
+        this.tick = Date.now();
       }
-    }, 1000);
+    }, 60000);
   }
 
   async loadLogs(): Promise<(DeviceLog & { count: number })[]> {

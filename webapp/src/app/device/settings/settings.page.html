@@ -9,9 +9,9 @@
 <ion-content>
   <ng-container [ngSwitch]="device_type">
     <fan-settings [device_id]="device_id" *ngSwitchCase="'fan'"></fan-settings>
-    <fridge-settings [device_id]="device_id" [hardwareInfo]="hardwareInfo" [deviceType]="device_type" *ngSwitchCase="'fridge'"></fridge-settings>
-    <fridge-settings [device_id]="device_id" [hardwareInfo]="hardwareInfo" [deviceType]="device_type" *ngSwitchCase="'fridge2'"></fridge-settings>
-    <fridge-settings [device_id]="device_id" [hardwareInfo]="hardwareInfo" [deviceType]="device_type" *ngSwitchCase="'controller'"></fridge-settings>
+    <fridge-settings [device_id]="device_id" [hardwareInfo]="hardwareInfo" [deviceType]="device_type" [lastseen]="lastseen" *ngSwitchCase="'fridge'"></fridge-settings>
+    <fridge-settings [device_id]="device_id" [hardwareInfo]="hardwareInfo" [deviceType]="device_type" [lastseen]="lastseen" *ngSwitchCase="'fridge2'"></fridge-settings>
+    <fridge-settings [device_id]="device_id" [hardwareInfo]="hardwareInfo" [deviceType]="device_type" [lastseen]="lastseen" *ngSwitchCase="'controller'"></fridge-settings>
     <light-settings [device_id]="device_id" *ngSwitchCase="'light'"></light-settings>
     <plug-settings [device_id]="device_id" *ngSwitchCase="'plug'"></plug-settings>
     <dryer-settings [device_id]="device_id" *ngSwitchCase="'dryer'"></dryer-settings>

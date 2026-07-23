@@ -64,8 +64,8 @@
   right: 0px;
   bottom: 0px;
   z-index: 100;
-  background-color: rgba(24, 26, 32, 0.52);
-  color: #f3f5f8;
+  background-color: rgba(var(--ion-background-color-rgb), 0.6);
+  color: var(--ion-text-color);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
   display: flex;
@@ -76,9 +76,10 @@
 .offline-overlay p {
   margin: 0;
   padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background-color: rgba(13, 14, 18, 0.72);
+  border-radius: var(--tc-radius-md);
+  border: 1px solid var(--ion-border-color);
+  background-color: var(--ion-card-background);
+  box-shadow: var(--tc-shadow-md);
   font-weight: 600;
   letter-spacing: 0.2px;
 }
@@ -144,4 +145,28 @@ h3 {
 .current,
 .name {
   opacity: 0.92;
+}
+
+.device-type-label {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ion-color-medium);
+  opacity: 1;
+  margin-top: 0;
+}
+
+.workmode-pill {
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.action-row ion-button {
+  --border-width: 1px;
+  font-size: 0.82rem;
+
+  ion-icon {
+    font-size: 1rem;
+  }
 }

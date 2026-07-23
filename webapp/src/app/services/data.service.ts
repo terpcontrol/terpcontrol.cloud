@@ -12,14 +12,21 @@ export class DataService {
   private measure_subjects: Map<string, Map<string, BehaviorSubject<number>>> = new Map<string, Map<string, BehaviorSubject<number>>>()
   private measure_avg_subjects: Map<string, Map<string, BehaviorSubject<number>>> = new Map<string, Map<string, BehaviorSubject<number>>>()
 
+  private updateScheduled = false;
+
   constructor(private http: HttpClient, private devices: DeviceService) {
     this.devices.devices.subscribe((devices) => {
-      this.measure_subjects = new Map<string, Map<string, BehaviorSubject<number>>>()
-      this.measure_avg_subjects = new Map<string, Map<string, BehaviorSubject<number>>>()
+      // Keep existing subjects: templates hold them via async pipes, and a
+      // wipe would force every gauge to resubscribe (NaN flash + re-poll)
+      // after each device refetch.
+      const measures = new Map<string, Map<string, BehaviorSubject<number>>>()
+      const averages = new Map<string, Map<string, BehaviorSubject<number>>>()
       devices.map((device) => {
-        this.measure_subjects.set(device.device_id, new Map<string, BehaviorSubject<number>>())
-        this.measure_avg_subjects.set(device.device_id, new Map<string, BehaviorSubject<number>>())
+        measures.set(device.device_id, this.measure_subjects.get(device.device_id) ?? new Map<string, BehaviorSubject<number>>())
+        averages.set(device.device_id, this.measure_avg_subjects.get(device.device_id) ?? new Map<string, BehaviorSubject<number>>())
       })
+      this.measure_subjects = measures;
+      this.measure_avg_subjects = averages;
     })
 
     setInterval(() => {
@@ -28,12 +35,40 @@ export class DataService {
     }, 10000);
   }
 
+  /**
+   * A render pass creates many subjects in a row (one per gauge); polling all
+   * known measures once per creation was quadratic — ~120 requests on a
+   * two-device list. One deferred sweep covers every subject just created.
+   */
+  private scheduleUpdate() {
+    if (this.updateScheduled) {
+      return;
+    }
+    this.updateScheduled = true;
+    setTimeout(() => {
+      this.updateScheduled = false;
+      this.updateMeasures();
+      this.updateAverages();
+    }, 50);
+  }
+
+  /** One-shot latest value; null when there is no recent data point. */
+  public async latest(device: string, measure: string): Promise<number | null> {
+    try {
+      const data: any = await firstValueFrom(this.http.get(environment.API_URL + '/data/latest/' + device + '/' + measure));
+      const value = Number(data?.value);
+      return Number.isFinite(value) ? value : null;
+    } catch {
+      return null;
+    }
+  }
+
   public measure(device:string, measure:string) : BehaviorSubject<number> {
     let sub = this.measure_subjects.get(device)?.get(measure);
     if(!sub) {
       sub = new BehaviorSubject<number>(NaN);
       this.measure_subjects.get(device)?.set(measure, sub)
-      this.updateMeasures();
+      this.scheduleUpdate();
     }
     return sub;
   }
@@ -43,7 +78,7 @@ export class DataService {
     if(!sub) {
       sub = new BehaviorSubject<number>(NaN);
       this.measure_avg_subjects.get(device)?.set(measure, sub)
-      this.updateAverages();
+      this.scheduleUpdate();
     }
     return sub;
   }

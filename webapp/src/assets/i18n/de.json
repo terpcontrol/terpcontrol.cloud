@@ -15,7 +15,11 @@
     "settings": "Einstellungen",
     "errorOccurred": "Fehler aufgetreten",
     "unableToSaveSettings": "Einstellungen konnten nicht gespeichert werden",
-    "unableToLoadSettings": "Einstellungen konnten nicht geladen werden"
+    "unableToLoadSettings": "Einstellungen konnten nicht geladen werden",
+    "cancel": "Abbrechen",
+    "help": "Hilfe",
+    "increase": "erhöhen",
+    "decrease": "verringern"
   },
   "settings": {
     "title": "Einstellungen",
@@ -37,10 +41,6 @@
     "nightVpd": "Nacht VPD",
     "co2": "CO2",
     "co2SunsetOff": "Kein CO2 bei Sonnenuntergang",
-    "co2-day": "CO2 Tag",
-    "co2-night": "CO2 Nacht",
-    "co2-on": "Anreicherung Einschalten",
-    "co2-off": "Anreicherung Ausschalten",
     "lights": "Licht",
     "sunrise": "Sonnenaufgangsperiode",
     "sunset": "Sonnenuntergangsperiode",
@@ -107,15 +107,25 @@
       "webhookMethodPOST": "POST",
       "webhookMethodGET": "GET",
       "webhookMethodPUT": "PUT",
-      "webhookMethodHint": "Wähle die HTTP-Methode für Webhook-Anfragen.",
       "webhookHeaders": "Eigene Header",
-      "webhookHeadersHint": "Füge benutzerdefinierte HTTP-Header hinzu, die mit der Webhook-Anfrage gesendet werden.",
       "webhookTriggeredPayload": "Payload Auslösung",
       "webhookTriggeredPayloadHint": "Benutzerdefinierte Payload, die beim Auslösen des Alarms gesendet wird (für POST/PUT). Leer lassen, um die Standard-Payload zu verwenden.",
       "webhookResolvedPayload": "Payload Behebung",
       "webhookResolvedPayloadHint": "Benutzerdefinierte Payload, die bei Behebung des Alarms gesendet wird (für POST/PUT). Leer lassen, um die Standard-Payload zu verwenden.",
       "tunnelWebhook": "Webhook durch Modul tunneln",
-      "tunnelWebhookHint": "Falls aktiviert, wird der Webhook durch das Modul getunnelt, was hilfreich sein kann wenn dein Modul hinter einem NAT oder einer Firewall ist. ACHTUNG: Die Unterstützung von HTTPS kann in diesem Modus nicht garantiert werden."
+      "tunnelWebhookHint": "Falls aktiviert, wird der Webhook durch das Modul getunnelt, was hilfreich sein kann wenn dein Modul hinter einem NAT oder einer Firewall ist. ACHTUNG: Die Unterstützung von HTTPS kann in diesem Modus nicht garantiert werden.",
+      "addFromTemplate": "Aus Vorlage hinzufügen",
+      "webhookTarget": "Dienst",
+      "sensorTypes": {
+        "temperature": "Temperatur",
+        "humidity": "Luftfeuchte",
+        "co2": "CO2",
+        "co2_valve": "CO2-Ventil",
+        "light": "Licht",
+        "dehumidifier": "Entfeuchter / Kühlung",
+        "heater": "Heizung",
+        "fan": "Lüfter"
+      }
     },
     "cloudSettings": "Cloud Einstellungen",
     "vpdLeafTempOffsetDay": "Tages VPD Blatt Temp. Offset",
@@ -132,25 +142,28 @@
     "firmwareVersion": "Firmware-Version",
     "betaFeatures": "Beta Funktionen (Cloud)",
     "rtspStream": "Webcam Stream URL",
-    "rtspStreamHint": "Trage hier die URL deiner Webcam ein um Webcam Streaming im Portal zu aktivieren, z.B. \"rtsp://user:password@my-public-hostname-or-ip.com:554/\". Die Eingabe hier muss durch FFMPEG verarbeitet werden können.",
     "rtspStreamTransport": "RTSP Transportprotokoll",
     "rtspStreamTest": "Webcam Stream testen",
-    "rtspStreamTestButton": "Testen",
-    "rtspStreamTestError": "Webcam Test fehlgeschlagen",
     "logRtspStreamErrors": "Webcam Stream Fehler loggen",
     "maintenanceWebcamOff": "Webcam AUS bei Wartungsmodus oder Modus AUS",
-    "maintenanceWebcamOffHint": "Falls aktiviert, stoppt die Webcam automatisch die Aufnahme wenn das Gerät im Wartungsmodus ist oder der Modus des Geräts auf AUS steht.",
     "tunnelRtspStream": "Webcam Stream tunneln",
-    "tunnelRtspStreamHint": "Falls aktiviert, wird der Webcam Stream durch das Modul getunnelt, was hilfreich sein kann wenn dein Modul hinter einem NAT oder einer Firewall ist.",
-    "dangerZone": "Gefahrenzone",
-    "deleteDevice": "Gerät löschen"
+    "deleteDevice": "Gerät entfernen",
+    "edit-value": "Wert ändern",
+    "deleteDeviceConfirmTitle": "Gerät entfernen?",
+    "deleteDeviceConfirmText": "Das Gerät wird aus deinem Konto entfernt — es verschwindet aus der App, bis es erneut verbunden wird.",
+    "deleteDeviceConfirmAgain": "Das Gerät jetzt wirklich entfernen?",
+    "deleteDeviceConfirmButton": "Entfernen",
+    "forever": "unbegrenzt"
   },
   "menu": {
     "devices": "Geräte",
     "shares": "Geteilte Links",
     "account": "Benutzer",
     "logout": "Ausloggen",
-    "darkMode": "Dark Mode"
+    "darkMode": "Dark Mode",
+    "diagnostics": "Diagnose",
+    "fleet": "Flotte",
+    "installApp": "App installieren"
   },
   "share": {
     "button": "Teilen",
@@ -216,10 +229,222 @@
       "changed": "Passwort wurde geändert"
     }
   },
+  "login": {
+    "welcomeTitle": "Willkommen zurück",
+    "welcomeSubtitle": "Überwache und steuere deinen Grow — von überall.",
+    "registerTitle": "Account erstellen",
+    "registerSubtitle": "Ein Portal für alle deine Terp Control Geräte.",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "newPassword": "Neues Passwort",
+    "repeatPassword": "Passwort wiederholen",
+    "stayLoggedIn": "Angemeldet bleiben",
+    "login": "Anmelden",
+    "createAccount": "Account erstellen",
+    "backToLogin": "Zurück zur Anmeldung",
+    "forgotPassword": "Passwort vergessen?",
+    "sendRecovery": "Wiederherstellungslink senden",
+    "changePassword": "Passwort ändern",
+    "acceptPrivacyBefore": "Ich akzeptiere die",
+    "acceptPrivacyLink": "Datenschutzbedingungen",
+    "legacy": {
+      "toggle": "Du kommst von der alten Fridge Grow 2.0 / Plantalytix Cloud?",
+      "intro": "So verbindest du dein bestehendes Modul mit der Terp Control Cloud:"
+    },
+    "messages": {
+      "loginFailedTitle": "Anmeldung fehlgeschlagen",
+      "errorTitle": "Fehler",
+      "successTitle": "Geschafft",
+      "wrongCredentials": "E-Mail oder Passwort ist falsch.",
+      "notActivated": "Du musst deinen Account zuerst aktivieren. Schau in dein E-Mail-Postfach.",
+      "connectionError": "Verbindungsfehler. Bitte versuche es erneut.",
+      "passwordMismatch": "Die Passwörter stimmen nicht überein.",
+      "invalidActivationCode": "Ungültiger Aktivierungscode.",
+      "accountCreatedTitle": "Account erstellt",
+      "accountCreatedText": "Ein Aktivierungscode wurde an deine E-Mail-Adresse gesendet.",
+      "accountActivatedTitle": "Account aktiviert",
+      "accountActivatedText": "Dein Account wurde aktiviert, du kannst dich jetzt anmelden:",
+      "emailInUse": "Diese E-Mail-Adresse wird bereits verwendet.",
+      "recoverySentTitle": "Gesendet",
+      "recoverySentText": "Der Wiederherstellungslink wurde gesendet.",
+      "wrongRecoveryToken": "Dieser Wiederherstellungslink ist ungültig oder abgelaufen.",
+      "passwordChangedText": "Dein Passwort wurde geändert, du kannst dich jetzt anmelden:"
+    }
+  },
+  "growPresets": {
+    "seedling": {
+      "name": "Keimung & Sämling"
+    },
+    "vegetative": {
+      "name": "Wachstum"
+    },
+    "flowering": {
+      "name": "Frühe Blüte"
+    },
+    "late_flowering": {
+      "name": "Späte Blüte"
+    },
+    "drying": {
+      "name": "Trocknung"
+    },
+    "custom": {
+      "name": "Eigene Werte",
+      "subtitle": "Alles selbst einstellen"
+    },
+    "stages": {
+      "seedling": "Sämling",
+      "vegetative": "Wachstum",
+      "flowering": "Frühe Blüte",
+      "lateFlowering": "Späte Blüte",
+      "drying": "Trocknung"
+    },
+    "plans": {
+      "photoperiod": {
+        "name": "Photoperiodisch",
+        "description": "Klassische Samen, ca. 16 Wochen. Die Blüte startet mit der 12/12-Lichtumstellung."
+      },
+      "autoflower": {
+        "name": "Autoflower",
+        "description": "Automatische Blüte, ca. 11 Wochen. Das Licht bleibt bei 18 Stunden."
+      }
+    },
+    "confirmations": {
+      "startFlowering": "Bereit für die Blüte? Ab jetzt läuft das Licht 12/12 — bestätige, um umzustellen.",
+      "harvest": "Prüfe die Trichome: milchig mit ersten Bernsteintönen? Dann ernten und bestätigen — danach startet die Trocknung.",
+      "dryingDone": "Knacken die Zweige statt zu biegen? Dann ist die Trocknung fertig — ab in die Curing-Gläser."
+    }
+  },
+  "assistant": {
+    "allGood": "Alles im grünen Bereich",
+    "confirmationPending": "Dein Plan wartet auf eine Bestätigung — Einstellungen öffnen",
+    "deviationMonitorHint": "Dein Gerät überwacht nur — passe das manuell in deinem Setup an.",
+    "tipsTitle": "Tipps für diese Phase",
+    "matchingChart": "Passende Chart-Ansicht öffnen",
+    "bannerText": "Lass dich von einem Grow-Plan durch die Phasen führen — Zielwerte passen sich automatisch an, große Schritte bestätigst du.",
+    "deviation": {
+      "temperature": {
+        "above": "Temperatur {{current}} °C — über dem Ziel ({{target}} °C)",
+        "below": "Temperatur {{current}} °C — unter dem Ziel ({{target}} °C)"
+      },
+      "humidity": {
+        "above": "Luftfeuchte {{current}} % — über dem Ziel ({{target}} %)",
+        "below": "Luftfeuchte {{current}} % — unter dem Ziel ({{target}} %)"
+      }
+    },
+    "tips": {
+      "seedling": {
+        "1": "Halte das Medium leicht feucht, nie klatschnass — Sämlinge ertrinken schneller, als sie vertrocknen.",
+        "2": "Hohe Luftfeuchte (65–75 %) hilft jungen Wurzeln; eine Anzuchthaube wirkt in den ersten Tagen Wunder.",
+        "3": "Licht gedimmt lassen (ca. 40 %) und Abstand halten — ausgebleichte oder eingerollte Blätter heißen: zu viel.",
+        "4": "Noch nicht düngen: Der Samen bringt Nährstoffe für die ersten zwei Wochen mit."
+      },
+      "vegetative": {
+        "1": "Gieße, wenn die oberen Zentimeter des Mediums trocken sind — der Topf-Hebetest sagt mehr als ein Zeitplan.",
+        "2": "Jetzt ist Trainingszeit: Topping oder Herunterbinden (LST) sorgt für ein ebenes Blätterdach und mehr Blütenansätze.",
+        "3": "Steigere die Lichtintensität Schritt für Schritt Richtung 80–100 %, sobald die Pflanzen kräftiger werden.",
+        "4": "Behalte den VPD-Chart im Blick: 0,8–1,1 kPa halten Verdunstung und Wachstum im Gleichgewicht."
+      },
+      "flowering": {
+        "1": "Halte die Luftfeuchte bei maximal 50 % — dichte Buds plus hohe Feuchte ist der Anfang von Schimmel.",
+        "2": "Ändere den Lichtzyklus jetzt nicht mehr; Unterbrechungen der Dunkelphase stressen photoperiodische Pflanzen.",
+        "3": "Dünge Blütedünger und beobachte die Blattfarbe — ein Ausbleichen gegen Ende ist normal.",
+        "4": "Prüfe in den letzten Wochen die Trichome: milchig mit ersten Bernsteintönen heißt meist Erntezeit."
+      },
+      "drying": {
+        "1": "16–20 °C und 55–60 % Luftfeuchte, dunkel und mit sanfter Luftbewegung — langsames Trocknen erhält die Terpene.",
+        "2": "Plane 10–14 Tage ein. Ist nach 5 Tagen alles trocken, war es zu warm oder zu trocken.",
+        "3": "Der Knacktest: Wenn kleine Zweige brechen statt sich zu biegen, sind die Buds bereit fürs Curing-Glas.",
+        "4": "Öffne die Gläser in der ersten Curing-Woche täglich kurz („Burping“), damit Restfeuchte entweichen kann."
+      }
+    }
+  },
+  "chartPresets": {
+    "curated": {
+      "climate": "Klima-Check",
+      "vpd": "VPD-Analyse",
+      "co2": "CO₂-Check",
+      "light": "Licht & Blattdach",
+      "drying": "Trocknung"
+    },
+    "saveView": "Ansicht speichern",
+    "saveTitle": "Diese Ansicht als Preset speichern",
+    "namePlaceholder": "Name des Presets",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "deleteTitle": "Dieses Preset löschen?",
+    "saveFailed": "Das Preset konnte nicht gespeichert werden."
+  },
+  "wizard": {
+    "title": "Einrichtungsassistent",
+    "back": "Zurück",
+    "next": "Weiter",
+    "apply": "Einrichtung abschließen",
+    "errorSaving": "Speichern fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut.",
+    "name": {
+      "title": "Gib deinem Gerät einen Namen",
+      "text": "Wähle einen Namen, den du wiedererkennst — zum Beispiel „Zelt Wohnzimmer“ oder „Kühlschrank Keller“.",
+      "label": "Gerätename"
+    },
+    "connections": {
+      "title": "Was schaltet dein Controller?",
+      "text": "Dein Controller schaltet über gekoppelte Smart Sockets — die App erkennt automatisch, was verbunden ist. Koppeln kannst du direkt am Controller (Einstellungen → Smart Sockets).",
+      "connected": "Verbunden",
+      "noSockets": "Noch keine Steckdosen gekoppelt — es wird nur überwacht. Du kannst jederzeit welche am Controller koppeln, die App passt sich automatisch an.",
+      "unknown": "Dein Controller meldet den Steckdosen-Status erst nach einem Firmware-Update. Bis dahin zeigen wir alle Steuerungs-Optionen an.",
+      "detected-full": "Erkannt: Dein Controller regelt das Klima.",
+      "detected-light_only": "Erkannt: Dein Controller schaltet nur das Licht — Klimawerte werden überwacht und Zielwerte dienen als Richtwerte.",
+      "detected-monitor": "Erkannt: Nur Überwachung — es wird nichts geschaltet, Zielwerte dienen als Richtwerte.",
+      "refresh": "Neu prüfen"
+    },
+    "stage": {
+      "title": "Wo steht dein Grow gerade?",
+      "text": "Wir tragen bewährte Zielwerte für diese Phase ein — feinjustieren kannst du später alles."
+    },
+    "plan": {
+      "title": "Nur Zielwerte oder gleich ein Grow-Plan?",
+      "text": "Der Grow-Plan führt dich durch die Phasen, passt die Zielwerte automatisch an und fragt vor großen Schritten nach.",
+      "textMonitor": "Im Überwachungsmodus begleitet der Plan deine Phasen, hält das Tagebuch aktuell und zeigt dir die empfohlenen Bereiche je Phase.",
+      "targets": "Nur Zielwerte übernehmen",
+      "targetsMonitor": "Nur Richtwerte setzen",
+      "targetsText": "Werte für die gewählte Phase einmalig setzen.",
+      "durationsTitle": "Phasendauern (anpassbar)",
+      "days": "Tage",
+      "total": "Gesamt: etwa {{days}} Tage ({{weeks}} Wochen).",
+      "confirmNote": "Vor dem Blüte-Umstieg, der Ernte und dem Ende der Trocknung wartet der Plan auf deine Bestätigung — du behältst die Kontrolle.",
+      "startsAtStage": "Bereits vergangene Phasen behalten ihre Standardwerte — du planst nur ab deiner aktuellen Phase."
+    },
+    "done": {
+      "title": "Das war's — ab jetzt übernimmt die Automatik",
+      "titleMonitor": "Das war's — deine Überwachung läuft",
+      "text": "Dein Gerät regelt jetzt rund um die Uhr auf die Zielwerte. Wenn alles optimal läuft, musst du gar nichts tun.",
+      "textMonitor": "Du siehst jetzt Live-Werte, Verlaufsgrafiken und bekommst Alarme, wenn etwas aus dem Ruder läuft. Deine Zielwerte dienen als Richtbereiche.",
+      "step1": "Eingesteckt und verbunden",
+      "step2": "Zielwerte für deine Phase gesetzt",
+      "step3": "Regelung läuft automatisch",
+      "step3Monitor": "Überwachung und Alarme sind aktiv",
+      "close": "Fertig",
+      "auxHint": "Webcam und Smart Sockets verbindest du jederzeit in den Geräte-Einstellungen unter „Angeschlossene Geräte“."
+    }
+  },
+  "onboarding": {
+    "welcomeTitle": "Willkommen in deinem Grow-Portal",
+    "welcomeText": "Verbinde dein erstes Terp Control Gerät und lass die Automatik übernehmen — du behältst von überall den Überblick.",
+    "step1Title": "Gerät einstecken",
+    "step1Text": "Schalte dein Gerät ein und verbinde es mit deinem WLAN — das Display führt dich durch.",
+    "step2Title": "Code am Display ablesen",
+    "step2Text": "Dein Gerät zeigt unter „Connect to portal“ einen kurzen Kopplungscode an.",
+    "step3Title": "Code hier eingeben",
+    "step3Text": "Das Gerät erscheint in deinem Portal und der Einrichtungsassistent übernimmt.",
+    "codePlaceholder": "Kopplungscode",
+    "claimFailed": "Der Code hat nicht funktioniert. Prüfe den Code am Geräte-Display und versuche es erneut.",
+    "helpText": "Hilfe beim Verbinden? Alle Anleitungen findest du auf"
+  },
   "device-list": {
     "title": "Meine Geräte",
-    "claim": "GERÄTECODE HIER EINGEBEN",
-    "claim-button": "Hinzufügen"
+    "claim": "Gerätecode eingeben",
+    "claim-button": "Hinzufügen",
+    "addDevice": "Gerät hinzufügen"
   },
   "charts": {
     "title": "Graphen",
@@ -285,7 +510,6 @@
         "startTime": "Startzeit Schritt",
         "etaTime": "Rezept-Ende ETA",
         "remainingTime": "Rezept beendet nach",
-        "stepEta": "Schritt-Ende ETA",
         "stepRemainingTime": "Schritt beendet nach",
         "loop": "Endlosschleife",
         "step": {
@@ -315,7 +539,9 @@
         "emailNotifications-onStep": "Bei jedem Schrittwechsel",
         "emailNotifications-onConfirmation": "Nur bei Bestätigungen",
         "additionalInfo": "Log-Meldung bei Schrittwechsel",
-        "emailAddress": "E-Mail Adresse"
+        "emailAddress": "E-Mail Adresse",
+        "pleaseStart": "Bitte starte zuerst den Plan",
+        "stepEtaTime": "Schritt-Ende ETA"
       }
     },
     "fan": {
@@ -416,6 +642,15 @@
           }
         }
       }
+    },
+    "button-setup": "Einrichten",
+    "dryer": {
+      "title": "Terp Control FRIDGE DRY",
+      "presets": "Voreinstellungen",
+      "preset-none": "Eigene Werte",
+      "preset-slow": "Langsame Trocknung",
+      "preset-medium": "Normale Trocknung",
+      "preset-fast": "Schnelle Trocknung"
     }
   },
   "diary": {
@@ -445,7 +680,8 @@
       "tdsMeasurement": "TDS-Messung",
       "ecMeasurement": "EC-Messung",
       "outsideTemperatureMeasurement": "Außentemperatur",
-      "phMeasurement": "pH-Messung"
+      "phMeasurement": "pH-Messung",
+      "lifecycleName": "Name der Pflanze"
     },
     "lifecycleStages": {
       "germination": "Keimung",
@@ -556,5 +792,241 @@
   "message-smart-socket-connected-title": "Smart-Steckdose verbunden",
   "message-smart-socket-connected-text": "Eine Smart-Steckdose wurde für die Rolle «{{value}}» verbunden.",
   "message-smart-socket-disconnected-title": "Smart-Steckdose getrennt",
-  "message-smart-socket-disconnected-text": "Die Smart-Steckdosen-Zuordnung für die Rolle «{{value}}» wurde entfernt."
+  "message-smart-socket-disconnected-text": "Die Smart-Steckdosen-Zuordnung für die Rolle «{{value}}» wurde entfernt.",
+  "simpleSettings": {
+    "modeSimple": "Einfach",
+    "modeExpert": "Experte",
+    "referenceBannerMonitor": "Dieser Controller überwacht nur. Deine Zielwerte dienen als Richtbereiche für Charts, Assistent und Alarme — geschaltet wird nichts.",
+    "referenceBannerLightOnly": "Dieser Controller steuert nur die Lampe. Klima-Zielwerte dienen als Richtbereiche — Heizung oder Feuchte werden nicht geschaltet.",
+    "stageTitle": "Deine Grow-Phase",
+    "stageText": "Wähle die Phase deiner Pflanzen — wir setzen bewährte Zielwerte. Darunter kannst du alles feinjustieren.",
+    "stageTextReference": "Wähle die Phase deiner Pflanzen — wir setzen bewährte Richtwerte. Darunter kannst du alles feinjustieren.",
+    "startPlan": "Grow-Plan starten",
+    "targetsTitle": "Zielwerte",
+    "targetsTitleReference": "Richtwerte",
+    "temperature": "Temperatur",
+    "humidity": "Luftfeuchte",
+    "deviceOff": "Das Gerät ist ausgeschaltet. Wähle oben eine Grow-Phase, um mit der Regelung zu starten.",
+    "expertHint": "Feintuning wie Heizverhalten, Entfeuchter-Timing oder Alarme findest du im Expertenmodus (Umschalter oben).",
+    "plan": {
+      "title": "Grow-Plan",
+      "dayOf": "Tag {{day}} von {{total}} in dieser Phase",
+      "next": "Nächste Phase: {{name}}",
+      "editHint": "Die Werte unten gelten für die aktuelle Phase. Beim Speichern läuft der Plan weiter.",
+      "stop": "Plan stoppen",
+      "currentDuration": "Dauer dieser Phase",
+      "skip": "Phase jetzt beenden",
+      "skipConfirmTitle": "Phase beenden?",
+      "skipConfirmNext": "Die aktuelle Phase wird sofort beendet und {{name}} beginnt. Denk daran, danach zu speichern.",
+      "skipConfirmNextGeneric": "Die aktuelle Phase wird sofort beendet und die nächste Phase beginnt. Denk daran, danach zu speichern.",
+      "skipConfirmEnd": "Die aktuelle Phase wird beendet und der Plan ist damit abgeschlossen. Denk daran, danach zu speichern.",
+      "skipConfirmButton": "Phase beenden",
+      "upcomingTitle": "Kommende Phasen",
+      "upcomingFrom": "ab ~ {{date}}",
+      "upcomingHint": "Tippe auf eine Dauer, um den restlichen Plan anzupassen. Änderungen gelten nach dem Speichern."
+    },
+    "light": {
+      "title": "Licht & Tagesrhythmus",
+      "hint": "Legt fest, wann deine Lampe an ist und wie hell sie läuft. Die Tag-Zielwerte unten gelten, solange das Licht an ist.",
+      "hintMonitor": "Legt fest, welche Stunden als Tag zählen. Die Tag-Zielwerte unten werden in diesen Stunden bewertet.",
+      "start": "Licht an um",
+      "duration": "Stunden Licht",
+      "scheduleText": "Sämlinge und Wachstum bekommen meist 18 h, die Blüte läuft mit 12 h. Autoflowers bleiben durchgehend bei 18 h.",
+      "intensity": "Lichtintensität",
+      "intensityHint": "Sämlinge gedimmt starten (ca. 40 %) und zur Blüte Richtung 100 % steigern."
+    },
+    "day": {
+      "title": "Zielwerte am Tag (Licht an)"
+    },
+    "night": {
+      "title": "Zielwerte in der Nacht (Licht aus)"
+    },
+    "climate": {
+      "title": "Klima-Zielwerte"
+    },
+    "co2": {
+      "title": "CO₂",
+      "target": "CO₂-Ziel",
+      "hint": "Nur sinnvoll mit CO₂-Flasche und Ventil. Ohne Anlage bei 400 ppm (Umgebungsniveau) lassen — dann öffnet nie ein Ventil.",
+      "text": "Ohne CO₂-Begasung bei 400 ppm lassen. Mit CO₂-Anlage beschleunigen 900–1200 ppm das Wachstum."
+    },
+    "notifications": {
+      "title": "Benachrichtigungen & Alarme",
+      "empty": "Noch keine Alarme. Füge einen aus einer Vorlage hinzu — z. B. Hitze, Luftfeuchte oder eine leere CO2-Flasche.",
+      "add": "Alarm hinzufügen",
+      "pickPreset": "Worauf möchtest du achten?",
+      "pickChannel": "wie möchtest du benachrichtigt werden?",
+      "create": "Alarm erstellen",
+      "savedNote": "Alarme werden beim Speichern der Einstellungen übernommen.",
+      "runsFor": "Läuft {{minutes}} min am Stück",
+      "forMinutes": "≥ {{minutes}} min",
+      "emailLabel": "E-Mail-Adresse",
+      "channels": {
+        "info": "Nur Protokoll",
+        "email": "E-Mail",
+        "discord": "Discord",
+        "telegram": "Telegram",
+        "ntfy": "ntfy.sh",
+        "home_assistant": "Home Assistant",
+        "webhook": "Webhook"
+      },
+      "changeChannel": "Ändern"
+    }
+  },
+  "auxDevices": {
+    "title": "Angeschlossene Geräte",
+    "webcam": {
+      "title": "Webcam",
+      "intro": "Behalte deinen Grow live und im Tagebuch-Zeitraffer im Blick. Wähle deine Kamera:",
+      "models": {
+        "terp_cam": {
+          "name": "Terp Control Cam",
+          "subtitle": "Unsere Kamera — verbindet sich über deinen Controller"
+        },
+        "tapo_c200": {
+          "name": "TP-Link Tapo",
+          "subtitle": "z. B. C100/C200/C210/C310 — RTSP-Vorlage"
+        },
+        "reolink": {
+          "name": "Reolink",
+          "subtitle": "RTSP-Vorlage"
+        },
+        "hikvision": {
+          "name": "Hikvision",
+          "subtitle": "RTSP-Vorlage"
+        },
+        "custom": {
+          "name": "Eigene URL",
+          "subtitle": "Beliebige Stream-URL"
+        }
+      },
+      "terpCamFound": "Terp Control Cam erkannt — dein Controller hat die Stream-URL gemeldet.",
+      "terpCamUse": "Kamera übernehmen",
+      "terpCamMissing": "Noch keine Terp Control Cam gemeldet. Verbinde sie zuerst an deinem Controller: Einstellungen → Terp Cam → connect cam.",
+      "user": "Kamera-Benutzername",
+      "password": "Kamera-Passwort",
+      "host": "IP-Adresse oder Hostname",
+      "hostHintTunnel": "Lokale IP der Kamera in deinem Heimnetz — der Stream wird über den Tunnel deines Geräts geholt.",
+      "hostHintPublic": "Öffentliche IP oder DDNS-Name, aus dem Internet erreichbar. Aktiviere Tunneling, um stattdessen eine lokale IP zu nutzen.",
+      "remove": "Webcam entfernen",
+      "savedNote": "Webcam-Änderungen werden beim Speichern der Einstellungen übernommen.",
+      "add": "Webcam hinzufügen",
+      "pickModel": "Welche Kamera hast du? (eine Webcam pro Gerät)",
+      "fillPlaceholders": "Platzhalter ausfüllen",
+      "placeholderHint": "Ersetze <user>, <password> und <ip> in der URL durch die Werte deiner Kamera.",
+      "customHint": "Format: rtsp://benutzer:passwort@ip-oder-hostname:554/pfad — den Stream-Pfad findest du im Handbuch deiner Kamera. Auch HTTP(S)-Snapshot- oder MJPEG-URLs funktionieren.",
+      "customHintTunnel": "Steht die Kamera bei deinem Gerät im selben Netzwerk, aktiviere „Webcam Stream tunneln“ und nutze ihre lokale IP.",
+      "terpCamTunnelNote": "Die Terp Control Cam wird immer über dein Gerät getunnelt — die lokale Adresse reicht."
+    },
+    "sockets": {
+      "title": "Smart Sockets",
+      "intro": "Dein Gerät schaltet diese Steckdosen. Die Kopplung passiert direkt am Gerät (Einstellungen → Smart Sockets).",
+      "unknownFirmware": "Diese Firmware meldet ihre Steckdosen noch nicht. Aktualisiere die Geräte-Firmware oder verwalte die Steckdosen am Gerät.",
+      "connected": "Verbunden",
+      "roles": {
+        "dehumidifier": "Entfeuchter",
+        "heater": "Heizung",
+        "light": "Licht",
+        "secondary_light": "Zweites Licht",
+        "co2": "CO2-Ventil"
+      },
+      "remove": "Entfernen",
+      "removeConfirmTitle": "Steckdose entfernen?",
+      "removeConfirmText": "Die Steckdose „{{role}}“ wird entkoppelt und zurückgesetzt. Das passiert sofort.",
+      "offlineHint": "Das Gerät scheint gerade offline zu sein — Steckdosen-Befehle erreichen es möglicherweise nicht.",
+      "pending": "Wird aktualisiert…",
+      "test": "Testen",
+      "edit": "Bearbeiten",
+      "ip": "IP-Adresse",
+      "user": "Benutzername (optional)",
+      "password": "Passwort (leer = Geräte-Standard)",
+      "apply": "Übernehmen",
+      "editHint": "Dein Gerät schaltet die Steckdose unter dieser Adresse (Tasmota-HTTP). Passwort leer lassen, um die Kopplungs-Zugangsdaten zu behalten.",
+      "testNote": "Testen schaltet die Steckdose für ca. 2 Sekunden ein.",
+      "add": "Smart Socket hinzufügen",
+      "role": "Funktion",
+      "brands": {
+        "terp": {
+          "name": "Terp Control Smart Socket",
+          "subtitle": "Unsere Steckdose — koppelt über dein Gerät",
+          "hint": "Kopple sie direkt an deinem Gerät: Einstellungen → Smart Sockets → connect socket. Danach erscheint sie hier automatisch."
+        },
+        "tasmota": {
+          "name": "Tasmota / andere",
+          "subtitle": "Beliebige Tasmota-Steckdose per IP",
+          "hint": ""
+        }
+      },
+      "reachabilityHint": "Geschaltet wird immer lokal von deinem Gerät aus (dauerhaft getunnelt) — die Steckdose muss nur für dein Gerät erreichbar sein. Eine Freigabe ins Internet ist nicht nötig."
+    },
+    "manualSetup": "Stattdessen manuell einrichten"
+  },
+  "alarmPresets": {
+    "heat_day": {
+      "name": "Zu heiß am Tag",
+      "description": "Über 30 °C für 5 Minuten"
+    },
+    "cold_night": {
+      "name": "Zu kalt in der Nacht",
+      "description": "Unter 15 °C für 5 Minuten"
+    },
+    "humidity_high": {
+      "name": "Luftfeuchte zu hoch",
+      "description": "Schimmelgefahr — Schwelle folgt der Phase (60% in der Blüte, sonst 75%)"
+    },
+    "humidity_low": {
+      "name": "Luftfeuchte zu niedrig",
+      "description": "Unter 35% für 15 Minuten"
+    },
+    "co2_empty": {
+      "name": "CO2-Flasche leer",
+      "description": "CO2 bleibt trotz Anreicherung unter 350 ppm"
+    },
+    "running_continuously": {
+      "name": "Entfeuchter läuft dauerhaft",
+      "nameFridge": "Kühlschrank läuft dauerhaft",
+      "description": "Ausgang länger als 30 Minuten am Stück an"
+    }
+  },
+  "webhookTargets": {
+    "msgTriggered": "Alarm",
+    "msgResolved": "Wieder ok",
+    "discord": {
+      "name": "Discord",
+      "url": "Discord Webhook-URL",
+      "hint": "Discord → Kanaleinstellungen → Integrationen → Webhooks → Neuer Webhook, dann die URL hier einfügen."
+    },
+    "telegram": {
+      "name": "Telegram",
+      "botToken": "Bot-Token",
+      "chatId": "Chat-ID",
+      "hint": "Erstelle einen Bot mit @BotFather, füge ihn deinem Chat hinzu und hole die Chat-ID z. B. über @userinfobot."
+    },
+    "ntfy": {
+      "name": "ntfy.sh",
+      "topic": "Topic-Name",
+      "server": "Server",
+      "hint": "Installiere die ntfy-App und abonniere dasselbe Topic — ganz ohne Konto. Wähle einen schwer zu erratenden Topic-Namen."
+    },
+    "home_assistant": {
+      "name": "Home Assistant",
+      "baseUrl": "Home-Assistant-URL",
+      "webhookId": "Webhook-ID",
+      "hint": "Lege in einer Automatisierung einen Webhook-Trigger an; lokale Instanzen werden automatisch über den Tunnel deines Geräts erreicht."
+    },
+    "custom": {
+      "name": "Eigener Webhook",
+      "hint": "URL, Methode, Header und Payload stellst du unten selbst ein."
+    }
+  },
+  "install": {
+    "iosIntro": "Installiere Terp Control als App auf deinem Home-Bildschirm:",
+    "iosStep1": "Öffne diese Seite in Safari und tippe auf das Teilen-Symbol",
+    "iosStep2": "Wähle „Zum Home-Bildschirm“.",
+    "iosStep3": "Tippe auf „Hinzufügen“ — fertig.",
+    "androidIntro": "Installiere Terp Control als App auf deinem Startbildschirm:",
+    "androidStep1": "Öffne das Browser-Menü",
+    "androidStep2": "Wähle „App installieren“ bzw. „Zum Startbildschirm hinzufügen“.",
+    "note": "Danach startet Terp Control mit eigenem Symbol im Vollbild — wie eine normale App."
+  }
 }

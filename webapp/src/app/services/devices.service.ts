@@ -148,14 +148,30 @@ export class DeviceService {
     }
   }
 
-  public async claim(claim_code:string) {
-    await firstValueFrom( this.http.post<DeviceWithParsedSettings>(environment.API_URL + '/device', {claim_code: claim_code}) )
+  public async claim(claim_code:string): Promise<DeviceWithParsedSettings | undefined> {
+    const result = await firstValueFrom( this.http.post<{ status: string; device_id?: string }>(environment.API_URL + '/device', {claim_code: claim_code}) )
     await this.refetchDevices();
+    return this.devices.getValue().find(device => device.device_id === result?.device_id);
   }
 
   public async unclaim(device_id:string) {
     await firstValueFrom( this.http.delete(environment.API_URL + '/device/' + device_id) )
     await this.refetchDevices();
+  }
+
+  /**
+   * Fire-and-forget command about a device-managed auxiliary (e.g. removing,
+   * testing or re-configuring a paired smart socket). The device confirms by
+   * re-reporting its hardware info, so callers should refetch devices
+   * afterwards.
+   */
+  public async sendAuxCommand(
+    device_id: string,
+    action: 'socket_remove' | 'socket_test' | 'socket_set',
+    role: string,
+    options?: { ip?: string; user?: string; password?: string },
+  ) {
+    await firstValueFrom(this.http.post(environment.API_URL + '/device/auxcommand', { device_id, action, role, ...(options ?? {}) }));
   }
 
   public async getConfig(device_id:string) {

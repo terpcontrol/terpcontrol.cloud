@@ -15,6 +15,7 @@ const recipeSchema: Schema = new Schema({
         waitForConfirmation: { type: Boolean, required: true },
         name: { type: String, required: false },
         confirmationMessage: { type: String, required: false },
+        stage: { type: String, enum: ['germination', 'seedling', 'vegetative', 'flowering', 'drying', 'curing'], required: false },
       },
     ],
     required: true,

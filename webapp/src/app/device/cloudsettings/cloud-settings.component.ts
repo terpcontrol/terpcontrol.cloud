@@ -1,16 +1,19 @@
-import {Component, EventEmitter, Input, OnChanges, OnDestroy, Output} from "@angular/core";
-import {DomSanitizer, SafeUrl} from "@angular/platform-browser";
+import {Component, EventEmitter, Input, OnChanges, Output} from "@angular/core";
 import {ToastController} from "@ionic/angular";
 import {DeviceService} from "../../services/devices.service";
-import {Router} from "@angular/router";
 import {UserFirmwareInfo} from "@fg2/shared-types";
 
+/**
+ * Cloud-side device settings (VPD offsets, firmware channel). The webcam
+ * lives in the shared <aux-devices> card and device deletion in the shared
+ * <delete-device-row> on every settings page.
+ */
 @Component({
   selector: 'cloud-settings',
   templateUrl: './cloud-settings.component.html',
   styleUrls: ['./cloud-settings.component.scss'],
 })
-export class CloudSettingsComponent implements OnChanges, OnDestroy {
+export class CloudSettingsComponent implements OnChanges {
   @Input() cloudSettings: any;
 
   @Input() deviceId: string = '';
@@ -23,21 +26,10 @@ export class CloudSettingsComponent implements OnChanges, OnDestroy {
   private firmwaresLoadedForDeviceId: string | null = null;
   private duplicateVersions = new Set<string>();
 
-  public rtspStreamTestLoading = false;
-  public rtspStreamTestError: string | null = null;
-  public rtspStreamTestImageUrl: SafeUrl | null = null;
-  private rtspStreamTestObjectUrl: string | null = null;
-
   constructor(
     private toastController: ToastController,
     private devices: DeviceService,
-    private router: Router,
-    private sanitizer: DomSanitizer,
   ) {}
-
-  ngOnDestroy() {
-    this.clearRtspStreamTestImage();
-  }
 
   ngOnChanges() {
     this.ensureDefaultFirmwareChannel();
@@ -141,60 +133,4 @@ export class CloudSettingsComponent implements OnChanges, OnDestroy {
     return channel === 'stable' || channel === 'beta' || channel === 'alpha' || channel === 'manual';
   }
 
-  async testRtspStream() {
-    const rtspStream = this.cloudSettings?.rtspStream?.trim();
-    if (!rtspStream || this.rtspStreamTestLoading) {
-      return;
-    }
-
-    this.rtspStreamTestLoading = true;
-    this.rtspStreamTestError = null;
-    this.clearRtspStreamTestImage();
-
-    try {
-      const image = await this.devices.testWebcamStream(this.deviceId, {
-        rtspStream,
-        rtspStreamTransport: this.cloudSettings?.rtspStreamTransport,
-        tunnelRtspStream: !!this.cloudSettings?.tunnelRtspStream,
-      });
-      this.rtspStreamTestObjectUrl = URL.createObjectURL(image);
-      this.rtspStreamTestImageUrl = this.sanitizer.bypassSecurityTrustUrl(this.rtspStreamTestObjectUrl);
-    } catch (e) {
-      this.rtspStreamTestError = await this.extractRtspStreamTestError(e);
-    } finally {
-      this.rtspStreamTestLoading = false;
-    }
-  }
-
-  private async extractRtspStreamTestError(e: any): Promise<string> {
-    // Errors of the blob request arrive as a Blob containing the JSON error body.
-    if (e?.error instanceof Blob) {
-      try {
-        const message = JSON.parse(await e.error.text())?.message;
-        if (message) {
-          return String(message);
-        }
-      } catch {
-        // fall through to the generic message
-      }
-    }
-    return String(e?.message ?? e ?? 'unknown error');
-  }
-
-  private clearRtspStreamTestImage() {
-    if (this.rtspStreamTestObjectUrl) {
-      URL.revokeObjectURL(this.rtspStreamTestObjectUrl);
-      this.rtspStreamTestObjectUrl = null;
-    }
-    this.rtspStreamTestImageUrl = null;
-  }
-
-  async deleteDevice() {
-    if (confirm('Are you sure you want to delete this device? This action cannot be undone.')) {
-      if (confirm('This is your last chance to back out. Do you really want to delete this device?')) {
-        await this.devices.unclaim(this.deviceId);
-        await this.router.navigateByUrl('/list', { replaceUrl: true });
-      }
-    }
-  }
 }

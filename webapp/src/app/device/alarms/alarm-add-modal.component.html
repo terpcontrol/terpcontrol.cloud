@@ -1,0 +1,85 @@
+<ion-modal [isOpen]="isOpen" (willPresent)="onWillPresent()" (willDismiss)="closed.emit()" class="alarm-add-modal">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>{{ 'simpleSettings.notifications.add' | translate }}</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="closed.emit()">{{ 'misc.close' | translate }}</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="ion-padding">
+
+      <ng-container *ngIf="addStep === 'preset'">
+        <p class="modal-sub">{{ 'simpleSettings.notifications.pickPreset' | translate }}</p>
+        <div class="alarm-add-grid">
+          <div class="tc-preset-card" *ngFor="let preset of presets" (click)="pickPreset(preset)">
+            <ion-icon [name]="preset.icon"></ion-icon>
+            <span class="tc-preset-card__title">{{ presetName(preset) | translate }}</span>
+            <span class="tc-preset-card__subtitle">{{ 'alarmPresets.' + preset.id + '.description' | translate }}</span>
+          </div>
+        </div>
+      </ng-container>
+
+      <ng-container *ngIf="addStep === 'channel'">
+        <p class="modal-sub">
+          <strong *ngIf="selectedPreset">{{ presetName(selectedPreset!) | translate }}</strong>
+          — {{ 'simpleSettings.notifications.pickChannel' | translate }}
+        </p>
+        <div class="alarm-add-grid channels" *ngIf="channelGridOpen">
+          <div
+            class="tc-preset-card"
+            *ngFor="let option of channels"
+            [class.active]="channel === option"
+            (click)="pickChannel(option)"
+          >
+            <ion-icon [name]="channelIcon(option)"></ion-icon>
+            <span class="tc-preset-card__title">{{ 'simpleSettings.notifications.channels.' + option | translate }}</span>
+          </div>
+        </div>
+
+        <!-- Picked: compact summary; the grid stays away from the input fields
+             so a tap after the keyboard closes can't switch the channel. -->
+        <ion-item lines="none" class="channel-summary" *ngIf="!channelGridOpen" button detail="false" (click)="channelGridOpen = true">
+          <ion-icon slot="start" [name]="channelIcon(channel)" color="primary"></ion-icon>
+          <ion-label>{{ 'simpleSettings.notifications.channels.' + channel | translate }}</ion-label>
+          <ion-note slot="end">{{ 'simpleSettings.notifications.changeChannel' | translate }}</ion-note>
+        </ion-item>
+
+        <ng-container *ngIf="!channelGridOpen">
+          <ion-item *ngIf="channel === 'email'">
+            <ion-label position="floating">{{ 'simpleSettings.notifications.emailLabel' | translate }}</ion-label>
+            <ion-input type="email" [(ngModel)]="email" autocomplete="off"></ion-input>
+          </ion-item>
+
+          <ion-item *ngFor="let field of webhookFields">
+            <ion-label position="floating">{{ field.labelKey | translate }}</ion-label>
+            <ion-input
+              [type]="field.type ?? 'text'"
+              [placeholder]="field.placeholder ?? ''"
+              [(ngModel)]="targetValues[field.key]"
+              autocomplete="off"
+            ></ion-input>
+          </ion-item>
+          <ion-item lines="none" *ngIf="showTunnelOption">
+            <ion-checkbox slot="start" [(ngModel)]="tunnelWebhook" (ngModelChange)="onTunnelChanged()"></ion-checkbox>
+            <ion-label class="ion-text-wrap">{{ 'settings.alarms.tunnelWebhook' | translate }}</ion-label>
+          </ion-item>
+          <span class="tc-field-hint" *ngIf="isWebhookChannel">
+            {{ 'webhookTargets.' + channel + '.hint' | translate }}
+          </span>
+        </ng-container>
+
+        <div class="modal-actions">
+          <ion-button fill="clear" (click)="addStep = 'preset'">
+            <ion-icon slot="start" name="chevron-back-outline"></ion-icon>{{ 'wizard.back' | translate }}
+          </ion-button>
+          <ion-button color="secondary" (click)="create()" [disabled]="!canCreate()">
+            {{ 'simpleSettings.notifications.create' | translate }}
+          </ion-button>
+        </div>
+      </ng-container>
+
+    </ion-content>
+  </ng-template>
+</ion-modal>
