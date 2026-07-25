@@ -469,7 +469,7 @@
         <ion-card-content>
           <ion-item>
             <ion-select [(ngModel)]="current_fan_id" [interfaceOptions]="{'cssClass': 'wider-popover'}">
-              <ion-select-option *ngFor="let fan of fans" [value]="fan.device_id">{{fan.name}}</ion-select-option>
+              <ion-select-option *ngFor="let fan of fans" [value]="fan.device_id">{{ fan.name || 'Terp Control Fan' }}</ion-select-option>
             </ion-select>
           </ion-item>
           <ng-container *ngIf="current_fan_id !== 'none'">

@@ -32,6 +32,7 @@ export class PlugOverviewComponent implements OnInit {
   public device_online = false;
   public showDeviceLog:boolean = false;
   public editingName:boolean = false;
+  public workmode:string = 'loading';
 
   constructor(private devices: DeviceService, public data: DataService, private route: ActivatedRoute, private renderer: Renderer2, public logTranslate: LogTranslateService) { }
 
@@ -72,8 +73,16 @@ export class PlugOverviewComponent implements OnInit {
 
     this.logs = await this.devices.getLogs(this.device_id);
 
-    this.config = await this.devices.getConfig(this.device_id);
+    this.config = this.normalizeConfig(await this.devices.getConfig(this.device_id));
+    this.updateWorkmode();
 
+    // Refresh the workmode immediately when settings are saved from the Settings page
+    this.devices.settingsChanged.subscribe(({ device_id, settings }) => {
+      if (device_id === this.device_id) {
+        this.config = this.normalizeConfig(settings);
+        this.updateWorkmode();
+      }
+    });
 
     if(this.logs.length) {
       this.has_logs = true;
@@ -82,6 +91,32 @@ export class PlugOverviewComponent implements OnInit {
       this.has_logs = false;
     }
     this.severity = Math.max(...this.logs.map((o: { severity: number; }) => {return isNaN(o.severity) ? 0 : o.severity}))
+  }
+
+  private updateWorkmode() {
+    const cfg:any = this.config || {};
+    this.workmode = cfg?.workmode || 'unknown';
+  }
+
+  // Normalize configuration returned by DeviceService.getConfig so we can always
+  // access properties like workmode safely.
+  private normalizeConfig(raw: any): any {
+    if (!raw) return {};
+
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        return parsed?.settings || parsed;
+      } catch {
+        return {};
+      }
+    }
+
+    if (typeof raw === 'object') {
+      return raw.settings || raw;
+    }
+
+    return {};
   }
 
   @ViewChild(IonModal) modal!: IonModal;

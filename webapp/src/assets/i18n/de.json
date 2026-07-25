@@ -322,9 +322,11 @@
       "title": "Terp Control AIR",
       "workmode": "Arbeitsmodus",
       "workmode-fixed": "Konstante Geschwindigkeit",
-      "workmode-temp": "Temperaturgeregelt",
-      "workmode-hum": "Luftfeuchtigkeitsgeregelt",
-      "workmode-temphum": "Temperatur- & Luftfeuchtigkeitsgeregelt",
+      "workmode-temp": "Temperaturregelung",
+      "workmode-hum": "Luftfeuchteregelung",
+      "workmode-temphum": "Temperatur-/Luftfeuchteregelung",
+      "workmode-loading": "Lade...",
+      "workmode-unknown": "Unbekannt",
       "co2inject": {
         "name": "Automatische Geschwindigkeitsreduktion",
         "description": "Dieser Lüfter ist mit einer Terp Control Smart Socket im CO2 Modus verbunden und seine Geschwindigkeit wird wärend der CO2 Begasung automatisch reduziert!",
@@ -346,6 +348,8 @@
       "workmode-off": "Aus",
       "workmode-timer": "Timer",
       "workmode-light": "Beleuchtung",
+      "workmode-loading": "Lade...",
+      "workmode-unknown": "Unbekannt",
       "co2sensor-title": "CO2 Sensor erforderlich!",
       "co2sensor-text": "Dieser Arbeitsmodus erfordert einen optional erhältlichen CO2 Sensor.",
       "settings": {
@@ -387,6 +391,7 @@
           "fan": "Automatische Lüfter Dimmung",
           "fanspeed": "Lüftergeschwindigkeit wärend der Begasung",
           "no-fan": "Kein Lüfter / deaktiviert",
+          "no-air-controller": "Kein Air Controller vorhanden",
           "value": "CO2 Zielwerte",
           "on": "Steckdose einschalten bei",
           "off": "Steckdose ausschalten bei"

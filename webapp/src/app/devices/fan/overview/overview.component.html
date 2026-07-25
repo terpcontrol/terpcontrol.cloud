@@ -33,6 +33,9 @@
   <h1 style="z-index: 1000" (click)="editName()" *ngIf="!editingName">{{device_name}}</h1>
   <input style="display: none; font-size: 24px;" #nameedit type="text" [(ngModel)]="device_name" (blur)="doneEdit()"/>
   <h3>{{'devices.fan.title' | translate}}</h3>
+  <h3 style="text-align:center; margin-top: 4px; margin-bottom: 12px;">
+    {{ 'devices.fan.workmode-' + workmode | translate }}
+  </h3>
   <ion-row class="ion-justify-content-center">
     <ion-col size="6" size-sm="3" size-xl="2">
       <value-display
@@ -40,6 +43,8 @@
         icon="temperature_neutral"
         unit="°C"
         [value]="data.measure(device_id, 'temperature') | async | round"
+        [average-value]="(data.measureAvg(device_id, 'temperature') | async | round)"
+        [target-value]="tempTarget | round"
         scale-min="0"
         scale-max="50"
         [limit-min]="t_l"
@@ -53,6 +58,8 @@
         icon="humidity_neutral"
         unit="%"
         [value]="data.measure(device_id, 'humidity') | async | round"
+        [average-value]="(data.measureAvg(device_id, 'humidity') | async | round)"
+        [target-value]="humidityTarget | round"
         scale-min="0"
         scale-max="100"
         [limit-min]="r_l"

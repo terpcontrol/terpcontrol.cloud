@@ -40,6 +40,9 @@
         icon="temperature_neutral"
         unit="°C"
         [value]="data.measure(device_id, 'temperature') | async | round"
+        [average-value]="(data.measureAvg(device_id, 'temperature') | async | round)"
+        [target-value]="maxTemperature | round"
+        target-label="Limit"
         scale-min="0"
         scale-max="50"
         [limit-min]="15"
@@ -53,6 +56,7 @@
         icon="humidity_neutral"
         unit="%"
         [value]="data.measure(device_id, 'humidity') | async | round"
+        [average-value]="(data.measureAvg(device_id, 'humidity') | async | round)"
         scale-min="0"
         scale-max="100"
         [limit-min]="30"
@@ -65,12 +69,11 @@
   </ion-row>
   <ion-row class="ion-justify-content-center">
     <ion-col size="6" size-sm="2" size-xl="1">
-      <div class="onoff lights" [class.on]="(data.measure(device_id, 'day') | async) != 0">
+      <div class="onoff lights" [class.on]="((data.measure(device_id, 'out_light') | async) ?? 0) != 0">
         <img class="icon-on" src="assets/icon/light.svg" />
         <img class="icon-off" src="assets/icon/light_off.svg" />
         <!-- <div class="name">{{'outputs.lights' | translate}}</div> -->
-        <div class="current">{{data.measure(device_id, 'day') | async | onoff | translate}}</div>
-        <!-- <div class="current" *ngIf="state.is_day">{{state.light_percent | nofract}}%</div> -->
+        <div class="current">{{data.measure(device_id, 'out_light') | async | nofract}}%</div>
       </div>
     </ion-col>
   </ion-row>
