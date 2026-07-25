@@ -337,9 +337,11 @@
       "title": "Terp Control AIR",
       "workmode": "Control mode",
       "workmode-fixed": "Fixed Speed",
-      "workmode-temp": "Temperature controlled",
-      "workmode-hum": "Humidity controller",
-      "workmode-temphum": "Temperature & Humidity controlled",
+      "workmode-temp": "Temperature Control",
+      "workmode-hum": "Humidity Control",
+      "workmode-temphum": "Temperature / Humidity Control",
+      "workmode-loading": "Loading...",
+      "workmode-unknown": "Unknown",
       "co2inject": {
         "name": "Automatic speed reduction",
         "description": "This fan is paired to a Plantaltix smart socket in CO2 injection mode and its speed will automatically be reduced during CO2 injection",
@@ -361,6 +363,8 @@
       "workmode-off": "Off",
       "workmode-timer": "Timer",
       "workmode-light": "Lighting",
+      "workmode-loading": "Loading...",
+      "workmode-unknown": "Unknown",
       "co2sensor-title": "CO2 Sensor required!",
       "co2sensor-text": "This mode requires an optional CO2 sensor to work.",
       "settings": {
@@ -402,6 +406,7 @@
           "fan": "Automatic fanspeed reduction",
           "fanspeed": "Fanspeed during injection",
           "no-fan": "No fan selected / disabled",
+          "no-air-controller": "No Air Controller available",
           "value": "CO2 injection target",
           "on": "Turn socket on at",
           "off": "Turn socket off at"

@@ -39,6 +39,12 @@ export class FanOverviewComponent implements OnInit {
   public showDeviceLog:boolean = false;
   public editingName:boolean = false;
 
+  // Day/night state and targets from the settings page
+  public is_day:boolean = true;
+  public tempTarget:number = NaN;
+  public humidityTarget:number = NaN;
+  public workmode:string = 'loading';
+
   constructor(private devices: DeviceService, public data: DataService, private route: ActivatedRoute, private renderer: Renderer2, public logTranslate: LogTranslateService) { }
 
   editName() {
@@ -74,9 +80,27 @@ export class FanOverviewComponent implements OnInit {
       }
     })
 
+    // Track day/night to pick the matching setpoints
+    this.data.measure(this.device_id, 'day').subscribe((day:any) => {
+      const prev = this.is_day;
+      this.is_day = (day ?? 1) >= 0.5;
+      if(this.is_day !== prev) {
+        this.updateTargets();
+      }
+    })
+
     this.logs = await this.devices.getLogs(this.device_id);
 
-    this.config = await this.devices.getConfig(this.device_id);
+    this.config = this.normalizeConfig(await this.devices.getConfig(this.device_id));
+    this.updateTargets();
+
+    // Refresh targets immediately when settings are saved from the Settings page
+    this.devices.settingsChanged.subscribe(({ device_id, settings }) => {
+      if (device_id === this.device_id) {
+        this.config = this.normalizeConfig(settings);
+        this.updateTargets();
+      }
+    });
 
     if(this.logs.length) {
       this.has_logs = true;
@@ -85,6 +109,53 @@ export class FanOverviewComponent implements OnInit {
       this.has_logs = false;
     }
     this.severity = Math.max(...this.logs.map((o: { severity: number; }) => {return isNaN(o.severity) ? 0 : o.severity}))
+  }
+
+  private updateTargets() {
+    const toNum = (v:any): number => {
+      if(v === null || v === undefined) return NaN;
+      const n = typeof v === 'number' ? v : parseFloat(v);
+      return isNaN(n as any) ? NaN : n;
+    };
+
+    const cfg:any = this.config || {};
+    const day:any = cfg?.day || {};
+    const night:any = cfg?.night || {};
+
+    // Workmode decides which targets are actually controlled:
+    // 0 = fixed speed, 1 = temperature, 2 = humidity, 3 = temperature + humidity
+    const mode = toNum(cfg?.mode);
+    const controlsTemp = mode === 1 || mode === 3;
+    const controlsHumidity = mode === 2 || mode === 3;
+
+    const modeLabels: { [key: number]: string } = { 0: 'fixed', 1: 'temp', 2: 'hum', 3: 'temphum' };
+    this.workmode = cfg?.mode === undefined || cfg?.mode === null
+      ? 'loading'
+      : (modeLabels[mode] ?? 'unknown');
+
+    this.tempTarget = controlsTemp ? (this.is_day ? toNum(day.temperature) : toNum(night.temperature)) : NaN;
+    this.humidityTarget = controlsHumidity ? (this.is_day ? toNum(day.humidity) : toNum(night.humidity)) : NaN;
+  }
+
+  // Normalize configuration returned by DeviceService.getConfig so we can always access
+  // properties like day.temperature and night.humidity safely.
+  private normalizeConfig(raw: any): any {
+    if (!raw) return {};
+
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        return parsed?.settings || parsed;
+      } catch {
+        return {};
+      }
+    }
+
+    if (typeof raw === 'object') {
+      return raw.settings || raw;
+    }
+
+    return {};
   }
 
   @ViewChild(IonModal) modal!: IonModal;

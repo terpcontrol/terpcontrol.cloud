@@ -91,9 +91,11 @@ export class PlugSettingsComponent implements OnInit {
       }
 
       this.devices.devices.subscribe((devices) => {
-        this.fans = []
         this.fans = devices.filter(device => device.device_type == 'fan')
-        this.fans.unshift({ device_id : "none", name: this.translate.instant('devices.plug.settings.co2.no-fan') },)
+        const placeholderKey = this.fans.length === 0
+          ? 'devices.plug.settings.co2.no-air-controller'
+          : 'devices.plug.settings.co2.no-fan'
+        this.fans.unshift({ device_id : "none", name: this.translate.instant(placeholderKey) },)
       })
 
       this.daybreak = this.secondsToTimeString(device_settings.daynight.day),
