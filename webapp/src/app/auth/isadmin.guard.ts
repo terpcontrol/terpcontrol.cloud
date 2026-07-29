@@ -1,6 +1,5 @@
 import { Injectable } from '@angular/core';
 import { ActivatedRouteSnapshot, CanActivate, Router, RouterStateSnapshot, UrlTree } from '@angular/router';
-import { Observable } from 'rxjs';
 import { AuthService } from './auth.service';
 
 @Injectable({
@@ -9,18 +8,19 @@ import { AuthService } from './auth.service';
 export class IsAdminGuard implements CanActivate {
   constructor(public auth: AuthService, public router: Router) {}
 
-  canActivate(
+  async canActivate(
     route: ActivatedRouteSnapshot,
-    state: RouterStateSnapshot): Observable<boolean | UrlTree> | Promise<boolean | UrlTree> | boolean | UrlTree
+    state: RouterStateSnapshot): Promise<boolean | UrlTree>
   {
+    const sessionState = await this.auth.restoreSession();
+
+    if (sessionState === 'unreachable' && !this.auth.authenticated.value) {
+      return this.router.createUrlTree(['connection-error'], { queryParams: { returnUrl: state.url } });
+    }
     if (!this.auth.authenticated.value) {
-      this.router.navigate(['login']);
-      return false;
+      return this.router.createUrlTree(['login'], { queryParams: { returnUrl: state.url } });
     }
-    if(!this.auth.current_user.value?.is_admin) {
-      return false;
-    }
-    return true;
+    return !!this.auth.current_user.value?.is_admin;
   }
 
 }

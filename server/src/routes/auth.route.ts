@@ -208,8 +208,6 @@ class AuthRoute implements Routes {
      *               $ref: '#/components/schemas/TokenPair'
      *       '401':
      *         $ref: '#/components/responses/Unauthorized'
-     *       '404':
-     *         description: Authentication token missing
      */
     this.router.post(`${this.path}refresh`, this.authController.refresh);
 

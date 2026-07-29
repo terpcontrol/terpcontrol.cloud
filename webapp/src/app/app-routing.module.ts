@@ -48,6 +48,10 @@ const routes: Routes = [
     loadChildren: () => import('./link-expired/link-expired.module').then( m => m.LinkExpiredPageModule)
   },
   {
+    path: 'connection-error',
+    loadChildren: () => import('./connection-error/connection-error.module').then( m => m.ConnectionErrorPageModule)
+  },
+  {
     path: 'account',
     canActivate:[AuthGuard],
     loadChildren: () => import('./account/account.module').then( m => m.AccountPageModule)

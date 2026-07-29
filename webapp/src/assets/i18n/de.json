@@ -268,7 +268,9 @@
       "recoverySentTitle": "Gesendet",
       "recoverySentText": "Der Wiederherstellungslink wurde gesendet.",
       "wrongRecoveryToken": "Dieser Wiederherstellungslink ist ungültig oder abgelaufen.",
-      "passwordChangedText": "Dein Passwort wurde geändert, du kannst dich jetzt anmelden:"
+      "passwordChangedText": "Dein Passwort wurde geändert, du kannst dich jetzt anmelden:",
+      "sessionExpiredTitle": "Sitzung abgelaufen",
+      "sessionExpiredText": "Deine Sitzung ist nicht mehr gültig. Bitte melde dich erneut an."
     }
   },
   "growPresets": {
@@ -444,7 +446,17 @@
     "title": "Meine Geräte",
     "claim": "Gerätecode eingeben",
     "claim-button": "Hinzufügen",
-    "addDevice": "Gerät hinzufügen"
+    "addDevice": "Gerät hinzufügen",
+    "load-failed-title": "Geräte konnten nicht geladen werden",
+    "load-failed-text": "Der Server hat nicht geantwortet. Deine Geräte sind weiterhin vorhanden — das ist nur ein Anzeigeproblem.",
+    "retry": "Erneut versuchen"
+  },
+  "connection-error": {
+    "title": "Server nicht erreichbar",
+    "text": "Deine Geräte konnten nicht geladen werden, weil der Server nicht geantwortet hat. Prüfe deine Internetverbindung und versuche es erneut.",
+    "stillUnreachable": "Der Server antwortet weiterhin nicht.",
+    "retry": "Erneut versuchen",
+    "retrying": "Wird versucht..."
   },
   "charts": {
     "title": "Graphen",

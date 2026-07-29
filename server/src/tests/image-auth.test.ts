@@ -70,9 +70,11 @@ describe('GET /image/:device_id authorization', () => {
   });
 
   it('rejects a user who does not own the device and has no share link', async () => {
+    // The session is fine, the device just is not theirs: 403, not 401. Clients
+    // log out on 401, so an access failure must not look like an expired login.
     await get('')
       .set('Cookie', `Authorization=${makeToken('user', '60706478aad6c9ad19a31c99')}`)
-      .expect(401);
+      .expect(403);
   });
 
   it('rejects an image token on non-image-typed access', async () => {
@@ -91,6 +93,6 @@ describe('GET /image/:device_id authorization', () => {
 
   it('rejects webcam images through a share link without webcam access', async () => {
     shareModel.findOne = jest.fn().mockResolvedValue({ share_id: 'share-1', device_id: DEVICE_ID, webcam: false });
-    await get('&share=share-1').expect(401);
+    await get('&share=share-1').expect(403);
   });
 });

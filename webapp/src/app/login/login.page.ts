@@ -39,6 +39,9 @@ export class LoginPage implements OnInit, OnDestroy {
     this.activation_code = this._route.snapshot.queryParams['code'];
     this.recovery_code = this._route.snapshot.queryParams['recovery'];
 
+    if (this._route.snapshot.queryParams['reason'] === 'session-expired') {
+      this.message = 11;
+    }
   }
 
   public ngOnInit(): void {

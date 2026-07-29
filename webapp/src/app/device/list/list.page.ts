@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { ToastController } from '@ionic/angular';
 import { TranslateService } from '@ngx-translate/core';
 import { DataService } from 'src/app/services/data.service';
-import { DeviceWithParsedSettings, DeviceService } from 'src/app/services/devices.service';
+import { DevicesLoadState, DeviceWithParsedSettings, DeviceService } from 'src/app/services/devices.service';
 
 @Component({
   selector: 'app-list',
@@ -13,14 +13,16 @@ export class ListPage implements OnInit {
 
 
   public all_devices:DeviceWithParsedSettings[] = [];
+  public loadState: DevicesLoadState = 'loading';
   public id:string = '';
-  public loading = true;
   public claiming = false;
   public wizardDevice: DeviceWithParsedSettings | null = null;
   /** Dashboard mode: the claim input stays tucked behind "+ add device". */
   public showClaimInput = false;
 
-  private reloaded = false;
+  get loading(): boolean {
+    return this.loadState === 'loading';
+  }
 
   /**
    * Most users own exactly one device — the page then acts as that device's
@@ -39,23 +41,12 @@ export class ListPage implements OnInit {
   ) { }
 
   ngOnInit(): void {
-    this.deviceService.devices.subscribe(devices => {
-      if (devices.length <= 0 && !this.reloaded) {
-        this.reloaded = true;
-        setTimeout(() => {
-          if (!this.all_devices?.length) {
-            void this.deviceService.refetchDevices().finally(() => this.loading = false);
-          }
-        }, 2000);
-      } else {
-        this.reloaded = false;
-        this.all_devices = devices;
-        this.loading = false;
-      }
-    });
+    this.deviceService.devices.subscribe(devices => this.all_devices = devices);
+    this.deviceService.loadState.subscribe(loadState => this.loadState = loadState);
+  }
 
-    // Failsafe so a failed fetch shows the empty state instead of a spinner forever.
-    setTimeout(() => this.loading = false, 8000);
+  retry() {
+    void this.deviceService.refetchDevices();
   }
 
   async claimDevice() {

@@ -50,7 +50,7 @@ class ImageController {
         // Share links without webcam access may still fetch diary photos (image_id),
         // but not the webcam stills/timelapses addressed by timestamp.
         if (req.share && !req.share.webcam && !req.query.image_id) {
-          res.status(401).send();
+          res.status(403).send();
           return;
         }
 
