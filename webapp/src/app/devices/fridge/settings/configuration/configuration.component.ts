@@ -86,13 +86,6 @@ export class FridgeSettingsConfigurationComponent implements OnChanges {
       betaMin: 0,
       betaMax: 3600,
     },
-    heaterHysteresis: {min: 0.2, max: 3},
-    heaterDehumidifyLimit: {min: 0.5, max: 5},
-    heaterAssistLead: {min: 0, max: 3},
-    // The firmware only syncs a smart socket every 30s, so shorter dwell times
-    // would be commanded but not actually switched.
-    heaterMinOnTime: {min: 30, max: 600},
-    heaterMinOffTime: {min: 30, max: 900},
   };
 
   public hysteresis = {
@@ -154,16 +147,6 @@ export class FridgeSettingsConfigurationComponent implements OnChanges {
         "target": device_settings?.co2?.target ?? 400,
         "sunsetOff": device_settings?.co2?.sunsetOff || false,
       },
-      "heater": {
-        "hysteresis": device_settings?.heater?.hysteresis ?? 0.5,
-        "dehumidifyLimit": device_settings?.heater?.dehumidifyLimit ?? 1,
-        // Stored as a 0/1 float on the device; normalise to a real boolean so
-        // the checkbox round-trips cleanly.
-        "dehumidifyAssist": (device_settings?.heater?.dehumidifyAssist ?? 1) > 0,
-        "assistLead": device_settings?.heater?.assistLead ?? 0,
-        "minOnTime": device_settings?.heater?.minOnTime ?? 60,
-        "minOffTime": device_settings?.heater?.minOffTime ?? 120,
-      },
       "internalfan": device_settings?.fans?.internal ?? 100,
       "externalfan": device_settings?.fans?.external ?? 100,
     }
@@ -212,15 +195,6 @@ export class FridgeSettingsConfigurationComponent implements OnChanges {
       co2: {
         target: this.settings.co2.target,
         sunsetOff: this.settings.co2.sunsetOff,
-      },
-
-      heater: {
-        hysteresis: this.settings.heater.hysteresis,
-        dehumidifyLimit: this.settings.heater.dehumidifyLimit,
-        dehumidifyAssist: this.settings.heater.dehumidifyAssist,
-        assistLead: this.settings.heater.assistLead,
-        minOnTime: this.settings.heater.minOnTime,
-        minOffTime: this.settings.heater.minOffTime,
       },
 
       day: {
