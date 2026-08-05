@@ -113,6 +113,11 @@ namespace fg {
     else if(state.sensor_type == SENSOR_TYPE_SCD) {
       Serial.println("SENSOR IS SCD");
 
+      // The SCD produces a sample every 5 s, so a few not-ready ticks of the
+      // 1 s loop are normal. Counting them once per tick keeps a healthy
+      // sensor well below the failsafe threshold, while a sensor that never
+      // becomes ready still accumulates fails and trips it.
+      bool data_was_ready = false;
       for(uint8_t tries = 0; tries < 2; tries++) {
         uint16_t isDataReady = 0;
         error = scd4x.getDataReadyStatus(isDataReady);
@@ -122,6 +127,7 @@ namespace fg {
             continue;
         }
         if(isDataReady == 32774) {
+          data_was_ready = true;
           float temperature, humidity;
           uint16_t co2 = 0;
           error = scd4x.readMeasurement(co2, temperature, humidity);
@@ -144,12 +150,18 @@ namespace fg {
           }
         }
       }
+      if(!data_was_ready) {
+        sensor_fails++;
+      }
     }
     else {
       Serial.println("NO SENSOR!");
       Wire.end();
       if(initSensor()) {
         sensor_fails = 0;
+      }
+      else {
+        sensor_fails++;
       }
     }
 
@@ -868,7 +880,7 @@ namespace fg {
 		  controlCo2();
         }
         else {
-          Serial.printf("CO2 CONTROL DISABLED (SHT sensor detected, sensor_type=%d)\n", state.sensor_type);
+          Serial.printf("CO2 CONTROL DISABLED (no SCD sensor, sensor_type=%d)\n", state.sensor_type);
 		  co2_valve_open = false;
           state.out_co2 = 0;
         }
@@ -888,7 +900,7 @@ namespace fg {
 		  controlCo2();
         }
         else {
-          Serial.printf("CO2 CONTROL DISABLED (SHT sensor detected, sensor_type=%d)\n", state.sensor_type);
+          Serial.printf("CO2 CONTROL DISABLED (no SCD sensor, sensor_type=%d)\n", state.sensor_type);
 		  co2_valve_open = false;
           state.out_co2 = 0;
         }
