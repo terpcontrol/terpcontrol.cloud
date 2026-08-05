@@ -227,6 +227,18 @@ export interface Image {
   duration?: '1d' | '1w' | '1m';
 }
 
+// Metadata of the newest stored image of a device, without the binary payload.
+// Lets clients tell how old the "latest" image they display actually is.
+export interface DeviceImageInfo {
+  device_id: string;
+  image_id?: string;
+  // Capture time of the newest image, null when the device has no image at all.
+  timestamp: number | null;
+  format?: 'jpeg' | 'mp4' | 'user/jpeg';
+  // Age (ms) after which a device counts as offline.
+  offlineThreshold: number;
+}
+
 export interface User {
   user_id: string;
   password: string;

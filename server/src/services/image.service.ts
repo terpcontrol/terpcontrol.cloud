@@ -101,6 +101,20 @@ class ImageService {
       .sort({ timestamp: -1 });
   }
 
+  // Newest image of a device without its binary payload.
+  public async getLatestImageInfo(device_id: string, format: string, duration?: string): Promise<Omit<Image, 'data'> | undefined> {
+    return imageModel
+      .findOne(
+        {
+          device_id,
+          format: { $eq: format as 'jpeg' | 'mp4' },
+          duration: (duration as '1d' | '1w' | '1m') || undefined,
+        },
+        { data: 0 },
+      )
+      .sort({ timestamp: -1 });
+  }
+
   public async getImageById(image_id: string): Promise<Image | undefined> {
     return imageModel.findOne({ image_id });
   }

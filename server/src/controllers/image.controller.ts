@@ -2,6 +2,8 @@ import { NextFunction, Request, Response } from 'express';
 import { RequestWithUser } from '@/interfaces/auth.interface';
 import { isUserDeviceMiddelware, isUserDeviceOrShareMiddelware } from '@/middlewares/auth.middleware';
 import { imageService } from '@services/image.service';
+import { ONLINE_TIMEOUT } from '@services/device.service';
+import { DeviceImageInfo } from '@fg2/shared-types';
 import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
 
@@ -54,6 +56,35 @@ class ImageController {
       } else {
         res.status(401).send();
       }
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public getDeviceImageInfo = async (req: RequestWithUser, res: Response, next: NextFunction) => {
+    try {
+      if (!(await isUserDeviceOrShareMiddelware(req, res, req.params.device_id, 'image'))) {
+        return;
+      }
+
+      // Same rule as for the binary: share links without webcam access see no stills.
+      if (req.share && !req.share.webcam) {
+        res.status(401).send();
+        return;
+      }
+
+      const image = await imageService.getLatestImageInfo(req.params.device_id, String(req.query.format || 'jpeg'), String(req.query.duration || ''));
+
+      const info: DeviceImageInfo = {
+        device_id: req.params.device_id,
+        image_id: image?.image_id,
+        timestamp: image?.timestamp ?? null,
+        format: image?.format,
+        offlineThreshold: ONLINE_TIMEOUT,
+      };
+
+      res.setHeader('Cache-Control', 'no-store');
+      res.status(200).json(info);
     } catch (error) {
       next(error);
     }

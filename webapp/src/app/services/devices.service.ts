@@ -8,6 +8,7 @@ import type {
   CloudSettings,
   DiaryEntryData,
   DeviceAccessInfo,
+  DeviceImageInfo,
   DeviceLog,
   DeviceClass,
   Recipe,
@@ -224,6 +225,25 @@ export class DeviceService {
     const shareToken = currentShareToken();
     const shareQuery = shareToken ? `&share=${encodeURIComponent(shareToken)}` : '';
     return `${environment.API_URL}/image/${device_id}?timestamp=${timestamp ?? (imageId ? '' : (Math.ceil(Date.now()/5000)*5000))}${tokenQuery}${shareQuery}&format=${format}&duration=${duration ?? ''}&image_id=${imageId ?? ''}`;
+  }
+
+  public async getDeviceImageInfo(device_id: string, format: 'jpeg' | 'mp4' = 'jpeg', duration?: string): Promise<DeviceImageInfo | undefined> {
+    try {
+      return await firstValueFrom(
+        this.http.get<DeviceImageInfo>(`${environment.API_URL}/image/${device_id}/info?format=${format}&duration=${duration ?? ''}`)
+      );
+    } catch (_error) {
+      return undefined;
+    }
+  }
+
+  // Capture time of the newest webcam image, plus the time the device went offline
+  // when that image is too old for the device to still count as online.
+  public async getWebcamStatus(device_id: string): Promise<{ timestamp: number | null; offlineSince: number | null }> {
+    const info = await this.getDeviceImageInfo(device_id);
+    const timestamp = info?.timestamp ?? null;
+    const offline = info && timestamp !== null && Date.now() - timestamp > info.offlineThreshold;
+    return { timestamp, offlineSince: offline ? timestamp : null };
   }
 
   public async testWebcamStream(device_id: string, settings: { rtspStream: string; rtspStreamTransport?: string; tunnelRtspStream?: boolean }): Promise<Blob> {

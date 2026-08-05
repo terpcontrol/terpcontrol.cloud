@@ -245,6 +245,7 @@
     "button-charts": "Graphen",
     "button-delete": "Löschen",
     "device-offline": "Gerät offline",
+    "webcam-offline-since": "Offline seit {{time}}",
     "device-log": "Logs",
     "clear-log": "Logs löschen",
     "button-diary": "Tagebuch",

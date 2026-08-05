@@ -252,6 +252,7 @@
     "button-charts": "Charts",
     "button-delete": "Delete",
     "device-offline": "device offline",
+    "webcam-offline-since": "Offline since {{time}}",
     "device-log": "Logs",
     "clear-log": "Clear log",
     "button-diary": "Diary",

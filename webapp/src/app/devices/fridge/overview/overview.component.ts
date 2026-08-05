@@ -67,6 +67,7 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
   private tick = 0;
 
   public deviceImageUrl: string | undefined = '';
+  public deviceImageOfflineSince: number | null = null;
 
   constructor(private devices: DeviceService, public data: DataService, private route: ActivatedRoute, private router: Router, private renderer: Renderer2, private alertController: AlertController, private toastController: ToastController, public logTranslate: LogTranslateService, private auth: AuthService) { }
 
@@ -217,6 +218,7 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
   async loadDeviceImage() {
     if (this.cloud_settings?.rtspStream) {
       this.deviceImageUrl = await this.devices.getDeviceImageUrl(this.device_id, 'jpeg');
+      this.deviceImageOfflineSince = (await this.devices.getWebcamStatus(this.device_id)).offlineSince;
     }
   }
 
