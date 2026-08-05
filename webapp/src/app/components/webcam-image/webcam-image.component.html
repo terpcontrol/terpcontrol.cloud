@@ -1,6 +1,0 @@
-<div class="webcam-image">
-  <img [src]="src" [alt]="alt" />
-  <div class="webcam-offline-overlay" *ngIf="offlineSince">
-    <p>{{ 'devices.webcam-offline-since' | translate: { time: (offlineSince | date: 'medium') } }}</p>
-  </div>
-</div>

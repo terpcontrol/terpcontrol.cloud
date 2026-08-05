@@ -1,7 +1,6 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ValuedisplayComponent } from './valuedisplay/valuedisplay.component';
-import { WebcamImageComponent } from './webcam-image/webcam-image.component';
 import { IonicModule } from '@ionic/angular';
 import { PipesModule } from 'src/app/pipes/pipes.module';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -10,11 +9,9 @@ import { TranslateModule } from '@ngx-translate/core';
 @NgModule({
   declarations: [
     ValuedisplayComponent,
-    WebcamImageComponent,
   ],
   exports: [
     ValuedisplayComponent,
-    WebcamImageComponent,
   ],
   imports: [
     CommonModule,

@@ -67,45 +67,6 @@ class ImageRoute implements Routes {
 
     /**
      * @openapi
-     * /image/{device_id}/info:
-     *   get:
-     *     summary: Get metadata of the newest device image
-     *     description: Returns the capture time of the newest stored image together with the age after which a device counts as offline, so clients can tell whether the latest image is still current. Accessible for owners and through a valid share link (`share` query parameter).
-     *     tags: [Images]
-     *     security:
-     *       - bearerAuth: []
-     *       - {}
-     *     parameters:
-     *       - in: path
-     *         name: device_id
-     *         required: true
-     *         schema: { type: string }
-     *       - in: query
-     *         name: format
-     *         schema: { type: string, enum: [jpeg, mp4] }
-     *       - in: query
-     *         name: duration
-     *         schema: { type: string, enum: ['1d', '1w', '1m'] }
-     *     responses:
-     *       '200':
-     *         description: Image metadata
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: object
-     *               properties:
-     *                 device_id: { type: string }
-     *                 image_id: { type: string }
-     *                 timestamp: { type: number, nullable: true, description: 'Capture time in epoch ms, null when no image exists.' }
-     *                 format: { type: string }
-     *                 offlineThreshold: { type: number, description: 'Image age in ms after which the device counts as offline.' }
-     *       '401':
-     *         $ref: '#/components/responses/Unauthorized'
-     */
-    this.router.get(`${this.path}/:device_id/info`, this.imageController.getDeviceImageInfo);
-
-    /**
-     * @openapi
      * /image/test/{device_id}:
      *   post:
      *     summary: Test a webcam stream URL by capturing a single image

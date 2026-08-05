@@ -139,12 +139,12 @@
       ></value-display>
     </ion-col>
     <ion-col *ngIf="deviceImageUrl">
-      <webcam-image
+      <img
         [src]="deviceImageUrl"
-        [offlineSince]="deviceImageOfflineSince"
         (click)="measureSelected('image')"
-        style="cursor: pointer;"
-      ></webcam-image>
+        fill="fill"
+        alt="Device Image"
+        style="width: 100%; cursor: pointer;" />
     </ion-col>
   </ion-row>
   <ion-row class="ion-justify-content-center">

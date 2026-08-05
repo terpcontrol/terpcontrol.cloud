@@ -201,11 +201,7 @@
     </ion-col>
     <ion-col *ngIf="showImage || showLogs" [style.width]="hasEnabledMeasures() ? '50%' : '100%'">
       <div *ngIf="showImage">
-        <webcam-image
-          *ngIf="!isAnimatedImage()"
-          [src]="deviceImageUrl ?? ''"
-          [offlineSince]="imageOfflineSince"
-        ></webcam-image>
+        <img *ngIf="!isAnimatedImage()" [src]="deviceImageUrl ?? ''" alt="Device Image" style="width: 100%"/>
         <div *ngIf="isAnimatedImage()" class="timelapse-video-wrapper">
           <!-- [muted] must be a property binding: the attribute alone does not set
                the muted property on dynamically created elements, so browsers treat
@@ -222,7 +218,7 @@
           <div class="timelapse-progress" [style.width.%]="videoProgress"></div>
         </div>
         <br />
-        {{ (currentImageTimestamp ?? latestImageTimestamp) | date: (isAnimatedImage() ? 'mediumDate' : 'medium') }}
+        {{ currentImageTimestamp | date: (isAnimatedImage() ? 'mediumDate' : 'medium') }}
       </div>
       <div *ngIf="showLogs">
         <ion-list>

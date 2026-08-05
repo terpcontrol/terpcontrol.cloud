@@ -199,14 +199,6 @@ export class ChartsPage implements OnInit, OnDestroy {
 
   public currentImageTimestamp: number | undefined = undefined;
 
-  // Capture time of the newest webcam image, shown while the live view displays
-  // it instead of an image picked by timestamp.
-  public latestImageTimestamp: number | undefined = undefined;
-
-  // Capture time of the newest webcam image while it is stale enough for the
-  // device to count as offline. Only set while the latest image is on screen.
-  public imageOfflineSince: number | null = null;
-
   // Playback progress (0-100) of the currently shown timelapse video.
   public videoProgress = 0;
 
@@ -933,18 +925,6 @@ export class ChartsPage implements OnInit, OnDestroy {
         this.videoProgress = 0;
       }
       this.deviceImageUrl = url;
-    }
-
-    // A picked timestamp is meant to show the past, so only the live view flags
-    // a stale image as the device being offline.
-    if (format === 'jpeg' && timestamp === undefined) {
-      const status = await this.devices.getWebcamStatus(this.device_id);
-      if (this.currentImageTimestamp === undefined) {
-        this.imageOfflineSince = status.offlineSince;
-        this.latestImageTimestamp = status.timestamp ?? undefined;
-      }
-    } else {
-      this.imageOfflineSince = null;
     }
   }
 
