@@ -6,6 +6,7 @@ import { AddDeviceClassDto, TestDeviceDto } from '@dtos/device.dto';
 import { isUserDeviceMiddelware, isUserDeviceOrShareMiddelware } from '@/middlewares/auth.middleware';
 import deviceModel from '@models/device.model';
 import recipeModel from '@models/recipe.model';
+import { createImageUrlToken } from '@utils/imageUrlToken';
 import { isNumeric } from 'influx/lib/src/grammar';
 
 class DeviceController {
@@ -45,7 +46,13 @@ class DeviceController {
     try {
       const devices: Device[] = await deviceService.findUserDevices(req.user_id);
 
-      res.status(200).json(devices);
+      // Owning the device is what earns the token, so hand it out with the device list.
+      res.status(200).json(
+        devices.map(device => ({
+          ...(typeof (device as any).toObject === 'function' ? (device as any).toObject() : device),
+          image_url_token: createImageUrlToken(device.device_id),
+        })),
+      );
     } catch (error) {
       next(error);
     }

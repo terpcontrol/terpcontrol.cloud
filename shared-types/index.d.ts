@@ -165,6 +165,8 @@ export interface Device {
   maintenance_mode_until?: number;
   recipe?: Recipe;
   hardwareInfo?: Record<string, string>;
+  /** Compact, device-scoped token for the query-free image URL. Only set on GET /device. */
+  image_url_token?: string;
 }
 
 export interface DeviceClass {

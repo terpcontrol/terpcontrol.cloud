@@ -2,8 +2,20 @@ import { NextFunction, Request, Response } from 'express';
 import { RequestWithUser } from '@/interfaces/auth.interface';
 import { isUserDeviceMiddelware, isUserDeviceOrShareMiddelware } from '@/middlewares/auth.middleware';
 import { imageService } from '@services/image.service';
+import { verifyImageUrlToken } from '@utils/imageUrlToken';
 import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
+
+// The size segment of a token image URL, e.g. "454x454.jpg". The extension is optional
+// and only there so the URL looks like an image file to whoever fetches it.
+function parseSizeSegment(value: string): { width?: number; height?: number } {
+  const match = /^(\d+)x(\d+)(?:\.jpe?g)?$/i.exec(value ?? '');
+  if (!match) {
+    return {};
+  }
+
+  return { width: parseResizeDimension(match[1]), height: parseResizeDimension(match[2]) };
+}
 
 function parseResizeDimension(value: unknown, max = 4096): number | undefined {
   if (value === undefined || value === null || value === '') {
@@ -53,6 +65,30 @@ class ImageController {
         }
       } else {
         res.status(401).send();
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // The same webcam still as getDeviceImage, addressed by a URL that carries no query
+  // string and stays around 110 characters: /image/<device_id>/<token>/<w>x<h>.jpg.
+  // A Garmin watch hands the URL to the phone before it is fetched, and the JWT image
+  // token makes that URL far too long to survive the trip.
+  public getDeviceImageByUrlToken = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!verifyImageUrlToken(req.params.device_id, req.params.token)) {
+        res.status(401).send('Wrong or expired image token');
+        return;
+      }
+
+      const size = parseSizeSegment(req.params.size);
+      const image = await imageService.getDeviceImage(req.params.device_id, 'jpeg');
+
+      if (image) {
+        this.sendImage(req, res, image.data, 'image/jpeg', size);
+      } else {
+        this.sendImage(req, res, await readFile('assets/no-image_placeholder.png'), 'image/png', size);
       }
     } catch (error) {
       next(error);
@@ -142,9 +178,9 @@ class ImageController {
     }
   };
 
-  private sendImage(req: Request, res: Response, image: Buffer, contentType: string) {
-    const width = parseResizeDimension(req.query.width);
-    const height = parseResizeDimension(req.query.height);
+  private sendImage(req: Request, res: Response, image: Buffer, contentType: string, size?: { width?: number; height?: number }) {
+    const width = size ? size.width : parseResizeDimension(req.query.width);
+    const height = size ? size.height : parseResizeDimension(req.query.height);
 
     if (contentType.startsWith('image/') && (width || height)) {
       void sharp(image)

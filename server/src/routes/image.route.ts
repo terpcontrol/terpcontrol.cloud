@@ -67,6 +67,47 @@ class ImageRoute implements Routes {
 
     /**
      * @openapi
+     * /image/{device_id}/{token}/{size}:
+     *   get:
+     *     summary: Get the latest device webcam still through a short, query-free URL
+     *     description: >
+     *       Same picture as `GET /image/{device_id}`, addressed without a query string and
+     *       with a compact device-scoped token (`image_url_token`, handed out by
+     *       `GET /device`) instead of the JWT image token. Garmin watches pass an image URL
+     *       to the paired phone before it is fetched, and a JWT makes that URL too long to
+     *       survive the trip.
+     *     tags: [Image]
+     *     security: []
+     *     parameters:
+     *       - in: path
+     *         name: device_id
+     *         required: true
+     *         schema: { type: string }
+     *       - in: path
+     *         name: token
+     *         required: true
+     *         schema: { type: string }
+     *         description: The device's `image_url_token`.
+     *       - in: path
+     *         name: size
+     *         required: true
+     *         schema: { type: string }
+     *         description: Resize target as `<width>x<height>.jpg`, e.g. `454x454.jpg`.
+     *     responses:
+     *       '200':
+     *         description: Image binary
+     *         content:
+     *           image/jpeg:
+     *             schema: { type: string, format: binary }
+     *           image/png:
+     *             schema: { type: string, format: binary }
+     *       '401':
+     *         $ref: '#/components/responses/Unauthorized'
+     */
+    this.router.get(`${this.path}/:device_id/:token/:size`, this.imageController.getDeviceImageByUrlToken);
+
+    /**
+     * @openapi
      * /image/test/{device_id}:
      *   post:
      *     summary: Test a webcam stream URL by capturing a single image
