@@ -117,7 +117,9 @@ describe('GET /image/:device_id/info', () => {
   const getInfo = (query = '') => request(app.getServer()).get(`/image/${DEVICE_ID}/info?format=jpeg${query}`);
 
   it('returns the timestamp of the newest image and the offline threshold', async () => {
-    jest.spyOn(imageService, 'getLatestImageInfo').mockResolvedValue({ image_id: 'img-1', device_id: DEVICE_ID, timestamp: 1000, format: 'jpeg' } as any);
+    jest
+      .spyOn(imageService, 'getLatestImageInfo')
+      .mockResolvedValue({ image_id: 'img-1', device_id: DEVICE_ID, timestamp: 1000, format: 'jpeg' } as any);
 
     const response = await getInfo(`&token=${makeToken('image')}`).expect(200);
     expect(response.body).toMatchObject({ device_id: DEVICE_ID, image_id: 'img-1', timestamp: 1000, offlineThreshold: ONLINE_TIMEOUT });
@@ -131,7 +133,9 @@ describe('GET /image/:device_id/info', () => {
   });
 
   it('rejects a share link without webcam access', async () => {
-    jest.spyOn(imageService, 'getLatestImageInfo').mockResolvedValue({ image_id: 'img-1', device_id: DEVICE_ID, timestamp: 1000, format: 'jpeg' } as any);
+    jest
+      .spyOn(imageService, 'getLatestImageInfo')
+      .mockResolvedValue({ image_id: 'img-1', device_id: DEVICE_ID, timestamp: 1000, format: 'jpeg' } as any);
     shareModel.findOne = jest.fn().mockResolvedValue({ share_id: 'share-1', device_id: DEVICE_ID, webcam: false });
 
     await getInfo('&share=share-1').expect(401);
