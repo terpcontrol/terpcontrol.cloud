@@ -3,7 +3,9 @@ ARG DOCKER_NODE_SERVER_IMAGE
 # Common build stage
 FROM ${DOCKER_NODE_SERVER_IMAGE} as common-build-stage
 
-RUN apk add --no-cache ffmpeg imagemagick
+# ttf-dejavu: the offline caption drawn into webcam stills needs a font that
+# fontconfig can find, otherwise the text renders empty.
+RUN apk add --no-cache ffmpeg imagemagick ttf-dejavu
 
 WORKDIR /app
 

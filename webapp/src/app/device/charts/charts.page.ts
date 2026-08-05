@@ -785,9 +785,13 @@ export class ChartsPage implements OnInit, OnDestroy {
     // this.lineChartData.datasets[2].data = await this.data.getSeries(room_id, 'co2', span, interval);
     // this.chart?.update();
 
+    // Live reload always shows the newest webcam image, not the one matching the
+    // last data point (which lags behind, or stands still while a device is down).
     this.currentImageTimestamp = this.isAnimatedImage()
       ? this.getAnimatedImageTimestamp()
-      : series?.[0]?.data?.[(series?.[0]?.data?.length ?? 1) - 1]?.[0];
+      : this.autoUpdate
+        ? undefined
+        : series?.[0]?.data?.[(series?.[0]?.data?.length ?? 1) - 1]?.[0];
     void this.loadDeviceImage(this.currentImageTimestamp);
     if (this.showLightOffsetControls() && this.showImage && !this.selectedTimespan.imageIntervalMs) {
       this.selectedTimespan = this.getAvailableTimespans()[0];

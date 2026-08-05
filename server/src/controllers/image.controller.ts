@@ -2,8 +2,28 @@ import { NextFunction, Request, Response } from 'express';
 import { RequestWithUser } from '@/interfaces/auth.interface';
 import { isUserDeviceMiddelware, isUserDeviceOrShareMiddelware } from '@/middlewares/auth.middleware';
 import { imageService } from '@services/image.service';
+import { ONLINE_TIMEOUT } from '@services/device.service';
+import { Image } from '@fg2/shared-types';
 import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
+
+// Requests for the current picture carry no timestamp, or one at "now" as a cache
+// buster. Anything older asks for the past and is served without the notice.
+const LATEST_IMAGE_TOLERANCE_MS = 60 * 1000;
+
+// Drawn into the image, so the time zone is named: the reader cannot tell which
+// one the server used otherwise.
+function buildOfflineCaption(timestamp: number): string {
+  const when = new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  }).format(timestamp);
+  return `Offline since ${when}`;
+}
 
 function parseResizeDimension(value: unknown, max = 4096): number | undefined {
   if (value === undefined || value === null || value === '') {
@@ -43,7 +63,7 @@ class ImageController {
         );
 
         if (image) {
-          this.sendImage(req, res, image.data, image.format === 'mp4' ? 'video/mp4' : 'image/jpeg');
+          this.sendImage(req, res, await this.withOfflineOverlay(req, image), image.format === 'mp4' ? 'video/mp4' : 'image/jpeg');
         } else {
           if (req.query.format === 'mp4') {
             this.sendImage(req, res, await readFile('assets/no-image_placeholder.mp4'), 'video/mp4');
@@ -141,6 +161,20 @@ class ImageController {
       next(error);
     }
   };
+
+  // The image URL is consumed by the webapp and by other services alike, so a
+  // still that is too old for the device to count as online carries the notice
+  // in the picture instead of leaving it to the client.
+  private async withOfflineOverlay(req: RequestWithUser, image: Image): Promise<Buffer> {
+    const requestedTimestamp = Number(req.query.timestamp);
+    const wantsLatest = !(requestedTimestamp > 0) || requestedTimestamp >= Date.now() - LATEST_IMAGE_TOLERANCE_MS;
+
+    if (image.format !== 'jpeg' || req.query.image_id || !wantsLatest || Date.now() - image.timestamp <= ONLINE_TIMEOUT) {
+      return image.data;
+    }
+
+    return imageService.addOfflineOverlay(image.data, buildOfflineCaption(image.timestamp));
+  }
 
   private sendImage(req: Request, res: Response, image: Buffer, contentType: string) {
     const width = parseResizeDimension(req.query.width);
