@@ -29,6 +29,10 @@ on:
         required: false
         type: boolean
         default: false
+      garmin_needed:
+        required: false
+        type: boolean
+        default: false
       skip_deploy:
         required: false
         type: boolean
@@ -36,7 +40,7 @@ on:
 
 jobs:
   deploy:
-    if: inputs.skip_deploy != true || inputs.firmware_needed
+    if: inputs.skip_deploy != true || inputs.firmware_needed || inputs.garmin_needed
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     # Per environment, so a production job still waiting for its approval does
@@ -127,3 +131,46 @@ jobs:
           echo "FW_UPLOAD_VERSION=${FW_UPLOAD_VERSION}"
           ssh "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "cd '${DEPLOY_PATH}' && TERPCONTROL_ENV_FILE='${TERPCONTROL_ENV_FILE}' FW_UPLOAD_VERSION='${FW_UPLOAD_VERSION}' ./build-fw.sh ${HARDWARES}"
+
+      # Built on the host rather than on the runner so it is signed with the
+      # developer key from the host's env file - the store binds the app to the
+      # key it was first published with, so only that key produces an uploadable
+      # .iq.
+      - name: Build Connect IQ app on host
+        if: inputs.garmin_needed
+        env:
+          APP_NAME: terp-control-viewer-${{ inputs.description }}
+        run: |
+          set -euo pipefail
+          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "cd '${DEPLOY_PATH}' && TERPCONTROL_ENV_FILE='${TERPCONTROL_ENV_FILE}' GARMIN_APP_NAME='${APP_NAME}' ./build-garmin.sh"
+
+      - name: Fetch the .iq package
+        if: inputs.garmin_needed
+        env:
+          APP_NAME: terp-control-viewer-${{ inputs.description }}
+        run: |
+          set -euo pipefail
+          mkdir -p iq
+          scp "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/garmin/bin/${APP_NAME}.iq" "iq/${APP_NAME}.iq"
+          ls -l iq/
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.garmin_needed
+        with:
+          name: terp-control-viewer-${{ inputs.description }}
+          path: iq/*.iq
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Garmin summary
+        if: inputs.garmin_needed
+        env:
+          APP_NAME: terp-control-viewer-${{ inputs.description }}
+        run: |
+          {
+            echo "### Garmin Connect IQ app built"
+            echo
+            echo "\`${APP_NAME}.iq\` is attached to this run as an artifact."
+            echo "Download it and upload it manually at <https://apps.garmin.com/developer/dashboard>."
+          } >> "$GITHUB_STEP_SUMMARY"

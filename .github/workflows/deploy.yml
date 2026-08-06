@@ -29,6 +29,11 @@ on:
         required: false
         type: boolean
         default: false
+      build_garmin:
+        description: 'Build the Garmin Connect IQ app even when nothing under garmin/ changed'
+        required: false
+        type: boolean
+        default: false
 
 env:
   ALL_HARDWARES: 'fridge controller plug fan light'
@@ -39,6 +44,7 @@ jobs:
     outputs:
       hardwares: ${{ steps.resolve.outputs.hardwares }}
       firmware_needed: ${{ steps.resolve.outputs.firmware_needed }}
+      garmin_needed: ${{ steps.resolve.outputs.garmin_needed }}
       description: ${{ steps.resolve.outputs.description }}
     steps:
       - uses: actions/checkout@v4
@@ -73,12 +79,18 @@ jobs:
               - 'firmware/src_hwtype/fan/**'
             light:
               - 'firmware/src_hwtype/light/**'
+            garmin:
+              - 'garmin/**'
+              - 'garmin-buildcontainer/**'
+              - 'build-garmin.sh'
 
       - name: Resolve hardwares + description
         id: resolve
         env:
           INPUT_HARDWARES: ${{ inputs.hardwares }}
           INPUT_DESCRIPTION: ${{ inputs.description }}
+          INPUT_BUILD_GARMIN: ${{ inputs.build_garmin }}
+          CHG_GARMIN: ${{ steps.changes.outputs.garmin }}
           CHG_SHARED: ${{ steps.changes.outputs.shared }}
           CHG_FRIDGE: ${{ steps.changes.outputs.fridge }}
           CHG_CONTROLLER: ${{ steps.changes.outputs.controller }}
@@ -114,6 +126,17 @@ jobs:
           fi
           echo "hardwares=$HW" >> "$GITHUB_OUTPUT"
           echo "Hardwares resolved: '$HW'"
+
+          # --- Garmin app ---
+          # Only rebuilt when something under garmin/ moved, or when explicitly
+          # requested — the .iq is uploaded to the store by hand anyway.
+          if [ "${INPUT_BUILD_GARMIN}" = "true" ] || [ "${CHG_GARMIN}" = "true" ]; then
+            GARMIN_NEEDED=true
+          else
+            GARMIN_NEEDED=false
+          fi
+          echo "garmin_needed=$GARMIN_NEEDED" >> "$GITHUB_OUTPUT"
+          echo "Garmin build needed: '$GARMIN_NEEDED'"
 
           # --- Description ---
           SHORT_SHA="$(echo "${GITHUB_SHA}" | cut -c1-7)"
@@ -164,5 +187,10 @@ jobs:
       description: ${{ needs.detect.outputs.description }}
       hardwares: ${{ needs.detect.outputs.hardwares }}
       firmware_needed: ${{ needs.detect.outputs.firmware_needed == 'true' }}
+      # Only production builds the Connect IQ app: the .iq is signed with the
+      # developer key the store binds the app to, so a staging copy could not be
+      # uploaded anyway. Keeping it to one environment also keeps the run's
+      # artifact name unambiguous.
+      garmin_needed: ${{ needs.detect.outputs.garmin_needed == 'true' }}
       skip_deploy: ${{ inputs.skip_deploy == true }}
     secrets: inherit

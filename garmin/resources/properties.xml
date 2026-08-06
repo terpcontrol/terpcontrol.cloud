@@ -1,0 +1,63 @@
+<resources xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://developer.garmin.com/downloads/connect-iq/resources.xsd">
+    <properties>
+        <property id="username_prop" type="string"></property>
+        <property id="password_prop" type="string"></property>
+        <property id="api_base_url_prop" type="string">https://terpcontrol.cloud/api</property>
+        <property id="threshold_temp_min_prop" type="number">10</property>
+        <property id="threshold_temp_max_prop" type="number">30</property>
+        <property id="threshold_humidity_min_prop" type="number">35</property>
+        <property id="threshold_humidity_max_prop" type="number">95</property>
+        <property id="threshold_co2_min_prop" type="number">300</property>
+        <property id="threshold_co2_max_prop" type="number">8000</property>
+    </properties>
+
+    <strings>
+       <string id="username_title">Username</string>
+       <string id="password_title">Password</string>
+       <string id="api_base_url_title">API Base URL</string>
+       <string id="theshold_temp_min_title">Min Temperature Threshold (°C)</string>
+       <string id="theshold_temp_max_title">Max Temperature Threshold (°C)</string>
+       <string id="theshold_humidity_min_title">Min Humidity Threshold (%)</string>
+       <string id="theshold_humidity_max_title">Max Humidity Threshold (%)</string>
+       <string id="theshold_co2_min_title">Min CO2 Threshold (ppm)</string>
+       <string id="theshold_co2_max_title">Max CO2 Threshold (ppm)</string>
+    </strings>
+
+    <settings>
+        <setting propertyKey="@Properties.username_prop" title="@Strings.username_title">
+            <settingConfig type="email" />
+        </setting>
+
+        <setting propertyKey="@Properties.password_prop" title="@Strings.password_title">
+            <settingConfig type="password" />
+        </setting>
+
+        <setting propertyKey="@Properties.api_base_url_prop" title="@Strings.api_base_url_title">
+            <settingConfig type="alphaNumeric" />
+        </setting>
+
+        <setting propertyKey="@Properties.threshold_temp_min_prop" title="@Strings.theshold_temp_min_title">
+            <settingConfig type="numeric" min="0" max="50" />
+        </setting>
+
+        <setting propertyKey="@Properties.threshold_temp_max_prop" title="@Strings.theshold_temp_max_title">
+            <settingConfig type="numeric" min="0" max="50" />
+        </setting>
+
+        <setting propertyKey="@Properties.threshold_humidity_min_prop" title="@Strings.theshold_humidity_min_title">
+            <settingConfig type="numeric" min="0" max="100" />
+        </setting>
+
+        <setting propertyKey="@Properties.threshold_humidity_max_prop" title="@Strings.theshold_humidity_max_title">
+            <settingConfig type="numeric" min="0" max="100" />
+        </setting>
+
+        <setting propertyKey="@Properties.threshold_co2_min_prop" title="@Strings.theshold_co2_min_title">
+            <settingConfig type="numeric" min="0" max="20000" />
+        </setting>
+
+        <setting propertyKey="@Properties.threshold_co2_max_prop" title="@Strings.theshold_co2_max_title">
+            <settingConfig type="numeric" min="0" max="20000" />
+        </setting>
+    </settings>
+</resources>

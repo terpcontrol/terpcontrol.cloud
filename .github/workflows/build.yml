@@ -13,6 +13,7 @@ jobs:
       docker_webapp: ${{ steps.changes.outputs.docker_webapp }}
       docker_server: ${{ steps.changes.outputs.docker_server }}
       firmware: ${{ steps.changes.outputs.firmware }}
+      garmin: ${{ steps.changes.outputs.garmin }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -43,6 +44,11 @@ jobs:
               - 'firmware/**'
               - 'fw-buildcontainer/**'
               - 'build-fw.sh'
+              - '.github/workflows/build.yml'
+            garmin:
+              - 'garmin/**'
+              - 'garmin-buildcontainer/**'
+              - 'build-garmin.sh'
               - '.github/workflows/build.yml'
 
   webapp:
@@ -144,3 +150,31 @@ jobs:
           FW_BUILDCONTAINER_CACHE_FROM: type=gha,scope=fw-buildcontainer
           FW_BUILDCONTAINER_CACHE_TO: type=gha,mode=max,scope=fw-buildcontainer
         run: ./build-fw.sh
+
+  garmin:
+    needs: detect
+    if: needs.detect.outputs.garmin == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      # Garmin only serves the per-device compiler definitions to a logged-in
+      # developer account, so they are cached to keep the login off the hot path.
+      - name: Cache Connect IQ device definitions
+        uses: actions/cache@v4
+        with:
+          path: .garmin-cache/Devices
+          key: ciq-devices-${{ hashFiles('garmin/manifest.xml') }}
+          restore-keys: ciq-devices-
+
+      - name: Build Garmin app (verification only)
+        env:
+          GARMIN_CACHE_DIR: ${{ github.workspace }}/.garmin-cache
+          GARMIN_USERNAME: ${{ secrets.GARMIN_USERNAME }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          GARMIN_SDK_AGREEMENT_ACCEPTED: ${{ vars.GARMIN_SDK_AGREEMENT_ACCEPTED }}
+          GARMIN_ALLOW_EPHEMERAL_KEY: 1
+          GARMIN_BUILDCONTAINER_CACHE_FROM: type=gha,scope=garmin-buildcontainer
+          GARMIN_BUILDCONTAINER_CACHE_TO: type=gha,mode=max,scope=garmin-buildcontainer
+        run: ./build-garmin.sh
