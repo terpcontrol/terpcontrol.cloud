@@ -20,6 +20,9 @@ FROM eclipse-temurin:21-jre-noble
 ARG CONNECTIQ_SDK=connectiq-sdk-lin-9.2.0-2026-06-09-92a1605b2
 
 ENV DEBIAN_FRONTEND=noninteractive
+# Pinned rather than inherited: the SDK manager and build-app.sh resolve the
+# device cache through $HOME, which build-garmin.sh mounts at this exact path.
+ENV HOME=/root
 
 RUN apt-get update -qq && \
     apt-get install -y -qq --no-install-recommends \
