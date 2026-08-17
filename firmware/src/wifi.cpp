@@ -25,6 +25,20 @@
 
 #define WIFI_SCAN_TIMEOUT 30000
 
+// A single association attempt regularly fails for transient reasons (the AP
+// misses the probe, still holds a stale association from before the last
+// reboot, or the handshake times out). Retry a few times before telling the
+// user the connection failed.
+#define WIFI_CONNECT_ATTEMPTS 3
+#define WIFI_CONNECT_ATTEMPT_TIMEOUT_MS 12000
+// WiFi.status() is event driven: right after WiFi.begin() it still reports the
+// result of the *previous* attempt, because the driver has not emitted a new
+// event yet. Ignore failure statuses within this window so a stale
+// WL_NO_SSID_AVAIL / WL_CONNECT_FAILED from an earlier attempt cannot abort
+// the fresh one.
+#define WIFI_CONNECT_STATUS_SETTLE_MS 2000
+#define WIFI_DISCONNECT_TIMEOUT_MS 3000
+
 static constexpr TickType_t SMART_SOCKET_RESEND_PERIOD = configTICK_RATE_HZ * 60;
 static constexpr TickType_t SMART_SOCKET_MIN_SEND_INTERVAL = configTICK_RATE_HZ * 30;
 static constexpr TickType_t SMART_SOCKET_FAILURE_BACKOFF = configTICK_RATE_HZ * 300;
@@ -170,8 +184,6 @@ std::string netmask = "";
 unsigned long currentMillis = 0;
 unsigned long startMillis;
 
-/** Current WLAN status */
-short status = WL_IDLE_STATUS;
 bool server_active = false;
 
 bool wifi_configured = false;
@@ -220,6 +232,9 @@ bool initializeWifi() {
   }
   else {
     Serial.println(F("NO Valid Credentials found."));
+    // Leave the radio in a defined state so the setup menu (scan / connect)
+    // does not have to start from WIFI_MODE_NULL.
+    WiFi.mode(WIFI_STA);
   }
   return true;
 }
@@ -898,9 +913,9 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
       scanned_ssids.insert(scanned_ssids.begin(), "back");
       ui_handle->pop();
       ui_handle->push<fg::SelectInput>("select network", 0, scanned_ssids, [=](unsigned selected) {
-        primary_ssid = scanned_ssids[selected].c_str();
         ui_handle->pop();
         if(selected != 0) {
+          primary_ssid = scanned_ssids[selected].c_str();
           ui_handle->push<TextEntry>("enter password", [=](std::string password) {
             primary_password = password.c_str();
             Serial.println(primary_ssid.c_str());
@@ -1000,73 +1015,92 @@ boolean createConfigurationAP()
   }
 }
 
+static uint32_t elapsedMs(TickType_t since) {
+  return (uint32_t)((xTaskGetTickCount() - since) * portTICK_PERIOD_MS);
+}
+
+// Statuses that mean "this association attempt is over and it did not work".
+// They are only meaningful once the driver has reported on the *current*
+// attempt, see WIFI_CONNECT_STATUS_SETTLE_MS.
+static bool wifiStatusIsFailure(wl_status_t status) {
+  switch(status) {
+    case WL_NO_SSID_AVAIL :
+    case WL_CONNECT_FAILED :
+    case WL_CONNECTION_LOST :
+      return true;
+    default:
+      return false;
+  }
+}
+
+static void waitForWifiDisconnect() {
+  TickType_t started = xTaskGetTickCount();
+  while(wifiIsConnected() && elapsedMs(started) < WIFI_DISCONNECT_TIMEOUT_MS) {
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    esp_task_wdt_reset();
+  }
+}
+
 bool connectToWifi(std::string ssid, std::string password) {
   Serial.print(F("Connecting to wifi network "));
   Serial.println(ssid.c_str());
-  delay(1000);
+
+  // Bring the radio into a defined state. Keep the soft AP up when the
+  // configuration portal is serving the request that triggered this connect,
+  // otherwise the browser would never see the response.
+  bool keep_ap = (WiFi.getMode() & WIFI_MODE_AP) != 0;
+  WiFi.mode(keep_ap ? WIFI_AP_STA : WIFI_STA);
   WiFi.setAutoReconnect(true);
-  WiFi.setAutoConnect(true);
 
-  if(wifiIsConnected()) {
+  for(unsigned attempt = 1; attempt <= WIFI_CONNECT_ATTEMPTS; ++attempt) {
+    // Drop any previous association before starting a new attempt.
     WiFi.disconnect(false, false);
-    while(wifiIsConnected()) {
-      vTaskDelay(1000 / portTICK_PERIOD_MS);
+    waitForWifiDisconnect();
+
+    if(password != "") {
+      WiFi.begin(ssid.c_str(), password.c_str());
+    }
+    else {
+      WiFi.begin(ssid.c_str());
+    }
+
+    TickType_t attempt_start = xTaskGetTickCount();
+    wl_status_t status = WL_IDLE_STATUS;
+
+    while(true) {
+      delay(20);
+      esp_task_wdt_reset();
       status = WiFi.status();
-      Serial.println(F("Status:"));
-      Serial.println(status);
-    }
-  }
-  //WiFi.scanDelete();
+      uint32_t elapsed = elapsedMs(attempt_start);
 
-  if(password != "") {
-    WiFi.begin(ssid.c_str(), password.c_str());
-  }
-  else {
-    WiFi.begin(ssid.c_str());
-  }
-
-  Serial.println(F("Status:"));
-  Serial.println(status);
-
-  wl_status_t status = WL_IDLE_STATUS;
-  unsigned int timeout = 0;
-
-  do {
-    delay(10);
-    status = WiFi.status();
-    switch(status) {
-      case WL_NO_SHIELD :
-      case WL_IDLE_STATUS :
-      case WL_CONNECTED :
-      case WL_SCAN_COMPLETED :
-      case WL_DISCONNECTED :
+      if(status == WL_CONNECTED) {
         break;
-      case WL_NO_SSID_AVAIL :
-      case WL_CONNECT_FAILED :
-      case WL_CONNECTION_LOST :
-      default:
-        Serial.println(F("Connection failed."));
-        Serial.println(status);
-        WiFi.disconnect(false, false);
-        return false;
+      }
+      if(elapsed >= WIFI_CONNECT_ATTEMPT_TIMEOUT_MS) {
+        Serial.printf("[wifi] attempt %u/%u timed out, status=%d\n",
+                      attempt, (unsigned)WIFI_CONNECT_ATTEMPTS, (int)status);
+        break;
+      }
+      if(wifiStatusIsFailure(status) && elapsed >= WIFI_CONNECT_STATUS_SETTLE_MS) {
+        Serial.printf("[wifi] attempt %u/%u failed, status=%d\n",
+                      attempt, (unsigned)WIFI_CONNECT_ATTEMPTS, (int)status);
+        break;
+      }
     }
 
-    if(timeout++ > 1000) {
-      Serial.println(F("Connection timeout."));
-      WiFi.disconnect(false, false);
-      return false;
+    if(status == WL_CONNECTED) {
+      Serial.println(F("Connection successful."));
+      Serial.print("IP address: ");
+      Serial.print(WiFi.localIP());
+      Serial.print(" / ");
+      Serial.println(WiFi.macAddress());
+      return true;
     }
-    delay(10);
-    esp_task_wdt_reset();
-  } while(status != WL_CONNECTED);
+  }
 
-  Serial.println(F("Connection successful."));
-  Serial.println("IP address: ");
-  Serial.print(WiFi.localIP());
-  Serial.print(" / ");
-  Serial.println(WiFi.macAddress());
-  WiFi.setAutoConnect(true);
-  return true;
+  Serial.println(F("Connection failed."));
+  WiFi.disconnect(false, false);
+  return false;
 }
 
 bool wifiIsConfigured() {
@@ -1098,10 +1132,13 @@ bool loadWifiCredentials()
   // fg::settings().setStr("pssid", "TESTNET");
   // fg::settings().setStr("ppassword", "aaaaaaaa");
   if(fg::settings().has("pssid")) {
-    primary_ssid = fg::settings().getStr("pssid");
-    primary_password = fg::settings().getStr("ppassword");
-    secondary_ssid = fg::settings().getStr("sssid");
-    secondary_password = fg::settings().getStr("spassword");
+    // getStr() keeps the NVS string terminator inside the std::string, which
+    // would otherwise leak a trailing '\0' into comparisons and into the
+    // smart socket provisioning URLs.
+    primary_ssid = sanitizeSettingString(fg::settings().getStr("pssid"));
+    primary_password = sanitizeSettingString(fg::settings().getStr("ppassword"));
+    secondary_ssid = sanitizeSettingString(fg::settings().getStr("sssid"));
+    secondary_password = sanitizeSettingString(fg::settings().getStr("spassword"));
     return true;
   }
   else {
@@ -1122,6 +1159,15 @@ void saveWifiCredentials() {
 
 void resetCredentials() {
   fg::settings().erase("pssid");
+  fg::settings().erase("ppassword");
+  fg::settings().erase("sssid");
+  fg::settings().erase("spassword");
+
+  primary_ssid = "";
+  primary_password = "";
+  secondary_ssid = "";
+  secondary_password = "";
+  wifi_configured = false;
 
   smart_socket_outputs_reported = false;
   const std::vector<std::string>& roles = getSocketRolesList();
@@ -1135,6 +1181,14 @@ void resetCredentials() {
   fg::settings().erase("sock_misc");
 
   fg::settings().commit();
+
+  // Leave the access point cleanly instead of just rebooting into it: the AP
+  // keeps a stale association for the ESP otherwise, which makes the very next
+  // join attempt fail. Also drop the credentials the WiFi driver keeps in its
+  // own NVS namespace, so "clear saved wifi" really clears everything.
+  WiFi.persistent(true);
+  WiFi.disconnect(true, true);
+  WiFi.persistent(false);
 }
 
 #define CHUNK_LEN 2048
@@ -1592,12 +1646,27 @@ std::vector<std::string> scanWifiNetworks() {
   WiFi.scanNetworks(true);
   int n = 0;
   auto scanstart = xTaskGetTickCount();
-  while(n <= 0) {
+  while(true) {
     n = WiFi.scanComplete();
     esp_task_wdt_reset();
-    if(xTaskGetTickCount() - scanstart > WIFI_SCAN_TIMEOUT) {
-      n = 0;
+    // scanComplete() only returns >= 0 once the scan is done, including 0 for
+    // "no network found".
+    if(n >= 0) {
+      break;
     }
+    // WIFI_SCAN_FAILED (-2) means the scan never started; without this the
+    // loop would spin forever waiting for a result that cannot arrive.
+    if(n == WIFI_SCAN_FAILED) {
+      Serial.println("scan failed");
+      n = 0;
+      break;
+    }
+    if(xTaskGetTickCount() - scanstart > WIFI_SCAN_TIMEOUT) {
+      Serial.println("scan timeout");
+      n = 0;
+      break;
+    }
+    delay(10);
   }
 
   std::vector<std::string> ssids;
