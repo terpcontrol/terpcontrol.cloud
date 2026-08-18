@@ -1,21 +1,16 @@
 name: Deploy
 
-# Pushes to master deploy to staging. Production is deploy-on-demand: run this
-# workflow manually with target=production from the ref you want to promote.
+# Every run deploys staging first, then production. Production only starts once
+# staging succeeded, and it runs under the "production" environment, whose
+# required reviewers hold it until somebody approves the run - that approval is
+# what makes production deploy-on-demand. Without reviewers configured on that
+# environment, production follows staging unattended.
 
 on:
   push:
     branches: [master]
   workflow_dispatch:
     inputs:
-      target:
-        description: 'Deployment target. Production runs wait for the approval configured on the "production" environment.'
-        required: true
-        type: choice
-        options:
-          - staging
-          - production
-        default: staging
       description:
         description: 'Firmware description suffix. Prefixed with short commit SHA; final FW_UPLOAD_VERSION is "<sha>-<this>". Max 55 chars, [A-Za-z0-9._-]. Leave blank to auto-derive a slug from the commit subject.'
         required: false
@@ -32,10 +27,6 @@ on:
         type: boolean
         default: false
 
-concurrency:
-  group: deploy-${{ inputs.target || 'staging' }}
-  cancel-in-progress: false
-
 env:
   ALL_HARDWARES: 'fridge controller plug fan light'
 
@@ -43,7 +34,6 @@ jobs:
   detect:
     runs-on: ubuntu-latest
     outputs:
-      target: ${{ steps.resolve.outputs.target }}
       hardwares: ${{ steps.resolve.outputs.hardwares }}
       firmware_needed: ${{ steps.resolve.outputs.firmware_needed }}
       description: ${{ steps.resolve.outputs.description }}
@@ -81,10 +71,9 @@ jobs:
             light:
               - 'firmware/src_hwtype/light/**'
 
-      - name: Resolve target + hardwares + description
+      - name: Resolve hardwares + description
         id: resolve
         env:
-          INPUT_TARGET: ${{ inputs.target }}
           INPUT_HARDWARES: ${{ inputs.hardwares }}
           INPUT_DESCRIPTION: ${{ inputs.description }}
           CHG_SHARED: ${{ steps.changes.outputs.shared }}
@@ -95,15 +84,6 @@ jobs:
           CHG_LIGHT: ${{ steps.changes.outputs.light }}
         run: |
           set -euo pipefail
-
-          # --- Target ---
-          TARGET="${INPUT_TARGET:-staging}"
-          if [ "$TARGET" != "staging" ] && [ "$TARGET" != "production" ]; then
-            echo "Invalid target '$TARGET'" >&2
-            exit 1
-          fi
-          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
-          echo "Target resolved: '$TARGET'"
 
           # --- Hardwares ---
           if [ "${INPUT_HARDWARES}" = "none" ]; then
@@ -160,11 +140,24 @@ jobs:
           echo "description=$DESC" >> "$GITHUB_OUTPUT"
           echo "Description resolved: '$DESC'"
 
-  deploy:
+  staging:
     needs: detect
     uses: ./.github/workflows/deploy-env.yml
     with:
-      environment: ${{ needs.detect.outputs.target }}
+      environment: staging
+      description: ${{ needs.detect.outputs.description }}
+      hardwares: ${{ needs.detect.outputs.hardwares }}
+      firmware_needed: ${{ needs.detect.outputs.firmware_needed == 'true' }}
+      skip_deploy: ${{ inputs.skip_deploy == true }}
+    secrets: inherit
+
+  production:
+    needs: [detect, staging]
+    # A staging job whose steps were all skipped still counts as a green staging run.
+    if: always() && contains(fromJSON('["success","skipped"]'), needs.staging.result)
+    uses: ./.github/workflows/deploy-env.yml
+    with:
+      environment: production
       description: ${{ needs.detect.outputs.description }}
       hardwares: ${{ needs.detect.outputs.hardwares }}
       firmware_needed: ${{ needs.detect.outputs.firmware_needed == 'true' }}
