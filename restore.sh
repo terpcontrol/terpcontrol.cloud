@@ -49,12 +49,12 @@ if [ -n "$INFLUX_FILENAME" ]; then
       exit 1
   fi
 
-  docker compose exec influxdb rm -rf /influxdb-backup* || true
+  docker compose exec -T influxdb rm -rf /influxdb-backup.tar /influxdb-backup/ || true
   docker cp "$INFLUX_FILENAME" "$INFLUX_CONTAINER":/influxdb-backup.tar
   docker compose exec influxdb tar xf /influxdb-backup.tar
   docker compose exec influxdb influx bucket delete -n "${INFLUXDB_BUCKET}" -o "${INFLUXDB_ORG}"
   docker compose exec influxdb influx restore --bucket="${INFLUXDB_BUCKET}" --org="${INFLUXDB_ORG}" /influxdb-backup
-  docker compose exec influxdb rm -rf /influxdb-backup* || true
+  docker compose exec -T influxdb rm -rf /influxdb-backup.tar /influxdb-backup/ || true
 fi
 
 echo "RESTORE SUCCESSUL: ${BACKUP_FILENAME}"
