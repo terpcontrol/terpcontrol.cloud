@@ -4,7 +4,10 @@
 # compiler bits are kept. Simulator, docs, samples and the language server make
 # up ~85% of the SDK download and are dropped to keep the image small.
 
-FROM golang:1.24-bookworm AS sdkmanager
+# At least as new as the go directive of the SDK manager version below -
+# GOTOOLCHAIN is local in this image, so an older toolchain fails outright
+# rather than fetching the one the module asks for.
+FROM golang:1.25-bookworm AS sdkmanager
 
 # Garmin only ships the SDK manager as a GUI app, so the community CLI is used
 # to log in and fetch the per-device compiler definitions.
