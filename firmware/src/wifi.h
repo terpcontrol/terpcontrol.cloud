@@ -62,6 +62,32 @@ bool wifiIsConnected();
 bool wifiIsConfigured();
 void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud);
 void showSmartSocketsUi(fg::UserInterface* ui, fg::Fridgecloud* cloud);
+void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud);
 bool sendSmartSocketPower(const std::string& role, bool turn_on);
 void wifiReportSmartSocketOutputs(const SmartSocketOutputStates& states);
 void wifiForceAllSmartSocketsOff();
+
+// Reports the aux-device state (paired smart sockets, Terp Cam URL) to the
+// cloud via hardware-info logs. Log messages are queued, so this is safe to
+// call before the cloud connection is up (and without any network at all).
+void wifiInitAuxCloudReporting(fg::Fridgecloud* cloud);
+
+// Removes a paired smart socket by role. Idempotent for known roles: removing
+// an unpaired role just re-reports the current state. Returns false only for
+// unknown roles.
+bool wifiRemoveSmartSocket(const std::string& role);
+
+// Assigns/updates a socket by IP (cloud-managed, e.g. a foreign Tasmota plug
+// that was never paired via the AP flow). Empty password keeps the default
+// admin/mqtt_pass credentials; otherwise user+password are stored per role.
+bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const std::string& user, const std::string& password);
+
+// Pulses a connected socket ON for ~2s and back OFF (blocking, watchdog-fed).
+// The control loop re-asserts the desired state within its resend window.
+bool wifiTestSmartSocket(const std::string& role);
+
+// Handles the cloud aux-device commands shared by all socket-capable
+// hwtypes (socket_remove / socket_set / socket_test). Returns true when the
+// command was one of these actions; hwtype-specific commands stay with the
+// caller.
+bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud);

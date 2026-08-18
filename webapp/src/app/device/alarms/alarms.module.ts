@@ -5,8 +5,8 @@ import { FormsModule } from '@angular/forms';
 import { IonicModule } from '@ionic/angular';
 
 import { TranslateModule } from '@ngx-translate/core';
-import { DevicesModule } from 'src/app/devices/devices.module';
 import {AlarmsComponent} from "./alarms.component";
+import {AlarmAddModalComponent} from "./alarm-add-modal.component";
 
 @NgModule({
   imports: [
@@ -16,8 +16,9 @@ import {AlarmsComponent} from "./alarms.component";
     TranslateModule.forChild(),
   ],
   exports: [
-    AlarmsComponent
+    AlarmsComponent,
+    AlarmAddModalComponent
   ],
-  declarations: [AlarmsComponent]
+  declarations: [AlarmsComponent, AlarmAddModalComponent]
 })
 export class AlarmsModule {}

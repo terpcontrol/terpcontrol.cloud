@@ -54,7 +54,7 @@
       </ion-item>
       <ion-item lines="none">
         <ion-button size="small" fill="clear" (click)="settings.max_temperature = settings.max_temperature - 1" [disabled]="settings.max_temperature <= limits.temperature.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.max_temperature" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1" (ngModelChange)="selectCustomPreset()"></ion-range>
+        <ion-range rangeGuard [(ngModel)]="settings.max_temperature" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1" (ngModelChange)="selectCustomPreset()"></ion-range>
         <ion-button size="small" fill="clear" (click)="settings.max_temperature = settings.max_temperature + 1" [disabled]="settings.max_temperature >= limits.temperature.max"><ion-icon name="add-circle"></ion-icon></ion-button>
       </ion-item>
       <ion-item lines="none">
@@ -62,7 +62,7 @@
         <ion-item lines="none">{{settings.sunrise}} min</ion-item>
       </ion-item>
       <ion-item lines="none">
-        <ion-range min="0" max="60" step="1" [(ngModel)]="settings.sunrise" (ngModelChange)="selectCustomPreset()">
+        <ion-range rangeGuard min="0" max="60" step="1" [(ngModel)]="settings.sunrise" (ngModelChange)="selectCustomPreset()">
           <ion-label slot="start">0min</ion-label>
           <ion-label slot="end">60min</ion-label>
         </ion-range>
@@ -72,7 +72,7 @@
         <ion-item lines="none">{{settings.sunset}} min</ion-item>
       </ion-item>
       <ion-item lines="none">
-        <ion-range min="0" max="60" step="1" [(ngModel)]="settings.sunset" (ngModelChange)="selectCustomPreset()">
+        <ion-range rangeGuard min="0" max="60" step="1" [(ngModel)]="settings.sunset" (ngModelChange)="selectCustomPreset()">
           <ion-label slot="start">0min</ion-label>
           <ion-label slot="end">60min</ion-label>
         </ion-range>
@@ -82,7 +82,7 @@
         <ion-item lines="none">{{settings.limit}} %</ion-item>
       </ion-item>
       <ion-item lines="none">
-        <ion-range min="0" max="100" step="1" [(ngModel)]="settings.limit" (ngModelChange)="selectCustomPreset()">
+        <ion-range rangeGuard min="0" max="100" step="1" [(ngModel)]="settings.limit" (ngModelChange)="selectCustomPreset()">
           <ion-label slot="start">0%</ion-label>
           <ion-label slot="end">100%</ion-label>
         </ion-range>
@@ -90,7 +90,10 @@
     </ion-card-content>
   </ion-card>
 
+  <aux-devices [deviceId]="device_id" [deviceType]="'light'" [cloudSettings]="cloudSettings"></aux-devices>
+
   <cloud-settings [(cloudSettings)]="cloudSettings" [deviceId]="device_id" />
+  <delete-device-row [deviceId]="device_id"></delete-device-row>
 
   <alarms [(alarms)]="alarms" [availableSensorTypes]="['temperature', 'humidity', 'light']" [cloud_settings]="cloudSettings" />
 

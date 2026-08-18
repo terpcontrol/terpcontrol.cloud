@@ -1,0 +1,137 @@
+.assistant {
+  border: 1px solid var(--ion-border-color);
+  border-radius: var(--tc-radius-md);
+  background: var(--tc-surface-subtle);
+  padding: 10px 12px;
+  margin: 4px 0 12px;
+  text-align: left;
+}
+
+.assistant-plan {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.assistant-stage-icon {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+}
+
+:host-context(body.dark) .assistant-stage-icon {
+  filter: invert(0.88);
+}
+
+.assistant-plan-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.assistant-plan-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+
+  .assistant-plan-day {
+    font-weight: 400;
+    color: var(--ion-color-medium);
+    font-size: 0.85rem;
+  }
+}
+
+.assistant-plan-next {
+  color: var(--ion-color-medium);
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+.assistant-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  color: var(--ion-color-warning-shade);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+:host-context(body.dark) .assistant-confirm {
+  color: var(--ion-color-warning);
+}
+
+.assistant-range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+
+  ion-icon {
+    font-size: 14px;
+  }
+}
+
+.assistant-range-hint {
+  color: var(--ion-color-medium);
+  font-size: 0.78rem;
+}
+
+.assistant-tips {
+  ion-item {
+    --background: transparent;
+    --min-height: 36px;
+    font-size: 0.9rem;
+
+    ion-icon {
+      color: var(--ion-color-warning);
+      margin-right: 6px;
+    }
+  }
+}
+
+.assistant-tips-content {
+  padding: 0 12px 10px;
+
+  ul {
+    margin: 0 0 8px;
+    padding-left: 18px;
+    color: var(--ion-text-color);
+    font-size: 0.85rem;
+    line-height: 1.5;
+
+    li {
+      margin-bottom: 4px;
+    }
+  }
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--ion-color-primary);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-decoration: none;
+  }
+}
+
+.assistant-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+
+  .assistant-banner-icon {
+    font-size: 20px;
+    color: var(--ion-color-secondary);
+  }
+
+  .assistant-banner-text {
+    flex: 1;
+    min-width: 160px;
+    font-size: 0.85rem;
+    color: var(--ion-color-medium);
+  }
+}

@@ -1,0 +1,133 @@
+/* The modal delegate wraps the template in a flex-column .ion-page; the
+   host must grow inside it, otherwise ion-content collapses to zero height. */
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.wizard-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.wizard-progress {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.wizard-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ion-color-step-200);
+
+  &.active {
+    background: var(--ion-color-primary);
+  }
+
+  &.completed {
+    background: var(--ion-color-secondary);
+  }
+}
+
+section h2 {
+  margin: 4px 0 6px;
+  font-size: 1.25rem;
+}
+
+.wizard-sub {
+  color: var(--ion-color-medium);
+  margin: 4px 0 14px;
+  line-height: 1.5;
+}
+
+.wizard-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+
+  ion-icon {
+    font-size: 30px;
+    color: var(--ion-color-primary);
+  }
+}
+
+.wizard-durations-title {
+  margin: 18px 0 6px;
+  font-size: 1rem;
+}
+
+.wizard-aux-hint {
+  color: var(--ion-color-medium);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  max-width: 420px;
+  margin: 0 auto 12px;
+}
+
+.wizard-duration-item {
+  --background: transparent;
+
+  ion-input {
+    max-width: 70px;
+    text-align: right;
+  }
+}
+
+.wizard-done .tc-hero {
+  margin-top: 8px;
+}
+
+.wizard-done-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 420px;
+  margin: 14px auto;
+  text-align: left;
+}
+
+.wizard-done-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  p {
+    margin: 0;
+    color: var(--ion-text-color);
+  }
+}
+
+.wizard-socket-status {
+  margin: 10px 0;
+  border: 1px solid rgba(var(--ion-color-secondary-rgb), 0.35);
+  border-radius: 10px;
+  overflow: hidden;
+
+  ion-item {
+    --min-height: 40px;
+  }
+
+  ion-note {
+    font-size: 0.8rem;
+    color: var(--ion-color-secondary);
+  }
+}
+
+.wizard-capability {
+  font-weight: 600;
+}
+
+.wizard-error-detail {
+  font-size: 0.75rem;
+  font-family: monospace;
+  opacity: 0.9;
+  margin: 4px 0 0;
+  word-break: break-all;
+}

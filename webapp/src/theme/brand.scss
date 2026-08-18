@@ -1,0 +1,237 @@
+/*
+ * Terp Control brand look & feel shared across all pages.
+ * All colors come from the tokens in theme/variables.scss so that
+ * dark mode works without page-specific overrides.
+ */
+
+h1, h2, h3, h4, h5, h6,
+ion-card-title,
+ion-title {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+html ion-card {
+  border-radius: var(--tc-radius-md);
+  box-shadow: var(--tc-shadow-sm);
+  border: 1px solid var(--ion-border-color);
+  background: var(--ion-card-background);
+}
+
+html ion-card-title {
+  font-size: 1.15rem;
+  color: var(--ion-text-color);
+}
+
+/* Ionic attaches its shadow styles after the page CSS, so the inherited
+   typography needs !important to win deterministically. */
+html ion-button {
+  --border-radius: var(--tc-radius-sm);
+  font-weight: 600;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+
+html ion-modal {
+  --border-radius: var(--tc-radius-lg);
+}
+
+html ion-popover {
+  --box-shadow: var(--tc-shadow-lg);
+}
+
+html ion-badge {
+  border-radius: 999px;
+  font-weight: 600;
+  padding: 4px 10px;
+}
+
+html ion-segment-button {
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-weight: 600;
+  min-height: 36px;
+}
+
+/* Cards that should lift on hover (device list etc.) — pointer devices only. */
+@media (hover: hover) {
+  .tc-lift {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .tc-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--tc-shadow-md);
+  }
+}
+
+/* Uppercase green section eyebrow, as on terpcontrol.com. */
+.tc-eyebrow {
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ion-color-secondary);
+}
+
+/* Hero panel with the signature green/blue radial halo. */
+.tc-hero {
+  position: relative;
+  border-radius: var(--tc-radius-lg);
+  background: var(--tc-halo), var(--ion-card-background);
+  border: 1px solid var(--ion-border-color);
+  box-shadow: var(--tc-shadow-md);
+  padding: 32px 24px;
+  text-align: center;
+
+  h1, h2 {
+    margin: 8px 0;
+  }
+
+  p {
+    color: var(--ion-color-medium);
+    max-width: 560px;
+    margin: 8px auto;
+    line-height: 1.6;
+  }
+}
+
+/* Dark gradient CTA panel (white text), as on terpcontrol.com. */
+.tc-panel {
+  border-radius: var(--tc-radius-lg);
+  background: var(--tc-gradient-panel);
+  color: #ffffff;
+  padding: 24px;
+  box-shadow: var(--tc-shadow-lg);
+
+  h1, h2, h3 {
+    color: #ffffff;
+  }
+
+  p {
+    color: rgba(255, 255, 255, 0.85);
+  }
+}
+
+/* Numbered circular step badge (blue→green gradient), the ①②③ motif. */
+.tc-step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  background: var(--tc-gradient-step);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+/* Small pill badge with tinted background. */
+.tc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  color: var(--ion-color-primary);
+  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.25);
+  white-space: nowrap;
+}
+
+.tc-pill--green {
+  background: rgba(var(--ion-color-secondary-rgb), 0.12);
+  color: var(--ion-color-secondary-shade);
+  border-color: rgba(var(--ion-color-secondary-rgb), 0.3);
+}
+
+.tc-pill--warning {
+  background: rgba(var(--ion-color-warning-rgb), 0.15);
+  color: var(--ion-color-warning-shade);
+  border-color: rgba(var(--ion-color-warning-rgb), 0.35);
+}
+
+.tc-pill--muted {
+  background: rgba(var(--ion-color-medium-rgb), 0.12);
+  color: var(--ion-color-medium);
+  border-color: rgba(var(--ion-color-medium-rgb), 0.3);
+}
+
+body.dark .tc-pill--green {
+  color: var(--ion-color-secondary);
+}
+
+body.dark .tc-pill--warning {
+  color: var(--ion-color-warning);
+}
+
+/* Selectable preset/option cards (grow stages, wizard choices). */
+.tc-preset-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 10px;
+  border-radius: var(--tc-radius-md);
+  border: 2px solid var(--ion-border-color);
+  background: var(--ion-item-background);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  img {
+    width: 44px;
+    height: 44px;
+  }
+
+  .tc-preset-card__title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    line-height: 1.25;
+  }
+
+  .tc-preset-card__subtitle {
+    font-size: 0.75rem;
+    color: var(--ion-color-medium);
+    line-height: 1.35;
+  }
+
+  &:hover {
+    border-color: rgba(var(--ion-color-secondary-rgb), 0.5);
+  }
+
+  &.active {
+    border-color: var(--ion-color-secondary);
+    background: rgba(var(--ion-color-secondary-rgb), 0.08);
+  }
+}
+
+/* The preset SVGs are black line art — invert them on dark surfaces. */
+body.dark .tc-preset-card img {
+  filter: invert(0.88);
+}
+
+/* Help text under a form control. */
+.tc-field-hint {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--ion-color-medium);
+  line-height: 1.45;
+  padding: 2px 16px 10px;
+}
+
+/* Guarded sliders (see RangeGuardDirective): inert and dimmed until tapped. */
+ion-range.range-guard {
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+ion-range.range-guard-armed {
+  opacity: 1;
+  --knob-box-shadow: 0 0 0 4px rgba(var(--ion-color-secondary-rgb), 0.3);
+}

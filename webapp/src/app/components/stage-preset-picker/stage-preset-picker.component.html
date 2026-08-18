@@ -1,0 +1,19 @@
+<div class="preset-grid">
+  <div
+    *ngFor="let preset of presets"
+    class="tc-preset-card"
+    [class.active]="selected === preset.id"
+    (click)="select(preset.id)"
+  >
+    <img [src]="preset.icon" [alt]="'growPresets.' + preset.id + '.name' | translate" />
+    <span class="tc-preset-card__title">{{ 'growPresets.' + preset.id + '.name' | translate }}</span>
+    <span class="tc-preset-card__subtitle">{{ subtitle(preset) }}</span>
+    <span class="tc-preset-card__subtitle">VPD {{ preset.vpdRange[0] | number: '1.1-1' }}–{{ preset.vpdRange[1] | number: '1.1-1' }} kPa</span>
+  </div>
+
+  <div *ngIf="showCustom" class="tc-preset-card" [class.active]="selected === 'custom'" (click)="select('custom')">
+    <img src="assets/icon/presets/custom.svg" [alt]="'growPresets.custom.name' | translate" />
+    <span class="tc-preset-card__title">{{ 'growPresets.custom.name' | translate }}</span>
+    <span class="tc-preset-card__subtitle">{{ 'growPresets.custom.subtitle' | translate }}</span>
+  </div>
+</div>

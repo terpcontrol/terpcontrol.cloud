@@ -1,0 +1,108 @@
+.device-card {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Single-device dashboard: the one card fills the page more generously. */
+.dashboard-card {
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.add-device-button {
+  display: block;
+  width: max-content;
+  margin: 2px auto 0;
+  color: var(--ion-color-medium);
+}
+
+ion-content {
+  --padding-bottom: 24px;
+}
+
+.list-loading {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+.onboarding-hero {
+  margin: 16px;
+
+  h1 {
+    font-size: 1.6rem;
+  }
+}
+
+.onboarding-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 460px;
+  margin: 18px auto;
+  text-align: left;
+}
+
+.onboarding-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+
+  h4 {
+    margin: 6px 0 2px;
+    font-size: 0.95rem;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.85rem;
+  }
+}
+
+.onboarding-claim {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: 420px;
+  margin: 6px auto 0;
+
+  ion-item {
+    flex: 1;
+    --background: var(--ion-item-background);
+    border: 1px solid var(--ion-border-color);
+    border-radius: var(--tc-radius-sm);
+
+    ion-input {
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      font-weight: 600;
+    }
+  }
+}
+
+.onboarding-help {
+  font-size: 0.85rem;
+  margin-top: 16px;
+
+  a {
+    color: var(--ion-color-primary);
+    font-weight: 600;
+  }
+}
+
+.claim-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+
+  ion-item {
+    flex: 1;
+  }
+}
+
+.wizard-modal {
+  --width: min(680px, 96vw);
+  --height: min(720px, 94vh);
+}

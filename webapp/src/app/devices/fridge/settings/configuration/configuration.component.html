@@ -30,74 +30,57 @@
 
     <ng-container *ngIf="has_daycycle">
       <ng-container *ngIf="settings.daynight.floating">
-        <ion-item *ngIf="has_daycycle && settings.daynight.floating">
-          <ion-label>{{'devices.fridge.settings.day_duration' | translate}}</ion-label>
-          <ion-button size="small" fill="clear" [hidden]="floatingDayDurationEditMode" (click)="floatingDayDurationEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-          <ion-item lines="none">{{settings.daynight.day_duration}} h</ion-item>
-        </ion-item>
-        <ion-item *ngIf="has_daycycle && settings.daynight.floating" [hidden]="!floatingDayDurationEditMode">
-          <ion-button size="small" fill="clear" (click)="settings.daynight.day_duration = settings.daynight.day_duration - 0.25" [disabled]="settings.daynight.day_duration <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.daynight.day_duration" min="0" max="48" step="0.25" (ionChange)="onSettingsChanged()"></ion-range>
-          <ion-button size="small" fill="clear" (click)="settings.daynight.day_duration = settings.daynight.day_duration + 0.25" [disabled]="settings.daynight.day_duration >= 48"><ion-icon name="add-circle"></ion-icon></ion-button>
-        </ion-item>
+        <value-edit-row
+          [label]="'devices.fridge.settings.day_duration' | translate"
+          [display]="settings.daynight.day_duration + ' h'"
+          [(value)]="settings.daynight.day_duration"
+          [min]="0" [max]="48" [step]="0.25"
+          (changed)="onSettingsChanged()"
+        ></value-edit-row>
 
-        <ion-item *ngIf="has_daycycle && settings.daynight.floating">
-          <ion-label>{{'devices.fridge.settings.light_duration' | translate}}</ion-label>
-          <ion-button size="small" fill="clear" [hidden]="floatingLightDurationEditMode" (click)="floatingLightDurationEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-          <ion-item lines="none">{{settings.daynight.light_duration}} h</ion-item>
-        </ion-item>
-        <ion-item *ngIf="has_daycycle && settings.daynight.floating" [hidden]="!floatingLightDurationEditMode">
-          <ion-button size="small" fill="clear" (click)="settings.daynight.light_duration = settings.daynight.light_duration - 0.25" [disabled]="settings.daynight.light_duration <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.daynight.light_duration" min="0" [max]="settings.daynight.day_duration" step="0.25" (ionChange)="onSettingsChanged()"></ion-range>
-          <ion-button size="small" fill="clear" (click)="settings.daynight.light_duration = settings.daynight.light_duration + 0.25" [disabled]="settings.daynight.light_duration >= settings.daynight.day_duration"><ion-icon name="add-circle"></ion-icon></ion-button>
-        </ion-item>
+        <value-edit-row
+          [label]="'devices.fridge.settings.light_duration' | translate"
+          [display]="settings.daynight.light_duration + ' h'"
+          [(value)]="settings.daynight.light_duration"
+          [min]="0" [max]="settings.daynight.day_duration" [step]="0.25"
+          (changed)="onSettingsChanged()"
+        ></value-edit-row>
       </ng-container>
 
       <ng-container *ngIf="!settings.daynight.floating">
-        <ion-item>
-          <ion-label>{{'settings.daybreak' | translate}}</ion-label>
-          <ion-button size="small" fill="clear" [hidden]="daybreakEditMode" (click)="daybreakEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-          <ion-item lines="none">{{secondsToTimeString(settings.daynight.day).substring(11, 16)}}</ion-item>
-        </ion-item>
-        <ion-item [hidden]="!daybreakEditMode">
-          <ion-button size="small" fill="clear" (click)="settings.daynight.day = settings.daynight.day - 900" [disabled]="settings.daynight.day <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.daynight.day" [min]="0" [max]="86400 - 900" [step]="900" (ionChange)="onSettingsChanged()"></ion-range>
-          <ion-button size="small" fill="clear" (click)="settings.daynight.day = settings.daynight.day + 900" [disabled]="settings.daynight.day >= 86400 - 900"><ion-icon name="add-circle"></ion-icon></ion-button>
-        </ion-item>
-        <ion-item>
-          <ion-label>{{'settings.nightfall' | translate}}</ion-label>
-          <ion-button size="small" fill="clear" [hidden]="nightfallEditMode" (click)="nightfallEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-          <ion-item lines="none">{{secondsToTimeString(settings.daynight.night).substring(11, 16)}}</ion-item>
-        </ion-item>
-        <ion-item [hidden]="!nightfallEditMode">
-          <ion-button size="small" fill="clear" (click)="settings.daynight.night = settings.daynight.night - 900" [disabled]="settings.daynight.night <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.daynight.night" [min]="0" [max]="86400 - 900" [step]="900" (ionChange)="onSettingsChanged()"></ion-range>
-          <ion-button size="small" fill="clear" (click)="settings.daynight.night = settings.daynight.night + 900" [disabled]="settings.daynight.night >= 86400 - 900"><ion-icon name="add-circle"></ion-icon></ion-button>
-        </ion-item>
+        <value-edit-row
+          [label]="'settings.daybreak' | translate"
+          [display]="secondsToTimeString(settings.daynight.day).substring(11, 16)"
+          [(value)]="settings.daynight.day"
+          [min]="0" [max]="86400 - 900" [step]="900"
+          (changed)="onSettingsChanged()"
+        ></value-edit-row>
+
+        <value-edit-row
+          [label]="'settings.nightfall' | translate"
+          [display]="secondsToTimeString(settings.daynight.night).substring(11, 16)"
+          [(value)]="settings.daynight.night"
+          [min]="0" [max]="86400 - 900" [step]="900"
+          (changed)="onSettingsChanged()"
+        ></value-edit-row>
       </ng-container>
 
-      <ion-item>
-        <ion-label>{{'settings.dayTemperature' | translate}}</ion-label>
-        <ion-button size="small" fill="clear" [hidden]="dayTempEditMode" (click)="dayTempEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-        <ion-item lines="none">{{settings.day.temperature}} °C</ion-item>
-      </ion-item>
-      <ion-item [hidden]="!dayTempEditMode">
-        <ion-button size="small" fill="clear" (click)="settings.day.temperature = settings.day.temperature - 1" [disabled]="settings.day.temperature <= limits.temperature.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.day.temperature" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1" (ionChange)="onSettingsChanged()"></ion-range>
-        <ion-button size="small" fill="clear" (click)="settings.day.temperature = settings.day.temperature + 1" [disabled]="settings.day.temperature >= limits.temperature.max"><ion-icon name="add-circle"></ion-icon></ion-button>
-      </ion-item>
+      <value-edit-row
+        [label]="'settings.dayTemperature' | translate"
+        [display]="settings.day.temperature + ' °C'"
+        [(value)]="settings.day.temperature"
+        [min]="limits.temperature.min" [max]="limits.temperature.max" [step]="1"
+        (changed)="onSettingsChanged()"
+      ></value-edit-row>
 
       <ng-container *ngIf="has_humidity">
-        <ion-item>
-          <ion-label>{{'settings.dayHumidity' | translate}}</ion-label>
-          <ion-button size="small" fill="clear" [hidden]="dayHumidityEditMode" (click)="dayHumidityEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-          <ion-item lines="none">{{settings.day.humidity}} %</ion-item>
-        </ion-item>
-        <ion-item [hidden]="!dayHumidityEditMode">
-          <ion-button size="small" fill="clear" (click)="settings.day.humidity = settings.day.humidity - 1" [disabled]="settings.day.humidity <= limits.humidity.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.day.humidity" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1" (ionChange)="onSettingsChanged()"></ion-range>
-          <ion-button size="small" fill="clear" (click)="settings.day.humidity = settings.day.humidity + 1" [disabled]="settings.day.humidity >= limits.humidity.max"><ion-icon name="add-circle"></ion-icon></ion-button>
-        </ion-item>
+        <value-edit-row
+          [label]="'settings.dayHumidity' | translate"
+          [display]="settings.day.humidity + ' %'"
+          [(value)]="settings.day.humidity"
+          [min]="limits.humidity.min" [max]="limits.humidity.max" [step]="1"
+          (changed)="onSettingsChanged()"
+        ></value-edit-row>
 
         <ion-item>
           <ion-label>{{ 'settings.dayVpd' | translate }}</ion-label>
@@ -110,28 +93,22 @@
     </ng-container>
 
     <ng-container *ngIf="settings.workmode !== 'off'">
-      <ion-item>
-        <ion-label>{{(has_daycycle ? 'settings.nightTemperature' : 'settings.temperature') | translate}}</ion-label>
-        <ion-button size="small" fill="clear" [hidden]="nightTempEditMode" (click)="nightTempEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-        <ion-item lines="none">{{settings.night.temperature}} °C</ion-item>
-      </ion-item>
-      <ion-item [hidden]="!nightTempEditMode">
-        <ion-button size="small" fill="clear" (click)="settings.night.temperature = settings.night.temperature - 1" [disabled]="settings.night.temperature <= limits.temperature.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.night.temperature" min="{{limits.temperature.min}}" max="{{limits.temperature.max}}" step="1" (ionChange)="onSettingsChanged()"></ion-range>
-        <ion-button size="small" fill="clear" (click)="settings.night.temperature = settings.night.temperature + 1" [disabled]="settings.night.temperature >= limits.temperature.max"><ion-icon name="add-circle"></ion-icon></ion-button>
-      </ion-item>
+      <value-edit-row
+        [label]="(has_daycycle ? 'settings.nightTemperature' : 'settings.temperature') | translate"
+        [display]="settings.night.temperature + ' °C'"
+        [(value)]="settings.night.temperature"
+        [min]="limits.temperature.min" [max]="limits.temperature.max" [step]="1"
+        (changed)="onSettingsChanged()"
+      ></value-edit-row>
 
       <ng-container *ngIf="has_humidity">
-        <ion-item>
-          <ion-label>{{(has_daycycle ? 'settings.nightHumidity' : 'settings.humidity') | translate}}</ion-label>
-          <ion-button size="small" fill="clear" [hidden]="nightHumidityEditMode" (click)="nightHumidityEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-          <ion-item lines="none">{{settings.night.humidity}} %</ion-item>
-        </ion-item>
-        <ion-item [hidden]="!nightHumidityEditMode">
-          <ion-button size="small" fill="clear" (click)="settings.night.humidity = settings.night.humidity - 1" [disabled]="settings.night.humidity <= limits.humidity.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.night.humidity" min="{{limits.humidity.min}}" max="{{limits.humidity.max}}" step="1" (ionChange)="onSettingsChanged()"></ion-range>
-          <ion-button size="small" fill="clear" (click)="settings.night.humidity = settings.night.humidity + 1" [disabled]="settings.night.humidity >= limits.humidity.max"><ion-icon name="add-circle"></ion-icon></ion-button>
-        </ion-item>
+        <value-edit-row
+          [label]="(has_daycycle ? 'settings.nightHumidity' : 'settings.humidity') | translate"
+          [display]="settings.night.humidity + ' %'"
+          [(value)]="settings.night.humidity"
+          [min]="limits.humidity.min" [max]="limits.humidity.max" [step]="1"
+          (changed)="onSettingsChanged()"
+        ></value-edit-row>
 
         <ion-item>
           <ion-label>{{(has_daycycle ? 'settings.nightVpd' : 'settings.vpd') | translate }}</ion-label>
@@ -144,16 +121,13 @@
     </ng-container>
 
     <ng-container *ngIf="has_co2">
-      <ion-item>
-        <ion-label>{{'settings.co2' | translate}}</ion-label>
-        <ion-button size="small" fill="clear" [hidden]="co2EditMode" (click)="co2EditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-        <ion-item lines="none">{{settings.co2.target}} ppm</ion-item>
-      </ion-item>
-      <ion-item [hidden]="!co2EditMode">
-        <ion-button size="small" fill="clear" (click)="settings.co2.target = settings.co2.target - 100" [disabled]="settings.co2.target <= limits.co2.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.co2.target" min="{{limits.co2.min}}" max="{{limits.co2.max}}" step="100" (ionChange)="onSettingsChanged()"></ion-range>
-        <ion-button size="small" fill="clear" (click)="settings.co2.target = settings.co2.target + 100" [disabled]="settings.co2.target >= limits.co2.max"><ion-icon name="add-circle"></ion-icon></ion-button>
-      </ion-item>
+      <value-edit-row
+        [label]="'settings.co2' | translate"
+        [display]="settings.co2.target + ' ppm'"
+        [(value)]="settings.co2.target"
+        [min]="limits.co2.min" [max]="limits.co2.max" [step]="100"
+        (changed)="onSettingsChanged()"
+      ></value-edit-row>
 
       <ion-item>
         <ion-label>{{ 'settings.co2SunsetOff' | translate }}</ion-label>
@@ -162,43 +136,34 @@
     </ng-container>
 
     <ng-container *ngIf="has_daycycle">
-      <ion-item>
-        <ion-label>{{'settings.sunrise' | translate}}:</ion-label>
-        <ion-button size="small" fill="clear" [hidden]="sunriseEditMode" (click)="sunriseEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-        <ion-item lines="none">{{settings.lights.sunrise}} min</ion-item>
-      </ion-item>
-      <ion-item [hidden]="!sunriseEditMode">
-        <ion-button size="small" fill="clear" (click)="settings.lights.sunrise = settings.lights.sunrise - 1" [disabled]="settings.lights.sunrise <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range min="0" max="60" step="1" [(ngModel)]="settings.lights.sunrise" (ionChange)="onSettingsChanged()"></ion-range>
-        <ion-button size="small" fill="clear" (click)="settings.lights.sunrise = settings.lights.sunrise + 1" [disabled]="settings.lights.sunrise >= 60"><ion-icon name="add-circle"></ion-icon></ion-button>
-      </ion-item>
+      <value-edit-row
+        [label]="'settings.sunrise' | translate"
+        [display]="settings.lights.sunrise + ' min'"
+        [(value)]="settings.lights.sunrise"
+        [min]="0" [max]="60" [step]="1"
+        (changed)="onSettingsChanged()"
+      ></value-edit-row>
 
-      <ion-item>
-        <ion-label>{{'settings.sunset' | translate}}:</ion-label>
-        <ion-button size="small" fill="clear" [hidden]="sunsetEditMode" (click)="sunsetEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-        <ion-item lines="none">{{settings.lights.sunset}} min</ion-item>
-      </ion-item>
-      <ion-item [hidden]="!sunsetEditMode">
-        <ion-button size="small" fill="clear" (click)="settings.lights.sunset = settings.lights.sunset - 1" [disabled]="settings.lights.sunset <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range min="0" max="60" step="1" [(ngModel)]="settings.lights.sunset" (ionChange)="onSettingsChanged()"></ion-range>
-        <ion-button size="small" fill="clear" (click)="settings.lights.sunset = settings.lights.sunset + 1" [disabled]="settings.lights.sunset >= 60"><ion-icon name="add-circle"></ion-icon></ion-button>
-      </ion-item>
+      <value-edit-row
+        [label]="'settings.sunset' | translate"
+        [display]="settings.lights.sunset + ' min'"
+        [(value)]="settings.lights.sunset"
+        [min]="0" [max]="60" [step]="1"
+        (changed)="onSettingsChanged()"
+      ></value-edit-row>
 
       <ion-item>
         <ion-label>{{'settings.daynightLinearChange' | translate}}</ion-label>
         <ion-checkbox [(ngModel)]="settings.daynight.linearChange" (ionChange)="onSettingsChanged()">{{'settings.daynightLinearChange' | translate}}</ion-checkbox>
       </ion-item>
 
-      <ion-item>
-        <ion-label>{{'settings.lightlimit' | translate}}:</ion-label>
-        <ion-button size="small" fill="clear" [hidden]="maxLightEditMode" (click)="maxLightEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-        <ion-item lines="none">{{settings.lights.limit}} %</ion-item>
-      </ion-item>
-      <ion-item [hidden]="!maxLightEditMode">
-        <ion-button size="small" fill="clear" (click)="settings.lights.limit = settings.lights.limit - 1" [disabled]="settings.lights.limit <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range min="0" max="100" step="1" [(ngModel)]="settings.lights.limit" (ionChange)="onSettingsChanged()"></ion-range>
-        <ion-button size="small" fill="clear" (click)="settings.lights.limit = settings.lights.limit + 1" [disabled]="settings.lights.limit >= 100"><ion-icon name="add-circle"></ion-icon></ion-button>
-      </ion-item>
+      <value-edit-row
+        [label]="'settings.lightlimit' | translate"
+        [display]="settings.lights.limit + ' %'"
+        [(value)]="settings.lights.limit"
+        [min]="0" [max]="100" [step]="1"
+        (changed)="onSettingsChanged()"
+      ></value-edit-row>
     </ng-container>
 
     <ion-item>
@@ -207,50 +172,42 @@
     </ion-item>
 
     <ng-container *ngIf="settings.workmode !== 'off' && deviceType !== 'controller'">
-      <ion-item>
-        <ion-label>{{'settings.externalfan' | translate}}</ion-label>
-        <ion-button size="small" fill="clear" [hidden]="externalFanEditMode" (click)="externalFanEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-        <ion-item lines="none">{{settings.externalfan}} %</ion-item>
-      </ion-item>
-      <ion-item [hidden]="!externalFanEditMode">
-        <ion-button size="small" fill="clear" (click)="settings.externalfan = settings.externalfan - 1" [disabled]="settings.externalfan <= 0"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.externalfan" min="0" max="100" step="1" (ionChange)="onSettingsChanged()"></ion-range>
-        <ion-button size="small" fill="clear" (click)="settings.externalfan = settings.externalfan + 1" [disabled]="settings.externalfan >= 100"><ion-icon name="add-circle"></ion-icon></ion-button>
-      </ion-item>
+      <value-edit-row
+        [label]="'settings.externalfan' | translate"
+        [display]="settings.externalfan + ' %'"
+        [(value)]="settings.externalfan"
+        [min]="0" [max]="100" [step]="1"
+        (changed)="onSettingsChanged()"
+      ></value-edit-row>
 
-      <ion-item>
-        <ion-label>{{'settings.internalfan' | translate}}</ion-label>
-        <ion-button size="small" fill="clear" [hidden]="internalFanEditMode" (click)="internalFanEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-        <ion-item lines="none">{{settings.internalfan}} %</ion-item>
-      </ion-item>
-      <ion-item [hidden]="!internalFanEditMode">
-        <ion-button size="small" fill="clear" (click)="settings.internalfan = settings.internalfan - 1" [disabled]="settings.internalfan <= 10"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.internalfan" min="10" max="100" step="1" (ionChange)="onSettingsChanged()"></ion-range>
-        <ion-button size="small" fill="clear" (click)="settings.internalfan = settings.internalfan + 1" [disabled]="settings.internalfan >= 100"><ion-icon name="add-circle"></ion-icon></ion-button>
-      </ion-item>
+      <value-edit-row
+        [label]="'settings.internalfan' | translate"
+        [display]="settings.internalfan + ' %'"
+        [(value)]="settings.internalfan"
+        [min]="10" [max]="100" [step]="1"
+        (changed)="onSettingsChanged()"
+      ></value-edit-row>
     </ng-container>
 
     <ng-container *ngIf="has_humidity">
-      <ion-item>
-        <ion-label>{{'settings.maxDehumidifySeconds' | translate}}</ion-label>
-        <ion-button size="small" fill="clear" [hidden]="maxDehumidifySecondsEditMode" (click)="maxDehumidifySecondsEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-        <ion-item lines="none">{{ settings.daynight.maxDehumidifySeconds > 0 ? settings.daynight.maxDehumidifySeconds + ' s' : 'forever' }}</ion-item>
-      </ion-item>
-      <ion-item [hidden]="!maxDehumidifySecondsEditMode">
-        <ion-button size="small" fill="clear" (click)="settings.daynight.maxDehumidifySeconds = settings.daynight.maxDehumidifySeconds - 10" [disabled]="settings.daynight.maxDehumidifySeconds <= cloudSettings?.betaFeatures ? limits.maxDehumidifySeconds.betaMin : limits.maxDehumidifySeconds.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.daynight.maxDehumidifySeconds" [min]="cloudSettings?.betaFeatures ? limits.maxDehumidifySeconds.betaMin : limits.maxDehumidifySeconds.min" [max]="cloudSettings?.betaFeatures ? limits.maxDehumidifySeconds.betaMax : limits.maxDehumidifySeconds.max" step="10" (ionChange)="onSettingsChanged()"></ion-range>
-        <ion-button size="small" fill="clear" (click)="settings.daynight.maxDehumidifySeconds = settings.daynight.maxDehumidifySeconds + 10" [disabled]="settings.daynight.maxDehumidifySeconds >= cloudSettings?.betaFeatures ? limits.maxDehumidifySeconds.betaMax : limits.maxDehumidifySeconds.max"><ion-icon name="add-circle"></ion-icon></ion-button>
-      </ion-item>
-      <ion-item>
-        <ion-label>{{'settings.targetHumidityDiff' | translate}}</ion-label>
-        <ion-button size="small" fill="clear" [hidden]="targetHumidityDiffEditMode" (click)="targetHumidityDiffEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-        <ion-item lines="none">{{(settings.daynight.targetHumidityDiff > 0 ? '+' : '') + settings.daynight.targetHumidityDiff}} %</ion-item>
-      </ion-item>
-      <ion-item [hidden]="!targetHumidityDiffEditMode">
-        <ion-button size="small" fill="clear" (click)="settings.daynight.targetHumidityDiff = settings.daynight.targetHumidityDiff - 1" [disabled]="settings.daynight.targetHumidityDiff <= -10"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.daynight.targetHumidityDiff" min="-10" max="10" step="1" (ionChange)="onSettingsChanged()"></ion-range>
-        <ion-button size="small" fill="clear" (click)="settings.daynight.targetHumidityDiff = settings.daynight.targetHumidityDiff + 1" [disabled]="settings.daynight.targetHumidityDiff >= 10"><ion-icon name="add-circle"></ion-icon></ion-button>
-      </ion-item>
+      <value-edit-row
+        [label]="'settings.maxDehumidifySeconds' | translate"
+        [display]="settings.daynight.maxDehumidifySeconds > 0 ? settings.daynight.maxDehumidifySeconds + ' s' : ('settings.forever' | translate)"
+        [(value)]="settings.daynight.maxDehumidifySeconds"
+        [min]="cloudSettings?.betaFeatures ? limits.maxDehumidifySeconds.betaMin : limits.maxDehumidifySeconds.min"
+        [max]="cloudSettings?.betaFeatures ? limits.maxDehumidifySeconds.betaMax : limits.maxDehumidifySeconds.max"
+        [step]="10"
+        (changed)="onSettingsChanged()"
+      ></value-edit-row>
+
+      <value-edit-row
+        [label]="'settings.targetHumidityDiff' | translate"
+        [display]="(settings.daynight.targetHumidityDiff > 0 ? '+' : '') + settings.daynight.targetHumidityDiff + ' %'"
+        [(value)]="settings.daynight.targetHumidityDiff"
+        [min]="-10" [max]="10" [step]="1"
+        (changed)="onSettingsChanged()"
+      ></value-edit-row>
+
       <ion-item>
         <ion-label>{{'settings.useLongHumidityAvg' | translate}}</ion-label>
         <ion-checkbox [(ngModel)]="settings.daynight.useLongHumidityAvg" (ionChange)="onSettingsChanged()">{{'settings.useLongHumidityAvg' | translate}}</ion-checkbox>
@@ -258,28 +215,16 @@
     </ng-container>
 
     <ng-container *ngIf="settings.workmode !== 'off'">
-      <ion-item>
-        <ion-label>
-          {{'settings.minimalDehumidifierOffTime' | translate}}
-          <ion-button fill="clear" id="settings-minimalDehumidifierOffTime-popover">
-            <ion-icon name="help-circle-outline"></ion-icon>
-          </ion-button>
-        </ion-label>
-        <ion-button size="small" fill="clear" [hidden]="minimalDehumidifierOffTimeEditMode" (click)="minimalDehumidifierOffTimeEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-        <ion-item lines="none">{{settings.daynight.minimalDehumidifierOffTime}} s</ion-item>
-        <ion-popover trigger="settings-minimalDehumidifierOffTime-popover" [dismissOnSelect]="true">
-          <ng-template>
-            <ion-content class="ion-padding">
-              {{'settings.minimalDehumidifierOffTimeHint' | translate}}
-            </ion-content>
-          </ng-template>
-        </ion-popover>
-      </ion-item>
-      <ion-item [hidden]="!minimalDehumidifierOffTimeEditMode">
-        <ion-button size="small" fill="clear" (click)="settings.daynight.minimalDehumidifierOffTime = settings.daynight.minimalDehumidifierOffTime - 10" [disabled]="settings.daynight.minimalDehumidifierOffTime <= (cloudSettings?.betaFeatures ? limits.minimalDehumidifierOffTime.betaMin : limits.minimalDehumidifierOffTime.min)"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.daynight.minimalDehumidifierOffTime" [min]="cloudSettings?.betaFeatures ? limits.minimalDehumidifierOffTime.betaMin : limits.minimalDehumidifierOffTime.min" [max]="cloudSettings?.betaFeatures ? limits.minimalDehumidifierOffTime.betaMax : limits.minimalDehumidifierOffTime.max" step="10" (ionChange)="onSettingsChanged()"></ion-range>
-        <ion-button size="small" fill="clear" (click)="settings.daynight.minimalDehumidifierOffTime = settings.daynight.minimalDehumidifierOffTime + 10" [disabled]="settings.daynight.minimalDehumidifierOffTime >= cloudSettings?.betaFeatures ? limits.minimalDehumidifierOffTime.betaMax : limits.minimalDehumidifierOffTime.max"><ion-icon name="add-circle"></ion-icon></ion-button>
-      </ion-item>
+      <value-edit-row
+        [label]="'settings.minimalDehumidifierOffTime' | translate"
+        [display]="settings.daynight.minimalDehumidifierOffTime + ' s'"
+        [(value)]="settings.daynight.minimalDehumidifierOffTime"
+        [min]="cloudSettings?.betaFeatures ? limits.minimalDehumidifierOffTime.betaMin : limits.minimalDehumidifierOffTime.min"
+        [max]="cloudSettings?.betaFeatures ? limits.minimalDehumidifierOffTime.betaMax : limits.minimalDehumidifierOffTime.max"
+        [step]="10"
+        helpKey="settings.minimalDehumidifierOffTimeHint"
+        (changed)="onSettingsChanged()"
+      ></value-edit-row>
       <ion-item *ngIf="cloudSettings?.betaFeatures && settings.daynight.minimalDehumidifierOffTime < limits.minimalDehumidifierOffTime.min" color="warning">
         <ion-icon name="warning-outline" slot="start"></ion-icon>
         <ion-label class="ion-text-wrap">{{'settings.minimalDehumidifierOffTimeWarning' | translate}}</ion-label>
@@ -290,86 +235,41 @@
          so it is controlled by hysteresis rather than a duty cycle. The other
          devices drive their heater directly and do not expose these. -->
     <ng-container *ngIf="settings.workmode !== 'off' && deviceType === 'controller'">
-      <ion-item>
-        <ion-label>
-          {{'settings.heaterHysteresis' | translate}}
-          <ion-button fill="clear" id="settings-heaterHysteresis-popover">
-            <ion-icon name="help-circle-outline"></ion-icon>
-          </ion-button>
-        </ion-label>
-        <ion-button size="small" fill="clear" [hidden]="heaterHysteresisEditMode" (click)="heaterHysteresisEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-        <ion-item lines="none">{{settings.heater.hysteresis}} °C</ion-item>
-        <ion-popover trigger="settings-heaterHysteresis-popover" [dismissOnSelect]="true">
-          <ng-template>
-            <ion-content class="ion-padding">
-              {{'settings.heaterHysteresisHint' | translate}}
-            </ion-content>
-          </ng-template>
-        </ion-popover>
-      </ion-item>
-      <ion-item [hidden]="!heaterHysteresisEditMode">
-        <ion-button size="small" fill="clear" (click)="settings.heater.hysteresis = stepValue(settings.heater.hysteresis, -0.1, limits.heaterHysteresis)" [disabled]="settings.heater.hysteresis <= limits.heaterHysteresis.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.heater.hysteresis" [min]="limits.heaterHysteresis.min" [max]="limits.heaterHysteresis.max" step="0.1" (ionChange)="onSettingsChanged()"></ion-range>
-        <ion-button size="small" fill="clear" (click)="settings.heater.hysteresis = stepValue(settings.heater.hysteresis, 0.1, limits.heaterHysteresis)" [disabled]="settings.heater.hysteresis >= limits.heaterHysteresis.max"><ion-icon name="add-circle"></ion-icon></ion-button>
-      </ion-item>
+      <value-edit-row
+        [label]="'settings.heaterHysteresis' | translate"
+        [display]="settings.heater.hysteresis + ' °C'"
+        [(value)]="settings.heater.hysteresis"
+        [min]="limits.heaterHysteresis.min" [max]="limits.heaterHysteresis.max" [step]="0.1"
+        helpKey="settings.heaterHysteresisHint"
+        (changed)="onSettingsChanged()"
+      ></value-edit-row>
 
-      <ion-item>
-        <ion-label>
-          {{'settings.heaterMinOnTime' | translate}}
-          <ion-button fill="clear" id="settings-heaterMinOnTime-popover">
-            <ion-icon name="help-circle-outline"></ion-icon>
-          </ion-button>
-        </ion-label>
-        <ion-button size="small" fill="clear" [hidden]="heaterMinOnTimeEditMode" (click)="heaterMinOnTimeEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-        <ion-item lines="none">{{settings.heater.minOnTime}} s</ion-item>
-        <ion-popover trigger="settings-heaterMinOnTime-popover" [dismissOnSelect]="true">
-          <ng-template>
-            <ion-content class="ion-padding">
-              {{'settings.heaterDwellHint' | translate}}
-            </ion-content>
-          </ng-template>
-        </ion-popover>
-      </ion-item>
-      <ion-item [hidden]="!heaterMinOnTimeEditMode">
-        <ion-button size="small" fill="clear" (click)="settings.heater.minOnTime = settings.heater.minOnTime - 10" [disabled]="settings.heater.minOnTime <= limits.heaterMinOnTime.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.heater.minOnTime" [min]="limits.heaterMinOnTime.min" [max]="limits.heaterMinOnTime.max" step="10" (ionChange)="onSettingsChanged()"></ion-range>
-        <ion-button size="small" fill="clear" (click)="settings.heater.minOnTime = settings.heater.minOnTime + 10" [disabled]="settings.heater.minOnTime >= limits.heaterMinOnTime.max"><ion-icon name="add-circle"></ion-icon></ion-button>
-      </ion-item>
+      <value-edit-row
+        [label]="'settings.heaterMinOnTime' | translate"
+        [display]="settings.heater.minOnTime + ' s'"
+        [(value)]="settings.heater.minOnTime"
+        [min]="limits.heaterMinOnTime.min" [max]="limits.heaterMinOnTime.max" [step]="10"
+        helpKey="settings.heaterDwellHint"
+        (changed)="onSettingsChanged()"
+      ></value-edit-row>
 
-      <ion-item>
-        <ion-label>{{'settings.heaterMinOffTime' | translate}}</ion-label>
-        <ion-button size="small" fill="clear" [hidden]="heaterMinOffTimeEditMode" (click)="heaterMinOffTimeEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-        <ion-item lines="none">{{settings.heater.minOffTime}} s</ion-item>
-      </ion-item>
-      <ion-item [hidden]="!heaterMinOffTimeEditMode">
-        <ion-button size="small" fill="clear" (click)="settings.heater.minOffTime = settings.heater.minOffTime - 10" [disabled]="settings.heater.minOffTime <= limits.heaterMinOffTime.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-        <ion-range [(ngModel)]="settings.heater.minOffTime" [min]="limits.heaterMinOffTime.min" [max]="limits.heaterMinOffTime.max" step="10" (ionChange)="onSettingsChanged()"></ion-range>
-        <ion-button size="small" fill="clear" (click)="settings.heater.minOffTime = settings.heater.minOffTime + 10" [disabled]="settings.heater.minOffTime >= limits.heaterMinOffTime.max"><ion-icon name="add-circle"></ion-icon></ion-button>
-      </ion-item>
+      <value-edit-row
+        [label]="'settings.heaterMinOffTime' | translate"
+        [display]="settings.heater.minOffTime + ' s'"
+        [(value)]="settings.heater.minOffTime"
+        [min]="limits.heaterMinOffTime.min" [max]="limits.heaterMinOffTime.max" [step]="10"
+        (changed)="onSettingsChanged()"
+      ></value-edit-row>
 
       <ng-container *ngIf="has_humidity">
-        <ion-item>
-          <ion-label>
-            {{'settings.heaterDehumidifyLimit' | translate}}
-            <ion-button fill="clear" id="settings-heaterDehumidifyLimit-popover">
-              <ion-icon name="help-circle-outline"></ion-icon>
-            </ion-button>
-          </ion-label>
-          <ion-button size="small" fill="clear" [hidden]="heaterDehumidifyLimitEditMode" (click)="heaterDehumidifyLimitEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-          <ion-item lines="none">-{{settings.heater.dehumidifyLimit}} °C</ion-item>
-          <ion-popover trigger="settings-heaterDehumidifyLimit-popover" [dismissOnSelect]="true">
-            <ng-template>
-              <ion-content class="ion-padding">
-                {{'settings.heaterDehumidifyLimitHint' | translate}}
-              </ion-content>
-            </ng-template>
-          </ion-popover>
-        </ion-item>
-        <ion-item [hidden]="!heaterDehumidifyLimitEditMode">
-          <ion-button size="small" fill="clear" (click)="settings.heater.dehumidifyLimit = stepValue(settings.heater.dehumidifyLimit, -0.5, limits.heaterDehumidifyLimit)" [disabled]="settings.heater.dehumidifyLimit <= limits.heaterDehumidifyLimit.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-          <ion-range [(ngModel)]="settings.heater.dehumidifyLimit" [min]="limits.heaterDehumidifyLimit.min" [max]="limits.heaterDehumidifyLimit.max" step="0.5" (ionChange)="onSettingsChanged()"></ion-range>
-          <ion-button size="small" fill="clear" (click)="settings.heater.dehumidifyLimit = stepValue(settings.heater.dehumidifyLimit, 0.5, limits.heaterDehumidifyLimit)" [disabled]="settings.heater.dehumidifyLimit >= limits.heaterDehumidifyLimit.max"><ion-icon name="add-circle"></ion-icon></ion-button>
-        </ion-item>
+        <value-edit-row
+          [label]="'settings.heaterDehumidifyLimit' | translate"
+          [display]="'-' + settings.heater.dehumidifyLimit + ' °C'"
+          [(value)]="settings.heater.dehumidifyLimit"
+          [min]="limits.heaterDehumidifyLimit.min" [max]="limits.heaterDehumidifyLimit.max" [step]="0.5"
+          helpKey="settings.heaterDehumidifyLimitHint"
+          (changed)="onSettingsChanged()"
+        ></value-edit-row>
 
         <ion-item>
           <ion-label class="ion-text-wrap">{{ 'settings.heaterDehumidifyAssist' | translate }}</ion-label>
@@ -378,33 +278,17 @@
 
         <!-- Only meaningful while assisting is enabled: it shifts the assist
              band above the point where the fridge stops dehumidifying. -->
-        <ng-container *ngIf="settings.heater.dehumidifyAssist">
-          <ion-item>
-            <ion-label>
-              {{'settings.heaterAssistLead' | translate}}
-              <ion-button fill="clear" id="settings-heaterAssistLead-popover">
-                <ion-icon name="help-circle-outline"></ion-icon>
-              </ion-button>
-            </ion-label>
-            <ion-button size="small" fill="clear" [hidden]="heaterAssistLeadEditMode" (click)="heaterAssistLeadEditMode = true">{{'settings.edit-value' | translate}}</ion-button>
-            <ion-item lines="none">{{settings.heater.assistLead}} °C</ion-item>
-            <ion-popover trigger="settings-heaterAssistLead-popover" [dismissOnSelect]="true">
-              <ng-template>
-                <ion-content class="ion-padding">
-                  {{'settings.heaterAssistLeadHint' | translate}}
-                </ion-content>
-              </ng-template>
-            </ion-popover>
-          </ion-item>
-          <ion-item [hidden]="!heaterAssistLeadEditMode">
-            <ion-button size="small" fill="clear" (click)="settings.heater.assistLead = stepValue(settings.heater.assistLead, -0.1, limits.heaterAssistLead)" [disabled]="settings.heater.assistLead <= limits.heaterAssistLead.min"><ion-icon name="remove-circle"></ion-icon></ion-button>
-            <ion-range [(ngModel)]="settings.heater.assistLead" [min]="limits.heaterAssistLead.min" [max]="limits.heaterAssistLead.max" step="0.1" (ionChange)="onSettingsChanged()"></ion-range>
-            <ion-button size="small" fill="clear" (click)="settings.heater.assistLead = stepValue(settings.heater.assistLead, 0.1, limits.heaterAssistLead)" [disabled]="settings.heater.assistLead >= limits.heaterAssistLead.max"><ion-icon name="add-circle"></ion-icon></ion-button>
-          </ion-item>
-        </ng-container>
+        <value-edit-row
+          *ngIf="settings.heater.dehumidifyAssist"
+          [label]="'settings.heaterAssistLead' | translate"
+          [display]="settings.heater.assistLead + ' °C'"
+          [(value)]="settings.heater.assistLead"
+          [min]="limits.heaterAssistLead.min" [max]="limits.heaterAssistLead.max" [step]="0.1"
+          helpKey="settings.heaterAssistLeadHint"
+          (changed)="onSettingsChanged()"
+        ></value-edit-row>
       </ng-container>
     </ng-container>
 
   </ion-card-content>
 </ion-card>
-

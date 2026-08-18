@@ -1,0 +1,36 @@
+.alarms-empty {
+  color: var(--ion-color-medium);
+  font-size: 0.9rem;
+  margin: 0 0 10px;
+}
+
+.alarm-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+
+  .alarm-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+
+    &.disabled {
+      opacity: 0.5;
+    }
+  }
+
+  .alarm-name {
+    font-weight: 600;
+    font-size: 0.92rem;
+  }
+
+  .alarm-summary {
+    color: var(--ion-color-medium);
+    font-size: 0.8rem;
+  }
+
+  ion-button {
+    margin: 0;
+  }
+}

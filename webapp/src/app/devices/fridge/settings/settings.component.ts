@@ -1,11 +1,14 @@
 import {Component, Input, OnDestroy, OnInit} from '@angular/core';
 import {ActivatedRoute, Router} from '@angular/router';
+import {TranslateService} from '@ngx-translate/core';
 import {DataService} from 'src/app/services/data.service';
-import {DeviceService} from 'src/app/services/devices.service';
+import {DeviceService, DeviceWithParsedSettings} from 'src/app/services/devices.service';
 import {AlertController, AlertInput, ToastController} from "@ionic/angular";
 import {RecipeService} from 'src/app/services/recipe.service';
 import {alarm} from "ionicons/icons";
 import {calculateVpd} from "../../../util/calculateVpd";
+import {deviceHasCo2} from "src/app/util/grow-presets";
+import {EXPERT_MODE_STORAGE_KEY} from "src/app/util/ui-mode";
 
 @Component({
   selector: 'fridge-settings',
@@ -16,6 +19,7 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
   @Input() device_id:string = "";
   @Input() hardwareInfo: Record<string, string> | undefined;
   @Input() deviceType: string = "";
+  @Input() lastseen: number | undefined;
 
   public deviceSettings: any = {};
   public alarms:any = [];
@@ -23,6 +27,10 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
   public offset:number;
   public settingsmode: 'manual' | 'recipe' = 'manual';
   public recipe:any = { steps: [] };
+
+  public uiMode: 'simple' | 'expert' = localStorage.getItem(EXPERT_MODE_STORAGE_KEY) === 'true' ? 'expert' : 'simple';
+  public planWizardOpen = false;
+  public deviceForWizard: DeviceWithParsedSettings | null = null;
 
 
   // timer used to refresh remaining time every second
@@ -46,11 +54,18 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
     private toastController: ToastController,
     private alertController: AlertController,
     private recipes: RecipeService,
+    private translate: TranslateService,
   ) {
     this.offset = new Date().getTimezoneOffset()*60;
   }
 
   async ngOnInit() {
+    await this.loadAll();
+  }
+
+  private async loadAll() {
+    this.loading = true;
+    this.errorLoading = false;
     try {
       this.alarms = await this.devices.getAlarms(this.device_id);
       this.alarms?.forEach((alarm: any) => {
@@ -72,6 +87,9 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
       if (this.recipe.activeSince > 0) {
         this.startTimer();
         this.settingsmode = 'recipe';
+      } else {
+        this.stopTimer();
+        this.settingsmode = 'manual';
       }
     }
     catch(error) {
@@ -80,6 +98,70 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
     } finally {
       this.loading = false;
     }
+  }
+
+  onUiModeChange() {
+    localStorage.setItem(EXPERT_MODE_STORAGE_KEY, this.uiMode === 'expert' ? 'true' : 'false');
+  }
+
+  /** Simple mode: stop the running plan and continue editing its targets manually. */
+  onStopPlanRequested() {
+    const activeStep = this.recipe?.steps?.[this.recipe.activeStepIndex];
+    if (activeStep?.settings) {
+      this.deviceSettings = JSON.parse(JSON.stringify(activeStep.settings));
+    }
+    this.setRunning(false);
+    this.settingsmode = 'manual';
+  }
+
+  /** Simple mode: end the running phase now — confirm, then advance like a step confirmation. */
+  async onSkipStepRequested() {
+    const steps = this.recipe?.steps ?? [];
+    const hasNext = this.recipe.activeStepIndex < steps.length - 1;
+    const next = hasNext ? steps[this.recipe.activeStepIndex + 1] : (this.recipe.loop ? steps[0] : null);
+    const nextName = next ? this.stepDisplayName(next) : '';
+    const message = next
+      ? (nextName
+        ? this.translate.instant('simpleSettings.plan.skipConfirmNext', { name: nextName })
+        : this.translate.instant('simpleSettings.plan.skipConfirmNextGeneric'))
+      : this.translate.instant('simpleSettings.plan.skipConfirmEnd');
+
+    const alert = await this.alertController.create({
+      header: this.translate.instant('simpleSettings.plan.skipConfirmTitle'),
+      message,
+      buttons: [
+        { text: this.translate.instant('misc.cancel'), role: 'cancel' },
+        { text: this.translate.instant('simpleSettings.plan.skipConfirmButton'), role: 'destructive' },
+      ],
+    });
+    await alert.present();
+    const { role } = await alert.onDidDismiss();
+    if (role === 'destructive') {
+      this.confirmCurrentStep();
+    }
+  }
+
+  /** Step name for dialogs — custom name first, else the translated stage. */
+  private stepDisplayName(step: any): string {
+    if (step?.name) {
+      return step.name;
+    }
+    const stages = ['seedling', 'vegetative', 'flowering', 'drying'];
+    return stages.includes(step?.stage) ? this.translate.instant('growPresets.stages.' + step.stage) : '';
+  }
+
+  openPlanWizard() {
+    this.deviceForWizard = this.devices.devices.getValue().find(device => device.device_id === this.device_id) ?? null;
+    if (this.deviceForWizard) {
+      this.planWizardOpen = true;
+    }
+  }
+
+  async onPlanWizardClosed() {
+    this.planWizardOpen = false;
+    this.deviceForWizard = null;
+    // The wizard saves settings/recipe itself; reload so this page shows them.
+    await this.loadAll();
   }
 
   async saveSettings() {
@@ -551,6 +633,19 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
   getVpd(temperatureAir: number, temperatureLeaf: number, humidity: number): number {
     return calculateVpd(temperatureAir, temperatureLeaf, humidity);
   }
+
+  get deviceHasCo2Sensor(): boolean {
+    return deviceHasCo2({ device_type: this.deviceType, hardwareInfo: this.hardwareInfo });
+  }
+
+  /** Stage of the running plan's active step (stage-aware alarm presets). */
+  get activePlanStage(): string | null {
+    if (!(this.recipe?.activeSince > 0)) {
+      return null;
+    }
+    return this.recipe?.steps?.[this.recipe.activeStepIndex]?.stage ?? null;
+  }
+
 }
 
 export const msToDuration = (milliSeconds: number): string => {

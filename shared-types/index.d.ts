@@ -31,6 +31,14 @@ export interface FirmwareSettings {
 
 export type FirmwareChannel = 'stable' | 'beta' | 'alpha' | 'manual';
 
+/**
+ * Which camera the webcam stream URL was built for. 'terp_cam' is the Terp
+ * Control Cam (URL reported by the device via hardware-info after local
+ * pairing); brand values are RTSP URL templates; 'custom' is a raw URL.
+ * Only a presentation hint — the stream itself is always cloudSettings.rtspStream.
+ */
+export type WebcamModel = 'terp_cam' | 'tapo_c200' | 'reolink' | 'hikvision' | 'custom';
+
 export interface CloudSettings {
   /** @deprecated Use firmwareChannel: 'manual' to disable automatic updates. Kept for reading legacy devices. */
   autoFirmwareUpdate?: boolean;
@@ -45,6 +53,7 @@ export interface CloudSettings {
   logRtspStreamErrors?: boolean;
   tunnelRtspStream?: boolean;
   maintenanceWebcamOff?: boolean;
+  webcamModel?: WebcamModel;
 }
 
 export interface UserFirmwareInfo {
@@ -130,6 +139,8 @@ export interface RecipeStep {
   confirmationMessage?: string;
   lastTimeApplied?: number;
   notified?: boolean;
+  /** Grow lifecycle stage this step represents; lets the app label steps and log diary stage transitions. */
+  stage?: DiaryLifecycleStage;
 }
 
 export interface Recipe {
@@ -252,3 +263,14 @@ export type RecipeTemplate = {
   updatedAt?: number;
   steps: RecipeTemplateStep[];
 };
+
+export interface ChartPreset {
+  preset_id: string;
+  owner_id?: string;
+  name: string;
+  /** Device type the preset was saved from; informational only. */
+  device_type?: string;
+  /** Query string capturing the chart view (measures, timespan, interval, vpdMode). */
+  query: string;
+  createdAt: number;
+}

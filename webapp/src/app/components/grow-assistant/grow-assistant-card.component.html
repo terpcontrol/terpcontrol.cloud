@@ -1,0 +1,68 @@
+<div class="assistant" *ngIf="planRunning || rangeAvailable || showBanner">
+
+  <!-- Running plan summary -->
+  <div class="assistant-plan" *ngIf="planRunning">
+    <img class="assistant-stage-icon" [src]="stageIcon" alt=""/>
+    <div class="assistant-plan-info">
+      <div class="assistant-plan-title">
+        {{ stageLabelKey | translate }}
+        <span class="assistant-plan-day">· {{ 'simpleSettings.plan.dayOf' | translate: { day: dayInStage, total: stageDurationDays } }}</span>
+      </div>
+      <ion-progress-bar [value]="stageProgress" color="secondary"></ion-progress-bar>
+      <div class="assistant-plan-next" *ngIf="nextStepName && !waitingForConfirmation">
+        {{ 'simpleSettings.plan.next' | translate: { name: nextStepName } }}
+      </div>
+      <a class="assistant-confirm" *ngIf="waitingForConfirmation" [routerLink]="['/device', device_id, 'settings']">
+        <ion-icon name="warning-outline"></ion-icon>
+        {{ 'assistant.confirmationPending' | translate }}
+      </a>
+    </div>
+  </div>
+
+  <!-- Live range check -->
+  <div class="assistant-range" *ngIf="rangeAvailable">
+    <ng-container *ngIf="deviations.length === 0">
+      <span class="tc-pill tc-pill--green">
+        <ion-icon name="checkmark-circle-outline"></ion-icon>
+        {{ 'assistant.allGood' | translate }}
+      </span>
+    </ng-container>
+    <ng-container *ngIf="deviations.length > 0">
+      <span class="tc-pill tc-pill--warning" *ngFor="let deviation of deviations">
+        <ion-icon name="alert-circle-outline"></ion-icon>
+        {{ 'assistant.deviation.' + deviation.measure + '.' + deviation.direction | translate: { current: deviation.current, target: deviation.targetValue } }}
+      </span>
+      <span class="assistant-range-hint" *ngIf="isReference">{{ 'assistant.deviationMonitorHint' | translate }}</span>
+    </ng-container>
+  </div>
+
+  <!-- Stage tips + matching chart view -->
+  <ion-accordion-group class="assistant-tips" *ngIf="showTips">
+    <ion-accordion toggle-icon-slot="end" value="tips">
+      <ion-item slot="header" lines="none">
+        <ion-icon slot="start" name="bulb-outline"></ion-icon>
+        <ion-label>{{ 'assistant.tipsTitle' | translate }}</ion-label>
+      </ion-item>
+      <div slot="content" class="assistant-tips-content">
+        <ul>
+          <li *ngFor="let n of tipIndexes">{{ 'assistant.tips.' + stage + '.' + n | translate }}</li>
+        </ul>
+        <a [routerLink]="['/device', device_id, 'charts']" [queryParams]="chartQueryParams">
+          <ion-icon name="stats-chart-outline"></ion-icon>
+          {{ 'assistant.matchingChart' | translate }}
+        </a>
+      </div>
+    </ion-accordion>
+  </ion-accordion-group>
+
+  <!-- No plan yet: suggest one -->
+  <div class="assistant-banner" *ngIf="showBanner">
+    <ion-icon name="calendar-outline" class="assistant-banner-icon"></ion-icon>
+    <span class="assistant-banner-text">{{ 'assistant.bannerText' | translate }}</span>
+    <ion-button size="small" color="secondary" (click)="startPlan.emit()">{{ 'simpleSettings.startPlan' | translate }}</ion-button>
+    <ion-button size="small" fill="clear" color="medium" (click)="dismiss()" [title]="'misc.close' | translate">
+      <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+    </ion-button>
+  </div>
+
+</div>

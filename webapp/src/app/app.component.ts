@@ -3,6 +3,7 @@ import { AuthService } from './auth/auth.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { ThemeService } from './services/theme.service';
+import { PwaInstallService } from './services/pwa-install.service';
 
 
 @Component({
@@ -22,10 +23,13 @@ export class AppComponent {
   ];
   public appPages:any = [];
   public authenticated = false;
+  /** Fallback instructions when the browser offers no install prompt (e.g. iOS). */
+  public installHelpOpen = false;
 
   constructor(
     public auth: AuthService,
     public theme: ThemeService,
+    public pwa: PwaInstallService,
     private _router: Router,
     private _route: ActivatedRoute,
     private translate: TranslateService
@@ -54,6 +58,13 @@ export class AppComponent {
     })
 
     this.initTranslate();
+  }
+
+  async installApp() {
+    if (await this.pwa.promptInstall()) {
+      return;
+    }
+    this.installHelpOpen = true;
   }
 
   private initTranslate() {

@@ -15,12 +15,14 @@ import validateEnv from '@utils/validateEnv';
 import MqttAuthRoute from './routes/mqttauth.route';
 import DataRoute from './routes/data.route';
 import ShareRoute from './routes/share.route';
+import ChartPresetRoute from './routes/chartpreset.route';
 
 validateEnv();
 
 const app = new App([
   new DataRoute(),
   new ShareRoute(),
+  new ChartPresetRoute(),
   new MqttAuthRoute(),
   new DeviceRoute(),
   new ImageRoute(),

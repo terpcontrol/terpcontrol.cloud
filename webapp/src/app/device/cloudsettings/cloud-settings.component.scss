@@ -3,7 +3,7 @@
   max-height: 300px;
   object-fit: contain;
   margin: 8px 0;
-  border-radius: 4px;
+  border-radius: var(--tc-radius-sm);
 }
 
 .rtsp-stream-test-error {

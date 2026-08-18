@@ -1,0 +1,63 @@
+<ion-item
+  button
+  detail="false"
+  lines="none"
+  class="ver-row"
+  [disabled]="disabled"
+  (click)="toggleEditing()"
+  [attr.aria-expanded]="editing"
+  [attr.aria-label]="label + ': ' + displayText + '. ' + ('settings.edit-value' | translate)"
+>
+  <ion-label class="ion-text-wrap ver-label">
+    {{ label }}
+    <ion-button
+      *ngIf="helpKey"
+      fill="clear"
+      size="small"
+      [id]="helpTriggerId"
+      (click)="$event.stopPropagation()"
+      [attr.aria-label]="'misc.help' | translate"
+    >
+      <ion-icon slot="icon-only" name="help-circle-outline" aria-hidden="true"></ion-icon>
+    </ion-button>
+  </ion-label>
+  <span slot="end" class="ver-value" [class.editing]="editing" aria-hidden="true">
+    {{ displayText }}
+    <ion-icon name="create-outline"></ion-icon>
+  </span>
+</ion-item>
+
+<ion-popover *ngIf="helpKey" [trigger]="helpTriggerId" [dismissOnSelect]="true">
+  <ng-template>
+    <ion-content class="ion-padding">{{ helpKey | translate }}</ion-content>
+  </ng-template>
+</ion-popover>
+
+<div class="ver-editor" *ngIf="editing" role="group" [attr.aria-label]="label">
+  <ion-button
+    size="small"
+    fill="clear"
+    (click)="stepBy(-1)"
+    [disabled]="value <= min"
+    [attr.aria-label]="label + ': ' + ('misc.decrease' | translate)"
+  >
+    <ion-icon slot="icon-only" name="remove-circle" aria-hidden="true"></ion-icon>
+  </ion-button>
+  <ion-range
+    [min]="min"
+    [max]="max"
+    [step]="step"
+    [ngModel]="value"
+    (ngModelChange)="onRangeChange($event)"
+    [attr.aria-label]="label"
+  ></ion-range>
+  <ion-button
+    size="small"
+    fill="clear"
+    (click)="stepBy(1)"
+    [disabled]="value >= max"
+    [attr.aria-label]="label + ': ' + ('misc.increase' | translate)"
+  >
+    <ion-icon slot="icon-only" name="add-circle" aria-hidden="true"></ion-icon>
+  </ion-button>
+</div>

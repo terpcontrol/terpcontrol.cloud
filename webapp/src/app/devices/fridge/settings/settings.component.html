@@ -17,7 +17,39 @@
     </div>
   </div>
 
-  <ion-card>
+  <div class="ui-mode-switch">
+    <ion-segment [(ngModel)]="uiMode" (ionChange)="onUiModeChange()">
+      <ion-segment-button value="simple">
+        <ion-label>{{'simpleSettings.modeSimple' | translate}}</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="expert">
+        <ion-label>{{'simpleSettings.modeExpert' | translate}}</ion-label>
+      </ion-segment-button>
+    </ion-segment>
+  </div>
+
+  <fridge-simple-settings
+    *ngIf="uiMode === 'simple'"
+    [(deviceSettings)]="deviceSettings"
+    [recipe]="recipe"
+    [cloudSettings]="cloudSettings"
+    [deviceType]="deviceType"
+    [hardwareInfo]="hardwareInfo"
+    (stopPlanRequested)="onStopPlanRequested()"
+    (confirmStepRequested)="confirmCurrentStep()"
+    (skipStepRequested)="onSkipStepRequested()"
+    (startPlanRequested)="openPlanWizard()"
+  ></fridge-simple-settings>
+
+  <simple-alarms-card
+    *ngIf="uiMode === 'simple' && !loading"
+    [(alarms)]="alarms"
+    [deviceType]="deviceType"
+    [hasCo2]="deviceHasCo2Sensor"
+    [stage]="activePlanStage"
+  ></simple-alarms-card>
+
+  <ion-card *ngIf="uiMode === 'expert'">
     <ion-card-header>
       <ion-card-title>{{'devices.fridge.settingsmode' | translate}}</ion-card-title>
     </ion-card-header>
@@ -45,7 +77,7 @@
     </ion-card-content>
   </ion-card>
 
-  <ion-card *ngIf="settingsmode === 'recipe'">
+  <ion-card *ngIf="uiMode === 'expert' && settingsmode === 'recipe'">
     <ion-card-header>
       <ion-card-title> {{'devices.fridge.recipe.title' + (recipe.activeSince > 0 ? '-active' : '-inactive') | translate}}</ion-card-title>
     </ion-card-header>
@@ -150,9 +182,10 @@
             </ion-label>
           </ion-item>
           <div class="ion-padding" slot="content">
+            <!-- Stacked labels: side-by-side label+input runs out of space on phones. -->
             <ion-item lines="none">
-              <ion-label>{{'devices.fridge.recipe.step.name' | translate}}</ion-label>
-              <ion-input type="text" [(ngModel)]="step.name" class="ion-text-right"></ion-input>
+              <ion-label position="stacked">{{'devices.fridge.recipe.step.name' | translate}}</ion-label>
+              <ion-input type="text" [(ngModel)]="step.name"></ion-input>
             </ion-item>
 
             <ion-item lines="none">
@@ -161,14 +194,14 @@
             </ion-item>
 
             <ion-item lines="none" [hidden]="!step.waitForConfirmation">
-              <ion-label>{{'devices.fridge.recipe.step.confirmationMessage' | translate}}</ion-label>
-              <ion-input type="text" [(ngModel)]="step.confirmationMessage" class="ion-text-right"></ion-input>
+              <ion-label position="stacked">{{'devices.fridge.recipe.step.confirmationMessage' | translate}}</ion-label>
+              <ion-input type="text" [(ngModel)]="step.confirmationMessage"></ion-input>
             </ion-item>
 
             <ion-item lines="none">
               <ion-label>{{'devices.fridge.recipe.step.duration' | translate}}</ion-label>
-              <ion-input type="number" [(ngModel)]="step.duration" class="ion-text-right"></ion-input>
-              <ion-select [(ngModel)]="step.durationUnit" class="ion-text-right" style="width: 100px; margin-left: 10px;">
+              <ion-input type="number" [(ngModel)]="step.duration" class="ion-text-right" [attr.aria-label]="'devices.fridge.recipe.step.duration' | translate"></ion-input>
+              <ion-select [(ngModel)]="step.durationUnit" class="ion-text-right" style="width: 100px; margin-left: 10px;" [attr.aria-label]="'devices.fridge.recipe.step.duration' | translate">
                 <ion-select-option value="minutes">{{'devices.fridge.recipe.step.durationUnit.minutes' | translate}}</ion-select-option>
                 <ion-select-option value="hours">{{'devices.fridge.recipe.step.durationUnit.hours' | translate}}</ion-select-option>
                 <ion-select-option value="days">{{'devices.fridge.recipe.step.durationUnit.days' | translate}}</ion-select-option>
@@ -229,11 +262,22 @@
     </ion-card-content>
   </ion-card>
 
-  <fridge-settings-config *ngIf="settingsmode === 'manual'" [(deviceSettings)]="deviceSettings" [cloudSettings]="cloudSettings" [deviceType]="deviceType" />
+  <fridge-settings-config *ngIf="uiMode === 'expert' && settingsmode === 'manual'" [(deviceSettings)]="deviceSettings" [cloudSettings]="cloudSettings" [deviceType]="deviceType" />
 
-  <cloud-settings [(cloudSettings)]="cloudSettings" [deviceId]="device_id" [hardwareInfo]="hardwareInfo" />
+  <aux-devices
+    *ngIf="!loading"
+    [deviceId]="device_id"
+    [deviceType]="deviceType"
+    [cloudSettings]="cloudSettings"
+    [hardwareInfo]="hardwareInfo"
+    [lastseen]="lastseen"
+  ></aux-devices>
 
-  <alarms [(alarms)]="alarms" [availableSensorTypes]="['temperature', 'humidity', 'co2', 'co2_valve', 'light', 'dehumidifier', 'heater']" [cloud_settings]="cloudSettings" />
+  <ng-container *ngIf="uiMode === 'expert'">
+    <cloud-settings [(cloudSettings)]="cloudSettings" [deviceId]="device_id" [hardwareInfo]="hardwareInfo" />
+
+    <alarms [(alarms)]="alarms" [availableSensorTypes]="['temperature', 'humidity', 'co2', 'co2_valve', 'light', 'dehumidifier', 'heater']" [cloud_settings]="cloudSettings" [deviceType]="deviceType" [hasCo2]="deviceHasCo2Sensor" [stage]="activePlanStage" />
+  </ng-container>
 
   <ion-card *ngIf="errorSaving">
     <ion-card-header>
@@ -248,7 +292,7 @@
     <ion-card-content>
       <ion-text *ngIf="settingsmode === 'recipe' && !(recipe.activeSince > 0)">
         <ion-icon name="warning" color="warning"></ion-icon>
-        Please start the recipe
+        {{'devices.fridge.recipe.pleaseStart' | translate}}
         <br/>
       </ion-text>
 
@@ -262,5 +306,14 @@
 
     </ion-card-content>
   </ion-card>
+
+  <!-- One shared delete action for both modes. -->
+  <delete-device-row [deviceId]="device_id"></delete-device-row>
+
+  <ion-modal [isOpen]="planWizardOpen" (willDismiss)="onPlanWizardClosed()" [backdropDismiss]="false" class="wizard-modal">
+    <ng-template>
+      <setup-wizard *ngIf="deviceForWizard" [device]="deviceForWizard" [startAt]="'stage'" (closed)="onPlanWizardClosed()"></setup-wizard>
+    </ng-template>
+  </ion-modal>
 
 </ng-container>

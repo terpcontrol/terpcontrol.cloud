@@ -1,0 +1,228 @@
+<ion-card *ngIf="isReference" class="reference-banner">
+  <ion-card-content>
+    <ion-icon name="eye-outline"></ion-icon>
+    {{ (isMonitor ? 'simpleSettings.referenceBannerMonitor' : 'simpleSettings.referenceBannerLightOnly') | translate }}
+  </ion-card-content>
+</ion-card>
+
+<!-- Running grow plan -->
+<ion-card *ngIf="planRunning" class="plan-card">
+  <ion-card-header>
+    <ion-card-title>
+      <img *ngIf="activeStep?.stage" class="plan-stage-icon" [src]="'assets/icon/presets/' + (activeStep.stage === 'vegetative' ? 'vegetation' : activeStep.stage === 'flowering' ? 'flower' : activeStep.stage) + '.svg'" alt=""/>
+      {{ stageTitleKey ? (stageTitleKey! | translate) : (activeStep?.name || ('simpleSettings.plan.title' | translate)) }}
+    </ion-card-title>
+  </ion-card-header>
+  <ion-card-content>
+    <p class="plan-day">{{ 'simpleSettings.plan.dayOf' | translate: { day: dayInStage, total: stageDurationDays } }}</p>
+    <ion-progress-bar [value]="stageProgress" color="secondary"></ion-progress-bar>
+
+    <div class="plan-current-duration" *ngIf="activeStep">
+      <span class="plan-current-duration-label">{{ 'simpleSettings.plan.currentDuration' | translate }}</span>
+      <ng-container
+        [ngTemplateOutlet]="durationEditor"
+        [ngTemplateOutletContext]="{ step: activeStep, index: recipe.activeStepIndex, min: activeStepMinDuration, name: ('simpleSettings.plan.currentDuration' | translate) }"
+      ></ng-container>
+    </div>
+
+    <p class="plan-next" *ngIf="nextStep">{{ 'simpleSettings.plan.next' | translate: { name: nextStep.name } }}</p>
+
+    <div class="plan-upcoming" *ngIf="upcomingSteps.length > 0">
+      <p class="plan-upcoming-title">{{ 'simpleSettings.plan.upcomingTitle' | translate }}</p>
+      <div class="plan-upcoming-row" *ngFor="let item of upcomingSteps; trackBy: trackByStepIndex">
+        <img *ngIf="stageIconFor(item.step)" [src]="stageIconFor(item.step)!" alt=""/>
+        <div class="plan-upcoming-info">
+          <span class="plan-upcoming-name">{{ item.step.name }}</span>
+          <span class="plan-upcoming-eta">
+            {{ 'simpleSettings.plan.upcomingFrom' | translate: { date: (stepStartEta(item.index) | date: 'mediumDate') } }}
+          </span>
+        </div>
+        <ng-container
+          [ngTemplateOutlet]="durationEditor"
+          [ngTemplateOutletContext]="{ step: item.step, index: item.index, min: 1, name: item.step.name || '' }"
+        ></ng-container>
+      </div>
+      <p class="plan-upcoming-hint">{{ 'simpleSettings.plan.upcomingHint' | translate }}</p>
+    </div>
+
+    <ion-item *ngIf="waitingForConfirmation" lines="none" class="plan-confirm">
+      <ion-icon slot="start" name="warning-outline" color="warning"></ion-icon>
+      <ion-label class="ion-text-wrap">{{ activeStep?.confirmationMessage || ('devices.fridge.recipe.waitingForConfirmation' | translate) }}</ion-label>
+    </ion-item>
+    <ion-button *ngIf="waitingForConfirmation" expand="block" color="warning" (click)="confirmStepRequested.emit()">
+      {{ 'devices.fridge.recipe.confirmStep' | translate }}
+    </ion-button>
+
+    <p class="plan-hint">{{ 'simpleSettings.plan.editHint' | translate }}</p>
+    <div class="plan-actions">
+      <ion-button *ngIf="!waitingForConfirmation" size="small" fill="outline" class="plan-skip" (click)="skipStepRequested.emit()">
+        {{ 'simpleSettings.plan.skip' | translate }}
+      </ion-button>
+      <ion-button size="small" fill="outline" color="danger" (click)="stopPlanRequested.emit()">
+        {{ 'simpleSettings.plan.stop' | translate }}
+      </ion-button>
+    </div>
+  </ion-card-content>
+</ion-card>
+
+<!-- Duration pill + steppers, shared by the current phase and upcoming steps. -->
+<ng-template #durationEditor let-step="step" let-index="index" let-min="min" let-name="name">
+  <ion-button
+    *ngIf="editingDurationIndex === index"
+    size="small"
+    fill="clear"
+    (click)="adjustStepDuration(step, -1, min)"
+    [attr.aria-label]="name + ': ' + ('misc.decrease' | translate)"
+  >
+    <ion-icon slot="icon-only" name="remove-outline" aria-hidden="true"></ion-icon>
+  </ion-button>
+  <button
+    type="button"
+    class="field-value"
+    [class.editing]="editingDurationIndex === index"
+    (click)="toggleDurationEdit(index)"
+    [attr.aria-expanded]="editingDurationIndex === index"
+    [attr.aria-label]="name + ': ' + step.duration + ' ' + ('devices.fridge.recipe.step.durationUnit.' + (step.durationUnit || 'days') | translate) + '. ' + ('settings.edit-value' | translate)"
+  >
+    {{ step.duration }} {{ 'devices.fridge.recipe.step.durationUnit.' + (step.durationUnit || 'days') | translate }}
+    <ion-icon name="create-outline" aria-hidden="true"></ion-icon>
+  </button>
+  <ion-button
+    *ngIf="editingDurationIndex === index"
+    size="small"
+    fill="clear"
+    (click)="adjustStepDuration(step, 1, min)"
+    [attr.aria-label]="name + ': ' + ('misc.increase' | translate)"
+  >
+    <ion-icon slot="icon-only" name="add-outline" aria-hidden="true"></ion-icon>
+  </ion-button>
+</ng-template>
+
+<!-- No plan: stage presets -->
+<ion-card *ngIf="!planRunning">
+  <ion-card-header>
+    <ion-card-title>{{ 'simpleSettings.stageTitle' | translate }}</ion-card-title>
+  </ion-card-header>
+  <ion-card-content>
+    <p class="section-hint">{{ (isReference ? 'simpleSettings.stageTextReference' : 'simpleSettings.stageText') | translate }}</p>
+    <stage-preset-picker [selected]="activePreset" [showCustom]="true" (selectedChange)="selectPreset($event)"></stage-preset-picker>
+
+    <ion-button expand="block" fill="outline" color="secondary" class="plan-start" (click)="startPlanRequested.emit()">
+      <ion-icon slot="start" name="calendar-outline"></ion-icon>
+      {{ 'simpleSettings.startPlan' | translate }}
+    </ion-button>
+  </ion-card-content>
+</ion-card>
+
+<!-- Essential targets -->
+<ion-card>
+  <ion-card-header>
+    <ion-card-title>{{ (isReference ? 'simpleSettings.targetsTitleReference' : 'simpleSettings.targetsTitle') | translate }}</ion-card-title>
+  </ion-card-header>
+  <ion-card-content *ngIf="!isOff; else offNote">
+
+    <!-- Light rhythm -->
+    <ng-container *ngIf="hasDaycycle">
+      <h3 class="group-title">{{ 'simpleSettings.light.title' | translate }}
+        <ion-button fill="clear" size="small" id="hint-light"><ion-icon name="help-circle-outline"></ion-icon></ion-button>
+        <ion-popover trigger="hint-light" [dismissOnSelect]="true">
+          <ng-template><ion-content class="ion-padding">{{ (isMonitor ? 'simpleSettings.light.hintMonitor' : 'simpleSettings.light.hint') | translate }}</ion-content></ng-template>
+        </ion-popover>
+      </h3>
+
+      <div *ngIf="floatingDayActive" class="section-hint">{{ 'simpleSettings.light.floatingNote' | translate }}</div>
+
+      <ng-container *ngIf="!floatingDayActive">
+        <ion-item lines="none">
+          <ion-label>{{ 'simpleSettings.light.start' | translate }}</ion-label>
+          <ion-select [ngModel]="lightStart" (ngModelChange)="onLightStartChange($event)">
+            <ion-select-option *ngFor="let time of lightStartOptions" [value]="time">{{ time }}</ion-select-option>
+          </ion-select>
+        </ion-item>
+        <ion-item lines="none">
+          <ion-label>{{ 'simpleSettings.light.duration' | translate }}</ion-label>
+          <ion-select [ngModel]="lightHours" (ngModelChange)="onLightHoursChange($event)">
+            <ion-select-option *ngFor="let h of lightDurations" [value]="h">{{ h }} h</ion-select-option>
+            <ion-select-option *ngIf="!lightDurations.includes(lightHours)" [value]="lightHours">{{ lightHours }} h</ion-select-option>
+          </ion-select>
+        </ion-item>
+        <div class="section-hint">{{ 'simpleSettings.light.scheduleText' | translate }}</div>
+      </ng-container>
+
+      <ng-container *ngIf="!isMonitor && target?.lights">
+        <value-edit-row
+          [label]="'simpleSettings.light.intensity' | translate"
+          [display]="target.lights.limit + ' %'"
+          [(value)]="target.lights.limit"
+          [min]="0" [max]="100" [step]="1"
+        ></value-edit-row>
+        <div class="section-hint">{{ 'simpleSettings.light.intensityHint' | translate }}</div>
+      </ng-container>
+    </ng-container>
+
+    <!-- Day targets -->
+    <ng-container *ngIf="hasDaycycle && target?.day">
+      <h3 class="group-title">{{ 'simpleSettings.day.title' | translate }}</h3>
+      <value-edit-row
+        [label]="'simpleSettings.temperature' | translate"
+        [display]="target.day.temperature + ' °C'"
+        [(value)]="target.day.temperature"
+        [min]="limits.temperature.min" [max]="limits.temperature.max" [step]="1"
+      ></value-edit-row>
+      <ng-container *ngIf="hasHumidity">
+        <value-edit-row
+          [label]="'simpleSettings.humidity' | translate"
+          [display]="target.day.humidity + ' %'"
+          [(value)]="target.day.humidity"
+          [min]="limits.humidity.min" [max]="limits.humidity.max" [step]="1"
+        ></value-edit-row>
+        <div class="section-hint">{{ 'settings.vpdPreview' | translate: { vpd: getDayVpd() | number: '1.2-2', humidity: target.day.humidity } }}</div>
+      </ng-container>
+    </ng-container>
+
+    <!-- Night / single targets -->
+    <ng-container *ngIf="target?.night">
+      <h3 class="group-title">{{ (hasDaycycle ? 'simpleSettings.night.title' : 'simpleSettings.climate.title') | translate }}</h3>
+      <value-edit-row
+        [label]="'simpleSettings.temperature' | translate"
+        [display]="target.night.temperature + ' °C'"
+        [(value)]="target.night.temperature"
+        [min]="limits.temperature.min" [max]="limits.temperature.max" [step]="1"
+      ></value-edit-row>
+      <ng-container *ngIf="hasHumidity">
+        <value-edit-row
+          [label]="'simpleSettings.humidity' | translate"
+          [display]="target.night.humidity + ' %'"
+          [(value)]="target.night.humidity"
+          [min]="limits.humidity.min" [max]="limits.humidity.max" [step]="1"
+        ></value-edit-row>
+        <div class="section-hint">{{ 'settings.vpdPreview' | translate: { vpd: getNightVpd() | number: '1.2-2', humidity: target.night.humidity } }}</div>
+      </ng-container>
+    </ng-container>
+
+    <!-- CO2 -->
+    <ng-container *ngIf="hasCo2 && target?.co2">
+      <h3 class="group-title">{{ 'simpleSettings.co2.title' | translate }}
+        <ion-button fill="clear" size="small" id="hint-co2"><ion-icon name="help-circle-outline"></ion-icon></ion-button>
+        <ion-popover trigger="hint-co2" [dismissOnSelect]="true">
+          <ng-template><ion-content class="ion-padding">{{ 'simpleSettings.co2.hint' | translate }}</ion-content></ng-template>
+        </ion-popover>
+      </h3>
+      <value-edit-row
+        [label]="'simpleSettings.co2.target' | translate"
+        [display]="target.co2.target + ' ppm'"
+        [(value)]="target.co2.target"
+        [min]="limits.co2.min" [max]="limits.co2.max" [step]="100"
+      ></value-edit-row>
+      <div class="section-hint">{{ 'simpleSettings.co2.text' | translate }}</div>
+    </ng-container>
+
+    <p class="expert-hint">{{ 'simpleSettings.expertHint' | translate }}</p>
+  </ion-card-content>
+
+  <ng-template #offNote>
+    <ion-card-content>
+      <p class="section-hint">{{ 'simpleSettings.deviceOff' | translate }}</p>
+    </ion-card-content>
+  </ng-template>
+</ion-card>
