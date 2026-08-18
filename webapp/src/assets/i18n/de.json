@@ -247,6 +247,7 @@
     "changePassword": "Passwort ändern",
     "acceptPrivacyBefore": "Ich akzeptiere die",
     "acceptPrivacyLink": "Datenschutzbedingungen",
+    "privacyTitle": "Datenschutzbedingungen",
     "legacy": {
       "toggle": "Du kommst von der alten Fridge Grow 2.0 / Plantalytix Cloud?",
       "intro": "So verbindest du dein bestehendes Modul mit der Terp Control Cloud:"
