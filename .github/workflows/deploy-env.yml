@@ -1,16 +1,18 @@
 name: Deploy to environment
 
 # Reusable deploy used by deploy.yml for both staging and production. Everything
-# environment-specific comes from repository variables: production uses the
-# unsuffixed names, staging the "_STAGING" ones, falling back to the production
-# value for anything staging does not define. Deploy and firmware upload share a
-# single job so a protected environment only asks for one approval per run.
+# environment-specific comes from the GitHub environment named by the
+# "environment" input - DEPLOY_HOST, DEPLOY_USER, DEPLOY_PATH,
+# TERPCONTROL_ENV_FILE and COMPOSE_OPTIONS as environment variables, plus the
+# SSH_PRIVATE_KEY secret - so the same job body serves every environment.
+# Deploy and firmware upload share a single job so a protected environment only
+# asks for one approval per run.
 
 on:
   workflow_call:
     inputs:
       environment:
-        description: 'staging or production'
+        description: 'Name of the GitHub environment holding the deployment variables'
         required: true
         type: string
       description:
@@ -42,101 +44,47 @@ jobs:
     concurrency:
       group: deploy-${{ inputs.environment }}
       cancel-in-progress: false
+    env:
+      ENVIRONMENT: ${{ inputs.environment }}
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+      TERPCONTROL_ENV_FILE: ${{ vars.TERPCONTROL_ENV_FILE }}
+      COMPOSE_OPTIONS: ${{ vars.COMPOSE_OPTIONS }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Resolve deployment target
-        env:
-          ENVIRONMENT: ${{ inputs.environment }}
-          PROD_HOST: ${{ vars.DEPLOY_HOST }}
-          PROD_USER: ${{ vars.DEPLOY_USER }}
-          PROD_PATH: ${{ vars.DEPLOY_PATH }}
-          PROD_ENV_FILE: ${{ vars.TERPCONTROL_ENV_FILE }}
-          PROD_COMPOSE_OPTIONS: ${{ vars.COMPOSE_OPTIONS }}
-          STAGING_HOST: ${{ vars.DEPLOY_HOST_STAGING }}
-          STAGING_USER: ${{ vars.DEPLOY_USER_STAGING }}
-          STAGING_PATH: ${{ vars.DEPLOY_PATH_STAGING }}
-          STAGING_ENV_FILE: ${{ vars.TERPCONTROL_ENV_FILE_STAGING }}
-          STAGING_COMPOSE_OPTIONS: ${{ vars.COMPOSE_OPTIONS_STAGING }}
+      - name: Check deployment variables
         run: |
           set -euo pipefail
 
-          case "${ENVIRONMENT}" in
-            production)
-              HOST="${PROD_HOST}"; DUSER="${PROD_USER}"; DPATH="${PROD_PATH}"
-              ENV_FILE="${PROD_ENV_FILE}"
-              COMPOSE_OPTIONS="${PROD_COMPOSE_OPTIONS}"
-              ;;
-            staging)
-              HOST="${STAGING_HOST:-${PROD_HOST}}"
-              DUSER="${STAGING_USER:-${PROD_USER}}"
-              DPATH="${STAGING_PATH:-${PROD_PATH}}"
-              ENV_FILE="${STAGING_ENV_FILE}"
-              # No fallback to the production options: they select which stack
-              # compose talks to, so inheriting them would aim staging at it.
-              COMPOSE_OPTIONS="${STAGING_COMPOSE_OPTIONS}"
-              if [ -z "${ENV_FILE}" ]; then
-                echo "TERPCONTROL_ENV_FILE_STAGING is not set - refusing to deploy staging" >&2
-                exit 1
-              fi
-              ;;
-            *)
-              echo "Unknown environment '${ENVIRONMENT}'" >&2
-              exit 1
-              ;;
-          esac
-
-          if [ -z "${HOST}" ] || [ -z "${DUSER}" ] || [ -z "${DPATH}" ]; then
-            echo "Incomplete deployment variables for '${ENVIRONMENT}'" >&2
+          MISSING=""
+          [ -n "${DEPLOY_HOST}" ] || MISSING="${MISSING} DEPLOY_HOST"
+          [ -n "${DEPLOY_USER}" ] || MISSING="${MISSING} DEPLOY_USER"
+          [ -n "${DEPLOY_PATH}" ] || MISSING="${MISSING} DEPLOY_PATH"
+          if [ -n "${MISSING}" ]; then
+            echo "Not set on the '${ENVIRONMENT}' environment:${MISSING}" >&2
             exit 1
           fi
-
-          # A staging deploy that resolves to the production host, path *and*
-          # env file is a production deploy in disguise.
-          if [ "${ENVIRONMENT}" = "staging" ] \
-            && [ "${HOST}" = "${PROD_HOST}" ] \
-            && [ "${DPATH}" = "${PROD_PATH}" ] \
-            && [ "${ENV_FILE}" = "${PROD_ENV_FILE}" ]; then
-            echo "Staging resolves to the production host, path and env file" >&2
-            exit 1
-          fi
-          if [ "${ENVIRONMENT}" = "staging" ] \
-            && [ "${HOST}" = "${PROD_HOST}" ] && [ "${DPATH}" = "${PROD_PATH}" ]; then
-            echo "::warning::Staging shares the production checkout at ${HOST}:${DPATH}; rsync overwrites the files production restarts from on its next deploy."
-          fi
-
-          {
-            echo "DEPLOY_HOST=${HOST}"
-            echo "DEPLOY_USER=${DUSER}"
-            echo "DEPLOY_PATH=${DPATH}"
-            echo "TERPCONTROL_ENV_FILE=${ENV_FILE}"
-            echo "COMPOSE_OPTIONS=${COMPOSE_OPTIONS}"
-          } >> "$GITHUB_ENV"
 
           {
             echo "### Deploy to ${ENVIRONMENT}"
             echo ""
-            echo "- host: \`${DUSER}@${HOST}\`"
-            echo "- path: \`${DPATH}\`"
-            echo "- env file: \`${ENV_FILE}\`"
+            echo "- host: \`${DEPLOY_USER}@${DEPLOY_HOST}\`"
+            echo "- path: \`${DEPLOY_PATH}\`"
+            echo "- env file: \`${TERPCONTROL_ENV_FILE:-(none)}\`"
             echo "- compose options: \`${COMPOSE_OPTIONS:-(none)}\`"
             echo "- ref: \`${GITHUB_REF_NAME}\` (\`${GITHUB_SHA}\`)"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Configure SSH
         env:
-          ENVIRONMENT: ${{ inputs.environment }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SSH_PRIVATE_KEY_STAGING: ${{ secrets.SSH_PRIVATE_KEY_STAGING }}
         run: |
           set -euo pipefail
-          KEY="$SSH_PRIVATE_KEY"
-          if [ "${ENVIRONMENT}" = "staging" ] && [ -n "${SSH_PRIVATE_KEY_STAGING}" ]; then
-            KEY="$SSH_PRIVATE_KEY_STAGING"
-          fi
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          printf '%s\n' "$KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
           chmod 644 ~/.ssh/known_hosts
