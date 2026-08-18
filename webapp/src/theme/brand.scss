@@ -23,6 +23,47 @@ html ion-card-title {
   color: var(--ion-text-color);
 }
 
+/* Status cards (`color="danger"`, `color="success"`, …) used for errors and
+   confirmations. Ionic fills them with the solid brand color and switches the
+   text to that color's contrast tone, but the card background above keeps the
+   neutral surface — which would leave the contrast text unreadable. Give them
+   a tinted surface with an accent edge and the regular text color instead, so
+   they carry the same signal and stay legible in both themes. The color has to
+   sit on the card itself: Ionic's `.ion-inherit-color` rule on the header,
+   title and content beats any element-level rule here. */
+html ion-card.ion-color {
+  background: rgba(var(--ion-color-base-rgb), 0.12);
+  border-color: rgba(var(--ion-color-base-rgb), 0.4);
+  border-left: 4px solid var(--ion-color-base);
+  color: var(--ion-text-color);
+}
+
+/* Inline status text (`<ion-text color="danger">` and friends) sits on a page
+   or card surface, where the fill colors are too pale to read. */
+html ion-text.ion-color-danger {
+  color: var(--tc-text-danger);
+}
+
+html ion-text.ion-color-warning {
+  color: var(--tc-text-warning);
+}
+
+.tc-text-danger {
+  color: var(--tc-text-danger);
+}
+
+.tc-text-warning {
+  color: var(--tc-text-warning);
+}
+
+.tc-text-success {
+  color: var(--tc-text-success);
+}
+
+.tc-text-info {
+  color: var(--tc-text-info);
+}
+
 /* Ionic attaches its shadow styles after the page CSS, so the inherited
    typography needs !important to win deterministically. */
 html ion-button {
@@ -72,7 +113,7 @@ html ion-segment-button {
   letter-spacing: 0.12em;
   font-size: 0.78rem;
   font-weight: 700;
-  color: var(--ion-color-secondary);
+  color: var(--tc-text-success);
 }
 
 /* Hero panel with the signature green/blue radial halo. */
@@ -146,13 +187,13 @@ html ion-segment-button {
 
 .tc-pill--green {
   background: rgba(var(--ion-color-secondary-rgb), 0.12);
-  color: var(--ion-color-secondary-shade);
+  color: var(--tc-text-success);
   border-color: rgba(var(--ion-color-secondary-rgb), 0.3);
 }
 
 .tc-pill--warning {
   background: rgba(var(--ion-color-warning-rgb), 0.15);
-  color: var(--ion-color-warning-shade);
+  color: var(--tc-text-warning);
   border-color: rgba(var(--ion-color-warning-rgb), 0.35);
 }
 
@@ -160,14 +201,6 @@ html ion-segment-button {
   background: rgba(var(--ion-color-medium-rgb), 0.12);
   color: var(--ion-color-medium);
   border-color: rgba(var(--ion-color-medium-rgb), 0.3);
-}
-
-body.dark .tc-pill--green {
-  color: var(--ion-color-secondary);
-}
-
-body.dark .tc-pill--warning {
-  color: var(--ion-color-warning);
 }
 
 /* Selectable preset/option cards (grow stages, wizard choices). */

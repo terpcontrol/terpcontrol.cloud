@@ -29,7 +29,7 @@
           <ion-label class="ion-text-wrap">
             <h2>
               {{ deviceName(share) }} — {{ 'share.page.' + share.page | translate }}
-              <ion-badge color="success">{{ statusKey(share) | translate }}</ion-badge>
+              <span class="tc-pill tc-pill--green">{{ statusKey(share) | translate }}</span>
             </h2>
             <p>{{ (share.editable ? 'share.interactive' : 'share.viewOnly') | translate }}<ng-container *ngIf="share.charts"> • {{ 'share.withCharts' | translate }}</ng-container></p>
             <p>
@@ -61,7 +61,7 @@
           <ion-label class="ion-text-wrap">
             <h2>
               {{ deviceName(share) }} — {{ 'share.page.' + share.page | translate }}
-              <ion-badge color="medium">{{ statusKey(share) | translate }}</ion-badge>
+              <span class="tc-pill tc-pill--muted">{{ statusKey(share) | translate }}</span>
             </h2>
             <p>{{ (share.editable ? 'share.interactive' : 'share.viewOnly') | translate }}<ng-container *ngIf="share.charts"> • {{ 'share.withCharts' | translate }}</ng-container></p>
             <p>

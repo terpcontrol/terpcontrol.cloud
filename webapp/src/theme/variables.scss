@@ -123,6 +123,14 @@
     radial-gradient(ellipse 60% 50% at 18% 8%, rgba(80, 160, 48, 0.12), transparent 65%),
     radial-gradient(ellipse 65% 55% at 85% 18%, rgba(45, 75, 149, 0.14), transparent 65%);
   --tc-surface-subtle: #fafbfd;
+
+  /** Status text on a page/card surface. The --ion-color-* values above are
+      tuned as solid fills behind white text; used as text on a light surface
+      they are too pale to read, so status copy uses these instead. **/
+  --tc-text-danger: #b0293f;
+  --tc-text-warning: #8a6318;
+  --tc-text-success: #35701f;
+  --tc-text-info: #2d4b95;
 }
 
 body.dark {
@@ -227,4 +235,9 @@ body.dark {
     radial-gradient(ellipse 60% 50% at 18% 8%, rgba(111, 190, 74, 0.08), transparent 65%),
     radial-gradient(ellipse 65% 55% at 85% 18%, rgba(115, 150, 221, 0.1), transparent 65%);
   --tc-surface-subtle: #171c26;
+
+  --tc-text-danger: #f06a7e;
+  --tc-text-warning: #e3b95f;
+  --tc-text-success: #6fbe4a;
+  --tc-text-info: #7396dd;
 }

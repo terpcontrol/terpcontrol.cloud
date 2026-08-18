@@ -1,7 +1,7 @@
 <ion-label style="white-space: normal; width: 100%" *ngIf="entry">
   <ion-row>
     <ion-col>
-      <h3 [style.color]="entry.severity === 1 ? 'orange' : entry.severity === 2 ? 'crimson' : 'dodgerblue'">
+      <h3 [ngClass]="entry.severity === 1 ? 'tc-text-warning' : entry.severity === 2 ? 'tc-text-danger' : 'tc-text-info'">
         {{ getEntryTitle(entry) }}
 
         {{ (entry.count ?? 0) > 1 ? '(' + entry.count + 'x)' : '' }}
