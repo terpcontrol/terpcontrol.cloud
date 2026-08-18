@@ -7,6 +7,7 @@ import { SECRET_KEY } from '@/config';
 import { verify } from 'jsonwebtoken';
 import { HttpException } from '@exceptions/HttpException';
 import { logger } from '@utils/logger';
+import { DEMO_USER_ID } from '@utils/demo';
 
 class AuthController {
   public authService = new AuthService();
@@ -55,6 +56,23 @@ class AuthController {
 
       res.status(200).json({
         user: { username: findUser.username, user_id: findUser.user_id, is_admin: findUser.is_admin },
+        userToken: userToken,
+        refreshToken: refreshToken,
+        imageToken: imageToken,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public demoLogIn = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { userToken, refreshToken, imageToken } = this.authService.demoLogin();
+
+      this.setAuthCookie(req, res, userToken.token, userToken.expiresIn);
+
+      res.status(200).json({
+        user: { username: 'demo', user_id: DEMO_USER_ID, is_admin: false, is_demo: true },
         userToken: userToken,
         refreshToken: refreshToken,
         imageToken: imageToken,

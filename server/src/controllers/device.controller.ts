@@ -7,6 +7,7 @@ import { isUserDeviceMiddelware, isUserDeviceOrShareMiddelware } from '@/middlew
 import deviceModel from '@models/device.model';
 import recipeModel from '@models/recipe.model';
 import { isNumeric } from 'influx/lib/src/grammar';
+import { demoLogs, demoRecipe } from '@utils/demo';
 
 class DeviceController {
   public getDevices = async (req: Request, res: Response, next: NextFunction) => {
@@ -43,7 +44,7 @@ class DeviceController {
 
   public getUserDevices = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
-      const devices: Device[] = await deviceService.findUserDevices(req.user_id);
+      const devices: Device[] = await deviceService.findUserDevices(req.user_id, req.is_demo);
 
       res.status(200).json(devices);
     } catch (error) {
@@ -195,7 +196,7 @@ class DeviceController {
   public getDeviceConfig = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
       if (await isUserDeviceMiddelware(req, res, req.params.device_id)) {
-        const config = await deviceService.getDeviceConfig(req.params.device_id, req.user_id, req.is_admin);
+        const config = await deviceService.getDeviceConfig(req.params.device_id, req.user_id, req.is_admin, req.is_demo);
         res.status(200).json(config);
       }
     } catch (error) {
@@ -206,7 +207,7 @@ class DeviceController {
   public getDeviceAlarms = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
       if (await isUserDeviceMiddelware(req, res, req.params.device_id)) {
-        const alarms = await deviceService.getDeviceAlarms(req.params.device_id, req.user_id);
+        const alarms = await deviceService.getDeviceAlarms(req.params.device_id, req.user_id, req.is_admin, req.is_demo);
         res.status(200).json(alarms);
       }
     } catch (error) {
@@ -217,7 +218,12 @@ class DeviceController {
   public getDeviceCloudSettings = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
       if (await isUserDeviceMiddelware(req, res, req.params.device_id)) {
-        const settings: DeviceAccessInfo | null = await deviceService.getDeviceAccessInfo(req.params.device_id, req.user_id, !!req.is_admin);
+        const settings: DeviceAccessInfo | null = await deviceService.getDeviceAccessInfo(
+          req.params.device_id,
+          req.user_id,
+          !!req.is_admin,
+          !!req.is_demo,
+        );
         if (!settings) {
           return res.status(404).json({ status: 'not found' });
         }
@@ -352,7 +358,7 @@ class DeviceController {
     try {
       const device_id = req.params.device_id;
       if (await isUserDeviceMiddelware(req, res, device_id)) {
-        const list = await deviceService.listFirmwaresForDevice(device_id, req.user_id);
+        const list = await deviceService.listFirmwaresForDevice(device_id, req.user_id, req.is_demo);
         res.status(200).json(list);
       }
     } catch (error) {
@@ -427,7 +433,7 @@ class DeviceController {
           Boolean(req.query.deleted ?? false),
           req.query.categories ? String(req.query.categories).split(',') : undefined,
         );
-        res.status(200).json(logs);
+        res.status(200).json(req.is_demo ? demoLogs(logs) : logs);
       }
     } catch (error) {
       next(error);
@@ -539,7 +545,7 @@ class DeviceController {
         const doc = await deviceModel.findOne({ device_id }).select('recipe').lean().exec();
         const defaultRecipe = { steps: [], activeStepIndex: 0, activeSince: 0 };
         const recipeObj = doc && doc.recipe ? doc.recipe : defaultRecipe;
-        res.status(200).json(recipeObj);
+        res.status(200).json(req.is_demo ? demoRecipe(recipeObj) : recipeObj);
       }
     } catch (error) {
       next(error);

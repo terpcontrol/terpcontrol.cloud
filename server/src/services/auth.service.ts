@@ -20,6 +20,7 @@ import { PasswordToken, User } from '@fg2/shared-types';
 import userModel from '@models/users.model';
 import passwordTokenModel from '@models/password_token.model';
 import { isEmpty } from '@utils/util';
+import { DEMO_USER_ID } from '@utils/demo';
 import { v4 as uuidv4 } from 'uuid';
 import { DateTime } from 'luxon';
 
@@ -119,6 +120,12 @@ class AuthService {
     return { userToken, refreshToken, findUser, imageToken };
   }
 
+  // Anyone may open the demo: it is a session without an account that reaches
+  // nothing but the devices explicitly flagged as demo devices, and may not write.
+  public demoLogin(): { userToken: TokenData; refreshToken: TokenData; imageToken: TokenData } {
+    return this.createTokens({ user_id: DEMO_USER_ID, is_admin: false, is_demo: true });
+  }
+
   public async changePassword(user_id: string, password: string): Promise<void> {
     const findUser: User = await userModel.findOne({ user_id: user_id }, { _id: 0, username: 1, user_id: 1, is_admin: 1, password: 1, is_active: 1 });
     if (!findUser) throw new HttpException(409, 'Wrong email/password');
@@ -176,6 +183,7 @@ class AuthService {
       user_id: tokenData.user_id,
       is_admin: tokenData.is_admin,
       stay_logged_in: tokenData.stay_logged_in,
+      is_demo: tokenData.is_demo,
     });
     return { userToken, refreshToken, imageToken };
   }

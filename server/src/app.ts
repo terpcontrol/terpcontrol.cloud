@@ -11,6 +11,7 @@ import { NODE_ENV, PORT, LOG_FORMAT, ORIGIN, CREDENTIALS, API_URL_EXTERNAL } fro
 import { dbConnection } from '@databases';
 import { Routes } from '@interfaces/routes.interface';
 import errorMiddleware from '@middlewares/error.middleware';
+import { demoReadOnlyMiddleware } from '@middlewares/auth.middleware';
 import { logger, stream } from '@utils/logger';
 import { buildSwaggerSpec } from '@utils/swagger';
 const fileUpload = require('express-fileupload');
@@ -82,6 +83,7 @@ class App {
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(cookieParser());
     this.app.use(fileUpload());
+    this.app.use(demoReadOnlyMiddleware);
   }
 
   private initializeRoutes(routes: Routes[]) {

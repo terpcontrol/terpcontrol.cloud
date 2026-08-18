@@ -22,6 +22,16 @@ const loginLimiter = rateLimit({
   message: { message: 'Too many login attempts, please try again later.' },
 });
 
+// Separate from the login limiter so demo visitors behind one address cannot
+// throttle the sign-in of the people who have an account there.
+const demoLoginLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many demo-login attempts, please try again later.' },
+});
+
 const signupLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 5,
@@ -142,6 +152,24 @@ class AuthRoute implements Routes {
      *         $ref: '#/components/responses/Unauthorized'
      */
     this.router.post(`${this.path}login`, loginLimiter, validationMiddleware(LoginDto, 'body'), this.authController.logIn);
+
+    /**
+     * @openapi
+     * /demologin:
+     *   post:
+     *     summary: Open a read-only demo session
+     *     description: Returns a token pair for a session without an account. It sees the devices flagged as demo devices - with credentials, stream URLs and alarm targets removed - and cannot write anything.
+     *     tags: [Auth]
+     *     security: []
+     *     responses:
+     *       '200':
+     *         description: Token pair and demo user information
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/LoginResponse'
+     */
+    this.router.post(`${this.path}demologin`, demoLoginLimiter, this.authController.demoLogIn);
 
     /**
      * @openapi

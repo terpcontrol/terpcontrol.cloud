@@ -124,6 +124,19 @@ export class LoginPage implements OnInit, OnDestroy {
     this.working = false;
   }
 
+  public async loginAsDemo() {
+    this.working = true;
+    try {
+      await this._authService.loginAsDemo();
+      await this._navCtrl.navigateRoot('/list');
+    }
+    catch(err:any) {
+      console.log(err)
+      this.message = 3;
+    }
+    this.working = false;
+  }
+
   public async register() {
     this.working = true;
     if(this.password != this.repeat) {

@@ -163,6 +163,11 @@
             <ion-button [disabled]="working" fill="outline" color="primary" expand="block" (click)="mode = 0; message = 0" *ngIf="mode === 1">{{'login.backToLogin' | translate}}</ion-button>
           </div>
 
+          <div class="login-demo" *ngIf="mode === 0">
+            <p class="login-demo-hint">{{'login.demoHint' | translate}}</p>
+            <ion-button [disabled]="working" fill="clear" color="primary" expand="block" (click)="loginAsDemo()">{{'login.demoLogin' | translate}}</ion-button>
+          </div>
+
           <p class="login-link-row" *ngIf="mode === 0"><a (click)="mode = 2">{{'login.forgotPassword' | translate}}</a></p>
           <p class="login-link-row" *ngIf="mode === 2"><a (click)="mode = 0">{{'login.backToLogin' | translate}}</a></p>
 

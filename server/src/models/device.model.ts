@@ -152,6 +152,10 @@ const deviceSchema: Schema = new Schema({
     type: Schema.Types.Mixed,
     required: false,
   },
+  demoDevice: {
+    type: Boolean,
+    required: false,
+  },
 });
 
 const deviceModel = model<Device & Document>('Device', deviceSchema);

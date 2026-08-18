@@ -6,6 +6,7 @@ import { DataStoredInToken, RequestWithUser } from '@interfaces/auth.interface';
 import deviceModel from '@/models/device.model';
 import shareModel from '@/models/share.model';
 import { Device, ShareLink } from '@fg2/shared-types';
+import { DEMO_WRITE_MESSAGE } from '@utils/demo';
 
 const isImageQueryTokenAllowed = (req: RequestWithUser): boolean => req.method === 'GET' && req.path.startsWith('/image/');
 
@@ -50,6 +51,17 @@ const verifyFirstMatchingToken = async (req: RequestWithUser, tokenType: DataSto
   return null;
 };
 
+const applyToken = (req: RequestWithUser, token: DataStoredInToken) => {
+  req.user_id = token.user_id;
+  // A demo session is never an account, and never privileged.
+  req.is_demo = !!token.is_demo;
+  req.is_admin = !req.is_demo && token.is_admin;
+};
+
+// Demo sessions reach exactly the devices flagged as demo devices.
+const isDemoDevice = async (device_id: string): Promise<boolean> =>
+  (await deviceModel.countDocuments({ device_id: device_id, demoDevice: true })) > 0;
+
 const getShareToken = (req: RequestWithUser): string | null => {
   if (typeof req.query.share === 'string' && req.query.share) return req.query.share;
   return req.header('X-Share-Token') || null;
@@ -76,8 +88,7 @@ export const authMiddleware = async (req: RequestWithUser, res: Response, next: 
 
     const verificationResponse = await verifyFirstMatchingToken(req, 'user');
     if (verificationResponse) {
-      req.user_id = verificationResponse.user_id;
-      req.is_admin = verificationResponse.is_admin;
+      applyToken(req, verificationResponse);
       next();
     } else {
       next(new HttpException(401, 'Wrong authentication token'));
@@ -85,6 +96,27 @@ export const authMiddleware = async (req: RequestWithUser, res: Response, next: 
   } catch (error) {
     next(new HttpException(401, 'Wrong authentication token'));
   }
+};
+
+// Endpoints that establish or end a session; they must keep working while a demo
+// session is open, and none of them touches device data.
+const DEMO_ALLOWED_PATHS = ['/login', '/demologin', '/tokenlogin', '/signup', '/activate', '/refresh', '/logout', '/getreset', '/reset'];
+
+// A demo session may read, nothing else. Blocking every other request centrally
+// means no write endpoint can be forgotten, now or when new ones are added.
+export const demoReadOnlyMiddleware = async (req: RequestWithUser, res: Response, next: NextFunction) => {
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS' || DEMO_ALLOWED_PATHS.includes(req.path)) {
+    next();
+    return;
+  }
+
+  const verificationResponse = await verifyFirstMatchingToken(req, 'user');
+  if (verificationResponse?.is_demo) {
+    next(new HttpException(403, DEMO_WRITE_MESSAGE));
+    return;
+  }
+
+  next();
 };
 
 export const authAdminMiddleware = async (req: RequestWithUser, res: Response, next: NextFunction) => {
@@ -95,9 +127,8 @@ export const authAdminMiddleware = async (req: RequestWithUser, res: Response, n
       const secretKey: string = SECRET_KEY;
       const verificationResponse = (await verify(Authorization, secretKey)) as DataStoredInToken;
 
-      if (verificationResponse.is_admin && verificationResponse.token_type === 'user') {
-        req.user_id = verificationResponse.user_id;
-        req.is_admin = verificationResponse.is_admin;
+      if (verificationResponse.is_admin && !verificationResponse.is_demo && verificationResponse.token_type === 'user') {
+        applyToken(req, verificationResponse);
         next();
       } else {
         next(new HttpException(401, 'Wrong authentication token'));
@@ -129,14 +160,19 @@ export const isUserDeviceMiddelware = async (
       return false;
     }
 
-    req.user_id = verificationResponse.user_id;
-    req.is_admin = verificationResponse.is_admin;
+    applyToken(req, verificationResponse);
     if (req.is_admin) {
       return true;
     }
-    const devices: Device[] = await deviceModel.find({ owner_id: req.user_id, device_id: device_id }, { device_id: 1 });
-    if (devices.length > 0) {
-      return true;
+    if (req.is_demo) {
+      if (await isDemoDevice(device_id)) {
+        return true;
+      }
+    } else {
+      const devices: Device[] = await deviceModel.find({ owner_id: req.user_id, device_id: device_id }, { device_id: 1 });
+      if (devices.length > 0) {
+        return true;
+      }
     }
 
     res.status(403).send(`Device ${device_id} not bound to user ${req.user_id}`);
@@ -157,16 +193,21 @@ export const isUserDeviceOrShareMiddelware = async (
 
   const verificationResponse = await verifyFirstMatchingToken(req, tokenType);
   if (verificationResponse) {
-    req.user_id = verificationResponse.user_id;
-    req.is_admin = verificationResponse.is_admin;
+    applyToken(req, verificationResponse);
 
     if (req.is_admin) {
       return true;
     }
 
-    const devices: Device[] = await deviceModel.find({ owner_id: req.user_id, device_id: device_id }, { device_id: 1 });
-    if (devices.length > 0) {
-      return true;
+    if (req.is_demo) {
+      if (await isDemoDevice(device_id)) {
+        return true;
+      }
+    } else {
+      const devices: Device[] = await deviceModel.find({ owner_id: req.user_id, device_id: device_id }, { device_id: 1 });
+      if (devices.length > 0) {
+        return true;
+      }
     }
   }
 

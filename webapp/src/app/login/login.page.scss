@@ -65,6 +65,19 @@
   }
 }
 
+.login-demo {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ion-color-step-150, rgba(128, 128, 128, 0.2));
+  text-align: center;
+}
+
+.login-demo-hint {
+  color: var(--ion-color-medium);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
 .login-link-row {
   text-align: center;
   margin: 14px 0 4px;

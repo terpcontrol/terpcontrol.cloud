@@ -46,7 +46,11 @@ export class AppComponent {
     })
 
     auth.current_user.subscribe((user) => {
-      if(user?.is_admin) {
+      // A demo session has no account pages: no shares of its own, no password to change.
+      if(user?.is_demo) {
+        this.appPages = this.publicPages.filter(page => page.url === '/list')
+      }
+      else if(user?.is_admin) {
         this.appPages = []
         this.appPages.push(...this.publicPages)
         this.appPages.push(...this.adminPages)

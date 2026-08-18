@@ -176,6 +176,8 @@ export interface Device {
   maintenance_mode_until?: number;
   recipe?: Recipe;
   hardwareInfo?: Record<string, string>;
+  /** Readable by everyone through the demo login, with all secrets stripped. */
+  demoDevice?: boolean;
 }
 
 export interface DeviceClass {
