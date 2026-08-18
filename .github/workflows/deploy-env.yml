@@ -37,6 +37,11 @@ jobs:
     if: inputs.skip_deploy != true || inputs.firmware_needed
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    # Per environment, so a production job still waiting for its approval does
+    # not hold up the staging deploy of a later push.
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 
