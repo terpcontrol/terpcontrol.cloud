@@ -110,6 +110,35 @@ To remove all data and start fresh:
 6. When starting fresh, you'll also need to use the module's "Change server" again, as this registers the module in the 
    server again.
 
+## Deployment
+
+The `Deploy` workflow (`.github/workflows/deploy.yml`) rsyncs the repo to the target
+host, runs `docker compose up --build -d --remove-orphans` there and — when firmware
+sources changed — builds and uploads firmware via `build-fw.sh`.
+
+- **Staging** is automatic: every push to `master` deploys there.
+- **Production** is on demand: run the workflow manually (Actions → Deploy → Run
+  workflow) from the ref you want to promote and pick `target: production`. The
+  `production` GitHub environment gates the run, so it waits for approval before
+  anything touches the host.
+
+Both targets share one reusable workflow (`deploy-env.yml`). Everything
+environment-specific comes from repository variables:
+
+| Variable                        | Production                | Staging                            |
+|---------------------------------|---------------------------|------------------------------------|
+| Host                            | `DEPLOY_HOST`             | `DEPLOY_HOST_STAGING`              |
+| SSH user                        | `DEPLOY_USER`             | `DEPLOY_USER_STAGING`              |
+| Remote path                     | `DEPLOY_PATH`             | `DEPLOY_PATH_STAGING`              |
+| Env file on the host            | `TERPCONTROL_ENV_FILE`    | `TERPCONTROL_ENV_FILE_STAGING`     |
+| SSH key (secret)                | `SSH_PRIVATE_KEY`         | `SSH_PRIVATE_KEY_STAGING`          |
+
+Only `TERPCONTROL_ENV_FILE_STAGING` is mandatory for staging; every other
+`_STAGING` variable falls back to its production counterpart when unset, so a
+staging stack living on the production host needs nothing but its own env file.
+A staging deploy that would resolve to the production host, path *and* env file
+fails instead of running.
+
 ## Development
 
 ### Frontend
