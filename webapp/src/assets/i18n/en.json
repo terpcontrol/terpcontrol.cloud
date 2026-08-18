@@ -229,6 +229,10 @@
       "changed": "Your password was changed"
     }
   },
+  "demo": {
+    "mode": "Demo mode",
+    "saveNotSupported": "Saving is not supported in demo mode"
+  },
   "login": {
     "welcomeTitle": "Welcome back",
     "welcomeSubtitle": "Monitor and control your grow — from anywhere.",
@@ -243,6 +247,8 @@
     "createAccount": "Create account",
     "backToLogin": "Back to login",
     "forgotPassword": "Forgot password?",
+    "demoHint": "Just looking around? Explore real devices without an account.",
+    "demoLogin": "Open the demo",
     "sendRecovery": "Send recovery link",
     "changePassword": "Change password",
     "acceptPrivacyBefore": "I accept the",

@@ -229,6 +229,10 @@
       "changed": "Passwort wurde geändert"
     }
   },
+  "demo": {
+    "mode": "Demo-Modus",
+    "saveNotSupported": "Speichern wird im Demo-Modus nicht unterstützt"
+  },
   "login": {
     "welcomeTitle": "Willkommen zurück",
     "welcomeSubtitle": "Überwache und steuere deinen Grow — von überall.",
@@ -243,6 +247,8 @@
     "createAccount": "Account erstellen",
     "backToLogin": "Zurück zur Anmeldung",
     "forgotPassword": "Passwort vergessen?",
+    "demoHint": "Nur mal reinschauen? Sieh dir echte Geräte ohne Account an.",
+    "demoLogin": "Demo öffnen",
     "sendRecovery": "Wiederherstellungslink senden",
     "changePassword": "Passwort ändern",
     "acceptPrivacyBefore": "Ich akzeptiere die",

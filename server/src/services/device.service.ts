@@ -27,6 +27,7 @@ import { mailTransport } from '@services/auth.service';
 import { imageService } from '@services/image.service';
 import { tunnelService } from '@services/tunnel.service';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
+import { demoAlarms, demoCloudSettings, demoDevice } from '@utils/demo';
 
 export type StatusMessage = {
   sensors: {
@@ -681,7 +682,9 @@ class DeviceService {
           ...(deleted ? {} : { deleted: { $ne: true } }),
           ...(categories ? { categories: { $in: categories } } : {}),
         })
-        .sort({ time: -1 });
+        .sort({ time: -1 })
+        // Plain objects, so callers may hand out reduced copies of an entry.
+        .lean();
       logs.forEach(log => (log.categories = log.categories?.length > 0 ? log.categories : ['unknown']));
       return logs.reverse();
     }
@@ -830,11 +833,26 @@ class DeviceService {
     mqttclient.publish('/devices/' + device_id + '/command', JSON.stringify(payload));
   }
 
-  public async findUserDevices(user_id: string): Promise<Device[]> {
-    const devices: Device[] = await deviceModel.find(
-      { owner_id: user_id },
-      { device_id: 1, configuration: 1, device_type: 1, name: 1, maintenance_mode_until: 1, cloudSettings: 1, hardwareInfo: 1, lastseen: 1 },
-    );
+  public async findUserDevices(user_id: string, is_demo = false): Promise<Device[]> {
+    const projection = {
+      device_id: 1,
+      configuration: 1,
+      device_type: 1,
+      name: 1,
+      maintenance_mode_until: 1,
+      cloudSettings: 1,
+      hardwareInfo: 1,
+      lastseen: 1,
+    };
+
+    if (is_demo) {
+      // lean() returns plain objects, so the sanitized copies cannot carry
+      // mongoose internals (or the untouched original) along.
+      const demoDevices = await deviceModel.find({ demoDevice: true }, projection).lean();
+      return demoDevices.map(device => demoDevice(device)) as Device[];
+    }
+
+    const devices: Device[] = await deviceModel.find({ owner_id: user_id }, projection);
     // const users: Device[] = await deviceModel.aggregate([{$match: {owner_id: user_id}}, {$lookup: {from: 'deviceclasses', localField:'class_id', foreignField: 'class_id', as:'device_class'}}]);
     return devices;
   }
@@ -1183,19 +1201,23 @@ class DeviceService {
     await deviceModel.findOneAndUpdate({ device_id: device_id, owner_id: user_id }, { name: name });
   }
 
-  public async getDeviceConfig(device_id: string, user_id: string, is_admin: boolean) {
-    if (is_admin) {
-      const device = await deviceModel.findOne({ device_id: device_id }, { configuration: 1 });
-      return device.configuration;
-    } else {
-      const device = await deviceModel.findOne({ device_id: device_id, owner_id: user_id }, { configuration: 1 });
-      return device.configuration;
-    }
+  // Which devices the caller may see at all is decided by the auth middleware;
+  // these filters keep a mismatched device id from answering with someone else's device.
+  private deviceAccessFilter(device_id: string, user_id: string, is_admin: boolean, is_demo: boolean) {
+    if (is_admin) return { device_id: device_id };
+    if (is_demo) return { device_id: device_id, demoDevice: true };
+    return { device_id: device_id, owner_id: user_id };
   }
 
-  public async getDeviceAlarms(device_id: string, user_id: string) {
-    const device = await deviceModel.findOne({ device_id: device_id, owner_id: user_id }, { alarms: 1 });
-    return device.alarms ?? [];
+  public async getDeviceConfig(device_id: string, user_id: string, is_admin: boolean, is_demo = false) {
+    const device = await deviceModel.findOne(this.deviceAccessFilter(device_id, user_id, is_admin, is_demo), { configuration: 1 });
+    return device?.configuration;
+  }
+
+  public async getDeviceAlarms(device_id: string, user_id: string, is_admin = false, is_demo = false) {
+    const device = await deviceModel.findOne(this.deviceAccessFilter(device_id, user_id, is_admin, is_demo), { alarms: 1 }).lean();
+    const alarms = (device?.alarms ?? []) as Alarm[];
+    return is_demo ? demoAlarms(alarms) : alarms;
   }
 
   private normalizeCloudSettings(cloudSettings: CloudSettings | undefined, firmwareSettings?: { autoUpdate?: boolean }) {
@@ -1244,10 +1266,10 @@ class DeviceService {
     return this.normalizeCloudSettings(device?.cloudSettings, device?.firmwareSettings);
   }
 
-  public async getDeviceAccessInfo(device_id: string, user_id?: string, is_admin = false): Promise<DeviceAccessInfo | null> {
+  public async getDeviceAccessInfo(device_id: string, user_id?: string, is_admin = false, is_demo = false): Promise<DeviceAccessInfo | null> {
     const device = await deviceModel.findOne(
       { device_id: device_id },
-      { firmwareSettings: 1, cloudSettings: 1, device_type: 1, name: 1, owner_id: 1 },
+      { firmwareSettings: 1, cloudSettings: 1, device_type: 1, name: 1, owner_id: 1, demoDevice: 1 },
     );
     if (!device) {
       return null;
@@ -1255,8 +1277,9 @@ class DeviceService {
 
     const cloudSettings = this.normalizeCloudSettings(device.cloudSettings, device.firmwareSettings);
     const isOwned = is_admin || (!!user_id && device.owner_id === user_id);
+    const isDemoAccess = is_demo && !!device.demoDevice;
 
-    if (!isOwned) {
+    if (!isOwned && !isDemoAccess) {
       return null;
     }
 
@@ -1265,7 +1288,7 @@ class DeviceService {
       device_type: device.device_type,
       name: device.name,
       isPublic: false,
-      cloudSettings,
+      cloudSettings: isDemoAccess ? demoCloudSettings(cloudSettings) : cloudSettings,
     };
   }
 
@@ -1458,11 +1481,13 @@ class DeviceService {
     return updated;
   }
 
-  public async listFirmwaresForDevice(device_id: string, user_id: string): Promise<UserFirmwareList> {
-    const device = await deviceModel.findOne(
-      { device_id, owner_id: user_id },
-      { class_id: 1, current_firmware: 1, 'cloudSettings.pendingFirmware': 1, pending_firmware: 1 },
-    );
+  public async listFirmwaresForDevice(device_id: string, user_id: string, is_demo = false): Promise<UserFirmwareList> {
+    const device = await deviceModel.findOne(this.deviceAccessFilter(device_id, user_id, false, is_demo), {
+      class_id: 1,
+      current_firmware: 1,
+      'cloudSettings.pendingFirmware': 1,
+      pending_firmware: 1,
+    });
     if (!device) {
       throw new HttpException(404, 'Device not found or access denied');
     }

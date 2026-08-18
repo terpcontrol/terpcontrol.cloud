@@ -4,7 +4,10 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from 'src/environments/environment';
 import type { User } from '@fg2/shared-types';
 
-export type UserLite = Pick<User, 'user_id' | 'username' | 'is_admin'>;
+export type UserLite = Pick<User, 'user_id' | 'username' | 'is_admin'> & {
+  /** Session opened through the demo login: demo devices, read-only. */
+  is_demo?: boolean;
+};
 
 export interface CreateUser {
   username: string;

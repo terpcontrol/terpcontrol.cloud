@@ -100,7 +100,7 @@ export class AuthService implements OnDestroy {
   }
 
   public async login(username: string, password: string, stayLoggedIn: boolean) {
-    const loginPromise  = firstValueFrom(this.http.post<LoginData>(
+    await this.startSession(this.http.post<LoginData>(
       environment.API_URL + "/login",
       {
         username,
@@ -108,7 +108,24 @@ export class AuthService implements OnDestroy {
         stayLoggedIn
       },
       { headers: { 'Authorization': '' } }
-    ))
+    ));
+  }
+
+  // Read-only session without an account, showing the devices flagged as demo devices.
+  public async loginAsDemo() {
+    await this.startSession(this.http.post<LoginData>(
+      environment.API_URL + "/demologin",
+      {},
+      { headers: { 'Authorization': '' } }
+    ));
+  }
+
+  public get isDemo(): boolean {
+    return !!this.current_user.getValue()?.is_demo;
+  }
+
+  private async startSession(request: Observable<LoginData>) {
+    const loginPromise = firstValueFrom(request)
       .then(login => {
         this.setLogin(login);
       })
@@ -257,7 +274,7 @@ export class AuthService implements OnDestroy {
         const parsedUser = JSON.parse(localStorage.getItem('user') || '');
 
         if (parsedUser && this.current_user.getValue()?.user_id !== parsedUser?.user_id) {
-          this.current_user.next(login.user);
+          this.current_user.next(parsedUser);
         }
       } catch (err) {}
     }
