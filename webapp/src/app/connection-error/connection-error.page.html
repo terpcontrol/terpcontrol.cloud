@@ -1,0 +1,11 @@
+<ion-content class="ion-padding">
+  <div class="connection-error-wrapper">
+    <ion-icon name="cloud-offline-outline"></ion-icon>
+    <h1>{{ 'connection-error.title' | translate }}</h1>
+    <p>{{ 'connection-error.text' | translate }}</p>
+    <p *ngIf="stillUnreachable">{{ 'connection-error.stillUnreachable' | translate }}</p>
+    <ion-button [disabled]="retrying" fill="outline" (click)="retry()">
+      {{ (retrying ? 'connection-error.retrying' : 'connection-error.retry') | translate }}
+    </ion-button>
+  </div>
+</ion-content>

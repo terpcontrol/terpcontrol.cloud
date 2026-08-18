@@ -8,11 +8,22 @@
 </ion-header>
 
 <ion-content>
-  <div class="list-loading" *ngIf="loading && all_devices.length === 0">
+  <div class="list-loading" *ngIf="loadState === 'loading' && all_devices.length === 0">
     <ion-spinner name="crescent"></ion-spinner>
   </div>
 
-  <div class="tc-hero onboarding-hero" *ngIf="!loading && all_devices.length === 0">
+  <ion-card color="danger" *ngIf="loadState === 'error'">
+    <ion-card-header>
+      <ion-card-title>{{'device-list.load-failed-title' | translate}}</ion-card-title>
+    </ion-card-header>
+    <ion-card-content>
+      <p>{{'device-list.load-failed-text' | translate}}</p>
+      <ion-button color="light" expand="block" (click)="retry()">{{'device-list.retry' | translate}}</ion-button>
+    </ion-card-content>
+  </ion-card>
+
+  <!-- Only greet a genuinely empty account. A failed fetch is not "no devices yet". -->
+  <div class="tc-hero onboarding-hero" *ngIf="loadState === 'loaded' && all_devices.length === 0">
     <span class="tc-eyebrow">Smart Grow Automation</span>
     <h1>{{'onboarding.welcomeTitle' | translate}}</h1>
     <p>{{'onboarding.welcomeText' | translate}}</p>

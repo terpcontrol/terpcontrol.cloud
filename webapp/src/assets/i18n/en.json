@@ -268,7 +268,9 @@
       "recoverySentTitle": "Sent",
       "recoverySentText": "The recovery link was sent.",
       "wrongRecoveryToken": "This recovery link is invalid or has expired.",
-      "passwordChangedText": "Your password has been changed, you can now log in:"
+      "passwordChangedText": "Your password has been changed, you can now log in:",
+      "sessionExpiredTitle": "Session expired",
+      "sessionExpiredText": "Your session is no longer valid. Please log in again."
     }
   },
   "growPresets": {
@@ -444,7 +446,17 @@
     "title": "Device list",
     "claim": "Enter device code",
     "claim-button": "Claim",
-    "addDevice": "Add device"
+    "addDevice": "Add device",
+    "load-failed-title": "Could not load your devices",
+    "load-failed-text": "The server did not answer. Your devices are still there — this is only a display problem.",
+    "retry": "Try again"
+  },
+  "connection-error": {
+    "title": "Cannot reach the server",
+    "text": "Your devices could not be loaded because the server did not answer. Check your internet connection and try again.",
+    "stillUnreachable": "Still no answer from the server.",
+    "retry": "Try again",
+    "retrying": "Trying..."
   },
   "charts": {
     "title": "Charts",

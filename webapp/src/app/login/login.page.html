@@ -84,6 +84,13 @@
         <ion-card-content>{{'login.messages.wrongRecoveryToken' | translate}}</ion-card-content>
       </ion-card>
 
+      <ion-card color="danger" *ngIf="message === 11">
+        <ion-card-header>
+          <ion-card-title>{{'login.messages.sessionExpiredTitle' | translate}}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>{{'login.messages.sessionExpiredText' | translate}}</ion-card-content>
+      </ion-card>
+
       <ion-card class="login-card">
         <ion-card-content>
 

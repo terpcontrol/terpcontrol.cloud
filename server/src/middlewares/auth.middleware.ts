@@ -70,7 +70,7 @@ export const findValidShare = async (req: RequestWithUser, device_id?: string): 
 export const authMiddleware = async (req: RequestWithUser, res: Response, next: NextFunction) => {
   try {
     if (getAuthorizationCandidates(req).length === 0) {
-      next(new HttpException(404, 'Authentication token missing'));
+      next(new HttpException(401, 'Authentication token missing'));
       return;
     }
 
@@ -103,7 +103,7 @@ export const authAdminMiddleware = async (req: RequestWithUser, res: Response, n
         next(new HttpException(401, 'Wrong authentication token'));
       }
     } else {
-      next(new HttpException(404, 'Authentication token missing'));
+      next(new HttpException(401, 'Authentication token missing'));
     }
   } catch (error) {
     console.log(error);
@@ -139,7 +139,7 @@ export const isUserDeviceMiddelware = async (
       return true;
     }
 
-    res.status(401).send(`Device ${device_id} not bound to user ${req.user_id}`);
+    res.status(403).send(`Device ${device_id} not bound to user ${req.user_id}`);
     return false;
   } catch (error) {
     res.status(401).send('Wrong authentication token');
@@ -176,6 +176,12 @@ export const isUserDeviceOrShareMiddelware = async (
     return true;
   }
 
-  res.status(401).send(hasToken ? 'Wrong authentication token or no access to device' : 'Authentication token missing');
+  // 401 only when the session itself is the problem, so clients can tell "log in
+  // again" apart from "this account may not see this device".
+  if (verificationResponse) {
+    res.status(403).send('No access to device');
+  } else {
+    res.status(401).send(hasToken ? 'Wrong authentication token' : 'Authentication token missing');
+  }
   return false;
 };

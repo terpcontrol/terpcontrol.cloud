@@ -21,6 +21,8 @@ export type DeviceWithParsedSettings = Device & {
 
 export const device_types = ['climatesensor', 'climatesensorpro'];
 
+export type DevicesLoadState = 'loading' | 'loaded' | 'error';
+
 
 @Injectable({
   providedIn: 'root'
@@ -116,6 +118,10 @@ export class DeviceService {
   public settingsChanged = new Subject<{device_id: string, settings: any}>();
 
   public devices: BehaviorSubject<DeviceWithParsedSettings[]> = new BehaviorSubject<DeviceWithParsedSettings[]>([]);
+  // An empty list means "this account owns nothing"; a failed fetch means "we don't
+  // know". Collapsing both into an empty list is what made a rejected token look like
+  // an empty account.
+  public loadState: BehaviorSubject<DevicesLoadState> = new BehaviorSubject<DevicesLoadState>('loading');
 
   constructor(private http: HttpClient, private auth: AuthService, private shares: ShareService) {
     this.fetchDevices();
@@ -128,6 +134,7 @@ export class DeviceService {
   public async refetchDevices() {
     if (!this.auth.authenticated.getValue()) {
       this.devices.next([]);
+      this.loadState.next('loading');
       return;
     }
 
@@ -142,9 +149,11 @@ export class DeviceService {
         }
       }
       this.devices.next(devices);
+      this.loadState.next('loaded');
     } catch(e) {
       console.log('Failed fetching devices', e);
-      this.devices.next([]);
+      // Keep whatever was on screen: a failed refresh should not blank a working list.
+      this.loadState.next('error');
     }
   }
 
