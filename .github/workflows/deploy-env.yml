@@ -1,0 +1,168 @@
+name: Deploy to environment
+
+# Reusable deploy used by deploy.yml for both staging and production. Everything
+# environment-specific comes from repository variables: production uses the
+# unsuffixed names, staging the "_STAGING" ones, falling back to the production
+# value for anything staging does not define. Deploy and firmware upload share a
+# single job so a protected environment only asks for one approval per run.
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'staging or production'
+        required: true
+        type: string
+      description:
+        description: 'FW_UPLOAD_VERSION for the firmware upload'
+        required: false
+        type: string
+        default: ''
+      hardwares:
+        description: 'Firmware variants to build (space-separated)'
+        required: false
+        type: string
+        default: ''
+      firmware_needed:
+        required: false
+        type: boolean
+        default: false
+      skip_deploy:
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  deploy:
+    if: inputs.skip_deploy != true || inputs.firmware_needed
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve deployment target
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          PROD_HOST: ${{ vars.DEPLOY_HOST }}
+          PROD_USER: ${{ vars.DEPLOY_USER }}
+          PROD_PATH: ${{ vars.DEPLOY_PATH }}
+          PROD_ENV_FILE: ${{ vars.TERPCONTROL_ENV_FILE }}
+          STAGING_HOST: ${{ vars.DEPLOY_HOST_STAGING }}
+          STAGING_USER: ${{ vars.DEPLOY_USER_STAGING }}
+          STAGING_PATH: ${{ vars.DEPLOY_PATH_STAGING }}
+          STAGING_ENV_FILE: ${{ vars.TERPCONTROL_ENV_FILE_STAGING }}
+        run: |
+          set -euo pipefail
+
+          case "${ENVIRONMENT}" in
+            production)
+              HOST="${PROD_HOST}"; DUSER="${PROD_USER}"; DPATH="${PROD_PATH}"
+              ENV_FILE="${PROD_ENV_FILE}"
+              ;;
+            staging)
+              HOST="${STAGING_HOST:-${PROD_HOST}}"
+              DUSER="${STAGING_USER:-${PROD_USER}}"
+              DPATH="${STAGING_PATH:-${PROD_PATH}}"
+              ENV_FILE="${STAGING_ENV_FILE}"
+              if [ -z "${ENV_FILE}" ]; then
+                echo "TERPCONTROL_ENV_FILE_STAGING is not set - refusing to deploy staging" >&2
+                exit 1
+              fi
+              ;;
+            *)
+              echo "Unknown environment '${ENVIRONMENT}'" >&2
+              exit 1
+              ;;
+          esac
+
+          if [ -z "${HOST}" ] || [ -z "${DUSER}" ] || [ -z "${DPATH}" ]; then
+            echo "Incomplete deployment variables for '${ENVIRONMENT}'" >&2
+            exit 1
+          fi
+
+          # A staging deploy that resolves to the production host, path *and*
+          # env file is a production deploy in disguise.
+          if [ "${ENVIRONMENT}" = "staging" ] \
+            && [ "${HOST}" = "${PROD_HOST}" ] \
+            && [ "${DPATH}" = "${PROD_PATH}" ] \
+            && [ "${ENV_FILE}" = "${PROD_ENV_FILE}" ]; then
+            echo "Staging resolves to the production host, path and env file" >&2
+            exit 1
+          fi
+          if [ "${ENVIRONMENT}" = "staging" ] \
+            && [ "${HOST}" = "${PROD_HOST}" ] && [ "${DPATH}" = "${PROD_PATH}" ]; then
+            echo "::warning::Staging shares the production checkout at ${HOST}:${DPATH}; rsync overwrites the files production restarts from on its next deploy."
+          fi
+
+          {
+            echo "DEPLOY_HOST=${HOST}"
+            echo "DEPLOY_USER=${DUSER}"
+            echo "DEPLOY_PATH=${DPATH}"
+            echo "TERPCONTROL_ENV_FILE=${ENV_FILE}"
+          } >> "$GITHUB_ENV"
+
+          {
+            echo "### Deploy to ${ENVIRONMENT}"
+            echo ""
+            echo "- host: \`${DUSER}@${HOST}\`"
+            echo "- path: \`${DPATH}\`"
+            echo "- env file: \`${ENV_FILE}\`"
+            echo "- ref: \`${GITHUB_REF_NAME}\` (\`${GITHUB_SHA}\`)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Configure SSH
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_PRIVATE_KEY_STAGING: ${{ secrets.SSH_PRIVATE_KEY_STAGING }}
+        run: |
+          set -euo pipefail
+          KEY="$SSH_PRIVATE_KEY"
+          if [ "${ENVIRONMENT}" = "staging" ] && [ -n "${SSH_PRIVATE_KEY_STAGING}" ]; then
+            KEY="$SSH_PRIVATE_KEY_STAGING"
+          fi
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Rsync repo to host
+        if: inputs.skip_deploy != true
+        run: |
+          set -euo pipefail
+          rsync -az --delete \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='node_modules/' \
+            --exclude='.pio/' \
+            --exclude='**/dist/' \
+            --exclude='**/build/' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='.idea/' \
+            --exclude='.claude/' \
+            ./ "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
+
+      - name: docker compose up
+        if: inputs.skip_deploy != true
+        run: |
+          ENV_FLAG=""
+          if [ -n "${TERPCONTROL_ENV_FILE}" ]; then
+            ENV_FLAG="--env-file ${TERPCONTROL_ENV_FILE}"
+          fi
+          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "cd '${DEPLOY_PATH}' && docker compose ${ENV_FLAG} up --build -d --remove-orphans"
+
+      - name: Build + upload firmware on host
+        if: inputs.firmware_needed
+        env:
+          FW_UPLOAD_VERSION: ${{ inputs.description }}
+          HARDWARES: ${{ inputs.hardwares }}
+        run: |
+          set -euo pipefail
+          echo "Building firmware variants on ${DEPLOY_HOST}: ${HARDWARES}"
+          echo "FW_UPLOAD_VERSION=${FW_UPLOAD_VERSION}"
+          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "cd '${DEPLOY_PATH}' && TERPCONTROL_ENV_FILE='${TERPCONTROL_ENV_FILE}' FW_UPLOAD_VERSION='${FW_UPLOAD_VERSION}' ./build-fw.sh ${HARDWARES}"

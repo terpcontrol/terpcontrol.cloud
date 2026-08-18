@@ -1,10 +1,21 @@
 name: Deploy
 
+# Pushes to master deploy to staging. Production is deploy-on-demand: run this
+# workflow manually with target=production from the ref you want to promote.
+
 on:
   push:
     branches: [master]
   workflow_dispatch:
     inputs:
+      target:
+        description: 'Deployment target. Production runs wait for the approval configured on the "production" environment.'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
       description:
         description: 'Firmware description suffix. Prefixed with short commit SHA; final FW_UPLOAD_VERSION is "<sha>-<this>". Max 55 chars, [A-Za-z0-9._-]. Leave blank to auto-derive a slug from the commit subject.'
         required: false
@@ -22,20 +33,17 @@ on:
         default: false
 
 concurrency:
-  group: deploy-production
+  group: deploy-${{ inputs.target || 'staging' }}
   cancel-in-progress: false
 
 env:
-  DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
-  DEPLOY_USER: ${{ vars.DEPLOY_USER }}
-  DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-  TERPCONTROL_ENV_FILE: ${{ vars.TERPCONTROL_ENV_FILE }}
-  PRODUCTION_HARDWARES: 'fridge controller plug fan light'
+  ALL_HARDWARES: 'fridge controller plug fan light'
 
 jobs:
   detect:
     runs-on: ubuntu-latest
     outputs:
+      target: ${{ steps.resolve.outputs.target }}
       hardwares: ${{ steps.resolve.outputs.hardwares }}
       firmware_needed: ${{ steps.resolve.outputs.firmware_needed }}
       description: ${{ steps.resolve.outputs.description }}
@@ -73,11 +81,12 @@ jobs:
             light:
               - 'firmware/src_hwtype/light/**'
 
-      - name: Resolve hardwares + description
+      - name: Resolve target + hardwares + description
         id: resolve
         env:
-          INPUT_HARDWARES: ${{ github.event.inputs.hardwares }}
-          INPUT_DESCRIPTION: ${{ github.event.inputs.description }}
+          INPUT_TARGET: ${{ inputs.target }}
+          INPUT_HARDWARES: ${{ inputs.hardwares }}
+          INPUT_DESCRIPTION: ${{ inputs.description }}
           CHG_SHARED: ${{ steps.changes.outputs.shared }}
           CHG_FRIDGE: ${{ steps.changes.outputs.fridge }}
           CHG_CONTROLLER: ${{ steps.changes.outputs.controller }}
@@ -87,15 +96,24 @@ jobs:
         run: |
           set -euo pipefail
 
+          # --- Target ---
+          TARGET="${INPUT_TARGET:-staging}"
+          if [ "$TARGET" != "staging" ] && [ "$TARGET" != "production" ]; then
+            echo "Invalid target '$TARGET'" >&2
+            exit 1
+          fi
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+          echo "Target resolved: '$TARGET'"
+
           # --- Hardwares ---
           if [ "${INPUT_HARDWARES}" = "none" ]; then
             HW=""
           elif [ -n "${INPUT_HARDWARES}" ]; then
             HW="${INPUT_HARDWARES}"
           elif [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
-            HW="${PRODUCTION_HARDWARES}"
+            HW="${ALL_HARDWARES}"
           elif [ "${CHG_SHARED}" = "true" ]; then
-            HW="${PRODUCTION_HARDWARES}"
+            HW="${ALL_HARDWARES}"
           else
             HW=""
             [ "${CHG_FRIDGE}" = "true" ]     && HW="$HW fridge"
@@ -144,75 +162,11 @@ jobs:
 
   deploy:
     needs: detect
-    if: github.event.inputs.skip_deploy != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure SSH
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          chmod 644 ~/.ssh/known_hosts
-
-      - name: Rsync repo to host
-        run: |
-          set -euo pipefail
-          rsync -az --delete \
-            --exclude='.git/' \
-            --exclude='.github/' \
-            --exclude='node_modules/' \
-            --exclude='.pio/' \
-            --exclude='**/dist/' \
-            --exclude='**/build/' \
-            --exclude='.env' \
-            --exclude='.env.*' \
-            --exclude='.idea/' \
-            --exclude='.claude/' \
-            ./ "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
-
-      - name: docker compose up
-        run: |
-          ENV_FLAG=""
-          if [ -n "${TERPCONTROL_ENV_FILE}" ]; then
-            ENV_FLAG="--env-file ${TERPCONTROL_ENV_FILE}"
-          fi
-          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "cd '${DEPLOY_PATH}' && docker compose ${ENV_FLAG} up --build -d --remove-orphans"
-
-  firmware:
-    needs: [detect, deploy]
-    if: |
-      always() &&
-      needs.detect.outputs.firmware_needed == 'true' &&
-      (needs.deploy.result == 'success' || needs.deploy.result == 'skipped')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Configure SSH
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          chmod 644 ~/.ssh/known_hosts
-
-      - name: Build + upload firmware on host
-        env:
-          FW_UPLOAD_VERSION: ${{ needs.detect.outputs.description }}
-          HARDWARES: ${{ needs.detect.outputs.hardwares }}
-        run: |
-          set -euo pipefail
-          echo "Building firmware variants on ${DEPLOY_HOST}: ${HARDWARES}"
-          echo "FW_UPLOAD_VERSION=${FW_UPLOAD_VERSION}"
-          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "cd '${DEPLOY_PATH}' && TERPCONTROL_ENV_FILE='${TERPCONTROL_ENV_FILE}' FW_UPLOAD_VERSION='${FW_UPLOAD_VERSION}' ./build-fw.sh ${HARDWARES}"
+    uses: ./.github/workflows/deploy-env.yml
+    with:
+      environment: ${{ needs.detect.outputs.target }}
+      description: ${{ needs.detect.outputs.description }}
+      hardwares: ${{ needs.detect.outputs.hardwares }}
+      firmware_needed: ${{ needs.detect.outputs.firmware_needed == 'true' }}
+      skip_deploy: ${{ inputs.skip_deploy == true }}
+    secrets: inherit
