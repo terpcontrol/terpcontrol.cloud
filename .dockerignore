@@ -7,3 +7,5 @@
 .DS_Store
 backup-*.mongodump
 fw-buildcontainer
+garmin
+garmin-buildcontainer

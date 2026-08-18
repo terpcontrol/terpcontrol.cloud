@@ -1,0 +1,11 @@
+<drawables xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://developer.garmin.com/downloads/connect-iq/resources.xsd">
+    <bitmap id="LauncherIcon" filename="logo.svg" dithering="none" />
+    <bitmap id="icon_co2" filename="co2.svg" dithering="none" />
+    <bitmap id="icon_co2_valve" filename="co2_valve.svg" dithering="none" />
+    <bitmap id="icon_dehumidify" filename="dehumidify.svg" dithering="none" />
+    <bitmap id="icon_humidity" filename="humidity.svg" dithering="none" />
+    <bitmap id="icon_heating" filename="heating.svg" dithering="none" />
+    <bitmap id="icon_light" filename="light.svg" dithering="none" />
+    <bitmap id="icon_temperature" filename="temperature.svg" dithering="none" />
+    <bitmap id="icon_vpd" filename="vpd.svg" dithering="none" />
+</drawables>
