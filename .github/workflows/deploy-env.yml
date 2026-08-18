@@ -52,10 +52,12 @@ jobs:
           PROD_USER: ${{ vars.DEPLOY_USER }}
           PROD_PATH: ${{ vars.DEPLOY_PATH }}
           PROD_ENV_FILE: ${{ vars.TERPCONTROL_ENV_FILE }}
+          PROD_COMPOSE_OPTIONS: ${{ vars.COMPOSE_OPTIONS }}
           STAGING_HOST: ${{ vars.DEPLOY_HOST_STAGING }}
           STAGING_USER: ${{ vars.DEPLOY_USER_STAGING }}
           STAGING_PATH: ${{ vars.DEPLOY_PATH_STAGING }}
           STAGING_ENV_FILE: ${{ vars.TERPCONTROL_ENV_FILE_STAGING }}
+          STAGING_COMPOSE_OPTIONS: ${{ vars.COMPOSE_OPTIONS_STAGING }}
         run: |
           set -euo pipefail
 
@@ -63,12 +65,16 @@ jobs:
             production)
               HOST="${PROD_HOST}"; DUSER="${PROD_USER}"; DPATH="${PROD_PATH}"
               ENV_FILE="${PROD_ENV_FILE}"
+              COMPOSE_OPTIONS="${PROD_COMPOSE_OPTIONS}"
               ;;
             staging)
               HOST="${STAGING_HOST:-${PROD_HOST}}"
               DUSER="${STAGING_USER:-${PROD_USER}}"
               DPATH="${STAGING_PATH:-${PROD_PATH}}"
               ENV_FILE="${STAGING_ENV_FILE}"
+              # No fallback to the production options: they select which stack
+              # compose talks to, so inheriting them would aim staging at it.
+              COMPOSE_OPTIONS="${STAGING_COMPOSE_OPTIONS}"
               if [ -z "${ENV_FILE}" ]; then
                 echo "TERPCONTROL_ENV_FILE_STAGING is not set - refusing to deploy staging" >&2
                 exit 1
@@ -104,6 +110,7 @@ jobs:
             echo "DEPLOY_USER=${DUSER}"
             echo "DEPLOY_PATH=${DPATH}"
             echo "TERPCONTROL_ENV_FILE=${ENV_FILE}"
+            echo "COMPOSE_OPTIONS=${COMPOSE_OPTIONS}"
           } >> "$GITHUB_ENV"
 
           {
@@ -112,6 +119,7 @@ jobs:
             echo "- host: \`${DUSER}@${HOST}\`"
             echo "- path: \`${DPATH}\`"
             echo "- env file: \`${ENV_FILE}\`"
+            echo "- compose options: \`${COMPOSE_OPTIONS:-(none)}\`"
             echo "- ref: \`${GITHUB_REF_NAME}\` (\`${GITHUB_SHA}\`)"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -158,7 +166,7 @@ jobs:
             ENV_FLAG="--env-file ${TERPCONTROL_ENV_FILE}"
           fi
           ssh "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "cd '${DEPLOY_PATH}' && docker compose ${ENV_FLAG} up --build -d --remove-orphans"
+            "cd '${DEPLOY_PATH}' && docker compose ${COMPOSE_OPTIONS} ${ENV_FLAG} up --build -d --remove-orphans"
 
       - name: Build + upload firmware on host
         if: inputs.firmware_needed
