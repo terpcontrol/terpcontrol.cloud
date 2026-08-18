@@ -5,6 +5,9 @@ name: Deploy
 # required reviewers hold it until somebody approves the run - that approval is
 # what makes production deploy-on-demand. Without reviewers configured on that
 # environment, production follows staging unattended.
+#
+# Both steps run the same reusable workflow; what differs between them lives in
+# the variables and secrets of the "staging" and "production" environments.
 
 on:
   push:
