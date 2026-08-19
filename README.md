@@ -82,10 +82,9 @@ After running, you can access the management tools:
 - http://localhost:8086 - InfluxDB UI (*see `.env`*)
 
 ### Demo devices
-The login page offers a demo session that anyone can open without an account, and `/demo` opens the same session
-directly - a link you can hand out. It shows exactly the devices marked as demo devices — with their charts, diary,
-webcam and settings, but without credentials, stream URLs, alarm targets and the local network addresses of paired
-hardware. A demo session cannot save anything.
+The login page offers a demo session that anyone can open without an account. It shows exactly the devices marked as
+demo devices — with their charts, diary, webcam and settings, but without credentials, stream URLs, alarm targets and
+the local network addresses of paired hardware. A demo session cannot save anything.
 
 There is no UI for marking a device; set the flag in Mongo Express (or the Mongo shell):
 
