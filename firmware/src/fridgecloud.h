@@ -18,6 +18,11 @@
 #define UUID_LEN 128
 #define TUNNEL_PAYLOAD_LEN 128
 #define TUNNEL_PACKET_PER_LOOP_COUNT 5
+// UDP relay (O-KAM camera P2P): a snapshot is a burst of ~30 datagrams and the
+// socket buffer is tiny, so the relay must drain far more per loop than the TCP
+// tunnels — an undrained datagram is a lost one, and each loss stalls the
+// camera's sliding window.
+#define UDP_PACKET_PER_LOOP_COUNT 40
 
 namespace fg {
 

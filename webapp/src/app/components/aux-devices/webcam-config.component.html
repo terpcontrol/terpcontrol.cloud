@@ -40,16 +40,25 @@
 
   <!-- Terp Control Cam: pairs on the device; manual entry is an explicit skip. -->
   <ng-container *ngIf="isTerpCam || (addingWebcam && cloudSettings.webcamModel === 'terp_cam')">
-    <ng-container *ngIf="terpCamUrl || hasWebcam || terpCamManual; else terpCamMissing">
-      <ion-item lines="none" class="aux-terpcam-found" *ngIf="terpCamUrl && (terpCamUrlDiffers || !hasWebcam)">
+    <ng-container *ngIf="terpCamUrl || terpCamDid || hasWebcam || terpCamManual; else terpCamMissing">
+      <ion-item lines="none" class="aux-terpcam-found" *ngIf="(terpCamUrl && (terpCamUrlDiffers || !hasWebcam)) || (terpCamDid && terpCamDidDiffers)">
         <ion-icon slot="start" name="checkmark-circle-outline" color="secondary"></ion-icon>
         <ion-label class="ion-text-wrap">{{ 'auxDevices.webcam.terpCamFound' | translate }}</ion-label>
         <ion-button slot="end" size="small" color="secondary" (click)="applyTerpCam()">
           {{ 'auxDevices.webcam.terpCamUse' | translate }}
         </ion-button>
       </ion-item>
-      <!-- Connection fields: once connected — or entering the address manually. -->
-      <ng-container *ngIf="hasWebcam || terpCamManual">
+      <!-- P2P camera: addressed by id, no credentials/host to enter. -->
+      <ion-item lines="none" *ngIf="isOkamCam">
+        <ion-icon slot="start" name="videocam-outline" color="secondary"></ion-icon>
+        <ion-label class="ion-text-wrap">
+          {{ 'auxDevices.webcam.terpCamConnected' | translate }}
+          <p>{{ okamCamId }}</p>
+        </ion-label>
+      </ion-item>
+      <!-- Connection fields: once connected — or entering the address manually.
+           Not for P2P cameras, which have no RTSP endpoint. -->
+      <ng-container *ngIf="!isOkamCam && (hasWebcam || terpCamManual)">
         <ion-item>
           <ion-label position="floating">{{ 'auxDevices.webcam.user' | translate }}</ion-label>
           <ion-input [(ngModel)]="terpCamFields.user" (ngModelChange)="onTerpCamFieldsChange()" autocomplete="off"></ion-input>

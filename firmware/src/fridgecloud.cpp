@@ -151,9 +151,6 @@ namespace fg {
 
     client->setSocketTimeout(5);
     client->setWriteTimeout(5);
-    // The UDP tunnel (O-KAM camera P2P) relays whole datagrams up to ~1KB; a
-    // base64'd video datagram + JSON exceeds the default 1KB MQTT buffer.
-    client->setMaxPacketSize(2048);
 
     esp_reset_reason_t reset_reason = esp_reset_reason();
     std::string boot_msg = "message-device-booted:";
@@ -170,7 +167,11 @@ namespace fg {
   void Fridgecloud::connect() {
     Serial.println("connecting to cloud");
 
-    client->setMaxPacketSize(1024);
+    // Runs on every (re)connect, so it is the authoritative buffer size. 4096
+    // fits a base64'd ~1KB O-KAM video datagram + JSON tunnel_read envelope
+    // (~1.6KB); the old 1024 silently dropped those, so only small control
+    // packets crossed the UDP tunnel.
+    client->setMaxPacketSize(4096);
 
     esp_task_wdt_reset();
 
@@ -754,7 +755,10 @@ namespace fg {
         if (t.isUdp && t.openedAt > 0) {
           static uint8_t udpBuf[1500];
           int sz;
-          while ((sz = t.udp.parsePacket()) > 0 && packetCount <= TUNNEL_PACKET_PER_LOOP_COUNT) {
+          // Drain aggressively (UDP_PACKET_PER_LOOP_COUNT >> the TCP cap): an
+          // undrained datagram is a lost datagram, and every loss stalls the
+          // camera's sliding window.
+          while ((sz = t.udp.parsePacket()) > 0 && packetCount <= UDP_PACKET_PER_LOOP_COUNT) {
             int len = t.udp.read(udpBuf, sizeof(udpBuf));
             if (len <= 0) break;
             std::string peerHost = t.udp.remoteIP().toString().c_str();

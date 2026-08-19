@@ -46,6 +46,11 @@ class OkamCamService {
   /** Decode a controller-supplied keyframe and store it as a device still. */
   public async ingestKeyframe(deviceId: string, h264: Buffer, timestamp?: number): Promise<Image> {
     const jpeg = await this.decodeKeyframeToJpeg(h264);
+    return this.ingestJpeg(deviceId, jpeg, timestamp);
+  }
+
+  /** Store a ready JPEG (e.g. from snapshot.cgi) as a device still. */
+  public async ingestJpeg(deviceId: string, jpeg: Buffer, timestamp?: number): Promise<Image> {
     return imageModel.create({
       image_id: uuidv4(),
       device_id: deviceId,

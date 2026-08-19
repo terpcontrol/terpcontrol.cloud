@@ -28,6 +28,9 @@ export class WebcamConfigComponent implements OnChanges, OnDestroy {
   @Input() cloudSettings: any = {};
   @Input() hardwareInfo: Record<string, string> | undefined;
 
+  /** cloudSettings.rtspStream marker for a P2P (O-KAM) camera. */
+  static readonly OKAM_PREFIX = 'okam://';
+
   public webcamModels = WEBCAM_MODELS;
 
   /** The model grid only shows while adding — there is exactly one webcam. */
@@ -88,6 +91,32 @@ export class WebcamConfigComponent implements OnChanges, OnDestroy {
     return !!this.terpCamUrl && this.isTerpCam && this.cloudSettings?.rtspStream !== this.terpCamUrl;
   }
 
+  /**
+   * P2P camera id the device reported for a camera paired through its menu
+   * (O-KAM/VStarcam hardware). These cameras have no LAN RTSP — the server pulls
+   * stills over P2P through the device tunnel — so they need no connection
+   * fields, just this id.
+   */
+  get terpCamDid(): string | null {
+    const did = this.hardwareInfo?.['webcam_did'];
+    return did && did !== 'none' ? did : null;
+  }
+
+  /** True once this webcam is configured as a P2P camera (`okam://<did>`). */
+  get isOkamCam(): boolean {
+    return !!this.cloudSettings?.rtspStream?.startsWith(WebcamConfigComponent.OKAM_PREFIX);
+  }
+
+  /** The paired P2P camera is not the one currently configured. */
+  get terpCamDidDiffers(): boolean {
+    return !!this.terpCamDid && this.cloudSettings?.rtspStream !== WebcamConfigComponent.OKAM_PREFIX + this.terpCamDid;
+  }
+
+  /** Id of the configured P2P camera, for display. */
+  get okamCamId(): string {
+    return (this.cloudSettings?.rtspStream ?? '').slice(WebcamConfigComponent.OKAM_PREFIX.length);
+  }
+
   startAddWebcam() {
     this.addingWebcam = true;
   }
@@ -120,6 +149,18 @@ export class WebcamConfigComponent implements OnChanges, OnDestroy {
   }
 
   applyTerpCam() {
+    // A P2P camera paired through the device menu takes precedence: it is
+    // addressed by id, needs no credentials, and the server reaches it over P2P
+    // through the device tunnel (so no RTSP proxying).
+    if (this.terpCamDid) {
+      this.cloudSettings.webcamModel = 'terp_cam';
+      this.cloudSettings.rtspStream = WebcamConfigComponent.OKAM_PREFIX + this.terpCamDid;
+      this.cloudSettings.tunnelRtspStream = false;
+      this.terpCamFields = { user: '', password: '', host: '' };
+      this.addingWebcam = false;
+      return;
+    }
+
     if (!this.terpCamUrl) {
       return;
     }

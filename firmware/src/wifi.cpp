@@ -879,6 +879,15 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
       return;
     }
 
+    // Only one camera per module: refuse to provision a second one while a
+    // camera is still connected (the user must disconnect it first).
+    if(!sanitizeSettingString(fg::settings().getStr(OKAM_CAM_DID_NVS_KEY)).empty()) {
+      ui_handle->push<TextDisplay>("cam already\nconnected -\ndisconnect first", 1, []() {
+        ui_handle->pop();
+      });
+      return;
+    }
+
     ui_handle->push<TextDisplay>("scanning...");
     ui_handle->loop();
 
@@ -942,16 +951,33 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
   });
 
   menu->addOption("disconnect cam", []() {
-    fg::settings().erase(OKAM_CAM_DID_NVS_KEY);
-    fg::settings().erase(TERP_CAM_URL_NVS_KEY);   // clear legacy slot too
-    fg::settings().commit();
-
-    if(smart_socket_cloud_handle != nullptr) {
-      smart_socket_cloud_handle->log("hardware-info:webcam_did=none", 0);
+    if(sanitizeSettingString(fg::settings().getStr(OKAM_CAM_DID_NVS_KEY)).empty()) {
+      ui_handle->push<TextDisplay>("no cam connected", 1, []() {
+        ui_handle->pop();
+      });
+      return;
     }
 
-    ui_handle->push<TextDisplay>("cam disconnected", 1, []() {
+    // Disconnecting loses the camera pairing (it has to be re-provisioned from
+    // its AP), so confirm first — same idiom as the "sockets will be cleared" flow.
+    std::vector<std::string> confirm_options = {"cancel", "disconnect"};
+    ui_handle->push<fg::SelectInput>("disconnect cam?", 0, confirm_options, [](unsigned selected) {
       ui_handle->pop();
+      if(selected == 0) {
+        return;
+      }
+
+      fg::settings().erase(OKAM_CAM_DID_NVS_KEY);
+      fg::settings().erase(TERP_CAM_URL_NVS_KEY);   // clear legacy slot too
+      fg::settings().commit();
+
+      if(smart_socket_cloud_handle != nullptr) {
+        smart_socket_cloud_handle->log("hardware-info:webcam_did=none", 0);
+      }
+
+      ui_handle->push<TextDisplay>("cam disconnected", 1, []() {
+        ui_handle->pop();
+      });
     });
   });
 
