@@ -5,6 +5,7 @@
 #include <deque>
 #include <EspMQTTClient.h>
 #include <HTTPClient.h>
+#include <WiFiUdp.h>
 
 #include "fghmi.h"
 #include "settings.h"
@@ -84,11 +85,22 @@ namespace fg {
     static constexpr int TUNNEL_COUNT = 3;
     struct Tunnel {
       WiFiClient client;
+      // UDP tunnelling (for the O-KAM camera's P2P transport): datagrams are
+      // relayed whole with their peer host/port preserved, since UDP is
+      // connectionless and the P2P client talks to several camera ports.
+      WiFiUDP udp;
+      bool isUdp = false;
       std::string connectionId = "";
       unsigned int sequence = 0;
       TickType_t openedAt = 0;
     };
     std::array<Tunnel, TUNNEL_COUNT> tunnels;
+
+    // A slot is in use if its TCP socket is connected or it holds an open UDP relay.
+    // Non-const because WiFiClient::connected() is not a const method.
+    inline bool tunnelActive(Tunnel& t) {
+      return t.client.connected() || (t.isUdp && t.openedAt > 0);
+    }
 
   public:
     Fridgecloud(UserInterface& ui) : ui(ui) {}

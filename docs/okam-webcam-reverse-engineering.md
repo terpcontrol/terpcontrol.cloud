@@ -1,0 +1,183 @@
+# O‑KAM / VStarcam Webcam — Reverse‑Engineering & Integration Instruction
+
+> Working document for integrating the terpcontrol "O‑KAM Pro" webcam **without the O‑KAM app**.
+> Status as of 2026‑08‑11 (paused mid‑investigation). Condensed facts also live in Claude project memory (`okam-webcam-vstarcam.md`).
+> ⚠️ **This file contains live credentials** (camera, Wi‑Fi, O‑KAM account). Do not commit/push it to a public remote; add to `.gitignore` or move to secure notes if this repo is shared.
+
+---
+
+## 1. Objective & requirements
+
+Onboard the webcam from the controller/module, app‑free, and get periodic HD stills to the cloud. Four hard requirements:
+
+1. **User sets the camera's Wi‑Fi via the controller/module** (no O‑KAM app for onboarding).
+2. **Fully reversible** — disconnecting restores the camera to stock so the original O‑KAM app still works.
+3. **One HD image every 1–2 min to the cloud** — either pushed by the camera, or pulled via the controller's MQTT tunnel.
+4. **Minimal change / minimal risk** — no custom firmware if avoidable.
+
+## 2. Status summary
+
+| # | Requirement | Status |
+|---|---|---|
+| 1 | Set Wi‑Fi from controller, app‑free | ✅ **Solved & proven** (HTTP `set_wifi.cgi` in AP mode) |
+| 2 | Reversible / original app still works | ✅ Yes — camera stays 100% stock; factory reset restores it |
+| 4 | Minimal, no firmware | ✅ On track — everything is settings + HTTP + P2P, no firmware |
+| 3 | HD image every 1–2 min | ✅ **SOLVED end-to-end (2026‑08‑18).** App‑free provisioning proven live; the PPCS transport cipher is fully reversed & reimplemented in pure Python; a clean‑room client pulls a **2304×1296 HD JPEG** LAN‑direct from the camera on Wi‑Fi. See §15. |
+
+## 3. Hardware & identity
+
+- Sold as **"O‑KAM Pro"**; it is a **VStarcam OEM** unit. SoC **Ingenic T23‑N**, sensor **GC2083** (2304×1296), Wi‑Fi chip **AIC8800DC**, firmware `EN120.8.53.11`, ~8MB NOR flash under a metal cover (no exposed UART on this unit).
+- Ships as an **open AP** `@IPC-<n>` at gateway **`192.168.168.1`**; MAC `<CAMERA_MAC>`.
+- CS2/PPPP device id `VSTH…NXWNT`; `realdeviceid` embeds the AP number (e.g. `AAC2852199TWVA`). P2P id rotates on factory reset.
+- Default HTTP creds: **`admin` / `888888`** (universal VStarcam default; `login.cgi` even leaks it).
+
+## 4. Zero‑app provisioning — SOLVED (requirement #1)
+
+In **AP/setup mode only**, the camera exposes a **GoAhead webserver on TCP `81`** with the full VStarcam CGI API over plain HTTP (query‑param auth `loginuse`/`loginpas`, not digest). Unknown CGIs return `var cgi="not support";`.
+
+Recipe the controller replicates (mirrors `provisionSmartSocket`):
+1. `GET /wifi_scan.cgi?loginuse=admin&loginpas=888888` then `GET /get_wifi_scan_result.cgi?…` → read `ap_ssid[]`, `ap_security[]` (WPA2/AES = `4`).
+2. `GET /set_wifi.cgi?loginuse=admin&loginpas=888888&enable=1&ssid=<SSID>&channel=0&mode=0&authtype=<ap_security>&encrypt=0&keyformat=0&defkey=0&key1=&key1_bits=0&key2=&key2_bits=0&key3=&key3_bits=0&key4=&key4_bits=0&wpa_psk=<PSK>`
+   - **Critical encoding** (from `libOKSMARTJIAMI`‑adjacent `python-yatwin` lib): the WPA mode goes in **`authtype`** (2=wpa‑psk/aes, 3=wpa‑psk/tkip, **4=wpa2‑psk/aes**, 5=wpa2‑psk/tkip) — it equals the scan's `ap_security`. `encrypt` is WEP‑only → `0`. PSK param is **`wpa_psk`** (underscore), **not** `wpapsk`.
+   - `set_wifi.cgi` **applies immediately** and drops the AP; there is no non‑committing test endpoint.
+3. Camera reboots onto the target Wi‑Fi. Find it on the LAN by MAC (ARP / router), read back `get_params.cgi` → `var ip=`. (Can't read the new IP from the AP side like Tasmota — the AP dies at once.)
+
+Reversibility (req #2): everything above is stock config; a **factory reset** (hold reset button ~5–10s) wipes it and returns the camera to AP mode + original app.
+
+**Gotcha:** a bad/unreachable SSID (or wrong `authtype`) leaves the camera stuck in station mode; the AP does not return quickly → power‑cycle, then factory‑reset if needed.
+
+## 5. The streaming problem — station‑mode lockdown
+
+Once the camera joins a real Wi‑Fi network, it **firewalls its own wireless interface down to only two proprietary ports, TCP `9001`/`9002`.** Port `81` (all CGI incl. `snapshot.cgi`), RTSP, ONVIF, HTTP‑snapshot — **none are reachable on the LAN.** Verified by full 1–10600 scans; closed ports **time out** (SYN dropped) on station vs. cleanly **refused** in AP mode.
+
+Dead ends confirmed (do not re‑try):
+- **RTSP/ONVIF**: `set_rtsp.cgi`/`set_onvif.cgi` config sticks (`rtspenable=1`) but the daemon **never binds** on the LAN. `get_rtsp`/ONVIF effectively stripped for LAN use.
+- **FTP timed push** (`set_ftp.cgi&upload_interval=N`, "Instantly upload image interval(s)"): **never fires** (no camera‑side connection, AP or station) — FTP appears stripped (`get_ftp`=not‑support).
+- **Remote root** to open the firewall: GoAhead `set_ftp.cgi`→telnetd injection, NTP‑server injection, `set_telnet`/`debug`/`shell` CGIs — all patched/absent on this firmware.
+- **aiopppp / UDP‑32108 PPPP**: camera doesn't answer 32108 discovery reproducibly; its real local channel is TCP‑framed P2P (below), which aiopppp doesn't speak.
+- **Open firmware (thingino/OpenIPC)**: exists for this exact board (issue #1241) but **unimplemented**, AIC8800DC driver unproven, SD‑flash‑only + high brick risk. Rejected by req #2 (must stay reversible/original‑app) and #4 (no firmware).
+
+Snapshot resolution note: `snapshot.cgi` in AP mode returns **640×360** (sub‑stream). The app's saved stills are **2304×1296** — HD snapshot comes via the P2P/main‑stream path, not `snapshot.cgi`.
+
+## 6. The app↔camera protocol (captured, LAN‑direct)
+
+Captured with **PCAPdroid** on a real phone (same subnet as camera → LAN‑direct). File: `okam.pcap`.
+
+- Transport: **CS2 "PPCS" P2P over UDP, LAN‑direct** — 24‑byte punch packets to a port range (`2214x`), then a session on a dynamic UDP port (e.g. `22934`). Not TCP `9001/9002`, not plain PPPP‑32108.
+- Framing: every UDP payload starts with magic byte **`0x49`**; video packets are `49 55 …` ("IU") + ~6‑byte frame/id header, then payload. Heartbeats/punch are byte‑identical fixed tokens (no per‑packet nonce). The `0x49` framing is **not** a simple XOR of PPPP's `0xf1`.
+- **Commands are VStarcam CGIs tunneled over P2P** via `JNIApi.writeCgi(...)` — i.e. the snapshot path is: PPCS connect → login → `writeCgi("snapshot.cgi…")`/livestream → HD JPEG over the channel. **No H.264 decode needed for a still.**
+- Video payload is **encrypted** (no H.264 start‑codes at any offset).
+
+The PPCS state machine (from `libOKSMARTPPCS` exports) matches PPPP: `CSession_Hello/HelloAck/DevLgn/P2pReq/P2pRdy/Punch/Drw/DrwAck/RlyHello/Alive…`. `aiopppp` is a good structural reference for reimplementation (but magic/obfuscation differ).
+
+## 7. The AppCrypto AES path — reversed, but NOT used on the P2P path
+
+> ⚠️ **Superseded by §10 (2026‑08‑18).** Live Frida capture proved `AppCrypto`/`libOKSMARTJIAMI` AES **never fires** for LAN/relay P2P. This section documents the AES that *does* exist in the app (some cloud‑REST use) but it is **not** the camera transport cipher. The real transport cipher is inside `libOKSMARTPPCS` (§10C). Do not chase `keySeed`/`MD5(...)` for the streaming path.
+
+App class **`com.vstarcam.AppCrypto`** (JNI → `libOKSMARTJIAMI.so`, tiny‑AES‑c):
+- **AES‑128‑CBC, IV = 16 zero bytes, PKCS7 padding.** Ciphertext transported as a hex string.
+- **Key = `MD5( keySeed + "_+Vstarcam++20200715" )`** (from `Java_com_vstarcam_AppCrypto_decrypt` disasm: `snprintf("%s_+Vstarcam++20200715", keySeed)` → md5 → key; `AES_decrypt_eye(key, hexdecode(cipher))`).
+- Other seeds in `.rodata`: `%s_%s_Ricky` (used by `deviceKey`), hardcoded `64D33A12C0451837365F911F691D9334`, `EYE4_SIGNATURE`; key derivation also pulls the **APK signing signature** (`getPackageInfo`/`signatures`) → **re‑signing/repackaging breaks the key**, so frida‑gadget repackaging is out; must use a rooted emulator running the original‑signed APK.
+- **Unknown remaining:** the exact `keySeed` value passed at runtime (device id? session key?) and the exact `writeCgi` snapshot command. Both are one Frida capture away (§9–10).
+
+## 8. Native libraries (in `split_config.arm64_v8a.apk`)
+
+- `libOKSMARTPPCS.so` (726 KB) — CS2 **PPCS** P2P SDK (the transport). JNI: `com.vstarcam.JNIApi` (`connect/login/writeCgi/write/read/…`). Multi‑protocol: `PPCS_/XQP2P_/HLP2P_ GetAPIVersion`.
+- `libOKSMARTJIAMI.so` (23 KB) — crypto (§7).
+- `libOKSMARTPLAY.so` (media/decode), `libOKSMARTSHENGYIN.so` (audio), `libapp.so` (54 MB — **Flutter AOT Dart**, so app logic is not statically recoverable → dynamic Frida analysis required).
+
+## 9. The analysis rig (built & working)
+
+- **Rooted Android emulator** AVD `okamre` (`~/.android/avd`, persists): Google‑APIs arm64 android‑34, HVF‑accelerated. `adb root` works.
+- **Frida 16.7.19** on both sides (frida 17 removed the `Java` bridge → hooks fail; **use 16.x** in the venv). frida‑server pushed to `/data/local/tmp/frida-server16`.
+- Hooks (`hook.js`) on `com.vstarcam.AppCrypto` (encrypt/decrypt/deviceKey) and `com.vstarcam.JNIApi` (writeCgi/login/write) → log to `hits.log` via `run_frida.py` (spawns the app hooked from launch).
+- O‑KAM `com.okampro.oksmart` installed (original‑signed base + splits). Logged in as `<OKAM_ACCOUNT>` / `<OKAM_PASSWORD>`, **region Germany** (region must match or login silently fails). Flutter UI has no uiautomator nodes → drive via `adb … input tap <x> <y>` / `input text` + `exec-out screencap -p` (screenshot‑and‑tap).
+
+## 10. Live-capture results (2026‑08‑18) — command layer fully reversed
+
+The old blocker (camera unbound) is resolved: the camera was re‑paired to `<OKAM_ACCOUNT>` (O‑KAM Pro, Germany region), and after a `pm clear` + fresh login the emulator drove **Live view / FHD** with `run_frida.py` hooked. Device: **`did=VSTH204422KPFRR`** (CS2 P2P id) / **`realdeviceid=AAC2852199TWVA`**, online at `192.168.144.85`. Two decisive findings:
+
+**A. There is NO `AppCrypto`/AES on the LAN P2P path.** Across login, Live view, FHD switch and manual screenshot, `com.vstarcam.AppCrypto.{encrypt,decrypt,deviceKey}` and the native `libOKSMARTJIAMI` AES exports (`AES_init_ctx`, `AES_CBC_*`, `cryptoKey`) were hooked and **never fired**. The whole `keySeed` → `MD5(keySeed+"_+Vstarcam++20200715")` theory in §7 is **not used** for LAN/relay P2P. (AppCrypto is presumably only for some cloud‑REST payloads; the device list/login go over TLS, also not AppCrypto.)
+
+**B. Commands are plaintext VStarcam CGIs tunneled over PPCS.** `com.vstarcam.JNIApi.writeCgi(handle, "<cgi>", 5)` carries the command in the clear; responses arrive via `AppP2PApiPlugin.commandListener` as ASCII‑decimal byte arrays (also plaintext). Captured vocabulary:
+- **Start video:** `livestream.cgi?streamid=10&substream=2&` (SD preview). `substream` selects the stream.
+- **Set definition (SD/HD/FHD):** `camera_control.cgi?param=16&value=N&` — **not** a new `livestream.cgi`. FHD → the 2304×1296 main stream.
+- **Params/status:** `get_params.cgi?`, `get_status.cgi?vuid=AAC2852199TWVA&`, `get_camera_params.cgi?`, `get_factory_param.cgi?`, `set_users.cgi?app_oemid=OKAMPRO&app_version=3.0.35&aac_support=1&`.
+- **Binary control set:** `trans_cmd_string.cgi?cmd=<code>&command=<n>&…` (e.g. `cmd=2017` motion cfg, `2126`, `4109`, `2109`, `8000`, `4500`, `2131 DevActiveTime` keep‑alive, `4121`).
+- **HD still = client‑side frame grab.** The app's "Screenshot" issues **no** camera command — it saves the currently‑decoded FHD frame. There is **no server‑side HD `snapshot.cgi`** on this path; the 2304×1296 still is a decoded keyframe from the FHD `livestream` H.264.
+
+**C. The PPCS transport IS encrypted (this is the only remaining barrier).** Wire capture (`okam.pcap`, tcpdump inside the emulator, relay peer `95.222.55.10`): every UDP payload starts with `0x49`; frame types `49 55` ("IU", data/video, ≤1032 B), `49 54` ("IT", control/ack, 10–42 B), `49 65` (`4965fe3e`, constant alive). Header ≈ `49 <type> <4‑byte session token, constant> <2‑byte incrementing seq> <payload…>`. **Payload entropy: 7.97 (data) / 7.22 (control)** — both channels are ciphered on the wire even though `PPCS_Write` receives plaintext. So encryption lives in **`libOKSMARTPPCS`** (the "C"=Crypt in PPCS), *not* AppCrypto. No repeating‑XOR period found (correlation ≈ random baseline) ⇒ a **real stream cipher** (AES‑CTR‑like or the CS2 built‑in crypto keyed off the SDK license string), not a toy XOR. The keystream is position‑based, not per‑packet‑nonced (matches "no per‑packet nonce").
+
+**D. It's standard CS2 PPCS.** `libOKSMARTPPCS` exports the full CS2 API (`PPCS_Initialize/Connect/ConnectByServer/Write/Read/Close`, channel‑based) and the complete PPPP state machine (`CSession_Hello/HelloAck/P2pReq/P2pRdy/Punch/DevLgn/Drw/DrwAck/RlyHello/Alive…`). Also bundles two sibling stacks: `XQP2P_*`, `HLP2P_*`. `PPCS_Write/Read` are 4‑byte branch thunks and the code is under the `libpglarmor` packer → **not Frida‑hookable** (channel‑level dump blocked; use the Java `writeCgi` layer + tcpdump instead).
+
+## 11. Path to requirement #3 — two options
+
+The command layer is trivial; the transport cipher is the whole game. Two ways forward:
+
+- **(A) Reuse the vendor `libOKSMARTPPCS.so` (recommended, fastest).** It exposes the standard CS2 API, so let *it* do all framing+crypto: `PPCS_Initialize(<license>)` → `PPCS_ConnectByServer/Connect(<DID>)` → login → `PPCS_Write(ch0, "livestream.cgi?substream=<FHD>")` → `PPCS_Read(ch1, …)` to pull H.264 → decode one keyframe → JPEG. Runs as an ARM sidecar (the controller is ARM; APK ships arm64 only — no x86 build, so an x86 server needs an arm container/emulation or run it on the controller). **Still need to capture:** the `PPCS_Initialize` license/init string + server string, and the exact connect/login sequence (DID `VSTH204422KPFRR`, creds). These come from `JNIApi.init/create/connect/login` — broaden the hook and catch them at cold P2P init (they fire once, early).
+- **(B) Clean‑room reverse the PPCS cipher (multi‑day).** Disassemble `libOKSMARTPPCS` `CSession_Drw_Deal`/`Data_Read`/`Data_Write` + the crypto init to recover the stream cipher + key schedule, then reimplement PPPP+cipher in Python. Needs a **LAN‑direct** pcap (real phone on the camera's subnet — emulator NAT only gives the relay path) to nail the punch/hello/DevLgn handshake. Higher effort, no vendor blob.
+
+Then, for either: wrap the client so it runs **server‑side through the controller MQTT tunnel** (§12), issue FHD `livestream` every 1–2 min, grab one keyframe → JPEG → existing image pipeline.
+
+## 12. End‑goal implementation (requirement #3)
+
+Deliver the HD still via the **controller's existing MQTT tunnel** (`server/src/services/tunnel.service.ts` ↔ firmware `fridgecloud.cpp`), which relays raw TCP/UDP from the cloud through the controller to a LAN device:
+- Server‑side (or a small sidecar) speaks PPCS+AES to the camera **through the tunnel** (controller is the camera's LAN peer), issues the snapshot command every 1–2 min, receives the HD JPEG, stores it via the existing image pipeline (`image.service.ts`, `cloudSettings`/webcam model — see `docs`/`shared-types`). No firmware, reversible, satisfies all four requirements.
+- Onboarding stays as §4 (controller drives `set_wifi.cgi` in AP mode), so the end‑user UX is "unbox → module adopts it".
+
+## 13. Artifacts, paths, credentials
+
+- Workspace (may be wiped on Mac reboot): `/tmp/okam-re/` — `okam.pcap` (16 MB relay capture, 2026‑08‑18), `hook.js` (native AppCrypto+AES, JNIApi, AppP2PApiPlugin, PPCS_Write/Read‑via‑thunk), `run_frida.py` (**attach** or **spawn** mode; blocks on Event not stdin), `pcap_analyze.py`/`entropy.py`/`xortest.py` (no‑scapy pcap tooling), `hits.log`, `apk/` (pulled base+splits, extracted `.so`), frida venv (`venv/`, frida 16.7.19 + pycryptodome). **If gone:** re‑pull APK via `adb shell pm path com.okampro.oksmart`; the venv rebuild is `/opt/homebrew/bin/python3.13 -m venv venv && venv/bin/pip install frida==16.7.19 frida-tools pycryptodome`. frida‑server already at `/data/local/tmp/frida-server16` in the AVD.
+- Rig gotchas learned 2026‑08‑18: (i) frida `enumerate_processes()` does **not** match the app by name — find pid via `adb shell ps -A | grep okam`; (ii) the app's `com.vstarcam.*` classes load **lazily** → hook on a retry timer (no time cap), not a single `Java.perform`; (iii) two concurrent frida sessions **crash** the (packed) app — one session at a time; (iv) `nohup … &` closes stdin → `run_frida.py` must block on `threading.Event().wait()`, not `sys.stdin.read()`.
+- AVD `okamre` persists in `~/.android/avd`. Android SDK at `~/Library/Android/sdk` (cmdline‑tools installed; Homebrew is broken for installs on this Mac; system python 3.9 too old for frida → use `/opt/homebrew/bin/python3.13`).
+- Camera HTTP: `admin` / `888888`. Device: `did=VSTH204422KPFRR`, `realdeviceid=AAC2852199TWVA`, LAN IP `192.168.144.85`, MQTT device‑record `security=<MQTT_DEVICE_SECURITY>`.
+- Home Wi‑Fi: SSID `<WIFI_SSID>` / PSK `<WIFI_PSK>`.
+- O‑KAM account: `<OKAM_ACCOUNT>` / `<OKAM_PASSWORD>`, region **Germany**. After a `pm clear` the region defaults to **States** — must reset to Germany in the login screen's region picker or the account's devices won't show.
+
+## 14. Lessons / gotchas
+
+- Emulator NAT (10.0.2.x) makes the app **cloud‑relay** instead of LAN‑direct — fine for capturing crypto+commands (transport‑independent), **not** for capturing the LAN‑direct wire protocol (use the real phone/pcap for that).
+- macOS 26 can't sniff Wi‑Fi (no `airport`, no monitor mode); Internet‑Sharing hotspot bridging is unreliable here. Real‑phone PCAPdroid or FRITZ!Box capture are the viable wire captures.
+- Frida **16.x** for the Java bridge. Re‑signing breaks the signature‑derived key → rooted emulator + original APK only.
+
+## 15. SOLVED — the full app‑free HD‑still path (2026‑08‑18)
+
+Requirement #3 is achieved end‑to‑end. A clean‑room Python client (`/tmp/okam-re/`, files below) provisions the camera, speaks the reversed protocol LAN‑direct, and pulls a **2304×1296 HD JPEG** from the camera while it is on the home Wi‑Fi — no O‑KAM app, no vendor `.so`.
+
+### 15.1 The transport cipher — fully reversed
+`libOKSMARTPPCS.so` obfuscates every UDP packet with `cs2p2p__P2P_Proprietary_Encrypt(key,in,out,len)` (@0x6646c) via `cs2p2p_SendMessage` (@0x6804c). It is a **CFB‑style self‑synchronising stream cipher**:
+- 256‑byte S‑box permutation (was at vaddr `0x2af11`; saved as `sbox.bin`).
+- 4‑byte derived key `dk` from a key string: `[Σb, −Σb, Σ((b*0xAB)>>9), XOR b]` over `key[:20]`. **The key is a fixed global constant for this SDK build → `dk = [44,212,96,6]` (0x2c,0xd4,0x60,0x06) decrypts everything, including pre‑session discovery packets.** No per‑session secret.
+- Algorithm (enc and dec share the S‑box; `prev` is always the **ciphertext** byte):
+  ```
+  prev=0
+  for j: ks = sbox[(dk[prev&3] + prev) & 0xFF]; C[j]=ks^P[j] (enc) / P[j]=ks^C[j] (dec); prev=C[j]
+  ```
+  Recovered by aligning known plaintext (the `f1 d8` DRW header + a known CGI) against captured ciphertext, majority‑vote per residue (consistency 1.000). Validated byte‑for‑byte against captured Hello/LanSearch/P2pReq/DRW.
+
+### 15.2 The protocol — standard CS2 PPPP under the obfuscation
+Plaintext framing: `F1 <type> <len16> <payload>`. Types: `00` Hello / `01` HelloAck / `05` P2pReq(+DID) / `20` DevLgn(+DID+session) / `30` LanSearch / `41` PunchPkt / `42`,`43` P2P‑Rdy / `d0` DRW / `d1` DrwAck / `e0`,`e1` Alive. DID on the wire = `56 53 54 48`(“VSTH”) `00…00 03 1e 86`(=204422) `4b 50 46 52 52`(“KPFRR”).
+
+**LAN‑direct handshake that works** (the emulator only ever used relay, so this was found live against the camera):
+1. `LanSearch(0x30)` broadcast/unicast to `<cam>:32108` → camera replies `PunchPkt(0x41)` from an ephemeral port `P`.
+2. To `<cam>:P`, **repeatedly** (every ~0.5 s) send `Hello(0x00)` + `P2pReq(0x05,DID)` + `DevLgn(0x20,DID+sess)` + `PunchPkt(0x41,DID)`, echoing the camera's `0x42/0x43`. The **DevLgn is what authenticates the session** — without it the camera ACKs DRW at the transport level (`0xd1`) but silently drops commands. Must keep punching or the binding drops.
+3. Data channel: DRW `F1 D0 <len16> | D1 <ch> <idx16> | 01 0A 00 00 <len32‑LE> | GET /<cgi>?…`. **Commands must be authenticated** — append `name=admin&loginuse=admin&userId=<uid>&loginpas=<hash>&user=admin&pwd=888888&`; wrong `loginpas` → silent drop. First DRW must be **index 0**.
+4. Responses come back as channel‑0 DRW (`result= 0;var …`). Video comes on **channel 1** after `livestream.cgi?streamid=10&substream=2&`.
+
+### 15.3 Video → still
+Channel‑1 bytes are **VStarcam media frames**: 32‑byte header starting `55 aa 15 a8`, then **standard H.264 Annex‑B** (`00 00 00 01` NAL start codes; SPS type 7 + PPS type 8 + IDR type 5 = a complete keyframe). Strip the 32‑byte headers, concat the NALs, `ffmpeg -f h264 -i - -frames:v 1` → JPEG. First keyframe is full sensor res **2304×1296** even on substream=2.
+
+### 15.4 Reference client (`/tmp/okam-re/`)
+- `ppcs.py` — the cipher + PPPP framing (`sbox.bin`, `dk`, `encrypt/decrypt/pkt/lan_search`).
+- `okam_p2p.py` — `OkamCam`: discover → auth handshake → `request(cgi)` → channel reassembly.
+- `okam_still.py` — `grab_still(ip,out)`: end‑to‑end HD JPEG grab. **Proven: pulled 2304×1296 stills from 192.168.144.85.**
+- Open items for productionisation: derive `loginpas` from the password instead of the captured hash `03f5c2333e78918` (constant for admin/888888); the `DevLgn` session field `0002 1264 1002 000a` may be reduce‑able to zeros LAN‑direct (works as captured).
+
+### 15.5 Deployment architecture — IMPLEMENTED (UDP tunnel, server-side P2P)
+Chosen approach (2026‑08‑19): keep firmware minimal and run the P2P client **server‑side**, reaching the camera through a small **UDP mode added to the existing MQTT tunnel** (the camera's only TCP ports, 9001/9002, do not speak the P2P protocol the app uses — the app is UDP‑only, so there is nothing to reverse there; HTTP/81 is firewalled on station).
+
+Implemented:
+- **Firmware** (`firmware/src/`): `wifi.cpp` — real provisioning (`provisionOkamCam`, replaces the `showTerpCamUi` placeholder): join the `@IPC-<n>` AP, read the DID via `get_status.cgi`, `set_wifi.cgi` onto the home wifi, store + report `hardware-info:webcam_did`. `fridgecloud.{h,cpp}` — a **UDP relay mode** on the tunnel (`Tunnel.udp`/`isUdp`; `tunnel_write` with `udp:true` sends the datagram to `host:port`; `handleTunnelReads` forwards inbound datagrams whole, tagged with the peer `host`/`port`; MQTT buffer bumped to 2 KB for ~1 KB video datagrams).
+- **Server** (`server/src/services/`): `tunnel.service.ts` — `openUdpTunnel(device_id)` returns a `TunnelUdpSocket` (dgram‑shaped: `send(buf,port,host)` + `'message'(buf,{address,port})`), routed via a UDP branch in `onTunnelReadDataReceived`. `okam-p2p.service.ts` — the clean‑room PPPP client (cipher + handshake + livestream + keyframe reassembly) over any dgram‑like socket; **learns the camera's address/port/DID from its LanSearch reply** (plug‑and‑play, only the default admin/888888 auth is baked in). `okam-cam.service.ts` — `ffmpeg` H.264→JPEG then `imageModel.create({format:'jpeg',…})`. A `startPolling()` grabs one still per camera‑device every ~90 s (not auto‑started — wire at bootstrap once the firmware is flashed).
+
+Validated live LAN‑direct (Mac on the camera LAN): the **exact TypeScript client logic** pulls a 2304×1296 keyframe from `192.168.144.85`. The only production difference is the socket comes from `openUdpTunnel()` instead of node `dgram`. The **firmware builds and boots** — `/firmware-check` passed two OTA cycles on fridge + controller (it also caught one real compile bug: `tunnelActive` called the non‑const `WiFiClient::connected()` through a `const` ref). **Still unverified:** whether the thin tunnel's latency/throughput sustains the P2P keepalive + a ~30–200 KB keyframe within a reasonable window (the acknowledged risk of this approach) — answerable only once a controller with this firmware is on a camera's LAN. Discovery through the tunnel uses the `255.255.255.255` LAN broadcast (the server never needs the camera's LAN IP).

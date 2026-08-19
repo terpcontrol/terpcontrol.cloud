@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { mqttclient } from '../databases/mqttclient';
 import { createServer } from 'node:net';
+import { EventEmitter } from 'node:events';
 import { Mutex, MutexInterface, Semaphore, SemaphoreInterface, withTimeout } from 'async-mutex';
 
 const TUNNEL_CHUNK_SIZE = 128;
@@ -17,6 +18,53 @@ type TunnelStreamRxData = Pick<TunnelStreamTxData, 'connection_id' | 'payload' |
   sequence: number;
 };
 
+// UDP relay (O-KAM camera P2P) — datagrams carry their own peer host/port.
+type UdpTunnelRxData = {
+  connection_id: string;
+  udp?: boolean;
+  host?: string;
+  port?: number;
+  payload?: string;
+  disconnected?: boolean;
+  sequence?: number;
+};
+
+type UdpTunnelTxData = {
+  connection_id: string;
+  udp: true;
+} & ({ disconnected: true } | { host: string; port: number; payload: string });
+
+/**
+ * A datagram socket whose packets are relayed through the controller's MQTT
+ * tunnel. Mirrors the small surface of node's dgram.Socket the P2P client needs:
+ *   .send(buf, port, host)   emits nothing; fire-and-forget
+ *   .on('message', (buf, rinfo) => ...)
+ *   .close()
+ */
+export class TunnelUdpSocket extends EventEmitter {
+  constructor(private device_id: string, public readonly connectionId: string, private onClose: () => void) {
+    super();
+  }
+
+  public send(buf: Buffer, port: number, host: string): void {
+    const message: UdpTunnelTxData = {
+      connection_id: this.connectionId,
+      udp: true,
+      host,
+      port,
+      payload: buf.toString('base64'),
+    };
+    mqttclient.publish('/devices/' + this.device_id + '/tunnel_write', JSON.stringify(message));
+  }
+
+  public close(): void {
+    const message: UdpTunnelTxData = { connection_id: this.connectionId, udp: true, disconnected: true };
+    mqttclient.publish('/devices/' + this.device_id + '/tunnel_write', JSON.stringify(message));
+    this.onClose();
+    this.removeAllListeners();
+  }
+}
+
 type TunnelConnectionData = {
   nextSequence: number;
   lastActivityTime: number;
@@ -30,10 +78,43 @@ type TunnelConnectionData = {
 class TunnelService {
   private deviceIdToTunnelConnection = new Map<string, Map<string, TunnelConnectionData>>();
   private deviceIdToSemaphore = new Map<string, SemaphoreInterface>();
+  private deviceIdToUdpTunnel = new Map<string, Map<string, TunnelUdpSocket>>();
+
+  /**
+   * Open a UDP relay to the given device's LAN. The returned socket sends and
+   * receives datagrams through the controller (see the firmware UDP tunnel).
+   * Used by the O-KAM camera P2P client to reach the camera behind the controller.
+   */
+  public openUdpTunnel(device_id: string): TunnelUdpSocket {
+    const connectionId = uuidv4();
+    if (!this.deviceIdToUdpTunnel.has(device_id)) {
+      this.deviceIdToUdpTunnel.set(device_id, new Map());
+    }
+    const socket = new TunnelUdpSocket(device_id, connectionId, () => {
+      this.deviceIdToUdpTunnel.get(device_id)?.delete(connectionId);
+    });
+    this.deviceIdToUdpTunnel.get(device_id).set(connectionId, socket);
+    return socket;
+  }
 
   public onTunnelReadDataReceived(device_id: string, data: string): Promise<void> {
     try {
       const parsed: TunnelStreamRxData = JSON.parse(data);
+
+      // UDP datagrams (O-KAM camera P2P) bypass the ordered TCP-stream machinery:
+      // they carry their own peer host/port and have no sequence guarantees.
+      const udpRegistry = this.deviceIdToUdpTunnel.get(device_id)?.get(parsed.connection_id);
+      if (udpRegistry && ((parsed as UdpTunnelRxData).udp || (parsed as UdpTunnelRxData).host)) {
+        const u = parsed as UdpTunnelRxData;
+        if (u.disconnected) {
+          udpRegistry.emit('close');
+        } else if (u.payload && u.host) {
+          // rinfo shaped like node's dgram (address/port) so the P2P client can
+          // run over either a real dgram socket or this tunnelled one.
+          udpRegistry.emit('message', Buffer.from(u.payload, 'base64'), { address: u.host, port: u.port });
+        }
+        return Promise.resolve();
+      }
 
       const connection = this.deviceIdToTunnelConnection.get(device_id)?.get(parsed.connection_id);
       if (!connection) {

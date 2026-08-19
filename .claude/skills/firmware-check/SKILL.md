@@ -52,7 +52,7 @@ on the still-running old container.
 Skip the per-PR loop if any preflight check fails; the whole point of preflight is that any later failure is attributable to the new firmware, not to the environment.
 
 1. **Stack is up.** `docker compose ps` must show `server`, `mongodb`, `rabbitmq`, `webapp`, `influxdb` as `Up`. If anything is down, ask before `docker compose up -d`.
-2. **`.env` is loaded.** Read `API_URL_EXTERNAL`, `AUTOMATION_TOKEN`, `AGENT_TESTING_USERNAME`, `AGENT_TESTING_PASSWORD` from `.env`. The default user account is `extr3m0@email.de` (these are the values in `.env` for the test fleet).
+2. **`.env` is loaded.** Read `API_URL_EXTERNAL`, `AUTOMATION_TOKEN`, `AGENT_TESTING_USERNAME`, `AGENT_TESTING_PASSWORD` from `.env`. The default user account is `<OKAM_ACCOUNT>` (these are the values in `.env` for the test fleet).
 3. **Devices are online.** Log in with the user credentials, `GET /device`, and confirm every device has `lastseen` within the last 10 min (`ONLINE_TIMEOUT`). Treat absent `hardwareInfo.firmware_version` as offline. If any device is offline, stop and tell the user which one — don't roll out to a fleet that already has an unknown problem.
 4. **Build container is present.** `docker images | grep plantalytix-buildcontainer` should show a row; if not, the first `build-fw.sh` will rebuild it (slower but fine).
 
