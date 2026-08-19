@@ -117,6 +117,7 @@ namespace fg {
     topic_command = String() + "/devices/" + device_id.c_str() + "/command";
     topic_control = String() + "/devices/" + device_id.c_str() + "/control/#";
     topic_tunnel_read = String() + "/devices/" + device_id.c_str() + "/tunnel_read";
+    topic_image = String() + "/devices/" + device_id.c_str() + "/image";
     topic_tunnel_write = String() + "/devices/" + device_id.c_str() + "/tunnel_write";
 
     Serial.print("api url:\t");
@@ -711,6 +712,19 @@ namespace fg {
     return false;
   }
 
+
+  bool Fridgecloud::publishImageMessage(const char* payload) {
+    if(!connected || client == nullptr || payload == nullptr) {
+      return false;
+    }
+    esp_task_wdt_reset();
+    bool ok = client->publish(topic_image.c_str(), payload);
+    esp_task_wdt_reset();
+    if(!ok) {
+      notePublishFailure();
+    }
+    return ok;
+  }
 
   void Fridgecloud::handleTunnelCloses() {
     if (!ui.isIdle()) {

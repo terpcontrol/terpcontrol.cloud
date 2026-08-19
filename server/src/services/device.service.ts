@@ -26,6 +26,7 @@ import { isNumeric } from 'influx/lib/src/grammar';
 import { mailTransport } from '@services/auth.service';
 import { imageService } from '@services/image.service';
 import { tunnelService } from '@services/tunnel.service';
+import { okamP2PService } from '@services/okam-p2p.service';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
 import { demoAlarms, demoCloudSettings, demoDevice } from '@utils/demo';
 
@@ -197,6 +198,9 @@ class DeviceService {
               break;
             case 'tunnel_read':
               await tunnelService.onTunnelReadDataReceived(device.device_id, message.message);
+              break;
+            case 'image':
+              okamP2PService.onImageMessage(device.device_id, message.message);
               break;
             case 'tunnel_write':
             case 'command':

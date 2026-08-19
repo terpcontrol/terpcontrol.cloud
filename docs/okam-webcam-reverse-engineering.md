@@ -212,3 +212,21 @@ Fixed and confirmed working:
 Remaining blocker — **the relay's throughput is not reproducible**. Consecutive attempts against the same camera/firmware range from `drwPkts={"0":6}, uniqueCh0frags=0` to 1362 datagrams, and no attempt has completed a JPEG through the tunnel. The signature (many packets received, few *unique* indices; the camera retransmitting) points at our ACKs not reaching the camera in time: the ESP32 spends its loop publishing inbound datagrams over MQTT (each publish is a blocking TLS write) and only then processes the queued `tunnel_write` ACKs, so the camera's ARQ times out and retransmits, which generates more inbound work — a feedback loop. Raising the drain rate made this worse, not better, which is consistent.
 
 To pursue this further the relay needs a real design rather than tuning: a long‑lived relay whose lifecycle both sides agree on, ACK traffic prioritised over (or interleaved with) inbound forwarding — e.g. `client->loop()` between publishes — and probably a smaller inbound batch. The alternative remains §16 option (B): run the snapshot client on the controller LAN‑direct (proven 100 % reliable, JPEG needs no decode) and POST the finished image.
+
+## 17. Final architecture — the controller runs the snapshot client
+
+Decision (2026‑08‑20): stop relaying P2P through the MQTT tunnel. The camera's sliding‑window protocol needs low, predictable latency; a LAN round‑trip has it, a round‑trip through the tunnel does not (§16.1). So the client moved onto the controller, which is already on the camera's LAN.
+
+**Flow:** image pipeline (unchanged trigger: poll schedule / test‑image button) → `readRtspStreamImage` sees `okam://…` → `okamP2PService.captureViaController` publishes `{action:'cam_capture'}` on `/devices/<id>/command` → firmware `okamCamCapture()` does LanSearch → handshake → `GET /snapshot.cgi` → streams the JPEG back on `/devices/<id>/image` → server reassembles and returns the buffer → pipeline stores it as `format:'jpeg'` (timelapses, thinning, sharing, the `/image/:device_id` route all follow for free).
+
+**Why this is reliable:** the whole ARQ conversation stays on the LAN, where it has always worked 100 % (verified repeatedly). Only the finished JPEG crosses the internet, and it does so over MQTT‑on‑TCP — an ordered, retransmitting transport — in a one‑way, latency‑tolerant stream. No H.264 decode anywhere: `snapshot.cgi` already returns JPEG.
+
+**Memory (the binding constraint on the ESP32) — `firmware/src/okamcam.cpp`:**
+- **Nothing is heap‑allocated in the capture path.** Four file‑static buffers (~4.8 KB total: 1.2 KB datagram, 256 B outbound, 1.6 KB base64, 1.8 KB message). Static, so they can neither leak nor fragment the heap, and the cost is fixed and known rather than depending on runtime conditions.
+- **The image is never buffered.** Fragments are published as they are read, so RAM use is independent of image size — a 32 KB or a 1 MB still costs the same.
+- The 256‑byte cipher table is `const` → flash, not RAM. Base64 encodes into the static buffer (the shared helper returns a `std::string`, i.e. a heap allocation per fragment — deliberately not used here).
+- The UDP socket is `stop()`ed on **every** return path, including the discovery‑ and auth‑failure paths.
+- Every phase is time‑bounded (discover 4 s, auth 6 s, transfer 15 s, plus a 3 s idle abort) and feeds the task watchdog, so a silent camera can neither hang the loop task nor spin forever.
+- Measured after the change: **RAM 20.3 %** (66 640 / 327 680 B), flash 66.3 %.
+
+Server side holds one pending capture per device with a 30 s timeout; the fragment map is cleared on completion, timeout, abort and supersede, so nothing accumulates there either.

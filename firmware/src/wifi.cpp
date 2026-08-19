@@ -1,4 +1,5 @@
 #include "wifi.h"
+#include "okamcam.h"
 
 #include "settings.h"
 #include <esp_task_wdt.h>
@@ -1866,6 +1867,15 @@ bool wifiTestSmartSocket(const std::string& role) {
 bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
   if(!command["action"]) {
     return false;
+  }
+
+  if(command["action"] == std::string("cam_capture")) {
+    // Grab a still from the paired camera and stream it to the cloud. Runs on
+    // the loop task; okamCamCapture() is bounded and feeds the watchdog.
+    if(!okamCamCapture(cloud) && cloud) {
+      cloud->log("message-aux-command-failed:cam_capture", 1);
+    }
+    return true;
   }
 
   if(command["action"] == std::string("socket_remove")) {
