@@ -62,7 +62,11 @@ namespace fg {
     uint8_t  g_tx[256];              // outbound packet (handshake / CGI / ack)
     char     g_b64[((MAX_DGRAM + 2) / 3) * 4 + 8];  // base64 of one fragment
     char     g_msg[sizeof(g_b64) + 160];            // JSON image message
-    uint8_t  g_img[MAX_IMAGE_BYTES];                // the JPEG being received
+    constexpr size_t   SLOT_BYTES = 1024;                    // camera fragment size
+    constexpr uint16_t MAX_SLOTS  = MAX_IMAGE_BYTES / SLOT_BYTES;
+    uint8_t  g_img[MAX_IMAGE_BYTES];                // fragments, stored by index
+    bool     g_received[MAX_SLOTS];                 // which fragments arrived
+    uint16_t g_slot_len[MAX_SLOTS];                 // their individual lengths
 
     // Base64 straight into a caller-supplied buffer. The shared helper returns a
     // std::string, i.e. a heap allocation per fragment; on this device that churn
@@ -177,8 +181,16 @@ namespace fg {
       return false;   // no camera paired
     }
 
+    // ESP32 WiFi defaults to modem power-save, which parks the radio between
+    // beacons and silently drops inbound UDP. The camera bursts the image at
+    // line rate, so with power-save on ~75% of the fragments never arrive
+    // (measured: 8 of 40). Disable it for the capture and restore it after.
+    const bool wifi_was_asleep = WiFi.getSleep();
+    WiFi.setSleep(false);
+
     WiFiUDP udp;
     if(!udp.begin(0)) {
+      WiFi.setSleep(wifi_was_asleep);
       return false;
     }
 
@@ -218,6 +230,7 @@ namespace fg {
 
     if(!have_did) {
       udp.stop();
+      WiFi.setSleep(wifi_was_asleep);
       return false;
     }
 
@@ -270,6 +283,7 @@ namespace fg {
 
     if(!authed) {
       udp.stop();
+      WiFi.setSleep(wifi_was_asleep);
       return false;
     }
 
@@ -281,13 +295,18 @@ namespace fg {
     sendPacket(udp, peer_ip, peer_port, buildCgi(0, 1, cgi));
 
     const uint32_t capture_id = millis();
-    uint16_t expect = 0;          // next channel-0 index we will accept
+    uint16_t base_index = 0;          // channel-0 index of the first fragment
     bool first_index_known = false;
-    bool in_image = false;        // seen the JPEG SOI marker
+    uint16_t slots_seen = 0;          // highest slot index seen, + 1
+    uint16_t contiguous = 0;          // slots 0..contiguous-1 have all arrived
+    int32_t  eoi_slot = -1;           // slot that holds the JPEG end marker
     bool complete = false;
     uint32_t sent_bytes = 0;
     uint32_t seq = 0;
+    uint32_t last_ack = 0;
     uint32_t last_data = millis();
+    memset(g_received, 0, sizeof(g_received));
+    memset(g_slot_len, 0, sizeof(g_slot_len));
     started = millis();
 
     while(!complete && (millis() - started) < TRANSFER_MS) {
@@ -322,51 +341,78 @@ namespace fg {
       if(payload_len <= 0) continue;
 
       if(!first_index_known) {
-        expect = index;                            // anchor on the first arrival
+        base_index = index;                        // anchor on the first arrival
         first_index_known = true;
       }
-      if(index != expect) {
-        // Out of order: re-ack what we have so the camera resends the gap.
-        if(expect > 0) sendPacket(udp, peer_ip, peer_port, buildAck(0, (uint16_t)(expect - 1)));
-        continue;
-      }
+      // Fragments are stored by index, not in arrival order. The camera bursts a
+      // whole window and lwip's UDP mailbox only holds a handful of datagrams,
+      // so reordering (and the occasional drop) is normal; refusing anything
+      // out of order made the transfer die at the first gap.
+      if(index < base_index) continue;
+      const uint16_t slot = (uint16_t)(index - base_index);
+      if(slot >= MAX_SLOTS) continue;
 
       last_data = millis();
-      uint8_t* payload = g_rx + 8;
+      if(!g_received[slot]) {
+        g_received[slot] = true;
+        g_slot_len[slot] = (uint16_t)payload_len;
+        memcpy(g_img + (size_t)slot * SLOT_BYTES, g_rx + 8, (size_t)payload_len);
+        if(slot >= slots_seen) slots_seen = (uint16_t)(slot + 1);
+      }
 
-      // Skip the `result= 0;var …` preamble: the image starts at the JPEG SOI.
-      int offset = 0;
-      if(!in_image) {
+      // Ack the highest CONTIGUOUS slot: that is what advances the camera's
+      // window, and it also asks for anything missing before it.
+      while(contiguous < MAX_SLOTS && g_received[contiguous]) contiguous++;
+      const uint32_t now = millis();
+      if(now - last_ack > 40 || contiguous >= slots_seen) {
+        last_ack = now;
+        if(contiguous > 0) {
+          sendPacket(udp, peer_ip, peer_port, buildAck(0, (uint16_t)(base_index + contiguous - 1)));
+        }
+      }
+
+      // Note the fragment holding the JPEG end marker; the image is complete
+      // once every fragment up to and including it has arrived.
+      if(eoi_slot < 0) {
+        const uint8_t* sp = g_img + (size_t)slot * SLOT_BYTES;
         for(int i = 0; i + 1 < payload_len; i++) {
-          if(payload[i] == 0xff && payload[i + 1] == 0xd8) { offset = i; in_image = true; break; }
-        }
-        if(!in_image) {
-          expect++;
-          sendPacket(udp, peer_ip, peer_port, buildAck(0, index));
-          continue;
+          if(sp[i] == 0xff && sp[i + 1] == 0xd9) { eoi_slot = slot; break; }
         }
       }
-
-      // Stop at the JPEG EOI so trailing text is not forwarded.
-      int usable = payload_len;
-      for(int i = offset; i + 1 < payload_len; i++) {
-        if(payload[i] == 0xff && payload[i + 1] == 0xd9) { usable = i + 2; complete = true; break; }
-      }
-
-      // Ack + advance BEFORE publishing. publishImageMessage() is a blocking
-      // TLS write during which we cannot read UDP; if the camera is still
-      // waiting for this ack it stalls its window for that whole time.
-      expect++;
-      sendPacket(udp, peer_ip, peer_port, buildAck(0, index));
-
-      const int chunk = usable - offset;
-      if(chunk > 0) {
-        if(sent_bytes + (uint32_t)chunk > MAX_IMAGE_BYTES) { complete = false; break; }
-        memcpy(g_img + sent_bytes, payload + offset, (size_t)chunk);
-        sent_bytes += (uint32_t)chunk;
+      if(eoi_slot >= 0 && contiguous > (uint16_t)eoi_slot) {
+        complete = true;
       }
 
       esp_task_wdt_reset();
+    }
+
+    // Fragments were stored at fixed slot offsets so they could arrive in any
+    // order; squeeze out the padding (only the final fragment is ever short) and
+    // trim to the JPEG itself, dropping the `result= 0;var …` preamble the
+    // camera sends before the image and anything after the end marker.
+    if(complete) {
+      size_t out = 0;
+      for(uint16_t i = 0; i < contiguous; i++) {
+        const size_t src = (size_t)i * SLOT_BYTES;
+        if(out != src) memmove(g_img + out, g_img + src, g_slot_len[i]);  // always shifts left
+        out += g_slot_len[i];
+      }
+      size_t soi = 0;
+      bool found_soi = false;
+      for(size_t i = 0; i + 1 < out; i++) {
+        if(g_img[i] == 0xff && g_img[i + 1] == 0xd8) { soi = i; found_soi = true; break; }
+      }
+      size_t eoi = 0;
+      for(size_t i = soi; i + 1 < out; i++) {
+        if(g_img[i] == 0xff && g_img[i + 1] == 0xd9) { eoi = i + 2; break; }
+      }
+      if(found_soi && eoi > soi) {
+        if(soi > 0) memmove(g_img, g_img + soi, eoi - soi);
+        sent_bytes = (uint32_t)(eoi - soi);
+      }
+      else {
+        complete = false;
+      }
     }
 
     // Transfer finished (the camera is no longer sending): now it is safe to
@@ -393,8 +439,9 @@ namespace fg {
       // serial console (severity 1 only when it actually failed).
       char note[128];
       snprintf(note, sizeof(note),
-               "message-cam-capture:%s bytes=%lu frags=%lu",
-               ok ? "ok" : "incomplete", (unsigned long)sent_bytes, (unsigned long)seq);
+               "message-cam-capture:%s bytes=%lu got=%u/%u eoi=%d",
+               ok ? "ok" : "incomplete", (unsigned long)sent_bytes,
+               (unsigned)contiguous, (unsigned)slots_seen, (int)eoi_slot);
       cloud->log(note, ok ? 0 : 1);
     }
     if(!ok && seq > 0) {
@@ -403,7 +450,8 @@ namespace fg {
       cloud->publishImageMessage(g_msg);
     }
 
-    udp.stop();   // always released, on every path
+    udp.stop();                          // always released, on every path
+    WiFi.setSleep(wifi_was_asleep);      // and power-save always restored
     return ok;
   }
 

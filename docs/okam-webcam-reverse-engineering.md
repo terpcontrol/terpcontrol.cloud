@@ -230,3 +230,12 @@ Decision (2026‑08‑20): stop relaying P2P through the MQTT tunnel. The camera
 - Measured after the change: **RAM 20.3 %** (66 640 / 327 680 B), flash 66.3 %.
 
 Server side holds one pending capture per device with a 30 s timeout; the fragment map is cleared on completion, timeout, abort and supersede, so nothing accumulates there either.
+
+### 17.1 Why the on-device receiver is a real ARQ receiver
+
+The first controller-side version received strictly in order and published each fragment as it arrived. It reproducibly died after 5–7 fragments (`message-cam-capture:incomplete bytes=7160`), while the identical logic on a laptop pulled the whole 33 KB image every time. Two device-specific causes, both now handled:
+
+1. **Publishing between fragments.** `publishImageMessage()` is a blocking TLS write; while it runs no UDP can be read. The camera keeps sending, lwip's UDP mailbox (~6 datagrams by default) overflows, and the packets are gone. Fix: receive the whole image into the static buffer, publish afterwards — the camera has stopped sending by then, so blocking is free.
+2. **Strict in-order acceptance.** With any loss or reordering the receiver discarded everything after the gap, so one dropped datagram ended the transfer. Fix: fragments are stored **by index** (`slot = index - base_index`, each at a fixed `slot * 1024` offset, with its own length recorded), the ACK carries the highest **contiguous** slot so the camera both advances its window and resends what is missing, and ACKs are coalesced (≥40 ms apart) so draining a burst is not one syscall per packet.
+
+Completion is "the fragment containing the JPEG end marker has arrived **and** every fragment before it has too". Only then are the slots compacted (always a leftward `memmove`, so it is safe in place), trimmed to `SOI…EOI` — dropping the `result= 0;var …` preamble the camera sends ahead of the image — and published in ~1 KB fragments.
