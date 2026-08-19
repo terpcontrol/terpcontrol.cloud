@@ -231,6 +231,7 @@
   },
   "demo": {
     "mode": "Demo mode",
+    "opening": "Opening the demo...",
     "saveNotSupported": "Saving is not supported in demo mode"
   },
   "login": {
@@ -277,7 +278,8 @@
       "wrongRecoveryToken": "This recovery link is invalid or has expired.",
       "passwordChangedText": "Your password has been changed, you can now log in:",
       "sessionExpiredTitle": "Session expired",
-      "sessionExpiredText": "Your session is no longer valid. Please log in again."
+      "sessionExpiredText": "Your session is no longer valid. Please log in again.",
+      "demoUnavailable": "The demo could not be opened. Please try again."
     }
   },
   "growPresets": {
@@ -457,6 +459,11 @@
     "load-failed-title": "Could not load your devices",
     "load-failed-text": "The server did not answer. Your devices are still there — this is only a display problem.",
     "retry": "Try again"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "text": "The page you were looking for does not exist or has moved.",
+    "home": "Back to the app"
   },
   "connection-error": {
     "title": "Cannot reach the server",

@@ -42,6 +42,9 @@ export class LoginPage implements OnInit, OnDestroy {
     if (this._route.snapshot.queryParams['reason'] === 'session-expired') {
       this.message = 11;
     }
+    else if (this._route.snapshot.queryParams['reason'] === 'demo-unavailable') {
+      this.message = 12;
+    }
   }
 
   public ngOnInit(): void {
@@ -121,19 +124,6 @@ export class LoginPage implements OnInit, OnDestroy {
     }
     this.username = ""
     this.password = ""
-    this.working = false;
-  }
-
-  public async loginAsDemo() {
-    this.working = true;
-    try {
-      await this._authService.loginAsDemo();
-      await this._navCtrl.navigateRoot('/list');
-    }
-    catch(err:any) {
-      console.log(err)
-      this.message = 3;
-    }
     this.working = false;
   }
 

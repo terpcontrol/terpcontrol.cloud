@@ -91,6 +91,13 @@
         <ion-card-content>{{'login.messages.sessionExpiredText' | translate}}</ion-card-content>
       </ion-card>
 
+      <ion-card color="danger" *ngIf="message === 12">
+        <ion-card-header>
+          <ion-card-title>{{'login.messages.errorTitle' | translate}}</ion-card-title>
+        </ion-card-header>
+        <ion-card-content>{{'login.messages.demoUnavailable' | translate}}</ion-card-content>
+      </ion-card>
+
       <ion-card class="login-card">
         <ion-card-content>
 
@@ -165,7 +172,7 @@
 
           <div class="login-demo" *ngIf="mode === 0">
             <p class="login-demo-hint">{{'login.demoHint' | translate}}</p>
-            <ion-button [disabled]="working" fill="clear" color="primary" expand="block" (click)="loginAsDemo()">{{'login.demoLogin' | translate}}</ion-button>
+            <ion-button [disabled]="working" fill="clear" color="primary" expand="block" routerLink="/demo">{{'login.demoLogin' | translate}}</ion-button>
           </div>
 
           <p class="login-link-row" *ngIf="mode === 0"><a (click)="mode = 2">{{'login.forgotPassword' | translate}}</a></p>
