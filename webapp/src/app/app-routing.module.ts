@@ -44,6 +44,10 @@ const routes: Routes = [
     loadChildren: () => import('./login/login.module').then( m => m.LoginPageModule)
   },
   {
+    path: 'demo',
+    loadChildren: () => import('./demo/demo.module').then( m => m.DemoPageModule)
+  },
+  {
     path: 'link-expired',
     loadChildren: () => import('./link-expired/link-expired.module').then( m => m.LinkExpiredPageModule)
   },
@@ -64,6 +68,11 @@ const routes: Routes = [
   {
     path: 'classes',
     loadChildren: () => import('./classes/classes.module').then( m => m.ClassesPageModule)
+  },
+  // Last: anything that matched none of the routes above is a 404.
+  {
+    path: '**',
+    loadChildren: () => import('./not-found/not-found.module').then( m => m.NotFoundPageModule)
   }
 ];
 

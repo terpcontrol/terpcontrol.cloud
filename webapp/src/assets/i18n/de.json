@@ -231,6 +231,7 @@
   },
   "demo": {
     "mode": "Demo-Modus",
+    "opening": "Demo wird geöffnet...",
     "saveNotSupported": "Speichern wird im Demo-Modus nicht unterstützt"
   },
   "login": {
@@ -277,7 +278,8 @@
       "wrongRecoveryToken": "Dieser Wiederherstellungslink ist ungültig oder abgelaufen.",
       "passwordChangedText": "Dein Passwort wurde geändert, du kannst dich jetzt anmelden:",
       "sessionExpiredTitle": "Sitzung abgelaufen",
-      "sessionExpiredText": "Deine Sitzung ist nicht mehr gültig. Bitte melde dich erneut an."
+      "sessionExpiredText": "Deine Sitzung ist nicht mehr gültig. Bitte melde dich erneut an.",
+      "demoUnavailable": "Die Demo konnte nicht geöffnet werden. Bitte versuche es erneut."
     }
   },
   "growPresets": {
@@ -457,6 +459,11 @@
     "load-failed-title": "Geräte konnten nicht geladen werden",
     "load-failed-text": "Der Server hat nicht geantwortet. Deine Geräte sind weiterhin vorhanden — das ist nur ein Anzeigeproblem.",
     "retry": "Erneut versuchen"
+  },
+  "notFound": {
+    "title": "Seite nicht gefunden",
+    "text": "Die aufgerufene Seite existiert nicht oder wurde verschoben.",
+    "home": "Zurück zur App"
   },
   "connection-error": {
     "title": "Server nicht erreichbar",
