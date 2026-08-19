@@ -22,7 +22,7 @@ Onboard the webcam from the controller/module, app‑free, and get periodic HD s
 | 1 | Set Wi‑Fi from controller, app‑free | ✅ **Solved & proven** (HTTP `set_wifi.cgi` in AP mode) |
 | 2 | Reversible / original app still works | ✅ Yes — camera stays 100% stock; factory reset restores it |
 | 4 | Minimal, no firmware | ✅ On track — everything is settings + HTTP + P2P, no firmware |
-| 3 | HD image every 1–2 min | ✅ **SOLVED end-to-end (2026‑08‑18).** App‑free provisioning proven live; the PPCS transport cipher is fully reversed & reimplemented in pure Python; a clean‑room client pulls a **2304×1296 HD JPEG** LAN‑direct from the camera on Wi‑Fi. See §15. |
+| 3 | HD image every 1–2 min | ✅ **SOLVED end-to-end on hardware (2026‑08‑20).** The controller captures over P2P and the existing image pipeline stores/serves it; see §17. Earlier note (2026‑08‑18): App‑free provisioning proven live; the PPCS transport cipher is fully reversed & reimplemented in pure Python; a clean‑room client pulls a **2304×1296 HD JPEG** LAN‑direct from the camera on Wi‑Fi. See §15. |
 
 ## 3. Hardware & identity
 
@@ -239,3 +239,28 @@ The first controller-side version received strictly in order and published each 
 2. **Strict in-order acceptance.** With any loss or reordering the receiver discarded everything after the gap, so one dropped datagram ended the transfer. Fix: fragments are stored **by index** (`slot = index - base_index`, each at a fixed `slot * 1024` offset, with its own length recorded), the ACK carries the highest **contiguous** slot so the camera both advances its window and resends what is missing, and ACKs are coalesced (≥40 ms apart) so draining a burst is not one syscall per packet.
 
 Completion is "the fragment containing the JPEG end marker has arrived **and** every fragment before it has too". Only then are the slots compacted (always a leftward `memmove`, so it is safe in place), trimmed to `SOI…EOI` — dropping the `result= 0;var …` preamble the camera sends ahead of the image — and published in ~1 KB fragments.
+
+### 17.2 On-device receive loss — what was measured
+
+The camera does not pace the image to the receiver: it blasts ~39 fragments of 1 KB back-to-back and only sparsely retransmits. A laptop on the same LAN loses none of them; the ESP32 initially captured **8 of 40** (`message-cam-capture:incomplete got=8/40 eoi=-1`). Everything in the drain loop is therefore a throughput problem, not a protocol problem. Measures applied, in the order they were tested:
+
+- **WiFi modem power-save off for the capture** (`WiFi.setSleep(false)`, restored on every exit path). Power-save parks the radio between beacons and silently drops inbound UDP — a well-known ESP32 UDP-loss cause. Measured effect here: `got=9/39`, i.e. it was *not* the dominant factor, but it is kept because it can only help.
+- **ACK coalescing.** The telling detail in `got=9/39` is that the first ~9 fragments arrive fine and the rest are lost: while there are no gaps the receiver was acking *every* packet, and each ACK is an lwip syscall during which the camera keeps filling a mailbox only a few datagrams deep. ACKs are now sent at most every 25 ms or every 8 fragments.
+- **Watchdog fed on a timer, not per packet** — same reasoning: in the drain loop every avoidable syscall costs fragments.
+
+The receiver tolerates the loss that remains (fragments are indexed, gaps are re-requested).
+
+**Result: working.** With ACK coalescing in place the fridge module captures the image end to end — `message-cam-capture:ok bytes=31813 got=35/44 eoi=33`, and the cloud's test-image button returns `http=200` with a valid 640×360 JPEG. Note `got=35/44`: fragments are still lost, and the retransmit/indexed-reassembly path is what turns that into a complete image, so it is load-bearing rather than belt-and-braces.
+
+### 17.3 Status and the remaining reliability gap
+
+**Working end to end on hardware.** Both entry points produce a real image:
+- test-image button → `http=200`, valid 640×360 JPEG (`message-cam-capture:ok bytes=31813 got=35/44 eoi=33`);
+- the scheduled pipeline poll → `[okam] image assembled … 31828B`, stored as `format:'jpeg'` and served by `/image/:device_id`.
+
+**Per-attempt success is ~1 in 3** (measured 2/6 over a few minutes). Because the existing poller retries on its normal schedule, a still still lands roughly every 1–2 min, but the failures are wasteful and should be chased down. What the diagnostics show:
+- `got=35/44` on a success — fragments *are* lost even when it works; the indexed reassembly plus re-request is what completes the image.
+- `got=17/17 eoi=-1` — everything we were sent arrived contiguously, but the camera stopped mid-image (~17 KB of 33 KB). Nothing was lost on our side; the sender simply stopped.
+- `got=1/3 eoi=-1 try=3` immediately after a success — the retries return almost nothing, suggesting the camera needs a cooldown (or a fresh session) between snapshots rather than back-to-back requests on the same session.
+
+Next things to try, in order: a short delay between the in-session retries (the camera looks busy right after delivering an image); re-running the handshake for each retry instead of reusing the session; and pacing the poll so a capture is never requested immediately after a previous one.

@@ -49,6 +49,9 @@ namespace fg {
     constexpr uint32_t TRANSFER_MS      = 30000;  // image transfer budget
     constexpr uint32_t IDLE_ABORT_MS    = 8000;   // no fragment for this long -> give up
     constexpr size_t   MAX_DGRAM        = 1200;   // camera datagrams are <= 1032
+    constexpr uint32_t ACK_INTERVAL_MS  = 15;     // coalesce acks: never one per packet
+    constexpr uint16_t ACK_EVERY_N      = 4;
+    constexpr int      MAX_ATTEMPTS     = 3;      // re-request if a transfer comes up short
     // The image is buffered while it is received, then published. Publishing is
     // a blocking TLS write during which no UDP can be read; doing that between
     // fragments made the camera's packets drop and the transfer die after ~5
@@ -287,13 +290,10 @@ namespace fg {
       return false;
     }
 
-    // --- 3. request the JPEG and stream fragments to the cloud ------------
-    // The camera answers on channel 0. We only accept in-order fragments (out of
-    // order ones are dropped and re-sent by the camera) so the image can be
-    // forwarded as it arrives instead of being buffered.
-    snprintf(cgi, sizeof(cgi), "snapshot.cgi?%s", AUTH);
-    sendPacket(udp, peer_ip, peer_port, buildCgi(0, 1, cgi));
-
+    // --- 3. request the JPEG, receive it, then publish --------------------
+    // The camera answers on channel 0. Fragments are stored by index so loss and
+    // reordering are survivable, and the whole request is retried if a transfer
+    // comes up short (the camera sometimes simply stops mid-image).
     const uint32_t capture_id = millis();
     uint16_t base_index = 0;          // channel-0 index of the first fragment
     bool first_index_known = false;
@@ -304,9 +304,20 @@ namespace fg {
     uint32_t sent_bytes = 0;
     uint32_t seq = 0;
     uint32_t last_ack = 0;
+    uint16_t acked_upto = 0;
+    uint32_t last_wdt = millis();
     uint32_t last_data = millis();
+    uint16_t cgi_index = 1;
+    int attempt = 0;
+
+    for(attempt = 1; attempt <= MAX_ATTEMPTS && !complete; attempt++) {
+    base_index = 0; first_index_known = false; slots_seen = 0; contiguous = 0;
+    eoi_slot = -1; acked_upto = 0; last_ack = 0;
     memset(g_received, 0, sizeof(g_received));
     memset(g_slot_len, 0, sizeof(g_slot_len));
+    snprintf(cgi, sizeof(cgi), "snapshot.cgi?%s", AUTH);
+    sendPacket(udp, peer_ip, peer_port, buildCgi(0, cgi_index++, cgi));
+    last_data = millis();
     started = millis();
 
     while(!complete && (millis() - started) < TRANSFER_MS) {
@@ -361,14 +372,19 @@ namespace fg {
       }
 
       // Ack the highest CONTIGUOUS slot: that is what advances the camera's
-      // window, and it also asks for anything missing before it.
+      // window and asks for anything missing before it. Sending one ack per
+      // packet is too slow — each is an lwip syscall, and while we are in it the
+      // camera keeps blasting into a UDP mailbox only a few datagrams deep, so
+      // we fall behind and start losing fragments (measured: fine for the first
+      // ~9, then ~75% loss). Coalesce: at most one ack per ACK_INTERVAL_MS or
+      // every ACK_EVERY_N new fragments.
       while(contiguous < MAX_SLOTS && g_received[contiguous]) contiguous++;
       const uint32_t now = millis();
-      if(now - last_ack > 40 || contiguous >= slots_seen) {
+      if(contiguous > 0 &&
+         (contiguous >= (uint16_t)(acked_upto + ACK_EVERY_N) || now - last_ack > ACK_INTERVAL_MS)) {
         last_ack = now;
-        if(contiguous > 0) {
-          sendPacket(udp, peer_ip, peer_port, buildAck(0, (uint16_t)(base_index + contiguous - 1)));
-        }
+        acked_upto = contiguous;
+        sendPacket(udp, peer_ip, peer_port, buildAck(0, (uint16_t)(base_index + contiguous - 1)));
       }
 
       // Note the fragment holding the JPEG end marker; the image is complete
@@ -383,8 +399,12 @@ namespace fg {
         complete = true;
       }
 
-      esp_task_wdt_reset();
+      // The watchdog is fed on a timer rather than per packet: in the drain loop
+      // every avoidable syscall costs fragments.
+      if(now - last_wdt > 200) { last_wdt = now; esp_task_wdt_reset(); }
     }
+    esp_task_wdt_reset();
+    }   // retry loop
 
     // Fragments were stored at fixed slot offsets so they could arrive in any
     // order; squeeze out the padding (only the final fragment is ever short) and
@@ -439,9 +459,9 @@ namespace fg {
       // serial console (severity 1 only when it actually failed).
       char note[128];
       snprintf(note, sizeof(note),
-               "message-cam-capture:%s bytes=%lu got=%u/%u eoi=%d",
+               "message-cam-capture:%s bytes=%lu got=%u/%u eoi=%d try=%d",
                ok ? "ok" : "incomplete", (unsigned long)sent_bytes,
-               (unsigned)contiguous, (unsigned)slots_seen, (int)eoi_slot);
+               (unsigned)contiguous, (unsigned)slots_seen, (int)eoi_slot, attempt - 1);
       cloud->log(note, ok ? 0 : 1);
     }
     if(!ok && seq > 0) {
