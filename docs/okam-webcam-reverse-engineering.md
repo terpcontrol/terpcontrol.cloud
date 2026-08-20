@@ -349,7 +349,9 @@ Following §19, the controller now ships the **`snapshot.cgi` path** and the ful
 - `snapshot.cgi` is a **paced request/response** on DRW channel 0 — the camera sends a fragment, waits for its ack, sends the next. The receiver sets the rate, so a shallow UDP mailbox is not a problem.
 - `livestream.cgi` is an **unpaced burst** — ~53 back-to-back 1 KB fragments with no unprompted retransmission and exactly one keyframe per session. The receiver has no say, and that is what caps it at ~3/8.
 
-**Measured: 10/10** (all `http=200`, 640x360, ~38.6 KB each), against 3/8 at best for the full-resolution path. Requirement #3's reliability target is met.
+**Measured: 22/22** across two runs (10/10 and 12/12, captures spaced 30 s), every one a complete 640x360 JPEG of 26-39 KB that decodes and ends on its EOI marker — against 3/8 at best for the full-resolution path. Requirement #3's reliability target is met.
+
+The device log shows the repair working rather than being avoided: a typical success is `got=43/56`, i.e. fragments *are* lost and the indexed reassembly plus contiguous re-ack is what completes the image. That mechanism is load-bearing, not belt-and-braces.
 
 Implementation notes:
 - Fragments are stored **by index** and the highest **contiguous** index is acked (coalesced). Taking them strictly in order and re-acking the last good one instead was measured far worse — `resend=343..553` out of ~400 fragments and 0/10 — because the `0xd1` packet is a resend request rather than a pure acknowledgement (§19.2), so naming an old index makes the camera go-back-N the whole window and the flood drowns the fragment actually wanted. Switching to indexed reassembly cut fragments per capture from ~420 to ~200.
