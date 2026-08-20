@@ -53,6 +53,7 @@ namespace fg {
     constexpr uint16_t ACK_EVERY_N      = 4;
     constexpr uint8_t  VIDEO_CHANNEL    = 1;      // the camera streams video on channel 1
     constexpr size_t   HEAP_MARGIN_BYTES = 40 * 1024;  // never squeeze the rest of the firmware
+    constexpr uint32_t MIN_KEYFRAME_BYTES = 20 * 1024; // below this a frame cannot be a keyframe here
     constexpr int      MAX_ATTEMPTS     = 1;      // one try per request; the cloud paces retries
     // The frame is buffered while it is received, then published. Publishing is
     // a blocking TLS write during which no UDP can be read; doing that between
@@ -352,6 +353,7 @@ namespace fg {
     uint32_t frame_started = 0;       // when the current frame's first fragment arrived
     uint16_t frames_dropped = 0;      // frames abandoned because of holes
     uint16_t pframes_skipped = 0;     // complete but non-key frames passed over
+    uint16_t anchor_offset = 0;       // where the frame starts inside the first fragment
     bool complete = false;
     uint32_t sent_bytes = 0;
     uint32_t seq = 0;
@@ -364,7 +366,7 @@ namespace fg {
 
     for(attempt = 1; attempt <= MAX_ATTEMPTS && !complete; attempt++) {
     base_index = 0; first_index_known = false; slots_seen = 0; contiguous = 0;
-    eoi_slot = -1; frame_len = 0; acked_upto = 0; last_ack = 0;
+    eoi_slot = -1; frame_len = 0; acked_upto = 0; last_ack = 0; anchor_offset = 0;
     memset(g_received, 0, sizeof(g_received));
     memset(g_slot_len, 0, sizeof(g_slot_len));
     // snapshot.cgi only ever returns the 640x360 sub-stream. The full-resolution
@@ -412,10 +414,14 @@ namespace fg {
       // comes up short the right move is to give up on it and re-anchor on the
       // next frame boundary rather than wait for fragments that never come.
       if(!first_index_known) {
+        // Anchor only on a fragment that STARTS a frame. Anchoring at an
+        // arbitrary offset inside a fragment was measured worse: it locks onto
+        // whichever boundary appears first, which is usually a P-frame.
         const uint8_t* q = g_rx + 8;
         if(!(payload_len >= 32 && q[0] == 0x55 && q[1] == 0xaa && q[2] == 0x15 && q[3] == 0xa8)) {
-          continue;                                 // mid-frame; wait for a boundary
+          continue;
         }
+        anchor_offset = 0;
         base_index = index;
         first_index_known = true;
         frame_started = millis();
@@ -430,9 +436,12 @@ namespace fg {
 
       last_data = millis();
       if(!g_received[slot]) {
+        const int skip = (slot == 0) ? (int)anchor_offset : 0;   // slot 0 starts at the frame boundary
+        const int len_in = payload_len - skip;
+        if(len_in <= 0) continue;
         g_received[slot] = true;
-        g_slot_len[slot] = (uint16_t)payload_len;
-        memcpy(g_img + (size_t)slot * SLOT_BYTES, g_rx + 8, (size_t)payload_len);
+        g_slot_len[slot] = (uint16_t)len_in;
+        memcpy(g_img + (size_t)slot * SLOT_BYTES, g_rx + 8 + skip, (size_t)len_in);
         if(slot >= slots_seen) slots_seen = (uint16_t)(slot + 1);
       }
 
@@ -462,6 +471,17 @@ namespace fg {
         if(h[0] == 0x55 && h[1] == 0xaa && h[2] == 0x15 && h[3] == 0xa8) {
           frame_len = (uint32_t)h[16] | ((uint32_t)h[17] << 8) |
                       ((uint32_t)h[18] << 16) | ((uint32_t)h[19] << 24);
+          // A keyframe is 30-48 KB here while P-frames are 1-16 KB. The length
+          // is known from the header, so skip the small ones immediately rather
+          // than spending the budget receiving a frame that cannot be a still.
+          if(frame_len > 0 && frame_len < MIN_KEYFRAME_BYTES) {
+            first_index_known = false; anchor_offset = 0;
+            slots_seen = 0; contiguous = 0; acked_upto = 0; frame_len = 0;
+            memset(g_received, 0, sizeof(g_received));
+            memset(g_slot_len, 0, sizeof(g_slot_len));
+            pframes_skipped++;
+            continue;
+          }
           if(frame_len > 0 && frame_len + 32 <= MAX_IMAGE_BYTES) {
             size_t have = 0;
             for(uint16_t i = 0; i < contiguous; i++) have += g_slot_len[i];
@@ -492,7 +512,7 @@ namespace fg {
       // the next frame. Keyframes recur every couple of seconds, so within the
       // transfer budget there are many chances rather than only one.
       if(!complete && first_index_known && slots_seen > contiguous && now - frame_started > 1200) {
-        first_index_known = false;
+        first_index_known = false; anchor_offset = 0;
         slots_seen = 0; contiguous = 0; acked_upto = 0; frame_len = 0;
         memset(g_received, 0, sizeof(g_received));
         memset(g_slot_len, 0, sizeof(g_slot_len));
@@ -559,9 +579,9 @@ namespace fg {
       // serial console (severity 1 only when it actually failed).
       char note[128];
       snprintf(note, sizeof(note),
-               "message-cam-capture:%s bytes=%lu got=%u/%u frame=%lu dropped=%u",
+               "message-cam-capture:%s bytes=%lu got=%u/%u frame=%lu drop=%u skip=%u",
                ok ? "ok" : "incomplete", (unsigned long)sent_bytes,
-               (unsigned)contiguous, (unsigned)slots_seen, (unsigned long)frame_len, (unsigned)frames_dropped);
+               (unsigned)contiguous, (unsigned)slots_seen, (unsigned long)frame_len, (unsigned)frames_dropped, (unsigned)pframes_skipped);
       cloud->log(note, ok ? 0 : 1);
     }
     if(!ok && seq > 0) {
