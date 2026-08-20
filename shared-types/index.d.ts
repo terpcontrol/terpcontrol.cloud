@@ -32,20 +32,6 @@ export interface FirmwareSettings {
 export type FirmwareChannel = 'stable' | 'beta' | 'alpha' | 'manual';
 
 /**
- * Marker written into `CloudSettings.rtspStream` for an O-KAM/VStarcam camera
- * paired to a controller: `okam://<did>`.
- *
- * Reusing rtspStream rather than adding a field is deliberate — the whole image
- * pipeline (scheduling trigger, test-image button, storage) keys off that one
- * setting, so a camera that speaks P2P instead of RTSP slots in without a
- * parallel code path. The server recognises the prefix and captures via the
- * controller; the webapp recognises it to hide the RTSP credential fields.
- *
- * Shared so the two sides cannot drift apart.
- */
-export declare const OKAM_STREAM_PREFIX: 'okam://';
-
-/**
  * Which camera the webcam stream URL was built for. 'terp_cam' is the Terp
  * Control Cam (URL reported by the device via hardware-info after local
  * pairing); brand values are RTSP URL templates; 'custom' is a raw URL.

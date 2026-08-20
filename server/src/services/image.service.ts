@@ -24,8 +24,7 @@ import { Image } from '@fg2/shared-types';
 import { deviceService } from '@services/device.service';
 import { createServer } from 'node:net';
 import { tunnelService } from '@services/tunnel.service';
-import { okamP2PService } from '@services/okam-p2p.service';
-import { OKAM_STREAM_PREFIX } from '@fg2/shared-types';
+import { okamP2PService, OKAM_STREAM_PREFIX } from '@services/okam-p2p.service';
 import sharp from 'sharp';
 
 const escapeXml = (value: string): string =>

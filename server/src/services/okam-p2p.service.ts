@@ -17,6 +17,13 @@ import { logger } from '@utils/logger';
  * reads them off the wire, tagged with a capture id and a sequence number.
  */
 
+/**
+ * cloudSettings.rtspStream marker for an O-KAM camera (`okam://<did>`). Using the
+ * existing rtspStream field means the whole image pipeline — poll scheduling,
+ * backoff, maintenance gating, the test-image button, storage, timelapses and
+ * thinning — works for these cameras with no parallel machinery.
+ */
+export const OKAM_STREAM_PREFIX = 'okam://';
 
 /** A controller has this long to deliver a complete image once asked. */
 const CAPTURE_TIMEOUT_MS = 30_000;
