@@ -342,4 +342,33 @@ Since each *session* reliably yields exactly one keyframe, the obvious move is s
 
 Reverted. The shipped build is one session per capture, with the cloud's own retry schedule providing the repetition.
 
+## 20. Shipped: the 640x360 snapshot path (2026-08-20)
+
+Following §19, the controller now ships the **`snapshot.cgi` path** and the full-resolution keyframe path is retired to git history. The reason is pacing, not resolution:
+
+- `snapshot.cgi` is a **paced request/response** on DRW channel 0 — the camera sends a fragment, waits for its ack, sends the next. The receiver sets the rate, so a shallow UDP mailbox is not a problem.
+- `livestream.cgi` is an **unpaced burst** — ~53 back-to-back 1 KB fragments with no unprompted retransmission and exactly one keyframe per session. The receiver has no say, and that is what caps it at ~3/8.
+
+**Measured: 10/10** (all `http=200`, 640x360, ~38.6 KB each), against 3/8 at best for the full-resolution path. Requirement #3's reliability target is met.
+
+Implementation notes:
+- Fragments are stored **by index** and the highest **contiguous** index is acked (coalesced). Taking them strictly in order and re-acking the last good one instead was measured far worse — `resend=343..553` out of ~400 fragments and 0/10 — because the `0xd1` packet is a resend request rather than a pure acknowledgement (§19.2), so naming an old index makes the camera go-back-N the whole window and the flood drowns the fragment actually wanted. Switching to indexed reassembly cut fragments per capture from ~420 to ~200.
+- **The `result= 0;var …` preamble does not always fit in the first fragment.** The SOI lands in slot 2 on this camera, so the slot it appears in has to be recorded, not assumed to be slot 0. Assuming slot 0 left the preamble in front of the JPEG and every capture failed its final SOI check with a plausible-looking `bytes=39921` — a silent, total failure that only the marker check caught. The EOI scan is likewise only started once the SOI is known, so a stray `ff d9` byte pair in the preamble cannot end the image before it starts.
+- The image is **buffered, then published**. Publishing is a blocking TLS write during which no UDP can be read; doing it between fragments killed the transfer after ~5 fragments.
+- The JPEG is bounded by its **SOI/EOI markers** — the `result= 0;var …` preamble before SOI and any trailing text after EOI are stripped, and an image that never reached EOI is refused rather than stored as the grey-striped partial that looks like a broken lens.
+- Buffer is **56 KB, malloc'd per capture and freed on every exit path**, with the same largest-free-block guard as before (`skipped-low-heap` reports free/max/needed). 640x360 stills measure ~31-33 KB. Static RAM 20.3%.
+- The server needs **no change**: `okamP2PService.onImageMessage` already resolves a plain JPEG directly and only calls ffmpeg when the message carries `"h264":true`. That branch is left intact for whenever the full-resolution path is revived.
+
+### 20.1 Reviving the full-resolution path
+
+The complete recipe, the four reasons it is unreliable, and the list of things already tried and disproved are kept as a long comment block in **`firmware/src/okamcam.h`** so they sit next to the code rather than only in this document. In short: it needs a controller with **PSRAM** — that removes both the buffer ceiling and the memory pressure that makes draining a 53-fragment burst marginal. Shrinking the keyframe at the camera is not an option on firmware `EN120.8.53.11` (§19.5).
+
+## 21. Camera factory-reset on disconnect (2026-08-20)
+
+Disconnecting a camera in the module UI used to only forget the DID locally, which left the camera joined to a Wi-Fi network it was no longer paired with — recoverable only with the physical reset button. `okamCamFactoryReset()` now sends **`restore_factory.cgi`** over the same P2P session the capture path uses, so the camera drops back to its `@IPC-<n>` setup AP and can be paired again by this module or any other.
+
+- It is **best effort by design**: a camera that is powered off or out of range must not make disconnecting impossible, so the module forgets the pairing either way and the UI says whether the reset was acknowledged (`cam disconnected and reset` vs `cam disconnected / cam did not answer - reset it by hand`).
+- The command is re-sent for up to `RESET_CONFIRM_MS` and any channel-0 reply counts as confirmation, because the camera reboots as soon as it acts and the reply may never arrive. Resending is safe — it is idempotent, and after the first one the camera is gone.
+- This also fixes the stale-credential trap noted in §15.4: after a factory reset the camera answers plain `loginpas=888888` again, which is what the next provisioning run uses.
+
 Credentials note: this document contains live device credentials and must not be pushed to a public remote.

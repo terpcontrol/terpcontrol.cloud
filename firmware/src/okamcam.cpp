@@ -51,37 +51,20 @@ namespace fg {
     constexpr size_t   MAX_DGRAM        = 1200;   // camera datagrams are <= 1032
     constexpr uint32_t ACK_INTERVAL_MS  = 15;     // coalesce acks: never one per packet
     constexpr uint16_t ACK_EVERY_N      = 4;
-    constexpr uint8_t  VIDEO_CHANNEL    = 1;      // the camera streams video on channel 1
-    constexpr size_t   HEAP_MARGIN_BYTES = 8 * 1024;  // never squeeze the rest of the firmware
-    constexpr uint32_t MIN_KEYFRAME_BYTES = 20 * 1024; // below this a frame cannot be a keyframe here
+    constexpr uint8_t  IMAGE_CHANNEL    = 0;      // snapshot.cgi answers on channel 0
+    constexpr size_t   HEAP_MARGIN_BYTES = 16 * 1024; // never squeeze the rest of the firmware
     constexpr int      MAX_ATTEMPTS     = 1;      // one try per request; the cloud paces retries
-    // The frame is buffered while it is received, then published. Publishing is
-    // a blocking TLS write during which no UDP can be read; doing that between
-    // fragments made the camera's packets drop and the transfer die after ~5
-    // fragments. A fixed static buffer is used (never the heap) so the cost is
-    // known, cannot leak and cannot fragment the heap. Full-resolution
-    // (2304x1296) keyframes measure ~32 KB. 48 KB is the practical ceiling on
-    // this chip — 64 KB overflows dram0_0_seg by ~8 KB — and still leaves ~1.5x
-    // headroom for a busy scene; anything beyond it is refused, not grown.
-    // Keyframes are scene-dependent: 27-38 KB on a quiet scene, 54-64 KB on a
-    // busy one, and a keyframe larger than this buffer is refused outright --
-    // which is exactly what turned a working capture into 0/8 when the scene
-    // changed. This must therefore fit the big end, not the average.
+    constexpr uint32_t RESET_CONFIRM_MS = 4000;   // keep resending restore_factory until it answers
+    // 640x360 stills measure ~31-33 KB; 56 KB leaves room for a busy scene and
+    // anything beyond it is refused rather than allowed to grow.
     //
     // Nothing is held between captures: the buffer is malloc'd per capture and
-    // freed on every exit path, and the guard below skips the capture entirely
-    // when the largest free block cannot spare it with HEAP_MARGIN_BYTES to
-    // spare (the image service just retries on its own schedule). 80 KB was
-    // measured to be beyond the chip -- every attempt logged skipped-low-heap --
-    // Sizing is measured, not guessed. The skipped-low-heap diagnostic reports
-    // the largest free block at capture start: free=158 KB but max=94,196 bytes
-    // contiguous. So the buffer plus its margin has to stay under ~94 KB, which
-    // 76 KB + 8 KB does, with ~18 KB still contiguous while a capture runs.
-    // Measured keyframes run 27-67 KB depending on the scene, so this is the
-    // smallest ceiling that reliably holds a busy one -- 48 KB and 64 KB both
-    // rejected real keyframes outright and scored 0/10, and 80 KB + 12 KB
-    // missed the largest free block by 12 bytes and skipped every capture.
-    constexpr size_t   MAX_IMAGE_BYTES  = 76 * 1024;
+    // freed on every exit path, and the capture is skipped outright when the
+    // largest free block cannot spare it with HEAP_MARGIN_BYTES to spare (the
+    // image service just retries on its own schedule). Sizing is measured, not
+    // guessed -- the skipped-low-heap diagnostic reports free=158 KB but only
+    // ~94 KB CONTIGUOUS, and it is that number the buffer has to fit under.
+    constexpr size_t   MAX_IMAGE_BYTES  = 56 * 1024;
 
     // --- static working buffers (no heap) --------------------------------
     uint8_t  g_rx[MAX_DGRAM];        // one inbound datagram, decoded in place
@@ -90,10 +73,9 @@ namespace fg {
     char     g_msg[sizeof(g_b64) + 160];            // JSON image message
     constexpr size_t   SLOT_BYTES = 1024;                    // camera fragment size
     constexpr uint16_t MAX_SLOTS  = MAX_IMAGE_BYTES / SLOT_BYTES;
-    // The frame buffer is NOT static: 48 KB permanently resident would eat most
-    // of this device's spare heap. It is taken for the couple of seconds a
-    // capture lasts and released again on every exit path, and the capture is
-    // skipped outright if the heap cannot spare it (see okamCamCapture).
+    // The image buffer is NOT static: tens of KB permanently resident would eat
+    // most of this device's spare heap. It is taken for the couple of seconds a
+    // capture lasts and released again on every exit path (see okamCamCapture).
     uint8_t* g_img = nullptr;                       // fragments, stored by index
     bool     g_received[MAX_SLOTS];                 // which fragments arrived
     uint16_t g_slot_len[MAX_SLOTS];                 // their individual lengths
@@ -160,22 +142,6 @@ namespace fg {
       }
     }
 
-    // A frame is usable as a still only if it carries SPS (NAL 7) and an IDR
-    // slice (NAL 5); the payload begins after the 32-byte frame header.
-    bool frameIsKeyframe(const uint8_t* buf, uint32_t frame_len) {
-      const uint8_t* f = buf + 32;
-      bool sps = false, idr = false;
-      for(uint32_t i = 0; i + 4 < frame_len; i++) {
-        if(f[i] == 0 && f[i+1] == 0 && f[i+2] == 0 && f[i+3] == 1) {
-          const uint8_t nal = f[i+4] & 0x1f;
-          if(nal == 7) sps = true;
-          if(nal == 5) idr = true;
-          if(sps && idr) return true;
-        }
-      }
-      return false;
-    }
-
     // Build `F1 <type> <len16> <payload>` into g_tx and obfuscate it.
     size_t buildPacket(uint8_t type, const uint8_t* payload, size_t len) {
       if(len + 4 > sizeof(g_tx)) return 0;
@@ -226,55 +192,21 @@ namespace fg {
       return buildPacket(0xd1, body, sizeof(body));
     }
 
-  } // namespace
+    // Credentials: VStarcam factory default (the camera is provisioned by us and
+    // never has its password changed). The captured `loginpas` hash goes stale
+    // after a factory reset; the plain password does not.
+    const char* const AUTH =
+      "name=admin&loginuse=admin&loginpas=888888&user=admin&pwd=888888&";
 
-  bool okamCamCapture(Fridgecloud* cloud) {
-    const std::string did_str = fg::settings().getStr("webcam_did");
-    if(settingIsEmpty(did_str) || did_str == "none" || cloud == nullptr) {
-      return false;   // no camera paired
-    }
-
-    // Take the frame buffer for the duration of this capture only. If the heap
-    // cannot spare it (largest free block must leave a healthy margin), skip the
-    // capture rather than push the device towards an allocation failure
-    // elsewhere — the cloud simply retries on its own schedule.
-    if(ESP.getMaxAllocHeap() < MAX_IMAGE_BYTES + HEAP_MARGIN_BYTES) {
-      char hm[104];
-      snprintf(hm, sizeof(hm), "message-cam-capture:skipped-low-heap free=%lu max=%lu need=%lu",
-               (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap(),
-               (unsigned long)(MAX_IMAGE_BYTES + HEAP_MARGIN_BYTES));
-      cloud->log(hm, 1);
-      return false;
-    }
-    g_img = (uint8_t*)malloc(MAX_IMAGE_BYTES);
-    if(g_img == nullptr) {
-      cloud->log("message-cam-capture:skipped-low-heap", 1);
-      return false;
-    }
-
-    // ESP32 WiFi defaults to modem power-save, which parks the radio between
-    // beacons and silently drops inbound UDP. The camera bursts the image at
-    // line rate, so with power-save on ~75% of the fragments never arrive
-    // (measured: 8 of 40). Disable it for the capture and restore it after.
-    const bool wifi_was_asleep = WiFi.getSleep();
-    WiFi.setSleep(false);
-
-    WiFiUDP udp;
-    if(!udp.begin(0)) {
-      WiFi.setSleep(wifi_was_asleep);
-      releaseBuffer();
-      return false;
-    }
-
-    // Everything below must go through `finish` so the socket is always closed.
-    bool ok = false;
-    uint8_t did[20];
-    bool have_did = false;
-    IPAddress peer_ip;
-    uint16_t peer_port = 0;
-    uint32_t started = millis();
-
-    const IPAddress broadcast(255, 255, 255, 255);
+    // Discover the camera and authenticate a P2P session on `udp`. Shared by the
+    // capture and factory-reset paths. The DevLgn is what authenticates the
+    // session: without it the camera acks DRW at the transport level but
+    // silently drops every command.
+    bool openSession(WiFiUDP& udp, IPAddress& peer_ip, uint16_t& peer_port) {
+      uint8_t did[20];
+      bool have_did = false;
+      uint32_t started = millis();
+      const IPAddress broadcast(255, 255, 255, 255);
 
     // --- 1. discover: LanSearch until the camera answers with its DID -----
     while(!have_did && (millis() - started) < DISCOVER_MS) {
@@ -300,17 +232,8 @@ namespace fg {
       esp_task_wdt_reset();
     }
 
-    if(!have_did) {
-      udp.stop();
-      WiFi.setSleep(wifi_was_asleep);
-      releaseBuffer();
-      return false;
-    }
+    if(!have_did) return false;
 
-    // Credentials: VStarcam factory default (the camera is provisioned by us and
-    // never has its password changed).
-    static const char* AUTH =
-      "name=admin&loginuse=admin&loginpas=888888&user=admin&pwd=888888&";
     char cgi[192];
 
     // --- 2. authenticate: handshake until a CGI actually answers ----------
@@ -354,31 +277,142 @@ namespace fg {
       esp_task_wdt_reset();
     }
 
-    if(!authed) {
-      udp.stop();
+    return authed;
+
+  }
+
+  } // namespace
+
+  bool okamCamFactoryReset(Fridgecloud* cloud) {
+    const std::string did_str = fg::settings().getStr("webcam_did");
+    if(settingIsEmpty(did_str) || did_str == "none" || cloud == nullptr) {
+      return false;
+    }
+
+    // No image buffer here — this only sends one command, so it costs nothing
+    // but the socket and can run even when the heap is too tight to capture.
+    const bool wifi_was_asleep = WiFi.getSleep();
+    WiFi.setSleep(false);
+
+    WiFiUDP udp;
+    if(!udp.begin(0)) {
+      WiFi.setSleep(wifi_was_asleep);
+      return false;
+    }
+
+    IPAddress peer_ip;
+    uint16_t peer_port = 0;
+    bool ok = false;
+
+    if(openSession(udp, peer_ip, peer_port)) {
+      char cgi[192];
+      snprintf(cgi, sizeof(cgi), "restore_factory.cgi?%s", AUTH);
+
+      // The camera reboots into its setup AP as soon as it acts on this, so the
+      // reply may never arrive. Send it a few times and treat any channel-0
+      // answer as confirmation; the resends are harmless because the command is
+      // idempotent and the camera is gone after the first one it acts on.
+      const uint32_t started = millis();
+      uint16_t index = 1;
+      while(!ok && (millis() - started) < RESET_CONFIRM_MS) {
+        sendPacket(udp, peer_ip, peer_port, buildCgi(0, index++, cgi));
+        const uint32_t wait_until = millis() + 600;
+        while((int32_t)(wait_until - millis()) > 0) {
+          int sz = udp.parsePacket();
+          if(sz > 0 && sz <= (int)sizeof(g_rx)) {
+            int len = udp.read(g_rx, sizeof(g_rx));
+            if(len >= 8) {
+              deobfuscate(g_rx, len);
+              if(g_rx[1] == 0xd0 && g_rx[5] == IMAGE_CHANNEL) { ok = true; break; }
+            }
+          }
+          delay(5);
+        }
+        esp_task_wdt_reset();
+      }
+    }
+
+    cloud->log(ok ? "message-cam-reset:ok" : "message-cam-reset:no-response", ok ? 0 : 1);
+
+    udp.stop();
+    WiFi.setSleep(wifi_was_asleep);
+    return ok;
+  }
+
+  bool okamCamCapture(Fridgecloud* cloud) {
+    const std::string did_str = fg::settings().getStr("webcam_did");
+    if(settingIsEmpty(did_str) || did_str == "none" || cloud == nullptr) {
+      return false;   // no camera paired
+    }
+
+    // Take the frame buffer for the duration of this capture only. If the heap
+    // cannot spare it (largest free block must leave a healthy margin), skip the
+    // capture rather than push the device towards an allocation failure
+    // elsewhere — the cloud simply retries on its own schedule.
+    if(ESP.getMaxAllocHeap() < MAX_IMAGE_BYTES + HEAP_MARGIN_BYTES) {
+      char hm[104];
+      snprintf(hm, sizeof(hm), "message-cam-capture:skipped-low-heap free=%lu max=%lu need=%lu",
+               (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap(),
+               (unsigned long)(MAX_IMAGE_BYTES + HEAP_MARGIN_BYTES));
+      cloud->log(hm, 1);
+      return false;
+    }
+    g_img = (uint8_t*)malloc(MAX_IMAGE_BYTES);
+    if(g_img == nullptr) {
+      cloud->log("message-cam-capture:skipped-low-heap", 1);
+      return false;
+    }
+
+    // ESP32 WiFi defaults to modem power-save, which parks the radio between
+    // beacons and silently drops inbound UDP. The camera bursts the image at
+    // line rate, so with power-save on ~75% of the fragments never arrive
+    // (measured: 8 of 40). Disable it for the capture and restore it after.
+    const bool wifi_was_asleep = WiFi.getSleep();
+    WiFi.setSleep(false);
+
+    WiFiUDP udp;
+    if(!udp.begin(0)) {
       WiFi.setSleep(wifi_was_asleep);
       releaseBuffer();
       return false;
     }
 
+    // Everything below must go through `finish` so the socket is always closed.
+    bool ok = false;
+    IPAddress peer_ip;
+    uint16_t peer_port = 0;
+    uint32_t started = millis();
+
+    if(!openSession(udp, peer_ip, peer_port)) {
+      udp.stop();
+      WiFi.setSleep(wifi_was_asleep);
+      releaseBuffer();
+      return false;
+    }
+    char cgi[192];
+
     // --- 3. request the JPEG, receive it, then publish --------------------
-    // The camera answers on channel 0. Fragments are stored by index so loss and
-    // reordering are survivable, and the whole request is retried if a transfer
-    // comes up short (the camera sometimes simply stops mid-image).
+    // snapshot.cgi answers on channel 0 as a paced request/response: the camera
+    // sends a fragment, waits for its ack, then sends the next. That pacing is
+    // the whole reason this path is used instead of the full-resolution one --
+    // see okamcam.h for why the 2304x1296 keyframe path was abandoned.
+    //
+    // Fragments are stored BY INDEX, not in arrival order, and the highest
+    // CONTIGUOUS index is acked. Taking them strictly in order and re-acking the
+    // last good one instead was measured far worse (resend=343..553 out of ~400
+    // fragments, 0/10): the 0xd1 packet is a resend request rather than a pure
+    // acknowledgement, so naming an old index makes the camera go-back-N the
+    // whole window and the flood drowns the fragment actually wanted.
     const uint32_t capture_id = millis();
-    uint32_t max_declared = 0;        // largest frame length the camera announced
-    uint16_t anchors = 0;             // how many keyframes we locked onto
-    uint32_t frags_seen = 0;          // raw channel-1 datagrams accepted (diagnostic)
+    uint32_t frags_seen = 0;          // channel-0 datagrams accepted (diagnostic)
     uint16_t base_index = 0;          // channel-0 index of the first fragment
     bool first_index_known = false;
     uint16_t slots_seen = 0;          // highest slot index seen, + 1
     uint16_t contiguous = 0;          // slots 0..contiguous-1 have all arrived
-    int32_t  eoi_slot = -1;           // (unused for video; kept for the log line)
-    uint32_t frame_len = 0;           // declared length of the media frame
-    uint32_t frame_started = 0;       // when the current frame's first fragment arrived
-    uint16_t frames_dropped = 0;      // frames abandoned because of holes
-    uint16_t pframes_skipped = 0;     // complete but non-key frames passed over
-    uint16_t anchor_offset = 0;       // where the frame starts inside the first fragment
+    int32_t  eoi_slot = -1;           // slot holding the JPEG EOI marker
+    int32_t  soi_slot = -1;           // slot holding the JPEG SOI marker
+    uint16_t soi_offset = 0;          // where the JPEG starts inside that slot
+    bool soi_found = false;
     bool complete = false;
     uint32_t sent_bytes = 0;
     uint32_t seq = 0;
@@ -386,26 +420,18 @@ namespace fg {
     uint16_t acked_upto = 0;
     uint32_t last_wdt = millis();
     uint32_t last_data = millis();
-    uint16_t cgi_index = 1;
     int attempt = 0;
 
     for(attempt = 1; attempt <= MAX_ATTEMPTS && !complete; attempt++) {
-    frags_seen = 0; max_declared = 0; anchors = 0;
-    base_index = 0; first_index_known = false; slots_seen = 0; contiguous = 0;
-    eoi_slot = -1; frame_len = 0; acked_upto = 0; last_ack = 0; anchor_offset = 0;
+    frags_seen = 0; base_index = 0; first_index_known = false;
+    slots_seen = 0; contiguous = 0; eoi_slot = -1; soi_slot = -1;
+    soi_offset = 0; soi_found = false; sent_bytes = 0;
+    acked_upto = 0; last_ack = 0;
     memset(g_received, 0, sizeof(g_received));
     memset(g_slot_len, 0, sizeof(g_slot_len));
-    // snapshot.cgi only ever returns the 640x360 sub-stream. The full-resolution
-    // image (2304x1296) is only available from the video stream, so ask for the
-    // stream and keep its first keyframe. The controller does NOT decode it —
-    // the raw H.264 goes to the cloud, which turns it into a JPEG with ffmpeg.
-    // snapshot.cgi only ever returns the 640x360 sub-stream and substream=1 is a
-    // ~3 KB-keyframe low-res stream, so the full-resolution image (2304x1296)
-    // only comes from substream=2. Its first frame is the keyframe; everything
-    // after it is small frames, and re-issuing this request on a running stream
-    // is ignored by the camera, so the first frame is the one that counts.
-    snprintf(cgi, sizeof(cgi), "livestream.cgi?streamid=10&substream=2&%s", AUTH);
-    sendPacket(udp, peer_ip, peer_port, buildCgi(0, cgi_index++, cgi));
+
+    snprintf(cgi, sizeof(cgi), "snapshot.cgi?%s", AUTH);
+    sendPacket(udp, peer_ip, peer_port, buildCgi(0, 1, cgi));
     last_data = millis();
     started = millis();
 
@@ -428,7 +454,7 @@ namespace fg {
         sendPacket(udp, peer_ip, peer_port, buildPacket(0xe1, nullptr, 0));
         continue;
       }
-      if(g_rx[1] != 0xd0 || g_rx[5] != VIDEO_CHANNEL) {   // only video-channel data
+      if(g_rx[1] != 0xd0 || g_rx[5] != IMAGE_CHANNEL) {   // only channel-0 data
         continue;
       }
 
@@ -438,134 +464,70 @@ namespace fg {
       if(payload_len <= 0 || payload_len > len - 8) {
         payload_len = len - 8;
       }
-      if(payload_len <= 0) continue;
+      if(payload_len <= 0 || payload_len > (int)SLOT_BYTES) continue;
 
-      last_data = millis();
       frags_seen++;
+      last_data = millis();
 
-      // Anchor on a fragment that STARTS a media frame. This is a live stream:
-      // the camera does not retransmit, it just keeps sending, so if a frame
-      // comes up short the right move is to give up on it and re-anchor on the
-      // next frame boundary rather than wait for fragments that never come.
       if(!first_index_known) {
-        // Frames are packed back to back, so a keyframe usually begins INSIDE a
-        // fragment; only anchoring at fragment starts meant we saw P-frames and
-        // essentially never a keyframe (skip=36 with none found). Scan the whole
-        // fragment for a frame header and anchor only when its declared length
-        // says it is keyframe-sized — anchoring on the first boundary regardless
-        // was measured worse (0/8), because that is nearly always a P-frame.
-        const uint8_t* q = g_rx + 8;
-        int at = -1;
-        for(int i = 0; i + 32 <= payload_len; i++) {
-          if(q[i] == 0x55 && q[i+1] == 0xaa && q[i+2] == 0x15 && q[i+3] == 0xa8) {
-            const uint32_t cand = (uint32_t)q[i+16] | ((uint32_t)q[i+17] << 8) |
-                                  ((uint32_t)q[i+18] << 16) | ((uint32_t)q[i+19] << 24);
-            if(cand > max_declared) max_declared = cand;
-            if(cand >= MIN_KEYFRAME_BYTES && cand + 32 <= MAX_IMAGE_BYTES) { at = i; break; }
-            pframes_skipped++;
-          }
-        }
-        if(at < 0) continue;                        // no keyframe boundary here
-        anchor_offset = (uint16_t)at;
         base_index = index;
         first_index_known = true;
-        anchors++;
-        frame_started = millis();
       }
-      // Fragments are stored by index, not in arrival order. The camera bursts a
-      // whole window and lwip's UDP mailbox only holds a handful of datagrams,
-      // so reordering (and the occasional drop) is normal; refusing anything
-      // out of order made the transfer die at the first gap.
-      if(index < base_index) continue;
+      if((int16_t)(index - base_index) < 0) continue;
       const uint16_t slot = (uint16_t)(index - base_index);
       if(slot >= MAX_SLOTS) continue;
 
-      last_data = millis();
       if(!g_received[slot]) {
-        const int skip = (slot == 0) ? (int)anchor_offset : 0;   // slot 0 starts at the frame boundary
-        const int len_in = payload_len - skip;
-        if(len_in <= 0) continue;
         g_received[slot] = true;
-        g_slot_len[slot] = (uint16_t)len_in;
-        memcpy(g_img + (size_t)slot * SLOT_BYTES, g_rx + 8 + skip, (size_t)len_in);
+        g_slot_len[slot] = (uint16_t)payload_len;
+        memcpy(g_img + (size_t)slot * SLOT_BYTES, g_rx + 8, (size_t)payload_len);
         if(slot >= slots_seen) slots_seen = (uint16_t)(slot + 1);
+
+        // The image starts at the JPEG SOI, after the `result= 0;var ...`
+        // preamble, and ends at the EOI — trailing text must not be forwarded.
+        const uint8_t* q = g_img + (size_t)slot * SLOT_BYTES;
+        // The `result= 0;var ...` preamble is not guaranteed to fit in the
+        // first fragment, so remember WHICH slot the SOI landed in as well as
+        // where. Assuming slot 0 left the preamble in the image and every
+        // capture failed its final SOI check.
+        if(!soi_found) {
+          for(int i = 0; i + 1 < payload_len; i++) {
+            if(q[i] == 0xff && q[i + 1] == 0xd8) {
+              soi_found = true;
+              soi_slot = (int32_t)slot;
+              soi_offset = (uint16_t)i;
+              break;
+            }
+          }
+        }
+        if(eoi_slot < 0 && soi_found && (int32_t)slot >= soi_slot) {
+          for(int i = 0; i + 1 < payload_len; i++) {
+            if(q[i] == 0xff && q[i + 1] == 0xd9) {
+              eoi_slot = (int32_t)slot;
+              g_slot_len[slot] = (uint16_t)(i + 2);   // drop anything after EOI
+              break;
+            }
+          }
+        }
       }
 
       while(contiguous < MAX_SLOTS && g_received[contiguous]) contiguous++;
+
+      // Ack the highest CONTIGUOUS index: that is what advances the camera's
+      // window and asks for anything missing before it. Coalesced, because each
+      // ack is an lwip syscall and while we are inside it the camera keeps
+      // sending into a mailbox only a few datagrams deep.
       const uint32_t now = millis();
-      // Ack the highest CONTIGUOUS slot, and ONLY while a keyframe is being
-      // assembled. The 0xd1 packet behaves like a resend request rather than a
-      // pure acknowledgement: acking from the first fragment made the camera
-      // pour 4000-9000 fragments into a capture with almost no frame headers
-      // among them (retransmissions drowning new data in lwip's few-deep
-      // mailbox), while acking nothing at all gave clean reception -- 578
-      // fragments, 510 of them frame headers -- but no way to fill a gap, so
-      // 0/8. Acked only while anchored, it asks for exactly the fragments this
-      // keyframe is missing, which is what completes it.
       if(contiguous > 0 &&
          (contiguous >= (uint16_t)(acked_upto + ACK_EVERY_N) || now - last_ack > ACK_INTERVAL_MS)) {
         last_ack = now;
         acked_upto = contiguous;
-        // Ack on the VIDEO channel — acking channel 0 while receiving channel 1
-        // leaves the camera's video window stuck, so it never resends gaps.
-        sendPacket(udp, peer_ip, peer_port, buildAck(VIDEO_CHANNEL, (uint16_t)(base_index + contiguous - 1)));
+        sendPacket(udp, peer_ip, peer_port,
+                   buildAck(IMAGE_CHANNEL, (uint16_t)(base_index + contiguous - 1)));
       }
 
-      // Channel 1 carries VStarcam media frames: a 32-byte header (magic
-      // 55 aa 15 a8, frame length at offset 16 LE) then H.264. The frame is
-      // complete once enough contiguous fragments have arrived to cover it.
-      if(contiguous > 0 && g_slot_len[0] >= 32) {
-        const uint8_t* h = g_img;   // slot 0 starts at the buffer
-        if(h[0] == 0x55 && h[1] == 0xaa && h[2] == 0x15 && h[3] == 0xa8) {
-          frame_len = (uint32_t)h[16] | ((uint32_t)h[17] << 8) |
-                      ((uint32_t)h[18] << 16) | ((uint32_t)h[19] << 24);
-          // A keyframe is 30-48 KB here while P-frames are 1-16 KB. The length
-          // is known from the header, so skip the small ones immediately rather
-          // than spending the budget receiving a frame that cannot be a still.
-          if(frame_len > 0 && frame_len < MIN_KEYFRAME_BYTES) {
-            first_index_known = false; anchor_offset = 0;
-            slots_seen = 0; contiguous = 0; acked_upto = 0; frame_len = 0;
-            memset(g_received, 0, sizeof(g_received));
-            memset(g_slot_len, 0, sizeof(g_slot_len));
-            pframes_skipped++;
-            continue;
-          }
-          if(frame_len > 0 && frame_len + 32 <= MAX_IMAGE_BYTES) {
-            size_t have = 0;
-            for(uint16_t i = 0; i < contiguous; i++) have += g_slot_len[i];
-            if(have >= frame_len + 32) {
-              // Only a keyframe can be turned into a still. Frames arriving here
-              // are usually small P-frames (2-3 KB vs 31-48 KB); treat those as
-              // "done, not useful" and re-anchor on the next frame.
-              if(frameIsKeyframe(g_img, frame_len)) {
-                complete = true;
-              }
-              else {
-                first_index_known = false;
-                slots_seen = 0; contiguous = 0; acked_upto = 0; frame_len = 0;
-                memset(g_received, 0, sizeof(g_received));
-                memset(g_slot_len, 0, sizeof(g_slot_len));
-                pframes_skipped++;
-                continue;
-              }
-            }
-          }
-          else {
-            frame_len = 0;   // implausible: keep waiting / let it time out
-          }
-        }
-      }
-
-      // If this frame has gone quiet with holes in it, drop it and re-anchor on
-      // the next frame. Keyframes recur every couple of seconds, so within the
-      // transfer budget there are many chances rather than only one.
-      if(!complete && first_index_known && slots_seen > contiguous && now - frame_started > 1200) {
-        first_index_known = false; anchor_offset = 0;
-        slots_seen = 0; contiguous = 0; acked_upto = 0; frame_len = 0;
-        memset(g_received, 0, sizeof(g_received));
-        memset(g_slot_len, 0, sizeof(g_slot_len));
-        frames_dropped++;
-      }
+      // Done once every fragment up to and including the one holding EOI is in.
+      if(eoi_slot >= 0 && contiguous > (uint16_t)eoi_slot) complete = true;
 
       // The watchdog is fed on a timer rather than per packet: in the drain loop
       // every avoidable syscall costs fragments.
@@ -575,32 +537,28 @@ namespace fg {
     }   // retry loop
 
     // Fragments were stored at fixed slot offsets so they could arrive in any
-    // order; squeeze out the padding (only the final fragment is ever short),
-    // then drop the 32-byte frame header so only H.264 is sent on.
-    if(complete) {
+    // order; squeeze out the padding (only the final fragment is ever short) and
+    // drop the preamble ahead of the SOI.
+    if(complete && soi_found && soi_slot >= 0 && eoi_slot >= soi_slot) {
       size_t out = 0;
-      for(uint16_t i = 0; i < contiguous; i++) {
-        const size_t src = (size_t)i * SLOT_BYTES;
-        if(out != src) memmove(g_img + out, g_img + src, g_slot_len[i]);  // always shifts left
-        out += g_slot_len[i];
+      for(uint16_t i = (uint16_t)soi_slot; i <= (uint16_t)eoi_slot; i++) {
+        const size_t skip = (i == (uint16_t)soi_slot) ? (size_t)soi_offset : 0;
+        if(g_slot_len[i] <= skip) continue;
+        const size_t n = (size_t)g_slot_len[i] - skip;
+        memmove(g_img + out, g_img + (size_t)i * SLOT_BYTES + skip, n);
+        out += n;
       }
-      if(out >= frame_len + 32 && frame_len > 0) {
-        memmove(g_img, g_img + 32, frame_len);
-        sent_bytes = frame_len;
-        // Must be a keyframe: an inter-frame alone cannot be decoded to a still.
-        bool has_sps = false, has_idr = false;
-        for(size_t i = 0; i + 4 < sent_bytes; i++) {
-          if(g_img[i] == 0 && g_img[i+1] == 0 && g_img[i+2] == 0 && g_img[i+3] == 1) {
-            const uint8_t nal = g_img[i+4] & 0x1f;
-            if(nal == 7) has_sps = true;
-            if(nal == 5) has_idr = true;
-          }
-        }
-        if(!(has_sps && has_idr)) complete = false;
-      }
-      else {
-        complete = false;
-      }
+      sent_bytes = (uint32_t)out;
+    }
+    else {
+      complete = false;
+    }
+
+    // A JPEG that never reached its EOI marker is a partial image, and a partial
+    // image decodes to the grey-striped picture that looks like a working camera
+    // with a broken lens. Refuse it instead.
+    if(complete && (sent_bytes < 4 || g_img[0] != 0xff || g_img[1] != 0xd8)) {
+      complete = false;
     }
 
     // Transfer finished (the camera is no longer sending): now it is safe to
@@ -614,7 +572,7 @@ namespace fg {
         const bool last = (off + n) >= sent_bytes;
         if(b64encode(g_img + off, n, g_b64, sizeof(g_b64)) == 0) { ok = false; break; }
         snprintf(g_msg, sizeof(g_msg),
-                 "{\"capture\":%lu,\"seq\":%lu,\"last\":%s,\"h264\":true,\"payload\":\"%s\"}",
+                 "{\"capture\":%lu,\"seq\":%lu,\"last\":%s,\"payload\":\"%s\"}",
                  (unsigned long)capture_id, (unsigned long)seq++,
                  last ? "true" : "false", g_b64);
         if(!cloud->publishImageMessage(g_msg)) { ok = false; break; }
@@ -627,10 +585,10 @@ namespace fg {
       // serial console (severity 1 only when it actually failed).
       char note[128];
       snprintf(note, sizeof(note),
-               "message-cam-capture:%s bytes=%lu got=%u/%u frame=%lu drop=%u skip=%u frag=%lu anch=%u maxlen=%lu",
+               "message-cam-capture:%s bytes=%lu got=%u/%u soi=%d eoi=%d frags=%lu msgs=%lu try=%d",
                ok ? "ok" : "incomplete", (unsigned long)sent_bytes,
-               (unsigned)contiguous, (unsigned)slots_seen, (unsigned long)frame_len, (unsigned)frames_dropped, (unsigned)pframes_skipped,
-                 (unsigned long)frags_seen, (unsigned)anchors, (unsigned long)max_declared);
+               (unsigned)contiguous, (unsigned)slots_seen, (int)soi_slot, (int)eoi_slot,
+               (unsigned long)frags_seen, (unsigned long)seq, attempt);
       cloud->log(note, ok ? 0 : 1);
     }
     if(!ok && seq > 0) {

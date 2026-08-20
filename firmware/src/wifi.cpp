@@ -968,6 +968,18 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
         return;
       }
 
+      // Factory-reset the camera so it drops back to its `@IPC-<n>` setup AP and
+      // can be paired again. Without this it stays joined to a network it is no
+      // longer paired with, and the only way back is the physical reset button.
+      //
+      // Best effort on purpose: a camera that is powered off or out of range
+      // must not make disconnecting impossible, so the module forgets it either
+      // way. The reset is also what makes the *next* pairing work — after it the
+      // camera answers `loginpas=888888` again.
+      ui_handle->push<TextDisplay>("resetting cam...", 0, [](){});
+      const bool reset_ok = fg::okamCamFactoryReset(smart_socket_cloud_handle);
+      ui_handle->pop();
+
       fg::settings().erase(OKAM_CAM_DID_NVS_KEY);
       fg::settings().erase(TERP_CAM_URL_NVS_KEY);   // clear legacy slot too
       fg::settings().commit();
@@ -976,7 +988,9 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
         smart_socket_cloud_handle->log("hardware-info:webcam_did=none", 0);
       }
 
-      ui_handle->push<TextDisplay>("cam disconnected", 1, []() {
+      ui_handle->push<TextDisplay>(reset_ok ? "cam disconnected\nand reset"
+                                            : "cam disconnected\ncam did not\nanswer - reset\nit by hand",
+                                   1, []() {
         ui_handle->pop();
       });
     });
