@@ -62,3 +62,27 @@
 ion-item ion-label {
   max-width: 100% !important;
 }
+
+/* A modal that ends where its content ends, instead of reserving a full sheet
+   for a short form. Its body must be a plain element: ion-content stretches to
+   fill its parent, which is exactly what an auto-height modal does not have. */
+.auto-height-modal {
+  --height: auto;
+
+  &::part(content) {
+    position: relative;
+    display: block;
+    contain: content;
+  }
+
+  .ion-page {
+    position: relative;
+    display: block;
+    contain: content;
+  }
+
+  .modal-body {
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+}

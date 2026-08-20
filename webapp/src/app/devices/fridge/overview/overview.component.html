@@ -1,5 +1,10 @@
 <div class="offline-overlay" *ngIf="device_online == false" (click)="device_online = true">
-  <p>{{'devices.device-offline' | translate}}</p>
+  <p>
+    {{'devices.device-offline' | translate}}
+    <span class="offline-lastseen" *ngIf="lastseen">
+      {{ 'devices.device-offline-lastseen' | translate: { date: (lastseen | date: 'short') } }}
+    </span>
+  </p>
 </div>
 
 <ion-card-content>
@@ -152,20 +157,20 @@
     <ion-col size="6" size-sm="2" size-xl="1">
       <div
         class="onoff heating"
-        [class.on]="(data.measure(device_id, 'out_heater') | async) ?? 0 >= 0.5"
+        [class.on]="((data.measure(device_id, 'out_heater') | async) ?? 0) >= 0.5"
         style="cursor: pointer;"
         (click)="measureSelected('out_heater')"
       >
         <img class="icon-on" src="assets/icon/heating.svg" />
         <img class="icon-off" src="assets/icon/heating_off.svg" />
         <!-- <div class="name">{{'outputs.heating' | translate}}</div> -->
-        <div class="current">{{data.measure(device_id, 'out_heater') | async | multiply:100 | nofract}}%</div>
+        <div class="current">{{data.measure(device_id, 'out_heater') | async | multiply:100 | nofract:'%'}}</div>
       </div>
     </ion-col>
     <ion-col size="6" size-sm="2" size-xl="1">
       <div
         class="onoff cooling"
-        [class.on]="(data.measure(device_id, 'out_dehumidifier') | async) != 0"
+        [class.on]="((data.measure(device_id, 'out_dehumidifier') | async) ?? 0) > 0"
         style="cursor: pointer;"
         (click)="measureSelected('out_dehumidifier')"
       >
@@ -178,7 +183,7 @@
     <ion-col size="6" size-sm="2" size-xl="1" *ngIf="showCo2Display">
       <div
         class="onoff co2"
-        [class.on]="(data.measure(device_id, 'out_co2') | async) != 0"
+        [class.on]="((data.measure(device_id, 'out_co2') | async) ?? 0) > 0"
         style="cursor: pointer;"
         (click)="measureSelected('out_co2')"
       >
@@ -191,15 +196,15 @@
     <ion-col size="6" size-sm="2" size-xl="1">
       <div
         class="onoff lights"
-        [class.on]="(data.measure(device_id, 'out_light') | async) ?? 0 >= 0.5"
+        [class.on]="((data.measure(device_id, 'out_light') | async) ?? 0) >= 0.5"
         style="cursor: pointer;"
         (click)="measureSelected('out_light')"
       >
         <img class="icon-on" src="assets/icon/light.svg" />
         <img class="icon-off" src="assets/icon/light_off.svg" />
         <!-- <div class="name">{{'outputs.lights' | translate}}</div> -->
-        <div class="current">{{data.measure(device_id, 'out_light') | async | nofract}}%</div>
-        <!-- <div class="current" *ngIf="state.is_day">{{state.light_percent | nofract}}%</div> -->
+        <div class="current">{{data.measure(device_id, 'out_light') | async | nofract:'%'}}</div>
+        <!-- <div class="current" *ngIf="state.is_day">{{state.light_percent | nofract:'%'}}</div> -->
       </div>
     </ion-col>
   </ion-row>
@@ -207,7 +212,7 @@
     <ion-col size="12" size-sm="6" size-md="4" size-lg="3">
       <div class="maintenance-mode ion-text-center">
         <ion-icon name="construct-outline"></ion-icon>
-        Maintenance mode [{{ getMaintenanceModeRemainingDuration() }}]
+        {{ 'devices.maintenance.active' | translate: { duration: getMaintenanceModeRemainingDuration() } }}
       </div>
     </ion-col>
   </ion-row>

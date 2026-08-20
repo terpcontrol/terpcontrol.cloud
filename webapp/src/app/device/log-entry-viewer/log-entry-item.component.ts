@@ -9,6 +9,7 @@ import { LogTranslateService } from '../../services/log-translate.service';
 @Component({
   selector: 'app-log-entry-item',
   templateUrl: './log-entry-item.component.html',
+  styleUrls: ['./log-entry-item.component.scss'],
 })
 export class LogEntryItemComponent implements OnChanges {
   @Input() entry!: LogEntryViewerLog;
@@ -88,5 +89,9 @@ export class LogEntryItemComponent implements OnChanges {
 
   getEntryMessage(entry: Pick<LogEntryViewerLog, 'message' | 'raw'>): string {
     return this.logTranslate.getEntryMessage({ ...entry, raw: false });
+  }
+
+  categoryLabel(category: string): string {
+    return this.logTranslate.getCategoryLabel(category);
   }
 }

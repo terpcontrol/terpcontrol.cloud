@@ -1,21 +1,17 @@
 import {Component, ElementRef, EventEmitter, Input, OnDestroy, OnInit, Output, Renderer2, ViewChild} from '@angular/core';
 import {ActivatedRoute, Router} from '@angular/router';
-import {AlertController, IonModal, ToastController} from '@ionic/angular';
+import {IonModal} from '@ionic/angular';
 import {combineLatest, Subscription} from 'rxjs';
 import {DataService} from 'src/app/services/data.service';
 import {DeviceService} from 'src/app/services/devices.service';
 import {LogTranslateService} from 'src/app/services/log-translate.service';
+import {TranslateService} from '@ngx-translate/core';
 import {AuthService} from 'src/app/auth/auth.service';
-import TimeAgo from 'javascript-time-ago'
+import {MaintenanceModeService} from 'src/app/services/maintenance-mode.service';
 import type { DeviceLog } from '@fg2/shared-types';
-
-// English.
-import en from 'javascript-time-ago/locale/en'
 import {msToDuration} from "../settings/settings.component";
+import {formatTimeAgo} from 'src/app/util/time-ago';
 
-TimeAgo.addDefaultLocale(en)
-// Create formatter (English).
-const timeAgo = new TimeAgo('en-US')
 
 @Component({
   selector: 'fridge-overview',
@@ -29,6 +25,7 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
   @Input() device_name:string = "";
   @Input() device_type:string = "";
   @Input() maintenance_mode_until:number = 0;
+  @Input() lastseen: number | undefined;
   @Input() cloud_settings:any = {};
   @Input() hardware_info: Record<string, string> | undefined = {};
   /** Hidden in single-device dashboard mode, where the page header carries the name. */
@@ -71,7 +68,7 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
 
   public deviceImageUrl: string | undefined = '';
 
-  constructor(private devices: DeviceService, public data: DataService, private route: ActivatedRoute, private router: Router, private renderer: Renderer2, private alertController: AlertController, private toastController: ToastController, public logTranslate: LogTranslateService, private auth: AuthService) { }
+  constructor(private devices: DeviceService, public data: DataService, private route: ActivatedRoute, private router: Router, private renderer: Renderer2, public logTranslate: LogTranslateService, private auth: AuthService, private maintenance: MaintenanceModeService, private translate: TranslateService) { }
 
   public get is_admin(): boolean {
     return !!this.auth.current_user.value?.is_admin;
@@ -93,7 +90,7 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
 
   async ngOnInit() {
     if(this.device_name == "" || this.device_name == undefined) {
-      this.device_name = "Fridgegrow 2.0"
+      this.device_name = this.translate.instant('devices.fridge.title');
     }
 
     // Hide CO2 tile for controllers only when hardware reports no CO2 sensor
@@ -217,7 +214,7 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
   }
 
   formatLogTime(time: Date): string {
-    return timeAgo.format(time);
+    return formatTimeAgo(time);
   }
 
   async loadDeviceImage() {
@@ -339,44 +336,17 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
         return this.recipe.steps[this.recipe.activeStepIndex].confirmationMessage;
       }
 
-      return "Waiting for confirmation...";
+      return this.translate.instant('devices.fridge.recipe.waitingForConfirmation');
     }
 
     return undefined;
   }
 
   async maintenanceMode() {
-    const alert = await this.alertController.create({
-      header: `Maintenance mode`,
-      inputs: [
-        { label: 'deactivate', type: 'radio', value: 0, checked: true },
-        // @ts-ignore
-        ...[...Array(24).keys()].map(i => ({ label: `${(i + 1) * 5} minutes`, type: 'radio', value: (i + 1) * 5 })),
-      ],
-      buttons: [
-        { text: 'Cancel', role: 'cancel' },
-        {
-          text: 'Save',
-          handler: async (data) => {
-            try {
-              await this.devices.activateMaintenanceMode(this.device_id, data);
-              const toast = await this.toastController.create({ message: `Maintenance mode ${data <= 0 ? 'de' : ''}activated`, duration: 5000 });
-              await toast.present();
-              this.maintenance_mode_until = data <= 0 ? 0 : Date.now() + data * 60 * 1000;
-              return true;
-            } catch (e: any) {
-              let message = 'Failed to activate maintenance mode: ' + e.message;
-              console.log(message, e);
-              const toast = await this.toastController.create({ message, duration: 5000 });
-              await toast.present();
-              return false; // close alert
-            }
-
-          }
-        }
-      ]
-    });
-    await alert.present();
+    const until = await this.maintenance.promptFor(this.device_id, this.maintenance_mode_until);
+    if (until !== null) {
+      this.maintenance_mode_until = until;
+    }
   }
 
   measureSelected(measure:string) {

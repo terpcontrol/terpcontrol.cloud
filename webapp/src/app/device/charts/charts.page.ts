@@ -16,6 +16,8 @@ import { AuthService } from '../../auth/auth.service';
 import { ChartPresetsService } from '../../services/chart-presets.service';
 import { TranslateService } from '@ngx-translate/core';
 import { availableCuratedPresets, CuratedChartPreset } from '../../util/chart-presets';
+import { applyHighchartsLocale } from '../../util/highcharts-locale';
+import { resolveAppLocale } from '../../util/locale';
 
 declare var require: any;
 let Boost = require('highcharts/modules/boost');
@@ -489,6 +491,13 @@ export class ChartsPage implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
+    applyHighchartsLocale(Highcharts, resolveAppLocale(), {
+      noData: this.translate.instant('charts.noData'),
+      resetZoom: this.translate.instant('charts.resetZoom'),
+      resetZoomTitle: this.translate.instant('charts.resetZoomTitle'),
+      loading: this.translate.instant('misc.loading'),
+    });
+
     this.device_id = this.route.snapshot.paramMap.get('device_id') || '';
     this.shareToken = this.route.snapshot.queryParamMap.get('share');
 
@@ -610,6 +619,17 @@ export class ChartsPage implements OnInit, OnDestroy {
     return !!this.selectedDate && !!this.selectedDateEnd;
   }
 
+  /**
+   * Drops the fixed range a shared link brought in and returns to the normal
+   * timespan controls, so the view is not stuck on someone else's window.
+   */
+  public clearFixedDateRange() {
+    this.selectedDate = '';
+    this.selectedDateEnd = '';
+    this.useCustom = false;
+    this.timespanChanged();
+  }
+
   private getSelectedTimespanDurationMs() {
     // When dateEnd is set, calculate duration from date range
     if (this.selectedDateEnd) {
@@ -708,14 +728,26 @@ export class ChartsPage implements OnInit, OnDestroy {
 
     // @ts-ignore
 
+    // Axis labels cost horizontal space, so they are dropped on narrow screens.
+    // The spacer can still be unmeasured (0) while the page is being laid out —
+    // falling back to the window width keeps the axes from vanishing entirely.
+    const availableWidth = this.spacer?.nativeElement.offsetWidth || window.innerWidth;
+    const showAxisLabels = availableWidth > 320;
+
     const yAxis: YAxisOptions[] = [];
     for (let axis = 0; axis < this.filtered_measures.length; axis++) {
       let measure = this.filtered_measures[axis]
       const measureColor = theme.measureColorOverrides[measure.name] ?? measure.color;
+      const unitSuffix = measure.unit ? ' ' + measure.unit.trim() : '';
 
       yAxis.push({
         labels: {
-          format: '{value}' + measure.unit,
+          // "{value}" bypasses lang.decimalPoint for numbers below 1000, so the
+          // value goes through numberFormat explicitly. The unit follows after a
+          // space, the way units are written everywhere else in the app.
+          formatter: function () {
+            return Highcharts.numberFormat(Number(this.value), -1) + unitSuffix;
+          },
           style: {
             color: measureColor,
             fontSize: '8px'
@@ -724,7 +756,7 @@ export class ChartsPage implements OnInit, OnDestroy {
         softMin: 0,
         softMax: measure.max,
         opposite: measure.right,
-        visible: (this.spacer?.nativeElement.offsetWidth || 0) > 320 ? measure.enabled : false,
+        visible: showAxisLabels ? measure.enabled : false,
         zoomEnabled: false,
         gridLineColor: theme.gridLineColor,
         lineColor: theme.axisLineColor,
@@ -759,7 +791,7 @@ export class ChartsPage implements OnInit, OnDestroy {
         showInNavigator: measure.nav,
         tooltip: {
           valueDecimals: 2,
-          valueSuffix: measure.unit
+          valueSuffix: measure.unit ? ' ' + measure.unit.trim() : ''
         }
       };
     }));

@@ -12,21 +12,20 @@
       <circle cx="250" cy="250" r="190" />
     </g>
 
-    <g class="gauge-track" fill="none" stroke-width="5" *ngIf="!isNaN(limit_min)">
+    <g class="gauge-track" fill="none" stroke-width="5" *ngIf="hasLimits">
       <circle cx="250" cy="250" r="175" />
     </g>
 
-    <g attr.stroke="{{color_limit}}" fill="none" stroke-width="5" stroke-linecap="button" *ngIf="!isNaN(limit_min)">
+    <g attr.stroke="{{color_limit}}" fill="none" stroke-width="5" stroke-linecap="button" *ngIf="hasLimits">
       <!-- <path [attr.d]="'M 250 450 A 200 200 0 ' + arc_end.long + ' 1 ' + arc_end.x + ' ' + arc_end.y" /> -->
       <path attr.d="{{limit_arc}}" />
     </g>
 
-    <g attr.stroke="{{color}}" fill="none" stroke-width="10" stroke-linecap="button">
-        <!-- <path [attr.d]="'M 250 450 A 200 200 0 ' + arc_end.long + ' 1 ' + arc_end.x + ' ' + arc_end.y" /> -->
+    <g attr.stroke="{{color}}" fill="none" stroke-width="10" stroke-linecap="button" *ngIf="value_arc">
         <path attr.d="{{value_arc}}" />
     </g>
 
-    <polygon points="55,250 45,242 45,258" attr.fill="{{color}}" attr.transform="rotate({{rot_value}} 250 250)"/>
+    <polygon *ngIf="value_arc" points="55,250 45,242 45,258" attr.fill="{{color}}" attr.transform="rotate({{rot_value}} 250 250)"/>
 
     <!-- <line x1="150" x2="350" y1="250" y2="250" style="stroke:black;stroke-width:4"/> -->
     <text
@@ -38,7 +37,7 @@
       text-anchor="middle"
       attr.fill="{{color}}"
     >
-      {{value}}
+      {{ displayValue }}
     </text>
 
     <text
@@ -50,7 +49,7 @@
       text-anchor="middle"
       class="secondary-text"
     >
-      <tspan *ngIf="!isNaN(average_value)">Ø 1h: {{average_value}}</tspan>
+      <tspan *ngIf="!isMissing(average_value)">Ø 1h: {{average_value}}</tspan>
     </text>
 
     <text
@@ -62,7 +61,7 @@
       text-anchor="middle"
       class="secondary-text"
     >
-      <tspan *ngIf="!isNaN(target_value)">{{target_label}}: {{target_value}}</tspan>
+      <tspan *ngIf="!isMissing(target_value)">{{target_label}}: {{target_value}}</tspan>
     </text>
 
     <text
@@ -85,7 +84,7 @@
       font-size="20px"
       text-anchor="end"
       attr.transform="rotate({{rot_min - 180}} 250 250)"
-      *ngIf="!isNaN(limit_min) && rot_min > 90"
+      *ngIf="hasLimits && rot_min > 90"
       class="secondary-text"
     >
       {{limit_min}}
@@ -98,7 +97,7 @@
       font-size="20px"
       text-anchor="begin"
       attr.transform="rotate({{rot_min}} 250 250)"
-      *ngIf="!isNaN(limit_min) && rot_min < 90"
+      *ngIf="hasLimits && rot_min < 90"
       class="secondary-text"
     >
       {{limit_min}}
@@ -111,7 +110,7 @@
       font-size="20px"
       text-anchor="end"
       attr.transform="rotate({{rot_max - 180}} 250 250)"
-      *ngIf="!isNaN(limit_max) && rot_max > 90"
+      *ngIf="hasLimits && rot_max > 90"
       class="secondary-text"
     >
       {{limit_max}}
@@ -124,7 +123,7 @@
       font-size="20px"
       text-anchor="begin"
       attr.transform="rotate({{rot_max}} 250 250)"
-      *ngIf="!isNaN(limit_max) && rot_max < 90"
+      *ngIf="hasLimits && rot_max < 90"
       class="secondary-text"
     >
       {{limit_max}}

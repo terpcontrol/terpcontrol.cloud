@@ -176,3 +176,11 @@ h3 {
     font-size: 1rem;
   }
 }
+
+.offline-overlay .offline-lastseen {
+  display: block;
+  margin-top: 4px;
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--ion-color-medium);
+}

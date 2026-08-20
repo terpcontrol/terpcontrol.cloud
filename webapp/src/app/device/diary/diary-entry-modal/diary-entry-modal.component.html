@@ -7,7 +7,7 @@
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding">
+<div class="modal-body ion-padding">
   <ion-item>
     <ion-label>{{ 'diary.labels.categories' | translate }}</ion-label>
     <ion-select
@@ -136,11 +136,11 @@
 
   <ion-item *ngIf="uploading">
     <ion-spinner name="dots"></ion-spinner>
-    <ion-label>Uploading...</ion-label>
+    <ion-label>{{ 'diary.uploading' | translate }}</ion-label>
   </ion-item>
 
   <ion-item *ngIf="images.length">
-    <ion-label position="stacked">Images</ion-label>
+    <ion-label position="stacked">{{ 'diary.images' | translate }}</ion-label>
     <ion-row>
       <ion-col *ngFor="let imageId of images; let i = index" lines="none" class="ion-float-left">
         <img [src]="imageIdToImageUrl[imageId]" style="height: 50px; max-height: 50px; min-width: 10px; margin-right: 5px;"/>
@@ -154,4 +154,4 @@
   <ion-button expand="block" [disabled]="!isValid()" (click)="save()">
     {{ 'diary.actions.save' | translate }}
   </ion-button>
-</ion-content>
+</div>

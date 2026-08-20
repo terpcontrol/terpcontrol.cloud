@@ -15,6 +15,15 @@ import {environment} from "src/environments/environment";
 
 export const DEMO_WRITE_MESSAGE = 'Saving is not supported in demo mode';
 
+/**
+ * A write the demo session refused before it ever reached the server. The
+ * interceptor already told the user, so callers must not report it a second
+ * time as a failure of their own.
+ */
+export function isDemoWriteBlocked(error: any): boolean {
+  return error?.status === 403 && error?.error?.message === DEMO_WRITE_MESSAGE;
+}
+
 // Session endpoints keep working in a demo session; everything else that is not a
 // plain read changes data and is refused before it leaves the browser.
 const DEMO_ALLOWED_ENDPOINTS = ['/login', '/demologin', '/refresh', '/logout'];

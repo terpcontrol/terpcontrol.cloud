@@ -7,7 +7,7 @@ import App from '@/app';
 import AuthRoute from '@routes/auth.route';
 import DeviceRoute from '@routes/device.route';
 import deviceModel from '@/models/device.model';
-import { demoAlarms, demoLogs, DEMO_WRITE_MESSAGE } from '@utils/demo';
+import { demoAlarms, demoLogs, DEMO_WEBCAM_URL, DEMO_WRITE_MESSAGE } from '@utils/demo';
 
 const DEMO_DEVICE_ID = 'demo-device';
 const PRIVATE_DEVICE_ID = 'private-device';
@@ -72,7 +72,7 @@ describe('Demo sessions', () => {
 
     expect(response.body).toHaveLength(1);
     expect(response.body[0].device_id).toEqual(DEMO_DEVICE_ID);
-    expect(response.body[0].cloudSettings.rtspStream).toEqual('1');
+    expect(response.body[0].cloudSettings.rtspStream).toEqual(DEMO_WEBCAM_URL);
     expect(response.body[0].hardwareInfo).toEqual({ co2: 'on' });
   });
 

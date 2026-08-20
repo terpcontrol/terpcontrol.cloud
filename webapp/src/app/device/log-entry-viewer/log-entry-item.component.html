@@ -7,7 +7,7 @@
         {{ (entry.count ?? 0) > 1 ? '(' + entry.count + 'x)' : '' }}
       </h3>
     </ion-col>
-    <ion-col class="ion-text-right">
+    <ion-col class="ion-text-right entry-time">
       {{ entry.time | date: (timeOnly ? 'shortTime' : 'medium') }}
     </ion-col>
   </ion-row>
@@ -22,8 +22,8 @@
   <ion-row *ngIf="(entry.count ?? 0) > 1">
     <ion-col>
       <p>
-        (Message appeared {{ entry.count }} times consecutively
-        - <a href="#" (click)="onShowAll($event)">show all</a>)
+        {{ 'diary.repeatedEntry' | translate: { count: entry.count } }}
+        <a href="#" (click)="onShowAll($event)">{{ 'diary.showAll' | translate }}</a>
       </p>
     </ion-col>
   </ion-row>
@@ -55,16 +55,31 @@
 
   <ion-row *ngIf="showCategories && entry.categories?.length">
     <ion-col>
-      <ion-chip *ngFor="let category of entry.categories">{{ category }}</ion-chip>
+      <ion-chip *ngFor="let category of entry.categories" class="category-chip">{{ categoryLabel(category) }}</ion-chip>
     </ion-col>
-    <ion-col size="auto">
-      <ion-button *ngIf="showEdit && canEdit(entry)" color="primary" (click)="edit.emit(entry)">
-        <ion-icon name="pencil-outline"></ion-icon>&nbsp;
-        {{ 'diary.actions.edit' | translate }}
+    <!-- Icon buttons: the entry itself should read louder than its actions. -->
+    <ion-col size="auto" class="entry-actions">
+      <ion-button
+        *ngIf="showEdit && canEdit(entry)"
+        fill="clear"
+        size="small"
+        color="medium"
+        [title]="'diary.actions.edit' | translate"
+        [attr.aria-label]="'diary.actions.edit' | translate"
+        (click)="edit.emit(entry)"
+      >
+        <ion-icon slot="icon-only" name="pencil-outline"></ion-icon>
       </ion-button>
-      <ion-button *ngIf="showDelete" color="danger" (click)="delete.emit(entry)">
-        <ion-icon name="trash-outline"></ion-icon>&nbsp;
-        {{ 'diary.actions.delete' | translate }}
+      <ion-button
+        *ngIf="showDelete"
+        fill="clear"
+        size="small"
+        color="medium"
+        [title]="'diary.actions.delete' | translate"
+        [attr.aria-label]="'diary.actions.delete' | translate"
+        (click)="delete.emit(entry)"
+      >
+        <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
       </ion-button>
     </ion-col>
   </ion-row>

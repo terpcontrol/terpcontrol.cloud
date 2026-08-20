@@ -16,4 +16,10 @@
     <span class="tc-preset-card__title">{{ 'growPresets.custom.name' | translate }}</span>
     <span class="tc-preset-card__subtitle">{{ 'growPresets.custom.subtitle' | translate }}</span>
   </div>
+
+  <div *ngIf="showOff" class="tc-preset-card" [class.active]="selected === 'off'" (click)="select('off')">
+    <img src="assets/icon/presets/off.svg" [alt]="'growPresets.off.name' | translate" />
+    <span class="tc-preset-card__title">{{ 'growPresets.off.name' | translate }}</span>
+    <span class="tc-preset-card__subtitle">{{ 'growPresets.off.subtitle' | translate }}</span>
+  </div>
 </div>

@@ -6,13 +6,7 @@ import { DataService } from 'src/app/services/data.service';
 import { DeviceWithParsedSettings, DeviceService } from 'src/app/services/devices.service';
 import { LogTranslateService } from 'src/app/services/log-translate.service';
 import { OverlayEventDetail } from '@ionic/core/components';
-import TimeAgo from 'javascript-time-ago'
-
-// English.
-import en from 'javascript-time-ago/locale/en'
-TimeAgo.addDefaultLocale(en)
-// Create formatter (English).
-const timeAgo = new TimeAgo('en-US')
+import {formatTimeAgo} from 'src/app/util/time-ago';
 @Component({
   selector: 'light-overview',
   templateUrl: './overview.component.html',
@@ -137,7 +131,7 @@ export class LightOverviewComponent implements OnInit {
   }
 
   formatLogTime(time: Date) {
-    return timeAgo.format(time);
+    return formatTimeAgo(time);
   }
 
 }

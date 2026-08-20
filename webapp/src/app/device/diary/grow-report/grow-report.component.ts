@@ -4,6 +4,7 @@ import {currentShareToken} from "../../../services/share.service";
 import {Subscription} from "rxjs";
 import {collectLogCategories, filterLogsByCategory, LogEntryViewerLog} from "../../log-entry-viewer/log-entry-viewer.component";
 import {ActivatedRoute, Router} from "@angular/router";
+import {TranslateService} from "@ngx-translate/core";
 import type { DiaryEntryData, DeviceLog } from '@fg2/shared-types';
 import {
   DEFAULT_GROW_CATEGORIES,
@@ -146,6 +147,7 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     private route: ActivatedRoute,
     private elementRef: ElementRef<HTMLElement>,
     private zone: NgZone,
+    private translate: TranslateService,
   ) {
   }
 
@@ -574,23 +576,8 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   private formatGapLabelUntilToday(days: number): string {
-    if (days <= 0) {
-      return '';
-    }
-
-    const weeks = Math.floor(days / 7);
-    const remainingDays = days % 7;
-    const parts: string[] = [];
-
-    if (weeks > 0) {
-      parts.push(`${weeks} ${weeks === 1 ? 'week' : 'weeks'}`);
-    }
-
-    if (remainingDays > 0) {
-      parts.push(`${remainingDays} ${remainingDays === 1 ? 'day' : 'days'}`);
-    }
-
-    return parts.join(' ') + ' until today';
+    const span = this.formatGapSpan(days);
+    return span ? this.translate.instant('diary.gap.untilToday', { span }) : '';
   }
 
   scrollToPhase(stage: DiaryEntryData['newLifecycleStage']): void {
@@ -790,6 +777,12 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   private formatGapLabel(days: number): string {
+    const span = this.formatGapSpan(days);
+    return span ? this.translate.instant('diary.gap.later', { span }) : '';
+  }
+
+  /** "2 Wochen 3 Tage" — the bare span both gap labels are built from. */
+  private formatGapSpan(days: number): string {
     if (days <= 0) {
       return '';
     }
@@ -799,14 +792,14 @@ export class GrowReportComponent implements OnInit, OnDestroy, OnChanges {
     const parts: string[] = [];
 
     if (weeks > 0) {
-      parts.push(`${weeks} ${weeks === 1 ? 'week' : 'weeks'}`);
+      parts.push(this.translate.instant(weeks === 1 ? 'diary.gap.week' : 'diary.gap.weeks', { count: weeks }));
     }
 
     if (remainingDays > 0) {
-      parts.push(`${remainingDays} ${remainingDays === 1 ? 'day' : 'days'}`);
+      parts.push(this.translate.instant(remainingDays === 1 ? 'diary.gap.day' : 'diary.gap.days', { count: remainingDays }));
     }
 
-    return parts.join(' ') + ' later';
+    return parts.join(' ');
   }
 
   private isLifecycleLog(log: DeviceLog): boolean {

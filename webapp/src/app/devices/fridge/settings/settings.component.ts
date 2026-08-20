@@ -9,6 +9,9 @@ import {alarm} from "ionicons/icons";
 import {calculateVpd} from "../../../util/calculateVpd";
 import {deviceHasCo2} from "src/app/util/grow-presets";
 import {EXPERT_MODE_STORAGE_KEY} from "src/app/util/ui-mode";
+import {MaintenanceModeService} from "src/app/services/maintenance-mode.service";
+import {isDemoWriteBlocked} from "src/app/auth/auth.interceptor";
+import {AuthService} from "src/app/auth/auth.service";
 
 @Component({
   selector: 'fridge-settings',
@@ -55,6 +58,8 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
     private alertController: AlertController,
     private recipes: RecipeService,
     private translate: TranslateService,
+    private maintenance: MaintenanceModeService,
+    private auth: AuthService,
   ) {
     this.offset = new Date().getTimezoneOffset()*60;
   }
@@ -150,11 +155,74 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
     return stages.includes(step?.stage) ? this.translate.instant('growPresets.stages.' + step.stage) : '';
   }
 
-  openPlanWizard() {
-    this.deviceForWizard = this.devices.devices.getValue().find(device => device.device_id === this.device_id) ?? null;
-    if (this.deviceForWizard) {
-      this.planWizardOpen = true;
+  /** Simple mode: stop regulating. Confirms first when something is running. */
+  async onTurnOffRequested() {
+    const target = this.recipe?.activeSince > 0
+      ? this.recipe?.steps?.[this.recipe.activeStepIndex]?.settings
+      : this.deviceSettings;
+
+    if (target?.workmode === 'off') {
+      return;
     }
+
+    const alert = await this.alertController.create({
+      header: this.translate.instant('simpleSettings.turnOff.title'),
+      message: this.translate.instant(
+        this.recipe?.activeSince > 0 ? 'simpleSettings.turnOff.messagePlan' : 'simpleSettings.turnOff.message',
+      ),
+      buttons: [
+        { text: this.translate.instant('misc.cancel'), role: 'cancel' },
+        { text: this.translate.instant('simpleSettings.turnOff.confirm'), role: 'destructive' },
+      ],
+    });
+    await alert.present();
+    const { role } = await alert.onDidDismiss();
+    if (role !== 'destructive') {
+      return;
+    }
+
+    // A running plan would switch the device back on at its next step, so the
+    // plan has to end together with the regulation.
+    if (this.recipe?.activeSince > 0) {
+      this.onStopPlanRequested();
+    }
+    this.deviceSettings = { ...this.deviceSettings, workmode: 'off' };
+  }
+
+  async openMaintenanceMode() {
+    await this.maintenance.promptFor(this.device_id);
+  }
+
+  /**
+   * The wizard needs the full device record. The cached list can still be
+   * empty right after a deep link, so refetch once before giving up.
+   */
+  async openPlanWizard() {
+    const findDevice = () =>
+      this.devices.devices.getValue().find(device => device.device_id === this.device_id) ?? null;
+
+    this.deviceForWizard = findDevice();
+    if (!this.deviceForWizard) {
+      await this.devices.refetchDevices();
+      this.deviceForWizard = findDevice();
+    }
+
+    if (!this.deviceForWizard) {
+      const toast = await this.toastController.create({
+        message: this.translate.instant('simpleSettings.startPlanUnavailable'),
+        duration: 4000,
+        color: 'warning',
+      });
+      await toast.present();
+      return;
+    }
+
+    this.planWizardOpen = true;
+  }
+
+  /** Grows are planned for climate devices; anything else has no stage plan. */
+  get canStartPlan(): boolean {
+    return ['fridge', 'fridge2', 'controller'].includes(this.deviceType);
   }
 
   async onPlanWizardClosed() {
@@ -170,6 +238,7 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
     }
 
     this.saving = true;
+    this.errorSaving = false;
 
     try {
       if (this.settingsmode === 'manual') {
@@ -190,6 +259,11 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
       await this._router.navigateByUrl('/list', { replaceUrl: true });
       await this.devices.refetchDevices();
     } catch(e) {
+      // The demo session refuses writes on purpose and says so itself — that
+      // is not an error of the settings page.
+      if (isDemoWriteBlocked(e)) {
+        return;
+      }
       console.log('Failed saving settings:', e);
       this.errorSaving = true;
     } finally {
@@ -636,6 +710,11 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
 
   get deviceHasCo2Sensor(): boolean {
     return deviceHasCo2({ device_type: this.deviceType, hardwareInfo: this.hardwareInfo });
+  }
+
+  /** Demo sessions may look around but never write; say so before the click. */
+  get isDemo(): boolean {
+    return this.auth.isDemo;
   }
 
   /** Stage of the running plan's active step (stage-aware alarm presets). */

@@ -3,6 +3,12 @@ import { parseSocketRoles } from './socket-info';
 
 export type GrowStagePresetId = 'seedling' | 'vegetative' | 'flowering' | 'late_flowering' | 'drying';
 
+/**
+ * What the stage picker can show as selected: a preset, hand-tuned values, or
+ * a device that is not regulating at all.
+ */
+export type StageSelection = GrowStagePresetId | 'custom' | 'off';
+
 export interface GrowStagePreset {
   id: GrowStagePresetId;
   stage: DiaryLifecycleStage;
@@ -233,9 +239,15 @@ export function applyStagePreset(settings: any, presetId: GrowStagePresetId, opt
  * values a preset writes and the firmware reliably echoes; CO2 and
  * sunrise/sunset are excluded to keep detection robust across setups.
  */
-export function detectActiveStagePreset(settings: any): GrowStagePresetId | 'custom' | null {
+export function detectActiveStagePreset(settings: any): StageSelection | null {
   if (!settings?.workmode) {
     return null;
+  }
+
+  // A device that regulates nothing must not look like a running stage, no
+  // matter which targets are still stored from the last one.
+  if (settings.workmode === 'off') {
+    return 'off';
   }
 
   for (const preset of GROW_STAGE_PRESETS) {

@@ -90,6 +90,7 @@ export class DiaryPage implements OnInit, OnDestroy {
     const modal = await this.modalController.create({
       component: DiaryEntryModalComponent,
       backdropDismiss: false,
+      cssClass: 'auto-height-modal',
       componentProps: {
         deviceId: this.deviceId,
       },

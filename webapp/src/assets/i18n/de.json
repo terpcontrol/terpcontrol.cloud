@@ -19,7 +19,8 @@
     "cancel": "Abbrechen",
     "help": "Hilfe",
     "increase": "erhöhen",
-    "decrease": "verringern"
+    "decrease": "verringern",
+    "noValue": "—"
   },
   "settings": {
     "title": "Einstellungen",
@@ -35,7 +36,7 @@
     "dayTemperature": "Tag Temperatur",
     "dayHumidity": "Tag Luftfeuchtigkeit",
     "dayVpd": "Tag VPD",
-    "vpdPreview": "{{vpd}}kPa (RLF {{humidity}}%)",
+    "vpdPreview": "{{vpd}} kPa (RLF {{humidity}} %)",
     "nightTemperature": "Nacht Temperatur",
     "nightHumidity": "Nacht Luftfeuchtigkeit",
     "nightVpd": "Nacht VPD",
@@ -232,7 +233,8 @@
   "demo": {
     "mode": "Demo-Modus",
     "opening": "Demo wird geöffnet...",
-    "saveNotSupported": "Speichern wird im Demo-Modus nicht unterstützt"
+    "saveNotSupported": "Speichern wird im Demo-Modus nicht unterstützt",
+    "saveButton": "Speichern (im Demo nicht möglich)"
   },
   "login": {
     "welcomeTitle": "Willkommen zurück",
@@ -323,6 +325,10 @@
       "startFlowering": "Bereit für die Blüte? Ab jetzt läuft das Licht 12/12 — bestätige, um umzustellen.",
       "harvest": "Prüfe die Trichome: milchig mit ersten Bernsteintönen? Dann ernten und bestätigen — danach startet die Trocknung.",
       "dryingDone": "Knacken die Zweige statt zu biegen? Dann ist die Trocknung fertig — ab in die Curing-Gläser."
+    },
+    "off": {
+      "name": "Aus",
+      "subtitle": "Nichts regeln"
     }
   },
   "assistant": {
@@ -487,7 +493,12 @@
     "logsShowAll": "Alle anzeigen",
     "logsNoEntries": "Keine Log-Meldungen für den gewählten Zeitraum",
     "logsNoFilteredEntries": "Keine Log-Meldungen für die gewählten Filter",
-    "moreHiddenMessages": "Es gibt {{count}} weitere Log-Meldungen. Bitte Auswahl reduzieren."
+    "moreHiddenMessages": "Es gibt {{count}} weitere Log-Meldungen. Bitte Auswahl reduzieren.",
+    "noData": "In diesem Zeitraum liegen keine Messwerte vor — bitte den Zeitraum ändern.",
+    "resetZoom": "Zoom zurücksetzen",
+    "resetZoomTitle": "Zoom auf 1:1 zurücksetzen",
+    "customRange": "Eigener Zeitraum",
+    "resetRange": "Zurücksetzen"
   },
   "devices": {
     "button-settings": "Einstellungen",
@@ -682,7 +693,18 @@
       "preset-slow": "Langsame Trocknung",
       "preset-medium": "Normale Trocknung",
       "preset-fast": "Schnelle Trocknung"
-    }
+    },
+    "maintenance": {
+      "title": "Pflegemodus",
+      "text": "Wie lange soll die Regelung pausieren?",
+      "deactivate": "Beenden",
+      "minutes": "{{minutes}} Minuten",
+      "activated": "Pflegemodus für {{minutes}} Minuten aktiviert",
+      "deactivated": "Pflegemodus beendet",
+      "failed": "Pflegemodus konnte nicht geändert werden",
+      "active": "Pflegemodus [{{duration}}]"
+    },
+    "device-offline-lastseen": "zuletzt gesehen: {{date}}"
   },
   "diary": {
     "title": "Tagebuch",
@@ -696,7 +718,21 @@
       "plantLog": "Pflanzen-Log",
       "plantLifecycle": "Pflanzen-Phase",
       "measurement": "Messung",
-      "fridgeLog": "Fridge-Log"
+      "fridgeLog": "Fridge-Log",
+      "diary": "Tagebuch",
+      "diary-plant-log": "Pflanzen-Log",
+      "diary-fridge-log": "Geräte-Log",
+      "diary-plant-lifecycle": "Phasenwechsel",
+      "diary-co2-refill": "CO₂-Nachfüllung",
+      "diary-measurement": "Messung",
+      "plant-log": "Pflanzen-Log",
+      "plant-lifecycle": "Phasenwechsel",
+      "recipe": "Grow-Plan",
+      "recipe-confirmation": "Plan-Bestätigung",
+      "device-configuration": "Einstellungen",
+      "alarm": "Alarm",
+      "firmware": "Firmware",
+      "unknown": "Sonstiges"
     },
     "labels": {
       "categories": "Kategorie",
@@ -753,7 +789,19 @@
     "showWebcam": "Webcam-Fotos anzeigen",
     "hideWebcam": "Webcam-Fotos ausblenden",
     "gapPhotos": "Fotos der Tage dazwischen anzeigen",
-    "webcamTime": "Uhrzeit des Fotos"
+    "webcamTime": "Uhrzeit des Fotos",
+    "repeatedEntry": "(Meldung {{count}}× hintereinander)",
+    "showAll": "alle anzeigen",
+    "uploading": "Wird hochgeladen …",
+    "images": "Bilder",
+    "gap": {
+      "later": "{{span}} später",
+      "untilToday": "{{span}} bis heute",
+      "day": "{{count}} Tag",
+      "days": "{{count}} Tage",
+      "week": "{{count}} Woche",
+      "weeks": "{{count}} Wochen"
+    }
   },
   "message-lost-connection-title": "Verbindungsproblem",
   "message-lost-connection-text": "Die Verbindung zwischen deinem Gerät und unserem Server ist abgebrochen und wurde wiederhergestellt. Wenn dieser Fehler oft auftritt überprüfe bitte dein WLAN und deine Internetverbindung.",
@@ -837,7 +885,7 @@
     "targetsTitleReference": "Richtwerte",
     "temperature": "Temperatur",
     "humidity": "Luftfeuchte",
-    "deviceOff": "Das Gerät ist ausgeschaltet. Wähle oben eine Grow-Phase, um mit der Regelung zu starten.",
+    "deviceOff": "Das Gerät ist ausgeschaltet. Wähle oben eine Grow-Phase, um mit der Regelung zu starten — oder lass es auf „Aus“ stehen.",
     "expertHint": "Feintuning wie Heizverhalten, Entfeuchter-Timing oder Alarme findest du im Expertenmodus (Umschalter oben).",
     "plan": {
       "title": "Grow-Plan",
@@ -902,6 +950,21 @@
         "webhook": "Webhook"
       },
       "changeChannel": "Ändern"
+    },
+    "offSelectedHint": "Das Gerät regelt nichts. Wähle eine Grow-Phase, um die Regelung wieder zu starten.",
+    "startPlanHint": "Ein Grow-Plan wechselt die Phasen automatisch — vom Sämling bis zur Trocknung.",
+    "startPlanUnavailable": "Für dieses Gerät gibt es keinen Grow-Plan.",
+    "turnOff": {
+      "button": "Gerät ausschalten",
+      "title": "Regelung beenden?",
+      "message": "Das Gerät regelt danach nichts mehr — kein Licht, keine Temperatur, keine Luftfeuchte. Denk daran, danach zu speichern.",
+      "messagePlan": "Der laufende Grow-Plan wird gestoppt und das Gerät regelt danach nichts mehr. Denk daran, danach zu speichern.",
+      "confirm": "Ausschalten"
+    },
+    "maintenance": {
+      "title": "Kurz ins Zelt",
+      "text": "Der Pflegemodus pausiert die Regelung für eine gewählte Zeit, damit Gießen oder Umtopfen keine Alarme auslöst. Danach läuft alles automatisch weiter.",
+      "button": "Pflegemodus starten"
     }
   },
   "auxDevices": {

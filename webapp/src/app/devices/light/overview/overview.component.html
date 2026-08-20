@@ -69,11 +69,11 @@
   </ion-row>
   <ion-row class="ion-justify-content-center">
     <ion-col size="6" size-sm="2" size-xl="1">
-      <div class="onoff lights" [class.on]="((data.measure(device_id, 'out_light') | async) ?? 0) != 0">
+      <div class="onoff lights" [class.on]="((data.measure(device_id, 'out_light') | async) ?? 0) > 0">
         <img class="icon-on" src="assets/icon/light.svg" />
         <img class="icon-off" src="assets/icon/light_off.svg" />
         <!-- <div class="name">{{'outputs.lights' | translate}}</div> -->
-        <div class="current">{{data.measure(device_id, 'out_light') | async | nofract}}%</div>
+        <div class="current">{{data.measure(device_id, 'out_light') | async | nofract:'%'}}</div>
       </div>
     </ion-col>
   </ion-row>

@@ -6,6 +6,6 @@
     multiple="true"
     [interfaceOptions]="{ 'cssClass': 'wider-popover' }"
   >
-    <ion-select-option *ngFor="let category of availableCategories" [value]="category">{{ category }}</ion-select-option>
+    <ion-select-option *ngFor="let category of availableCategories" [value]="category">{{ categoryLabel(category) }}</ion-select-option>
   </ion-select>
 </ion-item>

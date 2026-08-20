@@ -84,7 +84,7 @@
   </ion-row>
   <ion-row class="ion-justify-content-center">
     <ion-col size="6" size-sm="2" size-xl="1">
-      <div class="onoff heating" [class.on]="(data.measure(device_id, 'out_relais') | async) ?? 0 >= 0.5">
+      <div class="onoff heating" [class.on]="((data.measure(device_id, 'out_relais') | async) ?? 0) >= 0.5">
         <img class="icon-on" src="assets/icon/light.svg" />
         <img class="icon-off" src="assets/icon/light_off.svg" />
         <!-- <div class="name">{{'outputs.heating' | translate}}</div> -->
