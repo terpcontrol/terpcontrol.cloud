@@ -322,4 +322,24 @@ With the buffer sized correctly the controller anchors on the keyframe on **ever
 2. **Accept 640x360** via `snapshot.cgi`, which is a paced request/response rather than a live burst and was materially more reliable.
 3. **A controller with PSRAM**, which removes both the buffer ceiling and the mailbox pressure.
 
+### 19.5 The APK route is closed — this firmware cannot be told to shrink the keyframe
+
+Option 1 above was pursued to the end. `base.apk` + `split_config.arm64_v8a.apk` were pulled from the `okamre` AVD (`adb pull /data/app/.../com.okampro.oksmart-*/`), and `libapp.so` (54 MB Flutter AOT) yields the app's complete CGI inventory. Findings:
+
+- **There is no `set_camera_params.cgi` anywhere in the app** — the camera answers `var cgi="not support"` because the CGI genuinely does not exist on this build. The full setter surface is `camera_control.cgi?param=N&value=V` (the app uses params 1, 2, 3, 5, 11, 14, 16, 33, 34, 36-40), `decoder_control.cgi`, and `trans_cmd_string.cgi` (203 uses).
+- Flutter's string table is unordered, so the param-ID map cannot be read off by proximity — each `camera_control.cgi?param=N&value=` is an isolated literal.
+- **Tested against the live camera, nothing moves the encoder.** `param=0&value=4` (the classic VStarcam resolution slot) returns `result= 0` and changes nothing. `param=3` values 3 and 4 leave keyframes at 53-66 KB. The one earlier reading that looked like a bitrate change (`enc_bitrate` 512 -> 1024, and later ~3 KB keyframes) was a **wedged encoder**, not a low-bitrate mode — it survived across substreams and only cleared on `reboot.cgi`.
+- The app's own UI strings advertise H.264+ / H.265 ("~50% less storage and bitrate"), and `trans_cmd_string.cgi?cmd=2105&command=2&videoFormat=` is the selector. It **accepts and persists** (`result= 0`, readback `videoFormat=1`) **but the encoder ignores it**: after a full reboot the stream is still H.264 (NAL 7/8/5) at 56.7 KB. `param=16` is the app's HD/SD stream toggle, not a resolution control.
+
+**Conclusion: the main stream's bitrate and keyframe size are not controllable on firmware `EN120.8.53.11`.** The camera was left exactly as found (`resolution=5, enc_size=5, enc_bitrate=512, enc_framerate=15, enc_keyframe=15, videoFormat=0`), verified by readback.
+
+### 19.6 Multiple sessions per capture — tried, and it backfires
+
+Since each *session* reliably yields exactly one keyframe, the obvious move is several sessions per capture. Implemented (fresh socket + fresh LanSearch + fresh DevLgn per attempt, 6 attempts inside a 26 s budget) and measured: **0/10, and worse than that it damages the device.** Two independent failures:
+
+- Discovery never completed on any session — `frag=0 anch=0 try=7`, i.e. every attempt fell through with no data at all.
+- **Repeated `udp.stop()` / `udp.begin(0)` permanently fragments the heap**: the largest free block fell from 94,196 to 77,812 bytes and stayed there, so subsequent captures logged `skipped-low-heap`. Socket churn is not viable on this stack.
+
+Reverted. The shipped build is one session per capture, with the cloud's own retry schedule providing the repetition.
+
 Credentials note: this document contains live device credentials and must not be pushed to a public remote.
