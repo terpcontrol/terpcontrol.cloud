@@ -168,15 +168,7 @@ Two things are worth knowing:
   `~/.Garmin/ConnectIQ/Devices`, so only the first build talks to Garmin.
 - **The developer key decides whether the build is publishable.** `GARMIN_DEVELOPER_KEY_B64` must stay the same across
   releases; the store rejects an update signed with a different key. Without it the build only succeeds when
-  `GARMIN_ALLOW_EPHEMERAL_KEY=1` is set, which is what CI does to verify that the app still compiles.
-
-Pull requests build the app in a container on the CI runner (verification only, throwaway key), and pushes to `master`
-build it on the deploy host and attach the signed `.iq` to the workflow run as an artifact. Both only run when something
-under `garmin/`, `garmin-buildcontainer/` or `build-garmin.sh` changed. To build it from a push that did not touch those,
-run the *Deploy* workflow manually with **build_garmin** checked.
-
-CI needs `GARMIN_USERNAME` / `GARMIN_PASSWORD` as repository secrets and `GARMIN_SDK_AGREEMENT_ACCEPTED=1` as a
-repository variable. The deploy host reads all `GARMIN_*` values from its own env file instead.
+  `GARMIN_ALLOW_EPHEMERAL_KEY=1` is set, and then only proves that the app still compiles.
 
 ## Documentation
 - Webapp: [Webapp](webapp/README.md)

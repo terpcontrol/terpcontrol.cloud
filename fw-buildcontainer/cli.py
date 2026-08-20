@@ -253,6 +253,35 @@ def rollout_id(firmware_id:str, class_name:str):
   print(response)
 
 @app.command()
+def rollout_alpha(firmware_id:str, class_name:str):
+  device_class = api_get("/device/class/find/" + class_name)
+  if(device_class.status_code != 200 or not device_class.json().get("class_id")):
+    print("Device class not found: " + class_name, file=sys.stderr)
+    exit(1)
+
+  info = device_class.json()
+  update = {
+    "name": info["name"],
+    "description": info.get("description") or "",
+    "firmware_id": info.get("firmware_id") or "",
+    "alpha_firmware_id": firmware_id,
+    "concurrent": info.get("concurrent", 1),
+    "maxfails": info.get("maxfails", 1)
+  }
+  # The update always writes firmware_id, so the current one is sent back
+  # unchanged; beta is only written when it is part of the request, so a class
+  # without one keeps it that way.
+  if info.get("beta_firmware_id"):
+    update["beta_firmware_id"] = info["beta_firmware_id"]
+
+  response = api_post("/device/class/" + info["class_id"], json=update)
+  if(not response.ok):
+    print("Failed to set alpha firmware: " + response.text, file=sys.stderr)
+    exit(1)
+
+  print("alpha firmware of " + class_name + " is now " + firmware_id)
+
+@app.command()
 def create_class(name:str, description:str):
   api_auth()
   headers = { "Authorization": "Bearer " + auth_token }

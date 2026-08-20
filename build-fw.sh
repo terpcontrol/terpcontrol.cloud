@@ -49,6 +49,7 @@ for hardware in $HARDWARES; do
     -e FG_MQTT_CA_PEM_B64="${MQTTS_CA_PEM_B64}" \
     -e FW_UPLOAD_VERSION="${FW_UPLOAD_VERSION}" \
     -e FW_NO_UPLOAD=${FW_NO_UPLOAD} \
+    -e FW_SET_ALPHA="${FW_SET_ALPHA}" \
     -e FW_VERSION_ID=${FW_VERSION_ID} \
     plantalytix-buildcontainer sh -c "cd /firmware; ./dev-build.sh $hardware"
 done

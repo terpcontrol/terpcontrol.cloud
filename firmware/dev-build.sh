@@ -74,6 +74,13 @@ if [ -z "$FW_NO_UPLOAD" ]; then
   fgcli.py upload-fw "${FW_VERSION_ID}" partitions.bin .pio/build/${BUILD_TYPE}/partitions.bin
   fgcli.py upload-fw "${FW_VERSION_ID}" boot_app0.bin ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin
 
+  # An upload on its own reaches no device. Putting the build on the alpha
+  # channel hands it to the devices that follow that channel, leaving beta and
+  # stable where they are.
+  if [ -n "$FW_SET_ALPHA" ]; then
+    fgcli.py rollout-alpha "${FW_VERSION_ID}" "${BUILD_TYPE}"
+  fi
+
   if [ -z "$FW_UPLOAD_VERSION" ]; then
     fgcli.py rollout-id ${FW_VERSION_ID} ${BUILD_TYPE}
   fi

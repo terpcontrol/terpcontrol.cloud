@@ -1,0 +1,82 @@
+name: Release firmware
+
+# Builds the firmware on the host of the given environment and uploads it to
+# that environment's server. An upload alone activates nothing - devices keep
+# running what they have until a firmware is put on a channel, which is what
+# set_alpha does for the staging classes.
+#
+# The environment named here must not carry a protection rule: firmware ships
+# unattended, the only thing holding the production release back is the staging
+# one having succeeded.
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Name of the GitHub environment holding the deployment settings'
+        required: true
+        type: string
+      description:
+        description: 'FW_UPLOAD_VERSION for the firmware upload'
+        required: false
+        type: string
+        default: ''
+      hardwares:
+        description: 'Firmware variants to build (space-separated)'
+        required: false
+        type: string
+        default: ''
+      set_alpha:
+        description: 'Put the fresh build on the alpha channel of its device class'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    env:
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+      TERPCONTROL_ENV_FILE: ${{ vars.TERPCONTROL_ENV_FILE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/sync-to-host
+        with:
+          environment: ${{ inputs.environment }}
+          host: ${{ vars.DEPLOY_HOST }}
+          user: ${{ vars.DEPLOY_USER }}
+          path: ${{ vars.DEPLOY_PATH }}
+          ssh_key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Build + upload firmware on host
+        env:
+          FW_UPLOAD_VERSION: ${{ inputs.description }}
+          HARDWARES: ${{ inputs.hardwares }}
+          FW_SET_ALPHA: ${{ inputs.set_alpha && '1' || '' }}
+        run: |
+          set -euo pipefail
+          echo "Building firmware variants on ${DEPLOY_HOST}: ${HARDWARES}"
+          echo "FW_UPLOAD_VERSION=${FW_UPLOAD_VERSION}"
+          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "cd '${DEPLOY_PATH}' && TERPCONTROL_ENV_FILE='${TERPCONTROL_ENV_FILE}' FW_UPLOAD_VERSION='${FW_UPLOAD_VERSION}' FW_SET_ALPHA='${FW_SET_ALPHA}' ./build-fw.sh ${HARDWARES}"
+
+      - name: Firmware summary
+        env:
+          FW_UPLOAD_VERSION: ${{ inputs.description }}
+          HARDWARES: ${{ inputs.hardwares }}
+          SET_ALPHA: ${{ inputs.set_alpha }}
+        run: |
+          {
+            echo ""
+            echo "- firmware: \`${FW_UPLOAD_VERSION}\`"
+            echo "- variants: \`${HARDWARES}\`"
+            if [ "${SET_ALPHA}" = "true" ]; then
+              echo "- channel: **alpha** of those device classes"
+            else
+              echo "- channel: none, the build is only stored"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,13 +1,22 @@
 name: Deploy
 
-# Every run deploys staging first, then production. Production only starts once
-# staging succeeded, and it runs under the "production" environment, whose
-# required reviewers hold it until somebody approves the run - that approval is
-# what makes production deploy-on-demand. Without reviewers configured on that
-# environment, production follows staging unattended.
+# Every run walks one chain, a single job at a time:
 #
-# Both steps run the same reusable workflow; what differs between them lives in
-# the variables and secrets of the "staging" and "production" environments.
+#   staging-cloud -> staging-firmware -> production-firmware -> garmin -> production-cloud
+#
+# Each job reads its host, path and SSH key from the GitHub environment it is
+# named after, and rsyncs the repo there itself. Those environments share a host
+# and a deploy path, so the jobs run strictly one after another - two of them
+# syncing the same directory at once would build and deploy a mixture of commits.
+#
+# Only the ordering is chained: a failing job does not hold back what comes after
+# unless that step really depends on it. Two edges do:
+#   - production-firmware waits for staging-firmware to succeed, which is the
+#     only gate on a firmware release. Nothing here ever waits for a human.
+#   - production-cloud waits for staging-cloud to succeed, and is the one job a
+#     human holds back, so required reviewers belong on "production-cloud" alone.
+# It runs last for that reason: everything else would otherwise queue behind an
+# approval that can take days.
 
 on:
   push:
@@ -166,31 +175,113 @@ jobs:
           echo "description=$DESC" >> "$GITHUB_OUTPUT"
           echo "Description resolved: '$DESC'"
 
-  staging:
+  # First in the chain: the firmware is built against the server it uploads to,
+  # so staging gets its update before anything is built there.
+  staging-cloud:
     needs: detect
-    uses: ./.github/workflows/deploy-env.yml
+    if: inputs.skip_deploy != true
+    uses: ./.github/workflows/deploy-cloud.yml
     with:
-      environment: staging
-      description: ${{ needs.detect.outputs.description }}
-      hardwares: ${{ needs.detect.outputs.hardwares }}
-      firmware_needed: ${{ needs.detect.outputs.firmware_needed == 'true' }}
-      skip_deploy: ${{ inputs.skip_deploy == true }}
+      environment: staging-cloud
     secrets: inherit
 
-  production:
-    needs: [detect, staging]
-    # A staging job whose steps were all skipped still counts as a green staging run.
-    if: always() && contains(fromJSON('["success","skipped"]'), needs.staging.result)
-    uses: ./.github/workflows/deploy-env.yml
+  staging-firmware:
+    needs: [detect, staging-cloud]
+    if: ${{ !cancelled() && needs.detect.outputs.firmware_needed == 'true' }}
+    uses: ./.github/workflows/deploy-firmware.yml
     with:
-      environment: production
+      environment: staging-firmware
       description: ${{ needs.detect.outputs.description }}
       hardwares: ${{ needs.detect.outputs.hardwares }}
-      firmware_needed: ${{ needs.detect.outputs.firmware_needed == 'true' }}
-      # Only production builds the Connect IQ app: the .iq is signed with the
-      # developer key the store binds the app to, so a staging copy could not be
-      # uploaded anyway. Keeping it to one environment also keeps the run's
-      # artifact name unambiguous.
-      garmin_needed: ${{ needs.detect.outputs.garmin_needed == 'true' }}
-      skip_deploy: ${{ inputs.skip_deploy == true }}
+      # Staging runs what it just built: the upload goes straight onto the alpha
+      # channel of its device class. Production keeps the build on the shelf.
+      set_alpha: true
     secrets: inherit
+
+  # Uploads to the production server as it stands: waiting for the production
+  # cloud deploy would mean waiting for its approval, which firmware never does.
+  production-firmware:
+    needs: [detect, staging-firmware]
+    uses: ./.github/workflows/deploy-firmware.yml
+    with:
+      environment: production-firmware
+      description: ${{ needs.detect.outputs.description }}
+      hardwares: ${{ needs.detect.outputs.hardwares }}
+    secrets: inherit
+
+  production-cloud:
+    needs: [staging-cloud, garmin]
+    if: ${{ !cancelled() && needs['staging-cloud'].result == 'success' }}
+    uses: ./.github/workflows/deploy-cloud.yml
+    with:
+      environment: production-cloud
+    secrets: inherit
+
+  # A single build, not one per environment - there is nothing environment
+  # specific about a Connect IQ app. It runs on a host rather than on the runner
+  # because the store binds the app to the developer key it was first published
+  # with, and that key lives in the host's env file. Nothing is deployed here:
+  # the .iq is attached to the run for a manual store upload.
+  garmin:
+    needs: [detect, production-firmware]
+    if: ${{ !cancelled() && needs.detect.outputs.garmin_needed == 'true' }}
+    runs-on: ubuntu-latest
+    environment: garmin
+    env:
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+      TERPCONTROL_ENV_FILE: ${{ vars.TERPCONTROL_ENV_FILE }}
+      APP_NAME: terp-control-viewer-${{ needs.detect.outputs.description }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/sync-to-host
+        with:
+          environment: garmin
+          host: ${{ vars.DEPLOY_HOST }}
+          user: ${{ vars.DEPLOY_USER }}
+          path: ${{ vars.DEPLOY_PATH }}
+          ssh_key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # Checked before building: an .iq signed with anything but the app's own
+      # developer key is rejected by the store, so it is not worth attaching to
+      # the run at all.
+      - name: Check the Connect IQ signing key
+        run: |
+          set -euo pipefail
+          # Resolved the way the build scripts do it: relative to the deploy path.
+          ENV_FILE="${TERPCONTROL_ENV_FILE:-.env}"
+          if ! ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && grep -Eq '^GARMIN_DEVELOPER_KEY_B64=.+' '${ENV_FILE}'"; then
+            echo "GARMIN_DEVELOPER_KEY_B64 is not set in ${ENV_FILE} on ${DEPLOY_HOST}." >&2
+            echo "Without it the build could only be signed with a throwaway key, which the Connect IQ store rejects." >&2
+            exit 1
+          fi
+
+      - name: Build Connect IQ app on host
+        run: |
+          set -euo pipefail
+          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "cd '${DEPLOY_PATH}' && TERPCONTROL_ENV_FILE='${TERPCONTROL_ENV_FILE}' GARMIN_APP_NAME='${APP_NAME}' ./build-garmin.sh"
+
+      - name: Fetch the .iq package
+        run: |
+          set -euo pipefail
+          mkdir -p iq
+          scp "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/garmin/bin/${APP_NAME}.iq" "iq/${APP_NAME}.iq"
+          ls -l iq/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}
+          path: iq/*.iq
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Garmin summary
+        run: |
+          {
+            echo ""
+            echo "\`${APP_NAME}.iq\` is attached to this run as an artifact."
+            echo "Download it and upload it manually at <https://apps.garmin.com/developer/dashboard>."
+          } >> "$GITHUB_STEP_SUMMARY"
