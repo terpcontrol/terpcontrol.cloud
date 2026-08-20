@@ -373,4 +373,4 @@ Disconnecting a camera in the module UI used to only forget the DID locally, whi
 - The command is re-sent for up to `RESET_CONFIRM_MS` and any channel-0 reply counts as confirmation, because the camera reboots as soon as it acts and the reply may never arrive. Resending is safe — it is idempotent, and after the first one the camera is gone.
 - This also fixes the stale-credential trap noted in §15.4: after a factory reset the camera answers plain `loginpas=888888` again, which is what the next provisioning run uses.
 
-Credentials note: this document contains live device credentials and must not be pushed to a public remote.
+Credentials note: this repository is public, so every real credential in this document is a placeholder — `<OKAM_ACCOUNT>`, `<OKAM_PASSWORD>`, `<WIFI_SSID>`, `<WIFI_PSK>`, `<MQTT_DEVICE_SECURITY>`, `<CAMERA_MAC>`, `<VENDOR_UART_USER>`/`<VENDOR_UART_PASS>`. `admin`/`888888` is left as-is: it is the universal VStarcam factory default, is what the firmware ships with, and is published by the vendor. Keep it this way — do not paste real values back in.
