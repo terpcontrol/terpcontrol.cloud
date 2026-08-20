@@ -75,9 +75,9 @@ runs:
         DEPLOY_PATH: ${{ inputs.path }}
       run: |
         set -euo pipefail
-        # --checksum, because several jobs of a run sync the same commit and may
-        # well share a host: a fresh checkout carries fresh timestamps, so
-        # without it every job would rewrite the whole tree under the others.
+        # --checksum, because the jobs of a run sync the same commit to the same
+        # host one after another, and each checkout stamps fresh timestamps on
+        # the tree: without it every job would retransfer all of it.
         rsync -az --checksum --delete \
           --exclude='.git/' \
           --exclude='.github/' \

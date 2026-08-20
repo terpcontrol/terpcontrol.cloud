@@ -168,42 +168,7 @@ Two things are worth knowing:
   `~/.Garmin/ConnectIQ/Devices`, so only the first build talks to Garmin.
 - **The developer key decides whether the build is publishable.** `GARMIN_DEVELOPER_KEY_B64` must stay the same across
   releases; the store rejects an update signed with a different key. Without it the build only succeeds when
-  `GARMIN_ALLOW_EPHEMERAL_KEY=1` is set, which is what CI does to verify that the app still compiles.
-
-Pull requests build the app in a container on the CI runner (verification only, throwaway key). Pushes to `master` build
-it **once** — there is nothing environment-specific about a Connect IQ app — on the host of the `garmin` environment, and
-attach the signed `.iq` to the workflow run as an artifact you can download. Both only run when something under
-`garmin/`, `garmin-buildcontainer/` or `build-garmin.sh` changed. To build it from a push that did not touch those, run
-the *Deploy* workflow manually with **build_garmin** checked.
-
-The build host must have `GARMIN_DEVELOPER_KEY_B64` in its env file; the job checks for it up front and stops rather
-than attaching an `.iq` that the store would reject. CI needs `GARMIN_USERNAME` / `GARMIN_PASSWORD` as repository
-secrets and `GARMIN_SDK_AGREEMENT_ACCEPTED=1` as a repository variable for the pull request build. The build host reads
-all `GARMIN_*` values from its own env file instead.
-
-## Deployment
-
-A push to `master` runs the *Deploy* workflow, which drives three independent tracks:
-
-| Track | Jobs | Gate |
-| --- | --- | --- |
-| Firmware | `staging-firmware` → `production-firmware` | none — the production release only waits for the staging one to succeed |
-| Cloud | `staging-cloud` → `production-cloud` | required reviewers on the `production-cloud` environment |
-| Garmin | `garmin` | none, builds the `.iq` artifact |
-
-Every job reads `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PATH`, `TERPCONTROL_ENV_FILE` (plus `COMPOSE_OPTIONS` for the
-cloud jobs) and the `SSH_PRIVATE_KEY` secret from the GitHub environment it is named after, and rsyncs the repo to that
-host itself. That is what keeps the tracks apart: a protection rule only ever holds up the environment it sits on, so
-reviewers belong on `production-cloud` and nowhere else. Rsyncing the sources is harmless on its own — the running
-services only change when `docker compose up --build` runs in the cloud job.
-
-Firmware is released to both environments on every push that touches it, and an upload activates nothing by itself. In
-staging the fresh build additionally becomes the **alpha** firmware of the device class it was built for, so devices
-following that channel pick it up; in production it is stored and waits for someone to put it on a channel. The same
-happens locally with `FW_SET_ALPHA=1 ./build-fw.sh <type>`.
-
-To skip the cloud deploy and only release firmware, run the workflow manually with **skip_deploy** checked; to skip
-firmware, set **hardwares** to `none`.
+  `GARMIN_ALLOW_EPHEMERAL_KEY=1` is set, and then only proves that the app still compiles.
 
 ## Documentation
 - Webapp: [Webapp](webapp/README.md)

@@ -1,17 +1,22 @@
 name: Deploy
 
-# Every run drives three independent tracks:
+# Every run walks one chain, a single job at a time:
 #
-#   firmware   staging-firmware -> production-firmware
-#   cloud      staging-cloud    -> production-cloud
-#   garmin     garmin
+#   staging-cloud -> staging-firmware -> production-firmware -> garmin -> production-cloud
 #
 # Each job reads its host, path and SSH key from the GitHub environment it is
-# named after, so a protection rule on one environment never holds up another.
-# Required reviewers belong on "production-cloud" alone: firmware always ships,
-# and the only thing gating the production firmware release is the staging one
-# having succeeded. Because the environments can point at different hosts, every
-# job rsyncs the repo to its own host before running anything there.
+# named after, and rsyncs the repo there itself. Those environments share a host
+# and a deploy path, so the jobs run strictly one after another - two of them
+# syncing the same directory at once would build and deploy a mixture of commits.
+#
+# Only the ordering is chained: a failing job does not hold back what comes after
+# unless that step really depends on it. Two edges do:
+#   - production-firmware waits for staging-firmware to succeed, which is the
+#     only gate on a firmware release. Nothing here ever waits for a human.
+#   - production-cloud waits for staging-cloud to succeed, and is the one job a
+#     human holds back, so required reviewers belong on "production-cloud" alone.
+# It runs last for that reason: everything else would otherwise queue behind an
+# approval that can take days.
 
 on:
   push:
@@ -170,9 +175,19 @@ jobs:
           echo "description=$DESC" >> "$GITHUB_OUTPUT"
           echo "Description resolved: '$DESC'"
 
-  staging-firmware:
+  # First in the chain: the firmware is built against the server it uploads to,
+  # so staging gets its update before anything is built there.
+  staging-cloud:
     needs: detect
-    if: needs.detect.outputs.firmware_needed == 'true'
+    if: inputs.skip_deploy != true
+    uses: ./.github/workflows/deploy-cloud.yml
+    with:
+      environment: staging-cloud
+    secrets: inherit
+
+  staging-firmware:
+    needs: [detect, staging-cloud]
+    if: ${{ !cancelled() && needs.detect.outputs.firmware_needed == 'true' }}
     uses: ./.github/workflows/deploy-firmware.yml
     with:
       environment: staging-firmware
@@ -183,6 +198,8 @@ jobs:
       set_alpha: true
     secrets: inherit
 
+  # Uploads to the production server as it stands: waiting for the production
+  # cloud deploy would mean waiting for its approval, which firmware never does.
   production-firmware:
     needs: [detect, staging-firmware]
     uses: ./.github/workflows/deploy-firmware.yml
@@ -192,16 +209,9 @@ jobs:
       hardwares: ${{ needs.detect.outputs.hardwares }}
     secrets: inherit
 
-  staging-cloud:
-    needs: detect
-    if: inputs.skip_deploy != true
-    uses: ./.github/workflows/deploy-cloud.yml
-    with:
-      environment: staging-cloud
-    secrets: inherit
-
   production-cloud:
-    needs: staging-cloud
+    needs: [staging-cloud, garmin]
+    if: ${{ !cancelled() && needs['staging-cloud'].result == 'success' }}
     uses: ./.github/workflows/deploy-cloud.yml
     with:
       environment: production-cloud
@@ -213,13 +223,10 @@ jobs:
   # with, and that key lives in the host's env file. Nothing is deployed here:
   # the .iq is attached to the run for a manual store upload.
   garmin:
-    needs: detect
-    if: needs.detect.outputs.garmin_needed == 'true'
+    needs: [detect, production-firmware]
+    if: ${{ !cancelled() && needs.detect.outputs.garmin_needed == 'true' }}
     runs-on: ubuntu-latest
     environment: garmin
-    concurrency:
-      group: garmin
-      cancel-in-progress: false
     env:
       DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
       DEPLOY_USER: ${{ vars.DEPLOY_USER }}

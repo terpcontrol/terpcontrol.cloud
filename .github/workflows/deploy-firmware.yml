@@ -36,9 +36,6 @@ jobs:
   firmware:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
-    concurrency:
-      group: firmware-${{ inputs.environment }}
-      cancel-in-progress: false
     env:
       DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
       DEPLOY_USER: ${{ vars.DEPLOY_USER }}
