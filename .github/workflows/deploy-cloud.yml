@@ -1,0 +1,49 @@
+name: Deploy cloud
+
+# Rsyncs the repo to the host of the given environment and brings the compose
+# stack up there. This is the only part of a deploy a human holds back: required
+# reviewers on the environment (production-cloud) pause the job until somebody
+# approves the run.
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Name of the GitHub environment holding the deployment settings'
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    # Per environment, so a production deploy still waiting for its approval
+    # does not hold up the staging deploy of a later push.
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    env:
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+      TERPCONTROL_ENV_FILE: ${{ vars.TERPCONTROL_ENV_FILE }}
+      COMPOSE_OPTIONS: ${{ vars.COMPOSE_OPTIONS }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/sync-to-host
+        with:
+          environment: ${{ inputs.environment }}
+          host: ${{ vars.DEPLOY_HOST }}
+          user: ${{ vars.DEPLOY_USER }}
+          path: ${{ vars.DEPLOY_PATH }}
+          ssh_key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: docker compose up
+        run: |
+          ENV_FLAG=""
+          if [ -n "${TERPCONTROL_ENV_FILE}" ]; then
+            ENV_FLAG="--env-file ${TERPCONTROL_ENV_FILE}"
+          fi
+          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "cd '${DEPLOY_PATH}' && docker compose ${COMPOSE_OPTIONS} ${ENV_FLAG} up --build -d --remove-orphans"

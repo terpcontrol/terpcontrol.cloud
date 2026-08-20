@@ -1,0 +1,92 @@
+name: Sync repo to deploy host
+description: >
+  Validate the deployment settings of a GitHub environment, install its SSH key
+  and rsync the checked-out repo to the host. Every deploy job does this for
+  itself because each one reads its host from its own environment.
+
+inputs:
+  environment:
+    description: 'Name of the environment the settings come from - only used in messages'
+    required: true
+  host:
+    description: 'DEPLOY_HOST of that environment'
+    required: true
+  user:
+    description: 'DEPLOY_USER of that environment'
+    required: true
+  path:
+    description: 'DEPLOY_PATH of that environment'
+    required: true
+  ssh_key:
+    description: 'SSH_PRIVATE_KEY of that environment'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Check deployment settings
+      shell: bash
+      env:
+        ENVIRONMENT: ${{ inputs.environment }}
+        DEPLOY_HOST: ${{ inputs.host }}
+        DEPLOY_USER: ${{ inputs.user }}
+        DEPLOY_PATH: ${{ inputs.path }}
+        SSH_PRIVATE_KEY: ${{ inputs.ssh_key }}
+      run: |
+        set -euo pipefail
+
+        MISSING=""
+        [ -n "${DEPLOY_HOST}" ] || MISSING="${MISSING} DEPLOY_HOST"
+        [ -n "${DEPLOY_USER}" ] || MISSING="${MISSING} DEPLOY_USER"
+        [ -n "${DEPLOY_PATH}" ] || MISSING="${MISSING} DEPLOY_PATH"
+        [ -n "${SSH_PRIVATE_KEY}" ] || MISSING="${MISSING} SSH_PRIVATE_KEY"
+        if [ -n "${MISSING}" ]; then
+          echo "Not set on the '${ENVIRONMENT}' environment:${MISSING}" >&2
+          exit 1
+        fi
+
+        {
+          echo "### ${ENVIRONMENT}"
+          echo ""
+          echo "- host: \`${DEPLOY_USER}@${DEPLOY_HOST}\`"
+          echo "- path: \`${DEPLOY_PATH}\`"
+          echo "- ref: \`${GITHUB_REF_NAME}\` (\`${GITHUB_SHA}\`)"
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Configure SSH
+      shell: bash
+      env:
+        DEPLOY_HOST: ${{ inputs.host }}
+        SSH_PRIVATE_KEY: ${{ inputs.ssh_key }}
+      run: |
+        set -euo pipefail
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+        ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+        chmod 644 ~/.ssh/known_hosts
+
+    - name: Rsync repo to host
+      shell: bash
+      env:
+        DEPLOY_HOST: ${{ inputs.host }}
+        DEPLOY_USER: ${{ inputs.user }}
+        DEPLOY_PATH: ${{ inputs.path }}
+      run: |
+        set -euo pipefail
+        # --checksum, because several jobs of a run sync the same commit and may
+        # well share a host: a fresh checkout carries fresh timestamps, so
+        # without it every job would rewrite the whole tree under the others.
+        rsync -az --checksum --delete \
+          --exclude='.git/' \
+          --exclude='.github/' \
+          --exclude='node_modules/' \
+          --exclude='.pio/' \
+          --exclude='**/dist/' \
+          --exclude='**/build/' \
+          --exclude='.env' \
+          --exclude='.env.*' \
+          --exclude='.idea/' \
+          --exclude='.claude/' \
+          ./ "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
