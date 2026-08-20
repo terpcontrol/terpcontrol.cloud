@@ -1,4 +1,5 @@
 import { mqttclient } from '../databases/mqttclient';
+import { okamCamService } from './okam-cam.service';
 import { logger } from '@utils/logger';
 
 /**
@@ -34,6 +35,8 @@ type ImageMessage = {
   seq?: number;
   last?: boolean;
   abort?: boolean;
+  /** payload is a raw H.264 keyframe rather than a JPEG (full-resolution path). */
+  h264?: boolean;
   payload?: string;
 };
 
@@ -41,6 +44,7 @@ type PendingCapture = {
   capture: number | null;
   chunks: Map<number, Buffer>;
   bytes: number;
+  h264: boolean;
   resolve: (jpeg: Buffer) => void;
   reject: (error: Error) => void;
   timer: NodeJS.Timeout;
@@ -65,7 +69,7 @@ class OkamP2PService {
       }, CAPTURE_TIMEOUT_MS);
       timer.unref?.(); // never hold the event loop open for a still
 
-      this.pending.set(deviceId, { capture: null, chunks: new Map(), bytes: 0, resolve, reject, timer });
+      this.pending.set(deviceId, { capture: null, chunks: new Map(), bytes: 0, h264: false, resolve, reject, timer });
 
       mqttclient.publish('/devices/' + deviceId + '/command', JSON.stringify({ action: 'cam_capture' }));
     });
@@ -101,6 +105,7 @@ class OkamP2PService {
       return;
     }
 
+    if (msg.h264) state.h264 = true;
     const chunk = Buffer.from(msg.payload, 'base64');
     state.bytes += chunk.length;
     if (state.bytes > MAX_IMAGE_BYTES) {
@@ -110,10 +115,23 @@ class OkamP2PService {
     state.chunks.set(msg.seq ?? state.chunks.size, chunk);
 
     if (msg.last) {
-      const jpeg = Buffer.concat([...state.chunks.keys()].sort((a, b) => a - b).map(k => state.chunks.get(k)));
+      const assembled = Buffer.concat([...state.chunks.keys()].sort((a, b) => a - b).map(k => state.chunks.get(k)));
+      const wasH264 = state.h264;
       this.clearPending(deviceId);
-      logger.info('[okam] image assembled for ' + deviceId + ': ' + jpeg.length + 'B');
-      state.resolve(jpeg);
+      logger.info('[okam] image assembled for ' + deviceId + ': ' + assembled.length + 'B' + (wasH264 ? ' (h264)' : ''));
+      if (!wasH264) {
+        state.resolve(assembled);
+        return;
+      }
+      // Full-resolution path: the controller sends the raw keyframe (it has no
+      // decoder and little RAM); turn it into a JPEG here.
+      okamCamService
+        .decodeKeyframeToJpeg(assembled)
+        .then(jpeg => {
+          logger.info('[okam] keyframe decoded for ' + deviceId + ': ' + jpeg.length + 'B jpeg');
+          state.resolve(jpeg);
+        })
+        .catch(e => state.reject(e as Error));
     }
   }
 

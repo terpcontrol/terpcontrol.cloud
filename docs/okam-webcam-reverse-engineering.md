@@ -264,3 +264,12 @@ The receiver tolerates the loss that remains (fragments are indexed, gaps are re
 - `got=1/3 eoi=-1 try=3` immediately after a success — the retries return almost nothing, suggesting the camera needs a cooldown (or a fresh session) between snapshots rather than back-to-back requests on the same session.
 
 Next things to try, in order: a short delay between the in-session retries (the camera looks busy right after delivering an image); re-running the handshake for each retry instead of reusing the session; and pacing the poll so a capture is never requested immediately after a previous one.
+
+## 18. Full resolution (2304×1296) — the video-keyframe path
+
+`snapshot.cgi` is hardwired to the 640×360 sub-stream: `stream=`, `resolution=` and `substream=` were all tried and every variant returns 640×360. The full-resolution image is only available from the **video** stream, so the controller now asks for `livestream.cgi?streamid=10&substream=2`, keeps the **first keyframe** and sends the raw H.264 to the cloud, which decodes it to a JPEG with ffmpeg (`okamCamService.decodeKeyframeToJpeg`). The ESP32 never decodes anything — the keyframe is ~32–47 KB, about the size of the old sub-stream JPEG.
+
+Constraints and findings:
+- **Buffer ceiling is the chip, not the design.** 64 KB of static buffer overflows `dram0_0_seg` by ~8 KB on this ESP32 (no PSRAM on `heltec_wifi_lora_32_V2`), so the frame buffer is 48 KB — measured keyframes are 32–47 KB, and anything larger is refused rather than grown. RAM 35.4%.
+- **ACK the channel you are receiving on.** The first video build ACKed channel 0 while receiving channel 1, so the camera's video window never advanced and it never resent gaps: `got=9/48`, and 0/6 captures succeeded. Acking `VIDEO_CHANNEL` is what makes the video path viable at all.
+- Video is a continuous stream rather than a paced request/response, so it is inherently harder on the device than the sub-stream snapshot was: the keyframe's ~47 fragments arrive back-to-back and later P-frames keep competing for the same shallow mailbox.
