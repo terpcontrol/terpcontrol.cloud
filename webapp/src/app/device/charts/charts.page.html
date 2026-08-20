@@ -113,6 +113,21 @@
     </ng-container>
   </ion-row>
 
+  <!-- A shared link can pin a fixed window; name it and offer a way back out. -->
+  <ion-row [hidden]="locked || !hasFixedDateRange()">
+    <ion-col>
+      <ion-item lines="none" class="fixed-range">
+        <ion-label class="ion-text-wrap">
+          {{ 'charts.customRange' | translate }}:
+          {{ selectedDate | date: 'short' }} – {{ selectedDateEnd | date: 'short' }}
+        </ion-label>
+        <ion-button fill="outline" size="small" (click)="clearFixedDateRange()">
+          {{ 'charts.resetRange' | translate }}
+        </ion-button>
+      </ion-item>
+    </ion-col>
+  </ion-row>
+
   <ion-row [hidden]="locked || (!useCustom && !showLightOffsetControls()) || (autoUpdate && (showImage || showLogs) && !hasEnabledMeasures())">
     <ng-container>
       <ion-col [hidden]="hasFixedDateRange()">
@@ -217,7 +232,8 @@
     </ng-container>
   </ion-row>
 
-  <ion-row [hidden]="locked || useCustom || !hasEnabledMeasures() || hasFixedDateRange()">
+  <!-- Stays available next to the detailed controls, so a custom range is never a one-way door. -->
+  <ion-row [hidden]="locked || !hasEnabledMeasures() || hasFixedDateRange()">
     <ion-col>
       <ion-button
         *ngFor="let tf of timespans"
@@ -228,6 +244,7 @@
         {{tf.name}}
       </ion-button>
       <ion-button
+        *ngIf="!useCustom"
         color="light"
         (click)="useCustom = true"
       >

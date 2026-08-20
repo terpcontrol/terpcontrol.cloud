@@ -1,4 +1,5 @@
 import { Component, OnInit, Input } from '@angular/core';
+import { isMissingValue, NO_VALUE } from '../../util/no-value';
 
 
 function calcArc(r:any, x:any, y:any, start:any, end:any) : string {
@@ -118,7 +119,7 @@ export class ValuedisplayComponent implements OnInit {
   @Input('scale-max') public scale_max:string = "0";
   public limit_min:number = 0;
   public limit_max:number = 0;
-  public isNaN = isNaN;
+  public isMissing = isMissingValue;
 
   private color_ok = {
     r: 0x67,
@@ -173,12 +174,23 @@ export class ValuedisplayComponent implements OnInit {
   @Input('target-value') public target_value: any;
   @Input('target-label') public target_label: string = 'Ziel';
 
+  /** No usable limits means no limit arc — an arc drawn from NaN is invalid SVG. */
+  public hasLimits = false;
+
   private updateLimits() {
     const scale_min = parseFloat(this.scale_min)
     const scale_max = parseFloat(this.scale_max)
 
     let rads_limit_min = (this.limit_min - scale_min) / (scale_max - scale_min);
     let rads_limit_max = (this.limit_max - scale_min) / (scale_max - scale_min);
+
+    this.hasLimits = Number.isFinite(rads_limit_min) && Number.isFinite(rads_limit_max);
+    if (!this.hasLimits) {
+      this.rot_min = 0;
+      this.rot_max = 0;
+      this.limit_arc = '';
+      return;
+    }
 
     this.rot_min = rads_limit_min * 360 - 92;
     this.rot_max = rads_limit_max * 360 - 92;
@@ -192,32 +204,54 @@ export class ValuedisplayComponent implements OnInit {
     this.updateColor();
   }
 
+  /** Whether a real measurement is present; drives both the arc and the text. */
+  public get hasValue(): boolean {
+    return !isMissingValue(this.value);
+  }
+
+  public get displayValue(): string {
+    return this.hasValue ? this.value : NO_VALUE;
+  }
+
   updateColor() {
     const scale_min = parseFloat(this.scale_min)
     const scale_max = parseFloat(this.scale_max)
 
-    let rads_value = (this.value - scale_min) / (scale_max - scale_min);
+    if (!this.hasValue) {
+      // Leave the needle and arc undrawn rather than feeding NaN into the SVG.
+      this.rot_value = 0;
+      this.value_arc = '';
+      this.color = `rgb(${this.color_ok.r},${this.color_ok.g},${this.color_ok.b})`;
+      return;
+    }
+
+    const value = parseFloat(this.value);
+    let rads_value = (value - scale_min) / (scale_max - scale_min);
     rads_value = rads_value > 0.999 ? 0.999 : rads_value;
 
-    this.rot_value = rads_value * 360 - 90;
-
-    this.value_arc = calcArc(190, 250, 250, 0.0, rads_value);
+    if (Number.isFinite(rads_value)) {
+      this.rot_value = rads_value * 360 - 90;
+      this.value_arc = calcArc(190, 250, 250, 0.0, rads_value);
+    } else {
+      this.rot_value = 0;
+      this.value_arc = '';
+    }
 
     let diff = this.limit_max - this.limit_min
     let color;
 
-    if(this.value > this.limit_max) {
+    if(value > this.limit_max) {
       color = hslToRgb(mix(
         rgbToHsl(this.color_ok),
         rgbToHsl(this.color_high),
-        clamp((this.value - this.limit_max) / diff, 0, 1)
+        clamp((value - this.limit_max) / diff, 0, 1)
       ));
     }
-    else if(this.value < this.limit_min) {
+    else if(value < this.limit_min) {
       color = hslToRgb(mix(
         rgbToHsl(this.color_ok),
         rgbToHsl(this.color_low),
-        clamp((this.limit_min - this.value) / diff, 0, 1)
+        clamp((this.limit_min - value) / diff, 0, 1)
       ));
     }
     else {

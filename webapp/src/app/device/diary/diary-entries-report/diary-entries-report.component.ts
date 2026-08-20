@@ -123,6 +123,7 @@ export class DiaryEntriesReportComponent implements OnInit, OnChanges, OnDestroy
     const modal = await this.modalController.create({
       component: DiaryEntryModalComponent,
       backdropDismiss: false,
+      cssClass: 'auto-height-modal',
       componentProps: {
         entry: this.toDiaryEntry(log),
         deviceId: this.deviceId,

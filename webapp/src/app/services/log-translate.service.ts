@@ -47,6 +47,17 @@ export class LogTranslateService {
     return this.translateLogText(message, 'text');
   }
 
+  /**
+   * Label for a log category. Categories are technical slugs the server also
+   * uses for filtering, so unknown ones fall back to the slug itself rather
+   * than leaking a translation key into the UI.
+   */
+  getCategoryLabel(category: string): string {
+    const key = `diary.categories.${category}`;
+    const translated = this.translate.instant(key);
+    return translated === key ? category : translated;
+  }
+
   private translateLogText(value: string, suffix: 'title' | 'text'): string {
     const directKey = `${value}-${suffix}`;
     const directTranslation = this.translate.instant(directKey);
@@ -59,7 +70,48 @@ export class LogTranslateService {
     const paramValue = separatorIndex >= 0 ? value.slice(separatorIndex + 1) : undefined;
     const fallbackKey = `${baseKey}-${suffix}`;
     const keyedTranslation = this.translate.instant(fallbackKey, { value: paramValue });
-    return keyedTranslation !== fallbackKey ? keyedTranslation : value;
+    if (keyedTranslation !== fallbackKey) {
+      return keyedTranslation;
+    }
+
+    return this.translateLegacyText(value, suffix) ?? value;
+  }
+
+  /**
+   * Entries written before the message keys existed hold their English text
+   * verbatim, and they never disappear from a running grow diary. Recognising
+   * the known wordings keeps those old events readable in every language.
+   */
+  private translateLegacyText(value: string, suffix: 'title' | 'text'): string | null {
+    for (const legacy of LEGACY_LOG_TEXTS) {
+      const match = legacy.pattern.exec(value.trim());
+      if (!match) {
+        continue;
+      }
+      const key = `${legacy.key}-${suffix}`;
+      const parameter = match.slice(1).filter(Boolean).join(' - ');
+      const translated = this.translate.instant(key, { value: parameter });
+      if (translated !== key) {
+        return translated;
+      }
+    }
+    return null;
   }
 }
+
+const LEGACY_LOG_TEXTS: { pattern: RegExp; key: string }[] = [
+  { pattern: /^Plant phase change$/i, key: 'message-diary-plant-lifecycle' },
+  { pattern: /^Plant log entry$/i, key: 'message-diary-plant-log' },
+  { pattern: /^Fridge log entry$/i, key: 'message-diary-fridge-log' },
+  { pattern: /^User measurement$/i, key: 'message-diary-measurement' },
+  { pattern: /^CO2 cylinder was refilled$/i, key: 'message-diary-co2-refill' },
+  {
+    pattern: /^Recipe step #?(.+?)\s+(?:is |was )?awaiting confirmation[:.]?\s*(.*)$/i,
+    key: 'message-recipe-step-awaiting-confirmation',
+  },
+  {
+    pattern: /^Recipe step #?(.+?)\s+(?:was |has been )?manually activated.*$/i,
+    key: 'message-recipe-step-manually-activated',
+  },
+];
 

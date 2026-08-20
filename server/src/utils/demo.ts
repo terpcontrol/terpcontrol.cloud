@@ -11,10 +11,13 @@ export const DEMO_WRITE_MESSAGE = 'Saving is not supported in demo mode';
 const SECRET_HARDWARE_INFO_KEYS = ['webcam_url', 'socket_ips'];
 
 // The stream URL contains credentials, so demo visitors only learn that a
-// webcam exists - the same reduction share links use.
+// webcam exists - the same reduction share links use. A readable example URL
+// stands in for it, because the settings form shows this value verbatim.
+export const DEMO_WEBCAM_URL = 'rtsp://demo.terpcontrol.cloud:554/growcam';
+
 export const demoCloudSettings = (cloudSettings: CloudSettings): CloudSettings => ({
   ...cloudSettings,
-  rtspStream: cloudSettings.rtspStream ? '1' : undefined,
+  rtspStream: cloudSettings.rtspStream ? DEMO_WEBCAM_URL : undefined,
 });
 
 export const demoHardwareInfo = (hardwareInfo?: Record<string, string>): Record<string, string> | undefined => {

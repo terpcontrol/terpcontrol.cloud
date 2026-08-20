@@ -35,10 +35,13 @@
     [cloudSettings]="cloudSettings"
     [deviceType]="deviceType"
     [hardwareInfo]="hardwareInfo"
+    [canStartPlan]="canStartPlan"
     (stopPlanRequested)="onStopPlanRequested()"
     (confirmStepRequested)="confirmCurrentStep()"
     (skipStepRequested)="onSkipStepRequested()"
     (startPlanRequested)="openPlanWizard()"
+    (turnOffRequested)="onTurnOffRequested()"
+    (maintenanceModeRequested)="openMaintenanceMode()"
   ></fridge-simple-settings>
 
   <simple-alarms-card
@@ -264,8 +267,9 @@
 
   <fridge-settings-config *ngIf="uiMode === 'expert' && settingsmode === 'manual'" [(deviceSettings)]="deviceSettings" [cloudSettings]="cloudSettings" [deviceType]="deviceType" />
 
+  <!-- Webcam and smart sockets are hardware plumbing, not everyday operation. -->
   <aux-devices
-    *ngIf="!loading"
+    *ngIf="!loading && uiMode === 'expert'"
     [deviceId]="device_id"
     [deviceType]="deviceType"
     [cloudSettings]="cloudSettings"
@@ -299,9 +303,10 @@
       <ion-button
         color="secondary"
         expand="block"
-        [disabled]="settingsmode === 'recipe' && !(recipe.activeSince > 0)"
+        [disabled]="isDemo || (settingsmode === 'recipe' && !(recipe.activeSince > 0))"
         (click)="saveSettings();"
-      >{{'misc.save' | translate}}</ion-button>
+      >{{ (isDemo ? 'demo.saveButton' : 'misc.save') | translate }}</ion-button>
+      <p class="demo-save-hint" *ngIf="isDemo">{{'demo.saveNotSupported' | translate}}</p>
       <!-- <ion-button color="danger" expand="block" (click)="resetForm();">{{'buttons.revert' | translate}}</ion-button> -->
 
     </ion-card-content>

@@ -5,7 +5,15 @@ describe('GrowReportComponent convertEventsToGrowCycles', () => {
   let component: GrowReportComponent;
 
   beforeEach(() => {
-    component = new GrowReportComponent({} as any, { navigate: jasmine.createSpy('navigate') } as any);
+    const translate = { instant: (key: string, params?: any) => (params ? `${key}:${JSON.stringify(params)}` : key) };
+    component = new GrowReportComponent(
+      {} as any,
+      { navigate: jasmine.createSpy('navigate') } as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      translate as any,
+    );
   });
 
   function lifecycleLog(
@@ -39,14 +47,15 @@ describe('GrowReportComponent convertEventsToGrowCycles', () => {
 
     const cycles = (component as any).convertEventsToGrowCycles(events);
 
+    // Cycles come back newest first, which is the order the cycle picker shows.
     expect(cycles.length).toBe(3);
-    expect(cycles[0].timestampStart.toISOString()).toBe('2026-01-01T10:00:00.000Z');
+    expect(cycles[0].timestampStart.toISOString()).toBe('2026-03-01T10:00:00.000Z');
     expect(cycles[1].timestampStart.toISOString()).toBe('2026-02-01T10:00:00.000Z');
-    expect(cycles[2].timestampStart.toISOString()).toBe('2026-03-01T10:00:00.000Z');
+    expect(cycles[2].timestampStart.toISOString()).toBe('2026-01-01T10:00:00.000Z');
 
-    expect(cycles[0].timestampEnd?.toISOString()).toBe('2026-02-01T10:00:00.000Z');
+    expect(cycles[0].timestampEnd).toBeUndefined();
     expect(cycles[1].timestampEnd?.toISOString()).toBe('2026-03-01T10:00:00.000Z');
-    expect(cycles[2].timestampEnd).toBeUndefined();
+    expect(cycles[2].timestampEnd?.toISOString()).toBe('2026-02-01T10:00:00.000Z');
   });
 
   it('does not split a cycle for duplicate updates of the same stage', () => {
@@ -73,9 +82,9 @@ describe('GrowReportComponent convertEventsToGrowCycles', () => {
     const cycles = (component as any).convertEventsToGrowCycles(events);
 
     expect(cycles.length).toBe(2);
-    expect(cycles[0].name).toBe('Cycle A');
-    expect(cycles[1].name).toBe('Cycle B');
-    expect(cycles[0].timestampEnd?.toISOString()).toBe('2026-01-03T10:00:00.000Z');
+    expect(cycles[0].name).toBe('Cycle B');
+    expect(cycles[1].name).toBe('Cycle A');
+    expect(cycles[1].timestampEnd?.toISOString()).toBe('2026-01-03T10:00:00.000Z');
   });
 
   it('uses diary lifecycle events for durationDays across cycles and keeps curing open until today', () => {

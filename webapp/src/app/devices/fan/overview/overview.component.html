@@ -72,12 +72,12 @@
   </ion-row>
   <ion-row class="ion-justify-content-center">
     <ion-col size="6" size-sm="2" size-xl="1">
-      <div class="onoff lights" [class.on]="(data.measure(device_id, 'day') | async) != 0">
+      <div class="onoff lights" [class.on]="((data.measure(device_id, 'day') | async) ?? 0) > 0">
         <img class="icon-on" src="assets/icon/light.svg" />
         <img class="icon-off" src="assets/icon/light_off.svg" />
         <!-- <div class="name">{{'outputs.lights' | translate}}</div> -->
         <div class="current">{{data.measure(device_id, 'day') | async | onoff | translate}}</div>
-        <!-- <div class="current" *ngIf="state.is_day">{{state.light_percent | nofract}}%</div> -->
+        <!-- <div class="current" *ngIf="state.is_day">{{state.light_percent | nofract:'%'}}</div> -->
       </div>
     </ion-col>
     <ion-col size="6" size-sm="2" size-xl="1">
@@ -85,7 +85,7 @@
         <img class="icon-on" src="assets/icon/fan_out.svg" />
         <img class="icon-off" src="assets/icon/fan_out.svg" />
         <!-- <div class="name">{{'outputs.fan' | translate}}</div> -->
-        <div class="current">{{data.measure(device_id, 'out_fan') | async | nofract}} %</div>
+        <div class="current">{{data.measure(device_id, 'out_fan') | async | nofract:'%'}}</div>
       </div>
     </ion-col>
   </ion-row>

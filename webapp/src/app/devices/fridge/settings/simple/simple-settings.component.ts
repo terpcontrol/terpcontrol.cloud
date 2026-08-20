@@ -6,7 +6,7 @@ import {
   detectActiveStagePreset,
   deviceControlCapability,
   deviceHasCo2,
-  GrowStagePresetId,
+  StageSelection,
 } from 'src/app/util/grow-presets';
 
 /**
@@ -27,10 +27,14 @@ export class FridgeSimpleSettingsComponent {
   @Input() cloudSettings: any = {};
   @Input() deviceType = '';
   @Input() hardwareInfo: Record<string, string> | undefined;
+  @Input() canStartPlan = true;
   @Output() stopPlanRequested = new EventEmitter<void>();
   @Output() confirmStepRequested = new EventEmitter<void>();
   @Output() startPlanRequested = new EventEmitter<void>();
   @Output() skipStepRequested = new EventEmitter<void>();
+  /** Switching the regulation off needs a confirmation the parent owns. */
+  @Output() turnOffRequested = new EventEmitter<void>();
+  @Output() maintenanceModeRequested = new EventEmitter<void>();
 
   public lightDurations = [12, 14, 16, 18, 20];
   public baseLightStartOptions = Array.from({ length: 24 }, (_, hour) => `${hour.toString().padStart(2, '0')}:00`);
@@ -70,7 +74,7 @@ export class FridgeSimpleSettingsComponent {
     return this.controlCapability === 'monitor';
   }
 
-  get activePreset(): GrowStagePresetId | 'custom' | null {
+  get activePreset(): StageSelection | null {
     return detectActiveStagePreset(this.target);
   }
 
@@ -160,8 +164,13 @@ export class FridgeSimpleSettingsComponent {
     return 'assets/icon/presets/' + name + '.svg';
   }
 
-  selectPreset(id: GrowStagePresetId | 'custom') {
+  selectPreset(id: StageSelection) {
     if (id === 'custom') {
+      return;
+    }
+
+    if (id === 'off') {
+      this.turnOffRequested.emit();
       return;
     }
 

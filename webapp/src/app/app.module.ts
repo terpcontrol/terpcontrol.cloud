@@ -1,4 +1,4 @@
-import { NgModule } from '@angular/core';
+import { LOCALE_ID, NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { RouteReuseStrategy } from '@angular/router';
 
@@ -13,6 +13,7 @@ import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 import { HttpClient } from '@angular/common/http';
 import { PipesModule } from './pipes/pipes.module';
+import { resolveAppLocale } from './util/locale';
 
 @NgModule({
   declarations: [
@@ -32,7 +33,12 @@ import { PipesModule } from './pipes/pipes.module';
       }
     }),
   ],
-  providers: [{ provide: RouteReuseStrategy, useClass: IonicRouteStrategy }],
+  providers: [
+    { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
+    // Dates and numbers follow the same browser language as the translations,
+    // instead of Angular's en-US default.
+    { provide: LOCALE_ID, useFactory: resolveAppLocale },
+  ],
   bootstrap: [AppComponent],
 })
 export class AppModule {}

@@ -10,7 +10,7 @@ import {
   deviceHasCo2,
   GROW_PLAN_TEMPLATES,
   GrowPlanTemplateStep,
-  GrowStagePresetId,
+  StageSelection,
 } from 'src/app/util/grow-presets';
 import { KeyedCache } from 'src/app/util/keyed-cache';
 import { parseSocketRoles } from 'src/app/util/socket-info';
@@ -33,7 +33,7 @@ export class SetupWizardComponent implements OnInit {
 
   public stepIndex = 0;
   public deviceName = '';
-  public selectedStage: GrowStagePresetId | 'custom' | null = null;
+  public selectedStage: StageSelection | null = null;
   public planChoice: 'targets' | 'photoperiod' | 'autoflower' = 'targets';
   public durations: number[] = [];
   public saving = false;
@@ -229,7 +229,7 @@ export class SetupWizardComponent implements OnInit {
         await this.devices.setName(device_id, name);
       }
 
-      if (this.isClimateDevice && this.selectedStage && this.selectedStage !== 'custom') {
+      if (this.isClimateDevice && this.selectedStage && this.selectedStage !== 'custom' && this.selectedStage !== 'off') {
         const baseSettings = this.device.settings ?? {};
 
         if (this.planChoice === 'targets') {
