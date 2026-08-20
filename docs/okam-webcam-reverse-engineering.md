@@ -273,3 +273,53 @@ Constraints and findings:
 - **Buffer ceiling is the chip, not the design.** 64 KB of static buffer overflows `dram0_0_seg` by ~8 KB on this ESP32 (no PSRAM on `heltec_wifi_lora_32_V2`), so the frame buffer is 48 KB — measured keyframes are 32–47 KB, and anything larger is refused rather than grown. RAM 35.4%.
 - **ACK the channel you are receiving on.** The first video build ACKed channel 0 while receiving channel 1, so the camera's video window never advanced and it never resent gaps: `got=9/48`, and 0/6 captures succeeded. Acking `VIDEO_CHANNEL` is what makes the video path viable at all.
 - Video is a continuous stream rather than a paced request/response, so it is inherently harder on the device than the sub-stream snapshot was: the keyframe's ~47 fragments arrive back-to-back and later P-frames keep competing for the same shallow mailbox.
+
+## 19. The reliability wall, measured (2026-08-20)
+
+Requirement #3's remaining gap is **capture success rate**, and it is now characterised precisely rather than guessed at. Every number below is from the live fridge module against the live camera, 6-10 captures per build spaced 30 s.
+
+### 19.1 What the stream actually does
+
+Measured LAN-direct with a clean-room probe (`/tmp/okam-re/vidprobe.js`) and confirmed by on-device counters:
+
+- `livestream.cgi?streamid=10&substream=2` delivers **exactly one keyframe — the first frame of the session.** Everything after it is P-frames of 90 B - 5 KB. On-device: `anch=1` on every single capture, and `skip=3..28` non-keyframe headers afterwards, never a second keyframe.
+- **Re-issuing `livestream.cgi` on a running stream is ignored** (measured `re=5` restarts, no new keyframe). A fresh keyframe requires a fresh session, i.e. a whole new capture.
+- `substream=1` is a different, low-resolution stream: ~2.7 KB keyframes. **2304x1296 is only available from substream=2**, and `snapshot.cgi` is hardwired to 640x360, so the first keyframe of substream=2 is the only full-resolution source that exists.
+- The keyframe is **scene-dependent: 27-38 KB on a quiet scene, 52-67 KB on a busy one.** This is the single most destabilising fact — a build that works at 37 KB scores 0/10 unchanged once the scene brightens, because a keyframe larger than the buffer is refused outright.
+
+### 19.2 Acking is a resend request, not an acknowledgement
+
+The `0xd1` DrwAck behaves like "resend from here", not "I have this". Three builds bracket it:
+
+| Acking strategy | fragments/capture | frame headers seen | result |
+|---|---|---|---|
+| From the first fragment (highest index seen) | 9000+ | 0-2 | 0/10 |
+| From the first fragment (highest contiguous) | 4300-8500 | 3-7 | 0/8 |
+| **None at all** | 578 | **510** | 0/8 (clean, but no way to fill a gap) |
+| **Only while anchored on a keyframe** | ~1000 | ~20 | best measured |
+
+Acking early floods the link with retransmitted data that drowns new data in lwip's few-deep UDP mailbox. Acking nothing gives pristine reception but no repair. **Acking only while a keyframe is being assembled** is the only strategy that both keeps the stream clean and repairs the frame being captured — that is what the shipped code does.
+
+### 19.3 The memory ceiling, measured
+
+`skipped-low-heap` now logs the real numbers: **free=158 KB but the largest contiguous block is 94,196 bytes.** Fragmentation, not total free heap, is the constraint. Sizing history:
+
+- 48 KB buffer — allocates, but refuses today's 53 KB keyframes: 0/10.
+- 64 KB buffer — allocates, still refuses the 67 KB ones: 0/10.
+- 80 KB + 24 KB margin — needs 104 KB: skipped every capture.
+- 80 KB + 12 KB margin — needs 94,208 vs 94,196 available. **Missed by 12 bytes**, skipped every capture.
+- **76 KB + 8 KB margin** — needs 86,016, fits, leaves ~18 KB contiguous during the capture. Shipped.
+
+Nothing is held between captures: the buffer is `malloc`'d per capture, freed on every exit path, and the guard skips the capture (the image service just retries later) rather than squeezing the rest of the firmware. Static RAM is unchanged at 20.4%.
+
+### 19.4 Where it stands
+
+With the buffer sized correctly the controller anchors on the keyframe on **every** attempt (`anch=1`, `maxlen≈53000`) and then loses it to missing fragments (`drop=1`). Best measured rate was **3/8** back when the scene produced 37 KB keyframes (~37 fragments); at 53 KB (~53 fragments) it is 0/6. Per-attempt success falls off sharply with fragment count, because the camera bursts the whole keyframe back to back and the ESP32's UDP mailbox is only a few datagrams deep.
+
+**This is the wall: one keyframe per session, ~53 back-to-back 1 KB fragments, no second chance, on a chip with no PSRAM.** The 80% target is not reachable by tuning the receiver further. The options that would actually move it:
+
+1. **Shrink the keyframe at the camera.** `camera_control.cgi?param=N&value=V` is a working setter (`result= 0`); `param=3` was observed to move `enc_bitrate` 512 -> 1024. The param-ID map is not known, and blind probing cost one camera reboot to undo, so this needs the app's CGI list (APK) rather than guesswork. A main stream at ~256 kbps would put keyframes near 25 KB (~25 fragments) — the regime that already scored 3/8 at 37 KB.
+2. **Accept 640x360** via `snapshot.cgi`, which is a paced request/response rather than a live burst and was materially more reliable.
+3. **A controller with PSRAM**, which removes both the buffer ceiling and the mailbox pressure.
+
+Credentials note: this document contains live device credentials and must not be pushed to a public remote.

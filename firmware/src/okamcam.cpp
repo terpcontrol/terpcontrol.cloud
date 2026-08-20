@@ -52,7 +52,7 @@ namespace fg {
     constexpr uint32_t ACK_INTERVAL_MS  = 15;     // coalesce acks: never one per packet
     constexpr uint16_t ACK_EVERY_N      = 4;
     constexpr uint8_t  VIDEO_CHANNEL    = 1;      // the camera streams video on channel 1
-    constexpr size_t   HEAP_MARGIN_BYTES = 40 * 1024;  // never squeeze the rest of the firmware
+    constexpr size_t   HEAP_MARGIN_BYTES = 8 * 1024;  // never squeeze the rest of the firmware
     constexpr uint32_t MIN_KEYFRAME_BYTES = 20 * 1024; // below this a frame cannot be a keyframe here
     constexpr int      MAX_ATTEMPTS     = 1;      // one try per request; the cloud paces retries
     // The frame is buffered while it is received, then published. Publishing is
@@ -63,7 +63,25 @@ namespace fg {
     // (2304x1296) keyframes measure ~32 KB. 48 KB is the practical ceiling on
     // this chip — 64 KB overflows dram0_0_seg by ~8 KB — and still leaves ~1.5x
     // headroom for a busy scene; anything beyond it is refused, not grown.
-    constexpr size_t   MAX_IMAGE_BYTES  = 48 * 1024;
+    // Keyframes are scene-dependent: 27-38 KB on a quiet scene, 54-64 KB on a
+    // busy one, and a keyframe larger than this buffer is refused outright --
+    // which is exactly what turned a working capture into 0/8 when the scene
+    // changed. This must therefore fit the big end, not the average.
+    //
+    // Nothing is held between captures: the buffer is malloc'd per capture and
+    // freed on every exit path, and the guard below skips the capture entirely
+    // when the largest free block cannot spare it with HEAP_MARGIN_BYTES to
+    // spare (the image service just retries on its own schedule). 80 KB was
+    // measured to be beyond the chip -- every attempt logged skipped-low-heap --
+    // Sizing is measured, not guessed. The skipped-low-heap diagnostic reports
+    // the largest free block at capture start: free=158 KB but max=94,196 bytes
+    // contiguous. So the buffer plus its margin has to stay under ~94 KB, which
+    // 76 KB + 8 KB does, with ~18 KB still contiguous while a capture runs.
+    // Measured keyframes run 27-67 KB depending on the scene, so this is the
+    // smallest ceiling that reliably holds a busy one -- 48 KB and 64 KB both
+    // rejected real keyframes outright and scored 0/10, and 80 KB + 12 KB
+    // missed the largest free block by 12 bytes and skipped every capture.
+    constexpr size_t   MAX_IMAGE_BYTES  = 76 * 1024;
 
     // --- static working buffers (no heap) --------------------------------
     uint8_t  g_rx[MAX_DGRAM];        // one inbound datagram, decoded in place
@@ -201,7 +219,7 @@ namespace fg {
       return total;
     }
 
-    // Cumulative DrwAck: acknowledges everything up to and including `index`.
+    // DrwAck body: d1 <channel> <count16> <index16>.
     size_t buildAck(uint8_t channel, uint16_t index) {
       uint8_t body[6] = { 0xd1, channel, 0x00, 0x01,
                           (uint8_t)((index >> 8) & 0xff), (uint8_t)(index & 0xff) };
@@ -221,7 +239,11 @@ namespace fg {
     // capture rather than push the device towards an allocation failure
     // elsewhere — the cloud simply retries on its own schedule.
     if(ESP.getMaxAllocHeap() < MAX_IMAGE_BYTES + HEAP_MARGIN_BYTES) {
-      cloud->log("message-cam-capture:skipped-low-heap", 1);
+      char hm[104];
+      snprintf(hm, sizeof(hm), "message-cam-capture:skipped-low-heap free=%lu max=%lu need=%lu",
+               (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap(),
+               (unsigned long)(MAX_IMAGE_BYTES + HEAP_MARGIN_BYTES));
+      cloud->log(hm, 1);
       return false;
     }
     g_img = (uint8_t*)malloc(MAX_IMAGE_BYTES);
@@ -344,6 +366,9 @@ namespace fg {
     // reordering are survivable, and the whole request is retried if a transfer
     // comes up short (the camera sometimes simply stops mid-image).
     const uint32_t capture_id = millis();
+    uint32_t max_declared = 0;        // largest frame length the camera announced
+    uint16_t anchors = 0;             // how many keyframes we locked onto
+    uint32_t frags_seen = 0;          // raw channel-1 datagrams accepted (diagnostic)
     uint16_t base_index = 0;          // channel-0 index of the first fragment
     bool first_index_known = false;
     uint16_t slots_seen = 0;          // highest slot index seen, + 1
@@ -365,6 +390,7 @@ namespace fg {
     int attempt = 0;
 
     for(attempt = 1; attempt <= MAX_ATTEMPTS && !complete; attempt++) {
+    frags_seen = 0; max_declared = 0; anchors = 0;
     base_index = 0; first_index_known = false; slots_seen = 0; contiguous = 0;
     eoi_slot = -1; frame_len = 0; acked_upto = 0; last_ack = 0; anchor_offset = 0;
     memset(g_received, 0, sizeof(g_received));
@@ -373,6 +399,11 @@ namespace fg {
     // image (2304x1296) is only available from the video stream, so ask for the
     // stream and keep its first keyframe. The controller does NOT decode it —
     // the raw H.264 goes to the cloud, which turns it into a JPEG with ffmpeg.
+    // snapshot.cgi only ever returns the 640x360 sub-stream and substream=1 is a
+    // ~3 KB-keyframe low-res stream, so the full-resolution image (2304x1296)
+    // only comes from substream=2. Its first frame is the keyframe; everything
+    // after it is small frames, and re-issuing this request on a running stream
+    // is ignored by the camera, so the first frame is the one that counts.
     snprintf(cgi, sizeof(cgi), "livestream.cgi?streamid=10&substream=2&%s", AUTH);
     sendPacket(udp, peer_ip, peer_port, buildCgi(0, cgi_index++, cgi));
     last_data = millis();
@@ -409,21 +440,36 @@ namespace fg {
       }
       if(payload_len <= 0) continue;
 
+      last_data = millis();
+      frags_seen++;
+
       // Anchor on a fragment that STARTS a media frame. This is a live stream:
       // the camera does not retransmit, it just keeps sending, so if a frame
       // comes up short the right move is to give up on it and re-anchor on the
       // next frame boundary rather than wait for fragments that never come.
       if(!first_index_known) {
-        // Anchor only on a fragment that STARTS a frame. Anchoring at an
-        // arbitrary offset inside a fragment was measured worse: it locks onto
-        // whichever boundary appears first, which is usually a P-frame.
+        // Frames are packed back to back, so a keyframe usually begins INSIDE a
+        // fragment; only anchoring at fragment starts meant we saw P-frames and
+        // essentially never a keyframe (skip=36 with none found). Scan the whole
+        // fragment for a frame header and anchor only when its declared length
+        // says it is keyframe-sized — anchoring on the first boundary regardless
+        // was measured worse (0/8), because that is nearly always a P-frame.
         const uint8_t* q = g_rx + 8;
-        if(!(payload_len >= 32 && q[0] == 0x55 && q[1] == 0xaa && q[2] == 0x15 && q[3] == 0xa8)) {
-          continue;
+        int at = -1;
+        for(int i = 0; i + 32 <= payload_len; i++) {
+          if(q[i] == 0x55 && q[i+1] == 0xaa && q[i+2] == 0x15 && q[i+3] == 0xa8) {
+            const uint32_t cand = (uint32_t)q[i+16] | ((uint32_t)q[i+17] << 8) |
+                                  ((uint32_t)q[i+18] << 16) | ((uint32_t)q[i+19] << 24);
+            if(cand > max_declared) max_declared = cand;
+            if(cand >= MIN_KEYFRAME_BYTES && cand + 32 <= MAX_IMAGE_BYTES) { at = i; break; }
+            pframes_skipped++;
+          }
         }
-        anchor_offset = 0;
+        if(at < 0) continue;                        // no keyframe boundary here
+        anchor_offset = (uint16_t)at;
         base_index = index;
         first_index_known = true;
+        anchors++;
         frame_started = millis();
       }
       // Fragments are stored by index, not in arrival order. The camera bursts a
@@ -445,15 +491,17 @@ namespace fg {
         if(slot >= slots_seen) slots_seen = (uint16_t)(slot + 1);
       }
 
-      // Ack the highest CONTIGUOUS slot: that is what advances the camera's
-      // window and asks for anything missing before it. Sending one ack per
-      // packet is too slow — each is an lwip syscall, and while we are in it the
-      // camera keeps blasting into a UDP mailbox only a few datagrams deep, so
-      // we fall behind and start losing fragments (measured: fine for the first
-      // ~9, then ~75% loss). Coalesce: at most one ack per ACK_INTERVAL_MS or
-      // every ACK_EVERY_N new fragments.
       while(contiguous < MAX_SLOTS && g_received[contiguous]) contiguous++;
       const uint32_t now = millis();
+      // Ack the highest CONTIGUOUS slot, and ONLY while a keyframe is being
+      // assembled. The 0xd1 packet behaves like a resend request rather than a
+      // pure acknowledgement: acking from the first fragment made the camera
+      // pour 4000-9000 fragments into a capture with almost no frame headers
+      // among them (retransmissions drowning new data in lwip's few-deep
+      // mailbox), while acking nothing at all gave clean reception -- 578
+      // fragments, 510 of them frame headers -- but no way to fill a gap, so
+      // 0/8. Acked only while anchored, it asks for exactly the fragments this
+      // keyframe is missing, which is what completes it.
       if(contiguous > 0 &&
          (contiguous >= (uint16_t)(acked_upto + ACK_EVERY_N) || now - last_ack > ACK_INTERVAL_MS)) {
         last_ack = now;
@@ -579,9 +627,10 @@ namespace fg {
       // serial console (severity 1 only when it actually failed).
       char note[128];
       snprintf(note, sizeof(note),
-               "message-cam-capture:%s bytes=%lu got=%u/%u frame=%lu drop=%u skip=%u",
+               "message-cam-capture:%s bytes=%lu got=%u/%u frame=%lu drop=%u skip=%u frag=%lu anch=%u maxlen=%lu",
                ok ? "ok" : "incomplete", (unsigned long)sent_bytes,
-               (unsigned)contiguous, (unsigned)slots_seen, (unsigned long)frame_len, (unsigned)frames_dropped, (unsigned)pframes_skipped);
+               (unsigned)contiguous, (unsigned)slots_seen, (unsigned long)frame_len, (unsigned)frames_dropped, (unsigned)pframes_skipped,
+                 (unsigned long)frags_seen, (unsigned)anchors, (unsigned long)max_declared);
       cloud->log(note, ok ? 0 : 1);
     }
     if(!ok && seq > 0) {
