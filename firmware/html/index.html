@@ -310,6 +310,36 @@
         xhr.send(payload);
       }
 
+      /* Overwrites a banner's copy, so both forms can share the two boxes. */
+      function msg(id, text) {
+        document.querySelector(id).textContent = text;
+        show(id, true);
+      }
+
+      function sendServer() {
+        let form = document.querySelector('#server');
+        if(!form.reportValidity()) return;
+
+        show('#server-ui', false);
+        show('#connected', false);
+        show('#error', false);
+        show('#connecting', true);
+
+        let form_data = new FormData(form);
+        let payload = JSON.stringify({
+          url: form_data.get('url'),
+          password: form_data.get('password'),
+        });
+
+        post('/server', payload, function(response) {
+          let ok = response == 'ok';
+          show('#connecting', false);
+          show('#server-ui', !ok);
+          if(ok) msg('#connected', 'Sent. The device is switching over - watch its display.');
+          else msg('#error', 'The device rejected the server URL.');
+        });
+      }
+
       function sendConfig() {
         show('#wifi-ui', false);
         show('#connected', false);
@@ -409,6 +439,17 @@
         <button class="primary" type="button" onclick="sendConfig()">Save</button>
       </div>
 
+      <div id="server-ui" class="hidden card">
+        <p class="lead">Point this device at a different server until it is rebooted.</p>
+        <form id="server">
+          <label for="server-url">Server URL</label>
+          <input id="server-url" type="url" name="url" value="" required autocapitalize="none" autocomplete="off">
+          <label for="join-password">Join password</label>
+          <input id="join-password" type="text" name="password" value="" autocapitalize="none" autocomplete="off">
+        </form>
+        <button class="primary" type="button" onclick="sendServer()">Save</button>
+      </div>
+
     </div>
 
     <div id="scan" class="hidden">
@@ -418,6 +459,18 @@
         <button class="ghost" type="button" onclick="show('#scan', false)">Cancel</button>
       </div>
     </div>
+
+    <script>
+      /* The AP portal is only ever reached at /portal; the server form is what
+         the device serves from its root while it is on the home network. */
+      if(location.pathname != '/portal') {
+        show('#wifi-ui', false);
+        show('#server-ui', true);
+        post('/server', null, function(url) {
+          document.querySelector('#server-url').value = url;
+        });
+      }
+    </script>
 
   </body>
 

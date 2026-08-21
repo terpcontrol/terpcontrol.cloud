@@ -136,6 +136,8 @@ std::string secondary_password;
 bool loadWifiCredentials();
 void saveWifiCredentials();
 void InitalizeHTTPServer();
+void startServerConfigPortal();
+void stopServerConfigPortal();
 std::vector<std::string> scanWifiNetworks();
 bool isHexSegment(const std::string& value, size_t expected_len);
 bool isSmartSocketSsid(const std::string& value);
@@ -169,6 +171,7 @@ String toStringIp(IPAddress ip);
 String GetEncryptionType(byte thisType);
 boolean isIp(String str);
 void handleConfig();
+void handleServerConfig();
 boolean captivePortal();
 
 
@@ -213,6 +216,22 @@ static SmartSocketSyncState smart_socket_state_light;
 static SmartSocketSyncState smart_socket_state_secondary_light;
 static SmartSocketSyncState smart_socket_state_co2;
 static fg::Fridgecloud* smart_socket_cloud_handle = nullptr;
+static fg::UserInterface* ui_handle = nullptr;
+
+// Server the firmware image was built for. Also offered as the starting point
+// when a new one is entered, so only the part that differs has to be typed.
+static const char* DEFAULT_API_URL = "#API_URL_EXTERNAL#";
+
+// Set while the server form is served over the home network. The form is
+// answered from an HTTP handler, which does not have the cloud at hand.
+static fg::Fridgecloud* server_config_cloud = nullptr;
+static bool server_config_active = false;
+static TickType_t server_config_opened = 0;
+
+// The form stays reachable for this long. It is unauthenticated - whoever can
+// reach it can point the device at any server - so it closes on its own
+// instead of listening until the next reboot when nobody submits anything.
+static constexpr TickType_t SERVER_CONFIG_TIMEOUT = configTICK_RATE_HZ * 600;
 
 static void syncSmartSocketRole(const char* role, bool target_on, SmartSocketSyncState& role_state);
 static TickType_t socketRoleMinSendInterval(const std::string& role);
@@ -251,6 +270,13 @@ void wifiTick() {
 
   if(server_active) {
     server.handleClient();
+  }
+
+  // Nothing else can be on top of the url screen while the form is open: it
+  // only reacts to the click that closes it, so popping it here is safe.
+  if(server_config_active && xTaskGetTickCount() - server_config_opened > SERVER_CONFIG_TIMEOUT) {
+    stopServerConfigPortal();
+    ui_handle->pop();
   }
 
   if(wifi_configured && xTaskGetTickCount() - last_conncheck > 30000) {
@@ -393,7 +419,6 @@ float rssi = 0;
 
 std::string ui_ssid;
 std::string ui_password;
-fg::UserInterface* ui_handle;
 std::vector<std::string> scanned_ssids;
 std::vector<std::string> scanned_smart_socket_ssids;
 std::string custom_mqtt_server;
@@ -1154,20 +1179,43 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
   if(!custom_mqtt_enabled) {
 
       menu->addOption("change server", [=](){
-        ui_handle->push<TextEntry>("server url", "#API_URL_EXTERNAL#", [=](std::string url) {
-          ui_handle->pop();
-          ui_handle->push<TextEntry>("join password", [=](std::string password) {
-            ui_handle->pop();
-            ui_handle->push<TextDisplay>("connecting...");
-            ui_handle->loop();
+        auto servermenu = ui_handle->push<SelectMenu>();
+        servermenu->addOption("back...", [ui](){ ui->pop(); });
 
-            cloud->registerWithCloud(url, password);
-
-            ui_handle->pop();
-            ui_handle->push<TextDisplay>("connection failed!", 1, []() {
+        servermenu->addOption("use mobile phone", [=](){
+          if(!wifiIsConnected()) {
+            ui_handle->push<TextDisplay>("no wifi connection", 1, [](){
               ui_handle->pop();
             });
-            ui_handle->loop();
+            return;
+          }
+
+          server_config_cloud = cloud;
+          startServerConfigPortal();
+          std::string url = "http://";
+          url += WiFi.localIP().toString().c_str();
+          ui_handle->push<TextDisplay>(url, "open on phone", 1, [](){
+            stopServerConfigPortal();
+            ui_handle->pop();
+          });
+        });
+
+        servermenu->addOption("use display", [=](){
+          ui_handle->push<TextEntry>("server url", DEFAULT_API_URL, [=](std::string url) {
+            ui_handle->pop();
+            ui_handle->push<TextEntry>("join password", [=](std::string password) {
+              ui_handle->pop();
+              ui_handle->push<TextDisplay>("connecting...");
+              ui_handle->loop();
+
+              cloud->registerWithCloud(url, password);
+
+              ui_handle->pop();
+              ui_handle->push<TextDisplay>("connection failed!", 1, []() {
+                ui_handle->pop();
+              });
+              ui_handle->loop();
+            });
           });
         });
       });
@@ -1282,6 +1330,29 @@ void InitalizeHTTPServer() {
   server.onNotFound ( handleNotFound );
 
   server.begin();
+}
+
+// Serves the server form on the home network, so a phone can type the url and
+// the password instead of the knob. It is the same page as the AP portal - it
+// shows the server form because it is not served from /portal - so this costs
+// no second blob in flash.
+void startServerConfigPortal() {
+  static bool routes_added = false;
+  if(!routes_added) {
+    server.on("/", handleRoot);
+    server.on("/server", handleServerConfig);
+    routes_added = true;
+  }
+  server.begin();
+  server_active = true;
+  server_config_active = true;
+  server_config_opened = xTaskGetTickCount();
+}
+
+void stopServerConfigPortal() {
+  server_config_active = false;
+  server_active = false;
+  server.stop();
 }
 
 boolean createConfigurationAP()
@@ -1487,6 +1558,44 @@ void handleConfig() {
     server.send ( 200, "text/html", "error" );
     server.client().stop();
   }
+}
+
+/** Server url + join password handler, fed by the form on the phone. */
+void handleServerConfig() {
+  if(server.method() == HTTP_GET) {
+    server.send(200, "text/plain", DEFAULT_API_URL);
+    return;
+  }
+
+  StaticJsonDocument<256> config_data;
+  std::string url;
+  if(!deserializeJson(config_data, server.arg("plain"))) {
+    url = config_data["url"].as<std::string>();
+  }
+
+  if(url.empty()) {
+    server.send(200, "text/plain", "error");
+    return;
+  }
+
+  // Registering ends in a firmware update and a reboot, so the phone is
+  // answered first - it would otherwise wait for a reply that never comes.
+  // The display takes over from here.
+  server.send(200, "text/plain", "ok");
+  server.client().stop();
+  stopServerConfigPortal();
+
+  ui_handle->pop();
+  ui_handle->push<fg::TextDisplay>("connecting...");
+  ui_handle->loop();
+
+  server_config_cloud->registerWithCloud(url, config_data["password"].as<std::string>());
+
+  ui_handle->pop();
+  ui_handle->push<fg::TextDisplay>("connection failed!", 1, []() {
+    ui_handle->pop();
+  });
+  ui_handle->loop();
 }
 
 void handleGetScan() {
