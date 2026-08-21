@@ -1,22 +1,21 @@
 name: Deploy
 
-# Every run walks one chain, a single job at a time:
+# Every run drives three tracks:
 #
-#   staging-cloud -> staging-firmware -> production-firmware -> garmin -> production-cloud
+#   cloud      staging-cloud    -> production-cloud
+#   firmware   staging-firmware -> production-firmware
+#   garmin     garmin
 #
 # Each job reads its host, path and SSH key from the GitHub environment it is
-# named after, and rsyncs the repo there itself. Those environments share a host
-# and a deploy path, so the jobs run strictly one after another - two of them
-# syncing the same directory at once would build and deploy a mixture of commits.
+# named after, and rsyncs the repo there itself. Jobs of one run all sync the
+# same commit, so those sharing a host do not put each other out of step.
 #
-# Only the ordering is chained: a failing job does not hold back what comes after
-# unless that step really depends on it. Two edges do:
-#   - production-firmware waits for staging-firmware to succeed, which is the
-#     only gate on a firmware release. Nothing here ever waits for a human.
-#   - production-cloud waits for staging-cloud to succeed, and is the one job a
-#     human holds back, so required reviewers belong on "production-cloud" alone.
-# It runs last for that reason: everything else would otherwise queue behind an
-# approval that can take days.
+# A track only moves on when its own staging step succeeded, and never waits for
+# another track. That is what keeps firmware unattended: the single job a human
+# holds back is production-cloud, so required reviewers belong on that
+# environment and nowhere else. The one edge across tracks is staging-firmware
+# following staging-cloud - the firmware is built against the server it uploads
+# to, so staging is brought up to date first.
 
 on:
   push:
@@ -175,8 +174,6 @@ jobs:
           echo "description=$DESC" >> "$GITHUB_OUTPUT"
           echo "Description resolved: '$DESC'"
 
-  # First in the chain: the firmware is built against the server it uploads to,
-  # so staging gets its update before anything is built there.
   staging-cloud:
     needs: detect
     if: inputs.skip_deploy != true
@@ -210,8 +207,7 @@ jobs:
     secrets: inherit
 
   production-cloud:
-    needs: [staging-cloud, garmin]
-    if: ${{ !cancelled() && needs['staging-cloud'].result == 'success' }}
+    needs: staging-cloud
     uses: ./.github/workflows/deploy-cloud.yml
     with:
       environment: production-cloud
@@ -223,8 +219,8 @@ jobs:
   # with, and that key lives in the host's env file. Nothing is deployed here:
   # the .iq is attached to the run for a manual store upload.
   garmin:
-    needs: [detect, production-firmware]
-    if: ${{ !cancelled() && needs.detect.outputs.garmin_needed == 'true' }}
+    needs: detect
+    if: needs.detect.outputs.garmin_needed == 'true'
     runs-on: ubuntu-latest
     environment: garmin
     env:
