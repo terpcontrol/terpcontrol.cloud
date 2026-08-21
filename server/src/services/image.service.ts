@@ -24,6 +24,7 @@ import { Image } from '@fg2/shared-types';
 import { deviceService } from '@services/device.service';
 import { createServer } from 'node:net';
 import { tunnelService } from '@services/tunnel.service';
+import { okamP2PService, OKAM_STREAM_PREFIX } from '@services/okam-p2p.service';
 import sharp from 'sharp';
 
 const escapeXml = (value: string): string =>
@@ -482,6 +483,15 @@ class ImageService {
   }
 
   private async readRtspStreamImage(cloudSettings: CloudSettings, deviceId: string): Promise<Buffer> {
+    // O-KAM / VStarcam cameras have no LAN RTSP: they are reached over the
+    // reverse-engineered P2P protocol through the controller's UDP tunnel. They
+    // are configured as `okam://<device-id>` in rtspStream so that everything
+    // else here — the poll schedule, backoff, maintenance gating, the test-image
+    // button, storage, timelapses and thinning — is reused unchanged.
+    if (cloudSettings.rtspStream?.startsWith(OKAM_STREAM_PREFIX)) {
+      return okamP2PService.captureViaController(deviceId);
+    }
+
     let streamUrl = cloudSettings.rtspStream;
     if (cloudSettings.tunnelRtspStream) {
       streamUrl = await tunnelService.createTunnelProxyServer(new URL(cloudSettings.rtspStream), deviceId);

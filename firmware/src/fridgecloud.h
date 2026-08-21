@@ -5,6 +5,7 @@
 #include <deque>
 #include <EspMQTTClient.h>
 #include <HTTPClient.h>
+#include <WiFiUdp.h>
 
 #include "fghmi.h"
 #include "settings.h"
@@ -17,6 +18,11 @@
 #define UUID_LEN 128
 #define TUNNEL_PAYLOAD_LEN 128
 #define TUNNEL_PACKET_PER_LOOP_COUNT 5
+// UDP relay (O-KAM camera P2P): a snapshot is a burst of ~30 datagrams and the
+// socket buffer is tiny, so the relay must drain far more per loop than the TCP
+// tunnels — an undrained datagram is a lost one, and each loss stalls the
+// camera's sliding window.
+#define UDP_PACKET_PER_LOOP_COUNT 40
 
 namespace fg {
 
@@ -42,6 +48,7 @@ namespace fg {
     String topic_control;
     String topic_tunnel_read;
     String topic_tunnel_write;
+    String topic_image;
 
 
     std::string device_id;
@@ -84,11 +91,22 @@ namespace fg {
     static constexpr int TUNNEL_COUNT = 3;
     struct Tunnel {
       WiFiClient client;
+      // UDP tunnelling (for the O-KAM camera's P2P transport): datagrams are
+      // relayed whole with their peer host/port preserved, since UDP is
+      // connectionless and the P2P client talks to several camera ports.
+      WiFiUDP udp;
+      bool isUdp = false;
       std::string connectionId = "";
       unsigned int sequence = 0;
       TickType_t openedAt = 0;
     };
     std::array<Tunnel, TUNNEL_COUNT> tunnels;
+
+    // A slot is in use if its TCP socket is connected or it holds an open UDP relay.
+    // Non-const because WiFiClient::connected() is not a const method.
+    inline bool tunnelActive(Tunnel& t) {
+      return t.client.connected() || (t.isUdp && t.openedAt > 0);
+    }
 
   public:
     Fridgecloud(UserInterface& ui) : ui(ui) {}
@@ -123,6 +141,12 @@ namespace fg {
     bool registerWithCloud(std::string url, std::string password);
     void handleTunnelCloses();
     void handleTunnelReads();
+    /**
+     * Publish one already-serialised webcam image message (see okamcam.cpp).
+     * Takes a caller-owned buffer so the image path can stream fragments out of
+     * a single static buffer without allocating.
+     */
+    bool publishImageMessage(const char* payload);
     void publishFetchMessage();
     void notePublishFailure();
     inline bool directMode() { return custom_mqtt; }

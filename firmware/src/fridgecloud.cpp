@@ -117,6 +117,7 @@ namespace fg {
     topic_command = String() + "/devices/" + device_id.c_str() + "/command";
     topic_control = String() + "/devices/" + device_id.c_str() + "/control/#";
     topic_tunnel_read = String() + "/devices/" + device_id.c_str() + "/tunnel_read";
+    topic_image = String() + "/devices/" + device_id.c_str() + "/image";
     topic_tunnel_write = String() + "/devices/" + device_id.c_str() + "/tunnel_write";
 
     Serial.print("api url:\t");
@@ -167,7 +168,11 @@ namespace fg {
   void Fridgecloud::connect() {
     Serial.println("connecting to cloud");
 
-    client->setMaxPacketSize(1024);
+    // Runs on every (re)connect, so it is the authoritative buffer size. 4096
+    // fits a base64'd ~1KB O-KAM video datagram + JSON tunnel_read envelope
+    // (~1.6KB); the old 1024 silently dropped those, so only small control
+    // packets crossed the UDP tunnel.
+    client->setMaxPacketSize(4096);
 
     esp_task_wdt_reset();
 
@@ -242,15 +247,16 @@ namespace fg {
       }
 
       std::string incomingId = doc["connection_id"].as<std::string>();
+      const bool wantUdp = doc["udp"].as<bool>();
 
       handleTunnelCloses();
 
       // NEW: selection logic using tunnel array (no log statements here)
       int useIndex = -1;
 
-      // 1) find a connected tunnel that matches the incoming id (reuse)
+      // 1) find an active tunnel that matches the incoming id (reuse)
       for (int i = 0; i < Fridgecloud::TUNNEL_COUNT; ++i) {
-        if (tunnels[i].client.connected() && tunnels[i].connectionId == incomingId) {
+        if (tunnelActive(tunnels[i]) && tunnels[i].connectionId == incomingId) {
           useIndex = i;
           tunnels[i].openedAt = xTaskGetTickCount();
           break;
@@ -264,17 +270,22 @@ namespace fg {
         }
 
         tunnels[useIndex].client.stop();
+        if (tunnels[useIndex].isUdp) {
+          tunnels[useIndex].udp.stop();
+          tunnels[useIndex].isUdp = false;
+        }
         tunnels[useIndex].openedAt = 0;
         return;
       }
 
-      // 2) if none found, find a non-connected tunnel to use
+      // 2) if none found, find a free tunnel to use
       if (useIndex == -1) {
         for (int i = 0; i < Fridgecloud::TUNNEL_COUNT; ++i) {
-          if (!tunnels[i].client.connected()) {
+          if (!tunnelActive(tunnels[i])) {
             useIndex = i;
             tunnels[i].connectionId = incomingId;
             tunnels[i].sequence = 0;
+            tunnels[i].isUdp = false;
             tunnels[i].openedAt = xTaskGetTickCount();
             break;
           }
@@ -292,6 +303,10 @@ namespace fg {
           }
         }
         tunnels[oldestIndex].client.stop();
+        if (tunnels[oldestIndex].isUdp) {
+          tunnels[oldestIndex].udp.stop();
+          tunnels[oldestIndex].isUdp = false;
+        }
         handleTunnelCloses();
 
         useIndex = oldestIndex;
@@ -301,11 +316,28 @@ namespace fg {
       }
 
       auto &tunnel = tunnels[useIndex];
+      const char* host = doc["host"].as<const char*>();
+      uint16_t port = static_cast<uint16_t>(doc["port"].as<int>());
+
+      // UDP relay path (O-KAM camera P2P). Datagrams carry their own host/port
+      // each write, so we just send to whatever peer the cloud names.
+      if (wantUdp) {
+        if (!tunnel.isUdp) {
+          tunnel.udp.begin(0);   // bind an ephemeral local UDP port
+          tunnel.isUdp = true;
+        }
+        tunnel.openedAt = xTaskGetTickCount();
+        std::vector<uint8_t> decoded = base64::decode(doc["payload"].as<std::string>());
+        if (!decoded.empty() && host != nullptr) {
+          tunnel.udp.beginPacket(host, port);
+          tunnel.udp.write(reinterpret_cast<const uint8_t*>(decoded.data()), decoded.size());
+          tunnel.udp.endPacket();
+        }
+        return;
+      }
 
       if (!tunnel.client.connected()) {
         // ensure host pointer is stable and port uses full 16-bit range
-        const char* host = doc["host"].as<const char*>();
-        uint16_t port = static_cast<uint16_t>(doc["port"].as<int>());
         if (!tunnel.client.connect(host, port)) {
           return;
         }
@@ -430,6 +462,10 @@ namespace fg {
 
     for(auto &tunnel : tunnels) {
       tunnel.client.stop();
+      if (tunnel.isUdp) {
+        tunnel.udp.stop();
+        tunnel.isUdp = false;
+      }
       tunnel.connectionId = "";
       tunnel.sequence = 0;
       tunnel.openedAt = 0;
@@ -677,6 +713,19 @@ namespace fg {
   }
 
 
+  bool Fridgecloud::publishImageMessage(const char* payload) {
+    if(!connected || client == nullptr || payload == nullptr) {
+      return false;
+    }
+    esp_task_wdt_reset();
+    bool ok = client->publish(topic_image.c_str(), payload);
+    esp_task_wdt_reset();
+    if(!ok) {
+      notePublishFailure();
+    }
+    return ok;
+  }
+
   void Fridgecloud::handleTunnelCloses() {
     if (!ui.isIdle()) {
       return;
@@ -684,7 +733,9 @@ namespace fg {
 
     for (int i = 0; i < Fridgecloud::TUNNEL_COUNT; ++i) {
         auto &t = tunnels[i];
-        if (!t.client.connected() && t.openedAt > 0) {
+        // UDP relays are connectionless — never auto-close them here; the cloud
+        // tears them down explicitly with a {disconnected:true} tunnel_write.
+        if (!t.isUdp && !t.client.connected() && t.openedAt > 0) {
           t.openedAt = 0;
           StaticJsonDocument<JSON_OBJECT_SIZE(3) + 32> message_json;
           message_json["connection_id"] = t.connectionId.c_str();
@@ -712,6 +763,42 @@ namespace fg {
     int packetCount = 0;
     for (int i = 0; i < Fridgecloud::TUNNEL_COUNT; ++i) {
         auto &t = tunnels[i];
+
+        // UDP relay: forward each inbound datagram whole, tagged with the peer
+        // host/port so the cloud-side P2P client can follow the camera's ports.
+        if (t.isUdp && t.openedAt > 0) {
+          static uint8_t udpBuf[1500];
+          int sz;
+          // Drain aggressively (UDP_PACKET_PER_LOOP_COUNT >> the TCP cap): an
+          // undrained datagram is a lost datagram, and every loss stalls the
+          // camera's sliding window.
+          while ((sz = t.udp.parsePacket()) > 0 && packetCount <= UDP_PACKET_PER_LOOP_COUNT) {
+            int len = t.udp.read(udpBuf, sizeof(udpBuf));
+            if (len <= 0) break;
+            std::string peerHost = t.udp.remoteIP().toString().c_str();
+            uint16_t peerPort = t.udp.remotePort();
+            std::string payloadEncoded = base64::encode(udpBuf, len);
+
+            DynamicJsonDocument message_json(payloadEncoded.size() + 128);
+            message_json["connection_id"] = t.connectionId.c_str();
+            message_json["length"] = len;
+            message_json["sequence"] = t.sequence++;
+            message_json["udp"] = true;
+            message_json["host"] = peerHost.c_str();
+            message_json["port"] = peerPort;
+            message_json["payload"] = payloadEncoded.c_str();
+
+            std::string buf;
+            serializeJson(message_json, buf);
+            esp_task_wdt_reset();
+            bool ok = client->publish(topic_tunnel_read.c_str(), buf.c_str());
+            esp_task_wdt_reset();
+            if (!ok) { notePublishFailure(); break; }
+            packetCount++;
+          }
+          continue;
+        }
+
         if (t.client.connected()) {
           char buffer[TUNNEL_PAYLOAD_LEN];
           size_t len = 0;

@@ -985,6 +985,7 @@
         }
       },
       "terpCamFound": "Terp Control Cam erkannt — dein Controller hat die Stream-URL gemeldet.",
+      "terpCamConnected": "Kamera verbunden — Bilder werden über deinen Controller abgerufen.",
       "terpCamUse": "Kamera übernehmen",
       "terpCamMissing": "Noch keine Terp Control Cam gemeldet. Verbinde sie zuerst an deinem Controller: Einstellungen → Terp Cam → connect cam.",
       "user": "Kamera-Benutzername",

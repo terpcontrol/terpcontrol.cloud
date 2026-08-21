@@ -989,6 +989,7 @@
         }
       },
       "terpCamFound": "Terp Control Cam detected — your controller reported its stream URL.",
+      "terpCamConnected": "Camera connected — stills are pulled through your controller.",
       "terpCamUse": "Use this camera",
       "terpCamMissing": "No Terp Control Cam reported yet. Connect it on your controller first: Settings → Terp Cam → connect cam.",
       "user": "Camera username",

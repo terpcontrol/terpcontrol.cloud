@@ -14,3 +14,6 @@ docker-compose.override.yml
 
 # Packaged Connect IQ app produced by build-garmin.sh.
 garmin/bin/
+
+# macOS finder junk
+.DS_Store
