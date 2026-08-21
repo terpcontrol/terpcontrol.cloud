@@ -6,53 +6,293 @@
 
     <style>
 
-      input, button {
-        -webkit-appearance: none; -moz-appearance: none;
+      /* Tokens mirror webapp/src/theme/variables.scss. */
+      :root {
+        --bg: #f5f7fb;
+        --surface: #fff;
+        --border: #e3e7ef;
+        --text: #1a1d29;
+        --muted: #5a6275;
+        --blue: #2d4b95;
+        --green: #50a030;
+        --green-dark: #3e8024;
+        --on-green: #fff;
+        --ok: #35701f;
+        --err: #b0293f;
+        --ring: rgba(45, 75, 149, .18);
+        --halo1: rgba(80, 160, 48, .12);
+        --halo2: rgba(45, 75, 149, .14);
+        --shadow: 0 2px 6px rgba(31, 58, 110, .08);
+        --shadow-lg: 0 12px 32px rgba(31, 58, 110, .12), 0 4px 8px rgba(31, 58, 110, .06);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #12151d;
+          --surface: #1a1f2b;
+          --border: #313a4a;
+          --text: #e7ecf5;
+          --muted: #8a92a5;
+          --blue: #7396dd;
+          --green: #6fbe4a;
+          --green-dark: #62a841;
+          --on-green: #0b1607;
+          --ok: #6fbe4a;
+          --err: #f06a7e;
+          --ring: rgba(115, 150, 221, .3);
+          --halo1: rgba(111, 190, 74, .08);
+          --halo2: rgba(115, 150, 221, .1);
+          --shadow: 0 2px 6px rgba(0, 0, 0, .35);
+          --shadow-lg: 0 12px 32px rgba(0, 0, 0, .45), 0 4px 8px rgba(0, 0, 0, .3);
+        }
+      }
+
+      * {
         box-sizing: border-box;
-        display: block;
+      }
+
+      body {
         margin: 0;
-        width: 100%; height: 40px;
-        line-height: 40px; font-size: 17px;
-        border: 1px solid #bbb;
+        padding: 28px 16px 40px;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+        color: var(--text);
+        background:
+          radial-gradient(ellipse 60% 50% at 18% 8%, var(--halo1), transparent 65%),
+          radial-gradient(ellipse 65% 55% at 85% 18%, var(--halo2), transparent 65%),
+          var(--bg);
+      }
+
+      .wrap {
+        max-width: 420px;
+        margin: 0 auto;
+      }
+
+      header {
+        text-align: center;
+        margin-bottom: 22px;
+      }
+
+      .mark {
+        width: 58px;
+        height: 58px;
+      }
+
+      .mark .edge {
+        fill: none;
+        stroke: var(--blue);
+        stroke-width: 3.5;
+        stroke-linejoin: round;
+      }
+
+      .mark .node {
+        fill: var(--blue);
+      }
+
+      .mark .leaf {
+        fill: var(--green);
+      }
+
+      .mark .vein {
+        stroke: var(--surface);
+        stroke-width: 1.4;
+        stroke-linecap: round;
+      }
+
+      h1 {
+        margin: 6px 0 2px;
+        font-size: 1.6rem;
+        font-weight: 800;
+        letter-spacing: .01em;
+        text-transform: uppercase;
+      }
+
+      h1 .t {
+        color: var(--green);
+      }
+
+      h1 .c {
+        color: var(--blue);
+      }
+
+      .eyebrow {
+        text-transform: uppercase;
+        letter-spacing: .12em;
+        font-size: .68rem;
+        font-weight: 700;
+        color: var(--ok);
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        padding: 20px;
+      }
+
+      .lead {
+        margin: 0 0 18px;
+        color: var(--muted);
+        font-size: .92rem;
+      }
+
+      label {
+        display: block;
+        font-size: .78rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      input {
+        display: block;
+        width: 100%;
+        height: 46px;
+        padding: 0 12px;
+        margin-bottom: 14px;
+        font: inherit;
+        color: var(--text);
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+
+      input:focus {
+        outline: none;
+        border-color: var(--blue);
+        box-shadow: 0 0 0 3px var(--ring);
       }
 
       button {
-        margin-top: 5px;
+        display: block;
+        width: 100%;
+        height: 46px;
+        font: inherit;
+        font-weight: 600;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        -webkit-appearance: none;
+        appearance: none;
       }
 
-      html {
-        font-family: sans-serif;
-        font-size: 120%;
-        line-height: 150%;
+      .primary {
+        background: var(--green);
+        color: var(--on-green);
+      }
+
+      .primary:active {
+        background: var(--green-dark);
+      }
+
+      .ghost {
+        background: transparent;
+        color: var(--blue);
+        border-color: var(--border);
       }
 
       .hidden {
         display: none !important;
       }
 
+      /* Status banners, tinted with a brand accent edge. */
       .box {
-        box-sizing: border-box;
-        width: 100%; height: 60px;
         display: flex;
-        justify-content: center;
-        flex-direction: column;
-        border: 1px solid #bbb;
-        text-align: center;
-        margin-top: 5px;
-      }
-
-      .error {
-        border: 1px solid #c66;
-        background-color: #fcc;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        margin-bottom: 12px;
+        border: 1px solid var(--border);
+        border-left: 4px solid var(--blue);
+        border-radius: 12px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+        font-size: .92rem;
       }
 
       .ok {
-        border: 1px solid #6c6;
-        background-color: #cfc;
+        border-left-color: var(--green);
+        color: var(--ok);
       }
 
-      #scancontent td + td {
+      .error {
+        border-left-color: var(--err);
+        color: var(--err);
+      }
+
+      /* Spinner for the two waiting states. */
+      .spin {
+        flex: none;
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--border);
+        border-top-color: var(--blue);
+        border-radius: 50%;
+        animation: spin .7s linear infinite;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      #scan {
+        position: fixed;
+        top: 0; right: 0; bottom: 0; left: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(26, 29, 41, .55);
+      }
+
+      .sheet {
+        width: 100%;
+        max-width: 420px;
+        max-height: 82vh;
+        overflow: auto;
+        padding: 20px;
+        background: var(--surface);
+        border-radius: 20px;
+        box-shadow: var(--shadow-lg);
+      }
+
+      .sheet h2 {
+        margin: 0 0 14px;
+        font-size: 1.1rem;
+        font-weight: 700;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 14px;
+      }
+
+      td {
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border);
+        word-break: break-word;
+      }
+
+      td + td {
+        width: 1%;
+        padding-left: 12px;
         text-align: right;
+      }
+
+      td button {
+        width: auto;
+        height: 34px;
+        padding: 0 14px;
+        font-size: .85rem;
+        white-space: nowrap;
       }
 
     </style>
@@ -107,6 +347,7 @@
             let row = content.insertRow();
             row.insertCell().textContent = ssid;
             let select = document.createElement('button');
+            select.className = 'ghost';
             select.textContent = 'Select';
             select.onclick = function() { selectWifi(ssid); };
             row.insertCell().appendChild(select);
@@ -125,43 +366,57 @@
   </head>
 
   <body>
-    <h1>Terp Control</h1>
-    <p>Connect your device to your WiFi network.</p>
+    <div class="wrap">
 
-    <div id="connecting" class="hidden box">
-      <p>connecting...</p>
-    </div>
+      <header>
+        <svg class="mark" viewBox="0 0 48 48" aria-hidden="true">
+          <path class="edge" d="M24 6 42 38 6 38Z"/>
+          <circle class="node" cx="24" cy="6" r="4.5"/>
+          <circle class="node" cx="42" cy="38" r="4.5"/>
+          <circle class="node" cx="6" cy="38" r="4.5"/>
+          <path class="leaf" d="M24 15c8 6 8 15 0 21-8-6-8-15 0-21z"/>
+          <path class="vein" d="M24 19v15M24 26l4-4M24 30l-4-4"/>
+        </svg>
+        <h1><span class="t">Terp</span> <span class="c">Control</span></h1>
+        <span class="eyebrow">Smart Grow Automation</span>
+      </header>
 
-    <div id="scanning" class="hidden box">
-      <p>scanning...</p>
-    </div>
-
-    <div id="connected" class="hidden box ok">
-      <p>connection successful</p>
-    </div>
-
-    <div id="error" class="hidden box error">
-      <p>connection error</p>
-    </div>
-
-    <div id="scan" class="hidden" style="position: absolute; left: 0; right: 0; top: 0; bottom: 0; background-color: #cccccc53;">
-      <div style="position: absolute; left: 20px; right: 20px; top: 20px; bottom: 20px; overflow: auto; background-color: #fff; border-radius: 5px;">
-        <h3>Select Network</h3>
-        <table style="width:90%;margin:5%" id="scancontent">
-        </table>
-        <button style="width:90%;margin:5%" type='button' onclick="show('#scan', false)">Abort</button>
+      <div id="connecting" class="hidden box">
+        <span class="spin"></span>Connecting to your network...
       </div>
+
+      <div id="scanning" class="hidden box">
+        <span class="spin"></span>Scanning for networks...
+      </div>
+
+      <div id="connected" class="hidden box ok">
+        Connected. Your device is coming online.
+      </div>
+
+      <div id="error" class="hidden box error">
+        Could not connect. Check the network and password.
+      </div>
+
+      <div id="wifi-ui" class="card">
+        <p class="lead">Connect your device to your WiFi network.</p>
+        <form id="wifi">
+          <label for="primary-ssid">Network</label>
+          <input id="primary-ssid" type="text" name="primary-ssid" value="" autocapitalize="none" autocomplete="off">
+          <button class="ghost" type="button" onclick="scanWifi()">Scan for networks</button>
+          <label for="primary-password" style="margin-top:16px">Password</label>
+          <input id="primary-password" type="text" name="primary-password" value="" autocapitalize="none" autocomplete="off">
+        </form>
+        <button class="primary" type="button" onclick="sendConfig()">Save</button>
+      </div>
+
     </div>
 
-    <div id="wifi-ui">
-      <form id="wifi">
-        <label for="primary-ssid">SSID</label>
-        <input id="primary-ssid" type="text" name="primary-ssid" value="">
-        <button type='button' onclick="scanWifi()">Scan</button>
-        <label for="primary-password">Password</label>
-        <input type="text" name="primary-password" value="">
-      </form>
-      <button type='button' onclick="sendConfig()">Save</button>
+    <div id="scan" class="hidden">
+      <div class="sheet">
+        <h2>Select network</h2>
+        <table id="scancontent"></table>
+        <button class="ghost" type="button" onclick="show('#scan', false)">Cancel</button>
+      </div>
     </div>
 
   </body>
