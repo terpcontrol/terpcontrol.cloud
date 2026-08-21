@@ -1,78 +1,63 @@
 ###############################################################
-# compresses all files found in ..\..\tasmota\html_uncompressed
-# write compressed C code to    ..\..\tasmota\html_compressed
-# Instructions:
-# open a console, e.g. in vscode, open a 'terminal'
-# cd .\tools\unishox
-# run:
-# python compress-html-uncompressed.py
+# Minifies and gzips every page in ../html and writes it as a C
+# byte array to ../src/html_compressed.
 #
-# The intent it to commit both uncompressed and compressed to the repo
-# else this script would need to be run at build.
+# Run from anywhere:
+#   python3 scripts/html-compress.py
 #
-# Example Tasmota code:
-# #ifdef USE_UNISHOX_COMPRESSION
-#   #include "./html_compressed/HTTP_SCRIPT_CONSOL.h"
-# #else
-#   #include "./html_uncompressed/HTTP_SCRIPT_CONSOL.h"
-# #endif
+# Both the readable source and the generated header are committed,
+# so the firmware build stays a plain `pio run`. Re-run this script
+# whenever a file in ../html changes.
 #
+# The pages are served straight from flash with `Content-Encoding:
+# gzip`, so the device never has to decompress anything itself.
 ###############################################################
 
-from os import listdir
-from os import path
-from datetime import datetime
-import base64
 import zlib
+from os import listdir, path
 
-path_uncompressed = path.join('..','html')
-path_compressed   = path.join('..','src', 'html_compressed')
+here = path.dirname(path.abspath(__file__))
+path_uncompressed = path.join(here, '..', 'html')
+path_compressed = path.join(here, '..', 'src', 'html_compressed')
 
-files = listdir(path_uncompressed)
 
-totalIn = 0
-totalSaved = 0
+def minify(source):
+  """Drop indentation and blank lines. Line breaks are kept so that
+  JavaScript relying on automatic semicolon insertion stays intact."""
+  lines = [line.strip() for line in source.splitlines()]
+  return "\n".join(line for line in lines if line)
 
-for file in files:
-  f = open(path_uncompressed + path.sep + file, "r")
-  input = f.read()
-  f.close()
 
-  const_name = file.upper()
-  const_name = const_name.replace('.', '_')
+def gzip_bytes(data):
+  # wbits=31 selects a gzip container without the timestamp that
+  # gzip.compress() embeds, so unchanged pages produce no diff.
+  compressor = zlib.compressobj(9, zlib.DEFLATED, 31)
+  return compressor.compress(data) + compressor.flush()
 
-  # parsing and cleaning
 
-  print("####### Parsing input from " + path_uncompressed + path.sep + file)
+for file in sorted(listdir(path_uncompressed)):
+  with open(path.join(path_uncompressed, file), 'r') as f:
+    source = f.read()
 
-  in_bytes = bytearray(input, 'utf-8')
-  in_len = len(in_bytes)
+  const_name = file.upper().replace('.', '_')
+  raw = minify(source).encode('utf-8')
+  gz = gzip_bytes(raw)
 
-  bytes = input.encode('ascii')
-  zbytes = zlib.compress(bytes)
-  out_bytes = base64.b64encode(bytes)
-  out_len = len(out_bytes)
+  rows = [gz[i:i + 16] for i in range(0, len(gz), 16)]
+  body = ",\n  ".join(", ".join("0x%02x" % b for b in row) for row in rows)
 
-  print(out_bytes)
+  header = (
+    "/////////////////////////////////////////////////////////////////////\n"
+    "// gzipped by scripts/html-compress.py - do not edit, edit html/%s\n"
+    "/////////////////////////////////////////////////////////////////////\n"
+    "#pragma once\n"
+    "\n"
+    "const size_t %s_GZ_SIZE = %d;\n"
+    "const uint8_t %s_GZ[] PROGMEM = {\n  %s\n};\n"
+  ) % (file, const_name, len(gz), const_name, body)
 
-  def chunked(my_list, n):
-      return [my_list[i * n:(i + 1) * n] for i in range((len(my_list) + n - 1) // n )]
+  with open(path.join(path_compressed, file + '.h'), 'w') as f:
+    f.write(header)
 
-  # split in chunks of 20 characters
-  chunks = chunked(out_bytes, 80)
-
-  lines_raw = [ "\t\"" + chunk.decode('ascii') + "\"" for chunk in chunks ]
-
-  line_complete = "const char " + const_name + "_COMPRESSED" +"[] PROGMEM = \n\t" + ("\n\t").join(lines_raw) + ";"
-  lines = "\nconst size_t " + const_name +"_SIZE = {size};\n{lines}\n\n".format(size=in_len, lines=line_complete)
-
-  comment = "/////////////////////////////////////////////////////////////////////\n"
-  comment = comment + "// compressed by scripts/html-compress.py \n"
-  comment = comment + "/////////////////////////////////////////////////////////////////////\n"
-
-  f = open(path_compressed + path.sep + file + '.h', "w")
-  f.write(comment + lines)
-  f.close()
-  print("####### Wrote output to " + path_compressed + path.sep + file)
-
-print("If all files are in use, total saving was "+str(totalSaved)+" out of "+str(totalIn))
+  print("%s: %d bytes source -> %d bytes minified -> %d bytes gzipped"
+        % (file, len(source.encode('utf-8')), len(raw), len(gz)))

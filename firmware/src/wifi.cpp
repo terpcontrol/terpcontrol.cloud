@@ -20,7 +20,6 @@
 #include "fridgecloud.h"
 #include "rebootwatchdog.h"
 
-#include "base64_min.h"
 #include "html_compressed/index.html.h"
 
 #define WIFI_SCAN_TIMEOUT 30000
@@ -105,8 +104,8 @@ namespace fg {
 #define GPIO_OUT_W1TS_REG (DR_REG_GPIO_BASE + 0x0008)
 #define GPIO_OUT_W1TC_REG (DR_REG_GPIO_BASE + 0x000c)
 
-#define DEFAULT_SSID_PREFIX "PLANT_"
-#define DEFAULT_HOSTNAME "plantalytix"
+#define DEFAULT_SSID_PREFIX "TERP_"
+#define DEFAULT_HOSTNAME "terpcontrol"
 
 static const std::array<std::string, 2> SMART_SOCKET_SSID_PREFIXES = {
   "cozylife-",
@@ -1232,32 +1231,14 @@ void resetCredentials() {
   fg::settings().commit();
 }
 
-#define CHUNK_LEN 2048
-
 void handleRoot() {
-  namespace base64 = fg_base64;
-
-  auto len = strlen(INDEX_HTML_COMPRESSED);
-  auto pos = 0;
-  char chunk[CHUNK_LEN + 1];
-
-  // HTML Header
+  // Sent as-is from flash; the browser inflates it, so the device needs
+  // neither a decoder nor a buffer for the expanded page.
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");
   server.sendHeader("Expires", "-1");
-  server.setContentLength(INDEX_HTML_SIZE);
-  server.send ( 200, "text/html", "" );
-
-  while(pos < len) {
-    strncpy_P(chunk, INDEX_HTML_COMPRESSED + pos, CHUNK_LEN);
-    chunk[CHUNK_LEN] = '\0';
-    std::vector<uint8_t> decoded = base64::decode(chunk);
-    decoded.push_back('\0');
-    Serial.println((int)decoded.size());
-    const char* html = reinterpret_cast<const char*>(decoded.data());
-    server.sendContent(html);
-    pos += CHUNK_LEN;
-  }
+  server.sendHeader("Content-Encoding", "gzip");
+  server.send_P(200, "text/html", reinterpret_cast<PGM_P>(INDEX_HTML_GZ), INDEX_HTML_GZ_SIZE);
 
   server.client().stop();
 }

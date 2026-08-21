@@ -3,3 +3,4 @@
 .vscode/*
 .vscode
 default_wifi.csv
+__pycache__/
