@@ -985,7 +985,10 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
       fg::settings().commit();
 
       if(smart_socket_cloud_handle != nullptr) {
+        // Both slots are erased above, so report both as cleared — otherwise a
+        // device that once had the legacy RTSP url keeps advertising it.
         smart_socket_cloud_handle->log("hardware-info:webcam_did=none", 0);
+        smart_socket_cloud_handle->log("hardware-info:webcam_url=none", 0);
       }
 
       ui_handle->push<TextDisplay>(reset_ok ? "cam disconnected\nand reset"
@@ -1773,15 +1776,18 @@ void wifiInitAuxCloudReporting(fg::Fridgecloud* cloud) {
   reportSocketsHardwareInfo();
 
   if(cloud != nullptr) {
+    // Report the camera state on every boot, INCLUDING when there is none.
+    // Staying silent when nothing is paired cannot clear a stale value in the
+    // cloud — it would keep whatever it last heard, so a camera disconnected
+    // while the module was offline would appear connected forever. "none" is
+    // the same sentinel the disconnect path sends.
     const std::string cam_did = sanitizeSettingString(fg::settings().getStr(OKAM_CAM_DID_NVS_KEY));
-    if(!cam_did.empty() && cam_did.size() < 64) {
-      cloud->log("hardware-info:webcam_did=" + cam_did, 0);
-    }
+    cloud->log("hardware-info:webcam_did=" +
+               ((!cam_did.empty() && cam_did.size() < 64) ? cam_did : std::string("none")), 0);
     // legacy: also surface a stored RTSP url if one was configured before
     const std::string cam_url = sanitizeSettingString(fg::settings().getStr(TERP_CAM_URL_NVS_KEY));
-    if(!cam_url.empty() && cam_url.size() < 200) {
-      cloud->log("hardware-info:webcam_url=" + cam_url, 0);
-    }
+    cloud->log("hardware-info:webcam_url=" +
+               ((!cam_url.empty() && cam_url.size() < 200) ? cam_url : std::string("none")), 0);
   }
 }
 

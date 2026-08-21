@@ -26,7 +26,7 @@ import { isNumeric } from 'influx/lib/src/grammar';
 import { mailTransport } from '@services/auth.service';
 import { imageService } from '@services/image.service';
 import { tunnelService } from '@services/tunnel.service';
-import { okamP2PService } from '@services/okam-p2p.service';
+import { okamP2PService, OKAM_STREAM_PREFIX } from '@services/okam-p2p.service';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
 import { demoAlarms, demoCloudSettings, demoDevice } from '@utils/demo';
 
@@ -604,6 +604,24 @@ class DeviceService {
       return;
     }
     await deviceModel.findOneAndUpdate({ device_id: deviceId }, { $set: { [`hardwareInfo.${infoKey}`]: infoValue } });
+
+    // For a P2P camera the pairing lives on the device, so the device is the
+    // source of truth: when it reports the camera is gone, the cloud has to let
+    // go of it too. Without this the stream stays configured as
+    // `okam://<did>` — the webapp keeps showing a camera that is no longer
+    // paired, and the image pipeline keeps asking a device that will refuse.
+    //
+    // Only an okam:// stream is cleared. A user's own RTSP URL is theirs, and a
+    // device reporting about its P2P pairing says nothing about it.
+    if (infoKey === 'webcam_did' && (infoValue === 'none' || infoValue === '')) {
+      // Escaped rather than interpolated raw: the prefix is a constant today,
+      // but a regex built from a value is a trap waiting for the day it changes.
+      const okamPrefixPattern = new RegExp('^' + OKAM_STREAM_PREFIX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      await deviceModel.findOneAndUpdate(
+        { device_id: deviceId, 'cloudSettings.rtspStream': okamPrefixPattern },
+        { $unset: { 'cloudSettings.rtspStream': '' } },
+      );
+    }
   }
 
   public async logMessage(
