@@ -303,10 +303,13 @@
         document.querySelector(id).classList.toggle('hidden', !visible);
       }
 
+      /* onloadend, not onload: a request that fails answers with an empty
+         string rather than never answering, so the caller can fall back
+         instead of leaving the page waiting on a device that went away. */
       function post(url, payload, onload) {
         var xhr = new XMLHttpRequest();
         xhr.open(payload ? 'POST' : 'GET', window.location.origin + url, true);
-        xhr.onload = function() { onload(xhr.responseText); };
+        xhr.onloadend = function() { onload(xhr.responseText); };
         xhr.send(payload);
       }
 
@@ -369,8 +372,8 @@
         show('#scanning', true);
 
         post('/scan', null, function(response) {
-          let wifi = JSON.parse(response);
           show('#scanning', false);
+          let wifi = JSON.parse(response || 'null');
           if(!wifi) return;
 
           for(let ssid of wifi) {
@@ -427,7 +430,7 @@
         Could not connect. Check the network and password.
       </div>
 
-      <div id="wifi-ui" class="card">
+      <div id="wifi-ui" class="hidden card">
         <p class="lead">Connect your device to your WiFi network.</p>
         <form id="wifi">
           <label for="primary-ssid">Network</label>
@@ -440,7 +443,7 @@
       </div>
 
       <div id="server-ui" class="hidden card">
-        <p class="lead">Point this device at a different server until it is rebooted.</p>
+        <p class="lead">Point this device at a different server. It registers there and installs the firmware that server serves.</p>
         <form id="server">
           <label for="server-url">Server URL</label>
           <input id="server-url" type="url" name="url" value="" required autocapitalize="none" autocomplete="off">
@@ -461,15 +464,14 @@
     </div>
 
     <script>
-      /* The AP portal is only ever reached at /portal; the server form is what
-         the device serves from its root while it is on the home network. */
-      if(location.pathname != '/portal') {
-        show('#wifi-ui', false);
-        show('#server-ui', true);
-        post('/server', null, function(url) {
-          document.querySelector('#server-url').value = url;
-        });
-      }
+      /* Both cards are in this one page and the device serves it from its root
+         either way, so the page asks which one it is: the server url comes
+         back while the change-server screen is open, and nothing at all when
+         this is the wifi portal. */
+      post('/server', null, function(url) {
+        show(url ? '#server-ui' : '#wifi-ui', true);
+        document.querySelector('#server-url').value = url;
+      });
     </script>
 
   </body>

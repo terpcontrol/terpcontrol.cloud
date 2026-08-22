@@ -1319,31 +1319,32 @@ std::string randomSsid() {
 }
 
 void handleNotFound() {
-  server.sendHeader("Location", "/portal");
+  server.sendHeader("Location", "/");
   server.send(302, "text/plain", "redirect to captive portal");
 }
 
+// One route table for both jobs. The page in flash carries the wifi card and
+// the server card and asks GET /server which of them it is showing, so the
+// root url is the only one a phone is ever given - as the AP portal or as the
+// server form, depending on what the device is doing when it is opened.
 void InitalizeHTTPServer() {
-  server.on("/config", handleConfig);
-  server.on("/portal", handleRoot);
-  server.on("/scan", handleGetScan);
-  server.onNotFound ( handleNotFound );
+  static bool routes_added = false;
+  if(!routes_added) {
+    server.on("/", handleRoot);
+    server.on("/config", handleConfig);
+    server.on("/scan", handleGetScan);
+    server.on("/server", handleServerConfig);
+    server.onNotFound ( handleNotFound );
+    routes_added = true;
+  }
 
   server.begin();
 }
 
-// Serves the server form on the home network, so a phone can type the url and
-// the password instead of the knob. It is the same page as the AP portal - it
-// shows the server form because it is not served from /portal - so this costs
-// no second blob in flash.
+// Opens that page on the home network, so a phone can type the server url and
+// the join password instead of the knob.
 void startServerConfigPortal() {
-  static bool routes_added = false;
-  if(!routes_added) {
-    server.on("/", handleRoot);
-    server.on("/server", handleServerConfig);
-    routes_added = true;
-  }
-  server.begin();
+  InitalizeHTTPServer();
   server_active = true;
   server_config_active = true;
   server_config_opened = xTaskGetTickCount();
@@ -1560,10 +1561,19 @@ void handleConfig() {
   }
 }
 
-/** Server url + join password handler, fed by the form on the phone. */
+/** Server url + join password handler, fed by the form on the phone.
+ *  The GET doubles as the page's mode probe: it answers with the url to
+ *  prefill while the server screen is open and with nothing when it is not,
+ *  which is what lets both cards share the root url. The POST is refused
+ *  outside that screen for the same reason the screen closes the listener. */
 void handleServerConfig() {
   if(server.method() == HTTP_GET) {
-    server.send(200, "text/plain", DEFAULT_API_URL);
+    server.send(200, "text/plain", server_config_active ? DEFAULT_API_URL : "");
+    return;
+  }
+
+  if(!server_config_active) {
+    server.send(403, "text/plain", "error");
     return;
   }
 

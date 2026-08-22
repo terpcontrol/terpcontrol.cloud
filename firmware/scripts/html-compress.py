@@ -22,10 +22,32 @@ path_compressed = path.join(here, '..', 'src', 'html_compressed')
 
 
 def minify(source):
-  """Drop indentation and blank lines. Line breaks are kept so that
-  JavaScript relying on automatic semicolon insertion stays intact."""
-  lines = [line.strip() for line in source.splitlines()]
-  return "\n".join(line for line in lines if line)
+  """Drop indentation, blank lines and comments. Line breaks are kept so that
+  JavaScript relying on automatic semicolon insertion stays intact.
+
+  Only lines that are entirely a comment are dropped, so nothing has to be
+  parsed to tell code from prose: a trailing comment after code stays, and a
+  `//` inside a string is never at the start of a line. Comments are what the
+  pages are documented with, and dropping them here is what keeps that
+  documentation from costing flash on every device."""
+  kept = []
+  in_block = False
+  for line in source.splitlines():
+    line = line.strip()
+    if not line:
+      continue
+    if in_block:
+      in_block = '*/' not in line
+      continue
+    if line.startswith('/*'):
+      in_block = '*/' not in line
+      continue
+    if line.startswith('//'):
+      continue
+    if line.startswith('<!--') and line.endswith('-->'):
+      continue
+    kept.append(line)
+  return "\n".join(kept)
 
 
 def gzip_bytes(data):
