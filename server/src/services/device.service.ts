@@ -824,17 +824,31 @@ class DeviceService {
   private static readonly SOCKET_ROLES = ['dehumidifier', 'heater', 'light', 'secondary_light', 'co2'];
   private static readonly AUX_COMMAND_ACTIONS = ['socket_remove', 'socket_test', 'socket_set'];
 
+  // A role can hold any number of sockets, so a command may name one of them by
+  // its slot — the position the device reports it at in `socket_listN`. Left
+  // out, the command applies to the role as a whole, which is what it meant
+  // when a role could only ever have one socket.
+  private static readonly MAX_SOCKET_SLOT = 31;
+
   public async sendAuxDeviceCommand(
     device_id: string,
     action: string,
     role: string,
-    options?: { ip?: string; user?: string; password?: string },
+    options?: { ip?: string; user?: string; password?: string; slot?: number | string },
   ): Promise<void> {
     if (!DeviceService.AUX_COMMAND_ACTIONS.includes(action) || !DeviceService.SOCKET_ROLES.includes(role)) {
       throw new HttpException(400, 'Unknown aux command');
     }
 
-    const payload: Record<string, string> = { action, role };
+    const payload: Record<string, string | number> = { action, role };
+
+    if (options?.slot !== undefined && options.slot !== null && options.slot !== '') {
+      const slot = Number(options.slot);
+      if (!Number.isInteger(slot) || slot < 0 || slot > DeviceService.MAX_SOCKET_SLOT) {
+        throw new HttpException(400, 'Invalid socket slot');
+      }
+      payload['slot'] = slot;
+    }
 
     if (action === 'socket_set') {
       const ip = String(options?.ip ?? '').trim();

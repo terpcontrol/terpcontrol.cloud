@@ -100,6 +100,7 @@ class DeviceController {
           ip: req.body.ip,
           user: req.body.user,
           password: req.body.password,
+          slot: req.body.slot,
         });
         res.status(200).json({ status: 'ok' });
       } else {

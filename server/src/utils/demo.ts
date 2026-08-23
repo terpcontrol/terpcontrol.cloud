@@ -7,8 +7,14 @@ export const DEMO_USER_ID = 'demo';
 export const DEMO_WRITE_MESSAGE = 'Saving is not supported in demo mode';
 
 // Reported by the device and not for the public: the camera URL carries its
-// credentials, the socket list the addresses of someone's local network.
+// credentials, the socket lists the addresses and MACs of someone's local
+// network. `socket_list<n>` is matched by prefix — the table is reported in
+// as many chunks as it takes.
 const SECRET_HARDWARE_INFO_KEYS = ['webcam_url', 'socket_ips'];
+const SECRET_HARDWARE_INFO_PREFIXES = ['socket_list'];
+
+const isSecretHardwareInfoKey = (key: string): boolean =>
+  SECRET_HARDWARE_INFO_KEYS.includes(key) || SECRET_HARDWARE_INFO_PREFIXES.some(prefix => key.startsWith(prefix));
 
 // The stream URL contains credentials, so demo visitors only learn that a
 // webcam exists - the same reduction share links use. A readable example URL
@@ -23,7 +29,7 @@ export const demoCloudSettings = (cloudSettings: CloudSettings): CloudSettings =
 export const demoHardwareInfo = (hardwareInfo?: Record<string, string>): Record<string, string> | undefined => {
   if (!hardwareInfo) return hardwareInfo;
 
-  return Object.fromEntries(Object.entries(hardwareInfo).filter(([key]) => !SECRET_HARDWARE_INFO_KEYS.includes(key)));
+  return Object.fromEntries(Object.entries(hardwareInfo).filter(([key]) => !isSecretHardwareInfoKey(key)));
 };
 
 // Where an alarm reports to is the owner's contact detail, not part of the demo.

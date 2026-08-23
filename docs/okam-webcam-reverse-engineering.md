@@ -373,4 +373,25 @@ Disconnecting a camera in the module UI used to only forget the DID locally, whi
 - The command is re-sent for up to `RESET_CONFIRM_MS` and any channel-0 reply counts as confirmation, because the camera reboots as soon as it acts and the reply may never arrive. Resending is safe — it is idempotent, and after the first one the camera is gone.
 - This also fixes the stale-credential trap noted in §15.4: after a factory reset the camera answers plain `loginpas=888888` again, which is what the next provisioning run uses.
 
+## 22. Surviving an address change (2026-08-23)
+
+The camera is reached over the LAN, and DHCP can hand it a different address at any time. Discovery already coped with
+that — `LanSearch` is a broadcast and the reply says where the camera is — but two things around it did not.
+
+- **The address it answered on is now remembered** (`webcam_ip`) and a session tries a *unicast* `LanSearch` there
+  before falling back to the broadcast. It saves the four seconds the broadcast search is allowed to take, and it is the
+  only round that works on an access point that isolates clients from each other's broadcasts. A stale address costs one
+  short round and nothing else.
+- **Repeated misses now trigger a search.** `openSession()` counts sessions in which nothing answered at all; after ten
+  the controller runs `okamCamSearch()` — a longer broadcast round outside a capture — and caches wherever the camera
+  turns up. It only runs while the display is idle, together with the smart-socket search, and not more than once every
+  15 minutes.
+
+**The stored id cannot be used to tell responders apart.** It would be the obvious way to make sure a second VStarcam
+device on the network is not picked up by mistake, but the two ids are not the same thing: pairing stores
+`realdeviceid` (e.g. `AAC2852199TWVA`, §2), while a `PunchPkt` carries the CS2 P2P id in its packed wire form — `VSTH`,
+a binary number, five characters (§16). Comparing them matches nothing, so discovery still takes the first camera that
+answers. Making this a real identity check means capturing the wire DID at pairing time, which needs a P2P session
+against the camera's setup AP.
+
 Credentials note: this repository is public, so every real credential in this document is a placeholder — `<OKAM_ACCOUNT>`, `<OKAM_PASSWORD>`, `<WIFI_SSID>`, `<WIFI_PSK>`, `<MQTT_DEVICE_SECURITY>`, `<CAMERA_MAC>`, `<VENDOR_UART_USER>`/`<VENDOR_UART_PASS>`. `admin`/`888888` is left as-is: it is the universal VStarcam factory default, is what the firmware ships with, and is published by the vendor. Keep it this way — do not paste real values back in.

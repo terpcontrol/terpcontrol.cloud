@@ -45,6 +45,12 @@ namespace fg {
 
     constexpr uint16_t DISCOVERY_PORT   = 32108;
     constexpr uint32_t DISCOVER_MS      = 4000;   // wait for the camera to answer
+    constexpr uint32_t CACHED_PEER_MS   = 800;    // ask the last known address first
+    constexpr uint32_t SEARCH_MS        = 12000;  // stand-alone search after repeated misses
+    // Repeated failures to reach the camera at all. The address it answers on
+    // is a DHCP lease, so after this many misses it is worth searching for it
+    // again rather than retrying the same place forever.
+    constexpr uint8_t  MISSES_BEFORE_SEARCH = 10;
     constexpr uint32_t AUTH_MS          = 6000;   // handshake until a CGI replies
     constexpr uint32_t TRANSFER_MS      = 20000;  // stay inside the cloud's 30s wait
     constexpr uint32_t IDLE_ABORT_MS    = 8000;   // no fragment for this long -> give up
@@ -114,6 +120,36 @@ namespace fg {
         if((unsigned char)c > 0x20) return false;
       }
       return true;
+    }
+
+    // Consecutive sessions that never found the camera. Reset as soon as one
+    // does: a session that opens proves the stored address still reaches it.
+    uint8_t g_camera_misses = 0;
+
+    // Whether a camera is paired at all. Note that the stored id cannot be used
+    // to tell responders apart: it is the camera's `realdeviceid`
+    // (e.g. AAC2852199TWVA), while the id inside a PunchPkt is the CS2 P2P id
+    // in its packed wire form ("VSTH" + a binary number + five characters).
+    // They are different identifiers, so discovery takes the first camera that
+    // answers, exactly as it always has.
+    bool camIsPaired() {
+      const std::string stored(fg::settings().getStr("webcam_did").c_str());
+      return !stored.empty() && stored != "none";
+    }
+
+    // Where the camera last answered. Only ever a shortcut: a stale address
+    // simply fails the unicast round and the broadcast takes over.
+    std::string cachedCamIp() {
+      return std::string(fg::settings().getStr("webcam_ip").c_str());
+    }
+
+    void rememberCamIp(const IPAddress& ip) {
+      const std::string address(ip.toString().c_str());
+      if(address.empty() || address == cachedCamIp()) {
+        return;
+      }
+      fg::settings().setStr("webcam_ip", address.c_str());
+      fg::settings().commit();
     }
 
     // Symmetric table cipher. `prev` is always the ciphertext byte, so encrypt
@@ -202,16 +238,13 @@ namespace fg {
     // capture and factory-reset paths. The DevLgn is what authenticates the
     // session: without it the camera acks DRW at the transport level but
     // silently drops every command.
-    bool openSession(WiFiUDP& udp, IPAddress& peer_ip, uint16_t& peer_port) {
-      uint8_t did[20];
-      bool have_did = false;
-      uint32_t started = millis();
-      const IPAddress broadcast(255, 255, 255, 255);
+    // One LanSearch round against `target`, which is either the address the
+    // camera last answered on or the broadcast address.
+    bool lanSearch(WiFiUDP& udp, const IPAddress& target, uint32_t window_ms,
+                   uint8_t* did, IPAddress& peer_ip, uint16_t& peer_port) {
+      sendPacket(udp, target, DISCOVERY_PORT, buildPacket(0x30, nullptr, 0));
 
-    // --- 1. discover: LanSearch until the camera answers with its DID -----
-    while(!have_did && (millis() - started) < DISCOVER_MS) {
-      sendPacket(udp, broadcast, DISCOVERY_PORT, buildPacket(0x30, nullptr, 0));
-      const uint32_t wait_until = millis() + 400;
+      const uint32_t wait_until = millis() + window_ms;
       while((int32_t)(wait_until - millis()) > 0) {
         int sz = udp.parsePacket();
         if(sz > 0 && sz <= (int)sizeof(g_rx)) {
@@ -219,20 +252,46 @@ namespace fg {
           if(len >= 24) {
             deobfuscate(g_rx, len);
             if(g_rx[0] == 0xf1 && g_rx[1] == 0x41) {
-              memcpy(did, g_rx + 4, sizeof(did));
-              have_did = true;
+              memcpy(did, g_rx + 4, 20);
               peer_ip = udp.remoteIP();
               peer_port = udp.remotePort();
-              break;
+              esp_task_wdt_reset();
+              return true;
             }
           }
         }
         delay(5);
       }
       esp_task_wdt_reset();
+      return false;
     }
 
-    if(!have_did) return false;
+    bool openSession(WiFiUDP& udp, IPAddress& peer_ip, uint16_t& peer_port) {
+      uint8_t did[20];
+      bool have_did = false;
+
+    // --- 1. discover: LanSearch until the camera answers with its DID -----
+    // Ask the address it answered on last first. That is both the fast path and
+    // the only one that works where the access point keeps clients from seeing
+    // each other's broadcasts. A stale address costs one short round and the
+    // broadcast below takes over.
+    IPAddress cached_ip;
+    if(cached_ip.fromString(cachedCamIp().c_str())) {
+      have_did = lanSearch(udp, cached_ip, CACHED_PEER_MS, did, peer_ip, peer_port);
+    }
+
+    uint32_t started = millis();
+    const IPAddress broadcast(255, 255, 255, 255);
+    while(!have_did && (millis() - started) < DISCOVER_MS) {
+      have_did = lanSearch(udp, broadcast, 400, did, peer_ip, peer_port);
+    }
+
+    if(!have_did) {
+      if(g_camera_misses < 255) ++g_camera_misses;
+      return false;
+    }
+    g_camera_misses = 0;
+    rememberCamIp(peer_ip);
 
     char cgi[192];
 
@@ -282,6 +341,53 @@ namespace fg {
   }
 
   } // namespace
+
+  bool okamCamNeedsSearch() {
+    return g_camera_misses >= MISSES_BEFORE_SEARCH && camIsPaired();
+  }
+
+  bool okamCamSearch(Fridgecloud* cloud) {
+    // Reset up front: the point of a search is to stop retrying, and a search
+    // that finds nothing must not keep re-triggering itself.
+    g_camera_misses = 0;
+
+    if(!camIsPaired()) {
+      return false;
+    }
+
+    // Nothing is buffered here, so this runs regardless of how tight the heap
+    // is; it costs one socket and the time it listens.
+    const bool wifi_was_asleep = WiFi.getSleep();
+    WiFi.setSleep(false);
+
+    WiFiUDP udp;
+    if(!udp.begin(0)) {
+      WiFi.setSleep(wifi_was_asleep);
+      return false;
+    }
+
+    uint8_t did[20];
+    IPAddress peer_ip;
+    uint16_t peer_port = 0;
+    bool found = false;
+    const IPAddress broadcast(255, 255, 255, 255);
+    const uint32_t started = millis();
+    while(!found && (millis() - started) < SEARCH_MS) {
+      found = lanSearch(udp, broadcast, 500, did, peer_ip, peer_port);
+    }
+
+    udp.stop();
+    WiFi.setSleep(wifi_was_asleep);
+
+    if(found) {
+      Serial.printf("[cam] found at %s\n", peer_ip.toString().c_str());
+      rememberCamIp(peer_ip);
+    }
+    if(cloud != nullptr) {
+      cloud->log(found ? "message-terp-cam-found" : "message-terp-cam-not-found", found ? 0 : 1);
+    }
+    return found;
+  }
 
   bool okamCamFactoryReset(Fridgecloud* cloud) {
     const std::string did_str = fg::settings().getStr("webcam_did");

@@ -2,7 +2,7 @@ import { Component, Input, OnChanges, OnDestroy, SimpleChanges } from '@angular/
 import { AlertController } from '@ionic/angular';
 import { TranslateService } from '@ngx-translate/core';
 import { DeviceService } from 'src/app/services/devices.service';
-import { parseSocketRoles, socketIpFromCsv, SOCKET_ROLES } from 'src/app/util/socket-info';
+import { MAX_SOCKETS, parseSocketList, parseSocketRoles, socketIpFromCsv, SocketEntry, SOCKET_ROLES } from 'src/app/util/socket-info';
 
 const DEVICE_ONLINE_TIMEOUT_MS = 10 * 60 * 1000;
 const SOCKET_CONFIRM_POLLS = 3;
@@ -10,10 +10,11 @@ const SOCKET_CONFIRM_POLL_MS = 5000;
 const SOCKET_TEST_RESET_MS = 6000;
 
 /**
- * Smart sockets the device manages: connected roles from the hardware
- * report, cloud-side edit/test/remove and the add flow (Terp sockets pair on
- * the device, manual entry is an explicit skip). Commands go to the device
- * immediately; the device confirms by re-reporting its socket csv.
+ * Smart sockets the device manages: the sockets it reports, cloud-side
+ * edit/test/remove and the add flow (Terp sockets pair on the device, manual
+ * entry is an explicit skip). A role can hold any number of sockets, so
+ * everything here is keyed by the socket's slot rather than its role.
+ * Commands go to the device immediately; the device confirms by re-reporting.
  */
 @Component({
   selector: 'smart-sockets',
@@ -26,11 +27,14 @@ export class SmartSocketsComponent implements OnChanges, OnDestroy {
   @Input() lastseen: number | undefined;
 
   public socketRoles = [...SOCKET_ROLES];
+  public sockets: SocketEntry[] = [];
 
-  public editingRole: string | null = null;
+  public editingKey: string | null = null;
   public socketDraft = { ip: '', user: '', password: '' };
-  public pendingRoles = new Set<string>();
-  public testedRoles = new Set<string>();
+  public pendingKeys = new Set<string>();
+  public testedKeys = new Set<string>();
+  /** Role of a socket being added: it has no row to mark pending on yet. */
+  public pendingAddRole: string | null = null;
 
   /** Add-socket flow, mirroring the webcam add flow. */
   public addingSocket = false;
@@ -47,9 +51,11 @@ export class SmartSocketsComponent implements OnChanges, OnDestroy {
   ) {}
 
   ngOnChanges(changes: SimpleChanges) {
-    if (changes['hardwareInfo'] && this.pendingRoles.size > 0) {
-      // The device confirms socket changes by re-reporting its csv.
-      this.pendingRoles.clear();
+    if (changes['hardwareInfo']) {
+      this.sockets = this.readSockets();
+      // The device confirms socket changes by re-reporting its table.
+      this.pendingKeys.clear();
+      this.pendingAddRole = null;
     }
   }
 
@@ -65,29 +71,38 @@ export class SmartSocketsComponent implements OnChanges, OnDestroy {
     return typeof this.lastseen === 'number' && this.lastseen > 0 && Date.now() - this.lastseen > DEVICE_ONLINE_TIMEOUT_MS;
   }
 
-  socketState(role: string): 'connected' | 'not_connected' | 'unknown' {
-    const csv = this.hardwareInfo?.['sockets'];
-    if (csv === undefined) {
-      return 'unknown';
-    }
-    return parseSocketRoles(csv).includes(role) ? 'connected' : 'not_connected';
+  get canAddSocket(): boolean {
+    return this.sockets.length < MAX_SOCKETS;
   }
 
-  /** Address the device reported for a role ("role@ip" pairs). */
-  socketIp(role: string): string | null {
-    return socketIpFromCsv(this.hardwareInfo?.['socket_ips'], role);
+  /** Identity for pending/editing state; the slot when the device reports one. */
+  socketKey(socket: SocketEntry): string {
+    return socket.slot >= 0 ? String(socket.slot) : socket.role;
   }
 
-  get freeSocketRoles(): string[] {
-    return this.socketRoles.filter(role => this.socketState(role) !== 'connected');
+  trackBySocket(_index: number, socket: SocketEntry): string {
+    return this.socketKey(socket);
+  }
+
+  trackByRole(_index: number, role: string): string {
+    return role;
+  }
+
+  /** How many sockets share a role, for the "Heater 2 of 3" style label. */
+  positionInRole(socket: SocketEntry): number {
+    return this.sockets.filter(other => other.role === socket.role).indexOf(socket) + 1;
+  }
+
+  countForRole(role: string): number {
+    return this.sockets.filter(socket => socket.role === role).length;
   }
 
   startAddSocket() {
     this.addingSocket = true;
     this.addSocketBrand = null;
-    this.addSocketRole = this.freeSocketRoles[0] ?? '';
+    this.addSocketRole = this.socketRoles[0];
     this.socketDraft = { ip: '', user: '', password: '' };
-    this.editingRole = null;
+    this.editingKey = null;
     this.terpSocketManual = false;
   }
 
@@ -112,12 +127,14 @@ export class SmartSocketsComponent implements OnChanges, OnDestroy {
       return;
     }
     try {
+      // No slot: the device appends a socket for the role.
       await this.devices.sendAuxCommand(this.deviceId, 'socket_set', this.addSocketRole, {
         ip: this.socketDraft.ip.trim(),
         user: this.socketDraft.user.trim(),
         password: this.socketDraft.password.trim(),
       });
-      this.markPending(this.addSocketRole);
+      this.pendingAddRole = this.addSocketRole;
+      this.schedulePendingRefetch();
       this.addingSocket = false;
       this.addSocketBrand = null;
     } catch (e) {
@@ -125,15 +142,16 @@ export class SmartSocketsComponent implements OnChanges, OnDestroy {
     }
   }
 
-  startEditSocket(role: string) {
-    if (this.editingRole === role) {
-      this.editingRole = null;
+  startEditSocket(socket: SocketEntry) {
+    const key = this.socketKey(socket);
+    if (this.editingKey === key) {
+      this.editingKey = null;
       return;
     }
-    this.editingRole = role;
+    this.editingKey = key;
     this.addingSocket = false;
     // Prefill the reported address; credentials are write-only (empty = keep).
-    this.socketDraft = { ip: this.socketIp(role) ?? '', user: '', password: '' };
+    this.socketDraft = { ip: socket.ip, user: '', password: '' };
   }
 
   get socketDraftValid(): boolean {
@@ -141,38 +159,40 @@ export class SmartSocketsComponent implements OnChanges, OnDestroy {
     return ip.length > 0 && ip.length <= 64 && /^[a-zA-Z0-9._-]+$/.test(ip);
   }
 
-  async applySocketDraft(role: string) {
+  async applySocketDraft(socket: SocketEntry) {
     if (!this.socketDraftValid) {
       return;
     }
     try {
-      await this.devices.sendAuxCommand(this.deviceId, 'socket_set', role, {
+      await this.devices.sendAuxCommand(this.deviceId, 'socket_set', socket.role, {
         ip: this.socketDraft.ip.trim(),
         user: this.socketDraft.user.trim(),
         password: this.socketDraft.password.trim(),
+        ...this.slotOf(socket),
       });
-      this.editingRole = null;
-      this.markPending(role);
+      this.editingKey = null;
+      this.markPending(this.socketKey(socket));
     } catch (e) {
       console.log('Socket set failed:', e);
     }
   }
 
-  async testSocket(role: string) {
+  async testSocket(socket: SocketEntry) {
+    const key = this.socketKey(socket);
     try {
-      await this.devices.sendAuxCommand(this.deviceId, 'socket_test', role);
-      this.testedRoles.add(role);
-      this.timers.push(setTimeout(() => this.testedRoles.delete(role), SOCKET_TEST_RESET_MS));
+      await this.devices.sendAuxCommand(this.deviceId, 'socket_test', socket.role, this.slotOf(socket));
+      this.testedKeys.add(key);
+      this.timers.push(setTimeout(() => this.testedKeys.delete(key), SOCKET_TEST_RESET_MS));
     } catch (e) {
       console.log('Socket test failed:', e);
     }
   }
 
-  async removeSocket(role: string) {
+  async removeSocket(socket: SocketEntry) {
     const alert = await this.alertController.create({
       header: this.translate.instant('auxDevices.sockets.removeConfirmTitle'),
       message: this.translate.instant('auxDevices.sockets.removeConfirmText', {
-        role: this.translate.instant('auxDevices.sockets.roles.' + role),
+        role: this.translate.instant('auxDevices.sockets.roles.' + socket.role),
       }),
       buttons: [
         { text: this.translate.instant('misc.cancel'), role: 'cancel' },
@@ -186,20 +206,39 @@ export class SmartSocketsComponent implements OnChanges, OnDestroy {
     }
 
     try {
-      await this.devices.sendAuxCommand(this.deviceId, 'socket_remove', role);
-      this.markPending(role);
+      await this.devices.sendAuxCommand(this.deviceId, 'socket_remove', socket.role, this.slotOf(socket));
+      this.markPending(this.socketKey(socket));
     } catch (e) {
       console.log('Socket removal failed:', e);
     }
   }
 
-  trackByRole(_index: number, role: string): string {
-    return role;
+  private slotOf(socket: SocketEntry): { slot?: number } {
+    return socket.slot >= 0 ? { slot: socket.slot } : {};
   }
 
-  private markPending(role: string) {
-    this.pendingRoles.add(role);
-    // The device re-reports its sockets; poll a few refetches to pick it up.
+  private readSockets(): SocketEntry[] {
+    const table = parseSocketList(this.hardwareInfo);
+    if (table) {
+      return table;
+    }
+    // Firmware from before the socket table reports one socket per role, and
+    // has no slots to address them by.
+    return parseSocketRoles(this.hardwareInfo?.['sockets']).map(role => ({
+      slot: -1,
+      role,
+      id: '',
+      ip: socketIpFromCsv(this.hardwareInfo?.['socket_ips'], role) ?? '',
+    }));
+  }
+
+  private markPending(key: string) {
+    this.pendingKeys.add(key);
+    this.schedulePendingRefetch();
+  }
+
+  /** The device re-reports its sockets; poll a few refetches to pick it up. */
+  private schedulePendingRefetch() {
     for (let i = 1; i <= SOCKET_CONFIRM_POLLS; i++) {
       this.timers.push(setTimeout(() => void this.devices.refetchDevices(), i * SOCKET_CONFIRM_POLL_MS));
     }

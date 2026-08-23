@@ -173,12 +173,15 @@ export class DeviceService {
    * testing or re-configuring a paired smart socket). The device confirms by
    * re-reporting its hardware info, so callers should refetch devices
    * afterwards.
+   *
+   * `slot` addresses one socket of a role; without it the command applies to
+   * the role as a whole (and socket_set adds one when the role has none).
    */
   public async sendAuxCommand(
     device_id: string,
     action: 'socket_remove' | 'socket_test' | 'socket_set',
     role: string,
-    options?: { ip?: string; user?: string; password?: string },
+    options?: { ip?: string; user?: string; password?: string; slot?: number },
   ) {
     await firstValueFrom(this.http.post(environment.API_URL + '/device/auxcommand', { device_id, action, role, ...(options ?? {}) }));
   }
