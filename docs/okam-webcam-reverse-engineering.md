@@ -373,7 +373,24 @@ Disconnecting a camera in the module UI used to only forget the DID locally, whi
 - The command is re-sent for up to `RESET_CONFIRM_MS` and any channel-0 reply counts as confirmation, because the camera reboots as soon as it acts and the reply may never arrive. Resending is safe — it is idempotent, and after the first one the camera is gone.
 - This also fixes the stale-credential trap noted in §15.4: after a factory reset the camera answers plain `loginpas=888888` again, which is what the next provisioning run uses.
 
-## 22. Surviving an address change (2026-08-23)
+## 22. The cloud follows the device's pairing (2026-08-22)
+
+Pairing a P2P camera happens **on the module**, so the device is the source of truth and the cloud follows it. `deviceService.reconcileP2PCamera()` runs whenever a device reports `hardware-info:webcam_did`:
+
+| device reports | cloud does |
+| --- | --- |
+| a DID, nothing configured | adopt it — `rtspStream = okam://<did>`, `webcamModel = terp_cam` |
+| a DID, a *different* `okam://` stream configured | replace it (only one camera can be paired at a time) |
+| a DID, a user's own `rtsp://` URL configured | **nothing** — that URL was configured deliberately |
+| `none` | clear the stream, but only if it is an `okam://` one |
+
+Why this is server-side rather than a webapp affordance: the webapp decides whether a webcam exists from `cloudSettings.rtspStream`, and nothing but a manual add ever wrote it. So a camera paired on the module was **paired but invisible** — the settings page showed only "add a webcam", and the only way through was to add a Terp Cam by hand and save, which then worked and made the bug look like a UI glitch rather than a missing write.
+
+The DID is validated (`^[A-Za-z0-9_-]{4,32}$`) before it is concatenated into a URL, and the `okam://` prefix is regex-escaped before it goes into a query rather than interpolated raw.
+
+**Boot reporting matters as much as the events.** The device reports `webcam_did` on every boot *including when nothing is paired* (`none`). Reporting only when a camera exists cannot clear a stale value — a camera disconnected while the module was offline would read as connected forever — and it is also what lets devices already in an inconsistent state heal themselves on the next boot.
+
+## 23. Surviving an address change (2026-08-23)
 
 The camera is reached over the LAN, and DHCP can hand it a different address at any time. Discovery already coped with
 that — `LanSearch` is a broadcast and the reply says where the camera is — but two things around it did not.

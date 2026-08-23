@@ -605,23 +605,58 @@ class DeviceService {
     }
     await deviceModel.findOneAndUpdate({ device_id: deviceId }, { $set: { [`hardwareInfo.${infoKey}`]: infoValue } });
 
-    // For a P2P camera the pairing lives on the device, so the device is the
-    // source of truth: when it reports the camera is gone, the cloud has to let
-    // go of it too. Without this the stream stays configured as
-    // `okam://<did>` — the webapp keeps showing a camera that is no longer
-    // paired, and the image pipeline keeps asking a device that will refuse.
-    //
-    // Only an okam:// stream is cleared. A user's own RTSP URL is theirs, and a
-    // device reporting about its P2P pairing says nothing about it.
-    if (infoKey === 'webcam_did' && (infoValue === 'none' || infoValue === '')) {
-      // Escaped rather than interpolated raw: the prefix is a constant today,
-      // but a regex built from a value is a trap waiting for the day it changes.
-      const okamPrefixPattern = new RegExp('^' + OKAM_STREAM_PREFIX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    if (infoKey === 'webcam_did') {
+      await this.reconcileP2PCamera(deviceId, infoValue);
+    }
+  }
+
+  /**
+   * Keep the cloud's webcam config in step with what the device reports.
+   *
+   * For a P2P camera the pairing lives on the device — the user connects it in
+   * the module's menu — so the device is the source of truth and the cloud
+   * follows. Doing this server-side is what makes pairing "just work": without
+   * it the camera is paired but invisible, because the webapp decides whether a
+   * webcam exists from cloudSettings.rtspStream, which only a manual add would
+   * ever have written.
+   *
+   * A user's own RTSP URL is never touched. They configured it deliberately,
+   * and a device reporting about its P2P pairing says nothing about it; the
+   * webapp offers an explicit "use this camera" action for that case instead.
+   */
+  private async reconcileP2PCamera(deviceId: string, did: string) {
+    // Escaped rather than interpolated raw: the prefix is a constant today, but
+    // a regex built from a value is a trap waiting for the day it changes.
+    const okamPrefixPattern = new RegExp('^' + OKAM_STREAM_PREFIX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+
+    // Camera gone: drop the stream, or it keeps being shown and polled.
+    if (did === 'none' || did === '') {
       await deviceModel.findOneAndUpdate(
         { device_id: deviceId, 'cloudSettings.rtspStream': okamPrefixPattern },
         { $unset: { 'cloudSettings.rtspStream': '' } },
       );
+      return;
     }
+
+    // The id goes into a URL, so accept only the shape a real DID has rather
+    // than whatever a device happens to send.
+    if (!/^[A-Za-z0-9_-]{4,32}$/.test(did)) {
+      return;
+    }
+
+    // Adopt it when nothing is configured, or when it replaces a different P2P
+    // camera (only one can be paired at a time, so the device's is the one).
+    await deviceModel.findOneAndUpdate(
+      {
+        device_id: deviceId,
+        $or: [
+          { 'cloudSettings.rtspStream': { $in: [null, ''] } },
+          { 'cloudSettings.rtspStream': { $exists: false } },
+          { 'cloudSettings.rtspStream': okamPrefixPattern },
+        ],
+      },
+      { $set: { 'cloudSettings.rtspStream': OKAM_STREAM_PREFIX + did, 'cloudSettings.webcamModel': 'terp_cam' } },
+    );
   }
 
   public async logMessage(
