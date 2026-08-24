@@ -2,8 +2,9 @@ import Toybox.WatchUi;
 import Toybox.Lang;
 import Toybox.Application.Storage;
 
-// Handles the widget input: up/down page through the values, the chart periods and
-// the webcam, select cycles the highlighted series, and the menu switches devices.
+// Handles the widget input: up/down page through the values, the chart periods, the
+// webcam and the maintenance mode, select cycles the highlighted series or opens the
+// maintenance durations, and the menu switches devices.
 class TerpControlViewDelegate extends WatchUi.BehaviorDelegate {
     private var _api as TerpControlApi;
     private var _view;
@@ -27,6 +28,9 @@ class TerpControlViewDelegate extends WatchUi.BehaviorDelegate {
         "1 month"
     ];
 
+    // Maintenance windows offered on the watch; 0 ends a running one.
+    private static var MAINTENANCE_MINUTES as Array = [5, 10, 15, 20, 30, 45, 60, 90, 120];
+
     public function initialize(view) {
         _view = view;
         _api = new TerpControlApi(view);
@@ -48,6 +52,9 @@ class TerpControlViewDelegate extends WatchUi.BehaviorDelegate {
         if (timePeriod.equals("webcam")) {
             return new TerpControlWebcamView();
         }
+        if (timePeriod.equals("maintenance")) {
+            return new TerpControlMaintenanceView();
+        }
         return new TerpControlChartView(timePeriod, Storage.getValue(TerpControlDevices.stateKey("highlight")) as String);
     }
 
@@ -55,6 +62,8 @@ class TerpControlViewDelegate extends WatchUi.BehaviorDelegate {
         if (_view instanceof TerpControlValuesView) {
             switchTo(CHART_TIME_PERIODS_KEYS[0] as String, WatchUi.SLIDE_UP);
         } else if (_view instanceof TerpControlWebcamView) {
+            switchTo("maintenance", WatchUi.SLIDE_UP);
+        } else if (_view instanceof TerpControlMaintenanceView) {
             switchTo(null, WatchUi.SLIDE_UP);
         } else {
             var nextPeriod = "webcam";
@@ -72,6 +81,8 @@ class TerpControlViewDelegate extends WatchUi.BehaviorDelegate {
 
     function onPreviousPage() as Boolean {
         if (_view instanceof TerpControlValuesView) {
+            switchTo("maintenance", WatchUi.SLIDE_DOWN);
+        } else if (_view instanceof TerpControlMaintenanceView) {
             switchTo("webcam", WatchUi.SLIDE_DOWN);
         } else if (_view instanceof TerpControlWebcamView) {
             switchTo(CHART_TIME_PERIODS_KEYS[CHART_TIME_PERIODS_KEYS.size() - 1] as String, WatchUi.SLIDE_DOWN);
@@ -98,6 +109,8 @@ class TerpControlViewDelegate extends WatchUi.BehaviorDelegate {
             }
         } else if (_view instanceof TerpControlWebcamView) {
             _api.loadWebcamImage();
+        } else if (_view instanceof TerpControlMaintenanceView) {
+            showMaintenanceMenu();
         } else {
             _api.loadLatestValues(false);
         }
@@ -148,6 +161,24 @@ class TerpControlViewDelegate extends WatchUi.BehaviorDelegate {
         load();
     }
 
+    // Called by the maintenance menu once the user picked a duration.
+    public function onMaintenanceDurationSelected(durationMinutes as Number) as Void {
+        if (_view instanceof TerpControlMaintenanceView) {
+            _api.setMaintenance(durationMinutes);
+        }
+    }
+
+    private function showMaintenanceMenu() as Void {
+        var menu = new WatchUi.Menu2({ :title => "Maintenance" });
+        menu.addItem(new WatchUi.MenuItem("End now", null, 0, {}));
+        for (var i = 0; i < MAINTENANCE_MINUTES.size(); i++) {
+            var minutes = MAINTENANCE_MINUTES[i] as Number;
+            menu.addItem(new WatchUi.MenuItem(minutes.toString() + " minutes", null, minutes, {}));
+        }
+
+        WatchUi.pushView(menu, new TerpControlMaintenanceMenuDelegate(self), WatchUi.SLIDE_UP);
+    }
+
     // Moves the highlight to the next series and, after the last one, to no
     // highlight at all before starting over.
     private function nextHighlight(current as String?) as String? {
@@ -167,7 +198,8 @@ class TerpControlViewDelegate extends WatchUi.BehaviorDelegate {
     }
 
     // Replaces the current page. `timePeriod` is null for the values page,
-    // "webcam" for the webcam page and a chart period otherwise.
+    // "webcam" for the webcam page, "maintenance" for the maintenance page and a
+    // chart period otherwise.
     private function switchTo(timePeriod as String?, transition as WatchUi.SlideType) as Void {
         Storage.setValue(TerpControlDevices.stateKey("timePeriod"), timePeriod);
         _view = createView(timePeriod);
@@ -181,6 +213,8 @@ class TerpControlViewDelegate extends WatchUi.BehaviorDelegate {
             _api.loadSeries(CHART_TIME_PERIODS[_view.getTimePeriod()] as Number);
         } else if (_view instanceof TerpControlWebcamView) {
             _api.loadWebcamImage();
+        } else if (_view instanceof TerpControlMaintenanceView) {
+            _api.loadMaintenance();
         } else {
             _api.loadLatestValues(false);
         }

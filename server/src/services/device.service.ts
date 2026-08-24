@@ -828,6 +828,16 @@ class DeviceService {
     return device;
   }
 
+  // Clients that cannot handle the millisecond timestamp of `maintenance_mode_until`
+  // (the Garmin watch app parses large JSON numbers only imprecisely) get the plain
+  // number of seconds left instead.
+  public async getMaintenanceMode(device_id: string): Promise<{ device_id: string; active: boolean; remaining_seconds: number }> {
+    const device = await deviceModel.findOne({ device_id: device_id }, { maintenance_mode_until: 1 }).lean();
+    const remainingSeconds = Math.max(0, Math.ceil(((device?.maintenance_mode_until ?? 0) - Date.now()) / 1000));
+
+    return { device_id, active: remainingSeconds > 0, remaining_seconds: remainingSeconds };
+  }
+
   public async activateMaintenanceMode(device_id: string, durationMinutes: number): Promise<void> {
     console.log('Activating maintenance mode for device ' + device_id + ' for ' + durationMinutes + ' minutes');
 
