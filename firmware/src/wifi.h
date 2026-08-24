@@ -11,14 +11,18 @@
 static constexpr uint32_t HTTP_MIN_FREE_HEAP = 45000;
 
 namespace fg {
-  class WifiApDash: public MenuItem {
+  // Tells someone holding a phone what to do: join this wifi, then open this
+  // url. Both phone flows use it - the AP portal passes the ssid to join, the
+  // change-server screen leaves it empty because the phone is already on the
+  // same network as the device.
+  class PhoneSetupDash: public MenuItem {
     std::string ssid;
     std::string ip;
 
     std::function<void(void)> callback = nullptr;
 
   public:
-    WifiApDash(std::string ssid, std::string ip, std::function<void(void)> callback);
+    PhoneSetupDash(std::string ip, std::function<void(void)> callback, std::string ssid = "");
 
     void draw() override;
     void prev() override;

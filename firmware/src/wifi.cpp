@@ -32,36 +32,60 @@ static constexpr uint8_t SMART_SOCKET_FAILURES_BEFORE_BACKOFF = 3;
 
 
 namespace fg {
-  WifiApDash::WifiApDash(std::string ssid, std::string ip, std::function<void(void)> callback) :
+  // The display fits 21 characters per line at this text size and Adafruit_GFX
+  // wraps whatever is longer by itself, so a line only has to report how many
+  // rows it took for the next one to know where it starts. Values are printed
+  // whole rather than shortened: an ssid or a url is only useful if all of it
+  // is on the screen.
+  static constexpr uint8_t CHARS_PER_LINE = SCREEN_WIDTH / 6;
+  static constexpr uint8_t LINE_HEIGHT = 8;
+
+  static uint8_t printWrapped(const std::string& text, uint8_t y) {
+    UserInterface::display.setCursor(0, y);
+    UserInterface::display.write(text.c_str());
+    uint8_t rows = (text.size() + CHARS_PER_LINE - 1) / CHARS_PER_LINE;
+    return y + (rows ? rows : 1) * LINE_HEIGHT;
+  }
+
+  PhoneSetupDash::PhoneSetupDash(std::string ip, std::function<void(void)> callback, std::string ssid) :
     ssid(ssid), ip(ip), callback(callback) {}
 
 
-  void WifiApDash::draw() {
+  // Two steps when the device is its own access point - join it, then open the
+  // page - and only the second when the phone is already on the same network.
+  // The starting row keeps either block off the top edge of the display.
+  void PhoneSetupDash::draw() {
     UserInterface::display.setTextColor(SSD1306_WHITE); // Draw white text
     UserInterface::display.setTextSize(1);
 
-    std::stringstream value_print;
-    value_print << "connect to:";
-    UserInterface::display.setCursor(1, 1);
-    UserInterface::display.write(value_print.str().c_str());
+    uint8_t y = ssid.empty() ? 24 : 12;
 
-    value_print.str(std::string());
-    value_print << "SSID: " << ssid;
-    UserInterface::display.setCursor(1, 15);
-    UserInterface::display.write(value_print.str().c_str());
+    if(!ssid.empty()) {
+      y = printWrapped("connect to wifi:", y);
+      y = printWrapped(ssid, y) + 4;
+    }
 
-    value_print.str(std::string());
-    value_print << "IP:   " << ip;
-    UserInterface::display.setCursor(1, 25);
-    UserInterface::display.write(value_print.str().c_str());
+    y = printWrapped("open in browser:", y);
+
+    // An address of full length does not fit on one line behind the scheme.
+    // Breaking between the two keeps it whole and typeable; letting the line
+    // wrap on its own would strand the last digit or two on the next row.
+    std::string url = "http://" + ip;
+    if(url.size() > CHARS_PER_LINE) {
+      y = printWrapped("http://", y);
+      printWrapped(ip, y);
+    }
+    else {
+      printWrapped(url, y);
+    }
   }
 
-  void WifiApDash::prev() {}
-  void WifiApDash::next() {}
-  void WifiApDash::enter() {
+  void PhoneSetupDash::prev() {}
+  void PhoneSetupDash::next() {}
+  void PhoneSetupDash::enter() {
     callback();
   }
-  void WifiApDash::hold() {}
+  void PhoneSetupDash::hold() {}
 
   WifiStaDash::WifiStaDash(std::string ssid, std::string ip, float rssi, std::function<void(void)> callback) :
     ssid(ssid), ip(ip), rssi(rssi), callback(callback) {}
@@ -189,7 +213,6 @@ IPAddress netMsk(255, 255, 255, 0);
 
 std::string ssid = "";
 std::string ip = "";
-std::string netmask = "";
 
 unsigned long currentMillis = 0;
 unsigned long startMillis;
@@ -1192,9 +1215,7 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
 
           server_config_cloud = cloud;
           startServerConfigPortal();
-          std::string url = "http://";
-          url += WiFi.localIP().toString().c_str();
-          ui_handle->push<TextDisplay>(url, "open on phone", 1, [](){
+          ui_handle->push<PhoneSetupDash>(WiFi.localIP().toString().c_str(), [](){
             stopServerConfigPortal();
             ui_handle->pop();
           });
@@ -1244,9 +1265,9 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
 
     menu->addOption("use mobile phone", [ui](){
       createConfigurationAP();
-      ui->push<WifiApDash>(ssid, ip, [ui]() {
+      ui->push<PhoneSetupDash>(ip, [ui]() {
         ui->pop();
-      });
+      }, ssid);
     });
 
     menu->addOption("use display", [=](){
@@ -1358,9 +1379,6 @@ void stopServerConfigPortal() {
 
 boolean createConfigurationAP()
 {
-  ip = apIP.toString().c_str();
-  netmask = netMsk.toString().c_str();
-
   WiFi.disconnect();
   WiFi.mode(WIFI_AP_STA);
   Serial.print(F("Initalize SoftAP "));
@@ -1370,6 +1388,13 @@ boolean createConfigurationAP()
   {
     delay(2000);
     //WiFi.softAPConfig(apIP, apIP, netMsk);
+
+    // Asked of the radio rather than taken from apIP: that constant only
+    // applies through the softAPConfig call above, which is not made, so the
+    // AP actually comes up on the default address. The screen prints this to
+    // be typed into a browser, so it has to be the address that answers.
+    ip = WiFi.softAPIP().toString().c_str();
+
     dnsServer.start();
     Serial.println(F("successful."));
     InitalizeHTTPServer();
