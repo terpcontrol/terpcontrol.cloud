@@ -12,6 +12,10 @@ mqtts-ca.key
 # Local compose overrides for development.
 docker-compose.override.yml
 
+# What simulate-device.sh keeps for a simulated device between runs, standing in
+# for the NVS of real hardware.
+.simulated-devices/
+
 # Packaged Connect IQ app produced by build-garmin.sh.
 garmin/bin/
 
