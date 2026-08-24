@@ -1412,6 +1412,12 @@ class DeviceRoute implements Routes {
      *               password:
      *                 type: string
      *                 description: socket_set only — HTTP auth password; empty keeps the device default.
+     *               append:
+     *                 type: boolean
+     *                 description: >
+     *                   socket_set only — adds a socket to the role instead of
+     *                   configuring the one it has. Needed to add a second socket
+     *                   to a role, which has no slot to name until it exists.
      *     responses:
      *       '200':
      *         description: Command published

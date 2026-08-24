@@ -869,13 +869,13 @@ class DeviceService {
     device_id: string,
     action: string,
     role: string,
-    options?: { ip?: string; user?: string; password?: string; slot?: number | string },
+    options?: { ip?: string; user?: string; password?: string; slot?: number | string; append?: boolean | string },
   ): Promise<void> {
     if (!DeviceService.AUX_COMMAND_ACTIONS.includes(action) || !DeviceService.SOCKET_ROLES.includes(role)) {
       throw new HttpException(400, 'Unknown aux command');
     }
 
-    const payload: Record<string, string | number> = { action, role };
+    const payload: Record<string, string | number | boolean> = { action, role };
 
     if (options?.slot !== undefined && options.slot !== null && options.slot !== '') {
       const slot = Number(options.slot);
@@ -899,6 +899,14 @@ class DeviceService {
       payload['ip'] = ip;
       payload['user'] = user;
       payload['password'] = password;
+
+      // Adds a socket to the role instead of configuring the one it has. A
+      // caller adding a second heater has no slot to name yet, so it says so
+      // here; without it the command keeps its original "configure this role's
+      // socket" meaning.
+      if (options?.append === true || options?.append === 'true') {
+        payload['append'] = true;
+      }
     }
 
     mqttclient.publish('/devices/' + device_id + '/command', JSON.stringify(payload));

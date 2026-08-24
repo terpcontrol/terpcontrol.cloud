@@ -101,6 +101,7 @@ class DeviceController {
           user: req.body.user,
           password: req.body.password,
           slot: req.body.slot,
+          append: req.body.append,
         });
         res.status(200).json({ status: 'ok' });
       } else {

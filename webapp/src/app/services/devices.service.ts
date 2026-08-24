@@ -181,7 +181,7 @@ export class DeviceService {
     device_id: string,
     action: 'socket_remove' | 'socket_test' | 'socket_set',
     role: string,
-    options?: { ip?: string; user?: string; password?: string; slot?: number },
+    options?: { ip?: string; user?: string; password?: string; slot?: number; append?: boolean },
   ) {
     await firstValueFrom(this.http.post(environment.API_URL + '/device/auxcommand', { device_id, action, role, ...(options ?? {}) }));
   }

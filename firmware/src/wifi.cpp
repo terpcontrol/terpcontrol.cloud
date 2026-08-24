@@ -2358,7 +2358,7 @@ bool wifiRemoveSmartSocket(const std::string& role, int slot) {
   return true;
 }
 
-bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const std::string& user, const std::string& password, int slot) {
+bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const std::string& user, const std::string& password, int slot, bool append) {
   ensureSmartSocketsLoaded();
 
   if(!isKnownSocketRole(role)) {
@@ -2383,9 +2383,11 @@ bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const st
     }
     target = &smart_sockets[(size_t)slot];
   }
-  else {
+  else if(!append) {
     // Without a slot the command still means "configure the socket of this
-    // role"; with several of them the caller has to say which one.
+    // role"; with several of them the caller has to say which one. Adding
+    // another one to the role is what `append` is for — the caller cannot name
+    // a slot for a socket that does not exist yet.
     const std::vector<size_t> existing = addressedSockets(role, -1);
     if(existing.size() > 1) {
       return false;
@@ -2479,7 +2481,10 @@ bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
     const std::string ip = command["ip"] | "";
     const std::string user = command["user"] | "";
     const std::string password = command["password"] | "";
-    if(!wifiSetSmartSocket(role, ip, user, password, slot) && cloud) {
+    // Adds a socket to the role rather than configuring the one it has. Absent
+    // (every caller before a role could hold several) means the latter.
+    const bool append = command["append"] | false;
+    if(!wifiSetSmartSocket(role, ip, user, password, slot, append) && cloud) {
       cloud->log(std::string("message-aux-command-failed:socket_set:") + role, 1);
     }
     return true;

@@ -127,11 +127,13 @@ export class SmartSocketsComponent implements OnChanges, OnDestroy {
       return;
     }
     try {
-      // No slot: the device appends a socket for the role.
+      // A socket being added has no slot yet, so `append` is what tells the
+      // device to add one to the role rather than reconfigure the one it has.
       await this.devices.sendAuxCommand(this.deviceId, 'socket_set', this.addSocketRole, {
         ip: this.socketDraft.ip.trim(),
         user: this.socketDraft.user.trim(),
         password: this.socketDraft.password.trim(),
+        append: true,
       });
       this.pendingAddRole = this.addSocketRole;
       this.schedulePendingRefetch();

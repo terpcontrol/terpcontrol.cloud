@@ -102,7 +102,12 @@ bool wifiRemoveSmartSocket(const std::string& role, int slot = -1);
 // Empty password keeps the default admin/mqtt_pass credentials; otherwise
 // user+password are stored with the socket. Returns false when the role
 // already holds several sockets and no slot says which one is meant.
-bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const std::string& user, const std::string& password, int slot = -1);
+//
+// `append` adds a socket to the role instead of configuring the one it has.
+// A caller that wants a second heater has no slot to name yet — the socket
+// does not exist — so it has to say so, and a slotless set keeps meaning
+// "configure this role's socket" for everyone who called it before.
+bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const std::string& user, const std::string& password, int slot = -1, bool append = false);
 
 // Pulses the addressed sockets ON for ~2s and back OFF (blocking, watchdog-fed).
 // The control loop re-asserts the desired state within its resend window.
