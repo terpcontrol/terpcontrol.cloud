@@ -37,12 +37,16 @@ if [ "$1" = "demo" ]; then
     *)   echo "usage: ./simulate-device.sh demo <on|off> [-d <device-id>]" >&2; exit 1 ;;
   esac
 
-  device_id=sim-fridge
+  device_id=""
   prev=""
   for arg in "$@"; do
     case "$prev" in -d|--device-id) device_id="$arg" ;; esac
     prev="$arg"
   done
+  if [ -z "$device_id" ]; then
+    echo "error: demo needs -d <device-id>. Run \"./simulate-device.sh list\" to see them." >&2
+    exit 1
+  fi
 
   matched=$(docker compose exec -T mongodb mongosh --quiet \
     -u "$MONGODB_ADMINUSERNAME" -p "$MONGODB_ADMINPASSWORD" --authenticationDatabase admin \

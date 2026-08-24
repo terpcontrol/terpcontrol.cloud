@@ -7,6 +7,7 @@
 // the repo root has no package.json, and a dev tool that needs `npm install`
 // before it runs is a dev tool nobody runs.
 
+import { createHash, randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
@@ -317,6 +318,186 @@ const shape = (sample, type, overrides) => {
   return result;
 };
 
+// ----------------------------------------------------------------- Camera
+
+/**
+ * A JPEG encoder small enough to keep this tool dependency-free.
+ *
+ * It only ever emits the DC coefficient of each block, so the picture has one
+ * colour per 8x8 pixels and no discrete cosine transform is needed - the DC
+ * coefficient of a block of one colour is just that colour, level-shifted. That
+ * is a blocky image, but it is a valid baseline JPEG, which is all the cloud's
+ * webcam pipeline and the webapp ask for.
+ */
+
+// Standard luminance DC table (ITU-T T.81 Annex K). The AC table is ours: the
+// encoder emits nothing but end-of-block, and two codes are the fewest that
+// leave the all-ones code unused, as the format requires.
+const DC_BITS = [0, 1, 5, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0];
+const DC_VALUES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+const AC_BITS = [0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+const AC_VALUES = [0x00, 0x01];
+const END_OF_BLOCK = 0x00;
+
+// Quantising the DC coefficient by 8 undoes the transform's scaling, so the
+// stored coefficient is the level-shifted sample value itself.
+const DC_QUANT = 8;
+
+const huffmanCodes = (bits, values) => {
+  const codes = new Map();
+  let code = 0;
+  let index = 0;
+  for (let length = 1; length <= 16; length++) {
+    for (let i = 0; i < bits[length - 1]; i++) codes.set(values[index++], { code: code++, length });
+    code <<= 1;
+  }
+  return codes;
+};
+
+class BitWriter {
+  bytes = [];
+  #current = 0;
+  #filled = 0;
+
+  write(code, length) {
+    for (let bit = length - 1; bit >= 0; bit--) {
+      this.#current = (this.#current << 1) | ((code >> bit) & 1);
+      if (++this.#filled === 8) this.#flush(this.#current);
+    }
+  }
+
+  // Pad with 1 bits: the format reserves the all-ones code so a decoder cannot
+  // mistake the padding for another symbol.
+  end() {
+    while (this.#filled !== 0) this.write(1, 1);
+    return Buffer.from(this.bytes);
+  }
+
+  #flush(byte) {
+    this.bytes.push(byte & 0xff);
+    // A 0xFF in the entropy-coded data would look like the start of a marker.
+    if ((byte & 0xff) === 0xff) this.bytes.push(0x00);
+    this.#current = 0;
+    this.#filled = 0;
+  }
+}
+
+const marker = (code, ...payload) => {
+  const body = Buffer.from(payload.flat());
+  const header = Buffer.alloc(4);
+  header.writeUInt16BE(0xff00 | code, 0);
+  header.writeUInt16BE(body.length + 2, 2);
+  return Buffer.concat([header, body]);
+};
+
+const huffmanSegment = (id, bits, values) => marker(0xc4, [id], bits, values);
+
+// How many bits a coefficient needs, and the value the format writes for it.
+const coefficientBits = value => {
+  let size = 0;
+  for (let magnitude = Math.abs(value); magnitude > 0; magnitude >>= 1) size++;
+  return { size, bits: value < 0 ? value + (1 << size) - 1 : value };
+};
+
+const toYCbCr = ([r, g, b]) => [
+  0.299 * r + 0.587 * g + 0.114 * b,
+  128 - 0.168736 * r - 0.331264 * g + 0.5 * b,
+  128 + 0.5 * r - 0.418688 * g - 0.081312 * b,
+];
+
+/** Encode blocksX x blocksY blocks of 8x8 pixels, each a colour from blockColor. */
+const encodeJpeg = (blocksX, blocksY, blockColor) => {
+  const dc = huffmanCodes(DC_BITS, DC_VALUES);
+  const ac = huffmanCodes(AC_BITS, AC_VALUES);
+  const writer = new BitWriter();
+  const previous = [0, 0, 0];
+
+  for (let by = 0; by < blocksY; by++) {
+    for (let bx = 0; bx < blocksX; bx++) {
+      const channels = toYCbCr(blockColor(bx, by));
+      for (let channel = 0; channel < 3; channel++) {
+        const level = clamp(Math.round(channels[channel]), 0, 255) - 128;
+        const { size, bits } = coefficientBits(level - previous[channel]);
+        previous[channel] = level;
+        const symbol = dc.get(size);
+        writer.write(symbol.code, symbol.length);
+        if (size > 0) writer.write(bits, size);
+        const eob = ac.get(END_OF_BLOCK);
+        writer.write(eob.code, eob.length);
+      }
+    }
+  }
+
+  const component = id => [id, 0x11, 0];
+  const uint16 = value => [(value >> 8) & 0xff, value & 0xff];
+  return Buffer.concat([
+    Buffer.from([0xff, 0xd8]),
+    marker(0xdb, [0x00], new Array(64).fill(DC_QUANT)),
+    marker(0xc0, [8], uint16(blocksY * 8), uint16(blocksX * 8), [3], component(1), component(2), component(3)),
+    huffmanSegment(0x00, DC_BITS, DC_VALUES),
+    huffmanSegment(0x10, AC_BITS, AC_VALUES),
+    marker(0xda, [3], [1, 0x00], [2, 0x00], [3, 0x00], [0, 63, 0]),
+    writer.end(),
+    Buffer.from([0xff, 0xd9]),
+  ]);
+};
+
+const CAMERA_BLOCKS_X = 80;
+const CAMERA_BLOCKS_Y = 60;
+
+/**
+ * A grow tent seen from the camera: back wall, floor, and a plant whose canopy
+ * fills out as the grow progresses. Lit by the device's own light output, so a
+ * timelapse of the stills tracks the day/night cycle the charts show.
+ */
+const growScene = (light, growth, phase) => {
+  // Value noise from the block coordinates, so the foliage has an irregular
+  // texture instead of a visible pattern.
+  const noise = (bx, by, salt) => {
+    const hash = Math.sin(bx * 12.9898 + by * 78.233 + salt * 37.719) * 43758.5453;
+    return hash - Math.floor(hash);
+  };
+
+  const horizon = 0.66;
+  const centre = 0.5;
+  const halfWidth = 0.13 + growth * 0.21;
+  const canopyHeight = 0.12 + growth * 0.36;
+
+  return (bx, by) => {
+    const x = bx / CAMERA_BLOCKS_X;
+    const y = by / CAMERA_BLOCKS_Y;
+
+    // Grow lights are heavy on red and blue. Lights-out keeps the exposure a
+    // camera with a night mode would still show rather than going black.
+    const lit = 0.45 + (light / 100) * 0.55;
+    const tint = ([r, g, b]) => [r * lit * 1.06, g * lit, b * lit * 1.12].map(value => clamp(value, 0, 255));
+
+    if (y > horizon) {
+      const depth = (y - horizon) / (1 - horizon);
+      // The pot the plant stands in.
+      if (Math.abs(x - centre) < 0.1 - depth * 0.03 && y < horizon + 0.16) return tint([88, 74, 62 + depth * 10]);
+      return tint([64 + depth * 26, 58 + depth * 22, 54 + depth * 20]);
+    }
+
+    // A dome that widens and rises as the grow progresses, with a ragged edge
+    // and a slow sway so consecutive stills are never identical.
+    const offset = (x - centre + Math.sin(phase + y * 4) * 0.015) / halfWidth;
+    if (Math.abs(offset) < 1) {
+      const dome = Math.sqrt(1 - offset * offset) * canopyHeight;
+      const ragged = dome * (0.88 + noise(bx, 0, 3) * 0.24);
+      if (y > horizon - ragged) {
+        const depth = (y - (horizon - ragged)) / Math.max(ragged, 0.001);
+        const leaf = noise(bx, by, phase) * 40 - 20;
+        const shade = 0.72 + (1 - depth) * 0.28 - Math.abs(offset) * 0.18;
+        return tint([(52 + leaf * 0.6) * shade, (124 + leaf) * shade, (46 + leaf * 0.4) * shade]);
+      }
+    }
+
+    // The tent wall behind the plant.
+    return tint([42 + y * 26, 44 + y * 26, 50 + y * 28]);
+  };
+};
+
 // ------------------------------------------------------------------ Device I/O
 
 class SimulatedDevice {
@@ -332,13 +513,15 @@ class SimulatedDevice {
     // What real hardware keeps in NVS across a reboot. Restarting the script is
     // a power cycle, not a factory reset: without this the device would report
     // its pre-update firmware again and forget its paired sockets every time.
-    this.memory = { firmwareId: 'simulated-firmware', sockets: {} };
+    this.memory = { firmwareId: 'simulated-firmware', sockets: {}, webcamDid: null, plantedAt: Date.now() };
     this.memoryFile = path.join(STATE_DIR, `${encodeURIComponent(deviceId)}.json`);
     try {
       Object.assign(this.memory, JSON.parse(fs.readFileSync(this.memoryFile, 'utf8')));
     } catch {
       // First boot of this device.
     }
+    this.captureCount = 0;
+    this.configWaiters = [];
   }
 
   remember() {
@@ -370,6 +553,12 @@ class SimulatedDevice {
   }
 
   hardwareInfo(key, value) {
+    // Pairing a camera happens on the device, so remember it the way the
+    // firmware does - the cloud follows what the device reports on boot.
+    if (key === 'webcam_did') {
+      this.memory.webcamDid = value === 'none' || value === '' ? null : String(value);
+      this.remember();
+    }
     this.log(`hardware-info:${key}=${value}`);
   }
 
@@ -399,7 +588,37 @@ class SimulatedDevice {
       this.hardwareInfo('leaf_temp', 'on');
       this.hardwareInfo('ppfd', 'on');
     }
+    if (this.memory.webcamDid) this.hardwareInfo('webcam_did', this.memory.webcamDid);
     this.publishSockets();
+  }
+
+  // Pair a camera the way the module's menu does. The cloud turns the reported
+  // id into an okam:// stream and starts asking for stills.
+  attachCamera() {
+    const did = createHash('sha1').update(this.deviceId).digest('hex').slice(0, 6).toUpperCase();
+    this.hardwareInfo('webcam_did', this.memory.webcamDid ?? `SIMCAM${did}`);
+  }
+
+  /**
+   * Answer a still request. The real controller reads the frame off its P2P
+   * link and forwards it in fragments as it goes, because it has nowhere near
+   * enough RAM to hold a whole image - so this fragments too, and the cloud's
+   * reassembly is exercised rather than bypassed.
+   */
+  #capture() {
+    const secondsOfDay = new Date().getHours() * 3600 + new Date().getMinutes() * 60;
+    const light = lightPercent(this.config, secondsOfDay);
+    const age = (Date.now() - this.memory.plantedAt) / 86400000;
+    const jpeg = encodeJpeg(CAMERA_BLOCKS_X, CAMERA_BLOCKS_Y, growScene(light, clamp(0.45 + age / 40, 0.45, 1), Date.now() / 60000));
+
+    const capture = ++this.captureCount;
+    const FRAGMENT_BYTES = 4096;
+    for (let offset = 0, seq = 0; offset < jpeg.length; offset += FRAGMENT_BYTES, seq++) {
+      const chunk = jpeg.subarray(offset, offset + FRAGMENT_BYTES);
+      const last = offset + FRAGMENT_BYTES >= jpeg.length;
+      this.mqtt.publish(this.topic('image'), JSON.stringify({ capture, seq, payload: chunk.toString('base64'), ...(last ? { last: true } : {}) }));
+    }
+    console.error(`cam_capture -> ${jpeg.length}B still`);
   }
 
   publishSockets() {
@@ -429,6 +648,20 @@ class SimulatedDevice {
       return;
     }
     console.error('config <- server:', payload.slice(0, 200));
+    for (const waiter of this.configWaiters.splice(0)) waiter();
+  }
+
+  /**
+   * Resolves once the server has answered a fetch with the stored settings, or
+   * after `timeoutMs` if it never does - which is the normal answer for a device
+   * whose settings nobody has saved yet. Commands that change a setting have to
+   * wait for this, or they would upload their defaults over the real thing.
+   */
+  configured(timeoutMs = 3000) {
+    return new Promise(resolve => {
+      this.configWaiters.push(resolve);
+      setTimeout(resolve, timeoutMs);
+    });
   }
 
   // Stands in for a grower changing settings on the device itself: the device
@@ -473,6 +706,9 @@ class SimulatedDevice {
         break;
       case 'stoptest':
         this.testOutputs = null;
+        break;
+      case 'cam_capture':
+        this.#capture();
         break;
       case 'maintenance':
         this.maintenanceUntil = Date.now() + Number(command.durationMinutes ?? 0) * 60000;
@@ -531,11 +767,11 @@ const USAGE = `simulate-device.sh - drive a fake grow device against the local s
 Usage: ./simulate-device.sh [options] <command> [arguments]
 
 Commands:
-  setup                  register the device, claim it for the local user, upload
-                         a configuration and seed history (safe to re-run)
+  setup                  invent a device, claim it for the local user, upload a
+                         configuration and seed history, then print its id
   run                    stay online: publish live samples and answer the
                          configuration, test-mode, maintenance, reboot, smart
-                         socket and firmware messages the server sends
+                         socket, camera and firmware messages the server sends
   send                   publish a single live sample and exit
   configure <key=value>  change a device setting, dotted paths, and upload it
                          (e.g. configure day.temperature=27 lights.limit=60)
@@ -544,24 +780,29 @@ Commands:
   hwinfo <key=value>     publish a hardware-info line, e.g. hwinfo co2=off
   watch                  print everything the server sends to this device
   info                   show what the server currently knows about the device
-  register               register the device only
+  list                   list the devices the local user owns
+  register               register a device only
   claim                  print a claim code and claim it for the local user
   demo <on|off>          mark the device as a public demo device (needs docker)
 
 Options:
-  -d, --device-id <id>   device id to simulate            (default sim-fridge)
-  -t, --type <type>      fridge|controller|plug|fan|light (default fridge)
+  -d, --device-id <id>   which device to talk to. Required by every command
+                         except setup, register and list; setup and register
+                         invent sim-<type>-<random> when it is left out.
+  -t, --type <type>      fridge|controller|plug|fan|light (default controller)
       --interval <sec>   seconds between live samples     (default 30)
       --days <n>         days of history to backfill      (default 3)
       --step <min>       minutes between history samples  (default 10)
       --set <key=value>  pin a value, repeatable; prefix outputs with out_
                          (e.g. --set temperature=31 --set out_light=0)
       --severity <0|1|2> severity of a log entry        (default 0, 2 = error)
+      --camera           pair a simulated webcam, so run answers the still
+                         requests the cloud makes every 30s
       --no-claim         skip claiming during setup
 `;
 
 const parseArgs = argv => {
-  const options = { deviceId: 'sim-fridge', type: 'fridge', interval: 30, days: 3, step: 10, severity: 0, overrides: {}, claim: true };
+  const options = { deviceId: '', type: 'controller', interval: 30, days: 3, step: 10, severity: 0, overrides: {}, claim: true, camera: false };
   const positional = [];
 
   for (let i = 0; i < argv.length; i++) {
@@ -595,6 +836,9 @@ const parseArgs = argv => {
       }
       case '--no-claim':
         options.claim = false;
+        break;
+      case '--camera':
+        options.camera = true;
         break;
       case '-h':
       case '--help':
@@ -673,8 +917,9 @@ const withDevice = async (options, body) => {
 // command still follows the same targets the running device would.
 const withCurrentConfig = async (device, at = new Date()) => {
   await device.listen();
+  const configured = device.configured();
   device.fetch();
-  await sleep(500);
+  await configured;
   device.warmUp(at);
 };
 
@@ -727,9 +972,11 @@ const run = async options => {
   const goOnline = async (booting = false) => {
     await device.connect();
     await device.listen();
+    const configured = device.configured();
     if (booting) device.boot();
     else device.fetch();
-    await sleep(700);
+    if (options.camera) device.attachCamera();
+    await configured;
   };
 
   await goOnline(true);
@@ -807,6 +1054,20 @@ const info = async options => {
   console.log(`latest        ${measures.map((measure, i) => `${measure}=${format(latest[i])}`).join(' ')}`);
 };
 
+const list = async () => {
+  const token = await login();
+  const devices = await api('/device', { token });
+  if (!devices.length) {
+    console.log(`${USER} owns no devices yet - "./simulate-device.sh setup" makes one.`);
+    return;
+  }
+  const width = Math.max(...devices.map(device => device.device_id.length));
+  for (const device of devices) {
+    const age = Date.now() - (device.lastseen ?? 0);
+    console.log(`${device.device_id.padEnd(width)}  ${device.device_type.padEnd(10)} ${age < 600000 ? 'online' : 'offline'}`);
+  }
+};
+
 const setup = async options => {
   await register(options);
   if (options.claim) await claim(options);
@@ -822,7 +1083,19 @@ const setup = async options => {
   console.log(`\n${options.deviceId} is ready. Keep it online with:\n  ./simulate-device.sh -d ${options.deviceId} -t ${options.type} run`);
 };
 
-const COMMANDS = { setup, run, send, configure, history, watch, register, claim, info, hwinfo, log: logEntry };
+const COMMANDS = { setup, run, send, configure, history, watch, register, claim, info, list, hwinfo, log: logEntry };
+
+// The two commands that bring a device into being may invent its id; everything
+// else acts on a device that already exists and has to be told which one.
+const INVENTS_DEVICE_ID = ['setup', 'register'];
+
+const resolveDeviceId = options => {
+  if (options.deviceId) return options.deviceId;
+  if (INVENTS_DEVICE_ID.includes(options.command)) {
+    return `sim-${options.type}-${randomBytes(3).toString('hex')}`;
+  }
+  throw new Error(`${options.command} needs -d <device-id>. "setup" invents one and prints it, "list" shows the ones you have.`);
+};
 
 const main = async () => {
   const options = parseArgs(process.argv.slice(2));
@@ -830,6 +1103,9 @@ const main = async () => {
   if (!command) {
     console.log(USAGE);
     process.exit(options.command ? 1 : 0);
+  }
+  if (options.command !== 'list') {
+    options.deviceId = resolveDeviceId(options);
   }
   await command(options);
 };
