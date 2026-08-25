@@ -7,7 +7,12 @@ import {
   DeviceFirmware,
   DeviceFirmwareBinary,
   FirmwareChannel,
+  MAX_SOCKETS,
   ShareLink,
+  SOCKET_ROLES,
+  SocketRole,
+  socketChunkCount,
+  socketListChunk,
   UserFirmwareList,
 } from '@fg2/shared-types';
 import deviceModel from '@models/device.model';
@@ -614,9 +619,35 @@ class DeviceService {
     }
     await deviceModel.findOneAndUpdate({ device_id: deviceId }, { $set: { [`hardwareInfo.${infoKey}`]: infoValue } });
 
+    if (infoKey === 'sockets_n') {
+      await this.dropSupersededSocketChunks(deviceId, Number(infoValue));
+    }
+
     if (infoKey === 'webcam_did') {
       await this.reconcileP2PCamera(deviceId, infoValue);
     }
+  }
+
+  /**
+   * The socket table arrives as `socket_list<k>` chunks, and a table that has
+   * shrunk leaves the chunks of the larger one behind. Readers bound by
+   * `sockets_n` ignore them, but a stored report that contradicts itself is a
+   * trap for anyone reading the device document, so drop them. The device
+   * announces the count before the chunks, so this never removes a chunk that
+   * is about to be written.
+   */
+  private async dropSupersededSocketChunks(deviceId: string, count: number) {
+    if (!Number.isInteger(count) || count < 0) {
+      return;
+    }
+
+    const device = await deviceModel.findOne({ device_id: deviceId }, { hardwareInfo: 1 }).lean();
+    const stale = Object.keys(device?.hardwareInfo ?? {}).filter(key => (socketListChunk(key) ?? -1) >= socketChunkCount(count));
+    if (stale.length === 0) {
+      return;
+    }
+
+    await deviceModel.updateOne({ device_id: deviceId }, { $unset: Object.fromEntries(stale.map(key => [`hardwareInfo.${key}`, ''])) });
   }
 
   /**
@@ -865,20 +896,33 @@ class DeviceService {
   // Commands for auxiliary devices managed by the device itself (smart sockets,
   // Terp Control Cam). Whitelisted so the endpoint can never publish arbitrary
   // actions to the device command topic.
-  private static readonly SOCKET_ROLES = ['dehumidifier', 'heater', 'light', 'secondary_light', 'co2'];
   private static readonly AUX_COMMAND_ACTIONS = ['socket_remove', 'socket_test', 'socket_set'];
+
+  // A role can hold any number of sockets, so a command may name one of them by
+  // its slot — the position the device reports it at in `socket_listN`. Left
+  // out, the command applies to the role as a whole, which is what it meant
+  // when a role could only ever have one socket.
+  private static readonly MAX_SOCKET_SLOT = MAX_SOCKETS - 1;
 
   public async sendAuxDeviceCommand(
     device_id: string,
     action: string,
     role: string,
-    options?: { ip?: string; user?: string; password?: string },
+    options?: { ip?: string; user?: string; password?: string; slot?: number | string; append?: boolean | string },
   ): Promise<void> {
-    if (!DeviceService.AUX_COMMAND_ACTIONS.includes(action) || !DeviceService.SOCKET_ROLES.includes(role)) {
+    if (!DeviceService.AUX_COMMAND_ACTIONS.includes(action) || !SOCKET_ROLES.includes(role as SocketRole)) {
       throw new HttpException(400, 'Unknown aux command');
     }
 
-    const payload: Record<string, string> = { action, role };
+    const payload: Record<string, string | number | boolean> = { action, role };
+
+    if (options?.slot !== undefined && options.slot !== null && options.slot !== '') {
+      const slot = Number(options.slot);
+      if (!Number.isInteger(slot) || slot < 0 || slot > DeviceService.MAX_SOCKET_SLOT) {
+        throw new HttpException(400, 'Invalid socket slot');
+      }
+      payload['slot'] = slot;
+    }
 
     if (action === 'socket_set') {
       const ip = String(options?.ip ?? '').trim();
@@ -894,6 +938,14 @@ class DeviceService {
       payload['ip'] = ip;
       payload['user'] = user;
       payload['password'] = password;
+
+      // Adds a socket to the role instead of configuring the one it has. A
+      // caller adding a second heater has no slot to name yet, so it says so
+      // here; without it the command keeps its original "configure this role's
+      // socket" meaning.
+      if (options?.append === true || options?.append === 'true') {
+        payload['append'] = true;
+      }
     }
 
     mqttclient.publish('/devices/' + device_id + '/command', JSON.stringify(payload));

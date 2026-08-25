@@ -1,5 +1,5 @@
 import { DiaryLifecycleStage, Recipe, RecipeStep } from '@fg2/shared-types';
-import { parseSocketRoles } from './socket-info';
+import { socketRoles, socketsReported } from './socket-info';
 
 export type GrowStagePresetId = 'seedling' | 'vegetative' | 'flowering' | 'late_flowering' | 'drying';
 
@@ -148,9 +148,9 @@ const LIGHT_SOCKET_ROLES = ['light', 'secondary_light'];
 /**
  * What the device can actually switch, derived from its hardware instead of a
  * stored setting: fridges have built-in actuators, controllers act through
- * their paired smart sockets (reported as `hardwareInfo.sockets`). A
- * controller without an up-to-date sockets report (older firmware) is treated
- * as fully controlling so nothing gets hidden by mistake.
+ * their paired smart sockets. A controller without an up-to-date sockets
+ * report (older firmware) is treated as fully controlling so nothing gets
+ * hidden by mistake.
  */
 export function deviceControlCapability(
   device: { device_type?: string; hardwareInfo?: Record<string, string> } | null | undefined,
@@ -158,11 +158,10 @@ export function deviceControlCapability(
   if (!device || device.device_type !== 'controller') {
     return 'full';
   }
-  const csv = device.hardwareInfo?.['sockets'];
-  if (csv === undefined) {
+  if (!socketsReported(device.hardwareInfo)) {
     return 'full';
   }
-  const roles = parseSocketRoles(csv);
+  const roles = socketRoles(device.hardwareInfo);
   if (roles.some(role => CLIMATE_SOCKET_ROLES.includes(role))) {
     return 'full';
   }
