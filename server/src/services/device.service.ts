@@ -93,6 +93,15 @@ const DEVICE_MESSAGE_CATEGORY_MAPPING = {
   'message-smart-socket-connected': ['device-socket'],
 } as const;
 
+// Alarms stay suppressed until `maintenance_mode_until`, a millisecond epoch that
+// not every client can represent exactly - the Garmin watch app parses large JSON
+// numbers only imprecisely. Device payloads therefore carry the seconds left as
+// well, so a client can count down without doing epoch arithmetic.
+const withMaintenanceSecondsLeft = <T extends Partial<Device>>(device: T): T => ({
+  ...device,
+  maintenance_mode_seconds_left: Math.max(0, Math.ceil(((device.maintenance_mode_until ?? 0) - Date.now()) / 1000)),
+});
+
 class DeviceService {
   private readonly upgradeInstructionTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly upgradeInstructionBackoff = new Map<string, { firmwareId: string; nextDelayMs: number }>();
@@ -819,13 +828,13 @@ class DeviceService {
   }
 
   public async findAllDevices(): Promise<Device[]> {
-    const devices: Device[] = await deviceModel.find({});
-    return devices;
+    const devices = await deviceModel.find({}).lean();
+    return devices.map(device => withMaintenanceSecondsLeft(device)) as Device[];
   }
 
   public async getDeviceBySerial(serialnumber: Number): Promise<Device> {
-    const device: Device = await deviceModel.findOne({ serialnumber: serialnumber });
-    return device;
+    const device = await deviceModel.findOne({ serialnumber: serialnumber }).lean();
+    return (device ? withMaintenanceSecondsLeft(device) : device) as Device;
   }
 
   public async activateMaintenanceMode(device_id: string, durationMinutes: number): Promise<void> {
@@ -902,16 +911,17 @@ class DeviceService {
       lastseen: 1,
     };
 
+    // lean() gives plain objects: the derived seconds can be attached to them, and
+    // the sanitized demo copies cannot carry mongoose internals (or the untouched
+    // original) along.
     if (is_demo) {
-      // lean() returns plain objects, so the sanitized copies cannot carry
-      // mongoose internals (or the untouched original) along.
       const demoDevices = await deviceModel.find({ demoDevice: true }, projection).lean();
-      return demoDevices.map(device => demoDevice(device)) as Device[];
+      return demoDevices.map(device => withMaintenanceSecondsLeft(demoDevice(device))) as Device[];
     }
 
-    const devices: Device[] = await deviceModel.find({ owner_id: user_id }, projection);
+    const devices = await deviceModel.find({ owner_id: user_id }, projection).lean();
     // const users: Device[] = await deviceModel.aggregate([{$match: {owner_id: user_id}}, {$lookup: {from: 'deviceclasses', localField:'class_id', foreignField: 'class_id', as:'device_class'}}]);
-    return devices;
+    return devices.map(device => withMaintenanceSecondsLeft(device)) as Device[];
   }
 
   public async register(info: RegisterDeviceDto): Promise<any> {
