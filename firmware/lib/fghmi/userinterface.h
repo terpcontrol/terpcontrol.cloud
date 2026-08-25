@@ -18,6 +18,12 @@ namespace fg {
 
   class UserInterface;
 
+  // The ui loop runs ten times a second (UI_TICK_INTERVAL in main.cpp), and
+  // idle limits are counted in those ticks rather than milliseconds because
+  // that is what the loop has to hand.
+  static constexpr unsigned int UI_TICKS_PER_SECOND = 10;
+  static constexpr unsigned int MAX_IDLE_TICKS = UI_TICKS_PER_SECOND * 30;
+
   class MenuItem {
   protected:
   public:
@@ -29,6 +35,12 @@ namespace fg {
     virtual void next() = 0;
     virtual void enter() = 0;
     virtual void hold() = 0;
+
+    /** How long the display stays lit on this screen with nobody turning the
+     *  knob. Half a minute suits a screen somebody is standing in front of;
+     *  one that sends them off to do something elsewhere can ask for longer. */
+    virtual unsigned int idleTicks() const { return MAX_IDLE_TICKS; }
+
     virtual ~MenuItem();
   };
 
@@ -45,7 +57,6 @@ namespace fg {
     std::vector<MenuItem*> delete_items;
     std::function<void(void)> change_listener;
 
-    static constexpr unsigned int MAX_IDLE_TICKS = 300;
     unsigned int idle_ticks = 0;
 
   public:

@@ -13,6 +13,7 @@
 
 #include <ArduinoJson.h>
 #include <EEPROM.h>
+#include <algorithm>
 #include <array>
 #include <sstream>
 #include <cctype>
@@ -32,36 +33,60 @@ static constexpr uint8_t SMART_SOCKET_FAILURES_BEFORE_BACKOFF = 3;
 
 
 namespace fg {
-  WifiApDash::WifiApDash(std::string ssid, std::string ip, std::function<void(void)> callback) :
+  // The display fits 21 characters per line at this text size and Adafruit_GFX
+  // wraps whatever is longer by itself, so a line only has to report how many
+  // rows it took for the next one to know where it starts. Values are printed
+  // whole rather than shortened: an ssid or a url is only useful if all of it
+  // is on the screen.
+  static constexpr uint8_t CHARS_PER_LINE = SCREEN_WIDTH / 6;
+  static constexpr uint8_t LINE_HEIGHT = 8;
+
+  static uint8_t printWrapped(const std::string& text, uint8_t y) {
+    UserInterface::display.setCursor(0, y);
+    UserInterface::display.write(text.c_str());
+    uint8_t rows = (text.size() + CHARS_PER_LINE - 1) / CHARS_PER_LINE;
+    return y + (rows ? rows : 1) * LINE_HEIGHT;
+  }
+
+  PhoneSetupDash::PhoneSetupDash(std::string ip, std::function<void(void)> callback, std::string ssid) :
     ssid(ssid), ip(ip), callback(callback) {}
 
 
-  void WifiApDash::draw() {
+  // Two steps when the device is its own access point - join it, then open the
+  // page - and only the second when the phone is already on the same network.
+  // The starting row keeps either block off the top edge of the display.
+  void PhoneSetupDash::draw() {
     UserInterface::display.setTextColor(SSD1306_WHITE); // Draw white text
     UserInterface::display.setTextSize(1);
 
-    std::stringstream value_print;
-    value_print << "connect to:";
-    UserInterface::display.setCursor(1, 1);
-    UserInterface::display.write(value_print.str().c_str());
+    uint8_t y = ssid.empty() ? 24 : 12;
 
-    value_print.str(std::string());
-    value_print << "SSID: " << ssid;
-    UserInterface::display.setCursor(1, 15);
-    UserInterface::display.write(value_print.str().c_str());
+    if(!ssid.empty()) {
+      y = printWrapped("connect to wifi:", y);
+      y = printWrapped(ssid, y) + 4;
+    }
 
-    value_print.str(std::string());
-    value_print << "IP:   " << ip;
-    UserInterface::display.setCursor(1, 25);
-    UserInterface::display.write(value_print.str().c_str());
+    y = printWrapped("open in browser:", y);
+
+    // An address of full length does not fit on one line behind the scheme.
+    // Breaking between the two keeps it whole and typeable; letting the line
+    // wrap on its own would strand the last digit or two on the next row.
+    std::string url = "http://" + ip;
+    if(url.size() > CHARS_PER_LINE) {
+      y = printWrapped("http://", y);
+      printWrapped(ip, y);
+    }
+    else {
+      printWrapped(url, y);
+    }
   }
 
-  void WifiApDash::prev() {}
-  void WifiApDash::next() {}
-  void WifiApDash::enter() {
+  void PhoneSetupDash::prev() {}
+  void PhoneSetupDash::next() {}
+  void PhoneSetupDash::enter() {
     callback();
   }
-  void WifiApDash::hold() {}
+  void PhoneSetupDash::hold() {}
 
   WifiStaDash::WifiStaDash(std::string ssid, std::string ip, float rssi, std::function<void(void)> callback) :
     ssid(ssid), ip(ip), rssi(rssi), callback(callback) {}
@@ -136,12 +161,15 @@ std::string secondary_password;
 bool loadWifiCredentials();
 void saveWifiCredentials();
 void InitalizeHTTPServer();
+void startServerConfigPortal();
+void stopServerConfigPortal();
 std::vector<std::string> scanWifiNetworks();
 bool isHexSegment(const std::string& value, size_t expected_len);
 bool isSmartSocketSsid(const std::string& value);
 std::vector<std::string> scanSmartSocketSsids();
 std::string smartSocketDisplayName(const std::string& ssid);
 std::string sanitizeSettingString(const std::string& value);
+std::string trimSpaces(const std::string& value);
 std::string urlEncode(const std::string& value);
 bool httpGet(const char* url, std::string* response = nullptr);
 bool parseSmartSocketIp(const std::string& body, std::string& socket_ip);
@@ -169,6 +197,7 @@ String toStringIp(IPAddress ip);
 String GetEncryptionType(byte thisType);
 boolean isIp(String str);
 void handleConfig();
+void handleServerConfig();
 boolean captivePortal();
 
 
@@ -186,7 +215,6 @@ IPAddress netMsk(255, 255, 255, 0);
 
 std::string ssid = "";
 std::string ip = "";
-std::string netmask = "";
 
 unsigned long currentMillis = 0;
 unsigned long startMillis;
@@ -213,6 +241,22 @@ static SmartSocketSyncState smart_socket_state_light;
 static SmartSocketSyncState smart_socket_state_secondary_light;
 static SmartSocketSyncState smart_socket_state_co2;
 static fg::Fridgecloud* smart_socket_cloud_handle = nullptr;
+static fg::UserInterface* ui_handle = nullptr;
+
+// Server the firmware image was built for. Also offered as the starting point
+// when a new one is entered, so only the part that differs has to be typed.
+static const char* DEFAULT_API_URL = "#API_URL_EXTERNAL#";
+
+// Set while the server form is served over the home network. The form is
+// answered from an HTTP handler, which does not have the cloud at hand.
+static fg::Fridgecloud* server_config_cloud = nullptr;
+static bool server_config_active = false;
+static TickType_t server_config_opened = 0;
+
+// The form stays reachable for this long. It is unauthenticated - whoever can
+// reach it can point the device at any server - so it closes on its own
+// instead of listening until the next reboot when nobody submits anything.
+static constexpr TickType_t SERVER_CONFIG_TIMEOUT = configTICK_RATE_HZ * 600;
 
 static void syncSmartSocketRole(const char* role, bool target_on, SmartSocketSyncState& role_state);
 static TickType_t socketRoleMinSendInterval(const std::string& role);
@@ -251,6 +295,13 @@ void wifiTick() {
 
   if(server_active) {
     server.handleClient();
+  }
+
+  // Nothing else can be on top of the url screen while the form is open: it
+  // only reacts to the click that closes it, so popping it here is safe.
+  if(server_config_active && xTaskGetTickCount() - server_config_opened > SERVER_CONFIG_TIMEOUT) {
+    stopServerConfigPortal();
+    ui_handle->pop();
   }
 
   if(wifi_configured && xTaskGetTickCount() - last_conncheck > 30000) {
@@ -393,7 +444,6 @@ float rssi = 0;
 
 std::string ui_ssid;
 std::string ui_password;
-fg::UserInterface* ui_handle;
 std::vector<std::string> scanned_ssids;
 std::vector<std::string> scanned_smart_socket_ssids;
 std::string custom_mqtt_server;
@@ -1154,20 +1204,41 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
   if(!custom_mqtt_enabled) {
 
       menu->addOption("change server", [=](){
-        ui_handle->push<TextEntry>("server url", "#API_URL_EXTERNAL#", [=](std::string url) {
-          ui_handle->pop();
-          ui_handle->push<TextEntry>("join password", [=](std::string password) {
-            ui_handle->pop();
-            ui_handle->push<TextDisplay>("connecting...");
-            ui_handle->loop();
+        auto servermenu = ui_handle->push<SelectMenu>();
+        servermenu->addOption("back...", [ui](){ ui->pop(); });
 
-            cloud->registerWithCloud(url, password);
-
-            ui_handle->pop();
-            ui_handle->push<TextDisplay>("connection failed!", 1, []() {
+        servermenu->addOption("use mobile phone", [=](){
+          if(!wifiIsConnected()) {
+            ui_handle->push<TextDisplay>("no wifi connection", 1, [](){
               ui_handle->pop();
             });
-            ui_handle->loop();
+            return;
+          }
+
+          server_config_cloud = cloud;
+          startServerConfigPortal();
+          ui_handle->push<PhoneSetupDash>(WiFi.localIP().toString().c_str(), [](){
+            stopServerConfigPortal();
+            ui_handle->pop();
+          });
+        });
+
+        servermenu->addOption("use display", [=](){
+          ui_handle->push<TextEntry>("server url", DEFAULT_API_URL, [=](std::string url) {
+            ui_handle->pop();
+            ui_handle->push<TextEntry>("join password", [=](std::string password) {
+              ui_handle->pop();
+              ui_handle->push<TextDisplay>("connecting...");
+              ui_handle->loop();
+
+              cloud->registerWithCloud(url, password);
+
+              ui_handle->pop();
+              ui_handle->push<TextDisplay>("connection failed!", 1, []() {
+                ui_handle->pop();
+              });
+              ui_handle->loop();
+            });
           });
         });
       });
@@ -1196,9 +1267,9 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
 
     menu->addOption("use mobile phone", [ui](){
       createConfigurationAP();
-      ui->push<WifiApDash>(ssid, ip, [ui]() {
+      ui->push<PhoneSetupDash>(ip, [ui]() {
         ui->pop();
-      });
+      }, ssid);
     });
 
     menu->addOption("use display", [=](){
@@ -1271,24 +1342,45 @@ std::string randomSsid() {
 }
 
 void handleNotFound() {
-  server.sendHeader("Location", "/portal");
+  server.sendHeader("Location", "/");
   server.send(302, "text/plain", "redirect to captive portal");
 }
 
+// One route table for both jobs. The page in flash carries the wifi card and
+// the server card and asks GET /server which of them it is showing, so the
+// root url is the only one a phone is ever given - as the AP portal or as the
+// server form, depending on what the device is doing when it is opened.
 void InitalizeHTTPServer() {
-  server.on("/config", handleConfig);
-  server.on("/portal", handleRoot);
-  server.on("/scan", handleGetScan);
-  server.onNotFound ( handleNotFound );
+  static bool routes_added = false;
+  if(!routes_added) {
+    server.on("/", handleRoot);
+    server.on("/config", handleConfig);
+    server.on("/scan", handleGetScan);
+    server.on("/server", handleServerConfig);
+    server.onNotFound ( handleNotFound );
+    routes_added = true;
+  }
 
   server.begin();
 }
 
+// Opens that page on the home network, so a phone can type the server url and
+// the join password instead of the knob.
+void startServerConfigPortal() {
+  InitalizeHTTPServer();
+  server_active = true;
+  server_config_active = true;
+  server_config_opened = xTaskGetTickCount();
+}
+
+void stopServerConfigPortal() {
+  server_config_active = false;
+  server_active = false;
+  server.stop();
+}
+
 boolean createConfigurationAP()
 {
-  ip = apIP.toString().c_str();
-  netmask = netMsk.toString().c_str();
-
   WiFi.disconnect();
   WiFi.mode(WIFI_AP_STA);
   Serial.print(F("Initalize SoftAP "));
@@ -1298,6 +1390,13 @@ boolean createConfigurationAP()
   {
     delay(2000);
     //WiFi.softAPConfig(apIP, apIP, netMsk);
+
+    // Asked of the radio rather than taken from apIP: that constant only
+    // applies through the softAPConfig call above, which is not made, so the
+    // AP actually comes up on the default address. The screen prints this to
+    // be typed into a browser, so it has to be the address that answers.
+    ip = WiFi.softAPIP().toString().c_str();
+
     dnsServer.start();
     Serial.println(F("successful."));
     InitalizeHTTPServer();
@@ -1471,7 +1570,7 @@ void handleConfig() {
     return;
   }
 
-  primary_ssid = config_data["primary"]["ssid"].as<std::string>();
+  primary_ssid = trimSpaces(config_data["primary"]["ssid"].as<std::string>());
   primary_password = config_data["primary"]["password"].as<std::string>();
 
   bool connected = connectToWifi(primary_ssid, primary_password);
@@ -1487,6 +1586,53 @@ void handleConfig() {
     server.send ( 200, "text/html", "error" );
     server.client().stop();
   }
+}
+
+/** Server url + join password handler, fed by the form on the phone.
+ *  The GET doubles as the page's mode probe: it answers with the url to
+ *  prefill while the server screen is open and with nothing when it is not,
+ *  which is what lets both cards share the root url. The POST is refused
+ *  outside that screen for the same reason the screen closes the listener. */
+void handleServerConfig() {
+  if(server.method() == HTTP_GET) {
+    server.send(200, "text/plain", server_config_active ? DEFAULT_API_URL : "");
+    return;
+  }
+
+  if(!server_config_active) {
+    server.send(403, "text/plain", "error");
+    return;
+  }
+
+  StaticJsonDocument<256> config_data;
+  std::string url;
+  if(!deserializeJson(config_data, server.arg("plain"))) {
+    url = config_data["url"].as<std::string>();
+  }
+
+  if(url.empty()) {
+    server.send(200, "text/plain", "error");
+    return;
+  }
+
+  // Registering ends in a firmware update and a reboot, so the phone is
+  // answered first - it would otherwise wait for a reply that never comes.
+  // The display takes over from here.
+  server.send(200, "text/plain", "ok");
+  server.client().stop();
+  stopServerConfigPortal();
+
+  ui_handle->pop();
+  ui_handle->push<fg::TextDisplay>("connecting...");
+  ui_handle->loop();
+
+  server_config_cloud->registerWithCloud(url, config_data["password"].as<std::string>());
+
+  ui_handle->pop();
+  ui_handle->push<fg::TextDisplay>("connection failed!", 1, []() {
+    ui_handle->pop();
+  });
+  ui_handle->loop();
 }
 
 void handleGetScan() {
@@ -1569,6 +1715,18 @@ String formatBytes(size_t bytes) {            // lesbare Anzeige der Speichergr√
 
 std::string sanitizeSettingString(const std::string& value) {
   return std::string(value.c_str());
+}
+
+// A space at either end of a network name is invisible wherever the name is
+// shown, so one that arrives with the scan or off a router label is dropped
+// rather than carried into a connection attempt nobody can see is wrong.
+// Passwords are left alone: a space there may well be deliberate.
+std::string trimSpaces(const std::string& value) {
+  auto first = value.find_first_not_of(" \t");
+  if(first == std::string::npos) {
+    return "";
+  }
+  return value.substr(first, value.find_last_not_of(" \t") - first + 1);
 }
 
 std::string urlEncode(const std::string& value) {
@@ -2155,7 +2313,14 @@ std::vector<std::string> scanWifiNetworks() {
               Serial.print("unknown");
           }
           Serial.println();
-          ssids.push_back(WiFi.SSID(i).c_str());
+
+          // One row per name. A mesh or a repeater answers on several bands
+          // and channels, and the list is there to pick a network, not a
+          // radio - the duplicates are indistinguishable once drawn.
+          auto name = trimSpaces(WiFi.SSID(i).c_str());
+          if(std::find(ssids.begin(), ssids.end(), name) == ssids.end()) {
+            ssids.push_back(name);
+          }
           delay(10);
       }
   }
