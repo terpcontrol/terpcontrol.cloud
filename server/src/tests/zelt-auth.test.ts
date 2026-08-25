@@ -54,9 +54,9 @@ describe('Zelt authorization', () => {
     (app as any).initializeRoutes((app as any).routes);
     (app as any).initializeErrorHandling();
 
-    zeltModel.exists = jest.fn().mockImplementation((filter: any) =>
-      filter.zelt_id === ZELT_ID && filter.besitzer_id === OWNER_ID ? { _id: 'x' } : null,
-    );
+    zeltModel.exists = jest
+      .fn()
+      .mockImplementation((filter: any) => (filter.zelt_id === ZELT_ID && filter.besitzer_id === OWNER_ID ? { _id: 'x' } : null));
     const zelt = { zelt_id: ZELT_ID, besitzer_id: OWNER_ID, name: 'Zelt Keller', geraete: [], tag_null: 1, erstellt_at: 1 };
     zeltModel.find = jest.fn().mockReturnValue({ lean: () => Promise.resolve([zelt]) }) as any;
     zeltModel.findOne = jest.fn().mockReturnValue({ lean: () => Promise.resolve(zelt) }) as any;
@@ -100,7 +100,10 @@ describe('Zelt authorization', () => {
   });
 
   it('lists only the tents of the requesting user', async () => {
-    await request(app.getServer()).get('/api/zelte').set('Cookie', `Authorization=${makeToken(OWNER_ID)}`).expect(200);
+    await request(app.getServer())
+      .get('/api/zelte')
+      .set('Cookie', `Authorization=${makeToken(OWNER_ID)}`)
+      .expect(200);
     expect(zeltModel.find).toHaveBeenCalledWith({ besitzer_id: OWNER_ID }, expect.anything());
   });
 
