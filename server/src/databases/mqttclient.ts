@@ -30,6 +30,7 @@ class MqttClient {
   public connect() {
     console.log('connecting to mqtt server ' + MQTT_URL + ':1883');
     return new Promise<void>((resolve, reject) => {
+      // Set by whichever of connect/error arrives first: the promise settles once.
       let connected = false;
       this.client = mqtt.connect('mqtt://' + MQTT_URL + ':1883', { username: this.internal_user, password: this.internal_password });
 
@@ -41,14 +42,20 @@ class MqttClient {
         }
       });
 
-      this.client.on('error', function (error) {
+      this.client.on('error', error => {
+        // `this` inside a function() here is the mqtt client, not us, so the
+        // old `this.client?.end()` closed nothing and every failed attempt left
+        // a socket and a reconnect timer behind. A broker that refuses the
+        // connection then costs a client per retry until the heap runs out.
+        if (connected) {
+          return;
+        }
+        connected = true;
         console.log('mqtt error!');
-        // message is Buffer
         console.log(error.toString());
-        // resolve();
-
+        this.client?.end(true);
+        this.client = undefined;
         reject(error);
-        this.client?.end();
       });
 
       this.client.on('message', async (topic, message) => {

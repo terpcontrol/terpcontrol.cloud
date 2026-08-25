@@ -25,7 +25,7 @@ import { AddDeviceDto, RegisterDeviceDto, TestDeviceDto } from '@/dtos/device.dt
 import { mqttclient } from '../databases/mqttclient';
 import { dataService } from './data.service';
 import { HttpException } from '@/exceptions/HttpException';
-import { ENABLE_SELF_REGISTRATION, SELF_REGISTRATION_PASSWORD, SMTP_SENDER } from '@/config';
+import { ENABLE_SELF_REGISTRATION, NODE_ENV, SELF_REGISTRATION_PASSWORD, SMTP_SENDER } from '@/config';
 import { alarmService } from '@services/alarm.service';
 import { isNumeric } from 'influx/lib/src/grammar';
 import { mailTransport } from '@services/auth.service';
@@ -108,17 +108,32 @@ const withMaintenanceSecondsLeft = <T extends Partial<Device>>(device: T): T => 
   maintenance_mode_seconds_left: Math.max(0, Math.ceil(((device.maintenance_mode_until ?? 0) - Date.now()) / 1000)),
 });
 
+// How long a failed MQTT connect waits before the next attempt, and the ceiling
+// it backs off to. The server is useless without the broker, so it never gives
+// up - but retrying without a delay is what took the CI runner's heap to 4 GB.
+const MQTT_RETRY_MS = 5000;
+const MQTT_RETRY_MAX_MS = 60000;
+
 class DeviceService {
   private readonly upgradeInstructionTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly upgradeInstructionBackoff = new Map<string, { firmwareId: string; nextDelayMs: number }>();
+  private mqttRetryMs = MQTT_RETRY_MS;
 
   constructor() {
+    // Importing this module must not start a network client or a timer. A unit
+    // test that reaches any route reaches this service, and there is no broker
+    // in CI - which is exactly how a retry loop got to run for seventeen
+    // minutes there. Everything below belongs to the running server.
+    if (NODE_ENV === 'test') {
+      return;
+    }
+
     void this.checkDeviceClasses();
     void this.backfillFirmwareCreatedAt();
 
     setTimeout(() => {
       void this.connectMqtt();
-    }, 5000);
+    }, MQTT_RETRY_MS);
     setInterval(async () => {
       await this.findUpgradeableDevices();
     }, 10000);
@@ -169,6 +184,8 @@ class DeviceService {
   async connectMqtt() {
     try {
       await mqttclient.connect();
+      // A broker that came back deserves a fast retry next time it goes away.
+      this.mqttRetryMs = MQTT_RETRY_MS;
 
       void mqttclient.subscribe('/devices/#');
       mqttclient.messages.subscribe(async message => {
@@ -230,7 +247,11 @@ class DeviceService {
       });
     } catch (exception) {
       console.log(exception);
-      void this.connectMqtt();
+      // Immediately calling itself again is what made a refused broker fatal:
+      // each attempt builds a client, the failure is synchronous, and nothing
+      // ever yields long enough for the collector to take the wreckage.
+      this.mqttRetryMs = Math.min(this.mqttRetryMs * 2, MQTT_RETRY_MAX_MS);
+      setTimeout(() => void this.connectMqtt(), this.mqttRetryMs);
     }
   }
 
