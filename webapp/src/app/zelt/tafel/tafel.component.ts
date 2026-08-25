@@ -100,10 +100,18 @@ export class TafelComponent implements OnInit, OnChanges, OnDestroy {
   @Input() vergleichVon: number | null = null;
 
   @Output() mehr = new EventEmitter<void>();
+  /**
+   * An entry that was just written here. The Tafel puts it on the screen at
+   * once, but the list belongs to whoever read it: a page that replaces `dinge`
+   * on the next cursor would drop a row that exists nowhere else yet.
+   */
+  @Output() geschrieben = new EventEmitter<Ding>();
 
   public tabelleOffen = false;
   /** §17's one line: how many entries are still waiting for a connection. */
   public wartend = 0;
+  /** Which of the rows on the screen are those entries, so each of them can say so. */
+  public wartendeIds = new Set<string>();
   /** True while a thumb is on the handle. Motion collapses, rest unfolds (M3). */
   public zieht = false;
 
@@ -155,10 +163,19 @@ export class TafelComponent implements OnInit, OnChanges, OnDestroy {
       }),
     );
     this.abos.add(this.cursor.zieht$.subscribe(zieht => (this.zieht = zieht)));
-    this.abos.add(this.blaetter.wartend$.subscribe(anzahl => (this.wartend = anzahl)));
+    this.abos.add(
+      this.blaetter.wartend$.subscribe(warteschlange => {
+        this.wartend = warteschlange.length;
+        this.wartendeIds = new Set(warteschlange.map(ding => ding.ding_id));
+      }),
+    );
+    this.jetzt = this.cursor.jetzt();
     this.abos.add(
       interval(TAKT_MS).subscribe(() => {
-        this.jetzt = Date.now();
+        // The one clock. The slider reads it too, and it holds still under a
+        // thumb - two clocks a gesture apart is two answers to „wie alt ist
+        // das" on one screen.
+        this.jetzt = this.cursor.jetzt();
         // The derived lists are keyed on this counter; the header and the marks
         // are what actually change, and they are cheap to rebuild.
         this.stand++;
@@ -225,6 +242,7 @@ export class TafelComponent implements OnInit, OnChanges, OnDestroy {
     if (!ding) return;
 
     this.dinge = [ding, ...this.dinge];
+    this.geschrieben.emit(ding);
     this.ngOnChanges();
   }
 

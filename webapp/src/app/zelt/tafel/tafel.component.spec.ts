@@ -1,10 +1,14 @@
-import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { ComponentFixture, TestBed, discardPeriodicTasks, fakeAsync, tick, waitForAsync } from '@angular/core/testing';
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { IonicModule } from '@ionic/angular';
 import { RouterTestingModule } from '@angular/router/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import type { Ding, Zelt } from '@fg2/shared-types';
+import { environment } from 'src/environments/environment';
+import { AusgangService } from 'src/app/services/dinge.service';
+import { VergleichService } from 'src/app/services/vergleich.service';
 import { formatTimeAgo } from 'src/app/util/time-ago';
+import { BlattService } from '../blatt/blatt.service';
 import { ZeltModule } from '../zelt.module';
 import { TafelComponent } from './tafel.component';
 
@@ -455,4 +459,100 @@ describe('TafelComponent, the one sentence on a tent with no device', () => {
       expect(zeile.marke).not.toBe('ueber');
     }
   });
+});
+
+describe('TafelComponent, an entry that has not been sent yet', () => {
+  let fixture: ComponentFixture<TafelComponent>;
+  let component: TafelComponent;
+  let element: HTMLElement;
+  let http: HttpTestingController;
+
+  const warte = (): Promise<void> => new Promise<void>(fertig => setTimeout(fertig, 0));
+  const wartendeZeilen = (): number => element.querySelectorAll('app-zeile .zeile-wartet').length;
+
+  beforeEach(waitForAsync(() => {
+    window.localStorage.removeItem('tc.ausgang');
+    TestBed.configureTestingModule({
+      imports: [ZeltModule, IonicModule.forRoot(), RouterTestingModule, HttpClientTestingModule, TranslateModule.forRoot()],
+    }).compileComponents();
+  }));
+
+  beforeEach(() => {
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(TafelComponent);
+    component = fixture.componentInstance;
+    component.zelt = ohneGeraet;
+    component.dinge = dinge();
+    component.subjekt = component.dinge[0];
+    fixture.detectChanges();
+    element = fixture.nativeElement;
+  });
+
+  afterEach(() => {
+    window.localStorage.removeItem('tc.ausgang');
+  });
+
+  it('marks the queued row and no other, and stops marking it once it is stored', async () => {
+    expect(wartendeZeilen()).toBe(0);
+
+    const queued = component.dinge.find(ding => ding.ding_id === 'g1') as Ding;
+    TestBed.inject(AusgangService).eintragen(queued);
+    fixture.detectChanges();
+
+    // One row on the screen exists only on this phone, and it is that row.
+    expect(component.wartendeIds.has('g1')).toBeTrue();
+    expect(wartendeZeilen()).toBe(1);
+
+    http.expectOne(`${environment.API_URL}/api/dinge`).flush({ ding: queued });
+    await warte();
+    fixture.detectChanges();
+
+    expect(component.wartendeIds.size).toBe(0);
+    expect(wartendeZeilen()).toBe(0);
+    http.verify();
+  });
+
+  it('hands a written entry to whoever owns the list, and shows it at once', async () => {
+    const neu: Ding = { ding_id: 'neu', zelt_id: 'z1', art: 'gabe', name: '', t: Date.now(), d: { wasser_l: 3 } };
+    spyOn(TestBed.inject(BlattService), 'oeffnen').and.returnValue(Promise.resolve(neu));
+
+    const weitergereicht: Ding[] = [];
+    component.geschrieben.subscribe(ding => weitergereicht.push(ding));
+    await component.eintragen('gabe');
+
+    expect(component.dinge[0].ding_id).toBe('neu');
+    expect(weitergereicht.map(ding => ding.ding_id)).toEqual(['neu']);
+  });
+});
+
+describe('TafelComponent, the one clock', () => {
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      imports: [ZeltModule, IonicModule.forRoot(), RouterTestingModule, HttpClientTestingModule, TranslateModule.forRoot()],
+    }).compileComponents();
+  }));
+
+  it('ages its rows on the cursor’s clock, which holds still under a thumb', fakeAsync(() => {
+    const cursor = TestBed.inject(VergleichService);
+    const fixture = TestBed.createComponent(TafelComponent);
+    const component = fixture.componentInstance;
+    component.zelt = ohneGeraet;
+    component.dinge = dinge();
+    component.subjekt = component.dinge[0];
+    fixture.detectChanges();
+
+    // A second clock of its own would keep counting here, and the header would
+    // age while the slider it sits above did not.
+    cursor.ziehtSetzen(true);
+    const eingefroren = cursor.jetzt();
+    tick(30 * 1000);
+    expect(component.jetzt).toBe(eingefroren);
+
+    cursor.ziehtSetzen(false);
+    tick(30 * 1000);
+    expect(component.jetzt).toBeGreaterThan(eingefroren);
+
+    fixture.destroy();
+    discardPeriodicTasks();
+  }));
 });

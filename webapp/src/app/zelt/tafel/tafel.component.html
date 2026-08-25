@@ -13,7 +13,14 @@
 
   <section class="tafel-abschnitt" *ngIf="offen.length">
     <h2 class="tafel-abschnitt-titel">{{ 'zelt.abschnitt.zettel' | translate }}</h2>
-    <app-zeile *ngFor="let ding of offen; trackBy: trackDing" [ding]="ding" [zelt]="zelt" [umfeld]="dinge" [jetzt]="jetzt"></app-zeile>
+    <app-zeile
+      *ngFor="let ding of offen; trackBy: trackDing"
+      [ding]="ding"
+      [zelt]="zelt"
+      [umfeld]="dinge"
+      [jetzt]="jetzt"
+      [wartend]="wartendeIds.has(ding.ding_id)"
+    ></app-zeile>
   </section>
 
   <!-- §5. One box per half, the same shape whichever rung of the evidence
@@ -94,7 +101,14 @@
 
   <section class="tafel-abschnitt" *ngIf="!tagEins">
     <h2 class="tafel-abschnitt-titel">{{ 'zelt.abschnitt.imZelt' | translate }}</h2>
-    <app-zeile *ngFor="let ding of imZelt; trackBy: trackDing" [ding]="ding" [zelt]="zelt" [umfeld]="dinge" [jetzt]="jetzt"></app-zeile>
+    <app-zeile
+      *ngFor="let ding of imZelt; trackBy: trackDing"
+      [ding]="ding"
+      [zelt]="zelt"
+      [umfeld]="dinge"
+      [jetzt]="jetzt"
+      [wartend]="wartendeIds.has(ding.ding_id)"
+    ></app-zeile>
     <ng-container *ngTemplateOutlet="geraetUpsell"></ng-container>
   </section>
 
@@ -103,7 +117,14 @@
     <ng-container *ngFor="let zeile of verlauf; trackBy: trackVerlauf">
       <p class="tafel-trenner" *ngIf="zeile.trenner">{{ 'zelt.vorherAb' | translate: { zeit: vorherMoment | date: 'EEE dd.MM. HH:mm' } }}</p>
       <div class="tafel-verlauf-zeile">
-        <app-zeile [ding]="zeile.ding" [zelt]="zelt" [umfeld]="dinge" [jetzt]="jetzt" [gedimmt]="zeile.gedimmt"></app-zeile>
+        <app-zeile
+          [ding]="zeile.ding"
+          [zelt]="zelt"
+          [umfeld]="dinge"
+          [jetzt]="jetzt"
+          [gedimmt]="zeile.gedimmt"
+          [wartend]="wartendeIds.has(zeile.ding.ding_id)"
+        ></app-zeile>
         <button
           type="button"
           class="tafel-vorher"

@@ -147,6 +147,12 @@ class Pruefer {
       case 'string':
         if (typeof wert !== 'string') return this.nein(path, 'must be a string');
         if (feld.werte && !feld.werte.includes(wert)) return this.nein(path, `must be one of ${feld.werte.join(', ')}`);
+        // A required string is required for what it says, not for being there:
+        // a Notiz whose text is `''` is a diary entry that says nothing, and a
+        // Zettel like it stands at the top of the tent screen doing it. Text is
+        // the one field whose empty value is never a value - a typed `0` is a
+        // real reading - so the rule lives in this branch and nowhere else.
+        if (feld.pflicht && wert.trim() === '') return this.nein(path, 'must not be empty');
         return true;
       case 'boolean':
         return typeof wert === 'boolean' || this.nein(path, 'must be a boolean');
@@ -195,8 +201,7 @@ class Pruefer {
         ok = this.nein(pfad, 'must be an object');
         return;
       }
-      ok = this.pflicht(`${pfad}.name`, produkt.name, { typ: 'string' }) && ok;
-      if (typeof produkt.name === 'string' && produkt.name.trim() === '') ok = this.nein(`${pfad}.name`, 'must not be empty');
+      ok = this.pflicht(`${pfad}.name`, produkt.name, { typ: 'string', pflicht: true }) && ok;
       ok = this.pflicht(`${pfad}.ml_pro_l`, produkt.ml_pro_l, { typ: 'menge' }) && ok;
       if (produkt.aus_schema !== undefined) ok = this.feld(`${pfad}.aus_schema`, produkt.aus_schema, { typ: 'boolean' }) && ok;
       const unbekannt = Object.keys(produkt).filter(key => !['name', 'ml_pro_l', 'aus_schema'].includes(key));

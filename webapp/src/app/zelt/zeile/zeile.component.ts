@@ -32,6 +32,13 @@ export class ZeileComponent implements OnChanges {
   /** Rows below the Vorher hairline are dimmed rather than hidden. §6.1. */
   @Input() gedimmt = false;
   /**
+   * The entry is still in the outbox: written here, drawn here, and nowhere
+   * else yet. §17 prints `⟳ nicht gesendet` on it. Every other number this
+   * product shows says where it came from and how old it is; whether it
+   * actually saved is the same kind of fact and gets the same treatment.
+   */
+  @Input() wartend = false;
+  /**
    * Now, as the screen last read it. It is an input rather than a `Date.now()`
    * in here so that the row goes stale while the screen is open, instead of
    * keeping the reading it had when it was drawn.

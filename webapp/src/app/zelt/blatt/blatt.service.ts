@@ -40,9 +40,13 @@ export class BlattService {
     this.ausgang.probleme$.subscribe(problem => void this.sagen(problem));
   }
 
-  /** How many entries are still waiting for a connection. §17's one line. */
-  get wartend$(): Observable<number> {
-    return this.ausgang.anzahl$;
+  /**
+   * What is still waiting for a connection. §17 spends it twice: the one line
+   * under the action row counts it, and every row written from one of these
+   * entries carries `nicht gesendet` until it is gone from here.
+   */
+  get wartend$(): Observable<readonly Ding[]> {
+    return this.ausgang.wartend$;
   }
 
   /**

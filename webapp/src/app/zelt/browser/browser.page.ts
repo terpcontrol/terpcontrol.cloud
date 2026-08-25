@@ -3,6 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 import type { Ding, Zelt } from '@fg2/shared-types';
 import { DingeAnfrage, DingeService, MAX_SEITEN, ZelteService } from 'src/app/services/dinge.service';
+import { VergleichService } from 'src/app/services/vergleich.service';
 
 /** One page of Dinge. Big enough that a normal tent needs one request, small enough to arrive fast. */
 const SEITE = 100;
@@ -21,17 +22,31 @@ const SEITE = 100;
 export class BrowserPage implements OnInit, OnDestroy {
   public zelt: Zelt | null = null;
   public subjekt: Ding | null = null;
+  /** What the screen shows: the pages the server handed out, plus what was written here. */
   public dinge: Ding[] = [];
   public anfrage = '';
   public laedt = false;
   public fehler: string | null = null;
 
+  /** The server's own pages, in the order it merged them. */
+  private geladen: Ding[] = [];
+  /**
+   * Entries written on this screen that the server has not handed back yet.
+   * They are kept apart from the read pages because the next cursor and a
+   * refresh both replace those, and a queued watering exists nowhere else.
+   */
+  private eigene: Ding[] = [];
   private cursor: string | undefined;
   private zelt_id = '';
   private ding_id: string | null = null;
   private abo: Subscription | null = null;
 
-  constructor(private route: ActivatedRoute, private dingeService: DingeService, private zelte: ZelteService) {}
+  constructor(
+    private route: ActivatedRoute,
+    private dingeService: DingeService,
+    private zelte: ZelteService,
+    private vergleich: VergleichService,
+  ) {}
 
   ngOnInit(): void {
     this.abo = this.route.paramMap.subscribe(params => {
@@ -41,6 +56,10 @@ export class BrowserPage implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.abo?.unsubscribe();
+    // The cursor outlives the screen on purpose - a reload keeps your place -
+    // but its blur listener must not, or a tab losing focus stamps „zuletzt
+    // hier" on a tent nobody is looking at.
+    this.vergleich.verlassen();
   }
 
   get weitereVorhanden(): boolean {
@@ -68,16 +87,27 @@ export class BrowserPage implements OnInit, OnDestroy {
     this.laedt = true;
     try {
       const antwort = await this.dingeService.seite({ zelt_id: this.zelt_id, limit: SEITE, cursor: this.cursor });
-      // A new array, not a push: the Tafel caches every list it derives and
-      // watches its inputs to know when to stop.
-      this.dinge = [...this.dinge, ...antwort.dinge];
+      this.geladen = [...this.geladen, ...antwort.dinge];
       this.cursor = antwort.cursor;
+      this.zusammenstellen();
     } finally {
       this.laedt = false;
     }
   }
 
+  /**
+   * A Ding the sheet just wrote. It is queued, not stored, so the page adopts
+   * it: the Tafel drew it, but the list is this page's, and both the next
+   * cursor and a pull-to-refresh replace what the server said.
+   */
+  public aufnehmen(ding: Ding): void {
+    this.eigene = [ding, ...this.eigene.filter(eigen => eigen.ding_id !== ding.ding_id)];
+    this.zusammenstellen();
+  }
+
   private async laden(zelt_id: string, ding_id: string | null): Promise<void> {
+    // Another tent's queued entries are not this screen's rows.
+    if (zelt_id !== this.zelt_id) this.eigene = [];
     this.zelt_id = zelt_id;
     this.ding_id = ding_id;
     this.laedt = true;
@@ -96,8 +126,9 @@ export class BrowserPage implements OnInit, OnDestroy {
         ding_id ? dinge.some(ding => ding.ding_id === ding_id) : true,
       );
 
-      this.dinge = stapel.dinge;
+      this.geladen = stapel.dinge;
       this.cursor = stapel.cursor;
+      this.zusammenstellen();
       this.subjekt = this.subjektAus(ding_id);
     } catch (_fehler) {
       this.fehler = 'zelt.nichtGeladen';
@@ -106,6 +137,20 @@ export class BrowserPage implements OnInit, OnDestroy {
     } finally {
       this.laedt = false;
     }
+  }
+
+  /**
+   * One list out of two. A locally written entry drops out the moment the
+   * server hands the same `ding_id` back, which it will: the id travels with
+   * the write, so the stored row and the queued one are the same row.
+   *
+   * A new array rather than a push, because the Tafel caches every list it
+   * derives and watches its inputs to know when to stop.
+   */
+  private zusammenstellen(): void {
+    const gelesen = new Set(this.geladen.map(ding => ding.ding_id));
+    this.eigene = this.eigene.filter(ding => !gelesen.has(ding.ding_id));
+    this.dinge = [...this.eigene, ...this.geladen];
   }
 
   /**

@@ -5,8 +5,9 @@ import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
 import { TranslateModule } from '@ngx-translate/core';
 import { BehaviorSubject } from 'rxjs';
-import type { Zelt } from '@fg2/shared-types';
+import type { Ding, Zelt } from '@fg2/shared-types';
 import { environment } from 'src/environments/environment';
+import { VergleichService } from 'src/app/services/vergleich.service';
 import { ZeltModule } from '../zelt.module';
 import { BrowserPage } from './browser.page';
 
@@ -94,6 +95,61 @@ describe('BrowserPage', () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.subjekt?.ding_id).toBe('weit-hinten');
+  });
+
+  it('keeps an entry written here when the next page replaces the list', async () => {
+    fixture.detectChanges();
+    http.expectOne(`${environment.API_URL}/api/zelte/z1`).flush(zelt);
+    await warte();
+
+    dingeAnfrage().flush({ dinge: [{ ding_id: 'g1', zelt_id: 'z1', art: 'gabe', name: '', t: 20, d: {} }], cursor: 'seite-2' });
+    await warte();
+
+    // The sheet minted the id and queued it; the server has not heard of it.
+    const eigen: Ding = { ding_id: 'lokal', zelt_id: 'z1', art: 'gabe', name: '', t: 30, d: { wasser_l: 2 } };
+    fixture.componentInstance.aufnehmen(eigen);
+    expect(fixture.componentInstance.dinge.map(ding => ding.ding_id)).toEqual(['lokal', 'g1']);
+
+    const geladen = fixture.componentInstance.mehr();
+    dingeAnfrage().flush({ dinge: [{ ding_id: 'g2', zelt_id: 'z1', art: 'gabe', name: '', t: 10, d: {} }] });
+    await geladen;
+
+    expect(fixture.componentInstance.dinge.map(ding => ding.ding_id)).toEqual(['lokal', 'g1', 'g2']);
+  });
+
+  it('lets its own copy go the moment the server hands the same entry back', async () => {
+    fixture.detectChanges();
+    http.expectOne(`${environment.API_URL}/api/zelte/z1`).flush(zelt);
+    await warte();
+
+    dingeAnfrage().flush({ dinge: [] });
+    await warte();
+
+    const eigen: Ding = { ding_id: 'lokal', zelt_id: 'z1', art: 'gabe', name: '', t: 30, d: { wasser_l: 2 } };
+    fixture.componentInstance.aufnehmen(eigen);
+    expect(fixture.componentInstance.dinge.length).toBe(1);
+
+    // A refresh, and the entry has been stored under the id the client minted.
+    const erneut = fixture.componentInstance.erneut();
+    http.expectOne(`${environment.API_URL}/api/zelte/z1`).flush(zelt);
+    await warte();
+    dingeAnfrage().flush({ dinge: [{ ...eigen }] });
+    await erneut;
+
+    // One row, not two: the queued copy and the stored one are the same entry.
+    expect(fixture.componentInstance.dinge.map(ding => ding.ding_id)).toEqual(['lokal']);
+  });
+
+  it('lets go of the tent’s cursor when the screen is torn down', async () => {
+    const verlassen = spyOn(TestBed.inject(VergleichService), 'verlassen').and.callThrough();
+    fixture.detectChanges();
+    http.expectOne(`${environment.API_URL}/api/zelte/z1`).flush(zelt);
+    await warte();
+    dingeAnfrage().flush({ dinge: [] });
+    await warte();
+
+    fixture.destroy();
+    expect(verlassen).toHaveBeenCalled();
   });
 
   it('loads the next page on the cursor the server handed out', async () => {

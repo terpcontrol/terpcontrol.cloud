@@ -58,6 +58,22 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* §17: an entry that exists only on this phone says so, in the row itself.
+   Grey and beside the age, because it is provenance and not an alarm. The
+   glyph is drawn here rather than in the template so it stays out of the
+   translated string and out of what a screen reader says. */
+.zeile-wartet {
+  flex: none;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ion-color-medium);
+  white-space: nowrap;
+}
+
+.zeile-wartet::before {
+  content: '\27F3\00A0';
+}
+
 .zeile-alter {
   flex: none;
   font-size: 13px;

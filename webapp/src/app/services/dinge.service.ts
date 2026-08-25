@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, Subject, firstValueFrom } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, firstValueFrom, map } from 'rxjs';
 import { environment } from 'src/environments/environment';
 import type { Ding, DingArt, DingeSeite, Zelt } from '@fg2/shared-types';
 
@@ -172,7 +172,7 @@ export interface AusgangProblem {
 })
 export class AusgangService {
   private wartend: Ding[] = [];
-  private readonly anzahl = new BehaviorSubject<number>(0);
+  private readonly schlange = new BehaviorSubject<readonly Ding[]>([]);
   private readonly problem = new Subject<AusgangProblem>();
   private laeuft = false;
   private versuche = 0;
@@ -180,7 +180,7 @@ export class AusgangService {
 
   constructor(private dinge: DingeService) {
     this.wartend = this.gelesen();
-    this.anzahl.next(this.wartend.length);
+    this.schlange.next(this.wartend);
 
     // A cellar with one bar is the case this exists for, so the two moments a
     // phone gets a connection back - the network event and the tab returning -
@@ -193,9 +193,18 @@ export class AusgangService {
     if (this.wartend.length > 0) void this.leeren();
   }
 
+  /**
+   * The queue itself, as it stands. A row drawn from an entry in here exists
+   * only on this phone, and §17 has it say so - so what is queued has to be
+   * watchable and not only countable.
+   */
+  public get wartend$(): Observable<readonly Ding[]> {
+    return this.schlange.asObservable();
+  }
+
   /** `3 Einträge warten auf Verbindung.` - the one line §17 allows. */
   public get anzahl$(): Observable<number> {
-    return this.anzahl.asObservable();
+    return this.schlange.pipe(map(liste => liste.length));
   }
 
   public get probleme$(): Observable<AusgangProblem> {
@@ -256,7 +265,7 @@ export class AusgangService {
   }
 
   private gespeichert(): void {
-    this.anzahl.next(this.wartend.length);
+    this.schlange.next(this.wartend);
     try {
       window.localStorage.setItem(AUSGANG_SCHLUESSEL, JSON.stringify(this.wartend));
     } catch (_fehler) {

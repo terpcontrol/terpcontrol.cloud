@@ -117,8 +117,26 @@ describe('validateDing', () => {
     expect(pfade({ ...grund, art: 'gabe', d: { wasser_l: 1, verteilung: 'pro_pflanze' } })).toEqual(['d.verteilung']);
     expect(pfade({ ...grund, art: 'gabe', d: { wasser_l: 1, ec_basis: 'relativ' } })).toEqual(['d.ec_basis']);
     expect(pfade({ ...grund, art: 'pflanze', d: { quelle: 'klon' } })).toEqual(['d.quelle']);
-    expect(pfade({ ...grund, art: 'notiz', d: { text: '', messwerte: { substrat: 'staubig' } } })).toEqual(['d.messwerte.substrat']);
-    expect(pfade({ ...grund, art: 'notiz', d: { text: '', messwerte: { substrat: 'feucht', ph: 6.1 } } })).toEqual([]);
+    expect(pfade({ ...grund, art: 'notiz', d: { text: 'gefühlt', messwerte: { substrat: 'staubig' } } })).toEqual(['d.messwerte.substrat']);
+    expect(pfade({ ...grund, art: 'notiz', d: { text: 'gefühlt', messwerte: { substrat: 'feucht', ph: 6.1 } } })).toEqual([]);
+  });
+
+  it('refuses a Notiz and a Zettel with nothing in them, whatever client sent it', () => {
+    const grund = { ding_id: randomUUID(), zelt_id: 'zelt-1', name: '', t: Date.now() };
+    // Our own sheet already refuses this; a blank note is storable by anything
+    // that is not our sheet, and it would stand at the top of the tent screen
+    // saying nothing.
+    expect(probleme({ ...grund, art: 'notiz', d: { text: '' } })[0]).toEqual({ path: 'd.text', message: 'must not be empty' });
+    expect(pfade({ ...grund, art: 'notiz', d: { text: '   ' } })).toEqual(['d.text']);
+    expect(pfade({ ...grund, art: 'zustand', d: { text: '' } })).toEqual(['d.text']);
+    expect(pfade({ ...grund, art: 'notiz', d: { text: 'untere Blätter gelb' } })).toEqual([]);
+  });
+
+  it('still takes a typed zero, because an empty number and a measured nought are not the same', () => {
+    const grund = { ding_id: randomUUID(), zelt_id: 'zelt-1', name: '', t: Date.now() };
+    expect(pfade({ ...grund, art: 'gabe', d: { wasser_l: 0 } })).toEqual([]);
+    expect(pfade({ ...grund, art: 'notiz', d: { text: 'pH gemessen', messwerte: { ph: 0 } } })).toEqual([]);
+    expect(pfade({ ...grund, art: 'lauf', d: { nummer: 0 } })).toEqual([]);
   });
 
   it('demands wasser_l on a Gabe and refuses a negative one', () => {

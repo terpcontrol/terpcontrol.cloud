@@ -984,7 +984,8 @@
       "bildGeraet": "Kamerabild",
       "lauf": "Durchgang {{nummer}}",
       "wasser": "{{liter}} l",
-      "schritt": "Schritt {{schritt}}"
+      "schritt": "Schritt {{schritt}}",
+      "nichtGesendet": "nicht gesendet"
     },
     "mass": {
       "temperatur": "Temperatur",
