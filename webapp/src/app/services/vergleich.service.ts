@@ -55,7 +55,12 @@ export class VergleichService {
   private persoenlich = false;
   /** A `mensch` write token's server-side last visit (§13.5), when the session carries one. */
   private menschBesuch: number | null = null;
-  private horcht = false;
+  /** The moment `zuletzt` resolved to for the named tent, cursor or no cursor. */
+  private besuch: number | null = null;
+  /** The blur listener of the tent that is open, so it cannot stamp a tent nobody is looking at. */
+  private horcher: (() => void) | null = null;
+  /** „Jetzt", held still for the duration of a gesture and for no longer. */
+  private eingefroren: number | null = null;
 
   /** What `Vorher` means right now. `null` until a screen has named its tent. */
   public readonly vergleich$: Observable<Vergleich | null> = this.strom.asObservable();
@@ -80,6 +85,30 @@ export class VergleichService {
   }
 
   /**
+   * The moment `zuletzt` resolves to for the tent that is open - the rung, not
+   * the cursor. They are two different things and the difference is a bug
+   * everybody meets: drag away from `seit zuletzt` and the rung has to stay on
+   * the track, or you can never drag back onto it.
+   */
+  public get zuletztMoment(): number | null {
+    return this.besuch;
+  }
+
+  /**
+   * The one „jetzt" of the cursor and of everything drawn against it.
+   *
+   * A slider whose right edge is a field initialiser is a slider that ends the
+   * day at the moment the phone was unlocked - and a tent phone is unlocked
+   * once and left on the tent screen. So this is read, never stored, and the
+   * one thing that holds it still is a thumb on the handle: „nichts hat sich
+   * bewegt, während du gezogen hast" is true, „es wurde nichts aufgezeichnet,
+   * seit du heute Morgen aufgesperrt hast" is a false negative.
+   */
+  public jetzt(): number {
+    return this.eingefroren ?? Date.now();
+  }
+
+  /**
    * Names the tent the cursor is for. Walking from the tent to a plant and on
    * to a socket calls this three times with the same id and the cursor does not
    * move once - that is the whole point of it being one cursor.
@@ -89,23 +118,36 @@ export class VergleichService {
     if (this.zelt_id === zelt_id && this.strom.value) return this.strom.value;
 
     this.zelt_id = zelt_id;
-    this.besuchHorchen();
+    this.besuchHorchen(zelt_id);
+    // Resolved for the tent, not for the cursor: a reload that picks its own
+    // place back up must still know when the last visit was, or the rung it
+    // could return to is missing from the ladder.
+    this.besuchAufloesen(zelt_id);
 
     const gemerkt = this.gemerkter(zelt_id);
-    const vergleich = gemerkt ?? this.zuletztVergleich(zelt_id);
+    const vergleich = gemerkt ?? this.zuletztVergleich();
     this.strom.next(vergleich);
     return vergleich;
   }
 
-  /** Moves the cursor. Every writer - handle, Verlauf row, crosshair, `Nächster Unterschied` - comes through here. */
-  public setzen(von: number, anker: Anker): void {
-    const vergleich: Vergleich = { von: Math.round(von), anker: anker };
+  /**
+   * Moves the cursor. Every writer - handle, Verlauf row, crosshair, `Nächster
+   * Unterschied` - comes through here. `wer` names the `mensch` a `besuch`
+   * cursor is measured from, so the meaning survives the walk to the next
+   * Tafel and not only the number (§13.1).
+   */
+  public setzen(von: number, anker: Anker, wer?: string): void {
+    const vergleich: Vergleich = { von: Math.round(von), anker: anker, ...(wer ? { wer: wer } : {}) };
     if (this.zelt_id) schreiben(this.sitzung, VERGLEICH_SCHLUESSEL(this.zelt_id), JSON.stringify(vergleich));
     this.strom.next(vergleich);
   }
 
   public ziehtSetzen(zieht: boolean): void {
-    if (this.ziehen.value !== zieht) this.ziehen.next(zieht);
+    if (this.ziehen.value === zieht) return;
+    // Freezing „jetzt" for the length of a gesture is what stops the ladder
+    // moving under a thumb. Freezing it for the session is the bug that does.
+    this.eingefroren = zieht ? Date.now() : null;
+    this.ziehen.next(zieht);
   }
 
   /** The chart's window: from the cursor to now, both ends of the same moment. */
@@ -121,11 +163,22 @@ export class VergleichService {
    */
   public menschBesuchSetzen(t: number | null): void {
     this.menschBesuch = t;
+    if (this.zelt_id) this.besuchAufloesen(this.zelt_id);
   }
 
   /** „since anyone was last here on this phone", written when the tab loses the tent. */
   public besuchNotieren(): void {
     if (this.zelt_id) schreiben(this.dauerhaft, BESUCH_SCHLUESSEL(this.zelt_id), String(Date.now()));
+  }
+
+  /**
+   * The tent screen is gone. The cursor stays where it is - `sessionStorage`
+   * keeps the place across a reload - but nothing may stamp „zuletzt hier" on
+   * a tent nobody is looking at any more.
+   */
+  public verlassen(): void {
+    if (this.horcher && typeof window !== 'undefined') window.removeEventListener('blur', this.horcher);
+    this.horcher = null;
   }
 
   private get sitzung(): Storage | null {
@@ -142,9 +195,12 @@ export class VergleichService {
 
     try {
       const gelesen = JSON.parse(roh) as Partial<Vergleich>;
-      return typeof gelesen?.von === 'number' && Number.isFinite(gelesen.von)
-        ? { von: gelesen.von, anker: (gelesen.anker as Anker) ?? 'frei' }
-        : null;
+      if (typeof gelesen?.von !== 'number' || !Number.isFinite(gelesen.von)) return null;
+      return {
+        von: gelesen.von,
+        anker: (gelesen.anker as Anker) ?? 'frei',
+        ...(typeof gelesen.wer === 'string' && gelesen.wer ? { wer: gelesen.wer } : {}),
+      };
     } catch (_fehler) {
       return null;
     }
@@ -155,22 +211,33 @@ export class VergleichService {
    * can prove one, this phone's otherwise - and yesterday when neither exists,
    * because a first visit has no „last time" and must not pretend to.
    */
-  private zuletztVergleich(zelt_id: string): Vergleich {
+  private zuletztVergleich(): Vergleich {
+    if (this.besuch) return { von: this.besuch, anker: 'zuletzt' };
+    return { von: Date.now() - TAG_MS, anker: 'gestern' };
+  }
+
+  /** When somebody was last here, and whether „somebody" is you (§3.5). */
+  private besuchAufloesen(zelt_id: string): void {
     if (this.menschBesuch) {
       this.persoenlich = true;
-      return { von: this.menschBesuch, anker: 'zuletzt' };
+      this.besuch = this.menschBesuch;
+      return;
     }
 
     this.persoenlich = false;
     const roh = Number(lesen(this.dauerhaft, BESUCH_SCHLUESSEL(zelt_id)));
-    if (Number.isFinite(roh) && roh > 0) return { von: roh, anker: 'zuletzt' };
-
-    return { von: Date.now() - TAG_MS, anker: 'gestern' };
+    this.besuch = Number.isFinite(roh) && roh > 0 ? roh : null;
   }
 
-  private besuchHorchen(): void {
-    if (this.horcht || typeof window === 'undefined') return;
-    this.horcht = true;
-    window.addEventListener('blur', () => this.besuchNotieren());
+  /**
+   * One listener, bound to the tent that is open. The old one goes when a new
+   * tent is named: a handler that reads a field would stamp „zuletzt hier" on
+   * whichever tent the field happened to hold.
+   */
+  private besuchHorchen(zelt_id: string): void {
+    if (typeof window === 'undefined') return;
+    this.verlassen();
+    this.horcher = (): void => schreiben(this.dauerhaft, BESUCH_SCHLUESSEL(zelt_id), String(Date.now()));
+    window.addEventListener('blur', this.horcher);
   }
 }

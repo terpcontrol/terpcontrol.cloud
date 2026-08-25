@@ -1,9 +1,15 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { IonicModule } from '@ionic/angular';
 import { TranslateModule } from '@ngx-translate/core';
 import { PipesModule } from 'src/app/pipes/pipes.module';
+import { BlattKopfComponent } from './blatt/blatt-kopf.component';
+import { GabeBlattComponent } from './blatt/gabe.blatt';
+import { MesswerteFeldComponent } from './blatt/messwerte-feld.component';
+import { NotizBlattComponent } from './blatt/notiz.blatt';
+import { ZettelBlattComponent } from './blatt/zettel.blatt';
 import { BrowserPage } from './browser/browser.page';
 import { FaktComponent } from './koerper/fakt.component';
 import { KoerperHostDirective } from './koerper/koerper-host.directive';
@@ -36,9 +42,14 @@ import { ZeltRoutingModule } from './zelt-routing.module';
     ZeitgriffComponent,
     ZeitlageComponent,
     HoeheHaltenDirective,
+    BlattKopfComponent,
+    MesswerteFeldComponent,
+    GabeBlattComponent,
+    NotizBlattComponent,
+    ZettelBlattComponent,
     ...KOERPER_KOMPONENTEN,
   ],
-  imports: [CommonModule, IonicModule, RouterModule, PipesModule, TranslateModule.forChild(), ZeltRoutingModule],
+  imports: [CommonModule, FormsModule, IonicModule, RouterModule, PipesModule, TranslateModule.forChild(), ZeltRoutingModule],
   // The Zeile and the Tafel are the two shapes of the product; anything that
   // shows a Ding uses them rather than drawing a third.
   exports: [TafelComponent, ZeileComponent, WerteComponent, PaarComponent, SatzComponent, KoerperHostDirective, ZeitgriffComponent, ZeitlageComponent],

@@ -33,8 +33,12 @@
   font-variant-numeric: tabular-nums;
 }
 
-// A 44 px target that does not push the block past 56 px.
+// A 44 px target that does not push the block past 56 px. It reaches into the
+// track's row with its negative margins, so it has to be painted above the
+// track: aiming low at the button and scrubbing instead is the whole bug.
 .griff-naechster {
+  position: relative;
+  z-index: 1;
   flex: none;
   min-height: 44px;
   margin: -13px 0;
@@ -50,8 +54,11 @@
 .griff-spur {
   position: relative;
   height: 28px;
-  // The strip is a slider, so a horizontal drag must not become a page scroll.
-  touch-action: none;
+  // A horizontal drag scrubs and never scrolls; a vertical one scrolls the page
+  // and never scrubs. The strip is full-bleed and 28 px tall, so one-handed in a
+  // tent it is the most likely thing a flick lands on - and destroying `Vorher`
+  // has no undo.
+  touch-action: pan-y;
   cursor: pointer;
 }
 

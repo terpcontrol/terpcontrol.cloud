@@ -1,6 +1,6 @@
 import type { Ding, Zelt } from '@fg2/shared-types';
 import { Messung } from './messquellen';
-import { aufloesen, detents, dichteband, griffart, momentDetents, naechsterUnterschied, zeitlage } from './vergleich';
+import { aufloesen, besuchDetents, detents, dichteband, griffart, momentDetents, naechsterUnterschied, spanne, zeitlage } from './vergleich';
 
 const TAG = 24 * 3600 * 1000;
 const STUNDE = 3600 * 1000;
@@ -108,13 +108,59 @@ describe('snapping', () => {
   it('lands on the newest Ding at or before the thumb when only entries exist', () => {
     const gelandet = aufloesen(JETZT - 3 * TAG, dinge, false);
     expect(gelandet.von).toBe(JETZT - 5 * TAG);
-    expect(gelandet.verschoben).toBeTrue();
+    expect(gelandet.landung).toBe('verschoben');
   });
 
   it('lands on the minute when something samples every few seconds', () => {
     const gelandet = aufloesen(JETZT - 3 * TAG + 12345, dinge, true);
     expect(gelandet.von % 60000).toBe(0);
-    expect(gelandet.verschoben).toBeFalse();
+    expect(gelandet.landung).toBe('genau');
+  });
+
+  it('says so rather than presenting a raw millisecond as a moment the tent can tell apart', () => {
+    // Before the first Ding of a device-less tent there is nothing at all. The
+    // handle is still somewhere - it just is not somewhere this tent knows.
+    const gelandet = aufloesen(JETZT - 9 * TAG, dinge, false);
+    expect(gelandet.von).toBe(JETZT - 9 * TAG);
+    expect(gelandet.landung).toBe('unbekannt');
+  });
+});
+
+describe('a `mensch` Tafel - „was ist passiert, seit du zuletzt hier warst" (§13.1)', () => {
+  // Anna was typed in on day 5 and has watered four times since. Every one of
+  // her visits comes *after* the Ding that names her, which is the whole reason
+  // a person's track cannot end where a Gabe's does.
+  const anna = ding('m1', 'mensch', JETZT - 25 * TAG, { name: 'Anna' });
+  const besuche = [JETZT - 20 * TAG, JETZT - 13 * TAG, JETZT - 8 * TAG, JETZT - 6 * TAG];
+  const dinge = [
+    anna,
+    ding('m2', 'mensch', JETZT - 24 * TAG, { name: 'Ben' }),
+    ...besuche.map((t, index) => ding(`g${index}`, 'gabe', t, { akteur: 'm1', d: { wasser_l: 2 } })),
+    ding('gb', 'gabe', JETZT - 7 * TAG, { akteur: 'm2', d: { wasser_l: 3 } }),
+  ];
+
+  it('has one rung per visit of that person, and of nobody else', () => {
+    const rungen = besuchDetents(anna, dinge, JETZT);
+    expect(rungen.map(rung => rung.von)).toEqual(besuche);
+    // §3.5's `zuletzt` is the phone's stamp and this is one named visit: two
+    // different claims, so two different tokens.
+    expect(rungen.every(rung => rung.anker === 'besuch')).toBeTrue();
+  });
+
+  it('spans from the day she joined to now, so every one of her visits is reachable', () => {
+    const eingabe = { zelt: zelt(), dinge: dinge, jetzt: JETZT };
+    const rungen = detents(eingabe, anna);
+    const { von, bis } = spanne(eingabe, anna, rungen);
+
+    expect(von).toBe(anna.t);
+    // Not `subjekt.t`: ending the track there put all four rungs on the right
+    // edge and clamped the keyboard into a loop that could not pass the day
+    // somebody typed her name in.
+    expect(bis).toBe(JETZT);
+
+    const stellen = rungen.map(rung => ((rung.von - von) / (bis - von)) * 100);
+    expect(new Set(stellen.map(stelle => Math.round(stelle))).size).toBe(4);
+    expect(stellen.every(stelle => stelle > 0 && stelle < 95)).toBeTrue();
   });
 });
 
@@ -124,6 +170,19 @@ describe('Nächster Unterschied', () => {
   it('lands on the next moment that has something in it', () => {
     expect(naechsterUnterschied(JETZT - 5 * TAG, dinge, [], JETZT)).toBe(JETZT - 2 * TAG);
     expect(naechsterUnterschied(JETZT - 2 * TAG, dinge, [], JETZT)).toBe(JETZT - TAG);
+  });
+
+  it('steps through what somebody did, not through what the tent is', () => {
+    // A plant, a person and a schema are what the tent *is*. Stepping through
+    // the day they were typed in is five taps before anything anybody did.
+    const gemischt = [
+      ding('p1', 'pflanze', JETZT - 4 * TAG, { name: 'A1' }),
+      ding('m1', 'mensch', JETZT - 3 * TAG, { name: 'Anna' }),
+      ding('s1', 'schema', JETZT - 2 * TAG, { name: 'Biobizz' }),
+      ding('n9', 'notiz', JETZT - STUNDE, { d: { text: 'Blätter hängen' } }),
+    ];
+
+    expect(naechsterUnterschied(JETZT - 5 * TAG, gemischt, [], JETZT)).toBe(JETZT - STUNDE);
   });
 
   it('says there is no next one rather than moving the cursor somewhere useless', () => {

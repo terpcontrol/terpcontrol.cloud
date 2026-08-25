@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 import type { Ding, DingArt, Zelt } from '@fg2/shared-types';
-import { Text } from './ding-text';
+import { Text, dingName, istEintrag } from './ding-text';
 import { einheitVon } from './einheiten';
 import { Messung, herkunftSchluessel, messzeilen } from './messquellen';
 import { standardabweichung } from './reihe';
@@ -8,13 +8,73 @@ import { handMessungen } from './unterschied';
 import { pluralSchluessel, zahlText } from './zahl';
 import { laufBeginn, tagNummer } from './zelt-tag';
 
-/** §3.5 - what the handle was set to, and by which rung of the ladder. */
-export type Anker = 'zuletzt' | 'gestern' | 'woche' | 'phase' | 'gabe' | 'foto' | 'beginn' | 'ziel' | 'plan' | 'lauf' | 'frei';
+/**
+ * §3.5 - what the handle was set to, and by which rung of the ladder.
+ *
+ * `zuletzt` is the phone-level stamp - „seit dem letzten Besuch auf diesem
+ * Gerät" - and `besuch` is one named visit of one `mensch`. They read almost
+ * the same and mean different things, so they are two tokens: a rung on Annas
+ * Tafel must not claim to be the phone's.
+ */
+export type Anker =
+  | 'zuletzt'
+  | 'besuch'
+  | 'gestern'
+  | 'woche'
+  | 'phase'
+  | 'gabe'
+  | 'foto'
+  | 'beginn'
+  | 'ziel'
+  | 'plan'
+  | 'lauf'
+  | 'frei';
 
 export interface Vergleich {
   von: number;
   anker: Anker;
+  /**
+   * The `mensch` a `besuch` cursor is measured from, when it was set from one
+   * person's visit. It is what walks: the moment alone reads as a date on the
+   * next Tafel, and „seit dem letzten Besuch von Anna" is the sentence §13.1
+   * promises - „was ist passiert, seit du zuletzt hier warst" - answered by the
+   * tent, by A3 and by the heater alike.
+   */
+  wer?: string;
 }
+
+/**
+ * How a cursor reads when the Subjekt in front of you has no rung at that
+ * moment - which is every walk: the cursor survives from Annas Tafel to the
+ * tent's, and „seit Annas letztem Besuch" has to survive with it. Without this
+ * the arithmetic walks and the meaning does not.
+ */
+export const ankerText = (anker: Anker | undefined, persoenlich = false): Text => {
+  switch (anker) {
+    case 'zuletzt':
+      return { key: persoenlich ? 'zelt.griff.zuletztDu' : 'zelt.griff.zuletztGeraet' };
+    case 'besuch':
+      return { key: 'zelt.griff.besuch' };
+    case 'gestern':
+      return { key: 'zelt.griff.gestern' };
+    case 'woche':
+      return { key: 'zelt.griff.woche' };
+    case 'phase':
+      return { key: 'zelt.griff.phase' };
+    case 'gabe':
+      return { key: 'zelt.griff.gabe' };
+    case 'foto':
+      return { key: 'zelt.griff.foto' };
+    case 'beginn':
+      return { key: 'zelt.griff.beginn' };
+    case 'plan':
+      return { key: 'zelt.griff.gesternAbend' };
+    case 'lauf':
+      return { key: 'zelt.griff.laufKurz' };
+    default:
+      return { key: 'zelt.griff.titel' };
+  }
+};
 
 /** One magnetic position on the track. It exists because its evidence exists. */
 export interface Detent {
@@ -232,18 +292,23 @@ export const kettenDetents = (subjekt: Ding, dinge: readonly Ding[]): Detent[] =
 const ankerVonArt = (art: DingArt): Anker =>
   art === 'gabe' ? 'gabe' : art === 'bild' ? 'foto' : art === 'phase' ? 'phase' : 'frei';
 
-/** A `mensch` diffs against their own previous visit, and their entries are the visits. */
+/**
+ * A `mensch` diffs against their own previous visit, and their entries are the
+ * visits. Every rung is named by what that visit *was* - `Gabe`, `untere
+ * Blätter gelb`, `Foto` - because twelve rungs all reading „voriger Besuch"
+ * are twelve rungs nobody can aim at.
+ */
 export const besuchDetents = (subjekt: Ding, dinge: readonly Ding[], jetzt: number): Detent[] =>
   sortiert(
     lebend(dinge)
-      .filter(ding => ding.akteur === subjekt.ding_id && ding.t < jetzt)
+      .filter(ding => ding.akteur === subjekt.ding_id && ding.ding_id !== subjekt.ding_id && ding.t < jetzt)
       .sort((links, rechts) => rechts.t - links.t)
       .slice(0, KETTE_MAX)
       .map(ding => ({
         id: `besuch:${ding.ding_id}`,
-        anker: 'zuletzt' as const,
+        anker: 'besuch' as const,
         von: ding.t,
-        text: { key: 'zelt.griff.besuch' },
+        text: dingName(ding),
       })),
   );
 
@@ -278,19 +343,48 @@ export const detents = (eingabe: DetentEingabe, subjekt: Ding | null): Detent[] 
   }
 };
 
-/** What the track spans. Never zero-width, so a position is always computable. */
+/**
+ * What the track spans. Never zero-width, so a position is always computable.
+ *
+ * The right edge is not the same moment for every Subjekt, and that is the
+ * whole of it: a `gabe` ends at itself, because its predecessors precede it. A
+ * `mensch` ends at **now**, because a person's entries all come *after* the day
+ * somebody typed their name in - ending their track at `subjekt.t` collapses
+ * every visit onto the right edge and leaves the keyboard clamped into a loop
+ * that cannot reach one of them (§13.1). A `film` ends at the last frame it
+ * covers, which is `d.bis` when it says so.
+ */
 export const spanne = (eingabe: DetentEingabe, subjekt: Ding | null, detentliste: readonly Detent[]): { von: number; bis: number } => {
   const art = griffart(subjekt?.art);
-  const bis = art === 'moment' || !subjekt ? eingabe.jetzt : subjekt.t;
-  const kandidaten = [laufBeginn(eingabe.zelt, eingabe.dinge), ...detentliste.map(detent => detent.von)].filter(wert => wert < bis);
+  const bis = !subjekt ? eingabe.jetzt : rechterRand(art, subjekt, eingabe.jetzt);
+  // A person's track starts the day they joined the tent, not the day the tent
+  // did: a member added in week five owns week five onwards.
+  const anfang = art === 'besuch' && subjekt ? subjekt.t : laufBeginn(eingabe.zelt, eingabe.dinge);
+  const kandidaten = [anfang, ...detentliste.map(detent => detent.von)].filter(wert => wert < bis);
   const von = kandidaten.length > 0 ? Math.min(...kandidaten) : bis - TAG_MS;
   return { von: von, bis: Math.max(bis, von + 60000) };
 };
 
+const rechterRand = (art: Griffart, subjekt: Ding, jetzt: number): number => {
+  if (art === 'moment' || art === 'besuch') return jetzt;
+  if (art === 'kapitel') return Math.max(subjekt.t, zahl(subjekt.d?.['bis']) ?? subjekt.t);
+  return subjekt.t;
+};
+
+/**
+ * Where the thumb actually landed, in the tent's own terms:
+ *
+ * - `genau` - the position *is* a moment this tent can tell apart;
+ * - `verschoben` - it was moved back to the newest Ding before it;
+ * - `unbekannt` - there is nothing at or before it at all, so the printed
+ *   moment is a raw millisecond and says so instead of claiming an entry it
+ *   does not have.
+ */
+export type Landung = 'genau' | 'verschoben' | 'unbekannt';
+
 export interface Aufloesung {
   von: number;
-  /** True when the raw handle position was not itself a moment this tent can tell apart. */
-  verschoben: boolean;
+  landung: Landung;
 }
 
 /**
@@ -299,14 +393,18 @@ export interface Aufloesung {
  * cursor lands on the newest Ding at or before where the thumb let go.
  */
 export const aufloesen = (roh: number, dinge: readonly Ding[], fein: boolean): Aufloesung => {
-  if (fein) return { von: Math.floor(roh / 60000) * 60000, verschoben: false };
+  if (fein) return { von: Math.floor(roh / 60000) * 60000, landung: 'genau' };
 
   const davor = lebend(dinge)
     .filter(ding => ding.t <= roh)
     .reduce<Ding | null>((bestes, ding) => (!bestes || ding.t > bestes.t ? ding : bestes), null);
 
-  if (!davor) return { von: roh, verschoben: false };
-  return { von: davor.t, verschoben: davor.t !== roh };
+  // Before the first Ding of a tent that has never measured anything there is
+  // nothing to land on. The moment is still where the thumb is - it just is not
+  // one the tent can tell apart, and printing it as if it were would be the one
+  // lie this control must not tell.
+  if (!davor) return { von: roh, landung: 'unbekannt' };
+  return { von: davor.t, landung: davor.t === roh ? 'genau' : 'verschoben' };
 };
 
 /**
@@ -325,8 +423,12 @@ export const naechsterUnterschied = (
   messungen: readonly Messung[] = [],
   jetzt: number = Date.now(),
 ): number | null => {
+  // §8.1: „device-less it lands on entries" - an *entry* is the change. The
+  // tent, its plants, its sockets and its setpoints are what the tent is, not
+  // something that happened, and stepping through the day somebody typed a
+  // plant in is not a difference anybody asked about.
   const kandidaten = lebend(dinge)
-    .filter(ding => ding.t > von && ding.t <= jetzt)
+    .filter(ding => istEintrag(ding) && ding.t > von && ding.t <= jetzt)
     .map(ding => ding.t);
 
   const gruppen = new Map<string, Messung[]>();

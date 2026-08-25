@@ -13,6 +13,7 @@ import { formatTimeAgo } from 'src/app/util/time-ago';
 import { KAPPE, UnterschiedZeile, handMessungen, nachAbweichung, unterschiedZeilen } from 'src/app/util/unterschied';
 import { VorherLage, vorherLage, vorherVerschoben } from 'src/app/util/vorher';
 import { PaarHalbe } from '../paar/paar.component';
+import { BlattArt, BlattService } from '../blatt/blatt.service';
 import { pluralSchluessel, zahlText } from 'src/app/util/zahl';
 import { zeltTag } from 'src/app/util/zelt-tag';
 import { DingTextService } from '../zeile/ding-text.service';
@@ -71,7 +72,7 @@ const TAKT_MS = 30 * 1000;
 @Component({
   selector: 'app-tafel',
   templateUrl: './tafel.component.html',
-  styleUrls: ['./tafel.component.scss'],
+  styleUrls: ['./tafel.component.scss', '../blatt/aktionen.scss'],
 })
 export class TafelComponent implements OnInit, OnChanges, OnDestroy {
   @Input() zelt!: Zelt;
@@ -101,6 +102,8 @@ export class TafelComponent implements OnInit, OnChanges, OnDestroy {
   @Output() mehr = new EventEmitter<void>();
 
   public tabelleOffen = false;
+  /** §17's one line: how many entries are still waiting for a connection. */
+  public wartend = 0;
   /** True while a thumb is on the handle. Motion collapses, rest unfolds (M3). */
   public zieht = false;
 
@@ -137,7 +140,12 @@ export class TafelComponent implements OnInit, OnChanges, OnDestroy {
    */
   private eingabeStand = 0;
 
-  constructor(private cursor: VergleichService, private translate: TranslateService, private texte: DingTextService) {}
+  constructor(
+    private cursor: VergleichService,
+    private translate: TranslateService,
+    private texte: DingTextService,
+    private blaetter: BlattService,
+  ) {}
 
   ngOnInit(): void {
     this.abos.add(
@@ -147,6 +155,7 @@ export class TafelComponent implements OnInit, OnChanges, OnDestroy {
       }),
     );
     this.abos.add(this.cursor.zieht$.subscribe(zieht => (this.zieht = zieht)));
+    this.abos.add(this.blaetter.wartend$.subscribe(anzahl => (this.wartend = anzahl)));
     this.abos.add(
       interval(TAKT_MS).subscribe(() => {
         this.jetzt = Date.now();
@@ -203,6 +212,28 @@ export class TafelComponent implements OnInit, OnChanges, OnDestroy {
         { id: 'jetzt' as const, kappe: { key: 'zelt.kappe.jetzt' }, beleg: this.belegJetzt, moment: this.jetzt, zeitZeigen: true },
       ].map(halbe => ({ ...halbe, tag: this.zelt ? zeltTag(this.zelt, this.dinge, halbe.moment) : 0 })),
     );
+  }
+
+  /**
+   * §6.2's action row. The write is local-first (§17): the sheet mints the id,
+   * queues the entry and hands it back, so the row is on the screen before the
+   * network has heard of it. A later read from the server carries the same
+   * client-minted id and replaces it rather than doubling it.
+   */
+  public async eintragen(art: BlattArt): Promise<void> {
+    const ding = await this.blaetter.oeffnen(art, this.zelt, this.dinge);
+    if (!ding) return;
+
+    this.dinge = [ding, ...this.dinge];
+    this.ngOnChanges();
+  }
+
+  get wartendSchluessel(): string {
+    return pluralSchluessel('zelt.ausgang.wartet', this.wartend);
+  }
+
+  get wartendParams(): Record<string, string> {
+    return { anzahl: zahlText(this.wartend, 0) };
   }
 
   /** The Subjekt's own name, in the reader's language. An unnamed tent is still a tent. */

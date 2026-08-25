@@ -899,9 +899,11 @@
       "gabe": "last watering",
       "foto": "last photo",
       "lauf": "Run {{nummer}} · day {{tag}}",
+      "laufKurz": "previous run",
       "zuletztDu": "since your last visit",
       "zuletztGeraet": "since the last visit on this device",
       "besuch": "previous visit",
+      "besuchVon": "since the last visit by {{wer}}",
       "kapitel": "Chapter",
       "kette": {
         "gabe": "previous watering",
@@ -912,6 +914,7 @@
       },
       "moment": "{{zeit}} · day {{tag}}",
       "verschoben": "{{zeit}} · day {{tag}} (last entry before)",
+      "unbekannt": "{{zeit}} · day {{tag}} (nothing recorded before)",
       "naechster": "Next difference ›",
       "keinUnterschied": "No further difference — nothing was recorded.",
       "vorherHier": "Compare from here"
@@ -1348,6 +1351,64 @@
       "drying": "Drying",
       "curing": "Curing",
       "ernte": "The harvest"
+    },
+    "aktion": {
+      "titel": "Log an entry",
+      "gabe": "Water",
+      "notiz": "Note",
+      "foto": "Photo",
+      "zettel": "Pinned note",
+      "fotoSpaeter": "Photos are coming later. Everything else can already be logged."
+    },
+    "ausgang": {
+      "wartet": {
+        "one": "1 entry is waiting for a connection.",
+        "other": "{{anzahl}} entries are waiting for a connection."
+      },
+      "konflikt": "That id already belongs to a different entry. Nothing was overwritten – please log it again.",
+      "abgelehnt": "The entry was not saved: {{grund}}"
+    },
+    "blatt": {
+      "abbrechen": "Cancel",
+      "eintragen": "Log it",
+      "trotzdem": "Log it anyway",
+      "dublette": "That was the same watering",
+      "heute": "today {{zeit}}",
+      "zeitpunktAendern": "Change the time",
+      "gabe": {
+        "titel": "Watering",
+        "an": "To",
+        "ganzesZelt": "Whole tent",
+        "kannen": {
+          "one": "1 can · {{liter}} l",
+          "other": "{{anzahl}} cans · {{liter}} l"
+        },
+        "kanne": "Can",
+        "weniger": "One can fewer",
+        "gesamt": "{{liter}} l in total",
+        "jePflanze": "{{liter}} l per plant · {{gesamt}} l in total",
+        "produktName": "Product",
+        "produktZufuegen": "+ Product",
+        "produktWeg": "Remove product",
+        "mlProLiter": "ml/l",
+        "letzte": "Last time: {{produkte}}",
+        "notiz": "Note",
+        "wer": "Who?",
+        "jemand": "Somebody",
+        "warnung": "{{wer}} watered {{was}} {{wann}} ({{liter}} l).",
+        "warnungSubstrat": "Substrate afterwards: {{substrat}}.",
+        "warnungLokal": "(not sent yet)",
+        "keinFoto": "No photo with it."
+      },
+      "notiz": {
+        "titel": "Note",
+        "platzhalter": "What did you notice?"
+      },
+      "zettel": {
+        "titel": "Pinned note",
+        "platzhalter": "What should the next person know?",
+        "hinweis": "The note stays at the top of the tent until somebody ticks it off."
+      }
     }
   },
   "simpleSettings": {

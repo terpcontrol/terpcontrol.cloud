@@ -120,6 +120,17 @@
     </button>
   </section>
 
+  <!-- §6.2's four buttons, byte-identical at every density: they are what
+       makes the diary writable, and none of them asks whether the tent has
+       hardware. Sticky, because this is the row a thumb reaches for. -->
+  <nav class="tafel-aktionen" [attr.aria-label]="'zelt.aktion.titel' | translate">
+    <button type="button" class="tafel-aktion tafel-aktion--gabe" (click)="eintragen('gabe')">{{ 'zelt.aktion.gabe' | translate }}</button>
+    <button type="button" class="tafel-aktion" (click)="eintragen('notiz')">{{ 'zelt.aktion.notiz' | translate }}</button>
+    <button type="button" class="tafel-aktion" (click)="eintragen('bild')">{{ 'zelt.aktion.foto' | translate }}</button>
+    <button type="button" class="tafel-aktion" (click)="eintragen('zustand')">{{ 'zelt.aktion.zettel' | translate }}</button>
+  </nav>
+  <p class="tafel-wartend" *ngIf="wartend">{{ wartendSchluessel | translate: wartendParams }}</p>
+
   <footer class="tafel-fuss">
     <app-werte [anfrage]="anfrage" [messungen]="messungen"></app-werte>
   </footer>

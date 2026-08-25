@@ -895,9 +895,11 @@
       "gabe": "letzte Gabe",
       "foto": "letztes Foto",
       "lauf": "Lauf {{nummer}} · Tag {{tag}}",
+      "laufKurz": "voriger Lauf",
       "zuletztDu": "seit deinem letzten Besuch",
       "zuletztGeraet": "seit dem letzten Besuch auf diesem Gerät",
       "besuch": "voriger Besuch",
+      "besuchVon": "seit dem letzten Besuch von {{wer}}",
       "kapitel": "Kapitel",
       "kette": {
         "gabe": "vorige Gabe",
@@ -908,6 +910,7 @@
       },
       "moment": "{{zeit}} · Tag {{tag}}",
       "verschoben": "{{zeit}} · Tag {{tag}} (letzter Eintrag davor)",
+      "unbekannt": "{{zeit}} · Tag {{tag}} (nichts davor aufgezeichnet)",
       "naechster": "Nächster Unterschied ›",
       "keinUnterschied": "Kein weiterer Unterschied — es wurde nichts aufgezeichnet.",
       "vorherHier": "Vorher hierher setzen"
@@ -1344,6 +1347,64 @@
       "drying": "Die Trocknung",
       "curing": "Die Reifung",
       "ernte": "Die Ernte"
+    },
+    "aktion": {
+      "titel": "Eintragen",
+      "gabe": "Gießen",
+      "notiz": "Notiz",
+      "foto": "Foto",
+      "zettel": "Zettel",
+      "fotoSpaeter": "Fotos kommen später. Alles andere kannst du schon eintragen."
+    },
+    "ausgang": {
+      "wartet": {
+        "one": "1 Eintrag wartet auf Verbindung.",
+        "other": "{{anzahl}} Einträge warten auf Verbindung."
+      },
+      "konflikt": "Diese Kennung gehört schon zu einem anderen Eintrag. Es wurde nichts überschrieben – trag ihn bitte noch einmal ein.",
+      "abgelehnt": "Der Eintrag wurde nicht gespeichert: {{grund}}"
+    },
+    "blatt": {
+      "abbrechen": "Abbrechen",
+      "eintragen": "Eintragen",
+      "trotzdem": "Trotzdem eintragen",
+      "dublette": "Das war dieselbe Gabe",
+      "heute": "heute {{zeit}}",
+      "zeitpunktAendern": "Zeitpunkt ändern",
+      "gabe": {
+        "titel": "Gabe",
+        "an": "An",
+        "ganzesZelt": "Ganzes Zelt",
+        "kannen": {
+          "one": "1 Kanne · {{liter}} l",
+          "other": "{{anzahl}} Kannen · {{liter}} l"
+        },
+        "kanne": "Kanne",
+        "weniger": "Eine Kanne weniger",
+        "gesamt": "{{liter}} l gesamt",
+        "jePflanze": "{{liter}} l je Pflanze · {{gesamt}} l gesamt",
+        "produktName": "Produkt",
+        "produktZufuegen": "+ Produkt",
+        "produktWeg": "Produkt entfernen",
+        "mlProLiter": "ml/l",
+        "letzte": "Zuletzt: {{produkte}}",
+        "notiz": "Notiz",
+        "wer": "Wer?",
+        "jemand": "Jemand",
+        "warnung": "{{wer}} hat {{was}} {{wann}} gegossen ({{liter}} l).",
+        "warnungSubstrat": "Substrat danach: {{substrat}}.",
+        "warnungLokal": "(noch nicht gesendet)",
+        "keinFoto": "Kein Foto dazu."
+      },
+      "notiz": {
+        "titel": "Notiz",
+        "platzhalter": "Was ist dir aufgefallen?"
+      },
+      "zettel": {
+        "titel": "Zettel",
+        "platzhalter": "Was soll die nächste Person wissen?",
+        "hinweis": "Der Zettel bleibt oben am Zelt stehen, bis ihn jemand abhakt."
+      }
     }
   },
   "simpleSettings": {

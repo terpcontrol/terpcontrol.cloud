@@ -1,15 +1,16 @@
 <div class="griff" [class.griff--zieht]="zieht">
   <p class="griff-zeile">
-    <span class="griff-anker">{{ (anker?.text?.key || 'zelt.griff.titel') | translate }}</span>
-    <span class="griff-moment" *ngIf="!hinweis">
-      {{
-        (verschoben ? 'zelt.griff.verschoben' : 'zelt.griff.moment')
-          | translate: { zeit: moment | date: 'EEE dd.MM. HH:mm', tag: tag }
-      }}
+    <!-- The rung, in its own words and with its own numbers - `Lauf 1 · Tag 34`,
+         resolved through `DingTextService` like every other Text in the app. -->
+    <span class="griff-anker" *ngIf="!hinweis">{{ ankerBeschriftung }}</span>
+    <span class="griff-moment">
+      {{ momentSchluessel | translate: { zeit: moment | date: 'EEE dd.MM. HH:mm', tag: tag } }}
     </span>
     <!-- The reply of `Nächster Unterschied` takes the same line rather than a new
-         one: the control is 56 px on every Tafel and answering must not move it. -->
-    <span class="griff-moment griff-hinweis" *ngIf="hinweis">{{ hinweis | translate }}</span>
+         one: the control is 56 px on every Tafel and answering must not move it.
+         It takes the *rung's* place and never the printed moment - a control that
+         answers by hiding where you are is answering a different question. -->
+    <span class="griff-moment griff-hinweis" *ngIf="hinweis" [attr.title]="hinweis | translate">{{ hinweis | translate }}</span>
     <button type="button" class="griff-naechster" (click)="naechster()">{{ 'zelt.griff.naechster' | translate }}</button>
   </p>
 
@@ -22,12 +23,14 @@
     [attr.aria-valuemin]="0"
     [attr.aria-valuemax]="100"
     [attr.aria-valuenow]="kopfProzent"
-    [attr.aria-valuetext]="moment | date: 'EEE dd.MM. HH:mm'"
+    [attr.aria-valuetext]="ankerBeschriftung + ' · ' + (moment | date: 'EEE dd.MM. HH:mm')"
     (pointerdown)="onPointerDown($event)"
     (pointermove)="onPointerMove($event)"
-    (pointerup)="onPointerUp()"
-    (pointercancel)="onPointerUp()"
+    (pointerup)="onPointerUp($event)"
+    (pointercancel)="onPointerCancel($event)"
     (keydown)="onKeydown($event)"
+    (keyup)="onKeyup($event)"
+    (blur)="onBlur()"
   >
     <svg class="griff-band" [attr.viewBox]="'0 0 ' + balken.length + ' 2'" preserveAspectRatio="none" aria-hidden="true">
       <rect
@@ -53,7 +56,7 @@
       class="griff-detent"
       *ngFor="let detent of detentliste; trackBy: trackDetent"
       [style.left.%]="prozent(detent.von)"
-      [attr.title]="(detent.text.key || '') | translate"
+      [attr.title]="beschriftung(detent)"
       aria-hidden="true"
     ></span>
     <span class="griff-kopf" [style.left.%]="kopfProzent" aria-hidden="true"><span class="griff-knopf"></span></span>

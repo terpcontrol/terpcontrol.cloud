@@ -1,0 +1,191 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>{{ 'zelt.blatt.gabe.titel' | translate }}</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="abbrechen()">{{ 'zelt.blatt.abbrechen' | translate }}</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="blatt-inhalt">
+  <tc-blatt-kopf [t]="t" [min]="fenster.min" [max]="fenster.max" (tChange)="zeitpunkt($event)"></tc-blatt-kopf>
+
+  <!-- §13.3: no plant picked is the whole tent, and that is the default rather
+       than a state you have to get back to. The row exists only where there is
+       something to pick. -->
+  <div class="blatt-wahl" *ngIf="pflanzenListe.length">
+    <span class="blatt-wahl-name">{{ 'zelt.blatt.gabe.an' | translate }}</span>
+    <button type="button" class="blatt-chip" [class.blatt-chip--an]="!pflanzen.length" [attr.aria-pressed]="!pflanzen.length" (click)="ganzesZelt()">
+      {{ 'zelt.blatt.gabe.ganzesZelt' | translate }}
+    </button>
+    <button
+      type="button"
+      class="blatt-chip"
+      *ngFor="let pflanze of pflanzenListe; trackBy: trackDing"
+      [class.blatt-chip--an]="pflanzen.includes(pflanze.ding_id)"
+      [attr.aria-pressed]="pflanzen.includes(pflanze.ding_id)"
+      (click)="pflanzeUmschalten(pflanze.ding_id)"
+    >
+      {{ name(pflanze) }}
+    </button>
+  </div>
+
+  <!-- The counter: one tap is one can, a long press takes one back, and the
+       litres are read out of it. Nobody types a volume. -->
+  <div class="blatt-zaehler">
+    <button
+      type="button"
+      class="blatt-kanne"
+      (click)="mehr()"
+      (pointerdown)="halten()"
+      (pointerup)="loslassen()"
+      (pointerleave)="loslassen()"
+      (pointercancel)="loslassen()"
+    >
+      <span class="blatt-punkte" aria-hidden="true">
+        <span class="blatt-punkt" *ngFor="let punkt of punkte" [class.blatt-punkt--voll]="punkt < kannen"></span>
+      </span>
+      <span class="blatt-menge">{{ kannenSchluessel | translate: kannenParams }}</span>
+    </button>
+    <button type="button" class="blatt-weniger" (click)="weniger()" [attr.aria-label]="'zelt.blatt.gabe.weniger' | translate">
+      <span aria-hidden="true">&minus;</span>
+    </button>
+  </div>
+
+  <div class="blatt-zeile">
+    <span class="blatt-zeile-name">{{ 'zelt.blatt.gabe.kanne' | translate }}</span>
+    <ion-select [value]="kanne_l" interface="popover" (ionChange)="kanneWaehlen($any($event))">
+      <ion-select-option *ngFor="let groesse of groessen" [value]="groesse">{{ groesseText(groesse) }} {{ 'zelt.einheit.liter' | translate }}</ion-select-option>
+    </ion-select>
+  </div>
+
+  <div class="blatt-zeile">
+    <span class="blatt-menge-text">{{ mengeSchluessel | translate: mengeParams }}</span>
+    <div class="blatt-schalter">
+      <button
+        type="button"
+        class="blatt-chip"
+        [class.blatt-chip--an]="verteilung === 'gesamt'"
+        [attr.aria-pressed]="verteilung === 'gesamt'"
+        (click)="verteilung = 'gesamt'"
+      >
+        {{ 'zelt.verteilung.gesamt' | translate }}
+      </button>
+      <button
+        type="button"
+        class="blatt-chip"
+        [class.blatt-chip--an]="verteilung === 'je_pflanze'"
+        [attr.aria-pressed]="verteilung === 'je_pflanze'"
+        (click)="verteilung = 'je_pflanze'"
+      >
+        {{ 'zelt.verteilung.je_pflanze' | translate }}
+      </button>
+    </div>
+  </div>
+
+  <div class="blatt-produkte">
+    <label class="blatt-produkt" *ngFor="let produkt of produkte; let stelle = index; trackBy: trackProdukt">
+      <input
+        class="blatt-eingabe blatt-eingabe--name"
+        type="text"
+        autocomplete="off"
+        [name]="'produkt' + stelle"
+        [placeholder]="'zelt.blatt.gabe.produktName' | translate"
+        [(ngModel)]="produkt.name"
+      />
+      <input class="blatt-eingabe" type="text" inputmode="decimal" autocomplete="off" [name]="'dosis' + stelle" [(ngModel)]="produkt.ml_pro_l" />
+      <span class="blatt-einheit">{{ 'zelt.blatt.gabe.mlProLiter' | translate }}</span>
+      <button type="button" class="blatt-weg" (click)="produktEntfernen(stelle)" [attr.aria-label]="'zelt.blatt.gabe.produktWeg' | translate">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </label>
+    <div class="blatt-zeile">
+      <button type="button" class="blatt-knopf-klein" (click)="produktZufuegen()">{{ 'zelt.blatt.gabe.produktZufuegen' | translate }}</button>
+      <!-- The last feed's products, offered rather than filled in: a dose
+           nobody typed is a fertiliser nobody gave. -->
+      <button type="button" class="blatt-knopf-klein" *ngIf="letzteProdukte.length" (click)="letzteUebernehmen()">
+        {{ 'zelt.blatt.gabe.letzte' | translate: { produkte: letzteText } }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Always here, never required. -->
+  <div class="blatt-messwerte">
+    <label class="blatt-messwert">
+      <span class="blatt-messwert-name">{{ 'zelt.feld.ph' | translate }}</span>
+      <input class="blatt-eingabe" type="text" inputmode="decimal" autocomplete="off" name="ph" [(ngModel)]="ph" />
+      <span class="blatt-einheit"></span>
+    </label>
+    <label class="blatt-messwert">
+      <span class="blatt-messwert-name">{{ 'zelt.feld.ec' | translate }}</span>
+      <input class="blatt-eingabe" type="text" inputmode="decimal" autocomplete="off" name="ec" [(ngModel)]="ec" />
+      <span class="blatt-einheit">{{ 'zelt.einheit.ms' | translate }}</span>
+    </label>
+    <label class="blatt-messwert">
+      <span class="blatt-messwert-name">{{ 'zelt.feld.ablaufPh' | translate }}</span>
+      <input class="blatt-eingabe" type="text" inputmode="decimal" autocomplete="off" name="ablauf_ph" [(ngModel)]="ablauf_ph" />
+      <span class="blatt-einheit"></span>
+    </label>
+    <label class="blatt-messwert">
+      <span class="blatt-messwert-name">{{ 'zelt.feld.ablaufEc' | translate }}</span>
+      <input class="blatt-eingabe" type="text" inputmode="decimal" autocomplete="off" name="ablauf_ec" [(ngModel)]="ablauf_ec" />
+      <span class="blatt-einheit">{{ 'zelt.einheit.ms' | translate }}</span>
+    </label>
+  </div>
+
+  <!-- §13.4's fourth correction: feeling the substrate while watering is one
+       act, so it rides on the Gabe rather than costing a second entry. -->
+  <div class="blatt-wahl">
+    <span class="blatt-wahl-name">{{ 'zelt.feld.substrat' | translate }}</span>
+    <button
+      type="button"
+      class="blatt-chip"
+      *ngFor="let wert of substrate"
+      [class.blatt-chip--an]="substrat === wert"
+      [attr.aria-pressed]="substrat === wert"
+      (click)="substratWaehlen(wert)"
+    >
+      {{ 'zelt.substrat.' + wert | translate }}
+    </button>
+  </div>
+
+  <label class="blatt-zeile">
+    <span class="blatt-zeile-name">{{ 'zelt.blatt.gabe.notiz' | translate }}</span>
+    <input class="blatt-eingabe blatt-eingabe--breit" type="text" autocomplete="off" name="notiz" [(ngModel)]="notiz" />
+  </label>
+
+  <!-- §13.1: at two people, and never before. -->
+  <div class="blatt-wahl" *ngIf="werZeigen">
+    <span class="blatt-wahl-name">{{ 'zelt.blatt.gabe.wer' | translate }}</span>
+    <button
+      type="button"
+      class="blatt-chip"
+      *ngFor="let mensch of menschen; trackBy: trackDing"
+      [class.blatt-chip--an]="akteur === mensch.ding_id"
+      [attr.aria-pressed]="akteur === mensch.ding_id"
+      (click)="akteurWaehlen(mensch.ding_id)"
+    >
+      {{ mensch.name }}
+    </button>
+  </div>
+
+  <!-- §13.4. The button below relabels rather than blocking: the guard is a
+       fact somebody may already know, not a permission. -->
+  <p class="blatt-warnung" *ngIf="warnung">
+    <span aria-hidden="true">&#9888;</span> {{ 'zelt.blatt.gabe.warnung' | translate: warnungParams }}
+    <span *ngIf="warnung.substrat">{{ 'zelt.blatt.gabe.warnungSubstrat' | translate: { substrat: substratText } }}</span>
+    <span *ngIf="warnung.lokal">{{ 'zelt.blatt.gabe.warnungLokal' | translate }}</span>
+    <span class="blatt-warnung-foto" *ngIf="!warnung.bilder.length">{{ 'zelt.blatt.gabe.keinFoto' | translate }}</span>
+  </p>
+</ion-content>
+
+<ion-footer class="blatt-fuss">
+  <button type="button" class="blatt-knopf" (click)="eintragen()">
+    {{ (warnung ? 'zelt.blatt.trotzdem' : 'zelt.blatt.eintragen') | translate }}
+  </button>
+  <!-- §13.6: two phones minted two ids for one pour, and the second one says so
+       instead of doubling every total the tent has. -->
+  <button type="button" class="blatt-knopf blatt-knopf--zweit" *ngIf="warnung" (click)="dublette()">
+    {{ 'zelt.blatt.dublette' | translate }}
+  </button>
+</ion-footer>
