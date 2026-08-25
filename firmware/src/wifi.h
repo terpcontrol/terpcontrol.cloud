@@ -24,6 +24,11 @@ namespace fg {
   public:
     PhoneSetupDash(std::string ip, std::function<void(void)> callback, std::string ssid = "");
 
+    // This screen is read by somebody who then has to pick up a phone, join a
+    // network and type a url. Half a minute takes the address away in the
+    // middle of that, so it stays lit for three.
+    unsigned int idleTicks() const override { return UI_TICKS_PER_SECOND * 180; }
+
     void draw() override;
     void prev() override;
     void next() override;

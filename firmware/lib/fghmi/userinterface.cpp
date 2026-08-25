@@ -44,7 +44,11 @@ namespace fg {
   void UserInterface::loop() {
     UserInterface::display.clearDisplay();
 
-    if(idle_ticks >= MAX_IDLE_TICKS) {
+    // Asked of the screen on top rather than fixed, so a screen that wants to
+    // stay readable while somebody walks away and does something can say so.
+    auto max_idle_ticks = items.size() ? (*items.rbegin())->idleTicks() : MAX_IDLE_TICKS;
+
+    if(idle_ticks >= max_idle_ticks) {
       if(current_action != UiAction::NONE) {
         idle_ticks = 0;
         current_action = UiAction::NONE;

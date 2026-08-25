@@ -343,6 +343,17 @@
         });
       }
 
+      /* A space at either end of a value is invisible in the field and breaks
+         it silently - a url that will not resolve, a password that will not
+         match. Checked as it is typed so it can still be fixed. */
+      function checkSpaces() {
+        let padded = ['#primary-password', '#server-url', '#join-password'].some(function(id) {
+          let value = document.querySelector(id).value;
+          return value != value.trim();
+        });
+        show('#warn', padded);
+      }
+
       function sendConfig() {
         show('#wifi-ui', false);
         show('#connected', false);
@@ -352,7 +363,7 @@
         let form_data = new FormData(document.querySelector('#wifi'));
         let payload = JSON.stringify({
           primary: {
-            ssid: form_data.get('primary-ssid'),
+            ssid: form_data.get('primary-ssid').trim(),
             password: form_data.get('primary-password'),
           },
         });
@@ -430,6 +441,11 @@
         Could not connect. Check the network and password.
       </div>
 
+      <div id="warn" class="hidden box">
+        A value starts or ends with a space. That is usually a typo - a space is
+        invisible here but counts.
+      </div>
+
       <div id="wifi-ui" class="hidden card">
         <p class="lead">Connect your device to your WiFi network.</p>
         <form id="wifi">
@@ -437,7 +453,7 @@
           <input id="primary-ssid" type="text" name="primary-ssid" value="" autocapitalize="none" autocomplete="off">
           <button class="ghost" type="button" onclick="scanWifi()">Scan for networks</button>
           <label for="primary-password" style="margin-top:16px">Password</label>
-          <input id="primary-password" type="text" name="primary-password" value="" autocapitalize="none" autocomplete="off">
+          <input id="primary-password" type="text" name="primary-password" oninput="checkSpaces()" value="" autocapitalize="none" autocomplete="off">
         </form>
         <button class="primary" type="button" onclick="sendConfig()">Save</button>
       </div>
@@ -446,9 +462,9 @@
         <p class="lead">Point this device at a different server. It registers there and installs the firmware that server serves.</p>
         <form id="server">
           <label for="server-url">Server URL</label>
-          <input id="server-url" type="url" name="url" value="" required autocapitalize="none" autocomplete="off">
+          <input id="server-url" type="url" name="url" oninput="checkSpaces()" value="" required autocapitalize="none" autocomplete="off">
           <label for="join-password">Join password</label>
-          <input id="join-password" type="text" name="password" value="" autocapitalize="none" autocomplete="off">
+          <input id="join-password" type="text" name="password" oninput="checkSpaces()" value="" autocapitalize="none" autocomplete="off">
         </form>
         <button class="primary" type="button" onclick="sendServer()">Save</button>
       </div>

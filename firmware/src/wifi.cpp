@@ -13,6 +13,7 @@
 
 #include <ArduinoJson.h>
 #include <EEPROM.h>
+#include <algorithm>
 #include <array>
 #include <sstream>
 #include <cctype>
@@ -168,6 +169,7 @@ bool isSmartSocketSsid(const std::string& value);
 std::vector<std::string> scanSmartSocketSsids();
 std::string smartSocketDisplayName(const std::string& ssid);
 std::string sanitizeSettingString(const std::string& value);
+std::string trimSpaces(const std::string& value);
 std::string urlEncode(const std::string& value);
 bool httpGet(const char* url, std::string* response = nullptr);
 bool parseSmartSocketIp(const std::string& body, std::string& socket_ip);
@@ -1568,7 +1570,7 @@ void handleConfig() {
     return;
   }
 
-  primary_ssid = config_data["primary"]["ssid"].as<std::string>();
+  primary_ssid = trimSpaces(config_data["primary"]["ssid"].as<std::string>());
   primary_password = config_data["primary"]["password"].as<std::string>();
 
   bool connected = connectToWifi(primary_ssid, primary_password);
@@ -1713,6 +1715,18 @@ String formatBytes(size_t bytes) {            // lesbare Anzeige der Speichergr√
 
 std::string sanitizeSettingString(const std::string& value) {
   return std::string(value.c_str());
+}
+
+// A space at either end of a network name is invisible wherever the name is
+// shown, so one that arrives with the scan or off a router label is dropped
+// rather than carried into a connection attempt nobody can see is wrong.
+// Passwords are left alone: a space there may well be deliberate.
+std::string trimSpaces(const std::string& value) {
+  auto first = value.find_first_not_of(" \t");
+  if(first == std::string::npos) {
+    return "";
+  }
+  return value.substr(first, value.find_last_not_of(" \t") - first + 1);
 }
 
 std::string urlEncode(const std::string& value) {
@@ -2299,7 +2313,14 @@ std::vector<std::string> scanWifiNetworks() {
               Serial.print("unknown");
           }
           Serial.println();
-          ssids.push_back(WiFi.SSID(i).c_str());
+
+          // One row per name. A mesh or a repeater answers on several bands
+          // and channels, and the list is there to pick a network, not a
+          // radio - the duplicates are indistinguishable once drawn.
+          auto name = trimSpaces(WiFi.SSID(i).c_str());
+          if(std::find(ssids.begin(), ssids.end(), name) == ssids.end()) {
+            ssids.push_back(name);
+          }
           delay(10);
       }
   }
