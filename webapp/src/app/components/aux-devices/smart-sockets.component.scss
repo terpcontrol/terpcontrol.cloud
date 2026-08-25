@@ -33,11 +33,20 @@
   flex-direction: column;
   line-height: 1.3;
 
-  .aux-socket-ip {
+  .aux-socket-ip,
+  .aux-socket-id {
     color: var(--ion-color-medium);
     font-size: 0.78rem;
     font-family: monospace;
   }
+}
+
+// Which of a role's sockets this is ("2/3"), and how many a role already has
+// in the add-flow chips.
+.aux-socket-index {
+  color: var(--ion-color-medium);
+  font-size: 0.78rem;
+  margin-left: 4px;
 }
 
 .aux-socket-brands {

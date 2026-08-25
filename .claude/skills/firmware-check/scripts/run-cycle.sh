@@ -74,12 +74,17 @@ while read HW ID; do
   CLASS=$(curl -s "$API_URL_EXTERNAL/device/class/find/$HW" \
     -H "Authorization: Bearer $ADMIN")
   CLASS_ID=$(echo "$CLASS" | python3 -c "import json,sys; print(json.load(sys.stdin)['class_id'])")
+  # All three channels get the same id: a device is only offered an update from
+  # the channel its cloudSettings.firmwareChannel names, so leaving one unset
+  # means devices on that channel silently sit on their old firmware while the
+  # cycle waits for them.
   BODY=$(echo "$CLASS" | python3 -c "
 import json,sys
 c=json.load(sys.stdin)
 c['firmware_id']='$ID'
 c['beta_firmware_id']='$ID'
-print(json.dumps({k:c[k] for k in ('name','description','firmware_id','beta_firmware_id','concurrent','maxfails')}))
+c['alpha_firmware_id']='$ID'
+print(json.dumps({k:c[k] for k in ('name','description','firmware_id','beta_firmware_id','alpha_firmware_id','concurrent','maxfails')}))
 ")
   RESP=$(curl -s -X POST "$API_URL_EXTERNAL/device/class/$CLASS_ID" \
     -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' -d "$BODY")

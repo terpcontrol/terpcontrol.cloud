@@ -10,33 +10,39 @@
 </p>
 
 <ng-container *ngIf="socketsReported">
-  <ng-container *ngFor="let role of socketRoles; trackBy: trackByRole">
-    <div class="aux-socket-row" *ngIf="socketState(role) === 'connected' || pendingRoles.has(role)">
+  <ng-container *ngFor="let socket of sockets; trackBy: trackBySocket">
+    <div class="aux-socket-row">
       <div class="aux-socket-info">
-        <span class="aux-socket-name">{{ 'auxDevices.sockets.roles.' + role | translate }}</span>
-        <span class="aux-socket-ip" *ngIf="socketIp(role)">{{ socketIp(role) }}</span>
+        <span class="aux-socket-name">
+          {{ 'auxDevices.sockets.roles.' + socket.role | translate }}
+          <span class="aux-socket-index" *ngIf="countForRole(socket.role) > 1">
+            {{ positionInRole(socket) }}/{{ countForRole(socket.role) }}
+          </span>
+        </span>
+        <span class="aux-socket-ip" *ngIf="socket.ip">{{ socket.ip }}</span>
+        <span class="aux-socket-id" *ngIf="socket.id">{{ 'auxDevices.sockets.hardwareId' | translate }}: {{ socket.id }}</span>
       </div>
       <span
         class="tc-pill"
-        [class.tc-pill--green]="!pendingRoles.has(role)"
-        [class.tc-pill--muted]="pendingRoles.has(role)"
+        [class.tc-pill--green]="!pendingKeys.has(socketKey(socket))"
+        [class.tc-pill--muted]="pendingKeys.has(socketKey(socket))"
       >
-        {{ (pendingRoles.has(role) ? 'auxDevices.sockets.pending' : 'auxDevices.sockets.connected') | translate }}
+        {{ (pendingKeys.has(socketKey(socket)) ? 'auxDevices.sockets.pending' : 'auxDevices.sockets.connected') | translate }}
       </span>
       <ion-button
         size="small"
         fill="clear"
-        (click)="testSocket(role)"
-        [disabled]="testedRoles.has(role)"
+        (click)="testSocket(socket)"
+        [disabled]="testedKeys.has(socketKey(socket))"
         [title]="'auxDevices.sockets.test' | translate"
       >
-        <ion-icon slot="icon-only" [name]="testedRoles.has(role) ? 'hourglass-outline' : 'flash-outline'"></ion-icon>
+        <ion-icon slot="icon-only" [name]="testedKeys.has(socketKey(socket)) ? 'hourglass-outline' : 'flash-outline'"></ion-icon>
       </ion-button>
       <ion-button
         size="small"
         fill="clear"
-        (click)="startEditSocket(role)"
-        [color]="editingRole === role ? 'secondary' : undefined"
+        (click)="startEditSocket(socket)"
+        [color]="editingKey === socketKey(socket) ? 'secondary' : undefined"
         [title]="'auxDevices.sockets.edit' | translate"
       >
         <ion-icon slot="icon-only" name="create-outline"></ion-icon>
@@ -45,37 +51,41 @@
         size="small"
         fill="clear"
         color="danger"
-        (click)="removeSocket(role)"
-        [disabled]="pendingRoles.has(role)"
+        (click)="removeSocket(socket)"
+        [disabled]="pendingKeys.has(socketKey(socket))"
         [title]="'auxDevices.sockets.remove' | translate"
       >
-        <ion-spinner *ngIf="pendingRoles.has(role)" name="crescent"></ion-spinner>
-        <ion-icon *ngIf="!pendingRoles.has(role)" slot="icon-only" name="trash-outline"></ion-icon>
+        <ion-spinner *ngIf="pendingKeys.has(socketKey(socket))" name="crescent"></ion-spinner>
+        <ion-icon *ngIf="!pendingKeys.has(socketKey(socket))" slot="icon-only" name="trash-outline"></ion-icon>
       </ion-button>
     </div>
 
-    <div class="aux-socket-edit" *ngIf="editingRole === role">
+    <div class="aux-socket-edit" *ngIf="editingKey === socketKey(socket)">
       <ng-container *ngTemplateOutlet="socketCredentialFields"></ng-container>
       <div class="aux-socket-edit-actions">
-        <ion-button size="small" fill="clear" color="medium" (click)="editingRole = null">{{ 'misc.cancel' | translate }}</ion-button>
-        <ion-button size="small" color="secondary" (click)="applySocketDraft(role)" [disabled]="!socketDraftValid">
+        <ion-button size="small" fill="clear" color="medium" (click)="editingKey = null">{{ 'misc.cancel' | translate }}</ion-button>
+        <ion-button size="small" color="secondary" (click)="applySocketDraft(socket)" [disabled]="!socketDraftValid">
           {{ 'auxDevices.sockets.apply' | translate }}
         </ion-button>
       </div>
     </div>
   </ng-container>
 
+  <!-- A socket just added has no row of its own until the device reports it. -->
+  <div class="aux-socket-row" *ngIf="pendingAddRole">
+    <div class="aux-socket-info">
+      <span class="aux-socket-name">{{ 'auxDevices.sockets.roles.' + pendingAddRole | translate }}</span>
+    </div>
+    <span class="tc-pill tc-pill--muted">{{ 'auxDevices.sockets.pending' | translate }}</span>
+  </div>
+
   <!-- Add socket: brand choice like the webcam add flow -->
-  <ion-button
-    *ngIf="!addingSocket && freeSocketRoles.length > 0"
-    size="small"
-    color="secondary"
-    fill="outline"
-    (click)="startAddSocket()"
-  >
+  <ion-button *ngIf="!addingSocket && canAddSocket" size="small" color="secondary" fill="outline" (click)="startAddSocket()">
     <ion-icon slot="start" name="add-outline"></ion-icon>
     {{ 'auxDevices.sockets.add' | translate }}
   </ion-button>
+
+  <p class="aux-hint" *ngIf="!canAddSocket">{{ 'auxDevices.sockets.limitReached' | translate }}</p>
 
   <ng-container *ngIf="addingSocket">
     <div class="aux-model-grid aux-socket-brands">
@@ -104,11 +114,12 @@
         <button
           type="button"
           class="aux-role-chip"
-          *ngFor="let role of freeSocketRoles; trackBy: trackByRole"
+          *ngFor="let role of socketRoles; trackBy: trackByRole"
           [class.active]="addSocketRole === role"
           (click)="addSocketRole = role"
         >
           {{ 'auxDevices.sockets.roles.' + role | translate }}
+          <span class="aux-socket-index" *ngIf="countForRole(role) > 0">{{ countForRole(role) }}</span>
         </button>
       </div>
       <ng-container *ngTemplateOutlet="socketCredentialFields"></ng-container>

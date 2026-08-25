@@ -123,6 +123,14 @@ namespace fg {
     return nvs_erase_all(my_handle);
   }
 
+  size_t SettingsManager::freeEntries() {
+    nvs_stats_t stats;
+    if(nvs_get_stats(nullptr, &stats) != ESP_OK) {
+      return SIZE_MAX;
+    }
+    return stats.free_entries;
+  }
+
   SettingsManager& settings() {
     static SettingsManager instance;
     return instance;

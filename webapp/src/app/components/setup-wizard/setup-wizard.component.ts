@@ -13,7 +13,7 @@ import {
   StageSelection,
 } from 'src/app/util/grow-presets';
 import { KeyedCache } from 'src/app/util/keyed-cache';
-import { parseSocketRoles } from 'src/app/util/socket-info';
+import { socketReportKey, socketRoles, socketsReported } from 'src/app/util/socket-info';
 import { EXPERT_MODE_STORAGE_KEY } from 'src/app/util/ui-mode';
 
 type WizardStep = 'name' | 'connections' | 'stage' | 'plan' | 'done';
@@ -105,15 +105,14 @@ export class SetupWizardComponent implements OnInit {
   }
 
   get socketsReported(): boolean {
-    return this.hardwareInfo?.['sockets'] !== undefined;
+    return socketsReported(this.hardwareInfo);
   }
 
   // Memoized: template ngFor needs stable array identity across change detection.
   private socketRolesCache = new KeyedCache<string[]>();
 
   get connectedSocketRoles(): string[] {
-    const csv = this.hardwareInfo?.['sockets'] ?? '';
-    return this.socketRolesCache.get(csv, () => parseSocketRoles(csv));
+    return this.socketRolesCache.get(socketReportKey(this.hardwareInfo), () => socketRoles(this.hardwareInfo));
   }
 
   /** Re-reads the socket report, e.g. after pairing on the device mid-wizard. */

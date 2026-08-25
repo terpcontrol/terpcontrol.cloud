@@ -19,7 +19,13 @@ const demoDeviceDoc = {
   demoDevice: true,
   configuration: '{"temperature":24}',
   cloudSettings: { rtspStream: 'rtsp://user:secret@cam/stream', firmwareChannel: 'stable' },
-  hardwareInfo: { co2: 'on', webcam_url: 'http://user:secret@cam/snapshot', socket_ips: '192.168.1.20' },
+  hardwareInfo: {
+    co2: 'on',
+    webcam_url: 'http://user:secret@cam/snapshot',
+    socket_ips: 'heater@192.168.1.20',
+    sockets_n: '1',
+    socket_list0: 'heater|A4CF12AB34CD|192.168.1.20',
+  },
 };
 
 afterAll(async () => {
@@ -73,7 +79,7 @@ describe('Demo sessions', () => {
     expect(response.body).toHaveLength(1);
     expect(response.body[0].device_id).toEqual(DEMO_DEVICE_ID);
     expect(response.body[0].cloudSettings.rtspStream).toEqual(DEMO_WEBCAM_URL);
-    expect(response.body[0].hardwareInfo).toEqual({ co2: 'on' });
+    expect(response.body[0].hardwareInfo).toEqual({ co2: 'on', sockets_n: '1' });
   });
 
   it('reads a demo device', async () => {

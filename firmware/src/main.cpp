@@ -195,6 +195,7 @@ void setup()
   control->init();
 
   ui.init();
+  wifiSetUserInterface(&ui);
 
   control->initStatusMenu(&ui);
 

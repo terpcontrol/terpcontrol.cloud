@@ -174,6 +174,9 @@ export interface Device {
   firmwareSettings?: FirmwareSettings;
   cloudSettings?: CloudSettings;
   maintenance_mode_until?: number;
+  /** Seconds left of the maintenance window, 0 when it is not running. Derived from
+   * `maintenance_mode_until` when the device is read, never stored. */
+  maintenance_mode_seconds_left?: number;
   recipe?: Recipe;
   hardwareInfo?: Record<string, string>;
   /** Readable by everyone through the demo login, with all secrets stripped. */
@@ -276,6 +279,38 @@ export interface ChartPreset {
   query: string;
   createdAt: number;
 }
+
+/**
+ * The smart-socket hardware report - see index.js, which implements it. The
+ * declarations below are the runtime half of this package: firmware, server
+ * and webapp all read the same format from here.
+ */
+export type SocketRole = 'dehumidifier' | 'heater' | 'light' | 'secondary_light' | 'co2';
+
+export interface SocketEntry {
+  /** Position in the device's socket table, and how a command addresses it; -1 when the device reports no table. */
+  slot: number;
+  role: string;
+  /** Hardware id (MAC) the device finds it by; empty on sockets paired before ids were kept. */
+  id: string;
+  ip: string;
+}
+
+export const SOCKET_ROLES: SocketRole[];
+export const MAX_SOCKETS: number;
+export const SOCKETS_PER_REPORT_CHUNK: number;
+export function socketListKey(chunk: number): string;
+export function socketListChunk(key: string): number | null;
+export function socketChunkCount(count: number): number;
+export function parseSocketRoles(csv: string | undefined): string[];
+export function socketIpFromCsv(csv: string | undefined, role: string): string | null;
+export function reportedSocketCount(hardwareInfo: Record<string, string> | undefined): number | null;
+export function parseSocketList(hardwareInfo: Record<string, string> | undefined): SocketEntry[] | null;
+export function socketsReported(hardwareInfo: Record<string, string> | undefined): boolean;
+export function readSockets(hardwareInfo: Record<string, string> | undefined): SocketEntry[];
+export function socketRoles(hardwareInfo: Record<string, string> | undefined): string[];
+export function socketKey(socket: SocketEntry): string;
+export function socketReportKey(hardwareInfo: Record<string, string> | undefined): string;
 
 /**
  * A device's membership in a tent. `seit` is the moment the device was bound,

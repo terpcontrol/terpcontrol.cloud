@@ -203,6 +203,7 @@ export function buildSwaggerSpec(serverUrl?: string): object {
               alarms: { type: 'array', items: { $ref: '#/components/schemas/Alarm' } },
               cloudSettings: { $ref: '#/components/schemas/CloudSettings' },
               maintenance_mode_until: { type: 'number' },
+              maintenance_mode_seconds_left: { type: 'number', description: 'Seconds left of the maintenance window, 0 when it is not running.' },
               recipe: { $ref: '#/components/schemas/Recipe' },
               hardwareInfo: { type: 'object', additionalProperties: { type: 'string' } },
             },

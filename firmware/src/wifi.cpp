@@ -1,4 +1,5 @@
 #include "wifi.h"
+#include "lanscan.h"
 #include "okamcam.h"
 
 #include "settings.h"
@@ -13,6 +14,7 @@
 
 #include <ArduinoJson.h>
 #include <EEPROM.h>
+#include <algorithm>
 #include <array>
 #include <sstream>
 #include <cctype>
@@ -30,38 +32,86 @@ static constexpr TickType_t SMART_SOCKET_MIN_SEND_INTERVAL = configTICK_RATE_HZ 
 static constexpr TickType_t SMART_SOCKET_FAILURE_BACKOFF = configTICK_RATE_HZ * 300;
 static constexpr uint8_t SMART_SOCKET_FAILURES_BEFORE_BACKOFF = 3;
 
+// A socket that keeps refusing commands has most likely been handed a different
+// DHCP address. After this many failed commands it is looked up on the network
+// again by its hardware id, instead of staying unreachable until somebody
+// notices and pairs it a second time.
+static constexpr uint8_t SMART_SOCKET_FAILURES_BEFORE_SEARCH = 10;
+// Walking the subnet is not free, so one search covers every stale socket at
+// once and no further search starts for a while afterwards.
+static constexpr TickType_t SMART_SOCKET_SEARCH_COOLDOWN = configTICK_RATE_HZ * 900;
+// Upper bound on the time one wifiTick() may spend commanding sockets. With a
+// full table and an unreachable socket costing seconds, an exhaustive pass
+// would starve the control loop.
+static constexpr TickType_t SMART_SOCKET_TICK_BUDGET = configTICK_RATE_HZ * 2;
+// Same idea for the pre-update flush, which runs in one go rather than per tick.
+static constexpr TickType_t SMART_SOCKET_FLUSH_BUDGET = configTICK_RATE_HZ * 20;
+// Sockets paired before this firmware carry no hardware id. Ask a reachable one
+// for it now and then so it too can be found again after a DHCP change.
+static constexpr TickType_t SMART_SOCKET_ID_PROBE_INTERVAL = configTICK_RATE_HZ * 600;
+// A log message is serialised into a fixed 384 byte buffer, so every reported
+// value has to stay well inside that. An address may be a 64 character
+// hostname, which is what caps a socket_list chunk at three entries and bounds
+// the role summary explicitly.
+static constexpr size_t SOCKETS_PER_REPORT_CHUNK = 3;
+static constexpr size_t MAX_REPORTED_VALUE_LEN = 288;
+
 
 namespace fg {
-  WifiApDash::WifiApDash(std::string ssid, std::string ip, std::function<void(void)> callback) :
+  // The display fits 21 characters per line at this text size and Adafruit_GFX
+  // wraps whatever is longer by itself, so a line only has to report how many
+  // rows it took for the next one to know where it starts. Values are printed
+  // whole rather than shortened: an ssid or a url is only useful if all of it
+  // is on the screen.
+  static constexpr uint8_t CHARS_PER_LINE = SCREEN_WIDTH / 6;
+  static constexpr uint8_t LINE_HEIGHT = 8;
+
+  static uint8_t printWrapped(const std::string& text, uint8_t y) {
+    UserInterface::display.setCursor(0, y);
+    UserInterface::display.write(text.c_str());
+    uint8_t rows = (text.size() + CHARS_PER_LINE - 1) / CHARS_PER_LINE;
+    return y + (rows ? rows : 1) * LINE_HEIGHT;
+  }
+
+  PhoneSetupDash::PhoneSetupDash(std::string ip, std::function<void(void)> callback, std::string ssid) :
     ssid(ssid), ip(ip), callback(callback) {}
 
 
-  void WifiApDash::draw() {
+  // Two steps when the device is its own access point - join it, then open the
+  // page - and only the second when the phone is already on the same network.
+  // The starting row keeps either block off the top edge of the display.
+  void PhoneSetupDash::draw() {
     UserInterface::display.setTextColor(SSD1306_WHITE); // Draw white text
     UserInterface::display.setTextSize(1);
 
-    std::stringstream value_print;
-    value_print << "connect to:";
-    UserInterface::display.setCursor(1, 1);
-    UserInterface::display.write(value_print.str().c_str());
+    uint8_t y = ssid.empty() ? 24 : 12;
 
-    value_print.str(std::string());
-    value_print << "SSID: " << ssid;
-    UserInterface::display.setCursor(1, 15);
-    UserInterface::display.write(value_print.str().c_str());
+    if(!ssid.empty()) {
+      y = printWrapped("connect to wifi:", y);
+      y = printWrapped(ssid, y) + 4;
+    }
 
-    value_print.str(std::string());
-    value_print << "IP:   " << ip;
-    UserInterface::display.setCursor(1, 25);
-    UserInterface::display.write(value_print.str().c_str());
+    y = printWrapped("open in browser:", y);
+
+    // An address of full length does not fit on one line behind the scheme.
+    // Breaking between the two keeps it whole and typeable; letting the line
+    // wrap on its own would strand the last digit or two on the next row.
+    std::string url = "http://" + ip;
+    if(url.size() > CHARS_PER_LINE) {
+      y = printWrapped("http://", y);
+      printWrapped(ip, y);
+    }
+    else {
+      printWrapped(url, y);
+    }
   }
 
-  void WifiApDash::prev() {}
-  void WifiApDash::next() {}
-  void WifiApDash::enter() {
+  void PhoneSetupDash::prev() {}
+  void PhoneSetupDash::next() {}
+  void PhoneSetupDash::enter() {
     callback();
   }
-  void WifiApDash::hold() {}
+  void PhoneSetupDash::hold() {}
 
   WifiStaDash::WifiStaDash(std::string ssid, std::string ip, float rssi, std::function<void(void)> callback) :
     ssid(ssid), ip(ip), rssi(rssi), callback(callback) {}
@@ -127,6 +177,7 @@ static const char* OKAM_CAM_AP_BASE = "http://192.168.168.1:81"; // CGI server i
 static const char* OKAM_CAM_AUTH = "loginuse=admin&loginpas=888888";
 static const char* TERP_CAM_URL_NVS_KEY = "terpcam_url";         // legacy (RTSP url)
 static const char* OKAM_CAM_DID_NVS_KEY = "webcam_did";          // VStarcam P2P device id
+static const char* OKAM_CAM_IP_NVS_KEY = "webcam_ip";            // last address it answered on
 
 std::string primary_ssid;
 std::string primary_password;
@@ -136,21 +187,29 @@ std::string secondary_password;
 bool loadWifiCredentials();
 void saveWifiCredentials();
 void InitalizeHTTPServer();
+void startServerConfigPortal();
+void stopServerConfigPortal();
 std::vector<std::string> scanWifiNetworks();
 bool isHexSegment(const std::string& value, size_t expected_len);
 bool isSmartSocketSsid(const std::string& value);
 std::vector<std::string> scanSmartSocketSsids();
 std::string smartSocketDisplayName(const std::string& ssid);
 std::string sanitizeSettingString(const std::string& value);
+std::string trimSpaces(const std::string& value);
 std::string urlEncode(const std::string& value);
 bool httpGet(const char* url, std::string* response = nullptr);
 bool parseSmartSocketIp(const std::string& body, std::string& socket_ip);
 void delayWithWatchdog(uint32_t delay_ms);
 bool provisionSmartSocket(const std::string& socket_role, const std::string& home_ssid, const std::string& home_password, std::string& socket_ip, std::string& error_message, const std::function<void(const char*)>& progress_callback);
 bool isSocketRoleConnected(const std::string& role);
-std::string socketRoleKey(const std::string& role);
-std::string socketRoleUserKey(const std::string& role);
-std::string socketRolePasswordKey(const std::string& role);
+static std::string legacySocketRoleKey(const std::string& role);
+static std::string legacySocketUserKey(const std::string& role);
+static std::string legacySocketPasswordKey(const std::string& role);
+static std::string defaultSocketAuthQuery();
+static std::string readSocketId(const std::string& ip, const std::string& auth_query);
+static void ensureSmartSocketsLoaded();
+static void persistSmartSockets();
+static bool canStoreAnotherSocket();
 const std::vector<std::string>& getSocketRolesList();
 std::vector<std::string> getSocketRoleOptions();
 static std::string connectedSocketRolesCsv();
@@ -169,6 +228,7 @@ String toStringIp(IPAddress ip);
 String GetEncryptionType(byte thisType);
 boolean isIp(String str);
 void handleConfig();
+void handleServerConfig();
 boolean captivePortal();
 
 
@@ -186,7 +246,6 @@ IPAddress netMsk(255, 255, 255, 0);
 
 std::string ssid = "";
 std::string ip = "";
-std::string netmask = "";
 
 unsigned long currentMillis = 0;
 unsigned long startMillis;
@@ -197,25 +256,62 @@ bool server_active = false;
 
 bool wifi_configured = false;
 
-struct SmartSocketSyncState {
+// One paired smart socket. Any number of them may share a role: every socket
+// of a role is driven with the same target state, so a grow with four heaters
+// on four sockets needs no extra roles.
+struct SmartSocket {
+  std::string role;
+  std::string id;        // Tasmota MAC (uppercase hex); empty until learned
+  std::string ip;
+  std::string user;      // empty -> default admin
+  std::string password;  // empty -> default (provisioning mqtt password)
+
   bool initialized = false;
   bool last_target = false;
+  bool id_probed = false;
   TickType_t last_send_tick = 0;
   TickType_t disabled_until_tick = 0;
-  uint8_t consecutive_failures = 0;
+  TickType_t id_probe_tick = 0;
+  uint8_t consecutive_failures = 0;   // drives the send backoff
+  uint8_t failures_since_seen = 0;    // drives the network search
 };
 
+static std::vector<SmartSocket> smart_sockets;
+static bool smart_sockets_loaded = false;
 static SmartSocketOutputStates smart_socket_output_states;
 static bool smart_socket_outputs_reported = false;
-static SmartSocketSyncState smart_socket_state_dehumidifier;
-static SmartSocketSyncState smart_socket_state_heater;
-static SmartSocketSyncState smart_socket_state_light;
-static SmartSocketSyncState smart_socket_state_secondary_light;
-static SmartSocketSyncState smart_socket_state_co2;
 static fg::Fridgecloud* smart_socket_cloud_handle = nullptr;
+static fg::UserInterface* ui_handle = nullptr;
 
-static void syncSmartSocketRole(const char* role, bool target_on, SmartSocketSyncState& role_state);
+// Server the firmware image was built for. Also offered as the starting point
+// when a new one is entered, so only the part that differs has to be typed.
+static const char* DEFAULT_API_URL = "#API_URL_EXTERNAL#";
+
+// Set while the server form is served over the home network. The form is
+// answered from an HTTP handler, which does not have the cloud at hand.
+static fg::Fridgecloud* server_config_cloud = nullptr;
+static bool server_config_active = false;
+static TickType_t server_config_opened = 0;
+
+// The form stays reachable for this long. It is unauthenticated - whoever can
+// reach it can point the device at any server - so it closes on its own
+// instead of listening until the next reboot when nobody submits anything.
+static constexpr TickType_t SERVER_CONFIG_TIMEOUT = configTICK_RATE_HZ * 600;
+
+static fg::LanScan socket_search;
+static TickType_t socket_search_allowed_tick = 0;
+static bool socket_search_changed = false;
+
 static TickType_t socketRoleMinSendInterval(const std::string& role);
+static std::string socketAuthQuery(const SmartSocket& socket);
+static bool sendSocketPower(const SmartSocket& socket, bool turn_on);
+static void noteSocketCommandSent(SmartSocket& socket);
+static void syncSmartSockets();
+static void tickAuxDeviceSearch();
+static std::vector<std::string> socketAuthQueries();
+static bool applyDiscoveredSocketHost(const fg::LanScan::Host& host);
+static void finishSocketSearch(unsigned matched);
+static std::string smartSocketLabel(size_t index);
 
 bool initializeWifi() {
   WiFi.persistent(false);
@@ -251,6 +347,13 @@ void wifiTick() {
 
   if(server_active) {
     server.handleClient();
+  }
+
+  // Nothing else can be on top of the url screen while the form is open: it
+  // only reacts to the click that closes it, so popping it here is safe.
+  if(server_config_active && xTaskGetTickCount() - server_config_opened > SERVER_CONFIG_TIMEOUT) {
+    stopServerConfigPortal();
+    ui_handle->pop();
   }
 
   if(wifi_configured && xTaskGetTickCount() - last_conncheck > 30000) {
@@ -290,21 +393,10 @@ void wifiTick() {
   }
 
   if(smart_socket_outputs_reported) {
-    // Each of these may issue an HTTP request to a possibly-unreachable
-    // smart socket. Feed the WDT between them so a chain of timeouts does
-    // not panic the loop task.
-    esp_task_wdt_reset();
-    syncSmartSocketRole("dehumidifier", smart_socket_output_states.dehumidifier_on, smart_socket_state_dehumidifier);
-    esp_task_wdt_reset();
-    syncSmartSocketRole("heater", smart_socket_output_states.heater_on, smart_socket_state_heater);
-    esp_task_wdt_reset();
-    syncSmartSocketRole("light", smart_socket_output_states.light_on, smart_socket_state_light);
-    esp_task_wdt_reset();
-    syncSmartSocketRole("secondary_light", smart_socket_output_states.secondary_light_on, smart_socket_state_secondary_light);
-    esp_task_wdt_reset();
-    syncSmartSocketRole("co2", smart_socket_output_states.co2_on, smart_socket_state_co2);
-    esp_task_wdt_reset();
+    syncSmartSockets();
   }
+
+  tickAuxDeviceSearch();
 }
 
 void wifiReportSmartSocketOutputs(const SmartSocketOutputStates& states) {
@@ -324,33 +416,62 @@ void wifiForceAllSmartSocketsOff() {
   smart_socket_output_states = off;
   smart_socket_outputs_reported = true;
 
-  struct RoleEntry { const char* role; SmartSocketSyncState* state; };
-  const RoleEntry roles[] = {
-    {"dehumidifier", &smart_socket_state_dehumidifier},
-    {"heater", &smart_socket_state_heater},
-    {"light", &smart_socket_state_light},
-    {"secondary_light", &smart_socket_state_secondary_light},
-    {"co2", &smart_socket_state_co2},
-  };
-
-  for(const auto& entry : roles) {
+  // Bounded like the regular control pass: a table full of unreachable sockets
+  // would otherwise hold the update up for minutes. Whatever is not reached
+  // here still switches itself off — every socket is provisioned with a
+  // PulseTime watchdog that expires once our resends stop.
+  const TickType_t deadline = xTaskGetTickCount() + SMART_SOCKET_FLUSH_BUDGET;
+  for(auto& socket : smart_sockets) {
     esp_task_wdt_reset();
-    sendSmartSocketPower(entry.role, false);
-    entry.state->last_target = false;
-    entry.state->last_send_tick = xTaskGetTickCount();
-    entry.state->initialized = true;
-    entry.state->consecutive_failures = 0;
-    entry.state->disabled_until_tick = 0;
+    sendSocketPower(socket, false);
+    socket.last_target = false;
+    socket.last_send_tick = xTaskGetTickCount();
+    socket.initialized = true;
+    socket.consecutive_failures = 0;
+    socket.disabled_until_tick = 0;
+    // Sockets past the budget keep their previous sync state on purpose: an
+    // aborted update then still sees a state change (or a resend) for them,
+    // instead of a cached OFF that matches a socket which is really still on.
+    if((int32_t)(deadline - xTaskGetTickCount()) <= 0) {
+      break;
+    }
   }
   esp_task_wdt_reset();
 }
 
-static void syncSmartSocketRole(const char* role, bool target_on, SmartSocketSyncState& role_state) {
-  TickType_t now = xTaskGetTickCount();
-  bool state_changed = !role_state.initialized || role_state.last_target != target_on;
-  bool periodic_resend = role_state.initialized && (now - role_state.last_send_tick >= SMART_SOCKET_RESEND_PERIOD);
+// Learns a socket's hardware id from the socket itself. Anything paired before
+// this firmware, and anything added by address from the cloud, starts without
+// one — and without an id a socket cannot be found again once its address
+// changes, so it is worth an occasional extra request.
+static void ensureSocketId(SmartSocket& socket) {
+  const TickType_t now = xTaskGetTickCount();
+  if(!socket.id.empty()) {
+    return;
+  }
+  if(socket.id_probed && (now - socket.id_probe_tick) < SMART_SOCKET_ID_PROBE_INTERVAL) {
+    return;
+  }
+  socket.id_probed = true;
+  socket.id_probe_tick = now;
 
-  if(role_state.disabled_until_tick > now) {
+  const std::string id = readSocketId(socket.ip, socketAuthQuery(socket));
+  if(id.empty()) {
+    return;
+  }
+  socket.id = id;
+  persistSmartSockets();
+  reportSocketsHardwareInfo();
+}
+
+static void syncSmartSocket(SmartSocket& socket, bool target_on) {
+  const TickType_t now = xTaskGetTickCount();
+  const bool state_changed = !socket.initialized || socket.last_target != target_on;
+  const bool periodic_resend = socket.initialized && (now - socket.last_send_tick >= SMART_SOCKET_RESEND_PERIOD);
+
+  // Tick comparisons are signed differences throughout: xTaskGetTickCount()
+  // wraps every ~49 days, and comparing absolute values would leave a socket
+  // backed off for weeks across the wrap.
+  if((int32_t)(socket.disabled_until_tick - now) > 0) {
     return;
   }
 
@@ -362,38 +483,97 @@ static void syncSmartSocketRole(const char* role, bool target_on, SmartSocketSyn
   // threshold (notably PID heater output >0 / ==0). During a bad uplink this
   // quickly exhausts LWIP sockets/buffers and shows up as errno 11 / socket
   // 105, followed by a LoadProhibited panic in WiFiClient/HTTPClient.
-  if(role_state.initialized && (now - role_state.last_send_tick < socketRoleMinSendInterval(role))) {
+  if(socket.initialized && (now - socket.last_send_tick < socketRoleMinSendInterval(socket.role))) {
     return;
   }
 
-  bool ok = sendSmartSocketPower(role, target_on);
+  const bool ok = sendSocketPower(socket, target_on);
   if(ok) {
-    role_state.consecutive_failures = 0;
+    socket.consecutive_failures = 0;
+    socket.failures_since_seen = 0;
+    ensureSocketId(socket);
   }
   else {
-    if(role_state.consecutive_failures < 255) {
-      ++role_state.consecutive_failures;
+    if(socket.consecutive_failures < 255) {
+      ++socket.consecutive_failures;
+    }
+    if(socket.failures_since_seen < 255) {
+      ++socket.failures_since_seen;
     }
     if(smart_socket_cloud_handle != nullptr) {
-      std::string message = std::string("message-smart-socket-cmd-failed:") + role + ":" + (target_on ? "on" : "off");
+      std::string message = std::string("message-smart-socket-cmd-failed:") + socket.role + ":" + (target_on ? "on" : "off");
       smart_socket_cloud_handle->log(message, 1);
     }
-    if(role_state.consecutive_failures >= SMART_SOCKET_FAILURES_BEFORE_BACKOFF) {
-      Serial.printf("[smart-socket] backing off role=%s failures=%u\n", role, (unsigned)role_state.consecutive_failures);
-      role_state.disabled_until_tick = now + SMART_SOCKET_FAILURE_BACKOFF;
-      role_state.consecutive_failures = 0;
+    if(socket.consecutive_failures >= SMART_SOCKET_FAILURES_BEFORE_BACKOFF) {
+      Serial.printf("[smart-socket] backing off role=%s ip=%s failures=%u\n",
+                    socket.role.c_str(), socket.ip.c_str(), (unsigned)socket.consecutive_failures);
+      socket.disabled_until_tick = now + SMART_SOCKET_FAILURE_BACKOFF;
+      socket.consecutive_failures = 0;
     }
   }
-  role_state.last_target = target_on;
-  role_state.last_send_tick = now;
-  role_state.initialized = true;
+  socket.last_target = target_on;
+  socket.last_send_tick = now;
+  socket.initialized = true;
+}
+
+static bool socketTargetForRole(const std::string& role) {
+  if(role == "dehumidifier") return smart_socket_output_states.dehumidifier_on;
+  if(role == "heater") return smart_socket_output_states.heater_on;
+  if(role == "light") return smart_socket_output_states.light_on;
+  if(role == "secondary_light") return smart_socket_output_states.secondary_light_on;
+  if(role == "co2") return smart_socket_output_states.co2_on;
+  return false;
+}
+
+static void syncSmartSockets() {
+  static size_t resend_cursor = 0;
+
+  if(smart_sockets.empty()) {
+    return;
+  }
+
+  // Every socket here is an HTTP request to a possibly-unreachable device, and
+  // an unreachable one costs seconds. Bound the pass and feed the WDT between
+  // sockets, so a table full of timeouts can neither starve the control loop
+  // nor panic the task watchdog.
+  const TickType_t deadline = xTaskGetTickCount() + SMART_SOCKET_TICK_BUDGET;
+
+  // Changed targets first. The CO2 valve is opened and closed again within a
+  // couple of seconds, and a plain round-robin over a full table would stretch
+  // that pulse well past its intended length.
+  for(auto& socket : smart_sockets) {
+    const bool target = socketTargetForRole(socket.role);
+    if(socket.initialized && socket.last_target == target) {
+      continue;
+    }
+    esp_task_wdt_reset();
+    syncSmartSocket(socket, target);
+    esp_task_wdt_reset();
+    if((int32_t)(deadline - xTaskGetTickCount()) <= 0) {
+      return;
+    }
+  }
+
+  // Then the periodic resend, round-robin so that running out of budget always
+  // leaves a different part of the table for the next pass.
+  for(size_t i = 0; i < smart_sockets.size(); ++i) {
+    if(resend_cursor >= smart_sockets.size()) {
+      resend_cursor = 0;
+    }
+    SmartSocket& socket = smart_sockets[resend_cursor++];
+    esp_task_wdt_reset();
+    syncSmartSocket(socket, socketTargetForRole(socket.role));
+    esp_task_wdt_reset();
+    if((int32_t)(deadline - xTaskGetTickCount()) <= 0) {
+      return;
+    }
+  }
 }
 
 float rssi = 0;
 
 std::string ui_ssid;
 std::string ui_password;
-fg::UserInterface* ui_handle;
 std::vector<std::string> scanned_ssids;
 std::vector<std::string> scanned_smart_socket_ssids;
 std::string custom_mqtt_server;
@@ -428,17 +608,6 @@ static TickType_t socketRoleMinSendInterval(const std::string& role) {
   return SMART_SOCKET_MIN_SEND_INTERVAL;            // 30s
 }
 
-// Per-role auth override (cloud-managed foreign sockets); empty when the role
-// uses the default admin/mqtt_pass credentials set during provisioning.
-static std::string socketRoleAuthQuery(const std::string& role) {
-  const std::string user = sanitizeSettingString(fg::settings().getStr(socketRoleUserKey(role).c_str()));
-  const std::string password = sanitizeSettingString(fg::settings().getStr(socketRolePasswordKey(role).c_str()));
-  if(password.empty()) {
-    return std::string();
-  }
-  return "user=" + urlEncode(user.empty() ? "admin" : user) + "&password=" + urlEncode(password) + "&";
-}
-
 static std::string defaultSocketAuthQuery() {
   // The default auth segment is constant for the lifetime of the device — the
   // MQTT password is set at provisioning and never rotates. Cache its
@@ -457,120 +626,211 @@ static std::string defaultSocketAuthQuery() {
   return cached_auth_query;
 }
 
-bool sendSmartSocketPower(const std::string& role, bool turn_on) {
-  const std::string socket_ip = sanitizeSettingString(fg::settings().getStr(socketRoleKey(role).c_str()));
-  if(socket_ip.empty()) {
-    return true;
+// Per-socket auth. Foreign sockets (added by address from the cloud) carry
+// their own credentials; everything paired through the AP flow uses the default
+// admin/mqtt_pass set during provisioning.
+static std::string socketAuthQuery(const SmartSocket& socket) {
+  if(socket.password.empty()) {
+    return defaultSocketAuthQuery();
   }
+  return "user=" + urlEncode(socket.user.empty() ? "admin" : socket.user) + "&password=" + urlEncode(socket.password) + "&";
+}
 
-  std::string auth_query = socketRoleAuthQuery(role);
-  if(auth_query.empty()) {
-    auth_query = defaultSocketAuthQuery();
+// The distinct credential sets in use, for a network search that has to try
+// them against unknown hosts.
+static std::vector<std::string> socketAuthQueries() {
+  std::vector<std::string> queries;
+  const std::string fallback = defaultSocketAuthQuery();
+  if(!fallback.empty()) {
+    queries.push_back(fallback);
   }
-  if(auth_query.empty()) {
+  for(const auto& socket : smart_sockets) {
+    const std::string query = socketAuthQuery(socket);
+    if(!query.empty()) {
+      queries.push_back(query);
+    }
+  }
+  return queries;
+}
+
+static bool sendSocketPower(const SmartSocket& socket, bool turn_on) {
+  const std::string auth_query = socketAuthQuery(socket);
+  if(socket.ip.empty() || auth_query.empty()) {
     return false;
   }
 
-  char url[256];
+  // Big enough for the whole request: a socket's own credentials are up to 48
+  // characters each, and url-encoding can triple that.
+  char url[512];
   snprintf(url, sizeof(url), "http://%s/cm?%scmnd=%s",
-           socket_ip.c_str(),
+           socket.ip.c_str(),
            auth_query.c_str(),
            turn_on ? "Power%20On" : "Power%20Off");
   return httpGet(url);
 }
 
-static void updateSmartSocketSyncStateForRole(const std::string& role) {
-  TickType_t now = xTaskGetTickCount();
+// Tasmota reports its MAC in `Status 5`; that is what a socket is recognised by
+// once its address has changed.
+static std::string readSocketId(const std::string& ip, const std::string& auth_query) {
+  if(ip.empty() || auth_query.empty()) {
+    return std::string();
+  }
 
-  if(role == "dehumidifier") {
-    smart_socket_state_dehumidifier.last_send_tick = now;
-    smart_socket_state_dehumidifier.initialized = true;
-    smart_socket_state_dehumidifier.consecutive_failures = 0;
-    smart_socket_state_dehumidifier.disabled_until_tick = 0;
+  char url[512];
+  snprintf(url, sizeof(url), "http://%s/cm?%scmnd=Status%%205", ip.c_str(), auth_query.c_str());
+  std::string body;
+  if(!httpGet(url, &body)) {
+    return std::string();
   }
-  else if(role == "heater") {
-    smart_socket_state_heater.last_send_tick = now;
-    smart_socket_state_heater.initialized = true;
-    smart_socket_state_heater.consecutive_failures = 0;
-    smart_socket_state_heater.disabled_until_tick = 0;
+
+  const auto mac = body.find("\"Mac\":\"");
+  if(mac == std::string::npos) {
+    return std::string();
   }
-  else if(role == "light") {
-    smart_socket_state_light.last_send_tick = now;
-    smart_socket_state_light.initialized = true;
-    smart_socket_state_light.consecutive_failures = 0;
-    smart_socket_state_light.disabled_until_tick = 0;
+  return fg::socketIdFromMac(body.c_str() + mac + 7);
+}
+
+bool sendSmartSocketPower(const std::string& role, bool turn_on) {
+  bool ok = true;
+  for(const auto& socket : smart_sockets) {
+    if(socket.role != role) {
+      continue;
+    }
+    esp_task_wdt_reset();
+    ok = sendSocketPower(socket, turn_on) && ok;
   }
-  else if(role == "secondary_light") {
-    smart_socket_state_secondary_light.last_send_tick = now;
-    smart_socket_state_secondary_light.initialized = true;
-    smart_socket_state_secondary_light.consecutive_failures = 0;
-    smart_socket_state_secondary_light.disabled_until_tick = 0;
+  return ok;
+}
+
+// A socket that was just commanded by hand is in a known state and its backoff
+// is stale. `last_target` deliberately stays untouched, so the control loop
+// still sees a pending change and re-asserts what it actually wants.
+static void noteSocketCommandSent(SmartSocket& socket) {
+  socket.last_send_tick = xTaskGetTickCount();
+  socket.initialized = true;
+  socket.consecutive_failures = 0;
+  socket.failures_since_seen = 0;
+  socket.disabled_until_tick = 0;
+}
+
+// "3 slight 34CD": position, short role and the tail of the hardware id — two
+// sockets sharing a role have to stay apart on a 21-character display.
+static std::string smartSocketLabel(size_t index) {
+  const SmartSocket& socket = smart_sockets[index];
+  std::string label = std::to_string(index + 1) + " ";
+
+  if(socket.role == "dehumidifier") label += "dehum";
+  else if(socket.role == "secondary_light") label += "slight";
+  else if(socket.role == "heater") label += "heat";
+  else label += socket.role;
+
+  if(socket.id.size() >= 4) {
+    label += " " + socket.id.substr(socket.id.size() - 4);
   }
-  else if(role == "co2") {
-    smart_socket_state_co2.last_send_tick = now;
-    smart_socket_state_co2.initialized = true;
-    smart_socket_state_co2.consecutive_failures = 0;
-    smart_socket_state_co2.disabled_until_tick = 0;
-  }
+  return label;
 }
 
 static void showSmartSocketTestSelection(unsigned preselected_index) {
-  const std::vector<std::string>& roles = getSocketRolesList();
-  std::vector<std::string> assigned_roles;
-  assigned_roles.push_back("back");
-
-  for(size_t i = 1; i < roles.size(); ++i) {
-    if(isSocketRoleConnected(roles[i])) {
-      assigned_roles.push_back(roles[i]);
-    }
-  }
-
-  if(assigned_roles.size() == 1) {
-    ui_handle->push<fg::TextDisplay>("no role assigned", 1, []() {
+  if(smart_sockets.empty()) {
+    ui_handle->push<fg::TextDisplay>("no socket paired", 1, []() {
       ui_handle->pop();
     });
     return;
   }
 
-  if(preselected_index >= assigned_roles.size()) {
+  std::vector<std::string> options;
+  options.push_back("back");
+  for(size_t i = 0; i < smart_sockets.size(); ++i) {
+    options.push_back(smartSocketLabel(i));
+  }
+
+  if(preselected_index >= options.size()) {
     preselected_index = 0;
   }
 
-  ui_handle->push<fg::SelectInput>("test socket", preselected_index, assigned_roles, [assigned_roles](unsigned selected) {
+  ui_handle->push<fg::SelectInput>("test socket", preselected_index, options, [](unsigned selected) {
     ui_handle->pop();
 
-    if(selected == 0) {
+    if(selected == 0 || selected > smart_sockets.size()) {
       return;
     }
 
-    const std::string role = assigned_roles[selected];
-    const unsigned role_index_for_return = selected;
+    const size_t socket_index = selected - 1;
+    const unsigned index_for_return = selected;
 
     std::vector<std::string> actions = {"back", "turn on", "turn off"};
-    ui_handle->push<fg::SelectInput>(role.c_str(), 0, actions, [role, role_index_for_return](unsigned action_selected) {
+    ui_handle->push<fg::SelectInput>(smartSocketLabel(socket_index), 0, actions, [socket_index, index_for_return](unsigned action_selected) {
       ui_handle->pop();
 
       if(action_selected == 0) {
-        showSmartSocketTestSelection(role_index_for_return);
+        showSmartSocketTestSelection(index_for_return);
         return;
       }
 
-      const bool turn_on = (action_selected == 1);
-      const bool ok = sendSmartSocketPower(role, turn_on);
-
-      if(ok) {
-        updateSmartSocketSyncStateForRole(role);
+      bool ok = false;
+      if(socket_index < smart_sockets.size()) {
+        ok = sendSocketPower(smart_sockets[socket_index], action_selected == 1);
+        if(ok) {
+          noteSocketCommandSent(smart_sockets[socket_index]);
+        }
       }
 
-      ui_handle->push<fg::TextDisplay>(ok ? "command sent" : "command failed", 1, [role_index_for_return]() {
+      ui_handle->push<fg::TextDisplay>(ok ? "command sent" : "command failed", 1, [index_for_return]() {
         ui_handle->pop();
-        showSmartSocketTestSelection(role_index_for_return);
+        showSmartSocketTestSelection(index_for_return);
       });
     });
   });
 }
 
+// Manual counterpart to the background search. It blocks for as long as the
+// sweep takes, which is why the background one waits for an idle display
+// instead: somebody standing in this menu has asked for it and is watching,
+// and the pairing flow above already blocks for longer than this.
+static void runSocketSearchNow() {
+  if(!wifiIsConnected()) {
+    ui_handle->push<fg::TextDisplay>("no wifi", 1, []() { ui_handle->pop(); });
+    return;
+  }
+  if(smart_sockets.empty()) {
+    ui_handle->push<fg::TextDisplay>("no socket paired", 1, []() { ui_handle->pop(); });
+    return;
+  }
+
+  socket_search.stop();
+  if(!socket_search.start(socketAuthQueries())) {
+    ui_handle->push<fg::TextDisplay>("search failed", 1, []() { ui_handle->pop(); });
+    return;
+  }
+
+  ui_handle->push<fg::TextDisplay>("searching...");
+  ui_handle->loop();
+
+  unsigned matched = 0;
+  socket_search_changed = false;
+  while(!socket_search.tick([&matched](const fg::LanScan::Host& host) {
+    matched += applyDiscoveredSocketHost(host) ? 1 : 0;
+  })) {
+    esp_task_wdt_reset();
+  }
+  finishSocketSearch(matched);
+
+  ui_handle->pop();
+  char message[32];
+  snprintf(message, sizeof(message), "%u of %u found", matched, (unsigned)smart_sockets.size());
+  ui_handle->push<fg::TextDisplay>(message, 1, []() {
+    ui_handle->pop();
+  });
+}
+
 static void runConnectSocketFlow() {
+  if(!canStoreAnotherSocket()) {
+    ui_handle->push<fg::TextDisplay>("socket limit\nreached", 1, []() {
+      ui_handle->pop();
+    });
+    return;
+  }
+
   ui_handle->push<fg::TextDisplay>("scanning...");
   ui_handle->loop();
 
@@ -666,6 +926,7 @@ void showSmartSocketsUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
   using namespace fg;
   ui_handle = ui;
   smart_socket_cloud_handle = cloud;
+  ensureSmartSocketsLoaded();
 
   auto menu = ui->push<SelectMenu>();
   menu->addOption("back...", [ui]() { ui->pop(); });
@@ -684,33 +945,32 @@ void showSmartSocketsUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
     runConnectSocketFlow();
   });
 
+  menu->addOption("find sockets", []() {
+    runSocketSearchNow();
+  });
+
   menu->addOption("disconnect", []() {
-    const std::vector<std::string>& roles = getSocketRolesList();
-    std::vector<std::string> disconnect_options;
-    disconnect_options.push_back("back");
-
-    // Show only roles that currently have a socket assigned.
-    for(size_t i = 1; i < roles.size(); ++i) {
-      if(isSocketRoleConnected(roles[i])) {
-        disconnect_options.push_back(roles[i]);
-      }
-    }
-
-    if(disconnect_options.size() == 1) {
-      ui_handle->push<TextDisplay>("no socket assigned", 1, []() {
+    if(smart_sockets.empty()) {
+      ui_handle->push<TextDisplay>("no socket paired", 1, []() {
         ui_handle->pop();
       });
       return;
     }
 
-    ui_handle->push<SelectInput>("disconnect socket", 0, disconnect_options, [disconnect_options](unsigned selected) {
+    std::vector<std::string> disconnect_options;
+    disconnect_options.push_back("back");
+    for(size_t i = 0; i < smart_sockets.size(); ++i) {
+      disconnect_options.push_back(smartSocketLabel(i));
+    }
+
+    ui_handle->push<SelectInput>("disconnect socket", 0, disconnect_options, [](unsigned selected) {
       ui_handle->pop();
 
-      if(selected == 0) {
+      if(selected == 0 || selected > smart_sockets.size()) {
         return;
       }
 
-      wifiRemoveSmartSocket(disconnect_options[selected]);
+      wifiRemoveSmartSocket(smart_sockets[selected - 1].role, (int)(selected - 1));
 
       ui_handle->push<TextDisplay>("socket disconnected", 1, []() {
         ui_handle->pop();
@@ -980,6 +1240,7 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
       ui_handle->pop();
 
       fg::settings().erase(OKAM_CAM_DID_NVS_KEY);
+      fg::settings().erase(OKAM_CAM_IP_NVS_KEY);    // and where it used to answer
       fg::settings().erase(TERP_CAM_URL_NVS_KEY);   // clear legacy slot too
       fg::settings().commit();
 
@@ -1154,20 +1415,41 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
   if(!custom_mqtt_enabled) {
 
       menu->addOption("change server", [=](){
-        ui_handle->push<TextEntry>("server url", "#API_URL_EXTERNAL#", [=](std::string url) {
-          ui_handle->pop();
-          ui_handle->push<TextEntry>("join password", [=](std::string password) {
-            ui_handle->pop();
-            ui_handle->push<TextDisplay>("connecting...");
-            ui_handle->loop();
+        auto servermenu = ui_handle->push<SelectMenu>();
+        servermenu->addOption("back...", [ui](){ ui->pop(); });
 
-            cloud->registerWithCloud(url, password);
-
-            ui_handle->pop();
-            ui_handle->push<TextDisplay>("connection failed!", 1, []() {
+        servermenu->addOption("use mobile phone", [=](){
+          if(!wifiIsConnected()) {
+            ui_handle->push<TextDisplay>("no wifi connection", 1, [](){
               ui_handle->pop();
             });
-            ui_handle->loop();
+            return;
+          }
+
+          server_config_cloud = cloud;
+          startServerConfigPortal();
+          ui_handle->push<PhoneSetupDash>(WiFi.localIP().toString().c_str(), [](){
+            stopServerConfigPortal();
+            ui_handle->pop();
+          });
+        });
+
+        servermenu->addOption("use display", [=](){
+          ui_handle->push<TextEntry>("server url", DEFAULT_API_URL, [=](std::string url) {
+            ui_handle->pop();
+            ui_handle->push<TextEntry>("join password", [=](std::string password) {
+              ui_handle->pop();
+              ui_handle->push<TextDisplay>("connecting...");
+              ui_handle->loop();
+
+              cloud->registerWithCloud(url, password);
+
+              ui_handle->pop();
+              ui_handle->push<TextDisplay>("connection failed!", 1, []() {
+                ui_handle->pop();
+              });
+              ui_handle->loop();
+            });
           });
         });
       });
@@ -1196,9 +1478,9 @@ void showWifiUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
 
     menu->addOption("use mobile phone", [ui](){
       createConfigurationAP();
-      ui->push<WifiApDash>(ssid, ip, [ui]() {
+      ui->push<PhoneSetupDash>(ip, [ui]() {
         ui->pop();
-      });
+      }, ssid);
     });
 
     menu->addOption("use display", [=](){
@@ -1271,24 +1553,45 @@ std::string randomSsid() {
 }
 
 void handleNotFound() {
-  server.sendHeader("Location", "/portal");
+  server.sendHeader("Location", "/");
   server.send(302, "text/plain", "redirect to captive portal");
 }
 
+// One route table for both jobs. The page in flash carries the wifi card and
+// the server card and asks GET /server which of them it is showing, so the
+// root url is the only one a phone is ever given - as the AP portal or as the
+// server form, depending on what the device is doing when it is opened.
 void InitalizeHTTPServer() {
-  server.on("/config", handleConfig);
-  server.on("/portal", handleRoot);
-  server.on("/scan", handleGetScan);
-  server.onNotFound ( handleNotFound );
+  static bool routes_added = false;
+  if(!routes_added) {
+    server.on("/", handleRoot);
+    server.on("/config", handleConfig);
+    server.on("/scan", handleGetScan);
+    server.on("/server", handleServerConfig);
+    server.onNotFound ( handleNotFound );
+    routes_added = true;
+  }
 
   server.begin();
 }
 
+// Opens that page on the home network, so a phone can type the server url and
+// the join password instead of the knob.
+void startServerConfigPortal() {
+  InitalizeHTTPServer();
+  server_active = true;
+  server_config_active = true;
+  server_config_opened = xTaskGetTickCount();
+}
+
+void stopServerConfigPortal() {
+  server_config_active = false;
+  server_active = false;
+  server.stop();
+}
+
 boolean createConfigurationAP()
 {
-  ip = apIP.toString().c_str();
-  netmask = netMsk.toString().c_str();
-
   WiFi.disconnect();
   WiFi.mode(WIFI_AP_STA);
   Serial.print(F("Initalize SoftAP "));
@@ -1298,6 +1601,13 @@ boolean createConfigurationAP()
   {
     delay(2000);
     //WiFi.softAPConfig(apIP, apIP, netMsk);
+
+    // Asked of the radio rather than taken from apIP: that constant only
+    // applies through the softAPConfig call above, which is not made, so the
+    // AP actually comes up on the default address. The screen prints this to
+    // be typed into a browser, so it has to be the address that answers.
+    ip = WiFi.softAPIP().toString().c_str();
+
     dnsServer.start();
     Serial.println(F("successful."));
     InitalizeHTTPServer();
@@ -1434,11 +1744,10 @@ void resetCredentials() {
   fg::settings().erase("pssid");
 
   smart_socket_outputs_reported = false;
-  const std::vector<std::string>& roles = getSocketRolesList();
-  for(size_t i = 0; i < roles.size(); ++i) {
-    if(roles[i] == "back") continue;
-    fg::settings().erase(socketRoleKey(roles[i]).c_str());
-  }
+  smart_sockets.clear();
+  smart_sockets_loaded = true;
+  persistSmartSockets();   // erases every slot and the legacy per-role keys
+
   fg::settings().erase("sock_oth1");
   fg::settings().erase("sock_oth2");
   fg::settings().erase("sock_oth3");
@@ -1471,7 +1780,7 @@ void handleConfig() {
     return;
   }
 
-  primary_ssid = config_data["primary"]["ssid"].as<std::string>();
+  primary_ssid = trimSpaces(config_data["primary"]["ssid"].as<std::string>());
   primary_password = config_data["primary"]["password"].as<std::string>();
 
   bool connected = connectToWifi(primary_ssid, primary_password);
@@ -1487,6 +1796,53 @@ void handleConfig() {
     server.send ( 200, "text/html", "error" );
     server.client().stop();
   }
+}
+
+/** Server url + join password handler, fed by the form on the phone.
+ *  The GET doubles as the page's mode probe: it answers with the url to
+ *  prefill while the server screen is open and with nothing when it is not,
+ *  which is what lets both cards share the root url. The POST is refused
+ *  outside that screen for the same reason the screen closes the listener. */
+void handleServerConfig() {
+  if(server.method() == HTTP_GET) {
+    server.send(200, "text/plain", server_config_active ? DEFAULT_API_URL : "");
+    return;
+  }
+
+  if(!server_config_active) {
+    server.send(403, "text/plain", "error");
+    return;
+  }
+
+  StaticJsonDocument<256> config_data;
+  std::string url;
+  if(!deserializeJson(config_data, server.arg("plain"))) {
+    url = config_data["url"].as<std::string>();
+  }
+
+  if(url.empty()) {
+    server.send(200, "text/plain", "error");
+    return;
+  }
+
+  // Registering ends in a firmware update and a reboot, so the phone is
+  // answered first - it would otherwise wait for a reply that never comes.
+  // The display takes over from here.
+  server.send(200, "text/plain", "ok");
+  server.client().stop();
+  stopServerConfigPortal();
+
+  ui_handle->pop();
+  ui_handle->push<fg::TextDisplay>("connecting...");
+  ui_handle->loop();
+
+  server_config_cloud->registerWithCloud(url, config_data["password"].as<std::string>());
+
+  ui_handle->pop();
+  ui_handle->push<fg::TextDisplay>("connection failed!", 1, []() {
+    ui_handle->pop();
+  });
+  ui_handle->loop();
 }
 
 void handleGetScan() {
@@ -1569,6 +1925,18 @@ String formatBytes(size_t bytes) {            // lesbare Anzeige der Speichergr�
 
 std::string sanitizeSettingString(const std::string& value) {
   return std::string(value.c_str());
+}
+
+// A space at either end of a network name is invisible wherever the name is
+// shown, so one that arrives with the scan or off a router label is dropped
+// rather than carried into a connection attempt nobody can see is wrong.
+// Passwords are left alone: a space there may well be deliberate.
+std::string trimSpaces(const std::string& value) {
+  auto first = value.find_first_not_of(" \t");
+  if(first == std::string::npos) {
+    return "";
+  }
+  return value.substr(first, value.find_last_not_of(" \t") - first + 1);
 }
 
 std::string urlEncode(const std::string& value) {
@@ -1665,12 +2033,25 @@ void delayWithWatchdog(uint32_t delay_ms) {
   }
 }
 
-bool isSocketRoleConnected(const std::string& role) {
-  std::string socket_key = socketRoleKey(role);
-  return fg::settings().has(socket_key.c_str()) && !fg::settings().getStr(socket_key.c_str()).empty();
+static size_t socketCountForRole(const std::string& role) {
+  size_t count = 0;
+  for(const auto& socket : smart_sockets) {
+    if(socket.role == role) {
+      ++count;
+    }
+  }
+  return count;
 }
 
-std::string socketRoleKey(const std::string& role) {
+bool isSocketRoleConnected(const std::string& role) {
+  return socketCountForRole(role) > 0;
+}
+
+// Pre-multi-socket storage: one address per role, plus its credentials. The
+// table has replaced it, but it is still written (see persistSmartSockets) so
+// that a firmware rollback finds the first socket of each role where it expects
+// it instead of an empty configuration.
+static std::string legacySocketRoleKey(const std::string& role) {
   // NVS key length is limited, keep all keys <= 15 chars.
   if(role == "dehumidifier") return "sock_dehum";
   if(role == "heater") return "sock_heat";
@@ -1683,12 +2064,272 @@ std::string socketRoleKey(const std::string& role) {
   return "sock_misc";
 }
 
-std::string socketRoleUserKey(const std::string& role) {
-  return "su_" + socketRoleKey(role).substr(5);   // e.g. su_dehum, <= 15 chars
+static std::string legacySocketUserKey(const std::string& role) {
+  return "su_" + legacySocketRoleKey(role).substr(5);   // e.g. su_dehum, <= 15 chars
 }
 
-std::string socketRolePasswordKey(const std::string& role) {
-  return "sp_" + socketRoleKey(role).substr(5);   // e.g. sp_dehum, <= 15 chars
+static std::string legacySocketPasswordKey(const std::string& role) {
+  return "sp_" + legacySocketRoleKey(role).substr(5);   // e.g. sp_dehum, <= 15 chars
+}
+
+// One NVS key per socket rather than one blob for the whole table: a change
+// then rewrites a few dozen bytes instead of the lot, which matters on a 16 KB
+// NVS partition.
+static std::string socketSlotKey(size_t slot) {
+  return "sk" + std::to_string(slot);
+}
+
+// Room for one more socket. The count is the headline limit; the free NVS
+// entries matter just as much, because writing to a full settings partition
+// aborts inside the NVS driver instead of returning an error.
+static bool canStoreAnotherSocket() {
+  static constexpr size_t NVS_ENTRY_MARGIN = 24;
+  return smart_sockets.size() < MAX_SMART_SOCKETS &&
+         fg::settings().freeEntries() >= NVS_ENTRY_MARGIN;
+}
+
+static void persistSmartSockets() {
+  for(size_t slot = 0; slot < MAX_SMART_SOCKETS; ++slot) {
+    const std::string key = socketSlotKey(slot);
+    if(slot >= smart_sockets.size()) {
+      fg::settings().erase(key.c_str());
+      continue;
+    }
+
+    const SmartSocket& socket = smart_sockets[slot];
+    // Sized for the longest accepted record — a 64 character address plus 48
+    // character credentials. An overflowing document would serialise to
+    // truncated JSON and be dropped again on the next boot.
+    StaticJsonDocument<512> record;
+    record["r"] = socket.role;
+    record["i"] = socket.id;
+    record["a"] = socket.ip;
+    if(!socket.user.empty()) {
+      record["u"] = socket.user;
+    }
+    if(!socket.password.empty()) {
+      record["p"] = socket.password;
+    }
+
+    char buffer[320];
+    serializeJson(record, buffer, sizeof(buffer));
+    fg::settings().setStr(key.c_str(), buffer);
+  }
+
+  for(const auto& role : getSocketRolesList()) {
+    if(role == "back") {
+      continue;
+    }
+    const SmartSocket* primary = nullptr;
+    for(const auto& socket : smart_sockets) {
+      if(socket.role == role) {
+        primary = &socket;
+        break;
+      }
+    }
+
+    if(primary == nullptr) {
+      fg::settings().erase(legacySocketRoleKey(role).c_str());
+      fg::settings().erase(legacySocketUserKey(role).c_str());
+      fg::settings().erase(legacySocketPasswordKey(role).c_str());
+      continue;
+    }
+
+    fg::settings().setStr(legacySocketRoleKey(role).c_str(), primary->ip.c_str());
+    if(primary->password.empty()) {
+      fg::settings().erase(legacySocketUserKey(role).c_str());
+      fg::settings().erase(legacySocketPasswordKey(role).c_str());
+    }
+    else {
+      fg::settings().setStr(legacySocketUserKey(role).c_str(), primary->user.c_str());
+      fg::settings().setStr(legacySocketPasswordKey(role).c_str(), primary->password.c_str());
+    }
+  }
+
+  fg::settings().commit();
+}
+
+// Adopts sockets stored the old way. Skipping anything already in the table
+// keeps this a no-op after the first run, which it has to be: persistSmartSockets()
+// keeps those same keys up to date for rollback safety.
+static void migrateLegacySmartSockets() {
+  bool adopted = false;
+
+  for(const auto& role : getSocketRolesList()) {
+    if(role == "back" || smart_sockets.size() >= MAX_SMART_SOCKETS) {
+      continue;
+    }
+    const std::string ip = sanitizeSettingString(fg::settings().getStr(legacySocketRoleKey(role).c_str()));
+    if(ip.empty()) {
+      continue;
+    }
+
+    bool known = false;
+    for(const auto& socket : smart_sockets) {
+      known = known || (socket.role == role && socket.ip == ip);
+    }
+    if(known) {
+      continue;
+    }
+
+    SmartSocket socket;
+    socket.role = role;
+    socket.ip = ip;
+    socket.user = sanitizeSettingString(fg::settings().getStr(legacySocketUserKey(role).c_str()));
+    socket.password = sanitizeSettingString(fg::settings().getStr(legacySocketPasswordKey(role).c_str()));
+    smart_sockets.push_back(socket);
+    adopted = true;
+  }
+
+  if(adopted) {
+    persistSmartSockets();
+  }
+}
+
+static void ensureSmartSocketsLoaded() {
+  if(smart_sockets_loaded) {
+    return;
+  }
+  smart_sockets_loaded = true;
+  smart_sockets.clear();
+
+  for(size_t slot = 0; slot < MAX_SMART_SOCKETS; ++slot) {
+    const std::string raw = sanitizeSettingString(fg::settings().getStr(socketSlotKey(slot).c_str()));
+    if(raw.empty()) {
+      continue;
+    }
+
+    StaticJsonDocument<512> record;
+    if(deserializeJson(record, raw.c_str())) {
+      continue;
+    }
+
+    SmartSocket socket;
+    socket.role = record["r"] | "";
+    socket.id = record["i"] | "";
+    socket.ip = record["a"] | "";
+    socket.user = record["u"] | "";
+    socket.password = record["p"] | "";
+    if(socket.ip.empty() || !isKnownSocketRole(socket.role)) {
+      continue;
+    }
+    smart_sockets.push_back(socket);
+  }
+
+  migrateLegacySmartSockets();
+}
+
+// Points a socket at the address its hardware id has just been found on.
+// Returns true when the host belongs to one of ours.
+static bool applyDiscoveredSocketHost(const fg::LanScan::Host& host) {
+  bool matched = false;
+
+  for(auto& socket : smart_sockets) {
+    if(socket.id.empty() || socket.id != host.id) {
+      continue;
+    }
+    matched = true;
+
+    if(socket.ip != host.ip) {
+      Serial.printf("[smart-socket] %s moved from %s to %s\n",
+                    socket.id.c_str(), socket.ip.c_str(), host.ip.c_str());
+      if(smart_socket_cloud_handle != nullptr) {
+        smart_socket_cloud_handle->log(std::string("message-smart-socket-readdressed:") + socket.role, 0);
+      }
+      socket.ip = host.ip;
+      socket_search_changed = true;
+      // Re-assert the target on the new address rather than waiting out the
+      // resend period.
+      socket.initialized = false;
+    }
+
+    socket.failures_since_seen = 0;
+    socket.consecutive_failures = 0;
+    socket.disabled_until_tick = 0;
+  }
+
+  return matched;
+}
+
+static void finishSocketSearch(unsigned matched) {
+  socket_search.stop();
+  socket_search_allowed_tick = xTaskGetTickCount() + SMART_SOCKET_SEARCH_COOLDOWN;
+
+  // Whether or not a socket was found, its failure count starts over: the
+  // cooldown is what keeps the next search from following immediately.
+  for(auto& socket : smart_sockets) {
+    socket.failures_since_seen = 0;
+  }
+
+  Serial.printf("[smart-socket] search finished, %u socket(s) located\n", matched);
+  if(socket_search_changed) {
+    socket_search_changed = false;
+    persistSmartSockets();
+    reportSocketsHardwareInfo();
+  }
+}
+
+static bool auxDisplayIsIdle() {
+  return ui_handle == nullptr || ui_handle->isIdle();
+}
+
+// Aux devices are addressed on the LAN and DHCP can move them. Finding them
+// again means sweeping the subnet, which takes long enough to be noticeable, so
+// it only ever runs while the display is idle and never while the AP portal is
+// serving.
+static void tickAuxDeviceSearch() {
+  static unsigned matched = 0;
+
+  // A sweep opens a TCP connection per address; the same heap floor that makes
+  // httpGet refuse to run applies to it.
+  const bool healthy = wifiIsConnected() && auxDisplayIsIdle() && ESP.getFreeHeap() >= HTTP_MIN_FREE_HEAP;
+
+  if(socket_search.running()) {
+    if(!healthy) {
+      socket_search.stop();
+      return;
+    }
+    const bool done = socket_search.tick([](const fg::LanScan::Host& host) {
+      matched += applyDiscoveredSocketHost(host) ? 1 : 0;
+    });
+    if(done) {
+      finishSocketSearch(matched);
+    }
+    return;
+  }
+
+  if(server_active || !healthy) {
+    return;
+  }
+  if((int32_t)(socket_search_allowed_tick - xTaskGetTickCount()) > 0) {
+    return;
+  }
+
+  // The camera announces itself, so looking for it is a longer discovery round
+  // rather than a sweep — cheap enough to do before starting one.
+  if(fg::okamCamNeedsSearch()) {
+    fg::okamCamSearch(smart_socket_cloud_handle);
+    socket_search_allowed_tick = xTaskGetTickCount() + SMART_SOCKET_SEARCH_COOLDOWN;
+    return;
+  }
+
+  // Only a socket whose hardware id is known can be recognised again; without
+  // one a sweep would find nothing however often it ran.
+  bool stale = false;
+  for(const auto& socket : smart_sockets) {
+    stale = stale || (!socket.id.empty() && socket.failures_since_seen >= SMART_SOCKET_FAILURES_BEFORE_SEARCH);
+  }
+  if(!stale) {
+    return;
+  }
+
+  matched = 0;
+  socket_search_changed = false;
+  if(!socket_search.start(socketAuthQueries())) {
+    socket_search_allowed_tick = xTaskGetTickCount() + SMART_SOCKET_SEARCH_COOLDOWN;
+    return;
+  }
+  Serial.println("[smart-socket] searching the network for moved sockets");
 }
 
 const std::vector<std::string>& getSocketRolesList() {
@@ -1725,18 +2366,30 @@ static std::string connectedSocketRolesCsv() {
 }
 
 // role@ip pairs for the cloud UI ("heater@192.168.1.60,..."); addresses are
-// sanitized on write and never contain ',' or '@'.
+// sanitized on write and never contain ',' or '@'. One entry per role, even
+// when several sockets share it: this is the summary older readers understand,
+// and the full table travels in the socket_list chunks below.
 static std::string connectedSocketIpsCsv() {
   const std::vector<std::string>& roles = getSocketRolesList();
   std::string csv;
   for(const auto& role : roles) {
-    if(role == "back" || !isSocketRoleConnected(role)) {
-      continue;
+    for(const auto& socket : smart_sockets) {
+      if(role == "back" || socket.role != role) {
+        continue;
+      }
+      const std::string entry = role + "@" + socket.ip;
+      // Addresses may be long hostnames; keep the summary inside what a log
+      // message can carry and let the socket_list chunks be the complete
+      // picture.
+      if(csv.size() + entry.size() + 1 > MAX_REPORTED_VALUE_LEN) {
+        break;
+      }
+      if(!csv.empty()) {
+        csv += ",";
+      }
+      csv += entry;
+      break;
     }
-    if(!csv.empty()) {
-      csv += ",";
-    }
-    csv += role + "@" + sanitizeSettingString(fg::settings().getStr(socketRoleKey(role).c_str()));
   }
   if(csv.empty()) {
     csv = "none";
@@ -1750,10 +2403,37 @@ static void reportSocketsHardwareInfo() {
   }
   smart_socket_cloud_handle->log("hardware-info:sockets=" + connectedSocketRolesCsv(), 0);
   smart_socket_cloud_handle->log("hardware-info:socket_ips=" + connectedSocketIpsCsv(), 0);
+
+  // The full table, chunked. A log message is serialised into a fixed-size
+  // buffer, so a table of 32 sockets cannot travel as one value. Entry N of
+  // chunk K describes the socket in slot K * SOCKETS_PER_REPORT_CHUNK + N, and
+  // sockets_n says how many slots are live — chunks left over from a larger
+  // table are then ignored rather than mistaken for current ones.
+  smart_socket_cloud_handle->log("hardware-info:sockets_n=" + std::to_string(smart_sockets.size()), 0);
+
+  for(size_t chunk = 0; chunk * SOCKETS_PER_REPORT_CHUNK < smart_sockets.size(); ++chunk) {
+    std::string value;
+    for(size_t i = 0; i < SOCKETS_PER_REPORT_CHUNK; ++i) {
+      const size_t slot = chunk * SOCKETS_PER_REPORT_CHUNK + i;
+      if(slot >= smart_sockets.size()) {
+        break;
+      }
+      if(!value.empty()) {
+        value += ",";
+      }
+      value += smart_sockets[slot].role + "|" + smart_sockets[slot].id + "|" + smart_sockets[slot].ip;
+    }
+    smart_socket_cloud_handle->log("hardware-info:socket_list" + std::to_string(chunk) + "=" + value, 0);
+  }
+}
+
+void wifiSetUserInterface(fg::UserInterface* ui) {
+  ui_handle = ui;
 }
 
 void wifiInitAuxCloudReporting(fg::Fridgecloud* cloud) {
   smart_socket_cloud_handle = cloud;
+  ensureSmartSocketsLoaded();
   reportSocketsHardwareInfo();
 
   if(cloud != nullptr) {
@@ -1782,42 +2462,63 @@ static bool isKnownSocketRole(const std::string& role) {
   return false;
 }
 
-bool wifiRemoveSmartSocket(const std::string& role) {
-  if(!isKnownSocketRole(role)) {
+// Resolves the sockets a cloud command addresses: one slot when the caller
+// named it, otherwise every socket of the role (which is what the command
+// meant back when a role could only have one).
+static std::vector<size_t> addressedSockets(const std::string& role, int slot) {
+  std::vector<size_t> indexes;
+
+  if(slot >= 0) {
+    if((size_t)slot < smart_sockets.size()) {
+      indexes.push_back((size_t)slot);
+    }
+    return indexes;
+  }
+
+  for(size_t i = 0; i < smart_sockets.size(); ++i) {
+    if(smart_sockets[i].role == role) {
+      indexes.push_back(i);
+    }
+  }
+  return indexes;
+}
+
+bool wifiRemoveSmartSocket(const std::string& role, int slot) {
+  ensureSmartSocketsLoaded();
+
+  if(slot >= 0 ? (size_t)slot >= smart_sockets.size() : !isKnownSocketRole(role)) {
     return false;
   }
 
-  if(isSocketRoleConnected(role)) {
-    const std::string key = socketRoleKey(role);
-    const std::string socket_ip = sanitizeSettingString(fg::settings().getStr(key.c_str()));
+  std::vector<size_t> victims = addressedSockets(role, slot);
 
-    std::string auth_query = socketRoleAuthQuery(role);
-    if(auth_query.empty()) {
-      auth_query = defaultSocketAuthQuery();
-    }
-
-    fg::settings().erase(key.c_str());
-    fg::settings().erase(socketRoleUserKey(role).c_str());
-    fg::settings().erase(socketRolePasswordKey(role).c_str());
-    fg::settings().commit();
+  // Back to front, so the indexes still to be removed stay valid.
+  for(size_t i = victims.size(); i-- > 0;) {
+    const SmartSocket socket = smart_sockets[victims[i]];
+    smart_sockets.erase(smart_sockets.begin() + victims[i]);
 
     if(smart_socket_cloud_handle != nullptr) {
-      smart_socket_cloud_handle->log(std::string("message-smart-socket-disconnected:") + role, 0);
+      smart_socket_cloud_handle->log(std::string("message-smart-socket-disconnected:") + socket.role, 0);
     }
 
     // Best effort: factory-reset the socket so it reopens its pairing AP.
     // httpGet is heap-guarded and simply fails when offline.
-    if(!socket_ip.empty() && !auth_query.empty()) {
-      const std::string reset_url = "http://" + socket_ip + "/cm?" + auth_query + "cmnd=Reset%201";
+    const std::string auth_query = socketAuthQuery(socket);
+    if(!socket.ip.empty() && !auth_query.empty()) {
+      const std::string reset_url = "http://" + socket.ip + "/cm?" + auth_query + "cmnd=Reset%201";
       httpGet(reset_url.c_str());
+      esp_task_wdt_reset();
     }
   }
 
+  persistSmartSockets();
   reportSocketsHardwareInfo();
   return true;
 }
 
-bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const std::string& user, const std::string& password) {
+bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const std::string& user, const std::string& password, int slot, bool append) {
+  ensureSmartSocketsLoaded();
+
   if(!isKnownSocketRole(role)) {
     return false;
   }
@@ -1833,17 +2534,51 @@ bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const st
     return false;
   }
 
-  fg::settings().setStr(socketRoleKey(role).c_str(), clean_ip.c_str());
-  if(clean_password.empty()) {
-    // Back to the default admin/mqtt_pass credentials.
-    fg::settings().erase(socketRoleUserKey(role).c_str());
-    fg::settings().erase(socketRolePasswordKey(role).c_str());
+  SmartSocket* target = nullptr;
+  if(slot >= 0) {
+    if((size_t)slot >= smart_sockets.size()) {
+      return false;
+    }
+    target = &smart_sockets[(size_t)slot];
   }
-  else {
-    fg::settings().setStr(socketRoleUserKey(role).c_str(), clean_user.c_str());
-    fg::settings().setStr(socketRolePasswordKey(role).c_str(), clean_password.c_str());
+  else if(!append) {
+    // Without a slot the command still means "configure the socket of this
+    // role"; with several of them the caller has to say which one. Adding
+    // another one to the role is what `append` is for — the caller cannot name
+    // a slot for a socket that does not exist yet.
+    const std::vector<size_t> existing = addressedSockets(role, -1);
+    if(existing.size() > 1) {
+      return false;
+    }
+    if(existing.size() == 1) {
+      target = &smart_sockets[existing[0]];
+    }
   }
-  fg::settings().commit();
+
+  if(target == nullptr) {
+    if(!canStoreAnotherSocket()) {
+      return false;
+    }
+    smart_sockets.push_back(SmartSocket());
+    target = &smart_sockets.back();
+  }
+
+  // A different address is a different device until it says otherwise: drop the
+  // learned hardware id so it is read back from whatever answers there now.
+  if(target->ip != clean_ip) {
+    target->id.clear();
+    target->id_probed = false;
+  }
+  target->role = role;
+  target->ip = clean_ip;
+  target->user = clean_password.empty() ? std::string() : clean_user;
+  target->password = clean_password;
+  target->initialized = false;
+  target->consecutive_failures = 0;
+  target->failures_since_seen = 0;
+  target->disabled_until_tick = 0;
+
+  persistSmartSockets();
 
   if(smart_socket_cloud_handle != nullptr) {
     smart_socket_cloud_handle->log(std::string("message-smart-socket-connected:") + role, 0);
@@ -1852,17 +2587,24 @@ bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const st
   return true;
 }
 
-bool wifiTestSmartSocket(const std::string& role) {
-  if(!isKnownSocketRole(role) || !isSocketRoleConnected(role)) {
+bool wifiTestSmartSocket(const std::string& role, int slot) {
+  ensureSmartSocketsLoaded();
+
+  const std::vector<size_t> targets = addressedSockets(role, slot);
+  if(targets.empty()) {
     return false;
   }
 
-  // Short ON pulse ending OFF; the control loop re-asserts the desired state
-  // within its regular resend window afterwards.
-  const bool on_ok = sendSmartSocketPower(role, true);
-  delayWithWatchdog(2000);
-  const bool off_ok = sendSmartSocketPower(role, false);
-  return on_ok && off_ok;
+  bool ok = true;
+  for(size_t index : targets) {
+    // Short ON pulse ending OFF; the control loop re-asserts the desired state
+    // within its regular resend window afterwards.
+    ok = sendSocketPower(smart_sockets[index], true) && ok;
+    delayWithWatchdog(2000);
+    ok = sendSocketPower(smart_sockets[index], false) && ok;
+    noteSocketCommandSent(smart_sockets[index]);
+  }
+  return ok;
 }
 
 bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
@@ -1879,9 +2621,14 @@ bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
     return true;
   }
 
+  // Optional: addresses one socket of a role, as reported in socket_list.
+  // Absent means "the socket of this role", which is all a command could mean
+  // before a role could have several.
+  const int slot = command["slot"].isNull() ? -1 : command["slot"].as<int>();
+
   if(command["action"] == std::string("socket_remove")) {
     const std::string role = command["role"] | "";
-    if(!wifiRemoveSmartSocket(role) && cloud) {
+    if(!wifiRemoveSmartSocket(role, slot) && cloud) {
       cloud->log(std::string("message-aux-command-failed:socket_remove:") + role, 1);
     }
     return true;
@@ -1892,7 +2639,10 @@ bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
     const std::string ip = command["ip"] | "";
     const std::string user = command["user"] | "";
     const std::string password = command["password"] | "";
-    if(!wifiSetSmartSocket(role, ip, user, password) && cloud) {
+    // Adds a socket to the role rather than configuring the one it has. Absent
+    // (every caller before a role could hold several) means the latter.
+    const bool append = command["append"] | false;
+    if(!wifiSetSmartSocket(role, ip, user, password, slot, append) && cloud) {
       cloud->log(std::string("message-aux-command-failed:socket_set:") + role, 1);
     }
     return true;
@@ -1900,7 +2650,7 @@ bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
 
   if(command["action"] == std::string("socket_test")) {
     const std::string role = command["role"] | "";
-    if(!wifiTestSmartSocket(role)) {
+    if(!wifiTestSmartSocket(role, slot)) {
       if(cloud) {
         cloud->log(std::string("message-smart-socket-cmd-failed:") + role + ":test", 1);
       }
@@ -1979,6 +2729,10 @@ bool provisionSmartSocket(const std::string& socket_role, const std::string& hom
     return fail_with_reconnect("mqtt pass miss");
   }
 
+  if(!canStoreAnotherSocket()) {
+    return fail_with_reconnect("socket limit");
+  }
+
   emit_status("config socket...");
   delayWithWatchdog(2000);
   const uint16_t pulse_value = socketRolePulseTimeValue(socket_role);
@@ -2006,6 +2760,10 @@ bool provisionSmartSocket(const std::string& socket_role, const std::string& hom
   std::string ip_url = "http://192.168.4.1/cm?" + auth_query + "cmnd=IPAddress1";
   bool ip_command_ok = httpGet(ip_url.c_str(), &ip_response);
 
+  // Read the hardware id while the socket's own AP still answers: from here on
+  // it is what identifies the socket if its address ever changes.
+  const std::string socket_id = readSocketId("192.168.4.1", auth_query);
+
   std::string ap_url = "http://192.168.4.1/cm?" + auth_query + "cmnd=Ap%202";
   bool ap_command_ok = httpGet(ap_url.c_str());
 
@@ -2024,9 +2782,13 @@ bool provisionSmartSocket(const std::string& socket_role, const std::string& hom
     delayWithWatchdog(2000);
   }
 
-  std::string socket_key = socketRoleKey(socket_role);
-  fg::settings().setStr(socket_key.c_str(), socket_ip.c_str());
-  fg::settings().commit();
+  SmartSocket socket;
+  socket.role = socket_role;
+  socket.ip = socket_ip;
+  socket.id = socket_id;
+  socket.id_probed = !socket_id.empty();
+  smart_sockets.push_back(socket);
+  persistSmartSockets();
 
   if(smart_socket_cloud_handle != nullptr) {
     smart_socket_cloud_handle->log(std::string("message-smart-socket-connected:") + socket_role, 0);
@@ -2155,7 +2917,14 @@ std::vector<std::string> scanWifiNetworks() {
               Serial.print("unknown");
           }
           Serial.println();
-          ssids.push_back(WiFi.SSID(i).c_str());
+
+          // One row per name. A mesh or a repeater answers on several bands
+          // and channels, and the list is there to pick a network, not a
+          // radio - the duplicates are indistinguishable once drawn.
+          auto name = trimSpaces(WiFi.SSID(i).c_str());
+          if(std::find(ssids.begin(), ssids.end(), name) == ssids.end()) {
+            ssids.push_back(name);
+          }
           delay(10);
       }
   }

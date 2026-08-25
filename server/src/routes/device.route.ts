@@ -1395,6 +1395,14 @@ class DeviceRoute implements Routes {
      *               role:
      *                 type: string
      *                 enum: [dehumidifier, heater, light, secondary_light, co2]
+     *               slot:
+     *                 type: integer
+     *                 minimum: 0
+     *                 maximum: 31
+     *                 description: >
+     *                   Addresses one socket of the role, by the position the device
+     *                   reports it at in its `socket_listN` hardware info. Omit to
+     *                   address the role as a whole.
      *               ip:
      *                 type: string
      *                 description: socket_set only — host/IP of the socket on the device's network.
@@ -1404,6 +1412,12 @@ class DeviceRoute implements Routes {
      *               password:
      *                 type: string
      *                 description: socket_set only — HTTP auth password; empty keeps the device default.
+     *               append:
+     *                 type: boolean
+     *                 description: >
+     *                   socket_set only — adds a socket to the role instead of
+     *                   configuring the one it has. Needed to add a second socket
+     *                   to a role, which has no slot to name until it exists.
      *     responses:
      *       '200':
      *         description: Command published
@@ -1412,7 +1426,7 @@ class DeviceRoute implements Routes {
      *             schema:
      *               $ref: '#/components/schemas/StatusOk'
      *       '400':
-     *         description: Unknown action or role
+     *         description: Unknown action, role or slot
      *       '401':
      *         $ref: '#/components/responses/Unauthorized'
      */

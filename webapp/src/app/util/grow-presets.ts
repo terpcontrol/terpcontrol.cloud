@@ -1,5 +1,5 @@
 import { DiaryLifecycleStage, Recipe, RecipeStep } from '@fg2/shared-types';
-import { parseSocketRoles } from './socket-info';
+import { socketRoles, socketsReported } from './socket-info';
 
 export type GrowStagePresetId = 'seedling' | 'vegetative' | 'flowering' | 'late_flowering' | 'drying';
 
@@ -148,7 +148,8 @@ export type Controllable = 'temperature' | 'humidity' | 'co2' | 'light';
 /** True or false where the hardware said so, 'unknown' where it never said anything. */
 export type Controllability = boolean | 'unknown';
 
-const SOCKET_ROLES: Record<Controllable, string[]> = {
+/** Which socket role has to be paired for a measure to be switchable. */
+const ROLES_THAT_SWITCH: Record<Controllable, string[]> = {
   temperature: ['heater'],
   humidity: ['dehumidifier'],
   co2: ['co2'],
@@ -162,20 +163,19 @@ type DeviceHardware = { device_type?: string; hardwareInfo?: Record<string, stri
  * controller with a heater and a lamp regulates temperature and light and
  * nothing else, and a humidity target it cannot honour must not be offered as
  * one. Fridges have built-in actuators; controllers act through their paired
- * smart sockets (reported as `hardwareInfo.sockets`). A controller that reports
- * no socket list at all (older firmware, or one that has not reported yet)
- * answers 'unknown' to everything: missing evidence is not evidence of control.
+ * smart sockets. A controller that has not reported its sockets at all (older
+ * firmware, or one that has not reported yet) answers 'unknown' to everything:
+ * missing evidence is not evidence of control.
  */
 export function deviceCanSwitch(device: DeviceHardware, what: Controllable): Controllability {
   if (!device || device.device_type !== 'controller') {
     return true;
   }
-  const csv = device.hardwareInfo?.['sockets'];
-  if (csv === undefined) {
+  if (!socketsReported(device.hardwareInfo)) {
     return 'unknown';
   }
-  const roles = parseSocketRoles(csv);
-  return SOCKET_ROLES[what].some(role => roles.includes(role));
+  const roles = socketRoles(device.hardwareInfo);
+  return ROLES_THAT_SWITCH[what].some(role => roles.includes(role));
 }
 
 /**
@@ -188,7 +188,7 @@ export function deviceControlCapability(device: DeviceHardware): ControlCapabili
   if (!device || device.device_type !== 'controller') {
     return 'full';
   }
-  if (device.hardwareInfo?.['sockets'] === undefined) {
+  if (!socketsReported(device.hardwareInfo)) {
     return 'unknown';
   }
   const climate: Controllable[] = ['temperature', 'humidity', 'co2'];

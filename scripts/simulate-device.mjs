@@ -13,6 +13,10 @@ import net from 'node:net';
 import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 
+// The socket report is a contract between firmware, server and webapp; the
+// simulator answers to the same one.
+import { MAX_SOCKETS, SOCKETS_PER_REPORT_CHUNK, socketListKey } from '../shared-types/index.js';
+
 const STATE_DIR = '.simulated-devices';
 const API_URL = process.env.SIM_API_URL.replace(/\/$/, '');
 const MQTT_HOST = process.env.SIM_MQTT_HOST;
@@ -20,6 +24,17 @@ const MQTT_PORT = Number(process.env.SIM_MQTT_PORT);
 const REGISTRATION_PASSWORD = process.env.SIM_REGISTRATION_PASSWORD ?? '';
 const USER = process.env.SIM_USER ?? '';
 const USER_PASSWORD = process.env.SIM_USER_PASSWORD ?? '';
+
+// Stands in for the MAC the firmware reads out of Tasmota's `Status 5` and then
+// finds the socket by. Derived from the address so a socket keeps its id across
+// restarts, and so two sockets are never given the same one.
+const simulatedSocketId = (role, ip) =>
+  createHash('sha1')
+    .update(`${role}@${ip}`)
+    .digest('hex')
+    .slice(0, 12)
+    .toUpperCase();
+
 
 // ---------------------------------------------------------------- MQTT client
 
@@ -513,13 +528,14 @@ class SimulatedDevice {
     // What real hardware keeps in NVS across a reboot. Restarting the script is
     // a power cycle, not a factory reset: without this the device would report
     // its pre-update firmware again and forget its paired sockets every time.
-    this.memory = { firmwareId: 'simulated-firmware', sockets: {}, webcamDid: null, plantedAt: Date.now() };
+    this.memory = { firmwareId: 'simulated-firmware', sockets: [], webcamDid: null, plantedAt: Date.now() };
     this.memoryFile = path.join(STATE_DIR, `${encodeURIComponent(deviceId)}.json`);
     try {
       Object.assign(this.memory, JSON.parse(fs.readFileSync(this.memoryFile, 'utf8')));
     } catch {
       // First boot of this device.
     }
+    this.memory.sockets = this.#loadSockets();
     this.captureCount = 0;
     this.configWaiters = [];
   }
@@ -527,6 +543,16 @@ class SimulatedDevice {
   remember() {
     fs.mkdirSync(STATE_DIR, { recursive: true });
     fs.writeFileSync(this.memoryFile, JSON.stringify(this.memory));
+  }
+
+  // Sockets used to be one address per role; they are a table now, any number
+  // of which may share a role. A state file written by the older simulator
+  // still holds the map, so adopt it rather than making the device forget what
+  // it was paired with - the firmware migrates its own storage the same way.
+  #loadSockets() {
+    const stored = this.memory.sockets;
+    if (Array.isArray(stored)) return stored;
+    return Object.entries(stored ?? {}).map(([role, ip]) => ({ role, id: simulatedSocketId(role, ip), ip }));
   }
 
   // The broker refuses the odd connection attempt when its pooled HTTP
@@ -621,10 +647,75 @@ class SimulatedDevice {
     console.error(`cam_capture -> ${jpeg.length}B still`);
   }
 
+  /**
+   * What the firmware reports about its sockets. `sockets` and `socket_ips`
+   * are the per-role summary older webapps read - one entry per role, however
+   * many sockets share it - and the table itself travels as `sockets_n` plus
+   * `socket_list<k>` chunks, because a log message has a fixed size budget.
+   */
   publishSockets() {
-    const roles = Object.keys(this.memory.sockets);
+    const sockets = this.memory.sockets;
+    const roles = [...new Set(sockets.map(socket => socket.role))];
     this.hardwareInfo('sockets', roles.length ? roles.join(',') : 'none');
-    this.hardwareInfo('socket_ips', roles.map(role => `${role}:${this.memory.sockets[role]}`).join(',') || 'none');
+    this.hardwareInfo(
+      'socket_ips',
+      roles.map(role => `${role}@${sockets.find(socket => socket.role === role).ip}`).join(',') || 'none',
+    );
+
+    this.hardwareInfo('sockets_n', String(sockets.length));
+    for (let chunk = 0; chunk * SOCKETS_PER_REPORT_CHUNK < sockets.length; chunk++) {
+      const entries = sockets.slice(chunk * SOCKETS_PER_REPORT_CHUNK, (chunk + 1) * SOCKETS_PER_REPORT_CHUNK);
+      this.hardwareInfo(socketListKey(chunk), entries.map(socket => `${socket.role}|${socket.id}|${socket.ip}`).join(','));
+    }
+  }
+
+  // Which sockets a command is aimed at: one named by its slot, or every
+  // socket of the role when the command names none.
+  #addressedSockets({ role, slot }) {
+    const index = Number(slot);
+    if (Number.isInteger(index) && index >= 0) return this.memory.sockets[index] ? [index] : [];
+    return this.memory.sockets.flatMap((socket, at) => (socket.role === role ? [at] : []));
+  }
+
+  // Whether a command named a socket by slot, as opposed to addressing the role.
+  #namesSlot({ slot }) {
+    return Number.isInteger(Number(slot)) && Number(slot) >= 0;
+  }
+
+  #setSocket(command) {
+    const failed = () => this.log(`message-aux-command-failed:socket_set:${command.role}`, 1);
+    const existing = this.#addressedSockets(command);
+
+    // A slot names one socket; a slot naming none is a stale table, not an
+    // invitation to add one. `append` adds a socket to the role; without it the
+    // command configures the role's one socket, and cannot tell which is meant
+    // once there are several.
+    if (this.#namesSlot(command)) {
+      if (!existing.length) return failed();
+    } else if (!command.append && existing.length > 1) {
+      return failed();
+    }
+
+    const target = command.append && !this.#namesSlot(command) ? -1 : (existing[0] ?? -1);
+    if (target < 0 && this.memory.sockets.length >= MAX_SOCKETS) return failed();
+
+    const socket = { role: command.role, id: simulatedSocketId(command.role, command.ip), ip: command.ip };
+    if (target < 0) this.memory.sockets.push(socket);
+    else this.memory.sockets[target] = socket;
+
+    this.remember();
+    this.log(`message-smart-socket-connected:${socket.role}`);
+    this.publishSockets();
+  }
+
+  #removeSockets(command) {
+    // Back to front, so the indexes still to be removed stay valid.
+    for (const index of this.#addressedSockets(command).reverse()) {
+      this.log(`message-smart-socket-disconnected:${this.memory.sockets[index].role}`);
+      this.memory.sockets.splice(index, 1);
+    }
+    this.remember();
+    this.publishSockets();
   }
 
   async listen() {
@@ -719,16 +810,16 @@ class SimulatedDevice {
         this.boot('REMOTE');
         break;
       case 'socket_set':
-        this.memory.sockets[command.role] = command.ip;
-        this.remember();
-        this.log(`message-smart-socket-connected:${command.role}`);
-        this.publishSockets();
+        this.#setSocket(command);
         break;
       case 'socket_remove':
-        delete this.memory.sockets[command.role];
-        this.remember();
-        this.log(`message-smart-socket-disconnected:${command.role}`);
-        this.publishSockets();
+        this.#removeSockets(command);
+        break;
+      case 'socket_test':
+        // The real device pulses the socket on and back off; nothing here has
+        // an output to pulse, so it reports the same outcome the webapp waits for.
+        if (this.#addressedSockets(command).length) this.log(`message-smart-socket-tested:${command.role}`);
+        else this.log(`message-smart-socket-cmd-failed:${command.role}:test`, 1);
         break;
     }
   }

@@ -46,6 +46,26 @@ namespace fg {
    */
   bool okamCamFactoryReset(Fridgecloud* cloud);
 
+  /**
+   * Whether the camera has been unreachable often enough that it is worth
+   * looking for it on the network again — typically because DHCP moved it and
+   * the address it last answered on is stale.
+   */
+  bool okamCamNeedsSearch();
+
+  /**
+   * Looks for the paired camera and remembers where it answered.
+   *
+   * The camera announces itself, so this is a longer LanSearch round rather
+   * than a subnet sweep: it broadcasts for several seconds and caches the
+   * address of whatever answers, which is what a later capture tries first.
+   * Blocking (watchdog-fed) for up to a few seconds, so callers run it while
+   * the display is idle.
+   *
+   * Returns true when the camera answered.
+   */
+  bool okamCamSearch(Fridgecloud* cloud);
+
   /*
    * ---------------------------------------------------------------------------
    * NOTE — the full-resolution (2304x1296) path, and why it is not used

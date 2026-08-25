@@ -866,6 +866,12 @@
   "message-diary-plant-lifecycle-title": "Plant phase change",
   "message-smart-socket-cmd-failed-title": "Smart socket command failed",
   "message-smart-socket-cmd-failed-text": "Failed to send a power command to the smart socket for role: {{value}}",
+  "message-smart-socket-readdressed-title": "Smart socket found again",
+  "message-smart-socket-readdressed-text": "The smart socket for role {{value}} answers at a new address and is being used again.",
+  "message-terp-cam-found-title": "Camera found again",
+  "message-terp-cam-found-text": "The paired camera answered a network search and is reachable again.",
+  "message-terp-cam-not-found-title": "Camera not found",
+  "message-terp-cam-not-found-text": "The paired camera did not answer a network search. Check that it has power and is on your WiFi.",
   "message-smart-socket-connected-title": "Smart socket connected",
   "message-smart-socket-connected-text": "A smart socket was connected for role: {{value}}",
   "message-smart-socket-disconnected-title": "Smart socket disconnected",
@@ -1025,7 +1031,7 @@
     },
     "sockets": {
       "title": "Smart Sockets",
-      "intro": "Your device switches these sockets. Pairing happens right on the device (Settings → Smart Sockets).",
+      "intro": "Your device switches these sockets. Pairing happens right on the device (Settings → Smart Sockets). A function can have as many sockets as you like — they all switch together.",
       "unknownFirmware": "This firmware doesn't report its sockets yet. Update the device firmware or manage sockets on the device.",
       "connected": "Connected",
       "roles": {
@@ -1048,6 +1054,8 @@
       "apply": "Apply",
       "editHint": "Your device switches the socket at this address (Tasmota HTTP). Leave the password empty to keep the pairing credentials.",
       "testNote": "Test switches the socket on for about 2 seconds.",
+      "hardwareId": "Hardware ID",
+      "limitReached": "This device already manages the maximum of 32 smart sockets.",
       "add": "Add smart socket",
       "role": "Function",
       "brands": {

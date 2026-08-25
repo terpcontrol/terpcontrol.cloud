@@ -7,7 +7,12 @@ import {
   DeviceFirmware,
   DeviceFirmwareBinary,
   FirmwareChannel,
+  MAX_SOCKETS,
   ShareLink,
+  SOCKET_ROLES,
+  SocketRole,
+  socketChunkCount,
+  socketListChunk,
   UserFirmwareList,
 } from '@fg2/shared-types';
 import deviceModel from '@models/device.model';
@@ -93,6 +98,15 @@ const DEVICE_MESSAGE_CATEGORY_MAPPING = {
   'message-smart-socket-disconnected': ['device-socket'],
   'message-smart-socket-connected': ['device-socket'],
 } as const;
+
+// Alarms stay suppressed until `maintenance_mode_until`, a millisecond epoch that
+// not every client can represent exactly - the Garmin watch app parses large JSON
+// numbers only imprecisely. Device payloads therefore carry the seconds left as
+// well, so a client can count down without doing epoch arithmetic.
+const withMaintenanceSecondsLeft = <T extends Partial<Device>>(device: T): T => ({
+  ...device,
+  maintenance_mode_seconds_left: Math.max(0, Math.ceil(((device.maintenance_mode_until ?? 0) - Date.now()) / 1000)),
+});
 
 class DeviceService {
   private readonly upgradeInstructionTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -606,9 +620,35 @@ class DeviceService {
     }
     await deviceModel.findOneAndUpdate({ device_id: deviceId }, { $set: { [`hardwareInfo.${infoKey}`]: infoValue } });
 
+    if (infoKey === 'sockets_n') {
+      await this.dropSupersededSocketChunks(deviceId, Number(infoValue));
+    }
+
     if (infoKey === 'webcam_did') {
       await this.reconcileP2PCamera(deviceId, infoValue);
     }
+  }
+
+  /**
+   * The socket table arrives as `socket_list<k>` chunks, and a table that has
+   * shrunk leaves the chunks of the larger one behind. Readers bound by
+   * `sockets_n` ignore them, but a stored report that contradicts itself is a
+   * trap for anyone reading the device document, so drop them. The device
+   * announces the count before the chunks, so this never removes a chunk that
+   * is about to be written.
+   */
+  private async dropSupersededSocketChunks(deviceId: string, count: number) {
+    if (!Number.isInteger(count) || count < 0) {
+      return;
+    }
+
+    const device = await deviceModel.findOne({ device_id: deviceId }, { hardwareInfo: 1 }).lean();
+    const stale = Object.keys(device?.hardwareInfo ?? {}).filter(key => (socketListChunk(key) ?? -1) >= socketChunkCount(count));
+    if (stale.length === 0) {
+      return;
+    }
+
+    await deviceModel.updateOne({ device_id: deviceId }, { $unset: Object.fromEntries(stale.map(key => [`hardwareInfo.${key}`, ''])) });
   }
 
   /**
@@ -820,13 +860,13 @@ class DeviceService {
   }
 
   public async findAllDevices(): Promise<Device[]> {
-    const devices: Device[] = await deviceModel.find({});
-    return devices;
+    const devices = await deviceModel.find({}).lean();
+    return devices.map(device => withMaintenanceSecondsLeft(device)) as Device[];
   }
 
   public async getDeviceBySerial(serialnumber: Number): Promise<Device> {
-    const device: Device = await deviceModel.findOne({ serialnumber: serialnumber });
-    return device;
+    const device = await deviceModel.findOne({ serialnumber: serialnumber }).lean();
+    return (device ? withMaintenanceSecondsLeft(device) : device) as Device;
   }
 
   public async activateMaintenanceMode(device_id: string, durationMinutes: number): Promise<void> {
@@ -857,20 +897,33 @@ class DeviceService {
   // Commands for auxiliary devices managed by the device itself (smart sockets,
   // Terp Control Cam). Whitelisted so the endpoint can never publish arbitrary
   // actions to the device command topic.
-  private static readonly SOCKET_ROLES = ['dehumidifier', 'heater', 'light', 'secondary_light', 'co2'];
   private static readonly AUX_COMMAND_ACTIONS = ['socket_remove', 'socket_test', 'socket_set'];
+
+  // A role can hold any number of sockets, so a command may name one of them by
+  // its slot — the position the device reports it at in `socket_listN`. Left
+  // out, the command applies to the role as a whole, which is what it meant
+  // when a role could only ever have one socket.
+  private static readonly MAX_SOCKET_SLOT = MAX_SOCKETS - 1;
 
   public async sendAuxDeviceCommand(
     device_id: string,
     action: string,
     role: string,
-    options?: { ip?: string; user?: string; password?: string },
+    options?: { ip?: string; user?: string; password?: string; slot?: number | string; append?: boolean | string },
   ): Promise<void> {
-    if (!DeviceService.AUX_COMMAND_ACTIONS.includes(action) || !DeviceService.SOCKET_ROLES.includes(role)) {
+    if (!DeviceService.AUX_COMMAND_ACTIONS.includes(action) || !SOCKET_ROLES.includes(role as SocketRole)) {
       throw new HttpException(400, 'Unknown aux command');
     }
 
-    const payload: Record<string, string> = { action, role };
+    const payload: Record<string, string | number | boolean> = { action, role };
+
+    if (options?.slot !== undefined && options.slot !== null && options.slot !== '') {
+      const slot = Number(options.slot);
+      if (!Number.isInteger(slot) || slot < 0 || slot > DeviceService.MAX_SOCKET_SLOT) {
+        throw new HttpException(400, 'Invalid socket slot');
+      }
+      payload['slot'] = slot;
+    }
 
     if (action === 'socket_set') {
       const ip = String(options?.ip ?? '').trim();
@@ -886,6 +939,14 @@ class DeviceService {
       payload['ip'] = ip;
       payload['user'] = user;
       payload['password'] = password;
+
+      // Adds a socket to the role instead of configuring the one it has. A
+      // caller adding a second heater has no slot to name yet, so it says so
+      // here; without it the command keeps its original "configure this role's
+      // socket" meaning.
+      if (options?.append === true || options?.append === 'true') {
+        payload['append'] = true;
+      }
     }
 
     mqttclient.publish('/devices/' + device_id + '/command', JSON.stringify(payload));
@@ -903,16 +964,17 @@ class DeviceService {
       lastseen: 1,
     };
 
+    // lean() gives plain objects: the derived seconds can be attached to them, and
+    // the sanitized demo copies cannot carry mongoose internals (or the untouched
+    // original) along.
     if (is_demo) {
-      // lean() returns plain objects, so the sanitized copies cannot carry
-      // mongoose internals (or the untouched original) along.
       const demoDevices = await deviceModel.find({ demoDevice: true }, projection).lean();
-      return demoDevices.map(device => demoDevice(device)) as Device[];
+      return demoDevices.map(device => withMaintenanceSecondsLeft(demoDevice(device))) as Device[];
     }
 
-    const devices: Device[] = await deviceModel.find({ owner_id: user_id }, projection);
+    const devices = await deviceModel.find({ owner_id: user_id }, projection).lean();
     // const users: Device[] = await deviceModel.aggregate([{$match: {owner_id: user_id}}, {$lookup: {from: 'deviceclasses', localField:'class_id', foreignField: 'class_id', as:'device_class'}}]);
-    return devices;
+    return devices.map(device => withMaintenanceSecondsLeft(device)) as Device[];
   }
 
   public async register(info: RegisterDeviceDto): Promise<any> {

@@ -303,11 +303,55 @@
         document.querySelector(id).classList.toggle('hidden', !visible);
       }
 
+      /* onloadend, not onload: a request that fails answers with an empty
+         string rather than never answering, so the caller can fall back
+         instead of leaving the page waiting on a device that went away. */
       function post(url, payload, onload) {
         var xhr = new XMLHttpRequest();
         xhr.open(payload ? 'POST' : 'GET', window.location.origin + url, true);
-        xhr.onload = function() { onload(xhr.responseText); };
+        xhr.onloadend = function() { onload(xhr.responseText); };
         xhr.send(payload);
+      }
+
+      /* Overwrites a banner's copy, so both forms can share the two boxes. */
+      function msg(id, text) {
+        document.querySelector(id).textContent = text;
+        show(id, true);
+      }
+
+      function sendServer() {
+        let form = document.querySelector('#server');
+        if(!form.reportValidity()) return;
+
+        show('#server-ui', false);
+        show('#connected', false);
+        show('#error', false);
+        show('#connecting', true);
+
+        let form_data = new FormData(form);
+        let payload = JSON.stringify({
+          url: form_data.get('url'),
+          password: form_data.get('password'),
+        });
+
+        post('/server', payload, function(response) {
+          let ok = response == 'ok';
+          show('#connecting', false);
+          show('#server-ui', !ok);
+          if(ok) msg('#connected', 'Sent. The device is switching over - watch its display.');
+          else msg('#error', 'The device rejected the server URL.');
+        });
+      }
+
+      /* A space at either end of a value is invisible in the field and breaks
+         it silently - a url that will not resolve, a password that will not
+         match. Checked as it is typed so it can still be fixed. */
+      function checkSpaces() {
+        let padded = ['#primary-password', '#server-url', '#join-password'].some(function(id) {
+          let value = document.querySelector(id).value;
+          return value != value.trim();
+        });
+        show('#warn', padded);
       }
 
       function sendConfig() {
@@ -319,7 +363,7 @@
         let form_data = new FormData(document.querySelector('#wifi'));
         let payload = JSON.stringify({
           primary: {
-            ssid: form_data.get('primary-ssid'),
+            ssid: form_data.get('primary-ssid').trim(),
             password: form_data.get('primary-password'),
           },
         });
@@ -339,8 +383,8 @@
         show('#scanning', true);
 
         post('/scan', null, function(response) {
-          let wifi = JSON.parse(response);
           show('#scanning', false);
+          let wifi = JSON.parse(response || 'null');
           if(!wifi) return;
 
           for(let ssid of wifi) {
@@ -397,16 +441,32 @@
         Could not connect. Check the network and password.
       </div>
 
-      <div id="wifi-ui" class="card">
+      <div id="warn" class="hidden box">
+        A value starts or ends with a space. That is usually a typo - a space is
+        invisible here but counts.
+      </div>
+
+      <div id="wifi-ui" class="hidden card">
         <p class="lead">Connect your device to your WiFi network.</p>
         <form id="wifi">
           <label for="primary-ssid">Network</label>
           <input id="primary-ssid" type="text" name="primary-ssid" value="" autocapitalize="none" autocomplete="off">
           <button class="ghost" type="button" onclick="scanWifi()">Scan for networks</button>
           <label for="primary-password" style="margin-top:16px">Password</label>
-          <input id="primary-password" type="text" name="primary-password" value="" autocapitalize="none" autocomplete="off">
+          <input id="primary-password" type="text" name="primary-password" oninput="checkSpaces()" value="" autocapitalize="none" autocomplete="off">
         </form>
         <button class="primary" type="button" onclick="sendConfig()">Save</button>
+      </div>
+
+      <div id="server-ui" class="hidden card">
+        <p class="lead">Point this device at a different server. It registers there and installs the firmware that server serves.</p>
+        <form id="server">
+          <label for="server-url">Server URL</label>
+          <input id="server-url" type="url" name="url" oninput="checkSpaces()" value="" required autocapitalize="none" autocomplete="off">
+          <label for="join-password">Join password</label>
+          <input id="join-password" type="text" name="password" oninput="checkSpaces()" value="" autocapitalize="none" autocomplete="off">
+        </form>
+        <button class="primary" type="button" onclick="sendServer()">Save</button>
       </div>
 
     </div>
@@ -418,6 +478,17 @@
         <button class="ghost" type="button" onclick="show('#scan', false)">Cancel</button>
       </div>
     </div>
+
+    <script>
+      /* Both cards are in this one page and the device serves it from its root
+         either way, so the page asks which one it is: the server url comes
+         back while the change-server screen is open, and nothing at all when
+         this is the wifi portal. */
+      post('/server', null, function(url) {
+        show(url ? '#server-ui' : '#wifi-ui', true);
+        document.querySelector('#server-url').value = url;
+      });
+    </script>
 
   </body>
 

@@ -862,6 +862,12 @@
   "message-diary-plant-lifecycle-title": "Pflanzen-Phasenwechsel",
   "message-smart-socket-cmd-failed-title": "Befehl an Smart-Steckdose fehlgeschlagen",
   "message-smart-socket-cmd-failed-text": "Der Schaltbefehl an die Smart-Steckdose für die Rolle «{{value}}» konnte nicht gesendet werden.",
+  "message-smart-socket-readdressed-title": "Smart-Steckdose wiedergefunden",
+  "message-smart-socket-readdressed-text": "Die Smart-Steckdose für die Rolle «{{value}}» antwortet unter einer neuen Adresse und wird wieder verwendet.",
+  "message-terp-cam-found-title": "Kamera wiedergefunden",
+  "message-terp-cam-not-found-title": "Kamera nicht gefunden",
+  "message-terp-cam-found-text": "Die verbundene Kamera hat auf eine Netzwerksuche geantwortet und ist wieder erreichbar.",
+  "message-terp-cam-not-found-text": "Die verbundene Kamera hat auf eine Netzwerksuche nicht geantwortet. Prüfe, ob sie Strom hat und im WLAN ist.",
   "message-smart-socket-connected-title": "Smart-Steckdose verbunden",
   "message-smart-socket-connected-text": "Eine Smart-Steckdose wurde für die Rolle «{{value}}» verbunden.",
   "message-smart-socket-disconnected-title": "Smart-Steckdose getrennt",
@@ -1021,7 +1027,7 @@
     },
     "sockets": {
       "title": "Smart Sockets",
-      "intro": "Dein Gerät schaltet diese Steckdosen. Die Kopplung passiert direkt am Gerät (Einstellungen → Smart Sockets).",
+      "intro": "Dein Gerät schaltet diese Steckdosen. Die Kopplung passiert direkt am Gerät (Einstellungen → Smart Sockets). Pro Funktion sind beliebig viele Steckdosen möglich — sie schalten gemeinsam.",
       "unknownFirmware": "Diese Firmware meldet ihre Steckdosen noch nicht. Aktualisiere die Geräte-Firmware oder verwalte die Steckdosen am Gerät.",
       "connected": "Verbunden",
       "roles": {
@@ -1044,6 +1050,8 @@
       "apply": "Übernehmen",
       "editHint": "Dein Gerät schaltet die Steckdose unter dieser Adresse (Tasmota-HTTP). Passwort leer lassen, um die Kopplungs-Zugangsdaten zu behalten.",
       "testNote": "Testen schaltet die Steckdose für ca. 2 Sekunden ein.",
+      "hardwareId": "Hardware-ID",
+      "limitReached": "Dieses Gerät verwaltet bereits die maximalen 32 Smart Sockets.",
       "add": "Smart Socket hinzufügen",
       "role": "Funktion",
       "brands": {

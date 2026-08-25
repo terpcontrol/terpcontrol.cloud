@@ -19,6 +19,9 @@
             "polyfills": "src/polyfills.ts",
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
+            "allowedCommonJsDependencies": [
+              "@fg2/shared-types"
+            ],
             "assets": [
               "src/manifest.webmanifest",
               {
