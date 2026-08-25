@@ -309,18 +309,38 @@ export const validSchluessel = async (req: RequestWithUser, zelt_id: string): Pr
 const besitzt = async (req: RequestWithUser, zelt_id: string): Promise<boolean> => !req.is_demo && (await isUserZelt(req, zelt_id));
 
 /**
- * Who may read a Zelt: its owner, a share link on a device it binds, its read
- * key, or a club key. Like `isUserZelt` this is a call and not Express
- * middleware, so a handler that forgets it is unguarded - the route table test
- * is what proves none of them forgot.
+ * What a reader is asking to see. A share link is issued for one of these and
+ * must not open the other: the numbers and the diary are different disclosures,
+ * and somebody who shared a chart with a forum did not thereby publish who
+ * watered what, the notes about it, or the photographs.
  */
-export const darfLesen = async (req: RequestWithUser, zelt_id: string): Promise<boolean> => {
+export type Lesegrund = 'charts' | 'diary';
+
+/**
+ * Who may read a Zelt: its owner, a share link **issued for what is being
+ * asked for**, its read key, or a club key. Like `isUserZelt` this is a call
+ * and not Express middleware, so a handler that forgets it is unguarded - the
+ * route table test is what proves none of them forgot.
+ *
+ * §15.1 lists the read endpoints as `Z | S | A` without narrowing, and taken
+ * literally that lets a `charts` link read `/api/dinge`. The narrowing is here
+ * on purpose: `ShareLink.page` exists precisely so a link discloses one half,
+ * and §4.5's rule that a link shared in week 3 must not start leaking sensor
+ * data in week 12 is the same principle pointing the other way.
+ */
+export const darfLesen = async (req: RequestWithUser, zelt_id: string, grund: Lesegrund = 'diary'): Promise<boolean> => {
   if (await besitzt(req, zelt_id)) return true;
 
   const share = await findValidShareForZelt(req, zelt_id);
   if (share) {
-    req.share = share;
-    return true;
+    // A `diary` link is the tent's own share and carries the sensor half only
+    // when `charts` was ticked; a `charts` link never carries the diary.
+    const darf = grund === 'charts' ? share.page === 'charts' || !!share.charts : share.page === 'diary';
+    if (darf) {
+      req.share = share;
+      return true;
+    }
+    return false;
   }
 
   return (await validApiKeyForZelt(req, zelt_id)) || (await validSchluessel(req, zelt_id));
