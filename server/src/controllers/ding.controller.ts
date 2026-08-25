@@ -14,8 +14,18 @@ const ALLE_ARTEN: string[] = [...GESPEICHERTE_ARTEN, ...PROJIZIERTE_ARTEN];
 
 const LIMIT_STANDARD = 100;
 const LIMIT_MAX = 500;
-/** The offline queue drains in chunks; the body parser's 100 kB is the real ceiling and this stays under it. */
-const STAPEL_MAX = 200;
+/**
+ * The offline queue drains in chunks, and a chunk the body parser refuses is a
+ * chunk the client retries forever: `express.json()` stops at 100 kB and answers
+ * 413 in a shape no per-item result array can rescue, with nothing stored.
+ *
+ * A Ding carrying a real note runs to roughly a kilobyte once `d`, the two uuids
+ * and the umlauts are counted, so fifty of them leave half the ceiling unused.
+ * That headroom is the point rather than slack: no text field has a maximum
+ * length, so no item count can be *proved* to fit, and a queue longer than one
+ * chunk is drained by sending several.
+ */
+export const STAPEL_MAX = 50;
 
 /** What a page was asked for, or the reason it cannot be answered. */
 type Anfrage = { ok: true; arten: DingArt[]; von: number; bis: number; cursor: DingCursor | null; limit: number } | { ok: false; problem: string };
@@ -82,17 +92,24 @@ const pruefeEingang = (schluessel: Schluessel | undefined, eingabe: unknown): Di
 };
 
 /** The status a write answers with: created and unchanged both succeeded, a taken id did not. */
-const status = (ergebnis: DingSchreiben): number => (ergebnis.ok === true ? 200 : ergebnis.grund === 'konflikt' ? 409 : 400);
+const status = (ergebnis: DingSchreiben): number => (ergebnis.ok === true ? 200 : ergebnis.grund === 'verweis' ? 400 : 409);
 
-const koerper = (ergebnis: DingSchreiben): Record<string, unknown> =>
-  ergebnis.ok === true
-    ? { ding: ergebnis.ding }
-    : ergebnis.grund === 'konflikt'
-    ? {
-        message: 'ding_id is already taken by a different Ding - a value is corrected by writing a new Ding, never by rewriting one',
-        ding: ergebnis.ding,
-      }
-    : { problems: ergebnis.problems };
+const KONFLIKT = 'ding_id is already taken by a different Ding - a value is corrected by writing a new Ding, never by rewriting one';
+
+/**
+ * The conflicting Ding comes back only when it sits in the tent the caller was
+ * authorised against. In any other tent it is somebody else's row, and this
+ * endpoint would be a read of it: authorisation ran against the `zelt_id` in the
+ * body, and a `ding_id` is not a secret - a read key, a club key or a share link
+ * hands out every id of the tent it opens. Knowing the id is taken is all a
+ * client needs to mint a new one.
+ */
+const koerper = (ergebnis: DingSchreiben): Record<string, unknown> => {
+  if (ergebnis.ok === true) return { ding: ergebnis.ding };
+  if (ergebnis.grund === 'verweis') return { problems: ergebnis.problems };
+
+  return ergebnis.grund === 'konflikt' ? { message: KONFLIKT, ding: ergebnis.ding } : { message: KONFLIKT };
+};
 
 class DingController {
   /**
@@ -177,23 +194,39 @@ class DingController {
    * batch down with it: a queue that empties only when all of it is perfect never
    * empties.
    *
-   * Authorisation is not per item. A batch reaching a tent the caller may not
-   * write is a bug or an attack, never a partial success, so it is refused whole.
+   * Access is refused whole - a batch reaching a tent the caller may not write is
+   * a bug or an attack, never a partial success - but the *credential* is per
+   * item, because one request can hold a session and a club key at once and they
+   * do not authorise the same things.
+   *
+   * The shape of the body is settled before any of that. An empty drain is the
+   * ordinary "the queue was already empty" case and a malformed one is a client
+   * bug; answering either with a 403 tells a client to log the person out for
+   * having nothing to send.
    */
   public postStapel = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
-      if (!(await this.darfStapelSchreiben(req, res))) return;
-
-      const dinge: unknown[] = req.body.dinge;
+      const dinge: unknown = req.body?.dinge;
+      if (!Array.isArray(dinge)) {
+        res.status(400).json({ message: 'dinge must be an array of Dinge' });
+        return;
+      }
       if (dinge.length > STAPEL_MAX) {
         res.status(400).json({ message: `dinge must hold at most ${STAPEL_MAX} entries` });
         return;
       }
+      if (dinge.length === 0) {
+        res.status(200).json({ ergebnisse: [] });
+        return;
+      }
+
+      const schluesselJeZelt = await this.darfStapelSchreiben(req, res, dinge);
+      if (!schluesselJeZelt) return;
 
       const ergebnisse = [];
       for (const eingabe of dinge) {
         const eingereicht = (eingabe as Ding)?.ding_id;
-        const pruefung = pruefeEingang(req.schluessel, eingabe);
+        const pruefung = pruefeEingang(schluesselJeZelt.get(zeltIdAus(eingabe)), eingabe);
         if (pruefung.ok === false) {
           ergebnisse.push({ ding_id: typeof eingereicht === 'string' ? eingereicht : null, ok: false, status: 400, problems: pruefung.problems });
           continue;
@@ -230,18 +263,33 @@ class DingController {
     return ding;
   };
 
-  /** Every tent the batch touches has to be writable, and a body that names none is refused before anything is read. */
-  private darfStapelSchreiben = async (req: RequestWithUser, res: Response): Promise<boolean> => {
-    const dinge: unknown[] = Array.isArray(req.body?.dinge) ? req.body.dinge : [];
+  /**
+   * Every tent the batch touches has to be writable, and a body that names none
+   * is refused before anything is read. What comes back is the club key each
+   * tent was opened with - null when the batch is refused.
+   *
+   * A key belongs to one tent (§13.5), but `darfSchreiben` resolves it onto the
+   * request as a side effect, so a batch that reaches one tent by a key and
+   * another by ownership would leave the last key resolved standing for all of
+   * them: the owner's own tent would inherit the key's narrowed art list and its
+   * forced `akteur`, and which tent won would come down to the order of the
+   * array. Authorisation that depends on array order is not authorisation, so
+   * the key is kept per tent and the request is left carrying none.
+   */
+  private darfStapelSchreiben = async (req: RequestWithUser, res: Response, dinge: unknown[]): Promise<Map<string, Schluessel> | null> => {
     // An item that names no tent is a validation failure and is reported as one;
     // an item naming a *different* tent is not, and refuses the batch.
     const zelte = [...new Set(dinge.map(zeltIdAus))].filter(zelt_id => zelt_id !== '');
+    const schluesselJeZelt = new Map<string, Schluessel>();
 
     for (const zelt_id of zelte.length > 0 ? zelte : ['']) {
-      if (!(await darfSchreibenMiddelware(req, res, zelt_id))) return false;
+      req.schluessel = undefined;
+      if (!(await darfSchreibenMiddelware(req, res, zelt_id))) return null;
+      if (req.schluessel) schluesselJeZelt.set(zelt_id, req.schluessel);
     }
 
-    return true;
+    req.schluessel = undefined;
+    return schluesselJeZelt;
   };
 }
 

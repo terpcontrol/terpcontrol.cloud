@@ -10,6 +10,9 @@ import deviceModel from '@models/device.model';
 import dingModel from '@models/ding.model';
 import zeltModel from '@models/zelt.model';
 import DingRoute from '@routes/ding.route';
+import schluesselModel from '@models/schluessel.model';
+import { schluesselService } from '@services/schluessel.service';
+import { STAPEL_MAX } from '@controllers/ding.controller';
 
 // The tent under test owns no device. That is not a variant of this suite, it is
 // the reference case: every art written here is human-entered, no handler is
@@ -17,6 +20,10 @@ import DingRoute from '@routes/ding.route';
 // tier. Nothing below creates a Device, and the last test proves none was.
 const BESITZER = '60706478aad6c9ad19a31c84';
 const ZELT_ID = 'zelt-ohne-geraet';
+// A second tent, owned by somebody else. Every test that has to prove a caller
+// is told nothing about a tent they were never let into uses this one.
+const FREMDER = '60706478aad6c9ad19a31c85';
+const FREMDES_ZELT = 'zelt-von-jemand-anderem';
 const TAG = 24 * 60 * 60 * 1000;
 const TAG_NULL = Date.UTC(2026, 4, 1);
 const JETZT = TAG_NULL + 30 * TAG;
@@ -65,11 +72,20 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await Promise.all([dingModel.deleteMany({}), zeltModel.deleteMany({}), deviceModel.deleteMany({})]);
+  await Promise.all([dingModel.deleteMany({}), zeltModel.deleteMany({}), deviceModel.deleteMany({}), schluesselModel.deleteMany({})]);
   await zeltModel.create({
     zelt_id: ZELT_ID,
     besitzer_id: BESITZER,
     name: 'Keller',
+    geraete: [],
+    zeitzone: 'Europe/Berlin',
+    tag_null: TAG_NULL,
+    erstellt_at: TAG_NULL,
+  });
+  await zeltModel.create({
+    zelt_id: FREMDES_ZELT,
+    besitzer_id: FREMDER,
+    name: 'Dachboden',
     geraete: [],
     zeitzone: 'Europe/Berlin',
     tag_null: TAG_NULL,
@@ -225,6 +241,87 @@ describe('POST /api/dinge', () => {
     expect(gespeichert.d).toEqual({ wasser_l: 5 });
   });
 
+  /**
+   * The conflict body is a read. A `ding_id` is no secret - every api-key
+   * holder, club member and share reader legitimately learns the ids of the
+   * tent they were let into - so replaying one into a tent of one's own must
+   * not hand back the row it names.
+   */
+  it('answers a ding_id taken in a tent the caller cannot see with a conflict carrying no Ding', async () => {
+    const fremdes = await dingModel.create(
+      notiz({ zelt_id: FREMDES_ZELT, art: 'gabe', name: 'Woche 3', t: TAG_NULL + 2 * TAG, d: { wasser_l: 7, ph: 6.2 } }),
+    );
+
+    const antwort = await alsBesitzer(
+      request(app.getServer())
+        .post('/api/dinge')
+        .send(notiz({ ding_id: fremdes.ding_id })),
+    ).expect(409);
+
+    expect(antwort.body.ding).toBeUndefined();
+    const roh = JSON.stringify(antwort.body);
+    expect(roh).not.toContain(FREMDES_ZELT);
+    expect(roh).not.toContain('Woche 3');
+    expect(roh).not.toContain('wasser_l');
+  });
+
+  /**
+   * The retry §17 exists for. `t_ende` and `d.geschlossen_von` are what a PATCH
+   * writes, so fingerprinting them makes the server's own edit look like a
+   * different Ding and wedges the queue with an item it can never drain.
+   */
+  it('accepts the queue replaying a Ding the server itself has since PATCHed', async () => {
+    const anna = notiz({ art: 'mensch', name: 'Anna', d: { farbe: '#7c3aed' } });
+    await alsBesitzer(request(app.getServer()).post('/api/dinge').send(anna)).expect(200);
+
+    const offen = notiz({ art: 'zustand', t_ende: null, d: { text: 'Trauermücken' } });
+    await alsBesitzer(request(app.getServer()).post('/api/dinge').send(offen)).expect(200);
+
+    await alsBesitzer(
+      request(app.getServer())
+        .patch(`/api/dinge/${offen.ding_id}`)
+        .send({ t_ende: TAG_NULL + 5 * TAG }),
+    ).expect(200);
+    await alsBesitzer(
+      request(app.getServer())
+        .patch(`/api/dinge/${offen.ding_id}`)
+        .send({ d: { geschlossen_von: anna.ding_id } }),
+    ).expect(200);
+
+    await alsBesitzer(request(app.getServer()).post('/api/dinge').send(offen)).expect(200);
+
+    // The close survives the replay - the retry inserted nothing over it.
+    const gespeichert = await dingModel.findOne({ ding_id: offen.ding_id }).lean();
+    expect(gespeichert.t_ende).toBe(TAG_NULL + 5 * TAG);
+    expect(gespeichert.d).toEqual({ text: 'Trauermücken', geschlossen_von: anna.ding_id });
+  });
+
+  it('still refuses a rewrite of what a patched Ding says happened', async () => {
+    const offen = notiz({ art: 'zustand', t_ende: null, d: { text: 'Trauermücken' } });
+    await alsBesitzer(request(app.getServer()).post('/api/dinge').send(offen)).expect(200);
+    await alsBesitzer(
+      request(app.getServer())
+        .patch(`/api/dinge/${offen.ding_id}`)
+        .send({ t_ende: TAG_NULL + 5 * TAG }),
+    ).expect(200);
+
+    await alsBesitzer(
+      request(app.getServer())
+        .post('/api/dinge')
+        .send({ ...offen, d: { text: 'doch Thripse' } }),
+    ).expect(409);
+    await alsBesitzer(
+      request(app.getServer())
+        .post('/api/dinge')
+        .send({ ...offen, art: 'notiz' }),
+    ).expect(409);
+    await alsBesitzer(
+      request(app.getServer())
+        .post('/api/dinge')
+        .send({ ...offen, t: TAG_NULL }),
+    ).expect(409);
+  });
+
   it('refuses an art that is projected rather than stored', async () => {
     const antwort = await alsBesitzer(
       request(app.getServer())
@@ -363,8 +460,134 @@ describe('POST /api/dinge/stapel', () => {
   });
 
   it('refuses a batch that names no tent at all', async () => {
-    await alsBesitzer(request(app.getServer()).post('/api/dinge/stapel').send({ dinge: [] })).expect(403);
-    await alsBesitzer(request(app.getServer()).post('/api/dinge/stapel').send({})).expect(403);
+    await alsBesitzer(
+      request(app.getServer())
+        .post('/api/dinge/stapel')
+        .send({ dinge: [notiz({ zelt_id: undefined })] }),
+    ).expect(403);
+  });
+
+  /**
+   * An empty drain is the ordinary "the queue was already empty" case, and a
+   * malformed one is a client bug. Neither is a credential problem, and a client
+   * that reads 403 as "log out" logs the person out for having nothing to send.
+   */
+  it('answers a malformed batch 400 and an empty one with an empty result list', async () => {
+    for (const koerper of [{}, { dinge: 'x' }, { dinge: null }, { dinge: { 0: notiz() } }]) {
+      await alsBesitzer(request(app.getServer()).post('/api/dinge/stapel').send(koerper)).expect(400);
+    }
+
+    const leer = await alsBesitzer(request(app.getServer()).post('/api/dinge/stapel').send({ dinge: [] })).expect(200);
+    expect(leer.body).toEqual({ ergebnisse: [] });
+  });
+
+  it('reports a ding_id taken in a tent the caller cannot see without handing the row over', async () => {
+    const fremdes = await dingModel.create(notiz({ zelt_id: FREMDES_ZELT, art: 'gabe', name: 'Woche 3', t: TAG_NULL + 2 * TAG, d: { wasser_l: 7 } }));
+
+    const antwort = await alsBesitzer(
+      request(app.getServer())
+        .post('/api/dinge/stapel')
+        .send({ dinge: [notiz({ ding_id: fremdes.ding_id })] }),
+    ).expect(200);
+
+    expect(antwort.body.ergebnisse[0].ok).toBe(false);
+    expect(antwort.body.ergebnisse[0].status).toBe(409);
+    expect(antwort.body.ergebnisse[0].ding).toBeUndefined();
+    expect(JSON.stringify(antwort.body)).not.toContain(FREMDES_ZELT);
+  });
+
+  /**
+   * The documented chunk size has to be one the body parser accepts, or a client
+   * trusting it retries the same rejected chunk forever - the exact wedge the
+   * per-item result array exists to prevent. 200 real notes, at the size the
+   * controller documents.
+   */
+  it('drains a queue of 200 real notes in chunks of the documented size', async () => {
+    const text = 'Blätter hängen leicht, Substrat oben trocken, unten noch feucht. EC am Ablauf gemessen. '.repeat(9).slice(0, 800);
+    const warteschlange = Array.from({ length: 200 }, () => notiz({ d: { text: text } }));
+
+    for (let ab = 0; ab < warteschlange.length; ab += STAPEL_MAX) {
+      const teil = warteschlange.slice(ab, ab + STAPEL_MAX);
+      // The ceiling the fix has to stay under, asserted rather than assumed.
+      expect(Buffer.byteLength(JSON.stringify({ dinge: teil }), 'utf8')).toBeLessThan(100 * 1024);
+
+      const antwort = await alsBesitzer(request(app.getServer()).post('/api/dinge/stapel').send({ dinge: teil })).expect(200);
+      expect(antwort.body.ergebnisse.every((ergebnis: any) => ergebnis.ok)).toBe(true);
+    }
+
+    expect(await dingModel.countDocuments({ art: 'notiz' })).toBe(200);
+  });
+});
+
+/**
+ * A club key authorises one tent. Which credential a batch item is written
+ * under therefore has to be that item's, not whichever one the loop happened to
+ * resolve last - authorisation whose outcome depends on array order is not
+ * authorisation.
+ */
+describe('POST /api/dinge/stapel with a club key in the request', () => {
+  const CLUB_ZELT = 'zelt-club';
+  let token: string;
+  let clubMensch: string;
+
+  beforeEach(async () => {
+    await zeltModel.create({
+      zelt_id: CLUB_ZELT,
+      besitzer_id: FREMDER,
+      name: 'Verein',
+      geraete: [],
+      zeitzone: 'Europe/Berlin',
+      tag_null: TAG_NULL,
+      erstellt_at: TAG_NULL,
+    });
+
+    const bernd = notiz({ zelt_id: CLUB_ZELT, art: 'mensch', name: 'Bernd', d: { farbe: '#0ea5e9' } });
+    await dingModel.create(bernd);
+    clubMensch = bernd.ding_id;
+    token = (await schluesselService.minteSchluessel(CLUB_ZELT, bernd.ding_id)).token;
+  });
+
+  const mitSchluessel = (aufruf: request.Test) => alsBesitzer(aufruf).set('X-Schluessel', token);
+
+  const gemischt = async (reihenfolge: 'club-zuerst' | 'eigen-zuerst') => {
+    const anna = notiz({ art: 'mensch', name: 'Anna', d: { farbe: '#7c3aed' } });
+    await alsBesitzer(request(app.getServer()).post('/api/dinge').send(anna)).expect(200);
+
+    const imClub = notiz({ zelt_id: CLUB_ZELT, art: 'notiz', d: { text: 'Umluft nachgestellt' } });
+    const eigenePflanze = notiz({ art: 'pflanze', name: 'A3 · Wedding Cake', d: { sorte: 'Wedding Cake' } });
+    const eigeneNotiz = notiz({ akteur: anna.ding_id, d: { text: 'Ventilator gedreht' } });
+    const dinge = reihenfolge === 'club-zuerst' ? [imClub, eigenePflanze, eigeneNotiz] : [eigenePflanze, eigeneNotiz, imClub];
+
+    const antwort = await mitSchluessel(request(app.getServer()).post('/api/dinge/stapel').send({ dinge: dinge })).expect(200);
+    return { antwort: antwort, anna: anna, imClub: imClub, eigenePflanze: eigenePflanze, eigeneNotiz: eigeneNotiz };
+  };
+
+  it.each(['club-zuerst', 'eigen-zuerst'] as const)('writes every item under its own tent credential (%s)', async reihenfolge => {
+    const { antwort, anna, imClub, eigenePflanze, eigeneNotiz } = await gemischt(reihenfolge);
+
+    expect(antwort.body.ergebnisse.map((ergebnis: any) => ergebnis.problems)).toEqual([undefined, undefined, undefined]);
+    expect(antwort.body.ergebnisse.map((ergebnis: any) => ergebnis.ok)).toEqual([true, true, true]);
+
+    // The key is the person in the club tent, and nowhere else.
+    expect((await dingModel.findOne({ ding_id: imClub.ding_id }).lean()).akteur).toBe(clubMensch);
+    // The owner's own tent keeps the owner's rules: an art no key may write, and
+    // the akteur the owner picked rather than the one the key forces.
+    expect((await dingModel.findOne({ ding_id: eigenePflanze.ding_id }).lean()).art).toBe('pflanze');
+    expect((await dingModel.findOne({ ding_id: eigeneNotiz.ding_id }).lean()).akteur).toBe(anna.ding_id);
+  });
+
+  it('keeps the key inside its own tent when the batch is only that tent', async () => {
+    const verboten = notiz({ zelt_id: CLUB_ZELT, art: 'pflanze', name: 'A3', d: { sorte: 'Wedding Cake' } });
+    const erlaubt = notiz({ zelt_id: CLUB_ZELT, d: { text: 'Umluft nachgestellt' } });
+
+    const antwort = await mitSchluessel(
+      request(app.getServer())
+        .post('/api/dinge/stapel')
+        .send({ dinge: [verboten, erlaubt] }),
+    ).expect(200);
+
+    expect(antwort.body.ergebnisse.map((ergebnis: any) => ergebnis.ok)).toEqual([false, true]);
+    expect(antwort.body.ergebnisse[0].problems.map((problem: any) => problem.path)).toEqual(['art']);
   });
 });
 

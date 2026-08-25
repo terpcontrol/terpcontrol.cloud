@@ -12,6 +12,19 @@ const OHNE_INTERNA = { _id: 0, __v: 0 };
 /** Everything a client authors. `erfasst_at` and `storniert_von` are not here: the server owns the first, a PATCH the second. */
 const KLIENT_FELDER: (keyof Ding)[] = ['zelt_id', 'art', 'name', 't', 't_ende', 'rel', 'd', 'bilder', 'akteur'];
 
+/**
+ * What a retry is recognised by: `KLIENT_FELDER` minus precisely what
+ * `validateDingPatch` may write - `t_ende` here, `geschlossen_von` and
+ * `dublette_von` inside `d`. Those are the fields the *server* changes after the
+ * insert, so fingerprinting them would let a PATCH turn the offline queue's own
+ * unchanged original body into "a different Ding" and leave §17 holding an item
+ * it can never drain. A rewrite of `art`, `t`, `akteur`, `rel`, `name`, `bilder`
+ * or the rest of the payload is still a conflict, which is the whole promise of
+ * an append-only diary.
+ */
+const ABDRUCK_FELDER: (keyof Ding)[] = KLIENT_FELDER.filter(feld => feld !== 't_ende');
+const ABDRUCK_OHNE_IN_D = ['geschlossen_von', 'dublette_von'];
+
 /** The named edge that carries a `mensch`, and the two `d` fields that carry a ding_id. */
 const VERWEIS_ART: Record<string, DingArt> = { akteur: 'mensch', 'd.dublette_von': 'gabe', 'd.geschlossen_von': 'mensch' };
 
@@ -36,7 +49,10 @@ export interface DingSeitenAnfrage {
 export type DingSchreiben =
   | { ok: true; neu: boolean; ding: Ding }
   | { ok: false; grund: 'verweis'; problems: DingProblem[] }
-  | { ok: false; grund: 'konflikt'; ding: Ding };
+  | { ok: false; grund: 'konflikt'; ding: Ding }
+  // The id is taken by a Ding of another tent, and this result deliberately
+  // carries none: it is the one conflict the caller was never authorised to see.
+  | { ok: false; grund: 'konflikt_fremd' };
 
 /**
  * A point happened at `t`; an interval is in the window as soon as it overlaps
@@ -72,8 +88,17 @@ const stabil = (wert: unknown): unknown => {
     }, {} as Record<string, unknown>);
 };
 
+const abdruckWert = (ding: Partial<Ding>, feld: keyof Ding): unknown => {
+  if (feld === 'name') return ding.name ?? '';
+  if (feld !== 'd' || ding.d === null || typeof ding.d !== 'object') return ding[feld];
+
+  const rest = { ...(ding.d as Record<string, unknown>) };
+  for (const patchbar of ABDRUCK_OHNE_IN_D) delete rest[patchbar];
+  return rest;
+};
+
 const abdruck = (ding: Partial<Ding>): string =>
-  JSON.stringify(stabil(KLIENT_FELDER.reduce((felder, feld) => ({ ...felder, [feld]: feld === 'name' ? ding.name ?? '' : ding[feld] }), {})));
+  JSON.stringify(stabil(ABDRUCK_FELDER.reduce((felder, feld) => ({ ...felder, [feld]: abdruckWert(ding, feld) }), {})));
 
 class DingService {
   /**
@@ -142,6 +167,15 @@ class DingService {
     const ergebnis = await dingModel.updateOne({ ding_id: ding.ding_id }, { $setOnInsert: neu }, { upsert: true });
     const gespeichert = await this.finde(ding.ding_id);
     if (ergebnis.upsertedCount > 0) return { ok: true, neu: true, ding: gespeichert };
+
+    // The caller was authorised against the `zelt_id` in the body, never against
+    // the one the row actually carries, and the filter is `ding_id` alone. A
+    // taken id in somebody else's tent is therefore reported without it: a
+    // ding_id is no secret - a read key, a club key or a share link hands out
+    // every id of the tent it opens - and replaying one must not read back the
+    // row. Scoping the filter to the tent instead would insert a second row
+    // under the same id and break on the unique index.
+    if (gespeichert.zelt_id !== ding.zelt_id) return { ok: false, grund: 'konflikt_fremd' };
 
     if (abdruck(gespeichert) !== abdruck(ding)) return { ok: false, grund: 'konflikt', ding: gespeichert };
 
