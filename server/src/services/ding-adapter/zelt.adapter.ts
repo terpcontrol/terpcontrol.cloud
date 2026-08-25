@@ -1,5 +1,5 @@
 import { Ding } from '@fg2/shared-types';
-import { DingFenster, ueberschneidet } from './fenster';
+import { begrenze, DingFenster, ueberschneidet } from './fenster';
 
 /**
  * The tent itself, as a row. It begins at `tag_null` and never ends, so it is
@@ -16,7 +16,7 @@ export const zeltDinge = async (fenster: DingFenster): Promise<Ding[]> => {
     return [];
   }
 
-  return [
+  return begrenze(fenster, [
     {
       ding_id: `zelt:${zelt.zelt_id}`,
       zelt_id: zelt.zelt_id,
@@ -29,5 +29,5 @@ export const zeltDinge = async (fenster: DingFenster): Promise<Ding[]> => {
       erfasst_at: zelt.erstellt_at,
       d: { zeitzone: zelt.zeitzone, medium: zelt.d?.medium },
     },
-  ];
+  ]);
 };

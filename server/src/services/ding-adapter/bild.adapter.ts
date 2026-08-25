@@ -1,7 +1,7 @@
 import { FilterQuery } from 'mongoose';
 import { Ding, Image } from '@fg2/shared-types';
 import imageModel from '@models/images.model';
-import { bindungenImFenster, bindungsFenster, DingFenster, nachZeitAbsteigend } from './fenster';
+import { begrenzeAbfrage, bindungenImFenster, bindungsFenster, bisCursor, DingFenster } from './fenster';
 
 /** What a projection needs from an `Image`, which is everything except the picture. */
 export type BildZeile = Pick<Image, 'image_id' | 'device_id' | 'timestamp' | 'timestampEnd' | 'format' | 'duration'> & { zelt_id?: string };
@@ -42,20 +42,26 @@ export const bildAbfrage = (fenster: DingFenster, formate: string[], alsZeitraum
   return { format: { $in: formate }, $or: zweige };
 };
 
-/** Reads the rows without the `data` buffer: a list of sixty photographs is sixty full-size reads otherwise. */
-export const bildZeilen = async (fenster: DingFenster, formate: string[], alsZeitraum = false): Promise<BildZeile[]> =>
-  imageModel.find(bildAbfrage(fenster, formate, alsZeitraum), OHNE_DATEN).sort({ timestamp: -1 }).lean() as unknown as Promise<BildZeile[]>;
+/**
+ * Reads the rows without the `data` buffer: a list of sixty photographs is sixty
+ * full-size reads otherwise. The window is the one the cursor left off at, and
+ * `grenze` is what keeps a year of frames out of memory - both formats sort on
+ * `timestamp`, which is the projected `t`, so the cut is the page's own cut.
+ */
+export const bildZeilen = async (fenster: DingFenster, formate: string[], alsZeitraum = false, grenze?: number): Promise<BildZeile[]> => {
+  const abfrage = imageModel.find(bildAbfrage(bisCursor(fenster), formate, alsZeitraum), OHNE_DATEN).sort({ timestamp: -1 });
+
+  return (grenze === undefined ? abfrage : abfrage.limit(grenze)).lean() as unknown as Promise<BildZeile[]>;
+};
 
 /**
  * Pictures: the camera's frames and the pictures a person took, as one art.
  * Which of the two a row is stays visible in `d.quelle`, because that is the
  * word the caption prints (§5) - it is not a reason to split the art in two.
  */
-export const bildDinge = async (fenster: DingFenster): Promise<Ding[]> => {
-  const zeilen = await bildZeilen(fenster, ['jpeg', 'user/jpeg']);
-
-  return nachZeitAbsteigend(
-    zeilen.map(zeile => ({
+export const bildDinge = async (fenster: DingFenster): Promise<Ding[]> =>
+  begrenzeAbfrage(fenster, async grenze =>
+    (await bildZeilen(fenster, ['jpeg', 'user/jpeg'], false, grenze)).map(zeile => ({
       ding_id: `bild:${zeile.image_id}`,
       zelt_id: fenster.zelt.zelt_id,
       ...(zeile.device_id ? { geraet_id: zeile.device_id } : {}),
@@ -67,4 +73,3 @@ export const bildDinge = async (fenster: DingFenster): Promise<Ding[]> => {
       d: { quelle: zeile.format === 'user/jpeg' ? 'hand' : 'geraet', format: zeile.format },
     })),
   );
-};

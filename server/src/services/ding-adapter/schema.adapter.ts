@@ -1,5 +1,5 @@
 import { Ding } from '@fg2/shared-types';
-import { DingFenster, ueberschneidet } from './fenster';
+import { begrenze, DingFenster, ueberschneidet } from './fenster';
 
 /**
  * The feed schedule the tent follows, and how far along it is.
@@ -19,7 +19,7 @@ export const schemaDinge = async (fenster: DingFenster): Promise<Ding[]> => {
     return [];
   }
 
-  return [
+  return begrenze(fenster, [
     {
       ding_id: `schema:${zelt.zelt_id}:${schema_id}`,
       zelt_id: zelt.zelt_id,
@@ -33,5 +33,5 @@ export const schemaDinge = async (fenster: DingFenster): Promise<Ding[]> => {
       t_ende: null,
       d: { schema_id: schema_id, schritt: zelt.d?.schema_schritt },
     },
-  ];
+  ]);
 };

@@ -1,6 +1,6 @@
 import { Device, Ding, readSockets, socketKey, socketsReported } from '@fg2/shared-types';
 import deviceModel from '@models/device.model';
-import { DingFenster, nachZeitAbsteigend, offeneBindungen } from './fenster';
+import { begrenze, DingFenster, offeneBindungen } from './fenster';
 
 /**
  * One Ding per socket - not per role. Several sockets may carry the same role
@@ -60,5 +60,5 @@ export const doseDinge = async (fenster: DingFenster): Promise<Ding[]> => {
     }
   }
 
-  return nachZeitAbsteigend(dinge);
+  return begrenze(fenster, dinge);
 };

@@ -114,8 +114,27 @@ describe('Projection without a device', () => {
     await bild('film-1', TAG_NULL + 2 * TAG, 'mp4', { zelt_id: zelt.zelt_id });
 
     const dinge = await projiziereDinge(fenster);
-    expect(dinge.map(ding => ding.art)).toEqual(['bild', 'film', 'schema', 'zelt']);
+    // The tent and its schema share `tag_null`, so the second sort key decides
+    // between them: newest first, `ding_id` descending inside one moment.
+    expect(dinge.map(ding => ding.art)).toEqual(['bild', 'film', 'zelt', 'schema']);
     expect(dinge.map(ding => ding.t)).toEqual([...dinge.map(ding => ding.t)].sort((a, b) => b - a));
+  });
+
+  it('hands out a page at a time, and pages through the photographs of a tent that has no device', async () => {
+    for (let tag = 1; tag <= 5; tag++) {
+      await bild(`foto-${tag}`, TAG_NULL + tag * TAG, 'user/jpeg', { zelt_id: zelt.zelt_id });
+    }
+
+    // One row more than the page, which is how the caller learns another follows.
+    const erste = await projiziereDinge({ ...fenster, limit: 2 }, ['bild']);
+    expect(erste.map(ding => ding.ding_id)).toEqual(['bild:foto-5', 'bild:foto-4', 'bild:foto-3']);
+
+    const cursor = { t: erste[1].t, ding_id: erste[1].ding_id };
+    const zweite = await projiziereDinge({ ...fenster, limit: 2, cursor: cursor }, ['bild']);
+    expect(zweite.map(ding => ding.ding_id)).toEqual(['bild:foto-3', 'bild:foto-2', 'bild:foto-1']);
+
+    const dritte = await projiziereDinge({ ...fenster, limit: 2, cursor: { t: zweite[1].t, ding_id: zweite[1].ding_id } }, ['bild']);
+    expect(dritte.map(ding => ding.ding_id)).toEqual(['bild:foto-1']);
   });
 
   it('ignores stored arts instead of refusing them, so one call can carry a whole request', async () => {

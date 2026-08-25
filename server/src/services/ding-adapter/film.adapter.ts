@@ -1,6 +1,6 @@
 import { Ding } from '@fg2/shared-types';
 import { bildZeilen } from './bild.adapter';
-import { DingFenster, nachZeitAbsteigend } from './fenster';
+import { begrenzeAbfrage, DingFenster } from './fenster';
 
 /**
  * Timelapses and Rückblicke - the same `Image` collection, told apart by
@@ -10,11 +10,9 @@ import { DingFenster, nachZeitAbsteigend } from './fenster';
  * It projects with no device: a Rückblick is built from the pictures a person
  * took, and those exist without hardware.
  */
-export const filmDinge = async (fenster: DingFenster): Promise<Ding[]> => {
-  const zeilen = await bildZeilen(fenster, ['mp4'], true);
-
-  return nachZeitAbsteigend(
-    zeilen.map(zeile => ({
+export const filmDinge = async (fenster: DingFenster): Promise<Ding[]> =>
+  begrenzeAbfrage(fenster, async grenze =>
+    (await bildZeilen(fenster, ['mp4'], true, grenze)).map(zeile => ({
       ding_id: `film:${zeile.image_id}`,
       zelt_id: fenster.zelt.zelt_id,
       ...(zeile.device_id ? { geraet_id: zeile.device_id } : {}),
@@ -25,4 +23,3 @@ export const filmDinge = async (fenster: DingFenster): Promise<Ding[]> => {
       d: { dauer: zeile.duration },
     })),
   );
-};

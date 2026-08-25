@@ -81,12 +81,78 @@ describe('the dinge collection', () => {
     expect(await dingModel.findOne({ ding_id: ding.ding_id }).lean()).not.toHaveProperty('geraet_id');
   });
 
-  it('carries the indexes the tent read needs', async () => {
+  it('carries the indexes the tent read needs, second sort key included', async () => {
     const schluessel = (await dingModel.collection.indexes()).map(index => JSON.stringify(index.key));
 
     expect(schluessel).toContain(JSON.stringify({ ding_id: 1 }));
-    expect(schluessel).toContain(JSON.stringify({ zelt_id: 1, t: -1 }));
-    expect(schluessel).toContain(JSON.stringify({ zelt_id: 1, art: 1, t: -1 }));
+    expect(schluessel).toContain(JSON.stringify({ zelt_id: 1, t: -1, ding_id: -1 }));
+    expect(schluessel).toContain(JSON.stringify({ zelt_id: 1, art: 1, t: -1, ding_id: -1 }));
+  });
+
+  // Four entries on one moment is the normal case, not a corner: `t` is what the
+  // person typed, and a back-dated „yesterday's watering" from six club members
+  // lands on the same rounded midnight for all six.
+  describe('paging through one moment', () => {
+    const MITTERNACHT = Date.UTC(2026, 4, 3);
+
+    const seite = (cursor: { t: number; ding_id: string } | null, grenze = 2) =>
+      dingModel
+        .find({
+          zelt_id: 'zelt-1',
+          // The half-open tail after the cursor, under the order below.
+          ...(cursor ? { $or: [{ t: { $lt: cursor.t } }, { t: cursor.t, ding_id: { $lt: cursor.ding_id } }] } : {}),
+        })
+        .sort({ t: -1, ding_id: -1 })
+        .limit(grenze)
+        .lean();
+
+    beforeEach(async () => {
+      await dingModel.create([gabe({ t: MITTERNACHT }), gabe({ t: MITTERNACHT }), gabe({ t: MITTERNACHT }), gabe({ t: MITTERNACHT })]);
+    });
+
+    it('reaches all four, two at a time', async () => {
+      const gesehen: string[] = [];
+      let cursor: { t: number; ding_id: string } | null = null;
+
+      for (let runde = 0; runde < 5; runde++) {
+        const dinge = await seite(cursor);
+        if (dinge.length === 0) {
+          break;
+        }
+        gesehen.push(...dinge.map(ding => ding.ding_id));
+        cursor = { t: dinge[dinge.length - 1].t, ding_id: dinge[dinge.length - 1].ding_id };
+      }
+
+      expect(gesehen).toHaveLength(4);
+      expect(new Set(gesehen).size).toBe(4);
+      expect(gesehen).toEqual([...gesehen].sort().reverse());
+    });
+
+    it('would lose two of them for good on a cursor keyed on `t` alone', async () => {
+      const erste = await seite(null);
+
+      // The regression this pair of tests exists for: no error, no empty result
+      // that looks wrong - just two entries that no page can ever reach again.
+      expect(await dingModel.find({ zelt_id: 'zelt-1', t: { $lt: erste[1].t } }).lean()).toHaveLength(0);
+      expect(await seite({ t: erste[1].t, ding_id: erste[1].ding_id })).toHaveLength(2);
+    });
+
+    it('lets the index serve the sort instead of collecting the page in memory', async () => {
+      const erklaert: any = await dingModel.find({ zelt_id: 'zelt-1' }).sort({ t: -1, ding_id: -1 }).limit(2).explain('queryPlanner');
+
+      const stufen: string[] = [];
+      for (let stufe = erklaert.queryPlanner.winningPlan; stufe; stufe = stufe.inputStage) {
+        stufen.push(stufe.stage);
+        if (stufe.indexName) {
+          expect(stufe.indexName).toBe('zelt_id_1_t_-1_ding_id_-1');
+        }
+      }
+
+      // A SORT stage would mean mongo read the whole tent into memory to hand
+      // out two rows - which is what an index in the other direction forces.
+      expect(stufen).toContain('IXSCAN');
+      expect(stufen).not.toContain('SORT');
+    });
   });
 
   it('reads one tent newest first without touching another tent', async () => {

@@ -2,7 +2,7 @@ import { Ding, DingArt, istGespeichert } from '@fg2/shared-types';
 import { bildDinge } from './bild.adapter';
 import { doseDinge } from './dose.adapter';
 import { ereignisDinge } from './ereignis.adapter';
-import { DingAdapter, DingFenster, nachZeitAbsteigend } from './fenster';
+import { begrenze, DingAdapter, DingFenster } from './fenster';
 import { filmDinge } from './film.adapter';
 import { geraetDinge } from './geraet.adapter';
 import { kameraDinge } from './kamera.adapter';
@@ -45,10 +45,16 @@ export const istProjiziert = (art: string): boolean => art in DING_ADAPTER;
  *
  * With `arten` omitted, all nine run. With `geraete: []` six of them return
  * without a query.
+ *
+ * With `fenster.limit` set, every adapter reads at most one row more than the
+ * page and the merge keeps that one row, so the list is longer than the page
+ * exactly when a further page exists - that is the answer the caller pages on,
+ * and the extra row is the one it drops after merging in the stored half.
+ * Without a limit nothing is bounded, which is only ever right for an export.
  */
 export const projiziereDinge = async (fenster: DingFenster, arten?: DingArt[]): Promise<Ding[]> => {
   const gefragt = (arten ?? PROJIZIERTE_ARTEN).filter(art => !istGespeichert(art));
   const listen = await Promise.all([...new Set(gefragt)].map(art => DING_ADAPTER[art]?.(fenster) ?? []));
 
-  return nachZeitAbsteigend(listen.flat());
+  return begrenze(fenster, listen.flat());
 };

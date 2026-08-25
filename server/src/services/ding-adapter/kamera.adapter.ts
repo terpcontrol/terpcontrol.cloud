@@ -1,7 +1,7 @@
 import { Device, Ding } from '@fg2/shared-types';
 import deviceModel from '@models/device.model';
 import imageModel from '@models/images.model';
-import { DingFenster, nachZeitAbsteigend, offeneBindungen } from './fenster';
+import { begrenze, DingFenster, offeneBindungen } from './fenster';
 
 /** A `webcam_did` that stands for a camera: not missing, and not the word the device sends when one is gone. */
 const gekoppelt = (webcam_did: string | undefined): boolean => webcam_did !== undefined && webcam_did !== '' && webcam_did !== 'none';
@@ -56,5 +56,5 @@ export const kameraDinge = async (fenster: DingFenster): Promise<Ding[]> => {
     });
   }
 
-  return nachZeitAbsteigend(dinge);
+  return begrenze(fenster, dinge);
 };

@@ -1,6 +1,6 @@
 import { Device, Ding } from '@fg2/shared-types';
 import deviceModel from '@models/device.model';
-import { bindungenImFenster, DingFenster, nachZeitAbsteigend } from './fenster';
+import { begrenze, bindungenImFenster, DingFenster } from './fenster';
 
 /**
  * One Ding per binding in `Zelt.geraete`, ended ones included: a device that
@@ -30,7 +30,8 @@ export const geraetDinge = async (fenster: DingFenster): Promise<Ding[]> => {
   const bindungenJeGeraet = new Map<string, number>();
   bindungen.forEach(bindung => bindungenJeGeraet.set(bindung.geraet_id, (bindungenJeGeraet.get(bindung.geraet_id) ?? 0) + 1));
 
-  return nachZeitAbsteigend(
+  return begrenze(
+    fenster,
     bindungen.map(bindung => {
       const geraet = nachId.get(bindung.geraet_id);
       const mehrfach = (bindungenJeGeraet.get(bindung.geraet_id) ?? 0) > 1;

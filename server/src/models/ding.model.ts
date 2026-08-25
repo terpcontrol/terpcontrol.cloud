@@ -82,10 +82,17 @@ const dingSchema: Schema = new Schema({
 // never to a stored one. Strict mode drops it, and the validator refuses it
 // outright so a client that sends one is told rather than silently corrected.
 
-// The list read: one tent, newest first.
-dingSchema.index({ zelt_id: 1, t: -1 });
+// The list read: one tent, newest first, and `ding_id` descending inside one
+// moment. The second key is not decoration - `t` is what the person typed, so
+// back-dated entries land on one rounded midnight together, and a cursor on `t`
+// alone then answers `{ t: { $lt: cursor } }` with nothing at all: the rows
+// sharing that moment become unreachable, silently and for good. The direction
+// of both keys has to be the one the read sorts by (`ding.service`, and
+// `vergleicheDinge` for the projected half it merges with), because mongo walks
+// an index forwards or backwards as a whole and cannot mix the two.
+dingSchema.index({ zelt_id: 1, t: -1, ding_id: -1 });
 // The same read filtered to one art, which is how every Tafel section loads.
-dingSchema.index({ zelt_id: 1, art: 1, t: -1 });
+dingSchema.index({ zelt_id: 1, art: 1, t: -1, ding_id: -1 });
 
 const dingModel = model<Ding & Document>('Ding', dingSchema);
 // The unique `ding_id` is what makes the upsert safe: without the index, two

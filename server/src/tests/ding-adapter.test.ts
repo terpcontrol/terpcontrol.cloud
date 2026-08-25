@@ -1,12 +1,12 @@
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import { Zelt } from '@fg2/shared-types';
+import { DingArt, Zelt } from '@fg2/shared-types';
 import deviceModel from '@models/device.model';
 import deviceLogModel from '@models/devicelog.model';
 import imageModel from '@models/images.model';
 import zeltModel from '@models/zelt.model';
 import zielStandModel from '@models/zielstand.model';
-import { projiziereDinge } from '@services/ding-adapter';
+import { projiziereDinge, PROJIZIERTE_ARTEN } from '@services/ding-adapter';
 import { DingFenster } from '@services/ding-adapter/fenster';
 
 let mongo: MongoMemoryServer;
@@ -71,6 +71,8 @@ beforeEach(async () => {
   ]);
   await zeltModel.create(zelt);
 });
+
+afterEach(() => jest.restoreAllMocks());
 
 describe('geraet', () => {
   it('projects one Ding per binding, the ended one included, and ends it where the binding ended', async () => {
@@ -236,6 +238,62 @@ describe('ereignis', () => {
 
     expect(await projiziereDinge(fenster, ['ereignis'])).toEqual([]);
   });
+
+  it('does not present what a person wrote in the old diary as something the device said', async () => {
+    await deviceLogModel.create({
+      device_id: 'controller-1',
+      title: 'message-diary-measurement',
+      message: 'Blüte, Woche 3',
+      severity: 0,
+      time: new Date(GEBUNDEN_SEIT + TAG),
+      categories: ['diary-measurement'],
+      data: { phMeasurement: 6.2, ecMeasurement: 1.4, distanceMeasurement: 45 },
+      images: ['foto-1'],
+    });
+
+    const [notiz] = await projiziereDinge(fenster, ['ereignis']);
+    expect(notiz.art).toBe('notiz');
+    // A person typed it, so no hardware is credited with it.
+    expect(notiz.geraet_id).toBeUndefined();
+    expect(notiz.d).toMatchObject({ text: 'Blüte, Woche 3', aus_log: true, kategorien: ['diary-measurement'] });
+    // The numbers that used to vanish: the six legacy fields, mapped onto Messwerte.
+    expect(notiz.d?.messwerte).toEqual({ ph: 6.2, ec: 1.4, abstand_cm: 45 });
+    expect(notiz.bilder).toEqual(['foto-1']);
+  });
+
+  it('leaves a diary entry that carried no measurement without an empty messwerte object', async () => {
+    await deviceLogModel.create({
+      device_id: 'controller-1',
+      title: 'message-diary-plant-log',
+      message: 'umgetopft',
+      severity: 0,
+      time: new Date(GEBUNDEN_SEIT + TAG),
+      categories: ['diary-plant-log'],
+    });
+
+    const [notiz] = await projiziereDinge(fenster, ['ereignis']);
+    expect(notiz.d).not.toHaveProperty('messwerte');
+    expect(notiz.d?.text).toBe('umgetopft');
+  });
+
+  it('still credits the device with what the device sent, alongside the diary rows', async () => {
+    await log('controller-1', GEBUNDEN_SEIT + TAG, 'message-reboot');
+    await deviceLogModel.create({
+      device_id: 'controller-1',
+      title: 'message-diary-measurement',
+      message: '',
+      severity: 0,
+      time: new Date(GEBUNDEN_SEIT + 2 * TAG),
+      categories: ['diary-measurement'],
+      data: { phMeasurement: 6.2 },
+    });
+
+    const dinge = await projiziereDinge(fenster, ['ereignis']);
+    expect(dinge.map(ding => [ding.art, ding.geraet_id])).toEqual([
+      ['notiz', undefined],
+      ['ereignis', 'controller-1'],
+    ]);
+  });
 });
 
 describe('ziel', () => {
@@ -264,6 +322,35 @@ describe('ziel', () => {
     ]);
   });
 
+  it('gives two controllers holding the same setpoint two Dinge, not one', async () => {
+    // What a migration that binds both devices at once produces: one key, one
+    // `gilt_ab`, two devices - and two different numbers.
+    for (const [geraet_id, wert] of [
+      ['controller-1', 24],
+      ['alt-1', 30],
+    ] as const) {
+      await zielStandModel.create({
+        zelt_id: zelt.zelt_id,
+        geraet_id: geraet_id,
+        schluessel: 'day.temperature',
+        wert: wert,
+        gilt_ab: GEBUNDEN_SEIT,
+        quelle: 'geraet',
+      });
+    }
+
+    const dinge = await projiziereDinge(fenster, ['ziel']);
+    expect(new Set(dinge.map(ding => ding.ding_id)).size).toBe(2);
+    expect(dinge.map(ding => ding.d?.wert).sort()).toEqual([24, 30]);
+  });
+
+  it('keeps the id of a hand target free of a device that never set it', async () => {
+    await zielStandModel.create({ zelt_id: zelt.zelt_id, schluessel: 'hand.ph', wert: 6.4, gilt_ab: GEBUNDEN_SEIT, quelle: 'hand' });
+
+    const [ziel] = await projiziereDinge(fenster, ['ziel']);
+    expect(ziel.ding_id).toBe(`ziel:${zelt.zelt_id}:hand.ph:${GEBUNDEN_SEIT}`);
+  });
+
   it('leaves out a target that had already ended before the window opened', async () => {
     await zielStandModel.create({
       zelt_id: zelt.zelt_id,
@@ -275,6 +362,104 @@ describe('ziel', () => {
     });
 
     expect(await projiziereDinge({ zelt: zelt, von: TAG_NULL + 20 * TAG, bis: JETZT }, ['ziel'])).toEqual([]);
+  });
+});
+
+describe('paging', () => {
+  // Every page is asked for one row more than it holds; that row is what says
+  // another page follows, and the caller drops it after merging in the stored
+  // half. Here it is dropped by `seite` below.
+  const seiten = async (arten: DingArt[], grenze: number) => {
+    const gelesen: string[][] = [];
+    let cursor: { t: number; ding_id: string } | null = null;
+
+    for (let runde = 0; runde < 10; runde++) {
+      const dinge = await projiziereDinge({ ...fenster, limit: grenze, cursor: cursor }, arten);
+      const seite = dinge.slice(0, grenze);
+      if (seite.length === 0) {
+        break;
+      }
+      gelesen.push(seite.map(ding => ding.ding_id));
+      if (dinge.length <= grenze) {
+        break;
+      }
+      cursor = { t: seite[seite.length - 1].t, ding_id: seite[seite.length - 1].ding_id };
+    }
+
+    return gelesen;
+  };
+
+  it('reads no more than the page plus the row that proves there is another', async () => {
+    for (let tag = 1; tag <= 6; tag++) {
+      await bild(`foto-${tag}`, GEBUNDEN_SEIT + tag * 1000, 'user/jpeg', { zelt_id: zelt.zelt_id });
+    }
+
+    // What the query was cut off at, taken from the query itself: the whole
+    // point of the limit is that the collection is never read past it, and a
+    // list trimmed after the fact would look exactly the same from outside.
+    const grenzen: number[] = [];
+    const findet = imageModel.find.bind(imageModel);
+    jest.spyOn(imageModel, 'find').mockImplementation(((...argumente: unknown[]) => {
+      const abfrage = findet(...(argumente as Parameters<typeof findet>));
+      const begrenzt = abfrage.limit.bind(abfrage);
+      abfrage.limit = (anzahl: number) => {
+        grenzen.push(anzahl);
+
+        return begrenzt(anzahl);
+      };
+
+      return abfrage;
+    }) as typeof imageModel.find);
+
+    expect(await projiziereDinge({ ...fenster, limit: 2 }, ['bild'])).toHaveLength(3);
+    // Six pictures are in the window; the query reads the page, the row that
+    // says another page follows, and one more to settle the boundary.
+    expect(grenzen).toEqual([4]);
+  });
+
+  it('pages through four log rows that share one moment without losing two of them', async () => {
+    // A device that logs four lines in the same millisecond, and the migration
+    // case: four rows, one `t`, and a cursor on `t` alone would stop after two.
+    for (const nachricht of ['message-a', 'message-b', 'message-c', 'message-d']) {
+      await deviceLogModel.create({ device_id: 'controller-1', message: nachricht, severity: 0, time: new Date(GEBUNDEN_SEIT + TAG) });
+    }
+
+    const gelesen = await seiten(['ereignis'], 2);
+    expect(gelesen).toHaveLength(2);
+    expect(gelesen.flat()).toHaveLength(4);
+    expect(new Set(gelesen.flat()).size).toBe(4);
+  });
+
+  it('pages through four targets that share one moment, which is what a migration writes', async () => {
+    for (const geraet_id of ['controller-1', 'alt-1']) {
+      for (const schluessel of ['day.temperature', 'night.temperature']) {
+        await zielStandModel.create({
+          zelt_id: zelt.zelt_id,
+          geraet_id: geraet_id,
+          schluessel: schluessel,
+          wert: 24,
+          gilt_ab: GEBUNDEN_SEIT,
+          quelle: 'geraet',
+        });
+      }
+    }
+
+    const gelesen = await seiten(['ziel'], 2);
+    expect(new Set(gelesen.flat()).size).toBe(4);
+  });
+
+  it('pages the whole projection, every art at once, and hands out each Ding exactly once', async () => {
+    await geraet('controller-1', { ...SOCKET_TABELLE, webcam_did: 'DID12345' }, 'Controller');
+    for (let tag = 1; tag <= 4; tag++) {
+      await bild(`foto-${tag}`, GEBUNDEN_SEIT + tag * TAG, 'user/jpeg', { zelt_id: zelt.zelt_id });
+      await deviceLogModel.create({ device_id: 'controller-1', message: `message-${tag}`, severity: 0, time: new Date(GEBUNDEN_SEIT + tag * TAG) });
+    }
+
+    const alles = await projiziereDinge(fenster);
+    const gelesen = (await seiten(PROJIZIERTE_ARTEN, 3)).flat();
+
+    expect(gelesen).toEqual(alles.map(ding => ding.ding_id));
+    expect(new Set(gelesen).size).toBe(gelesen.length);
   });
 });
 
