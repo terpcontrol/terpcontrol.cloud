@@ -1,9 +1,21 @@
 import type { Ding, Messwerte } from '@fg2/shared-types';
 import { istEintrag } from './ding-text';
 import { Herkunft, Messung, messzeilen } from './messquellen';
+import { sigmaJeReihe } from './reihe';
 
 /** Which band of the table a row belongs to. The band order is fixed; ranking only reorders inside one. §6.3. */
 export type ZeilenGruppe = 'geraet' | 'hand' | 'ziel' | 'summe' | 'anzahl';
+
+/**
+ * The mark at the end of a row (§6.1): `▲` a change bigger than this row's
+ * own noise, `◼` a change inside it, `○` no change at all.
+ *
+ * A row whose σ is **unknown** can never be `'ueber'`. That is the whole
+ * point of the mark: it is a claim that something moved further than this
+ * measure usually moves, and a measure nobody has read three times has not
+ * earned that claim yet.
+ */
+export type ZeilenMarke = 'ueber' | 'ruhig' | 'gleich';
 
 export interface UnterschiedZeile {
   id: string;
@@ -18,6 +30,13 @@ export interface UnterschiedZeile {
   jetzt: number | null;
   delta: number | null;
   richtung: 'hoch' | 'runter' | 'gleich';
+  /** The series this row is a reading of, when it is one. `messzeilen` keys it. */
+  reihe?: string;
+  /** How far this measure usually moves on its own. `null` = not enough readings to say. */
+  sigma: number | null;
+  /** |Δ| in units of that noise - the number `ⓘ nach Abweichung` sorts on. */
+  abweichung: number;
+  marke: ZeilenMarke;
 }
 
 /**
@@ -31,6 +50,10 @@ export interface UnterschiedEingabe {
   /** Series readings, when a device produced any. A tent with no device passes none and loses no row it ever had. */
   messungenVorher?: readonly Messung[];
   messungenJetzt?: readonly Messung[];
+  /** The right-hand moment. The σ window runs fourteen days back from it. */
+  bis?: number;
+  /** The tent's zone, because „same time of day“ is a claim about a wall clock. */
+  zeitzone?: string;
 }
 
 /** §6.3: the mixed tent is the union of both row sets, and somebody had to count it. */
@@ -110,7 +133,31 @@ const zeile = (
     jetzt: jetzt,
     delta: delta,
     richtung: richtungVon(delta),
+    sigma: null,
+    abweichung: 0,
+    marke: 'gleich',
     ...zusatz,
+  };
+};
+
+/**
+ * How far a row moved, measured in its own noise.
+ *
+ * A series that has been read often enough to have a σ is weighed against it.
+ * Everything else - a cumulative litre count, a step number, a tally of
+ * entries - has no noise floor to speak of, and is weighed against its own
+ * size instead, so `12,5 → 16,5 l` and `4 → 5 Schritte` land on one scale.
+ */
+const bewerten = (zeileJetzt: UnterschiedZeile, sigma: number | null): UnterschiedZeile => {
+  const delta = Math.abs(zeileJetzt.delta ?? 0);
+  const basis = Math.max(Math.abs(zeileJetzt.vorher ?? 0), Math.abs(zeileJetzt.jetzt ?? 0));
+  const abweichung = sigma !== null && sigma > 0 ? delta / sigma : basis > 0 ? delta / basis : delta > 0 ? 1 : 0;
+
+  return {
+    ...zeileJetzt,
+    sigma: sigma,
+    abweichung: abweichung,
+    marke: delta === 0 || zeileJetzt.delta === null ? 'gleich' : sigma !== null && delta > sigma ? 'ueber' : 'ruhig',
   };
 };
 
@@ -125,6 +172,7 @@ const messGruppe = (
     zeile(`${gruppe}:${rechts.id}`, gruppe, rechts.mass, links.get(rechts.id)?.wert ?? null, rechts.wert, {
       herkunft: rechts.herkunft,
       herkunftZeigen: rechts.herkunftZeigen,
+      reihe: rechts.id,
     }),
   );
 };
@@ -239,7 +287,58 @@ export const unterschiedZeilen = (eingabe: UnterschiedEingabe): UnterschiedZeile
     ),
   ];
 
-  return [...mitZielen, ...zielZeilen.filter(z => !gebunden.has(z.id)), ...summen, ...zaehlungen].filter(
+  const alle = [...mitZielen, ...zielZeilen.filter(z => !gebunden.has(z.id)), ...summen, ...zaehlungen].filter(
     z => z.vorher !== null || z.jetzt !== null,
   );
+
+  // σ is read off every reading behind the screen rather than off the two
+  // halves separately: how far a measure usually moves is a property of the
+  // measure, not of the window somebody happens to be looking at.
+  const sigmas = sigmaJeReihe(
+    [
+      ...(eingabe.messungenVorher ?? []),
+      ...(eingabe.messungenJetzt ?? []),
+      ...handMessungen(eingabe.vorher),
+      ...handMessungen(eingabe.jetzt),
+    ],
+    { bis: eingabe.bis ?? Date.now(), zeitzone: eingabe.zeitzone ?? 'UTC', tageszeit: true },
+  );
+
+  return alle.map(zeileJetzt => bewerten(zeileJetzt, zeileJetzt.reihe ? sigmas.get(zeileJetzt.reihe) ?? null : null));
 };
+
+/**
+ * §6.1's `ⓘ nach Abweichung`, under §6.3's law that **row order is fixed and
+ * does not depend on which half of the history you are looking at**:
+ *
+ * > Ranking reorders *within* those groups, never across them.
+ *
+ * Two things follow, and both are structural rather than a sort comparator's
+ * opinion. A row that moved further than its own noise (`▲`) always outranks
+ * one that did not, whatever the two raw numbers look like - that is the σ rule,
+ * and it is why a CO₂ sensor wandering by 14 ppm cannot push a 2,2 °C night
+ * above it. And a target stays under the measure it belongs to, because the
+ * pair is ranked as one block: an indented row is not a row that can be sorted.
+ */
+export const nachAbweichung = (zeilen: readonly UnterschiedZeile[]): UnterschiedZeile[] => {
+  const bloecke: UnterschiedZeile[][] = [];
+  for (const zeileJetzt of zeilen) {
+    if (zeileJetzt.eingerueckt && bloecke.length > 0) bloecke[bloecke.length - 1].push(zeileJetzt);
+    else bloecke.push([zeileJetzt]);
+  }
+
+  const baender: ZeilenGruppe[] = [];
+  for (const block of bloecke) if (!baender.includes(block[0].gruppe)) baender.push(block[0].gruppe);
+
+  return baender.flatMap(band =>
+    bloecke
+      .filter(block => block[0].gruppe === band)
+      .map((block, stelle) => ({ block: block, stelle: stelle }))
+      .sort((links, rechts) => rangSchluessel(rechts.block[0], links.block[0]) || links.stelle - rechts.stelle)
+      .flatMap(eintrag => eintrag.block),
+  );
+};
+
+/** Beyond its own noise first, then by how far beyond. Ties keep the band's own order. */
+const rangSchluessel = (links: UnterschiedZeile, rechts: UnterschiedZeile): number =>
+  (links.marke === 'ueber' ? 1 : 0) - (rechts.marke === 'ueber' ? 1 : 0) || links.abweichung - rechts.abweichung;

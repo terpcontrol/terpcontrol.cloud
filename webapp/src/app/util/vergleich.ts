@@ -3,6 +3,7 @@ import type { Ding, DingArt, Zelt } from '@fg2/shared-types';
 import { Text } from './ding-text';
 import { einheitVon } from './einheiten';
 import { Messung, herkunftSchluessel, messzeilen } from './messquellen';
+import { standardabweichung } from './reihe';
 import { handMessungen } from './unterschied';
 import { pluralSchluessel, zahlText } from './zahl';
 import { laufBeginn, tagNummer } from './zelt-tag';
@@ -306,13 +307,6 @@ export const aufloesen = (roh: number, dinge: readonly Ding[], fein: boolean): A
 
   if (!davor) return { von: roh, verschoben: false };
   return { von: davor.t, verschoben: davor.t !== roh };
-};
-
-const standardabweichung = (werte: number[]): number => {
-  if (werte.length < 2) return 0;
-  const mittel = werte.reduce((summe, wert) => summe + wert, 0) / werte.length;
-  const varianz = werte.reduce((summe, wert) => summe + (wert - mittel) ** 2, 0) / werte.length;
-  return Math.sqrt(varianz);
 };
 
 /**
