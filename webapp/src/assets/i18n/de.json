@@ -873,7 +873,221 @@
   "message-smart-socket-disconnected-title": "Smart-Steckdose getrennt",
   "message-smart-socket-disconnected-text": "Die Smart-Steckdosen-Zuordnung für die Rolle «{{value}}» wurde entfernt.",
   "zelt": {
-    "defaultName": "Zelt"
+    "defaultName": "Zelt",
+    "tag": "Tag {{tag}}",
+    "nichtGeladen": "Das Zelt konnte nicht geladen werden.",
+    "geraetHinzufuegen": "+ Gerät hinzufügen",
+    "weitereLaden": "Weitere laden",
+    "mehrZeilen": "{{anzahl}} weitere",
+    "vorherAb": "Vorher · {{zeit}}",
+    "kopf": {
+      "online": "Online · Werte von {{seit}}",
+      "offline": "Offline · zuletzt {{seit}}",
+      "eintraege": "{{anzahl}} Einträge",
+      "zuletzt": "zuletzt {{zeit}}"
+    },
+    "abschnitt": {
+      "offen": "Offen",
+      "unterschied": "Der Unterschied",
+      "imZelt": "Im Zelt",
+      "verlauf": "Verlauf"
+    },
+    "spalte": {
+      "vorher": "Vorher",
+      "jetzt": "Jetzt",
+      "delta": "Δ"
+    },
+    "werte": {
+      "titel": "Werte {…}",
+      "regel": "Ein Maß, zwei Quellen, zwei Zeilen. Nichts wird zusammengefasst, nichts gemittelt und nichts stillschweigend ersetzt.",
+      "anfrage": "Anfrage",
+      "vonHand": "von Hand",
+      "vomGeraet": "vom Gerät"
+    },
+    "arten": {
+      "zelt": "Zelt",
+      "geraet": "Gerät",
+      "pflanze": "Pflanze",
+      "dose": "Steckdose",
+      "kamera": "Kamera",
+      "bild": "Bild",
+      "film": "Film",
+      "gabe": "Gabe",
+      "notiz": "Notiz",
+      "zustand": "Zettel",
+      "phase": "Phase",
+      "ziel": "Ziel",
+      "mensch": "Mensch",
+      "ereignis": "Ereignis",
+      "schema": "Schema",
+      "lauf": "Durchgang"
+    },
+    "zeile": {
+      "dose": "{{rolle}} (Dose {{slot}})",
+      "bildHand": "Foto",
+      "bildGeraet": "Kamerabild",
+      "lauf": "Durchgang {{nummer}}",
+      "wasser": "{{liter}} l",
+      "schritt": "Schritt {{schritt}}"
+    },
+    "mass": {
+      "temperatur": "Temperatur",
+      "luftfeuchte": "Luftfeuchte",
+      "vpd": "VPD",
+      "co2": "CO₂",
+      "ph": "pH",
+      "ec": "EC",
+      "tds": "TDS",
+      "ppfd": "PPFD",
+      "abstand_cm": "Abstand",
+      "aussen_temperatur": "Außentemperatur",
+      "hoehe_cm": "Höhe",
+      "topfgewicht_kg": "Topfgewicht",
+      "wasser_gesamt": "Wasser gesamt",
+      "schema_schritt": "Schema-Schritt",
+      "eintraege": "Einträge",
+      "fotos": "Fotos",
+      "day": {
+        "temperature": "Ziel Tag",
+        "humidity": "Ziel Feuchte Tag",
+        "vpd": "Ziel VPD Tag",
+        "co2": "Ziel CO₂"
+      },
+      "night": {
+        "temperature": "Ziel Nacht",
+        "humidity": "Ziel Feuchte Nacht",
+        "vpd": "Ziel VPD Nacht"
+      },
+      "hand": {
+        "ph": "Ziel pH",
+        "ec": "Ziel EC",
+        "hoehe_cm": "Ziel Höhe"
+      }
+    },
+    "ziel": {
+      "day": {
+        "temperature": "Ziel Tag-Temperatur",
+        "humidity": "Ziel Tag-Feuchte",
+        "vpd": "Ziel Tag-VPD",
+        "co2": "Ziel CO₂"
+      },
+      "night": {
+        "temperature": "Ziel Nacht-Temperatur",
+        "humidity": "Ziel Nacht-Feuchte",
+        "vpd": "Ziel Nacht-VPD"
+      },
+      "hand": {
+        "ph": "Ziel pH",
+        "ec": "Ziel EC",
+        "hoehe_cm": "Ziel Höhe"
+      },
+      "lights": {
+        "limit": "Ziel Lichtstärke"
+      }
+    },
+    "stufe": {
+      "germination": "Keimung",
+      "seedling": "Sämling",
+      "vegetative": "Wachstum",
+      "flowering": "Blüte",
+      "drying": "Trocknung",
+      "curing": "Reifung",
+      "ernte": "Ernte"
+    },
+    "medium": {
+      "erde": "Erde",
+      "light-mix": "Light-Mix",
+      "all-mix": "All-Mix",
+      "coco": "Kokos",
+      "floragard-light": "Floragard Light",
+      "biotabs": "BioTabs",
+      "unbekannt": "Unbekannt"
+    },
+    "pflanzeQuelle": {
+      "samen": "Samen",
+      "steckling": "Steckling",
+      "gekauft": "Gekauft"
+    },
+    "verteilung": {
+      "gesamt": "aufs Zelt",
+      "je_pflanze": "je Pflanze"
+    },
+    "substrat": {
+      "trocken": "trocken",
+      "feucht": "feucht",
+      "nass": "nass"
+    },
+    "zielQuelle": {
+      "app": "App",
+      "geraet": "Gerät",
+      "erstbefund": "Erstbefund",
+      "hand": "von Hand"
+    },
+    "zustand": {
+      "offen": "Offen",
+      "erledigt": "Erledigt"
+    },
+    "schluessel": {
+      "aktiv": "Schlüssel aktiv",
+      "inaktiv": "Kein Schlüssel"
+    },
+    "herkunft": {
+      "hand": "von Hand",
+      "kamera": "Kamera"
+    },
+    "filmDauer": {
+      "1d": "Ein Tag",
+      "1w": "Eine Woche",
+      "1m": "Ein Monat"
+    },
+    "einheit": {
+      "liter": "l",
+      "gramm": "g",
+      "ms": "mS/cm"
+    },
+    "feld": {
+      "tag": "Tag",
+      "medium": "Medium",
+      "zeitzone": "Zeitzone",
+      "geraetetyp": "Gerätetyp",
+      "firmware": "Firmware",
+      "zuletztGesehen": "Zuletzt gesehen",
+      "gebundenSeit": "Im Zelt seit",
+      "sorte": "Sorte",
+      "topf": "Topf",
+      "quelle": "Herkunft",
+      "ernteGramm": "Ernte",
+      "rolle": "Funktion",
+      "dose": "Dose",
+      "ip": "IP-Adresse",
+      "letztesBild": "Letztes Bild",
+      "gekoppeltSeit": "Gekoppelt seit",
+      "aufgenommen": "Aufgenommen",
+      "herkunft": "Herkunft",
+      "zeitraum": "Zeitraum",
+      "wasser": "Wasser",
+      "kannen": "Kannen",
+      "verteilung": "Verteilung",
+      "ec": "EC",
+      "ph": "pH",
+      "ablaufEc": "Ablauf EC",
+      "ablaufPh": "Ablauf pH",
+      "substrat": "Substrat",
+      "mlProLiter": "{{ml}} ml/l",
+      "status": "Status",
+      "stufe": "Phase",
+      "begonnen": "Begonnen",
+      "tagInPhase": "Tag in der Phase",
+      "zielwert": "Zielwert",
+      "giltAb": "Gilt ab",
+      "dabeiSeit": "Dabei seit",
+      "schluessel": "Zugang",
+      "zeitpunkt": "Zeitpunkt",
+      "schema": "Schema",
+      "schritt": "Schritt",
+      "laufNummer": "Durchgang",
+      "laufTage": "Tage"
+    }
   },
   "simpleSettings": {
     "modeSimple": "Einfach",

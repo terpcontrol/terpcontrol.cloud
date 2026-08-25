@@ -1,0 +1,70 @@
+<article class="tafel" *ngIf="zelt">
+  <header class="tafel-kopf">
+    <h1 class="tafel-titel">{{ titel || ('zelt.defaultName' | translate) }}</h1>
+    <p class="tafel-fakten">
+      <span class="tafel-fakt" *ngFor="let fakt of kopf; trackBy: trackFakt">
+        <span class="tafel-punkt" *ngIf="fakt.punkt" [class]="'tafel-punkt--' + fakt.punkt" aria-hidden="true"></span>
+        {{ fakt.key | translate: fakt.params }}
+      </span>
+    </p>
+  </header>
+
+  <section class="tafel-abschnitt" *ngIf="offen.length">
+    <h2 class="tafel-abschnitt-titel">{{ 'zelt.abschnitt.offen' | translate }}</h2>
+    <app-zeile *ngFor="let ding of offen; trackBy: trackDing" [ding]="ding" [zelt]="zelt"></app-zeile>
+  </section>
+
+  <section class="tafel-koerper" *ngIf="subjekt">
+    <ng-container [appKoerper]="subjekt" [appKoerperZelt]="zelt" [appKoerperDinge]="dinge"></ng-container>
+  </section>
+
+  <section class="tafel-abschnitt" *ngIf="sichtbareZeilen.length">
+    <h2 class="tafel-abschnitt-titel">{{ 'zelt.abschnitt.unterschied' | translate }}</h2>
+    <div class="tafel-spalten" aria-hidden="true">
+      <span class="tafel-spalte-name"></span>
+      <span class="tafel-spalte-zahl">{{ 'zelt.spalte.vorher' | translate }}</span>
+      <span class="tafel-spalte-zahl">{{ 'zelt.spalte.jetzt' | translate }}</span>
+      <span class="tafel-spalte-zahl">{{ 'zelt.spalte.delta' | translate }}</span>
+    </div>
+    <div class="tafel-zeile" *ngFor="let zeile of sichtbareZeilen; trackBy: trackZeile" [class.tafel-zeile--eingerueckt]="zeile.eingerueckt">
+      <span class="tafel-spalte-name">
+        {{ 'zelt.mass.' + zeile.mass | translate }}
+        <span class="tafel-herkunft" *ngIf="zeile.herkunftZeigen">
+          ({{ zeile.herkunft?.geraet_name || ('zelt.werte.vonHand' | translate) }})
+        </span>
+      </span>
+      <span class="tafel-spalte-zahl tafel-spalte-zahl--vorher">{{ zeile.vorher | number: '1.0-2' }}</span>
+      <span class="tafel-spalte-zahl">{{ zeile.jetzt | number: '1.0-2' }}</span>
+      <span class="tafel-spalte-zahl" [class]="'tafel-delta--' + zeile.richtung">
+        <ng-container *ngIf="zeile.delta !== null && zeile.delta > 0">+</ng-container>{{ zeile.delta | number: '1.0-2' }}
+      </span>
+    </div>
+    <button type="button" class="tafel-mehr" *ngIf="verborgeneZeilen && !tabelleOffen" (click)="tabelleUmschalten()">
+      {{ 'zelt.mehrZeilen' | translate: { anzahl: verborgeneZeilen } }}
+    </button>
+  </section>
+
+  <section class="tafel-abschnitt">
+    <h2 class="tafel-abschnitt-titel">{{ 'zelt.abschnitt.imZelt' | translate }}</h2>
+    <app-zeile *ngFor="let ding of imZelt; trackBy: trackDing" [ding]="ding" [zelt]="zelt"></app-zeile>
+    <a class="tafel-geraet-zeile" routerLink="/list">
+      <span class="tafel-geraet-marke" aria-hidden="true"></span>
+      <span>{{ 'zelt.geraetHinzufuegen' | translate }}</span>
+    </a>
+  </section>
+
+  <section class="tafel-abschnitt">
+    <h2 class="tafel-abschnitt-titel">{{ 'zelt.abschnitt.verlauf' | translate }}</h2>
+    <ng-container *ngFor="let zeile of verlauf; trackBy: trackVerlauf">
+      <p class="tafel-trenner" *ngIf="zeile.trenner">{{ 'zelt.vorherAb' | translate: { zeit: vergleichMoment | date: 'EEE dd.MM. HH:mm' } }}</p>
+      <app-zeile [ding]="zeile.ding" [zelt]="zelt" [gedimmt]="zeile.gedimmt"></app-zeile>
+    </ng-container>
+    <button type="button" class="tafel-mehr" *ngIf="weitereVorhanden" [disabled]="laedt" (click)="mehr.emit()">
+      {{ (laedt ? 'misc.loading' : 'zelt.weitereLaden') | translate }}
+    </button>
+  </section>
+
+  <footer class="tafel-fuss">
+    <app-werte [anfrage]="anfrage" [messungen]="messungen"></app-werte>
+  </footer>
+</article>

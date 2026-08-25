@@ -1,0 +1,22 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/list"></ion-back-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <p class="browser-fehler" *ngIf="fehler">{{ fehler | translate }}</p>
+
+  <app-tafel
+    *ngIf="zelt"
+    [zelt]="zelt"
+    [subjekt]="subjekt"
+    [dinge]="dinge"
+    [anfrage]="anfrage"
+    [weitereVorhanden]="weitereVorhanden"
+    [laedt]="laedt"
+    (mehr)="mehr()"
+  ></app-tafel>
+</ion-content>

@@ -1,0 +1,77 @@
+.werte-knopf {
+  min-height: 44px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.werte-inhalt {
+  padding-top: 8px;
+}
+
+.werte-regel {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ion-color-medium);
+}
+
+.werte-liste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.werte-zeile {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-height: 32px;
+}
+
+.werte-mass {
+  flex: 1;
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.werte-herkunft,
+.werte-zeit {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ion-color-medium);
+}
+
+.werte-wert {
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.werte-abschnitt {
+  display: block;
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.werte-anfrage {
+  margin: 12px 0 0;
+}
+
+.werte-anfrage code {
+  display: block;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 18px;
+  white-space: pre;
+}

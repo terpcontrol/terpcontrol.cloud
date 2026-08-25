@@ -1,0 +1,27 @@
+<div class="werte">
+  <button type="button" class="werte-knopf" (click)="umschalten()" [attr.aria-expanded]="offen">
+    {{ 'zelt.werte.titel' | translate }}
+  </button>
+
+  <div class="werte-inhalt" *ngIf="offen">
+    <p class="werte-regel">{{ 'zelt.werte.regel' | translate }}</p>
+
+    <ul class="werte-liste">
+      <li class="werte-zeile" *ngFor="let zeile of zeilen; trackBy: trackZeile">
+        <span class="werte-mass">
+          {{ 'zelt.mass.' + zeile.mass | translate }}
+          <span class="werte-herkunft" *ngIf="zeile.herkunftZeigen">
+            ({{ herkunftName(zeile.herkunft) || (herkunftText(zeile.herkunft) | translate) }})
+          </span>
+        </span>
+        <span class="werte-wert">{{ zeile.wert | number: '1.0-2' }}</span>
+        <span class="werte-zeit">{{ zeile.t | timeAgo }}</span>
+      </li>
+    </ul>
+
+    <p class="werte-anfrage" *ngIf="anfrage">
+      <span class="werte-abschnitt">{{ 'zelt.werte.anfrage' | translate }}</span>
+      <code>{{ anfrage }}</code>
+    </p>
+  </div>
+</div>

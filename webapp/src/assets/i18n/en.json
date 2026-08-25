@@ -877,7 +877,221 @@
   "message-smart-socket-disconnected-title": "Smart socket disconnected",
   "message-smart-socket-disconnected-text": "The smart socket assignment was removed for role: {{value}}",
   "zelt": {
-    "defaultName": "Tent"
+    "defaultName": "Tent",
+    "tag": "Day {{tag}}",
+    "nichtGeladen": "The tent could not be loaded.",
+    "geraetHinzufuegen": "+ Add device",
+    "weitereLaden": "Load more",
+    "mehrZeilen": "{{anzahl}} more",
+    "vorherAb": "Before · {{zeit}}",
+    "kopf": {
+      "online": "Online · values from {{seit}}",
+      "offline": "Offline · last seen {{seit}}",
+      "eintraege": "{{anzahl}} entries",
+      "zuletzt": "last {{zeit}}"
+    },
+    "abschnitt": {
+      "offen": "Open",
+      "unterschied": "The difference",
+      "imZelt": "In the tent",
+      "verlauf": "History"
+    },
+    "spalte": {
+      "vorher": "Before",
+      "jetzt": "Now",
+      "delta": "Δ"
+    },
+    "werte": {
+      "titel": "Values {…}",
+      "regel": "One measure, two sources, two rows. Nothing is merged, nothing is averaged and nothing is silently superseded.",
+      "anfrage": "Request",
+      "vonHand": "by hand",
+      "vomGeraet": "from the device"
+    },
+    "arten": {
+      "zelt": "Tent",
+      "geraet": "Device",
+      "pflanze": "Plant",
+      "dose": "Socket",
+      "kamera": "Camera",
+      "bild": "Picture",
+      "film": "Film",
+      "gabe": "Feed",
+      "notiz": "Note",
+      "zustand": "Sticky note",
+      "phase": "Stage",
+      "ziel": "Target",
+      "mensch": "Person",
+      "ereignis": "Event",
+      "schema": "Schedule",
+      "lauf": "Run"
+    },
+    "zeile": {
+      "dose": "{{rolle}} (socket {{slot}})",
+      "bildHand": "Photo",
+      "bildGeraet": "Camera frame",
+      "lauf": "Run {{nummer}}",
+      "wasser": "{{liter}} l",
+      "schritt": "Step {{schritt}}"
+    },
+    "mass": {
+      "temperatur": "Temperature",
+      "luftfeuchte": "Humidity",
+      "vpd": "VPD",
+      "co2": "CO₂",
+      "ph": "pH",
+      "ec": "EC",
+      "tds": "TDS",
+      "ppfd": "PPFD",
+      "abstand_cm": "Distance",
+      "aussen_temperatur": "Outside temperature",
+      "hoehe_cm": "Height",
+      "topfgewicht_kg": "Pot weight",
+      "wasser_gesamt": "Water total",
+      "schema_schritt": "Schedule step",
+      "eintraege": "Entries",
+      "fotos": "Photos",
+      "day": {
+        "temperature": "Target day",
+        "humidity": "Target humidity day",
+        "vpd": "Target VPD day",
+        "co2": "Target CO₂"
+      },
+      "night": {
+        "temperature": "Target night",
+        "humidity": "Target humidity night",
+        "vpd": "Target VPD night"
+      },
+      "hand": {
+        "ph": "Target pH",
+        "ec": "Target EC",
+        "hoehe_cm": "Target height"
+      }
+    },
+    "ziel": {
+      "day": {
+        "temperature": "Target day temperature",
+        "humidity": "Target day humidity",
+        "vpd": "Target day VPD",
+        "co2": "Target CO₂"
+      },
+      "night": {
+        "temperature": "Target night temperature",
+        "humidity": "Target night humidity",
+        "vpd": "Target night VPD"
+      },
+      "hand": {
+        "ph": "Target pH",
+        "ec": "Target EC",
+        "hoehe_cm": "Target height"
+      },
+      "lights": {
+        "limit": "Target light level"
+      }
+    },
+    "stufe": {
+      "germination": "Germination",
+      "seedling": "Seedling",
+      "vegetative": "Vegetative",
+      "flowering": "Flowering",
+      "drying": "Drying",
+      "curing": "Curing",
+      "ernte": "Harvest"
+    },
+    "medium": {
+      "erde": "Soil",
+      "light-mix": "Light mix",
+      "all-mix": "All mix",
+      "coco": "Coco",
+      "floragard-light": "Floragard Light",
+      "biotabs": "BioTabs",
+      "unbekannt": "Unknown"
+    },
+    "pflanzeQuelle": {
+      "samen": "Seed",
+      "steckling": "Cutting",
+      "gekauft": "Bought"
+    },
+    "verteilung": {
+      "gesamt": "whole tent",
+      "je_pflanze": "per plant"
+    },
+    "substrat": {
+      "trocken": "dry",
+      "feucht": "moist",
+      "nass": "wet"
+    },
+    "zielQuelle": {
+      "app": "App",
+      "geraet": "Device",
+      "erstbefund": "First observation",
+      "hand": "By hand"
+    },
+    "zustand": {
+      "offen": "Open",
+      "erledigt": "Done"
+    },
+    "schluessel": {
+      "aktiv": "Key active",
+      "inaktiv": "No key"
+    },
+    "herkunft": {
+      "hand": "By hand",
+      "kamera": "Camera"
+    },
+    "filmDauer": {
+      "1d": "One day",
+      "1w": "One week",
+      "1m": "One month"
+    },
+    "einheit": {
+      "liter": "l",
+      "gramm": "g",
+      "ms": "mS/cm"
+    },
+    "feld": {
+      "tag": "Day",
+      "medium": "Medium",
+      "zeitzone": "Time zone",
+      "geraetetyp": "Device type",
+      "firmware": "Firmware",
+      "zuletztGesehen": "Last seen",
+      "gebundenSeit": "In the tent since",
+      "sorte": "Strain",
+      "topf": "Pot",
+      "quelle": "Origin",
+      "ernteGramm": "Harvest",
+      "rolle": "Function",
+      "dose": "Socket",
+      "ip": "IP address",
+      "letztesBild": "Last picture",
+      "gekoppeltSeit": "Paired since",
+      "aufgenommen": "Taken",
+      "herkunft": "Origin",
+      "zeitraum": "Period",
+      "wasser": "Water",
+      "kannen": "Cans",
+      "verteilung": "Distribution",
+      "ec": "EC",
+      "ph": "pH",
+      "ablaufEc": "Runoff EC",
+      "ablaufPh": "Runoff pH",
+      "substrat": "Substrate",
+      "mlProLiter": "{{ml}} ml/l",
+      "status": "Status",
+      "stufe": "Stage",
+      "begonnen": "Started",
+      "tagInPhase": "Day in stage",
+      "zielwert": "Target value",
+      "giltAb": "In force from",
+      "dabeiSeit": "Member since",
+      "schluessel": "Access",
+      "zeitpunkt": "Time",
+      "schema": "Schedule",
+      "schritt": "Step",
+      "laufNummer": "Run",
+      "laufTage": "Days"
+    }
   },
   "simpleSettings": {
     "modeSimple": "Simple",
