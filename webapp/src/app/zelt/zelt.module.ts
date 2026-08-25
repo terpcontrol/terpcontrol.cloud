@@ -11,6 +11,9 @@ import { KOERPER_KOMPONENTEN } from './koerper/koerper.registry';
 import { TafelComponent } from './tafel/tafel.component';
 import { WerteComponent } from './werte/werte.component';
 import { ZeileComponent } from './zeile/zeile.component';
+import { HoeheHaltenDirective } from './zeitgriff/hoehe-halten.directive';
+import { ZeitgriffComponent } from './zeitgriff/zeitgriff.component';
+import { ZeitlageComponent } from './zeitgriff/zeitlage.component';
 import { ZeltRoutingModule } from './zelt-routing.module';
 
 /**
@@ -19,10 +22,21 @@ import { ZeltRoutingModule } from './zelt-routing.module';
  * one template is how this becomes the next `charts.page.ts`.
  */
 @NgModule({
-  declarations: [BrowserPage, TafelComponent, ZeileComponent, WerteComponent, FaktComponent, KoerperHostDirective, ...KOERPER_KOMPONENTEN],
+  declarations: [
+    BrowserPage,
+    TafelComponent,
+    ZeileComponent,
+    WerteComponent,
+    FaktComponent,
+    KoerperHostDirective,
+    ZeitgriffComponent,
+    ZeitlageComponent,
+    HoeheHaltenDirective,
+    ...KOERPER_KOMPONENTEN,
+  ],
   imports: [CommonModule, IonicModule, RouterModule, PipesModule, TranslateModule.forChild(), ZeltRoutingModule],
   // The Zeile and the Tafel are the two shapes of the product; anything that
   // shows a Ding uses them rather than drawing a third.
-  exports: [TafelComponent, ZeileComponent, WerteComponent, KoerperHostDirective],
+  exports: [TafelComponent, ZeileComponent, WerteComponent, KoerperHostDirective, ZeitgriffComponent, ZeitlageComponent],
 })
 export class ZeltModule {}

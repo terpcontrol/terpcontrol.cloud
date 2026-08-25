@@ -9,6 +9,12 @@
     </p>
   </header>
 
+  <!-- §8.1: 56 px, directly under the sentence block, identical position on
+       every Tafel - and on a tent with no device it is the same control with
+       the same rungs, because entries, photographs and phases are what it
+       scrubs. -->
+  <tc-zeitgriff [zelt]="zelt" [subjekt]="subjekt" [dinge]="dinge" [messungen]="geraetMessungen"></tc-zeitgriff>
+
   <section class="tafel-abschnitt" *ngIf="offen.length">
     <h2 class="tafel-abschnitt-titel">{{ 'zelt.abschnitt.offen' | translate }}</h2>
     <app-zeile *ngFor="let ding of offen; trackBy: trackDing" [ding]="ding" [zelt]="zelt"></app-zeile>
@@ -18,30 +24,42 @@
     <ng-container [appKoerper]="subjekt" [appKoerperZelt]="zelt" [appKoerperDinge]="dinge"></ng-container>
   </section>
 
-  <section class="tafel-abschnitt" *ngIf="sichtbareZeilen.length">
+  <section class="tafel-abschnitt" *ngIf="sichtbareZeilen.length || zieht" [appHoeheHalten]="zieht">
     <h2 class="tafel-abschnitt-titel">{{ 'zelt.abschnitt.unterschied' | translate }}</h2>
-    <div class="tafel-spalten" aria-hidden="true">
-      <span class="tafel-spalte-name"></span>
-      <span class="tafel-spalte-zahl">{{ 'zelt.spalte.vorher' | translate }}</span>
-      <span class="tafel-spalte-zahl">{{ 'zelt.spalte.jetzt' | translate }}</span>
-      <span class="tafel-spalte-zahl">{{ 'zelt.spalte.delta' | translate }}</span>
-    </div>
-    <div class="tafel-zeile" *ngFor="let zeile of sichtbareZeilen; trackBy: trackZeile" [class.tafel-zeile--eingerueckt]="zeile.eingerueckt">
-      <span class="tafel-spalte-name">
-        {{ 'zelt.mass.' + zeile.mass | translate }}
-        <span class="tafel-herkunft" *ngIf="zeile.herkunftZeigen">
-          ({{ zeile.herkunft?.geraet_name || ('zelt.werte.vonHand' | translate) }})
+    <!-- M3, and the mechanical half of it is `appHoeheHalten` above: while the
+         handle moves the table collapses to the two-line scrub header, and the
+         section keeps the height it had so nothing reflows under the thumb. -->
+    <ng-container *ngIf="!zieht">
+      <div class="tafel-spalten" aria-hidden="true">
+        <span class="tafel-spalte-name"></span>
+        <span class="tafel-spalte-zahl">{{ 'zelt.spalte.vorher' | translate }}</span>
+        <span class="tafel-spalte-zahl">{{ 'zelt.spalte.jetzt' | translate }}</span>
+        <span class="tafel-spalte-zahl">{{ 'zelt.spalte.delta' | translate }}</span>
+      </div>
+      <div class="tafel-zeile" *ngFor="let zeile of sichtbareZeilen; trackBy: trackZeile" [class.tafel-zeile--eingerueckt]="zeile.eingerueckt">
+        <span class="tafel-spalte-name">
+          {{ 'zelt.mass.' + zeile.mass | translate }}
+          <span class="tafel-herkunft" *ngIf="zeile.herkunftZeigen">
+            ({{ zeile.herkunft?.geraet_name || ('zelt.werte.vonHand' | translate) }})
+          </span>
         </span>
-      </span>
-      <span class="tafel-spalte-zahl tafel-spalte-zahl--vorher">{{ zeile.vorher | number: '1.0-2' }}</span>
-      <span class="tafel-spalte-zahl">{{ zeile.jetzt | number: '1.0-2' }}</span>
-      <span class="tafel-spalte-zahl" [class]="'tafel-delta--' + zeile.richtung">
-        <ng-container *ngIf="zeile.delta !== null && zeile.delta > 0">+</ng-container>{{ zeile.delta | number: '1.0-2' }}
-      </span>
-    </div>
-    <button type="button" class="tafel-mehr" *ngIf="verborgeneZeilen && !tabelleOffen" (click)="tabelleUmschalten()">
-      {{ 'zelt.mehrZeilen' | translate: { anzahl: verborgeneZeilen } }}
-    </button>
+        <span class="tafel-spalte-zahl tafel-spalte-zahl--vorher">{{ zeile.vorher | number: '1.0-2' }}</span>
+        <span class="tafel-spalte-zahl">{{ zeile.jetzt | number: '1.0-2' }}</span>
+        <span class="tafel-spalte-zahl" [class]="'tafel-delta--' + zeile.richtung">
+          <ng-container *ngIf="zeile.delta !== null && zeile.delta > 0">+</ng-container>{{ zeile.delta | number: '1.0-2' }}
+        </span>
+      </div>
+      <button type="button" class="tafel-mehr" *ngIf="verborgeneZeilen && !tabelleOffen" (click)="tabelleUmschalten()">
+        {{ 'zelt.mehrZeilen' | translate: { anzahl: verborgeneZeilen } }}
+      </button>
+    </ng-container>
+    <tc-zeitlage
+      [zelt]="zelt"
+      [dinge]="dinge"
+      [messungen]="geraetMessungen"
+      [moment]="vergleichMoment"
+      [zieht]="zieht"
+    ></tc-zeitlage>
   </section>
 
   <section class="tafel-abschnitt">
@@ -57,7 +75,18 @@
     <h2 class="tafel-abschnitt-titel">{{ 'zelt.abschnitt.verlauf' | translate }}</h2>
     <ng-container *ngFor="let zeile of verlauf; trackBy: trackVerlauf">
       <p class="tafel-trenner" *ngIf="zeile.trenner">{{ 'zelt.vorherAb' | translate: { zeit: vergleichMoment | date: 'EEE dd.MM. HH:mm' } }}</p>
-      <app-zeile [ding]="zeile.ding" [zelt]="zelt" [gedimmt]="zeile.gedimmt"></app-zeile>
+      <div class="tafel-verlauf-zeile">
+        <app-zeile [ding]="zeile.ding" [zelt]="zelt" [gedimmt]="zeile.gedimmt"></app-zeile>
+        <button
+          type="button"
+          class="tafel-vorher"
+          (click)="vorherHier(zeile.ding)"
+          [attr.aria-label]="'zelt.griff.vorherHier' | translate"
+          [attr.title]="'zelt.griff.vorherHier' | translate"
+        >
+          <span aria-hidden="true">&#8592;</span>
+        </button>
+      </div>
     </ng-container>
     <button type="button" class="tafel-mehr" *ngIf="weitereVorhanden" [disabled]="laedt" (click)="mehr.emit()">
       {{ (laedt ? 'misc.loading' : 'zelt.weitereLaden') | translate }}

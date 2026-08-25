@@ -146,3 +146,26 @@
   background: none;
   border: 0;
 }
+
+// A Verlauf row answers two questions, so it has two targets: the row walks to
+// that Ding's Tafel, the mark beside it moves `Vorher` to that Ding's moment.
+.tafel-verlauf-zeile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tafel-verlauf-zeile app-zeile {
+  flex: 1;
+  min-width: 0;
+}
+
+.tafel-vorher {
+  flex: none;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--ion-color-medium);
+}

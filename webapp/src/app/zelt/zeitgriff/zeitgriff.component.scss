@@ -1,0 +1,142 @@
+// 56 px, identical on every Tafel: an 18 px line that prints where you are and
+// a 28 px strip you can hit with a thumb, plus 3 px of air above and below.
+.griff {
+  box-sizing: border-box;
+  height: 56px;
+  padding: 3px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.griff-zeile {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.griff-anker {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.griff-moment {
+  flex: 1;
+  min-width: 0;
+  color: var(--ion-color-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+// A 44 px target that does not push the block past 56 px.
+.griff-naechster {
+  flex: none;
+  min-height: 44px;
+  margin: -13px 0;
+  padding: 0 4px;
+  background: none;
+  border: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ion-color-primary);
+  white-space: nowrap;
+}
+
+.griff-spur {
+  position: relative;
+  height: 28px;
+  // The strip is a slider, so a horizontal drag must not become a page scroll.
+  touch-action: none;
+  cursor: pointer;
+}
+
+.griff-spur:focus-visible {
+  outline: 2px solid var(--ion-color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+// The Dichteband: 12 px behind the track, one bar per day, Dinge below and kept
+// frames above. A week nobody touched the app is a visible gap, which is why it
+// is drawn per day and not per entry.
+.griff-band {
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 100%;
+  height: 12px;
+}
+
+.griff-band-oben {
+  fill: var(--ion-color-medium);
+  opacity: 0.45;
+}
+
+.griff-band-unten {
+  fill: var(--ion-color-medium);
+  opacity: 0.75;
+}
+
+.griff-linie {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 13px;
+  height: 1px;
+  background: var(--ion-color-step-150);
+}
+
+.griff-detent {
+  position: absolute;
+  top: 4px;
+  width: 2px;
+  height: 20px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--ion-color-step-400);
+}
+
+.griff-kopf {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 28px;
+  margin-left: -1px;
+  background: var(--ion-color-primary);
+}
+
+.griff-knopf {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border-radius: 50%;
+  background: var(--ion-color-primary);
+}
+
+// The thumb covers the playhead, so the hit area is larger than the drawing.
+.griff-knopf::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border-radius: 50%;
+}
+
+.griff--zieht .griff-knopf {
+  transform: scale(1.15);
+}
+
+.griff-hinweis {
+  color: var(--ion-color-medium);
+}

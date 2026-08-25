@@ -1,5 +1,7 @@
-import { Component, EventEmitter, Input, OnChanges, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output } from '@angular/core';
+import { Subscription } from 'rxjs';
 import type { Ding, DingArt, Zelt } from '@fg2/shared-types';
+import { VergleichService } from 'src/app/services/vergleich.service';
 import { KeyedCache } from 'src/app/util/keyed-cache';
 import { Messung } from 'src/app/util/messquellen';
 import { VERALTET_MS } from 'src/app/util/ding-text';
@@ -50,7 +52,7 @@ const TAG_MS = 24 * 60 * 60 * 1000;
   templateUrl: './tafel.component.html',
   styleUrls: ['./tafel.component.scss'],
 })
-export class TafelComponent implements OnChanges {
+export class TafelComponent implements OnInit, OnChanges, OnDestroy {
   @Input() zelt!: Zelt;
   @Input() subjekt: Ding | null = null;
   /** Everything read for this screen, newest first, exactly as the server merged it. */
@@ -68,14 +70,18 @@ export class TafelComponent implements OnChanges {
   @Input() geraetMessungen: readonly Messung[] = [];
   @Input() geraetMessungenVorher: readonly Messung[] = [];
   /**
-   * What `Vorher` means. The Zeitgriff owns this; until it is wired the screen
-   * compares against yesterday, which is a value and not a mode.
+   * An explicit override of what `Vorher` means, for a caller that has to name
+   * the moment itself. Left alone - which is the normal case - the moment comes
+   * from the one cursor in `VergleichService`, and the Zeitgriff below the
+   * header is what moves it.
    */
   @Input() vergleichVon: number | null = null;
 
   @Output() mehr = new EventEmitter<void>();
 
   public tabelleOffen = false;
+  /** True while a thumb is on the handle. Motion collapses, rest unfolds (M3). */
+  public zieht = false;
 
   private stand = 0;
   /**
@@ -90,6 +96,20 @@ export class TafelComponent implements OnChanges {
   private readonly kopfCache = new KeyedCache<Kopffakt[]>();
   private readonly unterschiedCache = new KeyedCache<UnterschiedZeile[]>();
   private readonly messungenCache = new KeyedCache<Messung[]>();
+  private readonly abos = new Subscription();
+  /** The shared cursor, as it stands. `null` until a screen has named its tent. */
+  private cursorVon: number | null = null;
+
+  constructor(private cursor: VergleichService) {}
+
+  ngOnInit(): void {
+    this.abos.add(this.cursor.vergleich$.subscribe(vergleich => (this.cursorVon = vergleich?.von ?? null)));
+    this.abos.add(this.cursor.zieht$.subscribe(zieht => (this.zieht = zieht)));
+  }
+
+  ngOnDestroy(): void {
+    this.abos.unsubscribe();
+  }
 
   ngOnChanges(): void {
     // Every list below is derived, and change detection asks for them on every
@@ -99,7 +119,17 @@ export class TafelComponent implements OnChanges {
   }
 
   get vergleichMoment(): number {
-    return this.vergleichVon ?? this.standardVergleich;
+    return this.vergleichVon ?? this.cursorVon ?? this.standardVergleich;
+  }
+
+  /**
+   * §8.1's second projection, the write half: „tapping any row sets the cursor
+   * to that row's time", which is how you ask „was ist seit dieser Gabe
+   * passiert?" in one move. The row itself still walks to its own Tafel, so the
+   * two answers a row can give stay two targets.
+   */
+  vorherHier(ding: Ding): void {
+    this.cursor.setzen(ding.t, 'frei');
   }
 
   /** The Subjekt's own name, in the reader's language. An unnamed tent is still a tent. */
