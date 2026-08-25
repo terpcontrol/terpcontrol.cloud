@@ -11,6 +11,10 @@ const STALE_AFTER_MS = 15 * 60 * 1000;
  * write rather than a read followed by a write.
  */
 export async function withMigrationLock(name: string, run: () => Promise<void>): Promise<boolean> {
+  // The guard below is only a guard once the unique index exists, and index
+  // builds do not block startup — so wait for it rather than race it.
+  await migrationModel.createIndexes();
+
   try {
     await migrationModel.findOneAndUpdate(
       { name, $or: [{ laeuft_seit: null }, { laeuft_seit: { $lt: Date.now() - STALE_AFTER_MS } }] },

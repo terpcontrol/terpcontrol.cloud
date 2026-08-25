@@ -1,6 +1,3 @@
-// uuid ships as an ES module, which this jest setup cannot transform.
-jest.mock('uuid', () => ({ v4: () => 'test-uuid' }));
-
 import mongoose from 'mongoose';
 import request from 'supertest';
 import { sign } from 'jsonwebtoken';

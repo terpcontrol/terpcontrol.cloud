@@ -10,7 +10,9 @@ const ZELT_BACKFILL = 'zelt-aus-geraet';
 const FALLBACK_ZEITZONE = 'Europe/Berlin';
 const FALLBACK_NAME = 'Zelt';
 
-const serverZeitzone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone || FALLBACK_ZEITZONE;
+// Day boundaries need a zone and the migration has nobody to ask: the
+// deployment's own zone, and where that is unset the one the product is written for.
+const serverZeitzone = (): string => process.env.TZ || FALLBACK_ZEITZONE;
 
 class ZeltService {
   public async zelteOfUser(besitzer_id: string): Promise<Zelt[]> {
