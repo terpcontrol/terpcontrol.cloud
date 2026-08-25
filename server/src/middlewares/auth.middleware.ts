@@ -6,8 +6,9 @@ import { DataStoredInToken, RequestWithUser } from '@interfaces/auth.interface';
 import deviceModel from '@/models/device.model';
 import zeltModel from '@/models/zelt.model';
 import shareModel from '@/models/share.model';
-import { Device, ShareLink } from '@fg2/shared-types';
+import { Device, Ding, DingArt, GESPEICHERTE_ARTEN, ShareLink, Zelt } from '@fg2/shared-types';
 import { DEMO_WRITE_MESSAGE } from '@utils/demo';
+import { logger } from '@utils/logger';
 import { schluesselService } from '@services/schluessel.service';
 
 const isImageQueryTokenAllowed = (req: RequestWithUser): boolean => req.method === 'GET' && req.path.startsWith('/image/');
@@ -259,8 +260,16 @@ export const isUserZeltMiddelware = async (req: RequestWithUser, res: Response, 
     'user',
     // A demo session reaches demo devices, never a tent: tents are personal
     // diaries and there is no demo tent to fall back to.
-    async () => !req.is_demo && (await isUserZelt(req, zelt_id)),
-    `Zelt ${zelt_id} not bound to user ${req.user_id}`,
+    async () => {
+      const erlaubt = !req.is_demo && (await isUserZelt(req, zelt_id));
+      // The tent this refusal is about goes to the log and not into the body:
+      // a handler that resolves its subject first (a `schluessel_id`, a
+      // `ding_id`) would otherwise answer a guess with the tent that owns it.
+      if (!erlaubt) logger.info(`Zelt not bound to user: zelt_id=${zelt_id || '-'} user=${req.user_id || '-'} ${req.method} ${req.path}`);
+
+      return erlaubt;
+    },
+    'Zelt not bound to user',
   );
 
 const getSchluesselToken = (req: RequestWithUser): string | null => {
@@ -274,12 +283,40 @@ const getApiKey = (req: RequestWithUser): string | null => req.header('x-api-key
  * A share link is device-keyed and stays that way, so a tent inherits one
  * through the binding that produced the shared data. A tent with no device has
  * no share to inherit - it is shared by handing out a `Schlüssel` instead.
+ *
+ * "The binding that produced the shared data" is three conditions, not one. The
+ * device being in the tent *now* is the weakest of them and on its own it hands
+ * a sold controller's link to whoever bought the hardware: §14.9 leaves the
+ * seller's binding closed and appends the buyer's, both keyed by the same
+ * `geraet_id`, so a match on the id alone follows the device out of the tent it
+ * was shared from and into a stranger's diary. The owner has to be the person
+ * who issued the link, and the link has to have been issued while the device
+ * was in this tent - which is §14.3's forward-only law, the same one
+ * `bindungsFenster` applies to the rows one layer down, applied to the reader.
  */
 export const findValidShareForZelt = async (req: RequestWithUser, zelt_id: string): Promise<ShareLink | null> => {
   const share = await findValidShare(req);
   if (!share || !zelt_id) return null;
 
-  return (await zeltModel.exists({ zelt_id: zelt_id, 'geraete.geraet_id': share.device_id })) ? share : null;
+  const zelt: Pick<Zelt, 'besitzer_id' | 'geraete'> = await zeltModel.findOne({ zelt_id: zelt_id }, { _id: 0, besitzer_id: 1, geraete: 1 }).lean();
+  if (!zelt || !share.owner_id || zelt.besitzer_id !== share.owner_id) return null;
+
+  // The owner check above is what closes the leak this exists for - a sold
+  // controller carrying its old links into the buyer's tent. What remains here
+  // is the upper bound: a link must not keep reading a tent after the device it
+  // was issued for has left it.
+  //
+  // There is deliberately no lower bound. A tent backfilled for a device that
+  // never came online is dated from the migration, so every link its owner made
+  // before today predates its own binding - and refusing those would break
+  // working links to punish nothing, since the owner has not changed. A share
+  // that outlives a device *within one owner's tents* is the residue, and that
+  // is a person reading their own grow.
+  const imFenster = (zelt.geraete ?? []).some(
+    bindung => bindung.geraet_id === share.device_id && (bindung.bis === undefined || bindung.bis === null || share.createdAt <= bindung.bis),
+  );
+
+  return imFenster ? share : null;
 };
 
 /** The per-Zelt read key (§13.7). Read only, and never a write credential anywhere. */
@@ -379,6 +416,9 @@ const zeltZugang = async (
     // write has not mistyped its password, and telling it to log in again is a
     // lie. 401 stays for the request that offered nothing.
     if (session || getSchluesselToken(req) || getApiKey(req) || getShareToken(req)) {
+      // What the body may not carry (see `VERWEIGERT_LESEN`), kept where the
+      // operator can still see it.
+      logger.info(`${verweigert}: zelt_id=${zelt_id || '-'} user=${req.user_id || '-'} ${req.method} ${req.path}`);
       res.status(403).send(verweigert);
     } else {
       res.status(401).send(getAuthorizationCandidates(req).length > 0 ? 'Wrong authentication token' : 'Authentication token missing');
@@ -390,8 +430,128 @@ const zeltZugang = async (
   }
 };
 
-export const darfLesenMiddelware = async (req: RequestWithUser, res: Response, zelt_id: string): Promise<boolean> =>
-  zeltZugang(req, res, zelt_id, darfLesen, `No read access to Zelt ${zelt_id}`);
+/**
+ * The same narrowing as `Lesegrund`, one layer further in: which *arts* a
+ * credential is answered with.
+ *
+ * `darfLesen` decides which endpoint a link reaches, and that is not a
+ * disclosure boundary by itself - `GET /api/dinge` answers with every art
+ * unless it is told otherwise, so a link shared for the diary was handed the
+ * setpoints, the device with its firmware and last-seen, the timelapse and
+ * every camera frame. The frames are the sharpest edge of it: `image.controller`
+ * lets a `webcam: false` link fetch a still *by image_id* precisely because
+ * such a link only ever learned the ids hanging on diary entries, and a list of
+ * every frame's id turns that allowance into the bytes.
+ *
+ * `bild` stays one art for both a photograph and a frame (§5) - the split is
+ * `d.quelle`, which is the word the caption prints - so it is the one line the
+ * art vocabulary cannot draw and the answer is filtered for it instead.
+ */
+const RAHMEN_ARTEN: DingArt[] = ['zelt'];
+/** What a person wrote, what the tent's own log said, and the pictures they took. */
+const TAGEBUCH_ARTEN: DingArt[] = [...GESPEICHERTE_ARTEN, 'ereignis', 'schema', 'bild'];
+/** The numbers half: the hardware, its sockets and the setpoints in force. */
+const ZAHLEN_ARTEN: DingArt[] = ['geraet', 'dose', 'ziel'];
+/** The camera half. A timelapse is camera bytes as much as a still is. */
+const KAMERA_ARTEN: DingArt[] = ['kamera', 'film'];
+
+/** What one credential may be answered with. `null` is the owner and the read key: the whole tent. */
+interface Sicht {
+  arten: DingArt[];
+  /** Whether `bild` carries the camera's frames as well as the pictures a person took. */
+  kamerabilder: boolean;
+}
+
+const sichtDesShares = (share: ShareLink): Sicht => ({
+  arten: [
+    ...new Set([
+      ...RAHMEN_ARTEN,
+      ...(share.page === 'diary' ? TAGEBUCH_ARTEN : []),
+      ...(share.page === 'charts' || share.charts ? ZAHLEN_ARTEN : []),
+      ...(share.webcam ? KAMERA_ARTEN : []),
+    ]),
+  ],
+  kamerabilder: !!share.webcam,
+});
+
+/**
+ * What the credential on this request may see, or `null` when it may see
+ * everything. A club key reads „the diary half" (§13.5) and nothing else: it is
+ * handed to a member rather than to the owner, and it travels in a URL.
+ */
+const sichtDesLesers = (req: RequestWithUser): Sicht | null => {
+  if (req.share) return sichtDesShares(req.share);
+  if (req.schluessel) return { arten: [...RAHMEN_ARTEN, ...TAGEBUCH_ARTEN], kamerabilder: false };
+
+  return null;
+};
+
+/**
+ * Drops what the credential may not see out of the answer on its way out.
+ *
+ * Everything that can be decided by art is decided before the projections run -
+ * see below - so this is left with the one distinction an art cannot carry, and
+ * with the rows an adapter returns under a different art than it was asked for
+ * (`ereignis` answers the legacy diary's own entries as `notiz`).
+ */
+const filtereDinge = (res: Response, behalte: (ding: Ding) => boolean): void => {
+  const antworte = res.json.bind(res);
+  res.json = (koerper: unknown) => {
+    const dinge = (koerper as { dinge?: unknown } | null)?.dinge;
+    if (!Array.isArray(dinge)) return antworte(koerper);
+
+    return antworte({ ...(koerper as object), dinge: (dinge as Ding[]).filter(behalte) });
+  };
+};
+
+/**
+ * Narrows the request to the arts the credential was issued for *before* the
+ * handler reads it, so the halves it may not see are never queried, never
+ * projected and never paid for - and no id out of them can escape through a
+ * field nobody thought to check.
+ */
+const beschraenkeAufSicht = (req: RequestWithUser, res: Response, sicht: Sicht): void => {
+  const erlaubt = new Set<string>(sicht.arten);
+  const gefragt = typeof req.query.art === 'string' && req.query.art !== '' ? req.query.art.split(',').map(art => art.trim()) : [...erlaubt];
+  const arten = gefragt.filter(art => erlaubt.has(art));
+
+  // Never the empty string: a handler reading `art` cannot tell "nothing" from
+  // "everything" and the empty string is how "everything" is spelled. A request
+  // asking exclusively for the other half is answered with the cheapest art
+  // there is and an answer filtered down to nothing - an empty page, which is
+  // what "you were not shared this" looks like on a list endpoint.
+  req.query.art = (arten.length > 0 ? arten : RAHMEN_ARTEN).join(',');
+
+  // The filter answers off `erlaubt` rather than off what was asked for: an
+  // adapter may answer under a different art than the one it was asked for
+  // (`ereignis` returns the legacy diary's own entries as `notiz`), and dropping
+  // those would narrow the diary rather than the disclosure. Only a request that
+  // asked exclusively for the other half is answered with nothing.
+  filtereDinge(
+    res,
+    arten.length === 0 ? () => false : ding => erlaubt.has(ding.art) && (sicht.kamerabilder || ding.art !== 'bild' || ding.d?.quelle === 'hand'),
+  );
+};
+
+/**
+ * A refusal says no and says nothing else. Naming the tent in the body turns
+ * the 403 into an oracle: `PATCH /api/dinge/:ding_id` resolves the Ding before
+ * it can know which tent to authorise against, so a body carrying the tent's id
+ * tells a stranger that the `ding_id` they guessed exists *and* which tent owns
+ * it, which is exactly what `zumSchreiben`'s "refused rather than reported
+ * missing" was written to avoid. The id goes to the log instead.
+ */
+const VERWEIGERT_LESEN = 'No read access to this Zelt';
+const VERWEIGERT_SCHREIBEN = 'No write access to this Zelt';
+
+export const darfLesenMiddelware = async (req: RequestWithUser, res: Response, zelt_id: string): Promise<boolean> => {
+  if (!(await zeltZugang(req, res, zelt_id, darfLesen, VERWEIGERT_LESEN))) return false;
+
+  const sicht = sichtDesLesers(req);
+  if (sicht) beschraenkeAufSicht(req, res, sicht);
+
+  return true;
+};
 
 export const darfSchreibenMiddelware = async (req: RequestWithUser, res: Response, zelt_id: string): Promise<boolean> =>
-  zeltZugang(req, res, zelt_id, darfSchreiben, `No write access to Zelt ${zelt_id}`);
+  zeltZugang(req, res, zelt_id, darfSchreiben, VERWEIGERT_SCHREIBEN);

@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import request from 'supertest';
 import { sign } from 'jsonwebtoken';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import App from '@/app';
+import App, { redigiereUrl } from '@/app';
 import { SECRET_KEY } from '@config';
 import { DataStoredInToken } from '@interfaces/auth.interface';
 import dingModel from '@models/ding.model';
@@ -11,6 +11,7 @@ import schluesselModel from '@models/schluessel.model';
 import zeltModel from '@models/zelt.model';
 import zugangsschluesselModel from '@models/zugangsschluessel.model';
 import DingRoute from '@routes/ding.route';
+import { SCHLUESSEL_MAX } from '@services/schluessel.service';
 import SchluesselRoute from '@routes/schluessel.route';
 
 // Neither key belongs to an account, and neither tent here owns a device: the
@@ -144,6 +145,23 @@ describe('the per-Zelt read key', () => {
     await request(app.getServer()).get(`/api/dinge?zelt_id=${NACHBARZELT}`).set('x-api-key', schluessel).expect(403);
   });
 
+  /** Rotation always leaves a working key behind. An owner who pasted theirs into the wrong window wants none. */
+  it('can be switched off and not only rotated', async () => {
+    const schluessel = await minteZugang();
+    await request(app.getServer()).get(`/api/dinge?zelt_id=${ZELT_ID}`).set('x-api-key', schluessel).expect(200);
+
+    const antwort = await alsBesitzer(request(app.getServer()).delete(`/api/zelte/${ZELT_ID}/zugangsschluessel`)).expect(200);
+    expect(antwort.body.geloescht).toBe(true);
+
+    await request(app.getServer()).get(`/api/dinge?zelt_id=${ZELT_ID}`).set('x-api-key', schluessel).expect(403);
+    expect(await zugangsschluesselModel.countDocuments({ zelt_id: ZELT_ID })).toBe(0);
+
+    await request(app.getServer())
+      .delete(`/api/zelte/${ZELT_ID}/zugangsschluessel`)
+      .set('Cookie', `Authorization=${token(FREMDER)}`)
+      .expect(403);
+  });
+
   it('stops working the moment it is rotated', async () => {
     const alt = await minteZugang();
     const neu = await minteZugang();
@@ -255,12 +273,118 @@ describe('the club write key', () => {
     await request(app.getServer()).patch(`/api/dinge/${pflanze.ding_id}`).set('X-Schluessel', schluessel).send({ t_ende: Date.now() }).expect(403);
   });
 
-  it('is stored hashed, and a revoked key stops working', async () => {
+  it('is stored hashed, never in the clear', async () => {
     const schluessel = await minteSchluessel(anna.ding_id as string);
     const gespeichert = await schluesselModel.findOne({ zelt_id: ZELT_ID }).lean();
-    expect(JSON.stringify(gespeichert)).not.toContain(schluessel);
 
-    await schluesselModel.updateOne({ schluessel_id: gespeichert.schluessel_id }, { $set: { widerrufen_at: Date.now() } });
+    expect(JSON.stringify(gespeichert)).not.toContain(schluessel);
+  });
+
+  /**
+   * §13.5 says „shown once, revocable" and §15.3 names the endpoint. A key that
+   * can only be stopped by writing to the database by hand is not revocable;
+   * the club whose phone was lost is the whole reason the word is in the spec.
+   */
+  it('is revoked through the API, and stops answering at once', async () => {
+    const schluessel = await minteSchluessel(anna.ding_id as string);
+    const { schluessel_id } = (await schluesselModel.findOne({ zelt_id: ZELT_ID }).lean()) as any;
+
+    await request(app.getServer()).get(`/api/dinge?zelt_id=${ZELT_ID}&k=${schluessel}`).expect(200);
+
+    const antwort = await alsBesitzer(request(app.getServer()).delete(`/api/schluessel/${schluessel_id}`)).expect(200);
+    expect(antwort.body.widerrufen_at).toEqual(expect.any(Number));
+
     await request(app.getServer()).get(`/api/dinge?zelt_id=${ZELT_ID}&k=${schluessel}`).expect(403);
+    await request(app.getServer())
+      .post('/api/dinge')
+      .set('X-Schluessel', schluessel)
+      .send(ding({ art: 'gabe', d: { wasser_l: 5 } }))
+      .expect(403);
+  });
+
+  // The refusal says no and says nothing else: an id that exists in somebody
+  // else's tent and an id that exists nowhere have to be indistinguishable, or
+  // the endpoint answers „does this key exist?" for anyone who asks.
+  it('is revoked by the owner of its Zelt and by nobody else', async () => {
+    const schluessel = await minteSchluessel(anna.ding_id as string);
+    const { schluessel_id } = (await schluesselModel.findOne({ zelt_id: ZELT_ID }).lean()) as any;
+
+    const fremd = await request(app.getServer())
+      .delete(`/api/schluessel/${schluessel_id}`)
+      .set('Cookie', `Authorization=${token(FREMDER)}`)
+      .expect(403);
+    const erfunden = await request(app.getServer())
+      .delete(`/api/schluessel/${randomUUID()}`)
+      .set('Cookie', `Authorization=${token(FREMDER)}`)
+      .expect(403);
+
+    expect(fremd.text).toEqual(erfunden.text);
+    expect(fremd.text).not.toContain(ZELT_ID);
+    await request(app.getServer()).delete(`/api/schluessel/${schluessel_id}`).expect(401);
+    // Still working: the refusals changed nothing.
+    await request(app.getServer()).get(`/api/dinge?zelt_id=${ZELT_ID}&k=${schluessel}`).expect(200);
+  });
+
+  it('is listed for its owner, with the token nowhere in the answer', async () => {
+    const schluessel = await minteSchluessel(anna.ding_id as string);
+    const { schluessel_id } = (await schluesselModel.findOne({ zelt_id: ZELT_ID }).lean()) as any;
+
+    const antwort = await alsBesitzer(request(app.getServer()).get(`/api/zelte/${ZELT_ID}/schluessel`)).expect(200);
+
+    expect(antwort.body.schluessel).toEqual([
+      {
+        schluessel_id: schluessel_id,
+        mensch_ding_id: anna.ding_id,
+        erstellt_at: expect.any(Number),
+        widerrufen_at: null,
+      },
+    ]);
+    expect(JSON.stringify(antwort.body)).not.toContain(schluessel);
+
+    // A revoked key stays in the list: „who could write in my tent" is a
+    // question an owner asks after the fact, and a deleted row cannot answer it.
+    await alsBesitzer(request(app.getServer()).delete(`/api/schluessel/${schluessel_id}`)).expect(200);
+    const danach = await alsBesitzer(request(app.getServer()).get(`/api/zelte/${ZELT_ID}/schluessel`)).expect(200);
+    expect(danach.body.schluessel[0].widerrufen_at).toEqual(expect.any(Number));
+
+    await request(app.getServer())
+      .get(`/api/zelte/${ZELT_ID}/schluessel`)
+      .set('Cookie', `Authorization=${token(FREMDER)}`)
+      .expect(403);
+  });
+
+  /** A number of live write credentials that nobody can name is a number nobody revokes. */
+  it('stops being minted once the Zelt is full', async () => {
+    await schluesselModel.insertMany(
+      Array.from({ length: SCHLUESSEL_MAX }, (_unused, i) => ({
+        schluessel_id: randomUUID(),
+        zelt_id: ZELT_ID,
+        mensch_ding_id: anna.ding_id,
+        hash: `hash-${i}`,
+        erstellt_at: TAG_NULL,
+        widerrufen_at: null,
+      })),
+    );
+
+    await alsBesitzer(request(app.getServer()).post(`/api/zelte/${ZELT_ID}/schluessel`).send({ mensch_ding_id: anna.ding_id })).expect(409);
+
+    const eines = await schluesselModel.findOne({ zelt_id: ZELT_ID }).lean();
+    await alsBesitzer(request(app.getServer()).delete(`/api/schluessel/${eines.schluessel_id}`)).expect(200);
+    await alsBesitzer(request(app.getServer()).post(`/api/zelte/${ZELT_ID}/schluessel`).send({ mensch_ding_id: anna.ding_id })).expect(200);
+  });
+
+  /**
+   * §13.5 mandates the `?k=` URL form, so the token is in every request line
+   * morgan writes into logs/debug/*.log for 30 days - and into the proxy's
+   * access log, the browser history and any Referer the page hands on.
+   */
+  it('is not written into the request log', () => {
+    expect(redigiereUrl('/api/dinge?zelt_id=zelt-club&k=deadbeef')).toBe('/api/dinge?zelt_id=zelt-club&k=redacted');
+    expect(redigiereUrl('/api/dinge?share=abc123&art=notiz')).toBe('/api/dinge?share=redacted&art=notiz');
+    expect(redigiereUrl('/image/controller-1?format=jpeg&token=abc')).toBe('/image/controller-1?format=jpeg&token=redacted');
+    // Nothing to hide, nothing rewritten: an untouched line stays byte for byte
+    // what it was, so a log is still the request that was made.
+    expect(redigiereUrl('/api/dinge?zelt_id=zelt-club&art=notiz,gabe')).toBe('/api/dinge?zelt_id=zelt-club&art=notiz,gabe');
+    expect(redigiereUrl('/api/zelte')).toBe('/api/zelte');
   });
 });

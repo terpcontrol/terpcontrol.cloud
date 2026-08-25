@@ -17,6 +17,34 @@ import { zeltService } from '@services/zelt.service';
 import { buildSwaggerSpec } from '@utils/swagger';
 const fileUpload = require('express-fileupload');
 
+/**
+ * Credentials that travel in the query string, because the URL is their whole
+ * delivery mechanism: §13.5 mints a club key as `/z/<zelt_id>?k=<token>`, a
+ * share link is a link, and an `<img>` tag can carry no header.
+ *
+ * `morgan` writes the request line into `logs/debug/*.log`, kept for 30 days,
+ * so without this every use of one of them is a working credential sitting in
+ * a log file - and in the reverse proxy's access log, the browser history and
+ * any `Referer` the page leaks. The shape is fixed by the spec; what gets
+ * written down is not.
+ */
+const GEHEIME_PARAMETER = ['k', 'share', 'token'];
+
+export const redigiereUrl = (url: string): string => {
+  const trenner = url.indexOf('?');
+  if (trenner < 0) return url;
+
+  const query = new URLSearchParams(url.slice(trenner + 1));
+  const geheim = GEHEIME_PARAMETER.filter(name => query.has(name));
+  if (geheim.length === 0) return url;
+
+  // The parameter stays, only its value goes: a log that no longer shows which
+  // credential answered a request cannot be used to investigate one.
+  geheim.forEach(name => query.set(name, 'redacted'));
+
+  return `${url.slice(0, trenner)}?${query.toString()}`;
+};
+
 class App {
   public app: express.Application;
   public env: string;
@@ -87,6 +115,9 @@ class App {
     this.app.set('trust proxy', 1);
 
     if (LOG_FORMAT !== 'disabled') {
+      // Every format morgan ships prints `:url`, so redacting the token itself
+      // covers them all - including whatever LOG_FORMAT is set to in production.
+      morgan.token('url', (req: express.Request) => redigiereUrl(req.originalUrl || req.url));
       this.app.use(morgan(LOG_FORMAT, { stream }));
     }
     // this.app.use(cors({ origin: ORIGIN, credentials: CREDENTIALS }));
