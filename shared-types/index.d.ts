@@ -517,18 +517,32 @@ export interface DingDaten {
     wasser_l: number;
     kannen?: number;
     kanne_l?: number;
-    /** `gesamt` by default: most people water the tent, not a numbered plant. */
-    verteilung: GabeVerteilung;
+    /**
+     * Optional, and read as `gesamt` when absent: most people water the tent
+     * rather than a numbered plant. Demanding it would refuse a pour typed as
+     * "5 l", which is what most of them are - so a reader supplies the default,
+     * and this must not be typed as required while the server accepts it
+     * missing.
+     */
+    verteilung?: GabeVerteilung;
     ec?: number;
     ph?: number;
-    ec_basis: EcBasis;
+    /** Optional, read as `absolut` when absent. */
+    ec_basis?: EcBasis;
     ablauf_ph?: number;
     ablauf_ec?: number;
-    produkte: GabeProdukt[];
+    /** Optional, read as none: plain water is a Gabe like any other. */
+    produkte?: GabeProdukt[];
     schema_id?: string;
     schritt?: number;
     /** ding_id of the entry this duplicates, when two members logged one pour. */
     dublette_von?: string;
+    /**
+     * §4.2 puts these on a Notiz, but §13.4's double-feed guard reads
+     * `messwerte.substrat` off the previous Gabe - feeling the substrate while
+     * watering is one act and must not take two rows.
+     */
+    messwerte?: Messwerte;
   };
   notiz: {
     text: string;

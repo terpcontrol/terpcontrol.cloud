@@ -82,6 +82,11 @@ const DATEN: Record<string, Record<string, Feld>> = {
     schema_id: { typ: 'string' },
     schritt: { typ: 'menge' },
     dublette_von: { typ: 'ding_id' },
+    // SS4.2 puts Messwerte on a `notiz`, but SS13.4 has the double-feed guard
+    // reading `messwerte.substrat` from "the previous gabe or a notiz" and
+    // calls it the only corroboration a tent without a device has. Feeling the
+    // substrate while watering is one act; it must not take two rows.
+    messwerte: { typ: 'messwerte' },
   },
   notiz: {
     text: { typ: 'string', pflicht: true },
@@ -102,6 +107,14 @@ const DATEN: Record<string, Record<string, Feld>> = {
     ertrag_notiz: { typ: 'string' },
   },
 };
+
+/**
+ * The two arts whose whole job is to be named. A Notiz or a Gabe is described
+ * by what it says, so an empty name is right for them; six club members whose
+ * `mensch` rows are blank are six people told apart only by their colour, and
+ * a plant with no name cannot answer "to which plants".
+ */
+const BRAUCHT_NAMEN = ['mensch', 'pflanze'];
 
 /** Every hand instrument (§4.2). Temperatures are the only ones that may be negative. */
 const MESSWERTE: Record<string, FeldTyp> = {
@@ -201,8 +214,17 @@ class Pruefer {
         ok = this.nein(`${path}.${key}`, `unknown field - Messwerte carries ${Object.keys(MESSWERTE).join(', ')}`);
         continue;
       }
-      if (value === undefined) continue;
+      // A cleared number input sends null, and `pruefeDaten` already reads null
+      // as absent. A pH pen owner leaving the four instruments they do not own
+      // blank must not lose the whole entry to four "must be a finite number".
+      if (value === undefined || value === null) continue;
       ok = this.feld(`${path}.${key}`, value, key === 'substrat' ? { typ: 'string', werte: SUBSTRATE } : { typ: typ }) && ok;
+    }
+    // `messwerteAusDiary` takes care never to emit an empty object; a client
+    // must not be able to store one either, or a Notiz carries a Messwerte row
+    // that measured nothing.
+    if (ok && Object.keys(wert).filter(key => wert[key] !== undefined && wert[key] !== null).length === 0) {
+      return this.nein(path, 'carries no reading - leave it out rather than sending an empty one');
     }
     return ok;
   }
@@ -230,6 +252,14 @@ const pruefeRel = (p: Pruefer, rel: unknown): void => {
     }
     if (!Array.isArray(ziele)) {
       p.add(`rel.${kante}`, 'must be an array of ding_ids');
+      continue;
+    }
+    // An absent edge means the whole tent; a populated one means those Dinge.
+    // An empty array is neither, and it is what a phone sends when somebody
+    // opens the plant picker and taps nothing - a pour divided across no
+    // plants at all. Refused, so "absent" stays the only way to say "all".
+    if (ziele.length === 0) {
+      p.add(`rel.${kante}`, 'must not be empty - leave the edge out to mean the whole tent');
       continue;
     }
     ziele.forEach((ziel, i) => p.uuid(`rel.${kante}[${i}]`, ziel));
@@ -297,6 +327,8 @@ export function validateDing(eingabe: unknown): DingPruefung {
 
   if (eingabe.name !== undefined && typeof eingabe.name !== 'string') {
     p.add('name', 'must be a string');
+  } else if (typeof art === 'string' && BRAUCHT_NAMEN.includes(art) && String(eingabe.name ?? '').trim() === '') {
+    p.add('name', `is required on a ${art} - it is what the ${art} is`);
   }
 
   p.zeit('t', eingabe.t);

@@ -37,9 +37,14 @@ const dingSchema: Schema = new Schema({
     type: Number,
     required: false,
   },
+  // When this was typed, as against `t`, which is when it happened. The default
+  // lives here rather than in a controller so it cannot be forgotten by one
+  // write path and so a client cannot backdate it. With an insert-only upsert
+  // it also stays stable across a retry, which is what makes it mean anything.
   erfasst_at: {
     type: Number,
     required: false,
+    default: () => Date.now(),
   },
   // Free-form on purpose: the edge names and the per-art payload are contract
   // between client and server (`DingDaten`), validated in `ding-validierung`

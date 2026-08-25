@@ -144,7 +144,63 @@ describe('validateDing', () => {
     const gabe = gabeVomTelefon();
     expect(pfade({ ...gabe, d: { ...gabe.d, ph_ablauf: 6.0 } })).toEqual(['d.ph_ablauf']);
     expect(pfade({ ...gabe, rel: { auf: [randomUUID()] } })).toEqual(['rel.auf']);
-    expect(pfade({ ...gabe, d: { wasser_l: 1, messwerte: {} } })).toEqual(['d.messwerte']);
+  });
+
+  describe('the hand instrument set', () => {
+    const grund = { ding_id: randomUUID(), zelt_id: 'zelt-1', name: 'x', t: Date.now() };
+    const notiz = (messwerte: Record<string, unknown>) => ({ ...grund, art: 'notiz', d: { text: 'pH gemessen', messwerte: messwerte } });
+
+    it('reads a cleared input as an instrument nobody owns, not as a bad value', () => {
+      // A cleared <ion-input type="number"> sends null. The grower has a pH pen
+      // and nothing else; losing the whole note to four "must be a finite
+      // number" would be the app telling them they are missing something.
+      expect(pfade(notiz({ ph: 6.2, temperatur: null, luftfeuchte: null, hoehe_cm: null }))).toEqual([]);
+    });
+
+    it('keeps a zero, because somebody typed it', () => {
+      expect(pfade(notiz({ ph: 0, hoehe_cm: 0 }))).toEqual([]);
+    });
+
+    it('refuses a reading that measured nothing', () => {
+      expect(pfade(notiz({}))).toEqual(['d.messwerte']);
+      expect(pfade(notiz({ ph: null }))).toEqual(['d.messwerte']);
+    });
+
+    it('lets a Gabe carry them, because feeling the substrate while watering is one act', () => {
+      // §4.2 puts Messwerte on a Notiz; §13.4 has the double-feed guard reading
+      // `messwerte.substrat` from the previous Gabe. Two rows for one act would
+      // leave the guard joining them by time and hoping.
+      const gabe = gabeVomTelefon();
+      expect(pfade({ ...gabe, d: { ...gabe.d, messwerte: { substrat: 'nass' } } })).toEqual([]);
+      expect(pfade({ ...gabe, d: { ...gabe.d, messwerte: { substrat: 'staubig' } } })).toEqual(['d.messwerte.substrat']);
+    });
+  });
+
+  describe('naming', () => {
+    const grund = { ding_id: randomUUID(), zelt_id: 'zelt-1', name: 'x', t: Date.now() };
+
+    it('demands a name where the name is the whole point', () => {
+      expect(pfade({ ...grund, art: 'mensch', name: '', d: { farbe: '#c0ffee' } })).toEqual(['name']);
+      expect(pfade({ ...grund, art: 'pflanze', name: undefined, d: {} })).toEqual(['name']);
+      expect(pfade({ ...grund, art: 'mensch', name: '   ', d: { farbe: '#c0ffee' } })).toEqual(['name']);
+      expect(pfade({ ...grund, art: 'mensch', name: 'Anna', d: { farbe: '#c0ffee' } })).toEqual([]);
+    });
+
+    it('lets everything else go unnamed, because a Notiz is described by what it says', () => {
+      expect(pfade({ ...grund, art: 'notiz', name: '', d: { text: 'gegossen' } })).toEqual([]);
+      expect(pfade(gabeVomTelefon())).toEqual([]);
+    });
+  });
+
+  describe('edges', () => {
+    it('refuses an empty edge, so absent stays the only way to say the whole tent', () => {
+      // What a phone sends when somebody opens the plant picker and taps
+      // nothing. Divided across no plants it is a pour that recorded nothing.
+      const gabe = gabeVomTelefon();
+      expect(pfade({ ...gabe, rel: { an: [] } })).toEqual(['rel.an']);
+      expect(pfade({ ...gabe, rel: { an: [randomUUID()] } })).toEqual([]);
+      expect(pfade({ ...gabe })).toEqual([]);
+    });
   });
 
   it('reports every problem at once, so a client can fix the form in one pass', () => {
