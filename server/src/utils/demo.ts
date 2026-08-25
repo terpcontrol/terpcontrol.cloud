@@ -1,4 +1,4 @@
-import { Alarm, CloudSettings, Device, Recipe } from '@fg2/shared-types';
+import { Alarm, CloudSettings, Device, Recipe, socketListChunk } from '@fg2/shared-types';
 
 // Demo sessions are not tied to an account; this stands in for the user id so
 // owner-scoped queries (shares, chart presets, recipe templates) match nothing.
@@ -8,13 +8,10 @@ export const DEMO_WRITE_MESSAGE = 'Saving is not supported in demo mode';
 
 // Reported by the device and not for the public: the camera URL carries its
 // credentials, the socket lists the addresses and MACs of someone's local
-// network. `socket_list<n>` is matched by prefix — the table is reported in
-// as many chunks as it takes.
+// network. Which roles have a socket stays — that is what the demo is showing.
 const SECRET_HARDWARE_INFO_KEYS = ['webcam_url', 'socket_ips'];
-const SECRET_HARDWARE_INFO_PREFIXES = ['socket_list'];
 
-const isSecretHardwareInfoKey = (key: string): boolean =>
-  SECRET_HARDWARE_INFO_KEYS.includes(key) || SECRET_HARDWARE_INFO_PREFIXES.some(prefix => key.startsWith(prefix));
+const isSecretHardwareInfoKey = (key: string): boolean => SECRET_HARDWARE_INFO_KEYS.includes(key) || socketListChunk(key) !== null;
 
 // The stream URL contains credentials, so demo visitors only learn that a
 // webcam exists - the same reduction share links use. A readable example URL

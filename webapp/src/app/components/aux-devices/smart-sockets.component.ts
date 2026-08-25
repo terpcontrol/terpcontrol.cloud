@@ -2,7 +2,7 @@ import { Component, Input, OnChanges, OnDestroy, SimpleChanges } from '@angular/
 import { AlertController } from '@ionic/angular';
 import { TranslateService } from '@ngx-translate/core';
 import { DeviceService } from 'src/app/services/devices.service';
-import { MAX_SOCKETS, parseSocketList, parseSocketRoles, socketIpFromCsv, SocketEntry, SOCKET_ROLES } from 'src/app/util/socket-info';
+import { MAX_SOCKETS, readSockets, socketKey, SocketEntry, socketsReported, SOCKET_ROLES } from 'src/app/util/socket-info';
 
 const DEVICE_ONLINE_TIMEOUT_MS = 10 * 60 * 1000;
 const SOCKET_CONFIRM_POLLS = 3;
@@ -52,7 +52,7 @@ export class SmartSocketsComponent implements OnChanges, OnDestroy {
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['hardwareInfo']) {
-      this.sockets = this.readSockets();
+      this.sockets = readSockets(this.hardwareInfo);
       // The device confirms socket changes by re-reporting its table.
       this.pendingKeys.clear();
       this.pendingAddRole = null;
@@ -64,7 +64,7 @@ export class SmartSocketsComponent implements OnChanges, OnDestroy {
   }
 
   get socketsReported(): boolean {
-    return this.hardwareInfo?.['sockets'] !== undefined;
+    return socketsReported(this.hardwareInfo);
   }
 
   get deviceOffline(): boolean {
@@ -76,12 +76,12 @@ export class SmartSocketsComponent implements OnChanges, OnDestroy {
   }
 
   /** Identity for pending/editing state; the slot when the device reports one. */
-  socketKey(socket: SocketEntry): string {
-    return socket.slot >= 0 ? String(socket.slot) : socket.role;
-  }
+  public socketKey = socketKey;
 
+  // Angular calls a trackBy detached from the component, so these must not
+  // reach for anything on `this`.
   trackBySocket(_index: number, socket: SocketEntry): string {
-    return this.socketKey(socket);
+    return socketKey(socket);
   }
 
   trackByRole(_index: number, role: string): string {
@@ -217,21 +217,6 @@ export class SmartSocketsComponent implements OnChanges, OnDestroy {
 
   private slotOf(socket: SocketEntry): { slot?: number } {
     return socket.slot >= 0 ? { slot: socket.slot } : {};
-  }
-
-  private readSockets(): SocketEntry[] {
-    const table = parseSocketList(this.hardwareInfo);
-    if (table) {
-      return table;
-    }
-    // Firmware from before the socket table reports one socket per role, and
-    // has no slots to address them by.
-    return parseSocketRoles(this.hardwareInfo?.['sockets']).map(role => ({
-      slot: -1,
-      role,
-      id: '',
-      ip: socketIpFromCsv(this.hardwareInfo?.['socket_ips'], role) ?? '',
-    }));
   }
 
   private markPending(key: string) {

@@ -13,6 +13,10 @@ import net from 'node:net';
 import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 
+// The socket report is a contract between firmware, server and webapp; the
+// simulator answers to the same one.
+import { MAX_SOCKETS, SOCKETS_PER_REPORT_CHUNK, socketListKey } from '../shared-types/index.js';
+
 const STATE_DIR = '.simulated-devices';
 const API_URL = process.env.SIM_API_URL.replace(/\/$/, '');
 const MQTT_HOST = process.env.SIM_MQTT_HOST;
@@ -20,12 +24,6 @@ const MQTT_PORT = Number(process.env.SIM_MQTT_PORT);
 const REGISTRATION_PASSWORD = process.env.SIM_REGISTRATION_PASSWORD ?? '';
 const USER = process.env.SIM_USER ?? '';
 const USER_PASSWORD = process.env.SIM_USER_PASSWORD ?? '';
-
-// A device drives at most this many sockets, spread over the roles as it likes,
-// and reports them a few at a time. Both have to match the firmware, which the
-// webapp's socket table is parsed against.
-const MAX_SOCKETS = 32;
-const SOCKETS_PER_CHUNK = 3;
 
 // Stands in for the MAC the firmware reads out of Tasmota's `Status 5` and then
 // finds the socket by. Derived from the address so a socket keeps its id across
@@ -665,9 +663,9 @@ class SimulatedDevice {
     );
 
     this.hardwareInfo('sockets_n', String(sockets.length));
-    for (let chunk = 0; chunk * SOCKETS_PER_CHUNK < sockets.length; chunk++) {
-      const entries = sockets.slice(chunk * SOCKETS_PER_CHUNK, (chunk + 1) * SOCKETS_PER_CHUNK);
-      this.hardwareInfo(`socket_list${chunk}`, entries.map(socket => `${socket.role}|${socket.id}|${socket.ip}`).join(','));
+    for (let chunk = 0; chunk * SOCKETS_PER_REPORT_CHUNK < sockets.length; chunk++) {
+      const entries = sockets.slice(chunk * SOCKETS_PER_REPORT_CHUNK, (chunk + 1) * SOCKETS_PER_REPORT_CHUNK);
+      this.hardwareInfo(socketListKey(chunk), entries.map(socket => `${socket.role}|${socket.id}|${socket.ip}`).join(','));
     }
   }
 
