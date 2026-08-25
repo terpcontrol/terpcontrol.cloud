@@ -276,3 +276,59 @@ export interface ChartPreset {
   query: string;
   createdAt: number;
 }
+
+/**
+ * A device's membership in a tent. `seit` is the moment the device was bound,
+ * `bis` the moment it was removed; a removed binding is kept so the tent's past
+ * still resolves to the device that produced it.
+ */
+export interface GeraetBindung {
+  geraet_id: string;
+  seit: number;
+  bis?: number;
+}
+
+export type ZeltMedium = 'erde' | 'light-mix' | 'all-mix' | 'coco' | 'floragard-light' | 'biotabs' | 'unbekannt';
+
+/** Free-form tent facts. Everything here is optional and cloud-side only. */
+export interface ZeltDaten {
+  medium?: ZeltMedium;
+  schema_id?: string;
+  /** Advances on feed events, never on the clock. */
+  schema_schritt?: number;
+  /** mS/cm of the tap water, asked once the first time an EC is entered. */
+  leitungswasser_ec?: number;
+  /** Declared light schedule as seconds of day. A claim, not a measurement. */
+  licht_plan?: { an: number; aus: number };
+  kanne_l?: number;
+  foto_zaehler?: number;
+}
+
+/**
+ * The tent is the subject of the product: a grow that may or may not have
+ * devices. `geraete: []` is the reference case, not an error state.
+ */
+export interface Zelt {
+  zelt_id: string;
+  besitzer_id: string;
+  name: string;
+  geraete: GeraetBindung[];
+  /** IANA zone; every day boundary of this tent is computed in it. */
+  zeitzone: string;
+  /** Day 1 of the grow, epoch ms. Written at creation and only ever changed by an explicit edit. */
+  tag_null: number;
+  /** Which device's camera leads when several have one. */
+  kamera_leitgeraet?: string;
+  erstellt_at: number;
+  d?: ZeltDaten;
+}
+
+/**
+ * A measurement together with when it was taken, so a reader can tell a live
+ * value from a stale one instead of guessing from the request time.
+ */
+export interface LatestValue {
+  value: number;
+  /** Epoch ms of the measurement itself; absent when no data point was found. */
+  t?: number;
+}

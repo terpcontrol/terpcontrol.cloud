@@ -13,6 +13,7 @@ import { Routes } from '@interfaces/routes.interface';
 import errorMiddleware from '@middlewares/error.middleware';
 import { demoReadOnlyMiddleware } from '@middlewares/auth.middleware';
 import { logger, stream } from '@utils/logger';
+import { zeltService } from '@services/zelt.service';
 import { buildSwaggerSpec } from '@utils/swagger';
 const fileUpload = require('express-fileupload');
 
@@ -37,6 +38,7 @@ class App {
   public async run() {
     try {
       await this.connectToDatabase();
+      await this.runMigrations();
       this.initializeMiddlewares();
       this.initializeRoutes(this.routes);
       this.initializeSwagger();
@@ -64,6 +66,12 @@ class App {
 
     await connect(dbConnection.url, dbConnection.options);
     console.log(connection.readyState);
+  }
+
+  // Schema-filling migrations belong to the boot, once per deployment: doing
+  // them per request would repeat the same query on every call forever.
+  private async runMigrations() {
+    await zeltService.backfillZelte();
   }
 
   private initializeMiddlewares() {

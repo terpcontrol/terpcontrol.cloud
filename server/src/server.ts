@@ -16,10 +16,12 @@ import MqttAuthRoute from './routes/mqttauth.route';
 import DataRoute from './routes/data.route';
 import ShareRoute from './routes/share.route';
 import ChartPresetRoute from './routes/chartpreset.route';
+import ZeltRoute from './routes/zelt.route';
 
 validateEnv();
 
 const app = new App([
+  new ZeltRoute(),
   new DataRoute(),
   new ShareRoute(),
   new ChartPresetRoute(),

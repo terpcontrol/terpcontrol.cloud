@@ -3,7 +3,7 @@ import { INFLUXDB_BUCKET, INFLUXDB_ORG, INFLUXDB_TOKEN } from '@/config';
 import { deviceService, StatusMessage } from '@services/device.service';
 import { calculateVpd } from '@utils/calculateVpd';
 import imageModel from '@models/images.model';
-import { Image } from '@fg2/shared-types';
+import { Image, LatestValue } from '@fg2/shared-types';
 
 const INFLUXDB_DB = 'devices';
 // You can generate a Token from the "Tokens Tab" in the UI
@@ -15,6 +15,9 @@ export const VALID_SENSORS = ['temperature', 'humidity', 'avg', 'p', 'i', 'd', '
 // constant rather than a fixed physical conversion. Default assumes a white
 // full-spectrum LED; growers can override it per device in cloud settings.
 const DEFAULT_PPFD_LUX_FACTOR = 0.015;
+
+// A fresh object per call: callers may keep and annotate what they get back.
+const noValue = (): LatestValue => ({ value: NaN });
 
 export const VALID_OUTPUTS = ['heater', 'dehumidifier', 'co2', 'light', 'fan', 'relais', 'fan-internal', 'fan-external', 'fan-backwall'];
 
@@ -160,6 +163,15 @@ class DataService {
   }
 
   public async getLatest(device_id, measure): Promise<number> {
+    return (await this.getLatestPoint(device_id, measure)).value;
+  }
+
+  /**
+   * The latest reading together with the time it was measured. Readers need the
+   * age to tell a live value from one a stopped device left behind; the request
+   * time cannot tell them apart.
+   */
+  public async getLatestPoint(device_id, measure): Promise<LatestValue> {
     if (measure === 'vpd') {
       return this.getLatestVpd(device_id);
     }
@@ -175,43 +187,62 @@ class DataService {
         |> filter(fn: (r) => r["_measurement"] == "status")
         |> filter(fn: (r) => r["_field"] == "${measure}")
         |> filter(fn: (r) => r["device_id"] == "${device_id}")
-        |> aggregateWindow(every: 5m, fn: last, createEmpty: false)
-        |> yield(name: "mean")
+        |> last()
+        |> yield(name: "last")
     `;
 
     const rows = await queryApi.collectRows(query);
 
-    if (rows.length > 0) {
-      return rows[rows.length - 1]['_value'];
-    } else {
-      return NaN;
-    }
+    return rows.reduce<LatestValue>((newest, row: any) => {
+      const t = Date.parse(row._time);
+      return newest.t === undefined || t > newest.t ? { value: row._value, t: t } : newest;
+    }, noValue());
   }
 
-  private async getLatestVpd(device_id): Promise<number> {
-    const temp = await this.getLatest(device_id, 'temperature');
-    const humidity = await this.getLatest(device_id, 'humidity');
+  /** The oldest sample a device ever wrote, or null when it never wrote one. */
+  public async getFirstSampleTime(device_id: string): Promise<number | null> {
+    const queryApi = influxdb_client.getQueryApi(INFLUXDB_ORG);
+    const query = `
+      from(bucket: "${INFLUXDB_BUCKET}")
+        |> range(start: 0)
+        |> filter(fn: (r) => r["_measurement"] == "status")
+        |> filter(fn: (r) => r["device_id"] == "${device_id}")
+        |> first()
+        |> yield(name: "first")
+    `;
+
+    const rows = await queryApi.collectRows(query);
+    const times = rows.map((row: any) => Date.parse(row._time)).filter(t => !isNaN(t));
+
+    return times.length > 0 ? Math.min(...times) : null;
+  }
+
+  private async getLatestVpd(device_id): Promise<LatestValue> {
+    const temp = await this.getLatestPoint(device_id, 'temperature');
+    const humidity = await this.getLatestPoint(device_id, 'humidity');
     const light = await this.getLatest(device_id, 'out_light');
     const measuredLeafTemp = await this.getLatest(device_id, 'leaf_temperature');
     const cloudSettings = await deviceService.getDeviceCloudSettings(device_id);
 
-    if (temp && humidity) {
+    if (temp.value && humidity.value) {
       const isDay = (light ?? 0) > 0.5;
-      const leafTemp = this.leafTemperature(temp, measuredLeafTemp, isDay, cloudSettings);
-      return calculateVpd(temp, leafTemp, humidity);
+      const leafTemp = this.leafTemperature(temp.value, measuredLeafTemp, isDay, cloudSettings);
+      // A derived value is only as fresh as its stalest ingredient.
+      const t = Math.min(temp.t ?? Infinity, humidity.t ?? Infinity);
+      return { value: calculateVpd(temp.value, leafTemp, humidity.value), t: isFinite(t) ? t : undefined };
     }
 
-    return NaN;
+    return noValue();
   }
 
-  private async getLatestPpfd(device_id): Promise<number> {
-    const lux = await this.getLatest(device_id, 'lux');
-    if (lux == null || isNaN(lux)) {
-      return NaN;
+  private async getLatestPpfd(device_id): Promise<LatestValue> {
+    const lux = await this.getLatestPoint(device_id, 'lux');
+    if (lux.value == null || isNaN(lux.value)) {
+      return noValue();
     }
     const cloudSettings = await deviceService.getDeviceCloudSettings(device_id);
     const factor = cloudSettings?.ppfdLuxFactor ?? DEFAULT_PPFD_LUX_FACTOR;
-    return lux * factor;
+    return { value: lux.value * factor, t: lux.t };
   }
 }
 export const dataService = new DataService();

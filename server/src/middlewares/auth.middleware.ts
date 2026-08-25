@@ -4,6 +4,7 @@ import { SECRET_KEY } from '@config';
 import { HttpException } from '@exceptions/HttpException';
 import { DataStoredInToken, RequestWithUser } from '@interfaces/auth.interface';
 import deviceModel from '@/models/device.model';
+import zeltModel from '@/models/zelt.model';
 import shareModel from '@/models/share.model';
 import { Device, ShareLink } from '@fg2/shared-types';
 import { DEMO_WRITE_MESSAGE } from '@utils/demo';
@@ -225,4 +226,40 @@ export const isUserDeviceOrShareMiddelware = async (
     res.status(401).send(hasToken ? 'Wrong authentication token' : 'Authentication token missing');
   }
   return false;
+};
+
+/**
+ * Tent ownership, the second identity next to the device. It is a call, not
+ * Express middleware, so every handler that takes a zelt_id has to make it on
+ * its first line — the route table test is what proves none of them forgot.
+ */
+export const isUserZelt = async (req: RequestWithUser, zelt_id: string): Promise<boolean> =>
+  !!zelt_id && !!req.user_id && !!(await zeltModel.exists({ zelt_id: zelt_id, besitzer_id: req.user_id }));
+
+export const isUserZeltMiddelware = async (req: RequestWithUser, res: Response, zelt_id: string): Promise<boolean> => {
+  try {
+    if (getAuthorizationCandidates(req).length === 0) {
+      res.status(401).send('Authentication token missing');
+      return false;
+    }
+
+    const verificationResponse = await verifyFirstMatchingToken(req, 'user');
+    if (!verificationResponse) {
+      res.status(401).send('Wrong authentication token');
+      return false;
+    }
+
+    applyToken(req, verificationResponse);
+    // A demo session reaches demo devices, never a tent: tents are personal
+    // diaries and there is no demo tent to fall back to.
+    if (!req.is_demo && (await isUserZelt(req, zelt_id))) {
+      return true;
+    }
+
+    res.status(403).send(`Zelt ${zelt_id} not bound to user ${req.user_id}`);
+    return false;
+  } catch (error) {
+    res.status(401).send('Wrong authentication token');
+    return false;
+  }
 };

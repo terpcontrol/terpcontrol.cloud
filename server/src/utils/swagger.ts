@@ -25,6 +25,7 @@ export function buildSwaggerSpec(serverUrl?: string): object {
         { name: 'Users', description: 'User administration (admin only)' },
         { name: 'Devices', description: 'Device management, configuration and firmware' },
         { name: 'Data', description: 'Time-series and latest sensor measurements' },
+        { name: 'Zelte', description: 'Tents - the grow a device belongs to' },
         { name: 'Images', description: 'Device image and timelapse access' },
         { name: 'Shares', description: 'Share links granting read access to a device page' },
         { name: 'Chart presets', description: 'Saved chart views (measures, timespan) of the current user' },
@@ -316,6 +317,30 @@ export function buildSwaggerSpec(serverUrl?: string): object {
               duration: { type: 'string', enum: ['1d', '1w', '1m'] },
             },
           },
+          Zelt: {
+            type: 'object',
+            properties: {
+              zelt_id: { type: 'string' },
+              besitzer_id: { type: 'string' },
+              name: { type: 'string' },
+              geraete: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    geraet_id: { type: 'string' },
+                    seit: { type: 'number' },
+                    bis: { type: 'number' },
+                  },
+                },
+              },
+              zeitzone: { type: 'string' },
+              tag_null: { type: 'number' },
+              kamera_leitgeraet: { type: 'string' },
+              erstellt_at: { type: 'number' },
+              d: { type: 'object' },
+            },
+          },
           SeriesPoint: {
             type: 'object',
             properties: {
@@ -327,6 +352,7 @@ export function buildSwaggerSpec(serverUrl?: string): object {
             type: 'object',
             properties: {
               value: { type: 'number' },
+              t: { type: 'number', description: 'Epoch ms the reading was measured; absent when no data point was found.' },
             },
           },
           StatusOk: {

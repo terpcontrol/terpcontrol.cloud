@@ -26,8 +26,8 @@ class DataController {
   public getLatest = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
       if (await isUserDeviceOrShareMiddelware(req, res, req.params.device_id)) {
-        const data = await dataService.getLatest(req.params.device_id, req.params.measure);
-        res.status(201).json({ value: data });
+        const data = await dataService.getLatestPoint(req.params.device_id, req.params.measure);
+        res.status(201).json(data);
       }
     } catch (error) {
       console.log(error);
