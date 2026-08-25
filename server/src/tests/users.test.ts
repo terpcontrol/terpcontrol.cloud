@@ -1,133 +1,62 @@
-import bcrypt from 'bcrypt';
-import mongoose from 'mongoose';
 import request from 'supertest';
+import { sign } from 'jsonwebtoken';
 import App from '@/app';
-import { CreateUserDto } from '@dtos/users.dto';
+import { SECRET_KEY } from '@config';
+import { DataStoredInToken } from '@interfaces/auth.interface';
 import UsersRoute from '@routes/users.route';
 
-afterAll(async () => {
-  await new Promise<void>(resolve => setTimeout(() => resolve(), 500));
-});
+const appWith = (routes: any[]): App => {
+  const app = new App(routes);
+  (app as any).initializeMiddlewares();
+  (app as any).initializeRoutes(routes);
+  (app as any).initializeErrorHandling();
+  return app;
+};
 
-describe('Testing Users', () => {
-  describe('[GET] /users', () => {
-    it('response fineAll Users', async () => {
-      const usersRoute = new UsersRoute();
-      const users = usersRoute.usersController.userService.users;
+const token = (is_admin: boolean) =>
+  sign({ user_id: 'u1', is_admin, is_demo: false, token_type: 'user', secret: 's' } as DataStoredInToken, SECRET_KEY, { expiresIn: '10m' });
 
-      users.find = jest.fn().mockReturnValue([
-        {
-          _id: 'qpwoeiruty',
-          email: 'a@email.com',
-          password: await bcrypt.hash('q1w2e3r4!', 10),
-        },
-        {
-          _id: 'alskdjfhg',
-          email: 'b@email.com',
-          password: await bcrypt.hash('a1s2d3f4!', 10),
-        },
-        {
-          _id: 'zmxncbv',
-          email: 'c@email.com',
-          password: await bcrypt.hash('z1x2c3v4!', 10),
-        },
-      ]);
+describe('Users', () => {
+  let route: UsersRoute;
+  let app: App;
 
-      (mongoose as any).connect = jest.fn();
-      const app = new App([usersRoute]);
-      return request(app.getServer()).get(`${usersRoute.path}`).expect(200);
-    });
+  beforeEach(() => {
+    route = new UsersRoute();
+    app = appWith([route]);
   });
 
-  describe('[GET] /users/:id', () => {
-    it('response findOne User', async () => {
-      const userId = 'qpwoeiruty';
+  afterEach(() => jest.restoreAllMocks());
 
-      const usersRoute = new UsersRoute();
-      const users = usersRoute.usersController.userService.users;
+  it('lists users for an admin', async () => {
+    const users = [
+      { _id: 'a', username: 'anna', is_admin: false },
+      { _id: 'b', username: 'ben', is_admin: true },
+    ];
+    route.usersController.userService.findAllUser = jest.fn().mockResolvedValue(users) as never;
 
-      users.findOne = jest.fn().mockReturnValue({
-        _id: 'qpwoeiruty',
-        email: 'a@email.com',
-        password: await bcrypt.hash('q1w2e3r4!', 10),
-      });
-
-      (mongoose as any).connect = jest.fn();
-      const app = new App([usersRoute]);
-      return request(app.getServer()).get(`${usersRoute.path}/${userId}`).expect(200);
-    });
+    const response = await request(app.getServer())
+      .get('/users')
+      .set('Authorization', `Bearer ${token(true)}`)
+      .expect(200);
+    expect(response.body.map((u: { username: string }) => u.username)).toEqual(['anna', 'ben']);
   });
 
-  describe('[POST] /users', () => {
-    it('response Create User', async () => {
-      const userData: CreateUserDto = {
-        email: 'test@email.com',
-        password: 'q1w2e3r4',
-      };
-
-      const usersRoute = new UsersRoute();
-      const users = usersRoute.usersController.userService.users;
-
-      users.findOne = jest.fn().mockReturnValue(null);
-      users.create = jest.fn().mockReturnValue({
-        _id: '60706478aad6c9ad19a31c84',
-        email: userData.email,
-        password: await bcrypt.hash(userData.password, 10),
-      });
-
-      (mongoose as any).connect = jest.fn();
-      const app = new App([usersRoute]);
-      return request(app.getServer()).post(`${usersRoute.path}`).send(userData).expect(201);
-    });
+  it('refuses the list to an ordinary account', () => {
+    return request(app.getServer())
+      .get('/users')
+      .set('Authorization', `Bearer ${token(false)}`)
+      .expect(401);
   });
 
-  describe('[PUT] /users/:id', () => {
-    it('response Update User', async () => {
-      const userId = '60706478aad6c9ad19a31c84';
-      const userData: CreateUserDto = {
-        email: 'test@email.com',
-        password: 'q1w2e3r4',
-      };
-
-      const usersRoute = new UsersRoute();
-      const users = usersRoute.usersController.userService.users;
-
-      if (userData.email) {
-        users.findOne = jest.fn().mockReturnValue({
-          _id: userId,
-          email: userData.email,
-          password: await bcrypt.hash(userData.password, 10),
-        });
-      }
-
-      users.findByIdAndUpdate = jest.fn().mockReturnValue({
-        _id: userId,
-        email: userData.email,
-        password: await bcrypt.hash(userData.password, 10),
-      });
-
-      (mongoose as any).connect = jest.fn();
-      const app = new App([usersRoute]);
-      return request(app.getServer()).put(`${usersRoute.path}/${userId}`).send(userData);
-    });
+  it('refuses the list without a token at all', () => {
+    return request(app.getServer()).get('/users').expect(401);
   });
 
-  describe('[DELETE] /users/:id', () => {
-    it('response Delete User', async () => {
-      const userId = '60706478aad6c9ad19a31c84';
-
-      const usersRoute = new UsersRoute();
-      const users = usersRoute.usersController.userService.users;
-
-      users.findByIdAndDelete = jest.fn().mockReturnValue({
-        _id: '60706478aad6c9ad19a31c84',
-        email: 'test@email.com',
-        password: await bcrypt.hash('q1w2e3r4!', 10),
-      });
-
-      (mongoose as any).connect = jest.fn();
-      const app = new App([usersRoute]);
-      return request(app.getServer()).delete(`${usersRoute.path}/${userId}`).expect(200);
-    });
+  it('rejects a new user with no password', () => {
+    return request(app.getServer())
+      .post('/users')
+      .set('Authorization', `Bearer ${token(true)}`)
+      .send({ username: 'anna' })
+      .expect(400);
   });
 });
