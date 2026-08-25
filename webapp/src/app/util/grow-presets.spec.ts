@@ -38,6 +38,47 @@ describe('deviceCanSwitch', () => {
     expect(deviceCanSwitch(controller(), 'temperature')).toEqual('unknown');
     expect(deviceCanSwitch({ device_type: 'controller' }, 'humidity')).toEqual('unknown');
   });
+
+  describe('reading the socket table', () => {
+    // What current firmware reports: a count plus chunks of `role|id|ip`.
+    const table = (...entries: string[]) => {
+      const hardwareInfo: Record<string, string> = { sockets_n: String(entries.length) };
+      for (let chunk = 0; chunk * 3 < entries.length; chunk++) {
+        hardwareInfo[`socket_list${chunk}`] = entries.slice(chunk * 3, chunk * 3 + 3).join(',');
+      }
+      return { device_type: 'controller', hardwareInfo: hardwareInfo };
+    };
+
+    it('reads the roles out of the table, not just the legacy summary', () => {
+      const device = table('heater|AA:BB:CC:DD:EE:01|192.168.1.10', 'light|AA:BB:CC:DD:EE:02|192.168.1.11');
+      expect(deviceCanSwitch(device, 'temperature')).toBe(true);
+      expect(deviceCanSwitch(device, 'light')).toBe(true);
+      expect(deviceCanSwitch(device, 'humidity')).toBe(false);
+    });
+
+    it('is unmoved by two sockets sharing a role', () => {
+      const device = table('heater|AA:BB:CC:DD:EE:01|192.168.1.10', 'heater|AA:BB:CC:DD:EE:02|192.168.1.11');
+      expect(deviceCanSwitch(device, 'temperature')).toBe(true);
+      expect(deviceCanSwitch(device, 'humidity')).toBe(false);
+    });
+
+    it('reads a table spanning several chunks', () => {
+      const device = table(
+        'heater|01|192.168.1.10',
+        'heater|02|192.168.1.11',
+        'heater|03|192.168.1.12',
+        'dehumidifier|04|192.168.1.13',
+      );
+      expect(device.hardwareInfo['socket_list1']).toBe('dehumidifier|04|192.168.1.13');
+      expect(deviceCanSwitch(device, 'humidity')).toBe(true);
+    });
+
+    it('says no, not unknown, for a controller that reports an empty table', () => {
+      const device = { device_type: 'controller', hardwareInfo: { sockets_n: '0' } };
+      expect(deviceCanSwitch(device, 'temperature')).toBe(false);
+      expect(deviceControlCapability(device)).toEqual('monitor');
+    });
+  });
 });
 
 describe('deviceControlCapability', () => {

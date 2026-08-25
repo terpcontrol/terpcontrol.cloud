@@ -244,7 +244,17 @@ type DingArt = 'zelt' | 'geraet' | 'pflanze' | 'dose' | 'kamera' | 'bild' | 'fil
 
 | Stored (human-entered, no device involved) | Projected read-time (source) |
 | --- | --- |
-| `pflanze` · `gabe` · `notiz` · `zustand` · `phase` · `mensch` · `lauf` | `zelt` ← `Zelt` + Influx · `geraet` ← `Device` · `dose` ← `hardwareInfo.sockets` via `parseSocketRoles()` · `kamera` ← `webcam_did` + newest `Image` · `bild` ← `Image` (both formats) · `film` ← `Image`/`filme` · `ereignis` ← `DeviceLog` · `ziel` ← `ZielStand` · `schema` ← `Schema` + `Zelt.d.schema_schritt` |
+| `pflanze` · `gabe` · `notiz` · `zustand` · `phase` · `mensch` · `lauf` | `zelt` ← `Zelt` + Influx · `geraet` ← `Device` · `dose` ← the device's socket table via `readSockets()`, one Ding per socket · `kamera` ← `webcam_did` + newest `Image` · `bild` ← `Image` (both formats) · `film` ← `Image`/`filme` · `ereignis` ← `DeviceLog` · `ziel` ← `ZielStand` · `schema` ← `Schema` + `Zelt.d.schema_schritt` |
+
+**A projected Ding's `ding_id` is derived from what identifies its source, never from where it currently
+sits.** For a `dose` that is `SocketEntry.id`, the hardware id (MAC) the controller finds the socket by,
+so a DHCP lease change moves the same Ding rather than retiring one and inventing another. A socket paired
+before ids were kept reports an empty `id`; those fall back to `<geraet_id>:<slot>`, and a re-slot does
+break that Ding's continuity — the fallback is for legacy pairings only and the controller learns the real
+id in the background. `socketKey()` is the addressing key (slot, or role for a device with no table) and is
+**not** the identity: it changes when the table is rewritten. Several sockets may share a role, and each is
+its own Ding. A controller that reports no table at all projects no `dose` rows — see §11 on
+`deviceCanSwitch` answering `'unknown'`.
 
 **With `geraete: []`, six of the nine projections return `[]`** — `geraet`, `dose`, `kamera`, `ereignis`,
 `ziel` (until a hand target is set) and the device half of `bild`. `zelt`, `schema`, `bild` (user photos)
@@ -527,7 +537,7 @@ densities are columns, not variants: **there is one implementation and the densi
 | **Ziele Tafel** | The Schema **is** the body: `Schritt 4 → 5 · Bio-Bloom 2,0 → 2,5 ml/l`, plus hand `ZielStand` rows. | Setpoint rows with history from `ZielStand`, inline `value-edit-row`, plus the Schema. | identical. |
 | **Mensch Tafel** | „was ist passiert, seit du zuletzt hier warst" — as entries. | identical, plus what the tent did in her absence. | identical, plus her last frame. |
 | **Lauf Tafel** | `Tag 1` vs `Ernte`, the run's totals, its `Rückblick`. | plus climate summary for the run. | plus the run's `Film`. |
-| **Geraet / Dose / Kamera Tafel** | **does not exist** — the art projects `[]`. Not greyed. Not listed. | `geraet`, `dose` per `parseSocketRoles()`. | plus `kamera`. |
+| **Geraet / Dose / Kamera Tafel** | **does not exist** — the art projects `[]`. Not greyed. Not listed. | `geraet`, `dose` per `readSockets()` — one Tafel per socket, several to a role. | plus `kamera`. |
 | **Schema Tafel** | The schedule's own diary: step diff, `wie im Plan` vs `abweichend`, `quelle_url` + `zuletzt geprüft`. | identical | identical |
 | **Chart** `/z/:id/chart` | Panels: Wasser (bar lane), pH, EC, Höhe, TDS, PPFD, Aussentemperatur. Bands from the Schema. Background from `phase`. `licht_plan` hatched if set. Verdict strip = counts. | plus Temperatur, Luftfeuchte, VPD, CO₂ panels; Sollwert `markLine` from `ZielStand`; Tag/Nacht **solid** from measured `out_light`; `Ausgänge` state-timeline lane; verdict strip = % of time with coverage. | plus the 44 px film strip above the panels and the frame in the scrub header. |
 | **Sheets** `Gabe · Notiz · Foto · Zettel` | **byte-identical at all three densities.** All four are cloud writes; none ever needed a device. | identical | identical, except the double-feed guard's `[ Bild ansehen ]` (§13.4). |
@@ -862,10 +872,11 @@ the setup wizard's dependency on them.
   is what collapses it. While the handle or the chart crosshair moves, the diff table collapses to a
   two-line **pinned scrub header** at reserved fixed height, so nothing reflows under your thumb. On
   release it unfolds again, describing where you landed.
-- **M4 · Reveal by capability and by data.** Sockets from `hardwareInfo.sockets` per role, never the
-  three-bucket `deviceControlCapability()` that returns `'full'` for a heater-only tent; a humidity `ziel`
-  is **not created** without a `dehumidifier` role; a missing key (old firmware) fails **closed** with
-  `Gerät meldet keine Steckdosen — Firmware zu alt.` Zero `pflanze` Dinge ⇒ „Pflanze" appears in exactly
+- **M4 · Reveal by capability and by data.** Sockets from the device's socket table (`readSockets()`),
+  asked one measure at a time through `deviceCanSwitch()`, never the three-bucket
+  `deviceControlCapability()` that returns `'full'` for a heater-only tent; a humidity `ziel` is **not
+  created** without a `dehumidifier` socket; a device that has reported no table at all answers `'unknown'`
+  and fails **closed** with `Gerät meldet keine Steckdosen — Firmware zu alt.` Zero `pflanze` Dinge ⇒ „Pflanze" appears in exactly
   one place: the `+` on `Im Zelt`. One `mensch` ⇒ no `Wer?` row anywhere. Zero `geraete` ⇒ no `geraet`,
   `dose` or `kamera` art anywhere. **None of these is reversible through a setting, which is what makes
   them not modes.**
@@ -1604,7 +1615,7 @@ changed to. The predicate is applied at read time, which is reversible, testable
 
 ### 14.5 What starts existing, and how the boundary is drawn
 
-All by reveal-by-capability, none by a setting: `geraet`, `dose` (via `parseSocketRoles()`), `ereignis`,
+All by reveal-by-capability, none by a setting: `geraet`, `dose` (via `readSockets()`), `ereignis`,
 `ziel`, and with a camera `kamera`, `bild`, `film`. Nine of eleven remedy rules come alive. Both camera
 alarms are created on pairing.
 
