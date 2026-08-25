@@ -1,7 +1,6 @@
-import { Zelt } from '@fg2/shared-types';
+import { Ding, Zelt } from '@fg2/shared-types';
 import deviceModel from '@models/device.model';
-import deviceLogModel from '@models/devicelog.model';
-import imageModel from '@models/images.model';
+import dingModel from '@models/ding.model';
 import migrationModel from '@models/migration.model';
 import zeltModel from '@models/zelt.model';
 import { dataService } from '@services/data.service';
@@ -9,19 +8,22 @@ import { zeltService } from '@services/zelt.service';
 
 const OWNER_ID = 'user-1';
 const FIRST_SAMPLE = 1750809600000;
-const ERSTES_FOTO = 1719273600000;
+const CLAIM = 1735689600000;
 
-const DEVICES = [
-  { device_id: 'controller-1', owner_id: OWNER_ID, name: 'Zelt Keller' },
-  { device_id: 'fridge-1', owner_id: 'user-2', name: '' },
-];
+let DEVICES: any[];
 
 describe('Zelt backfill on boot', () => {
   let created: Zelt[];
+  let dinge: Ding[];
   let deviceFilter: any;
 
   beforeEach(() => {
     created = [];
+    dinge = [];
+    DEVICES = [
+      { device_id: 'controller-1', owner_id: OWNER_ID, name: 'Zelt Keller' },
+      { device_id: 'fridge-1', owner_id: 'user-2', name: '' },
+    ];
 
     migrationModel.createIndexes = jest.fn().mockResolvedValue(undefined) as any;
     migrationModel.findOneAndUpdate = jest.fn().mockResolvedValue(null) as any;
@@ -32,10 +34,12 @@ describe('Zelt backfill on boot', () => {
       return { lean: () => Promise.resolve(DEVICES) };
     }) as any;
 
-    // The oldest stored trace is read straight from Mongo, which this suite
-    // never connects to; unmocked they buffer and reject ten seconds later.
-    deviceLogModel.aggregate = jest.fn().mockResolvedValue([]) as any;
-    imageModel.aggregate = jest.fn().mockResolvedValue([]) as any;
+    // Every tent gets its first run (§3.2). Mongo is never connected in this
+    // suite; unmocked the write would buffer and reject ten seconds later.
+    dingModel.create = jest.fn().mockImplementation((ding: Ding) => {
+      dinge.push(ding);
+      return Promise.resolve(ding);
+    }) as any;
 
     zeltModel.createIndexes = jest.fn().mockResolvedValue(undefined) as any;
     zeltModel.exists = jest
@@ -76,7 +80,7 @@ describe('Zelt backfill on boot', () => {
     expect(created[1].name).toEqual('');
   });
 
-  it('starts a tent today only when the device left no trace anywhere', async () => {
+  it('starts a tent today only when the device never measured anything', async () => {
     jest.spyOn(dataService, 'getFirstSampleTimes').mockResolvedValue(new Map());
     const before = Date.now();
     await zeltService.backfillZelte();
@@ -84,38 +88,34 @@ describe('Zelt backfill on boot', () => {
     expect(created[0].tag_null).toEqual(created[0].geraete[0].seit);
   });
 
-  it('dates a tent from a photograph when that is the only trace the device left', async () => {
-    // Never online, offline past the retention window, or a diary-and-photos
-    // owner: no sample, and a whole past that `seit` would otherwise hide.
-    jest.spyOn(dataService, 'getFirstSampleTimes').mockResolvedValue(new Map());
-    imageModel.aggregate = jest.fn().mockResolvedValue([{ _id: 'controller-1', t: ERSTES_FOTO }]) as any;
+  it('dates a tent from the claim when one was recorded, whatever the device measured', async () => {
+    DEVICES[0].claimed_at = CLAIM;
 
     await zeltService.backfillZelte();
 
-    expect(created[0].geraete[0].seit).toEqual(ERSTES_FOTO);
-    expect(created[0].tag_null).toEqual(ERSTES_FOTO);
+    // §3.1 asks for the claim first: a sample older than it belongs to whoever
+    // owned the device then.
+    expect(created[0].geraete[0].seit).toEqual(CLAIM);
+    expect(created[0].tag_null).toEqual(CLAIM);
   });
 
-  it('dates a tent from a log line when that is older than the first sample', async () => {
-    deviceLogModel.aggregate = jest.fn().mockResolvedValue([{ _id: 'controller-1', t: new Date(ERSTES_FOTO) }]) as any;
-
+  it('mints the first run with the tent, at tag_null', async () => {
     await zeltService.backfillZelte();
 
-    expect(created[0].geraete[0].seit).toEqual(ERSTES_FOTO);
+    const laeufe = dinge.filter(ding => ding.art === 'lauf');
+    expect(laeufe.length).toEqual(2);
+    expect(laeufe[0].zelt_id).toEqual(created[0].zelt_id);
+    expect(laeufe[0].t).toEqual(created[0].tag_null);
+    expect(laeufe[0].t_ende).toBeNull();
+    expect(laeufe[0].d).toEqual({ nummer: 1 });
   });
 
-  it('keeps the first sample when it is older than every stored row', async () => {
-    imageModel.aggregate = jest.fn().mockResolvedValue([{ _id: 'controller-1', t: FIRST_SAMPLE + 86400000 }]) as any;
+  it('keeps the tent when its first run cannot be written', async () => {
+    // A tent without a run counts its days from `tag_null`; a device without a
+    // tent is invisible. Only one of the two may be lost here.
+    dingModel.create = jest.fn().mockRejectedValue(new Error('mongo down')) as any;
 
-    await zeltService.backfillZelte();
-
-    expect(created[0].geraete[0].seit).toEqual(FIRST_SAMPLE);
-  });
-
-  it('writes nothing at all when the stored rows cannot be read', async () => {
-    imageModel.aggregate = jest.fn().mockRejectedValue(new Error('mongo down')) as any;
-    expect(await zeltService.backfillZelte()).toEqual(0);
-    expect(zeltModel.create).not.toHaveBeenCalled();
+    expect(await zeltService.backfillZelte()).toEqual(2);
   });
 
   it('writes nothing at all when the measurement store cannot answer', async () => {

@@ -163,6 +163,13 @@ export interface Device {
   device_type: string;
   configuration: string;
   owner_id: string;
+  /**
+   * Epoch ms of the claim that made `owner_id` the owner. Absent on a device
+   * claimed before it was recorded, and §3.1 falls back to the measurements for
+   * those. It is what dates a tent (§14.2) and what keeps a previous owner's
+   * rows - which nothing ever deletes - out of the new owner's history.
+   */
+  claimed_at?: number;
   serialnumber: number;
   lastseen: number;
   current_firmware: string;

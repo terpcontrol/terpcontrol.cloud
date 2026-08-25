@@ -1223,7 +1223,13 @@ class DeviceService {
     if (dev) {
       console.log('Claiming device ' + dev.device_id + ' for user ' + user_id);
       claimCodeModel.deleteOne({ claim_code: claim_code });
-      await deviceModel.findOneAndUpdate({ device_id: dev.device_id }, { owner_id: user_id });
+      // The claim timestamp is the only record of when this owner got the
+      // device: every row it left behind survives a sale, so without it §3.1
+      // would have to date the tent from a previous owner's evidence.
+      const geraet = await deviceModel.findOneAndUpdate({ device_id: dev.device_id }, { owner_id: user_id, claimed_at: Date.now() }, { new: true });
+      // §14.2 step 2. A claim that writes only `owner_id` leaves the device in
+      // no tent, and a device in no tent is one nothing can ever show.
+      await zeltService.bindungBeginnen(dev.device_id, user_id, geraet?.name);
       return dev.device_id;
     } else {
       console.log('Invalid claim code ' + claim_code + ' for user ' + user_id);

@@ -1,10 +1,8 @@
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import deviceLogModel from '@models/devicelog.model';
 import imageModel from '@models/images.model';
 import migrationModel from '@models/migration.model';
 import { indexPlan, istLeer, migriereIndexe } from '@/migrations/indexe';
-import { aeltesteSpuren, fruehesteZeit } from '@utils/spur';
 
 // `baueIndexe` skips index creation under NODE_ENV=test and nothing builds the
 // Image indexes at import any more, which is the point of D3 - so everything
@@ -27,7 +25,7 @@ afterAll(async () => {
 beforeEach(async () => {
   // Dropping the collection is how a test gets its indexes back to nothing.
   await imageModel.collection.drop().catch(() => undefined);
-  await Promise.all([deviceLogModel.deleteMany({}), migrationModel.deleteMany({})]);
+  await migrationModel.deleteMany({});
 });
 
 const bild = (image_id: string, verortung: { device_id?: string; zelt_id?: string }, rest: Record<string, unknown> = {}) =>
@@ -145,51 +143,5 @@ describe('What the Image indexes allow and refuse', () => {
 
   it('treats an empty string as no key at all', async () => {
     await expect(bild('leer', { device_id: '', zelt_id: '' })).rejects.toThrow(/exactly one of device_id and zelt_id/);
-  });
-});
-
-describe('The oldest trace a device left', () => {
-  const log = (device_id: string, t: number) => deviceLogModel.create({ device_id: device_id, time: new Date(t), message: 'x' });
-
-  it('finds the oldest photograph of a device that never reported a measurement', async () => {
-    await bild('bild-a', { device_id: 'controller-1' }, { timestamp: T });
-    await bild('bild-b', { device_id: 'controller-1' }, { timestamp: T - 86400000 });
-
-    expect((await aeltesteSpuren(['controller-1'])).get('controller-1')).toEqual(T - 86400000);
-  });
-
-  it('takes the older of a log line and a photograph', async () => {
-    await log('controller-1', T - 7 * 86400000);
-    await bild('bild-a', { device_id: 'controller-1' }, { timestamp: T });
-
-    expect((await aeltesteSpuren(['controller-1'])).get('controller-1')).toEqual(T - 7 * 86400000);
-  });
-
-  it('answers for the whole fleet at once and keeps devices apart', async () => {
-    await log('controller-1', T);
-    await log('controller-2', T - 86400000);
-
-    const spuren = await aeltesteSpuren(['controller-1', 'controller-2', 'controller-3']);
-    expect(spuren.get('controller-1')).toEqual(T);
-    expect(spuren.get('controller-2')).toEqual(T - 86400000);
-    // No trace, no date: only that device falls back to today.
-    expect(spuren.get('controller-3')).toBeUndefined();
-  });
-
-  it("leaves another owner's device out of the answer", async () => {
-    await log('controller-1', T);
-    expect(await aeltesteSpuren(['controller-2'])).toEqual(new Map());
-    expect(await aeltesteSpuren([])).toEqual(new Map());
-  });
-
-  it('ignores a photograph that belongs to a tent rather than a device', async () => {
-    await bild('bild-a', { zelt_id: 'zelt-A' }, { timestamp: T - 86400000 });
-    expect(await aeltesteSpuren(['controller-1'])).toEqual(new Map());
-  });
-
-  it('takes the earliest of what it is given, and nothing when it is given nothing', () => {
-    expect(fruehesteZeit(undefined, T, T - 1)).toEqual(T - 1);
-    expect(fruehesteZeit(undefined, undefined)).toBeUndefined();
-    expect(fruehesteZeit(NaN, T)).toEqual(T);
   });
 });

@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import deviceModel from '@models/device.model';
+import deviceLogModel from '@models/devicelog.model';
+import dingModel from '@models/ding.model';
 import migrationModel from '@models/migration.model';
 import zeltModel from '@models/zelt.model';
 import { dataService } from '@services/data.service';
@@ -22,15 +24,21 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await Promise.all([zeltModel.deleteMany({}), migrationModel.deleteMany({}), deviceModel.deleteMany({})]);
+  await Promise.all([
+    zeltModel.deleteMany({}),
+    migrationModel.deleteMany({}),
+    deviceModel.deleteMany({}),
+    dingModel.deleteMany({}),
+    deviceLogModel.deleteMany({}),
+  ]);
   await Promise.all([zeltModel.syncIndexes(), migrationModel.syncIndexes()]);
   jest.spyOn(dataService, 'getFirstSampleTimes').mockResolvedValue(new Map());
 });
 
 afterEach(() => jest.restoreAllMocks());
 
-const claimDevice = (device_id: string, owner_id: string, name = '') =>
-  deviceModel.create({ device_id, owner_id, name, username: device_id, password: 'x', class_id: 'c', device_type: 'controller' });
+const claimDevice = (device_id: string, owner_id: string, name = '', claimed_at?: number) =>
+  deviceModel.create({ device_id, owner_id, name, claimed_at, username: device_id, password: 'x', class_id: 'c', device_type: 'controller' });
 
 /** A fresh instance booting: it knows nothing of the run that came before it. */
 const forgetMigrationRun = () => migrationModel.deleteMany({});
@@ -106,6 +114,43 @@ describe('Zelt backfill against a real database', () => {
     // The old owner's tent keeps the history but no longer points at the device.
     expect(zelte[0].geraete[0].bis).toBeGreaterThan(0);
     expect(zelte[1].geraete[0].bis).toBeUndefined();
+  });
+
+  it('gives every migrated tent its first run, like the create sheet does', async () => {
+    await claimDevice('controller-1', 'user-1');
+
+    await zeltService.backfillZelte();
+
+    const zelt = await zeltModel.findOne({}).lean();
+    const laeufe = await dingModel.find({ art: 'lauf' }).lean();
+    expect(laeufe.length).toBe(1);
+    expect(laeufe[0].zelt_id).toBe(zelt?.zelt_id);
+    expect(laeufe[0].t).toBe(zelt?.tag_null);
+    expect(laeufe[0].t_ende).toBeNull();
+  });
+
+  it('does not date a tent from rows a previous owner left behind', async () => {
+    // Nothing deletes a sold device's log lines and photographs, so the oldest
+    // one in Mongo is evidence of somebody's grow but not of whose.
+    const jahr = Date.now() - 365 * 24 * 60 * 60 * 1000;
+    await claimDevice('controller-1', 'user-neu');
+    await deviceLogModel.create({ device_id: 'controller-1', message: 'alarm', severity: 1, time: new Date(jahr) });
+
+    await zeltService.backfillZelte();
+
+    const zelt = await zeltModel.findOne({}).lean();
+    expect(zelt?.tag_null).toBeGreaterThan(jahr + 300 * 24 * 60 * 60 * 1000);
+  });
+
+  it('dates a migrated tent from the claim when the device recorded one', async () => {
+    const claim = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    await claimDevice('controller-1', 'user-1', '', claim);
+
+    await zeltService.backfillZelte();
+
+    const zelt = await zeltModel.findOne({}).lean();
+    expect(zelt?.geraete[0].seit).toBe(claim);
+    expect(zelt?.tag_null).toBe(claim);
   });
 
   it('keeps the lock name unique, which is what makes the race safe', async () => {
