@@ -8,6 +8,7 @@ import zeltModel from '@/models/zelt.model';
 import shareModel from '@/models/share.model';
 import { Device, ShareLink } from '@fg2/shared-types';
 import { DEMO_WRITE_MESSAGE } from '@utils/demo';
+import { schluesselService } from '@services/schluessel.service';
 
 const isImageQueryTokenAllowed = (req: RequestWithUser): boolean => req.method === 'GET' && req.path.startsWith('/image/');
 
@@ -261,3 +262,116 @@ export const isUserZeltMiddelware = async (req: RequestWithUser, res: Response, 
     async () => !req.is_demo && (await isUserZelt(req, zelt_id)),
     `Zelt ${zelt_id} not bound to user ${req.user_id}`,
   );
+
+const getSchluesselToken = (req: RequestWithUser): string | null => {
+  if (typeof req.query.k === 'string' && req.query.k) return req.query.k;
+  return req.header('X-Schluessel') || null;
+};
+
+const getApiKey = (req: RequestWithUser): string | null => req.header('x-api-key') || null;
+
+/**
+ * A share link is device-keyed and stays that way, so a tent inherits one
+ * through the binding that produced the shared data. A tent with no device has
+ * no share to inherit - it is shared by handing out a `Schlüssel` instead.
+ */
+export const findValidShareForZelt = async (req: RequestWithUser, zelt_id: string): Promise<ShareLink | null> => {
+  const share = await findValidShare(req);
+  if (!share || !zelt_id) return null;
+
+  return (await zeltModel.exists({ zelt_id: zelt_id, 'geraete.geraet_id': share.device_id })) ? share : null;
+};
+
+/** The per-Zelt read key (§13.7). Read only, and never a write credential anywhere. */
+export const validApiKeyForZelt = async (req: RequestWithUser, zelt_id: string): Promise<boolean> => {
+  const token = getApiKey(req);
+  // A request that carries no key must never make the guard touch the database,
+  // or every call that will be answered by ownership pays for the lookup too.
+  if (!token || !zelt_id) return false;
+
+  return !!(await schluesselService.zugangsschluessel(zelt_id, token));
+};
+
+/** The club write key (§13.5). Resolving it here is what puts the person on the request. */
+export const validSchluessel = async (req: RequestWithUser, zelt_id: string): Promise<boolean> => {
+  const token = getSchluesselToken(req);
+  if (!token || !zelt_id) return false;
+
+  const schluessel = await schluesselService.schluessel(token);
+  if (!schluessel || schluessel.zelt_id !== zelt_id) return false;
+
+  req.schluessel = schluessel;
+  return true;
+};
+
+// A demo session reaches demo devices, never a tent: tents are personal diaries
+// and there is no demo tent to fall back to.
+const besitzt = async (req: RequestWithUser, zelt_id: string): Promise<boolean> => !req.is_demo && (await isUserZelt(req, zelt_id));
+
+/**
+ * Who may read a Zelt: its owner, a share link on a device it binds, its read
+ * key, or a club key. Like `isUserZelt` this is a call and not Express
+ * middleware, so a handler that forgets it is unguarded - the route table test
+ * is what proves none of them forgot.
+ */
+export const darfLesen = async (req: RequestWithUser, zelt_id: string): Promise<boolean> => {
+  if (await besitzt(req, zelt_id)) return true;
+
+  const share = await findValidShareForZelt(req, zelt_id);
+  if (share) {
+    req.share = share;
+    return true;
+  }
+
+  return (await validApiKeyForZelt(req, zelt_id)) || (await validSchluessel(req, zelt_id));
+};
+
+/**
+ * Who may write to a Zelt: its owner, or a club key. A share link never writes -
+ * `ShareLink.editable` unlocked a UI the server refused anyway - and neither
+ * does the read key, whose whole purpose is to be pasted into somebody's export
+ * script.
+ */
+export const darfSchreiben = async (req: RequestWithUser, zelt_id: string): Promise<boolean> =>
+  (await besitzt(req, zelt_id)) || (await validSchluessel(req, zelt_id));
+
+/**
+ * The responding half of the two predicates. A session is verified when one is
+ * offered, because ownership needs it - but its absence is not an error here:
+ * an api key or a club key carries no session at all.
+ */
+const zeltZugang = async (
+  req: RequestWithUser,
+  res: Response,
+  zelt_id: string,
+  erlaubt: (req: RequestWithUser, zelt_id: string) => Promise<boolean>,
+  verweigert: string,
+): Promise<boolean> => {
+  try {
+    const session = await verifyFirstMatchingToken(req, 'user');
+    if (session) applyToken(req, session);
+
+    if (await erlaubt(req, zelt_id || '')) {
+      return true;
+    }
+
+    // 403 as soon as anything identified the caller: a key that may read but not
+    // write has not mistyped its password, and telling it to log in again is a
+    // lie. 401 stays for the request that offered nothing.
+    if (session || getSchluesselToken(req) || getApiKey(req) || getShareToken(req)) {
+      res.status(403).send(verweigert);
+    } else {
+      res.status(401).send(getAuthorizationCandidates(req).length > 0 ? 'Wrong authentication token' : 'Authentication token missing');
+    }
+    return false;
+  } catch (error) {
+    res.status(401).send('Wrong authentication token');
+    return false;
+  }
+};
+
+export const darfLesenMiddelware = async (req: RequestWithUser, res: Response, zelt_id: string): Promise<boolean> =>
+  zeltZugang(req, res, zelt_id, darfLesen, `No read access to Zelt ${zelt_id}`);
+
+export const darfSchreibenMiddelware = async (req: RequestWithUser, res: Response, zelt_id: string): Promise<boolean> =>
+  zeltZugang(req, res, zelt_id, darfSchreiben, `No write access to Zelt ${zelt_id}`);

@@ -1,5 +1,6 @@
 import { Request } from 'express';
 import { ShareLink } from '@fg2/shared-types';
+import { Schluessel } from '@interfaces/schluessel.interface';
 
 export interface DataStoredInToken {
   user_id: string;
@@ -24,6 +25,8 @@ export interface RequestWithUser extends Request {
   is_demo?: boolean;
   /** Set when the request was authorized through a share link instead of ownership. */
   share?: ShareLink;
+  /** Set when a club write key authorized the request. Every Ding it writes is attributed to its `mensch_ding_id`. */
+  schluessel?: Schluessel;
 }
 
 export interface RequestWithToken extends Request {

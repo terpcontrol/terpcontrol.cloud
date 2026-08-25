@@ -2,10 +2,12 @@ import { Routes } from '@interfaces/routes.interface';
 import AuthRoute from '@routes/auth.route';
 import ChartPresetRoute from '@routes/chartpreset.route';
 import DataRoute from '@routes/data.route';
+import DingRoute from '@routes/ding.route';
 import DeviceRoute from '@routes/device.route';
 import ImageRoute from '@routes/image.route';
 import IndexRoute from '@routes/index.route';
 import MqttAuthRoute from '@routes/mqttauth.route';
+import SchluesselRoute from '@routes/schluessel.route';
 import ShareRoute from '@routes/share.route';
 import UsersRoute from '@routes/users.route';
 import ZeltRoute from '@routes/zelt.route';
@@ -17,6 +19,8 @@ import ZeltRoute from '@routes/zelt.route';
  */
 export const allRoutes = (): Routes[] => [
   new ZeltRoute(),
+  new DingRoute(),
+  new SchluesselRoute(),
   new DataRoute(),
   new ShareRoute(),
   new ChartPresetRoute(),
