@@ -1312,34 +1312,6 @@ class DeviceRoute implements Routes {
     /**
      * @openapi
      * /device/maintenancemode:
-     *   get:
-     *     summary: Read the maintenance window of a device
-     *     description: Returns the seconds left instead of an absolute timestamp, for clients that cannot handle millisecond epochs.
-     *     tags: [Devices]
-     *     parameters:
-     *       - in: query
-     *         name: device_id
-     *         required: true
-     *         schema: { type: string }
-     *     responses:
-     *       '200':
-     *         description: Maintenance state
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: object
-     *               properties:
-     *                 device_id: { type: string }
-     *                 active: { type: boolean }
-     *                 remaining_seconds: { type: integer }
-     *       '401':
-     *         $ref: '#/components/responses/Unauthorized'
-     */
-    this.router.get(`${this.path}/maintenancemode`, authMiddleware, this.deviceController.getMaintenanceMode);
-
-    /**
-     * @openapi
-     * /device/maintenancemode:
      *   post:
      *     summary: Activate maintenance mode for a device
      *     description: Suppresses alarms and webcam recording for a limited window.

@@ -66,19 +66,6 @@ class DeviceController {
     }
   };
 
-  public getMaintenanceMode = async (req: RequestWithUser, res: Response, next: NextFunction) => {
-    try {
-      const deviceId = req.query.device_id as string;
-      if (req.is_admin || (await isUserDeviceMiddelware(req, res, deviceId))) {
-        res.status(200).json(await deviceService.getMaintenanceMode(deviceId));
-      } else {
-        res.status(401);
-      }
-    } catch (error) {
-      next(error);
-    }
-  };
-
   public activateMaintenanceMode = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
       if (req.is_admin || (await isUserDeviceMiddelware(req, res, req.body.device_id))) {
