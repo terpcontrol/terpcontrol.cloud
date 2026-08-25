@@ -109,6 +109,19 @@ class TerpControlUtils {
         }
     }
 
+    // Counts down as "5:30" or "1:05:30" - shorter than the webapp's "1h 5m 30s"
+    // and easier to read at a glance on a watch.
+    static function secondsToDuration(seconds as Number) as String {
+        var hours = seconds / 3600;
+        var minutes = (seconds / 60) % 60;
+        var remainingSeconds = seconds % 60;
+
+        if (hours > 0) {
+            return hours.format("%d") + ":" + minutes.format("%02d") + ":" + remainingSeconds.format("%02d");
+        }
+        return minutes.format("%d") + ":" + remainingSeconds.format("%02d");
+    }
+
     (:glance)
     static function join(parts as Array, separator as String) as String {
         var result = "";

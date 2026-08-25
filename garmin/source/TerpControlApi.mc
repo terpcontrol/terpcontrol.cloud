@@ -92,6 +92,21 @@ class TerpControlApi {
         doObtainToken(method(:onTokenForWebcam), _view);
     }
 
+    public function loadMaintenance() as Void {
+        if (_view instanceof TerpControlMaintenanceView) {
+            _view.onMaintenanceLoading();
+        }
+        doObtainToken(method(:onTokenForMaintenance), _view);
+    }
+
+    // durationMinutes of 0 ends a running maintenance window.
+    public function setMaintenance(durationMinutes as Number) as Void {
+        if (_view instanceof TerpControlMaintenanceView) {
+            _view.onMaintenanceLoading();
+        }
+        doObtainToken(method(:onTokenForSetMaintenance), [durationMinutes, _view]);
+    }
+
     function onTokenForValues(context as Array) as Void {
         ensureDevices(method(:onDeviceForValues), context);
     }
@@ -264,6 +279,69 @@ class TerpControlApi {
         }
     }
 
+    function onTokenForMaintenance(startingView) as Void {
+        // Past the cache: how much of the window is left is only true in a fresh
+        // device list.
+        loadDevices(method(:onDeviceForMaintenance), startingView);
+    }
+
+    function onDeviceForMaintenance(startingView) as Void {
+        if (startingView != _view || _device == null || !(_view instanceof TerpControlMaintenanceView)) {
+            return;
+        }
+
+        _view.onMaintenanceLoaded(_device["maintenance"]);
+    }
+
+    function onTokenForSetMaintenance(context as Array) as Void {
+        ensureDevices(method(:onDeviceForSetMaintenance), context);
+    }
+
+    function onDeviceForSetMaintenance(context as Array) as Void {
+        var durationMinutes = context[0] as Number;
+        var startingView = context[1];
+        if (startingView != _view || _device == null) {
+            return;
+        }
+
+        var url = Properties.getValue("api_base_url_prop") + "/device/maintenancemode";
+
+        var options = {
+            :method => Communications.HTTP_REQUEST_METHOD_POST,
+            :headers => {
+                "Content-Type" => Communications.REQUEST_CONTENT_TYPE_JSON,
+                "Authorization" => "Bearer " + _token,
+            },
+            :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON,
+        };
+
+        var params = {
+            "device_id" => _device["id"],
+            "duration_minutes" => durationMinutes,
+        };
+
+        new WebRequestWithContext(url, params, options, method(:onReceiveSetMaintenance), context);
+    }
+
+    function onReceiveSetMaintenance(responseCode as Number, data as Dictionary or String or Null, context as Array) as Void {
+        if (responseCode == 200) {
+            var durationMinutes = context[0] as Number;
+            var startingView = context[1];
+            if (startingView != _view || _device == null || !(_view instanceof TerpControlMaintenanceView)) {
+                return;
+            }
+            // The window starts when the server accepts the request, so there is no
+            // need to ask for the state that was just set - but the cached list has
+            // to learn about it, or a later page visit shows the old window again.
+            var secondsLeft = durationMinutes * 60;
+            _device["maintenance"] = secondsLeft;
+            Storage.setValue("devices", _devices);
+            _view.onMaintenanceLoaded(secondsLeft);
+        } else {
+            onError(responseCode, "Failed to set maintenance mode");
+        }
+    }
+
     function onTokenForWebcam(startingView) as Void {
         ensureDevices(method(:onDeviceForWebcam), startingView);
     }
@@ -360,6 +438,10 @@ class TerpControlApi {
             refreshDevices();
         }
 
+        loadDevices(onDevicesReady, onDevicesReadyArg);
+    }
+
+    function loadDevices(onDevicesReady as Method, onDevicesReadyArg) as Void {
         var url = Properties.getValue("api_base_url_prop") + "/device";
 
         var options = {
@@ -388,6 +470,9 @@ class TerpControlApi {
                     "id" => data[i]["device_id"],
                     "name" => name != null && name.length() > 0 ? name : TerpControlDevices.deviceTypeLabel(type),
                     "type" => type,
+                    // Seconds left of the maintenance window; the millisecond
+                    // timestamp the webapp uses does not survive the JSON parser here.
+                    "maintenance" => data[i]["maintenance_mode_seconds_left"],
                 });
             }
             _devices = devices;

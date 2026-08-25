@@ -174,6 +174,9 @@ export interface Device {
   firmwareSettings?: FirmwareSettings;
   cloudSettings?: CloudSettings;
   maintenance_mode_until?: number;
+  /** Seconds left of the maintenance window, 0 when it is not running. Derived from
+   * `maintenance_mode_until` when the device is read, never stored. */
+  maintenance_mode_seconds_left?: number;
   recipe?: Recipe;
   hardwareInfo?: Record<string, string>;
   /** Readable by everyone through the demo login, with all secrets stripped. */
