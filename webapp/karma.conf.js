@@ -33,6 +33,13 @@ module.exports = function (config) {
       ]
     },
     reporters: ['progress', 'kjhtml'],
+    // Containers and CI run as root, where Chrome refuses to start its sandbox.
+    customLaunchers: {
+      ChromeHeadlessCI: {
+        base: 'ChromeHeadless',
+        flags: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage']
+      }
+    },
     port: 9876,
     colors: true,
     logLevel: config.LOG_INFO,
