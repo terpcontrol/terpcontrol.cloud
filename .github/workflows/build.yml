@@ -86,7 +86,18 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
           cache-dependency-path: server/package-lock.json
-      - run: |
+      # The database-backed suites run against a real mongod that
+      # mongodb-memory-server fetches on first use. Its default download
+      # directory lives inside node_modules, which npm ci throws away every run,
+      # so it is pinned outside and cached instead.
+      - name: Cache mongod binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongodb-binaries-${{ runner.os }}
+      - env:
+          MONGOMS_DOWNLOAD_DIR: ~/.cache/mongodb-binaries
+        run: |
           cd server/
           npm ci
           npm run lint:fix
@@ -95,6 +106,7 @@ jobs:
             exit 1
           fi
           npm run build
+          npm test
 
   docker-server:
     needs: detect

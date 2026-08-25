@@ -8,7 +8,6 @@ import { logger } from '@utils/logger';
 
 const ZELT_BACKFILL = 'zelt-aus-geraet';
 const FALLBACK_ZEITZONE = 'Europe/Berlin';
-const FALLBACK_NAME = 'Zelt';
 
 // Day boundaries need a zone and the migration has nobody to ask: the
 // deployment's own zone, and where that is unset the one the product is written for.
@@ -24,22 +23,32 @@ class ZeltService {
   }
 
   /**
-   * Gives every claimed device a tent of its own. Runs once at boot, never per
-   * request, and skips any device that already has one, so a second run and a
-   * second instance both write nothing.
+   * Gives every claimed device a tent of its own. Runs once per deployment and
+   * never per request. A device whose owner already has a tent for it is
+   * skipped, and the unique binding key rejects a second writer, so neither a
+   * repeated run nor two instances can produce a twin.
    */
   public async backfillZelte(): Promise<number> {
     let created = 0;
 
     await withMigrationLock(ZELT_BACKFILL, async () => {
+      // The unique binding key only guards once its index exists, and index
+      // builds do not block startup — so wait for it rather than race it.
+      await zeltModel.createIndexes();
+
       const devices: Device[] = await deviceModel.find({ owner_id: { $nin: [null, ''] } }, { device_id: 1, owner_id: 1, name: 1 }).lean();
+      // One query for the whole fleet rather than a full-history scan per
+      // device, and a database that cannot answer aborts the run before the
+      // first write instead of dating half the fleet from today.
+      const ersteMessung = await dataService.getFirstSampleTimes();
 
       for (const device of devices) {
-        if (await zeltModel.exists({ 'geraete.geraet_id': device.device_id })) {
+        if (await zeltModel.exists({ besitzer_id: device.owner_id, 'geraete.geraet_id': device.device_id })) {
           continue;
         }
-        await zeltModel.create(await this.zeltFromDevice(device));
-        created++;
+        if (await this.createZelt(device, ersteMessung.get(device.device_id))) {
+          created++;
+        }
       }
 
       if (created > 0) {
@@ -50,33 +59,47 @@ class ZeltService {
     return created;
   }
 
-  private async zeltFromDevice(device: Device): Promise<Zelt> {
-    const seit = await this.geraetBekanntSeit(device.device_id);
+  /** False when another instance created the same tent first. */
+  private async createZelt(device: Device, ersteMessung: number | undefined): Promise<boolean> {
+    // The device has no claim timestamp, so its oldest measurement is the
+    // closest evidence of when its grow began. Without measurements it starts today.
+    const seit = ersteMessung ?? Date.now();
 
-    return {
+    const zelt: Zelt = {
       zelt_id: uuidv4(),
       besitzer_id: device.owner_id,
-      name: device.name?.trim() || FALLBACK_NAME,
+      // Naming is the user's; an unnamed device leaves it empty rather than
+      // writing a word in a language the migration cannot know.
+      name: device.name?.trim() || '',
       geraete: [{ geraet_id: device.device_id, seit: seit }],
       zeitzone: serverZeitzone(),
-      // Day 1 of an existing grow is the day the device started reporting; a
-      // later edit is the only thing that may ever move it.
+      // Day 1 of an existing grow, and only an explicit edit may ever move it.
       tag_null: seit,
       erstellt_at: Date.now(),
+      migriert_aus: `${device.owner_id}:${device.device_id}`,
     };
+
+    try {
+      await zeltModel.create(zelt);
+      return true;
+    } catch (error: any) {
+      if (error?.code === 11000) {
+        return false;
+      }
+      throw error;
+    }
   }
 
   /**
-   * The device has no claim timestamp, so its oldest measurement is the closest
-   * evidence of when its grow began. Without measurements the tent starts today.
+   * Ends a device's open binding. A device that leaves its owner must stop
+   * pointing at their tent, or its next owner's readings arrive in a stranger's diary.
    */
-  private async geraetBekanntSeit(device_id: string): Promise<number> {
-    try {
-      return (await dataService.getFirstSampleTime(device_id)) ?? Date.now();
-    } catch (error) {
-      logger.warn(`No first sample for device ${device_id}: ${error}`);
-      return Date.now();
-    }
+  public async bindungBeenden(geraet_id: string): Promise<void> {
+    await zeltModel.updateMany(
+      { geraete: { $elemMatch: { geraet_id: geraet_id, bis: { $exists: false } } } },
+      { $set: { 'geraete.$[binding].bis': Date.now() } },
+      { arrayFilters: [{ 'binding.geraet_id': geraet_id, 'binding.bis': { $exists: false } }] },
+    );
   }
 }
 

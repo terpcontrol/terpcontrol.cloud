@@ -142,35 +142,60 @@ export function deviceHasCo2(device: { device_type?: string; hardwareInfo?: Reco
 
 export type ControlCapability = 'full' | 'light_only' | 'monitor' | 'unknown';
 
-const CLIMATE_SOCKET_ROLES = ['dehumidifier', 'heater', 'co2'];
-const LIGHT_SOCKET_ROLES = ['light', 'secondary_light'];
+/** Anything a target can be set for. */
+export type Controllable = 'temperature' | 'humidity' | 'co2' | 'light';
+
+/** True or false where the hardware said so, 'unknown' where it never said anything. */
+export type Controllability = boolean | 'unknown';
+
+const SOCKET_ROLES: Record<Controllable, string[]> = {
+  temperature: ['heater'],
+  humidity: ['dehumidifier'],
+  co2: ['co2'],
+  light: ['light', 'secondary_light'],
+};
+
+type DeviceHardware = { device_type?: string; hardwareInfo?: Record<string, string> } | null | undefined;
 
 /**
- * What the device can actually switch, derived from its hardware instead of a
- * stored setting: fridges have built-in actuators, controllers act through
- * their paired smart sockets (reported as `hardwareInfo.sockets`). A
- * controller that reports no socket list at all (older firmware) yields
- * 'unknown': missing evidence is not evidence of control, and offering
- * switches the hardware cannot honour is worse than saying we do not know.
+ * Whether the device can act on one measure — asked per measure, because a
+ * controller with a heater and a lamp regulates temperature and light and
+ * nothing else, and a humidity target it cannot honour must not be offered as
+ * one. Fridges have built-in actuators; controllers act through their paired
+ * smart sockets (reported as `hardwareInfo.sockets`). A controller that reports
+ * no socket list at all (older firmware, or one that has not reported yet)
+ * answers 'unknown' to everything: missing evidence is not evidence of control.
  */
-export function deviceControlCapability(
-  device: { device_type?: string; hardwareInfo?: Record<string, string> } | null | undefined,
-): ControlCapability {
+export function deviceCanSwitch(device: DeviceHardware, what: Controllable): Controllability {
   if (!device || device.device_type !== 'controller') {
-    return 'full';
+    return true;
   }
   const csv = device.hardwareInfo?.['sockets'];
   if (csv === undefined) {
     return 'unknown';
   }
   const roles = parseSocketRoles(csv);
-  if (roles.some(role => CLIMATE_SOCKET_ROLES.includes(role))) {
+  return SOCKET_ROLES[what].some(role => roles.includes(role));
+}
+
+/**
+ * A one-line summary of the above, for headlines that have to say something
+ * short. It bundles the three climate measures into one bucket, so nothing that
+ * decides whether a single control is offered may read it — ask
+ * `deviceCanSwitch` for that measure instead.
+ */
+export function deviceControlCapability(device: DeviceHardware): ControlCapability {
+  if (!device || device.device_type !== 'controller') {
     return 'full';
   }
-  if (roles.some(role => LIGHT_SOCKET_ROLES.includes(role))) {
-    return 'light_only';
+  if (device.hardwareInfo?.['sockets'] === undefined) {
+    return 'unknown';
   }
-  return 'monitor';
+  const climate: Controllable[] = ['temperature', 'humidity', 'co2'];
+  if (climate.some(what => deviceCanSwitch(device, what) === true)) {
+    return 'full';
+  }
+  return deviceCanSwitch(device, 'light') === true ? 'light_only' : 'monitor';
 }
 
 const TEMPERATURE_TOLERANCE = 0.5;

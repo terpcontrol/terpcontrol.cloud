@@ -143,12 +143,18 @@ export const authAdminMiddleware = async (req: RequestWithUser, res: Response, n
   }
 };
 
-export const isUserDeviceMiddelware = async (
+/**
+ * Verifies the session, then lets the caller decide about the subject. Every
+ * guard shares the same two 401 paths and the same 403 tail; keeping them in
+ * one place is what stops the next subject from arriving with its own copy.
+ */
+const authorize = async (
   req: RequestWithUser,
   res: Response,
-  device_id: string,
-  tokenType: DataStoredInToken['token_type'] = 'user',
-) => {
+  tokenType: DataStoredInToken['token_type'],
+  allowed: () => Promise<boolean>,
+  forbidden: string,
+): Promise<boolean> => {
   try {
     if (getAuthorizationCandidates(req).length === 0) {
       res.status(401).send('Authentication token missing');
@@ -162,27 +168,36 @@ export const isUserDeviceMiddelware = async (
     }
 
     applyToken(req, verificationResponse);
-    if (req.is_admin) {
+    if (await allowed()) {
       return true;
     }
-    if (req.is_demo) {
-      if (await isDemoDevice(device_id)) {
-        return true;
-      }
-    } else {
-      const devices: Device[] = await deviceModel.find({ owner_id: req.user_id, device_id: device_id }, { device_id: 1 });
-      if (devices.length > 0) {
-        return true;
-      }
-    }
 
-    res.status(403).send(`Device ${device_id} not bound to user ${req.user_id}`);
+    res.status(403).send(forbidden);
     return false;
   } catch (error) {
     res.status(401).send('Wrong authentication token');
     return false;
   }
 };
+
+const ownsDevice = async (user_id: string, device_id: string): Promise<boolean> => {
+  const devices: Device[] = await deviceModel.find({ owner_id: user_id, device_id: device_id }, { device_id: 1 });
+  return devices.length > 0;
+};
+
+export const isUserDeviceMiddelware = async (
+  req: RequestWithUser,
+  res: Response,
+  device_id: string,
+  tokenType: DataStoredInToken['token_type'] = 'user',
+) =>
+  authorize(
+    req,
+    res,
+    tokenType,
+    async () => req.is_admin || (req.is_demo ? isDemoDevice(device_id) : ownsDevice(req.user_id, device_id)),
+    `Device ${device_id} not bound to user ${req.user_id}`,
+  );
 
 export const isUserDeviceOrShareMiddelware = async (
   req: RequestWithUser,
@@ -236,30 +251,13 @@ export const isUserDeviceOrShareMiddelware = async (
 export const isUserZelt = async (req: RequestWithUser, zelt_id: string): Promise<boolean> =>
   !!zelt_id && !!req.user_id && !!(await zeltModel.exists({ zelt_id: zelt_id, besitzer_id: req.user_id }));
 
-export const isUserZeltMiddelware = async (req: RequestWithUser, res: Response, zelt_id: string): Promise<boolean> => {
-  try {
-    if (getAuthorizationCandidates(req).length === 0) {
-      res.status(401).send('Authentication token missing');
-      return false;
-    }
-
-    const verificationResponse = await verifyFirstMatchingToken(req, 'user');
-    if (!verificationResponse) {
-      res.status(401).send('Wrong authentication token');
-      return false;
-    }
-
-    applyToken(req, verificationResponse);
+export const isUserZeltMiddelware = async (req: RequestWithUser, res: Response, zelt_id: string): Promise<boolean> =>
+  authorize(
+    req,
+    res,
+    'user',
     // A demo session reaches demo devices, never a tent: tents are personal
     // diaries and there is no demo tent to fall back to.
-    if (!req.is_demo && (await isUserZelt(req, zelt_id))) {
-      return true;
-    }
-
-    res.status(403).send(`Zelt ${zelt_id} not bound to user ${req.user_id}`);
-    return false;
-  } catch (error) {
-    res.status(401).send('Wrong authentication token');
-    return false;
-  }
-};
+    async () => !req.is_demo && (await isUserZelt(req, zelt_id)),
+    `Zelt ${zelt_id} not bound to user ${req.user_id}`,
+  );

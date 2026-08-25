@@ -29,17 +29,20 @@ describe('Zelt backfill on boot', () => {
       return { lean: () => Promise.resolve(DEVICES) };
     }) as any;
 
+    zeltModel.createIndexes = jest.fn().mockResolvedValue(undefined) as any;
     zeltModel.exists = jest
       .fn()
       .mockImplementation((filter: any) =>
-        created.some(zelt => zelt.geraete.some(b => b.geraet_id === filter['geraete.geraet_id'])) ? { _id: 'x' } : null,
+        created.some(zelt => zelt.besitzer_id === filter.besitzer_id && zelt.geraete.some(b => b.geraet_id === filter['geraete.geraet_id']))
+          ? { _id: 'x' }
+          : null,
       ) as any;
     zeltModel.create = jest.fn().mockImplementation((zelt: Zelt) => {
       created.push(zelt);
       return Promise.resolve(zelt);
     }) as any;
 
-    jest.spyOn(dataService, 'getFirstSampleTime').mockResolvedValue(FIRST_SAMPLE);
+    jest.spyOn(dataService, 'getFirstSampleTimes').mockResolvedValue(new Map(DEVICES.map(device => [device.device_id, FIRST_SAMPLE])));
   });
 
   afterEach(() => {
@@ -60,17 +63,24 @@ describe('Zelt backfill on boot', () => {
     expect(created[0].geraete[0].bis).toBeUndefined();
   });
 
-  it('falls back to a generic name when the device has none', async () => {
+  it('leaves the name empty when the device has none, because the app owns the wording', async () => {
     await zeltService.backfillZelte();
-    expect(created[1].name).toEqual('Zelt');
+    expect(created[1].name).toEqual('');
   });
 
   it('starts a tent today when the device never measured anything', async () => {
-    jest.spyOn(dataService, 'getFirstSampleTime').mockResolvedValue(null);
+    jest.spyOn(dataService, 'getFirstSampleTimes').mockResolvedValue(new Map());
     const before = Date.now();
     await zeltService.backfillZelte();
     expect(created[0].tag_null).toBeGreaterThanOrEqual(before);
     expect(created[0].tag_null).toEqual(created[0].geraete[0].seit);
+  });
+
+  it('writes nothing at all when the measurement store cannot answer', async () => {
+    jest.spyOn(dataService, 'getFirstSampleTimes').mockRejectedValue(new Error('influx down'));
+    expect(await zeltService.backfillZelte()).toEqual(0);
+    // Guessing today for every device would be permanent: the next boot retries instead.
+    expect(zeltModel.create).not.toHaveBeenCalled();
   });
 
   it('gives the tent a time zone, because every day boundary is computed in it', async () => {
@@ -90,6 +100,12 @@ describe('Zelt backfill on boot', () => {
     expect(created.length).toEqual(2);
   });
 
+  it('counts a tent another instance wrote first as not created, and carries on', async () => {
+    zeltModel.create = jest.fn().mockRejectedValue({ code: 11000 }) as any;
+    expect(await zeltService.backfillZelte()).toEqual(0);
+    expect(zeltModel.create).toHaveBeenCalledTimes(2);
+  });
+
   it('looks at claimed devices only', async () => {
     await zeltService.backfillZelte();
     expect(deviceFilter).toEqual({ owner_id: { $nin: [null, ''] } });
@@ -101,9 +117,9 @@ describe('Zelt backfill on boot', () => {
     expect(zeltModel.create).not.toHaveBeenCalled();
   });
 
-  it('releases the lock when the backfill fails', async () => {
+  it('releases the lock it holds when the backfill fails', async () => {
     zeltModel.create = jest.fn().mockRejectedValue(new Error('mongo down')) as any;
     await zeltService.backfillZelte();
-    expect(migrationModel.updateOne).toHaveBeenCalledWith({ name: 'zelt-aus-geraet' }, { $set: { laeuft_seit: null } });
+    expect(migrationModel.updateOne).toHaveBeenCalledWith({ name: 'zelt-aus-geraet', run_id: expect.any(String) }, { $set: { laeuft_seit: null } });
   });
 });

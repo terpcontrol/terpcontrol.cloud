@@ -12,9 +12,12 @@ const zeltSchema: Schema = new Schema({
     required: true,
     index: true,
   },
+  // Empty until somebody names the tent: a display name is a user-facing
+  // decision and no server-side default can be written in the user's language.
   name: {
     type: String,
-    required: true,
+    required: false,
+    default: '',
   },
   geraete: {
     type: [
@@ -43,6 +46,14 @@ const zeltSchema: Schema = new Schema({
   erstellt_at: {
     type: Number,
     required: true,
+  },
+  // The device binding a migrated tent stands for. Unique, so two instances
+  // deriving tents for the same device at once collide instead of both writing.
+  migriert_aus: {
+    type: String,
+    required: false,
+    unique: true,
+    sparse: true,
   },
   // Free-form by design: tent facts are cloud-side and grow over time, and none
   // of them may ever reach the device configuration.

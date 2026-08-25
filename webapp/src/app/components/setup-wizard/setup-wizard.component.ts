@@ -59,16 +59,18 @@ export class SetupWizardComponent implements OnInit {
 
   /**
    * The step sequence adapts live to what the hardware can do: a controller
-   * without any paired sockets only monitors, so it is not asked for a grow
-   * stage or plan — unless the wizard was explicitly opened to start a plan
-   * (startAt 'stage'; reference plans are deliberate there).
+   * that reported no sockets at all only monitors, so it is not asked for a
+   * grow stage or plan — unless the wizard was explicitly opened to start a
+   * plan (startAt 'stage'; reference plans are deliberate there). A controller
+   * that has not reported yet keeps every step: not knowing what it switches is
+   * no reason to take the grow stage away from its owner.
    */
   get steps(): WizardStep[] {
     if (!this.isClimateDevice) {
       return ['name', 'done'];
     }
     const head: WizardStep[] = this.isController ? ['name', 'connections'] : ['name'];
-    if (this.isMonitor && this.startAt !== 'stage') {
+    if (this.controlCapability === 'monitor' && this.startAt !== 'stage') {
       return [...head, 'done'];
     }
     return [...head, 'stage', 'plan', 'done'];
@@ -93,9 +95,10 @@ export class SetupWizardComponent implements OnInit {
   }
 
   /**
-   * Nothing may be promised that the hardware has not confirmed: a controller
-   * that never reported its sockets gets the same careful wording as one that
-   * reported none.
+   * Wording only: nothing may be promised that the hardware has not confirmed,
+   * so a controller that never reported its sockets is described as carefully
+   * as one that reported none. What the wizard *offers* is decided per measure,
+   * never here.
    */
   get isMonitor(): boolean {
     return this.isController && (this.controlCapability === 'monitor' || this.controlCapability === 'unknown');

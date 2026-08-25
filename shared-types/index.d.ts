@@ -311,6 +311,7 @@ export interface ZeltDaten {
 export interface Zelt {
   zelt_id: string;
   besitzer_id: string;
+  /** Empty when nobody has named the tent yet; the app renders a translated default. */
   name: string;
   geraete: GeraetBindung[];
   /** IANA zone; every day boundary of this tent is computed in it. */
@@ -320,6 +321,8 @@ export interface Zelt {
   /** Which device's camera leads when several have one. */
   kamera_leitgeraet?: string;
   erstellt_at: number;
+  /** `<besitzer>:<geraet>` when the tent was derived from a claimed device. Unique. */
+  migriert_aus?: string;
   d?: ZeltDaten;
 }
 

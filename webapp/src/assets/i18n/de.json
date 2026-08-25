@@ -55,11 +55,11 @@
     "templimit": "Temperaturlimit",
     "fanspeeds": "Lüftergeschwindigkeit",
     "externalfan": "Klemmlüfter",
-    "internalfan": "Interne lüfter (Minimalgeschwindigkeit)",
-    "maxDehumidifySeconds": "Max. Kühlschrank AN Sekunden",
-    "minimalDehumidifierOffTime": "Min. Kühlschrank Aus-Zeit in Sekunden",
-    "minimalDehumidifierOffTimeHint": "Mindestzeit in Sekunden, die der Kühlschrank/Entfeuchter aus bleibt, bevor er wieder eingeschaltet werden kann. Verhindert häufiges Takten des Kompressors.",
-    "minimalDehumidifierOffTimeWarning": "Warnung: Werte unter 240s können den Kompressor des Kühlschranks durch häufiges Takten beschädigen!",
+    "internalfan": "Interne Lüfter (Minimalgeschwindigkeit)",
+    "maxDehumidifySeconds": "Max. Entfeuchter-AN-Zeit in Sekunden",
+    "minimalDehumidifierOffTime": "Min. Entfeuchter-Aus-Zeit in Sekunden",
+    "minimalDehumidifierOffTimeHint": "Mindestzeit in Sekunden, die der Entfeuchter (beim Kühlschrank der Kompressor) aus bleibt, bevor er wieder einschalten darf. Verhindert häufiges Takten.",
+    "minimalDehumidifierOffTimeWarning": "Warnung: Werte unter 240 s können den Kompressor durch häufiges Takten beschädigen!",
     "targetHumidityDiff": "Ziel RLF Differenz",
     "useLongHumidityAvg": "Lange RLF Durchschnittswerte verwenden (240 statt 100 Werte)",
     "use-daynight": "Tag/Nacht Zyklus verwenden",
@@ -399,11 +399,10 @@
       "text": "Dein Controller schaltet über gekoppelte Smart Sockets — die App erkennt automatisch, was verbunden ist. Koppeln kannst du direkt am Controller (Einstellungen → Smart Sockets).",
       "connected": "Verbunden",
       "noSockets": "Noch keine Steckdosen gekoppelt — es wird nur überwacht. Du kannst jederzeit welche am Controller koppeln, die App passt sich automatisch an.",
-      "unknown": "Dein Controller meldet erst nach einem Firmware-Update, welche Steckdosen gekoppelt sind. Bis dahin gilt keine Steuerung als gesichert und deine Zielwerte zählen als Richtwerte.",
+      "unknown": "Dein Controller hat noch nicht gemeldet, welche Steckdosen gekoppelt sind — ältere Geräte holen das oft erst nach einem Firmware-Update nach. Solange gelten deine Zielwerte nur als Richtwerte.",
       "detected-full": "Erkannt: Dein Controller regelt das Klima.",
       "detected-light_only": "Erkannt: Dein Controller schaltet nur das Licht — Klimawerte werden überwacht und Zielwerte dienen als Richtwerte.",
       "detected-monitor": "Erkannt: Nur Überwachung — es wird nichts geschaltet, Zielwerte dienen als Richtwerte.",
-      "detected-unknown": "Noch nichts erkannt: Solange dein Controller seine Steckdosen nicht meldet, wissen wir nicht, was er schalten kann.",
       "refresh": "Neu prüfen"
     },
     "stage": {
@@ -867,12 +866,23 @@
   "message-smart-socket-connected-text": "Eine Smart-Steckdose wurde für die Rolle «{{value}}» verbunden.",
   "message-smart-socket-disconnected-title": "Smart-Steckdose getrennt",
   "message-smart-socket-disconnected-text": "Die Smart-Steckdosen-Zuordnung für die Rolle «{{value}}» wurde entfernt.",
+  "zelt": {
+    "defaultName": "Zelt"
+  },
   "simpleSettings": {
     "modeSimple": "Einfach",
     "modeExpert": "Experte",
     "referenceBannerMonitor": "Dieser Controller überwacht nur. Deine Zielwerte dienen als Richtbereiche für Charts, Assistent und Alarme — geschaltet wird nichts.",
     "referenceBannerLightOnly": "Dieser Controller steuert nur die Lampe. Klima-Zielwerte dienen als Richtbereiche — Heizung oder Feuchte werden nicht geschaltet.",
     "referenceBannerUnknown": "Dieses Gerät meldet nicht, welche Steckdosen gekoppelt sind. Bis es das tut, gelten deine Zielwerte als Richtwerte — ob wirklich geschaltet wird, kann die App nicht sagen.",
+    "referenceBannerPartial": "Dieser Controller schaltet nur einen Teil selbst. Zielwerte ohne passende Steckdose gelten als Richtwerte — die betroffenen Zeilen sagen es dir.",
+    "reference": {
+      "temperature": "Kein Heizer gekoppelt — dieser Wert gilt als Richtwert.",
+      "humidity": "Kein Entfeuchter gekoppelt — dieser Wert gilt als Richtwert.",
+      "co2": "Keine CO₂-Steckdose gekoppelt — dieser Wert gilt als Richtwert.",
+      "light": "Keine Lampe gekoppelt — dieser Wert gilt als Richtwert.",
+      "unknown": "Gerät meldet keine Steckdosen — dieser Wert gilt als Richtwert."
+    },
     "stageTitle": "Deine Grow-Phase",
     "stageText": "Wähle die Phase deiner Pflanzen — wir setzen bewährte Zielwerte. Darunter kannst du alles feinjustieren.",
     "stageTextReference": "Wähle die Phase deiner Pflanzen — wir setzen bewährte Richtwerte. Darunter kannst du alles feinjustieren.",

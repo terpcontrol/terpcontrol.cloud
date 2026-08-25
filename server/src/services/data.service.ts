@@ -19,6 +19,11 @@ const DEFAULT_PPFD_LUX_FACTOR = 0.015;
 // A fresh object per call: callers may keep and annotate what they get back.
 const noValue = (): LatestValue => ({ value: NaN });
 
+// How far back a "latest value" may lie. Wide enough that a device stopped days
+// ago still yields its last reading together with a real age — a stale number
+// with its age is worth more to a reader than a blank.
+const LATEST_LOOKBACK = '-30d';
+
 export const VALID_OUTPUTS = ['heater', 'dehumidifier', 'co2', 'light', 'fan', 'relais', 'fan-internal', 'fan-external', 'fan-backwall'];
 
 class DataService {
@@ -183,7 +188,7 @@ class DataService {
     const queryApi = influxdb_client.getQueryApi(INFLUXDB_ORG);
     const query = `
       from(bucket: "${INFLUXDB_BUCKET}")
-        |> range(start: -5m)
+        |> range(start: ${LATEST_LOOKBACK})
         |> filter(fn: (r) => r["_measurement"] == "status")
         |> filter(fn: (r) => r["_field"] == "${measure}")
         |> filter(fn: (r) => r["device_id"] == "${device_id}")
@@ -199,22 +204,34 @@ class DataService {
     }, noValue());
   }
 
-  /** The oldest sample a device ever wrote, or null when it never wrote one. */
-  public async getFirstSampleTime(device_id: string): Promise<number | null> {
+  /**
+   * The oldest sample every device ever wrote, keyed by device id. One scan for
+   * the whole fleet: asking per device turns a backfill into as many
+   * full-history queries as there are devices. Only the timestamp is kept, so
+   * fields of different types cannot collide when the series are merged.
+   */
+  public async getFirstSampleTimes(): Promise<Map<string, number>> {
     const queryApi = influxdb_client.getQueryApi(INFLUXDB_ORG);
     const query = `
       from(bucket: "${INFLUXDB_BUCKET}")
         |> range(start: 0)
         |> filter(fn: (r) => r["_measurement"] == "status")
-        |> filter(fn: (r) => r["device_id"] == "${device_id}")
-        |> first()
+        |> keep(columns: ["_time", "device_id"])
+        |> group(columns: ["device_id"])
+        |> min(column: "_time")
         |> yield(name: "first")
     `;
 
     const rows = await queryApi.collectRows(query);
-    const times = rows.map((row: any) => Date.parse(row._time)).filter(t => !isNaN(t));
 
-    return times.length > 0 ? Math.min(...times) : null;
+    return rows.reduce<Map<string, number>>((oldest, row: any) => {
+      const t = Date.parse(row._time);
+      const known = oldest.get(row.device_id);
+      if (row.device_id && !isNaN(t) && (known === undefined || t < known)) {
+        oldest.set(row.device_id, t);
+      }
+      return oldest;
+    }, new Map<string, number>());
   }
 
   private async getLatestVpd(device_id): Promise<LatestValue> {

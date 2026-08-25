@@ -58,8 +58,8 @@
     "internalfan": "Internal fans (minimum)",
     "maxDehumidifySeconds": "Max. dehumidifier ON seconds",
     "minimalDehumidifierOffTime": "Min. dehumidifier off seconds",
-    "minimalDehumidifierOffTimeHint": "Minimum time in seconds the fridge/dehumidifier stays off before it can turn on again. Prevents short-cycling of the compressor.",
-    "minimalDehumidifierOffTimeWarning": "Warning: Values below 240s may damage the fridge compressor due to short-cycling!",
+    "minimalDehumidifierOffTimeHint": "Minimum time in seconds the dehumidifier (the compressor on fridges) stays off before it may switch on again. Prevents short-cycling.",
+    "minimalDehumidifierOffTimeWarning": "Warning: values below 240 s may damage the compressor through short-cycling!",
     "targetHumidityDiff": "Target humidity difference",
     "useLongHumidityAvg": "Use long humidity average (240 instead of 100 values)",
     "use-daynight": "Use Day/Night Cycle",
@@ -399,11 +399,10 @@
       "text": "Your controller switches through paired smart sockets — the app detects automatically what is connected. Pairing happens right on the controller (Settings → Smart Sockets).",
       "connected": "Connected",
       "noSockets": "No sockets paired yet — monitoring only. You can pair some on the controller anytime; the app adapts automatically.",
-      "unknown": "Your controller only reports its paired sockets after a firmware update. Until then no control counts as confirmed and your targets count as reference values.",
+      "unknown": "Your controller has not reported its paired sockets yet — older units often only do this after a firmware update. Until it does, your targets are reference values only.",
       "detected-full": "Detected: your controller regulates the climate.",
       "detected-light_only": "Detected: your controller only switches the light — climate values are monitored and targets act as reference values.",
       "detected-monitor": "Detected: monitoring only — nothing is switched, targets act as reference values.",
-      "detected-unknown": "Nothing detected yet: while your controller does not report its sockets, we cannot tell what it switches.",
       "refresh": "Check again"
     },
     "stage": {
@@ -871,12 +870,23 @@
   "message-smart-socket-connected-text": "A smart socket was connected for role: {{value}}",
   "message-smart-socket-disconnected-title": "Smart socket disconnected",
   "message-smart-socket-disconnected-text": "The smart socket assignment was removed for role: {{value}}",
+  "zelt": {
+    "defaultName": "Tent"
+  },
   "simpleSettings": {
     "modeSimple": "Simple",
     "modeExpert": "Expert",
     "referenceBannerMonitor": "This controller only monitors. Your targets act as reference ranges for charts, the assistant and alarms — nothing is switched.",
     "referenceBannerLightOnly": "This controller only drives the lamp. Climate targets act as reference ranges — heating or humidity are not switched.",
     "referenceBannerUnknown": "This device does not report which sockets are paired. Until it does, your targets are reference values — the app cannot tell whether anything is actually switched.",
+    "referenceBannerPartial": "This controller only switches part of it itself. Targets without a matching socket are reference values — the rows concerned say so.",
+    "reference": {
+      "temperature": "No heater paired — this value is a reference value.",
+      "humidity": "No dehumidifier paired — this value is a reference value.",
+      "co2": "No CO₂ socket paired — this value is a reference value.",
+      "light": "No lamp paired — this value is a reference value.",
+      "unknown": "Device reports no sockets — this value is a reference value."
+    },
     "stageTitle": "Your grow stage",
     "stageText": "Pick the stage your plants are in — we set proven targets. Fine-tune anything below.",
     "stageTextReference": "Pick the stage your plants are in — we set proven reference values. Fine-tune anything below.",

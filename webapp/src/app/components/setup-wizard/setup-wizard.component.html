@@ -48,7 +48,7 @@
         <p class="wizard-sub">{{ 'wizard.connections.unknown' | translate }}</p>
       </ng-template>
 
-      <p class="wizard-sub wizard-capability">
+      <p class="wizard-sub wizard-capability" *ngIf="socketsReported">
         {{ 'wizard.connections.detected-' + controlCapability | translate }}
       </p>
 

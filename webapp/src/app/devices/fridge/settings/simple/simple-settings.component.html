@@ -1,7 +1,7 @@
 <ion-card *ngIf="isReference" class="reference-banner">
   <ion-card-content>
     <ion-icon name="eye-outline"></ion-icon>
-    {{ (isCapabilityUnknown ? 'simpleSettings.referenceBannerUnknown' : isMonitor ? 'simpleSettings.referenceBannerMonitor' : 'simpleSettings.referenceBannerLightOnly') | translate }}
+    {{ (isCapabilityUnknown ? 'simpleSettings.referenceBannerUnknown' : isMonitor ? 'simpleSettings.referenceBannerMonitor' : isPartiallyControlled ? 'simpleSettings.referenceBannerPartial' : 'simpleSettings.referenceBannerLightOnly') | translate }}
   </ion-card-content>
 </ion-card>
 
@@ -191,6 +191,7 @@
           [(value)]="target.lights.limit"
           [min]="0" [max]="100" [step]="1"
         ></value-edit-row>
+        <div class="section-hint" *ngIf="referenceNote('light') as note">{{ note | translate }}</div>
         <div class="section-hint">{{ 'simpleSettings.light.intensityHint' | translate }}</div>
       </ng-container>
     </ng-container>
@@ -204,6 +205,7 @@
         [(value)]="target.day.temperature"
         [min]="limits.temperature.min" [max]="limits.temperature.max" [step]="1"
       ></value-edit-row>
+      <div class="section-hint" *ngIf="referenceNote('temperature') as note">{{ note | translate }}</div>
       <ng-container *ngIf="hasHumidity">
         <value-edit-row
           [label]="'simpleSettings.humidity' | translate"
@@ -211,6 +213,7 @@
           [(value)]="target.day.humidity"
           [min]="limits.humidity.min" [max]="limits.humidity.max" [step]="1"
         ></value-edit-row>
+        <div class="section-hint" *ngIf="referenceNote('humidity') as note">{{ note | translate }}</div>
         <div class="section-hint">{{ 'settings.vpdPreview' | translate: { vpd: getDayVpd() | number: '1.2-2', humidity: target.day.humidity } }}</div>
       </ng-container>
     </ng-container>
@@ -224,6 +227,7 @@
         [(value)]="target.night.temperature"
         [min]="limits.temperature.min" [max]="limits.temperature.max" [step]="1"
       ></value-edit-row>
+      <div class="section-hint" *ngIf="referenceNote('temperature') as note">{{ note | translate }}</div>
       <ng-container *ngIf="hasHumidity">
         <value-edit-row
           [label]="'simpleSettings.humidity' | translate"
@@ -231,6 +235,7 @@
           [(value)]="target.night.humidity"
           [min]="limits.humidity.min" [max]="limits.humidity.max" [step]="1"
         ></value-edit-row>
+        <div class="section-hint" *ngIf="referenceNote('humidity') as note">{{ note | translate }}</div>
         <div class="section-hint">{{ 'settings.vpdPreview' | translate: { vpd: getNightVpd() | number: '1.2-2', humidity: target.night.humidity } }}</div>
       </ng-container>
     </ng-container>

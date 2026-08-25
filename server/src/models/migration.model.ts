@@ -5,6 +5,8 @@ export interface MigrationLock {
   /** Epoch ms the current run started; null when no run is in flight. */
   laeuft_seit?: number | null;
   beendet_at?: number | null;
+  /** Identifies the run holding the lock, so only that run can release it. */
+  run_id?: string | null;
 }
 
 const migrationSchema: Schema = new Schema({
@@ -20,6 +22,11 @@ const migrationSchema: Schema = new Schema({
   },
   beendet_at: {
     type: Number,
+    required: false,
+    default: null,
+  },
+  run_id: {
+    type: String,
     required: false,
     default: null,
   },

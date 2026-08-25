@@ -38,7 +38,6 @@ class App {
   public async run() {
     try {
       await this.connectToDatabase();
-      await this.runMigrations();
       this.initializeMiddlewares();
       this.initializeRoutes(this.routes);
       this.initializeSwagger();
@@ -49,6 +48,7 @@ class App {
         logger.info(`======= ENV: ${this.env} =======`);
         logger.info(`🚀 App listening on the port ${this.port}`);
         logger.info(`=================================`);
+        void this.runMigrations();
       });
     } catch (err) {
       console.log('error:', err);
@@ -69,9 +69,16 @@ class App {
   }
 
   // Schema-filling migrations belong to the boot, once per deployment: doing
-  // them per request would repeat the same query on every call forever.
+  // them per request would repeat the same query on every call forever. They
+  // run behind the open port and swallow their own failures, because they only
+  // write rows nothing serves yet — a fleet-sized backfill must never delay the
+  // first request or take the process down with it.
   private async runMigrations() {
-    await zeltService.backfillZelte();
+    try {
+      await zeltService.backfillZelte();
+    } catch (error) {
+      logger.error(`Migrations failed: ${error}`);
+    }
   }
 
   private initializeMiddlewares() {

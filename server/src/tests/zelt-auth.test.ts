@@ -5,15 +5,16 @@ import App from '@/app';
 import { SECRET_KEY } from '@config';
 import { DataStoredInToken } from '@interfaces/auth.interface';
 import zeltModel from '@models/zelt.model';
-import ZeltRoute from '@routes/zelt.route';
+import { allRoutes } from '@routes/index';
 
 const OWNER_ID = '60706478aad6c9ad19a31c84';
 const STRANGER_ID = '60706478aad6c9ad19a31c99';
 const ZELT_ID = 'zelt-1';
 
-// Every route under /api/ and who is allowed through it. A new route that is
-// not listed here fails the first test, which is the point: an unguarded
-// handler cannot reach production unnoticed.
+// Every route under /api/ and who is allowed through it. The app under test is
+// built from the application's own route list, so a route added anywhere and
+// not listed here fails the first test: an unguarded handler cannot reach
+// production unnoticed.
 const GUARDS: Record<string, 'session' | 'zelt'> = {
   'GET /api/zelte': 'session',
   'GET /api/zelte/:zelt_id': 'zelt',
@@ -46,7 +47,7 @@ describe('Zelt authorization', () => {
 
   beforeEach(() => {
     (mongoose as any).connect = jest.fn();
-    app = new App([new ZeltRoute()]);
+    app = new App(allRoutes());
     (app as any).initializeMiddlewares();
     (app as any).initializeRoutes((app as any).routes);
     (app as any).initializeErrorHandling();
