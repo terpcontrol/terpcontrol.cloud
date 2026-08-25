@@ -50,3 +50,11 @@ otherwise — finds the reason where the behaviour is rather than re-reporting i
 query, and the `limit` guard sits after `yield()` where it bounds nothing. The specification had this as
 later work; it moves into this change instead, since the redesign widens the vocabulary of measures these
 endpoints accept and doing it afterwards means doing it under a larger surface.
+
+**Done.** Every query in `data.service` is now built with the client's `flux` template tag, and each
+parameter is converted to a typed Flux value in `server/src/utils/flux.ts` before it gets there: a measure
+and a device id become Flux strings, a bound becomes a duration or a time, a window becomes a duration of
+at least one second, and the aggregate function stays the one thing passed through as syntax — which is
+why it is the one thing that was already allowlisted. `limit(n:)` moved above `yield()`, where it bounds
+the response instead of nothing. `data-flux.test.ts` holds the contract, including what an injected
+measure and an injected device id actually render as.

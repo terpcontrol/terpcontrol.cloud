@@ -1,4 +1,5 @@
-import { InfluxDB, Point } from '@influxdata/influxdb-client';
+import { flux, fluxDuration, fluxExpression, fluxString, InfluxDB, Point } from '@influxdata/influxdb-client';
+import { DEFAULT_RANGE_START, fluxTimeBound, fluxWindow, NOW, ROW_LIMIT } from '@utils/flux';
 import { INFLUXDB_BUCKET, INFLUXDB_ORG, INFLUXDB_TOKEN } from '@/config';
 import { deviceService, StatusMessage } from '@services/device.service';
 import { calculateVpd } from '@utils/calculateVpd';
@@ -85,15 +86,15 @@ class DataService {
     }
 
     const queryApi = influxdb_client.getQueryApi(INFLUXDB_ORG);
-    const query = `
-      from(bucket: "${INFLUXDB_BUCKET}")
-        |> range(start: ${from}, stop: ${to})
+    const query = flux`
+      from(bucket: ${fluxString(INFLUXDB_BUCKET)})
+        |> range(start: ${fluxTimeBound(from, DEFAULT_RANGE_START)}, stop: ${fluxTimeBound(to, NOW)})
         |> filter(fn: (r) => r["_measurement"] == "status")
-        |> filter(fn: (r) => r["_field"] == "${measure}")
-        |> filter(fn: (r) => r["device_id"] == "${device_id}")
-        |> aggregateWindow(every: ${interval}, fn: ${method}, createEmpty: true)
-        |> yield(name: "${method}")
-        |> limit(n: 50000)
+        |> filter(fn: (r) => r["_field"] == ${fluxString(measure)})
+        |> filter(fn: (r) => r["device_id"] == ${fluxString(device_id)})
+        |> aggregateWindow(every: ${fluxWindow(interval)}, fn: ${fluxExpression(method)}, createEmpty: true)
+        |> limit(n: ${ROW_LIMIT})
+        |> yield(name: ${fluxString(method)})
     `;
     const rows = await queryApi.collectRows(query);
 
@@ -186,12 +187,12 @@ class DataService {
     }
 
     const queryApi = influxdb_client.getQueryApi(INFLUXDB_ORG);
-    const query = `
-      from(bucket: "${INFLUXDB_BUCKET}")
-        |> range(start: ${LATEST_LOOKBACK})
+    const query = flux`
+      from(bucket: ${fluxString(INFLUXDB_BUCKET)})
+        |> range(start: ${fluxDuration(LATEST_LOOKBACK)})
         |> filter(fn: (r) => r["_measurement"] == "status")
-        |> filter(fn: (r) => r["_field"] == "${measure}")
-        |> filter(fn: (r) => r["device_id"] == "${device_id}")
+        |> filter(fn: (r) => r["_field"] == ${fluxString(measure)})
+        |> filter(fn: (r) => r["device_id"] == ${fluxString(device_id)})
         |> last()
         |> yield(name: "last")
     `;
@@ -212,8 +213,8 @@ class DataService {
    */
   public async getFirstSampleTimes(): Promise<Map<string, number>> {
     const queryApi = influxdb_client.getQueryApi(INFLUXDB_ORG);
-    const query = `
-      from(bucket: "${INFLUXDB_BUCKET}")
+    const query = flux`
+      from(bucket: ${fluxString(INFLUXDB_BUCKET)})
         |> range(start: 0)
         |> filter(fn: (r) => r["_measurement"] == "status")
         |> keep(columns: ["_time", "device_id"])
