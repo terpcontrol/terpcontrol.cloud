@@ -92,8 +92,13 @@ export class SetupWizardComponent implements OnInit {
     return deviceControlCapability({ device_type: this.device?.device_type, hardwareInfo: this.hardwareInfo });
   }
 
+  /**
+   * Nothing may be promised that the hardware has not confirmed: a controller
+   * that never reported its sockets gets the same careful wording as one that
+   * reported none.
+   */
   get isMonitor(): boolean {
-    return this.isController && this.controlCapability === 'monitor';
+    return this.isController && (this.controlCapability === 'monitor' || this.controlCapability === 'unknown');
   }
 
   get socketsReported(): boolean {

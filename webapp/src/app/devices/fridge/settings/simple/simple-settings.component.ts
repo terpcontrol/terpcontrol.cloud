@@ -65,13 +65,18 @@ export class FridgeSimpleSettingsComponent {
     return deviceControlCapability({ device_type: this.deviceType, hardwareInfo: this.hardwareInfo });
   }
 
-  /** Targets are reference values when the controller doesn't actuate the climate. */
+  /** Targets are reference values whenever the controller is not known to actuate the climate. */
   get isReference(): boolean {
-    return this.controlCapability === 'monitor' || this.controlCapability === 'light_only';
+    return this.controlCapability !== 'full';
   }
 
   get isMonitor(): boolean {
     return this.controlCapability === 'monitor';
+  }
+
+  /** The device never reported its sockets: what it switches is unknown, not none. */
+  get isCapabilityUnknown(): boolean {
+    return this.controlCapability === 'unknown';
   }
 
   get activePreset(): StageSelection | null {

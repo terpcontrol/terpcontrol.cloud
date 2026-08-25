@@ -70,6 +70,14 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
 
   constructor(private devices: DeviceService, public data: DataService, private route: ActivatedRoute, private router: Router, private renderer: Renderer2, public logTranslate: LogTranslateService, private auth: AuthService, private maintenance: MaintenanceModeService, private translate: TranslateService) { }
 
+  /**
+   * One set of screens serves the fridge and the controller, so the type label
+   * has to follow the device rather than the component rendering it.
+   */
+  public get title_key(): string {
+    return this.device_type === 'controller' ? 'devices.controller.title' : 'devices.fridge.title';
+  }
+
   public get is_admin(): boolean {
     return !!this.auth.current_user.value?.is_admin;
   }
@@ -90,7 +98,7 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
 
   async ngOnInit() {
     if(this.device_name == "" || this.device_name == undefined) {
-      this.device_name = this.translate.instant('devices.fridge.title');
+      this.device_name = this.translate.instant(this.title_key);
     }
 
     // Hide CO2 tile for controllers only when hardware reports no CO2 sensor

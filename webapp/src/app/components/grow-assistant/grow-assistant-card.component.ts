@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { DataService } from 'src/app/services/data.service';
-import { deviceControlCapability } from 'src/app/util/grow-presets';
+import { ControlCapability, deviceControlCapability } from 'src/app/util/grow-presets';
 import { KeyedCache } from 'src/app/util/keyed-cache';
 
 const TEMPERATURE_TOLERANCE = 1.5;
@@ -70,8 +70,16 @@ export class GrowAssistantCardComponent implements OnInit, OnDestroy {
   }
 
   get isReference(): boolean {
-    const capability = deviceControlCapability({ device_type: this.deviceType, hardwareInfo: this.hardwareInfo });
-    return capability === 'monitor' || capability === 'light_only';
+    return this.capability !== 'full';
+  }
+
+  /** An unreported socket list promises nothing, so it must not read as control. */
+  get capabilityUnknown(): boolean {
+    return this.capability === 'unknown';
+  }
+
+  private get capability(): ControlCapability {
+    return deviceControlCapability({ device_type: this.deviceType, hardwareInfo: this.hardwareInfo });
   }
 
   get planRunning(): boolean {

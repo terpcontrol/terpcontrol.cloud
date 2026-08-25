@@ -325,6 +325,7 @@
     "allGood": "Alles im grünen Bereich",
     "confirmationPending": "Dein Plan wartet auf eine Bestätigung — Einstellungen öffnen",
     "deviationMonitorHint": "Dein Gerät überwacht nur — passe das manuell in deinem Setup an.",
+    "deviationUnknownHint": "Dein Gerät meldet nicht, was es schalten kann — nimm die Werte als Richtwerte.",
     "tipsTitle": "Tipps für diese Phase",
     "matchingChart": "Passende Chart-Ansicht öffnen",
     "bannerText": "Lass dich von einem Grow-Plan durch die Phasen führen — Zielwerte passen sich automatisch an, große Schritte bestätigst du.",
@@ -398,10 +399,11 @@
       "text": "Dein Controller schaltet über gekoppelte Smart Sockets — die App erkennt automatisch, was verbunden ist. Koppeln kannst du direkt am Controller (Einstellungen → Smart Sockets).",
       "connected": "Verbunden",
       "noSockets": "Noch keine Steckdosen gekoppelt — es wird nur überwacht. Du kannst jederzeit welche am Controller koppeln, die App passt sich automatisch an.",
-      "unknown": "Dein Controller meldet den Steckdosen-Status erst nach einem Firmware-Update. Bis dahin zeigen wir alle Steuerungs-Optionen an.",
+      "unknown": "Dein Controller meldet erst nach einem Firmware-Update, welche Steckdosen gekoppelt sind. Bis dahin gilt keine Steuerung als gesichert und deine Zielwerte zählen als Richtwerte.",
       "detected-full": "Erkannt: Dein Controller regelt das Klima.",
       "detected-light_only": "Erkannt: Dein Controller schaltet nur das Licht — Klimawerte werden überwacht und Zielwerte dienen als Richtwerte.",
       "detected-monitor": "Erkannt: Nur Überwachung — es wird nichts geschaltet, Zielwerte dienen als Richtwerte.",
+      "detected-unknown": "Noch nichts erkannt: Solange dein Controller seine Steckdosen nicht meldet, wissen wir nicht, was er schalten kann.",
       "refresh": "Neu prüfen"
     },
     "stage": {
@@ -571,6 +573,9 @@
         "stepEtaTime": "Schritt-Ende ETA"
       }
     },
+    "controller": {
+      "title": "Terp Control Controller"
+    },
     "fan": {
       "title": "Terp Control AIR",
       "workmode": "Arbeitsmodus",
@@ -708,7 +713,7 @@
       "plantLog": "Pflanzen-Log",
       "plantLifecycle": "Pflanzen-Phase",
       "measurement": "Messung",
-      "fridgeLog": "Fridge-Log",
+      "fridgeLog": "Geräte-Log",
       "diary": "Tagebuch",
       "diary-plant-log": "Pflanzen-Log",
       "diary-fridge-log": "Geräte-Log",
@@ -853,7 +858,7 @@
   "message-rtsp-stream-error-text": "Bild konnte nicht vom RTSP-Stream geladen werden: {{value}}",
   "message-diary-co2-refill-title": "CO2-Flasche wurde nachgefüllt",
   "message-diary-plant-log-title": "Pflanzen-Logeintrag",
-  "message-diary-fridge-log-title": "Fridge-Logeintrag",
+  "message-diary-fridge-log-title": "Geräte-Logeintrag",
   "message-diary-measurement-title": "Benutzermessung",
   "message-diary-plant-lifecycle-title": "Pflanzen-Phasenwechsel",
   "message-smart-socket-cmd-failed-title": "Befehl an Smart-Steckdose fehlgeschlagen",
@@ -867,6 +872,7 @@
     "modeExpert": "Experte",
     "referenceBannerMonitor": "Dieser Controller überwacht nur. Deine Zielwerte dienen als Richtbereiche für Charts, Assistent und Alarme — geschaltet wird nichts.",
     "referenceBannerLightOnly": "Dieser Controller steuert nur die Lampe. Klima-Zielwerte dienen als Richtbereiche — Heizung oder Feuchte werden nicht geschaltet.",
+    "referenceBannerUnknown": "Dieses Gerät meldet nicht, welche Steckdosen gekoppelt sind. Bis es das tut, gelten deine Zielwerte als Richtwerte — ob wirklich geschaltet wird, kann die App nicht sagen.",
     "stageTitle": "Deine Grow-Phase",
     "stageText": "Wähle die Phase deiner Pflanzen — wir setzen bewährte Zielwerte. Darunter kannst du alles feinjustieren.",
     "stageTextReference": "Wähle die Phase deiner Pflanzen — wir setzen bewährte Richtwerte. Darunter kannst du alles feinjustieren.",

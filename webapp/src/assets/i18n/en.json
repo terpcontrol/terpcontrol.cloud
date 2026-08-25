@@ -325,6 +325,7 @@
     "allGood": "All in the green",
     "confirmationPending": "Your plan is waiting for a confirmation — open settings",
     "deviationMonitorHint": "Your device only monitors — adjust this manually in your setup.",
+    "deviationUnknownHint": "Your device does not report what it can switch — treat these values as reference values.",
     "tipsTitle": "Tips for this stage",
     "matchingChart": "Open the matching chart view",
     "bannerText": "Let a grow plan guide you through the stages — targets adjust automatically, and you confirm the big steps.",
@@ -398,10 +399,11 @@
       "text": "Your controller switches through paired smart sockets — the app detects automatically what is connected. Pairing happens right on the controller (Settings → Smart Sockets).",
       "connected": "Connected",
       "noSockets": "No sockets paired yet — monitoring only. You can pair some on the controller anytime; the app adapts automatically.",
-      "unknown": "Your controller reports its socket status only after a firmware update. Until then all control options are shown.",
+      "unknown": "Your controller only reports its paired sockets after a firmware update. Until then no control counts as confirmed and your targets count as reference values.",
       "detected-full": "Detected: your controller regulates the climate.",
       "detected-light_only": "Detected: your controller only switches the light — climate values are monitored and targets act as reference values.",
       "detected-monitor": "Detected: monitoring only — nothing is switched, targets act as reference values.",
+      "detected-unknown": "Nothing detected yet: while your controller does not report its sockets, we cannot tell what it switches.",
       "refresh": "Check again"
     },
     "stage": {
@@ -575,6 +577,9 @@
         "pleaseStart": "Please start the plan first"
       }
     },
+    "controller": {
+      "title": "Terp Control Controller"
+    },
     "dryer": {
       "title": "Terp Control FRIDGE DRY",
       "presets": "Presets",
@@ -712,7 +717,7 @@
       "plantLog": "Plant log",
       "plantLifecycle": "Plant lifecycle",
       "measurement": "Measurement",
-      "fridgeLog": "Fridge log",
+      "fridgeLog": "Device log",
       "diary": "Diary",
       "diary-plant-log": "Plant log",
       "diary-fridge-log": "Device log",
@@ -857,7 +862,7 @@
   "message-rtsp-stream-error-text": "Failed to fetch image from RTSP stream: {{value}}",
   "message-diary-co2-refill-title": "CO2 cylinder was refilled",
   "message-diary-plant-log-title": "Plant log entry",
-  "message-diary-fridge-log-title": "Fridge log entry",
+  "message-diary-fridge-log-title": "Device log entry",
   "message-diary-measurement-title": "User measurement",
   "message-diary-plant-lifecycle-title": "Plant phase change",
   "message-smart-socket-cmd-failed-title": "Smart socket command failed",
@@ -871,6 +876,7 @@
     "modeExpert": "Expert",
     "referenceBannerMonitor": "This controller only monitors. Your targets act as reference ranges for charts, the assistant and alarms — nothing is switched.",
     "referenceBannerLightOnly": "This controller only drives the lamp. Climate targets act as reference ranges — heating or humidity are not switched.",
+    "referenceBannerUnknown": "This device does not report which sockets are paired. Until it does, your targets are reference values — the app cannot tell whether anything is actually switched.",
     "stageTitle": "Your grow stage",
     "stageText": "Pick the stage your plants are in — we set proven targets. Fine-tune anything below.",
     "stageTextReference": "Pick the stage your plants are in — we set proven reference values. Fine-tune anything below.",

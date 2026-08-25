@@ -140,7 +140,7 @@ export function deviceHasCo2(device: { device_type?: string; hardwareInfo?: Reco
   return true;
 }
 
-export type ControlCapability = 'full' | 'light_only' | 'monitor';
+export type ControlCapability = 'full' | 'light_only' | 'monitor' | 'unknown';
 
 const CLIMATE_SOCKET_ROLES = ['dehumidifier', 'heater', 'co2'];
 const LIGHT_SOCKET_ROLES = ['light', 'secondary_light'];
@@ -149,8 +149,9 @@ const LIGHT_SOCKET_ROLES = ['light', 'secondary_light'];
  * What the device can actually switch, derived from its hardware instead of a
  * stored setting: fridges have built-in actuators, controllers act through
  * their paired smart sockets (reported as `hardwareInfo.sockets`). A
- * controller without an up-to-date sockets report (older firmware) is treated
- * as fully controlling so nothing gets hidden by mistake.
+ * controller that reports no socket list at all (older firmware) yields
+ * 'unknown': missing evidence is not evidence of control, and offering
+ * switches the hardware cannot honour is worse than saying we do not know.
  */
 export function deviceControlCapability(
   device: { device_type?: string; hardwareInfo?: Record<string, string> } | null | undefined,
@@ -160,7 +161,7 @@ export function deviceControlCapability(
   }
   const csv = device.hardwareInfo?.['sockets'];
   if (csv === undefined) {
-    return 'full';
+    return 'unknown';
   }
   const roles = parseSocketRoles(csv);
   if (roles.some(role => CLIMATE_SOCKET_ROLES.includes(role))) {

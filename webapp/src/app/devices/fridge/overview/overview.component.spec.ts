@@ -29,4 +29,14 @@ describe('FridgeOverviewComponent', () => {
   it('should create', () => {
     expect(component).toBeTruthy();
   });
+
+  it('labels a controller as a controller and not as a fridge', () => {
+    component.device_type = 'controller';
+    expect(component.title_key).toEqual('devices.controller.title');
+  });
+
+  it('keeps the fridge label for every fridge generation', () => {
+    component.device_type = 'fridge2';
+    expect(component.title_key).toEqual('devices.fridge.title');
+  });
 });

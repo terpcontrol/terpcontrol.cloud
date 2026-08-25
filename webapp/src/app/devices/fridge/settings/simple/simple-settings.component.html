@@ -1,7 +1,7 @@
 <ion-card *ngIf="isReference" class="reference-banner">
   <ion-card-content>
     <ion-icon name="eye-outline"></ion-icon>
-    {{ (isMonitor ? 'simpleSettings.referenceBannerMonitor' : 'simpleSettings.referenceBannerLightOnly') | translate }}
+    {{ (isCapabilityUnknown ? 'simpleSettings.referenceBannerUnknown' : isMonitor ? 'simpleSettings.referenceBannerMonitor' : 'simpleSettings.referenceBannerLightOnly') | translate }}
   </ion-card-content>
 </ion-card>
 
