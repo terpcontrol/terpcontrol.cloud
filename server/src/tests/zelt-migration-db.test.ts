@@ -4,6 +4,7 @@ import deviceModel from '@models/device.model';
 import deviceLogModel from '@models/devicelog.model';
 import dingModel from '@models/ding.model';
 import migrationModel from '@models/migration.model';
+import shareModel from '@models/share.model';
 import zeltModel from '@models/zelt.model';
 import { dataService } from '@services/data.service';
 import { zeltService } from '@services/zelt.service';
@@ -30,6 +31,7 @@ beforeEach(async () => {
     deviceModel.deleteMany({}),
     dingModel.deleteMany({}),
     deviceLogModel.deleteMany({}),
+    shareModel.deleteMany({}),
   ]);
   await Promise.all([zeltModel.syncIndexes(), migrationModel.syncIndexes()]);
   jest.spyOn(dataService, 'getFirstSampleTimes').mockResolvedValue(new Map());
@@ -163,5 +165,137 @@ describe('Zelt backfill against a real database', () => {
     const indexes = await zeltModel.collection.indexes();
     const bindingIndex = indexes.find(i => i.key && i.key.migriert_aus === 1);
     expect(bindingIndex?.unique).toBe(true);
+  });
+});
+
+/**
+ * The tents dated from the migration moment rather than from anything that
+ * happened in them. Their owner cannot widen a binding from the UI - moving
+ * `tag_null` moves the day counter, not the window the reads are clipped to -
+ * so the only correction is one that can prove the owner had the device.
+ */
+describe('Widening a binding back to what its owner demonstrably had', () => {
+  const TAG = 24 * 60 * 60 * 1000;
+  const JETZT = Date.now();
+
+  const teile = (device_id: string, owner_id: string, createdAt: number, felder: Record<string, unknown> = {}) =>
+    shareModel.create({
+      share_id: `share-${device_id}-${createdAt}`,
+      device_id: device_id,
+      owner_id: owner_id,
+      page: 'charts',
+      editable: false,
+      webcam: false,
+      createdAt: createdAt,
+      ...felder,
+    });
+
+  const zeltMitBindung = (zelt_id: string, besitzer_id: string, geraete: { geraet_id: string; seit: number; bis?: number }[]) =>
+    zeltModel.create({
+      zelt_id: zelt_id,
+      besitzer_id: besitzer_id,
+      name: '',
+      geraete: geraete,
+      zeitzone: 'Europe/Berlin',
+      tag_null: geraete[0].seit,
+      erstellt_at: geraete[0].seit,
+    });
+
+  const seitVon = async (zelt_id: string): Promise<number[]> =>
+    ((await zeltModel.findOne({ zelt_id: zelt_id }).lean())?.geraete ?? []).map(b => b.seit);
+
+  it('moves the binding back to the day the owner shared the device', async () => {
+    await claimDevice('controller-1', 'user-1');
+    await zeltMitBindung('zelt-1', 'user-1', [{ geraet_id: 'controller-1', seit: JETZT }]);
+    await teile('controller-1', 'user-1', JETZT - 200 * TAG);
+    await teile('controller-1', 'user-1', JETZT - 30 * TAG);
+
+    expect(await zeltService.repariereBindungen()).toBe(1);
+    expect(await seitVon('zelt-1')).toEqual([JETZT - 200 * TAG]);
+  });
+
+  it('leaves the day counter alone, because moving it would mean rewriting a stored Ding', async () => {
+    await claimDevice('controller-1', 'user-1');
+    await zeltMitBindung('zelt-1', 'user-1', [{ geraet_id: 'controller-1', seit: JETZT }]);
+    await teile('controller-1', 'user-1', JETZT - 200 * TAG);
+
+    await zeltService.repariereBindungen();
+
+    expect((await zeltModel.findOne({ zelt_id: 'zelt-1' }).lean())?.tag_null).toBe(JETZT);
+  });
+
+  it('changes nothing on a second run, and nothing on a third instance booting', async () => {
+    await claimDevice('controller-1', 'user-1');
+    await zeltMitBindung('zelt-1', 'user-1', [{ geraet_id: 'controller-1', seit: JETZT }]);
+    await teile('controller-1', 'user-1', JETZT - 200 * TAG);
+    await zeltService.repariereBindungen();
+
+    expect(await zeltService.repariereBindungen()).toBe(0);
+    await forgetMigrationRun();
+    expect(await zeltService.repariereBindungen()).toBe(0);
+    expect(await seitVon('zelt-1')).toEqual([JETZT - 200 * TAG]);
+  });
+
+  it('never widens a device whose claim recorded its own moment', async () => {
+    // Every claim since `claimed_at` exists dates itself, so there is nothing
+    // to repair and nothing to widen past.
+    await claimDevice('controller-1', 'user-1', '', JETZT - 2 * TAG);
+    await zeltMitBindung('zelt-1', 'user-1', [{ geraet_id: 'controller-1', seit: JETZT - 2 * TAG }]);
+    await teile('controller-1', 'user-1', JETZT - 200 * TAG);
+
+    expect(await zeltService.repariereBindungen()).toBe(0);
+    expect(await seitVon('zelt-1')).toEqual([JETZT - 2 * TAG]);
+  });
+
+  it('never moves a binding later', async () => {
+    await claimDevice('controller-1', 'user-1');
+    await zeltMitBindung('zelt-1', 'user-1', [{ geraet_id: 'controller-1', seit: JETZT - 300 * TAG }]);
+    await teile('controller-1', 'user-1', JETZT - 200 * TAG);
+
+    expect(await zeltService.repariereBindungen()).toBe(0);
+    expect(await seitVon('zelt-1')).toEqual([JETZT - 300 * TAG]);
+  });
+
+  it('ignores a share somebody else made for the same device', async () => {
+    // Whoever had the hardware before does not date this tent - that is the
+    // regression this must not reintroduce.
+    await claimDevice('controller-1', 'user-1');
+    await zeltMitBindung('zelt-1', 'user-1', [{ geraet_id: 'controller-1', seit: JETZT }]);
+    await teile('controller-1', 'user-vorbesitzer', JETZT - 200 * TAG);
+
+    expect(await zeltService.repariereBindungen()).toBe(0);
+    expect(await seitVon('zelt-1')).toEqual([JETZT]);
+  });
+
+  it('stops at a stretch of ownership that belongs to somebody else', async () => {
+    await claimDevice('controller-1', 'user-kaeufer');
+    await zeltMitBindung('zelt-verkaeufer', 'user-verkaeufer', [{ geraet_id: 'controller-1', seit: JETZT - 100 * TAG, bis: JETZT - 10 * TAG }]);
+    await zeltMitBindung('zelt-kaeufer', 'user-kaeufer', [{ geraet_id: 'controller-1', seit: JETZT }]);
+    // The buyer did once share it - long before they had it, on a device they
+    // had at the time and sold on. The window in between is not theirs.
+    await teile('controller-1', 'user-kaeufer', JETZT - 200 * TAG);
+
+    expect(await zeltService.repariereBindungen()).toBe(0);
+    expect(await seitVon('zelt-kaeufer')).toEqual([JETZT]);
+  });
+
+  it('widens only the earliest binding of a device that was rebound', async () => {
+    await claimDevice('controller-1', 'user-1');
+    await zeltMitBindung('zelt-1', 'user-1', [
+      { geraet_id: 'controller-1', seit: JETZT - 20 * TAG, bis: JETZT - 10 * TAG },
+      { geraet_id: 'controller-1', seit: JETZT - 5 * TAG },
+    ]);
+    await teile('controller-1', 'user-1', JETZT - 200 * TAG);
+
+    expect(await zeltService.repariereBindungen()).toBe(1);
+    expect(await seitVon('zelt-1')).toEqual([JETZT - 200 * TAG, JETZT - 5 * TAG]);
+  });
+
+  it('does nothing for a tent whose owner never shared anything', async () => {
+    await claimDevice('controller-1', 'user-1');
+    await zeltMitBindung('zelt-1', 'user-1', [{ geraet_id: 'controller-1', seit: JETZT }]);
+
+    expect(await zeltService.repariereBindungen()).toBe(0);
+    expect(await seitVon('zelt-1')).toEqual([JETZT]);
   });
 });

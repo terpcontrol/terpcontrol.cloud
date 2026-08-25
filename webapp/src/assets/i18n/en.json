@@ -805,6 +805,8 @@
   "message-lost-connection-text": "The connection between your device and our sever was lost and has been reestablished. If this messages appeares regulary please check your wifi and internet connection",
   "message-device-booted-title": "Device rebooted",
   "message-device-booted-text": "Your device has rebooted. If this messages appears regularly please check your power connection.",
+  "message-device-connected-title": "Device connected",
+  "message-device-connected-text": "This device now belongs to your tent. Everything you noted by hand stays exactly as it was - from today its readings join it.",
   "message-device-booted:POWERON-text": "Your device has rebooted. The reason was a power cycle (POWERON) - this is normal after unplugging or a power outage. If this message appears unexpectedly please check your power connection.",
   "message-device-booted:BROWNOUT-text": "Your device has rebooted. The reason was a brownout: the supply voltage dropped below the safe threshold. This usually means the power adapter or USB cable cannot deliver enough current.",
   "message-device-booted:TASK_WDT-text": "Your device has rebooted. The reason was a task watchdog timeout: the main firmware loop did not respond in time and was force-restarted. This typically happens when network operations get stuck on a flaky internet uplink. If this message appears regularly please check your internet connection.",

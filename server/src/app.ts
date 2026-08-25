@@ -104,6 +104,10 @@ class App {
   private async runMigrations() {
     try {
       await zeltService.backfillZelte();
+      // After the backfill, because it repairs what the backfill could only
+      // date from today: a tent whose binding starts later than its own owner
+      // demonstrably had the device.
+      await zeltService.repariereBindungen();
     } catch (error) {
       logger.error(`Migrations failed: ${error}`);
     }

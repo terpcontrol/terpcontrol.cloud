@@ -801,6 +801,8 @@
   "message-lost-connection-text": "Die Verbindung zwischen deinem Gerät und unserem Server ist abgebrochen und wurde wiederhergestellt. Wenn dieser Fehler oft auftritt überprüfe bitte dein WLAN und deine Internetverbindung.",
   "message-device-booted-title": "Gerät hat neu gestartet",
   "message-device-booted-text": "Dein Gerät hat neu gestartet. Wenn diese Meldung oft auftritt, überprüfe bitte die Stromversorgung.",
+  "message-device-connected-title": "Gerät verbunden",
+  "message-device-connected-text": "Dieses Gerät gehört jetzt zu deinem Zelt. Was du vorher von Hand notiert hast, bleibt genau so stehen - ab heute kommen die Messwerte dazu.",
   "message-device-booted:POWERON-text": "Dein Gerät hat neu gestartet. Der Grund war ein Stromzyklus (POWERON) - das ist nach einem Ein-/Ausstecken oder einem Stromausfall normal. Wenn die Meldung unerwartet auftritt, überprüfe bitte deine Stromversorgung.",
   "message-device-booted:BROWNOUT-text": "Dein Gerät hat neu gestartet. Der Grund war ein Brownout: Die Versorgungsspannung ist unter den sicheren Grenzwert gefallen. In der Regel kann das Netzteil oder das USB-Kabel nicht genug Strom liefern.",
   "message-device-booted:TASK_WDT-text": "Dein Gerät hat neu gestartet. Der Grund war ein Task-Watchdog-Timeout: Die Haupt-Firmwareschleife hat nicht rechtzeitig reagiert und wurde zwangsweise neu gestartet. Das passiert meistens, wenn Netzwerkoperationen wegen einer schlechten Internetverbindung hängen bleiben. Wenn diese Meldung oft auftritt, überprüfe bitte deine Internetverbindung.",
