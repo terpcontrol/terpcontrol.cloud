@@ -4,6 +4,7 @@ import deviceModel from '@models/device.model';
 import zeltModel from '@models/zelt.model';
 import { dataService } from '@services/data.service';
 import { withMigrationLock } from '@utils/migration-lock';
+import { aeltesteSpuren, fruehesteZeit } from '@utils/spur';
 import { logger } from '@utils/logger';
 
 const ZELT_BACKFILL = 'zelt-aus-geraet';
@@ -37,16 +38,17 @@ class ZeltService {
       await zeltModel.createIndexes();
 
       const devices: Device[] = await deviceModel.find({ owner_id: { $nin: [null, ''] } }, { device_id: 1, owner_id: 1, name: 1 }).lean();
-      // One query for the whole fleet rather than a full-history scan per
-      // device, and a database that cannot answer aborts the run before the
+      // One query per store for the whole fleet rather than a full-history scan
+      // per device, and a store that cannot answer aborts the run before the
       // first write instead of dating half the fleet from today.
-      const ersteMessung = await dataService.getFirstSampleTimes();
+      const geraete = devices.map(device => device.device_id);
+      const [ersteMessung, ersteSpur] = await Promise.all([dataService.getFirstSampleTimes(), aeltesteSpuren(geraete)]);
 
       for (const device of devices) {
         if (await zeltModel.exists({ besitzer_id: device.owner_id, 'geraete.geraet_id': device.device_id })) {
           continue;
         }
-        if (await this.createZelt(device, ersteMessung.get(device.device_id))) {
+        if (await this.createZelt(device, fruehesteZeit(ersteMessung.get(device.device_id), ersteSpur.get(device.device_id)))) {
           created++;
         }
       }
@@ -60,10 +62,15 @@ class ZeltService {
   }
 
   /** False when another instance created the same tent first. */
-  private async createZelt(device: Device, ersteMessung: number | undefined): Promise<boolean> {
-    // The device has no claim timestamp, so its oldest measurement is the
-    // closest evidence of when its grow began. Without measurements it starts today.
-    const seit = ersteMessung ?? Date.now();
+  private async createZelt(device: Device, ersteSpur: number | undefined): Promise<boolean> {
+    // The device has no claim timestamp, so the oldest trace it left anywhere -
+    // a measurement, a log line, a photograph - is the closest evidence of when
+    // its grow began. Reading that from measurements alone dated a device with
+    // none from today and hid its whole past behind `seit` (§14.3): a device
+    // that was never online, one offline for longer than the retention window
+    // and one whose owner only ever wrote and photographed all have a history
+    // and no samples. Only a device with no trace at all starts today.
+    const seit = ersteSpur ?? Date.now();
 
     const zelt: Zelt = {
       zelt_id: uuidv4(),

@@ -1,5 +1,7 @@
 import { Zelt } from '@fg2/shared-types';
 import deviceModel from '@models/device.model';
+import deviceLogModel from '@models/devicelog.model';
+import imageModel from '@models/images.model';
 import migrationModel from '@models/migration.model';
 import zeltModel from '@models/zelt.model';
 import { dataService } from '@services/data.service';
@@ -7,6 +9,7 @@ import { zeltService } from '@services/zelt.service';
 
 const OWNER_ID = 'user-1';
 const FIRST_SAMPLE = 1750809600000;
+const ERSTES_FOTO = 1719273600000;
 
 const DEVICES = [
   { device_id: 'controller-1', owner_id: OWNER_ID, name: 'Zelt Keller' },
@@ -28,6 +31,11 @@ describe('Zelt backfill on boot', () => {
       deviceFilter = filter;
       return { lean: () => Promise.resolve(DEVICES) };
     }) as any;
+
+    // The oldest stored trace is read straight from Mongo, which this suite
+    // never connects to; unmocked they buffer and reject ten seconds later.
+    deviceLogModel.aggregate = jest.fn().mockResolvedValue([]) as any;
+    imageModel.aggregate = jest.fn().mockResolvedValue([]) as any;
 
     zeltModel.createIndexes = jest.fn().mockResolvedValue(undefined) as any;
     zeltModel.exists = jest
@@ -68,12 +76,46 @@ describe('Zelt backfill on boot', () => {
     expect(created[1].name).toEqual('');
   });
 
-  it('starts a tent today when the device never measured anything', async () => {
+  it('starts a tent today only when the device left no trace anywhere', async () => {
     jest.spyOn(dataService, 'getFirstSampleTimes').mockResolvedValue(new Map());
     const before = Date.now();
     await zeltService.backfillZelte();
     expect(created[0].tag_null).toBeGreaterThanOrEqual(before);
     expect(created[0].tag_null).toEqual(created[0].geraete[0].seit);
+  });
+
+  it('dates a tent from a photograph when that is the only trace the device left', async () => {
+    // Never online, offline past the retention window, or a diary-and-photos
+    // owner: no sample, and a whole past that `seit` would otherwise hide.
+    jest.spyOn(dataService, 'getFirstSampleTimes').mockResolvedValue(new Map());
+    imageModel.aggregate = jest.fn().mockResolvedValue([{ _id: 'controller-1', t: ERSTES_FOTO }]) as any;
+
+    await zeltService.backfillZelte();
+
+    expect(created[0].geraete[0].seit).toEqual(ERSTES_FOTO);
+    expect(created[0].tag_null).toEqual(ERSTES_FOTO);
+  });
+
+  it('dates a tent from a log line when that is older than the first sample', async () => {
+    deviceLogModel.aggregate = jest.fn().mockResolvedValue([{ _id: 'controller-1', t: new Date(ERSTES_FOTO) }]) as any;
+
+    await zeltService.backfillZelte();
+
+    expect(created[0].geraete[0].seit).toEqual(ERSTES_FOTO);
+  });
+
+  it('keeps the first sample when it is older than every stored row', async () => {
+    imageModel.aggregate = jest.fn().mockResolvedValue([{ _id: 'controller-1', t: FIRST_SAMPLE + 86400000 }]) as any;
+
+    await zeltService.backfillZelte();
+
+    expect(created[0].geraete[0].seit).toEqual(FIRST_SAMPLE);
+  });
+
+  it('writes nothing at all when the stored rows cannot be read', async () => {
+    imageModel.aggregate = jest.fn().mockRejectedValue(new Error('mongo down')) as any;
+    expect(await zeltService.backfillZelte()).toEqual(0);
+    expect(zeltModel.create).not.toHaveBeenCalled();
   });
 
   it('writes nothing at all when the measurement store cannot answer', async () => {
