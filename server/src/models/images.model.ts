@@ -7,9 +7,19 @@ const imagesSchema: Schema = new Schema({
     required: true,
     unique: true,
   },
+  // Optional since a photograph can belong to a tent that has no device at all;
+  // exactly one of device_id and zelt_id identifies where a row belongs.
   device_id: {
     type: String,
-    required: true,
+    required: false,
+  },
+  // Written on every new row. A row from before this field resolves through the
+  // tent that binds its device_id, so no backfill is required to read one. Its
+  // index is declared with the other new ones in the index migration, not here,
+  // so a boot never starts an index build over the whole collection.
+  zelt_id: {
+    type: String,
+    required: false,
   },
   timestamp: {
     type: Number,
