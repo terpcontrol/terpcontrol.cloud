@@ -131,8 +131,7 @@ export class SmartSocketsComponent implements OnChanges, OnDestroy {
       // device to add one to the role rather than reconfigure the one it has.
       await this.devices.sendAuxCommand(this.deviceId, 'socket_set', this.addSocketRole, {
         ip: this.socketDraft.ip.trim(),
-        user: this.socketDraft.user.trim(),
-        password: this.socketDraft.password.trim(),
+        ...this.credentialsOf(this.socketDraft),
         append: true,
       });
       this.pendingAddRole = this.addSocketRole;
@@ -168,8 +167,7 @@ export class SmartSocketsComponent implements OnChanges, OnDestroy {
     try {
       await this.devices.sendAuxCommand(this.deviceId, 'socket_set', socket.role, {
         ip: this.socketDraft.ip.trim(),
-        user: this.socketDraft.user.trim(),
-        password: this.socketDraft.password.trim(),
+        ...this.credentialsOf(this.socketDraft),
         ...this.slotOf(socket),
       });
       this.editingKey = null;
@@ -217,6 +215,18 @@ export class SmartSocketsComponent implements OnChanges, OnDestroy {
 
   private slotOf(socket: SocketEntry): { slot?: number } {
     return socket.slot >= 0 ? { slot: socket.slot } : {};
+  }
+
+  /**
+   * The credentials the form actually carries. Leaving them out of the command
+   * is what keeps the ones the device has stored — the edit form prefills the
+   * address but never a password, so sending it back empty would clear the
+   * credentials of a socket that has its own and leave the device unable to
+   * reach it.
+   */
+  private credentialsOf(draft: { user: string; password: string }): { user?: string; password?: string } {
+    const password = draft.password.trim();
+    return password ? { user: draft.user.trim(), password } : {};
   }
 
   private markPending(key: string) {

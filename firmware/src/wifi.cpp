@@ -412,6 +412,12 @@ void wifiForceAllSmartSocketsOff() {
   // limiter / resend throttle. The cached state and per-role sync state are
   // also marked OFF so control resumes consistently if the update aborts
   // (updateFirmwareFromUrl returns without rebooting on failure).
+  //
+  // The table is read from NVS first: an update can arrive before anything else
+  // has had a reason to load it, and an empty table would silently leave every
+  // socket-driven output on for the whole download.
+  ensureSmartSocketsLoaded();
+
   SmartSocketOutputStates off;  // all fields default to false
   smart_socket_output_states = off;
   smart_socket_outputs_reported = true;
@@ -2516,7 +2522,7 @@ bool wifiRemoveSmartSocket(const std::string& role, int slot) {
   return true;
 }
 
-bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const std::string& user, const std::string& password, int slot, bool append) {
+bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const std::string& user, const std::string& password, int slot, bool append, bool set_credentials) {
   ensureSmartSocketsLoaded();
 
   if(!isKnownSocketRole(role)) {
@@ -2571,8 +2577,16 @@ bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const st
   }
   target->role = role;
   target->ip = clean_ip;
-  target->user = clean_password.empty() ? std::string() : clean_user;
-  target->password = clean_password;
+  // Only a command that carries credentials touches them. Re-addressing a
+  // socket is the common case — a DHCP lease moved it — and a socket that has
+  // its own web password answers the default ones with 401, so overwriting
+  // them with an empty pair would leave it unreachable until it is factory
+  // reset. Sending them explicitly still replaces them, empty putting the
+  // socket back on the device default.
+  if(set_credentials) {
+    target->user = clean_password.empty() ? std::string() : clean_user;
+    target->password = clean_password;
+  }
   target->initialized = false;
   target->consecutive_failures = 0;
   target->failures_since_seen = 0;
@@ -2639,10 +2653,13 @@ bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
     const std::string ip = command["ip"] | "";
     const std::string user = command["user"] | "";
     const std::string password = command["password"] | "";
+    // Optional, and left out by a caller that only re-addresses a socket: the
+    // stored credentials then stay as they are instead of being cleared.
+    const bool set_credentials = command.containsKey("password");
     // Adds a socket to the role rather than configuring the one it has. Absent
     // (every caller before a role could hold several) means the latter.
     const bool append = command["append"] | false;
-    if(!wifiSetSmartSocket(role, ip, user, password, slot, append) && cloud) {
+    if(!wifiSetSmartSocket(role, ip, user, password, slot, append, set_credentials) && cloud) {
       cloud->log(std::string("message-aux-command-failed:socket_set:") + role, 1);
     }
     return true;
