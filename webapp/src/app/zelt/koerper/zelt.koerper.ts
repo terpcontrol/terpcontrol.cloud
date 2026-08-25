@@ -24,7 +24,7 @@ export class ZeltKoerperComponent extends KoerperBasis {
   get medium(): string | null {
     const medium = this.zelt?.d?.medium ?? (this.wort('medium') as string | null);
     if (!medium) return null;
-    const uebersetzt = this.translate.instant(`zelt.medium.${medium}`);
+    const uebersetzt = this.translate.instant(`zelt.medium.${medium}`, { ersatz: medium });
     return uebersetzt === `zelt.medium.${medium}` ? medium : uebersetzt;
   }
 

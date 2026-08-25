@@ -2,8 +2,9 @@ import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { IonicModule } from '@ionic/angular';
 import { RouterTestingModule } from '@angular/router/testing';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import type { Ding, Zelt } from '@fg2/shared-types';
+import { formatTimeAgo } from 'src/app/util/time-ago';
 import { ZeltModule } from '../zelt.module';
 import { TafelComponent } from './tafel.component';
 
@@ -60,7 +61,7 @@ describe('TafelComponent, with no device anywhere', () => {
 
   it('renders all four sections', () => {
     const titel = Array.from(element.querySelectorAll('.tafel-abschnitt-titel')).map(knoten => knoten.textContent?.trim());
-    expect(titel).toContain('zelt.abschnitt.offen');
+    expect(titel).toContain('zelt.abschnitt.zettel');
     expect(titel).toContain('zelt.abschnitt.unterschied');
     expect(titel).toContain('zelt.abschnitt.imZelt');
     expect(titel).toContain('zelt.abschnitt.verlauf');
@@ -171,5 +172,193 @@ describe('TafelComponent, with a device', () => {
     // The online dot is a fact about evidence, not a variant of the screen.
     expect(element.querySelector('.tafel-punkt--online')).toBeTruthy();
     expect(component.imZelt.map(ding => ding.ding_id)).toEqual(['p1', 'geraet:d1', 'dose:aa']);
+  });
+});
+
+describe('TafelComponent, day one', () => {
+  let fixture: ComponentFixture<TafelComponent>;
+  let component: TafelComponent;
+  let element: HTMLElement;
+
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      imports: [ZeltModule, IonicModule.forRoot(), RouterTestingModule, HttpClientTestingModule, TranslateModule.forRoot()],
+    }).compileComponents();
+  }));
+
+  beforeEach(() => {
+    const heute = Date.now();
+    fixture = TestBed.createComponent(TafelComponent);
+    component = fixture.componentInstance;
+    component.zelt = { ...ohneGeraet, tag_null: heute, erstellt_at: heute };
+    // A tent that exists, and nothing else: the tent projects a row of its own.
+    component.dinge = [{ ding_id: 'zelt:z1', zelt_id: 'z1', art: 'zelt', name: 'Zelt Keller', t: heute, t_ende: null, d: {} }];
+    component.subjekt = component.dinge[0];
+    fixture.detectChanges();
+    element = fixture.nativeElement;
+  });
+
+  it('says the one sentence §9.2 asks for', () => {
+    expect(component.tagEins).toBeTrue();
+    expect(element.querySelector('.tafel-tag-eins')?.textContent).toContain('zelt.tagEins');
+  });
+
+  it('draws no labelled section with nothing under it', () => {
+    const titel = Array.from(element.querySelectorAll('.tafel-abschnitt-titel')).map(knoten => knoten.textContent?.trim());
+    expect(titel).not.toContain('zelt.abschnitt.verlauf');
+    expect(titel).not.toContain('zelt.abschnitt.imZelt');
+    expect(titel).not.toContain('zelt.abschnitt.zettel');
+  });
+
+  it('keeps the one upsell row, and exactly one', () => {
+    expect(element.querySelectorAll('.tafel-geraet-zeile').length).toBe(1);
+  });
+
+  it('credits nobody with an entry they never made', () => {
+    expect(component.unterschied.some(zeile => zeile.mass === 'eintraege')).toBeFalse();
+    expect(component.kopf.some(fakt => fakt.id === 'eintraege')).toBeFalse();
+    expect(element.textContent).not.toContain('0 ');
+  });
+});
+
+describe('TafelComponent, the header and the table', () => {
+  let fixture: ComponentFixture<TafelComponent>;
+  let component: TafelComponent;
+
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      imports: [ZeltModule, IonicModule.forRoot(), RouterTestingModule, HttpClientTestingModule, TranslateModule.forRoot()],
+    }).compileComponents();
+  }));
+
+  beforeEach(() => {
+    fixture = TestBed.createComponent(TafelComponent);
+    component = fixture.componentInstance;
+    component.zelt = ohneGeraet;
+    component.dinge = dinge();
+    component.subjekt = component.dinge[0];
+    fixture.detectChanges();
+  });
+
+  it('counts entries, not rows read: the tent and the plant are not entries', () => {
+    // The fixture holds a tent, a watering, a note, a plant and a Zettel.
+    const fakt = component.kopf.find(eintrag => eintrag.id === 'eintraege');
+    expect(fakt?.params?.['anzahl']).toBe('3');
+    expect(fakt?.key).toBe('zelt.kopf.eintraege.other');
+  });
+
+  it('speaks of one entry in the singular', () => {
+    component.dinge = dinge().filter(ding => ding.art === 'zelt' || ding.ding_id === 'g1');
+    component.ngOnChanges();
+
+    const fakt = component.kopf.find(eintrag => eintrag.id === 'eintraege');
+    expect(fakt?.key).toBe('zelt.kopf.eintraege.one');
+  });
+
+  it('writes the counted phrases as German, plural and decimal comma included', () => {
+    const translate = TestBed.inject(TranslateService);
+    // The strings are the bundle's own, so a shape that stops matching de.json
+    // fails here rather than on a phone.
+    translate.setTranslation('de', {
+      zelt: {
+        kopf: { eintraege: { one: '1 Eintrag', other: '{{anzahl}} Einträge' } },
+        mehrZeilen: { one: '1 weitere Zeile', other: '{{anzahl}} weitere Zeilen' },
+        zeile: { wasser: '{{liter}} l' },
+      },
+    });
+    translate.use('de');
+    fixture.detectChanges();
+
+    const kopf: HTMLElement | null = fixture.nativeElement.querySelector('.tafel-fakten');
+    expect(kopf?.textContent).toContain('3 Einträge');
+    expect(kopf?.textContent).not.toContain('3 Eintrag');
+
+    component.dinge = dinge().filter(ding => ding.art === 'zelt' || ding.ding_id === 'g1');
+    component.ngOnChanges();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.tafel-fakten')?.textContent).toContain('1 Eintrag');
+    expect(fixture.nativeElement.querySelector('.tafel-fakten')?.textContent).not.toContain('1 Einträge');
+  });
+
+  it('says how many it has read when the server has more', () => {
+    component.weitereVorhanden = true;
+    component.ngOnChanges();
+    expect(component.kopf.find(eintrag => eintrag.id === 'eintraege')?.key).toBe('zelt.kopf.eintraegeMehr');
+  });
+
+  it('puts the unit on every table row that has one', () => {
+    const hoehe = component.sichtbareZeilen.find(zeile => zeile.mass === 'hoehe_cm');
+    expect(hoehe?.zusatz).toContain('cm');
+
+    const ph = component.sichtbareZeilen.find(zeile => zeile.mass === 'ph');
+    // A pH has no unit, and `pH 6,1 -` is worse than `pH 6,1`.
+    expect(ph?.zusatz).not.toContain('cm');
+  });
+
+  it('counts the diff table’s entry row the same way the header does', () => {
+    const eintraege = component.unterschied.find(zeile => zeile.mass === 'eintraege');
+    expect(eintraege?.jetzt).toBe(3);
+  });
+
+  it('drops a cancelled entry from the history, as every other list already did', () => {
+    const jetzt = Date.now();
+    component.dinge = [
+      ...dinge(),
+      { ding_id: 'g2', zelt_id: 'z1', art: 'gabe', name: '', t: jetzt - 3600 * 1000, storniert_von: 'g3', d: { wasser_l: 9 } },
+    ];
+    component.ngOnChanges();
+
+    expect(component.verlauf.map(zeile => zeile.ding.ding_id)).not.toContain('g2');
+  });
+
+  it('asks for the plural form of „weitere Zeilen" by count', () => {
+    const jetzt = Date.now();
+    component.geraetMessungen = Array.from({ length: 13 }, (_wert, index) => ({
+      mass: `mass${index}`,
+      herkunft: { quelle: 'geraet' as const, geraet_id: 'controller' },
+      wert: index,
+      t: jetzt,
+    }));
+    component.ngOnChanges();
+
+    expect(component.verborgeneZeilen).toBeGreaterThan(1);
+    expect(component.mehrZeilenSchluessel).toBe('zelt.mehrZeilen.other');
+    expect(component.mehrZeilenParams['anzahl']).toBe(String(component.verborgeneZeilen));
+  });
+});
+
+describe('TafelComponent, a socket and the device that reports it', () => {
+  let fixture: ComponentFixture<TafelComponent>;
+
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      imports: [ZeltModule, IonicModule.forRoot(), RouterTestingModule, HttpClientTestingModule, TranslateModule.forRoot()],
+    }).compileComponents();
+  }));
+
+  it('reads the socket as exactly as fresh as its controller', () => {
+    const jetzt = Date.now();
+    fixture = TestBed.createComponent(TafelComponent);
+    const component = fixture.componentInstance;
+
+    component.zelt = { ...ohneGeraet, geraete: [{ geraet_id: 'd1', seit: ohneGeraet.tag_null }] };
+    component.dinge = [
+      ...dinge(),
+      { ding_id: 'geraet:d1', zelt_id: 'z1', geraet_id: 'd1', art: 'geraet', name: 'Controller', t: ohneGeraet.tag_null, t_ende: null, d: { zuletzt_gesehen: jetzt - 40000 } },
+      // The socket projection carries `t = seit`: bound to the tent 33 days ago,
+      // with no reading of its own. It is still 40 seconds of evidence.
+      { ding_id: 'dose:aa', zelt_id: 'z1', geraet_id: 'd1', art: 'dose', name: 'heater', t: ohneGeraet.tag_null, t_ende: null, d: { rolle: 'heater', slot: 0 } },
+    ];
+    component.subjekt = component.dinge[0];
+    fixture.detectChanges();
+
+    const element: HTMLElement = fixture.nativeElement;
+    const alter = Array.from(element.querySelectorAll('app-zeile .zeile-alter')).map(knoten => knoten.textContent?.trim());
+    const frisch = alter.filter(text => text === formatTimeAgo(jetzt - 40000));
+
+    // The controller's row and its socket's row, saying the same thing.
+    expect(frisch.length).toBe(2);
+    // And no hollow „stale" square anywhere: nothing on this screen is stale.
+    expect(element.querySelectorAll('app-zeile .zeile-marke--hohl').length).toBe(0);
   });
 });

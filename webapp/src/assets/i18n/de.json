@@ -9,8 +9,8 @@
     "success": "Erfolg",
     "close": "Schließen",
     "ok": "Okay",
-    "saving": "speichern...",
-    "loading": "laden...",
+    "saving": "Wird gespeichert…",
+    "loading": "Wird geladen…",
     "save": "Speichern",
     "settings": "Einstellungen",
     "errorOccurred": "Fehler aufgetreten",
@@ -878,7 +878,10 @@
     "nichtGeladen": "Das Zelt konnte nicht geladen werden.",
     "geraetHinzufuegen": "+ Gerät hinzufügen",
     "weitereLaden": "Weitere laden",
-    "mehrZeilen": "{{anzahl}} weitere",
+    "mehrZeilen": {
+      "one": "1 weitere Zeile",
+      "other": "{{anzahl}} weitere Zeilen"
+    },
     "vorherAb": "Vorher · {{zeit}}",
     "griff": {
       "titel": "Vorher",
@@ -914,7 +917,10 @@
       "phase": "{{stufe}} Tag {{tag}}",
       "schema": "{{name}} Schritt {{schritt}}",
       "lichtplan": "Lichtplan {{an}}/{{aus}}",
-      "eintraege": "{{anzahl}} Einträge",
+      "eintraege": {
+        "one": "1 Eintrag",
+        "other": "{{anzahl}} Einträge"
+      },
       "foto": "Foto {{zeit}}",
       "wert": "{{mass}} {{wert}} {{einheit}}",
       "an": "{{mass}} an",
@@ -924,11 +930,15 @@
     "kopf": {
       "online": "Online · Werte von {{seit}}",
       "offline": "Offline · zuletzt {{seit}}",
-      "eintraege": "{{anzahl}} Einträge",
-      "zuletzt": "zuletzt {{zeit}}"
+      "eintraege": {
+        "one": "1 Eintrag",
+        "other": "{{anzahl}} Einträge"
+      },
+      "zuletzt": "zuletzt {{zeit}}",
+      "eintraegeMehr": "{{anzahl}}+ Einträge"
     },
     "abschnitt": {
-      "offen": "Offen",
+      "zettel": "Zettel",
       "unterschied": "Der Unterschied",
       "imZelt": "Im Zelt",
       "verlauf": "Verlauf"
@@ -940,7 +950,7 @@
     },
     "werte": {
       "titel": "Werte {…}",
-      "regel": "Ein Maß, zwei Quellen, zwei Zeilen. Nichts wird zusammengefasst, nichts gemittelt und nichts stillschweigend ersetzt.",
+      "regel": "Jedes Gerät und jede Messung von Hand bekommt eine eigene Zeile. Wir rechnen nichts zusammen und mitteln nichts – du siehst genau das, was gemessen wurde.",
       "anfrage": "Anfrage",
       "vonHand": "von Hand",
       "vomGeraet": "vom Gerät"
@@ -964,7 +974,7 @@
       "lauf": "Durchgang"
     },
     "zeile": {
-      "dose": "{{rolle}} (Dose {{slot}})",
+      "dose": "{{rolle}} (Steckdose {{slot}})",
       "bildHand": "Foto",
       "bildGeraet": "Kamerabild",
       "lauf": "Durchgang {{nummer}}",
@@ -980,7 +990,7 @@
       "ec": "EC",
       "tds": "TDS",
       "ppfd": "PPFD",
-      "abstand_cm": "Abstand",
+      "abstand_cm": "Lampenabstand",
       "aussen_temperatur": "Außentemperatur",
       "hoehe_cm": "Höhe",
       "topfgewicht_kg": "Topfgewicht",
@@ -1003,6 +1013,9 @@
         "ph": "Ziel pH",
         "ec": "Ziel EC",
         "hoehe_cm": "Ziel Höhe"
+      },
+      "lights": {
+        "limit": "Ziel Lichtstärke"
       }
     },
     "ziel": {
@@ -1050,8 +1063,8 @@
       "gekauft": "Gekauft"
     },
     "verteilung": {
-      "gesamt": "aufs Zelt",
-      "je_pflanze": "je Pflanze"
+      "gesamt": "das ganze Zelt",
+      "je_pflanze": "jede Pflanze"
     },
     "substrat": {
       "trocken": "trocken",
@@ -1061,7 +1074,7 @@
     "zielQuelle": {
       "app": "App",
       "geraet": "Gerät",
-      "erstbefund": "Erstbefund",
+      "erstbefund": "erste Messung",
       "hand": "von Hand"
     },
     "zustand": {
@@ -1099,7 +1112,7 @@
       "quelle": "Herkunft",
       "ernteGramm": "Ernte",
       "rolle": "Funktion",
-      "dose": "Dose",
+      "dose": "Steckdose",
       "ip": "IP-Adresse",
       "letztesBild": "Letztes Bild",
       "gekoppeltSeit": "Gekoppelt seit",
@@ -1108,7 +1121,7 @@
       "zeitraum": "Zeitraum",
       "wasser": "Wasser",
       "kannen": "Kannen",
-      "verteilung": "Verteilung",
+      "verteilung": "Für",
       "ec": "EC",
       "ph": "pH",
       "ablaufEc": "Ablauf EC",
@@ -1120,7 +1133,7 @@
       "begonnen": "Begonnen",
       "tagInPhase": "Tag in der Phase",
       "zielwert": "Zielwert",
-      "giltAb": "Gilt ab",
+      "gesetzt": "Gesetzt am",
       "dabeiSeit": "Dabei seit",
       "schluessel": "Zugang",
       "zeitpunkt": "Zeitpunkt",
@@ -1128,7 +1141,10 @@
       "schritt": "Schritt",
       "laufNummer": "Durchgang",
       "laufTage": "Tage"
-    }
+    },
+    "tagEins": "Dein Tagebuch fängt heute an.",
+    "erneutVersuchen": "Nochmal versuchen",
+    "deineZelte": "Deine Zelte"
   },
   "simpleSettings": {
     "modeSimple": "Einfach",

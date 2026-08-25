@@ -28,6 +28,7 @@ export class BrowserPage implements OnInit, OnDestroy {
 
   private cursor: string | undefined;
   private zelt_id = '';
+  private ding_id: string | null = null;
   private abo: Subscription | null = null;
 
   constructor(private route: ActivatedRoute, private dingeService: DingeService, private zelte: ZelteService) {}
@@ -44,6 +45,20 @@ export class BrowserPage implements OnInit, OnDestroy {
 
   get weitereVorhanden(): boolean {
     return this.cursor !== undefined;
+  }
+
+  /** Nothing on the screen yet, and a request out. The one moment a spinner is the truth. */
+  get leerUndLaedt(): boolean {
+    return this.laedt && !this.zelt;
+  }
+
+  /** The retry behind the error, and the pull-to-refresh gesture, are the same read. */
+  public async erneut(ereignis?: { target?: { complete: () => void } }): Promise<void> {
+    try {
+      await this.laden(this.zelt_id, this.ding_id);
+    } finally {
+      ereignis?.target?.complete();
+    }
   }
 
   /** The next page, on the server's own cursor. Nothing here builds one. */
@@ -64,6 +79,7 @@ export class BrowserPage implements OnInit, OnDestroy {
 
   private async laden(zelt_id: string, ding_id: string | null): Promise<void> {
     this.zelt_id = zelt_id;
+    this.ding_id = ding_id;
     this.laedt = true;
     this.fehler = null;
 

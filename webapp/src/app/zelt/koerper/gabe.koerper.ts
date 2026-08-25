@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import type { GabeProdukt } from '@fg2/shared-types';
 import { KeyedCache } from 'src/app/util/keyed-cache';
+import { zahlText } from 'src/app/util/zahl';
 import { KoerperBasis } from './koerper-basis';
 
 /**
@@ -20,7 +21,7 @@ import { KoerperBasis } from './koerper-basis';
     <app-fakt label="zelt.feld.substrat" [wert]="substrat"></app-fakt>
     <div class="fakt" *ngFor="let produkt of produkte; trackBy: trackProdukt">
       <span class="fakt-label">{{ produkt.name }}</span>
-      <span class="fakt-wert">{{ 'zelt.feld.mlProLiter' | translate: { ml: produkt.ml_pro_l } }}</span>
+      <span class="fakt-wert">{{ 'zelt.feld.mlProLiter' | translate: { ml: ml(produkt) } }}</span>
     </div>
   `,
   styleUrls: ['./koerper.scss'],
@@ -68,6 +69,11 @@ export class GabeKoerperComponent extends KoerperBasis {
   get produkte(): GabeProdukt[] {
     const roh = (this.ding?.d?.['produkte'] as GabeProdukt[] | undefined) ?? [];
     return this.produkteCache.get(roh.map(produkt => `${produkt.name}:${produkt.ml_pro_l}`).join('|'), () => roh);
+  }
+
+  /** ngx-translate interpolates by string replace, so the number has to arrive already spoken. */
+  ml(produkt: GabeProdukt): string {
+    return zahlText(produkt.ml_pro_l, 2);
   }
 
   trackProdukt(_index: number, produkt: GabeProdukt): string {

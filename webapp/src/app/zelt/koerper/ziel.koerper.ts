@@ -1,4 +1,6 @@
 import { Component } from '@angular/core';
+import { datumZeitText } from 'src/app/util/datum';
+import { zahlText } from 'src/app/util/zahl';
 import { KoerperBasis } from './koerper-basis';
 
 /**
@@ -10,7 +12,7 @@ import { KoerperBasis } from './koerper-basis';
   selector: 'app-ziel-koerper',
   template: `
     <app-fakt label="zelt.feld.zielwert" [wert]="wert"></app-fakt>
-    <app-fakt label="zelt.feld.giltAb" [wert]="giltAb"></app-fakt>
+    <app-fakt label="zelt.feld.gesetzt" [wert]="gesetzt"></app-fakt>
     <app-fakt label="zelt.feld.herkunft" [wert]="herkunft"></app-fakt>
   `,
   styleUrls: ['./koerper.scss'],
@@ -18,11 +20,12 @@ import { KoerperBasis } from './koerper-basis';
 export class ZielKoerperComponent extends KoerperBasis {
   get wert(): string | null {
     const roh = this.ding?.d?.['wert'];
-    return typeof roh === 'number' || typeof roh === 'string' ? String(roh) : null;
+    if (typeof roh === 'number') return zahlText(roh, 2);
+    return typeof roh === 'string' ? roh : null;
   }
 
-  get giltAb(): string | null {
-    return this.ding?.t ? new Date(this.ding.t).toLocaleString() : null;
+  get gesetzt(): string | null {
+    return this.ding?.t ? datumZeitText(this.ding.t) : null;
   }
 
   get herkunft(): string | null {

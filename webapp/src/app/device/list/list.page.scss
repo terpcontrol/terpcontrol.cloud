@@ -106,3 +106,30 @@ ion-content {
   --width: min(680px, 96vw);
   --height: min(720px, 94vh);
 }
+
+/* The way into the diary: one row per tent, 48 px like every other row. */
+.zelt-card-titel {
+  margin: 0 0 4px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ion-color-medium);
+}
+
+.zelt-zeile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.zelt-zeile ion-icon {
+  color: var(--ion-color-medium);
+}

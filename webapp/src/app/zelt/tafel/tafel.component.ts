@@ -1,12 +1,15 @@
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { Subscription, interval } from 'rxjs';
+import { TranslateService } from '@ngx-translate/core';
 import type { Ding, DingArt, Zelt } from '@fg2/shared-types';
 import { VergleichService } from 'src/app/services/vergleich.service';
 import { KeyedCache } from 'src/app/util/keyed-cache';
 import { Messung } from 'src/app/util/messquellen';
-import { VERALTET_MS } from 'src/app/util/ding-text';
+import { VERALTET_MS, istEintrag } from 'src/app/util/ding-text';
+import { einheitVon } from 'src/app/util/einheiten';
 import { formatTimeAgo } from 'src/app/util/time-ago';
 import { KAPPE, UnterschiedZeile, handMessungen, unterschiedZeilen } from 'src/app/util/unterschied';
+import { pluralSchluessel, zahlText } from 'src/app/util/zahl';
 import { zeltTag } from 'src/app/util/zelt-tag';
 
 /** One line of the header. It exists when its evidence exists, and is absent otherwise. */
@@ -16,6 +19,11 @@ export interface Kopffakt {
   params?: Record<string, unknown>;
   /** `● Online` / `● Offline` carries a dot; nothing else does. */
   punkt?: 'online' | 'offline';
+}
+
+/** One row of the table, with the grey suffix its name carries: `Höhe (cm)`, `Temperatur (°C · Controller)`. */
+export interface TabellenZeile extends UnterschiedZeile {
+  zusatz: string;
 }
 
 /** One row of the Verlauf, and whether the Vorher hairline is drawn above it. */
@@ -32,6 +40,14 @@ const IM_ZELT_ARTEN: DingArt[] = ['pflanze', 'geraet', 'dose', 'kamera', 'schema
 
 /** A day, for the "there is nothing older to compare against" default. */
 const TAG_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * How often the screen re-reads the clock. `● Online · Werte von gerade eben`
+ * is a claim about right now, and a screen left open on a tent that went
+ * offline used to keep making it - the dot stayed green because `Date.now()`
+ * had been read once, on entry.
+ */
+const TAKT_MS = 30 * 1000;
 
 /**
  * The detail view of one Ding: header, body, and the four sections - `Offen`,
@@ -95,16 +111,28 @@ export class TafelComponent implements OnInit, OnChanges, OnDestroy {
   private readonly verlaufCache = new KeyedCache<VerlaufZeile[]>();
   private readonly kopfCache = new KeyedCache<Kopffakt[]>();
   private readonly unterschiedCache = new KeyedCache<UnterschiedZeile[]>();
+  private readonly tabelleCache = new KeyedCache<TabellenZeile[]>();
   private readonly messungenCache = new KeyedCache<Messung[]>();
   private readonly abos = new Subscription();
   /** The shared cursor, as it stands. `null` until a screen has named its tent. */
   private cursorVon: number | null = null;
 
-  constructor(private cursor: VergleichService) {}
+  /** Now, re-read on a timer. Every relative time and every stale mark on the screen follows it. */
+  public jetzt = Date.now();
+
+  constructor(private cursor: VergleichService, private translate: TranslateService) {}
 
   ngOnInit(): void {
     this.abos.add(this.cursor.vergleich$.subscribe(vergleich => (this.cursorVon = vergleich?.von ?? null)));
     this.abos.add(this.cursor.zieht$.subscribe(zieht => (this.zieht = zieht)));
+    this.abos.add(
+      interval(TAKT_MS).subscribe(() => {
+        this.jetzt = Date.now();
+        // The derived lists are keyed on this counter; the header and the marks
+        // are what actually change, and they are cheap to rebuild.
+        this.stand++;
+      }),
+    );
   }
 
   ngOnDestroy(): void {
@@ -179,6 +207,10 @@ export class TafelComponent implements OnInit, OnChanges, OnDestroy {
             !IM_ZELT_ARTEN.includes(ding.art) &&
             ding.art !== 'zelt' &&
             ding.ding_id !== this.subjekt?.ding_id &&
+            // A cancelled entry is gone from `Wasser gesamt` and from every
+            // other list in the product; leaving it standing here is the one
+            // place a corrected watering still counts.
+            !ding.storniert_von &&
             // An open Zettel already has a row at the top of the screen; the
             // history is what happened, not a second copy of what is standing.
             !obenSchon.has(ding.ding_id),
@@ -212,12 +244,47 @@ export class TafelComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   /** §6.3: eleven rows, then a Zeile that expands in place. */
-  get sichtbareZeilen(): UnterschiedZeile[] {
-    return this.tabelleOffen ? this.unterschied : this.unterschied.slice(0, KAPPE);
+  get sichtbareZeilen(): TabellenZeile[] {
+    return this.tabelleCache.get(`${this.stand}:${this.vergleichMoment}:${this.tabelleOffen}`, () =>
+      (this.tabelleOffen ? this.unterschied : this.unterschied.slice(0, KAPPE)).map(zeile => ({
+        ...zeile,
+        zusatz: this.zusatz(zeile),
+      })),
+    );
   }
 
   get verborgeneZeilen(): number {
     return Math.max(0, this.unterschied.length - KAPPE);
+  }
+
+  /** `{{anzahl}} weitere Zeilen`, in the form the count needs. */
+  get mehrZeilenSchluessel(): string {
+    return pluralSchluessel('zelt.mehrZeilen', this.verborgeneZeilen);
+  }
+
+  get mehrZeilenParams(): Record<string, string> {
+    return { anzahl: zahlText(this.verborgeneZeilen, 0) };
+  }
+
+  /**
+   * Day one: a tent that exists and nothing else. §9.2 rank 8e - the screen
+   * says so in one sentence instead of drawing three labelled sections with
+   * nothing under them.
+   */
+  get tagEins(): boolean {
+    return !this.offen.length && !this.imZelt.length && !this.verlauf.length && !this.unterschied.length;
+  }
+
+  /**
+   * The grey half of a table row's name: its unit, and the instrument when a
+   * measure has two of them. `48` is a number, `48 cm` is a height.
+   */
+  private zusatz(zeile: UnterschiedZeile): string {
+    const teile = [einheitVon(zeile.mass)];
+    if (zeile.herkunftZeigen) {
+      teile.push(zeile.herkunft?.geraet_name || this.translate.instant('zelt.werte.vonHand'));
+    }
+    return teile.filter(Boolean).join(' · ');
   }
 
   trackDing(_index: number, ding: Ding): string {
@@ -241,7 +308,7 @@ export class TafelComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   private kopfBauen(): Kopffakt[] {
-    const jetzt = Date.now();
+    const jetzt = this.jetzt;
     const fakten: Kopffakt[] = [];
 
     // Something reporting is what makes online a meaningful word. Nothing
@@ -267,9 +334,25 @@ export class TafelComponent implements OnInit, OnChanges, OnDestroy {
       fakten.push({ id: 'tag', key: 'zelt.tag', params: { tag: zeltTag(this.zelt, this.dinge, jetzt) } });
     }
 
-    fakten.push({ id: 'eintraege', key: 'zelt.kopf.eintraege', params: { anzahl: this.dinge.length } });
+    // What a reader counts as an entry is what somebody wrote: waterings,
+    // notes, photographs, events, phase changes and Zettel. The tent itself,
+    // its plants, its sockets and its setpoints are not entries, and
+    // `dinge.length` is the page size besides - it read `200 Einträge` the
+    // moment anybody tapped `Weitere laden`.
+    // Day one has nothing to count, and `0 Einträge` is the kind of empty
+    // meter §6 forbids: an absent fact is an absent fact.
+    const eintraege = this.dinge.filter(istEintrag).length;
+    if (eintraege > 0) {
+      fakten.push({
+        id: 'eintraege',
+        // More pages behind the cursor means this is what has been read so far
+        // and not what there is - `24+ Einträge` says exactly that.
+        key: this.weitereVorhanden ? 'zelt.kopf.eintraegeMehr' : pluralSchluessel('zelt.kopf.eintraege', eintraege),
+        params: { anzahl: zahlText(eintraege, 0) },
+      });
+    }
 
-    const neustes = this.dinge.reduce((groesstes, ding) => Math.max(groesstes, ding.t), 0);
+    const neustes = this.dinge.filter(istEintrag).reduce((groesstes, ding) => Math.max(groesstes, ding.t), 0);
     if (neustes > 0) {
       fakten.push({ id: 'zuletzt', key: 'zelt.kopf.zuletzt', params: { zeit: formatTimeAgo(neustes) } });
     }

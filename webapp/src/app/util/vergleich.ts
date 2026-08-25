@@ -1,10 +1,10 @@
-import { formatNumber } from '@angular/common';
 import { DateTime } from 'luxon';
 import type { Ding, DingArt, Zelt } from '@fg2/shared-types';
 import { Text } from './ding-text';
-import { resolveAppLocale } from './locale';
+import { einheitVon } from './einheiten';
 import { Messung, herkunftSchluessel, messzeilen } from './messquellen';
 import { handMessungen } from './unterschied';
+import { pluralSchluessel, zahlText } from './zahl';
 import { laufBeginn, tagNummer } from './zelt-tag';
 
 /** §3.5 - what the handle was set to, and by which rung of the ladder. */
@@ -396,23 +396,6 @@ export const dichteband = (zelt: Zelt, dinge: readonly Ding[], von: number, bis:
   return band;
 };
 
-/** Units that are the same word in every language. Anything else is a translation key. */
-const EINHEITEN: Record<string, string> = {
-  temperatur: '°C',
-  aussen_temperatur: '°C',
-  luftfeuchte: '%',
-  vpd: 'kPa',
-  co2: 'ppm',
-  ec: 'mS/cm',
-  tds: 'ppm',
-  ppfd: 'µmol/m²s',
-  abstand_cm: 'cm',
-  hoehe_cm: 'cm',
-  topfgewicht_kg: 'kg',
-};
-
-const gerundet = (wert: number, nachkomma = 1): string => formatNumber(wert, resolveAppLocale(), `1.0-${nachkomma}`);
-
 /** How many values one scrub line can carry before it stops being one line. */
 const SCRUB_WERTE = 3;
 
@@ -469,7 +452,7 @@ const scrubWerte = (bisJetzt: readonly Ding[], messungen: readonly Messung[], mo
   // A pour is the value of its own moment, and the reason the device-less
   // scrub line reads `2,0 l · pH 6,1` rather than only a pH.
   const gabe = nahe.filter(ding => ding.art === 'gabe' && zahl(ding.d?.['wasser_l']) !== null).pop();
-  if (gabe) werte.push({ key: 'zelt.zeile.wasser', params: { liter: gerundet(zahl(gabe.d?.['wasser_l']) ?? 0) } });
+  if (gabe) werte.push({ key: 'zelt.zeile.wasser', params: { liter: zahlText(zahl(gabe.d?.['wasser_l']) ?? 0, 2) } });
 
   const gemessen = messzeilen([
     ...handMessungen(bisJetzt),
@@ -481,8 +464,8 @@ const scrubWerte = (bisJetzt: readonly Ding[], messungen: readonly Messung[], mo
       key: 'zelt.lage.wert',
       params: {
         mass: { key: `zelt.mass.${zeile.mass}`, ersatz: zeile.mass },
-        wert: gerundet(zeile.wert),
-        einheit: EINHEITEN[zeile.mass] ?? '',
+        wert: zahlText(zeile.wert),
+        einheit: einheitVon(zeile.mass),
       },
     });
   }
@@ -491,7 +474,7 @@ const scrubWerte = (bisJetzt: readonly Ding[], messungen: readonly Messung[], mo
 };
 
 const scrubZaehlung = (dinge: readonly Ding[], nahe: readonly Ding[]): Text[] => {
-  const zaehlung: Text[] = [{ key: 'zelt.lage.eintraege', params: { anzahl: nahe.length } }];
+  const zaehlung: Text[] = [{ key: pluralSchluessel('zelt.lage.eintraege', nahe.length), params: { anzahl: zahlText(nahe.length, 0) } }];
 
   const menschen = new Map(lebend(dinge).filter(ding => ding.art === 'mensch').map(ding => [ding.ding_id, ding.name]));
   for (const name of new Set(nahe.map(ding => menschen.get(ding.akteur ?? '')).filter(Boolean))) {
@@ -545,7 +528,7 @@ const liefDamals = (messungen: readonly Messung[], moment: number): Text[] => {
     const gedimmt = zeile.mass === 'out_light' && zeile.wert > 0;
     const text: Text = {
       key: gedimmt ? 'zelt.lage.prozent' : zeile.wert > 0 ? 'zelt.lage.an' : 'zelt.lage.aus',
-      params: gedimmt ? { mass: rolle, wert: gerundet(zeile.wert, 0) } : { mass: rolle },
+      params: gedimmt ? { mass: rolle, wert: zahlText(zeile.wert, 0) } : { mass: rolle },
     };
     return text;
   });

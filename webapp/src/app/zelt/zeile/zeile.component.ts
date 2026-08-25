@@ -21,10 +21,22 @@ import { DingTextService } from './ding-text.service';
 export class ZeileComponent implements OnChanges {
   @Input() ding!: Ding;
   @Input() zelt!: Zelt;
+  /**
+   * The other Dinge on the screen. A socket has no clock of its own - it is as
+   * fresh as the device that reports it - and the parent device is a row in
+   * here.
+   */
+  @Input() umfeld: readonly Ding[] = [];
   /** The middle slot, when the Tafel knows something `d` alone cannot say. */
   @Input() wertText: string | null = null;
   /** Rows below the Vorher hairline are dimmed rather than hidden. §6.1. */
   @Input() gedimmt = false;
+  /**
+   * Now, as the screen last read it. It is an input rather than a `Date.now()`
+   * in here so that the row goes stale while the screen is open, instead of
+   * keeping the reading it had when it was drawn.
+   */
+  @Input() jetzt = Date.now();
 
   public name = '';
   public wert = '';
@@ -38,8 +50,8 @@ export class ZeileComponent implements OnChanges {
 
     this.name = this.texte.text(dingName(this.ding));
     this.wert = this.wertText ?? this.texte.text(dingWert(this.ding));
-    this.marke = dingMarke(this.ding, Date.now());
-    this.alter = formatTimeAgo(dingAlter(this.ding));
+    this.marke = dingMarke(this.ding, this.jetzt, this.umfeld);
+    this.alter = formatTimeAgo(dingAlter(this.ding, this.umfeld));
   }
 
   /** Every row walks to its own Tafel; that is what makes the browser a browser. */

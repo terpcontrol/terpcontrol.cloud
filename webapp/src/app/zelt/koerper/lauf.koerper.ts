@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { tagNummer } from 'src/app/util/zelt-tag';
+import { datumText } from 'src/app/util/datum';
 import { KoerperBasis } from './koerper-basis';
 
 /** One run in this tent - `Tag 1` to `Ernte`, and how it went. */
@@ -21,7 +22,7 @@ export class LaufKoerperComponent extends KoerperBasis {
   }
 
   get begonnen(): string | null {
-    return this.ding?.t ? new Date(this.ding.t).toLocaleDateString() : null;
+    return this.ding?.t ? datumText(this.ding.t) : null;
   }
 
   get tage(): string | null {

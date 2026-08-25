@@ -1,8 +1,7 @@
-import { formatNumber } from '@angular/common';
 import { Directive, Input, inject } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import type { Ding, Zelt } from '@fg2/shared-types';
-import { resolveAppLocale } from 'src/app/util/locale';
+import { zahlText } from 'src/app/util/zahl';
 
 /**
  * What every art-specific body is handed. The Tafel resolves the art to a
@@ -34,7 +33,7 @@ export abstract class KoerperBasis {
   protected messwert(feld: string, einheit = '', nachkomma = 1): string | null {
     const wert = this.zahl(feld);
     if (wert === null) return null;
-    const zahl = formatNumber(wert, resolveAppLocale(), `1.0-${nachkomma}`);
+    const zahl = zahlText(wert, nachkomma);
     return einheit ? `${zahl} ${einheit}` : zahl;
   }
 
@@ -46,7 +45,9 @@ export abstract class KoerperBasis {
   protected schluesselwort(praefix: string, feld: string): string | null {
     const roh = this.wort(feld);
     if (roh === null) return null;
-    const uebersetzt = this.translate.instant(`${praefix}.${roh}`);
+    // `ersatz` is what the device called it; the missing-translation handler
+    // prints that rather than the key when the bundle has no entry.
+    const uebersetzt = this.translate.instant(`${praefix}.${roh}`, { ersatz: roh });
     return uebersetzt === `${praefix}.${roh}` ? roh : uebersetzt;
   }
 }

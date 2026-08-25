@@ -1,4 +1,5 @@
 import type { Ding, Messwerte } from '@fg2/shared-types';
+import { istEintrag } from './ding-text';
 import { Herkunft, Messung, messzeilen } from './messquellen';
 
 /** Which band of the table a row belongs to. The band order is fixed; ranking only reorders inside one. §6.3. */
@@ -217,8 +218,18 @@ export const unterschiedZeilen = (eingabe: UnterschiedEingabe): UnterschiedZeile
     zeile('summe:schema_schritt', 'summe', 'schema_schritt', neuster(eingabe.vorher, 'schema', 'schritt'), neuster(eingabe.jetzt, 'schema', 'schritt')),
   ];
 
+  // The count is of *entries*, not of rows read: a tent that projects itself, a
+  // plant, a socket and a setpoint are not four things somebody wrote down, and
+  // crediting a brand-new tent with `1 Eintrag` it never made is the first
+  // thing day one gets wrong.
   const zaehlungen = [
-    zeile('anzahl:eintraege', 'anzahl', 'eintraege', eingabe.vorher.length || null, eingabe.jetzt.length || null),
+    zeile(
+      'anzahl:eintraege',
+      'anzahl',
+      'eintraege',
+      anzahl(eingabe.vorher, istEintrag) || null,
+      anzahl(eingabe.jetzt, istEintrag) || null,
+    ),
     zeile(
       'anzahl:fotos',
       'anzahl',

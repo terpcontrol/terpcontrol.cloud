@@ -18,7 +18,7 @@ import { KoerperBasis } from './koerper-basis';
         {{ 'zelt.mass.' + zeile.mass | translate }}
         <span class="fakt-herkunft" *ngIf="zeile.herkunftZeigen">{{ 'zelt.werte.vonHand' | translate }}</span>
       </span>
-      <span class="fakt-wert">{{ zeile.wert }}</span>
+      <span class="fakt-wert">{{ zeile.wert | number: '1.0-2' }}</span>
     </div>
   `,
   styleUrls: ['./koerper.scss'],

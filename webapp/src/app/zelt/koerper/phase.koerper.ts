@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { tagNummer } from 'src/app/util/zelt-tag';
+import { datumText } from 'src/app/util/datum';
 import { KoerperBasis } from './koerper-basis';
 
 /** A stage of the grow, and how long it has been running. */
@@ -18,7 +19,7 @@ export class PhaseKoerperComponent extends KoerperBasis {
   }
 
   get begonnen(): string | null {
-    return this.ding?.t ? new Date(this.ding.t).toLocaleDateString() : null;
+    return this.ding?.t ? datumText(this.ding.t) : null;
   }
 
   get tagInPhase(): string | null {

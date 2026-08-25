@@ -1,4 +1,5 @@
 import type { Ding, DingArt } from '@fg2/shared-types';
+import { zahlText } from './zahl';
 
 /**
  * A piece of text before it has a language. Exactly one of the three is set:
@@ -45,6 +46,17 @@ const MELDENDE_ARTEN: DingArt[] = ['geraet', 'dose', 'kamera'];
  * something that just happened.
  */
 const STEHENDE_ARTEN: DingArt[] = ['zelt', 'schema', 'ziel'];
+
+/**
+ * The arts that are an *entry* - something somebody or something put in the
+ * diary at a moment. The tent, its plants, its devices, its sockets, its
+ * schema and its setpoints are not entries: they are what the tent *is*, and
+ * counting them is how `1 Eintrag` turns up on a day nobody wrote anything.
+ */
+const EINTRAG_ARTEN: DingArt[] = ['gabe', 'notiz', 'bild', 'film', 'ereignis', 'phase', 'zustand'];
+
+/** Whether this Ding is one of the entries the header counts. Cancelled ones are not. */
+export const istEintrag = (ding: Ding): boolean => !ding.storniert_von && EINTRAG_ARTEN.includes(ding.art);
 
 /**
  * The one name every art gets, in the reader's language. A device, a socket, a
@@ -102,11 +114,12 @@ export const dingWert = (ding: Ding): Text | null => {
   switch (ding.art) {
     case 'gabe': {
       const wasser = zahl(ding, 'wasser_l');
-      return wasser === null ? null : { key: 'zelt.zeile.wasser', params: { liter: wasser } };
+      return wasser === null ? null : { key: 'zelt.zeile.wasser', params: { liter: zahlText(wasser, 2) } };
     }
     case 'ziel': {
       const wert = ding.d?.['wert'];
-      return typeof wert === 'number' || typeof wert === 'string' ? { roh: String(wert) } : null;
+      if (typeof wert === 'number') return { roh: zahlText(wert, 2) };
+      return typeof wert === 'string' ? { roh: wert } : null;
     }
     case 'film': {
       const dauer = wort(ding, 'dauer');
@@ -134,21 +147,38 @@ export const dingWert = (ding: Ding): Text | null => {
  * the same rule at every density: with no device the arts that can be stale
  * simply never appear, so nothing needs a second reading of the square.
  */
-export const dingMarke = (ding: Ding, jetzt: number): Marke => {
+export const dingMarke = (ding: Ding, jetzt: number, umfeld: readonly Ding[] = []): Marke => {
   if (ding.art === 'ereignis' && (zahl(ding, 'severity') ?? 0) >= 2) return 'alarm';
   if (ding.art === 'zustand' && ding.t_ende === null && !wort(ding, 'geschlossen_von')) return 'offen';
   if (ding.storniert_von || (ding.t_ende !== null && ding.t_ende !== undefined)) return 'hohl';
 
   if (MELDENDE_ARTEN.includes(ding.art)) {
-    const gehoert = zahl(ding, 'zuletzt_gesehen') ?? zahl(ding, 'letztes_bild_t') ?? ding.t;
-    return jetzt - gehoert > VERALTET_MS ? 'hohl' : 'voll';
+    return jetzt - dingAlter(ding, umfeld) > VERALTET_MS ? 'hohl' : 'voll';
   }
 
   return STEHENDE_ARTEN.includes(ding.art) ? 'hohl' : 'voll';
 };
 
-/** When the row last had something to say. Used for the `vor 2 Std` column. */
-export const dingAlter = (ding: Ding): number =>
-  (typeof ding.d?.['zuletzt_gesehen'] === 'number' ? (ding.d['zuletzt_gesehen'] as number) : null) ??
-  (typeof ding.d?.['letztes_bild_t'] === 'number' ? (ding.d['letztes_bild_t'] as number) : null) ??
-  ding.t;
+/**
+ * When the row last had something to say. Used for the `vor 2 Std` column.
+ *
+ * A socket has no clock of its own: it is heard about because the controller it
+ * hangs on said something, and it is exactly as fresh as that controller. Its
+ * projection carries `t = seit`, the moment it was bound to the tent, so
+ * falling back to `t` reads `vor 2 Monaten` one row under the controller's
+ * `vor 1 Minute` - about the same 40 seconds of evidence.
+ */
+export const dingAlter = (ding: Ding, umfeld: readonly Ding[] = []): number =>
+  zahl(ding, 'zuletzt_gesehen') ?? zahl(ding, 'letztes_bild_t') ?? elternGehoert(ding, umfeld) ?? ding.t;
+
+/**
+ * When the device that reports this Ding was last heard from. `geraet_id` is
+ * set on exactly the projected arts - a device, its sockets and its camera -
+ * so the parent is the `geraet` row carrying the same id.
+ */
+const elternGehoert = (ding: Ding, umfeld: readonly Ding[]): number | null => {
+  if (!ding.geraet_id || ding.art === 'geraet') return null;
+
+  const eltern = umfeld.find(anderes => anderes.art === 'geraet' && anderes.geraet_id === ding.geraet_id);
+  return eltern ? zahl(eltern, 'zuletzt_gesehen') : null;
+};

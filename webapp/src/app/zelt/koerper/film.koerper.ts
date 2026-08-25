@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { datumZeitText } from 'src/app/util/datum';
 import { KoerperBasis } from './koerper-basis';
 
 /** A timelapse. */
@@ -16,6 +17,6 @@ export class FilmKoerperComponent extends KoerperBasis {
   }
 
   get aufgenommen(): string | null {
-    return this.ding?.t ? new Date(this.ding.t).toLocaleString() : null;
+    return this.ding?.t ? datumZeitText(this.ding.t) : null;
   }
 }

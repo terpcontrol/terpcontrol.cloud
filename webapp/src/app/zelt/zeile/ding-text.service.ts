@@ -22,9 +22,15 @@ export class DingTextService {
     if (text.logSchluessel !== undefined) return this.logs.getEntryTitle({ title: text.logSchluessel });
     if (!text.key) return text.ersatz ?? '';
 
-    const uebersetzt = this.translate.instant(text.key, this.params(text.params));
-    // `instant` hands the key back when the bundle has no entry. Printing that
-    // at a reader is worse than printing what the device actually said.
+    // `ersatz` rides along as an interpolation parameter: it is what the device
+    // actually said, and `TerpMissingTranslationHandler` prints it instead of
+    // the key when the bundle has no entry. The equality check this used to do
+    // cannot tell a missing key from a bundle that legitimately says the key.
+    const params = { ...this.params(text.params), ...(text.ersatz ? { ersatz: text.ersatz } : {}) };
+    const uebersetzt = this.translate.instant(text.key, params);
+    // With no handler configured - a test bed, a bundle that failed to load -
+    // `instant` still hands the key back, and printing that at a reader is
+    // worse than printing what the device actually said.
     return uebersetzt === text.key ? text.ersatz ?? '' : uebersetzt;
   }
 

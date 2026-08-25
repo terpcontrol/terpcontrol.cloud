@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { LogTranslateService } from 'src/app/services/log-translate.service';
+import { datumZeitText } from 'src/app/util/datum';
 import { KoerperBasis } from './koerper-basis';
 
 /**
@@ -26,6 +27,6 @@ export class EreignisKoerperComponent extends KoerperBasis {
   }
 
   get zeitpunkt(): string | null {
-    return this.ding?.t ? new Date(this.ding.t).toLocaleString() : null;
+    return this.ding?.t ? datumZeitText(this.ding.t) : null;
   }
 }

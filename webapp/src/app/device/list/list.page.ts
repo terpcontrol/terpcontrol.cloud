@@ -1,8 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { ToastController } from '@ionic/angular';
 import { TranslateService } from '@ngx-translate/core';
+import type { Zelt } from '@fg2/shared-types';
 import { DataService } from 'src/app/services/data.service';
 import { DevicesLoadState, DeviceWithParsedSettings, DeviceService } from 'src/app/services/devices.service';
+import { ZelteService } from 'src/app/services/dinge.service';
 
 @Component({
   selector: 'app-list',
@@ -13,6 +15,12 @@ export class ListPage implements OnInit {
 
 
   public all_devices:DeviceWithParsedSettings[] = [];
+  /**
+   * The tents this account keeps. They are the way into `/z/:zelt_id` - the
+   * diary is a place of its own and a tent with no device has no device page to
+   * be reached through.
+   */
+  public zelte: Zelt[] = [];
   public loadState: DevicesLoadState = 'loading';
   public id:string = '';
   public claiming = false;
@@ -38,11 +46,22 @@ export class ListPage implements OnInit {
     public data: DataService,
     private toastController: ToastController,
     private translate: TranslateService,
+    private zelteService: ZelteService,
   ) { }
 
   ngOnInit(): void {
     this.deviceService.devices.subscribe(devices => this.all_devices = devices);
     this.deviceService.loadState.subscribe(loadState => this.loadState = loadState);
+    void this.loadZelte();
+  }
+
+  /** A tent list that cannot be read is simply absent; it is a way in, not the page. */
+  private async loadZelte(): Promise<void> {
+    try {
+      this.zelte = await this.zelteService.zelte();
+    } catch (error) {
+      this.zelte = [];
+    }
   }
 
   retry() {

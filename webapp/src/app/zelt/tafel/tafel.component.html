@@ -1,6 +1,8 @@
 <article class="tafel" *ngIf="zelt">
   <header class="tafel-kopf">
     <h1 class="tafel-titel">{{ titel || ('zelt.defaultName' | translate) }}</h1>
+    <!-- The line that answers „läuft mein Grow" carries the weight; the name of
+         the tent you just tapped is the caption above it. -->
     <p class="tafel-fakten">
       <span class="tafel-fakt" *ngFor="let fakt of kopf; trackBy: trackFakt">
         <span class="tafel-punkt" *ngIf="fakt.punkt" [class]="'tafel-punkt--' + fakt.punkt" aria-hidden="true"></span>
@@ -16,13 +18,20 @@
   <tc-zeitgriff [zelt]="zelt" [subjekt]="subjekt" [dinge]="dinge" [messungen]="geraetMessungen"></tc-zeitgriff>
 
   <section class="tafel-abschnitt" *ngIf="offen.length">
-    <h2 class="tafel-abschnitt-titel">{{ 'zelt.abschnitt.offen' | translate }}</h2>
-    <app-zeile *ngFor="let ding of offen; trackBy: trackDing" [ding]="ding" [zelt]="zelt"></app-zeile>
+    <h2 class="tafel-abschnitt-titel">{{ 'zelt.abschnitt.zettel' | translate }}</h2>
+    <app-zeile *ngFor="let ding of offen; trackBy: trackDing" [ding]="ding" [zelt]="zelt" [umfeld]="dinge" [jetzt]="jetzt"></app-zeile>
   </section>
 
   <section class="tafel-koerper" *ngIf="subjekt">
     <ng-container [appKoerper]="subjekt" [appKoerperZelt]="zelt" [appKoerperDinge]="dinge"></ng-container>
   </section>
+
+  <!-- §9.2 rank 8e. A tent that exists and nothing else is not a broken screen
+       with three empty sections in it; it is a diary that starts today. -->
+  <ng-container *ngIf="tagEins">
+    <p class="tafel-tag-eins">{{ 'zelt.tagEins' | translate }}</p>
+    <ng-container *ngTemplateOutlet="geraetUpsell"></ng-container>
+  </ng-container>
 
   <section class="tafel-abschnitt" *ngIf="sichtbareZeilen.length || zieht" [appHoeheHalten]="zieht">
     <h2 class="tafel-abschnitt-titel">{{ 'zelt.abschnitt.unterschied' | translate }}</h2>
@@ -39,9 +48,7 @@
       <div class="tafel-zeile" *ngFor="let zeile of sichtbareZeilen; trackBy: trackZeile" [class.tafel-zeile--eingerueckt]="zeile.eingerueckt">
         <span class="tafel-spalte-name">
           {{ 'zelt.mass.' + zeile.mass | translate }}
-          <span class="tafel-herkunft" *ngIf="zeile.herkunftZeigen">
-            ({{ zeile.herkunft?.geraet_name || ('zelt.werte.vonHand' | translate) }})
-          </span>
+          <span class="tafel-herkunft" *ngIf="zeile.zusatz">({{ zeile.zusatz }})</span>
         </span>
         <span class="tafel-spalte-zahl tafel-spalte-zahl--vorher">{{ zeile.vorher | number: '1.0-2' }}</span>
         <span class="tafel-spalte-zahl">{{ zeile.jetzt | number: '1.0-2' }}</span>
@@ -50,7 +57,7 @@
         </span>
       </div>
       <button type="button" class="tafel-mehr" *ngIf="verborgeneZeilen && !tabelleOffen" (click)="tabelleUmschalten()">
-        {{ 'zelt.mehrZeilen' | translate: { anzahl: verborgeneZeilen } }}
+        {{ mehrZeilenSchluessel | translate: mehrZeilenParams }}
       </button>
     </ng-container>
     <tc-zeitlage
@@ -62,21 +69,18 @@
     ></tc-zeitlage>
   </section>
 
-  <section class="tafel-abschnitt">
+  <section class="tafel-abschnitt" *ngIf="!tagEins">
     <h2 class="tafel-abschnitt-titel">{{ 'zelt.abschnitt.imZelt' | translate }}</h2>
-    <app-zeile *ngFor="let ding of imZelt; trackBy: trackDing" [ding]="ding" [zelt]="zelt"></app-zeile>
-    <a class="tafel-geraet-zeile" routerLink="/list">
-      <span class="tafel-geraet-marke" aria-hidden="true"></span>
-      <span>{{ 'zelt.geraetHinzufuegen' | translate }}</span>
-    </a>
+    <app-zeile *ngFor="let ding of imZelt; trackBy: trackDing" [ding]="ding" [zelt]="zelt" [umfeld]="dinge" [jetzt]="jetzt"></app-zeile>
+    <ng-container *ngTemplateOutlet="geraetUpsell"></ng-container>
   </section>
 
-  <section class="tafel-abschnitt">
+  <section class="tafel-abschnitt" *ngIf="verlauf.length || weitereVorhanden">
     <h2 class="tafel-abschnitt-titel">{{ 'zelt.abschnitt.verlauf' | translate }}</h2>
     <ng-container *ngFor="let zeile of verlauf; trackBy: trackVerlauf">
       <p class="tafel-trenner" *ngIf="zeile.trenner">{{ 'zelt.vorherAb' | translate: { zeit: vergleichMoment | date: 'EEE dd.MM. HH:mm' } }}</p>
       <div class="tafel-verlauf-zeile">
-        <app-zeile [ding]="zeile.ding" [zelt]="zelt" [gedimmt]="zeile.gedimmt"></app-zeile>
+        <app-zeile [ding]="zeile.ding" [zelt]="zelt" [umfeld]="dinge" [jetzt]="jetzt" [gedimmt]="zeile.gedimmt"></app-zeile>
         <button
           type="button"
           class="tafel-vorher"
@@ -97,3 +101,13 @@
     <app-werte [anfrage]="anfrage" [messungen]="messungen"></app-werte>
   </footer>
 </article>
+
+<!-- The one upsell §6.2 allows, drawn in exactly one place at a time: inside
+     `Im Zelt` once there is a tent to fill, next to the day-one sentence before
+     that. -->
+<ng-template #geraetUpsell>
+  <a class="tafel-geraet-zeile" routerLink="/list">
+    <span class="tafel-geraet-marke" aria-hidden="true"></span>
+    <span>{{ 'zelt.geraetHinzufuegen' | translate }}</span>
+  </a>
+</ng-template>

@@ -7,7 +7,23 @@
 </ion-header>
 
 <ion-content>
-  <p class="browser-fehler" *ngIf="fehler">{{ fehler | translate }}</p>
+  <ion-refresher slot="fixed" (ionRefresh)="erneut($any($event))">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+
+  <!-- A screen that is still reading says so. Nothing is drawn half-empty and
+       then filled in under the reader's thumb. -->
+  <div class="browser-laedt" *ngIf="leerUndLaedt">
+    <ion-spinner name="crescent"></ion-spinner>
+    <p>{{ 'misc.loading' | translate }}</p>
+  </div>
+
+  <!-- An error a reader can do nothing about is a dead end; this one has the
+       one button that gets past it. -->
+  <div class="browser-fehler" *ngIf="fehler && !laedt">
+    <p>{{ fehler | translate }}</p>
+    <ion-button fill="outline" size="small" (click)="erneut()">{{ 'zelt.erneutVersuchen' | translate }}</ion-button>
+  </div>
 
   <app-tafel
     *ngIf="zelt"

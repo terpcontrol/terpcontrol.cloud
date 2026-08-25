@@ -9,8 +9,8 @@
     "success": "Success",
     "close": "Close",
     "ok": "Okay",
-    "saving": "saving...",
-    "loading": "loading...",
+    "saving": "Saving…",
+    "loading": "Loading…",
     "save": "save",
     "settings": "Settings",
     "errorOccurred": "An error occurred",
@@ -882,7 +882,10 @@
     "nichtGeladen": "The tent could not be loaded.",
     "geraetHinzufuegen": "+ Add device",
     "weitereLaden": "Load more",
-    "mehrZeilen": "{{anzahl}} more",
+    "mehrZeilen": {
+      "one": "1 more row",
+      "other": "{{anzahl}} more rows"
+    },
     "vorherAb": "Before · {{zeit}}",
     "griff": {
       "titel": "Before",
@@ -891,7 +894,7 @@
       "woche": "1 week",
       "gestern": "yesterday",
       "gesternAbend": "yesterday evening",
-      "gabe": "last feed",
+      "gabe": "last watering",
       "foto": "last photo",
       "lauf": "Run {{nummer}} · day {{tag}}",
       "zuletztDu": "since your last visit",
@@ -899,7 +902,7 @@
       "besuch": "previous visit",
       "kapitel": "Chapter",
       "kette": {
-        "gabe": "previous feed",
+        "gabe": "previous watering",
         "notiz": "previous note",
         "bild": "previous photo",
         "ereignis": "previous event",
@@ -918,7 +921,10 @@
       "phase": "{{stufe}} day {{tag}}",
       "schema": "{{name}} step {{schritt}}",
       "lichtplan": "Light schedule {{an}}/{{aus}}",
-      "eintraege": "{{anzahl}} entries",
+      "eintraege": {
+        "one": "1 entry",
+        "other": "{{anzahl}} entries"
+      },
       "foto": "Photo {{zeit}}",
       "wert": "{{mass}} {{wert}} {{einheit}}",
       "an": "{{mass}} on",
@@ -928,11 +934,15 @@
     "kopf": {
       "online": "Online · values from {{seit}}",
       "offline": "Offline · last seen {{seit}}",
-      "eintraege": "{{anzahl}} entries",
-      "zuletzt": "last {{zeit}}"
+      "eintraege": {
+        "one": "1 entry",
+        "other": "{{anzahl}} entries"
+      },
+      "zuletzt": "last {{zeit}}",
+      "eintraegeMehr": "{{anzahl}}+ entries"
     },
     "abschnitt": {
-      "offen": "Open",
+      "zettel": "Pinned notes",
       "unterschied": "The difference",
       "imZelt": "In the tent",
       "verlauf": "History"
@@ -944,7 +954,7 @@
     },
     "werte": {
       "titel": "Values {…}",
-      "regel": "One measure, two sources, two rows. Nothing is merged, nothing is averaged and nothing is silently superseded.",
+      "regel": "Every device and every reading you take by hand gets its own row. Nothing is merged and nothing is averaged – you see exactly what was measured.",
       "anfrage": "Request",
       "vonHand": "by hand",
       "vomGeraet": "from the device"
@@ -957,9 +967,9 @@
       "kamera": "Camera",
       "bild": "Picture",
       "film": "Film",
-      "gabe": "Feed",
+      "gabe": "Watering",
       "notiz": "Note",
-      "zustand": "Sticky note",
+      "zustand": "Pinned note",
       "phase": "Stage",
       "ziel": "Target",
       "mensch": "Person",
@@ -984,7 +994,7 @@
       "ec": "EC",
       "tds": "TDS",
       "ppfd": "PPFD",
-      "abstand_cm": "Distance",
+      "abstand_cm": "Lamp distance",
       "aussen_temperatur": "Outside temperature",
       "hoehe_cm": "Height",
       "topfgewicht_kg": "Pot weight",
@@ -1007,6 +1017,9 @@
         "ph": "Target pH",
         "ec": "Target EC",
         "hoehe_cm": "Target height"
+      },
+      "lights": {
+        "limit": "Target light level"
       }
     },
     "ziel": {
@@ -1054,8 +1067,8 @@
       "gekauft": "Bought"
     },
     "verteilung": {
-      "gesamt": "whole tent",
-      "je_pflanze": "per plant"
+      "gesamt": "the whole tent",
+      "je_pflanze": "each plant"
     },
     "substrat": {
       "trocken": "dry",
@@ -1065,7 +1078,7 @@
     "zielQuelle": {
       "app": "App",
       "geraet": "Device",
-      "erstbefund": "First observation",
+      "erstbefund": "first measurement",
       "hand": "By hand"
     },
     "zustand": {
@@ -1112,7 +1125,7 @@
       "zeitraum": "Period",
       "wasser": "Water",
       "kannen": "Cans",
-      "verteilung": "Distribution",
+      "verteilung": "For",
       "ec": "EC",
       "ph": "pH",
       "ablaufEc": "Runoff EC",
@@ -1124,7 +1137,7 @@
       "begonnen": "Started",
       "tagInPhase": "Day in stage",
       "zielwert": "Target value",
-      "giltAb": "In force from",
+      "gesetzt": "Set on",
       "dabeiSeit": "Member since",
       "schluessel": "Access",
       "zeitpunkt": "Time",
@@ -1132,7 +1145,10 @@
       "schritt": "Step",
       "laufNummer": "Run",
       "laufTage": "Days"
-    }
+    },
+    "tagEins": "Your diary starts today.",
+    "erneutVersuchen": "Try again",
+    "deineZelte": "Your tents"
   },
   "simpleSettings": {
     "modeSimple": "Simple",

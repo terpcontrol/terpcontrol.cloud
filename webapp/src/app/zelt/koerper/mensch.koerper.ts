@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { datumText } from 'src/app/util/datum';
 import { KoerperBasis } from './koerper-basis';
 
 /** A person who writes into this tent. */
@@ -12,7 +13,7 @@ import { KoerperBasis } from './koerper-basis';
 })
 export class MenschKoerperComponent extends KoerperBasis {
   get dabeiSeit(): string | null {
-    return this.ding?.t ? new Date(this.ding.t).toLocaleDateString() : null;
+    return this.ding?.t ? datumText(this.ding.t) : null;
   }
 
   get schluessel(): string | null {
