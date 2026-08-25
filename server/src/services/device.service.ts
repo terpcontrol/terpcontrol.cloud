@@ -25,6 +25,7 @@ import { alarmService } from '@services/alarm.service';
 import { isNumeric } from 'influx/lib/src/grammar';
 import { mailTransport } from '@services/auth.service';
 import { imageService } from '@services/image.service';
+import { zeltService } from '@services/zelt.service';
 import { tunnelService } from '@services/tunnel.service';
 import { okamP2PService, OKAM_STREAM_PREFIX } from '@services/okam-p2p.service';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
@@ -1088,6 +1089,13 @@ class DeviceService {
     return code;
   }
 
+  /**
+   * A device asks for a claim code so its owner can pair it. The password is
+   * only demanded from devices that announce `claimcode_auth`, and pairing is
+   * deliberately left open for those that do not: firmware predating the flag
+   * is still in the field and would otherwise have no way to pair at all.
+   * That openness is the compatibility promise, not an oversight.
+   */
   public async getClaimCode(device_id: string, password?: string): Promise<{ claim_code: string } | false> {
     const device = await deviceModel.findOne({ device_id: device_id });
     if (!device) {
@@ -1120,6 +1128,13 @@ class DeviceService {
     return { claim_code: code };
   }
 
+  /**
+   * Claiming moves a device to whoever holds a valid claim code, including one
+   * that already has an owner. Transferring a device is exactly this — the new
+   * owner pairs it — and refusing would strand devices whose previous owner is
+   * gone. The claim code, which is single-use and only issued to the device
+   * itself, is what stands in for permission.
+   */
   public async claimDevice(claim_code: string, user_id: string): Promise<string | null> {
     const dev = await claimCodeModel.findOne({ claim_code: claim_code });
     if (dev) {
@@ -1135,6 +1150,7 @@ class DeviceService {
 
   public async unClaimDevice(device_id: string) {
     await deviceModel.findOneAndUpdate({ device_id: device_id }, { owner_id: '' });
+    await zeltService.bindungBeenden(device_id);
   }
 
   public async configureDevice(device_id: string, user_id: string, config: string): Promise<boolean> {

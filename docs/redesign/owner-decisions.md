@@ -35,8 +35,18 @@ Because that opens a spam surface, it ships with limits rather than after them: 
 limits and a cap on how many Zelte an unactivated account may create. An account that never activates
 stays bounded.
 
-## Device claiming — unchanged for now
+## Device claiming — intentional, and to be left alone
 
-`claimDevice` still does not check whether a device already has an owner, so a claim code read off a
-second-hand box takes it from its current owner. This is known and deliberately left alone; it is not
-part of the redesign and should be fixed on its own schedule.
+`claimDevice` does not check whether a device already has an owner, and `getClaimCode` only demands a
+password from devices that report `claimcode_auth`. **This is deliberate backward compatibility, not an
+oversight.** Firmware old enough to predate the flag still has to be able to pair.
+
+It has now been raised twice by review. The code says so at both sites, so the next reader — human or
+otherwise — finds the reason where the behaviour is rather than re-reporting it.
+
+## Flux interpolation — fix it in this work
+
+`/data/series` and `/data/latest` interpolate `measure`, `from`, `to` and `interval` straight into the
+query, and the `limit` guard sits after `yield()` where it bounds nothing. The specification had this as
+later work; it moves into this change instead, since the redesign widens the vocabulary of measures these
+endpoints accept and doing it afterwards means doing it under a larger surface.
