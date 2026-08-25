@@ -54,7 +54,8 @@ Skip the per-PR loop if any preflight check fails; the whole point of preflight 
 1. **Stack is up.** `docker compose ps` must show `server`, `mongodb`, `rabbitmq`, `webapp`, `influxdb` as `Up`. If anything is down, ask before `docker compose up -d`.
 2. **`.env` is loaded.** Read `API_URL_EXTERNAL`, `AUTOMATION_TOKEN`, `AGENT_TESTING_USERNAME`, `AGENT_TESTING_PASSWORD` from `.env`. The default user account is `extr3m0@email.de` (these are the values in `.env` for the test fleet).
 3. **Devices are online.** Log in with the user credentials, `GET /device`, and confirm every device has `lastseen` within the last 10 min (`ONLINE_TIMEOUT`). Treat absent `hardwareInfo.firmware_version` as offline. If any device is offline, stop and tell the user which one — don't roll out to a fleet that already has an unknown problem.
-4. **Build container is present.** `docker images | grep plantalytix-buildcontainer` should show a row; if not, the first `build-fw.sh` will rebuild it (slower but fine).
+4. **No device is on the `manual` channel.** In the same `GET /device`, check each device's `cloudSettings.firmwareChannel`. A device set to `manual` is never offered an update, so it can only ever time the cycle out — drop its hardware type from the list and say so in the report, or have the user move it to another channel. `stable`, `beta`, `alpha` and an unset channel are all fine.
+5. **Build container is present.** `docker images | grep plantalytix-buildcontainer` should show a row; if not, the first `build-fw.sh` will rebuild it (slower but fine).
 
 ## One check cycle
 
@@ -76,7 +77,7 @@ TAG=check-pr<N>-$(date +%s)-1
 
 1. `POST /device/firmware` with the tag to pre-create a firmware record per type, capturing the new id.
 2. `FW_VERSION_ID=<id> FW_UPLOAD_VERSION=<tag> ./build-fw.sh <hw>` so the binaries upload against the pre-created record. Setting `FW_UPLOAD_VERSION` deliberately **suppresses** `build-fw.sh`'s auto-rollout (see `firmware/dev-build.sh`) — we control rollout ourselves so we can verify the exact id afterwards.
-3. `POST /device/class/<class_id>` with `firmware_id` and `beta_firmware_id` both set to the new id (reading the existing `concurrent` / `maxfails` first to keep them).
+3. `POST /device/class/<class_id>` with `firmware_id`, `beta_firmware_id` and `alpha_firmware_id` all set to the new id (reading the existing `concurrent` / `maxfails` first to keep them). All three channels are set because the server only offers a device the id belonging to the channel in its `cloudSettings.firmwareChannel`.
 
 It writes `/tmp/fw_state_<tag>` — one `<hw> <firmware_id>` line per type — which `verify.py` reads.
 
