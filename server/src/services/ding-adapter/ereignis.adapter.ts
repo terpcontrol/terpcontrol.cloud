@@ -83,6 +83,11 @@ export const ereignisDinge = async (fenster: DingFenster): Promise<Ding[]> => {
         };
       }
 
+      // The one payload an `ereignis` carries: §14.6's count of the diary as it
+      // stood the moment before the device joined it, which the upgrade screen
+      // prints back to the user as the proof that nothing moved.
+      const zaehler = (log.data as { zaehler?: unknown } | undefined)?.zaehler;
+
       return {
         ding_id: `ereignis:${String(log._id)}`,
         zelt_id: fenster.zelt.zelt_id,
@@ -98,6 +103,7 @@ export const ereignisDinge = async (fenster: DingFenster): Promise<Ding[]> => {
           roh: log.raw,
           severity: log.severity,
           kategorien: log.categories,
+          ...(zaehler ? { zaehler: zaehler } : {}),
         },
         ...bilder,
       };

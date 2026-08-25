@@ -80,8 +80,8 @@ describe('geraet', () => {
 
     const dinge = await projiziereDinge(fenster, ['geraet']);
     expect(dinge.map(ding => [ding.ding_id, ding.t, ding.t_ende])).toEqual([
-      ['geraet:controller-1', GEBUNDEN_SEIT, null],
-      ['geraet:alt-1', TAG_NULL + 2 * TAG, TAG_NULL + 6 * TAG],
+      [`geraet:controller-1:${GEBUNDEN_SEIT}`, GEBUNDEN_SEIT, null],
+      [`geraet:alt-1:${TAG_NULL + 2 * TAG}`, TAG_NULL + 2 * TAG, TAG_NULL + 6 * TAG],
     ]);
     expect(dinge[0].name).toBe('Controller');
     // The device row for the ended binding is gone; the binding still is not.
@@ -93,6 +93,27 @@ describe('geraet', () => {
 
     const dinge = await projiziereDinge({ zelt: zelt, von: TAG_NULL + 20 * TAG, bis: JETZT }, ['geraet']);
     expect(dinge.map(ding => ding.geraet_id)).toEqual(['controller-1']);
+  });
+
+  it('gives a binding the same ding_id whether or not the window also holds the other one', async () => {
+    // §14.9: the RMA case. One page covers both stretches, the next covers only
+    // the later one - and a client keying its list by ding_id must be looking at
+    // the same Ding in both, not at one thing under two names.
+    const zurueck: Zelt = {
+      ...zelt,
+      geraete: [
+        { geraet_id: 'controller-1', seit: TAG_NULL + 2 * TAG, bis: TAG_NULL + 6 * TAG },
+        { geraet_id: 'controller-1', seit: GEBUNDEN_SEIT },
+      ],
+    };
+    await geraet('controller-1', {}, 'Controller');
+
+    const beide = await projiziereDinge({ zelt: zurueck, von: TAG_NULL, bis: JETZT }, ['geraet']);
+    const nurZweite = await projiziereDinge({ zelt: zurueck, von: TAG_NULL + 20 * TAG, bis: JETZT }, ['geraet']);
+
+    expect(beide.map(ding => ding.ding_id)).toEqual([`geraet:controller-1:${GEBUNDEN_SEIT}`, `geraet:controller-1:${TAG_NULL + 2 * TAG}`]);
+    expect(nurZweite.map(ding => ding.ding_id)).toEqual([`geraet:controller-1:${GEBUNDEN_SEIT}`]);
+    expect(new Set(beide.map(ding => ding.ding_id)).size).toBe(2);
   });
 });
 
@@ -163,6 +184,26 @@ describe('kamera', () => {
     await geraet('controller-1', { webcam_did: 'none' });
 
     expect(await projiziereDinge(fenster, ['kamera'])).toEqual([]);
+  });
+
+  it('refuses a frame the camera took before its device joined this tent', async () => {
+    // §14.3 names Image frames an enforcement point: the shop test and the
+    // previous owner's grow are both older than the binding, and the evidence
+    // frame on the camera tile is a picture the tent shows full-size.
+    await geraet('controller-1', { webcam_did: 'DID12345' });
+    await bild('vorbesitzer-1', GEBUNDEN_SEIT - TAG, 'jpeg', { device_id: 'controller-1' });
+
+    const [kamera] = await projiziereDinge(fenster, ['kamera']);
+    expect(kamera.auto_bild).toBeUndefined();
+    expect(kamera.d).toEqual({ webcam_did: 'DID12345', letztes_bild_t: undefined });
+  });
+
+  it('still shows the last frame of a camera that took none inside the window', async () => {
+    await geraet('controller-1', { webcam_did: 'DID12345' });
+    await bild('frame-1', GEBUNDEN_SEIT + TAG, 'jpeg', { device_id: 'controller-1' });
+
+    const [kamera] = await projiziereDinge({ zelt: zelt, von: JETZT - TAG, bis: JETZT }, ['kamera']);
+    expect(kamera.auto_bild).toBe('frame-1');
   });
 });
 

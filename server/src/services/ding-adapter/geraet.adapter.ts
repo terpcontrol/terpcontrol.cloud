@@ -10,6 +10,14 @@ import { begrenze, bindungenImFenster, DingFenster } from './fenster';
  * A tent with no binding never reaches the device collection - the query below
  * is not even built. That is the device-less case, and it is the reason this
  * adapter starts with a length check rather than an `$in: []`.
+ *
+ * The binding's start is part of the `ding_id` always, not only when a device
+ * is bound to one tent twice (§14.9, an RMA). What identifies this Ding is the
+ * binding, and appending the start only on a collision would make the identity
+ * depend on the window the read happened to ask for: a page covering only the
+ * second stretch would call it `geraet:<id>`, a page covering both would call
+ * the same row `geraet:<id>:<seit>`, and a client keying a list by `ding_id`
+ * then holds one thing under two ids - or, worse, merges two.
  */
 export const geraetDinge = async (fenster: DingFenster): Promise<Ding[]> => {
   const bindungen = bindungenImFenster(fenster);
@@ -25,19 +33,13 @@ export const geraetDinge = async (fenster: DingFenster): Promise<Ding[]> => {
     .lean();
   const nachId = new Map(geraete.map(geraet => [geraet.device_id, geraet]));
 
-  // A device bound to the same tent twice would otherwise give two rows one
-  // ding_id; only then does the binding's start have to join the identity.
-  const bindungenJeGeraet = new Map<string, number>();
-  bindungen.forEach(bindung => bindungenJeGeraet.set(bindung.geraet_id, (bindungenJeGeraet.get(bindung.geraet_id) ?? 0) + 1));
-
   return begrenze(
     fenster,
     bindungen.map(bindung => {
       const geraet = nachId.get(bindung.geraet_id);
-      const mehrfach = (bindungenJeGeraet.get(bindung.geraet_id) ?? 0) > 1;
 
       return {
-        ding_id: mehrfach ? `geraet:${bindung.geraet_id}:${bindung.seit}` : `geraet:${bindung.geraet_id}`,
+        ding_id: `geraet:${bindung.geraet_id}:${bindung.seit}`,
         zelt_id: fenster.zelt.zelt_id,
         geraet_id: bindung.geraet_id,
         art: 'geraet',

@@ -6,7 +6,7 @@ import { DataStoredInToken, RequestWithUser } from '@interfaces/auth.interface';
 import deviceModel from '@/models/device.model';
 import zeltModel from '@/models/zelt.model';
 import shareModel from '@/models/share.model';
-import { Device, Ding, DingArt, GESPEICHERTE_ARTEN, ShareLink, Zelt } from '@fg2/shared-types';
+import { Device, Ding, DingArt, GESPEICHERTE_ARTEN, Image, ShareLink, Zelt } from '@fg2/shared-types';
 import { DEMO_WRITE_MESSAGE } from '@utils/demo';
 import { logger } from '@utils/logger';
 import { schluesselService } from '@services/schluessel.service';
@@ -347,11 +347,11 @@ const besitzt = async (req: RequestWithUser, zelt_id: string): Promise<boolean> 
 
 /**
  * What a reader is asking to see. A share link is issued for one of these and
- * must not open the other: the numbers and the diary are different disclosures,
- * and somebody who shared a chart with a forum did not thereby publish who
- * watered what, the notes about it, or the photographs.
+ * must not open the others: the numbers, the diary and the camera are different
+ * disclosures, and somebody who shared a chart with a forum did not thereby
+ * publish who watered what, the notes about it, or the inside of their flat.
  */
-export type Lesegrund = 'charts' | 'diary';
+export type Lesegrund = 'charts' | 'diary' | 'webcam';
 
 /**
  * Who may read a Zelt: its owner, a share link **issued for what is being
@@ -370,17 +370,87 @@ export const darfLesen = async (req: RequestWithUser, zelt_id: string, grund: Le
 
   const share = await findValidShareForZelt(req, zelt_id);
   if (share) {
-    // A `diary` link is the tent's own share and carries the sensor half only
-    // when `charts` was ticked; a `charts` link never carries the diary.
-    const darf = grund === 'charts' ? share.page === 'charts' || !!share.charts : share.page === 'diary';
-    if (darf) {
+    if (oeffnet(share, grund)) {
       req.share = share;
       return true;
     }
     return false;
   }
 
-  return (await validApiKeyForZelt(req, zelt_id)) || (await validSchluessel(req, zelt_id));
+  if (await validApiKeyForZelt(req, zelt_id)) return true;
+
+  // §13.5: a club key reads the diary half. It is handed to a member rather
+  // than to the owner and it travels in a URL, so the camera is not part of
+  // what it opens.
+  return grund !== 'webcam' && (await validSchluessel(req, zelt_id));
+};
+
+/**
+ * A `diary` link is the tent's own share and carries the sensor half only when
+ * `charts` was ticked; a `charts` link never carries the diary. The camera is
+ * neither of the two - it is its own tick on both kinds of link, because a
+ * picture of the room is not a number and not a sentence.
+ */
+const oeffnet = (share: ShareLink, grund: Lesegrund): boolean => {
+  if (grund === 'charts') return share.page === 'charts' || !!share.charts;
+  if (grund === 'webcam') return !!share.webcam;
+  return share.page === 'diary';
+};
+
+/**
+ * The tent an `Image` row belongs to, in both keyings: `zelt_id` on anything
+ * written since tents existed, and for everything older the binding that was in
+ * force when the picture was taken. The binding window is the whole of it - a
+ * sold controller's frames belong to the tent that held it *then* (§14.3), and
+ * resolving one to whoever holds the hardware now is how a stranger's picture
+ * would be served under this tent's credential.
+ *
+ * `null` means the row cannot be placed, and an unplaceable row is refused
+ * rather than served: every credential below ownership is issued for one tent.
+ */
+export const zeltDesBildes = async (bild: Pick<Image, 'zelt_id' | 'device_id' | 'timestamp'>): Promise<string | null> => {
+  if (bild.zelt_id) return bild.zelt_id;
+  if (!bild.device_id) return null;
+
+  const zelte: Pick<Zelt, 'zelt_id' | 'geraete'>[] = await zeltModel
+    .find({ 'geraete.geraet_id': bild.device_id }, { _id: 0, zelt_id: 1, geraete: 1 })
+    .lean();
+
+  for (const zelt of zelte) {
+    const passt = (zelt.geraete ?? []).some(
+      bindung =>
+        bindung.geraet_id === bild.device_id &&
+        bild.timestamp >= bindung.seit &&
+        (bindung.bis === undefined || bindung.bis === null || bild.timestamp <= bindung.bis),
+    );
+    if (passt) return zelt.zelt_id;
+  }
+
+  return null;
+};
+
+/**
+ * Whether this request may be handed *these bytes*, as against the device the
+ * URL names.
+ *
+ * The device is the wrong question for a picture. A share reaches the image
+ * endpoint through the device it was issued for, and a `webcam: false` link was
+ * then allowed any row it could name by `image_id` - on the reasoning that such
+ * a link only ever learned the ids hanging on diary entries. `GET /api/dinge`
+ * ended that: the ids of every frame are now a list the same link can ask for,
+ * and the supply being closed at that end is not a reason to leave the door
+ * open at this one.
+ *
+ * So the row itself decides. A photograph a person took is the diary half; a
+ * camera frame and a timelapse are the camera half, which is its own tick on
+ * the link - and both are asked against the tent the row belongs to rather than
+ * against the device that happens to point at it today.
+ */
+export const darfBildLesen = async (req: RequestWithUser, bild: Pick<Image, 'zelt_id' | 'device_id' | 'timestamp' | 'format'>): Promise<boolean> => {
+  const zelt_id = await zeltDesBildes(bild);
+  if (!zelt_id) return false;
+
+  return darfLesen(req, zelt_id, bild.format === 'user/jpeg' ? 'diary' : 'webcam');
 };
 
 /**

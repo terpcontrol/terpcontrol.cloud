@@ -1,5 +1,6 @@
 import { Document, model, Schema } from 'mongoose';
 import { Image } from '@fg2/shared-types';
+import { baueIndexe } from '@utils/indexe';
 
 const imagesSchema: Schema = new Schema({
   image_id: {
@@ -45,9 +46,9 @@ const imagesSchema: Schema = new Schema({
 });
 
 // Mongoose builds a schema's indexes as soon as the connection opens unless it
-// is told not to. Over the collection that holds every JPEG ever taken that is
-// an operator's decision, not a side effect of booting - see the note on the
-// index declarations below.
+// is told not to, and it does that silently, on every connection, with no way
+// to see or handle a failure. Over the collection that holds every JPEG ever
+// taken the build is explicit instead - see the note on the declarations below.
 imagesSchema.set('autoIndex', false);
 
 /**
@@ -73,14 +74,20 @@ imagesSchema.pre('validate', function (next) {
 });
 
 /**
- * Declared here, applied by `npm run migrate:indexes` — never by a boot.
+ * Declared here, built at boot by `baueIndexe` below as far as building alone
+ * gets - the rest is `npm run migrate:indexes`, which is the only thing that
+ * ever drops.
  *
- * `createIndexes()` creates and never alters, so narrowing the unique index
- * below means dropping the old one first, and a drop in a boot path races the
- * second pm2 instance and swallows its own failure (D3). That is also why this
- * module neither calls `baueIndexe` nor leaves `autoIndex` on: a boot builds no
- * index here at all, and a fresh deployment gets them from the same one-shot
- * script an upgrade does.
+ * The split is not a preference, it is what `createIndexes()` can do: it
+ * creates and never alters. Three of the four declarations below are purely
+ * additive, so creating them is idempotent and safe on every boot of every
+ * instance. The fourth *narrows* an index that already exists on a deployment
+ * old enough to have the unrestricted one, and narrowing means dropping first -
+ * a drop in a boot path races the second pm2 instance (D3), so on such a
+ * database that one create fails, says so in the log, and waits for the
+ * operator script. On a database that never had the old index there is nothing
+ * to drop and it is created here like the others, which is what keeps a fresh
+ * deployment from running with no `Image` indexes at all.
  */
 imagesSchema.index({ zelt_id: 1, timestamp: -1 });
 
@@ -95,5 +102,10 @@ imagesSchema.index({ device_id: 1, format: 1, timestamp: -1 });
 imagesSchema.index({ device_id: 1, format: 1, timestamp: -1, duration: 1 }, { unique: true, partialFilterExpression: { format: 'mp4' } });
 
 const imageModel = model<Image & Document>('Image', imagesSchema);
+// The unique `image_id` is what makes `findOne({ image_id })` a lookup rather
+// than a scan of every JPEG in the collection, and what stops two rows sharing
+// an id - which the image read path resolves by, so a duplicate is a picture
+// served in place of another.
+baueIndexe(imageModel);
 
 export default imageModel;

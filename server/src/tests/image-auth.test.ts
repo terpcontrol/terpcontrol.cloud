@@ -9,11 +9,22 @@ import { SECRET_KEY } from '@config';
 import { DataStoredInToken } from '@interfaces/auth.interface';
 import deviceModel from '@/models/device.model';
 import shareModel from '@/models/share.model';
+import zeltModel from '@/models/zelt.model';
 import ImageRoute from '@routes/image.route';
 import { imageService } from '@services/image.service';
 
 const OWNER_ID = '60706478aad6c9ad19a31c84';
 const DEVICE_ID = 'device-1';
+const ZELT_ID = 'zelt-1';
+
+const share = (felder: Record<string, unknown>) => ({
+  share_id: 'share-1',
+  device_id: DEVICE_ID,
+  owner_id: OWNER_ID,
+  page: 'diary',
+  createdAt: 1000,
+  ...felder,
+});
 
 const makeToken = (token_type: DataStoredInToken['token_type'], user_id = OWNER_ID) =>
   sign({ user_id, is_admin: false, token_type, secret: 'test-secret' } as DataStoredInToken, SECRET_KEY, { expiresIn: '10m' });
@@ -33,9 +44,16 @@ describe('GET /image/:device_id authorization', () => {
     (app as any).initializeRoutes((app as any).routes);
     (app as any).initializeErrorHandling();
 
-    jest.spyOn(imageService, 'getDeviceImage').mockResolvedValue({ data: Buffer.from('jpegdata'), format: 'jpeg' } as any);
+    jest
+      .spyOn(imageService, 'getDeviceImage')
+      .mockResolvedValue({ data: Buffer.from('jpegdata'), format: 'jpeg', device_id: DEVICE_ID, timestamp: 1000 } as any);
     deviceModel.find = jest.fn().mockImplementation(filter => (filter.owner_id === OWNER_ID ? [{ device_id: DEVICE_ID }] : []));
     shareModel.findOne = jest.fn().mockResolvedValue(null);
+    // A share is answered for the tent the row belongs to, so the guard reaches
+    // the tent collection for a bound device and its binding window.
+    const zelt = { zelt_id: ZELT_ID, besitzer_id: OWNER_ID, geraete: [{ geraet_id: DEVICE_ID, seit: 0 }] };
+    zeltModel.find = jest.fn().mockReturnValue({ lean: () => Promise.resolve([zelt]) }) as any;
+    zeltModel.findOne = jest.fn().mockReturnValue({ lean: () => Promise.resolve(zelt) }) as any;
   });
 
   afterEach(() => {
@@ -87,12 +105,28 @@ describe('GET /image/:device_id authorization', () => {
   });
 
   it('serves webcam images through a share link that includes the webcam', async () => {
-    shareModel.findOne = jest.fn().mockResolvedValue({ share_id: 'share-1', device_id: DEVICE_ID, webcam: true });
+    shareModel.findOne = jest.fn().mockResolvedValue(share({ webcam: true }));
     await get('&share=share-1').expect(200);
   });
 
   it('rejects webcam images through a share link without webcam access', async () => {
-    shareModel.findOne = jest.fn().mockResolvedValue({ share_id: 'share-1', device_id: DEVICE_ID, webcam: false });
+    shareModel.findOne = jest.fn().mockResolvedValue(share({ webcam: false }));
     await get('&share=share-1').expect(403);
+  });
+
+  it('rejects a camera frame named by image_id through the same link', async () => {
+    // The allowance this closes: a link without the camera was handed any row
+    // it could name, because it was assumed to only ever learn the ids of diary
+    // photographs. It learns every frame's id from `GET /api/dinge`.
+    shareModel.findOne = jest.fn().mockResolvedValue(share({ webcam: false }));
+    await request(app.getServer()).get(`/image/${DEVICE_ID}?format=jpeg&image_id=frame-1&share=share-1`).expect(403);
+  });
+
+  it('refuses a row it cannot place in any tent rather than serving it', async () => {
+    // Every credential below ownership is issued for one tent; a row that
+    // belongs to none of them is not this reader's to see.
+    shareModel.findOne = jest.fn().mockResolvedValue(share({ webcam: true }));
+    zeltModel.find = jest.fn().mockReturnValue({ lean: () => Promise.resolve([]) }) as any;
+    await request(app.getServer()).get(`/image/${DEVICE_ID}?format=jpeg&image_id=frame-1&share=share-1`).expect(403);
   });
 });

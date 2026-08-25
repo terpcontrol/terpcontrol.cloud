@@ -1,7 +1,7 @@
 import { Device, Ding } from '@fg2/shared-types';
 import deviceModel from '@models/device.model';
 import imageModel from '@models/images.model';
-import { begrenze, DingFenster, offeneBindungen } from './fenster';
+import { begrenze, bindungsFenster, DingFenster, offeneBindungen } from './fenster';
 
 /** A `webcam_did` that stands for a camera: not missing, and not the word the device sends when one is gone. */
 const gekoppelt = (webcam_did: string | undefined): boolean => webcam_did !== undefined && webcam_did !== '' && webcam_did !== 'none';
@@ -33,9 +33,20 @@ export const kameraDinge = async (fenster: DingFenster): Promise<Ding[]> => {
     }
 
     // The newest frame at or before the end of the window, so a look at last
-    // week shows last week's picture rather than this morning's.
+    // week shows last week's picture rather than this morning's - and never one
+    // from before the binding: §14.3 names `Image` frames an enforcement point
+    // precisely so a shop-tested or second-hand camera's earlier pictures stay
+    // out of this tent, and this is the evidence frame the tile prints.
+    //
+    // Only the upper bound follows the window. A camera that has taken no
+    // picture inside it still has a last one, and showing it is the whole of
+    // what this row is evidence for.
+    const gebunden = bindungsFenster(fenster, bindung);
     const letztes = await imageModel
-      .findOne({ device_id: bindung.geraet_id, format: 'jpeg', timestamp: { $lte: fenster.bis } }, { _id: 0, image_id: 1, timestamp: 1 })
+      .findOne(
+        { device_id: bindung.geraet_id, format: 'jpeg', timestamp: { $gte: bindung.seit, $lte: gebunden.bis } },
+        { _id: 0, image_id: 1, timestamp: 1 },
+      )
       .sort({ timestamp: -1 })
       .lean();
 

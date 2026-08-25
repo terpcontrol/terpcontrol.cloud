@@ -9,11 +9,15 @@ import { withMigrationLock } from '@utils/migration-lock';
  *     npm run migrate:indexes             # report, then apply
  *     npm run migrate:indexes -- --dry-run
  *
- * Run it once, from one machine, before the deploy that needs it. It is never
- * called from the boot and must not be: `createIndexes()` creates and never
- * alters, so narrowing `Image`'s unique index means dropping the old one first,
- * and a drop in a boot path races the second pm2 instance and swallows its own
- * failure. That is decision D3, and §4.4 is the change it exists for.
+ * Run it once, from one machine, before the deploy that needs it. What it is
+ * for is the half a boot cannot do: **dropping**. Every model builds its own
+ * declarations on import (`@utils/indexe`), which covers a fresh deployment and
+ * every purely additive declaration added since - but `createIndexes()` creates
+ * and never alters, so narrowing `Image`'s unique index means dropping the old
+ * one first, and a drop in a boot path races the second pm2 instance and
+ * swallows its own failure. That is decision D3, and §4.4 is the change it
+ * exists for. Until this has run, such a deployment logs the one create it
+ * cannot do and serves every read on the indexes it already has.
  *
  * Re-running is safe. The plan is computed first and an empty plan touches
  * nothing, so the second run of an applied migration is a report and an exit.

@@ -1,14 +1,22 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Device, Ding, GeraetBindung, Zelt } from '@fg2/shared-types';
+import deviceLogModel from '@models/devicelog.model';
 import deviceModel from '@models/device.model';
 import dingModel from '@models/ding.model';
+import imageModel from '@models/images.model';
 import zeltModel from '@models/zelt.model';
+import zielStandModel from '@models/zielstand.model';
 import { dataService } from '@services/data.service';
+import { flacheKonfiguration } from '@utils/konfiguration';
 import { withMigrationLock } from '@utils/migration-lock';
 import { logger } from '@utils/logger';
+import { Vorbefund, vorbefund } from '@utils/vorbefund';
 
 const ZELT_BACKFILL = 'zelt-aus-geraet';
 const FALLBACK_ZEITZONE = 'Europe/Berlin';
+
+/** The log key the webapp translates the `Gerät verbunden` row from (§14.7). */
+const VERBUNDEN = 'message-device-connected';
 
 // Day boundaries need a zone and the migration has nobody to ask: the
 // deployment's own zone, and where that is unset the one the product is written for.
@@ -91,13 +99,20 @@ class ZeltService {
   }
 
   /**
-   * §14.2 step 2 — the write that makes a claimed device visible. Without it
-   * the device is claimed into no tent at all and everything it reports from
-   * then on is invisible, however alive the account looks.
+   * §14.2 steps 2 to 4 — the write that makes a claimed device visible. Without
+   * step 2 the device is claimed into no tent at all and everything it reports
+   * from then on is invisible, however alive the account looks.
    *
    * `seit` is the claim moment and never earlier: §14.3 reads device-keyed rows
    * from `seit` forward, so this is the whole of what keeps a second-hand
    * controller's past out of the new owner's diary.
+   *
+   * Steps 3 and 4 write no diary row and change none: the `erstbefund` targets
+   * say what the device's settings were the moment it arrived, and the
+   * `Gerät verbunden` log carries the count of what the diary held just before
+   * that. Neither can fail the claim - a device in a tent with no first
+   * observation is a smaller loss than a device in no tent at all - so both are
+   * logged and stepped past, exactly like the tent's first `lauf`.
    */
   public async bindungBeginnen(geraet_id: string, besitzer_id: string, geraet_name = '', zelt_id?: string): Promise<Zelt | null> {
     const seit = Date.now();
@@ -117,15 +132,134 @@ class ZeltService {
     // device that changed hands must stop pointing at the seller's tent.
     await this.bindungBeenden(geraet_id);
 
+    // §14.6: taken before the write, because a count rendered afterwards proves
+    // nothing about what the claim did or did not touch.
+    const vorher = await this.schnappschuss(ziel, seit);
+
     const bindung: GeraetBindung = { geraet_id: geraet_id, seit: seit };
-    if (!ziel) {
-      return this.createZelt(besitzer_id, geraet_name, bindung);
+    const zelt = ziel
+      ? // §14.9: appended, never reopened. The earlier binding keeps its `bis`,
+        // so each stretch of ownership stays inside its own window.
+        await zeltModel
+          .updateOne({ zelt_id: ziel.zelt_id, besitzer_id: besitzer_id }, { $push: { geraete: bindung } })
+          .then(() => ({ ...ziel, geraete: [...ziel.geraete, bindung] }))
+      : await this.createZelt(besitzer_id, geraet_name, bindung);
+
+    // Null is the lost race in `createZelt`: another instance wrote the tent and
+    // owns the rest of the claim with it.
+    if (zelt) {
+      await this.erstbefund(zelt, geraet_id, seit);
+      await this.geraetVerbunden(zelt, geraet_id, seit, vorher);
+      await this.pruefeUnveraendert(zelt, seit, vorher);
     }
 
-    // §14.9: appended, never reopened. The earlier binding keeps its `bis`, so
-    // each stretch of ownership stays inside its own window.
-    await zeltModel.updateOne({ zelt_id: ziel.zelt_id, besitzer_id: besitzer_id }, { $push: { geraete: bindung } });
-    return { ...ziel, geraete: [...ziel.geraete, bindung] };
+    return zelt;
+  }
+
+  /**
+   * §14.6, the diary as it stood a moment before the device joined it. A tent
+   * that does not exist yet held nothing, and says so rather than being left
+   * out: the screen prints these numbers either way.
+   */
+  private async schnappschuss(zelt: Zelt | undefined, seit: number): Promise<Vorbefund> {
+    if (!zelt) {
+      return vorbefund([], 0, seit, seit);
+    }
+
+    const [dinge, fotos] = await Promise.all([
+      dingModel.find({ zelt_id: zelt.zelt_id, erfasst_at: { $lt: seit } }, { _id: 0, ding_id: 1, art: 1, d: 1 }).lean() as unknown as Promise<Ding[]>,
+      imageModel.countDocuments({ zelt_id: zelt.zelt_id, format: 'user/jpeg', timestamp: { $lt: seit } }),
+    ]);
+
+    return vorbefund(dinge, fotos, zelt.tag_null, seit);
+  }
+
+  /**
+   * §14.2 step 3: one `erstbefund` target per configuration key, in force from
+   * the binding's start.
+   *
+   * This is what makes the chart print `Ziel unbekannt vor 14.09.` instead of
+   * drawing today's setpoint back across weeks nobody set it in - §4.3 calls
+   * that back-projection the current lie. The rows carry `geraet_id`, so a hand
+   * target keeps its own window next to them and the line stays continuous
+   * across the claim (§14.5) rather than colliding with it.
+   *
+   * A device claimed a second time supersedes its own earlier observation and
+   * nothing else: only rows this device set are closed, never a hand target,
+   * which has no `geraet_id` at all.
+   */
+  private async erstbefund(zelt: Zelt, geraet_id: string, seit: number): Promise<void> {
+    try {
+      const geraet = await deviceModel.findOne({ device_id: geraet_id }, { _id: 0, configuration: 1 }).lean();
+      const konfiguration = flacheKonfiguration(geraet?.configuration);
+      const schluessel = Object.keys(konfiguration);
+      if (schluessel.length === 0) {
+        return;
+      }
+
+      await zielStandModel.updateMany(
+        { zelt_id: zelt.zelt_id, geraet_id: geraet_id, gilt_ab: { $lt: seit }, $or: [{ gilt_bis: { $exists: false } }, { gilt_bis: null }] },
+        { $set: { gilt_bis: seit } },
+      );
+      await zielStandModel.insertMany(
+        schluessel.map(name => ({
+          zelt_id: zelt.zelt_id,
+          geraet_id: geraet_id,
+          schluessel: name,
+          wert: konfiguration[name],
+          gilt_ab: seit,
+          quelle: 'erstbefund',
+        })),
+      );
+    } catch (error) {
+      logger.error(`Zelt ${zelt.zelt_id} got no erstbefund for ${geraet_id}: ${error}`);
+    }
+  }
+
+  /**
+   * §14.2 step 4: the one row the upgrade leaves in the diary, carrying §14.6's
+   * count of what was there before it.
+   *
+   * It is a device log rather than a stored Ding because `ereignis` is projected
+   * from that collection - a row written anywhere else would be invisible in the
+   * list it exists to appear in.
+   */
+  private async geraetVerbunden(zelt: Zelt, geraet_id: string, seit: number, vorher: Vorbefund): Promise<void> {
+    try {
+      await deviceLogModel.create({
+        device_id: geraet_id,
+        title: VERBUNDEN,
+        message: VERBUNDEN,
+        severity: 0,
+        time: new Date(seit),
+        categories: ['device', 'device-connected'],
+        data: { zaehler: vorher },
+      });
+    } catch (error) {
+      logger.error(`Zelt ${zelt.zelt_id} records no connection of ${geraet_id}: ${error}`);
+    }
+  }
+
+  /**
+   * §14.6's re-assertion: the same count, taken again after the write.
+   *
+   * Both reads ask for what was typed before the claim, so nothing the claim
+   * itself writes is in either of them and a diary that comes back different is
+   * a diary the claim changed - which §14.4 promises cannot happen. The spec
+   * aborts the claim on a mismatch; that would need the whole claim to be one
+   * transaction, `owner_id` included, so what happens here is the loudest thing
+   * short of it. Nothing else in this path writes a stored Ding, so a line in
+   * the log is a bug report and not a user's problem.
+   */
+  private async pruefeUnveraendert(zelt: Zelt, seit: number, vorher: Vorbefund): Promise<void> {
+    try {
+      const nachher = await this.schnappschuss({ ...zelt, tag_null: vorher.tag_null }, seit);
+      if (nachher.hash !== vorher.hash || nachher.dinge !== vorher.dinge) {
+        logger.error(`Zelt ${zelt.zelt_id} changed during a claim: ${vorher.dinge} Dinge before, ${nachher.dinge} after`);
+      }
+    } catch (error) {
+      logger.error(`Zelt ${zelt.zelt_id} could not be re-checked after a claim: ${error}`);
+    }
   }
 
   /** Null when another instance created the same tent first. */

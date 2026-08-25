@@ -12,6 +12,7 @@ import shareModel from '@models/share.model';
 import zeltModel from '@models/zelt.model';
 import zielStandModel from '@models/zielstand.model';
 import DingRoute from '@routes/ding.route';
+import ImageRoute from '@routes/image.route';
 import { Ding } from '@fg2/shared-types';
 import { sign } from 'jsonwebtoken';
 import { SECRET_KEY } from '@config';
@@ -41,7 +42,7 @@ beforeAll(async () => {
   mongo = await MongoMemoryServer.create();
   await mongoose.connect(mongo.getUri());
 
-  app = new App([new DingRoute()]);
+  app = new App([new DingRoute(), new ImageRoute()]);
   (app as any).initializeMiddlewares();
   (app as any).initializeRoutes((app as any).routes);
   (app as any).initializeErrorHandling();
@@ -275,5 +276,92 @@ describe('a share link and a device that changed hands', () => {
     const spaeter = await teile('diary', false, { createdAt: T + 3 * 86_400_000 });
 
     expect(await darfLesen(anfrage(spaeter), ZELT_ID, 'diary')).toBe(false);
+  });
+});
+
+/**
+ * The bytes themselves. `darfLesen` narrows which endpoint a link reaches and
+ * the `Sicht` narrows which arts it is answered with - but `GET /image/:id`
+ * takes an `image_id`, not an art, and used to hand a `webcam: false` link any
+ * row it could name on the reasoning that such a link only ever learned the ids
+ * of diary photographs. That reasoning ended when `/api/dinge` started
+ * answering with ids; the endpoint asks the row's own tent instead.
+ */
+describe('what a link may fetch the bytes of', () => {
+  const hole = (token: string, query: string) => request(app.getServer()).get(`/image/${GERAET}?share=${token}&${query}`);
+
+  it('refuses a camera frame to a link without the camera, named by image_id', async () => {
+    await fuelleZelt();
+    const token = await teile('diary', false);
+
+    await hole(token, 'format=jpeg&image_id=frame-1').expect(403);
+    await hole(token, 'format=mp4&duration=1d&image_id=film-1').expect(403);
+  });
+
+  it('still hands that link the photographs a person took', async () => {
+    await fuelleZelt();
+    // What `POST /image/:device_id` writes: a photograph a person took, keyed
+    // by the device they took it through rather than by the tent.
+    await imageModel.create({ image_id: 'foto-geraet', device_id: GERAET, timestamp: T, format: 'user/jpeg', data: Buffer.from('jpeg') });
+    const token = await teile('diary', false);
+
+    const antwort = await hole(token, 'format=user/jpeg&image_id=foto-geraet').expect(200);
+    expect(antwort.body.toString()).toBe('jpeg');
+  });
+
+  it('hands the frame to a link the camera was ticked on', async () => {
+    await fuelleZelt();
+    const token = await teile('diary', false, { webcam: true });
+
+    await hole(token, 'format=jpeg&image_id=frame-1').expect(200);
+  });
+
+  it('refuses a frame older than the binding even to a camera link', async () => {
+    // §14.3: the shop test and the previous owner's grow are on the same
+    // device_id, and no credential of this tent reaches them.
+    await fuelleZelt();
+    await imageModel.create({ image_id: 'frame-alt', device_id: GERAET, timestamp: SEIT - 86_400_000, format: 'jpeg', data: Buffer.from('alt') });
+    const token = await teile('diary', false, { webcam: true });
+
+    await hole(token, 'format=jpeg&image_id=frame-alt').expect(403);
+  });
+
+  it('still refuses the stills addressed by timestamp, which is what a camera read looks like', async () => {
+    await fuelleZelt();
+    const token = await teile('diary', false);
+
+    await hole(token, `format=jpeg&timestamp=${T}`).expect(403);
+  });
+
+  it('leaves the owner own read untouched', async () => {
+    await fuelleZelt();
+
+    await request(app.getServer()).get(`/image/${GERAET}?format=jpeg&image_id=frame-1`).set('Cookie', `Authorization=${besitzerToken()}`).expect(200);
+  });
+
+  it('does not follow the device into the next owner tent', async () => {
+    await fuelleZelt();
+    const token = await teile('diary', false, { webcam: true });
+    await zeltModel.updateOne({ zelt_id: ZELT_ID }, { $set: { 'geraete.0.bis': T + 86_400_000 } });
+    await zeltModel.create({
+      zelt_id: 'zelt-kaeufer',
+      besitzer_id: '60706478aad6c9ad19a31c99',
+      name: 'Neuer Besitzer',
+      geraete: [{ geraet_id: GERAET, seit: T + 2 * 86_400_000 }],
+      zeitzone: 'Europe/Berlin',
+      tag_null: T + 2 * 86_400_000,
+      erstellt_at: T + 2 * 86_400_000,
+    });
+    await imageModel.create({
+      image_id: 'frame-kaeufer',
+      device_id: GERAET,
+      timestamp: T + 3 * 86_400_000,
+      format: 'jpeg',
+      data: Buffer.from('neu'),
+    });
+
+    await hole(token, 'format=jpeg&image_id=frame-kaeufer').expect(403);
+    // And what it was issued for still works.
+    await hole(token, 'format=jpeg&image_id=frame-1').expect(200);
   });
 });

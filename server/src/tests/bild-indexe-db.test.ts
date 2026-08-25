@@ -103,6 +103,59 @@ describe('The Image index migration', () => {
   });
 });
 
+describe('What a boot builds', () => {
+  // `baueIndexe` is a no-op under NODE_ENV=test on purpose (an import-time build
+  // answers ten seconds into an unrelated test), so the production path is
+  // reached the way `ding-model-db` reaches it: with the guard flipped.
+  const bauen = async (): Promise<void> => {
+    process.env.NODE_ENV = 'production';
+    jest.resetModules();
+    try {
+      await require('@utils/indexe').baueIndexe(imageModel);
+    } finally {
+      process.env.NODE_ENV = 'test';
+      jest.resetModules();
+    }
+  };
+
+  it('gives a fresh deployment every declared index, the unique image_id included', async () => {
+    await bauen();
+
+    expect(await indexNamen()).toEqual(['_id_', 'device_id_1_format_1_timestamp_-1', ALT_UNIQUE, 'image_id_1', 'zelt_id_1_timestamp_-1'].sort());
+    expect(istLeer(await indexPlan())).toBe(true);
+  });
+
+  it('refuses a second row under an id that is taken, which without the index was storable', async () => {
+    await bauen();
+    await bild('bild-a', { zelt_id: 'zelt-A' });
+
+    await expect(bild('bild-a', { zelt_id: 'zelt-B' })).rejects.toMatchObject({ code: 11000 });
+  });
+
+  it('builds the additive indexes on a database still carrying the old unique one, and leaves the drop alone', async () => {
+    await alterIndex();
+
+    await bauen();
+
+    // The narrowing is the one declaration a boot cannot apply: the old index
+    // occupies its name and only a drop frees it. Everything else is there.
+    expect(await indexNamen()).toContain('image_id_1');
+    expect(await indexNamen()).toContain('zelt_id_1_timestamp_-1');
+    expect(await indexNamen()).toContain('device_id_1_format_1_timestamp_-1');
+    expect((await indexNach(ALT_UNIQUE)).partialFilterExpression).toBeUndefined();
+    expect((await indexPlan())[0].entfernen).toEqual([ALT_UNIQUE]);
+  });
+
+  it('changes nothing on the next boot', async () => {
+    await bauen();
+    const nachher = await indexNamen();
+
+    await bauen();
+
+    expect(await indexNamen()).toEqual(nachher);
+  });
+});
+
 describe('What the Image indexes allow and refuse', () => {
   it('let two tents photograph the same millisecond, which the old index did not', async () => {
     await alterIndex();
