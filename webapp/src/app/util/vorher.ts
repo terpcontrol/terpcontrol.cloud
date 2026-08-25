@@ -99,7 +99,9 @@ export const vorherLage = (eingabe: VorherEingabe): VorherLage => {
     art === 'kette'
       ? kettenDetents(subjekt, eingabe.dinge)
       : art === 'besuch'
-      ? besuchDetents(subjekt, eingabe.dinge, subjekt.t)
+      ? // A person's chain runs up to now, not up to the moment they were added
+        // to the tent: their visits are what came after that, not before it.
+        besuchDetents(subjekt, eingabe.dinge, eingabe.jetzt)
       : kapitelDetents(subjekt, eingabe.dinge);
 
   if (kette.length === 0) return ohneVorher(eingabe, subjekt.t);

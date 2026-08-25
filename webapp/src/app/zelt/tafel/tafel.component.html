@@ -11,25 +11,38 @@
     </p>
   </header>
 
+  <section class="tafel-abschnitt" *ngIf="offen.length">
+    <h2 class="tafel-abschnitt-titel">{{ 'zelt.abschnitt.zettel' | translate }}</h2>
+    <app-zeile *ngFor="let ding of offen; trackBy: trackDing" [ding]="ding" [zelt]="zelt" [umfeld]="dinge" [jetzt]="jetzt"></app-zeile>
+  </section>
+
+  <!-- §5. One box per half, the same shape whichever rung of the evidence
+       ladder answered, and the evidence kind printed beside the day number in
+       both. A mixed pair - a hand photo on the left, a camera frame on the
+       right - is not a special case and costs no code. -->
+  <tc-paar [haelften]="paar"></tc-paar>
+
+  <!-- §6.5: `--tc-t-satz`, **exactly one per screen**. §9's ladder decides
+       which rung wrote it, and rank 8e - the diary that starts today - is one
+       of its rungs rather than a second code path beside it. -->
+  <section class="tafel-satz">
+    <tc-satz [satz]="satz" [zeltId]="zelt.zelt_id"></tc-satz>
+  </section>
+
   <!-- §8.1: 56 px, directly under the sentence block, identical position on
        every Tafel - and on a tent with no device it is the same control with
        the same rungs, because entries, photographs and phases are what it
        scrubs. -->
   <tc-zeitgriff [zelt]="zelt" [subjekt]="subjekt" [dinge]="dinge" [messungen]="geraetMessungen"></tc-zeitgriff>
 
-  <section class="tafel-abschnitt" *ngIf="offen.length">
-    <h2 class="tafel-abschnitt-titel">{{ 'zelt.abschnitt.zettel' | translate }}</h2>
-    <app-zeile *ngFor="let ding of offen; trackBy: trackDing" [ding]="ding" [zelt]="zelt" [umfeld]="dinge" [jetzt]="jetzt"></app-zeile>
-  </section>
-
   <section class="tafel-koerper" *ngIf="subjekt">
     <ng-container [appKoerper]="subjekt" [appKoerperZelt]="zelt" [appKoerperDinge]="dinge"></ng-container>
   </section>
 
-  <!-- §9.2 rank 8e. A tent that exists and nothing else is not a broken screen
-       with three empty sections in it; it is a diary that starts today. -->
+  <!-- A tent that exists and nothing else draws no labelled section with
+       nothing under it. Its sentence is already above, written by rank 8e of
+       the one ladder. -->
   <ng-container *ngIf="tagEins">
-    <p class="tafel-tag-eins">{{ 'zelt.tagEins' | translate }}</p>
     <ng-container *ngTemplateOutlet="geraetUpsell"></ng-container>
   </ng-container>
 
@@ -44,6 +57,10 @@
         <span class="tafel-spalte-zahl">{{ 'zelt.spalte.vorher' | translate }}</span>
         <span class="tafel-spalte-zahl">{{ 'zelt.spalte.jetzt' | translate }}</span>
         <span class="tafel-spalte-zahl">{{ 'zelt.spalte.delta' | translate }}</span>
+        <!-- The mark's column has no heading; `ⓘ nach Abweichung` above the
+             section is what names it. The spacer is what keeps the digits
+             underneath lined up with the header. -->
+        <span class="tafel-marke"></span>
       </div>
       <div class="tafel-zeile" *ngFor="let zeile of sichtbareZeilen; trackBy: trackZeile" [class.tafel-zeile--eingerueckt]="zeile.eingerueckt">
         <span class="tafel-spalte-name">
@@ -54,6 +71,12 @@
         <span class="tafel-spalte-zahl">{{ zeile.jetzt | number: '1.0-2' }}</span>
         <span class="tafel-spalte-zahl" [class]="'tafel-delta--' + zeile.richtung">
           <ng-container *ngIf="zeile.delta !== null && zeile.delta > 0">+</ng-container>{{ zeile.delta | number: '1.0-2' }}
+        </span>
+        <!-- §6.1's mark: `▲` further than this measure usually moves, `◼`
+             inside its own noise, `○` unchanged. A row whose σ is unknown can
+             never be `▲`, which is how noise stops outranking a real change. -->
+        <span class="tafel-marke" [class]="'tafel-marke--' + zeile.marke" [attr.aria-label]="'zelt.marke.' + zeile.marke | translate">
+          {{ zeile.marke === 'ueber' ? '&#9650;' : zeile.marke === 'ruhig' ? '&#9724;' : '&#9675;' }}
         </span>
       </div>
       <button type="button" class="tafel-mehr" *ngIf="verborgeneZeilen && !tabelleOffen" (click)="tabelleUmschalten()">
@@ -78,7 +101,7 @@
   <section class="tafel-abschnitt" *ngIf="verlauf.length || weitereVorhanden">
     <h2 class="tafel-abschnitt-titel">{{ 'zelt.abschnitt.verlauf' | translate }}</h2>
     <ng-container *ngFor="let zeile of verlauf; trackBy: trackVerlauf">
-      <p class="tafel-trenner" *ngIf="zeile.trenner">{{ 'zelt.vorherAb' | translate: { zeit: vergleichMoment | date: 'EEE dd.MM. HH:mm' } }}</p>
+      <p class="tafel-trenner" *ngIf="zeile.trenner">{{ 'zelt.vorherAb' | translate: { zeit: vorherMoment | date: 'EEE dd.MM. HH:mm' } }}</p>
       <div class="tafel-verlauf-zeile">
         <app-zeile [ding]="zeile.ding" [zelt]="zelt" [umfeld]="dinge" [jetzt]="jetzt" [gedimmt]="zeile.gedimmt"></app-zeile>
         <button

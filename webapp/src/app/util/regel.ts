@@ -328,12 +328,28 @@ export const letztesBild = (dinge: readonly Ding[], kamera: Ding | null, jetzt: 
 /** How long a series may say nothing before it counts as a hole rather than a pause. */
 export const LUECKE_MS = 30 * MINUTE_MS;
 
+/**
+ * How many of its own normal intervals a series has to skip. Half an hour is a
+ * hole in a five-second series and a perfectly ordinary pause in an hourly one,
+ * so the absolute bound alone would report „das Zelt war offline" every hour on
+ * a series that never stopped.
+ */
+const LUECKE_VIELFACHES = 5;
+
+/** How often a series usually speaks, which is what makes a silence unusual. */
+const takt = (werte: readonly Punkt[]): number | null => {
+  if (werte.length < 3) return null;
+  const abstaende = werte.slice(1).map((punkt, index) => punkt.t - werte[index].t).sort((links, rechts) => links - rechts);
+  return abstaende[Math.floor(abstaende.length / 2)];
+};
+
 /** D-1 - values and pictures stop in the same minute and start again together. That is not the camera. */
 const d1 = (lage: Lage): RegelZeile | null => {
   const temperatur = punkte(lage, 'temperatur');
-  if (temperatur.length < 2) return null;
+  const eigen = takt(temperatur);
+  if (temperatur.length < 2 || eigen === null) return null;
 
-  const loch = luecken(temperatur, lage.eingabe.vorher, lage.eingabe.jetzt, LUECKE_MS)
+  const loch = luecken(temperatur, lage.eingabe.vorher, lage.eingabe.jetzt, Math.max(LUECKE_MS, eigen * LUECKE_VIELFACHES))
     .filter(fenster => !lage.eingabe.dinge.some(ding => ding.art === 'bild' && ding.t > fenster.von && ding.t < fenster.bis))
     .pop();
   if (!loch) return null;

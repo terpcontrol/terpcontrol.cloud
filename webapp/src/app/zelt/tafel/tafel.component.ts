@@ -5,12 +5,17 @@ import type { Ding, DingArt, Zelt } from '@fg2/shared-types';
 import { VergleichService } from 'src/app/services/vergleich.service';
 import { KeyedCache } from 'src/app/util/keyed-cache';
 import { Messung } from 'src/app/util/messquellen';
-import { VERALTET_MS, istEintrag } from 'src/app/util/ding-text';
+import { Beleg, beleg } from 'src/app/util/beleg';
+import { Text, VERALTET_MS, istEintrag } from 'src/app/util/ding-text';
 import { einheitVon } from 'src/app/util/einheiten';
+import { Satz, satz } from 'src/app/util/satz';
 import { formatTimeAgo } from 'src/app/util/time-ago';
-import { KAPPE, UnterschiedZeile, handMessungen, unterschiedZeilen } from 'src/app/util/unterschied';
+import { KAPPE, UnterschiedZeile, handMessungen, nachAbweichung, unterschiedZeilen } from 'src/app/util/unterschied';
+import { VorherLage, vorherLage, vorherVerschoben } from 'src/app/util/vorher';
+import { PaarHalbe } from '../paar/paar.component';
 import { pluralSchluessel, zahlText } from 'src/app/util/zahl';
 import { zeltTag } from 'src/app/util/zelt-tag';
+import { DingTextService } from '../zeile/ding-text.service';
 
 /** One line of the header. It exists when its evidence exists, and is absent otherwise. */
 export interface Kopffakt {
@@ -113,6 +118,10 @@ export class TafelComponent implements OnInit, OnChanges, OnDestroy {
   private readonly unterschiedCache = new KeyedCache<UnterschiedZeile[]>();
   private readonly tabelleCache = new KeyedCache<TabellenZeile[]>();
   private readonly messungenCache = new KeyedCache<Messung[]>();
+  private readonly lageCache = new KeyedCache<VorherLage>();
+  private readonly satzCache = new KeyedCache<Satz>();
+  private readonly belegCache = new KeyedCache<Beleg>();
+  private readonly paarCache = new KeyedCache<PaarHalbe[]>();
   private readonly abos = new Subscription();
   /** The shared cursor, as it stands. `null` until a screen has named its tent. */
   private cursorVon: number | null = null;
@@ -120,10 +129,23 @@ export class TafelComponent implements OnInit, OnChanges, OnDestroy {
   /** Now, re-read on a timer. Every relative time and every stale mark on the screen follows it. */
   public jetzt = Date.now();
 
-  constructor(private cursor: VergleichService, private translate: TranslateService) {}
+  /**
+   * §9: the sentence is „computed **once per screen entry** - it does not
+   * re-rank while you look at it." So it is keyed on what the screen was given
+   * and where the cursor is, and deliberately **not** on the thirty-second
+   * clock that ages the header.
+   */
+  private eingabeStand = 0;
+
+  constructor(private cursor: VergleichService, private translate: TranslateService, private texte: DingTextService) {}
 
   ngOnInit(): void {
-    this.abos.add(this.cursor.vergleich$.subscribe(vergleich => (this.cursorVon = vergleich?.von ?? null)));
+    this.abos.add(
+      this.cursor.vergleich$.subscribe(vergleich => {
+        this.cursorVon = vergleich?.von ?? null;
+        this.eingabeStand++;
+      }),
+    );
     this.abos.add(this.cursor.zieht$.subscribe(zieht => (this.zieht = zieht)));
     this.abos.add(
       interval(TAKT_MS).subscribe(() => {
@@ -144,6 +166,7 @@ export class TafelComponent implements OnInit, OnChanges, OnDestroy {
     // cycle. One counter per input change is what stops a re-read rebuilding
     // rows that did not change.
     this.stand++;
+    this.eingabeStand++;
   }
 
   get vergleichMoment(): number {
@@ -158,6 +181,28 @@ export class TafelComponent implements OnInit, OnChanges, OnDestroy {
    */
   vorherHier(ding: Ding): void {
     this.cursor.setzen(ding.t, 'frei');
+  }
+
+  /**
+   * §5 - the picture pair. Same box, same 4:3, same mini-caps, same position in
+   * every arm, and **the caption's third slot is the evidence kind and it is
+   * always printed**. That one word is what makes there be no mode: the screen
+   * always says what it is looking at, at every density, including the mixed
+   * pair the day after a controller arrives.
+   */
+  get paar(): PaarHalbe[] {
+    return this.paarCache.get(`${this.eingabeStand}:${this.jetzt}:${this.bildMomentVorher}`, () =>
+      [
+        {
+          id: 'vorher' as const,
+          kappe: this.kappeVorher,
+          beleg: this.belegVorher,
+          moment: this.bildMomentVorher,
+          zeitZeigen: this.lage.spalte === 'vorher',
+        },
+        { id: 'jetzt' as const, kappe: { key: 'zelt.kappe.jetzt' }, beleg: this.belegJetzt, moment: this.jetzt, zeitZeigen: true },
+      ].map(halbe => ({ ...halbe, tag: this.zelt ? zeltTag(this.zelt, this.dinge, halbe.moment) : 0 })),
+    );
   }
 
   /** The Subjekt's own name, in the reader's language. An unnamed tent is still a tent. */
@@ -196,8 +241,8 @@ export class TafelComponent implements OnInit, OnChanges, OnDestroy {
    * it.
    */
   get verlauf(): VerlaufZeile[] {
-    return this.verlaufCache.get(`${this.stand}:${this.vergleichMoment}`, () => {
-      const moment = this.vergleichMoment;
+    return this.verlaufCache.get(`${this.stand}:${this.vorherMoment}`, () => {
+      const moment = this.vorherMoment;
       const obenSchon = new Set(this.offen.map(ding => ding.ding_id));
       let getrennt = false;
 
@@ -232,20 +277,93 @@ export class TafelComponent implements OnInit, OnChanges, OnDestroy {
     return this.messungenCache.get(String(this.stand), () => [...handMessungen(this.dinge), ...this.geraetMessungen]);
   }
 
-  get unterschied(): UnterschiedZeile[] {
-    return this.unterschiedCache.get(`${this.stand}:${this.vergleichMoment}`, () =>
-      unterschiedZeilen({
-        vorher: this.dinge.filter(ding => ding.t <= this.vergleichMoment),
-        jetzt: [...this.dinge],
-        messungenVorher: this.geraetMessungenVorher,
-        messungenJetzt: this.geraetMessungen,
+  /**
+   * §8.1's one rule, resolved for this Subjekt: a Ding that has a state diffs
+   * against a moment, a Ding that *is* a moment diffs against its predecessor.
+   * The cursor is the same cursor either way; only what it means changes.
+   */
+  get lage(): VorherLage {
+    return this.lageCache.get(`${this.eingabeStand}:${this.vergleichMoment}`, () =>
+      vorherLage({
+        zelt: this.zelt,
+        dinge: this.dinge,
+        subjekt: this.subjekt,
+        cursor: this.vergleichMoment,
+        messungen: this.geraetMessungen,
+        jetzt: this.jetzt,
       }),
+    );
+  }
+
+  /** The moment the table and the Vorher hairline are drawn against. */
+  get vorherMoment(): number {
+    return this.lage.von;
+  }
+
+  /**
+   * §9 - the one sentence. There is no second generator for the device-less
+   * case and no day-one branch beside it: rank 8e *is* the day-one line, and it
+   * is reached down the same ladder as every other line on this screen.
+   */
+  get satz(): Satz {
+    return this.satzCache.get(`${this.eingabeStand}:${this.vorherMoment}`, () =>
+      satz({
+        zelt: this.zelt,
+        dinge: this.dinge,
+        messungen: this.geraetMessungen,
+        vorher: this.vorherMoment,
+        jetzt: this.jetzt,
+      }),
+    );
+  }
+
+  /**
+   * §5, the left half. Rank 8a and 8c move it to the last moment that has
+   * evidence, so the screen shows you something rather than reporting an
+   * absence - and the cursor stays exactly where the reader put it.
+   */
+  get belegVorher(): Beleg {
+    const lage = this.satz.vorherNeu === null ? this.lage : vorherVerschoben(this.lage, this.satz.vorherNeu);
+    return this.belegCache.get(`vorher:${this.eingabeStand}:${lage.von}`, () =>
+      beleg({ zelt: this.zelt, dinge: this.dinge, messungen: this.geraetMessungenVorher, halbe: 'vorher' }, lage.von),
+    );
+  }
+
+  /** §5, the right half. The same five rungs, walked independently. */
+  get belegJetzt(): Beleg {
+    return this.belegCache.get(`jetzt:${this.eingabeStand}:${this.jetzt}`, () =>
+      beleg({ zelt: this.zelt, dinge: this.dinge, messungen: this.geraetMessungen, halbe: 'jetzt' }, this.jetzt),
+    );
+  }
+
+  /** What the left picture is actually of, which is not always the moment that was asked for. */
+  get bildMomentVorher(): number {
+    return this.belegVorher.t ?? this.vorherMoment;
+  }
+
+  /** The mini-cap over the left half: `VORHER`, or §7.4's comparand when there is no before. */
+  get kappeVorher(): Text {
+    return (this.satz.vorherNeu === null ? this.lage : vorherVerschoben(this.lage, this.satz.vorherNeu)).kappe;
+  }
+
+  get unterschied(): UnterschiedZeile[] {
+    return this.unterschiedCache.get(`${this.stand}:${this.vorherMoment}`, () =>
+      nachAbweichung(
+        unterschiedZeilen({
+          vorher: this.dinge.filter(ding => ding.t <= this.vorherMoment),
+          jetzt: [...this.dinge],
+          messungenVorher: this.geraetMessungenVorher,
+          messungenJetzt: this.geraetMessungen,
+          bis: this.jetzt,
+          zeitzone: this.zelt?.zeitzone,
+        }),
+      ),
     );
   }
 
   /** §6.3: eleven rows, then a Zeile that expands in place. */
   get sichtbareZeilen(): TabellenZeile[] {
-    return this.tabelleCache.get(`${this.stand}:${this.vergleichMoment}:${this.tabelleOffen}`, () =>
+    return this.tabelleCache.get(`${this.stand}:${this.vorherMoment}:${this.tabelleOffen}`, () =>
       (this.tabelleOffen ? this.unterschied : this.unterschied.slice(0, KAPPE)).map(zeile => ({
         ...zeile,
         zusatz: this.zusatz(zeile),
@@ -267,9 +385,10 @@ export class TafelComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   /**
-   * Day one: a tent that exists and nothing else. §9.2 rank 8e - the screen
-   * says so in one sentence instead of drawing three labelled sections with
-   * nothing under them.
+   * Day one: a tent that exists and nothing else. There is no sentence of its
+   * own here any more - §9.2's rank 8e writes it, down the one ladder - and
+   * this is only what stops three labelled sections being drawn with nothing
+   * under them.
    */
   get tagEins(): boolean {
     return !this.offen.length && !this.imZelt.length && !this.verlauf.length && !this.unterschied.length;

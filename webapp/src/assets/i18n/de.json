@@ -1016,7 +1016,9 @@
       },
       "lights": {
         "limit": "Ziel Lichtstärke"
-      }
+      },
+      "gruenanteil": "Blattfläche (Bildanteil)",
+      "helligkeit": "Bildhelligkeit"
     },
     "ziel": {
       "day": {
@@ -1144,7 +1146,203 @@
     },
     "tagEins": "Dein Tagebuch fängt heute an.",
     "erneutVersuchen": "Nochmal versuchen",
-    "deineZelte": "Deine Zelte"
+    "deineZelte": "Deine Zelte",
+    "kappe": {
+      "vorher": "Vorher",
+      "ziel": "Ziel",
+      "plan": "Plan",
+      "beginn": "Beginn",
+      "jetzt": "Jetzt"
+    },
+    "dauer": {
+      "stunden": "{{stunden}} Std {{minuten}}",
+      "minuten": {
+        "one": "1 Min",
+        "other": "{{minuten}} Min"
+      },
+      "tage": {
+        "one": "1 Tag",
+        "other": "{{tage}} Tage"
+      }
+    },
+    "zahlwort": {
+      "2": "zwei",
+      "3": "drei",
+      "4": "vier",
+      "5": "fünf",
+      "6": "sechs",
+      "7": "sieben",
+      "8": "acht",
+      "9": "neun"
+    },
+    "beleg": {
+      "kennung": {
+        "bild": "Kamerabild",
+        "foto": "Foto",
+        "band": "Werte",
+        "karte": "Einträge"
+      },
+      "nichts": {
+        "keinVorher": "Noch kein Vorher",
+        "nochNichts": "Noch nichts eingetragen",
+        "keineKamera": "Keine Kamera gekoppelt",
+        "nichtsVerbunden": "Nichts verbunden",
+        "keinFoto": "Kein Foto an diesem Tag",
+        "keineMesswerte": "Keine Messwerte — nur was du einträgst"
+      },
+      "karte": {
+        "tagPhase": "Tag {{tag}} · {{stufe}}",
+        "schema": "{{name}} · Schritt {{schritt}}",
+        "wasser": "Wasser gesamt {{liter}} l",
+        "messwerte": "{{werte}}",
+        "messwert": "{{mass}} {{wert}} {{einheit}}",
+        "und": "{{links}} · {{rechts}}",
+        "zettel": {
+          "one": "1 Zettel offen",
+          "other": "{{anzahl}} Zettel offen"
+        }
+      },
+      "band": "{{mass}} {{min}}–{{max}} {{einheit}}"
+    },
+    "satz": {
+      "kamerastill": "Seit {{dauer}} kein Bild.",
+      "offline": "Das Zelt war {{dauer}} offline.",
+      "gewachsen": "Die Pflanzen sind gewachsen.",
+      "wenigerGruen": "Im Bild ist weniger Grün als vorher.",
+      "hoehe": "Aus {{vorher}} cm sind {{jetzt}} cm geworden.",
+      "nachtsWaermer": "Nachts war es wärmer.",
+      "nachtsKuehler": "Nachts war es kühler.",
+      "gestiegen": "{{mass}} ist von {{vorher}} auf {{jetzt}} gestiegen.",
+      "gefallen": "{{mass}} ist von {{vorher}} auf {{jetzt}} gefallen.",
+      "kachel": "Im Bild hat sich vor allem {{ort}} etwas verändert.",
+      "ort": {
+        "obenLinks": "oben links",
+        "obenMitte": "oben in der Mitte",
+        "obenRechts": "oben rechts",
+        "mitteLinks": "links",
+        "mitteMitte": "in der Mitte",
+        "mitteRechts": "rechts",
+        "untenLinks": "unten links",
+        "untenMitte": "unten in der Mitte",
+        "untenRechts": "unten rechts"
+      },
+      "zielDu": "Du hast {{ziel}} geändert: jetzt {{wert}}.",
+      "zielGeraet": "{{ziel}} steht jetzt auf {{wert}}.",
+      "gabe": {
+        "du": {
+          "eins": "Du hast gegossen.",
+          "viele": "Du hast {{mal}} gegossen."
+        },
+        "wer": {
+          "eins": "{{name}} hat gegossen.",
+          "viele": "{{name}} hat {{mal}} gegossen."
+        }
+      },
+      "notiz": {
+        "du": {
+          "eins": "Du hast eine Notiz geschrieben.",
+          "viele": "Du hast {{anzahl}} Notizen geschrieben."
+        },
+        "wer": {
+          "eins": "{{name}} hat eine Notiz geschrieben.",
+          "viele": "{{name}} hat {{anzahl}} Notizen geschrieben."
+        }
+      },
+      "bild": {
+        "du": {
+          "eins": "Du hast ein Foto gemacht.",
+          "viele": "Du hast {{anzahl}} Fotos gemacht."
+        },
+        "wer": {
+          "eins": "{{name}} hat ein Foto gemacht.",
+          "viele": "{{name}} hat {{anzahl}} Fotos gemacht."
+        }
+      },
+      "zustand": {
+        "du": {
+          "eins": "Du hast einen Zettel hinterlassen.",
+          "viele": "Du hast {{anzahl}} Zettel hinterlassen."
+        },
+        "wer": {
+          "eins": "{{name}} hat einen Zettel hinterlassen.",
+          "viele": "{{name}} hat {{anzahl}} Zettel hinterlassen."
+        }
+      },
+      "phase": "{{stufe}} hat am {{datum}} angefangen.",
+      "pflanze": "{{name}} ist dazugekommen.",
+      "mal": {
+        "2": "zweimal",
+        "3": "dreimal",
+        "4": "viermal",
+        "5": "fünfmal",
+        "6": "sechsmal",
+        "7": "siebenmal",
+        "8": "achtmal",
+        "9": "neunmal"
+      },
+      "laufWeiter": "Im letzten Lauf warst du an Tag {{tag}} {{tage}} weiter.",
+      "laufZurueck": "Im letzten Lauf warst du an Tag {{tag}} {{tage}} zurück.",
+      "laufGleich": "Im letzten Lauf warst du an Tag {{tag}} genauso weit.",
+      "laufBild": "Im letzten Lauf sah es an Tag {{tag}} so aus.",
+      "tage": {
+        "one": "einen Tag",
+        "other": "{{anzahl}} Tage"
+      },
+      "naechster": "Als Nächstes: Schritt {{schritt}}.",
+      "zuletztEingetragen": "Zuletzt eingetragen am {{tag}}: {{was}}.",
+      "wenigGeaendert": "Seit {{tag}} hat sich wenig geändert.",
+      "und": "{{links}} und {{rechts}}",
+      "fotos": {
+        "one": "ein Foto",
+        "other": "{{anzahl}} Fotos"
+      },
+      "notizen": {
+        "one": "eine Notiz",
+        "other": "{{anzahl}} Notizen"
+      }
+    },
+    "massSatz": {
+      "temperatur": "Die Temperatur",
+      "luftfeuchte": "Die Luftfeuchte",
+      "vpd": "Das VPD",
+      "co2": "Das CO₂",
+      "ph": "Der pH",
+      "ec": "Der EC",
+      "tds": "Der TDS",
+      "ppfd": "Der PPFD",
+      "abstand_cm": "Der Lampenabstand",
+      "aussen_temperatur": "Die Außentemperatur",
+      "hoehe_cm": "Die Höhe",
+      "topfgewicht_kg": "Das Topfgewicht"
+    },
+    "regel": {
+      "marke": "Regel {{id}} ›",
+      "N-3": "Nacht-Ziel steht auf {{ziel}} und Abluft ist keine Dose. Was du tun kannst: Licht dimmen (jetzt {{licht}} %).",
+      "N-4": "Nacht-Ziel {{nacht}} liegt nur {{abstand}} unter dem Tag-Ziel. Üblich sind 3–6 °C Absenkung.",
+      "H-1": "Die Heizung lief {{dauer}} ohne Pause und es blieb {{abstand}} zu kalt. Die Heizleistung reicht nicht — oder die Dose schaltet nicht.",
+      "H-2": "Die Heizung hat heute {{anzahl}}× geschaltet und die Temperatur ist danach nie gestiegen. Prüf, ob am Stecker etwas hängt.",
+      "L-1": "Das Licht sollte an sein, das Bild ist dunkel. Prüf die Lampe oder die Dose „Licht“.",
+      "E-1": "Der Entfeuchter lief {{dauer}} von 24. In der Betriebsart „{{betriebsart}}“ kühlt diese Dose — sie entfeuchtet nicht.",
+      "V-1": "VPD {{wert}} kPa liegt außerhalb vom {{stufe}}-Band {{unten}}–{{oben}}. Bei {{temperatur}} wären dafür {{noetig}} % Feuchte nötig statt {{ist}} %. Eine Dose mit der Rolle „Befeuchter“ kennt die Firmware nicht.",
+      "K-1": "Seit {{dauer}} kein Bild, obwohl das Zelt online ist. Das Problem liegt an der Kamera, nicht am Controller.",
+      "D-1": "Zwischen {{von}} und {{bis}} fehlen Messwerte und Bilder. Das Zelt war offline.",
+      "F-1": "Schritt {{schritt}} des Schemas ist seit {{dauer}} fällig.",
+      "Z-1": "Das Ziel {{name}} wurde am {{datum}} von {{vorher}} auf {{jetzt}} geändert. Werte davor sind gegen {{vorher}} gemessen."
+    },
+    "marke": {
+      "ueber": "über der üblichen Schwankung",
+      "ruhig": "innerhalb der üblichen Schwankung",
+      "gleich": "unverändert"
+    },
+    "stufeSatz": {
+      "germination": "Die Keimung",
+      "seedling": "Der Sämling",
+      "vegetative": "Das Wachstum",
+      "flowering": "Die Blüte",
+      "drying": "Die Trocknung",
+      "curing": "Die Reifung",
+      "ernte": "Die Ernte"
+    }
   },
   "simpleSettings": {
     "modeSimple": "Einfach",

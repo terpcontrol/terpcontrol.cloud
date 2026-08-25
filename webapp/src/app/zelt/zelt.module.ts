@@ -8,6 +8,8 @@ import { BrowserPage } from './browser/browser.page';
 import { FaktComponent } from './koerper/fakt.component';
 import { KoerperHostDirective } from './koerper/koerper-host.directive';
 import { KOERPER_KOMPONENTEN } from './koerper/koerper.registry';
+import { PaarComponent } from './paar/paar.component';
+import { SatzComponent } from './satz/satz.component';
 import { TafelComponent } from './tafel/tafel.component';
 import { WerteComponent } from './werte/werte.component';
 import { ZeileComponent } from './zeile/zeile.component';
@@ -27,6 +29,8 @@ import { ZeltRoutingModule } from './zelt-routing.module';
     TafelComponent,
     ZeileComponent,
     WerteComponent,
+    PaarComponent,
+    SatzComponent,
     FaktComponent,
     KoerperHostDirective,
     ZeitgriffComponent,
@@ -37,6 +41,6 @@ import { ZeltRoutingModule } from './zelt-routing.module';
   imports: [CommonModule, IonicModule, RouterModule, PipesModule, TranslateModule.forChild(), ZeltRoutingModule],
   // The Zeile and the Tafel are the two shapes of the product; anything that
   // shows a Ding uses them rather than drawing a third.
-  exports: [TafelComponent, ZeileComponent, WerteComponent, KoerperHostDirective, ZeitgriffComponent, ZeitlageComponent],
+  exports: [TafelComponent, ZeileComponent, WerteComponent, PaarComponent, SatzComponent, KoerperHostDirective, ZeitgriffComponent, ZeitlageComponent],
 })
 export class ZeltModule {}

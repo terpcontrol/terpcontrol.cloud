@@ -1,6 +1,5 @@
 // 4 px base, gaps only from 4/8/12/16/24/32, rows at least 48 px, numbers tabular.
 .tafel-titel,
-.tafel-tag-eins,
 .tafel-abschnitt-titel,
 .tafel-spalten,
 .tafel-herkunft,
@@ -103,8 +102,6 @@
   opacity: 0.88;
 }
 
-
-
 .tafel-delta--hoch {
   color: var(--tc-hoch);
 }
@@ -123,18 +120,14 @@
   border-top: 1px solid var(--ion-color-step-150);
 }
 
-// Day one's one sentence, and the upsell under it, read at row size.
-.tafel-tag-eins,
-.tafel-geraet-zeile {
-  font-size: 15px;
-  line-height: 20px;
-}
-
+// The upsell reads at row size, the way every other Zeile does.
 .tafel-geraet-zeile {
   display: flex;
   align-items: center;
   gap: 12px;
   min-height: 48px;
+  font-size: 15px;
+  line-height: 20px;
   color: inherit;
   text-decoration: none;
 }
@@ -172,4 +165,13 @@
   flex: none;
   width: 44px;
   color: var(--ion-color-medium);
+}
+
+// The mark is a reading of the row, not a verdict on the grow, so the glyph
+// carries all of it: no red, no green, no weight and no colour of its own.
+// Colour on this screen belongs to Δ and to alarms, and the modifier class is
+// left on the element as a hook rather than as a second way of saying `▲`.
+.tafel-marke {
+  flex: none;
+  width: 16px;
 }

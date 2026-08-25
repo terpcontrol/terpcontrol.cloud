@@ -1,0 +1,35 @@
+// §6.5: 19/26 600, and exactly one of these on a screen.
+.tafel-satz-text {
+  margin: 0;
+  font-size: 19px;
+  line-height: 26px;
+  font-weight: 600;
+}
+
+// §8.2 calls this the closest call in the whole no-modes audit, so it is styled
+// as an ordinary Zeile inside the sentence block - never a card, never a badge,
+// never a colour of its own.
+.tafel-regel {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 48px;
+  margin-top: 8px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.tafel-regel-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.tafel-regel-pfeil,
+.tafel-regel-marke {
+  flex: none;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ion-color-medium);
+}

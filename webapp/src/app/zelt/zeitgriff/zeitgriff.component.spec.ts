@@ -75,8 +75,10 @@ describe('the Zeitgriff on a tent with no device', () => {
   it('is there, in the same place, with no hardware anywhere', () => {
     const griff = element.querySelector('tc-zeitgriff');
     expect(griff).toBeTruthy();
-    // Directly under the sentence block, before every section.
-    expect(element.querySelector('.tafel-kopf')?.nextElementSibling).toBe(griff as Element);
+    // §8.1: directly under the sentence block, before every section - and the
+    // sentence block is there at this density too, because rank 8 always writes
+    // one.
+    expect(element.querySelector('.tafel-satz')?.nextElementSibling).toBe(griff as Element);
   });
 
   it('is not a device feature: nothing greyed, nothing disabled, no padlock', () => {

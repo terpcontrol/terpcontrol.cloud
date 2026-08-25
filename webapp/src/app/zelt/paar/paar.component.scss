@@ -1,0 +1,65 @@
+// §5. Both halves are the same box at every density, 4:3, side by side, and
+// the caption under them always names what it is looking at.
+.tafel-paar {
+  display: flex;
+  gap: 12px;
+}
+
+.tafel-halbe {
+  flex: 1;
+  min-width: 0;
+}
+
+.tafel-kappe {
+  margin: 0 0 4px;
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ion-color-medium);
+}
+
+.tafel-rahmen {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  aspect-ratio: 4 / 3;
+  padding: 8px;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid var(--ion-color-step-150);
+  color: var(--ion-color-medium);
+}
+
+.tafel-karte-zeile,
+.tafel-band-zeile {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ion-text-color);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tafel-nichts {
+  width: 96px;
+  align-self: center;
+  color: var(--ion-color-medium);
+}
+
+.tafel-bild-zeit,
+.tafel-bild-kennung {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ion-color-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.tafel-bild-kennung {
+  margin-top: 0;
+}

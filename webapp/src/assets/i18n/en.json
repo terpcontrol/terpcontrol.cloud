@@ -1020,7 +1020,9 @@
       },
       "lights": {
         "limit": "Target light level"
-      }
+      },
+      "gruenanteil": "Leaf area (share of frame)",
+      "helligkeit": "Frame brightness"
     },
     "ziel": {
       "day": {
@@ -1148,7 +1150,203 @@
     },
     "tagEins": "Your diary starts today.",
     "erneutVersuchen": "Try again",
-    "deineZelte": "Your tents"
+    "deineZelte": "Your tents",
+    "kappe": {
+      "vorher": "Before",
+      "ziel": "Target",
+      "plan": "Plan",
+      "beginn": "Start",
+      "jetzt": "Now"
+    },
+    "dauer": {
+      "stunden": "{{stunden}} h {{minuten}}",
+      "minuten": {
+        "one": "1 min",
+        "other": "{{minuten}} min"
+      },
+      "tage": {
+        "one": "1 day",
+        "other": "{{tage}} days"
+      }
+    },
+    "zahlwort": {
+      "2": "two",
+      "3": "three",
+      "4": "four",
+      "5": "five",
+      "6": "six",
+      "7": "seven",
+      "8": "eight",
+      "9": "nine"
+    },
+    "beleg": {
+      "kennung": {
+        "bild": "Camera frame",
+        "foto": "Photo",
+        "band": "Readings",
+        "karte": "Entries"
+      },
+      "nichts": {
+        "keinVorher": "No before yet",
+        "nochNichts": "Nothing written down yet",
+        "keineKamera": "No camera paired",
+        "nichtsVerbunden": "Nothing connected",
+        "keinFoto": "No photo on this day",
+        "keineMesswerte": "No sensor readings — only what you write down"
+      },
+      "karte": {
+        "tagPhase": "Day {{tag}} · {{stufe}}",
+        "schema": "{{name}} · step {{schritt}}",
+        "wasser": "Water total {{liter}} l",
+        "messwerte": "{{werte}}",
+        "messwert": "{{mass}} {{wert}} {{einheit}}",
+        "und": "{{links}} · {{rechts}}",
+        "zettel": {
+          "one": "1 open note",
+          "other": "{{anzahl}} open notes"
+        }
+      },
+      "band": "{{mass}} {{min}}–{{max}} {{einheit}}"
+    },
+    "satz": {
+      "kamerastill": "No picture for {{dauer}}.",
+      "offline": "The tent was offline for {{dauer}}.",
+      "gewachsen": "The plants have grown.",
+      "wenigerGruen": "There is less green in the picture than before.",
+      "hoehe": "{{vorher}} cm has become {{jetzt}} cm.",
+      "nachtsWaermer": "It was warmer at night.",
+      "nachtsKuehler": "It was cooler at night.",
+      "gestiegen": "{{mass}} rose from {{vorher}} to {{jetzt}}.",
+      "gefallen": "{{mass}} fell from {{vorher}} to {{jetzt}}.",
+      "kachel": "In the picture, something changed mostly {{ort}}.",
+      "ort": {
+        "obenLinks": "top left",
+        "obenMitte": "top centre",
+        "obenRechts": "top right",
+        "mitteLinks": "on the left",
+        "mitteMitte": "in the centre",
+        "mitteRechts": "on the right",
+        "untenLinks": "bottom left",
+        "untenMitte": "bottom centre",
+        "untenRechts": "bottom right"
+      },
+      "zielDu": "You changed {{ziel}}: now {{wert}}.",
+      "zielGeraet": "{{ziel}} now stands at {{wert}}.",
+      "gabe": {
+        "du": {
+          "eins": "You watered.",
+          "viele": "You watered {{mal}}."
+        },
+        "wer": {
+          "eins": "{{name}} watered.",
+          "viele": "{{name}} watered {{mal}}."
+        }
+      },
+      "notiz": {
+        "du": {
+          "eins": "You wrote a note.",
+          "viele": "You wrote {{anzahl}} notes."
+        },
+        "wer": {
+          "eins": "{{name}} wrote a note.",
+          "viele": "{{name}} wrote {{anzahl}} notes."
+        }
+      },
+      "bild": {
+        "du": {
+          "eins": "You took a photo.",
+          "viele": "You took {{anzahl}} photos."
+        },
+        "wer": {
+          "eins": "{{name}} took a photo.",
+          "viele": "{{name}} took {{anzahl}} photos."
+        }
+      },
+      "zustand": {
+        "du": {
+          "eins": "You left a note on the door.",
+          "viele": "You left {{anzahl}} notes on the door."
+        },
+        "wer": {
+          "eins": "{{name}} left a note on the door.",
+          "viele": "{{name}} left {{anzahl}} notes on the door."
+        }
+      },
+      "phase": "{{stufe}} started on {{datum}}.",
+      "pflanze": "{{name}} has joined.",
+      "mal": {
+        "2": "twice",
+        "3": "three times",
+        "4": "four times",
+        "5": "five times",
+        "6": "six times",
+        "7": "seven times",
+        "8": "eight times",
+        "9": "nine times"
+      },
+      "laufWeiter": "Last run you were {{tage}} further along on day {{tag}}.",
+      "laufZurueck": "Last run you were {{tage}} behind on day {{tag}}.",
+      "laufGleich": "Last run you were exactly as far along on day {{tag}}.",
+      "laufBild": "This is what day {{tag}} looked like last run.",
+      "tage": {
+        "one": "a day",
+        "other": "{{anzahl}} days"
+      },
+      "naechster": "Next up: step {{schritt}}.",
+      "zuletztEingetragen": "Last written down on {{tag}}: {{was}}.",
+      "wenigGeaendert": "Little has changed since {{tag}}.",
+      "und": "{{links}} and {{rechts}}",
+      "fotos": {
+        "one": "a photo",
+        "other": "{{anzahl}} photos"
+      },
+      "notizen": {
+        "one": "a note",
+        "other": "{{anzahl}} notes"
+      }
+    },
+    "massSatz": {
+      "temperatur": "Temperature",
+      "luftfeuchte": "Humidity",
+      "vpd": "VPD",
+      "co2": "CO₂",
+      "ph": "pH",
+      "ec": "EC",
+      "tds": "TDS",
+      "ppfd": "PPFD",
+      "abstand_cm": "Lamp distance",
+      "aussen_temperatur": "Outside temperature",
+      "hoehe_cm": "Height",
+      "topfgewicht_kg": "Pot weight"
+    },
+    "regel": {
+      "marke": "Rule {{id}} ›",
+      "N-3": "The night target is {{ziel}} and exhaust is not a socket. What you can do: dim the light (currently {{licht}} %).",
+      "N-4": "The night target {{nacht}} is only {{abstand}} below the day target. A 3–6 °C drop is usual.",
+      "H-1": "The heater ran {{dauer}} without a break and it stayed {{abstand}} too cold. Either the heater is too small — or the socket is not switching.",
+      "H-2": "The heater switched {{anzahl}}× today and the temperature never rose afterwards. Check whether anything is plugged in.",
+      "L-1": "The light should be on and the picture is dark. Check the lamp or the “Light” socket.",
+      "E-1": "The dehumidifier ran {{dauer}} out of 24. In operating mode “{{betriebsart}}” this socket cools — it does not dehumidify.",
+      "V-1": "VPD {{wert}} kPa is outside the {{stufe}} band {{unten}}–{{oben}}. At {{temperatur}} that would need {{noetig}} % humidity instead of {{ist}} %. The firmware has no socket role “humidifier”.",
+      "K-1": "No picture for {{dauer}}, although the tent is online. The problem is the camera, not the controller.",
+      "D-1": "Readings and pictures are missing between {{von}} and {{bis}}. The tent was offline.",
+      "F-1": "Step {{schritt}} of the schedule has been due for {{dauer}}.",
+      "Z-1": "The target {{name}} was changed on {{datum}} from {{vorher}} to {{jetzt}}. Readings before that were measured against {{vorher}}."
+    },
+    "marke": {
+      "ueber": "beyond its usual swing",
+      "ruhig": "within its usual swing",
+      "gleich": "unchanged"
+    },
+    "stufeSatz": {
+      "germination": "Germination",
+      "seedling": "The seedling",
+      "vegetative": "Vegetative growth",
+      "flowering": "Flowering",
+      "drying": "Drying",
+      "curing": "Curing",
+      "ernte": "The harvest"
+    }
   },
   "simpleSettings": {
     "modeSimple": "Simple",

@@ -198,9 +198,13 @@ describe('TafelComponent, day one', () => {
     element = fixture.nativeElement;
   });
 
-  it('says the one sentence §9.2 asks for', () => {
+  it('says the one sentence §9.2 asks for, down the one ladder', () => {
     expect(component.tagEins).toBeTrue();
-    expect(element.querySelector('.tafel-tag-eins')?.textContent).toContain('zelt.tagEins');
+    // 8e is a rung, not a second code path: the day-one line is written by the
+    // same generator that writes every other line in the product.
+    expect(component.satz.rang).toBe('8e');
+    expect(component.satz.klauseln[0].text.key).toBe('zelt.tagEins');
+    expect(element.querySelector('.tafel-satz')).toBeTruthy();
   });
 
   it('draws no labelled section with nothing under it', () => {
@@ -217,7 +221,10 @@ describe('TafelComponent, day one', () => {
   it('credits nobody with an entry they never made', () => {
     expect(component.unterschied.some(zeile => zeile.mass === 'eintraege')).toBeFalse();
     expect(component.kopf.some(fakt => fakt.id === 'eintraege')).toBeFalse();
-    expect(element.textContent).not.toContain('0 ');
+    // No zero-count anywhere: an absent fact is an absent fact, never a meter
+    // reading nought.
+    expect(component.unterschied.length).toBe(0);
+    expect(component.kopf.map(fakt => fakt.params?.['anzahl'])).not.toContain('0');
   });
 });
 
@@ -360,5 +367,92 @@ describe('TafelComponent, a socket and the device that reports it', () => {
     expect(frisch.length).toBe(2);
     // And no hollow „stale" square anywhere: nothing on this screen is stale.
     expect(element.querySelectorAll('app-zeile .zeile-marke--hohl').length).toBe(0);
+  });
+});
+
+describe('TafelComponent, the one sentence on a tent with no device', () => {
+  let fixture: ComponentFixture<TafelComponent>;
+  let component: TafelComponent;
+  let element: HTMLElement;
+
+  /** The bundle's own strings, so a shape that stops matching de.json fails here rather than on a phone. */
+  const deutsch = {
+    zelt: {
+      tag: 'Tag {{tag}}',
+      tagEins: 'Dein Tagebuch fängt heute an.',
+      kappe: { vorher: 'Vorher', jetzt: 'Jetzt', beginn: 'Beginn' },
+      beleg: {
+        kennung: { bild: 'Kamerabild', foto: 'Foto', band: 'Werte', karte: 'Einträge' },
+        nichts: { keinVorher: 'Noch kein Vorher', nochNichts: 'Noch nichts eingetragen' },
+        karte: { tagPhase: 'Tag {{tag}} · {{stufe}}', wasser: 'Wasser gesamt {{liter}} l' },
+      },
+      satz: {
+        gabe: { du: { eins: 'Du hast gegossen.', viele: 'Du hast {{mal}} gegossen.' } },
+        hoehe: 'Aus {{vorher}} cm sind {{jetzt}} cm geworden.',
+        mal: { 2: 'zweimal' },
+      },
+      stufe: { flowering: 'Blüte' },
+    },
+  };
+
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      imports: [ZeltModule, IonicModule.forRoot(), RouterTestingModule, HttpClientTestingModule, TranslateModule.forRoot()],
+    }).compileComponents();
+  }));
+
+  beforeEach(() => {
+    const translate = TestBed.inject(TranslateService);
+    translate.setTranslation('de', deutsch);
+    translate.use('de');
+
+    const jetzt = Date.now();
+    fixture = TestBed.createComponent(TafelComponent);
+    component = fixture.componentInstance;
+    component.zelt = ohneGeraet;
+    component.dinge = [
+      { ding_id: 'zelt:z1', zelt_id: 'z1', art: 'zelt', name: 'Zelt Keller', t: ohneGeraet.tag_null, t_ende: null, d: {} },
+      { ding_id: 'ph1', zelt_id: 'z1', art: 'phase', name: '', t: jetzt - 12 * TAG, d: { stufe: 'flowering' } },
+      { ding_id: 'g1', zelt_id: 'z1', art: 'gabe', name: '', t: jetzt - 20 * 3600 * 1000, d: { wasser_l: 2 } },
+      { ding_id: 'g2', zelt_id: 'z1', art: 'gabe', name: '', t: jetzt - 2 * 3600 * 1000, d: { wasser_l: 2 } },
+    ];
+    component.subjekt = component.dinge[0];
+    fixture.detectChanges();
+    element = fixture.nativeElement;
+  });
+
+  it('writes a sentence, in German, with no hardware anywhere', () => {
+    expect(component.satz.rang).toBe('7');
+    expect(element.querySelector('.tafel-satz-text')?.textContent?.trim()).toBe('Du hast zweimal gegossen.');
+  });
+
+  it('offers no remedy: nine of eleven rules are silent and no substitute is invented', () => {
+    expect(component.satz.regel).toBeNull();
+    expect(element.querySelector('.tafel-regel')).toBeNull();
+  });
+
+  it('draws exactly one sentence on the screen', () => {
+    expect(element.querySelectorAll('.tafel-satz-text').length).toBe(1);
+  });
+
+  it('prints the evidence kind in both halves of the pair', () => {
+    const kennungen = Array.from(element.querySelectorAll('.tafel-kennung')).map(knoten => knoten.textContent?.trim());
+    expect(kennungen.length).toBe(2);
+    for (const kennung of kennungen) expect(kennung).toBeTruthy();
+  });
+
+  it('draws the Standkarte, which is what this density resolves to', () => {
+    expect(component.belegJetzt.art).toBe('karte');
+    expect(element.querySelectorAll('.tafel-karte-zeile').length).toBeGreaterThan(1);
+    expect(element.textContent).toContain('Blüte');
+  });
+
+  it('ranks the table and marks each row against its own noise', () => {
+    for (const zeile of component.sichtbareZeilen) {
+      expect(['ueber', 'ruhig', 'gleich']).toContain(zeile.marke);
+      // Nothing here has been read three times in fourteen days, so nothing
+      // may claim to have moved further than it usually moves.
+      expect(zeile.marke).not.toBe('ueber');
+    }
   });
 });
