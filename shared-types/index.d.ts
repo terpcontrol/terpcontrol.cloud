@@ -370,3 +370,208 @@ export interface LatestValue {
   /** Epoch ms of the measurement itself; absent when no data point was found. */
   t?: number;
 }
+
+/**
+ * Every row the app shows is one of these, whatever it is and wherever it came
+ * from. Seven arts are stored in Mongo because a human typed them; the rest are
+ * projected read-time from data that already exists (devices, sockets, images,
+ * logs, setpoints), so a caller reading a list cannot tell the two apart. That
+ * is the point: the tent with no device renders the same component as the tent
+ * with three.
+ */
+export type DingArt =
+  | 'zelt'
+  | 'geraet'
+  | 'pflanze'
+  | 'dose'
+  | 'kamera'
+  | 'bild'
+  | 'film'
+  | 'gabe'
+  | 'notiz'
+  | 'zustand'
+  | 'phase'
+  | 'ziel'
+  | 'mensch'
+  | 'ereignis'
+  | 'schema'
+  | 'lauf';
+
+/** The seven arts a person writes. Everything else is derived. */
+export const GESPEICHERTE_ARTEN: DingArt[];
+
+/** True for an art the client may POST. */
+export function istGespeichert(art: string): boolean;
+
+/**
+ * Arts a club key (`Schluessel`) may write through `POST /api/dinge`. A key is
+ * handed to a member, not to the owner, so it can log what happened but cannot
+ * restructure the tent. A photo goes through the image route instead, which
+ * writes its `bild` Ding itself.
+ */
+export const SCHLUESSEL_ARTEN: DingArt[];
+
+export interface Ding {
+  /**
+   * uuid v4, minted by the *client* and upserted on by the server, so a retry
+   * over a bad connection can never log the same watering twice.
+   */
+  ding_id: string;
+  zelt_id: string;
+  /** Set only on a projected Ding. A stored one never carries it - see `istGespeichert`. */
+  geraet_id?: string;
+  art: DingArt;
+  /** `A3 · Wedding Cake`, `Heizung (Dose 1)`. Renaming never changes `ding_id`. */
+  name: string;
+  /** When it *happened*, epoch ms. Editable at creation: a pour is often typed hours later. */
+  t: number;
+  /** End of an open interval. Explicit `null` means still open; absent means it is not an interval. */
+  t_ende?: number | null;
+  /** When it was *typed*, epoch ms, stamped by the server. Differs from `t` on a back-dated entry. */
+  erfasst_at?: number;
+  /** Named edges to other Dinge: `an`, `in`, `betrifft`, `von`. */
+  rel?: Record<string, string[]>;
+  /** The per-art payload. See `DingDaten` for the shape each art carries. */
+  d?: Record<string, unknown>;
+  /** image_ids a human attached to this Ding. */
+  bilder?: string[];
+  /** The nearest camera frame, filled by the server for display only. Never authored. */
+  auto_bild?: string;
+  /** ding_id of a `mensch` - who did this. */
+  akteur?: string;
+  /** ding_id of the Ding that corrects this one. A value is never edited, only superseded. */
+  storniert_von?: string;
+}
+
+/** Where a number came from. Carried into every export so a reader can weigh it. */
+export type Quelle = 'hand' | 'geraet';
+
+/**
+ * The hand instrument set: a pH pen, a tape measure, a pot on a kitchen scale.
+ * Every field is optional forever, and none of it ever enters InfluxDB - a
+ * dozen pH readings are not a time series, and `VALID_SENSORS` would drop them
+ * silently anyway.
+ */
+export interface Messwerte {
+  /** legacy: DiaryEntryData.phMeasurement */
+  ph?: number;
+  /** mS/cm, canonical. legacy: ecMeasurement */
+  ec?: number;
+  /** ppm. legacy: tdsMeasurement */
+  tds?: number;
+  /** legacy: lightMeasurement */
+  ppfd?: number;
+  /** Lamp to canopy. legacy: distanceMeasurement */
+  abstand_cm?: number;
+  /** legacy: outsideTemperatureMeasurement */
+  aussen_temperatur?: number;
+  /** No legacy source - starts empty, and the app says so rather than pretending. */
+  temperatur?: number;
+  /** No legacy source. */
+  luftfeuchte?: number;
+  /** No legacy source. */
+  hoehe_cm?: number;
+  /** The one hand signal the double-feed guard can read. */
+  substrat?: 'trocken' | 'feucht' | 'nass';
+  /** The other one. */
+  topfgewicht_kg?: number;
+}
+
+export type PflanzeQuelle = 'samen' | 'steckling' | 'gekauft';
+export type GabeVerteilung = 'gesamt' | 'je_pflanze';
+export type EcBasis = 'absolut' | 'plus_leitungswasser';
+
+/** One product in a feed, and whether the schema proposed it or a person did. */
+export interface GabeProdukt {
+  name: string;
+  ml_pro_l: number;
+  aus_schema: boolean;
+}
+
+/** The `d` payload of each stored art. */
+export interface DingDaten {
+  pflanze: {
+    sorte?: string;
+    medium?: string;
+    topf_l?: number;
+    quelle?: PflanzeQuelle;
+    keimung_t?: number;
+    ernte_t?: number;
+    ernte_g?: number;
+    entfernt_t?: number;
+    /** Dragged once on a photo, never prompted for: [x, y, w, h]. */
+    ausschnitt?: [number, number, number, number];
+  };
+  phase: {
+    /** The lifecycle stages the diary already knows, plus `ernte`. */
+    stufe: DiaryLifecycleStage | 'ernte';
+  };
+  gabe: {
+    wasser_l: number;
+    kannen?: number;
+    kanne_l?: number;
+    /** `gesamt` by default: most people water the tent, not a numbered plant. */
+    verteilung: GabeVerteilung;
+    ec?: number;
+    ph?: number;
+    ec_basis: EcBasis;
+    ablauf_ph?: number;
+    ablauf_ec?: number;
+    produkte: GabeProdukt[];
+    schema_id?: string;
+    schritt?: number;
+    /** ding_id of the entry this duplicates, when two members logged one pour. */
+    dublette_von?: string;
+  };
+  notiz: {
+    text: string;
+    messwerte?: Messwerte;
+  };
+  zustand: {
+    text: string;
+    /** ding_id of the `mensch` who closed it. */
+    geschlossen_von?: string;
+  };
+  mensch: {
+    farbe: string;
+    schluessel_aktiv?: boolean;
+    /** Set only when the person also happens to hold an account. */
+    user_id?: string;
+  };
+  lauf: {
+    nummer: number;
+    ernte_g?: number;
+    ertrag_notiz?: string;
+  };
+}
+
+/**
+ * A setpoint and the window it was in force for, half-open: `gilt_bis` absent
+ * means it still is. Written by a diff watcher on every device configuration
+ * the server receives, and by hand for a tent with no device - which is what
+ * keeps the target line continuous across an upgrade.
+ */
+export interface ZielStand {
+  zelt_id: string;
+  /** A hand target has no device. */
+  geraet_id?: string;
+  /** `day.temperature`, `daynight.day`, `lights.limit`, `hand.ph`, `hand.ec`, … */
+  schluessel: string;
+  wert: number | string;
+  gilt_ab: number;
+  gilt_bis?: number;
+  /** ding_id of a `mensch`. */
+  gesetzt_von?: string;
+  /**
+   * `erstbefund` marks the first observation of a device whose history predates
+   * the feature, so a chart prints "target unknown before the 14th" instead of
+   * back-projecting today's number.
+   */
+  quelle: 'app' | 'geraet' | 'erstbefund' | 'hand';
+}
+
+/** One page of Dinge. `cursor` absent means this was the last page. */
+export interface DingeSeite {
+  dinge: Ding[];
+  cursor?: string;
+}
