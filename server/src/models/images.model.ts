@@ -1,5 +1,6 @@
 import { Document, model, Schema } from 'mongoose';
 import { Image } from '@fg2/shared-types';
+import { baueIndexe } from '@utils/indexe';
 
 const imagesSchema: Schema = new Schema({
   image_id: {
@@ -48,6 +49,6 @@ const imagesSchema: Schema = new Schema({
 imagesSchema.index({ device_id: 1, format: 1, timestamp: -1, duration: 1 }, { unique: true });
 
 const imageModel = model<Image & Document>('Image', imagesSchema);
-void imageModel.createIndexes();
+baueIndexe(imageModel);
 
 export default imageModel;

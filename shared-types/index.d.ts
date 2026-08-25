@@ -235,7 +235,14 @@ export interface DeviceLog {
 
 export interface Image {
   image_id: string;
-  device_id: string;
+  /**
+   * Optional since a photograph can belong to a tent that has no device at all.
+   * Exactly one of `device_id` and `zelt_id` says where a row belongs; a row
+   * written before `zelt_id` existed carries only `device_id` and resolves
+   * through whichever tent binds it, so no backfill is needed to read one.
+   */
+  device_id?: string;
+  zelt_id?: string;
   timestamp: number;
   timestampEnd?: number;
   data: Buffer;

@@ -1,5 +1,6 @@
 import { model, Schema, Document } from 'mongoose';
 import { Ding } from '@fg2/shared-types';
+import { baueIndexe } from '@utils/indexe';
 
 const dingSchema: Schema = new Schema({
   // Minted by the client so a retry over a bad connection upserts instead of
@@ -82,5 +83,10 @@ dingSchema.index({ zelt_id: 1, t: -1 });
 dingSchema.index({ zelt_id: 1, art: 1, t: -1 });
 
 const dingModel = model<Ding & Document>('Ding', dingSchema);
+// The unique `ding_id` is what makes the upsert safe: without the index, two
+// simultaneous retries of the same watering both insert, and the promise that
+// a retry cannot double-log is not kept. The collection is new and empty, so
+// building the indexes on import costs nothing.
+baueIndexe(dingModel);
 
 export default dingModel;

@@ -1,5 +1,6 @@
 import { model, Schema, Document } from 'mongoose';
 import { Device, DeviceLog } from '@fg2/shared-types';
+import { baueIndexe } from '@utils/indexe';
 
 const deviceLogSchema: Schema = new Schema({
   device_id: {
@@ -50,6 +51,6 @@ const deviceLogSchema: Schema = new Schema({
 deviceLogSchema.index({ device_id: 1, deleted: -1, categories: 1, time: -1 });
 
 const deviceLogModel = model<DeviceLog & Document>('DeviceLog', deviceLogSchema);
-void deviceLogModel.createIndexes();
+baueIndexe(deviceLogModel);
 
 export default deviceLogModel;

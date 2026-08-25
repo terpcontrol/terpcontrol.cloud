@@ -101,3 +101,38 @@ describe('the dinge collection', () => {
     expect(seite.map(ding => ding.art)).toEqual(['notiz', 'gabe']);
   });
 });
+
+describe('baueIndexe', () => {
+  // The guard exists so an import-time index build cannot answer ten seconds
+  // into an unrelated test. That makes the helper itself the only place the
+  // production behaviour can be checked.
+  const helfer = () => require('@utils/indexe').baueIndexe;
+
+  afterEach(() => {
+    process.env.NODE_ENV = 'test';
+    jest.resetModules();
+  });
+
+  it('does not touch the database under test', async () => {
+    const model = { modelName: 'Ding', createIndexes: jest.fn() };
+    helfer()(model);
+    expect(model.createIndexes).not.toHaveBeenCalled();
+  });
+
+  it('builds them anywhere else', async () => {
+    process.env.NODE_ENV = 'production';
+    jest.resetModules();
+    const model = { modelName: 'Ding', createIndexes: jest.fn().mockResolvedValue(undefined) };
+    helfer()(model);
+    expect(model.createIndexes).toHaveBeenCalled();
+  });
+
+  it('swallows a failure instead of rejecting into nothing', async () => {
+    process.env.NODE_ENV = 'production';
+    jest.resetModules();
+    const model = { modelName: 'Ding', createIndexes: jest.fn().mockRejectedValue(new Error('mongo away')) };
+    expect(() => helfer()(model)).not.toThrow();
+    // The rejection is handled inside the helper; nothing reaches the process.
+    await new Promise(fertig => setImmediate(fertig));
+  });
+});
