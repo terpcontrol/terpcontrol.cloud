@@ -1,6 +1,28 @@
 // Karma configuration file, see link for more information
 // https://karma-runner.github.io/1.0/config/configuration-file.html
 
+const { existsSync } = require('fs');
+
+// karma-chrome-launcher only looks for a handful of names on PATH, and the
+// browser is somewhere different in each of the three places this suite runs:
+// a developer's machine, a container that carries Playwright's chromium, and a
+// CI runner with Google Chrome installed. Finding it here means `npm run
+// test:ci` behaves the same in all three rather than failing in whichever one
+// nobody tried.
+if (!process.env.CHROME_BIN) {
+  const kandidaten = [
+    '/opt/pw-browsers/chromium',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+  ];
+  const gefunden = kandidaten.find(pfad => existsSync(pfad));
+  if (gefunden) {
+    process.env.CHROME_BIN = gefunden;
+  }
+}
+
 module.exports = function (config) {
   config.set({
     basePath: '',

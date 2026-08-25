@@ -15,6 +15,7 @@
     "prewatch": "npm run set-env",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
+    "test:ci": "ng test --watch=false --browsers=ChromeHeadlessCI",
     "prelint": "npm run set-env",
     "lint": "ng lint",
     "prelint:fix": "npm run set-env",
