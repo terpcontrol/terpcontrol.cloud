@@ -1,0 +1,200 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,600;1,400&family=Caveat:wght@500;600&display=swap">
+  <style>
+    *{box-sizing:border-box}
+    :root{--fs:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;--fm:'IBM Plex Mono',ui-monospace,SFMono-Regular,monospace}
+    body{margin:0;background:#E8EAEF;color:#1A1D29;font-family:var(--fs);-webkit-font-smoothing:antialiased}
+    a{color:#2D4B95}a:hover{color:#1F3A6E}
+    .sheet{width:2600px;padding:40px 40px 44px}
+    .hd{display:flex;gap:40px;align-items:flex-start;border-bottom:3px solid #1A1D29;padding-bottom:22px;margin-bottom:24px}
+    .hd__n{font:600 84px/.78 var(--fm);color:#2D4B95;letter-spacing:-.05em;flex:none}
+    .hd__b{flex:1;max-width:1120px}
+    .hd__t{font:600 46px/1.02 var(--fs);letter-spacing:-.03em;margin:0 0 10px}
+    .hd__s{font:400 19px/1.45 var(--fs);color:#333B4C;margin:0}
+    .axes{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 26px;width:660px;flex:none}
+    .ax{border-top:1px solid #B9BFCC;padding-top:7px}
+    .ax b{display:block;font:600 10px/1 var(--fm);letter-spacing:.14em;text-transform:uppercase;color:#6B7285;margin-bottom:5px}
+    .ax span{font:500 15px/1.3 var(--fs);color:#1A1D29}
+    .strip{display:flex;gap:26px;align-items:flex-start}
+    .col{width:390px;flex:none}
+    .cap{display:flex;gap:9px;align-items:baseline;margin:0 0 9px;padding-bottom:7px;border-bottom:1px solid #C2C8D4}
+    .cap i{font:600 12px/1 var(--fm);color:#2D4B95;font-style:normal}
+    .cap span{font:600 14px/1.1 var(--fs);letter-spacing:-.01em}
+    .ft{margin-top:26px;padding-top:20px;border-top:1px solid #C2C8D4;display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:44px}
+    .ft h4{font:600 10px/1 var(--fm);letter-spacing:.16em;text-transform:uppercase;color:#2D4B95;margin:0 0 8px}
+    .ft p{font:400 16px/1.5 var(--fs);margin:0;color:#333B4C}
+    .ft .warn h4{color:#8A6318}
+
+    /* phone shell */
+    .ph{width:390px;height:844px;border-radius:34px;overflow:hidden;position:relative;display:flex;flex-direction:column;
+        box-shadow:0 18px 40px rgba(31,58,110,.18),0 2px 6px rgba(31,58,110,.10);background:#0F1219;color:#E7ECF5;font-size:15px}
+    .sb{height:24px;flex:none}
+    .bd{flex:1;padding:0 16px;overflow:hidden}
+    .nav{flex:none;display:flex;background:#151B26;border-top:1px solid #262F3F;padding:9px 4px 22px}
+    .nav div{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;color:#79839A;font:500 11px/1 var(--fs)}
+    .nav div.on{color:#6FBE4A}
+    .ic{width:21px;height:21px;display:block;flex:none}
+    .ic-s{width:16px;height:16px}
+
+    .top{display:flex;align-items:flex-start;justify-content:space-between;padding:6px 0 12px}
+    .ttl{font:600 21px/1.15 var(--fs);letter-spacing:-.02em;margin:0}
+    .meta{font:400 12.5px/1.3 var(--fs);color:#8A93A8;margin:4px 0 0;font-variant-numeric:tabular-nums}
+    .dot{width:7px;height:7px;border-radius:50%;background:#6FBE4A;display:inline-block;margin-right:5px;vertical-align:1px}
+    .dot.red{background:#F06A7E}.dot.grey{background:#6B7488}.dot.amb{background:#E3B95F}
+
+    .sechd{display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 6px}
+    .sechd h3{font:600 11px/1 var(--fm);letter-spacing:.16em;text-transform:uppercase;color:#8A93A8;margin:0}
+    .sechd span{font:400 11px/1 var(--fs);color:#6B7488}
+
+    .btns{display:flex;gap:8px;margin-top:12px}
+    .btn{flex:1;height:48px;border-radius:10px;background:#1D2431;color:#C9D2E3;display:flex;align-items:center;justify-content:center;gap:6px;font:600 14px/1 var(--fs)}
+    .btn.pri{background:#50A030;color:#fff}
+    .empty{border:1.5px dashed #33405A;border-radius:12px;padding:14px;color:#79839A;font:400 13.5px/1.45 var(--fs)}
+
+    /* bottom sheet */
+    .scrim{position:absolute;inset:0;background:rgba(6,9,14,.62)}
+    .sheetup{position:absolute;left:0;right:0;bottom:0;background:#161C27;border-radius:20px 20px 0 0;padding:14px 16px 22px;border-top:1px solid #2C3546}
+    .grab{width:38px;height:4px;border-radius:2px;background:#3E4A61;margin:0 auto 12px}
+    .shd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+    .shd h3{margin:0;font:600 20px/1 var(--fs);letter-spacing:-.01em}
+    .shd span{font:500 13px/1 var(--fs);color:#8A93A8}
+    .chips{display:flex;gap:7px;margin-bottom:12px}
+    .chip{padding:9px 13px;border-radius:999px;border:1px solid #33405A;color:#9AA3B7;font:500 13.5px/1 var(--fs)}
+    .chip.on{background:#1E3A6B;border-color:#4E7BD0;color:#CFE0FF}
+    .cans{background:#111621;border:1px solid #2C3546;border-radius:12px;padding:14px 14px 12px;margin-bottom:11px}
+    .cans .row{display:flex;justify-content:space-between;align-items:center}
+    .beads{display:flex;gap:7px}
+    .beads i{width:26px;height:26px;border-radius:50%;border:2px solid #3E4A61;display:block}
+    .beads i.f{background:#4A88DC;border-color:#4A88DC}
+    .cans .tot{font:600 20px/1 var(--fs);font-variant-numeric:tabular-nums}
+    .cans .hint{font:400 12px/1.3 var(--fs);color:#79839A;margin-top:9px}
+    .frow{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1D2431;font:500 14px/1.2 var(--fs);font-variant-numeric:tabular-nums}
+    .frow span{color:#9AA3B7;font-weight:400}
+    .from{font:400 12.5px/1.35 var(--fs);color:#79839A;margin:8px 0 0}
+    .from b{color:#9AA3B7;font-weight:600}
+    .guard{display:flex;gap:9px;background:#2A2417;border:1px solid #6A5526;border-radius:9px;padding:10px 11px;margin:11px 0 0;font:400 12.5px/1.4 var(--fs);color:#E6D3A5}
+
+    .fx-eyebrow{font:600 13px/1 var(--fm);letter-spacing:.2em;text-transform:uppercase;color:#2D4B95;margin:0 0 22px}
+    .fx-top{display:flex;gap:60px;align-items:flex-end;border-bottom:3px solid #1A1D29;padding-bottom:28px}
+    .fx-h1{font:600 84px/0.94 var(--fs);letter-spacing:-.035em;margin:0;max-width:900px;text-wrap:balance}
+    .fx-deck{flex:1;font:400 20px/1.5 var(--fs);color:#333B4C;max-width:900px;margin:0}
+    .fx-deck b{font-weight:600;color:#1A1D29}
+    .fx-parents{display:flex;gap:20px;margin:34px 0 0}
+    .fx-p{flex:1;background:#F6F7FA;border:1px solid #D9DEE7;border-radius:6px;padding:18px 20px}
+    .fx-p h4{margin:0 0 8px;font:600 11px/1 var(--fm);letter-spacing:.14em;text-transform:uppercase;color:#2D4B95}
+    .fx-p p{margin:0;font:400 16px/1.5 var(--fs);color:#333B4C}
+    .fx-p.want{background:#F1F7ED;border-color:#B9D6A8}
+    .fx-p.want h4{color:#35701F}
+    .fx-grid{display:grid;grid-template-columns:1fr 560px;gap:52px;margin-top:34px}
+    .fx-t{border-collapse:collapse;width:100%}
+    .fx-t th{font:600 11px/1.2 var(--fm);letter-spacing:.14em;text-transform:uppercase;color:#5A6275;text-align:left;padding:0 16px 10px 0;border-bottom:1px solid #B9BFCC;vertical-align:bottom}
+    .fx-t td{padding:13px 16px 13px 0;border-bottom:1px solid #D2D7E1;vertical-align:top;font:400 16px/1.35 var(--fs);color:#333B4C}
+    .fx-t td.no{font:600 20px/1.1 var(--fm);color:#2D4B95;width:44px;padding-right:0}
+    .fx-t td.nm{font:600 18px/1.25 var(--fs);color:#1A1D29;width:186px;letter-spacing:-.01em}
+    .fx-t td.nm em{display:block;font:400 13px/1.3 var(--fs);font-style:normal;color:#6B7285;margin-top:3px}
+    .fx-side h3{font:600 12px/1 var(--fm);letter-spacing:.16em;text-transform:uppercase;color:#5A6275;margin:0 0 14px}
+    .fx-q{background:#1A1D29;color:#D8DEEA;border-radius:6px;padding:24px 26px;margin-bottom:26px}
+    .fx-q h3{color:#8FA6D8}
+    .fx-q p{margin:0 0 12px;font:400 16px/1.55 var(--fs)}
+    .fx-q p:last-child{margin-bottom:0}
+    .fx-q b{color:#8FD870;font-weight:600}
+    .fx-axis{display:grid;grid-template-columns:150px 1fr;gap:9px 18px;font:400 15px/1.4 var(--fs);color:#333B4C}
+    .fx-axis dt{font-weight:600;color:#1A1D29}
+    .fx-axis dd{margin:0}
+    .fx-note{margin-top:22px;font:400 15px/1.5 var(--fs);color:#4B5364;border-left:3px solid #C89B3C;padding-left:14px}
+  </style>
+</helmet>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="fan"><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(-62) scale(.6)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(-33) scale(.84)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(33) scale(.84)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(62) scale(.6)"/></g>
+  <linearGradient id="gLit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3E3BC"/><stop offset=".4" stop-color="#B29B6C"/><stop offset="1" stop-color="#2C2A1E"/></linearGradient>
+  <linearGradient id="gOff" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2B3244"/><stop offset=".5" stop-color="#1A2030"/><stop offset="1" stop-color="#0D1119"/></linearGradient>
+  <symbol id="pic" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gLit)"/><ellipse cx="100" cy="-14" rx="142" ry="66" fill="#FFF6DA" opacity=".55"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#4A4436"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#443F32"/><g fill="#1C4416"><use href="#fan" transform="translate(50,140) scale(2.2) rotate(-6)"/><use href="#fan" transform="translate(148,142) scale(1.9) rotate(7)"/></g><g fill="#2C6821"><use href="#fan" transform="translate(28,134) scale(1.5) rotate(-48)"/><use href="#fan" transform="translate(76,132) scale(1.6) rotate(27)"/><use href="#fan" transform="translate(174,136) scale(1.4) rotate(46)"/><use href="#fan" transform="translate(122,136) scale(1.45) rotate(-27)"/></g><g fill="#4C9033"><use href="#fan" transform="translate(56,104) scale(1.15) rotate(-14)"/><use href="#fan" transform="translate(146,108) scale(1.05) rotate(16)"/><use href="#fan" transform="translate(100,118) scale(1.2) rotate(2)"/></g></symbol>
+  <symbol id="picold" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gLit)"/><ellipse cx="100" cy="-14" rx="142" ry="66" fill="#FFF6DA" opacity=".55"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#4A4436"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#443F32"/><g fill="#1C4416"><use href="#fan" transform="translate(50,142) scale(1.7) rotate(-5)"/><use href="#fan" transform="translate(148,144) scale(1.45) rotate(6)"/></g><g fill="#2C6821"><use href="#fan" transform="translate(30,138) scale(1.15) rotate(-45)"/><use href="#fan" transform="translate(74,136) scale(1.2) rotate(25)"/><use href="#fan" transform="translate(172,140) scale(1.05) rotate(43)"/></g><g fill="#4C9033"><use href="#fan" transform="translate(58,116) scale(.85) rotate(-12)"/><use href="#fan" transform="translate(142,120) scale(.8) rotate(14)"/></g></symbol>
+  <symbol id="picdark" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gOff)"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#141924"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#131822"/><g fill="#151D2A"><use href="#fan" transform="translate(50,140) scale(2.2) rotate(-6)"/><use href="#fan" transform="translate(148,142) scale(1.9) rotate(7)"/></g><g fill="#1A2434"><use href="#fan" transform="translate(28,134) scale(1.5) rotate(-48)"/><use href="#fan" transform="translate(76,132) scale(1.6) rotate(27)"/><use href="#fan" transform="translate(174,136) scale(1.4) rotate(46)"/><use href="#fan" transform="translate(122,136) scale(1.45) rotate(-27)"/></g><g fill="#1E2A3C"><use href="#fan" transform="translate(56,104) scale(1.15) rotate(-14)"/><use href="#fan" transform="translate(100,118) scale(1.2) rotate(2)"/></g></symbol>
+  <symbol id="i-now" viewBox="0 0 24 24"><path d="M4 12h4l3-7 4 14 3-7h2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4.5 5.4A2.4 2.4 0 0 1 6.9 3H19v15.4H6.9a2.4 2.4 0 0 0-2.4 2.4V5.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 8h7.5M8 11.6h7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.6 5.5v13M16.4 5.5v13M3 12h18" stroke="currentColor" stroke-width="1.4"/></symbol>
+  <symbol id="i-tent" viewBox="0 0 24 24"><path d="M12 3 3.5 20.5h17L12 3Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 10v10.5" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3.4c3.3 4.1 5.4 6.9 5.4 9.4a5.4 5.4 0 1 1-10.8 0c0-2.5 2.1-5.3 5.4-9.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 4.5h14v15H5z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 9h8M8 12.6h8M8 16.2h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 7l1.4-2.8h3.2L15 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4.2 21 19.6H3L12 4.2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10.2v4.2M12 17.2v.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-ruler" viewBox="0 0 24 24"><path d="M3 14.5 14.5 3 21 9.5 9.5 21 3 14.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7.5 11 9.5 13M11 7.5l2 2M11 14.5l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M20.2 3.8c0 8.6-4.5 13-11.4 13H5.2c0-7.7 5-13 15-13Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4.6 20.6c1.9-4.7 5.2-7.9 10-10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5.4l3.4 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9.4" cy="8.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c1-3.4 3.4-5.2 6.4-5.2S14.8 16.6 15.8 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M16.4 5.6a3.4 3.4 0 0 1 0 6.4M18 14.9c1.6.8 2.7 2.4 3.2 5.1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 19.4V5M4 19.4h16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M7 15.4l3.6-4.6 3.2 2.6L20 7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.2v13.6M5.2 12h13.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9.4 5.4 6.8 6.6-6.8 6.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.6 12.6 9.4 17.4 19.6 6.8" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M6 8h12v3.4A6 6 0 0 1 6 11.4V8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 17.4V21" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2.8v2.2M12 19v2.2M2.8 12H5M19 12h2.2M5.6 5.6 7.2 7.2M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.6" y="5.4" width="16.8" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.6 10h16.8M8 3.4v3.6M16 3.4v3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9.6 3.4h4.8l-.7 5.4 3.5 3.1H7.8l3.5-3.1-.7-5.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 12v8.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</defs></svg>
+
+<div class="sheet" style="padding:52px 56px 60px">
+  <p class="fx-eyebrow">Terp Control · Runde 2 · Entwurf 01 verschmolzen mit Entwurf 07</p>
+  <div class="fx-top">
+    <h1 class="fx-h1">Zehn Verschmelzungen</h1>
+    <p class="fx-deck">Runde 1 hat zwei Gewinner hervorgebracht, die einander fehlen: <b>Der Unterschied</b> beantwortet in einem Blick, was sich geändert hat, zeigt aber keinen Verlauf. <b>Die Zeitschiene</b> legt Kurven, Sollwerte, Schaltvorgänge, Bilder und Menschen auf eine Achse, sagt aber von sich aus nichts. Diese zehn Blätter sind zehn verschiedene Arten, beides zu <b>einem</b> Bildschirm zu verschweißen — nicht zehn Anordnungen desselben Bildschirms.</p>
+  </div>
+
+  <div class="fx-parents">
+    <div class="fx-p want"><h4>Aus 01 bleibt</h4><p>Das Bildpaar. Ein deutscher Satz, der sagt, was anders ist. Eine Δ-Tabelle mit dem Ziel unter dem Messwert. Und ein Bezugspunkt, der für den ganzen Rest der App gilt.</p></div>
+    <div class="fx-p want"><h4>Aus 07 kommt dazu</h4><p>Eine echte Grafik: getrennte Felder mit gemeinsamer x-Achse, Sollwert als gestrichelte Treppe, Zielband als Fläche, Ausgänge als Balken, Ereignisse und Kamerabilder auf derselben Zeit.</p></div>
+    <div class="fx-p"><h4>Die offene Frage</h4><p>Ein Vergleich braucht zwei Zeitpunkte, eine Kurve braucht ein Fenster. Beides ist derselbe Zustand — nur weiß niemand, welches Bedienelement ihn besitzt. Genau darin unterscheiden sich die zehn.</p></div>
+  </div>
+
+  <div class="fx-grid">
+    <div>
+      <table class="fx-t">
+        <tr><th></th><th>Entwurf</th><th>Wer besitzt den Zeitraum</th><th>Wie der Vergleich aussieht</th><th>Was nur so sichtbar wird</th></tr>
+        <tr><td class="no">11</td><td class="nm">Der Schnitt<em>die Kurve ist der Regler</em></td><td>die linke Kante der Grafik — ziehen verschiebt „Vorher“</td><td>Bildpaar und Δ-Tabelle über der Grafik, beide lesen die Kanten</td><td>dass Vergleich und Fenster dieselbe Sache sind</td></tr>
+        <tr><td class="no">12</td><td class="nm">Zwei Fenster<em>Zeitraum gegen Zeitraum</em></td><td>zwei gleich breite Klammern auf einer 14-Tage-Leiste</td><td>zwei Verlaufszeilen mit identischer Skala, untereinander</td><td>ob eine Woche der anderen ähnelt — nicht nur ein Moment einem Moment</td></tr>
+        <tr><td class="no">13</td><td class="nm">Der Geisterverlauf<em>übereinander, nicht nebeneinander</em></td><td>der Geist: welcher Tag blass hinter heute liegt</td><td>die gefüllte Fläche zwischen beiden Kurven — der Unterschied ist eine Form</td><td>wann genau zwei Tage auseinanderlaufen</td></tr>
+        <tr><td class="no">14</td><td class="nm">Der Streifen<em>Bilder als Lineal</em></td><td>ein angetipptes Miniaturbild im Filmstreifen</td><td>festgestecktes Bild neben Live-Bild, Kurven auf derselben x-Achse darunter</td><td>Lücken: wo kein Bild ist, ist ein Loch — und ein Loch ist eine Diagnose</td></tr>
+        <tr><td class="no">15</td><td class="nm">Die Abweichung<em>auf null gelegt</em></td><td>zwei schattierte Spannen auf der Abweichungskurve</td><td>über der Nulllinie zu warm, darunter zu kalt — kein Zahlenvergleich nötig</td><td>Ziel gegen Wirklichkeit als Geometrie statt als zwei Spalten</td></tr>
+        <tr><td class="no">16</td><td class="nm">Der Anker<em>Ereignisse statt Uhrzeiten</em></td><td>ein Ereignis: die letzte Gabe, der Phasenwechsel, der Alarm</td><td>„seit Annas Gabe“ als Kopfzeile über allem, Ereignisleiste als Bedienelement</td><td>dass Menschen in Ereignissen denken und nicht in Uhrzeiten</td></tr>
+        <tr><td class="no">17</td><td class="nm">Die zwei Uhren<em>Tag gegen Tag</em></td><td>ein Griff auf der Durchgangsleiste Tag 1 → 34</td><td>der 24-Stunden-Verlauf des gewählten Tages, heute blass darübergelegt</td><td>dass zwei Tage zur selben Uhrzeit der einzige faire Vergleich sind</td></tr>
+        <tr><td class="no">18</td><td class="nm">Der Befund<em>Urteil zuerst, Kurve als Beleg</em></td><td>ein angetipptes Segment im Balken „Zeit im Band“</td><td>gestapelter Balken Tag und Nacht, längste Abweichung als Dauer</td><td>ob es gut lief — was eine Kurve allein nie beantwortet</td></tr>
+        <tr><td class="no">19</td><td class="nm">Die Durchgänge<em>x-Achse ist der Grow-Tag</em></td><td>der Tag im Durchgang, nicht das Datum</td><td>dieser Durchgang voll, der vorige blass, ausgerichtet an Tag 1 oder am 12/12-Wechsel</td><td>ob dieser Durchgang besser läuft als der letzte</td></tr>
+        <tr><td class="no">20</td><td class="nm">Die Karte<em>wo statt wann</em></td><td>die Bahn: welcher Zeitraum als zweite Spur auf dem Feld liegt</td><td>zwei Bahnen im Temperatur-Feuchte-Feld, das VPD-Fenster als Fläche darauf</td><td>in welche Ecke das Zelt nachts wandert — in keiner Kurve zu sehen</td></tr>
+      </table>
+    </div>
+
+    <div class="fx-side">
+      <div class="fx-q">
+        <h3>Woran man sie auseinanderhält</h3>
+        <p>Alle zehn haben eine echte Grafik und alle zehn beantworten „was ist anders“. Der Unterschied liegt darin, <b>welches Bedienelement den Zeitraum besitzt</b> — die Kurve selbst (11), zwei Klammern (12), ein zweiter Tag (13, 17), ein Bild (14), eine Spanne auf der Abweichung (15), ein Ereignis (16), ein Balkensegment (18), ein Durchgang (19) oder eine zweite Bahn im Feld (20).</p>
+        <p>Und darin, <b>welche Frage der Bildschirm zuerst stellt</b>: „was hat sich geändert“, „lief es gut“, „ist es besser als letztes Mal“ oder „wo steht das Zelt gerade“.</p>
+      </div>
+
+      <h3>In allen zehn dasselbe Zelt wie in Runde 1</h3>
+      <dl class="fx-axis">
+        <dt>Zelt Keller</dt><dd>Tag 34 · Blüte Tag 12 · online, Messwert 40 Sek alt</dd>
+        <dt>Pflanzen</dt><dd>A1 Gorilla Glue und A2 Wedding Cake in Blüte Tag 12, B1 Northern Lights in Wachstum Tag 6</dd>
+        <dt>Jetzt</dt><dd>24,8 °C · 48 % · VPD 1,29 kPa · CO₂ 1010 ppm</dd>
+        <dt>Der Vergleich</dt><dd>Fr 22.08. 14:02 — Tag 31, damals 24,1 °C und 51 %</dd>
+        <dt>Die Auffälligkeit</dt><dd>nachts zu warm: Ziel 20,0 °C, im Mittel 23,4 °C</dd>
+        <dt>Der Fehler</dt><dd>seit 13:40 Licht aus, Dose meldet an, Bild dunkel</dd>
+        <dt>Ohne Gerät</dt><dd>Schrank Flur · Tag 19 · pH-Stift und Maßband</dd>
+      </dl>
+
+      <p class="fx-note">Dieselben sechs Situationen wie in Runde 1, dieselben Zahlen, dieselben Namen. Nur der Entwurf ändert sich von Blatt zu Blatt — sonst vergleicht man Geschichten statt Entwürfe.</p>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
