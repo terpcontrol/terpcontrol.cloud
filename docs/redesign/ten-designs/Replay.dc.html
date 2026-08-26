@@ -1,0 +1,480 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,600;1,400&family=Caveat:wght@500;600&display=swap">
+  <style>
+    *{box-sizing:border-box}
+    :root{--fs:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;--fm:'IBM Plex Mono',ui-monospace,SFMono-Regular,monospace}
+    body{margin:0;background:#E8EAEF;color:#1A1D29;font-family:var(--fs);-webkit-font-smoothing:antialiased}
+    a{color:#2D4B95}a:hover{color:#1F3A6E}
+    .sheet{width:2600px;padding:40px 40px 44px}
+    .hd{display:flex;gap:40px;align-items:flex-start;border-bottom:3px solid #1A1D29;padding-bottom:22px;margin-bottom:24px}
+    .hd__n{font:600 84px/.78 var(--fm);color:#2D4B95;letter-spacing:-.05em;flex:none}
+    .hd__b{flex:1;max-width:1120px}
+    .hd__t{font:600 46px/1.02 var(--fs);letter-spacing:-.03em;margin:0 0 10px}
+    .hd__s{font:400 19px/1.45 var(--fs);color:#333B4C;margin:0}
+    .axes{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 26px;width:660px;flex:none}
+    .ax{border-top:1px solid #B9BFCC;padding-top:7px}
+    .ax b{display:block;font:600 10px/1 var(--fm);letter-spacing:.14em;text-transform:uppercase;color:#6B7285;margin-bottom:5px}
+    .ax span{font:500 15px/1.3 var(--fs);color:#1A1D29}
+    .strip{display:flex;gap:26px;align-items:flex-start}
+    .col{width:390px;flex:none}
+    .cap{display:flex;gap:9px;align-items:baseline;margin:0 0 9px;padding-bottom:7px;border-bottom:1px solid #C2C8D4}
+    .cap i{font:600 12px/1 var(--fm);color:#2D4B95;font-style:normal}
+    .cap span{font:600 14px/1.1 var(--fs);letter-spacing:-.01em}
+    .ft{margin-top:26px;padding-top:20px;border-top:1px solid #C2C8D4;display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:44px}
+    .ft h4{font:600 10px/1 var(--fm);letter-spacing:.16em;text-transform:uppercase;color:#2D4B95;margin:0 0 8px}
+    .ft p{font:400 16px/1.5 var(--fs);margin:0;color:#333B4C}
+    .ft .warn h4{color:#8A6318}
+
+    /* phone shell */
+    .ph{width:390px;height:844px;border-radius:34px;overflow:hidden;position:relative;display:flex;flex-direction:column;
+        box-shadow:0 18px 40px rgba(31,58,110,.18),0 2px 6px rgba(31,58,110,.10);background:#0F1219;color:#E7ECF5;font-size:15px}
+    .sb{height:24px;flex:none}
+    .bd{flex:1;padding:0 16px;overflow:hidden}
+    .nav{flex:none;display:flex;background:#151B26;border-top:1px solid #262F3F;padding:9px 4px 22px}
+    .nav div{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;color:#79839A;font:500 11px/1 var(--fs)}
+    .nav div.on{color:#6FBE4A}
+    .ic{width:21px;height:21px;display:block;flex:none}
+    .ic-s{width:16px;height:16px}
+
+    .top{display:flex;align-items:flex-start;justify-content:space-between;padding:6px 0 12px}
+    .ttl{font:600 21px/1.15 var(--fs);letter-spacing:-.02em;margin:0}
+    .meta{font:400 12.5px/1.3 var(--fs);color:#8A93A8;margin:4px 0 0;font-variant-numeric:tabular-nums}
+    .dot{width:7px;height:7px;border-radius:50%;background:#6FBE4A;display:inline-block;margin-right:5px;vertical-align:1px}
+    .dot.red{background:#F06A7E}.dot.grey{background:#6B7488}.dot.amb{background:#E3B95F}
+
+    .sechd{display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 6px}
+    .sechd h3{font:600 11px/1 var(--fm);letter-spacing:.16em;text-transform:uppercase;color:#8A93A8;margin:0}
+    .sechd span{font:400 11px/1 var(--fs);color:#6B7488}
+
+    .btns{display:flex;gap:8px;margin-top:12px}
+    .btn{flex:1;height:48px;border-radius:10px;background:#1D2431;color:#C9D2E3;display:flex;align-items:center;justify-content:center;gap:6px;font:600 14px/1 var(--fs)}
+    .btn.pri{background:#50A030;color:#fff}
+    .empty{border:1.5px dashed #33405A;border-radius:12px;padding:14px;color:#79839A;font:400 13.5px/1.45 var(--fs)}
+
+    /* bottom sheet */
+    .scrim{position:absolute;inset:0;background:rgba(6,9,14,.62)}
+    .sheetup{position:absolute;left:0;right:0;bottom:0;background:#161C27;border-radius:20px 20px 0 0;padding:14px 16px 22px;border-top:1px solid #2C3546}
+    .grab{width:38px;height:4px;border-radius:2px;background:#3E4A61;margin:0 auto 12px}
+    .shd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+    .shd h3{margin:0;font:600 20px/1 var(--fs);letter-spacing:-.01em}
+    .shd span{font:500 13px/1 var(--fs);color:#8A93A8}
+    .chips{display:flex;gap:7px;margin-bottom:12px}
+    .chip{padding:9px 13px;border-radius:999px;border:1px solid #33405A;color:#9AA3B7;font:500 13.5px/1 var(--fs)}
+    .chip.on{background:#1E3A6B;border-color:#4E7BD0;color:#CFE0FF}
+    .cans{background:#111621;border:1px solid #2C3546;border-radius:12px;padding:14px 14px 12px;margin-bottom:11px}
+    .cans .row{display:flex;justify-content:space-between;align-items:center}
+    .beads{display:flex;gap:7px}
+    .beads i{width:26px;height:26px;border-radius:50%;border:2px solid #3E4A61;display:block}
+    .beads i.f{background:#4A88DC;border-color:#4A88DC}
+    .cans .tot{font:600 20px/1 var(--fs);font-variant-numeric:tabular-nums}
+    .cans .hint{font:400 12px/1.3 var(--fs);color:#79839A;margin-top:9px}
+    .frow{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1D2431;font:500 14px/1.2 var(--fs);font-variant-numeric:tabular-nums}
+    .frow span{color:#9AA3B7;font-weight:400}
+    .from{font:400 12.5px/1.35 var(--fs);color:#79839A;margin:8px 0 0}
+    .from b{color:#9AA3B7;font-weight:600}
+    .guard{display:flex;gap:9px;background:#2A2417;border:1px solid #6A5526;border-radius:9px;padding:10px 11px;margin:11px 0 0;font:400 12.5px/1.4 var(--fs);color:#E6D3A5}
+
+    /* ---- 11 Der Rücklauf ---- */
+    .rpstage{position:relative;border-radius:12px;overflow:hidden;background:#0B0E14;height:186px}
+    .rpstage svg.f{width:100%;height:100%;display:block}
+    .rpburn{position:absolute;left:10px;right:10px;bottom:10px;display:flex;justify-content:space-between;align-items:flex-end;
+            font:500 11px/1.25 var(--fm);color:#EFF3FA;text-shadow:0 1px 3px rgba(0,0,0,.9);font-variant-numeric:tabular-nums}
+    .rpburn em{font-style:normal;display:block;color:#CBD6E6;font-size:10px}
+    .rpev{position:absolute;left:10px;top:10px;display:flex;align-items:center;gap:6px;background:rgba(9,12,18,.78);
+          border-radius:999px;padding:5px 11px 5px 7px;font:600 11.5px/1 var(--fs);color:#CFE0FF}
+    .rpev svg{width:13px;height:13px;color:#7BA6E8}
+    .rpprog{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.14)}
+    .rpprog em{position:absolute;left:0;top:0;bottom:0;background:#6FBE4A}
+
+    .rptr{display:flex;align-items:center;gap:11px;margin-top:11px}
+    .rpplay{width:46px;height:46px;border-radius:50%;background:#50A030;color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+    .rpplay svg{width:19px;height:19px}
+    .rpplay.off{background:#1D2431;color:#4E5768}
+    .rpplay.re{background:#C4384F}
+    .rptrack{flex:1;position:relative;height:38px}
+    .rpdens{position:absolute;left:0;right:0;bottom:14px;height:20px;display:flex;gap:1.5px;align-items:flex-end;opacity:.45}
+    .rpdens i{flex:1;background:#3E4A61;display:block}
+    .rprail{position:absolute;left:0;right:0;top:16px;height:4px;background:#39435A;border-radius:2px}
+    .rprail em{position:absolute;left:0;top:0;bottom:0;background:#6FBE4A;border-radius:2px}
+    .rphead{position:absolute;top:8px;width:5px;height:20px;border-radius:2px;background:#E7ECF5;box-shadow:0 0 0 4px rgba(111,190,74,.22)}
+    .rpends{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;font:500 10px/1 var(--fm);color:#6B7488}
+    .rpspeed{display:flex;gap:6px;margin-top:9px}
+    .rpsp{padding:6px 10px;border-radius:7px;background:#161C27;border:1px solid #262F3F;color:#8A93A8;font:500 11.5px/1 var(--fs)}
+    .rpsp.on{background:#17301A;border-color:#3E7A2A;color:#9FDD83}
+    .rpsp.tog{margin-left:auto;background:#1A2130;color:#9AA3B7}
+
+    .rpsay{margin:12px 0 0;font:600 17.5px/1.32 var(--fs);letter-spacing:-.01em}
+    .rpsub{margin:5px 0 0;font:500 13px/1.4 var(--fs);color:#9AA3B7;font-variant-numeric:tabular-nums}
+    .rpnote{margin:9px 0 0;font:400 12.5px/1.4 var(--fs);color:#79839A}
+    .rpnote b{color:#9AA3B7;font-weight:600}
+
+    .rpd{display:grid;grid-template-columns:1fr 58px 62px 54px;align-items:baseline;gap:4px;padding:6px 0;border-bottom:1px solid #1D2431;font-variant-numeric:tabular-nums}
+    .rpd b{font:500 14.5px/1.2 var(--fs)}
+    .rpd i{font:400 13.5px/1.2 var(--fs);color:#79839A;text-align:right;font-style:normal}
+    .rpd u{font:600 14px/1.2 var(--fs);color:#C9D2E3;text-align:right;text-decoration:none}
+    .rpd s{font:600 13.5px/1.2 var(--fs);text-align:right;text-decoration:none;color:#8A93A8}
+    .rpd s.up{color:#E3B95F}.rpd s.dn{color:#7BA6E8}.rpd s.ok{color:#6FBE4A}
+    .rpd.goal b{padding-left:14px;font-weight:400;font-size:13px;color:#79839A}
+    .rpd.goal u,.rpd.goal i{font-size:13px;font-weight:400;color:#79839A}
+    .rpcols{display:grid;grid-template-columns:1fr 58px 62px 54px;gap:4px;font:600 9.5px/1 var(--fm);color:#6B7488;letter-spacing:.06em;padding-bottom:4px}
+    .rpcols i{text-align:right;font-style:normal}
+    .rpcount{color:#6FBE4A}
+
+    .rpbreak{display:flex;gap:9px;align-items:center;background:#2A1721;border:1px solid #6D2739;border-radius:10px;padding:9px 11px;margin:11px 0 0}
+    .rpbreak svg{width:17px;height:17px;color:#F06A7E;flex:none}
+    .rpbreak b{font:600 13.5px/1.25 var(--fs);color:#FFC2CC;display:block}
+    .rpbreak span{font:400 11.5px/1.3 var(--fs);color:#D6B9C1;display:block;margin-top:2px}
+
+    .rpcull{background:#161C27;border-radius:10px;padding:10px 12px;margin-top:10px;font:400 11.5px/1.55 var(--fm);color:#9AA3B7}
+    .rpcull b{color:#C9D2E3}
+    .rpstep{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;border-bottom:1px solid #1D2431;font:500 13.5px/1.2 var(--fs);font-variant-numeric:tabular-nums}
+    .rpstep span{color:#8A93A8;font-weight:400}
+  </style>
+</helmet>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="fan"><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(-62) scale(.6)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(-33) scale(.84)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(33) scale(.84)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(62) scale(.6)"/></g>
+  <linearGradient id="gLit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3E3BC"/><stop offset=".4" stop-color="#B29B6C"/><stop offset="1" stop-color="#2C2A1E"/></linearGradient>
+  <linearGradient id="gOff" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2B3244"/><stop offset=".5" stop-color="#1A2030"/><stop offset="1" stop-color="#0D1119"/></linearGradient>
+  <symbol id="pic" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gLit)"/><ellipse cx="100" cy="-14" rx="142" ry="66" fill="#FFF6DA" opacity=".55"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#4A4436"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#443F32"/><g fill="#1C4416"><use href="#fan" transform="translate(50,140) scale(2.2) rotate(-6)"/><use href="#fan" transform="translate(148,142) scale(1.9) rotate(7)"/></g><g fill="#2C6821"><use href="#fan" transform="translate(28,134) scale(1.5) rotate(-48)"/><use href="#fan" transform="translate(76,132) scale(1.6) rotate(27)"/><use href="#fan" transform="translate(174,136) scale(1.4) rotate(46)"/><use href="#fan" transform="translate(122,136) scale(1.45) rotate(-27)"/></g><g fill="#4C9033"><use href="#fan" transform="translate(56,104) scale(1.15) rotate(-14)"/><use href="#fan" transform="translate(146,108) scale(1.05) rotate(16)"/><use href="#fan" transform="translate(100,118) scale(1.2) rotate(2)"/></g></symbol>
+  <symbol id="picold" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gLit)"/><ellipse cx="100" cy="-14" rx="142" ry="66" fill="#FFF6DA" opacity=".55"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#4A4436"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#443F32"/><g fill="#1C4416"><use href="#fan" transform="translate(50,142) scale(1.7) rotate(-5)"/><use href="#fan" transform="translate(148,144) scale(1.45) rotate(6)"/></g><g fill="#2C6821"><use href="#fan" transform="translate(30,138) scale(1.15) rotate(-45)"/><use href="#fan" transform="translate(74,136) scale(1.2) rotate(25)"/><use href="#fan" transform="translate(172,140) scale(1.05) rotate(43)"/></g><g fill="#4C9033"><use href="#fan" transform="translate(58,116) scale(.85) rotate(-12)"/><use href="#fan" transform="translate(142,120) scale(.8) rotate(14)"/></g></symbol>
+  <symbol id="picdark" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gOff)"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#141924"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#131822"/><g fill="#151D2A"><use href="#fan" transform="translate(50,140) scale(2.2) rotate(-6)"/><use href="#fan" transform="translate(148,142) scale(1.9) rotate(7)"/></g><g fill="#1A2434"><use href="#fan" transform="translate(28,134) scale(1.5) rotate(-48)"/><use href="#fan" transform="translate(76,132) scale(1.6) rotate(27)"/><use href="#fan" transform="translate(174,136) scale(1.4) rotate(46)"/><use href="#fan" transform="translate(122,136) scale(1.45) rotate(-27)"/></g><g fill="#1E2A3C"><use href="#fan" transform="translate(56,104) scale(1.15) rotate(-14)"/><use href="#fan" transform="translate(100,118) scale(1.2) rotate(2)"/></g></symbol>
+  <symbol id="i-now" viewBox="0 0 24 24"><path d="M4 12h4l3-7 4 14 3-7h2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4.5 5.4A2.4 2.4 0 0 1 6.9 3H19v15.4H6.9a2.4 2.4 0 0 0-2.4 2.4V5.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 8h7.5M8 11.6h7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.6 5.5v13M16.4 5.5v13M3 12h18" stroke="currentColor" stroke-width="1.4"/></symbol>
+  <symbol id="i-tent" viewBox="0 0 24 24"><path d="M12 3 3.5 20.5h17L12 3Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 10v10.5" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3.4c3.3 4.1 5.4 6.9 5.4 9.4a5.4 5.4 0 1 1-10.8 0c0-2.5 2.1-5.3 5.4-9.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 4.5h14v15H5z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 9h8M8 12.6h8M8 16.2h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 7l1.4-2.8h3.2L15 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4.2 21 19.6H3L12 4.2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10.2v4.2M12 17.2v.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-ruler" viewBox="0 0 24 24"><path d="M3 14.5 14.5 3 21 9.5 9.5 21 3 14.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7.5 11 9.5 13M11 7.5l2 2M11 14.5l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M20.2 3.8c0 8.6-4.5 13-11.4 13H5.2c0-7.7 5-13 15-13Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4.6 20.6c1.9-4.7 5.2-7.9 10-10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5.4l3.4 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9.4" cy="8.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c1-3.4 3.4-5.2 6.4-5.2S14.8 16.6 15.8 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M16.4 5.6a3.4 3.4 0 0 1 0 6.4M18 14.9c1.6.8 2.7 2.4 3.2 5.1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 19.4V5M4 19.4h16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M7 15.4l3.6-4.6 3.2 2.6L20 7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.2v13.6M5.2 12h13.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9.4 5.4 6.8 6.6-6.8 6.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.6 12.6 9.4 17.4 19.6 6.8" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M6 8h12v3.4A6 6 0 0 1 6 11.4V8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 17.4V21" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2.8v2.2M12 19v2.2M2.8 12H5M19 12h2.2M5.6 5.6 7.2 7.2M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.6" y="5.4" width="16.8" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.6 10h16.8M8 3.4v3.6M16 3.4v3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9.6 3.4h4.8l-.7 5.4 3.5 3.1H7.8l3.5-3.1-.7-5.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 12v8.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</defs></svg>
+
+<div class="sheet">
+  <div class="hd">
+    <div class="hd__n">11</div>
+    <div class="hd__b">
+      <h2 class="hd__t">Der Rücklauf</h2>
+      <p class="hd__s">Der Vergleich wird nicht eingestellt, sondern abgespielt. Es gibt keinen Regler, sondern einen Abspielkopf: drücken, und der ganze Bildschirm läuft von „Vorher“ nach „Jetzt“ — das Bild wandert, die Kurven zeichnen sich, die Ereignisse springen an der Minute hinein, in der sie passiert sind, und die Zahlen zählen mit. Anhalten, und du hast einen ganz gewöhnlichen Unterschied.</p>
+    </div>
+    <div class="axes">
+      <div class="ax"><b>Startbildschirm</b><span>ein Bild, ein Abspielwerk, eine Kurve im Entstehen</span></div>
+      <div class="ax"><b>Vorher–Nachher</b><span>der Weg dazwischen, nicht die zwei Enden</span></div>
+      <div class="ax"><b>Der Verlauf</b><span>zeichnet sich bis zum Kopf, danach gepunktet</span></div>
+      <div class="ax"><b>App entscheidet</b><span>wo der Rücklauf anfängt und wo er anhält</span></div>
+    </div>
+  </div>
+
+  <div class="strip">
+
+    <!-- 01 -->
+    <div class="col">
+      <p class="cap"><i>01</i><span>Normaler Tag</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:10px"><div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot"></span>Online · vor 40 Sek · Tag 34</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="rpstage">
+            <svg class="f" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <span class="rpev"><svg><use href="#i-drop"/></svg>Anna · 2,0 l</span>
+            <div class="rpburn"><span>Sa 23.08. 09:32<em>Tag 32 · Blüte 10</em></span><span>25,1 °C · 46 %<em>VPD 1,34 kPa</em></span></div>
+            <div class="rpprog"><em style="width:58%"></em></div>
+          </div>
+          <div class="rptr">
+            <span class="rpplay"><svg viewBox="0 0 24 24"><rect x="6" y="4.5" width="4" height="15" rx="1.4" fill="currentColor"/><rect x="14" y="4.5" width="4" height="15" rx="1.4" fill="currentColor"/></svg></span>
+            <div class="rptrack">
+              <div class="rpdens"><i style="height:5px"></i><i style="height:9px"></i><i style="height:4px"></i><i style="height:13px"></i><i style="height:6px"></i><i style="height:4px"></i><i style="height:16px"></i><i style="height:8px"></i><i style="height:5px"></i><i style="height:11px"></i><i style="height:7px"></i><i style="height:4px"></i><i style="height:14px"></i><i style="height:6px"></i><i style="height:9px"></i><i style="height:5px"></i><i style="height:12px"></i><i style="height:7px"></i><i style="height:4px"></i><i style="height:10px"></i></div>
+              <div class="rprail"><em style="width:58%"></em></div>
+              <span class="rphead" style="left:56%"></span>
+              <div class="rpends"><span>TAG 31 · FR 14:02</span><span>TAG 34 · JETZT</span></div>
+            </div>
+          </div>
+          <div class="rpspeed"><span class="rpsp on">1 Tag/Sek</span><span class="rpsp">1 Std/Sek</span><span class="rpsp">Schritt</span><span class="rpsp tog">Halt an Ereignissen ✓</span></div>
+          <p class="rpsay">Der Rücklauf steht bei Annas Gabe am Samstagmorgen.</p>
+          <p class="rpsub">Bis hierher: Nacht 21,9 → 23,1 °C · Blattfläche 34 → 36 %</p>
+          <svg viewBox="0 0 340 152" style="width:100%;height:152px;display:block;margin-top:10px">
+            <g transform="translate(0,4)">
+              <text x="0" y="8" fill="#5F6879" font-size="9" font-family="var(--fm)">28</text>
+              <text x="340" y="8" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Temperatur °C</text>
+              <rect x="0" y="14" width="30" height="54" fill="#141A25"/><rect x="86" y="14" width="66" height="54" fill="#141A25"/><rect x="208" y="14" width="66" height="54" fill="#141A25"/>
+              <rect x="0" y="30" width="340" height="16" fill="#D4763B" opacity=".14"/>
+              <path d="M0,52 L86,52 L86,34 L152,34 L152,52 L208,52 L208,34 L274,34 L274,52 L340,52" fill="none" stroke="#D4763B" stroke-width="1.4" stroke-dasharray="5 4" opacity=".75"/>
+              <path d="M0,50 8,47 16,44 24,41 30,39 38,36 46,34 56,33 66,34 76,36 86,42 94,47 102,50 110,52 118,53 128,51 138,47 148,42 158,37 168,34 178,33 190,35" fill="none" stroke="#D4763B" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+              <path d="M190,35 200,38 210,44 218,49 226,52 236,53 246,50 258,45 268,39 278,35 288,33 300,34 312,37 324,40 340,42" fill="none" stroke="#D4763B" stroke-width="1.6" stroke-dasharray="2 3" opacity=".38"/>
+              <text x="0" y="66" fill="#5F6879" font-size="9" font-family="var(--fm)">18</text>
+            </g>
+            <g transform="translate(0,78)">
+              <text x="340" y="8" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Luftfeuchte %</text>
+              <rect x="0" y="14" width="30" height="44" fill="#141A25"/><rect x="86" y="14" width="66" height="44" fill="#141A25"/><rect x="208" y="14" width="66" height="44" fill="#141A25"/>
+              <rect x="0" y="24" width="340" height="14" fill="#4A88DC" opacity=".14"/>
+              <path d="M0,30 10,32 20,35 30,38 40,41 52,44 64,45 76,43 86,38 96,33 106,30 116,28 126,29 138,33 150,37 162,41 174,44 186,45 190,45" fill="none" stroke="#4A88DC" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+              <path d="M190,45 202,42 214,38 226,34 238,31 250,29 262,30 274,33 286,37 298,41 310,44 322,45 340,43" fill="none" stroke="#4A88DC" stroke-width="1.6" stroke-dasharray="2 3" opacity=".38"/>
+            </g>
+            <g transform="translate(0,132)">
+              <rect x="0" y="0" width="30" height="9" rx="2" fill="#3E4A61"/><rect x="30" y="0" width="56" height="9" rx="2" fill="#E3B95F"/><rect x="152" y="0" width="56" height="9" rx="2" fill="#E3B95F"/><rect x="274" y="0" width="20" height="9" rx="2" fill="#E3B95F" opacity=".45"/>
+              <text x="340" y="8" fill="#6B7488" font-size="9" font-family="var(--fm)" text-anchor="end">LICHT</text>
+              <circle cx="66" cy="18" r="5" fill="#0F1219" stroke="#8FD870" stroke-width="2"/>
+              <circle cx="126" cy="18" r="5" fill="#0F1219" stroke="#E3B95F" stroke-width="2"/>
+              <circle cx="190" cy="18" r="5" fill="#0F1219" stroke="#7BA6E8" stroke-width="2"/>
+            </g>
+            <line x1="190" y1="0" x2="190" y2="146" stroke="#E7ECF5" stroke-width="1.2" opacity=".55"/>
+          </svg>
+          <div class="rpcols" style="margin-top:6px"><span></span><i>FR 14:02</i><i>HIER</i><i>Δ</i></div>
+          <div class="rpd"><b>Temperatur</b><i>24,1</i><u>25,1 °C</u><s class="rpcount">+1,0</s></div>
+          <div class="rpd goal"><b>Ziel Tag</b><i>24,0</i><u>25,0 °C</u><s>von Ben</s></div>
+          <div class="rpd"><b>Luftfeuchte</b><i>51</i><u>46 %</u><s class="rpcount">−5</s></div>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-film"/></svg>Rücklauf</div><div><svg class="ic"><use href="#i-chart"/></svg>Verlauf</div><div><svg class="ic"><use href="#i-book"/></svg>Buch</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+    <!-- 02 -->
+    <div class="col">
+      <p class="cap"><i>02</i><span>Etwas stimmt nicht</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:10px"><div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot red"></span>Online · vor 35 Sek · Tag 34</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="rpbreak">
+            <svg><use href="#i-warn"/></svg>
+            <div><b>Das Licht sollte an sein — das Bild ist dunkel.</b><span>Seit 13:40. Dose 3 meldet an. Zu tun: Stecker einmal abziehen.</span></div>
+          </div>
+          <div class="rpstage" style="height:146px;margin-top:10px">
+            <svg class="f" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picdark"/></svg>
+            <div class="rpburn"><span>Mo 25.08. 13:52<em>Tag 34 · 12 Min nach dem Bruch</em></span><span>22,9 °C · 61 %<em>Bild 24</em></span></div>
+            <div class="rpprog"><em style="width:74%;background:#F06A7E"></em></div>
+          </div>
+          <div class="rptr">
+            <span class="rpplay re"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></span>
+            <div class="rptrack">
+              <div class="rpdens"><i style="height:6px"></i><i style="height:11px"></i><i style="height:5px"></i><i style="height:8px"></i><i style="height:14px"></i><i style="height:6px"></i><i style="height:4px"></i><i style="height:9px"></i><i style="height:12px"></i><i style="height:5px"></i><i style="height:7px"></i><i style="height:16px"></i><i style="height:8px"></i><i style="height:4px"></i><i style="height:10px"></i><i style="height:6px"></i><i style="height:13px"></i><i style="height:5px"></i><i style="height:4px"></i><i style="height:7px"></i></div>
+              <div class="rprail"><em style="width:74%;background:#F06A7E"></em></div>
+              <span class="rphead" style="left:72%;box-shadow:0 0 0 4px rgba(240,106,126,.22)"></span>
+              <div class="rpends"><span>13:40 · DER BRUCH</span><span>14:04 · JETZT</span></div>
+            </div>
+          </div>
+          <div class="rpspeed"><span class="rpsp">1 Tag/Sek</span><span class="rpsp on">1 Min/Sek</span><span class="rpsp">Schritt</span><span class="rpsp tog">Ab dem Bruch ✓</span></div>
+          <p class="rpsay">Ab 13:40 abgespielt: dunkel, kühler, feuchter. Licht heute 7 Std 40 an, 3 Std 56 offen.</p>
+          <svg viewBox="0 0 340 130" style="width:100%;height:130px;display:block;margin-top:10px">
+            <rect x="212" y="0" width="128" height="126" fill="#F06A7E" opacity=".07"/>
+            <g transform="translate(0,4)">
+              <text x="0" y="8" fill="#5F6879" font-size="9" font-family="var(--fm)">26</text>
+              <text x="340" y="8" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Temperatur °C</text>
+              <rect x="0" y="24" width="340" height="14" fill="#D4763B" opacity=".14"/>
+              <path d="M0,30 L340,30" fill="none" stroke="#D4763B" stroke-width="1.4" stroke-dasharray="5 4" opacity=".75"/>
+              <path d="M0,31 26,30 52,31 78,30 104,31 130,30 156,31 182,30 200,31 212,32 224,38 236,44 248,49 260,53 268,56" fill="none" stroke="#D4763B" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+              <path d="M268,56 282,59 296,61 312,62 340,63" fill="none" stroke="#D4763B" stroke-width="1.6" stroke-dasharray="2 3" opacity=".38"/>
+              <text x="0" y="66" fill="#5F6879" font-size="9" font-family="var(--fm)">20</text>
+            </g>
+            <g transform="translate(0,76)">
+              <text x="340" y="8" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Luftfeuchte %</text>
+              <rect x="0" y="14" width="340" height="12" fill="#4A88DC" opacity=".14"/>
+              <path d="M0,22 30,23 60,22 90,23 120,22 150,23 180,22 200,23 212,24 226,18 240,12 254,8 266,6" fill="none" stroke="#4A88DC" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+              <path d="M266,6 282,5 300,4 320,4 340,4" fill="none" stroke="#4A88DC" stroke-width="1.6" stroke-dasharray="2 3" opacity=".38"/>
+              <rect x="0" y="34" width="212" height="9" rx="2" fill="#E3B95F"/><rect x="212" y="34" width="128" height="9" rx="2" fill="#3E4A61"/>
+              <text x="340" y="42" fill="#6B7488" font-size="9" font-family="var(--fm)" text-anchor="end">LICHT</text>
+              <circle cx="212" cy="52" r="5" fill="#0F1219" stroke="#F06A7E" stroke-width="2"/>
+            </g>
+            <line x1="268" y1="0" x2="268" y2="126" stroke="#E7ECF5" stroke-width="1.2" opacity=".55"/>
+          </svg>
+          <div class="rpcols" style="margin-top:6px"><span></span><i>13:40</i><i>HIER</i><i>Δ</i></div>
+          <div class="rpd"><b>Luftfeuchte</b><i>48</i><u>61 %</u><s class="up">+13</s></div>
+          <div class="rpd"><b>Temperatur</b><i>24,8</i><u>22,9 °C</u><s class="dn">−1,9</s></div>
+          <div class="rpd"><b>Dose 3 „Licht“</b><i>an</i><u>an</u><s>meldet an</s></div>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-film"/></svg>Rücklauf</div><div><svg class="ic"><use href="#i-chart"/></svg>Verlauf</div><div><svg class="ic"><use href="#i-book"/></svg>Buch</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+    <!-- 03 -->
+    <div class="col">
+      <p class="cap"><i>03</i><span>Tag eins</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:10px"><div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot"></span>Online · vor 12 Sek · Tag 1</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="rpstage" style="height:168px">
+            <svg class="f" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <div class="rpburn"><span>Mo 25.08. 14:04<em>Tag 1 · erstes Bild</em></span><span>26,2 °C · 54 %<em>VPD 1,41 kPa</em></span></div>
+          </div>
+          <div class="rptr">
+            <span class="rpplay off"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></span>
+            <div class="rptrack">
+              <div class="rpdens"><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:6px"></i></div>
+              <div class="rprail"><em style="width:3%"></em></div>
+              <span class="rphead" style="left:0;box-shadow:0 0 0 4px rgba(107,116,136,.22)"></span>
+              <div class="rpends"><span>14:00 · VERBUNDEN</span><span>14:04</span></div>
+            </div>
+          </div>
+          <p class="rpsay">Vier Minuten Material. Der Rücklauf braucht einen Tag.</p>
+          <p class="rpnote">Solange nichts abzuspielen ist, steht hier der Vergleich, den es schon gibt: <b>dein Ziel gegen jetzt</b>. Ab morgen früh läuft der Kopf.</p>
+          <svg viewBox="0 0 340 92" style="width:100%;height:92px;display:block;margin-top:11px">
+            <rect x="0" y="0" width="340" height="88" rx="8" fill="none" stroke="#2C3546" stroke-width="1" stroke-dasharray="5 4"/>
+            <rect x="12" y="30" width="316" height="16" fill="#D4763B" opacity=".14"/>
+            <path d="M12,38 L328,38" fill="none" stroke="#D4763B" stroke-width="1.4" stroke-dasharray="5 4" opacity=".75"/>
+            <circle cx="320" cy="30" r="4" fill="#D4763B"/>
+            <text x="12" y="20" fill="#8A93A8" font-size="10" font-family="var(--fs)">Das Zielband steht. Die Kurve kommt.</text>
+            <text x="12" y="62" fill="#5F6879" font-size="9" font-family="var(--fm)">ZIEL 25,0 °C · JETZT 26,2 °C</text>
+            <text x="12" y="76" fill="#5F6879" font-size="9" font-family="var(--fm)">EIN PUNKT, RECHTS AUSSEN</text>
+          </svg>
+          <div class="rpcols" style="margin-top:10px"><span></span><i>ZIEL</i><i>JETZT</i><i>Δ</i></div>
+          <div class="rpd"><b>Temperatur</b><i>25,0</i><u>26,2 °C</u><s class="up">+1,2</s></div>
+          <div class="rpd"><b>Luftfeuchte</b><i>50</i><u>54 %</u><s class="up">+4</s></div>
+          <div class="rpd"><b>VPD</b><i>1,2–1,5</i><u>1,41 kPa</u><s class="ok">im Band</s></div>
+          <div class="rpd"><b>CO₂</b><i>1000</i><u>438 ppm</u><s class="dn">−562</s></div>
+          <div class="btns"><div class="btn"><svg class="ic-s"><use href="#i-drop"/></svg>Gabe</div><div class="btn"><svg class="ic-s"><use href="#i-note"/></svg>Notiz</div><div class="btn"><svg class="ic-s"><use href="#i-cam"/></svg>Foto</div></div>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-film"/></svg>Rücklauf</div><div><svg class="ic"><use href="#i-chart"/></svg>Verlauf</div><div><svg class="ic"><use href="#i-book"/></svg>Buch</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+    <!-- 04 -->
+    <div class="col">
+      <p class="cap"><i>04</i><span>Gießen eintragen</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd" style="filter:blur(1.2px);opacity:.42">
+          <div class="top" style="padding-bottom:10px"><div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot"></span>Online · Tag 34</p></div></div>
+          <div class="rpstage" style="height:168px"><svg class="f" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picdark"/></svg></div>
+          <p class="rpsay">Der Rücklauf steht bei Annas Gabe am Samstagmorgen.</p>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheetup">
+          <div class="grab"></div>
+          <div class="shd"><h3>Gabe</h3><span>heute 19:40</span></div>
+          <div class="chips"><span class="chip">Ganzes Zelt</span><span class="chip on">A1</span><span class="chip on">A2</span><span class="chip">B1</span></div>
+          <div class="cans">
+            <div class="row"><div class="beads"><i class="f"></i><i class="f"></i><i></i><i></i><i></i><i></i></div><div class="tot">4,0 l</div></div>
+            <div class="hint">Tippen = eine Kanne. Lange drücken = eine zurück. Kanne 2,0 l ▾</div>
+          </div>
+          <div class="frow"><span>Bio·Grow</span><b>2,0 ml/l · 8 ml</b></div>
+          <div class="frow"><span>Bio·Bloom</span><b>3,0 ml/l · 12 ml</b></div>
+          <div class="frow"><span>Top·Max</span><b>1,0 ml/l · 4 ml</b></div>
+          <div class="frow"><span>pH</span><b>6,3 <span style="font-size:12px">Ziel 6,2–6,5</span></b></div>
+          <p class="from">aus <b>Biobizz All·Mix · Schritt 7 von 14</b> — vorausgefüllt, alles änderbar. Zuletzt geprüft 14.07.2026.</p>
+          <p class="rpnote" style="margin-top:7px">Der Rücklauf <b>hält hier an</b>, wenn du ihn das nächste Mal laufen lässt.</p>
+          <div class="guard"><svg class="ic-s" style="color:#E3B95F;flex:none;margin-top:1px"><use href="#i-warn"/></svg><div>Anna hat A1 und A2 vor 1 Std 30 gegossen (2,0 l).<br><span style="color:#C9A961;text-decoration:underline">Ihr Bild ansehen</span></div></div>
+          <div class="btns"><div class="btn" style="flex:0 0 92px">Wer? Ben</div><div class="btn pri">Trotzdem eintragen</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 05 -->
+    <div class="col">
+      <p class="cap"><i>05</i><span>Kamera &amp; Zeitraffer</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:10px"><div><h1 class="ttl">Film und Zahlen</h1><p class="meta">Blüte Woche 2 · ein Abspielkopf für beides</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="rpstage" style="height:196px">
+            <svg class="f" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <span class="rpev"><svg><use href="#i-drop"/></svg>Anna · 2,0 l · 12:05</span>
+            <div class="rpburn"><span>Sa 23.08. 12:05<em>Blüte · Tag 32</em></span><span>25,4 °C · 47 %<em>VPD 1,36 kPa</em></span></div>
+            <div class="rpprog"><em style="width:63%"></em></div>
+          </div>
+          <div class="rptr">
+            <span class="rpplay"><svg viewBox="0 0 24 24"><rect x="6" y="4.5" width="4" height="15" rx="1.4" fill="currentColor"/><rect x="14" y="4.5" width="4" height="15" rx="1.4" fill="currentColor"/></svg></span>
+            <div class="rptrack">
+              <div class="rpdens"><i style="height:14px"></i><i style="height:15px"></i><i style="height:13px"></i><i style="height:15px"></i><i style="height:4px"></i><i style="height:14px"></i><i style="height:15px"></i><i style="height:13px"></i><i style="height:15px"></i><i style="height:14px"></i><i style="height:5px"></i><i style="height:15px"></i><i style="height:14px"></i><i style="height:15px"></i><i style="height:13px"></i><i style="height:14px"></i><i style="height:15px"></i><i style="height:12px"></i><i style="height:14px"></i><i style="height:15px"></i></div>
+              <div class="rprail"><em style="width:63%"></em></div>
+              <span class="rphead" style="left:61%"></span>
+              <div class="rpends"><span>TAG 22 · 12.08.</span><span>TAG 34 · HEUTE</span></div>
+            </div>
+          </div>
+          <div class="rpspeed"><span class="rpsp on">Film 24 B/s</span><span class="rpsp">1 Tag/Sek</span><span class="rpsp tog">Zahlen einblenden ✓</span></div>
+          <p class="rpsay">Der Film und die Kurve laufen an einem einzigen Kopf.</p>
+          <p class="rpsub">Was du im Bild siehst, steht als Zahl darunter — dieselbe Minute.</p>
+          <svg viewBox="0 0 340 56" style="width:100%;height:56px;display:block;margin-top:9px">
+            <rect x="0" y="8" width="340" height="14" fill="#D4763B" opacity=".14"/>
+            <path d="M0,18 20,15 40,13 60,16 80,14 100,12 120,15 140,13 160,11 180,14 195,12" fill="none" stroke="#D4763B" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M195,12 215,14 235,11 255,13 275,10 295,12 315,14 340,12" fill="none" stroke="#D4763B" stroke-width="1.6" stroke-dasharray="2 3" opacity=".38"/>
+            <text x="340" y="6" fill="#C9D2E3" font-size="10" font-family="var(--fs)" text-anchor="end" font-weight="600">Temperatur · Tagesmittel</text>
+            <rect x="0" y="34" width="66" height="8" rx="2" fill="#3E4A61"/><rect x="66" y="34" width="4" height="8" rx="2" fill="#C4384F"/><rect x="70" y="34" width="270" height="8" rx="2" fill="#3E4A61"/>
+            <text x="0" y="53" fill="#6B7488" font-size="9" font-family="var(--fm)">KAPITEL 1</text>
+            <text x="76" y="53" fill="#6B7488" font-size="9" font-family="var(--fm)">KAPITEL 2 · KAMERA VERRUTSCHT 12.08.</text>
+            <line x1="195" y1="4" x2="195" y2="44" stroke="#E7ECF5" stroke-width="1.2" opacity=".55"/>
+          </svg>
+          <div class="rpcull">2 148 aufgenommen · 1 187 Licht aus<br>289 außerhalb der Fenster · 41 Hand im Bild<br>22 unscharf · 9 verrutscht<br><b>= 600 Bilder → 25 Sek · 7,4 MB</b></div>
+          <div class="btns"><div class="btn">Teilen</div><div class="btn pri">Speichern</div></div>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-film"/></svg>Rücklauf</div><div><svg class="ic"><use href="#i-chart"/></svg>Verlauf</div><div><svg class="ic"><use href="#i-book"/></svg>Buch</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+    <!-- 06 -->
+    <div class="col">
+      <p class="cap"><i>06</i><span>Zelt ohne Gerät</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:10px"><div><h1 class="ttl">Schrank Flur</h1><p class="meta"><span class="dot grey"></span>Kein Gerät · Tag 19 · Blüte Tag 5</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="rpstage" style="height:172px">
+            <svg class="f" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picold"/></svg>
+            <span class="rpev"><svg><use href="#i-ruler"/></svg>Höhe 44 cm</span>
+            <div class="rpburn"><span>Sa 23.08. 21:20<em>Tag 17 · dein Foto 9 von 11</em></span><span>pH 6,1<em>nach der Gabe</em></span></div>
+            <div class="rpprog"><em style="width:78%"></em></div>
+          </div>
+          <div class="rptr">
+            <span class="rpplay"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></span>
+            <div class="rptrack">
+              <div class="rpdens"><i style="height:2px"></i><i style="height:12px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:10px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:13px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:9px"></i><i style="height:2px"></i><i style="height:11px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:12px"></i><i style="height:2px"></i><i style="height:10px"></i><i style="height:2px"></i><i style="height:13px"></i></div>
+              <div class="rprail"><em style="width:78%"></em></div>
+              <span class="rphead" style="left:76%"></span>
+              <div class="rpends"><span>07.08. · FOTO 1</span><span>HEUTE 20:55</span></div>
+            </div>
+          </div>
+          <div class="rpspeed"><span class="rpsp on">Schritt für Schritt</span><span class="rpsp tog">11 Halte</span></div>
+          <p class="rpsay">Ohne Kamera springt der Kopf von Eintrag zu Eintrag.</p>
+          <p class="rpnote">Elf Fotos in neunzehn Tagen: der Rücklauf ruckelt, und das ist ehrlicher als eine glatte Kurve zwischen zwei Messungen. <b>Klima wird hier nicht gemessen.</b></p>
+          <svg viewBox="0 0 340 96" style="width:100%;height:96px;display:block;margin-top:10px">
+            <g transform="translate(0,4)">
+              <text x="340" y="8" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Höhe cm · pH</text>
+              <path d="M18,52 L78,48 L140,42 L200,34 L262,28 L320,22" fill="none" stroke="#3AA25C" stroke-width="1.4" stroke-dasharray="4 4" opacity=".7"/>
+              <circle cx="18" cy="52" r="3.6" fill="#3AA25C"/><circle cx="78" cy="48" r="3.6" fill="#3AA25C"/><circle cx="140" cy="42" r="3.6" fill="#3AA25C"/><circle cx="200" cy="34" r="3.6" fill="#3AA25C"/><circle cx="262" cy="28" r="3.6" fill="#3AA25C"/><circle cx="320" cy="22" r="3.6" fill="#3AA25C"/>
+              <text x="0" y="20" fill="#5F6879" font-size="9" font-family="var(--fm)">48</text>
+              <text x="0" y="58" fill="#5F6879" font-size="9" font-family="var(--fm)">40</text>
+              <rect x="0" y="64" width="340" height="10" fill="#A874CF" opacity=".14"/>
+              <circle cx="78" cy="66" r="3.2" fill="#A874CF"/><circle cx="200" cy="70" r="3.2" fill="#A874CF"/><circle cx="262" cy="73" r="3.2" fill="#A874CF"/><circle cx="320" cy="76" r="3.2" fill="#A874CF"/>
+              <text x="340" y="84" fill="#6B7488" font-size="9" font-family="var(--fm)" text-anchor="end">BAND pH 6,2–6,5</text>
+            </g>
+            <line x1="262" y1="0" x2="262" y2="90" stroke="#E7ECF5" stroke-width="1.2" opacity=".55"/>
+          </svg>
+          <div class="rpstep"><span>Höhe A1</span><b>42 → 48 cm · +6</b></div>
+          <div class="rpstep"><span>pH Ablauf</span><b>6,4 → 5,9 · unter dem Band</b></div>
+          <div class="rpstep"><span>Wasser gesamt</span><b>11,0 → 15,0 l · 6 Gaben</b></div>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-film"/></svg>Rücklauf</div><div><svg class="ic"><use href="#i-chart"/></svg>Verlauf</div><div><svg class="ic"><use href="#i-book"/></svg>Buch</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="ft">
+    <div><h4>Worauf es wettet</h4><p>Dass ein Unterschied leichter zu begreifen ist, wenn man den Weg dazwischen sieht statt nur die zwei Enden. „Nachts wurde es wärmer“ ist eine Behauptung; drei Nächte in vier Sekunden ablaufen zu sehen, während die Heizungsbalken mitwachsen, ist ein Beweis. Und es ist die einzige Bedienung im Stapel, die jeder schon kennt: ein Dreieck drücken.</p></div>
+    <div class="warn"><h4>Was ein abgelenkter Nutzer falsch macht</h4><p>Er drückt Abspielen, schaut zu, und liest am Ende den Wert des Abspielkopfs als den Wert von jetzt — der Kopf steht aber bei Samstag 09:32. Der Bildschirm sagt es an drei Stellen, und trotzdem ist eine laufende Zahl schwerer zu misstrauen als eine stehende. Wer nicht wartet, sieht außerdem nie das Ende.</p></div>
+    <div class="warn"><h4>Wo die Kontrolle ausgeht</h4><p>Abspielen ist eine schöne Erzählung und ein schlechtes Messinstrument. Zwei genau bestimmte Zeitpunkte gegeneinander zu halten geht nur, indem man zweimal exakt anhält. Es gibt keine zweite Spanne, keinen Vergleich zweier Wochen, kein Sortieren. Und am ersten Tag ist dieser Entwurf der leerste im Stapel: es gibt nichts abzuspielen.</p></div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

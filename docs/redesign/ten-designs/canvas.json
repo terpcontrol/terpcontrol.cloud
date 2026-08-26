@@ -1,16 +1,216 @@
 {
   "artboards": [
-    { "file": "Main.dc.html",         "title": "Übersicht",              "x": 0, "y": 0,     "w": 2600, "h": 1240 },
-    { "file": "Difference.dc.html",   "title": "01 Der Unterschied",     "x": 0, "y": 1400,  "w": 2600, "h": 1360 },
-    { "file": "DailyLetter.dc.html",  "title": "02 Der Tagesbrief",      "x": 0, "y": 2920,  "w": 2600, "h": 1360 },
-    { "file": "DayRing.dc.html",      "title": "03 Der Tagesring",       "x": 0, "y": 4440,  "w": 2600, "h": 1360 },
-    { "file": "TwoQuestions.dc.html", "title": "04 Zwei Fragen",         "x": 0, "y": 5960,  "w": 2600, "h": 1360 },
-    { "file": "MovingImage.dc.html",  "title": "05 Das Laufbild",        "x": 0, "y": 7480,  "w": 2600, "h": 1360 },
-    { "file": "Plants.dc.html",       "title": "06 Die Pflanzen",        "x": 0, "y": 9000,  "w": 2600, "h": 1360 },
-    { "file": "Timeline.dc.html",     "title": "07 Die Zeitschiene",     "x": 0, "y": 10520, "w": 2600, "h": 1360 },
-    { "file": "TargetActual.dc.html", "title": "08 Soll & Ist",          "x": 0, "y": 12040, "w": 2600, "h": 1360 },
-    { "file": "Week.dc.html",         "title": "09 Die Woche",           "x": 0, "y": 13560, "w": 2600, "h": 1360 },
-    { "file": "Board.dc.html",        "title": "10 Das Brett",           "x": 0, "y": 15080, "w": 2600, "h": 1380 }
+    {
+      "file": "Main.dc.html",
+      "title": "Runde 1 · Übersicht",
+      "x": 0,
+      "y": 0,
+      "w": 2600,
+      "h": 1229,
+      "page": "page-1"
+    },
+    {
+      "file": "Difference.dc.html",
+      "title": "01 · Der Unterschied",
+      "x": 0,
+      "y": 1399,
+      "w": 2600,
+      "h": 1310,
+      "page": "page-1"
+    },
+    {
+      "file": "DailyLetter.dc.html",
+      "title": "02 · Der Tagesbrief",
+      "x": 0,
+      "y": 2879,
+      "w": 2600,
+      "h": 1310,
+      "page": "page-1"
+    },
+    {
+      "file": "DayRing.dc.html",
+      "title": "03 · Der Tagesring",
+      "x": 0,
+      "y": 4359,
+      "w": 2600,
+      "h": 1310,
+      "page": "page-1"
+    },
+    {
+      "file": "TwoQuestions.dc.html",
+      "title": "04 · Zwei Fragen",
+      "x": 0,
+      "y": 5839,
+      "w": 2600,
+      "h": 1310,
+      "page": "page-1"
+    },
+    {
+      "file": "MovingImage.dc.html",
+      "title": "05 · Das Laufbild",
+      "x": 0,
+      "y": 7319,
+      "w": 2600,
+      "h": 1310,
+      "page": "page-1"
+    },
+    {
+      "file": "Plants.dc.html",
+      "title": "06 · Die Pflanzen",
+      "x": 0,
+      "y": 8799,
+      "w": 2600,
+      "h": 1310,
+      "page": "page-1"
+    },
+    {
+      "file": "Timeline.dc.html",
+      "title": "07 · Die Zeitschiene",
+      "x": 0,
+      "y": 10279,
+      "w": 2600,
+      "h": 1310,
+      "page": "page-1"
+    },
+    {
+      "file": "TargetActual.dc.html",
+      "title": "08 · Soll & Ist",
+      "x": 0,
+      "y": 11759,
+      "w": 2600,
+      "h": 1310,
+      "page": "page-1"
+    },
+    {
+      "file": "Week.dc.html",
+      "title": "09 · Die Woche",
+      "x": 0,
+      "y": 13239,
+      "w": 2600,
+      "h": 1310,
+      "page": "page-1"
+    },
+    {
+      "file": "Board.dc.html",
+      "title": "10 · Das Brett",
+      "x": 0,
+      "y": 14719,
+      "w": 2600,
+      "h": 1338,
+      "page": "page-1"
+    },
+    {
+      "file": "Fusion.dc.html",
+      "title": "Runde 2 · Übersicht",
+      "x": 0,
+      "y": 0,
+      "w": 2600,
+      "h": 1335,
+      "page": "page-2"
+    },
+    {
+      "file": "Replay.dc.html",
+      "title": "11 · Der Rücklauf",
+      "x": 0,
+      "y": 1505,
+      "w": 2600,
+      "h": 1338,
+      "page": "page-2"
+    },
+    {
+      "file": "TwoWindows.dc.html",
+      "title": "12 · Zwei Fenster",
+      "x": 0,
+      "y": 3013,
+      "w": 2600,
+      "h": 1362,
+      "page": "page-2"
+    },
+    {
+      "file": "GhostTrace.dc.html",
+      "title": "13 · Der Geisterverlauf",
+      "x": 0,
+      "y": 4545,
+      "w": 2600,
+      "h": 1334,
+      "page": "page-2"
+    },
+    {
+      "file": "FilmAxis.dc.html",
+      "title": "14 · Der Streifen",
+      "x": 0,
+      "y": 6049,
+      "w": 2600,
+      "h": 1362,
+      "page": "page-2"
+    },
+    {
+      "file": "Deviation.dc.html",
+      "title": "15 · Die Abweichung",
+      "x": 0,
+      "y": 7581,
+      "w": 2600,
+      "h": 1358,
+      "page": "page-2"
+    },
+    {
+      "file": "Anchor.dc.html",
+      "title": "16 · Der Anker",
+      "x": 0,
+      "y": 9109,
+      "w": 2600,
+      "h": 1338,
+      "page": "page-2"
+    },
+    {
+      "file": "Grid.dc.html",
+      "title": "17 · Das Raster",
+      "x": 0,
+      "y": 10617,
+      "w": 2600,
+      "h": 1310,
+      "page": "page-2"
+    },
+    {
+      "file": "Verdict.dc.html",
+      "title": "18 · Der Befund",
+      "x": 0,
+      "y": 12097,
+      "w": 2600,
+      "h": 1362,
+      "page": "page-2"
+    },
+    {
+      "file": "Runs.dc.html",
+      "title": "19 · Die Durchgänge",
+      "x": 0,
+      "y": 13629,
+      "w": 2600,
+      "h": 1334,
+      "page": "page-2"
+    },
+    {
+      "file": "Matrix.dc.html",
+      "title": "20 · Die Karte",
+      "x": 0,
+      "y": 15133,
+      "w": 2600,
+      "h": 1362,
+      "page": "page-2"
+    }
   ],
-  "launch": { "view": "focused", "file": "Main.dc.html" }
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Runde 1 · Zehn Entwürfe"
+    },
+    {
+      "id": "page-2",
+      "name": "Runde 2 · 01 × 07"
+    }
+  ],
+  "launch": {
+    "view": "canvas",
+    "page": "page-2"
+  }
 }
