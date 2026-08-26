@@ -1408,10 +1408,15 @@ class DeviceRoute implements Routes {
      *                 description: socket_set only — host/IP of the socket on the device's network.
      *               user:
      *                 type: string
-     *                 description: socket_set only — HTTP auth user; empty keeps the device default.
+     *                 description: >
+     *                   socket_set only — HTTP auth user. Omit both credentials to keep
+     *                   the ones the socket already has.
      *               password:
      *                 type: string
-     *                 description: socket_set only — HTTP auth password; empty keeps the device default.
+     *                 description: >
+     *                   socket_set only — HTTP auth password. Omit both credentials to
+     *                   keep the ones the socket already has; sending an empty one puts
+     *                   the socket back on the device default.
      *               append:
      *                 type: boolean
      *                 description: >

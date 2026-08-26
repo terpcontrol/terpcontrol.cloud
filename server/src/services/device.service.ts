@@ -936,8 +936,16 @@ class DeviceService {
         throw new HttpException(400, 'Credentials too long');
       }
       payload['ip'] = ip;
-      payload['user'] = user;
-      payload['password'] = password;
+
+      // Credentials are optional. A caller that leaves them out is only
+      // re-addressing the socket, and the device then keeps the ones it has —
+      // forwarding an empty pair would clear them and lock the device out of a
+      // socket that has its own web password. Passing them explicitly replaces
+      // them, an empty password meaning "back to the device default".
+      if (options?.user !== undefined || options?.password !== undefined) {
+        payload['user'] = user;
+        payload['password'] = password;
+      }
 
       // Adds a socket to the role instead of configuring the one it has. A
       // caller adding a second heater has no slot to name yet, so it says so

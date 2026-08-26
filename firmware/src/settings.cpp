@@ -94,9 +94,17 @@ namespace fg {
     }
   }
 
+  // A failed write is reported, never fatal. Aborting here would panic the
+  // device on a settings partition that has run out of room, and the reboot
+  // loop that follows ends with nvs_flash_init() reporting no free pages — at
+  // which point the constructor above erases the partition and the device
+  // comes back without its wifi credentials or any of its paired sockets.
+  // Losing one write is recoverable; losing everything stored is not.
   esp_err_t SettingsManager::setStr(const char* key, const char* value) {
     auto err = nvs_set_str(my_handle, key, value);
-    ESP_ERROR_CHECK( err );
+    if(err != ESP_OK) {
+      Serial.printf("[settings] storing '%s' failed: %s\n", key, esp_err_to_name(err));
+    }
     return err;
   }
 

@@ -24,11 +24,11 @@ namespace fg {
     esp_err_t wipe();
 
     /**
-     * Entries still free in the underlying partition. Writing to a full NVS
-     * partition aborts inside the driver rather than returning an error, so
-     * anything that can store an unbounded amount (the smart socket table)
-     * asks first. Reports the maximum when the partition cannot be queried, so
-     * a stats failure never blocks a write that would have succeeded.
+     * Entries still free in the underlying partition. Writes to a full NVS
+     * partition fail, so anything that can store an unbounded amount (the
+     * smart socket table) asks first rather than finding out afterwards.
+     * Reports the maximum when the partition cannot be queried, so a stats
+     * failure never blocks a write that would have succeeded.
      */
     size_t freeEntries();
   };
