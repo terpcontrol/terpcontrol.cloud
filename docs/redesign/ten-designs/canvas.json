@@ -1,0 +1,16 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html",         "title": "Übersicht",              "x": 0, "y": 0,     "w": 2600, "h": 1240 },
+    { "file": "Difference.dc.html",   "title": "01 Der Unterschied",     "x": 0, "y": 1400,  "w": 2600, "h": 1360 },
+    { "file": "DailyLetter.dc.html",  "title": "02 Der Tagesbrief",      "x": 0, "y": 2920,  "w": 2600, "h": 1360 },
+    { "file": "DayRing.dc.html",      "title": "03 Der Tagesring",       "x": 0, "y": 4440,  "w": 2600, "h": 1360 },
+    { "file": "TwoQuestions.dc.html", "title": "04 Zwei Fragen",         "x": 0, "y": 5960,  "w": 2600, "h": 1360 },
+    { "file": "MovingImage.dc.html",  "title": "05 Das Laufbild",        "x": 0, "y": 7480,  "w": 2600, "h": 1360 },
+    { "file": "Plants.dc.html",       "title": "06 Die Pflanzen",        "x": 0, "y": 9000,  "w": 2600, "h": 1360 },
+    { "file": "Timeline.dc.html",     "title": "07 Die Zeitschiene",     "x": 0, "y": 10520, "w": 2600, "h": 1360 },
+    { "file": "TargetActual.dc.html", "title": "08 Soll & Ist",          "x": 0, "y": 12040, "w": 2600, "h": 1360 },
+    { "file": "Week.dc.html",         "title": "09 Die Woche",           "x": 0, "y": 13560, "w": 2600, "h": 1360 },
+    { "file": "Board.dc.html",        "title": "10 Das Brett",           "x": 0, "y": 15080, "w": 2600, "h": 1380 }
+  ],
+  "launch": { "view": "focused", "file": "Main.dc.html" }
+}

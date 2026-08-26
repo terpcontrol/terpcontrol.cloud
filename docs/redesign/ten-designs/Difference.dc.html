@@ -1,0 +1,411 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+  <style>
+    *{box-sizing:border-box}
+    :root{--fs:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;--fm:'IBM Plex Mono',ui-monospace,SFMono-Regular,monospace}
+    body{margin:0;background:#E8EAEF;color:#1A1D29;font-family:var(--fs),system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+    a{color:#2D4B95}a:hover{color:#1F3A6E}
+    .sheet{width:2600px;padding:40px 40px 44px}
+    .hd{display:flex;gap:40px;align-items:flex-start;border-bottom:3px solid #1A1D29;padding-bottom:22px;margin-bottom:24px}
+    .hd__n{font:600 84px/.78 var(--fm);color:#2D4B95;letter-spacing:-.05em;flex:none}
+    .hd__b{flex:1;max-width:1120px}
+    .hd__t{font:600 46px/1.02 var(--fs);letter-spacing:-.03em;margin:0 0 10px}
+    .hd__s{font:400 19px/1.45 var(--fs);color:#333B4C;margin:0}
+    .axes{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 26px;width:660px;flex:none}
+    .ax{border-top:1px solid #B9BFCC;padding-top:7px}
+    .ax b{display:block;font:600 10px/1 var(--fm);letter-spacing:.14em;text-transform:uppercase;color:#6B7285;margin-bottom:5px}
+    .ax span{font:500 15px/1.3 var(--fs);color:#1A1D29}
+    .strip{display:flex;gap:26px;align-items:flex-start}
+    .col{width:390px;flex:none}
+    .cap{display:flex;gap:9px;align-items:baseline;margin:0 0 9px;padding-bottom:7px;border-bottom:1px solid #C2C8D4}
+    .cap i{font:600 12px/1 var(--fm);color:#2D4B95;font-style:normal}
+    .cap span{font:600 14px/1.1 var(--fs);letter-spacing:-.01em}
+    .ft{margin-top:26px;padding-top:20px;border-top:1px solid #C2C8D4;display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:44px}
+    .ft h4{font:600 10px/1 var(--fm);letter-spacing:.16em;text-transform:uppercase;color:#2D4B95;margin:0 0 8px}
+    .ft p{font:400 16px/1.5 var(--fs);margin:0;color:#333B4C}
+    .ft.warn h4{color:#8A6318}
+
+    /* ---------- phone shell ---------- */
+    .ph{width:390px;height:844px;border-radius:34px;overflow:hidden;position:relative;display:flex;flex-direction:column;
+        box-shadow:0 18px 40px rgba(31,58,110,.18),0 2px 6px rgba(31,58,110,.10);background:#0F1219;color:#E7ECF5;font-size:15px}
+    .sb{height:24px;flex:none}
+    .bd{flex:1;padding:0 16px;overflow:hidden}
+    .nav{flex:none;display:flex;background:#151B26;border-top:1px solid #262F3F;padding:9px 4px 22px}
+    .nav div{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;color:#79839A;font:500 11px/1 var(--fs)}
+    .nav div.on{color:#6FBE4A}
+    .ic{width:21px;height:21px;display:block;flex:none}
+    .ic-s{width:16px;height:16px}
+    .num{font-variant-numeric:tabular-nums}
+
+    .top{display:flex;align-items:flex-start;justify-content:space-between;padding:6px 0 12px}
+    .ttl{font:600 21px/1.15 var(--fs);letter-spacing:-.02em;margin:0}
+    .meta{font:400 12.5px/1.3 var(--fs);color:#8A93A8;margin:4px 0 0;font-variant-numeric:tabular-nums}
+    .dot{width:7px;height:7px;border-radius:50%;background:#6FBE4A;display:inline-block;margin-right:5px;vertical-align:1px}
+    .dot.red{background:#F06A7E}.dot.grey{background:#6B7488}
+
+    .pair{display:flex;gap:10px}
+    .half{flex:1}
+    .half .lbl{font:600 10px/1 var(--fm);letter-spacing:.16em;color:#79839A;margin-bottom:6px}
+    .frame{width:100%;height:117px;border-radius:9px;overflow:hidden;display:block;background:#161B25}
+    .half.old .frame{opacity:.86}
+    .stamp{font:500 12px/1.35 var(--fs);color:#9AA3B7;margin-top:6px;font-variant-numeric:tabular-nums}
+    .stamp b{display:block;color:#C9D2E3;font-weight:600}
+
+    .say{margin:12px 0 0;font:600 18px/1.32 var(--fs);letter-spacing:-.01em}
+    .say+.sub{margin-top:5px;font:500 13.5px/1.4 var(--fs);color:#9AA3B7;font-variant-numeric:tabular-nums}
+
+    .slider{margin:14px 0 0;padding:11px 12px 9px;background:#161C27;border-radius:11px}
+    .track{position:relative;height:26px}
+    .dens{position:absolute;inset:auto 0 12px;height:14px;display:flex;gap:1.5px;align-items:flex-end;opacity:.5}
+    .dens i{flex:1;background:#3E4A61;display:block}
+    .rail{position:absolute;left:0;right:0;top:11px;height:3px;background:#39435A;border-radius:2px}
+    .rail em{position:absolute;left:0;top:0;bottom:0;background:#7396DD;border-radius:2px}
+    .knob{position:absolute;top:3px;width:19px;height:19px;border-radius:50%;background:#E7ECF5;box-shadow:0 0 0 4px rgba(115,150,221,.28)}
+    .detents{display:flex;justify-content:space-between;font:500 9.5px/1 var(--fm);color:#79839A;margin-top:3px;letter-spacing:.02em}
+    .detents b{color:#7396DD}
+    .cursor{display:flex;justify-content:space-between;align-items:baseline;margin-top:9px;font:500 13px/1 var(--fs);color:#C9D2E3;font-variant-numeric:tabular-nums}
+    .cursor a{color:#7396DD;text-decoration:none;font-weight:600}
+
+    .sechd{display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 6px}
+    .sechd h3{font:600 11px/1 var(--fm);letter-spacing:.16em;text-transform:uppercase;color:#8A93A8;margin:0}
+    .sechd span{font:400 11px/1 var(--fs);color:#6B7488}
+    .drow{display:grid;grid-template-columns:1fr 60px 60px 58px;align-items:baseline;gap:4px;padding:6px 0;border-bottom:1px solid #1D2431;font-variant-numeric:tabular-nums}
+    .drow b{font:500 14.5px/1.2 var(--fs);color:#E7ECF5}
+    .drow i{font:400 14px/1.2 var(--fs);color:#79839A;text-align:right;font-style:normal}
+    .drow u{font:600 14px/1.2 var(--fs);color:#C9D2E3;text-align:right;text-decoration:none}
+    .drow s{font:600 13.5px/1.2 var(--fs);text-align:right;text-decoration:none;color:#8A93A8}
+    .drow s.up{color:#E3B95F}.drow s.dn{color:#7BA6E8}
+    .drow.goal b{padding-left:14px;font-weight:400;font-size:13px;color:#79839A}
+    .drow.goal u,.drow.goal i{font-size:13px;font-weight:400;color:#79839A}
+    .cols{display:grid;grid-template-columns:1fr 60px 60px 58px;gap:4px;font:600 9.5px/1 var(--fm);color:#6B7488;letter-spacing:.06em;padding-bottom:5px}
+    .cols i{text-align:right;font-style:normal}
+
+    .alarm{display:flex;gap:10px;align-items:flex-start;background:#2A1721;border:1px solid #6D2739;border-left:4px solid #F06A7E;border-radius:9px;padding:11px 12px;margin:2px 0 12px}
+    .alarm .t{font:600 15px/1.3 var(--fs);color:#FFC2CC;margin:0 0 4px}
+    .alarm .m{font:400 13px/1.4 var(--fs);color:#D6B9C1;margin:0}
+    .alarm .r{font:500 12px/1 var(--fm);color:#B58794;margin-top:7px;display:block}
+
+    .btns{display:flex;gap:8px;margin-top:14px}
+    .btn{flex:1;height:48px;border-radius:10px;background:#1D2431;color:#C9D2E3;display:flex;align-items:center;justify-content:center;gap:6px;font:600 14px/1 var(--fs)}
+    .btn.pri{background:#50A030;color:#fff}
+
+    /* sheet / modal */
+    .scrim{position:absolute;inset:0;background:rgba(6,9,14,.62)}
+    .sheetup{position:absolute;left:0;right:0;bottom:0;background:#161C27;border-radius:20px 20px 0 0;padding:14px 16px 22px;border-top:1px solid #2C3546}
+    .grab{width:38px;height:4px;border-radius:2px;background:#3E4A61;margin:0 auto 12px}
+    .shd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+    .shd h3{margin:0;font:600 20px/1 var(--fs);letter-spacing:-.01em}
+    .shd span{font:500 13px/1 var(--fs);color:#8A93A8}
+    .chips{display:flex;gap:7px;margin-bottom:12px}
+    .chip{padding:9px 13px;border-radius:999px;border:1px solid #33405A;color:#9AA3B7;font:500 13.5px/1 var(--fs)}
+    .chip.on{background:#1E3A6B;border-color:#4E7BD0;color:#CFE0FF}
+    .cans{background:#111621;border:1px solid #2C3546;border-radius:12px;padding:14px 14px 12px;margin-bottom:11px}
+    .cans .row{display:flex;justify-content:space-between;align-items:center}
+    .beads{display:flex;gap:7px}
+    .beads i{width:26px;height:26px;border-radius:50%;border:2px solid #3E4A61;display:block}
+    .beads i.f{background:#4A88DC;border-color:#4A88DC}
+    .cans .tot{font:600 20px/1 var(--fs);font-variant-numeric:tabular-nums}
+    .cans .hint{font:400 12px/1.3 var(--fs);color:#79839A;margin-top:9px}
+    .frow{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1D2431;font:500 14px/1.2 var(--fs);font-variant-numeric:tabular-nums}
+    .frow span{color:#9AA3B7;font-weight:400}
+    .from{font:400 12.5px/1.35 var(--fs);color:#79839A;margin:8px 0 0}
+    .from b{color:#9AA3B7;font-weight:600}
+    .guard{display:flex;gap:9px;background:#2A2417;border:1px solid #6A5526;border-radius:9px;padding:10px 11px;margin:11px 0 0;font:400 12.5px/1.4 var(--fs);color:#E6D3A5}
+
+    /* film */
+    .stage{position:relative;border-radius:12px;overflow:hidden;background:#0B0E14;height:236px}
+    .burn{position:absolute;left:10px;right:10px;bottom:9px;display:flex;justify-content:space-between;font:500 11px/1 var(--fm);color:#EFF3FA;text-shadow:0 1px 3px rgba(0,0,0,.9);font-variant-numeric:tabular-nums}
+    .prog{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.16)}
+    .prog em{position:absolute;left:0;top:0;bottom:0;width:46%;background:#6FBE4A}
+    .strip2{display:flex;gap:2px;margin-top:9px}
+    .strip2 svg,.strip2 i{height:44px;flex:1;border-radius:2px;display:block;background:#1D2431}
+    .strip2 .cut{flex:none;width:5px;background:#0F1219}
+    .kap{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #1D2431;font:500 13.5px/1.2 var(--fs);font-variant-numeric:tabular-nums}
+    .kap span{color:#8A93A8;font-weight:400}
+    .cull{background:#161C27;border-radius:10px;padding:11px 12px;margin-top:11px;font:400 12px/1.55 var(--fm);color:#9AA3B7}
+    .cull b{color:#C9D2E3}
+
+    .empty{border:1.5px dashed #33405A;border-radius:12px;padding:16px;text-align:center;color:#79839A;font:400 13.5px/1.45 var(--fs)}
+    .goalcard{background:#152030;border:1px solid #2A4162;border-radius:9px;height:117px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+    .goalcard b{font:600 26px/1.1 var(--fs);color:#CFE0FF;font-variant-numeric:tabular-nums}
+    .goalcard span{font:400 12.5px/1 var(--fs);color:#8FA6D8}
+  </style>
+</helmet>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="fan"><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(-62) scale(.6)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(-33) scale(.84)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(33) scale(.84)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(62) scale(.6)"/></g>
+  <linearGradient id="gLit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3E3BC"/><stop offset=".4" stop-color="#B29B6C"/><stop offset="1" stop-color="#2C2A1E"/></linearGradient>
+  <linearGradient id="gOff" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2B3244"/><stop offset=".5" stop-color="#1A2030"/><stop offset="1" stop-color="#0D1119"/></linearGradient>
+  <symbol id="pic" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gLit)"/><ellipse cx="100" cy="-14" rx="142" ry="66" fill="#FFF6DA" opacity=".55"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#4A4436"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#443F32"/><g fill="#1C4416"><use href="#fan" transform="translate(50,140) scale(2.2) rotate(-6)"/><use href="#fan" transform="translate(148,142) scale(1.9) rotate(7)"/></g><g fill="#2C6821"><use href="#fan" transform="translate(28,134) scale(1.5) rotate(-48)"/><use href="#fan" transform="translate(76,132) scale(1.6) rotate(27)"/><use href="#fan" transform="translate(174,136) scale(1.4) rotate(46)"/><use href="#fan" transform="translate(122,136) scale(1.45) rotate(-27)"/></g><g fill="#4C9033"><use href="#fan" transform="translate(56,104) scale(1.15) rotate(-14)"/><use href="#fan" transform="translate(146,108) scale(1.05) rotate(16)"/><use href="#fan" transform="translate(100,118) scale(1.2) rotate(2)"/></g></symbol>
+  <symbol id="picold" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gLit)"/><ellipse cx="100" cy="-14" rx="142" ry="66" fill="#FFF6DA" opacity=".55"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#4A4436"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#443F32"/><g fill="#1C4416"><use href="#fan" transform="translate(50,142) scale(1.7) rotate(-5)"/><use href="#fan" transform="translate(148,144) scale(1.45) rotate(6)"/></g><g fill="#2C6821"><use href="#fan" transform="translate(30,138) scale(1.15) rotate(-45)"/><use href="#fan" transform="translate(74,136) scale(1.2) rotate(25)"/><use href="#fan" transform="translate(172,140) scale(1.05) rotate(43)"/></g><g fill="#4C9033"><use href="#fan" transform="translate(58,116) scale(.85) rotate(-12)"/><use href="#fan" transform="translate(142,120) scale(.8) rotate(14)"/></g></symbol>
+  <symbol id="picdark" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gOff)"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#141924"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#131822"/><g fill="#151D2A"><use href="#fan" transform="translate(50,140) scale(2.2) rotate(-6)"/><use href="#fan" transform="translate(148,142) scale(1.9) rotate(7)"/></g><g fill="#1A2434"><use href="#fan" transform="translate(28,134) scale(1.5) rotate(-48)"/><use href="#fan" transform="translate(76,132) scale(1.6) rotate(27)"/><use href="#fan" transform="translate(174,136) scale(1.4) rotate(46)"/><use href="#fan" transform="translate(122,136) scale(1.45) rotate(-27)"/></g><g fill="#1E2A3C"><use href="#fan" transform="translate(56,104) scale(1.15) rotate(-14)"/><use href="#fan" transform="translate(100,118) scale(1.2) rotate(2)"/></g></symbol>
+  <symbol id="i-now" viewBox="0 0 24 24"><path d="M4 12h4l3-7 4 14 3-7h2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4.5 5.4A2.4 2.4 0 0 1 6.9 3H19v15.4H6.9a2.4 2.4 0 0 0-2.4 2.4V5.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 8h7.5M8 11.6h7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.6 5.5v13M16.4 5.5v13M3 12h18" stroke="currentColor" stroke-width="1.4"/></symbol>
+  <symbol id="i-tent" viewBox="0 0 24 24"><path d="M12 3 3.5 20.5h17L12 3Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 10v10.5" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3.4c3.3 4.1 5.4 6.9 5.4 9.4a5.4 5.4 0 1 1-10.8 0c0-2.5 2.1-5.3 5.4-9.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 4.5h14v15H5z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 9h8M8 12.6h8M8 16.2h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 7l1.4-2.8h3.2L15 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4.2 21 19.6H3L12 4.2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10.2v4.2M12 17.2v.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-ruler" viewBox="0 0 24 24"><path d="M3 14.5 14.5 3 21 9.5 9.5 21 3 14.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7.5 11 9.5 13M11 7.5l2 2M11 14.5l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+</defs></svg>
+
+<div class="sheet">
+  <div class="hd">
+    <div class="hd__n">01</div>
+    <div class="hd__b">
+      <h2 class="hd__t">Der Unterschied</h2>
+      <p class="hd__s">Der Startbildschirm ist kein Zustand, sondern ein Vergleich. Ein Schieberegler legt fest, was „vorher“ heißt — und er gilt für alles, was du danach antippst. Stell ihn auf Freitag 14 Uhr, und Zelt, Pflanze, Steckdose und Ziel beantworten alle dieselbe Frage.</p>
+    </div>
+    <div class="axes">
+      <div class="ax"><b>Startbildschirm</b><span>Bildpaar + Δ-Tabelle</span></div>
+      <div class="ax"><b>Vorher–Nachher</b><span>Regler, ganz oben, global</span></div>
+      <div class="ax"><b>Tabs</b><span>Jetzt · Verlauf · Film · Zelt</span></div>
+      <div class="ax"><b>App entscheidet</b><span>rangiert und formuliert einen Satz</span></div>
+    </div>
+  </div>
+
+  <div class="strip">
+
+    <!-- 01 normal -->
+    <div class="col">
+      <p class="cap"><i>01</i><span>Normaler Tag</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top"><div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot"></span>Online · vor 40 Sek · Tag 34</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="pair">
+            <div class="half old"><div class="lbl">VORHER</div><svg class="frame" viewBox="0 0 200 150" preserveAspectRatio="none"><use href="#picold"/></svg><div class="stamp"><b>Fr 22.08. 14:02</b>Tag 31</div></div>
+            <div class="half"><div class="lbl">JETZT</div><svg class="frame" viewBox="0 0 200 150" preserveAspectRatio="none"><use href="#pic"/></svg><div class="stamp"><b>Mo 25.08. 14:04</b>Tag 34</div></div>
+          </div>
+          <p class="say">Die Pflanzen sind gewachsen und nachts war es wärmer.</p>
+          <p class="sub">Blattfläche 34 → 37 % · Nacht 21,2 → 23,4 °C</p>
+          <div class="slider">
+            <div class="track">
+              <div class="dens"><i style="height:3px"></i><i style="height:7px"></i><i style="height:4px"></i><i style="height:11px"></i><i style="height:3px"></i><i style="height:3px"></i><i style="height:14px"></i><i style="height:8px"></i><i style="height:5px"></i><i style="height:5px"></i><i style="height:9px"></i><i style="height:11px"></i><i style="height:7px"></i><i style="height:3px"></i><i style="height:4px"></i><i style="height:6px"></i><i style="height:13px"></i><i style="height:8px"></i><i style="height:5px"></i><i style="height:4px"></i><i style="height:3px"></i><i style="height:8px"></i><i style="height:10px"></i><i style="height:6px"></i></div>
+              <div class="rail"><em style="width:34%"></em></div>
+              <div class="knob" style="left:31%"></div>
+            </div>
+            <div class="detents"><span>BEGINN</span><span>PHASE</span><b>1 WO</b><span>GESTERN</span><span>ABEND</span><span>JETZT</span></div>
+            <div class="cursor"><span>Fr 22.08. 14:02 · Tag 31</span><a>Nächster Unterschied ›</a></div>
+          </div>
+          <div class="sechd"><h3>Der Unterschied</h3><span>nach Abweichung</span></div>
+          <div class="cols"><span></span><i>FR 14:02</i><i>JETZT</i><i>Δ</i></div>
+          <div class="drow"><b>Nacht (Mittel)</b><i>21,2</i><u>23,4 °C</u><s class="up">+2,2</s></div>
+          <div class="drow goal"><b>Ziel Nacht</b><i>20,0</i><u>20,0 °C</u><s>—</s></div>
+          <div class="drow"><b>Blattfläche</b><i>34</i><u>37 %</u><s class="up">+3</s></div>
+          <div class="drow"><b>Temperatur</b><i>24,1</i><u>24,8 °C</u><s>+0,7</s></div>
+          <div class="drow goal"><b>Ziel Tag</b><i>25,0</i><u>25,0 °C</u><s>—</s></div>
+          <div class="drow"><b>Luftfeuchte</b><i>51</i><u>48 %</u><s>−3</s></div>
+          <div class="drow"><b>VPD</b><i>1,12</i><u>1,29 kPa</u><s>+0,17</s></div>
+          <div class="drow"><b>CO₂</b><i>985</i><u>1010 ppm</u><s>+25</s></div>
+          
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-now"/></svg>Jetzt</div><div><svg class="ic"><use href="#i-book"/></svg>Verlauf</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+    <!-- 02 problem -->
+    <div class="col">
+      <p class="cap"><i>02</i><span>Etwas stimmt nicht</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top"><div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot red"></span>Online · vor 35 Sek · Tag 34</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="alarm">
+            <svg class="ic" style="color:#F06A7E;margin-top:1px"><use href="#i-warn"/></svg>
+            <div><p class="t">Das Licht sollte an sein — das Bild ist dunkel.</p><p class="m">Seit 14 Min. Die Dose meldet <b>an</b>, die Kamera sieht nichts.</p><span class="r">Regel L-1 · Dose 3 ansehen ›</span></div>
+          </div>
+          <div class="pair">
+            <div class="half old"><div class="lbl">VORHER</div><svg class="frame" viewBox="0 0 200 150" preserveAspectRatio="none"><use href="#pic"/></svg><div class="stamp"><b>Heute 13:40</b>Licht an</div></div>
+            <div class="half"><div class="lbl">JETZT</div><svg class="frame" viewBox="0 0 200 150" preserveAspectRatio="none"><use href="#picdark"/></svg><div class="stamp"><b>Heute 14:04</b>Bild dunkel</div></div>
+          </div>
+          <p class="say">Seit 14 Minuten ist es dunkel, und es wird kühler und feuchter.</p>
+          <p class="sub">Temperatur 24,8 → 21,3 °C · Feuchte 48 → 71 %</p>
+          <div class="slider">
+            <div class="track">
+              <div class="dens"><i style="height:5px"></i><i style="height:9px"></i><i style="height:4px"></i><i style="height:6px"></i><i style="height:12px"></i><i style="height:7px"></i><i style="height:4px"></i><i style="height:5px"></i><i style="height:10px"></i><i style="height:6px"></i><i style="height:3px"></i><i style="height:8px"></i><i style="height:13px"></i><i style="height:5px"></i><i style="height:4px"></i><i style="height:7px"></i><i style="height:9px"></i><i style="height:6px"></i><i style="height:11px"></i><i style="height:4px"></i><i style="height:3px"></i><i style="height:6px"></i><i style="height:9px"></i><i style="height:14px"></i></div>
+              <div class="rail"><em style="width:88%"></em></div>
+              <div class="knob" style="left:85%"></div>
+            </div>
+            <div class="detents"><span>BEGINN</span><span>PHASE</span><span>1 WO</span><span>GESTERN</span><b>13:40</b><span>JETZT</span></div>
+            <div class="cursor"><span>Heute 13:40 · vor 24 Min</span><a>Nächster Unterschied ›</a></div>
+          </div>
+          <div class="sechd"><h3>Der Unterschied</h3><span>seit 13:40</span></div>
+          <div class="cols"><span></span><i>13:40</i><i>JETZT</i><i>Δ</i></div>
+          <div class="drow"><b>Luftfeuchte</b><i>48</i><u>71 %</u><s class="up">+23</s></div>
+          <div class="drow"><b>Temperatur</b><i>24,8</i><u>21,3 °C</u><s class="dn">−3,5</s></div>
+          <div class="drow"><b>VPD</b><i>1,29</i><u>0,55 kPa</u><s class="dn">−0,74</s></div>
+          <div class="drow goal"><b>Band Blüte</b><i>1,2</i><u>1,5 kPa</u><s>drunter</s></div>
+          <div class="drow"><b>Bildhelligkeit</b><i>184</i><u>21</u><s class="dn">−163</s></div>
+          <div class="drow"><b>Dose „Licht“</b><i>an</i><u>an</u><s>meldet an</s></div>
+          
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-now"/></svg>Jetzt</div><div><svg class="ic"><use href="#i-book"/></svg>Verlauf</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+    <!-- 03 day one -->
+    <div class="col">
+      <p class="cap"><i>03</i><span>Tag eins</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top"><div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot"></span>Online · vor 12 Sek · Tag 1</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="pair">
+            <div class="half old"><div class="lbl">DEIN ZIEL</div><div class="goalcard"><b>25,0 °C</b><span>Tag</span><b style="font-size:20px;margin-top:6px">50 %</b><span>Luftfeuchte</span></div><div class="stamp"><b>Blüte</b>seit 4 Minuten</div></div>
+            <div class="half"><div class="lbl">JETZT</div><svg class="frame" viewBox="0 0 200 150" preserveAspectRatio="none"><use href="#pic"/></svg><div class="stamp"><b>Heute 14:04</b>erstes Bild</div></div>
+          </div>
+          <p class="say">Es ist 1,2 °C wärmer als dein Ziel.</p>
+          <p class="sub">26,2 °C · Ziel 25,0 · Feuchte 54 %, Ziel 50</p>
+          <div class="slider">
+            <div class="track">
+              <div class="dens"><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:4px"></i><i style="height:9px"></i></div>
+              <div class="rail"><em style="width:4%"></em></div>
+              <div class="knob" style="left:1%"></div>
+            </div>
+            <div class="detents"><b>ZIEL</b><span></span><span></span><span></span><span>BEGINN</span><span>JETZT</span></div>
+            <div class="cursor"><span>Noch kein Vorher</span><a style="color:#6B7488">nach der ersten Nacht</a></div>
+          </div>
+          <div class="sechd"><h3>Der Unterschied</h3><span>Ziel gegen jetzt</span></div>
+          <div class="cols"><span></span><i>ZIEL</i><i>JETZT</i><i>Δ</i></div>
+          <div class="drow"><b>Temperatur</b><i>25,0</i><u>26,2 °C</u><s class="up">+1,2</s></div>
+          <div class="drow"><b>Luftfeuchte</b><i>50</i><u>54 %</u><s class="up">+4</s></div>
+          <div class="drow"><b>VPD</b><i>1,2–1,5</i><u>1,41 kPa</u><s style="color:#6FBE4A">im Band</s></div>
+          <div class="drow"><b>CO₂</b><i>1000</i><u>438 ppm</u><s class="dn">−562</s></div>
+          
+          <div class="empty" style="margin-top:14px">Noch nichts passiert.<br><span style="color:#5F6879">Was du tust, steht hier.</span></div>
+          <div class="btns"><div class="btn"><svg class="ic-s"><use href="#i-drop"/></svg>Gabe</div><div class="btn"><svg class="ic-s"><use href="#i-note"/></svg>Notiz</div><div class="btn"><svg class="ic-s"><use href="#i-cam"/></svg>Foto</div></div>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-now"/></svg>Jetzt</div><div><svg class="ic"><use href="#i-book"/></svg>Verlauf</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+    <!-- 04 gabe -->
+    <div class="col">
+      <p class="cap"><i>04</i><span>Gießen eintragen</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd" style="filter:blur(1.2px);opacity:.45">
+          <div class="top"><div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot"></span>Online · vor 40 Sek · Tag 34</p></div></div>
+          <div class="pair">
+            <div class="half old"><div class="lbl">VORHER</div><svg class="frame" viewBox="0 0 200 150" preserveAspectRatio="none"><use href="#picold"/></svg></div>
+            <div class="half"><div class="lbl">JETZT</div><svg class="frame" viewBox="0 0 200 150" preserveAspectRatio="none"><use href="#pic"/></svg></div>
+          </div>
+          <p class="say">Die Pflanzen sind gewachsen und nachts war es wärmer.</p>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheetup">
+          <div class="grab"></div>
+          <div class="shd"><h3>Gabe</h3><span>heute 19:40</span></div>
+          <div class="chips"><span class="chip">Ganzes Zelt</span><span class="chip on">A1</span><span class="chip on">A2</span><span class="chip">B1</span></div>
+          <div class="cans">
+            <div class="row"><div class="beads"><i class="f"></i><i class="f"></i><i></i><i></i><i></i><i></i></div><div class="tot">4,0 l</div></div>
+            <div class="hint">Tippen = eine Kanne. Lange drücken = eine zurück. Kanne 2,0 l ▾</div>
+          </div>
+          <div class="frow"><span>Bio·Grow</span><b>2,0 ml/l · 8 ml</b></div>
+          <div class="frow"><span>Bio·Bloom</span><b>3,0 ml/l · 12 ml</b></div>
+          <div class="frow"><span>Top·Max</span><b>1,0 ml/l · 4 ml</b></div>
+          <div class="frow"><span>pH</span><b>6,3 <span style="font-size:12px">Ziel 6,2–6,5</span></b></div>
+          <p class="from">aus <b>Biobizz All·Mix · Schritt 7 von 14</b> — vorausgefüllt, alles änderbar. Zuletzt geprüft 14.07.2026.</p>
+          <div class="guard"><svg class="ic-s" style="color:#E3B95F;flex:none;margin-top:1px"><use href="#i-warn"/></svg><div>Anna hat A1 und A2 vor 1 Std 30 gegossen (2,0 l).<br><span style="color:#C9A961;text-decoration:underline">Ihr Bild ansehen</span></div></div>
+          <div class="btns"><div class="btn" style="flex:0 0 96px">Wer? Ben</div><div class="btn pri">Trotzdem eintragen</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 05 film -->
+    <div class="col">
+      <p class="cap"><i>05</i><span>Kamera &amp; Zeitraffer</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top"><div><h1 class="ttl">Film</h1><p class="meta">Blüte Woche 4 · 25 Sek · 600 Bilder</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="stage">
+            <svg style="width:100%;height:100%;display:block" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg>
+            <div class="burn"><span>Blüte · Tag 34 · 25.08. 14:02</span><span>24,8 °C · 48 %</span></div>
+            <div class="prog"><em></em></div>
+          </div>
+          <div class="strip2">
+            <svg viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#picold"/></svg>
+            <svg viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#picold"/></svg>
+            <svg viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#pic"/></svg>
+            <i class="cut"></i>
+            <svg viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#pic"/></svg>
+            <svg viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#picdark"/></svg>
+            <svg viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#pic"/></svg>
+            <svg viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#pic"/></svg>
+          </div>
+          <div class="cursor" style="margin-top:8px"><span>Sa 23.08. 04:00 · Tag 32</span><a>Als Vorher setzen ›</a></div>
+          <div class="sechd"><h3>An dieser Stelle</h3><span>±10 Min</span></div>
+          <div class="drow"><b>Temperatur</b><i></i><u>21,9 °C</u><s>Nacht</s></div>
+          
+          <div class="drow"><b>Gabe · Anna</b><i></i><u>2,0 l</u><s>03:58</s></div>
+          <div class="sechd"><h3>Kapitel</h3><span>2</span></div>
+          <div class="kap"><span>1 · Tag 1 – 12</span><b>11 Sek</b></div>
+          <div class="kap"><span>2 · Kamera verrutscht, 12.09.</span><b>14 Sek</b></div>
+          <div class="cull">2 148 aufgenommen · 1 106 Licht aus<br>289 außerhalb der Fenster · 41 Hand im Bild<br>22 unscharf · 9 verrutscht<br><b>= 600 Bilder → 25 Sek</b></div>
+          <div class="btns"><div class="btn">Teilen</div><div class="btn pri">Speichern</div></div>
+        </div>
+        <div class="nav"><div><svg class="ic"><use href="#i-now"/></svg>Jetzt</div><div><svg class="ic"><use href="#i-book"/></svg>Verlauf</div><div class="on"><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+    <!-- 06 no device -->
+    <div class="col">
+      <p class="cap"><i>06</i><span>Zelt ohne Gerät</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top"><div><h1 class="ttl">Schrank Flur</h1><p class="meta"><span class="dot grey"></span>Kein Gerät · Tag 19 · von dir geführt</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="pair">
+            <div class="half old"><div class="lbl">VORHER</div><svg class="frame" viewBox="0 0 200 150" preserveAspectRatio="none"><use href="#picold"/></svg><div class="stamp"><b>Di 19.08. 21:10</b>dein Foto · Tag 13</div></div>
+            <div class="half"><div class="lbl">JETZT</div><svg class="frame" viewBox="0 0 200 150" preserveAspectRatio="none"><use href="#pic"/></svg><div class="stamp"><b>Mo 25.08. 20:55</b>dein Foto · Tag 19</div></div>
+          </div>
+          <p class="say">Seit Dienstag 6 cm gewachsen — und der pH ist gefallen.</p>
+          <p class="sub">Höhe 42 → 48 cm · pH 6,4 → 5,9</p>
+          <div class="slider">
+            <div class="track">
+              <div class="dens"><i style="height:2px"></i><i style="height:2px"></i><i style="height:8px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:6px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:9px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:7px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:5px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:8px"></i><i style="height:2px"></i><i style="height:2px"></i><i style="height:6px"></i></div>
+              <div class="rail"><em style="width:66%"></em></div>
+              <div class="knob" style="left:63%"></div>
+            </div>
+            <div class="detents"><span>BEGINN</span><span>PHASE</span><span>1 WO</span><b>LETZTE GABE</b><span>GESTERN</span><span>JETZT</span></div>
+            <div class="cursor"><span>Di 19.08. 21:10 · Tag 13</span><a>Nächster Unterschied ›</a></div>
+          </div>
+          <div class="sechd"><h3>Der Unterschied</h3><span>was du gemessen hast</span></div>
+          <div class="cols"><span></span><i>DI 21:10</i><i>JETZT</i><i>Δ</i></div>
+          <div class="drow"><b>Höhe A1</b><i>42</i><u>48 cm</u><s class="up">+6</s></div>
+          <div class="drow"><b>pH Ablauf</b><i>6,4</i><u>5,9</u><s class="dn">−0,5</s></div>
+          <div class="drow goal"><b>Ziel Biobizz</b><i>6,2</i><u>6,5</u><s>drunter</s></div>
+          <div class="drow"><b>Wasser gesamt</b><i>11,0</i><u>15,0 l</u><s class="up">+4,0</s></div>
+          <div class="drow"><b>Bio·Bloom</b><i>18</i><u>30 ml</u><s class="up">+12</s></div>
+          
+          <div class="drow"><b>Phase</b><i>Blüte Tg 6</i><u>Blüte Tg 12</u><s>+6</s></div>
+          <div class="empty" style="margin-top:12px;text-align:left;display:flex;gap:9px;align-items:flex-start"><svg class="ic-s" style="color:#6B7488;flex:none;margin-top:1px"><use href="#i-ruler"/></svg><div>Temperatur, Feuchte und VPD bleiben leer, weil sie niemand misst. Ein Controller füllt genau diese Zeilen.</div></div>
+          <div class="btns"><div class="btn"><svg class="ic-s"><use href="#i-drop"/></svg>Gabe</div><div class="btn"><svg class="ic-s"><use href="#i-ruler"/></svg>Messen</div><div class="btn"><svg class="ic-s"><use href="#i-cam"/></svg>Foto</div></div>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-now"/></svg>Jetzt</div><div><svg class="ic"><use href="#i-book"/></svg>Verlauf</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="ft">
+    <div><h4>Worauf es wettet</h4><p>Dass die eigentliche Frage nie „wie warm ist es?“ ist, sondern „was hat sich geändert?“ — und dass ein einziger Regler, der für die ganze App gilt, mehr wert ist als zehn Filter. Wer nichts einträgt, bekommt trotzdem jeden Tag ein volles Tagebuch, weil Bilder, Schaltvorgänge und Zieländerungen in dieselbe Liste laufen wie die Handeinträge.</p></div>
+    <div class="warn"><h4>Was ein abgelenkter Nutzer falsch macht</h4><p>Er schiebt den Regler auf „Beginn“, vergisst es, und liest drei Bildschirme später einen Vergleich, den er nicht bestellt hat. Der Cursor ist unsichtbarer Zustand. Und an den meisten Tagen lautet die ehrliche Antwort „seit gestern wenig geändert“ — ein Startbildschirm, der zugibt, dass nichts passiert ist, fühlt sich leer an, egal wie richtig er ist.</p></div>
+    <div class="warn"><h4>Wo die Kontrolle ausgeht</h4><p>Ziele ändern ist hier ein Weg, kein Formular: antippen, laufen, ändern. Wer drei Werte hintereinander setzen will, tippt mehr als heute. Und die Δ-Tabelle rangiert nach Abweichung — sie sagt nie, was normal ist. Eine Sortierung, eine Auswahl der Zeilen, ein Export der Spalten: alles nicht da.</p></div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
