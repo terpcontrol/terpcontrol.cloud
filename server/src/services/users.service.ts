@@ -68,8 +68,10 @@ class UserService {
     if (isEmpty(userData)) throw new HttpException(400, "You're not userData");
 
     if (userData.username) {
-      const findUser: User = await this.users.findOne({ username: userData.username });
-      if (findUser && findUser.user_id != userId) throw new HttpException(409, `You're username ${userData.username} already exists`);
+      // The route addresses a user by its database id, which is what the
+      // candidate has to be compared against to let a user keep its own name.
+      const findUser = await this.users.findOne({ username: userData.username });
+      if (findUser && String(findUser._id) !== String(userId)) throw new HttpException(409, `You're username ${userData.username} already exists`);
     }
 
     if (userData.password) {
@@ -77,7 +79,7 @@ class UserService {
       userData = { ...userData, password: hashedPassword };
     }
 
-    const updateUserById: User = await this.users.findByIdAndUpdate(userId, { userData });
+    const updateUserById: User = await this.users.findByIdAndUpdate(userId, userData, { new: true });
     if (!updateUserById) throw new HttpException(409, "You're not user");
 
     return updateUserById;

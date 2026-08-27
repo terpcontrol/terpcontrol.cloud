@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common';
+import { RateLimitGuard } from '../rate-limit.guard';
 import { AdminGuard, AuthGuard } from './auth.guard';
 import { DeviceAccessGuard, DeviceOwnerGuard } from './device-access.guard';
 import { TokenService } from './token.service';
@@ -9,7 +10,7 @@ import { TokenService } from './token.service';
  */
 @Global()
 @Module({
-  providers: [TokenService, AuthGuard, AdminGuard, DeviceOwnerGuard, DeviceAccessGuard],
-  exports: [TokenService, AuthGuard, AdminGuard, DeviceOwnerGuard, DeviceAccessGuard],
+  providers: [TokenService, AuthGuard, AdminGuard, DeviceOwnerGuard, DeviceAccessGuard, RateLimitGuard],
+  exports: [TokenService, AuthGuard, AdminGuard, DeviceOwnerGuard, DeviceAccessGuard, RateLimitGuard],
 })
-export class AuthModule {}
+export class SecurityModule {}

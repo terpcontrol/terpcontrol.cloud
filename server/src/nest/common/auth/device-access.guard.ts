@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable, SetMetadata } from '@nestjs/common';
+import { BadRequestException, CanActivate, ExecutionContext, Injectable, SetMetadata } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ShareLink } from '@fg2/shared-types';
 import deviceModel from '@models/device.model';
@@ -64,6 +64,12 @@ abstract class BaseDeviceGuard implements CanActivate {
     const tokenType = this.reflector.getAllAndOverride<TokenType>(DEVICE_TOKEN_TYPE, [context.getHandler(), context.getClass()]) ?? 'user';
 
     const deviceId = readDeviceId(request, source);
+    // A request that names no device is malformed rather than forbidden. The
+    // guard runs before the body is validated, so it answers that itself.
+    if (!deviceId) {
+      throw new BadRequestException('device_id is required');
+    }
+
     const hasToken = this.tokens.candidates(request).length > 0;
     const token = await this.tokens.verifyFirst(request, tokenType);
 
@@ -89,6 +95,12 @@ abstract class BaseDeviceGuard implements CanActivate {
 /** Ownership (or admin) only - no share link may stand in. */
 @Injectable()
 export class DeviceOwnerGuard extends BaseDeviceGuard {
+  // Declared explicitly: TypeScript only emits the parameter types a subclass
+  // needs for injection when the subclass has its own constructor.
+  constructor(tokens: TokenService, reflector: Reflector) {
+    super(tokens, reflector);
+  }
+
   protected async refuse(request: AuthenticatedRequest, deviceId: string, caller: { hasToken: boolean; authenticated: boolean }): Promise<boolean> {
     if (!caller.hasToken) throw new PlainTextException(401, 'Authentication token missing');
     if (!caller.authenticated) throw new PlainTextException(401, 'Wrong authentication token');
@@ -100,6 +112,10 @@ export class DeviceOwnerGuard extends BaseDeviceGuard {
 /** Ownership, admin, or a live share link for this device. */
 @Injectable()
 export class DeviceAccessGuard extends BaseDeviceGuard {
+  constructor(tokens: TokenService, reflector: Reflector) {
+    super(tokens, reflector);
+  }
+
   protected async refuse(request: AuthenticatedRequest, deviceId: string, caller: { hasToken: boolean; authenticated: boolean }): Promise<boolean> {
     const share = await findValidShare(request, deviceId);
     if (share) {

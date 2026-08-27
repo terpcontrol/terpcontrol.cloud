@@ -25,6 +25,11 @@ const bootstrap = async (): Promise<void> => {
   let fastify: FastifyInstance | undefined;
 
   const adapter = new FastifyAdapter({
+    // Behind a single nginx reverse proxy: trust exactly the hop it adds, so
+    // rate limiting sees the real client address and the session cookie knows
+    // whether the original request was HTTPS. Trusting the whole chain instead
+    // would let a caller pick its own rate-limit bucket by sending a header.
+    trustProxy: (_address: string, hop: number) => hop === 0,
     serverFactory: handler => createServer(createDispatcher(() => fastify, handler as NodeHandler, legacy)),
   });
 

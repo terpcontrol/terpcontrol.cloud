@@ -100,19 +100,36 @@ describe('GET /users/:id', () => {
 });
 
 describe('PUT /users/:id', () => {
-  // The service wraps the payload in an extra `userData` key before handing it
-  // to Mongoose, which drops it as an unknown path. The endpoint therefore
-  // answers 200 without changing anything - captured here so the behaviour
-  // cannot change unnoticed.
-  it('answers 200 but leaves the account untouched', async () => {
+  it('renames the account', async () => {
     const user = await createUser();
     const replacement = newUsername();
 
     const response = await admin.client.put(`/users/${user._id}`).send({ username: replacement }).expect(200);
     expect(response.body.message).toBe('updated');
+    expect(response.body.data.username).toBe(replacement);
 
     const after = await admin.client.get(`/users/${user._id}`).expect(200);
-    expect(after.body.data.username).toBe(user.username);
+    expect(after.body.data.username).toBe(replacement);
+  });
+
+  it('changes the password, so the new one logs in', async () => {
+    const user = await createUser({ is_admin: false });
+    const replacement = 'Replaced!pass1';
+
+    await admin.client.put(`/users/${user._id}`).send({ password: replacement, is_admin: false }).expect(200);
+    // Accounts created through this endpoint are inactive, so activation, not
+    // the password, is what login complains about.
+    const response = await anonymous().post('/login').send({ username: user.username, password: replacement }).expect(409);
+    expect(response.body.message).toMatch(/not activated/i);
+  });
+
+  it('lets an account keep its own username', async () => {
+    const user = await createUser();
+
+    await admin.client.put(`/users/${user._id}`).send({ username: user.username, is_admin: true }).expect(200);
+
+    const after = await admin.client.get(`/users/${user._id}`).expect(200);
+    expect(after.body.data.is_admin).toBe(true);
   });
 
   it('rejects a username that another account already uses', async () => {
