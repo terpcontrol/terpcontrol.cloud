@@ -57,6 +57,7 @@ export class RateLimitGuard implements CanActivate {
     void reply.header('RateLimit-Reset', Math.ceil((current.resetAt - now) / 1000));
 
     if (current.count > config.limit) {
+      void reply.header('Retry-After', Math.ceil((current.resetAt - now) / 1000));
       throw new HttpException(429, config.message);
     }
 

@@ -24,9 +24,6 @@ export const passwordResetSchema = z
   })
   .strict();
 
-/** The two token endpoints read a bare token and validate it themselves. */
-export const tokenSchema = z.object({ token: z.unknown() }).loose();
-
 export type Login = z.infer<typeof loginSchema>;
 export type Signup = z.infer<typeof signupSchema>;
 export type Activation = z.infer<typeof activationSchema>;

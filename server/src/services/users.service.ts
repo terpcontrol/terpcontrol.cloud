@@ -7,6 +7,9 @@ import { isEmpty } from '@utils/util';
 import { v4 as uuidv4 } from 'uuid';
 import { ADMINUSER_PASSWORD, ADMINUSER_USERNAME } from '@/config';
 
+// A password hash has no business leaving the server, whoever is asking.
+const WITHOUT_PASSWORD = { password: 0 };
+
 class UserService {
   public users = userModel;
 
@@ -46,7 +49,7 @@ class UserService {
   public async findUserById(userId: string): Promise<User> {
     if (isEmpty(userId)) throw new HttpException(400, "You're not userId");
 
-    const findUser: User = await this.users.findOne({ _id: userId });
+    const findUser: User = await this.users.findOne({ _id: userId }, WITHOUT_PASSWORD);
     if (!findUser) throw new HttpException(409, "You're not user");
 
     return findUser;
@@ -79,14 +82,14 @@ class UserService {
       userData = { ...userData, password: hashedPassword };
     }
 
-    const updateUserById: User = await this.users.findByIdAndUpdate(userId, userData, { new: true });
+    const updateUserById: User = await this.users.findByIdAndUpdate(userId, userData, { new: true, projection: WITHOUT_PASSWORD });
     if (!updateUserById) throw new HttpException(409, "You're not user");
 
     return updateUserById;
   }
 
   public async deleteUser(userId: string): Promise<User> {
-    const deleteUserById: User = await this.users.findByIdAndDelete(userId);
+    const deleteUserById: User = await this.users.findByIdAndDelete(userId, { projection: WITHOUT_PASSWORD });
     if (!deleteUserById) throw new HttpException(409, "You're not user");
 
     return deleteUserById;

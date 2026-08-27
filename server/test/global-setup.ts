@@ -40,7 +40,12 @@ export default async (): Promise<void> => {
   const smtp = await startFakeSmtp(mailStore);
   const port = await freePort();
 
+  // Created before the app starts so the connection cannot be missed, and
+  // observed straight away so a timeout here cannot surface as an unhandled
+  // rejection that hides why the app failed to boot. The await below still
+  // re-throws it.
   const brokerConnected = waitForBrokerClient(broker.aedes, 90_000);
+  brokerConnected.catch(() => undefined);
 
   const app = await startApp({
     port,

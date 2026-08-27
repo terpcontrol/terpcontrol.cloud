@@ -252,6 +252,17 @@ describe('rate limiting', () => {
     expect(statuses.slice(0, 10).every(status => status !== 429)).toBe(true);
   });
 
+  it('tells a locked-out client when to come back', async () => {
+    const client = anonymous();
+    let response = await client.post('/login').send({ username: 'retry@test.invalid', password: 'wrong' });
+
+    while (response.status !== 429) {
+      response = await client.post('/login').send({ username: 'retry@test.invalid', password: 'wrong' });
+    }
+
+    expect(Number(response.headers['retry-after'])).toBeGreaterThan(0);
+  });
+
   it('keeps the limit per client address', async () => {
     const flooder = anonymous();
     for (let i = 0; i < 12; i++) {

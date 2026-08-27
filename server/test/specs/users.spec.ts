@@ -88,6 +88,18 @@ describe('GET /users/:id', () => {
     expect(response.body.data.username).toBe(user.username);
   });
 
+  it('never hands out the password hash', async () => {
+    const user = await createUser();
+
+    const read = await admin.client.get(`/users/${user._id}`).expect(200);
+    const updated = await admin.client.put(`/users/${user._id}`).send({ is_admin: true }).expect(200);
+    const deleted = await admin.client.delete(`/users/${user._id}`).expect(200);
+
+    expect(read.body.data.password).toBeUndefined();
+    expect(updated.body.data.password).toBeUndefined();
+    expect(deleted.body.data.password).toBeUndefined();
+  });
+
   it('reports an unknown id as a conflict', async () => {
     await admin.client.get('/users/60706478aad6c9ad19a31c84').expect(409);
   });
