@@ -3,6 +3,7 @@ import { ApiConsumes, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 import { HttpException } from '@exceptions/HttpException';
 import { imageService } from '@services/image.service';
+import { AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentShare } from '../../common/auth/current-user.decorator';
 import { DeviceAccessGuard, DeviceOwnerGuard, DeviceTokenType } from '../../common/auth/device-access.guard';
 import { DeviceAccessService } from '../../common/auth/device-access.service';
@@ -56,13 +57,19 @@ export class ImageController {
       String(query.image_id ?? ''),
     );
 
-    const rendered = image
-      ? await this.presentation.render(
-          await this.presentation.withOfflineOverlay(image, Number(query.timestamp), !!query.image_id),
-          image.format === 'mp4' ? 'video/mp4' : 'image/jpeg',
-          { width: parseResizeDimension(query.width), height: parseResizeDimension(query.height) },
-        )
+    const source = image
+      ? {
+          body: await this.presentation.withOfflineOverlay(image, Number(query.timestamp), !!query.image_id),
+          contentType: image.format === 'mp4' ? 'video/mp4' : 'image/jpeg',
+        }
       : await this.presentation.placeholder(String(query.format));
+
+    // The placeholder is resized like a real picture, so a caller asking for a
+    // thumbnail gets one either way.
+    const rendered = await this.presentation.render(source.body, source.contentType, {
+      width: parseResizeDimension(query.width),
+      height: parseResizeDimension(query.height),
+    });
 
     await this.send(reply, rendered);
   }
@@ -113,10 +120,14 @@ export class ImageController {
   }
 
   @Delete(':image_id')
+  // A session is required up front: without it, the lookup below would answer
+  // 401 for a picture that exists and 404 for one that does not, which tells a
+  // stranger which ids are real.
+  @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Delete a stored picture' })
   public async remove(@Param('image_id') imageId: string, @Req() request: AuthenticatedRequest) {
     // Which device the picture belongs to is only known after the lookup, so the
-    // access check cannot be a guard on this route.
+    // ownership check cannot be a guard on this route.
     const image = await imageService.getImageById(imageId);
     if (!image) {
       throw new NotFoundException({ status: 'not found' });

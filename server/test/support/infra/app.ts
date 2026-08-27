@@ -71,7 +71,9 @@ const buildEnv = (environment: AppEnvironment): NodeJS.ProcessEnv => {
     SMTP_USER: 'smtp-test-user',
     SMTP_PASSWORD: 'smtp-test-password',
 
-    LOG_FORMAT: 'disabled',
+    // Left on so the access log runs during the suite; the server's own output
+    // is only printed with HARNESS_VERBOSE=1.
+    LOG_FORMAT: 'combined',
     LOG_DIR,
   };
 };

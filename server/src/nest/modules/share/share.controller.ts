@@ -29,7 +29,7 @@ export class ShareController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(DeviceOwnerGuard)
-  @DeviceIdFrom('body')
+  @DeviceIdFrom('body', 'error')
   @ApiOperation({ summary: 'Hand out a link to one of the caller´s devices' })
   public create(@CurrentUser() user: AuthContext, @Body(zodBodyAsError(createShareSchema)) body: CreateShare) {
     return this.shares.create(user.userId, body);

@@ -24,7 +24,7 @@ export class DeviceRecipeController {
   @Post('recipe')
   @HttpCode(HttpStatus.OK)
   @UseGuards(DeviceOwnerGuard)
-  @DeviceIdFrom('body')
+  @DeviceIdFrom('body', 'error')
   @ApiOperation({ summary: 'Store the plan a device should run' })
   public async save(@Body() body: { device_id: string; recipe?: RecipePayload }) {
     if (body?.recipe === undefined || body?.recipe === null) {

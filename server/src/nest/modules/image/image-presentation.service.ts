@@ -68,10 +68,11 @@ export class ImagePresentationService {
     return imageService.addOfflineOverlay(image.data, buildOfflineCaption(image.timestamp));
   }
 
-  public placeholder(format: string): Promise<RenderedImage> {
+  /** What a device without a picture is served instead. */
+  public placeholder(format: string): Promise<{ body: Buffer; contentType: string }> {
     return format === 'mp4'
-      ? readFile('assets/no-image_placeholder.mp4').then(body => ({ body, contentType: 'video/mp4', status: 200 }))
-      : readFile('assets/no-image_placeholder.png').then(body => ({ body, contentType: 'image/png', status: 200 }));
+      ? readFile('assets/no-image_placeholder.mp4').then(body => ({ body, contentType: 'video/mp4' }))
+      : readFile('assets/no-image_placeholder.png').then(body => ({ body, contentType: 'image/png' }));
   }
 
   /** Resizes when asked to, never enlarging; a failure falls back to the placeholder. */

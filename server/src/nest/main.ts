@@ -11,6 +11,7 @@ import { logger } from '@utils/logger';
 import validateEnv from '@utils/validateEnv';
 import { AppModule } from './app.module';
 import { connectToDatabase } from './database';
+import { registerAccessLog } from './access-log';
 import { setupOpenApi } from './openapi';
 
 // The device-facing work runs on timers and MQTT callbacks; an error in one of
@@ -20,6 +21,19 @@ process.on('uncaughtException', (error, origin) => {
 });
 
 const MAX_UPLOAD_BYTES = 64 * 1024 * 1024;
+
+// The API is called from the webapp on another origin, and it is read from
+// there with every verb the routes offer - not just the three a preflight
+// allows by default.
+const ALLOWED_METHODS = ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'];
+
+/**
+ * What is worth compressing. This is the plugin's own default set with
+ * `application/octet-stream` taken out: firmware images go to an OTA client
+ * that reads Content-Length and is served `Cache-Control: no-transform`, and
+ * compressing them drops the first and ignores the second.
+ */
+const COMPRESSIBLE_TYPES = /^text\/(?!event-stream)|(?:\+|\/)json(?:;|$)|(?:\+|\/)text(?:;|$)|(?:\+|\/)xml(?:;|$)/u;
 
 const bootstrap = async (): Promise<void> => {
   validateEnv();
@@ -40,10 +54,15 @@ const bootstrap = async (): Promise<void> => {
   // firmware image; the endpoints enforce their own, smaller limits.
   await app.register(fastifyMultipart, { attachFieldsToBody: 'keyValues', limits: { fileSize: MAX_UPLOAD_BYTES } });
   await app.register(fastifyCookie);
-  await app.register(fastifyCors);
-  await app.register(fastifyHelmet);
-  await app.register(fastifyCompress);
+  await app.register(fastifyCors, { methods: ALLOWED_METHODS });
+  await app.register(fastifyHelmet, {
+    // Pictures are loaded straight into <img> tags on the webapp's origin, so
+    // they must stay readable across origins.
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  });
+  await app.register(fastifyCompress, { customTypes: COMPRESSIBLE_TYPES });
 
+  registerAccessLog(app);
   setupOpenApi(app);
 
   await app.listen(PORT ?? 3000, '0.0.0.0');

@@ -1,15 +1,23 @@
-import { BadRequestException, CanActivate, ExecutionContext, Injectable, SetMetadata } from '@nestjs/common';
+import { applyDecorators, BadRequestException, CanActivate, ExecutionContext, Injectable, SetMetadata } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { ErrorKey } from '../zod-validation.pipe';
 import { DeviceAccessService } from './device-access.service';
 import { AuthenticatedRequest, TokenType } from './token.service';
 
 export type DeviceIdSource = 'params' | 'body';
 
 const DEVICE_ID_SOURCE = 'device-id-source';
+const DEVICE_ID_ERROR_KEY = 'device-id-error-key';
 const DEVICE_TOKEN_TYPE = 'device-token-type';
 
-/** Where in the request the device id sits; defaults to the route parameter. */
-export const DeviceIdFrom = (source: DeviceIdSource) => SetMetadata(DEVICE_ID_SOURCE, source);
+/**
+ * Where in the request the device id sits; defaults to the route parameter.
+ * `errorKey` picks the shape of the refusal for a request that names no device,
+ * because a few routes have always answered `{ error }` rather than
+ * `{ message }`.
+ */
+export const DeviceIdFrom = (source: DeviceIdSource, errorKey: ErrorKey = 'message') =>
+  applyDecorators(SetMetadata(DEVICE_ID_SOURCE, source), SetMetadata(DEVICE_ID_ERROR_KEY, errorKey));
 
 /** The picture routes authorize the long-lived image token as well. */
 export const DeviceTokenType = (tokenType: TokenType) => SetMetadata(DEVICE_TOKEN_TYPE, tokenType);
@@ -34,7 +42,8 @@ abstract class BaseDeviceGuard implements CanActivate {
     // A request that names no device is malformed rather than forbidden. The
     // guard runs before the body is validated, so it answers that itself.
     if (!deviceId) {
-      throw new BadRequestException('device_id is required');
+      const errorKey = this.reflector.getAllAndOverride<ErrorKey>(DEVICE_ID_ERROR_KEY, [context.getHandler(), context.getClass()]) ?? 'message';
+      throw new BadRequestException(errorKey === 'error' ? { error: 'Missing device_id' } : 'device_id is required');
     }
 
     await this.check(request, deviceId, tokenType);

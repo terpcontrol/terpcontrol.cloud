@@ -4,7 +4,7 @@ import { readContext } from './context';
 
 export const context = readContext();
 
-export type Method = 'get' | 'post' | 'put' | 'patch' | 'delete';
+export type Method = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options';
 
 /**
  * The API rate-limits per client IP and trusts one proxy hop, so every client

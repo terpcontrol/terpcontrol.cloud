@@ -1,4 +1,19 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException, Param, Post, Put, Query, Res, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  NotFoundException,
+  Param,
+  Post,
+  Put,
+  Query,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiConsumes, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 import { DeviceClass, DeviceFirmware, UserFirmwareList } from '@fg2/shared-types';
@@ -83,7 +98,7 @@ export class DeviceFirmwareController {
   public async relabel(@Param('firmware_id') firmwareId: string, @Body() body: { version?: unknown }) {
     const version = typeof body?.version === 'string' ? body.version.trim() : '';
     if (!version) {
-      throw new HttpException(400, 'Missing or invalid version');
+      throw new BadRequestException({ error: 'Missing or invalid version' });
     }
 
     const firmware = await deviceService.updateFirmwareVersion(firmwareId, version);
