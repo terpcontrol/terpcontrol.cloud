@@ -34,13 +34,18 @@ class App {
     this.app.set('trust proxy', true);
   }
 
+  // Everything but listening, so the app can also be embedded in another server.
+  public async init() {
+    await this.connectToDatabase();
+    this.initializeMiddlewares();
+    this.initializeRoutes(this.routes);
+    this.initializeSwagger();
+    this.initializeErrorHandling();
+  }
+
   public async run() {
     try {
-      await this.connectToDatabase();
-      this.initializeMiddlewares();
-      this.initializeRoutes(this.routes);
-      this.initializeSwagger();
-      this.initializeErrorHandling();
+      await this.init();
 
       this.app.listen(this.port, () => {
         logger.info(`=================================`);

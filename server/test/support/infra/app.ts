@@ -22,7 +22,7 @@ export interface AppEnvironment {
 /** Entry point per target, so the same suite can drive either implementation. */
 const ENTRY_POINTS: Record<Target, { script: string; nodeArgs: string[] }> = {
   legacy: { script: 'src/server.ts', nodeArgs: ['-r', 'ts-node/register/transpile-only', '-r', 'tsconfig-paths/register'] },
-  nest: { script: 'nest/src/main.ts', nodeArgs: ['-r', 'ts-node/register/transpile-only', '-r', 'tsconfig-paths/register'] },
+  nest: { script: 'src/nest/main.ts', nodeArgs: ['-r', 'ts-node/register/transpile-only', '-r', 'tsconfig-paths/register'] },
 };
 
 const buildEnv = (environment: AppEnvironment): NodeJS.ProcessEnv => {

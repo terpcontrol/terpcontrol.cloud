@@ -1,0 +1,84 @@
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException as NestHttpException, HttpStatus } from '@nestjs/common';
+import { FastifyReply, FastifyRequest } from 'fastify';
+import { HttpException } from '@exceptions/HttpException';
+import { logger } from '@utils/logger';
+
+/**
+ * A refusal that answers with a bare string rather than the usual JSON body.
+ * The device access checks have always answered this way and clients read the
+ * text, so the shape - content type included - is kept as it was.
+ */
+export class PlainTextException extends NestHttpException {
+  constructor(status: number, public readonly text: string) {
+    super(text, status);
+  }
+}
+
+/**
+ * One error shape for the whole API: `{ message }` with the status the thrower
+ * chose, logged the same way the Express error middleware logged it. Services
+ * shared with the Express app throw its HttpException, so both are handled.
+ */
+@Catch()
+export class ApiExceptionFilter implements ExceptionFilter {
+  public catch(exception: unknown, host: ArgumentsHost): void {
+    const context = host.switchToHttp();
+    const request = context.getRequest<FastifyRequest>();
+    const reply = context.getResponse<FastifyReply>();
+
+    const { status, message } = this.describe(exception);
+
+    logger.error(`[${request.method}] ${request.url} >> StatusCode:: ${status}, Message:: ${message}`);
+
+    if (exception instanceof PlainTextException) {
+      // Express sent strings as text/html; kept so nothing that sniffs the
+      // content type has to change with the framework.
+      void reply.status(status).type('text/html; charset=utf-8').send(exception.text);
+      return;
+    }
+
+    void reply.status(status).send(this.body(exception, message));
+  }
+
+  /**
+   * Most of the API answers `{ message }`, but a few routes have always
+   * answered `{ error }`. A controller picks the second by throwing with an
+   * object body, which is passed through as it is.
+   */
+  private body(exception: unknown, message: string): Record<string, unknown> {
+    if (exception instanceof NestHttpException) {
+      const response = exception.getResponse();
+      if (response && typeof response === 'object' && !('message' in response)) {
+        return response as Record<string, unknown>;
+      }
+    }
+
+    return { message };
+  }
+
+  private describe(exception: unknown): { status: number; message: string } {
+    if (exception instanceof HttpException) {
+      return { status: exception.status, message: exception.message };
+    }
+
+    if (exception instanceof NestHttpException) {
+      const response = exception.getResponse();
+      const message =
+        typeof response === 'string'
+          ? response
+          : ((response as { message?: unknown; error?: unknown })?.message ?? (response as { error?: unknown })?.error ?? exception.message);
+
+      return {
+        status: exception.getStatus(),
+        // Nest reports several validation failures as an array; the API has
+        // always sent a single string.
+        message: Array.isArray(message) ? message.join(', ') : String(message),
+      };
+    }
+
+    return {
+      status: HttpStatus.INTERNAL_SERVER_ERROR,
+      message: exception instanceof Error && exception.message ? exception.message : 'Something went wrong',
+    };
+  }
+}
