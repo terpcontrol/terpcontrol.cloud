@@ -4,6 +4,7 @@ import fastifyCompress from '@fastify/compress';
 import fastifyCookie from '@fastify/cookie';
 import fastifyCors from '@fastify/cors';
 import fastifyHelmet from '@fastify/helmet';
+import fastifyMultipart from '@fastify/multipart';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { FastifyInstance } from 'fastify';
@@ -38,6 +39,10 @@ const bootstrap = async (): Promise<void> => {
 
   // The same protections the Express tree applies, so a migrated route is not
   // quietly less protected than the one it replaced.
+  // Uploaded files arrive as buffers on the body, which is the shape the
+  // picture and firmware endpoints work with. The cap is well above the largest
+  // firmware image; the endpoints enforce their own, smaller limits.
+  await app.register(fastifyMultipart, { attachFieldsToBody: 'keyValues', limits: { fileSize: 64 * 1024 * 1024 } });
   await app.register(fastifyCookie);
   await app.register(fastifyCors);
   await app.register(fastifyHelmet);
