@@ -163,6 +163,16 @@ describe('refusing a caller', () => {
 
     expect(response.text).toBe(`Device ${device.deviceId} not bound to user ${stranger.userId}`);
   });
+
+  it('does not serve that refusal as a document, since it repeats the URL back', async () => {
+    const stranger = await createAccount('refusal-markup-stranger');
+    const markup = '<img src=x onerror=alert(1)>';
+
+    const response = await stranger.client.get(`/device/config/${encodeURIComponent(markup)}`).expect(403);
+
+    expect(response.text).toContain(markup);
+    expect(response.headers['content-type']).toMatch(/^text\/plain/);
+  });
 });
 
 describe('deleting a picture', () => {

@@ -7,7 +7,7 @@ import { logger } from '@utils/logger';
 /**
  * A refusal that answers with a bare string rather than the usual JSON body.
  * The device access checks have always answered this way and clients read the
- * text, so the shape - content type included - is kept as it was.
+ * text, so the shape is kept as it was.
  */
 export class PlainTextException extends NestHttpException {
   constructor(status: number, public readonly text: string) {
@@ -32,9 +32,11 @@ export class ApiExceptionFilter implements ExceptionFilter {
     logger.error(`[${request.method}] ${request.url} >> StatusCode:: ${status}, Message:: ${message}`);
 
     if (exception instanceof PlainTextException) {
-      // Express sent strings as text/html; kept so nothing that sniffs the
-      // content type has to change with the framework.
-      void reply.status(status).type('text/html; charset=utf-8').send(exception.text);
+      // Express sent strings as text/html, and one of these repeats the device
+      // id out of the URL - so a browser opening a crafted link would have
+      // rendered whatever it carried. The text is what clients read; the type
+      // says what it is.
+      void reply.status(status).type('text/plain; charset=utf-8').send(exception.text);
       return;
     }
 

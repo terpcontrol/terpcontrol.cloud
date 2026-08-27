@@ -1399,10 +1399,12 @@ class DeviceService {
   }
 
   public async getDeviceAccessInfo(device_id: string, user_id?: string, is_admin = false, is_demo = false): Promise<DeviceAccessInfo | null> {
-    const device = await deviceModel.findOne(
-      { device_id: device_id },
-      { firmwareSettings: 1, cloudSettings: 1, device_type: 1, name: 1, owner_id: 1, demoDevice: 1 },
-    );
+    // lean() as in the shared variant below: the demo copy is built by spreading
+    // these settings, and a hydrated subdocument carries the whole device - the
+    // untouched stream URL, credentials and all - along into the answer.
+    const device = await deviceModel
+      .findOne({ device_id: device_id }, { firmwareSettings: 1, cloudSettings: 1, device_type: 1, name: 1, owner_id: 1, demoDevice: 1 })
+      .lean();
     if (!device) {
       return null;
     }
