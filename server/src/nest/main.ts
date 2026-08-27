@@ -52,6 +52,12 @@ const bootstrap = async (): Promise<void> => {
       // Express matched a trailing slash; a client that has been calling
       // `/device/` for years should not start getting 404s.
       ignoreTrailingSlash: true,
+      // And it matched without regard to case, which the same clients rely on.
+      caseSensitive: false,
+      // Fastify caps a path segment at 100 characters, Express did not. The MQTT
+      // auth secret travels in the path, and a long one would 414 every check
+      // the broker makes - which is every device in the field, at once.
+      maxParamLength: 4096,
     },
   });
 
@@ -59,7 +65,8 @@ const bootstrap = async (): Promise<void> => {
 
   // Uploaded files arrive as buffers on the body, which is the shape the
   // picture and firmware endpoints work with. The cap is well above the largest
-  // firmware image; the endpoints enforce their own, smaller limits.
+  // firmware image; a diary photo is refused later, once converting it has
+  // shown whether the result still fits in its document.
   await app.register(fastifyMultipart, { attachFieldsToBody: 'keyValues', limits: { fileSize: MAX_UPLOAD_BYTES } });
   await app.register(fastifyCookie);
   await app.register(fastifyCors, { methods: ALLOWED_METHODS });

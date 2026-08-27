@@ -158,6 +158,29 @@ describe('GET /data/series/:device_id/:measure', () => {
     const response = await series('co2').expect(201);
     expect(definedValues(response.body)).toHaveLength(0);
   });
+
+  // The query is built by interpolation, so a parameter that closes it can
+  // append a pipeline of its own - and the bucket holds every device there is.
+  describe('the parameters that go into the query', () => {
+    it('refuses a time range that carries more than a time', async () => {
+      const stranger = await provisionDevice(await createAccount('data-injection-victim'));
+      await seedMeasurements([{ time: minutesAgo(5) + 10_000, device_id: stranger.deviceId, fields: { temperature: 42 } }]);
+
+      const injected = `now()) |> yield(name: "mine") from(bucket: "devices") |> range(start: -1h`;
+      await series('temperature', { to: injected }).expect(400);
+      await series('temperature', { from: injected }).expect(400);
+    });
+
+    it('refuses an interval and a measure that are not what they claim', async () => {
+      await series('temperature', { interval: '1m, fn: mean, createEmpty: true) |> yield(name: "x"' }).expect(400);
+      await series('temperature"] or r["_field"] == "humidity').expect(400);
+    });
+
+    it('still takes every shape the app asks for', async () => {
+      await series('temperature', { from: '-30d', to: 'now()', interval: '5s' }).expect(201);
+      await series('out_light', { from: '-1h30m', interval: '1w' }).expect(201);
+    });
+  });
 });
 
 describe('GET /data/latest/:device_id/:measure', () => {

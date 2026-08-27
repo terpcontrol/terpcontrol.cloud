@@ -32,6 +32,9 @@ const escapeXml = (value: string): string =>
 
 const MS_IN_A_DAY = 24 * 60 * 60 * 1000;
 
+// Under MongoDB's 16 MB document limit, with room for the rest of the document.
+const MAX_STORED_IMAGE_BYTES = 15 * 1024 * 1024;
+
 const READ_IMAGE_CHECK_INTERVAL_MS = 5_000;
 const IMAGE_LOAD_INTERVAL_MS = 30_000;
 const IMAGE_LOAD_MAX_BACKOFF_INTERVAL_MS = 120 * 60_000;
@@ -112,6 +115,13 @@ class ImageService {
 
   public async createDeviceImage(device_id: string, source: Buffer, timestamp?: number): Promise<Image> {
     const jpegData = await this.convertToJpeg(source);
+
+    // A picture is stored inside its document, and MongoDB stops at 16 MB. The
+    // check is on the converted image because that is what gets written - a
+    // large source often shrinks to a fraction of it.
+    if (jpegData.length > MAX_STORED_IMAGE_BYTES) {
+      throw new HttpException(413, 'Image is too large');
+    }
 
     return imageModel.create({
       image_id: uuidv4(),

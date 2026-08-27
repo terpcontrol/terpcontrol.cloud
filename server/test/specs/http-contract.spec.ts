@@ -96,6 +96,20 @@ describe('what Express used to accept', () => {
     await owner.client.get('/device/').expect(200);
   });
 
+  it('matches a route whatever its case', async () => {
+    await anonymous().get('/ReadyCheck').expect(200);
+  });
+
+  it('takes a path segment longer than a hundred characters', async () => {
+    // Fastify caps one at 100 by default. The MQTT auth secret travels in the
+    // path, so a long one would 414 every check the broker makes.
+    const secret = 'x'.repeat(120);
+    const response = await anonymous().post(`/mqttauth/${secret}/user`).type('form').send({ username: 'nobody', password: 'nope' });
+
+    expect(response.status).toBe(401);
+    expect(response.text).toBe('deny');
+  });
+
   it('lets a demo session reach the session endpoints with a trailing slash', async () => {
     const demo = await demoSession();
     await demo.client.post('/logout/').expect(200);

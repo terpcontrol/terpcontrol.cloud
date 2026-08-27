@@ -1,6 +1,7 @@
 import { InfluxDB, Point } from '@influxdata/influxdb-client';
 import { INFLUXDB_BUCKET, INFLUXDB_HOST, INFLUXDB_ORG, INFLUXDB_TOKEN, INFLUXDB_URL } from '@/config';
 import { deviceService, StatusMessage } from '@services/device.service';
+import { HttpException } from '@exceptions/HttpException';
 import { calculateVpd } from '@utils/calculateVpd';
 import imageModel from '@models/images.model';
 import { Image } from '@fg2/shared-types';
@@ -18,6 +19,37 @@ export const VALID_SENSORS = ['temperature', 'humidity', 'avg', 'p', 'i', 'd', '
 const DEFAULT_PPFD_LUX_FACTOR = 0.015;
 
 export const VALID_OUTPUTS = ['heater', 'dehumidifier', 'co2', 'light', 'fan', 'relais', 'fan-internal', 'fan-external', 'fan-backwall'];
+
+/**
+ * Everything below builds Flux by interpolation, so what may be interpolated is
+ * spelled out here. Without this a caller can close the query and append a
+ * pipeline of its own - `?to=now()) |> yield() from(bucket: "…"` reads the whole
+ * bucket, which holds every device of every customer.
+ *
+ * A duration as Flux writes it: `-30d`, `1h`, `-1h30m`.
+ */
+const DURATION = /^-?(?:\d+(?:ns|us|µs|ms|s|m|h|d|w|mo|y))+$/;
+// `from` and `to` also take an absolute time, and `to` is usually `now()`.
+const RFC3339 = /^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})$/;
+// A field name as the firmware reports it, and a device id as the server issues it.
+const FIELD_NAME = /^[A-Za-z0-9_]{1,64}$/;
+const DEVICE_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
+
+const requireMatch = (value: unknown, pattern: RegExp, name: string): string => {
+  const text = String(value ?? '');
+  if (!pattern.test(text)) {
+    throw new HttpException(400, `Invalid ${name}`);
+  }
+  return text;
+};
+
+const requireTimeLiteral = (value: unknown, name: string): string => {
+  const text = String(value ?? '');
+  if (text === 'now()' || DURATION.test(text) || RFC3339.test(text)) {
+    return text;
+  }
+  throw new HttpException(400, `Invalid ${name}`);
+};
 
 class DataService {
   constructor() {
@@ -80,11 +112,11 @@ class DataService {
     const queryApi = influxdb_client.getQueryApi(INFLUXDB_ORG);
     const query = `
       from(bucket: "${INFLUXDB_BUCKET}")
-        |> range(start: ${from}, stop: ${to})
+        |> range(start: ${requireTimeLiteral(from, 'from')}, stop: ${requireTimeLiteral(to, 'to')})
         |> filter(fn: (r) => r["_measurement"] == "status")
-        |> filter(fn: (r) => r["_field"] == "${measure}")
-        |> filter(fn: (r) => r["device_id"] == "${device_id}")
-        |> aggregateWindow(every: ${interval}, fn: ${method}, createEmpty: true)
+        |> filter(fn: (r) => r["_field"] == "${requireMatch(measure, FIELD_NAME, 'measure')}")
+        |> filter(fn: (r) => r["device_id"] == "${requireMatch(device_id, DEVICE_ID, 'device_id')}")
+        |> aggregateWindow(every: ${requireMatch(interval, DURATION, 'interval')}, fn: ${method}, createEmpty: true)
         |> yield(name: "${method}")
         |> limit(n: 50000)
     `;
@@ -174,8 +206,8 @@ class DataService {
       from(bucket: "${INFLUXDB_BUCKET}")
         |> range(start: -5m)
         |> filter(fn: (r) => r["_measurement"] == "status")
-        |> filter(fn: (r) => r["_field"] == "${measure}")
-        |> filter(fn: (r) => r["device_id"] == "${device_id}")
+        |> filter(fn: (r) => r["_field"] == "${requireMatch(measure, FIELD_NAME, 'measure')}")
+        |> filter(fn: (r) => r["device_id"] == "${requireMatch(device_id, DEVICE_ID, 'device_id')}")
         |> aggregateWindow(every: 5m, fn: last, createEmpty: false)
         |> yield(name: "mean")
     `;
