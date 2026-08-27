@@ -19,6 +19,10 @@ export interface ParsedFlux {
 
 export type AggregateFn = 'mean' | 'min' | 'max' | 'sum' | 'last' | 'first' | 'count';
 
+/** The `limit(n:)` the server's own queries carry, so a wide range with a small
+ * interval cannot build an unbounded list here either. */
+const MAX_ROWS = 50_000;
+
 const DURATION_UNITS_MS: Record<string, number> = {
   ns: 1e-6,
   us: 1e-3,
@@ -154,7 +158,7 @@ export const runQuery = (points: InfluxPoint[], parsed: ParsedFlux, now: number)
   const identity = { deviceId: parsed.deviceId ?? tagsOf(0).device_id ?? '', userId: tagsOf(0).user_id ?? '' };
 
   if (parsed.createEmpty) {
-    for (let windowStop = firstWindow; ; windowStop += every) {
+    for (let windowStop = firstWindow; rows.length < MAX_ROWS; windowStop += every) {
       // Influx truncates the final window to the end of the range.
       const time = Math.min(windowStop, stop);
       rows.push({ time, value: aggregate(buckets.get(windowStop) ?? [], parsed.fn), field, measurement, ...identity });

@@ -1,5 +1,6 @@
+import { request as httpRequest } from 'node:http';
 import sharp from 'sharp';
-import { anonymous, createAccount, demoSession, loginAsAdmin, Session, unique } from '../support/api';
+import { anonymous, context, createAccount, demoSession, loginAsAdmin, Session, unique } from '../support/api';
 import { provisionDevice } from '../support/device';
 
 /**
@@ -12,6 +13,21 @@ let admin: Session;
 beforeAll(async () => {
   admin = await loginAsAdmin();
 });
+
+/** A body-less POST framed with Transfer-Encoding rather than Content-Length. */
+const postChunked = (path: string): Promise<number> =>
+  new Promise((resolve, reject) => {
+    const url = new URL(path, context.baseUrl);
+    const call = httpRequest(
+      { hostname: url.hostname, port: url.port, path: url.pathname, method: 'POST', headers: { 'content-type': 'application/json' } },
+      response => {
+        response.resume();
+        response.on('end', () => resolve(response.statusCode));
+      },
+    );
+    call.on('error', reject);
+    call.end();
+  });
 
 describe('cross-origin access', () => {
   it('allows the verbs the API actually offers on a preflight', async () => {
@@ -90,6 +106,13 @@ describe('what Express used to accept', () => {
 
     await owner.client.post('/logout').set('Content-Type', 'application/json').send('').expect(200);
     await anonymous().post('/demologin').set('Content-Type', 'application/json').send('').expect(200);
+  });
+
+  it('reads an empty chunked body the same way', async () => {
+    // A client that streams its body sends no Content-Length, so the emptiness
+    // is only visible once the body has been read.
+    const status = await postChunked('/demologin');
+    expect(status).toBe(200);
   });
 
   it('takes the last value of a repeated query parameter', async () => {

@@ -3,15 +3,15 @@ import { FastifyRequest } from 'fastify';
 
 /**
  * Two things Express did for us that Fastify does not, and that clients in the
- * field depend on. Both are done on the request before routing, which keeps
- * them out of the way of the parsers Nest installs.
+ * field depend on.
  */
 export const registerHttpCompatibility = (app: NestFastifyApplication): void => {
+  registerTolerantJsonParser(app);
+
   app
     .getHttpAdapter()
     .getInstance()
     .addHook('onRequest', (request: FastifyRequest, _reply, done) => {
-      dropEmptyJsonBody(request);
       collapseRepeatedQueryParameters(request);
       done();
     });
@@ -20,16 +20,30 @@ export const registerHttpCompatibility = (app: NestFastifyApplication): void => 
 /**
  * `express.json()` read an empty body as `{}`; Fastify's parser refuses it
  * outright. Clients that set the header on a body-less POST - logging out,
- * opening the demo, revoking a share - would get a 400 they never used to.
- * Dropping the header leaves the request with no body at all, which every one
- * of those handlers already copes with.
+ * opening the demo, revoking a share - would get a 400 they never used to,
+ * however the request framed that empty body.
+ *
+ * Registering it here also stops Nest installing its own, and anything that is
+ * not empty still goes through Fastify's parser, which is what guards against
+ * prototype poisoning.
  */
-const dropEmptyJsonBody = (request: FastifyRequest): void => {
-  const contentType = request.headers['content-type'];
+type BufferParser = (request: unknown, body: Buffer, done: (error: Error | null, value?: unknown) => void) => void;
 
-  if (contentType?.startsWith('application/json') && request.headers['content-length'] === '0') {
-    delete request.headers['content-type'];
-  }
+const registerTolerantJsonParser = (app: NestFastifyApplication): void => {
+  const fastify = app.getHttpAdapter().getInstance();
+  // Typed for the default HTTP server and a string body; Nest hands it a
+  // request type that also allows HTTP/2, which this deployment never serves,
+  // and a buffer, which the parser reads as text either way.
+  const parseJson = fastify.getDefaultJsonParser('error', 'error') as unknown as BufferParser;
+
+  app.useBodyParser('application/json', { bodyLimit: fastify.initialConfig.bodyLimit }, (request, body: Buffer, done) => {
+    if (body.length === 0 || body.toString().trim() === '') {
+      done(null, {});
+      return;
+    }
+
+    parseJson(request, body, done);
+  });
 };
 
 /**
