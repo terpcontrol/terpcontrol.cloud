@@ -108,6 +108,20 @@ const withMaintenanceSecondsLeft = <T extends Partial<Device>>(device: T): T => 
   maintenance_mode_seconds_left: Math.max(0, Math.ceil(((device.maintenance_mode_until ?? 0) - Date.now()) / 1000)),
 });
 
+/**
+ * When a diary entry says. The app sends epoch milliseconds, the device an ISO
+ * timestamp, and a client that builds its query string by hand sends those
+ * milliseconds as a string - which `new Date` alone reads as no date at all.
+ */
+const toDate = (time: string | number | Date | undefined): Date | undefined => {
+  if (!time) return undefined;
+  if (typeof time === 'string' && time.trim() !== '' && Number.isFinite(Number(time))) {
+    return new Date(Number(time));
+  }
+
+  return new Date(time);
+};
+
 class DeviceService {
   private readonly upgradeInstructionTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly upgradeInstructionBackoff = new Map<string, { firmwareId: string; nextDelayMs: number }>();
@@ -733,7 +747,7 @@ class DeviceService {
       data: msg.data,
       images: msg.images,
       deleted: msg.deleted,
-      time: msg.time ? new Date(msg.time) : undefined,
+      time: toDate(msg.time),
     });
   }
 
@@ -853,7 +867,7 @@ class DeviceService {
     };
 
     if (payload.time) {
-      update.time = new Date(payload.time);
+      update.time = toDate(payload.time);
     }
 
     await deviceLogModel.updateOne({ _id: log_id, device_id: device_id }, { $set: update });

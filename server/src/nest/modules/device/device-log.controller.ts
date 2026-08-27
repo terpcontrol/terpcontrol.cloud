@@ -22,15 +22,20 @@ const severity = z.union([
     .refine(value => Number.isFinite(Number(value)), { error: 'must be a number' }),
 ]);
 
+/**
+ * Everything but the message, the severity and the categories is optional, and
+ * a client that has nothing to put in a field may say so with a null - which
+ * the handler this replaces stored without comment.
+ */
 const entryFields = {
-  title: z.string().optional(),
-  message: z.string().optional(),
+  title: z.string().nullish(),
+  message: z.string().nullish(),
   severity,
   categories: z.array(z.string()).min(1),
-  raw: z.boolean().optional(),
-  data: z.record(z.string(), z.unknown()).optional(),
-  images: z.array(z.string()).optional(),
-  deleted: z.boolean().optional(),
+  raw: z.boolean().nullish(),
+  data: z.record(z.string(), z.unknown()).nullish(),
+  images: z.array(z.string()).nullish(),
+  deleted: z.boolean().nullish(),
 };
 
 const hasText = (entry: { title?: string; message?: string }) => !!entry.title || !!entry.message;
@@ -44,15 +49,20 @@ const isTruthy = (value: string | undefined): boolean => value !== undefined && 
 
 /**
  * A falsy time is refused, as it always was: the diary is sorted by it. So is a
- * string that is not a date - the app sends an ISO timestamp and the firmware
- * does too, and anything else used to reach mongoose and fail there as a 500.
+ * string that names no moment - anything else used to reach mongoose and fail
+ * there as a 500. Epoch milliseconds as a string are a moment, though, and
+ * mongoose read them as one.
  */
+const namesAMoment = (value: string): boolean => {
+  const asNumber = Number(value);
+  if (Number.isFinite(asNumber) && value.trim() !== '') return asNumber !== 0;
+
+  return !Number.isNaN(new Date(value).getTime());
+};
+
 const requiredTime = z.union([
   z.number().refine(value => value !== 0, { error: 'is required' }),
-  z
-    .string()
-    .min(1)
-    .refine(value => !Number.isNaN(new Date(value).getTime()), { error: 'must be a date' }),
+  z.string().min(1).refine(namesAMoment, { error: 'must be a time' }),
 ]);
 
 const createLogSchema = z

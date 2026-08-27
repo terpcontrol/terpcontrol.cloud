@@ -31,10 +31,12 @@ const MAX_UPLOAD_BYTES = 64 * 1024 * 1024;
 const ALLOWED_METHODS = ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'];
 
 /**
- * What is worth compressing. This is the plugin's own default set with
+ * What is worth compressing. Handing the plugin a pattern replaces its own
+ * judgement rather than adding to it, so this is its default set with
  * `application/octet-stream` taken out: firmware images go to an OTA client
  * that reads Content-Length and is served `Cache-Control: no-transform`, and
- * compressing them drops the first and ignores the second.
+ * compressing them drops the first and ignores the second. A test in
+ * `http-contract.spec.ts` holds the firmware download to that.
  */
 const COMPRESSIBLE_TYPES = /^text\/(?!event-stream)|(?:\+|\/)json(?:;|$)|(?:\+|\/)text(?:;|$)|(?:\+|\/)xml(?:;|$)/u;
 

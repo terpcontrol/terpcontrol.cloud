@@ -69,6 +69,25 @@ describe('POST /device/logs/:device_id', () => {
     await addEntry(device, { time: 'yesterday' }).expect(400);
   });
 
+  it('takes epoch milliseconds sent as a string', async () => {
+    const fresh = await provisionDevice(owner);
+    const when = Date.now() - 60_000;
+
+    await addEntry(fresh, { time: String(when) }).expect(200);
+
+    const logs = await owner.client.get(`/device/logs/${fresh.deviceId}`).expect(200);
+    expect(new Date(logs.body[0].time).getTime()).toBe(when);
+  });
+
+  it('takes a null where a client has nothing to put', async () => {
+    const fresh = await provisionDevice(owner);
+
+    await addEntry(fresh, { title: null, data: null, images: null, raw: null, deleted: null }).expect(200);
+
+    const logs = await owner.client.get(`/device/logs/${fresh.deviceId}`).expect(200);
+    expect(logs.body).toHaveLength(1);
+  });
+
   it('takes the ISO timestamp the device sends', async () => {
     const fresh = await provisionDevice(owner);
     const when = new Date(Date.now() - 120_000);

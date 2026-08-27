@@ -37,10 +37,23 @@ const RFC3339 = /^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d
 const FIELD_NAME = /^[A-Za-z0-9_-]{1,64}$/;
 const DEVICE_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
 
+// A window has to move forward: Flux rejects `every: -5m` and `every: 0s`, and
+// the point of validating here is that the caller hears a 400 rather than that.
+const isPositiveDuration = (value: string): boolean =>
+  DURATION.test(value) && !value.startsWith('-') && (value.match(/\d+/g) ?? []).some(digits => Number(digits) > 0);
+
 const requireMatch = (value: unknown, pattern: RegExp, name: string): string => {
   const text = String(value ?? '');
   if (!pattern.test(text)) {
     throw new HttpException(400, `Invalid ${name}`);
+  }
+  return text;
+};
+
+const requireInterval = (value: unknown): string => {
+  const text = String(value ?? '');
+  if (!isPositiveDuration(text)) {
+    throw new HttpException(400, 'Invalid interval');
   }
   return text;
 };
@@ -118,7 +131,7 @@ class DataService {
         |> filter(fn: (r) => r["_measurement"] == "status")
         |> filter(fn: (r) => r["_field"] == "${requireMatch(measure, FIELD_NAME, 'measure')}")
         |> filter(fn: (r) => r["device_id"] == "${requireMatch(device_id, DEVICE_ID, 'device_id')}")
-        |> aggregateWindow(every: ${requireMatch(interval, DURATION, 'interval')}, fn: ${method}, createEmpty: true)
+        |> aggregateWindow(every: ${requireInterval(interval)}, fn: ${method}, createEmpty: true)
         |> yield(name: "${method}")
         |> limit(n: 50000)
     `;

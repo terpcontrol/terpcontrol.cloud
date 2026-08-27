@@ -176,6 +176,13 @@ describe('GET /data/series/:device_id/:measure', () => {
       await series('temperature"] or r["_field"] == "humidity').expect(400);
     });
 
+    it('refuses a window that does not move forward', async () => {
+      // A window has to be positive, and the point of checking here is that the
+      // caller hears it as a bad request rather than as a failed query.
+      await series('temperature', { interval: '-5m' }).expect(400);
+      await series('temperature', { interval: '0s' }).expect(400);
+    });
+
     it('still takes every shape the app asks for', async () => {
       await series('temperature', { from: '-30d', to: 'now()', interval: '5s' }).expect(201);
       await series('out_light', { from: '-1h30m', interval: '1w' }).expect(201);
