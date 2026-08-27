@@ -15,8 +15,10 @@ import { registerAccessLog } from './access-log';
 import { registerHttpCompatibility } from './http-compatibility';
 import { setupOpenApi } from './openapi';
 
-// The device-facing work runs on timers and MQTT callbacks; an error in one of
-// them must not take the API down with it.
+// The device-facing work runs on timers and MQTT callbacks, where an error has
+// no caller to reach. Recording it here is what makes it findable afterwards;
+// the logger's error transport handles exceptions itself and ends the process,
+// so the supervisor restarts a server that has been left in an unknown state.
 process.on('uncaughtException', (error, origin) => {
   logger.error(`Uncaught exception (${origin}): ${error?.stack ?? error}`);
 });
@@ -76,4 +78,15 @@ const bootstrap = async (): Promise<void> => {
   logger.info(`API listening on port ${PORT ?? 3000}`);
 };
 
-void bootstrap();
+bootstrap().catch(error => {
+  // A failure to start is fatal, and has to be: the process manager only
+  // restarts a container that exits, and the handler above would otherwise
+  // leave this one alive with nothing listening. The reason goes to stderr as
+  // well, because the logger's transports flush after this process is gone.
+  const reason = `Failed to start: ${error?.stack ?? error}`;
+  // stderr first, and synchronously: it is the one channel that cannot be lost
+  // to a transport that flushes after this process is gone.
+  process.stderr.write(`${reason}\n`);
+  logger.error(reason);
+  process.exit(1);
+});

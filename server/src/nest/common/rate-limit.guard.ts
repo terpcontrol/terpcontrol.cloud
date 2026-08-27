@@ -23,9 +23,11 @@ interface Window {
 /**
  * A fixed window per client address and route, in memory.
  *
- * In memory is what the Express limiter did too: with one server process it is
- * accurate, and a deployment that grows to several will need a shared store
- * either way.
+ * In memory is what the Express limiter did too, and it is exact for the
+ * container, which runs one process. The pm2 configuration runs two, and each
+ * counts only the requests it serves - so a deployment that uses it, or that
+ * grows to several containers, allows the configured budget per process and
+ * needs a shared store to do better.
  */
 @Injectable()
 export class RateLimitGuard implements CanActivate {

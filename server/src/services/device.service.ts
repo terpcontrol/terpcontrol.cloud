@@ -45,6 +45,7 @@ export type StatusMessage = {
   timestamp: number;
 };
 
+const MQTT_RECONNECT_DELAY: number = 5 * 1000;
 const UPGRADE_TIMEOUT: number = 10 * 60 * 1000;
 const UPGRADE_INSTRUCTION_INITIAL_DELAY: number = 30 * 1000;
 const UPGRADE_INSTRUCTION_MAX_DELAY: number = 24 * 60 * 60 * 1000;
@@ -229,7 +230,9 @@ class DeviceService {
       });
     } catch (exception) {
       console.log(exception);
-      void this.connectMqtt();
+      // Wait before trying again: retrying straight away spins the CPU and
+      // floods the log for as long as the broker is unreachable.
+      setTimeout(() => void this.connectMqtt(), MQTT_RECONNECT_DELAY);
     }
   }
 
