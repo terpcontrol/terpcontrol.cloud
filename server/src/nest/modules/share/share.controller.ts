@@ -7,6 +7,7 @@ import { AuthContext } from '../../common/auth/token.service';
 import { zodBodyAsError } from '../../common/zod-validation.pipe';
 import { CreateShare, createShareSchema } from './share.schemas';
 import { ShareService } from './share.service';
+import { PUBLIC_OPERATION } from '../../openapi';
 
 @ApiTags('share links')
 @Controller('share')
@@ -14,7 +15,7 @@ export class ShareController {
   constructor(private readonly shares: ShareService) {}
 
   @Get('resolve/:share_id')
-  @ApiOperation({ summary: 'Open a share link: what the visitor is allowed to see' })
+  @ApiOperation({ summary: 'Open a share link: what the visitor is allowed to see', ...PUBLIC_OPERATION })
   public resolve(@Param('share_id') shareId: string) {
     return this.shares.resolve(shareId);
   }

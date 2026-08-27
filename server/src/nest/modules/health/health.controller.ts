@@ -3,20 +3,21 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 import { ADMINUSER_USERNAME } from '@/config';
 import userModel from '@models/users.model';
+import { PUBLIC_OPERATION } from '../../openapi';
 
 @ApiTags('service')
 @Controller()
 export class HealthController {
   @Get('/')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Liveness probe' })
+  @ApiOperation({ summary: 'Liveness probe', ...PUBLIC_OPERATION })
   @ApiResponse({ status: 200, description: 'The API is up.' })
   public liveness(): string {
     return 'OK';
   }
 
   @Get('/readycheck')
-  @ApiOperation({ summary: 'Readiness probe' })
+  @ApiOperation({ summary: 'Readiness probe', ...PUBLIC_OPERATION })
   @ApiResponse({ status: 200, description: 'The admin account exists, so the database is reachable and seeded.' })
   @ApiResponse({ status: 501, description: 'The admin account is missing.' })
   public async readiness(@Res() reply: FastifyReply): Promise<void> {

@@ -3,6 +3,14 @@ import { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { API_URL_EXTERNAL } from '@config';
 
 /**
+ * Spread into the `@ApiOperation` of a route that needs no token: the document
+ * asks for the bearer everywhere, and an operation that does not say otherwise
+ * inherits it. Logging in, registering a device and downloading a firmware
+ * image would then be documented as impossible without one.
+ */
+export const PUBLIC_OPERATION = { security: [] };
+
+/**
  * The API description, built from the controllers themselves rather than from
  * comments kept alongside them, so it cannot drift from what the server serves.
  */

@@ -24,6 +24,7 @@ import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { DeviceOwnerGuard } from '../../common/auth/device-access.guard';
 import { AuthContext } from '../../common/auth/token.service';
 import { zodBody } from '../../common/zod-validation.pipe';
+import { PUBLIC_OPERATION } from '../../openapi';
 import { AddDeviceClass, addDeviceClassSchema, AddFirmware, addFirmwareSchema } from './device.schemas';
 
 /** Streams a stored binary the way the OTA client expects to read it. */
@@ -87,7 +88,7 @@ export class DeviceFirmwareController {
   // No session: the device fetches its own update over plain HTTP, and the
   // firmware id is the only thing it has.
   @Get('firmware/:firmware_id/:binary')
-  @ApiOperation({ summary: 'Download a firmware image' })
+  @ApiOperation({ summary: 'Download a firmware image', ...PUBLIC_OPERATION })
   public async download(@Param('firmware_id') firmwareId: string, @Param('binary') binaryName: string, @Res() reply: FastifyReply): Promise<void> {
     await sendFirmwareBinary(reply, await deviceService.getFirmwareBinary(firmwareId, binaryName));
   }

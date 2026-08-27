@@ -14,6 +14,7 @@ import { AuthContext } from '../../common/auth/token.service';
 import { RateLimited, RateLimitGuard } from '../../common/rate-limit.guard';
 import { zodBody } from '../../common/zod-validation.pipe';
 import { Activation, activationSchema, Login, loginSchema, PasswordReset, passwordResetSchema, Signup, signupSchema } from './auth.schemas';
+import { PUBLIC_OPERATION } from '../../openapi';
 
 const MINUTE = 60 * 1000;
 
@@ -26,7 +27,7 @@ export class AuthController {
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
   @RateLimited({ limit: 5, windowMs: MINUTE, message: 'Too many sign-up attempts, please try again later.' })
-  @ApiOperation({ summary: 'Create an account' })
+  @ApiOperation({ summary: 'Create an account', ...PUBLIC_OPERATION })
   public async signUp(@Body(zodBody(signupSchema)) body: Signup) {
     const user = await this.auth.signup(body);
 
@@ -37,7 +38,7 @@ export class AuthController {
 
   @Post('activate')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Activate an account with the code from its activation mail' })
+  @ApiOperation({ summary: 'Activate an account with the code from its activation mail', ...PUBLIC_OPERATION })
   public async activate(@Body(zodBody(activationSchema)) body: Activation) {
     await this.auth.activate(body);
     return { message: 'activated' };
@@ -46,7 +47,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @RateLimited({ limit: 10, windowMs: MINUTE, message: 'Too many login attempts, please try again later.' })
-  @ApiOperation({ summary: 'Sign in with a username and password' })
+  @ApiOperation({ summary: 'Sign in with a username and password', ...PUBLIC_OPERATION })
   public async logIn(@Body(zodBody(loginSchema)) body: Login, @Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {
     const { userToken, refreshToken, imageToken, findUser } = await this.auth.login(body);
 
@@ -65,7 +66,7 @@ export class AuthController {
   @Post('demologin')
   @HttpCode(HttpStatus.OK)
   @RateLimited({ limit: 20, windowMs: MINUTE, message: 'Too many demo-login attempts, please try again later.' })
-  @ApiOperation({ summary: 'Open the read-only demo, without an account' })
+  @ApiOperation({ summary: 'Open the read-only demo, without an account', ...PUBLIC_OPERATION })
   public demoLogIn(@Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {
     const { userToken, refreshToken, imageToken } = this.auth.demoLogin();
 
@@ -82,7 +83,7 @@ export class AuthController {
   @Post('tokenlogin')
   @HttpCode(HttpStatus.OK)
   @RateLimited({ limit: 20, windowMs: MINUTE, message: 'Too many token-login attempts, please try again later.' })
-  @ApiOperation({ summary: 'Exchange the automation token for a short admin session' })
+  @ApiOperation({ summary: 'Exchange the automation token for a short admin session', ...PUBLIC_OPERATION })
   public async loginWithToken(@Body() body: { token?: unknown }, @Req() request: FastifyRequest) {
     try {
       return await this.auth.loginWithToken(body?.token as string);
@@ -96,7 +97,7 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Trade a refresh token for a fresh set of tokens' })
+  @ApiOperation({ summary: 'Trade a refresh token for a fresh set of tokens', ...PUBLIC_OPERATION })
   public async refresh(@Body() body: { token?: unknown }, @Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {
     const token = body?.token;
     if (!token || typeof token !== 'string') {
@@ -141,7 +142,7 @@ export class AuthController {
   @Post('getreset')
   @HttpCode(HttpStatus.CREATED)
   @RateLimited({ limit: 5, windowMs: MINUTE, message: 'Too many password-reset requests, please try again later.' })
-  @ApiOperation({ summary: 'Mail a password recovery link' })
+  @ApiOperation({ summary: 'Mail a password recovery link', ...PUBLIC_OPERATION })
   public async getPasswordToken(@Body(zodBody(loginSchema)) body: Login) {
     await this.auth.generatePasswordToken(body.username);
     return { message: 'sent' };
@@ -149,7 +150,7 @@ export class AuthController {
 
   @Post('reset')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Set a new password with a recovery token' })
+  @ApiOperation({ summary: 'Set a new password with a recovery token', ...PUBLIC_OPERATION })
   public async resetPassword(@Body(zodBody(passwordResetSchema)) body: PasswordReset) {
     await this.auth.changePasswordWithToken(body.token, body.password);
     return {};

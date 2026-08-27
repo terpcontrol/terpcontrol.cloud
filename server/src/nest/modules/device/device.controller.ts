@@ -23,6 +23,7 @@ import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { DeviceIdFrom, DeviceOwnerGuard } from '../../common/auth/device-access.guard';
 import { AuthContext } from '../../common/auth/token.service';
 import { zodBody } from '../../common/zod-validation.pipe';
+import { PUBLIC_OPERATION } from '../../openapi';
 import {
   AddDevice,
   addDeviceSchema,
@@ -64,7 +65,7 @@ export class DeviceController {
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'What firmware calls on first boot to enrol itself' })
+  @ApiOperation({ summary: 'What firmware calls on first boot to enrol itself', ...PUBLIC_OPERATION })
   public async register(@Body(zodBody(registerDeviceSchema)) body: RegisterDevice) {
     const device = await deviceService.register(body);
 
@@ -98,7 +99,7 @@ export class DeviceController {
 
   @Post('claimcode')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Ask a device for a fresh claim code' })
+  @ApiOperation({ summary: 'Ask a device for a fresh claim code', ...PUBLIC_OPERATION })
   public async claimCode(@Body() body: { device_id?: string; password?: string }) {
     const code = await deviceService.getClaimCode(body?.device_id, body?.password);
 

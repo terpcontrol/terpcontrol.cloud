@@ -20,4 +20,27 @@ describe('service endpoints', () => {
     expect(response.body.openapi ?? response.body.swagger).toBeDefined();
     expect(Object.keys(response.body.paths).length).toBeGreaterThan(10);
   });
+
+  it('documents the endpoints that need no token as needing none', async () => {
+    const response = await anonymous().get('/swagger.json').expect(200);
+
+    // The document asks for the bearer everywhere, so an endpoint anyone may
+    // call has to say so - otherwise logging in reads as impossible without
+    // having logged in.
+    for (const [path, method] of [
+      ['/login', 'post'],
+      ['/signup', 'post'],
+      ['/refresh', 'post'],
+      ['/reset', 'post'],
+      ['/device/register', 'post'],
+      ['/device/firmware/{firmware_id}/{binary}', 'get'],
+      ['/share/resolve/{share_id}', 'get'],
+      ['/readycheck', 'get'],
+    ]) {
+      expect(response.body.paths[path]?.[method]?.security).toEqual([]);
+    }
+
+    // And one that does need it says nothing, inheriting the requirement.
+    expect(response.body.paths['/users'].get.security).toBeUndefined();
+  });
 });

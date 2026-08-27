@@ -29,7 +29,11 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     const { status, message } = this.describe(exception);
 
-    logger.error(`[${request.method}] ${request.url} >> StatusCode:: ${status}, Message:: ${message}`);
+    // The path without the query string, as the Express error middleware logged
+    // it: a picture URL carries the long-lived image token, and the error log is
+    // kept for a month.
+    const path = request.url.split('?')[0];
+    logger.error(`[${request.method}] ${path} >> StatusCode:: ${status}, Message:: ${message}`);
 
     if (exception instanceof PlainTextException) {
       // Express sent strings as text/html, and one of these repeats the device
