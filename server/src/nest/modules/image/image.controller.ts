@@ -143,6 +143,10 @@ export class ImageController {
   }
 
   private async send(reply: FastifyReply, rendered: RenderedImage): Promise<void> {
-    await reply.status(rendered.status).header('Content-type', rendered.contentType).header('Cache-Control', 'max-age=3600').send(rendered.body);
+    // A picture is worth caching; the placeholder sent when rendering failed is
+    // not - it would pin the failure in front of the device for an hour.
+    const cacheControl = rendered.status === HttpStatus.OK ? 'max-age=3600' : 'no-store';
+
+    await reply.status(rendered.status).header('Content-type', rendered.contentType).header('Cache-Control', cacheControl).send(rendered.body);
   }
 }

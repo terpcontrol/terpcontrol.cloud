@@ -702,18 +702,20 @@ class DeviceService {
   public async logMessage(
     deviceId: string,
     msg: {
-      message: string;
+      /** An entry carries a message, a title, or both. */
+      message?: string;
       title?: string;
-      severity: 0 | 1 | 2;
+      severity: number;
       raw?: boolean;
       categories: string[];
       data?: Record<string, any>;
       images?: string[];
       deleted?: boolean;
-      time?: string;
+      /** Epoch milliseconds from a client, an ISO string from the device. */
+      time?: string | number | Date;
     },
   ) {
-    const [messageKey, value] = msg.message.split(':');
+    const [messageKey, value] = (msg.message ?? '').split(':');
     if (messageKey?.startsWith('message-maintenance-mode-activated') && isNumeric(value)) {
       await alarmService.maintenanceActivatedForDevice(deviceId, parseInt(value));
     }
@@ -817,12 +819,12 @@ class DeviceService {
       title?: string;
       message?: string;
       raw?: boolean;
-      severity: 0 | 1 | 2 | number;
+      severity: number;
       categories: string[];
       data?: Record<string, any>;
       images?: string[];
       deleted?: boolean;
-      time?: string | Date;
+      time?: string | number | Date;
     },
   ) {
     let device;

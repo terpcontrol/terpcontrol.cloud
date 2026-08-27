@@ -21,7 +21,8 @@ export class DemoReadOnlyGuard implements CanActivate {
     if (context.getType() !== 'http') return true;
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const path = (request.url ?? '/').split('?')[0];
+    // The router ignores a trailing slash, so the allow-list has to as well.
+    const path = (request.url ?? '/').split('?')[0].replace(/\/+$/, '') || '/';
 
     if (READ_METHODS.includes(request.method) || DEMO_ALLOWED_PATHS.includes(path)) {
       return true;

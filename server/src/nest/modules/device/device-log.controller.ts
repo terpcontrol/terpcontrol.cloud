@@ -9,8 +9,18 @@ import { DeviceAccessGuard, DeviceOwnerGuard } from '../../common/auth/device-ac
 import { AuthContext } from '../../common/auth/token.service';
 import { zodBodyAsError } from '../../common/zod-validation.pipe';
 
-/** Severity arrives as a number from the app and as a numeric string from firmware. */
-const severity = z.union([z.number(), z.string().refine(value => Number.isFinite(Number(value)) && value.trim() !== '')]);
+/**
+ * Severity arrives as a number from the app and as a numeric string from
+ * firmware; it is stored as a number either way.
+ */
+const severity = z.union([
+  z.number(),
+  z
+    .string()
+    .trim()
+    .min(1)
+    .refine(value => Number.isFinite(Number(value)), { error: 'must be a number' }),
+]);
 
 const entryFields = {
   title: z.string().optional(),
@@ -69,7 +79,7 @@ export class DeviceLogController {
   @UseGuards(DeviceOwnerGuard)
   @ApiOperation({ summary: 'Add an entry to the diary' })
   public async add(@Param('device_id') deviceId: string, @Body(zodBodyAsError(createLogSchema)) body: LogEntry) {
-    await deviceService.logMessage(deviceId, body as Parameters<typeof deviceService.logMessage>[1]);
+    await deviceService.logMessage(deviceId, { ...body, severity: Number(body.severity) });
     return { status: 'ok' };
   }
 
@@ -82,7 +92,7 @@ export class DeviceLogController {
     @Param('log_id') logId: string,
     @Body(zodBodyAsError(updateLogSchema)) body: LogEntryUpdate,
   ) {
-    await deviceService.updateDeviceLog(deviceId, user.userId, user.isAdmin, logId, body as Parameters<typeof deviceService.updateDeviceLog>[4]);
+    await deviceService.updateDeviceLog(deviceId, user.userId, user.isAdmin, logId, { ...body, severity: Number(body.severity) });
     return { status: 'ok' };
   }
 

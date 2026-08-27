@@ -35,14 +35,15 @@ describe('POST /device/logs/:device_id', () => {
     expect(logs.body[0].title).toBe('First entry');
   });
 
-  // The controller accepts an entry that carries only a title, but the service
-  // then splits the (absent) message and throws. Captured as it stands today.
-  it('answers 500 for an entry that carries only a title', async () => {
+  it('accepts an entry that carries only a title', async () => {
     const fresh = await provisionDevice(owner);
     await owner.client
       .post(`/device/logs/${fresh.deviceId}`)
       .send({ title: 'Title only', severity: 0, categories: ['diary'], time: Date.now() })
-      .expect(500);
+      .expect(200);
+
+    const logs = await owner.client.get(`/device/logs/${fresh.deviceId}`).expect(200);
+    expect(logs.body[0].title).toBe('Title only');
   });
 
   it('rejects an entry without a message or a title', async () => {

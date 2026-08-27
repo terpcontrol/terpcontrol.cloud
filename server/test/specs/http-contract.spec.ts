@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { anonymous, createAccount, loginAsAdmin, Session, unique } from '../support/api';
+import { anonymous, createAccount, demoSession, loginAsAdmin, Session, unique } from '../support/api';
 import { provisionDevice } from '../support/device';
 
 /**
@@ -78,6 +78,11 @@ describe('what Express used to accept', () => {
 
     const owner = await createAccount('slash-owner');
     await owner.client.get('/device/').expect(200);
+  });
+
+  it('lets a demo session reach the session endpoints with a trailing slash', async () => {
+    const demo = await demoSession();
+    await demo.client.post('/logout/').expect(200);
   });
 
   it('reads an empty body with a JSON content type as an empty object', async () => {
