@@ -167,6 +167,11 @@ describe('device cloud settings', () => {
     expect(response.body).toMatchObject({ device_id: device.deviceId, device_type: 'fridge', isPublic: false });
   });
 
+  it('rejects settings that are not settings', async () => {
+    await owner.client.post('/device/cloudsettings').send({ device_id: device.deviceId, cloud_settings: 'stable' }).expect(400);
+    await owner.client.post('/device/cloudsettings').send({ device_id: device.deviceId, cloud_settings: 42 }).expect(400);
+  });
+
   it('rejects an unknown firmware channel', async () => {
     await owner.client
       .post('/device/cloudsettings')
@@ -256,6 +261,16 @@ describe('the recipe of a device', () => {
     await owner.client.post('/device/recipe').send({ recipe }).expect(400);
   });
 
+  it('rejects a plan whose steps are not a list, leaving the stored one alone', async () => {
+    await owner.client.post('/device/recipe').send({ device_id: device.deviceId, recipe }).expect(200);
+
+    await owner.client.post('/device/recipe').send({ device_id: device.deviceId, recipe: { steps: 'Veg' } }).expect(400);
+    await owner.client.post('/device/recipe').send({ device_id: device.deviceId, recipe: 'Veg' }).expect(400);
+
+    const response = await owner.client.get(`/device/recipe/${device.deviceId}`).expect(200);
+    expect(response.body.steps.map((step: { name: string }) => step.name)).toEqual(['Veg', 'Flower']);
+  });
+
   it('refuses a device the caller does not own', async () => {
     const stranger = await createAccount('settings-recipe-stranger');
     await stranger.client.post('/device/recipe').send({ device_id: device.deviceId, recipe }).expect(403);
@@ -303,6 +318,16 @@ describe('recipe templates', () => {
   it('rejects a template without a name or steps', async () => {
     await owner.client.post('/device/recipes').send({ name: unique('t') }).expect(400);
     await owner.client.post('/device/recipes').send({ steps: [] }).expect(400);
+  });
+
+  it('rejects steps that are not a list', async () => {
+    const created = await owner.client
+      .post('/device/recipes')
+      .send({ name: unique('list'), steps: [step('Veg')] })
+      .expect(201);
+
+    await owner.client.post('/device/recipes').send({ name: unique('t'), steps: 'Veg' }).expect(400);
+    await owner.client.put(`/device/recipes/${created.body._id}`).send({ steps: 'Veg' }).expect(400);
   });
 
   // A step that misses a required field fails schema validation, and the error

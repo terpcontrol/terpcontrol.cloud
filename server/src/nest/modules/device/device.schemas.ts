@@ -69,6 +69,16 @@ export const addDeviceClassSchema = z
   .strict();
 
 /**
+ * The settings themselves are the webapp's to shape, and the service fills in
+ * what is missing - but they have to be settings: a string reached the code
+ * that writes the defaults into them and failed there as a 500.
+ */
+export const setCloudSettingsSchema = z.object({
+  device_id: requiredString('device_id'),
+  cloud_settings: z.object({}, { error: 'cloud_settings must be an object' }).loose().nullish(),
+});
+
+/**
  * The alarm objects themselves are left unchecked - the webapp owns their shape
  * and grows it - but the list has to be a list: `setDeviceAlarms` iterates it,
  * and used to fail halfway through with a 500 when it was not one.
@@ -113,5 +123,6 @@ export type SetName = z.infer<typeof setNameSchema>;
 export type TestDevice = z.infer<typeof testDeviceSchema>;
 export type AddDeviceClass = z.infer<typeof addDeviceClassSchema>;
 export type SetAlarms = z.infer<typeof setAlarmsSchema>;
+export type SetCloudSettings = z.infer<typeof setCloudSettingsSchema>;
 export type MaintenanceMode = z.infer<typeof maintenanceModeSchema>;
 export type AddFirmware = z.infer<typeof addFirmwareSchema>;

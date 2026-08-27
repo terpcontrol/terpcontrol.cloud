@@ -37,6 +37,8 @@ import {
   registerDeviceSchema,
   SetAlarms,
   setAlarmsSchema,
+  SetCloudSettings,
+  setCloudSettingsSchema,
   SetName,
   setNameSchema,
   TestDevice,
@@ -190,8 +192,8 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Change the cloud-side settings of a device' })
-  public async setCloudSettings(@CurrentUser() user: AuthContext, @Body() body: { device_id: string; cloud_settings: CloudSettings }) {
-    await deviceService.setDeviceCloudSettings(body.device_id, user.userId, body.cloud_settings);
+  public async setCloudSettings(@CurrentUser() user: AuthContext, @Body(zodBody(setCloudSettingsSchema)) body: SetCloudSettings) {
+    await deviceService.setDeviceCloudSettings(body.device_id, user.userId, body.cloud_settings as CloudSettings);
     return OK;
   }
 
