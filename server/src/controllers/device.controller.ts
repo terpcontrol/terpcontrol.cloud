@@ -33,7 +33,7 @@ class DeviceController {
     try {
       const device = await deviceService.register(req.body);
       if (device === false) {
-        res.status(401);
+        res.status(401).json({ status: 'unauthorized' });
       } else {
         res.status(201).json(device);
       }

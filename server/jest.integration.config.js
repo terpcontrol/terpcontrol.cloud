@@ -17,4 +17,7 @@ module.exports = {
   // keeps rate limits, MQTT traffic and admin-visible listings predictable.
   maxWorkers: 1,
   testTimeout: 30_000,
+  // MQTT clients keep the event loop alive after a failed assertion skips their
+  // cleanup; without this a red run hangs instead of reporting.
+  forceExit: true,
 };
