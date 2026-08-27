@@ -31,8 +31,10 @@ export const VALID_OUTPUTS = ['heater', 'dehumidifier', 'co2', 'light', 'fan', '
 const DURATION = /^-?(?:\d+(?:ns|us|µs|ms|s|m|h|d|w|mo|y))+$/;
 // `from` and `to` also take an absolute time, and `to` is usually `now()`.
 const RFC3339 = /^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})$/;
-// A field name as the firmware reports it, and a device id as the server issues it.
-const FIELD_NAME = /^[A-Za-z0-9_]{1,64}$/;
+// A field name as this service writes it - `out_` plus an output name, and
+// three of those are hyphenated (`out_fan-internal`) - and a device id as the
+// server issues it.
+const FIELD_NAME = /^[A-Za-z0-9_-]{1,64}$/;
 const DEVICE_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
 
 const requireMatch = (value: unknown, pattern: RegExp, name: string): string => {

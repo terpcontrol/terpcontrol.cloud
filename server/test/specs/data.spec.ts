@@ -180,6 +180,20 @@ describe('GET /data/series/:device_id/:measure', () => {
       await series('temperature', { from: '-30d', to: 'now()', interval: '5s' }).expect(201);
       await series('out_light', { from: '-1h30m', interval: '1w' }).expect(201);
     });
+
+    it('reads the outputs whose names carry a hyphen', async () => {
+      // `out_` plus the output name, and three of those are hyphenated.
+      await seedMeasurements([
+        { time: minutesAgo(5) + 10_000, device_id: device.deviceId, fields: { 'out_fan-internal': 1 } },
+        { time: Date.now() - 30_000, device_id: device.deviceId, fields: { 'out_fan-internal': 1 } },
+      ]);
+
+      const response = await series('out_fan-internal').expect(201);
+      expect(definedValues(response.body)[0]._value).toBe(1);
+
+      const latest = await owner.client.get(`/data/latest/${device.deviceId}/out_fan-internal`).expect(201);
+      expect(latest.body.value).toBe(1);
+    });
   });
 });
 
