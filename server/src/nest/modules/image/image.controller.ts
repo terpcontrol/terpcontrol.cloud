@@ -76,7 +76,7 @@ export class ImageController {
 
   @Post(':device_id')
   @HttpCode(HttpStatus.CREATED)
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Add a photo to the device´s diary' })
   public async upload(@Param('device_id') deviceId: string, @Body() body: { image?: unknown; timestamp?: unknown }) {
@@ -93,7 +93,7 @@ export class ImageController {
 
   @Post('test/:device_id')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'Read one frame from a webcam stream, to check the settings' })
   public async testWebcam(
     @Param('device_id') deviceId: string,

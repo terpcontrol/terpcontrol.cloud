@@ -14,7 +14,7 @@ export class DeviceRecipeController {
   constructor(private readonly recipes: DeviceRecipeService) {}
 
   @Get('recipe/:device_id')
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'The plan a device is running' })
   public async forDevice(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string): Promise<Recipe> {
     const recipe = await this.recipes.forDevice(deviceId);
@@ -23,7 +23,7 @@ export class DeviceRecipeController {
 
   @Post('recipe')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body', 'error')
   @ApiOperation({ summary: 'Store the plan a device should run' })
   public async save(@Body() body: { device_id: string; recipe?: RecipePayload }) {

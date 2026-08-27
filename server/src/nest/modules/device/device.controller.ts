@@ -128,7 +128,7 @@ export class DeviceController {
   }
 
   @Get('config/:device_id')
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'The configuration the device is running' })
   public async config(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string, @Res() reply: FastifyReply): Promise<void> {
     const configuration = await deviceService.getDeviceConfig(deviceId, user.userId, user.isAdmin, user.isDemo);
@@ -140,7 +140,7 @@ export class DeviceController {
 
   @Post('configure')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Send a new configuration to the device' })
   public async configure(@CurrentUser() user: AuthContext, @Body(zodBody(configureDeviceSchema)) body: ConfigureDevice) {
@@ -149,7 +149,7 @@ export class DeviceController {
   }
 
   @Get('alarms/:device_id')
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'The alarms defined for the device' })
   public alarms(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string) {
     return deviceService.getDeviceAlarms(deviceId, user.userId, user.isAdmin, user.isDemo);
@@ -157,7 +157,7 @@ export class DeviceController {
 
   @Post('alarms')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Replace the alarms of a device' })
   public async setAlarms(@CurrentUser() user: AuthContext, @Body() body: { device_id: string; alarms: Alarm[] }) {
@@ -166,6 +166,8 @@ export class DeviceController {
   }
 
   @Get('cloudsettings/:device_id')
+  // No session guard in front: this route has always answered the device check
+  // itself, so an anonymous caller gets its refusal rather than a JSON 401.
   @UseGuards(DeviceOwnerGuard)
   @ApiOperation({ summary: 'What the cloud knows about the device, and how it is set up' })
   public async cloudSettings(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string) {
@@ -180,7 +182,7 @@ export class DeviceController {
 
   @Post('cloudsettings')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Change the cloud-side settings of a device' })
   public async setCloudSettings(@CurrentUser() user: AuthContext, @Body() body: { device_id: string; cloud_settings: CloudSettings }) {
@@ -190,7 +192,7 @@ export class DeviceController {
 
   @Post('setname')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Rename a device' })
   public async setName(@CurrentUser() user: AuthContext, @Body(zodBody(setNameSchema)) body: SetName) {
@@ -200,7 +202,7 @@ export class DeviceController {
 
   @Post('test/:device_id')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'Drive the outputs by hand, to check the wiring' })
   public async testMode(@Param('device_id') deviceId: string, @Body(zodBody(testDeviceSchema)) body: TestDevice) {
     await deviceService.testOutputs(deviceId, body);
@@ -208,7 +210,7 @@ export class DeviceController {
   }
 
   @Delete('test/:device_id')
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'Hand the outputs back to the device' })
   public async stopTest(@Param('device_id') deviceId: string) {
     await deviceService.stopTest(deviceId);
@@ -217,7 +219,7 @@ export class DeviceController {
 
   @Post('maintenancemode')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Suppress alarms while somebody is working on the tent' })
   public async maintenanceMode(@Body() body: { device_id: string; duration_minutes?: number }) {
@@ -227,7 +229,7 @@ export class DeviceController {
 
   @Post('reboot')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Restart the device' })
   public async reboot(@Body() body: { device_id: string }) {
@@ -237,7 +239,7 @@ export class DeviceController {
 
   @Post('auxcommand')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Command a smart socket or the camera the device manages' })
   public async auxCommand(
@@ -256,7 +258,7 @@ export class DeviceController {
   // Last of the /device routes: a bare parameter would otherwise swallow the
   // static ones above it.
   @Delete(':device_id')
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'Release a device, so somebody else can claim it' })
   public async unclaim(@Param('device_id') deviceId: string) {
     await deviceService.unClaimDevice(deviceId);

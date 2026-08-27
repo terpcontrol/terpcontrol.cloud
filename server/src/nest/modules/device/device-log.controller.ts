@@ -86,7 +86,7 @@ export class DeviceLogController {
 
   @Post(':device_id')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'Add an entry to the diary' })
   public async add(@Param('device_id') deviceId: string, @Body(zodBodyAsError(createLogSchema)) body: LogEntry) {
     await deviceService.logMessage(deviceId, { ...body, severity: Number(body.severity) });
@@ -94,7 +94,7 @@ export class DeviceLogController {
   }
 
   @Put(':device_id/:log_id')
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'Edit a diary entry' })
   public async update(
     @CurrentUser() user: AuthContext,
@@ -107,7 +107,7 @@ export class DeviceLogController {
   }
 
   @Delete(':device_id/:log_id')
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'Delete one diary entry' })
   public async remove(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string, @Param('log_id') logId: string) {
     await deviceService.deleteDeviceLog(deviceId, user.userId, user.isAdmin, logId);

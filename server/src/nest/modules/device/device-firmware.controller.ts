@@ -19,7 +19,7 @@ import { FastifyReply } from 'fastify';
 import { DeviceClass, DeviceFirmware, UserFirmwareList } from '@fg2/shared-types';
 import { HttpException } from '@exceptions/HttpException';
 import { deviceService } from '@services/device.service';
-import { AdminGuard } from '../../common/auth/auth.guard';
+import { AdminGuard, AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { DeviceOwnerGuard } from '../../common/auth/device-access.guard';
 import { AuthContext } from '../../common/auth/token.service';
@@ -114,7 +114,7 @@ export class DeviceFirmwareController {
   }
 
   @Get('firmwares/:device_id')
-  @UseGuards(DeviceOwnerGuard)
+  @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'The firmware versions this device can run' })
   public forDevice(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string): Promise<UserFirmwareList> {
     return deviceService.listFirmwaresForDevice(deviceId, user.userId, user.isDemo);

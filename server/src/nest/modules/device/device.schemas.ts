@@ -61,16 +61,18 @@ export const addDeviceClassSchema = z
   .strict();
 
 /**
- * Sent as multipart, with the build's first image alongside the fields, so
- * unknown keys are ignored rather than refused: the uploaded parts share the
- * body with them.
+ * The webapp sends this as a multipart form with the build's first image
+ * attached, and Fastify puts uploaded parts on the body - so the file is named
+ * here rather than the whole payload being left unchecked. The build CLI sends
+ * the two fields alone.
  */
 export const addFirmwareSchema = z
   .object({
     name: requiredString('name'),
     version: requiredString('version'),
+    file: z.unknown().optional(),
   })
-  .loose();
+  .strict();
 
 export type AddDevice = z.infer<typeof addDeviceSchema>;
 export type RegisterDevice = z.infer<typeof registerDeviceSchema>;

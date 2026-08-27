@@ -104,6 +104,30 @@ describe('what Express used to accept', () => {
   });
 });
 
+describe('refusing a caller', () => {
+  it('answers a missing session with the JSON body clients parse', async () => {
+    const response = await anonymous().post('/device/setname').send({ device_id: 'whatever', name: 'x' }).expect(401);
+
+    expect(response.headers['content-type']).toMatch(/application\/json/);
+    expect(response.body.message).toBe('Authentication token missing');
+  });
+
+  it('checks the session before the payload', async () => {
+    // A caller with no session hears about that, not about the field it forgot.
+    await anonymous().post('/device/setname').send({}).expect(401);
+  });
+
+  it('answers a device that is not the caller´s with the plain text it always did', async () => {
+    const stranger = await createAccount('refusal-stranger');
+    const owner = await createAccount('refusal-owner');
+    const device = await provisionDevice(owner);
+
+    const response = await stranger.client.post('/device/setname').send({ device_id: device.deviceId, name: 'x' }).expect(403);
+
+    expect(response.text).toBe(`Device ${device.deviceId} not bound to user ${stranger.userId}`);
+  });
+});
+
 describe('deleting a picture', () => {
   it('does not tell a stranger which picture ids exist', async () => {
     const owner = await createAccount('probe-owner');

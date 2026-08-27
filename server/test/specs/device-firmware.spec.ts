@@ -41,6 +41,7 @@ describe('POST /device/firmware', () => {
   it('validates the payload', async () => {
     await admin.client.post('/device/firmware').send({ name: 'fridge' }).expect(400);
     await admin.client.post('/device/firmware').send({ version: '1.0' }).expect(400);
+    await admin.client.post('/device/firmware').send({ name: 'fridge', version: '1.0', surprise: true }).expect(400);
   });
 
   it('is admin-only', async () => {
