@@ -45,6 +45,7 @@ describe('POST /users', () => {
     expect(response.body.message).toBe('created');
     expect(response.body.data.username).toBe(username);
     expect(response.body.data.user_id).toEqual(expect.any(String));
+    expect(response.body.data.password).toBeUndefined();
   });
 
   it('can create another admin', async () => {

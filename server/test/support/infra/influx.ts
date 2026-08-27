@@ -1,4 +1,8 @@
+import { execFile } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
 import { createServer, IncomingMessage, Server, ServerResponse } from 'node:http';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { parseFlux, runQuery } from './flux';
 import { InfluxPoint, InfluxStore, MailStore } from './stores';
 
@@ -104,6 +108,29 @@ const json = (res: ServerResponse, status: number, payload: unknown): void => {
   res.end(body);
 };
 
+/**
+ * A short clip with regular keyframes, built once. The server grabs the next
+ * keyframe with a tiny probe size, so a fixture needs real keyframes rather
+ * than a single still.
+ */
+let videoFixtureBytes: Buffer | undefined;
+
+const videoFixture = async (): Promise<Buffer> => {
+  if (videoFixtureBytes) return videoFixtureBytes;
+
+  const file = join(tmpdir(), 'terpcontrol-test-stream.mp4');
+  await new Promise<void>((resolve, reject) => {
+    execFile(
+      'ffmpeg',
+      ['-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=320x240:rate=10', '-t', '2', '-pix_fmt', 'yuv420p', '-g', '10', file],
+      error => (error ? reject(error) : resolve()),
+    );
+  });
+
+  videoFixtureBytes = await readFile(file);
+  return videoFixtureBytes;
+};
+
 export interface FakeInfluxOptions {
   influx: InfluxStore;
   mail: MailStore;
@@ -125,6 +152,15 @@ export const startFakeInflux = async (options: FakeInfluxOptions): Promise<{ url
 
     try {
       if (path === '/health' || path === '/ping') return json(res, 200, { status: 'pass' });
+
+      // Something ffmpeg can read a frame out of, so the webcam test button has
+      // a success path without a camera on the network.
+      if (path === '/__control/stream.mp4' && req.method === 'GET') {
+        const video = await videoFixture();
+        res.writeHead(200, { 'content-type': 'video/mp4', 'content-length': video.length });
+        res.end(video);
+        return;
+      }
 
       if (path === '/api/v2/write' && req.method === 'POST') {
         const body = await readBody(req);

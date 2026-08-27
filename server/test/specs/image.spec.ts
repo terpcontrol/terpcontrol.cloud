@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { anonymous, ApiClient, createAccount, loginAsAdmin, Session } from '../support/api';
+import { anonymous, ApiClient, context, createAccount, loginAsAdmin, Session } from '../support/api';
 import { DeviceCredentials, provisionDevice } from '../support/device';
 
 let owner: Session;
@@ -229,6 +229,17 @@ describe('DELETE /image/:image_id', () => {
 });
 
 describe('POST /image/test/:device_id', () => {
+  it('answers with a frame read from the stream', async () => {
+    const response = await owner.client
+      .post(`/image/test/${device.deviceId}`)
+      .send({ rtspStream: `${context.controlUrl}/__control/stream.mp4` })
+      .expect(200);
+
+    expect(response.headers['content-type']).toBe('image/jpeg');
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect((await sharp(response.body).metadata()).format).toBe('jpeg');
+  });
+
   it('rejects a request without a stream url', async () => {
     await owner.client.post(`/image/test/${device.deviceId}`).send({}).expect(400);
     await owner.client.post(`/image/test/${device.deviceId}`).send({ rtspStream: '   ' }).expect(400);

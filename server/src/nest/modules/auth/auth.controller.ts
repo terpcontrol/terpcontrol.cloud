@@ -28,7 +28,11 @@ export class AuthController {
   @RateLimited({ limit: 5, windowMs: MINUTE, message: 'Too many sign-up attempts, please try again later.' })
   @ApiOperation({ summary: 'Create an account' })
   public async signUp(@Body(zodBody(signupSchema)) body: Signup) {
-    return { data: await this.auth.signup(body), message: 'signup' };
+    const user = await this.auth.signup(body);
+
+    // Never the password hash, and never the activation code: the endpoint is
+    // open, so anyone could otherwise activate an address they do not own.
+    return { data: { username: user.username, user_id: user.user_id, is_active: user.is_active }, message: 'signup' };
   }
 
   @Post('activate')

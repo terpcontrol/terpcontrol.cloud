@@ -92,6 +92,7 @@ export class ImageController {
   }
 
   @Post('test/:device_id')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(DeviceOwnerGuard)
   @ApiOperation({ summary: 'Read one frame from a webcam stream, to check the settings' })
   public async testWebcam(

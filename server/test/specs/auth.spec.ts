@@ -19,9 +19,13 @@ describe('POST /signup', () => {
     expect(session.isAdmin).toBe(false);
   });
 
-  it('never returns the stored password hash', async () => {
+  it('returns neither the password hash nor the activation code', async () => {
     const response = await anonymous().post('/signup').send({ username: newUsername(), password }).expect(201);
-    expect(response.body.data.password).not.toBe(password);
+
+    // The endpoint is open, so an activation code in the answer would let
+    // anyone activate an address they do not own.
+    expect(response.body.data.password).toBeUndefined();
+    expect(response.body.data.activation_code).toBeUndefined();
   });
 
   it('rejects a username that is already taken', async () => {

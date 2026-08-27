@@ -62,9 +62,10 @@ class UserService {
     if (findUser) throw new HttpException(409, `You're username ${userData.username} already exists`);
 
     const hashedPassword = await hash(userData.password, 10);
-    const createUserData: User = await this.users.create({ ...userData, password: hashedPassword, user_id: uuidv4() });
+    const created = await this.users.create({ ...userData, password: hashedPassword, user_id: uuidv4() });
 
-    return createUserData;
+    const { password: _hash, ...safe } = created.toObject();
+    return safe as unknown as User;
   }
 
   public async updateUser(userId: string, userData: CreateUserDto): Promise<User> {
