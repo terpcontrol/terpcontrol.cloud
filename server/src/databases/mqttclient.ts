@@ -1,4 +1,4 @@
-import { MQTT_URL, MQTT_USER, MQTT_PASSWORD } from '@config';
+import { MQTT_URL, MQTT_PORT, MQTT_USER, MQTT_PASSWORD } from '@config';
 import { Subject } from 'rxjs';
 const mqtt = require('mqtt');
 import { v4 as uuidv4 } from 'uuid';
@@ -28,10 +28,11 @@ class MqttClient {
   }
 
   public connect() {
-    console.log('connecting to mqtt server ' + MQTT_URL + ':1883');
+    const port = MQTT_PORT || '1883';
+    console.log('connecting to mqtt server ' + MQTT_URL + ':' + port);
     return new Promise<void>((resolve, reject) => {
       let connected = false;
-      this.client = mqtt.connect('mqtt://' + MQTT_URL + ':1883', { username: this.internal_user, password: this.internal_password });
+      this.client = mqtt.connect('mqtt://' + MQTT_URL + ':' + port, { username: this.internal_user, password: this.internal_password });
 
       this.client.on('connect', function () {
         if (!connected) {

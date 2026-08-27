@@ -1,5 +1,5 @@
 import { InfluxDB, Point } from '@influxdata/influxdb-client';
-import { INFLUXDB_BUCKET, INFLUXDB_ORG, INFLUXDB_TOKEN } from '@/config';
+import { INFLUXDB_BUCKET, INFLUXDB_HOST, INFLUXDB_ORG, INFLUXDB_TOKEN, INFLUXDB_URL } from '@/config';
 import { deviceService, StatusMessage } from '@services/device.service';
 import { calculateVpd } from '@utils/calculateVpd';
 import imageModel from '@models/images.model';
@@ -8,7 +8,8 @@ import { Image } from '@fg2/shared-types';
 const INFLUXDB_DB = 'devices';
 // You can generate a Token from the "Tokens Tab" in the UI
 
-const influxdb_client = new InfluxDB({ url: 'http://influxdb:8086', token: INFLUXDB_TOKEN });
+const influxdb_url = INFLUXDB_URL || `http://${INFLUXDB_HOST || 'influxdb'}:8086`;
+const influxdb_client = new InfluxDB({ url: influxdb_url, token: INFLUXDB_TOKEN });
 export const VALID_SENSORS = ['temperature', 'humidity', 'avg', 'p', 'i', 'd', 'co2', 'rpm', 'day', 'sensor_type', 'leaf_temperature', 'lux'];
 
 // Lux→PPFD depends on the light spectrum, so it is a per-device calibration
