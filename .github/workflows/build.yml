@@ -85,6 +85,8 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
           cache-dependency-path: server/package-lock.json
+      # The integration suite shells out to these the way the container does.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends imagemagick ffmpeg
       - run: |
           cd server/
           npm ci
@@ -94,6 +96,8 @@ jobs:
             exit 1
           fi
           npm run build
+          # Against the compiled output, which is what the container ships.
+          HARNESS_BUILT=1 npm test
 
   docker-server:
     needs: detect

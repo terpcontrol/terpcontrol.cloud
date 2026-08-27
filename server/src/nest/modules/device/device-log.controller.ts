@@ -35,13 +35,23 @@ const entryFields = {
 
 const hasText = (entry: { title?: string; message?: string }) => !!entry.title || !!entry.message;
 
+/**
+ * A query flag, as clients actually send it: the webapp uses `1` and an empty
+ * string, and the documented parameter should also read `false` as false rather
+ * than as a non-empty string.
+ */
+const isTruthy = (value: string | undefined): boolean => value !== undefined && value !== '' && value !== 'false' && value !== '0';
+
+/** A falsy time was refused before and still is: the diary is sorted by it. */
+const requiredTime = z.union([z.number().refine(value => value !== 0, { error: 'is required' }), z.string().min(1)]);
+
 const createLogSchema = z
-  .object({ ...entryFields, time: z.union([z.number(), z.string()]) })
+  .object({ ...entryFields, time: requiredTime })
   .loose()
   .refine(hasText, { error: 'Invalid log entry payload' });
 
 const updateLogSchema = z
-  .object({ ...entryFields, time: z.union([z.number(), z.string()]).optional() })
+  .object({ ...entryFields, time: requiredTime.optional() })
   .loose()
   .refine(hasText, { error: 'Invalid log entry payload' });
 
@@ -67,7 +77,7 @@ export class DeviceLogController {
       deviceId,
       Number(query.from ?? 0),
       Number(query.to ?? 0),
-      Boolean(query.deleted ?? false),
+      isTruthy(query.deleted),
       query.categories ? String(query.categories).split(',') : undefined,
     );
 

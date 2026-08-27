@@ -62,8 +62,10 @@ describe('POST /device/logs/:device_id', () => {
     await addEntry(device, { categories: undefined }).expect(400);
   });
 
-  it('rejects an entry without a time', async () => {
+  it('rejects an entry without a usable time', async () => {
     await addEntry(device, { time: undefined }).expect(400);
+    await addEntry(device, { time: 0 }).expect(400);
+    await addEntry(device, { time: '' }).expect(400);
   });
 
   it('refuses a device the caller does not own', async () => {
@@ -115,6 +117,20 @@ describe('GET /device/logs/:device_id', () => {
 
     const logs = await owner.client.get(`/device/logs/${fresh.deviceId}`).expect(200);
     expect(logs.body[0].categories).toEqual(['diary']);
+  });
+
+  it('reads the deleted flag the way clients send it', async () => {
+    const fresh = await provisionDevice(owner);
+    await addEntry(fresh, { message: 'Visible' }).expect(200);
+    await addEntry(fresh, { message: 'Hidden', deleted: true }).expect(200);
+
+    for (const value of ['', 'false', '0']) {
+      const response = await owner.client.get(`/device/logs/${fresh.deviceId}`).query({ deleted: value }).expect(200);
+      expect(response.body.map((log: { message: string }) => log.message)).toEqual(['Visible']);
+    }
+
+    const included = await owner.client.get(`/device/logs/${fresh.deviceId}`).query({ deleted: '1' }).expect(200);
+    expect(included.body).toHaveLength(2);
   });
 
   it('hides deleted entries unless they are asked for', async () => {

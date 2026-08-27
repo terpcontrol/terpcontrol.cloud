@@ -1,9 +1,7 @@
 /**
  * Black-box integration suite. Boots the API as a real process against a real
- * MongoDB and MQTT broker, with InfluxDB and SMTP replaced by fakes that the
- * specs can inspect. TARGET selects the implementation under test, so the same
- * suite is the contract for both the legacy Express app and its NestJS
- * replacement.
+ * MongoDB and MQTT broker, with InfluxDB and SMTP replaced by fakes the specs
+ * can inspect. See test/README.md.
  */
 module.exports = {
   preset: 'ts-jest',
