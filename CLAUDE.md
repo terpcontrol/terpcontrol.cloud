@@ -26,11 +26,15 @@ Worth knowing:
 - `API_URL_EXTERNAL` is compiled into the webapp bundle, so changing it needs `docker compose up --build -d webapp`.
 - Anything host-side (`simulate-device.sh`, `webapp/`, `server/`) needs Node 18+; the containers bring their own.
 - `docker compose down --volumes` throws the databases away and gives you an empty stack again.
-- The first build takes about ten minutes, nearly all of it the webapp bundle. Afterwards the layers are cached:
-  bringing the stack back up is seconds, and only the subproject you touched needs `--build`. To iterate on the
-  webapp faster, skip the container entirely and run `npm start` in `webapp/` against the containerised API.
-- The webapp is what makes the build slow. Work driven through the API or `./simulate-device.sh` alone does not
-  need it: `docker compose up --build -d server rabbitmq mongodb influxdb` leaves the bundle unbuilt.
+- Nearly all of a first build is the webapp bundle - about ten of the ten minutes. Nothing else in the stack is
+  expensive, and the layers are cached afterwards, so a later bring-up is seconds and only the subproject you
+  touched needs `--build`.
+- Prefer not to build the webapp image at all. `docker compose up --build -d server rabbitmq mongodb influxdb`
+  brings up everything a device and the API need, and `npm start` in `webapp/` then serves the UI from the host
+  against that stack on `http://localhost:4200`: the first compile is under a minute, and every later edit
+  rebuilds on save rather than rebuilding an image. `npm start` writes `src/environments/environment.ts` from
+  `API_URL_EXTERNAL` itself, so the dev server needs no pointing. Build the image when the production bundle is
+  what you are checking, and not otherwise.
 
 ### In a sandboxed agent session
 
@@ -60,13 +64,14 @@ DOCKER_NODE_BUILD_IMAGE=node:20-alpine-proxyca
 EOF
 ```
 
-The other images pull ready-made or build without the network, so they need nothing. From here the normal
-`docker compose up --build -d --remove-orphans` runs through.
+The other images pull ready-made or build without the network, so they need nothing. From here the compose
+commands above run through.
 
-Driving the webapp from such a session works with the Chromium that is already installed, but Playwright pins a
-browser build the image may not carry - pass its path as `executablePath` instead of downloading one. Log in by
-clicking the LOGIN button; submitting the form with the Enter key does nothing. Google Fonts is usually blocked,
-which costs the page its font and nothing else.
+The same applies harder here: building the webapp image costs most of the session's first ten minutes, so bring up
+the four backend services and serve the UI with `npm start` instead. Driving it works with the Chromium that is
+already installed, but Playwright pins a browser build the image may not carry - pass its path as `executablePath`
+instead of downloading one. Log in by clicking the LOGIN button; submitting the form with the Enter key does
+nothing. Google Fonts is usually blocked, which costs the page its font and nothing else.
 
 ## Simulating a device
 
