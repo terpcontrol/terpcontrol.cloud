@@ -134,6 +134,8 @@ const videoFixture = async (): Promise<Buffer> => {
 export interface FakeInfluxOptions {
   influx: InfluxStore;
   mail: MailStore;
+  /** Lets a spec take the MQTT broker away and bring it back. */
+  bounceBroker: (downMs?: number) => Promise<void>;
   /** Overridable so time-dependent assertions can pin "now". */
   now?: () => number;
 }
@@ -214,6 +216,12 @@ export const startFakeInflux = async (options: FakeInfluxOptions): Promise<{ url
 
       if (path === '/__control/mail/reset' && req.method === 'POST') {
         options.mail.reset();
+        return json(res, 200, { ok: true });
+      }
+
+      if (path === '/__control/mqtt/bounce' && req.method === 'POST') {
+        const downMs = Number(url.searchParams.get('downMs'));
+        await options.bounceBroker(Number.isFinite(downMs) && downMs > 0 ? downMs : undefined);
         return json(res, 200, { ok: true });
       }
 

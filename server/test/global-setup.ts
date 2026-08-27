@@ -36,7 +36,7 @@ export default async (): Promise<void> => {
   const mongoUri = mongo.getUri().replace('mongodb://', `mongodb://${ROOT_USER}:${ROOT_PASSWORD}@`);
 
   const broker = await startMqttBroker();
-  const influx = await startFakeInflux({ influx: influxStore, mail: mailStore });
+  const influx = await startFakeInflux({ influx: influxStore, mail: mailStore, bounceBroker: () => broker.bounce() });
   const smtp = await startFakeSmtp(mailStore);
   const port = await freePort();
 
@@ -78,8 +78,7 @@ export default async (): Promise<void> => {
     await app.stop();
     await new Promise<void>(resolve => smtp.server.close(() => resolve()));
     await new Promise<void>(resolve => influx.server.close(() => resolve()));
-    await new Promise<void>(resolve => broker.aedes.close(() => resolve()));
-    await new Promise<void>(resolve => broker.server.close(() => resolve()));
+    await broker.close();
     await mongo.stop();
   };
 };

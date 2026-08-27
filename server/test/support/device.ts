@@ -130,6 +130,12 @@ export class DeviceSimulator {
     this.received.length = 0;
   }
 
+  /** Reconnects after the broker went away, the way real firmware would. */
+  public async reconnect(): Promise<void> {
+    await this.close();
+    await this.connect();
+  }
+
   public async close(): Promise<void> {
     await new Promise<void>(resolve => this.client.end(true, {}, () => resolve()));
   }

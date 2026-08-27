@@ -53,8 +53,16 @@ class MqttClient {
         console.log('mqtt error!');
         console.log(error.toString());
 
+        // Once the handshake has succeeded the client reconnects by itself, and
+        // a broker restart is one of these: ending it here would stop it doing
+        // so for good, leaving the server with no way to reach any device.
+        if (connected) {
+          return;
+        }
+
+        // Never up: the caller decides when to try again, so this one stops
+        // retrying rather than being left running alongside the next attempt.
         reject(error);
-        // Stop this one retrying by itself; the caller decides when to try again.
         client.end(true);
       });
 
