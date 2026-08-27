@@ -1,6 +1,7 @@
 import { Controller, Get, HttpCode, HttpStatus, Res } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
+import { ADMINUSER_USERNAME } from '@/config';
 import userModel from '@models/users.model';
 
 @ApiTags('service')
@@ -19,7 +20,9 @@ export class HealthController {
   @ApiResponse({ status: 200, description: 'The admin account exists, so the database is reachable and seeded.' })
   @ApiResponse({ status: 501, description: 'The admin account is missing.' })
   public async readiness(@Res() reply: FastifyReply): Promise<void> {
-    const admin = await userModel.findOne({ username: 'admin' });
+    // The account the server seeds on start, which is named by the deployment
+    // and is not always called "admin".
+    const admin = await userModel.findOne({ username: ADMINUSER_USERNAME });
     // 501 is what the probe has always answered; changing it would need the
     // deployment's health checks to change with it.
     await reply.status(admin ? HttpStatus.OK : HttpStatus.NOT_IMPLEMENTED).send(admin ? 'OK' : 'Not Implemented');

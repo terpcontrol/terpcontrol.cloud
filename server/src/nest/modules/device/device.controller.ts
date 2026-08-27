@@ -30,8 +30,12 @@ import {
   claimDeviceSchema,
   ConfigureDevice,
   configureDeviceSchema,
+  MaintenanceMode,
+  maintenanceModeSchema,
   RegisterDevice,
   registerDeviceSchema,
+  SetAlarms,
+  setAlarmsSchema,
   SetName,
   setNameSchema,
   TestDevice,
@@ -160,8 +164,8 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Replace the alarms of a device' })
-  public async setAlarms(@CurrentUser() user: AuthContext, @Body() body: { device_id: string; alarms: Alarm[] }) {
-    await deviceService.setDeviceAlarms(body.device_id, user.userId, body.alarms);
+  public async setAlarms(@CurrentUser() user: AuthContext, @Body(zodBody(setAlarmsSchema)) body: SetAlarms) {
+    await deviceService.setDeviceAlarms(body.device_id, user.userId, body.alarms as unknown as Alarm[]);
     return OK;
   }
 
@@ -222,8 +226,8 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Suppress alarms while somebody is working on the tent' })
-  public async maintenanceMode(@Body() body: { device_id: string; duration_minutes?: number }) {
-    await deviceService.activateMaintenanceMode(body.device_id, body.duration_minutes || 0);
+  public async maintenanceMode(@Body(zodBody(maintenanceModeSchema)) body: MaintenanceMode) {
+    await deviceService.activateMaintenanceMode(body.device_id, body.duration_minutes);
     return OK;
   }
 

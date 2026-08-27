@@ -42,8 +42,18 @@ const hasText = (entry: { title?: string; message?: string }) => !!entry.title |
  */
 const isTruthy = (value: string | undefined): boolean => value !== undefined && value !== '' && value !== 'false' && value !== '0';
 
-/** A falsy time was refused before and still is: the diary is sorted by it. */
-const requiredTime = z.union([z.number().refine(value => value !== 0, { error: 'is required' }), z.string().min(1)]);
+/**
+ * A falsy time is refused, as it always was: the diary is sorted by it. So is a
+ * string that is not a date - the app sends an ISO timestamp and the firmware
+ * does too, and anything else used to reach mongoose and fail there as a 500.
+ */
+const requiredTime = z.union([
+  z.number().refine(value => value !== 0, { error: 'is required' }),
+  z
+    .string()
+    .min(1)
+    .refine(value => !Number.isNaN(new Date(value).getTime()), { error: 'must be a date' }),
+]);
 
 const createLogSchema = z
   .object({ ...entryFields, time: requiredTime })

@@ -284,6 +284,26 @@ describe('device classes', () => {
     expect(updated.body).toMatchObject({ description: 'An updated class', concurrent: 7, maxfails: 3 });
   });
 
+  it('reads an empty beta or alpha channel sent as null', async () => {
+    const name = unique('class');
+    const payload = {
+      name,
+      description: 'No pre-release builds',
+      firmware_id: '',
+      concurrent: 1,
+      maxfails: 1,
+      beta_firmware_id: null,
+      alpha_firmware_id: null,
+    };
+
+    // What the admin page posts back for a class that has neither, which the
+    // page reads out of the class it was given.
+    await admin.client.post('/device/class').send(payload).expect(200);
+
+    const created = await admin.client.get(`/device/class/find/${name}`).expect(200);
+    await admin.client.post(`/device/class/${created.body.class_id}`).send(payload).expect(200);
+  });
+
   it('validates the class payload', async () => {
     await admin.client.post('/device/class').send({ name: unique('class'), description: 'x' }).expect(400);
     await admin.client

@@ -118,6 +118,14 @@ describe('POST /device/maintenancemode', () => {
     expect(entry.maintenance_mode_seconds_left).toBe(0);
   });
 
+  it('refuses a duration that is not a number, before the device hears about it', async () => {
+    await owner.client.post('/device/maintenancemode').send({ device_id: device.deviceId, duration_minutes: 'half an hour' }).expect(400);
+    await owner.client.post('/device/maintenancemode').send({ device_id: device.deviceId, duration_minutes: -5 }).expect(400);
+
+    await settle(200);
+    expect(commandsSeen()).toHaveLength(0);
+  });
+
   it('refuses a device the caller does not own', async () => {
     const stranger = await createAccount('control-maintenance-stranger');
     await stranger.client.post('/device/maintenancemode').send({ device_id: device.deviceId, duration_minutes: 5 }).expect(403);

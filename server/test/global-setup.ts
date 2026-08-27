@@ -10,7 +10,9 @@ import { InfluxStore, MailStore } from './support/infra/stores';
 const ROOT_USER = 'root';
 const ROOT_PASSWORD = 'root-password';
 
-const ADMIN = { username: 'admin', password: 'admin-password-1!' };
+// Deliberately not "admin": a deployment names the seeded account, and nothing
+// in the server may assume what it is called.
+const ADMIN = { username: 'operator@test.invalid', password: 'admin-password-1!' };
 const MQTT_AUTH_SECRET = 'integration-mqtt-auth-secret';
 const AUTOMATION_TOKEN = 'integration-automation-token';
 const SELF_REGISTRATION_PASSWORD = 'let-me-in';

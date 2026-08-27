@@ -1,7 +1,7 @@
 import { request as httpRequest } from 'node:http';
 import sharp from 'sharp';
 import { anonymous, context, createAccount, demoSession, loginAsAdmin, Session, unique } from '../support/api';
-import { provisionDevice } from '../support/device';
+import { provisionDevice, registerDevice } from '../support/device';
 
 /**
  * What the HTTP layer promises, independent of any one endpoint: the plugin
@@ -124,6 +124,20 @@ describe('what Express used to accept', () => {
     await anonymous()
       .get(`/image/${device.deviceId}?format=jpeg&token=nonsense&token=${owner.imageToken}`)
       .expect(200);
+  });
+
+  it('takes the last value of a repeated form field as well', async () => {
+    const device = await registerDevice();
+
+    // hpp() collapsed a form-encoded body too. The password is handed to bcrypt,
+    // which wants a string: an array is a 500 where the broker expects a verdict.
+    const response = await anonymous()
+      .post(`/mqttauth/${context.mqttAuthSecret}/user`)
+      .type('form')
+      .send(`username=${encodeURIComponent(device.username)}&password=wrong&password=${encodeURIComponent(device.password)}&vhost=/`)
+      .expect(200);
+
+    expect(response.text).toBe('allow');
   });
 });
 

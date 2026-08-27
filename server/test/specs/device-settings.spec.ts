@@ -130,6 +130,16 @@ describe('device alarms', () => {
     expect(response.body).toEqual([]);
   });
 
+  it('refuses a list that is not one, leaving the stored alarms alone', async () => {
+    await owner.client.post('/device/alarms').send({ device_id: device.deviceId, alarms: [alarm] }).expect(200);
+
+    await owner.client.post('/device/alarms').send({ device_id: device.deviceId, alarms: 'none' }).expect(400);
+    await owner.client.post('/device/alarms').send({ device_id: device.deviceId }).expect(400);
+
+    const response = await owner.client.get(`/device/alarms/${device.deviceId}`).expect(200);
+    expect(response.body).toHaveLength(1);
+  });
+
   it('refuses a device the caller does not own', async () => {
     const stranger = await createAccount('settings-alarm-stranger');
     await stranger.client.post('/device/alarms').send({ device_id: device.deviceId, alarms: [alarm] }).expect(403);

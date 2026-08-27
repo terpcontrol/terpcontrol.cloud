@@ -51,23 +51,33 @@ const registerBodyParsers = (app: NestFastifyApplication): void => {
   });
 
   app.useBodyParser('application/x-www-form-urlencoded', { bodyLimit: fastify.initialConfig.bodyLimit }, (_request, body: Buffer, done) => {
-    done(null, parseQueryString(body.toString()));
+    const fields = parseQueryString(body.toString());
+    collapseRepeatedValues(fields);
+    done(null, fields);
   });
 };
 
 /**
- * `hpp()` collapsed a repeated query parameter to its last value; Fastify hands
- * over an array, which every reader here would reject. A duplicated `?token=`
- * or `?share=` comes out of a client building its URL badly, not an attack, and
+ * `hpp()` collapsed a repeated field to its last value in the query string and
+ * in a form-encoded body alike. Both readers here - RabbitMQ's auth backend and
+ * the firmware build CLI - expect a string, so a duplicated field has to arrive
+ * as one rather than as an array.
+ */
+const collapseRepeatedValues = (values: Record<string, unknown>): void => {
+  for (const [key, value] of Object.entries(values)) {
+    if (Array.isArray(value) && value.length > 0) {
+      values[key] = value[value.length - 1];
+    }
+  }
+};
+
+/**
+ * The other half of `hpp()`: a repeated query parameter arrives from Fastify as
+ * an array, which every reader here would reject. A duplicated `?token=` or
+ * `?share=` comes out of a client building its URL badly, not an attack, and
  * used to work.
  */
 const collapseRepeatedQueryParameters = (request: FastifyRequest): void => {
   const query = request.query as Record<string, unknown> | undefined;
-  if (!query) return;
-
-  for (const [key, value] of Object.entries(query)) {
-    if (Array.isArray(value) && value.length > 0) {
-      query[key] = value[value.length - 1];
-    }
-  }
+  if (query) collapseRepeatedValues(query);
 };

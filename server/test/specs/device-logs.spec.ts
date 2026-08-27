@@ -66,6 +66,17 @@ describe('POST /device/logs/:device_id', () => {
     await addEntry(device, { time: undefined }).expect(400);
     await addEntry(device, { time: 0 }).expect(400);
     await addEntry(device, { time: '' }).expect(400);
+    await addEntry(device, { time: 'yesterday' }).expect(400);
+  });
+
+  it('takes the ISO timestamp the device sends', async () => {
+    const fresh = await provisionDevice(owner);
+    const when = new Date(Date.now() - 120_000);
+
+    await addEntry(fresh, { time: when.toISOString() }).expect(200);
+
+    const logs = await owner.client.get(`/device/logs/${fresh.deviceId}`).expect(200);
+    expect(new Date(logs.body[0].time).getTime()).toBe(when.getTime());
   });
 
   it('refuses a device the caller does not own', async () => {
