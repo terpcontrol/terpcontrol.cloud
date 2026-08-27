@@ -30,11 +30,18 @@ class MqttClient {
   public connect() {
     const port = MQTT_PORT || '1883';
     console.log('connecting to mqtt server ' + MQTT_URL + ':' + port);
+
+    // A client from an earlier attempt keeps reconnecting on its own, so it has
+    // to go before another one is made: otherwise a broker outage leaves one
+    // more of them running after every retry.
+    this.client?.end(true);
+
     return new Promise<void>((resolve, reject) => {
       let connected = false;
-      this.client = mqtt.connect('mqtt://' + MQTT_URL + ':' + port, { username: this.internal_user, password: this.internal_password });
+      const client = mqtt.connect('mqtt://' + MQTT_URL + ':' + port, { username: this.internal_user, password: this.internal_password });
+      this.client = client;
 
-      this.client.on('connect', function () {
+      client.on('connect', function () {
         if (!connected) {
           console.log('mqtt connected');
           resolve();
@@ -42,17 +49,16 @@ class MqttClient {
         }
       });
 
-      this.client.on('error', function (error) {
+      client.on('error', error => {
         console.log('mqtt error!');
-        // message is Buffer
         console.log(error.toString());
-        // resolve();
 
         reject(error);
-        this.client?.end();
+        // Stop this one retrying by itself; the caller decides when to try again.
+        client.end(true);
       });
 
-      this.client.on('message', async (topic, message) => {
+      client.on('message', async (topic, message) => {
         this.messages.next({ topic: topic, message: message });
       });
     });

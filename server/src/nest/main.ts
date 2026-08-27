@@ -15,10 +15,10 @@ import { registerAccessLog } from './access-log';
 import { registerHttpCompatibility } from './http-compatibility';
 import { setupOpenApi } from './openapi';
 
-// The device-facing work runs on timers and MQTT callbacks, where an error has
-// no caller to reach. Recording it here is what makes it findable afterwards;
-// the logger's error transport handles exceptions itself and ends the process,
-// so the supervisor restarts a server that has been left in an unknown state.
+// The device-facing work runs on timers and MQTT callbacks, where a throw has
+// no caller to reach. This is the record it leaves: the logger's error
+// transport handles exceptions itself and ends the process once it has flushed
+// them, so the supervisor restarts a server left in an unknown state.
 process.on('uncaughtException', (error, origin) => {
   logger.error(`Uncaught exception (${origin}): ${error?.stack ?? error}`);
 });
