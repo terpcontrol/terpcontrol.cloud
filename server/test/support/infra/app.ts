@@ -64,8 +64,8 @@ const buildEnv = (environment: AppEnvironment): NodeJS.ProcessEnv => {
     SMTP_SERVER: '127.0.0.1',
     SMTP_PORT: String(environment.smtpPort),
     SMTP_SECURE: 'false',
-    SMTP_USER: '',
-    SMTP_PASSWORD: '',
+    SMTP_USER: 'smtp-test-user',
+    SMTP_PASSWORD: 'smtp-test-password',
 
     LOG_FORMAT: 'disabled',
     LOG_DIR,

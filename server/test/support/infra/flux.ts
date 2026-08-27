@@ -141,20 +141,21 @@ export const runQuery = (points: InfluxPoint[], parsed: ParsedFlux, now: number)
 
   const buckets = new Map<number, number[]>();
   for (const point of matching) {
-    // (windowStart, windowStop] - a point exactly on a boundary belongs to the
-    // window that ends there.
-    const windowStop = Math.ceil(point.time / every) * every || every;
-    const key = point.time % every === 0 ? point.time : windowStop;
-    if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key).push(point.fields[field]);
+    // Windows cover (windowStart, windowStop], so a point exactly on a boundary
+    // belongs to the window that ends there.
+    const windowStop = Math.ceil(point.time / every) * every;
+    if (!buckets.has(windowStop)) buckets.set(windowStop, []);
+    buckets.get(windowStop).push(point.fields[field]);
   }
 
   const rows: ResultRow[] = [];
-  const firstWindow = Math.ceil(start / every) * every;
+  // The first window is the one that ends strictly after the range start.
+  const firstWindow = Math.floor(start / every) * every + every;
   const identity = { deviceId: parsed.deviceId ?? tagsOf(0).device_id ?? '', userId: tagsOf(0).user_id ?? '' };
 
   if (parsed.createEmpty) {
-    for (let windowStop = firstWindow; windowStop <= stop + every; windowStop += every) {
+    for (let windowStop = firstWindow; ; windowStop += every) {
+      // Influx truncates the final window to the end of the range.
       const time = Math.min(windowStop, stop);
       rows.push({ time, value: aggregate(buckets.get(windowStop) ?? [], parsed.fn), field, measurement, ...identity });
       if (windowStop >= stop) break;
