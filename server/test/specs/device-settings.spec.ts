@@ -276,6 +276,20 @@ describe('recipe templates', () => {
     await owner.client.get(`/device/recipes/${created.body._id}`).expect(404);
   });
 
+  it('leaves a template alone when the update carries nothing', async () => {
+    const name = unique('untouched');
+    const created = await owner.client
+      .post('/device/recipes')
+      .send({ name, steps: [step('Veg')] })
+      .expect(201);
+
+    await owner.client.put(`/device/recipes/${created.body._id}`).expect(200);
+
+    const read = await owner.client.get(`/device/recipes/${created.body._id}`).expect(200);
+    expect(read.body.name).toBe(name);
+    expect(read.body.steps).toHaveLength(1);
+  });
+
   it('rejects a template without a name or steps', async () => {
     await owner.client.post('/device/recipes').send({ name: unique('t') }).expect(400);
     await owner.client.post('/device/recipes').send({ steps: [] }).expect(400);

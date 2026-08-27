@@ -92,7 +92,7 @@ export class DeviceRecipeService {
     return template;
   }
 
-  public async updateTemplate(user: { userId: string; isAdmin: boolean }, templateId: string, payload: RecipeTemplatePayload) {
+  public async updateTemplate(user: { userId: string; isAdmin: boolean }, templateId: string, payload: RecipeTemplatePayload = {}) {
     const template = await recipeModel.findById(templateId).exec();
     if (!template) {
       throw new NotFoundException({ error: 'Not found' });
@@ -102,7 +102,7 @@ export class DeviceRecipeService {
       throw new ForbiddenException({ error: 'Forbidden' });
     }
 
-    if (payload.name && payload.name !== template.name) {
+    if (payload?.name && payload.name !== template.name) {
       const clash = await recipeModel
         .findOne({ name: payload.name, _id: { $ne: templateId } })
         .lean()
@@ -113,8 +113,8 @@ export class DeviceRecipeService {
       template.name = payload.name;
     }
 
-    if (payload.steps && Array.isArray(payload.steps)) template.steps = payload.steps;
-    if (typeof payload.public !== 'undefined') template.public = !!payload.public;
+    if (payload?.steps && Array.isArray(payload.steps)) template.steps = payload.steps;
+    if (typeof payload?.public !== 'undefined') template.public = !!payload.public;
 
     await template.save();
     return template;
