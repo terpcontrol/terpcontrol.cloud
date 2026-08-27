@@ -12,6 +12,7 @@ import validateEnv from '@utils/validateEnv';
 import { AppModule } from './app.module';
 import { connectToDatabase } from './database';
 import { registerAccessLog } from './access-log';
+import { registerHttpCompatibility } from './http-compatibility';
 import { setupOpenApi } from './openapi';
 
 // The device-facing work runs on timers and MQTT callbacks; an error in one of
@@ -45,6 +46,11 @@ const bootstrap = async (): Promise<void> => {
     // whether the original request was HTTPS. Trusting the whole chain instead
     // would let a caller pick its own rate-limit bucket by sending a header.
     trustProxy: (_address: string, hop: number) => hop === 0,
+    routerOptions: {
+      // Express matched a trailing slash; a client that has been calling
+      // `/device/` for years should not start getting 404s.
+      ignoreTrailingSlash: true,
+    },
   });
 
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter);
@@ -62,6 +68,7 @@ const bootstrap = async (): Promise<void> => {
   });
   await app.register(fastifyCompress, { customTypes: COMPRESSIBLE_TYPES });
 
+  registerHttpCompatibility(app);
   registerAccessLog(app);
   setupOpenApi(app);
 

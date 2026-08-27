@@ -72,6 +72,33 @@ describe('firmware downloads', () => {
   });
 });
 
+describe('what Express used to accept', () => {
+  it('matches a route with a trailing slash', async () => {
+    await anonymous().get('/readycheck/').expect(200);
+
+    const owner = await createAccount('slash-owner');
+    await owner.client.get('/device/').expect(200);
+  });
+
+  it('reads an empty body with a JSON content type as an empty object', async () => {
+    const owner = await createAccount('empty-body-owner');
+
+    await owner.client.post('/logout').set('Content-Type', 'application/json').send('').expect(200);
+    await anonymous().post('/demologin').set('Content-Type', 'application/json').send('').expect(200);
+  });
+
+  it('takes the last value of a repeated query parameter', async () => {
+    const owner = await createAccount('repeated-query-owner');
+    const device = await provisionDevice(owner);
+
+    // A client that builds its URL badly used to be tolerated by hpp(); the
+    // token is read as a string, and an array would fail the session check.
+    await anonymous()
+      .get(`/image/${device.deviceId}?format=jpeg&token=nonsense&token=${owner.imageToken}`)
+      .expect(200);
+  });
+});
+
 describe('deleting a picture', () => {
   it('does not tell a stranger which picture ids exist', async () => {
     const owner = await createAccount('probe-owner');

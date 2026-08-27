@@ -21,6 +21,19 @@ describe('POST /device/firmware', () => {
     expect(response.body).toEqual({ firmware_id: expect.any(String), name: 'fridge', version });
   });
 
+  it('accepts the multipart form the webapp sends, image and all', async () => {
+    const version = unique('v');
+
+    const response = await admin.client
+      .post('/device/firmware')
+      .field('name', 'fridge')
+      .field('version', version)
+      .attach('file', Buffer.from('an image the webapp attaches'), 'firmware.bin')
+      .expect(200);
+
+    expect(response.body).toEqual({ firmware_id: expect.any(String), name: 'fridge', version });
+  });
+
   it('reports an unknown device class as not found', async () => {
     await admin.client.post('/device/firmware').send({ name: 'no-such-class', version: '1.0' }).expect(404);
   });
