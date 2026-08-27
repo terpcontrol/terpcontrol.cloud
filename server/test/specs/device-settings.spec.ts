@@ -342,4 +342,10 @@ describe('recipe templates', () => {
   it('reports an unknown template as not found', async () => {
     await owner.client.get('/device/recipes/60706478aad6c9ad19a31c84').expect(404);
   });
+
+  it('rejects an id that is not one', async () => {
+    await owner.client.get('/device/recipes/not-an-id').expect(400);
+    await owner.client.put('/device/recipes/not-an-id').send({ name: unique('x') }).expect(400);
+    await owner.client.delete('/device/recipes/not-an-id').expect(400);
+  });
 });

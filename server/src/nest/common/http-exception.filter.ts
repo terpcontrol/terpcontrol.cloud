@@ -1,5 +1,6 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException as NestHttpException, HttpStatus } from '@nestjs/common';
 import { FastifyReply, FastifyRequest } from 'fastify';
+import { Error as MongooseError } from 'mongoose';
 import { HttpException } from '@exceptions/HttpException';
 import { logger } from '@utils/logger';
 
@@ -60,6 +61,12 @@ export class ApiExceptionFilter implements ExceptionFilter {
   private describe(exception: unknown): { status: number; message: string } {
     if (exception instanceof HttpException) {
       return { status: exception.status, message: exception.message };
+    }
+
+    // An id that is not an id at all is a malformed request, not a failure on
+    // this side - and mongoose's own message names the model it tried to load.
+    if (exception instanceof MongooseError.CastError) {
+      return { status: HttpStatus.BAD_REQUEST, message: `Invalid ${exception.path}` };
     }
 
     if (exception instanceof NestHttpException) {

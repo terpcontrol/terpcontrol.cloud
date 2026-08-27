@@ -1,6 +1,7 @@
 import sharp from 'sharp';
 import { anonymous, ApiClient, context, createAccount, loginAsAdmin, Session } from '../support/api';
 import { DeviceCredentials, provisionDevice } from '../support/device';
+import { storeWebcamStill } from '../support/fixtures';
 
 let owner: Session;
 let admin: Session;
@@ -193,6 +194,44 @@ describe('GET /image/:device_id', () => {
 
       expect(response.headers['content-type']).toBe('image/jpeg');
     });
+  });
+});
+
+describe('a webcam still that has gone stale', () => {
+  // Ten minutes without a sample is what counts as offline.
+  const ONLINE_TIMEOUT_MS = 10 * 60 * 1000;
+
+  /** How dark the picture is, which is what the overlay changes. */
+  const brightness = async (body: Buffer): Promise<number> => (await sharp(body).stats()).channels[0].mean;
+
+  it('carries the offline notice, and a fresh one does not', async () => {
+    const fresh = await provisionDevice(owner);
+    const still = await jpeg({ r: 240, g: 240, b: 240 });
+
+    await storeWebcamStill(fresh.deviceId, still, Date.now());
+    const recent = await owner.client.get(`/image/${fresh.deviceId}`).query({ format: 'jpeg' }).expect(200);
+
+    const stale = await provisionDevice(owner);
+    await storeWebcamStill(stale.deviceId, still, Date.now() - ONLINE_TIMEOUT_MS - 60_000);
+    const old = await owner.client.get(`/image/${stale.deviceId}`).query({ format: 'jpeg' }).expect(200);
+
+    // The notice is drawn over a dimmed copy of the picture, so the stale one
+    // comes back darker than the very same image served fresh.
+    expect(await brightness(recent.body)).toBeCloseTo(await brightness(still), 0);
+    expect(await brightness(old.body)).toBeLessThan((await brightness(still)) - 20);
+  });
+
+  it('leaves a picture asked for by its id alone, however old it is', async () => {
+    const device = await provisionDevice(owner);
+    const still = await jpeg({ r: 240, g: 240, b: 240 });
+    const stored = await storeWebcamStill(device.deviceId, still, Date.now() - ONLINE_TIMEOUT_MS - 60_000);
+
+    const response = await owner.client
+      .get(`/image/${device.deviceId}`)
+      .query({ format: 'jpeg', image_id: stored.imageId })
+      .expect(200);
+
+    expect(await brightness(response.body)).toBeCloseTo(await brightness(still), 0);
   });
 });
 

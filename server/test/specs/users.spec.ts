@@ -105,6 +105,12 @@ describe('GET /users/:id', () => {
     await admin.client.get('/users/60706478aad6c9ad19a31c84').expect(409);
   });
 
+  it('rejects an id that is not one, without saying what it tried to load', async () => {
+    const response = await admin.client.get('/users/not-an-id').expect(400);
+
+    expect(response.body.message).toBe('Invalid _id');
+  });
+
   it('is admin-only', async () => {
     const user = await createUser();
     const account = await createAccount();
