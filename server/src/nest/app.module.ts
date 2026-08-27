@@ -14,7 +14,18 @@ import { ShareModule } from './modules/share/share.module';
 import { UsersModule } from './modules/users/users.module';
 
 @Module({
-  imports: [SecurityModule, AuthModule, ChartPresetModule, DataModule, DeviceModule, HealthModule, ImageModule, MqttAuthModule, ShareModule, UsersModule],
+  imports: [
+    SecurityModule,
+    AuthModule,
+    ChartPresetModule,
+    DataModule,
+    DeviceModule,
+    HealthModule,
+    ImageModule,
+    MqttAuthModule,
+    ShareModule,
+    UsersModule,
+  ],
   providers: [
     { provide: APP_FILTER, useClass: ApiExceptionFilter },
     { provide: APP_GUARD, useClass: DemoReadOnlyGuard },

@@ -36,6 +36,7 @@ export class ShareController {
   }
 
   @Post(':share_id/revoke')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Stop a link from working, keeping it in the list' })
   public revoke(@CurrentUser() user: AuthContext, @Param('share_id') shareId: string) {

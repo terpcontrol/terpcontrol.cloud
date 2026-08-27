@@ -4,8 +4,6 @@ import { dirname, join } from 'node:path';
 /** Where globalSetup hands the running stack over to the worker processes. */
 export const CONTEXT_FILE = join(__dirname, '..', '.tmp', 'context.json');
 
-export type Target = 'legacy' | 'nest';
-
 export interface HarnessContext {
   /** Base URL of the API under test, e.g. http://127.0.0.1:34567 */
   baseUrl: string;
@@ -13,7 +11,6 @@ export interface HarnessContext {
   controlUrl: string;
   mongoUri: string;
   mqttPort: number;
-  target: Target;
   /** Credentials the bootstrapped admin account is created with. */
   admin: { username: string; password: string };
   /** Shared secret the RabbitMQ auth endpoints expect. */

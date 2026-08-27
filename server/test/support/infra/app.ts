@@ -1,7 +1,6 @@
 import { ChildProcess, spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { Target } from '../context';
 
 export const SERVER_ROOT = join(__dirname, '..', '..', '..');
 const LOG_DIR = join(SERVER_ROOT, 'test', '.tmp', 'logs');
@@ -19,11 +18,16 @@ export interface AppEnvironment {
   selfRegistrationPassword: string;
 }
 
-/** Entry point per target, so the same suite can drive either implementation. */
-const ENTRY_POINTS: Record<Target, { script: string; nodeArgs: string[] }> = {
-  legacy: { script: 'src/server.ts', nodeArgs: ['-r', 'ts-node/register/transpile-only', '-r', 'tsconfig-paths/register'] },
-  nest: { script: 'src/nest/main.ts', nodeArgs: ['-r', 'ts-node/register/transpile-only', '-r', 'tsconfig-paths/register'] },
-};
+/**
+ * The suite normally runs the sources through ts-node. HARNESS_BUILT=1 runs the
+ * compiled output instead, which is what the container ships - the swc build
+ * has its own decorator and path handling, and a suite that never exercises it
+ * would not notice it breaking.
+ */
+const entryPoint = () =>
+  process.env.HARNESS_BUILT === '1'
+    ? { script: 'dist/nest/main.js', nodeArgs: [] as string[] }
+    : { script: 'src/nest/main.ts', nodeArgs: ['-r', 'ts-node/register/transpile-only', '-r', 'tsconfig-paths/register'] };
 
 const buildEnv = (environment: AppEnvironment): NodeJS.ProcessEnv => {
   const mongo = new URL(environment.mongoUri);
@@ -97,10 +101,10 @@ const waitForHealthy = async (baseUrl: string, child: ChildProcess, timeoutMs: n
   throw new Error(`App under test never became healthy on ${baseUrl}: ${lastError}`);
 };
 
-export const startApp = async (target: Target, environment: AppEnvironment): Promise<RunningApp> => {
+export const startApp = async (environment: AppEnvironment): Promise<RunningApp> => {
   mkdirSync(LOG_DIR, { recursive: true });
 
-  const entry = ENTRY_POINTS[target];
+  const entry = entryPoint();
   const child = spawn('node', [...entry.nodeArgs, entry.script], {
     cwd: SERVER_ROOT,
     env: buildEnv(environment),
@@ -108,7 +112,7 @@ export const startApp = async (target: Target, environment: AppEnvironment): Pro
   });
 
   const verbose = process.env.HARNESS_VERBOSE === '1';
-  const prefix = `[app:${target}]`;
+  const prefix = '[app]';
   child.stdout.on('data', chunk => verbose && process.stdout.write(`${prefix} ${chunk}`));
   child.stderr.on('data', chunk => process.stderr.write(`${prefix} ${chunk}`));
 

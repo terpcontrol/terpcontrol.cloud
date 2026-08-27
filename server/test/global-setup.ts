@@ -1,5 +1,5 @@
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import { HarnessContext, Target, writeContext } from './support/context';
+import { HarnessContext, writeContext } from './support/context';
 import { startApp } from './support/infra/app';
 import { startFakeInflux } from './support/infra/influx';
 import { startMqttBroker } from './support/infra/mqtt';
@@ -26,8 +26,6 @@ const waitForBrokerClient = (aedes: import('aedes').Aedes, timeoutMs: number): P
   });
 
 export default async (): Promise<void> => {
-  const target = (process.env.TARGET as Target) ?? 'legacy';
-
   const influxStore = new InfluxStore();
   const mailStore = new MailStore();
 
@@ -44,7 +42,7 @@ export default async (): Promise<void> => {
 
   const brokerConnected = waitForBrokerClient(broker.aedes, 90_000);
 
-  const app = await startApp(target, {
+  const app = await startApp({
     port,
     mongoUri,
     mqttHost: '127.0.0.1',
@@ -64,7 +62,6 @@ export default async (): Promise<void> => {
     controlUrl: influx.url,
     mongoUri,
     mqttPort: broker.port,
-    target,
     admin: ADMIN,
     mqttAuthSecret: MQTT_AUTH_SECRET,
     automationToken: AUTOMATION_TOKEN,

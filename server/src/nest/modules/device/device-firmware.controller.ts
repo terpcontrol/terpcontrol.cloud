@@ -60,11 +60,7 @@ export class DeviceFirmwareController {
   @UseGuards(AdminGuard)
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload one of the images that make up a firmware build' })
-  public async upload(
-    @Param('firmware_id') firmwareId: string,
-    @Param('binary') binaryName: string,
-    @Body() body: { binary?: unknown },
-  ) {
+  public async upload(@Param('firmware_id') firmwareId: string, @Param('binary') binaryName: string, @Body() body: { binary?: unknown }) {
     if (!Buffer.isBuffer(body?.binary)) {
       throw new HttpException(400, 'Binary file is missing or invalid');
     }
@@ -77,11 +73,7 @@ export class DeviceFirmwareController {
   // firmware id is the only thing it has.
   @Get('firmware/:firmware_id/:binary')
   @ApiOperation({ summary: 'Download a firmware image' })
-  public async download(
-    @Param('firmware_id') firmwareId: string,
-    @Param('binary') binaryName: string,
-    @Res() reply: FastifyReply,
-  ): Promise<void> {
+  public async download(@Param('firmware_id') firmwareId: string, @Param('binary') binaryName: string, @Res() reply: FastifyReply): Promise<void> {
     await sendFirmwareBinary(reply, await deviceService.getFirmwareBinary(firmwareId, binaryName));
   }
 

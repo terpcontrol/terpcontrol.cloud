@@ -1,90 +1,56 @@
-import { IsBoolean, IsEmail, IsNumber, IsOptional, IsString } from 'class-validator';
-import exp from 'node:constants';
-
-export class AddDeviceDto {
-  @IsString()
-  public class_id: string;
-  @IsString()
-  public device_type: string;
+/**
+ * What the device services take. Requests are validated against the Zod schemas
+ * at the HTTP edge; these describe the shape that reaches the service.
+ */
+export interface AddDeviceDto {
+  class_id: string;
+  device_type: string;
 }
 
-export class RegisterDeviceDto {
-  @IsString()
-  public registration_password: string;
-  @IsString()
-  public device_id: string;
-  @IsString()
-  public username: string;
-  @IsString()
-  public password: string;
-  @IsString()
-  public device_type: string;
+export interface RegisterDeviceDto {
+  registration_password: string;
+  device_id: string;
+  username: string;
+  password: string;
+  device_type: string;
 }
 
-export class AddDeviceClassDto {
-  @IsString()
-  public name: string;
-
-  @IsString()
-  public description: string;
-
-  @IsString()
-  public firmware_id: string;
-
-  @IsNumber()
-  public concurrent: number;
-
-  @IsNumber()
-  public maxfails: number;
-
-  @IsString()
-  @IsOptional()
-  public beta_firmware_id: string;
-
-  @IsString()
-  @IsOptional()
-  public alpha_firmware_id: string;
+export interface AddDeviceClassDto {
+  name: string;
+  description: string;
+  firmware_id: string;
+  concurrent: number;
+  maxfails: number;
+  beta_firmware_id?: string;
+  alpha_firmware_id?: string;
 }
 
-export class AddDeviceFirmwareDto {
-  @IsString()
-  public name: string;
-  @IsString()
-  public version: string;
+export interface AddDeviceFirmwareDto {
+  name: string;
+  version: string;
 }
 
-export class ClaimDeviceDto {
-  @IsString()
-  public claim_code: string;
+export interface ClaimDeviceDto {
+  claim_code: string;
 }
 
-export class ConfigureDeviceDto {
-  @IsString()
-  public device_id: string;
-  @IsString()
-  public configuration: string;
+export interface ConfigureDeviceDto {
+  device_id: string;
+  configuration: string;
 }
 
-export class SetNameDto {
-  @IsString()
-  public device_id: string;
-  @IsString()
-  public name: string;
+export interface SetNameDto {
+  device_id: string;
+  name: string;
 }
 
-export class TestDeviceDto {
-  @IsNumber()
-  public heater: number;
-  @IsNumber()
-  public dehumidifier: number;
-  @IsNumber()
-  public co2: number;
-  @IsNumber()
-  public lights: number;
-  @IsNumber()
-  public fanint: number;
-  @IsNumber()
-  public fanext: number;
-  @IsNumber()
-  public fanbw: number;
+/** Every output the test mode drives. */
+export interface TestDeviceDto {
+  heater: number;
+  dehumidifier: number;
+  co2: number;
+  lights: number;
+  fanint: number;
+  fanext: number;
+  fanbw: number;
 }

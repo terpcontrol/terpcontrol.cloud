@@ -1,44 +1,29 @@
-import { IsBoolean, IsOptional, IsString } from 'class-validator';
-
-export class LoginDto {
-  @IsString()
-  public username: string;
-
-  @IsString()
-  public password: string;
-
-  @IsBoolean()
-  @IsOptional()
-  public stayLoggedIn?: boolean;
+/**
+ * What the user-facing services take. Requests are validated against the Zod
+ * schemas at the HTTP edge; these describe the shape that reaches the service.
+ */
+export interface LoginDto {
+  username: string;
+  password: string;
+  stayLoggedIn?: boolean;
 }
 
-export class SignupDto {
-  @IsString()
-  public username: string;
-
-  @IsString()
-  public password: string;
+export interface SignupDto {
+  username: string;
+  password: string;
 }
 
-export class ActivationDto {
-  @IsString()
-  public activation_code: string;
+export interface ActivationDto {
+  activation_code: string;
 }
 
-export class PasswordResetDto {
-  @IsString()
-  public password: string;
-  @IsString()
-  public token: string;
+export interface PasswordResetDto {
+  password: string;
+  token: string;
 }
 
-export class CreateUserDto {
-  @IsString()
-  public username: string;
-
-  @IsString()
-  public password: string;
-
-  @IsBoolean()
-  public is_admin: boolean;
+export interface CreateUserDto {
+  username: string;
+  password: string;
+  is_admin: boolean;
 }

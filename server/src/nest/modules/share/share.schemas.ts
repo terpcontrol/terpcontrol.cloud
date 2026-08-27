@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { SharePage } from '@fg2/shared-types';
 
-const SHARE_PAGES = ['charts', 'diary'] as const satisfies readonly SharePage[];
+const SHARE_PAGES: readonly [SharePage, ...SharePage[]] = ['charts', 'diary'];
 
 export const createShareSchema = z.object({
   device_id: z.string({ error: 'is required' }).min(1, { error: 'is required' }),

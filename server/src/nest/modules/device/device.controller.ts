@@ -10,10 +10,12 @@ import {
   Param,
   Post,
   Query,
+  Res,
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { FastifyReply } from 'fastify';
 import { Alarm, CloudSettings, Device } from '@fg2/shared-types';
 import { deviceService } from '@services/device.service';
 import { AdminGuard, AuthGuard } from '../../common/auth/auth.guard';
@@ -128,8 +130,12 @@ export class DeviceController {
   @Get('config/:device_id')
   @UseGuards(DeviceOwnerGuard)
   @ApiOperation({ summary: 'The configuration the device is running' })
-  public config(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string) {
-    return deviceService.getDeviceConfig(deviceId, user.userId, user.isAdmin, user.isDemo);
+  public async config(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string, @Res() reply: FastifyReply): Promise<void> {
+    const configuration = await deviceService.getDeviceConfig(deviceId, user.userId, user.isAdmin, user.isDemo);
+    // The configuration is a JSON document the device owns, stored and handed
+    // back as a string. Sending it as a JSON string keeps clients parsing it
+    // the way they always have.
+    await reply.type('application/json; charset=utf-8').send(JSON.stringify(configuration));
   }
 
   @Post('configure')
@@ -177,10 +183,7 @@ export class DeviceController {
   @UseGuards(DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Change the cloud-side settings of a device' })
-  public async setCloudSettings(
-    @CurrentUser() user: AuthContext,
-    @Body() body: { device_id: string; cloud_settings: CloudSettings },
-  ) {
+  public async setCloudSettings(@CurrentUser() user: AuthContext, @Body() body: { device_id: string; cloud_settings: CloudSettings }) {
     await deviceService.setDeviceCloudSettings(body.device_id, user.userId, body.cloud_settings);
     return OK;
   }

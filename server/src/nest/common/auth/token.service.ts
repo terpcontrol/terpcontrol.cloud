@@ -24,8 +24,7 @@ const isImageQueryTokenAllowed = (request: FastifyRequest): boolean =>
   request.method === 'GET' && (request.url ?? '').split('?')[0].startsWith('/image/');
 
 // A full user session is at least as privileged as the URL-embeddable image token.
-const matchesTokenType = (actual: TokenType, expected: TokenType): boolean =>
-  actual === expected || (expected === 'image' && actual === 'user');
+const matchesTokenType = (actual: TokenType, expected: TokenType): boolean => actual === expected || (expected === 'image' && actual === 'user');
 
 @Injectable()
 export class TokenService {

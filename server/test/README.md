@@ -1,12 +1,15 @@
 # Integration suite
 
-`npm run test:integration` (from `server/`). Everything the suite needs is started for it; there is nothing to set up
-beyond `npm install`.
+`npm test` (from `server/`). Everything the suite needs is started for it; there is nothing to set up beyond
+`npm install`.
 
 The suite drives the API the way a client does — over HTTP, against a server process started for the run. It never
-imports application code, so it is a contract rather than a mirror of the implementation: `TARGET=nest npm run
-test:integration` runs the same specs against the NestJS app, and a route counts as migrated when its specs pass on
-both.
+imports application code, so it describes the API rather than mirroring the implementation: it is what carried the
+server from Express to NestJS a route at a time, with both held to the same specs.
+
+`HARNESS_BUILT=1 npm test` runs the same specs against `dist/` (build it first) instead of the sources, which is what
+the container ships — the swc build has its own decorator and path handling, and a suite that only ever ran through
+ts-node would not notice it breaking. `HARNESS_VERBOSE=1` adds the server's own log output.
 
 ## What runs during a test
 

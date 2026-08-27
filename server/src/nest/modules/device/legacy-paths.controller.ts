@@ -25,11 +25,7 @@ export class LegacyDevicePathsController {
   }
 
   @Get('firmware/:firmware_id/:binary')
-  public async download(
-    @Param('firmware_id') firmwareId: string,
-    @Param('binary') binaryName: string,
-    @Res() reply: FastifyReply,
-  ): Promise<void> {
+  public async download(@Param('firmware_id') firmwareId: string, @Param('binary') binaryName: string, @Res() reply: FastifyReply): Promise<void> {
     await sendFirmwareBinary(reply, await deviceService.getFirmwareBinary(firmwareId, binaryName));
   }
 }

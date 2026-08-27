@@ -106,7 +106,7 @@ describe('POST /demologin', () => {
       demo.client.post('/device').send({ claim_code: 'whatever' }),
       demo.client.post('/device/setname').send({ device_id: 'x', name: 'y' }),
       demo.client.delete('/device/some-device'),
-      demo.client.post('/chartpreset').send({ name: 'x', query: 'y' }),
+      demo.client.post('/chartpresets').send({ name: 'x', query: 'y' }),
     ]) {
       const response = await write;
       expect(response.status).toBe(403);

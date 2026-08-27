@@ -6,8 +6,7 @@ import { PlainTextException } from '../http-exception.filter';
 import { AuthenticatedRequest, TokenService, TokenType } from './token.service';
 
 // Demo sessions reach exactly the devices flagged as demo devices.
-const isDemoDevice = async (deviceId: string): Promise<boolean> =>
-  (await deviceModel.countDocuments({ device_id: deviceId, demoDevice: true })) > 0;
+const isDemoDevice = async (deviceId: string): Promise<boolean> => (await deviceModel.countDocuments({ device_id: deviceId, demoDevice: true })) > 0;
 
 const isOwnedBy = async (deviceId: string, userId: string): Promise<boolean> =>
   (await deviceModel.countDocuments({ owner_id: userId, device_id: deviceId })) > 0;

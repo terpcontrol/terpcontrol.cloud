@@ -37,7 +37,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
       return;
     }
 
-    void reply.status(status).send(this.body(exception, message));
+    // The route may have declared another content type; an error is JSON.
+    void reply.status(status).type('application/json; charset=utf-8').send(this.body(exception, message));
   }
 
   /**
@@ -66,7 +67,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       const message =
         typeof response === 'string'
           ? response
-          : ((response as { message?: unknown; error?: unknown })?.message ?? (response as { error?: unknown })?.error ?? exception.message);
+          : (response as { message?: unknown; error?: unknown })?.message ?? (response as { error?: unknown })?.error ?? exception.message;
 
       return {
         status: exception.getStatus(),
