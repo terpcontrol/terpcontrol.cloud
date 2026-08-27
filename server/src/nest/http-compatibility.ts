@@ -1,3 +1,4 @@
+import { parse as parseQueryString } from 'node:querystring';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { FastifyRequest } from 'fastify';
 
@@ -6,7 +7,7 @@ import { FastifyRequest } from 'fastify';
  * field depend on.
  */
 export const registerHttpCompatibility = (app: NestFastifyApplication): void => {
-  registerTolerantJsonParser(app);
+  registerBodyParsers(app);
 
   app
     .getHttpAdapter()
@@ -18,18 +19,22 @@ export const registerHttpCompatibility = (app: NestFastifyApplication): void => 
 };
 
 /**
+ * The body parsers, both of them.
+ *
  * `express.json()` read an empty body as `{}`; Fastify's parser refuses it
  * outright. Clients that set the header on a body-less POST - logging out,
  * opening the demo, revoking a share - would get a 400 they never used to,
- * however the request framed that empty body.
+ * however the request framed that empty body. Anything that is not empty still
+ * goes through Fastify's own parser, which is what guards against prototype
+ * poisoning.
  *
- * Registering it here also stops Nest installing its own, and anything that is
- * not empty still goes through Fastify's parser, which is what guards against
- * prototype poisoning.
+ * Registering either one stops Nest registering both of its defaults, so the
+ * form-encoded parser has to be set up here as well - RabbitMQ's auth backend
+ * and the firmware build CLI both post forms.
  */
 type BufferParser = (request: unknown, body: Buffer, done: (error: Error | null, value?: unknown) => void) => void;
 
-const registerTolerantJsonParser = (app: NestFastifyApplication): void => {
+const registerBodyParsers = (app: NestFastifyApplication): void => {
   const fastify = app.getHttpAdapter().getInstance();
   // Typed for the default HTTP server and a string body; Nest hands it a
   // request type that also allows HTTP/2, which this deployment never serves,
@@ -43,6 +48,10 @@ const registerTolerantJsonParser = (app: NestFastifyApplication): void => {
     }
 
     parseJson(request, body, done);
+  });
+
+  app.useBodyParser('application/x-www-form-urlencoded', { bodyLimit: fastify.initialConfig.bodyLimit }, (_request, body: Buffer, done) => {
+    done(null, parseQueryString(body.toString()));
   });
 };
 

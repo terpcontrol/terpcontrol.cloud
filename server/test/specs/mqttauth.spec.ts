@@ -5,7 +5,7 @@ import { DeviceCredentials, registerDevice } from '../support/device';
  * The RabbitMQ HTTP auth backend. RabbitMQ posts form-encoded fields and reads
  * the literal body `allow` or `deny`, so both are part of the contract.
  */
-const backend = (path: string) => anonymous().post(`/mqttauth/${context.mqttAuthSecret}/${path}`);
+const backend = (path: string) => anonymous().post(`/mqttauth/${context.mqttAuthSecret}/${path}`).type('form');
 
 let device: DeviceCredentials;
 
@@ -15,7 +15,10 @@ beforeAll(async () => {
 
 describe('the shared secret in the path', () => {
   it('denies a wrong secret', async () => {
-    const response = await anonymous().post('/mqttauth/wrong-secret/user').send({ username: device.username, password: device.password });
+    const response = await anonymous()
+      .post('/mqttauth/wrong-secret/user')
+      .type('form')
+      .send({ username: device.username, password: device.password });
     expect(response.status).toBe(401);
     expect(response.text).toBe('deny');
   });
@@ -23,6 +26,7 @@ describe('the shared secret in the path', () => {
   it('denies a secret that only shares a prefix', async () => {
     const response = await anonymous()
       .post(`/mqttauth/${context.mqttAuthSecret.slice(0, -1)}/user`)
+      .type('form')
       .send({ username: device.username, password: device.password });
     expect(response.status).toBe(401);
   });
