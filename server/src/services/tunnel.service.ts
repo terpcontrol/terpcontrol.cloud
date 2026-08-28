@@ -237,7 +237,10 @@ class TunnelService {
           connection.release?.();
           this.deviceIdToTunnelConnection.get(device_id)?.delete(connectionId);
         });
-        client.setEncoding('binary');
+        // No setEncoding(): the socket must stay in binary mode. With an encoding set,
+        // 'data' arrives as a string and Buffer.from() would re-encode it as UTF-8,
+        // mangling every byte above 0x7f (RTCP reports on an interleaved RTSP session,
+        // TLS records, binary webhook bodies).
         client.on('data', data => {
           this.onClientDataReceived(device_id, { connection_id: connectionId, host: streamUrl.hostname, port }, data).then(() =>
             timeoutAfterActivity(),
