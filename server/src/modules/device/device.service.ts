@@ -596,27 +596,28 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
           }
         }
 
-        const applyStep =
-          !!activeStep && (!activeStep.lastTimeApplied || activeStep.lastTimeApplied < now - 3600 * 1000) && device.lastseen >= now - 60 * 1000;
-        if (applyStep) {
-          activeStep.lastTimeApplied = now;
-          hasChanges = true;
-        }
-
-        // Written down before the step is sent to the device. Sending can fail -
+        // The advance is written down before the step is sent. Sending can fail -
         // there may be no broker, or the device may have been deleted since the
-        // list was read - and an advance that was computed but never stored is
-        // computed again on the next pass, twenty seconds later, with another
-        // diary entry and another mail each time.
+        // list was read - and an advance worked out but never stored is worked
+        // out again twenty seconds later, with another diary entry and another
+        // mail each time.
         if (hasChanges) {
           await this.devices.findByIdAndUpdate(device._id, { recipe: device.recipe });
         }
 
+        const applyStep =
+          !!activeStep && (!activeStep.lastTimeApplied || activeStep.lastTimeApplied < now - 3600 * 1000) && device.lastseen >= now - 60 * 1000;
         if (applyStep) {
           this.mqtt.publish('/devices/' + device.device_id + '/configuration', activeStep.settings);
           if (await this.configureDevice(device.device_id, activeStep.settings)) {
             logger.info(`Applied recipe step ${device.recipe.activeStepIndex} to device ${device.device_id}`);
           }
+
+          // That it was applied is written down only once it has been, so a
+          // send that failed is tried again on the next pass rather than being
+          // marked done for the hour the check covers.
+          activeStep.lastTimeApplied = now;
+          await this.devices.findByIdAndUpdate(device._id, { recipe: device.recipe });
         }
 
         if (emailSubject && emailBody && device.recipe.email) {
