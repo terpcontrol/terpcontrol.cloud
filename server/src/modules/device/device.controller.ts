@@ -27,6 +27,8 @@ import { PUBLIC_OPERATION } from '../../openapi';
 import {
   AddDevice,
   addDeviceSchema,
+  ClaimCodeRequest,
+  claimCodeSchema,
   ClaimDevice,
   claimDeviceSchema,
   ConfigureDevice,
@@ -104,8 +106,8 @@ export class DeviceController {
   @Post('claimcode')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Ask a device for a fresh claim code', ...PUBLIC_OPERATION })
-  public async claimCode(@Body() body: { device_id?: string; password?: string }) {
-    const code = await this.deviceService.getClaimCode(body?.device_id, body?.password);
+  public async claimCode(@Body(zodBody(claimCodeSchema)) body: ClaimCodeRequest) {
+    const code = await this.deviceService.getClaimCode(body.device_id, body.password ?? undefined);
 
     if (code === false) {
       throw new UnauthorizedException({ status: 'unauthorized' });

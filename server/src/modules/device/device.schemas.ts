@@ -21,6 +21,19 @@ export const registerDeviceSchema = z
 
 export const claimDeviceSchema = z.object({ claim_code: requiredString('claim_code') }).strict();
 
+/**
+ * Asked for by the device itself and by the app on its behalf. Loose, because
+ * firmware has sent extra fields before now - but the device id has to be a
+ * device id: without it the lookup goes to the driver's idea of what an absent
+ * value means in a filter, and a claim code is what takes ownership.
+ */
+export const claimCodeSchema = z
+  .object({
+    device_id: requiredString('device_id').min(1, { error: 'device_id is required' }),
+    password: z.string().nullish(),
+  })
+  .loose();
+
 export const configureDeviceSchema = z
   .object({
     device_id: requiredString('device_id'),
@@ -117,6 +130,7 @@ export const addFirmwareSchema = z
 export type AddDevice = z.infer<typeof addDeviceSchema>;
 export type RegisterDevice = z.infer<typeof registerDeviceSchema>;
 export type ClaimDevice = z.infer<typeof claimDeviceSchema>;
+export type ClaimCodeRequest = z.infer<typeof claimCodeSchema>;
 export type ConfigureDevice = z.infer<typeof configureDeviceSchema>;
 export type SetName = z.infer<typeof setNameSchema>;
 export type TestDevice = z.infer<typeof testDeviceSchema>;

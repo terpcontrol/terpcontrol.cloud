@@ -133,6 +133,15 @@ describe('firmware binaries', () => {
     await admin.client.post(`/device/firmware/${created.body.firmware_id}/spiffs.bin`).attach('binary', big, 'spiffs.bin').expect(200);
   });
 
+  it('reports a binary that is not there rather than failing', async () => {
+    const created = await createFirmware().expect(200);
+
+    // An OTA client reads a 500 as the server being broken; a 404 tells it the
+    // build it was pointed at is gone.
+    await anonymous().get(`/device/firmware/${created.body.firmware_id}/never-uploaded.bin`).expect(404);
+    await anonymous().get('/device/firmware/no-such-firmware/firmware.bin').expect(404);
+  });
+
   it('is admin-only to upload', async () => {
     const created = await createFirmware().expect(200);
     await owner.client

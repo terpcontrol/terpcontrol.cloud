@@ -1054,6 +1054,13 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
 
     const device_class = await this.deviceClasses.findOne({ name: info.device_type });
 
+    // Firmware naming a type this server does not know cannot be enrolled, and
+    // reading the class it did not find is how that used to end as a 500.
+    if (!device_class) {
+      logger.info(`Registration refused: no device class named ${info.device_type}`);
+      return false;
+    }
+
     const existingDevice = await this.devices.findOne({
       device_id: info.device_id,
       username: info.username,
@@ -1768,7 +1775,14 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
   }
 
   public async getFirmwareBinary(firmware_id: string, binary_name: string): Promise<Buffer> {
-    const binary: DeviceFirmwareBinary = await this.firmwareBinaries.findOne({ firmware_id: firmware_id, name: binary_name }, { data: 1 });
+    const binary = await this.firmwareBinaries.findOne({ firmware_id: firmware_id, name: binary_name }, { data: 1 });
+
+    // A device asking for a build that was deleted, or for a name that was
+    // never uploaded, hears that rather than reading a 500 as a failed update.
+    if (!binary) {
+      throw new HttpException(404, 'Firmware binary not found');
+    }
+
     return binary.data;
   }
 

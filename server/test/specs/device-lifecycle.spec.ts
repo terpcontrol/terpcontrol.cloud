@@ -42,6 +42,15 @@ describe('POST /device/register', () => {
       .expect(401);
   });
 
+  it('refuses a device type this server does not know', async () => {
+    // Firmware built for a class that was never created here cannot be
+    // enrolled; reading the class it did not find used to answer 500.
+    await anonymous()
+      .post('/device/register')
+      .send(registration({ device_type: 'no-such-class' }))
+      .expect(401);
+  });
+
   it('refuses a wrong registration password', async () => {
     await anonymous()
       .post('/device/register')
@@ -101,6 +110,25 @@ describe('POST /device/claimcode', () => {
   });
 
   it('refuses an unknown device', async () => {
+    await anonymous().post('/device/claimcode').send({ device_id: 'no-such-device' }).expect(401);
+  });
+});
+
+describe('the claim code and what it is worth', () => {
+  it('refuses to issue one without naming a device', async () => {
+    // The claim code is what takes ownership, so a request that names no device
+    // must not be answered with one for whichever device the database returns
+    // first - which is what an absent filter value comes down to.
+    await anonymous().post('/device/claimcode').send({}).expect(400);
+    await anonymous().post('/device/claimcode').send({ device_id: '' }).expect(400);
+    await anonymous().post('/device/claimcode').send({ device_id: null }).expect(400);
+    await anonymous().post('/device/claimcode').send({ device_id: { $ne: null } }).expect(400);
+
+    // The legacy path firmware calls is the same handler and answers the same.
+    await anonymous().post('/auth/v0.0.1/device/claimcode').send({}).expect(400);
+  });
+
+  it('reports a device it has never heard of as unauthorized', async () => {
     await anonymous().post('/device/claimcode').send({ device_id: 'no-such-device' }).expect(401);
   });
 });
