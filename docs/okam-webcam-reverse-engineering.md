@@ -1,7 +1,9 @@
 # O‑KAM / VStarcam Webcam — Reverse‑Engineering & Integration Instruction
 
 > Working document for integrating the terpcontrol "O‑KAM Pro" webcam **without the O‑KAM app**.
-> Status as of 2026‑08‑11 (paused mid‑investigation). Condensed facts also live in Claude project memory (`okam-webcam-vstarcam.md`).
+> Status as of 2026‑08‑26. Condensed facts also live in Claude project memory (`okam-webcam-vstarcam.md`).
+> **Read §24 first if you are picking this up** — the vendor SDK arrived on 2026‑08‑26 and retracts several conclusions
+> in §18, §19.5 and §20.
 > ⚠️ **This file contains live credentials** (camera, Wi‑Fi, O‑KAM account). Do not commit/push it to a public remote; add to `.gitignore` or move to secure notes if this repo is shared.
 
 ---
@@ -23,6 +25,10 @@ Onboard the webcam from the controller/module, app‑free, and get periodic HD s
 | 2 | Reversible / original app still works | ✅ Yes — camera stays 100% stock; factory reset restores it |
 | 4 | Minimal, no firmware | ✅ On track — everything is settings + HTTP + P2P, no firmware |
 | 3 | HD image every 1–2 min | ✅ **SOLVED end-to-end on hardware (2026‑08‑20).** The controller captures over P2P and the existing image pipeline stores/serves it; see §17. Earlier note (2026‑08‑18): App‑free provisioning proven live; the PPCS transport cipher is fully reversed & reimplemented in pure Python; a clean‑room client pulls a **2304×1296 HD JPEG** LAN‑direct from the camera on Wi‑Fi. See §15. |
+
+Open item, on top of the four above: **the still's resolution.** The shipped path settled for 640×360 because
+`snapshot.cgi` appeared to have no resolution control. It has one — `res=` — and `res=2` asks for 1280×720; that and a
+receiver whose RAM no longer caps the image size are shipped but **not yet measured against the camera** (§24).
 
 ## 3. Hardware & identity
 
@@ -52,12 +58,14 @@ Once the camera joins a real Wi‑Fi network, it **firewalls its own wireless in
 
 Dead ends confirmed (do not re‑try):
 - **RTSP/ONVIF**: `set_rtsp.cgi`/`set_onvif.cgi` config sticks (`rtspenable=1`) but the daemon **never binds** on the LAN. `get_rtsp`/ONVIF effectively stripped for LAN use.
-- **FTP timed push** (`set_ftp.cgi&upload_interval=N`, "Instantly upload image interval(s)"): **never fires** (no camera‑side connection, AP or station) — FTP appears stripped (`get_ftp`=not‑support).
+- **FTP timed push** (`set_ftp.cgi&upload_interval=N`, "Instantly upload image interval(s)"): **never fires** (no camera‑side connection, AP or station) — FTP appears stripped (`get_ftp`=not‑support). ⚠️ *The parenthetical is not evidence: `get_ftp.cgi` does not exist in the vendor manual, and FTP settings read back from `get_params.cgi`. See §25(a) before treating this as closed.*
 - **Remote root** to open the firewall: GoAhead `set_ftp.cgi`→telnetd injection, NTP‑server injection, `set_telnet`/`debug`/`shell` CGIs — all patched/absent on this firmware.
 - **aiopppp / UDP‑32108 PPPP**: camera doesn't answer 32108 discovery reproducibly; its real local channel is TCP‑framed P2P (below), which aiopppp doesn't speak.
 - **Open firmware (thingino/OpenIPC)**: exists for this exact board (issue #1241) but **unimplemented**, AIC8800DC driver unproven, SD‑flash‑only + high brick risk. Rejected by req #2 (must stay reversible/original‑app) and #4 (no firmware).
 
-Snapshot resolution note: `snapshot.cgi` in AP mode returns **640×360** (sub‑stream). The app's saved stills are **2304×1296** — HD snapshot comes via the P2P/main‑stream path, not `snapshot.cgi`.
+Snapshot resolution note: `snapshot.cgi` **called without arguments** returns 640×360. It takes a `res` parameter that
+selects the size — see §24. The app's saved stills are 2304×1296, which comes from the video main stream, not from
+`snapshot.cgi` (whose ceiling is 1280×720).
 
 ## 6. The app↔camera protocol (captured, LAN‑direct)
 
@@ -129,6 +137,14 @@ Deliver the HD still via the **controller's existing MQTT tunnel** (`server/src/
 
 - Workspace (may be wiped on Mac reboot): `/tmp/okam-re/` — `okam.pcap` (16 MB relay capture, 2026‑08‑18), `hook.js` (native AppCrypto+AES, JNIApi, AppP2PApiPlugin, PPCS_Write/Read‑via‑thunk), `run_frida.py` (**attach** or **spawn** mode; blocks on Event not stdin), `pcap_analyze.py`/`entropy.py`/`xortest.py` (no‑scapy pcap tooling), `hits.log`, `apk/` (pulled base+splits, extracted `.so`), frida venv (`venv/`, frida 16.7.19 + pycryptodome). **If gone:** re‑pull APK via `adb shell pm path com.okampro.oksmart`; the venv rebuild is `/opt/homebrew/bin/python3.13 -m venv venv && venv/bin/pip install frida==16.7.19 frida-tools pycryptodome`. frida‑server already at `/data/local/tmp/frida-server16` in the AVD.
 - Rig gotchas learned 2026‑08‑18: (i) frida `enumerate_processes()` does **not** match the app by name — find pid via `adb shell ps -A | grep okam`; (ii) the app's `com.vstarcam.*` classes load **lazily** → hook on a retry timer (no time cap), not a single `Java.perform`; (iii) two concurrent frida sessions **crash** the (packed) app — one session at a time; (iv) `nohup … &` closes stdin → `run_frida.py` must block on `threading.Event().wait()`, not `sys.stdin.read()`.
+- **Vendor SDK** (2026‑08‑26): `veepaisdk-mian-flutter` — `doc/zh/C系列cgi命令手册_v12_20230505.pdf` is the CGI
+  reference, `doc/en/CGI Documentation0125.docx` the app-facing summary, `lib/camera_device/commands/video_command.dart`
+  the resolution/stream code. See §24. Extract the PDFs with `pypdf` (`pip install pypdf`); this Mac has no
+  `pdftotext`/`mutool`, and the PDFs use CID fonts so raw stream decompression yields glyph ids, not text.
+- **`okamprobe.py`** — a LAN-direct probe client, a straight port of `firmware/src/okamcam.cpp` (S-box, `F1` framing,
+  LanSearch → Hello/P2pReq/DevLgn/Punch → DRW CGI → indexed reassembly) plus a JPEG SOF parser. In `/tmp/okam-re/`;
+  re-porting it from `okamcam.cpp` takes minutes if that is wiped. It is the fastest way to answer "what does this CGI
+  actually return" without flashing firmware — `Cam().discover()` / `.auth()` / `.request("snapshot.cgi?res=2&"+AUTH)`.
 - AVD `okamre` persists in `~/.android/avd`. Android SDK at `~/Library/Android/sdk` (cmdline‑tools installed; Homebrew is broken for installs on this Mac; system python 3.9 too old for frida → use `/opt/homebrew/bin/python3.13`).
 - Camera HTTP: `admin` / `888888`. Device: `did=VSTH204422KPFRR`, `realdeviceid=AAC2852199TWVA`, LAN IP `192.168.144.85`, MQTT device‑record `security=<MQTT_DEVICE_SECURITY>`.
 - Home Wi‑Fi: SSID `<WIFI_SSID>` / PSK `<WIFI_PSK>`.
@@ -267,6 +283,10 @@ Next things to try, in order: a short delay between the in-session retries (the 
 
 ## 18. Full resolution (2304×1296) — the video-keyframe path
 
+> ⚠️ **Premise partly superseded by §24 (2026‑08‑26).** `snapshot.cgi` is *not* hardwired — it takes a `res` parameter,
+> which is simply not one of the names tried below. Its ceiling is 1280×720, so 2304×1296 remains video-only and the
+> rest of §18–§20 stands.
+
 `snapshot.cgi` is hardwired to the 640×360 sub-stream: `stream=`, `resolution=` and `substream=` were all tried and every variant returns 640×360. The full-resolution image is only available from the **video** stream, so the controller now asks for `livestream.cgi?streamid=10&substream=2`, keeps the **first keyframe** and sends the raw H.264 to the cloud, which decodes it to a JPEG with ffmpeg (`okamCamService.decodeKeyframeToJpeg`). The ESP32 never decodes anything — the keyframe is ~32–47 KB, about the size of the old sub-stream JPEG.
 
 Constraints and findings:
@@ -324,6 +344,12 @@ With the buffer sized correctly the controller anchors on the keyframe on **ever
 
 ### 19.5 The APK route is closed — this firmware cannot be told to shrink the keyframe
 
+> ⚠️ **Conclusion retracted by §24 (2026‑08‑26).** The probing below used parameter ids that do not exist
+> (`param=0&value=4`), so "nothing moves the encoder" was never actually tested. The vendor SDK documents the real
+> encoder controls — `set_media.cgi` and `camera_control.cgi` params 13/21/6 — and they are still untried. What
+> survives from this section is the negative result on `set_camera_params.cgi` (it does not exist, in the app either)
+> and on the H.265 selector (accepted, persisted, ignored).
+
 Option 1 above was pursued to the end. `base.apk` + `split_config.arm64_v8a.apk` were pulled from the `okamre` AVD (`adb pull /data/app/.../com.okampro.oksmart-*/`), and `libapp.so` (54 MB Flutter AOT) yields the app's complete CGI inventory. Findings:
 
 - **There is no `set_camera_params.cgi` anywhere in the app** — the camera answers `var cgi="not support"` because the CGI genuinely does not exist on this build. The full setter surface is `camera_control.cgi?param=N&value=V` (the app uses params 1, 2, 3, 5, 11, 14, 16, 33, 34, 36-40), `decoder_control.cgi`, and `trans_cmd_string.cgi` (203 uses).
@@ -342,7 +368,10 @@ Since each *session* reliably yields exactly one keyframe, the obvious move is s
 
 Reverted. The shipped build is one session per capture, with the cloud's own retry schedule providing the repetition.
 
-## 20. Shipped: the 640x360 snapshot path (2026-08-20)
+## 20. Shipped: the `snapshot.cgi` path (2026-08-20)
+
+> The size shipped here was 640×360; §24 raises it to 1280×720 on the same path. Everything about *why* this path is
+> the right one is unchanged.
 
 Following §19, the controller now ships the **`snapshot.cgi` path** and the full-resolution keyframe path is retired to git history. The reason is pacing, not resolution:
 
@@ -356,9 +385,9 @@ The device log shows the repair working rather than being avoided: a typical suc
 Implementation notes:
 - Fragments are stored **by index** and the highest **contiguous** index is acked (coalesced). Taking them strictly in order and re-acking the last good one instead was measured far worse — `resend=343..553` out of ~400 fragments and 0/10 — because the `0xd1` packet is a resend request rather than a pure acknowledgement (§19.2), so naming an old index makes the camera go-back-N the whole window and the flood drowns the fragment actually wanted. Switching to indexed reassembly cut fragments per capture from ~420 to ~200.
 - **The `result= 0;var …` preamble does not always fit in the first fragment.** The SOI lands in slot 2 on this camera, so the slot it appears in has to be recorded, not assumed to be slot 0. Assuming slot 0 left the preamble in front of the JPEG and every capture failed its final SOI check with a plausible-looking `bytes=39921` — a silent, total failure that only the marker check caught. The EOI scan is likewise only started once the SOI is known, so a stray `ff d9` byte pair in the preamble cannot end the image before it starts.
-- The image is **buffered, then published**. Publishing is a blocking TLS write during which no UDP can be read; doing it between fragments killed the transfer after ~5 fragments.
+- The image was **buffered, then published**. Publishing is a blocking TLS write during which no UDP can be read; doing it between fragments killed the transfer after ~5 fragments. *(Superseded by §24.6: on this ack-paced channel the publish can be interleaved as long as the ack is withheld until it finishes, which is what removed the buffer-size ceiling. The finding above holds for the unpaced video stream, where there is no ack to withhold.)*
 - The JPEG is bounded by its **SOI/EOI markers** — the `result= 0;var …` preamble before SOI and any trailing text after EOI are stripped, and an image that never reached EOI is refused rather than stored as the grey-striped partial that looks like a broken lens.
-- Buffer is **56 KB, malloc'd per capture and freed on every exit path**, with the same largest-free-block guard as before (`skipped-low-heap` reports free/max/needed). 640x360 stills measure ~31-33 KB. Static RAM 20.3%.
+- Buffer is **56 KB, malloc'd per capture and freed on every exit path**, with the same largest-free-block guard as before (`skipped-low-heap` reports free/max/needed). 640x360 stills measure ~31-33 KB. Static RAM 20.3%. *(§24.6 replaced this with a 48 KB sliding window, so the buffer no longer bounds the image size.)*
 - The server needs **no change**: `okamP2PService.onImageMessage` already resolves a plain JPEG directly and only calls ffmpeg when the message carries `"h264":true`. That branch is left intact for whenever the full-resolution path is revived.
 
 ### 20.1 Reviving the full-resolution path
@@ -410,5 +439,247 @@ device on the network is not picked up by mistake, but the two ids are not the s
 a binary number, five characters (§16). Comparing them matches nothing, so discovery still takes the first camera that
 answers. Making this a real identity check means capturing the wire DID at pairing time, which needs a P2P session
 against the camera's setup AP.
+
+## 24. The vendor SDK arrived (2026-08-26) — `snapshot.cgi` was never hardwired
+
+The **VeepaiSDK Flutter plugin** (`veepaisdk-mian-flutter`) is the vendor's own client for these cameras, and it ships
+the documentation the reverse-engineering was substituting for. Two files carry almost everything:
+
+- `doc/zh/C系列cgi命令手册_v12_20230505.pdf` — the **C-series CGI manual**, 86 pages, the authoritative per-CGI
+  reference (Chinese). Extract with `pypdf`; there is no `pdftotext` on this Mac.
+- `doc/en/CGI Documentation0125.docx` and `doc/zh/功能指令文档5.30.pdf` — the app-facing "how do I do X" list, in
+  English and Chinese, keyed to the Dart methods in `lib/camera_device/commands/`.
+
+`lib/camera_device/commands/video_command.dart` is the useful source file: it is the SDK's own resolution/stream code.
+
+### 24.1 The fix: `snapshot.cgi` takes a `res` parameter
+
+```
+/snapshot.cgi[?user=&pwd=&loginuse=&loginpas=&res=]
+  res  0 -> 640x360      1 -> 320x180      2 -> 1280x720
+  returns: one JPEG at the requested size
+```
+
+§18 concluded the CGI was hardwired after trying `stream=`, `resolution=` and `substream=`. The parameter is none of
+those — it is **`res`**, and calling `snapshot.cgi` with no arguments is what pins it to 640×360.
+
+The value set is not arbitrary: it is exactly the MJPEG encoder's size list, which `camera_control.cgi?param=15`
+switches between (§24.3). So `snapshot.cgi` renders from the MJPEG encoder, and **1280×720 is its ceiling** —
+2304×1296 genuinely is video-only, which is the one thing §18 got right.
+
+The dual-lens variant is `snapshot.cgi?sensor=N` (0 = tracking camera, 1 = panorama). Irrelevant here — this camera has
+one sensor — but it explains why the SDK's `getSnapshot()` sends `sensor=` rather than `res=`.
+
+Two caveats worth keeping in mind, both from the manual contradicting itself:
+
+- the snapshot section says the default is `res=1`, but this camera answers 640×360 with no `res` at all, which is the
+  manual's `res=0`;
+- the snapshot section calls `res=1` "360×180" while `livestream.cgi`'s identical table calls it "320×180".
+
+So the map is right in shape and possibly off by a slot on this firmware. The firmware change below is built to notice
+(see §24.6).
+
+### 24.2 The stream/resolution map, from the vendor
+
+`livestream.cgi?streamid=10&substream=N` and `camera_control.cgi?param=16&value=N` share one table:
+
+| `substream` / `value` | resolution |
+|---|---|
+| 0, 1, 14–22 | 1280×720 |
+| 2, 3, 7–12 | 640×360 |
+| 5, 6 | 320×180 |
+| **100** | **2304×1296** — "only when the app switches to super HD" |
+
+`VideoResolution` in `video_command.dart` maps `low→4`, `general→2`, `high→1`, and **`superHD→100`** (a special case in
+`startStream`, not the enum index). `get_status.cgi?support_pixel_shift=1` is how the app knows the camera can do it.
+
+**This does not match what was measured here** (§15.3, §19.1: `substream=2` decodes to 2304×1296, `substream=1` gives
+~2.7 KB keyframes). The measurement wins — it came out of ffmpeg — but `substream=100` is the documented super-HD slot
+and has never been tried, so it is the first thing to reach for if the video path is ever revived.
+
+### 24.3 The complete `camera_control.cgi` parameter table
+
+This is what §19.5 was probing blindly for. `camera_control.cgi?param=P&value=V`:
+
+| P | meaning | values |
+|---|---|---|
+| 0 | resolution / stream select | **3 = main, 0 = sub, 1 = third** |
+| 1 / 2 / 8 / 9 | brightness / contrast / saturation / hue | 0–255 |
+| 3 | mains mode | 0 = 50 Hz, 1 = 60 Hz |
+| 5 | flip & mirror | 0 normal, 1 mirror, 2 flip, 3 both |
+| 6 / 12 / 17 | frame rate, main / sub / third | 1–25 fps |
+| **13 / 19 / 20** | **bitrate, main / sub / third** | **N × 128 kbps, N = 1–32** |
+| **15** | **MJPEG size** | **0 = 640×360, 1 = 320×180, 2 = 1280×720** |
+| 16 | resolution switch (app) | the table in §24.2 |
+| **21 / 22 / 23** | **rate mode, main / sub / third** | **0 = VBR, 1 = CBR** |
+| 24 / 25 | input / output volume | 0–31 |
+| 14 / 33 / 37 | IRCUT, night-vision mode, full-colour sub-config | see the SDK docs |
+| 10 | OSD | 1 show, 0 hide |
+| 30 / 31 / 32 | zoom out / in / stop | — |
+| 36 / 38 / 39 / 40 | lens switch, sensor select, gun-ball linkage, calibration | — |
+| 100 | PTZ speed | 0–10 |
+
+§19.5 tried `param=0&value=4`. **There is no value 4** — param 0 takes 3/0/1. It also read `param=3` as a bitrate
+control; it is the 50/60 Hz mains mode, which explains the "wedged encoder" that only cleared on `reboot.cgi`.
+
+### 24.4 `set_media.cgi` — the encoder setter, under the name nobody guessed
+
+§19.5 concluded "`set_camera_params.cgi` does not exist on this firmware". True, and it does not exist in the vendor SDK
+either — it was never the right name. The real one is:
+
+```
+/set_media.cgi?mainrate=0&enc_size=&enc_framerate=&enc_keyframe=&enc_quant=
+              &enc_ratemode=&enc_bitrate=&enc_main_mode=&loginuse=&loginpas=
+/set_media.cgi?mainrate=1&sub_enc_size=&sub_enc_framerate=&sub_enc_keyframe=&sub_enc_quant=
+              &sub_enc_ratemode=&sub_enc_bitrate=&sub_enc_main_mode=&loginuse=&loginpas=
+```
+
+`enc_quant` is image quality (2–50, vendor suggests 30), `enc_keyframe` the GOP length (25–200, suggests 50),
+`enc_ratemode` 0 = CBR / 1 = VBR — note this is **inverted relative to `camera_control` param 21**, per the manual.
+
+The catch that would have defeated a lucky guess: **`enc_main_mode` (a.k.a. `mainmode`) must be 0** for the values you
+pass to be used at all. 1–10 select vendor presets and ignore everything else in the request.
+
+These fields are the ones `get_params.cgi` / `get_record.cgi` already report back (`enc_bitrate`, `enc_quant`,
+`enc_keyframe`, `enc_ratemode`, `enc_size`), so a change is verifiable by readback — and, unlike the H.265 selector,
+readback plus a keyframe measurement will show whether the encoder actually obeyed.
+
+`resolution` / `enc_size` values: `2`→1280×720, `3`→1280×960, `4`→1920×1080, `6`→2560×1440, `10`→2560×1920,
+`110`→1536×1536, `100`→360×360. This camera reports **5**, which the v12 manual does not list — it is the T23's
+2304×1296 mode. `trans_cmd_string.cgi?cmd=2105&command=4&bPixel300=0|1` switches the sensor between 200w (1920×1080)
+and 300w (2304×1296).
+
+### 24.5 The media frame header, confirmed
+
+The 32-byte header in front of the H.264 (§15.3) is the vendor's `STREAMHEAD`, and the manual gives it in full:
+
+```c
+struct STREAMHEAD {
+  unsigned int   startcode;   // 0xa815aa55  -> "55 aa 15 a8" on the wire
+  char           type;        // 0x00 H.264 I-frame, 0x01 H.264 P, 0x10 H.265 I, 0x11 H.265 P
+  char           streamid;
+  unsigned short militime;    // timestamp, ms
+  unsigned int   sectime;     // timestamp, s
+  unsigned int   frameno;
+  unsigned int   len;         // payload length, header excluded
+  unsigned char  version;     // 129 = Ingenic single-sensor (this camera)
+  unsigned char  resolution;
+  unsigned char  sessid, currsit, endflag;
+  char           byzone, optics_multiple, type1;
+  short          sample, index;
+};
+```
+
+`type` is a **keyframe flag in the header** — worth having: the video path currently identifies keyframes by scanning
+for NAL types, which is more work for the same answer.
+
+### 24.6 Shipped: 1280×720, and a receiver whose RAM does not depend on the image
+
+Two changes in `firmware/src/okamcam.cpp`, because `res=2` alone would have failed:
+
+**The request is now `snapshot.cgi?res=2&…`** (constants `PREFERRED_RES` / `FALLBACK_RES`). A 1280×720 JPEG is roughly
+3× the pixels of the 640×360 one, so ~100 KB rather than ~32 KB.
+
+**The receiver became a sliding window** instead of a buffer for the whole image. ~100 KB could never have been
+buffered: this chip has no PSRAM and its largest contiguous free block is ~94 KB (§19.3) — that ceiling is what capped
+the old design, and it is now gone rather than raised. Fragments are still stored by index so they can arrive in any
+order, but once the bottom of the window is contiguous it is published to the cloud and the window slides up. RAM is set
+by the window (48 KB, still malloc'd per capture and freed on every exit path), not by the size of the still.
+
+Publishing mid-transfer is the part that looks like it contradicts §17.1, and the distinction is the whole point:
+
+- `snapshot.cgi` is **ack-paced**. Withholding our ack while the blocking TLS publish runs *is* the backpressure — the
+  camera waits, so nothing is lost. The code therefore sends the ack deliberately *after* the flush, which is also what
+  restarts the sender.
+- `livestream.cgi` is an **unpaced burst**. There is no ack to withhold, so publishing between fragments loses the rest
+  of the keyframe — which is exactly what §17.1 measured.
+
+**If the camera will not do 1280×720 it degrades instead of failing.** A camera whose firmware rejects or ignores `res`
+should simply return 640×360, which works as before; but if `res=2` is refused outright, every capture would fail
+forever. So after `RES_FALLBACK_AFTER` (3) consecutive failures the controller falls back to `res=0` for the rest of the
+boot. The capture log line now carries `res=` so which one is in use is visible in the field.
+
+Static RAM 20.1 % (65,780 B, slightly *below* the previous 20.3 % — the slot bookkeeping arrays shrank), flash 66.1 %.
+Both `fridge` and `controller` build.
+
+> Building the firmware on macOS needs the compile to happen inside the container's own filesystem
+> (`docker run … bash -c 'cp -r /app /build && cd /build && pio run -e fridge'`). Mounted directly, the host's
+> case-insensitive volume makes `#include <WiFi.h>` resolve to the project's own `src/wifi.h`, and every file that
+> touches `WiFi` fails to compile. It is not a real build error.
+
+### 24.7 Not yet verified on hardware
+
+**The camera did not answer while this was written.** A LanSearch sweep of the whole `192.168.144.0/24` — broadcast and
+unicast to all 30 ARP-visible hosts, from both of this Mac's interfaces on that subnet — produced no `PunchPkt`, and no
+host on the LAN has 9001/9002/81 open. The camera is powered off, elsewhere, or unpaired. So:
+
+- **that `res=2` returns 1280×720 on firmware `EN120.8.53.11` is inferred from the vendor documentation, not measured;**
+- the sliding-window receiver compiles and its logic is a small change to a path measured at 22/22, but its success
+  rate at ~100 fragments per capture is unknown — more fragments means more chances to lose one, and the flush-vs-ack
+  interleaving is new.
+
+What to check the moment a camera is back on the LAN, in order: the returned JPEG's SOF dimensions; `bytes=` and
+`got=n/m` in `message-cam-capture:ok`; the per-attempt success rate over ~10 captures spaced 30 s; and whether `res=`
+in the log has silently dropped to 0. The probe client used for the sweep is a direct port of `okamcam.cpp` and is the
+quickest way to answer the first question without flashing anything.
+
+If 1280×720 proves too heavy, §24.3/§24.4 now give real knobs to lighten it (`enc_quant`, `camera_control` param 13),
+which is what §19.5 wrongly concluded did not exist.
+
+## 25. Push instead of pull — the options, and one retracted dead end
+
+Everything so far **pulls**: the controller opens a P2P session and drags the image across the LAN. The camera can also
+be told to **push**, which would take the ESP32 out of the image path entirely — no sliding window, no ARQ, no 20 s
+budget, and no dependence on the controller being awake. Station mode firewalls *inbound* connections; it does nothing
+to outbound ones, and the camera already reaches the O-KAM cloud, so the direction is available.
+
+None of the below is tested. They are listed most- to least-promising.
+
+**(a) FTP timed upload — the only documented *periodic* push.** `set_ftp.cgi?svr=&port=&user=&pwd=&mode=&dir=&
+upload_interval=`, with `mode` 0 = PORT / 1 = PASV. `get_params.cgi` reads it back as the FTP parameter group
+(`ftp_svr`, `ftp_port`, `ftp_user`, `ftp_pwd`, `ftp_dir`, `ftp_mode`, `ftp_filename`, `ftp_upload_interval`). The
+vendor describes `ftp_upload_interval` as "the interval between immediate image uploads (seconds), 0 = disabled" — an
+unconditional timer, exactly the shape of requirement #3.
+
+§5 records this as tested and dead. **That conclusion should be re-opened**, because its supporting evidence was
+`get_ftp` returning `not support` — and `get_ftp.cgi` **does not exist in the vendor manual at all**. FTP settings have
+never been read back from anywhere but `get_params.cgi`, so "FTP appears stripped" rests on the same mistake as
+`set_camera_params.cgi` (§24.4). The observation that no camera-side connection ever arrived is still real and still the
+thing to explain; candidates the original test may have missed are `mode` (PORT cannot work from behind NAT — it must be
+PASV), an unset `ftp_filename`, a `dir` that does not exist on the server, and the interval's unit, which the manual
+gives as **seconds** in `get_params` and **milliseconds** in `set_ftp.cgi`.
+
+**(b) RTMP push — `trans_cmd_string.cgi?cmd=2019`.** `command=0&enable=1&mainUrl=<rtmp url>&reserveUrl=<rtmp url>`
+configures it; `command=1` reads back `status` (0 off, 1 push failed, 2 pushing to main, 3 pushing to backup). A
+readable status field makes this cheap to test — it says whether the camera even tried. This is the only push path that
+would carry the **2304×1296 main stream**, so it is also the one that would settle the resolution question outright.
+Caveat: the Flutter SDK never calls `cmd=2019`, so it is firmware surface the app does not exercise — the same category
+as the H.265 selector, which accepted the setting, persisted it in readback, and was ignored by the encoder (§19.5).
+
+**(c) Alarm-triggered upload — wrong shape.** `set_alarm.cgi?snapshot=1&upload_interval=N` (N = *number of images*,
+0–10, not a period) pushes via FTP or mail on motion, and `alarm_http`/`alarm_http_url` would call a URL. It is
+motion-triggered, so it cannot satisfy "every 1–2 minutes", and the vendor's own parameter list marks both `alarm_http`
+fields **未使用 — "unused"**.
+
+**(d) SMTP — `set_mail.cgi`.** Alarm-triggered only, and it would mean running a mailbox and an IMAP poller to receive
+grow-tent stills. Listed for completeness.
+
+Common to all of them, and the reason none is a small change:
+
+- **Configuration has to go over P2P.** Port 81 is firewalled in station mode, so every `set_ftp.cgi` /
+  `trans_cmd_string.cgi` above travels the same DRW channel the capture path uses. That part is free — the client
+  already exists on the controller, and pairing is the natural moment to send it.
+- **The cloud grows a public ingest endpoint**, per-device credentials, and a mapping from an arriving file to a device.
+  Nothing in the current architecture accepts unsolicited data from a customer's LAN.
+- **The credentials sit on the camera in clear text** and cross the internet the same way — FTP has no TLS here, and
+  RTMP will not be RTMPS. A per-device, least-privilege, write-only account is the minimum.
+- **Reversibility (req #2)** is already covered: `restore_factory.cgi` on disconnect (§21) wipes whatever was set.
+- **Liveness changes character.** Pull fails loudly — a capture returns nothing. Push fails silently, so "no image for
+  20 minutes" becomes the only signal, and the pull path is what would have to remain as the fallback and the prober.
+
+Cheapest way to find out, in this order, and both are minutes of work with `okamprobe.py` once a camera is on the LAN:
+set `cmd=2019` with a `mainUrl` pointing at any host running `tcpdump`, then read `command=1` status back; and set
+`set_ftp.cgi` at a throwaway PASV FTP server, then read `get_params.cgi` back and watch for the connection. Only if one
+of them actually connects is there any point in building ingest infrastructure.
 
 Credentials note: this repository is public, so every real credential in this document is a placeholder — `<OKAM_ACCOUNT>`, `<OKAM_PASSWORD>`, `<WIFI_SSID>`, `<WIFI_PSK>`, `<MQTT_DEVICE_SECURITY>`, `<CAMERA_MAC>`, `<VENDOR_UART_USER>`/`<VENDOR_UART_PASS>`. `admin`/`888888` is left as-is: it is the universal VStarcam factory default, is what the firmware ships with, and is published by the vendor. Keep it this way — do not paste real values back in.

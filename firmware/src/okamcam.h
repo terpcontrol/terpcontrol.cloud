@@ -14,16 +14,21 @@ namespace fg {
    * retransmission needs low, predictable latency, which a LAN round-trip has
    * and a round-trip through the MQTT tunnel does not.
    *
-   * This uses `snapshot.cgi`, which returns the 640x360 sub-stream as a paced
-   * request/response — the camera sends a fragment, waits for its ack, then
-   * sends the next. That pacing is why this path is reliable and the
-   * full-resolution one is not (see the note below).
+   * This uses `snapshot.cgi?res=2`, which renders a 1280x720 JPEG and delivers
+   * it as a paced request/response — the camera sends a fragment, waits for its
+   * ack, then sends the next. That pacing is why this path is reliable and the
+   * full-resolution one is not (see the note below). `res` is the vendor's
+   * MJPEG size selector (0 = 640x360, 1 = 320x180, 2 = 1280x720); the camera
+   * defaults to 0, which is why every still was 640x360 until it was found.
    *
-   * Memory: the image buffer is malloc'd per capture and freed on every exit
-   * path, so nothing is held between captures. If the largest free block cannot
-   * spare it with a margin, the capture is skipped rather than risking an
-   * allocation failure elsewhere — the image service simply retries on its own
-   * schedule. Static use is a handful of file-static buffers (~2.5 KB).
+   * Memory: the receiver is a sliding window (48 KB) rather than a buffer for
+   * the whole image, so RAM does not depend on how large the still is — the
+   * bottom of the window is published to the cloud and slid up as it becomes
+   * contiguous. The window is malloc'd per capture and freed on every exit path,
+   * so nothing is held between captures; if the largest free block cannot spare
+   * it with a margin the capture is skipped rather than risking an allocation
+   * failure elsewhere, and the image service simply retries on its own schedule.
+   * Static use is a handful of file-static buffers (~2.5 KB).
    *
    * Returns true when a complete image was streamed. Safe to call when no
    * camera is paired (returns false immediately).
@@ -77,9 +82,11 @@ namespace fg {
    * is measured on this hardware — see docs §19 for the full write-up.
    *
    * HOW IT WORKS
-   *   `snapshot.cgi` is hardwired to the 640x360 sub-stream; no parameter
-   *   changes it. The only full-resolution source is the VIDEO stream:
-   *   `livestream.cgi?streamid=10&substream=2` on DRW channel 1. Its payload is
+   *   `snapshot.cgi` tops out at 1280x720 (`res=2`) because it renders from the
+   *   MJPEG encoder, whose sizes are 640x360 / 320x180 / 1280x720. The only
+   *   2304x1296 source is the VIDEO stream: `livestream.cgi?streamid=10&
+   *   substream=2` on DRW channel 1 (the vendor documents substream=100 as the
+   *   "super HD" slot, but 2 measurably delivers 2304x1296 here). Its payload is
    *   VStarcam media frames — a 32-byte header (magic 55 aa 15 a8, frame length
    *   at offset 16, little-endian) followed by H.264 Annex-B. Keep the first
    *   keyframe (SPS NAL 7 + IDR NAL 5), publish the raw H.264 with
@@ -106,30 +113,39 @@ namespace fg {
    *      assembled does both. This applies to the snapshot path too, and is why
    *      the code here re-acks the last good index instead of the newest one.
    *   4. THE KEYFRAME IS SCENE-DEPENDENT: 27-38 KB on a quiet scene, 52-67 KB on
-   *      a busy one. A buffer that fits the average silently scores 0/10 when
-   *      the scene brightens, because an oversized keyframe is refused outright.
-   *      It must fit the big end — and on this chip the largest contiguous free
-   *      block is ~94 KB, so 76 KB + an 8 KB margin was the practical ceiling.
+   *      a busy one. When the whole image had to be buffered this alone was
+   *      fatal — an oversized keyframe was refused outright, so a build that
+   *      worked at 37 KB scored 0/10 once the scene brightened. The sliding
+   *      window in okamcam.cpp removes that particular ceiling; findings 1-3
+   *      stand on their own.
    *
    * WHAT WAS TRIED AND DOES NOT WORK — do not spend time on these again
-   *   - Shrinking the keyframe at the camera. `set_camera_params.cgi` does not
-   *     exist on firmware EN120.8.53.11. No `camera_control.cgi?param=N&value=V`
-   *     moves the encoder (verified live). `trans_cmd_string.cgi?cmd=2105&
-   *     command=2&videoFormat=1` (H.264+/H.265, which the app advertises as
-   *     "~50% less bitrate") is accepted and persists in readback, but the
-   *     encoder ignores it — still H.264 at 56.7 KB after a full reboot.
    *   - Several sessions per capture. Since each session yields one keyframe,
    *     N sessions should give N chances. It measures 0/10: discovery never
    *     completes, and repeated udp.stop()/udp.begin() PERMANENTLY fragments the
    *     heap (largest free block 94,196 -> 77,812 bytes and it stays there), so
    *     later captures fail the allocation guard. Socket churn is not viable.
    *   - Re-issuing livestream.cgi mid-stream to force a new keyframe: ignored.
+   *   - `set_camera_params.cgi` — it genuinely does not exist on this firmware,
+   *     and it does not exist in the vendor SDK either. It was the wrong name.
+   *   - `trans_cmd_string.cgi?cmd=2105&command=2&videoFormat=1` (H.264+/H.265,
+   *     which the app advertises as "~50% less bitrate") is accepted and
+   *     persists in readback, but the encoder ignores it — still H.264 at
+   *     56.7 KB after a full reboot.
    *
    * WHAT WOULD ACTUALLY MAKE IT WORK
-   *   A controller with PSRAM. It removes the buffer ceiling and, more
-   *   importantly, the memory pressure that makes draining a 53-fragment burst
-   *   marginal. Failing that, the camera would have to be talked into a lower
-   *   bitrate, which this firmware provides no means to do.
+   *   Shrink the keyframe at the camera. The earlier conclusion that nothing
+   *   moves the encoder came from probing invalid parameter ids; the vendor SDK
+   *   (docs §24) gives the real ones, and they are untried on this hardware:
+   *     - `set_media.cgi?mainrate=0&enc_main_mode=0&enc_bitrate=&enc_quant=&
+   *        enc_keyframe=&enc_ratemode=&enc_framerate=&…` — the actual encoder
+   *        setter. `enc_main_mode=0` is what makes the passed values count;
+   *        1-10 select vendor presets and ignore them.
+   *     - `camera_control.cgi?param=13&value=N` — main-stream bitrate, N*128 kbps
+   *        (N = 1..32). param 21 picks CBR (value 1), which would stop the
+   *        keyframe swinging with the scene; param 6 sets the frame rate.
+   *   A controller with PSRAM would also do it, by removing the memory pressure
+   *   that makes draining a 53-fragment burst marginal.
    */
 
 }
