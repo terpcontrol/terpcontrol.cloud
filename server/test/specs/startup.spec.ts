@@ -116,9 +116,11 @@ describe('starting without the settings the server needs', () => {
   });
 
   it('refuses a port that is not a number', async () => {
-    const outcome = await startWith({ PORT: 'http' });
+    for (const port of ['http', ' ', '80 80', '-1']) {
+      const outcome = await startWith({ PORT: port });
 
-    expect(outcome.code).not.toBe(0);
-    expect(outcome.output).toContain('PORT must be a number');
+      expect(outcome.code).not.toBe(0);
+      expect(outcome.output).toContain('PORT must be a number');
+    }
   });
 });

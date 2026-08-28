@@ -14,10 +14,12 @@ const required = (name: string) => z.string({ error: `${name} is required` }).mi
 const environmentSchema = z
   .object({
     NODE_ENV: z.string().optional(),
+    // Digits, not "anything Number() will take": `Number(' ')` is 0, so a
+    // stray space would have passed and bound an arbitrary free port.
     PORT: z
       .string()
       .optional()
-      .refine(value => value === undefined || value === '' || Number.isInteger(Number(value)), { error: 'PORT must be a number' }),
+      .refine(value => value === undefined || value === '' || /^\d+$/.test(value), { error: 'PORT must be a number' }),
 
     DB_HOST: required('DB_HOST'),
     DB_PORT: required('DB_PORT'),
