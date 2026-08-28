@@ -159,9 +159,9 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     void this.checkDeviceClasses();
     void this.backfillFirmwareCreatedAt();
 
-    this.work.schedule(() => void this.connectMqtt(), 5000);
-    this.work.repeat(() => void this.findUpgradeableDevices(), 10000);
-    this.work.repeat(() => void this.runRecipes(), 20000);
+    this.work.schedule('The MQTT connection', () => this.connectMqtt(), 5000);
+    this.work.repeat('The firmware rollout', () => this.findUpgradeableDevices(), 10000);
+    this.work.repeat('The grow plans', () => this.runRecipes(), 20000);
   }
 
   public onApplicationShutdown(): void {
@@ -210,7 +210,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     try {
       await this.mqtt.connect();
 
-      void this.mqtt.subscribe('/devices/#');
+      await this.mqtt.subscribe('/devices/#');
       this.mqtt.messages.subscribe(async message => {
         const device_id = message.topic.split('/')[2];
         const topic = message.topic.split('/')[3];
@@ -271,7 +271,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
       // Wait before trying again: retrying straight away spins the CPU and
       // floods the log for as long as the broker is unreachable. A server on
       // its way down does not try again at all.
-      this.work.schedule(() => void this.connectMqtt(), MQTT_RECONNECT_DELAY);
+      this.work.schedule('The MQTT connection', () => this.connectMqtt(), MQTT_RECONNECT_DELAY);
     }
   }
 

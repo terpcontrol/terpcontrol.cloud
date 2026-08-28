@@ -89,8 +89,8 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
    * request - and before the database connection is necessarily up.
    */
   public onModuleInit(): void {
-    this.work.schedule(() => void this.readFromRtspStreams(), 30_000);
-    this.work.schedule(() => void this.compressRtspStreams(), 60_000);
+    this.work.schedule('The webcam poller', () => this.readFromRtspStreams(), 30_000);
+    this.work.schedule('The timelapse builder', () => this.compressRtspStreams(), 60_000);
   }
 
   public onApplicationShutdown(): void {
@@ -279,7 +279,7 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
     } finally {
       // Each pass schedules the next one, so a stopped server has to refuse it
       // rather than only cancel the timer that happens to be pending.
-      this.work.schedule(() => void this.readFromRtspStreams(), READ_IMAGE_CHECK_INTERVAL_MS);
+      this.work.schedule('The webcam poller', () => this.readFromRtspStreams(), READ_IMAGE_CHECK_INTERVAL_MS);
     }
   }
 
@@ -329,7 +329,7 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
         this.lastThinningRun = Date.now();
       }
     } finally {
-      this.work.schedule(() => void this.compressRtspStreams(), COMPRESS_INTERVAL_MS);
+      this.work.schedule('The timelapse builder', () => this.compressRtspStreams(), COMPRESS_INTERVAL_MS);
     }
   }
 
@@ -484,19 +484,19 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
         return await this.convertRtspStreamImagesToVideo(tmpDir);
       }
     } catch (e) {
-      logger.info('Error compressing RTSP images for device ' + device.device_id + ':', e);
+      logger.error(`Error compressing RTSP images for device ${device.device_id}: ${e}`);
     } finally {
       for (const file of filesWritten) {
         try {
           await unlink(file);
         } catch (e) {
-          logger.info('Error deleting temp file ' + file + ':', e);
+          logger.error(`Error deleting temp file ${file}: ${e}`);
         }
       }
       try {
         await rmdir(tmpDir);
       } catch (e) {
-        logger.info('Error deleting temp dir ' + tmpDir + ':', e);
+        logger.error(`Error deleting temp dir ${tmpDir}: ${e}`);
       }
     }
 
