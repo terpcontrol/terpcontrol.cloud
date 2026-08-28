@@ -1,8 +1,10 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Recipe, RecipeStep } from '@fg2/shared-types';
-import deviceModel from '@models/device.model';
-import recipeModel from '@models/recipe.model';
-import { deviceService } from '@services/device.service';
+import { InjectModel } from '@nestjs/mongoose';
+import { Document, Model } from 'mongoose';
+import { Device, RecipeTemplate } from '@fg2/shared-types';
+import { MODEL } from '../../database/models.module';
+import { DeviceService } from './device.service';
 
 export interface RecipePayload extends Partial<Recipe> {
   steps?: RecipeStep[];
@@ -17,8 +19,14 @@ export interface RecipeTemplatePayload {
 
 @Injectable()
 export class DeviceRecipeService {
+  constructor(
+    @InjectModel(MODEL.device) private readonly devices: Model<Device & Document>,
+    @InjectModel(MODEL.recipeTemplate) private readonly templates: Model<RecipeTemplate & Document>,
+    private readonly deviceService: DeviceService,
+  ) {}
+
   public async forDevice(deviceId: string): Promise<Recipe> {
-    const device = await deviceModel.findOne({ device_id: deviceId }).select('recipe').lean().exec();
+    const device = await this.devices.findOne({ device_id: deviceId }).select('recipe').lean().exec();
     return (device?.recipe ?? { steps: [], activeStepIndex: 0, activeSince: 0 }) as Recipe;
   }
 
@@ -28,7 +36,7 @@ export class DeviceRecipeService {
    * recorded.
    */
   public async save(deviceId: string, payload: RecipePayload): Promise<void> {
-    const previous = ((await deviceModel.findOne({ device_id: deviceId }).select('recipe'))?.recipe ?? {}) as Partial<Recipe>;
+    const previous = ((await this.devices.findOne({ device_id: deviceId }).select('recipe'))?.recipe ?? {}) as Partial<Recipe>;
     const activeStepChanged = previous?.activeStepIndex !== payload?.activeStepIndex || previous?.activeSince !== payload?.activeSince;
 
     for (let index = 0; index < (payload.steps?.length || 0); index++) {
@@ -39,7 +47,7 @@ export class DeviceRecipeService {
     }
 
     if (activeStepChanged && payload?.activeStepIndex != null && !isNaN(payload.activeStepIndex) && payload?.additionalInfo) {
-      await deviceService.logMessage(deviceId, {
+      await this.deviceService.logMessage(deviceId, {
         title: 'message-recipe-step-manually-activated',
         message: `message-recipe-step-manually-activated:${payload.activeStepIndex + 1} (${payload.steps?.[payload.activeStepIndex]?.name ?? ''})`,
         severity: 0,
@@ -50,10 +58,10 @@ export class DeviceRecipeService {
 
     const manuallyActivatedStage = payload?.steps?.[payload?.activeStepIndex]?.stage;
     if (activeStepChanged && payload?.activeSince > 0 && manuallyActivatedStage) {
-      await deviceService.logStageTransitionIfChanged(deviceId, manuallyActivatedStage);
+      await this.deviceService.logStageTransitionIfChanged(deviceId, manuallyActivatedStage);
     }
 
-    const updated = await deviceModel.findOneAndUpdate({ device_id: deviceId }, { $set: { recipe: payload } }, { new: true });
+    const updated = await this.devices.findOneAndUpdate({ device_id: deviceId }, { $set: { recipe: payload } }, { new: true });
     if (!updated) {
       throw new NotFoundException({ error: 'Device not found' });
     }
@@ -61,7 +69,7 @@ export class DeviceRecipeService {
 
   /** Templates the caller may see: the public ones plus their own. */
   public listTemplates(userId: string) {
-    return recipeModel
+    return this.templates
       .find({ $or: [{ public: true }, { owner_id: userId }] })
       .lean()
       .exec();
@@ -72,15 +80,15 @@ export class DeviceRecipeService {
       throw new BadRequestException({ error: 'Missing name or steps' });
     }
 
-    if (await recipeModel.findOne({ name: payload.name }).lean().exec()) {
+    if (await this.templates.findOne({ name: payload.name }).lean().exec()) {
       throw new ConflictException({ error: 'Template name already exists' });
     }
 
-    return recipeModel.create({ name: payload.name, owner_id: userId, public: !!payload.public, steps: payload.steps });
+    return this.templates.create({ name: payload.name, owner_id: userId, public: !!payload.public, steps: payload.steps });
   }
 
   public async readTemplate(user: { userId: string; isAdmin: boolean }, templateId: string) {
-    const template = await recipeModel.findById(templateId).lean().exec();
+    const template = await this.templates.findById(templateId).lean().exec();
     if (!template) {
       throw new NotFoundException({ error: 'Not found' });
     }
@@ -93,7 +101,7 @@ export class DeviceRecipeService {
   }
 
   public async updateTemplate(user: { userId: string; isAdmin: boolean }, templateId: string, payload: RecipeTemplatePayload = {}) {
-    const template = await recipeModel.findById(templateId).exec();
+    const template = await this.templates.findById(templateId).exec();
     if (!template) {
       throw new NotFoundException({ error: 'Not found' });
     }
@@ -103,7 +111,7 @@ export class DeviceRecipeService {
     }
 
     if (payload?.name && payload.name !== template.name) {
-      const clash = await recipeModel
+      const clash = await this.templates
         .findOne({ name: payload.name, _id: { $ne: templateId } })
         .lean()
         .exec();
@@ -121,7 +129,7 @@ export class DeviceRecipeService {
   }
 
   public async deleteTemplate(user: { userId: string; isAdmin: boolean }, templateId: string): Promise<void> {
-    const template = await recipeModel.findById(templateId).exec();
+    const template = await this.templates.findById(templateId).exec();
     if (!template) {
       throw new NotFoundException({ error: 'Not found' });
     }
@@ -130,6 +138,6 @@ export class DeviceRecipeService {
       throw new ForbiddenException({ error: 'Forbidden' });
     }
 
-    await recipeModel.findByIdAndDelete(templateId).exec();
+    await this.templates.findByIdAndDelete(templateId).exec();
   }
 }

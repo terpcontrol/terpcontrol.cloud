@@ -9,7 +9,6 @@ import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify
 import { logger } from '@utils/logger';
 import { AppModule } from './app.module';
 import { appConfig } from './config/configuration';
-import { connectToDatabase } from './database';
 import { registerAccessLog } from './access-log';
 import { registerHttpCompatibility } from './http-compatibility';
 import { setupOpenApi } from './openapi';
@@ -40,8 +39,6 @@ const ALLOWED_METHODS = ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'];
 const COMPRESSIBLE_TYPES = /^text\/(?!event-stream)|(?:\+|\/)json(?:;|$)|(?:\+|\/)text(?:;|$)|(?:\+|\/)xml(?:;|$)/u;
 
 const bootstrap = async (): Promise<void> => {
-  await connectToDatabase();
-
   const adapter = new FastifyAdapter({
     // Behind a single nginx reverse proxy: trust exactly the hop it adds, so
     // rate limiting sees the real client address and the session cookie knows

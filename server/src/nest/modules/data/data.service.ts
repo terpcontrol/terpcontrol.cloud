@@ -1,16 +1,15 @@
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
+import { InjectModel } from '@nestjs/mongoose';
 import { InfluxDB, Point } from '@influxdata/influxdb-client';
-import { INFLUXDB_BUCKET, INFLUXDB_HOST, INFLUXDB_ORG, INFLUXDB_TOKEN, INFLUXDB_URL } from '@/config';
-import { deviceService, StatusMessage } from '@services/device.service';
+import { Document, Model } from 'mongoose';
 import { HttpException } from '@exceptions/HttpException';
 import { calculateVpd } from '@utils/calculateVpd';
-import imageModel from '@models/images.model';
 import { Image } from '@fg2/shared-types';
+import { influxConfig } from '../../config/configuration';
+import { MODEL } from '../../database/models.module';
+import { DeviceService, StatusMessage } from '../device/device.service';
 
-const INFLUXDB_DB = 'devices';
-// You can generate a Token from the "Tokens Tab" in the UI
-
-const influxdb_url = INFLUXDB_URL || `http://${INFLUXDB_HOST || 'influxdb'}:8086`;
-const influxdb_client = new InfluxDB({ url: influxdb_url, token: INFLUXDB_TOKEN });
 export const VALID_SENSORS = ['temperature', 'humidity', 'avg', 'p', 'i', 'd', 'co2', 'rpm', 'day', 'sensor_type', 'leaf_temperature', 'lux'];
 
 // Lux→PPFD depends on the light spectrum, so it is a per-device calibration
@@ -66,22 +65,21 @@ const requireTimeLiteral = (value: unknown, name: string): string => {
   throw new HttpException(400, `Invalid ${name}`);
 };
 
-class DataService {
-  constructor() {
-    // this.influxConnect();
-  }
+@Injectable()
+export class DataService {
+  private readonly influx: InfluxDB;
 
-  private async influxConnect() {
-    // let names = await influxdb_client.getDatabaseNames()
-    // console.log(names)
-    // if (!names.includes(INFLUXDB_DB)) {
-    //   return influxdb_client.createDatabase(INFLUXDB_DB);
-    // }
+  constructor(
+    @InjectModel(MODEL.image) private readonly images: Model<Image & Document>,
+    @Inject(forwardRef(() => DeviceService)) private readonly devices: DeviceService,
+    @Inject(influxConfig.KEY) private readonly config: ConfigType<typeof influxConfig>,
+  ) {
+    this.influx = new InfluxDB({ url: config.url, token: config.token });
   }
 
   public async addData(device_id: string, user_id: string, fields: StatusMessage) {
     // create a write API, expecting point timestamps in nanoseconds (can be also 's', 'ms', 'us')
-    const writeApi = influxdb_client.getWriteApi(INFLUXDB_ORG, INFLUXDB_BUCKET, 'ns');
+    const writeApi = this.influx.getWriteApi(this.config.org, this.config.bucket, 'ns');
     // setup default tags for all writes through this API
     writeApi.useDefaultTags({ device_id: device_id, user_id: user_id });
 
@@ -124,9 +122,9 @@ class DataService {
       method = allowedMethods[0];
     }
 
-    const queryApi = influxdb_client.getQueryApi(INFLUXDB_ORG);
+    const queryApi = this.influx.getQueryApi(this.config.org);
     const query = `
-      from(bucket: "${INFLUXDB_BUCKET}")
+      from(bucket: "${this.config.bucket}")
         |> range(start: ${requireTimeLiteral(from, 'from')}, stop: ${requireTimeLiteral(to, 'to')})
         |> filter(fn: (r) => r["_measurement"] == "status")
         |> filter(fn: (r) => r["_field"] == "${requireMatch(measure, FIELD_NAME, 'measure')}")
@@ -168,7 +166,7 @@ class DataService {
       }
     });
 
-    const cloudSettings = await deviceService.getDeviceCloudSettings(device_id);
+    const cloudSettings = await this.devices.getDeviceCloudSettings(device_id);
 
     const dayOnly = measure.endsWith('_day');
     const nightOnly = measure.endsWith('_night');
@@ -201,7 +199,7 @@ class DataService {
 
   private async getSeriesPpfd(device_id, from, to, interval, method): Promise<{ _time: string; _value: number }[]> {
     const luxSeries = await this.getSeries(device_id, 'lux', from, to, interval, method);
-    const cloudSettings = await deviceService.getDeviceCloudSettings(device_id);
+    const cloudSettings = await this.devices.getDeviceCloudSettings(device_id);
     const factor = cloudSettings?.ppfdLuxFactor ?? DEFAULT_PPFD_LUX_FACTOR;
 
     return luxSeries.map(l => ({ _time: l._time, _value: l._value == null || isNaN(l._value) ? NaN : l._value * factor }));
@@ -216,9 +214,9 @@ class DataService {
       return this.getLatestPpfd(device_id);
     }
 
-    const queryApi = influxdb_client.getQueryApi(INFLUXDB_ORG);
+    const queryApi = this.influx.getQueryApi(this.config.org);
     const query = `
-      from(bucket: "${INFLUXDB_BUCKET}")
+      from(bucket: "${this.config.bucket}")
         |> range(start: -5m)
         |> filter(fn: (r) => r["_measurement"] == "status")
         |> filter(fn: (r) => r["_field"] == "${requireMatch(measure, FIELD_NAME, 'measure')}")
@@ -241,7 +239,7 @@ class DataService {
     const humidity = await this.getLatest(device_id, 'humidity');
     const light = await this.getLatest(device_id, 'out_light');
     const measuredLeafTemp = await this.getLatest(device_id, 'leaf_temperature');
-    const cloudSettings = await deviceService.getDeviceCloudSettings(device_id);
+    const cloudSettings = await this.devices.getDeviceCloudSettings(device_id);
 
     if (temp && humidity) {
       const isDay = (light ?? 0) > 0.5;
@@ -257,9 +255,8 @@ class DataService {
     if (lux == null || isNaN(lux)) {
       return NaN;
     }
-    const cloudSettings = await deviceService.getDeviceCloudSettings(device_id);
+    const cloudSettings = await this.devices.getDeviceCloudSettings(device_id);
     const factor = cloudSettings?.ppfdLuxFactor ?? DEFAULT_PPFD_LUX_FACTOR;
     return lux * factor;
   }
 }
-export const dataService = new DataService();

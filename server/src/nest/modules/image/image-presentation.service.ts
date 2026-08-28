@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
 import { Image } from '@fg2/shared-types';
-import { ONLINE_TIMEOUT } from '@services/device.service';
-import { imageService } from '@services/image.service';
+import { ONLINE_TIMEOUT } from '../device/device.service';
+import { ImageService } from './image.service';
 import { logger } from '@utils/logger';
 
 // Requests for the current picture carry no timestamp, or one at "now" as a cache
@@ -53,6 +53,8 @@ export interface RenderedImage {
 /** Turning a stored picture into what goes over the wire. */
 @Injectable()
 export class ImagePresentationService {
+  constructor(private readonly images: ImageService) {}
+
   /**
    * The image URL is consumed by the webapp and by other services alike, so a
    * still that is too old for the device to count as online carries the notice
@@ -65,7 +67,7 @@ export class ImagePresentationService {
       return image.data;
     }
 
-    return imageService.addOfflineOverlay(image.data, buildOfflineCaption(image.timestamp));
+    return this.images.addOfflineOverlay(image.data, buildOfflineCaption(image.timestamp));
   }
 
   /** What a device without a picture is served instead. */

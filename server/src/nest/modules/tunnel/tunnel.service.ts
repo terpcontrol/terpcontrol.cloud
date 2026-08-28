@@ -1,5 +1,6 @@
+import { Injectable } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
-import { mqttclient } from '../databases/mqttclient';
+import { MqttClientService } from '../mqtt/mqtt-client.service';
 import { createServer } from 'node:net';
 import { EventEmitter } from 'node:events';
 import { Mutex, MutexInterface, Semaphore, SemaphoreInterface, withTimeout } from 'async-mutex';
@@ -42,7 +43,12 @@ type UdpTunnelTxData = {
  *   .close()
  */
 export class TunnelUdpSocket extends EventEmitter {
-  constructor(private device_id: string, public readonly connectionId: string, private onClose: () => void) {
+  constructor(
+    private device_id: string,
+    public readonly connectionId: string,
+    private onClose: () => void,
+    private readonly mqtt: MqttClientService,
+  ) {
     super();
   }
 
@@ -54,12 +60,12 @@ export class TunnelUdpSocket extends EventEmitter {
       port,
       payload: buf.toString('base64'),
     };
-    mqttclient.publish('/devices/' + this.device_id + '/tunnel_write', JSON.stringify(message));
+    this.mqtt.publish('/devices/' + this.device_id + '/tunnel_write', JSON.stringify(message));
   }
 
   public close(): void {
     const message: UdpTunnelTxData = { connection_id: this.connectionId, udp: true, disconnected: true };
-    mqttclient.publish('/devices/' + this.device_id + '/tunnel_write', JSON.stringify(message));
+    this.mqtt.publish('/devices/' + this.device_id + '/tunnel_write', JSON.stringify(message));
     this.onClose();
     this.removeAllListeners();
   }
@@ -75,7 +81,10 @@ type TunnelConnectionData = {
   release?: SemaphoreInterface.Releaser;
 };
 
-class TunnelService {
+@Injectable()
+export class TunnelService {
+  constructor(private readonly mqtt: MqttClientService) {}
+
   private deviceIdToTunnelConnection = new Map<string, Map<string, TunnelConnectionData>>();
   private deviceIdToSemaphore = new Map<string, SemaphoreInterface>();
   private deviceIdToUdpTunnel = new Map<string, Map<string, TunnelUdpSocket>>();
@@ -90,9 +99,7 @@ class TunnelService {
     if (!this.deviceIdToUdpTunnel.has(device_id)) {
       this.deviceIdToUdpTunnel.set(device_id, new Map());
     }
-    const socket = new TunnelUdpSocket(device_id, connectionId, () => {
-      this.deviceIdToUdpTunnel.get(device_id)?.delete(connectionId);
-    });
+    const socket = new TunnelUdpSocket(device_id, connectionId, () => this.deviceIdToUdpTunnel.get(device_id)?.delete(connectionId), this.mqtt);
     this.deviceIdToUdpTunnel.get(device_id).set(connectionId, socket);
     return socket;
   }
@@ -123,7 +130,7 @@ class TunnelService {
             connection_id: parsed.connection_id,
             disconnected: true,
           };
-          mqttclient.publish('/devices/' + device_id + '/tunnel_write', JSON.stringify(message));
+          this.mqtt.publish('/devices/' + device_id + '/tunnel_write', JSON.stringify(message));
         }
         return;
       }
@@ -231,7 +238,7 @@ class TunnelService {
               host: streamUrl.hostname,
               port,
             };
-            mqttclient.publish('/devices/' + device_id + '/tunnel_write', JSON.stringify(message));
+            this.mqtt.publish('/devices/' + device_id + '/tunnel_write', JSON.stringify(message));
           }
 
           connection.release?.();
@@ -330,12 +337,10 @@ class TunnelService {
         }
 
         this.reportTunnelActivity(device_id, metadata.connection_id);
-        mqttclient.publish('/devices/' + device_id + '/tunnel_write', encodedMessage);
+        this.mqtt.publish('/devices/' + device_id + '/tunnel_write', encodedMessage);
       }
     });
 
     return connection.acquire ?? Promise.resolve();
   }
 }
-
-export const tunnelService = new TunnelService();

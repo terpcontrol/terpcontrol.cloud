@@ -1,4 +1,4 @@
-import { model, Schema, Document } from 'mongoose';
+import { Schema } from 'mongoose';
 import { ChartPreset } from '@fg2/shared-types';
 
 export const chartPresetSchema: Schema = new Schema({
@@ -29,7 +29,3 @@ export const chartPresetSchema: Schema = new Schema({
     required: true,
   },
 });
-
-const chartPresetModel = model<ChartPreset & Document>('ChartPreset', chartPresetSchema);
-
-export default chartPresetModel;

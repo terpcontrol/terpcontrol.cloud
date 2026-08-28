@@ -1,32 +1,22 @@
-import { Alarm, CloudSettings, Device, DeviceClass, DeviceFirmware, DeviceFirmwareBinary } from '@fg2/shared-types';
-import deviceModel from '@models/device.model';
-import deviceLogModel from '@models/devicelog.model';
-import deviceClassModel from '@/models/deviceclass.model';
-import { deviceFirmwareBinaryModel, deviceFirmwareModel } from '@/models/devicefirmware.model';
-import claimCodeModel from '@/models/claimcode.model';
-import { v4 as uuidv4 } from 'uuid';
-import { AddDeviceDto, RegisterDeviceDto, TestDeviceDto } from '@/dtos/device.dto';
-import { mqttclient } from '../databases/mqttclient';
-import { dataService } from './data.service';
-import { HttpException } from '@/exceptions/HttpException';
-import { ENABLE_SELF_REGISTRATION, SELF_REGISTRATION_PASSWORD, SMTP_SENDER } from '@/config';
-import { alarmService } from '@services/alarm.service';
-import { isNumeric } from 'influx/lib/src/grammar';
-import { mailTransport } from '@services/mail-transport';
+import { forwardRef, Inject, Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
 import { execFile } from 'node:child_process';
-import im from 'imagemagick';
-import imageModel from '@models/images.model';
-import pLimit from 'p-limit';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'path';
 import { mkdtemp, readFile, rmdir, unlink, writeFile } from 'node:fs/promises';
-import { Image } from '@fg2/shared-types';
-import { deviceService } from '@services/device.service';
-import { createServer } from 'node:net';
-import { tunnelService } from '@services/tunnel.service';
-import { okamP2PService, OKAM_STREAM_PREFIX } from '@services/okam-p2p.service';
+import { Document, Model } from 'mongoose';
+import im from 'imagemagick';
+import pLimit from 'p-limit';
 import sharp from 'sharp';
-
+import { v4 as uuidv4 } from 'uuid';
+import { CloudSettings, Device, Image } from '@fg2/shared-types';
+import { HttpException } from '@exceptions/HttpException';
+import { logger } from '@utils/logger';
+import { MODEL } from '../../database/models.module';
+import { OkamP2PService, OKAM_STREAM_PREFIX } from '../camera/okam-p2p.service';
+import { DeviceService } from '../device/device.service';
+import { TunnelService } from '../tunnel/tunnel.service';
 const escapeXml = (value: string): string =>
   value.replace(/[<>&'"]/g, character => `&${{ '<': 'lt', '>': 'gt', '&': 'amp', "'": 'apos', '"': 'quot' }[character]};`);
 
@@ -77,18 +67,33 @@ const IMAGE_THINNING_TIERS = [
 const TIMELAPSE_DAY_FRAMEINTERVAL_MS = 2 * 60 * 1000;
 const TIMELAPSE_FRAME_RATE = 25;
 
-class ImageService {
+@Injectable()
+export class ImageService implements OnModuleInit, OnApplicationShutdown {
   private ffmpegLimit = pLimit(10);
   private deviceIdToLastRtspState = new Map<string, { lastTry: number; failureCount: number }>();
   private lastThinningRun = 0;
+  private readonly startupTimers: ReturnType<typeof setTimeout>[] = [];
 
-  constructor() {
-    setTimeout(() => {
-      void this.readFromRtspStreams();
-    }, 30_000);
-    setTimeout(() => {
-      void this.compressRtspStreams();
-    }, 60_000);
+  constructor(
+    @InjectModel(MODEL.image) private readonly images: Model<Image & Document>,
+    @InjectModel(MODEL.device) private readonly devices: Model<Device & Document>,
+    @Inject(forwardRef(() => DeviceService)) private readonly deviceService: DeviceService,
+    private readonly tunnel: TunnelService,
+    private readonly okam: OkamP2PService,
+  ) {}
+
+  /**
+   * The pollers that read the cameras and roll up the timelapses. They used to
+   * start as this file was imported, which is before the server can serve a
+   * request - and before the database connection is necessarily up.
+   */
+  public onModuleInit(): void {
+    this.startupTimers.push(setTimeout(() => void this.readFromRtspStreams(), 30_000));
+    this.startupTimers.push(setTimeout(() => void this.compressRtspStreams(), 60_000));
+  }
+
+  public onApplicationShutdown(): void {
+    for (const timer of this.startupTimers) clearTimeout(timer);
   }
 
   public async getDeviceImage(
@@ -98,7 +103,7 @@ class ImageService {
     duration?: string,
     imageId?: string,
   ): Promise<Image | undefined> {
-    return imageModel
+    return this.images
       .findOne({
         device_id,
         format: { $eq: format as 'jpeg' | 'mp4' },
@@ -110,7 +115,7 @@ class ImageService {
   }
 
   public async getImageById(image_id: string): Promise<Image | undefined> {
-    return imageModel.findOne({ image_id });
+    return this.images.findOne({ image_id });
   }
 
   public async createDeviceImage(device_id: string, source: Buffer, timestamp?: number): Promise<Image> {
@@ -123,7 +128,7 @@ class ImageService {
       throw new HttpException(413, 'Image is too large');
     }
 
-    return imageModel.create({
+    return this.images.create({
       image_id: uuidv4(),
       device_id,
       format: 'user/jpeg',
@@ -163,13 +168,13 @@ class ImageService {
         .jpeg()
         .toBuffer();
     } catch (error) {
-      console.log('Failed drawing the offline overlay:', error);
+      logger.info('Failed drawing the offline overlay:', error);
       return image;
     }
   }
 
   public async deleteImage(image_id: string): Promise<boolean> {
-    const result = await imageModel.deleteOne({ image_id });
+    const result = await this.images.deleteOne({ image_id });
     return (result?.deletedCount ?? 0) > 0;
   }
 
@@ -209,7 +214,7 @@ class ImageService {
   }
 
   private async readFromRtspStreams(): Promise<void> {
-    const devices = await deviceModel.find({
+    const devices = await this.devices.find({
       'cloudSettings.rtspStream': { $exists: true, $ne: '' },
     });
 
@@ -237,7 +242,7 @@ class ImageService {
             this.readRtspStreamImage(device.cloudSettings, device.device_id)
               .then(
                 async image =>
-                  void imageModel.create({
+                  void this.images.create({
                     image_id: uuidv4(),
                     device_id: device.device_id,
                     format: 'jpeg',
@@ -249,7 +254,7 @@ class ImageService {
                 state.failureCount = 0;
               })
               .catch(e => {
-                console.log(`Error reading RTSP stream ${device.cloudSettings.rtspStream} for device ${device.device_id}:`, e?.message);
+                logger.info(`Error reading RTSP stream ${device.cloudSettings.rtspStream} for device ${device.device_id}:`, e?.message);
                 state.failureCount = e instanceof CorruptFrameError ? 0 : (state.failureCount ?? 0) + 1;
                 return Promise.resolve();
               })
@@ -287,12 +292,12 @@ class ImageService {
 
   private async compressRtspStreams(): Promise<void> {
     try {
-      const devices = await deviceModel.find({ 'cloudSettings.rtspStream': { $exists: true, $ne: '' } });
+      const devices = await this.devices.find({ 'cloudSettings.rtspStream': { $exists: true, $ne: '' } });
 
       const shouldThin = Date.now() - this.lastThinningRun >= THIN_INTERVAL_MS;
 
       for (const device of devices) {
-        const oldImages = await imageModel
+        const oldImages = await this.images
           .find({
             device_id: device.device_id,
             format: 'jpeg',
@@ -300,7 +305,7 @@ class ImageService {
           })
           .select({ image_id: 1 });
         for (const oldImage of oldImages) {
-          await imageModel.deleteOne({ image_id: oldImage.image_id });
+          await this.images.deleteOne({ image_id: oldImage.image_id });
         }
 
         await this.compressRtspStreamRange(device, MS_IN_A_DAY, TIMELAPSE_DAY_FRAMEINTERVAL_MS, '1d', DAILY_COMPRESS_REFRESH_MS);
@@ -334,7 +339,7 @@ class ImageService {
 
     while (true) {
       const startTimestamp = endTimestamp - timeStep;
-      const compressedImage = await imageModel
+      const compressedImage = await this.images
         .findOne({
           device_id: device.device_id,
           format: 'mp4',
@@ -344,7 +349,7 @@ class ImageService {
         .select({ image_id: 1, timestampEnd: 1 });
 
       const getImages = (beforeTimestamp: number, limit: number) =>
-        imageModel
+        this.images
           .find({
             device_id: device.device_id,
             format: 'jpeg',
@@ -390,10 +395,10 @@ class ImageService {
 
         if (video) {
           if (compressedImage) {
-            await imageModel.deleteOne({ image_id: compressedImage.image_id });
+            await this.images.deleteOne({ image_id: compressedImage.image_id });
           }
 
-          await imageModel.create({
+          await this.images.create({
             image_id: uuidv4(),
             device_id: device.device_id,
             timestamp: startTimestamp,
@@ -423,7 +428,7 @@ class ImageService {
   }
 
   private async thinImageRange(deviceId: string, minTimestamp: number, maxTimestamp: number, minIntervalMs: number): Promise<void> {
-    const cursor = imageModel
+    const cursor = this.images
       .find({ device_id: deviceId, format: 'jpeg', timestamp: { $gte: minTimestamp, $lt: maxTimestamp } })
       .sort({ timestamp: 1 })
       .select({ image_id: 1, timestamp: 1 })
@@ -433,7 +438,7 @@ class ImageService {
     let toDelete: string[] = [];
     const flush = async () => {
       if (toDelete.length === 0) return;
-      await imageModel.deleteMany({ image_id: { $in: toDelete } });
+      await this.images.deleteMany({ image_id: { $in: toDelete } });
       toDelete = [];
     };
 
@@ -457,7 +462,7 @@ class ImageService {
     try {
       let sequenceNumber = 1;
       for (const image of images) {
-        const imageData = await imageModel.findOne({
+        const imageData = await this.images.findOne({
           image_id: image.image_id,
           format: 'jpeg',
         });
@@ -473,19 +478,19 @@ class ImageService {
         return await this.convertRtspStreamImagesToVideo(tmpDir);
       }
     } catch (e) {
-      console.log('Error compressing RTSP images for device ' + device.device_id + ':', e);
+      logger.info('Error compressing RTSP images for device ' + device.device_id + ':', e);
     } finally {
       for (const file of filesWritten) {
         try {
           await unlink(file);
         } catch (e) {
-          console.log('Error deleting temp file ' + file + ':', e);
+          logger.info('Error deleting temp file ' + file + ':', e);
         }
       }
       try {
         await rmdir(tmpDir);
       } catch (e) {
-        console.log('Error deleting temp dir ' + tmpDir + ':', e);
+        logger.info('Error deleting temp dir ' + tmpDir + ':', e);
       }
     }
 
@@ -499,12 +504,12 @@ class ImageService {
     // else here — the poll schedule, backoff, maintenance gating, the test-image
     // button, storage, timelapses and thinning — is reused unchanged.
     if (cloudSettings.rtspStream?.startsWith(OKAM_STREAM_PREFIX)) {
-      return okamP2PService.captureViaController(deviceId);
+      return this.okam.captureViaController(deviceId);
     }
 
     let streamUrl = cloudSettings.rtspStream;
     if (cloudSettings.tunnelRtspStream) {
-      streamUrl = await tunnelService.createTunnelProxyServer(new URL(cloudSettings.rtspStream), deviceId);
+      streamUrl = await this.tunnel.createTunnelProxyServer(new URL(cloudSettings.rtspStream), deviceId);
     }
 
     return new Promise((resolve, reject) => {
@@ -550,7 +555,7 @@ class ImageService {
           const corruptionIndicator = !error && FFMPEG_CORRUPT_FRAME_PATTERN.exec(String(stderr))?.[0];
           if (error || !stdout || stdout.length === 0 || corruptionIndicator) {
             if (cloudSettings.logRtspStreamErrors) {
-              void deviceService.logMessage(deviceId, {
+              void this.deviceService.logMessage(deviceId, {
                 title: 'message-rtsp-stream-error',
                 message: `message-rtsp-stream-error:${stderr}`,
                 severity: 1,
@@ -602,13 +607,13 @@ class ImageService {
         },
         (error, stdout, stderr) => {
           if (error) {
-            console.log('Error compressing RTSP stream images:', stderr, error);
+            logger.info('Error compressing RTSP stream images:', stderr, error);
             reject(error);
           } else {
             readFile(`${filesDir}/result.mp4`)
               .then(data => resolve(data))
               .catch(err => {
-                console.log(`Error reading result file ${filesDir}/result.mp4:`, err);
+                logger.info(`Error reading result file ${filesDir}/result.mp4:`, err);
                 reject(err);
               })
               .finally(() => unlink(`${filesDir}/result.mp4`).catch(() => Promise.resolve()));
@@ -618,5 +623,3 @@ class ImageService {
     });
   }
 }
-
-export const imageService = new ImageService();

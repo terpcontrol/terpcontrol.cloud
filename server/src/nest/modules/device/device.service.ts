@@ -1,3 +1,9 @@
+import { forwardRef, Inject, Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
+import { InjectModel } from '@nestjs/mongoose';
+import { Document, Model } from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
+import { isNumeric } from 'influx/lib/src/grammar';
 import {
   Alarm,
   CloudSettings,
@@ -6,6 +12,8 @@ import {
   DeviceClass,
   DeviceFirmware,
   DeviceFirmwareBinary,
+  DeviceLog,
+  ClaimCode,
   FirmwareChannel,
   MAX_SOCKETS,
   ShareLink,
@@ -15,25 +23,20 @@ import {
   socketListChunk,
   UserFirmwareList,
 } from '@fg2/shared-types';
-import deviceModel from '@models/device.model';
-import deviceLogModel from '@models/devicelog.model';
-import deviceClassModel from '@/models/deviceclass.model';
-import { deviceFirmwareBinaryModel, deviceFirmwareModel } from '@/models/devicefirmware.model';
-import claimCodeModel from '@/models/claimcode.model';
-import { v4 as uuidv4 } from 'uuid';
-import { AddDeviceDto, RegisterDeviceDto, TestDeviceDto } from '@/dtos/device.dto';
-import { mqttclient } from '../databases/mqttclient';
-import { dataService } from './data.service';
-import { HttpException } from '@/exceptions/HttpException';
-import { ENABLE_SELF_REGISTRATION, SELF_REGISTRATION_PASSWORD, SMTP_SENDER } from '@/config';
-import { alarmService } from '@services/alarm.service';
-import { isNumeric } from 'influx/lib/src/grammar';
-import { mailTransport } from '@services/mail-transport';
-import { imageService } from '@services/image.service';
-import { tunnelService } from '@services/tunnel.service';
-import { okamP2PService, OKAM_STREAM_PREFIX } from '@services/okam-p2p.service';
+import { AddDeviceDto, RegisterDeviceDto, TestDeviceDto } from '@dtos/device.dto';
+import { HttpException } from '@exceptions/HttpException';
+import { logger } from '@utils/logger';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
 import { demoAlarms, demoCloudSettings, demoDevice } from '@utils/demo';
+import { authConfig } from '../../config/configuration';
+import { MODEL } from '../../database/models.module';
+import { AlarmService } from '../alarm/alarm.service';
+import { OkamP2PService, OKAM_STREAM_PREFIX } from '../camera/okam-p2p.service';
+import { DataService } from '../data/data.service';
+import { ImageService } from '../image/image.service';
+import { MailService } from '../mail/mail.service';
+import { TunnelService } from '../tunnel/tunnel.service';
+import { MqttClientService } from '../mqtt/mqtt-client.service';
 
 export type StatusMessage = {
   sensors: {
@@ -122,51 +125,73 @@ const toDate = (time: string | number | Date | undefined): Date | undefined => {
   return new Date(time);
 };
 
-class DeviceService {
+@Injectable()
+export class DeviceService implements OnModuleInit, OnApplicationShutdown {
   private readonly upgradeInstructionTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly upgradeInstructionBackoff = new Map<string, { firmwareId: string; nextDelayMs: number }>();
+  private readonly recurring: ReturnType<typeof setInterval>[] = [];
 
-  constructor() {
+  constructor(
+    @InjectModel(MODEL.device) private readonly devices: Model<Device & Document>,
+    @InjectModel(MODEL.deviceLog) private readonly deviceLogs: Model<DeviceLog & Document>,
+    @InjectModel(MODEL.deviceClass) private readonly deviceClasses: Model<DeviceClass & Document>,
+    @InjectModel(MODEL.deviceFirmware) private readonly firmwares: Model<DeviceFirmware & Document>,
+    @InjectModel(MODEL.deviceFirmwareBinary) private readonly firmwareBinaries: Model<DeviceFirmwareBinary & Document>,
+    @InjectModel(MODEL.claimCode) private readonly claimCodes: Model<ClaimCode & Document>,
+    private readonly mqtt: MqttClientService,
+    private readonly mail: MailService,
+    @Inject(forwardRef(() => AlarmService)) private readonly alarms: AlarmService,
+    @Inject(forwardRef(() => DataService)) private readonly data: DataService,
+    @Inject(forwardRef(() => ImageService)) private readonly imageService: ImageService,
+    private readonly okam: OkamP2PService,
+    private readonly tunnel: TunnelService,
+    @Inject(authConfig.KEY) private readonly config: ConfigType<typeof authConfig>,
+  ) {}
+
+  /**
+   * The device-facing half of the server: the broker connection it publishes
+   * commands on, and the loops that upgrade firmware and advance grow plans.
+   * All of it used to start as this file was imported - two of them writing to
+   * the database before anything had connected to it.
+   */
+  public onModuleInit(): void {
     void this.checkDeviceClasses();
     void this.backfillFirmwareCreatedAt();
 
-    setTimeout(() => {
-      void this.connectMqtt();
-    }, 5000);
-    setInterval(async () => {
-      await this.findUpgradeableDevices();
-    }, 10000);
-    setInterval(async () => {
-      await this.runRecipes();
-    }, 20000);
+    this.recurring.push(setTimeout(() => void this.connectMqtt(), 5000) as unknown as ReturnType<typeof setInterval>);
+    this.recurring.push(setInterval(() => void this.findUpgradeableDevices(), 10000));
+    this.recurring.push(setInterval(() => void this.runRecipes(), 20000));
+  }
+
+  public onApplicationShutdown(): void {
+    for (const timer of this.recurring) clearInterval(timer);
+    for (const timer of this.upgradeInstructionTimers.values()) clearTimeout(timer);
+    this.upgradeInstructionTimers.clear();
   }
 
   private async backfillFirmwareCreatedAt() {
     try {
-      const missing = await deviceFirmwareModel.find({ createdAt: { $exists: false } }, { _id: 1 });
+      const missing = await this.firmwares.find({ createdAt: { $exists: false } }, { _id: 1 });
       for (const doc of missing) {
         const created = (doc._id as any).getTimestamp?.()?.getTime?.();
         if (typeof created === 'number') {
-          await deviceFirmwareModel.updateOne({ _id: doc._id }, { $set: { createdAt: created } });
+          await this.firmwares.updateOne({ _id: doc._id }, { $set: { createdAt: created } });
         }
       }
       if (missing.length > 0) {
-        console.log(`Backfilled createdAt for ${missing.length} firmware records`);
+        logger.info(`Backfilled createdAt for ${missing.length} firmware records`);
       }
 
-      const classes = await deviceClassModel.find({}, { firmware_id: 1 });
+      const classes = await this.deviceClasses.find({}, { firmware_id: 1 });
       const stableIds = classes.map(c => c.firmware_id).filter((id): id is string => !!id);
       if (stableIds.length > 0) {
-        const result = await deviceFirmwareModel.updateMany(
-          { firmware_id: { $in: stableIds }, wasStable: { $ne: true } },
-          { $set: { wasStable: true } },
-        );
+        const result = await this.firmwares.updateMany({ firmware_id: { $in: stableIds }, wasStable: { $ne: true } }, { $set: { wasStable: true } });
         if (result.modifiedCount > 0) {
-          console.log(`Marked ${result.modifiedCount} firmware records as wasStable`);
+          logger.info(`Marked ${result.modifiedCount} firmware records as wasStable`);
         }
       }
     } catch (e) {
-      console.log('Failed to backfill firmware createdAt:', e);
+      logger.info('Failed to backfill firmware createdAt:', e);
     }
   }
 
@@ -182,14 +207,14 @@ class DeviceService {
 
   async connectMqtt() {
     try {
-      await mqttclient.connect();
+      await this.mqtt.connect();
 
-      void mqttclient.subscribe('/devices/#');
-      mqttclient.messages.subscribe(async message => {
+      void this.mqtt.subscribe('/devices/#');
+      this.mqtt.messages.subscribe(async message => {
         const device_id = message.topic.split('/')[2];
         const topic = message.topic.split('/')[3];
 
-        const device = await deviceModel.findOne({ device_id: device_id });
+        const device = await this.devices.findOne({ device_id: device_id });
         if (device) {
           switch (topic) {
             case 'status':
@@ -226,24 +251,24 @@ class DeviceService {
               await this.settingsMessage(device, JSON.parse(message.message));
               break;
             case 'tunnel_read':
-              await tunnelService.onTunnelReadDataReceived(device.device_id, message.message);
+              await this.tunnel.onTunnelReadDataReceived(device.device_id, message.message);
               break;
             case 'image':
-              okamP2PService.onImageMessage(device.device_id, message.message);
+              this.okam.onImageMessage(device.device_id, message.message);
               break;
             case 'tunnel_write':
             case 'command':
             case 'firmware':
               break;
             default:
-              console.log('UNKNOWN MQTT TOPIC!');
-              console.log(topic);
-              console.log(message.message);
+              logger.info('UNKNOWN MQTT TOPIC!');
+              logger.info(topic);
+              logger.info(message.message);
           }
         }
       });
     } catch (exception) {
-      console.log(exception);
+      logger.info(exception);
       // Wait before trying again: retrying straight away spins the CPU and
       // floods the log for as long as the broker is unreachable.
       setTimeout(() => void this.connectMqtt(), MQTT_RECONNECT_DELAY);
@@ -264,7 +289,7 @@ class DeviceService {
   }
 
   private async checkAndUpgrade(device: Device) {
-    await deviceModel.findOneAndUpdate({ device_id: device.device_id }, { lastseen: Date.now() });
+    await this.devices.findOneAndUpdate({ device_id: device.device_id }, { lastseen: Date.now() });
 
     const pendingFirmware = this.effectivePendingFirmware(device);
     const needsUpgrade = device.current_firmware != pendingFirmware && !!pendingFirmware;
@@ -291,17 +316,17 @@ class DeviceService {
 
   private async sendUpgradeInstruction(deviceId: string) {
     try {
-      const device = await deviceModel.findOne({ device_id: deviceId });
+      const device = await this.devices.findOne({ device_id: deviceId });
       const pendingFirmware = device ? this.effectivePendingFirmware(device) : '';
       if (!device || device.current_firmware == pendingFirmware || !pendingFirmware) {
         this.upgradeInstructionBackoff.delete(deviceId);
         return;
       }
 
-      console.log(
+      logger.info(
         `Sending instruction to upgrade device ${device.device_id} to firmware ${pendingFirmware} from firmware ${device.current_firmware}`,
       );
-      mqttclient.publish('/devices/' + device.device_id + '/firmware', pendingFirmware);
+      this.mqtt.publish('/devices/' + device.device_id + '/firmware', pendingFirmware);
 
       const existing = this.upgradeInstructionBackoff.get(deviceId);
       const baseDelay = existing?.firmwareId === pendingFirmware ? existing.nextDelayMs : UPGRADE_INSTRUCTION_INITIAL_DELAY;
@@ -310,14 +335,14 @@ class DeviceService {
         nextDelayMs: Math.min(baseDelay * 2, UPGRADE_INSTRUCTION_MAX_DELAY),
       });
     } catch (error) {
-      console.log(error);
+      logger.info(error);
     } finally {
       this.upgradeInstructionTimers.delete(deviceId);
     }
   }
 
   private async findUpgradeableDevices() {
-    const classes = await deviceClassModel.find();
+    const classes = await this.deviceClasses.find();
     for (const device_class of classes) {
       await this.findUpgradeableDevicesByClass(device_class, device_class.firmware_id, this.firmwareChannelQuery('stable'));
       if (device_class.beta_firmware_id) {
@@ -378,7 +403,7 @@ class DeviceService {
     firmwareId: string,
     additionalQueryConditions?: object,
   ) {
-    const currently_upgrading = await deviceModel
+    const currently_upgrading = await this.devices
       .where({
         class_id: device_class.class_id,
         current_firmware: { $ne: firmwareId },
@@ -387,7 +412,7 @@ class DeviceService {
       })
       .countDocuments();
 
-    const failed = await deviceModel
+    const failed = await this.devices
       .where({
         class_id: device_class.class_id,
         current_firmware: { $ne: firmwareId },
@@ -397,7 +422,7 @@ class DeviceService {
       .countDocuments();
 
     if (currently_upgrading < device_class.concurrent && failed < device_class.maxfails) {
-      const devices: Device[] = await deviceModel
+      const devices: Device[] = await this.devices
         .find({
           lastseen: { $gte: Date.now() - ONLINE_TIMEOUT },
           class_id: device_class.class_id,
@@ -406,8 +431,8 @@ class DeviceService {
         .limit(device_class.concurrent - currently_upgrading);
 
       for (const device of devices) {
-        console.log('upgrading device ' + device.device_id + ' to firmware ' + firmwareId);
-        await deviceModel.findByIdAndUpdate(device._id, {
+        logger.info('upgrading device ' + device.device_id + ' to firmware ' + firmwareId);
+        await this.devices.findByIdAndUpdate(device._id, {
           $set: {
             'cloudSettings.pendingFirmware': firmwareId,
             fwupdate_start: Date.now(),
@@ -417,7 +442,7 @@ class DeviceService {
         this.resetUpgradeInstructionBackoff(device.device_id);
       }
     }
-    // const stuck_devices: Device[] = await deviceModel.find({
+    // const stuck_devices: Device[] = await this.devices.find({
     //   lastseen: {$gte: Date.now() - ONLINE_TIMEOUT},
     //   class_id: device_class.class_id,
     //   pending_firmware: {$ne: device_class.firmware_id}
@@ -425,7 +450,7 @@ class DeviceService {
   }
 
   private async runRecipes() {
-    const devices: Device[] = await deviceModel.find({ 'recipe.activeSince': { $gt: 0 } });
+    const devices: Device[] = await this.devices.find({ 'recipe.activeSince': { $gt: 0 } });
     const now = Date.now();
 
     for (const device of devices) {
@@ -481,7 +506,7 @@ class DeviceService {
             activeStep.lastTimeApplied = 0;
             activeStep.notified = false;
 
-            console.log('Advancing to next recipe step ' + device.recipe.activeStepIndex + ' for device ' + device.device_id);
+            logger.info('Advancing to next recipe step ' + device.recipe.activeStepIndex + ' for device ' + device.device_id);
 
             if (device.recipe.notifications === 'onStep') {
               emailSubject = `[TERP CONTROL] Recipe advanced to step #${device.recipe.activeStepIndex + 1} on device ${device.device_id}`;
@@ -507,7 +532,7 @@ class DeviceService {
             activeStep.lastTimeApplied = 0;
             activeStep.notified = false;
 
-            console.log('Looping recipe to step 0 for device ' + device.device_id);
+            logger.info('Looping recipe to step 0 for device ' + device.device_id);
 
             if (device.recipe.notifications === 'onStep') {
               emailSubject = `[TERP CONTROL] Recipe looped to step #1 on device ${device.device_id}`;
@@ -531,7 +556,7 @@ class DeviceService {
             device.recipe.activeStepIndex = 0;
             activeStep = null;
 
-            console.log('Recipe completed for device ' + device.device_id);
+            logger.info('Recipe completed for device ' + device.device_id);
 
             if (device.recipe.notifications === 'onStep') {
               emailSubject = `[TERP CONTROL] Recipe completed on device ${device.device_id}`;
@@ -553,28 +578,23 @@ class DeviceService {
       }
 
       if (activeStep && (!activeStep.lastTimeApplied || activeStep.lastTimeApplied < now - 3600 * 1000) && device.lastseen >= now - 60 * 1000) {
-        mqttclient.publish('/devices/' + device.device_id + '/configuration', activeStep.settings);
+        this.mqtt.publish('/devices/' + device.device_id + '/configuration', activeStep.settings);
         if (await this.configureDevice(device.device_id, device.owner_id, activeStep.settings)) {
-          console.log(`Applied recipe step ${device.recipe.activeStepIndex} to device ${device.device_id}`);
+          logger.info(`Applied recipe step ${device.recipe.activeStepIndex} to device ${device.device_id}`);
         }
         activeStep.lastTimeApplied = now;
         hasChanges = true;
       }
 
       if (hasChanges) {
-        await deviceModel.findByIdAndUpdate(device._id, { recipe: device.recipe });
+        await this.devices.findByIdAndUpdate(device._id, { recipe: device.recipe });
       }
 
       if (emailSubject && emailBody && device.recipe.email) {
         try {
-          await mailTransport.sendMail({
-            from: SMTP_SENDER,
-            to: device.recipe.email,
-            subject: emailSubject,
-            text: emailBody,
-          });
+          await this.mail.send({ to: device.recipe.email, subject: emailSubject, text: emailBody });
         } catch (e) {
-          console.log(`Failed to send recipe step notification email for device ${device.device_id}:`, e);
+          logger.info(`Failed to send recipe step notification email for device ${device.device_id}:`, e);
         }
       }
     }
@@ -582,41 +602,41 @@ class DeviceService {
 
   private async statusMessage(device: Device, message: StatusMessage) {
     if (device.owner_id) {
-      await dataService.addData(device.device_id, device.owner_id, message);
-      await alarmService.onDataReceived(device.device_id, message);
+      await this.data.addData(device.device_id, device.owner_id, message);
+      await this.alarms.onDataReceived(device.device_id, message);
     }
   }
 
   private async fetchMessage(device: Device, payload) {
-    //const device_class = await deviceClassModel.findOne({class_id: device.class_id});
+    //const device_class = await this.deviceClasses.findOne({class_id: device.class_id});
     try {
       if (payload.firmware_id) {
         if (payload.firmware_id != device.current_firmware) {
           if (payload.firmware_id == this.effectivePendingFirmware(device)) {
             const previousFirmwareId = device.current_firmware || 'unknown';
             const [previousFw, newFw] = await Promise.all([
-              previousFirmwareId !== 'unknown' ? deviceFirmwareModel.findOne({ firmware_id: previousFirmwareId }, { version: 1 }) : null,
-              deviceFirmwareModel.findOne({ firmware_id: payload.firmware_id }, { version: 1 }),
+              previousFirmwareId !== 'unknown' ? this.firmwares.findOne({ firmware_id: previousFirmwareId }, { version: 1 }) : null,
+              this.firmwares.findOne({ firmware_id: payload.firmware_id }, { version: 1 }),
             ]);
             const previousFirmwareLabel = previousFw?.version || previousFirmwareId;
             const newFirmwareLabel = newFw?.version || payload.firmware_id;
-            await deviceModel.findByIdAndUpdate(device._id, { current_firmware: payload.firmware_id, fwupdate_end: Date.now() });
-            console.log('device ' + device.device_id + ' finished firmware update, time: ' + (Date.now() - device.fwupdate_start) / 1000 + 's');
-            await deviceService.logMessage(device.device_id, {
+            await this.devices.findByIdAndUpdate(device._id, { current_firmware: payload.firmware_id, fwupdate_end: Date.now() });
+            logger.info('device ' + device.device_id + ' finished firmware update, time: ' + (Date.now() - device.fwupdate_start) / 1000 + 's');
+            await this.logMessage(device.device_id, {
               title: 'message-firmware-update-complete-with-ids',
               message: `message-firmware-update-complete-with-ids:${previousFirmwareLabel} -> ${newFirmwareLabel}`,
               severity: 0,
               categories: ['device', 'device-firmware'],
             });
           } else {
-            await deviceModel.findByIdAndUpdate(device._id, { current_firmware: payload.firmware_id });
+            await this.devices.findByIdAndUpdate(device._id, { current_firmware: payload.firmware_id });
           }
         }
       }
     } catch (e) {}
 
     if (device.configuration != '') {
-      mqttclient.publish('/devices/' + device.device_id + '/configuration', device.configuration);
+      this.mqtt.publish('/devices/' + device.device_id + '/configuration', device.configuration);
     }
   }
 
@@ -634,7 +654,7 @@ class DeviceService {
     if (!/^[a-zA-Z0-9_-]{1,64}$/.test(infoKey) || infoValue.length > 512) {
       return;
     }
-    await deviceModel.findOneAndUpdate({ device_id: deviceId }, { $set: { [`hardwareInfo.${infoKey}`]: infoValue } });
+    await this.devices.findOneAndUpdate({ device_id: deviceId }, { $set: { [`hardwareInfo.${infoKey}`]: infoValue } });
 
     if (infoKey === 'sockets_n') {
       await this.dropSupersededSocketChunks(deviceId, Number(infoValue));
@@ -658,13 +678,13 @@ class DeviceService {
       return;
     }
 
-    const device = await deviceModel.findOne({ device_id: deviceId }, { hardwareInfo: 1 }).lean();
+    const device = await this.devices.findOne({ device_id: deviceId }, { hardwareInfo: 1 }).lean();
     const stale = Object.keys(device?.hardwareInfo ?? {}).filter(key => (socketListChunk(key) ?? -1) >= socketChunkCount(count));
     if (stale.length === 0) {
       return;
     }
 
-    await deviceModel.updateOne({ device_id: deviceId }, { $unset: Object.fromEntries(stale.map(key => [`hardwareInfo.${key}`, ''])) });
+    await this.devices.updateOne({ device_id: deviceId }, { $unset: Object.fromEntries(stale.map(key => [`hardwareInfo.${key}`, ''])) });
   }
 
   /**
@@ -688,7 +708,7 @@ class DeviceService {
 
     // Camera gone: drop the stream, or it keeps being shown and polled.
     if (did === 'none' || did === '') {
-      await deviceModel.findOneAndUpdate(
+      await this.devices.findOneAndUpdate(
         { device_id: deviceId, 'cloudSettings.rtspStream': okamPrefixPattern },
         { $unset: { 'cloudSettings.rtspStream': '' } },
       );
@@ -703,7 +723,7 @@ class DeviceService {
 
     // Adopt it when nothing is configured, or when it replaces a different P2P
     // camera (only one can be paired at a time, so the device's is the one).
-    await deviceModel.findOneAndUpdate(
+    await this.devices.findOneAndUpdate(
       {
         device_id: deviceId,
         $or: [
@@ -734,10 +754,10 @@ class DeviceService {
   ) {
     const [messageKey, value] = (msg.message ?? '').split(':');
     if (messageKey?.startsWith('message-maintenance-mode-activated') && isNumeric(value)) {
-      await alarmService.maintenanceActivatedForDevice(deviceId, parseInt(value));
+      await this.alarms.maintenanceActivatedForDevice(deviceId, parseInt(value));
     }
 
-    await deviceLogModel.create({
+    await this.deviceLogs.create({
       device_id: deviceId,
       message: msg.message,
       title: msg.title || msg.message,
@@ -758,7 +778,7 @@ class DeviceService {
    * grow diary.
    */
   public async logStageTransitionIfChanged(deviceId: string, stage: string) {
-    const lastEntry = await deviceLogModel
+    const lastEntry = await this.deviceLogs
       .findOne({ device_id: deviceId, categories: 'diary-plant-lifecycle', deleted: { $ne: true } })
       .sort({ time: -1 });
 
@@ -782,9 +802,9 @@ class DeviceService {
 
   public async getDeviceLogs(device_id: string, timestampFrom: number, timestampTo: number, deleted: boolean, categories?: string[]) {
     // Access (ownership, admin, or share link) was already authorized by the controller.
-    const device = await deviceModel.findOne({ device_id: device_id }, { device_id: 1 });
+    const device = await this.devices.findOne({ device_id: device_id }, { device_id: 1 });
     if (device) {
-      const logs = await deviceLogModel
+      const logs = await this.deviceLogs
         .find({
           device_id: device_id,
           ...(timestampTo || timestampFrom
@@ -808,22 +828,22 @@ class DeviceService {
   }
 
   public async deleteDeviceLogs(device_id: string, user_id: string) {
-    const device = await deviceModel.findOne({ device_id: device_id, owner_id: user_id }, { device_id: 1 });
+    const device = await this.devices.findOne({ device_id: device_id, owner_id: user_id }, { device_id: 1 });
     if (device) {
-      await deviceLogModel.updateMany({ device_id: device_id }, { $set: { deleted: true } });
+      await this.deviceLogs.updateMany({ device_id: device_id }, { $set: { deleted: true } });
     }
   }
 
   public async deleteDeviceLog(device_id: string, user_id: string, is_admin: boolean, log_id: string) {
     let device;
     if (is_admin) {
-      device = await deviceModel.findOne({ device_id: device_id }, { device_id: 1 });
+      device = await this.devices.findOne({ device_id: device_id }, { device_id: 1 });
     } else {
-      device = await deviceModel.findOne({ device_id: device_id, owner_id: user_id }, { device_id: 1 });
+      device = await this.devices.findOne({ device_id: device_id, owner_id: user_id }, { device_id: 1 });
     }
 
     if (device) {
-      await deviceLogModel.deleteOne({ _id: log_id, device_id: device_id });
+      await this.deviceLogs.deleteOne({ _id: log_id, device_id: device_id });
     }
   }
 
@@ -846,9 +866,9 @@ class DeviceService {
   ) {
     let device;
     if (is_admin) {
-      device = await deviceModel.findOne({ device_id: device_id }, { device_id: 1 });
+      device = await this.devices.findOne({ device_id: device_id }, { device_id: 1 });
     } else {
-      device = await deviceModel.findOne({ device_id: device_id, owner_id: user_id }, { device_id: 1 });
+      device = await this.devices.findOne({ device_id: device_id, owner_id: user_id }, { device_id: 1 });
     }
 
     if (!device) {
@@ -870,27 +890,27 @@ class DeviceService {
       update.time = toDate(payload.time);
     }
 
-    await deviceLogModel.updateOne({ _id: log_id, device_id: device_id }, { $set: update });
+    await this.deviceLogs.updateOne({ _id: log_id, device_id: device_id }, { $set: update });
   }
 
   private async settingsMessage(device: Device, message) {
-    await deviceModel.findOneAndUpdate({ device_id: device.device_id }, { configuration: JSON.stringify(message) });
+    await this.devices.findOneAndUpdate({ device_id: device.device_id }, { configuration: JSON.stringify(message) });
   }
 
   public async findAllDevices(): Promise<Device[]> {
-    const devices = await deviceModel.find({}).lean();
+    const devices = await this.devices.find({}).lean();
     return devices.map(device => withMaintenanceSecondsLeft(device)) as Device[];
   }
 
   public async getDeviceBySerial(serialnumber: Number): Promise<Device> {
-    const device = await deviceModel.findOne({ serialnumber: serialnumber }).lean();
+    const device = await this.devices.findOne({ serialnumber: serialnumber }).lean();
     return (device ? withMaintenanceSecondsLeft(device) : device) as Device;
   }
 
   public async activateMaintenanceMode(device_id: string, durationMinutes: number): Promise<void> {
-    console.log('Activating maintenance mode for device ' + device_id + ' for ' + durationMinutes + ' minutes');
+    logger.info('Activating maintenance mode for device ' + device_id + ' for ' + durationMinutes + ' minutes');
 
-    mqttclient.publish(
+    this.mqtt.publish(
       '/devices/' + device_id + '/command',
       JSON.stringify({
         action: 'maintenance',
@@ -898,13 +918,13 @@ class DeviceService {
       }),
     );
 
-    await alarmService.maintenanceActivatedForDevice(device_id, durationMinutes);
+    await this.alarms.maintenanceActivatedForDevice(device_id, durationMinutes);
   }
 
   public async rebootDevice(device_id: string): Promise<void> {
-    console.log('Rebooting device ' + device_id);
+    logger.info('Rebooting device ' + device_id);
 
-    mqttclient.publish(
+    this.mqtt.publish(
       '/devices/' + device_id + '/command',
       JSON.stringify({
         action: 'reboot',
@@ -975,7 +995,7 @@ class DeviceService {
       }
     }
 
-    mqttclient.publish('/devices/' + device_id + '/command', JSON.stringify(payload));
+    this.mqtt.publish('/devices/' + device_id + '/command', JSON.stringify(payload));
   }
 
   public async findUserDevices(user_id: string, is_demo = false): Promise<Device[]> {
@@ -994,30 +1014,30 @@ class DeviceService {
     // the sanitized demo copies cannot carry mongoose internals (or the untouched
     // original) along.
     if (is_demo) {
-      const demoDevices = await deviceModel.find({ demoDevice: true }, projection).lean();
+      const demoDevices = await this.devices.find({ demoDevice: true }, projection).lean();
       return demoDevices.map(device => withMaintenanceSecondsLeft(demoDevice(device))) as Device[];
     }
 
-    const devices = await deviceModel.find({ owner_id: user_id }, projection).lean();
-    // const users: Device[] = await deviceModel.aggregate([{$match: {owner_id: user_id}}, {$lookup: {from: 'deviceclasses', localField:'class_id', foreignField: 'class_id', as:'device_class'}}]);
+    const devices = await this.devices.find({ owner_id: user_id }, projection).lean();
+    // const users: Device[] = await this.devices.aggregate([{$match: {owner_id: user_id}}, {$lookup: {from: 'deviceclasses', localField:'class_id', foreignField: 'class_id', as:'device_class'}}]);
     return devices.map(device => withMaintenanceSecondsLeft(device)) as Device[];
   }
 
   public async register(info: RegisterDeviceDto): Promise<any> {
-    console.log(info);
+    logger.info(info);
 
-    if (!ENABLE_SELF_REGISTRATION) {
-      console.log('REGISTRATION DISABLED');
+    if (!this.config.enableSelfRegistration) {
+      logger.info('REGISTRATION DISABLED');
       return false;
     }
-    if (info.registration_password != SELF_REGISTRATION_PASSWORD) {
-      console.log('WRONG PASSWORD');
+    if (info.registration_password != this.config.selfRegistrationPassword) {
+      logger.info('WRONG PASSWORD');
       return false;
     }
 
-    const device_class = await deviceClassModel.findOne({ name: info.device_type });
+    const device_class = await this.deviceClasses.findOne({ name: info.device_type });
 
-    const existingDevice = await deviceModel.findOne({
+    const existingDevice = await this.devices.findOne({
       device_id: info.device_id,
       username: info.username,
       device_type: info.device_type,
@@ -1026,7 +1046,7 @@ class DeviceService {
     if (existingDevice) {
       const { matches, legacy } = await verifyDevicePassword(info.password, existingDevice.password);
       if (!matches) {
-        console.log('WRONG DEVICE PASSWORD');
+        logger.info('WRONG DEVICE PASSWORD');
         return false;
       }
 
@@ -1042,16 +1062,16 @@ class DeviceService {
       if (legacy) {
         update.$set.password = await hashDevicePassword(info.password);
       }
-      await deviceModel.updateOne({ _id: existingDevice._id }, update);
+      await this.devices.updateOne({ _id: existingDevice._id }, update);
 
-      console.log('Re-registered existing device:', existingDevice.device_id);
+      logger.info('Re-registered existing device:', existingDevice.device_id);
       return { fw: device_class.firmware_id };
     }
 
     let serial = 0;
 
     try {
-      const serialquery = await deviceModel.aggregate([
+      const serialquery = await this.devices.aggregate([
         {
           $group: {
             _id: null,
@@ -1062,7 +1082,7 @@ class DeviceService {
 
       serial = parseInt(serialquery?.[0]?.serial) || 0;
     } catch (err) {
-      console.log(err);
+      logger.info(err);
     }
 
     serial = serial + 1;
@@ -1085,20 +1105,20 @@ class DeviceService {
 
     try {
       try {
-        await deviceModel.deleteOne({ device_id: info.device_id, owner_id: '' }); // remove unclaimed device with same id
+        await this.devices.deleteOne({ device_id: info.device_id, owner_id: '' }); // remove unclaimed device with same id
       } catch (err) {}
-      await deviceModel.create(device);
-      console.log('Registered new device:', device);
+      await this.devices.create(device);
+      logger.info('Registered new device:', device);
 
       return { fw: device_class.firmware_id };
     } catch (err) {
-      console.log(err);
+      logger.info(err);
       return false;
     }
   }
 
   public async create(info: AddDeviceDto): Promise<Device> {
-    const serialquery = await deviceModel.aggregate([
+    const serialquery = await this.devices.aggregate([
       {
         $group: {
           _id: null,
@@ -1110,7 +1130,7 @@ class DeviceService {
     let serial = parseInt(serialquery?.[0]?.serial) || 0;
     serial = serial + 1;
 
-    const device_class = await deviceClassModel.findOne({ class_id: info.class_id });
+    const device_class = await this.deviceClasses.findOne({ class_id: info.class_id });
 
     const plainPassword = uuidv4();
     const device: Device = {
@@ -1129,7 +1149,7 @@ class DeviceService {
       cloudSettings: { pendingFirmware: device_class.firmware_id },
     };
 
-    await deviceModel.create({ ...device, password: await hashDevicePassword(plainPassword) });
+    await this.devices.create({ ...device, password: await hashDevicePassword(plainPassword) });
     // Return the plaintext password so it can be flashed onto the hardware; only the hash is persisted.
     return device;
   }
@@ -1178,7 +1198,7 @@ class DeviceService {
   }
 
   public async getClaimCode(device_id: string, password?: string): Promise<{ claim_code: string } | false> {
-    const device = await deviceModel.findOne({ device_id: device_id });
+    const device = await this.devices.findOne({ device_id: device_id });
     if (!device) {
       return false;
     }
@@ -1193,7 +1213,7 @@ class DeviceService {
         return false;
       }
       if (legacy) {
-        await deviceModel.updateOne({ _id: device._id }, { $set: { password: await hashDevicePassword(password) } });
+        await this.devices.updateOne({ _id: device._id }, { $set: { password: await hashDevicePassword(password) } });
       }
     }
 
@@ -1201,39 +1221,39 @@ class DeviceService {
     let doc = null;
     do {
       code = this.genClaimCode();
-      doc = await claimCodeModel.findOne({ claim_code: code });
+      doc = await this.claimCodes.findOne({ claim_code: code });
     } while (doc); // ensure unique code
 
-    await claimCodeModel.findOneAndUpdate({ device_id: device_id }, { claim_code: code, device_id: device_id }, { upsert: true });
+    await this.claimCodes.findOneAndUpdate({ device_id: device_id }, { claim_code: code, device_id: device_id }, { upsert: true });
 
     return { claim_code: code };
   }
 
   public async claimDevice(claim_code: string, user_id: string): Promise<string | null> {
-    const dev = await claimCodeModel.findOne({ claim_code: claim_code });
+    const dev = await this.claimCodes.findOne({ claim_code: claim_code });
     if (dev) {
-      console.log('Claiming device ' + dev.device_id + ' for user ' + user_id);
-      claimCodeModel.deleteOne({ claim_code: claim_code });
-      await deviceModel.findOneAndUpdate({ device_id: dev.device_id }, { owner_id: user_id });
+      logger.info('Claiming device ' + dev.device_id + ' for user ' + user_id);
+      this.claimCodes.deleteOne({ claim_code: claim_code });
+      await this.devices.findOneAndUpdate({ device_id: dev.device_id }, { owner_id: user_id });
       return dev.device_id;
     } else {
-      console.log('Invalid claim code ' + claim_code + ' for user ' + user_id);
+      logger.info('Invalid claim code ' + claim_code + ' for user ' + user_id);
       return null;
     }
   }
 
   public async unClaimDevice(device_id: string) {
-    await deviceModel.findOneAndUpdate({ device_id: device_id }, { owner_id: '' });
+    await this.devices.findOneAndUpdate({ device_id: device_id }, { owner_id: '' });
   }
 
   public async configureDevice(device_id: string, user_id: string, config: string): Promise<boolean> {
-    const oldDdevice = await deviceModel.findOneAndUpdate(
+    const oldDdevice = await this.devices.findOneAndUpdate(
       { device_id: device_id, owner_id: user_id },
       { configuration: config },
       { returnOriginal: true },
     );
-    mqttclient.publish('/devices/' + device_id + '/configuration', config);
-    await claimCodeModel.deleteMany({ device_id: device_id });
+    this.mqtt.publish('/devices/' + device_id + '/configuration', config);
+    await this.claimCodes.deleteMany({ device_id: device_id });
 
     const diffStr = this.diffConfigs(oldDdevice.configuration, config);
     if (oldDdevice.configuration !== config && diffStr.length > 0) {
@@ -1284,7 +1304,7 @@ class DeviceService {
   }
 
   public async setDeviceAlarms(device_id: string, user_id: string, alarms: Alarm[]): Promise<void> {
-    const device = await deviceModel.findOne({ device_id: device_id, owner_id: user_id });
+    const device = await this.devices.findOne({ device_id: device_id, owner_id: user_id });
 
     if (!device) {
       throw new HttpException(404, 'Device not found or access denied');
@@ -1296,12 +1316,12 @@ class DeviceService {
       }
     }
 
-    await deviceModel.updateOne({ device_id: device_id }, { alarms: alarms });
-    alarmService.invalidateAlarmCache(device_id);
+    await this.devices.updateOne({ device_id: device_id }, { alarms: alarms });
+    this.alarms.invalidateAlarmCache(device_id);
   }
 
   public async setDeviceCloudSettings(device_id: string, user_id: string, settings: CloudSettings) {
-    const device = await deviceModel.findOne({ device_id: device_id, owner_id: user_id });
+    const device = await this.devices.findOne({ device_id: device_id, owner_id: user_id });
 
     if (!device) {
       throw new HttpException(404, 'Device not found or access denied');
@@ -1321,7 +1341,7 @@ class DeviceService {
       }
 
       if (requested !== previousPending) {
-        const firmware = await deviceFirmwareModel.findOne({ firmware_id: requested, class_id: device.class_id });
+        const firmware = await this.firmwares.findOne({ firmware_id: requested, class_id: device.class_id });
         if (!firmware) {
           throw new HttpException(400, 'Selected firmware is not available for this device');
         }
@@ -1339,12 +1359,12 @@ class DeviceService {
       set.fwupdate_start = Date.now();
     }
 
-    await deviceModel.updateOne({ device_id: device_id }, { $set: set, $unset: { pending_firmware: '' } });
-    imageService.reportDeviceConfigured(device_id);
+    await this.devices.updateOne({ device_id: device_id }, { $set: set, $unset: { pending_firmware: '' } });
+    this.imageService.reportDeviceConfigured(device_id);
   }
 
   public async setDeviceName(device_id: string, user_id: string, name: string) {
-    await deviceModel.findOneAndUpdate({ device_id: device_id, owner_id: user_id }, { name: name });
+    await this.devices.findOneAndUpdate({ device_id: device_id, owner_id: user_id }, { name: name });
   }
 
   // Which devices the caller may see at all is decided by the auth middleware;
@@ -1356,12 +1376,12 @@ class DeviceService {
   }
 
   public async getDeviceConfig(device_id: string, user_id: string, is_admin: boolean, is_demo = false) {
-    const device = await deviceModel.findOne(this.deviceAccessFilter(device_id, user_id, is_admin, is_demo), { configuration: 1 });
+    const device = await this.devices.findOne(this.deviceAccessFilter(device_id, user_id, is_admin, is_demo), { configuration: 1 });
     return device?.configuration;
   }
 
   public async getDeviceAlarms(device_id: string, user_id: string, is_admin = false, is_demo = false) {
-    const device = await deviceModel.findOne(this.deviceAccessFilter(device_id, user_id, is_admin, is_demo), { alarms: 1 }).lean();
+    const device = await this.devices.findOne(this.deviceAccessFilter(device_id, user_id, is_admin, is_demo), { alarms: 1 }).lean();
     const alarms = (device?.alarms ?? []) as Alarm[];
     return is_demo ? demoAlarms(alarms) : alarms;
   }
@@ -1408,7 +1428,7 @@ class DeviceService {
   }
 
   public async getDeviceCloudSettings(device_id: string) {
-    const device = await deviceModel.findOne({ device_id: device_id }, { firmwareSettings: 1, cloudSettings: 1 });
+    const device = await this.devices.findOne({ device_id: device_id }, { firmwareSettings: 1, cloudSettings: 1 });
     return this.normalizeCloudSettings(device?.cloudSettings, device?.firmwareSettings);
   }
 
@@ -1416,7 +1436,7 @@ class DeviceService {
     // lean() as in the shared variant below: the demo copy is built by spreading
     // these settings, and a hydrated subdocument carries the whole device - the
     // untouched stream URL, credentials and all - along into the answer.
-    const device = await deviceModel
+    const device = await this.devices
       .findOne({ device_id: device_id }, { firmwareSettings: 1, cloudSettings: 1, device_type: 1, name: 1, owner_id: 1, demoDevice: 1 })
       .lean();
     if (!device) {
@@ -1444,7 +1464,7 @@ class DeviceService {
   // reduced to a presence flag) and the webcam only when the link includes it.
   public async getSharedDeviceAccessInfo(share: ShareLink): Promise<DeviceAccessInfo | null> {
     // lean() returns plain objects, so spreading below cannot leak mongoose internals.
-    const device = await deviceModel
+    const device = await this.devices
       .findOne({ device_id: share.device_id }, { firmwareSettings: 1, cloudSettings: 1, device_type: 1, name: 1 })
       .lean();
     if (!device) {
@@ -1476,17 +1496,17 @@ class DeviceService {
   }
 
   public async listClasses(): Promise<DeviceClass[]> {
-    const classes: DeviceClass[] = await deviceClassModel.find({});
+    const classes: DeviceClass[] = await this.deviceClasses.find({});
     return classes;
   }
 
   public async getClass(class_id: string): Promise<DeviceClass> {
-    const classes: DeviceClass = await deviceClassModel.findOne({ class_id: class_id });
+    const classes: DeviceClass = await this.deviceClasses.findOne({ class_id: class_id });
     return classes;
   }
 
   public async findClass(class_name: string): Promise<DeviceClass> {
-    const classes: DeviceClass = await deviceClassModel.findOne({ name: class_name });
+    const classes: DeviceClass = await this.deviceClasses.findOne({ name: class_name });
     return classes;
   }
 
@@ -1510,7 +1530,7 @@ class DeviceService {
       alpha_firmware_id,
     };
 
-    await deviceClassModel.create(device_class);
+    await this.deviceClasses.create(device_class);
     await this.markStableFirmware(firmware_id);
     return device_class;
   }
@@ -1519,11 +1539,11 @@ class DeviceService {
     if (!firmware_id) {
       return;
     }
-    await deviceFirmwareModel.updateOne({ firmware_id: firmware_id }, { $set: { wasStable: true } });
+    await this.firmwares.updateOne({ firmware_id: firmware_id }, { $set: { wasStable: true } });
   }
 
   public async testOutputs(device_id: string, outputs: TestDeviceDto) {
-    mqttclient.publish(
+    this.mqtt.publish(
       '/devices/' + device_id + '/command',
       JSON.stringify({
         action: 'test',
@@ -1541,7 +1561,7 @@ class DeviceService {
   }
 
   public async stopTest(device_id: string) {
-    mqttclient.publish(
+    this.mqtt.publish(
       '/devices/' + device_id + '/command',
       JSON.stringify({
         action: 'stoptest',
@@ -1575,7 +1595,7 @@ class DeviceService {
       updateClass.alpha_firmware_id = alpha_firmware_id;
     }
 
-    const update = await deviceClassModel.findOneAndUpdate({ class_id: class_id }, updateClass);
+    const update = await this.deviceClasses.findOneAndUpdate({ class_id: class_id }, updateClass);
 
     if (update) {
       await this.markStableFirmware(firmware_id);
@@ -1586,12 +1606,12 @@ class DeviceService {
   }
 
   public async createFirmware(classname: string, version: string): Promise<DeviceFirmware> {
-    const deviceclass = await deviceClassModel.findOne({ name: classname });
+    const deviceclass = await this.deviceClasses.findOne({ name: classname });
     if (!deviceclass) {
       throw new HttpException(404, 'Class not found');
     }
 
-    return await deviceFirmwareModel.create({
+    return await this.firmwares.create({
       firmware_id: uuidv4(),
       class_id: deviceclass.class_id,
       name: classname,
@@ -1601,20 +1621,20 @@ class DeviceService {
   }
 
   public async deleteFirmware(firmware_id: string): Promise<void> {
-    await deviceFirmwareBinaryModel.deleteMany({ firmware_id: firmware_id });
-    await deviceFirmwareModel.deleteOne({ firmware_id: firmware_id });
+    await this.firmwareBinaries.deleteMany({ firmware_id: firmware_id });
+    await this.firmwares.deleteOne({ firmware_id: firmware_id });
   }
 
   public async updateFirmwareVersion(firmware_id: string, version: string): Promise<DeviceFirmware> {
-    const original = await deviceFirmwareModel.findOne({ firmware_id: firmware_id });
+    const original = await this.firmwares.findOne({ firmware_id: firmware_id });
     if (!original) {
       throw new HttpException(404, 'Firmware not found');
     }
     // Update the firmware being edited.
-    const updated = await deviceFirmwareModel.findOneAndUpdate({ firmware_id: firmware_id }, { version: version }, { new: true });
+    const updated = await this.firmwares.findOneAndUpdate({ firmware_id: firmware_id }, { version: version }, { new: true });
     // For each other class: propagate the new label only when the old label
     // appears exactly once within that class (unambiguous 1-to-1 match).
-    const matches = await deviceFirmwareModel.find({ version: original.version, class_id: { $ne: original.class_id } });
+    const matches = await this.firmwares.find({ version: original.version, class_id: { $ne: original.class_id } });
     const byClass = new Map<string, typeof matches[number][]>();
     for (const m of matches) {
       const list = byClass.get(m.class_id) ?? [];
@@ -1623,14 +1643,14 @@ class DeviceService {
     }
     for (const firmwares of byClass.values()) {
       if (firmwares.length === 1) {
-        await deviceFirmwareModel.updateOne({ firmware_id: firmwares[0].firmware_id }, { version: version });
+        await this.firmwares.updateOne({ firmware_id: firmwares[0].firmware_id }, { version: version });
       }
     }
     return updated;
   }
 
   public async listFirmwaresForDevice(device_id: string, user_id: string, is_demo = false): Promise<UserFirmwareList> {
-    const device = await deviceModel.findOne(this.deviceAccessFilter(device_id, user_id, false, is_demo), {
+    const device = await this.devices.findOne(this.deviceAccessFilter(device_id, user_id, false, is_demo), {
       class_id: 1,
       current_firmware: 1,
       'cloudSettings.pendingFirmware': 1,
@@ -1641,10 +1661,8 @@ class DeviceService {
     }
 
     const [device_class, firmwares] = await Promise.all([
-      deviceClassModel.findOne({ class_id: device.class_id }),
-      deviceFirmwareModel
-        .find({ class_id: device.class_id }, { _id: 0, firmware_id: 1, version: 1, createdAt: 1, wasStable: 1 })
-        .sort({ createdAt: -1 }),
+      this.deviceClasses.findOne({ class_id: device.class_id }),
+      this.firmwares.find({ class_id: device.class_id }, { _id: 0, firmware_id: 1, version: 1, createdAt: 1, wasStable: 1 }).sort({ createdAt: -1 }),
     ]);
 
     const stableCutoff = firmwares.filter(fw => fw.wasStable).reduce((max, fw) => Math.max(max, fw.createdAt ?? 0), -Infinity);
@@ -1686,7 +1704,7 @@ class DeviceService {
       );
     }
 
-    const binary = await deviceFirmwareBinaryModel.findOneAndUpdate(
+    const binary = await this.firmwareBinaries.findOneAndUpdate(
       { firmware_id: fw_id, name: name },
       {
         firmware_id: fw_id,
@@ -1704,7 +1722,7 @@ class DeviceService {
   }
 
   public async findFirmwareByNameVersion(name: string, version: string): Promise<DeviceFirmware> {
-    const firmware: DeviceFirmware = await deviceFirmwareModel.findOne(
+    const firmware: DeviceFirmware = await this.firmwares.findOne(
       {
         name: name,
         version: version,
@@ -1715,24 +1733,24 @@ class DeviceService {
   }
 
   public async findAllFirmware(): Promise<DeviceFirmware[]> {
-    const firmwares: DeviceFirmware[] = await deviceFirmwareModel.find({}, { _id: 0, firmware_id: 1, name: 1, version: 1 });
+    const firmwares: DeviceFirmware[] = await this.firmwares.find({}, { _id: 0, firmware_id: 1, name: 1, version: 1 });
     return firmwares;
   }
 
   public async getFirmwareBinary(firmware_id: string, binary_name: string): Promise<Buffer> {
-    const binary: DeviceFirmwareBinary = await deviceFirmwareBinaryModel.findOne({ firmware_id: firmware_id, name: binary_name }, { data: 1 });
+    const binary: DeviceFirmwareBinary = await this.firmwareBinaries.findOne({ firmware_id: firmware_id, name: binary_name }, { data: 1 });
     return binary.data;
   }
 
   public async findOnlineDevices(): Promise<any> {
-    const classes: DeviceClass[] = await deviceClassModel.find({});
+    const classes: DeviceClass[] = await this.deviceClasses.find({});
 
     const class_count = await Promise.all(
       classes.map(async deviceclass => {
         return {
           class: deviceclass,
-          online: await deviceModel.where({ lastseen: { $gte: Date.now() - ONLINE_TIMEOUT }, class_id: deviceclass.class_id }).countDocuments(),
-          total: await deviceModel.where({ class_id: deviceclass.class_id }).countDocuments(),
+          online: await this.devices.where({ lastseen: { $gte: Date.now() - ONLINE_TIMEOUT }, class_id: deviceclass.class_id }).countDocuments(),
+          total: await this.devices.where({ class_id: deviceclass.class_id }).countDocuments(),
         };
       }),
     );
@@ -1741,9 +1759,9 @@ class DeviceService {
   }
 
   public async getFirmwareVersions(): Promise<any> {
-    const classes: DeviceClass[] = await deviceClassModel.find({});
+    const classes: DeviceClass[] = await this.deviceClasses.find({});
 
-    const upgradetimes = await deviceModel.aggregate([
+    const upgradetimes = await this.devices.aggregate([
       {
         $match: {
           fwupdate_end: { $type: 'number' },
@@ -1760,7 +1778,7 @@ class DeviceService {
 
     const class_count = await Promise.all(
       classes.map(async deviceclass => {
-        const fwversions: DeviceFirmware[] = await deviceFirmwareModel.find({ class_id: deviceclass.class_id });
+        const fwversions: DeviceFirmware[] = await this.firmwares.find({ class_id: deviceclass.class_id });
         const fwids = fwversions.map(fw => fw.firmware_id);
 
         const versions = await Promise.all(
@@ -1768,20 +1786,20 @@ class DeviceService {
             const upgrade_time = upgradetimes.find(el => el._id == fwversion.firmware_id);
             return {
               fw: fwversion,
-              online: await deviceModel
+              online: await this.devices
                 .where({
                   lastseen: { $gte: Date.now() - ONLINE_TIMEOUT },
                   class_id: deviceclass.class_id,
                   current_firmware: fwversion.firmware_id,
                 })
                 .countDocuments(),
-              total: await deviceModel
+              total: await this.devices
                 .where({
                   current_firmware: fwversion.firmware_id,
                   class_id: deviceclass.class_id,
                 })
                 .countDocuments(),
-              updating: await deviceModel
+              updating: await this.devices
                 .where({
                   fwupdate_start: { $gte: Date.now() - UPGRADE_TIMEOUT },
                   current_firmware: { $ne: fwversion.firmware_id },
@@ -1789,7 +1807,7 @@ class DeviceService {
                   ...this.pendingFirmwareMatches(fwversion.firmware_id),
                 })
                 .countDocuments(),
-              failed: await deviceModel
+              failed: await this.devices
                 .where({
                   fwupdate_start: { $lte: Date.now() - UPGRADE_TIMEOUT },
                   current_firmware: { $ne: fwversion.firmware_id },
@@ -1810,10 +1828,10 @@ class DeviceService {
             version: '0',
             class_id: deviceclass.class_id,
           },
-          online: await deviceModel
+          online: await this.devices
             .where({ lastseen: { $gte: Date.now() - ONLINE_TIMEOUT }, class_id: deviceclass.class_id, current_firmware: { $nin: fwids } })
             .countDocuments(),
-          total: await deviceModel.where({ current_firmware: { $not: { $in: fwids } }, class_id: deviceclass.class_id }).countDocuments(),
+          total: await this.devices.where({ current_firmware: { $not: { $in: fwids } }, class_id: deviceclass.class_id }).countDocuments(),
           updating: 0,
           failed: 0,
           avgtime: 0,
@@ -1830,5 +1848,3 @@ class DeviceService {
     return class_count;
   }
 }
-
-export const deviceService = new DeviceService();

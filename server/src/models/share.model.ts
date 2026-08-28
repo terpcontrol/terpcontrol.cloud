@@ -1,4 +1,4 @@
-import { model, Schema, Document } from 'mongoose';
+import { Schema } from 'mongoose';
 import { ShareLink } from '@fg2/shared-types';
 
 export const shareSchema: Schema = new Schema({
@@ -64,7 +64,3 @@ export const shareSchema: Schema = new Schema({
     default: null,
   },
 });
-
-const shareModel = model<ShareLink & Document>('Share', shareSchema);
-
-export default shareModel;

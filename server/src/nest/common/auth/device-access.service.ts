@@ -1,15 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { ShareLink } from '@fg2/shared-types';
-import deviceModel from '@models/device.model';
-import shareModel from '@models/share.model';
+import { InjectModel } from '@nestjs/mongoose';
+import { Document, Model } from 'mongoose';
+import { Device, ShareLink } from '@fg2/shared-types';
+import { MODEL } from '../../database/models.module';
 import { PlainTextException } from '../http-exception.filter';
 import { AuthenticatedRequest, TokenService, TokenType } from './token.service';
-
-// Demo sessions reach exactly the devices flagged as demo devices.
-const isDemoDevice = async (deviceId: string): Promise<boolean> => (await deviceModel.countDocuments({ device_id: deviceId, demoDevice: true })) > 0;
-
-const isOwnedBy = async (deviceId: string, userId: string): Promise<boolean> =>
-  (await deviceModel.countDocuments({ owner_id: userId, device_id: deviceId })) > 0;
 
 const shareTokenOf = (request: AuthenticatedRequest): string | null => {
   const fromQuery = (request.query as Record<string, unknown> | undefined)?.share;
@@ -26,7 +21,20 @@ const shareTokenOf = (request: AuthenticatedRequest): string | null => {
  */
 @Injectable()
 export class DeviceAccessService {
-  constructor(private readonly tokens: TokenService) {}
+  constructor(
+    @InjectModel(MODEL.device) private readonly devices: Model<Device & Document>,
+    @InjectModel(MODEL.share) private readonly shares: Model<ShareLink & Document>,
+    private readonly tokens: TokenService,
+  ) {}
+
+  // Demo sessions reach exactly the devices flagged as demo devices.
+  private async isDemoDevice(deviceId: string): Promise<boolean> {
+    return (await this.devices.countDocuments({ device_id: deviceId, demoDevice: true })) > 0;
+  }
+
+  private async isOwnedBy(deviceId: string, userId: string): Promise<boolean> {
+    return (await this.devices.countDocuments({ owner_id: userId, device_id: deviceId })) > 0;
+  }
 
   /** True when the caller owns the device, is an admin, or is a demo session on a demo device. */
   public async authenticate(
@@ -45,7 +53,7 @@ export class DeviceAccessService {
 
     if (request.auth.isAdmin) return { allowed: true, hasToken, authenticated: true };
 
-    const allowed = request.auth.isDemo ? await isDemoDevice(deviceId) : await isOwnedBy(deviceId, request.auth.userId);
+    const allowed = request.auth.isDemo ? await this.isDemoDevice(deviceId) : await this.isOwnedBy(deviceId, request.auth.userId);
     return { allowed, hasToken, authenticated: true };
   }
 
@@ -53,7 +61,7 @@ export class DeviceAccessService {
     const token = shareTokenOf(request);
     if (!token) return Promise.resolve(null);
 
-    return shareModel.findOne({
+    return this.shares.findOne({
       share_id: token,
       ...(deviceId ? { device_id: deviceId } : {}),
       revokedAt: null,

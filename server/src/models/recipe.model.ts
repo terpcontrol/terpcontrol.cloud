@@ -1,4 +1,4 @@
-import { model, Schema, Document } from 'mongoose';
+import { Schema } from 'mongoose';
 import { RecipeTemplate } from '@fg2/shared-types';
 
 export const recipeSchema: Schema = new Schema({
@@ -28,7 +28,3 @@ recipeSchema.pre('save', function (next) {
   (this as any).updatedAt = Date.now();
   next();
 });
-
-const recipeModel = model<RecipeTemplate & Document>('RecipeTemplate', recipeSchema);
-
-export default recipeModel;

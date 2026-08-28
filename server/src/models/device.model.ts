@@ -1,4 +1,4 @@
-import { model, Schema, Document } from 'mongoose';
+import { Schema } from 'mongoose';
 import { Device } from '@fg2/shared-types';
 
 export const deviceSchema: Schema = new Schema({
@@ -157,7 +157,3 @@ export const deviceSchema: Schema = new Schema({
     required: false,
   },
 });
-
-const deviceModel = model<Device & Document>('Device', deviceSchema);
-
-export default deviceModel;

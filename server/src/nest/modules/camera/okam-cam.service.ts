@@ -1,7 +1,10 @@
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
 import { execFile } from 'node:child_process';
+import { Document, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import imageModel from '@models/images.model';
 import { Image } from '@fg2/shared-types';
+import { MODEL } from '../../database/models.module';
 
 /**
  * O-KAM / VStarcam camera stills.
@@ -21,7 +24,10 @@ import { Image } from '@fg2/shared-types';
 
 const FFMPEG_TIMEOUT_MS = 15_000;
 
-class OkamCamService {
+@Injectable()
+export class OkamCamService {
+  constructor(@InjectModel(MODEL.image) private readonly images: Model<Image & Document>) {}
+
   /** Decode a single H.264 keyframe (Annex-B elementary stream) to a JPEG buffer. */
   public decodeKeyframeToJpeg(h264: Buffer): Promise<Buffer> {
     return new Promise((resolve, reject) => {
@@ -51,7 +57,7 @@ class OkamCamService {
 
   /** Store a ready JPEG (e.g. from snapshot.cgi) as a device still. */
   public async ingestJpeg(deviceId: string, jpeg: Buffer, timestamp?: number): Promise<Image> {
-    return imageModel.create({
+    return this.images.create({
       image_id: uuidv4(),
       device_id: deviceId,
       format: 'jpeg',
@@ -60,5 +66,3 @@ class OkamCamService {
     });
   }
 }
-
-export const okamCamService = new OkamCamService();

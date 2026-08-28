@@ -1,4 +1,4 @@
-import { model, Schema, Document } from 'mongoose';
+import { Schema } from 'mongoose';
 import { Device, DeviceLog } from '@fg2/shared-types';
 
 export const deviceLogSchema: Schema = new Schema({
@@ -48,8 +48,3 @@ export const deviceLogSchema: Schema = new Schema({
   },
 });
 deviceLogSchema.index({ device_id: 1, deleted: -1, categories: 1, time: -1 });
-
-const deviceLogModel = model<DeviceLog & Document>('DeviceLog', deviceLogSchema);
-void deviceLogModel.createIndexes();
-
-export default deviceLogModel;

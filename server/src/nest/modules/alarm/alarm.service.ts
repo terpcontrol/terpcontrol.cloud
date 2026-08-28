@@ -1,22 +1,33 @@
-import { deviceService, ONLINE_TIMEOUT, StatusMessage } from '@services/device.service';
-import deviceModel from '@models/device.model';
-import { Alarm, Device } from '@fg2/shared-types';
-import { SMTP_SENDER } from '@config';
-import { mailTransport } from '@services/mail-transport';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
 import { request as httpRequest } from 'http';
 import { request as httpsRequest } from 'https';
-import * as console from 'node:console';
-import { dataService } from '@services/data.service';
-import { tunnelService } from '@services/tunnel.service';
+import { Document, Model } from 'mongoose';
 import { Mutex, MutexInterface, withTimeout } from 'async-mutex';
+import { Alarm, Device } from '@fg2/shared-types';
+import { logger } from '@utils/logger';
 import { applyWebhookTemplate } from '@utils/webhookTemplate';
+import { MODEL } from '../../database/models.module';
+import { DataService } from '../data/data.service';
+import { DeviceService, ONLINE_TIMEOUT, StatusMessage } from '../device/device.service';
+import { MailService } from '../mail/mail.service';
+import { TunnelService } from '../tunnel/tunnel.service';
 
 const CACHE_EXPIRATION_SECONDS = 600;
 const MAINTENANCE_MODE_COOLDOWN_MILLIS = 10 * 60 * 1000;
 
 const ACTION_TARGET_SEPARATOR = '|';
 
-class AlarmService {
+@Injectable()
+export class AlarmService {
+  constructor(
+    @InjectModel(MODEL.device) private readonly devices: Model<Device & Document>,
+    @Inject(forwardRef(() => DeviceService)) private readonly deviceService: DeviceService,
+    @Inject(forwardRef(() => DataService)) private readonly data: DataService,
+    private readonly tunnel: TunnelService,
+    private readonly mail: MailService,
+  ) {}
+
   private alarmCache: Map<string, { deviceJson: string; expiresAt: number }> = new Map();
   private lastTimeNotExceededCache: Map<string, number> = new Map();
   private deviceIdToMutex = new Map<string, MutexInterface>();
@@ -71,7 +82,7 @@ class AlarmService {
   }
 
   public async maintenanceActivatedForDevice(deviceId: string, durationMinutes: number) {
-    await deviceModel.updateOne(
+    await this.devices.updateOne(
       { device_id: deviceId },
       {
         $set: {
@@ -89,7 +100,7 @@ class AlarmService {
       return JSON.parse(cached.deviceJson);
     }
 
-    const device = await deviceModel.findOne({ device_id: deviceId }).select('alarms').select('maintenance_mode_until').lean();
+    const device = await this.devices.findOne({ device_id: deviceId }).select('alarms').select('maintenance_mode_until').lean();
     const deviceJson = JSON.stringify(device);
 
     this.alarmCache.set(deviceId, {
@@ -106,7 +117,7 @@ class AlarmService {
     const inCooldownPeriod = now - (alarm.lastTriggeredAt || 0) < Math.max(alarm.cooldownSeconds || 0, minCooldownSeconds) * 1000;
 
     if (alarm.isTriggered) {
-      await deviceModel.updateOne(
+      await this.devices.updateOne(
         { device_id: deviceId, 'alarms.alarmId': alarm.alarmId },
         {
           $set: {
@@ -120,7 +131,7 @@ class AlarmService {
       this.invalidateAlarmCache(deviceId);
       alarm.isTriggered = false;
     } else if (!inCooldownPeriod) {
-      await deviceModel.updateOne(
+      await this.devices.updateOne(
         { device_id: deviceId, 'alarms.alarmId': alarm.alarmId },
         {
           $set: {
@@ -145,13 +156,13 @@ class AlarmService {
       try {
         await this.handleEmailAlarm(alarm, deviceId, value);
       } catch (error) {
-        console.error(`Failed to send alarm email for device ${deviceId}:`, error);
+        logger.error(`Failed to send alarm email for device ${deviceId}:`, error);
       }
     } else if (alarm.actionType === 'webhook') {
       try {
         await this.handleWebhookAlarm(alarm, deviceId, value);
       } catch (error) {
-        console.error(`Failed to send alarm webhook for device ${deviceId}:`, error);
+        logger.error(`Failed to send alarm webhook for device ${deviceId}:`, error);
       }
     }
 
@@ -159,7 +170,7 @@ class AlarmService {
       try {
         await this.handleInfoAlarm(alarm, deviceId, value);
       } catch (error) {
-        console.error(`Failed to log alarm info for device ${deviceId}:`, error);
+        logger.error(`Failed to log alarm info for device ${deviceId}:`, error);
       }
     }
   }
@@ -181,20 +192,15 @@ class AlarmService {
       (!alarm.isTriggered && this.hasThresholds(alarm) ? `Extreme Value: ${alarm.extremeValue}\n` : '');
 
     const actionTarget = this.getActionTarget(alarm);
-    await mailTransport.sendMail({
-      from: SMTP_SENDER,
-      to: actionTarget,
-      subject: emailSubject,
-      text: emailBody,
-    });
+    await this.mail.send({ to: actionTarget, subject: emailSubject, text: emailBody });
 
-    console.log(`Alarm email sent to ${actionTarget} for device ${deviceId} and sensor ${alarm.sensorType}.`);
+    logger.info(`Alarm email sent to ${actionTarget} for device ${deviceId} and sensor ${alarm.sensorType}.`);
   }
 
   private async handleWebhookAlarm(alarm: Alarm, deviceId: string, value: number) {
     let actionTarget = this.getActionTarget(alarm);
     if (!actionTarget) {
-      console.error(`No webhook URL provided for alarm on device ${deviceId}`);
+      logger.error(`No webhook URL provided for alarm on device ${deviceId}`);
       return;
     }
 
@@ -218,7 +224,7 @@ class AlarmService {
     // {{placeholder}} templating applies only to user-authored payloads and
     // the target URL; the default payload is already structured JSON.
     if (customPayload?.includes('{{') || actionTarget.includes('{{')) {
-      const device = await deviceModel.findOne({ device_id: deviceId }, { name: 1 }).lean();
+      const device = await this.devices.findOne({ device_id: deviceId }, { name: 1 }).lean();
       const templateVars: Record<string, unknown> = {
         deviceId,
         deviceName: device?.name || deviceId,
@@ -239,7 +245,7 @@ class AlarmService {
     }
 
     const originalUrl = new URL(actionTarget);
-    const targetUrl = alarm.tunnelWebhook ? new URL(await tunnelService.createTunnelProxyServer(originalUrl, deviceId)) : originalUrl;
+    const targetUrl = alarm.tunnelWebhook ? new URL(await this.tunnel.createTunnelProxyServer(originalUrl, deviceId)) : originalUrl;
     const isHttps = originalUrl.protocol?.startsWith('https');
     const requestFn = isHttps ? httpsRequest : httpRequest;
 
@@ -258,18 +264,18 @@ class AlarmService {
 
     const req = requestFn(options, res => {
       if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-        console.log(`Webhook triggered successfully for device ${deviceId} and alarm ${alarm.alarmId}.`);
+        logger.info(`Webhook triggered successfully for device ${deviceId} and alarm ${alarm.alarmId}.`);
       } else {
-        console.error(`Failed to trigger webhook for device ${deviceId} and alarm ${alarm.alarmId}. Status: ${res.statusCode}`);
+        logger.error(`Failed to trigger webhook for device ${deviceId} and alarm ${alarm.alarmId}. Status: ${res.statusCode}`);
       }
     });
 
     req.on('error', error => {
       const message = error.message || String(error) || 'Unknown error';
-      console.error(`Failed to trigger webhook for device ${deviceId} and alarm ${alarm.alarmId}: ${message}`);
+      logger.error(`Failed to trigger webhook for device ${deviceId} and alarm ${alarm.alarmId}: ${message}`);
 
       if (alarm.reportWebhookErrors) {
-        void deviceService.logMessage(deviceId, {
+        void this.deviceService.logMessage(deviceId, {
           title: 'message-alarm-webhook-error',
           message: `message-alarm-webhook-error:${alarm.name ?? alarm.alarmId} - ${message}`,
           severity: 1,
@@ -285,7 +291,7 @@ class AlarmService {
   private async handleInfoAlarm(alarm: Alarm, deviceId: string, value: number) {
     const name = alarm.name ?? alarm.alarmId;
     const eventKey = alarm.isTriggered ? 'message-alarm-triggered' : 'message-alarm-resolved';
-    await deviceService.logMessage(deviceId, {
+    await this.deviceService.logMessage(deviceId, {
       title: eventKey,
       message:
         `${eventKey}:${name} (${alarm.sensorType}), value=${value}` +
@@ -306,7 +312,7 @@ class AlarmService {
     }
 
     if (newExtreme !== alarm.extremeValue) {
-      await deviceModel.updateOne(
+      await this.devices.updateOne(
         { device_id: deviceId, 'alarms.alarmId': alarm.alarmId },
         {
           $set: {
@@ -321,7 +327,7 @@ class AlarmService {
   }
 
   private async handleAlarmRetrigger(alarm: Alarm, deviceId: string, sensorValue: number, timestamp: number) {
-    await deviceModel.updateOne(
+    await this.devices.updateOne(
       { device_id: deviceId, 'alarms.alarmId': alarm.alarmId },
       {
         $set: {
@@ -388,7 +394,7 @@ class AlarmService {
               break;
           }
 
-          const series = await dataService.getSeries(deviceId, measure, `-${alarm.thresholdSeconds + 4}s`, '-4s', '5s');
+          const series = await this.data.getSeries(deviceId, measure, `-${alarm.thresholdSeconds + 4}s`, '-4s', '5s');
           const lastTimeNotExceeded = Date.parse(
             series
               .reverse()
@@ -447,5 +453,3 @@ class AlarmService {
     return alarm.actionTarget?.trim() ?? '';
   }
 }
-
-export const alarmService = new AlarmService();

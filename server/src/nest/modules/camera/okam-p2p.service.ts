@@ -1,6 +1,7 @@
-import { mqttclient } from '../databases/mqttclient';
-import { okamCamService } from './okam-cam.service';
+import { Injectable } from '@nestjs/common';
 import { logger } from '@utils/logger';
+import { MqttClientService } from '../mqtt/mqtt-client.service';
+import { OkamCamService } from './okam-cam.service';
 
 /**
  * O-KAM / VStarcam camera stills.
@@ -50,7 +51,10 @@ type PendingCapture = {
   timer: NodeJS.Timeout;
 };
 
-class OkamP2PService {
+@Injectable()
+export class OkamP2PService {
+  constructor(private readonly mqtt: MqttClientService, private readonly stills: OkamCamService) {}
+
   /** One in-flight capture per device; the pipeline never runs two at once. */
   private pending = new Map<string, PendingCapture>();
 
@@ -71,7 +75,7 @@ class OkamP2PService {
 
       this.pending.set(deviceId, { capture: null, chunks: new Map(), bytes: 0, h264: false, resolve, reject, timer });
 
-      mqttclient.publish('/devices/' + deviceId + '/command', JSON.stringify({ action: 'cam_capture' }));
+      this.mqtt.publish('/devices/' + deviceId + '/command', JSON.stringify({ action: 'cam_capture' }));
     });
   }
 
@@ -125,7 +129,7 @@ class OkamP2PService {
       }
       // Full-resolution path: the controller sends the raw keyframe (it has no
       // decoder and little RAM); turn it into a JPEG here.
-      okamCamService
+      this.stills
         .decodeKeyframeToJpeg(assembled)
         .then(jpeg => {
           logger.info('[okam] keyframe decoded for ' + deviceId + ': ' + jpeg.length + 'B jpeg');
@@ -150,5 +154,3 @@ class OkamP2PService {
     this.pending.delete(deviceId);
   }
 }
-
-export const okamP2PService = new OkamP2PService();

@@ -1,7 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { mailTransport } from '../../../services/mail-transport';
 import { mailConfig } from '../../config/configuration';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const nodemailer = require('nodemailer');
 
 export interface Mail {
   to: string;
@@ -11,16 +13,25 @@ export interface Mail {
 
 /**
  * Everything the server sends by mail - an activation link, a password recovery
- * link, an alarm - goes through here, so the sender is set in one place.
- *
- * The transport itself still lives beside the services that have not become
- * providers yet; it moves in here with the last of them.
+ * link, an alarm - goes through here, so the transport is configured once and
+ * the sender is set in one place.
  */
 @Injectable()
 export class MailService {
-  constructor(@Inject(mailConfig.KEY) private readonly config: ConfigType<typeof mailConfig>) {}
+  private readonly transport;
+
+  constructor(@Inject(mailConfig.KEY) private readonly config: ConfigType<typeof mailConfig>) {
+    this.transport = nodemailer.createTransport({
+      host: config.server,
+      port: config.port,
+      secure: config.secure,
+      debug: false,
+      logger: false,
+      auth: { user: config.user, pass: config.password },
+    });
+  }
 
   public send(mail: Mail): Promise<unknown> {
-    return mailTransport.sendMail({ from: this.config.sender, ...mail });
+    return this.transport.sendMail({ from: this.config.sender, ...mail });
   }
 }

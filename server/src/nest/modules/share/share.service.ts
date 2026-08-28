@@ -1,8 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
-import { DeviceAccessInfo } from '@fg2/shared-types';
-import shareModel from '@models/share.model';
-import { deviceService } from '@services/device.service';
+import { InjectModel } from '@nestjs/mongoose';
+import { Document, Model } from 'mongoose';
+import { DeviceAccessInfo, ShareLink } from '@fg2/shared-types';
+import { MODEL } from '../../database/models.module';
+
+import { DeviceService } from '../device/device.service';
 import { CreateShare } from './share.schemas';
 
 const MAX_QUERY_LENGTH = 2000;
@@ -13,8 +16,10 @@ const inactiveShareFilter = () => ({ $or: [{ revokedAt: { $ne: null } }, { expir
 
 @Injectable()
 export class ShareService {
+  constructor(@InjectModel(MODEL.share) private readonly shares: Model<ShareLink & Document>, private readonly deviceService: DeviceService) {}
+
   public list(ownerId: string) {
-    return shareModel.find({ owner_id: ownerId }).sort({ createdAt: -1 }).lean().exec();
+    return this.shares.find({ owner_id: ownerId }).sort({ createdAt: -1 }).lean().exec();
   }
 
   public create(ownerId: string, request: CreateShare) {
@@ -23,7 +28,7 @@ export class ShareService {
       throw new BadRequestException({ error: 'expires_at must be in the future' });
     }
 
-    return shareModel.create({
+    return this.shares.create({
       share_id: randomBytes(24).toString('base64url'),
       device_id: request.device_id,
       owner_id: ownerId,
@@ -40,7 +45,7 @@ export class ShareService {
   }
 
   public async revoke(ownerId: string, shareId: string) {
-    const share = await shareModel.findOneAndUpdate(
+    const share = await this.shares.findOneAndUpdate(
       { share_id: shareId, owner_id: ownerId, revokedAt: null },
       { $set: { revokedAt: Date.now() } },
       { new: true },
@@ -54,7 +59,7 @@ export class ShareService {
   }
 
   public async remove(ownerId: string, shareId: string): Promise<void> {
-    const result = await shareModel.deleteOne({ share_id: shareId, owner_id: ownerId, ...inactiveShareFilter() });
+    const result = await this.shares.deleteOne({ share_id: shareId, owner_id: ownerId, ...inactiveShareFilter() });
 
     if (result.deletedCount === 0) {
       throw new NotFoundException({ error: 'Share link not found or still active (revoke it first)' });
@@ -62,13 +67,13 @@ export class ShareService {
   }
 
   public async removeInactive(ownerId: string): Promise<number> {
-    const result = await shareModel.deleteMany({ owner_id: ownerId, ...inactiveShareFilter() });
+    const result = await this.shares.deleteMany({ owner_id: ownerId, ...inactiveShareFilter() });
     return result.deletedCount;
   }
 
   /** Resolves a live link, counting the visit, and describes the device behind it. */
   public async resolve(shareId: string): Promise<DeviceAccessInfo> {
-    const share = await shareModel.findOneAndUpdate(
+    const share = await this.shares.findOneAndUpdate(
       {
         share_id: shareId,
         revokedAt: null,
@@ -82,7 +87,7 @@ export class ShareService {
       throw new NotFoundException({ error: 'Share link not found, expired, or revoked' });
     }
 
-    const accessInfo = await deviceService.getSharedDeviceAccessInfo(share);
+    const accessInfo = await this.deviceService.getSharedDeviceAccessInfo(share);
     if (!accessInfo) {
       throw new NotFoundException({ error: 'Device not found' });
     }

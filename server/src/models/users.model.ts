@@ -1,4 +1,4 @@
-import { model, Schema, Document } from 'mongoose';
+import { Schema } from 'mongoose';
 import { User } from '@fg2/shared-types';
 
 export const userSchema: Schema = new Schema({
@@ -30,7 +30,3 @@ export const userSchema: Schema = new Schema({
     required: false,
   },
 });
-
-const userModel = model<User & Document>('User', userSchema);
-
-export default userModel;

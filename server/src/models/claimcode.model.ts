@@ -1,4 +1,4 @@
-import { model, Schema, Document } from 'mongoose';
+import { Schema } from 'mongoose';
 import { ClaimCode } from '@fg2/shared-types';
 
 export const claimCodeSchema: Schema = new Schema({
@@ -13,7 +13,3 @@ export const claimCodeSchema: Schema = new Schema({
     unique: true,
   },
 });
-
-const claimCodeModel = model<ClaimCode & Document>('ClaimCode', claimCodeSchema);
-
-export default claimCodeModel;

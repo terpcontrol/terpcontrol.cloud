@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException,
 import { ApiConsumes, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 import { HttpException } from '@exceptions/HttpException';
-import { imageService } from '@services/image.service';
+import { ImageService } from './image.service';
 import { AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentShare } from '../../common/auth/current-user.decorator';
 import { DeviceAccessGuard, DeviceOwnerGuard, DeviceTokenType } from '../../common/auth/device-access.guard';
@@ -22,7 +22,11 @@ interface ImageQuery {
 @ApiTags('pictures')
 @Controller('image')
 export class ImageController {
-  constructor(private readonly presentation: ImagePresentationService, private readonly access: DeviceAccessService) {}
+  constructor(
+    private readonly presentation: ImagePresentationService,
+    private readonly access: DeviceAccessService,
+    private readonly images: ImageService,
+  ) {}
 
   @Get(':device_id')
   @UseGuards(DeviceAccessGuard)
@@ -49,7 +53,7 @@ export class ImageController {
       return;
     }
 
-    const image = await imageService.getDeviceImage(
+    const image = await this.images.getDeviceImage(
       deviceId,
       String(query.format),
       Number(query.timestamp),
@@ -86,7 +90,7 @@ export class ImageController {
     }
 
     const timestamp = Number(body?.timestamp);
-    const image = await imageService.createDeviceImage(deviceId, file, Number.isFinite(timestamp) ? timestamp : undefined);
+    const image = await this.images.createDeviceImage(deviceId, file, Number.isFinite(timestamp) ? timestamp : undefined);
 
     return { image_id: image.image_id, device_id: image.device_id, timestamp: image.timestamp, format: image.format };
   }
@@ -106,7 +110,7 @@ export class ImageController {
     }
 
     try {
-      const image = await imageService.testRtspStream(deviceId, {
+      const image = await this.images.testRtspStream(deviceId, {
         rtspStream,
         rtspStreamTransport: typeof body?.rtspStreamTransport === 'string' ? body.rtspStreamTransport : undefined,
         tunnelRtspStream: !!body?.tunnelRtspStream,
@@ -129,14 +133,14 @@ export class ImageController {
   public async remove(@Param('image_id') imageId: string, @Req() request: AuthenticatedRequest) {
     // Which device the picture belongs to is only known after the lookup, so the
     // ownership check cannot be a guard on this route.
-    const image = await imageService.getImageById(imageId);
+    const image = await this.images.getImageById(imageId);
     if (!image) {
       throw new NotFoundException({ status: 'not found' });
     }
 
     await this.access.requireOwner(request, image.device_id, 'user');
 
-    if (!(await imageService.deleteImage(imageId))) {
+    if (!(await this.images.deleteImage(imageId))) {
       throw new NotFoundException({ status: 'not found' });
     }
 

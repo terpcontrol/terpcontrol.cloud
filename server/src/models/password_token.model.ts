@@ -1,4 +1,4 @@
-import { model, Schema, Document } from 'mongoose';
+import { Schema } from 'mongoose';
 import { PasswordToken } from '@fg2/shared-types';
 
 export const passwordTokenSchema: Schema = new Schema({
@@ -18,7 +18,3 @@ export const passwordTokenSchema: Schema = new Schema({
     },
   },
 });
-
-const passwordTokenModel = model<PasswordToken & Document>('PasswordToken', passwordTokenSchema);
-
-export default passwordTokenModel;
