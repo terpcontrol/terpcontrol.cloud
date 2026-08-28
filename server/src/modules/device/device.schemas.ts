@@ -48,10 +48,9 @@ export const testDeviceSchema = z
   })
   .strict();
 
-const optionalFirmwareId = z
-  .string()
-  .nullish()
-  .transform(value => value ?? undefined);
+// A null is how the admin page withdraws a pre-release build: leaving the field
+// out means "unchanged", so the two cannot be folded into one another.
+const optionalFirmwareId = z.string().nullish();
 
 export const addDeviceClassSchema = z
   .object({

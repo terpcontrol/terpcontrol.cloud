@@ -1525,8 +1525,8 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     concurrent: number,
     maxfails: number,
     firmware_id: string,
-    beta_firmware_id?: string,
-    alpha_firmware_id?: string,
+    beta_firmware_id?: string | null,
+    alpha_firmware_id?: string | null,
   ): Promise<DeviceClass> {
     const device_class: DeviceClass = {
       class_id: uuidv4(),
@@ -1585,8 +1585,8 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     concurrent: number,
     maxfails: number,
     firmware_id: string,
-    beta_firmware_id?: string,
-    alpha_firmware_id?: string,
+    beta_firmware_id?: string | null,
+    alpha_firmware_id?: string | null,
   ): Promise<DeviceClass> {
     const updateClass: Partial<DeviceClass> = {
       name,

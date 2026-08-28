@@ -304,6 +304,33 @@ describe('device classes', () => {
     await admin.client.post(`/device/class/${created.body.class_id}`).send(payload).expect(200);
   });
 
+  it('withdraws a pre-release build when the channel is sent as null', async () => {
+    const name = unique('class');
+    const base = { name, description: 'A class with a beta build', firmware_id: '', concurrent: 1, maxfails: 1 };
+
+    await admin.client.post('/device/class').send(base).expect(200);
+    const created = await admin.client.get(`/device/class/find/${name}`).expect(200);
+
+    const firmware = await admin.client.post('/device/firmware').send({ name, version: unique('v') }).expect(200);
+    await admin.client
+      .post(`/device/class/${created.body.class_id}`)
+      .send({ ...base, beta_firmware_id: firmware.body.firmware_id })
+      .expect(200);
+
+    const withBeta = await admin.client.get(`/device/class/${created.body.class_id}`).expect(200);
+    expect(withBeta.body.beta_firmware_id).toBe(firmware.body.firmware_id);
+
+    // Null is how the admin page takes a build off a channel; leaving the field
+    // out is how it says "unchanged", so the two cannot mean the same thing.
+    await admin.client
+      .post(`/device/class/${created.body.class_id}`)
+      .send({ ...base, beta_firmware_id: null })
+      .expect(200);
+
+    const cleared = await admin.client.get(`/device/class/${created.body.class_id}`).expect(200);
+    expect(cleared.body.beta_firmware_id ?? null).toBeNull();
+  });
+
   it('validates the class payload', async () => {
     await admin.client.post('/device/class').send({ name: unique('class'), description: 'x' }).expect(400);
     await admin.client

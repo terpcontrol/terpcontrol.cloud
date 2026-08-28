@@ -25,6 +25,11 @@ const environmentSchema = z
 
     SECRET_KEY: required('SECRET_KEY'),
 
+    // The logger creates this directory as it is built, which happens before
+    // anything here runs - so without it the process dies on a path of
+    // `undefined` rather than on a sentence naming the setting.
+    LOG_DIR: required('LOG_DIR'),
+
     ADMINUSER_USERNAME: required('ADMINUSER_USERNAME'),
     ADMINUSER_PASSWORD: required('ADMINUSER_PASSWORD'),
   })

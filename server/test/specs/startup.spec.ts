@@ -69,6 +69,13 @@ describe('starting without the settings the server needs', () => {
     expect(outcome.output).toContain('ADMINUSER_PASSWORD is required');
   });
 
+  it('names the log directory, which is read before anything else', async () => {
+    const outcome = await startWith({ LOG_DIR: undefined });
+
+    expect(outcome.code).not.toBe(0);
+    expect(outcome.output).toContain('LOG_DIR is required');
+  });
+
   it('refuses a port that is not a number', async () => {
     const outcome = await startWith({ PORT: 'http' });
 

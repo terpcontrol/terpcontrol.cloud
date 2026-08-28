@@ -10,10 +10,13 @@ import { config } from 'dotenv';
 // wins, exactly as it does there.
 config({ path: `.env.${process.env.NODE_ENV || 'development'}.local` });
 
-const logDir: string = process.env.LOG_DIR;
+// A fallback only so that a missing LOG_DIR is reported by the environment
+// check rather than by this file dying on a path of `undefined` before the
+// check has run. A deployment is expected to set it, and is told to.
+const logDir: string = process.env.LOG_DIR || 'logs';
 
 if (!existsSync(logDir)) {
-  mkdirSync(logDir);
+  mkdirSync(logDir, { recursive: true });
 }
 
 // Anything passed after the message. `logger.info('failed:', error)` used to
