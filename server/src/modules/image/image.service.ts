@@ -242,9 +242,15 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
           promises.push(
             this.ffmpegLimit(() =>
               this.readRtspStreamImage(device.cloudSettings, device.device_id)
-                // Awaited rather than discarded, so a failed write is caught
-                // below instead of surfacing as an unhandled rejection.
                 .then(async image => {
+                  // The camera answered, so the backoff is reset before the
+                  // write: how far apart to try is about reaching the camera,
+                  // and a storage failure would otherwise back off a camera
+                  // that is working until the two-hour cap.
+                  state.failureCount = 0;
+
+                  // Awaited rather than discarded, so a failed write is logged
+                  // below instead of surfacing as an unhandled rejection.
                   await this.images.create({
                     image_id: uuidv4(),
                     device_id: device.device_id,
@@ -252,9 +258,6 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
                     timestamp: Date.now(),
                     data: image,
                   });
-                })
-                .then(() => {
-                  state.failureCount = 0;
                 })
                 .catch(e => {
                   logger.error(`Error reading RTSP stream ${device.cloudSettings.rtspStream} for device ${device.device_id}: ${e?.message ?? e}`);

@@ -46,12 +46,16 @@ const MAX_UPLOAD_BYTES = 64 * 1024 * 1024;
 const ALLOWED_METHODS = ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'];
 
 /**
- * What is worth compressing. Handing the plugin a pattern replaces its own
- * judgement rather than adding to it, so this is its default set with
- * `application/octet-stream` taken out: firmware images go to an OTA client
- * that reads Content-Length and is served `Cache-Control: no-transform`, and
- * compressing them drops the first and ignores the second. A test in
- * `http-contract.spec.ts` holds the firmware download to that.
+ * What is worth compressing: the plugin's own default pattern with
+ * `octet-stream` removed from the end of it.
+ *
+ * That pattern lists octet-stream explicitly, and a type it matches is
+ * compressed without further question - so replacing it, which is what passing
+ * `customTypes` does, is what leaves firmware images alone. (Declining here
+ * then falls through to mime-db, which also calls them incompressible.) It
+ * matters because the OTA client reads Content-Length and is served
+ * `Cache-Control: no-transform`, and compressing drops the first and ignores
+ * the second. A test in `http-contract.spec.ts` holds the download to it.
  */
 const COMPRESSIBLE_TYPES = /^text\/(?!event-stream)|(?:\+|\/)json(?:;|$)|(?:\+|\/)text(?:;|$)|(?:\+|\/)xml(?:;|$)/u;
 

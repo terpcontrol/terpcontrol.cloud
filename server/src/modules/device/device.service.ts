@@ -31,6 +31,7 @@ import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword'
 import { demoAlarms, demoCloudSettings, demoDevice } from '@utils/demo';
 import { authConfig } from '../../config/configuration';
 import { BackgroundWork, logIfItFails } from '../../common/background-work';
+import { toDate } from '../../common/to-date';
 import { MODEL } from '../../database/models.module';
 import { AlarmService } from '../alarm/alarm.service';
 import { OkamP2PService, OKAM_STREAM_PREFIX } from '../camera/okam-p2p.service';
@@ -112,20 +113,6 @@ const withMaintenanceSecondsLeft = <T extends Partial<Device>>(device: T): T => 
   ...device,
   maintenance_mode_seconds_left: Math.max(0, Math.ceil(((device.maintenance_mode_until ?? 0) - Date.now()) / 1000)),
 });
-
-/**
- * When a diary entry says. The app sends epoch milliseconds, the device an ISO
- * timestamp, and a client that builds its query string by hand sends those
- * milliseconds as a string - which `new Date` alone reads as no date at all.
- */
-const toDate = (time: string | number | Date | undefined): Date | undefined => {
-  if (!time) return undefined;
-  if (typeof time === 'string' && time.trim() !== '' && Number.isFinite(Number(time))) {
-    return new Date(Number(time));
-  }
-
-  return new Date(time);
-};
 
 @Injectable()
 export class DeviceService implements OnModuleInit, OnApplicationShutdown {

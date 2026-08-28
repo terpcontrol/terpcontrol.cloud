@@ -88,6 +88,15 @@ describe('POST /device/logs/:device_id', () => {
     expect(logs.body).toHaveLength(1);
   });
 
+  it('reads a bare year as a year, not as two seconds past 1970', async () => {
+    const fresh = await provisionDevice(owner);
+
+    await addEntry(fresh, { time: '2026' }).expect(200);
+
+    const logs = await owner.client.get(`/device/logs/${fresh.deviceId}`).expect(200);
+    expect(new Date(logs.body[0].time).getUTCFullYear()).toBe(2026);
+  });
+
   it('takes the ISO timestamp the device sends', async () => {
     const fresh = await provisionDevice(owner);
     const when = new Date(Date.now() - 120_000);

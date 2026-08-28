@@ -7,6 +7,7 @@ import { AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { DeviceAccessGuard, DeviceOwnerGuard } from '../../common/auth/device-access.guard';
 import { AuthContext } from '../../common/auth/token.service';
+import { namesAMoment } from '../../common/to-date';
 import { zodBodyAsError } from '../../common/zod-validation.pipe';
 
 /**
@@ -50,16 +51,8 @@ const isTruthy = (value: string | undefined): boolean => value !== undefined && 
 /**
  * A falsy time is refused, as it always was: the diary is sorted by it. So is a
  * string that names no moment - anything else used to reach mongoose and fail
- * there as a 500. Epoch milliseconds as a string are a moment, though, and
- * mongoose read them as one.
+ * there as a 500. It is read exactly as the write will read it.
  */
-const namesAMoment = (value: string): boolean => {
-  const asNumber = Number(value);
-  if (Number.isFinite(asNumber) && value.trim() !== '') return asNumber !== 0;
-
-  return !Number.isNaN(new Date(value).getTime());
-};
-
 const requiredTime = z.union([
   z.number().refine(value => value !== 0, { error: 'is required' }),
   z.string().min(1).refine(namesAMoment, { error: 'must be a time' }),
