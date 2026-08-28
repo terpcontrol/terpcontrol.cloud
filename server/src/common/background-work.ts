@@ -11,8 +11,8 @@ import { logger } from '@utils/logger';
  *
  * And a failure has to stay inside the loop it happened in. There is no caller
  * to return an error to on a timer, so a rejected promise would reach the
- * logger's exception transport, which ends the process - one failed query
- * taking the whole API down with it.
+ * handler in `main.ts`, which ends the process - one failed query taking the
+ * whole API down with it.
  */
 export class BackgroundWork {
   private stopped = false;

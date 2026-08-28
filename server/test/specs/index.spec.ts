@@ -21,6 +21,16 @@ describe('service endpoints', () => {
     expect(Object.keys(response.body.paths).length).toBeGreaterThan(10);
   });
 
+  it('serves the documentation page, with or without the trailing slash', async () => {
+    const page = await anonymous().get('/api-docs').expect(200);
+    expect(page.text).toContain('swagger-ui');
+
+    // The page links its assets relative to the URL it came from, so the
+    // slashed form is sent to the one that works rather than rendering blank.
+    const slashed = await anonymous().get('/api-docs/').expect(301);
+    expect(slashed.headers.location).toBe('/api-docs');
+  });
+
   it('documents the endpoints that need no token as needing none', async () => {
     const response = await anonymous().get('/swagger.json').expect(200);
 

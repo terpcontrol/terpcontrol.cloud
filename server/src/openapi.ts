@@ -31,5 +31,20 @@ export const setupOpenApi = (app: NestFastifyApplication): void => {
 
   const document = SwaggerModule.createDocument(app, builder.build());
 
+  // The router ignores a trailing slash, so `/api-docs/` reaches the same
+  // handler - but the page links its assets relative to the URL it was fetched
+  // from, and from `/api-docs/` those resolve one level too deep and 404. The
+  // page comes back blank, so the slash is sent to the form that works.
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .addHook('onRequest', (request, reply, done) => {
+      if (request.url === '/api-docs/') {
+        void reply.redirect('/api-docs', 301);
+        return;
+      }
+      done();
+    });
+
   SwaggerModule.setup('api-docs', app, document, { jsonDocumentUrl: 'swagger.json', explorer: true });
 };

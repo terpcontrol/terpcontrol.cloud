@@ -14,6 +14,10 @@ interface Outcome {
   output: string;
 }
 
+/** Boots the server, then throws from a timer the way a background loop would. */
+const THROW_AFTER_BOOT = (script: string) =>
+  `require(${JSON.stringify(`./${script}`)}); setTimeout(() => { throw new Error('a throw nothing is going to catch'); }, 3000);`;
+
 /**
  * Starts a second server with a deliberately broken environment and waits for
  * it to give up. The one the specs talk to is untouched - this only ever gets
@@ -50,6 +54,41 @@ const startWith = (overrides: Record<string, string | undefined>): Promise<Outco
     });
   });
 };
+
+describe('a throw that reaches nobody', () => {
+  jest.setTimeout(90_000);
+
+  it('ends the process, so the supervisor restarts it', async () => {
+    // Registering an uncaughtException handler is what stops node ending the
+    // process itself, so this checks the handler does it instead - a server
+    // left running after one is serving from a state nothing has reasoned about.
+    const entry = entryPoint();
+    const outcome = await new Promise<Outcome>((resolve, reject) => {
+      const child = spawn('node', [...entry.nodeArgs, '-e', THROW_AFTER_BOOT(entry.script)], {
+        cwd: SERVER_ROOT,
+        env: { ...process.env, ...context.appEnv, PORT: '0' },
+      });
+
+      let output = '';
+      const collect = (chunk: Buffer) => (output += chunk.toString());
+      child.stdout.on('data', collect);
+      child.stderr.on('data', collect);
+
+      const timer = setTimeout(() => {
+        child.kill('SIGKILL');
+        reject(new Error(`The server was still running 60s after the throw. Output:\n${output}`));
+      }, 60_000);
+
+      child.on('exit', code => {
+        clearTimeout(timer);
+        resolve({ code, output });
+      });
+    });
+
+    expect(outcome.code).toBe(1);
+    expect(outcome.output).toContain('a throw nothing is going to catch');
+  });
+});
 
 describe('starting without the settings the server needs', () => {
   jest.setTimeout(90_000);

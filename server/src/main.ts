@@ -13,12 +13,29 @@ import { registerAccessLog } from './access-log';
 import { registerHttpCompatibility } from './http-compatibility';
 import { setupOpenApi } from './openapi';
 
-// The device-facing work runs on timers and MQTT callbacks, where a throw has
-// no caller to reach. This is the record it leaves: the logger's error
-// transport handles exceptions itself and ends the process once it has flushed
-// them, so the supervisor restarts a server left in an unknown state.
+// How long the log transports get to write the reason down before the process
+// goes. They write to a local file, so this is generous.
+const FLUSH_BEFORE_EXIT_MS = 1000;
+
+/**
+ * A throw that reached nobody - the device-facing work runs on timers and MQTT
+ * callbacks, where there is no caller to return an error to. Each of those
+ * paths catches its own failures; anything that gets here is a bug, and it
+ * leaves the server in a state nothing has reasoned about: a half-updated map,
+ * a subscription that is no longer running. Serving on is worse than the few
+ * seconds a restart costs, and both pm2 and the container are set to restart.
+ *
+ * Registering a handler at all is what stops node ending the process itself, so
+ * ending it is this handler's job.
+ */
 process.on('uncaughtException', (error, origin) => {
-  logger.error(`Uncaught exception (${origin}): ${error?.stack ?? error}`);
+  const reason = `Uncaught exception (${origin}): ${error?.stack ?? error}`;
+  // stderr as well: it is the one channel that cannot be lost to a transport
+  // that has not flushed by the time the process is gone.
+  process.stderr.write(`${reason}\n`);
+  logger.error(reason);
+
+  setTimeout(() => process.exit(1), FLUSH_BEFORE_EXIT_MS).unref();
 });
 
 const MAX_UPLOAD_BYTES = 64 * 1024 * 1024;
