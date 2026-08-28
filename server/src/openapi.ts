@@ -39,8 +39,11 @@ export const setupOpenApi = (app: NestFastifyApplication): void => {
     .getHttpAdapter()
     .getInstance()
     .addHook('onRequest', (request, reply, done) => {
-      if (request.url === '/api-docs/') {
-        void reply.redirect('/api-docs', 301);
+      // Compared the way the router matches: it ignores case and a trailing
+      // slash, so `/API-docs/?foo` reaches the page too and needs the same.
+      const [path, query] = request.url.split('?');
+      if (path.toLowerCase() === '/api-docs/') {
+        void reply.redirect(query ? `/api-docs?${query}` : '/api-docs', 301);
         return;
       }
       done();

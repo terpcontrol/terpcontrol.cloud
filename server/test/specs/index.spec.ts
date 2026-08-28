@@ -29,6 +29,14 @@ describe('service endpoints', () => {
     // slashed form is sent to the one that works rather than rendering blank.
     const slashed = await anonymous().get('/api-docs/').expect(301);
     expect(slashed.headers.location).toBe('/api-docs');
+
+    // The router ignores case and takes a query string, so those reach the page
+    // too and need the same treatment.
+    const shouted = await anonymous().get('/API-Docs/').expect(301);
+    expect(shouted.headers.location).toBe('/api-docs');
+
+    const withQuery = await anonymous().get('/api-docs/?filter=device').expect(301);
+    expect(withQuery.headers.location).toBe('/api-docs?filter=device');
   });
 
   it('documents the endpoints that need no token as needing none', async () => {

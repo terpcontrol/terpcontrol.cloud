@@ -1,4 +1,5 @@
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import { logger } from '@utils/logger';
 import { ConfigType } from '@nestjs/config';
 import { InfluxDB, Point } from '@influxdata/influxdb-client';
 import { HttpException } from '@common/http-exception';
@@ -99,7 +100,7 @@ export class DataService {
       writeApi.writePoint(point1);
       await writeApi.close();
     } catch (err) {
-      console.log(err);
+      logger.error(`Failed writing measurements for device ${device_id}: ${err}`);
     }
   }
 

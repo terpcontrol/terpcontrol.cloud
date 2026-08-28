@@ -191,7 +191,6 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
       const class_data = await this.findClass(device_class.name);
       if (!class_data) {
         await this.createClass(device_class.name, device_class.description, device_class.concurrent, device_class.maxfails, '');
-      } else {
       }
     }
   }

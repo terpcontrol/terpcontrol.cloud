@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { logger } from '@utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { MqttClientService } from '../mqtt/mqtt-client.service';
 import { createServer } from 'node:net';
@@ -150,7 +151,7 @@ export class TunnelService {
         connection.nextSequence++;
       }
     } catch (e) {
-      console.log('Error parsing tunnel data received:', e);
+      logger.error(`Error parsing tunnel data received: ${e}`);
     }
 
     return Promise.resolve();
@@ -265,13 +266,8 @@ export class TunnelService {
           const url = new URL(streamUrl.toString());
           url.hostname = '127.0.0.1';
           url.port = String((server.address() as any).port);
-          console.log(
-            'Tunnel proxy server listening on',
-            (server.address() as any).port,
-            'proxying to',
-            streamUrl.hostname + ':' + port,
-            'for device',
-            device_id,
+          logger.info(
+            `Tunnel proxy server listening on ${(server.address() as any).port}, proxying to ${streamUrl.hostname}:${port} for device ${device_id}`,
           );
           resolve(url.toString());
         },
@@ -283,7 +279,7 @@ export class TunnelService {
       setTimeout(() => {
         server.close(err => {
           if (err) {
-            console.log('Error closing tunnel proxy server on timeout:', err);
+            logger.error(`Error closing tunnel proxy server on timeout: ${err}`);
           }
         });
         reject(new Error('Timeout creating tunnel proxy server'));
