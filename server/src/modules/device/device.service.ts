@@ -608,16 +608,22 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
         const applyStep =
           !!activeStep && (!activeStep.lastTimeApplied || activeStep.lastTimeApplied < now - 3600 * 1000) && device.lastseen >= now - 60 * 1000;
         if (applyStep) {
-          this.mqtt.publish('/devices/' + device.device_id + '/configuration', activeStep.settings);
-          if (await this.configureDevice(device.device_id, activeStep.settings)) {
-            logger.info(`Applied recipe step ${device.recipe.activeStepIndex} to device ${device.device_id}`);
-          }
+          // Its own catch: sending the step can fail, and the advance it belongs
+          // to has already been stored - so the mail below, which is only ever
+          // sent on the pass that advanced, must not be skipped with it.
+          try {
+            if (await this.configureDevice(device.device_id, activeStep.settings)) {
+              logger.info(`Applied recipe step ${device.recipe.activeStepIndex} to device ${device.device_id}`);
+            }
 
-          // That it was applied is written down only once it has been, so a
-          // send that failed is tried again on the next pass rather than being
-          // marked done for the hour the check covers.
-          activeStep.lastTimeApplied = now;
-          await this.devices.findByIdAndUpdate(device._id, { recipe: device.recipe });
+            // That it was applied is written down only once it has been, so a
+            // send that failed is tried again on the next pass rather than
+            // being marked done for the hour the check covers.
+            activeStep.lastTimeApplied = now;
+            await this.devices.findByIdAndUpdate(device._id, { recipe: device.recipe });
+          } catch (error) {
+            logger.error(`Could not apply recipe step ${device.recipe.activeStepIndex} to device ${device.device_id}: ${error}`);
+          }
         }
 
         if (emailSubject && emailBody && device.recipe.email) {
@@ -1312,13 +1318,23 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
    * telling the hardware to change, so the device reverted on its next fetch.
    */
   public async configureDevice(device_id: string, config: string): Promise<boolean> {
+    // Asked before anything is written: a caller that cannot be served should
+    // find nothing changed, rather than a stored configuration it was told had
+    // failed and a diary entry that a retry will no longer have a diff for.
+    if (!this.mqtt.isConnected) {
+      throw new HttpException(503, 'Not connected to the message broker');
+    }
+
     const previous = await this.devices.findOneAndUpdate({ device_id: device_id }, { configuration: config }, { returnOriginal: true });
 
     if (!previous) {
       throw new HttpException(404, 'Device not found');
     }
 
-    this.requirePublished('/devices/' + device_id + '/configuration', config);
+    // Not required after the write: the device asks for its configuration when
+    // it connects, and is answered from what is stored - so a send that fails
+    // between the check above and here costs a delay, not the setting.
+    this.mqtt.publish('/devices/' + device_id + '/configuration', config);
     await this.claimCodes.deleteMany({ device_id: device_id });
 
     const diffStr = this.diffConfigs(previous.configuration, config);

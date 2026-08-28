@@ -29,6 +29,11 @@ export class MqttClientService implements OnApplicationShutdown {
 
   constructor(@Inject(mqttConfig.KEY) private readonly config: ConfigType<typeof mqttConfig>) {}
 
+  /** Whether there is a connection to publish through at all. */
+  public get isConnected(): boolean {
+    return !!this.client;
+  }
+
   public getUser(): string {
     return this.internalUser;
   }
