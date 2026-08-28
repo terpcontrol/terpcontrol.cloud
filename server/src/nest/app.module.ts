@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { SecurityModule } from './common/auth/auth.module';
+import { configNamespaces } from './config/configuration';
+import { validateEnvironment } from './config/validate-environment';
 import { DemoReadOnlyGuard } from './common/auth/demo-read-only.guard';
 import { ApiExceptionFilter } from './common/http-exception.filter';
 import { AuthModule } from './modules/auth/auth.module';
@@ -15,6 +18,15 @@ import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: configNamespaces,
+      validate: validateEnvironment,
+      // The same file the server has always read, and the process environment
+      // still wins over it.
+      envFilePath: `.env.${process.env.NODE_ENV || 'development'}.local`,
+      cache: true,
+    }),
     SecurityModule,
     AuthModule,
     ChartPresetModule,

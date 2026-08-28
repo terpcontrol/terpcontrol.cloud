@@ -1,6 +1,6 @@
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
-import { LOG_FORMAT } from '@config';
 import { logger } from '@utils/logger';
+import { appConfig } from './config/configuration';
 
 /**
  * One line per request, through the same logger the rest of the server writes
@@ -8,7 +8,7 @@ import { logger } from '@utils/logger';
  * anything that reads the logs of a busy deployment want.
  */
 export const registerAccessLog = (app: NestFastifyApplication): void => {
-  if (LOG_FORMAT === 'disabled') return;
+  if (app.get(appConfig.KEY).logFormat === 'disabled') return;
 
   app
     .getHttpAdapter()

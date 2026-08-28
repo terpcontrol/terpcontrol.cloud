@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
 import { FastifyRequest } from 'fastify';
 import { verify } from 'jsonwebtoken';
-import { SECRET_KEY } from '@config';
 import { DataStoredInToken } from '@interfaces/auth.interface';
+import { authConfig } from '../../config/configuration';
 
 export type TokenType = DataStoredInToken['token_type'];
 
@@ -28,6 +29,8 @@ const matchesTokenType = (actual: TokenType, expected: TokenType): boolean => ac
 
 @Injectable()
 export class TokenService {
+  constructor(@Inject(authConfig.KEY) private readonly auth: ConfigType<typeof authConfig>) {}
+
   /**
    * Every token a request may carry. The browser attaches the Authorization
    * cookie even to <img> requests whose URL carries an image token, so all
@@ -57,7 +60,7 @@ export class TokenService {
   public async verifyFirst(request: FastifyRequest, tokenType: TokenType = 'user'): Promise<DataStoredInToken | null> {
     for (const candidate of this.candidates(request)) {
       try {
-        const verified = (await verify(candidate, SECRET_KEY)) as DataStoredInToken;
+        const verified = (await verify(candidate, this.auth.secretKey)) as DataStoredInToken;
         if (verified.user_id && matchesTokenType(verified.token_type, tokenType)) {
           return verified;
         }
@@ -77,7 +80,7 @@ export class TokenService {
     if (!token) return null;
 
     try {
-      return (await verify(token, SECRET_KEY)) as DataStoredInToken;
+      return (await verify(token, this.auth.secretKey)) as DataStoredInToken;
     } catch {
       return null;
     }

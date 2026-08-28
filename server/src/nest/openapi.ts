@@ -1,6 +1,6 @@
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
-import { API_URL_EXTERNAL } from '@config';
+import { appConfig } from './config/configuration';
 
 /**
  * Spread into the `@ApiOperation` of a route that needs no token: the document
@@ -15,6 +15,8 @@ export const PUBLIC_OPERATION = { security: [] };
  * comments kept alongside them, so it cannot drift from what the server serves.
  */
 export const setupOpenApi = (app: NestFastifyApplication): void => {
+  const { apiUrlExternal } = app.get(appConfig.KEY);
+
   const builder = new DocumentBuilder()
     .setTitle('Terp Control API')
     .setVersion('1.0.0')
@@ -23,8 +25,8 @@ export const setupOpenApi = (app: NestFastifyApplication): void => {
     .addCookieAuth('Authorization', { type: 'apiKey', description: 'The session cookie the browser gets from `/login`.' })
     .addSecurityRequirements('bearerAuth');
 
-  if (API_URL_EXTERNAL) {
-    builder.addServer(API_URL_EXTERNAL, 'Current server');
+  if (apiUrlExternal) {
+    builder.addServer(apiUrlExternal, 'Current server');
   }
 
   const document = SwaggerModule.createDocument(app, builder.build());

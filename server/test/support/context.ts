@@ -18,6 +18,8 @@ export interface HarnessContext {
   /** Token that authorises the automation-only endpoints. */
   automationToken: string;
   selfRegistrationPassword: string;
+  /** The environment the app under test was started with, for specs that start another one. */
+  appEnv: Record<string, string>;
 }
 
 export const writeContext = (context: HarnessContext): void => {

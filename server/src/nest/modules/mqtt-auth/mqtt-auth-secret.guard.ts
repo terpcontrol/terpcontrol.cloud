@@ -1,9 +1,10 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Inject, Injectable } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
 import { timingSafeEqual } from 'node:crypto';
 import { FastifyRequest } from 'fastify';
-import { MQTTAUTH_SHARED_SECRET } from '@config';
 import { logger } from '@utils/logger';
 import { PlainTextException } from '../../common/http-exception.filter';
+import { mqttConfig } from '../../config/configuration';
 
 /**
  * The broker proves it is the broker by the secret in the path. It reads the
@@ -11,8 +12,10 @@ import { PlainTextException } from '../../common/http-exception.filter';
  */
 @Injectable()
 export class MqttAuthSecretGuard implements CanActivate {
+  constructor(@Inject(mqttConfig.KEY) private readonly mqtt: ConfigType<typeof mqttConfig>) {}
+
   public canActivate(context: ExecutionContext): boolean {
-    const expected = MQTTAUTH_SHARED_SECRET;
+    const expected = this.mqtt.authSharedSecret;
     if (!expected) {
       logger.error('MQTTAUTH_SHARED_SECRET is not configured; rejecting /mqttauth request');
       throw new PlainTextException(500, 'deny');

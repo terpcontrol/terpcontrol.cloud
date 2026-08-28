@@ -29,7 +29,7 @@ const entryPoint = () =>
     ? { script: 'dist/nest/main.js', nodeArgs: [] as string[] }
     : { script: 'src/nest/main.ts', nodeArgs: ['-r', 'ts-node/register/transpile-only', '-r', 'tsconfig-paths/register'] };
 
-const buildEnv = (environment: AppEnvironment): NodeJS.ProcessEnv => {
+export const buildEnv = (environment: AppEnvironment): NodeJS.ProcessEnv => {
   const mongo = new URL(environment.mongoUri);
 
   return {

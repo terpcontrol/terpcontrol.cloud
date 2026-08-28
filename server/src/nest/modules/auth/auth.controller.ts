@@ -1,8 +1,8 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Inject, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { verify } from 'jsonwebtoken';
-import { SECRET_KEY } from '@config';
 import { HttpException } from '@exceptions/HttpException';
 import { DataStoredInToken, TokenData } from '@interfaces/auth.interface';
 import AuthService from '@services/auth.service';
@@ -11,6 +11,7 @@ import { logger } from '@utils/logger';
 import { AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { AuthContext } from '../../common/auth/token.service';
+import { authConfig } from '../../config/configuration';
 import { RateLimited, RateLimitGuard } from '../../common/rate-limit.guard';
 import { zodBody } from '../../common/zod-validation.pipe';
 import { Activation, activationSchema, Login, loginSchema, PasswordReset, passwordResetSchema, Signup, signupSchema } from './auth.schemas';
@@ -22,7 +23,7 @@ const MINUTE = 60 * 1000;
 @Controller()
 @UseGuards(RateLimitGuard)
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(private readonly auth: AuthService, @Inject(authConfig.KEY) private readonly config: ConfigType<typeof authConfig>) {}
 
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
@@ -106,7 +107,7 @@ export class AuthController {
 
     let verified: DataStoredInToken;
     try {
-      verified = (await verify(token, SECRET_KEY)) as DataStoredInToken;
+      verified = (await verify(token, this.config.secretKey)) as DataStoredInToken;
     } catch {
       throw new HttpException(401, 'Wrong authentication token');
     }

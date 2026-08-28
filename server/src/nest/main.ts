@@ -6,10 +6,9 @@ import fastifyHelmet from '@fastify/helmet';
 import fastifyMultipart from '@fastify/multipart';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
-import { PORT } from '@config';
 import { logger } from '@utils/logger';
-import validateEnv from '@utils/validateEnv';
 import { AppModule } from './app.module';
+import { appConfig } from './config/configuration';
 import { connectToDatabase } from './database';
 import { registerAccessLog } from './access-log';
 import { registerHttpCompatibility } from './http-compatibility';
@@ -41,7 +40,6 @@ const ALLOWED_METHODS = ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'];
 const COMPRESSIBLE_TYPES = /^text\/(?!event-stream)|(?:\+|\/)json(?:;|$)|(?:\+|\/)text(?:;|$)|(?:\+|\/)xml(?:;|$)/u;
 
 const bootstrap = async (): Promise<void> => {
-  validateEnv();
   await connectToDatabase();
 
   const adapter = new FastifyAdapter({
@@ -83,8 +81,11 @@ const bootstrap = async (): Promise<void> => {
   registerAccessLog(app);
   setupOpenApi(app);
 
-  await app.listen(PORT ?? 3000, '0.0.0.0');
-  logger.info(`API listening on port ${PORT ?? 3000}`);
+  // The environment was validated as the module was built, so this is a number.
+  const { port } = app.get(appConfig.KEY);
+
+  await app.listen(port, '0.0.0.0');
+  logger.info(`API listening on port ${port}`);
 };
 
 bootstrap().catch(error => {

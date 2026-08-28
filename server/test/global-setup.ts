@@ -1,6 +1,6 @@
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { HarnessContext, writeContext } from './support/context';
-import { startApp } from './support/infra/app';
+import { buildEnv, startApp } from './support/infra/app';
 import { startFakeInflux } from './support/infra/influx';
 import { startMqttBroker } from './support/infra/mqtt';
 import { freePort } from './support/infra/ports';
@@ -49,7 +49,7 @@ export default async (): Promise<void> => {
   const brokerConnected = waitForBrokerClient(broker.aedes, 90_000);
   brokerConnected.catch(() => undefined);
 
-  const app = await startApp({
+  const appEnvironment = {
     port,
     mongoUri,
     mqttHost: '127.0.0.1',
@@ -60,7 +60,9 @@ export default async (): Promise<void> => {
     mqttAuthSecret: MQTT_AUTH_SECRET,
     automationToken: AUTOMATION_TOKEN,
     selfRegistrationPassword: SELF_REGISTRATION_PASSWORD,
-  });
+  };
+
+  const app = await startApp(appEnvironment);
 
   await brokerConnected;
 
@@ -73,6 +75,11 @@ export default async (): Promise<void> => {
     mqttAuthSecret: MQTT_AUTH_SECRET,
     automationToken: AUTOMATION_TOKEN,
     selfRegistrationPassword: SELF_REGISTRATION_PASSWORD,
+    // Only what the harness itself set; the parent process environment is
+    // inherited by whoever spawns a server anyway.
+    appEnv: Object.fromEntries(
+      Object.entries(buildEnv(appEnvironment)).filter(([key, value]) => value !== undefined && process.env[key] !== value),
+    ) as Record<string, string>,
   };
   writeContext(context);
 
