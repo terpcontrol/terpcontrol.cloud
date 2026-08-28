@@ -75,6 +75,32 @@ describe('what the server writes down', () => {
     expect(logContents()).not.toContain(password);
   });
 
+  it('never writes one into the diary either, which a share link can read', async () => {
+    const device = await provisionDevice(owner);
+    const password = `diary-cam-secret-${Date.now()}`;
+    const stream = `rtsp://camera-user:${password}@127.0.0.1:1/nothing-here`;
+
+    // The poller reads the camera, fails, and - with error logging on - records
+    // why in the diary, which the owner can hand to anybody with a share link.
+    await owner.client
+      .post('/device/cloudsettings')
+      .send({ device_id: device.deviceId, cloud_settings: { rtspStream: stream, logRtspStreamErrors: true, firmwareChannel: 'stable' } })
+      .expect(200);
+
+    const streamErrors = async () => {
+      const logs = await owner.client.get(`/device/logs/${device.deviceId}`).query({ deleted: true }).expect(200);
+      return logs.body.filter((entry: { title: string }) => entry.title === 'message-rtsp-stream-error');
+    };
+
+    const deadline = Date.now() + 40_000;
+    while (Date.now() < deadline && (await streamErrors()).length === 0) await settle(2000);
+
+    const recorded = await streamErrors();
+    expect(recorded.length).toBeGreaterThan(0);
+    expect(JSON.stringify(recorded)).not.toContain(password);
+    expect(JSON.stringify(recorded)).toContain('<credentials>');
+  }, 60_000);
+
   it('keeps the detail of a message that carries one', async () => {
     // The access log is the highest-volume line the server writes, and the
     // path is the part of it that has to be there.

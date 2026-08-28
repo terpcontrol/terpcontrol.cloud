@@ -590,7 +590,9 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
                 `Recording the webcam error for device ${deviceId}`,
                 this.deviceService.logMessage(deviceId, {
                   title: 'message-rtsp-stream-error',
-                  message: `message-rtsp-stream-error:${stderr}`,
+                  // ffmpeg quotes the stream URL back, and a diary entry is
+                  // readable by anyone the owner shares the diary with.
+                  message: withoutCredentials(`message-rtsp-stream-error:${stderr}`),
                   severity: 1,
                   categories: ['webcam', 'error'],
                 }),

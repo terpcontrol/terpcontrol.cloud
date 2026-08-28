@@ -70,9 +70,12 @@ export class MqttClientService implements OnApplicationShutdown {
         }
 
         // Never up: the caller decides when to try again, so this one stops
-        // retrying rather than being left running alongside the next attempt.
+        // retrying rather than being left running alongside the next attempt -
+        // and it is forgotten, so publishing through it says there is no
+        // connection instead of dropping the packet in silence.
         reject(error);
         client.end(true);
+        if (this.client === client) this.client = undefined;
       });
 
       client.on('message', (topic: string, message: Buffer) => {
