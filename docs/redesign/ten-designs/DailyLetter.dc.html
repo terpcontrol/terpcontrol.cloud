@@ -1,0 +1,337 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,600;1,400&family=Caveat:wght@500;600&display=swap">
+  <style>
+    *{box-sizing:border-box}
+    :root{--fs:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;--fm:'IBM Plex Mono',ui-monospace,SFMono-Regular,monospace}
+    body{margin:0;background:#E8EAEF;color:#1A1D29;font-family:var(--fs);-webkit-font-smoothing:antialiased}
+    a{color:#2D4B95}a:hover{color:#1F3A6E}
+    .sheet{width:2600px;padding:40px 40px 44px}
+    .hd{display:flex;gap:40px;align-items:flex-start;border-bottom:3px solid #1A1D29;padding-bottom:22px;margin-bottom:24px}
+    .hd__n{font:600 84px/.78 var(--fm);color:#2D4B95;letter-spacing:-.05em;flex:none}
+    .hd__b{flex:1;max-width:1120px}
+    .hd__t{font:600 46px/1.02 var(--fs);letter-spacing:-.03em;margin:0 0 10px}
+    .hd__s{font:400 19px/1.45 var(--fs);color:#333B4C;margin:0}
+    .axes{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 26px;width:660px;flex:none}
+    .ax{border-top:1px solid #B9BFCC;padding-top:7px}
+    .ax b{display:block;font:600 10px/1 var(--fm);letter-spacing:.14em;text-transform:uppercase;color:#6B7285;margin-bottom:5px}
+    .ax span{font:500 15px/1.3 var(--fs);color:#1A1D29}
+    .strip{display:flex;gap:26px;align-items:flex-start}
+    .col{width:390px;flex:none}
+    .cap{display:flex;gap:9px;align-items:baseline;margin:0 0 9px;padding-bottom:7px;border-bottom:1px solid #C2C8D4}
+    .cap i{font:600 12px/1 var(--fm);color:#2D4B95;font-style:normal}
+    .cap span{font:600 14px/1.1 var(--fs);letter-spacing:-.01em}
+    .ft{margin-top:26px;padding-top:20px;border-top:1px solid #C2C8D4;display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:44px}
+    .ft h4{font:600 10px/1 var(--fm);letter-spacing:.16em;text-transform:uppercase;color:#2D4B95;margin:0 0 8px}
+    .ft p{font:400 16px/1.5 var(--fs);margin:0;color:#333B4C}
+    .ft .warn h4{color:#8A6318}
+
+    /* phone shell */
+    .ph{width:390px;height:844px;border-radius:34px;overflow:hidden;position:relative;display:flex;flex-direction:column;
+        box-shadow:0 18px 40px rgba(31,58,110,.18),0 2px 6px rgba(31,58,110,.10);background:#0F1219;color:#E7ECF5;font-size:15px}
+    .sb{height:24px;flex:none}
+    .bd{flex:1;padding:0 16px;overflow:hidden}
+    .nav{flex:none;display:flex;background:#151B26;border-top:1px solid #262F3F;padding:9px 4px 22px}
+    .nav div{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;color:#79839A;font:500 11px/1 var(--fs)}
+    .nav div.on{color:#6FBE4A}
+    .ic{width:21px;height:21px;display:block;flex:none}
+    .ic-s{width:16px;height:16px}
+
+    .top{display:flex;align-items:flex-start;justify-content:space-between;padding:6px 0 12px}
+    .ttl{font:600 21px/1.15 var(--fs);letter-spacing:-.02em;margin:0}
+    .meta{font:400 12.5px/1.3 var(--fs);color:#8A93A8;margin:4px 0 0;font-variant-numeric:tabular-nums}
+    .dot{width:7px;height:7px;border-radius:50%;background:#6FBE4A;display:inline-block;margin-right:5px;vertical-align:1px}
+    .dot.red{background:#F06A7E}.dot.grey{background:#6B7488}.dot.amb{background:#E3B95F}
+
+    .sechd{display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 6px}
+    .sechd h3{font:600 11px/1 var(--fm);letter-spacing:.16em;text-transform:uppercase;color:#8A93A8;margin:0}
+    .sechd span{font:400 11px/1 var(--fs);color:#6B7488}
+
+    .btns{display:flex;gap:8px;margin-top:12px}
+    .btn{flex:1;height:48px;border-radius:10px;background:#1D2431;color:#C9D2E3;display:flex;align-items:center;justify-content:center;gap:6px;font:600 14px/1 var(--fs)}
+    .btn.pri{background:#50A030;color:#fff}
+    .empty{border:1.5px dashed #33405A;border-radius:12px;padding:14px;color:#79839A;font:400 13.5px/1.45 var(--fs)}
+
+    /* bottom sheet */
+    .scrim{position:absolute;inset:0;background:rgba(6,9,14,.62)}
+    .sheetup{position:absolute;left:0;right:0;bottom:0;background:#161C27;border-radius:20px 20px 0 0;padding:14px 16px 22px;border-top:1px solid #2C3546}
+    .grab{width:38px;height:4px;border-radius:2px;background:#3E4A61;margin:0 auto 12px}
+    .shd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+    .shd h3{margin:0;font:600 20px/1 var(--fs);letter-spacing:-.01em}
+    .shd span{font:500 13px/1 var(--fs);color:#8A93A8}
+    .chips{display:flex;gap:7px;margin-bottom:12px}
+    .chip{padding:9px 13px;border-radius:999px;border:1px solid #33405A;color:#9AA3B7;font:500 13.5px/1 var(--fs)}
+    .chip.on{background:#1E3A6B;border-color:#4E7BD0;color:#CFE0FF}
+    .cans{background:#111621;border:1px solid #2C3546;border-radius:12px;padding:14px 14px 12px;margin-bottom:11px}
+    .cans .row{display:flex;justify-content:space-between;align-items:center}
+    .beads{display:flex;gap:7px}
+    .beads i{width:26px;height:26px;border-radius:50%;border:2px solid #3E4A61;display:block}
+    .beads i.f{background:#4A88DC;border-color:#4A88DC}
+    .cans .tot{font:600 20px/1 var(--fs);font-variant-numeric:tabular-nums}
+    .cans .hint{font:400 12px/1.3 var(--fs);color:#79839A;margin-top:9px}
+    .frow{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1D2431;font:500 14px/1.2 var(--fs);font-variant-numeric:tabular-nums}
+    .frow span{color:#9AA3B7;font-weight:400}
+    .from{font:400 12.5px/1.35 var(--fs);color:#79839A;margin:8px 0 0}
+    .from b{color:#9AA3B7;font-weight:600}
+    .guard{display:flex;gap:9px;background:#2A2417;border:1px solid #6A5526;border-radius:9px;padding:10px 11px;margin:11px 0 0;font:400 12.5px/1.4 var(--fs);color:#E6D3A5}
+
+    /* ---- 02 Der Tagesbrief — paper ---- */
+    :root{--ed:'Newsreader',Georgia,'Times New Roman',serif}
+    .ph.pa{background:#FBFAF6;color:#22201A}
+    .pa .nav{background:#F2EFE7;border-top:1px solid #DEDACE}
+    .pa .nav div{color:#8C877A}
+    .pa .nav div.on{color:#2E6A1C}
+    .pa .bd{padding:0 20px}
+    .dline{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0 7px;border-bottom:1.5px solid #22201A;font:600 11px/1 var(--fm);letter-spacing:.11em;text-transform:uppercase;color:#6C6759}
+    .dline b{color:#22201A;font-weight:600}
+    .kicker{font:600 11px/1 var(--fm);letter-spacing:.14em;text-transform:uppercase;color:#2E6A1C;margin:13px 0 7px}
+    .kicker.bad{color:#A3352C}
+    .lede{font:600 29px/1.13 var(--ed) var(--fs);letter-spacing:-.012em;margin:0 0 11px;text-wrap:balance}
+    .prose{font:400 16.5px/1.56 var(--ed) var(--fs);color:#332F27;margin:0 0 10px}
+    .prose em{font-style:italic;color:#6C6759}
+    .n{font-weight:600;font-variant-numeric:tabular-nums;color:#22201A;border-bottom:1.5px dotted #B9AF95;font-style:normal}
+    .n.up{color:#8A4A16;border-bottom-color:#D8B183}
+    .n.dn{color:#25518F;border-bottom-color:#9DB6D8}
+    .plate{width:100%;height:152px;border-radius:3px;display:block;background:#E7E2D6}
+    .pcap{font:400 12px/1.4 var(--fs);color:#7A7466;margin:6px 0 0;padding-bottom:11px;border-bottom:1px solid #E3DFD4}
+    .todo{background:#FFF9E8;border:1px solid #E4CE93;border-left:4px solid #C89B3C;padding:11px 13px;margin:0 0 11px}
+    .todo p{margin:0;font:400 15px/1.5 var(--ed) var(--fs);color:#4A4023}
+    .todo b{font-weight:600}
+    .rule{font:500 11px/1 var(--fm);color:#9A927F;letter-spacing:.05em;display:block;margin-top:7px}
+    .add{border-top:1px dashed #C9C2AE;margin-top:12px;padding-top:11px}
+    .add h4{margin:0 0 8px;font:600 11px/1 var(--fm);letter-spacing:.14em;text-transform:uppercase;color:#8C877A}
+    .field{border:1px solid #DEDACE;background:#fff;border-radius:4px;padding:11px 12px;font:400 15px/1.3 var(--ed) var(--fs);color:#A9A292;margin-bottom:9px}
+    .stamps{display:flex;gap:7px;flex-wrap:wrap}
+    .stamp{display:flex;align-items:center;gap:5px;padding:9px 12px;border:1px solid #CFC8B4;border-radius:999px;background:#fff;font:500 13.5px/1 var(--fs);color:#43402F}
+    .stamp.go{border-color:#7EA968;color:#2E6A1C;background:#F1F7ED}
+    .nums{display:flex;gap:0;border-top:1px solid #E3DFD4;margin-top:12px;padding-top:9px}
+    .nums div{flex:1;border-right:1px solid #EDE9DE;padding-right:8px}
+    .nums div:last-child{border-right:0}
+    .nums b{display:block;font:600 17px/1.1 var(--fs);font-variant-numeric:tabular-nums;color:#22201A}
+    .nums span{display:block;font:400 10.5px/1.2 var(--fs);color:#8C877A;margin-top:3px}
+    .allnums{display:block;text-align:right;font:600 12.5px/1 var(--fs);color:#2E6A1C;margin-top:9px}
+    .sentence{font:400 21px/1.62 var(--ed) var(--fs);color:#332F27;margin:0}
+    .slot{display:inline-block;font-weight:600;color:#22201A;border-bottom:2px solid #2E6A1C;padding:0 2px;font-style:normal}
+    .slot.open{color:#A9A292;border-bottom-color:#C9C2AE;font-weight:400}
+    .pbtn{height:52px;border-radius:4px;background:#2E6A1C;color:#fff;display:flex;align-items:center;justify-content:center;font:600 16px/1 var(--fs);margin-top:12px}
+    .pbtn.gh{background:#fff;border:1px solid #CFC8B4;color:#43402F}
+    .pguard{display:flex;gap:8px;background:#FFF9E8;border:1px solid #E4CE93;padding:9px 11px;margin-top:11px;font:400 13px/1.4 var(--fs);color:#5C4E26}
+    .pstrip{display:flex;gap:2px;margin-top:9px}
+    .pstrip svg,.pstrip i{height:42px;flex:1;display:block;background:#E7E2D6}
+    .pstrip .cut{flex:none;width:5px;background:#FBFAF6}
+    .missing{font:400 13.5px/1.5 var(--fs);color:#7A7466;background:#F3F1E9;padding:10px 12px;border-radius:3px;margin-top:11px}
+    .missing b{color:#43402F}
+    .play{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:rgba(251,250,246,.92);display:flex;align-items:center;justify-content:center}
+    .play svg{width:0;height:0;border-top:12px solid transparent;border-bottom:12px solid transparent;border-left:19px solid #22201A;margin-left:5px}
+  </style>
+</helmet>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="fan"><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(-62) scale(.6)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(-33) scale(.84)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(33) scale(.84)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(62) scale(.6)"/></g>
+  <linearGradient id="gLit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3E3BC"/><stop offset=".4" stop-color="#B29B6C"/><stop offset="1" stop-color="#2C2A1E"/></linearGradient>
+  <linearGradient id="gOff" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2B3244"/><stop offset=".5" stop-color="#1A2030"/><stop offset="1" stop-color="#0D1119"/></linearGradient>
+  <symbol id="pic" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gLit)"/><ellipse cx="100" cy="-14" rx="142" ry="66" fill="#FFF6DA" opacity=".55"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#4A4436"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#443F32"/><g fill="#1C4416"><use href="#fan" transform="translate(50,140) scale(2.2) rotate(-6)"/><use href="#fan" transform="translate(148,142) scale(1.9) rotate(7)"/></g><g fill="#2C6821"><use href="#fan" transform="translate(28,134) scale(1.5) rotate(-48)"/><use href="#fan" transform="translate(76,132) scale(1.6) rotate(27)"/><use href="#fan" transform="translate(174,136) scale(1.4) rotate(46)"/><use href="#fan" transform="translate(122,136) scale(1.45) rotate(-27)"/></g><g fill="#4C9033"><use href="#fan" transform="translate(56,104) scale(1.15) rotate(-14)"/><use href="#fan" transform="translate(146,108) scale(1.05) rotate(16)"/><use href="#fan" transform="translate(100,118) scale(1.2) rotate(2)"/></g></symbol>
+  <symbol id="picold" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gLit)"/><ellipse cx="100" cy="-14" rx="142" ry="66" fill="#FFF6DA" opacity=".55"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#4A4436"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#443F32"/><g fill="#1C4416"><use href="#fan" transform="translate(50,142) scale(1.7) rotate(-5)"/><use href="#fan" transform="translate(148,144) scale(1.45) rotate(6)"/></g><g fill="#2C6821"><use href="#fan" transform="translate(30,138) scale(1.15) rotate(-45)"/><use href="#fan" transform="translate(74,136) scale(1.2) rotate(25)"/><use href="#fan" transform="translate(172,140) scale(1.05) rotate(43)"/></g><g fill="#4C9033"><use href="#fan" transform="translate(58,116) scale(.85) rotate(-12)"/><use href="#fan" transform="translate(142,120) scale(.8) rotate(14)"/></g></symbol>
+  <symbol id="picdark" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gOff)"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#141924"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#131822"/><g fill="#151D2A"><use href="#fan" transform="translate(50,140) scale(2.2) rotate(-6)"/><use href="#fan" transform="translate(148,142) scale(1.9) rotate(7)"/></g><g fill="#1A2434"><use href="#fan" transform="translate(28,134) scale(1.5) rotate(-48)"/><use href="#fan" transform="translate(76,132) scale(1.6) rotate(27)"/><use href="#fan" transform="translate(174,136) scale(1.4) rotate(46)"/><use href="#fan" transform="translate(122,136) scale(1.45) rotate(-27)"/></g><g fill="#1E2A3C"><use href="#fan" transform="translate(56,104) scale(1.15) rotate(-14)"/><use href="#fan" transform="translate(100,118) scale(1.2) rotate(2)"/></g></symbol>
+  <symbol id="i-now" viewBox="0 0 24 24"><path d="M4 12h4l3-7 4 14 3-7h2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4.5 5.4A2.4 2.4 0 0 1 6.9 3H19v15.4H6.9a2.4 2.4 0 0 0-2.4 2.4V5.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 8h7.5M8 11.6h7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.6 5.5v13M16.4 5.5v13M3 12h18" stroke="currentColor" stroke-width="1.4"/></symbol>
+  <symbol id="i-tent" viewBox="0 0 24 24"><path d="M12 3 3.5 20.5h17L12 3Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 10v10.5" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3.4c3.3 4.1 5.4 6.9 5.4 9.4a5.4 5.4 0 1 1-10.8 0c0-2.5 2.1-5.3 5.4-9.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 4.5h14v15H5z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 9h8M8 12.6h8M8 16.2h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 7l1.4-2.8h3.2L15 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4.2 21 19.6H3L12 4.2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10.2v4.2M12 17.2v.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-ruler" viewBox="0 0 24 24"><path d="M3 14.5 14.5 3 21 9.5 9.5 21 3 14.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7.5 11 9.5 13M11 7.5l2 2M11 14.5l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M20.2 3.8c0 8.6-4.5 13-11.4 13H5.2c0-7.7 5-13 15-13Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4.6 20.6c1.9-4.7 5.2-7.9 10-10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5.4l3.4 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9.4" cy="8.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c1-3.4 3.4-5.2 6.4-5.2S14.8 16.6 15.8 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M16.4 5.6a3.4 3.4 0 0 1 0 6.4M18 14.9c1.6.8 2.7 2.4 3.2 5.1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 19.4V5M4 19.4h16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M7 15.4l3.6-4.6 3.2 2.6L20 7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.2v13.6M5.2 12h13.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9.4 5.4 6.8 6.6-6.8 6.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.6 12.6 9.4 17.4 19.6 6.8" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M6 8h12v3.4A6 6 0 0 1 6 11.4V8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 17.4V21" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2.8v2.2M12 19v2.2M2.8 12H5M19 12h2.2M5.6 5.6 7.2 7.2M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.6" y="5.4" width="16.8" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.6 10h16.8M8 3.4v3.6M16 3.4v3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9.6 3.4h4.8l-.7 5.4 3.5 3.1H7.8l3.5-3.1-.7-5.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 12v8.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</defs></svg>
+
+<div class="sheet">
+  <div class="hd">
+    <div class="hd__n">02</div>
+    <div class="hd__b">
+      <h2 class="hd__t">Der Tagesbrief</h2>
+      <p class="hd__s">Die App führt das Tagebuch wirklich — sie schreibt es. Der Startbildschirm ist die Seite von heute: eine Überschrift, ein Absatz in ganzen Sätzen, ein Bild. Der Vergleich steckt nicht in einem Regler, sondern im Satz: „3,4 °C über deinem Nachtziel“. Was du selbst dazuschreibst, kommt unten dran und liest sich hinterher wie derselbe Text.</p>
+    </div>
+    <div class="axes">
+      <div class="ax"><b>Startbildschirm</b><span>eine geschriebene Seite</span></div>
+      <div class="ax"><b>Vorher–Nachher</b><span>im Satz, nicht im Regler</span></div>
+      <div class="ax"><b>Tabs</b><span>Heute · Buch · Film · Zelt</span></div>
+      <div class="ax"><b>App entscheidet</b><span>sehr viel: Auswahl, Reihenfolge, Wortwahl</span></div>
+    </div>
+  </div>
+
+  <div class="strip">
+
+    <div class="col">
+      <p class="cap"><i>01</i><span>Normaler Tag</span></p>
+      <div class="ph pa">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="dline"><span>Montag, 25. August · <b>Tag 34</b></span><span>Zelt Keller</span></div>
+          <p class="kicker">Blüte, Woche 2</p>
+          <h1 class="lede">Nachts wird es wärmer.</h1>
+          <p class="prose">Seit Freitag steigt die Nachttemperatur. Heute Nacht waren es im Mittel <b class="n up">23,4 °C</b> — <b class="n">3,4 °C</b> über deinem Nachtziel von <b class="n">20,0 °C</b>. Tagsüber passt alles: <b class="n">24,8 °C</b> bei <b class="n">48 %</b>, VPD <b class="n">1,29 kPa</b>, mitten im Blütefenster. Die Heizung lief <b class="n">4 Std 20</b>, 25 Minuten länger als gestern. Kühlen kann das Zelt nicht — dafür hast du keine Dose.</p>
+          <p class="prose">Anna hat A1 und A2 um 12:05 gegossen, <b class="n">2,0 l</b> ohne Dünger. <em>Schritt 7 vom Schema ist damit erledigt; Schritt 8 ist Freitag dran.</em></p>
+          <svg class="plate" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg>
+          <p class="pcap">14:02 · Tag 34 — die Pflanzen stehen 3 cm höher als am Freitag.</p>
+          <div class="add">
+            <h4>Dazu von dir</h4>
+            <div class="field">Heute …</div>
+            <div class="stamps"><span class="stamp go"><svg class="ic-s"><use href="#i-drop"/></svg>Gegossen</span><span class="stamp"><svg class="ic-s"><use href="#i-leaf"/></svg>Beschnitten</span><span class="stamp"><svg class="ic-s"><use href="#i-cam"/></svg>Foto</span></div>
+          </div>
+          <div class="nums"><div><b>24,8 °C</b><span>Temperatur</span></div><div><b>48 %</b><span>Feuchte</span></div><div><b>1,29</b><span>VPD kPa</span></div><div><b>1010</b><span>CO₂ ppm</span></div></div><span class="allnums">Alle Zahlen ›</span>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-book"/></svg>Heute</div><div><svg class="ic"><use href="#i-note"/></svg>Buch</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <p class="cap"><i>02</i><span>Etwas stimmt nicht</span></p>
+      <div class="ph pa">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="dline"><span>Montag, 25. August · <b>Tag 34</b></span><span>Zelt Keller</span></div>
+          <p class="kicker bad">Vor 14 Minuten</p>
+          <h1 class="lede">Um 13:40 ist das Licht ausgegangen.</h1>
+          <p class="prose">Die Dose „Licht“ meldet weiter <b class="n">an</b>, aber die Kamera sieht seit 13:40 nichts mehr. Seitdem ist die Temperatur von 24,8 auf <b class="n dn">21,3 °C</b> gefallen und die Luftfeuchte von 48 auf <b class="n up">71 %</b> gestiegen. Das VPD liegt bei <b class="n dn">0,55 kPa</b> statt zwischen 1,2 und 1,5.</p>
+          <div class="todo">
+            <p><b>Was du tun kannst:</b> Geh ans Zelt und zieh den Stecker von Dose 3 einmal ab. Kommen Lampe und Dose danach zusammen wieder, war es die Dose. Bleibt es dunkel, ist es die Lampe.</p>
+            <span class="rule">Regel L-1 · Meldung um 13:54 an dein Telefon</span>
+          </div>
+          <svg class="plate" style="height:132px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><use href="#picdark"/></svg>
+          <p class="pcap">14:04 — das letzte Bild mit Licht ist von 13:40.</p>
+          <div class="add">
+            <h4>Dazu von dir</h4>
+            <div class="stamps"><span class="stamp"><svg class="ic-s"><use href="#i-check"/></svg>Erledigt</span><span class="stamp"><svg class="ic-s"><use href="#i-note"/></svg>Notiz</span><span class="stamp"><svg class="ic-s"><use href="#i-clock"/></svg>Später</span></div>
+          </div>
+          <div class="nums"><div><b>21,3 °C</b><span>Temperatur</span></div><div><b>71 %</b><span>Feuchte</span></div><div><b>0,55</b><span>VPD kPa</span></div><div><b>14 Min</b><span>dunkel</span></div></div><span class="allnums">Alle Zahlen ›</span>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-book"/></svg>Heute</div><div><svg class="ic"><use href="#i-note"/></svg>Buch</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <p class="cap"><i>03</i><span>Tag eins</span></p>
+      <div class="ph pa">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="dline"><span>Montag, 25. August · <b>Tag 1</b></span><span>Zelt Keller</span></div>
+          <p class="kicker">Seite 1</p>
+          <h1 class="lede">Hier fängt das Tagebuch an.</h1>
+          <p class="prose">Du hast das Zelt um 14:00 angelegt und den Controller verbunden. Er misst seit vier Minuten: <b class="n">26,2 °C</b> bei <b class="n">54 %</b> Luftfeuchte. Dein Ziel steht auf 25,0 °C und 50 % — also <b class="n up">1,2 °C</b> zu warm. Das gibt sich meistens in der ersten Nacht.</p>
+          <p class="prose">Ab morgen steht hier, was sich verändert hat. Bis dahin schreibe ich auf, was ich sehe: alle 30 Sekunden ein Messwert, alle 30 Sekunden ein Bild.</p>
+          <svg class="plate" style="height:138px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg>
+          <p class="pcap">14:04 — das erste Bild.</p>
+          <div class="add">
+            <h4>Dazu von dir</h4>
+            <div class="field">Heute …</div>
+            <div class="stamps"><span class="stamp"><svg class="ic-s"><use href="#i-leaf"/></svg>Pflanze anlegen</span><span class="stamp"><svg class="ic-s"><use href="#i-drop"/></svg>Gegossen</span></div>
+            <p class="pcap" style="border:0;padding-bottom:0;margin-top:9px">Musst du nicht. Der Brief kommt auch morgen, wenn du nichts machst.</p>
+          </div>
+          <div class="nums"><div><b>26,2 °C</b><span>Temperatur</span></div><div><b>54 %</b><span>Feuchte</span></div><div><b>1,41</b><span>VPD kPa</span></div><div><b>438</b><span>CO₂ ppm</span></div></div><span class="allnums">Alle Zahlen ›</span>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-book"/></svg>Heute</div><div><svg class="ic"><use href="#i-note"/></svg>Buch</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <p class="cap"><i>04</i><span>Gießen eintragen</span></p>
+      <div class="ph pa">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="dline"><span>Montag, 25. August · <b>19:40</b></span><span>Zelt Keller</span></div>
+          <p class="kicker">Dazu von dir</p>
+          <h1 class="lede" style="font-size:22px;margin-bottom:14px">Satz fertig machen, fertig.</h1>
+          <p class="sentence">Ich habe <span class="slot">A1</span> <span class="slot">A2</span> <span class="slot open">A3</span> mit <span class="slot">4,0 l</span> gegossen und mit <span class="slot">Bio·Grow 2 ml/l</span>, <span class="slot">Bio·Bloom 3 ml/l</span> und <span class="slot">Top·Max 1 ml/l</span> gedüngt. Der pH lag bei <span class="slot">6,3</span>, der EC bei <span class="slot open">—</span>.</p>
+          <p class="pcap" style="margin-top:14px">Vorausgefüllt aus <b>Biobizz All·Mix, Schritt 7 von 14</b>. Jedes unterstrichene Wort lässt sich antippen und ändern. Zuletzt geprüft am 14.07.2026.</p>
+          <div class="pguard"><svg class="ic-s" style="color:#A3352C;flex:none;margin-top:1px"><use href="#i-warn"/></svg><div>Anna hat A1 und A2 vor 1 Std 30 schon gegossen (2,0 l). <b style="text-decoration:underline">Ihr Bild ansehen</b></div></div>
+          <div class="pbtn">Trotzdem in den Brief schreiben</div>
+          <div class="pbtn gh">Wer war es? <b style="margin-left:6px">Ben</b></div>
+          <p class="pcap" style="border:0;margin-top:12px">Der Satz steht danach im Brief von heute — und im Buch, unter A1 und A2.</p>
+          <div class="add"><h4>Bisher an A1 und A2</h4><div class="nums"><div><b>18,5 l</b><span>über 11 Gaben</span></div><div><b>31 ml</b><span>Bio·Bloom</span></div><div><b>7 / 3</b><span>Anna / Ben</span></div><div><b>vor 2 Std</b><span>zuletzt</span></div></div><span class="allnums">Ganze Liste ›</span></div>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-book"/></svg>Heute</div><div><svg class="ic"><use href="#i-note"/></svg>Buch</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <p class="cap"><i>05</i><span>Kamera &amp; Zeitraffer</span></p>
+      <div class="ph pa">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="dline"><span>Kapitel 4 · <b>Blüte, Woche 4</b></span><span>Zelt Keller</span></div>
+          <p class="kicker">Film</p>
+          <h1 class="lede">Fünfundzwanzig Sekunden für vier Wochen.</h1>
+          <div style="position:relative">
+            <svg class="plate" style="height:180px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg>
+            <div class="play"><svg></svg></div>
+          </div>
+          <div class="pstrip">
+            <svg viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#picold"/></svg>
+            <svg viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#picold"/></svg>
+            <svg viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#pic"/></svg>
+            <i class="cut"></i>
+            <svg viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#pic"/></svg>
+            <svg viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#pic"/></svg>
+            <svg viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#pic"/></svg>
+          </div>
+          <p class="prose" style="margin-top:12px">Aus <b class="n">2 148</b> Bildern sind <b class="n">600</b> geblieben: die Nachtbilder fallen weg, die Bilder mit einer Hand darin auch. Am 12.09. ist die Kamera verrutscht — da schneidet der Film und ein zweites Kapitel fängt an.</p>
+          <p class="prose">In der Ecke läuft Tag, Datum, Temperatur und Feuchte mit. Wer gegossen hat, steht rechts unten im Bild.</p>
+          <div style="display:flex;gap:8px"><div class="pbtn gh" style="flex:1">Teilen</div><div class="pbtn" style="flex:1">Speichern</div></div>
+          <div class="nums"><div><b>600</b><span>von 2 148</span></div><div><b>25 Sek</b><span>Länge</span></div><div><b>2</b><span>Kapitel</span></div><div><b>7,4 MB</b><span>Datei</span></div></div><span class="allnums">Wie gefilmt wird ›</span>
+        </div>
+        <div class="nav"><div><svg class="ic"><use href="#i-book"/></svg>Heute</div><div><svg class="ic"><use href="#i-note"/></svg>Buch</div><div class="on"><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <p class="cap"><i>06</i><span>Zelt ohne Gerät</span></p>
+      <div class="ph pa">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="dline"><span>Montag, 25. August · <b>Tag 19</b></span><span>Schrank Flur</span></div>
+          <p class="kicker">Blüte, Woche 2</p>
+          <h1 class="lede">Sechs Zentimeter seit Dienstag.</h1>
+          <p class="prose">Du hast heute Abend <b class="n up">48 cm</b> gemessen, am Dienstag waren es 42. Der pH im Ablauf ist von 6,4 auf <b class="n dn">5,9</b> gefallen — Biobizz nennt 6,2 bis 6,5 als gut. In den sechs Tagen sind <b class="n">4,0 l</b> Wasser und <b class="n">12 ml</b> Bio·Bloom dazugekommen, verteilt auf zwei Gaben.</p>
+          <p class="missing">Wie warm und wie feucht es im Schrank ist, <b>weiß ich nicht</b> — das misst hier niemand. Alles andere in diesem Brief kommt von dir.</p>
+          <svg class="plate" style="height:130px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg>
+          <p class="pcap">20:55 · dein Foto von heute Abend.</p>
+          <div class="add">
+            <h4>Dazu von dir</h4>
+            <div class="stamps"><span class="stamp go"><svg class="ic-s"><use href="#i-drop"/></svg>Gegossen</span><span class="stamp"><svg class="ic-s"><use href="#i-ruler"/></svg>Gemessen</span><span class="stamp"><svg class="ic-s"><use href="#i-cam"/></svg>Foto</span></div>
+          </div>
+          <div class="nums"><div><b>48 cm</b><span>Höhe A1</span></div><div><b>5,9</b><span>pH Ablauf</span></div><div><b>15,0 l</b><span>Wasser</span></div><div><b>6</b><span>Gaben</span></div></div><span class="allnums">Alles von dir ›</span>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-book"/></svg>Heute</div><div><svg class="ic"><use href="#i-note"/></svg>Buch</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="ft">
+    <div><h4>Worauf es wettet</h4><p>Dass „das Tagebuch schreibt sich selbst“ wörtlich gemeint sein sollte. Eine Seite mit ganzen Sätzen liest man auch mit einer Hand im dunklen Zelt, und sie ist am nächsten Morgen noch verständlich — eine Kachelwand nicht. Vier Wochen später ist der Brief bereits der Bericht, den ein Verein sowieso schreiben müsste.</p></div>
+    <div class="warn"><h4>Was ein abgelenkter Nutzer falsch macht</h4><p>Er liest die Überschrift und wischt weiter — und der zweite Absatz, in dem der Hinweis steht, ist ihm entgangen. Prosa hat keine Rangfolge, die man scannen kann. Und wenn die App einmal etwas Falsches schreibt, klingt es genauso sicher wie alles andere; das kostet mehr Vertrauen als eine falsche Zahl in einer Tabelle.</p></div>
+    <div class="warn"><h4>Wo die Kontrolle ausgeht</h4><p>Der fähige Nutzer bekommt keinen einzigen freien Blick auf die Rohdaten — er bekommt, was die App für erwähnenswert hält. „Alle Zahlen“ ist ein Link, kein Ort. Und die Textbausteine sind ein kleines Regelwerk: was nicht in der Vorlage steht, wird nie geschrieben, egal wie sichtbar es in den Daten ist.</p></div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

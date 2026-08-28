@@ -1,0 +1,355 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,600;1,400&family=Caveat:wght@500;600&display=swap">
+  <style>
+    *{box-sizing:border-box}
+    :root{--fs:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;--fm:'IBM Plex Mono',ui-monospace,SFMono-Regular,monospace}
+    body{margin:0;background:#E8EAEF;color:#1A1D29;font-family:var(--fs);-webkit-font-smoothing:antialiased}
+    a{color:#2D4B95}a:hover{color:#1F3A6E}
+    .sheet{width:2600px;padding:40px 40px 44px}
+    .hd{display:flex;gap:40px;align-items:flex-start;border-bottom:3px solid #1A1D29;padding-bottom:22px;margin-bottom:24px}
+    .hd__n{font:600 84px/.78 var(--fm);color:#2D4B95;letter-spacing:-.05em;flex:none}
+    .hd__b{flex:1;max-width:1120px}
+    .hd__t{font:600 46px/1.02 var(--fs);letter-spacing:-.03em;margin:0 0 10px}
+    .hd__s{font:400 19px/1.45 var(--fs);color:#333B4C;margin:0}
+    .axes{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 26px;width:660px;flex:none}
+    .ax{border-top:1px solid #B9BFCC;padding-top:7px}
+    .ax b{display:block;font:600 10px/1 var(--fm);letter-spacing:.14em;text-transform:uppercase;color:#6B7285;margin-bottom:5px}
+    .ax span{font:500 15px/1.3 var(--fs);color:#1A1D29}
+    .strip{display:flex;gap:26px;align-items:flex-start}
+    .col{width:390px;flex:none}
+    .cap{display:flex;gap:9px;align-items:baseline;margin:0 0 9px;padding-bottom:7px;border-bottom:1px solid #C2C8D4}
+    .cap i{font:600 12px/1 var(--fm);color:#2D4B95;font-style:normal}
+    .cap span{font:600 14px/1.1 var(--fs);letter-spacing:-.01em}
+    .ft{margin-top:26px;padding-top:20px;border-top:1px solid #C2C8D4;display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:44px}
+    .ft h4{font:600 10px/1 var(--fm);letter-spacing:.16em;text-transform:uppercase;color:#2D4B95;margin:0 0 8px}
+    .ft p{font:400 16px/1.5 var(--fs);margin:0;color:#333B4C}
+    .ft .warn h4{color:#8A6318}
+
+    /* phone shell */
+    .ph{width:390px;height:844px;border-radius:34px;overflow:hidden;position:relative;display:flex;flex-direction:column;
+        box-shadow:0 18px 40px rgba(31,58,110,.18),0 2px 6px rgba(31,58,110,.10);background:#0F1219;color:#E7ECF5;font-size:15px}
+    .sb{height:24px;flex:none}
+    .bd{flex:1;padding:0 16px;overflow:hidden}
+    .nav{flex:none;display:flex;background:#151B26;border-top:1px solid #262F3F;padding:9px 4px 22px}
+    .nav div{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;color:#79839A;font:500 11px/1 var(--fs)}
+    .nav div.on{color:#6FBE4A}
+    .ic{width:21px;height:21px;display:block;flex:none}
+    .ic-s{width:16px;height:16px}
+
+    .top{display:flex;align-items:flex-start;justify-content:space-between;padding:6px 0 12px}
+    .ttl{font:600 21px/1.15 var(--fs);letter-spacing:-.02em;margin:0}
+    .meta{font:400 12.5px/1.3 var(--fs);color:#8A93A8;margin:4px 0 0;font-variant-numeric:tabular-nums}
+    .dot{width:7px;height:7px;border-radius:50%;background:#6FBE4A;display:inline-block;margin-right:5px;vertical-align:1px}
+    .dot.red{background:#F06A7E}.dot.grey{background:#6B7488}.dot.amb{background:#E3B95F}
+
+    .sechd{display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 6px}
+    .sechd h3{font:600 11px/1 var(--fm);letter-spacing:.16em;text-transform:uppercase;color:#8A93A8;margin:0}
+    .sechd span{font:400 11px/1 var(--fs);color:#6B7488}
+
+    .btns{display:flex;gap:8px;margin-top:12px}
+    .btn{flex:1;height:48px;border-radius:10px;background:#1D2431;color:#C9D2E3;display:flex;align-items:center;justify-content:center;gap:6px;font:600 14px/1 var(--fs)}
+    .btn.pri{background:#50A030;color:#fff}
+    .empty{border:1.5px dashed #33405A;border-radius:12px;padding:14px;color:#79839A;font:400 13.5px/1.45 var(--fs)}
+
+    /* bottom sheet */
+    .scrim{position:absolute;inset:0;background:rgba(6,9,14,.62)}
+    .sheetup{position:absolute;left:0;right:0;bottom:0;background:#161C27;border-radius:20px 20px 0 0;padding:14px 16px 22px;border-top:1px solid #2C3546}
+    .grab{width:38px;height:4px;border-radius:2px;background:#3E4A61;margin:0 auto 12px}
+    .shd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+    .shd h3{margin:0;font:600 20px/1 var(--fs);letter-spacing:-.01em}
+    .shd span{font:500 13px/1 var(--fs);color:#8A93A8}
+    .chips{display:flex;gap:7px;margin-bottom:12px}
+    .chip{padding:9px 13px;border-radius:999px;border:1px solid #33405A;color:#9AA3B7;font:500 13.5px/1 var(--fs)}
+    .chip.on{background:#1E3A6B;border-color:#4E7BD0;color:#CFE0FF}
+    .cans{background:#111621;border:1px solid #2C3546;border-radius:12px;padding:14px 14px 12px;margin-bottom:11px}
+    .cans .row{display:flex;justify-content:space-between;align-items:center}
+    .beads{display:flex;gap:7px}
+    .beads i{width:26px;height:26px;border-radius:50%;border:2px solid #3E4A61;display:block}
+    .beads i.f{background:#4A88DC;border-color:#4A88DC}
+    .cans .tot{font:600 20px/1 var(--fs);font-variant-numeric:tabular-nums}
+    .cans .hint{font:400 12px/1.3 var(--fs);color:#79839A;margin-top:9px}
+    .frow{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1D2431;font:500 14px/1.2 var(--fs);font-variant-numeric:tabular-nums}
+    .frow span{color:#9AA3B7;font-weight:400}
+    .from{font:400 12.5px/1.35 var(--fs);color:#79839A;margin:8px 0 0}
+    .from b{color:#9AA3B7;font-weight:600}
+    .guard{display:flex;gap:9px;background:#2A2417;border:1px solid #6A5526;border-radius:9px;padding:10px 11px;margin:11px 0 0;font:400 12.5px/1.4 var(--fs);color:#E6D3A5}
+
+    /* ---- 09 Die Woche ---- */
+    .wk .bd{padding:0 15px}
+    .days{display:flex;gap:5px;margin-bottom:12px}
+    .day{flex:1;border-radius:10px;background:#161C27;border:1px solid #232B3A;padding:8px 3px 7px;text-align:center}
+    .day b{display:block;font:600 10px/1 var(--fm);letter-spacing:.06em;color:#79839A}
+    .day u{display:block;text-decoration:none;font:600 15px/1 var(--fs);margin-top:5px;font-variant-numeric:tabular-nums}
+    .day .dots{display:flex;gap:2px;justify-content:center;margin-top:6px;height:6px}
+    .day .dots i{width:5px;height:5px;border-radius:50%;display:block}
+    .day.today{background:#1B2841;border-color:#4E7BD0}
+    .day.today b,.day.today u{color:#CFE0FF}
+    .day.fut{opacity:.5}
+    .task{display:flex;align-items:flex-start;gap:11px;background:#161C27;border:1px solid #262F3F;border-radius:13px;padding:13px;margin-bottom:9px}
+    .task .cb{width:26px;height:26px;border-radius:8px;border:2px solid #3E4A61;flex:none;margin-top:1px;display:flex;align-items:center;justify-content:center}
+    .task .cb svg{width:15px;height:15px;color:#0F1219;display:none}
+    .task.done .cb{background:#50A030;border-color:#50A030}
+    .task.done .cb svg{display:block}
+    .task.done b{color:#79839A;text-decoration:line-through}
+    .task.due{border-color:#6A5526;background:#211D14}
+    .task.now{border-color:#8A2A3C;background:#241520}
+    .task b{display:block;font:600 15.5px/1.25 var(--fs)}
+    .task span{display:block;font:400 12.5px/1.4 var(--fs);color:#8A93A8;margin-top:4px}
+    .task .go{margin-left:auto;align-self:center;font:600 13px/1 var(--fs);color:#8FD870;flex:none}
+    .task.now .go{color:#FF9BAA}
+    .wkcmp{display:grid;grid-template-columns:1fr 66px 66px 52px;gap:6px;align-items:baseline;padding:7px 0;border-bottom:1px solid #1A2131;font-variant-numeric:tabular-nums}
+    .wkcmp span{font:400 13.5px/1.2 var(--fs);color:#9AA3B7}
+    .wkcmp i{font:500 13.5px/1.2 var(--fm);color:#79839A;text-align:right;font-style:normal}
+    .wkcmp b{font:600 13.5px/1.2 var(--fm);text-align:right}
+    .wkcmp u{font:600 12.5px/1.2 var(--fm);text-decoration:none;text-align:right;color:#8A93A8}
+    .wkhead{display:grid;grid-template-columns:1fr 66px 66px 52px;gap:6px;font:600 9.5px/1 var(--fm);letter-spacing:.12em;color:#6B7488;padding-bottom:5px;border-bottom:1px solid #2C3546}
+    .wkhead i{text-align:right;font-style:normal}
+    .plan{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #1A2131}
+    .plan .wn{width:44px;font:600 11px/1 var(--fm);color:#79839A;flex:none}
+    .plan .pb{flex:1;height:9px;border-radius:5px;background:#1D2431;overflow:hidden;display:flex}
+    .plan .pb i{display:block;height:100%}
+    .plan .lb{font:500 12px/1 var(--fs);color:#9AA3B7;flex:none;width:96px;text-align:right}
+    .wkfilm{position:relative;border-radius:12px;overflow:hidden;height:158px}
+    .wkfilm .cap2{position:absolute;left:11px;bottom:9px;font:600 14px/1.2 var(--fs);text-shadow:0 1px 8px rgba(0,0,0,.85)}
+    .wkfilm .cap2 span{display:block;font:400 11.5px/1.3 var(--fs);color:#D5DCE9;font-weight:400;margin-top:3px}
+  </style>
+</helmet>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="fan"><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(-62) scale(.6)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(-33) scale(.84)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(33) scale(.84)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(62) scale(.6)"/></g>
+  <linearGradient id="gLit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3E3BC"/><stop offset=".4" stop-color="#B29B6C"/><stop offset="1" stop-color="#2C2A1E"/></linearGradient>
+  <linearGradient id="gOff" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2B3244"/><stop offset=".5" stop-color="#1A2030"/><stop offset="1" stop-color="#0D1119"/></linearGradient>
+  <symbol id="pic" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gLit)"/><ellipse cx="100" cy="-14" rx="142" ry="66" fill="#FFF6DA" opacity=".55"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#4A4436"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#443F32"/><g fill="#1C4416"><use href="#fan" transform="translate(50,140) scale(2.2) rotate(-6)"/><use href="#fan" transform="translate(148,142) scale(1.9) rotate(7)"/></g><g fill="#2C6821"><use href="#fan" transform="translate(28,134) scale(1.5) rotate(-48)"/><use href="#fan" transform="translate(76,132) scale(1.6) rotate(27)"/><use href="#fan" transform="translate(174,136) scale(1.4) rotate(46)"/><use href="#fan" transform="translate(122,136) scale(1.45) rotate(-27)"/></g><g fill="#4C9033"><use href="#fan" transform="translate(56,104) scale(1.15) rotate(-14)"/><use href="#fan" transform="translate(146,108) scale(1.05) rotate(16)"/><use href="#fan" transform="translate(100,118) scale(1.2) rotate(2)"/></g></symbol>
+  <symbol id="picold" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gLit)"/><ellipse cx="100" cy="-14" rx="142" ry="66" fill="#FFF6DA" opacity=".55"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#4A4436"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#443F32"/><g fill="#1C4416"><use href="#fan" transform="translate(50,142) scale(1.7) rotate(-5)"/><use href="#fan" transform="translate(148,144) scale(1.45) rotate(6)"/></g><g fill="#2C6821"><use href="#fan" transform="translate(30,138) scale(1.15) rotate(-45)"/><use href="#fan" transform="translate(74,136) scale(1.2) rotate(25)"/><use href="#fan" transform="translate(172,140) scale(1.05) rotate(43)"/></g><g fill="#4C9033"><use href="#fan" transform="translate(58,116) scale(.85) rotate(-12)"/><use href="#fan" transform="translate(142,120) scale(.8) rotate(14)"/></g></symbol>
+  <symbol id="picdark" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gOff)"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#141924"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#131822"/><g fill="#151D2A"><use href="#fan" transform="translate(50,140) scale(2.2) rotate(-6)"/><use href="#fan" transform="translate(148,142) scale(1.9) rotate(7)"/></g><g fill="#1A2434"><use href="#fan" transform="translate(28,134) scale(1.5) rotate(-48)"/><use href="#fan" transform="translate(76,132) scale(1.6) rotate(27)"/><use href="#fan" transform="translate(174,136) scale(1.4) rotate(46)"/><use href="#fan" transform="translate(122,136) scale(1.45) rotate(-27)"/></g><g fill="#1E2A3C"><use href="#fan" transform="translate(56,104) scale(1.15) rotate(-14)"/><use href="#fan" transform="translate(100,118) scale(1.2) rotate(2)"/></g></symbol>
+  <symbol id="i-now" viewBox="0 0 24 24"><path d="M4 12h4l3-7 4 14 3-7h2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4.5 5.4A2.4 2.4 0 0 1 6.9 3H19v15.4H6.9a2.4 2.4 0 0 0-2.4 2.4V5.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 8h7.5M8 11.6h7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.6 5.5v13M16.4 5.5v13M3 12h18" stroke="currentColor" stroke-width="1.4"/></symbol>
+  <symbol id="i-tent" viewBox="0 0 24 24"><path d="M12 3 3.5 20.5h17L12 3Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 10v10.5" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3.4c3.3 4.1 5.4 6.9 5.4 9.4a5.4 5.4 0 1 1-10.8 0c0-2.5 2.1-5.3 5.4-9.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 4.5h14v15H5z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 9h8M8 12.6h8M8 16.2h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 7l1.4-2.8h3.2L15 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4.2 21 19.6H3L12 4.2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10.2v4.2M12 17.2v.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-ruler" viewBox="0 0 24 24"><path d="M3 14.5 14.5 3 21 9.5 9.5 21 3 14.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7.5 11 9.5 13M11 7.5l2 2M11 14.5l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M20.2 3.8c0 8.6-4.5 13-11.4 13H5.2c0-7.7 5-13 15-13Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4.6 20.6c1.9-4.7 5.2-7.9 10-10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5.4l3.4 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9.4" cy="8.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c1-3.4 3.4-5.2 6.4-5.2S14.8 16.6 15.8 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M16.4 5.6a3.4 3.4 0 0 1 0 6.4M18 14.9c1.6.8 2.7 2.4 3.2 5.1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 19.4V5M4 19.4h16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M7 15.4l3.6-4.6 3.2 2.6L20 7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.2v13.6M5.2 12h13.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9.4 5.4 6.8 6.6-6.8 6.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.6 12.6 9.4 17.4 19.6 6.8" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M6 8h12v3.4A6 6 0 0 1 6 11.4V8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 17.4V21" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2.8v2.2M12 19v2.2M2.8 12H5M19 12h2.2M5.6 5.6 7.2 7.2M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.6" y="5.4" width="16.8" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.6 10h16.8M8 3.4v3.6M16 3.4v3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9.6 3.4h4.8l-.7 5.4 3.5 3.1H7.8l3.5-3.1-.7-5.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 12v8.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</defs></svg>
+
+<div class="sheet">
+  <div class="hd">
+    <div class="hd__n">09</div>
+    <div class="hd__b">
+      <h2 class="hd__t">Die Woche</h2>
+      <p class="hd__s">Der Entwurf, der am meisten für dich entscheidet. Der Startbildschirm fragt nicht „wie geht es dem Zelt“, sondern „was ist heute dran“ — eine Wochenleiste, eine Liste fälliger Sachen, und darunter, was die Woche gebracht hat. Das Tagebuch entsteht als Nebenprodukt des Abhakens. Verglichen wird Woche gegen Woche.</p>
+    </div>
+    <div class="axes">
+      <div class="ax"><b>Startbildschirm</b><span>Wochenleiste und Aufgaben</span></div>
+      <div class="ax"><b>Vorher–Nachher</b><span>KW 34 gegen KW 33</span></div>
+      <div class="ax"><b>Tabs</b><span>Woche · Zelt · Film · Buch</span></div>
+      <div class="ax"><b>App entscheidet</b><span>sehr viel: sie plant, erinnert, füllt vor</span></div>
+    </div>
+  </div>
+
+  <div class="strip">
+
+    <div class="col">
+      <p class="cap"><i>01</i><span>Normaler Tag</span></p>
+      <div class="ph wk">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:9px"><div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot"></span>KW 34 · Tag 34 · Blüte Woche 2</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="days">
+            <div class="day"><b>MO</b><u>19</u><div class="dots"><i style="background:#4A88DC"></i></div></div>
+            <div class="day"><b>DI</b><u>20</u><div class="dots"><i style="background:#A874CF"></i></div></div>
+            <div class="day"><b>MI</b><u>21</u><div class="dots"></div></div>
+            <div class="day"><b>DO</b><u>22</u><div class="dots"><i style="background:#E3B95F"></i></div></div>
+            <div class="day"><b>FR</b><u>23</u><div class="dots"><i style="background:#4A88DC"></i><i style="background:#3AA25C"></i></div></div>
+            <div class="day"><b>SA</b><u>24</u><div class="dots"></div></div>
+            <div class="day today"><b>SO</b><u>25</u><div class="dots"><i style="background:#4A88DC"></i></div></div>
+          </div>
+          <div class="sechd"><h3>Heute dran</h3><span>2 von 3</span></div>
+          <div class="task done"><span class="cb"><svg><use href="#i-check"/></svg></span><div><b>Gießen und düngen</b><span>A1 A2 · 4,0 l · Schritt 7 · von Anna um 12:05</span></div></div>
+          <div class="task due"><span class="cb"></span><div><b>B1 gießen — Schritt 2</b><span>Northern Lights steht seit gestern an · 2,0 l · Root·Juice 4 ml/l</span></div><span class="go">Jetzt ›</span></div>
+          <div class="task"><span class="cb"></span><div><b>Foto machen</b><span>letztes eigenes Foto vor 5 Tagen — für den Wochenfilm reicht die Kamera aber</span></div><span class="go">Foto ›</span></div>
+          <div class="sechd"><h3>Diese Woche gegen letzte</h3><span>KW 34 : KW 33</span></div>
+          <div class="wkhead"><span></span><i>KW 33</i><i>KW 34</i><i>Δ</i></div>
+          <div class="wkcmp"><span>Wasser</span><i>12,0 l</i><b>15,0 l</b><u>+3,0</u></div>
+          <div class="wkcmp"><span>Bio·Bloom</span><i>24 ml</i><b>30 ml</b><u>+6</u></div>
+          <div class="wkcmp"><span>Nacht (Mittel)</span><i>21,4 °C</i><b>22,8 °C</b><u style="color:#E3B95F">+1,4</u></div>
+          <div class="wkcmp"><span>Zeit im Band</span><i>94 %</i><b>88 %</b><u style="color:#E3B95F">−6</u></div>
+          <div class="wkcmp"><span>Höhe A1</span><i>62 cm</i><b>65 cm</b><u>+3</u></div>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-cal"/></svg>Woche</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-book"/></svg>Buch</div></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <p class="cap"><i>02</i><span>Etwas stimmt nicht</span></p>
+      <div class="ph wk">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:9px"><div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot red"></span>KW 34 · Tag 34 · Blüte Woche 2</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="days">
+            <div class="day"><b>MO</b><u>19</u><div class="dots"><i style="background:#4A88DC"></i></div></div>
+            <div class="day"><b>DI</b><u>20</u><div class="dots"><i style="background:#A874CF"></i></div></div>
+            <div class="day"><b>MI</b><u>21</u><div class="dots"></div></div>
+            <div class="day"><b>DO</b><u>22</u><div class="dots"><i style="background:#E3B95F"></i></div></div>
+            <div class="day"><b>FR</b><u>23</u><div class="dots"><i style="background:#4A88DC"></i><i style="background:#3AA25C"></i></div></div>
+            <div class="day"><b>SA</b><u>24</u><div class="dots"></div></div>
+            <div class="day today"><b>SO</b><u>25</u><div class="dots"><i style="background:#F06A7E"></i><i style="background:#4A88DC"></i></div></div>
+          </div>
+          <div class="sechd"><h3>Jetzt sofort</h3><span>seit 14 Min</span></div>
+          <div class="task now"><span class="cb"></span><div><b>Licht prüfen — Dose 3</b><span>Seit 13:40 ist es dunkel, obwohl bis 18:00 Licht sein soll. Die Dose meldet an. Zieh den Stecker einmal ab.</span></div><span class="go">›</span></div>
+          <div class="sechd"><h3>Heute dran</h3><span>2 von 3</span></div>
+          <div class="task done"><span class="cb"><svg><use href="#i-check"/></svg></span><div><b>Gießen und düngen</b><span>A1 A2 · 4,0 l · von Anna um 12:05</span></div></div>
+          <div class="task due"><span class="cb"></span><div><b>B1 gießen — Schritt 2</b><span>seit gestern fällig</span></div><span class="go">Jetzt ›</span></div>
+          <div class="sechd"><h3>Was das heute kostet</h3><span>wenn es so bleibt</span></div>
+          <div class="wkhead"><span></span><i>SOLL</i><i>IST</i><i>Δ</i></div>
+          <div class="wkcmp"><span>Licht heute</span><i>12:00</i><b>7:40</b><u style="color:#F06A7E">−4:20</u></div>
+          <div class="wkcmp"><span>Luftfeuchte</span><i>50 %</i><b>71 %</b><u style="color:#F06A7E">+21</u></div>
+          <div class="wkcmp"><span>Zeit im Band</span><i>100 %</i><b>71 %</b><u style="color:#F06A7E">−29</u></div>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-cal"/></svg>Woche</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-book"/></svg>Buch</div></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <p class="cap"><i>03</i><span>Tag eins</span></p>
+      <div class="ph wk">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:9px"><div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot"></span>KW 35 · Tag 1 · seit 4 Minuten</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="days">
+            <div class="day today"><b>MO</b><u>25</u><div class="dots"><i style="background:#3AA25C"></i></div></div>
+            <div class="day fut"><b>DI</b><u>26</u><div class="dots"></div></div>
+            <div class="day fut"><b>MI</b><u>27</u><div class="dots"></div></div>
+            <div class="day fut"><b>DO</b><u>28</u><div class="dots"></div></div>
+            <div class="day fut"><b>FR</b><u>29</u><div class="dots"><i style="background:#4A88DC"></i></div></div>
+            <div class="day fut"><b>SA</b><u>30</u><div class="dots"></div></div>
+            <div class="day fut"><b>SO</b><u>31</u><div class="dots"></div></div>
+          </div>
+          <div class="sechd"><h3>Heute dran</h3><span>nichts</span></div>
+          <div class="task done"><span class="cb"><svg><use href="#i-check"/></svg></span><div><b>Controller verbunden</b><span>um 14:00 · Ziele für Blüte gesetzt · Kamera läuft</span></div></div>
+          <div class="empty">Am Freitag steht die erste Gabe an. Bis dahin ist hier nichts zu tun — die App misst und fotografiert allein weiter.</div>
+          <div class="sechd"><h3>Der Plan</h3><span>Biobizz All·Mix · 14 Schritte</span></div>
+          <div class="plan"><span class="wn">KW 35</span><span class="pb"><i style="width:14%;background:#3AA25C"></i></span><span class="lb">1 Gabe · Fr</span></div>
+          <div class="plan"><span class="wn">KW 36</span><span class="pb"><i style="width:28%;background:#3AA25C"></i></span><span class="lb">2 Gaben</span></div>
+          <div class="plan"><span class="wn">KW 37</span><span class="pb"><i style="width:28%;background:#3AA25C"></i></span><span class="lb">2 Gaben</span></div>
+          <div class="plan"><span class="wn">KW 38</span><span class="pb"><i style="width:28%;background:#4A88DC"></i></span><span class="lb">2 · Bio·Bloom</span></div>
+          <p class="from" style="margin-top:9px">All·Mix ist vorgedüngt — bis Woche 3 wird nur gegossen. Das ist die einzige Stelle, an der die App etwas <b>nicht</b> vorschlägt.</p>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-cal"/></svg>Woche</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-book"/></svg>Buch</div></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <p class="cap"><i>04</i><span>Gießen eintragen</span></p>
+      <div class="ph wk">
+        <div class="sb"></div>
+        <div class="bd" style="filter:blur(1.2px);opacity:.4">
+          <div class="top" style="padding-bottom:9px"><div><h1 class="ttl">Zelt Keller</h1><p class="meta">KW 34 · Tag 34</p></div></div>
+          <div class="days"><div class="day"><b>MO</b><u>19</u></div><div class="day"><b>DI</b><u>20</u></div><div class="day"><b>MI</b><u>21</u></div><div class="day"><b>DO</b><u>22</u></div><div class="day"><b>FR</b><u>23</u></div><div class="day"><b>SA</b><u>24</u></div><div class="day today"><b>SO</b><u>25</u></div></div>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheetup">
+          <div class="grab"></div>
+          <div class="shd"><h3>Schritt 7 abhaken</h3><span>Biobizz All·Mix</span></div>
+          <p class="from" style="margin:0 0 12px">Alles unten ist der Plan für heute. <b>Passt es, reicht ein Tippen.</b> Sonst ändere, was anders war.</p>
+          <div class="chips"><span class="chip">Ganzes Zelt</span><span class="chip on">A1</span><span class="chip on">A2</span><span class="chip">B1</span></div>
+          <div class="cans">
+            <div class="row"><div class="beads"><i class="f"></i><i class="f"></i><i></i><i></i><i></i><i></i></div><div class="tot">4,0 l</div></div>
+            <div class="hint">Vorgeschlagen: 2 Kannen à 2,0 l. Tippen ändert es.</div>
+          </div>
+          <div class="frow"><span>Bio·Grow</span><b>2,0 ml/l · 8 ml</b></div>
+          <div class="frow"><span>Bio·Bloom</span><b>3,0 ml/l · 12 ml</b></div>
+          <div class="frow"><span>Top·Max</span><b>1,0 ml/l · 4 ml</b></div>
+          <div class="frow"><span>pH</span><b>6,3 <span style="font-size:12px">Ziel 6,2–6,5</span></b></div>
+          <p class="from">Reihenfolge beim Anrühren: Wasser → Bio·Grow → Bio·Bloom → Top·Max → pH zuletzt messen. Zuletzt geprüft 14.07.2026.</p>
+          <div class="guard"><svg class="ic-s" style="color:#E3B95F;flex:none;margin-top:1px"><use href="#i-warn"/></svg><div>Anna hat vor 1 Std 30 schon gegossen (2,0 l). Soll das <b>eine zweite Gabe</b> sein oder ihre korrigieren?</div></div>
+          <div class="btns"><div class="btn" style="flex:0 0 92px">Ben</div><div class="btn pri"><svg class="ic-s"><use href="#i-check"/></svg>Erledigt</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <p class="cap"><i>05</i><span>Kamera &amp; Zeitraffer</span></p>
+      <div class="ph wk">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:9px"><div><h1 class="ttl">Filme</h1><p class="meta">Ein Film je Woche, sonntags fertig</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="wkfilm">
+            <svg style="width:100%;height:100%;display:block" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg>
+            <div class="lbshade" style="position:absolute;inset:0;background:linear-gradient(to top,rgba(6,9,14,.9),rgba(6,9,14,0) 55%)"></div>
+            <div class="cap2">KW 34 · Blüte Woche 2<span>25 Sek · fertig seit heute 04:00 · 600 Bilder</span></div>
+          </div>
+          <div class="btns" style="margin-top:10px"><div class="btn">Teilen</div><div class="btn pri">Ansehen</div></div>
+          <div class="sechd"><h3>Ältere Wochen</h3><span>4</span></div>
+          <div class="task"><span class="cb" style="border-radius:8px;overflow:hidden;border:0;width:38px;height:30px"><svg style="width:38px;height:30px" viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#pic"/></svg></span><div><b>KW 33 · Blüte Woche 1</b><span>25 Sek · 600 Bilder · 7,1 MB</span></div><span class="go">›</span></div>
+          <div class="task"><span class="cb" style="border-radius:8px;overflow:hidden;border:0;width:38px;height:30px"><svg style="width:38px;height:30px" viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#picold"/></svg></span><div><b>KW 32 · Ende Wachstum</b><span>25 Sek · 600 Bilder · 6,8 MB</span></div><span class="go">›</span></div>
+          <div class="task"><span class="cb" style="border-radius:8px;overflow:hidden;border:0;width:38px;height:30px"><svg style="width:38px;height:30px" viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#picold"/></svg></span><div><b>Ganzer Durchgang · Tag 1–34</b><span>25 Sek · wird jeden Sonntag neu gebaut</span></div><span class="go">›</span></div>
+          <p class="from">Sonntags um 04:00 baut die App den Wochenfilm und legt ihn hier ab. Du musst nichts starten — und nichts aufräumen.</p>
+        </div>
+        <div class="nav"><div><svg class="ic"><use href="#i-cal"/></svg>Woche</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div><div class="on"><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-book"/></svg>Buch</div></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <p class="cap"><i>06</i><span>Zelt ohne Gerät</span></p>
+      <div class="ph wk">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:9px"><div><h1 class="ttl">Schrank Flur</h1><p class="meta"><span class="dot grey"></span>KW 34 · Tag 19 · Blüte Woche 2</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="days">
+            <div class="day"><b>MO</b><u>19</u><div class="dots"><i style="background:#4A88DC"></i></div></div>
+            <div class="day"><b>DI</b><u>20</u><div class="dots"><i style="background:#A874CF"></i><i style="background:#3AA25C"></i></div></div>
+            <div class="day"><b>MI</b><u>21</u><div class="dots"></div></div>
+            <div class="day"><b>DO</b><u>22</u><div class="dots"></div></div>
+            <div class="day"><b>FR</b><u>23</u><div class="dots"><i style="background:#4A88DC"></i></div></div>
+            <div class="day"><b>SA</b><u>24</u><div class="dots"></div></div>
+            <div class="day today"><b>SO</b><u>25</u><div class="dots"><i style="background:#4A88DC"></i><i style="background:#A874CF"></i></div></div>
+          </div>
+          <div class="sechd"><h3>Heute dran</h3><span>1 von 2</span></div>
+          <div class="task done"><span class="cb"><svg><use href="#i-check"/></svg></span><div><b>Gießen und düngen</b><span>A1 · 2,0 l · Bio·Bloom 3 ml/l · pH 5,9 · um 20:40</span></div></div>
+          <div class="task due"><span class="cb"></span><div><b>pH nachjustieren</b><span>5,9 gemessen, Floragard nennt 6,2–6,5. Beim nächsten Gießen etwas Bio·Up dazu.</span></div><span class="go">Notiz ›</span></div>
+          <div class="sechd"><h3>Diese Woche gegen letzte</h3><span>KW 34 : KW 33</span></div>
+          <div class="wkhead"><span></span><i>KW 33</i><i>KW 34</i><i>Δ</i></div>
+          <div class="wkcmp"><span>Wasser</span><i>4,0 l</i><b>4,0 l</b><u>0</u></div>
+          <div class="wkcmp"><span>Bio·Bloom</span><i>12 ml</i><b>12 ml</b><u>0</u></div>
+          <div class="wkcmp"><span>pH Ablauf</span><i>6,4</i><b>5,9</b><u style="color:#E3B95F">−0,5</u></div>
+          <div class="wkcmp"><span>Höhe A1</span><i>42 cm</i><b>48 cm</b><u>+6</u></div>
+          <div class="wkcmp"><span>Fotos</span><i>2</i><b>4</b><u>+2</u></div>
+          <p class="from">Der Plan kommt aus deinem Schema, nicht aus einem Gerät. Ohne Controller fehlen nur die Klimazeilen — die Wochenleiste, die Aufgaben und der Vergleich funktionieren unverändert.</p>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-cal"/></svg>Woche</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-book"/></svg>Buch</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="ft">
+    <div><h4>Worauf es wettet</h4><p>Dass die ehrliche Frage eines Heimgärtners „was muss ich heute machen“ lautet und nicht „wie war die Nacht“. Wer abhakt, führt Tagebuch, ohne es zu merken — das ist der billigste Weg zu einem vollständigen Protokoll, und für einen Verein zugleich der Nachweis, wer wann was gemacht hat. Der Wochenfilm entsteht sonntags von allein.</p></div>
+    <div class="warn"><h4>Was ein abgelenkter Nutzer falsch macht</h4><p>Er hakt ab, ohne es getan zu haben — eine Aufgabenliste lädt dazu ein, und danach ist das Protokoll falsch statt leer. Und wenn er drei Tage nicht hineinschaut, empfängt ihn ein Stapel überfälliger Zeilen: Aufgabenlisten machen Schuldgefühle, und Schuldgefühle vertreiben genau die Leute, für die dieser Entwurf gedacht ist.</p></div>
+    <div class="warn"><h4>Wo die Kontrolle ausgeht</h4><p>Der Plan ist die Autorität. Wer nach Gefühl gießt, sieht ständig Aufgaben, die er nicht will, und muss den Plan pflegen, statt zu gärtnern. Klima kommt nur als Wochenmittel vor — Ausreißer, Nachtverläufe und Schaltvorgänge sind einen Tab entfernt. Und die Woche ist die falsche Einheit, sobald ein Zelt vier Pflanzen in vier Phasen hat.</p></div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

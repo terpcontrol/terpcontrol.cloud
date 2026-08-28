@@ -21,3 +21,6 @@ garmin/bin/
 
 # macOS finder junk
 .DS_Store
+
+# Seeded design-canvas payloads (regenerated, ~3 MB each)
+docs/redesign/**/terp-control-*.html

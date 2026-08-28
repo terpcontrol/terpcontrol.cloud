@@ -1,0 +1,373 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,600;1,400&family=Caveat:wght@500;600&display=swap">
+  <style>
+    *{box-sizing:border-box}
+    :root{--fs:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;--fm:'IBM Plex Mono',ui-monospace,SFMono-Regular,monospace}
+    body{margin:0;background:#E8EAEF;color:#1A1D29;font-family:var(--fs);-webkit-font-smoothing:antialiased}
+    a{color:#2D4B95}a:hover{color:#1F3A6E}
+    .sheet{width:2600px;padding:40px 40px 44px}
+    .hd{display:flex;gap:40px;align-items:flex-start;border-bottom:3px solid #1A1D29;padding-bottom:22px;margin-bottom:24px}
+    .hd__n{font:600 84px/.78 var(--fm);color:#2D4B95;letter-spacing:-.05em;flex:none}
+    .hd__b{flex:1;max-width:1120px}
+    .hd__t{font:600 46px/1.02 var(--fs);letter-spacing:-.03em;margin:0 0 10px}
+    .hd__s{font:400 19px/1.45 var(--fs);color:#333B4C;margin:0}
+    .axes{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 26px;width:660px;flex:none}
+    .ax{border-top:1px solid #B9BFCC;padding-top:7px}
+    .ax b{display:block;font:600 10px/1 var(--fm);letter-spacing:.14em;text-transform:uppercase;color:#6B7285;margin-bottom:5px}
+    .ax span{font:500 15px/1.3 var(--fs);color:#1A1D29}
+    .strip{display:flex;gap:26px;align-items:flex-start}
+    .col{width:390px;flex:none}
+    .cap{display:flex;gap:9px;align-items:baseline;margin:0 0 9px;padding-bottom:7px;border-bottom:1px solid #C2C8D4}
+    .cap i{font:600 12px/1 var(--fm);color:#2D4B95;font-style:normal}
+    .cap span{font:600 14px/1.1 var(--fs);letter-spacing:-.01em}
+    .ft{margin-top:26px;padding-top:20px;border-top:1px solid #C2C8D4;display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:44px}
+    .ft h4{font:600 10px/1 var(--fm);letter-spacing:.16em;text-transform:uppercase;color:#2D4B95;margin:0 0 8px}
+    .ft p{font:400 16px/1.5 var(--fs);margin:0;color:#333B4C}
+    .ft .warn h4{color:#8A6318}
+
+    /* phone shell */
+    .ph{width:390px;height:844px;border-radius:34px;overflow:hidden;position:relative;display:flex;flex-direction:column;
+        box-shadow:0 18px 40px rgba(31,58,110,.18),0 2px 6px rgba(31,58,110,.10);background:#0F1219;color:#E7ECF5;font-size:15px}
+    .sb{height:24px;flex:none}
+    .bd{flex:1;padding:0 16px;overflow:hidden}
+    .nav{flex:none;display:flex;background:#151B26;border-top:1px solid #262F3F;padding:9px 4px 22px}
+    .nav div{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;color:#79839A;font:500 11px/1 var(--fs)}
+    .nav div.on{color:#6FBE4A}
+    .ic{width:21px;height:21px;display:block;flex:none}
+    .ic-s{width:16px;height:16px}
+
+    .top{display:flex;align-items:flex-start;justify-content:space-between;padding:6px 0 12px}
+    .ttl{font:600 21px/1.15 var(--fs);letter-spacing:-.02em;margin:0}
+    .meta{font:400 12.5px/1.3 var(--fs);color:#8A93A8;margin:4px 0 0;font-variant-numeric:tabular-nums}
+    .dot{width:7px;height:7px;border-radius:50%;background:#6FBE4A;display:inline-block;margin-right:5px;vertical-align:1px}
+    .dot.red{background:#F06A7E}.dot.grey{background:#6B7488}.dot.amb{background:#E3B95F}
+
+    .sechd{display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 6px}
+    .sechd h3{font:600 11px/1 var(--fm);letter-spacing:.16em;text-transform:uppercase;color:#8A93A8;margin:0}
+    .sechd span{font:400 11px/1 var(--fs);color:#6B7488}
+
+    .btns{display:flex;gap:8px;margin-top:12px}
+    .btn{flex:1;height:48px;border-radius:10px;background:#1D2431;color:#C9D2E3;display:flex;align-items:center;justify-content:center;gap:6px;font:600 14px/1 var(--fs)}
+    .btn.pri{background:#50A030;color:#fff}
+    .empty{border:1.5px dashed #33405A;border-radius:12px;padding:14px;color:#79839A;font:400 13.5px/1.45 var(--fs)}
+
+    /* bottom sheet */
+    .scrim{position:absolute;inset:0;background:rgba(6,9,14,.62)}
+    .sheetup{position:absolute;left:0;right:0;bottom:0;background:#161C27;border-radius:20px 20px 0 0;padding:14px 16px 22px;border-top:1px solid #2C3546}
+    .grab{width:38px;height:4px;border-radius:2px;background:#3E4A61;margin:0 auto 12px}
+    .shd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+    .shd h3{margin:0;font:600 20px/1 var(--fs);letter-spacing:-.01em}
+    .shd span{font:500 13px/1 var(--fs);color:#8A93A8}
+    .chips{display:flex;gap:7px;margin-bottom:12px}
+    .chip{padding:9px 13px;border-radius:999px;border:1px solid #33405A;color:#9AA3B7;font:500 13.5px/1 var(--fs)}
+    .chip.on{background:#1E3A6B;border-color:#4E7BD0;color:#CFE0FF}
+    .cans{background:#111621;border:1px solid #2C3546;border-radius:12px;padding:14px 14px 12px;margin-bottom:11px}
+    .cans .row{display:flex;justify-content:space-between;align-items:center}
+    .beads{display:flex;gap:7px}
+    .beads i{width:26px;height:26px;border-radius:50%;border:2px solid #3E4A61;display:block}
+    .beads i.f{background:#4A88DC;border-color:#4A88DC}
+    .cans .tot{font:600 20px/1 var(--fs);font-variant-numeric:tabular-nums}
+    .cans .hint{font:400 12px/1.3 var(--fs);color:#79839A;margin-top:9px}
+    .frow{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1D2431;font:500 14px/1.2 var(--fs);font-variant-numeric:tabular-nums}
+    .frow span{color:#9AA3B7;font-weight:400}
+    .from{font:400 12.5px/1.35 var(--fs);color:#79839A;margin:8px 0 0}
+    .from b{color:#9AA3B7;font-weight:600}
+    .guard{display:flex;gap:9px;background:#2A2417;border:1px solid #6A5526;border-radius:9px;padding:10px 11px;margin:11px 0 0;font:400 12.5px/1.4 var(--fs);color:#E6D3A5}
+
+    /* ---- 06 Die Pflanzen ---- */
+    .band{display:flex;align-items:center;gap:0;background:#161C27;border:1px solid #232B3A;border-radius:12px;padding:10px 4px;margin-bottom:12px}
+    .band div{flex:1;text-align:center;border-right:1px solid #232B3A}
+    .band div:last-child{border-right:0}
+    .band b{display:block;font:600 15.5px/1 var(--fs);font-variant-numeric:tabular-nums}
+    .band span{display:block;font:400 10px/1 var(--fs);color:#79839A;margin-top:4px}
+    .band.bad{background:#2A1721;border-color:#6D2739}
+    .pcard{background:#151B26;border:1px solid #232B3A;border-radius:16px;padding:11px;margin-bottom:9px;display:flex;gap:11px}
+    .pcard .th{width:74px;height:88px;border-radius:10px;flex:none;overflow:hidden;display:block;background:#1B2230}
+    .pcard .bodyc{flex:1;min-width:0}
+    .pcard h4{margin:0;font:600 17px/1.15 var(--fs);letter-spacing:-.015em;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+    .pcard h4 b{font:600 11px/1 var(--fm);color:#8FA6D8;background:#1A2540;border-radius:5px;padding:4px 6px;flex:none;font-weight:600}
+    .pstage{font:500 12.5px/1 var(--fs);color:#8A93A8;margin:5px 0 8px;font-variant-numeric:tabular-nums}
+    .pstage em{font-style:normal;color:#8FD870}
+    .bar{height:5px;border-radius:3px;background:#232B3A;overflow:hidden;margin-bottom:9px}
+    .bar i{display:block;height:100%;background:#4E7BD0;border-radius:3px}
+    .pdelta{font:500 13px/1.4 var(--fs);color:#9AA3B7;font-variant-numeric:tabular-nums}
+    .pdelta b{color:#E7ECF5;font-weight:600}
+    .ptask{display:flex;align-items:center;gap:7px;margin-top:9px;padding:8px 10px;border-radius:9px;background:#1A2130;font:500 13px/1.2 var(--fs);color:#C9D2E3}
+    .ptask svg{width:15px;height:15px;color:#8A93A8;flex:none}
+    .ptask.due{background:#2A2417;color:#EFCC80}
+    .ptask.due svg{color:#E3B95F}
+    .ptask .go{margin-left:auto;color:#8FD870;font-weight:600}
+    .addp{border:1.5px dashed #2C3546;border-radius:16px;padding:15px;display:flex;align-items:center;gap:11px;color:#79839A;font:500 14.5px/1.3 var(--fs)}
+    .addp svg{width:20px;height:20px;flex:none}
+    .cmp{display:flex;align-items:center;justify-content:space-between;background:#161C27;border:1px solid #2C3546;border-radius:999px;padding:8px 8px 8px 14px;margin-bottom:12px;font:500 13px/1 var(--fs);color:#9AA3B7}
+    .cmp b{color:#E7ECF5;font-weight:600}
+    .cmp .pill{background:#1E3A6B;color:#CFE0FF;border-radius:999px;padding:7px 12px;font:600 12.5px/1 var(--fs)}
+    .kv2{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;border-bottom:1px solid #1D2431;font-variant-numeric:tabular-nums}
+    .kv2 span{font:400 14px/1.2 var(--fs);color:#9AA3B7}
+    .kv2 b{font:600 14.5px/1.2 var(--fs)}
+    .crop{position:relative}
+    .cropbox{position:absolute;border:2px solid #6FBE4A;border-radius:4px}
+    .cropbox span{position:absolute;top:-9px;left:6px;background:#0F1219;color:#8FD870;font:600 10px/1 var(--fm);padding:2px 5px;border-radius:3px}
+  </style>
+</helmet>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="fan"><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(-62) scale(.6)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(-33) scale(.84)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(33) scale(.84)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(62) scale(.6)"/></g>
+  <linearGradient id="gLit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3E3BC"/><stop offset=".4" stop-color="#B29B6C"/><stop offset="1" stop-color="#2C2A1E"/></linearGradient>
+  <linearGradient id="gOff" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2B3244"/><stop offset=".5" stop-color="#1A2030"/><stop offset="1" stop-color="#0D1119"/></linearGradient>
+  <symbol id="pic" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gLit)"/><ellipse cx="100" cy="-14" rx="142" ry="66" fill="#FFF6DA" opacity=".55"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#4A4436"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#443F32"/><g fill="#1C4416"><use href="#fan" transform="translate(50,140) scale(2.2) rotate(-6)"/><use href="#fan" transform="translate(148,142) scale(1.9) rotate(7)"/></g><g fill="#2C6821"><use href="#fan" transform="translate(28,134) scale(1.5) rotate(-48)"/><use href="#fan" transform="translate(76,132) scale(1.6) rotate(27)"/><use href="#fan" transform="translate(174,136) scale(1.4) rotate(46)"/><use href="#fan" transform="translate(122,136) scale(1.45) rotate(-27)"/></g><g fill="#4C9033"><use href="#fan" transform="translate(56,104) scale(1.15) rotate(-14)"/><use href="#fan" transform="translate(146,108) scale(1.05) rotate(16)"/><use href="#fan" transform="translate(100,118) scale(1.2) rotate(2)"/></g></symbol>
+  <symbol id="picold" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gLit)"/><ellipse cx="100" cy="-14" rx="142" ry="66" fill="#FFF6DA" opacity=".55"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#4A4436"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#443F32"/><g fill="#1C4416"><use href="#fan" transform="translate(50,142) scale(1.7) rotate(-5)"/><use href="#fan" transform="translate(148,144) scale(1.45) rotate(6)"/></g><g fill="#2C6821"><use href="#fan" transform="translate(30,138) scale(1.15) rotate(-45)"/><use href="#fan" transform="translate(74,136) scale(1.2) rotate(25)"/><use href="#fan" transform="translate(172,140) scale(1.05) rotate(43)"/></g><g fill="#4C9033"><use href="#fan" transform="translate(58,116) scale(.85) rotate(-12)"/><use href="#fan" transform="translate(142,120) scale(.8) rotate(14)"/></g></symbol>
+  <symbol id="picdark" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gOff)"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#141924"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#131822"/><g fill="#151D2A"><use href="#fan" transform="translate(50,140) scale(2.2) rotate(-6)"/><use href="#fan" transform="translate(148,142) scale(1.9) rotate(7)"/></g><g fill="#1A2434"><use href="#fan" transform="translate(28,134) scale(1.5) rotate(-48)"/><use href="#fan" transform="translate(76,132) scale(1.6) rotate(27)"/><use href="#fan" transform="translate(174,136) scale(1.4) rotate(46)"/><use href="#fan" transform="translate(122,136) scale(1.45) rotate(-27)"/></g><g fill="#1E2A3C"><use href="#fan" transform="translate(56,104) scale(1.15) rotate(-14)"/><use href="#fan" transform="translate(100,118) scale(1.2) rotate(2)"/></g></symbol>
+  <symbol id="i-now" viewBox="0 0 24 24"><path d="M4 12h4l3-7 4 14 3-7h2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4.5 5.4A2.4 2.4 0 0 1 6.9 3H19v15.4H6.9a2.4 2.4 0 0 0-2.4 2.4V5.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 8h7.5M8 11.6h7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.6 5.5v13M16.4 5.5v13M3 12h18" stroke="currentColor" stroke-width="1.4"/></symbol>
+  <symbol id="i-tent" viewBox="0 0 24 24"><path d="M12 3 3.5 20.5h17L12 3Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 10v10.5" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3.4c3.3 4.1 5.4 6.9 5.4 9.4a5.4 5.4 0 1 1-10.8 0c0-2.5 2.1-5.3 5.4-9.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 4.5h14v15H5z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 9h8M8 12.6h8M8 16.2h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 7l1.4-2.8h3.2L15 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4.2 21 19.6H3L12 4.2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10.2v4.2M12 17.2v.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-ruler" viewBox="0 0 24 24"><path d="M3 14.5 14.5 3 21 9.5 9.5 21 3 14.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7.5 11 9.5 13M11 7.5l2 2M11 14.5l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M20.2 3.8c0 8.6-4.5 13-11.4 13H5.2c0-7.7 5-13 15-13Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4.6 20.6c1.9-4.7 5.2-7.9 10-10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5.4l3.4 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9.4" cy="8.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c1-3.4 3.4-5.2 6.4-5.2S14.8 16.6 15.8 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M16.4 5.6a3.4 3.4 0 0 1 0 6.4M18 14.9c1.6.8 2.7 2.4 3.2 5.1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 19.4V5M4 19.4h16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M7 15.4l3.6-4.6 3.2 2.6L20 7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.2v13.6M5.2 12h13.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9.4 5.4 6.8 6.6-6.8 6.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.6 12.6 9.4 17.4 19.6 6.8" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M6 8h12v3.4A6 6 0 0 1 6 11.4V8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 17.4V21" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2.8v2.2M12 19v2.2M2.8 12H5M19 12h2.2M5.6 5.6 7.2 7.2M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.6" y="5.4" width="16.8" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.6 10h16.8M8 3.4v3.6M16 3.4v3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9.6 3.4h4.8l-.7 5.4 3.5 3.1H7.8l3.5-3.1-.7-5.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 12v8.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</defs></svg>
+
+<div class="sheet">
+  <div class="hd">
+    <div class="hd__n">06</div>
+    <div class="hd__b">
+      <h2 class="hd__t">Die Pflanzen</h2>
+      <p class="hd__s">Nicht das Zelt ist die Hauptsache, sondern was darin wächst. Der Startbildschirm ist ein Stapel Pflanzenkarten, jede mit eigenem Tageszähler, eigener Phase und der nächsten fälligen Sache. Das Klima steht als eine Zeile darüber. Der Vergleich sitzt auf jeder Karte einzeln: „seit Freitag: 2 Gaben, +6 cm“.</p>
+    </div>
+    <div class="axes">
+      <div class="ax"><b>Startbildschirm</b><span>deine Pflanzen als Karten</span></div>
+      <div class="ax"><b>Vorher–Nachher</b><span>je Karte, plus ein Kopf für alle</span></div>
+      <div class="ax"><b>Tabs</b><span>Pflanzen · Zelt · Film · Plan</span></div>
+      <div class="ax"><b>App entscheidet</b><span>mittel: sie schlägt die nächste Aufgabe vor</span></div>
+    </div>
+  </div>
+
+  <div class="strip">
+
+    <div class="col">
+      <p class="cap"><i>01</i><span>Normaler Tag</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top"><div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot"></span>Online · Tag 34 · 3 Pflanzen</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="band"><div><b>24,8 °C</b><span>Ziel 25,0</span></div><div><b>48 %</b><span>Ziel 50</span></div><div><b>1,29</b><span>VPD kPa</span></div><div><b>1010</b><span>CO₂ ppm</span></div></div>
+          <div class="cmp"><span>Vergleich: <b>seit Freitag 14:02</b></span><span class="pill">ändern</span></div>
+          <div class="pcard">
+            <svg class="th" viewBox="26 52 148 98" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <div class="bodyc">
+              <h4>A1 · Gorilla Glue<b>BLÜTE 12</b></h4>
+              <div class="pstage">Tag 34 gesamt · Blüte seit 13.08.</div>
+              <div class="pdelta">Seit Freitag: <b>2 Gaben · 4,0 l</b> · Bio·Bloom <b>12 ml</b> · <b>+3 cm</b></div>
+              <div class="ptask"><svg><use href="#i-drop"/></svg>Zuletzt gegossen vor 2 Std, Anna<span class="go">Gabe ›</span></div>
+            </div>
+          </div>
+          <div class="pcard">
+            <svg class="th" viewBox="26 52 148 98" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <div class="bodyc">
+              <h4>A2 · Wedding Cake<b>BLÜTE 12</b></h4>
+              <div class="pstage">Tag 34 gesamt · Blüte seit 13.08.</div>
+              <div class="pdelta">Seit Freitag: <b>2 Gaben · 4,0 l</b> · Bio·Bloom <b>12 ml</b> · <b>+4 cm</b></div>
+              <div class="ptask"><svg><use href="#i-drop"/></svg>Zuletzt gegossen vor 2 Std, Anna<span class="go">Gabe ›</span></div>
+            </div>
+          </div>
+          <div class="pcard">
+            <svg class="th" viewBox="26 52 148 98" preserveAspectRatio="xMidYMax slice"><use href="#picold"/></svg>
+            <div class="bodyc">
+              <h4>B1 · Northern Lights<b>WACHSTUM 6</b></h4>
+              <div class="pstage">Tag 6 gesamt · seit 19.08. · <em>eigene Phase</em></div>
+              <div class="pdelta">Seit Freitag: <b>1 Gabe · 1,0 l</b> · noch kein Dünger</div>
+              <div class="ptask due"><svg><use href="#i-warn"/></svg>Schritt 2 seit gestern fällig<span class="go">Gabe ›</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-leaf"/></svg>Pflanzen</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-cal"/></svg>Plan</div></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <p class="cap"><i>02</i><span>Etwas stimmt nicht</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top"><div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot red"></span>Online · Tag 34 · 3 Pflanzen</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="band bad" style="display:block;padding:12px 14px">
+            <div style="display:flex;gap:10px;align-items:flex-start"><svg class="ic" style="color:#F06A7E;flex:none;margin-top:1px"><use href="#i-warn"/></svg><div style="text-align:left"><b style="display:block;font:600 15.5px/1.25 var(--fs);color:#FFC2CC">Das Licht ist seit 13:40 aus.</b><span style="display:block;font:400 13px/1.4 var(--fs);color:#D6B9C1;margin-top:4px">Betrifft alle drei Pflanzen. Dose 3 meldet an, das Bild ist dunkel. 21,3 °C bei 71 %.</span></div></div>
+          </div>
+          <div class="cmp"><span>Vergleich: <b>seit 13:40</b></span><span class="pill">ändern</span></div>
+          <div class="pcard">
+            <svg class="th" viewBox="26 52 148 98" preserveAspectRatio="xMidYMax slice"><use href="#picdark"/></svg>
+            <div class="bodyc">
+              <h4>A1 · Gorilla Glue<b>BLÜTE 12</b></h4>
+              <div class="pstage">Blüte braucht 12 Std Licht — heute waren es 7:40</div>
+              <div class="pdelta">VPD <b>0,55 kPa</b> statt 1,2–1,5 · Feuchte <b>71 %</b></div>
+              <div class="ptask due"><svg><use href="#i-warn"/></svg>Bei 71 % über Nacht: Schimmelrisiko<span class="go">Regel ›</span></div>
+            </div>
+          </div>
+          <div class="pcard">
+            <svg class="th" viewBox="26 52 148 98" preserveAspectRatio="xMidYMax slice"><use href="#picdark"/></svg>
+            <div class="bodyc">
+              <h4>A2 · Wedding Cake<b>BLÜTE 12</b></h4>
+              <div class="pstage">gleiche Lage wie A1</div>
+              <div class="pdelta">VPD <b>0,55 kPa</b> · Feuchte <b>71 %</b></div>
+            </div>
+          </div>
+          <div class="pcard" style="opacity:.72">
+            <svg class="th" viewBox="26 52 148 98" preserveAspectRatio="xMidYMax slice"><use href="#picdark"/></svg>
+            <div class="bodyc">
+              <h4>B1 · Northern Lights<b>WACHSTUM 6</b></h4>
+              <div class="pstage">Wachstum verträgt das eher</div>
+              <div class="pdelta">Feuchte <b>71 %</b> — für die Phase unkritisch</div>
+            </div>
+          </div>
+          <div class="btns"><div class="btn">Dose ansehen</div><div class="btn pri">Erledigt</div></div>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-leaf"/></svg>Pflanzen</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-cal"/></svg>Plan</div></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <p class="cap"><i>03</i><span>Tag eins</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top"><div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot"></span>Online · Tag 1 · seit 4 Minuten</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="band"><div><b>26,2 °C</b><span>Ziel 25,0</span></div><div><b>54 %</b><span>Ziel 50</span></div><div><b>1,41</b><span>VPD kPa</span></div><div><b>438</b><span>CO₂ ppm</span></div></div>
+          <div class="pcard">
+            <svg class="th" viewBox="26 52 148 98" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <div class="bodyc">
+              <h4>Zelt Keller<b>TAG 1</b></h4>
+              <div class="pstage">Alles ohne Pflanze läuft aufs Zelt</div>
+              <div class="pdelta">Erstes Bild um 14:04 · Messwerte seit 14:00 · <b>1,2 °C</b> über Ziel</div>
+              <div class="ptask"><svg><use href="#i-cam"/></svg>Kamera läuft, alle 30 Sekunden ein Bild</div>
+            </div>
+          </div>
+          <div class="addp"><svg><use href="#i-plus"/></svg><div><b style="color:#C9D2E3;display:block;font-weight:600">Pflanze anlegen</b>Name, Sorte, wann angefangen. Dauert 20 Sekunden.</div></div>
+          <div class="empty" style="margin-top:12px">Du musst keine Pflanze anlegen. Ohne Pflanze schreibt die App alles dem Zelt zu — und wenn du in vier Wochen doch eine anlegst, hängen die alten Einträge weiter am Zelt, nichts geht verloren.</div>
+          <div class="sechd"><h3>Heute passiert</h3><span>2</span></div>
+          <div class="kv2"><span>14:00 · Controller verbunden</span><b>Ziele gesetzt</b></div>
+          <div class="kv2"><span>14:04 · Erstes Bild</span><b>Foto</b></div>
+          <div class="btns"><div class="btn"><svg class="ic-s"><use href="#i-drop"/></svg>Gabe</div><div class="btn"><svg class="ic-s"><use href="#i-note"/></svg>Notiz</div><div class="btn"><svg class="ic-s"><use href="#i-cam"/></svg>Foto</div></div>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-leaf"/></svg>Pflanzen</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-cal"/></svg>Plan</div></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <p class="cap"><i>04</i><span>Gießen eintragen</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd" style="filter:blur(1.2px);opacity:.4">
+          <div class="top"><div><h1 class="ttl">Zelt Keller</h1><p class="meta">Online · Tag 34 · 3 Pflanzen</p></div></div>
+          <div class="band"><div><b>24,8 °C</b><span>Ziel 25,0</span></div><div><b>48 %</b><span>Ziel 50</span></div><div><b>1,29</b><span>VPD kPa</span></div><div><b>1010</b><span>CO₂</span></div></div>
+          <div class="pcard"><svg class="th" viewBox="26 52 148 98" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg><div class="bodyc"><h4>A1 · Gorilla Glue<b>BLÜTE 12</b></h4></div></div>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheetup">
+          <div class="grab"></div>
+          <div class="shd"><h3>Gabe an B1</h3><span>Northern Lights · 19:40</span></div>
+          <p class="from" style="margin:0 0 11px">Aus der Karte geöffnet — B1 ist schon ausgewählt. <b>Auch an A1 A2?</b></p>
+          <div class="chips"><span class="chip on">B1</span><span class="chip">A1</span><span class="chip">A2</span><span class="chip">Ganzes Zelt</span></div>
+          <div class="cans">
+            <div class="row"><div class="beads"><i class="f"></i><i></i><i></i><i></i><i></i><i></i></div><div class="tot">2,0 l</div></div>
+            <div class="hint">Tippen = eine Kanne à 2,0 l. Lange drücken = eine zurück.</div>
+          </div>
+          <div class="frow"><span>Bio·Grow</span><b>1,0 ml/l · 2 ml</b></div>
+          <div class="frow"><span>Root·Juice</span><b>4,0 ml/l · 8 ml</b></div>
+          <div class="frow"><span>pH</span><b>6,4 <span style="font-size:12px">Ziel 6,2–6,5</span></b></div>
+          <p class="from">B1 steht auf <b>Biobizz All·Mix, Schritt 2 von 14</b> — eine eigene Zeile im Schema, weil B1 vier Wochen später angefangen hat. A1 und A2 sind bei Schritt 7.</p>
+          <div class="btns"><div class="btn" style="flex:0 0 92px">Ben</div><div class="btn pri">Eintragen</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <p class="cap"><i>05</i><span>Kamera &amp; Zeitraffer</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top"><div><h1 class="ttl">A2 · Wedding Cake</h1><p class="meta">Blüte Tag 12 · eigener Ausschnitt</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="crop">
+            <svg style="width:100%;height:196px;border-radius:12px;display:block" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <div class="cropbox" style="left:44%;top:24%;right:8%;bottom:6%"><span>A2</span></div>
+          </div>
+          <p class="from" style="margin-top:9px">Das Rechteck hast du einmal auf ein Bild gezogen. Seitdem schneidet jeder Film von A2 genau diesen Ausschnitt heraus — das Zelt-Bild bleibt daneben unverändert.</p>
+          <div class="sechd"><h3>Filme von A2</h3><span>3</span></div>
+          <div class="kv2"><span>Blüte Woche 2 · 600 Bilder</span><b>25 Sek</b></div>
+          <div class="kv2"><span>Blüte Woche 1 · 600 Bilder</span><b>25 Sek</b></div>
+          <div class="kv2"><span>Ganzer Durchgang · Tag 1–34</span><b>25 Sek</b></div>
+          <div class="sechd"><h3>Im Bild gemessen</h3><span>seit Freitag</span></div>
+          <div class="kv2"><span>Blattfläche</span><b>34 → 37 %</b></div>
+          <div class="kv2"><span>Höhe im Ausschnitt</span><b>+4 cm</b></div>
+          <p class="from">„Blattfläche“ ist der Grünanteil im Ausschnitt, kein Wachstumsmaß. Beschneiden, gedimmtes Licht und ein verrutschter Ausschnitt verändern ihn auch.</p>
+          <div class="btns"><div class="btn">Teilen</div><div class="btn pri">Film ansehen</div></div>
+        </div>
+        <div class="nav"><div><svg class="ic"><use href="#i-leaf"/></svg>Pflanzen</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div><div class="on"><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-cal"/></svg>Plan</div></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <p class="cap"><i>06</i><span>Zelt ohne Gerät</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top"><div><h1 class="ttl">Schrank Flur</h1><p class="meta"><span class="dot grey"></span>Kein Gerät · Tag 19 · 2 Pflanzen</p></div><svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg></div>
+          <div class="band"><div><b>48 cm</b><span>Höhe A1</span></div><div><b>5,9</b><span>pH Ablauf</span></div><div><b>15,0 l</b><span>Wasser</span></div><div><b>6</b><span>Gaben</span></div></div>
+          <div class="cmp"><span>Vergleich: <b>seit Dienstag</b></span><span class="pill">ändern</span></div>
+          <div class="pcard">
+            <svg class="th" viewBox="26 52 148 98" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <div class="bodyc">
+              <h4>A1 · Amnesia Haze<b>BLÜTE 12</b></h4>
+              <div class="pstage">Tag 19 gesamt · Topf 11 l · Floragard Light</div>
+              <div class="pdelta">Seit Dienstag: <b>+6 cm</b> · 1 Gabe <b>2,0 l</b> · pH <b>6,4 → 5,9</b></div>
+              <div class="ptask due"><svg><use href="#i-warn"/></svg>pH unter 6,2 — beim nächsten Gießen prüfen<span class="go">Gabe ›</span></div>
+            </div>
+          </div>
+          <div class="pcard">
+            <svg class="th" viewBox="26 52 148 98" preserveAspectRatio="xMidYMax slice"><use href="#picold"/></svg>
+            <div class="bodyc">
+              <h4>A2 · White Widow<b>BLÜTE 12</b></h4>
+              <div class="pstage">Tag 19 gesamt · Topf 11 l</div>
+              <div class="pdelta">Seit Dienstag: <b>+4 cm</b> · 1 Gabe <b>2,0 l</b></div>
+              <div class="ptask"><svg><use href="#i-cam"/></svg>Letztes Foto vor 6 Tagen<span class="go">Foto ›</span></div>
+            </div>
+          </div>
+          <div class="empty" style="margin-top:2px">Klima steht hier nicht, weil es niemand misst. Alles andere auf diesen Karten funktioniert genauso wie mit Gerät — und ein Controller füllt später nur die obere Zeile.</div>
+          <div class="btns"><div class="btn"><svg class="ic-s"><use href="#i-drop"/></svg>Gabe</div><div class="btn"><svg class="ic-s"><use href="#i-ruler"/></svg>Messen</div><div class="btn"><svg class="ic-s"><use href="#i-cam"/></svg>Foto</div></div>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-leaf"/></svg>Pflanzen</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-cal"/></svg>Plan</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="ft">
+    <div><h4>Worauf es wettet</h4><p>Dass Leute in Pflanzen denken und nicht in Geräten — und dass mehrere Pflanzen in verschiedenen Phasen der Normalfall sind, nicht der Sonderfall. B1 steht auf Schritt 2 des Schemas, während A1 und A2 auf Schritt 7 stehen, und das ist hier keine Ausnahme, sondern die Grundform. Für einen Verein ist es außerdem die einzige Ansicht, aus der ein Bericht je Pflanze fällt.</p></div>
+    <div class="warn"><h4>Was ein abgelenkter Nutzer falsch macht</h4><p>Er gießt A1 und trägt es bei A2 ein — zwei fast gleiche Karten untereinander sind eine Verwechslungsmaschine. Und wer keine Pflanzen anlegt, sieht einen Startbildschirm mit einer einzigen Karte, die „Zelt Keller“ heißt: der ganze Entwurf wirkt dann wie eine Liste mit einem Eintrag.</p></div>
+    <div class="warn"><h4>Wo die Kontrolle ausgeht</h4><p>Das Zelt selbst — Ziele, Dosen, Kurven — ist auf einen Tab verbannt, und genau dort verbringt der technische Nutzer seine Zeit. Die Klimazeile oben ist vier Zahlen ohne Verlauf. Und je Pflanze eine eigene Schema-Zeile bedeutet vier parallele Pläne, sobald jemand vier Pflanzen versetzt ansetzt.</p></div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

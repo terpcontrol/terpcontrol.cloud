@@ -1,0 +1,675 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,600;1,400&family=Caveat:wght@500;600&display=swap">
+  <style>
+    *{box-sizing:border-box}
+    :root{--fs:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;--fm:'IBM Plex Mono',ui-monospace,SFMono-Regular,monospace}
+    body{margin:0;background:#E8EAEF;color:#1A1D29;font-family:var(--fs);-webkit-font-smoothing:antialiased}
+    a{color:#2D4B95}a:hover{color:#1F3A6E}
+    .sheet{width:2600px;padding:40px 40px 44px}
+    .hd{display:flex;gap:40px;align-items:flex-start;border-bottom:3px solid #1A1D29;padding-bottom:22px;margin-bottom:24px}
+    .hd__n{font:600 84px/.78 var(--fm);color:#2D4B95;letter-spacing:-.05em;flex:none}
+    .hd__b{flex:1;max-width:1120px}
+    .hd__t{font:600 46px/1.02 var(--fs);letter-spacing:-.03em;margin:0 0 10px}
+    .hd__s{font:400 19px/1.45 var(--fs);color:#333B4C;margin:0}
+    .axes{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 26px;width:660px;flex:none}
+    .ax{border-top:1px solid #B9BFCC;padding-top:7px}
+    .ax b{display:block;font:600 10px/1 var(--fm);letter-spacing:.14em;text-transform:uppercase;color:#6B7285;margin-bottom:5px}
+    .ax span{font:500 15px/1.3 var(--fs);color:#1A1D29}
+    .strip{display:flex;gap:26px;align-items:flex-start}
+    .col{width:390px;flex:none}
+    .cap{display:flex;gap:9px;align-items:baseline;margin:0 0 9px;padding-bottom:7px;border-bottom:1px solid #C2C8D4}
+    .cap i{font:600 12px/1 var(--fm);color:#2D4B95;font-style:normal}
+    .cap span{font:600 14px/1.1 var(--fs);letter-spacing:-.01em}
+    .ft{margin-top:26px;padding-top:20px;border-top:1px solid #C2C8D4;display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:44px}
+    .ft h4{font:600 10px/1 var(--fm);letter-spacing:.16em;text-transform:uppercase;color:#2D4B95;margin:0 0 8px}
+    .ft p{font:400 16px/1.5 var(--fs);margin:0;color:#333B4C}
+    .ft .warn h4{color:#8A6318}
+
+    /* phone shell */
+    .ph{width:390px;height:844px;border-radius:34px;overflow:hidden;position:relative;display:flex;flex-direction:column;
+        box-shadow:0 18px 40px rgba(31,58,110,.18),0 2px 6px rgba(31,58,110,.10);background:#0F1219;color:#E7ECF5;font-size:15px}
+    .sb{height:24px;flex:none}
+    .bd{flex:1;padding:0 16px;overflow:hidden}
+    .nav{flex:none;display:flex;background:#151B26;border-top:1px solid #262F3F;padding:9px 4px 22px}
+    .nav div{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;color:#79839A;font:500 11px/1 var(--fs)}
+    .nav div.on{color:#6FBE4A}
+    .ic{width:21px;height:21px;display:block;flex:none}
+    .ic-s{width:16px;height:16px}
+
+    .top{display:flex;align-items:flex-start;justify-content:space-between;padding:6px 0 12px}
+    .ttl{font:600 21px/1.15 var(--fs);letter-spacing:-.02em;margin:0}
+    .meta{font:400 12.5px/1.3 var(--fs);color:#8A93A8;margin:4px 0 0;font-variant-numeric:tabular-nums}
+    .dot{width:7px;height:7px;border-radius:50%;background:#6FBE4A;display:inline-block;margin-right:5px;vertical-align:1px}
+    .dot.red{background:#F06A7E}.dot.grey{background:#6B7488}.dot.amb{background:#E3B95F}
+
+    .sechd{display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 6px}
+    .sechd h3{font:600 11px/1 var(--fm);letter-spacing:.16em;text-transform:uppercase;color:#8A93A8;margin:0}
+    .sechd span{font:400 11px/1 var(--fs);color:#6B7488}
+
+    .btns{display:flex;gap:8px;margin-top:12px}
+    .btn{flex:1;height:48px;border-radius:10px;background:#1D2431;color:#C9D2E3;display:flex;align-items:center;justify-content:center;gap:6px;font:600 14px/1 var(--fs)}
+    .btn.pri{background:#50A030;color:#fff}
+    .empty{border:1.5px dashed #33405A;border-radius:12px;padding:14px;color:#79839A;font:400 13.5px/1.45 var(--fs)}
+
+    /* bottom sheet */
+    .scrim{position:absolute;inset:0;background:rgba(6,9,14,.62)}
+    .sheetup{position:absolute;left:0;right:0;bottom:0;background:#161C27;border-radius:20px 20px 0 0;padding:14px 16px 22px;border-top:1px solid #2C3546}
+    .grab{width:38px;height:4px;border-radius:2px;background:#3E4A61;margin:0 auto 12px}
+    .shd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+    .shd h3{margin:0;font:600 20px/1 var(--fs);letter-spacing:-.01em}
+    .shd span{font:500 13px/1 var(--fs);color:#8A93A8}
+    .chips{display:flex;gap:7px;margin-bottom:12px}
+    .chip{padding:9px 13px;border-radius:999px;border:1px solid #33405A;color:#9AA3B7;font:500 13.5px/1 var(--fs)}
+    .chip.on{background:#1E3A6B;border-color:#4E7BD0;color:#CFE0FF}
+    .cans{background:#111621;border:1px solid #2C3546;border-radius:12px;padding:14px 14px 12px;margin-bottom:11px}
+    .cans .row{display:flex;justify-content:space-between;align-items:center}
+    .beads{display:flex;gap:7px}
+    .beads i{width:26px;height:26px;border-radius:50%;border:2px solid #3E4A61;display:block}
+    .beads i.f{background:#4A88DC;border-color:#4A88DC}
+    .cans .tot{font:600 20px/1 var(--fs);font-variant-numeric:tabular-nums}
+    .cans .hint{font:400 12px/1.3 var(--fs);color:#79839A;margin-top:9px}
+    .frow{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1D2431;font:500 14px/1.2 var(--fs);font-variant-numeric:tabular-nums}
+    .frow span{color:#9AA3B7;font-weight:400}
+    .from{font:400 12.5px/1.35 var(--fs);color:#79839A;margin:8px 0 0}
+    .from b{color:#9AA3B7;font-weight:600}
+    .guard{display:flex;gap:9px;background:#2A2417;border:1px solid #6A5526;border-radius:9px;padding:10px 11px;margin:11px 0 0;font:400 12.5px/1.4 var(--fs);color:#E6D3A5}
+
+  /* ---- 19 Die Durchgänge — run against run, x-axis is day of grow ---- */
+  .rnhd{display:flex;gap:8px;margin-bottom:8px}
+  .rnrun{flex:1;min-width:0;background:#161C27;border:1px solid #262F3F;border-radius:10px;padding:7px 10px 8px}
+  .rnrun b{display:block;font:600 13.5px/1.2 var(--fs);color:#E7ECF5}
+  .rnrun span{display:block;font:400 11.5px/1.25 var(--fs);color:#79839A;margin-top:3px;font-variant-numeric:tabular-nums}
+  .rnrun.rngh{background:#141922;border-color:#2C3546;border-style:dashed}
+  .rnrun.rngh b{color:#C9D2E3}
+  .rnrun.rnnl{background:transparent;border-style:dashed;border-color:#2C3546}
+  .rnrun.rnnl b{font:500 13px/1.2 var(--fs);color:#79839A}
+  .rnsam{display:inline-block;width:16px;height:0;border-top:2.5px solid #6FBE4A;vertical-align:4px;margin-right:6px}
+  .rnrun.rngh .rnsam{border-top:2px dashed #79839A}
+  .rnrun.rnnl .rnsam{border-top:2px dotted #4A5670}
+  .rnal{display:flex;gap:7px;align-items:center;margin-bottom:10px}
+  .rnalx{flex:1;min-width:0;font:400 10.5px/1.25 var(--fs);color:#6B7488}
+  .rnpair{display:flex;gap:8px}
+  .rnhalf{flex:1;min-width:0}
+  .rnlbl{font:600 9.5px/1 var(--fm);letter-spacing:.12em;color:#79839A;margin-bottom:5px}
+  .rnfr{width:100%;height:76px;border-radius:8px;overflow:hidden;display:block;background:#161B25}
+  .rnhalf.rngh .rnfr{opacity:.72}
+  .rnst{margin-top:5px;font:500 11px/1.3 var(--fs);color:#8A93A8;font-variant-numeric:tabular-nums}
+  .rnst b{display:block;font:600 12.5px/1.25 var(--fs);color:#C9D2E3}
+  .rnnil{height:76px;border:1.5px dashed #33405A;border-radius:8px;display:flex;align-items:center;justify-content:center;
+         text-align:center;padding:6px 8px;font:400 11px/1.35 var(--fs);color:#6B7488}
+  .rnsay{margin:11px 0 0;font:600 16.5px/1.3 var(--fs);letter-spacing:-.01em}
+  .rnsub{margin:5px 0 0;font:500 12px/1.35 var(--fs);color:#9AA3B7;font-variant-numeric:tabular-nums}
+  .rnch{width:100%;display:block;margin-top:10px}
+  .rncols{display:grid;grid-template-columns:1fr 58px 54px 48px;gap:4px;padding:9px 0 5px;
+          font:600 8.5px/1 var(--fm);letter-spacing:.05em;color:#6B7488}
+  .rncols i{text-align:right;font-style:normal}
+  .rnrow{display:grid;grid-template-columns:1fr 58px 54px 48px;gap:4px;align-items:baseline;padding:4px 0;
+         border-bottom:1px solid #1D2431;font-variant-numeric:tabular-nums}
+  .rnrow b{font:500 13.5px/1.2 var(--fs);color:#E7ECF5}
+  .rnrow i{font:400 13px/1.2 var(--fs);color:#79839A;text-align:right;font-style:normal}
+  .rnrow u{font:600 13px/1.2 var(--fs);color:#C9D2E3;text-align:right;text-decoration:none}
+  .rnrow s{font:600 12.5px/1.2 var(--fs);color:#8A93A8;text-align:right;text-decoration:none}
+  .rnrow s.rnup{color:#E3B95F}.rnrow s.rndn{color:#7BA6E8}.rnrow s.rnok{color:#8FD870}
+  .rnrow.rnsm b{padding-left:12px;font:400 12px/1.2 var(--fs);color:#79839A}
+  .rnrow.rnsm i,.rnrow.rnsm u{font:400 12px/1.2 var(--fs);color:#79839A}
+  .rnwarn{display:flex;gap:9px;align-items:flex-start;background:#2A1721;border:1px solid #6D2739;border-left:4px solid #F06A7E;
+          border-radius:9px;padding:10px 11px;margin-bottom:10px}
+  .rnwarn .rnt{margin:0 0 3px;font:600 14.5px/1.28 var(--fs);color:#FFC2CC}
+  .rnwarn .rnm{margin:0;font:400 12.5px/1.4 var(--fs);color:#D6B9C1}
+  .rnwarn .rnr{display:block;margin-top:7px;font:500 10.5px/1 var(--fm);color:#B58794}
+  .rnstage{display:flex;gap:8px}
+  .rnsg{flex:1;min-width:0;position:relative;border-radius:10px;overflow:hidden;background:#0B0E14}
+  .rnsg svg{width:100%;height:146px;display:block}
+  .rnsg.rngh svg{opacity:.66}
+  .rnburn{position:absolute;left:7px;right:7px;bottom:6px;font:500 9.5px/1.35 var(--fm);color:#EFF3FA;
+          text-shadow:0 1px 3px rgba(0,0,0,.95);font-variant-numeric:tabular-nums}
+  .rnkap{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1D2431;
+         font:500 13px/1.2 var(--fs);font-variant-numeric:tabular-nums}
+  .rnkap span{color:#8A93A8;font-weight:400}
+  .rncull{margin-top:10px;background:#161C27;border-radius:10px;padding:10px 12px;font:400 11.5px/1.5 var(--fm);color:#9AA3B7}
+  .rncull b{color:#C9D2E3}
+  .rnmini{width:100%;display:block}
+  .rncap{margin:4px 0 11px;font:400 11.5px/1.35 var(--fs);color:#79839A;font-variant-numeric:tabular-nums}
+  .rncap b{color:#C9D2E3;font-weight:600}
+  </style>
+</helmet>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="fan"><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(-62) scale(.6)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(-33) scale(.84)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(33) scale(.84)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(62) scale(.6)"/></g>
+  <linearGradient id="gLit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3E3BC"/><stop offset=".4" stop-color="#B29B6C"/><stop offset="1" stop-color="#2C2A1E"/></linearGradient>
+  <linearGradient id="gOff" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2B3244"/><stop offset=".5" stop-color="#1A2030"/><stop offset="1" stop-color="#0D1119"/></linearGradient>
+  <symbol id="pic" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gLit)"/><ellipse cx="100" cy="-14" rx="142" ry="66" fill="#FFF6DA" opacity=".55"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#4A4436"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#443F32"/><g fill="#1C4416"><use href="#fan" transform="translate(50,140) scale(2.2) rotate(-6)"/><use href="#fan" transform="translate(148,142) scale(1.9) rotate(7)"/></g><g fill="#2C6821"><use href="#fan" transform="translate(28,134) scale(1.5) rotate(-48)"/><use href="#fan" transform="translate(76,132) scale(1.6) rotate(27)"/><use href="#fan" transform="translate(174,136) scale(1.4) rotate(46)"/><use href="#fan" transform="translate(122,136) scale(1.45) rotate(-27)"/></g><g fill="#4C9033"><use href="#fan" transform="translate(56,104) scale(1.15) rotate(-14)"/><use href="#fan" transform="translate(146,108) scale(1.05) rotate(16)"/><use href="#fan" transform="translate(100,118) scale(1.2) rotate(2)"/></g></symbol>
+  <symbol id="picold" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gLit)"/><ellipse cx="100" cy="-14" rx="142" ry="66" fill="#FFF6DA" opacity=".55"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#4A4436"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#443F32"/><g fill="#1C4416"><use href="#fan" transform="translate(50,142) scale(1.7) rotate(-5)"/><use href="#fan" transform="translate(148,144) scale(1.45) rotate(6)"/></g><g fill="#2C6821"><use href="#fan" transform="translate(30,138) scale(1.15) rotate(-45)"/><use href="#fan" transform="translate(74,136) scale(1.2) rotate(25)"/><use href="#fan" transform="translate(172,140) scale(1.05) rotate(43)"/></g><g fill="#4C9033"><use href="#fan" transform="translate(58,116) scale(.85) rotate(-12)"/><use href="#fan" transform="translate(142,120) scale(.8) rotate(14)"/></g></symbol>
+  <symbol id="picdark" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gOff)"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#141924"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#131822"/><g fill="#151D2A"><use href="#fan" transform="translate(50,140) scale(2.2) rotate(-6)"/><use href="#fan" transform="translate(148,142) scale(1.9) rotate(7)"/></g><g fill="#1A2434"><use href="#fan" transform="translate(28,134) scale(1.5) rotate(-48)"/><use href="#fan" transform="translate(76,132) scale(1.6) rotate(27)"/><use href="#fan" transform="translate(174,136) scale(1.4) rotate(46)"/><use href="#fan" transform="translate(122,136) scale(1.45) rotate(-27)"/></g><g fill="#1E2A3C"><use href="#fan" transform="translate(56,104) scale(1.15) rotate(-14)"/><use href="#fan" transform="translate(100,118) scale(1.2) rotate(2)"/></g></symbol>
+  <symbol id="i-now" viewBox="0 0 24 24"><path d="M4 12h4l3-7 4 14 3-7h2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4.5 5.4A2.4 2.4 0 0 1 6.9 3H19v15.4H6.9a2.4 2.4 0 0 0-2.4 2.4V5.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 8h7.5M8 11.6h7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.6 5.5v13M16.4 5.5v13M3 12h18" stroke="currentColor" stroke-width="1.4"/></symbol>
+  <symbol id="i-tent" viewBox="0 0 24 24"><path d="M12 3 3.5 20.5h17L12 3Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 10v10.5" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3.4c3.3 4.1 5.4 6.9 5.4 9.4a5.4 5.4 0 1 1-10.8 0c0-2.5 2.1-5.3 5.4-9.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 4.5h14v15H5z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 9h8M8 12.6h8M8 16.2h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 7l1.4-2.8h3.2L15 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4.2 21 19.6H3L12 4.2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10.2v4.2M12 17.2v.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-ruler" viewBox="0 0 24 24"><path d="M3 14.5 14.5 3 21 9.5 9.5 21 3 14.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7.5 11 9.5 13M11 7.5l2 2M11 14.5l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M20.2 3.8c0 8.6-4.5 13-11.4 13H5.2c0-7.7 5-13 15-13Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4.6 20.6c1.9-4.7 5.2-7.9 10-10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5.4l3.4 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9.4" cy="8.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c1-3.4 3.4-5.2 6.4-5.2S14.8 16.6 15.8 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M16.4 5.6a3.4 3.4 0 0 1 0 6.4M18 14.9c1.6.8 2.7 2.4 3.2 5.1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 19.4V5M4 19.4h16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M7 15.4l3.6-4.6 3.2 2.6L20 7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.2v13.6M5.2 12h13.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9.4 5.4 6.8 6.6-6.8 6.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.6 12.6 9.4 17.4 19.6 6.8" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M6 8h12v3.4A6 6 0 0 1 6 11.4V8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 17.4V21" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2.8v2.2M12 19v2.2M2.8 12H5M19 12h2.2M5.6 5.6 7.2 7.2M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.6" y="5.4" width="16.8" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.6 10h16.8M8 3.4v3.6M16 3.4v3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9.6 3.4h4.8l-.7 5.4 3.5 3.1H7.8l3.5-3.1-.7-5.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 12v8.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</defs></svg>
+
+<div class="sheet">
+  <div class="hd">
+    <div class="hd__n">19</div>
+    <div class="hd__b">
+      <h2 class="hd__t">Die Durchgänge</h2>
+      <p class="hd__s">Nicht dieser Tag gegen letzten Freitag, sondern dieser Durchgang gegen den letzten. Die x-Achse zählt Tage seit dem Anfang; Durchgang 2 liegt als blasser Faden darunter — wahlweise ab Tag 1 oder ab dem Tag, an dem auf 12/12 gestellt wurde. Bildpaar, Satz und Δ-Tabelle vergleichen genau die zwei Tage, die der Verlauf übereinanderlegt.</p>
+    </div>
+    <div class="axes">
+      <div class="ax"><b>Startbildschirm</b><span>Durchgang gegen Durchgang</span></div>
+      <div class="ax"><b>Vorher–Nachher</b><span>der letzte Durchgang als Geistfaden</span></div>
+      <div class="ax"><b>Der Verlauf</b><span>Tagesachse: Mittel, Spanne, Wasser</span></div>
+      <div class="ax"><b>App entscheidet</b><span>mittel — sie richtet aus und rangiert</span></div>
+    </div>
+  </div>
+
+  <div class="strip">
+
+    <!-- 01 normaler Tag -->
+    <div class="col">
+      <p class="cap"><i>01</i><span>Normaler Tag</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:8px">
+            <div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot"></span>Online · vor 40 Sek · Tag 34 · Blüte 12</p></div>
+            <svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg>
+          </div>
+          <div class="rnhd">
+            <div class="rnrun"><b><i class="rnsam"></i>Durchgang 3</b><span>läuft · seit 22.07.</span></div>
+            <div class="rnrun rngh"><b><i class="rnsam"></i>Durchgang 2</b><span>geerntet 12.06.</span></div>
+          </div>
+          <div class="rnal"><span class="chip on">ab Tag 1</span><span class="chip">ab 12/12</span><span class="rnalx">3 Tage früher gekippt</span></div>
+          <div class="rnpair">
+            <div class="rnhalf rngh">
+              <div class="rnlbl">DURCHGANG 2 · TAG 34</div>
+              <svg class="rnfr" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#picold"/></svg>
+              <div class="rnst"><b>06.05. · Blüte 9</b>Blattfläche 34 %</div>
+            </div>
+            <div class="rnhalf">
+              <div class="rnlbl">DURCHGANG 3 · TAG 34</div>
+              <svg class="rnfr" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg>
+              <div class="rnst"><b>heute · Blüte 12</b>Blattfläche 37 %</div>
+            </div>
+          </div>
+          <p class="rnsay">Nachts ist dieser Durchgang wärmer als der letzte.</p>
+          <p class="rnsub">Nacht 22,8 → 23,4 °C · Blatt 34 → 37 %</p>
+          <svg class="rnch" viewBox="0 0 340 208">
+            <g transform="translate(0,0)">
+              <rect x="160.3" y="0" width="179.7" height="56" fill="#131824"/>
+              <rect x="0" y="17.9" width="145.7" height="9" fill="#D4763B" opacity=".14"/>
+              <rect x="145.7" y="12.3" width="194.3" height="9" fill="#D4763B" opacity=".14"/>
+              <line x1="0" y1="56" x2="340" y2="56" stroke="#242C3B" stroke-width="1"/>
+              <line x1="0" y1="44.8" x2="340" y2="44.8" stroke="#D4763B" stroke-width="1.2" stroke-dasharray="2 4" opacity=".45"/>
+              <path d="M0,12.3 L19.4,10.6 L43.7,11.2 L68,12.9 L92.3,11.8 L116.6,10.1 L140.9,9 L160.3,7.8 L160.3,25.8 L140.9,26.9 L116.6,28.6 L92.3,31.4 L68,34.2 L43.7,36.9 L19.4,39.2 L0,40.3 Z" fill="#D4763B" opacity=".16"/>
+              <path d="M0,25.8 34,24.6 72.9,23.5 111.7,22.4 160.3,21.8 199.1,20.2 238,19 276.8,21.3 310.8,25.8 340,30.2" fill="none" stroke="#D4763B" stroke-width="1.6" stroke-dasharray="4 3" opacity=".5" stroke-linejoin="round"/>
+              <path d="M0,22.4 L145.7,22.4 L145.7,16.8 L160.3,16.8" fill="none" stroke="#D4763B" stroke-width="1.6" stroke-dasharray="5 4" opacity=".8"/>
+              <path d="M160.3,16.8 L340,16.8" fill="none" stroke="#D4763B" stroke-width="1.6" stroke-dasharray="5 4" opacity=".28"/>
+              <path d="M0,24.6 9.7,24.1 19.4,22.9 29.1,23.5 38.9,22.7 48.6,22.4 58.3,22.9 68,21.8 77.7,22.1 87.4,21.3 97.1,21.6 106.9,20.2 116.6,19 126.3,19.6 136,18.2 145.7,17.9 155.4,17.6 160.3,17.4" fill="none" stroke="#D4763B" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+              <line x1="102" y1="0" x2="102" y2="56" stroke="#79839A" stroke-width="1" stroke-dasharray="2 3" opacity=".7"/>
+              <line x1="116.6" y1="0" x2="116.6" y2="56" stroke="#5F6879" stroke-width="1" stroke-dasharray="2 3" opacity=".45"/>
+              <text x="104" y="54" fill="#79839A" font-size="8.5" font-family="var(--fm)">12/12</text>
+              <text x="338" y="52.5" fill="#6B7488" font-size="8.5" font-family="var(--fm)" text-anchor="end">ZIEL NACHT 20,0</text>
+              <text x="2" y="8" fill="#5F6879" font-size="9" font-family="var(--fm)">28</text>
+              <text x="2" y="54" fill="#5F6879" font-size="9" font-family="var(--fm)">18</text>
+              <text x="340" y="8" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Temperatur °C · Mittel und Spanne</text>
+            </g>
+            <g transform="translate(0,68)">
+              <rect x="160.3" y="0" width="179.7" height="42" fill="#131824"/>
+              <rect x="0" y="21" width="340" height="10.5" fill="#4A88DC" opacity=".14"/>
+              <line x1="0" y1="42" x2="340" y2="42" stroke="#242C3B" stroke-width="1"/>
+              <line x1="0" y1="10.5" x2="340" y2="10.5" stroke="#4A88DC" stroke-width="1" stroke-dasharray="2 4" opacity=".35"/>
+              <path d="M0,13.65 L43.7,15.75 L92.3,17.85 L121.4,16.8 L150.6,9.45 L160.3,14.7 L160.3,35.7 L140.9,34.65 L116.6,33.6 L92.3,31.5 L43.7,29.4 L0,27.3 Z" fill="#4A88DC" opacity=".16"/>
+              <path d="M0,18.9 43.7,21 92.3,23.1 160.3,25.2 213.7,28.35 262.3,31.5 310.8,34.65 340,36.75" fill="none" stroke="#4A88DC" stroke-width="1.6" stroke-dasharray="4 3" opacity=".5" stroke-linejoin="round"/>
+              <line x1="0" y1="26.25" x2="340" y2="26.25" stroke="#4A88DC" stroke-width="1.6" stroke-dasharray="5 4" opacity=".8"/>
+              <path d="M0,19.95 19.4,21 43.7,22.05 68,23.1 92.3,25.2 116.6,26.25 136,27.3 150.6,26.8 160.3,28.35" fill="none" stroke="#4A88DC" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+              <text x="2" y="7" fill="#5F6879" font-size="9" font-family="var(--fm)">75</text>
+              <text x="2" y="15" fill="#5F6879" font-size="9" font-family="var(--fm)">65</text>
+              <text x="2" y="40" fill="#5F6879" font-size="9" font-family="var(--fm)">35</text>
+              <text x="340" y="8" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Luftfeuchte % · Mittel und Spanne</text>
+            </g>
+            <g transform="translate(0,122)">
+              <rect x="160.3" y="0" width="179.7" height="32" fill="#131824"/>
+              <line x1="0" y1="32" x2="340" y2="32" stroke="#242C3B" stroke-width="1"/>
+              <path d="M0,32 43.7,30.3 92.3,27.4 160.3,18.7 213.7,12.9 262.3,8.2 310.8,4.7 340,3.6" fill="none" stroke="#4A88DC" stroke-width="1.6" stroke-dasharray="4 3" opacity=".45" stroke-linejoin="round"/>
+              <path d="M0,32 L9.7,32 L9.7,31.4 L19.4,31.4 L19.4,30.7 L34,30.7 L34,30 L48.6,30 L48.6,29.1 L63.1,29.1 L63.1,27.9 L77.7,27.9 L77.7,26.8 L92.3,26.8 L92.3,25.3 L106.9,25.3 L106.9,23.9 L121.4,23.9 L121.4,22.1 L136,22.1 L136,20.4 L145.7,20.4 L145.7,18.95 L155.4,18.95 L155.4,18.1 L160.3,18.1 L160.3,16.9" fill="none" stroke="#4A88DC" stroke-width="2" stroke-linejoin="round"/>
+              <text x="2" y="8" fill="#5F6879" font-size="9" font-family="var(--fm)">100</text>
+              <text x="2" y="30" fill="#5F6879" font-size="9" font-family="var(--fm)">0</text>
+              <text x="340" y="8" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Wasser kumuliert · Liter</text>
+            </g>
+            <line x1="160.3" y1="0" x2="160.3" y2="154" stroke="#E7ECF5" stroke-width="1" opacity=".55"/>
+            <g transform="translate(0,160)">
+              <circle cx="145.7" cy="8" r="3.6" fill="#0F1219" stroke="#7396DD" stroke-width="1.8"/>
+              <circle cx="150.6" cy="8" r="3.6" fill="#0F1219" stroke="#E3B95F" stroke-width="1.8"/>
+              <circle cx="160.3" cy="8" r="3.6" fill="#0F1219" stroke="#6FBE4A" stroke-width="1.8"/>
+              <text x="0" y="26" fill="#79839A" font-size="9.5" font-family="var(--fs)">Tag 31 Ziel 25,0 · Tag 32 über 65 % · Tag 34 Anna 2,0 l</text>
+              <text x="0" y="42" fill="#5F6879" font-size="9" font-family="var(--fm)">TAG 1</text>
+              <text x="92.3" y="42" fill="#5F6879" font-size="9" font-family="var(--fm)" text-anchor="middle">TAG 20</text>
+              <text x="160.3" y="42" fill="#C9D2E3" font-size="9" font-family="var(--fm)" text-anchor="middle">HEUTE 34</text>
+              <text x="286.6" y="42" fill="#5F6879" font-size="9" font-family="var(--fm)" text-anchor="middle">TAG 60</text>
+              <text x="340" y="42" fill="#5F6879" font-size="9" font-family="var(--fm)" text-anchor="end">ERNTE 71</text>
+            </g>
+          </svg>
+          <div class="rncols"><span>AN TAG 34</span><i>DURCHG. 2</i><i>JETZT</i><i>Δ</i></div>
+          <div class="rnrow"><b>Nacht-Mittel</b><i>22,8</i><u>23,4 °C</u><s class="rnup">+0,6</s></div>
+          <div class="rnrow rnsm"><b>Ziel Nacht</b><i>20,0</i><u>20,0 °C</u><s>—</s></div>
+          <div class="rnrow"><b>Tag-Mittel</b><i>24,1</i><u>24,8 °C</u><s class="rnup">+0,7</s></div>
+          <div class="rnrow"><b>Luftfeuchte</b><i>51</i><u>48 %</u><s class="rndn">−3</s></div>
+          <div class="rnrow"><b>Wasser gesamt</b><i>46,0</i><u>52,0 l</u><s class="rnup">+6,0</s></div>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-chart"/></svg>Durchgänge</div><div><svg class="ic"><use href="#i-book"/></svg>Verlauf</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+    <!-- 02 etwas stimmt nicht -->
+    <div class="col">
+      <p class="cap"><i>02</i><span>Etwas stimmt nicht</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:8px">
+            <div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot red"></span>Online · vor 35 Sek · Tag 34</p></div>
+            <svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg>
+          </div>
+          <div class="rnwarn">
+            <svg class="ic" style="color:#F06A7E;margin-top:1px"><use href="#i-warn"/></svg>
+            <div>
+              <p class="rnt">Das Licht ist aus, obwohl es an sein müsste.</p>
+              <p class="rnm">Seit 13:40. Dose 3 meldet <b>an</b>, die Kamera sieht dunkel.</p>
+              <span class="rnr">REGEL L-1 · STECKER VON DOSE 3 ZIEHEN</span>
+            </div>
+          </div>
+          <div class="rnpair">
+            <div class="rnhalf rngh">
+              <div class="rnlbl">DURCHGANG 2 · TAG 34</div>
+              <svg class="rnfr" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg>
+              <div class="rnst"><b>06.05. 14:00</b>Licht an</div>
+            </div>
+            <div class="rnhalf">
+              <div class="rnlbl">DURCHGANG 3 · TAG 34</div>
+              <svg class="rnfr" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#picdark"/></svg>
+              <div class="rnst"><b>heute 14:04</b>Bild dunkel</div>
+            </div>
+          </div>
+          <p class="rnsay">Ein Tag bricht ein — im letzten Durchgang lief er durch.</p>
+          <p class="rnsub">24,8 → 21,3 °C · 48 → 71 % · Bild 184 → 21</p>
+          <svg class="rnch" viewBox="0 0 340 200">
+            <g transform="translate(0,0)">
+              <rect x="160.3" y="0" width="179.7" height="50" fill="#131824"/>
+              <rect x="0" y="16" width="145.7" height="8" fill="#D4763B" opacity=".14"/>
+              <rect x="145.7" y="11" width="194.3" height="8" fill="#D4763B" opacity=".14"/>
+              <line x1="0" y1="50" x2="340" y2="50" stroke="#242C3B" stroke-width="1"/>
+              <path d="M0,11 L19.4,9.5 L43.7,10 L68,11.5 L92.3,10.5 L116.6,9 L140.9,8 L155.4,7 L160.3,7 L160.3,33.5 L155.4,23 L140.9,24 L116.6,25.5 L92.3,28 L68,30.5 L43.7,33 L19.4,35 L0,36 Z" fill="#D4763B" opacity=".16"/>
+              <path d="M0,23 34,22 72.9,21 111.7,20 160.3,19.5 199.1,18 238,17 276.8,19 310.8,23 340,27" fill="none" stroke="#D4763B" stroke-width="1.6" stroke-dasharray="4 3" opacity=".5" stroke-linejoin="round"/>
+              <path d="M0,20 L145.7,20 L145.7,15 L160.3,15" fill="none" stroke="#D4763B" stroke-width="1.6" stroke-dasharray="5 4" opacity=".8"/>
+              <path d="M0,22 19.4,20.5 43.7,21.4 68,19.5 92.3,19.2 116.6,17 136,16.2 145.7,16 155.4,15.6 160.3,19.5" fill="none" stroke="#D4763B" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+              <rect x="155.4" y="0" width="9.8" height="50" fill="#F06A7E" opacity=".12"/>
+              <circle cx="160.3" cy="33.5" r="3.4" fill="#0F1219" stroke="#F06A7E" stroke-width="2"/>
+              <text x="2" y="8" fill="#5F6879" font-size="9" font-family="var(--fm)">28</text>
+              <text x="2" y="48" fill="#5F6879" font-size="9" font-family="var(--fm)">18</text>
+              <text x="340" y="8" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Temperatur °C · Mittel und Spanne</text>
+            </g>
+            <g transform="translate(0,62)">
+              <rect x="160.3" y="0" width="179.7" height="44" fill="#131824"/>
+              <rect x="0" y="22" width="340" height="11" fill="#4A88DC" opacity=".14"/>
+              <line x1="0" y1="44" x2="340" y2="44" stroke="#242C3B" stroke-width="1"/>
+              <path d="M0,14 L43.7,16.5 L92.3,18.5 L136,17.5 L155.4,16 L160.3,4.4 L160.3,37 L140.9,36 L116.6,35 L92.3,33 L43.7,30.5 L0,28.5 Z" fill="#4A88DC" opacity=".16"/>
+              <path d="M0,19.8 43.7,22 92.3,24.2 160.3,26.4 213.7,29.7 262.3,33 310.8,36.3 340,38.5" fill="none" stroke="#4A88DC" stroke-width="1.6" stroke-dasharray="4 3" opacity=".5" stroke-linejoin="round"/>
+              <line x1="0" y1="27.5" x2="340" y2="27.5" stroke="#4A88DC" stroke-width="1.6" stroke-dasharray="5 4" opacity=".8"/>
+              <path d="M0,21 43.7,23 92.3,26 136,28.5 155.4,29.5 160.3,15" fill="none" stroke="#4A88DC" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+              <rect x="155.4" y="0" width="9.8" height="44" fill="#F06A7E" opacity=".12"/>
+              <text x="2" y="8" fill="#5F6879" font-size="9" font-family="var(--fm)">75</text>
+              <text x="2" y="42" fill="#5F6879" font-size="9" font-family="var(--fm)">35</text>
+              <text x="340" y="8" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Luftfeuchte % · Mittel und Spanne</text>
+            </g>
+            <line x1="160.3" y1="0" x2="160.3" y2="106" stroke="#E7ECF5" stroke-width="1" opacity=".5"/>
+            <g transform="translate(0,110)">
+              <text x="0" y="8" fill="#5F6879" font-size="9" font-family="var(--fm)">TAG 1</text>
+              <text x="92.3" y="8" fill="#5F6879" font-size="9" font-family="var(--fm)" text-anchor="middle">TAG 20</text>
+              <text x="160.3" y="8" fill="#F0B7C1" font-size="9" font-family="var(--fm)" text-anchor="middle">HEUTE 34</text>
+              <text x="286.6" y="8" fill="#5F6879" font-size="9" font-family="var(--fm)" text-anchor="middle">TAG 60</text>
+              <text x="340" y="8" fill="#5F6879" font-size="9" font-family="var(--fm)" text-anchor="end">ERNTE 71</text>
+              <line x1="0" y1="16" x2="340" y2="16" stroke="#1D2431" stroke-width="1"/>
+            </g>
+            <g transform="translate(0,126)">
+              <text x="0" y="8" fill="#8A93A8" font-size="10.5" font-family="var(--fs)" font-weight="600">Tag 34 · Stunden</text>
+              <rect x="274" y="14" width="66" height="30" fill="#F06A7E" opacity=".07"/>
+              <line x1="0" y1="44" x2="340" y2="44" stroke="#242C3B" stroke-width="1"/>
+              <path d="M0,20.4 60,20 130,20.4 200,19.9 274,20.4 290,25 305,30.5 320,35.5 332,38 340,39.1" fill="none" stroke="#D4763B" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+              <line x1="274" y1="14" x2="274" y2="61" stroke="#F06A7E" stroke-width="1.4" stroke-dasharray="3 3"/>
+              <text x="0" y="48" fill="#79839A" font-size="9" font-family="var(--fm)">LICHT</text>
+              <text x="340" y="48" fill="#F0B7C1" font-size="9" font-family="var(--fm)" text-anchor="end">MELDET AN, BILD DUNKEL</text>
+              <rect x="0" y="52" width="274" height="9" rx="2" fill="#E3B95F"/>
+              <rect x="274" y="52" width="66" height="9" rx="2" fill="#C4384F"/>
+              <text x="0" y="72" fill="#5F6879" font-size="9" font-family="var(--fm)">12:00</text>
+              <text x="164" y="72" fill="#5F6879" font-size="9" font-family="var(--fm)" text-anchor="middle">13:00</text>
+              <text x="274" y="72" fill="#F0B7C1" font-size="9" font-family="var(--fm)" text-anchor="middle">13:40</text>
+              <text x="340" y="72" fill="#5F6879" font-size="9" font-family="var(--fm)" text-anchor="end">14:04</text>
+            </g>
+          </svg>
+          <div class="rncols"><span>AN TAG 34</span><i>DURCHG. 2</i><i>JETZT</i><i>Δ</i></div>
+          <div class="rnrow"><b>Temperatur</b><i>24,1</i><u>21,3 °C</u><s class="rndn">−2,8</s></div>
+          <div class="rnrow"><b>Luftfeuchte</b><i>51</i><u>71 %</u><s class="rnup">+20</s></div>
+          <div class="rnrow"><b>Licht am Tag</b><i>12:00</i><u>7:40 an</u><s>3:56 offen</s></div>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-chart"/></svg>Durchgänge</div><div><svg class="ic"><use href="#i-book"/></svg>Verlauf</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+    <!-- 03 Tag eins -->
+    <div class="col">
+      <p class="cap"><i>03</i><span>Tag eins</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:8px">
+            <div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot"></span>Online · vor 12 Sek · Tag 1</p></div>
+            <svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg>
+          </div>
+          <div class="rnhd">
+            <div class="rnrun"><b><i class="rnsam"></i>Durchgang 1</b><span>läuft · seit 14:00</span></div>
+            <div class="rnrun rnnl"><b><i class="rnsam"></i>Kein Vergleich</b><span>erst ab Durchgang 2</span></div>
+          </div>
+          <div class="rnal"><span class="chip on">ab Tag 1</span><span class="chip">ab 12/12</span><span class="rnalx">noch nicht gekippt</span></div>
+          <div class="rnpair">
+            <div class="rnhalf rngh">
+              <div class="rnlbl">GEISTFADEN</div>
+              <div class="rnnil">Noch kein zweiter Durchgang. Ab dem nächsten liegt hier einer.</div>
+              <div class="rnst"><b>—</b>kein Bild, kein Wert</div>
+            </div>
+            <div class="rnhalf">
+              <div class="rnlbl">DURCHGANG 1 · TAG 1</div>
+              <svg class="rnfr" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg>
+              <div class="rnst"><b>heute 14:04</b>erstes Bild</div>
+            </div>
+          </div>
+          <p class="rnsay">Tag 1. Zu vergleichen gibt es nur dein Ziel.</p>
+          <svg class="rnch" viewBox="0 0 340 166">
+            <g transform="translate(0,0)">
+              <rect x="4.9" y="0" width="335.1" height="48" fill="#131824"/>
+              <rect x="0" y="10.6" width="340" height="7.7" fill="#D4763B" opacity=".14"/>
+              <line x1="0" y1="48" x2="340" y2="48" stroke="#242C3B" stroke-width="1"/>
+              <line x1="0" y1="14.4" x2="340" y2="14.4" stroke="#D4763B" stroke-width="1.6" stroke-dasharray="5 4" opacity=".8"/>
+              <circle cx="2.5" cy="8.6" r="3.4" fill="#D4763B"/>
+              <text x="14" y="34" fill="#5F6879" font-size="10.5" font-family="var(--fs)">Das Band steht. Die Kurve wächst nach rechts.</text>
+              <text x="2" y="8" fill="#5F6879" font-size="9" font-family="var(--fm)">28</text>
+              <text x="340" y="8" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Temperatur °C · Ziel 25,0</text>
+            </g>
+            <g transform="translate(0,60)">
+              <rect x="4.9" y="0" width="335.1" height="42" fill="#131824"/>
+              <rect x="0" y="21" width="340" height="10.5" fill="#4A88DC" opacity=".14"/>
+              <line x1="0" y1="42" x2="340" y2="42" stroke="#242C3B" stroke-width="1"/>
+              <line x1="0" y1="26.25" x2="340" y2="26.25" stroke="#4A88DC" stroke-width="1.6" stroke-dasharray="5 4" opacity=".8"/>
+              <circle cx="2.5" cy="22" r="3.4" fill="#4A88DC"/>
+              <text x="2" y="8" fill="#5F6879" font-size="9" font-family="var(--fm)">75</text>
+              <text x="340" y="8" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Luftfeuchte % · Ziel 50</text>
+            </g>
+            <g transform="translate(0,114)">
+              <rect x="0" y="0" width="340" height="34" rx="6" fill="none" stroke="#2C3546" stroke-width="1" stroke-dasharray="5 4"/>
+              <text x="170" y="15" fill="#6B7488" font-size="10.5" font-family="var(--fs)" text-anchor="middle">Hier läge der Faden des vorigen Durchgangs —</text>
+              <text x="170" y="28" fill="#5F6879" font-size="10.5" font-family="var(--fs)" text-anchor="middle">den gibt es erst nach der ersten Ernte.</text>
+            </g>
+            <g transform="translate(0,154)">
+              <text x="0" y="0" fill="#C9D2E3" font-size="9" font-family="var(--fm)">TAG 1</text>
+              <text x="92.3" y="0" fill="#5F6879" font-size="9" font-family="var(--fm)" text-anchor="middle">TAG 20</text>
+              <text x="189.4" y="0" fill="#5F6879" font-size="9" font-family="var(--fm)" text-anchor="middle">TAG 40</text>
+              <text x="286.6" y="0" fill="#5F6879" font-size="9" font-family="var(--fm)" text-anchor="middle">TAG 60</text>
+              <text x="340" y="0" fill="#5F6879" font-size="9" font-family="var(--fm)" text-anchor="end">ETWA 71</text>
+            </g>
+          </svg>
+          <div class="rncols"><span>GEGEN DEIN ZIEL</span><i>ZIEL</i><i>JETZT</i><i>Δ</i></div>
+          <div class="rnrow"><b>Temperatur</b><i>25,0</i><u>26,2 °C</u><s class="rnup">+1,2</s></div>
+          <div class="rnrow"><b>Luftfeuchte</b><i>50</i><u>54 %</u><s class="rnup">+4</s></div>
+          <div class="rnrow"><b>VPD</b><i>1,2–1,5</i><u>1,41 kPa</u><s class="rnok">im Band</s></div>
+          <div class="rnrow"><b>CO₂</b><i>1000</i><u>438 ppm</u><s class="rndn">−562</s></div>
+          <div class="btns"><div class="btn"><svg class="ic-s"><use href="#i-drop"/></svg>Gabe</div><div class="btn"><svg class="ic-s"><use href="#i-note"/></svg>Notiz</div><div class="btn"><svg class="ic-s"><use href="#i-cam"/></svg>Foto</div></div>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-chart"/></svg>Durchgänge</div><div><svg class="ic"><use href="#i-book"/></svg>Verlauf</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+    <!-- 04 Gabe eintragen -->
+    <div class="col">
+      <p class="cap"><i>04</i><span>Gießen eintragen</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd" style="filter:blur(1.2px);opacity:.42">
+          <div class="top" style="padding-bottom:8px">
+            <div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot"></span>Online · Tag 34 · Blüte 12</p></div>
+          </div>
+          <div class="rnhd">
+            <div class="rnrun"><b><i class="rnsam"></i>Durchgang 3</b><span>läuft · seit 22.07.</span></div>
+            <div class="rnrun rngh"><b><i class="rnsam"></i>Durchgang 2</b><span>geerntet 12.06.</span></div>
+          </div>
+          <div class="rnpair">
+            <div class="rnhalf rngh"><div class="rnlbl">DURCHGANG 2 · TAG 34</div><svg class="rnfr" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#picold"/></svg></div>
+            <div class="rnhalf"><div class="rnlbl">DURCHGANG 3 · TAG 34</div><svg class="rnfr" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg></div>
+          </div>
+          <p class="rnsay">Nachts ist dieser Durchgang wärmer als der letzte.</p>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheetup">
+          <div class="grab"></div>
+          <div class="shd"><h3>Gabe</h3><span>heute 19:40 · Tag 34</span></div>
+          <svg class="rnmini" viewBox="0 0 320 58">
+            <text x="0" y="8" fill="#8A93A8" font-size="10" font-family="var(--fs)">Wasser kumuliert · Liter</text>
+            <line x1="0" y1="46" x2="320" y2="46" stroke="#242C3B" stroke-width="1"/>
+            <path d="M0,46 41,44.4 87,41.6 150.8,32.1 201,26.4 246,21.9 292,18.5 320,17.2" fill="none" stroke="#4A88DC" stroke-width="1.6" stroke-dasharray="4 3" opacity=".5" stroke-linejoin="round"/>
+            <path d="M0,46 L18,46 L18,44.8 L46,44.8 L46,42.8 L87,42.8 L87,39.4 L119,39.4 L119,35.4 L143,35.4 L143,29.9 L150.8,29.9" fill="none" stroke="#4A88DC" stroke-width="2" stroke-linejoin="round"/>
+            <line x1="150.8" y1="29.9" x2="150.8" y2="26.7" stroke="#6FBE4A" stroke-width="2"/>
+            <circle cx="150.8" cy="26.7" r="5" fill="#0F1219" stroke="#6FBE4A" stroke-width="2.4"/>
+            <text x="320" y="35" fill="#79839A" font-size="9" font-family="var(--fm)" text-anchor="end">DURCHGANG 2</text>
+            <text x="0" y="56" fill="#5F6879" font-size="9" font-family="var(--fm)">TAG 1</text>
+            <text x="150.8" y="56" fill="#8FD870" font-size="9" font-family="var(--fm)" text-anchor="middle">TAG 34</text>
+            <text x="320" y="56" fill="#5F6879" font-size="9" font-family="var(--fm)" text-anchor="end">ERNTE 71</text>
+          </svg>
+          <p class="rncap">Mit dieser Gabe stehst du an Tag 34 bei <b>56,0 l</b> — Durchgang 2 lag hier bei 46,0 l.</p>
+          <div class="chips"><span class="chip">Ganzes Zelt</span><span class="chip on">A1</span><span class="chip on">A2</span><span class="chip">B1</span></div>
+          <div class="cans">
+            <div class="row"><div class="beads"><i class="f"></i><i class="f"></i><i></i><i></i><i></i><i></i></div><div class="tot">4,0 l</div></div>
+            <div class="hint">Tippen = eine Kanne à 2,0 l. Lange drücken = eine zurück.</div>
+          </div>
+          <div class="frow"><span>Bio·Grow</span><b>2,0 ml/l · 8 ml</b></div>
+          <div class="frow"><span>Bio·Bloom</span><b>3,0 ml/l · 12 ml</b></div>
+          <div class="frow"><span>Top·Max</span><b>1,0 ml/l · 4 ml</b></div>
+          <div class="frow"><span>pH · EC</span><b>6,3 · nicht gemessen</b></div>
+          <p class="from">aus <b>Biobizz All·Mix · Schritt 7 von 14</b> — vorausgefüllt, alles änderbar. Zuletzt geprüft 14.07.2026.</p>
+          <div class="guard"><svg class="ic-s" style="color:#E3B95F;flex:none;margin-top:1px"><use href="#i-warn"/></svg><div>Anna hat A1 und A2 vor 1 Std 30 gegossen (2,0 l).</div></div>
+          <div class="btns"><div class="btn" style="flex:0 0 96px">Wer? Ben</div><div class="btn pri">Trotzdem eintragen</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 05 Kamera & Zeitraffer -->
+    <div class="col">
+      <p class="cap"><i>05</i><span>Kamera &amp; Zeitraffer</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:8px">
+            <div><h1 class="ttl">Film</h1><p class="meta">Blüte Woche 2 · 25 Sek · 600 Bilder</p></div>
+            <svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg>
+          </div>
+          <div class="rnhd">
+            <div class="rnrun"><b><i class="rnsam"></i>Durchgang 3</b><span>Blüte 12 · Tag 34</span></div>
+            <div class="rnrun rngh"><b><i class="rnsam"></i>Durchgang 2</b><span>Blüte 12 · Tag 37</span></div>
+          </div>
+          <div class="rnal"><span class="chip">ab Tag 1</span><span class="chip on">ab 12/12</span><span class="rnalx">Blüte gegen Blüte</span></div>
+          <div class="rnstage">
+            <div class="rnsg rngh">
+              <svg viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#picold"/></svg>
+              <div class="rnburn">09.05. 14:00<br>24,3 °C · 50 %</div>
+            </div>
+            <div class="rnsg">
+              <svg viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg>
+              <div class="rnburn">25.08. 14:02<br>24,8 °C · 48 %</div>
+            </div>
+          </div>
+          <svg class="rnch" viewBox="0 0 340 106">
+            <g transform="translate(0,0)">
+              <text x="0" y="8" fill="#C9D2E3" font-size="10" font-family="var(--fs)" font-weight="600">Durchgang 3</text>
+              <text x="340" y="8" fill="#79839A" font-size="9" font-family="var(--fm)" text-anchor="end">600 VON 2 148</text>
+              <svg x="0" y="12" width="46" height="26" viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#picold"/></svg>
+              <svg x="48" y="12" width="46" height="26" viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#picold"/></svg>
+              <svg x="96" y="12" width="46" height="26" viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#pic"/></svg>
+              <svg x="144" y="12" width="46" height="26" viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#pic"/></svg>
+              <svg x="192" y="12" width="46" height="26" viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#picdark"/></svg>
+              <svg x="240" y="12" width="46" height="26" viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#pic"/></svg>
+              <rect x="290" y="12" width="50" height="26" rx="3" fill="none" stroke="#242C3B" stroke-width="1" stroke-dasharray="4 4"/>
+              <text x="315" y="29" fill="#5F6879" font-size="9" font-family="var(--fs)" text-anchor="middle">läuft</text>
+            </g>
+            <g transform="translate(0,48)">
+              <text x="0" y="8" fill="#8A93A8" font-size="10" font-family="var(--fs)" font-weight="600">Durchgang 2</text>
+              <text x="340" y="8" fill="#79839A" font-size="9" font-family="var(--fm)" text-anchor="end">FERTIG · 46 SEK</text>
+              <g opacity=".62">
+                <svg x="0" y="12" width="46" height="26" viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#picold"/></svg>
+                <svg x="49" y="12" width="46" height="26" viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#picold"/></svg>
+                <svg x="98" y="12" width="46" height="26" viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#picold"/></svg>
+                <svg x="147" y="12" width="46" height="26" viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#pic"/></svg>
+                <svg x="196" y="12" width="46" height="26" viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#pic"/></svg>
+                <svg x="245" y="12" width="46" height="26" viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#pic"/></svg>
+                <svg x="294" y="12" width="46" height="26" viewBox="26 52 148 98" preserveAspectRatio="none"><use href="#pic"/></svg>
+              </g>
+            </g>
+            <line x1="287.7" y1="8" x2="287.7" y2="86" stroke="#E7ECF5" stroke-width="1" opacity=".55"/>
+            <g transform="translate(0,100)">
+              <text x="0" y="0" fill="#5F6879" font-size="9" font-family="var(--fm)">BLÜTE 1</text>
+              <text x="104.6" y="0" fill="#5F6879" font-size="9" font-family="var(--fm)" text-anchor="middle">BLÜTE 5</text>
+              <text x="209.2" y="0" fill="#5F6879" font-size="9" font-family="var(--fm)" text-anchor="middle">BLÜTE 9</text>
+              <text x="287.7" y="0" fill="#C9D2E3" font-size="9" font-family="var(--fm)" text-anchor="middle">BLÜTE 12</text>
+              <text x="340" y="0" fill="#5F6879" font-size="9" font-family="var(--fm)" text-anchor="end">14</text>
+            </g>
+          </svg>
+          <div class="sechd"><h3>Kapitel</h3><span>2</span></div>
+          <div class="rnkap"><span>1 · Blüte 1 – 8</span><b>11 Sek</b></div>
+          <div class="rnkap"><span>2 · Kamera verrutscht, 12.08.</span><b>14 Sek</b></div>
+          <div class="rncull">2 148 aufgenommen · 1 187 Licht aus<br>289 außerhalb der Fenster · 41 Hand im Bild<br>22 unscharf · 9 verrutscht<br><b>= 600 Bilder → 25 Sek bei 24 B/s · 7,4 MB</b></div>
+          <div class="btns"><div class="btn">Teilen</div><div class="btn pri">Speichern</div></div>
+        </div>
+        <div class="nav"><div><svg class="ic"><use href="#i-chart"/></svg>Durchgänge</div><div><svg class="ic"><use href="#i-book"/></svg>Verlauf</div><div class="on"><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+    <!-- 06 Zelt ohne Gerät -->
+    <div class="col">
+      <p class="cap"><i>06</i><span>Zelt ohne Gerät</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:8px">
+            <div><h1 class="ttl">Schrank Flur</h1><p class="meta"><span class="dot grey"></span>Kein Gerät · Tag 19 · von Hand geführt</p></div>
+            <svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg>
+          </div>
+          <div class="rnhd">
+            <div class="rnrun"><b><i class="rnsam"></i>Durchgang 2</b><span>läuft · Tag 19</span></div>
+            <div class="rnrun rngh"><b><i class="rnsam"></i>Durchgang 1</b><span>geerntet 04.05.</span></div>
+          </div>
+          <div class="rnal"><span class="chip on">ab Tag 1</span><span class="chip">ab 12/12</span><span class="rnalx">beide am selben Tag gekippt</span></div>
+          <div class="rnpair">
+            <div class="rnhalf rngh">
+              <div class="rnlbl">DURCHGANG 1 · TAG 19</div>
+              <svg class="rnfr" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#picold"/></svg>
+              <div class="rnst"><b>16.03. · dein Foto</b>Höhe 41 cm</div>
+            </div>
+            <div class="rnhalf">
+              <div class="rnlbl">DURCHGANG 2 · TAG 19</div>
+              <svg class="rnfr" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg>
+              <div class="rnst"><b>heute 20:55</b>Höhe 48 cm</div>
+            </div>
+          </div>
+          <p class="rnsay">Höher als im letzten Durchgang — aber der pH fällt.</p>
+          <svg class="rnch" viewBox="0 0 340 212">
+            <g transform="translate(0,0)">
+              <rect x="87.4" y="0" width="252.6" height="48" fill="#131824"/>
+              <line x1="0" y1="48" x2="340" y2="48" stroke="#242C3B" stroke-width="1"/>
+              <path d="M0,40.5 L43.7,31.5 L87.4,19.9 L140.9,10.3 L213.7,5.5 L276.8,4.1 L325.4,4.1" fill="none" stroke="#3AA25C" stroke-width="1.6" stroke-dasharray="4 3" opacity=".45"/>
+              <circle cx="43.7" cy="31.5" r="3" fill="#3AA25C" opacity=".45"/><circle cx="140.9" cy="10.3" r="3" fill="#3AA25C" opacity=".45"/><circle cx="213.7" cy="5.5" r="3" fill="#3AA25C" opacity=".45"/><circle cx="325.4" cy="4.1" r="3" fill="#3AA25C" opacity=".45"/>
+              <path d="M0,41.1 L19.4,37 L38.9,29.5 L58.3,19.2 L72.9,17.1 L87.4,15.1" fill="none" stroke="#3AA25C" stroke-width="1.8" stroke-dasharray="4 4" opacity=".75"/>
+              <circle cx="0" cy="41.1" r="4" fill="#3AA25C"/><circle cx="19.4" cy="37" r="4" fill="#3AA25C"/><circle cx="38.9" cy="29.5" r="4" fill="#3AA25C"/><circle cx="58.3" cy="19.2" r="4" fill="#3AA25C"/><circle cx="72.9" cy="17.1" r="4" fill="#3AA25C"/><circle cx="87.4" cy="15.1" r="5" fill="#3AA25C"/>
+              <text x="2" y="8" fill="#5F6879" font-size="9" font-family="var(--fm)">70</text>
+              <text x="2" y="46" fill="#5F6879" font-size="9" font-family="var(--fm)">0</text>
+              <text x="340" y="8" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Höhe A1 cm · von Hand</text>
+            </g>
+            <g transform="translate(0,62)">
+              <rect x="87.4" y="0" width="252.6" height="48" fill="#131824"/>
+              <rect x="0" y="12" width="340" height="7.2" fill="#A874CF" opacity=".16"/>
+              <line x1="0" y1="48" x2="340" y2="48" stroke="#242C3B" stroke-width="1"/>
+              <path d="M19.4,12 L68,14.4 L131.1,16.8 L189.4,19.2 L262.3,16.8 L315.7,19.2" fill="none" stroke="#A874CF" stroke-width="1.6" stroke-dasharray="4 3" opacity=".45"/>
+              <circle cx="19.4" cy="12" r="3" fill="#A874CF" opacity=".45"/><circle cx="68" cy="14.4" r="3" fill="#A874CF" opacity=".45"/><circle cx="131.1" cy="16.8" r="3" fill="#A874CF" opacity=".45"/><circle cx="189.4" cy="19.2" r="3" fill="#A874CF" opacity=".45"/><circle cx="262.3" cy="16.8" r="3" fill="#A874CF" opacity=".45"/><circle cx="315.7" cy="19.2" r="3" fill="#A874CF" opacity=".45"/>
+              <path d="M9.7,9.6 L29.1,12 L48.6,14.4 L58.3,14.4 L72.9,21.6 L87.4,26.4" fill="none" stroke="#A874CF" stroke-width="1.8" stroke-dasharray="4 4" opacity=".75"/>
+              <circle cx="9.7" cy="9.6" r="4" fill="#A874CF"/><circle cx="29.1" cy="12" r="4" fill="#A874CF"/><circle cx="48.6" cy="14.4" r="4" fill="#A874CF"/><circle cx="58.3" cy="14.4" r="4" fill="#A874CF"/><circle cx="72.9" cy="21.6" r="4" fill="#A874CF"/><circle cx="87.4" cy="26.4" r="5" fill="#A874CF"/>
+              <text x="2" y="8" fill="#5F6879" font-size="9" font-family="var(--fm)">7,0</text>
+              <text x="2" y="46" fill="#5F6879" font-size="9" font-family="var(--fm)">5,0</text>
+              <text x="340" y="8" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">pH Ablauf · Ziel 6,2–6,5</text>
+            </g>
+            <g transform="translate(0,124)">
+              <rect x="87.4" y="0" width="252.6" height="40" fill="#131824"/>
+              <line x1="0" y1="40" x2="340" y2="40" stroke="#242C3B" stroke-width="1"/>
+              <path d="M0,40 L43.7,37.1 L87.4,33.1 L140.9,27.4 L213.7,18.3 L276.8,11.4 L325.4,6.9" fill="none" stroke="#4A88DC" stroke-width="1.6" stroke-dasharray="4 3" opacity=".45" stroke-linejoin="round"/>
+              <rect x="2.4" y="34.4" width="5" height="5.6" rx="1.5" fill="#4A88DC"/>
+              <rect x="16.9" y="34.4" width="5" height="5.6" rx="1.5" fill="#4A88DC"/>
+              <rect x="31.5" y="31.6" width="5" height="8.4" rx="1.5" fill="#4A88DC"/>
+              <rect x="46.1" y="34.4" width="5" height="5.6" rx="1.5" fill="#4A88DC"/>
+              <rect x="65.5" y="31.6" width="5" height="8.4" rx="1.5" fill="#4A88DC"/>
+              <rect x="80.1" y="31.6" width="5" height="8.4" rx="1.5" fill="#4A88DC"/>
+              <path d="M4.9,38.9 L19.4,38.9 L19.4,37.7 L34,37.7 L34,36 L48.6,36 L48.6,34.9 L68,34.9 L68,33.1 L82.6,33.1 L82.6,31.4 L87.4,31.4" fill="none" stroke="#4A88DC" stroke-width="2" stroke-linejoin="round"/>
+              <text x="2" y="8" fill="#5F6879" font-size="9" font-family="var(--fm)">70</text>
+              <text x="340" y="8" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Wasser · Balken = eine Gabe</text>
+            </g>
+            <line x1="87.4" y1="0" x2="87.4" y2="164" stroke="#E7ECF5" stroke-width="1" opacity=".5"/>
+            <g transform="translate(0,176)">
+              <text x="0" y="0" fill="#5F6879" font-size="9" font-family="var(--fm)">TAG 1</text>
+              <text x="87.4" y="0" fill="#C9D2E3" font-size="9" font-family="var(--fm)" text-anchor="middle">HEUTE 19</text>
+              <text x="189.4" y="0" fill="#5F6879" font-size="9" font-family="var(--fm)" text-anchor="middle">TAG 40</text>
+              <text x="340" y="0" fill="#5F6879" font-size="9" font-family="var(--fm)" text-anchor="end">ERNTE 68</text>
+              <rect x="0" y="8" width="340" height="28" rx="6" fill="#141A25"/>
+              <text x="12" y="21" fill="#8A93A8" font-size="10.5" font-family="var(--fs)">Temperatur, Luftfeuchte und VPD haben keine Spur —</text>
+              <text x="12" y="33" fill="#8A93A8" font-size="10.5" font-family="var(--fs)">im Schrank misst sie niemand.</text>
+            </g>
+          </svg>
+          <div class="rncols"><span>AN TAG 19</span><i>DURCHG. 1</i><i>JETZT</i><i>Δ</i></div>
+          <div class="rnrow"><b>Höhe A1</b><i>41</i><u>48 cm</u><s class="rnup">+7</s></div>
+          <div class="rnrow"><b>pH Ablauf</b><i>6,4</i><u>5,9</u><s class="rndn">−0,5</s></div>
+          <div class="rnrow rnsm"><b>Ziel Biobizz</b><i>6,2</i><u>6,5</u><s>drunter</s></div>
+          <div class="rnrow"><b>Wasser gesamt</b><i>12,0</i><u>15,0 l</u><s class="rnup">+3,0</s></div>
+          <div class="rnrow"><b>Bio·Bloom</b><i>24</i><u>30 ml</u><s class="rnup">+6</s></div>
+        </div>
+        <div class="nav"><div class="on"><svg class="ic"><use href="#i-chart"/></svg>Durchgänge</div><div><svg class="ic"><use href="#i-book"/></svg>Verlauf</div><div><svg class="ic"><use href="#i-film"/></svg>Film</div><div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="ft">
+    <div><h4>Worauf es wettet</h4><p>Dass der einzige Maßstab, dem ein Grower wirklich glaubt, sein eigener letzter Durchgang ist — kein Ziel aus einem Forum. Deshalb zählt die Achse Tage seit dem Anfang statt Kalendertage, und deshalb ist die Ausrichtung auf 12/12 ein Schalter und keine Fußnote: zwei Durchgänge, die an verschiedenen Tagen gekippt wurden, gehören ab Tag 1 nicht nebeneinander. Bildpaar, Satz und Δ-Tabelle sind derselbe Vergleich wie der blasse Faden im Verlauf, nur in drei Auflösungen.</p></div>
+    <div class="warn"><h4>Was ein abgelenkter Nutzer falsch macht</h4><p>Er liest den blassen Faden als Ziel. Durchgang 2 war eine andere Sorte in anderen Töpfen bei anderem Wetter — die App weiß das nicht und rechnet trotzdem eine Abweichung aus. Wer sieht, dass er „schlechter läuft als letztes Mal“, dreht am Tag-Ziel, obwohl bloß der Vergleich hinkt. Und die Ausrichtung ist unsichtbarer Zustand: ab 12/12 stehen zwei Zahlen nebeneinander, die ab Tag 1 zwei andere wären.</p></div>
+    <div class="warn"><h4>Wo die Kontrolle ausgeht</h4><p>Beim ersten Durchgang, und der dauert zehn Wochen: die halbe Fläche ist ehrlich leer, und dagegen hilft kein Entwurf. Gießen bleibt ein Eintrag — die Wasserkurve ist gezählt, nicht geschaltet, im Zelt hängt keine Pumpe. Und ein abgebrochener oder halb geführter Durchgang verzerrt jeden Vergleich danach, ohne dass irgendwo steht, dass er es tut.</p></div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

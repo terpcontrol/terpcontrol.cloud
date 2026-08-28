@@ -1,0 +1,817 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,600;1,400&family=Caveat:wght@500;600&display=swap">
+  <style>
+    *{box-sizing:border-box}
+    :root{--fs:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;--fm:'IBM Plex Mono',ui-monospace,SFMono-Regular,monospace}
+    body{margin:0;background:#E8EAEF;color:#1A1D29;font-family:var(--fs);-webkit-font-smoothing:antialiased}
+    a{color:#2D4B95}a:hover{color:#1F3A6E}
+    .sheet{width:2600px;padding:40px 40px 44px}
+    .hd{display:flex;gap:40px;align-items:flex-start;border-bottom:3px solid #1A1D29;padding-bottom:22px;margin-bottom:24px}
+    .hd__n{font:600 84px/.78 var(--fm);color:#2D4B95;letter-spacing:-.05em;flex:none}
+    .hd__b{flex:1;max-width:1120px}
+    .hd__t{font:600 46px/1.02 var(--fs);letter-spacing:-.03em;margin:0 0 10px}
+    .hd__s{font:400 19px/1.45 var(--fs);color:#333B4C;margin:0}
+    .axes{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 26px;width:660px;flex:none}
+    .ax{border-top:1px solid #B9BFCC;padding-top:7px}
+    .ax b{display:block;font:600 10px/1 var(--fm);letter-spacing:.14em;text-transform:uppercase;color:#6B7285;margin-bottom:5px}
+    .ax span{font:500 15px/1.3 var(--fs);color:#1A1D29}
+    .strip{display:flex;gap:26px;align-items:flex-start}
+    .col{width:390px;flex:none}
+    .cap{display:flex;gap:9px;align-items:baseline;margin:0 0 9px;padding-bottom:7px;border-bottom:1px solid #C2C8D4}
+    .cap i{font:600 12px/1 var(--fm);color:#2D4B95;font-style:normal}
+    .cap span{font:600 14px/1.1 var(--fs);letter-spacing:-.01em}
+    .ft{margin-top:26px;padding-top:20px;border-top:1px solid #C2C8D4;display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:44px}
+    .ft h4{font:600 10px/1 var(--fm);letter-spacing:.16em;text-transform:uppercase;color:#2D4B95;margin:0 0 8px}
+    .ft p{font:400 16px/1.5 var(--fs);margin:0;color:#333B4C}
+    .ft .warn h4{color:#8A6318}
+
+    /* phone shell */
+    .ph{width:390px;height:844px;border-radius:34px;overflow:hidden;position:relative;display:flex;flex-direction:column;
+        box-shadow:0 18px 40px rgba(31,58,110,.18),0 2px 6px rgba(31,58,110,.10);background:#0F1219;color:#E7ECF5;font-size:15px}
+    .sb{height:24px;flex:none}
+    .bd{flex:1;padding:0 16px;overflow:hidden}
+    .nav{flex:none;display:flex;background:#151B26;border-top:1px solid #262F3F;padding:9px 4px 22px}
+    .nav div{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;color:#79839A;font:500 11px/1 var(--fs)}
+    .nav div.on{color:#6FBE4A}
+    .ic{width:21px;height:21px;display:block;flex:none}
+    .ic-s{width:16px;height:16px}
+
+    .top{display:flex;align-items:flex-start;justify-content:space-between;padding:6px 0 12px}
+    .ttl{font:600 21px/1.15 var(--fs);letter-spacing:-.02em;margin:0}
+    .meta{font:400 12.5px/1.3 var(--fs);color:#8A93A8;margin:4px 0 0;font-variant-numeric:tabular-nums}
+    .dot{width:7px;height:7px;border-radius:50%;background:#6FBE4A;display:inline-block;margin-right:5px;vertical-align:1px}
+    .dot.red{background:#F06A7E}.dot.grey{background:#6B7488}.dot.amb{background:#E3B95F}
+
+    .sechd{display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 6px}
+    .sechd h3{font:600 11px/1 var(--fm);letter-spacing:.16em;text-transform:uppercase;color:#8A93A8;margin:0}
+    .sechd span{font:400 11px/1 var(--fs);color:#6B7488}
+
+    .btns{display:flex;gap:8px;margin-top:12px}
+    .btn{flex:1;height:48px;border-radius:10px;background:#1D2431;color:#C9D2E3;display:flex;align-items:center;justify-content:center;gap:6px;font:600 14px/1 var(--fs)}
+    .btn.pri{background:#50A030;color:#fff}
+    .empty{border:1.5px dashed #33405A;border-radius:12px;padding:14px;color:#79839A;font:400 13.5px/1.45 var(--fs)}
+
+    /* bottom sheet */
+    .scrim{position:absolute;inset:0;background:rgba(6,9,14,.62)}
+    .sheetup{position:absolute;left:0;right:0;bottom:0;background:#161C27;border-radius:20px 20px 0 0;padding:14px 16px 22px;border-top:1px solid #2C3546}
+    .grab{width:38px;height:4px;border-radius:2px;background:#3E4A61;margin:0 auto 12px}
+    .shd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+    .shd h3{margin:0;font:600 20px/1 var(--fs);letter-spacing:-.01em}
+    .shd span{font:500 13px/1 var(--fs);color:#8A93A8}
+    .chips{display:flex;gap:7px;margin-bottom:12px}
+    .chip{padding:9px 13px;border-radius:999px;border:1px solid #33405A;color:#9AA3B7;font:500 13.5px/1 var(--fs)}
+    .chip.on{background:#1E3A6B;border-color:#4E7BD0;color:#CFE0FF}
+    .cans{background:#111621;border:1px solid #2C3546;border-radius:12px;padding:14px 14px 12px;margin-bottom:11px}
+    .cans .row{display:flex;justify-content:space-between;align-items:center}
+    .beads{display:flex;gap:7px}
+    .beads i{width:26px;height:26px;border-radius:50%;border:2px solid #3E4A61;display:block}
+    .beads i.f{background:#4A88DC;border-color:#4A88DC}
+    .cans .tot{font:600 20px/1 var(--fs);font-variant-numeric:tabular-nums}
+    .cans .hint{font:400 12px/1.3 var(--fs);color:#79839A;margin-top:9px}
+    .frow{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1D2431;font:500 14px/1.2 var(--fs);font-variant-numeric:tabular-nums}
+    .frow span{color:#9AA3B7;font-weight:400}
+    .from{font:400 12.5px/1.35 var(--fs);color:#79839A;margin:8px 0 0}
+    .from b{color:#9AA3B7;font-weight:600}
+    .guard{display:flex;gap:9px;background:#2A2417;border:1px solid #6A5526;border-radius:9px;padding:10px 11px;margin:11px 0 0;font:400 12.5px/1.4 var(--fs);color:#E6D3A5}
+
+  /* ---- 14 Der Streifen ---- */
+  .fxlab{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 5px;font:600 10px/1 var(--fm);letter-spacing:.15em;text-transform:uppercase;color:#79839A}
+  .fxlab em{font-style:normal;font:400 10.5px/1 var(--fs);letter-spacing:0;text-transform:none;color:#6B7488;font-variant-numeric:tabular-nums}
+
+  .fxstrip{position:relative;height:70px;background:#090C12;border-radius:5px;overflow:hidden}
+  .fxstrip::before,.fxstrip::after{content:"";position:absolute;left:0;right:0;height:8px;z-index:4;
+    background:repeating-linear-gradient(90deg,#1B2231 0 5px,#090C12 5px 11px)}
+  .fxstrip::before{top:0}
+  .fxstrip::after{bottom:0}
+  .fxmid{position:absolute;top:9px;bottom:9px;width:1px;background:#242C3B}
+  .fxf{position:absolute;top:9px;height:52px;width:32px;display:block;background:#12171F}
+  .fxcut{position:absolute;top:9px;height:52px;width:3px;background:#171E2A}
+  .fxchap{position:absolute;top:8px;bottom:8px;width:2px;background:#E3B95F;z-index:3}
+  .fxpt{position:absolute;top:9px;height:52px;width:32px;border:2px solid #6FBE4A;z-index:3}
+  .fxpt em{position:absolute;left:-2px;right:-2px;bottom:-2px;background:#6FBE4A;color:#0B1017;
+    font:600 7.5px/10px var(--fm);letter-spacing:.06em;text-align:center;font-style:normal}
+  .fxnow{position:absolute;top:8px;bottom:8px;width:2px;background:#E7ECF5;z-index:3}
+  .fxhead{position:absolute;top:8px;bottom:8px;width:2px;background:#E7ECF5;opacity:.8;z-index:3}
+  .fxgap{position:absolute;top:9px;height:52px;display:flex;align-items:center;justify-content:center;text-align:center;
+    border-left:1px dashed #2E3746;border-right:1px dashed #2E3746;
+    font:500 8px/1.4 var(--fm);color:#4E5768;letter-spacing:.04em}
+  .fxslot{position:absolute;top:9px;height:52px;width:30px;border:1px dashed #262F3F;border-radius:2px}
+  .fxdead{position:absolute;top:9px;height:52px;background:rgba(240,106,126,.10);border-left:1.4px dashed #F06A7E;z-index:2}
+
+  .fxax{position:relative;height:13px;margin-top:4px;font-variant-numeric:tabular-nums}
+  .fxax span{position:absolute;top:0;font:500 9.5px/1 var(--fm);color:#5F6879;letter-spacing:.02em;white-space:nowrap}
+  .fxax b{position:absolute;top:0;left:0;font:600 9.5px/1 var(--fm);color:#8FD870;white-space:nowrap}
+  .fxax u{position:absolute;top:0;right:0;font:600 9.5px/1 var(--fm);color:#E7ECF5;text-decoration:none;white-space:nowrap}
+  .fxax u.warn{color:#F0B7C1}
+
+  .fxpair{display:flex;gap:9px;margin-top:11px}
+  .fxhalf{flex:1;min-width:0}
+  .fxhalf>i{display:flex;justify-content:space-between;align-items:baseline;font:600 9.5px/10px var(--fm);
+    letter-spacing:.14em;color:#79839A;margin-bottom:5px;font-style:normal}
+  .fxhalf.p>i{color:#8FD870}
+  .fxbig{width:100%;height:66px;border-radius:8px;display:block;background:#12171F}
+  .fxhalf.p .fxbig{box-shadow:0 0 0 2px #6FBE4A}
+  .fxst{margin-top:6px;font:400 10.5px/1.25 var(--fs);color:#79839A;font-variant-numeric:tabular-nums}
+  .fxst b{display:block;font:600 12.5px/1.3 var(--fs);color:#C9D2E3}
+
+  .fxgoal{width:100%;height:66px;border-radius:8px;background:#152030;border:1px solid #2A4162;
+    display:flex;flex-direction:column;justify-content:center;gap:4px;padding:0 11px}
+  .fxgoal div{display:flex;justify-content:space-between;align-items:baseline}
+  .fxgoal b{font:600 14.5px/1.1 var(--fs);color:#CFE0FF;font-variant-numeric:tabular-nums}
+  .fxgoal span{font:400 10px/1.1 var(--fs);color:#8FA6D8}
+
+  .fxsay{margin:12px 0 0;font:600 17px/1.32 var(--fs);letter-spacing:-.01em;color:#E7ECF5}
+  .fxsub{margin:5px 0 0;font:500 12.5px/1.35 var(--fs);color:#9AA3B7;font-variant-numeric:tabular-nums}
+
+  .fxbar{display:flex;gap:9px;align-items:flex-start;background:#2A1721;border:1px solid #6D2739;
+    border-left:3px solid #F06A7E;border-radius:8px;padding:8px 10px;margin:0 0 9px}
+  .fxbar p{margin:0;font:600 13.5px/1.3 var(--fs);color:#FFC2CC}
+  .fxbar span{display:block;margin-top:3px;font:500 10.5px/1.25 var(--fm);color:#B58794;letter-spacing:.03em}
+
+  .fxch{width:100%;display:block}
+
+  .fxd{display:grid;grid-template-columns:1fr 52px 58px 50px;align-items:baseline;gap:4px;padding:4px 0;
+    border-bottom:1px solid #1D2431;font-variant-numeric:tabular-nums}
+  .fxd b{font:500 13.5px/1.2 var(--fs);color:#E7ECF5}
+  .fxd i{font:400 13px/1.2 var(--fs);color:#79839A;text-align:right;font-style:normal}
+  .fxd u{font:600 13.5px/1.2 var(--fs);color:#C9D2E3;text-align:right;text-decoration:none}
+  .fxd s{font:600 12.5px/1.2 var(--fs);color:#8A93A8;text-align:right;text-decoration:none}
+  .fxd s.up{color:#E3B95F}
+  .fxd s.dn{color:#7BA6E8}
+  .fxd s.ok{color:#8FD870}
+  .fxd.g b{padding-left:12px;font:400 11.5px/1.2 var(--fs);color:#79839A}
+  .fxd.g i,.fxd.g u,.fxd.g s{font:400 11.5px/1.2 var(--fs);color:#79839A}
+  .fxdh{display:grid;grid-template-columns:1fr 52px 58px 50px;gap:4px;padding-bottom:4px;
+    font:600 9px/1 var(--fm);color:#6B7488;letter-spacing:.08em}
+  .fxdh i{text-align:right;font-style:normal}
+
+  .fxstage{position:relative;border-radius:10px;overflow:hidden;background:#0B0E14;height:176px}
+  .fxburn{position:absolute;left:9px;right:9px;bottom:9px;display:flex;justify-content:space-between;
+    font:500 10.5px/1 var(--fm);color:#EFF3FA;text-shadow:0 1px 3px rgba(0,0,0,.9);font-variant-numeric:tabular-nums}
+  .fxprog{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.16)}
+  .fxprog em{position:absolute;left:0;top:0;bottom:0;width:46%;background:#6FBE4A}
+
+  .fxkap{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #1D2431;
+    font:500 13px/1.2 var(--fs);font-variant-numeric:tabular-nums}
+  .fxkap span{color:#8A93A8;font-weight:400}
+  .fxcull{background:#161C27;border-radius:9px;padding:9px 11px;margin-top:10px;
+    font:400 11.5px/1.55 var(--fm);color:#9AA3B7}
+  .fxcull b{color:#C9D2E3}
+  </style>
+</helmet>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="fan"><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(-62) scale(.6)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(-33) scale(.84)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(33) scale(.84)"/><path d="M0 0C4-8 5-20 0-32C-5-20-4-8 0 0Z" transform="rotate(62) scale(.6)"/></g>
+  <linearGradient id="gLit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3E3BC"/><stop offset=".4" stop-color="#B29B6C"/><stop offset="1" stop-color="#2C2A1E"/></linearGradient>
+  <linearGradient id="gOff" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2B3244"/><stop offset=".5" stop-color="#1A2030"/><stop offset="1" stop-color="#0D1119"/></linearGradient>
+  <symbol id="pic" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gLit)"/><ellipse cx="100" cy="-14" rx="142" ry="66" fill="#FFF6DA" opacity=".55"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#4A4436"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#443F32"/><g fill="#1C4416"><use href="#fan" transform="translate(50,140) scale(2.2) rotate(-6)"/><use href="#fan" transform="translate(148,142) scale(1.9) rotate(7)"/></g><g fill="#2C6821"><use href="#fan" transform="translate(28,134) scale(1.5) rotate(-48)"/><use href="#fan" transform="translate(76,132) scale(1.6) rotate(27)"/><use href="#fan" transform="translate(174,136) scale(1.4) rotate(46)"/><use href="#fan" transform="translate(122,136) scale(1.45) rotate(-27)"/></g><g fill="#4C9033"><use href="#fan" transform="translate(56,104) scale(1.15) rotate(-14)"/><use href="#fan" transform="translate(146,108) scale(1.05) rotate(16)"/><use href="#fan" transform="translate(100,118) scale(1.2) rotate(2)"/></g></symbol>
+  <symbol id="picold" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gLit)"/><ellipse cx="100" cy="-14" rx="142" ry="66" fill="#FFF6DA" opacity=".55"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#4A4436"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#443F32"/><g fill="#1C4416"><use href="#fan" transform="translate(50,142) scale(1.7) rotate(-5)"/><use href="#fan" transform="translate(148,144) scale(1.45) rotate(6)"/></g><g fill="#2C6821"><use href="#fan" transform="translate(30,138) scale(1.15) rotate(-45)"/><use href="#fan" transform="translate(74,136) scale(1.2) rotate(25)"/><use href="#fan" transform="translate(172,140) scale(1.05) rotate(43)"/></g><g fill="#4C9033"><use href="#fan" transform="translate(58,116) scale(.85) rotate(-12)"/><use href="#fan" transform="translate(142,120) scale(.8) rotate(14)"/></g></symbol>
+  <symbol id="picdark" viewBox="0 0 200 150"><rect width="200" height="150" fill="url(#gOff)"/><rect x="16" y="128" width="66" height="22" rx="3" fill="#141924"/><rect x="114" y="132" width="64" height="18" rx="3" fill="#131822"/><g fill="#151D2A"><use href="#fan" transform="translate(50,140) scale(2.2) rotate(-6)"/><use href="#fan" transform="translate(148,142) scale(1.9) rotate(7)"/></g><g fill="#1A2434"><use href="#fan" transform="translate(28,134) scale(1.5) rotate(-48)"/><use href="#fan" transform="translate(76,132) scale(1.6) rotate(27)"/><use href="#fan" transform="translate(174,136) scale(1.4) rotate(46)"/><use href="#fan" transform="translate(122,136) scale(1.45) rotate(-27)"/></g><g fill="#1E2A3C"><use href="#fan" transform="translate(56,104) scale(1.15) rotate(-14)"/><use href="#fan" transform="translate(100,118) scale(1.2) rotate(2)"/></g></symbol>
+  <symbol id="i-now" viewBox="0 0 24 24"><path d="M4 12h4l3-7 4 14 3-7h2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4.5 5.4A2.4 2.4 0 0 1 6.9 3H19v15.4H6.9a2.4 2.4 0 0 0-2.4 2.4V5.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 8h7.5M8 11.6h7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.6 5.5v13M16.4 5.5v13M3 12h18" stroke="currentColor" stroke-width="1.4"/></symbol>
+  <symbol id="i-tent" viewBox="0 0 24 24"><path d="M12 3 3.5 20.5h17L12 3Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 10v10.5" stroke="currentColor" stroke-width="1.5"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3.4c3.3 4.1 5.4 6.9 5.4 9.4a5.4 5.4 0 1 1-10.8 0c0-2.5 2.1-5.3 5.4-9.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 4.5h14v15H5z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 9h8M8 12.6h8M8 16.2h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 7l1.4-2.8h3.2L15 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="13.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4.2 21 19.6H3L12 4.2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10.2v4.2M12 17.2v.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-ruler" viewBox="0 0 24 24"><path d="M3 14.5 14.5 3 21 9.5 9.5 21 3 14.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7.5 11 9.5 13M11 7.5l2 2M11 14.5l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M20.2 3.8c0 8.6-4.5 13-11.4 13H5.2c0-7.7 5-13 15-13Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4.6 20.6c1.9-4.7 5.2-7.9 10-10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5.4l3.4 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9.4" cy="8.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c1-3.4 3.4-5.2 6.4-5.2S14.8 16.6 15.8 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M16.4 5.6a3.4 3.4 0 0 1 0 6.4M18 14.9c1.6.8 2.7 2.4 3.2 5.1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 19.4V5M4 19.4h16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M7 15.4l3.6-4.6 3.2 2.6L20 7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.2v13.6M5.2 12h13.6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9.4 5.4 6.8 6.6-6.8 6.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.6 12.6 9.4 17.4 19.6 6.8" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M6 8h12v3.4A6 6 0 0 1 6 11.4V8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 17.4V21" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2.8v2.2M12 19v2.2M2.8 12H5M19 12h2.2M5.6 5.6 7.2 7.2M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.6" y="5.4" width="16.8" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.6 10h16.8M8 3.4v3.6M16 3.4v3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9.6 3.4h4.8l-.7 5.4 3.5 3.1H7.8l3.5-3.1-.7-5.4Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 12v8.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</defs></svg>
+
+<div class="sheet">
+  <div class="hd">
+    <div class="hd__n">14</div>
+    <div class="hd__b">
+      <h2 class="hd__t">Der Streifen</h2>
+      <p class="hd__s">Der Filmstreifen ist die Achse und zugleich der Regler. Jedes Bild liegt da, wo es aufgenommen wurde — ungleichmäßig, mit ehrlichen Lücken, wo die Kamera nichts geliefert hat. Ziehst du ein Bild heraus, wird es zum „Vorher“ im Bildpaar; die Kurven darunter hängen an derselben x-Achse, sodass jede Kachel genau über ihrem Moment sitzt.</p>
+    </div>
+    <div class="axes">
+      <div class="ax"><b>Startbildschirm</b><span>Streifen, Bildpaar, Kurven, Δ</span></div>
+      <div class="ax"><b>Vorher–Nachher</b><span>ein Bild aus dem Streifen ziehen</span></div>
+      <div class="ax"><b>Der Verlauf</b><span>direkt darunter, gleiche x-Achse</span></div>
+      <div class="ax"><b>App entscheidet</b><span>wenig: sie schlägt ein Vorher vor</span></div>
+    </div>
+  </div>
+
+  <div class="strip">
+
+    <!-- 01 Normaler Tag -->
+    <div class="col">
+      <p class="cap"><i>01</i><span>Normaler Tag</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:8px">
+            <div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot"></span>Online · vor 40 Sek · Tag 34 · Blüte 12</p></div>
+            <svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg>
+          </div>
+
+          <div class="fxlab"><span>Streifen · 3 Tage</span><em>Bild ziehen = Vorher setzen</em></div>
+          <div class="fxstrip">
+            <div class="fxmid" style="left:66px"></div>
+            <div class="fxmid" style="left:172px"></div>
+            <div class="fxmid" style="left:278px"></div>
+            <svg class="fxf" style="left:-26px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picold"/></svg>
+            <svg class="fxf" style="left:6px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picold"/></svg>
+            <svg class="fxf" style="left:39px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picdark"/></svg>
+            <svg class="fxf" style="left:72px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picdark"/></svg>
+            <div class="fxgap" style="left:104px;width:52px">KAMERA<br>19 STD<br>OFFLINE</div>
+            <svg class="fxf" style="left:156px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picdark"/></svg>
+            <svg class="fxf" style="left:189px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg class="fxf" style="left:222px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg class="fxf" style="left:255px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picdark"/></svg>
+            <svg class="fxf" style="left:288px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg class="fxf" style="left:324px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <div class="fxpt" style="left:6px"><em>VORHER</em></div>
+            <div class="fxnow" style="left:356px"></div>
+          </div>
+          <div class="fxax">
+            <b>FR 14:02</b>
+            <span style="left:160px">SO 00:00</span>
+            <u>JETZT 14:04</u>
+          </div>
+
+          <div class="fxpair">
+            <div class="fxhalf p">
+              <i><span>VORHER</span><span>TAG 31</span></i>
+              <svg class="fxbig" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#picold"/></svg>
+              <div class="fxst"><b>Fr 22.08. 14:02</b>aus dem Streifen gezogen</div>
+            </div>
+            <div class="fxhalf">
+              <i><span>JETZT</span><span>TAG 34</span></i>
+              <svg class="fxbig" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg>
+              <div class="fxst"><b>Mo 25.08. 14:04</b>letztes Bild, 40 Sek alt</div>
+            </div>
+          </div>
+
+          <p class="fxsay">Die Pflanzen sind gewachsen — und die Nächte bleiben zu warm.</p>
+          <p class="fxsub">Blattfläche 34 → 37 % · Nacht 22,8 → 23,4 °C</p>
+
+          <svg class="fxch" viewBox="0 0 340 182">
+            <g transform="translate(0,0)">
+              <rect x="37.8" y="0" width="50.4" height="60" fill="#141A25"/>
+              <rect x="138.5" y="0" width="50.4" height="60" fill="#141A25"/>
+              <rect x="239.3" y="0" width="50.4" height="60" fill="#141A25"/>
+              <rect x="0" y="21" width="37.8" height="6" fill="#D4763B" opacity=".14"/>
+              <rect x="88.2" y="15" width="50.3" height="6" fill="#D4763B" opacity=".14"/>
+              <rect x="188.9" y="15" width="50.4" height="6" fill="#D4763B" opacity=".14"/>
+              <rect x="289.7" y="15" width="50.3" height="6" fill="#D4763B" opacity=".14"/>
+              <rect x="37.8" y="45" width="50.4" height="6" fill="#D4763B" opacity=".14"/>
+              <rect x="138.5" y="45" width="50.4" height="6" fill="#D4763B" opacity=".14"/>
+              <rect x="239.3" y="45" width="50.4" height="6" fill="#D4763B" opacity=".14"/>
+              <line x1="0" y1="60" x2="340" y2="60" stroke="#242C3B" stroke-width="1"/>
+              <path d="M0,24 L37.8,24 L37.8,48 L88.2,48 L88.2,18 L138.5,18 L138.5,48 L188.9,48 L188.9,18 L239.3,18 L239.3,48 L289.7,48 L289.7,18 L340,18" fill="none" stroke="#D4763B" stroke-width="1.6" stroke-dasharray="5 4" opacity=".8"/>
+              <path d="M0,20.4 12.6,18.6 25.2,17.4 37.8,18.6 50.4,24.6 63,27 75.6,28.8 88.2,27.6 100.8,19.8 113.3,18 125.9,18.6 138.5,19.2 151.1,25.2 163.7,27 176.3,28.2 188.9,27.6 201.5,19.8 214.1,17.4 226.7,18.6 239.3,18.6 251.9,24.6 264.5,26.4 277.1,27.6 289.7,27 302.3,20.4 314.9,18.6 323.5,19.2" fill="none" stroke="#D4763B" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+              <circle cx="323.5" cy="19.2" r="2.6" fill="#D4763B"/>
+              <circle cx="42.3" cy="60" r="4" fill="#0F1219" stroke="#7396DD" stroke-width="2"/>
+              <circle cx="331.2" cy="60" r="4" fill="#0F1219" stroke="#6FBE4A" stroke-width="2"/>
+              <text x="2" y="9" fill="#5F6879" font-size="9" font-family="var(--fm)">28</text>
+              <text x="2" y="57" fill="#5F6879" font-size="9" font-family="var(--fm)">18</text>
+              <text x="340" y="9" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Temperatur °C</text>
+            </g>
+            <g transform="translate(0,72)">
+              <rect x="37.8" y="0" width="50.4" height="56" fill="#141A25"/>
+              <rect x="138.5" y="0" width="50.4" height="56" fill="#141A25"/>
+              <rect x="239.3" y="0" width="50.4" height="56" fill="#141A25"/>
+              <rect x="0" y="32" width="340" height="16" fill="#4A88DC" opacity=".14"/>
+              <line x1="0" y1="56" x2="340" y2="56" stroke="#242C3B" stroke-width="1"/>
+              <line x1="0" y1="40" x2="340" y2="40" stroke="#4A88DC" stroke-width="1.6" stroke-dasharray="5 4" opacity=".8"/>
+              <path d="M0,38.4 12.6,41.6 25.2,44.8 37.8,43.2 50.4,32 63,24 76.4,14.4 79.8,17.6 88.2,27.2 100.8,40 113.3,44.8 125.9,46.4 138.5,43.2 151.1,33.6 163.7,27.2 176.3,24 188.9,28.8 201.5,40 214.1,44.8 226.7,46.4 239.3,44.8 251.9,35.2 264.5,28.8 277.1,25.6 289.7,30.4 302.3,41.6 314.9,44.8 323.5,43.2" fill="none" stroke="#4A88DC" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+              <circle cx="323.5" cy="43.2" r="2.6" fill="#4A88DC"/>
+              <circle cx="76.4" cy="56" r="4" fill="#0F1219" stroke="#E3B95F" stroke-width="2"/>
+              <text x="83" y="59" fill="#9A8A5E" font-size="8.5" font-family="var(--fm)">40 MIN ÜBER 65 %</text>
+              <text x="2" y="9" fill="#5F6879" font-size="9" font-family="var(--fm)">75</text>
+              <text x="2" y="53" fill="#5F6879" font-size="9" font-family="var(--fm)">40</text>
+              <text x="340" y="9" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Luftfeuchte %</text>
+            </g>
+            <g transform="translate(0,140)">
+              <text x="0" y="6" fill="#8A93A8" font-size="10.5" font-family="var(--fs)" font-weight="600">Ausgänge</text>
+              <text x="340" y="6" text-anchor="end" font-size="9" font-family="var(--fm)"><tspan fill="#E3B95F">LICHT 12:00</tspan><tspan fill="#5F6879"> · </tspan><tspan fill="#D4763B">HEIZUNG 4:20</tspan><tspan fill="#5F6879"> · </tspan><tspan fill="#4A88DC">ENTF. 1:05</tspan></text>
+              <rect x="0" y="10" width="37.8" height="8" rx="2" fill="#E3B95F"/>
+              <rect x="88.2" y="10" width="50.3" height="8" rx="2" fill="#E3B95F"/>
+              <rect x="188.9" y="10" width="50.4" height="8" rx="2" fill="#E3B95F"/>
+              <rect x="289.7" y="10" width="33.8" height="8" rx="2" fill="#E3B95F"/>
+              <rect x="323.5" y="10" width="16.5" height="8" rx="2" fill="#E3B95F" opacity=".28"/>
+              <rect x="46" y="21" width="14" height="8" rx="2" fill="#D4763B"/>
+              <rect x="64" y="21" width="11" height="8" rx="2" fill="#D4763B"/>
+              <rect x="147" y="21" width="13" height="8" rx="2" fill="#D4763B"/>
+              <rect x="166" y="21" width="10" height="8" rx="2" fill="#D4763B"/>
+              <rect x="248" y="21" width="14" height="8" rx="2" fill="#D4763B"/>
+              <rect x="267" y="21" width="10" height="8" rx="2" fill="#D4763B"/>
+              <rect x="68" y="32" width="7" height="8" rx="2" fill="#4A88DC"/>
+              <rect x="170" y="32" width="6" height="8" rx="2" fill="#4A88DC"/>
+              <rect x="272" y="32" width="6" height="8" rx="2" fill="#4A88DC"/>
+            </g>
+            <line x1="21.1" y1="0" x2="21.1" y2="180" stroke="#6FBE4A" stroke-width="1.2" stroke-dasharray="4 4" opacity=".65"/>
+            <line x1="323.5" y1="0" x2="323.5" y2="180" stroke="#E7ECF5" stroke-width="1" opacity=".55"/>
+          </svg>
+
+          <div class="sechd" style="margin:10px 0 5px"><h3>Der Unterschied</h3><span>an derselben Achse gemessen</span></div>
+          <div class="fxdh"><span></span><i>FR 14:02</i><i>JETZT</i><i>Δ</i></div>
+          <div class="fxd"><b>Nacht (Mittel)</b><i>22,8</i><u>23,4 °C</u><s class="up">+0,6</s></div>
+          <div class="fxd g"><b>Ziel Nacht</b><i>20,0</i><u>20,0 °C</u><s>zu warm</s></div>
+          <div class="fxd"><b>Blattfläche</b><i>34</i><u>37 %</u><s class="up">+3</s></div>
+          <div class="fxd"><b>Temperatur</b><i>24,1</i><u>24,8 °C</u><s>+0,7</s></div>
+          <div class="fxd"><b>VPD</b><i>1,12</i><u>1,29 kPa</u><s class="ok">im Band</s></div>
+        </div>
+        <div class="nav">
+          <div class="on"><svg class="ic"><use href="#i-film"/></svg>Streifen</div>
+          <div><svg class="ic"><use href="#i-chart"/></svg>Verlauf</div>
+          <div><svg class="ic"><use href="#i-book"/></svg>Buch</div>
+          <div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 02 Etwas stimmt nicht -->
+    <div class="col">
+      <p class="cap"><i>02</i><span>Etwas stimmt nicht</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:8px">
+            <div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot red"></span>Online · vor 35 Sek · Tag 34 · Blüte 12</p></div>
+            <svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg>
+          </div>
+
+          <div class="fxbar">
+            <svg class="ic-s" style="color:#F06A7E;flex:none;margin-top:2px"><use href="#i-warn"/></svg>
+            <div>
+              <p>Ab 13:40 wird der Streifen dunkel.</p>
+              <span>STECKER VON DOSE 3 ABZIEHEN · REGEL L-1</span>
+            </div>
+          </div>
+
+          <div class="fxlab"><span>Streifen · 13:00 – 14:04</span><em>alle 8 Min ein Bild</em></div>
+          <div class="fxstrip">
+            <svg class="fxf" style="left:-16px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg class="fxf" style="left:25px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg class="fxf" style="left:66px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg class="fxf" style="left:107px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg class="fxf" style="left:148px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg class="fxf" style="left:189px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picdark"/></svg>
+            <svg class="fxf" style="left:230px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picdark"/></svg>
+            <svg class="fxf" style="left:271px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picdark"/></svg>
+            <svg class="fxf" style="left:311px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picdark"/></svg>
+            <div class="fxdead" style="left:205px;right:0"></div>
+            <div class="fxpt" style="left:148px"><em>VORHER</em></div>
+            <div class="fxnow" style="left:343px"></div>
+          </div>
+          <div class="fxax">
+            <b>13:32</b>
+            <span style="left:150px">13:40 LICHT AUS</span>
+            <u class="warn">JETZT 14:04</u>
+          </div>
+
+          <div class="fxpair">
+            <div class="fxhalf p">
+              <i><span>VORHER</span><span>13:32</span></i>
+              <svg class="fxbig" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg>
+              <div class="fxst"><b>Heute 13:32</b>letztes helles Bild</div>
+            </div>
+            <div class="fxhalf">
+              <i><span>JETZT</span><span>14:04</span></i>
+              <svg class="fxbig" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#picdark"/></svg>
+              <div class="fxst"><b>Heute 14:04</b>dunkel, Dose meldet an</div>
+            </div>
+          </div>
+
+          <p class="fxsay">Seit 24 Minuten ist es dunkel — geplant war Licht bis 18:00.</p>
+
+          <svg class="fxch" viewBox="0 0 340 150" style="margin-top:9px">
+            <g transform="translate(0,0)">
+              <rect x="0" y="13.5" width="340" height="5.6" fill="#D4763B" opacity=".14"/>
+              <rect x="194.3" y="0" width="145.7" height="54" fill="#F06A7E" opacity=".07"/>
+              <line x1="0" y1="54" x2="340" y2="54" stroke="#242C3B" stroke-width="1"/>
+              <line x1="0" y1="16.2" x2="340" y2="16.2" stroke="#D4763B" stroke-width="1.6" stroke-dasharray="5 4" opacity=".8"/>
+              <path d="M0,17.3 97.1,16.7 194.3,17.3 223.4,20.5 252.6,25.9 281.7,31.3 310.9,36.2" fill="none" stroke="#D4763B" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+              <circle cx="310.9" cy="36.2" r="2.6" fill="#D4763B"/>
+              <line x1="194.3" y1="0" x2="194.3" y2="54" stroke="#F06A7E" stroke-width="1.4" stroke-dasharray="3 3"/>
+              <text x="2" y="9" fill="#5F6879" font-size="9" font-family="var(--fm)">28</text>
+              <text x="2" y="51" fill="#5F6879" font-size="9" font-family="var(--fm)">18</text>
+              <text x="340" y="9" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Temperatur °C</text>
+            </g>
+            <g transform="translate(0,64)">
+              <rect x="0" y="28.6" width="340" height="14.3" fill="#4A88DC" opacity=".14"/>
+              <rect x="194.3" y="0" width="145.7" height="50" fill="#F06A7E" opacity=".07"/>
+              <line x1="0" y1="50" x2="340" y2="50" stroke="#242C3B" stroke-width="1"/>
+              <line x1="0" y1="35.7" x2="340" y2="35.7" stroke="#4A88DC" stroke-width="1.6" stroke-dasharray="5 4" opacity=".8"/>
+              <path d="M0,38.6 97.1,40 194.3,38.6 223.4,31.4 252.6,20 281.7,11.4 310.9,5.7" fill="none" stroke="#4A88DC" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+              <circle cx="310.9" cy="5.7" r="2.6" fill="#4A88DC"/>
+              <line x1="194.3" y1="0" x2="194.3" y2="50" stroke="#F06A7E" stroke-width="1.4" stroke-dasharray="3 3"/>
+              <text x="2" y="9" fill="#5F6879" font-size="9" font-family="var(--fm)">75</text>
+              <text x="2" y="47" fill="#5F6879" font-size="9" font-family="var(--fm)">40</text>
+              <text x="340" y="9" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Luftfeuchte %</text>
+            </g>
+            <g transform="translate(0,120)">
+              <text x="0" y="6" fill="#8A93A8" font-size="10.5" font-family="var(--fs)" font-weight="600">Ausgänge</text>
+              <rect x="0" y="10" width="340" height="8" rx="2" fill="#E3B95F" opacity=".3"/>
+              <rect x="0" y="10" width="194.3" height="8" rx="2" fill="#E3B95F"/>
+              <text x="340" y="7" text-anchor="end" font-size="9" font-family="var(--fm)" fill="#9A8A5E">DOSE 3 MELDET AN</text>
+              <rect x="194.3" y="20" width="145.7" height="8" rx="2" fill="#C4384F"/>
+              <text x="190" y="27" text-anchor="end" font-size="9" font-family="var(--fm)" fill="#B58794">KAMERA SIEHT DUNKEL</text>
+              <line x1="194.3" y1="4" x2="194.3" y2="30" stroke="#F06A7E" stroke-width="1.4" stroke-dasharray="3 3"/>
+            </g>
+          </svg>
+
+          <div class="sechd" style="margin:10px 0 5px"><h3>Der Unterschied</h3><span>13:32 → jetzt · Δ</span></div>
+          <div class="fxd"><b>Luftfeuchte</b><i>48</i><u>71 %</u><s class="up">+23</s></div>
+          <div class="fxd"><b>Temperatur</b><i>24,8</i><u>21,3 °C</u><s class="dn">−3,5</s></div>
+          <div class="fxd"><b>VPD</b><i>1,29</i><u>0,55 kPa</u><s class="dn">−0,74</s></div>
+          <div class="fxd"><b>Dose 3 „Licht“</b><i>an</i><u>an</u><s>meldet an</s></div>
+        </div>
+        <div class="nav">
+          <div class="on"><svg class="ic"><use href="#i-film"/></svg>Streifen</div>
+          <div><svg class="ic"><use href="#i-chart"/></svg>Verlauf</div>
+          <div><svg class="ic"><use href="#i-book"/></svg>Buch</div>
+          <div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 03 Tag eins -->
+    <div class="col">
+      <p class="cap"><i>03</i><span>Tag eins</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:8px">
+            <div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot"></span>Online · Tag 1 · seit 4 Minuten</p></div>
+            <svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg>
+          </div>
+
+          <div class="fxlab"><span>Streifen · Tag 1</span><em>1 Bild von 2 880 am Tag</em></div>
+          <div class="fxstrip">
+            <div class="fxslot" style="left:18px"></div>
+            <div class="fxslot" style="left:62px"></div>
+            <div class="fxslot" style="left:106px"></div>
+            <div class="fxslot" style="left:150px"></div>
+            <div class="fxslot" style="left:194px"></div>
+            <div class="fxslot" style="left:238px"></div>
+            <div class="fxslot" style="left:282px"></div>
+            <svg class="fxf" style="left:326px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <div class="fxpt" style="left:326px"><em>ERSTES</em></div>
+          </div>
+          <div class="fxax">
+            <b style="color:#6B7488">VOR 14:00 LAG HIER NICHTS</b>
+            <u>ERSTES BILD 14:04</u>
+          </div>
+
+          <div class="fxpair">
+            <div class="fxhalf">
+              <i><span>DEIN ZIEL</span><span>BLÜTE</span></i>
+              <div class="fxgoal">
+                <div><b>25,0 °C</b><span>Tag</span></div>
+                <div><b>20,0 °C</b><span>Nacht</span></div>
+                <div><b>50 %</b><span>Luftfeuchte</span></div>
+              </div>
+              <div class="fxst"><b>Von dir gesetzt</b>heute um 14:00</div>
+            </div>
+            <div class="fxhalf p">
+              <i><span>JETZT</span><span>TAG 1</span></i>
+              <svg class="fxbig" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg>
+              <div class="fxst"><b>Mo 25.08. 14:04</b>erstes Bild überhaupt</div>
+            </div>
+          </div>
+
+          <p class="fxsay">1,2 °C wärmer als dein Ziel — mehr weiß der Streifen heute nicht.</p>
+          <p class="fxsub">26,2 °C · 54 % · VPD 1,41 kPa · CO₂ 438 ppm</p>
+
+          <svg class="fxch" viewBox="0 0 340 137">
+            <g transform="translate(0,0)">
+              <rect x="54.4" y="0" width="163.2" height="52" fill="#141A25"/>
+              <rect x="0" y="13" width="54.4" height="5.2" fill="#D4763B" opacity=".14"/>
+              <rect x="217.6" y="13" width="122.4" height="5.2" fill="#D4763B" opacity=".14"/>
+              <rect x="54.4" y="39" width="163.2" height="5.2" fill="#D4763B" opacity=".14"/>
+              <line x1="0" y1="52" x2="340" y2="52" stroke="#242C3B" stroke-width="1"/>
+              <path d="M0,15.6 L54.4,15.6 L54.4,41.6 L217.6,41.6 L217.6,15.6 L340,15.6" fill="none" stroke="#D4763B" stroke-width="1.6" stroke-dasharray="5 4" opacity=".8"/>
+              <circle cx="327.3" cy="9.4" r="3.2" fill="#D4763B"/>
+              <text x="8" y="30" fill="#5F6879" font-size="10.5" font-family="var(--fs)">Der Plan steht schon. Aufgezeichnet sind 4 Minuten.</text>
+              <text x="2" y="9" fill="#5F6879" font-size="9" font-family="var(--fm)">28</text>
+              <text x="2" y="49" fill="#5F6879" font-size="9" font-family="var(--fm)">18</text>
+              <text x="340" y="9" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Temperatur °C</text>
+            </g>
+            <g transform="translate(0,62)">
+              <rect x="54.4" y="0" width="163.2" height="48" fill="#141A25"/>
+              <rect x="0" y="27.4" width="340" height="13.7" fill="#4A88DC" opacity=".14"/>
+              <line x1="0" y1="48" x2="340" y2="48" stroke="#242C3B" stroke-width="1"/>
+              <line x1="0" y1="34.3" x2="340" y2="34.3" stroke="#4A88DC" stroke-width="1.6" stroke-dasharray="5 4" opacity=".8"/>
+              <circle cx="327.3" cy="28.8" r="3.2" fill="#4A88DC"/>
+              <text x="2" y="9" fill="#5F6879" font-size="9" font-family="var(--fm)">75</text>
+              <text x="2" y="45" fill="#5F6879" font-size="9" font-family="var(--fm)">40</text>
+              <text x="340" y="9" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Luftfeuchte %</text>
+            </g>
+            <g transform="translate(0,118)">
+              <text x="0" y="6" fill="#8A93A8" font-size="10.5" font-family="var(--fs)" font-weight="600">Ausgänge</text>
+              <text x="340" y="6" text-anchor="end" font-size="9" font-family="var(--fm)" fill="#79839A">GEPLANT: LICHT 06:00 – 18:00</text>
+              <rect x="0" y="10" width="54.4" height="8" rx="2" fill="#E3B95F" opacity=".22"/>
+              <rect x="217.6" y="10" width="122.4" height="8" rx="2" fill="#E3B95F" opacity=".22"/>
+              <rect x="217.6" y="10" width="109.7" height="8" rx="2" fill="#E3B95F"/>
+            </g>
+            <line x1="327.3" y1="0" x2="327.3" y2="136" stroke="#E7ECF5" stroke-width="1" opacity=".55"/>
+          </svg>
+
+          <div class="sechd" style="margin:10px 0 5px"><h3>Der Unterschied</h3><span>Ziel gegen jetzt</span></div>
+          <div class="fxdh"><span></span><i>ZIEL</i><i>JETZT</i><i>Δ</i></div>
+          <div class="fxd"><b>Temperatur</b><i>25,0</i><u>26,2 °C</u><s class="up">+1,2</s></div>
+          <div class="fxd"><b>Luftfeuchte</b><i>50</i><u>54 %</u><s class="up">+4</s></div>
+          <div class="fxd"><b>VPD</b><i>1,2–1,5</i><u>1,41 kPa</u><s class="ok">im Band</s></div>
+          <div class="fxd"><b>CO₂</b><i>1000</i><u>438 ppm</u><s class="dn">−562</s></div>
+          <div class="btns" style="margin-top:11px">
+            <div class="btn"><svg class="ic-s"><use href="#i-drop"/></svg>Gabe</div>
+            <div class="btn"><svg class="ic-s"><use href="#i-note"/></svg>Notiz</div>
+            <div class="btn"><svg class="ic-s"><use href="#i-cam"/></svg>Foto</div>
+          </div>
+        </div>
+        <div class="nav">
+          <div class="on"><svg class="ic"><use href="#i-film"/></svg>Streifen</div>
+          <div><svg class="ic"><use href="#i-chart"/></svg>Verlauf</div>
+          <div><svg class="ic"><use href="#i-book"/></svg>Buch</div>
+          <div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 04 Gießen eintragen -->
+    <div class="col">
+      <p class="cap"><i>04</i><span>Gießen eintragen</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd" style="filter:blur(1.2px);opacity:.42">
+          <div class="top" style="padding-bottom:8px">
+            <div><h1 class="ttl">Zelt Keller</h1><p class="meta"><span class="dot"></span>Online · vor 20 Sek · Tag 34 · Blüte 12</p></div>
+          </div>
+          <div class="fxlab"><span>Streifen · 3 Tage</span><em>Bild ziehen = Vorher setzen</em></div>
+          <div class="fxstrip">
+            <svg class="fxf" style="left:6px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picold"/></svg>
+            <svg class="fxf" style="left:39px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picdark"/></svg>
+            <svg class="fxf" style="left:72px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picdark"/></svg>
+            <svg class="fxf" style="left:156px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picdark"/></svg>
+            <svg class="fxf" style="left:189px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg class="fxf" style="left:222px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg class="fxf" style="left:255px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picdark"/></svg>
+            <svg class="fxf" style="left:288px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg class="fxf" style="left:324px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <div class="fxpt" style="left:6px"><em>VORHER</em></div>
+          </div>
+          <div class="fxpair">
+            <div class="fxhalf p">
+              <i><span>VORHER</span><span>TAG 31</span></i>
+              <svg class="fxbig" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#picold"/></svg>
+            </div>
+            <div class="fxhalf">
+              <i><span>JETZT</span><span>TAG 34</span></i>
+              <svg class="fxbig" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg>
+            </div>
+          </div>
+          <p class="fxsay">Die Pflanzen sind gewachsen — und die Nächte bleiben zu warm.</p>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheetup">
+          <div class="grab"></div>
+          <div class="shd"><h3>Gabe</h3><span>heute 19:40 · Ben</span></div>
+          <svg viewBox="0 0 320 66" style="width:100%;display:block;margin-bottom:12px">
+            <rect x="0" y="0" width="320" height="44" rx="4" fill="#090C12"/>
+            <svg x="6" y="5" width="26" height="34" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picdark"/></svg>
+            <svg x="46" y="5" width="26" height="34" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg x="86" y="5" width="26" height="34" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg x="126" y="5" width="26" height="34" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg x="166" y="5" width="26" height="34" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg x="206" y="5" width="26" height="34" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg x="246" y="5" width="26" height="34" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picdark"/></svg>
+            <rect x="286" y="5" width="28" height="34" rx="2" fill="none" stroke="#6FBE4A" stroke-width="2" stroke-dasharray="4 3"/>
+            <circle cx="99" cy="56" r="4.5" fill="#0F1219" stroke="#3E4A61" stroke-width="2"/>
+            <text x="108" y="60" fill="#79839A" font-size="10" font-family="var(--fm)">12:05 ANNA 2,0 L</text>
+            <text x="314" y="60" fill="#8FD870" font-size="10" font-family="var(--fm)" text-anchor="end">19:40 HIER</text>
+          </svg>
+          <div class="chips"><span class="chip">Ganzes Zelt</span><span class="chip on">A1</span><span class="chip on">A2</span><span class="chip">B1</span></div>
+          <div class="cans">
+            <div class="row"><div class="beads"><i class="f"></i><i class="f"></i><i></i><i></i><i></i><i></i></div><div class="tot">4,0 l</div></div>
+            <div class="hint">Tippen = eine Kanne à 2,0 l. Lange drücken = eine zurück.</div>
+          </div>
+          <div class="frow"><span>Bio·Grow · Bio·Bloom · Top·Max</span><b>8 · 12 · 4 ml</b></div>
+          <div class="frow"><span>pH</span><b>6,3 <span style="font-size:12px">Ziel 6,2–6,5</span></b></div>
+          <div class="frow"><span>EC</span><b>nicht gemessen</b></div>
+          <p class="from">aus <b>Biobizz All·Mix · Schritt 7 von 14</b> — vorausgefüllt, alles änderbar. Zuletzt geprüft 14.07.2026.</p>
+          <div class="guard">
+            <svg class="ic-s" style="color:#E3B95F;flex:none;margin-top:1px"><use href="#i-warn"/></svg>
+            <div>Anna hat A1 und A2 vor 1 Std 30 gegossen (2,0 l) — der graue Punkt links im Streifen.</div>
+          </div>
+          <div class="btns"><div class="btn" style="flex:0 0 92px">Wer? Ben</div><div class="btn pri">Trotzdem eintragen</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 05 Kamera & Zeitraffer -->
+    <div class="col">
+      <p class="cap"><i>05</i><span>Kamera &amp; Zeitraffer</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:8px">
+            <div><h1 class="ttl">Blüte Woche 2</h1><p class="meta">25 Sek · 600 von 2 148 Bildern · 7,4 MB</p></div>
+            <svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg>
+          </div>
+
+          <div class="fxstage">
+            <svg style="width:100%;height:100%;display:block" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg>
+            <div class="fxburn"><span>TAG 26 · BLÜTE 4 · 17.08. 12:30</span><span>24,9 °C · 47 %</span></div>
+            <div class="fxprog"><em></em></div>
+          </div>
+
+          <div class="fxlab" style="margin-top:10px"><span>Streifen = Zeitleiste</span><em>Tag 8 – Tag 34</em></div>
+          <div class="fxstrip">
+            <svg class="fxf" style="left:0" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picold"/></svg>
+            <div class="fxcut" style="left:34px"></div><div class="fxcut" style="left:38px"></div>
+            <svg class="fxf" style="left:41px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picold"/></svg>
+            <div class="fxcut" style="left:75px"></div><div class="fxcut" style="left:79px"></div>
+            <svg class="fxf" style="left:82px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picold"/></svg>
+            <div class="fxcut" style="left:116px"></div><div class="fxcut" style="left:120px"></div>
+            <svg class="fxf" style="left:123px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <div class="fxcut" style="left:157px"></div><div class="fxcut" style="left:161px"></div>
+            <svg class="fxf" style="left:164px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <div class="fxcut" style="left:198px"></div><div class="fxcut" style="left:202px"></div>
+            <svg class="fxf" style="left:205px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <div class="fxcut" style="left:239px"></div><div class="fxcut" style="left:243px"></div>
+            <svg class="fxf" style="left:246px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <div class="fxcut" style="left:280px"></div><div class="fxcut" style="left:284px"></div>
+            <svg class="fxf" style="left:287px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg class="fxf" style="left:326px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <div class="fxchap" style="left:203px"></div>
+            <div class="fxhead" style="left:165px"></div>
+          </div>
+          <div class="fxax">
+            <span style="left:0">TAG 8</span>
+            <span style="left:198px">KAPITEL 2</span>
+            <u>TAG 34</u>
+          </div>
+
+          <svg class="fxch" viewBox="0 0 340 116" style="margin-top:8px">
+            <g transform="translate(0,0)">
+              <rect x="0" y="16.2" width="340" height="10.8" fill="#D4763B" opacity=".14"/>
+              <line x1="0" y1="54" x2="340" y2="54" stroke="#242C3B" stroke-width="1"/>
+              <line x1="0" y1="21.6" x2="340" y2="21.6" stroke="#D4763B" stroke-width="1.6" stroke-dasharray="5 4" opacity=".8"/>
+              <path d="M0,30.2 26.2,27 52.3,22.7 78.5,28.1 104.6,24.8 130.8,20.5 157,25.9 183.1,29.2 209.3,23.8 235.4,21.6 261.6,25.9 287.8,22.7 313.9,19.4 340,23.8" fill="none" stroke="#D4763B" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+              <line x1="205" y1="0" x2="205" y2="54" stroke="#E3B95F" stroke-width="1.4" stroke-dasharray="3 3" opacity=".7"/>
+              <text x="2" y="9" fill="#5F6879" font-size="9" font-family="var(--fm)">27</text>
+              <text x="2" y="51" fill="#5F6879" font-size="9" font-family="var(--fm)">22</text>
+              <text x="340" y="9" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Temperatur °C · Tagesmittel</text>
+            </g>
+            <g transform="translate(0,66)">
+              <text x="0" y="6" fill="#8A93A8" font-size="10.5" font-family="var(--fs)" font-weight="600">Bilder je Tag</text>
+              <text x="340" y="6" text-anchor="end" font-size="9" font-family="var(--fm)"><tspan fill="#50A030">GRÜN = IM FILM</tspan><tspan fill="#5F6879"> · GRAU = AUSSORTIERT</tspan></text>
+              <rect x="4" y="10.8" width="18" height="35.2" fill="#232B3A"/><rect x="4" y="38.2" width="18" height="7.8" fill="#50A030"/>
+              <rect x="30" y="11.6" width="18" height="34.4" fill="#232B3A"/><rect x="30" y="37" width="18" height="9" fill="#50A030"/>
+              <rect x="56" y="13.3" width="18" height="32.7" fill="#232B3A"/><rect x="56" y="35.4" width="18" height="10.6" fill="#50A030"/>
+              <rect x="82" y="10" width="18" height="36" fill="#232B3A"/><rect x="82" y="37.8" width="18" height="8.2" fill="#50A030"/>
+              <rect x="108" y="12.5" width="18" height="33.5" fill="#232B3A"/><rect x="108" y="36.6" width="18" height="9.4" fill="#50A030"/>
+              <rect x="134" y="13.7" width="18" height="32.3" fill="#232B3A"/><rect x="134" y="35.8" width="18" height="10.2" fill="#50A030"/>
+              <rect x="161" y="12.1" width="18" height="33.9" fill="#232B3A"/><rect x="161" y="36.2" width="18" height="9.8" fill="#50A030"/>
+              <rect x="187" y="11.2" width="18" height="34.8" fill="#232B3A"/><rect x="187" y="37.4" width="18" height="8.6" fill="#50A030"/>
+              <rect x="213" y="14.1" width="18" height="31.9" fill="#232B3A"/><rect x="213" y="35" width="18" height="11" fill="#50A030"/>
+              <rect x="239" y="13.3" width="18" height="32.7" fill="#232B3A"/><rect x="239" y="35.8" width="18" height="10.2" fill="#50A030"/>
+              <rect x="265" y="11.6" width="18" height="34.4" fill="#232B3A"/><rect x="265" y="37" width="18" height="9" fill="#50A030"/>
+              <rect x="291" y="12.5" width="18" height="33.5" fill="#232B3A"/><rect x="291" y="36.6" width="18" height="9.4" fill="#50A030"/>
+              <rect x="317" y="12.1" width="18" height="33.9" fill="#232B3A"/><rect x="317" y="36.6" width="18" height="9.4" fill="#50A030"/>
+              <line x1="0" y1="46" x2="340" y2="46" stroke="#242C3B" stroke-width="1"/>
+            </g>
+          </svg>
+
+          <div class="sechd" style="margin:9px 0 3px"><h3>Kapitel</h3><span>2 · Schnitt, wo die Kamera verrutscht ist</span></div>
+          <div class="fxkap"><span>1 · Tag 8 – 20</span><b>11 Sek</b></div>
+          <div class="fxkap"><span>2 · Kamera verrutscht, 12.08.</span><b>14 Sek</b></div>
+          <div class="fxcull">2 148 aufgenommen · <b>1 187</b> Licht aus<br><b>289</b> außerhalb der Fenster · <b>41</b> Hand im Bild<br><b>22</b> unscharf · <b>9</b> verrutscht<br><b>= 600 Bilder → 25 Sek</b></div>
+          <div class="btns" style="margin-top:10px"><div class="btn">Teilen</div><div class="btn pri">Speichern</div></div>
+        </div>
+        <div class="nav">
+          <div class="on"><svg class="ic"><use href="#i-film"/></svg>Streifen</div>
+          <div><svg class="ic"><use href="#i-chart"/></svg>Verlauf</div>
+          <div><svg class="ic"><use href="#i-book"/></svg>Buch</div>
+          <div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 06 Zelt ohne Gerät -->
+    <div class="col">
+      <p class="cap"><i>06</i><span>Zelt ohne Gerät</span></p>
+      <div class="ph">
+        <div class="sb"></div>
+        <div class="bd">
+          <div class="top" style="padding-bottom:8px">
+            <div><h1 class="ttl">Schrank Flur</h1><p class="meta"><span class="dot grey"></span>Kein Gerät · Tag 19 · Blüte Tag 5</p></div>
+            <svg class="ic" style="color:#79839A;margin-top:4px"><use href="#i-menu"/></svg>
+          </div>
+
+          <div class="fxlab"><span>Streifen · deine Fotos</span><em>11 seit 07.08., 4 weiter links</em></div>
+          <div class="fxstrip">
+            <svg class="fxf" style="left:9px;width:28px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picold"/></svg>
+            <svg class="fxf" style="left:67px;width:28px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picold"/></svg>
+            <svg class="fxf" style="left:154px;width:28px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#picold"/></svg>
+            <svg class="fxf" style="left:237px;width:28px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg class="fxf" style="left:266px;width:28px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg class="fxf" style="left:295px;width:28px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <svg class="fxf" style="left:326px;width:28px" viewBox="0 0 200 150" preserveAspectRatio="xMidYMax slice"><use href="#pic"/></svg>
+            <div class="fxgap" style="left:95px;width:59px">3 TAGE<br>KEIN<br>FOTO</div>
+            <div class="fxpt" style="left:154px;width:28px"><em>VORHER</em></div>
+          </div>
+          <div class="fxax">
+            <span style="left:0">DO 14.08.</span>
+            <b style="left:128px">DI 19.08.</b>
+            <u>MO 25.08. 20:55</u>
+          </div>
+
+          <div class="fxpair">
+            <div class="fxhalf p">
+              <i><span>VORHER</span><span>TAG 13</span></i>
+              <svg class="fxbig" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#picold"/></svg>
+              <div class="fxst"><b>Di 19.08. 21:10</b>dein Foto</div>
+            </div>
+            <div class="fxhalf">
+              <i><span>JETZT</span><span>TAG 19</span></i>
+              <svg class="fxbig" viewBox="20 30 160 100" preserveAspectRatio="xMidYMid slice"><use href="#pic"/></svg>
+              <div class="fxst"><b>Mo 25.08. 20:55</b>dein Foto</div>
+            </div>
+          </div>
+
+          <p class="fxsay">Seit Dienstag 6 cm gewachsen — und der pH ist gefallen.</p>
+
+          <svg class="fxch" viewBox="0 0 340 146" style="margin-top:9px">
+            <g transform="translate(0,0)">
+              <rect x="0" y="15.3" width="340" height="9.2" fill="#A874CF" opacity=".16"/>
+              <line x1="0" y1="46" x2="340" y2="46" stroke="#242C3B" stroke-width="1"/>
+              <path d="M21.5,12.3 L103,15.3 L160,18.4 L238,24.5 L293.5,30.7 L323,33.7" fill="none" stroke="#A874CF" stroke-width="1.8" stroke-dasharray="4 4" opacity=".7"/>
+              <circle cx="21.5" cy="12.3" r="4" fill="#A874CF"/><circle cx="103" cy="15.3" r="4" fill="#A874CF"/><circle cx="160" cy="18.4" r="4" fill="#A874CF"/><circle cx="238" cy="24.5" r="4" fill="#A874CF"/><circle cx="293.5" cy="30.7" r="4" fill="#A874CF"/><circle cx="323" cy="33.7" r="5" fill="#A874CF"/>
+              <text x="2" y="9" fill="#5F6879" font-size="9" font-family="var(--fm)">7,0</text>
+              <text x="2" y="43" fill="#5F6879" font-size="9" font-family="var(--fm)">5,5</text>
+              <text x="340" y="9" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">pH Ablauf · Ziel 6,2–6,5</text>
+            </g>
+            <g transform="translate(0,56)">
+              <line x1="0" y1="44" x2="340" y2="44" stroke="#242C3B" stroke-width="1"/>
+              <path d="M21.5,33.4 L103,28.2 L160,22.9 L238,17.6 L293.5,14.1 L323,12.3" fill="none" stroke="#3AA25C" stroke-width="1.8" stroke-dasharray="4 4" opacity=".7"/>
+              <circle cx="21.5" cy="33.4" r="4" fill="#3AA25C"/><circle cx="103" cy="28.2" r="4" fill="#3AA25C"/><circle cx="160" cy="22.9" r="4" fill="#3AA25C"/><circle cx="238" cy="17.6" r="4" fill="#3AA25C"/><circle cx="293.5" cy="14.1" r="4" fill="#3AA25C"/><circle cx="323" cy="12.3" r="5" fill="#3AA25C"/>
+              <text x="2" y="9" fill="#5F6879" font-size="9" font-family="var(--fm)">55</text>
+              <text x="2" y="41" fill="#5F6879" font-size="9" font-family="var(--fm)">30</text>
+              <text x="340" y="9" fill="#C9D2E3" font-size="10.5" font-family="var(--fs)" text-anchor="end" font-weight="600">Höhe A1 cm</text>
+            </g>
+            <g transform="translate(0,110)">
+              <text x="0" y="6" fill="#8A93A8" font-size="10.5" font-family="var(--fs)" font-weight="600">Gaben</text>
+              <text x="340" y="6" text-anchor="end" font-size="9" font-family="var(--fm)" fill="#79839A">6 GABEN · 15,0 L GESAMT</text>
+              <rect x="18" y="18.7" width="7" height="17.3" rx="2" fill="#4A88DC"/>
+              <rect x="73" y="14.3" width="7" height="21.7" rx="2" fill="#4A88DC"/>
+              <rect x="127" y="18.7" width="7" height="17.3" rx="2" fill="#4A88DC"/>
+              <rect x="181" y="10" width="7" height="26" rx="2" fill="#4A88DC"/>
+              <rect x="234" y="14.3" width="7" height="21.7" rx="2" fill="#4A88DC"/>
+              <rect x="290" y="10" width="7" height="26" rx="2" fill="#4A88DC"/>
+              <line x1="0" y1="36" x2="340" y2="36" stroke="#242C3B" stroke-width="1"/>
+            </g>
+            <line x1="160" y1="0" x2="160" y2="144" stroke="#6FBE4A" stroke-width="1.2" stroke-dasharray="4 4" opacity=".6"/>
+          </svg>
+
+          <div class="sechd" style="margin:9px 0 4px"><h3>Der Unterschied</h3><span>Di 21:10 → jetzt · Δ</span></div>
+          <div class="fxd"><b>Höhe A1</b><i>42</i><u>48 cm</u><s class="up">+6</s></div>
+          <div class="fxd"><b>pH Ablauf</b><i>6,4</i><u>5,9</u><s class="dn">−0,5</s></div>
+          <div class="fxd g"><b>Ziel Biobizz</b><i>6,2</i><u>6,5</u><s>drunter</s></div>
+          <div class="fxd"><b>Wasser gesamt</b><i>11,0</i><u>15,0 l</u><s class="up">+4,0</s></div>
+          <div class="empty" style="margin-top:10px;padding:10px 11px;font-size:12px;line-height:1.4">Ohne Kamera ist der Streifen nur so dicht, wie du fotografierst — 11 Bilder in 19 Tagen. Temperatur, Luftfeuchte und VPD misst niemand.</div>
+        </div>
+        <div class="nav">
+          <div class="on"><svg class="ic"><use href="#i-film"/></svg>Streifen</div>
+          <div><svg class="ic"><use href="#i-chart"/></svg>Verlauf</div>
+          <div><svg class="ic"><use href="#i-book"/></svg>Buch</div>
+          <div><svg class="ic"><use href="#i-tent"/></svg>Zelt</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="ft">
+    <div><h4>Worauf es wettet</h4><p>Dass ein Bild der bessere Zeitstempel ist. Der Streifen ist Achse und Regler in einem: jede Kachel liegt da, wo sie entstanden ist, und wo keine liegt, sieht man die Lücke, statt sie glattzurechnen. Ein Bild herausziehen ist die ganze Bedienung — Bildpaar, Satz, Kurven und Δ-Tabelle hängen danach alle an demselben Moment, und der grüne Strich zieht sich vom gepinnten Bild durch jedes Feld nach unten.</p></div>
+    <div class="warn"><h4>Was ein abgelenkter Nutzer falsch macht</h4><p>Er schiebt beim Scrollen ein Bild an und vergleicht danach jeden Wert gegen einen zufälligen Dienstagabend, ohne es zu merken. Nachts sehen alle Kacheln gleich aus — wer im Dunkeln pinnt, wählt eine schwarze Fläche und wundert sich über den Satz darüber. Und wer den Streifen für eine Galerie hält, wischt ihn wie eine Galerie: drei Wochen weit und nicht mehr zurück.</p></div>
+    <div class="warn"><h4>Wo die Kontrolle ausgeht</h4><p>Der Streifen zeigt nur, was fotografiert wurde. Ohne Kamera bleibt die Achse leer, und eine Nacht sieht darauf aus wie ein Defekt. Ziele setzen, Dosen zuordnen, Regeln schreiben — dafür ist hier keine Stelle vorgesehen, das liegt alles unter „Zelt“. Gießen und Düngen bleiben Einträge: der Streifen zeigt sie, schalten kann er sie nicht, und mehr als Entfeuchter, Heizung, Licht, zweites Licht und CO₂ gibt es an Dosen ohnehin nicht.</p></div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
