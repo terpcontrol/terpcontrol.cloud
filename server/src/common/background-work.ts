@@ -46,11 +46,30 @@ export class BackgroundWork {
     this.timers.add(timer);
   }
 
-  /** Runs the work on every interval until the server stops. */
+  /**
+   * Runs the work on every interval until the server stops - one pass at a
+   * time. A pass that is still going holds the next tick off rather than
+   * running beside itself: these walk every device and await as they go, so two
+   * of them read the same rows and each acts on them - a grow plan advanced
+   * twice with two mails, or twice as many devices sent a firmware upgrade as
+   * the class allows at once.
+   */
   public repeat(name: string, work: () => void | Promise<unknown>, everyMs: number): void {
     if (this.stopped) return;
 
-    this.timers.add(setInterval(() => this.run(name, work), everyMs));
+    let running = false;
+    const finished = () => (running = false);
+
+    this.timers.add(
+      setInterval(() => {
+        if (running) return;
+
+        running = true;
+        const result = this.run(name, work);
+        if (result) void result.finally(finished);
+        else finished();
+      }, everyMs),
+    );
   }
 
   public stop(): void {
@@ -59,17 +78,23 @@ export class BackgroundWork {
     this.timers.clear();
   }
 
-  /** Runs the work now, keeping a failure inside it rather than ending the process. */
-  public run(name: string, work: () => void | Promise<unknown>): void {
-    if (this.stopped) return;
+  /**
+   * Runs the work now, keeping a failure inside it rather than ending the
+   * process. Answers with the work in flight, for a caller that has to know
+   * when it is done.
+   */
+  public run(name: string, work: () => void | Promise<unknown>): Promise<unknown> | undefined {
+    if (this.stopped) return undefined;
 
     try {
       const result = work();
       if (result instanceof Promise) {
-        result.catch(error => logger.error(`${name} failed: ${error instanceof Error ? error.stack ?? error.message : error}`));
+        return result.catch(error => logger.error(`${name} failed: ${describe(error)}`));
       }
     } catch (error) {
-      logger.error(`${name} failed: ${error instanceof Error ? error.stack ?? error.message : error}`);
+      logger.error(`${name} failed: ${describe(error)}`);
     }
+
+    return undefined;
   }
 }

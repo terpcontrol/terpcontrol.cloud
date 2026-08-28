@@ -22,6 +22,7 @@ export interface MqttMessage {
 @Injectable()
 export class MqttClientService implements OnApplicationShutdown {
   private client;
+  private everConnected = false;
   private readonly internalUser = uuidv4();
   private readonly internalPassword = uuidv4();
 
@@ -34,13 +35,16 @@ export class MqttClientService implements OnApplicationShutdown {
    *
    * Not the same as being connected this instant: a client that has connected
    * once keeps reconnecting on its own and queues what it is given in the
-   * meantime (mqtt.js queues QoS 0 by default), so a command sent during a
-   * blip arrives when the broker comes back. What cannot be delivered is a
-   * message given to no client at all - before the first connection, or after
-   * one that never succeeded.
+   * meantime (mqtt.js queues QoS 0 by default), so a command sent during a blip
+   * arrives when the broker comes back.
+   *
+   * A handshake that has not finished is a different matter, though - the
+   * client exists and would queue the message, but nothing has shown yet that
+   * it will ever connect, and the queue goes with it if it does not. So the
+   * first connection has to have succeeded.
    */
   public get canPublish(): boolean {
-    return !!this.client;
+    return this.everConnected && !!this.client;
   }
 
   public getUser(): string {
@@ -66,6 +70,8 @@ export class MqttClientService implements OnApplicationShutdown {
       this.client = client;
 
       client.on('connect', () => {
+        this.everConnected = true;
+
         if (!connected) {
           logger.info('MQTT connected');
           connected = true;
@@ -126,7 +132,7 @@ export class MqttClientService implements OnApplicationShutdown {
    * half-done. A caller serving a request checks the answer and says 503.
    */
   public publish(topic: string, message: string): boolean {
-    if (!this.client) {
+    if (!this.canPublish) {
       logger.error(`Cannot publish to ${topic}: not connected to the message broker`);
       return false;
     }
