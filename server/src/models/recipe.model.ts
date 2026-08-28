@@ -1,7 +1,7 @@
 import { model, Schema, Document } from 'mongoose';
 import { RecipeTemplate } from '@fg2/shared-types';
 
-const recipeSchema: Schema = new Schema({
+export const recipeSchema: Schema = new Schema({
   name: { type: String, required: true, unique: true },
   owner_id: { type: String, required: false },
   public: { type: Boolean, default: false },

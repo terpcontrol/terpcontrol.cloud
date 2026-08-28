@@ -1,29 +1,32 @@
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Document, Model } from 'mongoose';
 import { HttpException } from '@exceptions/HttpException';
-import { AuthUserDto, AuthVhostDto, AuthResourceDto, AuthTopicDto } from '@/dtos/mqttauth.dto';
+import { AuthUserDto, AuthVhostDto, AuthResourceDto, AuthTopicDto } from '@dtos/mqttauth.dto';
 import { Device } from '@fg2/shared-types';
-import deviceModel from '@models/device.model';
 import { isEmpty } from '@utils/util';
+import { logger } from '@utils/logger';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
-import { v4 as uuidv4 } from 'uuid';
-import { mqttclient } from '../databases/mqttclient';
+import { MODEL } from '../../database/models.module';
+import { MqttClientService } from '../mqtt/mqtt-client.service';
 
-const KAFKA_GROUPID = 'mqtt-manager-' + uuidv4();
-class MqttAuthService {
-  private devices = deviceModel;
+@Injectable()
+export class MqttAuthService {
+  constructor(@InjectModel(MODEL.device) private readonly devices: Model<Device & Document>, private readonly mqtt: MqttClientService) {}
 
   public async user(authData: AuthUserDto): Promise<boolean> {
     if (isEmpty(authData)) {
       throw new HttpException(400, "You're not userData");
     }
 
-    if (authData.username == mqttclient.getUser() && authData.password == mqttclient.getPassword()) {
+    if (authData.username == this.mqtt.getUser() && authData.password == this.mqtt.getPassword()) {
       return true;
     }
 
-    const findDevice: Device = await this.devices.findOne({ username: authData.username });
+    const findDevice = await this.devices.findOne({ username: authData.username });
 
     if (!findDevice) {
-      console.log('mqtt-auth: device not found:', authData.username);
+      logger.info(`mqtt-auth: device not found: ${authData.username}`);
       return false;
     }
 
@@ -46,14 +49,14 @@ class MqttAuthService {
       throw new HttpException(400, "You're not userData");
     }
 
-    if (authData.username == mqttclient.getUser()) {
+    if (authData.username == this.mqtt.getUser()) {
       return true;
     }
 
-    const findDevice: Device = await this.devices.findOne({ username: authData.username });
+    const findDevice = await this.devices.findOne({ username: authData.username });
 
     if (!findDevice) {
-      console.log('mqtt-auth: device not found:', authData.username);
+      logger.info(`mqtt-auth: device not found: ${authData.username}`);
       return false;
     }
 
@@ -65,14 +68,14 @@ class MqttAuthService {
       throw new HttpException(400, "You're not userData");
     }
 
-    if (authData.username == mqttclient.getUser()) {
+    if (authData.username == this.mqtt.getUser()) {
       return true;
     }
 
-    const findDevice: Device = await this.devices.findOne({ username: authData.username });
+    const findDevice = await this.devices.findOne({ username: authData.username });
 
     if (!findDevice) {
-      console.log('mqtt-auth: device not found:', authData.username);
+      logger.info(`mqtt-auth: device not found: ${authData.username}`);
       return false;
     }
     if (authData.resource !== 'topic') {
@@ -82,7 +85,7 @@ class MqttAuthService {
       return false;
     }
     if (!authData.routing_key.startsWith(`.devices.${findDevice.device_id}.`)) {
-      console.log('mqtt-auth: routing key not allowed:', authData.routing_key);
+      logger.info(`mqtt-auth: routing key not allowed: ${authData.routing_key}`);
       throw new HttpException(403, 'access denied');
     }
 
@@ -94,14 +97,14 @@ class MqttAuthService {
       throw new HttpException(400, "You're not userData");
     }
 
-    if (authData.username == mqttclient.getUser()) {
+    if (authData.username == this.mqtt.getUser()) {
       return true;
     }
 
-    const findDevice: Device = await this.devices.findOne({ username: authData.username });
+    const findDevice = await this.devices.findOne({ username: authData.username });
 
     if (!findDevice) {
-      console.log('mqtt-auth: device not found:', authData.username);
+      logger.info(`mqtt-auth: device not found: ${authData.username}`);
       return false;
     }
     if (authData.vhost !== '/') {

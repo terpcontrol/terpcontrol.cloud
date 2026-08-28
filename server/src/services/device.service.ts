@@ -28,7 +28,7 @@ import { HttpException } from '@/exceptions/HttpException';
 import { ENABLE_SELF_REGISTRATION, SELF_REGISTRATION_PASSWORD, SMTP_SENDER } from '@/config';
 import { alarmService } from '@services/alarm.service';
 import { isNumeric } from 'influx/lib/src/grammar';
-import { mailTransport } from '@services/auth.service';
+import { mailTransport } from '@services/mail-transport';
 import { imageService } from '@services/image.service';
 import { tunnelService } from '@services/tunnel.service';
 import { okamP2PService, OKAM_STREAM_PREFIX } from '@services/okam-p2p.service';

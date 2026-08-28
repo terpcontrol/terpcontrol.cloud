@@ -1,7 +1,7 @@
 import { Body, Controller, Header, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { AuthResourceDto, AuthTopicDto, AuthUserDto, AuthVhostDto } from '@dtos/mqttauth.dto';
-import MqttAuthService from '@services/mqttauth.service';
+import { MqttAuthService } from './mqtt-auth.service';
 import { MqttAuthSecretGuard } from './mqtt-auth-secret.guard';
 
 type Verdict = 'allow' | 'deny';

@@ -1,7 +1,7 @@
 import { Document, model, Schema } from 'mongoose';
 import { Image } from '@fg2/shared-types';
 
-const imagesSchema: Schema = new Schema({
+export const imagesSchema: Schema = new Schema({
   image_id: {
     type: String,
     required: true,

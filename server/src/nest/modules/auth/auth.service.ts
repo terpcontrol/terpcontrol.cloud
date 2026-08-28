@@ -1,54 +1,42 @@
+import { Inject, Injectable } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
+import { InjectModel } from '@nestjs/mongoose';
 import { compare, hash } from 'bcrypt';
 import { sign } from 'jsonwebtoken';
 import { timingSafeEqual } from 'node:crypto';
-import {
-  API_URL_EXTERNAL,
-  AUTOMATION_TOKEN,
-  REQUIRE_ACTIVATION,
-  SECRET_KEY,
-  SMTP_PASSWORD,
-  SMTP_PORT,
-  SMTP_SECURE,
-  SMTP_SENDER,
-  SMTP_SERVER,
-  SMTP_USER,
-} from '@config';
+import { Document, Model } from 'mongoose';
+import { DateTime } from 'luxon';
+import { v4 as uuidv4 } from 'uuid';
 import { ActivationDto, LoginDto, SignupDto } from '@dtos/users.dto';
 import { HttpException } from '@exceptions/HttpException';
 import { DataStoredInToken, TokenData } from '@interfaces/auth.interface';
 import { PasswordToken, User } from '@fg2/shared-types';
-import userModel from '@models/users.model';
-import passwordTokenModel from '@models/password_token.model';
 import { isEmpty } from '@utils/util';
 import { DEMO_USER_ID } from '@utils/demo';
-import { v4 as uuidv4 } from 'uuid';
-import { DateTime } from 'luxon';
+import { appConfig, authConfig } from '../../config/configuration';
+import { MODEL } from '../../database/models.module';
+import { MailService } from '../mail/mail.service';
 
-const nodemailer = require('nodemailer');
+@Injectable()
+export class AuthService {
+  constructor(
+    @InjectModel(MODEL.user) private readonly users: Model<User & Document>,
+    @InjectModel(MODEL.passwordToken) private readonly passwordTokens: Model<PasswordToken & Document>,
+    private readonly mail: MailService,
+    @Inject(appConfig.KEY) private readonly app: ConfigType<typeof appConfig>,
+    @Inject(authConfig.KEY) private readonly auth: ConfigType<typeof authConfig>,
+  ) {}
 
-export const mailTransport = nodemailer.createTransport({
-  host: SMTP_SERVER,
-  port: SMTP_PORT,
-  secure: SMTP_SECURE,
-  debug: false,
-  logger: false,
-  auth: {
-    user: SMTP_USER,
-    pass: SMTP_PASSWORD,
-  },
-});
-
-class AuthService {
   public async signup(userData: SignupDto): Promise<User> {
     if (isEmpty(userData)) throw new HttpException(400, 'Invalid request data.');
 
-    const findUser: User = await userModel.findOne({ username: userData.username });
+    const findUser = await this.users.findOne({ username: userData.username });
     if (findUser) throw new HttpException(409, 'User allready exists');
 
     const hashedPassword = await hash(userData.password, 10);
-    if (REQUIRE_ACTIVATION) {
+    if (this.auth.requireActivation) {
       const activation_code = uuidv4();
-      const createUserData: User = await userModel.create({
+      const createUserData = await this.users.create({
         ...userData,
         password: hashedPassword,
         is_active: false,
@@ -56,55 +44,53 @@ class AuthService {
         user_id: uuidv4(),
       });
 
-      const info = await mailTransport.sendMail({
-        from: SMTP_SENDER, // sender address
-        to: userData.username, // list of receivers
-        subject: 'Please activate your Plantalytix account', // Subject line
-        text: 'Activation url: ' + API_URL_EXTERNAL + '/login?code=' + activation_code,
+      await this.mail.send({
+        to: userData.username,
+        subject: 'Please activate your Plantalytix account',
+        text: `Activation url: ${this.app.apiUrlExternal}/login?code=${activation_code}`,
       });
 
-      return createUserData;
+      return createUserData as unknown as User;
     } else {
       const activation_code = uuidv4();
-      const createUserData: User = await userModel.create({
+      const createUserData = await this.users.create({
         ...userData,
         password: hashedPassword,
         is_active: true,
         activation_code: activation_code,
         user_id: uuidv4(),
       });
-      return createUserData;
+      return createUserData as unknown as User;
     }
   }
 
   public async generatePasswordToken(username: string): Promise<void> {
-    const findUser: User = await userModel.findOne({ username: username });
+    const findUser = await this.users.findOne({ username: username });
     if (!findUser) throw new HttpException(409, 'Invalid user');
 
     const token = uuidv4();
-    passwordTokenModel.create({ token: token, user_id: findUser.user_id });
-    const info = await mailTransport.sendMail({
-      from: SMTP_SENDER, // sender address
-      to: username, // list of receivers
-      subject: 'Reset your Plantalytix password', // Subject line
-      text: 'Change password: ' + API_URL_EXTERNAL + '/login?recovery=' + token,
+    await this.passwordTokens.create({ token: token, user_id: findUser.user_id });
+    await this.mail.send({
+      to: username,
+      subject: 'Reset your Plantalytix password',
+      text: `Change password: ${this.app.apiUrlExternal}/login?recovery=${token}`,
     });
   }
 
   public async activate(userData: ActivationDto): Promise<boolean> {
     if (isEmpty(userData)) throw new HttpException(400, 'Invalid request data.');
 
-    const findUser: User = await userModel.findOne({ activation_code: userData.activation_code });
+    const findUser = await this.users.findOne({ activation_code: userData.activation_code });
     if (!findUser) throw new HttpException(409, 'Wrong activation code');
 
-    await userModel.findOneAndUpdate({ activation_code: userData.activation_code }, { is_active: true });
+    await this.users.findOneAndUpdate({ activation_code: userData.activation_code }, { is_active: true });
     return true;
   }
 
   public async login(userData: LoginDto): Promise<{ userToken: TokenData; refreshToken: TokenData; imageToken: TokenData; findUser: User }> {
     if (isEmpty(userData)) throw new HttpException(400, 'Invalid request data.');
 
-    const findUser: User = await userModel.findOne(
+    const findUser = await this.users.findOne(
       { username: userData.username },
       { _id: 0, username: 1, user_id: 1, is_admin: 1, password: 1, is_active: 1 },
     );
@@ -117,7 +103,7 @@ class AuthService {
 
     const { userToken, refreshToken, imageToken } = this.createTokensFromUser(findUser, userData.stayLoggedIn);
 
-    return { userToken, refreshToken, findUser, imageToken };
+    return { userToken, refreshToken, findUser: findUser as unknown as User, imageToken };
   }
 
   // Anyone may open the demo: it is a session without an account that reaches
@@ -127,25 +113,25 @@ class AuthService {
   }
 
   public async changePassword(user_id: string, password: string): Promise<void> {
-    const findUser: User = await userModel.findOne({ user_id: user_id }, { _id: 0, username: 1, user_id: 1, is_admin: 1, password: 1, is_active: 1 });
+    const findUser = await this.users.findOne({ user_id: user_id }, { _id: 0, username: 1, user_id: 1, is_admin: 1, password: 1, is_active: 1 });
     if (!findUser) throw new HttpException(409, 'Wrong email/password');
     const hashedPassword = await hash(password, 10);
 
-    await userModel.findOneAndUpdate({ user_id: user_id }, { password: hashedPassword });
+    await this.users.findOneAndUpdate({ user_id: user_id }, { password: hashedPassword });
   }
 
   public async changePasswordWithToken(token: string, password: string): Promise<void> {
-    const pwtoken: PasswordToken = await passwordTokenModel.findOne({
+    const pwtoken = await this.passwordTokens.findOne({
       token: token,
       createdAt: { $gt: DateTime.now().minus({ days: 1 }).toISODate() },
     });
     if (!pwtoken) throw new HttpException(409, 'Wrong token');
     const hashedPassword = await hash(password, 10);
-    await userModel.findOneAndUpdate({ user_id: pwtoken.user_id }, { password: hashedPassword });
+    await this.users.findOneAndUpdate({ user_id: pwtoken.user_id }, { password: hashedPassword });
   }
 
   public async loginWithToken(token: string): Promise<{ userToken: TokenData }> {
-    const expected = AUTOMATION_TOKEN;
+    const expected = this.auth.automationToken;
     if (!expected) {
       throw new HttpException(401, 'Wrong authentication token');
     }
@@ -172,7 +158,7 @@ class AuthService {
     return {
       userToken: {
         expiresIn: token_expiration,
-        token: sign(dataStoredInToken, SECRET_KEY, { expiresIn: token_expiration }),
+        token: sign(dataStoredInToken, this.auth.secretKey, { expiresIn: token_expiration }),
         secret: dataStoredInToken.secret,
       },
     };
@@ -191,10 +177,10 @@ class AuthService {
   public async logout(userData: User): Promise<User> {
     if (isEmpty(userData)) throw new HttpException(400, "You're not userData");
 
-    const findUser: User = await userModel.findOne({ username: userData.username, password: userData.password });
+    const findUser = await this.users.findOne({ username: userData.username, password: userData.password });
     if (!findUser) throw new HttpException(409, `You're username ${userData.username} not found`);
 
-    return findUser;
+    return findUser as unknown as User;
   }
 
   public createTokensFromUser(user: User, stayLoggedIn: boolean): { userToken: TokenData; refreshToken: TokenData; imageToken: TokenData } {
@@ -218,17 +204,17 @@ class AuthService {
     return {
       userToken: {
         expiresIn: token_expiration,
-        token: sign({ ...dataStoredInToken, secret, token_type: 'user' }, SECRET_KEY, { expiresIn: token_expiration }),
+        token: sign({ ...dataStoredInToken, secret, token_type: 'user' }, this.auth.secretKey, { expiresIn: token_expiration }),
         secret,
       },
       refreshToken: {
         expiresIn: refresh_expiration,
-        token: sign({ ...dataStoredInToken, secret, token_type: 'refresh' }, SECRET_KEY, { expiresIn: refresh_expiration }),
+        token: sign({ ...dataStoredInToken, secret, token_type: 'refresh' }, this.auth.secretKey, { expiresIn: refresh_expiration }),
         secret,
       },
       imageToken: {
         expiresIn: image_expiration,
-        token: sign({ ...dataStoredInToken, secret, token_type: 'image' }, SECRET_KEY, { expiresIn: image_expiration }),
+        token: sign({ ...dataStoredInToken, secret, token_type: 'image' }, this.auth.secretKey, { expiresIn: image_expiration }),
         secret,
       },
     };

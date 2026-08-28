@@ -1,7 +1,7 @@
 import { model, Schema, Document } from 'mongoose';
 import { ChartPreset } from '@fg2/shared-types';
 
-const chartPresetSchema: Schema = new Schema({
+export const chartPresetSchema: Schema = new Schema({
   preset_id: {
     type: String,
     required: true,

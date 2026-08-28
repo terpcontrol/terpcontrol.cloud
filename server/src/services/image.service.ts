@@ -12,7 +12,7 @@ import { HttpException } from '@/exceptions/HttpException';
 import { ENABLE_SELF_REGISTRATION, SELF_REGISTRATION_PASSWORD, SMTP_SENDER } from '@/config';
 import { alarmService } from '@services/alarm.service';
 import { isNumeric } from 'influx/lib/src/grammar';
-import { mailTransport } from '@services/auth.service';
+import { mailTransport } from '@services/mail-transport';
 import { execFile } from 'node:child_process';
 import im from 'imagemagick';
 import imageModel from '@models/images.model';

@@ -1,7 +1,7 @@
 import { model, Schema, Document } from 'mongoose';
 import { ShareLink } from '@fg2/shared-types';
 
-const shareSchema: Schema = new Schema({
+export const shareSchema: Schema = new Schema({
   share_id: {
     type: String,
     required: true,

@@ -88,6 +88,11 @@ class MqttClient {
   public publish(topic: string, message: string) {
     this.client.publish(topic, message);
   }
+
+  /** Closes the connection, so a shutdown does not wait for the keepalive to lapse. */
+  public end() {
+    this.client?.end(true);
+  }
 }
 
 export const mqttclient = new MqttClient();

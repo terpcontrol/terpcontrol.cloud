@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { SecurityModule } from './common/auth/auth.module';
 import { configNamespaces } from './config/configuration';
+import { DatabaseModule } from './database/database.module';
 import { validateEnvironment } from './config/validate-environment';
 import { DemoReadOnlyGuard } from './common/auth/demo-read-only.guard';
 import { ApiExceptionFilter } from './common/http-exception.filter';
@@ -27,6 +28,7 @@ import { UsersModule } from './modules/users/users.module';
       envFilePath: `.env.${process.env.NODE_ENV || 'development'}.local`,
       cache: true,
     }),
+    DatabaseModule,
     SecurityModule,
     AuthModule,
     ChartPresetModule,

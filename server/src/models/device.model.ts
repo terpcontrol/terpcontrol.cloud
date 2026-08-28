@@ -1,7 +1,7 @@
 import { model, Schema, Document } from 'mongoose';
 import { Device } from '@fg2/shared-types';
 
-const deviceSchema: Schema = new Schema({
+export const deviceSchema: Schema = new Schema({
   device_id: {
     type: String,
     required: true,

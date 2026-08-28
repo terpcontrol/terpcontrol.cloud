@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { User } from '@fg2/shared-types';
-import UserService from '@services/users.service';
+import { UserService } from './users.service';
 import { AdminGuard } from '../../common/auth/auth.guard';
 import { zodBody } from '../../common/zod-validation.pipe';
 import { CreateUser, createUserSchema, UpdateUser, updateUserSchema } from './users.schemas';

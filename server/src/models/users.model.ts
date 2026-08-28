@@ -1,7 +1,7 @@
 import { model, Schema, Document } from 'mongoose';
 import { User } from '@fg2/shared-types';
 
-const userSchema: Schema = new Schema({
+export const userSchema: Schema = new Schema({
   username: {
     type: String,
     required: true,

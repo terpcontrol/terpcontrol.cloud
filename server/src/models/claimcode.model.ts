@@ -1,7 +1,7 @@
 import { model, Schema, Document } from 'mongoose';
 import { ClaimCode } from '@fg2/shared-types';
 
-const claimCodeSchema: Schema = new Schema({
+export const claimCodeSchema: Schema = new Schema({
   claim_code: {
     type: String,
     required: false,

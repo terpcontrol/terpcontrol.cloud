@@ -1,7 +1,7 @@
 import { model, Schema, Document } from 'mongoose';
 import { DeviceFirmware, DeviceFirmwareBinary } from '@fg2/shared-types';
 
-const deviceFirmwareSchema: Schema = new Schema({
+export const deviceFirmwareSchema: Schema = new Schema({
   firmware_id: {
     type: String,
     required: true,
@@ -33,7 +33,7 @@ const deviceFirmwareSchema: Schema = new Schema({
 
 export const deviceFirmwareModel = model<DeviceFirmware & Document>('DeviceFirmware', deviceFirmwareSchema);
 
-const deviceFirmwareBinarySchema: Schema = new Schema({
+export const deviceFirmwareBinarySchema: Schema = new Schema({
   firmware_id: {
     type: String,
     required: true,

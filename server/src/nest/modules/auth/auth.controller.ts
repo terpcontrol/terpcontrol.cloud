@@ -5,7 +5,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { verify } from 'jsonwebtoken';
 import { HttpException } from '@exceptions/HttpException';
 import { DataStoredInToken, TokenData } from '@interfaces/auth.interface';
-import AuthService from '@services/auth.service';
+import { AuthService } from './auth.service';
 import { DEMO_USER_ID } from '@utils/demo';
 import { logger } from '@utils/logger';
 import { AuthGuard } from '../../common/auth/auth.guard';

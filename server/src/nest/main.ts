@@ -77,6 +77,10 @@ const bootstrap = async (): Promise<void> => {
   });
   await app.register(fastifyCompress, { customTypes: COMPRESSIBLE_TYPES });
 
+  // SIGTERM is how a container is asked to stop, and the providers that hold a
+  // broker connection, a database connection or a timer close them on it.
+  app.enableShutdownHooks();
+
   registerHttpCompatibility(app);
   registerAccessLog(app);
   setupOpenApi(app);

@@ -124,11 +124,18 @@ export const startApp = async (environment: AppEnvironment): Promise<RunningApp>
   return {
     process: child,
     baseUrl,
+    // Asked to stop the way a container is, so the shutdown path runs at least
+    // once per suite; killed outright only if it will not go.
     stop: () =>
       new Promise<void>(resolve => {
         if (child.exitCode !== null) return resolve();
-        child.once('exit', () => resolve());
-        child.kill('SIGKILL');
+
+        const forced = setTimeout(() => child.kill('SIGKILL'), 5_000);
+        child.once('exit', () => {
+          clearTimeout(forced);
+          resolve();
+        });
+        child.kill('SIGTERM');
       }),
   };
 };
