@@ -350,6 +350,10 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
   private async findUpgradeableDevices() {
     const classes = await this.deviceClasses.find();
     for (const device_class of classes) {
+      // As in the loops above: a pass awaits its way through every class, so it
+      // can outlive the server unless it looks.
+      if (this.work.isStopped) break;
+
       await this.findUpgradeableDevicesByClass(device_class, device_class.firmware_id, this.firmwareChannelQuery('stable'));
       if (device_class.beta_firmware_id) {
         await this.findUpgradeableDevicesByClass(device_class, device_class.beta_firmware_id, this.firmwareChannelQuery('beta'));
@@ -460,6 +464,10 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     const now = Date.now();
 
     for (const device of devices) {
+      // A pass walks every device and awaits as it goes, so it can outlive the
+      // server; stopping here keeps it off a connection that is closing.
+      if (this.work.isStopped) break;
+
       // One device must not end the pass: it may have been deleted since the
       // list was read, and this runs on a timer with no caller to report to.
       try {

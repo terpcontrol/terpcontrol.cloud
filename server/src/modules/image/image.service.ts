@@ -222,6 +222,11 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
 
       const promises: Promise<void>[] = [];
       for (const device of devices) {
+        // A pass can outlive the server: it sleeps between devices, and those
+        // sleeps are not the scheduler's to cancel. Stopping here is what keeps
+        // it from reading cameras and writing to a connection that is closing.
+        if (this.work.isStopped) break;
+
         if (!this.deviceIdToLastRtspState.has((await device).device_id)) {
           this.deviceIdToLastRtspState.set(device.device_id, { lastTry: 0, failureCount: 0 });
         }
@@ -243,21 +248,25 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
             this.ffmpegLimit(() =>
               this.readRtspStreamImage(device.cloudSettings, device.device_id)
                 .then(async image => {
-                  // The camera answered, so the backoff is reset before the
-                  // write: how far apart to try is about reaching the camera,
-                  // and a storage failure would otherwise back off a camera
-                  // that is working until the two-hour cap.
+                  // The camera answered, so the backoff is reset: how far apart
+                  // to try is about reaching the camera, and a camera that is
+                  // working must not be backed off to the two-hour cap because
+                  // of something on this side.
                   state.failureCount = 0;
 
-                  // Awaited rather than discarded, so a failed write is logged
-                  // below instead of surfacing as an unhandled rejection.
-                  await this.images.create({
-                    image_id: uuidv4(),
-                    device_id: device.device_id,
-                    format: 'jpeg',
-                    timestamp: Date.now(),
-                    data: image,
-                  });
+                  try {
+                    await this.images.create({
+                      image_id: uuidv4(),
+                      device_id: device.device_id,
+                      format: 'jpeg',
+                      timestamp: Date.now(),
+                      data: image,
+                    });
+                  } catch (e) {
+                    // Caught here rather than below, so it is neither an
+                    // unhandled rejection nor reported as the camera failing.
+                    logger.error(`Could not store the still read from device ${device.device_id}: ${e?.message ?? e}`);
+                  }
                 })
                 .catch(e => {
                   logger.error(`Error reading RTSP stream ${device.cloudSettings.rtspStream} for device ${device.device_id}: ${e?.message ?? e}`);
