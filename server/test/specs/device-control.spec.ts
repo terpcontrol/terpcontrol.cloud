@@ -210,6 +210,26 @@ describe('what a device reports over MQTT', () => {
     expect(entry.hardwareInfo).toMatchObject({ co2: 'on' });
   });
 
+  it('survives a device sending something that is not a message', async () => {
+    // Anything a device publishes reaches the server's own subscriber, and a
+    // rejected promise there has no caller - it used to end the process, so one
+    // device with broken firmware took every other device's server down.
+    await simulator.publish('status', 'not json at all');
+    await simulator.publish('log', '{"message": unquoted}');
+    await simulator.publish('bulk', '[');
+
+    await settle(400);
+
+    // Still serving, and still listening: a good message after the bad ones is
+    // handled as usual.
+    await owner.client.get('/device').expect(200);
+    await simulator.publish('log', { message: 'message-co2-low:390', severity: 0, time: Date.now() });
+    await settle(600);
+
+    const logs = await owner.client.get(`/device/logs/${device.deviceId}`).expect(200);
+    expect(logs.body.some((entry: { message: string }) => entry.message === 'message-co2-low:390')).toBe(true);
+  });
+
   it('ignores traffic for a device that was never registered', async () => {
     const ghost = new DeviceSimulator({ deviceId: 'ghost-device', username: 'ghost', password: 'ghost', deviceType: 'fridge' });
     await ghost.connect();

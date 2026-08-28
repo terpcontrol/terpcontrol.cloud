@@ -156,8 +156,8 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
    * the database before anything had connected to it.
    */
   public onModuleInit(): void {
-    void this.checkDeviceClasses();
-    void this.backfillFirmwareCreatedAt();
+    this.work.run('Creating the device classes', () => this.checkDeviceClasses());
+    this.work.run('Backfilling the firmware timestamps', () => this.backfillFirmwareCreatedAt());
 
     this.work.schedule('The MQTT connection', () => this.connectMqtt(), 5000);
     this.work.repeat('The firmware rollout', () => this.findUpgradeableDevices(), 10000);
@@ -211,59 +211,67 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
       await this.mqtt.connect();
 
       await this.mqtt.subscribe('/devices/#');
+      // Anything a device sends reaches this, including a payload that does not
+      // parse. RxJS drops a rejected promise from an async subscriber, which node
+      // then raises as an uncaught exception - so one malformed message from one
+      // device would end the process for all of them.
       this.mqtt.messages.subscribe(async message => {
-        const device_id = message.topic.split('/')[2];
-        const topic = message.topic.split('/')[3];
+        try {
+          const device_id = message.topic.split('/')[2];
+          const topic = message.topic.split('/')[3];
 
-        const device = await this.devices.findOne({ device_id: device_id });
-        if (device) {
-          switch (topic) {
-            case 'status':
-              await this.checkAndUpgrade(device);
-              await this.statusMessage(device, { ...JSON.parse(message.message), timestamp: undefined });
-              break;
-            case 'bulk':
-              await this.checkAndUpgrade(device);
-              await this.statusMessage(device, JSON.parse(message.message));
-              break;
-            case 'fetch':
-              let parsedMessage;
-              try {
-                parsedMessage = JSON.parse(message.message);
-              } catch (e) {
-                parsedMessage = message.message;
-              }
+          const device = await this.devices.findOne({ device_id: device_id });
+          if (device) {
+            switch (topic) {
+              case 'status':
+                await this.checkAndUpgrade(device);
+                await this.statusMessage(device, { ...JSON.parse(message.message), timestamp: undefined });
+                break;
+              case 'bulk':
+                await this.checkAndUpgrade(device);
+                await this.statusMessage(device, JSON.parse(message.message));
+                break;
+              case 'fetch':
+                let parsedMessage;
+                try {
+                  parsedMessage = JSON.parse(message.message);
+                } catch (e) {
+                  parsedMessage = message.message;
+                }
 
-              await this.fetchMessage(device, parsedMessage);
-              await this.checkAndUpgrade(device);
-              break;
-            case 'log':
-              const msg = JSON.parse(message.message);
-              if (msg?.message?.startsWith('hardware-info:')) {
-                await this.logHardwareInfo(device.device_id, msg.message.slice('hardware-info:'.length));
-              } else {
-                await this.logMessage(device.device_id, {
-                  categories: ['device', ...(DEVICE_MESSAGE_CATEGORY_MAPPING[msg?.message?.split(':')?.[0]] ?? [])],
-                  ...msg,
-                });
-              }
-              break;
-            case 'configuration':
-              await this.settingsMessage(device, JSON.parse(message.message));
-              break;
-            case 'tunnel_read':
-              await this.tunnel.onTunnelReadDataReceived(device.device_id, message.message);
-              break;
-            case 'image':
-              this.okam.onImageMessage(device.device_id, message.message);
-              break;
-            case 'tunnel_write':
-            case 'command':
-            case 'firmware':
-              break;
-            default:
-              logger.info(`Unhandled MQTT message on ${topic}: ${message.message}`);
+                await this.fetchMessage(device, parsedMessage);
+                await this.checkAndUpgrade(device);
+                break;
+              case 'log':
+                const msg = JSON.parse(message.message);
+                if (msg?.message?.startsWith('hardware-info:')) {
+                  await this.logHardwareInfo(device.device_id, msg.message.slice('hardware-info:'.length));
+                } else {
+                  await this.logMessage(device.device_id, {
+                    categories: ['device', ...(DEVICE_MESSAGE_CATEGORY_MAPPING[msg?.message?.split(':')?.[0]] ?? [])],
+                    ...msg,
+                  });
+                }
+                break;
+              case 'configuration':
+                await this.settingsMessage(device, JSON.parse(message.message));
+                break;
+              case 'tunnel_read':
+                await this.tunnel.onTunnelReadDataReceived(device.device_id, message.message);
+                break;
+              case 'image':
+                this.okam.onImageMessage(device.device_id, message.message);
+                break;
+              case 'tunnel_write':
+              case 'command':
+              case 'firmware':
+                break;
+              default:
+                logger.info(`Unhandled MQTT message on ${topic}: ${message.message}`);
+            }
           }
+        } catch (error) {
+          logger.error(`Failed handling an MQTT message from ${message.topic}: ${error}`);
         }
       });
     } catch (exception) {
@@ -1243,7 +1251,8 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     const dev = await this.claimCodes.findOne({ claim_code: claim_code });
     if (dev) {
       logger.info('Claiming device ' + dev.device_id + ' for user ' + user_id);
-      this.claimCodes.deleteOne({ claim_code: claim_code });
+      // Awaited, or the query is never sent and the code stays claimable.
+      await this.claimCodes.deleteOne({ claim_code: claim_code });
       await this.devices.findOneAndUpdate({ device_id: dev.device_id }, { owner_id: user_id });
       return dev.device_id;
     } else {

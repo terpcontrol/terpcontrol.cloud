@@ -118,6 +118,21 @@ describe('POST /device', () => {
     expect(listed.body.map((entry: { device_id: string }) => entry.device_id)).toContain(device.deviceId);
   });
 
+  it('spends the claim code, so a second account cannot claim the same device', async () => {
+    const device = await registerDevice();
+    const code = await anonymous().post('/device/claimcode').send({ device_id: device.deviceId }).expect(200);
+
+    await owner.client.post('/device').send({ claim_code: code.body.claim_code }).expect(200);
+
+    // The code is printed on the device and passed around; claiming with it is
+    // what takes ownership, so it has to stop working once it has been used.
+    const second = await createAccount('claim-replay');
+    await second.client.post('/device').send({ claim_code: code.body.claim_code }).expect(400);
+
+    const stillOwned = await owner.client.get('/device').expect(200);
+    expect(stillOwned.body.map((entry: { device_id: string }) => entry.device_id)).toContain(device.deviceId);
+  });
+
   it('rejects an unknown claim code', async () => {
     await owner.client.post('/device').send({ claim_code: 'nope' }).expect(400);
   });
@@ -198,6 +213,21 @@ describe('DELETE /device/:device_id', () => {
 
     const listed = await owner.client.get('/device').expect(200);
     expect(listed.body.map((entry: { device_id: string }) => entry.device_id)).toContain(device.deviceId);
+  });
+
+  it('spends the claim code, so a second account cannot claim the same device', async () => {
+    const device = await registerDevice();
+    const code = await anonymous().post('/device/claimcode').send({ device_id: device.deviceId }).expect(200);
+
+    await owner.client.post('/device').send({ claim_code: code.body.claim_code }).expect(200);
+
+    // The code is printed on the device and passed around; claiming with it is
+    // what takes ownership, so it has to stop working once it has been used.
+    const second = await createAccount('claim-replay');
+    await second.client.post('/device').send({ claim_code: code.body.claim_code }).expect(400);
+
+    const stillOwned = await owner.client.get('/device').expect(200);
+    expect(stillOwned.body.map((entry: { device_id: string }) => entry.device_id)).toContain(device.deviceId);
   });
 });
 

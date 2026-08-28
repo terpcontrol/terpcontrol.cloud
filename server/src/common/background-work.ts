@@ -47,7 +47,8 @@ export class BackgroundWork {
     this.timers.clear();
   }
 
-  private run(name: string, work: () => void | Promise<unknown>): void {
+  /** Runs the work now, keeping a failure inside it rather than ending the process. */
+  public run(name: string, work: () => void | Promise<unknown>): void {
     if (this.stopped) return;
 
     try {
