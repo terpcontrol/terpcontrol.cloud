@@ -15,6 +15,12 @@ const PLAN = join(FFMPEG_STATE_DIR, 'plan.json');
 const CALLS = join(FFMPEG_STATE_DIR, 'calls.jsonl');
 
 export interface ScriptedRun {
+  /**
+   * Part of the command line this answer is for - the stream URL, normally.
+   * Without it the next ffmpeg run takes the answer, and the webcam poller is
+   * reading its own cameras the whole time.
+   */
+  match?: string;
   /** What the run writes on stderr - which is what the server reads it by. */
   stderr?: string;
   /** Its exit code; anything but 0 is a failed run. */

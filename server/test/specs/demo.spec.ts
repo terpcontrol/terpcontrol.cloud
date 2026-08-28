@@ -10,7 +10,11 @@ import { markAsDemoDevice } from '../support/fixtures';
  * logged with the URL that failed.
  */
 
-const RTSP_STREAM = 'rtsp://camera-user:hunter2@192.168.1.44:554/stream1';
+// A camera the poller can fail to reach at once. Stored settings are read by
+// the poller for the rest of the run, and an address that is merely routed
+// nowhere - a LAN address on a build machine - leaves ffmpeg waiting on a
+// connection until its timeout, holding a slot the specs after this one need.
+const RTSP_STREAM = 'rtsp://camera-user:hunter2@127.0.0.1:1/stream1';
 const WEBHOOK = 'https://hooks.example.invalid/T0000/B0000/secret-token';
 
 let owner: Session;

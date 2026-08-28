@@ -11,8 +11,9 @@
  * bytes - arms a plan first (see test/support/ffmpeg.ts) and those runs are
  * answered from it instead.
  *
- * Runs are answered in order and the plan is consumed as it is used. The suite
- * runs serially, so two runs never race for the same entry.
+ * A plan entry is only spent on a run it names (`match`), because the webcam
+ * poller reads its own cameras throughout and would otherwise take an answer
+ * meant for the spec. Entries are spent in order.
  */
 
 const { spawn } = require('node:child_process');
@@ -37,7 +38,23 @@ const delegate = () => {
   }
 
   // Inherited rather than piped: a still comes back on stdout as JPEG bytes.
-  spawn(real, args, { stdio: 'inherit' }).on('exit', (code, signal) => process.exit(signal ? 1 : (code ?? 0)));
+  const child = spawn(real, args, { stdio: 'inherit' });
+
+  // The server runs ffmpeg with a timeout, and killing the shim would otherwise
+  // leave the real one running - holding the pipes the server is reading, so
+  // the run it timed out on never comes back at all.
+  for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP']) {
+    process.on(signal, () => {
+      child.kill(signal);
+      setTimeout(() => child.kill('SIGKILL'), 3000).unref();
+    });
+  }
+
+  child.on('error', error => {
+    process.stderr.write(`harness: could not run ${real}: ${error.message}\n`);
+    process.exit(127);
+  });
+  child.on('exit', (code, signal) => process.exit(signal ? 1 : (code ?? 0)));
 };
 
 if (!stateDir) {
@@ -49,12 +66,12 @@ appendFileSync(join(stateDir, 'calls.jsonl'), `${JSON.stringify(args)}\n`);
 
 const planFile = join(stateDir, 'plan.json');
 const plan = existsSync(planFile) ? JSON.parse(readFileSync(planFile, 'utf8')) : [];
-const run = plan.shift();
-if (!run) {
+const run = plan[0];
+if (!run || (run.match && !args.join(' ').includes(run.match))) {
   delegate();
   return;
 }
-writeFileSync(planFile, JSON.stringify(plan));
+writeFileSync(planFile, JSON.stringify(plan.slice(1)));
 
 const answer = () => {
   if (run.stderr) process.stderr.write(run.stderr);

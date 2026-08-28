@@ -15,7 +15,12 @@ let device: DeviceCredentials;
 const MISSING_CODEC_PARAMETERS = 'Could not find codec parameters for stream 0 (Video: hevc, none): unspecified size';
 
 const readStill = (body: Record<string, unknown>) => owner.client.post(`/image/test/${device.deviceId}`).send(body);
-const camera = () => ({ rtspStream: `${context.controlUrl}/__control/stream.mp4` });
+const CAMERA_PATH = '/__control/stream.mp4';
+const camera = () => ({ rtspStream: `${context.controlUrl}${CAMERA_PATH}` });
+
+// Only this camera's runs: the poller is reading the suite's own cameras
+// alongside these, and its runs land in the same record.
+const readsOfCamera = () => ffmpegCalls().filter(args => args.some(argument => argument.includes(CAMERA_PATH)));
 
 beforeAll(async () => {
   owner = await createAccount('webcam-stream-owner');
@@ -29,30 +34,30 @@ describe('reading a still from a camera', () => {
   it('asks for the frame with a minimal probe budget', async () => {
     await readStill(camera()).expect(200);
 
-    const calls = ffmpegCalls();
+    const calls = readsOfCamera();
     expect(calls).toHaveLength(1);
     expect(argumentAfter(calls[0], '-probesize')).toBe('32');
     expect(argumentAfter(calls[0], '-analyzeduration')).toBe('0');
   });
 
   it('retries with a full probe budget when the camera had no codec parameters ready', async () => {
-    armFfmpeg([{ stderr: MISSING_CODEC_PARAMETERS, exit: 1 }]);
+    armFfmpeg([{ match: CAMERA_PATH, stderr: MISSING_CODEC_PARAMETERS, exit: 1 }]);
 
     const response = await readStill(camera()).expect(200);
     expect(response.headers['content-type']).toBe('image/jpeg');
 
-    const calls = ffmpegCalls();
+    const calls = readsOfCamera();
     expect(calls).toHaveLength(2);
     expect(argumentAfter(calls[1], '-probesize')).toBe('5000000');
     expect(argumentAfter(calls[1], '-analyzeduration')).toBe('5000000');
   });
 
   it('does not spend a second attempt on a camera it could not reach', async () => {
-    armFfmpeg([{ stderr: 'Connection refused', exit: 1 }]);
+    armFfmpeg([{ match: CAMERA_PATH, stderr: 'Connection refused', exit: 1 }]);
 
     await readStill(camera()).expect(502);
 
-    expect(ffmpegCalls()).toHaveLength(1);
+    expect(readsOfCamera()).toHaveLength(1);
   });
 });
 
@@ -65,7 +70,7 @@ describe('a camera reached through the device tunnel', () => {
     const report = '2401000c80c9ff00';
 
     try {
-      armFfmpeg([{ writeToInput: report, stderr: 'harness: the camera said nothing back', exit: 1 }]);
+      armFfmpeg([{ match: 'streamtype=1', writeToInput: report, stderr: 'harness: the camera said nothing back', exit: 1 }]);
 
       await readStill({ rtspStream: 'rtsp://192.168.11.198:554/streamtype=1', tunnelRtspStream: true }).expect(502);
 
