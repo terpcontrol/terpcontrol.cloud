@@ -29,8 +29,17 @@ export class MqttClientService implements OnApplicationShutdown {
 
   constructor(@Inject(mqttConfig.KEY) private readonly config: ConfigType<typeof mqttConfig>) {}
 
-  /** Whether there is a connection to publish through at all. */
-  public get isConnected(): boolean {
+  /**
+   * Whether a message published now will reach the broker eventually.
+   *
+   * Not the same as being connected this instant: a client that has connected
+   * once keeps reconnecting on its own and queues what it is given in the
+   * meantime (mqtt.js queues QoS 0 by default), so a command sent during a
+   * blip arrives when the broker comes back. What cannot be delivered is a
+   * message given to no client at all - before the first connection, or after
+   * one that never succeeded.
+   */
+  public get canPublish(): boolean {
     return !!this.client;
   }
 
@@ -126,8 +135,12 @@ export class MqttClientService implements OnApplicationShutdown {
     return true;
   }
 
-  /** Lets the broker see the disconnect rather than waiting for the keepalive to lapse. */
+  /**
+   * Says goodbye rather than dropping the socket: `end(true)` closes without
+   * sending a DISCONNECT, which leaves the broker holding the session until the
+   * keepalive lapses.
+   */
   public onApplicationShutdown(): void {
-    this.client?.end(true);
+    this.client?.end(false);
   }
 }

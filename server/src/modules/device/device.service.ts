@@ -1321,7 +1321,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     // Asked before anything is written: a caller that cannot be served should
     // find nothing changed, rather than a stored configuration it was told had
     // failed and a diary entry that a retry will no longer have a diff for.
-    if (!this.mqtt.isConnected) {
+    if (!this.mqtt.canPublish) {
       throw new HttpException(503, 'Not connected to the message broker');
     }
 
