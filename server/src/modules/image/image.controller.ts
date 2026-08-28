@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiConsumes, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
-import { HttpException } from '@exceptions/HttpException';
+import { HttpException } from '@common/http-exception';
 import { ImageService } from './image.service';
 import { AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentShare } from '../../common/auth/current-user.decorator';

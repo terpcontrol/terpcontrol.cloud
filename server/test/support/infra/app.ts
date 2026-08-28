@@ -26,8 +26,8 @@ export interface AppEnvironment {
  */
 const entryPoint = () =>
   process.env.HARNESS_BUILT === '1'
-    ? { script: 'dist/nest/main.js', nodeArgs: [] as string[] }
-    : { script: 'src/nest/main.ts', nodeArgs: ['-r', 'ts-node/register/transpile-only', '-r', 'tsconfig-paths/register'] };
+    ? { script: 'dist/main.js', nodeArgs: [] as string[] }
+    : { script: 'src/main.ts', nodeArgs: ['-r', 'ts-node/register/transpile-only', '-r', 'tsconfig-paths/register'] };
 
 export const buildEnv = (environment: AppEnvironment): NodeJS.ProcessEnv => {
   const mongo = new URL(environment.mongoUri);

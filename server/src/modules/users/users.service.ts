@@ -4,7 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { hash } from 'bcrypt';
 import { Document, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { HttpException } from '@exceptions/HttpException';
+import { HttpException } from '@common/http-exception';
 import { User } from '@fg2/shared-types';
 import { isEmpty } from '@utils/util';
 import { logger } from '@utils/logger';

@@ -6,8 +6,8 @@ const SERVER_ROOT = join(__dirname, '..', '..');
 
 const entryPoint = () =>
   process.env.HARNESS_BUILT === '1'
-    ? { script: 'dist/nest/main.js', nodeArgs: [] as string[] }
-    : { script: 'src/nest/main.ts', nodeArgs: ['-r', 'ts-node/register/transpile-only', '-r', 'tsconfig-paths/register'] };
+    ? { script: 'dist/main.js', nodeArgs: [] as string[] }
+    : { script: 'src/main.ts', nodeArgs: ['-r', 'ts-node/register/transpile-only', '-r', 'tsconfig-paths/register'] };
 
 interface Outcome {
   code: number | null;

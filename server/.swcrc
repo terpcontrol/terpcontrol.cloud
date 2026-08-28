@@ -24,26 +24,17 @@
       "@/*": [
         "*"
       ],
-      "@config": [
-        "config"
+      "@common/*": [
+        "common/*"
       ],
-      "@databases": [
-        "databases"
+      "@config/*": [
+        "config/*"
       ],
-      "@dtos/*": [
-        "dtos/*"
+      "@database/*": [
+        "database/*"
       ],
-      "@exceptions/*": [
-        "exceptions/*"
-      ],
-      "@interfaces/*": [
-        "interfaces/*"
-      ],
-      "@models/*": [
-        "models/*"
-      ],
-      "@services/*": [
-        "services/*"
+      "@modules/*": [
+        "modules/*"
       ],
       "@utils/*": [
         "utils/*"

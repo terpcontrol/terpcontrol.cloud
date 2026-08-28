@@ -3,7 +3,7 @@ import { ConfigType } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { InfluxDB, Point } from '@influxdata/influxdb-client';
 import { Document, Model } from 'mongoose';
-import { HttpException } from '@exceptions/HttpException';
+import { HttpException } from '@common/http-exception';
 import { calculateVpd } from '@utils/calculateVpd';
 import { Image } from '@fg2/shared-types';
 import { influxConfig } from '../../config/configuration';

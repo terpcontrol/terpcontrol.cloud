@@ -11,7 +11,7 @@ import pLimit from 'p-limit';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import { CloudSettings, Device, Image } from '@fg2/shared-types';
-import { HttpException } from '@exceptions/HttpException';
+import { HttpException } from '@common/http-exception';
 import { logger } from '@utils/logger';
 import { MODEL } from '../../database/models.module';
 import { OkamP2PService, OKAM_STREAM_PREFIX } from '../camera/okam-p2p.service';

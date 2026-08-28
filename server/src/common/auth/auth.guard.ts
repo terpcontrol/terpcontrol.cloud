@@ -1,5 +1,5 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
-import { HttpException } from '@exceptions/HttpException';
+import { HttpException } from '@common/http-exception';
 import { AuthenticatedRequest, TokenService } from './token.service';
 
 /** Requires a valid user session and puts it on the request. */

@@ -1,5 +1,5 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
-import { HttpException } from '@exceptions/HttpException';
+import { HttpException } from '@common/http-exception';
 import { DEMO_WRITE_MESSAGE } from '@utils/demo';
 import { AuthenticatedRequest, TokenService } from './token.service';
 

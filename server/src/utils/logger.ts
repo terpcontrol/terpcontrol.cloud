@@ -2,10 +2,15 @@ import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import winston from 'winston';
 import winstonDaily from 'winston-daily-rotate-file';
-import { LOG_DIR } from '@config';
+import { config } from 'dotenv';
 
-// logs dir
-const logDir: string = LOG_DIR;
+// The logger is built as this file is imported, which is before Nest has read
+// the environment, so it loads the same file ConfigModule does and reads the
+// one setting it needs from it. Anything already in the process environment
+// wins, exactly as it does there.
+config({ path: `.env.${process.env.NODE_ENV || 'development'}.local` });
+
+const logDir: string = process.env.LOG_DIR;
 
 if (!existsSync(logDir)) {
   mkdirSync(logDir);

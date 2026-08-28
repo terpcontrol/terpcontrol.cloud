@@ -23,8 +23,8 @@ import {
   socketListChunk,
   UserFirmwareList,
 } from '@fg2/shared-types';
-import { AddDeviceDto, RegisterDeviceDto, TestDeviceDto } from '@dtos/device.dto';
-import { HttpException } from '@exceptions/HttpException';
+import { AddDeviceDto, RegisterDeviceDto, TestDeviceDto } from '@modules/device/device.types';
+import { HttpException } from '@common/http-exception';
 import { logger } from '@utils/logger';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
 import { demoAlarms, demoCloudSettings, demoDevice } from '@utils/demo';

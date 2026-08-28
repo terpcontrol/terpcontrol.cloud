@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Document, Model } from 'mongoose';
-import { HttpException } from '@exceptions/HttpException';
-import { AuthUserDto, AuthVhostDto, AuthResourceDto, AuthTopicDto } from '@dtos/mqttauth.dto';
+import { HttpException } from '@common/http-exception';
+import { AuthUserDto, AuthVhostDto, AuthResourceDto, AuthTopicDto } from '@modules/mqtt-auth/mqtt-auth.types';
 import { Device } from '@fg2/shared-types';
 import { isEmpty } from '@utils/util';
 import { logger } from '@utils/logger';

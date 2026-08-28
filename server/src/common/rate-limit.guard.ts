@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, SetMetadata } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { FastifyReply, FastifyRequest } from 'fastify';
-import { HttpException } from '@exceptions/HttpException';
+import { HttpException } from '@common/http-exception';
 
 export interface RateLimit {
   /** Requests allowed per window, per client address. */

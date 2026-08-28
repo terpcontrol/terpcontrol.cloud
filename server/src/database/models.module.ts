@@ -1,16 +1,16 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { chartPresetSchema } from '@models/chartpreset.model';
-import { claimCodeSchema } from '@models/claimcode.model';
-import { deviceSchema } from '@models/device.model';
-import { deviceClassSchema } from '@models/deviceclass.model';
-import { deviceFirmwareBinarySchema, deviceFirmwareSchema } from '@models/devicefirmware.model';
-import { deviceLogSchema } from '@models/devicelog.model';
-import { imagesSchema } from '@models/images.model';
-import { passwordTokenSchema } from '@models/password_token.model';
-import { recipeSchema } from '@models/recipe.model';
-import { shareSchema } from '@models/share.model';
-import { userSchema } from '@models/users.model';
+import { chartPresetSchema } from '@database/schemas/chartpreset.schema';
+import { claimCodeSchema } from '@database/schemas/claimcode.schema';
+import { deviceSchema } from '@database/schemas/device.schema';
+import { deviceClassSchema } from '@database/schemas/deviceclass.schema';
+import { deviceFirmwareBinarySchema, deviceFirmwareSchema } from '@database/schemas/devicefirmware.schema';
+import { deviceLogSchema } from '@database/schemas/devicelog.schema';
+import { imagesSchema } from '@database/schemas/images.schema';
+import { passwordTokenSchema } from '@database/schemas/password_token.schema';
+import { recipeSchema } from '@database/schemas/recipe.schema';
+import { shareSchema } from '@database/schemas/share.schema';
+import { userSchema } from '@database/schemas/users.schema';
 
 /** The model names, so an `@InjectModel` and a registration cannot drift apart. */
 export const MODEL = {

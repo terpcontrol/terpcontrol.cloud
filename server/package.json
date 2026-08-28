@@ -5,7 +5,7 @@
   "author": "",
   "license": "ISC",
   "scripts": {
-    "start": "rm -rf dist; npm run build && cross-env NODE_ENV=production node dist/nest/main.js",
+    "start": "rm -rf dist; npm run build && cross-env NODE_ENV=production node dist/main.js",
     "dev": "cross-env NODE_ENV=development nodemon --verbose",
     "build": "swc src -d dist --source-maps --copy-files",
     "build:tsc": "tsc && tsc-alias",

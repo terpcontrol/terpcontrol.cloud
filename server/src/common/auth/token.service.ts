@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { FastifyRequest } from 'fastify';
 import { verify } from 'jsonwebtoken';
-import { DataStoredInToken } from '@interfaces/auth.interface';
+import { DataStoredInToken } from '@common/auth/auth.interface';
 import { authConfig } from '../../config/configuration';
 
 export type TokenType = DataStoredInToken['token_type'];
