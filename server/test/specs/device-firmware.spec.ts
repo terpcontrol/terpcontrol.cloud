@@ -182,6 +182,16 @@ describe('GET /device/firmware/find', () => {
     await admin.client.get('/device/firmware/find').query({ name: 'fridge', version: 'never-built' }).expect(404);
   });
 
+  it('refuses a search that leaves out what to search for', async () => {
+    // An absent name or version is not a wildcard: the id this answers with is
+    // what a rollout pins onto a whole device class, so it must not be
+    // whichever build the database happened to return first.
+    await admin.client.get('/device/firmware/find').expect(400);
+    await admin.client.get('/device/firmware/find').query({ name: 'fridge' }).expect(400);
+    await admin.client.get('/device/firmware/find').query({ version: '1.0' }).expect(400);
+    await admin.client.get('/device/firmware/find').query({ name: '', version: '' }).expect(400);
+  });
+
   it('is admin-only', async () => {
     await owner.client.get('/device/firmware/find').query({ name: 'fridge', version: '1.0' }).expect(401);
   });

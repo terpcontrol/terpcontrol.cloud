@@ -2,6 +2,7 @@ import { Inject, Injectable, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { Subject } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
+import { HttpException } from '@common/http-exception';
 import { logger } from '@utils/logger';
 import { mqttConfig } from '../../config/configuration';
 
@@ -81,6 +82,10 @@ export class MqttClientService implements OnApplicationShutdown {
   }
 
   public subscribe(topic: string): Promise<void> {
+    if (!this.client) {
+      return Promise.reject(new HttpException(503, 'Not connected to the message broker'));
+    }
+
     return new Promise<void>((resolve, reject) => {
       this.client.subscribe(topic, (error: Error | null) => {
         if (error) {
@@ -93,7 +98,17 @@ export class MqttClientService implements OnApplicationShutdown {
     });
   }
 
+  /**
+   * The connection is made a few seconds after the server starts and can be
+   * down afterwards, so there may be no client to publish through. Saying so is
+   * the honest answer: the device is not going to hear this either way, and a
+   * caller told 503 knows to try again.
+   */
   public publish(topic: string, message: string): void {
+    if (!this.client) {
+      throw new HttpException(503, 'Not connected to the message broker');
+    }
+
     this.client.publish(topic, message);
   }
 

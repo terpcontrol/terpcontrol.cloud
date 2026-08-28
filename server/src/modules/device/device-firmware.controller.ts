@@ -55,6 +55,13 @@ export class DeviceFirmwareController {
   @ApiQuery({ name: 'version', required: true })
   @ApiOperation({ summary: 'Find a firmware by class and version' })
   public async find(@Query('name') name: string, @Query('version') version: string): Promise<DeviceFirmware> {
+    // Both are required: an absent one is not a wildcard, and answering with
+    // whichever build the database returned first is worse than saying no -
+    // the id from here is what a rollout pins onto a whole device class.
+    if (typeof name !== 'string' || !name || typeof version !== 'string' || !version) {
+      throw new HttpException(400, 'name and version are required');
+    }
+
     const firmware = await this.deviceService.findFirmwareByNameVersion(name, version);
 
     if (!firmware) {
