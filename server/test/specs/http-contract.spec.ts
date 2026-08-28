@@ -100,6 +100,18 @@ describe('what Express used to accept', () => {
     await anonymous().get('/ReadyCheck').expect(200);
   });
 
+  it('reads a path the same way the router matched it', async () => {
+    // Two checks key off the path themselves, and a router that ignores case
+    // while they do not is how a rule gets walked around.
+    const owner = await createAccount('case-owner');
+    const device = await provisionDevice(owner);
+
+    await anonymous().get(`/Image/${device.deviceId}?format=jpeg&token=${owner.imageToken}`).expect(200);
+
+    const demo = await demoSession();
+    await demo.client.post('/Logout').expect(200);
+  });
+
   it('takes a path segment longer than a hundred characters', async () => {
     // Fastify caps one at 100 by default. The MQTT auth secret travels in the
     // path, so a long one would 414 every check the broker makes.

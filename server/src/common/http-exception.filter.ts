@@ -3,6 +3,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { Error as MongooseError } from 'mongoose';
 import { HttpException } from '@common/http-exception';
 import { logger } from '@utils/logger';
+import { loggablePath } from './log-path';
 
 /**
  * A refusal that answers with a bare string rather than the usual JSON body.
@@ -29,10 +30,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     const { status, message } = this.describe(exception);
 
-    // The path without the query string, as the Express error middleware logged
-    // it: a picture URL carries the long-lived image token, and the error log is
-    // kept for a month.
-    const path = request.url.split('?')[0];
+    const path = loggablePath(request.url);
     logger.error(`[${request.method}] ${path} >> StatusCode:: ${status}, Message:: ${message}`);
 
     if (exception instanceof PlainTextException) {

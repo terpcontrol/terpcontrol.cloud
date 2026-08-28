@@ -21,8 +21,9 @@ export class DemoReadOnlyGuard implements CanActivate {
     if (context.getType() !== 'http') return true;
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    // The router ignores a trailing slash, so the allow-list has to as well.
-    const path = (request.url ?? '/').split('?')[0].replace(/\/+$/, '') || '/';
+    // The router ignores a trailing slash and matches whatever the case, so the
+    // allow-list has to do both - otherwise `/Logout` is a write to the demo.
+    const path = (request.url ?? '/').split('?')[0].toLowerCase().replace(/\/+$/, '') || '/';
 
     if (READ_METHODS.includes(request.method) || DEMO_ALLOWED_PATHS.includes(path)) {
       return true;

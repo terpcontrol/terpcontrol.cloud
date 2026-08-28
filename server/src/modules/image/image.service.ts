@@ -13,6 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { CloudSettings, Device, Image } from '@fg2/shared-types';
 import { HttpException } from '@common/http-exception';
 import { logger } from '@utils/logger';
+import { BackgroundWork } from '../../common/background-work';
 import { MODEL } from '../../database/models.module';
 import { OkamP2PService, OKAM_STREAM_PREFIX } from '../camera/okam-p2p.service';
 import { DeviceService } from '../device/device.service';
@@ -72,7 +73,7 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
   private ffmpegLimit = pLimit(10);
   private deviceIdToLastRtspState = new Map<string, { lastTry: number; failureCount: number }>();
   private lastThinningRun = 0;
-  private readonly startupTimers: ReturnType<typeof setTimeout>[] = [];
+  private readonly work = new BackgroundWork();
 
   constructor(
     @InjectModel(MODEL.image) private readonly images: Model<Image & Document>,
@@ -88,12 +89,12 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
    * request - and before the database connection is necessarily up.
    */
   public onModuleInit(): void {
-    this.startupTimers.push(setTimeout(() => void this.readFromRtspStreams(), 30_000));
-    this.startupTimers.push(setTimeout(() => void this.compressRtspStreams(), 60_000));
+    this.work.schedule(() => void this.readFromRtspStreams(), 30_000);
+    this.work.schedule(() => void this.compressRtspStreams(), 60_000);
   }
 
   public onApplicationShutdown(): void {
-    for (const timer of this.startupTimers) clearTimeout(timer);
+    this.work.stop();
   }
 
   public async getDeviceImage(
@@ -270,9 +271,9 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
 
     await Promise.all(promises);
 
-    setTimeout(() => {
-      void this.readFromRtspStreams();
-    }, READ_IMAGE_CHECK_INTERVAL_MS);
+    // Each pass schedules the next one, so a stopped server has to refuse it
+    // rather than only cancel the timer that happens to be pending.
+    this.work.schedule(() => void this.readFromRtspStreams(), READ_IMAGE_CHECK_INTERVAL_MS);
   }
 
   public async testRtspStream(
@@ -321,9 +322,7 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
         this.lastThinningRun = Date.now();
       }
     } finally {
-      setTimeout(() => {
-        void this.compressRtspStreams();
-      }, COMPRESS_INTERVAL_MS);
+      this.work.schedule(() => void this.compressRtspStreams(), COMPRESS_INTERVAL_MS);
     }
   }
 

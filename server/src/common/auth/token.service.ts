@@ -20,9 +20,10 @@ export interface AuthenticatedRequest extends FastifyRequest {
 }
 
 // A picture is fetched by <img>, which cannot set headers, so those URLs may
-// carry the token in the query string. Nothing else accepts one there.
+// carry the token in the query string. Nothing else accepts one there - and the
+// router matches whatever the case, so this has to recognise `/Image/` too.
 const isImageQueryTokenAllowed = (request: FastifyRequest): boolean =>
-  request.method === 'GET' && (request.url ?? '').split('?')[0].startsWith('/image/');
+  request.method === 'GET' && (request.url ?? '').split('?')[0].toLowerCase().startsWith('/image/');
 
 // A full user session is at least as privileged as the URL-embeddable image token.
 const matchesTokenType = (actual: TokenType, expected: TokenType): boolean => actual === expected || (expected === 'image' && actual === 'user');

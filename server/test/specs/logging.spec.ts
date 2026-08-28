@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createAccount, Session, unique } from '../support/api';
+import { anonymous, context, createAccount, Session, unique } from '../support/api';
 import { registerDevice } from '../support/device';
 
 const LOG_DIR = join(__dirname, '..', '.tmp', 'logs');
@@ -44,6 +44,19 @@ describe('what the server writes down', () => {
 
     expect(contents).not.toContain('[object Object]');
     expect(contents).not.toMatch(/^\S+ \S+ \w+: \s*$/m);
+  });
+
+  it('never writes the MQTT shared secret down, though the broker sends it in the path', async () => {
+    // The broker checks credentials for every device that connects, so an
+    // unredacted path would fill a month of logs with copies of the secret.
+    await anonymous().post(`/mqttauth/${context.mqttAuthSecret}/user`).type('form').send({ username: 'nobody', password: 'nope' });
+
+    await settle();
+    const contents = logContents();
+
+    expect(contents).not.toContain(context.mqttAuthSecret);
+    // The request is still recorded, minus the one part that is a credential.
+    expect(contents).toContain('/mqttauth/<secret>/user');
   });
 
   it('keeps the detail of a message that carries one', async () => {

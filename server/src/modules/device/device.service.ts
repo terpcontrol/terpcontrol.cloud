@@ -29,6 +29,7 @@ import { logger } from '@utils/logger';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
 import { demoAlarms, demoCloudSettings, demoDevice } from '@utils/demo';
 import { authConfig } from '../../config/configuration';
+import { BackgroundWork } from '../../common/background-work';
 import { MODEL } from '../../database/models.module';
 import { AlarmService } from '../alarm/alarm.service';
 import { OkamP2PService, OKAM_STREAM_PREFIX } from '../camera/okam-p2p.service';
@@ -129,7 +130,7 @@ const toDate = (time: string | number | Date | undefined): Date | undefined => {
 export class DeviceService implements OnModuleInit, OnApplicationShutdown {
   private readonly upgradeInstructionTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly upgradeInstructionBackoff = new Map<string, { firmwareId: string; nextDelayMs: number }>();
-  private readonly recurring: ReturnType<typeof setInterval>[] = [];
+  private readonly work = new BackgroundWork();
 
   constructor(
     @InjectModel(MODEL.device) private readonly devices: Model<Device & Document>,
@@ -158,13 +159,13 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     void this.checkDeviceClasses();
     void this.backfillFirmwareCreatedAt();
 
-    this.recurring.push(setTimeout(() => void this.connectMqtt(), 5000) as unknown as ReturnType<typeof setInterval>);
-    this.recurring.push(setInterval(() => void this.findUpgradeableDevices(), 10000));
-    this.recurring.push(setInterval(() => void this.runRecipes(), 20000));
+    this.work.schedule(() => void this.connectMqtt(), 5000);
+    this.work.repeat(() => void this.findUpgradeableDevices(), 10000);
+    this.work.repeat(() => void this.runRecipes(), 20000);
   }
 
   public onApplicationShutdown(): void {
-    for (const timer of this.recurring) clearInterval(timer);
+    this.work.stop();
     for (const timer of this.upgradeInstructionTimers.values()) clearTimeout(timer);
     this.upgradeInstructionTimers.clear();
   }
@@ -268,8 +269,9 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     } catch (exception) {
       logger.error(`Could not connect to the MQTT broker: ${exception}`);
       // Wait before trying again: retrying straight away spins the CPU and
-      // floods the log for as long as the broker is unreachable.
-      setTimeout(() => void this.connectMqtt(), MQTT_RECONNECT_DELAY);
+      // floods the log for as long as the broker is unreachable. A server on
+      // its way down does not try again at all.
+      this.work.schedule(() => void this.connectMqtt(), MQTT_RECONNECT_DELAY);
     }
   }
 
@@ -296,7 +298,8 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
       return;
     }
 
-    if (this.upgradeInstructionTimers.has(device.device_id)) {
+    // One timer per device, and none at all once the server is stopping.
+    if (this.upgradeInstructionTimers.has(device.device_id) || this.work.isStopped) {
       return;
     }
 
