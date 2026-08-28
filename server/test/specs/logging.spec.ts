@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { anonymous, context, createAccount, Session, unique } from '../support/api';
-import { registerDevice } from '../support/device';
+import { provisionDevice, registerDevice } from '../support/device';
 
 const LOG_DIR = join(__dirname, '..', '.tmp', 'logs');
 
@@ -57,6 +57,22 @@ describe('what the server writes down', () => {
     expect(contents).not.toContain(context.mqttAuthSecret);
     // The request is still recorded, minus the one part that is a credential.
     expect(contents).toContain('/mqttauth/<secret>/user');
+  });
+
+  it('never writes a camera password down, or hands one back', async () => {
+    const device = await provisionDevice(owner);
+    const password = `cam-secret-${Date.now()}`;
+    const stream = `rtsp://camera-user:${password}@127.0.0.1:1/nothing-here`;
+
+    // The failure message quotes the whole ffmpeg command line, which carries
+    // the URL the camera is stored with - credentials and all.
+    const response = await owner.client.post(`/image/test/${device.deviceId}`).send({ rtspStream: stream }).expect(502);
+
+    expect(response.body.message).not.toContain(password);
+    expect(response.body.message).toContain('<credentials>');
+
+    await settle();
+    expect(logContents()).not.toContain(password);
   });
 
   it('keeps the detail of a message that carries one', async () => {

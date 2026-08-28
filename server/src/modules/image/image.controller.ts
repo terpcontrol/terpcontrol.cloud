@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException,
 import { ApiConsumes, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 import { HttpException } from '@common/http-exception';
+import { withoutCredentials } from '@common/log-path';
 import { ImageService } from './image.service';
 import { AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentShare } from '../../common/auth/current-user.decorator';
@@ -120,7 +121,12 @@ export class ImageController {
     } catch (error) {
       // The stream belongs to the caller's network, so a failure to read it is
       // an upstream problem rather than a bad request.
-      throw new HttpException(502, String((error as Error)?.message ?? 'Failed to read an image from the webcam stream').slice(0, 2000));
+      // The message quotes the ffmpeg command line, which carries the camera's
+      // credentials - and the filter writes every refusal to the log.
+      throw new HttpException(
+        502,
+        withoutCredentials(String((error as Error)?.message ?? 'Failed to read an image from the webcam stream')).slice(0, 2000),
+      );
     }
   }
 

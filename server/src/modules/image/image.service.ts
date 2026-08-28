@@ -14,10 +14,12 @@ import { CloudSettings, Device, Image } from '@fg2/shared-types';
 import { HttpException } from '@common/http-exception';
 import { logger } from '@utils/logger';
 import { BackgroundWork, logIfItFails } from '../../common/background-work';
+import { withoutCredentials } from '../../common/log-path';
 import { MODEL } from '../../database/models.module';
 import { OkamP2PService, OKAM_STREAM_PREFIX } from '../camera/okam-p2p.service';
 import { DeviceService } from '../device/device.service';
 import { TunnelService } from '../tunnel/tunnel.service';
+
 const escapeXml = (value: string): string =>
   value.replace(/[<>&'"]/g, character => `&${{ '<': 'lt', '>': 'gt', '&': 'amp', "'": 'apos', '"': 'quot' }[character]};`);
 
@@ -269,7 +271,14 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
                   }
                 })
                 .catch(e => {
-                  logger.error(`Error reading RTSP stream ${device.cloudSettings.rtspStream} for device ${device.device_id}: ${e?.message ?? e}`);
+                  // Both halves are redacted: the URL is stored with the
+                  // camera's credentials in it, and an ffmpeg failure quotes
+                  // the whole command line - including that URL - back.
+                  logger.error(
+                    withoutCredentials(
+                      `Error reading RTSP stream ${device.cloudSettings.rtspStream} for device ${device.device_id}: ${e?.message ?? e}`,
+                    ),
+                  );
                   state.failureCount = e instanceof CorruptFrameError ? 0 : (state.failureCount ?? 0) + 1;
                   return Promise.resolve();
                 })
@@ -317,6 +326,10 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
       const shouldThin = Date.now() - this.lastThinningRun >= THIN_INTERVAL_MS;
 
       for (const device of devices) {
+        // As in the poller: a pass walks every device and runs ffmpeg as it
+        // goes, so it has to notice the server stopping around it.
+        if (this.work.isStopped) break;
+
         const oldImages = await this.images
           .find({
             device_id: device.device_id,
