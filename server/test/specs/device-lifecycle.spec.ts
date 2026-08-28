@@ -289,6 +289,10 @@ describe('POST /device/create', () => {
     await admin.client.post('/device/create').send({ device_type: 'fridge' }).expect(400);
   });
 
+  it('reports a class that does not exist rather than failing', async () => {
+    await admin.client.post('/device/create').send({ class_id: 'no-such-class', device_type: 'fridge' }).expect(404);
+  });
+
   it('is admin-only', async () => {
     await owner.client.post('/device/create').send({ class_id: 'x', device_type: 'fridge' }).expect(401);
   });

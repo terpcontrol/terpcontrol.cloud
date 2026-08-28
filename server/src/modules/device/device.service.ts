@@ -1155,6 +1155,12 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
 
     const device_class = await this.deviceClasses.findOne({ class_id: info.class_id });
 
+    // The class decides which firmware the new device is told to run, so there
+    // is nothing to create without one - reading it anyway answered 500.
+    if (!device_class) {
+      throw new HttpException(404, 'Device class not found');
+    }
+
     const plainPassword = uuidv4();
     const device: Device = {
       device_id: uuidv4(),
