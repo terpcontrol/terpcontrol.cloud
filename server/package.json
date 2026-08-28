@@ -4,6 +4,9 @@
   "description": "TypeScript + NestJS + Fastify + Mongoose + MongoDB API server",
   "author": "",
   "license": "ISC",
+  "engines": {
+    "node": ">=20.19"
+  },
   "scripts": {
     "start": "rm -rf dist; npm run build && cross-env NODE_ENV=production node dist/main.js",
     "dev": "cross-env NODE_ENV=development nodemon --verbose",

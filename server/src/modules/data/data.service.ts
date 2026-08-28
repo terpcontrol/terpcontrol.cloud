@@ -1,13 +1,9 @@
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { InjectModel } from '@nestjs/mongoose';
 import { InfluxDB, Point } from '@influxdata/influxdb-client';
-import { Document, Model } from 'mongoose';
 import { HttpException } from '@common/http-exception';
 import { calculateVpd } from '@utils/calculateVpd';
-import { Image } from '@fg2/shared-types';
 import { influxConfig } from '../../config/configuration';
-import { MODEL } from '../../database/models.module';
 import { DeviceService, StatusMessage } from '../device/device.service';
 
 export const VALID_SENSORS = ['temperature', 'humidity', 'avg', 'p', 'i', 'd', 'co2', 'rpm', 'day', 'sensor_type', 'leaf_temperature', 'lux'];
@@ -70,7 +66,6 @@ export class DataService {
   private readonly influx: InfluxDB;
 
   constructor(
-    @InjectModel(MODEL.image) private readonly images: Model<Image & Document>,
     @Inject(forwardRef(() => DeviceService)) private readonly devices: DeviceService,
     @Inject(influxConfig.KEY) private readonly config: ConfigType<typeof influxConfig>,
   ) {
