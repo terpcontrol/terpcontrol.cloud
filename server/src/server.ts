@@ -6,28 +6,10 @@ process.on('uncaughtException', (err, origin) => {
 });
 
 import App from '@/app';
-import AuthRoute from '@routes/auth.route';
-import IndexRoute from '@routes/index.route';
-import UsersRoute from '@routes/users.route';
-import DeviceRoute from '@routes/device.route';
-import ImageRoute from '@routes/image.route';
 import validateEnv from '@utils/validateEnv';
-import MqttAuthRoute from './routes/mqttauth.route';
-import DataRoute from './routes/data.route';
-import ShareRoute from './routes/share.route';
-import ChartPresetRoute from './routes/chartpreset.route';
+import { allRoutes } from '@routes/index';
 
 validateEnv();
 
-const app = new App([
-  new DataRoute(),
-  new ShareRoute(),
-  new ChartPresetRoute(),
-  new MqttAuthRoute(),
-  new DeviceRoute(),
-  new ImageRoute(),
-  new IndexRoute(),
-  new UsersRoute(),
-  new AuthRoute(),
-]);
+const app = new App(allRoutes());
 app.run();

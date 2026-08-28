@@ -1,0 +1,64 @@
+<div class="griff" [class.griff--zieht]="zieht">
+  <p class="griff-zeile">
+    <!-- The rung, in its own words and with its own numbers - `Lauf 1 · Tag 34`,
+         resolved through `DingTextService` like every other Text in the app. -->
+    <span class="griff-anker" *ngIf="!hinweis">{{ ankerBeschriftung }}</span>
+    <span class="griff-moment">
+      {{ momentSchluessel | translate: { zeit: moment | date: 'EEE dd.MM. HH:mm', tag: tag } }}
+    </span>
+    <!-- The reply of `Nächster Unterschied` takes the same line rather than a new
+         one: the control is 56 px on every Tafel and answering must not move it.
+         It takes the *rung's* place and never the printed moment - a control that
+         answers by hiding where you are is answering a different question. -->
+    <span class="griff-moment griff-hinweis" *ngIf="hinweis" [attr.title]="hinweis | translate">{{ hinweis | translate }}</span>
+    <button type="button" class="griff-naechster" (click)="naechster()">{{ 'zelt.griff.naechster' | translate }}</button>
+  </p>
+
+  <div
+    #spur
+    class="griff-spur"
+    role="slider"
+    tabindex="0"
+    [attr.aria-label]="'zelt.griff.titel' | translate"
+    [attr.aria-valuemin]="0"
+    [attr.aria-valuemax]="100"
+    [attr.aria-valuenow]="kopfProzent"
+    [attr.aria-valuetext]="ankerBeschriftung + ' · ' + (moment | date: 'EEE dd.MM. HH:mm')"
+    (pointerdown)="onPointerDown($event)"
+    (pointermove)="onPointerMove($event)"
+    (pointerup)="onPointerUp($event)"
+    (pointercancel)="onPointerCancel($event)"
+    (keydown)="onKeydown($event)"
+    (keyup)="onKeyup($event)"
+    (blur)="onBlur()"
+  >
+    <svg class="griff-band" [attr.viewBox]="'0 0 ' + balken.length + ' 2'" preserveAspectRatio="none" aria-hidden="true">
+      <rect
+        *ngFor="let stab of balken; trackBy: trackBalken"
+        class="griff-band-oben"
+        [attr.x]="stab.x + 0.1"
+        [attr.width]="0.8"
+        [attr.y]="1 - stab.oben"
+        [attr.height]="stab.oben"
+      ></rect>
+      <rect
+        *ngFor="let stab of balken; trackBy: trackBalken"
+        class="griff-band-unten"
+        [attr.x]="stab.x + 0.1"
+        [attr.width]="0.8"
+        [attr.y]="1"
+        [attr.height]="stab.unten"
+      ></rect>
+    </svg>
+
+    <span class="griff-linie" aria-hidden="true"></span>
+    <span
+      class="griff-detent"
+      *ngFor="let detent of detentliste; trackBy: trackDetent"
+      [style.left.%]="prozent(detent.von)"
+      [attr.title]="beschriftung(detent)"
+      aria-hidden="true"
+    ></span>
+    <span class="griff-kopf" [style.left.%]="kopfProzent" aria-hidden="true"><span class="griff-knopf"></span></span>
+  </div>
+</div>

@@ -139,7 +139,30 @@ function socketReportKey(hardwareInfo) {
     .join(';');
 }
 
+/**
+ * The seven arts a person writes. Everything else in `DingArt` is projected
+ * read-time from data that already exists, so the client may not POST it and
+ * the server never stores a row for it.
+ */
+const GESPEICHERTE_ARTEN = ['pflanze', 'gabe', 'notiz', 'zustand', 'phase', 'mensch', 'lauf'];
+
+function istGespeichert(art) {
+  return GESPEICHERTE_ARTEN.includes(art);
+}
+
+/**
+ * What a club key may write through `POST /api/dinge`. A key is handed to a
+ * member rather than the owner, so it can record what happened in the tent but
+ * cannot restructure it: no plants, no phases, no people, no runs. A key may
+ * also upload a photo, but that goes through the image route, which writes the
+ * `bild` Ding itself - `bild` is projected and is never POSTed here.
+ */
+const SCHLUESSEL_ARTEN = ['gabe', 'notiz', 'zustand'];
+
 module.exports = {
+  GESPEICHERTE_ARTEN,
+  istGespeichert,
+  SCHLUESSEL_ARTEN,
   SOCKET_ROLES,
   MAX_SOCKETS,
   SOCKETS_PER_REPORT_CHUNK,

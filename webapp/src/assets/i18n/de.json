@@ -9,8 +9,8 @@
     "success": "Erfolg",
     "close": "Schließen",
     "ok": "Okay",
-    "saving": "speichern...",
-    "loading": "laden...",
+    "saving": "Wird gespeichert…",
+    "loading": "Wird geladen…",
     "save": "Speichern",
     "settings": "Einstellungen",
     "errorOccurred": "Fehler aufgetreten",
@@ -55,11 +55,11 @@
     "templimit": "Temperaturlimit",
     "fanspeeds": "Lüftergeschwindigkeit",
     "externalfan": "Klemmlüfter",
-    "internalfan": "Interne lüfter (Minimalgeschwindigkeit)",
-    "maxDehumidifySeconds": "Max. Kühlschrank AN Sekunden",
-    "minimalDehumidifierOffTime": "Min. Kühlschrank Aus-Zeit in Sekunden",
-    "minimalDehumidifierOffTimeHint": "Mindestzeit in Sekunden, die der Kühlschrank/Entfeuchter aus bleibt, bevor er wieder eingeschaltet werden kann. Verhindert häufiges Takten des Kompressors.",
-    "minimalDehumidifierOffTimeWarning": "Warnung: Werte unter 240s können den Kompressor des Kühlschranks durch häufiges Takten beschädigen!",
+    "internalfan": "Interne Lüfter (Minimalgeschwindigkeit)",
+    "maxDehumidifySeconds": "Max. Entfeuchter-AN-Zeit in Sekunden",
+    "minimalDehumidifierOffTime": "Min. Entfeuchter-Aus-Zeit in Sekunden",
+    "minimalDehumidifierOffTimeHint": "Mindestzeit in Sekunden, die der Entfeuchter (beim Kühlschrank der Kompressor) aus bleibt, bevor er wieder einschalten darf. Verhindert häufiges Takten.",
+    "minimalDehumidifierOffTimeWarning": "Warnung: Werte unter 240 s können den Kompressor durch häufiges Takten beschädigen!",
     "targetHumidityDiff": "Ziel RLF Differenz",
     "useLongHumidityAvg": "Lange RLF Durchschnittswerte verwenden (240 statt 100 Werte)",
     "use-daynight": "Tag/Nacht Zyklus verwenden",
@@ -325,6 +325,7 @@
     "allGood": "Alles im grünen Bereich",
     "confirmationPending": "Dein Plan wartet auf eine Bestätigung — Einstellungen öffnen",
     "deviationMonitorHint": "Dein Gerät überwacht nur — passe das manuell in deinem Setup an.",
+    "deviationUnknownHint": "Dein Gerät meldet nicht, was es schalten kann — nimm die Werte als Richtwerte.",
     "tipsTitle": "Tipps für diese Phase",
     "matchingChart": "Passende Chart-Ansicht öffnen",
     "bannerText": "Lass dich von einem Grow-Plan durch die Phasen führen — Zielwerte passen sich automatisch an, große Schritte bestätigst du.",
@@ -398,7 +399,7 @@
       "text": "Dein Controller schaltet über gekoppelte Smart Sockets — die App erkennt automatisch, was verbunden ist. Koppeln kannst du direkt am Controller (Einstellungen → Smart Sockets).",
       "connected": "Verbunden",
       "noSockets": "Noch keine Steckdosen gekoppelt — es wird nur überwacht. Du kannst jederzeit welche am Controller koppeln, die App passt sich automatisch an.",
-      "unknown": "Dein Controller meldet den Steckdosen-Status erst nach einem Firmware-Update. Bis dahin zeigen wir alle Steuerungs-Optionen an.",
+      "unknown": "Dein Controller hat noch nicht gemeldet, welche Steckdosen gekoppelt sind — ältere Geräte holen das oft erst nach einem Firmware-Update nach. Solange gelten deine Zielwerte nur als Richtwerte.",
       "detected-full": "Erkannt: Dein Controller regelt das Klima.",
       "detected-light_only": "Erkannt: Dein Controller schaltet nur das Licht — Klimawerte werden überwacht und Zielwerte dienen als Richtwerte.",
       "detected-monitor": "Erkannt: Nur Überwachung — es wird nichts geschaltet, Zielwerte dienen als Richtwerte.",
@@ -571,6 +572,9 @@
         "stepEtaTime": "Schritt-Ende ETA"
       }
     },
+    "controller": {
+      "title": "Terp Control Controller"
+    },
     "fan": {
       "title": "Terp Control AIR",
       "workmode": "Arbeitsmodus",
@@ -708,7 +712,7 @@
       "plantLog": "Pflanzen-Log",
       "plantLifecycle": "Pflanzen-Phase",
       "measurement": "Messung",
-      "fridgeLog": "Fridge-Log",
+      "fridgeLog": "Geräte-Log",
       "diary": "Tagebuch",
       "diary-plant-log": "Pflanzen-Log",
       "diary-fridge-log": "Geräte-Log",
@@ -797,6 +801,8 @@
   "message-lost-connection-text": "Die Verbindung zwischen deinem Gerät und unserem Server ist abgebrochen und wurde wiederhergestellt. Wenn dieser Fehler oft auftritt überprüfe bitte dein WLAN und deine Internetverbindung.",
   "message-device-booted-title": "Gerät hat neu gestartet",
   "message-device-booted-text": "Dein Gerät hat neu gestartet. Wenn diese Meldung oft auftritt, überprüfe bitte die Stromversorgung.",
+  "message-device-connected-title": "Gerät verbunden",
+  "message-device-connected-text": "Dieses Gerät gehört jetzt zu deinem Zelt. Was du vorher von Hand notiert hast, bleibt genau so stehen - ab heute kommen die Messwerte dazu.",
   "message-device-booted:POWERON-text": "Dein Gerät hat neu gestartet. Der Grund war ein Stromzyklus (POWERON) - das ist nach einem Ein-/Ausstecken oder einem Stromausfall normal. Wenn die Meldung unerwartet auftritt, überprüfe bitte deine Stromversorgung.",
   "message-device-booted:BROWNOUT-text": "Dein Gerät hat neu gestartet. Der Grund war ein Brownout: Die Versorgungsspannung ist unter den sicheren Grenzwert gefallen. In der Regel kann das Netzteil oder das USB-Kabel nicht genug Strom liefern.",
   "message-device-booted:TASK_WDT-text": "Dein Gerät hat neu gestartet. Der Grund war ein Task-Watchdog-Timeout: Die Haupt-Firmwareschleife hat nicht rechtzeitig reagiert und wurde zwangsweise neu gestartet. Das passiert meistens, wenn Netzwerkoperationen wegen einer schlechten Internetverbindung hängen bleiben. Wenn diese Meldung oft auftritt, überprüfe bitte deine Internetverbindung.",
@@ -853,7 +859,7 @@
   "message-rtsp-stream-error-text": "Bild konnte nicht vom RTSP-Stream geladen werden: {{value}}",
   "message-diary-co2-refill-title": "CO2-Flasche wurde nachgefüllt",
   "message-diary-plant-log-title": "Pflanzen-Logeintrag",
-  "message-diary-fridge-log-title": "Fridge-Logeintrag",
+  "message-diary-fridge-log-title": "Geräte-Logeintrag",
   "message-diary-measurement-title": "Benutzermessung",
   "message-diary-plant-lifecycle-title": "Pflanzen-Phasenwechsel",
   "message-smart-socket-cmd-failed-title": "Befehl an Smart-Steckdose fehlgeschlagen",
@@ -868,11 +874,554 @@
   "message-smart-socket-connected-text": "Eine Smart-Steckdose wurde für die Rolle «{{value}}» verbunden.",
   "message-smart-socket-disconnected-title": "Smart-Steckdose getrennt",
   "message-smart-socket-disconnected-text": "Die Smart-Steckdosen-Zuordnung für die Rolle «{{value}}» wurde entfernt.",
+  "zelt": {
+    "defaultName": "Zelt",
+    "tag": "Tag {{tag}}",
+    "nichtGeladen": "Das Zelt konnte nicht geladen werden.",
+    "geraetHinzufuegen": "+ Gerät hinzufügen",
+    "weitereLaden": "Weitere laden",
+    "mehrZeilen": {
+      "one": "1 weitere Zeile",
+      "other": "{{anzahl}} weitere Zeilen"
+    },
+    "vorherAb": "Vorher · {{zeit}}",
+    "griff": {
+      "titel": "Vorher",
+      "beginn": "Beginn",
+      "phase": "Phasenwechsel",
+      "woche": "1 Woche",
+      "gestern": "gestern",
+      "gesternAbend": "gestern Abend",
+      "gabe": "letzte Gabe",
+      "foto": "letztes Foto",
+      "lauf": "Lauf {{nummer}} · Tag {{tag}}",
+      "laufKurz": "voriger Lauf",
+      "zuletztDu": "seit deinem letzten Besuch",
+      "zuletztGeraet": "seit dem letzten Besuch auf diesem Gerät",
+      "besuch": "voriger Besuch",
+      "besuchVon": "seit dem letzten Besuch von {{wer}}",
+      "kapitel": "Kapitel",
+      "kette": {
+        "gabe": "vorige Gabe",
+        "notiz": "vorige Notiz",
+        "bild": "voriges Foto",
+        "ereignis": "voriges Ereignis",
+        "phase": "vorige Phase"
+      },
+      "moment": "{{zeit}} · Tag {{tag}}",
+      "verschoben": "{{zeit}} · Tag {{tag}} (letzter Eintrag davor)",
+      "unbekannt": "{{zeit}} · Tag {{tag}} (nichts davor aufgezeichnet)",
+      "naechster": "Nächster Unterschied ›",
+      "keinUnterschied": "Kein weiterer Unterschied — es wurde nichts aufgezeichnet.",
+      "vorherHier": "Vorher hierher setzen"
+    },
+    "lage": {
+      "damals": "Damals galt:",
+      "lief": "Lief:",
+      "nahe": "Dinge ±2 Std:",
+      "phase": "{{stufe}} Tag {{tag}}",
+      "schema": "{{name}} Schritt {{schritt}}",
+      "lichtplan": "Lichtplan {{an}}/{{aus}}",
+      "eintraege": {
+        "one": "1 Eintrag",
+        "other": "{{anzahl}} Einträge"
+      },
+      "foto": "Foto {{zeit}}",
+      "wert": "{{mass}} {{wert}} {{einheit}}",
+      "an": "{{mass}} an",
+      "aus": "{{mass}} aus",
+      "prozent": "{{mass}} {{wert}} %"
+    },
+    "kopf": {
+      "online": "Online · Werte von {{seit}}",
+      "offline": "Offline · zuletzt {{seit}}",
+      "eintraege": {
+        "one": "1 Eintrag",
+        "other": "{{anzahl}} Einträge"
+      },
+      "zuletzt": "zuletzt {{zeit}}",
+      "eintraegeMehr": "{{anzahl}}+ Einträge"
+    },
+    "abschnitt": {
+      "zettel": "Zettel",
+      "unterschied": "Der Unterschied",
+      "imZelt": "Im Zelt",
+      "verlauf": "Verlauf"
+    },
+    "spalte": {
+      "vorher": "Vorher",
+      "jetzt": "Jetzt",
+      "delta": "Δ"
+    },
+    "werte": {
+      "titel": "Werte {…}",
+      "regel": "Jedes Gerät und jede Messung von Hand bekommt eine eigene Zeile. Wir rechnen nichts zusammen und mitteln nichts – du siehst genau das, was gemessen wurde.",
+      "anfrage": "Anfrage",
+      "vonHand": "von Hand",
+      "vomGeraet": "vom Gerät"
+    },
+    "arten": {
+      "zelt": "Zelt",
+      "geraet": "Gerät",
+      "pflanze": "Pflanze",
+      "dose": "Steckdose",
+      "kamera": "Kamera",
+      "bild": "Bild",
+      "film": "Film",
+      "gabe": "Gabe",
+      "notiz": "Notiz",
+      "zustand": "Zettel",
+      "phase": "Phase",
+      "ziel": "Ziel",
+      "mensch": "Mensch",
+      "ereignis": "Ereignis",
+      "schema": "Schema",
+      "lauf": "Durchgang"
+    },
+    "zeile": {
+      "dose": "{{rolle}} (Steckdose {{slot}})",
+      "bildHand": "Foto",
+      "bildGeraet": "Kamerabild",
+      "lauf": "Durchgang {{nummer}}",
+      "wasser": "{{liter}} l",
+      "schritt": "Schritt {{schritt}}",
+      "nichtGesendet": "nicht gesendet"
+    },
+    "mass": {
+      "temperatur": "Temperatur",
+      "luftfeuchte": "Luftfeuchte",
+      "vpd": "VPD",
+      "co2": "CO₂",
+      "ph": "pH",
+      "ec": "EC",
+      "tds": "TDS",
+      "ppfd": "PPFD",
+      "abstand_cm": "Lampenabstand",
+      "aussen_temperatur": "Außentemperatur",
+      "hoehe_cm": "Höhe",
+      "topfgewicht_kg": "Topfgewicht",
+      "wasser_gesamt": "Wasser gesamt",
+      "schema_schritt": "Schema-Schritt",
+      "eintraege": "Einträge",
+      "fotos": "Fotos",
+      "day": {
+        "temperature": "Ziel Tag",
+        "humidity": "Ziel Feuchte Tag",
+        "vpd": "Ziel VPD Tag",
+        "co2": "Ziel CO₂"
+      },
+      "night": {
+        "temperature": "Ziel Nacht",
+        "humidity": "Ziel Feuchte Nacht",
+        "vpd": "Ziel VPD Nacht"
+      },
+      "hand": {
+        "ph": "Ziel pH",
+        "ec": "Ziel EC",
+        "hoehe_cm": "Ziel Höhe"
+      },
+      "lights": {
+        "limit": "Ziel Lichtstärke"
+      },
+      "gruenanteil": "Blattfläche (Bildanteil)",
+      "helligkeit": "Bildhelligkeit"
+    },
+    "ziel": {
+      "day": {
+        "temperature": "Ziel Tag-Temperatur",
+        "humidity": "Ziel Tag-Feuchte",
+        "vpd": "Ziel Tag-VPD",
+        "co2": "Ziel CO₂"
+      },
+      "night": {
+        "temperature": "Ziel Nacht-Temperatur",
+        "humidity": "Ziel Nacht-Feuchte",
+        "vpd": "Ziel Nacht-VPD"
+      },
+      "hand": {
+        "ph": "Ziel pH",
+        "ec": "Ziel EC",
+        "hoehe_cm": "Ziel Höhe"
+      },
+      "lights": {
+        "limit": "Ziel Lichtstärke"
+      }
+    },
+    "stufe": {
+      "germination": "Keimung",
+      "seedling": "Sämling",
+      "vegetative": "Wachstum",
+      "flowering": "Blüte",
+      "drying": "Trocknung",
+      "curing": "Reifung",
+      "ernte": "Ernte"
+    },
+    "medium": {
+      "erde": "Erde",
+      "light-mix": "Light-Mix",
+      "all-mix": "All-Mix",
+      "coco": "Kokos",
+      "floragard-light": "Floragard Light",
+      "biotabs": "BioTabs",
+      "unbekannt": "Unbekannt"
+    },
+    "pflanzeQuelle": {
+      "samen": "Samen",
+      "steckling": "Steckling",
+      "gekauft": "Gekauft"
+    },
+    "verteilung": {
+      "gesamt": "das ganze Zelt",
+      "je_pflanze": "jede Pflanze"
+    },
+    "substrat": {
+      "trocken": "trocken",
+      "feucht": "feucht",
+      "nass": "nass"
+    },
+    "zielQuelle": {
+      "app": "App",
+      "geraet": "Gerät",
+      "erstbefund": "erste Messung",
+      "hand": "von Hand"
+    },
+    "zustand": {
+      "offen": "Offen",
+      "erledigt": "Erledigt"
+    },
+    "schluessel": {
+      "aktiv": "Schlüssel aktiv",
+      "inaktiv": "Kein Schlüssel"
+    },
+    "herkunft": {
+      "hand": "von Hand",
+      "kamera": "Kamera"
+    },
+    "filmDauer": {
+      "1d": "Ein Tag",
+      "1w": "Eine Woche",
+      "1m": "Ein Monat"
+    },
+    "einheit": {
+      "liter": "l",
+      "gramm": "g",
+      "ms": "mS/cm"
+    },
+    "feld": {
+      "tag": "Tag",
+      "medium": "Medium",
+      "zeitzone": "Zeitzone",
+      "geraetetyp": "Gerätetyp",
+      "firmware": "Firmware",
+      "zuletztGesehen": "Zuletzt gesehen",
+      "gebundenSeit": "Im Zelt seit",
+      "sorte": "Sorte",
+      "topf": "Topf",
+      "quelle": "Herkunft",
+      "ernteGramm": "Ernte",
+      "rolle": "Funktion",
+      "dose": "Steckdose",
+      "ip": "IP-Adresse",
+      "letztesBild": "Letztes Bild",
+      "gekoppeltSeit": "Gekoppelt seit",
+      "aufgenommen": "Aufgenommen",
+      "herkunft": "Herkunft",
+      "zeitraum": "Zeitraum",
+      "wasser": "Wasser",
+      "kannen": "Kannen",
+      "verteilung": "Für",
+      "ec": "EC",
+      "ph": "pH",
+      "ablaufEc": "Ablauf EC",
+      "ablaufPh": "Ablauf pH",
+      "substrat": "Substrat",
+      "mlProLiter": "{{ml}} ml/l",
+      "status": "Status",
+      "stufe": "Phase",
+      "begonnen": "Begonnen",
+      "tagInPhase": "Tag in der Phase",
+      "zielwert": "Zielwert",
+      "gesetzt": "Gesetzt am",
+      "dabeiSeit": "Dabei seit",
+      "schluessel": "Zugang",
+      "zeitpunkt": "Zeitpunkt",
+      "schema": "Schema",
+      "schritt": "Schritt",
+      "laufNummer": "Durchgang",
+      "laufTage": "Tage"
+    },
+    "tagEins": "Dein Tagebuch fängt heute an.",
+    "erneutVersuchen": "Nochmal versuchen",
+    "deineZelte": "Deine Zelte",
+    "kappe": {
+      "vorher": "Vorher",
+      "ziel": "Ziel",
+      "plan": "Plan",
+      "beginn": "Beginn",
+      "jetzt": "Jetzt"
+    },
+    "dauer": {
+      "stunden": "{{stunden}} Std {{minuten}}",
+      "minuten": {
+        "one": "1 Min",
+        "other": "{{minuten}} Min"
+      },
+      "tage": {
+        "one": "1 Tag",
+        "other": "{{tage}} Tage"
+      }
+    },
+    "zahlwort": {
+      "2": "zwei",
+      "3": "drei",
+      "4": "vier",
+      "5": "fünf",
+      "6": "sechs",
+      "7": "sieben",
+      "8": "acht",
+      "9": "neun"
+    },
+    "beleg": {
+      "kennung": {
+        "bild": "Kamerabild",
+        "foto": "Foto",
+        "band": "Werte",
+        "karte": "Einträge"
+      },
+      "nichts": {
+        "keinVorher": "Noch kein Vorher",
+        "nochNichts": "Noch nichts eingetragen",
+        "keineKamera": "Keine Kamera gekoppelt",
+        "nichtsVerbunden": "Nichts verbunden",
+        "keinFoto": "Kein Foto an diesem Tag",
+        "keineMesswerte": "Keine Messwerte — nur was du einträgst"
+      },
+      "karte": {
+        "tagPhase": "Tag {{tag}} · {{stufe}}",
+        "schema": "{{name}} · Schritt {{schritt}}",
+        "wasser": "Wasser gesamt {{liter}} l",
+        "messwerte": "{{werte}}",
+        "messwert": "{{mass}} {{wert}} {{einheit}}",
+        "und": "{{links}} · {{rechts}}",
+        "zettel": {
+          "one": "1 Zettel offen",
+          "other": "{{anzahl}} Zettel offen"
+        }
+      },
+      "band": "{{mass}} {{min}}–{{max}} {{einheit}}"
+    },
+    "satz": {
+      "kamerastill": "Seit {{dauer}} kein Bild.",
+      "offline": "Das Zelt war {{dauer}} offline.",
+      "gewachsen": "Die Pflanzen sind gewachsen.",
+      "wenigerGruen": "Im Bild ist weniger Grün als vorher.",
+      "hoehe": "Aus {{vorher}} cm sind {{jetzt}} cm geworden.",
+      "nachtsWaermer": "Nachts war es wärmer.",
+      "nachtsKuehler": "Nachts war es kühler.",
+      "gestiegen": "{{mass}} ist von {{vorher}} auf {{jetzt}} gestiegen.",
+      "gefallen": "{{mass}} ist von {{vorher}} auf {{jetzt}} gefallen.",
+      "kachel": "Im Bild hat sich vor allem {{ort}} etwas verändert.",
+      "ort": {
+        "obenLinks": "oben links",
+        "obenMitte": "oben in der Mitte",
+        "obenRechts": "oben rechts",
+        "mitteLinks": "links",
+        "mitteMitte": "in der Mitte",
+        "mitteRechts": "rechts",
+        "untenLinks": "unten links",
+        "untenMitte": "unten in der Mitte",
+        "untenRechts": "unten rechts"
+      },
+      "zielDu": "Du hast {{ziel}} geändert: jetzt {{wert}}.",
+      "zielGeraet": "{{ziel}} steht jetzt auf {{wert}}.",
+      "gabe": {
+        "du": {
+          "eins": "Du hast gegossen.",
+          "viele": "Du hast {{mal}} gegossen."
+        },
+        "wer": {
+          "eins": "{{name}} hat gegossen.",
+          "viele": "{{name}} hat {{mal}} gegossen."
+        }
+      },
+      "notiz": {
+        "du": {
+          "eins": "Du hast eine Notiz geschrieben.",
+          "viele": "Du hast {{anzahl}} Notizen geschrieben."
+        },
+        "wer": {
+          "eins": "{{name}} hat eine Notiz geschrieben.",
+          "viele": "{{name}} hat {{anzahl}} Notizen geschrieben."
+        }
+      },
+      "bild": {
+        "du": {
+          "eins": "Du hast ein Foto gemacht.",
+          "viele": "Du hast {{anzahl}} Fotos gemacht."
+        },
+        "wer": {
+          "eins": "{{name}} hat ein Foto gemacht.",
+          "viele": "{{name}} hat {{anzahl}} Fotos gemacht."
+        }
+      },
+      "zustand": {
+        "du": {
+          "eins": "Du hast einen Zettel hinterlassen.",
+          "viele": "Du hast {{anzahl}} Zettel hinterlassen."
+        },
+        "wer": {
+          "eins": "{{name}} hat einen Zettel hinterlassen.",
+          "viele": "{{name}} hat {{anzahl}} Zettel hinterlassen."
+        }
+      },
+      "phase": "{{stufe}} hat am {{datum}} angefangen.",
+      "pflanze": "{{name}} ist dazugekommen.",
+      "mal": {
+        "2": "zweimal",
+        "3": "dreimal",
+        "4": "viermal",
+        "5": "fünfmal",
+        "6": "sechsmal",
+        "7": "siebenmal",
+        "8": "achtmal",
+        "9": "neunmal"
+      },
+      "laufWeiter": "Im letzten Lauf warst du an Tag {{tag}} {{tage}} weiter.",
+      "laufZurueck": "Im letzten Lauf warst du an Tag {{tag}} {{tage}} zurück.",
+      "laufGleich": "Im letzten Lauf warst du an Tag {{tag}} genauso weit.",
+      "laufBild": "Im letzten Lauf sah es an Tag {{tag}} so aus.",
+      "tage": {
+        "one": "einen Tag",
+        "other": "{{anzahl}} Tage"
+      },
+      "naechster": "Als Nächstes: Schritt {{schritt}}.",
+      "zuletztEingetragen": "Zuletzt eingetragen am {{tag}}: {{was}}.",
+      "wenigGeaendert": "Seit {{tag}} hat sich wenig geändert.",
+      "und": "{{links}} und {{rechts}}",
+      "fotos": {
+        "one": "ein Foto",
+        "other": "{{anzahl}} Fotos"
+      },
+      "notizen": {
+        "one": "eine Notiz",
+        "other": "{{anzahl}} Notizen"
+      }
+    },
+    "massSatz": {
+      "temperatur": "Die Temperatur",
+      "luftfeuchte": "Die Luftfeuchte",
+      "vpd": "Das VPD",
+      "co2": "Das CO₂",
+      "ph": "Der pH",
+      "ec": "Der EC",
+      "tds": "Der TDS",
+      "ppfd": "Der PPFD",
+      "abstand_cm": "Der Lampenabstand",
+      "aussen_temperatur": "Die Außentemperatur",
+      "hoehe_cm": "Die Höhe",
+      "topfgewicht_kg": "Das Topfgewicht"
+    },
+    "regel": {
+      "marke": "Regel {{id}} ›",
+      "N-3": "Nacht-Ziel steht auf {{ziel}} und Abluft ist keine Dose. Was du tun kannst: Licht dimmen (jetzt {{licht}} %).",
+      "N-4": "Nacht-Ziel {{nacht}} liegt nur {{abstand}} unter dem Tag-Ziel. Üblich sind 3–6 °C Absenkung.",
+      "H-1": "Die Heizung lief {{dauer}} ohne Pause und es blieb {{abstand}} zu kalt. Die Heizleistung reicht nicht — oder die Dose schaltet nicht.",
+      "H-2": "Die Heizung hat heute {{anzahl}}× geschaltet und die Temperatur ist danach nie gestiegen. Prüf, ob am Stecker etwas hängt.",
+      "L-1": "Das Licht sollte an sein, das Bild ist dunkel. Prüf die Lampe oder die Dose „Licht“.",
+      "E-1": "Der Entfeuchter lief {{dauer}} von 24. In der Betriebsart „{{betriebsart}}“ kühlt diese Dose — sie entfeuchtet nicht.",
+      "V-1": "VPD {{wert}} kPa liegt außerhalb vom {{stufe}}-Band {{unten}}–{{oben}}. Bei {{temperatur}} wären dafür {{noetig}} % Feuchte nötig statt {{ist}} %. Eine Dose mit der Rolle „Befeuchter“ kennt die Firmware nicht.",
+      "K-1": "Seit {{dauer}} kein Bild, obwohl das Zelt online ist. Das Problem liegt an der Kamera, nicht am Controller.",
+      "D-1": "Zwischen {{von}} und {{bis}} fehlen Messwerte und Bilder. Das Zelt war offline.",
+      "F-1": "Schritt {{schritt}} des Schemas ist seit {{dauer}} fällig.",
+      "Z-1": "Das Ziel {{name}} wurde am {{datum}} von {{vorher}} auf {{jetzt}} geändert. Werte davor sind gegen {{vorher}} gemessen."
+    },
+    "marke": {
+      "ueber": "über der üblichen Schwankung",
+      "ruhig": "innerhalb der üblichen Schwankung",
+      "gleich": "unverändert"
+    },
+    "stufeSatz": {
+      "germination": "Die Keimung",
+      "seedling": "Der Sämling",
+      "vegetative": "Das Wachstum",
+      "flowering": "Die Blüte",
+      "drying": "Die Trocknung",
+      "curing": "Die Reifung",
+      "ernte": "Die Ernte"
+    },
+    "aktion": {
+      "titel": "Eintragen",
+      "gabe": "Gießen",
+      "notiz": "Notiz",
+      "foto": "Foto",
+      "zettel": "Zettel",
+      "fotoSpaeter": "Fotos kommen später. Alles andere kannst du schon eintragen."
+    },
+    "ausgang": {
+      "wartet": {
+        "one": "1 Eintrag wartet auf Verbindung.",
+        "other": "{{anzahl}} Einträge warten auf Verbindung."
+      },
+      "konflikt": "Diese Kennung gehört schon zu einem anderen Eintrag. Es wurde nichts überschrieben – trag ihn bitte noch einmal ein.",
+      "abgelehnt": "Der Eintrag wurde nicht gespeichert: {{grund}}"
+    },
+    "blatt": {
+      "abbrechen": "Abbrechen",
+      "eintragen": "Eintragen",
+      "trotzdem": "Trotzdem eintragen",
+      "dublette": "Das war dieselbe Gabe",
+      "heute": "heute {{zeit}}",
+      "zeitpunktAendern": "Zeitpunkt ändern",
+      "gabe": {
+        "titel": "Gabe",
+        "an": "An",
+        "ganzesZelt": "Ganzes Zelt",
+        "kannen": {
+          "one": "1 Kanne · {{liter}} l",
+          "other": "{{anzahl}} Kannen · {{liter}} l"
+        },
+        "kanne": "Kanne",
+        "weniger": "Eine Kanne weniger",
+        "gesamt": "{{liter}} l gesamt",
+        "jePflanze": "{{liter}} l je Pflanze · {{gesamt}} l gesamt",
+        "produktName": "Produkt",
+        "produktZufuegen": "+ Produkt",
+        "produktWeg": "Produkt entfernen",
+        "mlProLiter": "ml/l",
+        "letzte": "Zuletzt: {{produkte}}",
+        "notiz": "Notiz",
+        "wer": "Wer?",
+        "jemand": "Jemand",
+        "warnung": "{{wer}} hat {{was}} {{wann}} gegossen ({{liter}} l).",
+        "warnungSubstrat": "Substrat danach: {{substrat}}.",
+        "warnungLokal": "(noch nicht gesendet)",
+        "keinFoto": "Kein Foto dazu."
+      },
+      "notiz": {
+        "titel": "Notiz",
+        "platzhalter": "Was ist dir aufgefallen?"
+      },
+      "zettel": {
+        "titel": "Zettel",
+        "platzhalter": "Was soll die nächste Person wissen?",
+        "hinweis": "Der Zettel bleibt oben am Zelt stehen, bis ihn jemand abhakt."
+      }
+    }
+  },
   "simpleSettings": {
     "modeSimple": "Einfach",
     "modeExpert": "Experte",
     "referenceBannerMonitor": "Dieser Controller überwacht nur. Deine Zielwerte dienen als Richtbereiche für Charts, Assistent und Alarme — geschaltet wird nichts.",
     "referenceBannerLightOnly": "Dieser Controller steuert nur die Lampe. Klima-Zielwerte dienen als Richtbereiche — Heizung oder Feuchte werden nicht geschaltet.",
+    "referenceBannerUnknown": "Dieses Gerät meldet nicht, welche Steckdosen gekoppelt sind. Bis es das tut, gelten deine Zielwerte als Richtwerte — ob wirklich geschaltet wird, kann die App nicht sagen.",
+    "referenceBannerPartial": "Dieser Controller schaltet nur einen Teil selbst. Zielwerte ohne passende Steckdose gelten als Richtwerte — die betroffenen Zeilen sagen es dir.",
+    "reference": {
+      "temperature": "Kein Heizer gekoppelt — dieser Wert gilt als Richtwert.",
+      "humidity": "Kein Entfeuchter gekoppelt — dieser Wert gilt als Richtwert.",
+      "co2": "Keine CO₂-Steckdose gekoppelt — dieser Wert gilt als Richtwert.",
+      "light": "Keine Lampe gekoppelt — dieser Wert gilt als Richtwert.",
+      "unknown": "Gerät meldet keine Steckdosen — dieser Wert gilt als Richtwert."
+    },
     "stageTitle": "Deine Grow-Phase",
     "stageText": "Wähle die Phase deiner Pflanzen — wir setzen bewährte Zielwerte. Darunter kannst du alles feinjustieren.",
     "stageTextReference": "Wähle die Phase deiner Pflanzen — wir setzen bewährte Richtwerte. Darunter kannst du alles feinjustieren.",

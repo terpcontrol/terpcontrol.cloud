@@ -1,0 +1,42 @@
+// §6.2's action row, and the one rule about it that is not cosmetic: it sits
+// in the thumb zone. It is the most-used control in the product, so it stays
+// reachable at the bottom of the screen instead of waiting at the end of a
+// scroll - and it never disables, because logging is a cloud write and has
+// nothing to do with whether a device is online.
+
+.tafel-aktionen {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px 0 calc(8px + var(--ion-safe-area-bottom, 0px));
+  background: var(--ion-background-color);
+}
+
+.tafel-aktion {
+  min-height: 52px;
+  padding: 0 4px;
+  background: var(--ion-color-step-50);
+  border: 1px solid var(--ion-color-step-150);
+  border-radius: 12px;
+  color: inherit;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+// The first of the four is the one the whole screen is for.
+.tafel-aktion--gabe {
+  background: var(--ion-color-primary);
+  border-color: var(--ion-color-primary);
+  color: var(--ion-color-primary-contrast);
+}
+
+// §17: one line, no banner, no badge, no modal.
+.tafel-wartend {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ion-color-medium);
+}

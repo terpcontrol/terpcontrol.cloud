@@ -1,0 +1,141 @@
+// One visual language for all three sheets. Nothing here appears only when
+// hardware does: every control on them is typed by a person.
+
+.blatt-inhalt {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --padding-top: 8px;
+  --padding-bottom: 16px;
+}
+
+.blatt-kopf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.blatt-zeit {
+  font-size: 15px;
+}
+
+.blatt-stift,
+.blatt-weg,
+.blatt-knopf-klein {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  background: none;
+  border: 0;
+  color: var(--ion-color-medium);
+  font-size: 15px;
+}
+
+.blatt-zeile,
+.blatt-wahl,
+.blatt-produkt,
+.blatt-messwert {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.blatt-zeile-name,
+.blatt-wahl-name,
+.blatt-messwert-name {
+  flex: none;
+  min-width: 96px;
+  font-size: 15px;
+  color: var(--ion-color-medium);
+}
+
+.blatt-chip {
+  min-height: 40px;
+  padding: 0 14px;
+  background: none;
+  border: 1px solid var(--ion-color-step-200);
+  border-radius: 20px;
+  color: inherit;
+  font-size: 15px;
+}
+
+.blatt-chip--an {
+  background: var(--ion-color-primary);
+  border-color: var(--ion-color-primary);
+  color: var(--ion-color-primary-contrast);
+}
+
+.blatt-eingabe {
+  flex: 1;
+  min-width: 72px;
+  min-height: 44px;
+  padding: 0 8px;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--ion-color-step-150);
+  color: inherit;
+  font-size: 17px;
+}
+
+.blatt-eingabe--breit,
+.blatt-eingabe--name {
+  flex: 2;
+}
+
+.blatt-einheit {
+  flex: none;
+  min-width: 56px;
+  font-size: 13px;
+  color: var(--ion-color-medium);
+}
+
+.blatt-text {
+  width: 100%;
+  padding: 8px;
+  background: none;
+  border: 1px solid var(--ion-color-step-150);
+  border-radius: 8px;
+  color: inherit;
+  font: inherit;
+}
+
+.blatt-hinweis,
+.blatt-warnung {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ion-color-medium);
+}
+
+.blatt-warnung-foto {
+  display: block;
+}
+
+.blatt-fuss {
+  padding: 8px 16px calc(8px + var(--ion-safe-area-bottom, 0px));
+  background: var(--ion-background-color);
+}
+
+.blatt-knopf {
+  width: 100%;
+  min-height: 52px;
+  background: var(--ion-color-primary);
+  border: 0;
+  border-radius: 12px;
+  color: var(--ion-color-primary-contrast);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.blatt-knopf[disabled] {
+  opacity: 0.5;
+}
+
+.blatt-knopf--zweit {
+  margin-top: 8px;
+  background: none;
+  border: 1px solid var(--ion-color-step-200);
+  color: inherit;
+  font-weight: 400;
+}

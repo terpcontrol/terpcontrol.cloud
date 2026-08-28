@@ -14,6 +14,13 @@ const routes: Routes = [
     canActivate:[AuthGuard],
     loadChildren: () => import('./device/list/list.module').then( m => m.ListPageModule)
   },
+  // §3.3: the browser. One component for every screen in the product; the tent
+  // is the Subjekt when the URL names no Ding.
+  {
+    path: 'z/:zelt_id',
+    canActivate:[AuthGuard],
+    loadChildren: () => import('./zelt/zelt.module').then( m => m.ZeltModule)
+  },
   {
     path: 'device/:device_id/charts',
     canActivate:[AuthGuard],

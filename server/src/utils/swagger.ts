@@ -25,6 +25,8 @@ export function buildSwaggerSpec(serverUrl?: string): object {
         { name: 'Users', description: 'User administration (admin only)' },
         { name: 'Devices', description: 'Device management, configuration and firmware' },
         { name: 'Data', description: 'Time-series and latest sensor measurements' },
+        { name: 'Zelte', description: 'Tents - the grow a device belongs to' },
+        { name: 'Dinge', description: 'The one object every screen is built from - stored and projected rows of a tent' },
         { name: 'Images', description: 'Device image and timelapse access' },
         { name: 'Shares', description: 'Share links granting read access to a device page' },
         { name: 'Chart presets', description: 'Saved chart views (measures, timespan) of the current user' },
@@ -308,13 +310,98 @@ export function buildSwaggerSpec(serverUrl?: string): object {
           },
           Image: {
             type: 'object',
+            // A picture belongs to a device or to a tent, never to both: a
+            // photograph taken in a tent that has no device carries `zelt_id`,
+            // and a row written before `zelt_id` existed carries only
+            // `device_id` and resolves through whichever tent binds it.
             properties: {
               image_id: { type: 'string' },
               device_id: { type: 'string' },
+              zelt_id: { type: 'string' },
               timestamp: { type: 'number' },
               timestampEnd: { type: 'number' },
               format: { type: 'string', enum: ['jpeg', 'mp4', 'user/jpeg'] },
               duration: { type: 'string', enum: ['1d', '1w', '1m'] },
+            },
+          },
+          Zelt: {
+            type: 'object',
+            properties: {
+              zelt_id: { type: 'string' },
+              besitzer_id: { type: 'string' },
+              name: { type: 'string' },
+              geraete: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    geraet_id: { type: 'string' },
+                    seit: { type: 'number' },
+                    bis: { type: 'number' },
+                  },
+                },
+              },
+              zeitzone: { type: 'string' },
+              tag_null: { type: 'number' },
+              kamera_leitgeraet: { type: 'string' },
+              erstellt_at: { type: 'number' },
+              d: { type: 'object' },
+            },
+          },
+          Ding: {
+            type: 'object',
+            description:
+              'One row of a tent, whatever it is. Seven arts are stored because a human typed them; the other nine are projected ' +
+              'read-time out of devices, sockets, images, logs and setpoints, and a reader cannot tell the two apart.',
+            properties: {
+              ding_id: { type: 'string', description: 'uuid v4, minted by the client. The server inserts on it, so a retry cannot double-log.' },
+              zelt_id: { type: 'string' },
+              geraet_id: { type: 'string', description: 'Set only on a projected Ding.' },
+              art: {
+                type: 'string',
+                enum: [
+                  'zelt',
+                  'geraet',
+                  'pflanze',
+                  'dose',
+                  'kamera',
+                  'bild',
+                  'film',
+                  'gabe',
+                  'notiz',
+                  'zustand',
+                  'phase',
+                  'ziel',
+                  'mensch',
+                  'ereignis',
+                  'schema',
+                  'lauf',
+                ],
+              },
+              name: { type: 'string' },
+              t: { type: 'integer', description: 'When it happened, epoch ms.' },
+              t_ende: { type: 'integer', nullable: true, description: 'Explicit null is an interval that is still open; absent is not an interval.' },
+              erfasst_at: { type: 'integer', description: 'When it was typed, epoch ms. Server-stamped.' },
+              rel: { type: 'object', additionalProperties: { type: 'array', items: { type: 'string' } } },
+              d: { type: 'object' },
+              bilder: { type: 'array', items: { type: 'string' } },
+              auto_bild: { type: 'string' },
+              akteur: { type: 'string', description: 'ding_id of a mensch. Forced from the key on a Schlüssel write.' },
+              storniert_von: { type: 'string', description: 'ding_id of the Ding that corrects this one.' },
+            },
+          },
+          DingProblem: {
+            type: 'object',
+            properties: {
+              path: { type: 'string', description: 'Dotted path into the submitted object, e.g. d.produkte[0].ml_pro_l' },
+              message: { type: 'string' },
+            },
+          },
+          DingeSeite: {
+            type: 'object',
+            properties: {
+              dinge: { type: 'array', items: { $ref: '#/components/schemas/Ding' } },
+              cursor: { type: 'string', description: 'Opaque. Absent on the last page.' },
             },
           },
           SeriesPoint: {
@@ -328,6 +415,7 @@ export function buildSwaggerSpec(serverUrl?: string): object {
             type: 'object',
             properties: {
               value: { type: 'number' },
+              t: { type: 'number', description: 'Epoch ms the reading was measured; absent when no data point was found.' },
             },
           },
           StatusOk: {

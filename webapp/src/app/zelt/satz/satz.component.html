@@ -1,0 +1,6 @@
+<p class="tafel-satz-text">{{ zeile }}</p>
+<a class="tafel-regel" *ngIf="ziel" [routerLink]="ziel">
+  <span class="tafel-regel-pfeil" aria-hidden="true">&#8594;</span>
+  <span class="tafel-regel-text">{{ regel }}</span>
+  <span class="tafel-regel-marke">{{ marke }}</span>
+</a>

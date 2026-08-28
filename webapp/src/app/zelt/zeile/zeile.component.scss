@@ -1,0 +1,83 @@
+:host {
+  display: block;
+}
+
+.zeile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 4px 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.zeile--gedimmt {
+  opacity: 0.45;
+}
+
+.zeile-marke {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1.5px solid var(--ion-color-medium);
+}
+
+/* gefüllt = frisch, hohl = veraltet, amber = offen, rot = Alarm. §6.4 */
+.zeile-marke--voll {
+  background: var(--ion-color-medium);
+}
+
+.zeile-marke--hohl {
+  background: transparent;
+}
+
+.zeile-marke--offen {
+  border-color: var(--ion-color-warning);
+  background: var(--ion-color-warning);
+}
+
+.zeile-marke--alarm {
+  border-color: var(--ion-color-danger);
+  background: var(--ion-color-danger);
+}
+
+.zeile-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.zeile-wert {
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* §17: an entry that exists only on this phone says so, in the row itself.
+   Grey and beside the age, because it is provenance and not an alarm. The
+   glyph is drawn here rather than in the template so it stays out of the
+   translated string and out of what a screen reader says. */
+.zeile-wartet {
+  flex: none;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ion-color-medium);
+  white-space: nowrap;
+}
+
+.zeile-wartet::before {
+  content: '\27F3\00A0';
+}
+
+.zeile-alter {
+  flex: none;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ion-color-medium);
+  font-variant-numeric: tabular-nums;
+}

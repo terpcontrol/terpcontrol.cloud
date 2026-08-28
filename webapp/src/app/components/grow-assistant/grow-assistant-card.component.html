@@ -32,7 +32,7 @@
         <ion-icon name="alert-circle-outline"></ion-icon>
         {{ 'assistant.deviation.' + deviation.measure + '.' + deviation.direction | translate: { current: deviation.current, target: deviation.targetValue } }}
       </span>
-      <span class="assistant-range-hint" *ngIf="isReference">{{ 'assistant.deviationMonitorHint' | translate }}</span>
+      <span class="assistant-range-hint" *ngIf="isReference">{{ (capabilityUnknown ? 'assistant.deviationUnknownHint' : 'assistant.deviationMonitorHint') | translate }}</span>
     </ng-container>
   </div>
 

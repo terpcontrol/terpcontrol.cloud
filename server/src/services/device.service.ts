@@ -25,11 +25,12 @@ import { AddDeviceDto, RegisterDeviceDto, TestDeviceDto } from '@/dtos/device.dt
 import { mqttclient } from '../databases/mqttclient';
 import { dataService } from './data.service';
 import { HttpException } from '@/exceptions/HttpException';
-import { ENABLE_SELF_REGISTRATION, SELF_REGISTRATION_PASSWORD, SMTP_SENDER } from '@/config';
+import { ENABLE_SELF_REGISTRATION, NODE_ENV, SELF_REGISTRATION_PASSWORD, SMTP_SENDER } from '@/config';
 import { alarmService } from '@services/alarm.service';
 import { isNumeric } from 'influx/lib/src/grammar';
 import { mailTransport } from '@services/auth.service';
 import { imageService } from '@services/image.service';
+import { zeltService } from '@services/zelt.service';
 import { tunnelService } from '@services/tunnel.service';
 import { okamP2PService, OKAM_STREAM_PREFIX } from '@services/okam-p2p.service';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
@@ -107,17 +108,32 @@ const withMaintenanceSecondsLeft = <T extends Partial<Device>>(device: T): T => 
   maintenance_mode_seconds_left: Math.max(0, Math.ceil(((device.maintenance_mode_until ?? 0) - Date.now()) / 1000)),
 });
 
+// How long a failed MQTT connect waits before the next attempt, and the ceiling
+// it backs off to. The server is useless without the broker, so it never gives
+// up - but retrying without a delay is what took the CI runner's heap to 4 GB.
+const MQTT_RETRY_MS = 5000;
+const MQTT_RETRY_MAX_MS = 60000;
+
 class DeviceService {
   private readonly upgradeInstructionTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly upgradeInstructionBackoff = new Map<string, { firmwareId: string; nextDelayMs: number }>();
+  private mqttRetryMs = MQTT_RETRY_MS;
 
   constructor() {
+    // Importing this module must not start a network client or a timer. A unit
+    // test that reaches any route reaches this service, and there is no broker
+    // in CI - which is exactly how a retry loop got to run for seventeen
+    // minutes there. Everything below belongs to the running server.
+    if (NODE_ENV === 'test') {
+      return;
+    }
+
     void this.checkDeviceClasses();
     void this.backfillFirmwareCreatedAt();
 
     setTimeout(() => {
       void this.connectMqtt();
-    }, 5000);
+    }, MQTT_RETRY_MS);
     setInterval(async () => {
       await this.findUpgradeableDevices();
     }, 10000);
@@ -168,6 +184,8 @@ class DeviceService {
   async connectMqtt() {
     try {
       await mqttclient.connect();
+      // A broker that came back deserves a fast retry next time it goes away.
+      this.mqttRetryMs = MQTT_RETRY_MS;
 
       void mqttclient.subscribe('/devices/#');
       mqttclient.messages.subscribe(async message => {
@@ -229,7 +247,11 @@ class DeviceService {
       });
     } catch (exception) {
       console.log(exception);
-      void this.connectMqtt();
+      // Immediately calling itself again is what made a refused broker fatal:
+      // each attempt builds a client, the failure is synchronous, and nothing
+      // ever yields long enough for the collector to take the wreckage.
+      this.mqttRetryMs = Math.min(this.mqttRetryMs * 2, MQTT_RETRY_MAX_MS);
+      setTimeout(() => void this.connectMqtt(), this.mqttRetryMs);
     }
   }
 
@@ -1158,6 +1180,13 @@ class DeviceService {
     return code;
   }
 
+  /**
+   * A device asks for a claim code so its owner can pair it. The password is
+   * only demanded from devices that announce `claimcode_auth`, and pairing is
+   * deliberately left open for those that do not: firmware predating the flag
+   * is still in the field and would otherwise have no way to pair at all.
+   * That openness is the compatibility promise, not an oversight.
+   */
   public async getClaimCode(device_id: string, password?: string): Promise<{ claim_code: string } | false> {
     const device = await deviceModel.findOne({ device_id: device_id });
     if (!device) {
@@ -1190,12 +1219,25 @@ class DeviceService {
     return { claim_code: code };
   }
 
+  /**
+   * Claiming moves a device to whoever holds a valid claim code, including one
+   * that already has an owner. Transferring a device is exactly this — the new
+   * owner pairs it — and refusing would strand devices whose previous owner is
+   * gone. The claim code, which is single-use and only issued to the device
+   * itself, is what stands in for permission.
+   */
   public async claimDevice(claim_code: string, user_id: string): Promise<string | null> {
     const dev = await claimCodeModel.findOne({ claim_code: claim_code });
     if (dev) {
       console.log('Claiming device ' + dev.device_id + ' for user ' + user_id);
       claimCodeModel.deleteOne({ claim_code: claim_code });
-      await deviceModel.findOneAndUpdate({ device_id: dev.device_id }, { owner_id: user_id });
+      // The claim timestamp is the only record of when this owner got the
+      // device: every row it left behind survives a sale, so without it §3.1
+      // would have to date the tent from a previous owner's evidence.
+      const geraet = await deviceModel.findOneAndUpdate({ device_id: dev.device_id }, { owner_id: user_id, claimed_at: Date.now() }, { new: true });
+      // §14.2 step 2. A claim that writes only `owner_id` leaves the device in
+      // no tent, and a device in no tent is one nothing can ever show.
+      await zeltService.bindungBeginnen(dev.device_id, user_id, geraet?.name);
       return dev.device_id;
     } else {
       console.log('Invalid claim code ' + claim_code + ' for user ' + user_id);
@@ -1205,6 +1247,7 @@ class DeviceService {
 
   public async unClaimDevice(device_id: string) {
     await deviceModel.findOneAndUpdate({ device_id: device_id }, { owner_id: '' });
+    await zeltService.bindungBeenden(device_id);
   }
 
   public async configureDevice(device_id: string, user_id: string, config: string): Promise<boolean> {

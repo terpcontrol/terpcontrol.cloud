@@ -1,0 +1,7 @@
+<a class="zeile" [class.zeile--gedimmt]="gedimmt" [routerLink]="ziel">
+  <span class="zeile-marke" [class]="'zeile-marke--' + marke" aria-hidden="true"></span>
+  <span class="zeile-name">{{ name }}</span>
+  <span class="zeile-wert" *ngIf="wert">{{ wert }}</span>
+  <span class="zeile-wartet" *ngIf="wartend">{{ 'zelt.zeile.nichtGesendet' | translate }}</span>
+  <span class="zeile-alter">{{ alter }}</span>
+</a>

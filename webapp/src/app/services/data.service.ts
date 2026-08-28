@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, firstValueFrom, Subject } from 'rxjs';
 import { environment } from 'src/environments/environment';
 import { DeviceService } from './devices.service';
+import { LatestValue } from '@fg2/shared-types';
 
 @Injectable({
   providedIn: 'root'
@@ -11,6 +12,9 @@ export class DataService {
 
   private measure_subjects: Map<string, Map<string, BehaviorSubject<number>>> = new Map<string, Map<string, BehaviorSubject<number>>>()
   private measure_avg_subjects: Map<string, Map<string, BehaviorSubject<number>>> = new Map<string, Map<string, BehaviorSubject<number>>>()
+  // When each measure was taken, keyed like the values themselves. A reading
+  // and its age always arrive from the same response, so they cannot drift.
+  private measure_times: Map<string, Map<string, BehaviorSubject<number>>> = new Map<string, Map<string, BehaviorSubject<number>>>()
 
   private updateScheduled = false;
 
@@ -21,12 +25,15 @@ export class DataService {
       // after each device refetch.
       const measures = new Map<string, Map<string, BehaviorSubject<number>>>()
       const averages = new Map<string, Map<string, BehaviorSubject<number>>>()
+      const times = new Map<string, Map<string, BehaviorSubject<number>>>()
       devices.map((device) => {
         measures.set(device.device_id, this.measure_subjects.get(device.device_id) ?? new Map<string, BehaviorSubject<number>>())
         averages.set(device.device_id, this.measure_avg_subjects.get(device.device_id) ?? new Map<string, BehaviorSubject<number>>())
+        times.set(device.device_id, this.measure_times.get(device.device_id) ?? new Map<string, BehaviorSubject<number>>())
       })
       this.measure_subjects = measures;
       this.measure_avg_subjects = averages;
+      this.measure_times = times;
     })
 
     setInterval(() => {
@@ -73,6 +80,19 @@ export class DataService {
     return sub;
   }
 
+  /**
+   * Epoch ms of the measurement behind `measure()`, NaN while none is known.
+   * Without it a stopped device's last value is indistinguishable from a live one.
+   */
+  public measuredAt(device: string, measure: string) : BehaviorSubject<number> {
+    let sub = this.measure_times.get(device)?.get(measure);
+    if(!sub) {
+      sub = new BehaviorSubject<number>(NaN);
+      this.measure_times.get(device)?.set(measure, sub)
+    }
+    return sub;
+  }
+
   public measureAvg(device: string, measure: string, timespan: string = '-1h', interval: string = '1m') : BehaviorSubject<number> {
     let sub = this.measure_avg_subjects.get(device)?.get(measure);
     if(!sub) {
@@ -86,13 +106,14 @@ export class DataService {
   private updateMeasures() {
     for(let device of this.measure_subjects.entries()) {
       for(let measure of device[1].entries()) {
-        this.http.get<number>(environment.API_URL + '/data/latest/' + device[0] + '/' + measure[0]).subscribe((data:any) => {
+        this.http.get<LatestValue>(environment.API_URL + '/data/latest/' + device[0] + '/' + measure[0]).subscribe((data:any) => {
           if(data && data.value != null) {
             measure[1].next(data.value);
           }
           else {
             measure[1].next(NaN);
           }
+          this.measuredAt(device[0], measure[0]).next(data?.t ?? NaN);
         })
       }
     }

@@ -1,9 +1,10 @@
-import { InfluxDB, Point } from '@influxdata/influxdb-client';
+import { flux, fluxDuration, fluxExpression, fluxString, InfluxDB, Point } from '@influxdata/influxdb-client';
+import { DEFAULT_RANGE_START, fluxTimeBound, fluxWindow, NOW, ROW_LIMIT } from '@utils/flux';
 import { INFLUXDB_BUCKET, INFLUXDB_ORG, INFLUXDB_TOKEN } from '@/config';
 import { deviceService, StatusMessage } from '@services/device.service';
 import { calculateVpd } from '@utils/calculateVpd';
 import imageModel from '@models/images.model';
-import { Image } from '@fg2/shared-types';
+import { Image, LatestValue } from '@fg2/shared-types';
 
 const INFLUXDB_DB = 'devices';
 // You can generate a Token from the "Tokens Tab" in the UI
@@ -15,6 +16,14 @@ export const VALID_SENSORS = ['temperature', 'humidity', 'avg', 'p', 'i', 'd', '
 // constant rather than a fixed physical conversion. Default assumes a white
 // full-spectrum LED; growers can override it per device in cloud settings.
 const DEFAULT_PPFD_LUX_FACTOR = 0.015;
+
+// A fresh object per call: callers may keep and annotate what they get back.
+const noValue = (): LatestValue => ({ value: NaN });
+
+// How far back a "latest value" may lie. Wide enough that a device stopped days
+// ago still yields its last reading together with a real age — a stale number
+// with its age is worth more to a reader than a blank.
+const LATEST_LOOKBACK = '-30d';
 
 export const VALID_OUTPUTS = ['heater', 'dehumidifier', 'co2', 'light', 'fan', 'relais', 'fan-internal', 'fan-external', 'fan-backwall'];
 
@@ -77,15 +86,15 @@ class DataService {
     }
 
     const queryApi = influxdb_client.getQueryApi(INFLUXDB_ORG);
-    const query = `
-      from(bucket: "${INFLUXDB_BUCKET}")
-        |> range(start: ${from}, stop: ${to})
+    const query = flux`
+      from(bucket: ${fluxString(INFLUXDB_BUCKET)})
+        |> range(start: ${fluxTimeBound(from, DEFAULT_RANGE_START)}, stop: ${fluxTimeBound(to, NOW)})
         |> filter(fn: (r) => r["_measurement"] == "status")
-        |> filter(fn: (r) => r["_field"] == "${measure}")
-        |> filter(fn: (r) => r["device_id"] == "${device_id}")
-        |> aggregateWindow(every: ${interval}, fn: ${method}, createEmpty: true)
-        |> yield(name: "${method}")
-        |> limit(n: 50000)
+        |> filter(fn: (r) => r["_field"] == ${fluxString(measure)})
+        |> filter(fn: (r) => r["device_id"] == ${fluxString(device_id)})
+        |> aggregateWindow(every: ${fluxWindow(interval)}, fn: ${fluxExpression(method)}, createEmpty: true)
+        |> limit(n: ${ROW_LIMIT})
+        |> yield(name: ${fluxString(method)})
     `;
     const rows = await queryApi.collectRows(query);
 
@@ -160,6 +169,15 @@ class DataService {
   }
 
   public async getLatest(device_id, measure): Promise<number> {
+    return (await this.getLatestPoint(device_id, measure)).value;
+  }
+
+  /**
+   * The latest reading together with the time it was measured. Readers need the
+   * age to tell a live value from one a stopped device left behind; the request
+   * time cannot tell them apart.
+   */
+  public async getLatestPoint(device_id, measure): Promise<LatestValue> {
     if (measure === 'vpd') {
       return this.getLatestVpd(device_id);
     }
@@ -169,49 +187,80 @@ class DataService {
     }
 
     const queryApi = influxdb_client.getQueryApi(INFLUXDB_ORG);
-    const query = `
-      from(bucket: "${INFLUXDB_BUCKET}")
-        |> range(start: -5m)
+    const query = flux`
+      from(bucket: ${fluxString(INFLUXDB_BUCKET)})
+        |> range(start: ${fluxDuration(LATEST_LOOKBACK)})
         |> filter(fn: (r) => r["_measurement"] == "status")
-        |> filter(fn: (r) => r["_field"] == "${measure}")
-        |> filter(fn: (r) => r["device_id"] == "${device_id}")
-        |> aggregateWindow(every: 5m, fn: last, createEmpty: false)
-        |> yield(name: "mean")
+        |> filter(fn: (r) => r["_field"] == ${fluxString(measure)})
+        |> filter(fn: (r) => r["device_id"] == ${fluxString(device_id)})
+        |> last()
+        |> yield(name: "last")
     `;
 
     const rows = await queryApi.collectRows(query);
 
-    if (rows.length > 0) {
-      return rows[rows.length - 1]['_value'];
-    } else {
-      return NaN;
-    }
+    return rows.reduce<LatestValue>((newest, row: any) => {
+      const t = Date.parse(row._time);
+      return newest.t === undefined || t > newest.t ? { value: row._value, t: t } : newest;
+    }, noValue());
   }
 
-  private async getLatestVpd(device_id): Promise<number> {
-    const temp = await this.getLatest(device_id, 'temperature');
-    const humidity = await this.getLatest(device_id, 'humidity');
+  /**
+   * The oldest sample every device ever wrote, keyed by device id. One scan for
+   * the whole fleet: asking per device turns a backfill into as many
+   * full-history queries as there are devices. Only the timestamp is kept, so
+   * fields of different types cannot collide when the series are merged.
+   */
+  public async getFirstSampleTimes(): Promise<Map<string, number>> {
+    const queryApi = influxdb_client.getQueryApi(INFLUXDB_ORG);
+    const query = flux`
+      from(bucket: ${fluxString(INFLUXDB_BUCKET)})
+        |> range(start: 0)
+        |> filter(fn: (r) => r["_measurement"] == "status")
+        |> keep(columns: ["_time", "device_id"])
+        |> group(columns: ["device_id"])
+        |> min(column: "_time")
+        |> yield(name: "first")
+    `;
+
+    const rows = await queryApi.collectRows(query);
+
+    return rows.reduce<Map<string, number>>((oldest, row: any) => {
+      const t = Date.parse(row._time);
+      const known = oldest.get(row.device_id);
+      if (row.device_id && !isNaN(t) && (known === undefined || t < known)) {
+        oldest.set(row.device_id, t);
+      }
+      return oldest;
+    }, new Map<string, number>());
+  }
+
+  private async getLatestVpd(device_id): Promise<LatestValue> {
+    const temp = await this.getLatestPoint(device_id, 'temperature');
+    const humidity = await this.getLatestPoint(device_id, 'humidity');
     const light = await this.getLatest(device_id, 'out_light');
     const measuredLeafTemp = await this.getLatest(device_id, 'leaf_temperature');
     const cloudSettings = await deviceService.getDeviceCloudSettings(device_id);
 
-    if (temp && humidity) {
+    if (temp.value && humidity.value) {
       const isDay = (light ?? 0) > 0.5;
-      const leafTemp = this.leafTemperature(temp, measuredLeafTemp, isDay, cloudSettings);
-      return calculateVpd(temp, leafTemp, humidity);
+      const leafTemp = this.leafTemperature(temp.value, measuredLeafTemp, isDay, cloudSettings);
+      // A derived value is only as fresh as its stalest ingredient.
+      const t = Math.min(temp.t ?? Infinity, humidity.t ?? Infinity);
+      return { value: calculateVpd(temp.value, leafTemp, humidity.value), t: isFinite(t) ? t : undefined };
     }
 
-    return NaN;
+    return noValue();
   }
 
-  private async getLatestPpfd(device_id): Promise<number> {
-    const lux = await this.getLatest(device_id, 'lux');
-    if (lux == null || isNaN(lux)) {
-      return NaN;
+  private async getLatestPpfd(device_id): Promise<LatestValue> {
+    const lux = await this.getLatestPoint(device_id, 'lux');
+    if (lux.value == null || isNaN(lux.value)) {
+      return noValue();
     }
     const cloudSettings = await deviceService.getDeviceCloudSettings(device_id);
     const factor = cloudSettings?.ppfdLuxFactor ?? DEFAULT_PPFD_LUX_FACTOR;
-    return lux * factor;
+    return { value: lux.value * factor, t: lux.t };
   }
 }
 export const dataService = new DataService();

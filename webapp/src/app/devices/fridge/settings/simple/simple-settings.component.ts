@@ -3,7 +3,10 @@ import { calculateVpd } from 'src/app/util/calculateVpd';
 import { KeyedCache } from 'src/app/util/keyed-cache';
 import {
   applyStagePreset,
+  Controllable,
+  Controllability,
   detectActiveStagePreset,
+  deviceCanSwitch,
   deviceControlCapability,
   deviceHasCo2,
   StageSelection,
@@ -65,13 +68,41 @@ export class FridgeSimpleSettingsComponent {
     return deviceControlCapability({ device_type: this.deviceType, hardwareInfo: this.hardwareInfo });
   }
 
-  /** Targets are reference values when the controller doesn't actuate the climate. */
+  /** Asked per measure: a heater says nothing about whether the humidity is regulated. */
+  canSwitch(what: Controllable): Controllability {
+    return deviceCanSwitch({ device_type: this.deviceType, hardwareInfo: this.hardwareInfo }, what);
+  }
+
+  /**
+   * The note a single target row carries when no socket backs it, or null when
+   * the hardware confirmed that measure. Every row asks for itself, so a device
+   * that regulates one and not the next says exactly that.
+   */
+  referenceNote(what: Controllable): string | null {
+    const can = this.canSwitch(what);
+    if (can === true) {
+      return null;
+    }
+    return can === 'unknown' ? 'simpleSettings.reference.unknown' : `simpleSettings.reference.${what}`;
+  }
+
+  /** True as soon as one target is not backed by hardware — the banner speaks for the card. */
   get isReference(): boolean {
-    return this.controlCapability === 'monitor' || this.controlCapability === 'light_only';
+    return (['temperature', 'humidity', 'light'] as Controllable[]).some(what => this.canSwitch(what) !== true);
   }
 
   get isMonitor(): boolean {
     return this.controlCapability === 'monitor';
+  }
+
+  /** The device never reported its sockets: what it switches is unknown, not none. */
+  get isCapabilityUnknown(): boolean {
+    return this.controlCapability === 'unknown';
+  }
+
+  /** Some of it is switched and some of it is not; the rows say which. */
+  get isPartiallyControlled(): boolean {
+    return this.isReference && !this.isMonitor && !this.isCapabilityUnknown && this.controlCapability !== 'light_only';
   }
 
   get activePreset(): StageSelection | null {

@@ -1,0 +1,177 @@
+// 4 px base, gaps only from 4/8/12/16/24/32, rows at least 48 px, numbers tabular.
+.tafel-titel,
+.tafel-abschnitt-titel,
+.tafel-spalten,
+.tafel-herkunft,
+.tafel-trenner,
+.tafel-mehr {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--ion-color-medium);
+}
+
+.tafel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 16px;
+}
+
+// The name of the tent is the caption; the facts under it are what the screen
+// is for. „Läuft mein Grow" is answered by the second line, so the second line
+// is the one that carries the weight.
+.tafel-fakten {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 2px 0 0;
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+.tafel-fakt + .tafel-fakt::before {
+  content: '· ';
+}
+
+.tafel-punkt {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  background: var(--ion-color-medium);
+}
+
+.tafel-punkt--online {
+  background: var(--ion-color-success);
+}
+
+.tafel-abschnitt-titel {
+  margin: 0 0 4px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.tafel-spalten,
+.tafel-zeile {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.tafel-zeile {
+  min-height: 32px;
+}
+
+.tafel-spalten {
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--ion-color-step-150);
+}
+
+.tafel-spalte-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.tafel-zeile--eingerueckt .tafel-spalte-name {
+  padding-left: 12px;
+  opacity: 0.7;
+}
+
+.tafel-spalte-zahl {
+  width: 64px;
+  text-align: right;
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.tafel-spalten .tafel-spalte-zahl {
+  font-weight: 400;
+}
+
+// Vorher is never coloured "bad" - only Δ carries direction.
+.tafel-spalte-zahl--vorher {
+  opacity: 0.88;
+}
+
+.tafel-delta--hoch {
+  color: var(--tc-hoch);
+}
+
+.tafel-delta--runter {
+  color: var(--tc-runter);
+}
+
+.tafel-delta--gleich {
+  color: var(--tc-gleich);
+}
+
+.tafel-trenner {
+  margin: 12px 0 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--ion-color-step-150);
+}
+
+// The upsell reads at row size, the way every other Zeile does.
+.tafel-geraet-zeile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  font-size: 15px;
+  line-height: 20px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.tafel-geraet-marke {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1.5px solid var(--ion-color-medium);
+}
+
+.tafel-mehr,
+.tafel-vorher {
+  min-height: 44px;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+// A Verlauf row answers two questions, so it has two targets: the row walks to
+// that Ding's Tafel, the mark beside it moves `Vorher` to that Ding's moment.
+.tafel-verlauf-zeile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tafel-verlauf-zeile app-zeile {
+  flex: 1;
+  min-width: 0;
+}
+
+.tafel-vorher {
+  flex: none;
+  width: 44px;
+  color: var(--ion-color-medium);
+}
+
+// The mark is a reading of the row, not a verdict on the grow, so the glyph
+// carries all of it: no red, no green, no weight and no colour of its own.
+// Colour on this screen belongs to Δ and to alarms, and the modifier class is
+// left on the element as a hook rather than as a second way of saying `▲`.
+.tafel-marke {
+  flex: none;
+  width: 16px;
+}

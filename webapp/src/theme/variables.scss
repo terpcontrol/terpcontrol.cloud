@@ -131,6 +131,13 @@
   --tc-text-warning: #8a6318;
   --tc-text-success: #35701f;
   --tc-text-info: #2d4b95;
+
+  /** The *direction* of a change, never its worth. Warm for up, cool for down,
+      muted for unchanged - deliberately not red/green, because red is reserved
+      for alarms and a rising temperature is not a failing grade. **/
+  --tc-hoch: #8a6318;
+  --tc-runter: #2d4b95;
+  --tc-gleich: var(--ion-color-medium);
 }
 
 body.dark {
@@ -240,4 +247,8 @@ body.dark {
   --tc-text-warning: #e3b95f;
   --tc-text-success: #6fbe4a;
   --tc-text-info: #7396dd;
+
+  --tc-hoch: #e3b95f;
+  --tc-runter: #7396dd;
+  --tc-gleich: var(--ion-color-medium);
 }

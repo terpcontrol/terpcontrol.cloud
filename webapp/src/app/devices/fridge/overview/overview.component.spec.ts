@@ -1,24 +1,42 @@
+import { ComponentsModule } from '../../../components/components.module';
+import { FormsModule } from '@angular/forms';
+import { PipesModule } from '../../../pipes/pipes.module';
+import { TranslateModule } from '@ngx-translate/core';
+import { RouterTestingModule } from '@angular/router/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { IonicModule } from '@ionic/angular';
 
-import { OverviewComponent } from './overview.component';
+import { FridgeOverviewComponent } from './overview.component';
 
-describe('OverviewComponent', () => {
-  let component: OverviewComponent;
-  let fixture: ComponentFixture<OverviewComponent>;
+describe('FridgeOverviewComponent', () => {
+  let component: FridgeOverviewComponent;
+  let fixture: ComponentFixture<FridgeOverviewComponent>;
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      declarations: [ OverviewComponent ],
-      imports: [IonicModule.forRoot()]
+      declarations: [ FridgeOverviewComponent ],
+      imports: [ComponentsModule, FormsModule, PipesModule, TranslateModule.forRoot(), HttpClientTestingModule, RouterTestingModule, IonicModule.forRoot()]
     }).compileComponents();
+  }));
 
-    fixture = TestBed.createComponent(OverviewComponent);
+  beforeEach(() => {
+    fixture = TestBed.createComponent(FridgeOverviewComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
-  }));
+  });
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('labels a controller as a controller and not as a fridge', () => {
+    component.device_type = 'controller';
+    expect(component.title_key).toEqual('devices.controller.title');
+  });
+
+  it('keeps the fridge label for every fridge generation', () => {
+    component.device_type = 'fridge2';
+    expect(component.title_key).toEqual('devices.fridge.title');
   });
 });

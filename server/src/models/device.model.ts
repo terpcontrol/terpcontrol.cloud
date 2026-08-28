@@ -31,6 +31,13 @@ const deviceSchema: Schema = new Schema({
     type: String,
     required: false,
   },
+  // When the current owner claimed it. Absent on every device claimed before
+  // this field existed, which is exactly the set the boot backfill dates from
+  // the measurements instead (§3.1).
+  claimed_at: {
+    type: Number,
+    required: false,
+  },
   configuration: {
     type: String,
     required: false,

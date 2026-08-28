@@ -18,6 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
         id: changes
+        timeout-minutes: 20
         with:
           filters: |
             webapp:
@@ -63,7 +64,8 @@ jobs:
           node-version: 20
           cache: 'npm'
           cache-dependency-path: webapp/package-lock.json
-      - run: |
+      - timeout-minutes: 20
+        run: |
           cd webapp/
           npm ci
           npm run lint:fix
@@ -72,6 +74,7 @@ jobs:
             exit 1
           fi
           npm run build
+          npm run test:ci
 
   server:
     needs: detect
@@ -85,7 +88,19 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
           cache-dependency-path: server/package-lock.json
-      - run: |
+      # The database-backed suites run against a real mongod that
+      # mongodb-memory-server fetches on first use. Its default download
+      # directory lives inside node_modules, which npm ci throws away every run,
+      # so it is pinned outside and cached instead.
+      - name: Cache mongod binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongodb-binaries-${{ runner.os }}
+      - timeout-minutes: 20
+        env:
+          MONGOMS_DOWNLOAD_DIR: ~/.cache/mongodb-binaries
+        run: |
           cd server/
           npm ci
           npm run lint:fix
@@ -94,6 +109,7 @@ jobs:
             exit 1
           fi
           npm run build
+          npm test
 
   docker-server:
     needs: detect
@@ -103,6 +119,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v5
+        timeout-minutes: 20
         with:
           context: .
           file: server/Dockerfile
@@ -120,6 +137,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v5
+        timeout-minutes: 20
         with:
           context: .
           file: webapp/Dockerfile
@@ -140,6 +158,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
       - name: Build firmware (no upload)
+        timeout-minutes: 40
         env:
           API_URL_EXTERNAL: http://192.168.0.100:8081
           MQTT_HOST_EXTERNAL: 192.168.0.100
@@ -169,6 +188,7 @@ jobs:
           restore-keys: ciq-devices-
 
       - name: Build Garmin app (verification only)
+        timeout-minutes: 20
         env:
           GARMIN_CACHE_DIR: ${{ github.workspace }}/.garmin-cache
           GARMIN_USERNAME: ${{ secrets.GARMIN_USERNAME }}

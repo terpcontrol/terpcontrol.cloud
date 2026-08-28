@@ -1,0 +1,20 @@
+<div class="lage" [class.lage--scrub]="zieht" *ngIf="lage">
+  <ng-container *ngIf="zieht">
+    <p class="lage-scrub-zeile">
+      {{ zeit }} · {{ 'zelt.tag' | translate: { tag: lage.tag } }}<ng-container *ngFor="let wert of werte"> · {{ wert }}</ng-container>
+    </p>
+    <p class="lage-scrub-zeile lage-scrub-zeile--neben">{{ zaehlung.join(' · ') }}</p>
+  </ng-container>
+
+  <ng-container *ngIf="!zieht">
+    <p class="lage-satz" *ngIf="damals.length">
+      <span class="lage-marke">{{ 'zelt.lage.damals' | translate }}</span> {{ damals.join(' · ') }}
+    </p>
+    <p class="lage-satz" *ngIf="lief.length">
+      <span class="lage-marke">{{ 'zelt.lage.lief' | translate }}</span> {{ lief.join(' · ') }}
+    </p>
+    <p class="lage-satz" *ngIf="nahe.length">
+      <span class="lage-marke">{{ 'zelt.lage.nahe' | translate }}</span> {{ nahe.join(' · ') }}
+    </p>
+  </ng-container>
+</div>

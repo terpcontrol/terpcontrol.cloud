@@ -9,11 +9,12 @@ import { AppRoutingModule } from './app-routing.module';
 import { AuthModule } from './auth/auth.module';
 import { RoundPipe } from './pipes/round.pipe';
 
-import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
+import { MissingTranslationHandler, TranslateModule, TranslateLoader } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 import { HttpClient } from '@angular/common/http';
 import { PipesModule } from './pipes/pipes.module';
 import { resolveAppLocale } from './util/locale';
+import { TerpMissingTranslationHandler } from './util/missing-translation';
 
 @NgModule({
   declarations: [
@@ -30,7 +31,14 @@ import { resolveAppLocale } from './util/locale';
         provide: TranslateLoader,
         useFactory: (createTranslateLoader),
         deps: [HttpClient]
-      }
+      },
+      // A key that is not in the bundle must never reach the screen as a dotted
+      // path: two lookups in the Zelt browser build their key by concatenation.
+      missingTranslationHandler: {
+        provide: MissingTranslationHandler,
+        useClass: TerpMissingTranslationHandler
+      },
+      useDefaultLang: true
     }),
   ],
   providers: [

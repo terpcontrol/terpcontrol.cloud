@@ -9,8 +9,8 @@
     "success": "Success",
     "close": "Close",
     "ok": "Okay",
-    "saving": "saving...",
-    "loading": "loading...",
+    "saving": "Saving…",
+    "loading": "Loading…",
     "save": "save",
     "settings": "Settings",
     "errorOccurred": "An error occurred",
@@ -58,8 +58,8 @@
     "internalfan": "Internal fans (minimum)",
     "maxDehumidifySeconds": "Max. dehumidifier ON seconds",
     "minimalDehumidifierOffTime": "Min. dehumidifier off seconds",
-    "minimalDehumidifierOffTimeHint": "Minimum time in seconds the fridge/dehumidifier stays off before it can turn on again. Prevents short-cycling of the compressor.",
-    "minimalDehumidifierOffTimeWarning": "Warning: Values below 240s may damage the fridge compressor due to short-cycling!",
+    "minimalDehumidifierOffTimeHint": "Minimum time in seconds the dehumidifier (the compressor on fridges) stays off before it may switch on again. Prevents short-cycling.",
+    "minimalDehumidifierOffTimeWarning": "Warning: values below 240 s may damage the compressor through short-cycling!",
     "targetHumidityDiff": "Target humidity difference",
     "useLongHumidityAvg": "Use long humidity average (240 instead of 100 values)",
     "use-daynight": "Use Day/Night Cycle",
@@ -325,6 +325,7 @@
     "allGood": "All in the green",
     "confirmationPending": "Your plan is waiting for a confirmation — open settings",
     "deviationMonitorHint": "Your device only monitors — adjust this manually in your setup.",
+    "deviationUnknownHint": "Your device does not report what it can switch — treat these values as reference values.",
     "tipsTitle": "Tips for this stage",
     "matchingChart": "Open the matching chart view",
     "bannerText": "Let a grow plan guide you through the stages — targets adjust automatically, and you confirm the big steps.",
@@ -398,7 +399,7 @@
       "text": "Your controller switches through paired smart sockets — the app detects automatically what is connected. Pairing happens right on the controller (Settings → Smart Sockets).",
       "connected": "Connected",
       "noSockets": "No sockets paired yet — monitoring only. You can pair some on the controller anytime; the app adapts automatically.",
-      "unknown": "Your controller reports its socket status only after a firmware update. Until then all control options are shown.",
+      "unknown": "Your controller has not reported its paired sockets yet — older units often only do this after a firmware update. Until it does, your targets are reference values only.",
       "detected-full": "Detected: your controller regulates the climate.",
       "detected-light_only": "Detected: your controller only switches the light — climate values are monitored and targets act as reference values.",
       "detected-monitor": "Detected: monitoring only — nothing is switched, targets act as reference values.",
@@ -575,6 +576,9 @@
         "pleaseStart": "Please start the plan first"
       }
     },
+    "controller": {
+      "title": "Terp Control Controller"
+    },
     "dryer": {
       "title": "Terp Control FRIDGE DRY",
       "presets": "Presets",
@@ -712,7 +716,7 @@
       "plantLog": "Plant log",
       "plantLifecycle": "Plant lifecycle",
       "measurement": "Measurement",
-      "fridgeLog": "Fridge log",
+      "fridgeLog": "Device log",
       "diary": "Diary",
       "diary-plant-log": "Plant log",
       "diary-fridge-log": "Device log",
@@ -801,6 +805,8 @@
   "message-lost-connection-text": "The connection between your device and our sever was lost and has been reestablished. If this messages appeares regulary please check your wifi and internet connection",
   "message-device-booted-title": "Device rebooted",
   "message-device-booted-text": "Your device has rebooted. If this messages appears regularly please check your power connection.",
+  "message-device-connected-title": "Device connected",
+  "message-device-connected-text": "This device now belongs to your tent. Everything you noted by hand stays exactly as it was - from today its readings join it.",
   "message-device-booted:POWERON-text": "Your device has rebooted. The reason was a power cycle (POWERON) - this is normal after unplugging or a power outage. If this message appears unexpectedly please check your power connection.",
   "message-device-booted:BROWNOUT-text": "Your device has rebooted. The reason was a brownout: the supply voltage dropped below the safe threshold. This usually means the power adapter or USB cable cannot deliver enough current.",
   "message-device-booted:TASK_WDT-text": "Your device has rebooted. The reason was a task watchdog timeout: the main firmware loop did not respond in time and was force-restarted. This typically happens when network operations get stuck on a flaky internet uplink. If this message appears regularly please check your internet connection.",
@@ -857,7 +863,7 @@
   "message-rtsp-stream-error-text": "Failed to fetch image from RTSP stream: {{value}}",
   "message-diary-co2-refill-title": "CO2 cylinder was refilled",
   "message-diary-plant-log-title": "Plant log entry",
-  "message-diary-fridge-log-title": "Fridge log entry",
+  "message-diary-fridge-log-title": "Device log entry",
   "message-diary-measurement-title": "User measurement",
   "message-diary-plant-lifecycle-title": "Plant phase change",
   "message-smart-socket-cmd-failed-title": "Smart socket command failed",
@@ -872,11 +878,554 @@
   "message-smart-socket-connected-text": "A smart socket was connected for role: {{value}}",
   "message-smart-socket-disconnected-title": "Smart socket disconnected",
   "message-smart-socket-disconnected-text": "The smart socket assignment was removed for role: {{value}}",
+  "zelt": {
+    "defaultName": "Tent",
+    "tag": "Day {{tag}}",
+    "nichtGeladen": "The tent could not be loaded.",
+    "geraetHinzufuegen": "+ Add device",
+    "weitereLaden": "Load more",
+    "mehrZeilen": {
+      "one": "1 more row",
+      "other": "{{anzahl}} more rows"
+    },
+    "vorherAb": "Before · {{zeit}}",
+    "griff": {
+      "titel": "Before",
+      "beginn": "Start",
+      "phase": "Stage change",
+      "woche": "1 week",
+      "gestern": "yesterday",
+      "gesternAbend": "yesterday evening",
+      "gabe": "last watering",
+      "foto": "last photo",
+      "lauf": "Run {{nummer}} · day {{tag}}",
+      "laufKurz": "previous run",
+      "zuletztDu": "since your last visit",
+      "zuletztGeraet": "since the last visit on this device",
+      "besuch": "previous visit",
+      "besuchVon": "since the last visit by {{wer}}",
+      "kapitel": "Chapter",
+      "kette": {
+        "gabe": "previous watering",
+        "notiz": "previous note",
+        "bild": "previous photo",
+        "ereignis": "previous event",
+        "phase": "previous stage"
+      },
+      "moment": "{{zeit}} · day {{tag}}",
+      "verschoben": "{{zeit}} · day {{tag}} (last entry before)",
+      "unbekannt": "{{zeit}} · day {{tag}} (nothing recorded before)",
+      "naechster": "Next difference ›",
+      "keinUnterschied": "No further difference — nothing was recorded.",
+      "vorherHier": "Compare from here"
+    },
+    "lage": {
+      "damals": "Then applied:",
+      "lief": "Running:",
+      "nahe": "Things ±2 hrs:",
+      "phase": "{{stufe}} day {{tag}}",
+      "schema": "{{name}} step {{schritt}}",
+      "lichtplan": "Light schedule {{an}}/{{aus}}",
+      "eintraege": {
+        "one": "1 entry",
+        "other": "{{anzahl}} entries"
+      },
+      "foto": "Photo {{zeit}}",
+      "wert": "{{mass}} {{wert}} {{einheit}}",
+      "an": "{{mass}} on",
+      "aus": "{{mass}} off",
+      "prozent": "{{mass}} {{wert}} %"
+    },
+    "kopf": {
+      "online": "Online · values from {{seit}}",
+      "offline": "Offline · last seen {{seit}}",
+      "eintraege": {
+        "one": "1 entry",
+        "other": "{{anzahl}} entries"
+      },
+      "zuletzt": "last {{zeit}}",
+      "eintraegeMehr": "{{anzahl}}+ entries"
+    },
+    "abschnitt": {
+      "zettel": "Pinned notes",
+      "unterschied": "The difference",
+      "imZelt": "In the tent",
+      "verlauf": "History"
+    },
+    "spalte": {
+      "vorher": "Before",
+      "jetzt": "Now",
+      "delta": "Δ"
+    },
+    "werte": {
+      "titel": "Values {…}",
+      "regel": "Every device and every reading you take by hand gets its own row. Nothing is merged and nothing is averaged – you see exactly what was measured.",
+      "anfrage": "Request",
+      "vonHand": "by hand",
+      "vomGeraet": "from the device"
+    },
+    "arten": {
+      "zelt": "Tent",
+      "geraet": "Device",
+      "pflanze": "Plant",
+      "dose": "Socket",
+      "kamera": "Camera",
+      "bild": "Picture",
+      "film": "Film",
+      "gabe": "Watering",
+      "notiz": "Note",
+      "zustand": "Pinned note",
+      "phase": "Stage",
+      "ziel": "Target",
+      "mensch": "Person",
+      "ereignis": "Event",
+      "schema": "Schedule",
+      "lauf": "Run"
+    },
+    "zeile": {
+      "dose": "{{rolle}} (socket {{slot}})",
+      "bildHand": "Photo",
+      "bildGeraet": "Camera frame",
+      "lauf": "Run {{nummer}}",
+      "wasser": "{{liter}} l",
+      "schritt": "Step {{schritt}}",
+      "nichtGesendet": "not sent"
+    },
+    "mass": {
+      "temperatur": "Temperature",
+      "luftfeuchte": "Humidity",
+      "vpd": "VPD",
+      "co2": "CO₂",
+      "ph": "pH",
+      "ec": "EC",
+      "tds": "TDS",
+      "ppfd": "PPFD",
+      "abstand_cm": "Lamp distance",
+      "aussen_temperatur": "Outside temperature",
+      "hoehe_cm": "Height",
+      "topfgewicht_kg": "Pot weight",
+      "wasser_gesamt": "Water total",
+      "schema_schritt": "Schedule step",
+      "eintraege": "Entries",
+      "fotos": "Photos",
+      "day": {
+        "temperature": "Target day",
+        "humidity": "Target humidity day",
+        "vpd": "Target VPD day",
+        "co2": "Target CO₂"
+      },
+      "night": {
+        "temperature": "Target night",
+        "humidity": "Target humidity night",
+        "vpd": "Target VPD night"
+      },
+      "hand": {
+        "ph": "Target pH",
+        "ec": "Target EC",
+        "hoehe_cm": "Target height"
+      },
+      "lights": {
+        "limit": "Target light level"
+      },
+      "gruenanteil": "Leaf area (share of frame)",
+      "helligkeit": "Frame brightness"
+    },
+    "ziel": {
+      "day": {
+        "temperature": "Target day temperature",
+        "humidity": "Target day humidity",
+        "vpd": "Target day VPD",
+        "co2": "Target CO₂"
+      },
+      "night": {
+        "temperature": "Target night temperature",
+        "humidity": "Target night humidity",
+        "vpd": "Target night VPD"
+      },
+      "hand": {
+        "ph": "Target pH",
+        "ec": "Target EC",
+        "hoehe_cm": "Target height"
+      },
+      "lights": {
+        "limit": "Target light level"
+      }
+    },
+    "stufe": {
+      "germination": "Germination",
+      "seedling": "Seedling",
+      "vegetative": "Vegetative",
+      "flowering": "Flowering",
+      "drying": "Drying",
+      "curing": "Curing",
+      "ernte": "Harvest"
+    },
+    "medium": {
+      "erde": "Soil",
+      "light-mix": "Light mix",
+      "all-mix": "All mix",
+      "coco": "Coco",
+      "floragard-light": "Floragard Light",
+      "biotabs": "BioTabs",
+      "unbekannt": "Unknown"
+    },
+    "pflanzeQuelle": {
+      "samen": "Seed",
+      "steckling": "Cutting",
+      "gekauft": "Bought"
+    },
+    "verteilung": {
+      "gesamt": "the whole tent",
+      "je_pflanze": "each plant"
+    },
+    "substrat": {
+      "trocken": "dry",
+      "feucht": "moist",
+      "nass": "wet"
+    },
+    "zielQuelle": {
+      "app": "App",
+      "geraet": "Device",
+      "erstbefund": "first measurement",
+      "hand": "By hand"
+    },
+    "zustand": {
+      "offen": "Open",
+      "erledigt": "Done"
+    },
+    "schluessel": {
+      "aktiv": "Key active",
+      "inaktiv": "No key"
+    },
+    "herkunft": {
+      "hand": "By hand",
+      "kamera": "Camera"
+    },
+    "filmDauer": {
+      "1d": "One day",
+      "1w": "One week",
+      "1m": "One month"
+    },
+    "einheit": {
+      "liter": "l",
+      "gramm": "g",
+      "ms": "mS/cm"
+    },
+    "feld": {
+      "tag": "Day",
+      "medium": "Medium",
+      "zeitzone": "Time zone",
+      "geraetetyp": "Device type",
+      "firmware": "Firmware",
+      "zuletztGesehen": "Last seen",
+      "gebundenSeit": "In the tent since",
+      "sorte": "Strain",
+      "topf": "Pot",
+      "quelle": "Origin",
+      "ernteGramm": "Harvest",
+      "rolle": "Function",
+      "dose": "Socket",
+      "ip": "IP address",
+      "letztesBild": "Last picture",
+      "gekoppeltSeit": "Paired since",
+      "aufgenommen": "Taken",
+      "herkunft": "Origin",
+      "zeitraum": "Period",
+      "wasser": "Water",
+      "kannen": "Cans",
+      "verteilung": "For",
+      "ec": "EC",
+      "ph": "pH",
+      "ablaufEc": "Runoff EC",
+      "ablaufPh": "Runoff pH",
+      "substrat": "Substrate",
+      "mlProLiter": "{{ml}} ml/l",
+      "status": "Status",
+      "stufe": "Stage",
+      "begonnen": "Started",
+      "tagInPhase": "Day in stage",
+      "zielwert": "Target value",
+      "gesetzt": "Set on",
+      "dabeiSeit": "Member since",
+      "schluessel": "Access",
+      "zeitpunkt": "Time",
+      "schema": "Schedule",
+      "schritt": "Step",
+      "laufNummer": "Run",
+      "laufTage": "Days"
+    },
+    "tagEins": "Your diary starts today.",
+    "erneutVersuchen": "Try again",
+    "deineZelte": "Your tents",
+    "kappe": {
+      "vorher": "Before",
+      "ziel": "Target",
+      "plan": "Plan",
+      "beginn": "Start",
+      "jetzt": "Now"
+    },
+    "dauer": {
+      "stunden": "{{stunden}} h {{minuten}}",
+      "minuten": {
+        "one": "1 min",
+        "other": "{{minuten}} min"
+      },
+      "tage": {
+        "one": "1 day",
+        "other": "{{tage}} days"
+      }
+    },
+    "zahlwort": {
+      "2": "two",
+      "3": "three",
+      "4": "four",
+      "5": "five",
+      "6": "six",
+      "7": "seven",
+      "8": "eight",
+      "9": "nine"
+    },
+    "beleg": {
+      "kennung": {
+        "bild": "Camera frame",
+        "foto": "Photo",
+        "band": "Readings",
+        "karte": "Entries"
+      },
+      "nichts": {
+        "keinVorher": "No before yet",
+        "nochNichts": "Nothing written down yet",
+        "keineKamera": "No camera paired",
+        "nichtsVerbunden": "Nothing connected",
+        "keinFoto": "No photo on this day",
+        "keineMesswerte": "No sensor readings — only what you write down"
+      },
+      "karte": {
+        "tagPhase": "Day {{tag}} · {{stufe}}",
+        "schema": "{{name}} · step {{schritt}}",
+        "wasser": "Water total {{liter}} l",
+        "messwerte": "{{werte}}",
+        "messwert": "{{mass}} {{wert}} {{einheit}}",
+        "und": "{{links}} · {{rechts}}",
+        "zettel": {
+          "one": "1 open note",
+          "other": "{{anzahl}} open notes"
+        }
+      },
+      "band": "{{mass}} {{min}}–{{max}} {{einheit}}"
+    },
+    "satz": {
+      "kamerastill": "No picture for {{dauer}}.",
+      "offline": "The tent was offline for {{dauer}}.",
+      "gewachsen": "The plants have grown.",
+      "wenigerGruen": "There is less green in the picture than before.",
+      "hoehe": "{{vorher}} cm has become {{jetzt}} cm.",
+      "nachtsWaermer": "It was warmer at night.",
+      "nachtsKuehler": "It was cooler at night.",
+      "gestiegen": "{{mass}} rose from {{vorher}} to {{jetzt}}.",
+      "gefallen": "{{mass}} fell from {{vorher}} to {{jetzt}}.",
+      "kachel": "In the picture, something changed mostly {{ort}}.",
+      "ort": {
+        "obenLinks": "top left",
+        "obenMitte": "top centre",
+        "obenRechts": "top right",
+        "mitteLinks": "on the left",
+        "mitteMitte": "in the centre",
+        "mitteRechts": "on the right",
+        "untenLinks": "bottom left",
+        "untenMitte": "bottom centre",
+        "untenRechts": "bottom right"
+      },
+      "zielDu": "You changed {{ziel}}: now {{wert}}.",
+      "zielGeraet": "{{ziel}} now stands at {{wert}}.",
+      "gabe": {
+        "du": {
+          "eins": "You watered.",
+          "viele": "You watered {{mal}}."
+        },
+        "wer": {
+          "eins": "{{name}} watered.",
+          "viele": "{{name}} watered {{mal}}."
+        }
+      },
+      "notiz": {
+        "du": {
+          "eins": "You wrote a note.",
+          "viele": "You wrote {{anzahl}} notes."
+        },
+        "wer": {
+          "eins": "{{name}} wrote a note.",
+          "viele": "{{name}} wrote {{anzahl}} notes."
+        }
+      },
+      "bild": {
+        "du": {
+          "eins": "You took a photo.",
+          "viele": "You took {{anzahl}} photos."
+        },
+        "wer": {
+          "eins": "{{name}} took a photo.",
+          "viele": "{{name}} took {{anzahl}} photos."
+        }
+      },
+      "zustand": {
+        "du": {
+          "eins": "You left a note on the door.",
+          "viele": "You left {{anzahl}} notes on the door."
+        },
+        "wer": {
+          "eins": "{{name}} left a note on the door.",
+          "viele": "{{name}} left {{anzahl}} notes on the door."
+        }
+      },
+      "phase": "{{stufe}} started on {{datum}}.",
+      "pflanze": "{{name}} has joined.",
+      "mal": {
+        "2": "twice",
+        "3": "three times",
+        "4": "four times",
+        "5": "five times",
+        "6": "six times",
+        "7": "seven times",
+        "8": "eight times",
+        "9": "nine times"
+      },
+      "laufWeiter": "Last run you were {{tage}} further along on day {{tag}}.",
+      "laufZurueck": "Last run you were {{tage}} behind on day {{tag}}.",
+      "laufGleich": "Last run you were exactly as far along on day {{tag}}.",
+      "laufBild": "This is what day {{tag}} looked like last run.",
+      "tage": {
+        "one": "a day",
+        "other": "{{anzahl}} days"
+      },
+      "naechster": "Next up: step {{schritt}}.",
+      "zuletztEingetragen": "Last written down on {{tag}}: {{was}}.",
+      "wenigGeaendert": "Little has changed since {{tag}}.",
+      "und": "{{links}} and {{rechts}}",
+      "fotos": {
+        "one": "a photo",
+        "other": "{{anzahl}} photos"
+      },
+      "notizen": {
+        "one": "a note",
+        "other": "{{anzahl}} notes"
+      }
+    },
+    "massSatz": {
+      "temperatur": "Temperature",
+      "luftfeuchte": "Humidity",
+      "vpd": "VPD",
+      "co2": "CO₂",
+      "ph": "pH",
+      "ec": "EC",
+      "tds": "TDS",
+      "ppfd": "PPFD",
+      "abstand_cm": "Lamp distance",
+      "aussen_temperatur": "Outside temperature",
+      "hoehe_cm": "Height",
+      "topfgewicht_kg": "Pot weight"
+    },
+    "regel": {
+      "marke": "Rule {{id}} ›",
+      "N-3": "The night target is {{ziel}} and exhaust is not a socket. What you can do: dim the light (currently {{licht}} %).",
+      "N-4": "The night target {{nacht}} is only {{abstand}} below the day target. A 3–6 °C drop is usual.",
+      "H-1": "The heater ran {{dauer}} without a break and it stayed {{abstand}} too cold. Either the heater is too small — or the socket is not switching.",
+      "H-2": "The heater switched {{anzahl}}× today and the temperature never rose afterwards. Check whether anything is plugged in.",
+      "L-1": "The light should be on and the picture is dark. Check the lamp or the “Light” socket.",
+      "E-1": "The dehumidifier ran {{dauer}} out of 24. In operating mode “{{betriebsart}}” this socket cools — it does not dehumidify.",
+      "V-1": "VPD {{wert}} kPa is outside the {{stufe}} band {{unten}}–{{oben}}. At {{temperatur}} that would need {{noetig}} % humidity instead of {{ist}} %. The firmware has no socket role “humidifier”.",
+      "K-1": "No picture for {{dauer}}, although the tent is online. The problem is the camera, not the controller.",
+      "D-1": "Readings and pictures are missing between {{von}} and {{bis}}. The tent was offline.",
+      "F-1": "Step {{schritt}} of the schedule has been due for {{dauer}}.",
+      "Z-1": "The target {{name}} was changed on {{datum}} from {{vorher}} to {{jetzt}}. Readings before that were measured against {{vorher}}."
+    },
+    "marke": {
+      "ueber": "beyond its usual swing",
+      "ruhig": "within its usual swing",
+      "gleich": "unchanged"
+    },
+    "stufeSatz": {
+      "germination": "Germination",
+      "seedling": "The seedling",
+      "vegetative": "Vegetative growth",
+      "flowering": "Flowering",
+      "drying": "Drying",
+      "curing": "Curing",
+      "ernte": "The harvest"
+    },
+    "aktion": {
+      "titel": "Log an entry",
+      "gabe": "Water",
+      "notiz": "Note",
+      "foto": "Photo",
+      "zettel": "Pinned note",
+      "fotoSpaeter": "Photos are coming later. Everything else can already be logged."
+    },
+    "ausgang": {
+      "wartet": {
+        "one": "1 entry is waiting for a connection.",
+        "other": "{{anzahl}} entries are waiting for a connection."
+      },
+      "konflikt": "That id already belongs to a different entry. Nothing was overwritten – please log it again.",
+      "abgelehnt": "The entry was not saved: {{grund}}"
+    },
+    "blatt": {
+      "abbrechen": "Cancel",
+      "eintragen": "Log it",
+      "trotzdem": "Log it anyway",
+      "dublette": "That was the same watering",
+      "heute": "today {{zeit}}",
+      "zeitpunktAendern": "Change the time",
+      "gabe": {
+        "titel": "Watering",
+        "an": "To",
+        "ganzesZelt": "Whole tent",
+        "kannen": {
+          "one": "1 can · {{liter}} l",
+          "other": "{{anzahl}} cans · {{liter}} l"
+        },
+        "kanne": "Can",
+        "weniger": "One can fewer",
+        "gesamt": "{{liter}} l in total",
+        "jePflanze": "{{liter}} l per plant · {{gesamt}} l in total",
+        "produktName": "Product",
+        "produktZufuegen": "+ Product",
+        "produktWeg": "Remove product",
+        "mlProLiter": "ml/l",
+        "letzte": "Last time: {{produkte}}",
+        "notiz": "Note",
+        "wer": "Who?",
+        "jemand": "Somebody",
+        "warnung": "{{wer}} watered {{was}} {{wann}} ({{liter}} l).",
+        "warnungSubstrat": "Substrate afterwards: {{substrat}}.",
+        "warnungLokal": "(not sent yet)",
+        "keinFoto": "No photo with it."
+      },
+      "notiz": {
+        "titel": "Note",
+        "platzhalter": "What did you notice?"
+      },
+      "zettel": {
+        "titel": "Pinned note",
+        "platzhalter": "What should the next person know?",
+        "hinweis": "The note stays at the top of the tent until somebody ticks it off."
+      }
+    }
+  },
   "simpleSettings": {
     "modeSimple": "Simple",
     "modeExpert": "Expert",
     "referenceBannerMonitor": "This controller only monitors. Your targets act as reference ranges for charts, the assistant and alarms — nothing is switched.",
     "referenceBannerLightOnly": "This controller only drives the lamp. Climate targets act as reference ranges — heating or humidity are not switched.",
+    "referenceBannerUnknown": "This device does not report which sockets are paired. Until it does, your targets are reference values — the app cannot tell whether anything is actually switched.",
+    "referenceBannerPartial": "This controller only switches part of it itself. Targets without a matching socket are reference values — the rows concerned say so.",
+    "reference": {
+      "temperature": "No heater paired — this value is a reference value.",
+      "humidity": "No dehumidifier paired — this value is a reference value.",
+      "co2": "No CO₂ socket paired — this value is a reference value.",
+      "light": "No lamp paired — this value is a reference value.",
+      "unknown": "Device reports no sockets — this value is a reference value."
+    },
     "stageTitle": "Your grow stage",
     "stageText": "Pick the stage your plants are in — we set proven targets. Fine-tune anything below.",
     "stageTextReference": "Pick the stage your plants are in — we set proven reference values. Fine-tune anything below.",

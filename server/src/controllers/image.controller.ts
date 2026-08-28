@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { RequestWithUser } from '@/interfaces/auth.interface';
-import { isUserDeviceMiddelware, isUserDeviceOrShareMiddelware } from '@/middlewares/auth.middleware';
+import { darfBildLesen, isUserDeviceMiddelware, isUserDeviceOrShareMiddelware } from '@/middlewares/auth.middleware';
 import { imageService } from '@services/image.service';
 import { ONLINE_TIMEOUT } from '@services/device.service';
 import { Image } from '@fg2/shared-types';
@@ -47,8 +47,9 @@ class ImageController {
   public getDeviceImage = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
       if (await isUserDeviceOrShareMiddelware(req, res, req.params.device_id, 'image')) {
-        // Share links without webcam access may still fetch diary photos (image_id),
-        // but not the webcam stills/timelapses addressed by timestamp.
+        // A still addressed by timestamp is a camera read whatever comes back,
+        // so a link without the camera is refused before the query rather than
+        // after it. What comes back by `image_id` is decided by the row.
         if (req.share && !req.share.webcam && !req.query.image_id) {
           res.status(403).send();
           return;
@@ -61,6 +62,14 @@ class ImageController {
           String(req.query.duration || ''),
           String(req.query.image_id ?? ''),
         );
+
+        // The guard above authorised the *device* in the URL; a share is issued
+        // for one half of one tent, and an `image_id` names a row rather than a
+        // device. So the row is authorised too, against the tent it belongs to.
+        if (image && req.share && !(await darfBildLesen(req, image))) {
+          res.status(403).send();
+          return;
+        }
 
         if (image) {
           this.sendImage(req, res, await this.withOfflineOverlay(req, image), image.format === 'mp4' ? 'video/mp4' : 'image/jpeg');

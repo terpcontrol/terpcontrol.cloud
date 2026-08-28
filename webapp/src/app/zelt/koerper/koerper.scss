@@ -1,0 +1,41 @@
+:host {
+  display: block;
+}
+
+.fakt {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-height: 32px;
+  padding: 4px 0;
+}
+
+.fakt-label {
+  flex: 1;
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.fakt-wert {
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.koerper-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 20px;
+  white-space: pre-wrap;
+}
+
+.koerper-bild {
+  display: block;
+  width: 100%;
+  max-width: 336px;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 14px;
+}

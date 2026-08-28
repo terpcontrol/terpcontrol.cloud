@@ -22,6 +22,18 @@
     </ion-card-content>
   </ion-card>
 
+  <!-- The way into the diary. A tent needs no device to exist, so this list is
+       not part of any device card. -->
+  <ion-card class="zelt-card" *ngIf="zelte.length">
+    <ion-card-content>
+      <h2 class="zelt-card-titel">{{ 'zelt.deineZelte' | translate }}</h2>
+      <a class="zelt-zeile" *ngFor="let zelt of zelte" [routerLink]="['/z', zelt.zelt_id]">
+        <span>{{ zelt.name || ('zelt.defaultName' | translate) }}</span>
+        <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+      </a>
+    </ion-card-content>
+  </ion-card>
+
   <!-- Only greet a genuinely empty account. A failed fetch is not "no devices yet". -->
   <div class="tc-hero onboarding-hero" *ngIf="loadState === 'loaded' && all_devices.length === 0">
     <span class="tc-eyebrow">Smart Grow Automation</span>
