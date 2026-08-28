@@ -21,3 +21,6 @@ garmin/bin/
 
 # macOS finder junk
 .DS_Store
+
+# Integration test harness scratch space
+server/test/.tmp/

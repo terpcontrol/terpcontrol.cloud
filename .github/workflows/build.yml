@@ -79,12 +79,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js ${{ matrix.node-version }}
+      # 20, as the container the server ships in runs (docker-compose.yaml:
+      # DOCKER_NODE_SERVER_IMAGE). This used to read a matrix that was never
+      # declared, so the job ran on whatever the runner happened to have.
+      - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 20
           cache: 'npm'
           cache-dependency-path: server/package-lock.json
+      # The integration suite shells out to these the way the container does.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends imagemagick ffmpeg
       - run: |
           cd server/
           npm ci
@@ -94,6 +99,8 @@ jobs:
             exit 1
           fi
           npm run build
+          # Against the compiled output, which is what the container ships.
+          HARNESS_BUILT=1 npm test
 
   docker-server:
     needs: detect

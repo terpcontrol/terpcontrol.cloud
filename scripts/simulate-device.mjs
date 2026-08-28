@@ -965,21 +965,32 @@ const credentials = deviceId => ({ username: `sim-${deviceId}`, password: `sim-$
 
 const register = async options => {
   const { username, password } = credentials(options.deviceId);
-  const result = await api('/device/register', {
-    method: 'POST',
-    body: {
-      registration_password: REGISTRATION_PASSWORD,
-      device_id: options.deviceId,
-      username,
-      password,
-      device_type: options.type,
-    },
-  });
+  // The server answers a refused registration with 401, which `api` throws on,
+  // so the hint has to be given from here rather than from a falsy result.
+  const refused = new Error(
+    'Registration refused. Check ENABLE_SELF_REGISTRATION and SELF_REGISTRATION_PASSWORD in .env, and that the device id is not ' +
+      'already registered under a different type.',
+  );
+
+  let result;
+  try {
+    result = await api('/device/register', {
+      method: 'POST',
+      body: {
+        registration_password: REGISTRATION_PASSWORD,
+        device_id: options.deviceId,
+        username,
+        password,
+        device_type: options.type,
+      },
+    });
+  } catch (error) {
+    if (/-> 401 /.test(String(error.message))) throw refused;
+    throw error;
+  }
+
   if (result === false || result?.fw === undefined) {
-    throw new Error(
-      'Registration refused. Check ENABLE_SELF_REGISTRATION and SELF_REGISTRATION_PASSWORD in .env, and that the device id is not ' +
-        'already registered under a different type.',
-    );
+    throw refused;
   }
   console.log(`registered ${options.deviceId} as ${options.type}`);
 };
