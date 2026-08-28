@@ -34,6 +34,26 @@ describe('POST /device/configure', () => {
     expect(stored.body).toBe(configuration);
   });
 
+  it('stores what an admin configures on somebody else´s device', async () => {
+    // The guard lets an admin through, and what it lets through has to be
+    // written down: a device told to change while the stored configuration
+    // stays behind reverts on its next fetch.
+    const fresh = await provisionDevice(owner);
+    const configuration = JSON.stringify({ day: { temperature: 19 } });
+
+    await admin.client.post('/device/configure').send({ device_id: fresh.deviceId, configuration }).expect(200);
+
+    const stored = await owner.client.get(`/device/config/${fresh.deviceId}`).expect(200);
+    expect(stored.body).toBe(configuration);
+  });
+
+  it('reports a device that does not exist rather than telling one to change', async () => {
+    await owner.client
+      .post('/device/configure')
+      .send({ device_id: 'no-such-device', configuration: '{}' })
+      .expect(403);
+  });
+
   it('writes a diary entry describing what changed', async () => {
     const before = JSON.stringify({ day: { temperature: 26 } });
     const after = JSON.stringify({ day: { temperature: 28 } });

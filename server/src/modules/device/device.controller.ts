@@ -152,8 +152,8 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Send a new configuration to the device' })
-  public async configure(@CurrentUser() user: AuthContext, @Body(zodBody(configureDeviceSchema)) body: ConfigureDevice) {
-    await this.deviceService.configureDevice(body.device_id, user.userId, body.configuration);
+  public async configure(@Body(zodBody(configureDeviceSchema)) body: ConfigureDevice) {
+    await this.deviceService.configureDevice(body.device_id, body.configuration);
     return OK;
   }
 

@@ -580,7 +580,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
 
       if (activeStep && (!activeStep.lastTimeApplied || activeStep.lastTimeApplied < now - 3600 * 1000) && device.lastseen >= now - 60 * 1000) {
         this.mqtt.publish('/devices/' + device.device_id + '/configuration', activeStep.settings);
-        if (await this.configureDevice(device.device_id, device.owner_id, activeStep.settings)) {
+        if (await this.configureDevice(device.device_id, activeStep.settings)) {
           logger.info(`Applied recipe step ${device.recipe.activeStepIndex} to device ${device.device_id}`);
         }
         activeStep.lastTimeApplied = now;
@@ -1248,17 +1248,24 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     await this.devices.findOneAndUpdate({ device_id: device_id }, { owner_id: '' });
   }
 
-  public async configureDevice(device_id: string, user_id: string, config: string): Promise<boolean> {
-    const oldDdevice = await this.devices.findOneAndUpdate(
-      { device_id: device_id, owner_id: user_id },
-      { configuration: config },
-      { returnOriginal: true },
-    );
+  /**
+   * Who may configure a device is settled before this is called - by the guard
+   * on the route, which lets an admin configure one they do not own. Matching
+   * the owner here as well only made that case store nothing while still
+   * telling the hardware to change, so the device reverted on its next fetch.
+   */
+  public async configureDevice(device_id: string, config: string): Promise<boolean> {
+    const previous = await this.devices.findOneAndUpdate({ device_id: device_id }, { configuration: config }, { returnOriginal: true });
+
+    if (!previous) {
+      throw new HttpException(404, 'Device not found');
+    }
+
     this.mqtt.publish('/devices/' + device_id + '/configuration', config);
     await this.claimCodes.deleteMany({ device_id: device_id });
 
-    const diffStr = this.diffConfigs(oldDdevice.configuration, config);
-    if (oldDdevice.configuration !== config && diffStr.length > 0) {
+    const diffStr = this.diffConfigs(previous.configuration, config);
+    if (previous.configuration !== config && diffStr.length > 0) {
       await this.logMessage(device_id, {
         title: 'message-device-configuration-updated',
         message: `message-device-configuration-updated:${diffStr}`,
