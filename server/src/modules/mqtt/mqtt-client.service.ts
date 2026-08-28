@@ -102,17 +102,23 @@ export class MqttClientService implements OnApplicationShutdown {
   }
 
   /**
-   * The connection is made a few seconds after the server starts and can be
-   * down afterwards, so there may be no client to publish through. Saying so is
-   * the honest answer: the device is not going to hear this either way, and a
-   * caller told 503 knows to try again.
+   * Whether the message could be handed to the broker. The connection is made a
+   * few seconds after the server starts and can be down afterwards, so there
+   * may be nothing to hand it to.
+   *
+   * It answers rather than throwing, because most callers are timers, stream
+   * handlers and socket callbacks with nobody to throw to - a throw there is an
+   * unhandled rejection, and it leaves whatever they were in the middle of
+   * half-done. A caller serving a request checks the answer and says 503.
    */
-  public publish(topic: string, message: string): void {
+  public publish(topic: string, message: string): boolean {
     if (!this.client) {
-      throw new HttpException(503, 'Not connected to the message broker');
+      logger.error(`Cannot publish to ${topic}: not connected to the message broker`);
+      return false;
     }
 
     this.client.publish(topic, message);
+    return true;
   }
 
   /** Lets the broker see the disconnect rather than waiting for the keepalive to lapse. */

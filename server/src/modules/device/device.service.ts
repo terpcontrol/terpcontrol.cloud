@@ -940,10 +940,21 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     return (device ? withMaintenanceSecondsLeft(device) : device) as Device;
   }
 
+  /**
+   * Publishing on behalf of a caller that is waiting for an answer. The device
+   * is not going to hear a command the broker could not take, so saying so
+   * beats an ok - a client told this knows to try again.
+   */
+  private requirePublished(topic: string, message: string): void {
+    if (!this.mqtt.publish(topic, message)) {
+      throw new HttpException(503, 'Not connected to the message broker');
+    }
+  }
+
   public async activateMaintenanceMode(device_id: string, durationMinutes: number): Promise<void> {
     logger.info('Activating maintenance mode for device ' + device_id + ' for ' + durationMinutes + ' minutes');
 
-    this.mqtt.publish(
+    this.requirePublished(
       '/devices/' + device_id + '/command',
       JSON.stringify({
         action: 'maintenance',
@@ -957,7 +968,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
   public async rebootDevice(device_id: string): Promise<void> {
     logger.info('Rebooting device ' + device_id);
 
-    this.mqtt.publish(
+    this.requirePublished(
       '/devices/' + device_id + '/command',
       JSON.stringify({
         action: 'reboot',
@@ -1028,7 +1039,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
       }
     }
 
-    this.mqtt.publish('/devices/' + device_id + '/command', JSON.stringify(payload));
+    this.requirePublished('/devices/' + device_id + '/command', JSON.stringify(payload));
   }
 
   public async findUserDevices(user_id: string, is_demo = false): Promise<Device[]> {
@@ -1307,7 +1318,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
       throw new HttpException(404, 'Device not found');
     }
 
-    this.mqtt.publish('/devices/' + device_id + '/configuration', config);
+    this.requirePublished('/devices/' + device_id + '/configuration', config);
     await this.claimCodes.deleteMany({ device_id: device_id });
 
     const diffStr = this.diffConfigs(previous.configuration, config);
@@ -1602,7 +1613,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
   }
 
   public async testOutputs(device_id: string, outputs: TestDeviceDto) {
-    this.mqtt.publish(
+    this.requirePublished(
       '/devices/' + device_id + '/command',
       JSON.stringify({
         action: 'test',
@@ -1620,7 +1631,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
   }
 
   public async stopTest(device_id: string) {
-    this.mqtt.publish(
+    this.requirePublished(
       '/devices/' + device_id + '/command',
       JSON.stringify({
         action: 'stoptest',
