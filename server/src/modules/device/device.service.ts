@@ -191,7 +191,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
         }
       }
     } catch (e) {
-      logger.info('Failed to backfill firmware createdAt:', e);
+      logger.error(`Failed to backfill firmware createdAt: ${e}`);
     }
   }
 
@@ -261,14 +261,12 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
             case 'firmware':
               break;
             default:
-              logger.info('UNKNOWN MQTT TOPIC!');
-              logger.info(topic);
-              logger.info(message.message);
+              logger.info(`Unhandled MQTT message on ${topic}: ${message.message}`);
           }
         }
       });
     } catch (exception) {
-      logger.info(exception);
+      logger.error(`Could not connect to the MQTT broker: ${exception}`);
       // Wait before trying again: retrying straight away spins the CPU and
       // floods the log for as long as the broker is unreachable.
       setTimeout(() => void this.connectMqtt(), MQTT_RECONNECT_DELAY);
@@ -335,7 +333,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
         nextDelayMs: Math.min(baseDelay * 2, UPGRADE_INSTRUCTION_MAX_DELAY),
       });
     } catch (error) {
-      logger.info(error);
+      logger.error(`Failed sending the upgrade instruction to device ${deviceId}: ${error}`);
     } finally {
       this.upgradeInstructionTimers.delete(deviceId);
     }
@@ -594,7 +592,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
         try {
           await this.mail.send({ to: device.recipe.email, subject: emailSubject, text: emailBody });
         } catch (e) {
-          logger.info(`Failed to send recipe step notification email for device ${device.device_id}:`, e);
+          logger.error(`Failed to send recipe step notification email for device ${device.device_id}: ${e}`);
         }
       }
     }
@@ -1024,7 +1022,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
   }
 
   public async register(info: RegisterDeviceDto): Promise<any> {
-    logger.info(info);
+    logger.info(`Registering device ${info?.device_id} of type ${info?.device_type}`);
 
     if (!this.config.enableSelfRegistration) {
       logger.info('REGISTRATION DISABLED');
@@ -1064,7 +1062,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
       }
       await this.devices.updateOne({ _id: existingDevice._id }, update);
 
-      logger.info('Re-registered existing device:', existingDevice.device_id);
+      logger.info(`Re-registered existing device ${existingDevice.device_id}`);
       return { fw: device_class.firmware_id };
     }
 
@@ -1082,7 +1080,8 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
 
       serial = parseInt(serialquery?.[0]?.serial) || 0;
     } catch (err) {
-      logger.info(err);
+      // The next serial number is a nicety; registration goes on without it.
+      logger.error(`Could not read the highest serial number: ${err}`);
     }
 
     serial = serial + 1;
@@ -1108,11 +1107,11 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
         await this.devices.deleteOne({ device_id: info.device_id, owner_id: '' }); // remove unclaimed device with same id
       } catch (err) {}
       await this.devices.create(device);
-      logger.info('Registered new device:', device);
+      logger.info(`Registered new device ${device?.device_id}`);
 
       return { fw: device_class.firmware_id };
     } catch (err) {
-      logger.info(err);
+      logger.error(`Device registration failed: ${err}`);
       return false;
     }
   }

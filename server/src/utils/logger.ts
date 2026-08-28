@@ -16,8 +16,30 @@ if (!existsSync(logDir)) {
   mkdirSync(logDir);
 }
 
-// Define log format
-const logFormat = winston.format.printf(({ timestamp, level, message }) => `${timestamp} ${level}: ${message}`);
+// Anything passed after the message. `logger.info('failed:', error)` used to
+// write "failed:" and drop the reason on the floor, which is worth rendering
+// rather than losing - even though a message that interpolates its own detail
+// reads better.
+const SPLAT = Symbol.for('splat') as unknown as string;
+
+const describe = (value: unknown): string => {
+  if (value instanceof Error) return value.stack ?? value.message;
+  if (typeof value === 'object' && value !== null) {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+  return String(value);
+};
+
+const logFormat = winston.format.printf(info => {
+  const extra = (info[SPLAT] as unknown[] | undefined) ?? [];
+  const details = extra.map(describe).join(' ');
+
+  return `${info.timestamp} ${info.level}: ${describe(info.message)}${details ? ` ${details}` : ''}`;
+});
 
 /*
  * Log Level

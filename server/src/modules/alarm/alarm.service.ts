@@ -156,13 +156,13 @@ export class AlarmService {
       try {
         await this.handleEmailAlarm(alarm, deviceId, value);
       } catch (error) {
-        logger.error(`Failed to send alarm email for device ${deviceId}:`, error);
+        logger.error(`Failed to send alarm email for device ${deviceId}: ${error}`);
       }
     } else if (alarm.actionType === 'webhook') {
       try {
         await this.handleWebhookAlarm(alarm, deviceId, value);
       } catch (error) {
-        logger.error(`Failed to send alarm webhook for device ${deviceId}:`, error);
+        logger.error(`Failed to send alarm webhook for device ${deviceId}: ${error}`);
       }
     }
 
@@ -170,7 +170,7 @@ export class AlarmService {
       try {
         await this.handleInfoAlarm(alarm, deviceId, value);
       } catch (error) {
-        logger.error(`Failed to log alarm info for device ${deviceId}:`, error);
+        logger.error(`Failed to log alarm info for device ${deviceId}: ${error}`);
       }
     }
   }

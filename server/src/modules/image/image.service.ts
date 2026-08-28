@@ -168,7 +168,7 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
         .jpeg()
         .toBuffer();
     } catch (error) {
-      logger.info('Failed drawing the offline overlay:', error);
+      logger.error(`Failed drawing the offline overlay: ${error}`);
       return image;
     }
   }
@@ -254,7 +254,7 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
                 state.failureCount = 0;
               })
               .catch(e => {
-                logger.info(`Error reading RTSP stream ${device.cloudSettings.rtspStream} for device ${device.device_id}:`, e?.message);
+                logger.error(`Error reading RTSP stream ${device.cloudSettings.rtspStream} for device ${device.device_id}: ${e?.message ?? e}`);
                 state.failureCount = e instanceof CorruptFrameError ? 0 : (state.failureCount ?? 0) + 1;
                 return Promise.resolve();
               })
@@ -607,13 +607,13 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
         },
         (error, stdout, stderr) => {
           if (error) {
-            logger.info('Error compressing RTSP stream images:', stderr, error);
+            logger.error(`Error compressing RTSP stream images: ${error} ${stderr}`);
             reject(error);
           } else {
             readFile(`${filesDir}/result.mp4`)
               .then(data => resolve(data))
               .catch(err => {
-                logger.info(`Error reading result file ${filesDir}/result.mp4:`, err);
+                logger.error(`Error reading result file ${filesDir}/result.mp4: ${err}`);
                 reject(err);
               })
               .finally(() => unlink(`${filesDir}/result.mp4`).catch(() => Promise.resolve()));
