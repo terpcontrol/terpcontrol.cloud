@@ -2,6 +2,7 @@ import { forwardRef, Inject, Injectable, OnApplicationShutdown, OnModuleInit } f
 import { ConfigType } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Document, Model } from 'mongoose';
+import { Subscription } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
 import { isNumeric } from 'influx/lib/src/grammar';
 import {
@@ -131,6 +132,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
   private readonly upgradeInstructionTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly upgradeInstructionBackoff = new Map<string, { firmwareId: string; nextDelayMs: number }>();
   private readonly work = new BackgroundWork();
+  private messageSubscription?: Subscription;
 
   constructor(
     @InjectModel(MODEL.device) private readonly devices: Model<Device & Document>,
@@ -165,6 +167,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
   }
 
   public onApplicationShutdown(): void {
+    this.messageSubscription?.unsubscribe();
     this.work.stop();
     for (const timer of this.upgradeInstructionTimers.values()) clearTimeout(timer);
     this.upgradeInstructionTimers.clear();
@@ -211,11 +214,19 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
       await this.mqtt.connect();
 
       await this.mqtt.subscribe('/devices/#');
+
+      // This method runs again on every failed attempt, and the subject it
+      // attaches to outlives the attempt: without dropping the previous
+      // subscriber, a retry would leave two, and every device message would be
+      // handled twice - two sets of measurements, two diary entries, an alarm
+      // evaluated twice.
+      this.messageSubscription?.unsubscribe();
+
       // Anything a device sends reaches this, including a payload that does not
       // parse. RxJS drops a rejected promise from an async subscriber, which node
       // then raises as an uncaught exception - so one malformed message from one
       // device would end the process for all of them.
-      this.mqtt.messages.subscribe(async message => {
+      this.messageSubscription = this.mqtt.messages.subscribe(async message => {
         try {
           const device_id = message.topic.split('/')[2];
           const topic = message.topic.split('/')[3];

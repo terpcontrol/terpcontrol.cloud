@@ -48,4 +48,27 @@ describe('after the broker restarts', () => {
     const entry = listed.body.find((candidate: { device_id: string }) => candidate.device_id === device.deviceId);
     expect(entry.lastseen).toBeGreaterThan(Date.now() - 60_000);
   }, 60_000);
+
+  it('handles each message once, however many times it has reconnected', async () => {
+    // The server subscribes to a subject that outlives a connection attempt, so
+    // a second subscriber would double everything a device says - two sets of
+    // measurements, two diary entries, an alarm evaluated twice.
+    const fresh = await provisionDevice(owner);
+    const talker = await startSimulator(fresh);
+
+    try {
+      await bounceMqttBroker(2000);
+      await talker.reconnect();
+      await settle(3000);
+
+      const message = `message-co2-low:${Date.now()}`;
+      await talker.publish('log', { message, severity: 0, time: Date.now() });
+      await settle(1500);
+
+      const logs = await owner.client.get(`/device/logs/${fresh.deviceId}`).expect(200);
+      expect(logs.body.filter((entry: { message: string }) => entry.message === message)).toHaveLength(1);
+    } finally {
+      await talker.close();
+    }
+  }, 60_000);
 });
