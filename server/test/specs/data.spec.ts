@@ -176,6 +176,11 @@ describe('GET /data/series/:device_id/:measure', () => {
       await series('temperature"] or r["_field"] == "humidity').expect(400);
     });
 
+    it('refuses a request that leaves them out, as the document says it will', async () => {
+      await owner.client.get(`/data/series/${device.deviceId}/temperature`).expect(400);
+      await owner.client.get(`/data/series/${device.deviceId}/temperature`).query({ from, to }).expect(400);
+    });
+
     it('refuses a window that does not move forward', async () => {
       // A window has to be positive, and the point of checking here is that the
       // caller hears it as a bad request rather than as a failed query.

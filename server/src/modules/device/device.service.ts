@@ -29,7 +29,7 @@ import { logger } from '@utils/logger';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
 import { demoAlarms, demoCloudSettings, demoDevice } from '@utils/demo';
 import { authConfig } from '../../config/configuration';
-import { BackgroundWork } from '../../common/background-work';
+import { BackgroundWork, logIfItFails } from '../../common/background-work';
 import { MODEL } from '../../database/models.module';
 import { AlarmService } from '../alarm/alarm.service';
 import { OkamP2PService, OKAM_STREAM_PREFIX } from '../camera/okam-p2p.service';
@@ -318,7 +318,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     }
 
     const timer = setTimeout(() => {
-      void this.sendUpgradeInstruction(device.device_id);
+      logIfItFails(`The upgrade instruction for device ${device.device_id}`, this.sendUpgradeInstruction(device.device_id));
     }, backoff.nextDelayMs);
     this.upgradeInstructionTimers.set(device.device_id, timer);
   }

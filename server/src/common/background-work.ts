@@ -1,5 +1,17 @@
 import { logger } from '@utils/logger';
 
+const describe = (error: unknown): string => (error instanceof Error ? error.stack ?? error.message : String(error));
+
+/**
+ * For work started where there is no caller to return a failure to - inside a
+ * callback, a stream handler, a timer. A promise dropped on the floor there
+ * reaches the handler in `main.ts`, which ends the process; naming it here says
+ * what failed instead.
+ */
+export const logIfItFails = (name: string, work: Promise<unknown>): void => {
+  work.catch(error => logger.error(`${name} failed: ${describe(error)}`));
+};
+
 /**
  * The timers a service keeps between requests - the pollers that read cameras,
  * roll up timelapses and hand out firmware upgrades.

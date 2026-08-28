@@ -13,7 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { CloudSettings, Device, Image } from '@fg2/shared-types';
 import { HttpException } from '@common/http-exception';
 import { logger } from '@utils/logger';
-import { BackgroundWork } from '../../common/background-work';
+import { BackgroundWork, logIfItFails } from '../../common/background-work';
 import { MODEL } from '../../database/models.module';
 import { OkamP2PService, OKAM_STREAM_PREFIX } from '../camera/okam-p2p.service';
 import { DeviceService } from '../device/device.service';
@@ -561,12 +561,15 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
           const corruptionIndicator = !error && FFMPEG_CORRUPT_FRAME_PATTERN.exec(String(stderr))?.[0];
           if (error || !stdout || stdout.length === 0 || corruptionIndicator) {
             if (cloudSettings.logRtspStreamErrors) {
-              void this.deviceService.logMessage(deviceId, {
-                title: 'message-rtsp-stream-error',
-                message: `message-rtsp-stream-error:${stderr}`,
-                severity: 1,
-                categories: ['webcam', 'error'],
-              });
+              logIfItFails(
+                `Recording the webcam error for device ${deviceId}`,
+                this.deviceService.logMessage(deviceId, {
+                  title: 'message-rtsp-stream-error',
+                  message: `message-rtsp-stream-error:${stderr}`,
+                  severity: 1,
+                  categories: ['webcam', 'error'],
+                }),
+              );
             }
             reject(
               error ??

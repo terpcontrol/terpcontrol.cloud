@@ -7,6 +7,7 @@ import { Mutex, MutexInterface, withTimeout } from 'async-mutex';
 import { Alarm, Device } from '@fg2/shared-types';
 import { logger } from '@utils/logger';
 import { applyWebhookTemplate } from '@utils/webhookTemplate';
+import { logIfItFails } from '../../common/background-work';
 import { MODEL } from '../../database/models.module';
 import { DataService } from '../data/data.service';
 import { DeviceService, ONLINE_TIMEOUT, StatusMessage } from '../device/device.service';
@@ -275,12 +276,15 @@ export class AlarmService {
       logger.error(`Failed to trigger webhook for device ${deviceId} and alarm ${alarm.alarmId}: ${message}`);
 
       if (alarm.reportWebhookErrors) {
-        void this.deviceService.logMessage(deviceId, {
-          title: 'message-alarm-webhook-error',
-          message: `message-alarm-webhook-error:${alarm.name ?? alarm.alarmId} - ${message}`,
-          severity: 1,
-          categories: ['alarm', 'alarm-error'],
-        });
+        logIfItFails(
+          `Recording the webhook error for device ${deviceId}`,
+          this.deviceService.logMessage(deviceId, {
+            title: 'message-alarm-webhook-error',
+            message: `message-alarm-webhook-error:${alarm.name ?? alarm.alarmId} - ${message}`,
+            severity: 1,
+            categories: ['alarm', 'alarm-error'],
+          }),
+        );
       }
     });
 

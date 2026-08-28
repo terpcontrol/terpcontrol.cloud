@@ -12,9 +12,11 @@ export class DataController {
   @Get('series/:device_id/:measure')
   // A 201 for a read is odd, but it is what every client of this endpoint expects.
   @HttpCode(HttpStatus.CREATED)
-  @ApiQuery({ name: 'from', required: false, description: 'Flux time literal, e.g. -3d or an RFC3339 timestamp' })
-  @ApiQuery({ name: 'to', required: false })
-  @ApiQuery({ name: 'interval', required: false, description: 'Window size, e.g. 5m' })
+  // Required, all three: the series is built by interpolating them into a
+  // query, and each is checked against the shape it has to have.
+  @ApiQuery({ name: 'from', required: true, description: 'A duration such as -3d, an RFC3339 timestamp, or now()' })
+  @ApiQuery({ name: 'to', required: true, description: 'The same shapes as `from`' })
+  @ApiQuery({ name: 'interval', required: true, description: 'Window size as a positive duration, e.g. 5m' })
   @ApiQuery({ name: 'method', required: false, enum: ['mean', 'min', 'max', 'sum'] })
   @ApiOperation({ summary: 'One aggregated point per interval, empty windows included' })
   public series(
