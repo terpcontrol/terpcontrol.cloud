@@ -455,148 +455,156 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     const now = Date.now();
 
     for (const device of devices) {
-      if (device.recipe.activeStepIndex >= device.recipe.steps.length || (device.recipe.activeStepIndex ?? -1) < 0) {
-        continue;
-      }
+      // One device must not end the pass: it may have been deleted since the
+      // list was read, and this runs on a timer with no caller to report to.
+      try {
+        if (device.recipe.activeStepIndex >= device.recipe.steps.length || (device.recipe.activeStepIndex ?? -1) < 0) {
+          continue;
+        }
 
-      let activeStep = device.recipe.steps[device.recipe.activeStepIndex];
-      let hasChanges = false;
-      let emailSubject = null;
-      let emailBody = null;
+        let activeStep = device.recipe.steps[device.recipe.activeStepIndex];
+        let hasChanges = false;
+        let emailSubject = null;
+        let emailBody = null;
 
-      const elapsedMs = now - device.recipe.activeSince;
-      const stepDurationMs =
-        activeStep.duration *
-        60 *
-        1000 *
-        (activeStep.durationUnit === 'weeks'
-          ? 24 * 7 * 60
-          : activeStep.durationUnit === 'days'
-          ? 24 * 60
-          : activeStep.durationUnit === 'hours'
-          ? 60
-          : 1);
-      const remainingMs = stepDurationMs - elapsedMs;
-      if (remainingMs <= 0) {
-        if (activeStep.waitForConfirmation) {
-          if (device.recipe.notifications !== 'off' && !activeStep.notified) {
-            emailSubject = `[TERP CONTROL] Recipe step #${device.recipe.activeStepIndex + 1} waiting for confirmation on device ${device.device_id}`;
-            emailBody = `Please confirm the completion of step #${device.recipe.activeStepIndex + 1} ${activeStep.name}: ${
-              activeStep.confirmationMessage || 'No additional information provided.'
-            }`;
+        const elapsedMs = now - device.recipe.activeSince;
+        const stepDurationMs =
+          activeStep.duration *
+          60 *
+          1000 *
+          (activeStep.durationUnit === 'weeks'
+            ? 24 * 7 * 60
+            : activeStep.durationUnit === 'days'
+            ? 24 * 60
+            : activeStep.durationUnit === 'hours'
+            ? 60
+            : 1);
+        const remainingMs = stepDurationMs - elapsedMs;
+        if (remainingMs <= 0) {
+          if (activeStep.waitForConfirmation) {
+            if (device.recipe.notifications !== 'off' && !activeStep.notified) {
+              emailSubject = `[TERP CONTROL] Recipe step #${device.recipe.activeStepIndex + 1} waiting for confirmation on device ${
+                device.device_id
+              }`;
+              emailBody = `Please confirm the completion of step #${device.recipe.activeStepIndex + 1} ${activeStep.name}: ${
+                activeStep.confirmationMessage || 'No additional information provided.'
+              }`;
 
-            if (device.recipe.additionalInfo) {
-              await this.logMessage(device.device_id, {
-                title: 'message-recipe-step-awaiting-confirmation',
-                message: `message-recipe-step-awaiting-confirmation:${device.recipe.activeStepIndex + 1} (${activeStep.name ?? ''}) - ${
-                  activeStep.confirmationMessage || 'No additional information provided.'
-                }`,
-                severity: 0,
-                categories: ['recipe', 'recipe-confirmation'],
-              });
-            }
+              if (device.recipe.additionalInfo) {
+                await this.logMessage(device.device_id, {
+                  title: 'message-recipe-step-awaiting-confirmation',
+                  message: `message-recipe-step-awaiting-confirmation:${device.recipe.activeStepIndex + 1} (${activeStep.name ?? ''}) - ${
+                    activeStep.confirmationMessage || 'No additional information provided.'
+                  }`,
+                  severity: 0,
+                  categories: ['recipe', 'recipe-confirmation'],
+                });
+              }
 
-            activeStep.notified = true;
-            hasChanges = true;
-          }
-        } else {
-          if (device.recipe.activeStepIndex < device.recipe.steps.length - 1) {
-            device.recipe.activeStepIndex += 1;
-            device.recipe.activeSince = now;
-            activeStep = device.recipe.steps[device.recipe.activeStepIndex];
-            activeStep.lastTimeApplied = 0;
-            activeStep.notified = false;
-
-            logger.info('Advancing to next recipe step ' + device.recipe.activeStepIndex + ' for device ' + device.device_id);
-
-            if (device.recipe.notifications === 'onStep') {
-              emailSubject = `[TERP CONTROL] Recipe advanced to step #${device.recipe.activeStepIndex + 1} on device ${device.device_id}`;
-              emailBody = `The recipe has advanced to step #${device.recipe.activeStepIndex + 1} ${activeStep.name}`;
-            }
-
-            if (device.recipe.additionalInfo) {
-              await this.logMessage(device.device_id, {
-                title: 'message-recipe-advanced',
-                message: `message-recipe-advanced:${device.recipe.activeStepIndex + 1} (${activeStep.name ?? ''})`,
-                severity: 0,
-                categories: ['recipe', 'recipe-step'],
-              });
-            }
-
-            if (activeStep.stage) {
-              await this.logStageTransitionIfChanged(device.device_id, activeStep.stage);
-            }
-          } else if (device.recipe.loop) {
-            device.recipe.activeStepIndex = 0;
-            device.recipe.activeSince = now;
-            activeStep = device.recipe.steps[device.recipe.activeStepIndex];
-            activeStep.lastTimeApplied = 0;
-            activeStep.notified = false;
-
-            logger.info('Looping recipe to step 0 for device ' + device.device_id);
-
-            if (device.recipe.notifications === 'onStep') {
-              emailSubject = `[TERP CONTROL] Recipe looped to step #1 on device ${device.device_id}`;
-              emailBody = `The recipe has looped back to step #1 ${activeStep.name}.`;
-            }
-
-            if (device.recipe.additionalInfo) {
-              await this.logMessage(device.device_id, {
-                title: 'message-recipe-looped',
-                message: `message-recipe-looped:${activeStep.name ?? ''}`,
-                severity: 0,
-                categories: ['recipe', 'recipe-step', 'recipe-looped'],
-              });
-            }
-
-            if (activeStep.stage) {
-              await this.logStageTransitionIfChanged(device.device_id, activeStep.stage);
+              activeStep.notified = true;
+              hasChanges = true;
             }
           } else {
-            device.recipe.activeSince = 0;
-            device.recipe.activeStepIndex = 0;
-            activeStep = null;
+            if (device.recipe.activeStepIndex < device.recipe.steps.length - 1) {
+              device.recipe.activeStepIndex += 1;
+              device.recipe.activeSince = now;
+              activeStep = device.recipe.steps[device.recipe.activeStepIndex];
+              activeStep.lastTimeApplied = 0;
+              activeStep.notified = false;
 
-            logger.info('Recipe completed for device ' + device.device_id);
+              logger.info('Advancing to next recipe step ' + device.recipe.activeStepIndex + ' for device ' + device.device_id);
 
-            if (device.recipe.notifications === 'onStep') {
-              emailSubject = `[TERP CONTROL] Recipe completed on device ${device.device_id}`;
-              emailBody = `The recipe has completed all steps on device ${device.device_id}.`;
+              if (device.recipe.notifications === 'onStep') {
+                emailSubject = `[TERP CONTROL] Recipe advanced to step #${device.recipe.activeStepIndex + 1} on device ${device.device_id}`;
+                emailBody = `The recipe has advanced to step #${device.recipe.activeStepIndex + 1} ${activeStep.name}`;
+              }
+
+              if (device.recipe.additionalInfo) {
+                await this.logMessage(device.device_id, {
+                  title: 'message-recipe-advanced',
+                  message: `message-recipe-advanced:${device.recipe.activeStepIndex + 1} (${activeStep.name ?? ''})`,
+                  severity: 0,
+                  categories: ['recipe', 'recipe-step'],
+                });
+              }
+
+              if (activeStep.stage) {
+                await this.logStageTransitionIfChanged(device.device_id, activeStep.stage);
+              }
+            } else if (device.recipe.loop) {
+              device.recipe.activeStepIndex = 0;
+              device.recipe.activeSince = now;
+              activeStep = device.recipe.steps[device.recipe.activeStepIndex];
+              activeStep.lastTimeApplied = 0;
+              activeStep.notified = false;
+
+              logger.info('Looping recipe to step 0 for device ' + device.device_id);
+
+              if (device.recipe.notifications === 'onStep') {
+                emailSubject = `[TERP CONTROL] Recipe looped to step #1 on device ${device.device_id}`;
+                emailBody = `The recipe has looped back to step #1 ${activeStep.name}.`;
+              }
+
+              if (device.recipe.additionalInfo) {
+                await this.logMessage(device.device_id, {
+                  title: 'message-recipe-looped',
+                  message: `message-recipe-looped:${activeStep.name ?? ''}`,
+                  severity: 0,
+                  categories: ['recipe', 'recipe-step', 'recipe-looped'],
+                });
+              }
+
+              if (activeStep.stage) {
+                await this.logStageTransitionIfChanged(device.device_id, activeStep.stage);
+              }
+            } else {
+              device.recipe.activeSince = 0;
+              device.recipe.activeStepIndex = 0;
+              activeStep = null;
+
+              logger.info('Recipe completed for device ' + device.device_id);
+
+              if (device.recipe.notifications === 'onStep') {
+                emailSubject = `[TERP CONTROL] Recipe completed on device ${device.device_id}`;
+                emailBody = `The recipe has completed all steps on device ${device.device_id}.`;
+              }
+
+              if (device.recipe.additionalInfo) {
+                await this.logMessage(device.device_id, {
+                  title: 'message-recipe-completed',
+                  message: 'message-recipe-completed',
+                  severity: 0,
+                  categories: ['recipe', 'recipe-step', 'recipe-completed'],
+                });
+              }
             }
 
-            if (device.recipe.additionalInfo) {
-              await this.logMessage(device.device_id, {
-                title: 'message-recipe-completed',
-                message: 'message-recipe-completed',
-                severity: 0,
-                categories: ['recipe', 'recipe-step', 'recipe-completed'],
-              });
-            }
+            hasChanges = true;
           }
+        }
 
+        if (activeStep && (!activeStep.lastTimeApplied || activeStep.lastTimeApplied < now - 3600 * 1000) && device.lastseen >= now - 60 * 1000) {
+          this.mqtt.publish('/devices/' + device.device_id + '/configuration', activeStep.settings);
+          if (await this.configureDevice(device.device_id, activeStep.settings)) {
+            logger.info(`Applied recipe step ${device.recipe.activeStepIndex} to device ${device.device_id}`);
+          }
+          activeStep.lastTimeApplied = now;
           hasChanges = true;
         }
-      }
 
-      if (activeStep && (!activeStep.lastTimeApplied || activeStep.lastTimeApplied < now - 3600 * 1000) && device.lastseen >= now - 60 * 1000) {
-        this.mqtt.publish('/devices/' + device.device_id + '/configuration', activeStep.settings);
-        if (await this.configureDevice(device.device_id, activeStep.settings)) {
-          logger.info(`Applied recipe step ${device.recipe.activeStepIndex} to device ${device.device_id}`);
+        if (hasChanges) {
+          await this.devices.findByIdAndUpdate(device._id, { recipe: device.recipe });
         }
-        activeStep.lastTimeApplied = now;
-        hasChanges = true;
-      }
 
-      if (hasChanges) {
-        await this.devices.findByIdAndUpdate(device._id, { recipe: device.recipe });
-      }
-
-      if (emailSubject && emailBody && device.recipe.email) {
-        try {
-          await this.mail.send({ to: device.recipe.email, subject: emailSubject, text: emailBody });
-        } catch (e) {
-          logger.error(`Failed to send recipe step notification email for device ${device.device_id}: ${e}`);
+        if (emailSubject && emailBody && device.recipe.email) {
+          try {
+            await this.mail.send({ to: device.recipe.email, subject: emailSubject, text: emailBody });
+          } catch (e) {
+            logger.error(`Failed to send recipe step notification email for device ${device.device_id}: ${e}`);
+          }
         }
+      } catch (error) {
+        logger.error(`Failed running the grow plan of device ${device.device_id}: ${error}`);
       }
     }
   }
@@ -1312,8 +1320,8 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     }
   }
 
-  public async setDeviceAlarms(device_id: string, user_id: string, alarms: Alarm[]): Promise<void> {
-    const device = await this.devices.findOne({ device_id: device_id, owner_id: user_id });
+  public async setDeviceAlarms(device_id: string, alarms: Alarm[]): Promise<void> {
+    const device = await this.devices.findOne({ device_id: device_id });
 
     if (!device) {
       throw new HttpException(404, 'Device not found or access denied');
@@ -1329,8 +1337,8 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     this.alarms.invalidateAlarmCache(device_id);
   }
 
-  public async setDeviceCloudSettings(device_id: string, user_id: string, settings: CloudSettings) {
-    const device = await this.devices.findOne({ device_id: device_id, owner_id: user_id });
+  public async setDeviceCloudSettings(device_id: string, settings: CloudSettings) {
+    const device = await this.devices.findOne({ device_id: device_id });
 
     if (!device) {
       throw new HttpException(404, 'Device not found or access denied');
@@ -1372,8 +1380,12 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     this.imageService.reportDeviceConfigured(device_id);
   }
 
-  public async setDeviceName(device_id: string, user_id: string, name: string) {
-    await this.devices.findOneAndUpdate({ device_id: device_id, owner_id: user_id }, { name: name });
+  public async setDeviceName(device_id: string, name: string): Promise<void> {
+    const updated = await this.devices.findOneAndUpdate({ device_id: device_id }, { name: name });
+
+    if (!updated) {
+      throw new HttpException(404, 'Device not found');
+    }
   }
 
   // Which devices the caller may see at all is decided by the auth middleware;

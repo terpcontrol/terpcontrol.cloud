@@ -215,65 +215,72 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
   }
 
   private async readFromRtspStreams(): Promise<void> {
-    const devices = await this.devices.find({
-      'cloudSettings.rtspStream': { $exists: true, $ne: '' },
-    });
+    try {
+      const devices = await this.devices.find({
+        'cloudSettings.rtspStream': { $exists: true, $ne: '' },
+      });
 
-    const promises: Promise<void>[] = [];
-    for (const device of devices) {
-      if (!this.deviceIdToLastRtspState.has((await device).device_id)) {
-        this.deviceIdToLastRtspState.set(device.device_id, { lastTry: 0, failureCount: 0 });
-      }
-
-      if (device.cloudSettings?.maintenanceWebcamOff) {
-        const isInMaintenanceMode = !!device.maintenance_mode_until && device.maintenance_mode_until > Date.now();
-        const isWorkmodeOff = this.getDeviceWorkmode(device.configuration) === 'off';
-        if (isInMaintenanceMode || isWorkmodeOff) {
-          continue;
+      const promises: Promise<void>[] = [];
+      for (const device of devices) {
+        if (!this.deviceIdToLastRtspState.has((await device).device_id)) {
+          this.deviceIdToLastRtspState.set(device.device_id, { lastTry: 0, failureCount: 0 });
         }
-      }
 
-      const state = this.deviceIdToLastRtspState.get(device.device_id);
-      if (
-        (state?.lastTry ?? 0) <=
-        Date.now() - Math.min(IMAGE_LOAD_INTERVAL_MS * Math.pow(2, state?.failureCount ?? 0), IMAGE_LOAD_MAX_BACKOFF_INTERVAL_MS)
-      ) {
-        promises.push(
-          this.ffmpegLimit(() =>
-            this.readRtspStreamImage(device.cloudSettings, device.device_id)
-              .then(
-                async image =>
-                  void this.images.create({
+        if (device.cloudSettings?.maintenanceWebcamOff) {
+          const isInMaintenanceMode = !!device.maintenance_mode_until && device.maintenance_mode_until > Date.now();
+          const isWorkmodeOff = this.getDeviceWorkmode(device.configuration) === 'off';
+          if (isInMaintenanceMode || isWorkmodeOff) {
+            continue;
+          }
+        }
+
+        const state = this.deviceIdToLastRtspState.get(device.device_id);
+        if (
+          (state?.lastTry ?? 0) <=
+          Date.now() - Math.min(IMAGE_LOAD_INTERVAL_MS * Math.pow(2, state?.failureCount ?? 0), IMAGE_LOAD_MAX_BACKOFF_INTERVAL_MS)
+        ) {
+          promises.push(
+            this.ffmpegLimit(() =>
+              this.readRtspStreamImage(device.cloudSettings, device.device_id)
+                // Awaited rather than discarded, so a failed write is caught
+                // below instead of surfacing as an unhandled rejection.
+                .then(async image => {
+                  await this.images.create({
                     image_id: uuidv4(),
                     device_id: device.device_id,
                     format: 'jpeg',
                     timestamp: Date.now(),
                     data: image,
-                  }),
-              )
-              .then(() => {
-                state.failureCount = 0;
-              })
-              .catch(e => {
-                logger.error(`Error reading RTSP stream ${device.cloudSettings.rtspStream} for device ${device.device_id}: ${e?.message ?? e}`);
-                state.failureCount = e instanceof CorruptFrameError ? 0 : (state.failureCount ?? 0) + 1;
-                return Promise.resolve();
-              })
-              .finally(() => {
-                state.lastTry = Date.now();
-              }),
-          ),
-        );
+                  });
+                })
+                .then(() => {
+                  state.failureCount = 0;
+                })
+                .catch(e => {
+                  logger.error(`Error reading RTSP stream ${device.cloudSettings.rtspStream} for device ${device.device_id}: ${e?.message ?? e}`);
+                  state.failureCount = e instanceof CorruptFrameError ? 0 : (state.failureCount ?? 0) + 1;
+                  return Promise.resolve();
+                })
+                .finally(() => {
+                  state.lastTry = Date.now();
+                }),
+            ),
+          );
+        }
+
+        await new Promise(r => setTimeout(r, FFMPEG_THROTTLE_MS));
       }
 
-      await new Promise(r => setTimeout(r, FFMPEG_THROTTLE_MS));
+      await Promise.all(promises);
+    } catch (error) {
+      // A pass that fails must not take the poller with it: without this the
+      // reschedule below is skipped and no camera is read again.
+      logger.error(`The webcam poller failed a pass: ${error}`);
+    } finally {
+      // Each pass schedules the next one, so a stopped server has to refuse it
+      // rather than only cancel the timer that happens to be pending.
+      this.work.schedule(() => void this.readFromRtspStreams(), READ_IMAGE_CHECK_INTERVAL_MS);
     }
-
-    await Promise.all(promises);
-
-    // Each pass schedules the next one, so a stopped server has to refuse it
-    // rather than only cancel the timer that happens to be pending.
-    this.work.schedule(() => void this.readFromRtspStreams(), READ_IMAGE_CHECK_INTERVAL_MS);
   }
 
   public async testRtspStream(

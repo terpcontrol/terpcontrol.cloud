@@ -169,8 +169,8 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Replace the alarms of a device' })
-  public async setAlarms(@CurrentUser() user: AuthContext, @Body(zodBody(setAlarmsSchema)) body: SetAlarms) {
-    await this.deviceService.setDeviceAlarms(body.device_id, user.userId, body.alarms as unknown as Alarm[]);
+  public async setAlarms(@Body(zodBody(setAlarmsSchema)) body: SetAlarms) {
+    await this.deviceService.setDeviceAlarms(body.device_id, body.alarms as unknown as Alarm[]);
     return OK;
   }
 
@@ -194,8 +194,8 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Change the cloud-side settings of a device' })
-  public async setCloudSettings(@CurrentUser() user: AuthContext, @Body(zodBody(setCloudSettingsSchema)) body: SetCloudSettings) {
-    await this.deviceService.setDeviceCloudSettings(body.device_id, user.userId, body.cloud_settings as CloudSettings);
+  public async setCloudSettings(@Body(zodBody(setCloudSettingsSchema)) body: SetCloudSettings) {
+    await this.deviceService.setDeviceCloudSettings(body.device_id, body.cloud_settings as CloudSettings);
     return OK;
   }
 
@@ -204,8 +204,8 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Rename a device' })
-  public async setName(@CurrentUser() user: AuthContext, @Body(zodBody(setNameSchema)) body: SetName) {
-    await this.deviceService.setDeviceName(body.device_id, user.userId, body.name);
+  public async setName(@Body(zodBody(setNameSchema)) body: SetName) {
+    await this.deviceService.setDeviceName(body.device_id, body.name);
     return OK;
   }
 

@@ -160,6 +160,18 @@ describe('device alarms', () => {
     expect(response.body).toHaveLength(1);
   });
 
+  it('stores what an admin sets on somebody else´s device', async () => {
+    const fresh = await provisionDevice(owner);
+
+    await admin.client
+      .post('/device/alarms')
+      .send({ device_id: fresh.deviceId, alarms: [{ ...alarm, name: 'Set by an admin' }] })
+      .expect(200);
+
+    const response = await owner.client.get(`/device/alarms/${fresh.deviceId}`).expect(200);
+    expect(response.body[0].name).toBe('Set by an admin');
+  });
+
   it('refuses a device the caller does not own', async () => {
     const stranger = await createAccount('settings-alarm-stranger');
     await stranger.client.post('/device/alarms').send({ device_id: device.deviceId, alarms: [alarm] }).expect(403);
@@ -190,6 +202,18 @@ describe('device cloud settings', () => {
   it('rejects settings that are not settings', async () => {
     await owner.client.post('/device/cloudsettings').send({ device_id: device.deviceId, cloud_settings: 'stable' }).expect(400);
     await owner.client.post('/device/cloudsettings').send({ device_id: device.deviceId, cloud_settings: 42 }).expect(400);
+  });
+
+  it('stores what an admin changes on somebody else´s device', async () => {
+    const fresh = await provisionDevice(owner);
+
+    await admin.client
+      .post('/device/cloudsettings')
+      .send({ device_id: fresh.deviceId, cloud_settings: { firmwareChannel: 'stable', betaFeatures: true } })
+      .expect(200);
+
+    const response = await owner.client.get(`/device/cloudsettings/${fresh.deviceId}`).expect(200);
+    expect(response.body.cloudSettings.betaFeatures).toBe(true);
   });
 
   it('rejects an unknown firmware channel', async () => {
@@ -240,6 +264,16 @@ describe('POST /device/setname', () => {
     const listed = await owner.client.get('/device').expect(200);
     const entry = listed.body.find((candidate: { device_id: string }) => candidate.device_id === device.deviceId);
     expect(entry.name).toBe('Tent one');
+  });
+
+  it('renames a device for an admin who does not own it', async () => {
+    const fresh = await provisionDevice(owner);
+
+    await admin.client.post('/device/setname').send({ device_id: fresh.deviceId, name: 'Renamed by an admin' }).expect(200);
+
+    const listed = await owner.client.get('/device').expect(200);
+    const entry = listed.body.find((candidate: { device_id: string }) => candidate.device_id === fresh.deviceId);
+    expect(entry.name).toBe('Renamed by an admin');
   });
 
   it('validates the payload', async () => {
