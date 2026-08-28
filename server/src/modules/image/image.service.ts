@@ -55,6 +55,19 @@ const FFMPEG_CORRUPT_FRAME_PATTERN =
 // A corrupt frame means the camera was reachable and streaming, so unlike
 // connection failures it does not count towards the retry backoff.
 class CorruptFrameError extends Error {}
+
+// A single still needs no stream analysis as long as ffmpeg can read the frame
+// size straight from the camera's parameter sets, so the probe budget is kept
+// minimal: raising it makes ffmpeg analyse until it can also estimate the frame
+// rate, which measurably doubles the time a still takes. Some cameras do not
+// have those parameter sets ready on every connect, and ffmpeg then gives up
+// within this budget with "Could not find codec parameters". That is rare and
+// clears by itself, so rather than slow down every poll, spend the larger
+// budget only on the run that reported it — without the retry a single such
+// connect would push the camera into the poll backoff.
+const FFMPEG_FAST_PROBE_ARGS = ['-probesize', '32', '-analyzeduration', '0'];
+const FFMPEG_FULL_PROBE_ARGS = ['-probesize', '5000000', '-analyzeduration', '5000000'];
+const FFMPEG_MISSING_CODEC_PARAMS_PATTERN = /Could not find codec parameters/i;
 const IMAGE_RETENTION_DAYS = 3 * 365;
 
 // Gradually thin out raw camera images as they age: once an image is older than
@@ -543,7 +556,37 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
       streamUrl = await this.tunnel.createTunnelProxyServer(new URL(cloudSettings.rtspStream), deviceId);
     }
 
-    return new Promise((resolve, reject) => {
+    let attempt = await this.runFfmpegStill(streamUrl, cloudSettings, FFMPEG_FAST_PROBE_ARGS);
+    if (attempt.failure && FFMPEG_MISSING_CODEC_PARAMS_PATTERN.test(attempt.stderr)) {
+      attempt = await this.runFfmpegStill(streamUrl, cloudSettings, FFMPEG_FULL_PROBE_ARGS);
+    }
+
+    if (attempt.failure) {
+      if (cloudSettings.logRtspStreamErrors) {
+        logIfItFails(
+          `Recording the webcam error for device ${deviceId}`,
+          this.deviceService.logMessage(deviceId, {
+            title: 'message-rtsp-stream-error',
+            // ffmpeg quotes the stream URL back, and a diary entry is
+            // readable by anyone the owner shares the diary with.
+            message: withoutCredentials(`message-rtsp-stream-error:${attempt.stderr}`),
+            severity: 1,
+            categories: ['webcam', 'error'],
+          }),
+        );
+      }
+      throw attempt.failure;
+    }
+
+    return attempt.stdout;
+  }
+
+  private runFfmpegStill(
+    streamUrl: string,
+    cloudSettings: CloudSettings,
+    probeArgs: string[],
+  ): Promise<{ stdout: Buffer; stderr: string; failure?: Error }> {
+    return new Promise(resolve => {
       execFile(
         'ffmpeg',
         [
@@ -555,16 +598,13 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
           '1',
           '-y',
           ...(cloudSettings.rtspStream.startsWith('rtsp://') ? ['-rtsp_transport', cloudSettings.rtspStreamTransport ?? 'tcp'] : []),
-          // Skip ffmpeg's default stream analysis and non-keyframe decoding: we only need a
-          // single still frame, so grabbing the next keyframe immediately is far cheaper.
+          // We only need a single still frame, so decode nothing but keyframes and
+          // hand them on without buffering.
           '-fflags',
           'nobuffer',
           '-flags',
           'low_delay',
-          '-probesize',
-          '32',
-          '-analyzeduration',
-          '0',
+          ...probeArgs,
           '-skip_frame',
           'nokey',
           '-i',
@@ -584,29 +624,14 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
         },
         (error, stdout, stderr) => {
           const corruptionIndicator = !error && FFMPEG_CORRUPT_FRAME_PATTERN.exec(String(stderr))?.[0];
-          if (error || !stdout || stdout.length === 0 || corruptionIndicator) {
-            if (cloudSettings.logRtspStreamErrors) {
-              logIfItFails(
-                `Recording the webcam error for device ${deviceId}`,
-                this.deviceService.logMessage(deviceId, {
-                  title: 'message-rtsp-stream-error',
-                  // ffmpeg quotes the stream URL back, and a diary entry is
-                  // readable by anyone the owner shares the diary with.
-                  message: withoutCredentials(`message-rtsp-stream-error:${stderr}`),
-                  severity: 1,
-                  categories: ['webcam', 'error'],
-                }),
-              );
-            }
-            reject(
-              error ??
-                (corruptionIndicator
-                  ? new CorruptFrameError(`discarding corrupt frame ("${corruptionIndicator}")`)
-                  : new Error('ffmpeg produced no output')),
-            );
-          } else {
-            resolve(stdout);
-          }
+          const failure =
+            error ??
+            (corruptionIndicator
+              ? new CorruptFrameError(`discarding corrupt frame ("${corruptionIndicator}")`)
+              : !stdout || stdout.length === 0
+              ? new Error('ffmpeg produced no output')
+              : undefined);
+          resolve({ stdout: stdout ?? Buffer.alloc(0), stderr: String(stderr), failure });
         },
       );
     });

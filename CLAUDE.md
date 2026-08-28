@@ -26,6 +26,52 @@ Worth knowing:
 - `API_URL_EXTERNAL` is compiled into the webapp bundle, so changing it needs `docker compose up --build -d webapp`.
 - Anything host-side (`simulate-device.sh`, `webapp/`, `server/`) needs Node 18+; the containers bring their own.
 - `docker compose down --volumes` throws the databases away and gives you an empty stack again.
+- Nearly all of a first build is the webapp bundle - about ten of the ten minutes. Nothing else in the stack is
+  expensive, and the layers are cached afterwards, so a later bring-up is seconds and only the subproject you
+  touched needs `--build`.
+- Prefer not to build the webapp image at all. `docker compose up --build -d server rabbitmq mongodb influxdb`
+  brings up everything a device and the API need, and `npm start` in `webapp/` then serves the UI from the host
+  against that stack on `http://localhost:4200`: the first compile is under a minute, and every later edit
+  rebuilds on save rather than rebuilding an image. `npm start` writes `src/environments/environment.ts` from
+  `API_URL_EXTERNAL` itself, so the dev server needs no pointing. Build the image when the production bundle is
+  what you are checking, and not otherwise.
+
+### In a sandboxed agent session
+
+A session that runs in a container rather than on a developer machine hits three things before the build starts,
+none of which need a repo change - the base images are already build arguments:
+
+1. **The Docker daemon may not be running.** `docker info` says so; `dockerd &` as root fixes it.
+2. **`COMPOSE_FILE` and `COMPOSE_PROFILES` may come preset** by the environment, naming files this repo does not
+   have. Compose then fails with `stat docker-compose.yml: no such file or directory`. `unset` both.
+3. **The build cannot verify TLS** when the session's egress proxy re-terminates it, so `apk add` in the two Node
+   stages fails with `TLS: server certificate not trusted`. Containers do not read the host's CA configuration,
+   so bake the CA into a base image once and point the image overrides at it:
+
+```sh
+mkdir -p /tmp/proxy-ca && cp "$CA_BUNDLE" /tmp/proxy-ca/ca.crt   # e.g. /root/.ccr/ca-bundle.crt
+cat > /tmp/proxy-ca/Dockerfile <<'EOF'
+FROM node:20-alpine
+COPY ca.crt /usr/local/share/ca-certificates/proxy.crt
+RUN cat /usr/local/share/ca-certificates/proxy.crt >> /etc/ssl/certs/ca-certificates.crt
+ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/proxy.crt
+EOF
+docker build -t node:20-alpine-proxyca /tmp/proxy-ca
+
+cat >> .env <<'EOF'
+DOCKER_NODE_SERVER_IMAGE=node:20-alpine-proxyca
+DOCKER_NODE_BUILD_IMAGE=node:20-alpine-proxyca
+EOF
+```
+
+The other images pull ready-made or build without the network, so they need nothing. From here the compose
+commands above run through.
+
+The same applies harder here: building the webapp image costs most of the session's first ten minutes, so bring up
+the four backend services and serve the UI with `npm start` instead. Driving it works with the Chromium that is
+already installed, but Playwright pins a browser build the image may not carry - pass its path as `executablePath`
+instead of downloading one. Log in by clicking the LOGIN button; submitting the form with the Enter key does
+nothing. Google Fonts is usually blocked, which costs the page its font and nothing else.
 
 ## Simulating a device
 

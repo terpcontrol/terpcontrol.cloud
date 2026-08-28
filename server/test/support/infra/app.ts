@@ -1,9 +1,16 @@
 import { ChildProcess, spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 
 export const SERVER_ROOT = join(__dirname, '..', '..', '..');
 const LOG_DIR = join(SERVER_ROOT, 'test', '.tmp', 'logs');
+
+// The image endpoints shell out to ffmpeg, and what they run it with - and what
+// they make of what it answers - is not visible through HTTP. The app finds a
+// shim first on its PATH: it records every run and hands it to the real ffmpeg,
+// unless a spec has armed one. See support/ffmpeg.ts.
+const FFMPEG_BIN_DIR = join(SERVER_ROOT, 'test', 'support', 'infra', 'fake-bin');
+const FFMPEG_STATE_DIR = join(SERVER_ROOT, 'test', '.tmp', 'ffmpeg');
 
 export interface AppEnvironment {
   port: number;
@@ -34,6 +41,8 @@ export const buildEnv = (environment: AppEnvironment): NodeJS.ProcessEnv => {
 
   return {
     ...process.env,
+    PATH: `${FFMPEG_BIN_DIR}${delimiter}${process.env.PATH ?? ''}`,
+    HARNESS_FFMPEG_STATE: FFMPEG_STATE_DIR,
     // Production keeps mongoose's query debug logging off; the suite is loud enough.
     NODE_ENV: 'production',
     PORT: String(environment.port),
@@ -105,6 +114,7 @@ const waitForHealthy = async (baseUrl: string, child: ChildProcess, timeoutMs: n
 
 export const startApp = async (environment: AppEnvironment): Promise<RunningApp> => {
   mkdirSync(LOG_DIR, { recursive: true });
+  mkdirSync(FFMPEG_STATE_DIR, { recursive: true });
 
   const entry = entryPoint();
   const child = spawn('node', [...entry.nodeArgs, entry.script], {

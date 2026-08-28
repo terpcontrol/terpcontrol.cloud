@@ -1,0 +1,82 @@
+#!/usr/bin/env node
+'use strict';
+
+/**
+ * The ffmpeg the app under test finds on its PATH.
+ *
+ * It records the arguments of every run and otherwise hands the run straight to
+ * the real ffmpeg, so the suite keeps reading actual frames out of actual
+ * streams. A spec that needs a particular camera - one whose parameter sets are
+ * not ready yet, one that is unreachable, one that should receive specific
+ * bytes - arms a plan first (see test/support/ffmpeg.ts) and those runs are
+ * answered from it instead.
+ *
+ * Runs are answered in order and the plan is consumed as it is used. The suite
+ * runs serially, so two runs never race for the same entry.
+ */
+
+const { spawn } = require('node:child_process');
+const { connect } = require('node:net');
+const { appendFileSync, existsSync, readFileSync, writeFileSync } = require('node:fs');
+const { delimiter, join } = require('node:path');
+
+const args = process.argv.slice(2);
+const stateDir = process.env.HARNESS_FFMPEG_STATE;
+
+const delegate = () => {
+  const self = __dirname;
+  const real = (process.env.PATH || '')
+    .split(delimiter)
+    .filter(dir => dir && dir !== self)
+    .map(dir => join(dir, 'ffmpeg'))
+    .find(candidate => existsSync(candidate));
+
+  if (!real) {
+    process.stderr.write('harness: no real ffmpeg on PATH behind the shim\n');
+    process.exit(127);
+  }
+
+  // Inherited rather than piped: a still comes back on stdout as JPEG bytes.
+  spawn(real, args, { stdio: 'inherit' }).on('exit', (code, signal) => process.exit(signal ? 1 : (code ?? 0)));
+};
+
+if (!stateDir) {
+  delegate();
+  return;
+}
+
+appendFileSync(join(stateDir, 'calls.jsonl'), `${JSON.stringify(args)}\n`);
+
+const planFile = join(stateDir, 'plan.json');
+const plan = existsSync(planFile) ? JSON.parse(readFileSync(planFile, 'utf8')) : [];
+const run = plan.shift();
+if (!run) {
+  delegate();
+  return;
+}
+writeFileSync(planFile, JSON.stringify(plan));
+
+const answer = () => {
+  if (run.stderr) process.stderr.write(run.stderr);
+  if (run.stdout) process.stdout.write(Buffer.from(run.stdout, 'base64'));
+  process.exit(run.exit ?? 0);
+};
+
+// A camera that says something on the wire: the bytes go to whatever `-i`
+// points at, which is how a spec sees what the tunnel makes of them.
+if (run.writeToInput) {
+  const target = new URL(args[args.indexOf('-i') + 1]);
+  const socket = connect(Number(target.port), target.hostname, () => {
+    socket.write(new Uint8Array(Buffer.from(run.writeToInput, 'hex')));
+    setTimeout(() => {
+      socket.destroy();
+      answer();
+    }, 250);
+  });
+  socket.on('error', error => {
+    process.stderr.write(`harness: could not reach ${target.host}: ${error.message}\n`);
+    process.exit(1);
+  });
+} else {
+  answer();
+}
