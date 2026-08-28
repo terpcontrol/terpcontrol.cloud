@@ -310,6 +310,54 @@ describe('the recipe of a device', () => {
     expect(response.body.steps.map((step: { name: string }) => step.name)).toEqual(['Veg', 'Flower']);
   });
 
+  it('advances a step whose time is up, exactly once', async () => {
+    // The only test of the loop that actually runs a grow plan. It advances
+    // every twenty seconds, so this one is allowed to take longer than the rest.
+    const fresh = await provisionDevice(owner);
+    const running = await startSimulator(fresh);
+
+    try {
+      // Reported just now, which is what makes the server send the new step,
+      // and a first step that ran out a minute ago.
+      await running.reportStatus({ temperature: 21 });
+
+      await owner.client
+        .post('/device/recipe')
+        .send({
+          device_id: fresh.deviceId,
+          recipe: {
+            activeStepIndex: 0,
+            activeSince: Date.now() - 5 * 60 * 1000,
+            additionalInfo: true,
+            steps: [
+              { name: 'Veg', stage: 'vegetative', duration: 1, durationUnit: 'minutes', settings: JSON.stringify({ day: { temperature: 24 } }) },
+              { name: 'Flower', stage: 'flowering', duration: 60, durationUnit: 'days', settings: JSON.stringify({ day: { temperature: 26 } }) },
+            ],
+          },
+        })
+        .expect(200);
+
+      const advanced = async () => (await owner.client.get(`/device/recipe/${fresh.deviceId}`).expect(200)).body.activeStepIndex === 1;
+      const deadline = Date.now() + 40_000;
+      while (Date.now() < deadline && !(await advanced())) await settle(2000);
+
+      expect(await advanced()).toBe(true);
+
+      // And it stays advanced: an advance that was worked out but never stored
+      // would be worked out again on the next pass, with another diary entry.
+      await settle(25_000);
+
+      const recipeNow = await owner.client.get(`/device/recipe/${fresh.deviceId}`).expect(200);
+      expect(recipeNow.body.activeStepIndex).toBe(1);
+
+      const logs = await owner.client.get(`/device/logs/${fresh.deviceId}`).query({ deleted: true }).expect(200);
+      const advances = logs.body.filter((entry: { title: string }) => entry.title === 'message-recipe-advanced');
+      expect(advances).toHaveLength(1);
+    } finally {
+      await running.close();
+    }
+  }, 120_000);
+
   it('rejects a payload without a recipe or a device', async () => {
     await owner.client.post('/device/recipe').send({ device_id: device.deviceId }).expect(400);
     await owner.client.post('/device/recipe').send({ recipe }).expect(400);
