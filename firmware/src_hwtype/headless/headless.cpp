@@ -1,7 +1,6 @@
-#include "controller.h"
+#include "headless.h"
 #include "dashboard.h"
 #include "wifi.h"
-#include <MCP7940.h>
 #include <Adafruit_MLX90632.h>
 #include <Adafruit_VEML7700.h>
 #include <sstream>
@@ -14,7 +13,6 @@
 #define MLX90632_I2C_ADDRESS 0x3A
 
 const uint8_t  SPRINTF_BUFFER_SIZE{32};
-MCP7940_Class MCP7940;
 char          inputBuffer[32];
 
 // Zusätzliche I2C-Sensoren auf dem Sensor-Bus
@@ -73,9 +71,9 @@ namespace fg {
 
 
   std::unique_ptr<AutomationController> createController(Fridgecloud& cloud) {
-    return std::unique_ptr<AutomationController>(new ControllerController(cloud));
+    return std::unique_ptr<AutomationController>(new HeadlessController(cloud));
   }
-  void ControllerController::updateSensors() {
+  void HeadlessController::updateSensors() {
 
     float temperature, humidity;
     uint16_t co2 = 0;
@@ -181,7 +179,7 @@ namespace fg {
     }
   }
   
-  void ControllerController::checkDayCycle() {
+  void HeadlessController::checkDayCycle() {
     time_t now;
     struct tm * ptm;
     struct tm timeinfo;
@@ -193,7 +191,7 @@ namespace fg {
 
     state.timeofday = ptm->tm_sec + 60 * ptm->tm_min + 60 * 60 * ptm->tm_hour;
 
-    if(settings.workmode == ControllerControllerSettings::MODE_SMALL || settings.workmode == ControllerControllerSettings::MODE_TEMP) {
+    if(settings.workmode == HeadlessControllerSettings::MODE_SMALL || settings.workmode == HeadlessControllerSettings::MODE_TEMP) {
       if(settings.daynight.day > settings.daynight.night) {
         state.is_day = state.timeofday > settings.daynight.day || state.timeofday < settings.daynight.night;
       }
@@ -209,7 +207,7 @@ namespace fg {
     }
   }
 
-  void ControllerController::controlCo2() {
+  void HeadlessController::controlCo2() {
 
 	if(!hasCo2Sensor()) {
       Serial.println("CO2 deaktiviert - kein SCD Sensor");
@@ -257,7 +255,7 @@ namespace fg {
     }
   }
 
-  void ControllerController::controlLight() {
+  void HeadlessController::controlLight() {
     const int SECONDS_PER_DAY = 24 * 60 * 60;
 
     if(state.is_day) {
@@ -322,7 +320,7 @@ namespace fg {
     }
   }
 
-  void ControllerController::controlDehumidifier() {
+  void HeadlessController::controlDehumidifier() {
     humidity_avg_short.push(state.humidity);
     humidity_avg_long.push(state.humidity);
 
@@ -375,7 +373,7 @@ namespace fg {
   }
 
 
-  void ControllerController::controlCooling() {
+  void HeadlessController::controlCooling() {
 
     float target_temperature = state.is_day ? settings.day.temperature : settings.night.temperature;
 
@@ -407,7 +405,7 @@ namespace fg {
 
   }
 
-  void ControllerController::controlHeater() {
+  void HeadlessController::controlHeater() {
 
     if (isPaused()) {
       state.out_heater = 0;
@@ -421,7 +419,7 @@ namespace fg {
 
   }
   
-  ControllerController::ControllerController(Fridgecloud& cloud) :
+  HeadlessController::HeadlessController(Fridgecloud& cloud) :
 	 
  
 	cloud(cloud),
@@ -452,8 +450,8 @@ namespace fg {
     }
   }
 
-  void ControllerController::loadSettings(const String& settings_json) {
-    ControllerControllerSettings new_settings;
+  void HeadlessController::loadSettings(const String& settings_json) {
+    HeadlessControllerSettings new_settings;
     DynamicJsonDocument doc(2048);
     DeserializationError error = deserializeJson(doc, settings_json);
 
@@ -469,8 +467,8 @@ namespace fg {
       // "full" (Big Plant) no longer exists on the controller; it behaved
       // identically to "small" here, so map legacy settings to keep devices
       // running instead of falling back to OFF.
-      if(new_settings.workmode == ControllerControllerSettings::MODE_FULL) {
-        new_settings.workmode = ControllerControllerSettings::MODE_SMALL;
+      if(new_settings.workmode == HeadlessControllerSettings::MODE_FULL) {
+        new_settings.workmode = HeadlessControllerSettings::MODE_SMALL;
       }
       loadIfAvaliable(new_settings.daynight.day, doc["daynight"]["day"]);
       loadIfAvaliable(new_settings.daynight.night, doc["daynight"]["night"]);
@@ -513,7 +511,7 @@ namespace fg {
 	}
   }
 
-  void ControllerController::saveAndUploadSettings() {
+  void HeadlessController::saveAndUploadSettings() {
     DynamicJsonDocument doc(2048);
 
     doc["workmode"] = settings.workmode;
@@ -542,7 +540,7 @@ namespace fg {
     cloud.updateConfig(stream.str().c_str());
   }
 
-  void ControllerController::init() {
+  void HeadlessController::init() {
     char errorString[200];
     uint8_t errorcode;
 
@@ -602,53 +600,13 @@ namespace fg {
       }
     });
 
-    Wire.begin(PIN_SDA, PIN_SCL);
-
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
     sntp_setservername(0, "pool.ntp.org");
     sntp_init();
 
-    while (!MCP7940.begin()) {  // Initialize RTC communications
-      Serial.println(F("Unable to find MCP7940N. Checking again in 3s."));  // Show error and wait
-      delay(3000);
-    }  // of loop until device is located
-    Serial.println(F("MCP7940N initialized."));
-    if (MCP7940.getPowerFail()) {  // Check for a power failure
-      Serial.println(F("Power failure mode detected!\n"));
-      Serial.print(F("Power failed at   "));
-      DateTime now = MCP7940.getPowerDown();                      // Read when the power failed
-      sprintf(inputBuffer, "....-%02d-%02d %02d:%02d:..",         // Use sprintf() to pretty print
-              now.month(), now.day(), now.hour(), now.minute());  // date/time with leading zeros
-      Serial.println(inputBuffer);
-      Serial.print(F("Power restored at "));
-      now = MCP7940.getPowerUp();                                 // Read when the power restored
-      sprintf(inputBuffer, "....-%02d-%02d %02d:%02d:..",         // Use sprintf() to pretty print
-              now.month(), now.day(), now.hour(), now.minute());  // date/time with leading zeros
-      Serial.println(inputBuffer);
-      MCP7940.clearPowerFail();  // Reset the power fail switch
+    // No MCP7940 on this board -- time comes from SNTP alone (see the
+    // sntp_get_sync_status() check in loop() below).
 
-    } else {
-      while (!MCP7940.deviceStatus()) {  // Turn oscillator on if necessary
-        Serial.println(F("Oscillator is off, turning it on."));
-        bool deviceStatus = MCP7940.deviceStart();  // Start oscillator and return state
-        if (!deviceStatus) {                        // If it didn't start
-          Serial.println(F("Oscillator did not start, trying again."));  // Show error and
-          delay(1000);                                                   // wait for a second
-        }                // of if-then oscillator didn't start
-      }                  // of while the oscillator is off
-      if (!MCP7940.getBattery()) {  // Check if successful
-        MCP7940.setBattery(true);     // enable battery backup mode
-      }                        // if-then battery mode couldn't be set
-    }                          // of if-then-else we have detected a priorpower failure
-
-    DateTime now = MCP7940.now();
-    sprintf(inputBuffer, "....-%02d-%02d %02d:%02d:..",         // Use sprintf() to pretty print
-    now.month(), now.day(), now.hour(), now.minute());  // date/time with leading zeros
-    Serial.println(inputBuffer);
-    timeval epoch = {(time_t)now.unixtime(), 0};
-    settimeofday((const timeval*)&epoch, 0);
-
-     Wire.end();
     initSensor();
     Wire.begin(PIN_SDA, PIN_SCL);
 
@@ -658,7 +616,7 @@ namespace fg {
 
   }
 
-  bool ControllerController::initSensor() {
+  bool HeadlessController::initSensor() {
     Wire.begin(PIN_SENSOR_I2CSDA, PIN_SENSOR_I2CSCL, SENSOR_I2C_FRQ);
     bool found_sensor = false;
 
@@ -763,17 +721,17 @@ namespace fg {
     return found_sensor;
   }
 
-  bool ControllerController::hasCo2Sensor() {
+  bool HeadlessController::hasCo2Sensor() {
 	return state.sensor_type == SENSOR_TYPE_SCD;
   }
 
 
-  void ControllerController::fastloop() {
+  void HeadlessController::fastloop() {
     // CO2 valve timing now runs entirely in the 1 s control loop and is
     // actuated via a smart socket, so there is nothing to do per fast tick.
   }
 
-  void ControllerController::loop() {
+  void HeadlessController::loop() {
     updateSensors();
     checkDayCycle();
 
@@ -812,7 +770,7 @@ namespace fg {
       state.out_light = 0;
     }
     else {
-      if(settings.workmode == ControllerControllerSettings::MODE_SMALL) {
+      if(settings.workmode == HeadlessControllerSettings::MODE_SMALL) {
         Serial.println("MODE SMALL");
 		
         if(hasCo2Sensor()) {
@@ -829,7 +787,7 @@ namespace fg {
         controlDehumidifier();
         controlHeater();
       }
-      else if(settings.workmode == ControllerControllerSettings::MODE_TEMP) {
+      else if(settings.workmode == HeadlessControllerSettings::MODE_TEMP) {
         Serial.println("MODE TEMP");
         controlLight();
         controlCooling();
@@ -846,7 +804,7 @@ namespace fg {
         }
 		
       }
-      else if(settings.workmode == ControllerControllerSettings::MODE_DRY) {
+      else if(settings.workmode == HeadlessControllerSettings::MODE_DRY) {
         Serial.println("MODE DRY");
         controlDehumidifier();
         controlHeater();
@@ -855,7 +813,7 @@ namespace fg {
         out_light.set(0);
         state.out_light = 0;
       }
-      else if(settings.workmode == ControllerControllerSettings::MODE_BREED) {
+      else if(settings.workmode == HeadlessControllerSettings::MODE_BREED) {
         Serial.println("MODE BREED");
         controlHeater();
         controlCooling();
@@ -1000,19 +958,18 @@ namespace fg {
       time_t now;
       struct tm timeinfo;
       time(&now);
-      MCP7940.adjust(now);
     }
   }
 
   std::array<const char*, 5> modes = {
-    ControllerControllerSettings::MODE_OFF,
-    ControllerControllerSettings::MODE_BREED,
-    ControllerControllerSettings::MODE_TEMP,
-    ControllerControllerSettings::MODE_SMALL,
-    ControllerControllerSettings::MODE_DRY,
+    HeadlessControllerSettings::MODE_OFF,
+    HeadlessControllerSettings::MODE_BREED,
+    HeadlessControllerSettings::MODE_TEMP,
+    HeadlessControllerSettings::MODE_SMALL,
+    HeadlessControllerSettings::MODE_DRY,
   };
 
-  void ControllerController::initSettingsMenu(UserInterface* ui) {
+  void HeadlessController::initSettingsMenu(UserInterface* ui) {
 
 
     auto menu = ui->push<SelectMenu>();
@@ -1050,10 +1007,6 @@ namespace fg {
           time_now.tv_usec = 0;
           settimeofday(&time_now, NULL);
 
-          int hours = value / 3600;
-          int minutes = (value - hours * 3600) / 60;
-          DateTime now(2000, 1, 1, hours, minutes);
-          MCP7940.adjust(now);
           ui->pop();
         });
       });
@@ -1082,7 +1035,7 @@ namespace fg {
         });
       });
 
-      if(settings.workmode == ControllerControllerSettings::MODE_BREED || settings.workmode == ControllerControllerSettings::MODE_DRY) {
+      if(settings.workmode == HeadlessControllerSettings::MODE_BREED || settings.workmode == HeadlessControllerSettings::MODE_DRY) {
         menu->addOption("Temperature", ICON_TEMPERATURE, [ui, this](){
           ui->push<FloatInput>("Temperature", settings.night.temperature, "C", 0, 40, 1, 0, [ui, this](float value) {
             settings.night.temperature = value;
@@ -1091,7 +1044,7 @@ namespace fg {
           });
         });
       }
-      if(settings.workmode == ControllerControllerSettings::MODE_TEMP || settings.workmode == ControllerControllerSettings::MODE_SMALL) {
+      if(settings.workmode == HeadlessControllerSettings::MODE_TEMP || settings.workmode == HeadlessControllerSettings::MODE_SMALL) {
         menu->addOption("Dayrise (UTC)", ICON_DAY, [ui, this](){
           ui->push<TimeEntry>("Dayrise (UTC)", settings.daynight.day, [ui, this](uint32_t value) {
             settings.daynight.day = value;
@@ -1124,7 +1077,7 @@ namespace fg {
         });
       }
 
-      if(settings.workmode == ControllerControllerSettings::MODE_SMALL || settings.workmode == ControllerControllerSettings::MODE_DRY) {
+      if(settings.workmode == HeadlessControllerSettings::MODE_SMALL || settings.workmode == HeadlessControllerSettings::MODE_DRY) {
         menu->addOption("Day Humidity", ICON_HUMIDITY, [ui, this](){
           ui->push<FloatInput>("Day Humidity", settings.day.humidity, "%", 0, 100, 1, 0, [ui, this](float value) {
             settings.day.humidity = value;
@@ -1142,8 +1095,8 @@ namespace fg {
       }
 
       if(hasCo2Sensor() && (
-        settings.workmode == ControllerControllerSettings::MODE_TEMP
-        || settings.workmode == ControllerControllerSettings::MODE_SMALL
+        settings.workmode == HeadlessControllerSettings::MODE_TEMP
+        || settings.workmode == HeadlessControllerSettings::MODE_SMALL
       )) {
         menu->addOption("CO2", ICON_HUMIDITY, [ui, this](){
           ui->push<FloatInput>("CO2", settings.co2.target, "PPM", 100, 2000, 50, 0, [ui, this](float value) {
@@ -1158,7 +1111,7 @@ namespace fg {
         Serial.println("SettingsMenu: CO2 hidden (no CO2 sensor)"); //SHT oder SCD
       }
 
-      if(settings.workmode == ControllerControllerSettings::MODE_TEMP || settings.workmode == ControllerControllerSettings::MODE_SMALL) {
+      if(settings.workmode == HeadlessControllerSettings::MODE_TEMP || settings.workmode == HeadlessControllerSettings::MODE_SMALL) {
         menu->addOption("Sunrise", ICON_DAY, [ui, this](){
           ui->push<FloatInput>("Sunrise", settings.lights.sunrise, "min", 0, 60, 1, 0, [ui, this](float value) {
             settings.lights.sunrise = value;
@@ -1195,7 +1148,7 @@ namespace fg {
     });
   }
 
-  void ControllerController::initStatusMenu(UserInterface* ui) {
+  void HeadlessController::initStatusMenu(UserInterface* ui) {
 	float dummy_co2 = 0.0f;  
     ui->push<Dashboard>(
 	  &state.temperature,

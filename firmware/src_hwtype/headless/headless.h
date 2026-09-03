@@ -12,7 +12,7 @@
 
 namespace fg {
 
-  struct ControllerControllerSettings {
+  struct HeadlessControllerSettings {
 
     // "full" (Big Plant) was removed on the controller. The constant is kept
     // only to map legacy settings to MODE_SMALL in loadSettings().
@@ -60,15 +60,16 @@ namespace fg {
   };
 
 
-  class ControllerController : public AutomationController {
-    static constexpr uint8_t PIN_LIGHT = 21;
+  class HeadlessController : public AutomationController {
+    // Adafruit QT Py ESP32-S3. PIN_SDA/PIN_SCL are the STEMMA QT connector;
+    // the Heltec's 23/22/4/15 do not exist on this part.
+    static constexpr uint8_t PIN_LIGHT = 35;
 
+    static constexpr uint8_t PIN_SDA = 7;
+    static constexpr uint8_t PIN_SCL = 6;
 
-    static constexpr uint8_t PIN_SDA = 23;
-    static constexpr uint8_t PIN_SCL = 22;
-
-    static constexpr uint8_t PIN_SENSOR_I2CSCL = 4;
-    static constexpr uint8_t PIN_SENSOR_I2CSDA = 15;
+    static constexpr uint8_t PIN_SENSOR_I2CSCL = 40;
+    static constexpr uint8_t PIN_SENSOR_I2CSDA = 41;
     static constexpr uint32_t SENSOR_I2C_FRQ = 10000;
 	
 	static constexpr uint8_t SENSOR_TYPE_NONE = 0;
@@ -121,7 +122,7 @@ namespace fg {
     Avg<240> humidity_avg_long;
     Avg<20> co2_avg;
 
-    ControllerControllerSettings settings;
+    HeadlessControllerSettings settings;
 
     bool is_legacy_board = false;
     bool sensors_valid = false;
@@ -172,7 +173,7 @@ namespace fg {
 	void checkLimits(uint8_t output);
 
   public:
-    ControllerController(Fridgecloud& cloud);
+    HeadlessController(Fridgecloud& cloud);
     void init() override;
     void loop() override;
     void fastloop() override;
