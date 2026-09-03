@@ -128,13 +128,14 @@ export function getStagePreset(id: GrowStagePresetId): GrowStagePreset {
 /**
  * Whether the device has a CO2 sensor: controllers report it via hardware-info
  * ('off' when the SCD4x is absent), fridges have it built in. Nothing is asked
- * of the user anymore.
+ * of the user anymore. Headless runs the same controller firmware and reports
+ * the same way.
  */
 export function deviceHasCo2(device: { device_type?: string; hardwareInfo?: Record<string, string> } | null | undefined): boolean {
   if (!device) {
     return true;
   }
-  if (device.device_type === 'controller') {
+  if (device.device_type === 'controller' || device.device_type === 'headless') {
     return device.hardwareInfo?.['co2'] !== 'off';
   }
   return true;
@@ -150,12 +151,13 @@ const LIGHT_SOCKET_ROLES = ['light', 'secondary_light'];
  * stored setting: fridges have built-in actuators, controllers act through
  * their paired smart sockets. A controller without an up-to-date sockets
  * report (older firmware) is treated as fully controlling so nothing gets
- * hidden by mistake.
+ * hidden by mistake. Headless is the same controller firmware on different
+ * hardware, so it is treated identically.
  */
 export function deviceControlCapability(
   device: { device_type?: string; hardwareInfo?: Record<string, string> } | null | undefined,
 ): ControlCapability {
-  if (!device || device.device_type !== 'controller') {
+  if (!device || (device.device_type !== 'controller' && device.device_type !== 'headless')) {
     return 'full';
   }
   if (!socketsReported(device.hardwareInfo)) {

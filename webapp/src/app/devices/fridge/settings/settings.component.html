@@ -179,7 +179,7 @@
                   </span>
                   <span *ngIf="parseWorkmode(step.settings?.workmode).hasDaycycle">Light: {{ step.settings?.lights.limit}}% | </span>
                   <span *ngIf="parseWorkmode(step.settings?.workmode).hasCo2">{{ step.settings?.co2?.target }}PPM |</span>
-                  <span *ngIf="deviceType !== 'controller'">Ext. V.: {{ step.settings?.fans?.external }}%, Int. V.: {{ step.settings?.fans?.internal }}%</span>)
+                  <span *ngIf="deviceType !== 'controller' && deviceType !== 'headless'">Ext. V.: {{ step.settings?.fans?.external }}%, Int. V.: {{ step.settings?.fans?.internal }}%</span>)
                 </span>
               </ion-text>
             </ion-label>

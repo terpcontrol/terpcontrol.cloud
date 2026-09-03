@@ -113,6 +113,17 @@
         [show_name]="!singleDevice"
         (setup)="openWizard(device)"
         *ngSwitchCase="'controller'"></fridge-overview>
+      <fridge-overview
+        [device_id]="device.device_id"
+        [device_name]="device.name || ''"
+        [device_type]="device.device_type"
+        [maintenance_mode_until]="device.maintenance_mode_until ?? 0"
+        [lastseen]="device.lastseen"
+        [cloud_settings]="device.cloudSettings"
+        [hardware_info]="device.hardwareInfo"
+        [show_name]="!singleDevice"
+        (setup)="openWizard(device)"
+        *ngSwitchCase="'headless'"></fridge-overview>
       <light-overview
         [device_id]="device.device_id"
         [device_name]="device.name || ''"

@@ -82,6 +82,12 @@ const minimal_classes = [
     concurrent: 5,
     maxfails: 10,
   },
+  {
+    name: 'headless',
+    description: 'FG Headless Controller (QT Py ESP32-S3)',
+    concurrent: 5,
+    maxfails: 10,
+  },
 ];
 
 const DEVICE_MESSAGE_CATEGORY_MAPPING = {

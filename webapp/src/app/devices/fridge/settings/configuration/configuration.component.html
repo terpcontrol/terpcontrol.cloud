@@ -171,7 +171,7 @@
       <ion-checkbox [(ngModel)]="settings.lights.maintenanceOn" (ionChange)="onSettingsChanged()">{{'settings.lightsOnMaintenanceMode' | translate}}</ion-checkbox>
     </ion-item>
 
-    <ng-container *ngIf="settings.workmode !== 'off' && deviceType !== 'controller'">
+    <ng-container *ngIf="settings.workmode !== 'off' && deviceType !== 'controller' && deviceType !== 'headless'">
       <value-edit-row
         [label]="'settings.externalfan' | translate"
         [display]="settings.externalfan + ' %'"

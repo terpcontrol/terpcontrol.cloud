@@ -18,7 +18,7 @@ import { EXPERT_MODE_STORAGE_KEY } from 'src/app/util/ui-mode';
 
 type WizardStep = 'name' | 'connections' | 'stage' | 'plan' | 'done';
 
-const CLIMATE_DEVICE_TYPES = ['fridge', 'fridge2', 'controller'];
+const CLIMATE_DEVICE_TYPES = ['fridge', 'fridge2', 'controller', 'headless'];
 
 @Component({
   selector: 'setup-wizard',
@@ -83,8 +83,10 @@ export class SetupWizardComponent implements OnInit {
     return CLIMATE_DEVICE_TYPES.includes(this.device?.device_type);
   }
 
+  /** Named for the firmware it runs, not the hardware: headless is the same
+   *  socket-driven controller firmware on different hardware. */
   get isController(): boolean {
-    return this.device?.device_type === 'controller';
+    return this.device?.device_type === 'controller' || this.device?.device_type === 'headless';
   }
 
   /** What the controller can switch, derived from its paired sockets. */
