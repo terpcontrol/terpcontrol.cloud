@@ -61,6 +61,17 @@ namespace fg {
 
 
   class ControllerController : public AutomationController {
+#ifdef HEADLESS_CONFIG
+    // Adafruit QT Py ESP32-S3. PIN_SDA/PIN_SCL are the STEMMA QT connector,
+    // which the ESP32's 23/22 do not exist for on this part.
+    static constexpr uint8_t PIN_LIGHT = 35;
+
+    static constexpr uint8_t PIN_SDA = 7;
+    static constexpr uint8_t PIN_SCL = 6;
+
+    static constexpr uint8_t PIN_SENSOR_I2CSCL = 40;
+    static constexpr uint8_t PIN_SENSOR_I2CSDA = 41;
+#else
     static constexpr uint8_t PIN_LIGHT = 21;
 
 
@@ -69,6 +80,7 @@ namespace fg {
 
     static constexpr uint8_t PIN_SENSOR_I2CSCL = 4;
     static constexpr uint8_t PIN_SENSOR_I2CSDA = 15;
+#endif
     static constexpr uint32_t SENSOR_I2C_FRQ = 10000;
 	
 	static constexpr uint8_t SENSOR_TYPE_NONE = 0;

@@ -28,21 +28,36 @@ namespace fg {
 
   Adafruit_SSD1306 UserInterface::display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
+  bool UserInterface::display_available = false;
+
   UserInterface::UserInterface() {}
 
   void UserInterface::init() {
+#ifdef HEADLESS_CONFIG
+    // No OLED on this hardware. Don't touch the display at all -- begin()
+    // would block on I2C and then hang the boot in the failure branch below.
+    Serial.println(F("headless build: skipping display init"));
+    UserInterface::display_available = false;
+    return;
+#else
     if(!UserInterface::display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
       Serial.println(F("SSD1306 allocation failed"));
       for(;;); // Don't proceed, loop forever
     }
 
+    UserInterface::display_available = true;
 
     UserInterface::display.clearDisplay();
     UserInterface::display.display();
+#endif
   }
 
   void UserInterface::loop() {
-    UserInterface::display.clearDisplay();
+    const bool draw = UserInterface::display_available;
+
+    if(draw) {
+      UserInterface::display.clearDisplay();
+    }
 
     // Asked of the screen on top rather than fixed, so a screen that wants to
     // stay readable while somebody walks away and does something can say so.
@@ -53,13 +68,17 @@ namespace fg {
         idle_ticks = 0;
         current_action = UiAction::NONE;
       }
-      UserInterface::display.display();
+      if(draw) {
+        UserInterface::display.display();
+      }
       return;
     }
 
     if(items.size()) {
       auto active_item = *items.rbegin();
-      active_item->draw();
+      if(draw) {
+        active_item->draw();
+      }
 
       switch(current_action) {
         case UiAction::NEXT:
@@ -90,7 +109,9 @@ namespace fg {
       current_action = UiAction::NONE;
 
     }
-    UserInterface::display.display();
+    if(draw) {
+      UserInterface::display.display();
+    }
   }
 
   void UserInterface::pop() {

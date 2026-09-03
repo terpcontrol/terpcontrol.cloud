@@ -48,7 +48,15 @@ fi
 pio run -e ${BUILD_TYPE}
 
 FIRMWARE_BIN=".pio/build/${BUILD_TYPE}/firmware.bin"
-MAX_OTA_FIRMWARE_BINARY_BYTES=$((2 * 1024 * 1024))
+
+# OTA slot size, which differs per board: headless runs on a 4MB QT Py
+# ESP32-S3 (fg_partitions_4mb.csv), everything else on 8MB boards with the
+# 2MB slots of fg_partitions.csv.
+if [ "$BUILD_TYPE" = "headless" ]; then
+  MAX_OTA_FIRMWARE_BINARY_BYTES=$((0x1F0000))
+else
+  MAX_OTA_FIRMWARE_BINARY_BYTES=$((2 * 1024 * 1024))
+fi
 
 if [ ! -f "$FIRMWARE_BIN" ]; then
   echo "firmware binary not found: ${FIRMWARE_BIN}" >&2

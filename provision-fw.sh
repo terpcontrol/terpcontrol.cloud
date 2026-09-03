@@ -4,12 +4,30 @@ set -e
 DEVICE_TYPE="$1"
 if [ -z "$DEVICE_TYPE" ]; then
     echo "Usage: $0 <device-type>"
-    echo "Device types: plug, light, fan, fridge"
+    echo "Device types: plug, light, fan, fridge, controller, headless"
     exit 1
 fi
 
 . "$(dirname "${BASH_SOURCE[0]}")/scripts/load-env.sh"
 terpcontrol_load_env
+
+# The headless device runs on an Adafruit QT Py ESP32-S3: different esptool
+# target, bootloader at 0x0 rather than 0x1000, a 4MB partition table that puts
+# the provisioning NVS elsewhere, and it enumerates as ttyACM* (native USB)
+# rather than ttyUSB*. All of it can be overridden from the environment.
+if [ -z "$ESP_CHIP" ]; then
+  case "$DEVICE_TYPE" in
+    headless) ESP_CHIP=esp32s3 ;;
+    *)        ESP_CHIP=esp32 ;;
+  esac
+fi
+
+if [ -z "$NVS_RO_OFFSET" ]; then
+  case "$DEVICE_TYPE" in
+    headless) NVS_RO_OFFSET=0x3F0000 ;;
+    *)        NVS_RO_OFFSET=0x610000 ;;
+  esac
+fi
 
 docker build -t plantalytix-buildcontainer fw-buildcontainer
 
@@ -34,7 +52,11 @@ fi
 docker run -i --rm \
   --privileged \
   -v /dev/bus/usb:/dev/bus/usb \
+  -v /dev:/dev \
   -v fg2_firmware:/firmware \
+  -e SERIAL_DEVICE="${SERIAL_DEVICE}" \
+  -e ESP_CHIP="${ESP_CHIP}" \
+  -e NVS_RO_OFFSET="${NVS_RO_OFFSET}" \
   -e FG_AUTOMATION_TOKEN=${AUTOMATION_TOKEN} \
   -e FG_AUTOMATION_URL=${API_URL_EXTERNAL} \
   -e FG_API_URL=${API_URL_EXTERNAL} \

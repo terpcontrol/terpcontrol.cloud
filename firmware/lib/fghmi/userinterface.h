@@ -62,6 +62,13 @@ namespace fg {
   public:
     static Adafruit_SSD1306 display;
 
+    // False when no OLED is driven (HEADLESS_CONFIG builds, or a display that
+    // failed to initialise). The menu state machine keeps running either way:
+    // Fridgecloud's update path pushes an UpdateDisplay and calls next(), and
+    // isIdle() gates the tunnel handlers, so loop() must stay live even with
+    // nothing to draw on.
+    static bool display_available;
+
     UserInterface();
 
     void init();

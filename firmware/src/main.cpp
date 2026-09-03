@@ -4,7 +4,8 @@
 #include <esp_system.h>
 #include <esp_bt.h>
 #include <WiFi.h>
-#include "soc/rtc_wdt.h"
+// soc/rtc_wdt.h is unused here and does not compile on the ESP32-S3 SDK
+// (the RTC_WDT_STG_SEL_* macros only exist for the original ESP32).
 
 #include "Wire.h"
 #include "fridgecloud.h"
@@ -162,7 +163,21 @@ void setup()
   //Wire.setTimeout(10);
 
   Serial.begin(115200);
-  while (!Serial);
+#if defined(ARDUINO_USB_CDC_ON_BOOT) && ARDUINO_USB_CDC_ON_BOOT
+  // Never block on a USB CDC write. A headless device boots unattended, so
+  // nothing drains the TX ring buffer; once it fills, every further write
+  // stalls for the timeout and the log stays silent for good -- even after a
+  // terminal later attaches. A zero timeout drops output while nobody is
+  // listening and resumes cleanly as soon as somebody is.
+  Serial.setTxTimeoutMs(0);
+#endif
+  // Where Serial is a USB CDC, `!Serial` stays true until a host actually
+  // opens the port -- a headless device on a plain USB supply would hang here
+  // forever. Wait only briefly, so a developer with a terminal attached still
+  // catches the first log lines.
+  for(auto waited = 0; !Serial && waited < 2000; waited += 10) {
+    delay(10);
+  }
 
   // We never init the Bluetooth controller, but the precompiled arduino-esp32
   // framework still reserves the controller's RAM. Releasing it here gives the
@@ -203,11 +218,13 @@ void setup()
   fgc.init();
   fgc.connect();
 
+#ifndef HEADLESS_CONFIG
   pinMode(ROTA, INPUT_PULLUP);
   pinMode(ROTB, INPUT_PULLUP);
   pinMode(BTN, INPUT_PULLUP);
 
   attachInterrupt(BTN, isr2, CHANGE);
+#endif
 
   // Task watchdog. The 25s value used previously was too tight: on
   // Arduino-ESP32 the WiFiClient::write() retry loop is hardcoded to up to
@@ -286,6 +303,7 @@ void loop()
     control->loop();
   }
 
+#ifndef HEADLESS_CONFIG
   static int8_t c,val;
   if( val=read_rotary() ) {
     if(val == -1) {
@@ -295,6 +313,7 @@ void loop()
       ui.next();
     }
   }
+#endif
 
   if((xTaskGetTickCount() - last_ui_tick) > UI_TICK_INTERVAL) {
     last_ui_tick = xTaskGetTickCount();

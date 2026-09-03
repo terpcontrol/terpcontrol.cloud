@@ -1,7 +1,9 @@
 #include "controller.h"
 #include "dashboard.h"
 #include "wifi.h"
+#ifndef HEADLESS_CONFIG
 #include <MCP7940.h>
+#endif
 #include <Adafruit_MLX90632.h>
 #include <Adafruit_VEML7700.h>
 #include <sstream>
@@ -13,9 +15,11 @@
 #define VEML7700_I2C_ADDRESS 0x10
 #define MLX90632_I2C_ADDRESS 0x3A
 
+#ifndef HEADLESS_CONFIG
 const uint8_t  SPRINTF_BUFFER_SIZE{32};
 MCP7940_Class MCP7940;
 char          inputBuffer[32];
+#endif
 
 // Zusätzliche I2C-Sensoren auf dem Sensor-Bus
 Adafruit_MLX90632 mlx90632 = Adafruit_MLX90632();
@@ -608,6 +612,11 @@ namespace fg {
     sntp_setservername(0, "pool.ntp.org");
     sntp_init();
 
+#ifdef HEADLESS_CONFIG
+    // No MCP7940 on the headless board, so the time comes from SNTP alone.
+    // The loop below would never terminate without the chip on the bus.
+    Serial.println(F("headless build: no RTC, waiting for SNTP"));
+#else
     while (!MCP7940.begin()) {  // Initialize RTC communications
       Serial.println(F("Unable to find MCP7940N. Checking again in 3s."));  // Show error and wait
       delay(3000);
@@ -647,6 +656,7 @@ namespace fg {
     Serial.println(inputBuffer);
     timeval epoch = {(time_t)now.unixtime(), 0};
     settimeofday((const timeval*)&epoch, 0);
+#endif
 
      Wire.end();
     initSensor();
@@ -1000,7 +1010,9 @@ namespace fg {
       time_t now;
       struct tm timeinfo;
       time(&now);
+#ifndef HEADLESS_CONFIG
       MCP7940.adjust(now);
+#endif
     }
   }
 
@@ -1050,10 +1062,12 @@ namespace fg {
           time_now.tv_usec = 0;
           settimeofday(&time_now, NULL);
 
+#ifndef HEADLESS_CONFIG
           int hours = value / 3600;
           int minutes = (value - hours * 3600) / 60;
           DateTime now(2000, 1, 1, hours, minutes);
           MCP7940.adjust(now);
+#endif
           ui->pop();
         });
       });

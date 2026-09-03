@@ -152,9 +152,6 @@ namespace fg {
 
 
 
-#define GPIO_OUT_W1TS_REG (DR_REG_GPIO_BASE + 0x0008)
-#define GPIO_OUT_W1TC_REG (DR_REG_GPIO_BASE + 0x000c)
-
 #define DEFAULT_SSID_PREFIX "TERP_"
 #define DEFAULT_HOSTNAME "terpcontrol"
 
@@ -219,6 +216,17 @@ static bool isKnownSocketRole(const std::string& role);
 boolean createConfigurationAP();
 bool connectToWifi(std::string ssid, std::string password);
 
+#ifdef HEADLESS_CONFIG
+// Without a display or encoder the SoftAP portal is the only way to configure
+// wifi, switch cloud server and request a pairing code, so the AP has to stay
+// up alongside the station interface -- every place that would otherwise drop
+// to plain WIFI_STA uses this mode instead.
+#define FG_STATION_MODE WIFI_AP_STA
+void handlePairingCode();
+#else
+#define FG_STATION_MODE WIFI_STA
+#endif
+
 
 void handleNotFound();
 void handleRoot();
@@ -253,6 +261,8 @@ unsigned long startMillis;
 /** Current WLAN status */
 short status = WL_IDLE_STATUS;
 bool server_active = false;
+bool ap_active = false;
+bool dns_active = false;
 
 bool wifi_configured = false;
 
@@ -323,11 +333,18 @@ bool initializeWifi() {
 
   WiFi.setHostname(DEFAULT_HOSTNAME); // Set the DHCP hostname assigned to ESP station.
 
+#ifdef HEADLESS_CONFIG
+  // Start the configuration AP unconditionally, not just when credentials are
+  // missing: the portal is also where the cloud server is changed and the
+  // pairing code is requested, and both of those happen *after* wifi is up.
+  createConfigurationAP();
+#endif
+
   if (loadWifiCredentials()) // Load WLAN credentials for WiFi Settings
   {
     Serial.println(F("Valid Credentials found."));
     wifi_configured = true;
-    WiFi.mode(WIFI_STA);
+    WiFi.mode(FG_STATION_MODE);
 
     Serial.println(primary_ssid.c_str());
 
@@ -351,16 +368,20 @@ void wifiTick() {
 
   // Nothing else can be on top of the url screen while the form is open: it
   // only reacts to the click that closes it, so popping it here is safe.
+  // Headless never opens the form from a screen -- the portal is permanent and
+  // there is nothing to pop -- so the timeout does not apply there.
+#ifndef HEADLESS_CONFIG
   if(server_config_active && xTaskGetTickCount() - server_config_opened > SERVER_CONFIG_TIMEOUT) {
     stopServerConfigPortal();
     ui_handle->pop();
   }
+#endif
 
   if(wifi_configured && xTaskGetTickCount() - last_conncheck > 30000) {
     last_conncheck = xTaskGetTickCount();
     if(!wifiIsConnected()) {
       Serial.printf("[wifi] disconnected, status=%d\n", WiFi.status());
-      WiFi.mode(WIFI_STA);
+      WiFi.mode(FG_STATION_MODE);
       WiFi.setAutoReconnect(true);
       WiFi.reconnect();
       last_reconnect_attempt = xTaskGetTickCount();
@@ -380,9 +401,15 @@ void wifiTick() {
     WiFi.disconnect(false, false);
     WiFi.mode(WIFI_OFF);
     delay(100);
-    WiFi.mode(WIFI_STA);
+    WiFi.mode(FG_STATION_MODE);
     WiFi.setAutoReconnect(true);
     WiFi.setAutoConnect(true);
+#ifdef HEADLESS_CONFIG
+    // WIFI_OFF dropped the SoftAP as well; bring the portal back so the device
+    // stays configurable while the station side is still failing to connect.
+    ap_active = false;
+    createConfigurationAP();
+#endif
     if(primary_password != "") {
       WiFi.begin(primary_ssid.c_str(), primary_password.c_str());
     }
@@ -1574,6 +1601,9 @@ void InitalizeHTTPServer() {
     server.on("/config", handleConfig);
     server.on("/scan", handleGetScan);
     server.on("/server", handleServerConfig);
+#ifdef HEADLESS_CONFIG
+    server.on("/pair", handlePairingCode);
+#endif
     server.onNotFound ( handleNotFound );
     routes_added = true;
   }
@@ -1598,10 +1628,35 @@ void stopServerConfigPortal() {
 
 boolean createConfigurationAP()
 {
-  WiFi.disconnect();
+  if(ap_active) {
+    return true;
+  }
+
+  // Only drop the station link when there is nothing to lose. On the headless
+  // re-arm path the device may already be associated, and disconnecting would
+  // undo exactly the connection we are trying to keep serving the portal for.
+  if(!wifiIsConnected()) {
+    WiFi.disconnect();
+  }
   WiFi.mode(WIFI_AP_STA);
   Serial.print(F("Initalize SoftAP "));
+#ifdef HEADLESS_CONFIG
+  // A headless setup reboots twice (once after the wifi credentials are saved,
+  // once after the server change installs that server's firmware) and the
+  // phone has to find the same portal again each time, so the name is derived
+  // from the MAC rather than randomised per boot.
+  if(ssid.empty()) {
+    uint8_t mac[6] = {0};
+    WiFi.macAddress(mac);
+
+    char suffix[7];
+    snprintf(suffix, sizeof(suffix), "%02X%02X%02X", mac[3], mac[4], mac[5]);
+
+    ssid = std::string(DEFAULT_SSID_PREFIX) + suffix;
+  }
+#else
   ssid = randomSsid();
+#endif
 
   if (WiFi.softAP(ssid.c_str()))
   {
@@ -1614,10 +1669,15 @@ boolean createConfigurationAP()
     // be typed into a browser, so it has to be the address that answers.
     ip = WiFi.softAPIP().toString().c_str();
 
-    dnsServer.start();
+    if(!dns_active) {
+      dnsServer.start();
+      dns_active = true;
+    }
     Serial.println(F("successful."));
+    Serial.printf("[portal] SSID=%s http://%s/\n", ssid.c_str(), ip.c_str());
     InitalizeHTTPServer();
     server_active = true;
+    ap_active = true;
     return true;
   }
   else {
@@ -1809,13 +1869,25 @@ void handleConfig() {
  *  prefill while the server screen is open and with nothing when it is not,
  *  which is what lets both cards share the root url. The POST is refused
  *  outside that screen for the same reason the screen closes the listener. */
+// Whether the server card is on offer. On a device with a screen that is the
+// window the "change server" menu entry opens; headless has no such entry, so
+// the card is offered from the moment the device is on the network and never
+// times out -- it is the only way to point the device at a server.
+static bool serverConfigOpen() {
+#ifdef HEADLESS_CONFIG
+  return wifiIsConnected();
+#else
+  return server_config_active;
+#endif
+}
+
 void handleServerConfig() {
   if(server.method() == HTTP_GET) {
-    server.send(200, "text/plain", server_config_active ? DEFAULT_API_URL : "");
+    server.send(200, "text/plain", serverConfigOpen() ? DEFAULT_API_URL : "");
     return;
   }
 
-  if(!server_config_active) {
+  if(!serverConfigOpen()) {
     server.send(403, "text/plain", "error");
     return;
   }
@@ -1836,6 +1908,16 @@ void handleServerConfig() {
   // The display takes over from here.
   server.send(200, "text/plain", "ok");
   server.client().stop();
+
+#ifdef HEADLESS_CONFIG
+  // The portal stays up -- it is the only way in -- and there is no screen to
+  // hand over to, so the outcome shows up in the log. registerWithCloud() only
+  // ever returns on failure: success ends in a firmware update and a reboot.
+  Serial.printf("[portal] registering with %s\n", url.c_str());
+  server_config_cloud->registerWithCloud(url, config_data["password"].as<std::string>());
+  esp_task_wdt_reset();
+  Serial.println(F("[portal] registration did not take"));
+#else
   stopServerConfigPortal();
 
   ui_handle->pop();
@@ -1849,7 +1931,30 @@ void handleServerConfig() {
     ui_handle->pop();
   });
   ui_handle->loop();
+#endif
 }
+
+#ifdef HEADLESS_CONFIG
+/** Pairing code handler -- the portal equivalent of "connect to portal".
+ *  GET is the page's cheap probe for whether this build offers the step at
+ *  all; POST does the cloud round trip and answers with the code. */
+void handlePairingCode() {
+  if(server.method() == HTTP_GET) {
+    server.send(200, "text/plain", wifiIsConnected() ? "ready" : "");
+    return;
+  }
+
+  if(server_config_cloud == nullptr || !wifiIsConnected()) {
+    server.send(200, "text/plain", "");
+    return;
+  }
+
+  std::string code = server_config_cloud->requestPairingCode();
+  esp_task_wdt_reset();
+
+  server.send(200, "text/plain", code.c_str());
+}
+#endif
 
 void handleGetScan() {
   auto ssids = scanWifiNetworks();
@@ -2439,6 +2544,12 @@ void wifiSetUserInterface(fg::UserInterface* ui) {
 
 void wifiInitAuxCloudReporting(fg::Fridgecloud* cloud) {
   smart_socket_cloud_handle = cloud;
+#ifdef HEADLESS_CONFIG
+  // Headless never opens the wifi menu, which is where the server form's cloud
+  // handle is normally set, so the portal takes it from here instead -- it is
+  // the same object, and this runs during the controller's init().
+  server_config_cloud = cloud;
+#endif
   ensureSmartSocketsLoaded();
   reportSocketsHardwareInfo();
 

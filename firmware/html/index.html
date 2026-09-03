@@ -319,6 +319,24 @@
         show(id, true);
       }
 
+      /* Third step of a headless setup: the device asks the server it is
+         registered with for a claim code, which is then typed into the portal
+         to attach the device to an account. Devices with a screen do this from
+         their own menu, so the card only appears when /pair answers. */
+      function sendPair() {
+        show('#pair-code', false);
+        show('#error', false);
+        show('#connecting', true);
+        document.querySelector('#pair-button').disabled = true;
+
+        post('/pair', '{}', function(code) {
+          show('#connecting', false);
+          document.querySelector('#pair-button').disabled = false;
+          if(code) msg('#pair-code', code);
+          else msg('#error', 'Could not get a pairing code from the server.');
+        });
+      }
+
       function sendServer() {
         let form = document.querySelector('#server');
         if(!form.reportValidity()) return;
@@ -469,6 +487,12 @@
         <button class="primary" type="button" onclick="sendServer()">Save</button>
       </div>
 
+      <div id="pair-ui" class="hidden card">
+        <p class="lead">Get a pairing code to attach this device to your account.</p>
+        <div id="pair-code" class="hidden box ok"></div>
+        <button id="pair-button" class="primary" type="button" onclick="sendPair()">Connect to portal</button>
+      </div>
+
     </div>
 
     <div id="scan" class="hidden">
@@ -487,6 +511,13 @@
       post('/server', null, function(url) {
         show(url ? '#server-ui' : '#wifi-ui', true);
         document.querySelector('#server-url').value = url;
+
+        /* Only a headless build serves /pair, and only once it is on the
+           network. Anything else answers with the redirected portal page,
+           which is why this tests for the exact token rather than for text. */
+        if(url) post('/pair', null, function(state) {
+          show('#pair-ui', state == 'ready');
+        });
       });
     </script>
 
