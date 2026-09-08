@@ -7,7 +7,19 @@ ENV ESP_IDF_VERSION="v4.4"
 RUN mkdir /app
 WORKDIR /app
 
-RUN apt update -qq && \
+# Bullseye is EOL: deb.debian.org has dropped it, and archive.debian.org does
+# not carry bullseye-security at all (its newest security suite is buster), so
+# every package from that suite 404s mid-install. Point the surviving suites at
+# the archive and drop the security line. The archive's Release files are past
+# their Valid-Until date, hence the flag on `update` -- signatures are still
+# verified, only the freshness date is not. Moving the pin to a supported
+# release is the real fix, but it swaps the compiler and python out from under
+# the toolchain below, so it is not a change to make inside a firmware build.
+RUN sed -i -e '/deb.debian.org\/debian-security/d' \
+           -e 's|http://deb.debian.org/debian|http://archive.debian.org/debian|g' \
+           /etc/apt/sources.list
+
+RUN apt -o Acquire::Check-Valid-Until=false update -qq && \
 apt install -y -qq --no-install-recommends software-properties-common gpgv2 && \
 apt install -qq -y --no-install-recommends \
 bc \
