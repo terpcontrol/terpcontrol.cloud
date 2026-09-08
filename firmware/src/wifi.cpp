@@ -16,6 +16,7 @@
 #include <EEPROM.h>
 #include <algorithm>
 #include <array>
+#include <memory>
 #include <sstream>
 #include <cctype>
 #include <HTTPClient.h>
@@ -153,6 +154,16 @@ namespace fg {
 
 
 #define DEFAULT_SSID_PREFIX "TERP_"
+
+#ifdef HEADLESS_CONFIG
+// The setup AP is WPA2. Hardware without a display has nowhere to print a key
+// on, so it is derived from the network name instead: this prefix plus the
+// SSID's own suffix, so TERP_A1B2C3 pairs with control_A1B2C3. The name is in
+// the phone's wifi list and the rule turns it into the password. Eight
+// characters here plus the six of the suffix clear WPA2's minimum of eight on
+// their own.
+#define DEFAULT_AP_PASSWORD_PREFIX "control_"
+#endif
 #define DEFAULT_HOSTNAME "terpcontrol"
 
 static const std::array<std::string, 2> SMART_SOCKET_SSID_PREFIXES = {
@@ -217,12 +228,15 @@ boolean createConfigurationAP();
 bool connectToWifi(std::string ssid, std::string password);
 
 #ifdef HEADLESS_CONFIG
-// Without a display or encoder the SoftAP portal is the only way to configure
-// wifi, switch cloud server and request a pairing code, so the AP has to stay
-// up alongside the station interface -- every place that would otherwise drop
-// to plain WIFI_STA uses this mode instead.
-#define FG_STATION_MODE WIFI_AP_STA
+// Without a display or encoder the SoftAP is the only way to hand the device a
+// network, so it runs alongside the station interface -- every place that would
+// otherwise drop to plain WIFI_STA uses this mode instead. It is not a constant
+// because the AP does not last forever: once the device is on a network it is
+// reachable there and the second interface stops earning its keep.
+static wifi_mode_t stationMode();
+#define FG_STATION_MODE stationMode()
 void handlePairingCode();
+void stopConfigurationAP();
 #else
 #define FG_STATION_MODE WIFI_STA
 #endif
@@ -236,14 +250,22 @@ String toStringIp(IPAddress ip);
 String GetEncryptionType(byte thisType);
 boolean isIp(String str);
 void handleConfig();
+void handleForgetWifi();
 void handleServerConfig();
 boolean captivePortal();
 
 
 
-// DNS server
+// DNS server. Held by pointer because stopping it is not enough to take it off
+// the network: DNSServer::stop() forwards to AsyncUDP::close(), which only
+// undoes the *connect* and clears a flag -- the pcb stays bound to port 53 with
+// its receive callback attached, so the resolver keeps answering. Measured on
+// hardware: a stopped server still resolved every name to the SoftAP address,
+// on the station interface, with the AP long gone. Only ~AsyncUDP() does the
+// real teardown (udp_recv(pcb, NULL, NULL) followed by _udp_remove(pcb)), so
+// the server is destroyed rather than stopped.
 const byte DNS_PORT = 53;
-DNSServer dnsServer;
+std::unique_ptr<DNSServer> dnsServer;
 
 // Web server
 WebServer server(80);
@@ -265,6 +287,50 @@ bool ap_active = false;
 bool dns_active = false;
 
 bool wifi_configured = false;
+
+#ifdef HEADLESS_CONFIG
+// How long the setup AP stays up after the station has joined a network. The
+// phone that just configured the device is still associated to the AP at that
+// moment -- it has to see the result and, on a first setup, still fetch the
+// pairing code -- so the AP cannot go down the instant the station comes up.
+#define HEADLESS_AP_LINGER 300000   // 5 minutes, in ticks (1 tick = 1ms here)
+
+// How long the device tolerates having no network before it offers the setup
+// AP again. This is the way back in when the network it was on disappears for
+// good -- the router replaced, its password changed -- because a device with
+// no address of its own cannot be reached on the page it otherwise serves.
+#define HEADLESS_AP_REVIVE 120000   // 2 minutes
+
+// When the station came up while the AP was still running, or 0 while the
+// countdown is not armed. Cleared again if the link drops, so a join that does
+// not hold does not burn the window.
+static TickType_t ap_connected_since = 0;
+
+// The mirror image: when the station went away while the AP was already down,
+// or 0 while the device has a network. Both live here rather than leaning on
+// the shared reconnect timers, so the two waits are one number each and belong
+// to the AP alone.
+static TickType_t ap_lost_since = 0;
+
+// AP_STA costs the station its modem sleep and the channel a beacon every
+// 100ms, so the second interface is only worth carrying while the AP is
+// actually up.
+static wifi_mode_t stationMode() {
+  return ap_active ? WIFI_AP_STA : WIFI_STA;
+}
+
+// Takes the captive resolver off the network. Destroyed rather than stopped --
+// the reason is at the declaration. Idempotent, so callers do not have to know
+// whether it is currently up.
+static void stopCaptiveDns() {
+  if(!dns_active) {
+    return;
+  }
+
+  dnsServer.reset();
+  dns_active = false;
+}
+#endif
 
 // One paired smart socket. Any number of them may share a role: every socket
 // of a role is driven with the same target state, so a grow with four heaters
@@ -333,14 +399,18 @@ bool initializeWifi() {
 
   WiFi.setHostname(DEFAULT_HOSTNAME); // Set the DHCP hostname assigned to ESP station.
 
+  const bool credentials_found = loadWifiCredentials();
+
 #ifdef HEADLESS_CONFIG
-  // Start the configuration AP unconditionally, not just when credentials are
-  // missing: the portal is also where the cloud server is changed and the
-  // pairing code is requested, and both of those happen *after* wifi is up.
+  // Unconditionally, because this is also what starts the web server: with no
+  // display and no encoder every page the device offers is served from here,
+  // and they stay served for as long as it runs. Only the AP is temporary --
+  // wifiTick() takes it down five minutes after the station joins a network,
+  // by which point the device answers on that network instead.
   createConfigurationAP();
 #endif
 
-  if (loadWifiCredentials()) // Load WLAN credentials for WiFi Settings
+  if (credentials_found) // Load WLAN credentials for WiFi Settings
   {
     Serial.println(F("Valid Credentials found."));
     wifi_configured = true;
@@ -358,6 +428,58 @@ bool initializeWifi() {
   return true;
 }
 
+#ifdef HEADLESS_CONFIG
+// Runs the AP's own clock, and it is the only thing that switches the AP off:
+// up while the device has no network of its own, down five minutes after it
+// joins one. No cloud state is involved, so a device that never manages to
+// connect simply keeps offering its setup network for as long as that is true.
+static void tickConfigurationAP() {
+  if(!wifiIsConnected()) {
+    ap_connected_since = 0;   // link gone: the shutdown window starts over
+
+    if(ap_active) {
+      return;                 // already serving one, nothing to bring back
+    }
+
+    if(ap_lost_since == 0) {
+      ap_lost_since = xTaskGetTickCount();
+      return;
+    }
+
+    if(xTaskGetTickCount() - ap_lost_since > HEADLESS_AP_REVIVE) {
+      Serial.println(F("[portal] no network for 2 minutes, raising the AP"));
+      // Clears ap_lost_since itself, so a softAP that fails to come up is
+      // simply tried again after the next two minutes.
+      createConfigurationAP();
+    }
+    return;
+  }
+
+  ap_lost_since = 0;
+
+  // The resolver's job ends the moment the device has a network of its own:
+  // from here the page answers at the device's own address. The AP stays up for
+  // the linger below -- the phone that configured the device is still
+  // associated to it, and the page is still served at 192.168.4.1 -- only the
+  // automatic redirect to it goes now.
+  stopCaptiveDns();
+
+  if(!ap_active) {
+    return;
+  }
+
+  if(ap_connected_since == 0) {
+    ap_connected_since = xTaskGetTickCount();
+    Serial.println(F("[portal] station joined, AP goes down in 5 minutes"));
+    return;
+  }
+
+  if(xTaskGetTickCount() - ap_connected_since > HEADLESS_AP_LINGER) {
+    stopConfigurationAP();
+  }
+}
+#endif
+
 void wifiTick() {
   static TickType_t last_conncheck = xTaskGetTickCount();
   static TickType_t last_reconnect_attempt = 0;
@@ -365,6 +487,10 @@ void wifiTick() {
   if(server_active) {
     server.handleClient();
   }
+
+#ifdef HEADLESS_CONFIG
+  tickConfigurationAP();
+#endif
 
   // Nothing else can be on top of the url screen while the form is open: it
   // only reacts to the click that closes it, so popping it here is safe.
@@ -389,6 +515,9 @@ void wifiTick() {
     else if(last_reconnect_attempt > 0) {
       Serial.println("[wifi] reconnected");
       last_reconnect_attempt = 0;
+      // An AP raised by the reconnect path below is not stopped here:
+      // tickConfigurationAP() sees the station back up and gives it the same
+      // five minutes any other join gets.
     }
   }
 
@@ -1600,6 +1729,7 @@ void InitalizeHTTPServer() {
     server.on("/", handleRoot);
     server.on("/config", handleConfig);
     server.on("/scan", handleGetScan);
+    server.on("/forget", HTTP_POST, handleForgetWifi);
     server.on("/server", handleServerConfig);
 #ifdef HEADLESS_CONFIG
     server.on("/pair", handlePairingCode);
@@ -1626,11 +1756,55 @@ void stopServerConfigPortal() {
   server.stop();
 }
 
+#ifdef HEADLESS_CONFIG
+// Takes down the setup network, and nothing else. The station link is not
+// touched and neither is the web server: the device keeps serving every page
+// it served before, now at its address on the network it joined.
+void stopConfigurationAP() {
+  if(!ap_active) {
+    return;
+  }
+
+  // Normally already gone: tickConfigurationAP() drops the resolver as soon as
+  // the station connects, which is well before the linger expires and brings us
+  // here. Kept so this function leaves a consistent state whoever calls it, and
+  // for the paths that take the AP down without a connection ever having
+  // happened.
+  stopCaptiveDns();
+
+  // `true` also drops the AP bit from the wifi mode, which is what takes the
+  // radio back to plain WIFI_STA. The station side is not touched by it.
+  WiFi.softAPdisconnect(true);
+  ap_active = false;
+  ap_connected_since = 0;
+
+  // Dropping the AP interface takes the listening socket with it (measured on
+  // hardware -- the server is never told, it just stops answering), so it has
+  // to be asked to listen again, this time on the station interface alone.
+  // Without these two lines the device would go dark on both networks at once.
+  server.stop();
+  InitalizeHTTPServer();
+  server_active = true;
+
+  Serial.printf("[portal] AP down, web interface stays up at http://%s/\n",
+                WiFi.localIP().toString().c_str());
+}
+#endif
+
 boolean createConfigurationAP()
 {
   if(ap_active) {
     return true;
   }
+
+#ifdef HEADLESS_CONFIG
+  // Every AP gets its own five minutes: a stale arm from a previous one would
+  // otherwise close this one on the first tick that sees the station up. The
+  // other one goes too, so a failed softAP() re-arms the two-minute wait
+  // instead of retrying on every single tick.
+  ap_connected_since = 0;
+  ap_lost_since = 0;
+#endif
 
   // Only drop the station link when there is nothing to lose. On the headless
   // re-arm path the device may already be associated, and disconnecting would
@@ -1654,11 +1828,19 @@ boolean createConfigurationAP()
 
     ssid = std::string(DEFAULT_SSID_PREFIX) + suffix;
   }
+
+  // Derived from the name rather than kept beside it, so the two cannot drift
+  // apart across the reboots a setup goes through.
+  const std::string ap_password =
+    std::string(DEFAULT_AP_PASSWORD_PREFIX) +
+    ssid.substr(sizeof(DEFAULT_SSID_PREFIX) - 1);
+
+  if (WiFi.softAP(ssid.c_str(), ap_password.c_str()))
 #else
   ssid = randomSsid();
-#endif
 
   if (WiFi.softAP(ssid.c_str()))
+#endif
   {
     delay(2000);
     //WiFi.softAPConfig(apIP, apIP, netMsk);
@@ -1670,11 +1852,23 @@ boolean createConfigurationAP()
     ip = WiFi.softAPIP().toString().c_str();
 
     if(!dns_active) {
-      dnsServer.start();
-      dns_active = true;
+      // A fresh one each time: the previous one was destroyed to get it off
+      // port 53, and start() needs the AP interface to already be up -- it
+      // reads its reply address from WiFi.softAPIP() and refuses to run when
+      // the radio is not in AP mode.
+      dnsServer.reset(new DNSServer());
+      dns_active = dnsServer->start();
+      if(!dns_active) {
+        dnsServer.reset();   // nothing bound, so keep nothing around
+      }
     }
     Serial.println(F("successful."));
+#ifdef HEADLESS_CONFIG
+    Serial.printf("[portal] SSID=%s key=%s http://%s/\n",
+                  ssid.c_str(), ap_password.c_str(), ip.c_str());
+#else
     Serial.printf("[portal] SSID=%s http://%s/\n", ssid.c_str(), ip.c_str());
+#endif
     InitalizeHTTPServer();
     server_active = true;
     ap_active = true;
@@ -1834,8 +2028,25 @@ void handleRoot() {
   server.client().stop();
 }
 
-/** Wifi config page handler */
+/** Wifi config page handler.
+ *  GET reports the network the device is set up for. The page needs it because
+ *  the card is offered to a device that already has a connection, not only to
+ *  a fresh one: it prefills the field and it is what puts the forget button on
+ *  screen. POST is the form itself, unchanged. */
 void handleConfig() {
+  if(server.method() == HTTP_GET) {
+    StaticJsonDocument<128> state;
+    state["ssid"] = wifi_configured ? primary_ssid.c_str() : "";
+    state["connected"] = wifiIsConnected();
+
+    std::stringstream stream;
+    serializeJson(state, stream);
+
+    server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    server.send(200, "application/json", stream.str().c_str());
+    return;
+  }
+
   String body = server.arg("plain");
   Serial.println(body);
 
@@ -1862,6 +2073,30 @@ void handleConfig() {
     server.send ( 200, "text/html", "error" );
     server.client().stop();
   }
+}
+
+/** Drops the saved network and reboots into the setup AP.
+ *  This is what brings the AP back. A device that is on a network can be told
+ *  a *different* one through the page it serves there, but a network that has
+ *  gone away for good -- the router replaced, the device sold on -- leaves
+ *  nothing to connect to and no way to say so. Rebooting rather than
+ *  reconnecting in place is what the display menu does for the same reason:
+ *  createConfigurationAP() then runs on a device with nothing to lose, so the
+ *  AP comes up clean, and with no credentials to join anything it stays up.
+ *  POST only, so that a captive-portal probe, a link prefetch or a browser
+ *  guessing at urls does not trigger it. */
+void handleForgetWifi() {
+  Serial.println(F("[portal] forgetting the saved network"));
+
+  // Answered before the reset: the phone is about to lose the device and would
+  // otherwise wait out the reboot for a reply that cannot arrive.
+  server.send(200, "text/plain", "ok");
+  server.client().stop();
+
+  resetCredentials();
+
+  delay(1000);
+  ESP.restart();
 }
 
 /** Server url + join password handler, fed by the form on the phone.
