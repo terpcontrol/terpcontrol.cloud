@@ -103,6 +103,8 @@ services:
       API_URL_EXTERNAL: ${API_URL_EXTERNAL}
       # Must match the host side of the mapping above - see .env.sample.
       TERPCAM_P2P_PORTS: 32200-32209
+      TERPCAM_RENDEZVOUS_HOSTS: ${TERPCAM_RENDEZVOUS_HOSTS:-}
+      TERPCAM_ADVERTISE_ADDRESS: ${TERPCAM_ADVERTISE_ADDRESS:-}
       DB_HOST: "mongodb"
       DB_PORT: "27017"
       DB_DATABASE: ${MONGODB_DATABASE}

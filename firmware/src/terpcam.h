@@ -85,7 +85,7 @@ namespace fg {
    *
    * Returns true when the camera answers to the new password afterwards.
    */
-  bool terpCamSecure(Fridgecloud* cloud);
+  bool terpCamSecure(Fridgecloud* cloud, uint32_t find_ms = 90000);
 
   /*
    * ---------------------------------------------------------------------------

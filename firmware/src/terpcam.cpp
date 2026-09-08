@@ -60,7 +60,11 @@ namespace fg {
     constexpr uint8_t  IMAGE_CHANNEL    = 0;      // snapshot.cgi answers on channel 0
     constexpr size_t   HEAP_MARGIN_BYTES = 16 * 1024; // never squeeze the rest of the firmware
     constexpr int      MAX_ATTEMPTS     = 1;      // one try per request; the cloud paces retries
-    constexpr uint32_t RESET_CONFIRM_MS = 4000;   // keep resending restore_factory until it answers
+    constexpr uint32_t RESET_CONFIRM_MS = 4000;
+    // A camera that has just been handed wifi credentials takes a while to show
+    // up on the network, so securing it keeps looking rather than giving up on
+    // the first miss and leaving it on the manufacturer's password.
+    constexpr uint32_t SECURE_FIND_MS   = 90000;   // keep resending restore_factory until it answers
 
     // `snapshot.cgi?res=N` picks the size of the JPEG the camera renders. The
     // values are the vendor's MJPEG sizes (VStarcam C-series CGI manual v12,
@@ -178,6 +182,31 @@ namespace fg {
     // remembered locally.
     std::string g_cam_ip_to_report;
 
+    // The camera's own P2P id, taken from the PunchPkt it answers discovery
+    // with. The cloud needs it to reach the camera from outside this network,
+    // and reading it here means nobody has to look it up anywhere.
+    std::string g_cam_uid_to_report;
+
+    // 20 packed bytes -> the id as it is written down: 4 letters, a number, 5
+    // letters (e.g. VSTH581824TJXUG).
+    std::string formatCamUid(const uint8_t* did) {
+      char prefix[5] = { (char)did[0], (char)did[1], (char)did[2], (char)did[3], 0 };
+      uint64_t number = 0;
+      for(int i = 4; i < 12; i++) number = (number << 8) | did[i];
+      char suffix[6] = { (char)did[12], (char)did[13], (char)did[14], (char)did[15], (char)did[16], 0 };
+      char out[40];
+      snprintf(out, sizeof(out), "%s%llu%s", prefix, (unsigned long long)number, suffix);
+      return std::string(out);
+    }
+
+    void rememberCamUid(const uint8_t* did) {
+      const std::string uid = formatCamUid(did);
+      if(uid.size() < 6 || uid == std::string(fg::settings().getStr("webcam_uid").c_str())) return;
+      fg::settings().setStr("webcam_uid", uid.c_str());
+      fg::settings().commit();
+      g_cam_uid_to_report = uid;
+    }
+
     void rememberCamIp(const IPAddress& ip) {
       const std::string address(ip.toString().c_str());
       if(address.empty() || address == cachedCamIp()) {
@@ -189,9 +218,15 @@ namespace fg {
     }
 
     void reportCamIp(Fridgecloud* cloud) {
-      if(cloud == nullptr || g_cam_ip_to_report.empty()) return;
-      cloud->log("hardware-info:webcam_ip=" + g_cam_ip_to_report, 0);
-      g_cam_ip_to_report.clear();
+      if(cloud == nullptr) return;
+      if(!g_cam_ip_to_report.empty()) {
+        cloud->log("hardware-info:webcam_ip=" + g_cam_ip_to_report, 0);
+        g_cam_ip_to_report.clear();
+      }
+      if(!g_cam_uid_to_report.empty()) {
+        cloud->log("hardware-info:webcam_uid=" + g_cam_uid_to_report, 0);
+        g_cam_uid_to_report.clear();
+      }
     }
 
     // Symmetric table cipher. `prev` is always the ciphertext byte, so encrypt
@@ -302,6 +337,7 @@ namespace fg {
             deobfuscate(g_rx, len);
             if(g_rx[0] == 0xf1 && g_rx[1] == 0x41) {
               memcpy(did, g_rx + 4, 20);
+              rememberCamUid(did);
               peer_ip = udp.remoteIP();
               peer_port = udp.remotePort();
               esp_task_wdt_reset();
@@ -450,7 +486,7 @@ namespace fg {
     return password;
   }
 
-  bool terpCamSecure(Fridgecloud* cloud) {
+  bool terpCamSecure(Fridgecloud* cloud, uint32_t find_ms) {
     if(!camIsPaired()) return false;
     // Already done: a stored password means this camera is not on the default.
     if(!settingIsEmpty(std::string(fg::settings().getStr(TERP_CAM_PWD_NVS_KEY).c_str()))) return true;
@@ -468,7 +504,19 @@ namespace fg {
     bool secured = false;
     const std::string password = generatePassword();
 
-    if(openSession(udp, peer_ip, peer_port)) {
+    // Straight after pairing the camera is still joining the network, so the
+    // first attempts find nothing. Keep trying for a while rather than giving up
+    // and leaving it on the manufacturer's password.
+    bool have_session = false;
+    const uint32_t find_until = millis() + find_ms;
+    while(!have_session && (int32_t)(find_until - millis()) > 0) {
+      have_session = openSession(udp, peer_ip, peer_port);
+      if(!have_session) {
+        for(int i = 0; i < 20; i++) { delay(100); esp_task_wdt_reset(); }
+      }
+    }
+
+    if(have_session) {
       char cgi[224];
       snprintf(cgi, sizeof(cgi),
                "set_users.cgi?pwd_change_realtime=1&user1=&user2=&user3=admin&pwd1=&pwd2=&pwd3=%s&%s",
@@ -580,6 +628,14 @@ namespace fg {
     const std::string did_str = fg::settings().getStr("webcam_did");
     if(settingIsEmpty(did_str) || did_str == "none" || cloud == nullptr) {
       return false;   // no camera paired
+    }
+
+    // A camera still on the manufacturer's password gets its own here. Pairing
+    // does it, but one that was slow to appear then — or was paired by an older
+    // build — would otherwise stay on the published default forever. One attempt
+    // only: this is the capture path, not the place to wait for a camera.
+    if(settingIsEmpty(std::string(fg::settings().getStr(TERP_CAM_PWD_NVS_KEY).c_str()))) {
+      terpCamSecure(cloud, 0);
     }
 
     // Take the receive window for the duration of this capture only. If the heap

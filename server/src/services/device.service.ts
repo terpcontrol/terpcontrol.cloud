@@ -629,9 +629,6 @@ class DeviceService {
       await this.reconcileP2PCamera(deviceId, infoValue);
     }
 
-    // The controller is on the camera's network and already knows where it
-    // answers. Passing that on lets the cloud reach the camera directly, without
-    // asking the vendor's rendezvous servers where it is.
     // The controller sets a per-camera password at pairing and reports it here,
     // because the cloud fetches stills itself and has to authenticate. It is
     // stored against the device and never written to its log.
@@ -639,8 +636,10 @@ class DeviceService {
       terpCamDirectService.rememberPassword(deviceId, infoValue);
     }
 
-    if (infoKey === 'webcam_ip') {
-      terpCamDirectService.rememberLanAddress(deviceId, infoValue);
+    // The controller reads the camera's P2P id off the camera itself, which is
+    // how the cloud can ask for it by name without looking anything up.
+    if (infoKey === 'webcam_uid') {
+      terpCamDirectService.rememberUid(deviceId, infoValue);
     }
   }
 

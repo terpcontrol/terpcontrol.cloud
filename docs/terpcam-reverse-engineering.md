@@ -941,35 +941,32 @@ again**, and an operator who wants that guaranteed rather than merely typical ca
 genuinely remote server still needs the rendezvous per session, because there is no other way to find a camera behind
 somebody else's NAT — that is the trade the deployment makes, not a property of the protocol.
 
-### 26.8 The rendezvous path is gone — discovery belongs on the controller
+### 26.8 Reaching the camera from anywhere, without a lookup per image
 
-§26.4 measured that a server anywhere on the internet can locate a camera through the manufacturer's rendezvous
-servers, and that stands as a fact about the protocol. It is **not** how this ships, because it costs a third-party
-lookup *per capture*: a fresh session is needed for every full-resolution keyframe, so a 30-second poll means a
-lookup every 30 seconds, telling someone else how often each camera is read.
+§26.7 removed the rendezvous on the reasoning that the server shares the cameras' network. That holds for a stack
+hosted at home and **not** for the product: a customer's camera sits on a customer's network, and a central server has
+no way to LanSearch into it. So the rendezvous is back — and the objection to it, a third-party lookup per image, is
+answered by not doing one per image.
 
-It is also unnecessary. **The camera is always on the same network as its controller**, so discovery can always happen
-there, and the controller already does it — `terpCamSearch()` (§23) broadcasts for the camera and remembers where it
-answered. That address now reaches the cloud: `rememberCamIp()` reports `hardware-info:webcam_ip=<addr>` whenever it
-changes, not merely at boot, so a camera that moves is re-found by the controller and the server is told.
+**The path is punched once and kept.** `openPath()` asks the rendezvous servers where a camera is, receives its punch,
+and then holds the socket: a keepalive every 20 s keeps the NAT mapping alive at both ends, and later captures open a
+session straight to the endpoint. The manufacturer is contacted once per camera, not once per still, and again only if
+the path stops working — a failed capture drops it so the next one re-punches.
 
-So the server's capture path is:
+The camera's id no longer needs looking up either. The controller reads it off the camera during discovery — the
+PunchPkt carries it (§26.2) — and reports it as `hardware-info:webcam_uid`, so the label→id directory is gone with the
+LAN route.
 
-1. LanSearch (`f1 30`) to the address the controller reported. The PunchPkt that answers **states the camera's own
-   id**, so nothing has to be looked up anywhere.
-2. If that fails, the controller relays the capture as it always did — which also re-runs discovery, so the next
-   direct attempt has a fresh address. The fallback is the repair.
+What each part now does:
 
-There is deliberately no third route. `rendezvous()`, the hole punch, the label→id directory and the packed-id helper
-are all deleted rather than disabled, so no configuration can turn outside contact back on by accident. The
-manufacturer's addresses survive only as a measurement in §26.4.
+| | |
+|---|---|
+| controller | finds the camera on its own network, reports its id and password |
+| server | punches once via the rendezvous, keeps the path warm, captures at 2304×1296 |
+| rendezvous | consulted per camera, not per image; unset = controller relays instead |
 
-Measured after the removal, through the containerised server: **6/6 at 2304×1296, ~0.9 s each.**
-
-The consequence to be honest about: a server that does **not** share a network with its cameras can no longer fetch
-them directly at all, and falls back to the controller relay — 640×360, and the reliability §20 measured. That is the
-right trade for this product, whose stack runs alongside the devices it serves, and it is a deployment property rather
-than a protocol limit.
+`TERPCAM_RENDEZVOUS_HOSTS` is empty by default and holds no addresses in source, so a deployment that will not talk to
+the manufacturer at all simply leaves it unset and gets the controller-relayed path.
 
 ### 26.9 The camera gets its own password at pairing (2026-09-08)
 
