@@ -494,12 +494,10 @@ class ImageService {
       // controller's 640x360, and no fragment loss. Which camera that is comes
       // from what the DEVICE reported, not from the setting — the setting only
       // says that this device has one.
-      if (terpCamDirectService.canCapture(deviceId)) {
-        try {
-          return await terpCamDirectService.captureStill(deviceId);
-        } catch (e) {
-          console.log(`Direct capture for ${deviceId} failed (${(e as Error).message}); asking the controller`);
-        }
+      try {
+        return await terpCamDirectService.captureStill(deviceId);
+      } catch (e) {
+        console.log(`Direct capture for ${deviceId} failed (${(e as Error).message}); asking the controller`);
       }
       return terpCamP2PService.captureViaController(deviceId);
     }

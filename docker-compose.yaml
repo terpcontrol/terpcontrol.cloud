@@ -104,7 +104,10 @@ services:
       # Must match the host side of the mapping above - see .env.sample.
       TERPCAM_P2P_PORTS: 32200-32209
       TERPCAM_RENDEZVOUS_HOSTS: ${TERPCAM_RENDEZVOUS_HOSTS:-}
+      # Defaults to MQTT_HOST_EXTERNAL, which is the same address for a stack
+      # hosted alongside its cameras; only a private one is ever advertised.
       TERPCAM_ADVERTISE_ADDRESS: ${TERPCAM_ADVERTISE_ADDRESS:-}
+      MQTT_HOST_EXTERNAL: ${MQTT_HOST_EXTERNAL:-}
       DB_HOST: "mongodb"
       DB_PORT: "27017"
       DB_DATABASE: ${MONGODB_DATABASE}

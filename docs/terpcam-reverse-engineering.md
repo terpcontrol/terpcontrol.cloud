@@ -948,10 +948,29 @@ hosted at home and **not** for the product: a customer's camera sits on a custom
 no way to LanSearch into it. So the rendezvous is back — and the objection to it, a third-party lookup per image, is
 answered by not doing one per image.
 
-**The path is punched once and kept.** `openPath()` asks the rendezvous servers where a camera is, receives its punch,
-and then holds the socket: a keepalive every 20 s keeps the NAT mapping alive at both ends, and later captures open a
-session straight to the endpoint. The manufacturer is contacted once per camera, not once per still, and again only if
-the path stops working — a failed capture drops it so the next one re-punches.
+**Reusing a punched path was tried and does not work.** The intent was one lookup per camera rather than one per
+image: keep the socket, hold the NAT mapping open with a keepalive, and open later sessions straight to the endpoint.
+The camera does not allow it, for a reason that is visible in one log:
+
+```
+camera punched from 192.168.144.145:25564
+camera punched from 192.168.144.145:13515
+camera punched from 192.168.144.145:20760
+camera punched from 192.168.144.145:21377
+```
+
+**It answers every new session from a different port.** A full-resolution still needs a fresh session — one keyframe
+per session, and a repeat request on a live one is ignored (§26.5) — so the endpoint is stale the moment the session
+using it closes, and only the rendezvous knows the next one. Reuse was measured failing at login every single time,
+costing 8 s before falling back to a fresh punch: 5/5 images, but ~10 s each instead of ~1.5 s. The caching was
+removed, and a capture is one rendezvous, one session, one image.
+
+**So a full-resolution capture costs one lookup.** Measured 6/6 at 2304×1296, ~1.4 s each. At the default 30 s poll
+that is two lookups a minute per camera, which is the honest price of the resolution.
+
+If that is too much, the shape that would reduce it is a **persistent session serving `snapshot.cgi`**: 640×360 stills
+can be taken repeatedly on one live session, so lookups would drop to one per session rather than one per image, with
+full-resolution frames taken only occasionally. That trades resolution for contact and is not implemented.
 
 The camera's id no longer needs looking up either. The controller reads it off the camera during discovery — the
 PunchPkt carries it (§26.2) — and reports it as `hardware-info:webcam_uid`, so the label→id directory is gone with the

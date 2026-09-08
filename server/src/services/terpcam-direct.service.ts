@@ -1,6 +1,7 @@
 import dgram from 'node:dgram';
 import { logger } from '@utils/logger';
 import { terpCamService } from '@services/terpcam.service';
+import deviceModel from '@models/device.model';
 
 /**
  * Terp Cam stills, fetched by the server itself.
@@ -63,14 +64,20 @@ const RENDEZVOUS_HOSTS = (process.env.TERPCAM_RENDEZVOUS_HOSTS ?? '')
   .filter(Boolean);
 const RENDEZVOUS_PORTS = [32100, 32101, 32102];
 const RENDEZVOUS_MS = 20_000;
-/** Often enough to hold a NAT mapping open; most expire after 30-60s idle. */
-const KEEPALIVE_MS = 20_000;
 
 /**
- * Address to tell the camera to punch at when it shares this network — only
- * useful for a stack hosted alongside its cameras, and detected otherwise.
+ * Address to tell a camera on this network to punch at.
+ *
+ * Defaults to MQTT_HOST_EXTERNAL, which is already the address this stack is
+ * reachable at from its devices — on a stack hosted alongside its cameras that
+ * is exactly the right answer, and it saves configuring the same thing twice.
+ * Only a private address is used: announcing a public one stops the camera
+ * punching at all (measured), so a hosted stack correctly advertises nothing.
  */
-const TERPCAM_ADVERTISE_ADDRESS = process.env.TERPCAM_ADVERTISE_ADDRESS?.trim() || null;
+const TERPCAM_ADVERTISE_ADDRESS = (() => {
+  const configured = (process.env.TERPCAM_ADVERTISE_ADDRESS || process.env.MQTT_HOST_EXTERNAL || '').trim();
+  return configured && isPrivate(configured) ? configured : null;
+})();
 
 /**
  * UDP ports bound for captures. Fixed inside the container — docker-compose.yaml
@@ -165,6 +172,58 @@ function buildAck(channel: number, index: number): Buffer {
   return buildPacket(0xd1, body);
 }
 
+/** `VSTH581824TJXUG` / `VSTH-581824-TJXUG` -> the 20-byte packed wire form. */
+export function packDeviceId(uid: string): Buffer {
+  const plain = uid.replace(/-/g, '');
+  const prefix = plain.slice(0, 4);
+  const suffix = plain.slice(-5);
+  const number = plain.slice(4, -5);
+  if (!/^[A-Za-z]{4}$/.test(prefix) || !/^\d+$/.test(number)) {
+    throw new Error(`not a P2P device id: ${uid}`);
+  }
+  const out = Buffer.alloc(20);
+  out.write(prefix, 0, 'latin1');
+  out.writeBigUInt64BE(BigInt(number), 4);
+  out.write(suffix, 12, 'latin1');
+  return out;
+}
+
+/** RFC1918, i.e. an address that only means something on our own network. */
+function isPrivate(address: string): boolean {
+  return /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(address);
+}
+
+/**
+ * Our own address on the route to `host`, when that address is a private one.
+ *
+ * The lookup carries this so two peers on the same network can shortcut past the
+ * public path, and it matters in both directions: a server that announces its
+ * PUBLIC address here gets no punch at all, while a host that genuinely shares
+ * the camera's LAN only gets punched on the address it names. Asking the routing
+ * table rather than picking the first private interface matters on a developer
+ * machine, which usually has several (VM bridges, a second NIC) and only one
+ * that reaches the camera.
+ */
+function routableAddress(host: string): Promise<string | null> {
+  return new Promise(resolve => {
+    const probe = dgram.createSocket('udp4');
+    const done = (address: string | null) => {
+      try {
+        probe.close();
+      } catch {
+        /* already closed */
+      }
+      resolve(address);
+    };
+    probe.once('error', () => done(null));
+    // A connected UDP socket sends nothing; it just fixes the source address.
+    probe.connect(32100, host, () => {
+      const address = probe.address()?.address ?? null;
+      done(address && isPrivate(address) ? address : null);
+    });
+  });
+}
+
 /** Wire addresses are `u16 family, u16 port (BE), u32 ip (LE)`. */
 function parseAddress(body: Buffer, offset = 0): Endpoint | null {
   if (body.length < offset + 8) return null;
@@ -235,19 +294,6 @@ class TerpCamDirectService {
     if (camera && uid && uid !== 'none') camera.uid = uid;
   }
 
-  /** Drop the open path to a camera, so the next capture looks it up again. */
-  private closePath(deviceId: string): void {
-    const path = this.paths.get(deviceId);
-    if (!path) return;
-    clearInterval(path.keepalive);
-    try {
-      path.socket.close();
-    } catch {
-      /* already closed */
-    }
-    this.paths.delete(deviceId);
-  }
-
   /**
    * Bind the socket to one of P2P_PORTS, falling back to an ephemeral port.
    *
@@ -280,64 +326,30 @@ class TerpCamDirectService {
   }
 
   /**
-   * Punch a path to a camera and keep it open.
+   * What a device has told us about its own camera, from memory or from what it
+   * reported earlier.
    *
-   * This is the only place that talks to the manufacturer's servers, and it runs
-   * once per camera rather than once per image: the socket is kept, and a
-   * keepalive holds the NAT mapping on both sides so later captures go straight
-   * to the endpoint. If the camera stops answering the path is dropped and the
-   * next capture pays for one more lookup.
+   * Reading it back from the device record matters: a device reports at boot, so
+   * a server that has just restarted would otherwise know nothing about any
+   * camera until every controller happened to reboot.
    */
-  private async openPath(
-    deviceId: string,
-    did: Buffer,
-  ): Promise<{ socket: dgram.Socket; peer: Endpoint; inbox: { message: Buffer; from: Endpoint }[]; keepalive: NodeJS.Timeout }> {
-    const socket = dgram.createSocket('udp4');
-    const inbox: { message: Buffer; from: Endpoint }[] = [];
-    socket.on('message', (message, rinfo) => {
-      inbox.push({ message: deobfuscate(message), from: { address: rinfo.address, port: rinfo.port } });
-    });
-    socket.on('error', () => undefined); // an unreachable stale endpoint is ICMP noise
+  private async cameraFor(deviceId: string): Promise<{ label: string; uid?: string; password?: string } | null> {
+    const known = this.cameras.get(deviceId);
+    if (known?.uid) return known;
 
-    try {
-      await this.bind(socket);
-      const peer = await this.rendezvous(socket, inbox, did);
-      const keepalive = setInterval(() => {
-        // A bare Punch: enough to keep the mapping from ageing out at either
-        // end, and the camera ignores it outside a session.
-        socket.send(buildPacket(0x41, did), peer.port, peer.address, () => undefined);
-      }, KEEPALIVE_MS);
-      keepalive.unref?.();
-      const path = { socket, peer, inbox, keepalive };
-      this.paths.set(deviceId, path);
-      return path;
-    } catch (error) {
-      try {
-        socket.close();
-      } catch {
-        /* never opened */
-      }
-      throw error;
-    }
-  }
+    const device = await deviceModel.findOne({ device_id: deviceId });
+    const info = device?.hardwareInfo;
+    const label = info?.webcam_did;
+    if (!label || label === 'none' || !info?.webcam_uid) return null;
 
-  /** Whether this device has a camera we know how to reach ourselves. */
-  public canCapture(deviceId: string): boolean {
-    return Boolean(RENDEZVOUS_HOSTS.length && this.cameras.get(deviceId)?.uid);
+    const camera = { label, uid: info.webcam_uid, password: info.webcam_pwd || undefined };
+    this.cameras.set(deviceId, camera);
+    return camera;
   }
 
   /** Pull one still as a ready JPEG, decoding the keyframe when there is one. */
   public async captureStill(deviceId: string): Promise<Buffer> {
-    let result: { data: Buffer; h264: boolean };
-    try {
-      result = await this.capture(deviceId);
-    } catch (error) {
-      // The path we had is evidently no longer good — drop it so the next
-      // attempt punches a fresh one rather than retrying a dead endpoint.
-      this.closePath(deviceId);
-      throw error;
-    }
-    const { data, h264 } = result;
+    const { data, h264 } = await this.capture(deviceId);
     if (!h264) return data;
     const jpeg = await terpCamService.decodeKeyframeToJpeg(data);
     logger.info(`[terpcam] ${deviceId}: ${data.length}B keyframe -> ${jpeg.length}B jpeg`);
@@ -353,7 +365,7 @@ class TerpCamDirectService {
     // The camera is whatever this device reported as its own — never a name the
     // caller supplied, so no stream setting can point a capture at a camera
     // belonging to someone else.
-    const camera = this.cameras.get(deviceId);
+    const camera = await this.cameraFor(deviceId);
     if (!camera?.uid) {
       throw new Error('this device has not reported a camera we can reach');
     }
@@ -362,14 +374,17 @@ class TerpCamDirectService {
     }
 
     const did = packDeviceId(camera.uid);
-    // Reuse the path already punched to this camera; only look it up when there
-    // is none, or when the one we have has stopped answering.
-    const path = this.paths.get(deviceId) ?? (await this.openPath(deviceId, did));
-    const { socket, inbox, peer } = path;
+    const socket = dgram.createSocket('udp4');
+    const inbox: { message: Buffer; from: Endpoint }[] = [];
+    socket.on('message', (message, rinfo) => {
+      inbox.push({ message: deobfuscate(message), from: { address: rinfo.address, port: rinfo.port } });
+    });
+    socket.on('error', () => undefined); // ICMP for a stale endpoint is normal
 
     let streaming: { peer: Endpoint; auth: string } | null = null;
     try {
-      inbox.length = 0; // anything still queued belongs to an earlier capture
+      await this.bind(socket);
+      const peer = await this.rendezvous(socket, inbox, did);
       const auth = authFor(camera.password ?? DEFAULT_PASSWORD);
       await this.login(socket, inbox, did, peer, auth);
 
@@ -394,6 +409,7 @@ class TerpCamDirectService {
         socket.send(buildPacket(0xf0), to.port, to.address, () => undefined);
         await new Promise(resolve => setTimeout(resolve, 150));
       }
+      socket.close();
     }
   }
 
