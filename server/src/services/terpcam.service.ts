@@ -4,11 +4,11 @@ import imageModel from '@models/images.model';
 import { Image } from '@fg2/shared-types';
 
 /**
- * O-KAM / VStarcam camera stills.
+ * Terp Cam camera stills.
  *
  * The shipped webcam is a VStarcam OEM that, once on the home wifi, only speaks a
  * proprietary P2P transport (no LAN RTSP/HTTP — see
- * docs/okam-webcam-reverse-engineering.md). The controller, which sits on the
+ * docs/terpcam-reverse-engineering.md). The controller, which sits on the
  * camera's LAN, runs the lightweight reverse-engineered P2P client, grabs one
  * H.264 keyframe every 1-2 min and uploads the raw elementary stream to the
  * server. This service turns that keyframe into a JPEG and stores it through the
@@ -21,7 +21,7 @@ import { Image } from '@fg2/shared-types';
 
 const FFMPEG_TIMEOUT_MS = 15_000;
 
-class OkamCamService {
+class TerpCamService {
   /** Decode a single H.264 keyframe (Annex-B elementary stream) to a JPEG buffer. */
   public decodeKeyframeToJpeg(h264: Buffer): Promise<Buffer> {
     return new Promise((resolve, reject) => {
@@ -61,4 +61,4 @@ class OkamCamService {
   }
 }
 
-export const okamCamService = new OkamCamService();
+export const terpCamService = new TerpCamService();

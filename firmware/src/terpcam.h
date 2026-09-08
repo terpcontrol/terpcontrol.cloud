@@ -5,11 +5,11 @@
 namespace fg {
 
   /**
-   * Grab one JPEG still from the paired O-KAM/VStarcam camera on the local
+   * Grab one JPEG still from the paired Terp Cam (a VStarcam OEM) camera on the local
    * network and stream it to the cloud.
    *
    * The camera speaks a proprietary P2P protocol (reverse-engineered; see
-   * docs/okam-webcam-reverse-engineering.md). Running the client here rather
+   * docs/terpcam-reverse-engineering.md). Running the client here rather
    * than in the cloud is what makes it reliable: the camera's sliding-window
    * retransmission needs low, predictable latency, which a LAN round-trip has
    * and a round-trip through the MQTT tunnel does not.
@@ -33,7 +33,7 @@ namespace fg {
    * Returns true when a complete image was streamed. Safe to call when no
    * camera is paired (returns false immediately).
    */
-  bool okamCamCapture(Fridgecloud* cloud);
+  bool terpCamCapture(Fridgecloud* cloud);
 
   /**
    * Factory-reset the paired camera so it drops back to its `@IPC-<n>` setup AP
@@ -49,14 +49,14 @@ namespace fg {
    * either way, otherwise a camera that is already off or out of range would
    * make disconnecting impossible.
    */
-  bool okamCamFactoryReset(Fridgecloud* cloud);
+  bool terpCamFactoryReset(Fridgecloud* cloud);
 
   /**
    * Whether the camera has been unreachable often enough that it is worth
    * looking for it on the network again — typically because DHCP moved it and
    * the address it last answered on is stale.
    */
-  bool okamCamNeedsSearch();
+  bool terpCamNeedsSearch();
 
   /**
    * Looks for the paired camera and remembers where it answered.
@@ -69,7 +69,7 @@ namespace fg {
    *
    * Returns true when the camera answered.
    */
-  bool okamCamSearch(Fridgecloud* cloud);
+  bool terpCamSearch(Fridgecloud* cloud);
 
   /*
    * ---------------------------------------------------------------------------
@@ -91,7 +91,7 @@ namespace fg {
    *   at offset 16, little-endian) followed by H.264 Annex-B. Keep the first
    *   keyframe (SPS NAL 7 + IDR NAL 5), publish the raw H.264 with
    *   `"h264":true` in the image message, and the server decodes it to JPEG with
-   *   ffmpeg (`okamCamService.decodeKeyframeToJpeg`). The controller decodes
+   *   ffmpeg (`terpCamService.decodeKeyframeToJpeg`). The controller decodes
    *   nothing.
    *
    * WHY IT IS UNRELIABLE — four findings, in the order they bite
@@ -116,7 +116,7 @@ namespace fg {
    *      a busy one. When the whole image had to be buffered this alone was
    *      fatal — an oversized keyframe was refused outright, so a build that
    *      worked at 37 KB scored 0/10 once the scene brightened. The sliding
-   *      window in okamcam.cpp removes that particular ceiling; findings 1-3
+   *      window in terpcam.cpp removes that particular ceiling; findings 1-3
    *      stand on their own.
    *
    * WHAT WAS TRIED AND DOES NOT WORK — do not spend time on these again

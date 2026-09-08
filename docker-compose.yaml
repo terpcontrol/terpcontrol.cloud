@@ -91,19 +91,20 @@ services:
      - rabbitmq
     ports:
       - ${API_PORT_EXTERNAL}:8081
-      # UDP ports the O-KAM P2P client binds. They must be published: the camera
+      # UDP ports the Terp Cam P2P client binds. They must be published: the camera
       # hole-punches at us from an address we never sent to, so the bridge's NAT
       # has no state for it and drops the packet unless the port is forwarded.
-      - ${OKAM_P2P_PORTS_EXTERNAL:-32200-32209}:32200-32209/udp
+      - ${TERPCAM_P2P_PORTS_EXTERNAL:-32200-32209}:32200-32209/udp
     networks:
       - main
     environment:
       SECRET_KEY: ${TOKEN_SECRET_KEY}
       PORT: 8081
       API_URL_EXTERNAL: ${API_URL_EXTERNAL}
-      OKAM_P2P_PORTS: ${OKAM_P2P_PORTS:-32200-32209}
-      OKAM_ADVERTISE_ADDRESS: ${OKAM_ADVERTISE_ADDRESS:-}
-      OKAM_RENDEZVOUS_HOSTS: ${OKAM_RENDEZVOUS_HOSTS-52.47.140.105,18.130.74.40,47.254.150.171}
+      TERPCAM_P2P_PORTS: ${TERPCAM_P2P_PORTS:-32200-32209}
+      TERPCAM_ADVERTISE_ADDRESS: ${TERPCAM_ADVERTISE_ADDRESS:-}
+      TERPCAM_RENDEZVOUS_HOSTS: ${TERPCAM_RENDEZVOUS_HOSTS:-}
+      TERPCAM_DIRECTORY_URL: ${TERPCAM_DIRECTORY_URL:-}
       DB_HOST: "mongodb"
       DB_PORT: "27017"
       DB_DATABASE: ${MONGODB_DATABASE}

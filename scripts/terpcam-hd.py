@@ -16,13 +16,18 @@ exactly one chance, and the whole job is to receive that one burst intact.
 On the ESP32 that burst was the problem (~53 unpaced 1 KB fragments into a
 mailbox a few datagrams deep, 3/8 success). A server has none of those limits.
 
-Usage: okamhd.py <DID> [--substream N] [-o out.h264] [--lan]
+Usage: terpcam-hd.py <DID> [--substream N] [-o out.h264] [--lan]
 """
 import argparse, socket, struct, sys, time
 
 sys.path.insert(0, __file__.rsplit("/", 1)[0])
-from okamprobe import build_packet, build_cgi, build_ack, deobfuscate, obfuscate, AUTH, Session
-from okamwan import rendezvous, punch, login, pack_did
+from importlib import import_module
+
+_lan = import_module('terpcam-lan')          # hyphenated module names
+_remote = import_module('terpcam-remote')
+build_packet, build_cgi, build_ack = _lan.build_packet, _lan.build_cgi, _lan.build_ack
+deobfuscate, obfuscate, AUTH, Session = _lan.deobfuscate, _lan.obfuscate, _lan.AUTH, _lan.Session
+rendezvous, punch, login, pack_did = _remote.rendezvous, _remote.punch, _remote.login, _remote.pack_did
 
 VIDEO_CHANNEL = 1
 FRAME_MAGIC = b"\x55\xaa\x15\xa8"

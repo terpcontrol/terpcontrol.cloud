@@ -16,7 +16,7 @@ import {
   UserFirmwareList,
 } from '@fg2/shared-types';
 import deviceModel from '@models/device.model';
-import { okamDirectService } from '@services/okam-direct.service';
+import { terpCamDirectService } from '@services/terpcam-direct.service';
 import deviceLogModel from '@models/devicelog.model';
 import deviceClassModel from '@/models/deviceclass.model';
 import { deviceFirmwareBinaryModel, deviceFirmwareModel } from '@/models/devicefirmware.model';
@@ -32,7 +32,7 @@ import { isNumeric } from 'influx/lib/src/grammar';
 import { mailTransport } from '@services/auth.service';
 import { imageService } from '@services/image.service';
 import { tunnelService } from '@services/tunnel.service';
-import { okamP2PService, OKAM_STREAM_PREFIX } from '@services/okam-p2p.service';
+import { terpCamP2PService, TERPCAM_STREAM_PREFIX, TERPCAM_STREAM_PREFIXES } from '@services/terpcam-p2p.service';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
 import { demoAlarms, demoCloudSettings, demoDevice } from '@utils/demo';
 
@@ -215,7 +215,7 @@ class DeviceService {
               await tunnelService.onTunnelReadDataReceived(device.device_id, message.message);
               break;
             case 'image':
-              okamP2PService.onImageMessage(device.device_id, message.message);
+              terpCamP2PService.onImageMessage(device.device_id, message.message);
               break;
             case 'tunnel_write':
             case 'command':
@@ -635,7 +635,7 @@ class DeviceService {
       const device = await deviceModel.findOne({ device_id: deviceId });
       const label = device?.hardwareInfo?.webcam_did;
       if (label && label !== 'none') {
-        okamDirectService.rememberLanAddress(label, infoValue);
+        terpCamDirectService.rememberLanAddress(label, infoValue);
       }
     }
   }
@@ -679,12 +679,12 @@ class DeviceService {
   private async reconcileP2PCamera(deviceId: string, did: string) {
     // Escaped rather than interpolated raw: the prefix is a constant today, but
     // a regex built from a value is a trap waiting for the day it changes.
-    const okamPrefixPattern = new RegExp('^' + OKAM_STREAM_PREFIX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const camPrefixPattern = new RegExp('^(' + TERPCAM_STREAM_PREFIXES.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')');
 
     // Camera gone: drop the stream, or it keeps being shown and polled.
     if (did === 'none' || did === '') {
       await deviceModel.findOneAndUpdate(
-        { device_id: deviceId, 'cloudSettings.rtspStream': okamPrefixPattern },
+        { device_id: deviceId, 'cloudSettings.rtspStream': camPrefixPattern },
         { $unset: { 'cloudSettings.rtspStream': '' } },
       );
       return;
@@ -704,10 +704,10 @@ class DeviceService {
         $or: [
           { 'cloudSettings.rtspStream': { $in: [null, ''] } },
           { 'cloudSettings.rtspStream': { $exists: false } },
-          { 'cloudSettings.rtspStream': okamPrefixPattern },
+          { 'cloudSettings.rtspStream': camPrefixPattern },
         ],
       },
-      { $set: { 'cloudSettings.rtspStream': OKAM_STREAM_PREFIX + did, 'cloudSettings.webcamModel': 'terp_cam' } },
+      { $set: { 'cloudSettings.rtspStream': TERPCAM_STREAM_PREFIX + did, 'cloudSettings.webcamModel': 'terp_cam' } },
     );
   }
 

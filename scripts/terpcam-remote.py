@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Pull a still from an O-KAM/VStarcam camera over the internet — no LAN, no
+"""Pull a still from an Terp Cam camera over the internet — no LAN, no
 controller, no vendor binary.
 
-The LAN client (okamprobe.py, and firmware/src/okamcam.cpp) finds the camera with
+The LAN client (terpcam-lan.py, and firmware/src/terpcam.cpp) finds the camera with
 a LanSearch broadcast. That only works on its own network. This does the same job
 through the vendor's CS2 rendezvous servers, which is the part the SDK's native
 library was doing for us:
@@ -19,18 +19,23 @@ the LAN one, so everything below reuses okamprobe.
 Addresses on the wire are `u16 family, u16 port (big endian), u32 ip (little
 endian)`.
 
-Usage: okamwan.py <DID> [--public-only] [-o out.jpg] [--cgi '<cgi>']
+Usage: terpcam-remote.py <DID> [--public-only] [-o out.jpg] [--cgi '<cgi>']
 """
-import argparse, socket, struct, sys, time
+import argparse, os, socket, struct, sys, time
 
 sys.path.insert(0, __file__.rsplit("/", 1)[0])
-from okamprobe import (Session, build_packet, obfuscate, deobfuscate, AUTH,
-                       extract_jpeg, jpeg_dims)
+from importlib import import_module
 
-# CS2 rendezvous servers this camera family registers with, observed by tracing
-# the vendor stack's own socket calls. The encoded init string in the SDK decodes
-# to these; they are stable per prefix, not per device.
-SUPERNODES = ["52.47.140.105", "18.130.74.40", "47.254.150.171"]
+_lan = import_module('terpcam-lan')          # hyphenated module name
+Session, build_packet, obfuscate = _lan.Session, _lan.build_packet, _lan.obfuscate
+deobfuscate, AUTH = _lan.deobfuscate, _lan.AUTH
+extract_jpeg, jpeg_dims = _lan.extract_jpeg, _lan.jpeg_dims
+
+# Rendezvous servers used to find a camera that is not on this machine's network.
+# They belong to the camera manufacturer and are deliberately not written down
+# here: set TERPCAM_RENDEZVOUS_HOSTS to use this path at all. On the local
+# network use terpcam-lan.py instead, which needs no such thing.
+SUPERNODES = [h.strip() for h in os.environ.get("TERPCAM_RENDEZVOUS_HOSTS", "").split(",") if h.strip()]
 SUPERNODE_PORTS = [32100, 32101, 32102]
 
 def pack_did(did: str) -> bytes:
@@ -204,6 +209,9 @@ def main():
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("", 0))
+    if not SUPERNODES:
+        print("set TERPCAM_RENDEZVOUS_HOSTS to use the remote path", file=sys.stderr)
+        return 2
     peers, punched = rendezvous(sock, args.did)
     if not peers and not punched:
         print("no candidates: the supernodes did not answer for this DID", file=sys.stderr)

@@ -149,9 +149,9 @@ Deliver the HD still via the **controller's existing MQTT tunnel** (`server/src/
   reference, `doc/en/CGI Documentation0125.docx` the app-facing summary, `lib/camera_device/commands/video_command.dart`
   the resolution/stream code. See §24. Extract the PDFs with `pypdf` (`pip install pypdf`); this Mac has no
   `pdftotext`/`mutool`, and the PDFs use CID fonts so raw stream decompression yields glyph ids, not text.
-- **`okamprobe.py`** — a LAN-direct probe client, a straight port of `firmware/src/okamcam.cpp` (S-box, `F1` framing,
+- **`okamprobe.py`** — a LAN-direct probe client, a straight port of `firmware/src/terpcam.cpp` (S-box, `F1` framing,
   LanSearch → Hello/P2pReq/DevLgn/Punch → DRW CGI → indexed reassembly) plus a JPEG SOF parser. In `/tmp/okam-re/`;
-  re-porting it from `okamcam.cpp` takes minutes if that is wiped. It is the fastest way to answer "what does this CGI
+  re-porting it from `terpcam.cpp` takes minutes if that is wiped. It is the fastest way to answer "what does this CGI
   actually return" without flashing firmware — `Cam().discover()` / `.auth()` / `.request("snapshot.cgi?res=2&"+AUTH)`.
 - AVD `okamre` persists in `~/.android/avd`. Android SDK at `~/Library/Android/sdk` (cmdline‑tools installed; Homebrew is broken for installs on this Mac; system python 3.9 too old for frida → use `/opt/homebrew/bin/python3.13`).
 - Camera HTTP: `admin` / `888888`. Device: `did=VSTH204422KPFRR`, `realdeviceid=AAC2852199TWVA`, LAN IP `192.168.144.85`, MQTT device‑record `security=<MQTT_DEVICE_SECURITY>`.
@@ -245,7 +245,7 @@ Decision (2026‑08‑20): stop relaying P2P through the MQTT tunnel. The camera
 
 **Why this is reliable:** the whole ARQ conversation stays on the LAN, where it has always worked 100 % (verified repeatedly). Only the finished JPEG crosses the internet, and it does so over MQTT‑on‑TCP — an ordered, retransmitting transport — in a one‑way, latency‑tolerant stream. No H.264 decode anywhere: `snapshot.cgi` already returns JPEG.
 
-**Memory (the binding constraint on the ESP32) — `firmware/src/okamcam.cpp`:**
+**Memory (the binding constraint on the ESP32) — `firmware/src/terpcam.cpp`:**
 - **Nothing is heap‑allocated in the capture path.** Four file‑static buffers (~4.8 KB total: 1.2 KB datagram, 256 B outbound, 1.6 KB base64, 1.8 KB message). Static, so they can neither leak nor fragment the heap, and the cost is fixed and known rather than depending on runtime conditions.
 - **The image is never buffered.** Fragments are published as they are read, so RAM use is independent of image size — a 32 KB or a 1 MB still costs the same.
 - The 256‑byte cipher table is `const` → flash, not RAM. Base64 encodes into the static buffer (the shared helper returns a `std::string`, i.e. a heap allocation per fragment — deliberately not used here).
@@ -295,7 +295,7 @@ Next things to try, in order: a short delay between the in-session retries (the 
 > which is simply not one of the names tried below. Its ceiling is 1280×720, so 2304×1296 remains video-only and the
 > rest of §18–§20 stands.
 
-`snapshot.cgi` is hardwired to the 640×360 sub-stream: `stream=`, `resolution=` and `substream=` were all tried and every variant returns 640×360. The full-resolution image is only available from the **video** stream, so the controller now asks for `livestream.cgi?streamid=10&substream=2`, keeps the **first keyframe** and sends the raw H.264 to the cloud, which decodes it to a JPEG with ffmpeg (`okamCamService.decodeKeyframeToJpeg`). The ESP32 never decodes anything — the keyframe is ~32–47 KB, about the size of the old sub-stream JPEG.
+`snapshot.cgi` is hardwired to the 640×360 sub-stream: `stream=`, `resolution=` and `substream=` were all tried and every variant returns 640×360. The full-resolution image is only available from the **video** stream, so the controller now asks for `livestream.cgi?streamid=10&substream=2`, keeps the **first keyframe** and sends the raw H.264 to the cloud, which decodes it to a JPEG with ffmpeg (`terpCamService.decodeKeyframeToJpeg`). The ESP32 never decodes anything — the keyframe is ~32–47 KB, about the size of the old sub-stream JPEG.
 
 Constraints and findings:
 - **Buffer ceiling is the chip, not the design.** 64 KB of static buffer overflows `dram0_0_seg` by ~8 KB on this ESP32 (no PSRAM on `heltec_wifi_lora_32_V2`), so the frame buffer is 48 KB — measured keyframes are 32–47 KB, and anything larger is refused rather than grown. RAM 35.4%.
@@ -400,7 +400,7 @@ Implementation notes:
 
 ### 20.1 Reviving the full-resolution path
 
-The complete recipe, the four reasons it is unreliable, and the list of things already tried and disproved are kept as a long comment block in **`firmware/src/okamcam.h`** so they sit next to the code rather than only in this document. In short: it needs a controller with **PSRAM** — that removes both the buffer ceiling and the memory pressure that makes draining a 53-fragment burst marginal. Shrinking the keyframe at the camera is not an option on firmware `EN120.8.53.11` (§19.5).
+The complete recipe, the four reasons it is unreliable, and the list of things already tried and disproved are kept as a long comment block in **`firmware/src/terpcam.h`** so they sit next to the code rather than only in this document. In short: it needs a controller with **PSRAM** — that removes both the buffer ceiling and the memory pressure that makes draining a 53-fragment burst marginal. Shrinking the keyframe at the camera is not an option on firmware `EN120.8.53.11` (§19.5).
 
 ## 21. Camera factory-reset on disconnect (2026-08-20)
 
@@ -583,7 +583,7 @@ for NAL types, which is more work for the same answer.
 
 ### 24.6 Shipped: 1280×720, and a receiver whose RAM does not depend on the image
 
-Two changes in `firmware/src/okamcam.cpp`, because `res=2` alone would have failed:
+Two changes in `firmware/src/terpcam.cpp`, because `res=2` alone would have failed:
 
 **The request is now `snapshot.cgi?res=2&…`** (constants `PREFERRED_RES` / `FALLBACK_RES`). A 1280×720 JPEG is roughly
 3× the pixels of the 640×360 one, so ~100 KB rather than ~32 KB.
@@ -618,7 +618,7 @@ Both `fridge` and `controller` build.
 ### 24.7 Verified on hardware (2026-09-08) — the firmware ignores `res`
 
 The camera was back on the LAN and answered a `LanSearch` broadcast at `192.168.144.145`
-(`did=VSTH…TJXUG`). A Python port of `okamcam.cpp` (same table cipher, same `F1` packets, same DevLgn, same indexed
+(`did=VSTH…TJXUG`). A Python port of `terpcam.cpp` (same table cipher, same `F1` packets, same DevLgn, same indexed
 reassembly) requested `snapshot.cgi` five times, one session each, and parsed the returned JPEG's SOF marker:
 
 | query | dimensions | JPEG bytes |
@@ -789,7 +789,7 @@ PPCS_Write(h, ch0, "\x01\x0a\x00\x00<len32le>GET /snapshot.cgi?res=2&…")  -> 9
 PPCS_Read(h, ch0, …) x7                      -> 57344 B  -> a complete 640x360 JPEG
 ```
 
-The DRW framing is byte-identical to `buildCgi()` in `okamcam.cpp`, so **every CGI this document documents works
+The DRW framing is byte-identical to `buildCgi()` in `terpcam.cpp`, so **every CGI this document documents works
 unchanged over this transport.** Two things are worth emphasising:
 
 - **The library does the ARQ.** Seven sequential reads returned the whole image; there was no fragment loss to repair,
@@ -847,7 +847,7 @@ Two details cost hours and are the difference between working and not:
   or two of the lookup — early enough that a client which drains the socket while collecting `f1 40` replies will
   swallow the burst and then wait forever for a packet it already threw away.
 
-The reference implementation is `okamwan.py` (a few hundred lines, no dependencies, no vendor code). `okamcam.cpp`
+The reference implementation is `okamwan.py` (a few hundred lines, no dependencies, no vendor code). `terpcam.cpp`
 already contains the session and DRW half; this is the missing rendezvous in front of it.
 
 ### 26.5 Full resolution, 2304×1296 — the path §19 abandoned works from the cloud
@@ -856,7 +856,7 @@ already contains the session and DRW half; this is the missing rendezvous in fro
 answered properly here instead: not by the MJPEG encoder, which is pinned at 640×360 (§24.7), but by the source that
 always had the full image — the **main video stream**.
 
-The recipe is unchanged from the one preserved in `okamcam.h`: `livestream.cgi?streamid=10&substream=2` on **DRW
+The recipe is unchanged from the one preserved in `terpcam.h`: `livestream.cgi?streamid=10&substream=2` on **DRW
 channel 1**, whose payload is VStarcam media frames (32-byte header, magic `55 aa 15 a8`, frame length at offset 16
 little-endian) wrapping H.264 Annex-B. The first frame of a session is the keyframe; keep it if it carries SPS (NAL 7)
 and an IDR slice (NAL 5), and hand the raw H.264 to ffmpeg. `scripts/okamhd.py` does exactly this over the §26.4
@@ -886,7 +886,7 @@ This also makes the §24.6 sliding window, the indexed reassembly and the ack pa
 than merely adequate: they exist to survive a loss rate that the cloud path does not have.
 
 Practical notes for wiring it up: the server already has the decode half — `okamP2PService.onImageMessage` resolves a
-plain JPEG directly and calls ffmpeg only when the message carries `"h264":true`, and `okamCamService.decodeKeyframeToJpeg`
+plain JPEG directly and calls ffmpeg only when the message carries `"h264":true`, and `terpCamService.decodeKeyframeToJpeg`
 is that branch. A cloud-side capture would feed the same function, so storage, timelapses and thinning need no change.
 At 2304×1296 a still is ~117 KB as JPEG against ~32 KB today, which is what the retention arithmetic should be redone
 against.
@@ -941,7 +941,33 @@ again**, and an operator who wants that guaranteed rather than merely typical ca
 genuinely remote server still needs the rendezvous per session, because there is no other way to find a camera behind
 somebody else's NAT — that is the trade the deployment makes, not a property of the protocol.
 
-### 26.8 What is still open
+### 26.8 Naming, and why no vendor address is compiled in
+
+The code calls this camera the **Terp Cam**, because that is the product. The manufacturer's names survive only where
+they carry information a reader needs — this document, and the handful of comments explaining that the CGI surface and
+the `admin`/`888888` default are somebody else's design. Sources are `firmware/src/terpcam.{cpp,h}`,
+`server/src/services/terpcam-direct.service.ts` (cloud-side capture), `terpcam-p2p.service.ts` (controller-relayed
+capture), `terpcam.service.ts` (decode and storage), and `scripts/terpcam-{lan,remote,hd}.py`.
+
+`cloudSettings.rtspStream` now reads `terpcam://<label>`. The old `okam://` is still recognised so cameras paired
+before the rename keep working, and never written again.
+
+**No manufacturer address appears in the source.** The repository is public, and an address compiled into it is both an
+advertisement for someone else's infrastructure and a default that contacts them whether or not the operator wanted
+it. So the rendezvous servers and the label→id directory come from `TERPCAM_RENDEZVOUS_HOSTS` and
+`TERPCAM_DIRECTORY_URL`, **both empty by default**. The addresses themselves are recorded in §26.4 above, which is the
+right place for a measurement.
+
+Empty is a *working* configuration, not a crippled one, because the LAN path needs neither:
+
+- a camera on the server's own network is found by asking it directly (LanSearch), and
+- **its reply states its own device id**, so the directory lookup is not needed either.
+
+Measured on the default configuration, with nothing manufacturer-related set: **5/5 at 2304×1296, ~0.9 s each.**
+Setting the two variables is what a hosted deployment does when its cameras live on other people's networks, and it is
+then an explicit, documented decision rather than a silent one.
+
+### 26.9 What is still open
 
 - **It rides on vendor infrastructure.** The supernodes are theirs and the DID prefix's init string is theirs. Nothing
   is decrypted or licensed-around here — the client speaks the documented-by-observation protocol — but a vendor who

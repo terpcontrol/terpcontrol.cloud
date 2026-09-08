@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""LAN-direct probe for the O-KAM/VStarcam P2P snapshot path.
+"""LAN-direct probe for the Terp Cam P2P snapshot path.
 
-A straight port of firmware/src/okamcam.cpp: same table cipher, same CS2 PPPP
+A straight port of firmware/src/terpcam.cpp: same table cipher, same CS2 PPPP
 packets, same session handshake, same indexed reassembly with contiguous acks.
 Buffers the whole reply (this machine has RAM), reports JPEG SOF dimensions.
 
 Usage:
-  okamprobe.py sweep                 # LanSearch broadcast, print who answers
-  okamprobe.py res                   # request snapshot.cgi with '', res=0..3, report WxH + bytes
-  okamprobe.py cgi '<cgi>?'          # send one CGI (auth appended), print the text reply
-  okamprobe.py snap <out.jpg> [res]  # grab one still to a file
+  terpcam-lan.py sweep                 # LanSearch broadcast, print who answers
+  terpcam-lan.py res                   # request snapshot.cgi with '', res=0..3, report WxH + bytes
+  terpcam-lan.py cgi '<cgi>?'          # send one CGI (auth appended), print the text reply
+  terpcam-lan.py snap <out.jpg> [res]  # grab one still to a file
 """
 import socket, struct, sys, time
 

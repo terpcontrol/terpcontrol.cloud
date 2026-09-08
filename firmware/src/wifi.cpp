@@ -1,6 +1,6 @@
 #include "wifi.h"
 #include "lanscan.h"
-#include "okamcam.h"
+#include "terpcam.h"
 
 #include "settings.h"
 #include <esp_task_wdt.h>
@@ -163,21 +163,21 @@ static const std::array<std::string, 2> SMART_SOCKET_SSID_PREFIXES = {
   "tasmota-",
 };
 
-// Terp Control Cam: the shipped unit is a VStarcam OEM ("O-KAM Pro"). In setup
+// Terp Control Cam: the shipped unit is a VStarcam OEM ("Terp Cam Pro"). In setup
 // mode it broadcasts an open AP "@IPC-<n>" and exposes the VStarcam CGI API on
 // TCP 81 at 192.168.168.1 (creds admin/888888). Provisioning mirrors
 // provisionSmartSocket: join the AP, drive set_wifi.cgi to move it onto the home
 // network, and remember its P2P device id (DID). Once on the home wifi the camera
 // firewalls down to the proprietary P2P transport, so we key on the DID (not a
 // LAN IP or RTSP url) — the server pulls stills over P2P. See
-// docs/okam-webcam-reverse-engineering.md.
+// docs/terpcam-reverse-engineering.md.
 static const std::string TERP_CAM_SSID_PREFIX = "terpcam-";      // legacy placeholder
-static const std::string OKAM_CAM_AP_PREFIX = "@IPC-";           // real VStarcam setup AP
-static const char* OKAM_CAM_AP_BASE = "http://192.168.168.1:81"; // CGI server in AP mode
-static const char* OKAM_CAM_AUTH = "loginuse=admin&loginpas=888888";
+static const std::string TERP_CAM_AP_PREFIX = "@IPC-";           // real VStarcam setup AP
+static const char* TERP_CAM_AP_BASE = "http://192.168.168.1:81"; // CGI server in AP mode
+static const char* TERP_CAM_AUTH = "loginuse=admin&loginpas=888888";
 static const char* TERP_CAM_URL_NVS_KEY = "terpcam_url";         // legacy (RTSP url)
-static const char* OKAM_CAM_DID_NVS_KEY = "webcam_did";          // VStarcam P2P device id
-static const char* OKAM_CAM_IP_NVS_KEY = "webcam_ip";            // last address it answered on
+static const char* TERP_CAM_DID_NVS_KEY = "webcam_did";          // VStarcam P2P device id
+static const char* TERP_CAM_IP_NVS_KEY = "webcam_ip";            // last address it answered on
 
 std::string primary_ssid;
 std::string primary_password;
@@ -1002,7 +1002,7 @@ static bool isTerpCamSsid(const std::string& value) {
 
 // The real camera advertises the VStarcam setup AP "@IPC-<n>".
 static bool isOkamCamSsid(const std::string& value) {
-  return value.rfind(OKAM_CAM_AP_PREFIX, 0) == 0;
+  return value.rfind(TERP_CAM_AP_PREFIX, 0) == 0;
 }
 
 // Pull `var <name>="value";` out of a VStarcam CGI response.
@@ -1047,11 +1047,11 @@ static int parseCamWifiAuthtype(const std::string& body, const std::string& ssid
   return 4;
 }
 
-// Provision the O-KAM/VStarcam camera onto the home wifi (caller must already be
+// Provision the Terp Cam (a VStarcam OEM) camera onto the home wifi (caller must already be
 // joined to the camera AP). Reads the camera's P2P DID, drives set_wifi.cgi, then
 // returns to the home network. Mirrors provisionSmartSocket. On success `did` holds
 // the camera's realdeviceid, which the server uses to reach it over P2P.
-bool provisionOkamCam(const std::string& home_ssid, const std::string& home_password,
+bool provisionTerpCam(const std::string& home_ssid, const std::string& home_password,
                       std::string& did, std::string& error_message,
                       const std::function<void(const char*)>& progress_callback) {
   auto emit_status = [&](const char* message) {
@@ -1079,7 +1079,7 @@ bool provisionOkamCam(const std::string& home_ssid, const std::string& home_pass
   emit_status("read cam id...");
   delayWithWatchdog(1500);
   std::string status_body;
-  std::string status_url = std::string(OKAM_CAM_AP_BASE) + "/get_status.cgi?" + OKAM_CAM_AUTH;
+  std::string status_url = std::string(TERP_CAM_AP_BASE) + "/get_status.cgi?" + TERP_CAM_AUTH;
   if(!httpGet(status_url.c_str(), &status_body)) {
     return fail_with_reconnect("cam not reachable");
   }
@@ -1092,11 +1092,11 @@ bool provisionOkamCam(const std::string& home_ssid, const std::string& home_pass
   }
 
   emit_status("scan cam wifi...");
-  std::string scan_url = std::string(OKAM_CAM_AP_BASE) + "/wifi_scan.cgi?" + OKAM_CAM_AUTH;
+  std::string scan_url = std::string(TERP_CAM_AP_BASE) + "/wifi_scan.cgi?" + TERP_CAM_AUTH;
   httpGet(scan_url.c_str());
   delayWithWatchdog(3000);
   std::string scan_body;
-  std::string scan_result_url = std::string(OKAM_CAM_AP_BASE) + "/get_wifi_scan_result.cgi?" + OKAM_CAM_AUTH;
+  std::string scan_result_url = std::string(TERP_CAM_AP_BASE) + "/get_wifi_scan_result.cgi?" + TERP_CAM_AUTH;
   httpGet(scan_result_url.c_str(), &scan_body);
   int authtype = parseCamWifiAuthtype(scan_body, home_ssid_clean);
 
@@ -1104,7 +1104,7 @@ bool provisionOkamCam(const std::string& home_ssid, const std::string& home_pass
   // set_wifi.cgi applies immediately and drops the AP, so this GET usually times
   // out — that is the success signal, not a failure. The PSK param is wpa_psk
   // (underscore); the WPA mode goes in authtype (encrypt is WEP-only).
-  std::string set_url = std::string(OKAM_CAM_AP_BASE) + "/set_wifi.cgi?" + OKAM_CAM_AUTH
+  std::string set_url = std::string(TERP_CAM_AP_BASE) + "/set_wifi.cgi?" + TERP_CAM_AUTH
                       + "&enable=1&ssid=" + urlEncode(home_ssid_clean)
                       + "&channel=0&mode=0&authtype=" + std::to_string(authtype)
                       + "&encrypt=0&keyformat=0&defkey=0"
@@ -1117,7 +1117,7 @@ bool provisionOkamCam(const std::string& home_ssid, const std::string& home_pass
     return false;
   }
 
-  fg::settings().setStr(OKAM_CAM_DID_NVS_KEY, did.c_str());
+  fg::settings().setStr(TERP_CAM_DID_NVS_KEY, did.c_str());
   fg::settings().commit();
   if(smart_socket_cloud_handle != nullptr) {
     smart_socket_cloud_handle->log("message-terp-cam-connected", 0);
@@ -1147,7 +1147,7 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
 
     // Only one camera per module: refuse to provision a second one while a
     // camera is still connected (the user must disconnect it first).
-    if(!sanitizeSettingString(fg::settings().getStr(OKAM_CAM_DID_NVS_KEY)).empty()) {
+    if(!sanitizeSettingString(fg::settings().getStr(TERP_CAM_DID_NVS_KEY)).empty()) {
       ui_handle->push<TextDisplay>("cam already\nconnected -\ndisconnect first", 1, []() {
         ui_handle->pop();
       });
@@ -1199,7 +1199,7 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
       ui_handle->loop();
     };
 
-    bool provisioned = provisionOkamCam(home_ssid, home_password, did, error_message, update_status);
+    bool provisioned = provisionTerpCam(home_ssid, home_password, did, error_message, update_status);
 
     ui_handle->pop();
     if(provisioned) {
@@ -1217,7 +1217,7 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
   });
 
   menu->addOption("disconnect cam", []() {
-    if(sanitizeSettingString(fg::settings().getStr(OKAM_CAM_DID_NVS_KEY)).empty()) {
+    if(sanitizeSettingString(fg::settings().getStr(TERP_CAM_DID_NVS_KEY)).empty()) {
       ui_handle->push<TextDisplay>("no cam connected", 1, []() {
         ui_handle->pop();
       });
@@ -1242,11 +1242,11 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
       // way. The reset is also what makes the *next* pairing work — after it the
       // camera answers `loginpas=888888` again.
       ui_handle->push<TextDisplay>("resetting cam...", 0, [](){});
-      const bool reset_ok = fg::okamCamFactoryReset(smart_socket_cloud_handle);
+      const bool reset_ok = fg::terpCamFactoryReset(smart_socket_cloud_handle);
       ui_handle->pop();
 
-      fg::settings().erase(OKAM_CAM_DID_NVS_KEY);
-      fg::settings().erase(OKAM_CAM_IP_NVS_KEY);    // and where it used to answer
+      fg::settings().erase(TERP_CAM_DID_NVS_KEY);
+      fg::settings().erase(TERP_CAM_IP_NVS_KEY);    // and where it used to answer
       fg::settings().erase(TERP_CAM_URL_NVS_KEY);   // clear legacy slot too
       fg::settings().commit();
 
@@ -1266,7 +1266,7 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
   });
 
   menu->addOption("show id", []() {
-    std::string did = sanitizeSettingString(fg::settings().getStr(OKAM_CAM_DID_NVS_KEY));
+    std::string did = sanitizeSettingString(fg::settings().getStr(TERP_CAM_DID_NVS_KEY));
     if(did.empty()) {
       did = "none";
     }
@@ -2313,8 +2313,8 @@ static void tickAuxDeviceSearch() {
 
   // The camera announces itself, so looking for it is a longer discovery round
   // rather than a sweep — cheap enough to do before starting one.
-  if(fg::okamCamNeedsSearch()) {
-    fg::okamCamSearch(smart_socket_cloud_handle);
+  if(fg::terpCamNeedsSearch()) {
+    fg::terpCamSearch(smart_socket_cloud_handle);
     socket_search_allowed_tick = xTaskGetTickCount() + SMART_SOCKET_SEARCH_COOLDOWN;
     return;
   }
@@ -2448,13 +2448,13 @@ void wifiInitAuxCloudReporting(fg::Fridgecloud* cloud) {
     // cloud — it would keep whatever it last heard, so a camera disconnected
     // while the module was offline would appear connected forever. "none" is
     // the same sentinel the disconnect path sends.
-    const std::string cam_did = sanitizeSettingString(fg::settings().getStr(OKAM_CAM_DID_NVS_KEY));
+    const std::string cam_did = sanitizeSettingString(fg::settings().getStr(TERP_CAM_DID_NVS_KEY));
     cloud->log("hardware-info:webcam_did=" +
                ((!cam_did.empty() && cam_did.size() < 64) ? cam_did : std::string("none")), 0);
     // Where the camera last answered. The cloud can reach it over P2P itself,
     // and knowing the address means it can do so on this network rather than
     // asking the vendor's rendezvous servers where the camera is.
-    const std::string cam_ip = sanitizeSettingString(fg::settings().getStr(OKAM_CAM_IP_NVS_KEY));
+    const std::string cam_ip = sanitizeSettingString(fg::settings().getStr(TERP_CAM_IP_NVS_KEY));
     cloud->log("hardware-info:webcam_ip=" +
                ((!cam_ip.empty() && cam_ip.size() < 40) ? cam_ip : std::string("none")), 0);
     // legacy: also surface a stored RTSP url if one was configured before
@@ -2634,8 +2634,8 @@ bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
 
   if(command["action"] == std::string("cam_capture")) {
     // Grab a still from the paired camera and stream it to the cloud. Runs on
-    // the loop task; okamCamCapture() is bounded and feeds the watchdog.
-    if(!okamCamCapture(cloud) && cloud) {
+    // the loop task; terpCamCapture() is bounded and feeds the watchdog.
+    if(!terpCamCapture(cloud) && cloud) {
       cloud->log("message-aux-command-failed:cam_capture", 1);
     }
     return true;

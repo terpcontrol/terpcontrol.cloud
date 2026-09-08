@@ -24,8 +24,8 @@ import { Image } from '@fg2/shared-types';
 import { deviceService } from '@services/device.service';
 import { createServer } from 'node:net';
 import { tunnelService } from '@services/tunnel.service';
-import { okamP2PService, OKAM_STREAM_PREFIX } from '@services/okam-p2p.service';
-import { okamDirectService } from '@services/okam-direct.service';
+import { terpCamP2PService, terpCamLabel } from '@services/terpcam-p2p.service';
+import { terpCamDirectService } from '@services/terpcam-direct.service';
 import sharp from 'sharp';
 
 const escapeXml = (value: string): string =>
@@ -484,23 +484,24 @@ class ImageService {
   }
 
   private async readRtspStreamImage(cloudSettings: CloudSettings, deviceId: string): Promise<Buffer> {
-    // O-KAM / VStarcam cameras have no LAN RTSP: they are reached over the
+    // Terp Cam cameras have no LAN RTSP: they are reached over the
     // reverse-engineered P2P protocol. They are configured as
-    // `okam://<device-id>` in rtspStream so that everything else here — the poll
+    // `terpcam://<device-id>` in rtspStream so that everything else here — the poll
     // schedule, backoff, maintenance gating, the test-image button, storage,
     // timelapses and thinning — is reused unchanged.
-    if (cloudSettings.rtspStream?.startsWith(OKAM_STREAM_PREFIX)) {
-      const label = cloudSettings.rtspStream.slice(OKAM_STREAM_PREFIX.length);
+    const terpCam = terpCamLabel(cloudSettings.rtspStream);
+    if (terpCam) {
+      const label = terpCam;
       // Preferred: reach the camera ourselves. It gives the full 2304x1296
       // image instead of the controller's 640x360 and loses no fragments, so
       // the controller is only asked when this fails — the camera behind a NAT
       // we cannot punch, or the vendor's rendezvous being unreachable.
       try {
-        return await okamDirectService.captureStill(label);
+        return await terpCamDirectService.captureStill(label);
       } catch (e) {
         console.log(`Direct capture for ${deviceId} failed (${(e as Error).message}); asking the controller`);
       }
-      return okamP2PService.captureViaController(deviceId);
+      return terpCamP2PService.captureViaController(deviceId);
     }
 
     let streamUrl = cloudSettings.rtspStream;

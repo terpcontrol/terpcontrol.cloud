@@ -1,11 +1,11 @@
 import dgram from 'node:dgram';
 import { logger } from '@utils/logger';
-import { okamCamService } from '@services/okam-cam.service';
+import { terpCamService } from '@services/terpcam.service';
 
 /**
- * O-KAM / VStarcam stills pulled straight from the cloud.
+ * Terp Cam stills pulled straight from the cloud.
  *
- * The controller path (okam-p2p.service) exists because the camera was thought
+ * The controller path (terpcam-p2p.service) exists because the camera was thought
  * to be reachable only from its own LAN. It is not: the camera keeps itself
  * registered with the vendor's CS2 rendezvous servers and will hole-punch to any
  * peer that asks for it by device id, so the server can open the session itself
@@ -29,7 +29,7 @@ import { okamCamService } from '@services/okam-cam.service';
  *   <- camera     f1 41 <did>               the camera punching at US, unasked
  *   -> camera     f1 00 / f1 05 / f1 20 / f1 41 + a CGI, then DRW as on the LAN
  *
- * See docs/okam-webcam-reverse-engineering.md §26.
+ * See docs/terpcam-reverse-engineering.md §26.
  */
 
 /** Substitution table for the transport cipher (vendor constant). */
@@ -55,21 +55,28 @@ const SBOX = Buffer.from([
 const DK = [44, 212, 96, 6];
 
 /**
- * CS2 rendezvous servers for this device-id prefix. They are what the vendor
- * SDK's encoded "init string" decodes to; reading them off the wire is cheaper
- * than decrypting it, and they are per-prefix rather than per-camera.
+ * Rendezvous servers used to locate a camera that is NOT on this server's own
+ * network — the camera manufacturer's, and therefore deliberately not compiled
+ * in. Unset means the LAN path is the only one, which is a complete setup for a
+ * stack hosted alongside its cameras and involves no outside party whatsoever.
  */
-const SUPERNODES = (process.env.OKAM_RENDEZVOUS_HOSTS ?? '52.47.140.105,18.130.74.40,47.254.150.171')
+const RENDEZVOUS_HOSTS = (process.env.TERPCAM_RENDEZVOUS_HOSTS ?? '')
   .split(',')
   .map(host => host.trim())
   .filter(Boolean);
-const SUPERNODE_PORTS = [32100, 32101, 32102];
+
+/**
+ * Directory that maps a camera's printed label to the id it registers under.
+ * Only the rendezvous path needs it: on the LAN the camera states its own id.
+ */
+const DIRECTORY_URL = process.env.TERPCAM_DIRECTORY_URL?.trim() || null;
+const RENDEZVOUS_PORTS = [32100, 32101, 32102];
 
 /**
  * UDP ports the process binds for captures, which must be the ones the container
  * publishes (see `bind`). Configurable because the range has to match compose.
  */
-const OKAM_P2P_PORTS = (process.env.OKAM_P2P_PORTS ?? '32200-32209').split(',').flatMap(part => {
+const TERPCAM_P2P_PORTS = (process.env.TERPCAM_P2P_PORTS ?? '32200-32209').split(',').flatMap(part => {
   const [from, to] = part.split('-').map(value => Number(value.trim()));
   if (!Number.isInteger(from) || from <= 0) return [];
   return Array.from({ length: Math.max(1, (to || from) - from + 1) }, (_, i) => from + i);
@@ -84,7 +91,7 @@ const OKAM_P2P_PORTS = (process.env.OKAM_P2P_PORTS ?? '32200-32209').split(',').
  * LAN address, and publish the UDP ports so the punch is forwarded in. Leave it
  * empty for a server that is genuinely remote.
  */
-const OKAM_ADVERTISE_ADDRESS = process.env.OKAM_ADVERTISE_ADDRESS?.trim() || null;
+const TERPCAM_ADVERTISE_ADDRESS = process.env.TERPCAM_ADVERTISE_ADDRESS?.trim() || null;
 
 /** VStarcam factory default, published by the vendor; the camera ships with it. */
 const AUTH = 'name=admin&loginuse=admin&loginpas=888888&user=admin&pwd=888888&';
@@ -221,12 +228,12 @@ function parseAddress(body: Buffer, offset = 0): Endpoint | null {
   return { address: ip, port };
 }
 
-class OkamDirectService {
+class TerpCamDirectService {
   /** Printed label -> P2P device id. The mapping never changes for a camera. */
   private uidCache = new Map<string, string>();
 
   /** Published UDP ports to prefer, so the camera's punch can reach us. */
-  private ports = OKAM_P2P_PORTS;
+  private ports = TERPCAM_P2P_PORTS;
 
   /** Where each camera last answered on our own network, when it is on it. */
   private lanAddresses = new Map<string, string>();
@@ -242,20 +249,26 @@ class OkamDirectService {
    * Worth preferring whenever it works: it involves no third party at all, and
    * it skips the hole punch entirely.
    */
-  private async lanSession(socket: dgram.Socket, inbox: { message: Buffer; from: Endpoint }[], address: string): Promise<Endpoint | null> {
+  private async lanSession(
+    socket: dgram.Socket,
+    inbox: { message: Buffer; from: Endpoint }[],
+    address: string,
+  ): Promise<{ peer: Endpoint; did: Buffer } | null> {
     const until = Date.now() + LAN_SEARCH_MS;
-    const found: { peer: Endpoint | null } = { peer: null };
-    while (!found.peer && Date.now() < until) {
+    const found: { session: { peer: Endpoint; did: Buffer } | null } = { session: null };
+    while (!found.session && Date.now() < until) {
       socket.send(buildPacket(0x30), 32108, address, () => undefined);
       await this.drain(inbox, 600, entry => {
         if (entry.message.length >= 24 && entry.message[1] === 0x41 && entry.from.address === address) {
-          found.peer = entry.from;
+          // The camera states its own id in the reply, so this path needs no
+          // directory lookup — it is self-contained on the local network.
+          found.session = { peer: entry.from, did: Buffer.from(entry.message.subarray(4, 24)) };
           return true;
         }
         return false;
       });
     }
-    return found.peer;
+    return found.session;
   }
 
   /**
@@ -270,7 +283,7 @@ class OkamDirectService {
   }
 
   /**
-   * Bind the socket to one of OKAM_P2P_PORTS, falling back to an ephemeral port.
+   * Bind the socket to one of TERPCAM_P2P_PORTS, falling back to an ephemeral port.
    *
    * The port has to be one the container PUBLISHES. The camera punches at us
    * from an address we never sent anything to, so Docker's bridge NAT has no
@@ -312,7 +325,10 @@ class OkamDirectService {
     const cached = this.uidCache.get(label);
     if (cached) return cached;
 
-    const response = await fetch(`https://vuid.eye4.cn?vuid=${encodeURIComponent(label)}`, {
+    if (!DIRECTORY_URL) {
+      throw new Error('camera id is not a P2P id and TERPCAM_DIRECTORY_URL is unset');
+    }
+    const response = await fetch(`${DIRECTORY_URL}${DIRECTORY_URL.includes('?') ? '&' : '?'}vuid=${encodeURIComponent(label)}`, {
       signal: AbortSignal.timeout(8_000),
     });
     if (!response.ok) throw new Error(`device-id lookup failed: HTTP ${response.status}`);
@@ -326,8 +342,8 @@ class OkamDirectService {
   public async captureStill(label: string): Promise<Buffer> {
     const { data, h264 } = await this.capture(label);
     if (!h264) return data;
-    const jpeg = await okamCamService.decodeKeyframeToJpeg(data);
-    logger.info(`[okam-direct] ${label}: ${data.length}B keyframe -> ${jpeg.length}B jpeg`);
+    const jpeg = await terpCamService.decodeKeyframeToJpeg(data);
+    logger.info(`[terpcam] ${label}: ${data.length}B keyframe -> ${jpeg.length}B jpeg`);
     return jpeg;
   }
 
@@ -337,8 +353,6 @@ class OkamDirectService {
    * does not — a camera that answers something small beats no image at all.
    */
   public async capture(label: string): Promise<{ data: Buffer; h264: boolean }> {
-    const uid = await this.resolveDeviceId(label);
-    const did = packDeviceId(uid);
     const socket = dgram.createSocket('udp4');
     const inbox: { message: Buffer; from: Endpoint }[] = [];
 
@@ -355,11 +369,17 @@ class OkamDirectService {
       // does this fall back to the vendor's rendezvous servers, which is the one
       // step that involves a third party at all.
       const known = this.lanAddresses.get(label);
-      let peer = known ? await this.lanSession(socket, inbox, known) : null;
-      if (peer) {
-        logger.info(`[okam-direct] ${label} found on the LAN at ${peer.address}:${peer.port}`);
+      const local = known ? await this.lanSession(socket, inbox, known) : null;
+      let peer: Endpoint;
+      let did: Buffer;
+      if (local) {
+        logger.info(`[terpcam] ${label} found on the local network at ${local.peer.address}`);
+        ({ peer, did } = local);
       } else {
-        if (!SUPERNODES.length) throw new Error('camera is not on our network and rendezvous is disabled');
+        if (!RENDEZVOUS_HOSTS.length) {
+          throw new Error('camera is not on this network and TERPCAM_RENDEZVOUS_HOSTS is unset');
+        }
+        did = packDeviceId(await this.resolveDeviceId(label));
         peer = await this.rendezvous(socket, inbox, did);
         if (isPrivate(peer.address)) this.rememberLanAddress(label, peer.address);
       }
@@ -369,7 +389,7 @@ class OkamDirectService {
       const keyframe = await this.readKeyframe(socket, inbox, peer);
       if (keyframe) return { data: keyframe, h264: true };
 
-      logger.info('[okam-direct] no keyframe, falling back to snapshot.cgi');
+      logger.info('[terpcam] no keyframe, falling back to snapshot.cgi');
       const jpeg = await this.readSnapshot(socket, inbox, peer);
       return { data: jpeg, h264: false };
     } finally {
@@ -405,7 +425,7 @@ class OkamDirectService {
     // 1. Hello, to learn our own public endpoint.
     const helloUntil = Date.now() + 4_000;
     while (!found.reflected && Date.now() < helloUntil) {
-      for (const host of SUPERNODES) send(buildPacket(0x00), host, 32100);
+      for (const host of RENDEZVOUS_HOSTS) send(buildPacket(0x00), host, 32100);
       await this.drain(inbox, 700, entry => {
         if (entry.message.length >= 12 && entry.message[1] === 0x01) {
           found.reflected = parseAddress(entry.message.subarray(4));
@@ -417,7 +437,7 @@ class OkamDirectService {
     // 2. Ask for the camera.
     const body = Buffer.concat([did, Buffer.alloc(16)]);
     body.writeUInt16BE(found.reflected?.port ?? 0, 22);
-    const lan = OKAM_ADVERTISE_ADDRESS ?? (await routableAddress(SUPERNODES[0]));
+    const lan = TERPCAM_ADVERTISE_ADDRESS ?? (await routableAddress(RENDEZVOUS_HOSTS[0]));
     if (lan) {
       // Stored least-significant octet first, like every other address here.
       const octets = lan.split('.').map(Number).reverse();
@@ -426,12 +446,12 @@ class OkamDirectService {
 
     const until = Date.now() + RENDEZVOUS_MS;
     while (!found.punched && Date.now() < until) {
-      for (const host of SUPERNODES) {
-        for (const port of SUPERNODE_PORTS) send(buildPacket(0x20, body), host, port);
+      for (const host of RENDEZVOUS_HOSTS) {
+        for (const port of RENDEZVOUS_PORTS) send(buildPacket(0x20, body), host, port);
       }
       await this.drain(inbox, 2_500, entry => {
         const isPunch = entry.message.length > 1 && entry.message[1] === 0x41;
-        if (isPunch && !SUPERNODE_PORTS.includes(entry.from.port)) {
+        if (isPunch && !RENDEZVOUS_PORTS.includes(entry.from.port)) {
           found.punched = entry.from;
           return true;
         }
@@ -442,7 +462,7 @@ class OkamDirectService {
     const peer = found.punched;
     if (!peer) throw new Error('camera did not answer the rendezvous');
 
-    logger.info(`[okam-direct] camera punched from ${peer.address}:${peer.port}`);
+    logger.info(`[terpcam] camera punched from ${peer.address}:${peer.port}`);
     socket.send(buildPacket(0x41, did), peer.port, peer.address, () => undefined);
     return peer;
   }
@@ -625,4 +645,4 @@ class OkamDirectService {
   }
 }
 
-export const okamDirectService = new OkamDirectService();
+export const terpCamDirectService = new TerpCamDirectService();

@@ -3,10 +3,10 @@
 #include <WiFiUdp.h>
 #include <esp_task_wdt.h>
 
-#include "okamcam.h"
+#include "terpcam.h"
 #include "settings.h"
 
-// O-KAM / VStarcam snapshot client.
+// Terp Cam (a VStarcam OEM) snapshot client.
 //
 // Protocol (reverse-engineered, docs §15/§16): every UDP payload is obfuscated
 // with a table cipher; underneath it is CS2 PPPP — `F1 <type> <len16> <payload>`.
@@ -68,13 +68,13 @@ namespace fg {
     //   0 -> 640x360   1 -> 320x180   2 -> 1280x720
     // The camera defaults to 0, which is why every still was 640x360 until the
     // parameter was found. 1280x720 is the largest JPEG this CGI can produce --
-    // 2304x1296 exists only on the H.264 main stream (see okamcam.h).
+    // 2304x1296 exists only on the H.264 main stream (see terpcam.h).
     constexpr uint8_t  PREFERRED_RES    = 2;      // 1280x720
     constexpr uint8_t  FALLBACK_RES     = 0;      // 640x360, the pre-`res` behaviour
     // If the camera answers the preferred size with no image at all, stop asking
     // for it. A camera on older firmware that rejects `res=2` would otherwise
     // fail every capture forever; this costs three attempts and then keeps
-    // working. Ordinary fragment loss does not count -- see okamCamCapture.
+    // working. Ordinary fragment loss does not count -- see terpCamCapture.
     constexpr uint8_t  RES_FALLBACK_AFTER = 3;
 
     // --- static working buffers (no heap) --------------------------------
@@ -104,7 +104,7 @@ namespace fg {
     constexpr uint32_t MAX_IMAGE_BYTES  = 512UL * 1024UL;
     // The window is NOT static: tens of KB permanently resident would eat most of
     // this device's spare heap. It is taken for the couple of seconds a capture
-    // lasts and released again on every exit path (see okamCamCapture).
+    // lasts and released again on every exit path (see terpCamCapture).
     uint8_t* g_img = nullptr;                       // fragments, stored by index
     bool     g_received[WINDOW_SLOTS];              // which fragments arrived
     uint16_t g_slot_len[WINDOW_SLOTS];              // their individual lengths
@@ -371,11 +371,11 @@ namespace fg {
 
   } // namespace
 
-  bool okamCamNeedsSearch() {
+  bool terpCamNeedsSearch() {
     return g_camera_misses >= MISSES_BEFORE_SEARCH && camIsPaired();
   }
 
-  bool okamCamSearch(Fridgecloud* cloud) {
+  bool terpCamSearch(Fridgecloud* cloud) {
     // Reset up front: the point of a search is to stop retrying, and a search
     // that finds nothing must not keep re-triggering itself.
     g_camera_misses = 0;
@@ -418,7 +418,7 @@ namespace fg {
     return found;
   }
 
-  bool okamCamFactoryReset(Fridgecloud* cloud) {
+  bool terpCamFactoryReset(Fridgecloud* cloud) {
     const std::string did_str = fg::settings().getStr("webcam_did");
     if(settingIsEmpty(did_str) || did_str == "none" || cloud == nullptr) {
       return false;
@@ -474,7 +474,7 @@ namespace fg {
     return ok;
   }
 
-  bool okamCamCapture(Fridgecloud* cloud) {
+  bool terpCamCapture(Fridgecloud* cloud) {
     const std::string did_str = fg::settings().getStr("webcam_did");
     if(settingIsEmpty(did_str) || did_str == "none" || cloud == nullptr) {
       return false;   // no camera paired
@@ -530,7 +530,7 @@ namespace fg {
     // snapshot.cgi answers on channel 0 as a paced request/response: the camera
     // sends a fragment, waits for its ack, then sends the next. That pacing is
     // the whole reason this path is used instead of the full-resolution one --
-    // see okamcam.h for why the 2304x1296 keyframe path was abandoned.
+    // see terpcam.h for why the 2304x1296 keyframe path was abandoned.
     //
     // Fragments are stored BY INDEX, not in arrival order, and the highest
     // CONTIGUOUS index is acked. Taking them strictly in order and re-acking the
