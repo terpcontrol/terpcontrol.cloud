@@ -16,6 +16,7 @@ import {
   UserFirmwareList,
 } from '@fg2/shared-types';
 import deviceModel from '@models/device.model';
+import { okamDirectService } from '@services/okam-direct.service';
 import deviceLogModel from '@models/devicelog.model';
 import deviceClassModel from '@/models/deviceclass.model';
 import { deviceFirmwareBinaryModel, deviceFirmwareModel } from '@/models/devicefirmware.model';
@@ -625,6 +626,17 @@ class DeviceService {
 
     if (infoKey === 'webcam_did') {
       await this.reconcileP2PCamera(deviceId, infoValue);
+    }
+
+    // The controller is on the camera's network and already knows where it
+    // answers. Passing that on lets the cloud reach the camera directly, without
+    // asking the vendor's rendezvous servers where it is.
+    if (infoKey === 'webcam_ip') {
+      const device = await deviceModel.findOne({ device_id: deviceId });
+      const label = device?.hardwareInfo?.webcam_did;
+      if (label && label !== 'none') {
+        okamDirectService.rememberLanAddress(label, infoValue);
+      }
     }
   }
 

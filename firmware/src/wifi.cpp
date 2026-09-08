@@ -2451,6 +2451,12 @@ void wifiInitAuxCloudReporting(fg::Fridgecloud* cloud) {
     const std::string cam_did = sanitizeSettingString(fg::settings().getStr(OKAM_CAM_DID_NVS_KEY));
     cloud->log("hardware-info:webcam_did=" +
                ((!cam_did.empty() && cam_did.size() < 64) ? cam_did : std::string("none")), 0);
+    // Where the camera last answered. The cloud can reach it over P2P itself,
+    // and knowing the address means it can do so on this network rather than
+    // asking the vendor's rendezvous servers where the camera is.
+    const std::string cam_ip = sanitizeSettingString(fg::settings().getStr(OKAM_CAM_IP_NVS_KEY));
+    cloud->log("hardware-info:webcam_ip=" +
+               ((!cam_ip.empty() && cam_ip.size() < 40) ? cam_ip : std::string("none")), 0);
     // legacy: also surface a stored RTSP url if one was configured before
     const std::string cam_url = sanitizeSettingString(fg::settings().getStr(TERP_CAM_URL_NVS_KEY));
     cloud->log("hardware-info:webcam_url=" +

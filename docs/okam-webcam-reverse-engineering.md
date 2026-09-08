@@ -915,7 +915,33 @@ resolves to the household's address). A server there must advertise the *host's*
 bridge address, which is what `OKAM_ADVERTISE_ADDRESS` is for. A genuinely remote server leaves it empty and uses the
 public path, as measured from Hetzner in §26.4.
 
-### 26.7 What is still open
+### 26.7 The vendor is only needed once, not per image
+
+The image data never travels through the vendor — the session is peer-to-peer, and the rendezvous is only the *lookup*
+that finds the camera. But a lookup per capture is still a standing dependency on somebody else's servers, and it tells
+them how often each camera is read, so the service does not work that way.
+
+**It asks the camera directly instead.** `LanSearch` (`f1 30` to port 32108) is the same discovery the controller does,
+and it needs no third party at all. It is sent unicast rather than broadcast, because a broadcast never leaves the
+container's bridge — which is why the address has to be known up front. Two things supply it:
+
+- **the controller reports it.** It already stores where the camera answered (`webcam_ip`, §23) and now sends it as
+  `hardware-info:webcam_ip=<addr>` on every boot, alongside `webcam_did`. `deviceService` hands it to the capture
+  service.
+- **the rendezvous reveals it.** Its `f1 40` candidates include the camera's LAN address, so even a cold start with no
+  controller report needs the vendor exactly once, and caches the answer.
+
+Measured through the containerised server: the first capture used the rendezvous and cached the address; **every one
+after it logged `found on the LAN at 192.168.144.145` and took ~0.9 s instead of ~1.5 s.** With
+`OKAM_RENDEZVOUS_HOSTS` set to empty — the vendor switched off outright — captures still ran **5/5 at 2304×1296**,
+which is the proof that the LAN path stands on its own.
+
+So on a deployment where the server shares the cameras' network, the vendor is contacted **at pairing and never
+again**, and an operator who wants that guaranteed rather than merely typical can empty `OKAM_RENDEZVOUS_HOSTS`. A
+genuinely remote server still needs the rendezvous per session, because there is no other way to find a camera behind
+somebody else's NAT — that is the trade the deployment makes, not a property of the protocol.
+
+### 26.8 What is still open
 
 - **It rides on vendor infrastructure.** The supernodes are theirs and the DID prefix's init string is theirs. Nothing
   is decrypted or licensed-around here — the client speaks the documented-by-observation protocol — but a vendor who

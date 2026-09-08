@@ -59,7 +59,10 @@ const DK = [44, 212, 96, 6];
  * SDK's encoded "init string" decodes to; reading them off the wire is cheaper
  * than decrypting it, and they are per-prefix rather than per-camera.
  */
-const SUPERNODES = ['52.47.140.105', '18.130.74.40', '47.254.150.171'];
+const SUPERNODES = (process.env.OKAM_RENDEZVOUS_HOSTS ?? '52.47.140.105,18.130.74.40,47.254.150.171')
+  .split(',')
+  .map(host => host.trim())
+  .filter(Boolean);
 const SUPERNODE_PORTS = [32100, 32101, 32102];
 
 /**
@@ -90,6 +93,7 @@ const CMD_CHANNEL = 0;
 const VIDEO_CHANNEL = 1;
 const FRAME_MAGIC = Buffer.from([0x55, 0xaa, 0x15, 0xa8]);
 
+const LAN_SEARCH_MS = 2_500;
 const RENDEZVOUS_MS = 20_000;
 const LOGIN_MS = 8_000;
 const TRANSFER_MS = 20_000;
@@ -172,6 +176,11 @@ export function packDeviceId(uid: string): Buffer {
   return out;
 }
 
+/** RFC1918, i.e. an address that only means something on our own network. */
+function isPrivate(address: string): boolean {
+  return /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(address);
+}
+
 /**
  * Our own address on the route to `host`, when that address is a private one.
  *
@@ -198,7 +207,7 @@ function routableAddress(host: string): Promise<string | null> {
     // A connected UDP socket sends nothing; it just fixes the source address.
     probe.connect(32100, host, () => {
       const address = probe.address()?.address ?? null;
-      done(address && /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(address) ? address : null);
+      done(address && isPrivate(address) ? address : null);
     });
   });
 }
@@ -218,6 +227,47 @@ class OkamDirectService {
 
   /** Published UDP ports to prefer, so the camera's punch can reach us. */
   private ports = OKAM_P2P_PORTS;
+
+  /** Where each camera last answered on our own network, when it is on it. */
+  private lanAddresses = new Map<string, string>();
+
+  /**
+   * Find the camera on our own network, without asking anybody.
+   *
+   * This is the same LanSearch the controller uses: a `f1 30` to port 32108, to
+   * which the camera answers with a PunchPkt from an ephemeral port. Sent
+   * UNICAST rather than broadcast, because a broadcast does not leave the
+   * container's bridge — which is also why it needs the address up front.
+   *
+   * Worth preferring whenever it works: it involves no third party at all, and
+   * it skips the hole punch entirely.
+   */
+  private async lanSession(socket: dgram.Socket, inbox: { message: Buffer; from: Endpoint }[], address: string): Promise<Endpoint | null> {
+    const until = Date.now() + LAN_SEARCH_MS;
+    const found: { peer: Endpoint | null } = { peer: null };
+    while (!found.peer && Date.now() < until) {
+      socket.send(buildPacket(0x30), 32108, address, () => undefined);
+      await this.drain(inbox, 600, entry => {
+        if (entry.message.length >= 24 && entry.message[1] === 0x41 && entry.from.address === address) {
+          found.peer = entry.from;
+          return true;
+        }
+        return false;
+      });
+    }
+    return found.peer;
+  }
+
+  /**
+   * Remember where a camera answered, so later captures can go straight to it.
+   * Fed by the controller's `webcam_ip` hardware-info and by whatever the
+   * rendezvous reports, so the vendor is needed at most once per address change.
+   */
+  public rememberLanAddress(label: string, address: string): void {
+    if (address && address !== 'none' && this.lanAddresses.get(label) !== address) {
+      this.lanAddresses.set(label, address);
+    }
+  }
 
   /**
    * Bind the socket to one of OKAM_P2P_PORTS, falling back to an ephemeral port.
@@ -301,7 +351,18 @@ class OkamDirectService {
     try {
       await this.bind(socket);
 
-      const peer = await this.rendezvous(socket, inbox, did);
+      // Prefer our own network. Only when the camera is not on it (or has moved)
+      // does this fall back to the vendor's rendezvous servers, which is the one
+      // step that involves a third party at all.
+      const known = this.lanAddresses.get(label);
+      let peer = known ? await this.lanSession(socket, inbox, known) : null;
+      if (peer) {
+        logger.info(`[okam-direct] ${label} found on the LAN at ${peer.address}:${peer.port}`);
+      } else {
+        if (!SUPERNODES.length) throw new Error('camera is not on our network and rendezvous is disabled');
+        peer = await this.rendezvous(socket, inbox, did);
+        if (isPrivate(peer.address)) this.rememberLanAddress(label, peer.address);
+      }
       await this.login(socket, inbox, did, peer);
 
       streaming = peer;
