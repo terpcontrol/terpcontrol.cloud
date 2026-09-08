@@ -439,6 +439,87 @@ namespace fg {
     return found;
   }
 
+  // Alphanumeric, 12 characters: comfortably inside what the camera accepts, and
+  // free of punctuation so it survives a CGI query string unescaped.
+  std::string generatePassword() {
+    static const char ALPHABET[] = "abcdefghijkmnpqrstuvwxyzACDEFGHJKLMNPQRSTUVWXYZ23456789";
+    std::string password;
+    for(int i = 0; i < 12; i++) {
+      password += ALPHABET[esp_random() % (sizeof(ALPHABET) - 1)];
+    }
+    return password;
+  }
+
+  bool terpCamSecure(Fridgecloud* cloud) {
+    if(!camIsPaired()) return false;
+    // Already done: a stored password means this camera is not on the default.
+    if(!settingIsEmpty(std::string(fg::settings().getStr(TERP_CAM_PWD_NVS_KEY).c_str()))) return true;
+
+    const bool wifi_was_asleep = WiFi.getSleep();
+    WiFi.setSleep(false);
+    WiFiUDP udp;
+    if(!udp.begin(0)) {
+      WiFi.setSleep(wifi_was_asleep);
+      return false;
+    }
+
+    IPAddress peer_ip;
+    uint16_t peer_port = 0;
+    bool secured = false;
+    const std::string password = generatePassword();
+
+    if(openSession(udp, peer_ip, peer_port)) {
+      char cgi[224];
+      snprintf(cgi, sizeof(cgi),
+               "set_users.cgi?pwd_change_realtime=1&user1=&user2=&user3=admin&pwd1=&pwd2=&pwd3=%s&%s",
+               password.c_str(), camAuth().c_str());
+      sendPacket(udp, peer_ip, peer_port, buildCgi(IMAGE_CHANNEL, 1, cgi));
+
+      // Confirm by USING it rather than by reading the reply: the reply's shape
+      // varies between CGIs, and the change can drop the session it arrived on.
+      const std::string probe_auth =
+        "name=admin&loginuse=admin&loginpas=" + password + "&user=admin&pwd=" + password + "&";
+      const uint32_t deadline = millis() + 6000;
+      while(!secured && (int32_t)(deadline - millis()) > 0) {
+        delay(400);
+        esp_task_wdt_reset();
+        snprintf(cgi, sizeof(cgi), "get_status.cgi?%s", probe_auth.c_str());
+        sendPacket(udp, peer_ip, peer_port, buildCgi(IMAGE_CHANNEL, 2, cgi));
+        const uint32_t wait_until = millis() + 800;
+        while((int32_t)(wait_until - millis()) > 0) {
+          int sz = udp.parsePacket();
+          if(sz > 0 && sz <= (int)sizeof(g_rx)) {
+            int len = udp.read(g_rx, sizeof(g_rx));
+            if(len >= 8) {
+              deobfuscate(g_rx, len);
+              if(g_rx[1] == 0xd0 && g_rx[5] == IMAGE_CHANNEL &&
+                 memmem(g_rx + 8, len - 8, "deviceid", 8) != nullptr) {
+                secured = true;
+                break;
+              }
+            }
+          }
+          delay(5);
+        }
+      }
+    }
+
+    if(secured) {
+      fg::settings().setStr(TERP_CAM_PWD_NVS_KEY, password.c_str());
+      fg::settings().commit();
+    }
+    if(cloud != nullptr) {
+      // The cloud fetches stills itself and so needs these credentials. This is
+      // hardware-info, which is stored against the device rather than written
+      // into the log the user reads.
+      cloud->log(std::string("hardware-info:webcam_pwd=") + (secured ? password : std::string("")), 0);
+    }
+
+    udp.stop();
+    WiFi.setSleep(wifi_was_asleep);
+    return secured;
+  }
+
   bool terpCamFactoryReset(Fridgecloud* cloud) {
     const std::string did_str = fg::settings().getStr("webcam_did");
     if(settingIsEmpty(did_str) || did_str == "none" || cloud == nullptr) {

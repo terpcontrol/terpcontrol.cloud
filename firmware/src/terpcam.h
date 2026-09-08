@@ -77,6 +77,16 @@ namespace fg {
    */
   bool terpCamSearch(Fridgecloud* cloud);
 
+  /**
+   * Replace the camera's factory password with a generated one and report it, so
+   * the cloud can authenticate too. Does nothing when a password is already
+   * stored, so it is safe to call whenever — pairing calls it once the camera is
+   * on the network, which is where the camera actually applies the change.
+   *
+   * Returns true when the camera answers to the new password afterwards.
+   */
+  bool terpCamSecure(Fridgecloud* cloud);
+
   /*
    * ---------------------------------------------------------------------------
    * NOTE — the full-resolution (2304x1296) path, and why it is not used

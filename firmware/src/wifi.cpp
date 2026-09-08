@@ -177,17 +177,6 @@ static const char* TERP_CAM_AP_BASE = "http://192.168.168.1:81"; // CGI server i
 // The camera's published factory password. Only used to talk to a camera that
 // still has it: pairing replaces it with a per-camera secret straight away.
 static const char* TERP_CAM_AUTH = "loginuse=admin&loginpas=888888";
-
-// Alphanumeric and 12 characters: comfortably inside what the camera accepts,
-// and no punctuation to survive being pasted into a CGI query string.
-static std::string generateCamPassword() {
-  static const char ALPHABET[] = "abcdefghijkmnpqrstuvwxyzACDEFGHJKLMNPQRSTUVWXYZ23456789";
-  std::string password;
-  for(int i = 0; i < 12; i++) {
-    password += ALPHABET[esp_random() % (sizeof(ALPHABET) - 1)];
-  }
-  return password;
-}
 static const char* TERP_CAM_URL_NVS_KEY = "terpcam_url";         // legacy (RTSP url)
 static const char* TERP_CAM_DID_NVS_KEY = "webcam_did";          // VStarcam P2P device id
 static const char* TERP_CAM_IP_NVS_KEY = "webcam_ip";            // last address it answered on
@@ -1104,34 +1093,12 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
     return fail_with_reconnect("cam id fail");
   }
 
-  // Replace the factory password before the camera ever joins the home network.
-  // Until this runs the camera answers to a password published in the vendor's
-  // own manual, so anyone on the network can drive it; afterwards only this
-  // module and the cloud can. A camera that refuses keeps working on the
-  // default rather than becoming unusable — reported, not silently accepted.
-  emit_status("secure cam...");
-  std::string cam_auth(TERP_CAM_AUTH);
-  const std::string cam_password = generateCamPassword();
-  std::string secure_url = std::string(TERP_CAM_AP_BASE) + "/set_users.cgi?pwd_change_realtime=1"
-                         + "&user1=&user2=&user3=admin&pwd1=&pwd2=&pwd3=" + urlEncode(cam_password)
-                         + "&" + TERP_CAM_AUTH;
-  std::string secure_body;
-  const bool secured = httpGet(secure_url.c_str(), &secure_body) && secure_body.find("result=0") != std::string::npos;
-  if(secured) {
-    cam_auth = "loginuse=admin&loginpas=" + cam_password;
-    fg::settings().setStr(fg::TERP_CAM_PWD_NVS_KEY, cam_password.c_str());
-    fg::settings().commit();
-  } else {
-    fg::settings().erase(fg::TERP_CAM_PWD_NVS_KEY);
-    fg::settings().commit();
-  }
-
   emit_status("scan cam wifi...");
-  std::string scan_url = std::string(TERP_CAM_AP_BASE) + "/wifi_scan.cgi?" + cam_auth;
+  std::string scan_url = std::string(TERP_CAM_AP_BASE) + "/wifi_scan.cgi?" + TERP_CAM_AUTH;
   httpGet(scan_url.c_str());
   delayWithWatchdog(3000);
   std::string scan_body;
-  std::string scan_result_url = std::string(TERP_CAM_AP_BASE) + "/get_wifi_scan_result.cgi?" + cam_auth;
+  std::string scan_result_url = std::string(TERP_CAM_AP_BASE) + "/get_wifi_scan_result.cgi?" + TERP_CAM_AUTH;
   httpGet(scan_result_url.c_str(), &scan_body);
   int authtype = parseCamWifiAuthtype(scan_body, home_ssid_clean);
 
@@ -1139,7 +1106,7 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
   // set_wifi.cgi applies immediately and drops the AP, so this GET usually times
   // out — that is the success signal, not a failure. The PSK param is wpa_psk
   // (underscore); the WPA mode goes in authtype (encrypt is WEP-only).
-  std::string set_url = std::string(TERP_CAM_AP_BASE) + "/set_wifi.cgi?" + cam_auth
+  std::string set_url = std::string(TERP_CAM_AP_BASE) + "/set_wifi.cgi?" + TERP_CAM_AUTH
                       + "&enable=1&ssid=" + urlEncode(home_ssid_clean)
                       + "&channel=0&mode=0&authtype=" + std::to_string(authtype)
                       + "&encrypt=0&keyformat=0&defkey=0"
@@ -1153,15 +1120,17 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
   }
 
   fg::settings().setStr(TERP_CAM_DID_NVS_KEY, did.c_str());
+  fg::settings().erase(fg::TERP_CAM_PWD_NVS_KEY);   // a freshly paired camera has the default
   fg::settings().commit();
+
+  // Replace the manufacturer's published password now that the camera is on the
+  // network. Not while it was still on its setup AP: it does not apply the
+  // change until it is provisioned, and over P2P it takes effect at once.
+  emit_status("secure cam...");
+  emit_status(fg::terpCamSecure(smart_socket_cloud_handle) ? "cam secured" : "cam kept default pw");
   if(smart_socket_cloud_handle != nullptr) {
     smart_socket_cloud_handle->log("message-terp-cam-connected", 0);
     smart_socket_cloud_handle->log(std::string("hardware-info:webcam_did=") + did, 0);
-    // The cloud fetches stills itself and therefore needs these credentials.
-    // hardware-info is stored against the device rather than written to its
-    // log, which is what keeps this out of the diary the user reads.
-    smart_socket_cloud_handle->log(std::string("hardware-info:webcam_pwd=") +
-                                   (secured ? cam_password : std::string("")), 0);
   }
 
   emit_status("cam configured");

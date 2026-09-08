@@ -978,15 +978,22 @@ therefore known to anyone. Anybody on the customer's network could drive the cam
 reset it. That was acceptable while the credential lived only in firmware on the same LAN; it is not acceptable as the
 answer to "is the camera secured".
 
-Pairing now replaces it. While the camera is still on its own `@IPC-` setup AP — before it has ever joined the home
-network — the controller generates a 12-character password and sends:
+Pairing now replaces it, **after** the camera has joined the network rather than while it is still on its setup AP.
+That ordering is not cosmetic: sending it in AP mode was tried first and the camera ignored it — pairing succeeded and
+`webcam_pwd` came back empty, because the camera does not apply a password change until it is provisioned. Over P2P it
+takes effect at once, which is measurable. The controller generates a 12-character password and sends:
 
 ```
 set_users.cgi?pwd_change_realtime=1&user1=&user2=&user3=admin&pwd1=&pwd2=&pwd3=<generated>&<current auth>
 ```
 
 `pwd_change_realtime=1` is what makes it take effect immediately rather than at the next boot; `get_status.cgi`
-reports `pwd_change_realtime=1` on this firmware, so it is supported. The rest of provisioning then uses the new
+reports `pwd_change_realtime=1` on this firmware, so it is supported.
+
+**Success is decided by using the new password, not by reading the reply.** The first version parsed the response for
+`result=0`, which is fragile twice over: the reply's shape differs between CGIs, and changing the password can drop
+the very session the request arrived on. `terpCamSecure()` therefore sends the change and then asks `get_status.cgi`
+with the new credentials until the camera answers. The rest of provisioning then uses the new
 password, and it is stored in NVS (`webcam_pwd`) and reported to the cloud as `hardware-info:webcam_pwd`, which is
 stored against the device and — unlike an ordinary log line — never written into the diary the user reads. It is also
 stripped from `GET /device`, since nothing outside the server needs it.

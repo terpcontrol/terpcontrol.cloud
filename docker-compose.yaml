@@ -91,18 +91,18 @@ services:
      - rabbitmq
     ports:
       - ${API_PORT_EXTERNAL}:8081
-      # UDP ports the Terp Cam client binds. They must be published, and with the
-      # same number on both sides: the camera replies to the port its packet came
-      # from, which the bridge keeps as the container's, so a different outside
-      # number means the reply lands nowhere.
-      - ${TERPCAM_P2P_PORTS_EXTERNAL:-32200-32209}:${TERPCAM_P2P_PORTS_EXTERNAL:-32200-32209}/udp
+      # UDP ports the Terp Cam client binds, which have to be published: the
+      # camera's first reply comes from a port we never sent to, so the bridge
+      # has no state for it and drops it unless the port is forwarded in.
+      - ${TERPCAM_P2P_PORTS_EXTERNAL:-32200-32209}:32200-32209/udp
     networks:
       - main
     environment:
       SECRET_KEY: ${TOKEN_SECRET_KEY}
       PORT: 8081
       API_URL_EXTERNAL: ${API_URL_EXTERNAL}
-      TERPCAM_P2P_PORTS_EXTERNAL: ${TERPCAM_P2P_PORTS_EXTERNAL:-32200-32209}
+      # Must match the host side of the mapping above - see .env.sample.
+      TERPCAM_P2P_PORTS: 32200-32209
       DB_HOST: "mongodb"
       DB_PORT: "27017"
       DB_DATABASE: ${MONGODB_DATABASE}
