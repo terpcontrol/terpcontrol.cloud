@@ -26,9 +26,15 @@ Onboard the webcam from the controller/module, app‑free, and get periodic HD s
 | 4 | Minimal, no firmware | ✅ On track — everything is settings + HTTP + P2P, no firmware |
 | 3 | HD image every 1–2 min | ✅ **SOLVED end-to-end on hardware (2026‑08‑20).** The controller captures over P2P and the existing image pipeline stores/serves it; see §17. Earlier note (2026‑08‑18): App‑free provisioning proven live; the PPCS transport cipher is fully reversed & reimplemented in pure Python; a clean‑room client pulls a **2304×1296 HD JPEG** LAN‑direct from the camera on Wi‑Fi. See §15. |
 
-Open item, on top of the four above: **the still's resolution.** The shipped path settled for 640×360 because
-`snapshot.cgi` appeared to have no resolution control. It has one — `res=` — and `res=2` asks for 1280×720; that and a
-receiver whose RAM no longer caps the image size are shipped but **not yet measured against the camera** (§24).
+Open item, on top of the four above: ~~**the still's resolution.**~~ **Closed 2026‑09‑08, negatively.** `snapshot.cgi`
+does take a `res=` parameter per the vendor manual, but **this firmware ignores it**: every value from 0 to 3, and the
+bare call, returns 640×360, and so does the call after switching the MJPEG encoder itself with
+`camera_control.cgi?param=15&value=2`. Measured LAN‑direct against the camera — see §24.7. 1280×720 stills are not
+available on `EN120.8.53.11` by any documented means.
+
+Open item instead: **who pulls.** The controller pulls because §16 assumed only the LAN could open a P2P session. The
+vendor SDK disproves that — the cloud can open one itself, which would take the ESP32 out of the image path entirely.
+See §26.
 
 ## 3. Hardware & identity
 
@@ -58,7 +64,7 @@ Once the camera joins a real Wi‑Fi network, it **firewalls its own wireless in
 
 Dead ends confirmed (do not re‑try):
 - **RTSP/ONVIF**: `set_rtsp.cgi`/`set_onvif.cgi` config sticks (`rtspenable=1`) but the daemon **never binds** on the LAN. `get_rtsp`/ONVIF effectively stripped for LAN use.
-- **FTP timed push** (`set_ftp.cgi&upload_interval=N`, "Instantly upload image interval(s)"): **never fires** (no camera‑side connection, AP or station) — FTP appears stripped (`get_ftp`=not‑support). ⚠️ *The parenthetical is not evidence: `get_ftp.cgi` does not exist in the vendor manual, and FTP settings read back from `get_params.cgi`. See §25(a) before treating this as closed.*
+- **FTP timed push** (`set_ftp.cgi&upload_interval=N`, "Instantly upload image interval(s)"): **never fires** (no camera‑side connection, AP or station) — FTP is stripped. ✅ *Re-tested properly on 2026‑09‑08 and confirmed: PASV, a real server, both interval units, and the vendor's own readback location. `get_params.cgi` carries no `ftp_*` field at all, so there is nowhere for the settings to land. The original parenthetical (`get_ftp`=not‑support) was indeed unsound evidence — see §25.1 — but the conclusion it was attached to holds.*
 - **Remote root** to open the firewall: GoAhead `set_ftp.cgi`→telnetd injection, NTP‑server injection, `set_telnet`/`debug`/`shell` CGIs — all patched/absent on this firmware.
 - **aiopppp / UDP‑32108 PPPP**: camera doesn't answer 32108 discovery reproducibly; its real local channel is TCP‑framed P2P (below), which aiopppp doesn't speak.
 - **Open firmware (thingino/OpenIPC)**: exists for this exact board (issue #1241) but **unimplemented**, AIC8800DC driver unproven, SD‑flash‑only + high brick risk. Rejected by req #2 (must stay reversible/original‑app) and #4 (no firmware).
@@ -607,24 +613,43 @@ Both `fridge` and `controller` build.
 > case-insensitive volume makes `#include <WiFi.h>` resolve to the project's own `src/wifi.h`, and every file that
 > touches `WiFi` fails to compile. It is not a real build error.
 
-### 24.7 Not yet verified on hardware
+### 24.7 Verified on hardware (2026-09-08) — the firmware ignores `res`
 
-**The camera did not answer while this was written.** A LanSearch sweep of the whole `192.168.144.0/24` — broadcast and
-unicast to all 30 ARP-visible hosts, from both of this Mac's interfaces on that subnet — produced no `PunchPkt`, and no
-host on the LAN has 9001/9002/81 open. The camera is powered off, elsewhere, or unpaired. So:
+The camera was back on the LAN and answered a `LanSearch` broadcast at `192.168.144.145`
+(`did=VSTH…TJXUG`). A Python port of `okamcam.cpp` (same table cipher, same `F1` packets, same DevLgn, same indexed
+reassembly) requested `snapshot.cgi` five times, one session each, and parsed the returned JPEG's SOF marker:
 
-- **that `res=2` returns 1280×720 on firmware `EN120.8.53.11` is inferred from the vendor documentation, not measured;**
-- the sliding-window receiver compiles and its logic is a small change to a path measured at 22/22, but its success
-  rate at ~100 fragments per capture is unknown — more fragments means more chances to lose one, and the flush-vs-ack
-  interleaving is new.
+| query | dimensions | JPEG bytes |
+|---|---|---|
+| *(bare, no `res`)* | **640×360** | 32,898 |
+| `res=0` | **640×360** | 32,978 |
+| `res=1` | **640×360** | 32,940 |
+| `res=2` | **640×360** | 32,936 |
+| `res=3` | **640×360** | 32,947 |
 
-What to check the moment a camera is back on the LAN, in order: the returned JPEG's SOF dimensions; `bytes=` and
-`got=n/m` in `message-cam-capture:ok`; the per-attempt success rate over ~10 captures spaced 30 s; and whether `res=`
-in the log has silently dropped to 0. The probe client used for the sweep is a direct port of `okamcam.cpp` and is the
-quickest way to answer the first question without flashing anything.
+**Every value returns 640×360, including the ones the manual maps to other sizes.** `res=1` should have been 320×180
+and `res=3` is not in the table at all; both come back the same as bare. The parameter is parsed and discarded.
 
-If 1280×720 proves too heavy, §24.3/§24.4 now give real knobs to lighten it (`enc_quant`, `camera_control` param 13),
-which is what §19.5 wrongly concluded did not exist.
+This is not a `res`-spelling problem either. `camera_control.cgi?param=15&value=2` — the vendor's *encoder* setting for
+MJPEG size, which §24.1 argued `snapshot.cgi` renders from — was **accepted** (`result= 0`) and changed nothing: the
+next snapshot was still 640×360, bare and with `res=2`. (Restored to `value=0` afterwards and confirmed by readback.)
+So on `EN120.8.53.11` the MJPEG path is pinned at 640×360, and §24.1's inference from the vendor manual, while a
+correct reading of the manual, does not describe this firmware.
+
+**What that means for the change in §24.6:** the `res=2` request is a **no-op**, not a regression — the camera returns
+exactly what it always returned, so the shipped behaviour is unchanged. The fallback never trips, because a reply that
+carries no JPEG is what counts against `res` and every reply carries one; the log line duly reads `res=2` with
+`bytes≈32 000`. Note this also means the automatic downgrade is dead code on this camera — it can only fire on a
+firmware that *rejects* `res=2` outright, which this one does not.
+
+The sliding-window receiver was measured separately, since it now runs at 640×360 rather than the 720p it was sized
+for; see the PR discussion for the per-capture numbers. `skipped-low-heap` behaved as designed: the old firmware was
+failing the guard by **12 bytes** (`free=123760 max=73716 need=73728`) and logging the skip repeatedly, and the new
+48 + 16 KB requirement clears it.
+
+If 1280×720 is ever wanted from this camera, `snapshot.cgi` is not the way in — the remaining candidates are the H.264
+main stream (§18/§20.1, `MainStreamWidth=1280 MainStreamHeight=720` in `get_camera_params`) and `set_media.cgi`
+(§24.4), neither of which is a small change.
 
 ## 25. Push instead of pull — the options, and one retracted dead end
 
@@ -681,5 +706,178 @@ Cheapest way to find out, in this order, and both are minutes of work with `okam
 set `cmd=2019` with a `mainUrl` pointing at any host running `tcpdump`, then read `command=1` status back; and set
 `set_ftp.cgi` at a throwaway PASV FTP server, then read `get_params.cgi` back and watch for the connection. Only if one
 of them actually connects is there any point in building ingest infrastructure.
+
+### 25.1 Both push paths measured on hardware (2026-09-08) — neither exists on this firmware
+
+Both were run exactly as §25 prescribes, against firmware `EN120.8.53.11`, with the originals read first and restored
+afterwards (`get_params.cgi` diffed byte-for-byte at the end, ignoring the volatile counters).
+
+**RTMP (`cmd=2019`) — the camera never connects.** `command=0&enable=1&mainUrl=rtmp://<lan host>:1935/live/x` was
+accepted, and a listener on that port saw **no connection at all** in ten minutes. The readback is the tell: `command=1`
+returns only `result= 0; var cmd=2019;` with **no `status` field, no `enable`, no `mainUrl`** — and an invented
+`cmd=9999` returns the identical shape. `trans_cmd_string.cgi` echoes any `cmd` number it does not implement, so
+`result= 0` here means "command dispatched", not "command understood". There is no RTMP push in this firmware.
+
+**FTP — the parameter group does not exist.** `set_ftp.cgi?svr=…&mode=1&upload_interval=10` answers `result= 0`, but:
+
+- `get_params.cgi` contains **no `ftp_*` field whatsoever** — not before the write, not after it. The vendor's own
+  readback location for FTP settings is simply absent, so nothing was stored.
+- a PASV FTP server on the LAN saw no connection, including after `test_ftp.cgi` (which *does* exist — `var result=0`,
+  unlike `get_ftp.cgi`/`test_ftp_result.cgi`, which both answer `var cgi="not support"`) — i.e. the firmware has the
+  trigger stubbed but not the client.
+
+**So §5's original conclusion — "FTP appears stripped" — was right, and is hereby un-retracted.** §25(a) was correct
+that its *evidence* (`get_ftp`=not-support) was unsound, and correct to demand a re-test; the re-test with the right
+tools (PASV, a real server, both interval units, the vendor's own readback) reaches the same answer by sound means.
+Alarm-triggered HTTP is likewise dead: the vendor marks `alarm_http`/`alarm_http_url` 未使用, and the SDK's alarm
+documentation routes every notification through the vendor cloud, never to a caller-supplied URL.
+
+**Conclusion: this camera cannot be told to push anywhere.** Every remaining option is a pull — the question is only
+*who* pulls, which §26 answers.
+
+## 26. The vendor SDK's P2P stack: the cloud can pull the camera directly (2026-09-08)
+
+The whole tunnel exists because of one assumption in §16/§17: that a P2P session can only be opened from the camera's
+own LAN, so the controller has to be the one that opens it. **That assumption is wrong**, and the vendor SDK
+(`veepaisdk-mian-flutter`) contains the proof.
+
+### 26.1 What the SDK ships
+
+- `android/vp_p2p/libs/app_p2p_api-5.1.0.aar` → `jni/{arm64-v8a,armeabi-v7a}/libOKSMARTPPCS.so`, and
+  `ios/SDK/libVSTC.a` (arm64) — the **CS2 PPCS stack itself**, exporting the standard API: `PPCS_Initialize`,
+  `PPCS_Connect`, `PPCS_Write`, `PPCS_Read`, `PPCS_Check`, `PPCS_Close`. Its internals name every packet type this
+  document reverse-engineered by hand (`CSession_DevLgnAck_Deal`, `CSession_Drw_Deal`, `CSession_PunchPkt_Deal`) plus
+  the ones we never needed on the LAN: `CSession_RlyReqAck_Deal`, `CSession_RlyHello_Deal`, `P2P_NodeQuery`,
+  `cs2p2p_PPPP_thread_SuperDevice`, and a TCP relay with its own encryption.
+- `lib/p2p_device/p2p_device.dart:_serviceMap` — a **hardcoded table of CS2 init strings keyed by DID prefix**. The init
+  string is what points the stack at the vendor's rendezvous/relay servers. Ours is there:
+
+  ```
+  "VSTH": "EEGDFHBLKGJIGEJLEKGOFMEDHAMHHJNAGGFABMCOBGJOLHLJDFAFCPPHGILKIKLMANNHKEDKOINIBNCPJOMK:vstarcam2018"
+  ```
+
+  Unknown prefixes are fetched from `https://authentication.eye4.cn/getInitstring`, and the printed label is mapped to
+  the P2P UID by `https://vuid.eye4.cn?vuid=<label>`.
+
+### 26.2 The wire DID decodes to the WAN UID — §23's open question, answered
+
+§23 concluded the stored `realdeviceid` (`AAC2851962SPLP`) and the DID inside a `PunchPkt` "are different identifiers"
+and that a real identity check "needs a P2P session against the camera's setup AP". The second half is now unnecessary:
+the 20-byte wire DID is simply the UID in packed form and unpacks with no lookup at all —
+
+```
+56 53 54 48 | 00 00 00 00 00 08 e0 c0 | 54 4a 58 55 47 | 00 00 00
+   "VSTH"   |   uint64 = 581824       |     "TJXUG"    |  padding
+                     ->  VSTH-581824-TJXUG
+```
+
+So a LanSearch during pairing yields the camera's **globally routable P2P identity**, which is exactly what discovery
+needs to tell two cameras apart *and* what the cloud needs to reach one. `PPCS_QueryDID` exists for the same job.
+
+### 26.3 Measured: a full still pulled with the controller entirely out of the path
+
+`libVSTC.a` is arm64 Mach-O, so it links into a plain macOS binary once each member object's `LC_VERSION_MIN_IPHONEOS`
+is flipped to `LC_VERSION_MIN_MACOSX` (same 16-byte load command — `vtool` refuses for lack of space, a 4-byte patch
+does it). Against the live camera, **with LAN search switched off**:
+
+```
+PPCS_Initialize(<VSTH init string>)          -> 0
+PPCS_Connect("VSTH-581824-TJXUG", lan=0, 0)  -> 1        (session handle)
+PPCS_Write(h, ch0, "\x01\x0a\x00\x00<len32le>GET /snapshot.cgi?res=2&…")  -> 96
+PPCS_Read(h, ch0, …) x7                      -> 57344 B  -> a complete 640x360 JPEG
+```
+
+The DRW framing is byte-identical to `buildCgi()` in `okamcam.cpp`, so **every CGI this document documents works
+unchanged over this transport.** Two things are worth emphasising:
+
+- **The library does the ARQ.** Seven sequential reads returned the whole image; there was no fragment loss to repair,
+  no ack pacing to get right, no sliding window. All of §19/§20/§24.6 is machinery that exists solely because the
+  ESP32 reimplements this layer by hand in 40 KB of RAM.
+- **The rendezvous provably went over the internet.** `PPCS_Check` returns the session's own record, which carries this
+  machine's **public** address (`5f de 37 98`) alongside the peer's — the stack talked to the vendor's servers to find
+  the camera. The negotiated media path then came back as the camera's LAN address, because both ends sit behind one
+  NAT and hole-punching correctly preferred the local route.
+
+### 26.4 Measured from the public internet, in pure Python (2026-09-08)
+
+The vendor binary is arm64-only, so it could never have run on the cloud server. It does not have to: **the rendezvous
+was traced out of it and reimplemented**, and the result pulls stills from a host that has never seen the camera's LAN.
+
+Tracing is the whole trick. Interposing `sendto`/`recvfrom` around the statically-linked stack (our own definitions win
+over libSystem's for calls made from inside the executable) prints the exchange in full:
+
+```
+-> 52.47.140.105:32100   f1 00 0000                              Hello
+<- 52.47.140.105:32100   f1 01 0010 0002 <port> <ip,LE>          HelloAck — our own public endpoint, reflected
+-> 52.47.140.105:3210x   f1 20 0024 <20-byte DID><port><lan ip>  "where is this camera?"
+<- 52.47.140.105:32100   f1 21 0004 00000000                     accepted (`fe` in that byte = rejected)
+<- 52.47.140.105:32100   f1 40 0010 <addr>                       PunchTo — the camera's public AND LAN endpoint
+<- 95.222.55.152:<port>  f1 41 0014 <20-byte DID>                the CAMERA punching at us, unprompted
+```
+
+Addresses on the wire are `u16 family, u16 port (big endian), u32 ip (little endian)`. The three rendezvous servers
+this prefix uses are `52.47.140.105`, `18.130.74.40` and `47.254.150.171`, on UDP 32100–32102 — that is what the
+encoded init string decodes to, and reading them off the wire is far cheaper than decrypting it.
+
+**Result, run on a Hetzner box with no relationship to the camera's network:**
+
+```
+public endpoint (per supernode): ('91.98.231.109', 21921)
+  candidate (public): 95.222.55.152:13172      <- the household's WAN address
+  candidate (LAN):    192.168.144.145:13172    <- useless from here, correctly ignored
+  camera punched us from 95.222.55.152:29747
+session established with 95.222.55.152:29747
+wan.jpg: 30395 bytes (640, 360) (frags=35 slots=32 contiguous=32)
+```
+
+**10/10 and 6/6 in two runs, ~3.4 s per still.** Note `frags=35` for `slots=32`: three duplicates and *no* loss. The
+controller, on the same camera and the same image, needs 110–330 fragments for the same 32 slots and lands ~10/12.
+Taking the ESP32 out of the path does not merely move the work — it removes the packet loss that all of §19/§20/§24.6
+exists to survive, because the path is no longer a power-constrained radio sharing an antenna with everything else.
+
+Two details cost hours and are the difference between working and not:
+
+- **The peer address must be learned from the camera's punch, never from the lookup.** The supernode advertises one
+  port (24892 in one run) and the camera punches from a completely different one (15457). Spraying a range around the
+  advertised port finds nothing.
+- **Do not punch first, and do not announce a public address in the LAN-IP field.** Both measurably stop the camera's
+  punch from arriving at all. The correct client is passive: ask, then listen. The camera's punch lands within a second
+  or two of the lookup — early enough that a client which drains the socket while collecting `f1 40` replies will
+  swallow the burst and then wait forever for a packet it already threw away.
+
+The reference implementation is `okamwan.py` (a few hundred lines, no dependencies, no vendor code). `okamcam.cpp`
+already contains the session and DRW half; this is the missing rendezvous in front of it.
+
+### 26.5 What is still open
+
+- **It rides on vendor infrastructure.** The supernodes are theirs and the DID prefix's init string is theirs. Nothing
+  is decrypted or licensed-around here — the client speaks the documented-by-observation protocol — but a vendor who
+  rotates servers or filters unknown clients can break it, and that is a dependency the LAN-only design does not have.
+- **NAT is not guaranteed.** This worked through one FritzBox. A customer behind carrier-grade NAT or a symmetric NAT
+  may need the vendor's relay path (`CONNECT_MODE_RELAY`, `RlyReq`/`RlyHello` in the library), which is not
+  reimplemented here. The controller path stays as the fallback.
+- **Session slots are finite.** `get_status.cgi` reports `max_support_users=4`, and probing while the controller was
+  capturing measurably cost the controller captures. Cloud-side pulling should *replace* controller-side pulling, not
+  run alongside it.
+- **Credentials would move to the cloud.** The camera password travels in the CGI; today that happens on the customer's
+  LAN, and this moves it onto the internet inside an obfuscated-but-not-encrypted transport. That is a real downgrade
+  and needs deciding, not glossing.
+
+### 26.5 The other paths the SDK opens, ranked
+
+1. **Cloud pulls over P2P (§26.3)** — no camera change, no firmware, keeps the whole CGI surface, and deletes the
+   reliability machinery rather than improving it. Blocked only on the off-LAN test and the licensing question.
+2. **Reflash the camera.** `auto_download_file.cgi?server=<host>&file=<path>&type=0&…` makes the camera fetch firmware
+   over **plain HTTP from any server named in the request** (the vendor's own updater points it at
+   `doraemon.ipcam.so`; the version check is `http://api4.eye4.cn:808/firmware/<current>/cn`). The camera is an Ingenic
+   T23-N running Linux, and open firmware for this board exists (§5). This is the only path that would let the camera
+   genuinely *push*, and it is also the one that breaks reversibility (req #2) and risks bricking hardware in a
+   customer's tent. Worth knowing the mechanism exists; not worth using yet.
+3. **Vendor cloud API.** `doc/en/Cloud Video API Document.docx` documents `https://open.eye4.cn` with
+   `AccessKey`/`SecretKey` headers and per-device `licenseKey`, returning stored clips as plain HTTP URLs
+   (`d004-vstc.eye4.cn/...`). Server-to-server and no LAN involvement at all — but it only holds motion-triggered
+   recordings, needs a paid cloud-storage subscription per camera, and makes the vendor a hard dependency for the
+   product's core feature.
+4. **Anything camera-initiated on stock firmware** — closed, see §25.1.
 
 Credentials note: this repository is public, so every real credential in this document is a placeholder — `<OKAM_ACCOUNT>`, `<OKAM_PASSWORD>`, `<WIFI_SSID>`, `<WIFI_PSK>`, `<MQTT_DEVICE_SECURITY>`, `<CAMERA_MAC>`, `<VENDOR_UART_USER>`/`<VENDOR_UART_PASS>`. `admin`/`888888` is left as-is: it is the universal VStarcam factory default, is what the firmware ships with, and is published by the vendor. Keep it this way — do not paste real values back in.
