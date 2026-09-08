@@ -1013,6 +1013,12 @@ does not apply a password change until it is provisioned. The second, after movi
 wait — so the loop body never ran and no attempt was ever made. It is a `do/while` now, so a zero budget still means
 one try.
 
+The third problem was *where* it was triggered from. Securing hung off the capture path, which made sense when the
+controller took every image — and stopped making sense the moment the cloud started fetching them itself, because the
+controller can then go a long time without capturing anything. It now also runs from the controller's idle
+maintenance, next to the camera search, guarded by `terpCamNeedsSecuring()` so it costs nothing once a password
+exists.
+
 **Success is decided by using the new password, not by reading the reply.** The first version parsed the response for
 `result=0`, which is fragile twice over: the reply's shape differs between CGIs, and changing the password can drop
 the very session the request arrived on. `terpCamSecure()` therefore sends the change and then asks `get_status.cgi`

@@ -2329,6 +2329,18 @@ static void tickAuxDeviceSearch() {
     return;
   }
 
+  // A paired camera still on the manufacturer's published password gets its own
+  // here. Doing it while the display is idle rather than during a capture is
+  // what makes it happen at all now that the cloud fetches stills itself: the
+  // controller may go a long time without capturing anything. It returns at once
+  // when a password is already stored, so this costs nothing after the first
+  // time.
+  if(fg::terpCamNeedsSecuring()) {
+    fg::terpCamSecure(smart_socket_cloud_handle, 0);
+    socket_search_allowed_tick = xTaskGetTickCount() + SMART_SOCKET_SEARCH_COOLDOWN;
+    return;
+  }
+
   // Only a socket whose hardware id is known can be recognised again; without
   // one a sweep would find nothing however often it ran.
   bool stale = false;

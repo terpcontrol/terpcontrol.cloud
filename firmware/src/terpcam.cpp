@@ -486,6 +486,11 @@ namespace fg {
     return password;
   }
 
+  bool terpCamNeedsSecuring() {
+    return camIsPaired() &&
+           settingIsEmpty(std::string(fg::settings().getStr(TERP_CAM_PWD_NVS_KEY).c_str()));
+  }
+
   bool terpCamSecure(Fridgecloud* cloud, uint32_t find_ms) {
     if(!camIsPaired()) return false;
     // Already done: a stored password means this camera is not on the default.

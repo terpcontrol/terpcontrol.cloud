@@ -87,6 +87,9 @@ namespace fg {
    */
   bool terpCamSecure(Fridgecloud* cloud, uint32_t find_ms = 90000);
 
+  /** Whether a camera is paired and still on the manufacturer's password. */
+  bool terpCamNeedsSecuring();
+
   /*
    * ---------------------------------------------------------------------------
    * NOTE — the full-resolution (2304x1296) path, and why it is not used
