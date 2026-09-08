@@ -32,9 +32,11 @@ bare call, returns 640×360, and so does the call after switching the MJPEG enco
 `camera_control.cgi?param=15&value=2`. Measured LAN‑direct against the camera — see §24.7. 1280×720 stills are not
 available on `EN120.8.53.11` by any documented means.
 
-Open item instead: **who pulls.** The controller pulls because §16 assumed only the LAN could open a P2P session. The
-vendor SDK disproves that — the cloud can open one itself, which would take the ESP32 out of the image path entirely.
-See §26.
+Open item instead: **who pulls.** The controller pulls because §16 assumed only the LAN could open a P2P session. That
+assumption is wrong: the cloud can open one itself, over the internet, and does so at **10/10 with no fragment loss**
+— including at the sensor's full **2304×1296**, which the controller could never sustain. Taking the ESP32 out of the
+image path removes the packet loss the whole receiver design exists to survive, and answers the resolution question
+that `snapshot.cgi` could not. See §26.
 
 ## 3. Hardware & identity
 
@@ -848,7 +850,48 @@ Two details cost hours and are the difference between working and not:
 The reference implementation is `okamwan.py` (a few hundred lines, no dependencies, no vendor code). `okamcam.cpp`
 already contains the session and DRW half; this is the missing rendezvous in front of it.
 
-### 26.5 What is still open
+### 26.5 Full resolution, 2304×1296 — the path §19 abandoned works from the cloud
+
+**Measured 10/10, every frame 2304×1296.** The resolution question that §24 tried to answer with `snapshot.cgi` is
+answered properly here instead: not by the MJPEG encoder, which is pinned at 640×360 (§24.7), but by the source that
+always had the full image — the **main video stream**.
+
+The recipe is unchanged from the one preserved in `okamcam.h`: `livestream.cgi?streamid=10&substream=2` on **DRW
+channel 1**, whose payload is VStarcam media frames (32-byte header, magic `55 aa 15 a8`, frame length at offset 16
+little-endian) wrapping H.264 Annex-B. The first frame of a session is the keyframe; keep it if it carries SPS (NAL 7)
+and an IDR slice (NAL 5), and hand the raw H.264 to ffmpeg. `scripts/okamhd.py` does exactly this over the §26.4
+transport.
+
+```
+run 1: hd1.h264: 43766 bytes of H.264 (43 fragments)      ... run 10: 43872 bytes (43 fragments)
+HD RELIABILITY: 10/10          ffprobe: 2304x1296 on all ten
+```
+
+**43 fragments for a 43-fragment keyframe, ten times running.** That single number is the whole story. §19's four
+findings were all consequences of *where* the receiver ran, not of the protocol:
+
+| §19 finding | why it no longer bites |
+|---|---|
+| one keyframe per session | still true — but a session costs ~3 s and nothing else, so one chance per session is enough |
+| an unpaced ~53-fragment burst | lwip's mailbox was a few datagrams deep; a server's socket buffer is not |
+| acking drags in retransmit floods | nothing is lost, so the repair path is never entered |
+| keyframe swings 27–67 KB with the scene | a hard ceiling when it had to fit in 94 KB of ESP32 heap; irrelevant now |
+
+So the honest summary of §18/§19/§20.1 is: **the full-resolution path was never broken, the ESP32 was the wrong place
+to run it.** The 3/8 measurement stands as a fact about the controller, and is retracted as a fact about the camera.
+`substream=2` is confirmed as the 2304×1296 slot on this firmware, as §15.3 measured and against what the vendor table
+in §24.2 claims — the documented `substream=100` was never needed.
+
+This also makes the §24.6 sliding window, the indexed reassembly and the ack pacing unnecessary *on this path* rather
+than merely adequate: they exist to survive a loss rate that the cloud path does not have.
+
+Practical notes for wiring it up: the server already has the decode half — `okamP2PService.onImageMessage` resolves a
+plain JPEG directly and calls ffmpeg only when the message carries `"h264":true`, and `okamCamService.decodeKeyframeToJpeg`
+is that branch. A cloud-side capture would feed the same function, so storage, timelapses and thinning need no change.
+At 2304×1296 a still is ~117 KB as JPEG against ~32 KB today, which is what the retention arithmetic should be redone
+against.
+
+### 26.6 What is still open
 
 - **It rides on vendor infrastructure.** The supernodes are theirs and the DID prefix's init string is theirs. Nothing
   is decrypted or licensed-around here — the client speaks the documented-by-observation protocol — but a vendor who
