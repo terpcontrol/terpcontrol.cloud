@@ -172,6 +172,12 @@ namespace fg {
       return std::string(fg::settings().getStr("webcam_ip").c_str());
     }
 
+    // Set when the address changed, so the next call that holds a cloud handle
+    // can report it. The cloud reaches the camera on this network itself, and
+    // this is how it learns where to look — so a move has to be told, not just
+    // remembered locally.
+    std::string g_cam_ip_to_report;
+
     void rememberCamIp(const IPAddress& ip) {
       const std::string address(ip.toString().c_str());
       if(address.empty() || address == cachedCamIp()) {
@@ -179,6 +185,13 @@ namespace fg {
       }
       fg::settings().setStr("webcam_ip", address.c_str());
       fg::settings().commit();
+      g_cam_ip_to_report = address;
+    }
+
+    void reportCamIp(Fridgecloud* cloud) {
+      if(cloud == nullptr || g_cam_ip_to_report.empty()) return;
+      cloud->log("hardware-info:webcam_ip=" + g_cam_ip_to_report, 0);
+      g_cam_ip_to_report.clear();
     }
 
     // Symmetric table cipher. `prev` is always the ciphertext byte, so encrypt
@@ -411,6 +424,7 @@ namespace fg {
     if(found) {
       Serial.printf("[cam] found at %s\n", peer_ip.toString().c_str());
       rememberCamIp(peer_ip);
+      reportCamIp(cloud);
     }
     if(cloud != nullptr) {
       cloud->log(found ? "message-terp-cam-found" : "message-terp-cam-not-found", found ? 0 : 1);
@@ -783,6 +797,7 @@ namespace fg {
       cloud->publishImageMessage(g_msg);
     }
 
+    reportCamIp(cloud);                  // tell the cloud if the camera moved
     udp.stop();                          // always released, on every path
     WiFi.setSleep(wifi_was_asleep);      // and power-save always restored
     releaseBuffer();                     // and the receive window always freed

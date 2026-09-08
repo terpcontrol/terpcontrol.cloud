@@ -3,13 +3,11 @@ import { logger } from '@utils/logger';
 import { terpCamService } from '@services/terpcam.service';
 
 /**
- * Terp Cam stills pulled straight from the cloud.
+ * Terp Cam stills, fetched by the server itself.
  *
  * The controller path (terpcam-p2p.service) exists because the camera was thought
- * to be reachable only from its own LAN. It is not: the camera keeps itself
- * registered with the vendor's CS2 rendezvous servers and will hole-punch to any
- * peer that asks for it by device id, so the server can open the session itself
- * and the controller drops out of the image path.
+ * to be reachable only from the controller. It is not — the server can open the
+ * session itself, and the controller drops out of the image path.
  *
  * That matters for more than tidiness. Over this path nothing is lost — a
  * keyframe arrives in as many fragments as it has — where the controller needs
@@ -20,16 +18,15 @@ import { terpCamService } from '@services/terpcam.service';
  * measured at 3/8 on the controller (its radio drops fragments of an unpaced
  * burst) and 10/10 from here.
  *
- * Protocol, all UDP, payloads obfuscated with the vendor's table cipher:
+ * The camera is always on the same network as its controller, and this server is
+ * expected to be too, so it is found the way the controller finds it: a
+ * LanSearch (`f1 30`) to the address the controller reports, answered by a
+ * PunchPkt that states the camera's own id. Nothing outside the network is
+ * involved, at any point, ever — a camera that cannot be reached this way falls
+ * back to being relayed by its controller rather than to somebody's servers.
  *
- *   -> supernode  f1 00                     Hello
- *   <-            f1 01 <our public addr>   reflected back, STUN-style
- *   -> supernode  f1 20 <did><port><lanip>  where is this camera?
- *   <-            f1 21 <00 = accepted>     and f1 40 with its endpoints
- *   <- camera     f1 41 <did>               the camera punching at US, unasked
- *   -> camera     f1 00 / f1 05 / f1 20 / f1 41 + a CGI, then DRW as on the LAN
- *
- * See docs/terpcam-reverse-engineering.md §26.
+ * The session and CGI layer after that is the one the controller speaks. See
+ * docs/terpcam-reverse-engineering.md §26.
  */
 
 /** Substitution table for the transport cipher (vendor constant). */
@@ -55,24 +52,6 @@ const SBOX = Buffer.from([
 const DK = [44, 212, 96, 6];
 
 /**
- * Rendezvous servers used to locate a camera that is NOT on this server's own
- * network — the camera manufacturer's, and therefore deliberately not compiled
- * in. Unset means the LAN path is the only one, which is a complete setup for a
- * stack hosted alongside its cameras and involves no outside party whatsoever.
- */
-const RENDEZVOUS_HOSTS = (process.env.TERPCAM_RENDEZVOUS_HOSTS ?? '')
-  .split(',')
-  .map(host => host.trim())
-  .filter(Boolean);
-
-/**
- * Directory that maps a camera's printed label to the id it registers under.
- * Only the rendezvous path needs it: on the LAN the camera states its own id.
- */
-const DIRECTORY_URL = process.env.TERPCAM_DIRECTORY_URL?.trim() || null;
-const RENDEZVOUS_PORTS = [32100, 32101, 32102];
-
-/**
  * UDP ports the process binds for captures, which must be the ones the container
  * publishes (see `bind`). Configurable because the range has to match compose.
  */
@@ -82,17 +61,6 @@ const TERPCAM_P2P_PORTS = (process.env.TERPCAM_P2P_PORTS ?? '32200-32209').split
   return Array.from({ length: Math.max(1, (to || from) - from + 1) }, (_, i) => from + i);
 });
 
-/**
- * Address to tell the camera to punch at, when it shares our network.
- *
- * Auto-detection finds the address of THIS process, which inside a container is
- * a bridge address the camera cannot reach. When the server runs on the camera's
- * own LAN — as it does when the stack is hosted at home — set this to the host's
- * LAN address, and publish the UDP ports so the punch is forwarded in. Leave it
- * empty for a server that is genuinely remote.
- */
-const TERPCAM_ADVERTISE_ADDRESS = process.env.TERPCAM_ADVERTISE_ADDRESS?.trim() || null;
-
 /** VStarcam factory default, published by the vendor; the camera ships with it. */
 const AUTH = 'name=admin&loginuse=admin&loginpas=888888&user=admin&pwd=888888&';
 
@@ -101,7 +69,6 @@ const VIDEO_CHANNEL = 1;
 const FRAME_MAGIC = Buffer.from([0x55, 0xaa, 0x15, 0xa8]);
 
 const LAN_SEARCH_MS = 2_500;
-const RENDEZVOUS_MS = 20_000;
 const LOGIN_MS = 8_000;
 const TRANSFER_MS = 20_000;
 const IDLE_MS = 5_000;
@@ -167,71 +134,7 @@ function buildAck(channel: number, index: number): Buffer {
   return buildPacket(0xd1, body);
 }
 
-/** `VSTH581824TJXUG` / `VSTH-581824-TJXUG` -> the 20-byte packed wire form. */
-export function packDeviceId(uid: string): Buffer {
-  const plain = uid.replace(/-/g, '');
-  const prefix = plain.slice(0, 4);
-  const suffix = plain.slice(-5);
-  const number = plain.slice(4, -5);
-  if (!/^[A-Za-z]{4}$/.test(prefix) || !/^\d+$/.test(number)) {
-    throw new Error(`not a P2P device id: ${uid}`);
-  }
-  const out = Buffer.alloc(20);
-  out.write(prefix, 0, 'latin1');
-  out.writeBigUInt64BE(BigInt(number), 4);
-  out.write(suffix, 12, 'latin1');
-  return out;
-}
-
-/** RFC1918, i.e. an address that only means something on our own network. */
-function isPrivate(address: string): boolean {
-  return /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(address);
-}
-
-/**
- * Our own address on the route to `host`, when that address is a private one.
- *
- * The lookup carries this so two peers on the same network can shortcut past the
- * public path, and it matters in both directions: a server that announces its
- * PUBLIC address here gets no punch at all, while a host that genuinely shares
- * the camera's LAN only gets punched on the address it names. Asking the routing
- * table rather than picking the first private interface matters on a developer
- * machine, which usually has several (VM bridges, a second NIC) and only one
- * that reaches the camera.
- */
-function routableAddress(host: string): Promise<string | null> {
-  return new Promise(resolve => {
-    const probe = dgram.createSocket('udp4');
-    const done = (address: string | null) => {
-      try {
-        probe.close();
-      } catch {
-        /* already closed */
-      }
-      resolve(address);
-    };
-    probe.once('error', () => done(null));
-    // A connected UDP socket sends nothing; it just fixes the source address.
-    probe.connect(32100, host, () => {
-      const address = probe.address()?.address ?? null;
-      done(address && isPrivate(address) ? address : null);
-    });
-  });
-}
-
-/** Wire addresses are `u16 family, u16 port (BE), u32 ip (LE)`. */
-function parseAddress(body: Buffer, offset = 0): Endpoint | null {
-  if (body.length < offset + 8) return null;
-  const port = body.readUInt16BE(offset + 2);
-  const ip = [body[offset + 7], body[offset + 6], body[offset + 5], body[offset + 4]].join('.');
-  if (!port || ip.startsWith('0.')) return null;
-  return { address: ip, port };
-}
-
 class TerpCamDirectService {
-  /** Printed label -> P2P device id. The mapping never changes for a camera. */
-  private uidCache = new Map<string, string>();
-
   /** Published UDP ports to prefer, so the camera's punch can reach us. */
   private ports = TERPCAM_P2P_PORTS;
 
@@ -260,8 +163,8 @@ class TerpCamDirectService {
       socket.send(buildPacket(0x30), 32108, address, () => undefined);
       await this.drain(inbox, 600, entry => {
         if (entry.message.length >= 24 && entry.message[1] === 0x41 && entry.from.address === address) {
-          // The camera states its own id in the reply, so this path needs no
-          // directory lookup — it is self-contained on the local network.
+          // The camera states its own id in the reply, so nothing has to be
+          // looked up anywhere — this is self-contained on the local network.
           found.session = { peer: entry.from, did: Buffer.from(entry.message.subarray(4, 24)) };
           return true;
         }
@@ -272,9 +175,11 @@ class TerpCamDirectService {
   }
 
   /**
-   * Remember where a camera answered, so later captures can go straight to it.
-   * Fed by the controller's `webcam_ip` hardware-info and by whatever the
-   * rendezvous reports, so the vendor is needed at most once per address change.
+   * Remember where a camera answered, so captures can go straight to it.
+   *
+   * Fed by the controller's `webcam_ip` hardware-info. The controller shares the
+   * camera's network and already searches for it when it moves, so this stays
+   * current without the server having to hunt for anything itself.
    */
   public rememberLanAddress(label: string, address: string): void {
     if (address && address !== 'none' && this.lanAddresses.get(label) !== address) {
@@ -313,31 +218,6 @@ class TerpCamDirectService {
     });
   }
 
-  /**
-   * Resolve the id the camera is registered under. Pairing stores the printed
-   * label (`AAC2851962SPLP`), which is not the P2P id (`VSTH581824TJXUG`); the
-   * vendor's own directory maps one to the other, and the answer is permanent.
-   */
-  public async resolveDeviceId(label: string): Promise<string> {
-    if (/^[A-Za-z]{4}\d{4,}[A-Za-z0-9]{5}$/.test(label) && label.startsWith('VST')) {
-      return label; // already a P2P id
-    }
-    const cached = this.uidCache.get(label);
-    if (cached) return cached;
-
-    if (!DIRECTORY_URL) {
-      throw new Error('camera id is not a P2P id and TERPCAM_DIRECTORY_URL is unset');
-    }
-    const response = await fetch(`${DIRECTORY_URL}${DIRECTORY_URL.includes('?') ? '&' : '?'}vuid=${encodeURIComponent(label)}`, {
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (!response.ok) throw new Error(`device-id lookup failed: HTTP ${response.status}`);
-    const body = (await response.json()) as { uid?: string };
-    if (!body?.uid) throw new Error('device-id lookup returned no uid');
-    this.uidCache.set(label, body.uid);
-    return body.uid;
-  }
-
   /** Pull one still as a ready JPEG, decoding the keyframe when there is one. */
   public async captureStill(label: string): Promise<Buffer> {
     const { data, h264 } = await this.capture(label);
@@ -365,24 +245,16 @@ class TerpCamDirectService {
     try {
       await this.bind(socket);
 
-      // Prefer our own network. Only when the camera is not on it (or has moved)
-      // does this fall back to the vendor's rendezvous servers, which is the one
-      // step that involves a third party at all.
       const known = this.lanAddresses.get(label);
       const local = known ? await this.lanSession(socket, inbox, known) : null;
-      let peer: Endpoint;
-      let did: Buffer;
-      if (local) {
-        logger.info(`[terpcam] ${label} found on the local network at ${local.peer.address}`);
-        ({ peer, did } = local);
-      } else {
-        if (!RENDEZVOUS_HOSTS.length) {
-          throw new Error('camera is not on this network and TERPCAM_RENDEZVOUS_HOSTS is unset');
-        }
-        did = packDeviceId(await this.resolveDeviceId(label));
-        peer = await this.rendezvous(socket, inbox, did);
-        if (isPrivate(peer.address)) this.rememberLanAddress(label, peer.address);
+      if (!local) {
+        // Deliberately no second route. The controller shares the camera's
+        // network and can always relay, so a camera we cannot see is its job,
+        // not something to go looking for through anybody else's servers.
+        throw new Error(known ? `camera did not answer at ${known}` : 'no camera address reported yet');
       }
+      logger.info(`[terpcam] ${label} answered at ${local.peer.address}`);
+      const { peer, did } = local;
       await this.login(socket, inbox, did, peer);
 
       streaming = peer;
@@ -404,67 +276,6 @@ class TerpCamDirectService {
       }
       socket.close();
     }
-  }
-
-  /**
-   * Ask the rendezvous servers for the camera and wait for it to punch at us.
-   *
-   * Two things here are load-bearing and cost hours to find. The camera punches
-   * from a port that is NOT the one the servers advertise, so the peer must be
-   * taken from the packet it sends rather than from the lookup answer. And its
-   * punch lands within a second or two of the lookup, i.e. while we are still
-   * reading the servers' replies — so this loop has to watch for it here, not
-   * afterwards.
-   */
-  private async rendezvous(socket: dgram.Socket, inbox: { message: Buffer; from: Endpoint }[], did: Buffer): Promise<Endpoint> {
-    const send = (packet: Buffer, host: string, port: number) => socket.send(packet, port, host, () => undefined);
-
-    // Held in an object because both are assigned from inside a callback.
-    const found: { reflected: Endpoint | null; punched: Endpoint | null } = { reflected: null, punched: null };
-
-    // 1. Hello, to learn our own public endpoint.
-    const helloUntil = Date.now() + 4_000;
-    while (!found.reflected && Date.now() < helloUntil) {
-      for (const host of RENDEZVOUS_HOSTS) send(buildPacket(0x00), host, 32100);
-      await this.drain(inbox, 700, entry => {
-        if (entry.message.length >= 12 && entry.message[1] === 0x01) {
-          found.reflected = parseAddress(entry.message.subarray(4));
-        }
-        return false;
-      });
-    }
-
-    // 2. Ask for the camera.
-    const body = Buffer.concat([did, Buffer.alloc(16)]);
-    body.writeUInt16BE(found.reflected?.port ?? 0, 22);
-    const lan = TERPCAM_ADVERTISE_ADDRESS ?? (await routableAddress(RENDEZVOUS_HOSTS[0]));
-    if (lan) {
-      // Stored least-significant octet first, like every other address here.
-      const octets = lan.split('.').map(Number).reverse();
-      Buffer.from(octets).copy(body, 24);
-    }
-
-    const until = Date.now() + RENDEZVOUS_MS;
-    while (!found.punched && Date.now() < until) {
-      for (const host of RENDEZVOUS_HOSTS) {
-        for (const port of RENDEZVOUS_PORTS) send(buildPacket(0x20, body), host, port);
-      }
-      await this.drain(inbox, 2_500, entry => {
-        const isPunch = entry.message.length > 1 && entry.message[1] === 0x41;
-        if (isPunch && !RENDEZVOUS_PORTS.includes(entry.from.port)) {
-          found.punched = entry.from;
-          return true;
-        }
-        return false;
-      });
-    }
-
-    const peer = found.punched;
-    if (!peer) throw new Error('camera did not answer the rendezvous');
-
-    logger.info(`[terpcam] camera punched from ${peer.address}:${peer.port}`);
-    socket.send(buildPacket(0x41, did), peer.port, peer.address, () => undefined);
-    return peer;
   }
 
   /** Authenticate the punched session — the same handshake used on the LAN. */

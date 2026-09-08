@@ -941,31 +941,35 @@ again**, and an operator who wants that guaranteed rather than merely typical ca
 genuinely remote server still needs the rendezvous per session, because there is no other way to find a camera behind
 somebody else's NAT — that is the trade the deployment makes, not a property of the protocol.
 
-### 26.8 Naming, and why no vendor address is compiled in
+### 26.8 The rendezvous path is gone — discovery belongs on the controller
 
-The code calls this camera the **Terp Cam**, because that is the product. The manufacturer's names survive only where
-they carry information a reader needs — this document, and the handful of comments explaining that the CGI surface and
-the `admin`/`888888` default are somebody else's design. Sources are `firmware/src/terpcam.{cpp,h}`,
-`server/src/services/terpcam-direct.service.ts` (cloud-side capture), `terpcam-p2p.service.ts` (controller-relayed
-capture), `terpcam.service.ts` (decode and storage), and `scripts/terpcam-{lan,remote,hd}.py`.
+§26.4 measured that a server anywhere on the internet can locate a camera through the manufacturer's rendezvous
+servers, and that stands as a fact about the protocol. It is **not** how this ships, because it costs a third-party
+lookup *per capture*: a fresh session is needed for every full-resolution keyframe, so a 30-second poll means a
+lookup every 30 seconds, telling someone else how often each camera is read.
 
-`cloudSettings.rtspStream` now reads `terpcam://<label>`. The old `okam://` is still recognised so cameras paired
-before the rename keep working, and never written again.
+It is also unnecessary. **The camera is always on the same network as its controller**, so discovery can always happen
+there, and the controller already does it — `terpCamSearch()` (§23) broadcasts for the camera and remembers where it
+answered. That address now reaches the cloud: `rememberCamIp()` reports `hardware-info:webcam_ip=<addr>` whenever it
+changes, not merely at boot, so a camera that moves is re-found by the controller and the server is told.
 
-**No manufacturer address appears in the source.** The repository is public, and an address compiled into it is both an
-advertisement for someone else's infrastructure and a default that contacts them whether or not the operator wanted
-it. So the rendezvous servers and the label→id directory come from `TERPCAM_RENDEZVOUS_HOSTS` and
-`TERPCAM_DIRECTORY_URL`, **both empty by default**. The addresses themselves are recorded in §26.4 above, which is the
-right place for a measurement.
+So the server's capture path is:
 
-Empty is a *working* configuration, not a crippled one, because the LAN path needs neither:
+1. LanSearch (`f1 30`) to the address the controller reported. The PunchPkt that answers **states the camera's own
+   id**, so nothing has to be looked up anywhere.
+2. If that fails, the controller relays the capture as it always did — which also re-runs discovery, so the next
+   direct attempt has a fresh address. The fallback is the repair.
 
-- a camera on the server's own network is found by asking it directly (LanSearch), and
-- **its reply states its own device id**, so the directory lookup is not needed either.
+There is deliberately no third route. `rendezvous()`, the hole punch, the label→id directory and the packed-id helper
+are all deleted rather than disabled, so no configuration can turn outside contact back on by accident. The
+manufacturer's addresses survive only as a measurement in §26.4.
 
-Measured on the default configuration, with nothing manufacturer-related set: **5/5 at 2304×1296, ~0.9 s each.**
-Setting the two variables is what a hosted deployment does when its cameras live on other people's networks, and it is
-then an explicit, documented decision rather than a silent one.
+Measured after the removal, through the containerised server: **6/6 at 2304×1296, ~0.9 s each.**
+
+The consequence to be honest about: a server that does **not** share a network with its cameras can no longer fetch
+them directly at all, and falls back to the controller relay — 640×360, and the reliability §20 measured. That is the
+right trade for this product, whose stack runs alongside the devices it serves, and it is a deployment property rather
+than a protocol limit.
 
 ### 26.9 What is still open
 
