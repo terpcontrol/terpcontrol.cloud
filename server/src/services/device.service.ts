@@ -631,6 +631,17 @@ class DeviceService {
     // The controller is on the camera's network and already knows where it
     // answers. Passing that on lets the cloud reach the camera directly, without
     // asking the vendor's rendezvous servers where it is.
+    // The controller sets a per-camera password at pairing and reports it here,
+    // because the cloud fetches stills itself and has to authenticate. It is
+    // stored against the device and never written to its log.
+    if (infoKey === 'webcam_pwd') {
+      const device = await deviceModel.findOne({ device_id: deviceId });
+      const camera = device?.hardwareInfo?.webcam_did;
+      if (camera && camera !== 'none') {
+        terpCamDirectService.rememberPassword(camera, infoValue);
+      }
+    }
+
     if (infoKey === 'webcam_ip') {
       const device = await deviceModel.findOne({ device_id: deviceId });
       const label = device?.hardwareInfo?.webcam_did;
@@ -986,14 +997,20 @@ class DeviceService {
     // lean() gives plain objects: the derived seconds can be attached to them, and
     // the sanitized demo copies cannot carry mongoose internals (or the untouched
     // original) along.
+    // The camera password is reported so the server can fetch stills; nothing
+    // that reads this list needs it, so it does not leave the server.
+    const withoutCameraPassword = <T extends { hardwareInfo?: Record<string, string> }>(device: T): T => {
+      if (device.hardwareInfo?.webcam_pwd !== undefined) delete device.hardwareInfo.webcam_pwd;
+      return device;
+    };
+
     if (is_demo) {
       const demoDevices = await deviceModel.find({ demoDevice: true }, projection).lean();
-      return demoDevices.map(device => withMaintenanceSecondsLeft(demoDevice(device))) as Device[];
+      return demoDevices.map(device => withMaintenanceSecondsLeft(withoutCameraPassword(demoDevice(device)))) as Device[];
     }
 
     const devices = await deviceModel.find({ owner_id: user_id }, projection).lean();
-    // const users: Device[] = await deviceModel.aggregate([{$match: {owner_id: user_id}}, {$lookup: {from: 'deviceclasses', localField:'class_id', foreignField: 'class_id', as:'device_class'}}]);
-    return devices.map(device => withMaintenanceSecondsLeft(device)) as Device[];
+    return devices.map(device => withMaintenanceSecondsLeft(withoutCameraPassword(device))) as Device[];
   }
 
   public async register(info: RegisterDeviceDto): Promise<any> {

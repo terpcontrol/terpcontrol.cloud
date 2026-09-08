@@ -971,7 +971,47 @@ them directly at all, and falls back to the controller relay — 640×360, and t
 right trade for this product, whose stack runs alongside the devices it serves, and it is a deployment property rather
 than a protocol limit.
 
-### 26.9 What is still open
+### 26.9 The camera gets its own password at pairing (2026-09-08)
+
+Until now every camera answered to `admin`/`888888` — the manufacturer's default, printed in their own manual, and
+therefore known to anyone. Anybody on the customer's network could drive the camera: watch it, reconfigure it, factory
+reset it. That was acceptable while the credential lived only in firmware on the same LAN; it is not acceptable as the
+answer to "is the camera secured".
+
+Pairing now replaces it. While the camera is still on its own `@IPC-` setup AP — before it has ever joined the home
+network — the controller generates a 12-character password and sends:
+
+```
+set_users.cgi?pwd_change_realtime=1&user1=&user2=&user3=admin&pwd1=&pwd2=&pwd3=<generated>&<current auth>
+```
+
+`pwd_change_realtime=1` is what makes it take effect immediately rather than at the next boot; `get_status.cgi`
+reports `pwd_change_realtime=1` on this firmware, so it is supported. The rest of provisioning then uses the new
+password, and it is stored in NVS (`webcam_pwd`) and reported to the cloud as `hardware-info:webcam_pwd`, which is
+stored against the device and — unlike an ordinary log line — never written into the diary the user reads. It is also
+stripped from `GET /device`, since nothing outside the server needs it.
+
+Verified on hardware, end to end:
+
+| step | result |
+|---|---|
+| set a generated password | `result=0` |
+| `admin`/`888888` afterwards | **rejected** |
+| capture with the server not knowing it | fails, falls back to the controller |
+| capture once the controller reports it | **3/3 at 2304×1296** |
+| password in `GET /device` | absent — redacted |
+| restore to the default | works, camera left as found |
+
+Failure behaviour is deliberate: a camera that refuses the change keeps the default and pairs anyway, reported rather
+than silently accepted, because a camera that works insecurely beats one that cannot be paired. The default also
+remains the fallback everywhere, since `restore_factory.cgi` — which §21 sends when the user disconnects a camera —
+puts it back, and the stored password is cleared at the same time.
+
+The obvious residual: the password is recoverable by anyone who can read the device's NVS or the server's database,
+and it travels to the cloud over the device's MQTT link. That is a real limit, and the honest framing is that this
+closes "every camera has the same published password", not "the camera is hardened".
+
+### 26.10 What is still open
 
 - **It rides on vendor infrastructure.** The supernodes are theirs and the DID prefix's init string is theirs. Nothing
   is decrypted or licensed-around here — the client speaks the documented-by-observation protocol — but a vendor who

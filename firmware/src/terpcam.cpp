@@ -270,11 +270,18 @@ namespace fg {
       return buildPacket(0xd1, body, sizeof(body));
     }
 
-    // Credentials: VStarcam factory default (the camera is provisioned by us and
-    // never has its password changed). The captured `loginpas` hash goes stale
-    // after a factory reset; the plain password does not.
-    const char* const AUTH =
-      "name=admin&loginuse=admin&loginpas=888888&user=admin&pwd=888888&";
+    // The camera ships with the manufacturer's published default password, which
+    // every one of these cameras has until somebody changes it. Pairing replaces
+    // it with a per-camera secret (see provisionTerpCam) and stores it here, so
+    // this returns whatever that camera actually uses. The default remains the
+    // fallback for cameras paired before that existed, and for one factory-reset
+    // behind our back — a reset restores the default, and the query string is
+    // the plain password rather than the captured hash, which is what survives.
+    std::string camAuth() {
+      std::string password(fg::settings().getStr(TERP_CAM_PWD_NVS_KEY).c_str());
+      if(settingIsEmpty(password)) password = TERP_CAM_DEFAULT_PASSWORD;
+      return "name=admin&loginuse=admin&loginpas=" + password + "&user=admin&pwd=" + password + "&";
+    }
 
     // Discover the camera and authenticate a P2P session on `udp`. Shared by the
     // capture and factory-reset paths. The DevLgn is what authenticates the
@@ -351,7 +358,7 @@ namespace fg {
       sendPacket(udp, peer_ip, peer_port, buildPacket(0x05, did, sizeof(did)));
       sendPacket(udp, peer_ip, peer_port, buildPacket(0x20, devlgn, sizeof(devlgn)));
       sendPacket(udp, peer_ip, peer_port, buildPacket(0x41, did, sizeof(did)));
-      snprintf(cgi, sizeof(cgi), "get_status.cgi?%s", AUTH);
+      snprintf(cgi, sizeof(cgi), "get_status.cgi?%s", camAuth().c_str());
       sendPacket(udp, peer_ip, peer_port, buildCgi(0, 0, cgi));
 
       const uint32_t wait_until = millis() + 500;
@@ -455,7 +462,7 @@ namespace fg {
 
     if(openSession(udp, peer_ip, peer_port)) {
       char cgi[192];
-      snprintf(cgi, sizeof(cgi), "restore_factory.cgi?%s", AUTH);
+      snprintf(cgi, sizeof(cgi), "restore_factory.cgi?%s", camAuth().c_str());
 
       // The camera reboots into its setup AP as soon as it acts on this, so the
       // reply may never arrive. Send it a few times and treat any channel-0
@@ -629,7 +636,7 @@ namespace fg {
     memset(g_received, 0, sizeof(g_received));
     memset(g_slot_len, 0, sizeof(g_slot_len));
 
-    snprintf(cgi, sizeof(cgi), "snapshot.cgi?res=%u&%s", (unsigned)res, AUTH);
+    snprintf(cgi, sizeof(cgi), "snapshot.cgi?res=%u&%s", (unsigned)res, camAuth().c_str());
     sendPacket(udp, peer_ip, peer_port, buildCgi(0, 1, cgi));
     last_data = millis();
     started = millis();

@@ -61,8 +61,18 @@ const TERPCAM_P2P_PORTS = (process.env.TERPCAM_P2P_PORTS ?? '32200-32209').split
   return Array.from({ length: Math.max(1, (to || from) - from + 1) }, (_, i) => from + i);
 });
 
-/** VStarcam factory default, published by the vendor; the camera ships with it. */
-const AUTH = 'name=admin&loginuse=admin&loginpas=888888&user=admin&pwd=888888&';
+/**
+ * What the camera ships with — the manufacturer publishes it, so every unpaired
+ * camera of this kind answers to it. Pairing replaces it with a per-camera
+ * secret which the controller reports; this is only the fallback for cameras
+ * paired before that existed, or one that has been factory-reset since.
+ */
+const DEFAULT_PASSWORD = '888888';
+
+function authFor(password: string): string {
+  const pw = encodeURIComponent(password);
+  return `name=admin&loginuse=admin&loginpas=${pw}&user=admin&pwd=${pw}&`;
+}
 
 const CMD_CHANNEL = 0;
 const VIDEO_CHANNEL = 1;
@@ -141,6 +151,9 @@ class TerpCamDirectService {
   /** Where each camera last answered on our own network, when it is on it. */
   private lanAddresses = new Map<string, string>();
 
+  /** Each camera's password, as set by its controller when it was paired. */
+  private passwords = new Map<string, string>();
+
   /**
    * Find the camera on our own network, without asking anybody.
    *
@@ -181,6 +194,18 @@ class TerpCamDirectService {
    * camera's network and already searches for it when it moves, so this stays
    * current without the server having to hunt for anything itself.
    */
+  /**
+   * Remember a camera's password. Reported by the controller, which generated it
+   * during pairing; an empty value means that camera still has the default.
+   */
+  public rememberPassword(label: string, password: string): void {
+    if (password) {
+      this.passwords.set(label, password);
+    } else {
+      this.passwords.delete(label);
+    }
+  }
+
   public rememberLanAddress(label: string, address: string): void {
     if (address && address !== 'none' && this.lanAddresses.get(label) !== address) {
       this.lanAddresses.set(label, address);
@@ -241,7 +266,7 @@ class TerpCamDirectService {
     });
     socket.on('error', () => undefined); // ICMP unreachable for a stale endpoint is normal
 
-    let streaming: Endpoint | null = null;
+    let streaming: { peer: Endpoint; auth: string } | null = null;
     try {
       await this.bind(socket);
 
@@ -255,14 +280,15 @@ class TerpCamDirectService {
       }
       logger.info(`[terpcam] ${label} answered at ${local.peer.address}`);
       const { peer, did } = local;
-      await this.login(socket, inbox, did, peer);
+      const auth = authFor(this.passwords.get(label) ?? DEFAULT_PASSWORD);
+      await this.login(socket, inbox, did, peer, auth);
 
-      streaming = peer;
-      const keyframe = await this.readKeyframe(socket, inbox, peer);
+      streaming = { peer, auth };
+      const keyframe = await this.readKeyframe(socket, inbox, peer, auth);
       if (keyframe) return { data: keyframe, h264: true };
 
       logger.info('[terpcam] no keyframe, falling back to snapshot.cgi');
-      const jpeg = await this.readSnapshot(socket, inbox, peer);
+      const jpeg = await this.readSnapshot(socket, inbox, peer, auth);
       return { data: jpeg, h264: false };
     } finally {
       // Stop the stream and close the session before dropping the socket.
@@ -270,8 +296,9 @@ class TerpCamDirectService {
       // camera holds the session and hands the NEXT one no keyframe at all —
       // measured as every second capture failing, exactly alternating.
       if (streaming) {
-        socket.send(buildCgi(CMD_CHANNEL, 3, `livestream.cgi?streamid=16&${AUTH}`), streaming.port, streaming.address, () => undefined);
-        socket.send(buildPacket(0xf0), streaming.port, streaming.address, () => undefined);
+        const { peer, auth } = streaming;
+        socket.send(buildCgi(CMD_CHANNEL, 3, `livestream.cgi?streamid=16&${auth}`), peer.port, peer.address, () => undefined);
+        socket.send(buildPacket(0xf0), peer.port, peer.address, () => undefined);
         await new Promise(resolve => setTimeout(resolve, 150));
       }
       socket.close();
@@ -279,7 +306,7 @@ class TerpCamDirectService {
   }
 
   /** Authenticate the punched session — the same handshake used on the LAN. */
-  private async login(socket: dgram.Socket, inbox: { message: Buffer; from: Endpoint }[], did: Buffer, peer: Endpoint): Promise<void> {
+  private async login(socket: dgram.Socket, inbox: { message: Buffer; from: Endpoint }[], did: Buffer, peer: Endpoint, auth: string): Promise<void> {
     const trailer = Buffer.from([0x00, 0x02, 0x12, 0x64, 0x10, 0x02, 0x00, 0x0a, 0, 0, 0, 0, 0, 0, 0, 0]);
     const devlgn = Buffer.concat([did, trailer]);
     const until = Date.now() + LOGIN_MS;
@@ -287,7 +314,7 @@ class TerpCamDirectService {
       for (const packet of [buildPacket(0x00), buildPacket(0x05, did), buildPacket(0x20, devlgn), buildPacket(0x41, did)]) {
         socket.send(packet, peer.port, peer.address, () => undefined);
       }
-      socket.send(buildCgi(CMD_CHANNEL, 0, `get_status.cgi?${AUTH}`), peer.port, peer.address, () => undefined);
+      socket.send(buildCgi(CMD_CHANNEL, 0, `get_status.cgi?${auth}`), peer.port, peer.address, () => undefined);
 
       let authed = false;
       await this.drain(inbox, 1_000, entry => {
@@ -316,8 +343,13 @@ class TerpCamDirectService {
    * frame of a session is the keyframe and re-requesting the stream on a live
    * session is ignored, so this gets one attempt per session.
    */
-  private async readKeyframe(socket: dgram.Socket, inbox: { message: Buffer; from: Endpoint }[], peer: Endpoint): Promise<Buffer | null> {
-    socket.send(buildCgi(CMD_CHANNEL, 1, `livestream.cgi?streamid=10&substream=2&${AUTH}`), peer.port, peer.address, () => undefined);
+  private async readKeyframe(
+    socket: dgram.Socket,
+    inbox: { message: Buffer; from: Endpoint }[],
+    peer: Endpoint,
+    auth: string,
+  ): Promise<Buffer | null> {
+    socket.send(buildCgi(CMD_CHANNEL, 1, `livestream.cgi?streamid=10&substream=2&${auth}`), peer.port, peer.address, () => undefined);
 
     const slots = new Map<number, Buffer>();
     let base: number | null = null;
@@ -376,8 +408,8 @@ class TerpCamDirectService {
   }
 
   /** 640x360 JPEG straight from the camera; the fallback when no keyframe came. */
-  private async readSnapshot(socket: dgram.Socket, inbox: { message: Buffer; from: Endpoint }[], peer: Endpoint): Promise<Buffer> {
-    socket.send(buildCgi(CMD_CHANNEL, 2, `snapshot.cgi?${AUTH}`), peer.port, peer.address, () => undefined);
+  private async readSnapshot(socket: dgram.Socket, inbox: { message: Buffer; from: Endpoint }[], peer: Endpoint, auth: string): Promise<Buffer> {
+    socket.send(buildCgi(CMD_CHANNEL, 2, `snapshot.cgi?${auth}`), peer.port, peer.address, () => undefined);
 
     const slots = new Map<number, Buffer>();
     let base: number | null = null;

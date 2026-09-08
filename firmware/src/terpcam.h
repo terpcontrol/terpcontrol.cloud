@@ -4,6 +4,12 @@
 
 namespace fg {
 
+  /** NVS slot holding this camera's password, empty until pairing sets one. */
+  constexpr const char* TERP_CAM_PWD_NVS_KEY = "webcam_pwd";
+  /** What the camera ships with, and what a factory reset puts back. */
+  constexpr const char* TERP_CAM_DEFAULT_PASSWORD = "888888";
+
+
   /**
    * Grab one JPEG still from the paired Terp Cam (a VStarcam OEM) camera on the local
    * network and stream it to the cloud.
