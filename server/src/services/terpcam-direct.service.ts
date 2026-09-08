@@ -52,12 +52,23 @@ const SBOX = Buffer.from([
 const DK = [44, 212, 96, 6];
 
 /**
- * UDP ports bound for captures. Fixed rather than configurable because they only
- * work when the container publishes exactly these numbers (see `bind`), so a
- * setting could only ever be set to one correct value — and docker-compose.yaml
- * has to agree with this list.
+ * UDP ports bound for captures — the same ports the container publishes, which
+ * is why one setting drives both sides of the mapping.
+ *
+ * They cannot differ. The camera answers to the address its packet came from,
+ * and the host's NAT keeps the container's source port, so a reply arrives at
+ * the host on the CONTAINER's number; publishing a different one outside means
+ * the reply lands nowhere. Measured: a 32300->32200 mapping fails silently and
+ * every capture falls back to the controller.
+ *
+ * Configurable because a host may already be using this range — two stacks on
+ * one machine collide otherwise.
  */
-const P2P_PORTS = [32200, 32201, 32202, 32203, 32204, 32205, 32206, 32207, 32208, 32209];
+const P2P_PORTS = (process.env.TERPCAM_P2P_PORTS_EXTERNAL ?? '32200-32209').split(',').flatMap(part => {
+  const [from, to] = part.split('-').map(value => Number(value.trim()));
+  if (!Number.isInteger(from) || from <= 0) return [];
+  return Array.from({ length: Math.max(1, (to || from) - from + 1) }, (_, index) => from + index);
+});
 
 /**
  * What the camera ships with — the manufacturer publishes it, so every unpaired

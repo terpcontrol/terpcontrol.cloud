@@ -1041,7 +1041,20 @@ network, which it could already reach directly, so the claim buys it nothing it 
 enforced here is between *customers*, and it rests on devices being authenticated, which is the same assumption the
 rest of the device API makes.
 
-### 26.11 What is still open
+### 26.11 One setting for the UDP ports, used on both sides
+
+`TERPCAM_P2P_PORTS_EXTERNAL` sets the ports the client binds *and* the ports the container publishes, because they
+have to be the same number and a machine may already be using the default range — two stacks on one host collide
+otherwise, which is exactly what happened while testing this.
+
+They cannot be mapped across. The camera answers to the address its packet came from, and the bridge keeps the
+container's source port, so the reply arrives at the host on the *container's* number: publishing 32300→32200 means
+the reply lands nowhere, every capture silently falls back to the controller, and nothing says why. Driving both sides
+from one value makes that mistake unrepresentable.
+
+Verified by running a second stack on `32300-32309` while the first held the default: **3/3 at 2304×1296.**
+
+### 26.12 What is still open
 
 - **It rides on vendor infrastructure.** The supernodes are theirs and the DID prefix's init string is theirs. Nothing
   is decrypted or licensed-around here — the client speaks the documented-by-observation protocol — but a vendor who
