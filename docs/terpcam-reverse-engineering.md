@@ -1011,7 +1011,37 @@ The obvious residual: the password is recoverable by anyone who can read the dev
 and it travels to the cloud over the device's MQTT link. That is a real limit, and the honest framing is that this
 closes "every camera has the same published password", not "the camera is hardened".
 
-### 26.10 What is still open
+### 26.10 Keeping one customer's camera away from another's
+
+The first version of the cloud-side capture was **keyed by camera**, taking the label out of
+`cloudSettings.rtspStream`. That is a setting the user controls, and `POST /image/test/:device_id` takes the stream
+straight from the request body — so anyone with any device could name somebody else's camera and the server would
+have obligingly fetched it, authenticating with the cached password of the camera's real owner. A cross-tenant leak,
+introduced by the shortcut of treating a camera id as if it identified a camera *to us*.
+
+It is now **keyed by device**. Everything the server knows about a camera — which one it is, where it answered, the
+password its controller set — is one record per device, written only from that device's own `hardware-info`. A capture
+is asked for by device id, and the only camera reachable through it is the one that device reported. The stream
+setting merely says "this device has a Terp Cam"; it no longer says *which*, because that is not the user's to assert.
+
+Verified with two devices, one owning the camera and one not:
+
+| attempt | result |
+|---|---|
+| owner captures its own camera | 2304×1296 image |
+| another device names the same camera | refused — no session opened, falls back to its own controller, which has no camera |
+
+The refusal happens before any network access: with no camera recorded for that device there is no address to talk to,
+so nothing is attempted rather than attempted-and-rejected. Changing the reported camera drops the stored address and
+password with it, so a camera that moves between devices cannot carry the previous owner's credentials along.
+
+What this does **not** defend against, stated plainly: the server believes a device's claim about its own camera. A
+compromised controller can therefore claim any camera it likes — but it can only actually reach cameras on its own
+network, which it could already reach directly, so the claim buys it nothing it did not have. The boundary being
+enforced here is between *customers*, and it rests on devices being authenticated, which is the same assumption the
+rest of the device API makes.
+
+### 26.11 What is still open
 
 - **It rides on vendor infrastructure.** The supernodes are theirs and the DID prefix's init string is theirs. Nothing
   is decrypted or licensed-around here — the client speaks the documented-by-observation protocol — but a vendor who

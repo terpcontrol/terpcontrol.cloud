@@ -52,14 +52,12 @@ const SBOX = Buffer.from([
 const DK = [44, 212, 96, 6];
 
 /**
- * UDP ports the process binds for captures, which must be the ones the container
- * publishes (see `bind`). Configurable because the range has to match compose.
+ * UDP ports bound for captures. Fixed rather than configurable because they only
+ * work when the container publishes exactly these numbers (see `bind`), so a
+ * setting could only ever be set to one correct value — and docker-compose.yaml
+ * has to agree with this list.
  */
-const TERPCAM_P2P_PORTS = (process.env.TERPCAM_P2P_PORTS ?? '32200-32209').split(',').flatMap(part => {
-  const [from, to] = part.split('-').map(value => Number(value.trim()));
-  if (!Number.isInteger(from) || from <= 0) return [];
-  return Array.from({ length: Math.max(1, (to || from) - from + 1) }, (_, i) => from + i);
-});
+const P2P_PORTS = [32200, 32201, 32202, 32203, 32204, 32205, 32206, 32207, 32208, 32209];
 
 /**
  * What the camera ships with — the manufacturer publishes it, so every unpaired
@@ -146,13 +144,19 @@ function buildAck(channel: number, index: number): Buffer {
 
 class TerpCamDirectService {
   /** Published UDP ports to prefer, so the camera's punch can reach us. */
-  private ports = TERPCAM_P2P_PORTS;
+  private ports = P2P_PORTS;
 
-  /** Where each camera last answered on our own network, when it is on it. */
-  private lanAddresses = new Map<string, string>();
-
-  /** Each camera's password, as set by its controller when it was paired. */
-  private passwords = new Map<string, string>();
+  /**
+   * What each device has told us about its own camera: which camera it is, where
+   * it answered, and the password its controller set.
+   *
+   * Keyed by DEVICE, and only ever written from a device's own hardware-info.
+   * That is what keeps one customer's camera away from another's: a capture is
+   * asked for by device, and the only camera reachable through it is the one
+   * that device reported. A stream setting naming somebody else's camera gets
+   * no address, no password and no session.
+   */
+  private cameras = new Map<string, { label: string; address?: string; password?: string }>();
 
   /**
    * Find the camera on our own network, without asking anybody.
@@ -194,26 +198,33 @@ class TerpCamDirectService {
    * camera's network and already searches for it when it moves, so this stays
    * current without the server having to hunt for anything itself.
    */
+  /** The camera a device says is its own. `none` forgets it. */
+  public rememberCamera(deviceId: string, label: string): void {
+    if (!label || label === 'none') {
+      this.cameras.delete(deviceId);
+      return;
+    }
+    const known = this.cameras.get(deviceId);
+    // A different camera means the old address and password are meaningless.
+    this.cameras.set(deviceId, known?.label === label ? known : { label });
+  }
+
   /**
-   * Remember a camera's password. Reported by the controller, which generated it
-   * during pairing; an empty value means that camera still has the default.
+   * Remember the password a device's controller set on its camera during
+   * pairing. Empty means that camera still has the manufacturer's default.
    */
-  public rememberPassword(label: string, password: string): void {
-    if (password) {
-      this.passwords.set(label, password);
-    } else {
-      this.passwords.delete(label);
-    }
+  public rememberPassword(deviceId: string, password: string): void {
+    const camera = this.cameras.get(deviceId);
+    if (camera) camera.password = password || undefined;
   }
 
-  public rememberLanAddress(label: string, address: string): void {
-    if (address && address !== 'none' && this.lanAddresses.get(label) !== address) {
-      this.lanAddresses.set(label, address);
-    }
+  public rememberLanAddress(deviceId: string, address: string): void {
+    const camera = this.cameras.get(deviceId);
+    if (camera && address && address !== 'none') camera.address = address;
   }
 
   /**
-   * Bind the socket to one of TERPCAM_P2P_PORTS, falling back to an ephemeral port.
+   * Bind the socket to one of P2P_PORTS, falling back to an ephemeral port.
    *
    * The port has to be one the container PUBLISHES. The camera punches at us
    * from an address we never sent anything to, so Docker's bridge NAT has no
@@ -243,12 +254,17 @@ class TerpCamDirectService {
     });
   }
 
+  /** Whether this device has a camera we know how to reach ourselves. */
+  public canCapture(deviceId: string): boolean {
+    return Boolean(this.cameras.get(deviceId)?.address);
+  }
+
   /** Pull one still as a ready JPEG, decoding the keyframe when there is one. */
-  public async captureStill(label: string): Promise<Buffer> {
-    const { data, h264 } = await this.capture(label);
+  public async captureStill(deviceId: string): Promise<Buffer> {
+    const { data, h264 } = await this.capture(deviceId);
     if (!h264) return data;
     const jpeg = await terpCamService.decodeKeyframeToJpeg(data);
-    logger.info(`[terpcam] ${label}: ${data.length}B keyframe -> ${jpeg.length}B jpeg`);
+    logger.info(`[terpcam] ${deviceId}: ${data.length}B keyframe -> ${jpeg.length}B jpeg`);
     return jpeg;
   }
 
@@ -257,7 +273,14 @@ class TerpCamDirectService {
    * stream yields one, and falls back to `snapshot.cgi` (640x360 JPEG) when it
    * does not — a camera that answers something small beats no image at all.
    */
-  public async capture(label: string): Promise<{ data: Buffer; h264: boolean }> {
+  public async capture(deviceId: string): Promise<{ data: Buffer; h264: boolean }> {
+    // The camera is whatever this device reported as its own — never a name the
+    // caller supplied, so no stream setting can point a capture at a camera
+    // belonging to someone else.
+    const camera = this.cameras.get(deviceId);
+    if (!camera?.address) {
+      throw new Error('this device has not reported a camera we can reach');
+    }
     const socket = dgram.createSocket('udp4');
     const inbox: { message: Buffer; from: Endpoint }[] = [];
 
@@ -270,17 +293,16 @@ class TerpCamDirectService {
     try {
       await this.bind(socket);
 
-      const known = this.lanAddresses.get(label);
-      const local = known ? await this.lanSession(socket, inbox, known) : null;
+      const local = await this.lanSession(socket, inbox, camera.address);
       if (!local) {
         // Deliberately no second route. The controller shares the camera's
         // network and can always relay, so a camera we cannot see is its job,
         // not something to go looking for through anybody else's servers.
-        throw new Error(known ? `camera did not answer at ${known}` : 'no camera address reported yet');
+        throw new Error(`camera did not answer at ${camera.address}`);
       }
-      logger.info(`[terpcam] ${label} answered at ${local.peer.address}`);
+      logger.info(`[terpcam] ${camera.label} answered at ${local.peer.address}`);
       const { peer, did } = local;
-      const auth = authFor(this.passwords.get(label) ?? DEFAULT_PASSWORD);
+      const auth = authFor(camera.password ?? DEFAULT_PASSWORD);
       await this.login(socket, inbox, did, peer, auth);
 
       streaming = { peer, auth };

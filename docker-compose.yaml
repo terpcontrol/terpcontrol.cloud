@@ -94,14 +94,13 @@ services:
       # UDP ports the Terp Cam P2P client binds. They must be published: the camera
       # hole-punches at us from an address we never sent to, so the bridge's NAT
       # has no state for it and drops the packet unless the port is forwarded.
-      - ${TERPCAM_P2P_PORTS_EXTERNAL:-32200-32209}:32200-32209/udp
+      - 32200-32209:32200-32209/udp
     networks:
       - main
     environment:
       SECRET_KEY: ${TOKEN_SECRET_KEY}
       PORT: 8081
       API_URL_EXTERNAL: ${API_URL_EXTERNAL}
-      TERPCAM_P2P_PORTS: ${TERPCAM_P2P_PORTS:-32200-32209}
       DB_HOST: "mongodb"
       DB_PORT: "27017"
       DB_DATABASE: ${MONGODB_DATABASE}

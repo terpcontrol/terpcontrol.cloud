@@ -489,17 +489,17 @@ class ImageService {
     // `terpcam://<device-id>` in rtspStream so that everything else here — the poll
     // schedule, backoff, maintenance gating, the test-image button, storage,
     // timelapses and thinning — is reused unchanged.
-    const terpCam = terpCamLabel(cloudSettings.rtspStream);
-    if (terpCam) {
-      const label = terpCam;
-      // Preferred: reach the camera ourselves. It gives the full 2304x1296
-      // image instead of the controller's 640x360 and loses no fragments, so
-      // the controller is only asked when this fails — the camera behind a NAT
-      // we cannot punch, or the vendor's rendezvous being unreachable.
-      try {
-        return await terpCamDirectService.captureStill(label);
-      } catch (e) {
-        console.log(`Direct capture for ${deviceId} failed (${(e as Error).message}); asking the controller`);
+    if (terpCamLabel(cloudSettings.rtspStream)) {
+      // Reach the camera ourselves when we can: full resolution instead of the
+      // controller's 640x360, and no fragment loss. Which camera that is comes
+      // from what the DEVICE reported, not from the setting — the setting only
+      // says that this device has one.
+      if (terpCamDirectService.canCapture(deviceId)) {
+        try {
+          return await terpCamDirectService.captureStill(deviceId);
+        } catch (e) {
+          console.log(`Direct capture for ${deviceId} failed (${(e as Error).message}); asking the controller`);
+        }
       }
       return terpCamP2PService.captureViaController(deviceId);
     }

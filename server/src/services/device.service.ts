@@ -625,6 +625,7 @@ class DeviceService {
     }
 
     if (infoKey === 'webcam_did') {
+      terpCamDirectService.rememberCamera(deviceId, infoValue);
       await this.reconcileP2PCamera(deviceId, infoValue);
     }
 
@@ -635,19 +636,11 @@ class DeviceService {
     // because the cloud fetches stills itself and has to authenticate. It is
     // stored against the device and never written to its log.
     if (infoKey === 'webcam_pwd') {
-      const device = await deviceModel.findOne({ device_id: deviceId });
-      const camera = device?.hardwareInfo?.webcam_did;
-      if (camera && camera !== 'none') {
-        terpCamDirectService.rememberPassword(camera, infoValue);
-      }
+      terpCamDirectService.rememberPassword(deviceId, infoValue);
     }
 
     if (infoKey === 'webcam_ip') {
-      const device = await deviceModel.findOne({ device_id: deviceId });
-      const label = device?.hardwareInfo?.webcam_did;
-      if (label && label !== 'none') {
-        terpCamDirectService.rememberLanAddress(label, infoValue);
-      }
+      terpCamDirectService.rememberLanAddress(deviceId, infoValue);
     }
   }
 
