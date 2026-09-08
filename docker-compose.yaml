@@ -91,12 +91,18 @@ services:
      - rabbitmq
     ports:
       - ${API_PORT_EXTERNAL}:8081
+      # UDP ports the O-KAM P2P client binds. They must be published: the camera
+      # hole-punches at us from an address we never sent to, so the bridge's NAT
+      # has no state for it and drops the packet unless the port is forwarded.
+      - ${OKAM_P2P_PORTS_EXTERNAL:-32200-32209}:32200-32209/udp
     networks:
       - main
     environment:
       SECRET_KEY: ${TOKEN_SECRET_KEY}
       PORT: 8081
       API_URL_EXTERNAL: ${API_URL_EXTERNAL}
+      OKAM_P2P_PORTS: ${OKAM_P2P_PORTS:-32200-32209}
+      OKAM_ADVERTISE_ADDRESS: ${OKAM_ADVERTISE_ADDRESS:-}
       DB_HOST: "mongodb"
       DB_PORT: "27017"
       DB_DATABASE: ${MONGODB_DATABASE}

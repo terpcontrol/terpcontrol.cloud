@@ -891,7 +891,31 @@ is that branch. A cloud-side capture would feed the same function, so storage, t
 At 2304×1296 a still is ~117 KB as JPEG against ~32 KB today, which is what the retention arithmetic should be redone
 against.
 
-### 26.6 What is still open
+### 26.6 Shipped in the server, and the two things only end-to-end testing found
+
+`okam-direct.service.ts` implements the above and `readRtspStreamImage` prefers it, falling back to
+`captureViaController` when it fails — so a camera behind a NAT that cannot be punched keeps working exactly as before.
+Measured through the real containerised server, driven by the webapp's own test-image endpoint: **10/10, every image
+2304×1296, ~1.4 s each.**
+
+Getting there needed two fixes that no amount of single-shot scripting would have surfaced, because both only appear
+when captures follow one another:
+
+- **The session must be closed.** Dropping the socket leaves the camera holding the session, and the *next* capture
+  then gets a session but no keyframe — measured as an exact alternation, 5/10, success/failure/success/failure. The
+  vendor's `PPCS_Close` turns out to send a bare **`f1 f0`**, which is what frees it. Sending `livestream.cgi?
+  streamid=16` first is right too, but on its own it changed nothing.
+- **The container's UDP ports must be published, unchanged.** The camera punches from an address the server never sent
+  to, so Docker's bridge has no conntrack entry and drops it: the same capture succeeds under `--network host` and
+  fails on the default bridge. Publishing works — but only when the host port equals the container port, since what the
+  camera is told to punch at is the *host's* source port. Mapping 32300→32200 fails silently.
+
+One deployment note that is easy to get wrong: **this stack is hosted on the camera's own LAN** (`ka.chrisgahlert.com`
+resolves to the household's address). A server there must advertise the *host's* LAN address, not the container's
+bridge address, which is what `OKAM_ADVERTISE_ADDRESS` is for. A genuinely remote server leaves it empty and uses the
+public path, as measured from Hetzner in §26.4.
+
+### 26.7 What is still open
 
 - **It rides on vendor infrastructure.** The supernodes are theirs and the DID prefix's init string is theirs. Nothing
   is decrypted or licensed-around here — the client speaks the documented-by-observation protocol — but a vendor who
