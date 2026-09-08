@@ -110,6 +110,12 @@ const FRAME_MAGIC = Buffer.from([0x55, 0xaa, 0x15, 0xa8]);
 const LOGIN_MS = 8_000;
 const TRANSFER_MS = 20_000;
 const IDLE_MS = 5_000;
+/** A gap this old will not close; take the next keyframe instead of repairing. */
+const GAP_ABANDON_MS = 1_200;
+/** How often to exchange keepalives on an idle held session. */
+const ALIVE_MS = 2_000;
+/** Give an unused session back — the camera only allows a few at a time. */
+const SESSION_IDLE_MS = 10 * 60_000;
 /** A malfunctioning camera must not stream without end. */
 const MAX_FRAME_BYTES = 4 * 1024 * 1024;
 
@@ -250,18 +256,27 @@ class TerpCamDirectService {
   private cameras = new Map<string, { label: string; uid?: string; password?: string }>();
 
   /**
-   * The open path to each camera: the socket the hole was punched from, the
-   * endpoint on the far side, and a timer keeping the NAT mapping alive.
+   * One live session per camera, held open between captures.
    *
-   * This is what stops the rendezvous being a per-image cost. Asking the
-   * manufacturer's servers where a camera is happens once; after that the
-   * mapping is held open with a keepalive and later sessions go straight to the
-   * endpoint. It is dropped when the camera stops answering, which is what
-   * triggers a fresh lookup.
+   * This is what keeps the manufacturer's rendezvous down to ONCE PER SESSION
+   * rather than once per image: the session is opened, then every later still is
+   * taken through it. Caching the punched *address* instead does not work — the
+   * camera answers each new session from a different port — but the session
+   * itself can simply be kept.
+   *
+   * `next` is the channel-0 request index, which must advance by exactly one.
    */
-  private paths = new Map<
+  private sessions = new Map<
     string,
-    { socket: dgram.Socket; peer: Endpoint; inbox: { message: Buffer; from: Endpoint }[]; keepalive: NodeJS.Timeout }
+    {
+      socket: dgram.Socket;
+      peer: Endpoint;
+      inbox: { message: Buffer; from: Endpoint }[];
+      auth: string;
+      next: number;
+      idle: NodeJS.Timeout;
+      alive: NodeJS.Timeout;
+    }
   >();
 
   /** The camera a device says is its own. `none` forgets it. */
@@ -347,6 +362,117 @@ class TerpCamDirectService {
     return camera;
   }
 
+  /**
+   * Send a CGI on the command channel.
+   *
+   * The index MUST advance by exactly one per request. The camera treats
+   * channel 0 as an ordered stream and simply stops responding — silently,
+   * forever — if an index is skipped, which is what a keepalive consuming one
+   * out of band would do.
+   */
+  private request(session: { socket: dgram.Socket; peer: Endpoint; next: number }, cgi: string): void {
+    session.socket.send(buildCgi(CMD_CHANNEL, session.next++, cgi), session.peer.port, session.peer.address, () => undefined);
+  }
+
+  /**
+   * Answer the camera's keepalives while nothing is being captured.
+   *
+   * Between stills nobody reads the socket, so the camera's `f1 e0` alive
+   * packets go unanswered and it drops the session — which showed up as one
+   * rendezvous per 1.6 images instead of one per session. The vendor's own
+   * library runs a dedicated alive thread for exactly this reason.
+   */
+  private startHeartbeat(session: {
+    socket: dgram.Socket;
+    peer: Endpoint;
+    inbox: { message: Buffer; from: Endpoint }[];
+  }): NodeJS.Timeout {
+    const timer = setInterval(() => {
+      // Answer anything the camera has sent, and drop the rest: between
+      // captures there is nothing here worth keeping.
+      for (const entry of session.inbox.splice(0, session.inbox.length)) {
+        if (entry.message.length > 1 && entry.message[1] === 0xe0) {
+          session.socket.send(buildPacket(0xe1), session.peer.port, session.peer.address, () => undefined);
+        }
+      }
+      session.socket.send(buildPacket(0xe0), session.peer.port, session.peer.address, () => undefined);
+    }, ALIVE_MS);
+    timer.unref?.();
+    return timer;
+  }
+
+  /** Close a held session: stop its stream, say goodbye, free the camera's slot. */
+  private dropSession(deviceId: string): void {
+    const session = this.sessions.get(deviceId);
+    if (!session) return;
+    clearTimeout(session.idle);
+    clearInterval(session.alive);
+    try {
+      this.request(session, `livestream.cgi?streamid=16&substream=0&${session.auth}`);
+      session.socket.send(buildPacket(0xf0), session.peer.port, session.peer.address, () => undefined);
+    } catch {
+      /* socket already gone */
+    }
+    try {
+      session.socket.close();
+    } catch {
+      /* already closed */
+    }
+    this.sessions.delete(deviceId);
+  }
+
+  /** The camera allows only a few sessions, so an unused one is given back. */
+  private touchSession(deviceId: string): void {
+    const session = this.sessions.get(deviceId);
+    if (!session) return;
+    clearTimeout(session.idle);
+    session.idle = setTimeout(() => this.dropSession(deviceId), SESSION_IDLE_MS);
+    session.idle.unref?.();
+  }
+
+  /** Open a session (one rendezvous) or reuse the one already held. */
+  private async session(deviceId: string, camera: { uid: string; password?: string }) {
+    const existing = this.sessions.get(deviceId);
+    if (existing) return existing;
+
+    const did = packDeviceId(camera.uid);
+    const socket = dgram.createSocket('udp4');
+    const inbox: { message: Buffer; from: Endpoint }[] = [];
+    socket.on('message', (message, rinfo) => {
+      inbox.push({ message: deobfuscate(message), from: { address: rinfo.address, port: rinfo.port } });
+    });
+    socket.on('error', () => undefined);
+
+    try {
+      await this.bind(socket);
+      const punched = await this.rendezvous(socket, inbox, did);
+      const auth = authFor(camera.password ?? DEFAULT_PASSWORD);
+      // login consumes channel-0 index 0, so requests continue from 1
+      await this.login(socket, inbox, did, punched, auth);
+      const session = {
+        socket,
+        peer: punched,
+        inbox,
+        auth,
+        next: 1,
+        idle: setTimeout(() => undefined, 0),
+        alive: setTimeout(() => undefined, 0) as NodeJS.Timeout,
+      };
+      session.alive = this.startHeartbeat(session);
+      this.sessions.set(deviceId, session);
+      this.touchSession(deviceId);
+      logger.info(`[terpcam] ${deviceId}: session opened (one rendezvous, reused for later stills)`);
+      return session;
+    } catch (error) {
+      try {
+        socket.close();
+      } catch {
+        /* never opened */
+      }
+      throw error;
+    }
+  }
+
   /** Pull one still as a ready JPEG, decoding the keyframe when there is one. */
   public async captureStill(deviceId: string): Promise<Buffer> {
     const { data, h264 } = await this.capture(deviceId);
@@ -357,9 +483,28 @@ class TerpCamDirectService {
   }
 
   /**
-   * Pull one still. Returns a full-resolution H.264 keyframe when the video
-   * stream yields one, and falls back to `snapshot.cgi` (640x360 JPEG) when it
-   * does not — a camera that answers something small beats no image at all.
+   * Read one still, with the keepalive timer stood down for the duration:
+   * both it and the reader drain the same inbox, so leaving it running would
+   * let it swallow video fragments.
+   */
+  private async readStill(deviceId: string, identity: { uid: string; password?: string }): Promise<Buffer | undefined> {
+    const session = await this.session(deviceId, identity);
+    clearInterval(session.alive);
+    try {
+      return await this.readKeyframe(session);
+    } finally {
+      if (this.sessions.get(deviceId) === session) {
+        session.alive = this.startHeartbeat(session);
+      }
+    }
+  }
+
+  /**
+   * Pull one still, always a full-resolution H.264 keyframe.
+   *
+   * There is no `snapshot.cgi` fallback here any more: it only ever returns
+   * 640x360 on this firmware, and a capture that cannot produce the real image
+   * is better handed to the controller than quietly downgraded.
    */
   public async capture(deviceId: string): Promise<{ data: Buffer; h264: boolean }> {
     // The camera is whatever this device reported as its own — never a name the
@@ -372,44 +517,27 @@ class TerpCamDirectService {
     if (!RENDEZVOUS_HOSTS.length) {
       throw new Error('TERPCAM_RENDEZVOUS_HOSTS is unset, so cameras can only be reached by their controller');
     }
+    const identity = { uid: camera.uid, password: camera.password };
 
-    const did = packDeviceId(camera.uid);
-    const socket = dgram.createSocket('udp4');
-    const inbox: { message: Buffer; from: Endpoint }[] = [];
-    socket.on('message', (message, rinfo) => {
-      inbox.push({ message: deobfuscate(message), from: { address: rinfo.address, port: rinfo.port } });
-    });
-    socket.on('error', () => undefined); // ICMP for a stale endpoint is normal
-
-    let streaming: { peer: Endpoint; auth: string } | null = null;
+    // Reuse the session already held for this camera; only the first still
+    // after one drops costs a lookup.
+    const wasHeld = this.sessions.has(deviceId);
     try {
-      await this.bind(socket);
-      const peer = await this.rendezvous(socket, inbox, did);
-      const auth = authFor(camera.password ?? DEFAULT_PASSWORD);
-      await this.login(socket, inbox, did, peer, auth);
-
-      streaming = { peer, auth };
-      const keyframe = await this.readKeyframe(socket, inbox, peer, auth);
+      const keyframe = await this.readStill(deviceId, identity);
+      this.touchSession(deviceId);
       if (keyframe) return { data: keyframe, h264: true };
-
-      logger.info('[terpcam] no keyframe, falling back to snapshot.cgi');
-      const jpeg = await this.readSnapshot(socket, inbox, peer, auth);
-      return { data: jpeg, h264: false };
-    } finally {
-      // Stop the stream and close the session before dropping the socket.
-      // Without the close (`f1 f0`, what the vendor's own PPCS_Close sends) the
-      // camera holds the session and hands the NEXT one no keyframe at all —
-      // measured as every second capture failing, exactly alternating.
-      // Close the camera's session but KEEP the socket: the session has to go or
-      // the next capture gets no keyframe, while the socket is what holds the
-      // NAT mapping open and saves the next lookup.
-      if (streaming) {
-        const { peer: to, auth } = streaming;
-        socket.send(buildCgi(CMD_CHANNEL, 3, `livestream.cgi?streamid=16&${auth}`), to.port, to.address, () => undefined);
-        socket.send(buildPacket(0xf0), to.port, to.address, () => undefined);
-        await new Promise(resolve => setTimeout(resolve, 150));
-      }
-      socket.close();
+      throw new Error('no keyframe arrived');
+    } catch (error) {
+      // A session that stops producing is finished: drop it, and if we were
+      // reusing one, try once on a fresh session before giving up.
+      this.dropSession(deviceId);
+      if (!wasHeld) throw error;
+      logger.info(`[terpcam] ${deviceId}: held session went stale, opening a new one`);
+      const keyframe = await this.readStill(deviceId, identity);
+      this.touchSession(deviceId);
+      if (keyframe) return { data: keyframe, h264: true };
+      this.dropSession(deviceId);
+      throw new Error('no keyframe arrived on a fresh session');
     }
   }
 
@@ -494,27 +622,39 @@ class TerpCamDirectService {
   }
 
   /**
-   * Take the first H.264 keyframe off the main video stream — the only source of
-   * a full-resolution image, since snapshot.cgi renders from the MJPEG encoder.
+   * Take a full-resolution keyframe off the main video stream, on a session that
+   * stays open afterwards.
    *
-   * Channel 1 carries VStarcam media frames: a 32-byte header (magic 55aa15a8,
-   * frame length at offset 16, little endian) then Annex-B H.264. The first
-   * frame of a session is the keyframe and re-requesting the stream on a live
-   * session is ignored, so this gets one attempt per session.
+   * Three things here are load-bearing, each measured:
+   *
+   * - EVERY media frame in the buffer is examined, not just the first. The
+   *   stream is mostly P-frames and the camera emits an IDR once per GOP (about
+   *   a second at the shipped settings), so the keyframe is usually not the
+   *   first frame to arrive. Looking only at the first frame reads as "no
+   *   keyframe" while video is plainly flowing.
+   * - A STALLED GAP IS ABANDONED rather than repaired. Re-acking is a resend
+   *   request, not an acknowledgement, so pressing it triggers a go-back-N flood
+   *   (measured: thousands of fragments, still no frame). Another IDR is a
+   *   second away, so dropping the partial one and re-basing is strictly better.
+   * - The request index comes from the session and advances by exactly one.
    */
-  private async readKeyframe(
-    socket: dgram.Socket,
-    inbox: { message: Buffer; from: Endpoint }[],
-    peer: Endpoint,
-    auth: string,
-  ): Promise<Buffer | null> {
-    socket.send(buildCgi(CMD_CHANNEL, 1, `livestream.cgi?streamid=10&substream=2&${auth}`), peer.port, peer.address, () => undefined);
+  private async readKeyframe(session: {
+    socket: dgram.Socket;
+    peer: Endpoint;
+    inbox: { message: Buffer; from: Endpoint }[];
+    auth: string;
+    next: number;
+  }): Promise<Buffer | null> {
+    const { socket, peer, inbox, auth } = session;
+    inbox.length = 0;
+    this.request(session, `livestream.cgi?streamid=10&substream=2&${auth}`);
 
-    const slots = new Map<number, Buffer>();
+    let slots = new Map<number, Buffer>();
     let base: number | null = null;
     let contiguous = 0;
     const started = Date.now();
     let lastData = Date.now();
+    let lastProgress = Date.now();
 
     while (Date.now() - started < TRANSFER_MS && Date.now() - lastData < IDLE_MS) {
       const found: { frame: Buffer | null } = { frame: null };
@@ -536,82 +676,52 @@ class TerpCamDirectService {
         lastData = Date.now();
         if (base === null) base = index;
         const slot = (index - base) & 0xffff;
-        if (slot > 0x8000) return false; // predates the stream we asked for
+        if (slot > 0x8000) return false;
         if (!slots.has(slot)) slots.set(slot, m.subarray(8, 8 + length));
-        while (slots.has(contiguous)) contiguous++;
 
-        // Ack while assembling: that is what repairs a gap. Acking from the very
-        // first fragment instead pulls thousands of retransmits in and drowns
-        // the new data.
-        if (contiguous > 0) {
-          socket.send(buildAck(VIDEO_CHANNEL, (base + contiguous - 1) & 0xffff), peer.port, peer.address, () => undefined);
-        }
+        const before = contiguous;
+        while (slots.has(contiguous)) contiguous++;
+        if (contiguous === before) return false;
+
+        lastProgress = Date.now();
+        socket.send(buildAck(VIDEO_CHANNEL, (base + contiguous - 1) & 0xffff), peer.port, peer.address, () => undefined);
 
         const buffered = Buffer.concat([...Array(contiguous).keys()].map(i => slots.get(i)));
-        const start = buffered.indexOf(FRAME_MAGIC);
-        if (start >= 0 && buffered.length >= start + 32) {
-          const frameLength = buffered.readUInt32LE(start + 16);
-          if (frameLength > 0 && frameLength < MAX_FRAME_BYTES && buffered.length >= start + 32 + frameLength) {
-            const payload = buffered.subarray(start + 32, start + 32 + frameLength);
-            if (this.isKeyframe(payload)) {
-              found.frame = Buffer.from(payload);
-              return true;
-            }
-          }
+        const frame = this.findKeyframe(buffered);
+        if (frame) {
+          found.frame = frame;
+          return true;
         }
         return false;
       });
-      if (found.frame) return found.frame;
+      if (found.frame) {
+        // Stop the stream; the SESSION stays open for the next still.
+        this.request(session, `livestream.cgi?streamid=16&substream=0&${auth}`);
+        return found.frame;
+      }
+      if (Date.now() - lastProgress > GAP_ABANDON_MS) {
+        slots = new Map();
+        base = null;
+        contiguous = 0;
+        lastProgress = Date.now();
+      }
     }
     return null;
   }
 
-  /** 640x360 JPEG straight from the camera; the fallback when no keyframe came. */
-  private async readSnapshot(socket: dgram.Socket, inbox: { message: Buffer; from: Endpoint }[], peer: Endpoint, auth: string): Promise<Buffer> {
-    socket.send(buildCgi(CMD_CHANNEL, 2, `snapshot.cgi?${auth}`), peer.port, peer.address, () => undefined);
-
-    const slots = new Map<number, Buffer>();
-    let base: number | null = null;
-    let contiguous = 0;
-    const started = Date.now();
-    let lastData = Date.now();
-
-    while (Date.now() - started < TRANSFER_MS && Date.now() - lastData < IDLE_MS) {
-      await this.drain(inbox, 300, entry => {
-        const m = entry.message;
-        if (m.length < 8) return false;
-        if (m[1] === 0xe0) {
-          socket.send(buildPacket(0xe1), peer.port, peer.address, () => undefined);
-          return false;
-        }
-        if (m[1] !== 0xd0 || m[5] !== CMD_CHANNEL) return false;
-
-        const index = m.readUInt16BE(6);
-        const declared = m.readUInt16BE(2);
-        let length = declared - 4;
-        if (length <= 0 || length > m.length - 8) length = m.length - 8;
-        if (length <= 0) return false;
-
-        lastData = Date.now();
-        if (base === null) base = index;
-        const slot = (index - base) & 0xffff;
-        if (slot > 0x8000) return false;
-        if (!slots.has(slot)) slots.set(slot, m.subarray(8, 8 + length));
-        while (slots.has(contiguous)) contiguous++;
-        if (contiguous > 0) {
-          socket.send(buildAck(CMD_CHANNEL, (base + contiguous - 1) & 0xffff), peer.port, peer.address, () => undefined);
-        }
-        return false;
-      });
-
-      // The JPEG is bounded by its own markers: a `result= 0;var …` preamble
-      // comes first and trailing text can follow, so neither is forwarded.
-      const buffered = Buffer.concat([...Array(contiguous).keys()].map(i => slots.get(i)));
-      const soi = buffered.indexOf(Buffer.from([0xff, 0xd8]));
-      const eoi = soi >= 0 ? buffered.indexOf(Buffer.from([0xff, 0xd9]), soi) : -1;
-      if (soi >= 0 && eoi > soi) return buffered.subarray(soi, eoi + 2);
+  /** The first frame in the buffer carrying SPS and an IDR slice, if any. */
+  private findKeyframe(buffer: Buffer): Buffer | null {
+    let offset = 0;
+    for (;;) {
+      const start = buffer.indexOf(FRAME_MAGIC, offset);
+      if (start < 0 || buffer.length < start + 32) return null;
+      const length = buffer.readUInt32LE(start + 16);
+      if (!(length > 0 && length < MAX_FRAME_BYTES)) return null;
+      if (buffer.length < start + 32 + length) return null;
+      const payload = buffer.subarray(start + 32, start + 32 + length);
+      if (this.isKeyframe(payload)) return Buffer.from(payload);
+      offset = start + 32 + length;
     }
-    throw new Error('no image came back from the camera');
   }
 
   /** Usable as a still only with SPS (NAL 7) and an IDR slice (NAL 5). */

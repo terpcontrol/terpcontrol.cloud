@@ -915,7 +915,12 @@ resolves to the household's address). A server there must advertise the *host's*
 bridge address, which is what `OKAM_ADVERTISE_ADDRESS` is for. A genuinely remote server leaves it empty and uses the
 public path, as measured from Hetzner in §26.4.
 
-### 26.7 The vendor is only needed once, not per image
+### 26.7 The vendor is only needed once, not per image — *retracted, see §26.8*
+
+> **This section describes the LAN route, which is no longer in the code.** It was written for a stack that shares the
+> cameras' network; the product's server does not, so the whole `LanSearch` path was removed and only the P2P one
+> remains. The `OKAM_*` variable names below are pre-rename (`TERPCAM_*` today). Kept because the measurements are
+> real and the reasoning is what §26.8 argues against.
 
 The image data never travels through the vendor — the session is peer-to-peer, and the rendezvous is only the *lookup*
 that finds the camera. But a lookup per capture is still a standing dependency on somebody else's servers, and it tells
@@ -948,8 +953,8 @@ hosted at home and **not** for the product: a customer's camera sits on a custom
 no way to LanSearch into it. So the rendezvous is back — and the objection to it, a third-party lookup per image, is
 answered by not doing one per image.
 
-**Reusing a punched path was tried and does not work.** The intent was one lookup per camera rather than one per
-image: keep the socket, hold the NAT mapping open with a keepalive, and open later sessions straight to the endpoint.
+**Reusing a punched *path* does not work — reusing the *session* does (§26.13).** The intent was one lookup per
+camera rather than one per image: keep the socket, hold the NAT mapping open with a keepalive, and open later sessions straight to the endpoint.
 The camera does not allow it, for a reason that is visible in one log:
 
 ```
@@ -965,12 +970,9 @@ using it closes, and only the rendezvous knows the next one. Reuse was measured 
 costing 8 s before falling back to a fresh punch: 5/5 images, but ~10 s each instead of ~1.5 s. The caching was
 removed, and a capture is one rendezvous, one session, one image.
 
-**So a full-resolution capture costs one lookup.** Measured 6/6 at 2304×1296, ~1.4 s each. At the default 30 s poll
-that is two lookups a minute per camera, which is the honest price of the resolution.
-
-If that is too much, the shape that would reduce it is a **persistent session serving `snapshot.cgi`**: 640×360 stills
-can be taken repeatedly on one live session, so lookups would drop to one per session rather than one per image, with
-full-resolution frames taken only occasionally. That trades resolution for contact and is not implemented.
+**At the time of writing that made a full-resolution capture cost one lookup** — measured 6/6 at 2304×1296, ~1.4 s
+each, two lookups a minute per camera at the default poll. §26.13 removes that cost without giving up resolution: the
+session is held open instead of the path being cached, and full-resolution keyframes are taken repeatedly on it.
 
 The camera's id no longer needs looking up either. The controller reads it off the camera during discovery — the
 PunchPkt carries it (§26.2) — and reports it as `hardware-info:webcam_uid`, so the label→id directory is gone with the
@@ -1102,10 +1104,72 @@ Verified by running a second stack on `32300-32309` while the first held the def
   reimplemented here. The controller path stays as the fallback.
 - **Session slots are finite.** `get_status.cgi` reports `max_support_users=4`, and probing while the controller was
   capturing measurably cost the controller captures. Cloud-side pulling should *replace* controller-side pulling, not
-  run alongside it.
+  run alongside it. Re-confirmed in §26.13: a second session on a camera the server already holds gets a clean login
+  and no video at all.
+- **Everything here was measured at night.** A night keyframe is ~11 KB; a daylight one is ~44 KB, so four times the
+  fragments have to arrive without a gap. The success rate should be re-measured in daylight before it is treated as
+  the general figure.
 - **Credentials would move to the cloud.** The camera password travels in the CGI; today that happens on the customer's
   LAN, and this moves it onto the internet inside an obfuscated-but-not-encrypted transport. That is a real downgrade
   and needs deciding, not glossing.
+
+### 26.13 One rendezvous per session, not per image (2026-09-09)
+
+§26.8 established that a punched *address* cannot be reused — the camera answers every new session from a different
+port. The conclusion drawn from that was wrong. What cannot be cached is the address; what can be kept is **the
+session itself**, and a held session serves full-resolution keyframes repeatedly.
+
+Three things had to be right before that worked, and each failed silently rather than loudly:
+
+**Channel-0 request indices must be strictly sequential.** Login consumes index 0, so the first CGI request is index 1
+and every later one is exactly one higher. Skipping a number does not produce an error — the camera simply stops
+answering, forever, on an otherwise healthy session. The single-shot code never noticed because it only ever sent one
+request.
+
+**Every media frame must be checked for a keyframe, not just the first.** The receiver looked at the first
+`55 aa 15 a8` frame in the buffer and gave up if it was not an IDR. On a fresh session the first frame usually is one;
+on a held session the stream restarts mid-GOP and the keyframe is the second or third frame. `findKeyframe` now walks
+every frame header in the buffer.
+
+**A gap must be abandoned, not re-acked.** Re-sending an ack for a fragment the camera has already sent is a *resend
+request* in this protocol, not an acknowledgement — so a stalled gap makes the camera restart from that index and the
+session drowns in duplicates. One run took 3451 packets to deliver 1709. The receiver now waits `GAP_ABANDON_MS` for a
+missing fragment and then re-bases past it, because the next keyframe is cheaper than the retransmission storm.
+
+**And the session has to be kept alive between stills.** This is what made the difference between one rendezvous per
+1.6 images and one per session. Between captures nothing reads the socket, so the camera's `f1 e0` alive packets go
+unanswered and it drops the session — which the server then has to re-punch. A 2 s interval that answers `f1 e0` with
+`f1 e1`, sends its own, and discards anything else keeps it open; the vendor's own library runs a dedicated alive
+thread for exactly this. The timer stands down for the duration of a capture, because it and the frame reader drain
+the same inbox and it would otherwise swallow video fragments.
+
+What a deployment now pays the vendor: **one lookup per session**, where a session lasts until the camera stops
+answering or ten idle minutes pass. `TERPCAM_RENDEZVOUS_HOSTS` is still empty by default and still holds no addresses
+in source.
+
+**Measured, through the containerised server, at the production 30 s poll:**
+
+| | |
+|---|---|
+| captures | 20/20 succeeded, 20/20 at 2304×1296 |
+| time per capture | 0.4 s fastest, 2.4 s median |
+| rendezvous punches | **1**, for 70 keyframes across the whole session — the background poller included |
+| sessions dropped as stale | 0 |
+
+Before the keepalive the same code needed 21 punches for 34 keyframes, because each 30 s gap killed the session.
+
+**And measured off-LAN, which is the shape that matters.** Run from a host in another country with the local server
+stopped, the punch resolved to the camera's **WAN** address (`95.222.55.152:20494`) rather than a LAN one, and one
+rendezvous served **8/8 keyframes at 2304×1296**, 0.2–0.3 s each. That is the production topology: camera behind the
+customer's NAT, server elsewhere on the internet, no LAN path between them.
+
+Two things that run showed up:
+
+- **Session slots are contended, and the symptom is silence.** The first off-LAN attempt returned 0/8 with not one
+  video fragment while the local server held a session on the same camera. Stopping it made the same script return
+  8/8. §26.12's warning is real: cloud-side pulling must *replace* controller-side pulling, not run beside it.
+- **The index bug bites test scripts too.** That first attempt also sent its first CGI as index 2 rather than 1, which
+  on its own is enough to produce exactly this signature — a healthy, logged-in session that never answers.
 
 ### 26.5 The other paths the SDK opens, ranked
 
