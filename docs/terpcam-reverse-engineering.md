@@ -1006,6 +1006,13 @@ set_users.cgi?pwd_change_realtime=1&user1=&user2=&user3=admin&pwd1=&pwd2=&pwd3=<
 `pwd_change_realtime=1` is what makes it take effect immediately rather than at the next boot; `get_status.cgi`
 reports `pwd_change_realtime=1` on this firmware, so it is supported.
 
+Two bugs sat between this design and it actually happening, both found by re-pairing and looking rather than by
+reasoning. The first: the change was sent while the camera was still on its setup AP, where it is ignored — the camera
+does not apply a password change until it is provisioned. The second, after moving it: the retry loop was
+`while (deadline > now)`, and the self-healing caller passes a zero budget because it runs inside a capture and cannot
+wait — so the loop body never ran and no attempt was ever made. It is a `do/while` now, so a zero budget still means
+one try.
+
 **Success is decided by using the new password, not by reading the reply.** The first version parsed the response for
 `result=0`, which is fragile twice over: the reply's shape differs between CGIs, and changing the password can drop
 the very session the request arrived on. `terpCamSecure()` therefore sends the change and then asks `get_status.cgi`

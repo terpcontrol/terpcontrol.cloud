@@ -507,14 +507,16 @@ namespace fg {
     // Straight after pairing the camera is still joining the network, so the
     // first attempts find nothing. Keep trying for a while rather than giving up
     // and leaving it on the manufacturer's password.
+    // Always at least one attempt, however small the budget: callers that pass
+    // none still want the camera secured, they just cannot wait around for it.
     bool have_session = false;
     const uint32_t find_until = millis() + find_ms;
-    while(!have_session && (int32_t)(find_until - millis()) > 0) {
+    do {
       have_session = openSession(udp, peer_ip, peer_port);
-      if(!have_session) {
+      if(!have_session && (int32_t)(find_until - millis()) > 0) {
         for(int i = 0; i < 20; i++) { delay(100); esp_task_wdt_reset(); }
       }
-    }
+    } while(!have_session && (int32_t)(find_until - millis()) > 0);
 
     if(have_session) {
       char cgi[224];
