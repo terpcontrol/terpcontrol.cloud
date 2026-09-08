@@ -1027,16 +1027,18 @@ password, and it is stored in NVS (`webcam_pwd`) and reported to the cloud as `h
 stored against the device and — unlike an ordinary log line — never written into the diary the user reads. It is also
 stripped from `GET /device`, since nothing outside the server needs it.
 
-Verified on hardware, end to end:
+Verified on the live system, with no re-pairing and nobody driving it:
 
 | step | result |
 |---|---|
-| set a generated password | `result=0` |
-| `admin`/`888888` afterwards | **rejected** |
-| capture with the server not knowing it | fails, falls back to the controller |
-| capture once the controller reports it | **3/3 at 2304×1296** |
+| controller secures the camera by itself, from idle maintenance | `webcam_pwd=Xiq6zRckGZmR` |
+| `admin`/`888888` against the camera afterwards | **rejected** |
+| the controller's password against the camera | accepted |
+| cloud captures once it has been told the password | **4/4 at 2304×1296**, ~2.5 s each |
 | password in `GET /device` | absent — redacted |
-| restore to the default | works, camera left as found |
+
+That is the whole loop: the controller generates and sets a password, tells the cloud, and the cloud keeps fetching
+full-resolution stills — while the password the manufacturer prints in their manual no longer opens the camera.
 
 Failure behaviour is deliberate: a camera that refuses the change keeps the default and pairs anyway, reported rather
 than silently accepted, because a camera that works insecurely beats one that cannot be paired. The default also
