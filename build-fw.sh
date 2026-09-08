@@ -25,7 +25,7 @@ docker rm -f fw-temp-container 2>/dev/null 1>&2 || true
 
 HARDWARES=$@
 if [ -z "$HARDWARES" ]; then
-  HARDWARES="fridge controller plug fan light"
+  HARDWARES="fridge controller headless plug fan light"
 fi
 
 # When MQTTS is configured in .env, point the firmware at the TLS port and

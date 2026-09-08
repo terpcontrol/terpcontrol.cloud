@@ -163,8 +163,8 @@ export class FridgeSettingsConfigurationComponent implements OnChanges {
     // The controller firmware dropped the "full" (Große Pflanzen) mode; hide
     // it there while keeping it for the fridges, which share this settings UI.
     // Legacy "full" settings are shown as "small" — the firmware maps them the
-    // same way.
-    if (this.deviceType === 'controller') {
+    // same way. Headless runs the same firmware.
+    if (this.deviceType === 'controller' || this.deviceType === 'headless') {
       this.workmodes = this.workmodes.filter((mode: any) => mode.value !== 'full');
       if (this.settings.workmode === 'full') {
         this.settings.workmode = 'small';

@@ -1,0 +1,14 @@
+# Partition layout for the headless board (Adafruit QT Py ESP32-S3 N4R2, 4MB).
+#
+# fg_partitions.csv needs ~6.3MB and does not fit here, so the `factory` slot is
+# dropped and the two OTA slots shrink to 0x1F0000 (1.94MB) each. With otadata
+# erased the bootloader falls through to ota_0, which is where dev-provision
+# writes the initial image -- so losing `factory` costs nothing.
+#
+# Name,   Type, SubType, Offset,   Size,     Flags
+nvs,      data, nvs,     0x9000,   0x4000,
+otadata,  data, ota,     0xd000,   0x2000,
+phy_init, data, phy,     0xf000,   0x1000,
+ota_0,    app,  ota_0,   0x10000,  0x1F0000,
+ota_1,    app,  ota_1,   0x200000, 0x1F0000,
+nvs_ro,   data, nvs,     0x3F0000, 0x3000,

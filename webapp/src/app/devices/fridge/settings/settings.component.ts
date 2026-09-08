@@ -222,7 +222,7 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
 
   /** Grows are planned for climate devices; anything else has no stage plan. */
   get canStartPlan(): boolean {
-    return ['fridge', 'fridge2', 'controller'].includes(this.deviceType);
+    return ['fridge', 'fridge2', 'controller', 'headless'].includes(this.deviceType);
   }
 
   async onPlanWizardClosed() {
@@ -437,7 +437,7 @@ export class FridgeSettingComponent implements OnInit, OnDestroy {
   // steps still stored with "full", so the UI shows (and re-saves) what the
   // device will actually do. Fridges keep "full", so only map for controllers.
   private normalizeWorkmodes() {
-    if (this.deviceType !== 'controller') {
+    if (this.deviceType !== 'controller' && this.deviceType !== 'headless') {
       return;
     }
 

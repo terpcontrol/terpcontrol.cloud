@@ -141,7 +141,7 @@
     "tunnelRtspStream": "Tunnel webcam stream",
     "deleteDevice": "Remove device",
     "deleteDeviceConfirmTitle": "Remove device?",
-    "deleteDeviceConfirmText": "This removes the device from your account — it disappears from the app until it's claimed again.",
+    "deleteDeviceConfirmText": "This removes the device from your account — it disappears from the app until it's claimed again. It stays on your WiFi: open its setup page to move it to another network or to drop the one it has.",
     "deleteDeviceConfirmAgain": "Really remove the device now?",
     "deleteDeviceConfirmButton": "Remove",
     "forever": "forever"

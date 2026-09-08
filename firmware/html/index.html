@@ -133,6 +133,12 @@
         padding: 20px;
       }
 
+      /* More than one card can be on offer at once now, so they need a gap --
+         but only between two that are both actually showing. */
+      .card:not(.hidden) ~ .card:not(.hidden) {
+        margin-top: 14px;
+      }
+
       .lead {
         margin: 0 0 18px;
         color: var(--muted);
@@ -196,6 +202,16 @@
         background: transparent;
         color: var(--blue);
         border-color: var(--border);
+      }
+
+      #forget-button {
+        margin-top: 10px;
+        color: var(--err);
+      }
+
+      #forget-note {
+        margin: 10px 0 0;
+        font-size: .85rem;
       }
 
       .hidden {
@@ -319,6 +335,24 @@
         show(id, true);
       }
 
+      /* Third step of a headless setup: the device asks the server it is
+         registered with for a claim code, which is then typed into the portal
+         to attach the device to an account. Devices with a screen do this from
+         their own menu, so the card only appears when /pair answers. */
+      function sendPair() {
+        show('#pair-code', false);
+        show('#error', false);
+        show('#connecting', true);
+        document.querySelector('#pair-button').disabled = true;
+
+        post('/pair', '{}', function(code) {
+          show('#connecting', false);
+          document.querySelector('#pair-button').disabled = false;
+          if(code) msg('#pair-code', code);
+          else msg('#error', 'Could not get a pairing code from the server.');
+        });
+      }
+
       function sendServer() {
         let form = document.querySelector('#server');
         if(!form.reportValidity()) return;
@@ -374,6 +408,34 @@
           show('#connected', ok);
           show('#error', !ok);
           show('#wifi-ui', !ok);
+        });
+      }
+
+      /* Two taps, because there is no undo and no confirmation dialog to lean
+         on: a captive-portal browser may refuse to show one. The first tap
+         spells out what goes with the network - resetCredentials() takes the
+         paired sockets too, the same as the display menu warns about. */
+      var forget_armed = false;
+
+      function forgetWifi() {
+        let button = document.querySelector('#forget-button');
+
+        if(!forget_armed) {
+          forget_armed = true;
+          button.textContent = 'Tap again to forget';
+          show('#forget-note', true);
+          return;
+        }
+
+        button.disabled = true;
+        show('#error', false);
+
+        post('/forget', '{}', function() {
+          show('#wifi-ui', false);
+          show('#server-ui', false);
+          show('#pair-ui', false);
+          msg('#connected', 'Network cleared. The device is restarting and comes'
+            + ' back as its own WiFi network for setup.');
         });
       }
 
@@ -446,18 +508,6 @@
         invisible here but counts.
       </div>
 
-      <div id="wifi-ui" class="hidden card">
-        <p class="lead">Connect your device to your WiFi network.</p>
-        <form id="wifi">
-          <label for="primary-ssid">Network</label>
-          <input id="primary-ssid" type="text" name="primary-ssid" value="" autocapitalize="none" autocomplete="off">
-          <button class="ghost" type="button" onclick="scanWifi()">Scan for networks</button>
-          <label for="primary-password" style="margin-top:16px">Password</label>
-          <input id="primary-password" type="text" name="primary-password" oninput="checkSpaces()" value="" autocapitalize="none" autocomplete="off">
-        </form>
-        <button class="primary" type="button" onclick="sendConfig()">Save</button>
-      </div>
-
       <div id="server-ui" class="hidden card">
         <p class="lead">Point this device at a different server. It registers there and installs the firmware that server serves.</p>
         <form id="server">
@@ -467,6 +517,26 @@
           <input id="join-password" type="text" name="password" oninput="checkSpaces()" value="" autocapitalize="none" autocomplete="off">
         </form>
         <button class="primary" type="button" onclick="sendServer()">Save</button>
+      </div>
+
+      <div id="pair-ui" class="hidden card">
+        <p class="lead">Get a pairing code to attach this device to your account.</p>
+        <div id="pair-code" class="hidden box ok"></div>
+        <button id="pair-button" class="primary" type="button" onclick="sendPair()">Connect to portal</button>
+      </div>
+
+      <div id="wifi-ui" class="hidden card">
+        <p class="lead" id="wifi-lead">Connect your device to your WiFi network.</p>
+        <form id="wifi">
+          <label for="primary-ssid">Network</label>
+          <input id="primary-ssid" type="text" name="primary-ssid" value="" autocapitalize="none" autocomplete="off">
+          <button class="ghost" type="button" onclick="scanWifi()">Scan for networks</button>
+          <label for="primary-password" style="margin-top:16px">Password</label>
+          <input id="primary-password" type="text" name="primary-password" oninput="checkSpaces()" value="" autocapitalize="none" autocomplete="off">
+        </form>
+        <button class="primary" type="button" onclick="sendConfig()">Save</button>
+        <button id="forget-button" class="ghost hidden" type="button" onclick="forgetWifi()">Forget this network</button>
+        <p id="forget-note" class="lead hidden">The device restarts and comes back as its own WiFi network for setup. Any paired smart sockets are unpaired with it - they live on the network you are dropping.</p>
       </div>
 
     </div>
@@ -480,13 +550,42 @@
     </div>
 
     <script>
-      /* Both cards are in this one page and the device serves it from its root
-         either way, so the page asks which one it is: the server url comes
-         back while the change-server screen is open, and nothing at all when
-         this is the wifi portal. */
+      /* Every card lives in this one page and the device serves it from its
+         root whatever it is doing, so the page asks what to put up. The server
+         url comes back while the change-server screen is open and nothing at
+         all when this is the wifi portal. */
       post('/server', null, function(url) {
-        show(url ? '#server-ui' : '#wifi-ui', true);
+        show('#server-ui', !!url);
         document.querySelector('#server-url').value = url;
+
+        /* Only a headless build serves /pair, and only once it is on the
+           network. Anything else answers with the redirected portal page,
+           which is why this tests for the exact token rather than for text. */
+        if(url) post('/pair', null, function(state) {
+          show('#pair-ui', state == 'ready');
+        });
+      });
+
+      /* The wifi card is offered whatever else is on the page, not only to a
+         device that has no network yet: one that is already connected is
+         exactly the one that may have to be moved to another network, or cut
+         loose from a network that is not coming back. */
+      post('/config', null, function(state) {
+        /* Up first and whatever the answer was: a device that cannot say what
+           network it is on still has to offer the form. */
+        show('#wifi-ui', true);
+
+        let wifi;
+        try { wifi = JSON.parse(state); } catch(e) { return; }
+        if(!wifi || !wifi.ssid) return;
+
+        document.querySelector('#primary-ssid').value = wifi.ssid;
+        document.querySelector('#wifi-lead').textContent = (wifi.connected
+            ? 'Connected to "' + wifi.ssid + '".'
+            : 'Set up for "' + wifi.ssid + '", but not connected to it.')
+          + ' Enter another network to move this device there, or forget this'
+          + ' one to set it up from scratch.';
+        show('#forget-button', true);
       });
     </script>
 

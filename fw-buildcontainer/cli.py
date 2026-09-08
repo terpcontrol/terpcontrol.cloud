@@ -34,11 +34,23 @@ DEV_API_URL = os.environ["FG_API_URL"]
 DEV_MQTT_HOST = os.environ["FG_MQTT_HOST"]
 DEV_MQTT_PORT = os.environ["FG_MQTT_PORT"]
 
-SERIAL_DEVICE = ""
-try:
-  SERIAL_DEVICE = os.environ["SERIAL_DEVICE"]
-except KeyError:
-  SERIAL_DEVICE = '/dev/ttyUSB0'
+# Boards with a USB-UART bridge (CP2102 on the Heltec) show up as ttyUSB*,
+# boards talking native USB (ESP32-S3) as ttyACM*. An empty override counts as
+# unset -- the wrapper scripts always pass the variable through, set or not.
+SERIAL_DEVICE = os.environ.get("SERIAL_DEVICE", "").strip() or next(
+  (dev for dev in ('/dev/ttyUSB0', '/dev/ttyACM0') if os.path.exists(dev)),
+  '/dev/ttyUSB0')
+
+ESP_CHIP = os.environ.get("ESP_CHIP", "").strip() or "esp32"
+
+# Offset of the read-only provisioning NVS partition. Depends on the board's
+# partition table: 0x610000 for the 8MB boards (fg_partitions.csv), 0x3F0000
+# for the 4MB headless board (fg_partitions_4mb.csv).
+NVS_RO_OFFSET = os.environ.get("NVS_RO_OFFSET", "").strip() or "0x610000"
+
+# The original ESP32 keeps its second-stage bootloader at 0x1000; every later
+# target (S2/S3/C3) expects it at 0x0.
+BOOTLOADER_OFFSET = "0x1000" if ESP_CHIP == "esp32" else "0x0"
 
 CONFIG_FILE = "~/.config/fgcli.conf"
 os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
@@ -145,21 +157,21 @@ def provision(class_name:str, device_type: str):
     return
 
   esptool_args = [
-    "--chip", "esp32",
+    "--chip", ESP_CHIP,
     "--port", SERIAL_DEVICE,
     "--baud", "460800",
     "--before", "default_reset",
-    "--after", "hard_reset write_flash",
+    "--after", "no_reset write_flash",
     "-z",
     "--erase-all",
     "--flash_mode", "dio",
     "--flash_freq", "40m",
     "--flash_size", "detect",
-    "0x1000", "/tmp/bootloader.bin",
+    BOOTLOADER_OFFSET, "/tmp/bootloader.bin",
     "0x8000", "/tmp/partitions.bin",
     "0xe000", "/tmp/bootapp.bin",
     "0x10000", "/tmp/firmware.bin",
-    "0x610000", "/tmp/provisioning.bin"
+    NVS_RO_OFFSET, "/tmp/provisioning.bin"
   ]
 
   cmd = 'python3 ~/.platformio/packages/tool-esptoolpy/esptool.py ' + ' '.join(esptool_args)  
@@ -167,7 +179,9 @@ def provision(class_name:str, device_type: str):
     print("error flashing firmware, aborting...", file=sys.stderr)
     return
 
-  cmd="python3 ~/.platformio/packages/tool-esptoolpy/esptool.py --port " + SERIAL_DEVICE + " write_flash 0x610000 /tmp/provisioning.bin"
+  cmd=("python3 ~/.platformio/packages/tool-esptoolpy/esptool.py --chip " + ESP_CHIP
+       + " --port " + SERIAL_DEVICE + " --before no_reset --after hard_reset"
+       + " write_flash " + NVS_RO_OFFSET + " /tmp/provisioning.bin")
   if(os.system(cmd)):
     print("error flashing provisioning binary, aborting...", file=sys.stderr)
     return

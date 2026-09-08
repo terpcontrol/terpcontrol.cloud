@@ -1,0 +1,1168 @@
+#include "headless.h"
+#include "dashboard.h"
+#include "wifi.h"
+#include <Adafruit_MLX90632.h>
+#include <Adafruit_VEML7700.h>
+#include <sstream>
+
+#include "time.h"
+#include "esp_sntp.h"
+
+#define SCD4X_I2C_ADDRESS 0x62 // SCD40/SCD41
+#define VEML7700_I2C_ADDRESS 0x10
+#define MLX90632_I2C_ADDRESS 0x3A
+
+const uint8_t  SPRINTF_BUFFER_SIZE{32};
+char          inputBuffer[32];
+
+// Zusätzliche I2C-Sensoren auf dem Sensor-Bus
+Adafruit_MLX90632 mlx90632 = Adafruit_MLX90632();
+Adafruit_VEML7700 veml7700 = Adafruit_VEML7700();
+
+static bool mlx90632_found = false;
+static bool veml7700_found = false;
+
+static float mlx90632_object_temperature = NAN;
+static float mlx90632_ambient_temperature = NAN;
+static float veml7700_lux = NAN;
+static uint16_t veml7700_als = 0;
+static uint16_t veml7700_white = 0;
+
+static double ntcToTemp(uint16_t adc_val) {
+  double R1 = 100000.0;   // voltage divider resistor value
+  double Beta = 4250.0;  // Beta value
+  double To = 298.15;    // Temperature in Kelvin for 25 degree Celsius
+  double Ro = 100000.0;   // Resistance of Thermistor at 25 degree Celsius
+
+  double adc_max = 4095.0;
+
+  auto Rt = R1 * (double)adc_val / (adc_max - (double)adc_val);
+
+  auto T = 1/(1/To + log(Rt/Ro)/Beta);    // Temperature in Kelvin
+  auto Tc = T - 273.15;                   // Celsius
+  return Tc;
+}
+
+namespace fg {
+
+  static void readAuxSensors() {
+    if (mlx90632_found) {
+      if (mlx90632.isNewData()) {
+        double ambient = mlx90632.getAmbientTemperature();
+        double object = mlx90632.getObjectTemperature();
+
+        if (!isnan(ambient)) {
+          mlx90632_ambient_temperature = (float)ambient;
+        }
+        if (!isnan(object)) {
+          mlx90632_object_temperature = (float)object;
+        }
+
+        mlx90632.resetNewData();
+      }
+    }
+
+    if (veml7700_found) {
+      veml7700_lux = veml7700.readLux();
+      veml7700_als = veml7700.readALS();
+      veml7700_white = veml7700.readWhite();
+    }
+  }
+
+
+  std::unique_ptr<AutomationController> createController(Fridgecloud& cloud) {
+    return std::unique_ptr<AutomationController>(new HeadlessController(cloud));
+  }
+  void HeadlessController::updateSensors() {
+
+    float temperature, humidity;
+    uint16_t co2 = 0;
+    char errorString[200];
+    uint8_t error;
+
+    static unsigned sensor_fails = 0;
+    static TickType_t last_co2_sample;
+
+    Wire.end();
+    Wire.begin(PIN_SENSOR_I2CSDA, PIN_SENSOR_I2CSCL, SENSOR_I2C_FRQ);
+
+    if(state.sensor_type == SENSOR_TYPE_SHT) {
+      Serial.println("SENSOR IS SHT");
+      uint8_t tries = 0;
+      for(; tries < 2; tries++) {
+        if (sht21.readSample()) {
+          temperature = sht21.getTemperature();
+          humidity = sht21.getHumidity();
+		  humidity = humidity > 100.0 ? 100.0 : humidity; 
+          break;
+        }
+      }
+      if(tries >= 2) {
+        Serial.println("failed to read from temperature/humidity sensor!!!");
+        sensor_fails++;
+      }
+      else {
+        state.temperature = temperature;
+        state.humidity = humidity;
+        sensor_fails = 0;
+      }
+      state.co2 = 0;
+    }
+    else if(state.sensor_type == SENSOR_TYPE_SCD) {
+      Serial.println("SENSOR IS SCD");
+
+      // The SCD produces a sample every 5 s, so a few not-ready ticks of the
+      // 1 s loop are normal. Counting them once per tick keeps a healthy
+      // sensor well below the failsafe threshold, while a sensor that never
+      // becomes ready still accumulates fails and trips it.
+      bool data_was_ready = false;
+      for(uint8_t tries = 0; tries < 2; tries++) {
+        uint16_t isDataReady = 0;
+        error = scd4x.getDataReadyStatus(isDataReady);
+        if (error) {
+            Serial.println("Error trying to execute getDataReadyFlag(): ");
+            sensor_fails++;
+            continue;
+        }
+        if(isDataReady == 32774) {
+          data_was_ready = true;
+          float temperature, humidity;
+          uint16_t co2 = 0;
+          error = scd4x.readMeasurement(co2, temperature, humidity);
+          if (error) {
+              Serial.println("Error trying to execute readMeasurement(): ");
+              sensor_fails++;
+              continue;
+          } else if (co2 == 0) {
+              Serial.println("Invalid sample detected, skipping.");
+              sensor_fails++;
+              continue;
+          } else {
+              co2_avg.push(co2);
+			  state.co2 =  co2_avg.avg();
+              state.temperature = temperature;
+              state.humidity = humidity;
+			 // last_co2_sample = xTaskGetTickCount();
+              sensor_fails = 0;
+            break;
+          }
+        }
+      }
+      if(!data_was_ready) {
+        sensor_fails++;
+      }
+    }
+    else {
+      Serial.println("NO SENSOR!");
+      Wire.end();
+      if(initSensor()) {
+        sensor_fails = 0;
+      }
+      else {
+        sensor_fails++;
+      }
+    }
+
+    // MLX90632 und VEML7700 werden zusätzlich gelesen, unabhängig davon,
+    // ob der Hauptsensor ein SCD41 oder ein SHT41 ist.
+    readAuxSensors();
+
+    Wire.end();
+    Wire.begin(PIN_SDA, PIN_SCL);
+
+    if(sensor_fails < 10) {
+      sensors_valid = true;
+    }
+    else {
+      sensors_valid = false;
+      state.sensor_type = SENSOR_TYPE_NONE;
+    }
+  }
+  
+  void HeadlessController::checkDayCycle() {
+    time_t now;
+    struct tm * ptm;
+    struct tm timeinfo;
+
+    time(&now);
+    ptm = gmtime ( &now );
+
+    Serial.printf("[%02d:%02d:%02d] ", ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
+
+    state.timeofday = ptm->tm_sec + 60 * ptm->tm_min + 60 * 60 * ptm->tm_hour;
+
+    if(settings.workmode == HeadlessControllerSettings::MODE_SMALL || settings.workmode == HeadlessControllerSettings::MODE_TEMP) {
+      if(settings.daynight.day > settings.daynight.night) {
+        state.is_day = state.timeofday > settings.daynight.day || state.timeofday < settings.daynight.night;
+      }
+      else if(settings.daynight.day < settings.daynight.night) {
+        state.is_day = state.timeofday > settings.daynight.day && state.timeofday < settings.daynight.night;
+      }
+      else {
+        state.is_day = false;
+      }
+    }
+    else {
+      state.is_day = false;
+    }
+  }
+
+  void HeadlessController::controlCo2() {
+
+	if(!hasCo2Sensor()) {
+      Serial.println("CO2 deaktiviert - kein SCD Sensor");
+
+      co2_valve_open = false;
+      state.out_co2 = 0;
+      co2_valve_close = 0;
+      co2_inject_end = xTaskGetTickCount();
+
+      return;
+    }
+	Serial.println("CO2 Regelung aktiv");
+
+    // Accumulate open runtime for the cloud report while the valve is open.
+    if (co2_valve_open) {
+      state.out_co2 += xTaskGetTickCount() - co2_inject_start;
+    }
+    co2_inject_start = xTaskGetTickCount();
+
+    if(state.is_day) {
+      if(tickPassed(co2_inject_end)) {
+        if((co2_avg.avg() < settings.co2.target && !isPaused())) {
+          co2_valve_open = true;
+          co2_valve_close = co2_inject_start + CO2_INJECT_DURATION;  // fixed 2 s
+        }
+        co2_inject_end = xTaskGetTickCount() + CO2_INJECT_PERIOD;
+      }
+    }
+    else {
+      co2_inject_end = xTaskGetTickCount();
+      co2_valve_close = 0;
+      co2_valve_open = false;
+      state.out_co2 = 0;
+    }
+
+    if(co2_avg.avg() > settings.co2.target + CO2_OVERSWING_ABORT) {
+      co2_valve_close = 0;
+      co2_valve_open = false;
+      state.out_co2 = 0;
+    }
+
+    // 2 s injection window elapsed -> close. Evaluated in the 1 s control loop.
+    if(co2_valve_open && tickPassed(co2_valve_close)) {
+      co2_valve_open = false;
+    }
+  }
+
+  void HeadlessController::controlLight() {
+    const int SECONDS_PER_DAY = 24 * 60 * 60;
+
+    if(state.is_day) {
+
+      static float light_current = 0.0f;
+
+      float t_min = settings.day.temperature + LIGHT_TEMP_HYST;
+      float t_max = t_min + LIGHT_TEMP_HYST;
+
+      float out;
+      if (state.temperature > t_max + LIGHT_TEMP_OFF_OFFSET) {
+        out = 0.0f;
+      }
+      else {
+        out = 1.0f - (state.temperature - t_min) / (t_max - t_min) * (1.0f - LIGHT_MIN_DIM);
+        if (out < LIGHT_MIN_DIM) out = LIGHT_MIN_DIM;
+      }
+
+      float max_out = 1.0f;
+      if (isPaused()) {
+          max_out = 0.15f;
+      }
+      else
+      {
+          if(settings.lights.sunrise > 0 && (state.timeofday + SECONDS_PER_DAY) < (settings.daynight.day + SECONDS_PER_DAY + settings.lights.sunrise * 60)) {
+            //LOG("TON: %d\n", state.time - settings.daynight.day);
+            max_out = static_cast<float>(state.timeofday - settings.daynight.day) / (settings.lights.sunrise * 60.0f);
+          }
+          if(settings.lights.sunset > 0 && (state.timeofday + SECONDS_PER_DAY) > (settings.daynight.night + SECONDS_PER_DAY - settings.lights.sunset * 60)) {
+            //LOG("TOFF: %d\n", state.time - settings.daynight.night);
+            max_out = static_cast<float>(settings.daynight.night - state.timeofday) / (settings.lights.sunset * 60.0f);
+          }
+      }
+
+      max_out = max_out > 1.0f ? 1.0f : max_out;
+      max_out = max_out < 0.0f ? 0.0f : max_out;
+
+      out = out > 1 ? 1 : out;
+      out = out < 0 ? 0 : out;
+
+      Serial.printf("OUT: %f\n\r", out);
+
+      light_current = (1.0f - LIGHT_CONTROL_SPEED) * light_current + LIGHT_CONTROL_SPEED * out;
+
+      //LOG("LIGHT: %f, %f, %f\n", out, light_current, max_out);
+
+      if(light_current > max_out) {
+        light_current = max_out;
+      }
+
+      light_current = light_current > 1.0f ? 1.0f : light_current;
+      light_current = light_current < 0.0f ? 0.0f : light_current;
+
+      light_current = light_current > (settings.lights.limit / 100.0f) ? (settings.lights.limit / 100.0f) : light_current;
+
+      state.out_light = light_current * 100.0f;
+      out_light.set(255.0f * light_current);
+    }
+    else {
+      state.out_light = 0;
+      out_light.set(state.out_light);
+    }
+  }
+
+  void HeadlessController::controlDehumidifier() {
+    humidity_avg_short.push(state.humidity);
+    humidity_avg_long.push(state.humidity);
+
+    float target_humidity = state.is_day ? settings.day.humidity : settings.night.humidity;
+    float target_temperature = state.is_day ? settings.day.temperature : settings.night.temperature;
+    float temp_limit = target_temperature - 1;
+	float humidity_avg = settings.daynight.useLongHumidityAvg > 0 ? humidity_avg_long.avg() : humidity_avg_short.avg();
+
+    static uint8_t dehumidify = 0;
+    static uint8_t temperature_override = 1;
+    static uint32_t turn_off_time = 0;
+	static uint32_t dehumidify_start_time = 0;
+
+    if(state.temperature < temp_limit) {
+      temperature_override = 0;
+    }
+    if(state.temperature > temp_limit + 1) {
+      temperature_override = 1;
+    }
+
+    if(dehumidify) {
+      if((humidity_avg < target_humidity) || (settings.daynight.maxDehumidifySeconds > 0 && (state.timeofday - dehumidify_start_time) > settings.daynight.maxDehumidifySeconds)) {
+        dehumidify = 0;
+      }
+    }
+    else {
+      if(state.humidity > (target_humidity + settings.daynight.targetHumidityDiff)) {
+        dehumidify = 1;
+		dehumidify_start_time = state.timeofday;
+		humidity_avg_short.clear();
+		humidity_avg_long.clear();
+      }
+    }
+
+    if (isPaused()) {
+          state.out_dehumidifier = 0;
+    }
+    else if(dehumidify && temperature_override) {
+      if(state.timeofday - turn_off_time > settings.daynight.minimalDehumidifierOffTime) {
+        state.out_dehumidifier = 1;
+      }
+    }
+    else {
+      if(state.out_dehumidifier) {
+        turn_off_time = state.timeofday;
+      }
+      state.out_dehumidifier = 0;
+    }
+	
+  }
+
+
+  void HeadlessController::controlCooling() {
+
+    float target_temperature = state.is_day ? settings.day.temperature : settings.night.temperature;
+
+    static uint8_t cool = 0;
+    static uint32_t turn_off_time = 0;
+
+    if(state.temperature > target_temperature + 0.8) {
+      cool = 1;
+    }
+    if(state.temperature < target_temperature + 0.3) {
+      cool = 0;
+    }
+
+
+    if (isPaused()) {
+      state.out_dehumidifier = 0;
+    }
+    else if(cool) {
+      if(state.timeofday - turn_off_time > settings.daynight.minimalDehumidifierOffTime) {
+        state.out_dehumidifier = 1;
+      }
+    }
+    else {
+      if(state.out_dehumidifier) {
+        turn_off_time = state.timeofday;
+      }
+      state.out_dehumidifier = 0;
+    }
+
+  }
+
+  void HeadlessController::controlHeater() {
+
+    if (isPaused()) {
+      state.out_heater = 0;
+    }
+    else if(state.is_day) {
+      state.out_heater = heater_day_pid.tick(state.temperature, settings.day.temperature);
+    }
+    else {
+      state.out_heater = heater_night_pid.tick(state.temperature, settings.night.temperature);
+    }
+
+  }
+  
+  HeadlessController::HeadlessController(Fridgecloud& cloud) :
+	 
+ 
+	cloud(cloud),
+    out_light(PIN_LIGHT, 0),
+    heater_day_pid(HEATER_PID_P, HEATER_PID_I, HEATER_PID_D),
+    heater_night_pid(HEATER_PID_P, HEATER_PID_I, HEATER_PID_D),
+    sht21(SHTSensor::SHTSensorType::SHT4X)
+	
+  {
+
+  }
+
+  template<class T> inline void loadIfAvaliable(T& val, DynamicJsonDocument doc) {
+    if(!doc.isNull()) {
+      val = doc.as<T>();
+    }
+    else {
+      Serial.println("error loading settings field");
+    }
+  }
+
+  template<> inline void loadIfAvaliable(String& val, DynamicJsonDocument doc) {
+    if(!doc.isNull()) {
+      val = doc.as<const char*>();
+    }
+    else {
+      Serial.println("error loading settings field");
+    }
+  }
+
+  void HeadlessController::loadSettings(const String& settings_json) {
+    HeadlessControllerSettings new_settings;
+    DynamicJsonDocument doc(2048);
+    DeserializationError error = deserializeJson(doc, settings_json);
+
+    // Test if parsing succeeds.
+    if (error) {
+      Serial.println("error parsing settings json");
+      settings = new_settings;
+    }
+    else {
+      Serial.println(settings_json);
+
+      loadIfAvaliable(new_settings.workmode, doc["workmode"]);
+      // "full" (Big Plant) no longer exists on the controller; it behaved
+      // identically to "small" here, so map legacy settings to keep devices
+      // running instead of falling back to OFF.
+      if(new_settings.workmode == HeadlessControllerSettings::MODE_FULL) {
+        new_settings.workmode = HeadlessControllerSettings::MODE_SMALL;
+      }
+      loadIfAvaliable(new_settings.daynight.day, doc["daynight"]["day"]);
+      loadIfAvaliable(new_settings.daynight.night, doc["daynight"]["night"]);
+	  loadIfAvaliable(new_settings.daynight.maxDehumidifySeconds, doc["daynight"]["maxDehumidifySeconds"]);
+      loadIfAvaliable(new_settings.daynight.targetHumidityDiff, doc["daynight"]["targetHumidityDiff"]);
+      loadIfAvaliable(new_settings.daynight.useLongHumidityAvg, doc["daynight"]["useLongHumidityAvg"]);
+      loadIfAvaliable(new_settings.daynight.minimalDehumidifierOffTime, doc["daynight"]["minimalDehumidifierOffTime"]);
+      loadIfAvaliable(new_settings.co2.target, doc["co2"]["target"]);
+      loadIfAvaliable(new_settings.day.temperature, doc["day"]["temperature"]);
+      loadIfAvaliable(new_settings.day.humidity, doc["day"]["humidity"]);
+      loadIfAvaliable(new_settings.night.temperature, doc["night"]["temperature"]);
+      loadIfAvaliable(new_settings.night.humidity, doc["night"]["humidity"]);
+      loadIfAvaliable(new_settings.lights.sunrise, doc["lights"]["sunrise"]);
+      loadIfAvaliable(new_settings.lights.sunset, doc["lights"]["sunset"]);
+      loadIfAvaliable(new_settings.lights.limit, doc["lights"]["limit"]);
+    }
+
+    Serial.printf("#################################################\n\r");
+    Serial.printf("new_settings.workmode: %s\n\r", new_settings.workmode);
+    Serial.printf("new_settings.daynight.day: %lu\n\r", new_settings.daynight.day);
+    Serial.printf("new_settings.daynight.night: %lu\n\r", new_settings.daynight.night);
+	Serial.printf("new_settings.daynight.maxDehumidifySeconds: %lu\n\r", new_settings.daynight.maxDehumidifySeconds);
+    Serial.printf("new_settings.daynight.targetHumidityDiff: %f\n\r", new_settings.daynight.targetHumidityDiff);
+    Serial.printf("new_settings.daynight.useLongHumidityAvg: %f\n\r", new_settings.daynight.useLongHumidityAvg);
+    Serial.printf("new_settings.daynight.minimalDehumidifierOffTime: %lu\n\r", new_settings.daynight.minimalDehumidifierOffTime);
+    Serial.printf("new_settings.co2.target: %.0f\n\r", new_settings.co2.target);
+    Serial.printf("new_settings.day.temperature: %.2f\n\r", new_settings.day.temperature);
+    Serial.printf("new_settings.day.humidity: %.0f\n\r", new_settings.day.humidity);
+    Serial.printf("new_settings.night.temperature: %.2f\n\r", new_settings.night.temperature);
+    Serial.printf("new_settings.night.humidity: %.0f\n\r", new_settings.night.humidity);
+    Serial.printf("new_settings.lights.sunrise: %f\n\r", new_settings.lights.sunrise);
+    Serial.printf("new_settings.lights.sunset: %f\n\r", new_settings.lights.sunset);
+    Serial.printf("new_settings.lights.limit: %f\n\r", new_settings.lights.limit);
+    Serial.printf("#################################################\n\r");
+
+    settings = new_settings;
+	if(!hasCo2Sensor())
+	{
+      settings.co2.target = 0;
+	}
+  }
+
+  void HeadlessController::saveAndUploadSettings() {
+    DynamicJsonDocument doc(2048);
+
+    doc["workmode"] = settings.workmode;
+    doc["daynight"]["day"] = settings.daynight.day;
+    doc["daynight"]["night"] = settings.daynight.night;
+	doc["daynight"]["maxDehumidifySeconds"] = settings.daynight.maxDehumidifySeconds;
+    doc["daynight"]["targetHumidityDiff"] = settings.daynight.targetHumidityDiff;
+    doc["daynight"]["useLongHumidityAvg"] = settings.daynight.useLongHumidityAvg;
+    doc["daynight"]["minimalDehumidifierOffTime"] = settings.daynight.minimalDehumidifierOffTime;
+    doc["co2"]["target"] = settings.co2.target;
+    doc["day"]["temperature"] = settings.day.temperature;
+    doc["day"]["humidity"] = settings.day.humidity;
+    doc["night"]["temperature"] = settings.night.temperature;
+    doc["night"]["humidity"] = settings.night.humidity;
+    doc["lights"]["sunrise"] = settings.lights.sunrise;
+    doc["lights"]["sunset"] = settings.lights.sunset;
+    doc["lights"]["limit"] = settings.lights.limit;
+
+
+    std::stringstream stream;
+    serializeJson(doc, stream);
+
+    Serial.println(stream.str().c_str());
+    fg::settings().setStr("config", stream.str().c_str());
+    fg::settings().commit();
+    cloud.updateConfig(stream.str().c_str());
+  }
+
+  void HeadlessController::init() {
+    char errorString[200];
+    uint8_t errorcode;
+
+    pinMode(12, INPUT);
+    pinMode(13, INPUT);
+    pinMode(15, INPUT);
+    pinMode(4, INPUT);
+
+    auto saved_settings = fg::settings().getStr("config");
+    loadSettings(saved_settings.c_str());
+
+    cloud.onConfig([&](const String & payload) {
+      Serial.println("received new configuration");
+      loadSettings(payload);
+
+      fg::settings().setStr("config", payload.c_str());
+      fg::settings().commit();
+
+      loop();
+
+    });
+
+    cloud.onCommand([&](const JsonDocument& command) {
+      if(command["action"] && command["action"] == std::string("maintenance")) {
+        float durationMinutes = command["durationMinutes"].as<float>();
+        char buf[64];
+        pause_start_tick = xTaskGetTickCount();
+        pause_duration_ticks = (TickType_t)(configTICK_RATE_HZ * durationMinutes * 60);
+        snprintf(buf, sizeof(buf), "message-maintenance-mode-activated-remote:%d", (int)roundf(durationMinutes));
+        cloud.log(buf);
+      }
+      else if(wifiHandleAuxCommand(command, &cloud)) {
+        // Shared socket_remove / socket_set / socket_test handling.
+      }
+    });
+
+    wifiInitAuxCloudReporting(&cloud);
+
+    cloud.onUpdate([&](bool updating) {
+      if(updating) {
+        co2_valve_open = false;
+        out_light.set(0);
+
+        // Reset the logical outputs too: smart sockets are commanded from
+        // state.out_*, not the physical out_* pins. Without this the cached
+        // socket state stays "on".
+        state.out_heater = 0;
+        state.out_dehumidifier = 0;
+        state.out_co2 = 0;
+        state.out_light = 0;
+
+        // The OTA download blocks the loop task until reboot, so loop() and
+        // wifiTick() will not run again to push the OFF command to the smart
+        // sockets. Flush it synchronously here, otherwise a socket-controlled
+        // output (e.g. the heater) stays on through the whole update.
+        wifiForceAllSmartSocketsOff();
+      }
+    });
+
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    sntp_setservername(0, "pool.ntp.org");
+    sntp_init();
+
+    // No MCP7940 on this board -- time comes from SNTP alone (see the
+    // sntp_get_sync_status() check in loop() below).
+
+    initSensor();
+    Wire.begin(PIN_SDA, PIN_SCL);
+
+    Serial.println("Waiting for first measurement... (5 sec)");
+
+    co2_inject_end = xTaskGetTickCount() + CO2_INJECT_DELAY;
+
+  }
+
+  bool HeadlessController::initSensor() {
+    Wire.begin(PIN_SENSOR_I2CSDA, PIN_SENSOR_I2CSCL, SENSOR_I2C_FRQ);
+    bool found_sensor = false;
+
+    auto time = xTaskGetTickCount();
+
+    if (sht21.init(Wire)) {
+      Serial.print("init(): success\n");
+      state.sensor_type = SENSOR_TYPE_SHT;
+      sht21.setAccuracy(SHTSensor::SHT_ACCURACY_MEDIUM); // only supported by SHT3x
+      Serial.println("FOUND SHT SENSOR");
+      found_sensor = true;
+    }
+
+    Serial.print("SHT DELAY: ");
+    Serial.println(xTaskGetTickCount() - time);
+    time = xTaskGetTickCount();
+
+    if(!found_sensor) {
+      //Wire.flush();
+      scd4x.begin(Wire);
+      Wire.beginTransmission(SCD4X_I2C_ADDRESS);
+      if (Wire.endTransmission() == 0) {
+        unsigned  error = scd4x.stopPeriodicMeasurement();
+        found_sensor = true;
+
+        if (error) {
+          Serial.println("Error trying to execute stopPeriodicMeasurement(): ");
+          found_sensor = false;
+        }
+        else {
+          error = scd4x.setAutomaticSelfCalibration(0);
+          if (error) {
+            Serial.println("Error trying to execute setAutomaticSelfCalibration(): ");
+            found_sensor = false;
+          }
+          else {
+            error = scd4x.startPeriodicMeasurement();
+            if (error) {
+              Serial.println("Error trying to execute startPeriodicMeasurement(): ");
+              found_sensor = false;
+            }
+          }
+        }
+      }
+
+      if(found_sensor) {
+        state.sensor_type = SENSOR_TYPE_SCD;
+      }
+    }
+
+    Serial.printf("SCD DELAY: ");
+    Serial.println(xTaskGetTickCount() - time);
+    time = xTaskGetTickCount();
+
+    // Zusätzliche Sensoren initialisieren: MLX90632 + VEML7700.
+    // Diese Sensoren sind optional und ändern state.sensor_type nicht.
+    mlx90632_found = false;
+    veml7700_found = false;
+
+    if (mlx90632.begin(MLX90632_I2C_ADDRESS, &Wire)) {
+      Serial.println("FOUND MLX90632 SENSOR");
+      mlx90632_found = true;
+
+      // Kontinuierliche Messung, damit updateSensors() nur neue Daten abholt.
+      if (!mlx90632.reset()) {
+        Serial.println("MLX90632 reset failed");
+      }
+      if (!mlx90632.setMode(MLX90632_MODE_CONTINUOUS)) {
+        Serial.println("MLX90632 set continuous mode failed");
+      }
+      if (!mlx90632.setMeasurementSelect(MLX90632_MEAS_EXTENDED_RANGE)) {
+        Serial.println("MLX90632 set measurement select failed");
+      }
+      if (!mlx90632.setRefreshRate(MLX90632_REFRESH_2HZ)) {
+        Serial.println("MLX90632 set refresh rate failed");
+      }
+      mlx90632.resetNewData();
+    }
+    else {
+      Serial.println("NO MLX90632 SENSOR");
+    }
+
+    if (veml7700.begin(&Wire)) {
+      Serial.println("FOUND VEML7700 SENSOR");
+      veml7700_found = true;
+      // Auch nach unten gerichtet sieht der Sensor kraeftiges Raumlicht:
+      // gemessen ~18700 lux (PPFD ~280). GAIN_1_8 ist noetig, weil hoehere
+      // Gains zu frueh saettigen (Decke bei IT_100MS: GAIN_1 ~3800 lux,
+      // GAIN_1_4 ~15100 lux, GAIN_1_8 ~30200 lux). readLux() ist gain-
+      // kompensiert; bei diesem Pegel liefert GAIN_1_8 reichlich Aufloesung.
+      veml7700.setGain(VEML7700_GAIN_1_8);
+      veml7700.setIntegrationTime(VEML7700_IT_100MS);
+    }
+    else {
+      Serial.println("NO VEML7700 SENSOR");
+    }
+
+    Serial.printf("AUX SENSOR DELAY: ");
+    Serial.println(xTaskGetTickCount() - time);
+
+    Wire.end();
+    return found_sensor;
+  }
+
+  bool HeadlessController::hasCo2Sensor() {
+	return state.sensor_type == SENSOR_TYPE_SCD;
+  }
+
+
+  void HeadlessController::fastloop() {
+    // CO2 valve timing now runs entirely in the 1 s control loop and is
+    // actuated via a smart socket, so there is nothing to do per fast tick.
+  }
+
+  void HeadlessController::loop() {
+    updateSensors();
+    checkDayCycle();
+
+    {
+      static int last_co2_sensor_logged = -1;
+      int co2_sensor_now = hasCo2Sensor() ? 1 : 0;
+      if(co2_sensor_now != last_co2_sensor_logged) {
+        cloud.log(co2_sensor_now ? "hardware-info:co2=on" : "hardware-info:co2=off");
+        last_co2_sensor_logged = co2_sensor_now;
+      }
+
+      // Presence of the optional aux sensors so the cloud can show/hide their
+      // tiles. PPFD is derived from the VEML7700, so it tracks that sensor.
+      static int last_leaf_temp_logged = -1;
+      int leaf_temp_now = mlx90632_found ? 1 : 0;
+      if(leaf_temp_now != last_leaf_temp_logged) {
+        cloud.log(leaf_temp_now ? "hardware-info:leaf_temp=on" : "hardware-info:leaf_temp=off");
+        last_leaf_temp_logged = leaf_temp_now;
+      }
+
+      static int last_ppfd_logged = -1;
+      int ppfd_now = veml7700_found ? 1 : 0;
+      if(ppfd_now != last_ppfd_logged) {
+        cloud.log(ppfd_now ? "hardware-info:ppfd=on" : "hardware-info:ppfd=off");
+        last_ppfd_logged = ppfd_now;
+      }
+    }
+
+	if(sensors_valid == false) {
+      Serial.println("SENSOR ERROR!!! FAILSAVE MODE!!!");
+      state.out_heater = 0;
+      state.out_dehumidifier = 0;
+      co2_valve_open = false;
+      state.out_co2 = 0;
+      out_light.set(0);
+      state.out_light = 0;
+    }
+    else {
+      if(settings.workmode == HeadlessControllerSettings::MODE_SMALL) {
+        Serial.println("MODE SMALL");
+		
+        if(hasCo2Sensor()) {
+          Serial.printf("CO2 CONTROL ACTIVE (sensor_type=%d)\n", state.sensor_type);
+		  controlCo2();
+        }
+        else {
+          Serial.printf("CO2 CONTROL DISABLED (no SCD sensor, sensor_type=%d)\n", state.sensor_type);
+		  co2_valve_open = false;
+          state.out_co2 = 0;
+        }
+		
+        controlLight();
+        controlDehumidifier();
+        controlHeater();
+      }
+      else if(settings.workmode == HeadlessControllerSettings::MODE_TEMP) {
+        Serial.println("MODE TEMP");
+        controlLight();
+        controlCooling();
+        controlHeater();
+		
+        if(hasCo2Sensor()) {
+          Serial.printf("CO2 CONTROL ACTIVE (sensor_type=%d)\n", state.sensor_type);
+		  controlCo2();
+        }
+        else {
+          Serial.printf("CO2 CONTROL DISABLED (no SCD sensor, sensor_type=%d)\n", state.sensor_type);
+		  co2_valve_open = false;
+          state.out_co2 = 0;
+        }
+		
+      }
+      else if(settings.workmode == HeadlessControllerSettings::MODE_DRY) {
+        Serial.println("MODE DRY");
+        controlDehumidifier();
+        controlHeater();
+        co2_valve_open = false;
+        state.out_co2 = 0;
+        out_light.set(0);
+        state.out_light = 0;
+      }
+      else if(settings.workmode == HeadlessControllerSettings::MODE_BREED) {
+        Serial.println("MODE BREED");
+        controlHeater();
+        controlCooling();
+        co2_valve_open = false;
+        state.out_co2 = 0;
+        out_light.set(0);
+        state.out_light = 0;
+      }
+      else {
+        Serial.println("MODE OFF");
+        state.out_heater = 0;
+        state.out_dehumidifier = 0;
+        co2_valve_open = false;
+        state.out_co2 = 0;
+        out_light.set(0);
+        state.out_light = 0;
+      }
+
+      if (settings.lights.maintenanceOn > 0 && isPaused()) {
+          state.out_light = 15.0f;
+          out_light.set(255.0f * (state.out_light / 100.0f));
+      }
+
+      SmartSocketOutputStates socket_states;
+      socket_states.dehumidifier_on = state.out_dehumidifier > 0;
+      socket_states.heater_on = state.out_heater > 0;
+      socket_states.light_on = state.out_light > 0;
+      socket_states.secondary_light_on = state.out_light > 0;
+      socket_states.co2_on = co2_valve_open;
+      wifiReportSmartSocketOutputs(socket_states);
+
+	  if(hasCo2Sensor()){
+        if(state.co2 < CO2_LEVEL_CRITICAL) {
+          if(++co2_low_count >= 60) {
+            if(!co2_warning_triggered) {
+              cloud.log("message-co2-low");
+              co2_warning_triggered = true;
+            }
+          }
+        }
+        else {
+           co2_low_count = 0;
+        co2_warning_triggered = true;
+        }
+      }
+	}  
+    Serial.printf(
+      "%s T:%.2f°C H:%.0f%%",
+      state.is_day ? "DAY" : "NIGHT",
+      state.temperature,
+      state.humidity
+	);
+
+	// CO2 nur anzeigen wenn SCD Sensor vorhanden
+	if(hasCo2Sensor())
+	{
+      Serial.printf(" CO2:%.0fppm", state.co2);
+	}
+
+	Serial.printf(" H:%.2f D:%.0f L:%.0f",
+      state.out_heater,
+      state.out_dehumidifier,
+      state.out_light
+	);
+    // CO2 Output nur anzeigen wenn vorhanden
+	if(hasCo2Sensor())
+	{
+      Serial.printf(" C:%.0f", state.out_co2);
+	}
+
+
+    // Zusätzliche Sensoren seriell ausgeben
+    if(mlx90632_found)
+    {
+      Serial.printf(
+        " MLX90632:OBJ=%.2f°C AMB=%.2f°C",
+        mlx90632_object_temperature,
+        mlx90632_ambient_temperature
+      );
+    }
+    else
+    {
+      Serial.printf(" MLX90632:n/a");
+    }
+
+    if(veml7700_found)
+    {
+      Serial.printf(
+        " VEML7700:LUX=%.2f ALS=%u WHITE=%u",
+        veml7700_lux,
+        veml7700_als,
+        veml7700_white
+      );
+    }
+    else
+    {
+      Serial.printf(" VEML7700:n/a");
+    }
+	Serial.printf("\n\r");
+
+
+	// Stack-allocated so this hot per-tick document never hits the heap
+	// allocator. Capacity is sized for the keys populated below — bump it
+	// (and the JSON_OBJECT_SIZE() terms) whenever a new field is added.
+	StaticJsonDocument<
+	    JSON_OBJECT_SIZE(2)   // top: sensors, outputs
+	  + JSON_OBJECT_SIZE(6)   // sensors: temperature, humidity, sensor_type, co2, leaf_temperature, lux
+	  + JSON_OBJECT_SIZE(4)   // outputs: dehumidifier, heater, light, co2
+	  + 64                    // small headroom
+	> status;
+
+	status["sensors"]["temperature"] = state.temperature;
+	status["sensors"]["humidity"] = state.humidity;
+	status["sensors"]["sensor_type"] = state.sensor_type;
+    status["sensors"]["co2"] = hasCo2Sensor() ? state.co2 : -1;
+
+    // Optionale Zusatzsensoren: Werte nur senden, wenn der Sensor erkannt wurde,
+    // damit keine Platzhalter in den Verlaufsdaten landen. PPFD wird serverseitig
+    // aus dem rohen Lux-Wert abgeleitet.
+    if (mlx90632_found && !isnan(mlx90632_object_temperature)) {
+      status["sensors"]["leaf_temperature"] = mlx90632_object_temperature;
+    }
+    if (veml7700_found && !isnan(veml7700_lux)) {
+      status["sensors"]["lux"] = veml7700_lux;
+    }
+
+
+	// Outputs
+	status["outputs"]["dehumidifier"] = state.out_dehumidifier;
+	status["outputs"]["heater"] = state.out_heater;
+	status["outputs"]["light"] = state.out_light;
+	status["outputs"]["co2"] = hasCo2Sensor() ? state.out_co2 : -1;
+
+
+	if (cloud.updateStatus(status) && hasCo2Sensor())
+    {
+      state.out_co2 = 0;
+    }
+
+    if (sntp_get_sync_status()) {
+      printf("got time from sntp server\n");
+      time_t now;
+      struct tm timeinfo;
+      time(&now);
+    }
+  }
+
+  std::array<const char*, 5> modes = {
+    HeadlessControllerSettings::MODE_OFF,
+    HeadlessControllerSettings::MODE_BREED,
+    HeadlessControllerSettings::MODE_TEMP,
+    HeadlessControllerSettings::MODE_SMALL,
+    HeadlessControllerSettings::MODE_DRY,
+  };
+
+  void HeadlessController::initSettingsMenu(UserInterface* ui) {
+
+
+    auto menu = ui->push<SelectMenu>();
+
+    menu->addOption("Dashboard", ICON_DASHBOARD, [ui, this](){ ui->pop(); });
+
+    menu->addOption("Maintenance mode", ICON_SETTINGS, [ui, this](){
+      ui->push<FloatInput>("Pause fridge for", 30, "min", 0, 120, 5, 0, [ui, this](float value) {
+        char buf[64];
+
+        pause_start_tick = xTaskGetTickCount();
+        pause_duration_ticks = (TickType_t)(configTICK_RATE_HZ * value * 60);
+        snprintf(buf, sizeof(buf), "message-maintenance-mode-activated:%d", (int)roundf(value));
+        cloud.log(buf);
+        ui->pop();
+        ui->pop();
+
+        if (value > 0) {
+          snprintf(buf, sizeof(buf), " CO2, Fridge & Heater \n  paused for %d mins  ", (int)roundf(value));
+        }
+        else {
+          snprintf(buf, sizeof(buf), "  Maintenance mode  \n     deactivated");;
+        }
+        ui->push<TextDisplay>(buf, 1, [ui, this](){
+          ui->pop();
+        }, 5000);
+      });
+    });
+
+
+      menu->addOption("System Time (UTC)", ICON_DAY, [ui, this](){
+        ui->push<TimeEntry>("System Time (UTC)", state.timeofday, [ui, this](uint32_t value) {
+          struct timeval time_now;
+          time_now.tv_sec = value;
+          time_now.tv_usec = 0;
+          settimeofday(&time_now, NULL);
+
+          ui->pop();
+        });
+      });
+
+      menu->addOption("Control Mode", ICON_SETTINGS, [ui, this](){
+        int mode = 0;
+        for(int i = 0; i < modes.size(); i++) {
+          if(settings.workmode == modes[i]) {
+            mode = i;
+            break;
+          }
+        }
+
+        ui->push<SelectInput>("Control Mode", mode, std::vector<std::string>{"OFF", "Germination", "Greenhouse", "Small Plant", "Drying"}, [ui, this](uint32_t mode) {
+
+          settings.workmode = modes[mode];
+          Serial.print("MODE:");
+          Serial.println(settings.workmode);
+          ui->pop();
+          ui->pop();
+          initSettingsMenu(ui);
+		  if(!hasCo2Sensor()) {
+            settings.co2.target = 0;
+          }
+          saveAndUploadSettings();
+        });
+      });
+
+      if(settings.workmode == HeadlessControllerSettings::MODE_BREED || settings.workmode == HeadlessControllerSettings::MODE_DRY) {
+        menu->addOption("Temperature", ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>("Temperature", settings.night.temperature, "C", 0, 40, 1, 0, [ui, this](float value) {
+            settings.night.temperature = value;
+            saveAndUploadSettings();
+            ui->pop();
+          });
+        });
+      }
+      if(settings.workmode == HeadlessControllerSettings::MODE_TEMP || settings.workmode == HeadlessControllerSettings::MODE_SMALL) {
+        menu->addOption("Dayrise (UTC)", ICON_DAY, [ui, this](){
+          ui->push<TimeEntry>("Dayrise (UTC)", settings.daynight.day, [ui, this](uint32_t value) {
+            settings.daynight.day = value;
+            saveAndUploadSettings();
+            ui->pop();
+          });
+        });
+
+        menu->addOption("Nightfall (UTC)", ICON_NIGHT, [ui, this](){
+          ui->push<TimeEntry>("Nightfall (UTC)", settings.daynight.night, [ui, this](uint32_t value) {
+            settings.daynight.night = value;
+            saveAndUploadSettings();
+            ui->pop();
+          });
+        });
+
+        menu->addOption("Day Temperature", ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>("Day Temperature", settings.day.temperature, "C", 0, 40, 1, 0, [ui, this](float value) {
+            settings.day.temperature = value;
+            saveAndUploadSettings();
+            ui->pop();
+          });
+        });
+        menu->addOption("Night Temperature", ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>("Night Temperature", settings.night.temperature, "C", 0, 40, 1, 0, [ui, this](float value) {
+            settings.night.temperature = value;
+            saveAndUploadSettings();
+            ui->pop();
+          });
+        });
+      }
+
+      if(settings.workmode == HeadlessControllerSettings::MODE_SMALL || settings.workmode == HeadlessControllerSettings::MODE_DRY) {
+        menu->addOption("Day Humidity", ICON_HUMIDITY, [ui, this](){
+          ui->push<FloatInput>("Day Humidity", settings.day.humidity, "%", 0, 100, 1, 0, [ui, this](float value) {
+            settings.day.humidity = value;
+            saveAndUploadSettings();
+            ui->pop();
+          });
+        });
+        menu->addOption("Night Humidity", ICON_HUMIDITY, [ui, this](){
+          ui->push<FloatInput>("Night Humidity", settings.night.humidity, "%", 0, 100, 1, 0, [ui, this](float value) {
+            settings.night.humidity = value;
+            saveAndUploadSettings();
+            ui->pop();
+          });
+        });
+      }
+
+      if(hasCo2Sensor() && (
+        settings.workmode == HeadlessControllerSettings::MODE_TEMP
+        || settings.workmode == HeadlessControllerSettings::MODE_SMALL
+      )) {
+        menu->addOption("CO2", ICON_HUMIDITY, [ui, this](){
+          ui->push<FloatInput>("CO2", settings.co2.target, "PPM", 100, 2000, 50, 0, [ui, this](float value) {
+            settings.co2.target = value;
+			Serial.printf("CO2 TARGET SET: %.0f ppm\n", value);
+            saveAndUploadSettings();
+            ui->pop();
+          });
+        });
+      }
+	  else {
+        Serial.println("SettingsMenu: CO2 hidden (no CO2 sensor)"); //SHT oder SCD
+      }
+
+      if(settings.workmode == HeadlessControllerSettings::MODE_TEMP || settings.workmode == HeadlessControllerSettings::MODE_SMALL) {
+        menu->addOption("Sunrise", ICON_DAY, [ui, this](){
+          ui->push<FloatInput>("Sunrise", settings.lights.sunrise, "min", 0, 60, 1, 0, [ui, this](float value) {
+            settings.lights.sunrise = value;
+            saveAndUploadSettings();
+            ui->pop();
+          });
+        });
+        menu->addOption("Sunset", ICON_NIGHT, [ui, this](){
+          ui->push<FloatInput>("Sunset", settings.lights.sunset, "min", 0, 60, 1, 0, [ui, this](float value) {
+            settings.lights.sunset = value;
+            saveAndUploadSettings();
+            ui->pop();
+          });
+        });
+        menu->addOption("Max Light", ICON_DAY, [ui, this](){
+          ui->push<FloatInput>("Max Light", settings.lights.limit, "%", 0, 100, 5, 0, [ui, this](float value) {
+            settings.lights.limit = value;
+            saveAndUploadSettings();
+            ui->pop();
+          });
+        });
+      }
+
+    menu->addOption("Smart Sockets", ICON_SETTINGS, [ui, this](){
+      showSmartSocketsUi(ui, &cloud);
+    });
+
+    menu->addOption("Terp Cam", ICON_SETTINGS, [ui, this](){
+      showTerpCamUi(ui, &cloud);
+    });
+
+    menu->addOption("WiFi Connection", ICON_WIFI_FULL, [ui, this](){
+      showWifiUi(ui, &cloud);
+    });
+  }
+
+  void HeadlessController::initStatusMenu(UserInterface* ui) {
+	float dummy_co2 = 0.0f;  
+    ui->push<Dashboard>(
+	  &state.temperature,
+	  &state.humidity,
+	  state.sensor_type == SENSOR_TYPE_SCD ? &state.co2 : &dummy_co2,
+	  &state.out_heater,
+	  &state.out_dehumidifier,
+	  &state.out_light,
+	  &state.out_co2,
+	  &state.is_day,
+	  &state.sensor_type
+    )->onEnter([ui, this](){
+      initSettingsMenu(ui);
+    });
+  }
+
+}

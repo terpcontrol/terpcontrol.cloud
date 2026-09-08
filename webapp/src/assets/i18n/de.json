@@ -141,7 +141,7 @@
     "deleteDevice": "Gerät entfernen",
     "edit-value": "Wert ändern",
     "deleteDeviceConfirmTitle": "Gerät entfernen?",
-    "deleteDeviceConfirmText": "Das Gerät wird aus deinem Konto entfernt — es verschwindet aus der App, bis es erneut verbunden wird.",
+    "deleteDeviceConfirmText": "Das Gerät wird aus deinem Konto entfernt — es verschwindet aus der App, bis es erneut verbunden wird. Die WLAN-Verbindung bleibt bestehen: über die Setup-Seite des Geräts kannst du es in ein anderes WLAN bringen oder das gespeicherte WLAN löschen.",
     "deleteDeviceConfirmAgain": "Das Gerät jetzt wirklich entfernen?",
     "deleteDeviceConfirmButton": "Entfernen",
     "forever": "unbegrenzt"

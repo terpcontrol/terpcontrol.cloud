@@ -238,8 +238,9 @@ export class FridgeOverviewComponent implements OnInit, OnDestroy {
     // keep current workmode around for the UI label and masking rules
     let mode:string = (cfg ? (cfg?.workmode || 'unknown') : 'loading') + '';
     // The controller firmware dropped "full" and maps it to "small"; show the
-    // mapped mode when the cloud still has the legacy value stored.
-    if (this.device_type === 'controller' && mode === 'full') {
+    // mapped mode when the cloud still has the legacy value stored. Headless
+    // runs the same firmware, so it maps the same way.
+    if ((this.device_type === 'controller' || this.device_type === 'headless') && mode === 'full') {
       mode = 'small';
     }
     this.workmode = mode;

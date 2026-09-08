@@ -160,7 +160,7 @@
         </ion-item>
       </ion-col>
 
-      <ion-col [hidden]="!isMeasureEnabled('vpd') || !['fridge', 'fridge2', 'light', 'controller'].includes(device_type)">
+      <ion-col [hidden]="!isMeasureEnabled('vpd') || !['fridge', 'fridge2', 'light', 'controller', 'headless'].includes(device_type)">
         <ion-item lines="none">
           <ion-label>{{ 'charts.vpd-mode-label' | translate }}</ion-label>
           <ion-select
