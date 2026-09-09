@@ -1106,9 +1106,8 @@ Verified by running a second stack on `32300-32309` while the first held the def
   capturing measurably cost the controller captures. Cloud-side pulling should *replace* controller-side pulling, not
   run alongside it. Re-confirmed in §26.13: a second session on a camera the server already holds gets a clean login
   and no video at all.
-- **Everything here was measured at night.** A night keyframe is ~11 KB; a daylight one is ~44 KB, so four times the
-  fragments have to arrive without a gap. The success rate should be re-measured in daylight before it is treated as
-  the general figure.
+- ~~**Everything here was measured at night.**~~ Answered in §26.13: re-measured on a lit scene with keyframes up to
+  66 KB, six times the night size, still 20/20.
 - **Credentials would move to the cloud.** The camera password travels in the CGI; today that happens on the customer's
   LAN, and this moves it onto the internet inside an obfuscated-but-not-encrypted transport. That is a real downgrade
   and needs deciding, not glossing.
@@ -1163,7 +1162,19 @@ stopped, the punch resolved to the camera's **WAN** address (`95.222.55.152:2049
 rendezvous served **8/8 keyframes at 2304×1296**, 0.2–0.3 s each. That is the production topology: camera behind the
 customer's NAT, server elsewhere on the internet, no LAN path between them.
 
-Two things that run showed up:
+**Re-measured on a lit scene (2026-09-09).** The night figures above are the easy case: a dark frame compresses to
+~11 KB, so a keyframe is a handful of fragments and losing none of them is not much of a test. With the light on and
+the room in view, keyframes ran to **66.7 KB** — six times the size, and the same multiple in fragments that all have
+to arrive before the gap timer fires. It made no difference: **20/20, all 2304×1296**, 0.5 s fastest and 2.6 s median,
+zero rendezvous punches, zero stale sessions, zero controller fallbacks. JPEGs came out at 129–354 KB against ~88 KB
+at night.
+
+| scene | keyframe median | keyframe max | captures | full resolution |
+|---|---|---|---|---|
+| dark / IR | 12.9 KB | 26.4 KB | 20/20 | 20/20 |
+| lit | 19.1 KB | 66.7 KB | 20/20 | 20/20 |
+
+Two things the off-LAN run showed up:
 
 - **Session slots are contended, and the symptom is silence.** The first off-LAN attempt returned 0/8 with not one
   video fragment while the local server held a session on the same camera. Stopping it made the same script return
