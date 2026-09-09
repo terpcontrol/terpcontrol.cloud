@@ -7,6 +7,21 @@ ENV ESP_IDF_VERSION="v4.4"
 RUN mkdir /app
 WORKDIR /app
 
+# Debian 11 is end-of-life. deb.debian.org has dropped its packages (they 404
+# mid-install) and its bullseye-security Release file has expired, so an
+# unmodified image no longer builds. Everything we install is in main, which
+# archive.debian.org still serves; the archive's Release files are frozen and
+# therefore always "expired", hence the Check-Valid-Until override.
+#
+# bullseye-security is omitted because it exists in neither place right now -
+# deb.debian.org has expired it and archive.debian.org has not received it yet
+# (it currently stops at buster). Add it back once the archive carries it.
+RUN printf '%s\n' \
+      'deb http://archive.debian.org/debian bullseye main' \
+      'deb http://archive.debian.org/debian bullseye-updates main' \
+    > /etc/apt/sources.list \
+ && echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
+
 RUN apt update -qq && \
 apt install -y -qq --no-install-recommends software-properties-common gpgv2 && \
 apt install -qq -y --no-install-recommends \
