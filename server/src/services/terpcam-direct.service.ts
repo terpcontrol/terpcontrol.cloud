@@ -4,30 +4,17 @@ import { terpCamService } from '@services/terpcam.service';
 import deviceModel from '@models/device.model';
 
 /**
- * Terp Cam stills, fetched by the server itself.
+ * Terp Cam stills, fetched by the server itself over the camera's P2P protocol.
  *
- * The controller path (terpcam-p2p.service) exists because the camera was thought
- * to be reachable only from the controller. It is not — the server can open the
- * session itself, and the controller drops out of the image path.
+ * The camera is found through the manufacturer's rendezvous (once per session,
+ * not per image) and the session is then held open. Full resolution comes from
+ * the main video stream: `snapshot.cgi` renders from the MJPEG encoder and is
+ * pinned at 640x360 on this firmware, while the stream carries 2304x1296.
  *
- * That matters for more than tidiness. Over this path nothing is lost — a
- * keyframe arrives in as many fragments as it has — where the controller needs
- * 3-10x that many for the same image and still fails one capture in six. It is
- * also what makes FULL RESOLUTION possible: `snapshot.cgi` renders from the
- * MJPEG encoder and is pinned at 640x360 on this firmware, while the main video
- * stream carries 2304x1296. Taking one H.264 keyframe off that stream was
- * measured at 3/8 on the controller (its radio drops fragments of an unpaced
- * burst) and 10/10 from here.
+ * With no rendezvous configured the server reaches no camera itself and every
+ * capture is relayed by its controller instead (terpcam-p2p.service).
  *
- * The camera is always on the same network as its controller, and this server is
- * expected to be too, so it is found the way the controller finds it: a
- * LanSearch (`f1 30`) to the address the controller reports, answered by a
- * PunchPkt that states the camera's own id. Nothing outside the network is
- * involved, at any point, ever — a camera that cannot be reached this way falls
- * back to being relayed by its controller rather than to somebody's servers.
- *
- * The session and CGI layer after that is the one the controller speaks. See
- * docs/terpcam-reverse-engineering.md §26.
+ * Protocol details: docs/terpcam-reverse-engineering.md §26.
  */
 
 /** Substitution table for the transport cipher (vendor constant). */
@@ -52,12 +39,7 @@ const SBOX = Buffer.from([
 ]);
 const DK = [44, 212, 96, 6];
 
-/**
- * Rendezvous servers that locate a camera on somebody else's network. They are
- * the camera manufacturer's, so they are configuration rather than source: with
- * none set the server does not reach cameras itself and every capture is relayed
- * by its controller, which is a working setup, just a lower-resolution one.
- */
+/** The manufacturer's lookup servers: configuration, never addresses in source. */
 const RENDEZVOUS_HOSTS = (process.env.TERPCAM_RENDEZVOUS_HOSTS ?? '')
   .split(',')
   .map(host => host.trim())
@@ -66,26 +48,19 @@ const RENDEZVOUS_PORTS = [32100, 32101, 32102];
 const RENDEZVOUS_MS = 20_000;
 
 /**
- * Address to tell a camera on this network to punch at.
- *
- * Defaults to MQTT_HOST_EXTERNAL, which is already the address this stack is
- * reachable at from its devices — on a stack hosted alongside its cameras that
- * is exactly the right answer, and it saves configuring the same thing twice.
- * Only a private address is used: announcing a public one stops the camera
- * punching at all (measured), so a hosted stack correctly advertises nothing.
+ * Address to tell a camera on this network to punch at. Only a private one is
+ * used: announcing a public address stops the camera punching at all (measured),
+ * so a hosted stack correctly advertises nothing.
  */
 const TERPCAM_ADVERTISE_ADDRESS = (() => {
-  const configured = (process.env.TERPCAM_ADVERTISE_ADDRESS || process.env.MQTT_HOST_EXTERNAL || '').trim();
+  const configured = (process.env.TERPCAM_ADVERTISE_ADDRESS ?? '').trim();
   return configured && isPrivate(configured) ? configured : null;
 })();
 
 /**
- * UDP ports bound for captures, inclusive of both ends.
- *
- * One port is held for as long as a camera is being served, so the range is
- * also the number of cameras this server can reach directly at once. It must be
- * the same range the host publishes — docker-compose.yaml gives both sides the
- * same two variables — because the camera answers to the port it saw.
+ * UDP ports bound for captures, inclusive. One is held per camera served, so the
+ * width of the range is how many cameras this server can reach at once. It must
+ * be the range the host publishes: the camera answers to the port it saw.
  */
 const P2P_PORTS = (() => {
   const from = Number(process.env.TERPCAM_P2P_PORTS_START ?? 32200);
@@ -95,12 +70,7 @@ const P2P_PORTS = (() => {
   return Array.from({ length: last - from + 1 }, (_, index) => from + index);
 })();
 
-/**
- * What the camera ships with — the manufacturer publishes it, so every unpaired
- * camera of this kind answers to it. Pairing replaces it with a per-camera
- * secret which the controller reports; this is only the fallback for cameras
- * paired before that existed, or one that has been factory-reset since.
- */
+/** Manufacturer default, for cameras paired before per-camera passwords, or reset since. */
 const DEFAULT_PASSWORD = '888888';
 
 function authFor(password: string): string {
@@ -125,6 +95,23 @@ const SESSION_IDLE_MS = 10 * 60_000;
 const MAX_FRAME_BYTES = 4 * 1024 * 1024;
 
 type Endpoint = { address: string; port: number };
+type Inbox = { message: Buffer; from: Endpoint }[];
+type Camera = { label: string; uid?: string; password?: string };
+type Session = {
+  socket: dgram.Socket;
+  peer: Endpoint;
+  inbox: Inbox;
+  auth: string;
+  /** Channel-0 request index; must advance by exactly one per request. */
+  next: number;
+  idle?: NodeJS.Timeout;
+  alive?: NodeJS.Timeout;
+};
+
+/** Every send is fire-and-forget; errors surface as the session going quiet. */
+function send(socket: dgram.Socket, to: Endpoint, packet: Buffer): void {
+  socket.send(packet, to.port, to.address, () => undefined);
+}
 
 /** Symmetric table cipher: `prev` is always the ciphertext byte. */
 function obfuscate(buf: Buffer): Buffer {
@@ -205,15 +192,9 @@ function isPrivate(address: string): boolean {
 }
 
 /**
- * Our own address on the route to `host`, when that address is a private one.
- *
- * The lookup carries this so two peers on the same network can shortcut past the
- * public path, and it matters in both directions: a server that announces its
- * PUBLIC address here gets no punch at all, while a host that genuinely shares
- * the camera's LAN only gets punched on the address it names. Asking the routing
- * table rather than picking the first private interface matters on a developer
- * machine, which usually has several (VM bridges, a second NIC) and only one
- * that reaches the camera.
+ * Our own address on the route to `host`, if private. Asked of the routing table
+ * rather than picking the first private interface, because a developer machine
+ * has several (VM bridges, second NIC) and only one that reaches the camera.
  */
 function routableAddress(host: string): Promise<string | null> {
   return new Promise(resolve => {
@@ -245,44 +226,19 @@ function parseAddress(body: Buffer, offset = 0): Endpoint | null {
 }
 
 class TerpCamDirectService {
-  /** Published UDP ports to prefer, so the camera's punch can reach us. */
-  private ports = P2P_PORTS;
+  /**
+   * Keyed by DEVICE and only ever written from that device's own hardware-info.
+   * This is the tenant boundary: a stream setting naming somebody else's camera
+   * gets no id, no password and no session.
+   */
+  private cameras = new Map<string, Camera>();
 
   /**
-   * What each device has told us about its own camera: which camera it is, where
-   * it answered, and the password its controller set.
-   *
-   * Keyed by DEVICE, and only ever written from a device's own hardware-info.
-   * That is what keeps one customer's camera away from another's: a capture is
-   * asked for by device, and the only camera reachable through it is the one
-   * that device reported. A stream setting naming somebody else's camera gets
-   * no address, no password and no session.
+   * One live session per camera, held between captures — that is what keeps the
+   * rendezvous to once per session rather than once per image. Caching the
+   * punched address instead does not work: each session gets a different port.
    */
-  private cameras = new Map<string, { label: string; uid?: string; password?: string }>();
-
-  /**
-   * One live session per camera, held open between captures.
-   *
-   * This is what keeps the manufacturer's rendezvous down to ONCE PER SESSION
-   * rather than once per image: the session is opened, then every later still is
-   * taken through it. Caching the punched *address* instead does not work — the
-   * camera answers each new session from a different port — but the session
-   * itself can simply be kept.
-   *
-   * `next` is the channel-0 request index, which must advance by exactly one.
-   */
-  private sessions = new Map<
-    string,
-    {
-      socket: dgram.Socket;
-      peer: Endpoint;
-      inbox: { message: Buffer; from: Endpoint }[];
-      auth: string;
-      next: number;
-      idle: NodeJS.Timeout;
-      alive: NodeJS.Timeout;
-    }
-  >();
+  private sessions = new Map<string, Session>();
 
   /** The camera a device says is its own. `none` forgets it. */
   public rememberCamera(deviceId: string, label: string): void {
@@ -295,40 +251,25 @@ class TerpCamDirectService {
     this.cameras.set(deviceId, known?.label === label ? known : { label });
   }
 
-  /**
-   * Remember the password a device's controller set on its camera during
-   * pairing. Empty means that camera still has the manufacturer's default.
-   */
+  /** Empty means the camera still has the manufacturer's default. */
   public rememberPassword(deviceId: string, password: string): void {
     const camera = this.cameras.get(deviceId);
     if (camera) camera.password = password || undefined;
   }
 
-  /**
-   * The camera's P2P id, as read off the camera by its controller. Needed to ask
-   * the rendezvous servers for it, and knowing it here means nothing has to be
-   * looked up in the manufacturer's directory.
-   */
+  /** The camera's P2P id, read off the camera by its controller. */
   public rememberUid(deviceId: string, uid: string): void {
     const camera = this.cameras.get(deviceId);
     if (camera && uid && uid !== 'none') camera.uid = uid;
   }
 
   /**
-   * Bind the socket to one of P2P_PORTS, falling back to an ephemeral port.
-   *
-   * The port has to be one the container PUBLISHES. The camera punches at us
-   * from an address we never sent anything to, so Docker's bridge NAT has no
-   * conntrack entry for it and drops it — measured: the same capture succeeds on
-   * `--network host` or with `-p <port>:<port>/udp`, and fails on the default
-   * bridge. A published port gives the packet somewhere to land.
-   *
-   * A small range rather than one port so captures for different cameras can
-   * overlap; an ephemeral port is still tried last, since it is all that is
-   * needed when the process is not behind a NAT of its own.
+   * Bind to a published port, falling back to an ephemeral one. The camera
+   * punches from an address we never sent to, so a bridge has no conntrack entry
+   * and drops it unless the port is published (measured: bridge 0/3, published 3/3).
    */
   private async bind(socket: dgram.Socket): Promise<void> {
-    for (const port of this.ports) {
+    for (const port of P2P_PORTS) {
       const bound = await new Promise<boolean>(resolve => {
         const onError = () => resolve(false);
         socket.once('error', onError);
@@ -346,14 +287,10 @@ class TerpCamDirectService {
   }
 
   /**
-   * What a device has told us about its own camera, from memory or from what it
-   * reported earlier.
-   *
-   * Reading it back from the device record matters: a device reports at boot, so
-   * a server that has just restarted would otherwise know nothing about any
-   * camera until every controller happened to reboot.
+   * Read back from the device record when not in memory: devices report at boot,
+   * so a restarted server would otherwise be blind until every controller rebooted.
    */
-  private async cameraFor(deviceId: string): Promise<{ label: string; uid?: string; password?: string } | null> {
+  private async cameraFor(deviceId: string): Promise<Camera | null> {
     const known = this.cameras.get(deviceId);
     if (known?.uid) return known;
 
@@ -368,39 +305,25 @@ class TerpCamDirectService {
   }
 
   /**
-   * Send a CGI on the command channel.
-   *
-   * The index MUST advance by exactly one per request. The camera treats
-   * channel 0 as an ordered stream and simply stops responding — silently,
-   * forever — if an index is skipped, which is what a keepalive consuming one
-   * out of band would do.
+   * Send a CGI on the command channel. The index MUST advance by exactly one:
+   * skip a number and the camera stops responding, silently and permanently.
    */
-  private request(session: { socket: dgram.Socket; peer: Endpoint; next: number }, cgi: string): void {
-    session.socket.send(buildCgi(CMD_CHANNEL, session.next++, cgi), session.peer.port, session.peer.address, () => undefined);
+  private request(session: Session, cgi: string): void {
+    send(session.socket, session.peer, buildCgi(CMD_CHANNEL, session.next++, cgi));
   }
 
   /**
-   * Answer the camera's keepalives while nothing is being captured.
-   *
-   * Between stills nobody reads the socket, so the camera's `f1 e0` alive
-   * packets go unanswered and it drops the session — which showed up as one
-   * rendezvous per 1.6 images instead of one per session. The vendor's own
-   * library runs a dedicated alive thread for exactly this reason.
+   * Answer the camera's keepalives between captures. Without this nobody reads
+   * the socket in the gaps, the camera drops the session, and the lookup rate
+   * goes from one per session to one per 1.6 images (measured).
    */
-  private startHeartbeat(session: {
-    socket: dgram.Socket;
-    peer: Endpoint;
-    inbox: { message: Buffer; from: Endpoint }[];
-  }): NodeJS.Timeout {
+  private startHeartbeat(session: Session): NodeJS.Timeout {
     const timer = setInterval(() => {
-      // Answer anything the camera has sent, and drop the rest: between
-      // captures there is nothing here worth keeping.
+      // Nothing queued between captures is worth keeping.
       for (const entry of session.inbox.splice(0, session.inbox.length)) {
-        if (entry.message.length > 1 && entry.message[1] === 0xe0) {
-          session.socket.send(buildPacket(0xe1), session.peer.port, session.peer.address, () => undefined);
-        }
+        if (entry.message.length > 1 && entry.message[1] === 0xe0) send(session.socket, session.peer, buildPacket(0xe1));
       }
-      session.socket.send(buildPacket(0xe0), session.peer.port, session.peer.address, () => undefined);
+      send(session.socket, session.peer, buildPacket(0xe0));
     }, ALIVE_MS);
     timer.unref?.();
     return timer;
@@ -414,7 +337,7 @@ class TerpCamDirectService {
     clearInterval(session.alive);
     try {
       this.request(session, `livestream.cgi?streamid=16&substream=0&${session.auth}`);
-      session.socket.send(buildPacket(0xf0), session.peer.port, session.peer.address, () => undefined);
+      send(session.socket, session.peer, buildPacket(0xf0));
     } catch {
       /* socket already gone */
     }
@@ -442,7 +365,7 @@ class TerpCamDirectService {
 
     const did = packDeviceId(camera.uid);
     const socket = dgram.createSocket('udp4');
-    const inbox: { message: Buffer; from: Endpoint }[] = [];
+    const inbox: Inbox = [];
     socket.on('message', (message, rinfo) => {
       inbox.push({ message: deobfuscate(message), from: { address: rinfo.address, port: rinfo.port } });
     });
@@ -454,15 +377,7 @@ class TerpCamDirectService {
       const auth = authFor(camera.password ?? DEFAULT_PASSWORD);
       // login consumes channel-0 index 0, so requests continue from 1
       await this.login(socket, inbox, did, punched, auth);
-      const session = {
-        socket,
-        peer: punched,
-        inbox,
-        auth,
-        next: 1,
-        idle: setTimeout(() => undefined, 0),
-        alive: setTimeout(() => undefined, 0) as NodeJS.Timeout,
-      };
+      const session: Session = { socket, peer: punched, inbox, auth, next: 1 };
       session.alive = this.startHeartbeat(session);
       this.sessions.set(deviceId, session);
       this.touchSession(deviceId);
@@ -488,9 +403,8 @@ class TerpCamDirectService {
   }
 
   /**
-   * Read one still, with the keepalive timer stood down for the duration:
-   * both it and the reader drain the same inbox, so leaving it running would
-   * let it swallow video fragments.
+   * The keepalive stands down while reading: it and the reader drain the same
+   * inbox, so leaving it running would let it swallow video fragments.
    */
   private async readStill(deviceId: string, identity: { uid: string; password?: string }): Promise<Buffer | undefined> {
     const session = await this.session(deviceId, identity);
@@ -505,16 +419,12 @@ class TerpCamDirectService {
   }
 
   /**
-   * Pull one still, always a full-resolution H.264 keyframe.
-   *
-   * There is no `snapshot.cgi` fallback here any more: it only ever returns
-   * 640x360 on this firmware, and a capture that cannot produce the real image
-   * is better handed to the controller than quietly downgraded.
+   * Pull one still, always a full-resolution H.264 keyframe. There is no
+   * `snapshot.cgi` fallback: it only returns 640x360, and a capture that cannot
+   * produce the real image is better handed to the controller than downgraded.
    */
   public async capture(deviceId: string): Promise<{ data: Buffer; h264: boolean }> {
-    // The camera is whatever this device reported as its own — never a name the
-    // caller supplied, so no stream setting can point a capture at a camera
-    // belonging to someone else.
+    // Always the camera this device reported, never one the caller named.
     const camera = await this.cameraFor(deviceId);
     if (!camera?.uid) {
       throw new Error('this device has not reported a camera we can reach');
@@ -524,38 +434,31 @@ class TerpCamDirectService {
     }
     const identity = { uid: camera.uid, password: camera.password };
 
-    // Reuse the session already held for this camera; only the first still
-    // after one drops costs a lookup.
-    const wasHeld = this.sessions.has(deviceId);
-    try {
-      const keyframe = await this.readStill(deviceId, identity);
-      this.touchSession(deviceId);
-      if (keyframe) return { data: keyframe, h264: true };
-      throw new Error('no keyframe arrived');
-    } catch (error) {
-      // A session that stops producing is finished: drop it, and if we were
-      // reusing one, try once on a fresh session before giving up.
-      this.dropSession(deviceId);
-      if (!wasHeld) throw error;
-      logger.info(`[terpcam] ${deviceId}: held session went stale, opening a new one`);
-      const keyframe = await this.readStill(deviceId, identity);
-      this.touchSession(deviceId);
-      if (keyframe) return { data: keyframe, h264: true };
-      this.dropSession(deviceId);
-      throw new Error('no keyframe arrived on a fresh session');
+    // A held session that has gone stale fails exactly like a broken one, so a
+    // reused session gets a second attempt on a freshly opened one.
+    const attempts = this.sessions.has(deviceId) ? 2 : 1;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const keyframe = await this.readStill(deviceId, identity);
+        if (!keyframe) throw new Error('no keyframe arrived');
+        this.touchSession(deviceId);
+        return { data: keyframe, h264: true };
+      } catch (error) {
+        this.dropSession(deviceId);
+        if (attempt >= attempts) throw error;
+        logger.info(`[terpcam] ${deviceId}: held session went stale, opening a new one`);
+      }
     }
   }
 
-  private async rendezvous(socket: dgram.Socket, inbox: { message: Buffer; from: Endpoint }[], did: Buffer): Promise<Endpoint> {
-    const send = (packet: Buffer, host: string, port: number) => socket.send(packet, port, host, () => undefined);
-
+  private async rendezvous(socket: dgram.Socket, inbox: Inbox, did: Buffer): Promise<Endpoint> {
     // Held in an object because both are assigned from inside a callback.
     const found: { reflected: Endpoint | null; punched: Endpoint | null } = { reflected: null, punched: null };
 
     // 1. Hello, to learn our own public endpoint.
     const helloUntil = Date.now() + 4_000;
     while (!found.reflected && Date.now() < helloUntil) {
-      for (const host of RENDEZVOUS_HOSTS) send(buildPacket(0x00), host, 32100);
+      for (const host of RENDEZVOUS_HOSTS) send(socket, { address: host, port: 32100 }, buildPacket(0x00));
       await this.drain(inbox, 700, entry => {
         if (entry.message.length >= 12 && entry.message[1] === 0x01) {
           found.reflected = parseAddress(entry.message.subarray(4));
@@ -577,7 +480,7 @@ class TerpCamDirectService {
     const until = Date.now() + RENDEZVOUS_MS;
     while (!found.punched && Date.now() < until) {
       for (const host of RENDEZVOUS_HOSTS) {
-        for (const port of RENDEZVOUS_PORTS) send(buildPacket(0x20, body), host, port);
+        for (const port of RENDEZVOUS_PORTS) send(socket, { address: host, port }, buildPacket(0x20, body));
       }
       await this.drain(inbox, 2_500, entry => {
         const isPunch = entry.message.length > 1 && entry.message[1] === 0x41;
@@ -593,26 +496,26 @@ class TerpCamDirectService {
     if (!peer) throw new Error('camera did not answer the rendezvous');
 
     logger.info(`[terpcam] camera punched from ${peer.address}:${peer.port}`);
-    socket.send(buildPacket(0x41, did), peer.port, peer.address, () => undefined);
+    send(socket, peer, buildPacket(0x41, did));
     return peer;
   }
 
   /** Authenticate the punched session. */
-  private async login(socket: dgram.Socket, inbox: { message: Buffer; from: Endpoint }[], did: Buffer, peer: Endpoint, auth: string): Promise<void> {
+  private async login(socket: dgram.Socket, inbox: Inbox, did: Buffer, peer: Endpoint, auth: string): Promise<void> {
     const trailer = Buffer.from([0x00, 0x02, 0x12, 0x64, 0x10, 0x02, 0x00, 0x0a, 0, 0, 0, 0, 0, 0, 0, 0]);
     const devlgn = Buffer.concat([did, trailer]);
     const until = Date.now() + LOGIN_MS;
     while (Date.now() < until) {
       for (const packet of [buildPacket(0x00), buildPacket(0x05, did), buildPacket(0x20, devlgn), buildPacket(0x41, did)]) {
-        socket.send(packet, peer.port, peer.address, () => undefined);
+        send(socket, peer, packet);
       }
-      socket.send(buildCgi(CMD_CHANNEL, 0, `get_status.cgi?${auth}`), peer.port, peer.address, () => undefined);
+      send(socket, peer, buildCgi(CMD_CHANNEL, 0, `get_status.cgi?${auth}`));
 
       let authed = false;
       await this.drain(inbox, 1_000, entry => {
         const m = entry.message;
         if (m.length >= 4 && (m[1] === 0x42 || m[1] === 0x43)) {
-          socket.send(obfuscate(m), entry.from.port, entry.from.address, () => undefined);
+          send(socket, entry.from, obfuscate(m));
           return false;
         }
         if (m.length >= 8 && m[1] === 0xd0 && m[5] === CMD_CHANNEL) {
@@ -627,29 +530,16 @@ class TerpCamDirectService {
   }
 
   /**
-   * Take a full-resolution keyframe off the main video stream, on a session that
-   * stays open afterwards.
+   * Take a full-resolution keyframe off the video stream, leaving the session
+   * open. Two things here are load-bearing and each was measured:
    *
-   * Three things here are load-bearing, each measured:
-   *
-   * - EVERY media frame in the buffer is examined, not just the first. The
-   *   stream is mostly P-frames and the camera emits an IDR once per GOP (about
-   *   a second at the shipped settings), so the keyframe is usually not the
-   *   first frame to arrive. Looking only at the first frame reads as "no
-   *   keyframe" while video is plainly flowing.
-   * - A STALLED GAP IS ABANDONED rather than repaired. Re-acking is a resend
-   *   request, not an acknowledgement, so pressing it triggers a go-back-N flood
-   *   (measured: thousands of fragments, still no frame). Another IDR is a
-   *   second away, so dropping the partial one and re-basing is strictly better.
-   * - The request index comes from the session and advances by exactly one.
+   * - EVERY frame is examined, not just the first: a restarted stream begins
+   *   mid-GOP, so the IDR is usually not the first frame to arrive.
+   * - A stalled gap is ABANDONED, not re-acked. Re-acking is a resend request in
+   *   this protocol, so pressing it triggers a go-back-N flood; the next IDR is
+   *   a second away, which is cheaper.
    */
-  private async readKeyframe(session: {
-    socket: dgram.Socket;
-    peer: Endpoint;
-    inbox: { message: Buffer; from: Endpoint }[];
-    auth: string;
-    next: number;
-  }): Promise<Buffer | null> {
+  private async readKeyframe(session: Session): Promise<Buffer | null> {
     const { socket, peer, inbox, auth } = session;
     inbox.length = 0;
     this.request(session, `livestream.cgi?streamid=10&substream=2&${auth}`);
@@ -667,7 +557,7 @@ class TerpCamDirectService {
         const m = entry.message;
         if (m.length < 8) return false;
         if (m[1] === 0xe0) {
-          socket.send(buildPacket(0xe1), peer.port, peer.address, () => undefined);
+          send(socket, peer, buildPacket(0xe1));
           return false;
         }
         if (m[1] !== 0xd0 || m[5] !== VIDEO_CHANNEL) return false;
@@ -689,7 +579,7 @@ class TerpCamDirectService {
         if (contiguous === before) return false;
 
         lastProgress = Date.now();
-        socket.send(buildAck(VIDEO_CHANNEL, (base + contiguous - 1) & 0xffff), peer.port, peer.address, () => undefined);
+        send(socket, peer, buildAck(VIDEO_CHANNEL, (base + contiguous - 1) & 0xffff));
 
         const buffered = Buffer.concat([...Array(contiguous).keys()].map(i => slots.get(i)));
         const frame = this.findKeyframe(buffered);
@@ -745,11 +635,7 @@ class TerpCamDirectService {
   }
 
   /** Consume queued datagrams for up to `ms`, stopping early if `handler` says so. */
-  private async drain(
-    inbox: { message: Buffer; from: Endpoint }[],
-    ms: number,
-    handler: (entry: { message: Buffer; from: Endpoint }) => boolean,
-  ): Promise<void> {
+  private async drain(inbox: Inbox, ms: number, handler: (entry: Inbox[number]) => boolean): Promise<void> {
     const until = Date.now() + ms;
     for (;;) {
       while (inbox.length) {

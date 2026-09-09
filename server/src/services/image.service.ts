@@ -484,16 +484,12 @@ class ImageService {
   }
 
   private async readRtspStreamImage(cloudSettings: CloudSettings, deviceId: string): Promise<Buffer> {
-    // Terp Cam cameras have no LAN RTSP: they are reached over the
-    // reverse-engineered P2P protocol. They are configured as
-    // `terpcam://<device-id>` in rtspStream so that everything else here — the poll
-    // schedule, backoff, maintenance gating, the test-image button, storage,
-    // timelapses and thinning — is reused unchanged.
+    // Terp Cams have no RTSP; they speak P2P. They are configured as
+    // `terpcam://<id>` so the poll schedule, backoff, storage and timelapses
+    // here are reused unchanged.
     if (terpCamLabel(cloudSettings.rtspStream)) {
-      // Reach the camera ourselves when we can: full resolution instead of the
-      // controller's 640x360, and no fragment loss. Which camera that is comes
-      // from what the DEVICE reported, not from the setting — the setting only
-      // says that this device has one.
+      // Full resolution when we can reach the camera ourselves, the controller's
+      // 640x360 otherwise. Which camera is decided by the device, not the setting.
       try {
         return await terpCamDirectService.captureStill(deviceId);
       } catch (e) {
