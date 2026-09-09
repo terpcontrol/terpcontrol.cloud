@@ -13,6 +13,7 @@ import { Routes } from '@interfaces/routes.interface';
 import errorMiddleware from '@middlewares/error.middleware';
 import { demoReadOnlyMiddleware } from '@middlewares/auth.middleware';
 import { logger, stream } from '@utils/logger';
+import { cleanupService } from '@services/cleanup.service';
 import { buildSwaggerSpec } from '@utils/swagger';
 const fileUpload = require('express-fileupload');
 
@@ -37,6 +38,7 @@ class App {
   public async run() {
     try {
       await this.connectToDatabase();
+      cleanupService.start();
       this.initializeMiddlewares();
       this.initializeRoutes(this.routes);
       this.initializeSwagger();
