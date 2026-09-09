@@ -24,7 +24,8 @@ import { Image } from '@fg2/shared-types';
 import { deviceService } from '@services/device.service';
 import { createServer } from 'node:net';
 import { tunnelService } from '@services/tunnel.service';
-import { okamP2PService, OKAM_STREAM_PREFIX } from '@services/okam-p2p.service';
+import { terpCamP2PService, terpCamLabel } from '@services/terpcam-p2p.service';
+import { terpCamDirectService } from '@services/terpcam-direct.service';
 import sharp from 'sharp';
 
 const escapeXml = (value: string): string =>
@@ -496,13 +497,18 @@ class ImageService {
   }
 
   private async readRtspStreamImage(cloudSettings: CloudSettings, deviceId: string): Promise<Buffer> {
-    // O-KAM / VStarcam cameras have no LAN RTSP: they are reached over the
-    // reverse-engineered P2P protocol through the controller's UDP tunnel. They
-    // are configured as `okam://<device-id>` in rtspStream so that everything
-    // else here — the poll schedule, backoff, maintenance gating, the test-image
-    // button, storage, timelapses and thinning — is reused unchanged.
-    if (cloudSettings.rtspStream?.startsWith(OKAM_STREAM_PREFIX)) {
-      return okamP2PService.captureViaController(deviceId);
+    // Terp Cams have no RTSP; they speak P2P. They are configured as
+    // `terpcam://<id>` so the poll schedule, backoff, storage and timelapses
+    // here are reused unchanged.
+    if (terpCamLabel(cloudSettings.rtspStream)) {
+      // Full resolution when we can reach the camera ourselves, the controller's
+      // 640x360 otherwise. Which camera is decided by the device, not the setting.
+      try {
+        return await terpCamDirectService.captureStill(deviceId);
+      } catch (e) {
+        console.log(`Direct capture for ${deviceId} failed (${(e as Error).message}); asking the controller`);
+      }
+      return terpCamP2PService.captureViaController(deviceId);
     }
 
     let streamUrl = cloudSettings.rtspStream;

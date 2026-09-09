@@ -16,6 +16,7 @@ import {
   UserFirmwareList,
 } from '@fg2/shared-types';
 import deviceModel from '@models/device.model';
+import { terpCamDirectService } from '@services/terpcam-direct.service';
 import deviceLogModel from '@models/devicelog.model';
 import deviceClassModel from '@/models/deviceclass.model';
 import { deviceFirmwareBinaryModel, deviceFirmwareModel } from '@/models/devicefirmware.model';
@@ -31,7 +32,7 @@ import { isNumeric } from 'influx/lib/src/grammar';
 import { mailTransport } from '@services/auth.service';
 import { imageService } from '@services/image.service';
 import { tunnelService } from '@services/tunnel.service';
-import { okamP2PService, OKAM_STREAM_PREFIX } from '@services/okam-p2p.service';
+import { terpCamP2PService, TERPCAM_STREAM_PREFIX, TERPCAM_STREAM_PREFIXES } from '@services/terpcam-p2p.service';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
 import { demoAlarms, demoCloudSettings, demoDevice } from '@utils/demo';
 
@@ -214,7 +215,7 @@ class DeviceService {
               await tunnelService.onTunnelReadDataReceived(device.device_id, message.message);
               break;
             case 'image':
-              okamP2PService.onImageMessage(device.device_id, message.message);
+              terpCamP2PService.onImageMessage(device.device_id, message.message);
               break;
             case 'tunnel_write':
             case 'command':
@@ -624,7 +625,18 @@ class DeviceService {
     }
 
     if (infoKey === 'webcam_did') {
+      terpCamDirectService.rememberCamera(deviceId, infoValue);
       await this.reconcileP2PCamera(deviceId, infoValue);
+    }
+
+    // Set by the controller at pairing; stored against the device, never logged.
+    if (infoKey === 'webcam_pwd') {
+      terpCamDirectService.rememberPassword(deviceId, infoValue);
+    }
+
+    // Read off the camera by its controller, so nothing has to be looked up.
+    if (infoKey === 'webcam_uid') {
+      terpCamDirectService.rememberUid(deviceId, infoValue);
     }
   }
 
@@ -667,12 +679,12 @@ class DeviceService {
   private async reconcileP2PCamera(deviceId: string, did: string) {
     // Escaped rather than interpolated raw: the prefix is a constant today, but
     // a regex built from a value is a trap waiting for the day it changes.
-    const okamPrefixPattern = new RegExp('^' + OKAM_STREAM_PREFIX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const camPrefixPattern = new RegExp('^(' + TERPCAM_STREAM_PREFIXES.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')');
 
     // Camera gone: drop the stream, or it keeps being shown and polled.
     if (did === 'none' || did === '') {
       await deviceModel.findOneAndUpdate(
-        { device_id: deviceId, 'cloudSettings.rtspStream': okamPrefixPattern },
+        { device_id: deviceId, 'cloudSettings.rtspStream': camPrefixPattern },
         { $unset: { 'cloudSettings.rtspStream': '' } },
       );
       return;
@@ -692,10 +704,10 @@ class DeviceService {
         $or: [
           { 'cloudSettings.rtspStream': { $in: [null, ''] } },
           { 'cloudSettings.rtspStream': { $exists: false } },
-          { 'cloudSettings.rtspStream': okamPrefixPattern },
+          { 'cloudSettings.rtspStream': camPrefixPattern },
         ],
       },
-      { $set: { 'cloudSettings.rtspStream': OKAM_STREAM_PREFIX + did, 'cloudSettings.webcamModel': 'terp_cam' } },
+      { $set: { 'cloudSettings.rtspStream': TERPCAM_STREAM_PREFIX + did, 'cloudSettings.webcamModel': 'terp_cam' } },
     );
   }
 
@@ -974,14 +986,20 @@ class DeviceService {
     // lean() gives plain objects: the derived seconds can be attached to them, and
     // the sanitized demo copies cannot carry mongoose internals (or the untouched
     // original) along.
+    // The camera password is reported so the server can fetch stills; nothing
+    // that reads this list needs it, so it does not leave the server.
+    const withoutCameraPassword = <T extends { hardwareInfo?: Record<string, string> }>(device: T): T => {
+      if (device.hardwareInfo?.webcam_pwd !== undefined) delete device.hardwareInfo.webcam_pwd;
+      return device;
+    };
+
     if (is_demo) {
       const demoDevices = await deviceModel.find({ demoDevice: true }, projection).lean();
-      return demoDevices.map(device => withMaintenanceSecondsLeft(demoDevice(device))) as Device[];
+      return demoDevices.map(device => withMaintenanceSecondsLeft(withoutCameraPassword(demoDevice(device)))) as Device[];
     }
 
     const devices = await deviceModel.find({ owner_id: user_id }, projection).lean();
-    // const users: Device[] = await deviceModel.aggregate([{$match: {owner_id: user_id}}, {$lookup: {from: 'deviceclasses', localField:'class_id', foreignField: 'class_id', as:'device_class'}}]);
-    return devices.map(device => withMaintenanceSecondsLeft(device)) as Device[];
+    return devices.map(device => withMaintenanceSecondsLeft(withoutCameraPassword(device))) as Device[];
   }
 
   public async register(info: RegisterDeviceDto): Promise<any> {
