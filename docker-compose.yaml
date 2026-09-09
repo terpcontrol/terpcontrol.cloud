@@ -94,15 +94,17 @@ services:
       # UDP ports the Terp Cam client binds, which have to be published: the
       # camera's first reply comes from a port we never sent to, so the bridge
       # has no state for it and drops it unless the port is forwarded in.
-      - ${TERPCAM_P2P_PORTS_EXTERNAL:-32200-32209}:32200-32209/udp
+      - ${TERPCAM_P2P_PORTS_EXTERNAL_START:-32200}-${TERPCAM_P2P_PORTS_EXTERNAL_END:-32209}:${TERPCAM_P2P_PORTS_EXTERNAL_START:-32200}-${TERPCAM_P2P_PORTS_EXTERNAL_END:-32209}/udp
     networks:
       - main
     environment:
       SECRET_KEY: ${TOKEN_SECRET_KEY}
       PORT: 8081
       API_URL_EXTERNAL: ${API_URL_EXTERNAL}
-      # Must match the host side of the mapping above - see .env.sample.
-      TERPCAM_P2P_PORTS: 32200-32209
+      # The same numbers as the mapping above, from the same variables: the
+      # two sides must match, so they are not configured separately.
+      TERPCAM_P2P_PORTS_START: ${TERPCAM_P2P_PORTS_EXTERNAL_START:-32200}
+      TERPCAM_P2P_PORTS_END: ${TERPCAM_P2P_PORTS_EXTERNAL_END:-32209}
       TERPCAM_RENDEZVOUS_HOSTS: ${TERPCAM_RENDEZVOUS_HOSTS:-}
       # Defaults to MQTT_HOST_EXTERNAL, which is the same address for a stack
       # hosted alongside its cameras; only a private one is ever advertised.

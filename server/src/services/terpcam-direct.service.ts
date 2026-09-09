@@ -80,15 +80,20 @@ const TERPCAM_ADVERTISE_ADDRESS = (() => {
 })();
 
 /**
- * UDP ports bound for captures. Fixed inside the container — docker-compose.yaml
- * sets them and nothing else should — while which host ports they are published
- * on is a deployment choice, since a machine may already be using this range.
+ * UDP ports bound for captures, inclusive of both ends.
+ *
+ * One port is held for as long as a camera is being served, so the range is
+ * also the number of cameras this server can reach directly at once. It must be
+ * the same range the host publishes — docker-compose.yaml gives both sides the
+ * same two variables — because the camera answers to the port it saw.
  */
-const P2P_PORTS = (process.env.TERPCAM_P2P_PORTS ?? '32200-32209').split(',').flatMap(part => {
-  const [from, to] = part.split('-').map(value => Number(value.trim()));
-  if (!Number.isInteger(from) || from <= 0) return [];
-  return Array.from({ length: Math.max(1, (to || from) - from + 1) }, (_, index) => from + index);
-});
+const P2P_PORTS = (() => {
+  const from = Number(process.env.TERPCAM_P2P_PORTS_START ?? 32200);
+  const to = Number(process.env.TERPCAM_P2P_PORTS_END ?? 32209);
+  if (!Number.isInteger(from) || from <= 0 || from > 65535) return [];
+  const last = Number.isInteger(to) && to >= from && to <= 65535 ? to : from;
+  return Array.from({ length: last - from + 1 }, (_, index) => from + index);
+})();
 
 /**
  * What the camera ships with — the manufacturer publishes it, so every unpaired

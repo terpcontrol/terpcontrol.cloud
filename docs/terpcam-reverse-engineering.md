@@ -1083,9 +1083,16 @@ rest of the device API makes.
 
 ### 26.11 One setting for the UDP ports, used on both sides
 
-`TERPCAM_P2P_PORTS_EXTERNAL` sets the ports the client binds *and* the ports the container publishes, because they
-have to be the same number and a machine may already be using the default range — two stacks on one host collide
-otherwise, which is exactly what happened while testing this.
+`TERPCAM_P2P_PORTS_EXTERNAL_START` and `TERPCAM_P2P_PORTS_EXTERNAL_END` set the ports the client binds *and* the
+ports the container publishes, because they have to be the same numbers and a machine may already be using the default
+range — two stacks on one host collide otherwise, which is exactly what happened while testing this. The container
+receives them as `TERPCAM_P2P_PORTS_START` / `TERPCAM_P2P_PORTS_END`; nothing configures the two sides separately.
+
+**The width of the range is the number of cameras this server can serve directly.** A port is held for as long as a
+camera's session is, and a session is only given back after ten idle minutes, so at the 30 s poll every actively
+watched camera occupies one permanently. Beyond the range `bind()` falls through to an ephemeral port, which the host
+does not publish — so the punch is dropped and that camera silently falls back to the controller. Size the range to
+the fleet.
 
 They cannot be mapped across. The camera answers to the address its packet came from, and the bridge keeps the
 container's source port, so the reply arrives at the host on the *container's* number: publishing 32300→32200 means
