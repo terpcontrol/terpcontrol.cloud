@@ -4,7 +4,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Document, Model } from 'mongoose';
 import { Subscription } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
-import { isNumeric } from 'influx/lib/src/grammar';
 import {
   Alarm,
   CloudSettings,
@@ -108,6 +107,10 @@ const DEVICE_MESSAGE_CATEGORY_MAPPING = {
   'message-cam-capture': ['webcam', 'error'],
   'message-cam-reset': ['webcam'],
 } as const;
+
+// Whether a value read out of a device message parses as a number at all. An
+// empty string counts, as `Number('')` is 0 rather than NaN.
+const isNumeric = (value: string): boolean => !Number.isNaN(Number(value));
 
 // Alarms stay suppressed until `maintenance_mode_until`, a millisecond epoch that
 // not every client can represent exactly - the Garmin watch app parses large JSON
