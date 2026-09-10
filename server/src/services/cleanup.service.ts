@@ -1,6 +1,7 @@
 import deviceModel from '@models/device.model';
 import deviceLogModel from '@models/devicelog.model';
 import imageModel from '@models/images.model';
+import { imageStore } from '@/databases/imagestore';
 
 const MS_IN_A_DAY = 24 * 60 * 60 * 1000;
 
@@ -48,19 +49,25 @@ export class CleanupService {
     }
   }
 
-  public async run(now = Date.now()): Promise<{ deletedLogs: number; deletedImages: number }> {
+  public async run(now = Date.now()): Promise<{ deletedLogs: number; deletedImages: number; deletedOrphanedFiles: number }> {
     const cutoff = now - ORPHAN_GRACE_MS;
 
     // Logs go first: the pictures of a removed device's diary entries become
     // unreferenced by that deletion and are collected by the same run.
     const deletedLogs = await this.deleteLogsOfRemovedDevices(cutoff);
     const deletedImages = (await this.deleteImagesOfRemovedDevices(cutoff)) + (await this.deleteUnreferencedUserImages(cutoff));
+    // Last: the sweep below only counts files no image document names, and the
+    // deletes above have just removed the documents of everything unreachable.
+    const deletedOrphanedFiles = await this.deleteOrphanedImageData(cutoff);
 
-    if (deletedLogs > 0 || deletedImages > 0) {
-      console.log(`Cleanup removed ${deletedLogs} unreachable log entries and ${deletedImages} unreachable images`);
+    if (deletedLogs > 0 || deletedImages > 0 || deletedOrphanedFiles > 0) {
+      console.log(
+        `Cleanup removed ${deletedLogs} unreachable log entries, ${deletedImages} unreachable images ` +
+          `and the stored data of ${deletedOrphanedFiles} image(s) that no longer exist`,
+      );
     }
 
-    return { deletedLogs, deletedImages };
+    return { deletedLogs, deletedImages, deletedOrphanedFiles };
   }
 
   private async deleteLogsOfRemovedDevices(cutoff: number): Promise<number> {
@@ -114,6 +121,39 @@ export class CleanupService {
 
     for (let image = await cursor.next(); image != null; image = await cursor.next()) {
       candidates.push(image.image_id);
+      if (candidates.length >= BATCH_SIZE) {
+        await flush();
+      }
+    }
+    await flush();
+
+    return deleted;
+  }
+
+  // A picture's bytes are written before the document that points at them, so a
+  // crash in between leaves a file nothing can reach - and nothing else collects
+  // it, because every other delete works from the document. The grace period is
+  // what keeps this from racing a write that is simply still in flight.
+  private async deleteOrphanedImageData(cutoff: number): Promise<number> {
+    let deleted = 0;
+    let candidates: string[] = [];
+
+    const flush = async () => {
+      if (candidates.length === 0) {
+        return;
+      }
+      const known: string[] = await imageModel.distinct('image_id', { image_id: { $in: candidates } });
+      const orphaned = candidates.filter(imageId => !known.includes(imageId));
+      candidates = [];
+
+      if (orphaned.length > 0) {
+        await imageStore.delete(orphaned);
+        deleted += orphaned.length;
+      }
+    };
+
+    for await (const imageId of imageStore.listFileIds(cutoff)) {
+      candidates.push(imageId);
       if (candidates.length >= BATCH_SIZE) {
         await flush();
       }
