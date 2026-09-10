@@ -7,8 +7,8 @@ See also:
 
 ## License
 
-Apache License 2.0, see [LICENSE](LICENSE). Commercial use, self-hosting and forks are welcome; the name
-"Terp Control" is not part of the license (see [NOTICE](NOTICE)). Contributions are accepted under the same
+Apache License 2.0, see [LICENSE](LICENSE). Commercial use, self-hosting and forks are welcome; "Terp Control"
+is a registered trade mark and not part of the license (see [NOTICE](NOTICE)). Contributions are accepted under the same
 license, no separate agreement needed.
 
 ## Getting started

@@ -8,9 +8,10 @@ development since then is the work of Novazer GmbH and is licensed under the
 Apache License, Version 2.0 (see LICENSE). Novazer GmbH licenses only what it
 owns; the original Plantalytix contribution is included as published.
 
-"Terp Control" and the Terp Control logo are trade names of Novazer GmbH. The
-Apache License does not grant permission to use them (see section 6); forks
-must ship under their own name.
+"Terp Control" is a registered word mark of Novazer GmbH in the European
+Union; the Terp Control logo is a trade name of Novazer GmbH. The Apache
+License does not grant permission to use them (see section 6); forks must
+ship under their own name.
 
 Third-party components under firmware/lib/ and in the npm dependencies keep
 their own licenses, which are included alongside them.
