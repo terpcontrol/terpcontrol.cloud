@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { BeforeApplicationShutdown, Injectable } from '@nestjs/common';
 import { logger } from '@utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { MqttClientService } from '../mqtt/mqtt-client.service';
-import { createServer } from 'node:net';
+import { createServer, Server } from 'node:net';
 import { EventEmitter } from 'node:events';
 import { Mutex, MutexInterface, Semaphore, SemaphoreInterface, withTimeout } from 'async-mutex';
 
@@ -83,12 +83,68 @@ type TunnelConnectionData = {
 };
 
 @Injectable()
-export class TunnelService {
+export class TunnelService implements BeforeApplicationShutdown {
   constructor(private readonly mqtt: MqttClientService) {}
 
   private deviceIdToTunnelConnection = new Map<string, Map<string, TunnelConnectionData>>();
   private deviceIdToSemaphore = new Map<string, SemaphoreInterface>();
   private deviceIdToUdpTunnel = new Map<string, Map<string, TunnelUdpSocket>>();
+  /** The listening ends of the proxies, so they can be given up on the way down. */
+  private readonly proxyServers = new Set<Server>();
+  /** Set on the way down: every connection has already been said goodbye to. */
+  private stopping = false;
+
+  /**
+   * Tell every device that its tunnels are over, and drop them.
+   *
+   * The other half of a tunnel lives on the controller, which holds its socket
+   * to the camera open until it is told the connection is gone - so a server
+   * that stops without saying so leaves the device talking to nobody until its
+   * own timeout. Its listening ports go too, or a restart finds them taken.
+   *
+   * `beforeApplicationShutdown` rather than `onApplicationShutdown`, because
+   * this has one last thing to say through the broker connection, and that is
+   * closed in the latter. Nest runs every hook of this kind before the first of
+   * those.
+   */
+  public beforeApplicationShutdown(): void {
+    this.stopping = true;
+
+    let dropped = 0;
+
+    for (const [device_id, connections] of this.deviceIdToTunnelConnection) {
+      for (const [connection_id, connection] of [...connections]) {
+        dropped++;
+        // The shape the close handler sends, without the host and port: they
+        // describe where the connection went, which no longer matters to one
+        // that is ending.
+        const message: TunnelStreamTxData = { connection_id, disconnected: true };
+        this.mqtt.publish('/devices/' + device_id + '/tunnel_write', JSON.stringify(message));
+        connection.release?.();
+        connection.handleDisconnect();
+      }
+    }
+    this.deviceIdToTunnelConnection.clear();
+
+    for (const sockets of this.deviceIdToUdpTunnel.values()) {
+      // Each says its own goodbye and unregisters itself, which is why this
+      // walks a copy.
+      for (const socket of [...sockets.values()]) {
+        dropped++;
+        socket.close();
+      }
+    }
+    this.deviceIdToUdpTunnel.clear();
+
+    for (const server of this.proxyServers) {
+      server.close();
+    }
+    this.proxyServers.clear();
+
+    if (dropped > 0) {
+      logger.info(`Dropping ${dropped} tunnel connection(s), and telling the devices`);
+    }
+  }
 
   /**
    * Open a UDP relay to the given device's LAN. The returned socket sends and
@@ -232,7 +288,9 @@ export class TunnelService {
         };
 
         client.once('close', () => {
-          if (!this.moduleHasDisconnected(device_id, connectionId)) {
+          // On the way down the server has already said goodbye for every
+          // connection it had, so this would be the second one.
+          if (!this.stopping && !this.moduleHasDisconnected(device_id, connectionId)) {
             const message: TunnelStreamTxData = {
               connection_id: connectionId,
               disconnected: true,
@@ -259,6 +317,9 @@ export class TunnelService {
           // Ignore errors, as they are handled in 'close' event
         });
       });
+
+      this.proxyServers.add(server);
+      server.once('close', () => this.proxyServers.delete(server));
 
       server.listen(
         {
