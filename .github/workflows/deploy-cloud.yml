@@ -42,3 +42,14 @@ jobs:
           fi
           ssh "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "cd '${DEPLOY_PATH}' && docker compose ${COMPOSE_OPTIONS} ${ENV_FLAG} up --build -d --remove-orphans"
+
+      # The step above answers as soon as the containers are started, which says
+      # nothing about whether the server it just shipped serves anything: a bad
+      # environment or an unreachable database leaves it restarting forever
+      # while the deploy reports success. The server's healthcheck calls
+      # /readycheck, so waiting for it is what makes a deploy that did not come
+      # up a deploy that failed.
+      - name: Wait for the server to report ready
+        run: |
+          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "cd '${DEPLOY_PATH}' && COMPOSE_OPTIONS='${COMPOSE_OPTIONS}' TERPCONTROL_ENV_FILE='${TERPCONTROL_ENV_FILE}' ./scripts/wait-for-healthy.sh server 300"
