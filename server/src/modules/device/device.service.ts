@@ -8,11 +8,13 @@ import {
   Alarm,
   CloudSettings,
   Device,
+  DeviceListEntry,
   DeviceAccessInfo,
   DeviceClass,
   DeviceFirmware,
   DeviceFirmwareBinary,
   DeviceLog,
+  FirmwareListEntry,
   ClaimCode,
   FirmwareChannel,
   MAX_SOCKETS,
@@ -1068,7 +1070,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     this.requirePublished('/devices/' + device_id + '/command', JSON.stringify(payload));
   }
 
-  public async findUserDevices(user_id: string, is_demo = false): Promise<Device[]> {
+  public async findUserDevices(user_id: string, is_demo = false): Promise<DeviceListEntry[]> {
     const projection = {
       device_id: 1,
       configuration: 1,
@@ -1844,9 +1846,8 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     return firmware;
   }
 
-  public async findAllFirmware(): Promise<DeviceFirmware[]> {
-    const firmwares: DeviceFirmware[] = await this.firmwares.find({}, { _id: 0, firmware_id: 1, name: 1, version: 1 });
-    return firmwares;
+  public async findAllFirmware(): Promise<FirmwareListEntry[]> {
+    return this.firmwares.find({}, { _id: 0, firmware_id: 1, name: 1, version: 1 }).lean<FirmwareListEntry[]>();
   }
 
   public async getFirmwareBinary(firmware_id: string, binary_name: string): Promise<Buffer> {

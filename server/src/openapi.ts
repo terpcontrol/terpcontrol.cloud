@@ -1,5 +1,6 @@
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
+import { SHARED_SCHEMAS } from './common/api-shape';
 import { appConfig } from './config/configuration';
 
 /**
@@ -30,6 +31,12 @@ export const setupOpenApi = (app: NestFastifyApplication): void => {
   }
 
   const document = SwaggerModule.createDocument(app, builder.build());
+
+  // The shapes the routes answer with, generated from the zod schemas in
+  // shared-types. Nest reads response schemas off runtime metadata, and a shared
+  // TypeScript interface leaves none, so they are registered here and referenced
+  // by name from the routes (see common/api-shape.ts).
+  document.components = { ...document.components, schemas: { ...SHARED_SCHEMAS, ...document.components?.schemas } };
 
   // The router ignores a trailing slash, so `/api-docs/` reaches the same
   // handler - but the page links its assets relative to the URL it was fetched

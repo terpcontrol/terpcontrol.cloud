@@ -5,7 +5,7 @@ import { hash } from 'bcrypt';
 import { Document, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import { HttpException } from '@common/http-exception';
-import { User } from '@fg2/shared-types';
+import { User, UserAccount } from '@fg2/shared-types';
 import { isEmpty } from '@utils/util';
 import { logger } from '@utils/logger';
 import { authConfig } from '../../config/configuration';
@@ -59,8 +59,8 @@ export class UserService implements OnModuleInit {
     }
   }
 
-  public findAllUser(): Promise<User[]> {
-    return this.users.find({}, { _id: 0, username: 1, user_id: 1, is_admin: 1 }).then(users => users as unknown as User[]);
+  public findAllUser(): Promise<UserAccount[]> {
+    return this.users.find({}, { _id: 0, username: 1, user_id: 1, is_admin: 1 }).lean<UserAccount[]>();
   }
 
   public async findUserById(userId: string): Promise<User> {

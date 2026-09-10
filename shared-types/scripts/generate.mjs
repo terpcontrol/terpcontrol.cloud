@@ -64,10 +64,20 @@ try {
     delete schema.$id;
   }
 
-  // `tsType` only tells the TypeScript generator below what to emit; it is not a
-  // JSON Schema keyword and has no place in a document describing the API.
-  const withoutTsTypes = JSON.parse(JSON.stringify(schemas), (key, value) => (key === 'tsType' ? undefined : value));
-  writeFileSync(join(root, 'openapi-schemas.json'), `${JSON.stringify(withoutTsTypes, null, 2)}\n`);
+  // The API document is this file's only consumer, so it carries the references
+  // OpenAPI resolves. `tsType` is dropped: it only tells the TypeScript
+  // generator below what to emit, and is not a JSON Schema keyword at all.
+  const forOpenApi = JSON.parse(JSON.stringify(schemas).replaceAll('#/$defs/', '#/components/schemas/'), (key, value) => {
+    // A generator hint, not a JSON Schema keyword.
+    if (key === 'tsType') return undefined;
+    // zod closes an object because that is what it validates a request against.
+    // A response is the other direction: these schemas say which fields are
+    // there, not that nothing else is - answers carry mongoose's own `_id` and
+    // fields computed as the document is read.
+    if (key === 'additionalProperties' && value === false) return undefined;
+    return value;
+  });
+  writeFileSync(join(root, 'openapi-schemas.json'), `${JSON.stringify(forOpenApi, null, 2)}\n`);
 
   // One document, so every type is emitted and the references between them stay
   // named rather than being inlined.

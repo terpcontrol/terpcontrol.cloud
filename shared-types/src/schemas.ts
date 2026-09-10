@@ -286,6 +286,28 @@ export const device = named(
   }),
 );
 
+/**
+ * What the owner's own device listing answers with. The route projects these
+ * fields only - it is the list the app opens on, and a device carries a
+ * configuration blob and a hardware report, so the rest is left for the routes
+ * that are asked for one device. `Device` describes the stored document and the
+ * admin listing, not this.
+ */
+export const deviceListEntry = named(
+  'DeviceListEntry',
+  device.pick({
+    device_id: true,
+    configuration: true,
+    device_type: true,
+    name: true,
+    maintenance_mode_until: true,
+    maintenance_mode_seconds_left: true,
+    cloudSettings: true,
+    hardwareInfo: true,
+    lastseen: true,
+  }),
+);
+
 export const deviceClass = named(
   'DeviceClass',
   z.object({
@@ -315,6 +337,13 @@ export const deviceFirmware = named(
     wasStable: z.boolean().optional(),
   }),
 );
+
+/**
+ * What the firmware listing answers with. The route projects these three fields;
+ * `class_id` is required on the stored record but deliberately not sent, so
+ * `DeviceFirmware` does not describe this answer.
+ */
+export const firmwareListEntry = named('FirmwareListEntry', deviceFirmware.pick({ firmware_id: true, name: true, version: true }));
 
 export const deviceFirmwareBinary = named(
   'DeviceFirmwareBinary',
@@ -363,6 +392,13 @@ export const user = named(
     activation_code: z.string(),
   }),
 );
+
+/**
+ * What the account listing answers with: an account without its secrets. The
+ * route projects exactly these three fields, so `User` - which has a password
+ * hash and an activation code, both required - does not describe it.
+ */
+export const userAccount = named('UserAccount', user.pick({ user_id: true, username: true, is_admin: true }));
 
 export const passwordToken = named('PasswordToken', z.object({ user_id: z.string(), token: z.string() }));
 

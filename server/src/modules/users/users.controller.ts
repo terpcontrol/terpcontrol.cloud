@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { User } from '@fg2/shared-types';
+import { ApiShape } from '@common/api-shape';
+import { UserAccount } from '@fg2/shared-types';
 import { UserService } from './users.service';
 import { AdminGuard } from '../../common/auth/auth.guard';
 import { zodBody } from '../../common/zod-validation.pipe';
@@ -14,7 +15,8 @@ export class UsersController {
 
   @Get()
   @ApiOperation({ summary: 'Every account, without password hashes' })
-  public list(): Promise<User[]> {
+  @ApiShape(['UserAccount'])
+  public list(): Promise<UserAccount[]> {
     return this.users.findAllUser();
   }
 

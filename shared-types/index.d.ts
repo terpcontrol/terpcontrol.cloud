@@ -231,6 +231,23 @@ export interface Device {
   demoDevice?: boolean;
 }
 
+export interface DeviceListEntry {
+  device_id: string;
+  configuration: string;
+  device_type: string;
+  name?: string;
+  maintenance_mode_until?: number;
+  /**
+   * Seconds left of the maintenance window, 0 when it is not running. Derived from `maintenance_mode_until` when the device is read, never stored.
+   */
+  maintenance_mode_seconds_left?: number;
+  cloudSettings?: CloudSettings;
+  hardwareInfo?: {
+    [k: string]: string;
+  };
+  lastseen: number;
+}
+
 export interface DeviceClass {
   class_id: string;
   name: string;
@@ -259,6 +276,12 @@ export interface DeviceFirmware {
   class_id: string;
   createdAt?: number;
   wasStable?: boolean;
+}
+
+export interface FirmwareListEntry {
+  firmware_id: string;
+  name: string;
+  version: string;
 }
 
 export interface DeviceFirmwareBinary {
@@ -305,6 +328,12 @@ export interface User {
   is_admin: boolean;
   is_active: boolean;
   activation_code: string;
+}
+
+export interface UserAccount {
+  user_id: string;
+  username: string;
+  is_admin: boolean;
 }
 
 export interface PasswordToken {

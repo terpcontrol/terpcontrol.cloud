@@ -99,8 +99,7 @@
       "sensorType",
       "actionType",
       "actionTarget"
-    ],
-    "additionalProperties": false
+    ]
   },
   "FirmwareSettings": {
     "type": "object",
@@ -109,8 +108,7 @@
         "description": "@deprecated",
         "type": "boolean"
       }
-    },
-    "additionalProperties": false
+    }
   },
   "FirmwareChannel": {
     "type": "string",
@@ -140,7 +138,7 @@
         "type": "boolean"
       },
       "firmwareChannel": {
-        "$ref": "#/$defs/FirmwareChannel"
+        "$ref": "#/components/schemas/FirmwareChannel"
       },
       "pendingFirmware": {
         "type": "string"
@@ -173,10 +171,9 @@
         "type": "boolean"
       },
       "webcamModel": {
-        "$ref": "#/$defs/WebcamModel"
+        "$ref": "#/components/schemas/WebcamModel"
       }
-    },
-    "additionalProperties": false
+    }
   },
   "UserFirmwareInfo": {
     "type": "object",
@@ -193,7 +190,7 @@
       "channels": {
         "type": "array",
         "items": {
-          "$ref": "#/$defs/FirmwareChannel"
+          "$ref": "#/components/schemas/FirmwareChannel"
         }
       },
       "current": {
@@ -205,8 +202,7 @@
       "version",
       "channels",
       "current"
-    ],
-    "additionalProperties": false
+    ]
   },
   "UserFirmwareList": {
     "type": "object",
@@ -217,15 +213,14 @@
       "firmwares": {
         "type": "array",
         "items": {
-          "$ref": "#/$defs/UserFirmwareInfo"
+          "$ref": "#/components/schemas/UserFirmwareInfo"
         }
       }
     },
     "required": [
       "current_firmware",
       "firmwares"
-    ],
-    "additionalProperties": false
+    ]
   },
   "SharePage": {
     "type": "string",
@@ -247,7 +242,7 @@
         "type": "string"
       },
       "page": {
-        "$ref": "#/$defs/SharePage"
+        "$ref": "#/components/schemas/SharePage"
       },
       "editable": {
         "type": "boolean",
@@ -299,8 +294,7 @@
       "webcam",
       "createdAt",
       "openCount"
-    ],
-    "additionalProperties": false
+    ]
   },
   "ShareAccess": {
     "type": "object",
@@ -309,7 +303,7 @@
         "type": "string"
       },
       "page": {
-        "$ref": "#/$defs/SharePage"
+        "$ref": "#/components/schemas/SharePage"
       },
       "editable": {
         "type": "boolean",
@@ -340,8 +334,7 @@
       "page",
       "editable",
       "webcam"
-    ],
-    "additionalProperties": false
+    ]
   },
   "DeviceAccessInfo": {
     "type": "object",
@@ -359,10 +352,10 @@
         "type": "boolean"
       },
       "cloudSettings": {
-        "$ref": "#/$defs/CloudSettings"
+        "$ref": "#/components/schemas/CloudSettings"
       },
       "share": {
-        "$ref": "#/$defs/ShareAccess"
+        "$ref": "#/components/schemas/ShareAccess"
       }
     },
     "required": [
@@ -370,8 +363,7 @@
       "device_type",
       "isPublic",
       "cloudSettings"
-    ],
-    "additionalProperties": false
+    ]
   },
   "DiaryLifecycleStage": {
     "type": "string",
@@ -394,7 +386,7 @@
         "type": "number"
       },
       "newLifecycleStage": {
-        "$ref": "#/$defs/DiaryLifecycleStage"
+        "$ref": "#/components/schemas/DiaryLifecycleStage"
       },
       "lifecycleName": {
         "type": "string"
@@ -429,8 +421,7 @@
       "ecMeasurement",
       "outsideTemperatureMeasurement",
       "phMeasurement"
-    ],
-    "additionalProperties": false
+    ]
   },
   "DiaryEntry": {
     "type": "object",
@@ -458,7 +449,7 @@
             "type": "number"
           },
           "newLifecycleStage": {
-            "$ref": "#/$defs/DiaryLifecycleStage"
+            "$ref": "#/components/schemas/DiaryLifecycleStage"
           },
           "lifecycleName": {
             "type": "string"
@@ -481,8 +472,7 @@
           "phMeasurement": {
             "type": "number"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "images": {
         "type": "array",
@@ -495,8 +485,7 @@
       "title",
       "time",
       "category"
-    ],
-    "additionalProperties": false
+    ]
   },
   "DurationUnit": {
     "type": "string",
@@ -515,7 +504,7 @@
       },
       "settings": {},
       "durationUnit": {
-        "$ref": "#/$defs/DurationUnit"
+        "$ref": "#/components/schemas/DurationUnit"
       },
       "duration": {
         "type": "number"
@@ -533,7 +522,7 @@
         "type": "boolean"
       },
       "stage": {
-        "$ref": "#/$defs/DiaryLifecycleStage"
+        "$ref": "#/components/schemas/DiaryLifecycleStage"
       }
     },
     "required": [
@@ -541,8 +530,7 @@
       "durationUnit",
       "duration",
       "waitForConfirmation"
-    ],
-    "additionalProperties": false
+    ]
   },
   "Recipe": {
     "type": "object",
@@ -550,7 +538,7 @@
       "steps": {
         "type": "array",
         "items": {
-          "$ref": "#/$defs/RecipeStep"
+          "$ref": "#/components/schemas/RecipeStep"
         }
       },
       "activeStepIndex": {
@@ -581,8 +569,7 @@
       "steps",
       "activeStepIndex",
       "activeSince"
-    ],
-    "additionalProperties": false
+    ]
   },
   "Device": {
     "type": "object",
@@ -636,14 +623,14 @@
       "alarms": {
         "type": "array",
         "items": {
-          "$ref": "#/$defs/Alarm"
+          "$ref": "#/components/schemas/Alarm"
         }
       },
       "firmwareSettings": {
-        "$ref": "#/$defs/FirmwareSettings"
+        "$ref": "#/components/schemas/FirmwareSettings"
       },
       "cloudSettings": {
-        "$ref": "#/$defs/CloudSettings"
+        "$ref": "#/components/schemas/CloudSettings"
       },
       "maintenance_mode_until": {
         "type": "number"
@@ -653,7 +640,7 @@
         "type": "number"
       },
       "recipe": {
-        "$ref": "#/$defs/Recipe"
+        "$ref": "#/components/schemas/Recipe"
       },
       "hardwareInfo": {
         "type": "object",
@@ -682,8 +669,52 @@
       "current_firmware",
       "fwupdate_start",
       "fwupdate_end"
-    ],
-    "additionalProperties": false
+    ]
+  },
+  "DeviceListEntry": {
+    "type": "object",
+    "properties": {
+      "device_id": {
+        "type": "string"
+      },
+      "configuration": {
+        "type": "string"
+      },
+      "device_type": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "maintenance_mode_until": {
+        "type": "number"
+      },
+      "maintenance_mode_seconds_left": {
+        "description": "Seconds left of the maintenance window, 0 when it is not running. Derived from `maintenance_mode_until` when the device is read, never stored.",
+        "type": "number"
+      },
+      "cloudSettings": {
+        "$ref": "#/components/schemas/CloudSettings"
+      },
+      "hardwareInfo": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "lastseen": {
+        "type": "number"
+      }
+    },
+    "required": [
+      "device_id",
+      "configuration",
+      "device_type",
+      "lastseen"
+    ]
   },
   "DeviceClass": {
     "type": "object",
@@ -720,14 +751,13 @@
       "concurrent",
       "maxfails",
       "firmware_id"
-    ],
-    "additionalProperties": false
+    ]
   },
   "DeviceClassCount": {
     "type": "object",
     "properties": {
       "class": {
-        "$ref": "#/$defs/DeviceClass"
+        "$ref": "#/components/schemas/DeviceClass"
       },
       "count": {
         "type": "number"
@@ -736,8 +766,7 @@
     "required": [
       "class",
       "count"
-    ],
-    "additionalProperties": false
+    ]
   },
   "ClaimCode": {
     "type": "object",
@@ -752,8 +781,7 @@
     "required": [
       "claim_code",
       "device_id"
-    ],
-    "additionalProperties": false
+    ]
   },
   "DeviceFirmware": {
     "type": "object",
@@ -782,8 +810,26 @@
       "name",
       "version",
       "class_id"
-    ],
-    "additionalProperties": false
+    ]
+  },
+  "FirmwareListEntry": {
+    "type": "object",
+    "properties": {
+      "firmware_id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "version": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "firmware_id",
+      "name",
+      "version"
+    ]
   },
   "DeviceFirmwareBinary": {
     "type": "object",
@@ -803,8 +849,7 @@
       "firmware_id",
       "name",
       "data"
-    ],
-    "additionalProperties": false
+    ]
   },
   "DeviceLog": {
     "type": "object",
@@ -850,7 +895,7 @@
             "type": "number"
           },
           "newLifecycleStage": {
-            "$ref": "#/$defs/DiaryLifecycleStage"
+            "$ref": "#/components/schemas/DiaryLifecycleStage"
           },
           "lifecycleName": {
             "type": "string"
@@ -873,8 +918,7 @@
           "phMeasurement": {
             "type": "number"
           }
-        },
-        "additionalProperties": false
+        }
       },
       "images": {
         "type": "array",
@@ -888,8 +932,7 @@
       "device_id",
       "severity",
       "time"
-    ],
-    "additionalProperties": false
+    ]
   },
   "Image": {
     "type": "object",
@@ -936,8 +979,7 @@
       "image_id",
       "device_id",
       "timestamp"
-    ],
-    "additionalProperties": false
+    ]
   },
   "User": {
     "type": "object",
@@ -968,8 +1010,26 @@
       "is_admin",
       "is_active",
       "activation_code"
-    ],
-    "additionalProperties": false
+    ]
+  },
+  "UserAccount": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "string"
+      },
+      "username": {
+        "type": "string"
+      },
+      "is_admin": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "user_id",
+      "username",
+      "is_admin"
+    ]
   },
   "PasswordToken": {
     "type": "object",
@@ -984,8 +1044,7 @@
     "required": [
       "user_id",
       "token"
-    ],
-    "additionalProperties": false
+    ]
   },
   "RecipeTemplateStep": {
     "type": "object",
@@ -995,7 +1054,7 @@
       },
       "settings": {},
       "durationUnit": {
-        "$ref": "#/$defs/DurationUnit"
+        "$ref": "#/components/schemas/DurationUnit"
       },
       "duration": {
         "type": "number"
@@ -1007,7 +1066,7 @@
         "type": "string"
       },
       "stage": {
-        "$ref": "#/$defs/DiaryLifecycleStage"
+        "$ref": "#/components/schemas/DiaryLifecycleStage"
       }
     },
     "required": [
@@ -1015,8 +1074,7 @@
       "durationUnit",
       "duration",
       "waitForConfirmation"
-    ],
-    "additionalProperties": false
+    ]
   },
   "RecipeTemplate": {
     "type": "object",
@@ -1042,15 +1100,14 @@
       "steps": {
         "type": "array",
         "items": {
-          "$ref": "#/$defs/RecipeTemplateStep"
+          "$ref": "#/components/schemas/RecipeTemplateStep"
         }
       }
     },
     "required": [
       "name",
       "steps"
-    ],
-    "additionalProperties": false
+    ]
   },
   "ChartPreset": {
     "type": "object",
@@ -1081,8 +1138,7 @@
       "name",
       "query",
       "createdAt"
-    ],
-    "additionalProperties": false
+    ]
   },
   "SocketRole": {
     "type": "string",
@@ -1117,7 +1173,6 @@
       "role",
       "id",
       "ip"
-    ],
-    "additionalProperties": false
+    ]
   }
 }

@@ -2,9 +2,10 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { environment } from 'src/environments/environment';
-import type { User } from '@fg2/shared-types';
+import type { UserAccount } from '@fg2/shared-types';
 
-export type UserLite = Pick<User, 'user_id' | 'username' | 'is_admin'> & {
+/** An account as the API answers with it, plus what a demo session adds here. */
+export type UserLite = UserAccount & {
   /** Session opened through the demo login: demo devices, read-only. */
   is_demo?: boolean;
 };

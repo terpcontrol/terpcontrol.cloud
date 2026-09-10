@@ -15,8 +15,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiShape } from '@common/api-shape';
 import { FastifyReply } from 'fastify';
-import { Alarm, CloudSettings, Device } from '@fg2/shared-types';
+import { Alarm, CloudSettings, Device, DeviceListEntry } from '@fg2/shared-types';
 import { DeviceService } from './device.service';
 import { AdminGuard, AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
@@ -57,6 +58,7 @@ export class DeviceController {
   @Get('all')
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Every device in the system' })
+  @ApiShape(['Device'])
   public all(): Promise<Device[]> {
     return this.deviceService.findAllDevices();
   }
@@ -65,6 +67,7 @@ export class DeviceController {
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Create a device record from a device class' })
+  @ApiShape('Device')
   public create(@Body(zodBody(addDeviceSchema)) body: AddDevice): Promise<Device> {
     return this.deviceService.create(body);
   }
@@ -85,7 +88,8 @@ export class DeviceController {
   @Get()
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'The devices the caller owns' })
-  public mine(@CurrentUser() user: AuthContext): Promise<Device[]> {
+  @ApiShape(['DeviceListEntry'])
+  public mine(@CurrentUser() user: AuthContext): Promise<DeviceListEntry[]> {
     return this.deviceService.findUserDevices(user.userId, user.isDemo);
   }
 
@@ -120,6 +124,7 @@ export class DeviceController {
   @UseGuards(AdminGuard)
   @ApiQuery({ name: 'serialnumber', required: true })
   @ApiOperation({ summary: 'Find a device by the serial number on its label' })
+  @ApiShape('Device')
   public bySerial(@Query('serialnumber') serialnumber: string): Promise<Device> {
     return this.deviceService.getDeviceBySerial(parseInt(serialnumber));
   }
