@@ -13,6 +13,9 @@ COPY shared-types ./shared-types
 COPY server/package.json server/package-lock.json ./server/
 WORKDIR /app/server
 
+# The integration harness downloads a mongod binary on demand; the image is
+# built with the dev dependencies but must not carry one.
+ENV MONGOMS_DISABLE_POSTINSTALL=1
 
 RUN npm ci
 

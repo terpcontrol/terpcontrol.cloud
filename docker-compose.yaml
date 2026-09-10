@@ -133,6 +133,19 @@ services:
       SMTP_SECURE: ${SMTP_SECURE}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       MQTTAUTH_SHARED_SECRET: ${MQTTAUTH_SHARED_SECRET:-terpcontrol}
+    # /readycheck answers 200 only once the database is reachable and the admin
+    # account has been seeded, which is what this stack means by ready to serve;
+    # `/` would answer while the server is still no use to anybody. node rather
+    # than curl or wget, because node is the one thing the image is certain to
+    # have. The start period covers the first build of the modules and the wait
+    # for mongodb, and failures during it do not count.
+    healthcheck:
+      test:
+        ['CMD', 'node', '-e', "fetch('http://127.0.0.1:8081/readycheck').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
 
 networks:
   main:

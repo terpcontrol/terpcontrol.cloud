@@ -1,0 +1,159 @@
+import { Schema } from 'mongoose';
+import { Device } from '@fg2/shared-types';
+
+export const deviceSchema: Schema = new Schema({
+  device_id: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+  username: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+  password: {
+    type: String,
+    required: true,
+  },
+  class_id: {
+    type: String,
+    required: false,
+  },
+  device_type: {
+    type: String,
+  },
+  client_id: {
+    type: String,
+    required: false,
+  },
+  owner_id: {
+    type: String,
+    required: false,
+  },
+  configuration: {
+    type: String,
+    required: false,
+  },
+  serialnumber: {
+    type: Number,
+    required: false,
+  },
+  name: {
+    type: String,
+    required: false,
+  },
+  lastseen: {
+    type: Number,
+    required: false,
+  },
+  current_firmware: {
+    type: String,
+    required: false,
+  },
+  pending_firmware: {
+    type: String,
+    required: false,
+  },
+  fwupdate_start: {
+    type: Number,
+    required: false,
+  },
+  fwupdate_end: {
+    type: Number,
+    required: false,
+  },
+  alarms: {
+    type: [
+      {
+        name: { type: String, required: false },
+        disabled: { type: Boolean, required: false },
+        alarmId: { type: String, required: true },
+        sensorType: { type: String, required: true },
+        upperThreshold: { type: Number, required: false },
+        lowerThreshold: { type: Number, required: false },
+        actionType: { type: String, enum: ['email', 'webhook', 'info'], required: true },
+        actionTarget: { type: String, required: true },
+        cooldownSeconds: { type: Number, required: false },
+        isTriggered: { type: Boolean, required: false },
+        lastTriggeredAt: { type: Number, required: false },
+        additionalInfo: { type: Boolean, required: false },
+        extremeValue: { type: Number, required: false },
+        latestDataPointTime: { type: Number, required: false },
+        retriggerSeconds: { type: Number, required: false },
+        lastResolvedAt: { type: Number, required: false },
+        webhookMethod: { type: String, enum: ['GET', 'POST', 'PUT'], required: false },
+        webhookHeaders: { type: Schema.Types.Mixed, required: false },
+        webhookTriggeredPayload: { type: String, required: false },
+        webhookResolvedPayload: { type: String, required: false },
+        thresholdSeconds: { type: Number, required: false },
+        reportWebhookErrors: { type: Boolean, required: false },
+        tunnelWebhook: { type: Boolean, required: false },
+      },
+    ],
+    required: false,
+  },
+  firmwareSettings: {
+    type: {
+      autoUpdate: { type: Boolean, required: false },
+    },
+    required: false,
+  },
+  cloudSettings: {
+    type: {
+      autoFirmwareUpdate: { type: Boolean, required: false },
+      firmwareChannel: { type: String, enum: ['stable', 'beta', 'alpha', 'manual'], required: false },
+      pendingFirmware: { type: String, required: false },
+      vpdLeafTempOffsetDay: { type: Number, required: false },
+      vpdLeafTempOffsetNight: { type: Number, required: false },
+      ppfdLuxFactor: { type: Number, required: false },
+      betaFeatures: { type: Boolean, required: false },
+      rtspStream: { type: String, required: false },
+      logRtspStreamErrors: { type: Boolean, required: false },
+      rtspStreamTransport: { type: String, required: false },
+      tunnelRtspStream: { type: Boolean, required: false },
+      maintenanceWebcamOff: { type: Boolean, required: false },
+      webcamModel: { type: String, enum: ['terp_cam', 'tapo_c200', 'reolink', 'hikvision', 'custom'], required: false },
+    },
+    required: false,
+  },
+  maintenance_mode_until: {
+    type: Number,
+    required: false,
+  },
+  recipe: {
+    type: {
+      steps: {
+        type: [
+          {
+            settings: { type: Schema.Types.Mixed, required: true },
+            durationUnit: { type: String, enum: ['minutes', 'hours', 'days', 'weeks'], required: true },
+            duration: { type: Number, required: true },
+            waitForConfirmation: { type: Boolean, required: true },
+            name: { type: String, required: false },
+            confirmationMessage: { type: String, required: false },
+            lastTimeApplied: { type: Number, required: false },
+            notified: { type: Boolean, required: false },
+            stage: { type: String, enum: ['germination', 'seedling', 'vegetative', 'flowering', 'drying', 'curing'], required: false },
+          },
+        ],
+        required: true,
+      },
+      activeStepIndex: { type: Number, required: true },
+      activeSince: { type: Number, required: true },
+      loop: { type: Boolean, required: false },
+      notifications: { type: String, enum: ['off', 'onStep', 'onConfirmation'], required: false },
+      additionalInfo: { type: Boolean, required: false },
+      email: { type: String, required: false },
+    },
+    required: false,
+  },
+  hardwareInfo: {
+    type: Schema.Types.Mixed,
+    required: false,
+  },
+  demoDevice: {
+    type: Boolean,
+    required: false,
+  },
+});

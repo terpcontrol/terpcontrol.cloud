@@ -1,5 +1,8 @@
 **/node_modules
 **/dist
+# The server's integration harness, and whatever a local run left behind in it.
+server/test
+server/jest.integration.config.js
 **/.angular
 **/www
 .git
