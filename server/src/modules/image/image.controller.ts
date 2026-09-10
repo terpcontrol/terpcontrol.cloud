@@ -1,7 +1,10 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiConsumes, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { FastifyReply } from 'fastify';
+import { FastifyReply, FastifyRequest } from 'fastify';
+import parseRange from 'range-parser';
+import { Image } from '@fg2/shared-types';
 import { HttpException } from '@common/http-exception';
+import { logger } from '@utils/logger';
 import { withoutCredentials } from '@common/log-path';
 import { ImageService } from './image.service';
 import { AuthGuard } from '../../common/auth/auth.guard';
@@ -45,6 +48,7 @@ export class ImageController {
     @Param('device_id') deviceId: string,
     @Query() query: ImageQuery,
     @CurrentShare() share: { webcam?: boolean } | undefined,
+    @Req() request: FastifyRequest,
     @Res() reply: FastifyReply,
   ): Promise<void> {
     // Share links without webcam access may still fetch diary photos (image_id),
@@ -62,21 +66,31 @@ export class ImageController {
       String(query.image_id ?? ''),
     );
 
-    const source = image
-      ? {
-          body: await this.presentation.withOfflineOverlay(image, Number(query.timestamp), !!query.image_id),
-          contentType: image.format === 'mp4' ? 'video/mp4' : 'image/jpeg',
-        }
-      : await this.presentation.placeholder(String(query.format));
+    const size = { width: parseResizeDimension(query.width), height: parseResizeDimension(query.height) };
+
+    if (image) {
+      const contentType = image.format === 'mp4' ? 'video/mp4' : 'image/jpeg';
+      const caption = this.presentation.offlineCaption(image, Number(query.timestamp), !!query.image_id);
+      const resizes = contentType.startsWith('image/') && !!(size.width || size.height);
+
+      // Rewriting the picture needs all of it in memory. Only stills are ever
+      // rewritten - a timelapse is neither resized nor captioned - and one still
+      // is a few hundred kilobytes, so the whole-buffer path stays off the videos.
+      if (caption || resizes) {
+        const data = await this.images.readImageData(image);
+        const body = caption ? await this.images.addOfflineOverlay(data, caption) : data;
+        await this.send(reply, await this.presentation.render(body, contentType, size));
+        return;
+      }
+
+      await this.stream(request, reply, image, contentType);
+      return;
+    }
 
     // The placeholder is resized like a real picture, so a caller asking for a
     // thumbnail gets one either way.
-    const rendered = await this.presentation.render(source.body, source.contentType, {
-      width: parseResizeDimension(query.width),
-      height: parseResizeDimension(query.height),
-    });
-
-    await this.send(reply, rendered);
+    const placeholder = await this.presentation.placeholder(String(query.format));
+    await this.send(reply, await this.presentation.render(placeholder.body, placeholder.contentType, size));
   }
 
   @Post(':device_id')
@@ -151,6 +165,51 @@ export class ImageController {
     }
 
     return { status: 'ok' };
+  }
+
+  /**
+   * Serve the stored bytes straight from the image store. A timelapse runs to
+   * tens of megabytes, so it is piped rather than buffered, and byte ranges are
+   * honoured - a <video> element asks for them, and Safari will not start
+   * playing without a 206.
+   */
+  private async stream(request: FastifyRequest, reply: FastifyReply, image: Image, contentType: string): Promise<void> {
+    const size = this.images.imageSize(image);
+    // -1 is "asked for bytes we do not have", -2 "asked in a way we cannot read".
+    const header = request.headers.range;
+    const ranges = size === undefined || !header ? undefined : parseRange(size, header, { combine: true });
+
+    void reply.header('Content-type', contentType).header('Cache-Control', 'max-age=3600');
+    if (size !== undefined) {
+      void reply.header('Accept-Ranges', 'bytes');
+    }
+
+    if (ranges === -1) {
+      await reply.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE).header('Content-Range', `bytes */${size}`).send();
+      return;
+    }
+
+    // Several ranges at once would need a multipart body no client here asks for.
+    const range = Array.isArray(ranges) && ranges.type === 'bytes' && ranges.length === 1 ? ranges[0] : undefined;
+
+    if (range) {
+      void reply
+        .status(HttpStatus.PARTIAL_CONTENT)
+        .header('Content-Range', `bytes ${range.start}-${range.end}/${size}`)
+        .header('Content-Length', range.end - range.start + 1);
+    } else if (size !== undefined) {
+      void reply.header('Content-Length', size);
+    }
+
+    const stream = this.images.readImageStream(image, range);
+    stream.on('error', error => {
+      logger.error(`Failed streaming image ${image.image_id}: ${error}`);
+      // The status line is long gone by the time a chunk fails, so cutting the
+      // connection is all that is left to tell the client the body is short.
+      reply.raw.destroy();
+    });
+
+    await reply.send(stream);
   }
 
   private async send(reply: FastifyReply, rendered: RenderedImage): Promise<void> {

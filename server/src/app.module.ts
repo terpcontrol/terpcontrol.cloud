@@ -10,6 +10,7 @@ import { DemoReadOnlyGuard } from './common/auth/demo-read-only.guard';
 import { ApiExceptionFilter } from './common/http-exception.filter';
 import { AuthModule } from './modules/auth/auth.module';
 import { ChartPresetModule } from './modules/chart-preset/chart-preset.module';
+import { CleanupModule } from './modules/cleanup/cleanup.module';
 import { DataModule } from './modules/data/data.module';
 import { DeviceModule } from './modules/device/device.module';
 import { HealthModule } from './modules/health/health.module';
@@ -33,6 +34,7 @@ import { UsersModule } from './modules/users/users.module';
     SecurityModule,
     AuthModule,
     ChartPresetModule,
+    CleanupModule,
     AlarmModule,
     DataModule,
     DeviceModule,

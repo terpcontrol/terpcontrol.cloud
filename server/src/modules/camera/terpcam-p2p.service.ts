@@ -1,16 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { logger } from '@utils/logger';
 import { MqttClientService } from '../mqtt/mqtt-client.service';
-import { OkamCamService } from './okam-cam.service';
+import { TerpCamService } from './terpcam.service';
 
 /**
- * O-KAM / VStarcam camera stills.
+ * Terp Cam camera stills.
  *
  * The camera has no LAN RTSP and speaks a proprietary P2P protocol whose
  * sliding-window retransmission needs low, predictable latency. Driving that
  * protocol from the cloud through the controller's MQTT tunnel proved
  * unreliable — see docs §16/§16.1 — so the P2P client runs on the controller,
- * which sits on the camera's LAN (firmware/src/okamcam.cpp).
+ * which sits on the camera's LAN (firmware/src/terpcam.cpp).
  *
  * This service is the cloud half: it asks a controller for a still and
  * reassembles the JPEG the controller streams back over MQTT. The controller
@@ -19,12 +19,24 @@ import { OkamCamService } from './okam-cam.service';
  */
 
 /**
- * cloudSettings.rtspStream marker for an O-KAM camera (`okam://<did>`). Using the
+ * cloudSettings.rtspStream marker for a Terp Cam (`terpcam://<did>`). Using the
  * existing rtspStream field means the whole image pipeline — poll scheduling,
  * backoff, maintenance gating, the test-image button, storage, timelapses and
  * thinning — works for these cameras with no parallel machinery.
  */
-export const OKAM_STREAM_PREFIX = 'okam://';
+export const TERPCAM_STREAM_PREFIX = 'terpcam://';
+
+/** What cameras paired before the rename stored. Still read, never written. */
+const LEGACY_STREAM_PREFIX = 'okam://';
+
+/** Every prefix a stored stream may carry, newest first. */
+export const TERPCAM_STREAM_PREFIXES = [TERPCAM_STREAM_PREFIX, LEGACY_STREAM_PREFIX];
+
+/** The camera's label, or null when this is not a Terp Cam stream at all. */
+export function terpCamLabel(stream?: string): string | null {
+  const prefix = stream ? TERPCAM_STREAM_PREFIXES.find(p => stream.startsWith(p)) : undefined;
+  return prefix && stream ? stream.slice(prefix.length) : null;
+}
 
 /** A controller has this long to deliver a complete image once asked. */
 const CAPTURE_TIMEOUT_MS = 30_000;
@@ -52,8 +64,8 @@ type PendingCapture = {
 };
 
 @Injectable()
-export class OkamP2PService {
-  constructor(private readonly mqtt: MqttClientService, private readonly stills: OkamCamService) {}
+export class TerpCamP2PService {
+  constructor(private readonly mqtt: MqttClientService, private readonly stills: TerpCamService) {}
 
   /** One in-flight capture per device; the pipeline never runs two at once. */
   private pending = new Map<string, PendingCapture>();
@@ -61,7 +73,7 @@ export class OkamP2PService {
   /**
    * Ask the device for a still and resolve with the assembled JPEG. Called by
    * the image pipeline (readRtspStreamImage) for devices configured as
-   * `okam://…`, which then stores it exactly like an RTSP still.
+   * `terpcam://…`, which then stores it exactly like an RTSP still.
    */
   public captureViaController(deviceId: string): Promise<Buffer> {
     // An earlier attempt that never completed must not keep its slot (or leak).
@@ -122,7 +134,7 @@ export class OkamP2PService {
       const assembled = Buffer.concat([...state.chunks.keys()].sort((a, b) => a - b).map(k => state.chunks.get(k)));
       const wasH264 = state.h264;
       this.clearPending(deviceId);
-      logger.info('[okam] image assembled for ' + deviceId + ': ' + assembled.length + 'B' + (wasH264 ? ' (h264)' : ''));
+      logger.info('[terpcam] image assembled for ' + deviceId + ': ' + assembled.length + 'B' + (wasH264 ? ' (h264)' : ''));
       if (!wasH264) {
         state.resolve(assembled);
         return;
@@ -132,7 +144,7 @@ export class OkamP2PService {
       this.stills
         .decodeKeyframeToJpeg(assembled)
         .then(jpeg => {
-          logger.info('[okam] keyframe decoded for ' + deviceId + ': ' + jpeg.length + 'B jpeg');
+          logger.info('[terpcam] keyframe decoded for ' + deviceId + ': ' + jpeg.length + 'B jpeg');
           state.resolve(jpeg);
         })
         .catch(e => state.reject(e as Error));

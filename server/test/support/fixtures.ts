@@ -30,7 +30,18 @@ export const markAsDemoDevice = (deviceId: string, demo = true): Promise<void> =
     await database.collection('devices').updateOne({ device_id: deviceId }, { $set: { demoDevice: demo } });
   });
 
-/** Stores a webcam still for a device, as the RTSP poller would have. */
+/**
+ * Whether the bytes of a picture are in the image store, which is where every
+ * picture written since the move to GridFS keeps them.
+ */
+export const storedImageExists = (imageId: string): Promise<boolean> =>
+  withDatabase(async database => (await database.collection('imagedata.files').countDocuments({ _id: imageId as never })) > 0);
+
+/**
+ * Stores a webcam still for a device, as the RTSP poller would have - with the
+ * bytes in the document, the way pictures were written before the image store.
+ * Those are still served, so this doubles as the fixture for that path.
+ */
 export const storeWebcamStill = (deviceId: string, data: Buffer, timestamp: number): Promise<StoredStill> =>
   withDatabase(async database => {
     const imageId = randomUUID();

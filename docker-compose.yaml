@@ -91,12 +91,23 @@ services:
      - rabbitmq
     ports:
       - ${API_PORT_EXTERNAL}:8081
+      # UDP ports the Terp Cam client binds, which have to be published: the
+      # camera's first reply comes from a port we never sent to, so the bridge
+      # has no state for it and drops it unless the port is forwarded in.
+      - ${TERPCAM_P2P_PORTS_EXTERNAL_START:-32200}-${TERPCAM_P2P_PORTS_EXTERNAL_END:-32209}:${TERPCAM_P2P_PORTS_EXTERNAL_START:-32200}-${TERPCAM_P2P_PORTS_EXTERNAL_END:-32209}/udp
     networks:
       - main
     environment:
       SECRET_KEY: ${TOKEN_SECRET_KEY}
       PORT: 8081
       API_URL_EXTERNAL: ${API_URL_EXTERNAL}
+      # Same numbers as the published range above: both sides must match.
+      TERPCAM_P2P_PORTS_START: ${TERPCAM_P2P_PORTS_EXTERNAL_START:-32200}
+      TERPCAM_P2P_PORTS_END: ${TERPCAM_P2P_PORTS_EXTERNAL_END:-32209}
+      TERPCAM_RENDEZVOUS_HOSTS: ${TERPCAM_RENDEZVOUS_HOSTS:-}
+      # A stack hosted alongside its cameras is reachable at MQTT_HOST_EXTERNAL,
+      # so that is the default. Only a private address is ever advertised.
+      TERPCAM_ADVERTISE_ADDRESS: ${TERPCAM_ADVERTISE_ADDRESS:-${MQTT_HOST_EXTERNAL:-}}
       DB_HOST: "mongodb"
       DB_PORT: "27017"
       DB_DATABASE: ${MONGODB_DATABASE}

@@ -11,22 +11,10 @@ import { passwordTokenSchema } from '@database/schemas/password_token.schema';
 import { recipeSchema } from '@database/schemas/recipe.schema';
 import { shareSchema } from '@database/schemas/share.schema';
 import { userSchema } from '@database/schemas/users.schema';
+import { ImageStore } from './image-store';
+import { MODEL } from './models';
 
-/** The model names, so an `@InjectModel` and a registration cannot drift apart. */
-export const MODEL = {
-  chartPreset: 'ChartPreset',
-  claimCode: 'ClaimCode',
-  device: 'Device',
-  deviceClass: 'DeviceClass',
-  deviceFirmware: 'DeviceFirmware',
-  deviceFirmwareBinary: 'DeviceFirmwareBinary',
-  deviceLog: 'DeviceLog',
-  image: 'Image',
-  passwordToken: 'PasswordToken',
-  recipeTemplate: 'RecipeTemplate',
-  share: 'Share',
-  user: 'User',
-} as const;
+export { MODEL } from './models';
 
 const features = [
   { name: MODEL.chartPreset, schema: chartPresetSchema },
@@ -51,6 +39,11 @@ const features = [
  */
 @Module({
   imports: [MongooseModule.forFeature(features)],
-  exports: [MongooseModule],
+  // The bytes of a picture live beside the collection that indexes them, so the
+  // store belongs with the models rather than with any one feature: the image
+  // service writes them, the camera services write them and the cleanup reads
+  // what nothing points at any more.
+  providers: [ImageStore],
+  exports: [MongooseModule, ImageStore],
 })
 export class ModelsModule {}

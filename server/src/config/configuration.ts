@@ -76,4 +76,26 @@ export const authConfig = registerAs('auth', () => ({
   adminPassword: process.env.ADMINUSER_PASSWORD,
 }));
 
-export const configNamespaces = [appConfig, databaseConfig, influxConfig, mqttConfig, mailConfig, authConfig];
+export const terpCamConfig = registerAs('terpcam', () => ({
+  /** The manufacturer's lookup servers: configuration, never addresses in source. */
+  rendezvousHosts: (process.env.TERPCAM_RENDEZVOUS_HOSTS ?? '')
+    .split(',')
+    .map(host => host.trim())
+    .filter(Boolean),
+  /**
+   * Address to tell a camera on this network to punch at. Only a private one is
+   * used - announcing a public address stops the camera punching at all - which
+   * the service checks; a hosted stack correctly advertises nothing.
+   */
+  advertiseAddress: (process.env.TERPCAM_ADVERTISE_ADDRESS ?? '').trim(),
+  /**
+   * UDP ports bound for captures, inclusive. One is held per camera served, so
+   * the width of the range is how many cameras this server can reach at once.
+   * It must be the range the host publishes: the camera answers to the port it
+   * saw.
+   */
+  portsStart: number(process.env.TERPCAM_P2P_PORTS_START, 32200),
+  portsEnd: number(process.env.TERPCAM_P2P_PORTS_END, 32209),
+}));
+
+export const configNamespaces = [appConfig, databaseConfig, influxConfig, mqttConfig, mailConfig, authConfig, terpCamConfig];

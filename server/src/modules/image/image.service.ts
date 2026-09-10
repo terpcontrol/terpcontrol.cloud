@@ -2,6 +2,7 @@ import { forwardRef, Inject, Injectable, OnApplicationShutdown, OnModuleInit } f
 import { InjectModel } from '@nestjs/mongoose';
 import { execFile } from 'node:child_process';
 import { createServer } from 'node:net';
+import { Readable } from 'node:stream';
 import { tmpdir } from 'node:os';
 import { join } from 'path';
 import { mkdtemp, readFile, rmdir, unlink, writeFile } from 'node:fs/promises';
@@ -11,12 +12,13 @@ import pLimit from 'p-limit';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import { CloudSettings, Device, Image } from '@fg2/shared-types';
-import { HttpException } from '@common/http-exception';
 import { logger } from '@utils/logger';
 import { BackgroundWork, logIfItFails } from '../../common/background-work';
 import { withoutCredentials } from '../../common/log-path';
+import { ImageStore } from '../../database/image-store';
 import { MODEL } from '../../database/models.module';
-import { OkamP2PService, OKAM_STREAM_PREFIX } from '../camera/okam-p2p.service';
+import { TerpCamDirectService } from '../camera/terpcam-direct.service';
+import { TerpCamP2PService, terpCamLabel } from '../camera/terpcam-p2p.service';
 import { DeviceService } from '../device/device.service';
 import { TunnelService } from '../tunnel/tunnel.service';
 
@@ -24,9 +26,6 @@ const escapeXml = (value: string): string =>
   value.replace(/[<>&'"]/g, character => `&${{ '<': 'lt', '>': 'gt', '&': 'amp', "'": 'apos', '"': 'quot' }[character]};`);
 
 const MS_IN_A_DAY = 24 * 60 * 60 * 1000;
-
-// Under MongoDB's 16 MB document limit, with room for the rest of the document.
-const MAX_STORED_IMAGE_BYTES = 15 * 1024 * 1024;
 
 const READ_IMAGE_CHECK_INTERVAL_MS = 5_000;
 const IMAGE_LOAD_INTERVAL_MS = 30_000;
@@ -95,7 +94,9 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
     @InjectModel(MODEL.device) private readonly devices: Model<Device & Document>,
     @Inject(forwardRef(() => DeviceService)) private readonly deviceService: DeviceService,
     private readonly tunnel: TunnelService,
-    private readonly okam: OkamP2PService,
+    private readonly store: ImageStore,
+    private readonly terpCamP2P: TerpCamP2PService,
+    private readonly terpCamDirect: TerpCamDirectService,
   ) {}
 
   /**
@@ -137,20 +138,38 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
   public async createDeviceImage(device_id: string, source: Buffer, timestamp?: number): Promise<Image> {
     const jpegData = await this.convertToJpeg(source);
 
-    // A picture is stored inside its document, and MongoDB stops at 16 MB. The
-    // check is on the converted image because that is what gets written - a
-    // large source often shrinks to a fraction of it.
-    if (jpegData.length > MAX_STORED_IMAGE_BYTES) {
-      throw new HttpException(413, 'Image is too large');
+    return this.store.createImage(
+      {
+        image_id: uuidv4(),
+        device_id,
+        format: 'user/jpeg',
+        timestamp: Number.isFinite(timestamp) ? (timestamp as number) : Date.now(),
+      },
+      jpegData,
+    );
+  }
+
+  /** The bytes of a picture, wherever they are kept. */
+  public async readImageData(image: Image): Promise<Buffer> {
+    return image.data ?? this.store.download(image.image_id);
+  }
+
+  /**
+   * The bytes of a picture as a stream, optionally one byte range of it
+   * (inclusive `end`, as an HTTP Range header counts). A timelapse runs to tens
+   * of megabytes, so serving one never holds the whole file in memory.
+   */
+  public readImageStream(image: Image, range?: { start: number; end: number }): Readable {
+    if (image.data) {
+      return Readable.from(range ? image.data.subarray(range.start, range.end + 1) : image.data);
     }
 
-    return this.images.create({
-      image_id: uuidv4(),
-      device_id,
-      format: 'user/jpeg',
-      timestamp: Number.isFinite(timestamp) ? (timestamp as number) : Date.now(),
-      data: jpegData,
-    });
+    return this.store.read(image.image_id, range);
+  }
+
+  /** How large the picture is, for Content-Length and for resolving a Range. */
+  public imageSize(image: Image): number | undefined {
+    return image.data ? image.data.length : image.size;
   }
 
   // Draws a caption box over a still, in the style of the webapp's device offline
@@ -270,13 +289,15 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
                   state.failureCount = 0;
 
                   try {
-                    await this.images.create({
-                      image_id: uuidv4(),
-                      device_id: device.device_id,
-                      format: 'jpeg',
-                      timestamp: Date.now(),
-                      data: image,
-                    });
+                    await this.store.createImage(
+                      {
+                        image_id: uuidv4(),
+                        device_id: device.device_id,
+                        format: 'jpeg',
+                        timestamp: Date.now(),
+                      },
+                      image,
+                    );
                   } catch (e) {
                     // Caught here rather than below, so it is neither an
                     // unhandled rejection nor reported as the camera failing.
@@ -403,7 +424,9 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
             },
           })
           .sort({ timestamp: -1 })
-          .select({ image_id: 1, timestamp: 1 })
+          // `size` says where the bytes are without dragging them along: a
+          // picture written before the move to the image store has none.
+          .select({ image_id: 1, timestamp: 1, size: 1 })
           .limit(limit);
 
       const newestImage = (await getImages(endTimestamp, 1))?.[0];
@@ -435,23 +458,23 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
           }
         }
 
-        const video = await this.compressRtspStreamImages(device, images);
-
-        if (video) {
+        await this.compressRtspStreamImages(device, images, async videoPath => {
           if (compressedImage) {
             await this.images.deleteOne({ image_id: compressedImage.image_id });
           }
 
-          await this.images.create({
-            image_id: uuidv4(),
-            device_id: device.device_id,
-            timestamp: startTimestamp,
-            timestampEnd: images[images.length - 1]?.timestamp,
-            data: video,
-            format: 'mp4',
-            duration: targetDuration,
-          });
-        }
+          await this.store.createImageFromFile(
+            {
+              image_id: uuidv4(),
+              device_id: device.device_id,
+              timestamp: startTimestamp,
+              timestampEnd: images[images.length - 1]?.timestamp,
+              format: 'mp4',
+              duration: targetDuration,
+            },
+            videoPath,
+          );
+        });
 
         endTimestamp -= timeStep;
       } else {
@@ -499,36 +522,49 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
     await flush();
   }
 
-  private async compressRtspStreamImages(device: Device, images: Omit<Image, 'data'>[]): Promise<Buffer | undefined> {
+  /**
+   * Encode the frames into a timelapse and hand the finished file to `store`.
+   * Frames and video stay on disk from beginning to end - a day of
+   * full-resolution stills is tens of megabytes as a video and far more as
+   * frames, and neither the store nor ffmpeg needs any of it in memory.
+   * Answers whether a video was produced and stored.
+   */
+  private async compressRtspStreamImages(
+    device: Device,
+    images: Pick<Image, 'image_id' | 'timestamp' | 'size'>[],
+    store: (videoPath: string) => Promise<void>,
+  ): Promise<boolean> {
     const filesWritten = [];
     const tmpDir = await mkdtemp(join(tmpdir(), device.device_id));
+    const videoPath = `${tmpDir}/result.mp4`;
 
     try {
       let sequenceNumber = 1;
       for (const image of images) {
-        const imageData = await this.images.findOne({
-          image_id: image.image_id,
-          format: 'jpeg',
-        });
-        if (imageData) {
-          // pad sequence number with leading zeros
-          const filename = `${tmpDir}/${sequenceNumber++}.jpeg`;
-          filesWritten.push(filename);
-          await writeFile(filename, imageData.data);
+        const filename = `${tmpDir}/${sequenceNumber}.jpeg`;
+        try {
+          await this.copyImageToFile(image, filename);
+        } catch (e) {
+          logger.error(`Skipping frame ${image.image_id} of device ${device.device_id}: ${e}`);
+          continue;
         }
+        sequenceNumber++;
+        filesWritten.push(filename);
       }
 
       if (filesWritten.length >= TIMELAPSE_FRAME_RATE / 2) {
-        return await this.convertRtspStreamImagesToVideo(tmpDir);
+        await this.convertRtspStreamImagesToVideo(tmpDir);
+        await store(videoPath);
+        return true;
       }
     } catch (e) {
       logger.error(`Error compressing RTSP images for device ${device.device_id}: ${e}`);
     } finally {
-      for (const file of filesWritten) {
+      for (const file of [...filesWritten, videoPath]) {
         try {
           await unlink(file);
-        } catch (e) {
-          logger.error(`Error deleting temp file ${file}: ${e}`);
+        } catch {
+          // ffmpeg never ran, or the frame was already gone: nothing to report.
         }
       }
       try {
@@ -538,17 +574,39 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
       }
     }
 
-    return undefined;
+    return false;
+  }
+
+  /** One stored frame on disk, from wherever its bytes are kept. */
+  private async copyImageToFile(image: Pick<Image, 'image_id' | 'size'>, path: string): Promise<void> {
+    if (image.size === undefined) {
+      // No size means the picture predates the image store and carries its bytes
+      // in the document. Only then is it worth a second query to fetch them.
+      const legacy = await this.images.findOne({ image_id: image.image_id }).select({ data: 1 });
+      if (legacy?.data) {
+        await writeFile(path, legacy.data);
+        return;
+      }
+    }
+
+    await this.store.copyToFile(image.image_id, path);
   }
 
   private async readRtspStreamImage(cloudSettings: CloudSettings, deviceId: string): Promise<Buffer> {
-    // O-KAM / VStarcam cameras have no LAN RTSP: they are reached over the
-    // reverse-engineered P2P protocol through the controller's UDP tunnel. They
-    // are configured as `okam://<device-id>` in rtspStream so that everything
-    // else here — the poll schedule, backoff, maintenance gating, the test-image
-    // button, storage, timelapses and thinning — is reused unchanged.
-    if (cloudSettings.rtspStream?.startsWith(OKAM_STREAM_PREFIX)) {
-      return this.okam.captureViaController(deviceId);
+    // Terp Cams have no RTSP; they speak P2P. They are configured as
+    // `terpcam://<id>` so the poll schedule, backoff, maintenance gating, the
+    // test-image button, storage, timelapses and thinning are reused unchanged.
+    if (terpCamLabel(cloudSettings.rtspStream)) {
+      // Full resolution when the server can reach the camera itself, the
+      // controller's 640x360 otherwise. Which camera is decided by the device,
+      // not by the setting.
+      try {
+        return await this.terpCamDirect.captureStill(deviceId);
+      } catch (e) {
+        logger.info(`Direct capture for ${deviceId} failed (${(e as Error).message}); asking the controller`);
+      }
+
+      return this.terpCamP2P.captureViaController(deviceId);
     }
 
     let streamUrl = cloudSettings.rtspStream;
@@ -637,7 +695,8 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
     });
   }
 
-  private convertRtspStreamImagesToVideo(filesDir: string): Promise<Buffer> {
+  /** Encodes the frames in `filesDir` into `result.mp4` beside them. */
+  private convertRtspStreamImagesToVideo(filesDir: string): Promise<void> {
     return new Promise((resolve, reject) => {
       execFile(
         'ffmpeg',
@@ -671,13 +730,7 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
             logger.error(`Error compressing RTSP stream images: ${error} ${stderr}`);
             reject(error);
           } else {
-            readFile(`${filesDir}/result.mp4`)
-              .then(data => resolve(data))
-              .catch(err => {
-                logger.error(`Error reading result file ${filesDir}/result.mp4: ${err}`);
-                reject(err);
-              })
-              .finally(() => unlink(`${filesDir}/result.mp4`).catch(() => Promise.resolve()));
+            resolve();
           }
         },
       );

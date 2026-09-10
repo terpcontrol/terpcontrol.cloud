@@ -34,7 +34,8 @@ import { BackgroundWork, logIfItFails } from '../../common/background-work';
 import { toDate } from '../../common/to-date';
 import { MODEL } from '../../database/models.module';
 import { AlarmService } from '../alarm/alarm.service';
-import { OkamP2PService, OKAM_STREAM_PREFIX } from '../camera/okam-p2p.service';
+import { TerpCamDirectService } from '../camera/terpcam-direct.service';
+import { TerpCamP2PService, TERPCAM_STREAM_PREFIX, TERPCAM_STREAM_PREFIXES } from '../camera/terpcam-p2p.service';
 import { DataService } from '../data/data.service';
 import { ImageService } from '../image/image.service';
 import { MailService } from '../mail/mail.service';
@@ -133,7 +134,8 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     @Inject(forwardRef(() => AlarmService)) private readonly alarms: AlarmService,
     @Inject(forwardRef(() => DataService)) private readonly data: DataService,
     @Inject(forwardRef(() => ImageService)) private readonly imageService: ImageService,
-    private readonly okam: OkamP2PService,
+    private readonly terpCamP2P: TerpCamP2PService,
+    private readonly terpCamDirect: TerpCamDirectService,
     private readonly tunnel: TunnelService,
     @Inject(authConfig.KEY) private readonly config: ConfigType<typeof authConfig>,
   ) {}
@@ -257,7 +259,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
                 await this.tunnel.onTunnelReadDataReceived(device.device_id, message.message);
                 break;
               case 'image':
-                this.okam.onImageMessage(device.device_id, message.message);
+                this.terpCamP2P.onImageMessage(device.device_id, message.message);
                 break;
               case 'tunnel_write':
               case 'command':
@@ -700,7 +702,18 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     }
 
     if (infoKey === 'webcam_did') {
+      this.terpCamDirect.rememberCamera(deviceId, infoValue);
       await this.reconcileP2PCamera(deviceId, infoValue);
+    }
+
+    // Set by the controller at pairing; stored against the device, never logged.
+    if (infoKey === 'webcam_pwd') {
+      this.terpCamDirect.rememberPassword(deviceId, infoValue);
+    }
+
+    // Read off the camera by its controller, so nothing has to be looked up.
+    if (infoKey === 'webcam_uid') {
+      this.terpCamDirect.rememberUid(deviceId, infoValue);
     }
   }
 
@@ -743,12 +756,12 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
   private async reconcileP2PCamera(deviceId: string, did: string) {
     // Escaped rather than interpolated raw: the prefix is a constant today, but
     // a regex built from a value is a trap waiting for the day it changes.
-    const okamPrefixPattern = new RegExp('^' + OKAM_STREAM_PREFIX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const camPrefixPattern = new RegExp('^(' + TERPCAM_STREAM_PREFIXES.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')');
 
     // Camera gone: drop the stream, or it keeps being shown and polled.
     if (did === 'none' || did === '') {
       await this.devices.findOneAndUpdate(
-        { device_id: deviceId, 'cloudSettings.rtspStream': okamPrefixPattern },
+        { device_id: deviceId, 'cloudSettings.rtspStream': camPrefixPattern },
         { $unset: { 'cloudSettings.rtspStream': '' } },
       );
       return;
@@ -768,10 +781,10 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
         $or: [
           { 'cloudSettings.rtspStream': { $in: [null, ''] } },
           { 'cloudSettings.rtspStream': { $exists: false } },
-          { 'cloudSettings.rtspStream': okamPrefixPattern },
+          { 'cloudSettings.rtspStream': camPrefixPattern },
         ],
       },
-      { $set: { 'cloudSettings.rtspStream': OKAM_STREAM_PREFIX + did, 'cloudSettings.webcamModel': 'terp_cam' } },
+      { $set: { 'cloudSettings.rtspStream': TERPCAM_STREAM_PREFIX + did, 'cloudSettings.webcamModel': 'terp_cam' } },
     );
   }
 
@@ -1063,14 +1076,20 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     // lean() gives plain objects: the derived seconds can be attached to them, and
     // the sanitized demo copies cannot carry mongoose internals (or the untouched
     // original) along.
+    // The camera password is reported so the server can fetch stills; nothing
+    // that reads this list needs it, so it does not leave the server.
+    const withoutCameraPassword = <T extends { hardwareInfo?: Record<string, string> }>(device: T): T => {
+      if (device.hardwareInfo?.webcam_pwd !== undefined) delete device.hardwareInfo.webcam_pwd;
+      return device;
+    };
+
     if (is_demo) {
       const demoDevices = await this.devices.find({ demoDevice: true }, projection).lean();
-      return demoDevices.map(device => withMaintenanceSecondsLeft(demoDevice(device))) as Device[];
+      return demoDevices.map(device => withMaintenanceSecondsLeft(withoutCameraPassword(demoDevice(device)))) as Device[];
     }
 
     const devices = await this.devices.find({ owner_id: user_id }, projection).lean();
-    // const users: Device[] = await this.devices.aggregate([{$match: {owner_id: user_id}}, {$lookup: {from: 'deviceclasses', localField:'class_id', foreignField: 'class_id', as:'device_class'}}]);
-    return devices.map(device => withMaintenanceSecondsLeft(device)) as Device[];
+    return devices.map(device => withMaintenanceSecondsLeft(withoutCameraPassword(device))) as Device[];
   }
 
   public async register(info: RegisterDeviceDto): Promise<any> {

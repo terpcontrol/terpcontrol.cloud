@@ -18,7 +18,7 @@
 #define UUID_LEN 128
 #define TUNNEL_PAYLOAD_LEN 128
 #define TUNNEL_PACKET_PER_LOOP_COUNT 5
-// UDP relay (O-KAM camera P2P): a snapshot is a burst of ~30 datagrams and the
+// UDP relay (Terp Cam camera P2P): a snapshot is a burst of ~30 datagrams and the
 // socket buffer is tiny, so the relay must drain far more per loop than the TCP
 // tunnels — an undrained datagram is a lost one, and each loss stalls the
 // camera's sliding window.
@@ -91,7 +91,7 @@ namespace fg {
     static constexpr int TUNNEL_COUNT = 3;
     struct Tunnel {
       WiFiClient client;
-      // UDP tunnelling (for the O-KAM camera's P2P transport): datagrams are
+      // UDP tunnelling (for the Terp Cam camera's P2P transport): datagrams are
       // relayed whole with their peer host/port preserved, since UDP is
       // connectionless and the P2P client talks to several camera ports.
       WiFiUDP udp;
@@ -142,7 +142,7 @@ namespace fg {
     void handleTunnelCloses();
     void handleTunnelReads();
     /**
-     * Publish one already-serialised webcam image message (see okamcam.cpp).
+     * Publish one already-serialised webcam image message (see terpcam.cpp).
      * Takes a caller-owned buffer so the image path can stream fragments out of
      * a single static buffer without allocating.
      */

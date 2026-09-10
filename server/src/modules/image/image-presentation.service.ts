@@ -58,16 +58,17 @@ export class ImagePresentationService {
   /**
    * The image URL is consumed by the webapp and by other services alike, so a
    * still that is too old for the device to count as online carries the notice
-   * in the picture instead of leaving it to the client.
+   * in the picture instead of leaving it to the client. Answers the notice to
+   * write into it, or nothing when the picture is served as it is stored.
    */
-  public async withOfflineOverlay(image: Image, requestedTimestamp: number, byImageId: boolean): Promise<Buffer> {
+  public offlineCaption(image: Image, requestedTimestamp: number, byImageId: boolean): string | undefined {
     const wantsLatest = !(requestedTimestamp > 0) || requestedTimestamp >= Date.now() - LATEST_IMAGE_TOLERANCE_MS;
 
     if (image.format !== 'jpeg' || byImageId || !wantsLatest || Date.now() - image.timestamp <= ONLINE_TIMEOUT) {
-      return image.data;
+      return undefined;
     }
 
-    return this.images.addOfflineOverlay(image.data, buildOfflineCaption(image.timestamp));
+    return buildOfflineCaption(image.timestamp);
   }
 
   /** What a device without a picture is served instead. */
