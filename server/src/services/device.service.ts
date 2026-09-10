@@ -34,6 +34,7 @@ import { imageService } from '@services/image.service';
 import { tunnelService } from '@services/tunnel.service';
 import { terpCamP2PService, TERPCAM_STREAM_PREFIX, TERPCAM_STREAM_PREFIXES } from '@services/terpcam-p2p.service';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
+import { isSuppressedCamCaptureLog } from '@utils/devicelogs';
 import { demoAlarms, demoCloudSettings, demoDevice } from '@utils/demo';
 
 export type StatusMessage = {
@@ -97,6 +98,8 @@ const DEVICE_MESSAGE_CATEGORY_MAPPING = {
   'message-buffer-overflow': ['device-connection'],
   'message-smart-socket-disconnected': ['device-socket'],
   'message-smart-socket-connected': ['device-socket'],
+  'message-cam-capture': ['webcam', 'error'],
+  'message-cam-reset': ['webcam'],
 } as const;
 
 // Alarms stay suppressed until `maintenance_mode_until`, a millisecond epoch that
@@ -201,7 +204,7 @@ class DeviceService {
               const msg = JSON.parse(message.message);
               if (msg?.message?.startsWith('hardware-info:')) {
                 await this.logHardwareInfo(device.device_id, msg.message.slice('hardware-info:'.length));
-              } else {
+              } else if (!isSuppressedCamCaptureLog(msg?.message ?? '', device.cloudSettings)) {
                 await this.logMessage(device.device_id, {
                   categories: ['device', ...(DEVICE_MESSAGE_CATEGORY_MAPPING[msg?.message?.split(':')?.[0]] ?? [])],
                   ...msg,

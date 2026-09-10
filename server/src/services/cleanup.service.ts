@@ -49,25 +49,37 @@ export class CleanupService {
     }
   }
 
-  public async run(now = Date.now()): Promise<{ deletedLogs: number; deletedImages: number; deletedOrphanedFiles: number }> {
+  public async run(
+    now = Date.now(),
+  ): Promise<{ deletedLogs: number; deletedImages: number; deletedOrphanedFiles: number; deletedCamDiagnostics: number }> {
     const cutoff = now - ORPHAN_GRACE_MS;
 
     // Logs go first: the pictures of a removed device's diary entries become
     // unreferenced by that deletion and are collected by the same run.
     const deletedLogs = await this.deleteLogsOfRemovedDevices(cutoff);
+    const deletedCamDiagnostics = await this.deleteSucceededCamCaptureLogs();
     const deletedImages = (await this.deleteImagesOfRemovedDevices(cutoff)) + (await this.deleteUnreferencedUserImages(cutoff));
     // Last: the sweep below only counts files no image document names, and the
     // deletes above have just removed the documents of everything unreachable.
     const deletedOrphanedFiles = await this.deleteOrphanedImageData(cutoff);
 
-    if (deletedLogs > 0 || deletedImages > 0 || deletedOrphanedFiles > 0) {
+    if (deletedLogs > 0 || deletedImages > 0 || deletedOrphanedFiles > 0 || deletedCamDiagnostics > 0) {
       console.log(
-        `Cleanup removed ${deletedLogs} unreachable log entries, ${deletedImages} unreachable images ` +
-          `and the stored data of ${deletedOrphanedFiles} image(s) that no longer exist`,
+        `Cleanup removed ${deletedLogs} unreachable log entries, ${deletedCamDiagnostics} camera capture diagnostics, ` +
+          `${deletedImages} unreachable images and the stored data of ${deletedOrphanedFiles} image(s) that no longer exist`,
       );
     }
 
-    return { deletedLogs, deletedImages, deletedOrphanedFiles };
+    return { deletedLogs, deletedImages, deletedOrphanedFiles, deletedCamDiagnostics };
+  }
+
+  // A device reports the outcome of every camera capture, which is one entry
+  // every 30 seconds. Successful ones are console diagnostics rather than diary
+  // material and are no longer stored, so the ones already in the log - written
+  // by an earlier build or by firmware still in the field - are collected here.
+  private async deleteSucceededCamCaptureLogs(): Promise<number> {
+    const result = await deviceLogModel.deleteMany({ message: { $regex: '^message-cam-capture:ok' } });
+    return result?.deletedCount ?? 0;
   }
 
   private async deleteLogsOfRemovedDevices(cutoff: number): Promise<number> {

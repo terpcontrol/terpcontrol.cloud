@@ -28,7 +28,7 @@ const WEEK = 7 * 24 * 60 * 60 * 1000;
 const OLD = NOW - WEEK - 1000;
 const RECENT = NOW - 1000;
 
-type LogDoc = { device_id: string; time: number; images?: string[] };
+type LogDoc = { device_id: string; time: number; images?: string[]; message?: string };
 type ImageDoc = { image_id: string; device_id: string; timestamp: number; format: string };
 
 describe('Cleanup of unreachable logs and images', () => {
@@ -56,7 +56,11 @@ describe('Cleanup of unreachable logs and images', () => {
       return Promise.resolve([...new Set(referenced)]);
     });
     deviceLogModel.deleteMany = jest.fn().mockImplementation((filter: any) => {
-      const remaining = logs.filter(log => !(filter.device_id.$in.includes(log.device_id) && matchesTime(filter.time, log.time)));
+      const matches = (log: LogDoc) =>
+        filter.message
+          ? new RegExp(filter.message.$regex).test(log.message ?? '')
+          : filter.device_id.$in.includes(log.device_id) && matchesTime(filter.time, log.time);
+      const remaining = logs.filter(log => !matches(log));
       const deletedCount = logs.length - remaining.length;
       logs = remaining;
       return Promise.resolve({ deletedCount });
@@ -142,8 +146,21 @@ describe('Cleanup of unreachable logs and images', () => {
 
     const result = await run();
 
-    expect(result).toEqual({ deletedLogs: 1, deletedImages: 1, deletedOrphanedFiles: 0 });
+    expect(result).toEqual({ deletedLogs: 1, deletedImages: 1, deletedOrphanedFiles: 0, deletedCamDiagnostics: 0 });
     expect(images).toEqual([]);
+  });
+
+  it('removes stored camera capture diagnostics of successful captures and keeps failed ones', async () => {
+    logs = [
+      { device_id: 'known-device', time: RECENT, message: 'message-cam-capture:ok res=2 bytes=31813' },
+      { device_id: 'known-device', time: RECENT, message: 'message-cam-capture:incomplete got=8/40' },
+      { device_id: 'known-device', time: RECENT, message: 'message-co2-low:380' },
+    ];
+
+    const result = await run();
+
+    expect(result.deletedCamDiagnostics).toBe(1);
+    expect(logs.map(log => log.message)).toEqual(['message-cam-capture:incomplete got=8/40', 'message-co2-low:380']);
   });
 
   it('deletes stored data no image document points at any more', async () => {
