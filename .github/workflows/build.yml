@@ -10,6 +10,7 @@ jobs:
     outputs:
       webapp: ${{ steps.changes.outputs.webapp }}
       server: ${{ steps.changes.outputs.server }}
+      shared_types: ${{ steps.changes.outputs.shared_types }}
       docker_webapp: ${{ steps.changes.outputs.docker_webapp }}
       docker_server: ${{ steps.changes.outputs.docker_server }}
       firmware: ${{ steps.changes.outputs.firmware }}
@@ -26,6 +27,9 @@ jobs:
               - '.github/workflows/build.yml'
             server:
               - 'server/**'
+              - 'shared-types/**'
+              - '.github/workflows/build.yml'
+            shared_types:
               - 'shared-types/**'
               - '.github/workflows/build.yml'
             docker_webapp:
@@ -50,6 +54,32 @@ jobs:
               - 'garmin-buildcontainer/**'
               - 'build-garmin.sh'
               - '.github/workflows/build.yml'
+
+  shared-types:
+    needs: detect
+    if: needs.detect.outputs.shared_types == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Use Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: shared-types/package-lock.json
+      # index.d.ts and openapi-schemas.json are generated from src/schemas.ts and
+      # committed, because the server and the webapp link this package with
+      # `file:` and no build of it runs for them. This is what keeps the two in
+      # step: regenerate, and the tree has to be unchanged.
+      - run: |
+          cd shared-types/
+          npm ci
+          npm run generate
+          if [ -n "$(git status --porcelain)" ]; then
+            echo 1>&2 'The generated types are out of date - run "npm run generate" in shared-types/ and commit the result'
+            git 1>&2 --no-pager diff
+            exit 1
+          fi
 
   webapp:
     needs: detect

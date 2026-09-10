@@ -1,0 +1,1123 @@
+{
+  "Alarm": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "disabled": {
+        "type": "boolean"
+      },
+      "alarmId": {
+        "type": "string"
+      },
+      "sensorType": {
+        "type": "string"
+      },
+      "upperThreshold": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "lowerThreshold": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "actionType": {
+        "type": "string",
+        "enum": [
+          "email",
+          "webhook",
+          "info"
+        ]
+      },
+      "additionalInfo": {
+        "type": "boolean"
+      },
+      "actionTarget": {
+        "type": "string"
+      },
+      "cooldownSeconds": {
+        "type": "number"
+      },
+      "isTriggered": {
+        "type": "boolean"
+      },
+      "lastTriggeredAt": {
+        "type": "number"
+      },
+      "lastResolvedAt": {
+        "type": "number"
+      },
+      "retriggerSeconds": {
+        "type": "number"
+      },
+      "extremeValue": {
+        "type": "number"
+      },
+      "latestDataPointTime": {
+        "type": "number"
+      },
+      "webhookMethod": {
+        "type": "string",
+        "enum": [
+          "GET",
+          "POST",
+          "PUT"
+        ]
+      },
+      "webhookHeaders": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "webhookTriggeredPayload": {
+        "type": "string"
+      },
+      "webhookResolvedPayload": {
+        "type": "string"
+      },
+      "thresholdSeconds": {
+        "type": "number"
+      },
+      "reportWebhookErrors": {
+        "type": "boolean"
+      },
+      "tunnelWebhook": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "alarmId",
+      "sensorType",
+      "actionType",
+      "actionTarget"
+    ],
+    "additionalProperties": false
+  },
+  "FirmwareSettings": {
+    "type": "object",
+    "properties": {
+      "autoUpdate": {
+        "description": "@deprecated",
+        "type": "boolean"
+      }
+    },
+    "additionalProperties": false
+  },
+  "FirmwareChannel": {
+    "type": "string",
+    "enum": [
+      "stable",
+      "beta",
+      "alpha",
+      "manual"
+    ]
+  },
+  "WebcamModel": {
+    "type": "string",
+    "enum": [
+      "terp_cam",
+      "tapo_c200",
+      "reolink",
+      "hikvision",
+      "custom"
+    ],
+    "description": "Which camera the webcam stream URL was built for. 'terp_cam' is the Terp Control Cam (URL reported by the device via hardware-info after local pairing); brand values are RTSP URL templates; 'custom' is a raw URL. Only a presentation hint - the stream itself is always cloudSettings.rtspStream."
+  },
+  "CloudSettings": {
+    "type": "object",
+    "properties": {
+      "autoFirmwareUpdate": {
+        "description": "@deprecated Use firmwareChannel: 'manual' to disable automatic updates. Kept for reading legacy devices.",
+        "type": "boolean"
+      },
+      "firmwareChannel": {
+        "$ref": "#/$defs/FirmwareChannel"
+      },
+      "pendingFirmware": {
+        "type": "string"
+      },
+      "vpdLeafTempOffsetDay": {
+        "type": "number"
+      },
+      "vpdLeafTempOffsetNight": {
+        "type": "number"
+      },
+      "ppfdLuxFactor": {
+        "type": "number"
+      },
+      "betaFeatures": {
+        "type": "boolean"
+      },
+      "rtspStream": {
+        "type": "string"
+      },
+      "rtspStreamTransport": {
+        "type": "string"
+      },
+      "logRtspStreamErrors": {
+        "type": "boolean"
+      },
+      "tunnelRtspStream": {
+        "type": "boolean"
+      },
+      "maintenanceWebcamOff": {
+        "type": "boolean"
+      },
+      "webcamModel": {
+        "$ref": "#/$defs/WebcamModel"
+      }
+    },
+    "additionalProperties": false
+  },
+  "UserFirmwareInfo": {
+    "type": "object",
+    "properties": {
+      "firmware_id": {
+        "type": "string"
+      },
+      "version": {
+        "type": "string"
+      },
+      "createdAt": {
+        "type": "number"
+      },
+      "channels": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/FirmwareChannel"
+        }
+      },
+      "current": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "firmware_id",
+      "version",
+      "channels",
+      "current"
+    ],
+    "additionalProperties": false
+  },
+  "UserFirmwareList": {
+    "type": "object",
+    "properties": {
+      "current_firmware": {
+        "type": "string"
+      },
+      "firmwares": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/UserFirmwareInfo"
+        }
+      }
+    },
+    "required": [
+      "current_firmware",
+      "firmwares"
+    ],
+    "additionalProperties": false
+  },
+  "SharePage": {
+    "type": "string",
+    "enum": [
+      "charts",
+      "diary"
+    ]
+  },
+  "ShareLink": {
+    "type": "object",
+    "properties": {
+      "share_id": {
+        "type": "string"
+      },
+      "device_id": {
+        "type": "string"
+      },
+      "owner_id": {
+        "type": "string"
+      },
+      "page": {
+        "$ref": "#/$defs/SharePage"
+      },
+      "editable": {
+        "type": "boolean",
+        "description": "Visitors may change the view (time frame, measures, filters, webcam)."
+      },
+      "webcam": {
+        "type": "boolean",
+        "description": "Visitors may load webcam images/timelapses (diary photos are always visible)."
+      },
+      "charts": {
+        "description": "Diary links: visitors may open the chart views linked from the grow report.",
+        "type": "boolean"
+      },
+      "query": {
+        "description": "Query string capturing the shared view (time frame, measures, filters).",
+        "type": "string"
+      },
+      "createdAt": {
+        "type": "number"
+      },
+      "expiresAt": {
+        "description": "Epoch ms; null means the link never expires.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "revokedAt": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "openCount": {
+        "type": "number"
+      },
+      "lastOpenedAt": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "share_id",
+      "device_id",
+      "page",
+      "editable",
+      "webcam",
+      "createdAt",
+      "openCount"
+    ],
+    "additionalProperties": false
+  },
+  "ShareAccess": {
+    "type": "object",
+    "properties": {
+      "share_id": {
+        "type": "string"
+      },
+      "page": {
+        "$ref": "#/$defs/SharePage"
+      },
+      "editable": {
+        "type": "boolean",
+        "description": "Visitors may change the view (time frame, measures, filters, webcam)."
+      },
+      "webcam": {
+        "type": "boolean",
+        "description": "Visitors may load webcam images/timelapses (diary photos are always visible)."
+      },
+      "charts": {
+        "description": "Diary links: visitors may open the chart views linked from the grow report.",
+        "type": "boolean"
+      },
+      "query": {
+        "description": "Query string capturing the shared view (time frame, measures, filters).",
+        "type": "string"
+      },
+      "expiresAt": {
+        "description": "Epoch ms; null means the link never expires.",
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "share_id",
+      "page",
+      "editable",
+      "webcam"
+    ],
+    "additionalProperties": false
+  },
+  "DeviceAccessInfo": {
+    "type": "object",
+    "properties": {
+      "device_id": {
+        "type": "string"
+      },
+      "device_type": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "isPublic": {
+        "type": "boolean"
+      },
+      "cloudSettings": {
+        "$ref": "#/$defs/CloudSettings"
+      },
+      "share": {
+        "$ref": "#/$defs/ShareAccess"
+      }
+    },
+    "required": [
+      "device_id",
+      "device_type",
+      "isPublic",
+      "cloudSettings"
+    ],
+    "additionalProperties": false
+  },
+  "DiaryLifecycleStage": {
+    "type": "string",
+    "enum": [
+      "germination",
+      "seedling",
+      "vegetative",
+      "flowering",
+      "drying",
+      "curing"
+    ]
+  },
+  "DiaryEntryData": {
+    "type": "object",
+    "properties": {
+      "co2FillingRest": {
+        "type": "number"
+      },
+      "co2FillingInitial": {
+        "type": "number"
+      },
+      "newLifecycleStage": {
+        "$ref": "#/$defs/DiaryLifecycleStage"
+      },
+      "lifecycleName": {
+        "type": "string"
+      },
+      "lightMeasurement": {
+        "type": "number"
+      },
+      "distanceMeasurement": {
+        "type": "number"
+      },
+      "tdsMeasurement": {
+        "type": "number"
+      },
+      "ecMeasurement": {
+        "type": "number"
+      },
+      "outsideTemperatureMeasurement": {
+        "type": "number"
+      },
+      "phMeasurement": {
+        "type": "number"
+      }
+    },
+    "required": [
+      "co2FillingRest",
+      "co2FillingInitial",
+      "newLifecycleStage",
+      "lifecycleName",
+      "lightMeasurement",
+      "distanceMeasurement",
+      "tdsMeasurement",
+      "ecMeasurement",
+      "outsideTemperatureMeasurement",
+      "phMeasurement"
+    ],
+    "additionalProperties": false
+  },
+  "DiaryEntry": {
+    "type": "object",
+    "properties": {
+      "message": {
+        "type": "string"
+      },
+      "title": {
+        "type": "string"
+      },
+      "time": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "category": {
+        "type": "string"
+      },
+      "data": {
+        "type": "object",
+        "properties": {
+          "co2FillingRest": {
+            "type": "number"
+          },
+          "co2FillingInitial": {
+            "type": "number"
+          },
+          "newLifecycleStage": {
+            "$ref": "#/$defs/DiaryLifecycleStage"
+          },
+          "lifecycleName": {
+            "type": "string"
+          },
+          "lightMeasurement": {
+            "type": "number"
+          },
+          "distanceMeasurement": {
+            "type": "number"
+          },
+          "tdsMeasurement": {
+            "type": "number"
+          },
+          "ecMeasurement": {
+            "type": "number"
+          },
+          "outsideTemperatureMeasurement": {
+            "type": "number"
+          },
+          "phMeasurement": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "images": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "required": [
+      "title",
+      "time",
+      "category"
+    ],
+    "additionalProperties": false
+  },
+  "DurationUnit": {
+    "type": "string",
+    "enum": [
+      "minutes",
+      "hours",
+      "days",
+      "weeks"
+    ]
+  },
+  "RecipeStep": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "settings": {},
+      "durationUnit": {
+        "$ref": "#/$defs/DurationUnit"
+      },
+      "duration": {
+        "type": "number"
+      },
+      "waitForConfirmation": {
+        "type": "boolean"
+      },
+      "confirmationMessage": {
+        "type": "string"
+      },
+      "lastTimeApplied": {
+        "type": "number"
+      },
+      "notified": {
+        "type": "boolean"
+      },
+      "stage": {
+        "$ref": "#/$defs/DiaryLifecycleStage"
+      }
+    },
+    "required": [
+      "settings",
+      "durationUnit",
+      "duration",
+      "waitForConfirmation"
+    ],
+    "additionalProperties": false
+  },
+  "Recipe": {
+    "type": "object",
+    "properties": {
+      "steps": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/RecipeStep"
+        }
+      },
+      "activeStepIndex": {
+        "type": "number"
+      },
+      "activeSince": {
+        "type": "number"
+      },
+      "loop": {
+        "type": "boolean"
+      },
+      "notifications": {
+        "type": "string",
+        "enum": [
+          "off",
+          "onStep",
+          "onConfirmation"
+        ]
+      },
+      "additionalInfo": {
+        "type": "boolean"
+      },
+      "email": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "steps",
+      "activeStepIndex",
+      "activeSince"
+    ],
+    "additionalProperties": false
+  },
+  "Device": {
+    "type": "object",
+    "properties": {
+      "_id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "device_id": {
+        "type": "string"
+      },
+      "username": {
+        "type": "string"
+      },
+      "password": {
+        "type": "string"
+      },
+      "class_id": {
+        "type": "string"
+      },
+      "device_type": {
+        "type": "string"
+      },
+      "configuration": {
+        "type": "string"
+      },
+      "owner_id": {
+        "type": "string"
+      },
+      "serialnumber": {
+        "type": "number"
+      },
+      "lastseen": {
+        "type": "number"
+      },
+      "current_firmware": {
+        "type": "string"
+      },
+      "pending_firmware": {
+        "description": "@deprecated Use cloudSettings.pendingFirmware. Kept for reading legacy devices.",
+        "type": "string"
+      },
+      "fwupdate_start": {
+        "type": "number"
+      },
+      "fwupdate_end": {
+        "type": "number"
+      },
+      "alarms": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/Alarm"
+        }
+      },
+      "firmwareSettings": {
+        "$ref": "#/$defs/FirmwareSettings"
+      },
+      "cloudSettings": {
+        "$ref": "#/$defs/CloudSettings"
+      },
+      "maintenance_mode_until": {
+        "type": "number"
+      },
+      "maintenance_mode_seconds_left": {
+        "description": "Seconds left of the maintenance window, 0 when it is not running. Derived from `maintenance_mode_until` when the device is read, never stored.",
+        "type": "number"
+      },
+      "recipe": {
+        "$ref": "#/$defs/Recipe"
+      },
+      "hardwareInfo": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "demoDevice": {
+        "description": "Readable by everyone through the demo login, with all secrets stripped.",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "device_id",
+      "username",
+      "password",
+      "class_id",
+      "device_type",
+      "configuration",
+      "owner_id",
+      "serialnumber",
+      "lastseen",
+      "current_firmware",
+      "fwupdate_start",
+      "fwupdate_end"
+    ],
+    "additionalProperties": false
+  },
+  "DeviceClass": {
+    "type": "object",
+    "properties": {
+      "class_id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "description": {
+        "type": "string"
+      },
+      "concurrent": {
+        "type": "number"
+      },
+      "maxfails": {
+        "type": "number"
+      },
+      "firmware_id": {
+        "type": "string"
+      },
+      "beta_firmware_id": {
+        "type": "string"
+      },
+      "alpha_firmware_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "class_id",
+      "name",
+      "description",
+      "concurrent",
+      "maxfails",
+      "firmware_id"
+    ],
+    "additionalProperties": false
+  },
+  "DeviceClassCount": {
+    "type": "object",
+    "properties": {
+      "class": {
+        "$ref": "#/$defs/DeviceClass"
+      },
+      "count": {
+        "type": "number"
+      }
+    },
+    "required": [
+      "class",
+      "count"
+    ],
+    "additionalProperties": false
+  },
+  "ClaimCode": {
+    "type": "object",
+    "properties": {
+      "claim_code": {
+        "type": "string"
+      },
+      "device_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "claim_code",
+      "device_id"
+    ],
+    "additionalProperties": false
+  },
+  "DeviceFirmware": {
+    "type": "object",
+    "properties": {
+      "firmware_id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "version": {
+        "type": "string"
+      },
+      "class_id": {
+        "type": "string"
+      },
+      "createdAt": {
+        "type": "number"
+      },
+      "wasStable": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "firmware_id",
+      "name",
+      "version",
+      "class_id"
+    ],
+    "additionalProperties": false
+  },
+  "DeviceFirmwareBinary": {
+    "type": "object",
+    "properties": {
+      "firmware_id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "data": {
+        "type": "string",
+        "contentEncoding": "base64"
+      }
+    },
+    "required": [
+      "firmware_id",
+      "name",
+      "data"
+    ],
+    "additionalProperties": false
+  },
+  "DeviceLog": {
+    "type": "object",
+    "properties": {
+      "_id": {
+        "type": "string"
+      },
+      "device_id": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string"
+      },
+      "title": {
+        "type": "string"
+      },
+      "raw": {
+        "type": "boolean"
+      },
+      "severity": {
+        "type": "number"
+      },
+      "time": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "categories": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "deleted": {
+        "type": "boolean"
+      },
+      "data": {
+        "type": "object",
+        "properties": {
+          "co2FillingRest": {
+            "type": "number"
+          },
+          "co2FillingInitial": {
+            "type": "number"
+          },
+          "newLifecycleStage": {
+            "$ref": "#/$defs/DiaryLifecycleStage"
+          },
+          "lifecycleName": {
+            "type": "string"
+          },
+          "lightMeasurement": {
+            "type": "number"
+          },
+          "distanceMeasurement": {
+            "type": "number"
+          },
+          "tdsMeasurement": {
+            "type": "number"
+          },
+          "ecMeasurement": {
+            "type": "number"
+          },
+          "outsideTemperatureMeasurement": {
+            "type": "number"
+          },
+          "phMeasurement": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      },
+      "images": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "required": [
+      "_id",
+      "device_id",
+      "severity",
+      "time"
+    ],
+    "additionalProperties": false
+  },
+  "Image": {
+    "type": "object",
+    "properties": {
+      "image_id": {
+        "type": "string"
+      },
+      "device_id": {
+        "type": "string"
+      },
+      "timestamp": {
+        "type": "number"
+      },
+      "timestampEnd": {
+        "type": "number"
+      },
+      "data": {
+        "description": "Only on pictures written before the payload moved to the image store.",
+        "type": "string",
+        "contentEncoding": "base64"
+      },
+      "size": {
+        "description": "Bytes of the stored picture.",
+        "type": "number"
+      },
+      "format": {
+        "type": "string",
+        "enum": [
+          "jpeg",
+          "mp4",
+          "user/jpeg"
+        ]
+      },
+      "duration": {
+        "type": "string",
+        "enum": [
+          "1d",
+          "1w",
+          "1m"
+        ]
+      }
+    },
+    "required": [
+      "image_id",
+      "device_id",
+      "timestamp"
+    ],
+    "additionalProperties": false
+  },
+  "User": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "string"
+      },
+      "password": {
+        "type": "string"
+      },
+      "username": {
+        "type": "string"
+      },
+      "is_admin": {
+        "type": "boolean"
+      },
+      "is_active": {
+        "type": "boolean"
+      },
+      "activation_code": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "user_id",
+      "password",
+      "username",
+      "is_admin",
+      "is_active",
+      "activation_code"
+    ],
+    "additionalProperties": false
+  },
+  "PasswordToken": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "string"
+      },
+      "token": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "user_id",
+      "token"
+    ],
+    "additionalProperties": false
+  },
+  "RecipeTemplateStep": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "settings": {},
+      "durationUnit": {
+        "$ref": "#/$defs/DurationUnit"
+      },
+      "duration": {
+        "type": "number"
+      },
+      "waitForConfirmation": {
+        "type": "boolean"
+      },
+      "confirmationMessage": {
+        "type": "string"
+      },
+      "stage": {
+        "$ref": "#/$defs/DiaryLifecycleStage"
+      }
+    },
+    "required": [
+      "settings",
+      "durationUnit",
+      "duration",
+      "waitForConfirmation"
+    ],
+    "additionalProperties": false
+  },
+  "RecipeTemplate": {
+    "type": "object",
+    "properties": {
+      "_id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "owner_id": {
+        "type": "string"
+      },
+      "public": {
+        "type": "boolean"
+      },
+      "createdAt": {
+        "type": "number"
+      },
+      "updatedAt": {
+        "type": "number"
+      },
+      "steps": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/RecipeTemplateStep"
+        }
+      }
+    },
+    "required": [
+      "name",
+      "steps"
+    ],
+    "additionalProperties": false
+  },
+  "ChartPreset": {
+    "type": "object",
+    "properties": {
+      "preset_id": {
+        "type": "string"
+      },
+      "owner_id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "device_type": {
+        "description": "Device type the preset was saved from; informational only.",
+        "type": "string"
+      },
+      "query": {
+        "type": "string",
+        "description": "Query string capturing the chart view (measures, timespan, interval, vpdMode)."
+      },
+      "createdAt": {
+        "type": "number"
+      }
+    },
+    "required": [
+      "preset_id",
+      "name",
+      "query",
+      "createdAt"
+    ],
+    "additionalProperties": false
+  },
+  "SocketRole": {
+    "type": "string",
+    "enum": [
+      "dehumidifier",
+      "heater",
+      "light",
+      "secondary_light",
+      "co2"
+    ]
+  },
+  "SocketEntry": {
+    "type": "object",
+    "properties": {
+      "slot": {
+        "type": "number",
+        "description": "Position in the device's socket table, and how a command addresses it; -1 when the device reports no table."
+      },
+      "role": {
+        "type": "string"
+      },
+      "id": {
+        "type": "string",
+        "description": "Hardware id (MAC) the device finds it by; empty on sockets paired before ids were kept."
+      },
+      "ip": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "slot",
+      "role",
+      "id",
+      "ip"
+    ],
+    "additionalProperties": false
+  }
+}

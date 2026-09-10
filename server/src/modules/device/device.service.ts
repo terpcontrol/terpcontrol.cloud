@@ -1494,7 +1494,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
 
   public async getDeviceAlarms(device_id: string, user_id: string, is_admin = false, is_demo = false) {
     const device = await this.devices.findOne(this.deviceAccessFilter(device_id, user_id, is_admin, is_demo), { alarms: 1 }).lean();
-    const alarms = (device?.alarms ?? []) as Alarm[];
+    const alarms = device?.alarms ?? [];
     return is_demo ? demoAlarms(alarms) : alarms;
   }
 
