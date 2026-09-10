@@ -238,7 +238,10 @@ export interface Image {
   device_id: string;
   timestamp: number;
   timestampEnd?: number;
-  data: Buffer;
+  /** Only on pictures written before the payload moved to the image store. */
+  data?: Buffer;
+  /** Bytes of the stored picture. */
+  size?: number;
   format?: 'jpeg' | 'mp4' | 'user/jpeg';
   duration?: '1d' | '1w' | '1m';
 }

@@ -933,14 +933,18 @@ namespace fg {
 
     {
       // One concise line so a failure in the field is diagnosable without a
-      // serial console (severity 1 only when it actually failed).
+      // serial console. A capture runs every 30 seconds, so only a failure is
+      // worth a cloud log entry - a successful one stays on the console.
       char note[160];
       snprintf(note, sizeof(note),
                "message-cam-capture:%s res=%u bytes=%lu got=%u/%u soi=%d eoi=%d frags=%lu msgs=%lu try=%d",
                ok ? "ok" : "incomplete", (unsigned)res, (unsigned long)sent_bytes,
                (unsigned)contiguous, (unsigned)slots_seen, (int)soi_slot, (int)eoi_slot,
                (unsigned long)frags_seen, (unsigned long)seq, attempt);
-      cloud->log(note, ok ? 0 : 1);
+      Serial.printf("[cam] %s\n", note);
+      if(!ok) {
+        cloud->log(note, 1);
+      }
     }
     if(!ok && seq > 0) {
       // Tell the cloud to discard the partial image rather than store a broken one.

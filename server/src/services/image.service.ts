@@ -15,13 +15,15 @@ import { isNumeric } from 'influx/lib/src/grammar';
 import { mailTransport } from '@services/auth.service';
 import { execFile } from 'node:child_process';
 import im from 'imagemagick';
-import imageModel from '@models/images.model';
+import imageModel, { createImage, createImageFromFile } from '@models/images.model';
+import { imageStore } from '@/databases/imagestore';
+import { Readable } from 'node:stream';
 import pLimit from 'p-limit';
 import { tmpdir } from 'node:os';
 import { join } from 'path';
 import { mkdtemp, readFile, rmdir, unlink, writeFile } from 'node:fs/promises';
 import { Image } from '@fg2/shared-types';
-import { deviceService } from '@services/device.service';
+import { deviceService, ONLINE_TIMEOUT } from '@services/device.service';
 import { createServer } from 'node:net';
 import { tunnelService } from '@services/tunnel.service';
 import { terpCamP2PService, terpCamLabel } from '@services/terpcam-p2p.service';
@@ -88,9 +90,35 @@ const IMAGE_THINNING_TIERS = [
 const TIMELAPSE_DAY_FRAMEINTERVAL_MS = 2 * 60 * 1000;
 const TIMELAPSE_FRAME_RATE = 25;
 
+// How many direct captures in a row have to fail before a Terp Cam still is
+// asked of the controller instead. One failure means nothing: a held session
+// goes stale, the camera reboots, a keyframe is missed - all of which the next
+// poll clears by itself, and a single lost still is invisible in a timelapse
+// while a downgraded one is not.
+const TERPCAM_DIRECT_FAILURES_BEFORE_FALLBACK = 2;
+
+/**
+ * What is known about a Terp Cam's direct path for the device's current online
+ * period, i.e. since it last came online. The controller renders through
+ * `snapshot.cgi` and tops out at 1280x720 where the direct path takes the full
+ * 2304x1296 off the video stream, so its picture is a fallback rather than an
+ * equal: for a camera the server does reach, a poll is better left without an
+ * image than filled with a downgraded one, which would also stand out in the
+ * timelapse it ends up in.
+ */
+type TerpCamDirectState = {
+  /** Online on the last pass; offline -> online starts a new period and clears the rest. */
+  online: boolean;
+  /** A direct still arrived in this online period, so the fallback stays unused. */
+  succeeded: boolean;
+  /** Direct failures in a row, counted within this online period only. */
+  failures: number;
+};
+
 class ImageService {
   private ffmpegLimit = pLimit(10);
   private deviceIdToLastRtspState = new Map<string, { lastTry: number; failureCount: number }>();
+  private deviceIdToTerpCamDirectState = new Map<string, TerpCamDirectState>();
   private lastThinningRun = 0;
 
   constructor() {
@@ -127,13 +155,37 @@ class ImageService {
   public async createDeviceImage(device_id: string, source: Buffer, timestamp?: number): Promise<Image> {
     const jpegData = await this.convertToJpeg(source);
 
-    return imageModel.create({
-      image_id: uuidv4(),
-      device_id,
-      format: 'user/jpeg',
-      timestamp: Number.isFinite(timestamp) ? (timestamp as number) : Date.now(),
-      data: jpegData,
-    });
+    return createImage(
+      {
+        image_id: uuidv4(),
+        device_id,
+        format: 'user/jpeg',
+        timestamp: Number.isFinite(timestamp) ? (timestamp as number) : Date.now(),
+      },
+      jpegData,
+    );
+  }
+
+  /** The bytes of a picture, wherever they are kept. */
+  public async readImageData(image: Image): Promise<Buffer> {
+    return image.data ?? imageStore.download(image.image_id);
+  }
+
+  /**
+   * The bytes of a picture as a stream, optionally one byte range of it
+   * (inclusive `end`, as an HTTP Range header counts). A timelapse runs to tens
+   * of megabytes, so serving one never holds the whole file in memory.
+   */
+  public readImageStream(image: Image, range?: { start: number; end: number }): Readable {
+    if (image.data) {
+      return Readable.from(range ? image.data.subarray(range.start, range.end + 1) : image.data);
+    }
+    return imageStore.read(image.image_id, range);
+  }
+
+  /** How large the picture is, for Content-Length and for resolving a Range. */
+  public imageSize(image: Image): number | undefined {
+    return image.data ? image.data.length : image.size;
   }
 
   // Draws a caption box over a still, in the style of the webapp's device offline
@@ -222,6 +274,7 @@ class ImageService {
       if (!this.deviceIdToLastRtspState.has((await device).device_id)) {
         this.deviceIdToLastRtspState.set(device.device_id, { lastTry: 0, failureCount: 0 });
       }
+      this.trackTerpCamOnlinePeriod(device);
 
       if (device.cloudSettings?.maintenanceWebcamOff) {
         const isInMaintenanceMode = !!device.maintenance_mode_until && device.maintenance_mode_until > Date.now();
@@ -239,15 +292,18 @@ class ImageService {
         promises.push(
           this.ffmpegLimit(() =>
             this.readRtspStreamImage(device.cloudSettings, device.device_id)
-              .then(
-                async image =>
-                  void imageModel.create({
+              // Returned, not floated: a rejected write used to escape this chain
+              // as an unhandled rejection, which winston turns into process.exit.
+              .then(image =>
+                createImage(
+                  {
                     image_id: uuidv4(),
                     device_id: device.device_id,
                     format: 'jpeg',
                     timestamp: Date.now(),
-                    data: image,
-                  }),
+                  },
+                  image,
+                ),
               )
               .then(() => {
                 state.failureCount = 0;
@@ -278,7 +334,10 @@ class ImageService {
     device_id: string,
     settings: Pick<CloudSettings, 'rtspStream' | 'rtspStreamTransport' | 'tunnelRtspStream'>,
   ): Promise<Buffer> {
-    return this.ffmpegLimit(() => this.readRtspStreamImage({ ...settings, logRtspStreamErrors: false }, device_id));
+    // The button asks for a picture to look at right now, so a Terp Cam whose
+    // direct path is unwell answers with the controller's smaller one rather
+    // than with an error. Nothing here is stored.
+    return this.ffmpegLimit(() => this.readRtspStreamImage({ ...settings, logRtspStreamErrors: false }, device_id, true));
   }
 
   public reportDeviceConfigured(device_id: string): void {
@@ -319,6 +378,11 @@ class ImageService {
       if (shouldThin) {
         this.lastThinningRun = Date.now();
       }
+    } catch (e) {
+      // This runs on a timer with nobody to hand a rejection to, and winston is
+      // configured to exit the process on an unhandled one. Losing a compression
+      // round is not worth taking the server down for.
+      console.log('Error compressing RTSP streams:', e);
     } finally {
       setTimeout(() => {
         void this.compressRtspStreams();
@@ -358,7 +422,9 @@ class ImageService {
             },
           })
           .sort({ timestamp: -1 })
-          .select({ image_id: 1, timestamp: 1 })
+          // `size` says where the bytes are without dragging them along: a
+          // picture written before the move to the image store has none.
+          .select({ image_id: 1, timestamp: 1, size: 1 })
           .limit(limit);
 
       const newestImage = (await getImages(endTimestamp, 1))?.[0];
@@ -390,23 +456,23 @@ class ImageService {
           }
         }
 
-        const video = await this.compressRtspStreamImages(device, images);
-
-        if (video) {
+        await this.compressRtspStreamImages(device, images, async videoPath => {
           if (compressedImage) {
             await imageModel.deleteOne({ image_id: compressedImage.image_id });
           }
 
-          await imageModel.create({
-            image_id: uuidv4(),
-            device_id: device.device_id,
-            timestamp: startTimestamp,
-            timestampEnd: images[images.length - 1]?.timestamp,
-            data: video,
-            format: 'mp4',
-            duration: targetDuration,
-          });
-        }
+          await createImageFromFile(
+            {
+              image_id: uuidv4(),
+              device_id: device.device_id,
+              timestamp: startTimestamp,
+              timestampEnd: images[images.length - 1]?.timestamp,
+              format: 'mp4',
+              duration: targetDuration,
+            },
+            videoPath,
+          );
+        });
 
         endTimestamp -= timeStep;
       } else {
@@ -454,36 +520,49 @@ class ImageService {
     await flush();
   }
 
-  private async compressRtspStreamImages(device: Device, images: Omit<Image, 'data'>[]): Promise<Buffer | undefined> {
+  /**
+   * Encode the frames into a timelapse and hand the finished file to `store`.
+   * Frames and video stay on disk from beginning to end - a day of
+   * full-resolution stills is tens of megabytes as a video and far more as
+   * frames, and neither the store nor ffmpeg needs any of it in memory.
+   * Answers whether a video was produced and stored.
+   */
+  private async compressRtspStreamImages(
+    device: Device,
+    images: Omit<Image, 'data'>[],
+    store: (videoPath: string) => Promise<void>,
+  ): Promise<boolean> {
     const filesWritten = [];
     const tmpDir = await mkdtemp(join(tmpdir(), device.device_id));
+    const videoPath = `${tmpDir}/result.mp4`;
 
     try {
       let sequenceNumber = 1;
       for (const image of images) {
-        const imageData = await imageModel.findOne({
-          image_id: image.image_id,
-          format: 'jpeg',
-        });
-        if (imageData) {
-          // pad sequence number with leading zeros
-          const filename = `${tmpDir}/${sequenceNumber++}.jpeg`;
-          filesWritten.push(filename);
-          await writeFile(filename, imageData.data);
+        const filename = `${tmpDir}/${sequenceNumber}.jpeg`;
+        try {
+          await this.copyImageToFile(image, filename);
+        } catch (e) {
+          console.log(`Skipping frame ${image.image_id} of device ${device.device_id}:`, e);
+          continue;
         }
+        sequenceNumber++;
+        filesWritten.push(filename);
       }
 
       if (filesWritten.length >= TIMELAPSE_FRAME_RATE / 2) {
-        return await this.convertRtspStreamImagesToVideo(tmpDir);
+        await this.convertRtspStreamImagesToVideo(tmpDir);
+        await store(videoPath);
+        return true;
       }
     } catch (e) {
       console.log('Error compressing RTSP images for device ' + device.device_id + ':', e);
     } finally {
-      for (const file of filesWritten) {
+      for (const file of [...filesWritten, videoPath]) {
         try {
           await unlink(file);
-        } catch (e) {
-          console.log('Error deleting temp file ' + file + ':', e);
+        } catch {
+          // ffmpeg never ran, or the frame was already gone: nothing to report.
         }
       }
       try {
@@ -493,22 +572,91 @@ class ImageService {
       }
     }
 
-    return undefined;
+    return false;
   }
 
-  private async readRtspStreamImage(cloudSettings: CloudSettings, deviceId: string): Promise<Buffer> {
+  /** One stored frame on disk, from wherever its bytes are kept. */
+  private async copyImageToFile(image: Pick<Image, 'image_id' | 'size'>, path: string): Promise<void> {
+    if (image.size === undefined) {
+      // No size means the picture predates the image store and carries its bytes
+      // in the document. Only then is it worth a second query to fetch them.
+      const legacy = await imageModel.findOne({ image_id: image.image_id }).select({ data: 1 });
+      if (legacy?.data) {
+        await writeFile(path, legacy.data);
+        return;
+      }
+    }
+
+    await imageStore.copyToFile(image.image_id, path);
+  }
+
+  /**
+   * Note whether the device is online, and forget what an earlier online period
+   * knew about its camera. A device that has just come back may have taken the
+   * camera with it (both hang off the same wifi), so the direct path is worth
+   * proving again before its picture is given up on.
+   */
+  private trackTerpCamOnlinePeriod(device: Device): void {
+    const online = (device.lastseen ?? 0) >= Date.now() - ONLINE_TIMEOUT;
+    const state = this.deviceIdToTerpCamDirectState.get(device.device_id);
+    if (!state) {
+      this.deviceIdToTerpCamDirectState.set(device.device_id, { online, succeeded: false, failures: 0 });
+      return;
+    }
+    if (online && !state.online) {
+      state.succeeded = false;
+      state.failures = 0;
+    }
+    state.online = online;
+  }
+
+  /**
+   * One Terp Cam still: full resolution from the camera itself, and only where
+   * that has produced nothing at all this online period, the controller's
+   * smaller `snapshot.cgi` picture. Which camera is decided by the device, not
+   * by the setting.
+   *
+   * The fallback is never the answer to a single failure. It is taken once the
+   * direct path has failed TERPCAM_DIRECT_FAILURES_BEFORE_FALLBACK times running
+   * AND has delivered nothing since the device came online - a camera that was
+   * being reached until now is having a bad minute, not a bad day, and the poll
+   * that proves it comes soon enough. `alwaysAllowController` lifts that for
+   * the test-image button, where a picture now beats the better picture the
+   * next poll would store.
+   */
+  private async captureTerpCamStill(deviceId: string, alwaysAllowController: boolean): Promise<Buffer> {
+    // Where the server reaches no camera of its own - no rendezvous configured,
+    // or a device that has reported none - the controller is the only path and
+    // waiting out failed direct attempts would cost every still a poll or two.
+    if (!(await terpCamDirectService.canReachCamera(deviceId))) {
+      return terpCamP2PService.captureViaController(deviceId);
+    }
+
+    const state = this.deviceIdToTerpCamDirectState.get(deviceId);
+    try {
+      const still = await terpCamDirectService.captureStill(deviceId);
+      if (state) {
+        state.succeeded = true;
+        state.failures = 0;
+      }
+      return still;
+    } catch (e) {
+      if (state) state.failures++;
+      const exhausted = !state || (!state.succeeded && state.failures >= TERPCAM_DIRECT_FAILURES_BEFORE_FALLBACK);
+      if (!alwaysAllowController && !exhausted) {
+        throw new Error(`direct capture failed (${(e as Error).message}); keeping the full-resolution path`);
+      }
+      console.log(`Direct capture for ${deviceId} failed (${(e as Error).message}); asking the controller`);
+    }
+    return terpCamP2PService.captureViaController(deviceId);
+  }
+
+  private async readRtspStreamImage(cloudSettings: CloudSettings, deviceId: string, alwaysAllowController = false): Promise<Buffer> {
     // Terp Cams have no RTSP; they speak P2P. They are configured as
     // `terpcam://<id>` so the poll schedule, backoff, storage and timelapses
     // here are reused unchanged.
     if (terpCamLabel(cloudSettings.rtspStream)) {
-      // Full resolution when we can reach the camera ourselves, the controller's
-      // 640x360 otherwise. Which camera is decided by the device, not the setting.
-      try {
-        return await terpCamDirectService.captureStill(deviceId);
-      } catch (e) {
-        console.log(`Direct capture for ${deviceId} failed (${(e as Error).message}); asking the controller`);
-      }
-      return terpCamP2PService.captureViaController(deviceId);
+      return this.captureTerpCamStill(deviceId, alwaysAllowController);
     }
 
     let streamUrl = cloudSettings.rtspStream;
@@ -592,7 +740,8 @@ class ImageService {
     });
   }
 
-  private convertRtspStreamImagesToVideo(filesDir: string): Promise<Buffer> {
+  /** Encodes the frames in `filesDir` into `result.mp4` beside them. */
+  private convertRtspStreamImagesToVideo(filesDir: string): Promise<void> {
     return new Promise((resolve, reject) => {
       execFile(
         'ffmpeg',
@@ -626,13 +775,7 @@ class ImageService {
             console.log('Error compressing RTSP stream images:', stderr, error);
             reject(error);
           } else {
-            readFile(`${filesDir}/result.mp4`)
-              .then(data => resolve(data))
-              .catch(err => {
-                console.log(`Error reading result file ${filesDir}/result.mp4:`, err);
-                reject(err);
-              })
-              .finally(() => unlink(`${filesDir}/result.mp4`).catch(() => Promise.resolve()));
+            resolve();
           }
         },
       );

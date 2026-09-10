@@ -1,3 +1,23 @@
+const storedFiles = new Map<string, number>();
+
+jest.mock('@/databases/imagestore', () => ({
+  imageStore: {
+    listFileIds: (uploadedBefore: number) => ({
+      async *[Symbol.asyncIterator]() {
+        for (const [imageId, uploadedAt] of [...storedFiles.entries()]) {
+          if (uploadedAt < uploadedBefore) {
+            yield imageId;
+          }
+        }
+      },
+    }),
+    delete: (imageIds: string[]) => {
+      imageIds.forEach(imageId => storedFiles.delete(imageId));
+      return Promise.resolve();
+    },
+  },
+}));
+
 import { CleanupService } from '@services/cleanup.service';
 import deviceModel from '@models/device.model';
 import deviceLogModel from '@models/devicelog.model';
@@ -8,7 +28,7 @@ const WEEK = 7 * 24 * 60 * 60 * 1000;
 const OLD = NOW - WEEK - 1000;
 const RECENT = NOW - 1000;
 
-type LogDoc = { device_id: string; time: number; images?: string[] };
+type LogDoc = { device_id: string; time: number; images?: string[]; message?: string };
 type ImageDoc = { image_id: string; device_id: string; timestamp: number; format: string };
 
 describe('Cleanup of unreachable logs and images', () => {
@@ -22,6 +42,7 @@ describe('Cleanup of unreachable logs and images', () => {
     devices = ['known-device'];
     logs = [];
     images = [];
+    storedFiles.clear();
 
     deviceModel.find = jest.fn().mockImplementation((filter: any) => ({
       lean: () => Promise.resolve(devices.filter(id => filter.device_id.$in.includes(id)).map(device_id => ({ device_id }))),
@@ -35,17 +56,22 @@ describe('Cleanup of unreachable logs and images', () => {
       return Promise.resolve([...new Set(referenced)]);
     });
     deviceLogModel.deleteMany = jest.fn().mockImplementation((filter: any) => {
-      const remaining = logs.filter(log => !(filter.device_id.$in.includes(log.device_id) && matchesTime(filter.time, log.time)));
+      const matches = (log: LogDoc) =>
+        filter.message
+          ? new RegExp(filter.message.$regex).test(log.message ?? '')
+          : filter.device_id.$in.includes(log.device_id) && matchesTime(filter.time, log.time);
+      const remaining = logs.filter(log => !matches(log));
       const deletedCount = logs.length - remaining.length;
       logs = remaining;
       return Promise.resolve({ deletedCount });
     });
 
-    imageModel.distinct = jest
-      .fn()
-      .mockImplementation((_field: string, filter: any) =>
-        Promise.resolve([...new Set(images.filter(image => matchesTime(filter.timestamp, image.timestamp)).map(image => image.device_id))]),
-      );
+    imageModel.distinct = jest.fn().mockImplementation((field: string, filter: any) => {
+      if (field === 'image_id') {
+        return Promise.resolve(images.filter(image => filter.image_id.$in.includes(image.image_id)).map(image => image.image_id));
+      }
+      return Promise.resolve([...new Set(images.filter(image => matchesTime(filter.timestamp, image.timestamp)).map(image => image.device_id))]);
+    });
     imageModel.find = jest.fn().mockImplementation((filter: any) => {
       const matched = images.filter(image => image.format === filter.format && matchesTime(filter.timestamp, image.timestamp));
       return {
@@ -120,7 +146,40 @@ describe('Cleanup of unreachable logs and images', () => {
 
     const result = await run();
 
-    expect(result).toEqual({ deletedLogs: 1, deletedImages: 1 });
+    expect(result).toEqual({ deletedLogs: 1, deletedImages: 1, deletedOrphanedFiles: 0, deletedCamDiagnostics: 0 });
     expect(images).toEqual([]);
+  });
+
+  it('removes stored camera capture diagnostics of successful captures and keeps failed ones', async () => {
+    logs = [
+      { device_id: 'known-device', time: RECENT, message: 'message-cam-capture:ok res=2 bytes=31813' },
+      { device_id: 'known-device', time: RECENT, message: 'message-cam-capture:incomplete got=8/40' },
+      { device_id: 'known-device', time: RECENT, message: 'message-co2-low:380' },
+    ];
+
+    const result = await run();
+
+    expect(result.deletedCamDiagnostics).toBe(1);
+    expect(logs.map(log => log.message)).toEqual(['message-cam-capture:incomplete got=8/40', 'message-co2-low:380']);
+  });
+
+  it('deletes stored data no image document points at any more', async () => {
+    images = [{ image_id: 'kept', device_id: 'known-device', timestamp: RECENT, format: 'jpeg' }];
+    storedFiles.set('kept', OLD);
+    storedFiles.set('strays-from-a-crashed-write', OLD);
+
+    const result = await run();
+
+    expect(result.deletedOrphanedFiles).toBe(1);
+    expect([...storedFiles.keys()]).toEqual(['kept']);
+  });
+
+  it('leaves data alone while its document may still be on its way', async () => {
+    storedFiles.set('just-uploaded', RECENT);
+
+    const result = await run();
+
+    expect(result.deletedOrphanedFiles).toBe(0);
+    expect([...storedFiles.keys()]).toEqual(['just-uploaded']);
   });
 });
