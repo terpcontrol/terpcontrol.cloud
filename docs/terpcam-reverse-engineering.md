@@ -1189,6 +1189,29 @@ Two things the off-LAN run showed up:
 - **The index bug bites test scripts too.** That first attempt also sent its first CGI as index 2 rather than 1, which
   on its own is enough to produce exactly this signature — a healthy, logged-in session that never answers.
 
+### 26.14 The controller's picture is a last resort, not a second try (2026-09-10)
+
+§26.6 wired the fallback the obvious way: direct capture throws, ask the controller. Living with it showed why that is
+wrong. The direct path fails now and then for reasons the next poll clears by itself — a held session that has gone
+stale, a camera mid-reboot, a keyframe missed inside the transfer window — and each of those turned into a stored
+`snapshot.cgi` still. Those stills are 1280×720 against 2304×1296, so they are visible in the timelapse as a resolution
+change, and they are stored *instead of* the full-resolution image the retry a minute later would have produced.
+
+The rule now is that the controller is only asked once the direct path has produced **nothing at all in this online
+period**, and never on the first failure:
+
+- a direct still that arrived since the device came online closes the fallback for the rest of that period — a camera
+  the server reaches is having a bad minute, and a gap in the series costs less than a downgrade in it;
+- otherwise it takes two consecutive direct failures before the controller is asked, so a single bad capture just
+  leaves the poll without an image;
+- coming back online starts a fresh period and clears both, because a device that has just returned may have brought
+  the camera with it and the direct path is worth proving again;
+- a server that can reach no camera of its own — `TERPCAM_RENDEZVOUS_HOSTS` unset, or a device that has reported no
+  camera — skips all of this and goes straight to the controller, which is then not a fallback but the only path.
+
+The test-image button keeps the old behaviour: it stores nothing, and a picture now is worth more there than the better
+picture the next poll will store.
+
 ### 26.5 The other paths the SDK opens, ranked
 
 1. **Cloud pulls over P2P (§26.3)** — no camera change, no firmware, keeps the whole CGI surface, and deletes the

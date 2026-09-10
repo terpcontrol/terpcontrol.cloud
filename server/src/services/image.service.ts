@@ -23,7 +23,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'path';
 import { mkdtemp, readFile, rmdir, unlink, writeFile } from 'node:fs/promises';
 import { Image } from '@fg2/shared-types';
-import { deviceService } from '@services/device.service';
+import { deviceService, ONLINE_TIMEOUT } from '@services/device.service';
 import { createServer } from 'node:net';
 import { tunnelService } from '@services/tunnel.service';
 import { terpCamP2PService, terpCamLabel } from '@services/terpcam-p2p.service';
@@ -90,9 +90,35 @@ const IMAGE_THINNING_TIERS = [
 const TIMELAPSE_DAY_FRAMEINTERVAL_MS = 2 * 60 * 1000;
 const TIMELAPSE_FRAME_RATE = 25;
 
+// How many direct captures in a row have to fail before a Terp Cam still is
+// asked of the controller instead. One failure means nothing: a held session
+// goes stale, the camera reboots, a keyframe is missed - all of which the next
+// poll clears by itself, and a single lost still is invisible in a timelapse
+// while a downgraded one is not.
+const TERPCAM_DIRECT_FAILURES_BEFORE_FALLBACK = 2;
+
+/**
+ * What is known about a Terp Cam's direct path for the device's current online
+ * period, i.e. since it last came online. The controller renders through
+ * `snapshot.cgi` and tops out at 1280x720 where the direct path takes the full
+ * 2304x1296 off the video stream, so its picture is a fallback rather than an
+ * equal: for a camera the server does reach, a poll is better left without an
+ * image than filled with a downgraded one, which would also stand out in the
+ * timelapse it ends up in.
+ */
+type TerpCamDirectState = {
+  /** Online on the last pass; offline -> online starts a new period and clears the rest. */
+  online: boolean;
+  /** A direct still arrived in this online period, so the fallback stays unused. */
+  succeeded: boolean;
+  /** Direct failures in a row, counted within this online period only. */
+  failures: number;
+};
+
 class ImageService {
   private ffmpegLimit = pLimit(10);
   private deviceIdToLastRtspState = new Map<string, { lastTry: number; failureCount: number }>();
+  private deviceIdToTerpCamDirectState = new Map<string, TerpCamDirectState>();
   private lastThinningRun = 0;
 
   constructor() {
@@ -248,6 +274,7 @@ class ImageService {
       if (!this.deviceIdToLastRtspState.has((await device).device_id)) {
         this.deviceIdToLastRtspState.set(device.device_id, { lastTry: 0, failureCount: 0 });
       }
+      this.trackTerpCamOnlinePeriod(device);
 
       if (device.cloudSettings?.maintenanceWebcamOff) {
         const isInMaintenanceMode = !!device.maintenance_mode_until && device.maintenance_mode_until > Date.now();
@@ -307,7 +334,10 @@ class ImageService {
     device_id: string,
     settings: Pick<CloudSettings, 'rtspStream' | 'rtspStreamTransport' | 'tunnelRtspStream'>,
   ): Promise<Buffer> {
-    return this.ffmpegLimit(() => this.readRtspStreamImage({ ...settings, logRtspStreamErrors: false }, device_id));
+    // The button asks for a picture to look at right now, so a Terp Cam whose
+    // direct path is unwell answers with the controller's smaller one rather
+    // than with an error. Nothing here is stored.
+    return this.ffmpegLimit(() => this.readRtspStreamImage({ ...settings, logRtspStreamErrors: false }, device_id, true));
   }
 
   public reportDeviceConfigured(device_id: string): void {
@@ -560,19 +590,73 @@ class ImageService {
     await imageStore.copyToFile(image.image_id, path);
   }
 
-  private async readRtspStreamImage(cloudSettings: CloudSettings, deviceId: string): Promise<Buffer> {
+  /**
+   * Note whether the device is online, and forget what an earlier online period
+   * knew about its camera. A device that has just come back may have taken the
+   * camera with it (both hang off the same wifi), so the direct path is worth
+   * proving again before its picture is given up on.
+   */
+  private trackTerpCamOnlinePeriod(device: Device): void {
+    const online = (device.lastseen ?? 0) >= Date.now() - ONLINE_TIMEOUT;
+    const state = this.deviceIdToTerpCamDirectState.get(device.device_id);
+    if (!state) {
+      this.deviceIdToTerpCamDirectState.set(device.device_id, { online, succeeded: false, failures: 0 });
+      return;
+    }
+    if (online && !state.online) {
+      state.succeeded = false;
+      state.failures = 0;
+    }
+    state.online = online;
+  }
+
+  /**
+   * One Terp Cam still: full resolution from the camera itself, and only where
+   * that has produced nothing at all this online period, the controller's
+   * smaller `snapshot.cgi` picture. Which camera is decided by the device, not
+   * by the setting.
+   *
+   * The fallback is never the answer to a single failure. It is taken once the
+   * direct path has failed TERPCAM_DIRECT_FAILURES_BEFORE_FALLBACK times running
+   * AND has delivered nothing since the device came online - a camera that was
+   * being reached until now is having a bad minute, not a bad day, and the poll
+   * that proves it comes soon enough. `alwaysAllowController` lifts that for
+   * the test-image button, where a picture now beats the better picture the
+   * next poll would store.
+   */
+  private async captureTerpCamStill(deviceId: string, alwaysAllowController: boolean): Promise<Buffer> {
+    // Where the server reaches no camera of its own - no rendezvous configured,
+    // or a device that has reported none - the controller is the only path and
+    // waiting out failed direct attempts would cost every still a poll or two.
+    if (!(await terpCamDirectService.canReachCamera(deviceId))) {
+      return terpCamP2PService.captureViaController(deviceId);
+    }
+
+    const state = this.deviceIdToTerpCamDirectState.get(deviceId);
+    try {
+      const still = await terpCamDirectService.captureStill(deviceId);
+      if (state) {
+        state.succeeded = true;
+        state.failures = 0;
+      }
+      return still;
+    } catch (e) {
+      if (state) state.failures++;
+      const exhausted = !state || (!state.succeeded && state.failures >= TERPCAM_DIRECT_FAILURES_BEFORE_FALLBACK);
+      if (!alwaysAllowController && !exhausted) {
+        throw new Error(`direct capture failed (${(e as Error).message}); keeping the full-resolution path`);
+      }
+      console.log(`Direct capture for ${deviceId} failed (${(e as Error).message}); asking the controller`);
+    }
+    return terpCamP2PService.captureViaController(deviceId);
+  }
+
+  private async readRtspStreamImage(cloudSettings: CloudSettings, deviceId: string, alwaysAllowController = false): Promise<Buffer> {
     // Terp Cams have no RTSP; they speak P2P. They are configured as
     // `terpcam://<id>` so the poll schedule, backoff, storage and timelapses
     // here are reused unchanged.
     if (terpCamLabel(cloudSettings.rtspStream)) {
-      // Full resolution when we can reach the camera ourselves, the controller's
-      // 640x360 otherwise. Which camera is decided by the device, not the setting.
-      try {
-        return await terpCamDirectService.captureStill(deviceId);
-      } catch (e) {
-        console.log(`Direct capture for ${deviceId} failed (${(e as Error).message}); asking the controller`);
-      }
-      return terpCamP2PService.captureViaController(deviceId);
+      return this.captureTerpCamStill(deviceId, alwaysAllowController);
     }
 
     let streamUrl = cloudSettings.rtspStream;
