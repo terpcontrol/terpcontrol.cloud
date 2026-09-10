@@ -15,7 +15,9 @@ import { isNumeric } from 'influx/lib/src/grammar';
 import { mailTransport } from '@services/auth.service';
 import { execFile } from 'node:child_process';
 import im from 'imagemagick';
-import imageModel from '@models/images.model';
+import imageModel, { createImage, createImageFromFile } from '@models/images.model';
+import { imageStore } from '@/databases/imagestore';
+import { Readable } from 'node:stream';
 import pLimit from 'p-limit';
 import { tmpdir } from 'node:os';
 import { join } from 'path';
@@ -127,13 +129,37 @@ class ImageService {
   public async createDeviceImage(device_id: string, source: Buffer, timestamp?: number): Promise<Image> {
     const jpegData = await this.convertToJpeg(source);
 
-    return imageModel.create({
-      image_id: uuidv4(),
-      device_id,
-      format: 'user/jpeg',
-      timestamp: Number.isFinite(timestamp) ? (timestamp as number) : Date.now(),
-      data: jpegData,
-    });
+    return createImage(
+      {
+        image_id: uuidv4(),
+        device_id,
+        format: 'user/jpeg',
+        timestamp: Number.isFinite(timestamp) ? (timestamp as number) : Date.now(),
+      },
+      jpegData,
+    );
+  }
+
+  /** The bytes of a picture, wherever they are kept. */
+  public async readImageData(image: Image): Promise<Buffer> {
+    return image.data ?? imageStore.download(image.image_id);
+  }
+
+  /**
+   * The bytes of a picture as a stream, optionally one byte range of it
+   * (inclusive `end`, as an HTTP Range header counts). A timelapse runs to tens
+   * of megabytes, so serving one never holds the whole file in memory.
+   */
+  public readImageStream(image: Image, range?: { start: number; end: number }): Readable {
+    if (image.data) {
+      return Readable.from(range ? image.data.subarray(range.start, range.end + 1) : image.data);
+    }
+    return imageStore.read(image.image_id, range);
+  }
+
+  /** How large the picture is, for Content-Length and for resolving a Range. */
+  public imageSize(image: Image): number | undefined {
+    return image.data ? image.data.length : image.size;
   }
 
   // Draws a caption box over a still, in the style of the webapp's device offline
@@ -239,15 +265,18 @@ class ImageService {
         promises.push(
           this.ffmpegLimit(() =>
             this.readRtspStreamImage(device.cloudSettings, device.device_id)
-              .then(
-                async image =>
-                  void imageModel.create({
+              // Returned, not floated: a rejected write used to escape this chain
+              // as an unhandled rejection, which winston turns into process.exit.
+              .then(image =>
+                createImage(
+                  {
                     image_id: uuidv4(),
                     device_id: device.device_id,
                     format: 'jpeg',
                     timestamp: Date.now(),
-                    data: image,
-                  }),
+                  },
+                  image,
+                ),
               )
               .then(() => {
                 state.failureCount = 0;
@@ -319,6 +348,11 @@ class ImageService {
       if (shouldThin) {
         this.lastThinningRun = Date.now();
       }
+    } catch (e) {
+      // This runs on a timer with nobody to hand a rejection to, and winston is
+      // configured to exit the process on an unhandled one. Losing a compression
+      // round is not worth taking the server down for.
+      console.log('Error compressing RTSP streams:', e);
     } finally {
       setTimeout(() => {
         void this.compressRtspStreams();
@@ -358,7 +392,9 @@ class ImageService {
             },
           })
           .sort({ timestamp: -1 })
-          .select({ image_id: 1, timestamp: 1 })
+          // `size` says where the bytes are without dragging them along: a
+          // picture written before the move to the image store has none.
+          .select({ image_id: 1, timestamp: 1, size: 1 })
           .limit(limit);
 
       const newestImage = (await getImages(endTimestamp, 1))?.[0];
@@ -390,23 +426,23 @@ class ImageService {
           }
         }
 
-        const video = await this.compressRtspStreamImages(device, images);
-
-        if (video) {
+        await this.compressRtspStreamImages(device, images, async videoPath => {
           if (compressedImage) {
             await imageModel.deleteOne({ image_id: compressedImage.image_id });
           }
 
-          await imageModel.create({
-            image_id: uuidv4(),
-            device_id: device.device_id,
-            timestamp: startTimestamp,
-            timestampEnd: images[images.length - 1]?.timestamp,
-            data: video,
-            format: 'mp4',
-            duration: targetDuration,
-          });
-        }
+          await createImageFromFile(
+            {
+              image_id: uuidv4(),
+              device_id: device.device_id,
+              timestamp: startTimestamp,
+              timestampEnd: images[images.length - 1]?.timestamp,
+              format: 'mp4',
+              duration: targetDuration,
+            },
+            videoPath,
+          );
+        });
 
         endTimestamp -= timeStep;
       } else {
@@ -454,36 +490,49 @@ class ImageService {
     await flush();
   }
 
-  private async compressRtspStreamImages(device: Device, images: Omit<Image, 'data'>[]): Promise<Buffer | undefined> {
+  /**
+   * Encode the frames into a timelapse and hand the finished file to `store`.
+   * Frames and video stay on disk from beginning to end - a day of
+   * full-resolution stills is tens of megabytes as a video and far more as
+   * frames, and neither the store nor ffmpeg needs any of it in memory.
+   * Answers whether a video was produced and stored.
+   */
+  private async compressRtspStreamImages(
+    device: Device,
+    images: Omit<Image, 'data'>[],
+    store: (videoPath: string) => Promise<void>,
+  ): Promise<boolean> {
     const filesWritten = [];
     const tmpDir = await mkdtemp(join(tmpdir(), device.device_id));
+    const videoPath = `${tmpDir}/result.mp4`;
 
     try {
       let sequenceNumber = 1;
       for (const image of images) {
-        const imageData = await imageModel.findOne({
-          image_id: image.image_id,
-          format: 'jpeg',
-        });
-        if (imageData) {
-          // pad sequence number with leading zeros
-          const filename = `${tmpDir}/${sequenceNumber++}.jpeg`;
-          filesWritten.push(filename);
-          await writeFile(filename, imageData.data);
+        const filename = `${tmpDir}/${sequenceNumber}.jpeg`;
+        try {
+          await this.copyImageToFile(image, filename);
+        } catch (e) {
+          console.log(`Skipping frame ${image.image_id} of device ${device.device_id}:`, e);
+          continue;
         }
+        sequenceNumber++;
+        filesWritten.push(filename);
       }
 
       if (filesWritten.length >= TIMELAPSE_FRAME_RATE / 2) {
-        return await this.convertRtspStreamImagesToVideo(tmpDir);
+        await this.convertRtspStreamImagesToVideo(tmpDir);
+        await store(videoPath);
+        return true;
       }
     } catch (e) {
       console.log('Error compressing RTSP images for device ' + device.device_id + ':', e);
     } finally {
-      for (const file of filesWritten) {
+      for (const file of [...filesWritten, videoPath]) {
         try {
           await unlink(file);
-        } catch (e) {
-          console.log('Error deleting temp file ' + file + ':', e);
+        } catch {
+          // ffmpeg never ran, or the frame was already gone: nothing to report.
         }
       }
       try {
@@ -493,7 +542,22 @@ class ImageService {
       }
     }
 
-    return undefined;
+    return false;
+  }
+
+  /** One stored frame on disk, from wherever its bytes are kept. */
+  private async copyImageToFile(image: Pick<Image, 'image_id' | 'size'>, path: string): Promise<void> {
+    if (image.size === undefined) {
+      // No size means the picture predates the image store and carries its bytes
+      // in the document. Only then is it worth a second query to fetch them.
+      const legacy = await imageModel.findOne({ image_id: image.image_id }).select({ data: 1 });
+      if (legacy?.data) {
+        await writeFile(path, legacy.data);
+        return;
+      }
+    }
+
+    await imageStore.copyToFile(image.image_id, path);
   }
 
   private async readRtspStreamImage(cloudSettings: CloudSettings, deviceId: string): Promise<Buffer> {
@@ -592,7 +656,8 @@ class ImageService {
     });
   }
 
-  private convertRtspStreamImagesToVideo(filesDir: string): Promise<Buffer> {
+  /** Encodes the frames in `filesDir` into `result.mp4` beside them. */
+  private convertRtspStreamImagesToVideo(filesDir: string): Promise<void> {
     return new Promise((resolve, reject) => {
       execFile(
         'ffmpeg',
@@ -626,13 +691,7 @@ class ImageService {
             console.log('Error compressing RTSP stream images:', stderr, error);
             reject(error);
           } else {
-            readFile(`${filesDir}/result.mp4`)
-              .then(data => resolve(data))
-              .catch(err => {
-                console.log(`Error reading result file ${filesDir}/result.mp4:`, err);
-                reject(err);
-              })
-              .finally(() => unlink(`${filesDir}/result.mp4`).catch(() => Promise.resolve()));
+            resolve();
           }
         },
       );
