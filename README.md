@@ -5,6 +5,12 @@ See also:
 - [Upgrading an older firmware](UPGRADING-FIRMWARE.md)
 - [TriAC-FIX (en)](TriAC-FIX.en.md) or [TriAC-FIX (de)](TriAC-FIX.de.md)
 
+## License
+
+Apache License 2.0, see [LICENSE](LICENSE). Commercial use, self-hosting and forks are welcome; the name
+"Terp Control" is not part of the license (see [NOTICE](NOTICE)). Contributions are accepted under the same
+license, no separate agreement needed.
+
 ## Getting started
 
 ### Prerequisites
