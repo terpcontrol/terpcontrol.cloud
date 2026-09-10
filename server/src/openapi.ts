@@ -1,0 +1,53 @@
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { NestFastifyApplication } from '@nestjs/platform-fastify';
+import { appConfig } from './config/configuration';
+
+/**
+ * Spread into the `@ApiOperation` of a route that needs no token: the document
+ * asks for the bearer everywhere, and an operation that does not say otherwise
+ * inherits it. Logging in, registering a device and downloading a firmware
+ * image would then be documented as impossible without one.
+ */
+export const PUBLIC_OPERATION = { security: [] };
+
+/**
+ * The API description, built from the controllers themselves rather than from
+ * comments kept alongside them, so it cannot drift from what the server serves.
+ */
+export const setupOpenApi = (app: NestFastifyApplication): void => {
+  const { apiUrlExternal } = app.get(appConfig.KEY);
+
+  const builder = new DocumentBuilder()
+    .setTitle('Terp Control API')
+    .setVersion('1.0.0')
+    .setDescription('OpenAPI documentation for the Terp Control cloud server API.')
+    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'The user token from `/login` or `/refresh`.' }, 'bearerAuth')
+    .addCookieAuth('Authorization', { type: 'apiKey', description: 'The session cookie the browser gets from `/login`.' })
+    .addSecurityRequirements('bearerAuth');
+
+  if (apiUrlExternal) {
+    builder.addServer(apiUrlExternal, 'Current server');
+  }
+
+  const document = SwaggerModule.createDocument(app, builder.build());
+
+  // The router ignores a trailing slash, so `/api-docs/` reaches the same
+  // handler - but the page links its assets relative to the URL it was fetched
+  // from, and from `/api-docs/` those resolve one level too deep and 404. The
+  // page comes back blank, so the slash is sent to the form that works.
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .addHook('onRequest', (request, reply, done) => {
+      // Compared the way the router matches: it ignores case and a trailing
+      // slash, so `/API-docs/?foo` reaches the page too and needs the same.
+      const [path, query] = request.url.split('?');
+      if (path.toLowerCase() === '/api-docs/') {
+        void reply.redirect(query ? `/api-docs?${query}` : '/api-docs', 301);
+        return;
+      }
+      done();
+    });
+
+  SwaggerModule.setup('api-docs', app, document, { jsonDocumentUrl: 'swagger.json', explorer: true });
+};

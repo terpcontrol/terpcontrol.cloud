@@ -10,8 +10,11 @@
 .lintstagedrc.json
 .prettierrc
 
-# test
-jest.config.js
+# test - the image is built from the repository root, so the .dockerignore
+# beside docker-compose.yaml is the one that applies; this is for a build whose
+# context is this directory.
+jest.integration.config.js
+test
 
 # docker
 Dockerfile

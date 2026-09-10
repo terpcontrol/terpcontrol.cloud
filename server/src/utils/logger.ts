@@ -2,17 +2,47 @@ import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import winston from 'winston';
 import winstonDaily from 'winston-daily-rotate-file';
-import { LOG_DIR } from '@config';
+import { config } from 'dotenv';
 
-// logs dir
-const logDir: string = LOG_DIR;
+// The logger is built as this file is imported, which is before Nest has read
+// the environment, so it loads the same file ConfigModule does and reads the
+// one setting it needs from it. Anything already in the process environment
+// wins, exactly as it does there.
+config({ path: `.env.${process.env.NODE_ENV || 'development'}.local` });
+
+// A fallback only so that a missing LOG_DIR is reported by the environment
+// check rather than by this file dying on a path of `undefined` before the
+// check has run. A deployment is expected to set it, and is told to.
+const logDir: string = process.env.LOG_DIR || 'logs';
 
 if (!existsSync(logDir)) {
-  mkdirSync(logDir);
+  mkdirSync(logDir, { recursive: true });
 }
 
-// Define log format
-const logFormat = winston.format.printf(({ timestamp, level, message }) => `${timestamp} ${level}: ${message}`);
+// Anything passed after the message. `logger.info('failed:', error)` used to
+// write "failed:" and drop the reason on the floor, which is worth rendering
+// rather than losing - even though a message that interpolates its own detail
+// reads better.
+const SPLAT = Symbol.for('splat') as unknown as string;
+
+const describe = (value: unknown): string => {
+  if (value instanceof Error) return value.stack ?? value.message;
+  if (typeof value === 'object' && value !== null) {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+  return String(value);
+};
+
+const logFormat = winston.format.printf(info => {
+  const extra = (info[SPLAT] as unknown[] | undefined) ?? [];
+  const details = extra.map(describe).join(' ');
+
+  return `${info.timestamp} ${info.level}: ${describe(info.message)}${details ? ` ${details}` : ''}`;
+});
 
 /*
  * Log Level
@@ -56,10 +86,4 @@ logger.add(
   }),
 );
 
-const stream = {
-  write: (message: string) => {
-    logger.info(message.substring(0, message.lastIndexOf('\n')));
-  },
-};
-
-export { logger, stream };
+export { logger };
