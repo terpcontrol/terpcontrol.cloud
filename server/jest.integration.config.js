@@ -7,7 +7,7 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   rootDir: '.',
-  roots: ['<rootDir>/test'],
+  roots: ['<rootDir>/test/specs'],
   testMatch: ['**/*.spec.ts'],
   globalSetup: '<rootDir>/test/global-setup.ts',
   globalTeardown: '<rootDir>/test/global-teardown.ts',
