@@ -28,6 +28,7 @@ import { AddDeviceDto, RegisterDeviceDto, TestDeviceDto } from '@modules/device/
 import { HttpException } from '@common/http-exception';
 import { logger } from '@utils/logger';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
+import { isSuppressedCamCaptureLog } from '@utils/devicelogs';
 import { demoAlarms, demoCloudSettings, demoDevice } from '@utils/demo';
 import { authConfig } from '../../config/configuration';
 import { BackgroundWork, logIfItFails } from '../../common/background-work';
@@ -104,6 +105,8 @@ const DEVICE_MESSAGE_CATEGORY_MAPPING = {
   'message-buffer-overflow': ['device-connection'],
   'message-smart-socket-disconnected': ['device-socket'],
   'message-smart-socket-connected': ['device-socket'],
+  'message-cam-capture': ['webcam', 'error'],
+  'message-cam-reset': ['webcam'],
 } as const;
 
 // Alarms stay suppressed until `maintenance_mode_until`, a millisecond epoch that
@@ -245,7 +248,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
                 const msg = JSON.parse(message.message);
                 if (msg?.message?.startsWith('hardware-info:')) {
                   await this.logHardwareInfo(device.device_id, msg.message.slice('hardware-info:'.length));
-                } else {
+                } else if (!isSuppressedCamCaptureLog(msg?.message ?? '', device.cloudSettings)) {
                   await this.logMessage(device.device_id, {
                     categories: ['device', ...(DEVICE_MESSAGE_CATEGORY_MAPPING[msg?.message?.split(':')?.[0]] ?? [])],
                     ...msg,

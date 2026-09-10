@@ -198,6 +198,41 @@ describe('what a device reports over MQTT', () => {
     expect(logs.body.some((entry: { message: string }) => entry.message === 'message-co2-low:380')).toBe(true);
   });
 
+  // A paired camera reports the outcome of every capture, which is one message
+  // every 30 seconds. The successful ones are diagnostics, not diary material -
+  // and firmware in the field still sends them, so the server drops them.
+  it('keeps a successful camera capture out of the diary', async () => {
+    await simulator.publish('log', { message: 'message-cam-capture:ok,123456', severity: 0, time: Date.now() });
+    await simulator.publish('log', { message: 'message-cam-capture:timeout', severity: 1, time: Date.now() });
+
+    await settle(600);
+
+    const logs = await owner.client.get(`/device/logs/${device.deviceId}`).expect(200);
+    const captures = logs.body.filter((entry: { message: string }) => entry.message.startsWith('message-cam-capture:'));
+
+    expect(captures.map((entry: { message: string }) => entry.message)).toEqual(['message-cam-capture:timeout']);
+  });
+
+  it('drops a failed capture too where the owner asked for no webcam errors', async () => {
+    const quiet = await provisionDevice(owner);
+    const quietSimulator = await startSimulator(quiet);
+
+    try {
+      await owner.client
+        .post('/device/cloudsettings')
+        .send({ device_id: quiet.deviceId, cloud_settings: { logRtspStreamErrors: false, firmwareChannel: 'stable' } })
+        .expect(200);
+
+      await quietSimulator.publish('log', { message: 'message-cam-capture:timeout', severity: 1, time: Date.now() });
+      await settle(600);
+
+      const logs = await owner.client.get(`/device/logs/${quiet.deviceId}`).expect(200);
+      expect(logs.body.some((entry: { message: string }) => entry.message.startsWith('message-cam-capture:'))).toBe(false);
+    } finally {
+      await quietSimulator.close();
+    }
+  });
+
   // Each hardware-info message carries exactly one key=value pair; the value may
   // itself contain '=', so only the first one separates the two.
   it('stores reported hardware info', async () => {
