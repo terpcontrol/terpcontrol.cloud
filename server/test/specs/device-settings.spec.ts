@@ -48,10 +48,7 @@ describe('POST /device/configure', () => {
   });
 
   it('reports a device that does not exist rather than telling one to change', async () => {
-    await owner.client
-      .post('/device/configure')
-      .send({ device_id: 'no-such-device', configuration: '{}' })
-      .expect(403);
+    await owner.client.post('/device/configure').send({ device_id: 'no-such-device', configuration: '{}' }).expect(403);
   });
 
   it('writes a diary entry describing what changed', async () => {
@@ -84,7 +81,10 @@ describe('POST /device/configure', () => {
 
   it('validates that both fields are strings', async () => {
     await owner.client.post('/device/configure').send({ device_id: device.deviceId }).expect(400);
-    await owner.client.post('/device/configure').send({ device_id: device.deviceId, configuration: { day: 1 } }).expect(400);
+    await owner.client
+      .post('/device/configure')
+      .send({ device_id: device.deviceId, configuration: { day: 1 } })
+      .expect(400);
   });
 
   it('refuses a device the caller does not own', async () => {
@@ -119,7 +119,10 @@ describe('device alarms', () => {
   };
 
   it('stores alarms and gives each one an id', async () => {
-    await owner.client.post('/device/alarms').send({ device_id: device.deviceId, alarms: [alarm] }).expect(200);
+    await owner.client
+      .post('/device/alarms')
+      .send({ device_id: device.deviceId, alarms: [alarm] })
+      .expect(200);
 
     const response = await owner.client.get(`/device/alarms/${device.deviceId}`).expect(200);
 
@@ -151,7 +154,10 @@ describe('device alarms', () => {
   });
 
   it('refuses a list that is not one, leaving the stored alarms alone', async () => {
-    await owner.client.post('/device/alarms').send({ device_id: device.deviceId, alarms: [alarm] }).expect(200);
+    await owner.client
+      .post('/device/alarms')
+      .send({ device_id: device.deviceId, alarms: [alarm] })
+      .expect(200);
 
     await owner.client.post('/device/alarms').send({ device_id: device.deviceId, alarms: 'none' }).expect(400);
     await owner.client.post('/device/alarms').send({ device_id: device.deviceId }).expect(400);
@@ -174,7 +180,10 @@ describe('device alarms', () => {
 
   it('refuses a device the caller does not own', async () => {
     const stranger = await createAccount('settings-alarm-stranger');
-    await stranger.client.post('/device/alarms').send({ device_id: device.deviceId, alarms: [alarm] }).expect(403);
+    await stranger.client
+      .post('/device/alarms')
+      .send({ device_id: device.deviceId, alarms: [alarm] })
+      .expect(403);
     await stranger.client.get(`/device/alarms/${device.deviceId}`).expect(403);
   });
 });
@@ -366,7 +375,10 @@ describe('the recipe of a device', () => {
   it('rejects a plan whose steps are not a list, leaving the stored one alone', async () => {
     await owner.client.post('/device/recipe').send({ device_id: device.deviceId, recipe }).expect(200);
 
-    await owner.client.post('/device/recipe').send({ device_id: device.deviceId, recipe: { steps: 'Veg' } }).expect(400);
+    await owner.client
+      .post('/device/recipe')
+      .send({ device_id: device.deviceId, recipe: { steps: 'Veg' } })
+      .expect(400);
     await owner.client.post('/device/recipe').send({ device_id: device.deviceId, recipe: 'Veg' }).expect(400);
 
     const response = await owner.client.get(`/device/recipe/${device.deviceId}`).expect(200);
@@ -418,7 +430,10 @@ describe('recipe templates', () => {
   });
 
   it('rejects a template without a name or steps', async () => {
-    await owner.client.post('/device/recipes').send({ name: unique('t') }).expect(400);
+    await owner.client
+      .post('/device/recipes')
+      .send({ name: unique('t') })
+      .expect(400);
     await owner.client.post('/device/recipes').send({ steps: [] }).expect(400);
   });
 
@@ -428,7 +443,10 @@ describe('recipe templates', () => {
       .send({ name: unique('list'), steps: [step('Veg')] })
       .expect(201);
 
-    await owner.client.post('/device/recipes').send({ name: unique('t'), steps: 'Veg' }).expect(400);
+    await owner.client
+      .post('/device/recipes')
+      .send({ name: unique('t'), steps: 'Veg' })
+      .expect(400);
     await owner.client.put(`/device/recipes/${created.body._id}`).send({ steps: 'Veg' }).expect(400);
   });
 
@@ -464,15 +482,24 @@ describe('recipe templates', () => {
 
   it('hides a private template from other users', async () => {
     const stranger = await createAccount('settings-template-reader');
-    const created = await owner.client.post('/device/recipes').send({ name: unique('secret'), steps: [] }).expect(201);
+    const created = await owner.client
+      .post('/device/recipes')
+      .send({ name: unique('secret'), steps: [] })
+      .expect(201);
 
     await stranger.client.get(`/device/recipes/${created.body._id}`).expect(403);
-    await stranger.client.put(`/device/recipes/${created.body._id}`).send({ name: unique('stolen') }).expect(403);
+    await stranger.client
+      .put(`/device/recipes/${created.body._id}`)
+      .send({ name: unique('stolen') })
+      .expect(403);
     await stranger.client.delete(`/device/recipes/${created.body._id}`).expect(403);
   });
 
   it('lets an admin reach any template', async () => {
-    const created = await owner.client.post('/device/recipes').send({ name: unique('admin-visible'), steps: [] }).expect(201);
+    const created = await owner.client
+      .post('/device/recipes')
+      .send({ name: unique('admin-visible'), steps: [] })
+      .expect(201);
     await admin.client.get(`/device/recipes/${created.body._id}`).expect(200);
   });
 
@@ -482,7 +509,10 @@ describe('recipe templates', () => {
 
   it('rejects an id that is not one', async () => {
     await owner.client.get('/device/recipes/not-an-id').expect(400);
-    await owner.client.put('/device/recipes/not-an-id').send({ name: unique('x') }).expect(400);
+    await owner.client
+      .put('/device/recipes/not-an-id')
+      .send({ name: unique('x') })
+      .expect(400);
     await owner.client.delete('/device/recipes/not-an-id').expect(400);
   });
 });

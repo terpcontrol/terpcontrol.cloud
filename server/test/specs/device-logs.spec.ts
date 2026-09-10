@@ -220,8 +220,14 @@ describe('PUT /device/logs/:device_id/:log_id', () => {
     const logs = await owner.client.get(`/device/logs/${device.deviceId}`).expect(200);
     const logId = logs.body[0]?._id ?? '60706478aad6c9ad19a31c84';
 
-    await owner.client.put(`/device/logs/${device.deviceId}/${logId}`).send({ severity: 0, categories: ['diary'] }).expect(400);
-    await owner.client.put(`/device/logs/${device.deviceId}/${logId}`).send({ message: 'x', categories: ['diary'] }).expect(400);
+    await owner.client
+      .put(`/device/logs/${device.deviceId}/${logId}`)
+      .send({ severity: 0, categories: ['diary'] })
+      .expect(400);
+    await owner.client
+      .put(`/device/logs/${device.deviceId}/${logId}`)
+      .send({ message: 'x', categories: ['diary'] })
+      .expect(400);
     await owner.client.put(`/device/logs/${device.deviceId}/${logId}`).send({ message: 'x', severity: 0, categories: [] }).expect(400);
   });
 

@@ -55,10 +55,7 @@ describe('firmware binaries', () => {
     const created = await createFirmware().expect(200);
     const payload = Buffer.from('a firmware image');
 
-    await admin.client
-      .post(`/device/firmware/${created.body.firmware_id}/firmware.bin`)
-      .attach('binary', payload, 'firmware.bin')
-      .expect(200);
+    await admin.client.post(`/device/firmware/${created.body.firmware_id}/firmware.bin`).attach('binary', payload, 'firmware.bin').expect(200);
 
     // The device fetches this over plain HTTP, with no credentials of its own.
     const download = await anonymous().get(`/device/firmware/${created.body.firmware_id}/firmware.bin`).expect(200);
@@ -72,10 +69,7 @@ describe('firmware binaries', () => {
     const created = await createFirmware().expect(200);
     const payload = Buffer.from('legacy path image');
 
-    await admin.client
-      .post(`/device/firmware/${created.body.firmware_id}/firmware.bin`)
-      .attach('binary', payload, 'firmware.bin')
-      .expect(200);
+    await admin.client.post(`/device/firmware/${created.body.firmware_id}/firmware.bin`).attach('binary', payload, 'firmware.bin').expect(200);
 
     const download = await anonymous().get(`/auth/v0.0.1/device/firmware/${created.body.firmware_id}/firmware.bin`).expect(200);
     expect(Buffer.from(download.body)).toEqual(payload);
@@ -120,10 +114,7 @@ describe('firmware binaries', () => {
     const created = await createFirmware().expect(200);
     const tooBig = Buffer.alloc(2 * 1024 * 1024 + 1, 0x41);
 
-    await admin.client
-      .post(`/device/firmware/${created.body.firmware_id}/firmware.bin`)
-      .attach('binary', tooBig, 'firmware.bin')
-      .expect(413);
+    await admin.client.post(`/device/firmware/${created.body.firmware_id}/firmware.bin`).attach('binary', tooBig, 'firmware.bin').expect(413);
   });
 
   it('does not apply the OTA size limit to other binaries', async () => {
@@ -286,10 +277,7 @@ describe('device classes', () => {
   it('creates and updates a class', async () => {
     const name = unique('class');
 
-    await admin.client
-      .post('/device/class')
-      .send({ name, description: 'A test class', firmware_id: '', concurrent: 5, maxfails: 10 })
-      .expect(200);
+    await admin.client.post('/device/class').send({ name, description: 'A test class', firmware_id: '', concurrent: 5, maxfails: 10 }).expect(200);
 
     const created = await admin.client.get(`/device/class/find/${name}`).expect(200);
     expect(created.body).toMatchObject({ name, description: 'A test class', concurrent: 5, maxfails: 10 });
@@ -330,7 +318,10 @@ describe('device classes', () => {
     await admin.client.post('/device/class').send(base).expect(200);
     const created = await admin.client.get(`/device/class/find/${name}`).expect(200);
 
-    const firmware = await admin.client.post('/device/firmware').send({ name, version: unique('v') }).expect(200);
+    const firmware = await admin.client
+      .post('/device/firmware')
+      .send({ name, version: unique('v') })
+      .expect(200);
     await admin.client
       .post(`/device/class/${created.body.class_id}`)
       .send({ ...base, beta_firmware_id: firmware.body.firmware_id })
@@ -351,7 +342,10 @@ describe('device classes', () => {
   });
 
   it('validates the class payload', async () => {
-    await admin.client.post('/device/class').send({ name: unique('class'), description: 'x' }).expect(400);
+    await admin.client
+      .post('/device/class')
+      .send({ name: unique('class'), description: 'x' })
+      .expect(400);
     await admin.client
       .post('/device/class')
       .send({ name: unique('class'), description: 'x', firmware_id: '', concurrent: 'many', maxfails: 1 })

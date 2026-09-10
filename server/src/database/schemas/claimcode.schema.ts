@@ -1,5 +1,4 @@
 import { Schema } from 'mongoose';
-import { ClaimCode } from '@fg2/shared-types';
 
 export const claimCodeSchema: Schema = new Schema({
   claim_code: {

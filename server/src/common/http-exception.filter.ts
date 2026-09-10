@@ -11,7 +11,10 @@ import { loggablePath } from './log-path';
  * text, so the shape is kept as it was.
  */
 export class PlainTextException extends NestHttpException {
-  constructor(status: number, public readonly text: string) {
+  constructor(
+    status: number,
+    public readonly text: string,
+  ) {
     super(text, status);
   }
 }
@@ -78,7 +81,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       const message =
         typeof response === 'string'
           ? response
-          : (response as { message?: unknown; error?: unknown })?.message ?? (response as { error?: unknown })?.error ?? exception.message;
+          : ((response as { message?: unknown; error?: unknown })?.message ?? (response as { error?: unknown })?.error ?? exception.message);
 
       return {
         status: exception.getStatus(),

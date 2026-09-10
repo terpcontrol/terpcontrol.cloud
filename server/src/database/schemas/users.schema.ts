@@ -1,5 +1,4 @@
 import { Schema } from 'mongoose';
-import { User } from '@fg2/shared-types';
 
 export const userSchema: Schema = new Schema({
   username: {

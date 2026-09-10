@@ -12,7 +12,10 @@ import { MqttClientService } from '../mqtt/mqtt-client.service';
 
 @Injectable()
 export class MqttAuthService {
-  constructor(@InjectModel(MODEL.device) private readonly devices: Model<Device & Document>, private readonly mqtt: MqttClientService) {}
+  constructor(
+    @InjectModel(MODEL.device) private readonly devices: Model<Device & Document>,
+    private readonly mqtt: MqttClientService,
+  ) {}
 
   public async user(authData: AuthUserDto): Promise<boolean> {
     if (isEmpty(authData)) {

@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { MqttClientService } from '../mqtt/mqtt-client.service';
 import { createServer, Server } from 'node:net';
 import { EventEmitter } from 'node:events';
-import { Mutex, MutexInterface, Semaphore, SemaphoreInterface, withTimeout } from 'async-mutex';
+import { Semaphore, SemaphoreInterface, withTimeout } from 'async-mutex';
 
 const TUNNEL_CHUNK_SIZE = 128;
 const MAX_PACKET_LENGTH = 1000;
@@ -217,14 +217,14 @@ export class TunnelService implements BeforeApplicationShutdown {
     const port = streamUrl.port
       ? parseInt(streamUrl.port)
       : streamUrl.protocol === 'rtsp:'
-      ? 554
-      : streamUrl.protocol === 'rtsps:'
-      ? 322
-      : streamUrl.protocol === 'rtmp:'
-      ? 1935
-      : ['rtmps:', 'https:'].includes(streamUrl.protocol)
-      ? 443
-      : 80;
+        ? 554
+        : streamUrl.protocol === 'rtsps:'
+          ? 322
+          : streamUrl.protocol === 'rtmp:'
+            ? 1935
+            : ['rtmps:', 'https:'].includes(streamUrl.protocol)
+              ? 443
+              : 80;
 
     return new Promise<string>((resolve, reject) => {
       const server = createServer(client => {
@@ -261,7 +261,7 @@ export class TunnelService implements BeforeApplicationShutdown {
           acquire: this.deviceIdToSemaphore
             .get(device_id)
             .acquire()
-            .then(([number, release]) => {
+            .then(([, release]) => {
               if (this.deviceIdToTunnelConnection.get(device_id)?.has(connectionId)) {
                 connection.release = release;
               } else {
@@ -313,7 +313,7 @@ export class TunnelService implements BeforeApplicationShutdown {
           );
         });
 
-        client.on('error', err => {
+        client.on('error', () => {
           // Ignore errors, as they are handled in 'close' event
         });
       });

@@ -1,5 +1,4 @@
 import { Schema } from 'mongoose';
-import { DeviceFirmware, DeviceFirmwareBinary } from '@fg2/shared-types';
 
 export const deviceFirmwareSchema: Schema = new Schema({
   firmware_id: {

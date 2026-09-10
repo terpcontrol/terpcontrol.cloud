@@ -122,7 +122,10 @@ describe('the claim code and what it is worth', () => {
     await anonymous().post('/device/claimcode').send({}).expect(400);
     await anonymous().post('/device/claimcode').send({ device_id: '' }).expect(400);
     await anonymous().post('/device/claimcode').send({ device_id: null }).expect(400);
-    await anonymous().post('/device/claimcode').send({ device_id: { $ne: null } }).expect(400);
+    await anonymous()
+      .post('/device/claimcode')
+      .send({ device_id: { $ne: null } })
+      .expect(400);
 
     // The legacy path firmware calls is the same handler and answers the same.
     await anonymous().post('/auth/v0.0.1/device/claimcode').send({}).expect(400);

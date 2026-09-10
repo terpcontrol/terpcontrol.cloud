@@ -1,7 +1,6 @@
 import { forwardRef, Inject, Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { execFile } from 'node:child_process';
-import { createServer } from 'node:net';
 import { Readable } from 'node:stream';
 import { tmpdir } from 'node:os';
 import { join } from 'path';
@@ -771,8 +770,8 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
             (corruptionIndicator
               ? new CorruptFrameError(`discarding corrupt frame ("${corruptionIndicator}")`)
               : !stdout || stdout.length === 0
-              ? new Error('ffmpeg produced no output')
-              : undefined);
+                ? new Error('ffmpeg produced no output')
+                : undefined);
           resolve({ stdout: stdout ?? Buffer.alloc(0), stderr: String(stderr), failure });
         },
       );

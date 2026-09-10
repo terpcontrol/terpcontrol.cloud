@@ -12,7 +12,10 @@ export type ErrorKey = 'message' | 'error';
 
 @Injectable()
 export class ZodValidationPipe<T> implements PipeTransform<unknown, T> {
-  constructor(private readonly schema: ZodType<T>, private readonly errorKey: ErrorKey = 'message') {}
+  constructor(
+    private readonly schema: ZodType<T>,
+    private readonly errorKey: ErrorKey = 'message',
+  ) {}
 
   public transform(value: unknown, _metadata: ArgumentMetadata): T {
     const result = this.schema.safeParse(value);

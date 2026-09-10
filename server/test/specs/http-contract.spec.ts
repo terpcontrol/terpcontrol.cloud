@@ -37,7 +37,9 @@ describe('cross-origin access', () => {
       .set('Access-Control-Request-Method', 'DELETE')
       .expect(204);
 
-    const allowed = String(response.headers['access-control-allow-methods']).split(',').map(method => method.trim());
+    const allowed = String(response.headers['access-control-allow-methods'])
+      .split(',')
+      .map(method => method.trim());
     expect(allowed).toEqual(expect.arrayContaining(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']));
   });
 
@@ -66,13 +68,13 @@ describe('security headers', () => {
 
 describe('firmware downloads', () => {
   it('are never compressed, whatever the client offers', async () => {
-    const created = await admin.client.post('/device/firmware').send({ name: 'fridge', version: unique('v') }).expect(200);
+    const created = await admin.client
+      .post('/device/firmware')
+      .send({ name: 'fridge', version: unique('v') })
+      .expect(200);
     const payload = Buffer.alloc(4096, 0x5a);
 
-    await admin.client
-      .post(`/device/firmware/${created.body.firmware_id}/firmware.bin`)
-      .attach('binary', payload, 'firmware.bin')
-      .expect(200);
+    await admin.client.post(`/device/firmware/${created.body.firmware_id}/firmware.bin`).attach('binary', payload, 'firmware.bin').expect(200);
 
     // The OTA client reads Content-Length and is told not to transform the
     // body; compressing it would break both promises.
@@ -147,9 +149,7 @@ describe('what Express used to accept', () => {
 
     // A client that builds its URL badly used to be tolerated by hpp(); the
     // token is read as a string, and an array would fail the session check.
-    await anonymous()
-      .get(`/image/${device.deviceId}?format=jpeg&token=nonsense&token=${owner.imageToken}`)
-      .expect(200);
+    await anonymous().get(`/image/${device.deviceId}?format=jpeg&token=nonsense&token=${owner.imageToken}`).expect(200);
   });
 
   it('takes the last value of a repeated form field as well', async () => {

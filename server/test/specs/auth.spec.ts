@@ -73,10 +73,7 @@ describe('POST /login', () => {
     const account = await createAccount();
 
     const short = await anonymous().post('/login').send({ username: account.username, password: account.password }).expect(200);
-    const long = await anonymous()
-      .post('/login')
-      .send({ username: account.username, password: account.password, stayLoggedIn: true })
-      .expect(200);
+    const long = await anonymous().post('/login').send({ username: account.username, password: account.password, stayLoggedIn: true }).expect(200);
 
     expect(long.body.refreshToken.expiresIn).toBeGreaterThan(short.body.refreshToken.expiresIn);
   });
@@ -93,7 +90,10 @@ describe('POST /login', () => {
   });
 
   it('rejects a non-string password', async () => {
-    await anonymous().post('/login').send({ username: newUsername(), password: { $ne: null } }).expect(400);
+    await anonymous()
+      .post('/login')
+      .send({ username: newUsername(), password: { $ne: null } })
+      .expect(400);
   });
 });
 
@@ -146,7 +146,10 @@ describe('POST /tokenlogin', () => {
   });
 
   it('rejects a token that only shares a prefix', async () => {
-    await anonymous().post('/tokenlogin').send({ token: context.automationToken.slice(0, -1) }).expect(401);
+    await anonymous()
+      .post('/tokenlogin')
+      .send({ token: context.automationToken.slice(0, -1) })
+      .expect(401);
   });
 });
 

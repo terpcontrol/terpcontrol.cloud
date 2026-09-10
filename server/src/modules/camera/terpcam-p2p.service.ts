@@ -65,7 +65,10 @@ type PendingCapture = {
 
 @Injectable()
 export class TerpCamP2PService {
-  constructor(private readonly mqtt: MqttClientService, private readonly stills: TerpCamService) {}
+  constructor(
+    private readonly mqtt: MqttClientService,
+    private readonly stills: TerpCamService,
+  ) {}
 
   /** One in-flight capture per device; the pipeline never runs two at once. */
   private pending = new Map<string, PendingCapture>();

@@ -238,7 +238,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
                 let parsedMessage;
                 try {
                   parsedMessage = JSON.parse(message.message);
-                } catch (e) {
+                } catch {
                   parsedMessage = message.message;
                 }
 
@@ -494,10 +494,10 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
           (activeStep.durationUnit === 'weeks'
             ? 24 * 7 * 60
             : activeStep.durationUnit === 'days'
-            ? 24 * 60
-            : activeStep.durationUnit === 'hours'
-            ? 60
-            : 1);
+              ? 24 * 60
+              : activeStep.durationUnit === 'hours'
+                ? 60
+                : 1);
         const remainingMs = stepDurationMs - elapsedMs;
         if (remainingMs <= 0) {
           if (activeStep.waitForConfirmation) {
@@ -678,7 +678,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
           }
         }
       }
-    } catch (e) {}
+    } catch {}
 
     if (device.configuration != '') {
       this.mqtt.publish('/devices/' + device.device_id + '/configuration', device.configuration);
@@ -958,7 +958,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     return devices.map(device => withMaintenanceSecondsLeft(device)) as Device[];
   }
 
-  public async getDeviceBySerial(serialnumber: Number): Promise<Device> {
+  public async getDeviceBySerial(serialnumber: number): Promise<Device> {
     const device = await this.devices.findOne({ serialnumber: serialnumber }).lean();
     return (device ? withMaintenanceSecondsLeft(device) : device) as Device;
   }
@@ -1187,7 +1187,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     try {
       try {
         await this.devices.deleteOne({ device_id: info.device_id, owner_id: '' }); // remove unclaimed device with same id
-      } catch (err) {}
+      } catch {}
       await this.devices.create(device);
       logger.info(`Registered new device ${device?.device_id}`);
 
@@ -1744,7 +1744,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     // For each other class: propagate the new label only when the old label
     // appears exactly once within that class (unambiguous 1-to-1 match).
     const matches = await this.firmwares.find({ version: original.version, class_id: { $ne: original.class_id } });
-    const byClass = new Map<string, typeof matches[number][]>();
+    const byClass = new Map<string, (typeof matches)[number][]>();
     for (const m of matches) {
       const list = byClass.get(m.class_id) ?? [];
       list.push(m);

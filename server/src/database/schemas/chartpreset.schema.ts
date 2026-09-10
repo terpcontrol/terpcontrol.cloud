@@ -1,5 +1,4 @@
 import { Schema } from 'mongoose';
-import { ChartPreset } from '@fg2/shared-types';
 
 export const chartPresetSchema: Schema = new Schema({
   preset_id: {
