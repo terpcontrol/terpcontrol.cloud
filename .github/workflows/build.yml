@@ -15,8 +15,8 @@ jobs:
       firmware: ${{ steps.changes.outputs.firmware }}
       garmin: ${{ steps.changes.outputs.garmin }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
         id: changes
         with:
           filters: |
@@ -56,9 +56,9 @@ jobs:
     if: needs.detect.outputs.webapp == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: 'npm'
@@ -78,12 +78,12 @@ jobs:
     if: needs.detect.outputs.server == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # 20, as the container the server ships in runs (docker-compose.yaml:
       # DOCKER_NODE_SERVER_IMAGE). This used to read a matrix that was never
       # declared, so the job ran on whatever the runner happened to have.
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: 'npm'
@@ -107,9 +107,9 @@ jobs:
     if: needs.detect.outputs.docker_server == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v5
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
         with:
           context: .
           file: server/Dockerfile
@@ -124,9 +124,9 @@ jobs:
     if: needs.detect.outputs.docker_webapp == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v5
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
         with:
           context: .
           file: webapp/Dockerfile
@@ -144,8 +144,8 @@ jobs:
     if: needs.detect.outputs.firmware == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
       - name: Build firmware (no upload)
         env:
           API_URL_EXTERNAL: http://192.168.0.100:8081
@@ -163,13 +163,13 @@ jobs:
     if: needs.detect.outputs.garmin == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
 
       # Garmin only serves the per-device compiler definitions to a logged-in
       # developer account, so they are cached to keep the login off the hot path.
       - name: Cache Connect IQ device definitions
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .garmin-cache/Devices
           key: ciq-devices-${{ hashFiles('garmin/manifest.xml') }}

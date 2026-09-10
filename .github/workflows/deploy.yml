@@ -55,14 +55,14 @@ jobs:
       garmin_needed: ${{ steps.resolve.outputs.garmin_needed }}
       description: ${{ steps.resolve.outputs.description }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 2
 
       - name: Detect changed paths
         id: changes
         if: github.event_name == 'push'
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             shared:
@@ -230,7 +230,7 @@ jobs:
       TERPCONTROL_ENV_FILE: ${{ vars.TERPCONTROL_ENV_FILE }}
       APP_NAME: terp-control-viewer-${{ needs.detect.outputs.description }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: ./.github/actions/sync-to-host
         with:
@@ -267,7 +267,7 @@ jobs:
           scp "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/garmin/bin/${APP_NAME}.iq" "iq/${APP_NAME}.iq"
           ls -l iq/
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ env.APP_NAME }}
           path: iq/*.iq

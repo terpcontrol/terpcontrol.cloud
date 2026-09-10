@@ -24,7 +24,7 @@ jobs:
       TERPCONTROL_ENV_FILE: ${{ vars.TERPCONTROL_ENV_FILE }}
       COMPOSE_OPTIONS: ${{ vars.COMPOSE_OPTIONS }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: ./.github/actions/sync-to-host
         with:
