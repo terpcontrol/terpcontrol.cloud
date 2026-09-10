@@ -14,7 +14,8 @@ import deviceModel from '@models/device.model';
  * With no rendezvous configured the server reaches no camera itself and every
  * capture is relayed by its controller instead (terpcam-p2p.service).
  *
- * Protocol details: docs/terpcam-reverse-engineering.md §26.
+ * The protocol was reverse engineered from the vendor SDK; the notes are kept
+ * internally, not in this repository.
  */
 
 /** Substitution table for the transport cipher (vendor constant). */
