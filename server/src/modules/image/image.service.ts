@@ -136,6 +136,7 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
   }
 
   public onApplicationShutdown(): void {
+    logger.info('Stopping the webcam poller and the timelapse builder');
     this.work.stop();
   }
 

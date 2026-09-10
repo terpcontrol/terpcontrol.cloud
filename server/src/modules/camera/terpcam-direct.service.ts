@@ -234,6 +234,12 @@ export class TerpCamDirectService implements OnApplicationShutdown {
    * handles open.
    */
   public onApplicationShutdown(): void {
+    // Only worth a line when there is something to give back; a server that has
+    // reached no camera says nothing here.
+    if (this.sessions.size > 0) {
+      logger.info(`Closing ${this.sessions.size} camera session(s)`);
+    }
+
     for (const deviceId of [...this.sessions.keys()]) {
       this.dropSession(deviceId);
     }

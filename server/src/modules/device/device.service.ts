@@ -159,6 +159,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
   }
 
   public onApplicationShutdown(): void {
+    logger.info('Stopping the device pollers, and listening to no more devices');
     this.messageSubscription?.unsubscribe();
     this.work.stop();
     for (const timer of this.upgradeInstructionTimers.values()) clearTimeout(timer);

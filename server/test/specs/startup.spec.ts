@@ -90,6 +90,48 @@ describe('a throw that reaches nobody', () => {
   });
 });
 
+describe('stopping the way a container asks', () => {
+  jest.setTimeout(90_000);
+
+  // Between the signal and the exit the server closes a broker connection, a
+  // database connection and half a dozen timers. A stop that hangs on one of
+  // them looks exactly like a stop that worked until the container runtime's
+  // grace period runs out, so both ends of it are written down.
+  it('says the signal it is stopping on, and that it has stopped', async () => {
+    const entry = entryPoint();
+    const child = spawn('node', [...entry.nodeArgs, entry.script], {
+      cwd: SERVER_ROOT,
+      // Port 0, so this one does not want the port the running server holds.
+      env: { ...process.env, ...context.appEnv, PORT: '0' },
+    });
+
+    let output = '';
+    const collect = (chunk: Buffer) => (output += chunk.toString());
+    child.stdout.on('data', collect);
+    child.stderr.on('data', collect);
+
+    const exited = new Promise<void>(resolve => child.on('exit', () => resolve()));
+
+    try {
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline && !output.includes('API listening')) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+      expect(output).toContain('API listening');
+
+      child.kill('SIGTERM');
+      await exited;
+    } finally {
+      child.kill('SIGKILL');
+    }
+
+    expect(output).toContain('Stopping on SIGTERM');
+    expect(output).toContain('Stopped on SIGTERM');
+    // The providers that hold something say what they are giving back.
+    expect(output).toContain('Closing the MQTT connection');
+  });
+});
+
 describe('starting without the settings the server needs', () => {
   jest.setTimeout(90_000);
 

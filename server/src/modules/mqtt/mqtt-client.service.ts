@@ -23,6 +23,8 @@ export interface MqttMessage {
 export class MqttClientService implements OnApplicationShutdown {
   private client;
   private everConnected = false;
+  /** Set on the way down, so a connection given up on purpose is not an outage. */
+  private closing = false;
   private readonly internalUser = uuidv4();
   private readonly internalPassword = uuidv4();
 
@@ -95,7 +97,7 @@ export class MqttClientService implements OnApplicationShutdown {
       // the broker is away, and an outage is worth two lines rather than one a
       // second.
       client.on('close', () => {
-        if (!up) {
+        if (!up || this.closing) {
           return;
         }
 
@@ -171,6 +173,8 @@ export class MqttClientService implements OnApplicationShutdown {
    * keepalive lapses.
    */
   public onApplicationShutdown(): void {
+    logger.info('Closing the MQTT connection');
+    this.closing = true;
     this.client?.end(false);
   }
 }

@@ -40,6 +40,9 @@ process.on('uncaughtException', (error, origin) => {
 
 const MAX_UPLOAD_BYTES = 64 * 1024 * 1024;
 
+// SIGTERM is how a container is asked to stop; SIGINT is Ctrl-C in a terminal.
+const STOP_SIGNALS: NodeJS.Signals[] = ['SIGTERM', 'SIGINT'];
+
 // The API is called from the webapp on another origin, and it is read from
 // there with every verb the routes offer - not just the three a preflight
 // allows by default.
@@ -58,6 +61,50 @@ const ALLOWED_METHODS = ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'];
  * the second. A test in `http-contract.spec.ts` holds the download to it.
  */
 const COMPRESSIBLE_TYPES = /^text\/(?!event-stream)|(?:\+|\/)json(?:;|$)|(?:\+|\/)text(?:;|$)|(?:\+|\/)xml(?:;|$)/u;
+
+/**
+ * Closes the app when the process is asked to stop, which is what runs every
+ * provider's shutdown hook: the broker connection, the database connection and
+ * the timers that read cameras and walk grow plans all go there.
+ *
+ * Written out rather than left to `enableShutdownHooks()` so the stop has a
+ * beginning and an end in the log. The two look identical from outside until
+ * the container runtime loses patience, and one of them means a handle is being
+ * held that nothing is going to release.
+ */
+const stopOnSignal = (app: NestFastifyApplication): void => {
+  let stopping = false;
+
+  for (const signal of STOP_SIGNALS) {
+    process.once(signal, () => {
+      if (stopping) {
+        return;
+      }
+      stopping = true;
+
+      logger.info(`Stopping on ${signal}`);
+
+      app
+        .close()
+        .catch(error => logger.error(`Stopping did not finish cleanly: ${error?.stack ?? error}`))
+        .finally(() => {
+          logger.info(`Stopped on ${signal}`);
+
+          // The transports write to a file, and re-raising the signal ends the
+          // process where they are - so without this the last line of a stop
+          // would be the one most likely to be lost.
+          setTimeout(() => {
+            // Nothing is listening for it now, so the default disposition ends
+            // the process - which is what Nest's own handler does once its own
+            // hooks have run.
+            process.kill(process.pid, signal);
+            // Deliberately not unref'd: an empty event loop would otherwise
+            // end the process before the write, which is the case this is for.
+          }, FLUSH_BEFORE_EXIT_MS);
+        });
+    });
+  }
+};
 
 const bootstrap = async (): Promise<void> => {
   const adapter = new FastifyAdapter({
@@ -95,9 +142,7 @@ const bootstrap = async (): Promise<void> => {
   });
   await app.register(fastifyCompress, { customTypes: COMPRESSIBLE_TYPES });
 
-  // SIGTERM is how a container is asked to stop, and the providers that hold a
-  // broker connection, a database connection or a timer close them on it.
-  app.enableShutdownHooks();
+  stopOnSignal(app);
 
   registerHttpCompatibility(app);
   registerAccessLog(app);

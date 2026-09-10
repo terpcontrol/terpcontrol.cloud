@@ -42,6 +42,7 @@ export class CleanupService implements OnModuleInit, OnApplicationShutdown {
   }
 
   public onApplicationShutdown(): void {
+    logger.info('Stopping the cleanup sweep');
     this.work.stop();
   }
 
