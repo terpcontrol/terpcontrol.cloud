@@ -406,6 +406,17 @@ export class TerpCamDirectService implements OnApplicationShutdown {
     }
   }
 
+  /**
+   * Whether this server can go for the camera itself at all: a rendezvous to ask
+   * and a camera the device has reported. Where it cannot, the controller is not
+   * a fallback but the only path there is, and a caller should not spend failed
+   * attempts before taking it.
+   */
+  public async canReachCamera(deviceId: string): Promise<boolean> {
+    if (!this.rendezvousHosts.length) return false;
+    return !!(await this.cameraFor(deviceId))?.uid;
+  }
+
   /** Pull one still as a ready JPEG, decoding the keyframe when there is one. */
   public async captureStill(deviceId: string): Promise<Buffer> {
     const { data, h264 } = await this.capture(deviceId);
