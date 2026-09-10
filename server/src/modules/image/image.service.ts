@@ -110,6 +110,15 @@ type TerpCamDirectState = {
 export class ImageService implements OnModuleInit, OnApplicationShutdown {
   private ffmpegLimit = pLimit(10);
   private deviceIdToLastRtspState = new Map<string, { lastTry: number; failureCount: number }>();
+  /**
+   * The devices whose camera is being read right now - queued for ffmpeg counts
+   * as being read. A pass no longer waits for the reads it started, so the
+   * interval between tries is no longer what keeps one camera from being read
+   * twice at once: a read that outlives it would otherwise be joined by the next
+   * pass, and then by every pass after that, each holding an ffmpeg run open on
+   * the same camera.
+   */
+  private readonly camerasBeingRead = new Set<string>();
   private deviceIdToTerpCamDirectState = new Map<string, TerpCamDirectState>();
   private lastThinningRun = 0;
   private readonly work = new BackgroundWork();
@@ -274,13 +283,21 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
     }
   }
 
+  /**
+   * One pass over every device with a camera, starting a read for each whose
+   * turn it is. It does not wait for those reads. ffmpeg is given 90 seconds to
+   * answer, and a pass that waited out one unreachable camera held every other
+   * device's next still behind it for that long - a camera nobody can reach
+   * costing every other customer their timelapse frames. What the failure is
+   * worth is already spent on the device it belongs to: each try that fails
+   * doubles the wait before the next one, up to two hours.
+   */
   private async readFromRtspStreams(): Promise<void> {
     try {
       const devices = await this.devices.find({
         'cloudSettings.rtspStream': { $exists: true, $ne: '' },
       });
 
-      const promises: Promise<void>[] = [];
       for (const device of devices) {
         // A pass can outlive the server: it sleeps between devices, and those
         // sleeps are not the scheduler's to cancel. Stopping here is what keeps
@@ -291,6 +308,10 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
           this.deviceIdToLastRtspState.set(device.device_id, { lastTry: 0, failureCount: 0 });
         }
         this.trackTerpCamOnlinePeriod(device);
+
+        if (this.camerasBeingRead.has(device.device_id)) {
+          continue;
+        }
 
         if (device.cloudSettings?.maintenanceWebcamOff) {
           const isInMaintenanceMode = !!device.maintenance_mode_until && device.maintenance_mode_until > Date.now();
@@ -305,7 +326,9 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
           (state?.lastTry ?? 0) <=
           Date.now() - Math.min(IMAGE_LOAD_INTERVAL_MS * Math.pow(2, state?.failureCount ?? 0), IMAGE_LOAD_MAX_BACKOFF_INTERVAL_MS)
         ) {
-          promises.push(
+          this.camerasBeingRead.add(device.device_id);
+          logIfItFails(
+            `Reading the camera of device ${device.device_id}`,
             this.ffmpegLimit(() =>
               this.readRtspStreamImage(device.cloudSettings, device.device_id)
                 .then(async image => {
@@ -345,6 +368,7 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
                 })
                 .finally(() => {
                   state.lastTry = Date.now();
+                  this.camerasBeingRead.delete(device.device_id);
                 }),
             ),
           );
@@ -352,8 +376,6 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
 
         await new Promise(r => setTimeout(r, FFMPEG_THROTTLE_MS));
       }
-
-      await Promise.all(promises);
     } catch (error) {
       // A pass that fails must not take the poller with it: without this the
       // reschedule below is skipped and no camera is read again.

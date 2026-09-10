@@ -31,8 +31,9 @@ Both fakes live in the jest main process, so the specs reach them through an HTT
 `convert` (ImageMagick) and `ffmpeg` must be on PATH — the image endpoints shell out to them, exactly as the container
 does. The app under test finds a shim first (`support/infra/fake-bin/ffmpeg`): it records the arguments of every run
 and hands the run to the real ffmpeg, so stills still come from actual streams. What the server runs ffmpeg with, and
-what it does with a run that failed, is not visible in an HTTP answer otherwise; `support/ffmpeg.ts` is how a spec
-reads those runs and, where it needs a particular camera, answers one of them itself.
+what it does with a run that failed - or with one that never answers - is not visible in an HTTP answer otherwise;
+`support/ffmpeg.ts` is how a spec reads those runs and, where it needs a particular camera, answers one of them
+itself.
 
 ### Writing a spec
 

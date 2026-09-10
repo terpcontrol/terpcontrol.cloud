@@ -7,9 +7,9 @@
  * It records the arguments of every run and otherwise hands the run straight to
  * the real ffmpeg, so the suite keeps reading actual frames out of actual
  * streams. A spec that needs a particular camera - one whose parameter sets are
- * not ready yet, one that is unreachable, one that should receive specific
- * bytes - arms a plan first (see test/support/ffmpeg.ts) and those runs are
- * answered from it instead.
+ * not ready yet, one that is unreachable, one that never answers at all, one
+ * that should receive specific bytes - arms a plan first (see
+ * test/support/ffmpeg.ts) and those runs are answered from it instead.
  *
  * A plan entry is only spent on a run it names (`match`), because the webcam
  * poller reads its own cameras throughout and would otherwise take an answer
@@ -74,9 +74,16 @@ if (!run || (run.match && !args.join(' ').includes(run.match))) {
 writeFileSync(planFile, JSON.stringify(plan.slice(1)));
 
 const answer = () => {
-  if (run.stderr) process.stderr.write(run.stderr);
-  if (run.stdout) process.stdout.write(Buffer.from(run.stdout, 'base64'));
-  process.exit(run.exit ?? 0);
+  const write = () => {
+    if (run.stderr) process.stderr.write(run.stderr);
+    if (run.stdout) process.stdout.write(Buffer.from(run.stdout, 'base64'));
+    process.exit(run.exit ?? 0);
+  };
+
+  // A camera that accepts the connection and then says nothing, which is what
+  // the server spends its whole ffmpeg timeout on.
+  if (run.delayMs) setTimeout(write, run.delayMs);
+  else write();
 };
 
 // A camera that says something on the wire: the bytes go to whatever `-i`
