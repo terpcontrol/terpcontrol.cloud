@@ -1,23 +1,6 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { anonymous, context, createAccount, Session, unique } from '../support/api';
 import { provisionDevice, registerDevice } from '../support/device';
-
-const LOG_DIR = join(__dirname, '..', '.tmp', 'logs');
-
-/** Everything the server has written this run, debug and error alike. */
-const logContents = (): string => {
-  const parts: string[] = [];
-
-  for (const level of ['debug', 'error']) {
-    const directory = join(LOG_DIR, level);
-    for (const file of readdirSync(directory)) {
-      if (file.endsWith('.log')) parts.push(readFileSync(join(directory, file), 'utf8'));
-    }
-  }
-
-  return parts.join('\n');
-};
+import { serverLog as logContents } from '../support/logs';
 
 const settle = (ms = 300) => new Promise(resolve => setTimeout(resolve, ms));
 

@@ -1,6 +1,7 @@
 import { createAccount, Session } from '../support/api';
 import { bounceMqttBroker } from '../support/control';
 import { DeviceCredentials, DeviceSimulator, provisionDevice, settle, startSimulator } from '../support/device';
+import { serverLogMentions } from '../support/logs';
 
 /**
  * The server's own MQTT connection is the only way it reaches a device, and a
@@ -47,6 +48,26 @@ describe('after the broker restarts', () => {
     const listed = await owner.client.get('/device').expect(200);
     const entry = listed.body.find((candidate: { device_id: string }) => candidate.device_id === device.deviceId);
     expect(entry.lastseen).toBeGreaterThan(Date.now() - 60_000);
+  }, 60_000);
+
+  // An outage is only visible to whoever reads the log afterwards, and the
+  // errors stop arriving whether the client came back or gave up - so without
+  // these two lines a recovered outage and a dead connection look the same.
+  it('writes down that the connection went and that it came back', async () => {
+    // Counted rather than diffed: the broker is bounced more than once in this
+    // file, so what makes a line this outage's is that there is one more of it.
+    const lost = serverLogMentions('MQTT connection lost');
+    const back = serverLogMentions('MQTT reconnected');
+
+    await bounceMqttBroker(3000);
+
+    // mqtt.js reconnects on its own timer, so this waits for the line rather
+    // than for a fixed moment.
+    const deadline = Date.now() + 30_000;
+    while (Date.now() < deadline && serverLogMentions('MQTT reconnected') === back) await settle(500);
+
+    expect(serverLogMentions('MQTT connection lost')).toBeGreaterThan(lost);
+    expect(serverLogMentions('MQTT reconnected')).toBeGreaterThan(back);
   }, 60_000);
 
   it('handles each message once, however many times it has reconnected', async () => {

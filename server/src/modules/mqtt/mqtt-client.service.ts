@@ -66,17 +66,41 @@ export class MqttClientService implements OnApplicationShutdown {
 
     return new Promise<void>((resolve, reject) => {
       let connected = false;
+      // Whether the connection is believed to be up right now, which is not the
+      // same as `connected`: that one latches on the first handshake and is what
+      // decides whether the promise is still to be settled.
+      let up = false;
+
       const client = mqtt.connect(`mqtt://${url}:${port}`, { username: this.internalUser, password: this.internalPassword });
       this.client = client;
 
       client.on('connect', () => {
         this.everConnected = true;
+        up = true;
 
         if (!connected) {
           logger.info('MQTT connected');
           connected = true;
           resolve();
+          return;
         }
+
+        // Every later connect is mqtt.js coming back on its own, and saying so
+        // is the only thing that closes an outage in the log: the errors below
+        // stop arriving either way.
+        logger.info('MQTT reconnected');
+      });
+
+      // Written on the way down only. This fires on every retry for as long as
+      // the broker is away, and an outage is worth two lines rather than one a
+      // second.
+      client.on('close', () => {
+        if (!up) {
+          return;
+        }
+
+        up = false;
+        logger.info('MQTT connection lost; reconnecting');
       });
 
       client.on('error', (error: Error) => {
