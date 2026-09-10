@@ -9,10 +9,14 @@ describe('Camera capture diagnostics in the device log', () => {
     expect(isSuppressedCamCaptureLog(OK, { logRtspStreamErrors: false })).toBe(true);
   });
 
-  it('logs a failed capture only while webcam errors are logged', () => {
+  it('logs a failed capture unless webcam errors were switched off', () => {
     expect(isSuppressedCamCaptureLog(FAILED, { logRtspStreamErrors: true })).toBe(false);
     expect(isSuppressedCamCaptureLog(FAILED, { logRtspStreamErrors: false })).toBe(true);
-    expect(isSuppressedCamCaptureLog(FAILED, undefined)).toBe(true);
+  });
+
+  it('treats a device that never configured its webcam like the default the settings read with', () => {
+    expect(isSuppressedCamCaptureLog(FAILED, {})).toBe(false);
+    expect(isSuppressedCamCaptureLog(FAILED, undefined)).toBe(false);
   });
 
   it('leaves every other device message alone', () => {

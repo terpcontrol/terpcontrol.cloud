@@ -9,6 +9,11 @@ const CAM_CAPTURE_MESSAGE_PREFIX = 'message-cam-capture:';
  * owner asked for webcam errors to be logged - the same switch the cloud's own
  * stream errors follow. Firmware in the field still sends the successful ones,
  * so the decision is made here rather than only on the device.
+ *
+ * The stored settings of a device whose webcam was never configured carry no
+ * switch at all, and everything that reads them defaults it to on, so only an
+ * explicit `false` suppresses a failure here.
  */
 export const isSuppressedCamCaptureLog = (message: string, cloudSettings?: CloudSettings): boolean =>
-  message.startsWith(CAM_CAPTURE_MESSAGE_PREFIX) && (message.startsWith(`${CAM_CAPTURE_MESSAGE_PREFIX}ok`) || !cloudSettings?.logRtspStreamErrors);
+  message.startsWith(CAM_CAPTURE_MESSAGE_PREFIX) &&
+  (message.startsWith(`${CAM_CAPTURE_MESSAGE_PREFIX}ok`) || cloudSettings?.logRtspStreamErrors === false);
