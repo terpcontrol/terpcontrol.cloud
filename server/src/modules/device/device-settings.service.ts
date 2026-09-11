@@ -77,7 +77,7 @@ export class DeviceSettingsService {
     await this.devices.findOneAndUpdate({ device_id: device_id }, { configuration: JSON.stringify(configuration) });
   }
 
-  public diffConfigs(oldConfigJson: string, newConfigJson: string): string {
+  private diffConfigs(oldConfigJson: string, newConfigJson: string): string {
     try {
       const oldConfig = JSON.parse(oldConfigJson);
       const newConfig = JSON.parse(newConfigJson);
