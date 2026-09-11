@@ -783,6 +783,21 @@
       "device_id"
     ]
   },
+  "ClaimResult": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string"
+      },
+      "device_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "status",
+      "device_id"
+    ]
+  },
   "DeviceFirmware": {
     "type": "object",
     "properties": {
@@ -849,6 +864,94 @@
       "firmware_id",
       "name",
       "data"
+    ]
+  },
+  "RolloutFirmware": {
+    "type": "object",
+    "properties": {
+      "firmware_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "name": {
+        "type": "string"
+      },
+      "version": {
+        "type": "string"
+      },
+      "class_id": {
+        "type": "string"
+      },
+      "createdAt": {
+        "type": "number"
+      },
+      "wasStable": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "firmware_id",
+      "name",
+      "version",
+      "class_id"
+    ]
+  },
+  "FirmwareRollout": {
+    "type": "object",
+    "properties": {
+      "fw": {
+        "$ref": "#/components/schemas/RolloutFirmware"
+      },
+      "online": {
+        "type": "number"
+      },
+      "total": {
+        "type": "number"
+      },
+      "updating": {
+        "type": "number",
+        "description": "Devices whose update to this firmware is still within the upgrade window."
+      },
+      "failed": {
+        "type": "number",
+        "description": "Devices that were told to update and did not report back in time."
+      },
+      "avgtime": {
+        "type": "number",
+        "description": "Milliseconds an update to this firmware took on average, 0 when none completed."
+      },
+      "maxtime": {
+        "type": "number"
+      }
+    },
+    "required": [
+      "fw",
+      "online",
+      "total",
+      "updating",
+      "failed",
+      "avgtime",
+      "maxtime"
+    ]
+  },
+  "DeviceClassRollout": {
+    "type": "object",
+    "properties": {
+      "class": {
+        "$ref": "#/components/schemas/DeviceClass"
+      },
+      "versions": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/FirmwareRollout"
+        }
+      }
+    },
+    "required": [
+      "class",
+      "versions"
     ]
   },
   "DeviceLog": {
@@ -934,6 +1037,38 @@
       "time"
     ]
   },
+  "MeasureValue": {
+    "type": "object",
+    "properties": {
+      "value": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "value"
+    ]
+  },
+  "SeriesPoint": {
+    "type": "object",
+    "properties": {
+      "_time": {
+        "type": "string"
+      },
+      "_value": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "_time",
+      "_value"
+    ]
+  },
   "Image": {
     "type": "object",
     "properties": {
@@ -972,6 +1107,33 @@
           "1d",
           "1w",
           "1m"
+        ]
+      }
+    },
+    "required": [
+      "image_id",
+      "device_id",
+      "timestamp"
+    ]
+  },
+  "ImageUploadResult": {
+    "type": "object",
+    "properties": {
+      "image_id": {
+        "type": "string"
+      },
+      "device_id": {
+        "type": "string"
+      },
+      "timestamp": {
+        "type": "number"
+      },
+      "format": {
+        "type": "string",
+        "enum": [
+          "jpeg",
+          "mp4",
+          "user/jpeg"
         ]
       }
     },
@@ -1044,6 +1206,91 @@
     "required": [
       "user_id",
       "token"
+    ]
+  },
+  "SessionUser": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "string"
+      },
+      "username": {
+        "type": "string"
+      },
+      "is_admin": {
+        "type": "boolean"
+      },
+      "is_demo": {
+        "description": "Session opened through the demo login: demo devices, read-only.",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "user_id",
+      "username",
+      "is_admin"
+    ]
+  },
+  "AuthToken": {
+    "type": "object",
+    "properties": {
+      "token": {
+        "type": "string"
+      },
+      "expiresIn": {
+        "type": "number",
+        "description": "Seconds the token stays valid."
+      },
+      "secret": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "token",
+      "expiresIn",
+      "secret"
+    ]
+  },
+  "SessionTokens": {
+    "type": "object",
+    "properties": {
+      "userToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      },
+      "refreshToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      },
+      "imageToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      }
+    },
+    "required": [
+      "userToken",
+      "refreshToken",
+      "imageToken"
+    ]
+  },
+  "Session": {
+    "type": "object",
+    "properties": {
+      "userToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      },
+      "refreshToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      },
+      "imageToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      },
+      "user": {
+        "$ref": "#/components/schemas/SessionUser"
+      }
+    },
+    "required": [
+      "userToken",
+      "refreshToken",
+      "imageToken",
+      "user"
     ]
   },
   "RecipeTemplateStep": {

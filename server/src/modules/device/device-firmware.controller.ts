@@ -78,7 +78,8 @@ export class DeviceFirmwareController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Register a firmware build' })
-  public async create(@Body(zodBody(addFirmwareSchema)) body: AddFirmware) {
+  @ApiShape('FirmwareListEntry')
+  public async create(@Body(zodBody(addFirmwareSchema)) body: AddFirmware): Promise<FirmwareListEntry> {
     const firmware = await this.deviceService.createFirmware(body.name, body.version);
     return { firmware_id: firmware.firmware_id, name: firmware.name, version: firmware.version };
   }
@@ -108,7 +109,8 @@ export class DeviceFirmwareController {
   @Put('firmware/:firmware_id')
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Relabel a firmware build' })
-  public async relabel(@Param('firmware_id') firmwareId: string, @Body() body: { version?: unknown }) {
+  @ApiShape('FirmwareListEntry')
+  public async relabel(@Param('firmware_id') firmwareId: string, @Body() body: { version?: unknown }): Promise<FirmwareListEntry> {
     const version = typeof body?.version === 'string' ? body.version.trim() : '';
     if (!version) {
       throw new BadRequestException({ error: 'Missing or invalid version' });

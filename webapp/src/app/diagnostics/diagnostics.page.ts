@@ -1,11 +1,8 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { ChartConfiguration, ChartEvent, ChartType } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
-import { firstValueFrom } from 'rxjs';
 import 'chartjs-adapter-luxon';
 import { ActivatedRoute } from '@angular/router';
-import { environment } from 'src/environments/environment';
 import { DataService } from 'src/app/services/data.service';
 import * as Highcharts from 'highcharts/highstock';
 import { DeviceService } from 'src/app/services/devices.service';

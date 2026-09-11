@@ -1,11 +1,11 @@
 import { Injectable, OnDestroy } from '@angular/core';
-import { BehaviorSubject, catchError, from, firstValueFrom, Observable, tap, Subject, timeout } from 'rxjs';
-import { HttpClient } from '@angular/common/http';
-import { UserLite } from '../services/users.service';
-import { DateTime, Interval } from "luxon";
-import { environment } from 'src/environments/environment';
+import { BehaviorSubject, firstValueFrom, Observable, timeout } from 'rxjs';
+import type { SessionTokens, SessionUser } from '@fg2/shared-types';
+import { DateTime } from "luxon";
 import { Router } from '@angular/router';
 import { MenuController, NavController } from '@ionic/angular';
+import { ApiClient } from '../api/api.client';
+import { api } from '../api/api.routes';
 
 const EXPIRE_SAFETY_SECONDS = 10;
 
@@ -17,12 +17,12 @@ export type SessionState = 'unknown' | 'authenticated' | 'anonymous' | 'unreacha
 
 export type LogoutReason = 'session-expired';
 
-interface LoginData {
-  userToken: any,
-  refreshToken: any,
-  imageToken: any,
-  user: UserLite
-}
+/**
+ * What a session route answers with. Signing in reports the account as well;
+ * trading in a refresh token sends the tokens alone, because the token said who
+ * the caller is.
+ */
+type SessionData = SessionTokens & { user?: SessionUser };
 
 // A request that never reached the server: the browser reports status 0 for DNS,
 // TLS, CORS and offline failures, and a stalled connection surfaces as a timeout.
@@ -35,14 +35,14 @@ export function isConnectionError(err: any): boolean {
 export class AuthService implements OnDestroy {
 
   public authenticated: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
-  public current_user: BehaviorSubject<UserLite|null> = new BehaviorSubject<UserLite|null>(null);
+  public current_user: BehaviorSubject<SessionUser|null> = new BehaviorSubject<SessionUser|null>(null);
   // `authenticated` cannot express "we don't know yet" or "the server is down", which
   // is what tells a genuine logout apart from an unreachable backend.
   public sessionState: BehaviorSubject<SessionState> = new BehaviorSubject<SessionState>('unknown');
   private waitForToken: Promise<void> | null = null;
   private revalidation: Promise<void> | null = null;
 
-  constructor(private http: HttpClient, public router: Router, private navCtrl: NavController, private menuCtrl: MenuController) {
+  constructor(private client: ApiClient, public router: Router, private navCtrl: NavController, private menuCtrl: MenuController) {
   }
 
   public ngOnDestroy(): void {
@@ -100,31 +100,19 @@ export class AuthService implements OnDestroy {
   }
 
   public async login(username: string, password: string, stayLoggedIn: boolean) {
-    await this.startSession(this.http.post<LoginData>(
-      environment.API_URL + "/login",
-      {
-        username,
-        password,
-        stayLoggedIn
-      },
-      { headers: { 'Authorization': '' } }
-    ));
+    await this.startSession(this.client.observe(api.session.logIn(username, password, stayLoggedIn)));
   }
 
   // Read-only session without an account, showing the devices flagged as demo devices.
   public async loginAsDemo() {
-    await this.startSession(this.http.post<LoginData>(
-      environment.API_URL + "/demologin",
-      {},
-      { headers: { 'Authorization': '' } }
-    ));
+    await this.startSession(this.client.observe(api.session.logInAsDemo()));
   }
 
   public get isDemo(): boolean {
     return !!this.current_user.getValue()?.is_demo;
   }
 
-  private async startSession(request: Observable<LoginData>) {
+  private async startSession(request: Observable<SessionData>) {
     const loginPromise = firstValueFrom(request)
       .then(login => {
         this.setLogin(login);
@@ -135,11 +123,11 @@ export class AuthService implements OnDestroy {
   }
 
   public async activate(activation_code: string) {
-    return await firstValueFrom(this.http.post<LoginData>(environment.API_URL + "/activate", {activation_code: activation_code}));
+    return await this.client.fetch(api.session.activate(activation_code));
   }
 
   public async register(username: string, password: string) {
-    return await firstValueFrom(this.http.post<LoginData>(environment.API_URL + "/signup", {username: username, password: password}));
+    return await this.client.fetch(api.session.signUp(username, password));
   }
 
   public async getToken(): Promise<string | null> {
@@ -183,11 +171,7 @@ export class AuthService implements OnDestroy {
       }
 
       if (refreshToken && refreshExpiresAt && nowUnixtime < DateTime.fromISO(refreshExpiresAt).toUnixInteger()) {
-          const login = await firstValueFrom(this.http.post<LoginData>(
-            environment.API_URL + "/refresh",
-            { token: refreshToken },
-            { headers: { 'Authorization': '' } }
-          ).pipe(timeout(REFRESH_TIMEOUT_MS)));
+          const login = await firstValueFrom(this.client.observe(api.session.refresh(refreshToken)).pipe(timeout(REFRESH_TIMEOUT_MS)));
           this.setLogin(login);
           return;
       }
@@ -243,18 +227,18 @@ export class AuthService implements OnDestroy {
   }
 
   public async changePassword(new_password:string) {
-    await firstValueFrom(this.http.post<LoginData>(environment.API_URL + "/changepass", {username: '', password: new_password}));
+    await this.client.fetch(api.session.changePassword(new_password));
   }
 
   public async getPwToken(email:string) {
-    await firstValueFrom(this.http.post<LoginData>(environment.API_URL + "/getreset", {username: email, password: ''}));
+    await this.client.fetch(api.session.requestPasswordReset(email));
   }
 
   public async recoverPassword(new_password:string, token:string) {
-    await firstValueFrom(this.http.post<LoginData>(environment.API_URL + "/reset", {password: new_password, token: token}));
+    await this.client.fetch(api.session.resetPassword(new_password, token));
   }
 
-  private setLogin(login: LoginData) {
+  private setLogin(login: SessionData) {
     localStorage.setItem('id_token', login.userToken.token);
     localStorage.setItem('refresh_token', login.refreshToken.token);
     localStorage.setItem('image_token', login.imageToken.token);

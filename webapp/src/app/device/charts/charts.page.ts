@@ -766,8 +766,10 @@ export class ChartsPage implements OnInit, OnDestroy {
       measure.axis = axis;
     }
 
+    // A window the device reported nothing in arrives with a null value, which is
+    // what draws the gap; the trailing one is dropped just below.
     const series = await Promise.all(this.filtered_measures.map(async (measure: any): Promise<Highcharts.SeriesOptionsType & {
-      data: [number, number][]
+      data: [number, number | null][]
     }> => {
       const requestedMeasure = measure.name + (measure.name === 'vpd' && this.vpdMode !== 'all' ? `_${this.vpdMode}` : '');
       let data = measure.enabled ? await this.data.getSeries(this.device_id, requestedMeasure, from, this.selectedInterval, to, measure.method) : []

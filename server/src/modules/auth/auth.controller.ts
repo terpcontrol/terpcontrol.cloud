@@ -1,10 +1,12 @@
 import { Body, Controller, HttpCode, HttpStatus, Inject, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiShape } from '@common/api-shape';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { verify } from 'jsonwebtoken';
 import { HttpException } from '@common/http-exception';
 import { DataStoredInToken, TokenData } from '@common/auth/auth.interface';
+import { Session, SessionTokens } from '@fg2/shared-types';
 import { AuthService } from './auth.service';
 import { DEMO_USER_ID } from '@utils/demo';
 import { logger } from '@utils/logger';
@@ -52,7 +54,12 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @RateLimited({ limit: 10, windowMs: MINUTE, message: 'Too many login attempts, please try again later.' })
   @ApiOperation({ summary: 'Sign in with a username and password', ...PUBLIC_OPERATION })
-  public async logIn(@Body(zodBody(loginSchema)) body: Login, @Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {
+  @ApiShape('Session')
+  public async logIn(
+    @Body(zodBody(loginSchema)) body: Login,
+    @Req() request: FastifyRequest,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ): Promise<Session> {
     const { userToken, refreshToken, imageToken, findUser } = await this.auth.login(body);
 
     this.setAuthCookie(request, reply, userToken);
@@ -71,7 +78,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @RateLimited({ limit: 20, windowMs: MINUTE, message: 'Too many demo-login attempts, please try again later.' })
   @ApiOperation({ summary: 'Open the read-only demo, without an account', ...PUBLIC_OPERATION })
-  public demoLogIn(@Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {
+  @ApiShape('Session')
+  public demoLogIn(@Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply): Session {
     const { userToken, refreshToken, imageToken } = this.auth.demoLogin();
 
     this.setAuthCookie(request, reply, userToken);
@@ -102,7 +110,12 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Trade a refresh token for a fresh set of tokens', ...PUBLIC_OPERATION })
-  public async refresh(@Body() body: { token?: unknown }, @Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {
+  @ApiShape('SessionTokens')
+  public async refresh(
+    @Body() body: { token?: unknown },
+    @Req() request: FastifyRequest,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ): Promise<SessionTokens> {
     const token = body?.token;
     if (!token || typeof token !== 'string') {
       throw new HttpException(401, 'Authentication token missing');

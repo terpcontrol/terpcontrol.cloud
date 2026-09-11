@@ -326,6 +326,9 @@ export const deviceClassCount = named('DeviceClassCount', z.object({ class: devi
 
 export const claimCode = named('ClaimCode', z.object({ claim_code: z.string(), device_id: z.string() }));
 
+/** What claiming a device answers with: the device the code belonged to. */
+export const claimResult = named('ClaimResult', z.object({ status: z.string(), device_id: z.string() }));
+
 export const deviceFirmware = named(
   'DeviceFirmware',
   z.object({
@@ -350,6 +353,29 @@ export const deviceFirmwareBinary = named(
   z.object({ firmware_id: z.string(), name: z.string(), data: wireBytes() }),
 );
 
+/**
+ * A firmware as the fleet listing reports it. The id is null on the synthetic
+ * row that counts the devices running a build the database no longer knows.
+ */
+export const rolloutFirmware = named('RolloutFirmware', deviceFirmware.extend({ firmware_id: z.string().nullable() }));
+
+/** How one firmware of a class is doing across the fleet. */
+export const firmwareRollout = named(
+  'FirmwareRollout',
+  z.object({
+    fw: rolloutFirmware,
+    online: z.number(),
+    total: z.number(),
+    updating: z.number().describe('Devices whose update to this firmware is still within the upgrade window.'),
+    failed: z.number().describe('Devices that were told to update and did not report back in time.'),
+    avgtime: z.number().describe('Milliseconds an update to this firmware took on average, 0 when none completed.'),
+    maxtime: z.number(),
+  }),
+);
+
+/** The fleet listing: every device class, with the firmwares built for it. */
+export const deviceClassRollout = named('DeviceClassRollout', z.object({ class: deviceClass, versions: z.array(firmwareRollout) }));
+
 export const deviceLog = named(
   'DeviceLog',
   z.object({
@@ -367,6 +393,15 @@ export const deviceLog = named(
   }),
 );
 
+/** The most recent value of a measure; null when nothing was reported recently. */
+export const measureValue = named('MeasureValue', z.object({ value: z.number().nullable() }));
+
+/**
+ * One aggregated point of a series. `_value` is null for a window the device
+ * reported nothing in - the series keeps the window so the chart shows the gap.
+ */
+export const seriesPoint = named('SeriesPoint', z.object({ _time: z.string(), _value: z.number().nullable() }));
+
 export const image = named(
   'Image',
   z.object({
@@ -379,6 +414,16 @@ export const image = named(
     format: z.enum(['jpeg', 'mp4', 'user/jpeg']).optional(),
     duration: z.enum(['1d', '1w', '1m']).optional(),
   }),
+);
+
+/**
+ * What uploading a diary photo answers with: where the picture ended up. The
+ * route projects these fields, so `Image` - which also describes the stored
+ * bytes and how a timelapse is labelled - does not describe it.
+ */
+export const imageUploadResult = named(
+  'ImageUploadResult',
+  image.pick({ image_id: true, device_id: true, timestamp: true, format: true }),
 );
 
 export const user = named(
@@ -401,6 +446,31 @@ export const user = named(
 export const userAccount = named('UserAccount', user.pick({ user_id: true, username: true, is_admin: true }));
 
 export const passwordToken = named('PasswordToken', z.object({ user_id: z.string(), token: z.string() }));
+
+/** The account a session belongs to, as the sign-in routes report it. */
+export const sessionUser = named(
+  'SessionUser',
+  userAccount.extend({ is_demo: z.boolean().optional().describe('Session opened through the demo login: demo devices, read-only.') }),
+);
+
+/** One of the three tokens a session is made of. */
+export const authToken = named(
+  'AuthToken',
+  z.object({ token: z.string(), expiresIn: z.number().describe('Seconds the token stays valid.'), secret: z.string() }),
+);
+
+/**
+ * A fresh set of tokens, and nothing else: trading in a refresh token says who
+ * the caller is by way of the token they presented, so the account is not
+ * repeated. `Session` is what the sign-in routes answer with.
+ */
+export const sessionTokens = named(
+  'SessionTokens',
+  z.object({ userToken: authToken, refreshToken: authToken, imageToken: authToken }),
+);
+
+/** A sign-in: the tokens, and the account they were issued for. */
+export const session = named('Session', sessionTokens.extend({ user: sessionUser }));
 
 export const recipeTemplateStep = named('RecipeTemplateStep', recipeStep.omit({ lastTimeApplied: true, notified: true }));
 

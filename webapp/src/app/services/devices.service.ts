@@ -1,22 +1,28 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Subject, firstValueFrom } from 'rxjs';
-import { environment } from 'src/environments/environment';
+import { BehaviorSubject, Subject } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 import { ShareService, currentShareToken } from './share.service';
+import { ApiClient } from '../api/api.client';
+import { api, AuxCommandOptions, DiaryEntryInput, TestOutputs } from '../api/api.routes';
 import type {
+  Alarm,
   CloudSettings,
-  DiaryEntryData,
   DeviceAccessInfo,
+  DeviceClassRollout,
   DeviceLog,
-  DeviceClass,
   Recipe,
   Device,
   DeviceListEntry,
   UserFirmwareList,
 } from '@fg2/shared-types';
 
+/** A row of the device listing, with its configuration blob parsed for the templates. */
 export type DeviceWithParsedSettings = DeviceListEntry & {
+  settings?: any;
+};
+
+/** The whole record the serial-number lookup answers with, parsed the same way. */
+export type DeviceRecordWithParsedSettings = Device & {
   settings?: any;
 };
 
@@ -31,9 +37,9 @@ export type DevicesLoadState = 'loading' | 'loaded' | 'error';
 export class DeviceAdminService {
 
   private created_devices : DeviceWithParsedSettings[] = [];
-  public device_classes: BehaviorSubject<any> = new BehaviorSubject<any>([]);
+  public device_classes: BehaviorSubject<DeviceClassRollout[]> = new BehaviorSubject<DeviceClassRollout[]>([]);
 
-  constructor(private http: HttpClient, private auth: AuthService) {
+  constructor(private client: ApiClient, private auth: AuthService) {
     this.auth.current_user.subscribe(async (user) => {
       if(user) {
         //setInterval(() => {
@@ -48,23 +54,19 @@ export class DeviceAdminService {
   }
 
   public async fetch() {
-    this.device_classes.next(await firstValueFrom(this.http.get<DeviceClass[]>(environment.API_URL + '/device/firmwareversions')))
+    this.device_classes.next(await this.client.fetch(api.fleet.rollouts()))
   }
 
   public async createClass(name:string, description: string, concurrent: number, maxfails: number, firmware_id:string) {
-    let device_class = await firstValueFrom( this.http.post<DeviceClass>(
-      environment.API_URL + '/device/class',
-      {
-        name,
-        description,
-        concurrent: parseInt(concurrent + ''),
-        maxfails: parseInt(maxfails + ''),
-        firmware_id,
-        beta_firmware_id: firmware_id,
-        alpha_firmware_id: firmware_id,
-      }
-    ))
-    return device_class;
+    await this.client.fetch(api.fleet.createClass({
+      name,
+      description,
+      concurrent: parseInt(concurrent + ''),
+      maxfails: parseInt(maxfails + ''),
+      firmware_id,
+      beta_firmware_id: firmware_id,
+      alpha_firmware_id: firmware_id,
+    }));
   }
 
   public async updateClass(
@@ -77,29 +79,23 @@ export class DeviceAdminService {
     beta_firmware_id:string,
     alpha_firmware_id:string,
   ) {
-    let device_class = await firstValueFrom( this.http.post<DeviceClass>(
-      environment.API_URL + '/device/class/' + class_id,
-      {
-        name,
-        description,
-        concurrent: parseInt(concurrent + ''),
-        maxfails: parseInt(maxfails + ''),
-        firmware_id,
-        beta_firmware_id,
-        alpha_firmware_id,
-      }
-    ) )
-    return device_class;
+    await this.client.fetch(api.fleet.updateClass(class_id, {
+      name,
+      description,
+      concurrent: parseInt(concurrent + ''),
+      maxfails: parseInt(maxfails + ''),
+      firmware_id,
+      beta_firmware_id,
+      alpha_firmware_id,
+    }));
   }
 
   public async deleteFirmware(firmware_id:string) {
-    return await firstValueFrom( this.http.delete(environment.API_URL + '/device/firmware/' + firmware_id) )
+    return await this.client.fetch(api.fleet.deleteFirmware(firmware_id));
   }
 
   public async updateFirmwareVersion(firmware_id:string, version:string) {
-    return await firstValueFrom(
-      this.http.put(environment.API_URL + '/device/firmware/' + firmware_id, { version })
-    );
+    return await this.client.fetch(api.fleet.relabelFirmware(firmware_id, version));
   }
 
   public async createFirmware(file:File, name:string, version:string) {
@@ -107,7 +103,7 @@ export class DeviceAdminService {
     formData.append("file", file, file.name);
     formData.append("name", name);
     formData.append("version", version);
-    return await firstValueFrom(this.http.post(environment.API_URL + '/device/firmware', formData));
+    return await this.client.fetch(api.fleet.createFirmware(formData));
   }
 }
 
@@ -124,7 +120,7 @@ export class DeviceService {
   // an empty account.
   public loadState: BehaviorSubject<DevicesLoadState> = new BehaviorSubject<DevicesLoadState>('loading');
 
-  constructor(private http: HttpClient, private auth: AuthService, private shares: ShareService) {
+  constructor(private client: ApiClient, private auth: AuthService, private shares: ShareService) {
     this.fetchDevices();
   }
 
@@ -140,7 +136,7 @@ export class DeviceService {
     }
 
     try {
-      const devices = await firstValueFrom(this.http.get<DeviceWithParsedSettings[]>(environment.API_URL + '/device'))
+      const devices: DeviceWithParsedSettings[] = await this.client.fetch(api.devices.mine())
       for(let device of devices) {
         try {
           device.settings = JSON.parse(device.configuration);
@@ -159,13 +155,13 @@ export class DeviceService {
   }
 
   public async claim(claim_code:string): Promise<DeviceWithParsedSettings | undefined> {
-    const result = await firstValueFrom( this.http.post<{ status: string; device_id?: string }>(environment.API_URL + '/device', {claim_code: claim_code}) )
+    const result = await this.client.fetch(api.devices.claim(claim_code))
     await this.refetchDevices();
     return this.devices.getValue().find(device => device.device_id === result?.device_id);
   }
 
   public async unclaim(device_id:string) {
-    await firstValueFrom( this.http.delete(environment.API_URL + '/device/' + device_id) )
+    await this.client.fetch(api.devices.unclaim(device_id))
     await this.refetchDevices();
   }
 
@@ -182,17 +178,17 @@ export class DeviceService {
     device_id: string,
     action: 'socket_remove' | 'socket_test' | 'socket_set',
     role: string,
-    options?: { ip?: string; user?: string; password?: string; slot?: number; append?: boolean },
+    options?: AuxCommandOptions,
   ) {
-    await firstValueFrom(this.http.post(environment.API_URL + '/device/auxcommand', { device_id, action, role, ...(options ?? {}) }));
+    await this.client.fetch(api.devices.auxCommand(device_id, action, role, options));
   }
 
   public async getConfig(device_id:string) {
-    return await firstValueFrom( this.http.get<string>(environment.API_URL + '/device/config/' + device_id) )
+    return await this.client.fetch(api.devices.configuration(device_id))
   }
 
   public async getAlarms(device_id:string) {
-    return await firstValueFrom( this.http.get<string>(environment.API_URL + '/device/alarms/' + device_id) )
+    return await this.client.fetch(api.devices.alarms(device_id))
   }
 
   public async getCloudSettings(device_id:string): Promise<CloudSettings> {
@@ -200,7 +196,7 @@ export class DeviceService {
   }
 
   public async getDeviceAccessInfo(device_id: string): Promise<DeviceAccessInfo> {
-    return await firstValueFrom(this.http.get<DeviceAccessInfo>(environment.API_URL + '/device/cloudsettings/' + device_id));
+    return await this.client.fetch(api.devices.accessInfo(device_id));
   }
 
   public async resolveDeviceAccessInfo(device_id: string): Promise<DeviceAccessInfo> {
@@ -232,33 +228,35 @@ export class DeviceService {
     }
   }
 
-  public async getRecipe(device_id:string): Promise<Recipe | null> {
-    // returns the recipe object
-    return await firstValueFrom( this.http.get<Recipe | null>(environment.API_URL + '/device/recipe/' + device_id) )
+  // A device that was never given a plan answers with an empty one.
+  public async getRecipe(device_id:string): Promise<Recipe> {
+    return await this.client.fetch(api.devices.recipe(device_id))
   }
 
   public async setRecipe(device_id:string, recipe: Recipe) {
-    const payload = { device_id, recipe };
-    await firstValueFrom( this.http.post(environment.API_URL + '/device/recipe', payload) );
+    await this.client.fetch(api.devices.setRecipe(device_id, recipe));
   }
 
   public async getLogs(device_id:string, timestampFrom?: number, timestampTo?: number, deleted?: boolean, categories?: string[]): Promise<DeviceLog[]> {
-    const result = await firstValueFrom( this.http.get<DeviceLog[]>(environment.API_URL + '/device/logs/' + device_id + '?from=' + (Number(timestampFrom ?? 0) || '') + '&to=' + (Number(timestampTo ?? 0) || '') + '&deleted=' + (deleted ? '1' : '') + (categories ? '&categories=' + categories.join(',') : '')) );
+    const result = await this.client.fetch(api.diary.list(device_id, { from: timestampFrom, to: timestampTo, deleted, categories }));
     return result?.map(log => ({ ...log, time: new Date(log.time) })) ?? [];
   }
 
   public async getDeviceImageUrl(device_id: string, format: 'mp4' | 'jpeg' | 'user/jpeg', timestamp?: number, duration?: string, imageId?: string): Promise<string> {
-    const token = await this.auth.getImageToken();
-    const tokenQuery = token ? `&token=${token}` : '';
-    const shareToken = currentShareToken();
-    const shareQuery = shareToken ? `&share=${encodeURIComponent(shareToken)}` : '';
-    return `${environment.API_URL}/image/${device_id}?timestamp=${timestamp ?? (imageId ? '' : (Math.ceil(Date.now()/5000)*5000))}${tokenQuery}${shareQuery}&format=${format}&duration=${duration ?? ''}&image_id=${imageId ?? ''}`;
+    // Without a timestamp or an id, the URL names the current five-second slot,
+    // which is what keeps the browser from serving a still out of its cache.
+    return this.client.url(api.images.source(device_id, {
+      format,
+      timestamp: timestamp ?? (imageId ? undefined : Math.ceil(Date.now() / 5000) * 5000),
+      duration,
+      image_id: imageId,
+      token: await this.auth.getImageToken() ?? undefined,
+      share: currentShareToken() ?? undefined,
+    }));
   }
 
   public async testWebcamStream(device_id: string, settings: { rtspStream: string; rtspStreamTransport?: string; tunnelRtspStream?: boolean }): Promise<Blob> {
-    return await firstValueFrom(
-      this.http.post(environment.API_URL + '/image/test/' + device_id, settings, { responseType: 'blob' })
-    );
+    return await this.client.fetch(api.images.testStream(device_id, settings));
   }
 
   public async uploadDeviceImage(device_id: string, file: File, timestamp?: number): Promise<string> {
@@ -268,60 +266,58 @@ export class DeviceService {
       formData.append('timestamp', String(timestamp));
     }
 
-    const result = await firstValueFrom(
-      this.http.post<{ image_id: string }>(environment.API_URL + '/image/' + device_id, formData)
-    );
+    const result = await this.client.fetch(api.images.upload(device_id, formData));
     return result.image_id;
   }
 
   public async clearLogs(device_id:string) {
-    return await firstValueFrom( this.http.delete(environment.API_URL + '/device/logs/' + device_id) )
+    return await this.client.fetch(api.diary.clear(device_id))
   }
 
-  public async addLog(device_id: string, message: { title: string; message?: string; raw?: boolean; severity: 0 | 1 | 2 | number; categories: string[]; data?: Partial<DiaryEntryData>; images?: string[]; }) {
-    await firstValueFrom( this.http.post(environment.API_URL + '/device/logs/' + device_id, message ) )
+  public async addLog(device_id: string, message: DiaryEntryInput) {
+    await this.client.fetch(api.diary.add(device_id, message))
   }
 
-  public async updateLog(device_id: string, log_id: string, payload: { title: string; message?: string; raw?: boolean; severity: 0 | 1 | 2 | number; categories: string[]; time?: Date; data?: Partial<DiaryEntryData>; images?: string[]; deleted?: boolean }) {
-    await firstValueFrom(this.http.put(environment.API_URL + '/device/logs/' + device_id + '/' + log_id, payload));
+  public async updateLog(device_id: string, log_id: string, payload: DiaryEntryInput) {
+    await this.client.fetch(api.diary.update(device_id, log_id, payload));
   }
 
   public async deleteLog(device_id: string, log_id: string) {
-    await firstValueFrom(this.http.delete(environment.API_URL + '/device/logs/' + device_id + '/' + log_id));
+    await this.client.fetch(api.diary.remove(device_id, log_id));
   }
 
   public async setSettings(device_id:string, settings: string) {
-    await firstValueFrom(this.http.post<DeviceWithParsedSettings>(environment.API_URL + '/device/configure', { device_id: device_id, configuration: settings }));
+    await this.client.fetch(api.devices.configure(device_id, settings));
     // Notify subscribers that settings for this device have changed
     this.settingsChanged.next({ device_id, settings });
   }
 
-  public async setAlarms(device_id: string, alarms: any) {
-    await firstValueFrom( this.http.post(environment.API_URL + '/device/alarms', { device_id: device_id, alarms: alarms }) );
+  public async setAlarms(device_id: string, alarms: Alarm[]) {
+    await this.client.fetch(api.devices.setAlarms(device_id, alarms));
   }
 
-  public async setCloudSettings(device_id: string, cloudSettings: any) {
-    await firstValueFrom( this.http.post(environment.API_URL + '/device/cloudsettings', { device_id: device_id, cloud_settings: cloudSettings }) );
+  public async setCloudSettings(device_id: string, cloudSettings: CloudSettings) {
+    await this.client.fetch(api.devices.setCloudSettings(device_id, cloudSettings));
   }
 
   public async listFirmwares(device_id: string): Promise<UserFirmwareList> {
-    return await firstValueFrom(this.http.get<UserFirmwareList>(environment.API_URL + '/device/firmwares/' + device_id));
+    return await this.client.fetch(api.devices.firmwares(device_id));
   }
 
   public async setName(device_id:string, name: string) {
-    await firstValueFrom( this.http.post<DeviceWithParsedSettings>(environment.API_URL + '/device/setname', {device_id: device_id, name: name}) )
+    await this.client.fetch(api.devices.setName(device_id, name))
   }
 
-  public async testOutputs(device_id: string, outputs:{heater:number, dehumidifier:number, co2:number, lights:number}) {
-    await firstValueFrom(this.http.post(environment.API_URL + "/device/test/" + device_id, outputs));
+  public async testOutputs(device_id: string, outputs: TestOutputs) {
+    await this.client.fetch(api.devices.test(device_id, outputs));
   }
 
   public async stopTest(device_id: string) {
-    await firstValueFrom(this.http.delete(environment.API_URL + "/device/test/" + device_id));
+    await this.client.fetch(api.devices.stopTest(device_id));
   }
 
-  public async getBySerial(serialnumber: string) : Promise<DeviceWithParsedSettings> {
-    const device = await firstValueFrom(this.http.get<DeviceWithParsedSettings>(environment.API_URL + "/device/byserial", {params: {serialnumber: serialnumber}}));
+  public async getBySerial(serialnumber: string) : Promise<DeviceRecordWithParsedSettings> {
+    const device: DeviceRecordWithParsedSettings = await this.client.fetch(api.devices.bySerial(serialnumber));
     try {
       device.settings = device.configuration ? JSON.parse(device.configuration) : {};
     } catch(err) {
@@ -331,11 +327,10 @@ export class DeviceService {
   }
 
   public async activateMaintenanceMode(device_id: string, durationMinutes: number) {
-    await firstValueFrom(this.http.post(environment.API_URL + "/device/maintenancemode", { device_id: device_id, duration_minutes: durationMinutes }));
+    await this.client.fetch(api.devices.maintenanceMode(device_id, durationMinutes));
   }
 
   public async rebootDevice(device_id: string) {
-    await firstValueFrom(this.http.post(environment.API_URL + "/device/reboot", { device_id: device_id }));
+    await this.client.fetch(api.devices.reboot(device_id));
   }
 }
-

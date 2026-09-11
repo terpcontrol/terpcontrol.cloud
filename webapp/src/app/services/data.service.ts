@@ -1,7 +1,7 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, firstValueFrom, Subject } from 'rxjs';
-import { environment } from 'src/environments/environment';
+import { BehaviorSubject } from 'rxjs';
+import { ApiClient } from '../api/api.client';
+import { api } from '../api/api.routes';
 import { DeviceService } from './devices.service';
 
 @Injectable({
@@ -14,7 +14,7 @@ export class DataService {
 
   private updateScheduled = false;
 
-  constructor(private http: HttpClient, private devices: DeviceService) {
+  constructor(private client: ApiClient, private devices: DeviceService) {
     this.devices.devices.subscribe((devices) => {
       // Keep existing subjects: templates hold them via async pipes, and a
       // wipe would force every gauge to resubscribe (NaN flash + re-poll)
@@ -55,7 +55,7 @@ export class DataService {
   /** One-shot latest value; null when there is no recent data point. */
   public async latest(device: string, measure: string): Promise<number | null> {
     try {
-      const data: any = await firstValueFrom(this.http.get(environment.API_URL + '/data/latest/' + device + '/' + measure));
+      const data = await this.client.fetch(api.measurements.latest(device, measure));
       const value = Number(data?.value);
       return Number.isFinite(value) ? value : null;
     } catch {
@@ -86,7 +86,7 @@ export class DataService {
   private updateMeasures() {
     for(let device of this.measure_subjects.entries()) {
       for(let measure of device[1].entries()) {
-        this.http.get<number>(environment.API_URL + '/data/latest/' + device[0] + '/' + measure[0]).subscribe((data:any) => {
+        this.client.observe(api.measurements.latest(device[0], measure[0])).subscribe((data) => {
           if(data && data.value != null) {
             measure[1].next(data.value);
           }
@@ -101,17 +101,12 @@ export class DataService {
   private updateAverages() {
     for(let device of this.measure_avg_subjects.entries()) {
       for(let measure of device[1].entries()) {
-        const device_id = device[0];
-        const measure_name = measure[0];
-        const from = '-1h';
-        const to = 'now()';
-        const interval = '1m';
-        const query = `?from=${from}&to=${to}&interval=${interval}`;
-        this.http.get<any>(environment.API_URL + '/data/series/' + device_id + '/' + measure_name + query).subscribe((rows:any[]) => {
+        const window = { from: '-1h', to: 'now()', interval: '1m' };
+        this.client.observe(api.measurements.series(device[0], measure[0], window)).subscribe((rows) => {
           if(Array.isArray(rows) && rows.length > 0) {
-            const values = rows.map(r => r._value).filter((v:any) => typeof v === 'number' && !isNaN(v));
+            const values = rows.map(r => r._value).filter((v): v is number => typeof v === 'number' && !isNaN(v));
             if(values.length > 0) {
-              const avg = values.reduce((a:number,b:number)=>a+b,0) / values.length;
+              const avg = values.reduce((a,b)=>a+b,0) / values.length;
               measure[1].next(avg);
               return;
             }
@@ -124,15 +119,17 @@ export class DataService {
     }
   }
 
-  public async getSeries(device_id: string, measure: string, from: string, interval: string, to: string = 'now()', method: string = 'mean'): Promise<[number, number][]> {
-    let query = `?from=${from}&to=${to}&interval=${interval}&method=${method}`;
-    let data:any = await firstValueFrom(this.http.get(environment.API_URL + '/data/series/' + device_id + '/' + measure + query))
-    return data.map((row: any) => {return [new Date(row._time).getTime(), row._value]});
+  // A window the device reported nothing in keeps its place with a null value,
+  // which is how the charts draw the gap rather than bridging it.
+  public async getSeries(device_id: string, measure: string, from: string, interval: string, to: string = 'now()', method: string = 'mean'): Promise<[number, number | null][]> {
+    const rows = await this.client.fetch(api.measurements.series(device_id, measure, { from, to, interval, method }))
+    return rows.map((row): [number, number | null] => [new Date(row._time).getTime(), row._value]);
   }
 
-  public async getLatest(device_id: string, measure: string): Promise<number> {
-    let data = await firstValueFrom(this.http.get<number>(environment.API_URL + '/data/latest/' + device_id + '/' + measure))
-    return data;
+  // The route answers with an envelope carrying the value, not with the value.
+  public async getLatest(device_id: string, measure: string): Promise<number | null> {
+    const data = await this.client.fetch(api.measurements.latest(device_id, measure))
+    return data.value;
   }
 
 }
