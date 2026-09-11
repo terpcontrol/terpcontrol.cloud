@@ -861,7 +861,13 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     });
   }
 
-  public async getDeviceLogs(device_id: string, timestampFrom: number, timestampTo: number, deleted: boolean, categories?: string[]) {
+  public async getDeviceLogs(
+    device_id: string,
+    timestampFrom: number,
+    timestampTo: number,
+    deleted: boolean,
+    categories?: string[],
+  ): Promise<DeviceLog[]> {
     // Access (ownership, admin, or share link) was already authorized by the controller.
     const device = await this.devices.findOne({ device_id: device_id }, { device_id: 1 });
     if (device) {
@@ -881,7 +887,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
         })
         .sort({ time: -1 })
         // Plain objects, so callers may hand out reduced copies of an entry.
-        .lean();
+        .lean<DeviceLog[]>();
       logs.forEach(log => (log.categories = log.categories?.length > 0 ? log.categories : ['unknown']));
       return logs.reverse();
     }

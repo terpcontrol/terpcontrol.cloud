@@ -333,3 +333,48 @@ describe('what the measurement routes answer', () => {
     expectDocumented(nothing, '/data/latest/{device_id}/{measure}');
   });
 });
+
+describe('what the device diary routes answer', () => {
+  const entry = (overrides: Record<string, unknown> = {}) => ({
+    title: unique('openapi-entry'),
+    message: 'openapi',
+    severity: 1,
+    categories: ['diary'],
+    time: Date.now(),
+    ...overrides,
+  });
+
+  it('matches the declared shape for a diary it wrote itself', async () => {
+    // The diary is per device, and this device is this spec's.
+    expectDocumented(await owner.client.post(`/device/logs/${device.deviceId}`).send(entry()).expect(200), '/device/logs/{device_id}', 'post');
+
+    const response = await owner.client.get(`/device/logs/${device.deviceId}`).expect(200);
+
+    expect(response.body.length).toBeGreaterThan(0);
+    expectDocumented(response, '/device/logs/{device_id}');
+  });
+
+  it('matches the declared shapes for changing and removing one entry', async () => {
+    await owner.client.post(`/device/logs/${device.deviceId}`).send(entry()).expect(200);
+    const [written] = await owner.client
+      .get(`/device/logs/${device.deviceId}`)
+      .expect(200)
+      .then(response => response.body.slice(-1));
+
+    const changed = await owner.client
+      .put(`/device/logs/${device.deviceId}/${written._id}`)
+      .send(entry({ severity: 2 }))
+      .expect(200);
+    expectDocumented(changed, '/device/logs/{device_id}/{log_id}', 'put');
+
+    const removed = await owner.client.delete(`/device/logs/${device.deviceId}/${written._id}`).expect(200);
+    expectDocumented(removed, '/device/logs/{device_id}/{log_id}', 'delete');
+  });
+
+  it('matches the declared shape for clearing a whole diary', async () => {
+    const spare = await provisionDevice(owner);
+    await owner.client.post(`/device/logs/${spare.deviceId}`).send(entry()).expect(200);
+
+    expectDocumented(await owner.client.delete(`/device/logs/${spare.deviceId}`).expect(200), '/device/logs/{device_id}', 'delete');
+  });
+});
