@@ -524,13 +524,7 @@
       "stage": {
         "$ref": "#/components/schemas/DiaryLifecycleStage"
       }
-    },
-    "required": [
-      "settings",
-      "durationUnit",
-      "duration",
-      "waitForConfirmation"
-    ]
+    }
   },
   "Recipe": {
     "type": "object",
@@ -659,16 +653,7 @@
     "required": [
       "device_id",
       "username",
-      "password",
-      "class_id",
-      "device_type",
-      "configuration",
-      "owner_id",
-      "serialnumber",
-      "lastseen",
-      "current_firmware",
-      "fwupdate_start",
-      "fwupdate_end"
+      "password"
     ]
   },
   "DeviceListEntry": {
@@ -710,10 +695,7 @@
       }
     },
     "required": [
-      "device_id",
-      "configuration",
-      "device_type",
-      "lastseen"
+      "device_id"
     ]
   },
   "DeviceClass": {
@@ -747,10 +729,8 @@
     "required": [
       "class_id",
       "name",
-      "description",
       "concurrent",
-      "maxfails",
-      "firmware_id"
+      "maxfails"
     ]
   },
   "DeviceClassCount": {
@@ -777,11 +757,7 @@
       "device_id": {
         "type": "string"
       }
-    },
-    "required": [
-      "claim_code",
-      "device_id"
-    ]
+    }
   },
   "DeviceFirmware": {
     "type": "object",
@@ -807,7 +783,6 @@
     },
     "required": [
       "firmware_id",
-      "name",
       "version",
       "class_id"
     ]
@@ -827,7 +802,6 @@
     },
     "required": [
       "firmware_id",
-      "name",
       "version"
     ]
   },
@@ -847,7 +821,6 @@
     },
     "required": [
       "firmware_id",
-      "name",
       "data"
     ]
   },
@@ -1008,8 +981,7 @@
       "password",
       "username",
       "is_admin",
-      "is_active",
-      "activation_code"
+      "is_active"
     ]
   },
   "UserAccount": {
@@ -1068,13 +1040,7 @@
       "stage": {
         "$ref": "#/components/schemas/DiaryLifecycleStage"
       }
-    },
-    "required": [
-      "settings",
-      "durationUnit",
-      "duration",
-      "waitForConfirmation"
-    ]
+    }
   },
   "RecipeTemplate": {
     "type": "object",

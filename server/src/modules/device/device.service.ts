@@ -365,7 +365,12 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
       // can outlive the server unless it looks.
       if (this.work.isStopped) break;
 
-      await this.findUpgradeableDevicesByClass(device_class, device_class.firmware_id, this.firmwareChannelQuery('stable'));
+      // Asked for, like the two channels below: a class with no firmware on a
+      // channel has nothing to roll out, and a pass made for one that is not
+      // there records the devices it picks as upgrading to nothing.
+      if (device_class.firmware_id) {
+        await this.findUpgradeableDevicesByClass(device_class, device_class.firmware_id, this.firmwareChannelQuery('stable'));
+      }
       if (device_class.beta_firmware_id) {
         await this.findUpgradeableDevicesByClass(device_class, device_class.beta_firmware_id, this.firmwareChannelQuery('beta'));
       }
@@ -492,17 +497,23 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
         let emailBody = null;
 
         const elapsedMs = now - device.recipe.activeSince;
+        // A step the app stored without a duration has no length to measure, so
+        // it stays the active one until it is moved on by hand. Multiplying the
+        // missing value instead made every comparison below NaN, which reads as
+        // "not elapsed yet" and stalls the plan just as silently.
         const stepDurationMs =
-          activeStep.duration *
-          60 *
-          1000 *
-          (activeStep.durationUnit === 'weeks'
-            ? 24 * 7 * 60
-            : activeStep.durationUnit === 'days'
-              ? 24 * 60
-              : activeStep.durationUnit === 'hours'
-                ? 60
-                : 1);
+          activeStep.duration === undefined
+            ? Infinity
+            : activeStep.duration *
+              60 *
+              1000 *
+              (activeStep.durationUnit === 'weeks'
+                ? 24 * 7 * 60
+                : activeStep.durationUnit === 'days'
+                  ? 24 * 60
+                  : activeStep.durationUnit === 'hours'
+                    ? 60
+                    : 1);
         const remainingMs = stepDurationMs - elapsedMs;
         if (remainingMs <= 0) {
           if (activeStep.waitForConfirmation) {
@@ -617,7 +628,9 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
         }
 
         const applyStep =
-          !!activeStep && (!activeStep.lastTimeApplied || activeStep.lastTimeApplied < now - 3600 * 1000) && device.lastseen >= now - 60 * 1000;
+          !!activeStep &&
+          (!activeStep.lastTimeApplied || activeStep.lastTimeApplied < now - 3600 * 1000) &&
+          (device.lastseen ?? 0) >= now - 60 * 1000;
         if (applyStep) {
           // Its own catch: sending the step can fail, and the advance it belongs
           // to has already been stored - so the mail below, which is only ever
@@ -671,7 +684,8 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
             const previousFirmwareLabel = previousFw?.version || previousFirmwareId;
             const newFirmwareLabel = newFw?.version || payload.firmware_id;
             await this.devices.findByIdAndUpdate(device._id, { current_firmware: payload.firmware_id, fwupdate_end: Date.now() });
-            logger.info('device ' + device.device_id + ' finished firmware update, time: ' + (Date.now() - device.fwupdate_start) / 1000 + 's');
+            const updateDuration = device.fwupdate_start ? `${(Date.now() - device.fwupdate_start) / 1000}s` : 'unknown';
+            logger.info('device ' + device.device_id + ' finished firmware update, time: ' + updateDuration);
             await this.logMessage(device.device_id, {
               title: 'message-firmware-update-complete-with-ids',
               message: `message-firmware-update-complete-with-ids:${previousFirmwareLabel} -> ${newFirmwareLabel}`,
@@ -685,7 +699,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
       }
     } catch {}
 
-    if (device.configuration != '') {
+    if (device.configuration) {
       this.mqtt.publish('/devices/' + device.device_id + '/configuration', device.configuration);
     }
   }
@@ -1323,7 +1337,11 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
 
   public async claimDevice(claim_code: string, user_id: string): Promise<string | null> {
     const dev = await this.claimCodes.findOne({ claim_code: claim_code });
-    if (dev) {
+    // The device has to be named: mongoose reads an undefined value in a filter
+    // as a match on null, so a code carrying no device id went looking for a
+    // device that has none either - and answered `undefined` where the callers
+    // of this are told to expect `null`.
+    if (dev?.device_id) {
       logger.info('Claiming device ' + dev.device_id + ' for user ' + user_id);
       // Awaited, or the query is never sent and the code stays claimable.
       await this.claimCodes.deleteOne({ claim_code: claim_code });
@@ -1365,7 +1383,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     this.mqtt.publish('/devices/' + device_id + '/configuration', config);
     await this.claimCodes.deleteMany({ device_id: device_id });
 
-    const diffStr = this.diffConfigs(previous.configuration, config);
+    const diffStr = this.diffConfigs(previous.configuration ?? '', config);
     if (previous.configuration !== config && diffStr.length > 0) {
       await this.logMessage(device_id, {
         title: 'message-device-configuration-updated',
@@ -1567,7 +1585,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
 
     return {
       device_id: device_id,
-      device_type: device.device_type,
+      device_type: device.device_type ?? '',
       name: device.name,
       isPublic: false,
       cloudSettings: isDemoAccess ? demoCloudSettings(cloudSettings) : cloudSettings,
@@ -1589,7 +1607,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
 
     return {
       device_id: share.device_id,
-      device_type: device.device_type,
+      device_type: device.device_type ?? '',
       name: device.name,
       isPublic: true,
       cloudSettings: {

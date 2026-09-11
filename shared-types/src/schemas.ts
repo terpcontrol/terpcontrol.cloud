@@ -132,6 +132,9 @@ export const shareLink = named(
   z.object({
     share_id: z.string(),
     device_id: z.string(),
+    // Required by the collection, but `required` only constrains new writes,
+    // not the rows already stored - and whose link it is, is the server's own
+    // bookkeeping rather than something a client reads.
     owner_id: z.string().optional(),
     page: sharePage,
     editable: z.boolean().describe('Visitors may change the view (time frame, measures, filters, webcam).'),
@@ -222,11 +225,23 @@ export const recipeStep = named(
   'RecipeStep',
   z.object({
     name: z.string().optional(),
+    /**
+     * A device's plan is stored with an update rather than a document save, so
+     * mongoose validates none of it, and the step's fields are the webapp's to
+     * add to - the server passes them through. Stored steps are therefore
+     * missing whichever of these the app that wrote them did not send.
+     *
+     * The template collection validates all four, because a template is written
+     * as a document rather than updated. `RecipeTemplateStep` stays derived
+     * from this one regardless: the app moves steps between a plan and a
+     * template, and a template type narrower than the plan's would not survive
+     * the first such move.
+     */
     // Whatever the device's configuration shape is; the server passes it through.
-    settings: anyValue(),
-    durationUnit: durationUnit,
-    duration: z.number(),
-    waitForConfirmation: z.boolean(),
+    settings: anyValue().optional(),
+    durationUnit: durationUnit.optional(),
+    duration: z.number().optional(),
+    waitForConfirmation: z.boolean().optional(),
     confirmationMessage: z.string().optional(),
     lastTimeApplied: z.number().optional(),
     notified: z.boolean().optional(),
@@ -257,19 +272,25 @@ export const device = named(
     device_id: z.string(),
     username: z.string(),
     password: z.string(),
-    class_id: z.string(),
-    device_type: z.string(),
-    configuration: z.string(),
-    owner_id: z.string(),
-    serialnumber: z.number(),
-    lastseen: z.number(),
-    current_firmware: z.string(),
+    /**
+     * Optional from here on because the collection requires none of it: only
+     * `device_id`, `username` and `password` are written for every device. One
+     * exists before it is claimed, before it has reported a firmware or a
+     * measurement, and before a field added later was backfilled onto it.
+     */
+    class_id: z.string().optional(),
+    device_type: z.string().optional(),
+    configuration: z.string().optional(),
+    owner_id: z.string().optional(),
+    serialnumber: z.number().optional(),
+    lastseen: z.number().optional(),
+    current_firmware: z.string().optional(),
     pending_firmware: z
       .string()
       .optional()
       .describe('@deprecated Use cloudSettings.pendingFirmware. Kept for reading legacy devices.'),
-    fwupdate_start: z.number(),
-    fwupdate_end: z.number(),
+    fwupdate_start: z.number().optional(),
+    fwupdate_end: z.number().optional(),
     alarms: z.array(alarm).optional(),
     firmwareSettings: firmwareSettings.optional(),
     cloudSettings: cloudSettings.optional(),
@@ -313,10 +334,12 @@ export const deviceClass = named(
   z.object({
     class_id: z.string(),
     name: z.string(),
-    description: z.string(),
+    // Neither is required by the collection: a class has no firmware until one
+    // has been built for it, and a description is only ever a label.
+    description: z.string().optional(),
     concurrent: z.number(),
     maxfails: z.number(),
-    firmware_id: z.string(),
+    firmware_id: z.string().optional(),
     beta_firmware_id: z.string().optional(),
     alpha_firmware_id: z.string().optional(),
   }),
@@ -324,13 +347,16 @@ export const deviceClass = named(
 
 export const deviceClassCount = named('DeviceClassCount', z.object({ class: deviceClass, count: z.number() }));
 
-export const claimCode = named('ClaimCode', z.object({ claim_code: z.string(), device_id: z.string() }));
+/** Neither field is required by the collection, so a stored code may name no device. */
+export const claimCode = named('ClaimCode', z.object({ claim_code: z.string().optional(), device_id: z.string().optional() }));
 
 export const deviceFirmware = named(
   'DeviceFirmware',
   z.object({
     firmware_id: z.string(),
-    name: z.string(),
+    // Not required by the collection; a row without one is told apart by its
+    // version alone.
+    name: z.string().optional(),
     version: z.string(),
     class_id: z.string(),
     createdAt: z.number().optional(),
@@ -347,7 +373,8 @@ export const firmwareListEntry = named('FirmwareListEntry', deviceFirmware.pick(
 
 export const deviceFirmwareBinary = named(
   'DeviceFirmwareBinary',
-  z.object({ firmware_id: z.string(), name: z.string(), data: wireBytes() }),
+  // `name` is the file the device asks for; the collection does not require it.
+  z.object({ firmware_id: z.string(), name: z.string().optional(), data: wireBytes() }),
 );
 
 export const deviceLog = named(
@@ -376,6 +403,8 @@ export const image = named(
     timestampEnd: z.number().optional(),
     data: wireBytes().optional().describe('Only on pictures written before the payload moved to the image store.'),
     size: z.number().optional().describe('Bytes of the stored picture.'),
+    // Required by the collection, which only constrains pictures written since
+    // the field existed; the ones stored before it do not carry one.
     format: z.enum(['jpeg', 'mp4', 'user/jpeg']).optional(),
     duration: z.enum(['1d', '1w', '1m']).optional(),
   }),
@@ -389,14 +418,16 @@ export const user = named(
     username: z.string(),
     is_admin: z.boolean(),
     is_active: z.boolean(),
-    activation_code: z.string(),
+    // Only a self-registered account is given one; an account an admin creates,
+    // and the configured admin itself, never has one.
+    activation_code: z.string().optional(),
   }),
 );
 
 /**
  * What the account listing answers with: an account without its secrets. The
- * route projects exactly these three fields, so `User` - which has a password
- * hash and an activation code, both required - does not describe it.
+ * route projects exactly these three fields, so `User` - which also carries a
+ * password hash and an activation code - does not describe it.
  */
 export const userAccount = named('UserAccount', user.pick({ user_id: true, username: true, is_admin: true }));
 
@@ -421,6 +452,8 @@ export const chartPreset = named(
   'ChartPreset',
   z.object({
     preset_id: z.string(),
+    // Required by the collection, optional here for the reason given on
+    // `shareLink.owner_id`.
     owner_id: z.string().optional(),
     name: z.string(),
     device_type: z.string().optional().describe('Device type the preset was saved from; informational only.'),

@@ -143,7 +143,7 @@ export class DeviceService {
       const devices = await firstValueFrom(this.http.get<DeviceWithParsedSettings[]>(environment.API_URL + '/device'))
       for(let device of devices) {
         try {
-          device.settings = JSON.parse(device.configuration);
+          device.settings = device.configuration ? JSON.parse(device.configuration) : {};
         }
         catch(err) {
           device.settings = {};
@@ -209,7 +209,7 @@ export class DeviceService {
     if (ownedDevice) {
       return {
         device_id: ownedDevice.device_id,
-        device_type: ownedDevice.device_type,
+        device_type: ownedDevice.device_type ?? '',
         name: ownedDevice.name,
         isPublic: false,
         cloudSettings: ownedDevice.cloudSettings ?? {},
