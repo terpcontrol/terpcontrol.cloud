@@ -67,7 +67,7 @@ export class DeviceController {
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Create a device record from a device class' })
-  @ApiShape('Device')
+  @ApiShape('Device', { status: HttpStatus.CREATED })
   public create(@Body(zodBody(addDeviceSchema)) body: AddDevice): Promise<Device> {
     return this.deviceService.create(body);
   }

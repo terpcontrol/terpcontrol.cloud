@@ -1,6 +1,7 @@
 import Ajv, { ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
-import { anonymous, createAccount, loginAsAdmin, Session, unique } from '../support/api';
+import supertest from 'supertest';
+import { anonymous, createAccount, loginAsAdmin, Method, Session, unique } from '../support/api';
 import { DeviceCredentials, provisionDevice } from '../support/device';
 
 /**
@@ -34,9 +35,9 @@ let owner: Session;
 let admin: Session;
 let device: DeviceCredentials;
 
-/** The response schema a route documents, or undefined where it documents none. */
-const declaredSchema = (path: string, method = 'get'): unknown =>
-  document.paths[path]?.[method]?.responses?.['200']?.content?.['application/json']?.schema;
+/** The response schema a route documents for one status code, or undefined. */
+const declaredSchema = (path: string, method: Method = 'get', status = 200): unknown =>
+  document.paths[path]?.[method]?.responses?.[String(status)]?.content?.['application/json']?.schema;
 
 const itemSchema = (schema: unknown): unknown => (schema as { items?: unknown }).items ?? schema;
 
@@ -45,6 +46,32 @@ const expectMatches = (schema: unknown, body: unknown, what: string) => {
   if (!validate(body)) {
     throw new Error(`${what} does not match the schema the document declares: ${ajv.errorsText(validate.errors)}`);
   }
+};
+
+/**
+ * Checks one answer against what the document declares for the route - under
+ * the status the answer actually came back with. A shape documented for a
+ * status the route never sends describes nothing, and reading the status from
+ * the answer is what catches it.
+ */
+const expectDocumented = (response: supertest.Response, path: string, method: Method = 'get'): void => {
+  const schema = declaredSchema(path, method, response.status);
+  const what = `${method.toUpperCase()} ${path} (${response.status})`;
+  if (schema === undefined) {
+    throw new Error(`${what} answered a body the document declares no schema for`);
+  }
+  expectMatches(schema, response.body, what);
+};
+
+/** The same, for one row a spec picked out of a listing it shares with others. */
+const expectRowDocumented = (response: supertest.Response, path: string, row: unknown, method: Method = 'get'): void => {
+  const schema = declaredSchema(path, method, response.status);
+  const what = `${method.toUpperCase()} ${path} (${response.status})`;
+  if (schema === undefined) {
+    throw new Error(`${what} answered a body the document declares no schema for`);
+  }
+  expect(row).toBeDefined();
+  expectMatches(itemSchema(schema), row, what);
 };
 
 beforeAll(async () => {
@@ -84,6 +111,14 @@ describe('the document', () => {
     expect(declaredSchema('/users')).toEqual({ type: 'array', items: { $ref: '#/components/schemas/UserAccount' } });
     expect(declaredSchema('/device/firmware')).toEqual({ type: 'array', items: { $ref: '#/components/schemas/FirmwareListEntry' } });
   });
+
+  it('declares each shape under the status its route answers with', () => {
+    // A route that answers 201 and documents a 200 describes an answer nobody
+    // ever gets; declaring a shape at all replaces the status Nest would have
+    // filled in on its own, so the status has to be said out loud.
+    expect(declaredSchema('/device/create', 'post', 200)).toBeUndefined();
+    expect(declaredSchema('/device/create', 'post', 201)).toEqual({ $ref: '#/components/schemas/Device' });
+  });
 });
 
 describe('what the routes actually answer', () => {
@@ -92,23 +127,28 @@ describe('what the routes actually answer', () => {
     const response = await owner.client.get('/device').expect(200);
 
     expect(response.body.length).toBeGreaterThan(0);
-    expectMatches(declaredSchema('/device'), response.body, 'GET /device');
+    expectDocumented(response, '/device');
   });
 
   it('matches the declared shape for a device in the admin listing', async () => {
     const response = await admin.client.get('/device/all').expect(200);
     const mine = response.body.find((entry: { device_id: string }) => entry.device_id === device.deviceId);
 
-    expect(mine).toBeDefined();
-    expectMatches(itemSchema(declaredSchema('/device/all')), mine, 'GET /device/all');
+    expectRowDocumented(response, '/device/all', mine);
+  });
+
+  it('matches the declared shape for a device it just created', async () => {
+    const fridge = await admin.client.get('/device/class/find/fridge').expect(200);
+    const response = await admin.client.post('/device/create').send({ class_id: fridge.body.class_id, device_type: 'fridge' }).expect(201);
+
+    expectDocumented(response, '/device/create', 'post');
   });
 
   it('matches the declared shape for this account in the account listing', async () => {
     const response = await admin.client.get('/users').expect(200);
     const mine = response.body.find((entry: { username: string }) => entry.username === owner.username);
 
-    expect(mine).toBeDefined();
-    expectMatches(itemSchema(declaredSchema('/users')), mine, 'GET /users');
+    expectRowDocumented(response, '/users', mine);
   });
 
   it('matches the declared shape for a firmware it just created', async () => {
@@ -118,15 +158,13 @@ describe('what the routes actually answer', () => {
     const response = await admin.client.get('/device/firmware').expect(200);
     const mine = response.body.find((entry: { firmware_id: string }) => entry.firmware_id === created.body.firmware_id);
 
-    expect(mine).toBeDefined();
-    expectMatches(itemSchema(declaredSchema('/device/firmware')), mine, 'GET /device/firmware');
+    expectRowDocumented(response, '/device/firmware', mine);
   });
 
   it('matches the declared shape for a device class', async () => {
     const response = await admin.client.get('/device/class').expect(200);
     const fridge = response.body.find((entry: { name: string }) => entry.name === 'fridge');
 
-    expect(fridge).toBeDefined();
-    expectMatches(itemSchema(declaredSchema('/device/class')), fridge, 'GET /device/class');
+    expectRowDocumented(response, '/device/class', fridge);
   });
 });
