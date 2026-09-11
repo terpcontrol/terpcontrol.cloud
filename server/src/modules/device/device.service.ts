@@ -1841,15 +1841,9 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     return binary;
   }
 
-  public async findFirmwareByNameVersion(name: string, version: string): Promise<DeviceFirmware> {
-    const firmware: DeviceFirmware = await this.firmwares.findOne(
-      {
-        name: name,
-        version: version,
-      },
-      { _id: 0, firmware_id: 1, name: 1, version: 1 },
-    );
-    return firmware;
+  /** The three fields a rollout needs, the same projection the listing answers with. */
+  public findFirmwareByNameVersion(name: string, version: string): Promise<FirmwareListEntry | null> {
+    return this.firmwares.findOne({ name: name, version: version }, { _id: 0, firmware_id: 1, name: 1, version: 1 }).lean<FirmwareListEntry>();
   }
 
   public async findAllFirmware(): Promise<FirmwareListEntry[]> {

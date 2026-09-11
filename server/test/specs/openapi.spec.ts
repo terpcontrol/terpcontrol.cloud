@@ -112,12 +112,14 @@ describe('the document', () => {
 
   it('names the shape each annotated route answers with', () => {
     // The owner's own listing is a projection, so it names the narrower shape;
-    // the admin listing answers the whole document.
+    // the admin listing answers the whole document. Looking a firmware up by
+    // class and version answers the same projection as the firmware listing.
     expect(declaredSchema('/device')).toEqual({ type: 'array', items: { $ref: '#/components/schemas/DeviceListEntry' } });
     expect(declaredSchema('/device/all')).toEqual({ type: 'array', items: { $ref: '#/components/schemas/Device' } });
     expect(declaredSchema('/device/class')).toEqual({ type: 'array', items: { $ref: '#/components/schemas/DeviceClass' } });
     expect(declaredSchema('/users')).toEqual({ type: 'array', items: { $ref: '#/components/schemas/UserAccount' } });
     expect(declaredSchema('/device/firmware')).toEqual({ type: 'array', items: { $ref: '#/components/schemas/FirmwareListEntry' } });
+    expect(declaredSchema('/device/firmware/find')).toEqual({ $ref: '#/components/schemas/FirmwareListEntry' });
   });
 
   it('declares each shape under the status its route answers with', () => {
@@ -420,5 +422,72 @@ describe('what the grow plan routes answer', () => {
     const mine = response.body.find((template: { _id: string }) => template._id === created.body._id);
 
     expectRowDocumented(response, '/device/recipes', mine);
+  });
+});
+
+describe('what the firmware and device class routes answer', () => {
+  const registerFirmware = () =>
+    admin.client
+      .post('/device/firmware')
+      .send({ name: 'fridge', version: unique('openapi-v') })
+      .expect(200);
+
+  it('matches the declared shapes for a firmware build it registered, relabelled and deleted', async () => {
+    const created = await registerFirmware();
+    expectDocumented(created, '/device/firmware', 'post');
+
+    const firmwareId = created.body.firmware_id;
+    const uploaded = await admin.client
+      .post(`/device/firmware/${firmwareId}/firmware.bin`)
+      .attach('binary', Buffer.from('an image'), 'firmware.bin')
+      .expect(200);
+    expectDocumented(uploaded, '/device/firmware/{firmware_id}/{binary}', 'post');
+
+    const relabelled = await admin.client
+      .put(`/device/firmware/${firmwareId}`)
+      .send({ version: unique('openapi-relabelled') })
+      .expect(200);
+    expectDocumented(relabelled, '/device/firmware/{firmware_id}', 'put');
+
+    expectDocumented(await admin.client.delete(`/device/firmware/${firmwareId}`).expect(200), '/device/firmware/{firmware_id}', 'delete');
+  });
+
+  it('matches the declared shape for a firmware found by class and version', async () => {
+    const created = await registerFirmware();
+    const listed = await admin.client.get('/device/firmware').expect(200);
+    const { version } = listed.body.find((entry: { firmware_id: string }) => entry.firmware_id === created.body.firmware_id);
+
+    const response = await admin.client.get('/device/firmware/find').query({ name: 'fridge', version }).expect(200);
+
+    expectDocumented(response, '/device/firmware/find');
+  });
+
+  it('matches the declared shape for the firmwares a device may run', async () => {
+    const response = await owner.client.get(`/device/firmwares/${device.deviceId}`).expect(200);
+
+    expectDocumented(response, '/device/firmwares/{device_id}');
+  });
+
+  it('matches the declared shapes for a device class it created, read and changed', async () => {
+    const firmware = await registerFirmware();
+    const name = unique('openapi-class');
+
+    const created = await admin.client
+      .post('/device/class')
+      .send({ name, description: 'made by the openapi spec', concurrent: 1, maxfails: 1, firmware_id: firmware.body.firmware_id })
+      .expect(200);
+    expectDocumented(created, '/device/class', 'post');
+
+    const found = await admin.client.get(`/device/class/find/${name}`).expect(200);
+    expectDocumented(found, '/device/class/find/{class_name}');
+
+    const classId = found.body.class_id;
+    expectDocumented(await admin.client.get(`/device/class/${classId}`).expect(200), '/device/class/{class_id}');
+
+    const changed = await admin.client
+      .post(`/device/class/${classId}`)
+      .send({ name, description: 'changed', concurrent: 2, maxfails: 1, firmware_id: firmware.body.firmware_id })
+      .expect(200);
+    expectDocumented(changed, '/device/class/{class_id}', 'post');
   });
 });

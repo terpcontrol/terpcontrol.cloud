@@ -290,6 +290,11 @@ export interface DeviceFirmwareBinary {
   data: Buffer;
 }
 
+export interface UploadedFirmwareBinary {
+  firmware_id: string;
+  name: string;
+}
+
 export interface DeviceLog {
   _id: string;
   device_id: string;

@@ -350,6 +350,13 @@ export const deviceFirmwareBinary = named(
   z.object({ firmware_id: z.string(), name: z.string(), data: wireBytes() }),
 );
 
+/**
+ * What an upload is told about the image it just stored: the build it belongs to
+ * and what the image is called. `DeviceFirmwareBinary` also carries the bytes,
+ * which the answer deliberately does not send back.
+ */
+export const uploadedFirmwareBinary = named('UploadedFirmwareBinary', deviceFirmwareBinary.pick({ firmware_id: true, name: true }));
+
 export const deviceLog = named(
   'DeviceLog',
   z.object({

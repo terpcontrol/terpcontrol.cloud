@@ -851,6 +851,21 @@
       "data"
     ]
   },
+  "UploadedFirmwareBinary": {
+    "type": "object",
+    "properties": {
+      "firmware_id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "firmware_id",
+      "name"
+    ]
+  },
   "DeviceLog": {
     "type": "object",
     "properties": {
