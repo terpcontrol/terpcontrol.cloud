@@ -6,11 +6,12 @@ import { TunnelModule } from '../tunnel/tunnel.module';
 import { ImagePresentationService } from './image-presentation.service';
 import { ImageController } from './image.controller';
 import { ImageService } from './image.service';
+import { LegacyImageDataMigration } from './legacy-image-data.migration';
 
 @Module({
   imports: [ModelsModule, TunnelModule, CameraModule, forwardRef(() => DeviceModule)],
   controllers: [ImageController],
-  providers: [ImageService, ImagePresentationService],
+  providers: [ImageService, ImagePresentationService, LegacyImageDataMigration],
   exports: [ImageService],
 })
 export class ImageModule {}

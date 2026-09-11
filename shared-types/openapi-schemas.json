@@ -949,11 +949,6 @@
       "timestampEnd": {
         "type": "number"
       },
-      "data": {
-        "description": "Only on pictures written before the payload moved to the image store.",
-        "type": "string",
-        "contentEncoding": "base64"
-      },
       "size": {
         "description": "Bytes of the stored picture.",
         "type": "number"
