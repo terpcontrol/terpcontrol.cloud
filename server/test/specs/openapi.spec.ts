@@ -378,3 +378,47 @@ describe('what the device diary routes answer', () => {
     expectDocumented(await owner.client.delete(`/device/logs/${spare.deviceId}`).expect(200), '/device/logs/{device_id}', 'delete');
   });
 });
+
+describe('what the grow plan routes answer', () => {
+  const step = { name: 'veg', settings: { day: { temperature: 24 } }, durationUnit: 'days', duration: 7, waitForConfirmation: false };
+
+  const createTemplate = () =>
+    owner.client
+      .post('/device/recipes')
+      .send({ name: unique('openapi-plan'), steps: [step], public: false })
+      .expect(201);
+
+  it('matches the declared shape for the plan a device is running', async () => {
+    const saved = await owner.client
+      .post('/device/recipe')
+      .send({ device_id: device.deviceId, recipe: { steps: [step], activeStepIndex: 0, activeSince: Date.now() } })
+      .expect(200);
+    expectDocumented(saved, '/device/recipe', 'post');
+
+    expectDocumented(await owner.client.get(`/device/recipe/${device.deviceId}`).expect(200), '/device/recipe/{device_id}');
+  });
+
+  it('matches the declared shapes for a plan template through its whole life', async () => {
+    const created = await createTemplate();
+    expectDocumented(created, '/device/recipes', 'post');
+
+    const templateId = created.body._id;
+    expectDocumented(await owner.client.get(`/device/recipes/${templateId}`).expect(200), '/device/recipes/{template_id}');
+    expectDocumented(
+      await owner.client.put(`/device/recipes/${templateId}`).send({ public: true }).expect(200),
+      '/device/recipes/{template_id}',
+      'put',
+    );
+    expectDocumented(await owner.client.delete(`/device/recipes/${templateId}`).expect(200), '/device/recipes/{template_id}', 'delete');
+  });
+
+  it('matches the declared shape for a template in the listing', async () => {
+    // The listing carries every public template, so only this one is checked.
+    const created = await createTemplate();
+
+    const response = await owner.client.get('/device/recipes').expect(200);
+    const mine = response.body.find((template: { _id: string }) => template._id === created.body._id);
+
+    expectRowDocumented(response, '/device/recipes', mine);
+  });
+});
