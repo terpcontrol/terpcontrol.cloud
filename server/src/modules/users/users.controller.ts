@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiShape } from '@common/api-shape';
-import { UserAccount } from '@fg2/shared-types';
+import { AccountResult, UserAccount } from '@fg2/shared-types';
 import { UserService } from './users.service';
 import { AdminGuard } from '../../common/auth/auth.guard';
 import { zodBody } from '../../common/zod-validation.pipe';
@@ -22,26 +22,30 @@ export class UsersController {
 
   @Get(':id')
   @ApiOperation({ summary: 'One account, by its database id' })
-  public async byId(@Param('id') id: string) {
+  @ApiShape('AccountResult')
+  public async byId(@Param('id') id: string): Promise<AccountResult> {
     return { data: await this.users.findUserById(id), message: 'findOne' };
   }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create an account' })
-  public async create(@Body(zodBody(createUserSchema)) body: CreateUser) {
+  @ApiShape('AccountResult', { status: HttpStatus.CREATED })
+  public async create(@Body(zodBody(createUserSchema)) body: CreateUser): Promise<AccountResult> {
     return { data: await this.users.createUser(body), message: 'created' };
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Change an account´s name, password or admin flag' })
-  public async update(@Param('id') id: string, @Body(zodBody(updateUserSchema)) body: UpdateUser) {
+  @ApiShape('AccountResult')
+  public async update(@Param('id') id: string, @Body(zodBody(updateUserSchema)) body: UpdateUser): Promise<AccountResult> {
     return { data: await this.users.updateUser(id, body as CreateUser), message: 'updated' };
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete an account' })
-  public async remove(@Param('id') id: string) {
+  @ApiShape('AccountResult')
+  public async remove(@Param('id') id: string): Promise<AccountResult> {
     return { data: await this.users.deleteUser(id), message: 'deleted' };
   }
 }

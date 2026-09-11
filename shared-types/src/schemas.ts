@@ -389,16 +389,32 @@ export const user = named(
     username: z.string(),
     is_admin: z.boolean(),
     is_active: z.boolean(),
-    activation_code: z.string(),
+    // Only an account that signed itself up is sent one; an account an
+    // administrator created has none.
+    activation_code: z.string().optional(),
   }),
 );
 
 /**
  * What the account listing answers with: an account without its secrets. The
  * route projects exactly these three fields, so `User` - which has a password
- * hash and an activation code, both required - does not describe it.
+ * hash - does not describe it.
  */
 export const userAccount = named('UserAccount', user.pick({ user_id: true, username: true, is_admin: true }));
+
+/**
+ * What the routes that answer one account answer with: the stored account
+ * without its password hash, which every one of them projects away. `_id` is
+ * mongoose's own, and is how the account routes address an account.
+ */
+export const userRecord = named('UserRecord', user.omit({ password: true }).extend({ _id: z.string().optional() }));
+
+/**
+ * The account routes wrap their answer in an envelope, and have since before
+ * the app read them. Described rather than tidied away: the document says what
+ * the server sends.
+ */
+export const accountResult = named('AccountResult', z.object({ data: userRecord, message: z.string() }));
 
 export const passwordToken = named('PasswordToken', z.object({ user_id: z.string(), token: z.string() }));
 

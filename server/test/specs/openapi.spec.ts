@@ -74,6 +74,13 @@ const expectRowDocumented = (response: supertest.Response, path: string, row: un
   expectMatches(itemSchema(schema), row, what);
 };
 
+/** An account this spec owns, so deleting or renaming it disturbs nobody. */
+const createAccountAsAdmin = (): Promise<supertest.Response> =>
+  admin.client
+    .post('/users')
+    .send({ username: `${unique('openapi-account')}@test.invalid`, password: 'Passw0rd!test', is_admin: false })
+    .expect(201);
+
 beforeAll(async () => {
   const response = await anonymous().get('/swagger.json').expect(200);
   document = response.body as OpenApiDocument;
@@ -159,6 +166,36 @@ describe('what the routes actually answer', () => {
     const mine = response.body.find((entry: { firmware_id: string }) => entry.firmware_id === created.body.firmware_id);
 
     expectRowDocumented(response, '/device/firmware', mine);
+  });
+
+  it('matches the declared shape for an account it just created', async () => {
+    const response = await createAccountAsAdmin();
+
+    expectDocumented(response, '/users', 'post');
+  });
+
+  it('matches the declared shape for one account read by its id', async () => {
+    const created = await createAccountAsAdmin();
+
+    const response = await admin.client.get(`/users/${created.body.data._id}`).expect(200);
+
+    expectDocumented(response, '/users/{id}');
+  });
+
+  it('matches the declared shape for an account it just changed', async () => {
+    const created = await createAccountAsAdmin();
+
+    const response = await admin.client.put(`/users/${created.body.data._id}`).send({ is_admin: true }).expect(200);
+
+    expectDocumented(response, '/users/{id}', 'put');
+  });
+
+  it('matches the declared shape for an account it just deleted', async () => {
+    const created = await createAccountAsAdmin();
+
+    const response = await admin.client.delete(`/users/${created.body.data._id}`).expect(200);
+
+    expectDocumented(response, '/users/{id}', 'delete');
   });
 
   it('matches the declared shape for a device class', async () => {

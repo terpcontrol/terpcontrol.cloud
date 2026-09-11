@@ -1008,8 +1008,7 @@
       "password",
       "username",
       "is_admin",
-      "is_active",
-      "activation_code"
+      "is_active"
     ]
   },
   "UserAccount": {
@@ -1029,6 +1028,50 @@
       "user_id",
       "username",
       "is_admin"
+    ]
+  },
+  "UserRecord": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "string"
+      },
+      "username": {
+        "type": "string"
+      },
+      "is_admin": {
+        "type": "boolean"
+      },
+      "is_active": {
+        "type": "boolean"
+      },
+      "activation_code": {
+        "type": "string"
+      },
+      "_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "user_id",
+      "username",
+      "is_admin",
+      "is_active"
+    ]
+  },
+  "AccountResult": {
+    "type": "object",
+    "properties": {
+      "data": {
+        "$ref": "#/components/schemas/UserRecord"
+      },
+      "message": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "data",
+      "message"
     ]
   },
   "PasswordToken": {

@@ -327,13 +327,27 @@ export interface User {
   username: string;
   is_admin: boolean;
   is_active: boolean;
-  activation_code: string;
+  activation_code?: string;
 }
 
 export interface UserAccount {
   user_id: string;
   username: string;
   is_admin: boolean;
+}
+
+export interface UserRecord {
+  user_id: string;
+  username: string;
+  is_admin: boolean;
+  is_active: boolean;
+  activation_code?: string;
+  _id?: string;
+}
+
+export interface AccountResult {
+  data: UserRecord;
+  message: string;
 }
 
 export interface PasswordToken {
