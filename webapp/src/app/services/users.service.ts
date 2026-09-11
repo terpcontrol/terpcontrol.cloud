@@ -4,12 +4,6 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from 'src/environments/environment';
 import type { UserAccount } from '@fg2/shared-types';
 
-/** An account as the API answers with it, plus what a demo session adds here. */
-export type UserLite = UserAccount & {
-  /** Session opened through the demo login: demo devices, read-only. */
-  is_demo?: boolean;
-};
-
 export interface CreateUser {
   username: string;
   password: string;
@@ -23,8 +17,8 @@ export class UsersService {
 
   constructor(private http: HttpClient) { }
 
-  public async getAll() : Promise<UserLite[]> {
-    let data = await firstValueFrom(this.http.get<UserLite[]>(environment.API_URL + '/users'));
+  public async getAll() : Promise<UserAccount[]> {
+    let data = await firstValueFrom(this.http.get<UserAccount[]>(environment.API_URL + '/users'));
     console.log(data)
     return data;
 

@@ -418,6 +418,43 @@ export const accountResult = named('AccountResult', z.object({ data: userRecord,
 
 export const passwordToken = named('PasswordToken', z.object({ user_id: z.string(), token: z.string() }));
 
+/**
+ * One signed token and how long it is good for. `secret` is minted with the
+ * token and travels with it, so a client can tell two sessions of the same
+ * account apart.
+ */
+export const authToken = named('AuthToken', z.object({ token: z.string(), expiresIn: z.number().describe('Seconds.'), secret: z.string() }));
+
+/** The three tokens a session is made of: one to call with, one to renew it, one for picture URLs. */
+export const sessionTokens = named(
+  'SessionTokens',
+  z.object({ userToken: authToken, refreshToken: authToken, imageToken: authToken }),
+);
+
+/**
+ * Who a session belongs to, as the sign-in routes report it. The demo login
+ * answers this without an account behind it, which is what `is_demo` says.
+ */
+export const sessionUser = named('SessionUser', userAccount.extend({ is_demo: z.boolean().optional() }));
+
+export const loginResult = named('LoginResult', sessionTokens.extend({ user: sessionUser }));
+
+/**
+ * What the automation token buys: a short-lived administrator session and
+ * nothing to renew it with, so a caller that needs longer asks again.
+ */
+export const automationSession = named('AutomationSession', sessionTokens.pick({ userToken: true }));
+
+/**
+ * What a sign-up is told about the account it just made. Never the password
+ * hash, and never the activation code: the route is open, so anyone could
+ * otherwise activate an address they do not own.
+ */
+export const signupAccount = named('SignupAccount', user.pick({ user_id: true, username: true, is_active: true }));
+
+/** The envelope the sign-up route answers in, like the account routes. */
+export const signupResult = named('SignupResult', z.object({ data: signupAccount, message: z.string() }));
+
 export const recipeTemplateStep = named('RecipeTemplateStep', recipeStep.omit({ lastTimeApplied: true, notified: true }));
 
 export const recipeTemplate = named(

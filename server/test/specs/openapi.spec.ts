@@ -1,7 +1,8 @@
 import Ajv, { ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 import supertest from 'supertest';
-import { anonymous, createAccount, loginAsAdmin, Method, Session, unique } from '../support/api';
+import { anonymous, context, createAccount, loginAsAdmin, Method, Session, unique } from '../support/api';
+import { waitForMail } from '../support/control';
 import { DeviceCredentials, provisionDevice } from '../support/device';
 
 /**
@@ -203,5 +204,55 @@ describe('what the routes actually answer', () => {
     const fridge = response.body.find((entry: { name: string }) => entry.name === 'fridge');
 
     expectRowDocumented(response, '/device/class', fridge);
+  });
+});
+
+describe('what the authentication routes answer', () => {
+  const password = 'Passw0rd!test';
+
+  it('matches the declared shapes for a sign-up, the session it leads to, and its renewal', async () => {
+    // One client throughout: the routes are rate-limited per address, and every
+    // client of this suite is given one of its own.
+    const client = anonymous();
+    const username = `${unique('openapi-signup')}@test.invalid`;
+
+    const signup = await client.post('/signup').send({ username, password }).expect(201);
+    expectDocumented(signup, '/signup', 'post');
+
+    const session = await client.post('/login').send({ username, password }).expect(200);
+    expectDocumented(session, '/login', 'post');
+
+    const renewed = await client.post('/refresh').send({ token: session.body.refreshToken.token }).expect(200);
+    expectDocumented(renewed, '/refresh', 'post');
+  });
+
+  it('matches the declared shape for a demo session', async () => {
+    expectDocumented(await anonymous().post('/demologin').expect(200), '/demologin', 'post');
+  });
+
+  it('matches the declared shape for the session the automation token buys', async () => {
+    const response = await anonymous().post('/tokenlogin').send({ token: context.automationToken }).expect(200);
+
+    expectDocumented(response, '/tokenlogin', 'post');
+  });
+
+  it('matches the declared shapes for changing a password and signing out', async () => {
+    const account = await createAccount('openapi-session');
+
+    expectDocumented(await account.client.post('/changepass').send({ username: '', password }).expect(200), '/changepass', 'post');
+    expectDocumented(await account.client.post('/logout').expect(200), '/logout', 'post');
+  });
+
+  it('matches the declared shapes for a password recovery', async () => {
+    const account = await createAccount('openapi-recovery');
+
+    const requested = await anonymous().post('/getreset').send({ username: account.username, password: '' }).expect(201);
+    expectDocumented(requested, '/getreset', 'post');
+
+    const mail = await waitForMail(message => message.to.includes(account.username));
+    const token = mail.body.match(/recovery=([\w-]+)/)?.[1];
+
+    const reset = await anonymous().post('/reset').send({ token, password: 'Recovered!pass1' }).expect(200);
+    expectDocumented(reset, '/reset', 'post');
   });
 });

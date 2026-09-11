@@ -355,6 +355,50 @@ export interface PasswordToken {
   token: string;
 }
 
+export interface AuthToken {
+  token: string;
+  /**
+   * Seconds.
+   */
+  expiresIn: number;
+  secret: string;
+}
+
+export interface SessionTokens {
+  userToken: AuthToken;
+  refreshToken: AuthToken;
+  imageToken: AuthToken;
+}
+
+export interface SessionUser {
+  user_id: string;
+  username: string;
+  is_admin: boolean;
+  is_demo?: boolean;
+}
+
+export interface LoginResult {
+  userToken: AuthToken;
+  refreshToken: AuthToken;
+  imageToken: AuthToken;
+  user: SessionUser;
+}
+
+export interface AutomationSession {
+  userToken: AuthToken;
+}
+
+export interface SignupAccount {
+  user_id: string;
+  username: string;
+  is_active: boolean;
+}
+
+export interface SignupResult {
+  data: SignupAccount;
+  message: string;
+}
+
 export interface RecipeTemplateStep {
   name?: string;
   settings: any;

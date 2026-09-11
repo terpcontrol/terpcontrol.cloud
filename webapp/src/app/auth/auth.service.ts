@@ -1,11 +1,11 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { BehaviorSubject, catchError, from, firstValueFrom, Observable, tap, Subject, timeout } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
-import { UserLite } from '../services/users.service';
 import { DateTime, Interval } from "luxon";
 import { environment } from 'src/environments/environment';
 import { Router } from '@angular/router';
 import { MenuController, NavController } from '@ionic/angular';
+import type { LoginResult, SessionTokens, SessionUser, SignupResult } from '@fg2/shared-types';
 
 const EXPIRE_SAFETY_SECONDS = 10;
 
@@ -17,12 +17,9 @@ export type SessionState = 'unknown' | 'authenticated' | 'anonymous' | 'unreacha
 
 export type LogoutReason = 'session-expired';
 
-interface LoginData {
-  userToken: any,
-  refreshToken: any,
-  imageToken: any,
-  user: UserLite
-}
+// Signing in answers with the account behind the session; renewing only hands
+// out fresh tokens, and the account stays the one already stored.
+type LoginData = SessionTokens & { user?: SessionUser };
 
 // A request that never reached the server: the browser reports status 0 for DNS,
 // TLS, CORS and offline failures, and a stalled connection surfaces as a timeout.
@@ -35,7 +32,7 @@ export function isConnectionError(err: any): boolean {
 export class AuthService implements OnDestroy {
 
   public authenticated: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
-  public current_user: BehaviorSubject<UserLite|null> = new BehaviorSubject<UserLite|null>(null);
+  public current_user: BehaviorSubject<SessionUser|null> = new BehaviorSubject<SessionUser|null>(null);
   // `authenticated` cannot express "we don't know yet" or "the server is down", which
   // is what tells a genuine logout apart from an unreachable backend.
   public sessionState: BehaviorSubject<SessionState> = new BehaviorSubject<SessionState>('unknown');
@@ -100,7 +97,7 @@ export class AuthService implements OnDestroy {
   }
 
   public async login(username: string, password: string, stayLoggedIn: boolean) {
-    await this.startSession(this.http.post<LoginData>(
+    await this.startSession(this.http.post<LoginResult>(
       environment.API_URL + "/login",
       {
         username,
@@ -113,7 +110,7 @@ export class AuthService implements OnDestroy {
 
   // Read-only session without an account, showing the devices flagged as demo devices.
   public async loginAsDemo() {
-    await this.startSession(this.http.post<LoginData>(
+    await this.startSession(this.http.post<LoginResult>(
       environment.API_URL + "/demologin",
       {},
       { headers: { 'Authorization': '' } }
@@ -124,7 +121,7 @@ export class AuthService implements OnDestroy {
     return !!this.current_user.getValue()?.is_demo;
   }
 
-  private async startSession(request: Observable<LoginData>) {
+  private async startSession(request: Observable<LoginResult>) {
     const loginPromise = firstValueFrom(request)
       .then(login => {
         this.setLogin(login);
@@ -135,11 +132,11 @@ export class AuthService implements OnDestroy {
   }
 
   public async activate(activation_code: string) {
-    return await firstValueFrom(this.http.post<LoginData>(environment.API_URL + "/activate", {activation_code: activation_code}));
+    return await firstValueFrom(this.http.post<{ message: string }>(environment.API_URL + "/activate", {activation_code: activation_code}));
   }
 
   public async register(username: string, password: string) {
-    return await firstValueFrom(this.http.post<LoginData>(environment.API_URL + "/signup", {username: username, password: password}));
+    return await firstValueFrom(this.http.post<SignupResult>(environment.API_URL + "/signup", {username: username, password: password}));
   }
 
   public async getToken(): Promise<string | null> {
@@ -183,7 +180,7 @@ export class AuthService implements OnDestroy {
       }
 
       if (refreshToken && refreshExpiresAt && nowUnixtime < DateTime.fromISO(refreshExpiresAt).toUnixInteger()) {
-          const login = await firstValueFrom(this.http.post<LoginData>(
+          const login = await firstValueFrom(this.http.post<SessionTokens>(
             environment.API_URL + "/refresh",
             { token: refreshToken },
             { headers: { 'Authorization': '' } }
@@ -243,15 +240,15 @@ export class AuthService implements OnDestroy {
   }
 
   public async changePassword(new_password:string) {
-    await firstValueFrom(this.http.post<LoginData>(environment.API_URL + "/changepass", {username: '', password: new_password}));
+    await firstValueFrom(this.http.post(environment.API_URL + "/changepass", {username: '', password: new_password}));
   }
 
   public async getPwToken(email:string) {
-    await firstValueFrom(this.http.post<LoginData>(environment.API_URL + "/getreset", {username: email, password: ''}));
+    await firstValueFrom(this.http.post(environment.API_URL + "/getreset", {username: email, password: ''}));
   }
 
   public async recoverPassword(new_password:string, token:string) {
-    await firstValueFrom(this.http.post<LoginData>(environment.API_URL + "/reset", {password: new_password, token: token}));
+    await firstValueFrom(this.http.post(environment.API_URL + "/reset", {password: new_password, token: token}));
   }
 
   private setLogin(login: LoginData) {

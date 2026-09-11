@@ -1089,6 +1089,135 @@
       "token"
     ]
   },
+  "AuthToken": {
+    "type": "object",
+    "properties": {
+      "token": {
+        "type": "string"
+      },
+      "expiresIn": {
+        "type": "number",
+        "description": "Seconds."
+      },
+      "secret": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "token",
+      "expiresIn",
+      "secret"
+    ]
+  },
+  "SessionTokens": {
+    "type": "object",
+    "properties": {
+      "userToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      },
+      "refreshToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      },
+      "imageToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      }
+    },
+    "required": [
+      "userToken",
+      "refreshToken",
+      "imageToken"
+    ]
+  },
+  "SessionUser": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "string"
+      },
+      "username": {
+        "type": "string"
+      },
+      "is_admin": {
+        "type": "boolean"
+      },
+      "is_demo": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "user_id",
+      "username",
+      "is_admin"
+    ]
+  },
+  "LoginResult": {
+    "type": "object",
+    "properties": {
+      "userToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      },
+      "refreshToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      },
+      "imageToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      },
+      "user": {
+        "$ref": "#/components/schemas/SessionUser"
+      }
+    },
+    "required": [
+      "userToken",
+      "refreshToken",
+      "imageToken",
+      "user"
+    ]
+  },
+  "AutomationSession": {
+    "type": "object",
+    "properties": {
+      "userToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      }
+    },
+    "required": [
+      "userToken"
+    ]
+  },
+  "SignupAccount": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "string"
+      },
+      "username": {
+        "type": "string"
+      },
+      "is_active": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "user_id",
+      "username",
+      "is_active"
+    ]
+  },
+  "SignupResult": {
+    "type": "object",
+    "properties": {
+      "data": {
+        "$ref": "#/components/schemas/SignupAccount"
+      },
+      "message": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "data",
+      "message"
+    ]
+  },
   "RecipeTemplateStep": {
     "type": "object",
     "properties": {
