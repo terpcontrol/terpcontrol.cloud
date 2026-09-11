@@ -469,9 +469,9 @@ export const userAccount = named('UserAccount', user.pick({ user_id: true, usern
 export const userRecord = named('UserRecord', user.omit({ password: true }).extend({ _id: z.string().optional() }));
 
 /**
- * The account routes wrap their answer in an envelope, and have since before
- * the app read them. Described rather than tidied away: the document says what
- * the server sends.
+ * The account routes have always wrapped their answer in an envelope. Described
+ * rather than tidied away: whoever reads them reads it, and the document is for
+ * saying what the server sends, not what it ought to.
  */
 export const accountResult = named('AccountResult', z.object({ data: userRecord, message: z.string() }));
 

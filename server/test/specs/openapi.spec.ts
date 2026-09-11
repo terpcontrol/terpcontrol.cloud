@@ -23,6 +23,10 @@ import { DeviceCredentials, provisionDevice, registerDevice } from '../support/d
  * written by a spec that was testing something else. What that leaves uncovered
  * is the shape of older rows - a field a schema calls required that a document
  * written long ago does not carry would pass here and still be a wrong claim.
+ *
+ * One case walks the document instead of the server: every operation has to
+ * declare a body, so a route added without saying what it answers fails here
+ * rather than quietly going undocumented.
  */
 
 const METHODS: Method[] = ['get', 'post', 'put', 'patch', 'delete', 'options'];
@@ -52,27 +56,28 @@ const expectMatches = (schema: unknown, body: unknown, what: string) => {
 };
 
 /**
- * Checks one answer against what the document declares for the route - under
- * the status the answer actually came back with. A shape documented for a
- * status the route never sends describes nothing, and reading the status from
- * the answer is what catches it.
+ * What the document declares for a route under the status the answer actually
+ * came back with. A shape documented for a status the route never sends
+ * describes nothing, and reading the status off the answer is what catches it.
  */
-const expectDocumented = (response: supertest.Response, path: string, method: Method = 'get'): void => {
-  const schema = declaredSchema(path, method, response.status);
+const declaredFor = (response: supertest.Response, path: string, method: Method): { schema: unknown; what: string } => {
   const what = `${method.toUpperCase()} ${path} (${response.status})`;
+  const schema = declaredSchema(path, method, response.status);
   if (schema === undefined) {
     throw new Error(`${what} answered a body the document declares no schema for`);
   }
+  return { schema, what };
+};
+
+/** Checks a whole answer against the shape the document declares for it. */
+const expectDocumented = (response: supertest.Response, path: string, method: Method = 'get'): void => {
+  const { schema, what } = declaredFor(response, path, method);
   expectMatches(schema, response.body, what);
 };
 
 /** The same, for one row a spec picked out of a listing it shares with others. */
 const expectRowDocumented = (response: supertest.Response, path: string, row: unknown, method: Method = 'get'): void => {
-  const schema = declaredSchema(path, method, response.status);
-  const what = `${method.toUpperCase()} ${path} (${response.status})`;
-  if (schema === undefined) {
-    throw new Error(`${what} answered a body the document declares no schema for`);
-  }
+  const { schema, what } = declaredFor(response, path, method);
   expect(row).toBeDefined();
   expectMatches(itemSchema(schema), row, what);
 };
