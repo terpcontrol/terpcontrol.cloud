@@ -368,6 +368,13 @@ export interface Image {
   duration?: '1d' | '1w' | '1m';
 }
 
+export interface UploadedImage {
+  image_id: string;
+  device_id: string;
+  timestamp: number;
+  format?: 'jpeg' | 'mp4' | 'user/jpeg';
+}
+
 export interface User {
   user_id: string;
   password: string;

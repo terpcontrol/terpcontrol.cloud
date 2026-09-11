@@ -25,6 +25,8 @@ import { DeviceCredentials, provisionDevice, registerDevice } from '../support/d
  * written long ago does not carry would pass here and still be a wrong claim.
  */
 
+const METHODS: Method[] = ['get', 'post', 'put', 'patch', 'delete', 'options'];
+
 interface OpenApiDocument {
   components?: { schemas?: Record<string, object> };
   paths: Record<string, Record<string, { responses?: Record<string, { content?: Record<string, { schema?: unknown }> }> }>>;
@@ -37,8 +39,8 @@ let admin: Session;
 let device: DeviceCredentials;
 
 /** The response schema a route documents for one status code, or undefined. */
-const declaredSchema = (path: string, method: Method = 'get', status = 200): unknown =>
-  document.paths[path]?.[method]?.responses?.[String(status)]?.content?.['application/json']?.schema;
+const declaredSchema = (path: string, method: Method = 'get', status = 200, contentType = 'application/json'): unknown =>
+  document.paths[path]?.[method]?.responses?.[String(status)]?.content?.[contentType]?.schema;
 
 const itemSchema = (schema: unknown): unknown => (schema as { items?: unknown }).items ?? schema;
 
@@ -120,6 +122,23 @@ describe('the document', () => {
     expect(declaredSchema('/users')).toEqual({ type: 'array', items: { $ref: '#/components/schemas/UserAccount' } });
     expect(declaredSchema('/device/firmware')).toEqual({ type: 'array', items: { $ref: '#/components/schemas/FirmwareListEntry' } });
     expect(declaredSchema('/device/firmware/find')).toEqual({ $ref: '#/components/schemas/FirmwareListEntry' });
+  });
+
+  it('leaves no operation without an answer', () => {
+    // What this file is for: an operation that documents no body at all tells a
+    // reader nothing, and there is no route left that has an excuse for it.
+    const unsaid: string[] = [];
+
+    for (const [path, operations] of Object.entries(document.paths)) {
+      for (const method of Object.keys(operations).filter(key => METHODS.includes(key as Method))) {
+        const answers = Object.entries(operations[method].responses ?? {}).filter(([status]) => status.startsWith('2'));
+        if (!answers.some(([, answer]) => Object.keys(answer.content ?? {}).length > 0)) {
+          unsaid.push(`${method.toUpperCase()} ${path}`);
+        }
+      }
+    }
+
+    expect(unsaid).toEqual([]);
   });
 
   it('declares each shape under the status its route answers with', () => {
@@ -618,5 +637,57 @@ describe('what the device routes answer', () => {
     const spare = await provisionDevice(owner);
 
     expectDocumented(await owner.client.delete(`/device/${spare.deviceId}`).expect(200), '/device/{device_id}', 'delete');
+  });
+});
+
+describe('what the picture routes answer', () => {
+  // A one-pixel JPEG: the route re-encodes whatever it is given, so the bytes
+  // only have to be a picture.
+  const jpeg = Buffer.from(
+    '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a' +
+      'HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAA' +
+      'AAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==',
+    'base64',
+  );
+
+  it('matches the declared shape for a photo it just added to a diary', async () => {
+    const response = await owner.client.post(`/image/${device.deviceId}`).attach('image', jpeg, 'photo.jpg').expect(201);
+
+    expectDocumented(response, '/image/{device_id}', 'post');
+  });
+
+  it('matches the declared shape for deleting a picture it added', async () => {
+    const added = await owner.client.post(`/image/${device.deviceId}`).attach('image', jpeg, 'photo.jpg').expect(201);
+
+    expectDocumented(await owner.client.delete(`/image/${added.body.image_id}`).expect(200), '/image/{image_id}', 'delete');
+  });
+
+  it('declares the picture and probe routes as the bodies they send, not as JSON', async () => {
+    // Nothing to validate with a schema here; what matters is that the document
+    // says these answer bytes and words rather than leaving the body unsaid.
+    expect(declaredSchema('/image/{device_id}', 'get', 200, 'image/jpeg')).toEqual({ type: 'string', format: 'binary' });
+    expect(declaredSchema('/image/{device_id}', 'get', 200, 'image/png')).toEqual({ type: 'string', format: 'binary' });
+    expect(declaredSchema('/image/{device_id}', 'get', 200, 'video/mp4')).toEqual({ type: 'string', format: 'binary' });
+    expect(declaredSchema('/device/firmware/{firmware_id}/{binary}', 'get', 200, 'application/octet-stream')).toEqual({
+      type: 'string',
+      format: 'binary',
+    });
+    expect(declaredSchema('/', 'get', 200, 'text/plain')).toEqual({ type: 'string' });
+    expect(declaredSchema('/readycheck', 'get', 200, 'text/plain')).toEqual({ type: 'string' });
+  });
+
+  it('sends the picture and probe bodies the document declares', async () => {
+    const added = await owner.client.post(`/image/${device.deviceId}`).attach('image', jpeg, 'photo.jpg').expect(201);
+
+    const photo = await owner.client.get(`/image/${device.deviceId}`).query({ format: 'user/jpeg', image_id: added.body.image_id }).expect(200);
+    expect(photo.headers['content-type']).toMatch(/^image\/jpeg/);
+
+    // Nothing stored for that moment, so the placeholder stands in - and it is
+    // a PNG, whichever format was asked for.
+    const placeholder = await owner.client.get(`/image/${device.deviceId}`).query({ format: 'jpeg', timestamp: 1 }).expect(200);
+    expect(placeholder.headers['content-type']).toMatch(/^image\/png/);
+
+    const probe = await anonymous().get('/').expect(200);
+    expect(probe.headers['content-type']).toMatch(/^text\/plain/);
   });
 });

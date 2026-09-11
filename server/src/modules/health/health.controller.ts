@@ -9,6 +9,9 @@ import { authConfig } from '../../config/configuration';
 import { MODEL } from '../../database/models.module';
 import { PUBLIC_OPERATION } from '../../openapi';
 
+/** Both probes answer a word, not a document: they are read by a load balancer. */
+const PLAIN_OK = { 'text/plain': { schema: { type: 'string' } } };
+
 @ApiTags('service')
 @Controller()
 export class HealthController {
@@ -20,15 +23,15 @@ export class HealthController {
   @Get('/')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Liveness probe', ...PUBLIC_OPERATION })
-  @ApiResponse({ status: 200, description: 'The API is up.' })
+  @ApiResponse({ status: 200, description: 'The API is up.', content: PLAIN_OK })
   public liveness(): string {
     return 'OK';
   }
 
   @Get('/readycheck')
   @ApiOperation({ summary: 'Readiness probe', ...PUBLIC_OPERATION })
-  @ApiResponse({ status: 200, description: 'The admin account exists, so the database is reachable and seeded.' })
-  @ApiResponse({ status: 501, description: 'The admin account is missing.' })
+  @ApiResponse({ status: 200, description: 'The admin account exists, so the database is reachable and seeded.', content: PLAIN_OK })
+  @ApiResponse({ status: 501, description: 'The admin account is missing.', content: PLAIN_OK })
   public async readiness(@Res() reply: FastifyReply): Promise<void> {
     // The account the server seeds on start, which is named by the deployment
     // and is not always called "admin".

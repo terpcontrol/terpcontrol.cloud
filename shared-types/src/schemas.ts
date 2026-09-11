@@ -430,6 +430,16 @@ export const image = named(
   }),
 );
 
+/**
+ * What an upload is told about the photo it just added to a diary. The bytes
+ * are not sent back, so `Image` - which describes the stored picture - does not
+ * describe this.
+ */
+export const uploadedImage = named(
+  'UploadedImage',
+  image.pick({ image_id: true, device_id: true, timestamp: true, format: true }),
+);
+
 export const user = named(
   'User',
   z.object({

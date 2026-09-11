@@ -1110,6 +1110,33 @@
       "timestamp"
     ]
   },
+  "UploadedImage": {
+    "type": "object",
+    "properties": {
+      "image_id": {
+        "type": "string"
+      },
+      "device_id": {
+        "type": "string"
+      },
+      "timestamp": {
+        "type": "number"
+      },
+      "format": {
+        "type": "string",
+        "enum": [
+          "jpeg",
+          "mp4",
+          "user/jpeg"
+        ]
+      }
+    },
+    "required": [
+      "image_id",
+      "device_id",
+      "timestamp"
+    ]
+  },
   "User": {
     "type": "object",
     "properties": {
