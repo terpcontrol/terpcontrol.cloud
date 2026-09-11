@@ -419,6 +419,11 @@ export interface RecipeTemplate {
   steps: RecipeTemplateStep[];
 }
 
+export interface MeasurementPoint {
+  _time: string;
+  _value: number | null;
+}
+
 export interface ChartPreset {
   preset_id: string;
   owner_id?: string;

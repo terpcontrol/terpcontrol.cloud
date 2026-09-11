@@ -4,6 +4,7 @@ import { ConfigType } from '@nestjs/config';
 import { InfluxDB, Point } from '@influxdata/influxdb-client';
 import { HttpException } from '@common/http-exception';
 import { calculateVpd } from '@utils/calculateVpd';
+import { MeasurementPoint } from '@fg2/shared-types';
 import { influxConfig } from '../../config/configuration';
 import { DeviceService, StatusMessage } from '../device/device.service';
 
@@ -104,7 +105,7 @@ export class DataService {
     }
   }
 
-  public async getSeries(device_id, measure, from, to, interval, method = 'mean'): Promise<{ _time: string; _value: number }[]> {
+  public async getSeries(device_id, measure, from, to, interval, method = 'mean'): Promise<MeasurementPoint[]> {
     if (measure.startsWith('vpd')) {
       return this.getSeriesVpd(device_id, measure, from, to, interval, method);
     }
@@ -136,7 +137,7 @@ export class DataService {
     });
   }
 
-  private async getSeriesVpd(device_id, measure: any, from, to, interval, method): Promise<{ _time: string; _value: number }[]> {
+  private async getSeriesVpd(device_id, measure: any, from, to, interval, method): Promise<MeasurementPoint[]> {
     const tempSeries = await this.getSeries(device_id, 'temperature', from, to, interval, method);
     const humiditySeries = await this.getSeries(device_id, 'humidity', from, to, interval, method);
     const lightSeries = await this.getSeries(device_id, 'out_light', from, to, interval, method);
@@ -193,7 +194,7 @@ export class DataService {
     return airTemp + (leafTempOffset ?? 0);
   }
 
-  private async getSeriesPpfd(device_id, from, to, interval, method): Promise<{ _time: string; _value: number }[]> {
+  private async getSeriesPpfd(device_id, from, to, interval, method): Promise<MeasurementPoint[]> {
     const luxSeries = await this.getSeries(device_id, 'lux', from, to, interval, method);
     const cloudSettings = await this.devices.getDeviceCloudSettings(device_id);
     const factor = cloudSettings?.ppfdLuxFactor ?? DEFAULT_PPFD_LUX_FACTOR;

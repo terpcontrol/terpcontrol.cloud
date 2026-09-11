@@ -2,7 +2,7 @@ import Ajv, { ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 import supertest from 'supertest';
 import { anonymous, context, createAccount, loginAsAdmin, Method, Session, unique } from '../support/api';
-import { waitForMail } from '../support/control';
+import { seedMeasurements, waitForMail } from '../support/control';
 import { DeviceCredentials, provisionDevice } from '../support/device';
 
 /**
@@ -298,5 +298,38 @@ describe('what the chart preset and share routes answer', () => {
 
     expect(response.body.deleted).toBeGreaterThan(0);
     expectDocumented(response, '/share/inactive', 'delete');
+  });
+});
+
+describe('what the measurement routes answer', () => {
+  /** A window this spec seeded itself, so the points in it are its own. */
+  const alignedNow = Math.floor(Date.now() / 60_000) * 60_000;
+  const from = new Date(alignedNow - 5 * 60_000).toISOString();
+  const to = new Date(alignedNow).toISOString();
+
+  it('matches the declared shape for a series, empty windows and all', async () => {
+    await seedMeasurements([{ time: alignedNow - 90_000, device_id: device.deviceId, fields: { temperature: 21 } }]);
+
+    const response = await owner.client
+      .get(`/data/series/${device.deviceId}/temperature`)
+      .query({ from, to, interval: '1m', method: 'mean' })
+      .expect(201);
+
+    // Both halves of the shape have to appear, or the null is never checked.
+    expect(response.body.some((point: { _value: number | null }) => point._value === null)).toBe(true);
+    expect(response.body.some((point: { _value: number | null }) => point._value !== null)).toBe(true);
+    expectDocumented(response, '/data/series/{device_id}/{measure}');
+  });
+
+  it('matches the declared shape for the latest reading, and for there being none', async () => {
+    await seedMeasurements([{ time: Date.now() - 30_000, device_id: device.deviceId, fields: { humidity: 55 } }]);
+
+    const reading = await owner.client.get(`/data/latest/${device.deviceId}/humidity`).expect(201);
+    expect(reading.body.value).toBe(55);
+    expectDocumented(reading, '/data/latest/{device_id}/{measure}');
+
+    const nothing = await owner.client.get(`/data/latest/${device.deviceId}/co2`).expect(201);
+    expect(nothing.body.value).toBeNull();
+    expectDocumented(nothing, '/data/latest/{device_id}/{measure}');
   });
 });

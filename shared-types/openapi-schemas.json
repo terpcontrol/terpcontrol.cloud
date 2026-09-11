@@ -1281,6 +1281,25 @@
       "steps"
     ]
   },
+  "MeasurementPoint": {
+    "type": "object",
+    "properties": {
+      "_time": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "_value": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "_time",
+      "_value"
+    ]
+  },
   "ChartPreset": {
     "type": "object",
     "properties": {

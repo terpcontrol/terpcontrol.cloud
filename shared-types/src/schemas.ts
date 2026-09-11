@@ -470,6 +470,18 @@ export const recipeTemplate = named(
   }),
 );
 
+/**
+ * One point of a measurement series. `_value` is null where the window it covers
+ * holds no reading: the series keeps empty windows so a chart draws the gap
+ * rather than joining across it. A computed measure that cannot be worked out
+ * for a window - VPD without a temperature, say - arrives the same way, because
+ * the server has it as NaN and JSON has no such number.
+ */
+export const measurementPoint = named(
+  'MeasurementPoint',
+  z.object({ _time: z.string().meta({ format: 'date-time' }), _value: z.number().nullable() }),
+);
+
 export const chartPreset = named(
   'ChartPreset',
   z.object({
