@@ -5,7 +5,7 @@ import { Alarm, CloudSettings, Device, DeviceListEntry } from '@fg2/shared-types
 import { demoDevice } from '@utils/demo';
 import { MODEL } from '../../database/models.module';
 import { AlarmService } from '../alarm/alarm.service';
-import { ImageService } from '../image/image.service';
+import { WebcamPollerService } from '../image/webcam-poller.service';
 import { DeviceCommandService } from './device-command.service';
 import { DeviceLogEntry, DeviceLogService } from './device-log.service';
 import { DeviceSettingsService } from './device-settings.service';
@@ -30,7 +30,7 @@ export class DeviceService {
     private readonly settings: DeviceSettingsService,
     private readonly commands: DeviceCommandService,
     private readonly alarms: AlarmService,
-    private readonly images: ImageService,
+    private readonly webcams: WebcamPollerService,
   ) {}
 
   public async findAllDevices(): Promise<Device[]> {
@@ -101,7 +101,7 @@ export class DeviceService {
   /** The camera settings are among them, so the poller stops waiting out a backoff for the old ones. */
   public async setDeviceCloudSettings(device_id: string, settings: CloudSettings): Promise<void> {
     await this.settings.setDeviceCloudSettings(device_id, settings);
-    this.images.reportDeviceConfigured(device_id);
+    this.webcams.reportDeviceConfigured(device_id);
   }
 
   /** Told to the device, so it stops acting on its own alarms, and to the cloud's. */
