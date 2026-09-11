@@ -1,4 +1,4 @@
-import { forwardRef, Inject, Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { execFile } from 'node:child_process';
 import { Readable } from 'node:stream';
@@ -18,7 +18,8 @@ import { ImageStore } from '../../database/image-store';
 import { MODEL } from '../../database/models.module';
 import { TerpCamDirectService } from '../camera/terpcam-direct.service';
 import { TerpCamP2PService, terpCamLabel } from '../camera/terpcam-p2p.service';
-import { DeviceService, ONLINE_TIMEOUT } from '../device/device.service';
+import { DeviceLogService } from '../device/device-log.service';
+import { ONLINE_TIMEOUT } from '../device/device.queries';
 import { TunnelService } from '../tunnel/tunnel.service';
 
 const escapeXml = (value: string): string =>
@@ -126,7 +127,7 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
   constructor(
     @InjectModel(MODEL.image) private readonly images: Model<Image & Document>,
     @InjectModel(MODEL.device) private readonly devices: Model<Device & Document>,
-    @Inject(forwardRef(() => DeviceService)) private readonly deviceService: DeviceService,
+    private readonly logs: DeviceLogService,
     private readonly tunnel: TunnelService,
     private readonly store: ImageStore,
     private readonly terpCamP2P: TerpCamP2PService,
@@ -728,7 +729,7 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
       if (cloudSettings.logRtspStreamErrors) {
         logIfItFails(
           `Recording the webcam error for device ${deviceId}`,
-          this.deviceService.logMessage(deviceId, {
+          this.logs.logMessage(deviceId, {
             title: 'message-rtsp-stream-error',
             // ffmpeg quotes the stream URL back, and a diary entry is
             // readable by anyone the owner shares the diary with.

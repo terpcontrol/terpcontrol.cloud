@@ -2,6 +2,18 @@
  * What the device services take. Requests are validated against the Zod schemas
  * at the HTTP edge; these describe the shape that reaches the service.
  */
+
+/** One set of readings as a device reports them, over `status` or `bulk`. */
+export type StatusMessage = {
+  sensors: {
+    [key: string]: number;
+  };
+  outputs: {
+    [key: string]: number;
+  };
+  timestamp: number;
+};
+
 export interface AddDeviceDto {
   class_id: string;
   device_type: string;

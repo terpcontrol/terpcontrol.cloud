@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
 import { Image } from '@fg2/shared-types';
-import { ONLINE_TIMEOUT } from '../device/device.service';
+import { ONLINE_TIMEOUT } from '../device/device.queries';
 import { ImageService } from './image.service';
 import { logger } from '@utils/logger';
 

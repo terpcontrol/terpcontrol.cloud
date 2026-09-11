@@ -19,7 +19,8 @@ import { ApiShape } from '@common/api-shape';
 import { FastifyReply } from 'fastify';
 import { DeviceClass, DeviceFirmware, FirmwareListEntry, UserFirmwareList } from '@fg2/shared-types';
 import { HttpException } from '@common/http-exception';
-import { DeviceService } from './device.service';
+import { DeviceClassService } from './device-class.service';
+import { DeviceFirmwareService } from './device-firmware.service';
 import { AdminGuard, AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { DeviceOwnerGuard } from '../../common/auth/device-access.guard';
@@ -41,14 +42,17 @@ export const sendFirmwareBinary = async (reply: FastifyReply, binary: Buffer): P
 @ApiTags('firmware')
 @Controller('device')
 export class DeviceFirmwareController {
-  constructor(private readonly deviceService: DeviceService) {}
+  constructor(
+    private readonly firmware: DeviceFirmwareService,
+    private readonly classes: DeviceClassService,
+  ) {}
 
   @Get('firmware')
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Every firmware record' })
   @ApiShape(['FirmwareListEntry'])
   public list(): Promise<FirmwareListEntry[]> {
-    return this.deviceService.findAllFirmware();
+    return this.firmware.findAllFirmware();
   }
 
   @Get('firmware/find')
@@ -65,7 +69,7 @@ export class DeviceFirmwareController {
       throw new HttpException(400, 'name and version are required');
     }
 
-    const firmware = await this.deviceService.findFirmwareByNameVersion(name, version);
+    const firmware = await this.firmware.findFirmwareByNameVersion(name, version);
 
     if (!firmware) {
       throw new NotFoundException({ status: 'not found' });
@@ -79,7 +83,7 @@ export class DeviceFirmwareController {
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Register a firmware build' })
   public async create(@Body(zodBody(addFirmwareSchema)) body: AddFirmware) {
-    const firmware = await this.deviceService.createFirmware(body.name, body.version);
+    const firmware = await this.firmware.createFirmware(body.name, body.version);
     return { firmware_id: firmware.firmware_id, name: firmware.name, version: firmware.version };
   }
 
@@ -93,7 +97,7 @@ export class DeviceFirmwareController {
       throw new HttpException(400, 'Binary file is missing or invalid');
     }
 
-    const firmware = await this.deviceService.createFirmwareBinary(firmwareId, binaryName, body.binary);
+    const firmware = await this.firmware.createFirmwareBinary(firmwareId, binaryName, body.binary);
     return { firmware_id: firmware.firmware_id, name: firmware.name };
   }
 
@@ -102,7 +106,7 @@ export class DeviceFirmwareController {
   @Get('firmware/:firmware_id/:binary')
   @ApiOperation({ summary: 'Download a firmware image', ...PUBLIC_OPERATION })
   public async download(@Param('firmware_id') firmwareId: string, @Param('binary') binaryName: string, @Res() reply: FastifyReply): Promise<void> {
-    await sendFirmwareBinary(reply, await this.deviceService.getFirmwareBinary(firmwareId, binaryName));
+    await sendFirmwareBinary(reply, await this.firmware.getFirmwareBinary(firmwareId, binaryName));
   }
 
   @Put('firmware/:firmware_id')
@@ -114,7 +118,7 @@ export class DeviceFirmwareController {
       throw new BadRequestException({ error: 'Missing or invalid version' });
     }
 
-    const firmware = await this.deviceService.updateFirmwareVersion(firmwareId, version);
+    const firmware = await this.firmware.updateFirmwareVersion(firmwareId, version);
     return { firmware_id: firmware.firmware_id, name: firmware.name, version: firmware.version };
   }
 
@@ -122,7 +126,7 @@ export class DeviceFirmwareController {
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Delete a firmware build and its images' })
   public async remove(@Param('firmware_id') firmwareId: string) {
-    await this.deviceService.deleteFirmware(firmwareId);
+    await this.firmware.deleteFirmware(firmwareId);
     return { status: 'ok' };
   }
 
@@ -131,7 +135,7 @@ export class DeviceFirmwareController {
   @ApiOperation({ summary: 'The firmware versions this device can run' })
   @ApiShape('UserFirmwareList')
   public forDevice(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string): Promise<UserFirmwareList> {
-    return this.deviceService.listFirmwaresForDevice(deviceId, user.userId, user.isDemo);
+    return this.firmware.listFirmwaresForDevice(deviceId, user.userId, user.isDemo);
   }
 
   @Get('class')
@@ -139,7 +143,7 @@ export class DeviceFirmwareController {
   @ApiOperation({ summary: 'Every device class' })
   @ApiShape(['DeviceClass'])
   public listClasses(): Promise<DeviceClass[]> {
-    return this.deviceService.listClasses();
+    return this.classes.listClasses();
   }
 
   @Get('class/find/:class_name')
@@ -147,7 +151,7 @@ export class DeviceFirmwareController {
   @ApiOperation({ summary: 'Find a device class by name' })
   @ApiShape('DeviceClass')
   public async findClass(@Param('class_name') className: string): Promise<DeviceClass> {
-    const deviceClass = await this.deviceService.findClass(className);
+    const deviceClass = await this.classes.findClass(className);
 
     if (!deviceClass) {
       throw new NotFoundException({ status: 'not found' });
@@ -161,7 +165,7 @@ export class DeviceFirmwareController {
   @ApiOperation({ summary: 'One device class, by id' })
   @ApiShape('DeviceClass')
   public getClass(@Param('class_id') classId: string): Promise<DeviceClass> {
-    return this.deviceService.getClass(classId);
+    return this.classes.getClass(classId);
   }
 
   @Post('class')
@@ -169,7 +173,7 @@ export class DeviceFirmwareController {
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Create a device class' })
   public async createClass(@Body(zodBody(addDeviceClassSchema)) body: AddDeviceClass) {
-    await this.deviceService.createClass(
+    await this.classes.createClass(
       body.name,
       body.description,
       body.concurrent,
@@ -186,7 +190,7 @@ export class DeviceFirmwareController {
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Change a device class, including the firmware each channel points at' })
   public async updateClass(@Param('class_id') classId: string, @Body(zodBody(addDeviceClassSchema)) body: AddDeviceClass) {
-    await this.deviceService.updateClass(
+    await this.classes.updateClass(
       classId,
       body.name,
       body.description,

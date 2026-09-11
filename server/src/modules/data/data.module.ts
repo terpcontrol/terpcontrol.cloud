@@ -1,11 +1,11 @@
-import { forwardRef, Module } from '@nestjs/common';
-import { DeviceModule } from '../device/device.module';
+import { Module } from '@nestjs/common';
+import { DeviceSettingsModule } from '../device/device-settings.module';
 import { DataController } from './data.controller';
 import { DATA_SERVICE } from './data.provider';
 import { DataService } from './data.service';
 
 @Module({
-  imports: [forwardRef(() => DeviceModule)],
+  imports: [DeviceSettingsModule],
   controllers: [DataController],
   // The controller takes the contract rather than the class, so what it needs
   // of the measurement store is stated in one place.
