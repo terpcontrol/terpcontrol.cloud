@@ -20,12 +20,6 @@ export const imagesSchema: Schema = new Schema({
     type: Number,
     required: false,
   },
-  // What a picture written before the move to GridFS carries. Still read, never
-  // written: the bytes live in the image store now, under the same image_id.
-  data: {
-    type: Buffer,
-    required: false,
-  },
   // Bytes of the stored picture, so the size can be served (Content-Length, the
   // end of a Range) without asking the store for the file's metadata first.
   size: {

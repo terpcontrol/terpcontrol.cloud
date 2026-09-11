@@ -47,10 +47,9 @@ const BATCH_SIZE = 200;
 type LegacyImage = { _id: mongo.ObjectId; image_id: string };
 
 /**
- * The payload as the driver hands it back. It is read through the driver rather
- * than through the model, so the migration does not depend on the schema still
- * describing a field that is on its way out - which also means no schema type
- * has cast it to a Buffer yet.
+ * The payload as the driver hands it back. The field is read and written
+ * through the driver rather than through the model, because the schema does not
+ * describe it any more - which also means nothing has cast it to a Buffer.
  */
 const inlineBytes = (value: unknown): Buffer | undefined => {
   if (Buffer.isBuffer(value)) {

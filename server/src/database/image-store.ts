@@ -23,8 +23,6 @@ import { MODEL } from './models';
  * The `images` document keeps everything the queries need (device, format,
  * timestamp, duration) and stores no bytes; the file carries the same
  * `image_id` as its `_id`, so no extra field is needed to pair the two.
- * Documents written before this change still carry their payload inline and are
- * still read from there - see `data` in the schema.
  */
 
 /** `imagedata.files` / `imagedata.chunks`, next to the `images` metadata. */
@@ -126,16 +124,16 @@ export class ImageStore {
    * again if the document does not make it - a failed write leaves nothing
    * behind either way.
    */
-  public createImage(image: Omit<Image, 'data' | 'size'>, data: Buffer): Promise<Image> {
+  public createImage(image: Omit<Image, 'size'>, data: Buffer): Promise<Image> {
     return this.writeImage(image, () => this.upload(image.image_id, data).then(() => data.length));
   }
 
   /** The same, for a picture that is already a file on disk (a fresh timelapse). */
-  public createImageFromFile(image: Omit<Image, 'data' | 'size'>, path: string): Promise<Image> {
+  public createImageFromFile(image: Omit<Image, 'size'>, path: string): Promise<Image> {
     return this.writeImage(image, () => this.uploadFile(image.image_id, path));
   }
 
-  private async writeImage(image: Omit<Image, 'data' | 'size'>, upload: () => Promise<number>): Promise<Image> {
+  private async writeImage(image: Omit<Image, 'size'>, upload: () => Promise<number>): Promise<Image> {
     const size = await upload();
 
     try {

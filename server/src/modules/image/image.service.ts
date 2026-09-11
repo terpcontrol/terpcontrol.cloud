@@ -184,9 +184,9 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
     );
   }
 
-  /** The bytes of a picture, wherever they are kept. */
+  /** The bytes of a picture. */
   public async readImageData(image: Image): Promise<Buffer> {
-    return image.data ?? this.store.download(image.image_id);
+    return this.store.download(image.image_id);
   }
 
   /**
@@ -195,16 +195,12 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
    * of megabytes, so serving one never holds the whole file in memory.
    */
   public readImageStream(image: Image, range?: { start: number; end: number }): Readable {
-    if (image.data) {
-      return Readable.from(range ? image.data.subarray(range.start, range.end + 1) : image.data);
-    }
-
     return this.store.read(image.image_id, range);
   }
 
   /** How large the picture is, for Content-Length and for resolving a Range. */
   public imageSize(image: Image): number | undefined {
-    return image.data ? image.data.length : image.size;
+    return image.size;
   }
 
   // Draws a caption box over a still, in the style of the webapp's device offline
@@ -476,9 +472,7 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
             },
           })
           .sort({ timestamp: -1 })
-          // `size` says where the bytes are without dragging them along: a
-          // picture written before the move to the image store has none.
-          .select({ image_id: 1, timestamp: 1, size: 1 })
+          .select({ image_id: 1, timestamp: 1 })
           .limit(limit);
 
       const newestImage = (await getImages(endTimestamp, 1))?.[0];
@@ -583,7 +577,7 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
    */
   private async compressRtspStreamImages(
     device: Device,
-    images: Pick<Image, 'image_id' | 'timestamp' | 'size'>[],
+    images: Pick<Image, 'image_id' | 'timestamp'>[],
     store: (videoPath: string) => Promise<void>,
   ): Promise<boolean> {
     const filesWritten = [];
@@ -629,19 +623,9 @@ export class ImageService implements OnModuleInit, OnApplicationShutdown {
     return false;
   }
 
-  /** One stored frame on disk, from wherever its bytes are kept. */
-  private async copyImageToFile(image: Pick<Image, 'image_id' | 'size'>, path: string): Promise<void> {
-    if (image.size === undefined) {
-      // No size means the picture predates the image store and carries its bytes
-      // in the document. Only then is it worth a second query to fetch them.
-      const legacy = await this.images.findOne({ image_id: image.image_id }).select({ data: 1 });
-      if (legacy?.data) {
-        await writeFile(path, legacy.data);
-        return;
-      }
-    }
-
-    await this.store.copyToFile(image.image_id, path);
+  /** One stored frame on disk. */
+  private copyImageToFile(image: Pick<Image, 'image_id'>, path: string): Promise<void> {
+    return this.store.copyToFile(image.image_id, path);
   }
 
   /**

@@ -45,13 +45,14 @@ describe('where a picture is kept', () => {
     expect(await storedImageExists(imageId)).toBe(false);
   });
 
-  it('still serves a picture written before the move, from its document', async () => {
-    const legacy = await provisionDevice(owner);
-    const stored = await storeWebcamStill(legacy.deviceId, still, Date.now());
+  it('serves a webcam still from the store, as the poller left it', async () => {
+    const camera = await provisionDevice(owner);
+    const stored = await storeWebcamStill(camera.deviceId, still, Date.now());
 
-    const response = await owner.client.get(`/image/${legacy.deviceId}`).query({ image_id: stored.imageId, format: 'jpeg' }).expect(200);
+    const response = await owner.client.get(`/image/${camera.deviceId}`).query({ image_id: stored.imageId, format: 'jpeg' }).expect(200);
 
-    expect(await storedImageExists(stored.imageId)).toBe(false);
+    expect(await storedImageExists(stored.imageId)).toBe(true);
+    expect(Number(response.headers['content-length'])).toBe(still.length);
     expect((await sharp(response.body).metadata()).format).toBe('jpeg');
   });
 });
