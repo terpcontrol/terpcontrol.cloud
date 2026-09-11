@@ -17,13 +17,13 @@ import {
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ApiShape } from '@common/api-shape';
 import { FastifyReply } from 'fastify';
-import { Alarm, CloudSettings, Device, DeviceListEntry } from '@fg2/shared-types';
+import { CloudSettings, Device, DeviceListEntry } from '@fg2/shared-types';
 import { DeviceService } from './device.service';
 import { AdminGuard, AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { DeviceIdFrom, DeviceOwnerGuard } from '../../common/auth/device-access.guard';
 import { AuthContext } from '../../common/auth/token.service';
-import { zodBody } from '../../common/zod-validation.pipe';
+import { ZodBody } from '../../common/zod-validation.pipe';
 import { PUBLIC_OPERATION } from '../../openapi';
 import {
   AddDevice,
@@ -68,14 +68,14 @@ export class DeviceController {
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Create a device record from a device class' })
   @ApiShape('Device')
-  public create(@Body(zodBody(addDeviceSchema)) body: AddDevice): Promise<Device> {
+  public create(@ZodBody(addDeviceSchema) body: AddDevice): Promise<Device> {
     return this.deviceService.create(body);
   }
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'What firmware calls on first boot to enrol itself', ...PUBLIC_OPERATION })
-  public async register(@Body(zodBody(registerDeviceSchema)) body: RegisterDevice) {
+  public async register(@ZodBody(registerDeviceSchema) body: RegisterDevice) {
     const device = await this.deviceService.register(body);
 
     if (device === false) {
@@ -97,7 +97,7 @@ export class DeviceController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Claim a device with the code it printed' })
-  public async claim(@CurrentUser() user: AuthContext, @Body(zodBody(claimDeviceSchema)) body: ClaimDevice) {
+  public async claim(@CurrentUser() user: AuthContext, @ZodBody(claimDeviceSchema) body: ClaimDevice) {
     const deviceId = await this.deviceService.claimDevice(body.claim_code, user.userId);
 
     if (!deviceId) {
@@ -110,7 +110,7 @@ export class DeviceController {
   @Post('claimcode')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Ask a device for a fresh claim code', ...PUBLIC_OPERATION })
-  public async claimCode(@Body(zodBody(claimCodeSchema)) body: ClaimCodeRequest) {
+  public async claimCode(@ZodBody(claimCodeSchema) body: ClaimCodeRequest) {
     const code = await this.deviceService.getClaimCode(body.device_id, body.password ?? undefined);
 
     if (code === false) {
@@ -159,7 +159,7 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Send a new configuration to the device' })
-  public async configure(@Body(zodBody(configureDeviceSchema)) body: ConfigureDevice) {
+  public async configure(@ZodBody(configureDeviceSchema) body: ConfigureDevice) {
     await this.deviceService.configureDevice(body.device_id, body.configuration);
     return OK;
   }
@@ -176,8 +176,8 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Replace the alarms of a device' })
-  public async setAlarms(@Body(zodBody(setAlarmsSchema)) body: SetAlarms) {
-    await this.deviceService.setDeviceAlarms(body.device_id, body.alarms as unknown as Alarm[]);
+  public async setAlarms(@ZodBody(setAlarmsSchema) body: SetAlarms) {
+    await this.deviceService.setDeviceAlarms(body.device_id, body.alarms);
     return OK;
   }
 
@@ -201,7 +201,7 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Change the cloud-side settings of a device' })
-  public async setCloudSettings(@Body(zodBody(setCloudSettingsSchema)) body: SetCloudSettings) {
+  public async setCloudSettings(@ZodBody(setCloudSettingsSchema) body: SetCloudSettings) {
     await this.deviceService.setDeviceCloudSettings(body.device_id, body.cloud_settings as CloudSettings);
     return OK;
   }
@@ -211,7 +211,7 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Rename a device' })
-  public async setName(@Body(zodBody(setNameSchema)) body: SetName) {
+  public async setName(@ZodBody(setNameSchema) body: SetName) {
     await this.deviceService.setDeviceName(body.device_id, body.name);
     return OK;
   }
@@ -220,7 +220,7 @@ export class DeviceController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'Drive the outputs by hand, to check the wiring' })
-  public async testMode(@Param('device_id') deviceId: string, @Body(zodBody(testDeviceSchema)) body: TestDevice) {
+  public async testMode(@Param('device_id') deviceId: string, @ZodBody(testDeviceSchema) body: TestDevice) {
     await this.deviceService.testOutputs(deviceId, body);
     return OK;
   }
@@ -238,7 +238,7 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Suppress alarms while somebody is working on the tent' })
-  public async maintenanceMode(@Body(zodBody(maintenanceModeSchema)) body: MaintenanceMode) {
+  public async maintenanceMode(@ZodBody(maintenanceModeSchema) body: MaintenanceMode) {
     await this.deviceService.activateMaintenanceMode(body.device_id, body.duration_minutes);
     return OK;
   }

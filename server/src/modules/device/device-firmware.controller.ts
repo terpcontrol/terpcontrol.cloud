@@ -24,7 +24,7 @@ import { AdminGuard, AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { DeviceOwnerGuard } from '../../common/auth/device-access.guard';
 import { AuthContext } from '../../common/auth/token.service';
-import { zodBody } from '../../common/zod-validation.pipe';
+import { ZodBody } from '../../common/zod-validation.pipe';
 import { PUBLIC_OPERATION } from '../../openapi';
 import { AddDeviceClass, addDeviceClassSchema, AddFirmware, addFirmwareSchema } from './device.schemas';
 
@@ -78,7 +78,7 @@ export class DeviceFirmwareController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Register a firmware build' })
-  public async create(@Body(zodBody(addFirmwareSchema)) body: AddFirmware) {
+  public async create(@ZodBody(addFirmwareSchema) body: AddFirmware) {
     const firmware = await this.deviceService.createFirmware(body.name, body.version);
     return { firmware_id: firmware.firmware_id, name: firmware.name, version: firmware.version };
   }
@@ -168,7 +168,7 @@ export class DeviceFirmwareController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Create a device class' })
-  public async createClass(@Body(zodBody(addDeviceClassSchema)) body: AddDeviceClass) {
+  public async createClass(@ZodBody(addDeviceClassSchema) body: AddDeviceClass) {
     await this.deviceService.createClass(
       body.name,
       body.description,
@@ -185,7 +185,7 @@ export class DeviceFirmwareController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Change a device class, including the firmware each channel points at' })
-  public async updateClass(@Param('class_id') classId: string, @Body(zodBody(addDeviceClassSchema)) body: AddDeviceClass) {
+  public async updateClass(@Param('class_id') classId: string, @ZodBody(addDeviceClassSchema) body: AddDeviceClass) {
     await this.deviceService.updateClass(
       classId,
       body.name,
