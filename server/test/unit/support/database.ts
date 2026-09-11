@@ -4,6 +4,7 @@ import { Device, DeviceLog, Image } from '@fg2/shared-types';
 import { deviceSchema } from '@database/schemas/device.schema';
 import { deviceLogSchema } from '@database/schemas/devicelog.schema';
 import { imagesSchema } from '@database/schemas/images.schema';
+import { RateLimitWindow, rateLimitSchema } from '@database/schemas/rate-limit.schema';
 import { MODEL } from '@database/models';
 
 /**
@@ -17,6 +18,7 @@ export interface TestDatabase {
   devices: Model<Device & Document>;
   deviceLogs: Model<DeviceLog & Document>;
   images: Model<Image & Document>;
+  rateLimitWindows: Model<RateLimitWindow>;
   /** Empty every collection, including the GridFS bucket. */
   reset(): Promise<void>;
   stop(): Promise<void>;
@@ -30,12 +32,14 @@ export const startTestDatabase = async (): Promise<TestDatabase> => {
   const devices = connection.model<Device & Document>(MODEL.device, deviceSchema);
   const deviceLogs = connection.model<DeviceLog & Document>(MODEL.deviceLog, deviceLogSchema);
   const images = connection.model<Image & Document>(MODEL.image, imagesSchema);
+  const rateLimitWindows = connection.model<RateLimitWindow>(MODEL.rateLimit, rateLimitSchema);
 
   return {
     connection,
     devices,
     deviceLogs,
     images,
+    rateLimitWindows,
     reset: async () => {
       const collections = await connection.db.collections();
       await Promise.all(collections.map(collection => collection.deleteMany({})));

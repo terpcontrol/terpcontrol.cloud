@@ -15,6 +15,7 @@ export const MODEL = {
   deviceLog: 'DeviceLog',
   image: 'Image',
   passwordToken: 'PasswordToken',
+  rateLimit: 'RateLimit',
   recipeTemplate: 'RecipeTemplate',
   share: 'Share',
   user: 'User',
