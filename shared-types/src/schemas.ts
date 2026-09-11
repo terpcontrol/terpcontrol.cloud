@@ -322,9 +322,20 @@ export const deviceClass = named(
   }),
 );
 
-export const deviceClassCount = named('DeviceClassCount', z.object({ class: deviceClass, count: z.number() }));
+/** How many devices of a class there are, and how many have been heard from lately. */
+export const deviceClassCount = named('DeviceClassCount', z.object({ class: deviceClass, online: z.number(), total: z.number() }));
 
 export const claimCode = named('ClaimCode', z.object({ claim_code: z.string(), device_id: z.string() }));
+
+/**
+ * What asking a device for a claim code answers: the code, and nothing else.
+ * `ClaimCode` is the row it is remembered in, which also names the device it
+ * belongs to - and that is what the caller asked with.
+ */
+export const issuedClaimCode = named('IssuedClaimCode', claimCode.pick({ claim_code: true }));
+
+/** What firmware is told when it enrols itself: the build it should be running. */
+export const deviceRegistration = named('DeviceRegistration', z.object({ fw: z.string().describe('Firmware id.') }));
 
 export const deviceFirmware = named(
   'DeviceFirmware',
@@ -344,6 +355,37 @@ export const deviceFirmware = named(
  * `DeviceFirmware` does not describe this answer.
  */
 export const firmwareListEntry = named('FirmwareListEntry', deviceFirmware.pick({ firmware_id: true, name: true, version: true }));
+
+/**
+ * A firmware as the fleet listing reports it. That listing ends every class with
+ * a row standing for the devices running a build this server has no record of,
+ * and that row has no id - which is what keeps `DeviceFirmware` from describing
+ * it.
+ */
+export const fleetFirmware = named('FleetFirmware', deviceFirmware.extend({ firmware_id: z.string().nullable() }));
+
+/**
+ * How one build is doing across the devices of a class: how many run it, how
+ * many are partway through taking it, how many gave up, and how long an update
+ * took.
+ */
+export const firmwareFleetStats = named(
+  'FirmwareFleetStats',
+  z.object({
+    fw: fleetFirmware,
+    online: z.number(),
+    total: z.number(),
+    updating: z.number(),
+    failed: z.number(),
+    avgtime: z.number().describe('Milliseconds an update took on average.'),
+    maxtime: z.number().describe('Milliseconds the slowest update took.'),
+  }),
+);
+
+export const deviceClassFirmwareStats = named(
+  'DeviceClassFirmwareStats',
+  z.object({ class: deviceClass, versions: z.array(firmwareFleetStats) }),
+);
 
 export const deviceFirmwareBinary = named(
   'DeviceFirmwareBinary',

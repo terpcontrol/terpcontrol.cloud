@@ -261,12 +261,24 @@ export interface DeviceClass {
 
 export interface DeviceClassCount {
   class: DeviceClass;
-  count: number;
+  online: number;
+  total: number;
 }
 
 export interface ClaimCode {
   claim_code: string;
   device_id: string;
+}
+
+export interface IssuedClaimCode {
+  claim_code: string;
+}
+
+export interface DeviceRegistration {
+  /**
+   * Firmware id.
+   */
+  fw: string;
 }
 
 export interface DeviceFirmware {
@@ -282,6 +294,36 @@ export interface FirmwareListEntry {
   firmware_id: string;
   name: string;
   version: string;
+}
+
+export interface FleetFirmware {
+  firmware_id: string | null;
+  name: string;
+  version: string;
+  class_id: string;
+  createdAt?: number;
+  wasStable?: boolean;
+}
+
+export interface FirmwareFleetStats {
+  fw: FleetFirmware;
+  online: number;
+  total: number;
+  updating: number;
+  failed: number;
+  /**
+   * Milliseconds an update took on average.
+   */
+  avgtime: number;
+  /**
+   * Milliseconds the slowest update took.
+   */
+  maxtime: number;
+}
+
+export interface DeviceClassFirmwareStats {
+  class: DeviceClass;
+  versions: FirmwareFleetStats[];
 }
 
 export interface DeviceFirmwareBinary {

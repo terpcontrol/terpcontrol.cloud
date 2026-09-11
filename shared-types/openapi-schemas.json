@@ -759,13 +759,17 @@
       "class": {
         "$ref": "#/components/schemas/DeviceClass"
       },
-      "count": {
+      "online": {
+        "type": "number"
+      },
+      "total": {
         "type": "number"
       }
     },
     "required": [
       "class",
-      "count"
+      "online",
+      "total"
     ]
   },
   "ClaimCode": {
@@ -781,6 +785,29 @@
     "required": [
       "claim_code",
       "device_id"
+    ]
+  },
+  "IssuedClaimCode": {
+    "type": "object",
+    "properties": {
+      "claim_code": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "claim_code"
+    ]
+  },
+  "DeviceRegistration": {
+    "type": "object",
+    "properties": {
+      "fw": {
+        "type": "string",
+        "description": "Firmware id."
+      }
+    },
+    "required": [
+      "fw"
     ]
   },
   "DeviceFirmware": {
@@ -829,6 +856,93 @@
       "firmware_id",
       "name",
       "version"
+    ]
+  },
+  "FleetFirmware": {
+    "type": "object",
+    "properties": {
+      "firmware_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "name": {
+        "type": "string"
+      },
+      "version": {
+        "type": "string"
+      },
+      "class_id": {
+        "type": "string"
+      },
+      "createdAt": {
+        "type": "number"
+      },
+      "wasStable": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "firmware_id",
+      "name",
+      "version",
+      "class_id"
+    ]
+  },
+  "FirmwareFleetStats": {
+    "type": "object",
+    "properties": {
+      "fw": {
+        "$ref": "#/components/schemas/FleetFirmware"
+      },
+      "online": {
+        "type": "number"
+      },
+      "total": {
+        "type": "number"
+      },
+      "updating": {
+        "type": "number"
+      },
+      "failed": {
+        "type": "number"
+      },
+      "avgtime": {
+        "type": "number",
+        "description": "Milliseconds an update took on average."
+      },
+      "maxtime": {
+        "type": "number",
+        "description": "Milliseconds the slowest update took."
+      }
+    },
+    "required": [
+      "fw",
+      "online",
+      "total",
+      "updating",
+      "failed",
+      "avgtime",
+      "maxtime"
+    ]
+  },
+  "DeviceClassFirmwareStats": {
+    "type": "object",
+    "properties": {
+      "class": {
+        "$ref": "#/components/schemas/DeviceClass"
+      },
+      "versions": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/FirmwareFleetStats"
+        }
+      }
+    },
+    "required": [
+      "class",
+      "versions"
     ]
   },
   "DeviceFirmwareBinary": {

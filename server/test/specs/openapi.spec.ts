@@ -3,7 +3,7 @@ import addFormats from 'ajv-formats';
 import supertest from 'supertest';
 import { anonymous, context, createAccount, loginAsAdmin, Method, Session, unique } from '../support/api';
 import { seedMeasurements, waitForMail } from '../support/control';
-import { DeviceCredentials, provisionDevice } from '../support/device';
+import { DeviceCredentials, provisionDevice, registerDevice } from '../support/device';
 
 /**
  * The API document, and whether it tells the truth.
@@ -489,5 +489,134 @@ describe('what the firmware and device class routes answer', () => {
       .send({ name, description: 'changed', concurrent: 2, maxfails: 1, firmware_id: firmware.body.firmware_id })
       .expect(200);
     expectDocumented(changed, '/device/class/{class_id}', 'post');
+  });
+});
+
+describe('what the device routes answer', () => {
+  const alarm = {
+    alarmId: unique('openapi-alarm'),
+    sensorType: 'temperature',
+    upperThreshold: 40,
+    actionType: 'info',
+    actionTarget: '',
+  };
+
+  it('matches the declared shapes for enrolling a device and claiming it', async () => {
+    const enrolled = await anonymous()
+      .post('/device/register')
+      .send({
+        registration_password: context.selfRegistrationPassword,
+        device_id: unique('sim-fridge'),
+        username: unique('device-user'),
+        password: unique('device-pass'),
+        device_type: 'fridge',
+      })
+      .expect(201);
+    expectDocumented(enrolled, '/device/register', 'post');
+
+    const spare = await registerDevice();
+    const code = await anonymous().post('/device/claimcode').send({ device_id: spare.deviceId }).expect(200);
+    expectDocumented(code, '/device/claimcode', 'post');
+
+    const claimed = await owner.client.post('/device').send({ claim_code: code.body.claim_code }).expect(200);
+    expectDocumented(claimed, '/device', 'post');
+  });
+
+  it('matches the declared shape for a device found by its serial number', async () => {
+    const listed = await admin.client.get('/device/all').expect(200);
+    const mine = listed.body.find((entry: { device_id: string }) => entry.device_id === device.deviceId);
+
+    const response = await admin.client.get('/device/byserial').query({ serialnumber: mine.serialnumber }).expect(200);
+
+    expect(response.body.device_id).toBe(device.deviceId);
+    expectDocumented(response, '/device/byserial');
+  });
+
+  it('matches the declared shape for the online count of a class this spec has a device in', async () => {
+    const response = await admin.client.get('/device/onlinedevices').expect(200);
+    const fridge = response.body.find((entry: { class: { name: string } }) => entry.class.name === 'fridge');
+
+    expect(fridge.total).toBeGreaterThan(0);
+    expectRowDocumented(response, '/device/onlinedevices', fridge);
+  });
+
+  it('matches the declared shape for the fleet listing, including the row for unknown firmware', async () => {
+    const response = await admin.client.get('/device/firmwareversions').expect(200);
+    const fridge = response.body.find((entry: { class: { name: string } }) => entry.class.name === 'fridge');
+
+    // Devices on a build this server has no record of are counted on a row with
+    // no firmware id, which is the half of the shape a real build never covers.
+    expect(fridge.versions.some((version: { fw: { firmware_id: string | null } }) => version.fw.firmware_id === null)).toBe(true);
+    expectRowDocumented(response, '/device/firmwareversions', fridge);
+  });
+
+  it('matches the declared shapes for a device it configured, named and set alarms on', async () => {
+    const configuration = JSON.stringify({ day: { temperature: 24 } });
+
+    expectDocumented(
+      await owner.client.post('/device/configure').send({ device_id: device.deviceId, configuration }).expect(200),
+      '/device/configure',
+      'post',
+    );
+
+    const read = await owner.client.get(`/device/config/${device.deviceId}`).expect(200);
+    expect(read.body).toBe(configuration);
+    expectDocumented(read, '/device/config/{device_id}');
+
+    expectDocumented(
+      await owner.client
+        .post('/device/alarms')
+        .send({ device_id: device.deviceId, alarms: [alarm] })
+        .expect(200),
+      '/device/alarms',
+      'post',
+    );
+
+    const alarms = await owner.client.get(`/device/alarms/${device.deviceId}`).expect(200);
+    expect(alarms.body.length).toBe(1);
+    expectDocumented(alarms, '/device/alarms/{device_id}');
+
+    expectDocumented(
+      await owner.client.post('/device/setname').send({ device_id: device.deviceId, name: 'openapi' }).expect(200),
+      '/device/setname',
+      'post',
+    );
+  });
+
+  it('matches the declared shapes for the cloud settings of a device', async () => {
+    expectDocumented(
+      await owner.client
+        .post('/device/cloudsettings')
+        .send({ device_id: device.deviceId, cloud_settings: { firmwareChannel: 'stable', betaFeatures: true } })
+        .expect(200),
+      '/device/cloudsettings',
+      'post',
+    );
+
+    expectDocumented(await owner.client.get(`/device/cloudsettings/${device.deviceId}`).expect(200), '/device/cloudsettings/{device_id}');
+  });
+
+  it('matches the declared shapes for the commands a device is sent', async () => {
+    const outputs = { heater: 1, dehumidifier: 0, co2: 0, lights: 0, fanint: 0, fanext: 0, fanbw: 0 };
+
+    expectDocumented(await owner.client.post(`/device/test/${device.deviceId}`).send(outputs).expect(200), '/device/test/{device_id}', 'post');
+    expectDocumented(await owner.client.delete(`/device/test/${device.deviceId}`).expect(200), '/device/test/{device_id}', 'delete');
+    expectDocumented(
+      await owner.client.post('/device/maintenancemode').send({ device_id: device.deviceId, duration_minutes: 5 }).expect(200),
+      '/device/maintenancemode',
+      'post',
+    );
+    expectDocumented(await owner.client.post('/device/reboot').send({ device_id: device.deviceId }).expect(200), '/device/reboot', 'post');
+    expectDocumented(
+      await owner.client.post('/device/auxcommand').send({ device_id: device.deviceId, action: 'socket_test', role: 'heater' }).expect(200),
+      '/device/auxcommand',
+      'post',
+    );
+  });
+
+  it('matches the declared shape for releasing a device', async () => {
+    const spare = await provisionDevice(owner);
+
+    expectDocumented(await owner.client.delete(`/device/${spare.deviceId}`).expect(200), '/device/{device_id}', 'delete');
   });
 });
