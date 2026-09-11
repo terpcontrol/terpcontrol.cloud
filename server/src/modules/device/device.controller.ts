@@ -17,7 +17,7 @@ import {
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ApiShape } from '@common/api-shape';
 import { FastifyReply } from 'fastify';
-import { Alarm, CloudSettings, Device, DeviceListEntry } from '@fg2/shared-types';
+import { Alarm, ClaimResult, CloudSettings, Device, DeviceAccessInfo, DeviceClassRollout, DeviceListEntry } from '@fg2/shared-types';
 import { DeviceService } from './device.service';
 import { AdminGuard, AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
@@ -97,7 +97,8 @@ export class DeviceController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Claim a device with the code it printed' })
-  public async claim(@CurrentUser() user: AuthContext, @Body(zodBody(claimDeviceSchema)) body: ClaimDevice) {
+  @ApiShape('ClaimResult')
+  public async claim(@CurrentUser() user: AuthContext, @Body(zodBody(claimDeviceSchema)) body: ClaimDevice): Promise<ClaimResult> {
     const deviceId = await this.deviceService.claimDevice(body.claim_code, user.userId);
 
     if (!deviceId) {
@@ -139,7 +140,8 @@ export class DeviceController {
   @Get('firmwareversions')
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Which firmware versions the fleet is running' })
-  public firmwareVersions() {
+  @ApiShape(['DeviceClassRollout'])
+  public firmwareVersions(): Promise<DeviceClassRollout[]> {
     return this.deviceService.getFirmwareVersions();
   }
 
@@ -167,7 +169,8 @@ export class DeviceController {
   @Get('alarms/:device_id')
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'The alarms defined for the device' })
-  public alarms(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string) {
+  @ApiShape(['Alarm'])
+  public alarms(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string): Promise<Alarm[]> {
     return this.deviceService.getDeviceAlarms(deviceId, user.userId, user.isAdmin, user.isDemo);
   }
 
@@ -186,7 +189,8 @@ export class DeviceController {
   // itself, so an anonymous caller gets its refusal rather than a JSON 401.
   @UseGuards(DeviceOwnerGuard)
   @ApiOperation({ summary: 'What the cloud knows about the device, and how it is set up' })
-  public async cloudSettings(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string) {
+  @ApiShape('DeviceAccessInfo')
+  public async cloudSettings(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string): Promise<DeviceAccessInfo> {
     const settings = await this.deviceService.getDeviceAccessInfo(deviceId, user.userId, user.isAdmin, user.isDemo);
 
     if (!settings) {

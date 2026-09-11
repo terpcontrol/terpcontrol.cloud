@@ -1,5 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiShape } from '@common/api-shape';
+import { ChartPreset } from '@fg2/shared-types';
 import { AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { AuthContext } from '../../common/auth/token.service';
@@ -15,14 +17,16 @@ export class ChartPresetController {
 
   @Get()
   @ApiOperation({ summary: 'The saved chart views of the calling user, newest first' })
-  public list(@CurrentUser() user: AuthContext) {
+  @ApiShape(['ChartPreset'])
+  public list(@CurrentUser() user: AuthContext): Promise<ChartPreset[]> {
     return this.presets.list(user.userId);
   }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Save a chart view' })
-  public create(@CurrentUser() user: AuthContext, @Body(zodBodyAsError(createChartPresetSchema)) body: CreateChartPreset) {
+  @ApiShape('ChartPreset', { status: HttpStatus.CREATED })
+  public create(@CurrentUser() user: AuthContext, @Body(zodBodyAsError(createChartPresetSchema)) body: CreateChartPreset): Promise<ChartPreset> {
     return this.presets.create(user.userId, body);
   }
 

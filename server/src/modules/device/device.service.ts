@@ -11,10 +11,12 @@ import {
   DeviceListEntry,
   DeviceAccessInfo,
   DeviceClass,
+  DeviceClassRollout,
   DeviceFirmware,
   DeviceFirmwareBinary,
   DeviceLog,
   FirmwareListEntry,
+  FirmwareRollout,
   ClaimCode,
   FirmwareChannel,
   MAX_SOCKETS,
@@ -1878,7 +1880,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     return class_count;
   }
 
-  public async getFirmwareVersions(): Promise<any> {
+  public async getFirmwareVersions(): Promise<DeviceClassRollout[]> {
     const classes: DeviceClass[] = await this.deviceClasses.find({});
 
     const upgradetimes = await this.devices.aggregate([
@@ -1901,7 +1903,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
         const fwversions: DeviceFirmware[] = await this.firmwares.find({ class_id: deviceclass.class_id });
         const fwids = fwversions.map(fw => fw.firmware_id);
 
-        const versions = await Promise.all(
+        const versions: FirmwareRollout[] = await Promise.all(
           fwversions.map(async fwversion => {
             const upgrade_time = upgradetimes.find(el => el._id == fwversion.firmware_id);
             return {

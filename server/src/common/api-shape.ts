@@ -1,5 +1,5 @@
-import { applyDecorators } from '@nestjs/common';
-import { ApiOkResponse, ApiResponseOptions } from '@nestjs/swagger';
+import { applyDecorators, HttpStatus } from '@nestjs/common';
+import { ApiResponse, ApiResponseOptions } from '@nestjs/swagger';
 import sharedSchemas from '@fg2/shared-types/openapi-schemas.json';
 
 /**
@@ -22,10 +22,15 @@ const ref = (shape: SharedShape) => ({ $ref: `#/components/schemas/${shape}` });
  * What a route answers with. `ApiShape('Device')` for one, `ApiShape(['Device'])`
  * for a list of them. The name is checked against the generated schemas, so a
  * shape that is renamed or gone fails the build rather than the document.
+ *
+ * The status defaults to 200; a route that answers 201 has to say so
+ * (`ApiShape('ShareLink', { status: HttpStatus.CREATED })`), or the document would
+ * describe a response the route never sends.
  */
 export const ApiShape = (shape: SharedShape | [SharedShape], options: ApiResponseOptions = {}) =>
   applyDecorators(
-    ApiOkResponse({
+    ApiResponse({
+      status: HttpStatus.OK,
       ...options,
       schema: Array.isArray(shape) ? { type: 'array', items: ref(shape[0]) } : ref(shape),
     }),

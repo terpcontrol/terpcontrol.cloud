@@ -1,14 +1,7 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
-import { environment } from 'src/environments/environment';
 import type { UserAccount } from '@fg2/shared-types';
-
-/** An account as the API answers with it, plus what a demo session adds here. */
-export type UserLite = UserAccount & {
-  /** Session opened through the demo login: demo devices, read-only. */
-  is_demo?: boolean;
-};
+import { ApiClient } from '../api/api.client';
+import { api } from '../api/api.routes';
 
 export interface CreateUser {
   username: string;
@@ -21,16 +14,14 @@ export interface CreateUser {
 })
 export class UsersService {
 
-  constructor(private http: HttpClient) { }
+  constructor(private client: ApiClient) { }
 
-  public async getAll() : Promise<UserLite[]> {
-    let data = await firstValueFrom(this.http.get<UserLite[]>(environment.API_URL + '/users'));
-    console.log(data)
-    return data;
-
+  // The listing is a projection without the demo flag: only a session has one.
+  public async getAll() : Promise<UserAccount[]> {
+    return await this.client.fetch(api.users.list());
   }
 
   public async create(user: CreateUser) {
-    return firstValueFrom(this.http.post(environment.API_URL + '/users', user));
+    return await this.client.fetch(api.users.create(user));
   }
 }

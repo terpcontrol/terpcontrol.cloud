@@ -269,6 +269,11 @@ export interface ClaimCode {
   device_id: string;
 }
 
+export interface ClaimResult {
+  status: string;
+  device_id: string;
+}
+
 export interface DeviceFirmware {
   firmware_id: string;
   name: string;
@@ -290,6 +295,39 @@ export interface DeviceFirmwareBinary {
   data: Buffer;
 }
 
+export interface RolloutFirmware {
+  firmware_id: string | null;
+  name: string;
+  version: string;
+  class_id: string;
+  createdAt?: number;
+  wasStable?: boolean;
+}
+
+export interface FirmwareRollout {
+  fw: RolloutFirmware;
+  online: number;
+  total: number;
+  /**
+   * Devices whose update to this firmware is still within the upgrade window.
+   */
+  updating: number;
+  /**
+   * Devices that were told to update and did not report back in time.
+   */
+  failed: number;
+  /**
+   * Milliseconds an update to this firmware took on average, 0 when none completed.
+   */
+  avgtime: number;
+  maxtime: number;
+}
+
+export interface DeviceClassRollout {
+  class: DeviceClass;
+  versions: FirmwareRollout[];
+}
+
 export interface DeviceLog {
   _id: string;
   device_id: string;
@@ -302,6 +340,15 @@ export interface DeviceLog {
   deleted?: boolean;
   data?: Partial<DiaryEntryData>;
   images?: string[];
+}
+
+export interface MeasureValue {
+  value: number | null;
+}
+
+export interface SeriesPoint {
+  _time: string;
+  _value: number | null;
 }
 
 export interface Image {
@@ -319,6 +366,13 @@ export interface Image {
   size?: number;
   format?: 'jpeg' | 'mp4' | 'user/jpeg';
   duration?: '1d' | '1w' | '1m';
+}
+
+export interface ImageUploadResult {
+  image_id: string;
+  device_id: string;
+  timestamp: number;
+  format?: 'jpeg' | 'mp4' | 'user/jpeg';
 }
 
 export interface User {
@@ -339,6 +393,38 @@ export interface UserAccount {
 export interface PasswordToken {
   user_id: string;
   token: string;
+}
+
+export interface SessionUser {
+  user_id: string;
+  username: string;
+  is_admin: boolean;
+  /**
+   * Session opened through the demo login: demo devices, read-only.
+   */
+  is_demo?: boolean;
+}
+
+export interface AuthToken {
+  token: string;
+  /**
+   * Seconds the token stays valid.
+   */
+  expiresIn: number;
+  secret: string;
+}
+
+export interface SessionTokens {
+  userToken: AuthToken;
+  refreshToken: AuthToken;
+  imageToken: AuthToken;
+}
+
+export interface Session {
+  userToken: AuthToken;
+  refreshToken: AuthToken;
+  imageToken: AuthToken;
+  user: SessionUser;
 }
 
 export interface RecipeTemplateStep {

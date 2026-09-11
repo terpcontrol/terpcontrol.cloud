@@ -1,8 +1,7 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
-import { environment } from 'src/environments/environment';
 import type { DeviceAccessInfo, ShareLink, SharePage } from '@fg2/shared-types';
+import { ApiClient } from '../api/api.client';
+import { api } from '../api/api.routes';
 
 // The share token travels in the page URL (?share=...). It is read straight from
 // the browser URL so the HTTP interceptor and image URLs can pick it up without
@@ -52,16 +51,14 @@ export async function copyToClipboard(text: string, container: HTMLElement = doc
 export class ShareService {
   private resolved = new Map<string, Promise<DeviceAccessInfo>>();
 
-  constructor(private http: HttpClient) {}
+  constructor(private client: ApiClient) {}
 
   // Resolving counts as one "open" on the server, so the result is cached per
   // token: the route guard and the page share a single request per page load.
   public resolve(token: string): Promise<DeviceAccessInfo> {
     let promise = this.resolved.get(token);
     if (!promise) {
-      promise = firstValueFrom(
-        this.http.get<DeviceAccessInfo>(environment.API_URL + '/share/resolve/' + token, { headers: { Authorization: '' } })
-      );
+      promise = this.client.fetch(api.shares.resolve(token));
       promise.catch(() => this.resolved.delete(token));
       this.resolved.set(token, promise);
     }
@@ -79,7 +76,7 @@ export class ShareService {
     expires_at: number | null;
     query?: string;
   }): Promise<ShareLink> {
-    return await firstValueFrom(this.http.post<ShareLink>(environment.API_URL + '/share', options));
+    return await this.client.fetch(api.shares.create(options));
   }
 
   // The full URL a share link points at, reproducing the shared view.
@@ -90,18 +87,18 @@ export class ShareService {
   }
 
   public async list(): Promise<ShareLink[]> {
-    return await firstValueFrom(this.http.get<ShareLink[]>(environment.API_URL + '/share'));
+    return await this.client.fetch(api.shares.list());
   }
 
   public async revoke(share_id: string): Promise<ShareLink> {
-    return await firstValueFrom(this.http.post<ShareLink>(environment.API_URL + '/share/' + share_id + '/revoke', {}));
+    return await this.client.fetch(api.shares.revoke(share_id));
   }
 
   public async remove(share_id: string): Promise<void> {
-    await firstValueFrom(this.http.delete(environment.API_URL + '/share/' + share_id));
+    await this.client.fetch(api.shares.remove(share_id));
   }
 
   public async removeInactive(): Promise<void> {
-    await firstValueFrom(this.http.delete(environment.API_URL + '/share/inactive'));
+    await this.client.fetch(api.shares.removeInactive());
   }
 }

@@ -1,8 +1,9 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiConsumes, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiShape } from '@common/api-shape';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import parseRange from 'range-parser';
-import { Image } from '@fg2/shared-types';
+import { Image, ImageUploadResult } from '@fg2/shared-types';
 import { HttpException } from '@common/http-exception';
 import { logger } from '@utils/logger';
 import { withoutCredentials } from '@common/log-path';
@@ -98,7 +99,8 @@ export class ImageController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Add a photo to the device´s diary' })
-  public async upload(@Param('device_id') deviceId: string, @Body() body: { image?: unknown; timestamp?: unknown }) {
+  @ApiShape('ImageUploadResult', { status: HttpStatus.CREATED })
+  public async upload(@Param('device_id') deviceId: string, @Body() body: { image?: unknown; timestamp?: unknown }): Promise<ImageUploadResult> {
     const file = body?.image;
     if (!Buffer.isBuffer(file)) {
       throw new HttpException(400, 'Image file is missing or invalid');

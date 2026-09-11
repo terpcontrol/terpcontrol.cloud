@@ -1,5 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiShape } from '@common/api-shape';
+import { DeviceLog } from '@fg2/shared-types';
 import { z } from 'zod';
 import { DeviceService } from './device.service';
 import { demoLogs } from '@utils/demo';
@@ -83,11 +85,12 @@ export class DeviceLogController {
   @ApiQuery({ name: 'deleted', required: false, description: 'Include entries that were deleted' })
   @ApiQuery({ name: 'categories', required: false, description: 'Comma-separated list' })
   @ApiOperation({ summary: 'The diary of a device, oldest entry first' })
+  @ApiShape(['DeviceLog'])
   public async list(
     @CurrentUser() user: AuthContext,
     @Param('device_id') deviceId: string,
     @Query() query: { from?: string; to?: string; deleted?: string; categories?: string },
-  ) {
+  ): Promise<DeviceLog[]> {
     const logs = await this.deviceService.getDeviceLogs(
       deviceId,
       Number(query.from ?? 0),
