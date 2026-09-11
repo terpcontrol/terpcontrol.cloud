@@ -21,11 +21,11 @@ export class ShareService {
     private readonly deviceService: DeviceService,
   ) {}
 
-  public list(ownerId: string) {
-    return this.shares.find({ owner_id: ownerId }).sort({ createdAt: -1 }).lean().exec();
+  public list(ownerId: string): Promise<ShareLink[]> {
+    return this.shares.find({ owner_id: ownerId }).sort({ createdAt: -1 }).lean<ShareLink[]>().exec();
   }
 
-  public create(ownerId: string, request: CreateShare) {
+  public create(ownerId: string, request: CreateShare): Promise<ShareLink> {
     const expiresAt = request.expires_at === null || request.expires_at === undefined ? null : Number(request.expires_at);
     if (expiresAt !== null && (!Number.isFinite(expiresAt) || expiresAt <= Date.now())) {
       throw new BadRequestException({ error: 'expires_at must be in the future' });
@@ -47,7 +47,7 @@ export class ShareService {
     });
   }
 
-  public async revoke(ownerId: string, shareId: string) {
+  public async revoke(ownerId: string, shareId: string): Promise<ShareLink> {
     const share = await this.shares.findOneAndUpdate(
       { share_id: shareId, owner_id: ownerId, revokedAt: null },
       { $set: { revokedAt: Date.now() } },

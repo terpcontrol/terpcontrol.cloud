@@ -759,13 +759,17 @@
       "class": {
         "$ref": "#/components/schemas/DeviceClass"
       },
-      "count": {
+      "online": {
+        "type": "number"
+      },
+      "total": {
         "type": "number"
       }
     },
     "required": [
       "class",
-      "count"
+      "online",
+      "total"
     ]
   },
   "ClaimCode": {
@@ -781,6 +785,29 @@
     "required": [
       "claim_code",
       "device_id"
+    ]
+  },
+  "IssuedClaimCode": {
+    "type": "object",
+    "properties": {
+      "claim_code": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "claim_code"
+    ]
+  },
+  "DeviceRegistration": {
+    "type": "object",
+    "properties": {
+      "fw": {
+        "type": "string",
+        "description": "Firmware id."
+      }
+    },
+    "required": [
+      "fw"
     ]
   },
   "DeviceFirmware": {
@@ -831,6 +858,93 @@
       "version"
     ]
   },
+  "FleetFirmware": {
+    "type": "object",
+    "properties": {
+      "firmware_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "name": {
+        "type": "string"
+      },
+      "version": {
+        "type": "string"
+      },
+      "class_id": {
+        "type": "string"
+      },
+      "createdAt": {
+        "type": "number"
+      },
+      "wasStable": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "firmware_id",
+      "name",
+      "version",
+      "class_id"
+    ]
+  },
+  "FirmwareFleetStats": {
+    "type": "object",
+    "properties": {
+      "fw": {
+        "$ref": "#/components/schemas/FleetFirmware"
+      },
+      "online": {
+        "type": "number"
+      },
+      "total": {
+        "type": "number"
+      },
+      "updating": {
+        "type": "number"
+      },
+      "failed": {
+        "type": "number"
+      },
+      "avgtime": {
+        "type": "number",
+        "description": "Milliseconds an update took on average."
+      },
+      "maxtime": {
+        "type": "number",
+        "description": "Milliseconds the slowest update took."
+      }
+    },
+    "required": [
+      "fw",
+      "online",
+      "total",
+      "updating",
+      "failed",
+      "avgtime",
+      "maxtime"
+    ]
+  },
+  "DeviceClassFirmwareStats": {
+    "type": "object",
+    "properties": {
+      "class": {
+        "$ref": "#/components/schemas/DeviceClass"
+      },
+      "versions": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/FirmwareFleetStats"
+        }
+      }
+    },
+    "required": [
+      "class",
+      "versions"
+    ]
+  },
   "DeviceFirmwareBinary": {
     "type": "object",
     "properties": {
@@ -849,6 +963,21 @@
       "firmware_id",
       "name",
       "data"
+    ]
+  },
+  "UploadedFirmwareBinary": {
+    "type": "object",
+    "properties": {
+      "firmware_id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "firmware_id",
+      "name"
     ]
   },
   "DeviceLog": {
@@ -981,6 +1110,33 @@
       "timestamp"
     ]
   },
+  "UploadedImage": {
+    "type": "object",
+    "properties": {
+      "image_id": {
+        "type": "string"
+      },
+      "device_id": {
+        "type": "string"
+      },
+      "timestamp": {
+        "type": "number"
+      },
+      "format": {
+        "type": "string",
+        "enum": [
+          "jpeg",
+          "mp4",
+          "user/jpeg"
+        ]
+      }
+    },
+    "required": [
+      "image_id",
+      "device_id",
+      "timestamp"
+    ]
+  },
   "User": {
     "type": "object",
     "properties": {
@@ -1008,8 +1164,7 @@
       "password",
       "username",
       "is_admin",
-      "is_active",
-      "activation_code"
+      "is_active"
     ]
   },
   "UserAccount": {
@@ -1031,6 +1186,50 @@
       "is_admin"
     ]
   },
+  "UserRecord": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "string"
+      },
+      "username": {
+        "type": "string"
+      },
+      "is_admin": {
+        "type": "boolean"
+      },
+      "is_active": {
+        "type": "boolean"
+      },
+      "activation_code": {
+        "type": "string"
+      },
+      "_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "user_id",
+      "username",
+      "is_admin",
+      "is_active"
+    ]
+  },
+  "AccountResult": {
+    "type": "object",
+    "properties": {
+      "data": {
+        "$ref": "#/components/schemas/UserRecord"
+      },
+      "message": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "data",
+      "message"
+    ]
+  },
   "PasswordToken": {
     "type": "object",
     "properties": {
@@ -1044,6 +1243,135 @@
     "required": [
       "user_id",
       "token"
+    ]
+  },
+  "AuthToken": {
+    "type": "object",
+    "properties": {
+      "token": {
+        "type": "string"
+      },
+      "expiresIn": {
+        "type": "number",
+        "description": "Seconds."
+      },
+      "secret": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "token",
+      "expiresIn",
+      "secret"
+    ]
+  },
+  "SessionTokens": {
+    "type": "object",
+    "properties": {
+      "userToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      },
+      "refreshToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      },
+      "imageToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      }
+    },
+    "required": [
+      "userToken",
+      "refreshToken",
+      "imageToken"
+    ]
+  },
+  "SessionUser": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "string"
+      },
+      "username": {
+        "type": "string"
+      },
+      "is_admin": {
+        "type": "boolean"
+      },
+      "is_demo": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "user_id",
+      "username",
+      "is_admin"
+    ]
+  },
+  "LoginResult": {
+    "type": "object",
+    "properties": {
+      "userToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      },
+      "refreshToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      },
+      "imageToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      },
+      "user": {
+        "$ref": "#/components/schemas/SessionUser"
+      }
+    },
+    "required": [
+      "userToken",
+      "refreshToken",
+      "imageToken",
+      "user"
+    ]
+  },
+  "AutomationSession": {
+    "type": "object",
+    "properties": {
+      "userToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      }
+    },
+    "required": [
+      "userToken"
+    ]
+  },
+  "SignupAccount": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "string"
+      },
+      "username": {
+        "type": "string"
+      },
+      "is_active": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "user_id",
+      "username",
+      "is_active"
+    ]
+  },
+  "SignupResult": {
+    "type": "object",
+    "properties": {
+      "data": {
+        "$ref": "#/components/schemas/SignupAccount"
+      },
+      "message": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "data",
+      "message"
     ]
   },
   "RecipeTemplateStep": {
@@ -1107,6 +1435,25 @@
     "required": [
       "name",
       "steps"
+    ]
+  },
+  "MeasurementPoint": {
+    "type": "object",
+    "properties": {
+      "_time": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "_value": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "_time",
+      "_value"
     ]
   },
   "ChartPreset": {

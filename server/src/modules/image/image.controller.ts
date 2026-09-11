@@ -1,8 +1,9 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, NotFoundException, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
-import { ApiConsumes, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiConsumes, ApiOkResponse, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiShape, ApiStatusOk } from '@common/api-shape';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import parseRange from 'range-parser';
-import { Image } from '@fg2/shared-types';
+import { Image, UploadedImage } from '@fg2/shared-types';
 import { HttpException } from '@common/http-exception';
 import { logger } from '@utils/logger';
 import { withoutCredentials } from '@common/log-path';
@@ -44,6 +45,17 @@ export class ImageController {
   @ApiQuery({ name: 'width', required: false })
   @ApiQuery({ name: 'height', required: false })
   @ApiOperation({ summary: 'A webcam still, a timelapse, or an uploaded photo' })
+  @ApiOkResponse({
+    // Where there is nothing to show, a placeholder stands in - and that is a
+    // PNG whichever format was asked for.
+    description: 'The picture, the video of a timelapse, or the placeholder that stands in for one that is not there.',
+    content: {
+      'image/jpeg': { schema: { type: 'string', format: 'binary' } },
+      'image/png': { schema: { type: 'string', format: 'binary' } },
+      'video/mp4': { schema: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiResponse({ status: HttpStatus.PARTIAL_CONTENT, description: 'The byte range a <video> element asked for.' })
   public async byDevice(
     @Param('device_id') deviceId: string,
     @Query() query: ImageQuery,
@@ -98,7 +110,8 @@ export class ImageController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Add a photo to the device´s diary' })
-  public async upload(@Param('device_id') deviceId: string, @Body() body: { image?: unknown; timestamp?: unknown }) {
+  @ApiShape('UploadedImage', { status: HttpStatus.CREATED })
+  public async upload(@Param('device_id') deviceId: string, @Body() body: { image?: unknown; timestamp?: unknown }): Promise<UploadedImage> {
     const file = body?.image;
     if (!Buffer.isBuffer(file)) {
       throw new HttpException(400, 'Image file is missing or invalid');
@@ -114,6 +127,7 @@ export class ImageController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'Read one frame from a webcam stream, to check the settings' })
+  @ApiOkResponse({ description: 'One frame from the stream.', content: { 'image/jpeg': { schema: { type: 'string', format: 'binary' } } } })
   public async testWebcam(
     @Param('device_id') deviceId: string,
     @Body() body: { rtspStream?: unknown; rtspStreamTransport?: unknown; tunnelRtspStream?: unknown },
@@ -150,6 +164,7 @@ export class ImageController {
   // stranger which ids are real.
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Delete a stored picture' })
+  @ApiStatusOk()
   public async remove(@Param('image_id') imageId: string, @Req() request: AuthenticatedRequest) {
     // Which device the picture belongs to is only known after the lookup, so the
     // ownership check cannot be a guard on this route.

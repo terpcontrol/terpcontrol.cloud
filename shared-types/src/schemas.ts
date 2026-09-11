@@ -322,9 +322,20 @@ export const deviceClass = named(
   }),
 );
 
-export const deviceClassCount = named('DeviceClassCount', z.object({ class: deviceClass, count: z.number() }));
+/** How many devices of a class there are, and how many have been heard from lately. */
+export const deviceClassCount = named('DeviceClassCount', z.object({ class: deviceClass, online: z.number(), total: z.number() }));
 
 export const claimCode = named('ClaimCode', z.object({ claim_code: z.string(), device_id: z.string() }));
+
+/**
+ * What asking a device for a claim code answers: the code, and nothing else.
+ * `ClaimCode` is the row it is remembered in, which also names the device it
+ * belongs to - and that is what the caller asked with.
+ */
+export const issuedClaimCode = named('IssuedClaimCode', claimCode.pick({ claim_code: true }));
+
+/** What firmware is told when it enrols itself: the build it should be running. */
+export const deviceRegistration = named('DeviceRegistration', z.object({ fw: z.string().describe('Firmware id.') }));
 
 export const deviceFirmware = named(
   'DeviceFirmware',
@@ -345,10 +356,48 @@ export const deviceFirmware = named(
  */
 export const firmwareListEntry = named('FirmwareListEntry', deviceFirmware.pick({ firmware_id: true, name: true, version: true }));
 
+/**
+ * A firmware as the fleet listing reports it. That listing ends every class with
+ * a row standing for the devices running a build this server has no record of,
+ * and that row has no id - which is what keeps `DeviceFirmware` from describing
+ * it.
+ */
+export const fleetFirmware = named('FleetFirmware', deviceFirmware.extend({ firmware_id: z.string().nullable() }));
+
+/**
+ * How one build is doing across the devices of a class: how many run it, how
+ * many are partway through taking it, how many gave up, and how long an update
+ * took.
+ */
+export const firmwareFleetStats = named(
+  'FirmwareFleetStats',
+  z.object({
+    fw: fleetFirmware,
+    online: z.number(),
+    total: z.number(),
+    updating: z.number(),
+    failed: z.number(),
+    avgtime: z.number().describe('Milliseconds an update took on average.'),
+    maxtime: z.number().describe('Milliseconds the slowest update took.'),
+  }),
+);
+
+export const deviceClassFirmwareStats = named(
+  'DeviceClassFirmwareStats',
+  z.object({ class: deviceClass, versions: z.array(firmwareFleetStats) }),
+);
+
 export const deviceFirmwareBinary = named(
   'DeviceFirmwareBinary',
   z.object({ firmware_id: z.string(), name: z.string(), data: wireBytes() }),
 );
+
+/**
+ * What an upload is told about the image it just stored: the build it belongs to
+ * and what the image is called. `DeviceFirmwareBinary` also carries the bytes,
+ * which the answer deliberately does not send back.
+ */
+export const uploadedFirmwareBinary = named('UploadedFirmwareBinary', deviceFirmwareBinary.pick({ firmware_id: true, name: true }));
 
 export const deviceLog = named(
   'DeviceLog',
@@ -381,6 +430,16 @@ export const image = named(
   }),
 );
 
+/**
+ * What an upload is told about the photo it just added to a diary. The bytes
+ * are not sent back, so `Image` - which describes the stored picture - does not
+ * describe this.
+ */
+export const uploadedImage = named(
+  'UploadedImage',
+  image.pick({ image_id: true, device_id: true, timestamp: true, format: true }),
+);
+
 export const user = named(
   'User',
   z.object({
@@ -389,18 +448,71 @@ export const user = named(
     username: z.string(),
     is_admin: z.boolean(),
     is_active: z.boolean(),
-    activation_code: z.string(),
+    // Only an account that signed itself up is sent one; an account an
+    // administrator created has none.
+    activation_code: z.string().optional(),
   }),
 );
 
 /**
  * What the account listing answers with: an account without its secrets. The
  * route projects exactly these three fields, so `User` - which has a password
- * hash and an activation code, both required - does not describe it.
+ * hash - does not describe it.
  */
 export const userAccount = named('UserAccount', user.pick({ user_id: true, username: true, is_admin: true }));
 
+/**
+ * What the routes that answer one account answer with: the stored account
+ * without its password hash, which every one of them projects away. `_id` is
+ * mongoose's own, and is how the account routes address an account.
+ */
+export const userRecord = named('UserRecord', user.omit({ password: true }).extend({ _id: z.string().optional() }));
+
+/**
+ * The account routes have always wrapped their answer in an envelope. Described
+ * rather than tidied away: whoever reads them reads it, and the document is for
+ * saying what the server sends, not what it ought to.
+ */
+export const accountResult = named('AccountResult', z.object({ data: userRecord, message: z.string() }));
+
 export const passwordToken = named('PasswordToken', z.object({ user_id: z.string(), token: z.string() }));
+
+/**
+ * One signed token and how long it is good for. `secret` is minted with the
+ * token and travels with it, so a client can tell two sessions of the same
+ * account apart.
+ */
+export const authToken = named('AuthToken', z.object({ token: z.string(), expiresIn: z.number().describe('Seconds.'), secret: z.string() }));
+
+/** The three tokens a session is made of: one to call with, one to renew it, one for picture URLs. */
+export const sessionTokens = named(
+  'SessionTokens',
+  z.object({ userToken: authToken, refreshToken: authToken, imageToken: authToken }),
+);
+
+/**
+ * Who a session belongs to, as the sign-in routes report it. The demo login
+ * answers this without an account behind it, which is what `is_demo` says.
+ */
+export const sessionUser = named('SessionUser', userAccount.extend({ is_demo: z.boolean().optional() }));
+
+export const loginResult = named('LoginResult', sessionTokens.extend({ user: sessionUser }));
+
+/**
+ * What the automation token buys: a short-lived administrator session and
+ * nothing to renew it with, so a caller that needs longer asks again.
+ */
+export const automationSession = named('AutomationSession', sessionTokens.pick({ userToken: true }));
+
+/**
+ * What a sign-up is told about the account it just made. Never the password
+ * hash, and never the activation code: the route is open, so anyone could
+ * otherwise activate an address they do not own.
+ */
+export const signupAccount = named('SignupAccount', user.pick({ user_id: true, username: true, is_active: true }));
+
+/** The envelope the sign-up route answers in, like the account routes. */
+export const signupResult = named('SignupResult', z.object({ data: signupAccount, message: z.string() }));
 
 export const recipeTemplateStep = named('RecipeTemplateStep', recipeStep.omit({ lastTimeApplied: true, notified: true }));
 
@@ -415,6 +527,18 @@ export const recipeTemplate = named(
     updatedAt: z.number().optional(),
     steps: z.array(recipeTemplateStep),
   }),
+);
+
+/**
+ * One point of a measurement series. `_value` is null where the window it covers
+ * holds no reading: the series keeps empty windows so a chart draws the gap
+ * rather than joining across it. A computed measure that cannot be worked out
+ * for a window - VPD without a temperature, say - arrives the same way, because
+ * the server has it as NaN and JSON has no such number.
+ */
+export const measurementPoint = named(
+  'MeasurementPoint',
+  z.object({ _time: z.string().meta({ format: 'date-time' }), _value: z.number().nullable() }),
 );
 
 export const chartPreset = named(

@@ -7,9 +7,3 @@ export interface DataStoredInToken {
   token_type: 'user' | 'refresh' | 'image';
   secret: string;
 }
-
-export interface TokenData {
-  token: string;
-  expiresIn: number;
-  secret: string;
-}

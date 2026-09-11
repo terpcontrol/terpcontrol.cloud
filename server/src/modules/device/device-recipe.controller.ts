@@ -1,7 +1,7 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ApiShape } from '@common/api-shape';
-import { Recipe } from '@fg2/shared-types';
+import { ApiShape, ApiStatusOk } from '@common/api-shape';
+import { Recipe, RecipeTemplate } from '@fg2/shared-types';
 import { demoRecipe } from '@utils/demo';
 import { AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
@@ -30,6 +30,7 @@ export class DeviceRecipeController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body', 'error')
   @ApiOperation({ summary: 'Store the plan a device should run' })
+  @ApiStatusOk()
   public async save(@Body(zodBodyAsError(saveRecipeSchema)) body: { device_id: string; recipe?: RecipePayload }) {
     if (body?.recipe === undefined || body?.recipe === null) {
       throw new BadRequestException({ error: 'Missing recipe payload' });
@@ -42,7 +43,8 @@ export class DeviceRecipeController {
   @Get('recipes')
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'The plan templates the caller may use: public ones and their own' })
-  public listTemplates(@CurrentUser() user: AuthContext) {
+  @ApiShape(['RecipeTemplate'])
+  public listTemplates(@CurrentUser() user: AuthContext): Promise<RecipeTemplate[]> {
     return this.recipes.listTemplates(user.userId);
   }
 
@@ -50,31 +52,38 @@ export class DeviceRecipeController {
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Save a plan as a reusable template' })
-  public createTemplate(@CurrentUser() user: AuthContext, @Body(zodBodyAsError(recipeTemplateBody)) body: RecipeTemplatePayload) {
+  @ApiShape('RecipeTemplate', { status: HttpStatus.CREATED })
+  public createTemplate(
+    @CurrentUser() user: AuthContext,
+    @Body(zodBodyAsError(recipeTemplateBody)) body: RecipeTemplatePayload,
+  ): Promise<RecipeTemplate> {
     return this.recipes.createTemplate(user.userId, body);
   }
 
   @Get('recipes/:template_id')
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'One plan template' })
-  public readTemplate(@CurrentUser() user: AuthContext, @Param('template_id') templateId: string) {
+  @ApiShape('RecipeTemplate')
+  public readTemplate(@CurrentUser() user: AuthContext, @Param('template_id') templateId: string): Promise<RecipeTemplate> {
     return this.recipes.readTemplate(user, templateId);
   }
 
   @Put('recipes/:template_id')
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Change a plan template' })
+  @ApiShape('RecipeTemplate')
   public updateTemplate(
     @CurrentUser() user: AuthContext,
     @Param('template_id') templateId: string,
     @Body(zodBodyAsError(recipeTemplateBody)) body: RecipeTemplatePayload,
-  ) {
+  ): Promise<RecipeTemplate> {
     return this.recipes.updateTemplate(user, templateId, body);
   }
 
   @Delete('recipes/:template_id')
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Delete a plan template' })
+  @ApiStatusOk()
   public async deleteTemplate(@CurrentUser() user: AuthContext, @Param('template_id') templateId: string) {
     await this.recipes.deleteTemplate(user, templateId);
     return { status: 'ok' };

@@ -261,12 +261,24 @@ export interface DeviceClass {
 
 export interface DeviceClassCount {
   class: DeviceClass;
-  count: number;
+  online: number;
+  total: number;
 }
 
 export interface ClaimCode {
   claim_code: string;
   device_id: string;
+}
+
+export interface IssuedClaimCode {
+  claim_code: string;
+}
+
+export interface DeviceRegistration {
+  /**
+   * Firmware id.
+   */
+  fw: string;
 }
 
 export interface DeviceFirmware {
@@ -284,10 +296,45 @@ export interface FirmwareListEntry {
   version: string;
 }
 
+export interface FleetFirmware {
+  firmware_id: string | null;
+  name: string;
+  version: string;
+  class_id: string;
+  createdAt?: number;
+  wasStable?: boolean;
+}
+
+export interface FirmwareFleetStats {
+  fw: FleetFirmware;
+  online: number;
+  total: number;
+  updating: number;
+  failed: number;
+  /**
+   * Milliseconds an update took on average.
+   */
+  avgtime: number;
+  /**
+   * Milliseconds the slowest update took.
+   */
+  maxtime: number;
+}
+
+export interface DeviceClassFirmwareStats {
+  class: DeviceClass;
+  versions: FirmwareFleetStats[];
+}
+
 export interface DeviceFirmwareBinary {
   firmware_id: string;
   name: string;
   data: Buffer;
+}
+
+export interface UploadedFirmwareBinary {
+  firmware_id: string;
+  name: string;
 }
 
 export interface DeviceLog {
@@ -321,13 +368,20 @@ export interface Image {
   duration?: '1d' | '1w' | '1m';
 }
 
+export interface UploadedImage {
+  image_id: string;
+  device_id: string;
+  timestamp: number;
+  format?: 'jpeg' | 'mp4' | 'user/jpeg';
+}
+
 export interface User {
   user_id: string;
   password: string;
   username: string;
   is_admin: boolean;
   is_active: boolean;
-  activation_code: string;
+  activation_code?: string;
 }
 
 export interface UserAccount {
@@ -336,9 +390,67 @@ export interface UserAccount {
   is_admin: boolean;
 }
 
+export interface UserRecord {
+  user_id: string;
+  username: string;
+  is_admin: boolean;
+  is_active: boolean;
+  activation_code?: string;
+  _id?: string;
+}
+
+export interface AccountResult {
+  data: UserRecord;
+  message: string;
+}
+
 export interface PasswordToken {
   user_id: string;
   token: string;
+}
+
+export interface AuthToken {
+  token: string;
+  /**
+   * Seconds.
+   */
+  expiresIn: number;
+  secret: string;
+}
+
+export interface SessionTokens {
+  userToken: AuthToken;
+  refreshToken: AuthToken;
+  imageToken: AuthToken;
+}
+
+export interface SessionUser {
+  user_id: string;
+  username: string;
+  is_admin: boolean;
+  is_demo?: boolean;
+}
+
+export interface LoginResult {
+  userToken: AuthToken;
+  refreshToken: AuthToken;
+  imageToken: AuthToken;
+  user: SessionUser;
+}
+
+export interface AutomationSession {
+  userToken: AuthToken;
+}
+
+export interface SignupAccount {
+  user_id: string;
+  username: string;
+  is_active: boolean;
+}
+
+export interface SignupResult {
+  data: SignupAccount;
+  message: string;
 }
 
 export interface RecipeTemplateStep {
@@ -359,6 +471,11 @@ export interface RecipeTemplate {
   createdAt?: number;
   updatedAt?: number;
   steps: RecipeTemplateStep[];
+}
+
+export interface MeasurementPoint {
+  _time: string;
+  _value: number | null;
 }
 
 export interface ChartPreset {

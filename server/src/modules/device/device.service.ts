@@ -12,11 +12,15 @@ import {
   DeviceAccessInfo,
   DeviceClass,
   DeviceFirmware,
+  DeviceClassCount,
+  DeviceClassFirmwareStats,
   DeviceFirmwareBinary,
   DeviceLog,
+  DeviceRegistration,
   FirmwareListEntry,
   ClaimCode,
   FirmwareChannel,
+  IssuedClaimCode,
   MAX_SOCKETS,
   ShareLink,
   SOCKET_ROLES,
@@ -861,7 +865,13 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     });
   }
 
-  public async getDeviceLogs(device_id: string, timestampFrom: number, timestampTo: number, deleted: boolean, categories?: string[]) {
+  public async getDeviceLogs(
+    device_id: string,
+    timestampFrom: number,
+    timestampTo: number,
+    deleted: boolean,
+    categories?: string[],
+  ): Promise<DeviceLog[]> {
     // Access (ownership, admin, or share link) was already authorized by the controller.
     const device = await this.devices.findOne({ device_id: device_id }, { device_id: 1 });
     if (device) {
@@ -881,7 +891,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
         })
         .sort({ time: -1 })
         // Plain objects, so callers may hand out reduced copies of an entry.
-        .lean();
+        .lean<DeviceLog[]>();
       logs.forEach(log => (log.categories = log.categories?.length > 0 ? log.categories : ['unknown']));
       return logs.reverse();
     }
@@ -1101,7 +1111,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     return devices.map(device => withMaintenanceSecondsLeft(withoutCameraPassword(device))) as Device[];
   }
 
-  public async register(info: RegisterDeviceDto): Promise<any> {
+  public async register(info: RegisterDeviceDto): Promise<DeviceRegistration | false> {
     logger.info(`Registering device ${info?.device_id} of type ${info?.device_type}`);
 
     if (!this.config.enableSelfRegistration) {
@@ -1289,7 +1299,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     return code;
   }
 
-  public async getClaimCode(device_id: string, password?: string): Promise<{ claim_code: string } | false> {
+  public async getClaimCode(device_id: string, password?: string): Promise<IssuedClaimCode | false> {
     const device = await this.devices.findOne({ device_id: device_id });
     if (!device) {
       return false;
@@ -1494,7 +1504,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     return device?.configuration;
   }
 
-  public async getDeviceAlarms(device_id: string, user_id: string, is_admin = false, is_demo = false) {
+  public async getDeviceAlarms(device_id: string, user_id: string, is_admin = false, is_demo = false): Promise<Alarm[]> {
     const device = await this.devices.findOne(this.deviceAccessFilter(device_id, user_id, is_admin, is_demo), { alarms: 1 }).lean();
     const alarms = device?.alarms ?? [];
     return is_demo ? demoAlarms(alarms) : alarms;
@@ -1835,15 +1845,9 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     return binary;
   }
 
-  public async findFirmwareByNameVersion(name: string, version: string): Promise<DeviceFirmware> {
-    const firmware: DeviceFirmware = await this.firmwares.findOne(
-      {
-        name: name,
-        version: version,
-      },
-      { _id: 0, firmware_id: 1, name: 1, version: 1 },
-    );
-    return firmware;
+  /** The three fields a rollout needs, the same projection the listing answers with. */
+  public findFirmwareByNameVersion(name: string, version: string): Promise<FirmwareListEntry | null> {
+    return this.firmwares.findOne({ name: name, version: version }, { _id: 0, firmware_id: 1, name: 1, version: 1 }).lean<FirmwareListEntry>();
   }
 
   public async findAllFirmware(): Promise<FirmwareListEntry[]> {
@@ -1862,7 +1866,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     return binary.data;
   }
 
-  public async findOnlineDevices(): Promise<any> {
+  public async findOnlineDevices(): Promise<DeviceClassCount[]> {
     const classes: DeviceClass[] = await this.deviceClasses.find({});
 
     const class_count = await Promise.all(
@@ -1878,7 +1882,7 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     return class_count;
   }
 
-  public async getFirmwareVersions(): Promise<any> {
+  public async getFirmwareVersions(): Promise<DeviceClassFirmwareStats[]> {
     const classes: DeviceClass[] = await this.deviceClasses.find({});
 
     const upgradetimes = await this.devices.aggregate([

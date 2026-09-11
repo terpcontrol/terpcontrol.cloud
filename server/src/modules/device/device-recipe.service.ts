@@ -68,14 +68,14 @@ export class DeviceRecipeService {
   }
 
   /** Templates the caller may see: the public ones plus their own. */
-  public listTemplates(userId: string) {
+  public listTemplates(userId: string): Promise<RecipeTemplate[]> {
     return this.templates
       .find({ $or: [{ public: true }, { owner_id: userId }] })
-      .lean()
+      .lean<RecipeTemplate[]>()
       .exec();
   }
 
-  public async createTemplate(userId: string, payload: RecipeTemplatePayload) {
+  public async createTemplate(userId: string, payload: RecipeTemplatePayload): Promise<RecipeTemplate> {
     if (!payload?.name || !payload?.steps) {
       throw new BadRequestException({ error: 'Missing name or steps' });
     }
@@ -87,8 +87,8 @@ export class DeviceRecipeService {
     return this.templates.create({ name: payload.name, owner_id: userId, public: !!payload.public, steps: payload.steps });
   }
 
-  public async readTemplate(user: { userId: string; isAdmin: boolean }, templateId: string) {
-    const template = await this.templates.findById(templateId).lean().exec();
+  public async readTemplate(user: { userId: string; isAdmin: boolean }, templateId: string): Promise<RecipeTemplate> {
+    const template = await this.templates.findById(templateId).lean<RecipeTemplate>().exec();
     if (!template) {
       throw new NotFoundException({ error: 'Not found' });
     }
@@ -100,7 +100,11 @@ export class DeviceRecipeService {
     return template;
   }
 
-  public async updateTemplate(user: { userId: string; isAdmin: boolean }, templateId: string, payload: RecipeTemplatePayload = {}) {
+  public async updateTemplate(
+    user: { userId: string; isAdmin: boolean },
+    templateId: string,
+    payload: RecipeTemplatePayload = {},
+  ): Promise<RecipeTemplate> {
     const template = await this.templates.findById(templateId).exec();
     if (!template) {
       throw new NotFoundException({ error: 'Not found' });

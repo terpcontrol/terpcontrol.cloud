@@ -9,8 +9,8 @@ import { DateTime } from 'luxon';
 import { v4 as uuidv4 } from 'uuid';
 import { ActivationDto, LoginDto, SignupDto } from '@modules/auth/auth.types';
 import { HttpException } from '@common/http-exception';
-import { DataStoredInToken, TokenData } from '@common/auth/auth.interface';
-import { PasswordToken, User } from '@fg2/shared-types';
+import { DataStoredInToken } from '@common/auth/auth.interface';
+import { AutomationSession, PasswordToken, SessionTokens, User } from '@fg2/shared-types';
 import { isEmpty } from '@utils/util';
 import { DEMO_USER_ID } from '@utils/demo';
 import { appConfig, authConfig } from '../../config/configuration';
@@ -87,7 +87,7 @@ export class AuthService {
     return true;
   }
 
-  public async login(userData: LoginDto): Promise<{ userToken: TokenData; refreshToken: TokenData; imageToken: TokenData; findUser: User }> {
+  public async login(userData: LoginDto): Promise<SessionTokens & { findUser: User }> {
     if (isEmpty(userData)) throw new HttpException(400, 'Invalid request data.');
 
     const findUser = await this.users.findOne(
@@ -108,7 +108,7 @@ export class AuthService {
 
   // Anyone may open the demo: it is a session without an account that reaches
   // nothing but the devices explicitly flagged as demo devices, and may not write.
-  public demoLogin(): { userToken: TokenData; refreshToken: TokenData; imageToken: TokenData } {
+  public demoLogin(): SessionTokens {
     return this.createTokens({ user_id: DEMO_USER_ID, is_admin: false, is_demo: true });
   }
 
@@ -130,7 +130,7 @@ export class AuthService {
     await this.users.findOneAndUpdate({ user_id: pwtoken.user_id }, { password: hashedPassword });
   }
 
-  public async loginWithToken(token: string): Promise<{ userToken: TokenData }> {
+  public async loginWithToken(token: string): Promise<AutomationSession> {
     const expected = this.auth.automationToken;
     if (!expected) {
       throw new HttpException(401, 'Wrong authentication token');
@@ -164,7 +164,7 @@ export class AuthService {
     };
   }
 
-  public async refresh(tokenData: DataStoredInToken): Promise<{ userToken: TokenData; refreshToken: TokenData; imageToken: TokenData }> {
+  public async refresh(tokenData: DataStoredInToken): Promise<SessionTokens> {
     const { userToken, refreshToken, imageToken } = this.createTokens({
       user_id: tokenData.user_id,
       is_admin: tokenData.is_admin,
@@ -183,7 +183,7 @@ export class AuthService {
     return findUser as unknown as User;
   }
 
-  public createTokensFromUser(user: User, stayLoggedIn: boolean): { userToken: TokenData; refreshToken: TokenData; imageToken: TokenData } {
+  public createTokensFromUser(user: User, stayLoggedIn: boolean): SessionTokens {
     return this.createTokens({
       user_id: user.user_id,
       is_admin: user.is_admin,
@@ -191,11 +191,7 @@ export class AuthService {
     });
   }
 
-  public createTokens(dataStoredInToken: Omit<DataStoredInToken, 'token_type' | 'secret'>): {
-    userToken: TokenData;
-    refreshToken: TokenData;
-    imageToken: TokenData;
-  } {
+  public createTokens(dataStoredInToken: Omit<DataStoredInToken, 'token_type' | 'secret'>): SessionTokens {
     const token_expiration: number = 5 * 60;
     const refresh_expiration: number = (dataStoredInToken.stay_logged_in ? 30 * 24 * 60 : 30) * 60;
     const image_expiration: number = 30 * 24 * 60 * 60;
