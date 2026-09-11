@@ -141,10 +141,7 @@ describe('POST /device/auxcommand', () => {
   });
 
   it('passes a socket slot through', async () => {
-    await owner.client
-      .post('/device/auxcommand')
-      .send({ device_id: device.deviceId, action: 'socket_remove', role: 'light', slot: 2 })
-      .expect(200);
+    await owner.client.post('/device/auxcommand').send({ device_id: device.deviceId, action: 'socket_remove', role: 'light', slot: 2 }).expect(200);
 
     const command = await simulator.waitFor('command');
     expect(JSON.parse(command.payload)).toMatchObject({ action: 'socket_remove', role: 'light', slot: 2 });
@@ -162,14 +159,8 @@ describe('POST /device/auxcommand', () => {
   });
 
   it('rejects an out-of-range slot', async () => {
-    await owner.client
-      .post('/device/auxcommand')
-      .send({ device_id: device.deviceId, action: 'socket_test', role: 'heater', slot: -1 })
-      .expect(400);
-    await owner.client
-      .post('/device/auxcommand')
-      .send({ device_id: device.deviceId, action: 'socket_test', role: 'heater', slot: 9999 })
-      .expect(400);
+    await owner.client.post('/device/auxcommand').send({ device_id: device.deviceId, action: 'socket_test', role: 'heater', slot: -1 }).expect(400);
+    await owner.client.post('/device/auxcommand').send({ device_id: device.deviceId, action: 'socket_test', role: 'heater', slot: 9999 }).expect(400);
   });
 
   it('refuses a device the caller does not own', async () => {

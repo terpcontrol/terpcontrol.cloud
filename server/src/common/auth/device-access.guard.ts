@@ -30,7 +30,10 @@ const readDeviceId = (request: AuthenticatedRequest, source: DeviceIdSource): st
 
 /** Resolves where the device id lives and hands the decision to the access service. */
 abstract class BaseDeviceGuard implements CanActivate {
-  constructor(protected readonly access: DeviceAccessService, protected readonly reflector: Reflector) {}
+  constructor(
+    protected readonly access: DeviceAccessService,
+    protected readonly reflector: Reflector,
+  ) {}
 
   public async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();

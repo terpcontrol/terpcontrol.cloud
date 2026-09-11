@@ -76,19 +76,9 @@ const toAnnotatedCsv = (query: string, store: InfluxStore, now: number): string 
 
   for (const row of rows) {
     lines.push(
-      [
-        '',
-        '',
-        '0',
-        rfc3339(start),
-        rfc3339(stop),
-        rfc3339(row.time),
-        csvValue(row.value),
-        row.field,
-        row.measurement,
-        row.deviceId,
-        row.userId,
-      ].join(','),
+      ['', '', '0', rfc3339(start), rfc3339(stop), rfc3339(row.time), csvValue(row.value), row.field, row.measurement, row.deviceId, row.userId].join(
+        ',',
+      ),
     );
   }
 

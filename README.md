@@ -134,6 +134,19 @@ And before committing:
 1. `npm run lint:fix`
 2. `npm run build`
 
+### Shared types
+
+Every shape that crosses the wire is defined once, in `shared-types/src/schemas.ts`. The types the server and the webapp
+import, and the schemas the API document describes itself with, are generated from it.
+
+After changing a schema:
+1. `cd shared-types/`
+2. `npm install`
+3. `npm run generate`, and commit what it writes (`index.d.ts`, `openapi-schemas.json`)
+
+The generated files are committed because both projects link this package with `file:` and no build of it runs for them.
+CI regenerates and fails if the result differs.
+
 ### Firmware
 
 Make sure that the following environment variables are set in `.env`:

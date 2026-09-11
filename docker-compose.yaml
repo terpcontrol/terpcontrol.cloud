@@ -9,6 +9,17 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGODB_ADMINUSERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_ADMINPASSWORD}
+    # Over the network address and with the credentials, which is how the server
+    # reaches it. A ping on localhost would answer during initialisation as well:
+    # the image seeds the database with a throwaway mongod that is bound to
+    # 127.0.0.1 and has no authentication, so a check that took it for the real
+    # one would report ready while nothing outside the container can connect.
+    healthcheck:
+      test: ['CMD-SHELL', 'mongosh --quiet --host mongodb -u "$$MONGO_INITDB_ROOT_USERNAME" -p "$$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "db.adminCommand({ ping: 1 })"']
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   mongo-express:
     image: ${DOCKER_MONGOEXPRESS_IMAGE:-mongo-express}
@@ -62,6 +73,15 @@ services:
       MQTTS_CERT_PEM_B64: ${MQTTS_CERT_PEM_B64:-}
       MQTTS_KEY_PEM_B64: ${MQTTS_KEY_PEM_B64:-}
       MQTTS_CA_PEM_B64: ${MQTTS_CA_PEM_B64:-}
+    # The MQTT listener specifically, rather than the broker being up: the
+    # devices and the server speak MQTT, and that listener is a plugin this
+    # image enables at build time - a broker running without it is no use here.
+    healthcheck:
+      test: ['CMD-SHELL', "rabbitmq-diagnostics -q check_port_connectivity && rabbitmq-diagnostics -q listeners | grep -q 'protocol: mqtt'"]
+      interval: 10s
+      timeout: 15s
+      retries: 10
+      start_period: 90s
 
   webapp:
     build:
@@ -85,10 +105,18 @@ services:
       args:
         DOCKER_NODE_SERVER_IMAGE: ${DOCKER_NODE_SERVER_IMAGE:-node:20-alpine}
     restart: always
-    links:
-     - mongodb
-     - influxdb
-     - rabbitmq
+    # A cold start is otherwise a race the server loses noisily: it retries, but
+    # the first minute of logs is connection errors. `links` only ordered the
+    # starts, and on this network the service names resolve without it anyway.
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      # Nothing a request needs, so waiting for it would only hold the API back;
+      # this is the ordering `links` gave.
+      influxdb:
+        condition: service_started
     ports:
       - ${API_PORT_EXTERNAL}:8081
       # UDP ports the Terp Cam client binds, which have to be published: the

@@ -1,5 +1,4 @@
 import { Schema } from 'mongoose';
-import { RecipeTemplate } from '@fg2/shared-types';
 
 export const recipeSchema: Schema = new Schema({
   name: { type: String, required: true, unique: true },

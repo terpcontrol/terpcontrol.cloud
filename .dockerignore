@@ -3,6 +3,8 @@
 # The server's integration harness, and whatever a local run left behind in it.
 server/test
 server/jest.integration.config.js
+server/jest.unit.config.js
+server/tsconfig.unit.json
 **/.angular
 **/www
 .git

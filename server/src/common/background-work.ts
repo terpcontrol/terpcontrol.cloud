@@ -1,6 +1,6 @@
 import { logger } from '@utils/logger';
 
-const describe = (error: unknown): string => (error instanceof Error ? error.stack ?? error.message : String(error));
+const describe = (error: unknown): string => (error instanceof Error ? (error.stack ?? error.message) : String(error));
 
 /**
  * For work started where there is no caller to return a failure to - inside a

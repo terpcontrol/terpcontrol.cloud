@@ -80,9 +80,7 @@ describe('GET /data/series/:device_id/:measure', () => {
   });
 
   it('derives vpd from temperature, humidity and the default day leaf offset', async () => {
-    await seedMeasurements([
-      { time: minutesAgo(5) + 10_000, device_id: device.deviceId, fields: { temperature: 25, humidity: 60, out_light: 1 } },
-    ]);
+    await seedMeasurements([{ time: minutesAgo(5) + 10_000, device_id: device.deviceId, fields: { temperature: 25, humidity: 60, out_light: 1 } }]);
 
     const response = await series('vpd').expect(201);
 
@@ -92,9 +90,7 @@ describe('GET /data/series/:device_id/:measure', () => {
   });
 
   it('uses the night leaf offset while the light is off', async () => {
-    await seedMeasurements([
-      { time: minutesAgo(5) + 10_000, device_id: device.deviceId, fields: { temperature: 25, humidity: 60, out_light: 0 } },
-    ]);
+    await seedMeasurements([{ time: minutesAgo(5) + 10_000, device_id: device.deviceId, fields: { temperature: 25, humidity: 60, out_light: 0 } }]);
 
     const response = await series('vpd').expect(201);
 
@@ -272,10 +268,7 @@ describe('access control', () => {
       .expect(403);
 
     // Without a session at all the same request is a 401.
-    await anonymous()
-      .get(`/data/series/${device.deviceId}/temperature`)
-      .query({ from, to, interval: '1m', share: share.body.share_id })
-      .expect(401);
+    await anonymous().get(`/data/series/${device.deviceId}/temperature`).query({ from, to, interval: '1m', share: share.body.share_id }).expect(401);
   });
 
   it('accepts a share token in the X-Share-Token header', async () => {

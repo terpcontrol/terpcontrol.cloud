@@ -12,10 +12,11 @@ import type {
   DeviceClass,
   Recipe,
   Device,
+  DeviceListEntry,
   UserFirmwareList,
 } from '@fg2/shared-types';
 
-export type DeviceWithParsedSettings = Device & {
+export type DeviceWithParsedSettings = DeviceListEntry & {
   settings?: any;
 };
 
@@ -337,3 +338,4 @@ export class DeviceService {
     await firstValueFrom(this.http.post(environment.API_URL + "/device/reboot", { device_id: device_id }));
   }
 }
+

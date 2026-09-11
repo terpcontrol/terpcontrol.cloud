@@ -16,7 +16,10 @@ const randomIp = (): string => `10.${randomInt(1, 254)}.${randomInt(1, 254)}.${r
 export const unique = (prefix: string): string => `${prefix}-${randomBytes(6).toString('hex')}`;
 
 export class ApiClient {
-  constructor(public readonly ip: string = randomIp(), public token?: string) {}
+  constructor(
+    public readonly ip: string = randomIp(),
+    public token?: string,
+  ) {}
 
   public request(method: Method, path: string): supertest.Test {
     const test = supertest(context.baseUrl)[method](path).set('X-Forwarded-For', this.ip);

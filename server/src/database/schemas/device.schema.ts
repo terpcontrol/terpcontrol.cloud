@@ -1,5 +1,4 @@
 import { Schema } from 'mongoose';
-import { Device } from '@fg2/shared-types';
 
 export const deviceSchema: Schema = new Schema({
   device_id: {

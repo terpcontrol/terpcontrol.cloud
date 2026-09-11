@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // NestJS 12 ships ESM only, so the unit specs load the services as ES modules.
+    "module": "esnext",
+    // The specs construct a service themselves rather than letting Nest inject
+    // it, so the parameter types the decorators would carry are never read - and
+    // emitting them turns every type-only import into a runtime one, which ESM
+    // then has to resolve as a named export. `Connection` from mongoose is not
+    // one: the package leaves it out of its ESM surface on purpose.
+    "emitDecoratorMetadata": false,
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "test/unit/**/*.ts"]
+}

@@ -23,7 +23,10 @@ const MINUTE = 60 * 1000;
 @Controller()
 @UseGuards(RateLimitGuard)
 export class AuthController {
-  constructor(private readonly auth: AuthService, @Inject(authConfig.KEY) private readonly config: ConfigType<typeof authConfig>) {}
+  constructor(
+    private readonly auth: AuthService,
+    @Inject(authConfig.KEY) private readonly config: ConfigType<typeof authConfig>,
+  ) {}
 
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)

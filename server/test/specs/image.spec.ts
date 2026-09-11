@@ -93,10 +93,7 @@ describe('GET /image/:device_id', () => {
     const fresh = await provisionDevice(owner);
     const created = await upload(fresh).expect(201);
 
-    const response = await owner.client
-      .get(`/image/${fresh.deviceId}`)
-      .query({ format: USER_FORMAT, image_id: created.body.image_id })
-      .expect(200);
+    const response = await owner.client.get(`/image/${fresh.deviceId}`).query({ format: USER_FORMAT, image_id: created.body.image_id }).expect(200);
 
     expect(response.headers['content-type']).toBe('image/jpeg');
   });
@@ -226,10 +223,7 @@ describe('a webcam still that has gone stale', () => {
     const still = await jpeg({ r: 240, g: 240, b: 240 });
     const stored = await storeWebcamStill(device.deviceId, still, Date.now() - ONLINE_TIMEOUT_MS - 60_000);
 
-    const response = await owner.client
-      .get(`/image/${device.deviceId}`)
-      .query({ format: 'jpeg', image_id: stored.imageId })
-      .expect(200);
+    const response = await owner.client.get(`/image/${device.deviceId}`).query({ format: 'jpeg', image_id: stored.imageId }).expect(200);
 
     expect(await brightness(response.body)).toBeCloseTo(await brightness(still), 0);
   });
@@ -285,10 +279,7 @@ describe('POST /image/test/:device_id', () => {
   });
 
   it('reports a stream it cannot read as a bad gateway', async () => {
-    const response = await owner.client
-      .post(`/image/test/${device.deviceId}`)
-      .send({ rtspStream: 'rtsp://127.0.0.1:1/nothing-here' })
-      .expect(502);
+    const response = await owner.client.post(`/image/test/${device.deviceId}`).send({ rtspStream: 'rtsp://127.0.0.1:1/nothing-here' }).expect(502);
 
     expect(response.body.message).toEqual(expect.any(String));
   });

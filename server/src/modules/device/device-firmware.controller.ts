@@ -15,8 +15,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiConsumes, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiShape } from '@common/api-shape';
 import { FastifyReply } from 'fastify';
-import { DeviceClass, DeviceFirmware, UserFirmwareList } from '@fg2/shared-types';
+import { DeviceClass, DeviceFirmware, FirmwareListEntry, UserFirmwareList } from '@fg2/shared-types';
 import { HttpException } from '@common/http-exception';
 import { DeviceService } from './device.service';
 import { AdminGuard, AuthGuard } from '../../common/auth/auth.guard';
@@ -45,7 +46,8 @@ export class DeviceFirmwareController {
   @Get('firmware')
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Every firmware record' })
-  public list(): Promise<DeviceFirmware[]> {
+  @ApiShape(['FirmwareListEntry'])
+  public list(): Promise<FirmwareListEntry[]> {
     return this.deviceService.findAllFirmware();
   }
 
@@ -54,6 +56,7 @@ export class DeviceFirmwareController {
   @ApiQuery({ name: 'name', required: true, description: 'The device class the firmware was built for' })
   @ApiQuery({ name: 'version', required: true })
   @ApiOperation({ summary: 'Find a firmware by class and version' })
+  @ApiShape('DeviceFirmware')
   public async find(@Query('name') name: string, @Query('version') version: string): Promise<DeviceFirmware> {
     // Both are required: an absent one is not a wildcard, and answering with
     // whichever build the database returned first is worse than saying no -
@@ -126,6 +129,7 @@ export class DeviceFirmwareController {
   @Get('firmwares/:device_id')
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'The firmware versions this device can run' })
+  @ApiShape('UserFirmwareList')
   public forDevice(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string): Promise<UserFirmwareList> {
     return this.deviceService.listFirmwaresForDevice(deviceId, user.userId, user.isDemo);
   }
@@ -133,6 +137,7 @@ export class DeviceFirmwareController {
   @Get('class')
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Every device class' })
+  @ApiShape(['DeviceClass'])
   public listClasses(): Promise<DeviceClass[]> {
     return this.deviceService.listClasses();
   }
@@ -140,6 +145,7 @@ export class DeviceFirmwareController {
   @Get('class/find/:class_name')
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Find a device class by name' })
+  @ApiShape('DeviceClass')
   public async findClass(@Param('class_name') className: string): Promise<DeviceClass> {
     const deviceClass = await this.deviceService.findClass(className);
 
@@ -153,6 +159,7 @@ export class DeviceFirmwareController {
   @Get('class/:class_id')
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'One device class, by id' })
+  @ApiShape('DeviceClass')
   public getClass(@Param('class_id') classId: string): Promise<DeviceClass> {
     return this.deviceService.getClass(classId);
   }

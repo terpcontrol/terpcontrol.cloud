@@ -3,8 +3,7 @@
 /node_modules
 
 # code formatter
-.eslintrc
-.eslintignore
+eslint.config.mjs
 .editorconfig
 .huskyrc
 .lintstagedrc.json
@@ -14,6 +13,8 @@
 # beside docker-compose.yaml is the one that applies; this is for a build whose
 # context is this directory.
 jest.integration.config.js
+jest.unit.config.js
+tsconfig.unit.json
 test
 
 # docker

@@ -1,5 +1,6 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiShape } from '@common/api-shape';
 import { Recipe } from '@fg2/shared-types';
 import { demoRecipe } from '@utils/demo';
 import { AuthGuard } from '../../common/auth/auth.guard';
@@ -18,6 +19,7 @@ export class DeviceRecipeController {
   @Get('recipe/:device_id')
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'The plan a device is running' })
+  @ApiShape('Recipe')
   public async forDevice(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string): Promise<Recipe> {
     const recipe = await this.recipes.forDevice(deviceId);
     return user.isDemo ? (demoRecipe(recipe) as Recipe) : recipe;

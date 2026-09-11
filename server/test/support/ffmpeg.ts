@@ -25,6 +25,8 @@ export interface ScriptedRun {
   stderr?: string;
   /** Its exit code; anything but 0 is a failed run. */
   exit?: number;
+  /** How long the run takes to answer at all - an unreachable camera. */
+  delayMs?: number;
   /** A still to answer with, base64. */
   stdout?: string;
   /** Bytes to send to whatever `-i` points at, hex, before answering. */

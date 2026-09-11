@@ -16,7 +16,10 @@ const inactiveShareFilter = () => ({ $or: [{ revokedAt: { $ne: null } }, { expir
 
 @Injectable()
 export class ShareService {
-  constructor(@InjectModel(MODEL.share) private readonly shares: Model<ShareLink & Document>, private readonly deviceService: DeviceService) {}
+  constructor(
+    @InjectModel(MODEL.share) private readonly shares: Model<ShareLink & Document>,
+    private readonly deviceService: DeviceService,
+  ) {}
 
   public list(ownerId: string) {
     return this.shares.find({ owner_id: ownerId }).sort({ createdAt: -1 }).lean().exec();

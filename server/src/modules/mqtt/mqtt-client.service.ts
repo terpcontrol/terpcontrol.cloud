@@ -6,7 +6,7 @@ import { HttpException } from '@common/http-exception';
 import { logger } from '@utils/logger';
 import { mqttConfig } from '../../config/configuration';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const mqtt = require('mqtt');
 
 export interface MqttMessage {

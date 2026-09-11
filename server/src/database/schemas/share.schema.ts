@@ -1,5 +1,4 @@
 import { Schema } from 'mongoose';
-import { ShareLink } from '@fg2/shared-types';
 
 export const shareSchema: Schema = new Schema({
   share_id: {

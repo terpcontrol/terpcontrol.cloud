@@ -45,8 +45,7 @@ export const resetMail = (): Promise<unknown> => control('/__control/mail/reset'
  * Takes the MQTT broker away and brings it back on the same port, leaving it
  * down long enough that a client's reconnect attempt is refused first.
  */
-export const bounceMqttBroker = (downMs = 3000): Promise<unknown> =>
-  control(`/__control/mqtt/bounce?downMs=${downMs}`, { method: 'POST' });
+export const bounceMqttBroker = (downMs = 3000): Promise<unknown> => control(`/__control/mqtt/bounce?downMs=${downMs}`, { method: 'POST' });
 
 /** Polls until a mail matching the predicate arrives, or fails the wait. */
 export const waitForMail = async (predicate: (mail: CapturedMail) => boolean, timeoutMs = 10_000): Promise<CapturedMail> => {

@@ -56,6 +56,6 @@ export const demoDevice = <T extends Partial<Device>>(device: T): T => ({
   ...device,
   ...(device.cloudSettings ? { cloudSettings: demoCloudSettings(device.cloudSettings) } : {}),
   ...(device.hardwareInfo ? { hardwareInfo: demoHardwareInfo(device.hardwareInfo) } : {}),
-  ...(device.alarms ? { alarms: demoAlarms(device.alarms) as Device['alarms'] } : {}),
+  ...(device.alarms ? { alarms: demoAlarms(device.alarms) } : {}),
   ...(device.recipe ? { recipe: demoRecipe(device.recipe) } : {}),
 });
