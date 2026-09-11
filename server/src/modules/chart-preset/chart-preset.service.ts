@@ -13,11 +13,11 @@ const MAX_DEVICE_TYPE_LENGTH = 40;
 export class ChartPresetService {
   constructor(@InjectModel(MODEL.chartPreset) private readonly presets: Model<ChartPreset & Document>) {}
 
-  public list(ownerId: string) {
-    return this.presets.find({ owner_id: ownerId }).sort({ createdAt: -1 }).lean().exec();
+  public list(ownerId: string): Promise<ChartPreset[]> {
+    return this.presets.find({ owner_id: ownerId }).sort({ createdAt: -1 }).lean<ChartPreset[]>().exec();
   }
 
-  public async create(ownerId: string, preset: CreateChartPreset) {
+  public async create(ownerId: string, preset: CreateChartPreset): Promise<ChartPreset> {
     const count = await this.presets.countDocuments({ owner_id: ownerId });
     if (count >= MAX_PRESETS_PER_USER) {
       throw new BadRequestException({ error: `Preset limit of ${MAX_PRESETS_PER_USER} reached` });

@@ -256,3 +256,47 @@ describe('what the authentication routes answer', () => {
     expectDocumented(reset, '/reset', 'post');
   });
 });
+
+describe('what the chart preset and share routes answer', () => {
+  it('matches the declared shapes for a chart preset it created, listed and deleted', async () => {
+    const created = await owner.client
+      .post('/chartpresets')
+      .send({ name: unique('openapi-preset'), query: 'measures=temperature' })
+      .expect(201);
+    expectDocumented(created, '/chartpresets', 'post');
+
+    // The listing is the caller's own, and this account is this spec's.
+    const listed = await owner.client.get('/chartpresets').expect(200);
+    expect(listed.body.length).toBeGreaterThan(0);
+    expectDocumented(listed, '/chartpresets');
+
+    expectDocumented(await owner.client.delete(`/chartpresets/${created.body.preset_id}`).expect(200), '/chartpresets/{preset_id}', 'delete');
+  });
+
+  it('matches the declared shapes for a share link through its whole life', async () => {
+    const created = await owner.client
+      .post('/share')
+      .send({ device_id: device.deviceId, page: 'charts', editable: false, webcam: false })
+      .expect(201);
+    expectDocumented(created, '/share', 'post');
+
+    const listed = await owner.client.get('/share').expect(200);
+    expect(listed.body.length).toBeGreaterThan(0);
+    expectDocumented(listed, '/share');
+
+    const shareId = created.body.share_id;
+    expectDocumented(await anonymous().get(`/share/resolve/${shareId}`).expect(200), '/share/resolve/{share_id}');
+    expectDocumented(await owner.client.post(`/share/${shareId}/revoke`).expect(200), '/share/{share_id}/revoke', 'post');
+    expectDocumented(await owner.client.delete(`/share/${shareId}`).expect(200), '/share/{share_id}', 'delete');
+  });
+
+  it('matches the declared shape for a sweep of inactive share links', async () => {
+    const created = await owner.client.post('/share').send({ device_id: device.deviceId, page: 'diary', editable: false, webcam: false }).expect(201);
+    await owner.client.post(`/share/${created.body.share_id}/revoke`).expect(200);
+
+    const response = await owner.client.delete('/share/inactive').expect(200);
+
+    expect(response.body.deleted).toBeGreaterThan(0);
+    expectDocumented(response, '/share/inactive', 'delete');
+  });
+});
