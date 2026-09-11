@@ -1,4 +1,4 @@
-import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { request as httpRequest } from 'http';
 import { request as httpsRequest } from 'https';
@@ -10,7 +10,9 @@ import { applyWebhookTemplate } from '@utils/webhookTemplate';
 import { logIfItFails } from '../../common/background-work';
 import { MODEL } from '../../database/models.module';
 import { DataService } from '../data/data.service';
-import { DeviceService, ONLINE_TIMEOUT, StatusMessage } from '../device/device.service';
+import { DeviceLogService } from '../device/device-log.service';
+import { ONLINE_TIMEOUT } from '../device/device.queries';
+import { StatusMessage } from '../device/device.types';
 import { MailService } from '../mail/mail.service';
 import { TunnelService } from '../tunnel/tunnel.service';
 
@@ -23,8 +25,8 @@ const ACTION_TARGET_SEPARATOR = '|';
 export class AlarmService {
   constructor(
     @InjectModel(MODEL.device) private readonly devices: Model<Device & Document>,
-    @Inject(forwardRef(() => DeviceService)) private readonly deviceService: DeviceService,
-    @Inject(forwardRef(() => DataService)) private readonly data: DataService,
+    private readonly logs: DeviceLogService,
+    private readonly data: DataService,
     private readonly tunnel: TunnelService,
     private readonly mail: MailService,
   ) {}
@@ -278,7 +280,7 @@ export class AlarmService {
       if (alarm.reportWebhookErrors) {
         logIfItFails(
           `Recording the webhook error for device ${deviceId}`,
-          this.deviceService.logMessage(deviceId, {
+          this.logs.logMessage(deviceId, {
             title: 'message-alarm-webhook-error',
             message: `message-alarm-webhook-error:${alarm.name ?? alarm.alarmId} - ${message}`,
             severity: 1,
@@ -295,7 +297,7 @@ export class AlarmService {
   private async handleInfoAlarm(alarm: Alarm, deviceId: string, value: number) {
     const name = alarm.name ?? alarm.alarmId;
     const eventKey = alarm.isTriggered ? 'message-alarm-triggered' : 'message-alarm-resolved';
-    await this.deviceService.logMessage(deviceId, {
+    await this.logs.logMessage(deviceId, {
       title: eventKey,
       message:
         `${eventKey}:${name} (${alarm.sensorType}), value=${value}` +
