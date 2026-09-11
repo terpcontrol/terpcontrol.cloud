@@ -8,6 +8,7 @@ import { deviceFirmwareBinarySchema, deviceFirmwareSchema } from '@database/sche
 import { deviceLogSchema } from '@database/schemas/devicelog.schema';
 import { imagesSchema } from '@database/schemas/images.schema';
 import { passwordTokenSchema } from '@database/schemas/password_token.schema';
+import { rateLimitSchema } from '@database/schemas/rate-limit.schema';
 import { recipeSchema } from '@database/schemas/recipe.schema';
 import { shareSchema } from '@database/schemas/share.schema';
 import { userSchema } from '@database/schemas/users.schema';
@@ -26,6 +27,7 @@ const features = [
   { name: MODEL.deviceLog, schema: deviceLogSchema },
   { name: MODEL.image, schema: imagesSchema },
   { name: MODEL.passwordToken, schema: passwordTokenSchema },
+  { name: MODEL.rateLimit, schema: rateLimitSchema },
   { name: MODEL.recipeTemplate, schema: recipeSchema },
   { name: MODEL.share, schema: shareSchema },
   { name: MODEL.user, schema: userSchema },
