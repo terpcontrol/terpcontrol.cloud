@@ -1,7 +1,10 @@
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose, { Connection, Document, Model } from 'mongoose';
-import { Device, DeviceLog, Image } from '@fg2/shared-types';
+import { ClaimCode, Device, DeviceClass, DeviceFirmware, DeviceLog, Image } from '@fg2/shared-types';
+import { claimCodeSchema } from '@database/schemas/claimcode.schema';
 import { deviceSchema } from '@database/schemas/device.schema';
+import { deviceClassSchema } from '@database/schemas/deviceclass.schema';
+import { deviceFirmwareSchema } from '@database/schemas/devicefirmware.schema';
 import { deviceLogSchema } from '@database/schemas/devicelog.schema';
 import { imagesSchema } from '@database/schemas/images.schema';
 import { MODEL } from '@database/models';
@@ -15,6 +18,9 @@ import { MODEL } from '@database/models';
 export interface TestDatabase {
   connection: Connection;
   devices: Model<Device & Document>;
+  deviceClasses: Model<DeviceClass & Document>;
+  deviceFirmwares: Model<DeviceFirmware & Document>;
+  claimCodes: Model<ClaimCode & Document>;
   deviceLogs: Model<DeviceLog & Document>;
   images: Model<Image & Document>;
   /** Empty every collection, including the GridFS bucket. */
@@ -28,12 +34,18 @@ export const startTestDatabase = async (): Promise<TestDatabase> => {
   await connection.asPromise();
 
   const devices = connection.model<Device & Document>(MODEL.device, deviceSchema);
+  const deviceClasses = connection.model<DeviceClass & Document>(MODEL.deviceClass, deviceClassSchema);
+  const deviceFirmwares = connection.model<DeviceFirmware & Document>(MODEL.deviceFirmware, deviceFirmwareSchema);
+  const claimCodes = connection.model<ClaimCode & Document>(MODEL.claimCode, claimCodeSchema);
   const deviceLogs = connection.model<DeviceLog & Document>(MODEL.deviceLog, deviceLogSchema);
   const images = connection.model<Image & Document>(MODEL.image, imagesSchema);
 
   return {
     connection,
     devices,
+    deviceClasses,
+    deviceFirmwares,
+    claimCodes,
     deviceLogs,
     images,
     reset: async () => {

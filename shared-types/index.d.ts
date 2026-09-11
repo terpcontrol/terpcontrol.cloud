@@ -174,10 +174,10 @@ export interface DiaryEntry {
 
 export interface RecipeStep {
   name?: string;
-  settings: any;
-  durationUnit: DurationUnit;
-  duration: number;
-  waitForConfirmation: boolean;
+  settings?: any;
+  durationUnit?: DurationUnit;
+  duration?: number;
+  waitForConfirmation?: boolean;
   confirmationMessage?: string;
   lastTimeApplied?: number;
   notified?: boolean;
@@ -200,19 +200,19 @@ export interface Device {
   device_id: string;
   username: string;
   password: string;
-  class_id: string;
-  device_type: string;
-  configuration: string;
-  owner_id: string;
-  serialnumber: number;
-  lastseen: number;
-  current_firmware: string;
+  class_id?: string;
+  device_type?: string;
+  configuration?: string;
+  owner_id?: string;
+  serialnumber?: number;
+  lastseen?: number;
+  current_firmware?: string;
   /**
    * @deprecated Use cloudSettings.pendingFirmware. Kept for reading legacy devices.
    */
   pending_firmware?: string;
-  fwupdate_start: number;
-  fwupdate_end: number;
+  fwupdate_start?: number;
+  fwupdate_end?: number;
   alarms?: Alarm[];
   firmwareSettings?: FirmwareSettings;
   cloudSettings?: CloudSettings;
@@ -233,8 +233,8 @@ export interface Device {
 
 export interface DeviceListEntry {
   device_id: string;
-  configuration: string;
-  device_type: string;
+  configuration?: string;
+  device_type?: string;
   name?: string;
   maintenance_mode_until?: number;
   /**
@@ -245,16 +245,16 @@ export interface DeviceListEntry {
   hardwareInfo?: {
     [k: string]: string;
   };
-  lastseen: number;
+  lastseen?: number;
 }
 
 export interface DeviceClass {
   class_id: string;
   name: string;
-  description: string;
+  description?: string;
   concurrent: number;
   maxfails: number;
-  firmware_id: string;
+  firmware_id?: string;
   beta_firmware_id?: string;
   alpha_firmware_id?: string;
 }
@@ -265,13 +265,13 @@ export interface DeviceClassCount {
 }
 
 export interface ClaimCode {
-  claim_code: string;
-  device_id: string;
+  claim_code?: string;
+  device_id?: string;
 }
 
 export interface DeviceFirmware {
   firmware_id: string;
-  name: string;
+  name?: string;
   version: string;
   class_id: string;
   createdAt?: number;
@@ -280,13 +280,13 @@ export interface DeviceFirmware {
 
 export interface FirmwareListEntry {
   firmware_id: string;
-  name: string;
+  name?: string;
   version: string;
 }
 
 export interface DeviceFirmwareBinary {
   firmware_id: string;
-  name: string;
+  name?: string;
   data: Buffer;
 }
 
@@ -327,7 +327,7 @@ export interface User {
   username: string;
   is_admin: boolean;
   is_active: boolean;
-  activation_code: string;
+  activation_code?: string;
 }
 
 export interface UserAccount {
@@ -343,10 +343,10 @@ export interface PasswordToken {
 
 export interface RecipeTemplateStep {
   name?: string;
-  settings: any;
-  durationUnit: DurationUnit;
-  duration: number;
-  waitForConfirmation: boolean;
+  settings?: any;
+  durationUnit?: DurationUnit;
+  duration?: number;
+  waitForConfirmation?: boolean;
   confirmationMessage?: string;
   stage?: DiaryLifecycleStage;
 }

@@ -80,7 +80,7 @@ export class SetupWizardComponent implements OnInit {
   }
 
   get isClimateDevice(): boolean {
-    return CLIMATE_DEVICE_TYPES.includes(this.device?.device_type);
+    return CLIMATE_DEVICE_TYPES.includes(this.device?.device_type ?? '');
   }
 
   get isController(): boolean {
