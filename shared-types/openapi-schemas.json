@@ -101,6 +101,107 @@
       "actionTarget"
     ]
   },
+  "AlarmDraft": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "disabled": {
+        "type": "boolean"
+      },
+      "alarmId": {
+        "type": "string"
+      },
+      "sensorType": {
+        "type": "string"
+      },
+      "upperThreshold": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "lowerThreshold": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "actionType": {
+        "type": "string",
+        "enum": [
+          "email",
+          "webhook",
+          "info"
+        ]
+      },
+      "additionalInfo": {
+        "type": "boolean"
+      },
+      "actionTarget": {
+        "type": "string"
+      },
+      "cooldownSeconds": {
+        "type": "number"
+      },
+      "isTriggered": {
+        "type": "boolean"
+      },
+      "lastTriggeredAt": {
+        "type": "number"
+      },
+      "lastResolvedAt": {
+        "type": "number"
+      },
+      "retriggerSeconds": {
+        "type": "number"
+      },
+      "extremeValue": {
+        "type": "number"
+      },
+      "latestDataPointTime": {
+        "type": "number"
+      },
+      "webhookMethod": {
+        "type": "string",
+        "enum": [
+          "GET",
+          "POST",
+          "PUT"
+        ]
+      },
+      "webhookHeaders": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {
+          "type": "string"
+        }
+      },
+      "webhookTriggeredPayload": {
+        "type": "string"
+      },
+      "webhookResolvedPayload": {
+        "type": "string"
+      },
+      "thresholdSeconds": {
+        "type": "number"
+      },
+      "reportWebhookErrors": {
+        "type": "boolean"
+      },
+      "tunnelWebhook": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "sensorType",
+      "actionType",
+      "actionTarget"
+    ]
+  },
   "FirmwareSettings": {
     "type": "object",
     "properties": {

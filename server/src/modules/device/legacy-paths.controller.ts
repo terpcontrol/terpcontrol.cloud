@@ -1,8 +1,8 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Res, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Param, Post, Res, UnauthorizedException } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 import { DeviceService } from './device.service';
-import { zodBody } from '../../common/zod-validation.pipe';
+import { ZodBody } from '../../common/zod-validation.pipe';
 import { ClaimCodeRequest, claimCodeSchema } from './device.schemas';
 import { sendFirmwareBinary } from './device-firmware.controller';
 
@@ -18,7 +18,7 @@ export class LegacyDevicePathsController {
 
   @Post('claimcode')
   @HttpCode(HttpStatus.OK)
-  public async claimCode(@Body(zodBody(claimCodeSchema)) body: ClaimCodeRequest) {
+  public async claimCode(@ZodBody(claimCodeSchema) body: ClaimCodeRequest) {
     const code = await this.deviceService.getClaimCode(body.device_id, body.password ?? undefined);
 
     if (code === false) {

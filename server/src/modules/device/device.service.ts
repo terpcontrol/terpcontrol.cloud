@@ -6,6 +6,7 @@ import { Subscription } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
 import {
   Alarm,
+  AlarmDraft,
   CloudSettings,
   Device,
   DeviceListEntry,
@@ -1413,20 +1414,18 @@ export class DeviceService implements OnModuleInit, OnApplicationShutdown {
     }
   }
 
-  public async setDeviceAlarms(device_id: string, alarms: Alarm[]): Promise<void> {
+  public async setDeviceAlarms(device_id: string, alarms: AlarmDraft[]): Promise<void> {
     const device = await this.devices.findOne({ device_id: device_id });
 
     if (!device) {
       throw new HttpException(404, 'Device not found or access denied');
     }
 
-    for (const alarm of alarms) {
-      if (!alarm.alarmId) {
-        alarm.alarmId = uuidv4();
-      }
-    }
+    // An alarm the client made carries no id yet; giving it one here is what
+    // lets a later save address the same alarm rather than replacing it.
+    const stored: Alarm[] = alarms.map(alarm => ({ ...alarm, alarmId: alarm.alarmId || uuidv4() }));
 
-    await this.devices.updateOne({ device_id: device_id }, { alarms: alarms });
+    await this.devices.updateOne({ device_id: device_id }, { alarms: stored });
     this.alarms.invalidateAlarmCache(device_id);
   }
 

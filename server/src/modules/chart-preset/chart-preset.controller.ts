@@ -1,9 +1,9 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { AuthContext } from '../../common/auth/token.service';
-import { zodBodyAsError } from '../../common/zod-validation.pipe';
+import { ZodBodyAsError } from '../../common/zod-validation.pipe';
 import { ChartPresetService } from './chart-preset.service';
 import { CreateChartPreset, createChartPresetSchema } from './chart-preset.schemas';
 
@@ -22,7 +22,7 @@ export class ChartPresetController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Save a chart view' })
-  public create(@CurrentUser() user: AuthContext, @Body(zodBodyAsError(createChartPresetSchema)) body: CreateChartPreset) {
+  public create(@CurrentUser() user: AuthContext, @ZodBodyAsError(createChartPresetSchema) body: CreateChartPreset) {
     return this.presets.create(user.userId, body);
   }
 
