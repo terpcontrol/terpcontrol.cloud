@@ -2,7 +2,7 @@ import { Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose';
 import { Document, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { Device, DeviceClass, DeviceFirmware } from '@fg2/shared-types';
+import { Device, DeviceClass, DeviceClassCount, DeviceFirmware } from '@fg2/shared-types';
 import { HttpException } from '@common/http-exception';
 import { BackgroundWork } from '../../common/background-work';
 import { MODEL } from '../../database/models.module';
@@ -162,7 +162,7 @@ export class DeviceClassService implements OnModuleInit, OnApplicationShutdown {
     await this.firmwares.updateOne({ firmware_id: firmware_id }, { $set: { wasStable: true } });
   }
 
-  public async findOnlineDevices(): Promise<any> {
+  public async findOnlineDevices(): Promise<DeviceClassCount[]> {
     const classes: DeviceClass[] = await this.deviceClasses.find({});
 
     const class_count = await Promise.all(

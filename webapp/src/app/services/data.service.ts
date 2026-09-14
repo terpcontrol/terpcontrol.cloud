@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, firstValueFrom, Subject } from 'rxjs';
 import { environment } from 'src/environments/environment';
 import { DeviceService } from './devices.service';
+import type { MeasurementPoint } from '@fg2/shared-types';
 
 @Injectable({
   providedIn: 'root'
@@ -107,9 +108,9 @@ export class DataService {
         const to = 'now()';
         const interval = '1m';
         const query = `?from=${from}&to=${to}&interval=${interval}`;
-        this.http.get<any>(environment.API_URL + '/data/series/' + device_id + '/' + measure_name + query).subscribe((rows:any[]) => {
+        this.http.get<MeasurementPoint[]>(environment.API_URL + '/data/series/' + device_id + '/' + measure_name + query).subscribe((rows) => {
           if(Array.isArray(rows) && rows.length > 0) {
-            const values = rows.map(r => r._value).filter((v:any) => typeof v === 'number' && !isNaN(v));
+            const values = rows.map(r => r._value).filter((v): v is number => typeof v === 'number' && !isNaN(v));
             if(values.length > 0) {
               const avg = values.reduce((a:number,b:number)=>a+b,0) / values.length;
               measure[1].next(avg);
@@ -124,15 +125,17 @@ export class DataService {
     }
   }
 
-  public async getSeries(device_id: string, measure: string, from: string, interval: string, to: string = 'now()', method: string = 'mean'): Promise<[number, number][]> {
+  // A window with no reading comes back as null, and stays null: the chart draws
+  // the gap rather than joining a line across it.
+  public async getSeries(device_id: string, measure: string, from: string, interval: string, to: string = 'now()', method: string = 'mean'): Promise<[number, number | null][]> {
     let query = `?from=${from}&to=${to}&interval=${interval}&method=${method}`;
-    let data:any = await firstValueFrom(this.http.get(environment.API_URL + '/data/series/' + device_id + '/' + measure + query))
-    return data.map((row: any) => {return [new Date(row._time).getTime(), row._value]});
+    let data = await firstValueFrom(this.http.get<MeasurementPoint[]>(environment.API_URL + '/data/series/' + device_id + '/' + measure + query))
+    return data.map((row): [number, number | null] => [new Date(row._time).getTime(), row._value]);
   }
 
-  public async getLatest(device_id: string, measure: string): Promise<number> {
-    let data = await firstValueFrom(this.http.get<number>(environment.API_URL + '/data/latest/' + device_id + '/' + measure))
-    return data;
+  public async getLatest(device_id: string, measure: string): Promise<number | null> {
+    let data = await firstValueFrom(this.http.get<{ value: number | null }>(environment.API_URL + '/data/latest/' + device_id + '/' + measure))
+    return data.value;
   }
 
 }

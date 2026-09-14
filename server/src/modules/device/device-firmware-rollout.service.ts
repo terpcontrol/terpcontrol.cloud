@@ -1,7 +1,7 @@
 import { Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Document, Model } from 'mongoose';
-import { Device, DeviceClass, DeviceFirmware, FirmwareChannel } from '@fg2/shared-types';
+import { Device, DeviceClass, DeviceClassFirmwareStats, DeviceFirmware, FirmwareChannel } from '@fg2/shared-types';
 import { logger } from '@utils/logger';
 import { BackgroundWork, logIfItFails } from '../../common/background-work';
 import { MODEL } from '../../database/models.module';
@@ -129,7 +129,8 @@ export class DeviceFirmwareRolloutService implements OnModuleInit, OnApplication
     const previousFirmwareLabel = previousFw?.version || previousFirmwareId;
     const newFirmwareLabel = newFw?.version || reportedFirmwareId;
     await this.devices.findByIdAndUpdate(device._id, { current_firmware: reportedFirmwareId, fwupdate_end: Date.now() });
-    logger.info('device ' + device.device_id + ' finished firmware update, time: ' + (Date.now() - device.fwupdate_start) / 1000 + 's');
+    const updateDuration = device.fwupdate_start ? `${(Date.now() - device.fwupdate_start) / 1000}s` : 'unknown';
+    logger.info('device ' + device.device_id + ' finished firmware update, time: ' + updateDuration);
     await this.logs.logMessage(device.device_id, {
       title: 'message-firmware-update-complete-with-ids',
       message: `message-firmware-update-complete-with-ids:${previousFirmwareLabel} -> ${newFirmwareLabel}`,
@@ -145,7 +146,12 @@ export class DeviceFirmwareRolloutService implements OnModuleInit, OnApplication
       // can outlive the server unless it looks.
       if (this.work.isStopped) break;
 
-      await this.findUpgradeableDevicesByClass(device_class, device_class.firmware_id, this.firmwareChannelQuery('stable'));
+      // Asked for, like the two channels below: a class with no firmware on a
+      // channel has nothing to roll out, and a pass made for one that is not
+      // there records the devices it picks as upgrading to nothing.
+      if (device_class.firmware_id) {
+        await this.findUpgradeableDevicesByClass(device_class, device_class.firmware_id, this.firmwareChannelQuery('stable'));
+      }
       if (device_class.beta_firmware_id) {
         await this.findUpgradeableDevicesByClass(device_class, device_class.beta_firmware_id, this.firmwareChannelQuery('beta'));
       }
@@ -240,7 +246,7 @@ export class DeviceFirmwareRolloutService implements OnModuleInit, OnApplication
     }
   }
 
-  public async getFirmwareVersions(): Promise<any> {
+  public async getFirmwareVersions(): Promise<DeviceClassFirmwareStats[]> {
     const classes: DeviceClass[] = await this.deviceClasses.find({});
 
     const upgradetimes = await this.devices.aggregate([

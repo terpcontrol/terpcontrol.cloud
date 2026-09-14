@@ -57,7 +57,7 @@ export class DeviceSettingsService {
     this.mqtt.publish('/devices/' + device_id + '/configuration', config);
     await this.claimCodes.deleteMany({ device_id: device_id });
 
-    const diffStr = this.diffConfigs(previous.configuration, config);
+    const diffStr = this.diffConfigs(previous.configuration ?? '', config);
     if (previous.configuration !== config && diffStr.length > 0) {
       await this.logs.logMessage(device_id, {
         title: 'message-device-configuration-updated',
@@ -179,7 +179,7 @@ export class DeviceSettingsService {
     return device?.configuration;
   }
 
-  public async getDeviceAlarms(device_id: string, user_id: string, is_admin = false, is_demo = false) {
+  public async getDeviceAlarms(device_id: string, user_id: string, is_admin = false, is_demo = false): Promise<Alarm[]> {
     const device = await this.devices.findOne(deviceAccessFilter(device_id, user_id, is_admin, is_demo), { alarms: 1 }).lean();
     const alarms = device?.alarms ?? [];
     return is_demo ? demoAlarms(alarms) : alarms;
@@ -252,7 +252,7 @@ export class DeviceSettingsService {
 
     return {
       device_id: device_id,
-      device_type: device.device_type,
+      device_type: device.device_type ?? '',
       name: device.name,
       isPublic: false,
       cloudSettings: isDemoAccess ? demoCloudSettings(cloudSettings) : cloudSettings,
@@ -274,7 +274,7 @@ export class DeviceSettingsService {
 
     return {
       device_id: share.device_id,
-      device_type: device.device_type,
+      device_type: device.device_type ?? '',
       name: device.name,
       isPublic: true,
       cloudSettings: {

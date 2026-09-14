@@ -3,7 +3,7 @@ import { ConfigType } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Document, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { ClaimCode, Device, DeviceClass } from '@fg2/shared-types';
+import { ClaimCode, Device, DeviceClass, DeviceRegistration, IssuedClaimCode } from '@fg2/shared-types';
 import { HttpException } from '@common/http-exception';
 import { logger } from '@utils/logger';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
@@ -26,7 +26,7 @@ export class DeviceRegistrationService {
     @Inject(authConfig.KEY) private readonly config: ConfigType<typeof authConfig>,
   ) {}
 
-  public async register(info: RegisterDeviceDto): Promise<any> {
+  public async register(info: RegisterDeviceDto): Promise<DeviceRegistration | false> {
     logger.info(`Registering device ${info?.device_id} of type ${info?.device_type}`);
 
     if (!this.config.enableSelfRegistration) {
@@ -174,7 +174,7 @@ export class DeviceRegistrationService {
     return code;
   }
 
-  public async getClaimCode(device_id: string, password?: string): Promise<{ claim_code: string } | false> {
+  public async getClaimCode(device_id: string, password?: string): Promise<IssuedClaimCode | false> {
     const device = await this.devices.findOne({ device_id: device_id });
     if (!device) {
       return false;
@@ -208,7 +208,11 @@ export class DeviceRegistrationService {
 
   public async claimDevice(claim_code: string, user_id: string): Promise<string | null> {
     const dev = await this.claimCodes.findOne({ claim_code: claim_code });
-    if (dev) {
+    // The device has to be named: mongoose reads an undefined value in a filter
+    // as a match on null, so a code carrying no device id went looking for a
+    // device that has none either - and answered `undefined` where the callers
+    // of this are told to expect `null`.
+    if (dev?.device_id) {
       logger.info('Claiming device ' + dev.device_id + ' for user ' + user_id);
       // Awaited, or the query is never sent and the code stays claimable.
       await this.claimCodes.deleteOne({ claim_code: claim_code });

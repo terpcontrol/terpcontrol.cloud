@@ -176,10 +176,10 @@ export interface DiaryEntry {
 
 export interface RecipeStep {
   name?: string;
-  settings: any;
-  durationUnit: DurationUnit;
-  duration: number;
-  waitForConfirmation: boolean;
+  settings?: any;
+  durationUnit?: DurationUnit;
+  duration?: number;
+  waitForConfirmation?: boolean;
   confirmationMessage?: string;
   lastTimeApplied?: number;
   notified?: boolean;
@@ -202,19 +202,19 @@ export interface Device {
   device_id: string;
   username: string;
   password: string;
-  class_id: string;
-  device_type: string;
-  configuration: string;
-  owner_id: string;
-  serialnumber: number;
-  lastseen: number;
-  current_firmware: string;
+  class_id?: string;
+  device_type?: string;
+  configuration?: string;
+  owner_id?: string;
+  serialnumber?: number;
+  lastseen?: number;
+  current_firmware?: string;
   /**
    * @deprecated Use cloudSettings.pendingFirmware. Kept for reading legacy devices.
    */
   pending_firmware?: string;
-  fwupdate_start: number;
-  fwupdate_end: number;
+  fwupdate_start?: number;
+  fwupdate_end?: number;
   alarms?: Alarm[];
   firmwareSettings?: FirmwareSettings;
   cloudSettings?: CloudSettings;
@@ -235,8 +235,8 @@ export interface Device {
 
 export interface DeviceListEntry {
   device_id: string;
-  configuration: string;
-  device_type: string;
+  configuration?: string;
+  device_type?: string;
   name?: string;
   maintenance_mode_until?: number;
   /**
@@ -247,33 +247,45 @@ export interface DeviceListEntry {
   hardwareInfo?: {
     [k: string]: string;
   };
-  lastseen: number;
+  lastseen?: number;
 }
 
 export interface DeviceClass {
   class_id: string;
   name: string;
-  description: string;
+  description?: string;
   concurrent: number;
   maxfails: number;
-  firmware_id: string;
+  firmware_id?: string;
   beta_firmware_id?: string;
   alpha_firmware_id?: string;
 }
 
 export interface DeviceClassCount {
   class: DeviceClass;
-  count: number;
+  online: number;
+  total: number;
 }
 
 export interface ClaimCode {
+  claim_code?: string;
+  device_id?: string;
+}
+
+export interface IssuedClaimCode {
   claim_code: string;
-  device_id: string;
+}
+
+export interface DeviceRegistration {
+  /**
+   * Firmware id.
+   */
+  fw: string;
 }
 
 export interface DeviceFirmware {
   firmware_id: string;
-  name: string;
+  name?: string;
   version: string;
   class_id: string;
   createdAt?: number;
@@ -282,14 +294,49 @@ export interface DeviceFirmware {
 
 export interface FirmwareListEntry {
   firmware_id: string;
-  name: string;
+  name?: string;
   version: string;
+}
+
+export interface FleetFirmware {
+  firmware_id: string | null;
+  name?: string;
+  version: string;
+  class_id: string;
+  createdAt?: number;
+  wasStable?: boolean;
+}
+
+export interface FirmwareFleetStats {
+  fw: FleetFirmware;
+  online: number;
+  total: number;
+  updating: number;
+  failed: number;
+  /**
+   * Milliseconds an update took on average.
+   */
+  avgtime: number;
+  /**
+   * Milliseconds the slowest update took.
+   */
+  maxtime: number;
+}
+
+export interface DeviceClassFirmwareStats {
+  class: DeviceClass;
+  versions: FirmwareFleetStats[];
 }
 
 export interface DeviceFirmwareBinary {
   firmware_id: string;
-  name: string;
+  name?: string;
   data: Buffer;
+}
+
+export interface UploadedFirmwareBinary {
+  firmware_id: string;
+  name: string;
 }
 
 export interface DeviceLog {
@@ -319,13 +366,20 @@ export interface Image {
   duration?: '1d' | '1w' | '1m';
 }
 
+export interface UploadedImage {
+  image_id: string;
+  device_id: string;
+  timestamp: number;
+  format?: 'jpeg' | 'mp4' | 'user/jpeg';
+}
+
 export interface User {
   user_id: string;
   password: string;
   username: string;
   is_admin: boolean;
   is_active: boolean;
-  activation_code: string;
+  activation_code?: string;
 }
 
 export interface UserAccount {
@@ -334,17 +388,75 @@ export interface UserAccount {
   is_admin: boolean;
 }
 
+export interface UserRecord {
+  user_id: string;
+  username: string;
+  is_admin: boolean;
+  is_active: boolean;
+  activation_code?: string;
+  _id?: string;
+}
+
+export interface AccountResult {
+  data: UserRecord;
+  message: string;
+}
+
 export interface PasswordToken {
   user_id: string;
   token: string;
 }
 
+export interface AuthToken {
+  token: string;
+  /**
+   * Seconds.
+   */
+  expiresIn: number;
+  secret: string;
+}
+
+export interface SessionTokens {
+  userToken: AuthToken;
+  refreshToken: AuthToken;
+  imageToken: AuthToken;
+}
+
+export interface SessionUser {
+  user_id: string;
+  username: string;
+  is_admin: boolean;
+  is_demo?: boolean;
+}
+
+export interface LoginResult {
+  userToken: AuthToken;
+  refreshToken: AuthToken;
+  imageToken: AuthToken;
+  user: SessionUser;
+}
+
+export interface AutomationSession {
+  userToken: AuthToken;
+}
+
+export interface SignupAccount {
+  user_id: string;
+  username: string;
+  is_active: boolean;
+}
+
+export interface SignupResult {
+  data: SignupAccount;
+  message: string;
+}
+
 export interface RecipeTemplateStep {
   name?: string;
-  settings: any;
-  durationUnit: DurationUnit;
-  duration: number;
-  waitForConfirmation: boolean;
+  settings?: any;
+  durationUnit?: DurationUnit;
+  duration?: number;
+  waitForConfirmation?: boolean;
   confirmationMessage?: string;
   stage?: DiaryLifecycleStage;
 }
@@ -357,6 +469,11 @@ export interface RecipeTemplate {
   createdAt?: number;
   updatedAt?: number;
   steps: RecipeTemplateStep[];
+}
+
+export interface MeasurementPoint {
+  _time: string;
+  _value: number | null;
 }
 
 export interface ChartPreset {

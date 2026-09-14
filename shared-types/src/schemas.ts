@@ -143,6 +143,9 @@ export const shareLink = named(
   z.object({
     share_id: z.string(),
     device_id: z.string(),
+    // Required by the collection, but `required` only constrains new writes,
+    // not the rows already stored - and whose link it is, is the server's own
+    // bookkeeping rather than something a client reads.
     owner_id: z.string().optional(),
     page: sharePage,
     editable: z.boolean().describe('Visitors may change the view (time frame, measures, filters, webcam).'),
@@ -233,11 +236,23 @@ export const recipeStep = named(
   'RecipeStep',
   z.object({
     name: z.string().optional(),
+    /**
+     * A device's plan is stored with an update rather than a document save, so
+     * mongoose validates none of it, and the step's fields are the webapp's to
+     * add to - the server passes them through. Stored steps are therefore
+     * missing whichever of these the app that wrote them did not send.
+     *
+     * The template collection validates all four, because a template is written
+     * as a document rather than updated. `RecipeTemplateStep` stays derived
+     * from this one regardless: the app moves steps between a plan and a
+     * template, and a template type narrower than the plan's would not survive
+     * the first such move.
+     */
     // Whatever the device's configuration shape is; the server passes it through.
-    settings: anyValue(),
-    durationUnit: durationUnit,
-    duration: z.number(),
-    waitForConfirmation: z.boolean(),
+    settings: anyValue().optional(),
+    durationUnit: durationUnit.optional(),
+    duration: z.number().optional(),
+    waitForConfirmation: z.boolean().optional(),
     confirmationMessage: z.string().optional(),
     lastTimeApplied: z.number().optional(),
     notified: z.boolean().optional(),
@@ -268,19 +283,25 @@ export const device = named(
     device_id: z.string(),
     username: z.string(),
     password: z.string(),
-    class_id: z.string(),
-    device_type: z.string(),
-    configuration: z.string(),
-    owner_id: z.string(),
-    serialnumber: z.number(),
-    lastseen: z.number(),
-    current_firmware: z.string(),
+    /**
+     * Optional from here on because the collection requires none of it: only
+     * `device_id`, `username` and `password` are written for every device. One
+     * exists before it is claimed, before it has reported a firmware or a
+     * measurement, and before a field added later was backfilled onto it.
+     */
+    class_id: z.string().optional(),
+    device_type: z.string().optional(),
+    configuration: z.string().optional(),
+    owner_id: z.string().optional(),
+    serialnumber: z.number().optional(),
+    lastseen: z.number().optional(),
+    current_firmware: z.string().optional(),
     pending_firmware: z
       .string()
       .optional()
       .describe('@deprecated Use cloudSettings.pendingFirmware. Kept for reading legacy devices.'),
-    fwupdate_start: z.number(),
-    fwupdate_end: z.number(),
+    fwupdate_start: z.number().optional(),
+    fwupdate_end: z.number().optional(),
     alarms: z.array(alarm).optional(),
     firmwareSettings: firmwareSettings.optional(),
     cloudSettings: cloudSettings.optional(),
@@ -324,24 +345,43 @@ export const deviceClass = named(
   z.object({
     class_id: z.string(),
     name: z.string(),
-    description: z.string(),
+    // Neither is required by the collection: a class has no firmware until one
+    // has been built for it, and a description is only ever a label.
+    description: z.string().optional(),
     concurrent: z.number(),
     maxfails: z.number(),
-    firmware_id: z.string(),
+    firmware_id: z.string().optional(),
     beta_firmware_id: z.string().optional(),
     alpha_firmware_id: z.string().optional(),
   }),
 );
 
-export const deviceClassCount = named('DeviceClassCount', z.object({ class: deviceClass, count: z.number() }));
+/** How many devices of a class there are, and how many have been heard from lately. */
+export const deviceClassCount = named('DeviceClassCount', z.object({ class: deviceClass, online: z.number(), total: z.number() }));
 
-export const claimCode = named('ClaimCode', z.object({ claim_code: z.string(), device_id: z.string() }));
+/** Neither field is required by the collection, so a stored code may name no device. */
+export const claimCode = named('ClaimCode', z.object({ claim_code: z.string().optional(), device_id: z.string().optional() }));
+
+/**
+ * What asking a device for a claim code answers: the code, and nothing else.
+ * `ClaimCode` is the row it is remembered in, which also names the device it
+ * belongs to - and that is what the caller asked with.
+ *
+ * Required here although the row does not require it: the route answers with a
+ * code it has just generated, so this one is always there.
+ */
+export const issuedClaimCode = named('IssuedClaimCode', claimCode.pick({ claim_code: true }).required({ claim_code: true }));
+
+/** What firmware is told when it enrols itself: the build it should be running. */
+export const deviceRegistration = named('DeviceRegistration', z.object({ fw: z.string().describe('Firmware id.') }));
 
 export const deviceFirmware = named(
   'DeviceFirmware',
   z.object({
     firmware_id: z.string(),
-    name: z.string(),
+    // Not required by the collection; a row without one is told apart by its
+    // version alone.
+    name: z.string().optional(),
     version: z.string(),
     class_id: z.string(),
     createdAt: z.number().optional(),
@@ -356,9 +396,54 @@ export const deviceFirmware = named(
  */
 export const firmwareListEntry = named('FirmwareListEntry', deviceFirmware.pick({ firmware_id: true, name: true, version: true }));
 
+/**
+ * A firmware as the fleet listing reports it. That listing ends every class with
+ * a row standing for the devices running a build this server has no record of,
+ * and that row has no id - which is what keeps `DeviceFirmware` from describing
+ * it.
+ */
+export const fleetFirmware = named('FleetFirmware', deviceFirmware.extend({ firmware_id: z.string().nullable() }));
+
+/**
+ * How one build is doing across the devices of a class: how many run it, how
+ * many are partway through taking it, how many gave up, and how long an update
+ * took.
+ */
+export const firmwareFleetStats = named(
+  'FirmwareFleetStats',
+  z.object({
+    fw: fleetFirmware,
+    online: z.number(),
+    total: z.number(),
+    updating: z.number(),
+    failed: z.number(),
+    avgtime: z.number().describe('Milliseconds an update took on average.'),
+    maxtime: z.number().describe('Milliseconds the slowest update took.'),
+  }),
+);
+
+export const deviceClassFirmwareStats = named(
+  'DeviceClassFirmwareStats',
+  z.object({ class: deviceClass, versions: z.array(firmwareFleetStats) }),
+);
+
 export const deviceFirmwareBinary = named(
   'DeviceFirmwareBinary',
-  z.object({ firmware_id: z.string(), name: z.string(), data: wireBytes() }),
+  // `name` is the file the device asks for; the collection does not require it.
+  z.object({ firmware_id: z.string(), name: z.string().optional(), data: wireBytes() }),
+);
+
+/**
+ * What an upload is told about the image it just stored: the build it belongs to
+ * and what the image is called. `DeviceFirmwareBinary` also carries the bytes,
+ * which the answer deliberately does not send back.
+ *
+ * The name is required here although the collection does not require it: it is
+ * the path the upload was addressed to, so a stored image always has one.
+ */
+export const uploadedFirmwareBinary = named(
+  'UploadedFirmwareBinary',
+  deviceFirmwareBinary.pick({ firmware_id: true, name: true }).required({ name: true }),
 );
 
 export const deviceLog = named(
@@ -386,9 +471,21 @@ export const image = named(
     timestamp: z.number(),
     timestampEnd: z.number().optional(),
     size: z.number().optional().describe('Bytes of the stored picture.'),
+    // Required by the collection, which only constrains pictures written since
+    // the field existed; the ones stored before it do not carry one.
     format: z.enum(['jpeg', 'mp4', 'user/jpeg']).optional(),
     duration: z.enum(['1d', '1w', '1m']).optional(),
   }),
+);
+
+/**
+ * What an upload is told about the photo it just added to a diary. The bytes
+ * are not sent back, so `Image` - which describes the stored picture - does not
+ * describe this.
+ */
+export const uploadedImage = named(
+  'UploadedImage',
+  image.pick({ image_id: true, device_id: true, timestamp: true, format: true }),
 );
 
 export const user = named(
@@ -399,18 +496,71 @@ export const user = named(
     username: z.string(),
     is_admin: z.boolean(),
     is_active: z.boolean(),
-    activation_code: z.string(),
+    // Only an account that signed itself up is sent one; an account an
+    // administrator created has none.
+    activation_code: z.string().optional(),
   }),
 );
 
 /**
  * What the account listing answers with: an account without its secrets. The
  * route projects exactly these three fields, so `User` - which has a password
- * hash and an activation code, both required - does not describe it.
+ * hash - does not describe it.
  */
 export const userAccount = named('UserAccount', user.pick({ user_id: true, username: true, is_admin: true }));
 
+/**
+ * What the routes that answer one account answer with: the stored account
+ * without its password hash, which every one of them projects away. `_id` is
+ * mongoose's own, and is how the account routes address an account.
+ */
+export const userRecord = named('UserRecord', user.omit({ password: true }).extend({ _id: z.string().optional() }));
+
+/**
+ * The account routes have always wrapped their answer in an envelope. Described
+ * rather than tidied away: whoever reads them reads it, and the document is for
+ * saying what the server sends, not what it ought to.
+ */
+export const accountResult = named('AccountResult', z.object({ data: userRecord, message: z.string() }));
+
 export const passwordToken = named('PasswordToken', z.object({ user_id: z.string(), token: z.string() }));
+
+/**
+ * One signed token and how long it is good for. `secret` is minted with the
+ * token and travels with it, so a client can tell two sessions of the same
+ * account apart.
+ */
+export const authToken = named('AuthToken', z.object({ token: z.string(), expiresIn: z.number().describe('Seconds.'), secret: z.string() }));
+
+/** The three tokens a session is made of: one to call with, one to renew it, one for picture URLs. */
+export const sessionTokens = named(
+  'SessionTokens',
+  z.object({ userToken: authToken, refreshToken: authToken, imageToken: authToken }),
+);
+
+/**
+ * Who a session belongs to, as the sign-in routes report it. The demo login
+ * answers this without an account behind it, which is what `is_demo` says.
+ */
+export const sessionUser = named('SessionUser', userAccount.extend({ is_demo: z.boolean().optional() }));
+
+export const loginResult = named('LoginResult', sessionTokens.extend({ user: sessionUser }));
+
+/**
+ * What the automation token buys: a short-lived administrator session and
+ * nothing to renew it with, so a caller that needs longer asks again.
+ */
+export const automationSession = named('AutomationSession', sessionTokens.pick({ userToken: true }));
+
+/**
+ * What a sign-up is told about the account it just made. Never the password
+ * hash, and never the activation code: the route is open, so anyone could
+ * otherwise activate an address they do not own.
+ */
+export const signupAccount = named('SignupAccount', user.pick({ user_id: true, username: true, is_active: true }));
+
+/** The envelope the sign-up route answers in, like the account routes. */
+export const signupResult = named('SignupResult', z.object({ data: signupAccount, message: z.string() }));
 
 export const recipeTemplateStep = named('RecipeTemplateStep', recipeStep.omit({ lastTimeApplied: true, notified: true }));
 
@@ -427,10 +577,24 @@ export const recipeTemplate = named(
   }),
 );
 
+/**
+ * One point of a measurement series. `_value` is null where the window it covers
+ * holds no reading: the series keeps empty windows so a chart draws the gap
+ * rather than joining across it. A computed measure that cannot be worked out
+ * for a window - VPD without a temperature, say - arrives the same way, because
+ * the server has it as NaN and JSON has no such number.
+ */
+export const measurementPoint = named(
+  'MeasurementPoint',
+  z.object({ _time: z.string().meta({ format: 'date-time' }), _value: z.number().nullable() }),
+);
+
 export const chartPreset = named(
   'ChartPreset',
   z.object({
     preset_id: z.string(),
+    // Required by the collection, optional here for the reason given on
+    // `shareLink.owner_id`.
     owner_id: z.string().optional(),
     name: z.string(),
     device_type: z.string().optional().describe('Device type the preset was saved from; informational only.'),
