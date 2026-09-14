@@ -96,7 +96,7 @@ export class DiagnosticsPage implements OnInit {
   public async loadDevice() {
     const device = await this.devices.getBySerial(this.serialnumber)
 
-    this.device_type = device.device_type;
+    this.device_type = device.device_type ?? '';
     this.device_id = device.device_id
 
     if(this.device_type != "") {
