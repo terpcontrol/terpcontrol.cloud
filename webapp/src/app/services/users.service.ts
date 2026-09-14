@@ -1,8 +1,7 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
-import { environment } from 'src/environments/environment';
 import type { UserAccount } from '@fg2/shared-types';
+import { ApiClient } from '../api/api.client';
+import { api } from '../api/api.routes';
 
 export interface CreateUser {
   username: string;
@@ -15,16 +14,14 @@ export interface CreateUser {
 })
 export class UsersService {
 
-  constructor(private http: HttpClient) { }
+  constructor(private client: ApiClient) { }
 
+  // The listing is a projection without the demo flag: only a session has one.
   public async getAll() : Promise<UserAccount[]> {
-    let data = await firstValueFrom(this.http.get<UserAccount[]>(environment.API_URL + '/users'));
-    console.log(data)
-    return data;
-
+    return await this.client.fetch(api.users.list());
   }
 
   public async create(user: CreateUser) {
-    return firstValueFrom(this.http.post(environment.API_URL + '/users', user));
+    return await this.client.fetch(api.users.create(user));
   }
 }
