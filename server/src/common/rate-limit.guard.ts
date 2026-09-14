@@ -23,11 +23,17 @@ interface Window {
 /**
  * A fixed window per client address and route, in memory.
  *
- * In memory is what the Express limiter did too, and it is exact for the
- * container, which runs one process. The pm2 configuration runs two, and each
- * counts only the requests it serves - so a deployment that uses it, or that
- * grows to several containers, allows the configured budget per process and
- * needs a shared store to do better.
+ * In memory is what the Express limiter did too, and it is exact as the server
+ * is deployed: `docker-compose.yaml` declares one `server` service with no
+ * replicas, and its image runs `node dist/main.js` - one process, so every
+ * request a client makes is counted in the same map and the budget a route
+ * declares is the budget it gets.
+ *
+ * Serving the API from more than one process is what would break that: a second
+ * replica, a `deploy.replicas`, or a cluster of workers would each count only
+ * the requests they served, and holding the limits would then need a shared
+ * store - a counter keyed the same way, incremented atomically, expiring with
+ * the window.
  */
 @Injectable()
 export class RateLimitGuard implements CanActivate {
