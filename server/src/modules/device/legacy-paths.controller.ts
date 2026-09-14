@@ -1,7 +1,8 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Res, UnauthorizedException } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
-import { DeviceService } from './device.service';
+import { DeviceFirmwareService } from './device-firmware.service';
+import { DeviceRegistrationService } from './device-registration.service';
 import { zodBody } from '../../common/zod-validation.pipe';
 import { ClaimCodeRequest, claimCodeSchema } from './device.schemas';
 import { sendFirmwareBinary } from './device-firmware.controller';
@@ -14,12 +15,15 @@ import { sendFirmwareBinary } from './device-firmware.controller';
 @ApiExcludeController()
 @Controller('auth/v0.0.1/device')
 export class LegacyDevicePathsController {
-  constructor(private readonly deviceService: DeviceService) {}
+  constructor(
+    private readonly registration: DeviceRegistrationService,
+    private readonly firmware: DeviceFirmwareService,
+  ) {}
 
   @Post('claimcode')
   @HttpCode(HttpStatus.OK)
   public async claimCode(@Body(zodBody(claimCodeSchema)) body: ClaimCodeRequest) {
-    const code = await this.deviceService.getClaimCode(body.device_id, body.password ?? undefined);
+    const code = await this.registration.getClaimCode(body.device_id, body.password ?? undefined);
 
     if (code === false) {
       throw new UnauthorizedException({ status: 'unauthorized' });
@@ -30,6 +34,6 @@ export class LegacyDevicePathsController {
 
   @Get('firmware/:firmware_id/:binary')
   public async download(@Param('firmware_id') firmwareId: string, @Param('binary') binaryName: string, @Res() reply: FastifyReply): Promise<void> {
-    await sendFirmwareBinary(reply, await this.deviceService.getFirmwareBinary(firmwareId, binaryName));
+    await sendFirmwareBinary(reply, await this.firmware.getFirmwareBinary(firmwareId, binaryName));
   }
 }

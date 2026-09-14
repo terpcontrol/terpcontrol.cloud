@@ -3,6 +3,7 @@ import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ApiShape, ApiStatusOk } from '@common/api-shape';
 import { DeviceLog } from '@fg2/shared-types';
 import { z } from 'zod';
+import { DeviceLogService } from './device-log.service';
 import { DeviceService } from './device.service';
 import { demoLogs } from '@utils/demo';
 import { AuthGuard } from '../../common/auth/auth.guard';
@@ -76,7 +77,12 @@ type LogEntryUpdate = z.infer<typeof updateLogSchema>;
 @ApiTags('device diary')
 @Controller('device/logs')
 export class DeviceLogController {
-  constructor(private readonly deviceService: DeviceService) {}
+  constructor(
+    private readonly logs: DeviceLogService,
+    // The one entry a client may post that means more than a diary entry - a
+    // device reporting maintenance mode - is composed by the device service.
+    private readonly deviceService: DeviceService,
+  ) {}
 
   @Get(':device_id')
   @UseGuards(DeviceAccessGuard)
@@ -91,7 +97,7 @@ export class DeviceLogController {
     @Param('device_id') deviceId: string,
     @Query() query: { from?: string; to?: string; deleted?: string; categories?: string },
   ): Promise<DeviceLog[]> {
-    const logs = await this.deviceService.getDeviceLogs(
+    const logs = await this.logs.getDeviceLogs(
       deviceId,
       Number(query.from ?? 0),
       Number(query.to ?? 0),
@@ -122,7 +128,7 @@ export class DeviceLogController {
     @Param('log_id') logId: string,
     @Body(zodBodyAsError(updateLogSchema)) body: LogEntryUpdate,
   ) {
-    await this.deviceService.updateDeviceLog(deviceId, user.userId, user.isAdmin, logId, { ...body, severity: Number(body.severity) });
+    await this.logs.updateDeviceLog(deviceId, user.userId, user.isAdmin, logId, { ...body, severity: Number(body.severity) });
     return { status: 'ok' };
   }
 
@@ -131,7 +137,7 @@ export class DeviceLogController {
   @ApiOperation({ summary: 'Delete one diary entry' })
   @ApiStatusOk()
   public async remove(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string, @Param('log_id') logId: string) {
-    await this.deviceService.deleteDeviceLog(deviceId, user.userId, user.isAdmin, logId);
+    await this.logs.deleteDeviceLog(deviceId, user.userId, user.isAdmin, logId);
     return { status: 'ok' };
   }
 
@@ -142,7 +148,7 @@ export class DeviceLogController {
   @ApiOperation({ summary: 'Mark the whole diary of one of the caller´s devices as deleted' })
   @ApiStatusOk()
   public async clear(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string) {
-    await this.deviceService.deleteDeviceLogs(deviceId, user.userId);
+    await this.logs.deleteDeviceLogs(deviceId, user.userId);
     return { status: 'ok' };
   }
 }

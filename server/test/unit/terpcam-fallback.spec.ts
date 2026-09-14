@@ -2,7 +2,7 @@ import { jest } from '@jest/globals';
 import { CloudSettings, Device } from '@fg2/shared-types';
 import { TerpCamDirectService } from '@modules/camera/terpcam-direct.service';
 import { TerpCamP2PService } from '@modules/camera/terpcam-p2p.service';
-import { ImageService } from '@modules/image/image.service';
+import { WebcamPollerService } from '@modules/image/webcam-poller.service';
 
 /**
  * When a Terp Cam still comes from the camera itself and when it comes from the
@@ -21,14 +21,14 @@ const CONTROLLER_STILL = Buffer.from('1280x720, from snapshot.cgi');
  * caller of its own outside the class. Naming the two seams the spec drives is
  * more honest than reaching for `any` at every call.
  */
-type ImageServiceInternals = {
+type WebcamPollerInternals = {
   trackTerpCamOnlinePeriod(device: Device): void;
   readRtspStreamImage(cloudSettings: CloudSettings, deviceId: string, alwaysAllowController?: boolean): Promise<Buffer>;
 };
 
 let direct: { canReachCamera: jest.Mock<() => Promise<boolean>>; captureStill: jest.Mock<() => Promise<Buffer>> };
 let controller: { captureViaController: jest.Mock<() => Promise<Buffer>> };
-let service: ImageServiceInternals;
+let service: WebcamPollerInternals;
 
 /** What the poller does with a device before it reads its camera. */
 const seenBy = (poller: 'an online device' | 'an offline device', deviceId = DEVICE) =>
@@ -49,15 +49,14 @@ beforeEach(() => {
   };
   controller = { captureViaController: jest.fn<() => Promise<Buffer>>().mockResolvedValue(CONTROLLER_STILL) };
 
-  service = new ImageService(
-    {} as never,
+  service = new WebcamPollerService(
     {} as never,
     {} as never,
     {} as never,
     {} as never,
     controller as unknown as TerpCamP2PService,
     direct as unknown as TerpCamDirectService,
-  ) as unknown as ImageServiceInternals;
+  ) as unknown as WebcamPollerInternals;
 });
 
 it('takes the full-resolution picture while the camera answers', async () => {

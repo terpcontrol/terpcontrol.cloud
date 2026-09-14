@@ -14,6 +14,7 @@ import { DeviceAccessGuard, DeviceOwnerGuard, DeviceTokenType } from '../../comm
 import { DeviceAccessService } from '../../common/auth/device-access.service';
 import { AuthenticatedRequest } from '../../common/auth/token.service';
 import { ImagePresentationService, parseResizeDimension, RenderedImage } from './image-presentation.service';
+import { WebcamPollerService } from './webcam-poller.service';
 
 interface ImageQuery {
   format?: string;
@@ -31,6 +32,7 @@ export class ImageController {
     private readonly presentation: ImagePresentationService,
     private readonly access: DeviceAccessService,
     private readonly images: ImageService,
+    private readonly webcams: WebcamPollerService,
   ) {}
 
   @Get(':device_id')
@@ -139,7 +141,7 @@ export class ImageController {
     }
 
     try {
-      const image = await this.images.testRtspStream(deviceId, {
+      const image = await this.webcams.testRtspStream(deviceId, {
         rtspStream,
         rtspStreamTransport: typeof body?.rtspStreamTransport === 'string' ? body.rtspStreamTransport : undefined,
         tunnelRtspStream: !!body?.tunnelRtspStream,
