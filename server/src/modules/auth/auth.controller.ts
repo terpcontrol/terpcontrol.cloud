@@ -1,10 +1,13 @@
 import { Body, Controller, HttpCode, HttpStatus, Inject, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { SchemaObject } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { verify } from 'jsonwebtoken';
 import { HttpException } from '@common/http-exception';
-import { DataStoredInToken, TokenData } from '@common/auth/auth.interface';
+import { DataStoredInToken } from '@common/auth/auth.interface';
+import { ApiShape } from '@common/api-shape';
+import { AuthToken, LoginResult, SessionTokens, SignupResult } from '@fg2/shared-types';
 import { AuthService } from './auth.service';
 import { DEMO_USER_ID } from '@utils/demo';
 import { logger } from '@utils/logger';
@@ -19,6 +22,12 @@ import { PUBLIC_OPERATION } from '../../openapi';
 
 const MINUTE = 60 * 1000;
 
+/** A route that reports how it went in one word and carries nothing else. */
+const messageOnly: SchemaObject = { type: 'object', required: ['message'], properties: { message: { type: 'string' } } };
+
+/** A route that answers an empty body: it worked, and there is nothing to read. */
+const noBody: SchemaObject = { type: 'object' };
+
 @ApiTags('authentication')
 @Controller()
 @UseGuards(RateLimitGuard)
@@ -32,7 +41,8 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   @RateLimited({ limit: 5, windowMs: MINUTE, message: 'Too many sign-up attempts, please try again later.' })
   @ApiOperation({ summary: 'Create an account', ...PUBLIC_OPERATION })
-  public async signUp(@Body(zodBody(signupSchema)) body: Signup) {
+  @ApiShape('SignupResult', { status: HttpStatus.CREATED })
+  public async signUp(@Body(zodBody(signupSchema)) body: Signup): Promise<SignupResult> {
     const user = await this.auth.signup(body);
 
     // Never the password hash, and never the activation code: the endpoint is
@@ -43,6 +53,7 @@ export class AuthController {
   @Post('activate')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Activate an account with the code from its activation mail', ...PUBLIC_OPERATION })
+  @ApiResponse({ status: HttpStatus.CREATED, description: 'The account is active.', schema: messageOnly })
   public async activate(@Body(zodBody(activationSchema)) body: Activation) {
     await this.auth.activate(body);
     return { message: 'activated' };
@@ -52,7 +63,12 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @RateLimited({ limit: 10, windowMs: MINUTE, message: 'Too many login attempts, please try again later.' })
   @ApiOperation({ summary: 'Sign in with a username and password', ...PUBLIC_OPERATION })
-  public async logIn(@Body(zodBody(loginSchema)) body: Login, @Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {
+  @ApiShape('LoginResult')
+  public async logIn(
+    @Body(zodBody(loginSchema)) body: Login,
+    @Req() request: FastifyRequest,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ): Promise<LoginResult> {
     const { userToken, refreshToken, imageToken, findUser } = await this.auth.login(body);
 
     this.setAuthCookie(request, reply, userToken);
@@ -71,7 +87,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @RateLimited({ limit: 20, windowMs: MINUTE, message: 'Too many demo-login attempts, please try again later.' })
   @ApiOperation({ summary: 'Open the read-only demo, without an account', ...PUBLIC_OPERATION })
-  public demoLogIn(@Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {
+  @ApiShape('LoginResult')
+  public demoLogIn(@Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply): LoginResult {
     const { userToken, refreshToken, imageToken } = this.auth.demoLogin();
 
     this.setAuthCookie(request, reply, userToken);
@@ -88,6 +105,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @RateLimited({ limit: 20, windowMs: MINUTE, message: 'Too many token-login attempts, please try again later.' })
   @ApiOperation({ summary: 'Exchange the automation token for a short admin session', ...PUBLIC_OPERATION })
+  @ApiShape('AutomationSession')
   public async loginWithToken(@Body() body: { token?: unknown }, @Req() request: FastifyRequest) {
     try {
       return await this.auth.loginWithToken(body?.token as string);
@@ -102,7 +120,12 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Trade a refresh token for a fresh set of tokens', ...PUBLIC_OPERATION })
-  public async refresh(@Body() body: { token?: unknown }, @Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {
+  @ApiShape('SessionTokens')
+  public async refresh(
+    @Body() body: { token?: unknown },
+    @Req() request: FastifyRequest,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ): Promise<SessionTokens> {
     const token = body?.token;
     if (!token || typeof token !== 'string') {
       throw new HttpException(401, 'Authentication token missing');
@@ -129,6 +152,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Clear the session cookie' })
+  @ApiOkResponse({ description: 'The cookie is gone.', schema: noBody })
   public logOut(@Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {
     void reply.clearCookie('Authorization', { httpOnly: true, sameSite: 'lax', secure: request.protocol === 'https', path: '/' });
     return {};
@@ -138,6 +162,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Set a new password for the calling account' })
+  @ApiOkResponse({ description: 'The password is changed.', schema: noBody })
   public async changePassword(@CurrentUser() user: AuthContext, @Body(zodBody(loginSchema)) body: Login) {
     await this.auth.changePassword(user.userId, body.password);
     return {};
@@ -147,6 +172,7 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   @RateLimited({ limit: 5, windowMs: MINUTE, message: 'Too many password-reset requests, please try again later.' })
   @ApiOperation({ summary: 'Mail a password recovery link', ...PUBLIC_OPERATION })
+  @ApiResponse({ status: HttpStatus.CREATED, description: 'The mail is on its way.', schema: messageOnly })
   public async getPasswordToken(@Body(zodBody(loginSchema)) body: Login) {
     await this.auth.generatePasswordToken(body.username);
     return { message: 'sent' };
@@ -155,6 +181,7 @@ export class AuthController {
   @Post('reset')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Set a new password with a recovery token', ...PUBLIC_OPERATION })
+  @ApiOkResponse({ description: 'The password is changed.', schema: noBody })
   public async resetPassword(@Body(zodBody(passwordResetSchema)) body: PasswordReset) {
     await this.auth.changePasswordWithToken(body.token, body.password);
     return {};
@@ -166,7 +193,7 @@ export class AuthController {
    * deployments keep working; this relies on the proxy hop being trusted, which
    * is what recovers the original protocol.
    */
-  private setAuthCookie(request: FastifyRequest, reply: FastifyReply, token: TokenData): void {
+  private setAuthCookie(request: FastifyRequest, reply: FastifyReply, token: AuthToken): void {
     void reply.setCookie('Authorization', token.token, {
       httpOnly: true,
       sameSite: 'lax',

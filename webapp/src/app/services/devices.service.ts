@@ -10,6 +10,7 @@ import type {
   DeviceAccessInfo,
   DeviceLog,
   DeviceClass,
+  DeviceClassFirmwareStats,
   Recipe,
   Device,
   DeviceListEntry,
@@ -31,7 +32,7 @@ export type DevicesLoadState = 'loading' | 'loaded' | 'error';
 export class DeviceAdminService {
 
   private created_devices : DeviceWithParsedSettings[] = [];
-  public device_classes: BehaviorSubject<any> = new BehaviorSubject<any>([]);
+  public device_classes: BehaviorSubject<DeviceClassFirmwareStats[]> = new BehaviorSubject<DeviceClassFirmwareStats[]>([]);
 
   constructor(private http: HttpClient, private auth: AuthService) {
     this.auth.current_user.subscribe(async (user) => {
@@ -48,7 +49,7 @@ export class DeviceAdminService {
   }
 
   public async fetch() {
-    this.device_classes.next(await firstValueFrom(this.http.get<DeviceClass[]>(environment.API_URL + '/device/firmwareversions')))
+    this.device_classes.next(await firstValueFrom(this.http.get<DeviceClassFirmwareStats[]>(environment.API_URL + '/device/firmwareversions')))
   }
 
   public async createClass(name:string, description: string, concurrent: number, maxfails: number, firmware_id:string) {
