@@ -3,7 +3,7 @@ import { ConfigType } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Document, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { ClaimCode, Device, DeviceClass } from '@fg2/shared-types';
+import { ClaimCode, Device, DeviceClass, DeviceRegistration, IssuedClaimCode } from '@fg2/shared-types';
 import { HttpException } from '@common/http-exception';
 import { logger } from '@utils/logger';
 import { hashDevicePassword, verifyDevicePassword } from '@utils/devicepassword';
@@ -26,7 +26,7 @@ export class DeviceRegistrationService {
     @Inject(authConfig.KEY) private readonly config: ConfigType<typeof authConfig>,
   ) {}
 
-  public async register(info: RegisterDeviceDto): Promise<any> {
+  public async register(info: RegisterDeviceDto): Promise<DeviceRegistration | false> {
     logger.info(`Registering device ${info?.device_id} of type ${info?.device_type}`);
 
     if (!this.config.enableSelfRegistration) {
@@ -174,7 +174,7 @@ export class DeviceRegistrationService {
     return code;
   }
 
-  public async getClaimCode(device_id: string, password?: string): Promise<{ claim_code: string } | false> {
+  public async getClaimCode(device_id: string, password?: string): Promise<IssuedClaimCode | false> {
     const device = await this.devices.findOne({ device_id: device_id });
     if (!device) {
       return false;

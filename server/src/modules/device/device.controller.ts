@@ -14,10 +14,10 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { ApiShape } from '@common/api-shape';
+import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiShape, ApiStatusOk } from '@common/api-shape';
 import { FastifyReply } from 'fastify';
-import { Alarm, CloudSettings, Device, DeviceListEntry } from '@fg2/shared-types';
+import { Alarm, CloudSettings, Device, DeviceAccessInfo, DeviceListEntry, DeviceRegistration, IssuedClaimCode } from '@fg2/shared-types';
 import { DeviceCommandService } from './device-command.service';
 import { DeviceFirmwareRolloutService } from './device-firmware-rollout.service';
 import { DeviceRegistrationService } from './device-registration.service';
@@ -79,7 +79,7 @@ export class DeviceController {
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Create a device record from a device class' })
-  @ApiShape('Device')
+  @ApiShape('Device', { status: HttpStatus.CREATED })
   public create(@Body(zodBody(addDeviceSchema)) body: AddDevice): Promise<Device> {
     return this.registration.create(body);
   }
@@ -87,7 +87,8 @@ export class DeviceController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'What firmware calls on first boot to enrol itself', ...PUBLIC_OPERATION })
-  public async register(@Body(zodBody(registerDeviceSchema)) body: RegisterDevice) {
+  @ApiShape('DeviceRegistration', { status: HttpStatus.CREATED })
+  public async register(@Body(zodBody(registerDeviceSchema)) body: RegisterDevice): Promise<DeviceRegistration> {
     const device = await this.registration.register(body);
 
     if (device === false) {
@@ -109,6 +110,14 @@ export class DeviceController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Claim a device with the code it printed' })
+  @ApiOkResponse({
+    description: 'The device the code belonged to.',
+    schema: {
+      type: 'object',
+      required: ['status', 'device_id'],
+      properties: { status: { type: 'string', enum: ['ok'] }, device_id: { type: 'string' } },
+    },
+  })
   public async claim(@CurrentUser() user: AuthContext, @Body(zodBody(claimDeviceSchema)) body: ClaimDevice) {
     const deviceId = await this.registration.claimDevice(body.claim_code, user.userId);
 
@@ -122,7 +131,8 @@ export class DeviceController {
   @Post('claimcode')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Ask a device for a fresh claim code', ...PUBLIC_OPERATION })
-  public async claimCode(@Body(zodBody(claimCodeSchema)) body: ClaimCodeRequest) {
+  @ApiShape('IssuedClaimCode')
+  public async claimCode(@Body(zodBody(claimCodeSchema)) body: ClaimCodeRequest): Promise<IssuedClaimCode> {
     const code = await this.registration.getClaimCode(body.device_id, body.password ?? undefined);
 
     if (code === false) {
@@ -144,6 +154,7 @@ export class DeviceController {
   @Get('onlinedevices')
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'How many devices of each class are online' })
+  @ApiShape(['DeviceClassCount'])
   public online() {
     return this.classes.findOnlineDevices();
   }
@@ -151,6 +162,7 @@ export class DeviceController {
   @Get('firmwareversions')
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Which firmware versions the fleet is running' })
+  @ApiShape(['DeviceClassFirmwareStats'])
   public firmwareVersions() {
     return this.rollout.getFirmwareVersions();
   }
@@ -158,6 +170,7 @@ export class DeviceController {
   @Get('config/:device_id')
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'The configuration the device is running' })
+  @ApiOkResponse({ description: 'The configuration document, as the JSON string it is stored as.', schema: { type: 'string' } })
   public async config(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string, @Res() reply: FastifyReply): Promise<void> {
     const configuration = await this.settings.getDeviceConfig(deviceId, user.userId, user.isAdmin, user.isDemo);
     // The configuration is a JSON document the device owns, stored and handed
@@ -171,6 +184,7 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Send a new configuration to the device' })
+  @ApiStatusOk()
   public async configure(@Body(zodBody(configureDeviceSchema)) body: ConfigureDevice) {
     await this.settings.configureDevice(body.device_id, body.configuration);
     return OK;
@@ -179,7 +193,8 @@ export class DeviceController {
   @Get('alarms/:device_id')
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'The alarms defined for the device' })
-  public alarms(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string) {
+  @ApiShape(['Alarm'])
+  public alarms(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string): Promise<Alarm[]> {
     return this.settings.getDeviceAlarms(deviceId, user.userId, user.isAdmin, user.isDemo);
   }
 
@@ -188,6 +203,7 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Replace the alarms of a device' })
+  @ApiStatusOk()
   public async setAlarms(@Body(zodBody(setAlarmsSchema)) body: SetAlarms) {
     await this.deviceService.setDeviceAlarms(body.device_id, body.alarms as unknown as Alarm[]);
     return OK;
@@ -198,7 +214,8 @@ export class DeviceController {
   // itself, so an anonymous caller gets its refusal rather than a JSON 401.
   @UseGuards(DeviceOwnerGuard)
   @ApiOperation({ summary: 'What the cloud knows about the device, and how it is set up' })
-  public async cloudSettings(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string) {
+  @ApiShape('DeviceAccessInfo')
+  public async cloudSettings(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string): Promise<DeviceAccessInfo> {
     const settings = await this.settings.getDeviceAccessInfo(deviceId, user.userId, user.isAdmin, user.isDemo);
 
     if (!settings) {
@@ -213,6 +230,7 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Change the cloud-side settings of a device' })
+  @ApiStatusOk()
   public async setCloudSettings(@Body(zodBody(setCloudSettingsSchema)) body: SetCloudSettings) {
     await this.deviceService.setDeviceCloudSettings(body.device_id, body.cloud_settings as CloudSettings);
     return OK;
@@ -223,6 +241,7 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Rename a device' })
+  @ApiStatusOk()
   public async setName(@Body(zodBody(setNameSchema)) body: SetName) {
     await this.settings.setDeviceName(body.device_id, body.name);
     return OK;
@@ -232,6 +251,7 @@ export class DeviceController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'Drive the outputs by hand, to check the wiring' })
+  @ApiStatusOk()
   public async testMode(@Param('device_id') deviceId: string, @Body(zodBody(testDeviceSchema)) body: TestDevice) {
     await this.commands.testOutputs(deviceId, body);
     return OK;
@@ -240,6 +260,7 @@ export class DeviceController {
   @Delete('test/:device_id')
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'Hand the outputs back to the device' })
+  @ApiStatusOk()
   public async stopTest(@Param('device_id') deviceId: string) {
     await this.commands.stopTest(deviceId);
     return OK;
@@ -250,6 +271,7 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Suppress alarms while somebody is working on the tent' })
+  @ApiStatusOk()
   public async maintenanceMode(@Body(zodBody(maintenanceModeSchema)) body: MaintenanceMode) {
     await this.deviceService.activateMaintenanceMode(body.device_id, body.duration_minutes);
     return OK;
@@ -260,6 +282,7 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Restart the device' })
+  @ApiStatusOk()
   public async reboot(@Body() body: { device_id: string }) {
     await this.commands.rebootDevice(body.device_id);
     return OK;
@@ -270,6 +293,7 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Command a smart socket or the camera the device manages' })
+  @ApiStatusOk()
   public async auxCommand(
     @Body() body: { device_id: string; action: string; role: string; ip?: string; user?: string; password?: string; slot?: number; append?: boolean },
   ) {
@@ -288,6 +312,7 @@ export class DeviceController {
   @Delete(':device_id')
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'Release a device, so somebody else can claim it' })
+  @ApiStatusOk()
   public async unclaim(@Param('device_id') deviceId: string) {
     await this.registration.unClaimDevice(deviceId);
     return OK;
