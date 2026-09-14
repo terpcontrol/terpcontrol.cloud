@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Document, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { Alarm, ClaimCode, CloudSettings, Device, DeviceAccessInfo, DeviceFirmware, FirmwareChannel, ShareLink } from '@fg2/shared-types';
+import { Alarm, AlarmDraft, ClaimCode, CloudSettings, Device, DeviceAccessInfo, DeviceFirmware, FirmwareChannel, ShareLink } from '@fg2/shared-types';
 import { HttpException } from '@common/http-exception';
 import { demoAlarms, demoCloudSettings } from '@utils/demo';
 import { MODEL } from '../../database/models.module';
@@ -110,20 +110,18 @@ export class DeviceSettingsService {
     }
   }
 
-  public async storeDeviceAlarms(device_id: string, alarms: Alarm[]): Promise<void> {
+  public async storeDeviceAlarms(device_id: string, alarms: AlarmDraft[]): Promise<void> {
     const device = await this.devices.findOne({ device_id: device_id });
 
     if (!device) {
       throw new HttpException(404, 'Device not found or access denied');
     }
 
-    for (const alarm of alarms) {
-      if (!alarm.alarmId) {
-        alarm.alarmId = uuidv4();
-      }
-    }
+    // An alarm the client made carries no id yet; giving it one here is what
+    // lets a later save address the same alarm rather than replacing it.
+    const stored: Alarm[] = alarms.map(alarm => ({ ...alarm, alarmId: alarm.alarmId || uuidv4() }));
 
-    await this.devices.updateOne({ device_id: device_id }, { alarms: alarms });
+    await this.devices.updateOne({ device_id: device_id }, { alarms: stored });
   }
 
   public async setDeviceCloudSettings(device_id: string, settings: CloudSettings) {

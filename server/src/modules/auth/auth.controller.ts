@@ -16,7 +16,7 @@ import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { AuthContext } from '../../common/auth/token.service';
 import { authConfig } from '../../config/configuration';
 import { RateLimited, RateLimitGuard } from '../../common/rate-limit.guard';
-import { zodBody } from '../../common/zod-validation.pipe';
+import { ZodBody } from '../../common/zod-validation.pipe';
 import { Activation, activationSchema, Login, loginSchema, PasswordReset, passwordResetSchema, Signup, signupSchema } from './auth.schemas';
 import { PUBLIC_OPERATION } from '../../openapi';
 
@@ -42,7 +42,7 @@ export class AuthController {
   @RateLimited({ limit: 5, windowMs: MINUTE, message: 'Too many sign-up attempts, please try again later.' })
   @ApiOperation({ summary: 'Create an account', ...PUBLIC_OPERATION })
   @ApiShape('SignupResult', { status: HttpStatus.CREATED })
-  public async signUp(@Body(zodBody(signupSchema)) body: Signup): Promise<SignupResult> {
+  public async signUp(@ZodBody(signupSchema) body: Signup): Promise<SignupResult> {
     const user = await this.auth.signup(body);
 
     // Never the password hash, and never the activation code: the endpoint is
@@ -54,7 +54,7 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Activate an account with the code from its activation mail', ...PUBLIC_OPERATION })
   @ApiResponse({ status: HttpStatus.CREATED, description: 'The account is active.', schema: messageOnly })
-  public async activate(@Body(zodBody(activationSchema)) body: Activation) {
+  public async activate(@ZodBody(activationSchema) body: Activation) {
     await this.auth.activate(body);
     return { message: 'activated' };
   }
@@ -65,7 +65,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Sign in with a username and password', ...PUBLIC_OPERATION })
   @ApiShape('LoginResult')
   public async logIn(
-    @Body(zodBody(loginSchema)) body: Login,
+    @ZodBody(loginSchema) body: Login,
     @Req() request: FastifyRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<LoginResult> {
@@ -163,7 +163,7 @@ export class AuthController {
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Set a new password for the calling account' })
   @ApiOkResponse({ description: 'The password is changed.', schema: noBody })
-  public async changePassword(@CurrentUser() user: AuthContext, @Body(zodBody(loginSchema)) body: Login) {
+  public async changePassword(@CurrentUser() user: AuthContext, @ZodBody(loginSchema) body: Login) {
     await this.auth.changePassword(user.userId, body.password);
     return {};
   }
@@ -173,7 +173,7 @@ export class AuthController {
   @RateLimited({ limit: 5, windowMs: MINUTE, message: 'Too many password-reset requests, please try again later.' })
   @ApiOperation({ summary: 'Mail a password recovery link', ...PUBLIC_OPERATION })
   @ApiResponse({ status: HttpStatus.CREATED, description: 'The mail is on its way.', schema: messageOnly })
-  public async getPasswordToken(@Body(zodBody(loginSchema)) body: Login) {
+  public async getPasswordToken(@ZodBody(loginSchema) body: Login) {
     await this.auth.generatePasswordToken(body.username);
     return { message: 'sent' };
   }
@@ -182,7 +182,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Set a new password with a recovery token', ...PUBLIC_OPERATION })
   @ApiOkResponse({ description: 'The password is changed.', schema: noBody })
-  public async resetPassword(@Body(zodBody(passwordResetSchema)) body: PasswordReset) {
+  public async resetPassword(@ZodBody(passwordResetSchema) body: PasswordReset) {
     await this.auth.changePasswordWithToken(body.token, body.password);
     return {};
   }

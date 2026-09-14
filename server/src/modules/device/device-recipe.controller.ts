@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiShape, ApiStatusOk } from '@common/api-shape';
 import { Recipe, RecipeTemplate } from '@fg2/shared-types';
@@ -7,7 +7,7 @@ import { AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { DeviceIdFrom, DeviceOwnerGuard } from '../../common/auth/device-access.guard';
 import { AuthContext } from '../../common/auth/token.service';
-import { zodBodyAsError } from '../../common/zod-validation.pipe';
+import { ZodBodyAsError } from '../../common/zod-validation.pipe';
 import { recipeTemplateBody, saveRecipeSchema } from './device-recipe.schemas';
 import { DeviceRecipeService, RecipePayload, RecipeTemplatePayload } from './device-recipe.service';
 
@@ -31,7 +31,7 @@ export class DeviceRecipeController {
   @DeviceIdFrom('body', 'error')
   @ApiOperation({ summary: 'Store the plan a device should run' })
   @ApiStatusOk()
-  public async save(@Body(zodBodyAsError(saveRecipeSchema)) body: { device_id: string; recipe?: RecipePayload }) {
+  public async save(@ZodBodyAsError(saveRecipeSchema) body: { device_id: string; recipe?: RecipePayload }) {
     if (body?.recipe === undefined || body?.recipe === null) {
       throw new BadRequestException({ error: 'Missing recipe payload' });
     }
@@ -53,10 +53,7 @@ export class DeviceRecipeController {
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Save a plan as a reusable template' })
   @ApiShape('RecipeTemplate', { status: HttpStatus.CREATED })
-  public createTemplate(
-    @CurrentUser() user: AuthContext,
-    @Body(zodBodyAsError(recipeTemplateBody)) body: RecipeTemplatePayload,
-  ): Promise<RecipeTemplate> {
+  public createTemplate(@CurrentUser() user: AuthContext, @ZodBodyAsError(recipeTemplateBody) body: RecipeTemplatePayload): Promise<RecipeTemplate> {
     return this.recipes.createTemplate(user.userId, body);
   }
 
@@ -75,7 +72,7 @@ export class DeviceRecipeController {
   public updateTemplate(
     @CurrentUser() user: AuthContext,
     @Param('template_id') templateId: string,
-    @Body(zodBodyAsError(recipeTemplateBody)) body: RecipeTemplatePayload,
+    @ZodBodyAsError(recipeTemplateBody) body: RecipeTemplatePayload,
   ): Promise<RecipeTemplate> {
     return this.recipes.updateTemplate(user, templateId, body);
   }

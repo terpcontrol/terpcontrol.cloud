@@ -1,5 +1,6 @@
-import { ArgumentMetadata, BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
+import { ArgumentMetadata, BadRequestException, Body, Injectable, PipeTransform } from '@nestjs/common';
 import { ZodType } from 'zod';
+import { ApiBodyShape } from './api-shape';
 
 /**
  * Validates a payload against a Zod schema and hands the parsed value on.
@@ -34,8 +35,29 @@ export class ZodValidationPipe<T> implements PipeTransform<unknown, T> {
   }
 }
 
-/** `@Body(zodBody(Schema))` reads better at the call site than `new ZodValidationPipe(...)`. */
-export const zodBody = <T>(schema: ZodType<T>): ZodValidationPipe<T> => new ZodValidationPipe(schema);
+/**
+ * Both halves of a body from one schema: the pipe that decides what the route
+ * accepts, and the description of it the document carries. Naming the schema
+ * twice is how the two drift, so `@ZodBody(Schema)` is a body parameter's whole
+ * annotation.
+ */
+const validatedBody =
+  (schema: ZodType, errorKey: ErrorKey): ParameterDecorator =>
+  (target, propertyKey, parameterIndex) => {
+    Body(new ZodValidationPipe(schema, errorKey))(target, propertyKey, parameterIndex);
+
+    // `ApiBody` is a method decorator: it hangs what it records off the method,
+    // so it wants the descriptor, which a parameter decorator can look up from
+    // the property it belongs to. A route handler has one; a constructor
+    // parameter, which this is not for, does not.
+    const handler = propertyKey === undefined ? undefined : Object.getOwnPropertyDescriptor(target, propertyKey);
+    if (handler) {
+      ApiBodyShape(schema)(target, propertyKey as string | symbol, handler);
+    }
+  };
+
+/** `@ZodBody(Schema) body: Body` - validated against the schema, documented as it. */
+export const ZodBody = <T>(schema: ZodType<T>): ParameterDecorator => validatedBody(schema, 'message');
 
 /** For the routes whose refusals carry `error` instead of `message`. */
-export const zodBodyAsError = <T>(schema: ZodType<T>): ZodValidationPipe<T> => new ZodValidationPipe(schema, 'error');
+export const ZodBodyAsError = <T>(schema: ZodType<T>): ParameterDecorator => validatedBody(schema, 'error');

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Document, Model } from 'mongoose';
-import { Alarm, CloudSettings, Device, DeviceListEntry } from '@fg2/shared-types';
+import { AlarmDraft, CloudSettings, Device, DeviceListEntry } from '@fg2/shared-types';
 import { demoDevice } from '@utils/demo';
 import { MODEL } from '../../database/models.module';
 import { AlarmService } from '../alarm/alarm.service';
@@ -93,7 +93,7 @@ export class DeviceService {
   }
 
   /** Stored alarms are cached for evaluation, so a change has to reach that cache. */
-  public async setDeviceAlarms(device_id: string, alarms: Alarm[]): Promise<void> {
+  public async setDeviceAlarms(device_id: string, alarms: AlarmDraft[]): Promise<void> {
     await this.settings.storeDeviceAlarms(device_id, alarms);
     this.alarms.invalidateAlarmCache(device_id);
   }

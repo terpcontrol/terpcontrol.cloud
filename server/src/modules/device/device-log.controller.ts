@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ApiShape, ApiStatusOk } from '@common/api-shape';
 import { DeviceLog } from '@fg2/shared-types';
@@ -11,7 +11,7 @@ import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { DeviceAccessGuard, DeviceOwnerGuard } from '../../common/auth/device-access.guard';
 import { AuthContext } from '../../common/auth/token.service';
 import { namesAMoment } from '../../common/to-date';
-import { zodBodyAsError } from '../../common/zod-validation.pipe';
+import { ZodBodyAsError } from '../../common/zod-validation.pipe';
 
 /**
  * Severity arrives as a number from the app and as a numeric string from
@@ -113,7 +113,7 @@ export class DeviceLogController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'Add an entry to the diary' })
   @ApiStatusOk()
-  public async add(@Param('device_id') deviceId: string, @Body(zodBodyAsError(createLogSchema)) body: LogEntry) {
+  public async add(@Param('device_id') deviceId: string, @ZodBodyAsError(createLogSchema) body: LogEntry) {
     await this.deviceService.logMessage(deviceId, { ...body, severity: Number(body.severity) });
     return { status: 'ok' };
   }
@@ -126,7 +126,7 @@ export class DeviceLogController {
     @CurrentUser() user: AuthContext,
     @Param('device_id') deviceId: string,
     @Param('log_id') logId: string,
-    @Body(zodBodyAsError(updateLogSchema)) body: LogEntryUpdate,
+    @ZodBodyAsError(updateLogSchema) body: LogEntryUpdate,
   ) {
     await this.logs.updateDeviceLog(deviceId, user.userId, user.isAdmin, logId, { ...body, severity: Number(body.severity) });
     return { status: 'ok' };

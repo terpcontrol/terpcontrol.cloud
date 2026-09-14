@@ -63,6 +63,17 @@ export const alarm = named(
   }),
 );
 
+/**
+ * An alarm as a client sends one. The id is the server's to assign, so a new
+ * alarm arrives without it; everything else is the stored shape. Written as a
+ * type rather than an interface of its own, so that the two cannot say
+ * different things about a field they share.
+ */
+export const alarmDraft = named(
+  'AlarmDraft',
+  alarm.partial({ alarmId: true }).meta({ tsType: "Omit<Alarm, 'alarmId'> & { alarmId?: string }" }),
+);
+
 export const firmwareSettings = named(
   'FirmwareSettings',
   z.object({

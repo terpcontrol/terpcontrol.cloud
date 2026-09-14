@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiShape, ApiStatusOk } from '@common/api-shape';
 import { DeviceAccessInfo, ShareLink } from '@fg2/shared-types';
@@ -6,7 +6,7 @@ import { AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { DeviceIdFrom, DeviceOwnerGuard } from '../../common/auth/device-access.guard';
 import { AuthContext } from '../../common/auth/token.service';
-import { zodBodyAsError } from '../../common/zod-validation.pipe';
+import { ZodBodyAsError } from '../../common/zod-validation.pipe';
 import { CreateShare, createShareSchema } from './share.schemas';
 import { ShareService } from './share.service';
 import { PUBLIC_OPERATION } from '../../openapi';
@@ -37,7 +37,7 @@ export class ShareController {
   @DeviceIdFrom('body', 'error')
   @ApiOperation({ summary: 'Hand out a link to one of the caller´s devices' })
   @ApiShape('ShareLink', { status: HttpStatus.CREATED })
-  public create(@CurrentUser() user: AuthContext, @Body(zodBodyAsError(createShareSchema)) body: CreateShare): Promise<ShareLink> {
+  public create(@CurrentUser() user: AuthContext, @ZodBodyAsError(createShareSchema) body: CreateShare): Promise<ShareLink> {
     return this.shares.create(user.userId, body);
   }
 

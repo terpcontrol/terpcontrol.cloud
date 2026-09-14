@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { AlarmDraft } from '@fg2/shared-types';
+import { sharedShape } from '@common/api-shape';
 
 const requiredString = (name: string) => z.string({ error: `${name} must be a string` });
 
@@ -91,13 +93,19 @@ export const setCloudSettingsSchema = z.object({
 });
 
 /**
- * The alarm objects themselves are left unchecked - the webapp owns their shape
- * and grows it - but the list has to be a list: `setDeviceAlarms` iterates it,
- * and used to fail halfway through with a 500 when it was not one.
+ * An alarm is shared-types' `AlarmDraft` - the stored shape, without the id the
+ * server assigns to one that arrives without it. Describing it here as "some
+ * object" was what made the route's body undocumentable and its handler cast;
+ * naming the shared shape instead leaves nothing to keep in step. Fields it
+ * does not know are still carried through, which is what the webapp's own
+ * per-alarm drafts rely on.
+ *
+ * The list itself has to be a list: `setDeviceAlarms` iterates it, and used to
+ * fail halfway through with a 500 when it was not one.
  */
 export const setAlarmsSchema = z.object({
   device_id: requiredString('device_id'),
-  alarms: z.array(z.object({}).loose(), { error: 'alarms must be a list' }),
+  alarms: z.array(sharedShape<AlarmDraft>('AlarmDraft'), { error: 'alarms must be a list' }),
 });
 
 /**

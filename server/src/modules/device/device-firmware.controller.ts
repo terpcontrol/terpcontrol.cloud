@@ -25,7 +25,7 @@ import { AdminGuard, AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
 import { DeviceOwnerGuard } from '../../common/auth/device-access.guard';
 import { AuthContext } from '../../common/auth/token.service';
-import { zodBody } from '../../common/zod-validation.pipe';
+import { ZodBody } from '../../common/zod-validation.pipe';
 import { PUBLIC_OPERATION } from '../../openapi';
 import { AddDeviceClass, addDeviceClassSchema, AddFirmware, addFirmwareSchema } from './device.schemas';
 
@@ -83,7 +83,7 @@ export class DeviceFirmwareController {
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Register a firmware build' })
   @ApiShape('FirmwareListEntry')
-  public async create(@Body(zodBody(addFirmwareSchema)) body: AddFirmware): Promise<FirmwareListEntry> {
+  public async create(@ZodBody(addFirmwareSchema) body: AddFirmware): Promise<FirmwareListEntry> {
     const firmware = await this.firmware.createFirmware(body.name, body.version);
     return { firmware_id: firmware.firmware_id, name: firmware.name, version: firmware.version };
   }
@@ -185,7 +185,7 @@ export class DeviceFirmwareController {
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Create a device class' })
   @ApiStatusOk()
-  public async createClass(@Body(zodBody(addDeviceClassSchema)) body: AddDeviceClass) {
+  public async createClass(@ZodBody(addDeviceClassSchema) body: AddDeviceClass) {
     await this.classes.createClass(
       body.name,
       body.description,
@@ -203,7 +203,7 @@ export class DeviceFirmwareController {
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Change a device class, including the firmware each channel points at' })
   @ApiStatusOk()
-  public async updateClass(@Param('class_id') classId: string, @Body(zodBody(addDeviceClassSchema)) body: AddDeviceClass) {
+  public async updateClass(@Param('class_id') classId: string, @ZodBody(addDeviceClassSchema) body: AddDeviceClass) {
     await this.classes.updateClass(
       classId,
       body.name,
