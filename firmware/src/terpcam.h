@@ -14,8 +14,8 @@ namespace fg {
    * Grab one JPEG still from the paired Terp Cam (a VStarcam OEM) camera on the local
    * network and stream it to the cloud.
    *
-   * The camera speaks a proprietary P2P protocol (reverse-engineered; see
-   * docs/terpcam-reverse-engineering.md). Running the client here rather
+   * The camera speaks a proprietary P2P protocol (reverse-engineered; the
+   * protocol notes are kept internally). Running the client here rather
    * than in the cloud is what makes it reliable: the camera's sliding-window
    * retransmission needs low, predictable latency, which a LAN round-trip has
    * and a round-trip through the MQTT tunnel does not.

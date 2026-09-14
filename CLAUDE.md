@@ -7,6 +7,13 @@ The project conventions live in [AGENTS.md](AGENTS.md); read those as well.
   somebody running the application would otherwise miss something.
 - Build, CI, deployment and release details are internal. Document them where they live - as comments in the workflow,
   script or config they describe - and keep them out of the README.
+- **This repository is public.** It holds only what the software itself needs: technical and architectural
+  decisions (`docs/`), user-facing guides (Raspberry Pi, firmware upgrade, TriAC fix) and code. Everything about
+  the company lives in the private `terpcontrol.com` repository under `docs/`: business plans and strategy, market
+  and competitor research, roadmap and pricing decisions, reverse engineering of purchased hardware, supplier,
+  customer and sales information, and anything containing credentials. When a task produces such a document,
+  write it there, never here; when a task needs one, read it there. A code comment may say that internal notes
+  exist, but must not reproduce their content.
 
 ## Launching the stack locally
 

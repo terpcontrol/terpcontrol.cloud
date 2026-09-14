@@ -8,8 +8,8 @@ import { ImageStore } from '../../database/image-store';
  * Terp Cam camera stills.
  *
  * The shipped webcam is a VStarcam OEM that, once on the home wifi, only speaks a
- * proprietary P2P transport (no LAN RTSP/HTTP — see
- * docs/terpcam-reverse-engineering.md). The controller, which sits on the
+ * proprietary P2P transport (no LAN RTSP/HTTP; the protocol notes are kept
+ * internally). The controller, which sits on the
  * camera's LAN, runs the lightweight reverse-engineered P2P client, grabs one
  * H.264 keyframe every 1-2 min and uploads the raw elementary stream to the
  * server. This service turns that keyframe into a JPEG and stores it through the
