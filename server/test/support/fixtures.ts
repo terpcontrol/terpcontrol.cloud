@@ -1,5 +1,7 @@
-import { MongoClient } from 'mongodb';
+import { GridFSBucket, MongoClient, ObjectId } from 'mongodb';
 import { randomUUID } from 'node:crypto';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { context } from './api';
 
 /**
@@ -30,28 +32,35 @@ export const markAsDemoDevice = (deviceId: string, demo = true): Promise<void> =
     await database.collection('devices').updateOne({ device_id: deviceId }, { $set: { demoDevice: demo } });
   });
 
-/**
- * Whether the bytes of a picture are in the image store, which is where every
- * picture written since the move to GridFS keeps them.
- */
+/** The GridFS bucket the pictures are kept in, beside the collection indexing them. */
+const BUCKET_NAME = 'imagedata';
+
+/** Whether the bytes of a picture are in the image store, which is where they live. */
 export const storedImageExists = (imageId: string): Promise<boolean> =>
-  withDatabase(async database => (await database.collection('imagedata.files').countDocuments({ _id: imageId as never })) > 0);
+  withDatabase(async database => (await database.collection(`${BUCKET_NAME}.files`).countDocuments({ _id: imageId as never })) > 0);
 
 /**
- * Stores a webcam still for a device, as the RTSP poller would have - with the
- * bytes in the document, the way pictures were written before the image store.
- * Those are still served, so this doubles as the fixture for that path.
+ * Stores a webcam still for a device, as the RTSP poller would have: the bytes
+ * in the image store under the id the document names, and the size the document
+ * serves a Content-Length from.
  */
 export const storeWebcamStill = (deviceId: string, data: Buffer, timestamp: number): Promise<StoredStill> =>
   withDatabase(async database => {
     const imageId = randomUUID();
+
+    // A stored file carries the image_id as its `_id`, where the driver's types
+    // expect an ObjectId - the server writes it the same way.
+    await pipeline(
+      Readable.from(data),
+      new GridFSBucket(database, { bucketName: BUCKET_NAME }).openUploadStreamWithId(imageId as unknown as ObjectId, imageId),
+    );
 
     await database.collection('images').insertOne({
       image_id: imageId,
       device_id: deviceId,
       format: 'jpeg',
       timestamp,
-      data,
+      size: data.length,
     });
 
     return { imageId };
