@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ApiShape } from '@common/api-shape';
+import { ApiShape, ApiStatusOk } from '@common/api-shape';
 import { ChartPreset } from '@fg2/shared-types';
 import { AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
@@ -32,6 +32,7 @@ export class ChartPresetController {
 
   @Delete(':preset_id')
   @ApiOperation({ summary: 'Delete a saved chart view' })
+  @ApiStatusOk()
   public async remove(@CurrentUser() user: AuthContext, @Param('preset_id') presetId: string) {
     await this.presets.remove(user.userId, presetId);
     return { status: 'ok' };

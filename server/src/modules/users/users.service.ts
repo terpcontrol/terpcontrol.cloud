@@ -5,7 +5,7 @@ import { hash } from 'bcrypt';
 import { Document, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import { HttpException } from '@common/http-exception';
-import { User, UserAccount } from '@fg2/shared-types';
+import { User, UserAccount, UserRecord } from '@fg2/shared-types';
 import { isEmpty } from '@utils/util';
 import { logger } from '@utils/logger';
 import { authConfig } from '../../config/configuration';
@@ -63,16 +63,16 @@ export class UserService implements OnModuleInit {
     return this.users.find({}, { _id: 0, username: 1, user_id: 1, is_admin: 1 }).lean<UserAccount[]>();
   }
 
-  public async findUserById(userId: string): Promise<User> {
+  public async findUserById(userId: string): Promise<UserRecord> {
     if (isEmpty(userId)) throw new HttpException(400, "You're not userId");
 
-    const findUser = await this.users.findOne({ _id: userId }, WITHOUT_PASSWORD);
+    const findUser = await this.users.findOne({ _id: userId }, WITHOUT_PASSWORD).lean<UserRecord>();
     if (!findUser) throw new HttpException(409, "You're not user");
 
-    return findUser as unknown as User;
+    return findUser;
   }
 
-  public async createUser(userData: UserPayload): Promise<User> {
+  public async createUser(userData: UserPayload): Promise<UserRecord> {
     if (isEmpty(userData)) throw new HttpException(400, "You're not userData");
 
     const findUser = await this.users.findOne({ username: userData.username });
@@ -81,11 +81,11 @@ export class UserService implements OnModuleInit {
     const hashedPassword = await hash(userData.password, 10);
     const created = await this.users.create({ ...userData, password: hashedPassword, user_id: uuidv4() });
 
-    const { password: _hash, ...safe } = created.toObject();
-    return safe as unknown as User;
+    const { password: _hash, ...safe } = created.toObject<User & { _id: string }>();
+    return safe;
   }
 
-  public async updateUser(userId: string, userData: UserPayload): Promise<User> {
+  public async updateUser(userId: string, userData: UserPayload): Promise<UserRecord> {
     if (isEmpty(userData)) throw new HttpException(400, "You're not userData");
 
     if (userData.username) {
@@ -99,17 +99,17 @@ export class UserService implements OnModuleInit {
       userData = { ...userData, password: await hash(userData.password, 10) };
     }
 
-    const updated = await this.users.findByIdAndUpdate(userId, userData, { new: true, projection: WITHOUT_PASSWORD });
+    const updated = await this.users.findByIdAndUpdate(userId, userData, { new: true, projection: WITHOUT_PASSWORD }).lean<UserRecord>();
     if (!updated) throw new HttpException(409, "You're not user");
 
-    return updated as unknown as User;
+    return updated;
   }
 
-  public async deleteUser(userId: string): Promise<User> {
-    const deleted = await this.users.findByIdAndDelete(userId, { projection: WITHOUT_PASSWORD });
+  public async deleteUser(userId: string): Promise<UserRecord> {
+    const deleted = await this.users.findByIdAndDelete(userId, { projection: WITHOUT_PASSWORD }).lean<UserRecord>();
     if (!deleted) throw new HttpException(409, "You're not user");
 
-    return deleted as unknown as User;
+    return deleted;
   }
 }
 

@@ -1,7 +1,7 @@
 import { Controller, Get, HttpCode, HttpStatus, Inject, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ApiShape } from '@common/api-shape';
-import { MeasureValue, SeriesPoint } from '@fg2/shared-types';
+import { MeasurementPoint } from '@fg2/shared-types';
 import { DeviceAccessGuard } from '../../common/auth/device-access.guard';
 import { DATA_SERVICE, DataServiceContract } from './data.provider';
 
@@ -21,12 +21,12 @@ export class DataController {
   @ApiQuery({ name: 'interval', required: true, description: 'Window size as a positive duration, e.g. 5m' })
   @ApiQuery({ name: 'method', required: false, enum: ['mean', 'min', 'max', 'sum'] })
   @ApiOperation({ summary: 'One aggregated point per interval, empty windows included' })
-  @ApiShape(['SeriesPoint'], { status: HttpStatus.CREATED })
+  @ApiShape(['MeasurementPoint'], { status: HttpStatus.CREATED })
   public series(
     @Param('device_id') deviceId: string,
     @Param('measure') measure: string,
     @Query() query: { from?: string; to?: string; interval?: string; method?: string },
-  ): Promise<SeriesPoint[]> {
+  ): Promise<MeasurementPoint[]> {
     // `String(undefined)` is what the Express controller passed on, and the
     // service reads anything it does not know as the default aggregation.
     return this.data.getSeries(deviceId, measure, query.from, query.to, query.interval, String(query.method));
@@ -35,8 +35,12 @@ export class DataController {
   @Get('latest/:device_id/:measure')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'The most recent value of the last five minutes' })
-  @ApiShape('MeasureValue', { status: HttpStatus.CREATED })
-  public async latest(@Param('device_id') deviceId: string, @Param('measure') measure: string): Promise<MeasureValue> {
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'The reading, or null when the device sent nothing in the last five minutes.',
+    schema: { type: 'object', required: ['value'], properties: { value: { oneOf: [{ type: 'number' }, { type: 'null' }] } } },
+  })
+  public async latest(@Param('device_id') deviceId: string, @Param('measure') measure: string) {
     return { value: await this.data.getLatest(deviceId, measure) };
   }
 }

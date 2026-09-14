@@ -1,24 +1,23 @@
 import type {
   Alarm,
   ChartPreset,
-  ClaimResult,
   CloudSettings,
   Device,
   DeviceAccessInfo,
-  DeviceClassRollout,
+  DeviceClassFirmwareStats,
   DeviceListEntry,
   DeviceLog,
   DiaryEntryData,
   FirmwareListEntry,
-  ImageUploadResult,
-  MeasureValue,
+  LoginResult,
+  MeasurementPoint,
   Recipe,
   RecipeTemplate,
-  SeriesPoint,
-  Session,
   SessionTokens,
-  SharePage,
   ShareLink,
+  SharePage,
+  SignupResult,
+  UploadedImage,
   UserAccount,
   UserFirmwareList,
 } from '@fg2/shared-types';
@@ -93,17 +92,17 @@ export interface AuxCommandOptions {
 
 export const api = {
   session: {
-    logIn: (username: string, password: string, stayLoggedIn: boolean): ApiCall<Session> => ({
+    logIn: (username: string, password: string, stayLoggedIn: boolean): ApiCall<LoginResult> => ({
       method: 'POST',
       path: '/login',
       body: { username, password, stayLoggedIn },
       anonymous: true,
     }),
-    logInAsDemo: (): ApiCall<Session> => ({ method: 'POST', path: '/demologin', body: {}, anonymous: true }),
+    logInAsDemo: (): ApiCall<LoginResult> => ({ method: 'POST', path: '/demologin', body: {}, anonymous: true }),
     // Answers with the tokens alone: the refresh token says who the caller is.
     refresh: (token: string): ApiCall<SessionTokens> => ({ method: 'POST', path: '/refresh', body: { token }, anonymous: true }),
-    signUp: (username: string, password: string): ApiCall<void> => ({ method: 'POST', path: '/signup', body: { username, password } }),
-    activate: (activation_code: string): ApiCall<void> => ({ method: 'POST', path: '/activate', body: { activation_code } }),
+    signUp: (username: string, password: string): ApiCall<SignupResult> => ({ method: 'POST', path: '/signup', body: { username, password } }),
+    activate: (activation_code: string): ApiCall<{ message: string }> => ({ method: 'POST', path: '/activate', body: { activation_code } }),
     changePassword: (password: string): ApiCall<void> => ({ method: 'POST', path: '/changepass', body: { username: '', password } }),
     requestPasswordReset: (username: string): ApiCall<void> => ({ method: 'POST', path: '/getreset', body: { username, password: '' } }),
     resetPassword: (password: string, token: string): ApiCall<void> => ({ method: 'POST', path: '/reset', body: { password, token } }),
@@ -112,7 +111,7 @@ export const api = {
   devices: {
     /** A projection: the configuration blob and the hardware report, not the whole record. */
     mine: (): ApiCall<DeviceListEntry[]> => ({ method: 'GET', path: '/device' }),
-    claim: (claim_code: string): ApiCall<ClaimResult> => ({ method: 'POST', path: '/device', body: { claim_code } }),
+    claim: (claim_code: string): ApiCall<{ status: string; device_id: string }> => ({ method: 'POST', path: '/device', body: { claim_code } }),
     unclaim: (device_id: string): ApiCall<void> => ({ method: 'DELETE', path: `/device/${segment(device_id)}` }),
     bySerial: (serialnumber: string): ApiCall<Device> => ({
       method: 'GET',
@@ -205,7 +204,7 @@ export const api = {
       params: { format: 'mp4' | 'jpeg' | 'user/jpeg'; timestamp?: number; duration?: string; image_id?: string; token?: string; share?: string },
     ): string => `/image/${segment(device_id)}${searchParams({ ...params })}`,
     /** The picture itself travels as multipart, so the body is the form. */
-    upload: (device_id: string, form: FormData): ApiCall<ImageUploadResult> => ({
+    upload: (device_id: string, form: FormData): ApiCall<UploadedImage> => ({
       method: 'POST',
       path: `/image/${segment(device_id)}`,
       body: form,
@@ -218,7 +217,7 @@ export const api = {
 
   fleet: {
     /** Every device class with the firmwares built for it, and how each is doing. */
-    rollouts: (): ApiCall<DeviceClassRollout[]> => ({ method: 'GET', path: '/device/firmwareversions' }),
+    rollouts: (): ApiCall<DeviceClassFirmwareStats[]> => ({ method: 'GET', path: '/device/firmwareversions' }),
     createClass: (deviceClass: {
       name: string;
       description: string;
@@ -304,7 +303,7 @@ export const api = {
   },
 
   measurements: {
-    latest: (device_id: string, measure: string): ApiCall<MeasureValue> => ({
+    latest: (device_id: string, measure: string): ApiCall<{ value: number | null }> => ({
       method: 'GET',
       path: `/data/latest/${segment(device_id)}/${segment(measure)}`,
     }),
@@ -312,7 +311,7 @@ export const api = {
       device_id: string,
       measure: string,
       window: { from: string; to: string; interval: string; method?: string },
-    ): ApiCall<SeriesPoint[]> => ({
+    ): ApiCall<MeasurementPoint[]> => ({
       method: 'GET',
       path: `/data/series/${segment(device_id)}/${segment(measure)}${searchParams({ ...window })}`,
     }),

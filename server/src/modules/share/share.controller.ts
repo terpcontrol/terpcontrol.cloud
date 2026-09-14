@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ApiShape } from '@common/api-shape';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiShape, ApiStatusOk } from '@common/api-shape';
 import { DeviceAccessInfo, ShareLink } from '@fg2/shared-types';
 import { AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
@@ -54,6 +54,14 @@ export class ShareController {
   @Delete('inactive')
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Delete every revoked or expired link of the caller' })
+  @ApiOkResponse({
+    description: 'How many links were deleted.',
+    schema: {
+      type: 'object',
+      required: ['status', 'deleted'],
+      properties: { status: { type: 'string', enum: ['ok'] }, deleted: { type: 'integer' } },
+    },
+  })
   public async removeInactive(@CurrentUser() user: AuthContext) {
     return { status: 'ok', deleted: await this.shares.removeInactive(user.userId) };
   }
@@ -61,6 +69,7 @@ export class ShareController {
   @Delete(':share_id')
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Delete a link that is already revoked or expired' })
+  @ApiStatusOk()
   public async remove(@CurrentUser() user: AuthContext, @Param('share_id') shareId: string) {
     await this.shares.remove(user.userId, shareId);
     return { status: 'ok' };

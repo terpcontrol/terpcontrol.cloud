@@ -261,7 +261,8 @@ export interface DeviceClass {
 
 export interface DeviceClassCount {
   class: DeviceClass;
-  count: number;
+  online: number;
+  total: number;
 }
 
 export interface ClaimCode {
@@ -269,9 +270,15 @@ export interface ClaimCode {
   device_id: string;
 }
 
-export interface ClaimResult {
-  status: string;
-  device_id: string;
+export interface IssuedClaimCode {
+  claim_code: string;
+}
+
+export interface DeviceRegistration {
+  /**
+   * Firmware id.
+   */
+  fw: string;
 }
 
 export interface DeviceFirmware {
@@ -289,13 +296,7 @@ export interface FirmwareListEntry {
   version: string;
 }
 
-export interface DeviceFirmwareBinary {
-  firmware_id: string;
-  name: string;
-  data: Buffer;
-}
-
-export interface RolloutFirmware {
+export interface FleetFirmware {
   firmware_id: string | null;
   name: string;
   version: string;
@@ -304,28 +305,36 @@ export interface RolloutFirmware {
   wasStable?: boolean;
 }
 
-export interface FirmwareRollout {
-  fw: RolloutFirmware;
+export interface FirmwareFleetStats {
+  fw: FleetFirmware;
   online: number;
   total: number;
-  /**
-   * Devices whose update to this firmware is still within the upgrade window.
-   */
   updating: number;
-  /**
-   * Devices that were told to update and did not report back in time.
-   */
   failed: number;
   /**
-   * Milliseconds an update to this firmware took on average, 0 when none completed.
+   * Milliseconds an update took on average.
    */
   avgtime: number;
+  /**
+   * Milliseconds the slowest update took.
+   */
   maxtime: number;
 }
 
-export interface DeviceClassRollout {
+export interface DeviceClassFirmwareStats {
   class: DeviceClass;
-  versions: FirmwareRollout[];
+  versions: FirmwareFleetStats[];
+}
+
+export interface DeviceFirmwareBinary {
+  firmware_id: string;
+  name: string;
+  data: Buffer;
+}
+
+export interface UploadedFirmwareBinary {
+  firmware_id: string;
+  name: string;
 }
 
 export interface DeviceLog {
@@ -342,15 +351,6 @@ export interface DeviceLog {
   images?: string[];
 }
 
-export interface MeasureValue {
-  value: number | null;
-}
-
-export interface SeriesPoint {
-  _time: string;
-  _value: number | null;
-}
-
 export interface Image {
   image_id: string;
   device_id: string;
@@ -364,7 +364,7 @@ export interface Image {
   duration?: '1d' | '1w' | '1m';
 }
 
-export interface ImageUploadResult {
+export interface UploadedImage {
   image_id: string;
   device_id: string;
   timestamp: number;
@@ -377,7 +377,7 @@ export interface User {
   username: string;
   is_admin: boolean;
   is_active: boolean;
-  activation_code: string;
+  activation_code?: string;
 }
 
 export interface UserAccount {
@@ -386,25 +386,29 @@ export interface UserAccount {
   is_admin: boolean;
 }
 
+export interface UserRecord {
+  user_id: string;
+  username: string;
+  is_admin: boolean;
+  is_active: boolean;
+  activation_code?: string;
+  _id?: string;
+}
+
+export interface AccountResult {
+  data: UserRecord;
+  message: string;
+}
+
 export interface PasswordToken {
   user_id: string;
   token: string;
 }
 
-export interface SessionUser {
-  user_id: string;
-  username: string;
-  is_admin: boolean;
-  /**
-   * Session opened through the demo login: demo devices, read-only.
-   */
-  is_demo?: boolean;
-}
-
 export interface AuthToken {
   token: string;
   /**
-   * Seconds the token stays valid.
+   * Seconds.
    */
   expiresIn: number;
   secret: string;
@@ -416,11 +420,33 @@ export interface SessionTokens {
   imageToken: AuthToken;
 }
 
-export interface Session {
+export interface SessionUser {
+  user_id: string;
+  username: string;
+  is_admin: boolean;
+  is_demo?: boolean;
+}
+
+export interface LoginResult {
   userToken: AuthToken;
   refreshToken: AuthToken;
   imageToken: AuthToken;
   user: SessionUser;
+}
+
+export interface AutomationSession {
+  userToken: AuthToken;
+}
+
+export interface SignupAccount {
+  user_id: string;
+  username: string;
+  is_active: boolean;
+}
+
+export interface SignupResult {
+  data: SignupAccount;
+  message: string;
 }
 
 export interface RecipeTemplateStep {
@@ -441,6 +467,11 @@ export interface RecipeTemplate {
   createdAt?: number;
   updatedAt?: number;
   steps: RecipeTemplateStep[];
+}
+
+export interface MeasurementPoint {
+  _time: string;
+  _value: number | null;
 }
 
 export interface ChartPreset {

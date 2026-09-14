@@ -759,13 +759,17 @@
       "class": {
         "$ref": "#/components/schemas/DeviceClass"
       },
-      "count": {
+      "online": {
+        "type": "number"
+      },
+      "total": {
         "type": "number"
       }
     },
     "required": [
       "class",
-      "count"
+      "online",
+      "total"
     ]
   },
   "ClaimCode": {
@@ -783,19 +787,27 @@
       "device_id"
     ]
   },
-  "ClaimResult": {
+  "IssuedClaimCode": {
     "type": "object",
     "properties": {
-      "status": {
-        "type": "string"
-      },
-      "device_id": {
+      "claim_code": {
         "type": "string"
       }
     },
     "required": [
-      "status",
-      "device_id"
+      "claim_code"
+    ]
+  },
+  "DeviceRegistration": {
+    "type": "object",
+    "properties": {
+      "fw": {
+        "type": "string",
+        "description": "Firmware id."
+      }
+    },
+    "required": [
+      "fw"
     ]
   },
   "DeviceFirmware": {
@@ -846,27 +858,7 @@
       "version"
     ]
   },
-  "DeviceFirmwareBinary": {
-    "type": "object",
-    "properties": {
-      "firmware_id": {
-        "type": "string"
-      },
-      "name": {
-        "type": "string"
-      },
-      "data": {
-        "type": "string",
-        "contentEncoding": "base64"
-      }
-    },
-    "required": [
-      "firmware_id",
-      "name",
-      "data"
-    ]
-  },
-  "RolloutFirmware": {
+  "FleetFirmware": {
     "type": "object",
     "properties": {
       "firmware_id": {
@@ -898,11 +890,11 @@
       "class_id"
     ]
   },
-  "FirmwareRollout": {
+  "FirmwareFleetStats": {
     "type": "object",
     "properties": {
       "fw": {
-        "$ref": "#/components/schemas/RolloutFirmware"
+        "$ref": "#/components/schemas/FleetFirmware"
       },
       "online": {
         "type": "number"
@@ -911,19 +903,18 @@
         "type": "number"
       },
       "updating": {
-        "type": "number",
-        "description": "Devices whose update to this firmware is still within the upgrade window."
+        "type": "number"
       },
       "failed": {
-        "type": "number",
-        "description": "Devices that were told to update and did not report back in time."
+        "type": "number"
       },
       "avgtime": {
         "type": "number",
-        "description": "Milliseconds an update to this firmware took on average, 0 when none completed."
+        "description": "Milliseconds an update took on average."
       },
       "maxtime": {
-        "type": "number"
+        "type": "number",
+        "description": "Milliseconds the slowest update took."
       }
     },
     "required": [
@@ -936,7 +927,7 @@
       "maxtime"
     ]
   },
-  "DeviceClassRollout": {
+  "DeviceClassFirmwareStats": {
     "type": "object",
     "properties": {
       "class": {
@@ -945,13 +936,48 @@
       "versions": {
         "type": "array",
         "items": {
-          "$ref": "#/components/schemas/FirmwareRollout"
+          "$ref": "#/components/schemas/FirmwareFleetStats"
         }
       }
     },
     "required": [
       "class",
       "versions"
+    ]
+  },
+  "DeviceFirmwareBinary": {
+    "type": "object",
+    "properties": {
+      "firmware_id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "data": {
+        "type": "string",
+        "contentEncoding": "base64"
+      }
+    },
+    "required": [
+      "firmware_id",
+      "name",
+      "data"
+    ]
+  },
+  "UploadedFirmwareBinary": {
+    "type": "object",
+    "properties": {
+      "firmware_id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "firmware_id",
+      "name"
     ]
   },
   "DeviceLog": {
@@ -1037,38 +1063,6 @@
       "time"
     ]
   },
-  "MeasureValue": {
-    "type": "object",
-    "properties": {
-      "value": {
-        "type": [
-          "number",
-          "null"
-        ]
-      }
-    },
-    "required": [
-      "value"
-    ]
-  },
-  "SeriesPoint": {
-    "type": "object",
-    "properties": {
-      "_time": {
-        "type": "string"
-      },
-      "_value": {
-        "type": [
-          "number",
-          "null"
-        ]
-      }
-    },
-    "required": [
-      "_time",
-      "_value"
-    ]
-  },
   "Image": {
     "type": "object",
     "properties": {
@@ -1111,7 +1105,7 @@
       "timestamp"
     ]
   },
-  "ImageUploadResult": {
+  "UploadedImage": {
     "type": "object",
     "properties": {
       "image_id": {
@@ -1165,8 +1159,7 @@
       "password",
       "username",
       "is_admin",
-      "is_active",
-      "activation_code"
+      "is_active"
     ]
   },
   "UserAccount": {
@@ -1188,6 +1181,50 @@
       "is_admin"
     ]
   },
+  "UserRecord": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "string"
+      },
+      "username": {
+        "type": "string"
+      },
+      "is_admin": {
+        "type": "boolean"
+      },
+      "is_active": {
+        "type": "boolean"
+      },
+      "activation_code": {
+        "type": "string"
+      },
+      "_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "user_id",
+      "username",
+      "is_admin",
+      "is_active"
+    ]
+  },
+  "AccountResult": {
+    "type": "object",
+    "properties": {
+      "data": {
+        "$ref": "#/components/schemas/UserRecord"
+      },
+      "message": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "data",
+      "message"
+    ]
+  },
   "PasswordToken": {
     "type": "object",
     "properties": {
@@ -1203,29 +1240,6 @@
       "token"
     ]
   },
-  "SessionUser": {
-    "type": "object",
-    "properties": {
-      "user_id": {
-        "type": "string"
-      },
-      "username": {
-        "type": "string"
-      },
-      "is_admin": {
-        "type": "boolean"
-      },
-      "is_demo": {
-        "description": "Session opened through the demo login: demo devices, read-only.",
-        "type": "boolean"
-      }
-    },
-    "required": [
-      "user_id",
-      "username",
-      "is_admin"
-    ]
-  },
   "AuthToken": {
     "type": "object",
     "properties": {
@@ -1234,7 +1248,7 @@
       },
       "expiresIn": {
         "type": "number",
-        "description": "Seconds the token stays valid."
+        "description": "Seconds."
       },
       "secret": {
         "type": "string"
@@ -1265,7 +1279,29 @@
       "imageToken"
     ]
   },
-  "Session": {
+  "SessionUser": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "string"
+      },
+      "username": {
+        "type": "string"
+      },
+      "is_admin": {
+        "type": "boolean"
+      },
+      "is_demo": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "user_id",
+      "username",
+      "is_admin"
+    ]
+  },
+  "LoginResult": {
     "type": "object",
     "properties": {
       "userToken": {
@@ -1286,6 +1322,51 @@
       "refreshToken",
       "imageToken",
       "user"
+    ]
+  },
+  "AutomationSession": {
+    "type": "object",
+    "properties": {
+      "userToken": {
+        "$ref": "#/components/schemas/AuthToken"
+      }
+    },
+    "required": [
+      "userToken"
+    ]
+  },
+  "SignupAccount": {
+    "type": "object",
+    "properties": {
+      "user_id": {
+        "type": "string"
+      },
+      "username": {
+        "type": "string"
+      },
+      "is_active": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "user_id",
+      "username",
+      "is_active"
+    ]
+  },
+  "SignupResult": {
+    "type": "object",
+    "properties": {
+      "data": {
+        "$ref": "#/components/schemas/SignupAccount"
+      },
+      "message": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "data",
+      "message"
     ]
   },
   "RecipeTemplateStep": {
@@ -1349,6 +1430,25 @@
     "required": [
       "name",
       "steps"
+    ]
+  },
+  "MeasurementPoint": {
+    "type": "object",
+    "properties": {
+      "_time": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "_value": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "_time",
+      "_value"
     ]
   },
   "ChartPreset": {

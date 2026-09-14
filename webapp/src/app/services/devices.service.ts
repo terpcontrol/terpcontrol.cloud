@@ -8,7 +8,7 @@ import type {
   Alarm,
   CloudSettings,
   DeviceAccessInfo,
-  DeviceClassRollout,
+  DeviceClassFirmwareStats,
   DeviceLog,
   Recipe,
   Device,
@@ -37,7 +37,7 @@ export type DevicesLoadState = 'loading' | 'loaded' | 'error';
 export class DeviceAdminService {
 
   private created_devices : DeviceWithParsedSettings[] = [];
-  public device_classes: BehaviorSubject<DeviceClassRollout[]> = new BehaviorSubject<DeviceClassRollout[]>([]);
+  public device_classes: BehaviorSubject<DeviceClassFirmwareStats[]> = new BehaviorSubject<DeviceClassFirmwareStats[]>([]);
 
   constructor(private client: ApiClient, private auth: AuthService) {
     this.auth.current_user.subscribe(async (user) => {

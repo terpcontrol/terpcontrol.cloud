@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ApiShape } from '@common/api-shape';
+import { ApiShape, ApiStatusOk } from '@common/api-shape';
 import { Recipe, RecipeTemplate } from '@fg2/shared-types';
 import { demoRecipe } from '@utils/demo';
 import { AuthGuard } from '../../common/auth/auth.guard';
@@ -30,6 +30,7 @@ export class DeviceRecipeController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @DeviceIdFrom('body', 'error')
   @ApiOperation({ summary: 'Store the plan a device should run' })
+  @ApiStatusOk()
   public async save(@Body(zodBodyAsError(saveRecipeSchema)) body: { device_id: string; recipe?: RecipePayload }) {
     if (body?.recipe === undefined || body?.recipe === null) {
       throw new BadRequestException({ error: 'Missing recipe payload' });
@@ -82,6 +83,7 @@ export class DeviceRecipeController {
   @Delete('recipes/:template_id')
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Delete a plan template' })
+  @ApiStatusOk()
   public async deleteTemplate(@CurrentUser() user: AuthContext, @Param('template_id') templateId: string) {
     await this.recipes.deleteTemplate(user, templateId);
     return { status: 'ok' };

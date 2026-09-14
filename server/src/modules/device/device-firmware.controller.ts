@@ -14,10 +14,10 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiConsumes, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { ApiShape } from '@common/api-shape';
+import { ApiConsumes, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiShape, ApiStatusOk } from '@common/api-shape';
 import { FastifyReply } from 'fastify';
-import { DeviceClass, DeviceFirmware, FirmwareListEntry, UserFirmwareList } from '@fg2/shared-types';
+import { DeviceClass, FirmwareListEntry, UploadedFirmwareBinary, UserFirmwareList } from '@fg2/shared-types';
 import { HttpException } from '@common/http-exception';
 import { DeviceClassService } from './device-class.service';
 import { DeviceFirmwareService } from './device-firmware.service';
@@ -60,8 +60,8 @@ export class DeviceFirmwareController {
   @ApiQuery({ name: 'name', required: true, description: 'The device class the firmware was built for' })
   @ApiQuery({ name: 'version', required: true })
   @ApiOperation({ summary: 'Find a firmware by class and version' })
-  @ApiShape('DeviceFirmware')
-  public async find(@Query('name') name: string, @Query('version') version: string): Promise<DeviceFirmware> {
+  @ApiShape('FirmwareListEntry')
+  public async find(@Query('name') name: string, @Query('version') version: string): Promise<FirmwareListEntry> {
     // Both are required: an absent one is not a wildcard, and answering with
     // whichever build the database returned first is worse than saying no -
     // the id from here is what a rollout pins onto a whole device class.
@@ -93,7 +93,12 @@ export class DeviceFirmwareController {
   @UseGuards(AdminGuard)
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload one of the images that make up a firmware build' })
-  public async upload(@Param('firmware_id') firmwareId: string, @Param('binary') binaryName: string, @Body() body: { binary?: unknown }) {
+  @ApiShape('UploadedFirmwareBinary')
+  public async upload(
+    @Param('firmware_id') firmwareId: string,
+    @Param('binary') binaryName: string,
+    @Body() body: { binary?: unknown },
+  ): Promise<UploadedFirmwareBinary> {
     if (!Buffer.isBuffer(body?.binary)) {
       throw new HttpException(400, 'Binary file is missing or invalid');
     }
@@ -106,6 +111,10 @@ export class DeviceFirmwareController {
   // firmware id is the only thing it has.
   @Get('firmware/:firmware_id/:binary')
   @ApiOperation({ summary: 'Download a firmware image', ...PUBLIC_OPERATION })
+  @ApiOkResponse({
+    description: 'The image, as the OTA client reads it.',
+    content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } },
+  })
   public async download(@Param('firmware_id') firmwareId: string, @Param('binary') binaryName: string, @Res() reply: FastifyReply): Promise<void> {
     await sendFirmwareBinary(reply, await this.firmware.getFirmwareBinary(firmwareId, binaryName));
   }
@@ -127,6 +136,7 @@ export class DeviceFirmwareController {
   @Delete('firmware/:firmware_id')
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Delete a firmware build and its images' })
+  @ApiStatusOk()
   public async remove(@Param('firmware_id') firmwareId: string) {
     await this.firmware.deleteFirmware(firmwareId);
     return { status: 'ok' };
@@ -174,6 +184,7 @@ export class DeviceFirmwareController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Create a device class' })
+  @ApiStatusOk()
   public async createClass(@Body(zodBody(addDeviceClassSchema)) body: AddDeviceClass) {
     await this.classes.createClass(
       body.name,
@@ -191,6 +202,7 @@ export class DeviceFirmwareController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Change a device class, including the firmware each channel points at' })
+  @ApiStatusOk()
   public async updateClass(@Param('class_id') classId: string, @Body(zodBody(addDeviceClassSchema)) body: AddDeviceClass) {
     await this.classes.updateClass(
       classId,

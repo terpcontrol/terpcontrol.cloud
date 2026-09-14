@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { ApiShape } from '@common/api-shape';
+import { ApiShape, ApiStatusOk } from '@common/api-shape';
 import { DeviceLog } from '@fg2/shared-types';
 import { z } from 'zod';
 import { DeviceLogService } from './device-log.service';
@@ -112,6 +112,7 @@ export class DeviceLogController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'Add an entry to the diary' })
+  @ApiStatusOk()
   public async add(@Param('device_id') deviceId: string, @Body(zodBodyAsError(createLogSchema)) body: LogEntry) {
     await this.deviceService.logMessage(deviceId, { ...body, severity: Number(body.severity) });
     return { status: 'ok' };
@@ -120,6 +121,7 @@ export class DeviceLogController {
   @Put(':device_id/:log_id')
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'Edit a diary entry' })
+  @ApiStatusOk()
   public async update(
     @CurrentUser() user: AuthContext,
     @Param('device_id') deviceId: string,
@@ -133,6 +135,7 @@ export class DeviceLogController {
   @Delete(':device_id/:log_id')
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'Delete one diary entry' })
+  @ApiStatusOk()
   public async remove(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string, @Param('log_id') logId: string) {
     await this.logs.deleteDeviceLog(deviceId, user.userId, user.isAdmin, logId);
     return { status: 'ok' };
@@ -143,6 +146,7 @@ export class DeviceLogController {
   @Delete(':device_id')
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Mark the whole diary of one of the caller´s devices as deleted' })
+  @ApiStatusOk()
   public async clear(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string) {
     await this.logs.deleteDeviceLogs(deviceId, user.userId);
     return { status: 'ok' };
