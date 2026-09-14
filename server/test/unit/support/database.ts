@@ -20,8 +20,8 @@ export interface TestDatabase {
   devices: Model<Device & Document>;
   deviceClasses: Model<DeviceClass & Document>;
   deviceFirmwares: Model<DeviceFirmware & Document>;
-  claimCodes: Model<ClaimCode & Document>;
   deviceLogs: Model<DeviceLog & Document>;
+  claimCodes: Model<ClaimCode & Document>;
   images: Model<Image & Document>;
   /** Empty every collection, including the GridFS bucket. */
   reset(): Promise<void>;
@@ -36,8 +36,8 @@ export const startTestDatabase = async (): Promise<TestDatabase> => {
   const devices = connection.model<Device & Document>(MODEL.device, deviceSchema);
   const deviceClasses = connection.model<DeviceClass & Document>(MODEL.deviceClass, deviceClassSchema);
   const deviceFirmwares = connection.model<DeviceFirmware & Document>(MODEL.deviceFirmware, deviceFirmwareSchema);
-  const claimCodes = connection.model<ClaimCode & Document>(MODEL.claimCode, claimCodeSchema);
   const deviceLogs = connection.model<DeviceLog & Document>(MODEL.deviceLog, deviceLogSchema);
+  const claimCodes = connection.model<ClaimCode & Document>(MODEL.claimCode, claimCodeSchema);
   const images = connection.model<Image & Document>(MODEL.image, imagesSchema);
 
   return {
@@ -45,8 +45,8 @@ export const startTestDatabase = async (): Promise<TestDatabase> => {
     devices,
     deviceClasses,
     deviceFirmwares,
-    claimCodes,
     deviceLogs,
+    claimCodes,
     images,
     reset: async () => {
       const collections = await connection.db.collections();

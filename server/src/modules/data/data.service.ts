@@ -1,11 +1,12 @@
-import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { logger } from '@utils/logger';
 import { ConfigType } from '@nestjs/config';
 import { InfluxDB, Point } from '@influxdata/influxdb-client';
 import { HttpException } from '@common/http-exception';
 import { calculateVpd } from '@utils/calculateVpd';
 import { influxConfig } from '../../config/configuration';
-import { DeviceService, StatusMessage } from '../device/device.service';
+import { DeviceSettingsService } from '../device/device-settings.service';
+import { StatusMessage } from '../device/device.types';
 
 export const VALID_SENSORS = ['temperature', 'humidity', 'avg', 'p', 'i', 'd', 'co2', 'rpm', 'day', 'sensor_type', 'leaf_temperature', 'lux'];
 
@@ -67,7 +68,7 @@ export class DataService {
   private readonly influx: InfluxDB;
 
   constructor(
-    @Inject(forwardRef(() => DeviceService)) private readonly devices: DeviceService,
+    private readonly devices: DeviceSettingsService,
     @Inject(influxConfig.KEY) private readonly config: ConfigType<typeof influxConfig>,
   ) {
     this.influx = new InfluxDB({ url: config.url, token: config.token });

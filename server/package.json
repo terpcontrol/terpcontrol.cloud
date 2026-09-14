@@ -16,9 +16,7 @@
     "test:unit": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --config jest.unit.config.js",
     "test:integration": "jest --config jest.integration.config.js",
     "lint": "eslint src/ test/",
-    "lint:fix": "npm run lint -- --fix",
-    "deploy:prod": "npm run build && pm2 start ecosystem.config.js --only prod",
-    "deploy:dev": "pm2 start ecosystem.config.js --only dev"
+    "lint:fix": "npm run lint -- --fix"
   },
   "dependencies": {
     "@fastify/compress": "^9.2.0",
@@ -78,7 +76,6 @@
     "node-config": "^0.0.2",
     "node-gyp": "^8.1.0",
     "nodemon": "^2.0.9",
-    "pm2": "^5.1.0",
     "prettier": "^3.9.6",
     "smtp-server": "^3.19.3",
     "supertest": "^6.2.2",

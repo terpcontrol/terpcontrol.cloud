@@ -5,7 +5,7 @@ import { Document, Model } from 'mongoose';
 import { DeviceAccessInfo, ShareLink } from '@fg2/shared-types';
 import { MODEL } from '../../database/models.module';
 
-import { DeviceService } from '../device/device.service';
+import { DeviceSettingsService } from '../device/device-settings.service';
 import { CreateShare } from './share.schemas';
 
 const MAX_QUERY_LENGTH = 2000;
@@ -18,7 +18,7 @@ const inactiveShareFilter = () => ({ $or: [{ revokedAt: { $ne: null } }, { expir
 export class ShareService {
   constructor(
     @InjectModel(MODEL.share) private readonly shares: Model<ShareLink & Document>,
-    private readonly deviceService: DeviceService,
+    private readonly deviceSettings: DeviceSettingsService,
   ) {}
 
   public list(ownerId: string) {
@@ -90,7 +90,7 @@ export class ShareService {
       throw new NotFoundException({ error: 'Share link not found, expired, or revoked' });
     }
 
-    const accessInfo = await this.deviceService.getSharedDeviceAccessInfo(share);
+    const accessInfo = await this.deviceSettings.getSharedDeviceAccessInfo(share);
     if (!accessInfo) {
       throw new NotFoundException({ error: 'Device not found' });
     }

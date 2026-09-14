@@ -18,6 +18,11 @@ import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ApiShape } from '@common/api-shape';
 import { FastifyReply } from 'fastify';
 import { Alarm, CloudSettings, Device, DeviceListEntry } from '@fg2/shared-types';
+import { DeviceCommandService } from './device-command.service';
+import { DeviceFirmwareRolloutService } from './device-firmware-rollout.service';
+import { DeviceRegistrationService } from './device-registration.service';
+import { DeviceSettingsService } from './device-settings.service';
+import { DeviceClassService } from './device-class.service';
 import { DeviceService } from './device.service';
 import { AdminGuard, AuthGuard } from '../../common/auth/auth.guard';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
@@ -53,7 +58,14 @@ const OK = { status: 'ok' } as const;
 @ApiTags('devices')
 @Controller('device')
 export class DeviceController {
-  constructor(private readonly deviceService: DeviceService) {}
+  constructor(
+    private readonly deviceService: DeviceService,
+    private readonly registration: DeviceRegistrationService,
+    private readonly settings: DeviceSettingsService,
+    private readonly commands: DeviceCommandService,
+    private readonly classes: DeviceClassService,
+    private readonly rollout: DeviceFirmwareRolloutService,
+  ) {}
 
   @Get('all')
   @UseGuards(AdminGuard)
@@ -69,14 +81,14 @@ export class DeviceController {
   @ApiOperation({ summary: 'Create a device record from a device class' })
   @ApiShape('Device')
   public create(@Body(zodBody(addDeviceSchema)) body: AddDevice): Promise<Device> {
-    return this.deviceService.create(body);
+    return this.registration.create(body);
   }
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'What firmware calls on first boot to enrol itself', ...PUBLIC_OPERATION })
   public async register(@Body(zodBody(registerDeviceSchema)) body: RegisterDevice) {
-    const device = await this.deviceService.register(body);
+    const device = await this.registration.register(body);
 
     if (device === false) {
       throw new UnauthorizedException({ status: 'unauthorized' });
@@ -98,7 +110,7 @@ export class DeviceController {
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Claim a device with the code it printed' })
   public async claim(@CurrentUser() user: AuthContext, @Body(zodBody(claimDeviceSchema)) body: ClaimDevice) {
-    const deviceId = await this.deviceService.claimDevice(body.claim_code, user.userId);
+    const deviceId = await this.registration.claimDevice(body.claim_code, user.userId);
 
     if (!deviceId) {
       throw new BadRequestException({ status: 'invalid claim code or device not found' });
@@ -111,7 +123,7 @@ export class DeviceController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Ask a device for a fresh claim code', ...PUBLIC_OPERATION })
   public async claimCode(@Body(zodBody(claimCodeSchema)) body: ClaimCodeRequest) {
-    const code = await this.deviceService.getClaimCode(body.device_id, body.password ?? undefined);
+    const code = await this.registration.getClaimCode(body.device_id, body.password ?? undefined);
 
     if (code === false) {
       throw new UnauthorizedException({ status: 'unauthorized' });
@@ -133,21 +145,21 @@ export class DeviceController {
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'How many devices of each class are online' })
   public online() {
-    return this.deviceService.findOnlineDevices();
+    return this.classes.findOnlineDevices();
   }
 
   @Get('firmwareversions')
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Which firmware versions the fleet is running' })
   public firmwareVersions() {
-    return this.deviceService.getFirmwareVersions();
+    return this.rollout.getFirmwareVersions();
   }
 
   @Get('config/:device_id')
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'The configuration the device is running' })
   public async config(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string, @Res() reply: FastifyReply): Promise<void> {
-    const configuration = await this.deviceService.getDeviceConfig(deviceId, user.userId, user.isAdmin, user.isDemo);
+    const configuration = await this.settings.getDeviceConfig(deviceId, user.userId, user.isAdmin, user.isDemo);
     // The configuration is a JSON document the device owns, stored and handed
     // back as a string. Sending it as a JSON string keeps clients parsing it
     // the way they always have.
@@ -160,7 +172,7 @@ export class DeviceController {
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Send a new configuration to the device' })
   public async configure(@Body(zodBody(configureDeviceSchema)) body: ConfigureDevice) {
-    await this.deviceService.configureDevice(body.device_id, body.configuration);
+    await this.settings.configureDevice(body.device_id, body.configuration);
     return OK;
   }
 
@@ -168,7 +180,7 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'The alarms defined for the device' })
   public alarms(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string) {
-    return this.deviceService.getDeviceAlarms(deviceId, user.userId, user.isAdmin, user.isDemo);
+    return this.settings.getDeviceAlarms(deviceId, user.userId, user.isAdmin, user.isDemo);
   }
 
   @Post('alarms')
@@ -187,7 +199,7 @@ export class DeviceController {
   @UseGuards(DeviceOwnerGuard)
   @ApiOperation({ summary: 'What the cloud knows about the device, and how it is set up' })
   public async cloudSettings(@CurrentUser() user: AuthContext, @Param('device_id') deviceId: string) {
-    const settings = await this.deviceService.getDeviceAccessInfo(deviceId, user.userId, user.isAdmin, user.isDemo);
+    const settings = await this.settings.getDeviceAccessInfo(deviceId, user.userId, user.isAdmin, user.isDemo);
 
     if (!settings) {
       throw new NotFoundException({ status: 'not found' });
@@ -212,7 +224,7 @@ export class DeviceController {
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Rename a device' })
   public async setName(@Body(zodBody(setNameSchema)) body: SetName) {
-    await this.deviceService.setDeviceName(body.device_id, body.name);
+    await this.settings.setDeviceName(body.device_id, body.name);
     return OK;
   }
 
@@ -221,7 +233,7 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'Drive the outputs by hand, to check the wiring' })
   public async testMode(@Param('device_id') deviceId: string, @Body(zodBody(testDeviceSchema)) body: TestDevice) {
-    await this.deviceService.testOutputs(deviceId, body);
+    await this.commands.testOutputs(deviceId, body);
     return OK;
   }
 
@@ -229,7 +241,7 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'Hand the outputs back to the device' })
   public async stopTest(@Param('device_id') deviceId: string) {
-    await this.deviceService.stopTest(deviceId);
+    await this.commands.stopTest(deviceId);
     return OK;
   }
 
@@ -249,7 +261,7 @@ export class DeviceController {
   @DeviceIdFrom('body')
   @ApiOperation({ summary: 'Restart the device' })
   public async reboot(@Body() body: { device_id: string }) {
-    await this.deviceService.rebootDevice(body.device_id);
+    await this.commands.rebootDevice(body.device_id);
     return OK;
   }
 
@@ -261,7 +273,7 @@ export class DeviceController {
   public async auxCommand(
     @Body() body: { device_id: string; action: string; role: string; ip?: string; user?: string; password?: string; slot?: number; append?: boolean },
   ) {
-    await this.deviceService.sendAuxDeviceCommand(body.device_id, body.action, body.role, {
+    await this.commands.sendAuxDeviceCommand(body.device_id, body.action, body.role, {
       ip: body.ip,
       user: body.user,
       password: body.password,
@@ -277,7 +289,7 @@ export class DeviceController {
   @UseGuards(AuthGuard, DeviceOwnerGuard)
   @ApiOperation({ summary: 'Release a device, so somebody else can claim it' })
   public async unclaim(@Param('device_id') deviceId: string) {
-    await this.deviceService.unClaimDevice(deviceId);
+    await this.registration.unClaimDevice(deviceId);
     return OK;
   }
 }

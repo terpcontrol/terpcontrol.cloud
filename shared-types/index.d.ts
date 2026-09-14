@@ -310,10 +310,6 @@ export interface Image {
   timestamp: number;
   timestampEnd?: number;
   /**
-   * Only on pictures written before the payload moved to the image store.
-   */
-  data?: Buffer;
-  /**
    * Bytes of the stored picture.
    */
   size?: number;
