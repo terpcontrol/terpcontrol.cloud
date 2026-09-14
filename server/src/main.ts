@@ -23,7 +23,7 @@ const FLUSH_BEFORE_EXIT_MS = 1000;
  * paths catches its own failures; anything that gets here is a bug, and it
  * leaves the server in a state nothing has reasoned about: a half-updated map,
  * a subscription that is no longer running. Serving on is worse than the few
- * seconds a restart costs, and both pm2 and the container are set to restart.
+ * seconds a restart costs, and the container is set to restart.
  *
  * Registering a handler at all is what stops node ending the process itself, so
  * ending it is this handler's job.
