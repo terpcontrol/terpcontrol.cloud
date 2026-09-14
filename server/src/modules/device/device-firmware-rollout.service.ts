@@ -1,7 +1,7 @@
 import { Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Document, Model } from 'mongoose';
-import { Device, DeviceClass, DeviceFirmware, FirmwareChannel } from '@fg2/shared-types';
+import { Device, DeviceClass, DeviceClassFirmwareStats, DeviceFirmware, FirmwareChannel } from '@fg2/shared-types';
 import { logger } from '@utils/logger';
 import { BackgroundWork, logIfItFails } from '../../common/background-work';
 import { MODEL } from '../../database/models.module';
@@ -240,7 +240,7 @@ export class DeviceFirmwareRolloutService implements OnModuleInit, OnApplication
     }
   }
 
-  public async getFirmwareVersions(): Promise<any> {
+  public async getFirmwareVersions(): Promise<DeviceClassFirmwareStats[]> {
     const classes: DeviceClass[] = await this.deviceClasses.find({});
 
     const upgradetimes = await this.devices.aggregate([
