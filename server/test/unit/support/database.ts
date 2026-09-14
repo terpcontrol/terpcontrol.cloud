@@ -1,7 +1,9 @@
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose, { Connection, Document, Model } from 'mongoose';
-import { Device, DeviceLog, Image } from '@fg2/shared-types';
+import { ClaimCode, Device, DeviceClass, DeviceLog, Image } from '@fg2/shared-types';
+import { claimCodeSchema } from '@database/schemas/claimcode.schema';
 import { deviceSchema } from '@database/schemas/device.schema';
+import { deviceClassSchema } from '@database/schemas/deviceclass.schema';
 import { deviceLogSchema } from '@database/schemas/devicelog.schema';
 import { imagesSchema } from '@database/schemas/images.schema';
 import { MODEL } from '@database/models';
@@ -15,7 +17,9 @@ import { MODEL } from '@database/models';
 export interface TestDatabase {
   connection: Connection;
   devices: Model<Device & Document>;
+  deviceClasses: Model<DeviceClass & Document>;
   deviceLogs: Model<DeviceLog & Document>;
+  claimCodes: Model<ClaimCode & Document>;
   images: Model<Image & Document>;
   /** Empty every collection, including the GridFS bucket. */
   reset(): Promise<void>;
@@ -28,13 +32,17 @@ export const startTestDatabase = async (): Promise<TestDatabase> => {
   await connection.asPromise();
 
   const devices = connection.model<Device & Document>(MODEL.device, deviceSchema);
+  const deviceClasses = connection.model<DeviceClass & Document>(MODEL.deviceClass, deviceClassSchema);
   const deviceLogs = connection.model<DeviceLog & Document>(MODEL.deviceLog, deviceLogSchema);
+  const claimCodes = connection.model<ClaimCode & Document>(MODEL.claimCode, claimCodeSchema);
   const images = connection.model<Image & Document>(MODEL.image, imagesSchema);
 
   return {
     connection,
     devices,
+    deviceClasses,
     deviceLogs,
+    claimCodes,
     images,
     reset: async () => {
       const collections = await connection.db.collections();
