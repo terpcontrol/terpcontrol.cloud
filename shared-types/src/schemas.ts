@@ -31,7 +31,7 @@ const wireDate = () => z.date().meta({ type: 'string', format: 'date-time', tsTy
 /** Deliberately unconstrained. `z.any()` alone would generate `unknown`. */
 const anyValue = () => z.any().meta({ tsType: 'any' });
 
-/** Raw bytes. Only legacy rows and firmware images carry them. */
+/** Raw bytes. Only a firmware image carries them. */
 const wireBytes = () => z.custom<Buffer>().meta({ type: 'string', contentEncoding: 'base64', tsType: 'Buffer' });
 
 export const alarm = named(
@@ -374,7 +374,6 @@ export const image = named(
     device_id: z.string(),
     timestamp: z.number(),
     timestampEnd: z.number().optional(),
-    data: wireBytes().optional().describe('Only on pictures written before the payload moved to the image store.'),
     size: z.number().optional().describe('Bytes of the stored picture.'),
     format: z.enum(['jpeg', 'mp4', 'user/jpeg']).optional(),
     duration: z.enum(['1d', '1w', '1m']).optional(),

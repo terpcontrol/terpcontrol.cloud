@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { execFile } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'path';
-import { mkdtemp, rmdir, unlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, rmdir, unlink } from 'node:fs/promises';
 import { Document, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import { Device, Image } from '@fg2/shared-types';
@@ -142,9 +142,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
             },
           })
           .sort({ timestamp: -1 })
-          // `size` says where the bytes are without dragging them along: a
-          // picture written before the move to the image store has none.
-          .select({ image_id: 1, timestamp: 1, size: 1 })
+          .select({ image_id: 1, timestamp: 1 })
           .limit(limit);
 
       const newestImage = (await getImages(endTimestamp, 1))?.[0];
@@ -249,7 +247,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
    */
   private async compressRtspStreamImages(
     device: Device,
-    images: Pick<Image, 'image_id' | 'timestamp' | 'size'>[],
+    images: Pick<Image, 'image_id' | 'timestamp'>[],
     store: (videoPath: string) => Promise<void>,
   ): Promise<boolean> {
     const filesWritten = [];
@@ -295,19 +293,9 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
     return false;
   }
 
-  /** One stored frame on disk, from wherever its bytes are kept. */
-  private async copyImageToFile(image: Pick<Image, 'image_id' | 'size'>, path: string): Promise<void> {
-    if (image.size === undefined) {
-      // No size means the picture predates the image store and carries its bytes
-      // in the document. Only then is it worth a second query to fetch them.
-      const legacy = await this.images.findOne({ image_id: image.image_id }).select({ data: 1 });
-      if (legacy?.data) {
-        await writeFile(path, legacy.data);
-        return;
-      }
-    }
-
-    await this.store.copyToFile(image.image_id, path);
+  /** One stored frame on disk. */
+  private copyImageToFile(image: Pick<Image, 'image_id'>, path: string): Promise<void> {
+    return this.store.copyToFile(image.image_id, path);
   }
 
   /** Encodes the frames in `filesDir` into `result.mp4` beside them. */

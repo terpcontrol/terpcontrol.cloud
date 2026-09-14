@@ -6,6 +6,7 @@ import { TunnelModule } from '../tunnel/tunnel.module';
 import { ImagePresentationService } from './image-presentation.service';
 import { ImageController } from './image.controller';
 import { ImageService } from './image.service';
+import { LegacyImageDataMigration } from './legacy-image-data.migration';
 import { TimelapseService } from './timelapse.service';
 import { WebcamPollerService } from './webcam-poller.service';
 
@@ -16,7 +17,7 @@ import { WebcamPollerService } from './webcam-poller.service';
 @Module({
   imports: [ModelsModule, TunnelModule, CameraModule, DeviceLogModule],
   controllers: [ImageController],
-  providers: [ImageService, ImagePresentationService, TimelapseService, WebcamPollerService],
+  providers: [ImageService, ImagePresentationService, LegacyImageDataMigration, TimelapseService, WebcamPollerService],
   exports: [ImageService, WebcamPollerService],
 })
 export class ImageModule {}

@@ -64,9 +64,9 @@ export class ImageService {
     );
   }
 
-  /** The bytes of a picture, wherever they are kept. */
+  /** The bytes of a picture. */
   public async readImageData(image: Image): Promise<Buffer> {
-    return image.data ?? this.store.download(image.image_id);
+    return this.store.download(image.image_id);
   }
 
   /**
@@ -75,16 +75,12 @@ export class ImageService {
    * of megabytes, so serving one never holds the whole file in memory.
    */
   public readImageStream(image: Image, range?: { start: number; end: number }): Readable {
-    if (image.data) {
-      return Readable.from(range ? image.data.subarray(range.start, range.end + 1) : image.data);
-    }
-
     return this.store.read(image.image_id, range);
   }
 
   /** How large the picture is, for Content-Length and for resolving a Range. */
   public imageSize(image: Image): number | undefined {
-    return image.data ? image.data.length : image.size;
+    return image.size;
   }
 
   // Draws a caption box over a still, in the style of the webapp's device offline
