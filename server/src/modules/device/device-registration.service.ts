@@ -208,7 +208,11 @@ export class DeviceRegistrationService {
 
   public async claimDevice(claim_code: string, user_id: string): Promise<string | null> {
     const dev = await this.claimCodes.findOne({ claim_code: claim_code });
-    if (dev) {
+    // The device has to be named: mongoose reads an undefined value in a filter
+    // as a match on null, so a code carrying no device id went looking for a
+    // device that has none either - and answered `undefined` where the callers
+    // of this are told to expect `null`.
+    if (dev?.device_id) {
       logger.info('Claiming device ' + dev.device_id + ' for user ' + user_id);
       // Awaited, or the query is never sent and the code stays claimable.
       await this.claimCodes.deleteOne({ claim_code: claim_code });

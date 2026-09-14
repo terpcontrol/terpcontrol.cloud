@@ -180,7 +180,7 @@ export class DeviceMessageService implements OnModuleInit, OnApplicationShutdown
       }
     } catch {}
 
-    if (device.configuration != '') {
+    if (device.configuration) {
       this.mqtt.publish('/devices/' + device.device_id + '/configuration', device.configuration);
     }
   }

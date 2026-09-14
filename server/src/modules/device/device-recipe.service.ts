@@ -89,7 +89,12 @@ export class DeviceRecipeService implements OnModuleInit, OnApplicationShutdown 
     let emailBody = null;
 
     const elapsedMs = now - device.recipe.activeSince;
-    const stepDurationMs = activeStep.duration * 60 * 1000 * (STEP_DURATION_UNIT_MINUTES[activeStep.durationUnit] ?? 1);
+    // A step the app stored without a duration has no length to measure, so it
+    // stays the active one until it is moved on by hand. Multiplying the missing
+    // value instead made every comparison below NaN, which reads as "not elapsed
+    // yet" and stalls the plan just as silently.
+    const stepDurationMs =
+      activeStep.duration === undefined ? Infinity : activeStep.duration * 60 * 1000 * (STEP_DURATION_UNIT_MINUTES[activeStep.durationUnit] ?? 1);
     const remainingMs = stepDurationMs - elapsedMs;
     if (remainingMs <= 0) {
       if (activeStep.waitForConfirmation) {
@@ -204,7 +209,7 @@ export class DeviceRecipeService implements OnModuleInit, OnApplicationShutdown 
     const applyStep =
       !!activeStep &&
       (!activeStep.lastTimeApplied || activeStep.lastTimeApplied < now - STEP_REAPPLY_INTERVAL_MS) &&
-      device.lastseen >= now - STEP_APPLY_LASTSEEN_MS;
+      (device.lastseen ?? 0) >= now - STEP_APPLY_LASTSEEN_MS;
     if (applyStep) {
       // Its own catch: sending the step can fail, and the advance it belongs
       // to has already been stored - so the mail below, which is only ever

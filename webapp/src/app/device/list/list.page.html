@@ -83,7 +83,7 @@
       <fridge-overview
         [device_id]="device.device_id"
         [device_name]="device.name || ''"
-        [device_type]="device.device_type"
+        [device_type]="device.device_type ?? ''"
         [maintenance_mode_until]="device.maintenance_mode_until ?? 0"
         [lastseen]="device.lastseen"
         [cloud_settings]="device.cloudSettings"
@@ -94,7 +94,7 @@
       <fridge-overview
         [device_id]="device.device_id"
         [device_name]="device.name || ''"
-        [device_type]="device.device_type"
+        [device_type]="device.device_type ?? ''"
         [maintenance_mode_until]="device.maintenance_mode_until ?? 0"
         [lastseen]="device.lastseen"
         [cloud_settings]="device.cloudSettings"
@@ -105,7 +105,7 @@
       <fridge-overview
         [device_id]="device.device_id"
         [device_name]="device.name || ''"
-        [device_type]="device.device_type"
+        [device_type]="device.device_type ?? ''"
         [maintenance_mode_until]="device.maintenance_mode_until ?? 0"
         [lastseen]="device.lastseen"
         [cloud_settings]="device.cloudSettings"
