@@ -169,8 +169,8 @@ static const std::array<std::string, 2> SMART_SOCKET_SSID_PREFIXES = {
 // provisionSmartSocket: join the AP, drive set_wifi.cgi to move it onto the home
 // network, and remember its P2P device id (DID). Once on the home wifi the camera
 // firewalls down to the proprietary P2P transport, so we key on the DID (not a
-// LAN IP or RTSP url) — the server pulls stills over P2P. See
-// docs/terpcam-reverse-engineering.md.
+// LAN IP or RTSP url) — the server pulls stills over P2P. The protocol notes
+// are kept internally.
 static const std::string TERP_CAM_SSID_PREFIX = "terpcam-";      // legacy placeholder
 static const std::string TERP_CAM_AP_PREFIX = "@IPC-";           // real VStarcam setup AP
 static const char* TERP_CAM_AP_BASE = "http://192.168.168.1:81"; // CGI server in AP mode
