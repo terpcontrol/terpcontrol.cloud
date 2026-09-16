@@ -868,6 +868,8 @@
   "message-smart-socket-connected-text": "Eine Smart-Steckdose wurde für die Rolle «{{value}}» verbunden.",
   "message-smart-socket-disconnected-title": "Smart-Steckdose getrennt",
   "message-smart-socket-disconnected-text": "Die Smart-Steckdosen-Zuordnung für die Rolle «{{value}}» wurde entfernt.",
+  "message-smart-socket-address-lost-title": "Adresse der Smart-Steckdose verloren",
+  "message-smart-socket-address-lost-text": "Die Smart-Steckdose für die Rolle «{{value}}» ist nicht mehr unter ihrer gespeicherten Adresse erreichbar — dort antwortet eine andere Steckdose. Sie wird im Netzwerk gesucht; trage die Adresse neu ein, falls sie nicht wieder auftaucht.",
   "simpleSettings": {
     "modeSimple": "Einfach",
     "modeExpert": "Experte",

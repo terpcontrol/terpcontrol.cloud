@@ -872,6 +872,8 @@
   "message-smart-socket-connected-text": "A smart socket was connected for role: {{value}}",
   "message-smart-socket-disconnected-title": "Smart socket disconnected",
   "message-smart-socket-disconnected-text": "The smart socket assignment was removed for role: {{value}}",
+  "message-smart-socket-address-lost-title": "Smart socket address lost",
+  "message-smart-socket-address-lost-text": "The smart socket for role {{value}} is not at its stored address any more — another socket answers there. It is looked for on the network; enter its address again if it does not come back.",
   "simpleSettings": {
     "modeSimple": "Simple",
     "modeExpert": "Expert",

@@ -46,8 +46,9 @@ static constexpr TickType_t SMART_SOCKET_SEARCH_COOLDOWN = configTICK_RATE_HZ * 
 static constexpr TickType_t SMART_SOCKET_TICK_BUDGET = configTICK_RATE_HZ * 2;
 // Same idea for the pre-update flush, which runs in one go rather than per tick.
 static constexpr TickType_t SMART_SOCKET_FLUSH_BUDGET = configTICK_RATE_HZ * 20;
-// Sockets paired before this firmware carry no hardware id. Ask a reachable one
-// for it now and then so it too can be found again after a DHCP change.
+// How often a reachable socket is asked for its hardware id: often enough that a
+// row pointing at the wrong socket is noticed within minutes, rare enough next
+// to the resend period to cost nothing worth measuring.
 static constexpr TickType_t SMART_SOCKET_ID_PROBE_INTERVAL = configTICK_RATE_HZ * 600;
 // A log message is serialised into a fixed 384 byte buffer, so every reported
 // value has to stay well inside that. An address may be a 64 character
@@ -289,6 +290,9 @@ static fg::UserInterface* ui_handle = nullptr;
 // when a new one is entered, so only the part that differs has to be typed.
 static const char* DEFAULT_API_URL = "#API_URL_EXTERNAL#";
 
+// Where a smart socket answers while it serves its pairing access point.
+static const char* SMART_SOCKET_AP_IP = "192.168.4.1";
+
 // Set while the server form is served over the home network. The form is
 // answered from an HTTP handler, which does not have the cloud at hand.
 static fg::Fridgecloud* server_config_cloud = nullptr;
@@ -312,6 +316,8 @@ static void syncSmartSockets();
 static void tickAuxDeviceSearch();
 static std::vector<std::string> socketAuthQueries();
 static bool applyDiscoveredSocketHost(const fg::LanScan::Host& host);
+static SmartSocket* findSocketById(const std::string& id, const SmartSocket* except);
+static bool releaseStaleSocketAddress(const std::string& ip, const SmartSocket* owner);
 static void finishSocketSearch(unsigned matched);
 static std::string smartSocketLabel(size_t index);
 
@@ -447,15 +453,62 @@ void wifiForceAllSmartSocketsOff() {
   esp_task_wdt_reset();
 }
 
-// Learns a socket's hardware id from the socket itself. Anything paired before
-// this firmware, and anything added by address from the cloud, starts without
-// one — and without an id a socket cannot be found again once its address
-// changes, so it is worth an occasional extra request.
-static void ensureSocketId(SmartSocket& socket) {
-  const TickType_t now = xTaskGetTickCount();
-  if(!socket.id.empty()) {
-    return;
+// The table holds one row per physical socket, so a hardware id belongs to at
+// most one of them.
+static SmartSocket* findSocketById(const std::string& id, const SmartSocket* except) {
+  if(id.empty()) {
+    return nullptr;
   }
+  for(auto& socket : smart_sockets) {
+    if(&socket != except && socket.id == id) {
+      return &socket;
+    }
+  }
+  return nullptr;
+}
+
+// An address belongs to one socket at a time. When a row is shown to sit at an
+// address, every other row still storing it has a stale one — a socket was
+// re-paired, or DHCP handed its lease to somebody else — and keeping it would
+// switch, and eventually adopt the identity of, a socket that is not its own.
+// The row loses the address instead: with a hardware id the network search
+// finds its socket again, and without one the empty address is what tells the
+// user it has to be entered anew.
+static bool releaseStaleSocketAddress(const std::string& ip, const SmartSocket* owner) {
+  if(ip.empty()) {
+    return false;
+  }
+
+  bool released = false;
+  for(auto& socket : smart_sockets) {
+    if(&socket == owner || socket.ip != ip) {
+      continue;
+    }
+    Serial.printf("[smart-socket] %s is not at %s any more\n", socket.role.c_str(), ip.c_str());
+    socket.ip.clear();
+    socket.initialized = false;
+    socket.disabled_until_tick = 0;
+    socket.failures_since_seen = SMART_SOCKET_FAILURES_BEFORE_SEARCH;
+    released = true;
+    if(smart_socket_cloud_handle != nullptr) {
+      smart_socket_cloud_handle->log(std::string("message-smart-socket-address-lost:") + socket.role, 1);
+    }
+  }
+  return released;
+}
+
+// Asks the socket at a row's address who it is: an occasional extra request,
+// on a row that has just been commanded successfully.
+//
+// It learns the hardware id of anything paired before this firmware or added by
+// address from the cloud, which starts without one — and without an id a socket
+// cannot be found again once its address changes. It also keeps checking a row
+// that has one, because a command succeeding says nothing about who answered
+// it: addresses move (DHCP, a socket re-paired after a factory reset), and a
+// row pointing at the wrong one would keep switching, and eventually take the
+// identity of, a socket that belongs to another row.
+static void verifySocketIdentity(SmartSocket& socket) {
+  const TickType_t now = xTaskGetTickCount();
   if(socket.id_probed && (now - socket.id_probe_tick) < SMART_SOCKET_ID_PROBE_INTERVAL) {
     return;
   }
@@ -463,9 +516,30 @@ static void ensureSocketId(SmartSocket& socket) {
   socket.id_probe_tick = now;
 
   const std::string id = readSocketId(socket.ip, socketAuthQuery(socket));
-  if(id.empty()) {
+  if(id.empty() || id == socket.id) {
     return;
   }
+
+  // Either this row knows its socket and something else answers its address, or
+  // it knows none and what answers is a socket another row already stands for.
+  // Both mean the address is not this row's; the id is what it is found by, so
+  // the address is what goes.
+  if(!socket.id.empty() || findSocketById(id, &socket) != nullptr) {
+    Serial.printf("[smart-socket] %s at %s answers as %s\n",
+                  socket.role.c_str(), socket.ip.c_str(), id.c_str());
+    socket.ip.clear();
+    socket.initialized = false;
+    // Nothing is going to fail its way up to a search: the row has no address
+    // left to fail a command on.
+    socket.failures_since_seen = SMART_SOCKET_FAILURES_BEFORE_SEARCH;
+    if(smart_socket_cloud_handle != nullptr) {
+      smart_socket_cloud_handle->log(std::string("message-smart-socket-address-lost:") + socket.role, 1);
+    }
+    persistSmartSockets();
+    reportSocketsHardwareInfo();
+    return;
+  }
+
   socket.id = id;
   persistSmartSockets();
   reportSocketsHardwareInfo();
@@ -499,7 +573,7 @@ static void syncSmartSocket(SmartSocket& socket, bool target_on) {
   if(ok) {
     socket.consecutive_failures = 0;
     socket.failures_since_seen = 0;
-    ensureSocketId(socket);
+    verifySocketIdentity(socket);
   }
   else {
     if(socket.consecutive_failures < 255) {
@@ -2226,7 +2300,11 @@ static void ensureSmartSocketsLoaded() {
     socket.ip = record["a"] | "";
     socket.user = record["u"] | "";
     socket.password = record["p"] | "";
-    if(socket.ip.empty() || !isKnownSocketRole(socket.role)) {
+    // A row that has lost its address keeps its place as long as it knows its
+    // hardware id: that is what the network search finds it by, and dropping it
+    // here would turn a socket that only moved into one that has to be paired
+    // again.
+    if((socket.ip.empty() && socket.id.empty()) || !isKnownSocketRole(socket.role)) {
       continue;
     }
     smart_sockets.push_back(socket);
@@ -2257,6 +2335,9 @@ static bool applyDiscoveredSocketHost(const fg::LanScan::Host& host) {
       // Re-assert the target on the new address rather than waiting out the
       // resend period.
       socket.initialized = false;
+      // Whoever else still stores this address is not there: the socket that
+      // answers it has just been identified as this one.
+      releaseStaleSocketAddress(host.ip, &socket);
     }
 
     socket.failures_since_seen = 0;
@@ -2402,7 +2483,9 @@ static std::string connectedSocketIpsCsv() {
   std::string csv;
   for(const auto& role : roles) {
     for(const auto& socket : smart_sockets) {
-      if(role == "back" || socket.role != role) {
+      // A role whose socket is being looked for again has no address to name;
+      // the full table below still reports the socket itself.
+      if(role == "back" || socket.role != role || socket.ip.empty()) {
         continue;
       }
       const std::string entry = role + "@" + socket.ip;
@@ -2589,6 +2672,19 @@ bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const st
     }
   }
 
+  // An address the table already holds names a socket it already has, so the
+  // command configures that row instead of adding a second one for the same
+  // socket — a duplicate would report the same hardware id and address twice
+  // and switch its socket from two rows at once.
+  if(target == nullptr) {
+    for(auto& candidate : smart_sockets) {
+      if(candidate.ip == clean_ip) {
+        target = &candidate;
+        break;
+      }
+    }
+  }
+
   if(target == nullptr) {
     if(!canStoreAnotherSocket()) {
       return false;
@@ -2619,6 +2715,7 @@ bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const st
   target->consecutive_failures = 0;
   target->failures_since_seen = 0;
   target->disabled_until_tick = 0;
+  releaseStaleSocketAddress(clean_ip, target);
 
   persistSmartSockets();
 
@@ -2781,7 +2878,7 @@ bool provisionSmartSocket(const std::string& socket_role, const std::string& hom
   emit_status("config socket...");
   delayWithWatchdog(2000);
   const uint16_t pulse_value = socketRolePulseTimeValue(socket_role);
-  std::string config_url = "http://192.168.4.1/cm?cmnd=Backlog%20"
+  std::string config_url = std::string("http://") + SMART_SOCKET_AP_IP + "/cm?cmnd=Backlog%20"
                          + urlEncode("DeviceName " + socket_name + "; ")
                          + urlEncode("Hostname " + socket_name + "; ")
                          + urlEncode("PowerOnState 0; ")
@@ -2802,14 +2899,14 @@ bool provisionSmartSocket(const std::string& socket_role, const std::string& hom
   delayWithWatchdog(8000);
 
   std::string ip_response;
-  std::string ip_url = "http://192.168.4.1/cm?" + auth_query + "cmnd=IPAddress1";
+  std::string ip_url = std::string("http://") + SMART_SOCKET_AP_IP + "/cm?" + auth_query + "cmnd=IPAddress1";
   bool ip_command_ok = httpGet(ip_url.c_str(), &ip_response);
 
   // Read the hardware id while the socket's own AP still answers: from here on
   // it is what identifies the socket if its address ever changes.
-  const std::string socket_id = readSocketId("192.168.4.1", auth_query);
+  const std::string socket_id = readSocketId(SMART_SOCKET_AP_IP, auth_query);
 
-  std::string ap_url = "http://192.168.4.1/cm?" + auth_query + "cmnd=Ap%202";
+  std::string ap_url = std::string("http://") + SMART_SOCKET_AP_IP + "/cm?" + auth_query + "cmnd=Ap%202";
   bool ap_command_ok = httpGet(ap_url.c_str());
 
   if(!reconnect_home()) {
@@ -2817,7 +2914,10 @@ bool provisionSmartSocket(const std::string& socket_role, const std::string& hom
     return false;
   }
 
-  if(!ip_command_ok || !parseSmartSocketIp(ip_response, socket_ip)) {
+  // A socket that has not joined the home network yet answers with the address
+  // of its own access point, which is where every socket in pairing mode sits.
+  // Storing it would point the row at whatever else the module can reach there.
+  if(!ip_command_ok || !parseSmartSocketIp(ip_response, socket_ip) || socket_ip == SMART_SOCKET_AP_IP) {
     error_message = "ip lookup fail";
     return false;
   }
@@ -2827,12 +2927,46 @@ bool provisionSmartSocket(const std::string& socket_role, const std::string& hom
     delayWithWatchdog(2000);
   }
 
-  SmartSocket socket;
-  socket.role = socket_role;
-  socket.ip = socket_ip;
-  socket.id = socket_id;
-  socket.id_probed = !socket_id.empty();
-  smart_sockets.push_back(socket);
+  // A socket that is already in the table is the same hardware coming back:
+  // added by address from the cloud before, or paired again after a factory
+  // reset. Its row is updated rather than a second one added — two rows for one
+  // socket report the same hardware id and address, and the older row still
+  // carries the credentials this pairing has just replaced, so it would fail
+  // every command from here on.
+  SmartSocket* target = findSocketById(socket_id, nullptr);
+  if(target == nullptr) {
+    for(auto& candidate : smart_sockets) {
+      // A row that knows a different socket's id is at a stale address and is
+      // left to the release below; one that knows none, or none of its own
+      // because this pairing could not read it, describes what sits here.
+      if((candidate.id.empty() || socket_id.empty()) && candidate.ip == socket_ip) {
+        target = &candidate;
+        break;
+      }
+    }
+  }
+  if(target == nullptr) {
+    smart_sockets.push_back(SmartSocket());
+    target = &smart_sockets.back();
+  }
+
+  target->role = socket_role;
+  target->ip = socket_ip;
+  // A factory reset does not change a MAC, so an id the row already carries
+  // still describes this socket — a pairing that could not read one keeps it.
+  if(!socket_id.empty()) {
+    target->id = socket_id;
+  }
+  target->id_probed = !target->id.empty();
+  // Pairing sets the socket's web password to the module's own, so credentials
+  // entered for it by hand no longer open it.
+  target->user.clear();
+  target->password.clear();
+  target->initialized = false;
+  target->consecutive_failures = 0;
+  target->failures_since_seen = 0;
+  target->disabled_until_tick = 0;
+  releaseStaleSocketAddress(socket_ip, target);
   persistSmartSockets();
 
   if(smart_socket_cloud_handle != nullptr) {
