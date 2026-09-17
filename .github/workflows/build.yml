@@ -120,6 +120,13 @@ jobs:
           cache-dependency-path: server/package-lock.json
       # The integration suite shells out to these the way the container does.
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends imagemagick ffmpeg
+      # The shared package is linked with `file:`, and node - the compiler as
+      # much as the runtime - resolves a linked package's own imports from the
+      # package, never from whoever linked it. Its schemas import zod, so
+      # without this the types behind them resolve to `any` and the server
+      # compiles against a contract that says nothing. The image installs them
+      # for the same reason (server/Dockerfile).
+      - run: npm --prefix shared-types ci --omit=dev
       - run: |
           cd server/
           npm ci
