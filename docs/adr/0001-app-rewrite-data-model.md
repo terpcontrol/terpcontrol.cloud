@@ -1,7 +1,8 @@
 # ADR 0001: Data model and API for the app rewrite
 
-- **Status:** proposed (revision 3), awaiting sign-off of the model, the API and the migration. Nothing of the
-  new app is built before that is agreed.
+- **Status:** accepted on 2026-09-17 (revision 3). The model, the API, the frozen device protocol, the
+  migration, the single firmware change and the order of delivery are agreed; the questions left open at the
+  end each carry the assumption the work proceeds on.
 - **Date:** 2026-09-17
 - **Touches:** `server/`, `shared-types/`, `firmware/` (smart sockets only), `scripts/simulate-device.mjs`,
   `fw-buildcontainer/`, `garmin/`
@@ -316,8 +317,10 @@ removed together with the Angular app.
   queued`, which the hourly builder drains first.
 - **Entitlement** (`PREMIUM_ENFORCED`; unset gates nothing, which is what a self-hosted install gets) is
   enforced in the image pipeline only: free cameras are **served** at a reduced width while full stills stay
-  stored, so extending restores history; free retention is shorter; HD and whole-grow renders need entitlement
-  and free renders carry a watermark. The reduced width and the free retention windows are **configuration,
+  stored, so extending restores history; HD and whole-grow renders need entitlement and free renders carry a
+  watermark. **Deleting a free camera's older stills is a switch of its own and is off by default**, so an
+  install that says nothing keeps every picture exactly as long as it does today and only the served resolution
+  and the renders depend on entitlement; turning it on applies the free windows. The reduced width and the free retention windows are **configuration,
   not constants**: this repository carries the mechanism and the hosted install its numbers. Nothing renews on
   its own; the admin route is the only writer. A camera answers `entitlement { validUntil, grant, tier,
   renewalVisible }`, and `/me` carries `premium { enforced, extendUrl, priceLabel }` from configuration, so the
@@ -494,7 +497,8 @@ before the first screen can show a live value.
    `socket_roles`, so a firmware that omits a role never offers it.
 8. **The standalone Terp Cam flow is unproven end to end** and therefore ships as "coming soon" rather than
    as a tab that fails on a stranger's camera.
-9. **Retention deletes pictures** where today everything is kept for three years.
+9. **Retention can delete pictures** where today everything is kept for three years. It is off unless an
+   install turns it on, so the risk is taken deliberately rather than by upgrading.
 10. **Two new outward-facing surfaces**, Web Push and the Telegram webhook, both off until configured.
 
 ## Alternatives considered
@@ -522,25 +526,21 @@ sections above, not here.
 1. **Does a Terp Cam's entitlement cover another camera in the same tent?** Assumed no: entitlement sits on the
    camera, as the record decides, so an RTSP camera beside an entitled Terp Cam is not entitled by it. Reading
    it per controller instead is one lookup in the tier function and changes nothing else.
-2. **Stills when an entitlement lapses.** Assumed the free window then applies to everything the camera ever
-   took; the gentler reading keeps what was captured while entitled and applies the window only to later
-   stills. Nothing lapses before a year after the migration, so this can stay open for a while; the two
-   readings are one setting apart.
-3. **Free-tier limits as configuration.** Assumed the served width and the free retention windows stay out of
+2. **Free-tier limits as configuration.** Assumed the served width and the free retention windows stay out of
    this public repository and live in the hosted install's configuration.
-4. **Control laws for the new socket roles.** Assumed as listed under "Firmware delta".
-5. **The light row on the Devices tab.** Assumed its switch overrides the controller's own light output.
-6. **A human phase action on a tent with a running plan.** Assumed skip when the plan's next step carries the
+3. **Control laws for the new socket roles.** Assumed as listed under "Firmware delta".
+4. **The light row on the Devices tab.** Assumed its switch overrides the controller's own light output.
+5. **A human phase action on a tent with a running plan.** Assumed skip when the plan's next step carries the
    stage, pause otherwise, and the sheet says which before the tap.
-7. **Notification channels.** Assumed Web Push, a Telegram bot per install and a weekly link to the week's
+6. **Notification channels.** Assumed Web Push, a Telegram bot per install and a weekly link to the week's
    timelapse ship with step 10, each off until configured.
-8. **"Mute all" mutes critical alarms too**, for the person who tapped it only. Assumed yes.
-9. **Deleting an account that owns a space with members.** Assumed the members are removed and the space
+7. **"Mute all" mutes critical alarms too**, for the person who tapped it only. Assumed yes.
+8. **Deleting an account that owns a space with members.** Assumed the members are removed and the space
    deleted; the alternative refuses until the members are removed by hand.
-10. **Authors of migrated diary entries.** Assumed the device's owner, since a device has had exactly one
-    writer.
-11. **Migrated grows** merge when two consecutive cycles share a name, and carry no plants. Assumed acceptable.
-12. **How many feeds a week has.** Assumed from the feed reminder's rhythm, else the water reminder's, else
-    three.
-13. **A stale alert out of the box.** Assumed opt-in beside the always-on offline alarm.
-14. **Invite codes.** Assumed one 8-character code for link, typed code and QR, with a rate-limited preview.
+9. **Authors of migrated diary entries.** Assumed the device's owner, since a device has had exactly one
+   writer.
+10. **Migrated grows** merge when two consecutive cycles share a name, and carry no plants. Assumed acceptable.
+11. **How many feeds a week has.** Assumed from the feed reminder's rhythm, else the water reminder's, else
+   three.
+12. **A stale alert out of the box.** Assumed opt-in beside the always-on offline alarm.
+13. **Invite codes.** Assumed one 8-character code for link, typed code and QR, with a rate-limited preview.
