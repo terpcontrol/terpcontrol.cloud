@@ -75,7 +75,7 @@ export class DeviceRegistrationService {
       await this.devices.updateOne({ _id: existingDevice._id }, update);
 
       logger.info(`Re-registered existing device ${existingDevice.device_id}`);
-      return { fw: device_class.firmware_id };
+      return { fw: device_class.firmware_id ?? '' };
     }
 
     let serial = 0;
@@ -111,7 +111,7 @@ export class DeviceRegistrationService {
       await this.devices.create(device);
       logger.info(`Registered new device ${device?.device_id}`);
 
-      return { fw: device_class.firmware_id };
+      return { fw: device_class.firmware_id ?? '' };
     } catch (err) {
       logger.error(`Device registration failed: ${err}`);
       return false;

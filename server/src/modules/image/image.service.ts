@@ -28,13 +28,7 @@ export class ImageService {
     private readonly store: ImageStore,
   ) {}
 
-  public async getDeviceImage(
-    device_id: string,
-    format: string,
-    timestamp?: number,
-    duration?: string,
-    imageId?: string,
-  ): Promise<Image | undefined> {
+  public async getDeviceImage(device_id: string, format: string, timestamp?: number, duration?: string, imageId?: string): Promise<Image | null> {
     return this.images
       .findOne({
         device_id,
@@ -46,7 +40,7 @@ export class ImageService {
       .sort({ timestamp: -1 });
   }
 
-  public async getImageById(image_id: string): Promise<Image | undefined> {
+  public async getImageById(image_id: string): Promise<Image | null> {
     return this.images.findOne({ image_id });
   }
 

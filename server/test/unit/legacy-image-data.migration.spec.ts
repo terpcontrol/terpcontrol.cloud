@@ -29,7 +29,8 @@ const bytesOf = (imageId: string) => Buffer.from(`the picture of ${imageId}`.rep
 
 /** A picture as it was written before the payload moved out of the document. */
 const aLegacyImage = async (imageId: string, data = bytesOf(imageId)) => {
-  await db.connection.db.collection('images').insertOne({
+  // The harness has connected, so the connection carries the driver's handle.
+  await db.connection.db!.collection('images').insertOne({
     image_id: imageId,
     device_id: 'a-device',
     timestamp: aMomentEarlier(),
@@ -39,7 +40,7 @@ const aLegacyImage = async (imageId: string, data = bytesOf(imageId)) => {
   return data;
 };
 
-const storedImage = (imageId: string) => db.connection.db.collection('images').findOne({ image_id: imageId });
+const storedImage = (imageId: string) => db.connection.db!.collection('images').findOne({ image_id: imageId });
 
 beforeAll(async () => {
   db = await startTestDatabase();
@@ -75,7 +76,7 @@ describe('a picture that still carries its payload', () => {
     }
 
     expect(await migration.run()).toEqual({ migrated: 3, failed: 0 });
-    expect(await db.connection.db.collection('images').countDocuments({ data: { $exists: true } })).toBe(0);
+    expect(await db.connection.db!.collection('images').countDocuments({ data: { $exists: true } })).toBe(0);
   });
 });
 

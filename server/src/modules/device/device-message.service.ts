@@ -20,7 +20,7 @@ import { StatusMessage } from './device.types';
 
 const MQTT_RECONNECT_DELAY: number = 5 * 1000;
 
-const DEVICE_MESSAGE_CATEGORY_MAPPING = {
+const DEVICE_MESSAGE_CATEGORY_MAPPING: Record<string, readonly string[]> = {
   'message-maintenance-mode-activated': ['device-maintenance'],
   'message-maintenance-mode-activated-remote': ['device-maintenance'],
   'message-smart-socket-cmd-failed': ['device-socket'],
@@ -173,7 +173,7 @@ export class DeviceMessageService implements OnModuleInit, OnApplicationShutdown
   }
 
   /** What a device asks for when it connects: its configuration, and whether it is up to date. */
-  private async fetchMessage(device: Device, payload) {
+  private async fetchMessage(device: Device, payload: any) {
     try {
       if (payload.firmware_id) {
         await this.rollout.onFirmwareReported(device, payload.firmware_id);

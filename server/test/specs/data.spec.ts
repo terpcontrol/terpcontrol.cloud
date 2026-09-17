@@ -43,7 +43,7 @@ describe('GET /data/series/:device_id/:measure', () => {
     expect(response.body[0]).toEqual({ _time: expect.any(String), _value: null });
 
     const values = definedValues(response.body);
-    expect(values.map((point: { _value: number }) => point._value)).toEqual([21, 25]);
+    expect(values.map((point: { _value: number | null }) => point._value)).toEqual([21, 25]);
   });
 
   it('honours the aggregation method', async () => {

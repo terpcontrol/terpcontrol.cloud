@@ -102,7 +102,8 @@ describe('a configuration that cannot be sent', () => {
     await expect(configure({ day: { temperature: 28 } })).rejects.toMatchObject({ status: 503 });
 
     const device = await db.devices.findOne({ device_id: DEVICE }).lean();
-    expect(JSON.parse(device.configuration)).toEqual({ day: { temperature: 26 } });
+    // The device and its configuration were stored at the top of this test.
+    expect(JSON.parse(device!.configuration!)).toEqual({ day: { temperature: 26 } });
   });
 });
 

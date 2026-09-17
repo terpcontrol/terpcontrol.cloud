@@ -61,7 +61,8 @@ const pendingFirmwareOf = async (device_id: string): Promise<string | undefined>
 /** The devices the pass told to upgrade, by the build each was given. */
 const toldToUpgrade = async (): Promise<Record<string, string>> => {
   const devices = await db.devices.find({ 'cloudSettings.pendingFirmware': { $exists: true } }).lean();
-  return Object.fromEntries(devices.map(device => [device.device_id, device.cloudSettings.pendingFirmware]));
+  // The filter above only matches devices that were given a build.
+  return Object.fromEntries(devices.map(device => [device.device_id, device.cloudSettings!.pendingFirmware!]));
 };
 
 beforeAll(async () => {
@@ -200,11 +201,12 @@ describe('telling a device that has not moved', () => {
   it('waits twice as long before each repeat, so a device that cannot install it is not asked forever', async () => {
     await behindDevice();
 
+    // Instructing the device is what creates its backoff entry.
     await internals.sendUpgradeInstruction('behind');
-    const afterFirst = internals.upgradeInstructionBackoff.get('behind').nextDelayMs;
+    const afterFirst = internals.upgradeInstructionBackoff.get('behind')!.nextDelayMs;
 
     await internals.sendUpgradeInstruction('behind');
-    const afterSecond = internals.upgradeInstructionBackoff.get('behind').nextDelayMs;
+    const afterSecond = internals.upgradeInstructionBackoff.get('behind')!.nextDelayMs;
 
     expect(afterSecond).toBe(afterFirst * 2);
   });

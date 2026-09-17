@@ -8,6 +8,9 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "forceConsistentCasingInFileNames": true,
+    // The data model's contract says "none is null", which the shared zod schemas spell as `.nullable()`.
+    // Only strictNullChecks keeps that null in the inferred types, so code is written against the real shape.
+    "strict": true,
     "moduleResolution": "node",
     "module": "commonjs",
     "pretty": true,

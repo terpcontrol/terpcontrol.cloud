@@ -42,7 +42,7 @@ const entryFields = {
   deleted: z.boolean().nullish(),
 };
 
-const hasText = (entry: { title?: string; message?: string }) => !!entry.title || !!entry.message;
+const hasText = (entry: { title?: string | null; message?: string | null }) => !!entry.title || !!entry.message;
 
 /**
  * A query flag, as clients actually send it: the webapp uses `1` and an empty

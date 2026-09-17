@@ -55,7 +55,8 @@ export interface ObservedMessage {
  * records what the server sends back, so specs can assert on both directions.
  */
 export class DeviceSimulator {
-  private client: MqttClient;
+  /** Assigned by `connect`, which every spec awaits before it uses the simulator. */
+  private client!: MqttClient;
   public readonly received: ObservedMessage[] = [];
   private waiters: Array<{ predicate: (message: ObservedMessage) => boolean; resolve: (message: ObservedMessage) => void }> = [];
 

@@ -61,8 +61,13 @@ export class ImageStore {
     @InjectModel(MODEL.image) private readonly images: Model<Image & Document>,
   ) {}
 
+  /** The driver's handle, which a connection only carries once it is open - and nothing is served before it is. */
+  private get db(): mongo.Db {
+    return this.connection.db!;
+  }
+
   private bucket(): mongo.GridFSBucket {
-    return new mongo.GridFSBucket(this.connection.db, { bucketName: BUCKET_NAME });
+    return new mongo.GridFSBucket(this.db, { bucketName: BUCKET_NAME });
   }
 
   /** Store the bytes of an image under its image_id. */
@@ -108,14 +113,14 @@ export class ImageStore {
    * holds one entry per picture and there is no reason to list them all at once.
    */
   public listFileIds(uploadedBefore: number): AsyncIterable<string> {
-    return this.connection.db
+    return this.db
       .collection(`${BUCKET_NAME}.files`)
       .find({ uploadDate: { $lt: new Date(uploadedBefore) } }, { projection: { _id: 1 }, sort: { uploadDate: 1 } })
       .map(file => String(file._id));
   }
 
   public delete(imageIds: string[]): Promise<void> {
-    return deleteStoredImages(this.connection.db, imageIds);
+    return deleteStoredImages(this.db, imageIds);
   }
 
   /**

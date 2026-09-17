@@ -148,8 +148,10 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
         // it from reading cameras and writing to a connection that is closing.
         if (this.work.isStopped) break;
 
-        if (!this.deviceIdToLastRtspState.has((await device).device_id)) {
-          this.deviceIdToLastRtspState.set(device.device_id, { lastTry: 0, failureCount: 0 });
+        let state = this.deviceIdToLastRtspState.get((await device).device_id);
+        if (!state) {
+          state = { lastTry: 0, failureCount: 0 };
+          this.deviceIdToLastRtspState.set(device.device_id, state);
         }
         this.trackTerpCamOnlinePeriod(device);
 
@@ -165,7 +167,12 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
           }
         }
 
-        const state = this.deviceIdToLastRtspState.get(device.device_id);
+        // The pass only reads devices that have a stream configured.
+        const cloudSettings = device.cloudSettings;
+        if (!cloudSettings) {
+          continue;
+        }
+
         if (
           (state?.lastTry ?? 0) <=
           Date.now() - Math.min(IMAGE_LOAD_INTERVAL_MS * Math.pow(2, state?.failureCount ?? 0), IMAGE_LOAD_MAX_BACKOFF_INTERVAL_MS)
@@ -174,7 +181,7 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
           logIfItFails(
             `Reading the camera of device ${device.device_id}`,
             this.ffmpegLimit(() =>
-              this.readRtspStreamImage(device.cloudSettings, device.device_id)
+              this.readRtspStreamImage(cloudSettings, device.device_id)
                 .then(async image => {
                   // The camera answered, so the backoff is reset: how far apart
                   // to try is about reaching the camera, and a camera that is
@@ -195,7 +202,7 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
                   } catch (e) {
                     // Caught here rather than below, so it is neither an
                     // unhandled rejection nor reported as the camera failing.
-                    logger.error(`Could not store the still read from device ${device.device_id}: ${e?.message ?? e}`);
+                    logger.error(`Could not store the still read from device ${device.device_id}: ${(e as Error)?.message ?? e}`);
                   }
                 })
                 .catch(e => {
@@ -203,9 +210,7 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
                   // camera's credentials in it, and an ffmpeg failure quotes
                   // the whole command line - including that URL - back.
                   logger.error(
-                    withoutCredentials(
-                      `Error reading RTSP stream ${device.cloudSettings.rtspStream} for device ${device.device_id}: ${e?.message ?? e}`,
-                    ),
+                    withoutCredentials(`Error reading RTSP stream ${cloudSettings.rtspStream} for device ${device.device_id}: ${e?.message ?? e}`),
                   );
                   state.failureCount = e instanceof CorruptFrameError ? 0 : (state.failureCount ?? 0) + 1;
                   return Promise.resolve();
@@ -316,13 +321,16 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
     // Terp Cams have no RTSP; they speak P2P. They are configured as
     // `terpcam://<id>` so the poll schedule, backoff, maintenance gating, the
     // test-image button, storage, timelapses and thinning are reused unchanged.
-    if (terpCamLabel(cloudSettings.rtspStream)) {
+    // Only devices that have a stream configured are polled, and the test button
+    // is refused without one, so there is always a URL to read here.
+    const rtspStream = cloudSettings.rtspStream!;
+    if (terpCamLabel(rtspStream)) {
       return this.captureTerpCamStill(deviceId, alwaysAllowController);
     }
 
-    let streamUrl = cloudSettings.rtspStream;
+    let streamUrl = rtspStream;
     if (cloudSettings.tunnelRtspStream) {
-      streamUrl = await this.tunnel.createTunnelProxyServer(new URL(cloudSettings.rtspStream), deviceId);
+      streamUrl = await this.tunnel.createTunnelProxyServer(new URL(rtspStream), deviceId);
     }
 
     let attempt = await this.runFfmpegStill(streamUrl, cloudSettings, FFMPEG_FAST_PROBE_ARGS);
@@ -366,7 +374,7 @@ export class WebcamPollerService implements OnModuleInit, OnApplicationShutdown 
           '-threads',
           '1',
           '-y',
-          ...(cloudSettings.rtspStream.startsWith('rtsp://') ? ['-rtsp_transport', cloudSettings.rtspStreamTransport ?? 'tcp'] : []),
+          ...(cloudSettings.rtspStream?.startsWith('rtsp://') ? ['-rtsp_transport', cloudSettings.rtspStreamTransport ?? 'tcp'] : []),
           // We only need a single still frame, so decode nothing but keyframes and
           // hand them on without buffering.
           '-fflags',

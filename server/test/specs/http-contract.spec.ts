@@ -22,7 +22,8 @@ const postChunked = (path: string): Promise<number> =>
       { hostname: url.hostname, port: url.port, path: url.pathname, method: 'POST', headers: { 'content-type': 'application/json' } },
       response => {
         response.resume();
-        response.on('end', () => resolve(response.statusCode));
+        // An answer that was read to its end has a status.
+        response.on('end', () => resolve(response.statusCode!));
       },
     );
     call.on('error', reject);

@@ -134,7 +134,7 @@ export class TerpCamP2PService {
     state.chunks.set(msg.seq ?? state.chunks.size, chunk);
 
     if (msg.last) {
-      const assembled = Buffer.concat([...state.chunks.keys()].sort((a, b) => a - b).map(k => state.chunks.get(k)));
+      const assembled = Buffer.concat([...state.chunks.entries()].sort(([a], [b]) => a - b).map(([, chunk]) => chunk));
       const wasH264 = state.h264;
       this.clearPending(deviceId);
       logger.info('[terpcam] image assembled for ' + deviceId + ': ' + assembled.length + 'B' + (wasH264 ? ' (h264)' : ''));

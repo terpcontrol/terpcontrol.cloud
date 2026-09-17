@@ -4,7 +4,7 @@ import { request as httpRequest } from 'http';
 import { request as httpsRequest } from 'https';
 import { Document, Model } from 'mongoose';
 import { Mutex, MutexInterface, withTimeout } from 'async-mutex';
-import { Alarm, Device } from '@fg2/shared-types';
+import { Alarm, Device, MeasurementPoint } from '@fg2/shared-types';
 import { logger } from '@utils/logger';
 import { applyWebhookTemplate } from '@utils/webhookTemplate';
 import { logIfItFails } from '../../common/background-work';
@@ -37,10 +37,12 @@ export class AlarmService {
   private lastDataTimestamp: Map<string, number> = new Map();
 
   async onDataReceived(deviceId: string, data: StatusMessage) {
-    if (!this.deviceIdToMutex.has(deviceId)) {
-      this.deviceIdToMutex.set(deviceId, withTimeout(new Mutex(), 300000, new Error('onDataReceived mutex timeout for device ' + deviceId)));
+    let mutex = this.deviceIdToMutex.get(deviceId);
+    if (!mutex) {
+      mutex = withTimeout(new Mutex(), 300000, new Error('onDataReceived mutex timeout for device ' + deviceId));
+      this.deviceIdToMutex.set(deviceId, mutex);
     }
-    const releaser = await this.deviceIdToMutex.get(deviceId).acquire();
+    const releaser = await mutex.acquire();
     const timestamp = data.timestamp ? data.timestamp * 1000 : Date.now();
 
     try {
@@ -65,6 +67,7 @@ export class AlarmService {
             const lastAlarmAction = Math.max(alarm.lastTriggeredAt || 0, alarm.lastResolvedAt || 0);
             if (
               alarm.actionType !== 'email' &&
+              alarm.retriggerSeconds != null &&
               alarm.retriggerSeconds >= 60 &&
               lastAlarmAction > 0 &&
               lastAlarmAction + alarm.retriggerSeconds * 1000 < Date.now()
@@ -404,8 +407,8 @@ export class AlarmService {
           const lastTimeNotExceeded = Date.parse(
             series
               .reverse()
-              .filter(s => s._value !== undefined && s._value !== null && !isNaN(s._value))
-              .find(s => !this.isThresholdValueExceeded(alarm, s._value * (measure === 'out_heater' ? 100 : 1)))?._time,
+              .filter((s): s is MeasurementPoint & { _value: number } => s._value !== undefined && s._value !== null && !isNaN(s._value))
+              .find(s => !this.isThresholdValueExceeded(alarm, s._value * (measure === 'out_heater' ? 100 : 1)))?._time ?? '',
           );
 
           if (!isNaN(lastTimeNotExceeded)) {
@@ -419,7 +422,8 @@ export class AlarmService {
           this.lastTimeNotExceededCache.set(alarm.alarmId, timestamp - 5000);
         }
 
-        if (Date.now() - this.lastTimeNotExceededCache.get(alarm.alarmId) < alarm.thresholdSeconds * 1000) {
+        const notExceededSince = this.lastTimeNotExceededCache.get(alarm.alarmId);
+        if (notExceededSince !== undefined && Date.now() - notExceededSince < alarm.thresholdSeconds * 1000) {
           return false;
         }
       }

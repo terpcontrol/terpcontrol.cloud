@@ -437,7 +437,7 @@ export class TerpCamDirectService implements OnApplicationShutdown {
    * The keepalive stands down while reading: it and the reader drain the same
    * inbox, so leaving it running would let it swallow video fragments.
    */
-  private async readStill(deviceId: string, identity: { uid: string; password?: string }): Promise<Buffer | undefined> {
+  private async readStill(deviceId: string, identity: { uid: string; password?: string }): Promise<Buffer | null> {
     const session = await this.session(deviceId, identity);
     clearInterval(session.alive);
     try {
@@ -612,7 +612,8 @@ export class TerpCamDirectService implements OnApplicationShutdown {
         lastProgress = Date.now();
         send(socket, peer, buildAck(VIDEO_CHANNEL, (base + contiguous - 1) & 0xffff));
 
-        const buffered = Buffer.concat([...Array(contiguous).keys()].map(i => slots.get(i)));
+        // The loop above stopped at the first slot that is missing, so everything below it has arrived.
+        const buffered = Buffer.concat([...Array(contiguous).keys()].map(i => slots.get(i)!));
         const frame = this.findKeyframe(buffered);
         if (frame) {
           found.frame = frame;

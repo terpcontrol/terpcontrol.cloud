@@ -72,7 +72,8 @@ export class UserService implements OnModuleInit {
     return findUser;
   }
 
-  public async createUser(userData: UserPayload): Promise<UserRecord> {
+  /** The route validates every field, so there is always a password to hash. */
+  public async createUser(userData: UserPayload & { password: string }): Promise<UserRecord> {
     if (isEmpty(userData)) throw new HttpException(400, "You're not userData");
 
     const findUser = await this.users.findOne({ username: userData.username });

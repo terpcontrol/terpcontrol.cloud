@@ -77,7 +77,8 @@ export class DataService {
 
   public async addData(device_id: string, user_id: string, fields: StatusMessage) {
     // create a write API, expecting point timestamps in nanoseconds (can be also 's', 'ms', 'us')
-    const writeApi = this.influx.getWriteApi(this.config.org, this.config.bucket, 'ns');
+    // Org and bucket are required environment - without them there is no database to write to at all.
+    const writeApi = this.influx.getWriteApi(this.config.org!, this.config.bucket!, 'ns');
     // setup default tags for all writes through this API
     writeApi.useDefaultTags({ device_id: device_id, user_id: user_id });
 
@@ -106,7 +107,14 @@ export class DataService {
     }
   }
 
-  public async getSeries(device_id, measure, from, to, interval, method = 'mean'): Promise<MeasurementPoint[]> {
+  public async getSeries(
+    device_id: string,
+    measure: string,
+    from: unknown,
+    to: unknown,
+    interval: unknown,
+    method = 'mean',
+  ): Promise<MeasurementPoint[]> {
     if (measure.startsWith('vpd')) {
       return this.getSeriesVpd(device_id, measure, from, to, interval, method);
     }
@@ -120,7 +128,8 @@ export class DataService {
       method = allowedMethods[0];
     }
 
-    const queryApi = this.influx.getQueryApi(this.config.org);
+    // Required environment, as in `addData`.
+    const queryApi = this.influx.getQueryApi(this.config.org!);
     const query = `
       from(bucket: "${this.config.bucket}")
         |> range(start: ${requireTimeLiteral(from, 'from')}, stop: ${requireTimeLiteral(to, 'to')})
@@ -138,7 +147,14 @@ export class DataService {
     });
   }
 
-  private async getSeriesVpd(device_id, measure: any, from, to, interval, method): Promise<MeasurementPoint[]> {
+  private async getSeriesVpd(
+    device_id: string,
+    measure: string,
+    from: unknown,
+    to: unknown,
+    interval: unknown,
+    method: string,
+  ): Promise<MeasurementPoint[]> {
     const tempSeries = await this.getSeries(device_id, 'temperature', from, to, interval, method);
     const humiditySeries = await this.getSeries(device_id, 'humidity', from, to, interval, method);
     const lightSeries = await this.getSeries(device_id, 'out_light', from, to, interval, method);
@@ -195,7 +211,7 @@ export class DataService {
     return airTemp + (leafTempOffset ?? 0);
   }
 
-  private async getSeriesPpfd(device_id, from, to, interval, method): Promise<MeasurementPoint[]> {
+  private async getSeriesPpfd(device_id: string, from: unknown, to: unknown, interval: unknown, method: string): Promise<MeasurementPoint[]> {
     const luxSeries = await this.getSeries(device_id, 'lux', from, to, interval, method);
     const cloudSettings = await this.devices.getDeviceCloudSettings(device_id);
     const factor = cloudSettings?.ppfdLuxFactor ?? DEFAULT_PPFD_LUX_FACTOR;
@@ -203,7 +219,7 @@ export class DataService {
     return luxSeries.map(l => ({ _time: l._time, _value: l._value == null || isNaN(l._value) ? NaN : l._value * factor }));
   }
 
-  public async getLatest(device_id, measure): Promise<number> {
+  public async getLatest(device_id: string, measure: string): Promise<number> {
     if (measure === 'vpd') {
       return this.getLatestVpd(device_id);
     }
@@ -212,7 +228,8 @@ export class DataService {
       return this.getLatestPpfd(device_id);
     }
 
-    const queryApi = this.influx.getQueryApi(this.config.org);
+    // Required environment, as in `addData`.
+    const queryApi = this.influx.getQueryApi(this.config.org!);
     const query = `
       from(bucket: "${this.config.bucket}")
         |> range(start: -5m)
@@ -223,7 +240,7 @@ export class DataService {
         |> yield(name: "mean")
     `;
 
-    const rows = await queryApi.collectRows(query);
+    const rows = await queryApi.collectRows<{ _value: number }>(query);
 
     if (rows.length > 0) {
       return rows[rows.length - 1]['_value'];
@@ -232,7 +249,7 @@ export class DataService {
     }
   }
 
-  private async getLatestVpd(device_id): Promise<number> {
+  private async getLatestVpd(device_id: string): Promise<number> {
     const temp = await this.getLatest(device_id, 'temperature');
     const humidity = await this.getLatest(device_id, 'humidity');
     const light = await this.getLatest(device_id, 'out_light');
@@ -248,7 +265,7 @@ export class DataService {
     return NaN;
   }
 
-  private async getLatestPpfd(device_id): Promise<number> {
+  private async getLatestPpfd(device_id: string): Promise<number> {
     const lux = await this.getLatest(device_id, 'lux');
     if (lux == null || isNaN(lux)) {
       return NaN;

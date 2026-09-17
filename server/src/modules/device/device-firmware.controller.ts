@@ -104,7 +104,7 @@ export class DeviceFirmwareController {
     }
 
     const firmware = await this.firmware.createFirmwareBinary(firmwareId, binaryName, body.binary);
-    return { firmware_id: firmware.firmware_id, name: firmware.name };
+    return { firmware_id: firmware.firmware_id, name: firmware.name ?? binaryName };
   }
 
   // No session: the device fetches its own update over plain HTTP, and the
@@ -176,7 +176,7 @@ export class DeviceFirmwareController {
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'One device class, by id' })
   @ApiShape('DeviceClass')
-  public getClass(@Param('class_id') classId: string): Promise<DeviceClass> {
+  public getClass(@Param('class_id') classId: string): Promise<DeviceClass | null> {
     return this.classes.getClass(classId);
   }
 

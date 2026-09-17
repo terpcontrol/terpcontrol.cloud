@@ -106,7 +106,7 @@ export class DeviceSettingsService {
         .map(([key, change]) => `    ${key}: ${change.old} -> ${change.new}`)
         .join('\n');
     } catch (e) {
-      return 'Could not parse configuration for diff: ' + e.message;
+      return 'Could not parse configuration for diff: ' + (e as Error).message;
     }
   }
 

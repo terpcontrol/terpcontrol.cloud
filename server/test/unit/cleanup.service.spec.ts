@@ -42,12 +42,13 @@ const storeBytes = async (image_id: string, uploadedAt: number) => {
   // A file carries the image_id as its `_id`, where the driver's types expect an
   // ObjectId - the store writes it the same way.
   const fileId = image_id as unknown as ObjectId;
-  await db.connection.db.collection('imagedata.files').updateOne({ _id: fileId }, { $set: { uploadDate: new Date(uploadedAt) } });
+  // The harness has connected, so the connection carries the driver's handle.
+  await db.connection.db!.collection('imagedata.files').updateOne({ _id: fileId }, { $set: { uploadDate: new Date(uploadedAt) } });
 };
 
 const storedFileIds = async (): Promise<string[]> => {
-  const files = await db.connection.db
-    .collection('imagedata.files')
+  const files = await db.connection
+    .db!.collection('imagedata.files')
     .find({}, { projection: { _id: 1 } })
     .toArray();
   return files.map(file => String(file._id)).sort();

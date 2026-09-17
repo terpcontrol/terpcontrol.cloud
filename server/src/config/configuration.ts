@@ -65,15 +65,17 @@ export const mailConfig = registerAs('mail', () => ({
   secure: flag(process.env.SMTP_SECURE),
 }));
 
+// The secret and the seed account are the settings `validateEnvironment` refuses
+// to start without, so unlike the rest of the environment they are always set.
 export const authConfig = registerAs('auth', () => ({
-  secretKey: process.env.SECRET_KEY,
+  secretKey: process.env.SECRET_KEY!,
   /** Trades for an admin session on `/tokenlogin`, for scripts and CI. */
   automationToken: process.env.AUTOMATION_TOKEN,
   requireActivation: flag(process.env.REQUIRE_ACTIVATION),
   enableSelfRegistration: flag(process.env.ENABLE_SELF_REGISTRATION),
   selfRegistrationPassword: process.env.SELF_REGISTRATION_PASSWORD,
-  adminUsername: process.env.ADMINUSER_USERNAME,
-  adminPassword: process.env.ADMINUSER_PASSWORD,
+  adminUsername: process.env.ADMINUSER_USERNAME!,
+  adminPassword: process.env.ADMINUSER_PASSWORD!,
 }));
 
 export const terpCamConfig = registerAs('terpcam', () => ({

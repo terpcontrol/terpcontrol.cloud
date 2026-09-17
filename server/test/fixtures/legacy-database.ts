@@ -302,7 +302,8 @@ interface LegacyShare {
  * clock. The database is expected to be empty.
  */
 export async function seedLegacyDatabase(target: Connection | mongo.Db, at: number | Date): Promise<LegacyDatabase> {
-  const database = 'db' in target ? target.db : target;
+  // A connection reaches this open, so it carries the driver's handle.
+  const database = 'db' in target ? target.db! : target;
   const now = typeof at === 'number' ? at : at.getTime();
   const ago = (days: number) => now - days * DAY;
 
@@ -1050,7 +1051,8 @@ export async function seedLegacyDatabase(target: Connection | mongo.Db, at: numb
     _id: imageId,
     length: pictureBytes(imageId).length,
     chunkSize: 261120,
-    uploadDate: new Date(images.find(image => image.image_id === imageId).timestamp),
+    // The ids come from `images` itself, so the picture is always found.
+    uploadDate: new Date(images.find(image => image.image_id === imageId)!.timestamp),
     filename: imageId,
   }));
   const chunks = storedImageIds.map((imageId, index) => ({

@@ -150,11 +150,14 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
       // Only the still-open (current) period gets new frames appended repeatedly, so only
       // throttle it; a closed/past period is rebuilt once as soon as it's complete either way.
       const isCurrentPeriod = endTimestamp === currentPeriodEndTimestamp;
+      // A timelapse stored without the timestamp of its last frame is left alone: there is nothing to compare against.
+      const compressedUntil = compressedImage?.timestampEnd;
       const staleEnoughToRefresh =
         !compressedImage ||
-        (isCurrentPeriod
-          ? newestImage?.timestamp - compressedImage.timestampEnd >= refreshIntervalMs
-          : compressedImage.timestampEnd < (newestImage?.timestamp ?? -Infinity));
+        (compressedUntil !== undefined &&
+          (isCurrentPeriod
+            ? newestImage?.timestamp - compressedUntil >= refreshIntervalMs
+            : compressedUntil < (newestImage?.timestamp ?? -Infinity)));
 
       if (newestImage && staleEnoughToRefresh) {
         const images = newestImage ? [newestImage] : [];

@@ -75,7 +75,8 @@ export class TunnelUdpSocket extends EventEmitter {
 type TunnelConnectionData = {
   nextSequence: number;
   lastActivityTime: number;
-  handler: (payload: TunnelStreamRxData['payload']) => void;
+  /** Only ever called for a message that carries data; a disconnect has its own. */
+  handler: (payload: string) => void;
   queue: TunnelStreamRxData[];
   handleDisconnect: (error?: Error) => void;
   acquire: Promise<void>;
@@ -153,11 +154,13 @@ export class TunnelService implements BeforeApplicationShutdown {
    */
   public openUdpTunnel(device_id: string): TunnelUdpSocket {
     const connectionId = uuidv4();
-    if (!this.deviceIdToUdpTunnel.has(device_id)) {
-      this.deviceIdToUdpTunnel.set(device_id, new Map());
+    let sockets = this.deviceIdToUdpTunnel.get(device_id);
+    if (!sockets) {
+      sockets = new Map();
+      this.deviceIdToUdpTunnel.set(device_id, sockets);
     }
     const socket = new TunnelUdpSocket(device_id, connectionId, () => this.deviceIdToUdpTunnel.get(device_id)?.delete(connectionId), this.mqtt);
-    this.deviceIdToUdpTunnel.get(device_id).set(connectionId, socket);
+    sockets.set(connectionId, socket);
     return socket;
   }
 
@@ -189,20 +192,22 @@ export class TunnelService implements BeforeApplicationShutdown {
           };
           this.mqtt.publish('/devices/' + device_id + '/tunnel_write', JSON.stringify(message));
         }
-        return;
+        return Promise.resolve();
       }
 
       connection.queue.push(parsed);
 
-      let nextData: TunnelStreamRxData;
+      let nextData: TunnelStreamRxData | undefined;
       while ((nextData = connection.queue.find(d => d.sequence === connection.nextSequence))) {
         if (nextData.disconnected) {
           connection.handleDisconnect();
           break;
         } else {
           this.reportTunnelActivity(device_id, parsed.connection_id);
-          connection.queue = connection.queue.filter(d => d.sequence > nextData.sequence);
-          connection.handler(nextData.payload);
+          // `nextData` is what the loop condition just found, and a message that
+          // is not a disconnect carries a payload.
+          connection.queue = connection.queue.filter(d => d.sequence > nextData!.sequence);
+          connection.handler(nextData.payload!);
         }
         connection.nextSequence++;
       }
@@ -230,14 +235,15 @@ export class TunnelService implements BeforeApplicationShutdown {
       const server = createServer(client => {
         const connectionId = uuidv4();
 
-        if (!this.deviceIdToSemaphore.has(device_id)) {
-          this.deviceIdToSemaphore.set(
-            device_id,
-            withTimeout(new Semaphore(PARALLEL_TUNNEL_CONNECTIONS), TUNNEL_SERVER_TIMEOUT_MS, new Error('Tunnel device mutex timeout')),
-          );
+        let semaphore = this.deviceIdToSemaphore.get(device_id);
+        if (!semaphore) {
+          semaphore = withTimeout(new Semaphore(PARALLEL_TUNNEL_CONNECTIONS), TUNNEL_SERVER_TIMEOUT_MS, new Error('Tunnel device mutex timeout'));
+          this.deviceIdToSemaphore.set(device_id, semaphore);
         }
-        if (!this.deviceIdToTunnelConnection.has(device_id)) {
-          this.deviceIdToTunnelConnection.set(device_id, new Map());
+        let connections = this.deviceIdToTunnelConnection.get(device_id);
+        if (!connections) {
+          connections = new Map();
+          this.deviceIdToTunnelConnection.set(device_id, connections);
         }
 
         const connection: TunnelConnectionData = {
@@ -258,19 +264,16 @@ export class TunnelService implements BeforeApplicationShutdown {
           nextSequence: 0,
           queue: [],
           handleDisconnect: error => client.destroy(error),
-          acquire: this.deviceIdToSemaphore
-            .get(device_id)
-            .acquire()
-            .then(([, release]) => {
-              if (this.deviceIdToTunnelConnection.get(device_id)?.has(connectionId)) {
-                connection.release = release;
-              } else {
-                release();
-              }
-            }),
+          acquire: semaphore.acquire().then(([, release]) => {
+            if (this.deviceIdToTunnelConnection.get(device_id)?.has(connectionId)) {
+              connection.release = release;
+            } else {
+              release();
+            }
+          }),
         };
 
-        this.deviceIdToTunnelConnection.get(device_id).set(connectionId, connection);
+        connections.set(connectionId, connection);
 
         let timeoutHandle: NodeJS.Timeout;
         const timeoutAfterActivity = () => {

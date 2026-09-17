@@ -133,7 +133,7 @@ export class AuthController {
 
     let verified: DataStoredInToken;
     try {
-      verified = (await verify(token, this.config.secretKey)) as DataStoredInToken;
+      verified = (await verify(token, this.config.secretKey)) as unknown as DataStoredInToken;
     } catch {
       throw new HttpException(401, 'Wrong authentication token');
     }

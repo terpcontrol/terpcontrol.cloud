@@ -42,6 +42,16 @@ const minimal_classes = [
   },
 ];
 
+/**
+ * A class as it is stored: a pre-release channel can hold an explicit null,
+ * which is how the admin page withdraws a build - leaving the field out means
+ * "unchanged" instead.
+ */
+type StoredDeviceClass = Omit<DeviceClass, 'beta_firmware_id' | 'alpha_firmware_id'> & {
+  beta_firmware_id?: string | null;
+  alpha_firmware_id?: string | null;
+};
+
 @Injectable()
 export class DeviceClassService implements OnModuleInit, OnApplicationShutdown {
   private readonly work = new BackgroundWork();
@@ -79,13 +89,13 @@ export class DeviceClassService implements OnModuleInit, OnApplicationShutdown {
     return classes;
   }
 
-  public async getClass(class_id: string): Promise<DeviceClass> {
-    const classes: DeviceClass = await this.deviceClasses.findOne({ class_id: class_id });
+  public async getClass(class_id: string): Promise<DeviceClass | null> {
+    const classes: DeviceClass | null = await this.deviceClasses.findOne({ class_id: class_id });
     return classes;
   }
 
-  public async findClass(class_name: string): Promise<DeviceClass> {
-    const classes: DeviceClass = await this.deviceClasses.findOne({ name: class_name });
+  public async findClass(class_name: string): Promise<DeviceClass | null> {
+    const classes: DeviceClass | null = await this.deviceClasses.findOne({ name: class_name });
     return classes;
   }
 
@@ -97,8 +107,8 @@ export class DeviceClassService implements OnModuleInit, OnApplicationShutdown {
     firmware_id: string,
     beta_firmware_id?: string | null,
     alpha_firmware_id?: string | null,
-  ): Promise<DeviceClass> {
-    const device_class: DeviceClass = {
+  ): Promise<StoredDeviceClass> {
+    const device_class: StoredDeviceClass = {
       class_id: uuidv4(),
       name: name,
       description: description,
@@ -124,7 +134,7 @@ export class DeviceClassService implements OnModuleInit, OnApplicationShutdown {
     beta_firmware_id?: string | null,
     alpha_firmware_id?: string | null,
   ): Promise<DeviceClass> {
-    const updateClass: Partial<DeviceClass> = {
+    const updateClass: Partial<StoredDeviceClass> = {
       name,
       description,
       concurrent,

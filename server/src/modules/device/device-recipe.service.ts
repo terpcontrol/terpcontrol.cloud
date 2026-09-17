@@ -7,7 +7,7 @@ import {
   OnApplicationShutdown,
   OnModuleInit,
 } from '@nestjs/common';
-import { Recipe, RecipeStep } from '@fg2/shared-types';
+import { DurationUnit, Recipe, RecipeStep } from '@fg2/shared-types';
 import { InjectModel } from '@nestjs/mongoose';
 import { Document, Model } from 'mongoose';
 import { Device, RecipeTemplate } from '@fg2/shared-types';
@@ -18,8 +18,8 @@ import { MailService } from '../mail/mail.service';
 import { DeviceLogService } from './device-log.service';
 import { DeviceSettingsService } from './device-settings.service';
 
-/** How long a step's unit is worth, as the multiple of a minute the plan stores. */
-const STEP_DURATION_UNIT_MINUTES = { weeks: 7 * 24 * 60, days: 24 * 60, hours: 60 } as const;
+/** How long a step's unit is worth, as the multiple of a minute the plan stores. Minutes are the unit itself and need no entry. */
+const STEP_DURATION_UNIT_MINUTES: Partial<Record<DurationUnit, number>> = { weeks: 7 * 24 * 60, days: 24 * 60, hours: 60 };
 
 /** A step is re-sent at most once an hour, and only to a device that is answering. */
 const STEP_REAPPLY_INTERVAL_MS = 60 * 60 * 1000;
@@ -79,11 +79,16 @@ export class DeviceRecipeService implements OnModuleInit, OnApplicationShutdown 
   }
 
   private async runRecipe(device: Device, now: number) {
+    // Only devices with a running plan are read, so the plan is always there.
+    if (!device.recipe) {
+      return;
+    }
+
     if (device.recipe.activeStepIndex >= device.recipe.steps.length || (device.recipe.activeStepIndex ?? -1) < 0) {
       return;
     }
 
-    let activeStep = device.recipe.steps[device.recipe.activeStepIndex];
+    let activeStep: RecipeStep | null = device.recipe.steps[device.recipe.activeStepIndex];
     let hasChanges = false;
     let emailSubject = null;
     let emailBody = null;
@@ -94,7 +99,9 @@ export class DeviceRecipeService implements OnModuleInit, OnApplicationShutdown 
     // value instead made every comparison below NaN, which reads as "not elapsed
     // yet" and stalls the plan just as silently.
     const stepDurationMs =
-      activeStep.duration === undefined ? Infinity : activeStep.duration * 60 * 1000 * (STEP_DURATION_UNIT_MINUTES[activeStep.durationUnit] ?? 1);
+      activeStep.duration === undefined
+        ? Infinity
+        : activeStep.duration * 60 * 1000 * (STEP_DURATION_UNIT_MINUTES[activeStep.durationUnit ?? 'minutes'] ?? 1);
     const remainingMs = stepDurationMs - elapsedMs;
     if (remainingMs <= 0) {
       if (activeStep.waitForConfirmation) {
@@ -210,7 +217,7 @@ export class DeviceRecipeService implements OnModuleInit, OnApplicationShutdown 
       !!activeStep &&
       (!activeStep.lastTimeApplied || activeStep.lastTimeApplied < now - STEP_REAPPLY_INTERVAL_MS) &&
       (device.lastseen ?? 0) >= now - STEP_APPLY_LASTSEEN_MS;
-    if (applyStep) {
+    if (applyStep && activeStep) {
       // Its own catch: sending the step can fail, and the advance it belongs
       // to has already been stored - so the mail below, which is only ever
       // sent on the pass that advanced, must not be skipped with it.
@@ -252,11 +259,12 @@ export class DeviceRecipeService implements OnModuleInit, OnApplicationShutdown 
     const previous = ((await this.devices.findOne({ device_id: deviceId }).select('recipe'))?.recipe ?? {}) as Partial<Recipe>;
     const activeStepChanged = previous?.activeStepIndex !== payload?.activeStepIndex || previous?.activeSince !== payload?.activeSince;
 
-    for (let index = 0; index < (payload.steps?.length || 0); index++) {
+    const steps = payload.steps ?? [];
+    for (let index = 0; index < steps.length; index++) {
       if (index !== payload.activeStepIndex || activeStepChanged) {
-        payload.steps[index].notified = false;
+        steps[index].notified = false;
       }
-      payload.steps[index].lastTimeApplied = 0;
+      steps[index].lastTimeApplied = 0;
     }
 
     if (activeStepChanged && payload?.activeStepIndex != null && !isNaN(payload.activeStepIndex) && payload?.additionalInfo) {
@@ -269,8 +277,8 @@ export class DeviceRecipeService implements OnModuleInit, OnApplicationShutdown 
       });
     }
 
-    const manuallyActivatedStage = payload?.steps?.[payload?.activeStepIndex]?.stage;
-    if (activeStepChanged && payload?.activeSince > 0 && manuallyActivatedStage) {
+    const manuallyActivatedStage = payload?.activeStepIndex == null ? undefined : payload?.steps?.[payload.activeStepIndex]?.stage;
+    if (activeStepChanged && (payload?.activeSince ?? 0) > 0 && manuallyActivatedStage) {
       await this.logs.logStageTransitionIfChanged(deviceId, manuallyActivatedStage);
     }
 

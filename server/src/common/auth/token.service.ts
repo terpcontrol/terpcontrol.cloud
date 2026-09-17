@@ -61,7 +61,7 @@ export class TokenService {
   public async verifyFirst(request: FastifyRequest, tokenType: TokenType = 'user'): Promise<DataStoredInToken | null> {
     for (const candidate of this.candidates(request)) {
       try {
-        const verified = (await verify(candidate, this.auth.secretKey)) as DataStoredInToken;
+        const verified = (await verify(candidate, this.auth.secretKey)) as unknown as DataStoredInToken;
         if (verified.user_id && matchesTokenType(verified.token_type, tokenType)) {
           return verified;
         }
@@ -81,7 +81,7 @@ export class TokenService {
     if (!token) return null;
 
     try {
-      return (await verify(token, this.auth.secretKey)) as DataStoredInToken;
+      return (await verify(token, this.auth.secretKey)) as unknown as DataStoredInToken;
     } catch {
       return null;
     }

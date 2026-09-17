@@ -183,7 +183,7 @@ export class AuthService {
     return findUser as unknown as User;
   }
 
-  public createTokensFromUser(user: User, stayLoggedIn: boolean): SessionTokens {
+  public createTokensFromUser(user: User, stayLoggedIn?: boolean): SessionTokens {
     return this.createTokens({
       user_id: user.user_id,
       is_admin: user.is_admin,

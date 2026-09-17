@@ -6,16 +6,17 @@ import { toDate } from '../../common/to-date';
 import { MODEL } from '../../database/models.module';
 
 /** What an entry carries, whether it was written by a device, a client or the server. */
+/** A client with nothing to put in an optional field may say so with a null, which is stored as it arrives. */
 export interface DeviceLogEntry {
   /** An entry carries a message, a title, or both. */
-  message?: string;
-  title?: string;
+  message?: string | null;
+  title?: string | null;
   severity: number;
-  raw?: boolean;
+  raw?: boolean | null;
   categories: string[];
-  data?: Record<string, any>;
-  images?: string[];
-  deleted?: boolean;
+  data?: Record<string, any> | null;
+  images?: string[] | null;
+  deleted?: boolean | null;
   /** Epoch milliseconds from a client, an ISO string from the device. */
   time?: string | number | Date;
 }
@@ -107,7 +108,7 @@ export class DeviceLogService {
         .sort({ time: -1 })
         // Plain objects, so callers may hand out reduced copies of an entry.
         .lean<DeviceLog[]>();
-      logs.forEach(log => (log.categories = log.categories?.length > 0 ? log.categories : ['unknown']));
+      logs.forEach(log => (log.categories = (log.categories?.length ?? 0) > 0 ? log.categories : ['unknown']));
       return logs.reverse();
     }
     return [];

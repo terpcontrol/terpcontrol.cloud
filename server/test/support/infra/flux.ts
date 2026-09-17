@@ -148,8 +148,12 @@ export const runQuery = (points: InfluxPoint[], parsed: ParsedFlux, now: number)
     // Windows cover (windowStart, windowStop], so a point exactly on a boundary
     // belongs to the window that ends there.
     const windowStop = Math.ceil(point.time / every) * every;
-    if (!buckets.has(windowStop)) buckets.set(windowStop, []);
-    buckets.get(windowStop).push(point.fields[field]);
+    let bucket = buckets.get(windowStop);
+    if (!bucket) {
+      bucket = [];
+      buckets.set(windowStop, bucket);
+    }
+    bucket.push(point.fields[field]);
   }
 
   const rows: ResultRow[] = [];
@@ -168,7 +172,8 @@ export const runQuery = (points: InfluxPoint[], parsed: ParsedFlux, now: number)
     for (const windowStop of [...buckets.keys()].sort((a, b) => a - b)) {
       rows.push({
         time: Math.min(windowStop, stop),
-        value: aggregate(buckets.get(windowStop), parsed.fn),
+        // The loop walks the buckets' own keys.
+        value: aggregate(buckets.get(windowStop)!, parsed.fn),
         field,
         measurement,
         ...identity,

@@ -58,7 +58,8 @@ async function purgeStoredImages(this: PurgingQuery) {
   // The documents are already gone; failing here would only strand the bytes,
   // which the caller can do nothing about and which must not fail its delete.
   try {
-    await deleteStoredImages(this.model.db.db, imageIds);
+    // A delete has just run on this connection, so it carries the driver's handle.
+    await deleteStoredImages(this.model.db.db!, imageIds);
   } catch (e) {
     logger.error(`Failed deleting the stored data of ${imageIds.length} image(s): ${e}`);
   }

@@ -1,4 +1,6 @@
-import { SMTPServer } from 'smtp-server';
+// smtp-server ships no type declarations, so neither the server nor its hooks carry a type.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { SMTPServer } = require('smtp-server');
 import { MailStore } from './stores';
 
 const headerValue = (raw: string, name: string): string => {
@@ -25,21 +27,21 @@ const bodyOf = (raw: string): string => {
 };
 
 /** Captures outgoing mail instead of delivering it. */
-export const startFakeSmtp = async (store: MailStore): Promise<{ port: number; server: SMTPServer }> => {
+export const startFakeSmtp = async (store: MailStore): Promise<{ port: number; server: any }> => {
   const server = new SMTPServer({
     authOptional: true,
     disabledCommands: ['STARTTLS'],
     // The app authenticates like it does against a real relay; anything is accepted.
-    onAuth(auth, session, callback) {
+    onAuth(auth: any, session: any, callback: any) {
       callback(null, { user: auth.username });
     },
-    onData(stream, session, callback) {
+    onData(stream: any, session: any, callback: any) {
       let raw = '';
-      stream.on('data', chunk => (raw += chunk));
+      stream.on('data', (chunk: Buffer) => (raw += chunk));
       stream.on('end', () => {
         store.add({
           from: session.envelope.mailFrom ? session.envelope.mailFrom.address : '',
-          to: session.envelope.rcptTo.map(recipient => recipient.address),
+          to: session.envelope.rcptTo.map((recipient: { address: string }) => recipient.address),
           subject: headerValue(raw, 'Subject'),
           body: bodyOf(raw),
           raw,

@@ -49,7 +49,8 @@ export const startTestDatabase = async (): Promise<TestDatabase> => {
     claimCodes,
     images,
     reset: async () => {
-      const collections = await connection.db.collections();
+      // The connection was awaited above, so it carries the driver's handle.
+      const collections = await connection.db!.collections();
       await Promise.all(collections.map(collection => collection.deleteMany({})));
     },
     stop: async () => {

@@ -102,7 +102,8 @@ export class DeviceFirmwareService implements OnModuleInit, OnApplicationShutdow
         await this.firmwares.updateOne({ firmware_id: firmwares[0].firmware_id }, { version: version });
       }
     }
-    return updated;
+    // The same filter found `original` a moment ago, so the update has a document to answer with.
+    return updated!;
   }
 
   public async listFirmwaresForDevice(device_id: string, user_id: string, is_demo = false): Promise<UserFirmwareList> {
