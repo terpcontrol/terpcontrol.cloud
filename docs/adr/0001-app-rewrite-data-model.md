@@ -126,8 +126,13 @@ These hold for every collection, every schema in `shared-types` and every route.
   Identity and ownership (`id`, `ownerId`, `createdBy`, `createdAt`) are set at creation and immutable.
 - **A reference to one of several kinds** is `subject { type, id }`, never a row of fields of which exactly one
   is filled.
-- **One schema per resource** in `shared-types/src/schemas.ts`, from which the types, the validation and the
-  OpenAPI document are generated as today. Request bodies are derived from the resource schema, not restated.
+- **One schema per resource** in `shared-types`, from which the types, the validation and the OpenAPI document
+  are generated as today. Request bodies are derived from the resource schema, not restated. The package offers
+  the contract twice: flat interfaces with no dependency on zod, for a client, and the schema objects
+  themselves, so the server validates against the contract rather than against a copy of it. The legacy
+  contract keeps generating exactly what it generates today and goes when the Angular app does.
+- **The server compiles strictly.** "None is `null`" only survives into the inferred types under
+  `strictNullChecks`; without it a schema and the type generated from it describe different shapes.
 - **Routes** are resource-oriented under `/v1`: `GET` list and read, `POST` create (201 with the resource),
   `PATCH` partial update (200 with the resource), `PUT` for a singleton that is replaced whole, `DELETE` (204).
   `DELETE` ends a resource's life for clients. Where history still refers to it (a space, a camera) the

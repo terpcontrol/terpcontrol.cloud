@@ -13,12 +13,22 @@
       "types": "./index.d.ts",
       "default": "./index.js"
     },
-    "./openapi-schemas.json": "./openapi-schemas.json"
+    "./v1": {
+      "types": "./v1.d.ts"
+    },
+    "./v1-schemas": {
+      "types": "./v1-schemas/index.d.ts",
+      "default": "./v1-schemas/index.js"
+    },
+    "./openapi-schemas.json": "./openapi-schemas.json",
+    "./openapi-v1-schemas.json": "./openapi-v1-schemas.json"
+  },
+  "dependencies": {
+    "zod": "^4.6.1"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
     "json-schema-to-typescript": "^16.0.0",
-    "typescript": "^5.9.3",
-    "zod": "^4.4.3"
+    "typescript": "^5.9.3"
   }
 }

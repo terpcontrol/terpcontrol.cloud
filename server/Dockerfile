@@ -19,6 +19,13 @@ ENV MONGOMS_DISABLE_POSTINSTALL=1
 
 RUN npm ci
 
+# The shared package is linked with `file:`, and npm hoists a linked package's
+# own dependencies into the consumer's node_modules - which node never looks in
+# when it resolves an import from inside the linked package itself. The v1
+# schemas the server validates against are zod objects, so they need zod
+# resolvable from /app/shared-types.
+RUN npm --prefix /app/shared-types ci --omit=dev
+
 COPY server/ .
 EXPOSE 3000
 
