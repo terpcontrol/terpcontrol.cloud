@@ -4,6 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { set } from 'mongoose';
 import { logger } from '@utils/logger';
 import { appConfig, databaseConfig } from '../config/configuration';
+import { mongoConnectionSettings } from './mongo-connection';
 
 /**
  * The connection, owned by Nest: it is opened before the first module that
@@ -19,10 +20,7 @@ import { appConfig, databaseConfig } from '../config/configuration';
         if (app.nodeEnv !== 'production') set('debug', true);
 
         return {
-          uri: `mongodb://${database.host}:${database.port}/${database.name}`,
-          authSource: 'admin',
-          user: database.user,
-          pass: database.password,
+          ...mongoConnectionSettings(database),
           onConnectionCreate: (connection: { readyState: number }) => {
             logger.info(`MongoDB connected (readyState ${connection.readyState})`);
           },

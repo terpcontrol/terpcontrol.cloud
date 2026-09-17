@@ -11,6 +11,7 @@ import { AppModule } from './app.module';
 import { appConfig } from './config/configuration';
 import { registerAccessLog } from './access-log';
 import { registerHttpCompatibility } from './http-compatibility';
+import { MigrationRunner } from './migrations/migration-runner';
 import { setupOpenApi } from './openapi';
 
 // How long the log transports get to write the reason down before the process
@@ -127,6 +128,16 @@ const bootstrap = async (): Promise<void> => {
   });
 
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter);
+
+  // Here and nowhere else. `create` builds every provider and opens the database
+  // connection, but runs no lifecycle hook: the broker connection, the plan
+  // engine's tick and the camera poller all start in `onModuleInit`, which
+  // `listen` below is what triggers. So this is the one moment at which the
+  // database is reachable and nothing is reading or writing it - which is what a
+  // migration that renames collections aside needs. A failure throws out of
+  // `bootstrap` and ends the process, because a half-migrated server that serves
+  // is the one outcome nothing downstream can reason about.
+  await app.get(MigrationRunner).runAtBoot();
 
   // Uploaded files arrive as buffers on the body, which is the shape the
   // picture and firmware endpoints work with. The cap is well above the largest

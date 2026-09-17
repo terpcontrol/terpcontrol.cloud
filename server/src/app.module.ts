@@ -4,6 +4,7 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { SecurityModule } from './common/auth/auth.module';
 import { configNamespaces } from './config/configuration';
 import { DatabaseModule } from './database/database.module';
+import { MigrationsModule } from './migrations/migrations.module';
 import { AlarmModule } from './modules/alarm/alarm.module';
 import { validateEnvironment } from './config/validate-environment';
 import { DemoReadOnlyGuard } from './common/auth/demo-read-only.guard';
@@ -31,6 +32,7 @@ import { UsersModule } from './modules/users/users.module';
       cache: true,
     }),
     DatabaseModule,
+    MigrationsModule,
     SecurityModule,
     AuthModule,
     ChartPresetModule,

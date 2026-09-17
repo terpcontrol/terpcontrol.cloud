@@ -11,5 +11,5 @@
     "emitDecoratorMetadata": false,
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "test/unit/**/*.ts"]
+  "include": ["src/**/*.ts", "test/unit/**/*.ts", "test/fixtures/**/*.ts"]
 }

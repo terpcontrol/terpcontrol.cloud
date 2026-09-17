@@ -40,6 +40,7 @@ server url specified in your .env file.
 
 ### Upgrading / Restarting
 1. `cd myfolder/fg2/`
+1. `./backup.sh` — an upgrade may migrate the database, which happens by itself on the next start.
 1. `git pull` (optional: this gets you the latest changes from the repo)
 1. `docker compose up --build -d --remove-orphans`
 1. `./build-fw.sh` (if you want to update the firmware as well)
