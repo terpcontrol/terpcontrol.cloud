@@ -1,6 +1,7 @@
 # ADR 0001: Data model and API for the app rewrite
 
-- **Status:** proposed (revision 2), awaiting sign-off. Nothing of the new app is built before this is agreed.
+- **Status:** proposed (revision 3), awaiting sign-off of the model, the API and the migration. Nothing of the
+  new app is built before that is agreed.
 - **Date:** 2026-09-17
 - **Touches:** `server/`, `shared-types/`, `firmware/` (smart sockets only), `scripts/simulate-device.mjs`,
   `fw-buildcontainer/`, `garmin/`
@@ -42,6 +43,16 @@ views by a setting; no comments, no feed, no directory.
   **migrated** to the new model rather than extended beside the old one.
 - The **firmware changes as little as possible**, and everything a device touches stays **backward compatible**,
   because not every device will update: its HTTP routes, the MQTT protocol, and the shapes on both.
+
+### Decisions already taken
+
+Settled on 2026-09-17 and written into the sections below rather than left as questions: the API has no other
+users, so nothing of today's routes is kept for compatibility and the Garmin widget moves to `/v1` with them;
+`/v1` is served under the base URL that deployed firmware builds already carry; the migration is rehearsed
+against the database of the simulated stack; old share links and saved chart presets are not migrated; a camera
+gets twelve months of Premium when it is first claimed or paired, and every camera that exists at the migration
+starts its twelve months on migration day; pairing a standalone Terp Cam from the phone ships as "coming soon"
+and gets its own session once the rewrite is merged.
 
 ### What is ambiguous today
 
@@ -298,7 +309,10 @@ removed together with the Angular app.
   reports a paired Terp Cam over MQTT, the protocol module upserts its camera row. A controller still pairs
   exactly one Terp Cam; "several cameras per tent" is that camera plus RTSP cameras pulled through the
   controller's existing tunnel plus standalone Terp Cams the cloud reaches itself, none of which needs firmware.
-  Creating an RTSP camera is never refused. The timelapse composer stores a `media` row with `render.status:
+  Creating an RTSP camera is never refused. **Pairing a standalone Terp Cam ships as "coming soon"**: the model,
+  the camera kind and the server-side path to reach such a camera are built, the tab that would pair one says it
+  is coming, and the flow is finished in its own session once the rewrite is merged, because it needs a camera
+  on a desk to prove it. The timelapse composer stores a `media` row with `render.status:
   queued`, which the hourly builder drains first.
 - **Entitlement** (`PREMIUM_ENFORCED`; unset gates nothing, which is what a self-hosted install gets) is
   enforced in the image pipeline only: free cameras are **served** at a reduced width while full stills stay
@@ -308,6 +322,12 @@ removed together with the Angular app.
   its own; the admin route is the only writer. A camera answers `entitlement { validUntil, grant, tier,
   renewalVisible }`, and `/me` carries `premium { enforced, extendUrl, priceLabel }` from configuration, so the
   renewal notice and its button need no billing in this server.
+- **How entitlement is granted.** Per camera, as the record decides, and for twelve months: a Terp Cam starts
+  its year when it is **first claimed or paired** (`grant: included`), and every camera that exists at the
+  migration, RTSP cameras included, starts its year on **migration day** (`grant: migration`). After the
+  migration an RTSP camera has no included year of its own and is entitled only by purchase (`grant:
+  purchase`), which is what the Premium screen says about a camera that is not a Terp Cam. A camera that is
+  unpaired and paired again keeps the entitlement it has; the year is not restarted by re-pairing.
 - **Age of a value.** `/live` answers every metric as `{ value, measuredAt, state }` from one Flux `last()` per device,
   with `state` from one shared constant `VALUE_AGE = { live: 120 s, stale: 600 s }` and the server's clock, so no
   client does the arithmetic. Values are dimmed, never hidden.
@@ -354,8 +374,11 @@ Four files, all for item 11: `firmware/src/wifi.cpp`, `firmware/src/wifi.h`,
 Versioned migrations in `server/src/migrations/`, applied in order at boot **before** the server listens or
 subscribes to MQTT, recorded in `migrations`, guarded by a lock so two instances cannot both run them. Each one
 is resumable: it copies with upserts by `id`, so a run that was killed continues where it stopped. `npm run
-migrate -- --dry-run` runs the transforms against a database and reports counts and rejects without writing,
-which is how the production migration is rehearsed on a restored backup.
+migrate -- --dry-run` runs the transforms against a database and reports counts and rejects without writing.
+The rehearsal runs against the database of the simulated stack, which `./simulate-device.sh` can fill with
+devices of every type, history, cameras, diary entries, plans, alarms and share links in today's shapes. That
+covers every transform but not the size and the oddities of the hosted database, so the real run is still taken
+with a fresh `./backup.sh` in hand and its reject report read before the server is let back in.
 
 ### Procedure
 
@@ -388,8 +411,8 @@ all. A later migration, in the following release, drops the `legacy_*` collectio
 | `devicelogs` | `entries` | `kind` and `source` from `categories`; `message-key:param` parsed into `message`; `data` into `values` (the six fixed measurements become readings); `images` → `mediaIds`; `deleted` dropped; human diary entries get the device's owner as author, since a device has had exactly one writer |
 | lifecycle entries | `grows` with `phases[]` and one placement | cycles by the rule today's grow report uses (a new cycle on a stage-order rollback or a changed name); a running plan without lifecycle entries becomes a grow that starts with its step; migrated grows have no plants, because none were ever recorded |
 | `images` | `media` | `jpeg` → `still`, `mp4` → `timelapse` with its window, `user/jpeg` → `photo`; stills and timelapses get the camera of their device, photos the space and, through their entry, the grow |
-| `shares` | `shareLinks` | the token is the old share id; `kind: view` on the device's space; the range is read from the stored query when it names one; `includeCameras` from `webcam` |
-| `chartpresets` | `chartViews` | the query string parsed into a definition; what cannot be parsed is kept verbatim and listed in the report |
+| `shares` | – | not migrated: old links stop working, and `shareLinks` starts empty |
+| `chartpresets` | – | not migrated: saved chart views are made again in the new app |
 | `recipetemplates` | `planTemplates` | names made unique per owner |
 | `deviceclasses`, `devicefirmwares`, `devicefirmwarebinaries`, `claimcodes` | `deviceClasses`, `firmwares`, `firmwareBinaries`, `claimCodes` | renames only |
 
@@ -402,9 +425,9 @@ dropped, the way back is the backup.
 
 ### What an upgrade looks like
 
-- **The hosted install:** a rehearsal on a restored backup, then a deploy in a quiet hour. The server is down
-  for as long as the transforms run, which the rehearsal measures. Devices keep their broker connection;
-  samples published while the server is down are not recorded.
+- **The hosted install:** a rehearsal on the simulated database, a `./backup.sh`, then a deploy in a quiet
+  hour. The server is down for as long as the transforms run. Devices keep their broker connection; samples
+  published while the server is down are not recorded.
 - **Self-hosted installs:** `git pull` and `docker compose up --build` as today. The migration runs by itself.
   The README's upgrade section gains one sentence: run `./backup.sh` first.
 - **Devices:** nothing. They see the same routes and the same topics before and after.
@@ -442,7 +465,7 @@ This is a rewrite of the server's HTTP and persistence layers around engines tha
 | 7 Lifecycle | phases, placements, harvests, splits, preset applications |
 | 9 Controller | the plan routes and transitions |
 | 10 Alarms, tasks, notifications | alarm rules, alerts, the health loop, reminders and tasks, the send decision and its channels |
-| 11 Onboarding | claims, the standalone camera path, `demo-seed` |
+| 11 Onboarding | claims, `demo-seed`; the standalone camera path is built to the point where the tab says "coming soon" |
 | 12 Measurements and charts | measurement definitions, grow series, export, schemes, chart views |
 | 13 Sharing | memberships, invites |
 | 14 Account, entitlement, admin | the entitlement gate, export, deletion, climate retention, the fleet routes, staged rollout |
@@ -452,11 +475,14 @@ before the first screen can show a live value.
 
 ## Risks
 
-1. **The migration is the risk.** It touches every document once. The rehearsal on a restored backup, the
-   counts and the reject report, the untouched `legacy_*` collections and the rollback command are what bound
-   it. The migration test on a database in today's shape is part of step 0, not of the end.
-2. **Third-party clients break at the cut-over.** The REST API is public, and scripts people wrote against
-   today's routes stop working, as does an installed Garmin widget that was not updated (open question 1).
+1. **The migration is the risk.** It touches every document once. The counts and the reject report, the
+   untouched `legacy_*` collections and the rollback command are what bound it. The migration test on a
+   database in today's shape is part of step 0, not of the end. The rehearsal runs on simulated data, so the
+   size of the hosted database and whatever is odd in it are met for the first time on the day itself; that is
+   what the backup and the reject report are for.
+2. **Old links and saved views stop working**, deliberately. Share links people have sent out resolve to
+   nothing after the migration, and saved chart presets are gone. Nothing else outside this repository calls the
+   API, and the Garmin widget moves to `/v1` with it.
 3. **Reconstructed grows inherit the grow report's heuristics.** Two consecutive grows with the same name and
    no stage rollback merge. Migrated grows have no plants.
 4. **Membership widens what a non-owner can do.** The `need` each route declares is the checklist, and the
@@ -466,7 +492,8 @@ before the first screen can show a live value.
 6. **Cascading deletes are new to this server** and need their own specs.
 7. **Control laws for the new socket roles are decided here, not by a screen.** They ship behind
    `socket_roles`, so a firmware that omits a role never offers it.
-8. **The standalone Terp Cam flow is unproven end to end.** The model holds it either way.
+8. **The standalone Terp Cam flow is unproven end to end** and therefore ships as "coming soon" rather than
+   as a tab that fails on a stranger's camera.
 9. **Retention deletes pictures** where today everything is kept for three years.
 10. **Two new outward-facing surfaces**, Web Push and the Telegram webhook, both off until configured.
 
@@ -489,29 +516,31 @@ before the first screen can show a live value.
 
 ## Open questions
 
-Each with the assumption the design stands on until it is answered.
+Each with the assumption the design stands on until it is answered. What was settled on 2026-09-17 is in the
+sections above, not here.
 
-1. **Outside clients of today's API.** Assumed the Garmin widget is updated to `/v1` and released before the
-   cut-over, and other scripts break with an announcement. The alternative is a small deprecated read-only set
-   (log in, device list, latest value, series, picture, maintenance mode) for a fixed period.
-2. **Old share URLs.** Assumed the tokens are kept and the new app redirects the old URL pattern.
-3. **Authors of migrated diary entries.** Assumed the device's owner.
-4. **Saved chart presets.** Assumed a best-effort parse, with the rest reported.
-5. **The entitlement year for cameras that exist on migration day**, RTSP included. Assumed yes.
-6. **Stills when an entitlement lapses.** Assumed the free window applies to everything; the gentler
-   alternative keeps what was captured while entitled.
-7. **Does a Terp Cam's entitlement cover an RTSP camera in the same tent?** Assumed no, per camera.
-8. **Free-tier limits as configuration.** Assumed they stay out of this repository until they are public.
-9. **Control laws for the new socket roles.** Assumed as listed under "Firmware delta".
-10. **The light row on the Devices tab.** Assumed its switch overrides the controller's own light output.
-11. **A human phase action on a tent with a running plan.** Assumed skip when the plan's next step carries the
-    stage, pause otherwise, and the sheet says which before the tap.
-12. **Notification channels.** Assumed Web Push, a Telegram bot per install and a weekly link to the week's
-    timelapse ship with step 10, each off until configured.
-13. **"Mute all" mutes critical alarms too**, for the person who tapped it only. Assumed yes.
-14. **Deleting an account that owns a space with members.** Assumed the members are removed and the space
-    deleted; the alternative refuses until the members are removed by hand.
-15. **How many feeds a week has.** Assumed from the feed reminder's rhythm, else the water reminder's, else
+1. **Does a Terp Cam's entitlement cover another camera in the same tent?** Assumed no: entitlement sits on the
+   camera, as the record decides, so an RTSP camera beside an entitled Terp Cam is not entitled by it. Reading
+   it per controller instead is one lookup in the tier function and changes nothing else.
+2. **Stills when an entitlement lapses.** Assumed the free window then applies to everything the camera ever
+   took; the gentler reading keeps what was captured while entitled and applies the window only to later
+   stills. Nothing lapses before a year after the migration, so this can stay open for a while; the two
+   readings are one setting apart.
+3. **Free-tier limits as configuration.** Assumed the served width and the free retention windows stay out of
+   this public repository and live in the hosted install's configuration.
+4. **Control laws for the new socket roles.** Assumed as listed under "Firmware delta".
+5. **The light row on the Devices tab.** Assumed its switch overrides the controller's own light output.
+6. **A human phase action on a tent with a running plan.** Assumed skip when the plan's next step carries the
+   stage, pause otherwise, and the sheet says which before the tap.
+7. **Notification channels.** Assumed Web Push, a Telegram bot per install and a weekly link to the week's
+   timelapse ship with step 10, each off until configured.
+8. **"Mute all" mutes critical alarms too**, for the person who tapped it only. Assumed yes.
+9. **Deleting an account that owns a space with members.** Assumed the members are removed and the space
+   deleted; the alternative refuses until the members are removed by hand.
+10. **Authors of migrated diary entries.** Assumed the device's owner, since a device has had exactly one
+    writer.
+11. **Migrated grows** merge when two consecutive cycles share a name, and carry no plants. Assumed acceptable.
+12. **How many feeds a week has.** Assumed from the feed reminder's rhythm, else the water reminder's, else
     three.
-16. **A stale alert out of the box.** Assumed opt-in beside the always-on offline alarm.
-17. **Invite codes.** Assumed one 8-character code for link, typed code and QR, with a rate-limited preview.
+13. **A stale alert out of the box.** Assumed opt-in beside the always-on offline alarm.
+14. **Invite codes.** Assumed one 8-character code for link, typed code and QR, with a rate-limited preview.
