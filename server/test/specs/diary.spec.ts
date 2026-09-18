@@ -1,16 +1,20 @@
-import { createAccount, Session } from '../support/api';
+import { anonymous, createAccount, demoSession, Session, unique } from '../support/api';
 import { seedMeasurements } from '../support/control';
 import { provisionDevice } from '../support/device';
+import { shareLinkOnGrow } from '../support/fixtures';
 
 /**
- * The diary over HTTP: the timeline, the week cards and the report.
+ * The diary over HTTP: the timeline read and written, the week cards and the
+ * report.
  *
  * The unit suite has the arithmetic and the access matrix against a database.
- * What it cannot see is the measurement store, so what is checked here is the
- * rest of the way: that a week's day and night averages really come back through
- * Flux and are told apart by the light the device wrote rather than by a clock,
- * that a chapter is judged against the targets the phase recorded, and that a
- * stranger is told the grow is not there.
+ * What it cannot see is the measurement store, the picture store and the guards
+ * a request passes on its way in, so what is checked here is the rest of the
+ * way: that a week's day and night averages really come back through Flux and
+ * are told apart by the light the device wrote rather than by a clock, that a
+ * chapter is judged against the targets the phase recorded, that an uploaded
+ * picture arrives and is stored as one, and that a stranger is told the grow is
+ * not there.
  */
 
 const MINUTES = 60_000;
@@ -150,5 +154,109 @@ describe('the timeline', () => {
 
   it('is not there for a stranger', async () => {
     await stranger.client.get(`/v1/entries?growId=${growId}`).expect(404);
+  });
+});
+
+/**
+ * Writing it. The unit suite has the access matrix, the undo window and the
+ * feed's arithmetic against a database; what only the wire shows is the shapes
+ * a multipart upload arrives in, the global refusal a demo session meets, and
+ * that a line written through `POST /entries` is one the timeline reads back.
+ */
+describe('writing the diary', () => {
+  /** A 2x2 PNG, so that what comes back proves the conversion rather than the passthrough. */
+  const aPicture = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGP8//8/AzbAxIAdjEoRlgIAaFcDAx2LUNMAAAAASUVORK5CYII=',
+    'base64',
+  );
+
+  it('writes one line and reads it straight back off the timeline', async () => {
+    const written = (
+      await owner.client
+        .post('/v1/entries')
+        .send({ kind: 'note', growId, text: 'Topped the two in front.', values: { kind: 'note' } })
+        .expect(201)
+    ).body;
+
+    expect(written).toMatchObject({ source: 'human', authorId: owner.userId, growId, text: 'Topped the two in front.' });
+    expect(written.undoUntil).toEqual(expect.any(String));
+
+    const page = (await owner.client.get(`/v1/entries?growId=${growId}&kinds=note`).expect(200)).body;
+    expect(page.items.map((line: { id: string }) => line.id)).toEqual([written.id]);
+  });
+
+  it('takes a picture in whatever the phone took it as, and stores one JPEG of it', async () => {
+    const picture = (
+      await owner.client.post('/v1/media').field('kind', 'photo').field('growId', growId).attach('file', aPicture, 'leaf.png').expect(201)
+    ).body;
+
+    expect(picture).toMatchObject({ kind: 'photo', mime: 'image/jpeg', growId, uploadedBy: owner.userId });
+
+    const entry = (
+      await owner.client
+        .post('/v1/entries')
+        .send({ kind: 'photo', growId, mediaIds: [picture.id], values: { kind: 'photo' } })
+        .expect(201)
+    ).body;
+    expect(entry.mediaIds).toEqual([picture.id]);
+
+    const bytes = await owner.client.get(`/v1/media/${picture.id}/content`).expect(200);
+    expect(bytes.headers['content-type']).toContain('image/jpeg');
+  });
+
+  it('refuses a file that is not a picture at all', async () => {
+    await owner.client
+      .post('/v1/media')
+      .field('kind', 'photo')
+      .field('growId', growId)
+      .attach('file', Buffer.from('not a picture'), 'notes.txt')
+      .expect(422);
+  });
+
+  it('refuses a photo that is of nothing', async () => {
+    await owner.client.post('/v1/media').field('kind', 'photo').attach('file', aPicture, 'leaf.png').expect(400);
+  });
+
+  it('answers one line on its own, to whoever may read the diary it is in', async () => {
+    const written = (
+      await owner.client
+        .post('/v1/entries')
+        .send({ kind: 'training', growId, values: { kind: 'training' } })
+        .expect(201)
+    ).body;
+
+    expect((await owner.client.get(`/v1/entries/${written.id}`).expect(200)).body).toMatchObject({ id: written.id, kind: 'training' });
+    await stranger.client.get(`/v1/entries/${written.id}`).expect(404);
+  });
+
+  it('undoes one´s own line, and then says there is none', async () => {
+    const entry = (
+      await owner.client
+        .post('/v1/entries')
+        .send({ kind: 'water', growId, values: { kind: 'water', litres: 2 } })
+        .expect(201)
+    ).body;
+
+    await owner.client.delete(`/v1/entries/${entry.id}`).expect(204);
+    await owner.client.delete(`/v1/entries/${entry.id}`).expect(404);
+  });
+
+  it('is not there for a stranger, and not open to a demo session', async () => {
+    const line = { kind: 'note', growId, values: { kind: 'note' } };
+
+    await stranger.client.post('/v1/entries').send(line).expect(404);
+    await (await demoSession()).client.post('/v1/entries').send(line).expect(403);
+  });
+
+  it('is read through a share link and never written through one', async () => {
+    const token = unique('share');
+    await shareLinkOnGrow(growId, token);
+
+    await anonymous().get(`/v1/entries?growId=${growId}&share=${token}`).expect(200);
+    await anonymous()
+      .post('/v1/entries')
+      .set('X-Share-Token', token)
+      .send({ kind: 'note', growId, values: { kind: 'note' } })
+      .expect(401);
   });
 });

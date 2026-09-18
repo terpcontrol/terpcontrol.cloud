@@ -71,16 +71,34 @@ export class DevicePublisherService {
     if (!device) throw new HttpException(404, 'Device not found');
 
     const payload = this.payloadFor(device, command);
+
+    // Before the publish rather than after it. The device suppresses its own
+    // alarms for as long as it was told and the cloud keeps the same window, so
+    // that the window survives a device that never heard - and a broker that
+    // could not take the message is exactly such a device.
+    if (command.kind === 'maintenance') await this.noteMaintenance(deviceId, command.forSeconds);
+
     this.publishCommand(deviceId, payload);
 
-    // The device suppresses its own alarms for as long as it was told; the
-    // cloud keeps the same window, so it survives a device that never heard.
-    if (command.kind === 'maintenance') {
-      const until = new Date(Date.now() + command.forSeconds * 1000);
-      await this.devices.updateOne({ id: deviceId }, { $set: { 'state.maintenanceUntil': until } });
-    }
-
     return { publishedAt: new Date(), deviceOnline: !isOffline(device.state.lastSeenAt) };
+  }
+
+  /**
+   * Quiet on this device for a while, whether or not it hears about it.
+   *
+   * Somebody with their hands in a tent is what this is for, and the diary line
+   * they wrote must not fail because the broker is down - so unlike the command
+   * route, which has a caller waiting to be told whether anybody was listening,
+   * a publish that could not go out is left at the window the cloud keeps.
+   */
+  public async startMaintenance(deviceId: string, forSeconds: number): Promise<void> {
+    await this.noteMaintenance(deviceId, forSeconds);
+    this.mqtt.publish(deviceTopic(deviceId, 'command'), JSON.stringify(maintenancePayload(forSeconds)));
+  }
+
+  private async noteMaintenance(deviceId: string, forSeconds: number): Promise<void> {
+    const until = new Date(Date.now() + forSeconds * 1000);
+    await this.devices.updateOne({ id: deviceId }, { $set: { 'state.maintenanceUntil': until } });
   }
 
   /**
@@ -156,8 +174,7 @@ export class DevicePublisherService {
       case 'reboot':
         return { action: 'reboot' };
       case 'maintenance':
-        // The device counts in whole minutes, so that is what it is told.
-        return { action: 'maintenance', durationMinutes: Math.round(command.forSeconds / 60) };
+        return maintenancePayload(command.forSeconds);
       case 'test':
         return {
           action: 'test',
@@ -221,3 +238,9 @@ export class DevicePublisherService {
     }
   }
 }
+
+/** The device counts maintenance in whole minutes, so that is what it is told. */
+const maintenancePayload = (forSeconds: number): Record<string, unknown> => ({
+  action: 'maintenance',
+  durationMinutes: Math.round(forSeconds / 60),
+});

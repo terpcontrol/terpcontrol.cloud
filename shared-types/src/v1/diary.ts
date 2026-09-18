@@ -70,10 +70,52 @@ const plainValues = <K extends string>(kind: K) => z.object({ kind: z.literal(ki
 const withReadings = <K extends string>(kind: K) =>
   z.object({ kind: z.literal(kind), readings: z.array(entryReading) });
 
-/** Water, feed and measurement differ in what they mean, not in what they record. */
-export const waterEntryValues = named('WaterEntryValues', withReadings('water'));
-export const feedEntryValues = named('FeedEntryValues', withReadings('feed'));
+/**
+ * One dose of one product, as it was actually given.
+ *
+ * Absolute, not per litre: the grid says `2 ml/l` and this says the 8 ml that
+ * went into the can. The scheme a grow carries can be edited afterwards and a
+ * grow can be fed without a scheme at all, so a line that had to be read back
+ * through a grid would change meaning or lose it entirely.
+ */
+export const entryDose = named(
+  'EntryDose',
+  z.object({
+    productKey: z.string(),
+    name: z.string(),
+    amount: z.number(),
+    unit: z.string().describe("The unit of `amount`, such as `ml`: the scheme's own `ml/l` with the per-litre taken off."),
+  }),
+);
+
+/** Measurements of the grow's own definitions, whatever the entry is otherwise about. */
 export const measurementEntryValues = named('MeasurementEntryValues', withReadings('measurement'));
+
+/** Watering: how much water, and whatever was measured while pouring it. */
+export const waterEntryValues = named(
+  'WaterEntryValues',
+  z.object({
+    kind: z.literal('water'),
+    litres: z.number().nullable(),
+    readings: z.array(entryReading),
+  }),
+);
+
+/**
+ * Feeding: the water, the doses that went into it, and the readings taken with
+ * it. `schemeWeek` records which row of the grid the doses came from, so the
+ * line can say "week 5 of the scheme" without reading the grid again.
+ */
+export const feedEntryValues = named(
+  'FeedEntryValues',
+  z.object({
+    kind: z.literal('feed'),
+    litres: z.number().nullable(),
+    schemeWeek: z.number().int().nullable().describe('The row of the grid the doses were read from; null when the grow feeds without a scheme.'),
+    doses: z.array(entryDose),
+    readings: z.array(entryReading),
+  }),
+);
 
 /** The picture is in `mediaIds`, the words in `text`: neither needs a value of its own. */
 export const photoEntryValues = named('PhotoEntryValues', plainValues('photo'));
@@ -191,6 +233,39 @@ export const entry = named(
 export const entryPage = named('EntryPage', page(entry));
 
 /**
+ * The kinds a person writes. Every other kind on the timeline belongs to the
+ * route or the engine it is about - a phase to `POST /grows/{id}/phases`, a move
+ * to a placement, a harvest to a harvest, an alarm to the alarm engine - so
+ * writing one through the diary would be a second way to state the same fact.
+ */
+export const humanEntryKind = named(
+  'HumanEntryKind',
+  entryKind.extract(['water', 'feed', 'photo', 'note', 'measurement', 'training', 'visit']),
+);
+
+/**
+ * What `POST /entries` takes for `values`: the same shapes with the parts the
+ * server can work out left optional.
+ *
+ * "Log as planned" is a feed that names its water and nothing else - the doses
+ * and the week they came from are resolved from the grow's grid at the moment
+ * the feed happened, and stored resolved. A feed that names its own doses is
+ * stored as given, because what went into the can is the fact.
+ */
+export const entryValuesDraft = named(
+  'EntryValuesDraft',
+  z.discriminatedUnion('kind', [
+    waterEntryValues.partial({ litres: true, readings: true }),
+    feedEntryValues.partial({ litres: true, schemeWeek: true, doses: true, readings: true }),
+    measurementEntryValues.partial({ readings: true }),
+    photoEntryValues,
+    noteEntryValues,
+    trainingEntryValues,
+    visitEntryValues,
+  ]),
+);
+
+/**
  * `POST /entries`. What the entry is about is the client's; who wrote it, when
  * it was written down, what raised it and how long it may still be taken back
  * are the server's, so none of those is asked for.
@@ -203,7 +278,6 @@ export const entryCreate = named(
   'EntryCreate',
   entry
     .pick({
-      kind: true,
       occurredAt: true,
       growId: true,
       spaceId: true,
@@ -212,20 +286,10 @@ export const entryCreate = named(
       cameraId: true,
       taskId: true,
       text: true,
-      values: true,
       mediaIds: true,
     })
-    .partial({
-      occurredAt: true,
-      growId: true,
-      spaceId: true,
-      deviceId: true,
-      plantIds: true,
-      cameraId: true,
-      taskId: true,
-      text: true,
-      mediaIds: true,
-    }),
+    .partial()
+    .extend({ kind: humanEntryKind, values: entryValuesDraft }),
 );
 
 /**

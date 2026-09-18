@@ -8,18 +8,23 @@ import { api } from './client';
  * here counts days. The weeks are paged, newest first, because every card costs
  * the server a time-series read; the page asks for the next screenful only when
  * somebody scrolls to it.
+ *
+ * The first two are the Log sheet's as well, where there may be no grow at all:
+ * a sheet pointed at a tent asks for nothing rather than for a grow called null.
  */
 
-export const useGrow = (growId: string) =>
+export const useGrow = (growId: string | null) =>
   useQuery({
     queryKey: ['grow', growId],
     queryFn: ({ signal }) => api.get<GrowListItem>(`/grows/${growId}`, undefined, signal),
+    enabled: growId !== null,
   });
 
-export const useGrowPlants = (growId: string) =>
+export const useGrowPlants = (growId: string | null) =>
   useQuery({
     queryKey: ['grow', growId, 'plants'],
     queryFn: ({ signal }) => api.get<PlantPage>(`/grows/${growId}/plants`, undefined, signal),
+    enabled: growId !== null,
   });
 
 export const useGrowWeeks = (growId: string) =>

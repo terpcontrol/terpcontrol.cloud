@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCaptureAnswer = exports.cameraUpdate = exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.media = exports.mediaRender = exports.mediaRenderStatus = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.measurementEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.entryReading = void 0;
-exports.growSeriesPoint = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.cameraStill = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.person = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = void 0;
-exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growMeasurementSeries = void 0;
+exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCaptureAnswer = exports.cameraUpdate = exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.media = exports.mediaRender = exports.mediaRenderStatus = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryValuesDraft = exports.humanEntryKind = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.measurementEntryValues = exports.entryDose = exports.entryReading = void 0;
+exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.cameraStill = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.person = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = void 0;
+exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growMeasurementSeries = exports.growSeriesPoint = exports.growReport = exports.growTotals = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -39,10 +39,40 @@ exports.entryReading = (0, common_js_1.named)('EntryReading', zod_1.z.object({
  */
 const plainValues = (kind) => zod_1.z.object({ kind: zod_1.z.literal(kind) });
 const withReadings = (kind) => zod_1.z.object({ kind: zod_1.z.literal(kind), readings: zod_1.z.array(exports.entryReading) });
-/** Water, feed and measurement differ in what they mean, not in what they record. */
-exports.waterEntryValues = (0, common_js_1.named)('WaterEntryValues', withReadings('water'));
-exports.feedEntryValues = (0, common_js_1.named)('FeedEntryValues', withReadings('feed'));
+/**
+ * One dose of one product, as it was actually given.
+ *
+ * Absolute, not per litre: the grid says `2 ml/l` and this says the 8 ml that
+ * went into the can. The scheme a grow carries can be edited afterwards and a
+ * grow can be fed without a scheme at all, so a line that had to be read back
+ * through a grid would change meaning or lose it entirely.
+ */
+exports.entryDose = (0, common_js_1.named)('EntryDose', zod_1.z.object({
+    productKey: zod_1.z.string(),
+    name: zod_1.z.string(),
+    amount: zod_1.z.number(),
+    unit: zod_1.z.string().describe("The unit of `amount`, such as `ml`: the scheme's own `ml/l` with the per-litre taken off."),
+}));
+/** Measurements of the grow's own definitions, whatever the entry is otherwise about. */
 exports.measurementEntryValues = (0, common_js_1.named)('MeasurementEntryValues', withReadings('measurement'));
+/** Watering: how much water, and whatever was measured while pouring it. */
+exports.waterEntryValues = (0, common_js_1.named)('WaterEntryValues', zod_1.z.object({
+    kind: zod_1.z.literal('water'),
+    litres: zod_1.z.number().nullable(),
+    readings: zod_1.z.array(exports.entryReading),
+}));
+/**
+ * Feeding: the water, the doses that went into it, and the readings taken with
+ * it. `schemeWeek` records which row of the grid the doses came from, so the
+ * line can say "week 5 of the scheme" without reading the grid again.
+ */
+exports.feedEntryValues = (0, common_js_1.named)('FeedEntryValues', zod_1.z.object({
+    kind: zod_1.z.literal('feed'),
+    litres: zod_1.z.number().nullable(),
+    schemeWeek: zod_1.z.number().int().nullable().describe('The row of the grid the doses were read from; null when the grow feeds without a scheme.'),
+    doses: zod_1.z.array(exports.entryDose),
+    readings: zod_1.z.array(exports.entryReading),
+}));
 /** The picture is in `mediaIds`, the words in `text`: neither needs a value of its own. */
 exports.photoEntryValues = (0, common_js_1.named)('PhotoEntryValues', plainValues('photo'));
 exports.noteEntryValues = (0, common_js_1.named)('NoteEntryValues', plainValues('note'));
@@ -127,6 +157,31 @@ exports.entry = (0, common_js_1.named)('Entry', zod_1.z.object({
 }));
 exports.entryPage = (0, common_js_1.named)('EntryPage', (0, common_js_1.page)(exports.entry));
 /**
+ * The kinds a person writes. Every other kind on the timeline belongs to the
+ * route or the engine it is about - a phase to `POST /grows/{id}/phases`, a move
+ * to a placement, a harvest to a harvest, an alarm to the alarm engine - so
+ * writing one through the diary would be a second way to state the same fact.
+ */
+exports.humanEntryKind = (0, common_js_1.named)('HumanEntryKind', common_js_1.entryKind.extract(['water', 'feed', 'photo', 'note', 'measurement', 'training', 'visit']));
+/**
+ * What `POST /entries` takes for `values`: the same shapes with the parts the
+ * server can work out left optional.
+ *
+ * "Log as planned" is a feed that names its water and nothing else - the doses
+ * and the week they came from are resolved from the grow's grid at the moment
+ * the feed happened, and stored resolved. A feed that names its own doses is
+ * stored as given, because what went into the can is the fact.
+ */
+exports.entryValuesDraft = (0, common_js_1.named)('EntryValuesDraft', zod_1.z.discriminatedUnion('kind', [
+    exports.waterEntryValues.partial({ litres: true, readings: true }),
+    exports.feedEntryValues.partial({ litres: true, schemeWeek: true, doses: true, readings: true }),
+    exports.measurementEntryValues.partial({ readings: true }),
+    exports.photoEntryValues,
+    exports.noteEntryValues,
+    exports.trainingEntryValues,
+    exports.visitEntryValues,
+]));
+/**
  * `POST /entries`. What the entry is about is the client's; who wrote it, when
  * it was written down, what raised it and how long it may still be taken back
  * are the server's, so none of those is asked for.
@@ -137,7 +192,6 @@ exports.entryPage = (0, common_js_1.named)('EntryPage', (0, common_js_1.page)(ex
  */
 exports.entryCreate = (0, common_js_1.named)('EntryCreate', exports.entry
     .pick({
-    kind: true,
     occurredAt: true,
     growId: true,
     spaceId: true,
@@ -146,20 +200,10 @@ exports.entryCreate = (0, common_js_1.named)('EntryCreate', exports.entry
     cameraId: true,
     taskId: true,
     text: true,
-    values: true,
     mediaIds: true,
 })
-    .partial({
-    occurredAt: true,
-    growId: true,
-    spaceId: true,
-    deviceId: true,
-    plantIds: true,
-    cameraId: true,
-    taskId: true,
-    text: true,
-    mediaIds: true,
-}));
+    .partial()
+    .extend({ kind: exports.humanEntryKind, values: exports.entryValuesDraft }));
 /**
  * `PATCH /entries/{id}`: the same fields, each only if it changes. An entry's
  * `kind` is what the entry is and is not patched - correcting a reading is

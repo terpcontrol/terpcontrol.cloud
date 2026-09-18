@@ -1,14 +1,14 @@
-import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Query, Req, Res, UseGuards } from '@nestjs/common';
-import { ApiNoContentResponse, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { ApiBody, ApiConsumes, ApiNoContentResponse, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import parseRange from 'range-parser';
-import { Media } from '@fg2/shared-types/v1';
-import { media as mediaShape } from '@fg2/shared-types/v1-schemas';
+import { Media, MediaUpload } from '@fg2/shared-types/v1';
+import { media as mediaShape, mediaUpload } from '@fg2/shared-types/v1-schemas';
 import { AuthGuard } from '@common/auth/auth.guard';
 import { AccessGuard, Caller, Requires } from '@common/v1/access.guard';
 import { AccessService, needToEditEntry, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
-import { notFound } from '@common/v1/problem';
+import { badRequest, notFound, unprocessable } from '@common/v1/problem';
 import { logger } from '@utils/logger';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { CamerasService } from './cameras.service';
@@ -44,6 +44,70 @@ export class MediaController {
     private readonly presentation: MediaPresentationService,
     private readonly access: AccessService,
   ) {}
+
+  /**
+   * A picture somebody took, against a grow or a space and never against a
+   * device: a phone is not hardware this cloud knows, and the grow is what the
+   * picture is of.
+   *
+   * It is uploaded on its own rather than inside the entry, because a photo
+   * entry is written the instant the shutter closes and the bytes take as long
+   * as the connection takes. The entry that carries it names it in `mediaIds`
+   * afterwards; a picture that never reaches one is removed by the daily sweep.
+   */
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(AuthGuard)
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file', 'kind'],
+      properties: {
+        file: { type: 'string', format: 'binary', description: 'The picture, in whatever format the phone took it.' },
+        kind: { type: 'string', enum: ['photo', 'avatar'] },
+        growId: { type: 'string' },
+        spaceId: { type: 'string' },
+        capturedAt: { type: 'string', format: 'date-time', description: 'When it was taken. Defaults to now.' },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'Upload a picture for the diary' })
+  @V1Answer(mediaShape, { status: HttpStatus.CREATED })
+  public async upload(@Caller() ctx: AccessContext, @Body() body: Record<string, unknown>): Promise<Media> {
+    const bytes = fileOf(body);
+    const upload = parseUpload(body);
+
+    // A photo belongs to whatever it is of, and writing to that is logging. An
+    // avatar belongs to the account that is uploading it and to nothing else.
+    if (upload.kind === 'photo') {
+      if (!upload.growId && !upload.spaceId) {
+        throw badRequest('photo_about_nothing', 'A photo is of a grow or of a space.', [
+          { field: 'growId', code: 'required', detail: 'Name a growId or a spaceId.' },
+        ]);
+      }
+      if (upload.growId) await this.access.require(ctx, subjectRef('grow', upload.growId), 'log');
+      if (upload.spaceId) await this.access.require(ctx, subjectRef('space', upload.spaceId), 'log');
+    }
+
+    const stored = await this.presentation.asStoredJpeg(bytes).catch(() => {
+      throw unprocessable('not_a_picture', 'That file could not be read as a picture.');
+    });
+
+    return this.media.serialise(
+      await this.media.storeBytes(
+        {
+          kind: upload.kind,
+          mime: 'image/jpeg',
+          growId: upload.kind === 'photo' ? (upload.growId ?? null) : null,
+          spaceId: upload.kind === 'photo' ? (upload.spaceId ?? null) : null,
+          uploadedBy: ctx.userId,
+          capturedAt: upload.capturedAt ? new Date(upload.capturedAt) : new Date(),
+        },
+        stored,
+      ),
+    );
+  }
 
   @Get(':id')
   @UseGuards(OptionalSessionGuard, AccessGuard)
@@ -158,3 +222,35 @@ export class MediaController {
     await reply.send(stream);
   }
 }
+
+/**
+ * The bytes off the multipart body. Fastify attaches a file field as a buffer
+ * and every other field as a string, so the picture is whichever field is one -
+ * `file` by name, and `image` because that is what the old route called it.
+ */
+const fileOf = (body: Record<string, unknown>): Buffer => {
+  const file = body?.file ?? body?.image;
+  if (!Buffer.isBuffer(file) || file.length === 0) {
+    throw badRequest('file_missing', 'The picture is sent as a file field named `file`.', [
+      { field: 'file', code: 'required', detail: 'No file field arrived with the request.' },
+    ]);
+  }
+
+  return file;
+};
+
+/** Everything beside the bytes, checked against the contract rather than read field by field. */
+const parseUpload = (body: Record<string, unknown>): MediaUpload => {
+  const { file: _file, image: _image, ...fields } = body ?? {};
+  const parsed = mediaUpload.safeParse(fields);
+
+  if (!parsed.success) {
+    throw badRequest(
+      'validation_failed',
+      'The fields beside the picture do not match what this route accepts.',
+      parsed.error.issues.map(issue => ({ field: issue.path.join('.'), code: issue.code, detail: issue.message })),
+    );
+  }
+
+  return parsed.data;
+};

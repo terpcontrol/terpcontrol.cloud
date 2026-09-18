@@ -13,6 +13,7 @@ import type {
   SpaceOverview,
 } from '@fg2/shared-types/v1';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
+import { useLog, useMayLog } from '@/log/log-context';
 import { ageAttribute, ageLabel } from '@/ui/age';
 import type { Liveness } from '../home/attention';
 import { EntryRow } from '@/ui/EntryRow';
@@ -218,6 +219,8 @@ function TargetsLine({ overview }: { overview: SpaceOverview }) {
 /** A due task with its Done, which says what it is about to write. */
 function DueCard({ task, overview, now }: { task: OverviewTask; overview: SpaceOverview; now: DateTime }) {
   const { t } = useTranslation();
+  const { complete } = useLog();
+  const mayLog = useMayLog();
   const subject = task.subject.type === 'grow' ? (overview.grows.find(grow => grow.growId === task.subject.id)?.name ?? '') : overview.name;
   const writes = t(`home.entryKind.${task.kind === 'chore' || task.kind === 'custom' ? 'note' : task.kind}`);
   const defaults = defaultsLabel(task.defaults);
@@ -238,9 +241,17 @@ function DueCard({ task, overview, now }: { task: OverviewTask; overview: SpaceO
           {t('space.doneWrites', { what: writes, subject })}
         </span>
       </div>
-      <Link to={`/log?task=${encodeURIComponent(task.id)}`} className={`${ui.button} ${ui.primary} ${styles.doneButton}`}>
-        {t('home.strip.done')}
-      </Link>
+      {/* Done is the whole interaction: the completion writes the entry the task
+          implies, and the toast that follows is where it can be taken back. */}
+      {mayLog ? (
+        <button
+          type="button"
+          className={`${ui.button} ${ui.primary} ${styles.doneButton}`}
+          onClick={() => complete(task.id, `${writes} · ${subject}`)}
+        >
+          {t('home.strip.done')}
+        </button>
+      ) : null}
     </li>
   );
 }

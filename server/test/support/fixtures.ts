@@ -80,3 +80,24 @@ export const storeWebcamStill = (deviceId: string, data: Buffer, timestamp: numb
 
     return { imageId };
   });
+
+/**
+ * A read-only share link on a grow. Making one is the sharing round's route; a
+ * link is inserted here because what it may and may not do is decided now.
+ */
+export const shareLinkOnGrow = (growId: string, token: string): Promise<void> =>
+  withDatabase(async database => {
+    await database.collection('shareLinks').insertOne({
+      id: randomUUID(),
+      createdAt: new Date(),
+      token,
+      kind: 'view',
+      subject: { type: 'grow', id: growId },
+      range: { startsAt: null, endsAt: null },
+      includeCameras: true,
+      createdBy: null,
+      expiresAt: null,
+      revokedAt: null,
+      state: { openCount: 0, lastOpenedAt: null },
+    });
+  });

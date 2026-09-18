@@ -1,4 +1,4 @@
-import { Camera, Droplet, Leaf, Pencil, Ruler, Timer } from 'lucide-react';
+import { Camera, Droplet, Leaf, Pencil, Ruler, Timer, type LucideIcon } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -7,6 +7,7 @@ import { THUMBNAIL_WIDTH, useSession, mediaUrl } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import { authorOf, headlineOf } from '@/ui/entries';
 import { STAGES } from '@/ui/stages';
+import { useLog, useMayLog, type TileKind } from '@/log/log-context';
 import ui from '@/ui/ui.module.css';
 import styles from './SpaceCard.module.css';
 
@@ -26,7 +27,6 @@ interface GrowHalfProps {
  * it, and the two or three things a person does most.
  */
 export function GrowHalf({ card, people, now, headed, compact }: GrowHalfProps) {
-  const { t } = useTranslation();
   const grow = card.grow!;
   // A grow without a cover of its own is shown by the newest picture of where it stands.
   const coverId = grow.coverMediaId ?? card.latestStill?.mediaId ?? null;
@@ -52,18 +52,9 @@ export function GrowHalf({ card, people, now, headed, compact }: GrowHalfProps) 
         <DiaryActions grow={grow} />
       ) : (
         <div className={styles.actions}>
-          <Link to={`/log?kind=water&grow=${grow.growId}`} className={`${ui.button} ${ui.primary} ${styles.action}`}>
-            <Droplet size={16} strokeWidth={1.75} aria-hidden />
-            {t('home.actions.water')}
-          </Link>
-          <Link to={`/log?kind=note&grow=${grow.growId}`} className={`${ui.button} ${styles.action}`}>
-            <Pencil size={16} strokeWidth={1.75} aria-hidden />
-            {t('home.actions.note')}
-          </Link>
-          <Link to={`/log?kind=photo&grow=${grow.growId}`} className={`${ui.button} ${styles.action}`}>
-            <Camera size={16} strokeWidth={1.75} aria-hidden />
-            {t('home.actions.photo')}
-          </Link>
+          <LogAction kind="water" growId={grow.growId} Icon={Droplet} labelKey="home.actions.water" primary />
+          <LogAction kind="note" growId={grow.growId} Icon={Pencil} labelKey="home.actions.note" />
+          <LogAction kind="photo" growId={grow.growId} Icon={Camera} labelKey="home.actions.photo" />
         </div>
       )}
     </div>
@@ -172,17 +163,32 @@ export function NoGrow({ card, onNotNow }: { card: HomeSpaceCard; onNotNow: () =
   );
 }
 
+/** A reading taken by hand, where nothing measures by itself. */
+function LogReading() {
+  const { t } = useTranslation();
+  const { openSheet } = useLog();
+
+  return (
+    <button type="button" className={styles.inviteAction} onClick={() => openSheet({ kind: 'measurement' })}>
+      {t('home.invite.logReading')}
+    </button>
+  );
+}
+
 /** The climate half of a place with nothing measuring in it. */
 export function NoSensor() {
   const { t } = useTranslation();
+  const mayLog = useMayLog();
 
   return (
     <p className={styles.invite}>
       {t('home.invite.noSensor')}
-      {' · '}
-      <Link to="/log?kind=measurement" className={styles.inviteAction}>
-        {t('home.invite.logReading')}
-      </Link>
+      {mayLog ? (
+        <>
+          {' · '}
+          <LogReading />
+        </>
+      ) : null}
       {' · '}
       <Link to="/devices" className={styles.inviteAction}>
         {t('home.invite.addDevice')}
@@ -191,46 +197,62 @@ export function NoSensor() {
   );
 }
 
-/** What a device-only tent offers: a picture, a note, a quarter hour of presence. */
-export function DeviceActions({ card }: { card: HomeSpaceCard }) {
+/**
+ * One of the two or three things a person does most, on the card of the place
+ * they do it to. It opens the Log sheet at that tile over the home rather than
+ * going anywhere: the card is where you were, and where you want to be after.
+ */
+function LogAction({
+  kind,
+  growId = null,
+  spaceId = null,
+  Icon,
+  labelKey,
+  primary = false,
+}: {
+  kind: TileKind;
+  growId?: string | null;
+  spaceId?: string | null;
+  Icon: LucideIcon;
+  labelKey: string;
+  primary?: boolean;
+}) {
   const { t } = useTranslation();
+  const { openSheet } = useLog();
+  const mayLog = useMayLog();
+
+  if (!mayLog) return null;
 
   return (
+    <button
+      type="button"
+      className={[ui.button, primary ? ui.primary : '', styles.action].filter(Boolean).join(' ')}
+      onClick={() => openSheet({ kind, growId, spaceId })}
+    >
+      <Icon size={16} strokeWidth={1.75} aria-hidden />
+      {t(labelKey)}
+    </button>
+  );
+}
+
+/** What a device-only tent offers: a picture, a note, a quarter hour of presence. */
+export function DeviceActions({ card }: { card: HomeSpaceCard }) {
+  return (
     <div className={styles.actions}>
-      <Link to={`/log?kind=photo&space=${card.spaceId}`} className={`${ui.button} ${styles.action}`}>
-        <Camera size={16} strokeWidth={1.75} aria-hidden />
-        {t('home.actions.photo')}
-      </Link>
-      <Link to={`/log?kind=note&space=${card.spaceId}`} className={`${ui.button} ${styles.action}`}>
-        <Pencil size={16} strokeWidth={1.75} aria-hidden />
-        {t('home.actions.note')}
-      </Link>
-      <Link to={`/log?kind=visit&space=${card.spaceId}`} className={`${ui.button} ${styles.action}`}>
-        <Timer size={16} strokeWidth={1.75} aria-hidden />
-        {t('home.actions.visit')}
-      </Link>
+      <LogAction kind="photo" spaceId={card.spaceId} Icon={Camera} labelKey="home.actions.photo" />
+      <LogAction kind="note" spaceId={card.spaceId} Icon={Pencil} labelKey="home.actions.note" />
+      <LogAction kind="visit" spaceId={card.spaceId} Icon={Timer} labelKey="home.actions.visit" />
     </div>
   );
 }
 
 /** What a diary-only grow offers in place of the climate: water, a picture, a reading by hand. */
 export function DiaryActions({ grow }: { grow: GrowCard }) {
-  const { t } = useTranslation();
-
   return (
     <div className={styles.actions}>
-      <Link to={`/log?kind=water&grow=${grow.growId}`} className={`${ui.button} ${styles.action}`}>
-        <Droplet size={16} strokeWidth={1.75} aria-hidden />
-        {t('home.actions.water')}
-      </Link>
-      <Link to={`/log?kind=photo&grow=${grow.growId}`} className={`${ui.button} ${styles.action}`}>
-        <Camera size={16} strokeWidth={1.75} aria-hidden />
-        {t('home.actions.photo')}
-      </Link>
-      <Link to={`/log?kind=measurement&grow=${grow.growId}`} className={`${ui.button} ${styles.action}`}>
-        <Ruler size={16} strokeWidth={1.75} aria-hidden />
-        {t('home.actions.reading')}
-      </Link>
+      <LogAction kind="water" growId={grow.growId} Icon={Droplet} labelKey="home.actions.water" />
+      <LogAction kind="photo" growId={grow.growId} Icon={Camera} labelKey="home.actions.photo" />
+      <LogAction kind="measurement" growId={grow.growId} Icon={Ruler} labelKey="home.actions.reading" />
     </div>
   );
 }

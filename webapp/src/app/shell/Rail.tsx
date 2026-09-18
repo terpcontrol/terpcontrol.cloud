@@ -1,8 +1,9 @@
 import { Bell, ChevronRight } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { NavLink, useNavigate } from 'react-router';
+import { NavLink } from 'react-router';
 import { useSession } from '@/api/session';
+import { useLog, useMayLog } from '@/log/log-context';
 import { TABS, initials } from './tabs';
 import { Freshness } from './TopBar';
 import styles from './Rail.module.css';
@@ -16,22 +17,25 @@ const isTyping = (target: EventTarget | null): boolean =>
 export function Rail() {
   const { t } = useTranslation();
   const { user } = useSession();
-  const navigate = useNavigate();
+  const { openSheet } = useLog();
+  const mayLog = useMayLog();
 
-  const log = TABS.find(tab => tab.raised);
+  const log = mayLog ? TABS.find(tab => tab.raised) : undefined;
   const tabs = TABS.filter(tab => !tab.raised);
 
   // The key the button advertises. A wide screen has a keyboard; a field keeps its letters.
   useEffect(() => {
+    if (!mayLog) return;
+
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== LOG_KEY || event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
       if (!window.matchMedia('(min-width: 900px)').matches) return;
       event.preventDefault();
-      void navigate('/log');
+      openSheet();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [navigate]);
+  }, [mayLog, openSheet]);
 
   const itemClass = ({ isActive }: { isActive: boolean }) => [styles.item, isActive ? styles.active : ''].filter(Boolean).join(' ');
 
@@ -43,11 +47,11 @@ export function Rail() {
       </div>
 
       {log ? (
-        <NavLink to={log.path} className={styles.log}>
+        <button type="button" className={styles.log} onClick={() => openSheet()}>
           <log.Icon size={20} strokeWidth={2} aria-hidden />
           <span className={styles.logCaption}>{t(log.labelKey)}</span>
           <kbd className={`mono ${styles.key}`}>{LOG_KEY.toUpperCase()}</kbd>
-        </NavLink>
+        </button>
       ) : null}
 
       {tabs.map(({ path, labelKey, Icon }) => (

@@ -22,25 +22,54 @@ export declare const entryReading: z.ZodObject<{
     value: z.ZodNumber;
     plantId: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;
-/** Water, feed and measurement differ in what they mean, not in what they record. */
-export declare const waterEntryValues: z.ZodObject<{
-    kind: z.ZodLiteral<"water">;
-    readings: z.ZodArray<z.ZodObject<{
-        key: z.ZodString;
-        value: z.ZodNumber;
-        plantId: z.ZodNullable<z.ZodString>;
-    }, z.core.$strip>>;
+/**
+ * One dose of one product, as it was actually given.
+ *
+ * Absolute, not per litre: the grid says `2 ml/l` and this says the 8 ml that
+ * went into the can. The scheme a grow carries can be edited afterwards and a
+ * grow can be fed without a scheme at all, so a line that had to be read back
+ * through a grid would change meaning or lose it entirely.
+ */
+export declare const entryDose: z.ZodObject<{
+    productKey: z.ZodString;
+    name: z.ZodString;
+    amount: z.ZodNumber;
+    unit: z.ZodString;
 }, z.core.$strip>;
-export declare const feedEntryValues: z.ZodObject<{
-    kind: z.ZodLiteral<"feed">;
-    readings: z.ZodArray<z.ZodObject<{
-        key: z.ZodString;
-        value: z.ZodNumber;
-        plantId: z.ZodNullable<z.ZodString>;
-    }, z.core.$strip>>;
-}, z.core.$strip>;
+/** Measurements of the grow's own definitions, whatever the entry is otherwise about. */
 export declare const measurementEntryValues: z.ZodObject<{
     kind: z.ZodLiteral<"measurement">;
+    readings: z.ZodArray<z.ZodObject<{
+        key: z.ZodString;
+        value: z.ZodNumber;
+        plantId: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+/** Watering: how much water, and whatever was measured while pouring it. */
+export declare const waterEntryValues: z.ZodObject<{
+    kind: z.ZodLiteral<"water">;
+    litres: z.ZodNullable<z.ZodNumber>;
+    readings: z.ZodArray<z.ZodObject<{
+        key: z.ZodString;
+        value: z.ZodNumber;
+        plantId: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+/**
+ * Feeding: the water, the doses that went into it, and the readings taken with
+ * it. `schemeWeek` records which row of the grid the doses came from, so the
+ * line can say "week 5 of the scheme" without reading the grid again.
+ */
+export declare const feedEntryValues: z.ZodObject<{
+    kind: z.ZodLiteral<"feed">;
+    litres: z.ZodNullable<z.ZodNumber>;
+    schemeWeek: z.ZodNullable<z.ZodNumber>;
+    doses: z.ZodArray<z.ZodObject<{
+        productKey: z.ZodString;
+        name: z.ZodString;
+        amount: z.ZodNumber;
+        unit: z.ZodString;
+    }, z.core.$strip>>;
     readings: z.ZodArray<z.ZodObject<{
         key: z.ZodString;
         value: z.ZodNumber;
@@ -107,6 +136,7 @@ export declare const planEntryValues: z.ZodObject<{
 }, z.core.$strip>;
 export declare const entryValues: z.ZodDiscriminatedUnion<[z.ZodObject<{
     kind: z.ZodLiteral<"water">;
+    litres: z.ZodNullable<z.ZodNumber>;
     readings: z.ZodArray<z.ZodObject<{
         key: z.ZodString;
         value: z.ZodNumber;
@@ -114,6 +144,14 @@ export declare const entryValues: z.ZodDiscriminatedUnion<[z.ZodObject<{
     }, z.core.$strip>>;
 }, z.core.$strip>, z.ZodObject<{
     kind: z.ZodLiteral<"feed">;
+    litres: z.ZodNullable<z.ZodNumber>;
+    schemeWeek: z.ZodNullable<z.ZodNumber>;
+    doses: z.ZodArray<z.ZodObject<{
+        productKey: z.ZodString;
+        name: z.ZodString;
+        amount: z.ZodNumber;
+        unit: z.ZodString;
+    }, z.core.$strip>>;
     readings: z.ZodArray<z.ZodObject<{
         key: z.ZodString;
         value: z.ZodNumber;
@@ -229,6 +267,7 @@ export declare const entry: z.ZodObject<{
     }, z.core.$strip>>;
     values: z.ZodDiscriminatedUnion<[z.ZodObject<{
         kind: z.ZodLiteral<"water">;
+        litres: z.ZodNullable<z.ZodNumber>;
         readings: z.ZodArray<z.ZodObject<{
             key: z.ZodString;
             value: z.ZodNumber;
@@ -236,6 +275,14 @@ export declare const entry: z.ZodObject<{
         }, z.core.$strip>>;
     }, z.core.$strip>, z.ZodObject<{
         kind: z.ZodLiteral<"feed">;
+        litres: z.ZodNullable<z.ZodNumber>;
+        schemeWeek: z.ZodNullable<z.ZodNumber>;
+        doses: z.ZodArray<z.ZodObject<{
+            productKey: z.ZodString;
+            name: z.ZodString;
+            amount: z.ZodNumber;
+            unit: z.ZodString;
+        }, z.core.$strip>>;
         readings: z.ZodArray<z.ZodObject<{
             key: z.ZodString;
             value: z.ZodNumber;
@@ -342,6 +389,7 @@ export declare const entryPage: z.ZodObject<{
         }, z.core.$strip>>;
         values: z.ZodDiscriminatedUnion<[z.ZodObject<{
             kind: z.ZodLiteral<"water">;
+            litres: z.ZodNullable<z.ZodNumber>;
             readings: z.ZodArray<z.ZodObject<{
                 key: z.ZodString;
                 value: z.ZodNumber;
@@ -349,6 +397,14 @@ export declare const entryPage: z.ZodObject<{
             }, z.core.$strip>>;
         }, z.core.$strip>, z.ZodObject<{
             kind: z.ZodLiteral<"feed">;
+            litres: z.ZodNullable<z.ZodNumber>;
+            schemeWeek: z.ZodNullable<z.ZodNumber>;
+            doses: z.ZodArray<z.ZodObject<{
+                productKey: z.ZodString;
+                name: z.ZodString;
+                amount: z.ZodNumber;
+                unit: z.ZodString;
+            }, z.core.$strip>>;
             readings: z.ZodArray<z.ZodObject<{
                 key: z.ZodString;
                 value: z.ZodNumber;
@@ -411,6 +467,69 @@ export declare const entryPage: z.ZodObject<{
     nextCursor: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;
 /**
+ * The kinds a person writes. Every other kind on the timeline belongs to the
+ * route or the engine it is about - a phase to `POST /grows/{id}/phases`, a move
+ * to a placement, a harvest to a harvest, an alarm to the alarm engine - so
+ * writing one through the diary would be a second way to state the same fact.
+ */
+export declare const humanEntryKind: z.ZodEnum<{
+    water: "water";
+    feed: "feed";
+    photo: "photo";
+    note: "note";
+    measurement: "measurement";
+    training: "training";
+    visit: "visit";
+}>;
+/**
+ * What `POST /entries` takes for `values`: the same shapes with the parts the
+ * server can work out left optional.
+ *
+ * "Log as planned" is a feed that names its water and nothing else - the doses
+ * and the week they came from are resolved from the grow's grid at the moment
+ * the feed happened, and stored resolved. A feed that names its own doses is
+ * stored as given, because what went into the can is the fact.
+ */
+export declare const entryValuesDraft: z.ZodDiscriminatedUnion<[z.ZodObject<{
+    kind: z.ZodLiteral<"water">;
+    litres: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    readings: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        key: z.ZodString;
+        value: z.ZodNumber;
+        plantId: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>>;
+}, z.core.$strip>, z.ZodObject<{
+    kind: z.ZodLiteral<"feed">;
+    litres: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    schemeWeek: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    doses: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        productKey: z.ZodString;
+        name: z.ZodString;
+        amount: z.ZodNumber;
+        unit: z.ZodString;
+    }, z.core.$strip>>>;
+    readings: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        key: z.ZodString;
+        value: z.ZodNumber;
+        plantId: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>>;
+}, z.core.$strip>, z.ZodObject<{
+    kind: z.ZodLiteral<"measurement">;
+    readings: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        key: z.ZodString;
+        value: z.ZodNumber;
+        plantId: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>>;
+}, z.core.$strip>, z.ZodObject<{
+    kind: z.ZodLiteral<"photo">;
+}, z.core.$strip>, z.ZodObject<{
+    kind: z.ZodLiteral<"note">;
+}, z.core.$strip>, z.ZodObject<{
+    kind: z.ZodLiteral<"training">;
+}, z.core.$strip>, z.ZodObject<{
+    kind: z.ZodLiteral<"visit">;
+}, z.core.$strip>], "kind">;
+/**
  * `POST /entries`. What the entry is about is the client's; who wrote it, when
  * it was written down, what raised it and how long it may still be taken back
  * are the server's, so none of those is asked for.
@@ -420,27 +539,54 @@ export declare const entryPage: z.ZodObject<{
  * rather than believing one of them.
  */
 export declare const entryCreate: z.ZodObject<{
+    text: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    spaceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    deviceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    cameraId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plantIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    growId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    occurredAt: z.ZodOptional<z.ZodISODateTime>;
+    taskId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    mediaIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    kind: z.ZodEnum<{
+        water: "water";
+        feed: "feed";
+        photo: "photo";
+        note: "note";
+        measurement: "measurement";
+        training: "training";
+        visit: "visit";
+    }>;
     values: z.ZodDiscriminatedUnion<[z.ZodObject<{
         kind: z.ZodLiteral<"water">;
-        readings: z.ZodArray<z.ZodObject<{
+        litres: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        readings: z.ZodOptional<z.ZodArray<z.ZodObject<{
             key: z.ZodString;
             value: z.ZodNumber;
             plantId: z.ZodNullable<z.ZodString>;
-        }, z.core.$strip>>;
+        }, z.core.$strip>>>;
     }, z.core.$strip>, z.ZodObject<{
         kind: z.ZodLiteral<"feed">;
-        readings: z.ZodArray<z.ZodObject<{
+        litres: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        schemeWeek: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        doses: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            productKey: z.ZodString;
+            name: z.ZodString;
+            amount: z.ZodNumber;
+            unit: z.ZodString;
+        }, z.core.$strip>>>;
+        readings: z.ZodOptional<z.ZodArray<z.ZodObject<{
             key: z.ZodString;
             value: z.ZodNumber;
             plantId: z.ZodNullable<z.ZodString>;
-        }, z.core.$strip>>;
+        }, z.core.$strip>>>;
     }, z.core.$strip>, z.ZodObject<{
         kind: z.ZodLiteral<"measurement">;
-        readings: z.ZodArray<z.ZodObject<{
+        readings: z.ZodOptional<z.ZodArray<z.ZodObject<{
             key: z.ZodString;
             value: z.ZodNumber;
             plantId: z.ZodNullable<z.ZodString>;
-        }, z.core.$strip>>;
+        }, z.core.$strip>>>;
     }, z.core.$strip>, z.ZodObject<{
         kind: z.ZodLiteral<"photo">;
     }, z.core.$strip>, z.ZodObject<{
@@ -449,66 +595,7 @@ export declare const entryCreate: z.ZodObject<{
         kind: z.ZodLiteral<"training">;
     }, z.core.$strip>, z.ZodObject<{
         kind: z.ZodLiteral<"visit">;
-    }, z.core.$strip>, z.ZodObject<{
-        kind: z.ZodLiteral<"system">;
-    }, z.core.$strip>, z.ZodObject<{
-        kind: z.ZodLiteral<"alarm">;
-    }, z.core.$strip>, z.ZodObject<{
-        kind: z.ZodLiteral<"phase">;
-        phaseId: z.ZodString;
-        stage: z.ZodEnum<{
-            germination: "germination";
-            seedling: "seedling";
-            vegetative: "vegetative";
-            flowering: "flowering";
-            drying: "drying";
-            curing: "curing";
-        }>;
-        preset: z.ZodNullable<z.ZodString>;
-    }, z.core.$strip>, z.ZodObject<{
-        kind: z.ZodLiteral<"move">;
-        placementId: z.ZodString;
-        spaceId: z.ZodNullable<z.ZodString>;
-    }, z.core.$strip>, z.ZodObject<{
-        kind: z.ZodLiteral<"harvest">;
-        wetWeightG: z.ZodNullable<z.ZodNumber>;
-        dryWeightG: z.ZodNullable<z.ZodNumber>;
-    }, z.core.$strip>, z.ZodObject<{
-        kind: z.ZodLiteral<"plan">;
-        planId: z.ZodString;
-        stepIndex: z.ZodNumber;
-        transition: z.ZodNullable<z.ZodEnum<{
-            pause: "pause";
-            resume: "resume";
-            confirm: "confirm";
-            extend: "extend";
-            skip: "skip";
-        }>>;
     }, z.core.$strip>], "kind">;
-    text: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    spaceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    deviceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    kind: z.ZodEnum<{
-        move: "move";
-        water: "water";
-        feed: "feed";
-        photo: "photo";
-        note: "note";
-        measurement: "measurement";
-        training: "training";
-        phase: "phase";
-        harvest: "harvest";
-        visit: "visit";
-        alarm: "alarm";
-        plan: "plan";
-        system: "system";
-    }>;
-    cameraId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    plantIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
-    growId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    occurredAt: z.ZodOptional<z.ZodISODateTime>;
-    taskId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    mediaIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
 }, z.core.$strip>;
 /**
  * `PATCH /entries/{id}`: the same fields, each only if it changes. An entry's
@@ -518,25 +605,34 @@ export declare const entryCreate: z.ZodObject<{
 export declare const entryUpdate: z.ZodObject<{
     values: z.ZodOptional<z.ZodDiscriminatedUnion<[z.ZodObject<{
         kind: z.ZodLiteral<"water">;
-        readings: z.ZodArray<z.ZodObject<{
+        litres: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        readings: z.ZodOptional<z.ZodArray<z.ZodObject<{
             key: z.ZodString;
             value: z.ZodNumber;
             plantId: z.ZodNullable<z.ZodString>;
-        }, z.core.$strip>>;
+        }, z.core.$strip>>>;
     }, z.core.$strip>, z.ZodObject<{
         kind: z.ZodLiteral<"feed">;
-        readings: z.ZodArray<z.ZodObject<{
+        litres: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        schemeWeek: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        doses: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            productKey: z.ZodString;
+            name: z.ZodString;
+            amount: z.ZodNumber;
+            unit: z.ZodString;
+        }, z.core.$strip>>>;
+        readings: z.ZodOptional<z.ZodArray<z.ZodObject<{
             key: z.ZodString;
             value: z.ZodNumber;
             plantId: z.ZodNullable<z.ZodString>;
-        }, z.core.$strip>>;
+        }, z.core.$strip>>>;
     }, z.core.$strip>, z.ZodObject<{
         kind: z.ZodLiteral<"measurement">;
-        readings: z.ZodArray<z.ZodObject<{
+        readings: z.ZodOptional<z.ZodArray<z.ZodObject<{
             key: z.ZodString;
             value: z.ZodNumber;
             plantId: z.ZodNullable<z.ZodString>;
-        }, z.core.$strip>>;
+        }, z.core.$strip>>>;
     }, z.core.$strip>, z.ZodObject<{
         kind: z.ZodLiteral<"photo">;
     }, z.core.$strip>, z.ZodObject<{
@@ -545,41 +641,6 @@ export declare const entryUpdate: z.ZodObject<{
         kind: z.ZodLiteral<"training">;
     }, z.core.$strip>, z.ZodObject<{
         kind: z.ZodLiteral<"visit">;
-    }, z.core.$strip>, z.ZodObject<{
-        kind: z.ZodLiteral<"system">;
-    }, z.core.$strip>, z.ZodObject<{
-        kind: z.ZodLiteral<"alarm">;
-    }, z.core.$strip>, z.ZodObject<{
-        kind: z.ZodLiteral<"phase">;
-        phaseId: z.ZodString;
-        stage: z.ZodEnum<{
-            germination: "germination";
-            seedling: "seedling";
-            vegetative: "vegetative";
-            flowering: "flowering";
-            drying: "drying";
-            curing: "curing";
-        }>;
-        preset: z.ZodNullable<z.ZodString>;
-    }, z.core.$strip>, z.ZodObject<{
-        kind: z.ZodLiteral<"move">;
-        placementId: z.ZodString;
-        spaceId: z.ZodNullable<z.ZodString>;
-    }, z.core.$strip>, z.ZodObject<{
-        kind: z.ZodLiteral<"harvest">;
-        wetWeightG: z.ZodNullable<z.ZodNumber>;
-        dryWeightG: z.ZodNullable<z.ZodNumber>;
-    }, z.core.$strip>, z.ZodObject<{
-        kind: z.ZodLiteral<"plan">;
-        planId: z.ZodString;
-        stepIndex: z.ZodNumber;
-        transition: z.ZodNullable<z.ZodEnum<{
-            pause: "pause";
-            resume: "resume";
-            confirm: "confirm";
-            extend: "extend";
-            skip: "skip";
-        }>>;
     }, z.core.$strip>], "kind">>;
     text: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     spaceId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
@@ -1924,6 +1985,7 @@ export declare const homeSpaceCard: z.ZodObject<{
         }, z.core.$strip>>;
         values: z.ZodDiscriminatedUnion<[z.ZodObject<{
             kind: z.ZodLiteral<"water">;
+            litres: z.ZodNullable<z.ZodNumber>;
             readings: z.ZodArray<z.ZodObject<{
                 key: z.ZodString;
                 value: z.ZodNumber;
@@ -1931,6 +1993,14 @@ export declare const homeSpaceCard: z.ZodObject<{
             }, z.core.$strip>>;
         }, z.core.$strip>, z.ZodObject<{
             kind: z.ZodLiteral<"feed">;
+            litres: z.ZodNullable<z.ZodNumber>;
+            schemeWeek: z.ZodNullable<z.ZodNumber>;
+            doses: z.ZodArray<z.ZodObject<{
+                productKey: z.ZodString;
+                name: z.ZodString;
+                amount: z.ZodNumber;
+                unit: z.ZodString;
+            }, z.core.$strip>>;
             readings: z.ZodArray<z.ZodObject<{
                 key: z.ZodString;
                 value: z.ZodNumber;
@@ -2204,6 +2274,7 @@ export declare const homeAnswer: z.ZodObject<{
             }, z.core.$strip>>;
             values: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 kind: z.ZodLiteral<"water">;
+                litres: z.ZodNullable<z.ZodNumber>;
                 readings: z.ZodArray<z.ZodObject<{
                     key: z.ZodString;
                     value: z.ZodNumber;
@@ -2211,6 +2282,14 @@ export declare const homeAnswer: z.ZodObject<{
                 }, z.core.$strip>>;
             }, z.core.$strip>, z.ZodObject<{
                 kind: z.ZodLiteral<"feed">;
+                litres: z.ZodNullable<z.ZodNumber>;
+                schemeWeek: z.ZodNullable<z.ZodNumber>;
+                doses: z.ZodArray<z.ZodObject<{
+                    productKey: z.ZodString;
+                    name: z.ZodString;
+                    amount: z.ZodNumber;
+                    unit: z.ZodString;
+                }, z.core.$strip>>;
                 readings: z.ZodArray<z.ZodObject<{
                     key: z.ZodString;
                     value: z.ZodNumber;
@@ -2892,6 +2971,7 @@ export declare const spaceOverview: z.ZodObject<{
         }, z.core.$strip>>;
         values: z.ZodDiscriminatedUnion<[z.ZodObject<{
             kind: z.ZodLiteral<"water">;
+            litres: z.ZodNullable<z.ZodNumber>;
             readings: z.ZodArray<z.ZodObject<{
                 key: z.ZodString;
                 value: z.ZodNumber;
@@ -2899,6 +2979,14 @@ export declare const spaceOverview: z.ZodObject<{
             }, z.core.$strip>>;
         }, z.core.$strip>, z.ZodObject<{
             kind: z.ZodLiteral<"feed">;
+            litres: z.ZodNullable<z.ZodNumber>;
+            schemeWeek: z.ZodNullable<z.ZodNumber>;
+            doses: z.ZodArray<z.ZodObject<{
+                productKey: z.ZodString;
+                name: z.ZodString;
+                amount: z.ZodNumber;
+                unit: z.ZodString;
+            }, z.core.$strip>>;
             readings: z.ZodArray<z.ZodObject<{
                 key: z.ZodString;
                 value: z.ZodNumber;
@@ -3329,6 +3417,7 @@ export declare const growWeekCard: z.ZodObject<{
         }, z.core.$strip>>;
         values: z.ZodDiscriminatedUnion<[z.ZodObject<{
             kind: z.ZodLiteral<"water">;
+            litres: z.ZodNullable<z.ZodNumber>;
             readings: z.ZodArray<z.ZodObject<{
                 key: z.ZodString;
                 value: z.ZodNumber;
@@ -3336,6 +3425,14 @@ export declare const growWeekCard: z.ZodObject<{
             }, z.core.$strip>>;
         }, z.core.$strip>, z.ZodObject<{
             kind: z.ZodLiteral<"feed">;
+            litres: z.ZodNullable<z.ZodNumber>;
+            schemeWeek: z.ZodNullable<z.ZodNumber>;
+            doses: z.ZodArray<z.ZodObject<{
+                productKey: z.ZodString;
+                name: z.ZodString;
+                amount: z.ZodNumber;
+                unit: z.ZodString;
+            }, z.core.$strip>>;
             readings: z.ZodArray<z.ZodObject<{
                 key: z.ZodString;
                 value: z.ZodNumber;
@@ -3509,6 +3606,7 @@ export declare const growWeekCardPage: z.ZodObject<{
             }, z.core.$strip>>;
             values: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 kind: z.ZodLiteral<"water">;
+                litres: z.ZodNullable<z.ZodNumber>;
                 readings: z.ZodArray<z.ZodObject<{
                     key: z.ZodString;
                     value: z.ZodNumber;
@@ -3516,6 +3614,14 @@ export declare const growWeekCardPage: z.ZodObject<{
                 }, z.core.$strip>>;
             }, z.core.$strip>, z.ZodObject<{
                 kind: z.ZodLiteral<"feed">;
+                litres: z.ZodNullable<z.ZodNumber>;
+                schemeWeek: z.ZodNullable<z.ZodNumber>;
+                doses: z.ZodArray<z.ZodObject<{
+                    productKey: z.ZodString;
+                    name: z.ZodString;
+                    amount: z.ZodNumber;
+                    unit: z.ZodString;
+                }, z.core.$strip>>;
                 readings: z.ZodArray<z.ZodObject<{
                     key: z.ZodString;
                     value: z.ZodNumber;
@@ -3673,6 +3779,7 @@ export declare const growReportPhase: z.ZodObject<{
         }, z.core.$strip>>;
         values: z.ZodDiscriminatedUnion<[z.ZodObject<{
             kind: z.ZodLiteral<"water">;
+            litres: z.ZodNullable<z.ZodNumber>;
             readings: z.ZodArray<z.ZodObject<{
                 key: z.ZodString;
                 value: z.ZodNumber;
@@ -3680,6 +3787,14 @@ export declare const growReportPhase: z.ZodObject<{
             }, z.core.$strip>>;
         }, z.core.$strip>, z.ZodObject<{
             kind: z.ZodLiteral<"feed">;
+            litres: z.ZodNullable<z.ZodNumber>;
+            schemeWeek: z.ZodNullable<z.ZodNumber>;
+            doses: z.ZodArray<z.ZodObject<{
+                productKey: z.ZodString;
+                name: z.ZodString;
+                amount: z.ZodNumber;
+                unit: z.ZodString;
+            }, z.core.$strip>>;
             readings: z.ZodArray<z.ZodObject<{
                 key: z.ZodString;
                 value: z.ZodNumber;
@@ -3861,6 +3976,7 @@ export declare const growReport: z.ZodObject<{
             }, z.core.$strip>>;
             values: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 kind: z.ZodLiteral<"water">;
+                litres: z.ZodNullable<z.ZodNumber>;
                 readings: z.ZodArray<z.ZodObject<{
                     key: z.ZodString;
                     value: z.ZodNumber;
@@ -3868,6 +3984,14 @@ export declare const growReport: z.ZodObject<{
                 }, z.core.$strip>>;
             }, z.core.$strip>, z.ZodObject<{
                 kind: z.ZodLiteral<"feed">;
+                litres: z.ZodNullable<z.ZodNumber>;
+                schemeWeek: z.ZodNullable<z.ZodNumber>;
+                doses: z.ZodArray<z.ZodObject<{
+                    productKey: z.ZodString;
+                    name: z.ZodString;
+                    amount: z.ZodNumber;
+                    unit: z.ZodString;
+                }, z.core.$strip>>;
                 readings: z.ZodArray<z.ZodObject<{
                     key: z.ZodString;
                     value: z.ZodNumber;
@@ -4141,6 +4265,7 @@ export declare const publicGrowPage: z.ZodObject<{
             }, z.core.$strip>>;
             values: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 kind: z.ZodLiteral<"water">;
+                litres: z.ZodNullable<z.ZodNumber>;
                 readings: z.ZodArray<z.ZodObject<{
                     key: z.ZodString;
                     value: z.ZodNumber;
@@ -4148,6 +4273,14 @@ export declare const publicGrowPage: z.ZodObject<{
                 }, z.core.$strip>>;
             }, z.core.$strip>, z.ZodObject<{
                 kind: z.ZodLiteral<"feed">;
+                litres: z.ZodNullable<z.ZodNumber>;
+                schemeWeek: z.ZodNullable<z.ZodNumber>;
+                doses: z.ZodArray<z.ZodObject<{
+                    productKey: z.ZodString;
+                    name: z.ZodString;
+                    amount: z.ZodNumber;
+                    unit: z.ZodString;
+                }, z.core.$strip>>;
                 readings: z.ZodArray<z.ZodObject<{
                     key: z.ZodString;
                     value: z.ZodNumber;
@@ -4394,6 +4527,7 @@ export declare const sharedGrow: z.ZodObject<{
                 }, z.core.$strip>>;
                 values: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     kind: z.ZodLiteral<"water">;
+                    litres: z.ZodNullable<z.ZodNumber>;
                     readings: z.ZodArray<z.ZodObject<{
                         key: z.ZodString;
                         value: z.ZodNumber;
@@ -4401,6 +4535,14 @@ export declare const sharedGrow: z.ZodObject<{
                     }, z.core.$strip>>;
                 }, z.core.$strip>, z.ZodObject<{
                     kind: z.ZodLiteral<"feed">;
+                    litres: z.ZodNullable<z.ZodNumber>;
+                    schemeWeek: z.ZodNullable<z.ZodNumber>;
+                    doses: z.ZodArray<z.ZodObject<{
+                        productKey: z.ZodString;
+                        name: z.ZodString;
+                        amount: z.ZodNumber;
+                        unit: z.ZodString;
+                    }, z.core.$strip>>;
                     readings: z.ZodArray<z.ZodObject<{
                         key: z.ZodString;
                         value: z.ZodNumber;
@@ -4729,6 +4871,7 @@ export declare const sharedSpace: z.ZodObject<{
             }, z.core.$strip>>;
             values: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 kind: z.ZodLiteral<"water">;
+                litres: z.ZodNullable<z.ZodNumber>;
                 readings: z.ZodArray<z.ZodObject<{
                     key: z.ZodString;
                     value: z.ZodNumber;
@@ -4736,6 +4879,14 @@ export declare const sharedSpace: z.ZodObject<{
                 }, z.core.$strip>>;
             }, z.core.$strip>, z.ZodObject<{
                 kind: z.ZodLiteral<"feed">;
+                litres: z.ZodNullable<z.ZodNumber>;
+                schemeWeek: z.ZodNullable<z.ZodNumber>;
+                doses: z.ZodArray<z.ZodObject<{
+                    productKey: z.ZodString;
+                    name: z.ZodString;
+                    amount: z.ZodNumber;
+                    unit: z.ZodString;
+                }, z.core.$strip>>;
                 readings: z.ZodArray<z.ZodObject<{
                     key: z.ZodString;
                     value: z.ZodNumber;
@@ -4987,6 +5138,7 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 }, z.core.$strip>>;
                 values: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     kind: z.ZodLiteral<"water">;
+                    litres: z.ZodNullable<z.ZodNumber>;
                     readings: z.ZodArray<z.ZodObject<{
                         key: z.ZodString;
                         value: z.ZodNumber;
@@ -4994,6 +5146,14 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     }, z.core.$strip>>;
                 }, z.core.$strip>, z.ZodObject<{
                     kind: z.ZodLiteral<"feed">;
+                    litres: z.ZodNullable<z.ZodNumber>;
+                    schemeWeek: z.ZodNullable<z.ZodNumber>;
+                    doses: z.ZodArray<z.ZodObject<{
+                        productKey: z.ZodString;
+                        name: z.ZodString;
+                        amount: z.ZodNumber;
+                        unit: z.ZodString;
+                    }, z.core.$strip>>;
                     readings: z.ZodArray<z.ZodObject<{
                         key: z.ZodString;
                         value: z.ZodNumber;
@@ -5316,6 +5476,7 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             }, z.core.$strip>>;
             values: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 kind: z.ZodLiteral<"water">;
+                litres: z.ZodNullable<z.ZodNumber>;
                 readings: z.ZodArray<z.ZodObject<{
                     key: z.ZodString;
                     value: z.ZodNumber;
@@ -5323,6 +5484,14 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 }, z.core.$strip>>;
             }, z.core.$strip>, z.ZodObject<{
                 kind: z.ZodLiteral<"feed">;
+                litres: z.ZodNullable<z.ZodNumber>;
+                schemeWeek: z.ZodNullable<z.ZodNumber>;
+                doses: z.ZodArray<z.ZodObject<{
+                    productKey: z.ZodString;
+                    name: z.ZodString;
+                    amount: z.ZodNumber;
+                    unit: z.ZodString;
+                }, z.core.$strip>>;
                 readings: z.ZodArray<z.ZodObject<{
                     key: z.ZodString;
                     value: z.ZodNumber;
@@ -5591,6 +5760,7 @@ export declare const sharedResolution: z.ZodObject<{
                     }, z.core.$strip>>;
                     values: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         kind: z.ZodLiteral<"water">;
+                        litres: z.ZodNullable<z.ZodNumber>;
                         readings: z.ZodArray<z.ZodObject<{
                             key: z.ZodString;
                             value: z.ZodNumber;
@@ -5598,6 +5768,14 @@ export declare const sharedResolution: z.ZodObject<{
                         }, z.core.$strip>>;
                     }, z.core.$strip>, z.ZodObject<{
                         kind: z.ZodLiteral<"feed">;
+                        litres: z.ZodNullable<z.ZodNumber>;
+                        schemeWeek: z.ZodNullable<z.ZodNumber>;
+                        doses: z.ZodArray<z.ZodObject<{
+                            productKey: z.ZodString;
+                            name: z.ZodString;
+                            amount: z.ZodNumber;
+                            unit: z.ZodString;
+                        }, z.core.$strip>>;
                         readings: z.ZodArray<z.ZodObject<{
                             key: z.ZodString;
                             value: z.ZodNumber;
@@ -5920,6 +6098,7 @@ export declare const sharedResolution: z.ZodObject<{
                 }, z.core.$strip>>;
                 values: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     kind: z.ZodLiteral<"water">;
+                    litres: z.ZodNullable<z.ZodNumber>;
                     readings: z.ZodArray<z.ZodObject<{
                         key: z.ZodString;
                         value: z.ZodNumber;
@@ -5927,6 +6106,14 @@ export declare const sharedResolution: z.ZodObject<{
                     }, z.core.$strip>>;
                 }, z.core.$strip>, z.ZodObject<{
                     kind: z.ZodLiteral<"feed">;
+                    litres: z.ZodNullable<z.ZodNumber>;
+                    schemeWeek: z.ZodNullable<z.ZodNumber>;
+                    doses: z.ZodArray<z.ZodObject<{
+                        productKey: z.ZodString;
+                        name: z.ZodString;
+                        amount: z.ZodNumber;
+                        unit: z.ZodString;
+                    }, z.core.$strip>>;
                     readings: z.ZodArray<z.ZodObject<{
                         key: z.ZodString;
                         value: z.ZodNumber;

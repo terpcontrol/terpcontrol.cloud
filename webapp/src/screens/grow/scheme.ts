@@ -1,6 +1,11 @@
 import type { GrowListItem, SchemeAmount } from '@fg2/shared-types/v1';
 
-/** "Bio·Bloom 2 ml/l": the amount as the scheme prints it, with the grow's strength already applied by the server. */
+/**
+ * "Bio·Bloom 2 ml/l": one row of a grid, as it is printed. A week card is
+ * handed figures the server has already put the grow's strength on; the grid
+ * the grow carries is the scheme as published, and the strength is applied
+ * wherever a can is actually dosed.
+ */
 export const amountLabel = (amount: SchemeAmount): string => `${amount.name} ${amount.value} ${amount.unit}`;
 
 /** The name a scheme is known by: the shipped asset's id, or "own" for one the person made. */

@@ -61,7 +61,10 @@ entriesSchema.index({ growId: 1, occurredAt: -1 });
 entriesSchema.index({ spaceId: 1, occurredAt: -1 });
 entriesSchema.index({ deviceId: 1, occurredAt: -1 });
 // Tasks are derived rather than stored, so the entry carrying a task's id is the
-// only record that it was done. Partial, because every other entry has none.
-entriesSchema.index({ taskId: 1 }, { partialFilterExpression: { taskId: { $type: 'string' } } });
+// only record that it was done - which is also what makes it the only thing that
+// can stop a task being done twice. Two ticks in the same moment both pass a read
+// before either writes, so the second is refused here rather than by a check.
+// Partial, because every other entry has no task at all.
+entriesSchema.index({ taskId: 1 }, { unique: true, partialFilterExpression: { taskId: { $type: 'string' } } });
 // Everything logged about one plant, which is what a split grow is read by.
 entriesSchema.index({ plantIds: 1, occurredAt: -1 });

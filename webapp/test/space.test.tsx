@@ -11,9 +11,15 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { SpaceOverview } from '@fg2/shared-types/v1';
 import { Overview } from '@/screens/space/Overview';
 import { LaterRound } from '@/ui/LaterRound';
+import { LogProvider } from '@/log/LogProvider';
 
-// A picture's address needs the session's media token; the tests have no session.
-vi.mock('@/api/session', async importOriginal => ({ ...(await importOriginal<object>()), mediaUrl: (id: string) => `/media/${id}` }));
+// A picture's address needs the session's media token, and what a screen offers
+// depends on who is looking, so both are answered here rather than reached for.
+vi.mock('@/api/session', async importOriginal => {
+  const { SIGNED_IN } = await import('./session');
+
+  return { ...(await importOriginal<object>()), mediaUrl: (id: string) => `/media/${id}`, useSession: () => SIGNED_IN };
+});
 
 /**
  * The tent's overview is one answer drawn as it came: values with their
@@ -140,10 +146,14 @@ const overview: SpaceOverview = {
   people: [{ id: 'user-anna', handle: 'anna' }],
 };
 
+// Every card can log: the sheet and the toast live above the screens, so a
+// screen drawn on its own is drawn inside them.
 const draw = (node: React.ReactNode) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>{node}</MemoryRouter>
+      <MemoryRouter>
+        <LogProvider>{node}</LogProvider>
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 
@@ -175,7 +185,7 @@ describe('the tent overview', () => {
     draw(<Overview overview={overview} now={NOW} />);
 
     expect(screen.getByText(/Done writes Watered · Spring run/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Done' })).toHaveAttribute('href', '/log?task=reminder-1%3A2026-09-18');
+    expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument();
 
     const grow = screen.getByRole('link', { name: /Spring run/ });
     expect(grow).toHaveAttribute('href', '/grows/grow-1');

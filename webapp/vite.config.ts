@@ -39,6 +39,14 @@ export default defineConfig({
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
+  optimizeDeps: {
+    // The contract's runtime half is CommonJS, and a linked package is not
+    // pre-bundled unless it is named: without this the development server hands
+    // the browser a module it cannot take a named export out of, while the
+    // production build - which converts it - works. Only the modules that carry
+    // no schema are imported this way; the index would bring zod with it.
+    include: ['@fg2/shared-types/v1-schemas/feeding.js'],
+  },
   server: { port: 4200 },
   preview: { port: 4200 },
   build: { outDir: 'dist', sourcemap: true },

@@ -154,6 +154,33 @@ export type EntryValues =
   | HarvestEntryValues
   | PlanEntryValues;
 
+export type HumanEntryKind = 'water' | 'feed' | 'photo' | 'note' | 'measurement' | 'training' | 'visit';
+
+export type EntryValuesDraft =
+  | {
+      kind: 'water';
+      litres?: number | null;
+      readings?: EntryReading[];
+    }
+  | {
+      kind: 'feed';
+      litres?: number | null;
+      /**
+       * The row of the grid the doses were read from; null when the grow feeds without a scheme.
+       */
+      schemeWeek?: number | null;
+      doses?: EntryDose[];
+      readings?: EntryReading[];
+    }
+  | {
+      kind: 'measurement';
+      readings?: EntryReading[];
+    }
+  | PhotoEntryValues
+  | NoteEntryValues
+  | TrainingEntryValues
+  | VisitEntryValues;
+
 export type MediaWindow = 'day' | 'week' | 'month' | 'custom';
 
 export type MediaQuality = 'sd' | 'hd';
@@ -2100,18 +2127,35 @@ export interface EntryReading {
   plantId: string | null;
 }
 
+export interface EntryDose {
+  productKey: string;
+  name: string;
+  amount: number;
+  /**
+   * The unit of `amount`, such as `ml`: the scheme's own `ml/l` with the per-litre taken off.
+   */
+  unit: string;
+}
+
+export interface MeasurementEntryValues {
+  kind: 'measurement';
+  readings: EntryReading[];
+}
+
 export interface WaterEntryValues {
   kind: 'water';
+  litres: number | null;
   readings: EntryReading[];
 }
 
 export interface FeedEntryValues {
   kind: 'feed';
-  readings: EntryReading[];
-}
-
-export interface MeasurementEntryValues {
-  kind: 'measurement';
+  litres: number | null;
+  /**
+   * The row of the grid the doses were read from; null when the grow feeds without a scheme.
+   */
+  schemeWeek: number | null;
+  doses: EntryDose[];
   readings: EntryReading[];
 }
 
@@ -2225,7 +2269,6 @@ export interface EntryPage {
 }
 
 export interface EntryCreate {
-  kind: EntryKind;
   /**
    * When the thing happened, which is not when it was written down.
    */
@@ -2243,8 +2286,9 @@ export interface EntryCreate {
    * What a human wrote.
    */
   text?: string | null;
-  values: EntryValues;
   mediaIds?: string[];
+  kind: HumanEntryKind;
+  values: EntryValuesDraft;
 }
 
 export interface EntryUpdate {
@@ -2265,8 +2309,8 @@ export interface EntryUpdate {
    * What a human wrote.
    */
   text?: string | null;
-  values?: EntryValues;
   mediaIds?: string[];
+  values?: EntryValuesDraft;
 }
 
 export interface MediaRender {

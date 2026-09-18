@@ -54,6 +54,7 @@
 
 .done {
   flex-shrink: 0;
+  border: 0;
   padding: 2px var(--space-3);
   border-radius: var(--radius-pill);
   background: var(--green);

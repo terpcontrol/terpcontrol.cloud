@@ -227,6 +227,10 @@ person's notification settings.
 | `shareLinks` | `token` (unique, separate from `id`), `kind: view · public_page`, `subject { type: grow · space, id }`, `range { startsAt, endsAt }`, `includeCameras`, `createdBy`, `expiresAt`, `revokedAt`, `state { openCount, lastOpenedAt }` |
 | `migrations` | `name`, `appliedAt`, `durationMs`, `stats` |
 
+- **Undo.** `entries.undoUntil` is the instant until which the author may take a line back without anybody else's
+  permission; after it, deleting somebody's line is the owner's or a manager's. It is five minutes rather than the
+  five seconds the toast shows: the toast is what a person sees, and a window as short as it would be decided by
+  the network rather than by them.
 - **One timeline.** A human's watering, a device's log line and an alarm are all entries, told apart by `kind`
   and `source`. A device's `message-key:param` line is parsed once into `message { key, params }`. A human
   writes `text`. `values` has one schema per kind; readings of any kind share one shape, `values.readings:

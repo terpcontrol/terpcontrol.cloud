@@ -241,10 +241,16 @@ const world = async (): Promise<void> => {
       kind: 'water',
       authorId: MEMBER,
       occurredAt: onDay(32),
-      values: { kind: 'water', readings: [{ key: 'height', value: 58, plantId: null }] },
+      values: { kind: 'water', litres: 4, readings: [{ key: 'height', value: 58, plantId: null }] },
     }),
     entry({ id: 'entry-note-5', growId: GROW, occurredAt: onDay(31), text: 'Smells good' }),
-    entry({ id: 'entry-fed', growId: GROW, kind: 'feed', occurredAt: onDay(30), values: { kind: 'feed', readings: [] } }),
+    entry({
+      id: 'entry-fed',
+      growId: GROW,
+      kind: 'feed',
+      occurredAt: onDay(30),
+      values: { kind: 'feed', litres: 4, schemeWeek: 5, doses: [], readings: [] },
+    }),
     // A device's own line, which the diary does not show by default.
     entry({
       id: 'entry-booted',
@@ -267,7 +273,7 @@ const world = async (): Promise<void> => {
     }),
     // Week 2, in the vegetative phase.
     entry({ id: 'entry-topped', growId: GROW, kind: 'training', occurredAt: onDay(12), text: 'Topped' }),
-    entry({ id: 'entry-watered-veg', growId: GROW, kind: 'water', occurredAt: onDay(10), values: { kind: 'water', readings: [] } }),
+    entry({ id: 'entry-watered-veg', growId: GROW, kind: 'water', occurredAt: onDay(10), values: { kind: 'water', litres: 3, readings: [] } }),
     // In the tent but not of the grow: a line of the space itself and one of a device standing in it.
     entry({ id: 'entry-space', spaceId: TENT, kind: 'note', occurredAt: onDay(29), text: 'Wiped the walls' }),
     entry({ id: 'entry-device', deviceId: PLUG, kind: 'system', source: 'device', authorId: null, occurredAt: onDay(28) }),

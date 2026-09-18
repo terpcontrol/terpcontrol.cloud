@@ -31,11 +31,20 @@ describe('a body, against the contract itself', () => {
   });
 
   it('names the field that is wrong, as a problem document', () => {
-    const error = refusal({ ...body, values: { kind: 'water' } });
+    const error = refusal({ ...body, kind: 'water', values: { kind: 'water', litres: 'a canful' } });
 
     expect(error.problem.status).toBe(400);
     expect(error.problem.code).toBe('validation_failed');
-    expect(error.problem.errors.map(issue => issue.field)).toContain('values.readings');
+    expect(error.problem.errors.map(issue => issue.field)).toContain('values.litres');
+  });
+
+  /**
+   * The kinds a route writes are the kinds a person writes. A phase, a move and
+   * a harvest are each the answer to their own route, and the diary is not a
+   * second way to state one.
+   */
+  it('refuses a kind nobody logs by hand', () => {
+    expect(refusal({ kind: 'phase', values: { kind: 'phase', phaseId: 'x', stage: 'flowering', preset: null } }).problem.status).toBe(400);
   });
 
   it('refuses what the contract does not describe at all', () => {

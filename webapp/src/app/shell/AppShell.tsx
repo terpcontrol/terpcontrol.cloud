@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router';
+import { LogProvider } from '@/log/LogProvider';
 import { Rail } from './Rail';
 import { TabBar } from './TabBar';
 import { TopBar } from './TopBar';
@@ -9,18 +10,23 @@ import styles from './AppShell.module.css';
  * From the tablet breakpoint the same navigation is a left rail that also
  * carries the top bar's three things - one shell, two shapes, no second
  * component tree.
+ *
+ * Logging wraps all of it, because the sheet opens over whatever screen is
+ * showing and what it wrote outlives the screen it was written from.
  */
 export function AppShell() {
   return (
-    <div className={styles.shell}>
-      <Rail />
-      <div className={styles.column}>
-        <TopBar />
-        <main className={styles.main}>
-          <Outlet />
-        </main>
+    <LogProvider>
+      <div className={styles.shell}>
+        <Rail />
+        <div className={styles.column}>
+          <TopBar />
+          <main className={styles.main}>
+            <Outlet />
+          </main>
+        </div>
+        <TabBar />
       </div>
-      <TabBar />
-    </div>
+    </LogProvider>
   );
 }

@@ -12,8 +12,13 @@ import type { Entry, GrowListItem, GrowWeekCard } from '@fg2/shared-types/v1';
 import { PhaseBar } from '@/screens/grow/PhaseBar';
 import { WeekCard } from '@/screens/grow/WeekCard';
 
-// A picture's address needs the session's media token; the tests have no session.
-vi.mock('@/api/session', async importOriginal => ({ ...(await importOriginal<object>()), mediaUrl: (id: string) => `/media/${id}` }));
+// A picture's address needs the session's media token, and what a screen offers
+// depends on who is looking, so both are answered here rather than reached for.
+vi.mock('@/api/session', async importOriginal => {
+  const { SIGNED_IN } = await import('./session');
+
+  return { ...(await importOriginal<object>()), mediaUrl: (id: string) => `/media/${id}`, useSession: () => SIGNED_IN };
+});
 
 /**
  * The grow page draws what the server worked out and nothing else: the phase
@@ -107,7 +112,7 @@ const entry = (over: Partial<Entry>): Entry => ({
   severity: null,
   text: null,
   message: null,
-  values: { kind: 'water', readings: [] },
+  values: { kind: 'water', litres: 2, readings: [] },
   mediaIds: [],
   undoUntil: null,
   ...over,

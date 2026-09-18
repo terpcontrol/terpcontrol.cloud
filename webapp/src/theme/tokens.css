@@ -94,6 +94,13 @@
   /* A phone's column, kept on a wide screen so a card never stretches. */
   --column-width: 560px;
 
+  /* The screen behind a sheet, and the bar that says what was just logged: one
+     dark surface in light mode, a raised one in dark mode, because a toast has
+     to read as sitting over the page rather than in it. */
+  --scrim: rgb(26 29 41 / 35%);
+  --toast: #1a1d29;
+  --toast-ink: #f3f5f9;
+
   /* A value whose age says it is old is dimmed, never hidden. */
   --age-live: 1;
   --age-stale: 0.75;
@@ -119,6 +126,10 @@
   --green-ink: #7ed957;
   --on-green: #0d1118;
 
+  --scrim: rgb(5 7 11 / 65%);
+  --toast: #1a2130;
+  --toast-ink: #e9edf4;
+
   --temperature: #f39a3c;
   --humidity: #5b93f5;
   --co2: #b48cf2;
@@ -143,6 +154,10 @@
     --green: #7ed957;
     --green-ink: #7ed957;
     --on-green: #0d1118;
+
+    --scrim: rgb(5 7 11 / 65%);
+    --toast: #1a2130;
+    --toast-ink: #e9edf4;
 
     --temperature: #f39a3c;
     --humidity: #5b93f5;

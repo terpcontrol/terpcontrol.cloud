@@ -33,6 +33,17 @@ p {
   margin: 0;
 }
 
+/* A field does not inherit the page's type on its own, and a browser's own
+   default for a textarea is monospace - so a person's sentences would come out
+   in the face the design keeps for figures. Named by element, so `mono` on a
+   field that really is a code still wins. */
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
 /* Every figure is mono and tabular, so a column of numbers lines up. */
 .figure,
 .mono {

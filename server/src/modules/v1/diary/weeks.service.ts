@@ -15,7 +15,7 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { Redaction } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
 import { DIARY_KINDS, READING_KINDS, authorIdsOf, peopleOf, serialiseDiaryEntry } from './diary-entries';
-import { DAY_MS, GrowWeekSpan, dayNumberOf, horizonOf, originOf, pictureHourIn, weeksOf } from './grow-calendar';
+import { DAY_MS, GrowWeekSpan, horizonOf, originOf, pictureHourIn, weekNumberOf, weeksOf } from './grow-calendar';
 import { GrowClimateService } from './grow-climate.service';
 import { spacesDuring } from './grow-places';
 
@@ -297,8 +297,6 @@ const nearestTo = <T extends { capturedAt: Date }>(rows: readonly T[], instant: 
 
 const filmOf = (films: readonly Pick<MediaDocument, 'id' | 'capturedAt'>[], week: GrowWeekSpan): string | null =>
   films.find(film => film.capturedAt >= week.startsAt && film.capturedAt < week.endsAt)?.id ?? null;
-
-const weekNumberOf = (origin: Date, at: Date): number => Math.floor((dayNumberOf(origin, at) - 1) / 7) + 1;
 
 /**
  * The phase the grow as a whole was in when the week ended, which is what the

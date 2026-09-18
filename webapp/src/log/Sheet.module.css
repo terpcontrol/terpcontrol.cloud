@@ -1,0 +1,102 @@
+/* The sheet itself: the screen behind it dimmed, the panel on the bottom edge
+   of a phone and in the middle of a desktop window. */
+
+/* Everything but the tab bar: the bar stays lit and usable under the sheet, as
+   the board draws it, and a tap beside the sheet puts it away. */
+.scrim {
+  position: fixed;
+  inset: 0 0 calc(var(--tabbar-height) + env(safe-area-inset-bottom)) 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: var(--scrim);
+}
+
+.sheet {
+  position: relative;
+  width: 100%;
+  max-height: 88dvh;
+  overflow-y: auto;
+  /* The raised Log button stands half over the sheet's bottom edge, so the last
+     thing in it keeps that much room and is never half a green circle. */
+  padding: var(--space-2) var(--space-4) calc(var(--space-4) + var(--log-button) / 2);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: calc(var(--radius) * 2) calc(var(--radius) * 2) 0 0;
+  animation: rise 160ms ease-out;
+}
+
+.sheet:focus {
+  outline: none;
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(16px);
+  }
+}
+
+/* The handle the board draws: it says the sheet can be pushed away. */
+.grabber {
+  display: block;
+  width: 36px;
+  height: 4px;
+  margin: var(--space-2) auto var(--space-3);
+  background: var(--rule);
+  border-radius: var(--radius-pill);
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.title {
+  flex: 1;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.aside {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-align: right;
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  align-self: flex-start;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--muted);
+}
+
+@media (min-width: 900px) {
+  /* Centred over the screen it belongs to rather than over the window: the rail
+     is navigation, not the page being written about. */
+  .scrim {
+    inset: 0;
+    align-items: center;
+    padding: var(--space-5) var(--space-5) var(--space-5) calc(var(--rail-width) + var(--space-5));
+  }
+
+  .sheet {
+    width: var(--column-width);
+    max-height: 86dvh;
+    padding-bottom: var(--space-5);
+    border-radius: calc(var(--radius) * 2);
+  }
+
+  .grabber {
+    display: none;
+  }
+}

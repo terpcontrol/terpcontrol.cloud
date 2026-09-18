@@ -6929,42 +6929,28 @@
       "plantId"
     ]
   },
-  "WaterEntryValues": {
+  "EntryDose": {
     "type": "object",
     "properties": {
-      "kind": {
-        "type": "string",
-        "const": "water"
+      "productKey": {
+        "type": "string"
       },
-      "readings": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/EntryReading"
-        }
+      "name": {
+        "type": "string"
+      },
+      "amount": {
+        "type": "number"
+      },
+      "unit": {
+        "type": "string",
+        "description": "The unit of `amount`, such as `ml`: the scheme's own `ml/l` with the per-litre taken off."
       }
     },
     "required": [
-      "kind",
-      "readings"
-    ]
-  },
-  "FeedEntryValues": {
-    "type": "object",
-    "properties": {
-      "kind": {
-        "type": "string",
-        "const": "feed"
-      },
-      "readings": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/EntryReading"
-        }
-      }
-    },
-    "required": [
-      "kind",
-      "readings"
+      "productKey",
+      "name",
+      "amount",
+      "unit"
     ]
   },
   "MeasurementEntryValues": {
@@ -6983,6 +6969,79 @@
     },
     "required": [
       "kind",
+      "readings"
+    ]
+  },
+  "WaterEntryValues": {
+    "type": "object",
+    "properties": {
+      "kind": {
+        "type": "string",
+        "const": "water"
+      },
+      "litres": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "readings": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/EntryReading"
+        }
+      }
+    },
+    "required": [
+      "kind",
+      "litres",
+      "readings"
+    ]
+  },
+  "FeedEntryValues": {
+    "type": "object",
+    "properties": {
+      "kind": {
+        "type": "string",
+        "const": "feed"
+      },
+      "litres": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "schemeWeek": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The row of the grid the doses were read from; null when the grow feeds without a scheme."
+      },
+      "doses": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/EntryDose"
+        }
+      },
+      "readings": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/EntryReading"
+        }
+      }
+    },
+    "required": [
+      "kind",
+      "litres",
+      "schemeWeek",
+      "doses",
       "readings"
     ]
   },
@@ -7444,12 +7503,122 @@
       "nextCursor"
     ]
   },
+  "HumanEntryKind": {
+    "type": "string",
+    "enum": [
+      "water",
+      "feed",
+      "photo",
+      "note",
+      "measurement",
+      "training",
+      "visit"
+    ]
+  },
+  "EntryValuesDraft": {
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "water"
+          },
+          "litres": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "readings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntryReading"
+            }
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "feed"
+          },
+          "litres": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "schemeWeek": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The row of the grid the doses were read from; null when the grow feeds without a scheme."
+          },
+          "doses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntryDose"
+            }
+          },
+          "readings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntryReading"
+            }
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "measurement"
+          },
+          "readings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntryReading"
+            }
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      {
+        "$ref": "#/components/schemas/PhotoEntryValues"
+      },
+      {
+        "$ref": "#/components/schemas/NoteEntryValues"
+      },
+      {
+        "$ref": "#/components/schemas/TrainingEntryValues"
+      },
+      {
+        "$ref": "#/components/schemas/VisitEntryValues"
+      }
+    ]
+  },
   "EntryCreate": {
     "type": "object",
     "properties": {
-      "kind": {
-        "$ref": "#/components/schemas/EntryKind"
-      },
       "occurredAt": {
         "type": "string",
         "format": "date-time",
@@ -7526,15 +7695,18 @@
           "null"
         ]
       },
-      "values": {
-        "$ref": "#/components/schemas/EntryValues"
-      },
       "mediaIds": {
         "type": "array",
         "items": {
           "type": "string",
           "minLength": 1
         }
+      },
+      "kind": {
+        "$ref": "#/components/schemas/HumanEntryKind"
+      },
+      "values": {
+        "$ref": "#/components/schemas/EntryValuesDraft"
       }
     },
     "required": [
@@ -7621,15 +7793,15 @@
           "null"
         ]
       },
-      "values": {
-        "$ref": "#/components/schemas/EntryValues"
-      },
       "mediaIds": {
         "type": "array",
         "items": {
           "type": "string",
           "minLength": 1
         }
+      },
+      "values": {
+        "$ref": "#/components/schemas/EntryValuesDraft"
       }
     }
   },

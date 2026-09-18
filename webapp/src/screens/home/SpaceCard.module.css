@@ -336,6 +336,11 @@
   gap: var(--space-2);
 }
 
+/* A session that may not write is offered none of them, and the card closes up. */
+.actions:empty {
+  display: none;
+}
+
 .action {
   flex: 1 1 auto;
   min-width: 0;
@@ -355,6 +360,10 @@
 }
 
 .inviteAction {
+  padding: 0;
+  background: none;
+  border: 0;
+  font-size: inherit;
   color: var(--ink);
   font-weight: var(--weight-medium);
   white-space: nowrap;

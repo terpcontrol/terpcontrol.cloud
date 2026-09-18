@@ -39,12 +39,14 @@ const withQuery = (path: string, query: Query | undefined): string => {
 const send = async (path: string, options: RequestOptions, token: string | null): Promise<Response> => {
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
-  if (options.body !== undefined) headers['Content-Type'] = 'application/json';
+  // A form names its own type, boundary and all, so saying it here would break it.
+  const form = options.body instanceof FormData;
+  if (options.body !== undefined && !form) headers['Content-Type'] = 'application/json';
 
   return fetch(v1(withQuery(path, options.query)), {
     method: options.method ?? 'GET',
     headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    body: options.body === undefined ? undefined : form ? (options.body as FormData) : JSON.stringify(options.body),
     signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]) : AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 };
@@ -66,6 +68,8 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 export const api = {
   get: <T>(path: string, query?: Query, signal?: AbortSignal) => apiRequest<T>(path, { query, signal }),
   post: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: 'POST', body }),
+  /** A picture on its way to the diary: multipart, and not JSON. */
+  upload: <T>(path: string, form: FormData) => apiRequest<T>(path, { method: 'POST', body: form }),
   patch: <T>(path: string, body: unknown) => apiRequest<T>(path, { method: 'PATCH', body }),
   put: <T>(path: string, body: unknown) => apiRequest<T>(path, { method: 'PUT', body }),
   delete: (path: string) => apiRequest<void>(path, { method: 'DELETE' }),

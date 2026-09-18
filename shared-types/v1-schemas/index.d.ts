@@ -14,3 +14,4 @@ export * from './devices.js';
 export * from './growing.js';
 export * from './diary.js';
 export * from './socket-report.js';
+export * from './feeding.js';

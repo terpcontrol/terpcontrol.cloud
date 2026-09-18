@@ -1396,10 +1396,24 @@ const DEMO_GROWS = [
 ];
 
 /** What this command cannot build, because the API does not offer it yet. */
-const DEMO_WAITING = [
-  'a diary going back weeks - a device log line is stamped when it arrives, and there is no route to write one (no /v1/entries)',
-  `sharing a tent with ${DEMO_FRIEND.handle} (no /v1/memberships or /v1/invites)`,
+const DEMO_WAITING = [`sharing a tent with ${DEMO_FRIEND.handle} (no /v1/memberships or /v1/invites)`];
+
+/**
+ * A grower's week, repeated back over the life of the grow: water twice, feed
+ * once, and the odd note. Backdated, which is what makes the week cards and the
+ * timeline show something other than today.
+ *
+ * A feed names its water and nothing else, which is "log as planned": the server
+ * reads the doses off the grow's own scheme at the week the feed fell in, and a
+ * grow with no scheme records the water alone.
+ */
+const DEMO_WEEK = [
+  { dayOfWeek: 0, kind: 'water', values: { kind: 'water', litres: 3 } },
+  { dayOfWeek: 3, kind: 'feed', values: { kind: 'feed', litres: 4 } },
+  { dayOfWeek: 5, kind: 'water', values: { kind: 'water', litres: 3 } },
 ];
+
+const DEMO_NOTES = ['Topped the two in front.', 'Defoliated the lower third.', 'Moved the light up a hand.', 'Netting in.'];
 
 const daysAgo = days => new Date(Date.now() - days * 86400000).toISOString();
 
@@ -1431,7 +1445,29 @@ const demoSeedGrow = async (grow, token) => {
       token,
     });
   }
-  console.log(`"${grow.name}" in "${space.name}": ${grow.plants.map(batch => `${batch.strain} ×${batch.count}`).join(', ')}, day ${first.daysAgo + 1}`);
+  const lines = await demoSeedDiary(made.id, first.daysAgo, token);
+  console.log(
+    `"${grow.name}" in "${space.name}": ${grow.plants.map(batch => `${batch.strain} ×${batch.count}`).join(', ')}, day ${first.daysAgo + 1}, ${lines} diary line(s)`,
+  );
+};
+
+/** Written through the same route the Log sheet uses, so what the app reads is what a person would have written. */
+const demoSeedDiary = async (growId, daysOfGrow, token) => {
+  let written = 0;
+
+  for (let day = daysOfGrow; day > 0; day--) {
+    for (const line of DEMO_WEEK.filter(entry => day % 7 === entry.dayOfWeek)) {
+      await api('/v1/entries', { method: 'POST', body: { ...line, growId, occurredAt: daysAgo(day) }, token });
+      written++;
+    }
+    if (day % 11 === 0) {
+      const text = DEMO_NOTES[written % DEMO_NOTES.length];
+      await api('/v1/entries', { method: 'POST', body: { kind: 'note', growId, occurredAt: daysAgo(day), text, values: { kind: 'note' } }, token });
+      written++;
+    }
+  }
+
+  return written;
 };
 
 const demoSeedPlace = async (place, token, claimed) => {

@@ -5,7 +5,7 @@ import { Alerts } from '@/screens/Alerts';
 import { Devices } from '@/screens/Devices';
 import { GrowPage } from '@/screens/grow/GrowPage';
 import { Home } from '@/screens/Home';
-import { LogSheet } from '@/screens/LogSheet';
+import { LogRoute } from '@/log/LogRoute';
 import { Me } from '@/screens/Me';
 import { NotFound } from '@/screens/NotFound';
 import { SignIn } from '@/screens/SignIn';
@@ -19,8 +19,9 @@ import { Timeline } from '@/screens/Timeline';
  * a tab survives a reload. Every screen below the shell is behind a session;
  * the sign-in page is the only route that is not.
  *
- * `Log` is a route as well as the raised button, so it can be linked to and so
- * a wide window can show it as a page rather than as a sheet.
+ * `Log` is a route as well, so that a link and a notification can open the
+ * sheet; it is not a screen of its own, and gives the address straight back to
+ * the one it opened over.
  */
 export const router = createBrowserRouter([
   { path: '/sign-in', element: <SignIn /> },
@@ -33,7 +34,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Home /> },
       { path: 'timeline', element: <Timeline /> },
-      { path: 'log', element: <LogSheet /> },
+      { path: 'log', element: <LogRoute /> },
       { path: 'devices', element: <Devices /> },
       { path: 'tasks', element: <Tasks /> },
       { path: 'me', element: <Me /> },

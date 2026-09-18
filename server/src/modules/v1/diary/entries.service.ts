@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
-import type { EntryKind, EntryPage } from '@fg2/shared-types/v1';
+import type { Entry, EntryKind, EntryPage } from '@fg2/shared-types/v1';
 import { entryKind } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, SubjectRef, SubjectType } from '@common/v1/access.types';
 import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
-import { badRequest } from '@common/v1/problem';
+import { badRequest, notFound } from '@common/v1/problem';
 import { clampRange, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -78,6 +78,19 @@ export class EntriesService {
       items: page.items.map(row => serialiseDiaryEntry(row, hide, grant.includeCameras)),
       nextCursor: page.nextCursor,
     };
+  }
+
+  /**
+   * One line, read through the same decision and the same redaction as the list
+   * it would have come out of. The guard has already granted it, and the grant
+   * is what says how much of it is serialised.
+   */
+  public async read(ctx: AccessContext, id: string): Promise<Entry> {
+    const grant = await this.access.require(ctx, subjectRef('entry', id), 'view');
+    const entry = await this.entries.findOne({ id }).lean<EntryDocument>();
+    if (!entry) throw notFound('entry_not_found', 'There is no entry with that id.');
+
+    return serialiseDiaryEntry(entry, await this.grows.redaction(grant), grant.includeCameras);
   }
 
   /**

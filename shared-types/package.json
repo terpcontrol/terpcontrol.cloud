@@ -15,6 +15,10 @@
       "types": "./v1-schemas/index.d.ts",
       "default": "./v1-schemas/index.js"
     },
+    "./v1-schemas/*.js": {
+      "types": "./v1-schemas/*.d.ts",
+      "default": "./v1-schemas/*.js"
+    },
     "./openapi-schemas.json": "./openapi-schemas.json"
   },
   "dependencies": {

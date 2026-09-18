@@ -1,3 +1,4 @@
+import { growDayAt, growOriginOf, growWeekAt } from '@fg2/shared-types/v1-schemas';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 
 /**
@@ -9,7 +10,9 @@ import { GrowDocument } from '@database/schemas/v1/grows.schema';
  * already counts by. Weeks are seven of those days, so week 1 is days 1 to 7 and
  * lines up with the feeding scheme's first row.
  *
- * Everything the grow page draws about a week - its number, its day range, the
+ * The counting itself is the contract's, because the log sheet counts a grow's
+ * weeks too - it draws the doses for the day a feed is dated to before the line
+ * is written. Everything the grow page draws about a week - its day range, the
  * hour each thumbnail is taken at - follows from that one origin.
  */
 
@@ -30,13 +33,15 @@ export interface GrowWeekSpan {
  * Where day 1 starts. The earliest phase, which is what the day counter counts
  * from; a grow that has not entered a phase yet has only the day it was created.
  */
-export const originOf = (grow: GrowDocument): Date =>
-  grow.phases.reduce<Date>((first, phase) => (phase.startedAt < first ? phase.startedAt : first), grow.startedAt);
+export const originOf = (grow: GrowDocument): Date => growOriginOf(grow);
 
 /** The last instant the grow has anything to say about: the day it ended, or now. */
 export const horizonOf = (grow: GrowDocument, now: Date): Date => grow.endedAt ?? now;
 
-export const dayNumberOf = (origin: Date, at: Date): number => Math.max(1, Math.floor((at.getTime() - origin.getTime()) / DAY_MS) + 1);
+export const dayNumberOf = growDayAt;
+
+/** Which row of a feeding grid the grow is on at that moment: week 1 is days 1 to 7. */
+export const weekNumberOf = growWeekAt;
 
 /** Every week the grow has lived through, oldest first. The last one is as short as the grow is young. */
 export const weeksOf = (origin: Date, horizon: Date): GrowWeekSpan[] => {

@@ -30,5 +30,7 @@ __exportStar(require("./devices.js"), exports);
 __exportStar(require("./growing.js"), exports);
 __exportStar(require("./diary.js"), exports);
 // No schema, so nothing of it reaches `v1.d.ts` or the API document: constants
-// the server and the simulator both decode a device's socket report with.
+// the server and the simulator both decode a device's socket report with, and
+// the arithmetic the feed sheet and the entry writer both read a grid with.
 __exportStar(require("./socket-report.js"), exports);
+__exportStar(require("./feeding.js"), exports);

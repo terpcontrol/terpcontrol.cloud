@@ -21,6 +21,7 @@ import { STILL_REQUEST } from '@modules/v1/camera/still-request';
 import { TerpCamP2PService } from '@modules/v1/camera/terpcam-p2p.service';
 import { FirmwareRolloutService } from '@modules/v1/fleet/firmware-rollout.service';
 import { FleetModule } from '@modules/v1/fleet/fleet.module';
+import { MAINTENANCE_STARTER } from '@modules/v1/diary/maintenance.port';
 import { DEVICE_CONFIGURATION_WRITER } from '@modules/v1/plan/device-configuration.port';
 
 /**
@@ -57,6 +58,9 @@ import { DEVICE_CONFIGURATION_WRITER } from '@modules/v1/plan/device-configurati
     // The plan puts a device on the settings its step carries, and the protocol
     // module is what knows how to say so.
     { provide: DEVICE_CONFIGURATION_WRITER, useExisting: DeviceConfigurationService },
+    // A quarter of an hour in the tent keeps its devices quiet, and the same
+    // module is what knows how to tell them.
+    { provide: MAINTENANCE_STARTER, useExisting: DevicePublisherService },
   ],
   exports: [
     DEVICE_SAMPLE_SINK,
@@ -67,6 +71,7 @@ import { DEVICE_CONFIGURATION_WRITER } from '@modules/v1/plan/device-configurati
     STILL_REQUEST,
     LIGHT_STATE_READER,
     DEVICE_CONFIGURATION_WRITER,
+    MAINTENANCE_STARTER,
   ],
 })
 export class WiringModule {}

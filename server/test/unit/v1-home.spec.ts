@@ -207,7 +207,7 @@ const world = async (): Promise<void> => {
       id: 'entry-old',
       growId: GROW,
       occurredAt: new Date('2026-06-08T12:00:00.000Z'),
-      values: { kind: 'water', readings: [] },
+      values: { kind: 'water', litres: null, readings: [] },
       kind: 'water',
     }),
     entry({ id: 'entry-new', growId: GROW, authorId: MEMBER, occurredAt: new Date('2026-06-09T12:00:00.000Z'), text: 'Defoliated' }),

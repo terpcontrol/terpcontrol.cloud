@@ -7,11 +7,19 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { HomeSpaceCard } from '@fg2/shared-types/v1';
 import { attentionOf, isClub, livenessOf, sortedByAttention } from '@/screens/home/attention';
 import { SpaceCard } from '@/screens/home/SpaceCard';
 import { AttentionStrip, DueStrip, FollowingStrip } from '@/screens/home/Strips';
+import { LogProvider } from '@/log/LogProvider';
+
+// What a card offers depends on who is looking, so a test says who that is.
+vi.mock('@/api/session', async importOriginal => {
+  const { SIGNED_IN } = await import('./session');
+
+  return { ...(await importOriginal<object>()), useSession: () => SIGNED_IN };
+});
 
 /**
  * One card per space, drawn from what the server answered and nothing else:
@@ -84,10 +92,14 @@ const card = (over: Partial<HomeSpaceCard>): HomeSpaceCard => ({
 
 const people = [{ id: 'user-mia', handle: 'mia' }];
 
+// Every card can log: the sheet and the toast live above the screens, so a
+// screen drawn on its own is drawn inside them.
 const draw = (node: React.ReactNode) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>{node}</MemoryRouter>
+      <MemoryRouter>
+        <LogProvider>{node}</LogProvider>
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 
@@ -140,7 +152,7 @@ describe('the climate half', () => {
     draw(<SpaceCard card={card({ deviceIds: [], values: [], setpoints: [], grow: null, entries: [] })} people={people} now={NOW} compact={false} />);
 
     expect(screen.getByText(/No sensor/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Log a reading' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Log a reading' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Add a device' })).toBeInTheDocument();
     expect(screen.queryByText(/live/)).not.toBeInTheDocument();
   });
@@ -156,16 +168,10 @@ describe('the grow half', () => {
     expect(screen.getByText(/Amnesia, Gelato/)).toBeInTheDocument();
     expect(screen.getByText('Defoliated')).toBeInTheDocument();
     expect(screen.getByText(/1 d ago · mia/)).toBeInTheDocument();
-    // The place and the grow each open their page; the three actions follow.
-    const links = screen.getAllByRole('link');
-    expect(links.map(link => link.getAttribute('href'))).toEqual([
-      '/spaces/space-1',
-      '/grows/grow-1',
-      '/log?kind=water&grow=grow-1',
-      '/log?kind=note&grow=grow-1',
-      '/log?kind=photo&grow=grow-1',
-    ]);
-    expect(links.slice(2).map(link => link.textContent)).toEqual(['Water', 'Note', 'Photo']);
+    // The place and the grow each open their page. The three actions go
+    // nowhere: they open the Log sheet over the card they were tapped on.
+    expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['/spaces/space-1', '/grows/grow-1']);
+    expect(screen.getAllByRole('button').map(button => button.textContent)).toEqual(['Water', 'Note', 'Photo']);
   });
 
   it('draws no auto tag for a phase a person set', () => {
@@ -200,7 +206,8 @@ describe('the grow half', () => {
 
     expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Spring run');
     expect(screen.getByText('Balcony')).toBeInTheDocument();
-    expect(screen.getAllByRole('link').map(link => link.textContent)).toEqual(['Spring run', 'Balcony', 'Water', 'Photo', 'Reading']);
+    expect(screen.getAllByRole('link').map(link => link.textContent)).toEqual(['Spring run', 'Balcony']);
+    expect(screen.getAllByRole('button').map(button => button.textContent)).toEqual(['Water', 'Photo', 'Reading']);
   });
 });
 
@@ -242,7 +249,7 @@ describe('what needs a person', () => {
     const dueList = screen.getByRole('list', { name: 'Due' });
     expect(dueList).toHaveTextContent('Water · Spring run');
     expect(dueList).toHaveTextContent('today');
-    expect(within(dueList).getByRole('link', { name: 'Done' })).toBeInTheDocument();
+    expect(within(dueList).getByRole('button', { name: 'Done' })).toBeInTheDocument();
   });
 
   it('draws nothing at all when nothing is open, due or followed', () => {

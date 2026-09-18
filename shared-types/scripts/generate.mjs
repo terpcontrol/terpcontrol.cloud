@@ -28,6 +28,12 @@
  *                                  `METRIC_FIELD` and its siblings are values,
  *                                  which no declaration file can carry.
  *
+ * A single module of the second can also be imported on its own, as
+ * `@fg2/shared-types/v1-schemas/<name>.js`. That is for the few that carry no
+ * schema at all - the arithmetic a screen and the server have to agree on - so
+ * that a client can share the function without the index pulling zod and every
+ * schema of the contract into its bundle.
+ *
  * The second is emitted as CommonJS with declarations beside it, because that is
  * what the server compiles to. It is committed like everything else here, so a
  * consumer needs no build of its own.

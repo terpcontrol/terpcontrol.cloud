@@ -150,7 +150,7 @@ describe('what the four writers have in common', () => {
 
   it('records when it happened rather than when it was written down', async () => {
     const occurredAt = new Date('2026-04-01T08:00:00.000Z');
-    const entry = await writer.write({ source: 'human', authorId: 'user-1', occurredAt, values: { kind: 'water', readings: [] } });
+    const entry = await writer.write({ source: 'human', authorId: 'user-1', occurredAt, values: { kind: 'water', litres: null, readings: [] } });
 
     expect(entry.occurredAt).toEqual(occurredAt);
     expect(entry.createdAt.getTime()).toBeGreaterThan(occurredAt.getTime());

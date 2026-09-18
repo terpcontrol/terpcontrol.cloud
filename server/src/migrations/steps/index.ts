@@ -12,6 +12,7 @@ import { grows } from './010-grows';
 import { entries } from './011-entries';
 import { media } from './012-media';
 import { retiredCollections } from './013-retired-collections';
+import { oneLinePerTask } from './014-one-line-per-task';
 
 /**
  * In order, and the order matters in three places:
@@ -40,4 +41,5 @@ export const MIGRATION_STEPS: MigrationStep[] = [
   entries,
   media,
   retiredCollections,
+  oneLinePerTask,
 ];

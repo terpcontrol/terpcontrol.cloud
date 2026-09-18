@@ -15,5 +15,7 @@ export * from './growing.js';
 export * from './diary.js';
 
 // No schema, so nothing of it reaches `v1.d.ts` or the API document: constants
-// the server and the simulator both decode a device's socket report with.
+// the server and the simulator both decode a device's socket report with, and
+// the arithmetic the feed sheet and the entry writer both read a grid with.
 export * from './socket-report.js';
+export * from './feeding.js';
