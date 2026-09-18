@@ -5,13 +5,12 @@
 set -e
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
-. scripts/load-env.sh
+. scripts/compose.sh
 
 if [ ! -f "$ENV_FILE" ]; then
   echo "error: $ENV_FILE not found - see \"Launching the stack locally\" in CLAUDE.md." >&2
   exit 1
 fi
-terpcontrol_load_env
 
 if ! command -v node > /dev/null; then
   echo "error: this needs Node 18 or newer on the host." >&2
@@ -48,7 +47,7 @@ if [ "$1" = "demo" ]; then
     exit 1
   fi
 
-  matched=$(docker compose exec -T mongodb mongosh --quiet \
+  matched=$(terpcontrol_compose exec -T mongodb mongosh --quiet \
     -u "$MONGODB_ADMINUSERNAME" -p "$MONGODB_ADMINPASSWORD" --authenticationDatabase admin \
     "$MONGODB_DATABASE" --eval "db.devices.updateOne({device_id:'$device_id'},{\$set:{demoDevice:$flag}}).matchedCount")
 

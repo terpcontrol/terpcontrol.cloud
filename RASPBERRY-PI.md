@@ -42,7 +42,7 @@ This stack runs multiple resource-heavy database services (MongoDB + InfluxDB) s
    ```
 1. `docker volume create mongodata`
 1. `docker volume create influxdata`
-1. `docker compose up --build -d --remove-orphans`
+1. `./up.sh`
 1. Go to `http://<youripOrDomain>:8080` to access the web interface
 1. Now continue with the [Firmware building](README.md#firmware-building) steps to build and upload your custom firmware.
 
@@ -50,4 +50,4 @@ Please note that the `backup.sh` and `restore.sh` scripts are not compatible wit
 differences in the MongoDB image used. You will need to perform backups and restores manually. See
 [backing up and restoring data volumes](https://docs.docker.com/engine/storage/volumes/#back-up-restore-or-migrate-data-volumes)
 for more information on how to do this. The volumes are named `mongodata` and `influxdata` as specified in the `.env` file.
-(You should run  `docker compose stop` before backing up or restoring to ensure data consistency.)
+(You should run  `./stop.sh` before backing up or restoring to ensure data consistency.)
