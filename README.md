@@ -42,6 +42,9 @@ server url specified in your .env file.
 1. `cd myfolder/fg2/`
 1. `./backup.sh` — an upgrade may migrate the database, which happens by itself on the next start.
 1. `git pull` (optional: this gets you the latest changes from the repo)
+1. `docker compose run --rm --build --no-deps server npm run migrate:check` — asks whether the database can be
+   migrated at all, and writes nothing. If it lists anything, that has to be cleaned up in the database first:
+   the migration refuses to start on it, so the server would not come up.
 1. `docker compose up --build -d --remove-orphans`
 1. `./build-fw.sh` (if you want to update the firmware as well)
 

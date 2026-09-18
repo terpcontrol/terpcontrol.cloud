@@ -6,6 +6,7 @@ import { logger } from '@utils/logger';
 import { derivedId } from './ids';
 import { MigrationContext, MigrationReject, MigrationStep } from './migration';
 import { MigrationLock } from './migration-lock';
+import { PreflightFailure, preflight } from './preflight';
 import { MIGRATION_STEPS } from './steps';
 
 /** Where a run is recorded, and what says a migration has already been applied. */
@@ -58,6 +59,14 @@ export class MigrationRunner {
     const report: MigrationRunReport = { dryRun, applied: [], alreadyApplied: MIGRATION_STEPS.filter(s => applied.has(s.name)).map(s => s.name) };
 
     if (report.alreadyApplied.length === MIGRATION_STEPS.length) return report;
+
+    // Before the lock and before any step, on a dry run as much as on a real
+    // one: a database that holds two rows claiming to be one thing is not one to
+    // half-migrate and ask about afterwards. Only where something is still
+    // pending - a database every step has run on holds the new shapes, which
+    // these checks say nothing about.
+    const found = await preflight(this.db);
+    if (found.problems.length > 0) throw new PreflightFailure(found);
 
     // Taken before the pending list is read again: the instance that waited for
     // it has just finished, and what it applied has to count as applied here.

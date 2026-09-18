@@ -5,15 +5,18 @@ import { databaseConfig } from '../config/configuration';
 import { mongoConnectionSettings } from '../database/mongo-connection';
 import { MigrationRunner, MigrationRunReport } from './migration-runner';
 import { applyRollback, planRollback } from './migration-rollback';
+import { PreflightFailure, preflight } from './preflight';
 
 /**
- * `npm run migrate`, `npm run migrate -- --dry-run` and `npm run migrate:rollback`.
+ * `npm run migrate`, its `--dry-run` and `--check`, and `npm run migrate:rollback`.
  *
  * The server applies the migrations itself at boot, so this is not how an
  * upgrade happens - it is how a rehearsal happens. A dry run reads the whole
  * database, runs every transform and writes nothing at all, not even the rename,
  * and prints the counts and the rejects an operator reads before letting the
- * real thing run against the hosted database.
+ * real thing run against the hosted database. `--check` is the short half of
+ * that: only the checks a run refuses to start on, so a database can be cleared
+ * for an upgrade before the day of it.
  *
  * It opens its own connection rather than building the application: the
  * migrations need the database and nothing else, and booting the server to run
@@ -71,13 +74,27 @@ const main = async (): Promise<void> => {
       return;
     }
 
+    if (process.argv.includes('--check')) {
+      const found = await preflight(connection.db!);
+      if (found.problems.length > 0) throw new PreflightFailure(found);
+
+      report('\nNothing stands in the way of a migration.');
+      return;
+    }
+
     printRun(await new MigrationRunner(connection).run({ dryRun: process.argv.includes('--dry-run') }));
   } finally {
     await connection.close();
   }
 };
 
+/** A failed check is a report to read, not a crash: it prints as it was written, with no stack in front of it. */
+const reasonFor = (error: unknown): string => {
+  if (error instanceof PreflightFailure) return error.message;
+  return error instanceof Error ? (error.stack ?? error.message) : String(error);
+};
+
 main().catch(error => {
-  process.stderr.write(`${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`);
+  process.stderr.write(`${reasonFor(error)}\n`);
   process.exit(1);
 });

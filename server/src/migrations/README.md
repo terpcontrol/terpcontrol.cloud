@@ -35,7 +35,7 @@ has nothing to do.
 | | What it does |
 | --- | --- |
 | `001-picture-bytes-into-the-bucket` | Moves the payload of pictures written before the image store into the GridFS bucket. First, because it looks for those documents in `images` and everything after it has moved that collection aside. |
-| `002-users` | `users` → `users`. Aborts the whole run if two accounts share a `user_id`. |
+| `002-users` | `users` → `users`. Refuses two accounts under one `user_id`, as the preflight does before it. |
 | `003-fleet` | `deviceclasses`, `devicefirmwares`, `devicefirmwarebinaries`, `claimcodes` → `deviceClasses`, `firmwares`, `firmwareBinaries`, `claimCodes`. Field renames only. |
 | `004-spaces` | One `spaces` row per claimed device. |
 | `005-devices` | `devices` → `devices`, reduced to what the device is. |
@@ -57,15 +57,41 @@ documents rather than making second ones.
 ## Running one by hand
 
 ```sh
+npm run migrate:check          # only what a run refuses to start on; writes nothing (same as `npm run migrate -- --check`)
 npm run migrate -- --dry-run   # every transform, counts and rejects, writes nothing at all
 npm run migrate                # what the server does at boot, without the server
 npm run migrate:rollback       # drop the new collections, put legacy_* back
 ```
 
-The dry run is the rehearsal: it reads the whole database, runs every transform and writes nothing, not even the
-rename. Take it against a copy of the database that is about to be migrated and read the rejects before the real
-run. `migrate:rollback` is the way back for one release — it refuses on a database that holds no `legacy_*`
+`migrate:check` is the one to run days before an upgrade: it is the preflight below and nothing else, so it costs
+a few aggregations rather than a whole rehearsal, and it exits non-zero with the report on stderr. The dry run is
+the rehearsal: it reads the whole database, runs every transform and writes nothing, not even the rename. Take it
+against a copy of the database that is about to be migrated and read the rejects before the real run.
+`migrate:rollback` is the way back for one release — it refuses on a database that holds no `legacy_*`
 collection, and **everything written since the migration is lost** when it does run.
+
+## The preflight
+
+`preflight.ts`, before the lock and before the first step, at boot and in the CLI alike. It finds nothing on a
+database that can carry the transforms and the run goes on silently; it finds anything and **nothing is written
+at all** — the process ends non-zero with the whole list on stderr.
+
+It is there because a transform can reject a document and carry on, but cannot decide between two rows that both
+claim to be the same thing: two accounts under one `user_id` own one set of devices, and which of them owns them
+is not in the data. That is a question for a person, every such question is asked at once rather than one per
+attempt, and the report carries what the answer turns on — for each row its `_id`, and the address, the date, the
+state and the counts that tell it from the others.
+
+**Every check counts what is in the collections.** None of them asks an index and none believes one: mongoose
+builds a model's indexes in the background and swallows a build that failed, so a unique index added to a
+collection that already held duplicates never finished, never said so, and is still listed as if it held.
+
+What is checked is what a transform cannot survive — every unique index of the new collections against the rows a
+transform would produce for it, every id derived from something that is not unique, and every reference that
+would be copied pointing at a row that is not there. What is not checked is everything a transform already
+answers for: a duplicate `class_id`, `firmware_id` or `alarmId` keeps the first row by decision, an unparseable
+configuration is migrated without one, a claim code that names no device is dropped. Those are rejects on a run
+that goes through.
 
 ## Rejects
 
