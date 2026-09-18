@@ -766,7 +766,8 @@ export async function seedLegacyDatabase(target: Connection | mongo.Db, at: numb
       },
       __v: 0,
     },
-    // A user-deleted diary entry: kept, and hidden from every read.
+    // A diary entry with the flag the app sets on every one it writes; it is
+    // still in the collection, so it is a line somebody kept.
     {
       device_id: tent,
       title: 'message-diary-plant-log',

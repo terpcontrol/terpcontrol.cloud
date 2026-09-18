@@ -30,15 +30,12 @@ import { readingsOf } from '../measurements';
  *   message, which is 1-based there; an entry whose message has none is the
  *   first step.
  *
- * **`deleted` is not simply dropped.** The transform table reads it as "not
- * interesting on the device card", which it is on the configuration diffs and
- * the manual plan activations that the server writes with it - those become
- * `system` and `plan` entries the diary does not show by default. But a person
- * can also delete a diary entry of their own, or their whole diary, and that
- * sets the same flag. Dropping it there would put something a grower hid back in
- * front of them, and the model has no "hidden" of its own to carry it across, so
- * a deleted entry that a person wrote is not migrated and is reported. It stays
- * in the legacy collection like everything else.
+ * **`deleted` says nothing about whether a line was deleted.** Deleting one
+ * really removed the row, and the app sets the flag on every diary entry it
+ * writes - so on a human line it marks "not interesting on the device card" and
+ * carries no other information at all. Every row that is still in the collection
+ * is therefore a line somebody kept, and every one of them is migrated; the flag
+ * itself has nothing to carry into a model whose diary is filtered by kind.
  */
 
 const SEVERITY = ['info', 'warning', 'critical'];
@@ -101,17 +98,6 @@ const migrateEntry = async (
   const readings = readingsOf(log.data);
   const grow = growAt(grows.get(fact.id), occurredAt);
   const kind = kindOf(slugs, log, readings.length > 0, devicesWithPlans.has(fact.id), grow !== null);
-
-  if (log.deleted === true && source === 'human') {
-    context.reject({
-      source: LEGACY.deviceLogs,
-      id: String(log._id),
-      reason: 'a diary entry its author deleted; the model has no hidden entry, so migrating it would show it again',
-      dropped: true,
-      detail: fact.id,
-    });
-    return;
-  }
 
   const message = messageOf(log.message) ?? messageOf(log.title);
   const text = [freeText(log.title), freeText(log.message)].filter(part => part !== null).join('\n\n');

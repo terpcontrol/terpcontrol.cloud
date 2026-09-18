@@ -316,8 +316,8 @@ describe('what the migration wrote', () => {
       cameras: 4,
       planTemplates: fixture.counts.recipetemplates,
       grows: 3,
-      // The one entry its author deleted is not brought back.
-      entries: fixture.counts.devicelogs - 1,
+      // Every line that is still in the collection is one somebody kept.
+      entries: fixture.counts.devicelogs,
       media: fixture.counts.images,
     });
   });
@@ -642,15 +642,18 @@ describe('entries', () => {
     expect(phases.filter(entry => phaseIds.has(entry.values.phaseId))).toHaveLength(fixture.grows.running.stages);
   });
 
-  it('keeps the server’s own deleted entries and does not bring a deleted diary entry back', async () => {
+  it('carries every line that is still there, whatever the deleted flag says', async () => {
+    // The app sets the flag on every diary entry it writes and deleting one
+    // really removed the row, so a line carrying it is a line somebody kept -
+    // and reading the flag as a deletion would empty a grower's whole diary.
     const report = await migrate();
 
-    expect(await one('entries', { text: 'Wrong device.' })).toBeNull();
+    expect(await one<Record<string, any>>('entries', { text: 'Wrong device.' })).toMatchObject({ kind: 'note', source: 'human' });
     expect(await one<Record<string, any>>('entries', { 'message.key': 'message-device-configuration-updated' })).toMatchObject({ kind: 'system' });
     expect(await one<Record<string, any>>('entries', { 'message.key': 'message-recipe-step-manually-activated' })).toMatchObject({ kind: 'plan' });
 
     const rejects = report.applied.find(outcome => outcome.name === '011-entries')?.rejects ?? [];
-    expect(rejects.some(reject => reject.reason.includes('author deleted'))).toBe(true);
+    expect(rejects.some(reject => reject.reason.includes('author deleted'))).toBe(false);
   });
 });
 
@@ -686,7 +689,6 @@ describe('the documents no transform can take', () => {
       '003-fleet claimcodes dropped',
       // The configuration that is not JSON: the device is migrated without one.
       '005-devices devices kept',
-      '011-entries devicelogs dropped',
     ]);
 
     const configuration = rejects.find(reject => reject.source === 'devices');
@@ -769,7 +771,7 @@ describe('a run that was killed part-way', () => {
     await migrate();
 
     expect(await collection('legacy_devicelogs').countDocuments()).toBe(fixture.counts.devicelogs);
-    expect(await collection('entries').countDocuments()).toBe(fixture.counts.devicelogs - 1);
+    expect(await collection('entries').countDocuments()).toBe(fixture.counts.devicelogs);
     expect(await collection('migrations').countDocuments()).toBe(MIGRATION_STEPS.length);
   });
 });
