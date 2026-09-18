@@ -891,12 +891,12 @@ Commands:
                          configuration and seed history, then print its id
   demo-seed              build an account worth developing against: two tents
                          and a fridge with their hardware, a paired camera,
-                         three weeks of readings, settings, alarm rules and a
-                         second account. Re-runnable - it adds what is missing.
-                         Grows, plants, phases, a diary going further back than
-                         today and the share itself have no routes yet, so they
-                         are left out rather than faked; the run says so at the
-                         end.
+                         three weeks of readings, settings, alarm rules, a grow
+                         in the first tent, a balcony with a grow and no device,
+                         and a second account. Re-runnable - it adds what is
+                         missing. A diary going further back than today and the
+                         share itself have no routes yet, so they are left out
+                         rather than faked; the run says so at the end.
   run                    stay online: publish live samples and answer the
                          configuration, test-mode, maintenance, reboot, smart
                          socket, camera and firmware messages the server sends
@@ -1154,8 +1154,20 @@ const run = async options => {
 
   for (;;) {
     if (!device.mqtt.connected) {
+      // A broker that restarts under a running device is the normal case in
+      // development, and a device in the field rides it out rather than giving
+      // up - so this keeps trying instead of ending the process, which would
+      // otherwise cost every simulated device on the machine.
       console.log('mqtt connection lost, reconnecting');
-      await goOnline();
+      for (let attempt = 1; !device.mqtt.connected; attempt++) {
+        try {
+          await goOnline();
+        } catch (error) {
+          console.log(`reconnect failed (${error.message || error}); retrying`);
+          await sleep(Math.min(attempt, 6) * 5000);
+        }
+      }
+      console.log('reconnected');
     }
     const sample = device.sample(new Date(), options.interval, options.overrides);
     device.publishStatus(sample);
@@ -1354,13 +1366,73 @@ const DEMO_PLACES = [
 /** The second account, for the day a tent can be shared with one. */
 const DEMO_FRIEND = { email: 'friend@demo.invalid', handle: 'demo-friend', password: 'demo-friend-password' };
 
+/**
+ * What is growing in the places above, and one place with nothing measuring in
+ * it. A grow is found again by its name, so a second run leaves it alone
+ * rather than starting it twice.
+ */
+const DEMO_GROWS = [
+  {
+    name: 'Spring run',
+    space: 'Blue Dream tent',
+    type: 'photoperiod',
+    plants: [
+      { strain: 'Amnesia', count: 2 },
+      { strain: 'Gelato', count: 1 },
+    ],
+    phases: [
+      { stage: 'vegetative', daysAgo: 34 },
+      { stage: 'flowering', preset: 'flower', daysAgo: 10 },
+    ],
+  },
+  {
+    name: 'Balcony tomatoes',
+    space: 'Balcony',
+    newSpace: { kind: 'balcony', name: 'Balcony' },
+    type: 'photoperiod',
+    plants: [{ strain: 'Roma', count: 3 }],
+    phases: [{ stage: 'seedling', daysAgo: 12 }],
+  },
+];
+
 /** What this command cannot build, because the API does not offer it yet. */
 const DEMO_WAITING = [
-  'the grow, its plants and its weeks of phases (no /v1/grows, /v1/plants or /v1/phases)',
   'a diary going back weeks - a device log line is stamped when it arrives, and there is no route to write one (no /v1/entries)',
-  'the balcony with no device in it - a space is only made by claiming something into it (no /v1/spaces)',
   `sharing a tent with ${DEMO_FRIEND.handle} (no /v1/memberships or /v1/invites)`,
 ];
+
+const daysAgo = days => new Date(Date.now() - days * 86400000).toISOString();
+
+const demoSeedGrow = async (grow, token) => {
+  const spaces = await apiList('/v1/spaces', token);
+  let space = spaces.find(candidate => candidate.name === grow.space);
+  if (!space && grow.newSpace) {
+    space = await api('/v1/spaces', { method: 'POST', body: grow.newSpace, token });
+    console.log(`made "${space.name}", with nothing measuring in it`);
+  }
+  if (!space) throw new Error(`no space named "${grow.space}" to put "${grow.name}" in`);
+
+  if ((await apiList('/v1/grows', token)).some(candidate => candidate.name === grow.name)) {
+    console.log(`"${grow.name}" is already growing`);
+    return;
+  }
+
+  const first = grow.phases[0];
+  const made = await api('/v1/grows', {
+    method: 'POST',
+    body: { name: grow.name, type: grow.type, plants: grow.plants, spaceId: space.id, startedAt: daysAgo(first.daysAgo) },
+    token,
+  });
+  // Oldest first, so the newest is the one the grow stands in.
+  for (const phase of grow.phases) {
+    await api(`/v1/grows/${made.id}/phases`, {
+      method: 'POST',
+      body: { stage: phase.stage, preset: phase.preset ?? null, startedAt: daysAgo(phase.daysAgo) },
+      token,
+    });
+  }
+  console.log(`"${grow.name}" in "${space.name}": ${grow.plants.map(batch => `${batch.strain} ×${batch.count}`).join(', ')}, day ${first.daysAgo + 1}`);
+};
 
 const demoSeedPlace = async (place, token, claimed) => {
   const options = { deviceId: place.deviceId, type: place.type };
@@ -1434,6 +1506,7 @@ const demoSeed = async () => {
   const claimed = new Set((await apiList('/v1/devices', token)).map(device => device.id));
 
   for (const place of DEMO_PLACES) await demoSeedPlace(place, token, claimed);
+  for (const grow of DEMO_GROWS) await demoSeedGrow(grow, token);
 
   try {
     await demoSeedFriend(token);

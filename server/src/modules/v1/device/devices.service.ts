@@ -81,9 +81,17 @@ export class DevicesService {
     if (ctx.isDemo || ctx.userId === null) return { isDemo: true };
 
     const rows = await this.memberships.find({ userId: ctx.userId }, { spaceId: 1 }).lean();
-    const spaceIds = rows.map(row => row.spaceId);
+    const held = rows.map(row => row.spaceId);
+    if (held.length === 0) return { ownerId: ctx.userId };
 
-    return spaceIds.length > 0 ? { $or: [{ ownerId: ctx.userId }, { spaceId: { $in: spaceIds } }] } : { ownerId: ctx.userId };
+    // A membership on a room covers the spaces standing in it, so the rooms are
+    // widened to what is inside them before a device is looked for by the space
+    // it stands in - which is the rule `access()` decides one device by, from
+    // the other end.
+    const inside = await this.spaces.find({ roomId: { $in: held } }, { id: 1 }).lean();
+    const spaceIds = [...new Set([...held, ...inside.map(space => space.id)])];
+
+    return { $or: [{ ownerId: ctx.userId }, { spaceId: { $in: spaceIds } }] };
   }
 
   /** Only what a client may write. What the device is, who owns it and everything under `state` are not patched. */
