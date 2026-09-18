@@ -66,6 +66,12 @@ const head = (bucket: string, deviceId: string, range: string): string => `
     |> filter(fn: (r) => r["_measurement"] == "${MEASUREMENT}")
     |> filter(fn: (r) => r["device_id"] == "${safe(deviceId, SAFE_NAME, 'device id')}")`;
 
+const rangeOf = (window: FluxWindow): string => `start: ${window.startsAt.toISOString()}, stop: ${window.endsAt.toISOString()}`;
+
+const aggregate = (window: FluxWindow): string => `
+    |> aggregateWindow(every: ${Math.max(1, Math.trunc(window.stepSeconds))}s, fn: mean, createEmpty: true)
+    |> limit(n: ${MAX_POINTS})`;
+
 /**
  * The newest point of every field a device has written, in one query, which is
  * what a card and `/live` are built from: a device costs one read however many
@@ -95,12 +101,25 @@ export interface FluxWindow {
 /** One aggregated point per window per field, empty windows included so a chart draws the gap rather than joining across it. */
 export const seriesQuery = (bucket: string, deviceId: string, fields: readonly string[], window: FluxWindow): string => {
   const filter = fields.map(field => `r["_field"] == "${safe(field, FIELD_NAME, 'field name')}"`).join(' or ');
-  const range = `start: ${window.startsAt.toISOString()}, stop: ${window.endsAt.toISOString()}`;
 
-  return `${head(bucket, deviceId, range)}
-    |> filter(fn: (r) => ${filter})
-    |> aggregateWindow(every: ${Math.max(1, Math.trunc(window.stepSeconds))}s, fn: mean, createEmpty: true)
-    |> limit(n: ${MAX_POINTS})`;
+  return `${head(bucket, deviceId, rangeOf(window))}
+    |> filter(fn: (r) => ${filter})${aggregate(window)}`;
+};
+
+/**
+ * The same aggregate of one field over several devices, one series per device.
+ * A home draws a sparkline on every card, and with this it costs one read
+ * however many cards there are.
+ */
+export const trendQuery = (bucket: string, deviceIds: readonly string[], field: string, window: FluxWindow): string => {
+  const ids = deviceIds.map(id => `"${safe(id, SAFE_NAME, 'device id')}"`).join(', ');
+
+  return `
+  from(bucket: "${safe(bucket, SAFE_NAME, 'bucket')}")
+    |> range(${rangeOf(window)})
+    |> filter(fn: (r) => r["_measurement"] == "${MEASUREMENT}")
+    |> filter(fn: (r) => contains(value: r["device_id"], set: [${ids}]))
+    |> filter(fn: (r) => r["_field"] == "${safe(field, FIELD_NAME, 'field name')}")${aggregate(window)}`;
 };
 
 /** A row as the client hands it back. `_value` is empty for a window that holds no reading. */
@@ -108,6 +127,7 @@ export interface FluxRow {
   _time?: string;
   _value?: number | null;
   _field?: string;
+  device_id?: string;
 }
 
 const numberOf = (value: number | null | undefined): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);

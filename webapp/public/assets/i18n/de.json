@@ -1177,6 +1177,104 @@
       "text": "Ein abgeschlossener Grow mit drei Monaten Klima, Einträgen und Bildern. Nichts einzurichten.",
       "opening": "Demo wird geöffnet…",
       "failed": "Die Demo konnte nicht geöffnet werden."
+    },
+    "count_one": "{{count}} Bereich",
+    "count_other": "{{count}} Bereiche",
+    "sortedByAttention": "nach Dringlichkeit",
+    "waiting": "lädt",
+    "retry": "Noch einmal versuchen",
+    "refreshFailed": "Konnte nicht aktualisieren · Stand von vor {{age}}",
+    "liveness": {
+      "live": "live",
+      "stale": "veraltet",
+      "offline": "offline"
+    },
+    "card": {
+      "sparkline": "Temperatur in {{name}} über die letzten 24 Stunden",
+      "noReading": "–",
+      "inBand": "im Ziel",
+      "noTarget": "kein Ziel",
+      "week": "Wo {{week}}",
+      "auto": "auto",
+      "noPhase": "Noch keine Phase",
+      "plants_one": "{{count}} Pflanze",
+      "plants_other": "{{count}} Pflanzen",
+      "day": "Tag",
+      "dayN": "Tag {{day}}",
+      "noEntries": "Noch nichts im Tagebuch",
+      "ago": "vor {{age}}",
+      "cam": "Cam",
+      "stillAlt": "Das neueste Bild aus {{name}}",
+      "enteredPhase": "{{stage}} begonnen"
+    },
+    "metric": {
+      "temperature": "Temp",
+      "humidity": "rF",
+      "co2": "CO₂",
+      "vpd": "VPD"
+    },
+    "stage": {
+      "germination": "Keimung",
+      "seedling": "Sämling",
+      "vegetative": "Veg",
+      "flowering": "Blüte",
+      "drying": "Trocknung",
+      "curing": "Curing"
+    },
+    "author": {
+      "you": "du",
+      "device": "Gerät",
+      "plan": "auto",
+      "preset": "auto",
+      "alarm": "Alarm",
+      "someone": "jemand"
+    },
+    "entryKind": {
+      "water": "Gegossen",
+      "feed": "Gedüngt",
+      "photo": "Foto",
+      "note": "Notiz",
+      "measurement": "Gemessen",
+      "training": "Training",
+      "phase": "Phase",
+      "move": "Umgezogen",
+      "harvest": "Ernte",
+      "visit": "Im Zelt",
+      "alarm": "Alarm",
+      "plan": "Plan",
+      "system": "System"
+    },
+    "alert": {
+      "threshold": "Alarm · {{value}}",
+      "offline": "Offline",
+      "camera_stale": "Cam liefert nicht"
+    },
+    "actions": {
+      "water": "Gießen",
+      "note": "Notiz",
+      "photo": "Foto",
+      "visit": "Im Zelt 15 min",
+      "reading": "Messwert"
+    },
+    "invite": {
+      "noGrow": "Hier wächst noch nichts",
+      "startGrow": "Grow starten",
+      "moveGrow": "Grow hierher",
+      "notNow": "Jetzt nicht",
+      "notNowFor": "Jetzt nicht, für {{name}}",
+      "noSensor": "Kein Sensor",
+      "logReading": "Messwert eintragen",
+      "addDevice": "Gerät hinzufügen"
+    },
+    "strip": {
+      "attention": "Braucht Aufmerksamkeit",
+      "due": "Fällig",
+      "done": "Erledigt",
+      "today": "heute",
+      "tomorrow": "morgen",
+      "overdue_one": "{{count}} Tag überfällig",
+      "overdue_other": "{{count}} Tage überfällig",
+      "following": "Folge ich"
     }
   },
   "me": {

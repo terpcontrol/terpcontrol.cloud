@@ -1652,6 +1652,26 @@ export declare const latestStill: z.ZodObject<{
     capturedAt: z.ZodISODateTime;
 }, z.core.$strip>;
 /**
+ * A day of one metric, the size of a stamp: what a card draws beside its figures
+ * to say "steady" or "not". It rides on the card rather than being fetched per
+ * card, so a club's home is one request however many places it has.
+ */
+export declare const cardTrend: z.ZodObject<{
+    metric: z.ZodEnum<{
+        offline: "offline";
+        co2: "co2";
+        temperature: "temperature";
+        humidity: "humidity";
+        leafTemperature: "leafTemperature";
+        lux: "lux";
+        vpd: "vpd";
+        ppfd: "ppfd";
+    }>;
+    stepSeconds: z.ZodNumber;
+    endsAt: z.ZodISODateTime;
+    points: z.ZodArray<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+/**
  * A task as a card lists it. Tasks are derived from reminders, the scheme grid
  * and the plan rather than stored, and their ids are deterministic - which is
  * how completing one, an entry carrying that `taskId`, keeps it from coming back.
@@ -1693,6 +1713,16 @@ export declare const openAlert: z.ZodObject<{
     }>;
     startedAt: z.ZodISODateTime;
     value: z.ZodNullable<z.ZodNumber>;
+    metric: z.ZodNullable<z.ZodEnum<{
+        offline: "offline";
+        co2: "co2";
+        temperature: "temperature";
+        humidity: "humidity";
+        leafTemperature: "leafTemperature";
+        lux: "lux";
+        vpd: "vpd";
+        ppfd: "ppfd";
+    }>>;
 }, z.core.$strip>;
 /** One group of a split, as a card counts it: `GrowSummary.groups` names the plants instead. */
 export declare const growCardStageGroup: z.ZodObject<{
@@ -1720,6 +1750,7 @@ export declare const growCard: z.ZodObject<{
         autoflower: "autoflower";
     }>;
     dayNumber: z.ZodNullable<z.ZodNumber>;
+    phaseDay: z.ZodNullable<z.ZodNumber>;
     stage: z.ZodNullable<z.ZodEnum<{
         germination: "germination";
         seedling: "seedling";
@@ -1731,6 +1762,7 @@ export declare const growCard: z.ZodObject<{
     preset: z.ZodNullable<z.ZodString>;
     isAuto: z.ZodBoolean;
     plantCount: z.ZodNullable<z.ZodNumber>;
+    strains: z.ZodArray<z.ZodString>;
     coverMediaId: z.ZodNullable<z.ZodString>;
     stageGroups: z.ZodArray<z.ZodObject<{
         stage: z.ZodEnum<{
@@ -1789,6 +1821,21 @@ export declare const homeSpaceCard: z.ZodObject<{
         }>;
         value: z.ZodNullable<z.ZodNumber>;
     }, z.core.$strip>>;
+    trend: z.ZodNullable<z.ZodObject<{
+        metric: z.ZodEnum<{
+            offline: "offline";
+            co2: "co2";
+            temperature: "temperature";
+            humidity: "humidity";
+            leafTemperature: "leafTemperature";
+            lux: "lux";
+            vpd: "vpd";
+            ppfd: "ppfd";
+        }>;
+        stepSeconds: z.ZodNumber;
+        endsAt: z.ZodISODateTime;
+        points: z.ZodArray<z.ZodNullable<z.ZodNumber>>;
+    }, z.core.$strip>>;
     grow: z.ZodNullable<z.ZodObject<{
         growId: z.ZodString;
         name: z.ZodString;
@@ -1797,6 +1844,7 @@ export declare const homeSpaceCard: z.ZodObject<{
             autoflower: "autoflower";
         }>;
         dayNumber: z.ZodNullable<z.ZodNumber>;
+        phaseDay: z.ZodNullable<z.ZodNumber>;
         stage: z.ZodNullable<z.ZodEnum<{
             germination: "germination";
             seedling: "seedling";
@@ -1808,6 +1856,7 @@ export declare const homeSpaceCard: z.ZodObject<{
         preset: z.ZodNullable<z.ZodString>;
         isAuto: z.ZodBoolean;
         plantCount: z.ZodNullable<z.ZodNumber>;
+        strains: z.ZodArray<z.ZodString>;
         coverMediaId: z.ZodNullable<z.ZodString>;
         stageGroups: z.ZodArray<z.ZodObject<{
             stage: z.ZodEnum<{
@@ -1971,6 +2020,16 @@ export declare const homeSpaceCard: z.ZodObject<{
         }>;
         startedAt: z.ZodISODateTime;
         value: z.ZodNullable<z.ZodNumber>;
+        metric: z.ZodNullable<z.ZodEnum<{
+            offline: "offline";
+            co2: "co2";
+            temperature: "temperature";
+            humidity: "humidity";
+            leafTemperature: "leafTemperature";
+            lux: "lux";
+            vpd: "vpd";
+            ppfd: "ppfd";
+        }>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /** A grow somebody follows: a public grow, so only what its public page shows. */
@@ -1990,6 +2049,11 @@ export declare const followedGrowCard: z.ZodObject<{
     }>>;
     coverMediaId: z.ZodNullable<z.ZodString>;
     updatedAt: z.ZodISODateTime;
+}, z.core.$strip>;
+/** Somebody a card names: the author of an entry, the assignee of a task. */
+export declare const person: z.ZodObject<{
+    id: z.ZodString;
+    handle: z.ZodString;
 }, z.core.$strip>;
 export declare const homeAnswer: z.ZodObject<{
     spaces: z.ZodArray<z.ZodObject<{
@@ -2036,6 +2100,21 @@ export declare const homeAnswer: z.ZodObject<{
             }>;
             value: z.ZodNullable<z.ZodNumber>;
         }, z.core.$strip>>;
+        trend: z.ZodNullable<z.ZodObject<{
+            metric: z.ZodEnum<{
+                offline: "offline";
+                co2: "co2";
+                temperature: "temperature";
+                humidity: "humidity";
+                leafTemperature: "leafTemperature";
+                lux: "lux";
+                vpd: "vpd";
+                ppfd: "ppfd";
+            }>;
+            stepSeconds: z.ZodNumber;
+            endsAt: z.ZodISODateTime;
+            points: z.ZodArray<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
         grow: z.ZodNullable<z.ZodObject<{
             growId: z.ZodString;
             name: z.ZodString;
@@ -2044,6 +2123,7 @@ export declare const homeAnswer: z.ZodObject<{
                 autoflower: "autoflower";
             }>;
             dayNumber: z.ZodNullable<z.ZodNumber>;
+            phaseDay: z.ZodNullable<z.ZodNumber>;
             stage: z.ZodNullable<z.ZodEnum<{
                 germination: "germination";
                 seedling: "seedling";
@@ -2055,6 +2135,7 @@ export declare const homeAnswer: z.ZodObject<{
             preset: z.ZodNullable<z.ZodString>;
             isAuto: z.ZodBoolean;
             plantCount: z.ZodNullable<z.ZodNumber>;
+            strains: z.ZodArray<z.ZodString>;
             coverMediaId: z.ZodNullable<z.ZodString>;
             stageGroups: z.ZodArray<z.ZodObject<{
                 stage: z.ZodEnum<{
@@ -2218,6 +2299,16 @@ export declare const homeAnswer: z.ZodObject<{
             }>;
             startedAt: z.ZodISODateTime;
             value: z.ZodNullable<z.ZodNumber>;
+            metric: z.ZodNullable<z.ZodEnum<{
+                offline: "offline";
+                co2: "co2";
+                temperature: "temperature";
+                humidity: "humidity";
+                leafTemperature: "leafTemperature";
+                lux: "lux";
+                vpd: "vpd";
+                ppfd: "ppfd";
+            }>>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
     followedGrows: z.ZodArray<z.ZodObject<{
@@ -2236,6 +2327,10 @@ export declare const homeAnswer: z.ZodObject<{
         }>>;
         coverMediaId: z.ZodNullable<z.ZodString>;
         updatedAt: z.ZodISODateTime;
+    }, z.core.$strip>>;
+    people: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        handle: z.ZodString;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 export declare const verdictRating: z.ZodEnum<{
@@ -2384,6 +2479,7 @@ export declare const spaceOverview: z.ZodObject<{
             autoflower: "autoflower";
         }>;
         dayNumber: z.ZodNullable<z.ZodNumber>;
+        phaseDay: z.ZodNullable<z.ZodNumber>;
         stage: z.ZodNullable<z.ZodEnum<{
             germination: "germination";
             seedling: "seedling";
@@ -2395,6 +2491,7 @@ export declare const spaceOverview: z.ZodObject<{
         preset: z.ZodNullable<z.ZodString>;
         isAuto: z.ZodBoolean;
         plantCount: z.ZodNullable<z.ZodNumber>;
+        strains: z.ZodArray<z.ZodString>;
         coverMediaId: z.ZodNullable<z.ZodString>;
         stageGroups: z.ZodArray<z.ZodObject<{
             stage: z.ZodEnum<{
@@ -2558,6 +2655,16 @@ export declare const spaceOverview: z.ZodObject<{
         }>;
         startedAt: z.ZodISODateTime;
         value: z.ZodNullable<z.ZodNumber>;
+        metric: z.ZodNullable<z.ZodEnum<{
+            offline: "offline";
+            co2: "co2";
+            temperature: "temperature";
+            humidity: "humidity";
+            leafTemperature: "leafTemperature";
+            lux: "lux";
+            vpd: "vpd";
+            ppfd: "ppfd";
+        }>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /** One device's newest values, as the space screen redraws them. */
@@ -3813,6 +3920,7 @@ export declare const sharedSpace: z.ZodObject<{
                 autoflower: "autoflower";
             }>;
             dayNumber: z.ZodNullable<z.ZodNumber>;
+            phaseDay: z.ZodNullable<z.ZodNumber>;
             stage: z.ZodNullable<z.ZodEnum<{
                 germination: "germination";
                 seedling: "seedling";
@@ -3824,6 +3932,7 @@ export declare const sharedSpace: z.ZodObject<{
             preset: z.ZodNullable<z.ZodString>;
             isAuto: z.ZodBoolean;
             plantCount: z.ZodNullable<z.ZodNumber>;
+            strains: z.ZodArray<z.ZodString>;
             coverMediaId: z.ZodNullable<z.ZodString>;
             stageGroups: z.ZodArray<z.ZodObject<{
                 stage: z.ZodEnum<{
@@ -3987,6 +4096,16 @@ export declare const sharedSpace: z.ZodObject<{
             }>;
             startedAt: z.ZodISODateTime;
             value: z.ZodNullable<z.ZodNumber>;
+            metric: z.ZodNullable<z.ZodEnum<{
+                offline: "offline";
+                co2: "co2";
+                temperature: "temperature";
+                humidity: "humidity";
+                leafTemperature: "leafTemperature";
+                lux: "lux";
+                vpd: "vpd";
+                ppfd: "ppfd";
+            }>>;
         }, z.core.$strip>>;
     }, z.core.$strip>;
 }, z.core.$strip>;
@@ -4269,6 +4388,7 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 autoflower: "autoflower";
             }>;
             dayNumber: z.ZodNullable<z.ZodNumber>;
+            phaseDay: z.ZodNullable<z.ZodNumber>;
             stage: z.ZodNullable<z.ZodEnum<{
                 germination: "germination";
                 seedling: "seedling";
@@ -4280,6 +4400,7 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             preset: z.ZodNullable<z.ZodString>;
             isAuto: z.ZodBoolean;
             plantCount: z.ZodNullable<z.ZodNumber>;
+            strains: z.ZodArray<z.ZodString>;
             coverMediaId: z.ZodNullable<z.ZodString>;
             stageGroups: z.ZodArray<z.ZodObject<{
                 stage: z.ZodEnum<{
@@ -4443,6 +4564,16 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             }>;
             startedAt: z.ZodISODateTime;
             value: z.ZodNullable<z.ZodNumber>;
+            metric: z.ZodNullable<z.ZodEnum<{
+                offline: "offline";
+                co2: "co2";
+                temperature: "temperature";
+                humidity: "humidity";
+                leafTemperature: "leafTemperature";
+                lux: "lux";
+                vpd: "vpd";
+                ppfd: "ppfd";
+            }>>;
         }, z.core.$strip>>;
     }, z.core.$strip>;
 }, z.core.$strip>], "type">;
@@ -4742,6 +4873,7 @@ export declare const sharedResolution: z.ZodObject<{
                     autoflower: "autoflower";
                 }>;
                 dayNumber: z.ZodNullable<z.ZodNumber>;
+                phaseDay: z.ZodNullable<z.ZodNumber>;
                 stage: z.ZodNullable<z.ZodEnum<{
                     germination: "germination";
                     seedling: "seedling";
@@ -4753,6 +4885,7 @@ export declare const sharedResolution: z.ZodObject<{
                 preset: z.ZodNullable<z.ZodString>;
                 isAuto: z.ZodBoolean;
                 plantCount: z.ZodNullable<z.ZodNumber>;
+                strains: z.ZodArray<z.ZodString>;
                 coverMediaId: z.ZodNullable<z.ZodString>;
                 stageGroups: z.ZodArray<z.ZodObject<{
                     stage: z.ZodEnum<{
@@ -4916,6 +5049,16 @@ export declare const sharedResolution: z.ZodObject<{
                 }>;
                 startedAt: z.ZodISODateTime;
                 value: z.ZodNullable<z.ZodNumber>;
+                metric: z.ZodNullable<z.ZodEnum<{
+                    offline: "offline";
+                    co2: "co2";
+                    temperature: "temperature";
+                    humidity: "humidity";
+                    leafTemperature: "leafTemperature";
+                    lux: "lux";
+                    vpd: "vpd";
+                    ppfd: "ppfd";
+                }>>;
             }, z.core.$strip>>;
         }, z.core.$strip>;
     }, z.core.$strip>], "type">;

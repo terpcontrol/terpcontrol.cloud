@@ -9270,6 +9270,40 @@
       "capturedAt"
     ]
   },
+  "CardTrend": {
+    "type": "object",
+    "properties": {
+      "metric": {
+        "$ref": "#/components/schemas/Metric"
+      },
+      "stepSeconds": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+      },
+      "endsAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "points": {
+        "type": "array",
+        "items": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "description": "One figure per window, oldest first; null where the window holds no sample."
+      }
+    },
+    "required": [
+      "metric",
+      "stepSeconds",
+      "endsAt",
+      "points"
+    ]
+  },
   "DueTask": {
     "type": "object",
     "properties": {
@@ -9335,6 +9369,17 @@
           "number",
           "null"
         ]
+      },
+      "metric": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/Metric"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "What the rule watches, so \"78 % RH\" can be said; null for an alert raised without a rule."
       }
     },
     "required": [
@@ -9342,7 +9387,8 @@
       "kind",
       "severity",
       "startedAt",
-      "value"
+      "value",
+      "metric"
     ]
   },
   "GrowCardStageGroup": {
@@ -9395,6 +9441,19 @@
           }
         ]
       },
+      "phaseDay": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "How many days the grow has stood in its current phase."
+      },
       "stage": {
         "anyOf": [
           {
@@ -9428,6 +9487,13 @@
         ],
         "description": "Null where the owner hides counts."
       },
+      "strains": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Each strain once, in the order it was planted."
+      },
       "coverMediaId": {
         "anyOf": [
           {
@@ -9451,10 +9517,12 @@
       "name",
       "type",
       "dayNumber",
+      "phaseDay",
       "stage",
       "preset",
       "isAuto",
       "plantCount",
+      "strains",
       "coverMediaId",
       "stageGroups"
     ]
@@ -9501,6 +9569,17 @@
         "items": {
           "$ref": "#/components/schemas/CardSetpoint"
         }
+      },
+      "trend": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/CardTrend"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The last 24 hours of temperature, from the first device in the space that has any."
       },
       "grow": {
         "anyOf": [
@@ -9550,6 +9629,7 @@
       "deviceIds",
       "values",
       "setpoints",
+      "trend",
       "grow",
       "entries",
       "latestStill",
@@ -9624,6 +9704,22 @@
       "updatedAt"
     ]
   },
+  "Person": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "handle": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "handle"
+    ]
+  },
   "HomeAnswer": {
     "type": "object",
     "properties": {
@@ -9638,11 +9734,19 @@
         "items": {
           "$ref": "#/components/schemas/FollowedGrowCard"
         }
+      },
+      "people": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Person"
+        },
+        "description": "Everyone the cards name, so a card can say who wrote an entry without another read."
       }
     },
     "required": [
       "spaces",
-      "followedGrows"
+      "followedGrows",
+      "people"
     ]
   },
   "VerdictRating": {

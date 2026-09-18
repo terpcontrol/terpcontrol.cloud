@@ -1,0 +1,96 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+/* The phone's top bar already says where you are; the wide screen has a rail and needs the title. */
+.head {
+  display: none;
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.caption {
+  font-size: var(--text-xs);
+  color: var(--label);
+}
+
+.failed {
+  font-size: var(--text-xs);
+  color: var(--warning);
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* A card that is waiting, in a card's shape: a name, three figures, a line. */
+.waiting {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.waitingHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.waitingName,
+.waitingFigure,
+.waitingLine {
+  display: block;
+  background: var(--card-2);
+  border-radius: var(--radius);
+}
+
+.waitingName {
+  width: 40%;
+  height: var(--text-lg);
+}
+
+.waitingNote {
+  font-size: var(--text-xs);
+  color: var(--label);
+}
+
+.waitingFigures {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.waitingFigure {
+  width: 64px;
+  height: var(--text-figure);
+}
+
+.waitingLine {
+  width: 70%;
+  height: var(--text-sm);
+}
+
+@media (min-width: 900px) {
+  .page {
+    /* The list column of the wide layout; the place a card opens lands beside it. */
+    max-width: 480px;
+    padding-top: 0;
+  }
+
+  .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-bottom: var(--space-1);
+  }
+}

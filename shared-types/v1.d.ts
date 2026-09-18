@@ -2676,6 +2676,16 @@ export interface LatestStill {
   capturedAt: string;
 }
 
+export interface CardTrend {
+  metric: Metric;
+  stepSeconds: number;
+  endsAt: string;
+  /**
+   * One figure per window, oldest first; null where the window holds no sample.
+   */
+  points: (number | null)[];
+}
+
 export interface DueTask {
   id: string;
   kind: ReminderKind;
@@ -2691,6 +2701,10 @@ export interface OpenAlert {
   severity: Severity;
   startedAt: string;
   value: number | null;
+  /**
+   * What the rule watches, so "78 % RH" can be said; null for an alert raised without a rule.
+   */
+  metric: Metric | null;
 }
 
 export interface GrowCardStageGroup {
@@ -2706,6 +2720,10 @@ export interface GrowCard {
   name: string;
   type: GrowType;
   dayNumber: number | null;
+  /**
+   * How many days the grow has stood in its current phase.
+   */
+  phaseDay: number | null;
   stage: GrowthStage | null;
   preset: string | null;
   /**
@@ -2716,6 +2734,10 @@ export interface GrowCard {
    * Null where the owner hides counts.
    */
   plantCount: number | null;
+  /**
+   * Each strain once, in the order it was planted.
+   */
+  strains: string[];
   coverMediaId: string | null;
   stageGroups: GrowCardStageGroup[];
 }
@@ -2728,6 +2750,10 @@ export interface HomeSpaceCard {
   deviceIds: string[];
   values: CardValue[];
   setpoints: CardSetpoint[];
+  /**
+   * The last 24 hours of temperature, from the first device in the space that has any.
+   */
+  trend: CardTrend | null;
   grow: GrowCard | null;
   /**
    * The grow’s newest entries, newest first.
@@ -2752,9 +2778,18 @@ export interface FollowedGrowCard {
   updatedAt: string;
 }
 
+export interface Person {
+  id: string;
+  handle: string;
+}
+
 export interface HomeAnswer {
   spaces: HomeSpaceCard[];
   followedGrows: FollowedGrowCard[];
+  /**
+   * Everyone the cards name, so a card can say who wrote an entry without another read.
+   */
+  people: Person[];
 }
 
 export interface ClimateVerdictMetric {

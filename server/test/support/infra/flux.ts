@@ -13,6 +13,8 @@ export interface ParsedFlux {
   /** Empty means the query names no field, which is every field the device wrote. */
   fields: string[];
   deviceId?: string;
+  /** Several devices in one query, which answers one series per device. */
+  deviceIds?: string[];
   every?: string;
   fn: AggregateFn;
   createEmpty: boolean;
@@ -74,6 +76,9 @@ export const parseFlux = (query: string): ParsedFlux => ({
   measurement: literal(query, /r\["_measurement"\]\s*==\s*"([^"]*)"/),
   fields: [...query.matchAll(/r\["_field"\]\s*==\s*"([^"]*)"/g)].map(match => match[1]),
   deviceId: literal(query, /r\["device_id"\]\s*==\s*"([^"]*)"/),
+  deviceIds: literal(query, /contains\(value:\s*r\["device_id"\],\s*set:\s*\[([^\]]*)\]/)
+    ?.match(/"([^"]*)"/g)
+    ?.map(quoted => quoted.slice(1, -1)),
   every: literal(query, /aggregateWindow\([^)]*every:\s*([^,)\s]+)/),
   fn: (literal(query, /aggregateWindow\([^)]*fn:\s*([a-zA-Z]+)/) ?? 'mean') as AggregateFn,
   createEmpty: /createEmpty:\s*true/.test(query),
@@ -123,14 +128,22 @@ export const runQuery = (points: InfluxPoint[], parsed: ParsedFlux, now: number)
       point.time > start &&
       point.time <= stop &&
       (!parsed.measurement || point.measurement === parsed.measurement) &&
-      (!parsed.deviceId || point.tags.device_id === parsed.deviceId),
+      (!parsed.deviceId || point.tags.device_id === parsed.deviceId) &&
+      (!parsed.deviceIds || parsed.deviceIds.includes(point.tags.device_id)),
   );
 
-  // A query that names no field reads every field the device has written, which
-  // is what the live read does: one row per field rather than one per point.
-  const fields = parsed.fields.length > 0 ? parsed.fields : [...new Set(matching.flatMap(point => Object.keys(point.fields)))];
+  // A device is a series of its own, as the tag makes it in Influx; a query
+  // over several devices answers each one's windows, not one aggregate of all.
+  const series = parsed.deviceIds
+    ? parsed.deviceIds.map(deviceId => matching.filter(point => point.tags.device_id === deviceId)).filter(own => own.length > 0)
+    : [matching];
 
-  const rows = fields.flatMap(field => fieldRows(matching, field, parsed, start, stop));
+  const rows = series.flatMap(own => {
+    // A query that names no field reads every field the device has written, which
+    // is what the live read does: one row per field rather than one per point.
+    const fields = parsed.fields.length > 0 ? parsed.fields : [...new Set(own.flatMap(point => Object.keys(point.fields)))];
+    return fields.flatMap(field => fieldRows(own, field, parsed, start, stop));
+  });
   return { rows, start, stop };
 };
 

@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCaptureAnswer = exports.cameraUpdate = exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.media = exports.mediaRender = exports.mediaRenderStatus = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.measurementEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.entryReading = void 0;
-exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growMeasurementSeries = exports.growSeriesPoint = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.weekClimate = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.climateVerdict = exports.climateVerdictMetric = exports.verdictRating = exports.homeAnswer = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.latestStill = exports.cardSetpoint = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = void 0;
+exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growMeasurementSeries = exports.growSeriesPoint = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.weekClimate = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.climateVerdict = exports.climateVerdictMetric = exports.verdictRating = exports.homeAnswer = exports.person = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -569,6 +569,17 @@ exports.latestStill = (0, common_js_1.named)('LatestStill', zod_1.z.object({
     capturedAt: (0, common_js_1.instant)(),
 }));
 /**
+ * A day of one metric, the size of a stamp: what a card draws beside its figures
+ * to say "steady" or "not". It rides on the card rather than being fetched per
+ * card, so a club's home is one request however many places it has.
+ */
+exports.cardTrend = (0, common_js_1.named)('CardTrend', zod_1.z.object({
+    metric: common_js_1.metric,
+    stepSeconds: zod_1.z.number().int(),
+    endsAt: (0, common_js_1.instant)(),
+    points: zod_1.z.array(zod_1.z.number().nullable()).describe('One figure per window, oldest first; null where the window holds no sample.'),
+}));
+/**
  * A task as a card lists it. Tasks are derived from reminders, the scheme grid
  * and the plan rather than stored, and their ids are deterministic - which is
  * how completing one, an entry carrying that `taskId`, keeps it from coming back.
@@ -591,6 +602,7 @@ exports.openAlert = (0, common_js_1.named)('OpenAlert', zod_1.z.object({
     severity: common_js_1.severity,
     startedAt: (0, common_js_1.instant)(),
     value: zod_1.z.number().nullable(),
+    metric: common_js_1.metric.nullable().describe('What the rule watches, so "78 % RH" can be said; null for an alert raised without a rule.'),
 }));
 /** One group of a split, as a card counts it: `GrowSummary.groups` names the plants instead. */
 exports.growCardStageGroup = (0, common_js_1.named)('GrowCardStageGroup', zod_1.z.object({
@@ -608,10 +620,12 @@ exports.growCard = (0, common_js_1.named)('GrowCard', zod_1.z.object({
     name: zod_1.z.string(),
     type: common_js_1.growType,
     dayNumber: zod_1.z.number().int().nullable(),
+    phaseDay: zod_1.z.number().int().nullable().describe('How many days the grow has stood in its current phase.'),
     stage: common_js_1.growthStage.nullable(),
     preset: zod_1.z.string().nullable(),
     isAuto: zod_1.z.boolean().describe('The phase was set by a preset or the plan rather than by a person.'),
     plantCount: zod_1.z.number().int().nullable().describe('Null where the owner hides counts.'),
+    strains: zod_1.z.array(zod_1.z.string()).describe('Each strain once, in the order it was planted.'),
     coverMediaId: (0, common_js_1.id)().nullable(),
     stageGroups: zod_1.z.array(exports.growCardStageGroup),
 }));
@@ -624,6 +638,7 @@ exports.homeSpaceCard = (0, common_js_1.named)('HomeSpaceCard', zod_1.z.object({
     deviceIds: zod_1.z.array((0, common_js_1.id)()),
     values: zod_1.z.array(exports.cardValue),
     setpoints: zod_1.z.array(exports.cardSetpoint),
+    trend: exports.cardTrend.nullable().describe('The last 24 hours of temperature, from the first device in the space that has any.'),
     grow: exports.growCard.nullable(),
     entries: zod_1.z.array(exports.entry).describe('The grow’s newest entries, newest first.'),
     latestStill: exports.latestStill.nullable(),
@@ -641,9 +656,12 @@ exports.followedGrowCard = (0, common_js_1.named)('FollowedGrowCard', zod_1.z.ob
     coverMediaId: (0, common_js_1.id)().nullable(),
     updatedAt: (0, common_js_1.instant)(),
 }));
+/** Somebody a card names: the author of an entry, the assignee of a task. */
+exports.person = (0, common_js_1.named)('Person', zod_1.z.object({ id: (0, common_js_1.id)(), handle: zod_1.z.string() }));
 exports.homeAnswer = (0, common_js_1.named)('HomeAnswer', zod_1.z.object({
     spaces: zod_1.z.array(exports.homeSpaceCard),
     followedGrows: zod_1.z.array(exports.followedGrowCard),
+    people: zod_1.z.array(exports.person).describe('Everyone the cards name, so a card can say who wrote an entry without another read.'),
 }));
 exports.verdictRating = (0, common_js_1.named)('VerdictRating', zod_1.z.enum(['good', 'watch', 'poor']));
 /** How one metric did over the window, against the band the phase's targets set. */

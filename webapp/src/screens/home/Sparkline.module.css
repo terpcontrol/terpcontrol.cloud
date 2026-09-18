@@ -1,0 +1,32 @@
+.frame {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  width: 56px;
+  flex-shrink: 0;
+}
+
+.chart {
+  width: 56px;
+  height: 28px;
+  overflow: visible;
+}
+
+.band {
+  fill: var(--green);
+  opacity: 0.18;
+}
+
+.line {
+  fill: none;
+  stroke: var(--temperature);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.caption {
+  font-size: var(--text-xs);
+  color: var(--label);
+}

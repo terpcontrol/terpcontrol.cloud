@@ -24,6 +24,7 @@ import {
   readingsOf,
   seriesQuery,
   stepFor,
+  trendQuery,
 } from './flux';
 
 /**
@@ -149,7 +150,11 @@ export class DataService implements LightStateReader {
       if (value !== null) metrics[name] = metricValueOf(value, computedAt(name, latest));
     }
 
-    return { metrics, isDay: flag(latest, DAY_FIELD), lightOn: flag(latest, fieldOfOutputMetric('light')) };
+    // Only a fan says outright which half of the cycle it is in; a controller
+    // and a fridge switch their light by the same schedule, so the light says it
+    // for them - which is what their day and night targets are held against.
+    const lightOn = flag(latest, fieldOfOutputMetric('light'));
+    return { metrics, isDay: flag(latest, DAY_FIELD) ?? lightOn, lightOn };
   }
 
   /**
@@ -205,6 +210,35 @@ export class DataService implements LightStateReader {
         points: pointsOf(grid.instants, instant => valueAt(fieldOfOutputMetric(name), instant)),
       })),
     };
+  }
+
+  /**
+   * One stored metric over a window for several devices at once, keyed by
+   * device: the points a sparkline draws, in one query for all of them. A device
+   * that wrote nothing in the window has no entry rather than an empty one.
+   */
+  public async trends(
+    deviceIds: readonly string[],
+    metric: Metric,
+    window: Omit<SeriesRequest, 'metrics' | 'outputs'>,
+  ): Promise<Map<string, SeriesPoint[]>> {
+    const field = fieldOfMetric(metric);
+    if (deviceIds.length === 0 || field === null) return new Map();
+
+    const stepSeconds = stepFor(window.startsAt, window.endsAt, window.stepSeconds);
+    const rows = await this.read(trendQuery(this.bucket, deviceIds, field, { ...window, stepSeconds }));
+
+    const byDevice = new Map<string, FluxRow[]>();
+    for (const row of rows) {
+      if (row.device_id) byDevice.set(row.device_id, [...(byDevice.get(row.device_id) ?? []), row]);
+    }
+
+    return new Map(
+      [...byDevice].map(([deviceId, own]) => {
+        const grid = gridOf(own);
+        return [deviceId, pointsOf(grid.instants, instant => grid.valuesByField.get(field)?.get(instant) ?? null)];
+      }),
+    );
   }
 
   /** One metric over a window, which is what an engine asks for rather than a whole answer. */

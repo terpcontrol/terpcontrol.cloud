@@ -23,9 +23,12 @@ import { AdminUsersModule } from './modules/v1/admin-users/admin-users.module';
 import { CameraModule } from './modules/v1/camera/camera.module';
 import { DeviceModule } from './modules/v1/device/device.module';
 import { FleetModule } from './modules/v1/fleet/fleet.module';
+import { GrowModule } from './modules/v1/grow/grow.module';
+import { HomeModule } from './modules/v1/home/home.module';
 import { PhaseModule } from './modules/v1/phase/phase.module';
 import { PlanModule } from './modules/v1/plan/plan.module';
 import { SessionsModule } from './modules/v1/sessions/sessions.module';
+import { SpaceModule } from './modules/v1/space/space.module';
 import { WiringModule } from './wiring.module';
 
 /**
@@ -78,6 +81,9 @@ import { WiringModule } from './wiring.module';
     AccountModule,
     AdminUsersModule,
     DeviceModule,
+    SpaceModule,
+    GrowModule,
+    HomeModule,
 
     // The probes, and the daily sweep for records nothing can reach any more.
     HealthModule,

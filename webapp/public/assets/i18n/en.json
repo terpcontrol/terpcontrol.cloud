@@ -1181,6 +1181,104 @@
       "text": "A finished grow with three months of climate, entries and stills. Nothing to set up.",
       "opening": "Opening the demo…",
       "failed": "The demo could not be opened."
+    },
+    "count_one": "{{count}} space",
+    "count_other": "{{count}} spaces",
+    "sortedByAttention": "sorted by attention",
+    "waiting": "loading",
+    "retry": "Try again",
+    "refreshFailed": "Could not refresh · showing what was known {{age}} ago",
+    "liveness": {
+      "live": "live",
+      "stale": "stale",
+      "offline": "offline"
+    },
+    "card": {
+      "sparkline": "Temperature in {{name}} over the last 24 hours",
+      "noReading": "–",
+      "inBand": "in band",
+      "noTarget": "no target",
+      "week": "wk {{week}}",
+      "auto": "auto",
+      "noPhase": "No phase yet",
+      "plants_one": "{{count}} plant",
+      "plants_other": "{{count}} plants",
+      "day": "day",
+      "dayN": "Day {{day}}",
+      "noEntries": "Nothing in the diary yet",
+      "ago": "{{age}} ago",
+      "cam": "Cam",
+      "stillAlt": "The newest picture of {{name}}",
+      "enteredPhase": "Entered {{stage}}"
+    },
+    "metric": {
+      "temperature": "Temp",
+      "humidity": "RH",
+      "co2": "CO₂",
+      "vpd": "VPD"
+    },
+    "stage": {
+      "germination": "Germination",
+      "seedling": "Seedling",
+      "vegetative": "Veg",
+      "flowering": "Flower",
+      "drying": "Drying",
+      "curing": "Curing"
+    },
+    "author": {
+      "you": "you",
+      "device": "device",
+      "plan": "auto",
+      "preset": "auto",
+      "alarm": "alarm",
+      "someone": "someone"
+    },
+    "entryKind": {
+      "water": "Watered",
+      "feed": "Fed",
+      "photo": "Photo",
+      "note": "Note",
+      "measurement": "Measured",
+      "training": "Training",
+      "phase": "Phase",
+      "move": "Moved",
+      "harvest": "Harvest",
+      "visit": "In the tent",
+      "alarm": "Alarm",
+      "plan": "Plan",
+      "system": "System"
+    },
+    "alert": {
+      "threshold": "Alarm · {{value}}",
+      "offline": "Offline",
+      "camera_stale": "Cam not delivering"
+    },
+    "actions": {
+      "water": "Water",
+      "note": "Note",
+      "photo": "Photo",
+      "visit": "In the tent 15 min",
+      "reading": "Reading"
+    },
+    "invite": {
+      "noGrow": "Nothing growing here yet",
+      "startGrow": "Start a grow",
+      "moveGrow": "Move a grow here",
+      "notNow": "Not now",
+      "notNowFor": "Not now, for {{name}}",
+      "noSensor": "No sensor",
+      "logReading": "Log a reading",
+      "addDevice": "Add a device"
+    },
+    "strip": {
+      "attention": "Needs attention",
+      "due": "Due",
+      "done": "Done",
+      "today": "today",
+      "tomorrow": "tomorrow",
+      "overdue_one": "{{count}} day overdue",
+      "overdue_other": "{{count}} days overdue",
+      "following": "Following"
     }
   },
   "me": {

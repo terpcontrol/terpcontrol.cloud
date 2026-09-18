@@ -770,6 +770,21 @@ export const latestStill = named(
 );
 
 /**
+ * A day of one metric, the size of a stamp: what a card draws beside its figures
+ * to say "steady" or "not". It rides on the card rather than being fetched per
+ * card, so a club's home is one request however many places it has.
+ */
+export const cardTrend = named(
+  'CardTrend',
+  z.object({
+    metric: metric,
+    stepSeconds: z.number().int(),
+    endsAt: instant(),
+    points: z.array(z.number().nullable()).describe('One figure per window, oldest first; null where the window holds no sample.'),
+  }),
+);
+
+/**
  * A task as a card lists it. Tasks are derived from reminders, the scheme grid
  * and the plan rather than stored, and their ids are deterministic - which is
  * how completing one, an entry carrying that `taskId`, keeps it from coming back.
@@ -798,6 +813,7 @@ export const openAlert = named(
     severity: severity,
     startedAt: instant(),
     value: z.number().nullable(),
+    metric: metric.nullable().describe('What the rule watches, so "78 % RH" can be said; null for an alert raised without a rule.'),
   }),
 );
 
@@ -823,10 +839,12 @@ export const growCard = named(
     name: z.string(),
     type: growType,
     dayNumber: z.number().int().nullable(),
+    phaseDay: z.number().int().nullable().describe('How many days the grow has stood in its current phase.'),
     stage: growthStage.nullable(),
     preset: z.string().nullable(),
     isAuto: z.boolean().describe('The phase was set by a preset or the plan rather than by a person.'),
     plantCount: z.number().int().nullable().describe('Null where the owner hides counts.'),
+    strains: z.array(z.string()).describe('Each strain once, in the order it was planted.'),
     coverMediaId: id().nullable(),
     stageGroups: z.array(growCardStageGroup),
   }),
@@ -843,6 +861,7 @@ export const homeSpaceCard = named(
     deviceIds: z.array(id()),
     values: z.array(cardValue),
     setpoints: z.array(cardSetpoint),
+    trend: cardTrend.nullable().describe('The last 24 hours of temperature, from the first device in the space that has any.'),
     grow: growCard.nullable(),
     entries: z.array(entry).describe('The grow’s newest entries, newest first.'),
     latestStill: latestStill.nullable(),
@@ -866,11 +885,15 @@ export const followedGrowCard = named(
   }),
 );
 
+/** Somebody a card names: the author of an entry, the assignee of a task. */
+export const person = named('Person', z.object({ id: id(), handle: z.string() }));
+
 export const homeAnswer = named(
   'HomeAnswer',
   z.object({
     spaces: z.array(homeSpaceCard),
     followedGrows: z.array(followedGrowCard),
+    people: z.array(person).describe('Everyone the cards name, so a card can say who wrote an entry without another read.'),
   }),
 );
 
