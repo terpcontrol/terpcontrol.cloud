@@ -33,13 +33,20 @@ export const registerDevice = async (deviceType: DeviceType = 'fridge'): Promise
   return credentials;
 };
 
-/** Registers a device and claims it for the session's user. */
+/** The code a device shows on its display, which is the whole proof a claim needs. */
+export const claimCodeOf = async (deviceId: string): Promise<string> => {
+  const response = await anonymous().post('/device/claimcode').send({ device_id: deviceId }).expect(200);
+  return response.body.claim_code;
+};
+
+/** Registers a device and claims it for the session's user, which also puts it into a space. */
 export const provisionDevice = async (session: Session, deviceType: DeviceType = 'fridge'): Promise<DeviceCredentials> => {
   const credentials = await registerDevice(deviceType);
 
-  const claimCode = await anonymous().post('/device/claimcode').send({ device_id: credentials.deviceId }).expect(200);
-
-  await session.client.post('/device').send({ claim_code: claimCode.body.claim_code }).expect(200);
+  await session.client
+    .post('/v1/devices/claims')
+    .send({ code: await claimCodeOf(credentials.deviceId) })
+    .expect(201);
 
   return credentials;
 };

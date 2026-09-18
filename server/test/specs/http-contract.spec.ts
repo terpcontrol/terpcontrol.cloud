@@ -1,6 +1,5 @@
 import { request as httpRequest } from 'node:http';
-import sharp from 'sharp';
-import { anonymous, context, createAccount, demoSession, loginAsAdmin, Session, unique } from '../support/api';
+import { anonymous, context, createAccount, loginAsAdmin, Session, unique } from '../support/api';
 import { provisionDevice, registerDevice } from '../support/device';
 
 /**
@@ -30,10 +29,28 @@ const postChunked = (path: string): Promise<number> =>
     call.end();
   });
 
+/** A registered build with one image in it, which is what OTA downloads. */
+const uploadFirmware = async (image: Buffer): Promise<string> => {
+  const classes = await admin.client.get('/v1/admin/device-classes').expect(200);
+  const fridge = classes.body.items.find((entry: { name: string }) => entry.name === 'fridge');
+
+  const created = await admin.client
+    .post('/v1/admin/firmwares')
+    .send({ classId: fridge.id, name: 'fridge', version: unique('v') })
+    .expect(201);
+
+  await admin.client
+    .put(`/v1/admin/firmwares/${created.body.id}/binaries/firmware.bin`)
+    .send({ data: image.toString('base64') })
+    .expect(204);
+
+  return created.body.id;
+};
+
 describe('cross-origin access', () => {
   it('allows the verbs the API actually offers on a preflight', async () => {
     const response = await anonymous()
-      .request('options', '/device')
+      .request('options', '/v1/devices')
       .set('Origin', 'https://app.test.invalid')
       .set('Access-Control-Request-Method', 'DELETE')
       .expect(204);
@@ -44,11 +61,8 @@ describe('cross-origin access', () => {
     expect(allowed).toEqual(expect.arrayContaining(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']));
   });
 
-  it('lets another origin read a picture, which the webapp loads in an img tag', async () => {
-    const owner = await createAccount('cors-owner');
-    const device = await provisionDevice(owner);
-
-    const response = await owner.client.get(`/image/${device.deviceId}`).query({ format: 'jpeg' }).expect(200);
+  it('lets another origin read what it answers, which is how the app loads a picture in an img tag', async () => {
+    const response = await anonymous().get('/healthz').expect(200);
 
     // Anything stricter than cross-origin stops the browser handing the bytes
     // to the page, even though the request itself succeeded.
@@ -59,7 +73,7 @@ describe('cross-origin access', () => {
 
 describe('security headers', () => {
   it('still sends the ones the API always sent', async () => {
-    const response = await anonymous().get('/').expect(200);
+    const response = await anonymous().get('/healthz').expect(200);
 
     expect(response.headers['x-content-type-options']).toBe('nosniff');
     expect(response.headers['x-frame-options']).toBeDefined();
@@ -69,50 +83,65 @@ describe('security headers', () => {
 
 describe('firmware downloads', () => {
   it('are never compressed, whatever the client offers', async () => {
-    const created = await admin.client
-      .post('/device/firmware')
-      .send({ name: 'fridge', version: unique('v') })
-      .expect(200);
     const payload = Buffer.alloc(4096, 0x5a);
-
-    await admin.client.post(`/device/firmware/${created.body.firmware_id}/firmware.bin`).attach('binary', payload, 'firmware.bin').expect(200);
+    const firmwareId = await uploadFirmware(payload);
 
     // The OTA client reads Content-Length and is told not to transform the
     // body; compressing it would break both promises.
-    const response = await anonymous()
-      .get(`/device/firmware/${created.body.firmware_id}/firmware.bin`)
-      .set('Accept-Encoding', 'gzip, deflate, br')
-      .expect(200);
+    const response = await anonymous().get(`/device/firmware/${firmwareId}/firmware.bin`).set('Accept-Encoding', 'gzip, deflate, br').expect(200);
 
     expect(response.headers['content-encoding']).toBeUndefined();
     expect(response.headers['content-length']).toBe(String(payload.length));
     expect(response.headers['cache-control']).toBe('no-transform');
     expect(Buffer.from(response.body)).toEqual(payload);
   });
+
+  it('round-trips the bytes through the base64 an upload carries them as', async () => {
+    // Every byte value, so a decode that went through a string somewhere shows
+    // up as a difference rather than as a shorter file that still works.
+    const payload = Buffer.from(Array.from({ length: 256 }, (_, byte) => byte));
+    const firmwareId = await uploadFirmware(payload);
+
+    const response = await anonymous().get(`/device/firmware/${firmwareId}/firmware.bin`).expect(200);
+    expect(Buffer.from(response.body)).toEqual(payload);
+  });
+
+  it('refuses a file that did not arrive as base64', async () => {
+    const classes = await admin.client.get('/v1/admin/device-classes').expect(200);
+    const fridge = classes.body.items.find((entry: { name: string }) => entry.name === 'fridge');
+    const created = await admin.client
+      .post('/v1/admin/firmwares')
+      .send({ classId: fridge.id, name: 'fridge', version: unique('v') })
+      .expect(201);
+
+    const response = await admin.client
+      .put(`/v1/admin/firmwares/${created.body.id}/binaries/firmware.bin`)
+      .send({ data: 'not base64!!' })
+      .expect(400);
+
+    expect(response.body.code).toBe('binary_not_base64');
+  });
 });
 
 describe('what Express used to accept', () => {
   it('matches a route with a trailing slash', async () => {
-    await anonymous().get('/readycheck/').expect(200);
+    await anonymous().get('/readyz/').expect(200);
 
     const owner = await createAccount('slash-owner');
-    await owner.client.get('/device/').expect(200);
+    await owner.client.get('/v1/devices/').expect(200);
   });
 
   it('matches a route whatever its case', async () => {
-    await anonymous().get('/ReadyCheck').expect(200);
+    await anonymous().get('/ReadyZ').expect(200);
   });
 
-  it('reads a path the same way the router matched it', async () => {
-    // Two checks key off the path themselves, and a router that ignores case
-    // while they do not is how a rule gets walked around.
-    const owner = await createAccount('case-owner');
-    const device = await provisionDevice(owner);
+  it('refuses in the shape the path it matched promises, whatever its case', async () => {
+    // The router ignores case, and which half of the API a refusal is answered
+    // in is decided from the path - so `/V1/` has to read as `/v1/` there too.
+    const response = await anonymous().get('/V1/devices').expect(401);
 
-    await anonymous().get(`/Image/${device.deviceId}?format=jpeg&token=${owner.imageToken}`).expect(200);
-
-    const demo = await demoSession();
-    await demo.client.post('/Logout').expect(200);
+    expect(response.headers['content-type']).toMatch(/application\/problem\+json/);
+    expect(response.body.code).toBe('unauthenticated');
   });
 
   it('takes a path segment longer than a hundred characters', async () => {
@@ -125,38 +154,21 @@ describe('what Express used to accept', () => {
     expect(response.text).toBe('deny');
   });
 
-  it('lets a demo session reach the session endpoints with a trailing slash', async () => {
-    const demo = await demoSession();
-    await demo.client.post('/logout/').expect(200);
-  });
-
   it('reads an empty body with a JSON content type as an empty object', async () => {
-    const owner = await createAccount('empty-body-owner');
-
-    await owner.client.post('/logout').set('Content-Type', 'application/json').send('').expect(200);
-    await anonymous().post('/demologin').set('Content-Type', 'application/json').send('').expect(200);
+    await anonymous().post('/v1/sessions/demo').set('Content-Type', 'application/json').send('').expect(201);
   });
 
   it('reads an empty chunked body the same way', async () => {
     // A client that streams its body sends no Content-Length, so the emptiness
     // is only visible once the body has been read.
-    const status = await postChunked('/demologin');
-    expect(status).toBe(200);
+    const status = await postChunked('/v1/sessions/demo');
+    expect(status).toBe(201);
   });
 
-  it('takes the last value of a repeated query parameter', async () => {
-    const owner = await createAccount('repeated-query-owner');
-    const device = await provisionDevice(owner);
-
-    // A client that builds its URL badly used to be tolerated by hpp(); the
-    // token is read as a string, and an array would fail the session check.
-    await anonymous().get(`/image/${device.deviceId}?format=jpeg&token=nonsense&token=${owner.imageToken}`).expect(200);
-  });
-
-  it('takes the last value of a repeated form field as well', async () => {
+  it('takes the last value of a repeated form field', async () => {
     const device = await registerDevice();
 
-    // hpp() collapsed a form-encoded body too. The password is handed to bcrypt,
+    // hpp() collapsed a form-encoded body. The password is handed to bcrypt,
     // which wants a string: an array is a 500 where the broker expects a verdict.
     const response = await anonymous()
       .post(`/mqttauth/${context.mqttAuthSecret}/user`)
@@ -168,64 +180,74 @@ describe('what Express used to accept', () => {
   });
 });
 
-describe('refusing a caller', () => {
-  it('answers a missing session with the JSON body clients parse', async () => {
-    const response = await anonymous().post('/device/setname').send({ device_id: 'whatever', name: 'x' }).expect(401);
+describe('a query parameter that names a list', () => {
+  it('carries every value it was repeated with', async () => {
+    const owner = await createAccount('repeated-query-owner');
+    const device = await provisionDevice(owner);
 
-    expect(response.headers['content-type']).toMatch(/application\/json/);
-    expect(response.body.message).toBe('Authentication token missing');
+    const response = await owner.client
+      .get(`/v1/devices/${device.deviceId}/series`)
+      .query({ startsAt: new Date(Date.now() - 3600_000).toISOString(), endsAt: new Date().toISOString() })
+      .query('metrics=temperature&metrics=humidity&outputs=heater')
+      .expect(200);
+
+    expect(response.body.metrics.map((series: { metric: string }) => series.metric)).toEqual(['temperature', 'humidity']);
+    expect(response.body.outputs.map((series: { output: string }) => series.output)).toEqual(['heater']);
+  });
+});
+
+describe('the media token in a URL', () => {
+  it('signs a request for a picture in, because an img tag sends no headers', async () => {
+    const owner = await createAccount('media-token-owner');
+
+    // Not 401: the token was taken as a session, and the picture is simply not
+    // there. Nothing else accepts a token in the query string.
+    await anonymous().get(`/v1/media/no-such-picture/content?token=${owner.imageToken}`).expect(404);
+    await anonymous().get('/v1/media/no-such-picture/content').expect(404);
+    await anonymous().get(`/v1/devices?token=${owner.imageToken}`).expect(401);
+  });
+
+  it('is read as the last value where a client repeated it', async () => {
+    const owner = await createAccount('media-token-repeat-owner');
+
+    // A client that builds its URL badly used to be tolerated by hpp(); the
+    // token is read as a string, and an array would fail the session check.
+    await anonymous().get(`/v1/media/no-such-picture/content?token=nonsense&token=${owner.imageToken}`).expect(404);
+  });
+});
+
+describe('refusing a caller', () => {
+  it('answers a missing session with the problem document clients parse', async () => {
+    const response = await anonymous().post('/v1/devices/whatever/commands').send({ kind: 'reboot' }).expect(401);
+
+    expect(response.headers['content-type']).toMatch(/application\/problem\+json/);
+    expect(response.body).toMatchObject({ status: 401, code: 'unauthenticated', errors: [] });
+    expect(typeof response.body.detail).toBe('string');
   });
 
   it('checks the session before the payload', async () => {
     // A caller with no session hears about that, not about the field it forgot.
-    await anonymous().post('/device/setname').send({}).expect(401);
+    await anonymous().post('/v1/devices/whatever/commands').send({}).expect(401);
   });
 
-  it('answers a device that is not the caller´s with the plain text it always did', async () => {
+  it('tells a stranger that somebody else´s device is not there', async () => {
     const stranger = await createAccount('refusal-stranger');
     const owner = await createAccount('refusal-owner');
     const device = await provisionDevice(owner);
 
-    const response = await stranger.client.post('/device/setname').send({ device_id: device.deviceId, name: 'x' }).expect(403);
+    const response = await stranger.client.patch(`/v1/devices/${device.deviceId}`).send({ name: 'x' }).expect(404);
 
-    expect(response.text).toBe(`Device ${device.deviceId} not bound to user ${stranger.userId}`);
+    // Not "forbidden": a refusal must not report whether something exists to
+    // somebody who is not allowed to know.
+    expect(response.body.code).toBe('device_not_found');
   });
 
-  it('does not serve that refusal as a document, since it repeats the URL back', async () => {
+  it('does not serve a refusal as a document, since it may repeat the URL back', async () => {
     const stranger = await createAccount('refusal-markup-stranger');
     const markup = '<img src=x onerror=alert(1)>';
 
-    const response = await stranger.client.get(`/device/config/${encodeURIComponent(markup)}`).expect(403);
+    const response = await stranger.client.get(`/v1/devices/${encodeURIComponent(markup)}`).expect(404);
 
-    expect(response.text).toContain(markup);
-    expect(response.headers['content-type']).toMatch(/^text\/plain/);
-  });
-});
-
-describe('deleting a picture', () => {
-  it('does not tell a stranger which picture ids exist', async () => {
-    const owner = await createAccount('probe-owner');
-    const device = await provisionDevice(owner);
-    const still = await sharp({ create: { width: 32, height: 32, channels: 3, background: { r: 1, g: 2, b: 3 } } })
-      .jpeg()
-      .toBuffer();
-    const uploaded = await owner.client.post(`/image/${device.deviceId}`).attach('image', still, 'still.jpg').expect(201);
-
-    const existing = await anonymous().delete(`/image/${uploaded.body.image_id}`);
-    const missing = await anonymous().delete('/image/no-such-image');
-
-    expect(existing.status).toBe(401);
-    expect(missing.status).toBe(401);
-  });
-});
-
-describe('thumbnails', () => {
-  it('resizes the placeholder too, so a device without a picture still fits the tile', async () => {
-    const owner = await createAccount('placeholder-owner');
-    const device = await provisionDevice(owner);
-
-    const response = await owner.client.get(`/image/${device.deviceId}`).query({ format: 'jpeg', width: 64 }).expect(200);
-
-    expect(Number(response.headers['content-length'])).toBeLessThan(20_000);
+    expect(response.headers['content-type']).toMatch(/application\/problem\+json/);
   });
 });

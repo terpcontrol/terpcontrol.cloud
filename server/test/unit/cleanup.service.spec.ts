@@ -1,7 +1,10 @@
 import { ObjectId } from 'mongodb';
+import { Model } from 'mongoose';
 import { ImageStore } from '@database/image-store';
+import { MODEL_V1 } from '@database/models';
+import { StoredUser, usersSchema } from '@database/schemas/v1/users.schema';
 import { CleanupService } from '@modules/cleanup/cleanup.service';
-import { startTestDatabase, TestDatabase } from './support/database';
+import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
 
 /**
  * The daily sweep has no HTTP surface of its own, so the black-box suite cannot
@@ -12,38 +15,52 @@ import { startTestDatabase, TestDatabase } from './support/database';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOW = Date.UTC(2026, 0, 20);
 /** Past the grace period, so a record that is unreachable is also collectable. */
-const OLD = NOW - 30 * DAY_MS;
+const OLD = new Date(NOW - 30 * DAY_MS);
 /** Unreachable, but too recent to collect. */
-const RECENT = NOW - 2 * DAY_MS;
+const RECENT = new Date(NOW - 2 * DAY_MS);
 
-let db: TestDatabase;
+let db: V1TestDatabase;
+let users: Model<StoredUser>;
 let store: ImageStore;
 let cleanup: CleanupService;
 
-const aDevice = (device_id: string) => ({ device_id, username: device_id, password: 'secret' });
-
-const aLog = (device_id: string, time: number, rest: Record<string, unknown> = {}) => ({
-  device_id,
-  time: new Date(time),
-  severity: 0,
+const anEntry = (id: string, createdAt: Date, rest: Record<string, unknown> = {}) => ({
+  id,
+  createdAt,
+  kind: 'system',
+  occurredAt: createdAt,
+  source: 'device',
+  values: { kind: 'system' },
   ...rest,
 });
 
-const anImage = (image_id: string, device_id: string, timestamp: number, format = 'jpeg') => ({
-  image_id,
-  device_id,
-  timestamp,
-  format,
+const aPicture = (id: string, createdAt: Date, rest: Record<string, unknown> = {}) => ({
+  id,
+  createdAt,
+  kind: 'still',
+  mime: 'image/jpeg',
+  bytes: 1,
+  capturedAt: createdAt,
+  ...rest,
+});
+
+const aGrow = (id: string, rest: Record<string, unknown> = {}) => ({
+  id,
+  ownerId: 'owner',
+  name: id,
+  type: 'photoperiod',
+  slug: id,
+  startedAt: OLD,
+  ...rest,
 });
 
 /** Store bytes for a picture and date the file, which is what the sweep reads. */
-const storeBytes = async (image_id: string, uploadedAt: number) => {
-  await store.upload(image_id, Buffer.from(`bytes of ${image_id}`));
-  // A file carries the image_id as its `_id`, where the driver's types expect an
+const storeBytes = async (mediaId: string, uploadedAt: Date) => {
+  await store.upload(mediaId, Buffer.from(`bytes of ${mediaId}`));
+  // A file carries the media id as its `_id`, where the driver's types expect an
   // ObjectId - the store writes it the same way.
-  const fileId = image_id as unknown as ObjectId;
-  // The harness has connected, so the connection carries the driver's handle.
-  await db.connection.db!.collection('imagedata.files').updateOne({ _id: fileId }, { $set: { uploadDate: new Date(uploadedAt) } });
+  const fileId = mediaId as unknown as ObjectId;
+  await db.connection.db!.collection('imagedata.files').updateOne({ _id: fileId }, { $set: { uploadDate: uploadedAt } });
 };
 
 const storedFileIds = async (): Promise<string[]> => {
@@ -54,10 +71,14 @@ const storedFileIds = async (): Promise<string[]> => {
   return files.map(file => String(file._id)).sort();
 };
 
+const remainingEntries = async (): Promise<string[]> => (await db.entries.find().lean()).map(entry => entry.id).sort();
+const remainingMedia = async (): Promise<string[]> => (await db.media.find().lean()).map(media => media.id).sort();
+
 beforeAll(async () => {
-  db = await startTestDatabase();
-  store = new ImageStore(db.connection, db.images);
-  cleanup = new CleanupService(db.devices, db.deviceLogs, db.images, store);
+  db = await startV1TestDatabase();
+  users = db.connection.model<StoredUser>(MODEL_V1.user, usersSchema);
+  store = new ImageStore(db.connection);
+  cleanup = new CleanupService(db.devices, db.spaces, db.grows, db.cameras, users, db.entries, db.media, store);
 });
 
 afterAll(async () => {
@@ -66,102 +87,116 @@ afterAll(async () => {
 
 beforeEach(() => db.reset());
 
-describe('logs of removed devices', () => {
-  it('deletes the old ones and keeps everything still reachable', async () => {
-    await db.devices.create(aDevice('kept-device'));
-    await db.deviceLogs.create([
-      aLog('kept-device', OLD, { message: 'still owned' }),
-      aLog('gone-device', OLD, { message: 'collectable' }),
-      aLog('gone-device', RECENT, { message: 'inside the grace period' }),
-    ]);
-
-    const result = await cleanup.run(NOW);
-
-    expect(result.deletedLogs).toBe(1);
-    expect((await db.deviceLogs.find().lean()).map(log => log.message).sort()).toEqual(['inside the grace period', 'still owned']);
-  });
-});
-
 describe('camera capture diagnostics', () => {
   it('deletes the successful ones whatever their age, and keeps the failures', async () => {
-    await db.devices.create(aDevice('cam-device'));
-    await db.deviceLogs.create([
-      aLog('cam-device', NOW, { message: 'message-cam-capture:ok 42ms' }),
-      aLog('cam-device', OLD, { message: 'message-cam-capture:ok 51ms' }),
-      aLog('cam-device', NOW, { message: 'message-cam-capture:failed timeout' }),
-      aLog('cam-device', NOW, { message: 'not-message-cam-capture:ok' }),
+    await db.entries.create([
+      anEntry('ok-now', new Date(NOW), { message: { key: 'message-cam-capture', params: ['ok 42ms'] } }),
+      anEntry('ok-old', OLD, { message: { key: 'message-cam-capture', params: ['ok 51ms'] } }),
+      anEntry('failed', new Date(NOW), { message: { key: 'message-cam-capture', params: ['failed timeout'] } }),
+      anEntry('another-key', new Date(NOW), { message: { key: 'message-cam-reset', params: ['ok'] } }),
     ]);
 
     const result = await cleanup.run(NOW);
 
     expect(result.deletedCamDiagnostics).toBe(2);
-    expect((await db.deviceLogs.find().lean()).map(log => log.message).sort()).toEqual([
-      'message-cam-capture:failed timeout',
-      'not-message-cam-capture:ok',
-    ]);
+    expect(await remainingEntries()).toEqual(['another-key', 'failed']);
   });
 });
 
-describe('images of removed devices', () => {
-  it('deletes the old ones, with their bytes, and keeps everything still reachable', async () => {
-    await db.devices.create(aDevice('kept-device'));
-    await db.images.create([
-      anImage('kept', 'kept-device', OLD),
-      anImage('collectable', 'gone-device', OLD),
-      anImage('too-recent', 'gone-device', RECENT),
+describe('entries nothing can reach', () => {
+  it('deletes those whose grow, space and device are all gone', async () => {
+    await db.devices.create({ id: 'kept-device', type: 'controller' });
+    await db.spaces.create({ id: 'kept-space', ownerId: 'owner', kind: 'tent', name: 'The tent' });
+    await db.grows.create(aGrow('kept-grow'));
+    await db.entries.create([
+      anEntry('of-a-device', OLD, { deviceId: 'kept-device' }),
+      anEntry('of-a-space', OLD, { spaceId: 'kept-space', deviceId: 'gone-device' }),
+      anEntry('of-a-grow', OLD, { growId: 'kept-grow', spaceId: 'gone-space' }),
+      anEntry('of-nothing-left', OLD, { growId: 'gone-grow', spaceId: 'gone-space', deviceId: 'gone-device' }),
+      anEntry('inside-the-grace-period', RECENT, { deviceId: 'gone-device' }),
     ]);
-    for (const imageId of ['kept', 'collectable', 'too-recent']) {
-      await storeBytes(imageId, OLD);
+
+    const result = await cleanup.run(NOW);
+
+    expect(result.deletedEntries).toBe(1);
+    expect(await remainingEntries()).toEqual(['inside-the-grace-period', 'of-a-device', 'of-a-grow', 'of-a-space']);
+  });
+
+  it('leaves an entry that names none of them, rather than reading its nulls as a reference that is gone', async () => {
+    // The trap this guards: a sweep that collects the ids of what it is about and
+    // deletes by them catches every document whose reference is null along with
+    // the ones whose reference is dangling.
+    await db.entries.create([anEntry('a-note', OLD, { authorId: 'somebody', source: 'human', kind: 'note', values: { kind: 'note' } })]);
+
+    const result = await cleanup.run(NOW);
+
+    expect(result.deletedEntries).toBe(0);
+    expect(await remainingEntries()).toEqual(['a-note']);
+  });
+});
+
+describe('pictures nothing points at', () => {
+  it('deletes the stills of a camera that is gone, with their bytes', async () => {
+    await db.cameras.create({ id: 'kept-camera', ownerId: 'owner', kind: 'rtsp', name: 'The cam' });
+    await db.media.create([
+      aPicture('kept', OLD, { cameraId: 'kept-camera' }),
+      aPicture('collectable', OLD, { cameraId: 'gone-camera' }),
+      aPicture('too-recent', RECENT, { cameraId: 'gone-camera' }),
+    ]);
+    for (const mediaId of ['kept', 'collectable', 'too-recent']) {
+      await storeBytes(mediaId, OLD);
     }
 
     const result = await cleanup.run(NOW);
 
-    expect(result.deletedImages).toBe(1);
-    expect((await db.images.find().lean()).map(image => image.image_id).sort()).toEqual(['kept', 'too-recent']);
+    expect(result.deletedMedia).toBe(1);
+    expect(await remainingMedia()).toEqual(['kept', 'too-recent']);
     // The delete hook on the schema drops the payload of a document it removes,
     // so the orphan sweep in the same run finds nothing left to do.
     expect(await storedFileIds()).toEqual(['kept', 'too-recent']);
     expect(result.deletedOrphanedFiles).toBe(0);
   });
-});
 
-describe('user pictures', () => {
-  it('deletes the ones no diary entry lists any more', async () => {
-    await db.devices.create(aDevice('diary-device'));
-    await db.images.create([
-      anImage('referenced', 'diary-device', OLD, 'user/jpeg'),
-      anImage('in-a-deleted-entry', 'diary-device', OLD + 1, 'user/jpeg'),
-      anImage('unreferenced', 'diary-device', OLD + 2, 'user/jpeg'),
-      anImage('just-uploaded', 'diary-device', RECENT, 'user/jpeg'),
-    ]);
-    await db.deviceLogs.create([
-      aLog('diary-device', NOW, { message: 'an entry', images: ['referenced'] }),
-      // Soft-deleted, and the owner can still restore it, so its picture is
-      // still reachable.
-      aLog('diary-device', NOW, { message: 'a deleted entry', images: ['in-a-deleted-entry'], deleted: true }),
+  it('keeps a picture a diary entry, a grow or an account still names', async () => {
+    await db.entries.create(anEntry('an-entry', OLD, { mediaIds: ['in-an-entry'] }));
+    await db.grows.create(aGrow('a-grow', { coverMediaId: 'a-cover', filmMediaId: 'a-film' }));
+    await users.create({ id: 'somebody', email: 'somebody@example.com', passwordHash: 'x', handle: 'somebody', avatarMediaId: 'an-avatar' });
+    await db.media.create([
+      aPicture('in-an-entry', OLD, { kind: 'photo' }),
+      aPicture('a-cover', OLD, { kind: 'photo' }),
+      // A whole-grow render belongs to no camera at all.
+      aPicture('a-film', OLD, { kind: 'timelapse' }),
+      aPicture('an-avatar', OLD, { kind: 'avatar' }),
+      aPicture('unreferenced', OLD, { kind: 'photo' }),
+      aPicture('just-uploaded', RECENT, { kind: 'photo' }),
     ]);
 
     const result = await cleanup.run(NOW);
 
-    expect(result.deletedImages).toBe(1);
-    expect((await db.images.find().lean()).map(image => image.image_id).sort()).toEqual(['in-a-deleted-entry', 'just-uploaded', 'referenced']);
+    expect(result.deletedMedia).toBe(1);
+    expect(await remainingMedia()).toEqual(['a-cover', 'a-film', 'an-avatar', 'in-an-entry', 'just-uploaded']);
   });
 
-  it('leaves a device its stills and timelapses', async () => {
-    await db.devices.create(aDevice('cam-device'));
-    await db.images.create([anImage('a-still', 'cam-device', OLD), anImage('a-timelapse', 'cam-device', OLD, 'mp4')]);
+  it('keeps a picture of a grow or a space that is still there', async () => {
+    await db.spaces.create({ id: 'a-space', ownerId: 'owner', kind: 'tent', name: 'The tent' });
+    await db.grows.create(aGrow('a-grow'));
+    await db.media.create([
+      aPicture('of-a-grow', OLD, { kind: 'photo', growId: 'a-grow' }),
+      aPicture('of-a-space', OLD, { kind: 'photo', spaceId: 'a-space' }),
+      aPicture('of-a-grow-that-went', OLD, { kind: 'photo', growId: 'gone-grow' }),
+    ]);
 
     const result = await cleanup.run(NOW);
 
-    expect(result.deletedImages).toBe(0);
-    expect(await db.images.countDocuments()).toBe(2);
+    expect(result.deletedMedia).toBe(1);
+    expect(await remainingMedia()).toEqual(['of-a-grow', 'of-a-space']);
   });
 });
 
 describe('stored bytes no document names', () => {
   it('deletes the old orphans and keeps the rest', async () => {
-    await db.devices.create(aDevice('cam-device'));
-    await db.images.create(anImage('has-a-document', 'cam-device', OLD));
+    await db.cameras.create({ id: 'a-camera', ownerId: 'owner', kind: 'rtsp', name: 'The cam' });
+    await db.media.create(aPicture('has-a-document', OLD, { cameraId: 'a-camera' }));
     await storeBytes('has-a-document', OLD);
     await storeBytes('orphan', OLD);
     // Still inside the grace period: the document that will point at it may be

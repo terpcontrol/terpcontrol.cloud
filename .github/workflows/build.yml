@@ -118,8 +118,8 @@ jobs:
           node-version: 20
           cache: 'npm'
           cache-dependency-path: server/package-lock.json
-      # The integration suite shells out to these the way the container does.
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends imagemagick ffmpeg
+      # The camera pipeline shells out to ffmpeg the way the container does.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       # The shared package is linked with `file:`, and node - the compiler as
       # much as the runtime - resolves a linked package's own imports from the
       # package, never from whoever linked it. Its schemas import zod, so

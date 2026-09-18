@@ -343,7 +343,12 @@ removed together with the Angular app.
   comes through), otherwise the channels the routing names. E-mail and webhook as today, Web Push with a VAPID
   key pair in configuration, Telegram as one bot per install with a webhook guarded by a secret, where a reply
   to a message the bot sent becomes a note. Every channel is off until configured and the screen says so.
-- **Privacy.** `GET /me/export` streams a zip of JSON, one CSV per grow and the photos. `DELETE /me` really
+- **Exports.** A zip of somebody's grows, their CSVs and their photos does not finish inside a request, so both
+  `GET /me/export` and `GET /grows/{id}/export` answer a job that is polled until its file is ready, and the file
+  is a `media` row of its own kind: it lives in the bucket the pictures already use, it is served by the route
+  that serves any other media, and the sweep that removes what nothing points at removes it too. No collection
+  and no lifecycle of its own.
+- **Privacy.** The export above is "export everything". `DELETE /me` really
   deletes, in an order that can be resumed at boot; devices are unclaimed and stay claimable. Climate retention
   summarises the days about to leave the window into a `status_daily` measurement and then deletes the raw
   points; series older than the window are read from the summaries.

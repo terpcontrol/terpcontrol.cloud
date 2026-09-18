@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection, mongo } from 'mongoose';
-import { V1_MODELS_SHARING_A_LEGACY_COLLECTION } from '@database/models.module';
+import { V1_MODELS_MIGRATED_IN_PLACE } from '@database/models.module';
 import { logger } from '@utils/logger';
 import { derivedId } from './ids';
-import { MigrationContext, MigrationReject, MigrationStep, legacyName } from './migration';
+import { MigrationContext, MigrationReject, MigrationStep } from './migration';
 import { MigrationLock } from './migration-lock';
 import { MIGRATION_STEPS } from './steps';
 
@@ -49,6 +49,8 @@ export class MigrationRunner {
     for (const outcome of report.applied) {
       logger.info(`Migration ${outcome.name} applied in ${outcome.durationMs} ms: ${describe(outcome)}`);
     }
+
+    await this.buildSeparatedIndexes();
   }
 
   public async run({ dryRun }: { dryRun: boolean }): Promise<MigrationRunReport> {
@@ -72,29 +74,29 @@ export class MigrationRunner {
       await lock?.release();
     }
 
-    if (report.applied.length > 0 && !dryRun) await this.buildSeparatedIndexes();
-
     return report;
   }
 
   /**
-   * `users` and `devices` are the two collection names the legacy layer still
-   * owns, so the `/v1` models of them are registered with their index building
-   * turned off (`database/models.module.ts`). This is the moment it is right:
-   * the old collection has been renamed aside and taken its own indexes with it,
-   * and what stands under the name now belongs to the new model alone.
+   * `users` and `devices` are the two collections the migration rewrites under
+   * their own name, so the models of them are registered with their index
+   * building turned off (`database/models.module.ts`): mongoose starts a
+   * model's builds as the model is compiled, which is before this runs, and an
+   * unmigrated document carries none of the fields those indexes are unique on.
    *
-   * Nothing is built where that rename has not happened - an install with no old
-   * data to migrate is still being served by the legacy layer out of those very
-   * collections. A failure is logged rather than thrown, as every index build in
-   * this server is: a missing index is slow, and refusing to start is worse.
+   * By the time a run has finished, whatever stood under those names has been
+   * renamed aside and what is there now is the new model's alone - on a fresh
+   * install because there was never anything else. So the builds happen here,
+   * on every boot rather than only after a migration applied something: they
+   * are idempotent, and a boot that applies nothing is the ordinary one.
+   *
+   * A failure is logged rather than thrown, as every index build in this server
+   * is: a missing index is slow, and refusing to start is worse.
    */
   private async buildSeparatedIndexes(): Promise<void> {
-    const existing = new Set((await this.db.listCollections({}, { nameOnly: true }).toArray()).map(entry => entry.name));
-
-    for (const name of V1_MODELS_SHARING_A_LEGACY_COLLECTION) {
+    for (const name of V1_MODELS_MIGRATED_IN_PLACE) {
       const model = this.connection.models[name];
-      if (!model || !existing.has(legacyName(model.collection.collectionName))) continue;
+      if (!model) continue;
 
       try {
         await model.createIndexes();

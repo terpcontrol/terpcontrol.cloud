@@ -12,14 +12,14 @@ import { MigrationContext, MigrationStep } from '../migration';
  * documents in `images`, and every migration after this one has renamed that
  * collection aside.
  *
- * The same work runs today as a background job beside a serving server
- * (`modules/image/legacy-image-data.migration.ts`), and it is folded in here
- * rather than waited for. A job that runs beside a live server needs a delayed
- * start, an hourly retry, stop-aware batching and a rule for what a second
- * instance doing the same thing means; a migration that holds the boot open
- * needs none of that, and copying the machinery over would have brought it all
- * with it. Keeping the two apart also means the background job can be deleted
- * with the rest of the legacy layer without this migration changing.
+ * The same work used to run as a background job beside a serving server, which
+ * is where it belonged while pictures were still being written the old way and
+ * which is why it was written again here rather than moved. A job that runs
+ * beside a live server needs a delayed start, an hourly retry, stop-aware
+ * batching and a rule for what a second instance doing the same thing means; a
+ * migration that holds the boot open needs none of that, and carrying the
+ * machinery over would have brought all of it with it. The job went with the
+ * rest of the legacy picture layer, and this step did not have to change.
  *
  * The document is the only copy of a picture until the store has answered with
  * the very same bytes, so the payload is dropped only after reading the stored

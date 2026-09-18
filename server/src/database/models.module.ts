@@ -1,16 +1,5 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { chartPresetSchema } from '@database/schemas/chartpreset.schema';
-import { claimCodeSchema } from '@database/schemas/claimcode.schema';
-import { deviceSchema } from '@database/schemas/device.schema';
-import { deviceClassSchema } from '@database/schemas/deviceclass.schema';
-import { deviceFirmwareBinarySchema, deviceFirmwareSchema } from '@database/schemas/devicefirmware.schema';
-import { deviceLogSchema } from '@database/schemas/devicelog.schema';
-import { imagesSchema } from '@database/schemas/images.schema';
-import { passwordTokenSchema } from '@database/schemas/password_token.schema';
-import { recipeSchema } from '@database/schemas/recipe.schema';
-import { shareSchema } from '@database/schemas/share.schema';
-import { userSchema } from '@database/schemas/users.schema';
 import { alarmRulesSchema } from '@database/schemas/v1/alarm-rules.schema';
 import { alertsSchema } from '@database/schemas/v1/alerts.schema';
 import { camerasSchema } from '@database/schemas/v1/cameras.schema';
@@ -41,31 +30,11 @@ import { spacesSchema } from '@database/schemas/v1/spaces.schema';
 import { usersSchema } from '@database/schemas/v1/users.schema';
 import { ImageStore } from './image-store';
 import { IndexBuildLog } from './index-build-log';
-import { MODEL, MODEL_V1 } from './models';
+import { MODEL_V1 } from './models';
 
-export { MODEL, MODEL_V1 } from './models';
+export { MODEL_V1 } from './models';
 
-const legacyFeatures = [
-  { name: MODEL.chartPreset, schema: chartPresetSchema },
-  { name: MODEL.claimCode, schema: claimCodeSchema },
-  { name: MODEL.device, schema: deviceSchema },
-  { name: MODEL.deviceClass, schema: deviceClassSchema },
-  { name: MODEL.deviceFirmware, schema: deviceFirmwareSchema },
-  { name: MODEL.deviceFirmwareBinary, schema: deviceFirmwareBinarySchema },
-  { name: MODEL.deviceLog, schema: deviceLogSchema },
-  { name: MODEL.image, schema: imagesSchema },
-  { name: MODEL.passwordToken, schema: passwordTokenSchema },
-  { name: MODEL.recipeTemplate, schema: recipeSchema },
-  { name: MODEL.share, schema: shareSchema },
-  { name: MODEL.user, schema: userSchema },
-];
-
-/**
- * The `/v1` collections. They are registered alongside the legacy ones rather
- * than instead of them: the modules that read the old shapes are rewritten one
- * slice at a time, and both layers have to run until the last of them is.
- */
-const v1Features = [
+const features = [
   { name: MODEL_V1.alarmRule, schema: alarmRulesSchema },
   { name: MODEL_V1.alert, schema: alertsSchema },
   { name: MODEL_V1.camera, schema: camerasSchema },
@@ -97,20 +66,20 @@ const v1Features = [
 ];
 
 /**
- * Two of the `/v1` collections carry a name the legacy layer still owns and
- * still writes into: `users` and `devices`. Their indexes may not be built while
- * that is true - `id`, `email` and `handle` are unique and a legacy document has
- * none of them, so the second one written would be refused.
+ * Two collections keep the name the shapes of the previous release are stored
+ * under until the migration has renamed those aside: `users` and `devices`.
  *
- * The migration is what separates the two: it renames the old collection aside,
- * and the collection the new model then owns is its own. It builds these indexes
- * itself once it has. When the legacy user and device modules are rewritten and
- * drop out of `legacyFeatures`, this exception goes with them.
+ * Their indexes may not be built before that happens - `id`, `email` and
+ * `handle` are unique and an unmigrated document has none of them, so the build
+ * would be refused and never attempted again. Mongoose starts a model's builds
+ * as the model is compiled, which is before the migration runs, so these two say
+ * no and the runner builds them itself once the rename has separated the two
+ * collections.
  */
-export const V1_MODELS_SHARING_A_LEGACY_COLLECTION: string[] = [MODEL_V1.user, MODEL_V1.device];
+export const V1_MODELS_MIGRATED_IN_PLACE: string[] = [MODEL_V1.user, MODEL_V1.device];
 
-for (const feature of v1Features) {
-  if (V1_MODELS_SHARING_A_LEGACY_COLLECTION.includes(feature.name)) feature.schema.set('autoIndex', false);
+for (const feature of features) {
+  if (V1_MODELS_MIGRATED_IN_PLACE.includes(feature.name)) feature.schema.set('autoIndex', false);
 }
 
 /**
@@ -120,9 +89,9 @@ for (const feature of v1Features) {
  * spread the same list across the modules that import each other anyway.
  */
 @Module({
-  imports: [MongooseModule.forFeature([...legacyFeatures, ...v1Features])],
+  imports: [MongooseModule.forFeature(features)],
   // The bytes of a picture live beside the collection that indexes them, so the
-  // store belongs with the models rather than with any one feature: the image
+  // store belongs with the models rather than with any one feature: the media
   // service writes them, the camera services write them and the cleanup reads
   // what nothing points at any more.
   providers: [ImageStore, IndexBuildLog],

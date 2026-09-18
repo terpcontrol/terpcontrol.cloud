@@ -13,7 +13,8 @@ device announces that it understands them (see [12 Extending it safely](#12-exte
 topics, the HTTP requests, the log queue), `firmware/src/wifi.cpp` (the `hardware-info:` reports, the smart-socket
 table and its commands), `firmware/src/terpcam.cpp` (camera pairing and capture) and
 `firmware/src_hwtype/<type>/` for what each hardware type reports and understands. The server
-(`server/src/modules/`) is what currently consumes it, and `scripts/simulate-device.mjs` is a second witness.
+(`server/src/modules/device-protocol/`) is what currently consumes it - one module owns every route and every
+topic below - and `scripts/simulate-device.mjs` is a second witness.
 Where they disagree, the firmware wins; the known disagreements are listed in
 [13 Where the witnesses disagree](#13-where-the-witnesses-disagree).
 
@@ -80,9 +81,8 @@ Every topic is `/devices/<device_id>/<name>`, with the device's own id. The devi
 
 The device subscribes to `configuration`, `firmware`, `fwupdate`, `command`, `control/#` and `tunnel_write`
 (`fridgecloud.cpp:179-355`) and publishes on the rest. The server subscribes to `/devices/#`
-(`device-message.service.ts:81`) and therefore also sees its own outbound messages echoed back; it ignores the
-echoes of `tunnel_write`, `command` and `firmware` and logs anything else as unhandled
-(`device-message.service.ts:159-164`).
+(`device-ingest.service.ts`) and therefore also sees its own outbound messages echoed back; it ignores the
+echoes of `tunnel_write`, `command` and `firmware` and logs anything else as unhandled.
 
 `fwupdate` and `control/#` are subscribed by every device and **never published by the server today**. They stay
 reserved, and the broker's topic rules keep covering them, so a future server can use them without a firmware
@@ -125,12 +125,13 @@ not distinguish success from failure.
 `registerWithCloud` persists nothing at all: the new server's address travels inside the firmware image it
 fetches. That is what makes the device a device of the other cloud.
 
-Server side: `device.controller.ts:87-99` → `device-registration.service.ts:29-119`. It answers 201 `{ fw }`
-where `fw` is the device class's `firmware_id`, or 401 `{ status: 'unauthorized' }` when self-registration is
-off, `registration_password` does not match `SELF_REGISTRATION_PASSWORD`, no device class is named
+Server side: `device-protocol.controller.ts` → `device-registration.service.ts`. It answers 201 `{ fw }`
+where `fw` is the device class's `firmwareIds.stable`, or 401 `{ status: 'unauthorized' }` when self-registration
+is off, `registration_password` does not match `SELF_REGISTRATION_PASSWORD`, no device class is named
 `device_type`, or a device with the same `device_id`, `username` and `device_type` exists and the password does
-not verify. Re-registering an existing device forces `hardwareInfo.claimcode_auth` to `'off'`
-(`device-registration.service.ts:67`), which is what lets a re-homed device issue a claim code again.
+not verify. What the device signs in to the broker with is stored as `devices.mqtt`, hashed. Re-registering an
+existing device forces `state.hardware.claimcode_auth` to `'off'`, which is what lets a re-homed device issue a
+claim code again.
 
 ### 3.2 `POST /device/claimcode`
 
@@ -145,8 +146,8 @@ The firmware checks for **200** (`:664`) and reads `claim_code` from the answer 
 an empty string and the display shows nothing. Called from the menu entry that shows the claim code
 (`wifi.cpp:1550`).
 
-Server side: `device.controller.ts:131-143` → `device-registration.service.ts:177-207`. The password is verified
-**only when the device has reported `hardware-info:claimcode_auth=on`** (`:183-193`); otherwise any caller who
+Server side: `device-protocol.controller.ts` → `device-registration.service.ts`. The password is verified
+**only when the device has reported `hardware-info:claimcode_auth=on`**; otherwise any caller who
 knows the device id gets a code. Current firmware reports `claimcode_auth=on` at every boot
 (`fridgecloud.cpp:164`). The answer is `{ claim_code }`, a 6-character code, upserted per device.
 
@@ -165,8 +166,8 @@ What the firmware requires of the answer (`fridgecloud.cpp:573-649`):
 - The body is read in 128-byte chunks with the watchdog fed between them (`:599,608-633`), and `ESP.restart()`
   follows a successful `Update.end(true)` (`:635-637`).
 
-Server side: `device-firmware.controller.ts:110-120`, with the headers set by `sendFirmwareBinary`
-(`device-firmware.controller.ts:33-40`): `Content-Type: application/octet-stream`,
+Server side: `device-protocol.controller.ts`, which streams the row of `firmwareBinaries` that carries the
+build and the file name: `Content-Type: application/octet-stream`,
 `Content-Disposition: attachment; filename=firmware.bin`, `Content-Length` and `Cache-Control: no-transform`.
 The route is public — a device has nothing but the firmware id to offer.
 
@@ -181,8 +182,9 @@ provisioning flow (`fw-buildcontainer/cli.py`).
 | `POST /auth/v0.0.1/device/claimcode` | `POST /device/claimcode` |
 | `GET /auth/v0.0.1/device/firmware/:firmware_id/:binary` | `GET /device/firmware/:firmware_id/:binary` |
 
-They are served by `legacy-paths.controller.ts:23-38` and excluded from the API document. **No build in this
-repository uses them**: current firmware calls `/device/claimcode` (`fridgecloud.cpp:654`) and
+They are served by `LegacyDeviceProtocolController` (`device-protocol.controller.ts`) and excluded from the API
+document. **No build in this repository uses them**: current firmware calls `/device/claimcode`
+(`fridgecloud.cpp:654`) and
 `/device/firmware/...` (`:565`). They exist for builds shipped before the paths were shortened, and have to stay
 until no device in the field asks for them.
 
@@ -235,10 +237,11 @@ Two consequences a caller must know:
 
 ### 4.3 What the server does on the wire
 
-One subscription, `/devices/#` (`device-message.service.ts:81`). Dispatch takes `device_id` from the third
-segment of the topic and the topic name from the fourth (`:96-97`); deeper segments are ignored. A message from
-an id with no device document is dropped silently (`:99-102`), and any throw while handling one is caught and
-logged (`:103-105`) so one malformed message cannot end the process.
+One subscription, `/devices/#` (`device-ingest.service.ts`). Dispatch takes `device_id` from the third segment
+of the topic and the topic name from the fourth; a deeper segment says only that the message arrived below the
+topic rather than on it, which is how a device in custom-MQTT mode is told from one sending a document. A message
+from an id with no device document is dropped silently, and any throw while handling one is caught and logged so
+one malformed message cannot end the process.
 
 Publishing is QoS 0 with mqtt.js defaults; a publish attempted before the first successful handshake returns
 `false` instead of throwing (`mqtt-client.service.ts:48-50,160-168`), which is what turns into a 503 for the
@@ -271,15 +274,15 @@ the buffer is drained immediately, so the wire sees **one `bulk` message every f
 full the sample is dropped and `message-buffer-overflow` is logged once at severity 1 (`:487-495`). The drain
 stops on the first failed publish and keeps the rest for the next attempt (`:539-551`).
 
-Server side (`device-message.service.ts:122-125`): `rollout.checkAndUpgrade(device)` stamps `lastseen`, then the
-document goes to `statusMessage` with its `timestamp` intact. Readings are written to InfluxDB, measurement
-`status`, tagged `device_id` and `user_id`, sensors under their own names and outputs prefixed `out_`
-(`data.service.ts:78-106`); the point's time is `timestamp * 1e9` ns. Alarms are evaluated at `timestamp * 1000`
-ms (`alarm.service.ts:44`). **A device with no owner has its readings dropped** — `lastseen` is still updated
-(`device-message.service.ts:168-173`).
+Server side (`device-ingest.service.ts`): the ingest stamps `devices.state.lastSeenAt`, then hands the document
+on with the instant the device dated it. Readings are written to InfluxDB, measurement `status`, tagged
+`device_id` — the `user_id` tag is no longer written — sensors under their own names and outputs prefixed `out_`.
+The same reading is evaluated by the alarms under the names the contract gives them, which the ingest translates
+to. **A device with no owner has its readings dropped** — `lastSeenAt` is still updated.
 
-Only known keys are stored: `VALID_SENSORS` and `VALID_OUTPUTS` in `data.service.ts:12,19`. A key outside those
-lists is silently ignored, which is the safe way to add a sensor before the server knows it.
+Only known keys are stored: the fields the metric tables in `shared-types/src/v1` name, plus the controller
+diagnostics beside them. A key outside those lists is silently ignored, which is the safe way to add a sensor
+before the server knows it.
 
 ### 5.2 `status` in custom-MQTT mode
 
@@ -292,15 +295,12 @@ each value on its own sub-topic, as a bare value with no JSON envelope (`fridgec
 ```
 
 These are meant for a third-party broker of the owner's choosing. If such a device is pointed at this server,
-the server's dispatch takes only the fourth topic segment and treats the message as `status`
-(`device-message.service.ts:96-97`): `JSON.parse("23.5")` is a number, spreading it yields `{}`, and the reading
-write then fails on the missing `sensors` object and is logged as
-`Failed writing measurements for device …` (`data.service.ts:104-106`). `lastseen` is stamped first, so the
-device still counts as online. ADR 0001 keeps accepting these messages and drops them quietly instead.
+the message is taken and dropped: it arrived below `status` rather than on it, and a bare value is not a reading
+document. `lastSeenAt` is stamped first, so the device still counts as online. (Until the rewrite this went
+through the reading path and ended as a caught `Failed writing measurements for device …`.)
 
 The server also accepts a full JSON reading document on `status` itself, and **discards its timestamp**,
-recording the sample at server time (`device-message.service.ts:118-121`). No firmware build publishes that;
-the simulator does.
+recording the sample at server time. No firmware build publishes that; the simulator does.
 
 ### 5.3 `fetch` — what a device asks for when it connects
 
@@ -313,14 +313,17 @@ place (`fridgecloud.cpp:357,363-380`):
 
 Serialised into a 128-byte buffer (`:370-371`).
 
-Server side (`device-message.service.ts:126-137,176-186`):
+Server side (`device-ingest.service.ts`):
 
-1. `rollout.onFirmwareReported(device, firmware_id)` — see [10 The OTA path](#10-the-ota-path).
-2. If `device.configuration` is non-empty, the server **replies** by publishing it verbatim on `configuration`.
-   This is the only reply in the protocol.
-3. `rollout.checkAndUpgrade(device)` stamps `lastseen` and arms the upgrade instruction if one is pending.
+1. The reported id is handed to the rollout and then stored as `devices.state.firmwareId` — see
+   [10 The OTA path](#10-the-ota-path).
+2. If `devices.configuration` is not null, the server **replies** by publishing it on `configuration`. This is
+   the only reply in the protocol. The document is stored as the object it is and serialised again for the
+   reply, so a key may come back in another order than the device sent it in; the device parses key by key and
+   never compares the string.
+3. `state.lastSeenAt` is stamped, and the rollout arms the upgrade instruction if one is pending.
 
-A payload that is not JSON is passed through as a raw string rather than rejected (`:127-133`).
+A payload that is not JSON carries no `firmware_id` and is dropped rather than rejected.
 
 ### 5.4 Which keys each hardware type reports
 
@@ -370,20 +373,20 @@ drain (`:433-437`).
 `message` is a `message-key:param` line. The keys resolve against `webapp/src/assets/i18n/en.json`; anything
 without a translation is shown verbatim.
 
-Server side (`device-message.service.ts:138-149`), in order:
+Server side (`device-ingest.service.ts`), in order:
 
 1. A message starting with `hardware-info:` goes to [6.2](#62-hardware-info) and is **never** written to the
    diary.
-2. `isSuppressedCamCaptureLog` drops every `message-cam-capture:ok…` line, and any other
-   `message-cam-capture:…` when the device's `logRtspStreamErrors` is explicitly `false`
-   (`server/src/utils/devicelogs.ts`).
-3. Everything else becomes a diary entry, with categories `['device', ...]` from a fixed map
-   (`device-message.service.ts:23-37`) and every key of the message object spread into the stored document —
-   so a future firmware could send `title`, `time`, `data` or `images` and they would be stored, though none
-   does today.
+2. Every `message-cam-capture:ok…` line is dropped, and any other `message-cam-capture:…` unless the camera the
+   device answers for has `logErrors` on. It is off unless somebody turns it on, where the old setting was on
+   unless somebody turned it off.
+3. Everything else becomes a row of `entries`: `source: device`, the line parsed once into
+   `message { key, params }` or kept as `text` where no key is known, the severity as the model names it, and
+   the space the device stands in. A line about the camera is attached to the camera. The two keys the firmware
+   sends are the two that are read — a `title`, `time`, `data` or `images` beside them would be ignored, where
+   the old server stored whatever the object carried.
 
-A `message-maintenance-mode-activated[-remote]:<minutes>` line additionally sets the device's maintenance window
-server-side (`device.service.ts:86-93`).
+A `message-maintenance-mode-activated[-remote]:<minutes>` line additionally sets `devices.state.maintenanceUntil`.
 
 The messages current firmware sends:
 
@@ -422,8 +425,10 @@ A device tells the cloud what hardware it has by riding the same log topic:
 
 The server splits at the **first** `=` — a value may contain more — trims the key, and requires
 `/^[a-zA-Z0-9_-]{1,64}$/` for the key and at most 512 characters for the value; anything else is dropped without
-a word (`device-message.service.ts:188-201`). What passes is stored as `hardwareInfo.<key>` on the device
-document (`:202`). Nothing is ever written to the diary, and there is no reply.
+a word (`hardware-report.service.ts`). What passes is stored as `devices.state.hardware.<key>`, flat as the
+device sends it — except `webcam_pwd` and `webcam_url`, which are the camera's own credentials and go to the
+camera record instead, where nothing serialises them. Nothing is ever written to the diary, and there is no
+reply.
 
 Because it rides the log topic, a report inherits the log's limits: the queue may drop it when it is full, and
 the whole message has to fit the 384-byte serialisation buffer. That is why the firmware caps a reported value
@@ -461,19 +466,23 @@ while the module was offline would look connected forever (`wifi.cpp:2551-2556`,
 the empty string (`terpcam.cpp:566-571`). Since securing is retried on every capture, a camera that cannot be
 secured makes the controller report an empty password roughly every 30 s.
 
-Server-side handling beyond storage (`device-message.service.ts:204-221`):
+Server-side handling beyond storage (`hardware-report.service.ts`):
 
 | Key | Extra effect |
 | --- | --- |
 | `claimcode_auth` | `'on'` makes `POST /device/claimcode` require the device password |
+| `firmware_version` | the build is reported to the rollout and stored as `devices.state.firmwareId` |
 | `sockets_n` | superseded `socket_list<k>` chunks from a larger table are unset |
-| `webcam_did` | the camera is remembered for the direct path, and `cloudSettings.rtspStream` is reconciled |
-| `webcam_pwd` | remembered for the direct path; an empty value means "none" |
-| `webcam_uid` | remembered for the direct path, and read back from the device document after a restart |
+| `socket_list<k>` | a row that was seen to change state stamps `devices.state.socketStateChangedAt.<slot>` |
+| `webcam_did` | the camera the controller pairs is reconciled into a row of `cameras` |
+| `webcam_pwd` | the camera's `secret`; an empty value means "none" |
+| `webcam_uid`, `webcam_ip` | the camera's `uid` and `ip`, which is how the cloud reaches it directly |
 
-`reconcileP2PCamera` (`device-message.service.ts:260-293`) adopts a reported id as `terpcam://<did>` when nothing
-is configured or when the configured stream is another P2P camera, requires `/^[A-Za-z0-9_-]{4,32}$/` of the id,
-and removes the stream on `none` or the empty string. A URL the owner typed themselves is never touched.
+The reconciliation requires `/^[A-Za-z0-9_-]{4,32}$/` of the reported id. A device that reports one is given the
+camera row it already has, or a new one with its twelve months of Premium; `none` and the empty string retire
+the row rather than deleting it, so the pictures it took keep their camera and pairing it again gives it back
+the entitlement it had. A device nobody owns gets no camera row — a camera belongs to somebody — and the row is
+made when the device is claimed or the next time it reports.
 
 ### 6.3 The socket table, chunked and reassembled
 
@@ -493,17 +502,23 @@ Rules a reader has to follow:
 - Entry *n* of chunk *k* is the socket in slot `k * SOCKETS_PER_REPORT_CHUNK + n`, with
   `SOCKETS_PER_REPORT_CHUNK = 3` (`wifi.cpp:57`). That slot number is what a command names in `slot`.
 - `sockets_n` bounds the table. Chunks left over from a larger table must be ignored; the server also unsets
-  them (`device-message.service.ts:232-244`).
+  them (`hardware-report.service.ts`).
 - The count is always sent **before** the chunks, so the cleanup never removes a chunk that is about to arrive.
 - Each entry is `role|id|ip`. `id` is the socket's Tasmota MAC in upper hex, learned after pairing; `ip` may be
-  empty for a row whose address was lost and which is being looked for again (`wifi.cpp:2535`).
+  empty for a row whose address was lost and which is being looked for again (`wifi.cpp:2535`). ADR 0001 adds two
+  columns to the row, `role|id|ip|state|override-or-timer`, where `state` is `on` or `off` and the last column is
+  `override=<on|off|auto>@<seconds>`, `timer=<onSeconds>/<everySeconds>` or empty. No shipped firmware sends them;
+  the decoder reads a row that ends after the third column as a socket whose state is unknown, which is what a
+  three-column parser does with the two new ones.
 - `sockets` and `socket_ips` are the older, lossy summary: one entry per role. They stay because readers that
   predate the table understand them.
 - A whole report is re-sent on boot and on every change of the table (`wifi.cpp:2511`, called from
   `wifiInitAuxCloudReporting` `:2548` and from each mutation at `:539,545,2365,2632,2725,2975`).
 
-The same format is declared once, for all three parties, in `shared-types/index.js:19-36` (`SOCKET_ROLES`,
-`MAX_SOCKETS = 32`, `SOCKETS_PER_REPORT_CHUNK = 3`, `socketListKey`, `socketChunkCount`).
+The format is declared for the server in `server/src/modules/device-protocol/sockets.ts` (`MAX_SOCKETS = 32`,
+`SOCKETS_PER_REPORT_CHUNK = 3`, `socketListKey`, `socketChunkCount`, and the decoders that turn a report into the
+rows the API answers with). The Angular app and the simulator read the same constants from
+`shared-types/index.js:19-36` until the app that replaces them does.
 
 Roles are a fixed list in the firmware: `dehumidifier`, `heater`, `light`, `secondary_light`, `co2`
 (`wifi.cpp:2444-2454`; the sixth entry `back` is a menu sentinel and never a role). Any number of sockets may
@@ -519,8 +534,8 @@ it means and which keys exist; the server never validates or interprets it.
 
 | Direction | Payload | Where |
 | --- | --- | --- |
-| server → device | the configuration string **exactly as stored** | `device-settings.service.ts:57` |
-| server → device | the same string, as the reply to a `fetch` | `device-message.service.ts:183-185` |
+| server → device | the stored document, serialised | `device-configuration.service.ts` |
+| server → device | the same document, as the reply to a `fetch` | `device-ingest.service.ts` |
 | device → server | the device's whole settings object as JSON | `fridgecloud.cpp:556-561` |
 
 When a device receives one it parses it, adopts it silently, writes it to NVS key `config` and re-runs its
@@ -529,8 +544,8 @@ and `light` types skip the NVS store while `mqttcontrol` is true, so direct cont
 settings (`fridge.cpp:588-594`, `plug.cpp:576-582`, `fan.cpp:371-377`, `light.cpp:332-338`).
 
 When a setting is changed on the device itself, the device publishes its whole document on the same topic
-(`saveAndUploadSettings`, e.g. `controller.cpp:516-543`). The server overwrites its copy and echoes nothing
-(`device-settings.service.ts:74-78`).
+(`saveAndUploadSettings`, e.g. `controller.cpp:516-543`). The server overwrites `devices.configuration` with it
+and echoes nothing (`device-ingest.service.ts`).
 
 **A key a device does not know is ignored, and disappears.** Parsing is key by key
 (`loadIfAvaliable`, `controller.cpp:437-453`): a key that is missing keeps the struct default and logs a line to
@@ -645,8 +660,10 @@ command.
 
 ### 8.3 `test` and `stoptest`
 
-`{ "action": "test", "outputs": { … } }` with all seven fields present, validated at the HTTP edge
-(`device.schemas.ts:53-64`) and published verbatim (`device-command.service.ts:51-64`).
+`{ "action": "test", "outputs": { … } }` with all seven fields present. A caller may name fewer, and the ones it
+leaves out are sent as zero (`device-publisher.service.ts`): the firmware reads each field out of the document
+and a missing one reads as `0`, so an output left out of the command is an output switched off, not one left
+alone.
 
 The output names are the fridge's (`fridge.cpp:601-610`): `dehumidifier` and `co2` go to their pins as raw 8-bit
 values; `lights`, `fanint`, `fanext` and `fanbw` are percentages, multiplied by 2.55 into PWM; `heater` is a
@@ -660,10 +677,11 @@ cam ignore them entirely.
 
 ### 8.4 The socket commands
 
-All three are validated server-side before publishing (`device-command.service.ts:70-123`): `action` must be one
-of `socket_remove`, `socket_test`, `socket_set`; `role` must be one of `SOCKET_ROLES`; `slot`, when given, an
-integer in `0..MAX_SOCKETS-1`; `ip` must match `/^[a-zA-Z0-9._-]+$/` and be at most 64 characters; `user` and
-`password` at most 48.
+All three are composed server-side from a typed command (`device-publisher.service.ts`), so the action can only
+ever be one of `socket_remove`, `socket_test`, `socket_set`; the role must be one a device has announced;
+`socket_remove` and `socket_test` name the row by its slot and take the role from the table the device reported.
+A socket test asks the firmware for the pulse it already gives — two seconds — because the command carries no
+duration and old firmware would ignore one.
 
 **`slot` is optional everywhere and means one row of the table**, as reported in `socket_list<k>`. Left out, the
 command addresses every socket of the role for `socket_remove` and `socket_test`, and the single existing socket
@@ -697,8 +715,8 @@ window afterwards.
 ### 8.5 `cam_capture`
 
 `{ "action": "cam_capture" }`, handled by `wifiHandleAuxCommand` (`wifi.cpp:2754-2761`) on the controller and the
-fridge. It is the only command the server publishes **outside** the aux whitelist — the camera pipeline publishes
-it directly (`terpcam-p2p.service.ts:93`). A capture that fails logs
+fridge. The camera pipeline asks for it, and the protocol module publishes it like every other command. A capture
+that fails logs
 `message-aux-command-failed:cam_capture`. See [9 The still cycle](#9-the-still-cycle).
 
 ---
@@ -706,9 +724,9 @@ it directly (`terpcam-p2p.service.ts:93`). A capture that fails logs
 ## 9 The still cycle
 
 A camera is paired on the controller, in its menu. The controller stores the camera's device id in NVS and
-reports it as `hardware-info:webcam_did=<did>`; the cloud adopts that as `cloudSettings.rtspStream =
-terpcam://<did>` and starts asking for pictures (`device-message.service.ts:208-211,260-293`). One camera per
-module: the pairing flow refuses a second while one is stored (`wifi.cpp:1231-1238`).
+reports it as `hardware-info:webcam_did=<did>`; the cloud makes that a row of `cameras` of kind
+`terpcam_controller` and starts asking for pictures (`hardware-report.service.ts`). One camera per module: the
+pairing flow refuses a second while one is stored (`wifi.cpp:1231-1238`).
 
 The poller (`server/src/modules/image/webcam-poller.service.ts`) runs a pass every 5 s and asks each configured
 camera at most every 30 s, with a failure backoff of `min(30 s × 2^failures, 120 min)` (`:19-21,169-172`). It
@@ -794,10 +812,11 @@ transport is in the code in this repository; **the full vendor CGI recipe is doc
    else would push the OFF command out (`controller.cpp:584-603`, `fridge.cpp:646-667`,
    `wifi.cpp:415-454`).
 6. On success the device restarts, and the new id goes out on `fetch` and as `hardware-info:firmware_version`.
-7. The server compares the reported id (`device-firmware-rollout.service.ts:114-140`): equal to the current one,
-   nothing happens; different from the pending one, `current_firmware` is updated and no more; equal to the
-   pending one, the update is closed with `fwupdate_end` and a diary entry
-   `message-firmware-update-complete-with-ids:<old> -> <new>`.
+7. The server compares the reported id: equal to the one it was running, nothing happens; different from the
+   pending one, `devices.state.firmwareId` is updated and no more; equal to the pending one, the update is closed
+   with `state.updateEndedAt` and an entry `message-firmware-update-complete-with-ids:<old> -> <new>`. The
+   protocol module tells the rollout what was reported before it stores it, because that comparison is what the
+   rollout is deciding from.
 
 **`fwupdate` is the second, unused door.** A device also subscribes to `/devices/<id>/fwupdate` and accepts
 `{ "version": "<id>", "url": "<url>" }`, applying the same guard and then downloading from that arbitrary URL
@@ -820,9 +839,9 @@ A build compiled without `FIRMWARE_VERSION` defines `NO_FIRMWARE_UPDATE` and ign
 | Log queue | 32 entries; further entries dropped silently | `fridgecloud.h:35`, `.cpp:382-387` |
 | Log message serialisation buffer | 384 bytes | `fridgecloud.cpp:418-419` |
 | `hardware-info` value cap (firmware) | 288 characters | `wifi.cpp:58` |
-| `hardware-info` key / value cap (server) | `[A-Za-z0-9_-]{1,64}` / 512 characters | `device-message.service.ts:199` |
-| Sockets per `socket_list` chunk | 3 | `wifi.cpp:57`, `shared-types/index.js:25` |
-| Smart sockets per device | 32 | `wifi.h:71`, `shared-types/index.js:22` |
+| `hardware-info` key / value cap (server) | `[A-Za-z0-9_-]{1,64}` / 512 characters | `hardware-report.service.ts` |
+| Sockets per `socket_list` chunk | 3 | `wifi.cpp:57`, `device-protocol/sockets.ts` |
+| Smart sockets per device | 32 | `wifi.h:71`, `device-protocol/sockets.ts` |
 | Consecutive failed publishes before a forced reconnect | 3 | `fridgecloud.h:88`, `.cpp:441-456` |
 | Tunnel slots | 3 | `fridgecloud.h:91` |
 | Tunnel TCP frame | ≤ 127 raw bytes, base64-encoded | `fridgecloud.h:19`, `.cpp:803-816` |
@@ -836,10 +855,10 @@ A build compiled without `FIRMWARE_VERSION` defines `NO_FIRMWARE_UPDATE` and ign
 
 ### 11.1 How "online" is decided
 
-A device is online when its `lastseen` is younger than `ONLINE_TIMEOUT = 10 minutes`
-(`server/src/modules/device/device.queries.ts:4`). `lastseen` is stamped by `checkAndUpgrade`, which runs on
-every `status`, `bulk` and `fetch` (`device-firmware-rollout.service.ts:56`;
-`device-message.service.ts:119,123,135`) — and on nothing else. A device that only logs, only reports hardware
+A device is online when its `state.lastSeenAt` is younger than ten minutes, which is `VALUE_AGE.staleSeconds` in
+`shared-types/src/v1` — the same threshold a reading is called stale at, so a dimmed card and the `offline`
+metric say the same thing about the same device. It is stamped by the ingest on every `status`, `bulk` and
+`fetch` — and on nothing else. A device that only logs, only reports hardware
 info or only answers commands does **not** count as alive. Since a healthy device publishes `bulk` every five
 seconds, ten minutes is a hundred and twenty missed samples.
 
@@ -881,6 +900,7 @@ at most 2 s on sockets, and the pre-OTA flush at most 20 s (`wifi.cpp:46,48`).
 | `claimcode_auth` | whether `POST /device/claimcode` needs the device password |
 | `co2`, `leaf_temp`, `ppfd` | which optional sensors are fitted |
 | `sockets`, `sockets_n`, `socket_list<k>` | that this build reports a socket table, and what is in it |
+| `socket_roles`, `caps`, `socket_pulse` | the roles, commands and minimum on-times the socket firmware change adds |
 | `webcam_did`, `webcam_uid`, `webcam_pwd`, `webcam_ip`, `webcam_url` | that a camera is paired, and how to reach it |
 
 Note the difference between a key with the value `none` and a key that is absent. `sockets=none` and
@@ -928,9 +948,9 @@ reader of either should not conclude from it.
 - **`image.abort` and `image.h264`.** The firmware sends `abort` when a started capture fails and never sets
   `h264` on the shipped controller path. The server handles both, and would decode an `h264` payload as a
   keyframe. The simulator sends neither.
-- **Extra `log` keys.** The firmware sends `severity` and `message` and nothing else, as does the simulator. The
-  server spreads every key of the object into the diary entry, so `title`, `time`, `data` and `images` would be
-  stored if a device ever sent them.
+- **Extra `log` keys.** The firmware sends `severity` and `message` and nothing else, as does the simulator, and
+  those two are what the server reads. Until the rewrite it spread every key of the object into the entry, so a
+  `title`, `time`, `data` or `images` a device sent would have been stored.
 - **`message-device-firmware-update`.** The firmware sends it without an argument; the simulator appends the
   firmware id.
 - **`message-cam-capture`.** The firmware sends only failures, keeping successes on the serial console. The
@@ -938,7 +958,9 @@ reader of either should not conclude from it.
   simulator never sends the key.
 - **`test` outputs.** The server sends the fridge's seven names to every type. The controller, plug, light and
   cam ignore the command entirely, and the fan ignores the values. The simulator maps the names to its own keys
-  and divides the three fan percentages by 100.
+  and divides the three fan percentages by 100. The `/v1` contract describes the outputs of a test as partial and
+  says an output left out keeps doing what it was doing; the firmware reads a missing field as zero, so it does
+  not, and the server fills in the ones a caller left out.
 - **Camera identity.** The firmware reports `webcam_did`, `webcam_uid`, `webcam_pwd`, `webcam_ip` and
   `webcam_url`. The simulator reports only `webcam_did`, so a simulated camera always takes the controller path
   and never exercises the direct one.

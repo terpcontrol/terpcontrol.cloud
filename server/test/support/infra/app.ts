@@ -100,7 +100,7 @@ const waitForHealthy = async (baseUrl: string, child: ChildProcess, timeoutMs: n
   while (Date.now() < deadline) {
     if (child.exitCode !== null) throw new Error(`App under test exited with code ${child.exitCode} before becoming healthy`);
     try {
-      const response = await fetch(`${baseUrl}/`);
+      const response = await fetch(`${baseUrl}/healthz`);
       if (response.ok) return;
       lastError = `status ${response.status}`;
     } catch (error) {

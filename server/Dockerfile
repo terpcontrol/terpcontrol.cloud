@@ -5,7 +5,7 @@ FROM ${DOCKER_NODE_SERVER_IMAGE} as common-build-stage
 
 # ttf-dejavu: the offline caption drawn into webcam stills needs a font that
 # fontconfig can find, otherwise the text renders empty.
-RUN apk add --no-cache ffmpeg imagemagick ttf-dejavu
+RUN apk add --no-cache ffmpeg ttf-dejavu
 
 WORKDIR /app
 

@@ -1,35 +1,14 @@
 /**
- * The model names, so an `@InjectModel` and a registration cannot drift apart.
+ * The model names of the `/v1` collections, so an `@InjectModel` and a
+ * registration cannot drift apart.
  *
  * Their own file rather than the module's: the schemas are registered there and
  * one of them reaches back into the image store, which needs a name to inject a
  * model by. Names that depend on nothing keep that from being a cycle.
- */
-export const MODEL = {
-  chartPreset: 'ChartPreset',
-  claimCode: 'ClaimCode',
-  device: 'Device',
-  deviceClass: 'DeviceClass',
-  deviceFirmware: 'DeviceFirmware',
-  deviceFirmwareBinary: 'DeviceFirmwareBinary',
-  deviceLog: 'DeviceLog',
-  image: 'Image',
-  passwordToken: 'PasswordToken',
-  recipeTemplate: 'RecipeTemplate',
-  share: 'Share',
-  user: 'User',
-} as const;
-
-/**
- * The same for the collections of the `/v1` model, which are registered beside
- * the legacy ones while the modules that read those are rewritten one at a time.
  *
- * The names carry the version because four of them - the user, the device, the
- * claim code and the device class - would otherwise be the name a legacy model
- * already holds, and a connection has one model per name. Which collection each
- * one is stored in is the schema's own to say, and every `v1` schema says it:
- * mongoose would otherwise derive a collection from the name here, prefix and
- * all, and lower-case the camelCase away with it.
+ * Which collection each model is stored in is the schema's own to say, and every
+ * one of them says it: mongoose would otherwise derive a collection from the
+ * name here and lower-case the camelCase away with it.
  */
 export const MODEL_V1 = {
   alarmRule: 'V1AlarmRule',

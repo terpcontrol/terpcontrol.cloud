@@ -1,61 +1,73 @@
-import { Alarm, CloudSettings, Device, Recipe, socketListChunk } from '@fg2/shared-types';
+import { AlarmRule, Camera, Device, Entry, Plan, Socket } from '@fg2/shared-types/v1';
+// The `hardware-info` report's own vocabulary; the device-protocol module owns it.
+import { socketListChunk } from '@modules/device-protocol/sockets';
+
+/**
+ * The public demo shows somebody's real tent to anyone who asks for it, so what
+ * a demo session reads is the same resource with everything personal taken out:
+ * an address on a local network, a stream URL with its credentials, where an
+ * alarm reports to. What the hardware can *do* stays - that is what the demo is
+ * showing.
+ *
+ * The flag itself is not here: `access()` decides who may read a demo object,
+ * and `isDemo` is set on the device, its space, its cameras and the grow in that
+ * space together, so redaction never has to guess what is part of the tour.
+ */
 
 // Demo sessions are not tied to an account; this stands in for the user id so
-// owner-scoped queries (shares, chart presets, recipe templates) match nothing.
+// owner-scoped queries match nothing.
 export const DEMO_USER_ID = 'demo';
 
 export const DEMO_WRITE_MESSAGE = 'Saving is not supported in demo mode';
 
 // Reported by the device and not for the public: the camera URL carries its
-// credentials, the socket lists the addresses and MACs of someone's local
-// network. Which roles have a socket stays — that is what the demo is showing.
-const SECRET_HARDWARE_INFO_KEYS = ['webcam_url', 'socket_ips'];
+// credentials, the socket list the addresses and MACs of someone's local
+// network. Which roles have a socket stays - that is what the demo is showing.
+const SECRET_HARDWARE_KEYS = ['webcam_url', 'socket_ips'];
 
-const isSecretHardwareInfoKey = (key: string): boolean => SECRET_HARDWARE_INFO_KEYS.includes(key) || socketListChunk(key) !== null;
+const isSecretHardwareKey = (key: string): boolean => SECRET_HARDWARE_KEYS.includes(key) || socketListChunk(key) !== null;
 
-// The stream URL contains credentials, so demo visitors only learn that a
-// webcam exists - the same reduction share links use. A readable example URL
-// stands in for it, because the settings form shows this value verbatim.
+// The stream URL contains credentials, so demo visitors only learn that a camera
+// exists - the same reduction a share link makes. A readable example URL stands
+// in for it, because the settings form shows this value verbatim.
 export const DEMO_WEBCAM_URL = 'rtsp://demo.terpcontrol.cloud:554/growcam';
 
-export const demoCloudSettings = (cloudSettings: CloudSettings): CloudSettings => ({
-  ...cloudSettings,
-  rtspStream: cloudSettings.rtspStream ? DEMO_WEBCAM_URL : undefined,
-});
-
-export const demoHardwareInfo = (hardwareInfo?: Record<string, string>): Record<string, string> | undefined => {
-  if (!hardwareInfo) return hardwareInfo;
-
-  return Object.fromEntries(Object.entries(hardwareInfo).filter(([key]) => !isSecretHardwareInfoKey(key)));
-};
-
-// Where an alarm reports to is the owner's contact detail, not part of the demo.
-export const demoAlarms = (alarms: Alarm[]): Alarm[] =>
-  alarms.map(alarm => {
-    const { webhookHeaders, webhookTriggeredPayload, webhookResolvedPayload, ...rest } = alarm;
-    return { ...rest, actionTarget: '' };
-  });
-
-export const demoRecipe = <T extends Partial<Recipe>>(recipe: T): T => {
-  const { email, ...rest } = recipe;
-  return rest as T;
-};
-
-// Failures are logged with what the device was configured with: a webcam error
+// Failures are logged with what the device was configured with: a camera error
 // repeats the stream URL (credentials included), a webhook error its endpoint.
 const URL_PATTERN = /[a-z][a-z0-9+.-]*:\/\/\S+/gi;
 
-export const demoLogs = <T extends { title?: string; message?: string }>(logs: T[]): T[] =>
-  logs.map(log => ({
-    ...log,
-    title: log.title?.replace(URL_PATTERN, '[hidden]'),
-    message: log.message?.replace(URL_PATTERN, '[hidden]'),
-  }));
+const hidden = (value: string): string => value.replace(URL_PATTERN, '[hidden]');
 
-export const demoDevice = <T extends Partial<Device>>(device: T): T => ({
+export const demoHardware = (hardware: Record<string, string>): Record<string, string> =>
+  Object.fromEntries(Object.entries(hardware).filter(([key]) => !isSecretHardwareKey(key)));
+
+export const demoDevice = (device: Device): Device => ({
   ...device,
-  ...(device.cloudSettings ? { cloudSettings: demoCloudSettings(device.cloudSettings) } : {}),
-  ...(device.hardwareInfo ? { hardwareInfo: demoHardwareInfo(device.hardwareInfo) } : {}),
-  ...(device.alarms ? { alarms: demoAlarms(device.alarms) } : {}),
-  ...(device.recipe ? { recipe: demoRecipe(device.recipe) } : {}),
+  state: { ...device.state, hardware: demoHardware(device.state.hardware) },
+});
+
+/**
+ * A socket keeps its slot, its role and its state, which is what the demo is
+ * about; the MAC and the address it is reached at are somebody's local network.
+ */
+export const demoSockets = (sockets: Socket[]): Socket[] => sockets.map(socket => ({ ...socket, hardwareId: '', address: '' }));
+
+export const demoCamera = (camera: Camera): Camera => ({
+  ...camera,
+  did: null,
+  uid: null,
+  ip: null,
+  url: camera.url ? DEMO_WEBCAM_URL : null,
+  state: { ...camera.state, lastError: camera.state.lastError ? hidden(camera.state.lastError) : null },
+});
+
+// Where an alarm reports to is the owner's contact detail, not part of the demo.
+export const demoAlarmRule = (rule: AlarmRule): AlarmRule => ({ ...rule, delivery: { ...rule.delivery, custom: null } });
+
+export const demoPlan = (plan: Plan): Plan => ({ ...plan, notify: { ...plan.notify, email: null } });
+
+export const demoEntry = (entry: Entry): Entry => ({
+  ...entry,
+  text: entry.text ? hidden(entry.text) : null,
+  message: entry.message ? { ...entry.message, params: entry.message.params.map(hidden) } : null,
 });

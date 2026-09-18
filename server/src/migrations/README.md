@@ -11,31 +11,24 @@ the process.
 
 ## The state the server is in afterwards
 
-**Read this part.** Between the migration and the rewrite of the last legacy module, the server is in a state
-that looks broken and is meant to be.
-
 The migration renames each old collection to `legacy_<name>` and builds the new one in its place. Two of the new
 collections carry the name of an old one: `users` and `devices`. So the moment the migration has run:
 
-- **The legacy modules stop working.** They are all still there, registered and compiled, and they read the same
-  collection names as before — but `users` and `devices` now hold documents in the new shapes, and `devicelogs`,
-  `images`, `shares`, `chartpresets`, `claimcodes`, `deviceclasses`, `devicefirmwares`,
-  `devicefirmwarebinaries`, `recipetemplates` and `passwordtokens` are gone from under them. The old Angular API
-  answers errors or empty lists. That is expected: it is rewritten slice by slice, and the migration is what the
-  first slice is written against.
-- **Nothing reads `legacy_*`.** Not the old modules, not the new ones. It is the way back and nothing else, and a
-  later release drops it.
-- **The old server's own indexes are rebuilt on the new collections at the next boot, and fail.** The legacy
-  `Device` and `User` schemas declare `device_id` and `username` unique; the documents under those names have
-  neither, so the build is refused and `IndexBuildLog` says so once per boot. It is noise, not damage, and it goes
-  when those models do.
+- **The server reads the new collections and nothing else.** There is no code left that knows the old shapes: the
+  modules that read them are gone together with their routes, and what replaced them was written against the
+  collections this migration builds.
+- **Nothing reads `legacy_*`.** It is the way back and nothing else, and a later release drops it.
+- **The indexes of `users` and `devices` are built by the runner rather than by mongoose.** Those two collections
+  hold the old shapes under their own name until the rename happens, and mongoose builds a model's indexes as the
+  model is compiled — which is before this runs. So the two models say `autoIndex: false`
+  (`database/models.module.ts`) and the runner builds them itself once a run has finished.
 - **Pictures are untouched.** The GridFS bucket is never rewritten: a `media` row keeps the `image_id` of the
   `images` row it was made from as its own `id`, so every file stays exactly where it is and is reachable by
   either id. InfluxDB is not rewritten either.
 
-On an install with no old data — a fresh one, and the integration suite — **nothing happens at all**: a
-collection with no documents in it is not renamed aside, so the legacy layer keeps running untouched and the new
-collections stay empty until something writes into them.
+On an install with no old data — a fresh one, and the integration suite — **nothing is moved**: a collection with
+no documents in it is not renamed aside. Every step still runs, finds nothing and records itself, so a later boot
+has nothing to do.
 
 ## The steps, in order
 

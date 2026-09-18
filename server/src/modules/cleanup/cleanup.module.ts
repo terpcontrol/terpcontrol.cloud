@@ -3,9 +3,9 @@ import { ModelsModule } from '../../database/models.module';
 import { CleanupService } from './cleanup.service';
 
 /**
- * The daily sweep for records nothing can reach any more - the logs and pictures
- * of a device that was removed, a picture no diary entry lists, and the stored
- * bytes of a picture whose document never made it.
+ * The daily sweep for records nothing can reach any more - the entries of a grow,
+ * a space and a device that are all gone, a picture nothing names any more, and
+ * the stored bytes of a picture whose document never made it.
  */
 @Module({
   imports: [ModelsModule],

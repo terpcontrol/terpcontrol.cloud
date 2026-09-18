@@ -28,8 +28,8 @@ export SIM_REGISTRATION_PASSWORD="${SELF_REGISTRATION_PASSWORD}"
 export SIM_USER="${AGENT_TESTING_USERNAME:-$ADMINUSER_USERNAME}"
 export SIM_USER_PASSWORD="${AGENT_TESTING_PASSWORD:-$ADMINUSER_PASSWORD}"
 
-# Flagging a device as a demo device is a database property with no API behind
-# it, so it is done here rather than in the simulator.
+# Whether something is a demo object is a database property with no API behind
+# it, so it is set here rather than in the simulator.
 if [ "$1" = "demo" ]; then
   case "$2" in
     on)  flag=true ;;
@@ -50,7 +50,17 @@ if [ "$1" = "demo" ]; then
 
   matched=$(docker compose exec -T mongodb mongosh --quiet \
     -u "$MONGODB_ADMINUSERNAME" -p "$MONGODB_ADMINPASSWORD" --authenticationDatabase admin \
-    "$MONGODB_DATABASE" --eval "db.devices.updateOne({device_id:'$device_id'},{\$set:{demoDevice:$flag}}).matchedCount")
+    "$MONGODB_DATABASE" --eval "
+      const device = db.devices.findOne({id: '$device_id'});
+      if (device) {
+        // A demo session reads every object marked as one, so the space the
+        // device stands in and its cameras are marked with it.
+        db.devices.updateOne({id: device.id}, {\$set: {isDemo: $flag}});
+        if (device.spaceId) { db.spaces.updateOne({id: device.spaceId}, {\$set: {isDemo: $flag}}); }
+        db.cameras.updateMany({deviceId: device.id}, {\$set: {isDemo: $flag}});
+      }
+      print(device ? 1 : 0);
+    ")
 
   if [ "$matched" = "0" ]; then
     echo "no device $device_id - register it first" >&2

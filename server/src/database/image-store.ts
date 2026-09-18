@@ -1,12 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { InjectConnection } from '@nestjs/mongoose';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { Connection, Document, Model, mongo } from 'mongoose';
-import { Image } from '@fg2/shared-types';
-import { MODEL } from './models';
+import { Connection, mongo } from 'mongoose';
 
 /**
  * Where the bytes of a still or a timelapse live.
@@ -20,9 +18,9 @@ import { MODEL } from './models';
  * the limit and lets a picture be read and written as a stream rather than as one
  * buffer the size of the whole file.
  *
- * The `images` document keeps everything the queries need (device, format,
- * timestamp, duration) and stores no bytes; the file carries the same
- * `image_id` as its `_id`, so no extra field is needed to pair the two.
+ * The `media` document keeps everything the queries need (camera, kind, window,
+ * instant) and stores no bytes; the file carries that row's `id` as its `_id`,
+ * so no extra field is needed to pair the two.
  *
  * `images` and `media` share this bucket on purpose. The migration rewrites the
  * documents that point at the bytes and never the bytes themselves - a `media`
@@ -69,12 +67,14 @@ export const deleteStoredImages = async (db: mongo.Db, pictureIds: string[]): Pr
   await db.collection(`${IMAGE_BUCKET_NAME}.files`).deleteMany({ _id: { $in: ids } });
 };
 
+/**
+ * The bytes and nothing else. Which collection points at a file - `media` today,
+ * `images` before the migration - is the caller's to know, and each of them
+ * writes its own row around a file put here.
+ */
 @Injectable()
 export class ImageStore {
-  constructor(
-    @InjectConnection() private readonly connection: Connection,
-    @InjectModel(MODEL.image) private readonly images: Model<Image & Document>,
-  ) {}
+  constructor(@InjectConnection() private readonly connection: Connection) {}
 
   /** The driver's handle, which a connection only carries once it is open - and nothing is served before it is. */
   private get db(): mongo.Db {
@@ -136,31 +136,5 @@ export class ImageStore {
 
   public delete(pictureIds: string[]): Promise<void> {
     return deleteStoredImages(this.db, pictureIds);
-  }
-
-  /**
-   * Write one picture: the bytes into the store, everything the queries run on
-   * into the collection. Two writes rather than one, so the bytes are dropped
-   * again if the document does not make it - a failed write leaves nothing
-   * behind either way.
-   */
-  public createImage(image: Omit<Image, 'size'>, data: Buffer): Promise<Image> {
-    return this.writeImage(image, () => this.upload(image.image_id, data).then(() => data.length));
-  }
-
-  /** The same, for a picture that is already a file on disk (a fresh timelapse). */
-  public createImageFromFile(image: Omit<Image, 'size'>, path: string): Promise<Image> {
-    return this.writeImage(image, () => this.uploadFile(image.image_id, path));
-  }
-
-  private async writeImage(image: Omit<Image, 'size'>, upload: () => Promise<number>): Promise<Image> {
-    const size = await upload();
-
-    try {
-      return await this.images.create({ ...image, size });
-    } catch (e) {
-      await this.delete([image.image_id]).catch(() => undefined);
-      throw e;
-    }
   }
 }

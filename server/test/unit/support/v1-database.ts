@@ -1,0 +1,75 @@
+import { MongoMemoryServer } from 'mongodb-memory-server';
+import mongoose, { Connection, Model } from 'mongoose';
+import { MODEL_V1 } from '@database/models';
+import { CameraDocument, camerasSchema } from '@database/schemas/v1/cameras.schema';
+import { StoredDeviceClass, deviceClassesSchema } from '@database/schemas/v1/device-classes.schema';
+import { StoredDevice, devicesSchema } from '@database/schemas/v1/devices.schema';
+import { EntryDocument, entriesSchema } from '@database/schemas/v1/entries.schema';
+import { StoredFirmware, firmwaresSchema } from '@database/schemas/v1/firmwares.schema';
+import { GrowDocument, growsSchema } from '@database/schemas/v1/grows.schema';
+import { MediaDocument, mediaSchema } from '@database/schemas/v1/media.schema';
+import { MembershipDocument, membershipsSchema } from '@database/schemas/v1/memberships.schema';
+import { StoredPasswordReset, passwordResetsSchema } from '@database/schemas/v1/password-resets.schema';
+import { PlantDocument, plantsSchema } from '@database/schemas/v1/plants.schema';
+import { StoredSession, sessionsSchema } from '@database/schemas/v1/sessions.schema';
+import { ShareLinkDocument, shareLinksSchema } from '@database/schemas/v1/share-links.schema';
+import { SpaceDocument, spacesSchema } from '@database/schemas/v1/spaces.schema';
+import { StoredUser, usersSchema } from '@database/schemas/v1/users.schema';
+
+/**
+ * A real MongoDB holding the `/v1` collections, for the services that decide by
+ * querying them. `access()` is a handful of lookups over five collections and a
+ * `$in` across the spaces a membership covers; stubbing those would only ever
+ * confirm that the spec and the service agree on what to stub.
+ */
+export interface V1TestDatabase {
+  connection: Connection;
+  spaces: Model<SpaceDocument>;
+  grows: Model<GrowDocument>;
+  plants: Model<PlantDocument>;
+  devices: Model<StoredDevice>;
+  deviceClasses: Model<StoredDeviceClass>;
+  firmwares: Model<StoredFirmware>;
+  cameras: Model<CameraDocument>;
+  entries: Model<EntryDocument>;
+  media: Model<MediaDocument>;
+  memberships: Model<MembershipDocument>;
+  shareLinks: Model<ShareLinkDocument>;
+  users: Model<StoredUser>;
+  sessions: Model<StoredSession>;
+  passwordResets: Model<StoredPasswordReset>;
+  reset(): Promise<void>;
+  stop(): Promise<void>;
+}
+
+export const startV1TestDatabase = async (): Promise<V1TestDatabase> => {
+  const server = await MongoMemoryServer.create();
+  const connection = mongoose.createConnection(server.getUri('v1-unit-spec'));
+  await connection.asPromise();
+
+  return {
+    connection,
+    spaces: connection.model<SpaceDocument>(MODEL_V1.space, spacesSchema),
+    grows: connection.model<GrowDocument>(MODEL_V1.grow, growsSchema),
+    plants: connection.model<PlantDocument>(MODEL_V1.plant, plantsSchema),
+    devices: connection.model<StoredDevice>(MODEL_V1.device, devicesSchema),
+    deviceClasses: connection.model<StoredDeviceClass>(MODEL_V1.deviceClass, deviceClassesSchema),
+    firmwares: connection.model<StoredFirmware>(MODEL_V1.firmware, firmwaresSchema),
+    cameras: connection.model<CameraDocument>(MODEL_V1.camera, camerasSchema),
+    entries: connection.model<EntryDocument>(MODEL_V1.entry, entriesSchema),
+    media: connection.model<MediaDocument>(MODEL_V1.media, mediaSchema),
+    memberships: connection.model<MembershipDocument>(MODEL_V1.membership, membershipsSchema),
+    shareLinks: connection.model<ShareLinkDocument>(MODEL_V1.shareLink, shareLinksSchema),
+    users: connection.model<StoredUser>(MODEL_V1.user, usersSchema),
+    sessions: connection.model<StoredSession>(MODEL_V1.session, sessionsSchema),
+    passwordResets: connection.model<StoredPasswordReset>(MODEL_V1.passwordReset, passwordResetsSchema),
+    reset: async () => {
+      const collections = await connection.db!.collections();
+      await Promise.all(collections.map(collection => collection.deleteMany({})));
+    },
+    stop: async () => {
+      await connection.close();
+      await server.stop();
+    },
+  };
+};

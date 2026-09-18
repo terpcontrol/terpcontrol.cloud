@@ -25,6 +25,9 @@ class TerpControlApi {
 
     private static var MAX_DATAPOINTS = 25;
     private static var INTERVAL_SECONDS = 20;
+    // A device counts as offline after ten minutes, so a window that long holds
+    // the newest sample of every device that is still reporting.
+    private static var OUTPUT_WINDOW_SECONDS = 600;
 
     public function initialize(view) {
         _view = view;
@@ -127,66 +130,85 @@ class TerpControlApi {
         doLoadLatestValues(types, result, startingView);
     }
 
+    // The sensors come from one live read, which carries every metric the device
+    // reports. What its outputs are doing is not a live value but a series, so
+    // the newest window of them is asked for separately.
     function doLoadLatestValues(types as Array, result as Dictionary, startingView) as Void {
         if (startingView != _view || _device == null) {
             return;
         }
 
-        var type = null;
-        for (var i = 0; i < types.size(); i++) {
-            if (result[types[i]] == null) {
-                type = types[i];
-                break;
-            }
-        }
+        new WebRequestWithContext(apiUrl("/devices/" + _device["id"] + "/live"), null, readOptions(), method(:onReceiveLive), [types, result, startingView]);
+    }
 
-        if (type == null) {
-            var allNotAvailable = true;
-            for (var i = 0; i < types.size(); i++) {
-                if (result[types[i]] > -1) {
-                    allNotAvailable = false;
-                    break;
-                }
-            }
-            if (allNotAvailable) {
-                // The cached device is likely gone or renamed - fetch the list again.
-                refreshDevices();
-            }
+    // context is [types, result, startingView] - left untyped because the
+    // starting view can be any of the views and they share no common interface.
+    function onReceiveLive(responseCode as Number, data as Dictionary or String or Null, context as Array) as Void {
+        if (responseCode == 404) {
+            // The cached device is gone - fetch the list again.
+            refreshDevices();
+            onError(responseCode, "Failed to load values");
+            return;
+        }
+        if (responseCode != 200) {
+            onError(responseCode, "Failed to load values");
             return;
         }
 
-        var url = Properties.getValue("api_base_url_prop") + "/data/latest/" + _device["id"] + "/" + type;
+        var types = context[0];
+        var result = context[1];
+        var startingView = context[2];
+        if (startingView != _view) {
+            return;
+        }
 
-        var options = {
-            :method => Communications.HTTP_REQUEST_METHOD_GET,
-            :headers => {
-                "Authorization" => "Bearer " + _token,
-            },
-            :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON,
-        };
+        var outputs = [];
+        for (var i = 0; i < types.size(); i++) {
+            var type = types[i];
+            if (TerpControlDevices.isOutput(type)) {
+                outputs.add(type);
+                continue;
+            }
+            var reading = data["metrics"][TerpControlDevices.apiName(type)];
+            result[type] = reading == null || reading["value"] == null ? -1 : reading["value"];
+        }
+        startingView.onLatestValuesLoaded(result);
 
-        new WebRequestWithContext(url, null, options, method(:onReceiveValue), [types, type, result, startingView]);
+        if (outputs.size() == 0) {
+            return;
+        }
+        // One window wide enough to hold the newest sample of a device that is
+        // still online, and one point per output to read it out of.
+        var url = seriesUrl(outputs, OUTPUT_WINDOW_SECONDS, OUTPUT_WINDOW_SECONDS);
+        new WebRequestWithContext(url, null, readOptions(), method(:onReceiveOutputs), [outputs, result, startingView]);
     }
 
-    // context is [types, type, result, startingView] - left untyped because the
-    // starting view can be any of the views and they share no common interface.
-    function onReceiveValue(responseCode as Number, data as Dictionary or String or Null, context as Array) as Void {
-        if (responseCode == 201) {
-            var types = context[0];
-            var type = context[1];
-            var result = context[2];
-            var startingView = context[3];
-
-            if (startingView != _view) {
-                return;
-            }
-
-            result[type] = data["value"] == null ? -1 : data["value"];
-            startingView.onLatestValuesLoaded(result);
-            doLoadLatestValues(types, result, startingView);
-        } else {
+    // context is [outputs, result, startingView].
+    function onReceiveOutputs(responseCode as Number, data as Dictionary or String or Null, context as Array) as Void {
+        if (responseCode != 200) {
             onError(responseCode, "Failed to load values");
+            return;
         }
+
+        var outputs = context[0];
+        var result = context[1];
+        var startingView = context[2];
+        if (startingView != _view) {
+            return;
+        }
+
+        for (var i = 0; i < outputs.size(); i++) {
+            var points = seriesPoints(data, outputs[i]);
+            var value = -1;
+            for (var p = points.size() - 1; p >= 0; p--) {
+                if (points[p]["value"] != null) {
+                    value = points[p]["value"];
+                    break;
+                }
+            }
+            result[outputs[i]] = value;
+        }
+        startingView.onLatestValuesLoaded(result);
     }
 
     function onTokenForSeries(context as Array) as Void {
@@ -236,23 +258,19 @@ class TerpControlApi {
         while (timePeriodSeconds / intervalSeconds > MAX_DATAPOINTS) {
             intervalSeconds += INTERVAL_SECONDS;
         }
-        var url = Properties.getValue("api_base_url_prop") + "/data/series/" + _device["id"] + "/" + type + "?from=-" + timePeriodSeconds + "s&to=now()&interval=" + intervalSeconds + "s";
 
-        var options = {
-            :method => Communications.HTTP_REQUEST_METHOD_GET,
-            :headers => {
-                "Authorization" => "Bearer " + _token,
-            },
-            :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON,
-        };
+        // One series per request, although the route answers as many as it is
+        // asked for: the chart draws each one as it arrives, and the watch never
+        // holds a whole fleet's worth of points at once.
+        var url = seriesUrl([type], timePeriodSeconds, intervalSeconds);
 
-        new WebRequestWithContext(url, null, options, method(:onReceiveSeries), [types, type, timePeriodSeconds, result, startingView]);
+        new WebRequestWithContext(url, null, readOptions(), method(:onReceiveSeries), [types, type, timePeriodSeconds, result, startingView]);
     }
 
     // context is [types, type, timePeriodSeconds, result, startingView], untyped
-    // for the same reason as onReceiveValue's.
+    // for the same reason as onReceiveLive's.
     function onReceiveSeries(responseCode as Number, data as Dictionary or String or Null, context as Array) as Void {
-        if (responseCode == 201) {
+        if (responseCode == 200) {
             var types = context[0];
             var type = context[1];
             var timePeriodSeconds = context[2];
@@ -263,11 +281,12 @@ class TerpControlApi {
                 return;
             }
 
+            var points = seriesPoints(data, type);
             var series = [];
-            for (var i = 0; i < data.size(); i++) {
+            for (var i = 0; i < points.size(); i++) {
                 series.add({
-                    "time" => TerpControlUtils.parseISODate(data[i]["_time"]),
-                    "value" => data[i]["_value"],
+                    "time" => TerpControlUtils.parseISODate(points[i]["measuredAt"]),
+                    "value" => points[i]["value"],
                 });
             }
 
@@ -304,7 +323,7 @@ class TerpControlApi {
             return;
         }
 
-        var url = Properties.getValue("api_base_url_prop") + "/device/maintenancemode";
+        var url = apiUrl("/devices/" + _device["id"] + "/commands");
 
         var options = {
             :method => Communications.HTTP_REQUEST_METHOD_POST,
@@ -315,16 +334,18 @@ class TerpControlApi {
             :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON,
         };
 
+        // Maintenance is one of the commands a device takes; a duration of zero
+        // ends the window that is running.
         var params = {
-            "device_id" => _device["id"],
-            "duration_minutes" => durationMinutes,
+            "kind" => "maintenance",
+            "forSeconds" => durationMinutes * 60,
         };
 
         new WebRequestWithContext(url, params, options, method(:onReceiveSetMaintenance), context);
     }
 
     function onReceiveSetMaintenance(responseCode as Number, data as Dictionary or String or Null, context as Array) as Void {
-        if (responseCode == 200) {
+        if (responseCode == 200 || responseCode == 201) {
             var durationMinutes = context[0] as Number;
             var startingView = context[1];
             if (startingView != _view || _device == null || !(_view instanceof TerpControlMaintenanceView)) {
@@ -351,9 +372,44 @@ class TerpControlApi {
             return;
         }
 
-        var url = Properties.getValue("api_base_url_prop")
-            + "/image/" + _device["id"]
-            + "?format=jpeg&token=" + _imageToken
+        if (!_device.hasKey("camera")) {
+            // A device list cached before cameras were records of their own
+            // knows of none, so it is read again rather than shown as empty.
+            refreshDevices();
+            loadDevices(method(:onDeviceForWebcam), startingView);
+            return;
+        }
+
+        if (_device["camera"] == null) {
+            onError(null, "No camera on this device");
+            return;
+        }
+
+        // The newest frame of that camera, which is a picture like any other and
+        // is fetched from the media route by its id.
+        var url = apiUrl("/cameras/" + _device["camera"] + "/frames") + "?limit=1";
+        new WebRequestWithContext(url, null, readOptions(), method(:onReceiveFrames), startingView);
+    }
+
+    function onReceiveFrames(responseCode as Number, data as Dictionary or String or Null, context) as Void {
+        if (responseCode != 200) {
+            onError(responseCode, "Failed to load webcam image");
+            return;
+        }
+        if (context != _view) {
+            return;
+        }
+
+        var items = data["items"];
+        if (items.size() == 0) {
+            onError(null, "No picture yet");
+            return;
+        }
+
+        // Pictures carry their own token in the URL, because an image request
+        // sends no headers of ours.
+        var url = apiUrl("/media/" + items[0]["id"] + "/content")
+            + "?token=" + _imageToken
             + "&width=" + Toybox.System.getDeviceSettings().screenWidth
             + "&height=" + Toybox.System.getDeviceSettings().screenHeight;
 
@@ -380,7 +436,7 @@ class TerpControlApi {
             return;
         }
 
-        var url = Properties.getValue("api_base_url_prop") + "/login";
+        var url = apiUrl("/sessions");
 
         var options = {
             :method => Communications.HTTP_REQUEST_METHOD_POST,
@@ -390,12 +446,14 @@ class TerpControlApi {
             :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON,
         };
 
+        // The login identity is the e-mail address; the setting is still called
+        // "username" because that is what the watch's settings screen shows.
         var params = {
-            "username" => Properties.getValue("username_prop"),
+            "email" => Properties.getValue("username_prop"),
             "password" => Properties.getValue("password_prop"),
         };
 
-        if (params["username"] == null || params["password"] == null) {
+        if (params["email"] == null || params["password"] == null) {
             onError(null, "Please set login in settings");
             return;
         }
@@ -409,10 +467,17 @@ class TerpControlApi {
     }
 
     function onReceiveToken(responseCode as Number, data as Dictionary or String or Null, context as [Method, Object]) as Void {
-        if (responseCode == 200) {
+        if (responseCode == 200 || responseCode == 201) {
             _token = data["userToken"]["token"];
-            _imageToken = data["imageToken"]["token"];
-            _tokenValidUntil = Time.now().add(new Time.Duration(data["userToken"]["expiresIn"] - 5));
+            // Pictures are fetched with a token of their own, because their URL
+            // carries it rather than a header.
+            _imageToken = data["mediaToken"]["token"];
+            // The answer names the instant the token stops working; a few
+            // seconds are kept back so a request never starts on an expired one.
+            // An instant that cannot be read counts as expired, which costs a
+            // login per request rather than a session that never renews.
+            var validUntil = TerpControlUtils.parseISODate(data["userToken"]["validUntil"]);
+            _tokenValidUntil = validUntil != null ? validUntil.subtract(new Time.Duration(5)) : Time.now();
             Storage.setValue("token", _token);
             Storage.setValue("imageToken", _imageToken);
             Storage.setValue("tokenValidUntil", _tokenValidUntil.value());
@@ -442,51 +507,74 @@ class TerpControlApi {
     }
 
     function loadDevices(onDevicesReady as Method, onDevicesReadyArg) as Void {
-        var url = Properties.getValue("api_base_url_prop") + "/device";
-
-        var options = {
-            :method => Communications.HTTP_REQUEST_METHOD_GET,
-            :headers => {
-                "Authorization" => "Bearer " + _token,
-            },
-            :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON,
-        };
-
-        new WebRequestWithContext(url, null, options, method(:onReceiveDevices), [onDevicesReady, onDevicesReadyArg]);
+        new WebRequestWithContext(apiUrl("/devices"), null, readOptions(), method(:onReceiveDevices), [onDevicesReady, onDevicesReadyArg]);
     }
 
     function onReceiveDevices(responseCode as Number, data as Dictionary or String or Null, context as [Method, Object]) as Void {
         if (responseCode == 200) {
-            if (data.size() == 0) {
+            // Lists answer one page and the cursor to continue it with. A watch
+            // shows a handful of devices, so the first page is the whole fleet.
+            var items = data["items"];
+            if (items.size() == 0) {
                 onError(null, "No devices found");
                 return;
             }
 
             var devices = [];
-            for (var i = 0; i < data.size(); i++) {
-                var type = data[i]["device_type"];
-                var name = data[i]["name"];
+            for (var i = 0; i < items.size(); i++) {
+                var type = items[i]["type"];
+                var name = items[i]["name"];
                 devices.add({
-                    "id" => data[i]["device_id"],
+                    "id" => items[i]["id"],
                     "name" => name != null && name.length() > 0 ? name : TerpControlDevices.deviceTypeLabel(type),
                     "type" => type,
-                    // Seconds left of the maintenance window; the millisecond
-                    // timestamp the webapp uses does not survive the JSON parser here.
-                    "maintenance" => data[i]["maintenance_mode_seconds_left"],
+                    // Seconds left of the maintenance window, counted from the
+                    // instant the device carries, so the page can tick it down.
+                    "maintenance" => secondsUntil(items[i]["state"]["maintenanceUntil"]),
+                    // Filled in by the camera list below; a picture belongs to a
+                    // camera and no longer to the device it hangs in.
+                    "camera" => null,
                 });
             }
             _devices = devices;
 
-            Storage.setValue("devices", _devices);
-            Storage.setValue("devicesUsername", Properties.getValue("username_prop"));
-
-            resolveDevice();
-            context[0].invoke(context[1]);
+            loadCameras(context);
         } else {
             onError(responseCode, "Failed loading device data");
             _token = null;
             _tokenValidUntil = null;
         }
+    }
+
+    // Which camera answers for which device. Read once with the device list and
+    // cached with it, so the webcam page knows what to ask for a picture of.
+    function loadCameras(context as [Method, Object]) as Void {
+        new WebRequestWithContext(apiUrl("/cameras"), null, readOptions(), method(:onReceiveCameras), context);
+    }
+
+    function onReceiveCameras(responseCode as Number, data as Dictionary or String or Null, context as [Method, Object]) as Void {
+        if (responseCode == 200) {
+            var items = data["items"];
+            for (var i = 0; i < items.size(); i++) {
+                var deviceId = items[i]["deviceId"];
+                if (deviceId == null || items[i]["removedAt"] != null) {
+                    continue;
+                }
+                for (var d = 0; d < _devices.size(); d++) {
+                    if (_devices[d]["id"].equals(deviceId) && _devices[d]["camera"] == null) {
+                        _devices[d]["camera"] = items[i]["id"];
+                    }
+                }
+            }
+        }
+
+        // A fleet without cameras is not an error - the rest of the app works
+        // without one, and only the webcam page has nothing to show.
+        Storage.setValue("devices", _devices);
+        Storage.setValue("devicesUsername", Properties.getValue("username_prop"));
+
+        resolveDevice();
+        context[0].invoke(context[1]);
     }
 
     // Picks the device the user last selected, falling back to the first one. The
@@ -514,6 +602,64 @@ class TerpControlApi {
         }
 
         _view.onDeviceResolved(_device);
+    }
+
+    // Everything this widget calls lives under /v1; the device protocol's own
+    // routes are the firmware's and are never spoken here.
+    private function apiUrl(path as String) as String {
+        return Properties.getValue("api_base_url_prop") + "/v1" + path;
+    }
+
+    private function readOptions() as Dictionary {
+        return {
+            :method => Communications.HTTP_REQUEST_METHOD_GET,
+            :headers => {
+                "Authorization" => "Bearer " + _token,
+            },
+            :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON,
+        };
+    }
+
+    // How much of a window is left, from the instant it ends. Null is "not in
+    // one", and a window that has run out is over rather than negative.
+    private function secondsUntil(instant as String?) as Number {
+        if (instant == null) {
+            return 0;
+        }
+        var moment = TerpControlUtils.parseISODate(instant);
+        if (moment == null) {
+            return 0;
+        }
+        var seconds = moment.value() - Time.now().value();
+        return seconds > 0 ? seconds : 0;
+    }
+
+    // One series request. The route takes the series it should answer as
+    // repeated query parameters - `metrics=` for a sensor, `outputs=` for what
+    // the controller is driving - and answers one list per kind.
+    private function seriesUrl(types as Array, periodSeconds as Number, stepSeconds as Number) as String {
+        var now = Time.now();
+        var url = apiUrl("/devices/" + _device["id"] + "/series")
+            + "?startsAt=" + TerpControlUtils.toISODate(now.subtract(new Time.Duration(periodSeconds)))
+            + "&endsAt=" + TerpControlUtils.toISODate(now)
+            + "&stepSeconds=" + stepSeconds;
+        for (var i = 0; i < types.size(); i++) {
+            url += (TerpControlDevices.isOutput(types[i]) ? "&outputs=" : "&metrics=") + TerpControlDevices.apiName(types[i]);
+        }
+        return url;
+    }
+
+    private function seriesPoints(data as Dictionary, type as String) as Array {
+        var isOutput = TerpControlDevices.isOutput(type);
+        var series = isOutput ? data["outputs"] : data["metrics"];
+        var key = isOutput ? "output" : "metric";
+        var name = TerpControlDevices.apiName(type);
+        for (var i = 0; i < series.size(); i++) {
+            if (series[i][key].equals(name)) {
+                return series[i]["points"];
+            }
+        }
+        return [];
     }
 
     function onError(responseCode as Number or Null, fallbackError as String) as Void {

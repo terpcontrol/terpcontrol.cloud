@@ -2,11 +2,11 @@ import { anonymous, context, loginAsAdmin } from '../support/api';
 
 describe('service endpoints', () => {
   it('answers the liveness probe', async () => {
-    await anonymous().get('/').expect(200);
+    await anonymous().get('/healthz').expect(200);
   });
 
   it('reports ready once the admin account exists', async () => {
-    await anonymous().get('/readycheck').expect(200);
+    await anonymous().get('/readyz').expect(200);
   });
 
   it('bootstraps the configured admin account', async () => {
@@ -46,19 +46,20 @@ describe('service endpoints', () => {
     // call has to say so - otherwise logging in reads as impossible without
     // having logged in.
     for (const [path, method] of [
-      ['/login', 'post'],
-      ['/signup', 'post'],
-      ['/refresh', 'post'],
-      ['/reset', 'post'],
+      ['/v1/sessions', 'post'],
+      ['/v1/sessions/refresh', 'post'],
+      ['/v1/users', 'post'],
+      ['/v1/password-resets', 'post'],
       ['/device/register', 'post'],
+      ['/device/claimcode', 'post'],
       ['/device/firmware/{firmware_id}/{binary}', 'get'],
-      ['/share/resolve/{share_id}', 'get'],
-      ['/readycheck', 'get'],
+      ['/healthz', 'get'],
+      ['/readyz', 'get'],
     ]) {
       expect(response.body.paths[path]?.[method]?.security).toEqual([]);
     }
 
     // And one that does need it says nothing, inheriting the requirement.
-    expect(response.body.paths['/users'].get.security).toBeUndefined();
+    expect(response.body.paths['/v1/devices'].get.security).toBeUndefined();
   });
 });

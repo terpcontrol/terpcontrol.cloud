@@ -177,6 +177,11 @@ class MqttClient {
 }
 
 // ------------------------------------------------------------------ HTTP / API
+//
+// Two vocabularies meet here. `/device/register` and `/device/claimcode` are the
+// device protocol and are frozen, so they keep their snake_case bodies and their
+// place at the root; everything a person's client does lives under `/v1` and
+// speaks the contract in `shared-types/src/v1/`.
 
 const api = async (path, { method = 'GET', body, token } = {}) => {
   const response = await fetch(API_URL + path, {
@@ -185,7 +190,7 @@ const api = async (path, { method = 'GET', body, token } = {}) => {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const text = await response.text();
-  if (!response.ok) throw new Error(`${method} ${path} -> ${response.status} ${text.slice(0, 300)}`);
+  if (!response.ok) throw new Error(`${method} ${path} -> ${response.status} ${problemText(text)}`);
   try {
     return JSON.parse(text);
   } catch {
@@ -193,9 +198,32 @@ const api = async (path, { method = 'GET', body, token } = {}) => {
   }
 };
 
+// An error of /v1 is a problem document. Its `detail` is the sentence written
+// for a human, so show that rather than the envelope around it.
+const problemText = body => {
+  try {
+    const problem = JSON.parse(body);
+    if (problem?.detail) return [problem.detail, ...(problem.errors ?? []).map(e => `${e.field}: ${e.detail}`)].join(' ');
+  } catch {
+    // Not every failure comes from the API; a proxy answers HTML.
+  }
+  return body.slice(0, 300);
+};
+
+// Every list of /v1 answers one page and the cursor to continue it with.
+const apiList = async (path, token) => {
+  const items = [];
+  for (let cursor = null; ; ) {
+    const page = await api(cursor ? `${path}?cursor=${encodeURIComponent(cursor)}` : path, { token });
+    items.push(...page.items);
+    if (!page.nextCursor) return items;
+    cursor = page.nextCursor;
+  }
+};
+
 const login = async () => {
   if (!USER) throw new Error('No user configured. Set AGENT_TESTING_USERNAME/PASSWORD (or ADMINUSER_*) in .env.');
-  const { userToken } = await api('/login', { method: 'POST', body: { username: USER, password: USER_PASSWORD } });
+  const { userToken } = await api('/v1/sessions', { method: 'POST', body: { email: USER, password: USER_PASSWORD } });
   return userToken.token;
 };
 
@@ -1001,8 +1029,10 @@ const claim = async options => {
   if (!code?.claim_code) throw new Error('Server did not hand out a claim code - is the device registered?');
   console.log(`claim code: ${code.claim_code}`);
   const token = await login();
-  await api('/device', { method: 'POST', body: { claim_code: code.claim_code }, token });
-  console.log(`claimed by ${USER}`);
+  // A device that belongs to no space has no card to appear on, so a claim
+  // always ends in one - naming none makes one.
+  const { device, spaceCreated } = await api('/v1/devices/claims', { method: 'POST', body: { code: code.claim_code }, token });
+  console.log(`claimed by ${USER}${spaceCreated ? `, in a new space (${device.spaceId})` : ''}`);
 };
 
 const withDevice = async (options, body) => {
@@ -1132,41 +1162,50 @@ const hwinfo = options =>
     await sleep(300);
   });
 
+// The server decides a value's age from VALUE_AGE; a device unheard from for as
+// long as the stale window lasts is what both it and this tool call offline.
+const OFFLINE_MS = 600000;
+
+const lastSeen = device => (device.state.lastSeenAt ? Date.parse(device.state.lastSeenAt) : 0);
+
+const isOnline = device => lastSeen(device) > 0 && Date.now() - lastSeen(device) < OFFLINE_MS;
+
 const info = async options => {
   const token = await login();
-  const devices = await api('/device', { token });
-  const device = devices.find(entry => entry.device_id === options.deviceId);
+  const devices = await apiList('/v1/devices', token);
+  const device = devices.find(entry => entry.id === options.deviceId);
   if (!device) {
-    console.log(`${options.deviceId} is not claimed by ${USER}. Known devices: ${devices.map(d => d.device_id).join(', ') || '(none)'}`);
+    console.log(`${options.deviceId} is not claimed by ${USER}. Known devices: ${devices.map(d => d.id).join(', ') || '(none)'}`);
     return;
   }
 
-  const age = Date.now() - (device.lastseen ?? 0);
-  console.log(`device_id     ${device.device_id}`);
-  console.log(`type / name   ${device.device_type} / ${device.name ?? '(unnamed)'}`);
-  const seen = device.lastseen ? `${new Date(device.lastseen).toISOString()} (${Math.round(age / 1000)}s ago)` : 'never';
-  console.log(`lastseen      ${seen} - ${age < 600000 ? 'online' : 'offline'}`);
-  console.log(`hardwareInfo  ${JSON.stringify(device.hardwareInfo ?? {})}`);
-  console.log(`cloudSettings ${JSON.stringify(device.cloudSettings ?? {})}`);
-  console.log(`configuration ${device.configuration || '(none)'}`);
+  const seen = lastSeen(device) ? `${device.state.lastSeenAt} (${Math.round((Date.now() - lastSeen(device)) / 1000)}s ago)` : 'never';
+  console.log(`id            ${device.id}`);
+  console.log(`type / name   ${device.type} / ${device.name ?? '(unnamed)'}`);
+  console.log(`space         ${device.spaceId ?? '(none)'}`);
+  console.log(`lastSeenAt    ${seen} - ${isOnline(device) ? 'online' : 'offline'}`);
+  console.log(`firmware      ${device.state.firmwareId ?? '(unknown)'} on the ${device.firmware.channel} channel`);
+  console.log(`hardware      ${JSON.stringify(device.state.hardware)}`);
+  console.log(`settings      ${JSON.stringify(device.settings)}`);
+  console.log(`configuration ${device.configuration ? JSON.stringify(device.configuration) : '(none)'}`);
 
-  const measures = ['temperature', 'humidity', 'co2', 'vpd', 'out_light', 'out_heater'];
-  const latest = await Promise.all(measures.map(measure => api(`/data/latest/${options.deviceId}/${measure}`, { token }).catch(() => null)));
-  const format = entry => (entry?.value == null || Number.isNaN(entry.value) ? 'n/a' : round(entry.value));
-  console.log(`latest        ${measures.map((measure, i) => `${measure}=${format(latest[i])}`).join(' ')}`);
+  // A live answer holds the sensors and the age of each; what the outputs are
+  // doing is a series and not a live value, so it is not shown here.
+  const live = await api(`/v1/devices/${encodeURIComponent(device.id)}/live`, { token });
+  const readings = Object.entries(live.metrics).map(([key, { value, state }]) => `${key}=${value == null ? 'n/a' : round(value)}(${state})`);
+  console.log(`live          ${readings.join(' ') || '(nothing reported yet)'}`);
 };
 
 const list = async () => {
   const token = await login();
-  const devices = await api('/device', { token });
+  const devices = await apiList('/v1/devices', token);
   if (!devices.length) {
     console.log(`${USER} owns no devices yet - "./simulate-device.sh setup" makes one.`);
     return;
   }
-  const width = Math.max(...devices.map(device => device.device_id.length));
+  const width = Math.max(...devices.map(device => device.id.length));
   for (const device of devices) {
-    const age = Date.now() - (device.lastseen ?? 0);
-    console.log(`${device.device_id.padEnd(width)}  ${device.device_type.padEnd(10)} ${age < 600000 ? 'online' : 'offline'}`);
+    console.log(`${device.id.padEnd(width)}  ${device.type.padEnd(10)} ${isOnline(device) ? 'online' : 'offline'}`);
   }
 };
 

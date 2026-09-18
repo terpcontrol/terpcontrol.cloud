@@ -1,277 +1,247 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { logger } from '@utils/logger';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { ConfigType } from '@nestjs/config';
 import { InfluxDB, Point } from '@influxdata/influxdb-client';
-import { HttpException } from '@common/http-exception';
-import { calculateVpd } from '@utils/calculateVpd';
-import { MeasurementPoint } from '@fg2/shared-types';
+import { DeviceLive, DeviceSeries, Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
+import { logger } from '@utils/logger';
+import { fieldOfMetric, fieldOfOutputMetric, metricOfField, OUTPUT_FIELDS, STORED_FIELDS } from '@common/v1/metrics';
+import { metricValueOf } from '@common/v1/value-age';
+import { LightStateReader } from '@modules/v1/camera/light-state';
+import { MODEL_V1 } from '@database/models';
+import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { influxConfig } from '../../config/configuration';
-import { DeviceSettingsService } from '../device/device-settings.service';
-import { StatusMessage } from '../device/device.types';
-
-export const VALID_SENSORS = ['temperature', 'humidity', 'avg', 'p', 'i', 'd', 'co2', 'rpm', 'day', 'sensor_type', 'leaf_temperature', 'lux'];
-
-// Lux→PPFD depends on the light spectrum, so it is a per-device calibration
-// constant rather than a fixed physical conversion. Default assumes a white
-// full-spectrum LED; growers can override it per device in cloud settings.
-const DEFAULT_PPFD_LUX_FACTOR = 0.015;
-
-export const VALID_OUTPUTS = ['heater', 'dehumidifier', 'co2', 'light', 'fan', 'relais', 'fan-internal', 'fan-external', 'fan-backwall'];
+import {
+  computedValue,
+  DEFAULT_PPFD_LUX_FACTOR,
+  DeviceFactors,
+  fieldsFor,
+  FluxRow,
+  gridOf,
+  latestByField,
+  liveQuery,
+  pointsOf,
+  readingsOf,
+  seriesQuery,
+  stepFor,
+} from './flux';
 
 /**
- * Everything below builds Flux by interpolation, so what may be interpolated is
- * spelled out here. Without this a caller can close the query and append a
- * pipeline of its own - `?to=now()) |> yield() from(bucket: "…"` reads the whole
- * bucket, which holds every device of every customer.
+ * The measurement store.
  *
- * A duration as Flux writes it: `-30d`, `1h`, `-1h30m`.
+ * Inwards nothing changes: a status message is written into the `status`
+ * measurement under the field names the device reports, because deployed
+ * firmware and three years of stored points decide those. Outwards the service
+ * speaks the API's metric names, through the one shared translation.
+ *
+ * The samples are tagged by `device_id` alone. Whoever owned a device when a
+ * sample arrived used to be tagged beside it and was never read back, and a
+ * device changes hands, so the tag said nothing true about older points either.
  */
-const DURATION = /^-?(?:\d+(?:ns|us|µs|ms|s|m|h|d|w|mo|y))+$/;
-// `from` and `to` also take an absolute time, and `to` is usually `now()`.
-const RFC3339 = /^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})$/;
-// A field name as this service writes it - `out_` plus an output name, and
-// three of those are hyphenated (`out_fan-internal`) - and a device id as the
-// server issues it.
-const FIELD_NAME = /^[A-Za-z0-9_-]{1,64}$/;
-const DEVICE_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
 
-// A window has to move forward: Flux rejects `every: -5m` and `every: 0s`, and
-// the point of validating here is that the caller hears a 400 rather than that.
-const isPositiveDuration = (value: string): boolean =>
-  DURATION.test(value) && !value.startsWith('-') && (value.match(/\d+/g) ?? []).some(digits => Number(digits) > 0);
+/**
+ * Controller diagnostics the API names no metric for. They keep being written
+ * and stay readable in Influx, so a question that is asked one day can be
+ * answered from the points that were kept.
+ */
+/** 1 while the controller is in the day half of its cycle, 0 in the night half. */
+const DAY_FIELD = 'day';
 
-const requireMatch = (value: unknown, pattern: RegExp, name: string): string => {
-  const text = String(value ?? '');
-  if (!pattern.test(text)) {
-    throw new HttpException(400, `Invalid ${name}`);
-  }
-  return text;
-};
+const DIAGNOSTIC_FIELDS = ['avg', 'p', 'i', 'd', 'rpm', DAY_FIELD, 'sensor_type'];
 
-const requireInterval = (value: unknown): string => {
-  const text = String(value ?? '');
-  if (!isPositiveDuration(text)) {
-    throw new HttpException(400, 'Invalid interval');
-  }
-  return text;
-};
+/** Every sensor field a device may write: the named metrics, and the diagnostics beside them. */
+const SENSOR_FIELDS = [...STORED_FIELDS, ...DIAGNOSTIC_FIELDS];
 
-const requireTimeLiteral = (value: unknown, name: string): string => {
-  const text = String(value ?? '');
-  if (text === 'now()' || DURATION.test(text) || RFC3339.test(text)) {
-    return text;
-  }
-  throw new HttpException(400, `Invalid ${name}`);
+/** An output is written with an `out_` prefix, which is what the device reports it without. */
+const OUTPUT_KEYS = OUTPUT_FIELDS.map(field => ({ key: field.slice('out_'.length), field }));
+
+/** One status message, in the device's own vocabulary. The device-protocol module translates the rest. */
+export interface DeviceSample {
+  measuredAt: Date;
+  sensors: Record<string, unknown>;
+  outputs: Record<string, unknown>;
+}
+
+/**
+ * Everything one `last()` says about a device. Two of the facts it holds have no
+ * metric of their own and are still read from here: which half of its cycle the
+ * device says it is in, and whether its light is on. Both ride along with the
+ * metrics rather than costing a query each - a card and `/live` are one read.
+ */
+export interface LiveReading {
+  metrics: DeviceLive['metrics'];
+  /** Null where the device does not report a day/night cycle at all. */
+  isDay: boolean | null;
+  /** Null where the device drives no light output. */
+  lightOn: boolean | null;
+}
+
+export interface SeriesRequest {
+  metrics: readonly Metric[];
+  outputs?: readonly OutputMetric[];
+  startsAt: Date;
+  endsAt: Date;
+  /** Left out, the server picks a step from the range; too narrow a one for the range is widened. */
+  stepSeconds?: number;
+}
+
+/** What the device schema fills in, reached only for a device that is not in the database at all. */
+const DEFAULT_FACTORS: DeviceFactors = {
+  vpdLeafOffsetDay: -2,
+  vpdLeafOffsetNight: 0,
+  ppfdLuxFactor: DEFAULT_PPFD_LUX_FACTOR,
 };
 
 @Injectable()
-export class DataService {
+export class DataService implements LightStateReader {
   private readonly influx: InfluxDB;
 
   constructor(
-    private readonly devices: DeviceSettingsService,
+    @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     @Inject(influxConfig.KEY) private readonly config: ConfigType<typeof influxConfig>,
   ) {
     this.influx = new InfluxDB({ url: config.url, token: config.token });
   }
 
-  public async addData(device_id: string, user_id: string, fields: StatusMessage) {
-    // create a write API, expecting point timestamps in nanoseconds (can be also 's', 'ms', 'us')
-    // Org and bucket are required environment - without them there is no database to write to at all.
+  /** What a device just reported, stored. A failure is logged and swallowed: a lost sample must not drop the connection. */
+  public async writeSample(deviceId: string, sample: DeviceSample): Promise<void> {
+    // Org and bucket are required environment - without them there is no
+    // database to write to at all.
     const writeApi = this.influx.getWriteApi(this.config.org!, this.config.bucket!, 'ns');
-    // setup default tags for all writes through this API
-    writeApi.useDefaultTags({ device_id: device_id, user_id: user_id });
+    writeApi.useDefaultTags({ device_id: deviceId });
 
     try {
-      // write point with the appropriate timestamp
-      const point1 = new Point('status');
-      for (const sensor of VALID_SENSORS) {
-        if (fields.sensors[sensor] != null) {
-          point1.floatField(sensor, parseFloat(String(fields.sensors[sensor])));
-        }
+      const point = new Point('status');
+      for (const field of SENSOR_FIELDS) {
+        if (sample.sensors[field] != null) point.floatField(field, parseFloat(String(sample.sensors[field])));
       }
-      for (const output of VALID_OUTPUTS) {
-        if (fields.outputs[output] != null) {
-          point1.floatField('out_' + output, parseFloat(String(fields.outputs[output])));
-        }
+      for (const output of OUTPUT_KEYS) {
+        if (sample.outputs[output.key] != null) point.floatField(output.field, parseFloat(String(sample.outputs[output.key])));
       }
 
-      // Use the provided timestamp if available, otherwise use the current timestamp
-      const timestamp = fields.timestamp && fields.timestamp > 0 ? fields.timestamp * 1000000000 : new Date();
-      point1.timestamp(timestamp);
-
-      writeApi.writePoint(point1);
+      point.timestamp(sample.measuredAt);
+      writeApi.writePoint(point);
       await writeApi.close();
     } catch (err) {
-      logger.error(`Failed writing measurements for device ${device_id}: ${err}`);
+      logger.error(`Failed writing measurements for device ${deviceId}: ${err}`);
     }
   }
 
-  public async getSeries(
-    device_id: string,
-    measure: string,
-    from: unknown,
-    to: unknown,
-    interval: unknown,
-    method = 'mean',
-  ): Promise<MeasurementPoint[]> {
-    if (measure.startsWith('vpd')) {
-      return this.getSeriesVpd(device_id, measure, from, to, interval, method);
+  /**
+   * The newest reading of everything a device measures, each with the age the
+   * shared constant makes of it. One query per device, computed metrics
+   * included: they are worked out from the same rows.
+   */
+  public async live(deviceId: string): Promise<LiveReading> {
+    const [rows, factors] = await Promise.all([this.read(liveQuery(this.bucket, deviceId)), this.factorsOf(deviceId)]);
+    const latest = latestByField(rows);
+
+    const metrics: DeviceLive['metrics'] = {};
+    for (const [field, reading] of latest) {
+      // A diagnostic field the API names no metric for is simply not answered.
+      const name = metricOfField(field);
+      if (name) metrics[name] = metricValueOf(reading.value, reading.measuredAt);
     }
 
-    if (measure === 'ppfd') {
-      return this.getSeriesPpfd(device_id, from, to, interval, method);
+    const readings = readingsOf(field => latest.get(field)?.value ?? null);
+    for (const name of ['vpd', 'ppfd'] as const) {
+      const value = computedValue(name, readings, factors);
+      if (value !== null) metrics[name] = metricValueOf(value, computedAt(name, latest));
     }
 
-    const allowedMethods = ['mean', 'min', 'max', 'sum'];
-    if (!allowedMethods.includes(method)) {
-      method = allowedMethods[0];
-    }
-
-    // Required environment, as in `addData`.
-    const queryApi = this.influx.getQueryApi(this.config.org!);
-    const query = `
-      from(bucket: "${this.config.bucket}")
-        |> range(start: ${requireTimeLiteral(from, 'from')}, stop: ${requireTimeLiteral(to, 'to')})
-        |> filter(fn: (r) => r["_measurement"] == "status")
-        |> filter(fn: (r) => r["_field"] == "${requireMatch(measure, FIELD_NAME, 'measure')}")
-        |> filter(fn: (r) => r["device_id"] == "${requireMatch(device_id, DEVICE_ID, 'device_id')}")
-        |> aggregateWindow(every: ${requireInterval(interval)}, fn: ${method}, createEmpty: true)
-        |> yield(name: "${method}")
-        |> limit(n: 50000)
-    `;
-    const rows = await queryApi.collectRows(query);
-
-    return rows.map((row: any) => {
-      return { _time: row._time, _value: row._value };
-    });
+    return { metrics, isDay: flag(latest, DAY_FIELD), lightOn: flag(latest, fieldOfOutputMetric('light')) };
   }
 
-  private async getSeriesVpd(
-    device_id: string,
-    measure: string,
-    from: unknown,
-    to: unknown,
-    interval: unknown,
-    method: string,
-  ): Promise<MeasurementPoint[]> {
-    const tempSeries = await this.getSeries(device_id, 'temperature', from, to, interval, method);
-    const humiditySeries = await this.getSeries(device_id, 'humidity', from, to, interval, method);
-    const lightSeries = await this.getSeries(device_id, 'out_light', from, to, interval, method);
-    const leafTempSeries = await this.getSeries(device_id, 'leaf_temperature', from, to, interval, method);
-
-    const combinedSeries = new Map();
-    tempSeries.forEach(t => {
-      combinedSeries.set(t._time, { temp: t._value });
-    });
-    humiditySeries.forEach(h => {
-      if (combinedSeries.has(h._time)) {
-        combinedSeries.get(h._time).humidity = h._value;
-      }
-    });
-    lightSeries.forEach(l => {
-      if (combinedSeries.has(l._time)) {
-        combinedSeries.get(l._time).light = l._value;
-      }
-    });
-    leafTempSeries.forEach(lt => {
-      if (combinedSeries.has(lt._time)) {
-        combinedSeries.get(lt._time).leafTemp = lt._value;
-      }
-    });
-
-    const cloudSettings = await this.devices.getDeviceCloudSettings(device_id);
-
-    const dayOnly = measure.endsWith('_day');
-    const nightOnly = measure.endsWith('_night');
-
-    const result = [];
-    for (const [time, values] of combinedSeries.entries()) {
-      const isDay = (values.light ?? 0) > 0.5;
-
-      if (values.temp && values.humidity && ((dayOnly && isDay) || (nightOnly && !isDay) || (!dayOnly && !nightOnly))) {
-        const leafTemp = this.leafTemperature(values.temp, values.leafTemp, isDay, cloudSettings);
-        const vpd = calculateVpd(values.temp, leafTemp, values.humidity);
-        result.push({ _time: time, _value: vpd });
-      } else {
-        result.push({ _time: time, _value: NaN });
-      }
-    }
-
-    return result;
+  /**
+   * Whether a controller's light is on right now, which is what a camera's
+   * `nightOff` asks. Null is "nothing is known about that device's light", which
+   * is not the same as off - a camera keeps taking pictures rather than stopping
+   * for a night nobody can confirm.
+   */
+  public async isLightOn(deviceId: string): Promise<boolean | null> {
+    return (await this.live(deviceId)).lightOn;
   }
 
-  // Prefer a measured leaf temperature (e.g. MLX90632) when present, otherwise
-  // fall back to air temperature plus the configured day/night offset.
-  private leafTemperature(airTemp: number, measuredLeafTemp: number | undefined, isDay: boolean, cloudSettings: any): number {
-    if (measuredLeafTemp != null && !isNaN(measuredLeafTemp)) {
-      return measuredLeafTemp;
-    }
-    const leafTempOffset = isDay ? cloudSettings?.vpdLeafTempOffsetDay : cloudSettings?.vpdLeafTempOffsetNight;
-    return airTemp + (leafTempOffset ?? 0);
+  /**
+   * A window of history. The range and the step are answered back because the
+   * server may have widened the step: a chart asking for seconds over a month
+   * gets a coarser one rather than a truncated series.
+   */
+  public async series(deviceId: string, request: SeriesRequest): Promise<DeviceSeries> {
+    const outputs = request.outputs ?? [];
+    const window = {
+      startsAt: request.startsAt,
+      endsAt: request.endsAt,
+      stepSeconds: stepFor(request.startsAt, request.endsAt, request.stepSeconds),
+    };
+
+    const fields = fieldsFor(request.metrics, outputs);
+    const [rows, factors] = fields.length
+      ? await Promise.all([this.read(seriesQuery(this.bucket, deviceId, fields, window)), this.factorsOf(deviceId)])
+      : [[] as FluxRow[], DEFAULT_FACTORS];
+
+    const grid = gridOf(rows);
+    const valueAt = (field: string, instant: string): number | null => grid.valuesByField.get(field)?.get(instant) ?? null;
+
+    return {
+      deviceId,
+      startsAt: window.startsAt.toISOString(),
+      endsAt: window.endsAt.toISOString(),
+      stepSeconds: window.stepSeconds,
+      metrics: request.metrics.map(name => {
+        const field = fieldOfMetric(name);
+        const at = (instant: string) =>
+          field === null
+            ? computedValue(
+                name,
+                readingsOf(input => valueAt(input, instant)),
+                factors,
+              )
+            : valueAt(field, instant);
+        return { metric: name, points: pointsOf(grid.instants, at) };
+      }),
+      outputs: outputs.map(name => ({
+        output: name,
+        points: pointsOf(grid.instants, instant => valueAt(fieldOfOutputMetric(name), instant)),
+      })),
+    };
   }
 
-  private async getSeriesPpfd(device_id: string, from: unknown, to: unknown, interval: unknown, method: string): Promise<MeasurementPoint[]> {
-    const luxSeries = await this.getSeries(device_id, 'lux', from, to, interval, method);
-    const cloudSettings = await this.devices.getDeviceCloudSettings(device_id);
-    const factor = cloudSettings?.ppfdLuxFactor ?? DEFAULT_PPFD_LUX_FACTOR;
-
-    return luxSeries.map(l => ({ _time: l._time, _value: l._value == null || isNaN(l._value) ? NaN : l._value * factor }));
+  /** One metric over a window, which is what an engine asks for rather than a whole answer. */
+  public async points(deviceId: string, metric: Metric, window: Omit<SeriesRequest, 'metrics' | 'outputs'>): Promise<SeriesPoint[]> {
+    const { metrics } = await this.series(deviceId, { ...window, metrics: [metric] });
+    return metrics[0].points;
   }
 
-  public async getLatest(device_id: string, measure: string): Promise<number> {
-    if (measure === 'vpd') {
-      return this.getLatestVpd(device_id);
-    }
-
-    if (measure === 'ppfd') {
-      return this.getLatestPpfd(device_id);
-    }
-
-    // Required environment, as in `addData`.
-    const queryApi = this.influx.getQueryApi(this.config.org!);
-    const query = `
-      from(bucket: "${this.config.bucket}")
-        |> range(start: -5m)
-        |> filter(fn: (r) => r["_measurement"] == "status")
-        |> filter(fn: (r) => r["_field"] == "${requireMatch(measure, FIELD_NAME, 'measure')}")
-        |> filter(fn: (r) => r["device_id"] == "${requireMatch(device_id, DEVICE_ID, 'device_id')}")
-        |> aggregateWindow(every: 5m, fn: last, createEmpty: false)
-        |> yield(name: "mean")
-    `;
-
-    const rows = await queryApi.collectRows<{ _value: number }>(query);
-
-    if (rows.length > 0) {
-      return rows[rows.length - 1]['_value'];
-    } else {
-      return NaN;
-    }
+  private get bucket(): string {
+    // Required environment, as in `writeSample`.
+    return this.config.bucket!;
   }
 
-  private async getLatestVpd(device_id: string): Promise<number> {
-    const temp = await this.getLatest(device_id, 'temperature');
-    const humidity = await this.getLatest(device_id, 'humidity');
-    const light = await this.getLatest(device_id, 'out_light');
-    const measuredLeafTemp = await this.getLatest(device_id, 'leaf_temperature');
-    const cloudSettings = await this.devices.getDeviceCloudSettings(device_id);
-
-    if (temp && humidity) {
-      const isDay = (light ?? 0) > 0.5;
-      const leafTemp = this.leafTemperature(temp, measuredLeafTemp, isDay, cloudSettings);
-      return calculateVpd(temp, leafTemp, humidity);
-    }
-
-    return NaN;
+  private read(query: string): Promise<FluxRow[]> {
+    return this.influx.getQueryApi(this.config.org!).collectRows<FluxRow>(query);
   }
 
-  private async getLatestPpfd(device_id: string): Promise<number> {
-    const lux = await this.getLatest(device_id, 'lux');
-    if (lux == null || isNaN(lux)) {
-      return NaN;
-    }
-    const cloudSettings = await this.devices.getDeviceCloudSettings(device_id);
-    const factor = cloudSettings?.ppfdLuxFactor ?? DEFAULT_PPFD_LUX_FACTOR;
-    return lux * factor;
+  /** A device's own VPD offsets and lux factor; the defaults for a device that is no longer there. */
+  private async factorsOf(deviceId: string): Promise<DeviceFactors> {
+    const device = await this.devices.findOne({ id: deviceId }, { settings: 1 }).lean();
+    return device ? device.settings : DEFAULT_FACTORS;
   }
 }
+
+/**
+ * How old a computed value is: as old as the stalest reading it was built from.
+ * A VPD from a fresh temperature and an hour-old humidity is an hour old.
+ */
+const computedAt = (name: 'vpd' | 'ppfd', latest: Map<string, { measuredAt: Date }>): Date | null => {
+  const inputs = name === 'vpd' ? (['temperature', 'humidity'] as const) : (['lux'] as const);
+  const instants = inputs.map(input => latest.get(fieldOfMetric(input) as string)?.measuredAt).filter((at): at is Date => at != null);
+
+  return instants.length === inputs.length ? new Date(Math.min(...instants.map(at => at.getTime()))) : null;
+};
+
+/** A field a device writes as 1 or 0, read back as the flag it is. Absent is null, not false. */
+const flag = (latest: Map<string, { value: number }>, field: string): boolean | null => {
+  const reading = latest.get(field);
+  return reading ? reading.value > 0 : null;
+};
