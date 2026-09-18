@@ -200,6 +200,26 @@
       "state"
     ]
   },
+  "SeriesPoint": {
+    "type": "object",
+    "properties": {
+      "measuredAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "value": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "measuredAt",
+      "value"
+    ]
+  },
   "CameraKind": {
     "type": "string",
     "enum": [
@@ -3974,26 +3994,6 @@
       "deviceId",
       "metrics",
       "setpoints"
-    ]
-  },
-  "SeriesPoint": {
-    "type": "object",
-    "properties": {
-      "measuredAt": {
-        "type": "string",
-        "format": "date-time",
-        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-      },
-      "value": {
-        "type": [
-          "number",
-          "null"
-        ]
-      }
-    },
-    "required": [
-      "measuredAt",
-      "value"
     ]
   },
   "MetricSeries": {
@@ -10662,6 +10662,397 @@
       "setpoints",
       "devices",
       "cameras"
+    ]
+  },
+  "TimelineRange": {
+    "type": "string",
+    "enum": [
+      "24h",
+      "7d",
+      "phase",
+      "grow"
+    ]
+  },
+  "TimelineSpan": {
+    "type": "object",
+    "properties": {
+      "startsAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "endsAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      }
+    },
+    "required": [
+      "startsAt",
+      "endsAt"
+    ]
+  },
+  "TimelineTarget": {
+    "type": "object",
+    "properties": {
+      "setpoint": {
+        "type": "number"
+      },
+      "band": {
+        "$ref": "#/components/schemas/TargetBand"
+      }
+    },
+    "required": [
+      "setpoint",
+      "band"
+    ]
+  },
+  "TimelineTargets": {
+    "type": "object",
+    "properties": {
+      "startsAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "endsAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "phaseId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null where the targets are the controller's configuration rather than a phase's snapshot."
+      },
+      "stage": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/GrowthStage"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "day": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/TimelineTarget"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "night": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/TimelineTarget"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null where the metric is not steered in the dark half at all: CO2 is only raised while the light is on."
+      }
+    },
+    "required": [
+      "startsAt",
+      "endsAt",
+      "phaseId",
+      "stage",
+      "day",
+      "night"
+    ]
+  },
+  "TimelinePanel": {
+    "type": "object",
+    "properties": {
+      "metric": {
+        "$ref": "#/components/schemas/Metric"
+      },
+      "points": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SeriesPoint"
+        }
+      },
+      "targets": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineTargets"
+        },
+        "description": "In order, each ending where the next begins; empty where nothing held a target over the window."
+      }
+    },
+    "required": [
+      "metric",
+      "points",
+      "targets"
+    ]
+  },
+  "TimelineOutputLane": {
+    "type": "object",
+    "properties": {
+      "output": {
+        "$ref": "#/components/schemas/OutputMetric"
+      },
+      "deviceId": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Two controllers in one tent each drive their own outputs, so a lane names the device it belongs to."
+      },
+      "spans": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineSpan"
+        }
+      }
+    },
+    "required": [
+      "output",
+      "deviceId",
+      "spans"
+    ]
+  },
+  "TimelineAlarm": {
+    "type": "object",
+    "properties": {
+      "alertId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "kind": {
+        "$ref": "#/components/schemas/AlertKind"
+      },
+      "severity": {
+        "$ref": "#/components/schemas/Severity"
+      },
+      "metric": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/Metric"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "What the rule watched; null for an alert the health loop raised without one."
+      },
+      "startedAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "endedAt": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "value": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "extremeValue": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "alertId",
+      "kind",
+      "severity",
+      "metric",
+      "startedAt",
+      "endedAt",
+      "value",
+      "extremeValue"
+    ]
+  },
+  "TimelineCamera": {
+    "type": "object",
+    "properties": {
+      "cameraId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "name": {
+        "type": "string"
+      },
+      "frames": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CameraStill"
+        },
+        "description": "Oldest first, at most one per step, so the still above the panels is a lookup rather than a request per position."
+      }
+    },
+    "required": [
+      "cameraId",
+      "name",
+      "frames"
+    ]
+  },
+  "SpaceTimeline": {
+    "type": "object",
+    "properties": {
+      "spaceId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "name": {
+        "type": "string"
+      },
+      "kind": {
+        "$ref": "#/components/schemas/SpaceKind"
+      },
+      "range": {
+        "$ref": "#/components/schemas/TimelineRange"
+      },
+      "growId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The grow the bands and the day counter are of; null in a space nothing grows in."
+      },
+      "dayFrom": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The grow's own day counter at each end of the window, which is the \"day 33–34\" beside the range chips."
+      },
+      "dayTo": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "startsAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "endsAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "stepSeconds": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991,
+        "description": "The window each point summarises; 0 in a space with no device to read, where there are no points at all."
+      },
+      "deviceIds": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "panels": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelinePanel"
+        }
+      },
+      "nights": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineSpan"
+        },
+        "description": "When the light was off, from the light output rather than from the clock; empty where no device reports one."
+      },
+      "alarms": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineAlarm"
+        }
+      },
+      "outputs": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineOutputLane"
+        }
+      },
+      "events": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Entry"
+        },
+        "description": "The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn."
+      },
+      "cameras": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineCamera"
+        }
+      },
+      "people": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Person"
+        },
+        "description": "Everyone the rail names, so a mark can say who wrote it without another read."
+      }
+    },
+    "required": [
+      "spaceId",
+      "name",
+      "kind",
+      "range",
+      "growId",
+      "dayFrom",
+      "dayTo",
+      "startsAt",
+      "endsAt",
+      "stepSeconds",
+      "deviceIds",
+      "panels",
+      "nights",
+      "alarms",
+      "outputs",
+      "events",
+      "cameras",
+      "people"
     ]
   },
   "WeekClimate": {

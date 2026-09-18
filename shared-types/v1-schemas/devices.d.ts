@@ -1643,15 +1643,6 @@ export declare const deviceLive: z.ZodObject<{
         }>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
-/**
- * A window of a series. `value` is null where the window holds no reading, so a
- * chart draws the gap instead of joining across it; a computed metric that
- * cannot be worked out for a window arrives the same way.
- */
-export declare const seriesPoint: z.ZodObject<{
-    measuredAt: z.ZodISODateTime;
-    value: z.ZodNullable<z.ZodNumber>;
-}, z.core.$strip>;
 export declare const metricSeries: z.ZodObject<{
     metric: z.ZodEnum<{
         offline: "offline";

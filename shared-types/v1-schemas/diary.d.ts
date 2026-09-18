@@ -3230,6 +3230,444 @@ export declare const spaceLive: z.ZodObject<{
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
+ * What the Timeline tab is asked for. `24h` and `7d` are windows ending at the
+ * instant the request names; `phase` and `grow` are stretches of one grow and so
+ * cannot be answered without being told which.
+ */
+export declare const timelineRange: z.ZodEnum<{
+    phase: "phase";
+    grow: "grow";
+    "24h": "24h";
+    "7d": "7d";
+}>;
+/**
+ * A stretch of the window in which something was so: the light was off, an
+ * output was running. Both ends are inside the window - a stretch still going
+ * when the window ends is closed at its end rather than left open, because the
+ * answer says nothing about what happened afterwards.
+ */
+export declare const timelineSpan: z.ZodObject<{
+    startsAt: z.ZodISODateTime;
+    endsAt: z.ZodISODateTime;
+}, z.core.$strip>;
+/** What was aimed at in one half of the cycle: the dashed line, and the band drawn around it. */
+export declare const timelineTarget: z.ZodObject<{
+    setpoint: z.ZodNumber;
+    band: z.ZodObject<{
+        low: z.ZodNumber;
+        high: z.ZodNumber;
+    }, z.core.$strip>;
+}, z.core.$strip>;
+/**
+ * One stretch of the window in which the same targets applied.
+ *
+ * The band moves with the phase, because a phase records the targets that were
+ * running when it began and the store holds readings and never setpoints. So a
+ * window spanning two phases carries two of these rather than one average, and a
+ * tent with no grow in it carries one, from the controller's own configuration.
+ */
+export declare const timelineTargets: z.ZodObject<{
+    startsAt: z.ZodISODateTime;
+    endsAt: z.ZodISODateTime;
+    phaseId: z.ZodNullable<z.ZodString>;
+    stage: z.ZodNullable<z.ZodEnum<{
+        germination: "germination";
+        seedling: "seedling";
+        vegetative: "vegetative";
+        flowering: "flowering";
+        drying: "drying";
+        curing: "curing";
+    }>>;
+    day: z.ZodNullable<z.ZodObject<{
+        setpoint: z.ZodNumber;
+        band: z.ZodObject<{
+            low: z.ZodNumber;
+            high: z.ZodNumber;
+        }, z.core.$strip>;
+    }, z.core.$strip>>;
+    night: z.ZodNullable<z.ZodObject<{
+        setpoint: z.ZodNumber;
+        band: z.ZodObject<{
+            low: z.ZodNumber;
+            high: z.ZodNumber;
+        }, z.core.$strip>;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+/**
+ * One stacked panel: a metric over the window, with the targets that applied
+ * across it. A metric nothing in the space measured has no panel at all rather
+ * than a panel of nulls, which is what "the CO2 panel only when there is a
+ * sensor" means.
+ */
+export declare const timelinePanel: z.ZodObject<{
+    metric: z.ZodEnum<{
+        offline: "offline";
+        co2: "co2";
+        temperature: "temperature";
+        humidity: "humidity";
+        leafTemperature: "leafTemperature";
+        lux: "lux";
+        vpd: "vpd";
+        ppfd: "ppfd";
+    }>;
+    points: z.ZodArray<z.ZodObject<{
+        measuredAt: z.ZodISODateTime;
+        value: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>>;
+    targets: z.ZodArray<z.ZodObject<{
+        startsAt: z.ZodISODateTime;
+        endsAt: z.ZodISODateTime;
+        phaseId: z.ZodNullable<z.ZodString>;
+        stage: z.ZodNullable<z.ZodEnum<{
+            germination: "germination";
+            seedling: "seedling";
+            vegetative: "vegetative";
+            flowering: "flowering";
+            drying: "drying";
+            curing: "curing";
+        }>>;
+        day: z.ZodNullable<z.ZodObject<{
+            setpoint: z.ZodNumber;
+            band: z.ZodObject<{
+                low: z.ZodNumber;
+                high: z.ZodNumber;
+            }, z.core.$strip>;
+        }, z.core.$strip>>;
+        night: z.ZodNullable<z.ZodObject<{
+            setpoint: z.ZodNumber;
+            band: z.ZodObject<{
+                low: z.ZodNumber;
+                high: z.ZodNumber;
+            }, z.core.$strip>;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+/** One output over the window, as the lanes under the panels draw it: when it was on, not what it measured. */
+export declare const timelineOutputLane: z.ZodObject<{
+    output: z.ZodEnum<{
+        dehumidifier: "dehumidifier";
+        heater: "heater";
+        light: "light";
+        co2: "co2";
+        fan: "fan";
+        relais: "relais";
+        fanInternal: "fanInternal";
+        fanExternal: "fanExternal";
+        fanBackwall: "fanBackwall";
+    }>;
+    deviceId: z.ZodString;
+    spans: z.ZodArray<z.ZodObject<{
+        startsAt: z.ZodISODateTime;
+        endsAt: z.ZodISODateTime;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+/**
+ * One alarm as a span of the window. `endedAt` is null for an alert that is
+ * still open - it has not ended, and closing it at the edge of the window would
+ * say it had.
+ */
+export declare const timelineAlarm: z.ZodObject<{
+    alertId: z.ZodString;
+    kind: z.ZodEnum<{
+        threshold: "threshold";
+        offline: "offline";
+        camera_stale: "camera_stale";
+    }>;
+    severity: z.ZodEnum<{
+        critical: "critical";
+        warning: "warning";
+        info: "info";
+    }>;
+    metric: z.ZodNullable<z.ZodEnum<{
+        offline: "offline";
+        co2: "co2";
+        temperature: "temperature";
+        humidity: "humidity";
+        leafTemperature: "leafTemperature";
+        lux: "lux";
+        vpd: "vpd";
+        ppfd: "ppfd";
+    }>>;
+    startedAt: z.ZodISODateTime;
+    endedAt: z.ZodNullable<z.ZodISODateTime>;
+    value: z.ZodNullable<z.ZodNumber>;
+    extremeValue: z.ZodNullable<z.ZodNumber>;
+}, z.core.$strip>;
+/** One camera of the space over the window, thinned to what the slider above the panels steps through. */
+export declare const timelineCamera: z.ZodObject<{
+    cameraId: z.ZodString;
+    name: z.ZodString;
+    frames: z.ZodArray<z.ZodObject<{
+        mediaId: z.ZodString;
+        capturedAt: z.ZodISODateTime;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+/**
+ * `GET /spaces/{id}/timeline`, the whole Timeline tab in one answer: the frames
+ * the slider steps through, a panel per metric with the bands that applied, the
+ * night worked out from the light rather than from a clock, the alarms, the
+ * output lanes and the event rail.
+ *
+ * It is one answer per range rather than six requests stitched together,
+ * because every part of it is a view of the same window and a screen that
+ * assembled them would draw parts of six different ones.
+ *
+ * A space with no controller answers the frames and the rail and nothing else:
+ * `panels` is then empty, the way a week card of a grow with no controller
+ * carries no climate. Nothing here is written to - the rail carries lines to
+ * open and never a task to tick off - so a read-only link is served the same
+ * answer as its owner, clamped to its window.
+ */
+export declare const spaceTimeline: z.ZodObject<{
+    spaceId: z.ZodString;
+    name: z.ZodString;
+    kind: z.ZodEnum<{
+        other: "other";
+        tent: "tent";
+        fridge: "fridge";
+        room: "room";
+        balcony: "balcony";
+    }>;
+    range: z.ZodEnum<{
+        phase: "phase";
+        grow: "grow";
+        "24h": "24h";
+        "7d": "7d";
+    }>;
+    growId: z.ZodNullable<z.ZodString>;
+    dayFrom: z.ZodNullable<z.ZodNumber>;
+    dayTo: z.ZodNullable<z.ZodNumber>;
+    startsAt: z.ZodISODateTime;
+    endsAt: z.ZodISODateTime;
+    stepSeconds: z.ZodNumber;
+    deviceIds: z.ZodArray<z.ZodString>;
+    panels: z.ZodArray<z.ZodObject<{
+        metric: z.ZodEnum<{
+            offline: "offline";
+            co2: "co2";
+            temperature: "temperature";
+            humidity: "humidity";
+            leafTemperature: "leafTemperature";
+            lux: "lux";
+            vpd: "vpd";
+            ppfd: "ppfd";
+        }>;
+        points: z.ZodArray<z.ZodObject<{
+            measuredAt: z.ZodISODateTime;
+            value: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>;
+        targets: z.ZodArray<z.ZodObject<{
+            startsAt: z.ZodISODateTime;
+            endsAt: z.ZodISODateTime;
+            phaseId: z.ZodNullable<z.ZodString>;
+            stage: z.ZodNullable<z.ZodEnum<{
+                germination: "germination";
+                seedling: "seedling";
+                vegetative: "vegetative";
+                flowering: "flowering";
+                drying: "drying";
+                curing: "curing";
+            }>>;
+            day: z.ZodNullable<z.ZodObject<{
+                setpoint: z.ZodNumber;
+                band: z.ZodObject<{
+                    low: z.ZodNumber;
+                    high: z.ZodNumber;
+                }, z.core.$strip>;
+            }, z.core.$strip>>;
+            night: z.ZodNullable<z.ZodObject<{
+                setpoint: z.ZodNumber;
+                band: z.ZodObject<{
+                    low: z.ZodNumber;
+                    high: z.ZodNumber;
+                }, z.core.$strip>;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    nights: z.ZodArray<z.ZodObject<{
+        startsAt: z.ZodISODateTime;
+        endsAt: z.ZodISODateTime;
+    }, z.core.$strip>>;
+    alarms: z.ZodArray<z.ZodObject<{
+        alertId: z.ZodString;
+        kind: z.ZodEnum<{
+            threshold: "threshold";
+            offline: "offline";
+            camera_stale: "camera_stale";
+        }>;
+        severity: z.ZodEnum<{
+            critical: "critical";
+            warning: "warning";
+            info: "info";
+        }>;
+        metric: z.ZodNullable<z.ZodEnum<{
+            offline: "offline";
+            co2: "co2";
+            temperature: "temperature";
+            humidity: "humidity";
+            leafTemperature: "leafTemperature";
+            lux: "lux";
+            vpd: "vpd";
+            ppfd: "ppfd";
+        }>>;
+        startedAt: z.ZodISODateTime;
+        endedAt: z.ZodNullable<z.ZodISODateTime>;
+        value: z.ZodNullable<z.ZodNumber>;
+        extremeValue: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>>;
+    outputs: z.ZodArray<z.ZodObject<{
+        output: z.ZodEnum<{
+            dehumidifier: "dehumidifier";
+            heater: "heater";
+            light: "light";
+            co2: "co2";
+            fan: "fan";
+            relais: "relais";
+            fanInternal: "fanInternal";
+            fanExternal: "fanExternal";
+            fanBackwall: "fanBackwall";
+        }>;
+        deviceId: z.ZodString;
+        spans: z.ZodArray<z.ZodObject<{
+            startsAt: z.ZodISODateTime;
+            endsAt: z.ZodISODateTime;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    events: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        createdAt: z.ZodISODateTime;
+        kind: z.ZodEnum<{
+            move: "move";
+            water: "water";
+            feed: "feed";
+            photo: "photo";
+            note: "note";
+            measurement: "measurement";
+            training: "training";
+            phase: "phase";
+            harvest: "harvest";
+            visit: "visit";
+            alarm: "alarm";
+            plan: "plan";
+            system: "system";
+        }>;
+        occurredAt: z.ZodISODateTime;
+        source: z.ZodEnum<{
+            alarm: "alarm";
+            plan: "plan";
+            human: "human";
+            device: "device";
+            preset: "preset";
+        }>;
+        authorId: z.ZodNullable<z.ZodString>;
+        growId: z.ZodNullable<z.ZodString>;
+        spaceId: z.ZodNullable<z.ZodString>;
+        deviceId: z.ZodNullable<z.ZodString>;
+        plantIds: z.ZodArray<z.ZodString>;
+        cameraId: z.ZodNullable<z.ZodString>;
+        taskId: z.ZodNullable<z.ZodString>;
+        alertId: z.ZodNullable<z.ZodString>;
+        severity: z.ZodNullable<z.ZodEnum<{
+            critical: "critical";
+            warning: "warning";
+            info: "info";
+        }>>;
+        text: z.ZodNullable<z.ZodString>;
+        message: z.ZodNullable<z.ZodObject<{
+            key: z.ZodString;
+            params: z.ZodArray<z.ZodString>;
+        }, z.core.$strip>>;
+        values: z.ZodDiscriminatedUnion<[z.ZodObject<{
+            kind: z.ZodLiteral<"water">;
+            litres: z.ZodNullable<z.ZodNumber>;
+            readings: z.ZodArray<z.ZodObject<{
+                key: z.ZodString;
+                value: z.ZodNumber;
+                plantId: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"feed">;
+            litres: z.ZodNullable<z.ZodNumber>;
+            schemeWeek: z.ZodNullable<z.ZodNumber>;
+            doses: z.ZodArray<z.ZodObject<{
+                productKey: z.ZodString;
+                name: z.ZodString;
+                amount: z.ZodNumber;
+                unit: z.ZodString;
+            }, z.core.$strip>>;
+            readings: z.ZodArray<z.ZodObject<{
+                key: z.ZodString;
+                value: z.ZodNumber;
+                plantId: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"measurement">;
+            readings: z.ZodArray<z.ZodObject<{
+                key: z.ZodString;
+                value: z.ZodNumber;
+                plantId: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"photo">;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"note">;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"training">;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"visit">;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"system">;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"alarm">;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"phase">;
+            phaseId: z.ZodString;
+            stage: z.ZodEnum<{
+                germination: "germination";
+                seedling: "seedling";
+                vegetative: "vegetative";
+                flowering: "flowering";
+                drying: "drying";
+                curing: "curing";
+            }>;
+            preset: z.ZodNullable<z.ZodString>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"move">;
+            placementId: z.ZodString;
+            spaceId: z.ZodNullable<z.ZodString>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"harvest">;
+            wetWeightG: z.ZodNullable<z.ZodNumber>;
+            dryWeightG: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"plan">;
+            planId: z.ZodString;
+            stepIndex: z.ZodNumber;
+            transition: z.ZodNullable<z.ZodEnum<{
+                pause: "pause";
+                resume: "resume";
+                confirm: "confirm";
+                extend: "extend";
+                skip: "skip";
+            }>>;
+        }, z.core.$strip>], "kind">;
+        mediaIds: z.ZodArray<z.ZodString>;
+        undoUntil: z.ZodNullable<z.ZodISODateTime>;
+    }, z.core.$strip>>;
+    cameras: z.ZodArray<z.ZodObject<{
+        cameraId: z.ZodString;
+        name: z.ZodString;
+        frames: z.ZodArray<z.ZodObject<{
+            mediaId: z.ZodString;
+            capturedAt: z.ZodISODateTime;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    people: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        handle: z.ZodString;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+/**
  * One metric aggregated over a stretch of a grow, which is one time-series query
  * per stretch and controller.
  *

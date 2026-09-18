@@ -280,7 +280,7 @@ removed together with the Angular app.
 | Sessions | `POST /sessions` (log in), `POST /sessions/demo`, `POST /sessions/automation`, `POST /sessions/refresh`, `GET /sessions`, `DELETE /sessions/{id}` |
 | Account | `POST /users` (sign up), `POST /users/activations`, `POST /password-resets`, `POST /password-resets/{token}/redemptions`, `GET/PATCH/DELETE /me`, `PUT /me/password`, `GET /me/export`, `POST/DELETE /me/push-subscriptions[/{id}]`, `POST /me/telegram-link` |
 | Home | `GET /home` (one card per space: live values with age, setpoints, the grow with its newest entries, latest still, due tasks, open alerts, followed grows) |
-| Spaces | `GET/POST /spaces`, `GET/PATCH/DELETE /spaces/{id}`, `PUT/DELETE /spaces/{id}/archive`, `GET /spaces/{id}/overview` (with the 24 h climate verdict), `GET /spaces/{id}/live`, `POST /spaces/{id}/preset-applications` |
+| Spaces | `GET/POST /spaces`, `GET/PATCH/DELETE /spaces/{id}`, `PUT/DELETE /spaces/{id}/archive`, `GET /spaces/{id}/overview` (with the 24 h climate verdict), `GET /spaces/{id}/live`, `GET /spaces/{id}/timeline` (one answer per range chip: panels with their bands, night, alarms, output lanes, the event rail and the camera frames), `POST /spaces/{id}/preset-applications` |
 | Members | `GET/POST /spaces/{id}/members`, `PATCH/DELETE /spaces/{id}/members/{userId}`, `GET/POST /spaces/{id}/invites`, `PUT /invites/{code}/revocation`, `DELETE /invites/{code}`, `GET /invites/{code}` (public preview), `POST /invites/{code}/acceptances` |
 | Devices | `GET /devices`, `POST /devices/claims`, `GET/PATCH /devices/{id}`, `DELETE /devices/{id}/claim` (give the device up), `GET/PUT /devices/{id}/configuration`, `POST /devices/{id}/commands` (a typed union: reboot, maintenance, test, stop test, camera capture), `GET /devices/{id}/firmwares`, `GET /devices/{id}/live`, `GET /devices/{id}/series` |
 | Sockets | `GET /devices/{id}/sockets`, `PUT/DELETE /devices/{id}/sockets/{slot}` (pair by address, role, timer; remove), `PUT/DELETE /devices/{id}/sockets/{slot}/override`, `POST /devices/{id}/sockets/{slot}/tests` |
@@ -477,7 +477,7 @@ This is a rewrite of the server's HTTP and persistence layers around engines tha
 | 1 Shell and home | spaces, `access()`, `/home`, `/live` |
 | 2 Grow and tent pages | grows, plants, `/weeks`, `/overview` with the verdict |
 | 3 Logging | entries, photo upload, the Undo window |
-| 4 Timeline | camera read routes, `/frames`, phase target bands |
+| 4 Timeline | camera read routes, `/frames`, phase target bands, `/spaces/{id}/timeline` |
 | 5 Devices | `/devices`, camera create and settings, the composer, sockets on the server and in the firmware |
 | 6 Public diary | `visibility` and `slug`, the public routes, the card, share links with the range clamp |
 | 7 Lifecycle | phases, placements, harvests, splits, preset applications |

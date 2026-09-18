@@ -22,6 +22,7 @@ import {
   reminderKind,
   schemeAmount,
   schemeWeek,
+  seriesPoint,
   severity,
   shareKind,
   spaceKind,
@@ -1190,6 +1191,138 @@ export const spaceLive = named(
     setpoints: z.array(cardSetpoint),
     devices: z.array(spaceLiveDevice),
     cameras: z.array(spaceLiveCamera),
+  }),
+);
+
+/**
+ * What the Timeline tab is asked for. `24h` and `7d` are windows ending at the
+ * instant the request names; `phase` and `grow` are stretches of one grow and so
+ * cannot be answered without being told which.
+ */
+export const timelineRange = named('TimelineRange', z.enum(['24h', '7d', 'phase', 'grow']));
+
+/**
+ * A stretch of the window in which something was so: the light was off, an
+ * output was running. Both ends are inside the window - a stretch still going
+ * when the window ends is closed at its end rather than left open, because the
+ * answer says nothing about what happened afterwards.
+ */
+export const timelineSpan = named('TimelineSpan', z.object({ startsAt: instant(), endsAt: instant() }));
+
+/** What was aimed at in one half of the cycle: the dashed line, and the band drawn around it. */
+export const timelineTarget = named('TimelineTarget', z.object({ setpoint: z.number(), band: targetBand }));
+
+/**
+ * One stretch of the window in which the same targets applied.
+ *
+ * The band moves with the phase, because a phase records the targets that were
+ * running when it began and the store holds readings and never setpoints. So a
+ * window spanning two phases carries two of these rather than one average, and a
+ * tent with no grow in it carries one, from the controller's own configuration.
+ */
+export const timelineTargets = named(
+  'TimelineTargets',
+  z.object({
+    startsAt: instant(),
+    endsAt: instant(),
+    phaseId: id().nullable().describe("Null where the targets are the controller's configuration rather than a phase's snapshot."),
+    stage: growthStage.nullable(),
+    day: timelineTarget.nullable(),
+    night: timelineTarget.nullable().describe('Null where the metric is not steered in the dark half at all: CO2 is only raised while the light is on.'),
+  }),
+);
+
+/**
+ * One stacked panel: a metric over the window, with the targets that applied
+ * across it. A metric nothing in the space measured has no panel at all rather
+ * than a panel of nulls, which is what "the CO2 panel only when there is a
+ * sensor" means.
+ */
+export const timelinePanel = named(
+  'TimelinePanel',
+  z.object({
+    metric: metric,
+    points: z.array(seriesPoint),
+    targets: z.array(timelineTargets).describe('In order, each ending where the next begins; empty where nothing held a target over the window.'),
+  }),
+);
+
+/** One output over the window, as the lanes under the panels draw it: when it was on, not what it measured. */
+export const timelineOutputLane = named(
+  'TimelineOutputLane',
+  z.object({
+    output: outputMetric,
+    deviceId: id().describe('Two controllers in one tent each drive their own outputs, so a lane names the device it belongs to.'),
+    spans: z.array(timelineSpan),
+  }),
+);
+
+/**
+ * One alarm as a span of the window. `endedAt` is null for an alert that is
+ * still open - it has not ended, and closing it at the edge of the window would
+ * say it had.
+ */
+export const timelineAlarm = named(
+  'TimelineAlarm',
+  z.object({
+    alertId: id(),
+    kind: alertKind,
+    severity: severity,
+    metric: metric.nullable().describe('What the rule watched; null for an alert the health loop raised without one.'),
+    startedAt: instant(),
+    endedAt: instant().nullable(),
+    value: z.number().nullable(),
+    extremeValue: z.number().nullable(),
+  }),
+);
+
+/** One camera of the space over the window, thinned to what the slider above the panels steps through. */
+export const timelineCamera = named(
+  'TimelineCamera',
+  z.object({
+    cameraId: id(),
+    name: z.string(),
+    frames: z.array(cameraStill).describe('Oldest first, at most one per step, so the still above the panels is a lookup rather than a request per position.'),
+  }),
+);
+
+/**
+ * `GET /spaces/{id}/timeline`, the whole Timeline tab in one answer: the frames
+ * the slider steps through, a panel per metric with the bands that applied, the
+ * night worked out from the light rather than from a clock, the alarms, the
+ * output lanes and the event rail.
+ *
+ * It is one answer per range rather than six requests stitched together,
+ * because every part of it is a view of the same window and a screen that
+ * assembled them would draw parts of six different ones.
+ *
+ * A space with no controller answers the frames and the rail and nothing else:
+ * `panels` is then empty, the way a week card of a grow with no controller
+ * carries no climate. Nothing here is written to - the rail carries lines to
+ * open and never a task to tick off - so a read-only link is served the same
+ * answer as its owner, clamped to its window.
+ */
+export const spaceTimeline = named(
+  'SpaceTimeline',
+  z.object({
+    spaceId: id(),
+    name: z.string(),
+    kind: spaceKind,
+    range: timelineRange,
+    growId: id().nullable().describe('The grow the bands and the day counter are of; null in a space nothing grows in.'),
+    dayFrom: z.number().int().nullable().describe('The grow\'s own day counter at each end of the window, which is the "day 33–34" beside the range chips.'),
+    dayTo: z.number().int().nullable(),
+    startsAt: instant(),
+    endsAt: instant(),
+    stepSeconds: z.number().int().describe('The window each point summarises; 0 in a space with no device to read, where there are no points at all.'),
+    deviceIds: z.array(id()),
+    panels: z.array(timelinePanel),
+    nights: z.array(timelineSpan).describe('When the light was off, from the light output rather than from the clock; empty where no device reports one.'),
+    alarms: z.array(timelineAlarm),
+    outputs: z.array(timelineOutputLane),
+    events: z.array(entry).describe('The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.'),
+    cameras: z.array(timelineCamera),
+    people: z.array(person).describe('Everyone the rail names, so a mark can say who wrote it without another read.'),
   }),
 );
 

@@ -211,6 +211,18 @@ export declare const metricValue: z.ZodObject<{
     }>;
 }, z.core.$strip>;
 /**
+ * One window of a series. `value` is null where the window holds no reading, so
+ * a chart draws the gap instead of joining across it; a computed metric that
+ * cannot be worked out for a window arrives the same way.
+ *
+ * It sits here rather than with the device routes because a device's series and
+ * the panels of the timeline are the same points read over different windows.
+ */
+export declare const seriesPoint: z.ZodObject<{
+    measuredAt: z.ZodISODateTime;
+    value: z.ZodNullable<z.ZodNumber>;
+}, z.core.$strip>;
+/**
  * `terpcam_controller` is the Terp Cam a controller pairs and answers for;
  * `terpcam_standalone` is one the cloud reaches itself; `rtsp` is any other
  * camera, pulled through the controller's tunnel.
@@ -387,6 +399,17 @@ export declare const outputMetric: z.ZodEnum<{
  * server decides and no client works it out.
  */
 export declare const TARGET_BAND: Readonly<Partial<Record<z.infer<typeof metric>, number>>>;
+/**
+ * How many decimals a reading of a metric is worth.
+ *
+ * A window of a series is a mean of what a device reported, and the mean of two
+ * readings is a number with seventeen digits of which one is a measurement. A
+ * value is rounded to what the sensor can actually say before it goes on the
+ * wire, so nothing downstream has to decide how much of it is real. Stated once,
+ * like `TARGET_BAND`; how many of those decimals a screen then draws is the
+ * screen's own business.
+ */
+export declare const METRIC_DECIMALS: Readonly<Record<z.infer<typeof metric>, number>>;
 /**
  * The device's InfluxDB field names are frozen - they are written by firmware in
  * the field and by three years of stored points - so the translation lives here

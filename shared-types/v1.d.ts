@@ -199,6 +199,8 @@ export type CameraCreate = ControllerCameraCreate | StandaloneCameraCreate | Rts
 
 export type VerdictRating = 'good' | 'watch' | 'poor';
 
+export type TimelineRange = '24h' | '7d' | 'phase' | 'grow';
+
 export type SharedSubject = SharedGrow | SharedSpace;
 
 
@@ -232,6 +234,11 @@ export interface MetricValue {
   value: number | null;
   measuredAt: string | null;
   state: ValueState;
+}
+
+export interface SeriesPoint {
+  measuredAt: string;
+  value: number | null;
 }
 
 export interface GrowOrSpaceRef {
@@ -1294,11 +1301,6 @@ export interface DeviceLive {
    * null for a device that holds no targets, such as a plug.
    */
   setpoints: Setpoints | null;
-}
-
-export interface SeriesPoint {
-  measuredAt: string;
-  value: number | null;
 }
 
 export interface MetricSeries {
@@ -3027,6 +3029,111 @@ export interface SpaceLive {
   setpoints: CardSetpoint[];
   devices: SpaceLiveDevice[];
   cameras: SpaceLiveCamera[];
+}
+
+export interface TimelineSpan {
+  startsAt: string;
+  endsAt: string;
+}
+
+export interface TimelineTarget {
+  setpoint: number;
+  band: TargetBand;
+}
+
+export interface TimelineTargets {
+  startsAt: string;
+  endsAt: string;
+  /**
+   * Null where the targets are the controller's configuration rather than a phase's snapshot.
+   */
+  phaseId: string | null;
+  stage: GrowthStage | null;
+  day: TimelineTarget | null;
+  /**
+   * Null where the metric is not steered in the dark half at all: CO2 is only raised while the light is on.
+   */
+  night: TimelineTarget | null;
+}
+
+export interface TimelinePanel {
+  metric: Metric;
+  points: SeriesPoint[];
+  /**
+   * In order, each ending where the next begins; empty where nothing held a target over the window.
+   */
+  targets: TimelineTargets[];
+}
+
+export interface TimelineOutputLane {
+  output: OutputMetric;
+  /**
+   * Two controllers in one tent each drive their own outputs, so a lane names the device it belongs to.
+   */
+  deviceId: string;
+  spans: TimelineSpan[];
+}
+
+export interface TimelineAlarm {
+  alertId: string;
+  kind: AlertKind;
+  severity: Severity;
+  /**
+   * What the rule watched; null for an alert the health loop raised without one.
+   */
+  metric: Metric | null;
+  startedAt: string;
+  endedAt: string | null;
+  value: number | null;
+  extremeValue: number | null;
+}
+
+export interface TimelineCamera {
+  cameraId: string;
+  name: string;
+  /**
+   * Oldest first, at most one per step, so the still above the panels is a lookup rather than a request per position.
+   */
+  frames: CameraStill[];
+}
+
+export interface SpaceTimeline {
+  spaceId: string;
+  name: string;
+  kind: SpaceKind;
+  range: TimelineRange;
+  /**
+   * The grow the bands and the day counter are of; null in a space nothing grows in.
+   */
+  growId: string | null;
+  /**
+   * The grow's own day counter at each end of the window, which is the "day 33–34" beside the range chips.
+   */
+  dayFrom: number | null;
+  dayTo: number | null;
+  startsAt: string;
+  endsAt: string;
+  /**
+   * The window each point summarises; 0 in a space with no device to read, where there are no points at all.
+   */
+  stepSeconds: number;
+  deviceIds: string[];
+  panels: TimelinePanel[];
+  /**
+   * When the light was off, from the light output rather than from the clock; empty where no device reports one.
+   */
+  nights: TimelineSpan[];
+  alarms: TimelineAlarm[];
+  outputs: TimelineOutputLane[];
+  /**
+   * The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.
+   */
+  events: Entry[];
+  cameras: TimelineCamera[];
+  /**
+   * Everyone the rail names, so a mark can say who wrote it without another read.
+   */
+  people: Person[];
 }
 
 export interface WeekClimate {

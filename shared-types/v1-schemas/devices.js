@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = exports.durationUnit = exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = exports.deviceCommand = exports.socketSetCommand = exports.socketCredentials = exports.socketOverrideCommand = exports.captureStillCommand = exports.stopTestCommand = exports.testCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.adminDeviceCreate = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.devicePage = exports.device = exports.deviceState = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
-exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.seriesPoint = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = void 0;
+exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -528,14 +528,8 @@ exports.deviceLive = (0, common_js_1.named)('DeviceLive', zod_1.z.object({
     metrics: zod_1.z.partialRecord(common_js_1.metric, common_js_1.metricValue),
     setpoints: exports.setpoints.nullable().describe('null for a device that holds no targets, such as a plug.'),
 }));
-/**
- * A window of a series. `value` is null where the window holds no reading, so a
- * chart draws the gap instead of joining across it; a computed metric that
- * cannot be worked out for a window arrives the same way.
- */
-exports.seriesPoint = (0, common_js_1.named)('SeriesPoint', zod_1.z.object({ measuredAt: (0, common_js_1.instant)(), value: zod_1.z.number().nullable() }));
-exports.metricSeries = (0, common_js_1.named)('MetricSeries', zod_1.z.object({ metric: common_js_1.metric, points: zod_1.z.array(exports.seriesPoint) }));
-exports.outputSeries = (0, common_js_1.named)('OutputSeries', zod_1.z.object({ output: common_js_1.outputMetric, points: zod_1.z.array(exports.seriesPoint) }));
+exports.metricSeries = (0, common_js_1.named)('MetricSeries', zod_1.z.object({ metric: common_js_1.metric, points: zod_1.z.array(common_js_1.seriesPoint) }));
+exports.outputSeries = (0, common_js_1.named)('OutputSeries', zod_1.z.object({ output: common_js_1.outputMetric, points: zod_1.z.array(common_js_1.seriesPoint) }));
 /**
  * What `GET /devices/{id}/series` is asked for. A request, so what a caller may
  * leave out is `.optional()` here rather than `.nullable()`: with no outputs it

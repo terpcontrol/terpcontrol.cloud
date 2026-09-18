@@ -14,6 +14,7 @@ import {
   page,
   planStatus,
   planTransitionKind,
+  seriesPoint,
   severity,
   socketRole,
   subjectRef,
@@ -746,13 +747,6 @@ export const deviceLive = named(
     setpoints: setpoints.nullable().describe('null for a device that holds no targets, such as a plug.'),
   }),
 );
-
-/**
- * A window of a series. `value` is null where the window holds no reading, so a
- * chart draws the gap instead of joining across it; a computed metric that
- * cannot be worked out for a window arrives the same way.
- */
-export const seriesPoint = named('SeriesPoint', z.object({ measuredAt: instant(), value: z.number().nullable() }));
 
 export const metricSeries = named('MetricSeries', z.object({ metric: metric, points: z.array(seriesPoint) }));
 

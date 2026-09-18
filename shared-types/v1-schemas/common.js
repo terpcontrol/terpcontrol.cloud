@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FIELD_OUTPUT_METRIC = exports.FIELD_METRIC = exports.OUTPUT_METRIC_FIELD = exports.METRIC_FIELD = exports.TARGET_BAND = exports.outputMetric = exports.metric = exports.schemeWeek = exports.schemeAmount = exports.unitPreference = exports.volumeUnit = exports.weightUnit = exports.temperatureUnit = exports.growOrSpaceRef = exports.growOrSpaceType = exports.shareKind = exports.reminderKind = exports.growType = exports.spaceKind = exports.planStatus = exports.grantKind = exports.mediaKind = exports.cameraKind = exports.metricValue = exports.VALUE_AGE = exports.valueState = exports.socketRole = exports.planTransitionKind = exports.notificationChannel = exports.webhookMethod = exports.alertKind = exports.severity = exports.entrySource = exports.entryKind = exports.memberRole = exports.growthStage = exports.subjectRef = exports.problem = exports.problemError = exports.page = exports.bytes = exports.anyValue = exports.id = exports.instant = exports.named = exports.registry = void 0;
+exports.FIELD_OUTPUT_METRIC = exports.FIELD_METRIC = exports.OUTPUT_METRIC_FIELD = exports.METRIC_FIELD = exports.METRIC_DECIMALS = exports.TARGET_BAND = exports.outputMetric = exports.metric = exports.schemeWeek = exports.schemeAmount = exports.unitPreference = exports.volumeUnit = exports.weightUnit = exports.temperatureUnit = exports.growOrSpaceRef = exports.growOrSpaceType = exports.shareKind = exports.reminderKind = exports.growType = exports.spaceKind = exports.planStatus = exports.grantKind = exports.mediaKind = exports.cameraKind = exports.seriesPoint = exports.metricValue = exports.VALUE_AGE = exports.valueState = exports.socketRole = exports.planTransitionKind = exports.notificationChannel = exports.webhookMethod = exports.alertKind = exports.severity = exports.entrySource = exports.entryKind = exports.memberRole = exports.growthStage = exports.subjectRef = exports.problem = exports.problemError = exports.page = exports.bytes = exports.anyValue = exports.id = exports.instant = exports.named = exports.registry = void 0;
 const zod_1 = require("zod");
 /**
  * The base of the `/v1` wire contract: the registry, the scalar helpers, the
@@ -174,6 +174,15 @@ exports.metricValue = (0, exports.named)('MetricValue', zod_1.z.object({
     state: exports.valueState,
 }));
 /**
+ * One window of a series. `value` is null where the window holds no reading, so
+ * a chart draws the gap instead of joining across it; a computed metric that
+ * cannot be worked out for a window arrives the same way.
+ *
+ * It sits here rather than with the device routes because a device's series and
+ * the panels of the timeline are the same points read over different windows.
+ */
+exports.seriesPoint = (0, exports.named)('SeriesPoint', zod_1.z.object({ measuredAt: (0, exports.instant)(), value: zod_1.z.number().nullable() }));
+/**
  * `terpcam_controller` is the Terp Cam a controller pairs and answers for;
  * `terpcam_standalone` is one the cloud reaches itself; `rtsp` is any other
  * camera, pulled through the controller's tunnel.
@@ -253,6 +262,26 @@ exports.outputMetric = (0, exports.named)('OutputMetric', zod_1.z.enum(['heater'
  * server decides and no client works it out.
  */
 exports.TARGET_BAND = { temperature: 1, humidity: 5, co2: 200 };
+/**
+ * How many decimals a reading of a metric is worth.
+ *
+ * A window of a series is a mean of what a device reported, and the mean of two
+ * readings is a number with seventeen digits of which one is a measurement. A
+ * value is rounded to what the sensor can actually say before it goes on the
+ * wire, so nothing downstream has to decide how much of it is real. Stated once,
+ * like `TARGET_BAND`; how many of those decimals a screen then draws is the
+ * screen's own business.
+ */
+exports.METRIC_DECIMALS = {
+    temperature: 1,
+    humidity: 1,
+    co2: 0,
+    leafTemperature: 1,
+    lux: 0,
+    vpd: 2,
+    ppfd: 0,
+    offline: 0,
+};
 /**
  * The device's InfluxDB field names are frozen - they are written by firmware in
  * the field and by three years of stored points - so the translation lives here

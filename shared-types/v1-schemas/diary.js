@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCaptureAnswer = exports.cameraUpdate = exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.media = exports.mediaRender = exports.mediaRenderStatus = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryValuesDraft = exports.humanEntryKind = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.measurementEntryValues = exports.entryDose = exports.entryReading = void 0;
-exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.cameraStill = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.person = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = void 0;
-exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growMeasurementSeries = exports.growSeriesPoint = exports.growReport = exports.growTotals = void 0;
+exports.timelineCamera = exports.timelineAlarm = exports.timelineOutputLane = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.cameraStill = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.person = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = void 0;
+exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growMeasurementSeries = exports.growSeriesPoint = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -886,6 +886,111 @@ exports.spaceLive = (0, common_js_1.named)('SpaceLive', zod_1.z.object({
     setpoints: zod_1.z.array(exports.cardSetpoint),
     devices: zod_1.z.array(exports.spaceLiveDevice),
     cameras: zod_1.z.array(exports.spaceLiveCamera),
+}));
+/**
+ * What the Timeline tab is asked for. `24h` and `7d` are windows ending at the
+ * instant the request names; `phase` and `grow` are stretches of one grow and so
+ * cannot be answered without being told which.
+ */
+exports.timelineRange = (0, common_js_1.named)('TimelineRange', zod_1.z.enum(['24h', '7d', 'phase', 'grow']));
+/**
+ * A stretch of the window in which something was so: the light was off, an
+ * output was running. Both ends are inside the window - a stretch still going
+ * when the window ends is closed at its end rather than left open, because the
+ * answer says nothing about what happened afterwards.
+ */
+exports.timelineSpan = (0, common_js_1.named)('TimelineSpan', zod_1.z.object({ startsAt: (0, common_js_1.instant)(), endsAt: (0, common_js_1.instant)() }));
+/** What was aimed at in one half of the cycle: the dashed line, and the band drawn around it. */
+exports.timelineTarget = (0, common_js_1.named)('TimelineTarget', zod_1.z.object({ setpoint: zod_1.z.number(), band: exports.targetBand }));
+/**
+ * One stretch of the window in which the same targets applied.
+ *
+ * The band moves with the phase, because a phase records the targets that were
+ * running when it began and the store holds readings and never setpoints. So a
+ * window spanning two phases carries two of these rather than one average, and a
+ * tent with no grow in it carries one, from the controller's own configuration.
+ */
+exports.timelineTargets = (0, common_js_1.named)('TimelineTargets', zod_1.z.object({
+    startsAt: (0, common_js_1.instant)(),
+    endsAt: (0, common_js_1.instant)(),
+    phaseId: (0, common_js_1.id)().nullable().describe("Null where the targets are the controller's configuration rather than a phase's snapshot."),
+    stage: common_js_1.growthStage.nullable(),
+    day: exports.timelineTarget.nullable(),
+    night: exports.timelineTarget.nullable().describe('Null where the metric is not steered in the dark half at all: CO2 is only raised while the light is on.'),
+}));
+/**
+ * One stacked panel: a metric over the window, with the targets that applied
+ * across it. A metric nothing in the space measured has no panel at all rather
+ * than a panel of nulls, which is what "the CO2 panel only when there is a
+ * sensor" means.
+ */
+exports.timelinePanel = (0, common_js_1.named)('TimelinePanel', zod_1.z.object({
+    metric: common_js_1.metric,
+    points: zod_1.z.array(common_js_1.seriesPoint),
+    targets: zod_1.z.array(exports.timelineTargets).describe('In order, each ending where the next begins; empty where nothing held a target over the window.'),
+}));
+/** One output over the window, as the lanes under the panels draw it: when it was on, not what it measured. */
+exports.timelineOutputLane = (0, common_js_1.named)('TimelineOutputLane', zod_1.z.object({
+    output: common_js_1.outputMetric,
+    deviceId: (0, common_js_1.id)().describe('Two controllers in one tent each drive their own outputs, so a lane names the device it belongs to.'),
+    spans: zod_1.z.array(exports.timelineSpan),
+}));
+/**
+ * One alarm as a span of the window. `endedAt` is null for an alert that is
+ * still open - it has not ended, and closing it at the edge of the window would
+ * say it had.
+ */
+exports.timelineAlarm = (0, common_js_1.named)('TimelineAlarm', zod_1.z.object({
+    alertId: (0, common_js_1.id)(),
+    kind: common_js_1.alertKind,
+    severity: common_js_1.severity,
+    metric: common_js_1.metric.nullable().describe('What the rule watched; null for an alert the health loop raised without one.'),
+    startedAt: (0, common_js_1.instant)(),
+    endedAt: (0, common_js_1.instant)().nullable(),
+    value: zod_1.z.number().nullable(),
+    extremeValue: zod_1.z.number().nullable(),
+}));
+/** One camera of the space over the window, thinned to what the slider above the panels steps through. */
+exports.timelineCamera = (0, common_js_1.named)('TimelineCamera', zod_1.z.object({
+    cameraId: (0, common_js_1.id)(),
+    name: zod_1.z.string(),
+    frames: zod_1.z.array(exports.cameraStill).describe('Oldest first, at most one per step, so the still above the panels is a lookup rather than a request per position.'),
+}));
+/**
+ * `GET /spaces/{id}/timeline`, the whole Timeline tab in one answer: the frames
+ * the slider steps through, a panel per metric with the bands that applied, the
+ * night worked out from the light rather than from a clock, the alarms, the
+ * output lanes and the event rail.
+ *
+ * It is one answer per range rather than six requests stitched together,
+ * because every part of it is a view of the same window and a screen that
+ * assembled them would draw parts of six different ones.
+ *
+ * A space with no controller answers the frames and the rail and nothing else:
+ * `panels` is then empty, the way a week card of a grow with no controller
+ * carries no climate. Nothing here is written to - the rail carries lines to
+ * open and never a task to tick off - so a read-only link is served the same
+ * answer as its owner, clamped to its window.
+ */
+exports.spaceTimeline = (0, common_js_1.named)('SpaceTimeline', zod_1.z.object({
+    spaceId: (0, common_js_1.id)(),
+    name: zod_1.z.string(),
+    kind: common_js_1.spaceKind,
+    range: exports.timelineRange,
+    growId: (0, common_js_1.id)().nullable().describe('The grow the bands and the day counter are of; null in a space nothing grows in.'),
+    dayFrom: zod_1.z.number().int().nullable().describe('The grow\'s own day counter at each end of the window, which is the "day 33–34" beside the range chips.'),
+    dayTo: zod_1.z.number().int().nullable(),
+    startsAt: (0, common_js_1.instant)(),
+    endsAt: (0, common_js_1.instant)(),
+    stepSeconds: zod_1.z.number().int().describe('The window each point summarises; 0 in a space with no device to read, where there are no points at all.'),
+    deviceIds: zod_1.z.array((0, common_js_1.id)()),
+    panels: zod_1.z.array(exports.timelinePanel),
+    nights: zod_1.z.array(exports.timelineSpan).describe('When the light was off, from the light output rather than from the clock; empty where no device reports one.'),
+    alarms: zod_1.z.array(exports.timelineAlarm),
+    outputs: zod_1.z.array(exports.timelineOutputLane),
+    events: zod_1.z.array(exports.entry).describe('The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.'),
+    cameras: zod_1.z.array(exports.timelineCamera),
+    people: zod_1.z.array(exports.person).describe('Everyone the rail names, so a mark can say who wrote it without another read.'),
 }));
 /**
  * One metric aggregated over a stretch of a grow, which is one time-series query
