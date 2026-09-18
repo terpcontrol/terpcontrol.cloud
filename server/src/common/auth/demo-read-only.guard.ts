@@ -3,9 +3,13 @@ import { HttpException } from '@common/http-exception';
 import { DEMO_WRITE_MESSAGE } from '@utils/demo';
 import { AuthenticatedRequest, TokenService } from './token.service';
 
-// Endpoints that establish or end a session; they must keep working while a demo
-// session is open, and none of them touches device data.
-const DEMO_ALLOWED_PATHS = ['/login', '/demologin', '/tokenlogin', '/signup', '/activate', '/refresh', '/logout', '/getreset', '/reset'];
+/**
+ * What a demo session may still do, which is end itself and start again: the
+ * tour has to be leavable, and `DELETE /v1/sessions/{id}` is how a client signs
+ * itself out. Everything else that opens a session is called without one and is
+ * never seen by this guard at all.
+ */
+const DEMO_ALLOWED_PREFIXES = ['/v1/sessions'];
 
 const READ_METHODS = ['GET', 'HEAD', 'OPTIONS'];
 
@@ -25,7 +29,7 @@ export class DemoReadOnlyGuard implements CanActivate {
     // allow-list has to do both - otherwise `/Logout` is a write to the demo.
     const path = (request.url ?? '/').split('?')[0].toLowerCase().replace(/\/+$/, '') || '/';
 
-    if (READ_METHODS.includes(request.method) || DEMO_ALLOWED_PATHS.includes(path)) {
+    if (READ_METHODS.includes(request.method) || DEMO_ALLOWED_PREFIXES.some(allowed => path === allowed || path.startsWith(`${allowed}/`))) {
       return true;
     }
 

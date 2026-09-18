@@ -12,7 +12,7 @@ When a firmware modification is proposed (typically through Claude on the web), 
 1. The new firmware **boots without problems** — every device comes back online.
 2. The firmware **still accepts further updates** — a second OTA on top of the first one succeeds too.
 
-The cheapest way to prove both is to build and roll out the firmware twice with two distinct version tags, then verify after each cycle that every device's `hardwareInfo.firmware_version` matches the firmware id that was just built.
+The cheapest way to prove both is to build and roll out the firmware twice with two distinct version tags, then verify after each cycle that every device's `state.firmwareId` matches the firmware id that was just built.
 
 ## Argument handling
 
@@ -53,13 +53,13 @@ Skip the per-PR loop if any preflight check fails; the whole point of preflight 
 
 1. **Stack is up.** `docker compose ps` must show `server`, `mongodb`, `rabbitmq`, `webapp`, `influxdb` as `Up`. If anything is down, ask before `docker compose up -d`.
 2. **`.env` is loaded.** Read `API_URL_EXTERNAL`, `AUTOMATION_TOKEN`, `AGENT_TESTING_USERNAME`, `AGENT_TESTING_PASSWORD` from `.env`. The default user account is `extr3m0@email.de` (these are the values in `.env` for the test fleet).
-3. **Devices are online.** Log in with the user credentials, `GET /device`, and confirm every device has `lastseen` within the last 10 min (`ONLINE_TIMEOUT`). Treat absent `hardwareInfo.firmware_version` as offline. If any device is offline, stop and tell the user which one — don't roll out to a fleet that already has an unknown problem.
-4. **No device is on the `manual` channel.** In the same `GET /device`, check each device's `cloudSettings.firmwareChannel`. A device set to `manual` is never offered an update, so it can only ever time the cycle out — drop its hardware type from the list and say so in the report, or have the user move it to another channel. `stable`, `beta`, `alpha` and an unset channel are all fine.
+3. **Devices are online.** Log in with the user credentials, `GET /v1/devices`, and confirm every device has `state.lastSeenAt` within the last 10 min (`VALUE_AGE.staleSeconds`). Treat a null `state.firmwareId` as offline. If any device is offline, stop and tell the user which one — don't roll out to a fleet that already has an unknown problem.
+4. **No device is on the `manual` channel.** In the same `GET /v1/devices`, check each device's `firmware.channel`. A device set to `manual` is never offered an update, so it can only ever time the cycle out — drop its hardware type from the list and say so in the report, or have the user move it to another channel. `stable`, `beta` and `alpha` are all fine.
 5. **Build container is present.** `docker images | grep plantalytix-buildcontainer` should show a row; if not, the first `build-fw.sh` will rebuild it (slower but fine).
 
 ## One check cycle
 
-A "check cycle" = build + rollout + verify. Per PR/branch, run two cycles back-to-back with different version tags. The unique tag is what lets you tell the test firmwares apart in `/device/firmware` listings later; it isn't load-bearing for the test itself.
+A "check cycle" = build + rollout + verify. Per PR/branch, run two cycles back-to-back with different version tags. The unique tag is what lets you tell the test firmwares apart in `GET /v1/admin/firmwares` listings later; it isn't load-bearing for the test itself.
 
 Hardware list: by default `fridge controller plug fan light` (the default in `build-fw.sh`). Per `AGENTS.md`, run `fridge` first if you are scoping down. Skip `dryer`.
 
@@ -75,13 +75,13 @@ TAG=check-pr<N>-$(date +%s)-1
 
 `run-cycle.sh` does **build + rollout** for every hardware type listed:
 
-1. `POST /device/firmware` with the tag to pre-create a firmware record per type, capturing the new id.
+1. `POST /v1/admin/firmwares` with the class of that hardware type and the tag as the version, to pre-create a firmware record per type, capturing the new id.
 2. `FW_VERSION_ID=<id> FW_UPLOAD_VERSION=<tag> ./build-fw.sh <hw>` so the binaries upload against the pre-created record. Setting `FW_UPLOAD_VERSION` deliberately **suppresses** `build-fw.sh`'s auto-rollout (see `firmware/dev-build.sh`) — we control rollout ourselves so we can verify the exact id afterwards.
-3. `POST /device/class/<class_id>` with `firmware_id`, `beta_firmware_id` and `alpha_firmware_id` all set to the new id (reading the existing `concurrent` / `maxfails` first to keep them). All three channels are set because the server only offers a device the id belonging to the channel in its `cloudSettings.firmwareChannel`.
+3. `PATCH /v1/admin/device-classes/<class_id>` with `firmwareIds` naming the new id on all three channels. `firmwareIds` is written whole, so nothing else about the class has to be read first. All three channels are set because the server only offers a device the id belonging to the channel in its `firmware.channel`.
 
 It writes `/tmp/fw_state_<tag>` — one `<hw> <firmware_id>` line per type — which `verify.py` reads.
 
-`verify.py` polls `GET /device` (user token, not admin) every 15 s. Success for a device = `hardwareInfo.firmware_version == <target id>` AND `lastseen` within the last 60 s (proves the device rebooted and came back). Timeout is **15 min per cycle**. Empirically a single device takes 6–9 min, and devices roll one at a time per class (`concurrent: 1`), so wait for the slowest, not the first. Exit 0 = all good; exit 1 = timeout (stop, do **not** start cycle 2).
+`verify.py` polls `GET /v1/devices` (user token, not admin) every 15 s. Success for a device = `state.firmwareId == <target id>` AND `state.lastSeenAt` within the last 60 s (proves the device rebooted and came back). Timeout is **15 min per cycle**. Empirically a single device takes 6–9 min, and devices roll one at a time per class (`concurrentUpdates: 1`), so wait for the slowest, not the first. Exit 0 = all good; exit 1 = timeout (stop, do **not** start cycle 2).
 
 ### After cycle 1 succeeds, run cycle 2 with a `-2` tag
 
@@ -107,29 +107,32 @@ If anything failed, do **not** comment success. Report which device + which cycl
 
 ## Reference: useful API endpoints
 
-All on `$API_URL_EXTERNAL`. Admin actions need the automation token (`POST /tokenlogin` with `{"token": "$AUTOMATION_TOKEN"}`), user actions need a regular login (`POST /login` with `AGENT_TESTING_*`).
+All under `$API_URL_EXTERNAL/v1`. Admin actions need the automation token (`POST /v1/sessions/automation` with `{"token": "$AUTOMATION_TOKEN"}`), user actions need a regular login (`POST /v1/sessions` with `{"email": ..., "password": ...}` from `AGENT_TESTING_*`). Every list answers `{ items, nextCursor }` and takes `limit` and `cursor`.
 
 | Purpose | Endpoint | Auth |
 | --- | --- | --- |
-| Fleet status (own devices) | `GET /device` | user |
-| All devices (admin) | `GET /device/all` | admin |
-| Online devices (admin) | `GET /device/onlinedevices` | admin |
-| Find device class by name | `GET /device/class/find/{name}` | admin |
-| Update device class (= rollout) | `POST /device/class/{class_id}` | admin |
-| Pre-create firmware record | `POST /device/firmware` | admin |
-| List firmware versions across fleet | `GET /device/firmwareversions` | admin |
-| Device firmware log entries | `GET /device/logs/{device_id}` (filter `categories=device-firmware`) | user |
+| Fleet status (own devices) | `GET /v1/devices` | user |
+| All devices (admin) | `GET /v1/admin/devices` | admin |
+| Rollout state per class and build | `GET /v1/admin/fleet` | admin |
+| Device classes (match the name yourself) | `GET /v1/admin/device-classes` | admin |
+| Update device class (= rollout) | `PATCH /v1/admin/device-classes/{id}` | admin |
+| Pre-create firmware record | `POST /v1/admin/firmwares` | admin |
+| Device firmware entries | `GET /v1/entries?deviceId={id}` | user |
 
 Device shape (only the parts the skill cares about):
 
 ```json
 {
-  "device_id": "...",
-  "device_type": "fridge|controller|plug|fan|light",
-  "lastseen": 1781297780311,
-  "hardwareInfo": { "firmware_version": "<firmware_id currently running>" },
-  "cloudSettings": { "pendingFirmware": "<firmware_id the server wants>" }
+  "id": "...",
+  "type": "fridge|controller|plug|fan|light",
+  "firmware": { "channel": "stable|beta|alpha|manual", "targetId": "<build this device should run>" },
+  "state": {
+    "lastSeenAt": "2026-09-17T21:16:20.311Z",
+    "firmwareId": "<firmware id currently running>",
+    "updateStartedAt": null,
+    "updateEndedAt": null
+  }
 }
 ```
 
-The OTA completion log entry shows up under `categories: ["device", "device-firmware"]` with `title: "message-firmware-update-complete-with-ids"` — useful if you want a chronological trace, but `hardwareInfo.firmware_version == FW_ID` is the authoritative check.
+The OTA completion lands in the diary as a `system` entry from the device with `message.key: "message-firmware-update-complete-with-ids"` — useful if you want a chronological trace, but `state.firmwareId == FW_ID` is the authoritative check.

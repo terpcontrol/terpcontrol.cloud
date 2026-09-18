@@ -136,6 +136,15 @@ services:
       # A stack hosted alongside its cameras is reachable at MQTT_HOST_EXTERNAL,
       # so that is the default. Only a private address is ever advertised.
       TERPCAM_ADVERTISE_ADDRESS: ${TERPCAM_ADVERTISE_ADDRESS:-${MQTT_HOST_EXTERNAL:-}}
+      # Unset, which is what these are here, gates nothing: an install that says
+      # nothing serves every picture whole and keeps every one of them.
+      PREMIUM_ENFORCED: ${PREMIUM_ENFORCED:-}
+      PREMIUM_FREE_STILL_WIDTH: ${PREMIUM_FREE_STILL_WIDTH:-}
+      PREMIUM_FREE_RETENTION: ${PREMIUM_FREE_RETENTION:-}
+      PREMIUM_FREE_STILL_DAYS: ${PREMIUM_FREE_STILL_DAYS:-}
+      PREMIUM_FREE_TIMELAPSE_DAYS: ${PREMIUM_FREE_TIMELAPSE_DAYS:-}
+      PREMIUM_EXTEND_URL: ${PREMIUM_EXTEND_URL:-}
+      PREMIUM_PRICE_LABEL: ${PREMIUM_PRICE_LABEL:-}
       DB_HOST: "mongodb"
       DB_PORT: "27017"
       DB_DATABASE: ${MONGODB_DATABASE}
@@ -161,15 +170,15 @@ services:
       SMTP_SECURE: ${SMTP_SECURE}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       MQTTAUTH_SHARED_SECRET: ${MQTTAUTH_SHARED_SECRET:-terpcontrol}
-    # /readycheck answers 200 only once the database is reachable and the admin
+    # /readyz answers 200 only once the database is reachable and the admin
     # account has been seeded, which is what this stack means by ready to serve;
-    # `/` would answer while the server is still no use to anybody. node rather
-    # than curl or wget, because node is the one thing the image is certain to
-    # have. The start period covers the first build of the modules and the wait
-    # for mongodb, and failures during it do not count.
+    # /healthz would answer while the server is still no use to anybody. node
+    # rather than curl or wget, because node is the one thing the image is
+    # certain to have. The start period covers the first build of the modules,
+    # the wait for mongodb and the migrations, and failures during it do not
+    # count.
     healthcheck:
-      test:
-        ['CMD', 'node', '-e', "fetch('http://127.0.0.1:8081/readycheck').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:8081/readyz').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3

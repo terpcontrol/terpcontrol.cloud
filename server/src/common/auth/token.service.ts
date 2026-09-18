@@ -13,17 +13,16 @@ export interface AuthContext {
   isDemo: boolean;
 }
 
-/** Requests carrying an authenticated caller, and optionally a share link. */
+/** Requests carrying an authenticated caller. */
 export interface AuthenticatedRequest extends FastifyRequest {
   auth?: AuthContext;
-  share?: import('@fg2/shared-types').ShareLink;
 }
 
 // A picture is fetched by <img>, which cannot set headers, so those URLs may
 // carry the token in the query string. Nothing else accepts one there - and the
-// router matches whatever the case, so this has to recognise `/Image/` too.
-const isImageQueryTokenAllowed = (request: FastifyRequest): boolean =>
-  request.method === 'GET' && (request.url ?? '').split('?')[0].toLowerCase().startsWith('/image/');
+// router matches whatever the case, so this compares the path in one.
+const isMediaQueryTokenAllowed = (request: FastifyRequest): boolean =>
+  request.method === 'GET' && (request.url ?? '').split('?')[0].toLowerCase().startsWith('/v1/media/');
 
 // A full user session is at least as privileged as the URL-embeddable image token.
 const matchesTokenType = (actual: TokenType, expected: TokenType): boolean => actual === expected || (expected === 'image' && actual === 'user');
@@ -49,7 +48,7 @@ export class TokenService {
       if (bearer) found.push(bearer);
     }
 
-    if (isImageQueryTokenAllowed(request)) {
+    if (isMediaQueryTokenAllowed(request)) {
       const queryToken = (request.query as Record<string, unknown> | undefined)?.token;
       if (typeof queryToken === 'string') found.push(queryToken);
     }
@@ -61,7 +60,7 @@ export class TokenService {
   public async verifyFirst(request: FastifyRequest, tokenType: TokenType = 'user'): Promise<DataStoredInToken | null> {
     for (const candidate of this.candidates(request)) {
       try {
-        const verified = (await verify(candidate, this.auth.secretKey)) as DataStoredInToken;
+        const verified = (await verify(candidate, this.auth.secretKey)) as unknown as DataStoredInToken;
         if (verified.user_id && matchesTokenType(verified.token_type, tokenType)) {
           return verified;
         }
@@ -81,7 +80,7 @@ export class TokenService {
     if (!token) return null;
 
     try {
-      return (await verify(token, this.auth.secretKey)) as DataStoredInToken;
+      return (await verify(token, this.auth.secretKey)) as unknown as DataStoredInToken;
     } catch {
       return null;
     }

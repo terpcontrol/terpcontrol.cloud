@@ -65,15 +65,28 @@ export const mailConfig = registerAs('mail', () => ({
   secure: flag(process.env.SMTP_SECURE),
 }));
 
+// The secret and the seed account are the settings `validateEnvironment` refuses
+// to start without, so unlike the rest of the environment they are always set.
 export const authConfig = registerAs('auth', () => ({
-  secretKey: process.env.SECRET_KEY,
-  /** Trades for an admin session on `/tokenlogin`, for scripts and CI. */
+  secretKey: process.env.SECRET_KEY!,
+  /** Trades for an admin session on `POST /v1/sessions/automation`, for scripts and CI. */
   automationToken: process.env.AUTOMATION_TOKEN,
   requireActivation: flag(process.env.REQUIRE_ACTIVATION),
   enableSelfRegistration: flag(process.env.ENABLE_SELF_REGISTRATION),
   selfRegistrationPassword: process.env.SELF_REGISTRATION_PASSWORD,
-  adminUsername: process.env.ADMINUSER_USERNAME,
-  adminPassword: process.env.ADMINUSER_PASSWORD,
+  adminUsername: process.env.ADMINUSER_USERNAME!,
+  adminPassword: process.env.ADMINUSER_PASSWORD!,
+}));
+
+/**
+ * The two facts an account screen needs before it can offer a notification
+ * channel at all: the public half of the VAPID key pair a browser subscribes
+ * with, and whether this install has a Telegram bot. Every channel is off until
+ * it is configured, and the screen says so.
+ */
+export const notificationsConfig = registerAs('notifications', () => ({
+  pushPublicKey: process.env.VAPID_PUBLIC_KEY || null,
+  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || null,
 }));
 
 export const terpCamConfig = registerAs('terpcam', () => ({
@@ -98,4 +111,39 @@ export const terpCamConfig = registerAs('terpcam', () => ({
   portsEnd: number(process.env.TERPCAM_P2P_PORTS_END, 32209),
 }));
 
-export const configNamespaces = [appConfig, databaseConfig, influxConfig, mqttConfig, mailConfig, authConfig, terpCamConfig];
+/**
+ * What Premium gates, and with which numbers. Unset gates nothing at all, which
+ * is what a self-hosted install gets: the mechanism lives in this repository and
+ * the numbers in the install that sells the thing.
+ *
+ * Nothing here touches control, charts, diary or alarms - it is the picture
+ * pipeline and nothing else.
+ */
+export const premiumConfig = registerAs('premium', () => ({
+  enforced: flag(process.env.PREMIUM_ENFORCED),
+  /** What a free camera's stills are **served** at. The stored picture stays whole, so extending restores the history. */
+  freeStillWidth: number(process.env.PREMIUM_FREE_STILL_WIDTH, 0),
+  /**
+   * Deleting a free camera's older pictures is a switch of its own and is off by
+   * default: an install that says nothing keeps every picture as long as it
+   * always has, and only the served resolution and the renders depend on a tier.
+   */
+  freeRetention: flag(process.env.PREMIUM_FREE_RETENTION),
+  freeStillDays: number(process.env.PREMIUM_FREE_STILL_DAYS, 0),
+  freeTimelapseDays: number(process.env.PREMIUM_FREE_TIMELAPSE_DAYS, 0),
+  /** Where the renewal button goes. Without one there is nothing to offer, so no camera shows the notice. */
+  extendUrl: (process.env.PREMIUM_EXTEND_URL ?? '').trim(),
+  priceLabel: (process.env.PREMIUM_PRICE_LABEL ?? '').trim(),
+}));
+
+export const configNamespaces = [
+  appConfig,
+  databaseConfig,
+  influxConfig,
+  mqttConfig,
+  mailConfig,
+  authConfig,
+  terpCamConfig,
+  premiumConfig,
+  notificationsConfig,
+];

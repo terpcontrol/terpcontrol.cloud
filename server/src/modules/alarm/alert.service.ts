@@ -1,0 +1,141 @@
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
+import { AlertKind, Severity } from '@fg2/shared-types/v1';
+import { MODEL_V1 } from '@database/models';
+import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
+import { StoredAlert } from '@database/schemas/v1/alerts.schema';
+import { EntryWriterService } from '@common/v1/entry-writer.service';
+import { AlarmDeliveryService } from './alarm-delivery.service';
+import { AlarmEvent, GROW_IN_SPACE, GrowInSpace } from './alarm.types';
+
+/**
+ * An alert's life: one document from the moment something is wrong to the moment
+ * it is over, rather than the pair of diary lines this used to be.
+ *
+ * Every change to it also writes the timeline entry that carries its id and
+ * hands the message to the delivery, so the three cannot come apart - an alert
+ * in the inbox that nobody was told about, or a mail about an episode the inbox
+ * does not show, are the failures this file exists to prevent.
+ */
+
+/** What the alert is about, in the words a message uses for it. */
+export interface AlertSubject {
+  /** The rule's name, or the camera's. */
+  name: string;
+  kind: AlertKind;
+  severity: Severity;
+  /** Null for what the health loop raised without a rule. */
+  rule: StoredAlarmRule | null;
+  deviceId: string | null;
+  cameraId: string | null;
+  spaceId: string | null;
+}
+
+@Injectable()
+export class AlertService {
+  constructor(
+    @InjectModel(MODEL_V1.alert) private readonly alerts: Model<StoredAlert>,
+    private readonly entries: EntryWriterService,
+    private readonly delivery: AlarmDeliveryService,
+    @Optional() @Inject(GROW_IN_SPACE) private readonly grows: GrowInSpace | null = null,
+  ) {}
+
+  public openOfRule(ruleId: string): Promise<StoredAlert | null> {
+    return this.alerts.findOne({ ruleId, resolvedAt: null }).sort({ startedAt: -1 }).lean();
+  }
+
+  /** The episode a repeat is about, which is the open one where there is one and the last one otherwise. */
+  public latestOfRule(ruleId: string): Promise<StoredAlert | null> {
+    return this.alerts.findOne({ ruleId }).sort({ startedAt: -1 }).lean();
+  }
+
+  public openOfCamera(cameraId: string): Promise<StoredAlert | null> {
+    return this.alerts.findOne({ cameraId, resolvedAt: null }).sort({ startedAt: -1 }).lean();
+  }
+
+  /** Something is wrong, from now until it is not. */
+  public async raise(subject: AlertSubject, value: number | null, at: Date): Promise<StoredAlert> {
+    const alert: StoredAlert = {
+      id: uuidv4(),
+      createdAt: at,
+      ruleId: subject.rule?.id ?? null,
+      deviceId: subject.deviceId,
+      cameraId: subject.cameraId,
+      spaceId: subject.spaceId,
+      kind: subject.kind,
+      severity: subject.severity,
+      startedAt: at,
+      resolvedAt: null,
+      value,
+      extremeValue: value,
+    };
+
+    await this.alerts.create(alert);
+    await this.announce('triggered', subject, alert, value);
+    return alert;
+  }
+
+  /** It is over. The worst of it stays on the alert, which is the record of the episode. */
+  public async settle(subject: AlertSubject, alert: StoredAlert, value: number | null, at: Date): Promise<void> {
+    const extremeValue = subject.rule?.state.extremeValue ?? alert.extremeValue;
+    await this.alerts.updateOne({ id: alert.id }, { $set: { resolvedAt: at, extremeValue } });
+    await this.announce('resolved', subject, { ...alert, resolvedAt: at, extremeValue }, value);
+  }
+
+  /**
+   * Where it stands, said again because the rule asks to be reminded. Nothing is
+   * written to the timeline: the episode is already in it, and a repeat is not a
+   * second thing that happened.
+   */
+  public async repeat(subject: AlertSubject, alert: StoredAlert, value: number | null): Promise<void> {
+    const event: AlarmEvent = alert.resolvedAt ? 'resolved' : 'triggered';
+    await this.delivery.deliver(event, alert, subject.rule, subject.name, value);
+  }
+
+  /** The worst reading of the episode so far, kept on the alert and on the rule alike. */
+  public async worsen(alert: StoredAlert, extremeValue: number): Promise<void> {
+    await this.alerts.updateOne({ id: alert.id }, { $set: { extremeValue } });
+  }
+
+  private async announce(event: AlarmEvent, subject: AlertSubject, alert: StoredAlert, value: number | null): Promise<void> {
+    await this.writeEntry(event, subject, alert, value);
+    await this.delivery.deliver(event, alert, subject.rule, subject.name, value);
+  }
+
+  private async writeEntry(event: AlarmEvent, subject: AlertSubject, alert: StoredAlert, value: number | null): Promise<void> {
+    const key = event === 'triggered' ? 'message-alarm-triggered' : 'message-alarm-resolved';
+
+    await this.entries.write({
+      source: 'alarm',
+      authorId: null,
+      values: { kind: 'alarm' },
+      occurredAt: event === 'triggered' ? alert.startedAt : (alert.resolvedAt ?? undefined),
+      growId: await this.growOf(subject.spaceId),
+      spaceId: subject.spaceId,
+      deviceId: subject.deviceId,
+      cameraId: subject.cameraId,
+      alertId: alert.id,
+      // An alarm is worth what its rule says it is worth; that it is over is not.
+      severity: event === 'triggered' ? subject.severity : 'info',
+      message: { key, params: [summary(subject, alert, value, event)] },
+    });
+  }
+
+  private growOf(spaceId: string | null): Promise<string | null> {
+    return spaceId && this.grows ? this.grows.growIdIn(spaceId) : Promise.resolve(null);
+  }
+}
+
+/** The line the timeline shows, in the words it has always shown it in. */
+const summary = (subject: AlertSubject, alert: StoredAlert, value: number | null, event: AlarmEvent): string => {
+  const rule = subject.rule;
+  const band = rule && (rule.upper !== null || rule.lower !== null);
+
+  return (
+    `${subject.name} (${rule?.metric ?? alert.kind}), value=${value}` +
+    (band ? `, upper threshold=${rule.upper ?? 'n/a'}, lower threshold=${rule.lower ?? 'n/a'}` : '') +
+    (event === 'resolved' && band ? `, extreme value=${alert.extremeValue ?? 'n/a'}` : '')
+  );
+};

@@ -21,7 +21,8 @@ export interface MqttMessage {
  */
 @Injectable()
 export class MqttClientService implements OnApplicationShutdown {
-  private client;
+  /** What `mqtt.connect` answers with; the package is required rather than imported, so it carries no type. */
+  private client: any;
   private everConnected = false;
   /** Set on the way down, so a connection given up on purpose is not an outage. */
   private closing = false;

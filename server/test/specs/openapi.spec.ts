@@ -2,8 +2,7 @@ import Ajv, { ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 import supertest from 'supertest';
 import { anonymous, ApiClient, context, createAccount, loginAsAdmin, Method, Session, unique } from '../support/api';
-import { seedMeasurements, waitForMail } from '../support/control';
-import { DeviceCredentials, provisionDevice, registerDevice } from '../support/device';
+import { claimCodeOf, DeviceCredentials, provisionDevice, registerDevice } from '../support/device';
 
 /**
  * The API document, and whether it tells the truth.
@@ -31,9 +30,9 @@ import { DeviceCredentials, provisionDevice, registerDevice } from '../support/d
  * is the shape of older rows - a field a schema calls required that a document
  * written long ago does not carry would pass here and still be a wrong claim.
  *
- * One case walks the document instead of the server: every operation has to
- * declare a body, so a route added without saying what it answers fails here
- * rather than quietly going undocumented.
+ * Two cases walk the document instead of the server: every operation has to
+ * declare what it answers, so a route added without saying so fails here rather
+ * than quietly going undocumented.
  */
 
 const METHODS: Method[] = ['get', 'post', 'put', 'patch', 'delete', 'options'];
@@ -42,9 +41,17 @@ interface Content {
   content?: Record<string, { schema?: unknown }>;
 }
 
+interface Parameter {
+  name: string;
+  in: string;
+  required?: boolean;
+  schema?: unknown;
+}
+
 interface Operation {
   responses?: Record<string, Content>;
   requestBody?: Content;
+  parameters?: Parameter[];
 }
 
 interface OpenApiDocument {
@@ -58,20 +65,43 @@ let owner: Session;
 let admin: Session;
 let device: DeviceCredentials;
 
+/** What the bodies below need to name something that exists: see `beforeAll`. */
+let fridgeClassId: string;
+let spareUserId: string;
+let alarmRuleId: string;
+let cameraId: string;
+let unclaimedCode: string;
+
 /** The response schema a route documents for one status code, or undefined. */
 const declaredSchema = (path: string, method: Method = 'get', status = 200, contentType = 'application/json'): unknown =>
   document.paths[path]?.[method]?.responses?.[String(status)]?.content?.[contentType]?.schema;
 
-/** What the bodies below need to name something that exists: see `beforeAll`. */
-let fridgeClassId: string;
-let spareUserId: string;
-let diaryEntryId: string;
-let unclaimedCode: string;
-
 /** The request body a route documents, or undefined where it documents none. */
 const declaredBody = (path: string, method = 'post'): unknown => document.paths[path]?.[method]?.requestBody?.content?.['application/json']?.schema;
 
-const itemSchema = (schema: unknown): unknown => (schema as { items?: unknown }).items ?? schema;
+/** The query parameters a route documents, by name. */
+const declaredQuery = (path: string, method: Method = 'get'): Record<string, Parameter> =>
+  Object.fromEntries(
+    (document.paths[path]?.[method]?.parameters ?? []).filter(parameter => parameter.in === 'query').map(parameter => [parameter.name, parameter]),
+  );
+
+/**
+ * The shape of one row of a listing. A list answers a page the document names,
+ * so this follows the reference into `components` and takes the item shape out
+ * of it.
+ */
+const itemSchema = (schema: unknown): unknown => {
+  const resolved = resolve(schema) as { items?: unknown; properties?: { items?: { items?: unknown } } };
+  return resolved.properties?.items?.items ?? resolved.items ?? schema;
+};
+
+const resolve = (schema: unknown): unknown => {
+  const ref = (schema as { $ref?: string }).$ref;
+  if (!ref) return schema;
+
+  const name = ref.split('/').pop() as string;
+  return document.components?.schemas?.[name] ?? schema;
+};
 
 const compile = (schema: unknown): ValidateFunction => ajv.compile({ ...(schema as object), components: document.components } as object);
 
@@ -79,6 +109,12 @@ const expectMatches = (schema: unknown, body: unknown, what: string) => {
   const validate = compile(schema);
   if (!validate(body)) {
     throw new Error(`${what} does not match the schema the document declares: ${ajv.errorsText(validate.errors)}`);
+  }
+};
+
+const expectRefuses = (schema: unknown, body: unknown, what: string) => {
+  if (compile(schema)(body)) {
+    throw new Error(`${what} matches the schema the document declares, so the document is looser than the route`);
   }
 };
 
@@ -112,20 +148,22 @@ const expectRowDocumented = (response: supertest.Response, path: string, row: un
 /** An account this spec owns, so deleting or renaming it disturbs nobody. */
 const createAccountAsAdmin = (): Promise<supertest.Response> =>
   admin.client
-    .post('/users')
-    .send({ username: `${unique('openapi-account')}@test.invalid`, password: 'Passw0rd!test', is_admin: false })
+    .post('/v1/admin/users')
+    .send({ email: `${unique('openapi-account')}@test.invalid`, handle: unique('openapi'), password: 'Passw0rd!test' })
     .expect(201);
 
-const expectRefuses = (schema: unknown, body: unknown, what: string) => {
-  if (compile(schema)(body)) {
-    throw new Error(`${what} matches the schema the document declares, so the document is looser than the route`);
-  }
+const anAlarmRule = {
+  name: 'Too hot',
+  metric: 'temperature',
+  upper: 30,
+  lower: null,
+  forSeconds: 60,
+  severity: 'warning',
+  enabled: true,
+  cooldownSeconds: 600,
+  repeatSeconds: 0,
+  delivery: { mode: 'routing', custom: null },
 };
-
-/** Sample payloads the cases below build on, and the fixtures in `beforeAll`. */
-const anAlarm = { name: 'Too hot', sensorType: 'temperature', upperThreshold: 30, lowerThreshold: null, actionType: 'info', actionTarget: '' };
-
-const aDiaryEntry = { title: 'openapi note', message: 'written by the document spec', severity: 0, categories: ['note'] };
 
 beforeAll(async () => {
   const response = await anonymous().get('/swagger.json').expect(200);
@@ -140,31 +178,32 @@ beforeAll(async () => {
 
   // A body that has to name a row names one this spec made, or one the stack is
   // seeded with; nothing here depends on what another spec left behind.
-  fridgeClassId = (await admin.client.get('/device/class/find/fridge').expect(200)).body.class_id;
+  const classes = await admin.client.get('/v1/admin/device-classes').expect(200);
+  fridgeClassId = classes.body.items.find((entry: { name: string }) => entry.name === 'fridge').id;
 
-  const spare = await admin.client
-    .post('/users')
-    .send({ username: `${unique('openapi-spare')}@test.invalid`, password: 'Passw0rd!test', is_admin: false })
+  spareUserId = (await createAccountAsAdmin()).body.id;
+
+  const rule = await owner.client.post(`/v1/devices/${device.deviceId}/alarm-rules`).send(anAlarmRule).expect(201);
+  alarmRuleId = rule.body.id;
+
+  const camera = await owner.client
+    .post('/v1/cameras')
+    .send({ kind: 'rtsp', deviceId: device.deviceId, name: 'openapi', url: 'rtsp://127.0.0.1:1/openapi' })
     .expect(201);
-  spareUserId = spare.body.data._id;
+  cameraId = camera.body.id;
 
-  await owner.client
-    .post(`/device/logs/${device.deviceId}`)
-    .send({ ...aDiaryEntry, time: Date.now() })
-    .expect(200);
-  diaryEntryId = (await owner.client.get(`/device/logs/${device.deviceId}`).expect(200)).body[0]._id;
-
-  const unclaimed = await registerDevice();
-  unclaimedCode = (await anonymous().post('/device/claimcode').send({ device_id: unclaimed.deviceId }).expect(200)).body.claim_code;
+  unclaimedCode = await claimCodeOf((await registerDevice()).deviceId);
 });
 
 describe('the document', () => {
-  it('carries the shared shapes as components', () => {
+  it('carries the /v1 contract as components', () => {
     const schemas = Object.keys(document.components?.schemas ?? {});
+
     expect(schemas).toContain('Device');
-    expect(schemas).toContain('DeviceLog');
-    expect(schemas).toContain('CloudSettings');
-    expect(schemas.length).toBeGreaterThan(20);
+    expect(schemas).toContain('Camera');
+    expect(schemas).toContain('Problem');
+    expect(schemas).toContain('DevicePage');
+    expect(schemas.length).toBeGreaterThan(100);
   });
 
   it('leaves no reference dangling', () => {
@@ -174,29 +213,45 @@ describe('the document', () => {
     expect(referenced.map(ref => ref.split('/').pop()).filter(name => !names.includes(name as string))).toEqual([]);
   });
 
-  it('names the shape each annotated route answers with', () => {
-    // The owner's own listing is a projection, so it names the narrower shape;
-    // the admin listing answers the whole document. Looking a firmware up by
-    // class and version answers the same projection as the firmware listing.
-    expect(declaredSchema('/device')).toEqual({ type: 'array', items: { $ref: '#/components/schemas/DeviceListEntry' } });
-    expect(declaredSchema('/device/all')).toEqual({ type: 'array', items: { $ref: '#/components/schemas/Device' } });
-    expect(declaredSchema('/device/class')).toEqual({ type: 'array', items: { $ref: '#/components/schemas/DeviceClass' } });
-    expect(declaredSchema('/users')).toEqual({ type: 'array', items: { $ref: '#/components/schemas/UserAccount' } });
-    expect(declaredSchema('/device/firmware')).toEqual({ type: 'array', items: { $ref: '#/components/schemas/FirmwareListEntry' } });
-    expect(declaredSchema('/device/firmware/find')).toEqual({ $ref: '#/components/schemas/FirmwareListEntry' });
+  it('names the shape each route answers by referring to the contract', () => {
+    // A reference rather than a copy: the same object spelled out at twenty
+    // routes is twenty places for it to stop being the contract.
+    expect(declaredSchema('/v1/devices')).toEqual({ $ref: '#/components/schemas/DevicePage' });
+    expect(declaredSchema('/v1/devices/{id}')).toEqual({ $ref: '#/components/schemas/Device' });
+    expect(declaredSchema('/v1/cameras')).toEqual({ $ref: '#/components/schemas/CameraPage' });
+    expect(declaredSchema('/v1/alerts')).toEqual({ $ref: '#/components/schemas/AlertPage' });
+    expect(declaredSchema('/v1/admin/fleet')).toEqual({ $ref: '#/components/schemas/Fleet' });
+    expect(declaredSchema('/v1/me')).toEqual({ $ref: '#/components/schemas/Me' });
+  });
+
+  it('groups every operation under a tag the document explains', () => {
+    const explained = new Set(((document as unknown as { tags?: { name: string }[] }).tags ?? []).map(tag => tag.name));
+    expect(explained.size).toBeGreaterThan(0);
+
+    const ungrouped: string[] = [];
+    for (const [path, operations] of Object.entries(document.paths)) {
+      for (const method of Object.keys(operations).filter(key => METHODS.includes(key as Method))) {
+        const tags = (operations[method] as { tags?: string[] }).tags ?? [];
+        if (!tags.some(tag => explained.has(tag))) ungrouped.push(`${method.toUpperCase()} ${path}`);
+      }
+    }
+
+    expect(ungrouped).toEqual([]);
   });
 
   it('leaves no operation without an answer', () => {
-    // What this file is for: an operation that documents no body at all tells a
-    // reader nothing, and there is no route left that has an excuse for it.
+    // What this file is for: an operation that says nothing about what it
+    // answers tells a reader nothing, and there is no route left that has an
+    // excuse for it. A shape where the route sends a body, and a sentence where
+    // it deliberately sends none - Nest fills in a 200 with an empty
+    // description for a route that said neither, which is what this catches.
     const unsaid: string[] = [];
 
     for (const [path, operations] of Object.entries(document.paths)) {
       for (const method of Object.keys(operations).filter(key => METHODS.includes(key as Method))) {
         const answers = Object.entries(operations[method].responses ?? {}).filter(([status]) => status.startsWith('2'));
-        if (!answers.some(([, answer]) => Object.keys(answer.content ?? {}).length > 0)) {
-          unsaid.push(`${method.toUpperCase()} ${path}`);
-        }
+        const said = answers.some(([, answer]) => Object.keys(answer.content ?? {}).length > 0 || !!(answer as { description?: string }).description);
+        if (!said) unsaid.push(`${method.toUpperCase()} ${path}`);
       }
     }
 
@@ -207,408 +262,88 @@ describe('the document', () => {
     // A route that answers 201 and documents a 200 describes an answer nobody
     // ever gets; declaring a shape at all replaces the status Nest would have
     // filled in on its own, so the status has to be said out loud.
-    expect(declaredSchema('/device/create', 'post', 200)).toBeUndefined();
-    expect(declaredSchema('/device/create', 'post', 201)).toEqual({ $ref: '#/components/schemas/Device' });
+    expect(declaredSchema('/v1/devices/claims', 'post', 200)).toBeUndefined();
+    expect(declaredSchema('/v1/devices/claims', 'post', 201)).toEqual({ $ref: '#/components/schemas/DeviceClaimResult' });
+
+    // A command is accepted rather than done: MQTT hands back no receipt.
+    expect(declaredSchema('/v1/devices/{id}/commands', 'post', 202)).toEqual({ $ref: '#/components/schemas/DeviceCommandResult' });
   });
 
   it('describes the body each validated route accepts', () => {
-    // A schema that refuses an unknown property says so. The generated response
-    // shapes drop that, because an answer may carry more than it names; a
-    // request body is the direction the server closes.
-    expect(declaredBody('/signup')).toEqual({
-      type: 'object',
-      properties: { username: { type: 'string' }, password: { type: 'string' } },
-      required: ['username', 'password'],
-      additionalProperties: false,
+    // The fields, and which of them a client has to get right. `/v1` bodies
+    // strip what they do not name rather than refusing it, so the document does
+    // not close them either.
+    expect(declaredBody('/v1/sessions')).toMatchObject({
+      properties: { email: { type: 'string' }, password: { type: 'string' } },
+      required: ['email', 'password'],
     });
 
-    // The body as it arrives, not as the handler receives it: the route turns a
-    // missing duration into 0, which would make this a plain required number.
-    expect(declaredBody('/device/maintenancemode')).toMatchObject({
-      properties: { duration_minutes: { anyOf: [{ type: 'number', minimum: 0 }, { type: 'null' }] } },
-      required: ['device_id'],
-    });
+    // A command is a union of the things a device understands, so the document
+    // says which they are rather than "an object".
+    const kinds = (declaredBody('/v1/devices/{id}/commands') as { oneOf: { properties: { kind: { const: string } } }[] }).oneOf.map(
+      member => member.properties.kind.const,
+    );
+    expect(kinds).toEqual(expect.arrayContaining(['reboot', 'maintenance', 'test', 'socket_override', 'socket_set']));
+  });
 
-    // An alarm is shared-types' shape rather than "an object", so the fields a
-    // client has to get right are in the document.
-    const alarms = (declaredBody('/device/alarms') as { properties: { alarms: { items: { properties: object; required: string[] } } } }).properties
-      .alarms;
-    expect(Object.keys(alarms.items.properties)).toEqual(expect.arrayContaining(['alarmId', 'sensorType', 'upperThreshold', 'webhookHeaders']));
-    // The id is the server's to assign, so a new alarm arrives without one.
-    expect(alarms.items.required).not.toContain('alarmId');
+  it('describes the query each validated route accepts', () => {
+    // A series cannot be asked for without naming the metrics and the window, so
+    // a document that omits them describes a route nobody can call.
+    const series = declaredQuery('/v1/devices/{id}/series');
+    expect(Object.keys(series).sort()).toEqual(['endsAt', 'metrics', 'outputs', 'startsAt', 'stepSeconds']);
+    expect(series.metrics?.required).toBe(true);
+    expect(series.startsAt?.required).toBe(true);
+    expect(series.endsAt?.required).toBe(true);
+    expect(series.stepSeconds?.required).toBe(false);
+
+    // What every list takes, stated once and therefore documented everywhere.
+    expect(Object.keys(declaredQuery('/v1/devices')).sort()).toEqual(['cursor', 'limit', 'spaceId']);
+    expect(Object.keys(declaredQuery('/v1/alerts'))).toEqual(expect.arrayContaining(['cursor', 'limit']));
   });
 });
 
-describe('what the routes actually answer', () => {
-  it("matches the declared shape for the caller's own devices", async () => {
-    // This account was made by this spec, so every row in the listing is its own.
-    const response = await owner.client.get('/device').expect(200);
-
-    expect(response.body.length).toBeGreaterThan(0);
-    expectDocumented(response, '/device');
-  });
-
-  it('matches the declared shape for a device in the admin listing', async () => {
-    const response = await admin.client.get('/device/all').expect(200);
-    const mine = response.body.find((entry: { device_id: string }) => entry.device_id === device.deviceId);
-
-    expectRowDocumented(response, '/device/all', mine);
-  });
-
-  it('matches the declared shape for a device it just created', async () => {
-    const fridge = await admin.client.get('/device/class/find/fridge').expect(200);
-    const response = await admin.client.post('/device/create').send({ class_id: fridge.body.class_id, device_type: 'fridge' }).expect(201);
-
-    expectDocumented(response, '/device/create', 'post');
-  });
-
-  it('matches the declared shape for this account in the account listing', async () => {
-    const response = await admin.client.get('/users').expect(200);
-    const mine = response.body.find((entry: { username: string }) => entry.username === owner.username);
-
-    expectRowDocumented(response, '/users', mine);
-  });
-
-  it('matches the declared shape for a firmware it just created', async () => {
-    const version = unique('openapi-v');
-    const created = await admin.client.post('/device/firmware').send({ name: 'fridge', version }).expect(200);
-
-    const response = await admin.client.get('/device/firmware').expect(200);
-    const mine = response.body.find((entry: { firmware_id: string }) => entry.firmware_id === created.body.firmware_id);
-
-    expectRowDocumented(response, '/device/firmware', mine);
-  });
-
-  it('matches the declared shape for an account it just created', async () => {
-    const response = await createAccountAsAdmin();
-
-    expectDocumented(response, '/users', 'post');
-  });
-
-  it('matches the declared shape for one account read by its id', async () => {
-    const created = await createAccountAsAdmin();
-
-    const response = await admin.client.get(`/users/${created.body.data._id}`).expect(200);
-
-    expectDocumented(response, '/users/{id}');
-  });
-
-  it('matches the declared shape for an account it just changed', async () => {
-    const created = await createAccountAsAdmin();
-
-    const response = await admin.client.put(`/users/${created.body.data._id}`).send({ is_admin: true }).expect(200);
-
-    expectDocumented(response, '/users/{id}', 'put');
-  });
-
-  it('matches the declared shape for an account it just deleted', async () => {
-    const created = await createAccountAsAdmin();
-
-    const response = await admin.client.delete(`/users/${created.body.data._id}`).expect(200);
-
-    expectDocumented(response, '/users/{id}', 'delete');
-  });
-
-  it('matches the declared shape for a device class', async () => {
-    const response = await admin.client.get('/device/class').expect(200);
-    const fridge = response.body.find((entry: { name: string }) => entry.name === 'fridge');
-
-    expectRowDocumented(response, '/device/class', fridge);
-  });
-});
-
-describe('what the authentication routes answer', () => {
+describe('what the sessions and account routes answer', () => {
   const password = 'Passw0rd!test';
 
   it('matches the declared shapes for a sign-up, the session it leads to, and its renewal', async () => {
     // One client throughout: the routes are rate-limited per address, and every
     // client of this suite is given one of its own.
     const client = anonymous();
-    const username = `${unique('openapi-signup')}@test.invalid`;
+    const email = `${unique('openapi-signup')}@test.invalid`;
 
-    const signup = await client.post('/signup').send({ username, password }).expect(201);
-    expectDocumented(signup, '/signup', 'post');
+    const signup = await client
+      .post('/v1/users')
+      .send({ email, handle: unique('openapi'), password })
+      .expect(201);
+    expectDocumented(signup, '/v1/users', 'post');
 
-    const session = await client.post('/login').send({ username, password }).expect(200);
-    expectDocumented(session, '/login', 'post');
+    const session = await client.post('/v1/sessions').send({ email, password }).expect(201);
+    expectDocumented(session, '/v1/sessions', 'post');
 
-    const renewed = await client.post('/refresh').send({ token: session.body.refreshToken.token }).expect(200);
-    expectDocumented(renewed, '/refresh', 'post');
+    const renewed = await client.post('/v1/sessions/refresh').send({ refreshToken: session.body.refreshToken.token }).expect(200);
+    expectDocumented(renewed, '/v1/sessions/refresh', 'post');
   });
 
   it('matches the declared shape for a demo session', async () => {
-    expectDocumented(await anonymous().post('/demologin').expect(200), '/demologin', 'post');
+    expectDocumented(await anonymous().post('/v1/sessions/demo').expect(201), '/v1/sessions/demo', 'post');
   });
 
   it('matches the declared shape for the session the automation token buys', async () => {
-    const response = await anonymous().post('/tokenlogin').send({ token: context.automationToken }).expect(200);
+    const response = await anonymous().post('/v1/sessions/automation').send({ token: context.automationToken }).expect(200);
 
-    expectDocumented(response, '/tokenlogin', 'post');
+    expectDocumented(response, '/v1/sessions/automation', 'post');
   });
 
-  it('matches the declared shapes for changing a password and signing out', async () => {
+  it('matches the declared shapes for the sessions of an account, and for the account itself', async () => {
     const account = await createAccount('openapi-session');
 
-    expectDocumented(await account.client.post('/changepass').send({ username: '', password }).expect(200), '/changepass', 'post');
-    expectDocumented(await account.client.post('/logout').expect(200), '/logout', 'post');
-  });
-
-  it('matches the declared shapes for a password recovery', async () => {
-    const account = await createAccount('openapi-recovery');
-
-    const requested = await anonymous().post('/getreset').send({ username: account.username, password: '' }).expect(201);
-    expectDocumented(requested, '/getreset', 'post');
-
-    const mail = await waitForMail(message => message.to.includes(account.username));
-    const token = mail.body.match(/recovery=([\w-]+)/)?.[1];
-
-    const reset = await anonymous().post('/reset').send({ token, password: 'Recovered!pass1' }).expect(200);
-    expectDocumented(reset, '/reset', 'post');
-  });
-});
-
-describe('what the chart preset and share routes answer', () => {
-  it('matches the declared shapes for a chart preset it created, listed and deleted', async () => {
-    const created = await owner.client
-      .post('/chartpresets')
-      .send({ name: unique('openapi-preset'), query: 'measures=temperature' })
-      .expect(201);
-    expectDocumented(created, '/chartpresets', 'post');
-
-    // The listing is the caller's own, and this account is this spec's.
-    const listed = await owner.client.get('/chartpresets').expect(200);
-    expect(listed.body.length).toBeGreaterThan(0);
-    expectDocumented(listed, '/chartpresets');
-
-    expectDocumented(await owner.client.delete(`/chartpresets/${created.body.preset_id}`).expect(200), '/chartpresets/{preset_id}', 'delete');
-  });
-
-  it('matches the declared shapes for a share link through its whole life', async () => {
-    const created = await owner.client
-      .post('/share')
-      .send({ device_id: device.deviceId, page: 'charts', editable: false, webcam: false })
-      .expect(201);
-    expectDocumented(created, '/share', 'post');
-
-    const listed = await owner.client.get('/share').expect(200);
-    expect(listed.body.length).toBeGreaterThan(0);
-    expectDocumented(listed, '/share');
-
-    const shareId = created.body.share_id;
-    expectDocumented(await anonymous().get(`/share/resolve/${shareId}`).expect(200), '/share/resolve/{share_id}');
-    expectDocumented(await owner.client.post(`/share/${shareId}/revoke`).expect(200), '/share/{share_id}/revoke', 'post');
-    expectDocumented(await owner.client.delete(`/share/${shareId}`).expect(200), '/share/{share_id}', 'delete');
-  });
-
-  it('matches the declared shape for a sweep of inactive share links', async () => {
-    const created = await owner.client.post('/share').send({ device_id: device.deviceId, page: 'diary', editable: false, webcam: false }).expect(201);
-    await owner.client.post(`/share/${created.body.share_id}/revoke`).expect(200);
-
-    const response = await owner.client.delete('/share/inactive').expect(200);
-
-    expect(response.body.deleted).toBeGreaterThan(0);
-    expectDocumented(response, '/share/inactive', 'delete');
-  });
-});
-
-describe('what the measurement routes answer', () => {
-  /** A window this spec seeded itself, so the points in it are its own. */
-  const alignedNow = Math.floor(Date.now() / 60_000) * 60_000;
-  const from = new Date(alignedNow - 5 * 60_000).toISOString();
-  const to = new Date(alignedNow).toISOString();
-
-  it('matches the declared shape for a series, empty windows and all', async () => {
-    await seedMeasurements([{ time: alignedNow - 90_000, device_id: device.deviceId, fields: { temperature: 21 } }]);
-
-    const response = await owner.client
-      .get(`/data/series/${device.deviceId}/temperature`)
-      .query({ from, to, interval: '1m', method: 'mean' })
-      .expect(201);
-
-    // Both halves of the shape have to appear, or the null is never checked.
-    expect(response.body.some((point: { _value: number | null }) => point._value === null)).toBe(true);
-    expect(response.body.some((point: { _value: number | null }) => point._value !== null)).toBe(true);
-    expectDocumented(response, '/data/series/{device_id}/{measure}');
-  });
-
-  it('matches the declared shape for the latest reading, and for there being none', async () => {
-    await seedMeasurements([{ time: Date.now() - 30_000, device_id: device.deviceId, fields: { humidity: 55 } }]);
-
-    const reading = await owner.client.get(`/data/latest/${device.deviceId}/humidity`).expect(201);
-    expect(reading.body.value).toBe(55);
-    expectDocumented(reading, '/data/latest/{device_id}/{measure}');
-
-    const nothing = await owner.client.get(`/data/latest/${device.deviceId}/co2`).expect(201);
-    expect(nothing.body.value).toBeNull();
-    expectDocumented(nothing, '/data/latest/{device_id}/{measure}');
-  });
-});
-
-describe('what the device diary routes answer', () => {
-  const entry = (overrides: Record<string, unknown> = {}) => ({
-    title: unique('openapi-entry'),
-    message: 'openapi',
-    severity: 1,
-    categories: ['diary'],
-    time: Date.now(),
-    ...overrides,
-  });
-
-  it('matches the declared shape for a diary it wrote itself', async () => {
-    // The diary is per device, and this device is this spec's.
-    expectDocumented(await owner.client.post(`/device/logs/${device.deviceId}`).send(entry()).expect(200), '/device/logs/{device_id}', 'post');
-
-    const response = await owner.client.get(`/device/logs/${device.deviceId}`).expect(200);
-
-    expect(response.body.length).toBeGreaterThan(0);
-    expectDocumented(response, '/device/logs/{device_id}');
-  });
-
-  it('matches the declared shapes for changing and removing one entry', async () => {
-    await owner.client.post(`/device/logs/${device.deviceId}`).send(entry()).expect(200);
-    const [written] = await owner.client
-      .get(`/device/logs/${device.deviceId}`)
-      .expect(200)
-      .then(response => response.body.slice(-1));
-
-    const changed = await owner.client
-      .put(`/device/logs/${device.deviceId}/${written._id}`)
-      .send(entry({ severity: 2 }))
-      .expect(200);
-    expectDocumented(changed, '/device/logs/{device_id}/{log_id}', 'put');
-
-    const removed = await owner.client.delete(`/device/logs/${device.deviceId}/${written._id}`).expect(200);
-    expectDocumented(removed, '/device/logs/{device_id}/{log_id}', 'delete');
-  });
-
-  it('matches the declared shape for clearing a whole diary', async () => {
-    const spare = await provisionDevice(owner);
-    await owner.client.post(`/device/logs/${spare.deviceId}`).send(entry()).expect(200);
-
-    expectDocumented(await owner.client.delete(`/device/logs/${spare.deviceId}`).expect(200), '/device/logs/{device_id}', 'delete');
-  });
-});
-
-describe('what the grow plan routes answer', () => {
-  const step = { name: 'veg', settings: { day: { temperature: 24 } }, durationUnit: 'days', duration: 7, waitForConfirmation: false };
-
-  const createTemplate = () =>
-    owner.client
-      .post('/device/recipes')
-      .send({ name: unique('openapi-plan'), steps: [step], public: false })
-      .expect(201);
-
-  it('matches the declared shape for the plan a device is running', async () => {
-    const saved = await owner.client
-      .post('/device/recipe')
-      .send({ device_id: device.deviceId, recipe: { steps: [step], activeStepIndex: 0, activeSince: Date.now() } })
-      .expect(200);
-    expectDocumented(saved, '/device/recipe', 'post');
-
-    expectDocumented(await owner.client.get(`/device/recipe/${device.deviceId}`).expect(200), '/device/recipe/{device_id}');
-  });
-
-  it('matches the declared shapes for a plan template through its whole life', async () => {
-    const created = await createTemplate();
-    expectDocumented(created, '/device/recipes', 'post');
-
-    const templateId = created.body._id;
-    expectDocumented(await owner.client.get(`/device/recipes/${templateId}`).expect(200), '/device/recipes/{template_id}');
-    expectDocumented(
-      await owner.client.put(`/device/recipes/${templateId}`).send({ public: true }).expect(200),
-      '/device/recipes/{template_id}',
-      'put',
-    );
-    expectDocumented(await owner.client.delete(`/device/recipes/${templateId}`).expect(200), '/device/recipes/{template_id}', 'delete');
-  });
-
-  it('matches the declared shape for a template in the listing', async () => {
-    // The listing carries every public template, so only this one is checked.
-    const created = await createTemplate();
-
-    const response = await owner.client.get('/device/recipes').expect(200);
-    const mine = response.body.find((template: { _id: string }) => template._id === created.body._id);
-
-    expectRowDocumented(response, '/device/recipes', mine);
-  });
-});
-
-describe('what the firmware and device class routes answer', () => {
-  const registerFirmware = () =>
-    admin.client
-      .post('/device/firmware')
-      .send({ name: 'fridge', version: unique('openapi-v') })
-      .expect(200);
-
-  it('matches the declared shapes for a firmware build it registered, relabelled and deleted', async () => {
-    const created = await registerFirmware();
-    expectDocumented(created, '/device/firmware', 'post');
-
-    const firmwareId = created.body.firmware_id;
-    const uploaded = await admin.client
-      .post(`/device/firmware/${firmwareId}/firmware.bin`)
-      .attach('binary', Buffer.from('an image'), 'firmware.bin')
-      .expect(200);
-    expectDocumented(uploaded, '/device/firmware/{firmware_id}/{binary}', 'post');
-
-    const relabelled = await admin.client
-      .put(`/device/firmware/${firmwareId}`)
-      .send({ version: unique('openapi-relabelled') })
-      .expect(200);
-    expectDocumented(relabelled, '/device/firmware/{firmware_id}', 'put');
-
-    expectDocumented(await admin.client.delete(`/device/firmware/${firmwareId}`).expect(200), '/device/firmware/{firmware_id}', 'delete');
-  });
-
-  it('matches the declared shape for a firmware found by class and version', async () => {
-    const created = await registerFirmware();
-    const listed = await admin.client.get('/device/firmware').expect(200);
-    const { version } = listed.body.find((entry: { firmware_id: string }) => entry.firmware_id === created.body.firmware_id);
-
-    const response = await admin.client.get('/device/firmware/find').query({ name: 'fridge', version }).expect(200);
-
-    expectDocumented(response, '/device/firmware/find');
-  });
-
-  it('matches the declared shape for the firmwares a device may run', async () => {
-    const response = await owner.client.get(`/device/firmwares/${device.deviceId}`).expect(200);
-
-    expectDocumented(response, '/device/firmwares/{device_id}');
-  });
-
-  it('matches the declared shapes for a device class it created, read and changed', async () => {
-    const firmware = await registerFirmware();
-    const name = unique('openapi-class');
-
-    const created = await admin.client
-      .post('/device/class')
-      .send({ name, description: 'made by the openapi spec', concurrent: 1, maxfails: 1, firmware_id: firmware.body.firmware_id })
-      .expect(200);
-    expectDocumented(created, '/device/class', 'post');
-
-    const found = await admin.client.get(`/device/class/find/${name}`).expect(200);
-    expectDocumented(found, '/device/class/find/{class_name}');
-
-    const classId = found.body.class_id;
-    expectDocumented(await admin.client.get(`/device/class/${classId}`).expect(200), '/device/class/{class_id}');
-
-    const changed = await admin.client
-      .post(`/device/class/${classId}`)
-      .send({ name, description: 'changed', concurrent: 2, maxfails: 1, firmware_id: firmware.body.firmware_id })
-      .expect(200);
-    expectDocumented(changed, '/device/class/{class_id}', 'post');
+    expectDocumented(await account.client.get('/v1/sessions').expect(200), '/v1/sessions');
+    expectDocumented(await account.client.get('/v1/me').expect(200), '/v1/me');
+    expectDocumented(await account.client.patch('/v1/me').send({ bio: 'written by the document spec' }).expect(200), '/v1/me', 'patch');
   });
 });
 
 describe('what the device routes answer', () => {
-  const alarm = {
-    alarmId: unique('openapi-alarm'),
-    sensorType: 'temperature',
-    upperThreshold: 40,
-    actionType: 'info',
-    actionTarget: '',
-  };
-
   it('matches the declared shapes for enrolling a device and claiming it', async () => {
     const enrolled = await anonymous()
       .post('/device/register')
@@ -626,157 +361,172 @@ describe('what the device routes answer', () => {
     const code = await anonymous().post('/device/claimcode').send({ device_id: spare.deviceId }).expect(200);
     expectDocumented(code, '/device/claimcode', 'post');
 
-    const claimed = await owner.client.post('/device').send({ claim_code: code.body.claim_code }).expect(200);
-    expectDocumented(claimed, '/device', 'post');
+    const claimed = await owner.client.post('/v1/devices/claims').send({ code: code.body.claim_code }).expect(201);
+    expectDocumented(claimed, '/v1/devices/claims', 'post');
   });
 
-  it('matches the declared shape for a device found by its serial number', async () => {
-    const listed = await admin.client.get('/device/all').expect(200);
-    const mine = listed.body.find((entry: { device_id: string }) => entry.device_id === device.deviceId);
+  it("matches the declared shape for the caller's own devices", async () => {
+    // This account was made by this spec, so every row in the listing is its own.
+    const response = await owner.client.get('/v1/devices').expect(200);
 
-    const response = await admin.client.get('/device/byserial').query({ serialnumber: mine.serialnumber }).expect(200);
-
-    expect(response.body.device_id).toBe(device.deviceId);
-    expectDocumented(response, '/device/byserial');
+    expect(response.body.items.length).toBeGreaterThan(0);
+    expectDocumented(response, '/v1/devices');
   });
 
-  it('matches the declared shape for the online count of a class this spec has a device in', async () => {
-    const response = await admin.client.get('/device/onlinedevices').expect(200);
-    const fridge = response.body.find((entry: { class: { name: string } }) => entry.class.name === 'fridge');
+  it('matches the declared shapes for one device, read and changed', async () => {
+    expectDocumented(await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200), '/v1/devices/{id}');
 
-    expect(fridge.total).toBeGreaterThan(0);
-    expectRowDocumented(response, '/device/onlinedevices', fridge);
+    const renamed = await owner.client.patch(`/v1/devices/${device.deviceId}`).send({ name: 'named by the document spec' }).expect(200);
+    expectDocumented(renamed, '/v1/devices/{id}', 'patch');
   });
 
-  it('matches the declared shape for the fleet listing, including the row for unknown firmware', async () => {
-    const response = await admin.client.get('/device/firmwareversions').expect(200);
-    const fridge = response.body.find((entry: { class: { name: string } }) => entry.class.name === 'fridge');
+  it('matches the declared shapes for the configuration document, read and replaced', async () => {
+    const configuration = { day: { temperature: 24 } };
 
-    // Devices on a build this server has no record of are counted on a row with
-    // no firmware id, which is the half of the shape a real build never covers.
-    expect(fridge.versions.some((version: { fw: { firmware_id: string | null } }) => version.fw.firmware_id === null)).toBe(true);
-    expectRowDocumented(response, '/device/firmwareversions', fridge);
+    const written = await owner.client.put(`/v1/devices/${device.deviceId}/configuration`).send({ configuration }).expect(200);
+    expectDocumented(written, '/v1/devices/{id}/configuration', 'put');
+
+    const read = await owner.client.get(`/v1/devices/${device.deviceId}/configuration`).expect(200);
+    expect(read.body.configuration).toEqual(configuration);
+    expectDocumented(read, '/v1/devices/{id}/configuration');
   });
 
-  it('matches the declared shapes for a device it configured, named and set alarms on', async () => {
-    const configuration = JSON.stringify({ day: { temperature: 24 } });
+  it('matches the declared shape for a command it sent', async () => {
+    const response = await owner.client.post(`/v1/devices/${device.deviceId}/commands`).send({ kind: 'reboot' }).expect(202);
 
-    expectDocumented(
-      await owner.client.post('/device/configure').send({ device_id: device.deviceId, configuration }).expect(200),
-      '/device/configure',
-      'post',
-    );
-
-    const read = await owner.client.get(`/device/config/${device.deviceId}`).expect(200);
-    expect(read.body).toBe(configuration);
-    expectDocumented(read, '/device/config/{device_id}');
-
-    expectDocumented(
-      await owner.client
-        .post('/device/alarms')
-        .send({ device_id: device.deviceId, alarms: [alarm] })
-        .expect(200),
-      '/device/alarms',
-      'post',
-    );
-
-    const alarms = await owner.client.get(`/device/alarms/${device.deviceId}`).expect(200);
-    expect(alarms.body.length).toBe(1);
-    expectDocumented(alarms, '/device/alarms/{device_id}');
-
-    expectDocumented(
-      await owner.client.post('/device/setname').send({ device_id: device.deviceId, name: 'openapi' }).expect(200),
-      '/device/setname',
-      'post',
-    );
+    expectDocumented(response, '/v1/devices/{id}/commands', 'post');
   });
 
-  it('matches the declared shapes for the cloud settings of a device', async () => {
-    expectDocumented(
-      await owner.client
-        .post('/device/cloudsettings')
-        .send({ device_id: device.deviceId, cloud_settings: { firmwareChannel: 'stable', betaFeatures: true } })
-        .expect(200),
-      '/device/cloudsettings',
-      'post',
-    );
+  it('matches the declared shapes for what a device measures and what it drives', async () => {
+    expectDocumented(await owner.client.get(`/v1/devices/${device.deviceId}/live`).expect(200), '/v1/devices/{id}/live');
+    expectDocumented(await owner.client.get(`/v1/devices/${device.deviceId}/sockets`).expect(200), '/v1/devices/{id}/sockets');
+    expectDocumented(await owner.client.get(`/v1/devices/${device.deviceId}/firmwares`).expect(200), '/v1/devices/{id}/firmwares');
 
-    expectDocumented(await owner.client.get(`/device/cloudsettings/${device.deviceId}`).expect(200), '/device/cloudsettings/{device_id}');
-  });
-
-  it('matches the declared shapes for the commands a device is sent', async () => {
-    const outputs = { heater: 1, dehumidifier: 0, co2: 0, lights: 0, fanint: 0, fanext: 0, fanbw: 0 };
-
-    expectDocumented(await owner.client.post(`/device/test/${device.deviceId}`).send(outputs).expect(200), '/device/test/{device_id}', 'post');
-    expectDocumented(await owner.client.delete(`/device/test/${device.deviceId}`).expect(200), '/device/test/{device_id}', 'delete');
-    expectDocumented(
-      await owner.client.post('/device/maintenancemode').send({ device_id: device.deviceId, duration_minutes: 5 }).expect(200),
-      '/device/maintenancemode',
-      'post',
-    );
-    expectDocumented(await owner.client.post('/device/reboot').send({ device_id: device.deviceId }).expect(200), '/device/reboot', 'post');
-    expectDocumented(
-      await owner.client.post('/device/auxcommand').send({ device_id: device.deviceId, action: 'socket_test', role: 'heater' }).expect(200),
-      '/device/auxcommand',
-      'post',
-    );
-  });
-
-  it('matches the declared shape for releasing a device', async () => {
-    const spare = await provisionDevice(owner);
-
-    expectDocumented(await owner.client.delete(`/device/${spare.deviceId}`).expect(200), '/device/{device_id}', 'delete');
+    const series = await owner.client
+      .get(`/v1/devices/${device.deviceId}/series`)
+      .query({ startsAt: new Date(Date.now() - 3600_000).toISOString(), endsAt: new Date().toISOString(), metrics: 'temperature' })
+      .expect(200);
+    expectDocumented(series, '/v1/devices/{id}/series');
   });
 });
 
-describe('what the picture routes answer', () => {
-  // A one-pixel JPEG: the route re-encodes whatever it is given, so the bytes
-  // only have to be a picture.
-  const jpeg = Buffer.from(
-    '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a' +
-      'HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAA' +
-      'AAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==',
-    'base64',
-  );
+describe('what the alarm routes answer', () => {
+  it('matches the declared shapes for a rule it made, listed, changed and silenced', async () => {
+    const created = await owner.client
+      .post(`/v1/devices/${device.deviceId}/alarm-rules`)
+      .send({ ...anAlarmRule, name: unique('openapi-rule') })
+      .expect(201);
+    expectDocumented(created, '/v1/devices/{id}/alarm-rules', 'post');
 
-  it('matches the declared shape for a photo it just added to a diary', async () => {
-    const response = await owner.client.post(`/image/${device.deviceId}`).attach('image', jpeg, 'photo.jpg').expect(201);
+    // The rules of this device, which is this spec's.
+    const listed = await owner.client.get(`/v1/devices/${device.deviceId}/alarm-rules`).expect(200);
+    expect(listed.body.items.length).toBeGreaterThan(0);
+    expectDocumented(listed, '/v1/devices/{id}/alarm-rules');
 
-    expectDocumented(response, '/image/{device_id}', 'post');
+    const changed = await owner.client.patch(`/v1/alarm-rules/${created.body.id}`).send({ upper: 31 }).expect(200);
+    expectDocumented(changed, '/v1/alarm-rules/{id}', 'patch');
+
+    const silenced = await owner.client.put(`/v1/alarm-rules/${created.body.id}/silence`).send({ forSeconds: 3600 }).expect(200);
+    expectDocumented(silenced, '/v1/alarm-rules/{id}/silence', 'put');
   });
 
-  it('matches the declared shape for deleting a picture it added', async () => {
-    const added = await owner.client.post(`/image/${device.deviceId}`).attach('image', jpeg, 'photo.jpg').expect(201);
+  it('matches the declared shape for the alerts inbox', async () => {
+    expectDocumented(await owner.client.get('/v1/alerts').query({ deviceId: device.deviceId }).expect(200), '/v1/alerts');
+  });
+});
 
-    expectDocumented(await owner.client.delete(`/image/${added.body.image_id}`).expect(200), '/image/{image_id}', 'delete');
+describe('what the camera routes answer', () => {
+  it('matches the declared shapes for a camera it made, listed, read and changed', async () => {
+    const listed = await owner.client.get('/v1/cameras').expect(200);
+    expect(listed.body.items.length).toBeGreaterThan(0);
+    expectDocumented(listed, '/v1/cameras');
+
+    expectDocumented(await owner.client.get(`/v1/cameras/${cameraId}`).expect(200), '/v1/cameras/{id}');
+    expectDocumented(await owner.client.patch(`/v1/cameras/${cameraId}`).send({ name: 'renamed' }).expect(200), '/v1/cameras/{id}', 'patch');
   });
 
-  it('declares the picture and probe routes as the bodies they send, not as JSON', async () => {
+  it('matches the declared shapes for the stills and films of one camera', async () => {
+    expectDocumented(await owner.client.get(`/v1/cameras/${cameraId}/frames`).expect(200), '/v1/cameras/{id}/frames');
+    expectDocumented(await owner.client.get(`/v1/cameras/${cameraId}/timelapses`).expect(200), '/v1/cameras/{id}/timelapses');
+  });
+});
+
+describe('what the admin routes answer', () => {
+  it('matches the declared shape for this account in the account listing', async () => {
+    const response = await admin.client.get('/v1/admin/users').expect(200);
+    const mine = response.body.items.find((entry: { email: string }) => entry.email === owner.username);
+
+    expectRowDocumented(response, '/v1/admin/users', mine);
+  });
+
+  it('matches the declared shapes for an account it made, read, changed and deleted', async () => {
+    const created = await createAccountAsAdmin();
+    expectDocumented(created, '/v1/admin/users', 'post');
+
+    expectDocumented(await admin.client.get(`/v1/admin/users/${created.body.id}`).expect(200), '/v1/admin/users/{id}');
+    expectDocumented(
+      await admin.client.patch(`/v1/admin/users/${created.body.id}`).send({ isAdmin: true }).expect(200),
+      '/v1/admin/users/{id}',
+      'patch',
+    );
+    await admin.client.delete(`/v1/admin/users/${created.body.id}`).expect(204);
+  });
+
+  it('matches the declared shapes for the device classes and one of them', async () => {
+    const listed = await admin.client.get('/v1/admin/device-classes').expect(200);
+    expectDocumented(listed, '/v1/admin/device-classes');
+
+    expectDocumented(await admin.client.get(`/v1/admin/device-classes/${fridgeClassId}`).expect(200), '/v1/admin/device-classes/{id}');
+  });
+
+  it('matches the declared shapes for a build it registered, relabelled and listed', async () => {
+    const created = await admin.client
+      .post('/v1/admin/firmwares')
+      .send({ classId: fridgeClassId, name: 'fridge', version: unique('openapi-v') })
+      .expect(201);
+    expectDocumented(created, '/v1/admin/firmwares', 'post');
+
+    const relabelled = await admin.client
+      .patch(`/v1/admin/firmwares/${created.body.id}`)
+      .send({ name: unique('openapi-label') })
+      .expect(200);
+    expectDocumented(relabelled, '/v1/admin/firmwares/{id}', 'patch');
+
+    const listed = await admin.client.get('/v1/admin/firmwares').query({ classId: fridgeClassId }).expect(200);
+    const mine = listed.body.items.find((entry: { id: string }) => entry.id === created.body.id);
+    expectRowDocumented(listed, '/v1/admin/firmwares', mine);
+
+    await admin.client.delete(`/v1/admin/firmwares/${created.body.id}`).expect(204);
+  });
+
+  it('matches the declared shape for the fleet', async () => {
+    expectDocumented(await admin.client.get('/v1/admin/fleet').expect(200), '/v1/admin/fleet');
+  });
+
+  it('matches the declared shape for a device row it made by hand', async () => {
+    const response = await admin.client
+      .post('/v1/admin/devices')
+      .send({ id: unique('by-hand'), type: 'fridge', classId: fridgeClassId, serialNumber: null })
+      .expect(201);
+
+    expectDocumented(response, '/v1/admin/devices', 'post');
+  });
+});
+
+describe('what the probes and the firmware download answer', () => {
+  it('declares them as the bodies they send, not as JSON', () => {
     // Nothing to validate with a schema here; what matters is that the document
     // says these answer bytes and words rather than leaving the body unsaid.
-    expect(declaredSchema('/image/{device_id}', 'get', 200, 'image/jpeg')).toEqual({ type: 'string', format: 'binary' });
-    expect(declaredSchema('/image/{device_id}', 'get', 200, 'image/png')).toEqual({ type: 'string', format: 'binary' });
-    expect(declaredSchema('/image/{device_id}', 'get', 200, 'video/mp4')).toEqual({ type: 'string', format: 'binary' });
     expect(declaredSchema('/device/firmware/{firmware_id}/{binary}', 'get', 200, 'application/octet-stream')).toEqual({
       type: 'string',
       format: 'binary',
     });
-    expect(declaredSchema('/', 'get', 200, 'text/plain')).toEqual({ type: 'string' });
-    expect(declaredSchema('/readycheck', 'get', 200, 'text/plain')).toEqual({ type: 'string' });
+    expect(declaredSchema('/healthz', 'get', 200, 'text/plain')).toEqual({ type: 'string' });
+    expect(declaredSchema('/readyz', 'get', 200, 'text/plain')).toEqual({ type: 'string' });
   });
 
-  it('sends the picture and probe bodies the document declares', async () => {
-    const added = await owner.client.post(`/image/${device.deviceId}`).attach('image', jpeg, 'photo.jpg').expect(201);
-
-    const photo = await owner.client.get(`/image/${device.deviceId}`).query({ format: 'user/jpeg', image_id: added.body.image_id }).expect(200);
-    expect(photo.headers['content-type']).toMatch(/^image\/jpeg/);
-
-    // Nothing stored for that moment, so the placeholder stands in - and it is
-    // a PNG, whichever format was asked for.
-    const placeholder = await owner.client.get(`/image/${device.deviceId}`).query({ format: 'jpeg', timestamp: 1 }).expect(200);
-    expect(placeholder.headers['content-type']).toMatch(/^image\/png/);
-
-    const probe = await anonymous().get('/').expect(200);
+  it('sends the bodies the document declares', async () => {
+    const probe = await anonymous().get('/healthz').expect(200);
     expect(probe.headers['content-type']).toMatch(/^text\/plain/);
   });
 });
@@ -788,12 +538,11 @@ describe('what the picture routes answer', () => {
  * agrees with a validator nobody runs proves nothing.
  *
  * "Refused" has to mean refused for the shape, which is all a JSON Schema can
- * describe. A rule a zod schema carries that JSON Schema cannot express - the
- * diary's "a title or a message", a claim code that names no device - is refused
- * by the route and accepted by the document, so the refused payloads here are
- * wrong in a way the document can state. For the same reason a payload the route
- * takes is only asked not to be a 400: a route may still turn down what a
- * well-formed body asks for, and that is not the document's claim.
+ * describe. A rule a zod schema carries that JSON Schema cannot express is
+ * refused by the route and accepted by the document, so the refused payloads
+ * here are wrong in a way the document can state. For the same reason a payload
+ * the route takes is only asked not to be a 400: a route may still turn down
+ * what a well-formed body asks for, and that is not the document's claim.
  */
 interface BodyCase {
   /** How the case reads in the run. */
@@ -811,45 +560,38 @@ interface BodyCase {
 
 const bodyCases = (): BodyCase[] => [
   {
-    what: 'POST /signup',
-    path: '/signup',
-    url: () => '/signup',
+    what: 'POST /v1/users',
+    path: '/v1/users',
+    url: () => '/v1/users',
     client: anonymous,
-    accepted: () => ({ username: `${unique('openapi-signup')}@test.invalid`, password: 'Passw0rd!test' }),
-    // A closed body: a field the schema does not name is a mistake, not an extra.
-    refused: () => ({ username: `${unique('openapi-signup')}@test.invalid`, password: 'Passw0rd!test', is_admin: true }),
+    accepted: () => ({ email: `${unique('openapi-signup')}@test.invalid`, handle: unique('openapi'), password: 'Passw0rd!test' }),
+    refused: () => ({ email: `${unique('openapi-signup')}@test.invalid`, handle: unique('openapi') }),
   },
   {
-    what: 'POST /login',
-    path: '/login',
-    url: () => '/login',
+    what: 'POST /v1/sessions',
+    path: '/v1/sessions',
+    url: () => '/v1/sessions',
     client: anonymous,
-    accepted: () => ({ username: owner.username, password: owner.password, stayLoggedIn: false }),
-    refused: () => ({ username: owner.username }),
+    accepted: () => ({ email: owner.username, password: owner.password, stayLoggedIn: false }),
+    refused: () => ({ email: owner.username }),
   },
   {
-    what: 'POST /users',
-    path: '/users',
-    url: () => '/users',
+    what: 'POST /v1/admin/users',
+    path: '/v1/admin/users',
+    url: () => '/v1/admin/users',
     client: () => admin.client,
-    accepted: () => ({ username: `${unique('openapi-user')}@test.invalid`, password: 'Passw0rd!test', is_admin: false }),
-    refused: () => ({ username: `${unique('openapi-user')}@test.invalid`, password: 'Passw0rd!test' }),
+    accepted: () => ({ email: `${unique('openapi-user')}@test.invalid`, handle: unique('openapi'), password: 'Passw0rd!test', isAdmin: false }),
+    refused: () => ({ email: `${unique('openapi-user')}@test.invalid`, handle: unique('openapi') }),
   },
   {
-    what: 'POST /chartpresets',
-    path: '/chartpresets',
-    url: () => '/chartpresets',
-    client: () => owner.client,
-    accepted: () => ({ name: 'openapi preset', query: 'measures=temperature&timespan=day' }),
-    refused: () => ({ name: 'openapi preset' }),
-  },
-  {
-    what: 'POST /share',
-    path: '/share',
-    url: () => '/share',
-    client: () => owner.client,
-    accepted: () => ({ device_id: device.deviceId, page: 'charts', expires_at: null }),
-    refused: () => ({ device_id: device.deviceId, page: 'somewhere-else' }),
+    what: 'PATCH /v1/admin/users/{id}',
+    path: '/v1/admin/users/{id}',
+    method: 'patch',
+    url: () => `/v1/admin/users/${spareUserId}`,
+    client: () => admin.client,
+    // An update carries only what it changes, so every field is optional.
+    accepted: () => ({ isAdmin: false }),
+    refused: () => ({ isAdmin: 'yes' }),
   },
   {
     what: 'POST /device/claimcode',
@@ -859,91 +601,6 @@ const bodyCases = (): BodyCase[] => [
     // Deliberately open: firmware has sent fields this does not know before now.
     accepted: () => ({ device_id: device.deviceId, password: null, firmware_version: '1.2.3' }),
     refused: () => ({ device_id: '' }),
-  },
-  {
-    what: 'POST /device/alarms',
-    path: '/device/alarms',
-    url: () => '/device/alarms',
-    client: () => owner.client,
-    accepted: () => ({ device_id: device.deviceId, alarms: [anAlarm] }),
-    // An alarm is a shape now, so a channel the server cannot act on is refused.
-    refused: () => ({ device_id: device.deviceId, alarms: [{ ...anAlarm, actionType: 'carrier-pigeon' }] }),
-  },
-  {
-    what: 'POST /device/maintenancemode',
-    path: '/device/maintenancemode',
-    url: () => '/device/maintenancemode',
-    client: () => owner.client,
-    accepted: () => ({ device_id: device.deviceId, duration_minutes: null }),
-    refused: () => ({ device_id: device.deviceId, duration_minutes: -1 }),
-  },
-  {
-    what: 'POST /device/test/{device_id}',
-    path: '/device/test/{device_id}',
-    url: () => `/device/test/${device.deviceId}`,
-    client: () => owner.client,
-    accepted: () => ({ heater: 1, dehumidifier: 0, co2: 0, lights: 1, fanint: 0, fanext: 0, fanbw: 0 }),
-    refused: () => ({ heater: 'on', dehumidifier: 0, co2: 0, lights: 1, fanint: 0, fanext: 0, fanbw: 0 }),
-  },
-  {
-    what: 'POST /device/firmware',
-    path: '/device/firmware',
-    url: () => '/device/firmware',
-    client: () => admin.client,
-    accepted: () => ({ name: 'fridge', version: unique('openapi-fw') }),
-    refused: () => ({ name: 'fridge' }),
-  },
-  {
-    what: 'POST /device/recipes',
-    path: '/device/recipes',
-    url: () => '/device/recipes',
-    client: () => owner.client,
-    accepted: () => ({ name: 'openapi template', steps: [], public: false }),
-    refused: () => ({ name: 42 }),
-  },
-  {
-    what: 'POST /device/logs/{device_id}',
-    path: '/device/logs/{device_id}',
-    url: () => `/device/logs/${device.deviceId}`,
-    client: () => owner.client,
-    accepted: () => ({ ...aDiaryEntry, time: Date.now() }),
-    // A time that names no moment; the entry is otherwise the accepted one.
-    refused: () => ({ ...aDiaryEntry, time: {} }),
-  },
-  {
-    what: 'POST /activate',
-    path: '/activate',
-    url: () => '/activate',
-    client: anonymous,
-    // A code no account carries is turned down as a conflict, not as a bad body.
-    accepted: () => ({ activation_code: unique('openapi-code') }),
-    refused: () => ({ activation_code: 1234 }),
-  },
-  {
-    what: 'POST /reset',
-    path: '/reset',
-    url: () => '/reset',
-    client: anonymous,
-    accepted: () => ({ password: 'Passw0rd!test', token: unique('openapi-token') }),
-    refused: () => ({ password: 'Passw0rd!test', token: unique('openapi-token'), username: 'someone' }),
-  },
-  {
-    what: 'PUT /users/{id}',
-    path: '/users/{id}',
-    method: 'put',
-    url: () => `/users/${spareUserId}`,
-    client: () => admin.client,
-    // An update carries only what it changes, so every field is optional.
-    accepted: () => ({ is_admin: false }),
-    refused: () => ({ is_admin: 'yes' }),
-  },
-  {
-    what: 'POST /device/create',
-    path: '/device/create',
-    url: () => '/device/create',
-    client: () => admin.client,
-    accepted: () => ({ class_id: fridgeClassId, device_type: 'fridge' }),
-    refused: () => ({ class_id: fridgeClassId, device_type: 'fridge', name: 'named on creation' }),
   },
   {
     what: 'POST /device/register',
@@ -965,78 +622,115 @@ const bodyCases = (): BodyCase[] => [
     }),
   },
   {
-    what: 'POST /device',
-    path: '/device',
-    url: () => '/device',
+    what: 'POST /v1/devices/claims',
+    path: '/v1/devices/claims',
+    url: () => '/v1/devices/claims',
     client: () => owner.client,
-    accepted: () => ({ claim_code: unclaimedCode }),
-    refused: () => ({ claim_code: null }),
+    accepted: () => ({ code: unclaimedCode }),
+    refused: () => ({ code: 42 }),
   },
   {
-    what: 'POST /device/configure',
-    path: '/device/configure',
-    url: () => '/device/configure',
+    what: 'PATCH /v1/devices/{id}',
+    path: '/v1/devices/{id}',
+    method: 'patch',
+    url: () => `/v1/devices/${device.deviceId}`,
     client: () => owner.client,
-    // The configuration is a JSON document the device owns, sent as a string.
-    accepted: () => ({ device_id: device.deviceId, configuration: '{"day":{"temperature":24}}' }),
-    refused: () => ({ device_id: device.deviceId, configuration: { day: { temperature: 24 } } }),
+    accepted: () => ({ name: 'named by the document spec', settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 } }),
+    // A channel this cloud does not hand builds out on.
+    refused: () => ({ firmware: { channel: 'whenever', targetId: null } }),
   },
   {
-    what: 'POST /device/setname',
-    path: '/device/setname',
-    url: () => '/device/setname',
+    what: 'PUT /v1/devices/{id}/configuration',
+    path: '/v1/devices/{id}/configuration',
+    method: 'put',
+    url: () => `/v1/devices/${device.deviceId}/configuration`,
     client: () => owner.client,
-    accepted: () => ({ device_id: device.deviceId, name: 'named by the document spec' }),
-    refused: () => ({ device_id: device.deviceId, name: 'named by the document spec', nickname: 'and again' }),
+    // The document is the device's own, so its keys are not constrained - but
+    // it travels in an envelope, which is.
+    accepted: () => ({ configuration: { day: { temperature: 24 } } }),
+    refused: () => ({ day: { temperature: 24 } }),
   },
   {
-    what: 'POST /device/cloudsettings',
-    path: '/device/cloudsettings',
-    url: () => '/device/cloudsettings',
+    what: 'POST /v1/devices/{id}/commands',
+    path: '/v1/devices/{id}/commands',
+    url: () => `/v1/devices/${device.deviceId}/commands`,
     client: () => owner.client,
-    accepted: () => ({ device_id: device.deviceId, cloud_settings: { firmwareChannel: 'stable' } }),
-    refused: () => ({ device_id: device.deviceId, cloud_settings: 'stable' }),
+    accepted: () => ({ kind: 'maintenance', forSeconds: 300 }),
+    // A union, so an action the firmware has no name for cannot be published.
+    refused: () => ({ kind: 'self-destruct' }),
   },
   {
-    what: 'POST /device/class',
-    path: '/device/class',
-    url: () => '/device/class',
+    what: 'POST /v1/devices/{id}/alarm-rules',
+    path: '/v1/devices/{id}/alarm-rules',
+    url: () => `/v1/devices/${device.deviceId}/alarm-rules`,
+    client: () => owner.client,
+    accepted: () => ({ ...anAlarmRule, name: unique('openapi-rule') }),
+    // A metric nothing measures cannot be watched for.
+    refused: () => ({ ...anAlarmRule, metric: 'moon-phase' }),
+  },
+  {
+    what: 'PUT /v1/alarm-rules/{id}/silence',
+    path: '/v1/alarm-rules/{id}/silence',
+    method: 'put',
+    url: () => `/v1/alarm-rules/${alarmRuleId}/silence`,
+    client: () => owner.client,
+    accepted: () => ({ forSeconds: 3600 }),
+    refused: () => ({ forSeconds: 'an hour' }),
+  },
+  {
+    what: 'POST /v1/cameras',
+    path: '/v1/cameras',
+    url: () => '/v1/cameras',
+    client: () => owner.client,
+    accepted: () => ({ kind: 'rtsp', deviceId: device.deviceId, name: unique('openapi-cam'), url: 'rtsp://127.0.0.1:1/openapi' }),
+    refused: () => ({ kind: 'carrier-pigeon', deviceId: device.deviceId, name: unique('openapi-cam') }),
+  },
+  {
+    what: 'PATCH /v1/cameras/{id}',
+    path: '/v1/cameras/{id}',
+    method: 'patch',
+    url: () => `/v1/cameras/${cameraId}`,
+    client: () => owner.client,
+    accepted: () => ({ name: 'renamed by the document spec' }),
+    refused: () => ({ name: 'renamed by the document spec', stillIntervalSeconds: 'often' }),
+  },
+  {
+    what: 'POST /v1/admin/device-classes',
+    path: '/v1/admin/device-classes',
+    url: () => '/v1/admin/device-classes',
     client: () => admin.client,
-    // A class with no pre-release build round-trips through the admin page as an
-    // explicit null, which means the same as leaving the field out.
     accepted: () => ({
       name: unique('openapi-class'),
       description: 'A class the document spec made',
-      firmware_id: '',
-      concurrent: 5,
-      maxfails: 10,
-      beta_firmware_id: null,
+      concurrentUpdates: 5,
+      maxFailures: 10,
+      firmwareIds: { stable: null, beta: null, alpha: null },
+      rollout: { paused: false, percent: 100 },
     }),
     refused: () => ({
       name: unique('openapi-class'),
       description: 'A class the document spec made',
-      firmware_id: '',
-      concurrent: 'five',
-      maxfails: 10,
+      concurrentUpdates: 'five',
+      maxFailures: 10,
+      firmwareIds: { stable: null, beta: null, alpha: null },
+      rollout: { paused: false, percent: 100 },
     }),
   },
   {
-    what: 'POST /device/recipe',
-    path: '/device/recipe',
-    url: () => '/device/recipe',
-    client: () => owner.client,
-    accepted: () => ({ device_id: device.deviceId, recipe: { steps: [], activeStepIndex: 0, activeSince: Date.now() } }),
-    refused: () => ({ device_id: device.deviceId, recipe: { steps: 'none' } }),
+    what: 'POST /v1/admin/firmwares',
+    path: '/v1/admin/firmwares',
+    url: () => '/v1/admin/firmwares',
+    client: () => admin.client,
+    accepted: () => ({ classId: fridgeClassId, name: 'fridge', version: unique('openapi-fw') }),
+    refused: () => ({ classId: fridgeClassId, name: 'fridge' }),
   },
   {
-    what: 'PUT /device/logs/{device_id}/{log_id}',
-    path: '/device/logs/{device_id}/{log_id}',
-    method: 'put',
-    url: () => `/device/logs/${device.deviceId}/${diaryEntryId}`,
-    client: () => owner.client,
-    // An edit may leave the time alone, which is the one difference from adding.
-    accepted: () => ({ ...aDiaryEntry, message: 'edited by the document spec' }),
-    refused: () => ({ ...aDiaryEntry, categories: [] }),
+    what: 'POST /v1/admin/devices',
+    path: '/v1/admin/devices',
+    url: () => '/v1/admin/devices',
+    client: () => admin.client,
+    accepted: () => ({ id: unique('openapi-by-hand'), type: 'fridge', classId: fridgeClassId, serialNumber: null }),
+    refused: () => ({ id: unique('openapi-by-hand'), type: 'fridge', classId: fridgeClassId, serialNumber: 'none' }),
   },
 ];
 

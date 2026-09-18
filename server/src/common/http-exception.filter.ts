@@ -65,7 +65,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
     return { message };
   }
 
-  private describe(exception: unknown): { status: number; message: string } {
+  /** Protected because `/v1` answers the same verdict in its own shape. */
+  protected describe(exception: unknown): { status: number; message: string } {
     if (exception instanceof HttpException) {
       return { status: exception.status, message: exception.message };
     }

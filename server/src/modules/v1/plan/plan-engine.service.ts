@@ -1,0 +1,111 @@
+import { Inject, Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { BackgroundWork } from '@common/background-work';
+import { MODEL_V1 } from '@database/models';
+import { StoredDevice } from '@database/schemas/v1/devices.schema';
+import { StoredPlan } from '@database/schemas/v1/plans.schema';
+import { logger } from '@utils/logger';
+import { DEVICE_CONFIGURATION_WRITER, DeviceConfigurationWriter } from './device-configuration.port';
+import { PlanProgressService } from './plan-progress.service';
+import { activeStep, isOver } from './plan-steps';
+
+/** The loop that walks the running plans: what is over moves on, and what is running is kept on its step. */
+
+const TICK_MS = 20 * 1000;
+
+/** A step is re-sent at most once an hour, and only to a device that is answering. */
+const REAPPLY_INTERVAL_MS = 60 * 60 * 1000;
+const APPLY_LAST_SEEN_MS = 60 * 1000;
+
+@Injectable()
+export class PlanEngineService implements OnModuleInit, OnApplicationShutdown {
+  private readonly work = new BackgroundWork();
+
+  constructor(
+    @InjectModel(MODEL_V1.plan) private readonly plans: Model<StoredPlan>,
+    @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
+    @Inject(DEVICE_CONFIGURATION_WRITER) private readonly configuration: DeviceConfigurationWriter,
+    private readonly progress: PlanProgressService,
+  ) {}
+
+  /** The loop used to start as this file was imported, before the database was necessarily up. */
+  public onModuleInit(): void {
+    this.work.repeat('The grow plans', () => this.run(), TICK_MS);
+  }
+
+  public onApplicationShutdown(): void {
+    this.work.stop();
+  }
+
+  /**
+   * One pass over every plan that is running. A paused one keeps its clock where
+   * it stopped and is not read. `now` is the whole pass's, so a plan is not
+   * measured against a clock that moved while the plan before it was written.
+   */
+  public async run(now: Date = new Date()): Promise<void> {
+    const plans = await this.plans.find({ 'state.status': 'running' }).lean<StoredPlan[]>().exec();
+
+    for (const plan of plans) {
+      // A pass walks every plan and awaits as it goes, so it can outlive the
+      // server; stopping here keeps it off a connection that is closing.
+      if (this.work.isStopped) break;
+
+      // One plan must not end the pass: its device may have been given up since
+      // the list was read, and this runs on a timer with no caller to report to.
+      try {
+        await this.runPlan(plan, now);
+      } catch (error) {
+        logger.error(`Failed running the grow plan of device ${plan.deviceId}: ${error}`);
+      }
+    }
+  }
+
+  private async runPlan(plan: StoredPlan, now: Date): Promise<void> {
+    const step = activeStep(plan);
+    if (!step) return;
+
+    const current = !isOver(plan, now)
+      ? plan
+      : step.waitForConfirmation
+        ? await this.progress.awaitConfirmation(plan, now)
+        : await this.progress.moveOn(plan, now, null);
+
+    await this.applyStep(current, now);
+  }
+
+  /**
+   * The step is re-sent hourly, because a device that was reconfigured by hand,
+   * or that came back with an older document, is otherwise left running
+   * something the plan did not ask for. A device that is not answering is left
+   * alone: the send would be recorded as done for the hour it covers.
+   */
+  private async applyStep(plan: StoredPlan, now: Date): Promise<void> {
+    const step = activeStep(plan);
+    if (!step || plan.state.status !== 'running') return;
+
+    const { lastAppliedAt } = plan.state;
+    if (lastAppliedAt && lastAppliedAt.getTime() > now.getTime() - REAPPLY_INTERVAL_MS) return;
+    if (!(await this.isAnswering(plan.deviceId, now))) return;
+
+    try {
+      if (await this.configuration.applyConfiguration(plan.deviceId, step.settings)) {
+        logger.info(`Applied recipe step ${plan.state.activeStepIndex} to device ${plan.deviceId}`);
+      }
+
+      // That it was applied is written down only once it has been, so a send
+      // that failed is tried again on the next pass rather than being marked
+      // done for the hour the check covers.
+      await this.progress.store(plan, { ...plan.state, lastAppliedAt: now });
+    } catch (error) {
+      logger.error(`Could not apply recipe step ${plan.state.activeStepIndex} to device ${plan.deviceId}: ${error}`);
+    }
+  }
+
+  private async isAnswering(deviceId: string, now: Date): Promise<boolean> {
+    const device = await this.devices.findOne({ id: deviceId }, { 'state.lastSeenAt': 1 }).lean<Pick<StoredDevice, 'state'>>().exec();
+
+    const lastSeenAt = device?.state?.lastSeenAt;
+    return !!lastSeenAt && lastSeenAt.getTime() >= now.getTime() - APPLY_LAST_SEEN_MS;
+  }
+}

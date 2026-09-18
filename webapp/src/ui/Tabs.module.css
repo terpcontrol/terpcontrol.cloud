@@ -1,0 +1,33 @@
+.tabs {
+  display: flex;
+  gap: var(--space-4);
+  border-bottom: var(--rule-solid);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tab {
+  flex-shrink: 0;
+  padding: var(--space-3) 0 var(--space-2);
+  /* The underline sits on the rule, so the active tab's line replaces it rather than doubling it. */
+  margin-bottom: calc(var(--rule-width) * -1);
+  border-bottom: 2px solid transparent;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--muted);
+}
+
+@media (min-width: 900px) {
+  .tabs {
+    gap: var(--space-5);
+  }
+
+  .tab {
+    font-size: var(--text-md);
+  }
+}
+
+.active {
+  border-bottom-color: var(--brand);
+  color: var(--brand);
+}

@@ -26,22 +26,20 @@ The project conventions live in [AGENTS.md](AGENTS.md); read those as well.
    - set `AGENT_TESTING_USERNAME` / `AGENT_TESTING_PASSWORD` to the `ADMINUSER_*` credentials; the admin account is
      created from those on first start, and the tooling logs in with the `AGENT_TESTING_*` pair.
 2. `docker compose up --build -d --remove-orphans`. The first build compiles the webapp and takes a few minutes.
-3. `./simulate-device.sh setup` to have something to look at - a fresh database contains no devices. It prints the
-   device id it invented; every later command needs that id.
+3. `./simulate-device.sh demo-seed` to have something to look at - a fresh database is an empty account. It builds
+   two tents, a fridge, a camera and three weeks of readings, and says at the end which parts of the record have
+   no routes yet. `./simulate-device.sh setup` is the single-device version: it prints the device id it invented,
+   and every later command needs that id.
 
 Worth knowing:
 - `API_URL_EXTERNAL` is compiled into the webapp bundle, so changing it needs `docker compose up --build -d webapp`.
-- Anything host-side (`simulate-device.sh`, `webapp/`, `server/`) needs Node 18+; the containers bring their own.
+- Anything host-side (`simulate-device.sh`, `webapp/`, `server/`) needs Node 20.19+; the containers bring their own.
 - `docker compose down --volumes` throws the databases away and gives you an empty stack again.
-- Nearly all of a first build is the webapp bundle - about ten of the ten minutes. Nothing else in the stack is
-  expensive, and the layers are cached afterwards, so a later bring-up is seconds and only the subproject you
-  touched needs `--build`.
-- Prefer not to build the webapp image at all. `docker compose up --build -d server rabbitmq mongodb influxdb`
-  brings up everything a device and the API need, and `npm start` in `webapp/` then serves the UI from the host
-  against that stack on `http://localhost:4200`: the first compile is under a minute, and every later edit
-  rebuilds on save rather than rebuilding an image. `npm start` writes `src/environments/environment.ts` from
-  `API_URL_EXTERNAL` itself, so the dev server needs no pointing. Build the image when the production bundle is
-  what you are checking, and not otherwise.
+- Serving the UI from the host is still the faster loop: `docker compose up --build -d server rabbitmq mongodb
+  influxdb` brings up everything a device and the API need, and `npm start` in `webapp/` then serves the UI on
+  `http://localhost:4200` against that stack, rebuilding on save rather than rebuilding an image. `npm start`
+  writes `webapp/.env.local` from `API_URL_EXTERNAL` itself, so the dev server needs no pointing. Build the image
+  when the production bundle is what you are checking, and not otherwise.
 
 ### In a sandboxed agent session
 
@@ -51,9 +49,9 @@ none of which need a repo change - the base images are already build arguments:
 1. **The Docker daemon may not be running.** `docker info` says so; `dockerd &` as root fixes it.
 2. **`COMPOSE_FILE` and `COMPOSE_PROFILES` may come preset** by the environment, naming files this repo does not
    have. Compose then fails with `stat docker-compose.yml: no such file or directory`. `unset` both.
-3. **The build cannot verify TLS** when the session's egress proxy re-terminates it, so `apk add` in the two Node
-   stages fails with `TLS: server certificate not trusted`. Containers do not read the host's CA configuration,
-   so bake the CA into a base image once and point the image overrides at it:
+3. **The build cannot verify TLS** when the session's egress proxy re-terminates it, so the server image's
+   `apk add` fails with `TLS: server certificate not trusted`. Containers do not read the host's CA
+   configuration, so bake the CA into a base image once and point the image overrides at it:
 
 ```sh
 mkdir -p /tmp/proxy-ca && cp "$CA_BUNDLE" /tmp/proxy-ca/ca.crt   # e.g. /root/.ccr/ca-bundle.crt
@@ -74,11 +72,10 @@ EOF
 The other images pull ready-made or build without the network, so they need nothing. From here the compose
 commands above run through.
 
-The same applies harder here: building the webapp image costs most of the session's first ten minutes, so bring up
-the four backend services and serve the UI with `npm start` instead. Driving it works with the Chromium that is
-already installed, but Playwright pins a browser build the image may not carry - pass its path as `executablePath`
-instead of downloading one. Log in by clicking the LOGIN button; submitting the form with the Enter key does
-nothing. Google Fonts is usually blocked, which costs the page its font and nothing else.
+The same applies to the UI: bring up the four backend services and serve it with `npm start` instead of building
+the webapp image. Driving it works with the Chromium that is already installed, but Playwright pins a browser
+build the image may not carry - pass its path as `executablePath` instead of downloading one. The fonts are
+self-hosted, so a blocked Google Fonts costs the page nothing.
 
 ## Simulating a device
 
@@ -87,11 +84,15 @@ speaks the same MQTT topics as the firmware, so the server and the webapp cannot
 a UI change needs a device to look at - no hardware, no firmware build.
 
 ```sh
-./simulate-device.sh setup                     # register + claim + configure + 3 days of history
+./simulate-device.sh demo-seed                 # a whole account: two tents, a fridge, a camera, 3 weeks of readings
+./simulate-device.sh setup                     # one device: register + claim + configure + 3 days of history
 ./simulate-device.sh -d <device-id> run        # keep it online and answer the server (Ctrl-C to stop)
 ./simulate-device.sh list                      # the device ids you already have
 ./simulate-device.sh --help                    # every command and option
 ```
+
+`demo-seed` names its own devices and can be run again without building a second of anything; it prints the `run`
+line for each of them, and lists what it could not build because the API has no route for it yet.
 
 `setup` invents a `sim-<type>-<random>` id and prints it; **every other command needs that id via `-d`**, so a
 command never acts on a device you did not name. Add `-t <type>` to simulate something other than a `controller`:
@@ -125,14 +126,14 @@ maintenance mode, reboot, pairing and removing smart sockets, and firmware updat
 firmware id a few seconds after being told to update). Alarms fire too - define one in the webapp and push a value
 past it with `send --set`.
 
-Log messages use the `message-*` keys from `webapp/src/assets/i18n/en.json`; anything else shows up verbatim.
+Log messages use the `message-*` keys from `webapp/public/assets/i18n/en.json`; anything else shows up verbatim.
 
 ### The webcam
 
 `run --camera` pairs a simulated Terp Control Cam. The cloud then asks the device for a still every 30 seconds over
 MQTT, exactly as it does for the real P2P camera, and the device answers with a drawn picture of a grow tent - lit by
 whatever the light output is doing, so a timelapse tracks the day/night cycle the charts show. That covers the webcam
-tile, the charts page camera view, the test-image button and the timelapses.
+tile, the camera view beside the charts, the test-image button and the timelapses.
 
 The pairing is remembered like real hardware, so a later `run` keeps the camera without the flag. `hwinfo
 webcam_did=none` removes it again, and `hwinfo webcam_did=<id>` pairs one without restarting.

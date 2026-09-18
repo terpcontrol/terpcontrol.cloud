@@ -1,5 +1,6 @@
 import { anonymous, context, createAccount, Session, unique } from '../support/api';
 import { provisionDevice, registerDevice } from '../support/device';
+import { diaryEntriesOf } from '../support/fixtures';
 import { serverLog as logContents } from '../support/logs';
 
 const settle = (ms = 300) => new Promise(resolve => setTimeout(resolve, ms));
@@ -45,14 +46,18 @@ describe('what the server writes down', () => {
   it('never writes a camera password down, or hands one back', async () => {
     const device = await provisionDevice(owner);
     const password = `cam-secret-${Date.now()}`;
-    const stream = `rtsp://camera-user:${password}@127.0.0.1:1/nothing-here`;
+    const camera = await owner.client
+      .post('/v1/cameras')
+      .send({ kind: 'rtsp', deviceId: device.deviceId, name: 'Nothing here', url: `rtsp://camera-user:${password}@127.0.0.1:1/nothing-here` })
+      .expect(201);
 
     // The failure message quotes the whole ffmpeg command line, which carries
     // the URL the camera is stored with - credentials and all.
-    const response = await owner.client.post(`/image/test/${device.deviceId}`).send({ rtspStream: stream }).expect(502);
+    const response = await owner.client.post(`/v1/cameras/${camera.body.id}/test-captures`).expect(200);
 
-    expect(response.body.message).not.toContain(password);
-    expect(response.body.message).toContain('<credentials>');
+    expect(response.body.succeeded).toBe(false);
+    expect(response.body.error).not.toContain(password);
+    expect(response.body.error).toContain('<credentials>');
 
     await settle();
     expect(logContents()).not.toContain(password);
@@ -61,18 +66,23 @@ describe('what the server writes down', () => {
   it('never writes one into the diary either, which a share link can read', async () => {
     const device = await provisionDevice(owner);
     const password = `diary-cam-secret-${Date.now()}`;
-    const stream = `rtsp://camera-user:${password}@127.0.0.1:1/nothing-here`;
 
     // The poller reads the camera, fails, and - with error logging on - records
     // why in the diary, which the owner can hand to anybody with a share link.
     await owner.client
-      .post('/device/cloudsettings')
-      .send({ device_id: device.deviceId, cloud_settings: { rtspStream: stream, logRtspStreamErrors: true, firmwareChannel: 'stable' } })
-      .expect(200);
+      .post('/v1/cameras')
+      .send({
+        kind: 'rtsp',
+        deviceId: device.deviceId,
+        name: 'Nothing here either',
+        url: `rtsp://camera-user:${password}@127.0.0.1:1/nothing-here`,
+        logErrors: true,
+      })
+      .expect(201);
 
     const streamErrors = async () => {
-      const logs = await owner.client.get(`/device/logs/${device.deviceId}`).query({ deleted: true }).expect(200);
-      return logs.body.filter((entry: { title: string }) => entry.title === 'message-rtsp-stream-error');
+      const entries = await diaryEntriesOf(device.deviceId);
+      return entries.filter(entry => (entry.message as { key?: string } | null)?.key === 'message-rtsp-stream-error');
     };
 
     const deadline = Date.now() + 40_000;
@@ -87,8 +97,8 @@ describe('what the server writes down', () => {
   it('keeps the detail of a message that carries one', async () => {
     // The access log is the highest-volume line the server writes, and the
     // path is the part of it that has to be there.
-    const path = `/device/logs/${unique('never-a-device')}`;
-    await owner.client.get(path).expect(403);
+    const path = `/v1/devices/${unique('never-a-device')}`;
+    await owner.client.get(path).expect(404);
 
     await settle();
 

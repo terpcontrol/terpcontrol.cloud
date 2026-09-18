@@ -1,0 +1,66 @@
+.screen {
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: var(--rule-solid);
+  border-radius: 50%;
+  background: var(--card-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+}
+
+.handle {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+/* Dense rows, each one a rule apart. */
+.row {
+  padding: var(--space-4) 0;
+  border-top: var(--rule-solid);
+}
+
+.rowTitle {
+  font-weight: var(--weight-semibold);
+}
+
+.rowBody {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.segments {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+.segment {
+  color: var(--muted);
+}
+
+.segmentActive {
+  border-color: var(--brand);
+  color: var(--brand);
+}

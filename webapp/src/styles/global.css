@@ -1,0 +1,105 @@
+/* Everything below the tokens: the reset, the type roles every screen shares,
+   and the one attribute that says "this figure is old". No component styling
+   lives here. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-text);
+  font-size: var(--text-md);
+  line-height: var(--line-body);
+  -webkit-font-smoothing: antialiased;
+  /* iOS otherwise resizes text in landscape, which breaks a dense row. */
+  text-size-adjust: 100%;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+/* A field does not inherit the page's type on its own, and a browser's own
+   default for a textarea is monospace - so a person's sentences would come out
+   in the face the design keeps for figures. Named by element, so `mono` on a
+   field that really is a code still wins. */
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* Every figure is mono and tabular, so a column of numbers lines up. */
+.figure,
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Small mono caps with wide tracking. */
+.label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--label);
+}
+
+/* Dimmed by age, never hidden. */
+[data-age='stale'] {
+  opacity: var(--age-stale);
+}
+
+[data-age='offline'] {
+  opacity: var(--age-offline);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

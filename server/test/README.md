@@ -28,8 +28,7 @@ specs, which load the sources either way.
 Both fakes live in the jest main process, so the specs reach them through an HTTP control plane
 (`support/control.ts`): seed measurements, read captured mail, reset between tests.
 
-`convert` (ImageMagick) and `ffmpeg` must be on PATH — the image endpoints shell out to them, exactly as the container
-does. The app under test finds a shim first (`support/infra/fake-bin/ffmpeg`): it records the arguments of every run
+`ffmpeg` must be on PATH — the camera pipeline shells out to it, exactly as the container does. The app under test finds a shim first (`support/infra/fake-bin/ffmpeg`): it records the arguments of every run
 and hands the run to the real ffmpeg, so stills still come from actual streams. What the server runs ffmpeg with, and
 what it does with a run that failed - or with one that never answers - is not visible in an HTTP answer otherwise;
 `support/ffmpeg.ts` is how a spec reads those runs and, where it needs a particular camera, answers one of them
@@ -70,4 +69,6 @@ runtime one, which ESM then has to find as a named export. Mongoose's `Connectio
 out of its ESM surface deliberately.
 
 `unit/support/database.ts` starts a real MongoDB for the specs whose behaviour is in their queries. A stubbed model
-would only ever confirm that the spec and the service agree on what to stub.
+would only ever confirm that the spec and the service agree on what to stub. `unit/support/v1-database.ts` is the
+same for the `/v1` collections, which is what the access matrix is asked against: `access()` is a handful of lookups
+and a `$in` over the spaces a membership covers, and those are the decision.

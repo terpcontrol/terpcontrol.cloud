@@ -47,7 +47,7 @@ jobs:
       # nothing about whether the server it just shipped serves anything: a bad
       # environment or an unreachable database leaves it restarting forever
       # while the deploy reports success. The server's healthcheck calls
-      # /readycheck, so waiting for it is what makes a deploy that did not come
+      # /readyz, so waiting for it is what makes a deploy that did not come
       # up a deploy that failed.
       - name: Wait for the server to report ready
         run: |

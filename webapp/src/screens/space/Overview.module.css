@@ -1,0 +1,276 @@
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-2);
+}
+
+/* Four across, however narrow the phone. */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-3) var(--space-2);
+}
+
+.tileFigure {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: 1.1;
+}
+
+.tileUnit {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.tileTarget {
+  display: flex;
+  flex-direction: column;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--label);
+  white-space: nowrap;
+}
+
+.inBand {
+  color: var(--green-ink);
+}
+
+.offBand {
+  color: var(--warning);
+}
+
+.targetsLine {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sectionActions,
+.sectionLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.sectionActions a {
+  color: var(--ink);
+}
+
+.list,
+.entries,
+.strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A due task: what it is, and the one button. */
+.due {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+}
+
+.dueCircle {
+  flex-shrink: 0;
+  color: var(--green);
+}
+
+.dueText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dueTitle {
+  font-weight: var(--weight-semibold);
+}
+
+.dueMeta {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.doneButton {
+  flex-shrink: 0;
+  height: 36px;
+}
+
+.muted {
+  color: var(--muted);
+  font-weight: var(--weight-regular);
+}
+
+/* A grow standing here, the way the home draws it, as one link. */
+.growRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.cover {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--card-2);
+  color: var(--green);
+}
+
+.cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.growText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.growTitle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.growName {
+  font-weight: var(--weight-semibold);
+}
+
+.growDay {
+  flex-shrink: 0;
+  font-weight: var(--weight-semibold);
+}
+
+.growLine {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.auto {
+  display: inline-block;
+  margin-left: var(--space-1);
+  padding: 0 var(--space-1);
+  border: var(--rule-solid);
+  border-radius: 3px;
+  font-size: 10px;
+  letter-spacing: var(--tracking-caption);
+  text-transform: uppercase;
+  color: var(--label);
+  vertical-align: 1px;
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: var(--label);
+}
+
+/* Today's stills: a row that scrolls sideways, each with its hour. */
+.strip {
+  flex-direction: row;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.stillTile {
+  position: relative;
+  flex: 0 0 96px;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--card-2);
+}
+
+.stillTile img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.stillTime {
+  position: absolute;
+  left: var(--space-1);
+  bottom: var(--space-1);
+  padding: 0 var(--space-1);
+  border-radius: 3px;
+  background: var(--bg);
+  font-size: 10px;
+  color: var(--ink);
+}
+
+/* The verdict: the day as a line, then the sentence. */
+.verdict {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+}
+
+.trend {
+  display: block;
+  width: 100%;
+  height: 48px;
+}
+
+.band {
+  fill: var(--green);
+  opacity: 0.18;
+}
+
+.line {
+  fill: none;
+  stroke: var(--temperature);
+  stroke-width: 1.25;
+}
+
+.verdictText {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.verdict[data-rating='poor'] .verdictText {
+  color: var(--alarm);
+}
+
+.verdict[data-rating='watch'] .verdictText {
+  color: var(--warning);
+}

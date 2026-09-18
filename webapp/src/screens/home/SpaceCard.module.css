@@ -1,0 +1,378 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+/* An alarm colours the card's edge, the same red the strip above uses. */
+.card[data-severity='critical'],
+.card[data-severity='warning'] {
+  border-left-width: 3px;
+}
+
+.card[data-severity='critical'] {
+  border-left-color: var(--alarm);
+}
+
+.card[data-severity='warning'] {
+  border-left-color: var(--warning);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.title {
+  min-width: 0;
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.nameLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.subtitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.subtitleLine {
+  display: inline;
+}
+
+/* "● live · 20 s" */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  height: var(--chip-height);
+  padding: 0 var(--space-3);
+  border: var(--rule-solid);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--label);
+}
+
+.pill[data-liveness='live'] {
+  color: var(--green-ink);
+}
+
+.pill[data-liveness='live'] .dot {
+  background: var(--green);
+}
+
+.pill[data-liveness='stale'] {
+  color: var(--warning);
+}
+
+.pill[data-liveness='stale'] .dot {
+  background: var(--warning);
+}
+
+.alert {
+  font-size: var(--text-xs);
+  color: var(--warning);
+}
+
+.alert[data-severity='critical'] {
+  color: var(--alarm);
+}
+
+/* The climate half: the figures, and the day of temperature at the right. */
+.climate {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.values {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+
+.value {
+  flex: 0 0 auto;
+}
+
+.figureLine {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.figure {
+  font-size: var(--text-figure);
+  font-weight: var(--weight-semibold);
+  line-height: 1.1;
+}
+
+.compact .figure {
+  font-size: var(--text-xl);
+}
+
+.unit {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* "→ 25" over "in band": two short lines keep the column as narrow as its figure. */
+.target {
+  display: flex;
+  flex-direction: column;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  line-height: 1.35;
+  color: var(--label);
+  white-space: nowrap;
+}
+
+.inBand {
+  color: var(--green-ink);
+}
+
+.offBand {
+  color: var(--warning);
+}
+
+/* The newest picture, 16:9, with its caption in the corner. */
+.still {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--card-2);
+}
+
+.still img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.stillCaption {
+  position: absolute;
+  left: var(--space-2);
+  bottom: var(--space-2);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--bg);
+  border: var(--rule-solid);
+  font-size: var(--text-xs);
+  color: var(--ink);
+}
+
+/* The grow half. */
+.grow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.growRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.cover {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--card-2);
+  color: var(--green);
+}
+
+.cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.growText {
+  flex: 1;
+  min-width: 0;
+}
+
+.growName {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.growLine {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.phase {
+  color: var(--ink);
+}
+
+.strains {
+  color: var(--muted);
+}
+
+/* The grey "auto" tag: a preset or the plan set the phase, not a person. */
+.auto {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 0 var(--space-1);
+  border: var(--rule-solid);
+  border-radius: 3px;
+  font-size: 10px;
+  letter-spacing: var(--tracking-caption);
+  text-transform: uppercase;
+  color: var(--label);
+  vertical-align: 1px;
+}
+
+/* The phase bar: six segments, filled as far as the grow has come, the stage named under its segment. */
+.phaseBar {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.segments {
+  display: flex;
+  gap: 3px;
+}
+
+.segment {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--rule);
+}
+
+.segment[data-reached='true'] {
+  background: var(--green);
+}
+
+.stageLabels {
+  position: relative;
+  height: 14px;
+  font-size: var(--text-xs);
+  color: var(--label);
+}
+
+.stageLabels span {
+  position: absolute;
+  top: 0;
+  white-space: nowrap;
+}
+
+.stageEnd {
+  right: 0;
+}
+
+/* "34 / DAY" */
+.day {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.dayFigure {
+  font-size: var(--text-figure);
+  font-weight: var(--weight-semibold);
+  line-height: 1.1;
+}
+
+.entry {
+  font-size: var(--text-sm);
+}
+
+.entryEmpty,
+.entryMeta {
+  color: var(--muted);
+}
+
+.entryMeta {
+  font-size: var(--text-xs);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* A session that may not write is offered none of them, and the card closes up. */
+.actions:empty {
+  display: none;
+}
+
+.action {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 var(--space-3);
+}
+
+.compact .action {
+  height: 36px;
+  font-size: var(--text-sm);
+}
+
+/* An empty half: one sentence, whose ways out are words in it. */
+.invite {
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.inviteAction {
+  padding: 0;
+  background: none;
+  border: 0;
+  font-size: inherit;
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.inviteDismiss {
+  padding: 0;
+  background: none;
+  border: 0;
+  font-size: var(--text-sm);
+  color: var(--label);
+}

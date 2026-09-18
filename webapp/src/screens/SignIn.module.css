@@ -1,0 +1,57 @@
+.page {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: max(var(--space-4), env(safe-area-inset-top)) max(var(--space-4), env(safe-area-inset-right))
+    max(var(--space-4), env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left));
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 360px;
+  padding: var(--space-5) var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.wordmark {
+  margin-bottom: var(--space-5);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+  color: var(--wordmark);
+}
+
+.fieldLabel {
+  margin-bottom: var(--space-1);
+}
+
+.fieldLabel:not(:first-of-type) {
+  margin-top: var(--space-3);
+}
+
+.problem {
+  margin-top: var(--space-3);
+}
+
+.submit {
+  margin-top: var(--space-4);
+}
+
+.demo {
+  margin-top: var(--space-2);
+}
+
+.links {
+  margin-top: var(--space-4);
+  font-size: var(--text-xs);
+  text-align: center;
+  color: var(--muted);
+}
+
+.links a {
+  text-decoration: underline;
+}

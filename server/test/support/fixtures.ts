@@ -25,12 +25,27 @@ export interface StoredStill {
 
 /**
  * Puts a device into the public demo. There is no API for it - an operator sets
- * the flag by hand, which is what `./simulate-device.sh demo on` does too.
+ * the flag by hand, which is what `./simulate-device.sh demo on` does too, and
+ * it marks what hangs off the device with it: a demo session reads every object
+ * that carries the flag, so the space it stands in and its cameras carry it too.
  */
 export const markAsDemoDevice = (deviceId: string, demo = true): Promise<void> =>
   withDatabase(async database => {
-    await database.collection('devices').updateOne({ device_id: deviceId }, { $set: { demoDevice: demo } });
+    const device = await database.collection('devices').findOne({ id: deviceId });
+    if (!device) throw new Error(`No device ${deviceId} to put into the demo`);
+
+    await database.collection('devices').updateOne({ id: deviceId }, { $set: { isDemo: demo } });
+    if (device.spaceId) await database.collection('spaces').updateOne({ id: device.spaceId }, { $set: { isDemo: demo } });
+    await database.collection('cameras').updateMany({ deviceId }, { $set: { isDemo: demo } });
   });
+
+/**
+ * The diary entries of one device. The timeline has no read route yet - it
+ * arrives with the logging slice - and two things here are only visible in what
+ * a device's line became, so they are read from the collection meanwhile.
+ */
+export const diaryEntriesOf = (deviceId: string): Promise<Record<string, unknown>[]> =>
+  withDatabase(database => database.collection('entries').find({ deviceId }).sort({ createdAt: 1 }).toArray());
 
 /** The GridFS bucket the pictures are kept in, beside the collection indexing them. */
 const BUCKET_NAME = 'imagedata';
@@ -64,4 +79,25 @@ export const storeWebcamStill = (deviceId: string, data: Buffer, timestamp: numb
     });
 
     return { imageId };
+  });
+
+/**
+ * A read-only share link on a grow. Making one is the sharing round's route; a
+ * link is inserted here because what it may and may not do is decided now.
+ */
+export const shareLinkOnGrow = (growId: string, token: string): Promise<void> =>
+  withDatabase(async database => {
+    await database.collection('shareLinks').insertOne({
+      id: randomUUID(),
+      createdAt: new Date(),
+      token,
+      kind: 'view',
+      subject: { type: 'grow', id: growId },
+      range: { startsAt: null, endsAt: null },
+      includeCameras: true,
+      createdBy: null,
+      expiresAt: null,
+      revokedAt: null,
+      state: { openCount: 0, lastOpenedAt: null },
+    });
   });

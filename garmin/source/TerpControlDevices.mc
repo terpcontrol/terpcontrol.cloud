@@ -93,6 +93,17 @@ class TerpControlDevices {
         return contains(supportedTypes(deviceType), type);
     }
 
+    // The API names a sensor and an output in two separate vocabularies, and both
+    // have a `co2`. The prefix here is what tells them apart in one list, and it
+    // is dropped again when a request names the series.
+    static function isOutput(type as String) as Boolean {
+        return type.substring(0, 4).equals("out_");
+    }
+
+    static function apiName(type as String) as String {
+        return isOutput(type) ? type.substring(4, type.length()) : type;
+    }
+
     static function label(type as String) as String {
         return TYPE_TO_LABEL.hasKey(type) ? TYPE_TO_LABEL[type] : type;
     }

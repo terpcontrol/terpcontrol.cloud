@@ -1,6 +1,7 @@
 import { createAccount, Session } from '../support/api';
 import { bounceMqttBroker } from '../support/control';
 import { DeviceCredentials, DeviceSimulator, provisionDevice, settle, startSimulator } from '../support/device';
+import { diaryEntriesOf } from '../support/fixtures';
 import { serverLogMentions } from '../support/logs';
 
 /**
@@ -36,7 +37,7 @@ describe('after the broker restarts', () => {
     await settle(3000);
 
     simulator.clear();
-    await owner.client.post('/device/reboot').send({ device_id: device.deviceId }).expect(200);
+    await owner.client.post(`/v1/devices/${device.deviceId}/commands`).send({ kind: 'reboot' }).expect(202);
 
     const command = await simulator.waitFor('command', 20_000);
     expect(JSON.parse(command.payload)).toEqual({ action: 'reboot' });
@@ -45,9 +46,9 @@ describe('after the broker restarts', () => {
     await simulator.reportStatus({ temperature: 19.5 });
     await settle(1000);
 
-    const listed = await owner.client.get('/device').expect(200);
-    const entry = listed.body.find((candidate: { device_id: string }) => candidate.device_id === device.deviceId);
-    expect(entry.lastseen).toBeGreaterThan(Date.now() - 60_000);
+    const listed = await owner.client.get('/v1/devices').expect(200);
+    const entry = listed.body.items.find((candidate: { id: string }) => candidate.id === device.deviceId);
+    expect(Date.parse(entry.state.lastSeenAt)).toBeGreaterThan(Date.now() - 60_000);
   }, 60_000);
 
   // An outage is only visible to whoever reads the log afterwards, and the
@@ -82,12 +83,19 @@ describe('after the broker restarts', () => {
       await talker.reconnect();
       await settle(3000);
 
-      const message = `message-co2-low:${Date.now()}`;
-      await talker.publish('log', { message, severity: 0, time: Date.now() });
+      const parameter = String(Date.now());
+      await talker.publish('log', { message: `message-co2-low:${parameter}`, severity: 0, time: Date.now() });
       await settle(1500);
 
-      const logs = await owner.client.get(`/device/logs/${fresh.deviceId}`).expect(200);
-      expect(logs.body.filter((entry: { message: string }) => entry.message === message)).toHaveLength(1);
+      // Read from the collection: the timeline has no route of its own until
+      // the logging slice lands, and what a device's line became is the fact
+      // this case is about.
+      const entries = await diaryEntriesOf(fresh.deviceId);
+      const written = entries.filter(entry => {
+        const message = entry.message as { key?: string; params?: string[] } | null;
+        return message?.key === 'message-co2-low' && message.params?.[0] === parameter;
+      });
+      expect(written).toHaveLength(1);
     } finally {
       await talker.close();
     }
