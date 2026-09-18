@@ -61,11 +61,17 @@ export class DevicesService {
 
   public async list(ctx: AccessContext, query: PageQuery, spaceId?: string): Promise<CursorPage<Device>> {
     const limit = pageLimit(query.limit);
-    const rows = await this.devices
-      .find({ ...(await this.visibleTo(ctx)), ...(spaceId ? { spaceId } : {}), ...afterCursor('createdAt', query.cursor) })
-      .sort({ createdAt: -1, id: -1 })
-      .limit(readLimit(limit))
-      .lean<StoredDevice[]>();
+    // Combined rather than merged into one object: the visibility and the cursor
+    // are each an `$or` of their own, and one would silently replace the other -
+    // which would hand out everything that sorts after the cursor from the
+    // second page on, while the first page looked right.
+    const conditions: FilterQuery<StoredDevice>[] = [
+      await this.visibleTo(ctx),
+      ...(spaceId ? [{ spaceId }] : []),
+      afterCursor('createdAt', query.cursor),
+    ];
+
+    const rows = await this.devices.find({ $and: conditions }).sort({ createdAt: -1, id: -1 }).limit(readLimit(limit)).lean<StoredDevice[]>();
 
     const page = pageOf(rows, limit, device => ({ at: device.createdAt, id: device.id }));
     return { items: page.items.map(device => this.serialise(device, ctx.isDemo)), nextCursor: page.nextCursor };

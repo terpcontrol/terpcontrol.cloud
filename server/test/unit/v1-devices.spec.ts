@@ -48,8 +48,8 @@ const world = async (): Promise<void> => {
   ]);
 
   await db.devices.create([
-    { id: IN_THE_TENT, type: 'controller', ownerId: OWNER, spaceId: TENT },
-    { id: ON_THE_BALCONY, type: 'controller', ownerId: OWNER, spaceId: BALCONY },
+    { id: IN_THE_TENT, type: 'controller', ownerId: OWNER, spaceId: TENT, createdAt: new Date('2026-01-03T12:00:00.000Z') },
+    { id: ON_THE_BALCONY, type: 'controller', ownerId: OWNER, spaceId: BALCONY, createdAt: new Date('2026-01-01T12:00:00.000Z') },
   ]);
 
   await db.memberships.create([
@@ -94,5 +94,29 @@ describe('the devices a caller is shown', () => {
   it('narrows to one space when it is asked to, without widening past what the caller may see', async () => {
     expect((await devices.list(session(MANAGER), {}, TENT)).items.map(device => device.id)).toEqual([IN_THE_TENT]);
     expect((await devices.list(session(MANAGER), {}, BALCONY)).items).toHaveLength(0);
+  });
+
+  it('never lets a later page reach past what the caller may see', async () => {
+    // The caller has to be a member for this to be worth testing: a person who
+    // only owns things is filtered by one plain condition, while a membership
+    // makes the visibility an `$or` - which is the half a cursor would replace.
+    await db.memberships.create({ id: 'membership-member-balcony', spaceId: BALCONY, userId: MEMBER, role: 'can_log' });
+    await db.spaces.create({ id: 'space-theirs', ownerId: STRANGER, kind: 'tent', name: 'Theirs', roomId: null });
+    await db.devices.create({
+      id: 'device-theirs',
+      type: 'controller',
+      ownerId: STRANGER,
+      spaceId: 'space-theirs',
+      // Between the two this caller may see, so a page that continued by the
+      // cursor alone would hand this one out as the second page.
+      createdAt: new Date('2026-01-02T12:00:00.000Z'),
+    });
+
+    const first = await devices.list(session(MEMBER), { limit: 1 });
+    const second = await devices.list(session(MEMBER), { limit: 1, cursor: first.nextCursor ?? '' });
+
+    expect(first.items.map(device => device.id)).toEqual([IN_THE_TENT]);
+    expect(first.nextCursor).not.toBeNull();
+    expect(second.items.map(device => device.id)).toEqual([ON_THE_BALCONY]);
   });
 });

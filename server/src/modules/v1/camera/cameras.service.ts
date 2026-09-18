@@ -72,11 +72,13 @@ export class CamerasService {
 
   public async list(ctx: AccessContext, filter: CameraFilter, page: PageQuery): Promise<CursorPage<Camera>> {
     const limit = pageLimit(page.limit);
-    const rows = await this.cameras
-      .find({ ...(await this.visibleTo(ctx)), ...narrowing(filter), ...afterCursor('createdAt', page.cursor) })
-      .sort({ createdAt: -1, id: -1 })
-      .limit(readLimit(limit))
-      .lean<CameraDocument[]>();
+    // Combined rather than merged into one object: the visibility and the cursor
+    // are each an `$or` of their own, and one would silently replace the other -
+    // which would hand out everything that sorts after the cursor from the
+    // second page on, while the first page looked right.
+    const conditions: FilterQuery<CameraDocument>[] = [await this.visibleTo(ctx), narrowing(filter), afterCursor('createdAt', page.cursor)];
+
+    const rows = await this.cameras.find({ $and: conditions }).sort({ createdAt: -1, id: -1 }).limit(readLimit(limit)).lean<CameraDocument[]>();
 
     return pageOf(
       rows.map(camera => this.serialise(camera, ctx.isDemo)),
