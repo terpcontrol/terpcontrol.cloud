@@ -7,6 +7,9 @@
 
 ## Running the stack
 - The full application launches with `docker compose up --build -d --remove-orphans`.
+- `./up.sh` does the same as a deploy does it - pull, build, and recreate every container - and `./stop.sh` and
+  `./down.sh` are its counterparts. All three take service names (`./up.sh server`) and read the compose project
+  from `DOCKER_COMPOSE_NAME` in `.env`.
 - Webapp: `http://localhost:${WEBAPP_PORT_EXTERNAL}` (port from `.env`).
 - Use a local browser as chromium to test the webapp.
 - API: `${API_URL_EXTERNAL}` (from `.env`) — call directly for backend testing.
