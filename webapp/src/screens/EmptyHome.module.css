@@ -1,0 +1,97 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.intro {
+  margin-bottom: var(--space-1);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.text {
+  margin-top: var(--space-2);
+  color: var(--muted);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.cardTitle {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.cardText {
+  margin: var(--space-2) 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.problem {
+  margin-top: var(--space-2);
+}
+
+.claimed {
+  padding: var(--space-3);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--card-2);
+}
+
+.claimedLine {
+  font-weight: var(--weight-semibold);
+}
+
+.claimedMark {
+  color: var(--green-ink);
+}
+
+.claimedNote {
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.demo .cardText {
+  margin-bottom: 0;
+}
+
+/* The whole card is the button; it looks like the card and not like a control. */
+.demoButton {
+  display: block;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+}
+
+.demoButton:disabled {
+  opacity: 0.6;
+}
+
+.following {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}

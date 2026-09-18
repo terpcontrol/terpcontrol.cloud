@@ -2,12 +2,6 @@ import { z } from 'zod';
 /**
  * The base of the `/v1` wire contract: the registry, the scalar helpers, the
  * envelopes, and the enums and value objects more than one domain needs.
- *
- * `src/schemas.ts` beside this directory describes the API the Angular app
- * calls. It is not the same contract and not the same vocabulary, so nothing
- * here imports from it and the two registries stay separate: an id collision
- * between them would silently make one type overwrite the other in the
- * generated output.
  */
 /** Named for the generated output: an entry's id becomes its exported type name. */
 export declare const registry: z.core.$ZodRegistry<{
@@ -15,11 +9,8 @@ export declare const registry: z.core.$ZodRegistry<{
 }, z.core.$ZodType<unknown, unknown, z.core.$ZodTypeInternals<unknown, unknown>>>;
 export declare const named: <T extends z.ZodType>(id: string, schema: T) => T;
 /**
- * An instant on the wire.
- *
- * Unlike the legacy `wireDate`, which generates `Date` because the Angular app
- * is handed mongoose documents, this generates `string`: JSON is the contract
- * for `/v1`, and the server parses to a `Date` at its own boundary.
+ * An instant on the wire, as a string: JSON is the contract, and the server
+ * parses to a `Date` at its own boundary rather than handing one out.
  *
  * Every instant is named `...At` or `...Until`, without exception.
  */

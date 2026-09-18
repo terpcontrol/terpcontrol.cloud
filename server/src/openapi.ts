@@ -1,6 +1,6 @@
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
-import v1Schemas from '@fg2/shared-types/openapi-v1-schemas.json';
+import v1Schemas from '@fg2/shared-types/openapi-schemas.json';
 import { appConfig } from './config/configuration';
 
 /**

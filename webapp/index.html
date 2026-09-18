@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Terp Control</title>
+
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="Terp Control — monitor and control your grow from anywhere." />
+    <meta name="theme-color" content="#f3f5f9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0d1118" media="(prefers-color-scheme: dark)" />
+    <!-- `viewport-fit=cover` puts the tab bar behind the home indicator, where the safe-area insets pick it up. -->
+    <meta name="viewport" content="viewport-fit=cover, width=device-width, initial-scale=1.0" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- The SVG comes first so browsers that support it scale the logo to any density instead of
+         upscaling the small PNG; the PNG stays as the fallback for the ones that don't. -->
+    <link rel="icon" type="image/svg+xml" href="/assets/icons/icon.svg" />
+    <link rel="icon" type="image/png" href="/assets/icon/favicon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Terp Control" />
+    <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png" />
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

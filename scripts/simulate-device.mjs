@@ -13,9 +13,10 @@ import net from 'node:net';
 import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 
-// The socket report is a contract between firmware, server and webapp; the
-// simulator answers to the same one.
-import { MAX_SOCKETS, SOCKETS_PER_REPORT_CHUNK, socketListKey } from '../shared-types/index.js';
+// The socket report is a contract between firmware, server and simulator; this
+// answers to the same one. The deep path is the point: that module of the
+// contract imports nothing, so this tool still runs from a bare checkout.
+import { MAX_SOCKETS, SOCKETS_PER_REPORT_CHUNK, socketListKey } from '../shared-types/v1-schemas/socket-report.js';
 
 const STATE_DIR = '.simulated-devices';
 const API_URL = process.env.SIM_API_URL.replace(/\/$/, '');
@@ -888,6 +889,14 @@ Usage: ./simulate-device.sh [options] <command> [arguments]
 Commands:
   setup                  invent a device, claim it for the local user, upload a
                          configuration and seed history, then print its id
+  demo-seed              build an account worth developing against: two tents
+                         and a fridge with their hardware, a paired camera,
+                         three weeks of readings, settings, alarm rules and a
+                         second account. Re-runnable - it adds what is missing.
+                         Grows, plants, phases, a diary going further back than
+                         today and the share itself have no routes yet, so they
+                         are left out rather than faked; the run says so at the
+                         end.
   run                    stay online: publish live samples and answer the
                          configuration, test-mode, maintenance, reboot, smart
                          socket, camera and firmware messages the server sends
@@ -906,8 +915,9 @@ Commands:
 
 Options:
   -d, --device-id <id>   which device to talk to. Required by every command
-                         except setup, register and list; setup and register
-                         invent sim-<type>-<random> when it is left out.
+                         except setup, register, list and demo-seed; setup and
+                         register invent sim-<type>-<random> when it is left
+                         out, and demo-seed names its own.
   -t, --type <type>      fridge|controller|plug|fan|light (default controller)
       --interval <sec>   seconds between live samples     (default 30)
       --days <n>         days of history to backfill      (default 3)
@@ -1023,15 +1033,20 @@ const register = async options => {
   console.log(`registered ${options.deviceId} as ${options.type}`);
 };
 
-const claim = async options => {
-  const { password } = credentials(options.deviceId);
-  const code = await api('/device/claimcode', { method: 'POST', body: { device_id: options.deviceId, password } });
+const claimCodeFor = async deviceId => {
+  const { password } = credentials(deviceId);
+  const code = await api('/device/claimcode', { method: 'POST', body: { device_id: deviceId, password } });
   if (!code?.claim_code) throw new Error('Server did not hand out a claim code - is the device registered?');
-  console.log(`claim code: ${code.claim_code}`);
+  return code.claim_code;
+};
+
+const claim = async options => {
+  const code = await claimCodeFor(options.deviceId);
+  console.log(`claim code: ${code}`);
   const token = await login();
   // A device that belongs to no space has no card to appear on, so a claim
   // always ends in one - naming none makes one.
-  const { device, spaceCreated } = await api('/v1/devices/claims', { method: 'POST', body: { code: code.claim_code }, token });
+  const { device, spaceCreated } = await api('/v1/devices/claims', { method: 'POST', body: { code }, token });
   console.log(`claimed by ${USER}${spaceCreated ? `, in a new space (${device.spaceId})` : ''}`);
 };
 
@@ -1047,17 +1062,49 @@ const withDevice = async (options, body) => {
 
 // The server answers a fetch with the stored configuration, so a short-lived
 // command still follows the same targets the running device would.
-const withCurrentConfig = async (device, at = new Date()) => {
+const withCurrentConfig = async device => {
   await device.listen();
   const configured = device.configured();
   device.fetch();
   await configured;
-  device.warmUp(at);
+};
+
+// Applies dotted assignments - `day.temperature`, `lights.limit` - to a settings
+// document, making the objects on the way as it goes.
+const applyDotted = (config, assignments) => {
+  for (const [dotted, value] of assignments) {
+    const keys = dotted.split('.');
+    const parent = keys.slice(0, -1).reduce((node, key) => (node[key] ??= {}), config);
+    parent[keys.at(-1)] = value;
+  }
+  return config;
+};
+
+/**
+ * Publishes `days` of samples ending at `endAt`, oldest first, so the newest is
+ * also the device's current reading. The climate model is settled over the whole
+ * window first, or the curve would start at the cold-start values.
+ */
+const backfill = async (device, { days, stepMinutes, endAt, overrides = {} }) => {
+  const stepSeconds = stepMinutes * 60;
+  const total = Math.round((days * 86400) / stepSeconds);
+  device.warmUp(new Date(endAt - total * stepSeconds * 1000));
+
+  for (let i = total; i > 0; i--) {
+    const at = new Date(endAt - i * stepSeconds * 1000);
+    device.publishBulk(device.sample(at, stepSeconds, overrides), Math.floor(at.getTime() / 1000));
+    // The server writes every sample to InfluxDB as it arrives; pausing keeps
+    // the backfill from outrunning it and filling the broker's queue.
+    if (i % 25 === 0) await sleep(250);
+  }
+  device.publishStatus(device.sample(new Date(), stepSeconds, overrides));
+  return total;
 };
 
 const send = options =>
   withDevice(options, async device => {
     await withCurrentConfig(device);
+    device.warmUp(new Date());
     const sample = device.sample(new Date(), 3600, options.overrides);
     device.publishStatus(sample);
     console.log(JSON.stringify(sample));
@@ -1067,12 +1114,7 @@ const send = options =>
 const configure = options =>
   withDevice(options, async device => {
     await withCurrentConfig(device);
-    for (const assignment of options.rest) {
-      const [dotted, value] = parseAssignment(assignment);
-      const keys = dotted.split('.');
-      const parent = keys.slice(0, -1).reduce((node, key) => (node[key] ??= {}), device.config);
-      parent[keys.at(-1)] = value;
-    }
+    applyDotted(device.config, options.rest.map(parseAssignment));
     device.uploadConfig();
     console.log(JSON.stringify(device.config));
     await sleep(500);
@@ -1080,20 +1122,8 @@ const configure = options =>
 
 const history = options =>
   withDevice(options, async device => {
-    const stepSeconds = options.step * 60;
-    const total = Math.round((options.days * 86400) / stepSeconds);
-    const now = Date.now();
-    await withCurrentConfig(device, new Date(now - total * stepSeconds * 1000));
-
-    // Walks up to the present so the newest sample is also the current reading.
-    for (let i = total; i > 0; i--) {
-      const at = new Date(now - i * stepSeconds * 1000);
-      device.publishBulk(device.sample(at, stepSeconds, options.overrides), Math.floor(at.getTime() / 1000));
-      // The server writes every sample to InfluxDB as it arrives; pausing keeps
-      // the backfill from outrunning it and filling the broker's queue.
-      if (i % 25 === 0) await sleep(250);
-    }
-    device.publishStatus(device.sample(new Date(), stepSeconds, options.overrides));
+    await withCurrentConfig(device);
+    const total = await backfill(device, { days: options.days, stepMinutes: options.step, endAt: Date.now(), overrides: options.overrides });
     console.log(`published ${total} samples covering ${options.days} day(s)`);
     await sleep(2000);
   });
@@ -1224,11 +1254,213 @@ const setup = async options => {
   console.log(`\n${options.deviceId} is ready. Keep it online with:\n  ./simulate-device.sh -d ${options.deviceId} -t ${options.type} run`);
 };
 
-const COMMANDS = { setup, run, send, configure, history, watch, register, claim, info, list, hwinfo, log: logEntry };
+// ------------------------------------------------------------ The demo account
+
+/**
+ * An account worth developing the app against: places with hardware in them,
+ * weeks of readings behind the charts, something to watch and somebody to share
+ * with.
+ *
+ * Everything goes in the way a client or a device would - through `/v1` and over
+ * MQTT - so nothing here can build what the API cannot yet build. What is
+ * missing is named in the summary rather than written into the database behind
+ * the API's back: a screen that looks empty is then telling the truth about its
+ * slice instead of hiding a hole.
+ *
+ * Re-runnable. The ids and the names are fixed, so a second run adopts what is
+ * there and adds what is not, and the readings land on the same grid of instants
+ * and overwrite rather than doubling.
+ */
+
+const DEMO_DAYS = 21;
+const DEMO_STEP_MINUTES = 30;
+
+/** What every rule here is, apart from what it watches. */
+const DEMO_ALARM = {
+  upper: null,
+  lower: null,
+  forSeconds: 900,
+  severity: 'warning',
+  enabled: true,
+  cooldownSeconds: 1800,
+  repeatSeconds: 0,
+  delivery: { mode: 'routing', custom: null },
+};
+
+/**
+ * One place each, because a space is made by claiming a device into it and a
+ * controller stands in a tent while a fridge is one. `space` is what the claim
+ * names, which the device is then renamed away from so the two read as what they
+ * are.
+ */
+const DEMO_PLACES = [
+  {
+    deviceId: 'demo-tent-blue-dream',
+    type: 'controller',
+    space: 'Blue Dream tent',
+    device: 'Tent controller',
+    camera: 'Canopy cam',
+    settings: [
+      ['day.temperature', 26],
+      ['day.humidity', 62],
+      ['night.temperature', 21],
+      ['night.humidity', 58],
+      ['co2.target', 1100],
+      ['lights.limit', 90],
+      ['fans.internal', 65],
+    ],
+    alarms: [
+      { name: 'Too warm by day', metric: 'temperature', upper: 30 },
+      { name: 'Humidity into mould', metric: 'humidity', upper: 70, severity: 'critical' },
+    ],
+    diary: [
+      { message: 'message-ext-sensor-deviate:1.8', severity: 1 },
+      { message: 'message-maintenance-mode-activated:20' },
+    ],
+  },
+  {
+    deviceId: 'demo-tent-mothers',
+    type: 'controller',
+    space: 'Mother tent',
+    device: 'Mother controller',
+    settings: [
+      ['day.temperature', 24],
+      ['day.humidity', 65],
+      ['night.temperature', 20],
+      ['daynight.day', 3600 * 4],
+      ['daynight.night', 3600 * 22],
+      ['lights.limit', 60],
+    ],
+    alarms: [{ name: 'Mothers too dry', metric: 'humidity', lower: 45 }],
+    diary: [{ message: 'message-co2-low:415', severity: 1 }],
+  },
+  {
+    deviceId: 'demo-fridge-cuttings',
+    type: 'fridge',
+    space: 'Cutting fridge',
+    device: 'Fridge module',
+    settings: [
+      ['day.temperature', 22],
+      ['day.humidity', 80],
+      ['night.temperature', 20],
+      ['night.humidity', 80],
+      ['co2.target', 800],
+    ],
+    alarms: [{ name: 'Cuttings drying out', metric: 'humidity', lower: 65 }],
+    diary: [{ message: 'message-device-booted:POWERON' }],
+  },
+];
+
+/** The second account, for the day a tent can be shared with one. */
+const DEMO_FRIEND = { email: 'friend@demo.invalid', handle: 'demo-friend', password: 'demo-friend-password' };
+
+/** What this command cannot build, because the API does not offer it yet. */
+const DEMO_WAITING = [
+  'the grow, its plants and its weeks of phases (no /v1/grows, /v1/plants or /v1/phases)',
+  'a diary going back weeks - a device log line is stamped when it arrives, and there is no route to write one (no /v1/entries)',
+  'the balcony with no device in it - a space is only made by claiming something into it (no /v1/spaces)',
+  `sharing a tent with ${DEMO_FRIEND.handle} (no /v1/memberships or /v1/invites)`,
+];
+
+const demoSeedPlace = async (place, token, claimed) => {
+  const options = { deviceId: place.deviceId, type: place.type };
+  const fresh = !claimed.has(place.deviceId);
+  // Registering the same id as the same type again is how a device that reboots
+  // comes back, so this is the re-run.
+  await register(options);
+
+  if (fresh) {
+    const code = await claimCodeFor(place.deviceId);
+    await api('/v1/devices/claims', { method: 'POST', body: { code, name: place.space }, token });
+    console.log(`claimed ${place.deviceId} into "${place.space}"`);
+  }
+  // The claim names the new space after the device; give the device back a name
+  // of its own, so a card says "Blue Dream tent" and the row in it says what
+  // stands there.
+  await api(`/v1/devices/${encodeURIComponent(place.deviceId)}`, { method: 'PATCH', body: { name: place.device }, token });
+
+  await withDevice(options, async device => {
+    await withCurrentConfig(device);
+    device.boot();
+    if (place.camera) device.attachCamera();
+    applyDotted(device.config, place.settings);
+    device.uploadConfig();
+    // Only for a place that is new. A log line is stamped when it arrives and
+    // nothing can look one up afterwards, so writing these again would simply
+    // add a second set at today's date.
+    if (fresh) for (const entry of place.diary) device.log(entry.message, entry.severity ?? 0);
+    await sleep(800);
+
+    // On the step grid, so a second run writes the same instants over the same
+    // points instead of threading a second curve between them.
+    const stepMs = DEMO_STEP_MINUTES * 60000;
+    const samples = await backfill(device, {
+      days: DEMO_DAYS,
+      stepMinutes: DEMO_STEP_MINUTES,
+      endAt: Math.floor(Date.now() / stepMs) * stepMs,
+    });
+    console.log(`${place.deviceId}: ${samples} samples over ${DEMO_DAYS} days, settings${fresh ? `, ${place.diary.length} diary line(s)` : ''}`);
+    await sleep(1000);
+  });
+
+  if (place.camera) {
+    // The pairing above made the row; this adopts it and names it, and does the
+    // same again on the next run rather than making a second camera.
+    await api('/v1/cameras', { method: 'POST', body: { kind: 'terpcam_controller', deviceId: place.deviceId, name: place.camera }, token });
+    console.log(`${place.deviceId}: camera "${place.camera}"`);
+  }
+
+  const rules = `/v1/devices/${encodeURIComponent(place.deviceId)}/alarm-rules`;
+  const named = new Set((await apiList(rules, token)).map(rule => rule.name));
+  for (const rule of place.alarms.filter(rule => !named.has(rule.name))) {
+    await api(rules, { method: 'POST', body: { ...DEMO_ALARM, ...rule }, token });
+    console.log(`${place.deviceId}: alarm rule "${rule.name}"`);
+  }
+};
+
+/** Only an administrator may make an account, which is exactly who seeds a stack. */
+const demoSeedFriend = async token => {
+  const existing = (await apiList('/v1/admin/users', token)).find(user => user.email === DEMO_FRIEND.email);
+  if (existing) {
+    console.log(`second account ${DEMO_FRIEND.email} is already there`);
+    return;
+  }
+  await api('/v1/admin/users', { method: 'POST', body: { ...DEMO_FRIEND, isActive: true }, token });
+  console.log(`second account ${DEMO_FRIEND.email} / ${DEMO_FRIEND.password}`);
+};
+
+const demoSeed = async () => {
+  const token = await login();
+  const claimed = new Set((await apiList('/v1/devices', token)).map(device => device.id));
+
+  for (const place of DEMO_PLACES) await demoSeedPlace(place, token, claimed);
+
+  try {
+    await demoSeedFriend(token);
+  } catch (error) {
+    // Seeding is worth having without it, and whoever is signed in may simply
+    // not be an administrator.
+    console.log(`second account skipped: ${error.message}`);
+  }
+
+  console.log(`\n${USER} now has ${DEMO_PLACES.length} places. Keep them online with:`);
+  for (const place of DEMO_PLACES) {
+    console.log(`  ./simulate-device.sh -d ${place.deviceId} -t ${place.type} run${place.camera ? ' --camera' : ''}`);
+  }
+  console.log('\nWaiting for its slice, so not in here:');
+  for (const missing of DEMO_WAITING) console.log(`  - ${missing}`);
+};
+
+// --------------------------------------------------------------- CLI dispatch
+
+const COMMANDS = { setup, 'demo-seed': demoSeed, run, send, configure, history, watch, register, claim, info, list, hwinfo, log: logEntry };
 
 // The two commands that bring a device into being may invent its id; everything
 // else acts on a device that already exists and has to be told which one.
 const INVENTS_DEVICE_ID = ['setup', 'register'];
+
+/** Commands about the account rather than about one device. */
+const NEEDS_NO_DEVICE_ID = ['list', 'demo-seed'];
 
 const resolveDeviceId = options => {
   if (options.deviceId) return options.deviceId;
@@ -1245,7 +1477,7 @@ const main = async () => {
     console.log(USAGE);
     process.exit(options.command ? 1 : 0);
   }
-  if (options.command !== 'list') {
+  if (!NEEDS_NO_DEVICE_ID.includes(options.command)) {
     options.deviceId = resolveDeviceId(options);
   }
   await command(options);

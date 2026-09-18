@@ -67,10 +67,10 @@ jobs:
           node-version: 20
           cache: 'npm'
           cache-dependency-path: shared-types/package-lock.json
-      # index.d.ts and openapi-schemas.json are generated from src/schemas.ts and
-      # committed, because the server and the webapp link this package with
-      # `file:` and no build of it runs for them. This is what keeps the two in
-      # step: regenerate, and the tree has to be unchanged.
+      # v1.d.ts, openapi-schemas.json and v1-schemas/ are generated from
+      # src/v1/ and committed, because the server and the webapp link this
+      # package with `file:` and no build of it runs for them. This is what keeps
+      # the two in step: regenerate, and the tree has to be unchanged.
       - run: |
           cd shared-types/
           npm ci
@@ -93,6 +93,13 @@ jobs:
           node-version: 20
           cache: 'npm'
           cache-dependency-path: webapp/package-lock.json
+      # The contract is linked with `file:`, and node - the compiler as much as
+      # the runtime - resolves a linked package's own imports from the package,
+      # never from whoever linked it. The app reads only the flat `/v1` types
+      # today and would type-check without this; the day it reads a value out of
+      # `/v1-schemas`, the types behind it would silently widen to `any` instead.
+      # The server's job below spells the same reason out.
+      - run: npm --prefix shared-types ci --omit=dev
       - run: |
           cd webapp/
           npm ci
@@ -101,7 +108,13 @@ jobs:
             echo 1>&2 'You need run "npm run lint:fix" before committing'
             exit 1
           fi
+          # Type-checks and then bundles. There is no root .env here, so the
+          # bundle names the fallback API; nothing serves it, the point is that
+          # it compiles.
           npm run build
+          # Only the tests that need nothing but the checkout; `npm run test:live`
+          # wants a running stack and belongs to whoever has one.
+          npm test
 
   server:
     needs: detect

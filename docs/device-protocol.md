@@ -370,7 +370,7 @@ anything beyond that** (`fridgecloud.h:35`, `fridgecloud.cpp:382-387`); each ent
 first failure and resumes with the same entry at the head (`:421-429`). A queued reboot waits for the queue to
 drain (`:433-437`).
 
-`message` is a `message-key:param` line. The keys resolve against `webapp/src/assets/i18n/en.json`; anything
+`message` is a `message-key:param` line. The keys resolve against `webapp/public/assets/i18n/en.json`; anything
 without a translation is shown verbatim.
 
 Server side (`device-ingest.service.ts`), in order:
@@ -515,10 +515,10 @@ Rules a reader has to follow:
 - A whole report is re-sent on boot and on every change of the table (`wifi.cpp:2511`, called from
   `wifiInitAuxCloudReporting` `:2548` and from each mutation at `:539,545,2365,2632,2725,2975`).
 
-The format is declared for the server in `server/src/modules/device-protocol/sockets.ts` (`MAX_SOCKETS = 32`,
-`SOCKETS_PER_REPORT_CHUNK = 3`, `socketListKey`, `socketChunkCount`, and the decoders that turn a report into the
-rows the API answers with). The Angular app and the simulator read the same constants from
-`shared-types/index.js:19-36` until the app that replaces them does.
+How the report is spelled — `MAX_SOCKETS = 32`, `SOCKETS_PER_REPORT_CHUNK = 3`, `socketListKey`,
+`socketChunkCount` — is declared once in `shared-types/src/v1/socket-report.ts`, and the server and the simulator
+both read it from there. The decoders that turn a report into the rows the API answers with are in
+`server/src/modules/device-protocol/sockets.ts`; the web app reads those rows and never the report.
 
 Roles are a fixed list in the firmware: `dehumidifier`, `heater`, `light`, `secondary_light`, `co2`
 (`wifi.cpp:2444-2454`; the sixth entry `back` is a menu sentinel and never a role). Any number of sockets may

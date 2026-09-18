@@ -1,13 +1,13 @@
 import { DeviceCapabilities, Socket, SocketOverrideState, SocketRole, SocketState, SocketTimer } from '@fg2/shared-types/v1';
-import { socketRole } from '@fg2/shared-types/v1-schemas';
+import { MAX_SOCKETS, SOCKETS_PER_REPORT_CHUNK, socketChunkCount, socketListKey, socketRole } from '@fg2/shared-types/v1-schemas';
 
 /**
  * The smart-socket table, as a device reports it and as the API reads it.
  *
  * A device drives its sockets itself and tells the cloud what it has through the
- * `hardware-info:` sub-protocol. The table cannot travel as one value - a log
- * message is serialised into a fixed buffer - so it arrives as a count and a few
- * chunks, and this is the only place that knows that:
+ * `hardware-info:` sub-protocol. How that report is spelled - the chunking, and
+ * how many sockets fit - is shared with the simulator and comes from the
+ * contract's `socket-report`; the decoding is here:
  *
  * ```
  * sockets=heater,light                 the older summary: one entry per role
@@ -17,29 +17,11 @@ import { socketRole } from '@fg2/shared-types/v1-schemas';
  * socket_list1=co2|…|…
  * ```
  *
- * Entry *n* of chunk *k* is the socket in slot `k * SOCKETS_PER_REPORT_CHUNK + n`,
- * and that slot is what a command addresses. The count always arrives before the
- * chunks, so a reader that bounds the table by it never misses a row.
+ * The count always arrives before the chunks, so a reader that bounds the table
+ * by it never misses a row.
  *
  * Nothing here is stored twice: a socket is a view of `devices.state.hardware`.
  */
-
-/** A device drives at most this many sockets, spread over the roles as it likes (`wifi.h`). */
-export const MAX_SOCKETS = 32;
-
-/** Sockets per `socket_list<k>` chunk; it has to match what the firmware sends (`wifi.cpp`). */
-export const SOCKETS_PER_REPORT_CHUNK = 3;
-
-export const socketListKey = (chunk: number): string => `socket_list${chunk}`;
-
-/** The chunk a `socket_list<k>` key carries, or null for any other key. */
-export const socketListChunk = (key: string): number | null => {
-  const match = /^socket_list(\d+)$/.exec(key);
-  return match ? Number(match[1]) : null;
-};
-
-/** How many chunks a table of `count` sockets is reported in. */
-export const socketChunkCount = (count: number): number => Math.ceil(Math.max(count, 0) / SOCKETS_PER_REPORT_CHUNK);
 
 /**
  * The roles every build in the field knows (`wifi.cpp`). A device that reports

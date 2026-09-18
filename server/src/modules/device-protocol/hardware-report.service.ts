@@ -2,11 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
+import { socketChunkCount, socketListChunk } from '@fg2/shared-types/v1-schemas';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { logger } from '@utils/logger';
-import { decodeSockets, socketChunkCount, socketListChunk } from './sockets';
+import { decodeSockets } from './sockets';
 
 /**
  * The `hardware-info:` sub-protocol: what a device has found in itself.

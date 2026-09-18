@@ -123,12 +123,13 @@ To remove all data and start fresh:
 
 1. `cd webapp/`
 2. `npm install`
-3. Optional: Edit `src/environments/environment.ts` to point to `https://fg2.novazer.com/api` for easier testing.
-4. `npm start`
+3. `npm start` — serves on `http://localhost:4200` against the API in the root `.env`. To point it somewhere
+   else, set `VITE_API_URL` in `webapp/.env.local`.
 
 And before committing:
 1. `npm run lint:fix`
-1. `npm run build`
+2. `npm run build`
+3. `npm test`
 
 ### Backend
 
@@ -143,13 +144,14 @@ And before committing:
 
 ### Shared types
 
-Every shape that crosses the wire is defined once, in `shared-types/src/schemas.ts`. The types the server and the webapp
-import, and the schemas the API document describes itself with, are generated from it.
+Every shape that crosses the wire is defined once, in `shared-types/src/v1/` — that is the `/v1` contract, and there
+is no other. The types the webapp imports, the schemas the server validates with and the shapes the API document
+describes itself with are all generated from it.
 
 After changing a schema:
 1. `cd shared-types/`
 2. `npm install`
-3. `npm run generate`, and commit what it writes (`index.d.ts`, `openapi-schemas.json`)
+3. `npm run generate`, and commit what it writes (`v1.d.ts`, `openapi-schemas.json` and `v1-schemas/`)
 
 The generated files are committed because both projects link this package with `file:` and no build of it runs for them.
 CI regenerates and fails if the result differs.
@@ -189,7 +191,3 @@ Two things are worth knowing:
 - **The developer key decides whether the build is publishable.** `GARMIN_DEVELOPER_KEY_B64` must stay the same across
   releases; the store rejects an update signed with a different key. Without it the build only succeeds when
   `GARMIN_ALLOW_EPHEMERAL_KEY=1` is set, and then only proves that the app still compiles.
-
-## Documentation
-- Webapp: [Webapp](webapp/README.md)
-- Server: [Server](server/README.md)

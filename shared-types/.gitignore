@@ -1,6 +1,1 @@
 node_modules/
-# Where scripts/generate.mjs compiles the legacy schemas before reading them.
-# Everything else it writes - index.d.ts, v1.d.ts, the two OpenAPI documents and
-# the v1-schemas/ runtime half - is committed, because consumers link this
-# package and run no build of their own.
-.generated-*/

@@ -1,6 +1,6 @@
 import { AlarmRule, Camera, Device, Entry, Plan, Socket } from '@fg2/shared-types/v1';
-// The `hardware-info` report's own vocabulary; the device-protocol module owns it.
-import { socketListChunk } from '@modules/device-protocol/sockets';
+// The `hardware-info` report's own vocabulary.
+import { socketListChunk } from '@fg2/shared-types/v1-schemas';
 
 /**
  * The public demo shows somebody's real tent to anyone who asks for it, so what
