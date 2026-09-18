@@ -11,6 +11,14 @@ import { session } from './session';
 
 type Query = Record<string, string | number | boolean | null | undefined>;
 
+/**
+ * A server that accepts the connection and never answers would otherwise hold
+ * a screen in "refreshing" forever, and a screen that never hears back can
+ * never say that its values are old. Long enough for the week cards, which
+ * cost the server a time-series read per week.
+ */
+const REQUEST_TIMEOUT_MS = 30_000;
+
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   query?: Query;
@@ -37,7 +45,7 @@ const send = async (path: string, options: RequestOptions, token: string | null)
     method: options.method ?? 'GET',
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
-    signal: options.signal,
+    signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]) : AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 };
 

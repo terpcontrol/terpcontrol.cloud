@@ -1,5 +1,5 @@
 import type { CardSetpoint, CardValue, Metric, SpaceLiveDevice } from '@fg2/shared-types/v1';
-import { metric } from '@fg2/shared-types/v1-schemas';
+import { TARGET_BAND, metric } from '@fg2/shared-types/v1-schemas';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { LiveReading } from '@modules/data/data.service';
 import { setpointsOf } from '../device/setpoints';
@@ -33,9 +33,12 @@ export const liveOfDevice = ({ device, reading }: DeviceReading): SpaceLiveDevic
   return {
     deviceId: device.id,
     values: orderValues(Object.entries(reading.metrics).map(([name, value]) => ({ metric: name as Metric, ...value }))),
-    setpoints: STEERED.filter(name => active[name] !== undefined).map(name => ({ metric: name, value: active[name] as number })),
+    setpoints: STEERED.filter(name => active[name] !== undefined).map(name => setpointOf(name, active[name] as number)),
   };
 };
+
+/** A target with the band around it, so the figure beside a value and the verdict's "in band" are one judgement. */
+export const setpointOf = (name: Metric, value: number | null): CardSetpoint => ({ metric: name, value, band: TARGET_BAND[name] ?? null });
 
 export const mergeLive = (devices: SpaceLiveDevice[]): { values: CardValue[]; setpoints: CardSetpoint[] } => {
   const values = new Map<Metric, CardValue>();

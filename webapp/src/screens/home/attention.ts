@@ -53,10 +53,3 @@ export const sortedByAttention = (cards: HomeSpaceCard[]): HomeSpaceCard[] =>
  * because an alarm belongs at the top of two cards as much as of twenty.
  */
 export const isClub = (cards: HomeSpaceCard[]): boolean => cards.some(card => card.roomId !== null);
-
-/**
- * How far a value may stray from its target and still read as "in band". The
- * widths are a grower's, not a physicist's: a degree, a few percent, the
- * noise of a CO2 sensor.
- */
-export const BAND: Partial<Record<CardValue['metric'], number>> = { temperature: 1, humidity: 3, co2: 100 };

@@ -1287,5 +1287,135 @@
       "dark": "Dunkel"
     },
     "signOut": "Abmelden"
+  },
+  "later": {
+    "round": "Kommt mit Runde {{round}}"
+  },
+  "grow": {
+    "tabsLabel": "Grow-Seite",
+    "tabs": {
+      "weeks": "Wochen",
+      "plants": "Pflanzen",
+      "feeding": "Düngung",
+      "report": "Bericht"
+    },
+    "phaseBarLabel": "Phasenverlauf, jetzt in {{stage}}",
+    "stageShort": {
+      "germination": "Keim",
+      "seedling": "Sämling",
+      "vegetative": "Veg",
+      "flowering": "Blüte",
+      "drying": "Trock.",
+      "curing": "Reife"
+    },
+    "lateFlower": "Späte Blüte",
+    "days_one": "{{count}} T",
+    "days_other": "{{count}} T",
+    "week": "Woche {{week}}",
+    "weekN": "Woche {{week}}",
+    "dayRange": "Tag {{from}}–{{to}}",
+    "thisWeek": "diese Woche",
+    "dayStillAlt": "Tag {{day}}",
+    "dayNight": "Tag / Nacht",
+    "average": "Mittel",
+    "humidity": "Feuchte",
+    "light": "Licht",
+    "ownScheme": "Eigenes Schema",
+    "nothingThisWeek": "diese Woche nichts",
+    "feedsDone": "{{done}} / {{planned}} erledigt",
+    "noEntriesThisWeek": "Diese Woche noch nichts eingetragen",
+    "moreEntries_one": "+ {{count}} weiterer im Verlauf",
+    "moreEntries_other": "+ {{count}} weitere im Verlauf",
+    "earlierWeeks": "Frühere Wochen",
+    "noWeeks": "Noch keine Phase · die Wochen beginnen mit der ersten Phase",
+    "noFixedPlace": "Kein fester Platz",
+    "noPlants": "Keine Pflanzen erfasst",
+    "plantStatus": {
+      "active": "aktiv",
+      "harvested": "geerntet",
+      "ended": "beendet"
+    },
+    "noScheme": "Kein Düngeschema",
+    "noSchemeNote": "Dieser Grow folgt keinem Schema. Eines wählen und bearbeiten kommt mit Runde 12.",
+    "edited": "bearbeitet",
+    "strength": "Stärke {{percent}} %",
+    "waterEc": "Wasser-EC {{ec}}",
+    "flipWeek": "Umstellung in Woche {{week}}",
+    "report": {
+      "days": "Tage",
+      "entries": "Einträge",
+      "waters": "Gießen",
+      "feeds": "Düngen",
+      "photos": "Fotos",
+      "harvest": "Geerntet",
+      "wet": "nass {{grams}} g",
+      "dry": "trocken {{grams}} g",
+      "dayFromToToday": "Tag {{from}} → heute",
+      "waterCount_one": "{{count}}× gegossen",
+      "waterCount_other": "{{count}}× gegossen",
+      "feedCount_one": "{{count}}× gedüngt",
+      "feedCount_other": "{{count}}× gedüngt"
+    },
+    "dayN": "Tag {{day}}",
+    "noController": "Kein Controller, wo dieser Grow steht · nichts zu mitteln",
+    "nothingMeasured": "Diese Woche nichts gemessen"
+  },
+  "space": {
+    "tabsLabel": "Bereichsseite",
+    "tabs": {
+      "overview": "Übersicht",
+      "timeline": "Verlauf",
+      "devices": "Geräte",
+      "control": "Steuerung",
+      "members": "Mitglieder"
+    },
+    "later": {
+      "timeline": "Das Kamerabild mit Schieber, dann Temperatur, Feuchte und CO₂ über die Zeit mit Zielband, Nachtschattierung, Alarmen und Einträgen.",
+      "devices": "Jeder Controller, jede Kamera und jede Steckdose hier, mit Rolle und Schalter.",
+      "control": "Der Grow-Plan mit seinen Schritten, manuelle Ziele, und unter Erweitert die Regeln und Steckdosen.",
+      "members": "Wer hier eintragen und wer verwalten darf, und die Einladungen dazu."
+    },
+    "noReadingsYet": "Noch nichts gemeldet",
+    "high": "zu hoch",
+    "low": "zu tief",
+    "preset": "Voreinstellung",
+    "day": "Tag",
+    "night": "Nacht",
+    "dueNow": "Jetzt fällig",
+    "doneWrites": "Erledigt schreibt {{what}} · {{subject}}",
+    "growingHere": "Wächst hier",
+    "newGrow": "Grow",
+    "moveHere": "Hierher verschieben",
+    "hereSince": "hier seit Tag {{day}}",
+    "today": "heute",
+    "noStillsToday": "Heute noch keine Bilder",
+    "lastStill": "letztes vor {{age}}",
+    "stillAlt": "{{name}} um {{time}}",
+    "climate24h": "Klima · 24 h",
+    "inBand": "{{percent}} % im Zielband",
+    "verdict": {
+      "noTarget": "Kein Ziel hier · nichts, woran der Tag zu messen wäre",
+      "metric": {
+        "temperature": "Temperatur",
+        "humidity": "Feuchte",
+        "co2": "CO₂"
+      },
+      "excursion": "1 Ausreißer {{metric}} {{from}}–{{to}}",
+      "excursions": "{{count}} Ausreißer {{metric}}",
+      "stillOut": "jetzt",
+      "ran": "{{output}} lief {{count}}×",
+      "noReadings": "In den letzten 24 h nichts gehört · nichts, woran der Tag zu messen wäre"
+    },
+    "output": {
+      "heater": "Heizung",
+      "dehumidifier": "Entfeuchter",
+      "co2": "CO₂",
+      "fan": "Lüfter",
+      "exhaust": "Abluft",
+      "relais": "Relais"
+    },
+    "latest": "Zuletzt",
+    "all": "Alle",
+    "climate24hUntil": "Klima · 24 h bis {{time}}"
   }
 }

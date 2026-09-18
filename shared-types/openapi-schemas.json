@@ -9240,11 +9240,19 @@
           "number",
           "null"
         ]
+      },
+      "band": {
+        "description": "Half the width of the band around the target; null for a metric that has none.",
+        "type": [
+          "number",
+          "null"
+        ]
       }
     },
     "required": [
       "metric",
-      "value"
+      "value",
+      "band"
     ]
   },
   "LatestStill": {
@@ -9757,6 +9765,60 @@
       "poor"
     ]
   },
+  "TargetBand": {
+    "type": "object",
+    "properties": {
+      "low": {
+        "type": "number"
+      },
+      "high": {
+        "type": "number"
+      }
+    },
+    "required": [
+      "low",
+      "high"
+    ]
+  },
+  "ClimateExcursion": {
+    "type": "object",
+    "properties": {
+      "startedAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "endedAt": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "above": {
+        "type": "boolean",
+        "description": "Which edge it left over: true is above the band."
+      },
+      "extremeValue": {
+        "description": "The furthest the reading got while it was out.",
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "startedAt",
+      "endedAt",
+      "above",
+      "extremeValue"
+    ]
+  },
   "ClimateVerdictMetric": {
     "type": "object",
     "properties": {
@@ -9764,7 +9826,15 @@
         "$ref": "#/components/schemas/Metric"
       },
       "rating": {
-        "$ref": "#/components/schemas/VerdictRating"
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/VerdictRating"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null where nothing here holds a target for this metric, so there is no band to judge it against."
       },
       "minValue": {
         "type": [
@@ -9784,22 +9854,43 @@
           "null"
         ]
       },
-      "targetLow": {
-        "type": [
-          "number",
-          "null"
+      "dayBand": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/TargetBand"
+          },
+          {
+            "type": "null"
+          }
         ]
       },
-      "targetHigh": {
-        "type": [
-          "number",
-          "null"
-        ]
+      "nightBand": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/TargetBand"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null where the metric is not steered in that half at all: CO2 is only raised while the light is on."
+      },
+      "inBandSeconds": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
       },
       "outOfBandSeconds": {
         "type": "integer",
         "minimum": -9007199254740991,
         "maximum": 9007199254740991
+      },
+      "excursions": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ClimateExcursion"
+        },
+        "description": "In the order they happened; empty where the metric has no band."
       }
     },
     "required": [
@@ -9808,33 +9899,391 @@
       "minValue",
       "maxValue",
       "averageValue",
-      "targetLow",
-      "targetHigh",
-      "outOfBandSeconds"
+      "dayBand",
+      "nightBand",
+      "inBandSeconds",
+      "outOfBandSeconds",
+      "excursions"
+    ]
+  },
+  "ActuatorRuns": {
+    "type": "object",
+    "properties": {
+      "output": {
+        "$ref": "#/components/schemas/OutputMetric"
+      },
+      "runCount": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+      },
+      "forSeconds": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991,
+        "description": "How long it was on altogether, over the windows that held a reading."
+      }
+    },
+    "required": [
+      "output",
+      "runCount",
+      "forSeconds"
     ]
   },
   "ClimateVerdict": {
     "type": "object",
     "properties": {
+      "deviceId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The device the window was read from; null in a space that has none."
+      },
+      "startsAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "endsAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
       "forSeconds": {
         "type": "integer",
         "minimum": -9007199254740991,
         "maximum": 9007199254740991
       },
+      "stepSeconds": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+      },
       "rating": {
-        "$ref": "#/components/schemas/VerdictRating"
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/VerdictRating"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "inBandFraction": {
+        "description": "0 to 1 over every metric that has a band, of the time that was measured; the \"91 % in band\" of the headline. Null when nothing here is steered.",
+        "type": [
+          "number",
+          "null"
+        ]
       },
       "metrics": {
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/ClimateVerdictMetric"
         }
+      },
+      "actuators": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ActuatorRuns"
+        }
+      },
+      "trend": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/CardTrend"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The same window as a line, coarsened; it comes out of the aggregation that was read anyway."
       }
     },
     "required": [
+      "deviceId",
+      "startsAt",
+      "endsAt",
       "forSeconds",
+      "stepSeconds",
       "rating",
-      "metrics"
+      "inBandFraction",
+      "metrics",
+      "actuators",
+      "trend"
+    ]
+  },
+  "CameraStill": {
+    "type": "object",
+    "properties": {
+      "mediaId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "capturedAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      }
+    },
+    "required": [
+      "mediaId",
+      "capturedAt"
+    ]
+  },
+  "OverviewCamera": {
+    "type": "object",
+    "properties": {
+      "cameraId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "name": {
+        "type": "string"
+      },
+      "lastStillAt": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "stills": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CameraStill"
+        },
+        "description": "Today's, oldest first and at most one per slot of the day, so the strip spans the day rather than its last few minutes."
+      }
+    },
+    "required": [
+      "cameraId",
+      "name",
+      "lastStillAt",
+      "stills"
+    ]
+  },
+  "OverviewGrow": {
+    "type": "object",
+    "properties": {
+      "growId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "name": {
+        "type": "string"
+      },
+      "type": {
+        "$ref": "#/components/schemas/GrowType"
+      },
+      "dayNumber": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "phaseDay": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "How many days the grow has stood in its current phase."
+      },
+      "stage": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/GrowthStage"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "preset": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "isAuto": {
+        "type": "boolean",
+        "description": "The phase was set by a preset or the plan rather than by a person."
+      },
+      "plantCount": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null where the owner hides counts."
+      },
+      "strains": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Each strain once, in the order it was planted."
+      },
+      "coverMediaId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "stageGroups": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GrowCardStageGroup"
+        }
+      },
+      "weekNumber": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Counted like the day counter, so it lines up with the feeding scheme's grid."
+      },
+      "placedAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "placedOnDay": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The grow’s own day counter on the day these plants arrived here, which is what \"here since day 22\" says."
+      }
+    },
+    "required": [
+      "growId",
+      "name",
+      "type",
+      "dayNumber",
+      "phaseDay",
+      "stage",
+      "preset",
+      "isAuto",
+      "plantCount",
+      "strains",
+      "coverMediaId",
+      "stageGroups",
+      "weekNumber",
+      "placedAt",
+      "placedOnDay"
+    ]
+  },
+  "OverviewTask": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "kind": {
+        "$ref": "#/components/schemas/ReminderKind"
+      },
+      "label": {
+        "type": "string"
+      },
+      "dueAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "subject": {
+        "$ref": "#/components/schemas/GrowOrSpaceRef"
+      },
+      "assigneeId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "defaults": {
+        "description": "Prefilled entry values for the completion; null when the task prefills nothing."
+      }
+    },
+    "required": [
+      "id",
+      "kind",
+      "label",
+      "dueAt",
+      "subject",
+      "assigneeId",
+      "defaults"
+    ]
+  },
+  "OverviewTargets": {
+    "type": "object",
+    "properties": {
+      "day": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CardSetpoint"
+        }
+      },
+      "night": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CardSetpoint"
+        }
+      }
+    },
+    "required": [
+      "day",
+      "night"
     ]
   },
   "SpaceOverview": {
@@ -9868,13 +10317,6 @@
           "minLength": 1
         }
       },
-      "cameraIds": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        }
-      },
       "values": {
         "type": "array",
         "items": {
@@ -9887,39 +10329,44 @@
           "$ref": "#/components/schemas/CardSetpoint"
         }
       },
-      "verdict": {
-        "$ref": "#/components/schemas/ClimateVerdict"
-      },
-      "grow": {
+      "targets": {
         "anyOf": [
           {
-            "$ref": "#/components/schemas/GrowCard"
+            "$ref": "#/components/schemas/OverviewTargets"
           },
           {
             "type": "null"
           }
-        ]
+        ],
+        "description": "Null in a space whose devices hold no targets at all."
+      },
+      "verdict": {
+        "$ref": "#/components/schemas/ClimateVerdict"
+      },
+      "grows": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/OverviewGrow"
+        },
+        "description": "Every grow with open plants here, newest first."
+      },
+      "cameras": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/OverviewCamera"
+        }
       },
       "entries": {
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/Entry"
-        }
-      },
-      "latestStill": {
-        "anyOf": [
-          {
-            "$ref": "#/components/schemas/LatestStill"
-          },
-          {
-            "type": "null"
-          }
-        ]
+        },
+        "description": "The newest lines of this space and of the grows standing in it, newest first."
       },
       "dueTasks": {
         "type": "array",
         "items": {
-          "$ref": "#/components/schemas/DueTask"
+          "$ref": "#/components/schemas/OverviewTask"
         }
       },
       "openAlerts": {
@@ -9927,6 +10374,13 @@
         "items": {
           "$ref": "#/components/schemas/OpenAlert"
         }
+      },
+      "people": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Person"
+        },
+        "description": "Everyone the answer names, so an entry can say who wrote it without another read."
       }
     },
     "required": [
@@ -9935,15 +10389,16 @@
       "kind",
       "roomId",
       "deviceIds",
-      "cameraIds",
       "values",
       "setpoints",
+      "targets",
       "verdict",
-      "grow",
+      "grows",
+      "cameras",
       "entries",
-      "latestStill",
       "dueTasks",
-      "openAlerts"
+      "openAlerts",
+      "people"
     ]
   },
   "SpaceLiveDevice": {
@@ -10060,19 +10515,148 @@
           "number",
           "null"
         ]
+      },
+      "dayAverage": {
+        "description": "The mean over the windows in which the light was on.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "nightAverage": {
+        "type": [
+          "number",
+          "null"
+        ]
       }
     },
     "required": [
       "metric",
       "minValue",
       "maxValue",
-      "averageValue"
+      "averageValue",
+      "dayAverage",
+      "nightAverage"
+    ]
+  },
+  "GrowWeekDay": {
+    "type": "object",
+    "properties": {
+      "dayNumber": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+      },
+      "startsAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "mediaId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "cameraId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "capturedAt": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "required": [
+      "dayNumber",
+      "startsAt",
+      "mediaId",
+      "cameraId",
+      "capturedAt"
+    ]
+  },
+  "GrowWeekFeeding": {
+    "type": "object",
+    "properties": {
+      "amounts": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SchemeAmount"
+        }
+      },
+      "plannedCount": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+      }
+    },
+    "required": [
+      "amounts",
+      "plannedCount"
+    ]
+  },
+  "GrowWeekReading": {
+    "type": "object",
+    "properties": {
+      "key": {
+        "type": "string"
+      },
+      "value": {
+        "type": "number"
+      },
+      "change": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "measuredAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      }
+    },
+    "required": [
+      "key",
+      "value",
+      "change",
+      "measuredAt"
     ]
   },
   "GrowWeekCard": {
     "type": "object",
     "properties": {
       "weekNumber": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+      },
+      "dayFrom": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+      },
+      "dayTo": {
         "type": "integer",
         "minimum": -9007199254740991,
         "maximum": 9007199254740991
@@ -10103,10 +10687,62 @@
           "null"
         ]
       },
+      "stageWeek": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "1 in the week the stage began; null before the first phase."
+      },
+      "deviceIds": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "The controllers the averages were read from. Empty where nothing measures in the places the grow stood, which a card says rather than drawing dashes."
+      },
       "climate": {
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/WeekClimate"
+        }
+      },
+      "lightHours": {
+        "description": "Hours of light per day over the week, from the controller’s light output.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "days": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GrowWeekDay"
+        },
+        "description": "Seven; a day that has not happened yet carries no picture."
+      },
+      "feeding": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/GrowWeekFeeding"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null for a grow that is fed no scheme."
+      },
+      "readings": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GrowWeekReading"
         }
       },
       "waterCount": {
@@ -10123,14 +10759,13 @@
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/Entry"
-        }
+        },
+        "description": "The week’s diary lines, newest first, capped; `entryCount` is how many there are."
       },
-      "mediaIds": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        }
+      "entryCount": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
       },
       "timelapseMediaId": {
         "anyOf": [
@@ -10146,15 +10781,23 @@
     },
     "required": [
       "weekNumber",
+      "dayFrom",
+      "dayTo",
       "startsAt",
       "endsAt",
       "stage",
       "preset",
+      "stageWeek",
+      "deviceIds",
       "climate",
+      "lightHours",
+      "days",
+      "feeding",
+      "readings",
       "waterCount",
       "feedCount",
       "entries",
-      "mediaIds",
+      "entryCount",
       "timelapseMediaId"
     ]
   },
@@ -10173,11 +10816,18 @@
           "string",
           "null"
         ]
+      },
+      "people": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Person"
+        }
       }
     },
     "required": [
       "items",
-      "nextCursor"
+      "nextCursor",
+      "people"
     ]
   },
   "GrowReportPhase": {
@@ -10213,16 +10863,78 @@
           }
         ]
       },
+      "dayFrom": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+      },
+      "dayTo": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null while the phase is the one the grow is in, which is what \"→ today\" says."
+      },
       "dayCount": {
         "type": "integer",
         "minimum": -9007199254740991,
         "maximum": 9007199254740991
+      },
+      "spaceIds": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "Where the plants stood during it, in the order they arrived."
+      },
+      "coverMediaId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The still nearest the middle of the phase, which is the chapter’s picture."
       },
       "climate": {
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/WeekClimate"
         }
+      },
+      "inBandPercent": {
+        "description": "The share of the phase in which every metric with a target sat inside `TARGET_BAND`; null where nothing held a target.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "waterCount": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+      },
+      "feedCount": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+      },
+      "training": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Entry"
+        },
+        "description": "What was done to the plants in this phase, oldest first - \"topped d18 · LST d20\"."
       }
     },
     "required": [
@@ -10231,8 +10943,16 @@
       "preset",
       "startedAt",
       "endedAt",
+      "dayFrom",
+      "dayTo",
       "dayCount",
-      "climate"
+      "spaceIds",
+      "coverMediaId",
+      "climate",
+      "inBandPercent",
+      "waterCount",
+      "feedCount",
+      "training"
     ]
   },
   "GrowHarvest": {
@@ -10385,13 +11105,8 @@
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/GrowReportPhase"
-        }
-      },
-      "weeks": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/GrowWeekCard"
-        }
+        },
+        "description": "Newest first, which is the order the chapters are read in."
       },
       "harvest": {
         "anyOf": [
@@ -10405,6 +11120,13 @@
       },
       "totals": {
         "$ref": "#/components/schemas/GrowTotals"
+      },
+      "people": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Person"
+        },
+        "description": "Everyone the chapters name, so an entry can say who wrote it without another read."
       }
     },
     "required": [
@@ -10420,9 +11142,9 @@
       "coverMediaId",
       "filmMediaId",
       "phases",
-      "weeks",
       "harvest",
-      "totals"
+      "totals",
+      "people"
     ]
   },
   "GrowSeriesPoint": {

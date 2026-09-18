@@ -1,0 +1,56 @@
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-top: var(--rule-solid);
+  font-size: var(--text-sm);
+}
+
+.row:first-child {
+  border-top: 0;
+}
+
+.stamp {
+  flex-shrink: 0;
+  min-width: 5.5ch;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* The kind as a small bordered mark, the way the boards draw it. */
+.kind {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  align-self: center;
+  border: var(--rule-solid);
+  border-radius: 3px;
+  color: var(--muted);
+}
+
+.row[data-severity='warning'] .kind {
+  color: var(--warning);
+  border-color: var(--warning);
+}
+
+.row[data-severity='critical'] .kind {
+  color: var(--alarm);
+  border-color: var(--alarm);
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+}
+
+.author {
+  font-weight: var(--weight-semibold);
+}
+
+.readings {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}

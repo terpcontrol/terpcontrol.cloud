@@ -2668,6 +2668,10 @@ export interface CardValue {
 export interface CardSetpoint {
   metric: Metric;
   value: number | null;
+  /**
+   * Half the width of the band around the target; null for a metric that has none.
+   */
+  band: number | null;
 }
 
 export interface LatestStill {
@@ -2792,21 +2796,144 @@ export interface HomeAnswer {
   people: Person[];
 }
 
+export interface TargetBand {
+  low: number;
+  high: number;
+}
+
+export interface ClimateExcursion {
+  startedAt: string;
+  endedAt: string | null;
+  /**
+   * Which edge it left over: true is above the band.
+   */
+  above: boolean;
+  /**
+   * The furthest the reading got while it was out.
+   */
+  extremeValue: number | null;
+}
+
 export interface ClimateVerdictMetric {
   metric: Metric;
-  rating: VerdictRating;
+  /**
+   * Null where nothing here holds a target for this metric, so there is no band to judge it against.
+   */
+  rating: VerdictRating | null;
   minValue: number | null;
   maxValue: number | null;
   averageValue: number | null;
-  targetLow: number | null;
-  targetHigh: number | null;
+  dayBand: TargetBand | null;
+  /**
+   * Null where the metric is not steered in that half at all: CO2 is only raised while the light is on.
+   */
+  nightBand: TargetBand | null;
+  inBandSeconds: number;
   outOfBandSeconds: number;
+  /**
+   * In the order they happened; empty where the metric has no band.
+   */
+  excursions: ClimateExcursion[];
+}
+
+export interface ActuatorRuns {
+  output: OutputMetric;
+  runCount: number;
+  /**
+   * How long it was on altogether, over the windows that held a reading.
+   */
+  forSeconds: number;
 }
 
 export interface ClimateVerdict {
+  /**
+   * The device the window was read from; null in a space that has none.
+   */
+  deviceId: string | null;
+  startsAt: string;
+  endsAt: string;
   forSeconds: number;
-  rating: VerdictRating;
+  stepSeconds: number;
+  rating: VerdictRating | null;
+  /**
+   * 0 to 1 over every metric that has a band, of the time that was measured; the "91 % in band" of the headline. Null when nothing here is steered.
+   */
+  inBandFraction: number | null;
   metrics: ClimateVerdictMetric[];
+  actuators: ActuatorRuns[];
+  /**
+   * The same window as a line, coarsened; it comes out of the aggregation that was read anyway.
+   */
+  trend: CardTrend | null;
+}
+
+export interface CameraStill {
+  mediaId: string;
+  capturedAt: string;
+}
+
+export interface OverviewCamera {
+  cameraId: string;
+  name: string;
+  lastStillAt: string | null;
+  /**
+   * Today's, oldest first and at most one per slot of the day, so the strip spans the day rather than its last few minutes.
+   */
+  stills: CameraStill[];
+}
+
+export interface OverviewGrow {
+  growId: string;
+  name: string;
+  type: GrowType;
+  dayNumber: number | null;
+  /**
+   * How many days the grow has stood in its current phase.
+   */
+  phaseDay: number | null;
+  stage: GrowthStage | null;
+  preset: string | null;
+  /**
+   * The phase was set by a preset or the plan rather than by a person.
+   */
+  isAuto: boolean;
+  /**
+   * Null where the owner hides counts.
+   */
+  plantCount: number | null;
+  /**
+   * Each strain once, in the order it was planted.
+   */
+  strains: string[];
+  coverMediaId: string | null;
+  stageGroups: GrowCardStageGroup[];
+  /**
+   * Counted like the day counter, so it lines up with the feeding scheme's grid.
+   */
+  weekNumber: number | null;
+  placedAt: string;
+  /**
+   * The grow’s own day counter on the day these plants arrived here, which is what "here since day 22" says.
+   */
+  placedOnDay: number | null;
+}
+
+export interface OverviewTask {
+  id: string;
+  kind: ReminderKind;
+  label: string;
+  dueAt: string;
+  subject: GrowOrSpaceRef;
+  assigneeId: string | null;
+  /**
+   * Prefilled entry values for the completion; null when the task prefills nothing.
+   */
+  defaults: any;
+}
+
+export interface OverviewTargets {
+  day: CardSetpoint[];
+  night: CardSetpoint[];
 }
 
 export interface SpaceOverview {
@@ -2815,15 +2942,28 @@ export interface SpaceOverview {
   kind: SpaceKind;
   roomId: string | null;
   deviceIds: string[];
-  cameraIds: string[];
   values: CardValue[];
   setpoints: CardSetpoint[];
+  /**
+   * Null in a space whose devices hold no targets at all.
+   */
+  targets: OverviewTargets | null;
   verdict: ClimateVerdict;
-  grow: GrowCard | null;
+  /**
+   * Every grow with open plants here, newest first.
+   */
+  grows: OverviewGrow[];
+  cameras: OverviewCamera[];
+  /**
+   * The newest lines of this space and of the grows standing in it, newest first.
+   */
   entries: Entry[];
-  latestStill: LatestStill | null;
-  dueTasks: DueTask[];
+  dueTasks: OverviewTask[];
   openAlerts: OpenAlert[];
+  /**
+   * Everyone the answer names, so an entry can say who wrote it without another read.
+   */
+  people: Person[];
 }
 
 export interface SpaceLiveDevice {
@@ -2850,19 +2990,70 @@ export interface WeekClimate {
   minValue: number | null;
   maxValue: number | null;
   averageValue: number | null;
+  /**
+   * The mean over the windows in which the light was on.
+   */
+  dayAverage: number | null;
+  nightAverage: number | null;
+}
+
+export interface GrowWeekDay {
+  dayNumber: number;
+  startsAt: string;
+  mediaId: string | null;
+  cameraId: string | null;
+  capturedAt: string | null;
+}
+
+export interface GrowWeekFeeding {
+  amounts: SchemeAmount[];
+  plannedCount: number;
+}
+
+export interface GrowWeekReading {
+  key: string;
+  value: number;
+  change: number | null;
+  measuredAt: string;
 }
 
 export interface GrowWeekCard {
   weekNumber: number;
+  dayFrom: number;
+  dayTo: number;
   startsAt: string;
   endsAt: string;
   stage: GrowthStage | null;
   preset: string | null;
+  /**
+   * 1 in the week the stage began; null before the first phase.
+   */
+  stageWeek: number | null;
+  /**
+   * The controllers the averages were read from. Empty where nothing measures in the places the grow stood, which a card says rather than drawing dashes.
+   */
+  deviceIds: string[];
   climate: WeekClimate[];
+  /**
+   * Hours of light per day over the week, from the controller’s light output.
+   */
+  lightHours: number | null;
+  /**
+   * Seven; a day that has not happened yet carries no picture.
+   */
+  days: GrowWeekDay[];
+  /**
+   * Null for a grow that is fed no scheme.
+   */
+  feeding: GrowWeekFeeding | null;
+  readings: GrowWeekReading[];
   waterCount: number;
   feedCount: number;
+  /**
+   * The week’s diary lines, newest first, capped; `entryCount` is how many there are.
+   */
   entries: Entry[];
-  mediaIds: string[];
+  entryCount: number;
   timelapseMediaId: string | null;
 }
 
@@ -2872,6 +3063,7 @@ export interface GrowWeekCardPage {
    * Pass back as `cursor` for the next page; null on the last one.
    */
   nextCursor: string | null;
+  people: Person[];
 }
 
 export interface GrowReportPhase {
@@ -2880,8 +3072,31 @@ export interface GrowReportPhase {
   preset: string | null;
   startedAt: string;
   endedAt: string | null;
+  dayFrom: number;
+  /**
+   * Null while the phase is the one the grow is in, which is what "→ today" says.
+   */
+  dayTo: number | null;
   dayCount: number;
+  /**
+   * Where the plants stood during it, in the order they arrived.
+   */
+  spaceIds: string[];
+  /**
+   * The still nearest the middle of the phase, which is the chapter’s picture.
+   */
+  coverMediaId: string | null;
   climate: WeekClimate[];
+  /**
+   * The share of the phase in which every metric with a target sat inside `TARGET_BAND`; null where nothing held a target.
+   */
+  inBandPercent: number | null;
+  waterCount: number;
+  feedCount: number;
+  /**
+   * What was done to the plants in this phase, oldest first - "topped d18 · LST d20".
+   */
+  training: Entry[];
 }
 
 export interface GrowHarvest {
@@ -2909,10 +3124,16 @@ export interface GrowReport {
   strains: string[];
   coverMediaId: string | null;
   filmMediaId: string | null;
+  /**
+   * Newest first, which is the order the chapters are read in.
+   */
   phases: GrowReportPhase[];
-  weeks: GrowWeekCard[];
   harvest: GrowHarvest | null;
   totals: GrowTotals;
+  /**
+   * Everyone the chapters name, so an entry can say who wrote it without another read.
+   */
+  people: Person[];
 }
 
 export interface GrowSeriesPoint {

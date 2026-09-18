@@ -309,8 +309,8 @@ describe('the climate half', () => {
     const [tent] = (await home.read(session(OWNER), NOW)).spaces;
 
     expect(tent.setpoints).toEqual([
-      { metric: 'temperature', value: 25 },
-      { metric: 'humidity', value: 55 },
+      { metric: 'temperature', value: 25, band: 1 },
+      { metric: 'humidity', value: 55, band: 5 },
     ]);
   });
 

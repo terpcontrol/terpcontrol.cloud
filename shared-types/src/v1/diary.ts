@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import {
   alertKind,
+  anyValue,
   cameraKind,
   entryKind,
   entrySource,
@@ -19,6 +20,7 @@ import {
   page,
   planTransitionKind,
   reminderKind,
+  schemeAmount,
   schemeWeek,
   severity,
   shareKind,
@@ -750,12 +752,19 @@ export const migrationPage = named('MigrationPage', page(migration));
  */
 export const cardValue = named('CardValue', z.object({ metric: metric, ...metricValue.shape }));
 
-/** What the controller is aiming at right now, for the metrics it steers. */
+/**
+ * What the controller is aiming at right now, for the metrics it steers, and
+ * how far a reading may stray from it and still count as on target. The band is
+ * `TARGET_BAND` stated on the wire, so the figure beside a value and the
+ * verdict's "in band" are judged by the same width and no client keeps a width
+ * of its own.
+ */
 export const cardSetpoint = named(
   'CardSetpoint',
   z.object({
     metric: metric,
     value: z.number().nullable(),
+    band: z.number().nullable().describe('Half the width of the band around the target; null for a metric that has none.'),
   }),
 );
 
@@ -899,32 +908,161 @@ export const homeAnswer = named(
 
 export const verdictRating = named('VerdictRating', z.enum(['good', 'watch', 'poor']));
 
-/** How one metric did over the window, against the band the phase's targets set. */
+/** A target widened by `TARGET_BAND`: what a chart shades green and a verdict counts time inside. */
+export const targetBand = named('TargetBand', z.object({ low: z.number(), high: z.number() }));
+
+/**
+ * One run outside the band, which is what "1 humidity excursion 02:10–05:30"
+ * names. `endedAt` is null for a run that was still going when the window
+ * ended - it has not ended, and saying so is not the same as ending it now.
+ */
+export const climateExcursion = named(
+  'ClimateExcursion',
+  z.object({
+    startedAt: instant(),
+    endedAt: instant().nullable(),
+    above: z.boolean().describe('Which edge it left over: true is above the band.'),
+    extremeValue: z.number().nullable().describe('The furthest the reading got while it was out.'),
+  }),
+);
+
+/**
+ * How one metric did over the window, against the band its target sets. Day and
+ * night are told apart by the light output and each half is judged against its
+ * own band, which is why both are answered.
+ *
+ * The two counts are over the windows that held a reading: a device that was
+ * quiet adds to neither, so together they are the time that is known about
+ * rather than always the whole window.
+ */
 export const climateVerdictMetric = named(
   'ClimateVerdictMetric',
   z.object({
     metric: metric,
-    rating: verdictRating,
+    rating: verdictRating.nullable().describe('Null where nothing here holds a target for this metric, so there is no band to judge it against.'),
     minValue: z.number().nullable(),
     maxValue: z.number().nullable(),
     averageValue: z.number().nullable(),
-    targetLow: z.number().nullable(),
-    targetHigh: z.number().nullable(),
+    dayBand: targetBand.nullable(),
+    nightBand: targetBand.nullable().describe('Null where the metric is not steered in that half at all: CO2 is only raised while the light is on.'),
+    inBandSeconds: z.number().int(),
     outOfBandSeconds: z.number().int(),
+    excursions: z.array(climateExcursion).describe('In the order they happened; empty where the metric has no band.'),
   }),
 );
 
-/** The 24 h verdict. `rating` is the worst of the metrics, which is what the headline says. */
+/**
+ * How often one output came on over the window, which is what "dehumidifier ran
+ * 14×" counts. A run is one reading showing it on after one showed it off, so an
+ * output stays what it was last reported to be across the windows that hold no
+ * reading, and a device that reported nothing about an output at all has no row
+ * here rather than a row of zeroes.
+ */
+export const actuatorRuns = named(
+  'ActuatorRuns',
+  z.object({
+    output: outputMetric,
+    runCount: z.number().int(),
+    forSeconds: z.number().int().describe('How long it was on altogether, over the windows that held a reading.'),
+  }),
+);
+
+/**
+ * The 24 h verdict, from one aggregation over the window: the share of the time
+ * inside the band, the runs that left it, and how often each actuator came on.
+ *
+ * `rating` is the worst of the metrics, which is what the headline says.
+ * `stepSeconds` is the resolution the whole of it is stated at - an excursion
+ * shorter than one window, and an actuator that switched twice inside one, are
+ * not in the points that were read.
+ */
 export const climateVerdict = named(
   'ClimateVerdict',
   z.object({
+    deviceId: id().nullable().describe('The device the window was read from; null in a space that has none.'),
+    startsAt: instant(),
+    endsAt: instant(),
     forSeconds: z.number().int(),
-    rating: verdictRating,
+    stepSeconds: z.number().int(),
+    rating: verdictRating.nullable(),
+    inBandFraction: z
+      .number()
+      .nullable()
+      .describe('0 to 1 over every metric that has a band, of the time that was measured; the "91 % in band" of the headline. Null when nothing here is steered.'),
     metrics: z.array(climateVerdictMetric),
+    actuators: z.array(actuatorRuns),
+    trend: cardTrend.nullable().describe('The same window as a line, coarsened; it comes out of the aggregation that was read anyway.'),
   }),
 );
 
-/** The tent page: the home card of that space, plus its verdict and its cameras. */
+/** One picture of a camera, as the day's strip draws it: the camera is the row it sits in. */
+export const cameraStill = named('CameraStill', z.object({ mediaId: id(), capturedAt: instant() }));
+
+/** A camera of the space and the day it has taken so far. */
+export const overviewCamera = named(
+  'OverviewCamera',
+  z.object({
+    cameraId: id(),
+    name: z.string(),
+    lastStillAt: instant().nullable(),
+    stills: z
+      .array(cameraStill)
+      .describe("Today's, oldest first and at most one per slot of the day, so the strip spans the day rather than its last few minutes."),
+  }),
+);
+
+/**
+ * A grow standing in this space. The card the home draws, and what is true of it
+ * *here*: a grow moves between tents, so the day it arrived is not the day it
+ * started.
+ */
+export const overviewGrow = named(
+  'OverviewGrow',
+  growCard.extend({
+    weekNumber: z.number().int().nullable().describe("Counted like the day counter, so it lines up with the feeding scheme's grid."),
+    placedAt: instant(),
+    placedOnDay: z
+      .number()
+      .int()
+      .nullable()
+      .describe('The grow’s own day counter on the day these plants arrived here, which is what "here since day 22" says.'),
+  }),
+);
+
+/**
+ * A due task with what its completion would be written with, so the Done button
+ * on the card needs nothing else read and can say what it is about to log.
+ * `POST /tasks/{id}/completions` takes these same values, and a completion that
+ * names none takes them from the task.
+ */
+export const overviewTask = named(
+  'OverviewTask',
+  dueTask.extend({ defaults: anyValue().describe('Prefilled entry values for the completion; null when the task prefills nothing.') }),
+);
+
+/**
+ * What the space's controller is aiming at in both halves of the cycle.
+ * `SpaceOverview.setpoints` is the half it is in right now, which is what a
+ * value is drawn against; this is the pair the header states, and the bands the
+ * verdict judges against are these widened by `TARGET_BAND`.
+ */
+export const overviewTargets = named(
+  'OverviewTargets',
+  z.object({
+    day: z.array(cardSetpoint),
+    night: z.array(cardSetpoint),
+  }),
+);
+
+/**
+ * `GET /spaces/{id}/overview`, the tent page's landing tab: what is true here
+ * now, what needs a human, what grows here, what the cameras saw today, how the
+ * last 24 hours went and what was last written.
+ *
+ * It is the home card of that space with the four things a page has room for
+ * that a card does not - the verdict, the day's pictures, every grow rather
+ * than the headline one, and enough of a due task to tick it off.
+ */
 export const spaceOverview = named(
   'SpaceOverview',
   z.object({
@@ -933,15 +1071,16 @@ export const spaceOverview = named(
     kind: spaceKind,
     roomId: id().nullable(),
     deviceIds: z.array(id()),
-    cameraIds: z.array(id()),
     values: z.array(cardValue),
     setpoints: z.array(cardSetpoint),
+    targets: overviewTargets.nullable().describe('Null in a space whose devices hold no targets at all.'),
     verdict: climateVerdict,
-    grow: growCard.nullable(),
-    entries: z.array(entry),
-    latestStill: latestStill.nullable(),
-    dueTasks: z.array(dueTask),
+    grows: z.array(overviewGrow).describe('Every grow with open plants here, newest first.'),
+    cameras: z.array(overviewCamera),
+    entries: z.array(entry).describe('The newest lines of this space and of the grows standing in it, newest first.'),
+    dueTasks: z.array(overviewTask),
     openAlerts: z.array(openAlert),
+    people: z.array(person).describe('Everyone the answer names, so an entry can say who wrote it without another read.'),
   }),
 );
 
@@ -990,7 +1129,15 @@ export const spaceLive = named(
   }),
 );
 
-/** One metric aggregated over a week, which is one aggregate per week and controller. */
+/**
+ * One metric aggregated over a stretch of a grow, which is one time-series query
+ * per stretch and controller.
+ *
+ * Day and night are the controller's own cycle rather than hours of the clock:
+ * they are told apart by its light output, so a device that drives no light -
+ * a fridge drying, a tent lit from a socket nobody told the server about -
+ * answers `averageValue` and neither half.
+ */
 export const weekClimate = named(
   'WeekClimate',
   z.object({
@@ -998,33 +1145,114 @@ export const weekClimate = named(
     minValue: z.number().nullable(),
     maxValue: z.number().nullable(),
     averageValue: z.number().nullable(),
+    dayAverage: z.number().nullable().describe('The mean over the windows in which the light was on.'),
+    nightAverage: z.number().nullable(),
   }),
 );
 
 /**
- * A week of a grow. `weekNumber` counts from the first phase, like the day
- * counter, so it lines up with the feeding scheme's grid.
+ * One of the seven thumbnails a week card is drawn with: the still taken
+ * nearest a fixed hour of that day, so the strip reads as one picture a day
+ * rather than as whatever the camera last sent. Null where no camera was
+ * watching, which is what leaves a slot empty.
+ */
+export const growWeekDay = named(
+  'GrowWeekDay',
+  z.object({
+    dayNumber: z.number().int(),
+    startsAt: instant(),
+    mediaId: id().nullable(),
+    cameraId: id().nullable(),
+    capturedAt: instant().nullable(),
+  }),
+);
+
+/**
+ * What the scheme says to feed this week, and how many feeds the week is
+ * supposed to have. `amounts` is the grid's row for this week with the grow's
+ * own strength already applied, so nobody multiplies it twice; how many of them
+ * were done is the card's `feedCount`.
+ *
+ * No screen has a control for the rhythm, so `plannedCount` is read from the
+ * grow's feed reminder, else its water reminder, else three.
+ */
+export const growWeekFeeding = named(
+  'GrowWeekFeeding',
+  z.object({
+    amounts: z.array(schemeAmount),
+    plannedCount: z.number().int(),
+  }),
+);
+
+/**
+ * Where one of the grow's own measurements stood at the end of the week, and by
+ * how much it moved - "Height · 58 cm · +6". `change` is against the newest
+ * reading before this week began and is null when there was none.
+ *
+ * `key` names a definition in the grow's `measurements[]`, which is where its
+ * name, its unit and its target are; nothing about the measurement is copied
+ * onto the reading.
+ */
+export const growWeekReading = named(
+  'GrowWeekReading',
+  z.object({
+    key: z.string(),
+    value: z.number(),
+    change: z.number().nullable(),
+    measuredAt: instant(),
+  }),
+);
+
+/**
+ * A week of a grow, which is what the grow page is made of. `weekNumber` counts
+ * from the first phase, like the day counter, so it lines up with the feeding
+ * scheme's grid, and `dayFrom`/`dayTo` are the same count in days - always
+ * seven of them, because "day 29-35" is what the week is of; `endsAt` is where
+ * the week stops, which for the week a grow is in is now.
+ *
+ * `stageWeek` is which week of the current stage this is, so "Flower wk 2" can
+ * be drawn from the card alone: the public page carries these cards without the
+ * grow's phases beside them.
  */
 export const growWeekCard = named(
   'GrowWeekCard',
   z.object({
     weekNumber: z.number().int(),
+    dayFrom: z.number().int(),
+    dayTo: z.number().int(),
     startsAt: instant(),
     endsAt: instant(),
     stage: growthStage.nullable(),
     preset: z.string().nullable(),
+    stageWeek: z.number().int().nullable().describe('1 in the week the stage began; null before the first phase.'),
+    deviceIds: z
+      .array(id())
+      .describe('The controllers the averages were read from. Empty where nothing measures in the places the grow stood, which a card says rather than drawing dashes.'),
     climate: z.array(weekClimate),
+    lightHours: z.number().nullable().describe('Hours of light per day over the week, from the controller’s light output.'),
+    days: z.array(growWeekDay).describe('Seven; a day that has not happened yet carries no picture.'),
+    feeding: growWeekFeeding.nullable().describe('Null for a grow that is fed no scheme.'),
+    readings: z.array(growWeekReading),
     waterCount: z.number().int(),
     feedCount: z.number().int(),
-    entries: z.array(entry),
-    mediaIds: z.array(id()),
+    entries: z.array(entry).describe('The week’s diary lines, newest first, capped; `entryCount` is how many there are.'),
+    entryCount: z.number().int(),
     timelapseMediaId: id().nullable(),
   }),
 );
 
-export const growWeekCardPage = named('GrowWeekCardPage', page(growWeekCard));
+/**
+ * The week cards, page by page, with everyone they name. A page carries
+ * `people` for the same reason the home answer does - a card says who watered -
+ * and one Mongo read answers it for the whole page.
+ */
+export const growWeekCardPage = named('GrowWeekCardPage', page(growWeekCard).extend({ people: z.array(person) }));
 
-/** One stretch of the grow at one stage, as the report tells its story. */
+/**
+ * One stretch of the grow at one stage, as the report tells its story: a
+ * chapter with its cover, its day range, how it was kept and what was done to
+ * the plants in it.
+ */
 export const growReportPhase = named(
   'GrowReportPhase',
   z.object({
@@ -1033,8 +1261,19 @@ export const growReportPhase = named(
     preset: z.string().nullable(),
     startedAt: instant(),
     endedAt: instant().nullable(),
+    dayFrom: z.number().int(),
+    dayTo: z.number().int().nullable().describe('Null while the phase is the one the grow is in, which is what "→ today" says.'),
     dayCount: z.number().int(),
+    spaceIds: z.array(id()).describe('Where the plants stood during it, in the order they arrived.'),
+    coverMediaId: id().nullable().describe('The still nearest the middle of the phase, which is the chapter’s picture.'),
     climate: z.array(weekClimate),
+    inBandPercent: z
+      .number()
+      .nullable()
+      .describe('The share of the phase in which every metric with a target sat inside `TARGET_BAND`; null where nothing held a target.'),
+    waterCount: z.number().int(),
+    feedCount: z.number().int(),
+    training: z.array(entry).describe('What was done to the plants in this phase, oldest first - "topped d18 · LST d20".'),
   }),
 );
 
@@ -1058,6 +1297,16 @@ export const growTotals = named(
   }),
 );
 
+/**
+ * `GET /grows/{id}/report`, the Report tab: the grow told as chapters, one per
+ * phase.
+ *
+ * It carries no week cards. The Report tab sits beside the Weeks tab, which
+ * reads `GET /grows/{id}/weeks`, and a week costs a time-series query per
+ * controller - a report that repeated them would make opening the second tab
+ * cost the first one twice over. The public page, which shows both, is a read
+ * model of its own and assembles them once.
+ */
 export const growReport = named(
   'GrowReport',
   z.object({
@@ -1072,10 +1321,10 @@ export const growReport = named(
     strains: z.array(z.string()),
     coverMediaId: id().nullable(),
     filmMediaId: id().nullable(),
-    phases: z.array(growReportPhase),
-    weeks: z.array(growWeekCard),
+    phases: z.array(growReportPhase).describe('Newest first, which is the order the chapters are read in.'),
     harvest: growHarvest.nullable(),
     totals: growTotals,
+    people: z.array(person).describe('Everyone the chapters name, so an entry can say who wrote it without another read.'),
   }),
 );
 

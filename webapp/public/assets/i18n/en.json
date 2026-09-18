@@ -1291,5 +1291,135 @@
       "dark": "Dark"
     },
     "signOut": "Sign out"
+  },
+  "later": {
+    "round": "Arrives with round {{round}}"
+  },
+  "grow": {
+    "tabsLabel": "Grow page",
+    "tabs": {
+      "weeks": "Weeks",
+      "plants": "Plants",
+      "feeding": "Feeding",
+      "report": "Report"
+    },
+    "phaseBarLabel": "Phase progress, now in {{stage}}",
+    "stageShort": {
+      "germination": "Germ",
+      "seedling": "Seedling",
+      "vegetative": "Veg",
+      "flowering": "Flower",
+      "drying": "Dry",
+      "curing": "Cure"
+    },
+    "lateFlower": "Late flower",
+    "days_one": "{{count}} d",
+    "days_other": "{{count}} d",
+    "week": "week {{week}}",
+    "weekN": "Week {{week}}",
+    "dayRange": "day {{from}}–{{to}}",
+    "thisWeek": "this week",
+    "dayStillAlt": "Day {{day}}",
+    "dayNight": "day / night",
+    "average": "average",
+    "humidity": "humidity",
+    "light": "light",
+    "ownScheme": "Own scheme",
+    "nothingThisWeek": "nothing this week",
+    "feedsDone": "{{done}} / {{planned}} done",
+    "noEntriesThisWeek": "Nothing logged this week yet",
+    "moreEntries_one": "+ {{count}} more in the timeline",
+    "moreEntries_other": "+ {{count}} more in the timeline",
+    "earlierWeeks": "Earlier weeks",
+    "noWeeks": "No phase yet · the weeks start with the first phase",
+    "noFixedPlace": "No fixed place",
+    "noPlants": "No plants recorded",
+    "plantStatus": {
+      "active": "active",
+      "harvested": "harvested",
+      "ended": "ended"
+    },
+    "noScheme": "No feeding scheme",
+    "noSchemeNote": "This grow is fed no scheme. Choosing one and editing it arrives with round 12.",
+    "edited": "edited",
+    "strength": "strength {{percent}} %",
+    "waterEc": "water EC {{ec}}",
+    "flipWeek": "flip in week {{week}}",
+    "report": {
+      "days": "days",
+      "entries": "entries",
+      "waters": "waters",
+      "feeds": "feeds",
+      "photos": "photos",
+      "harvest": "Harvested",
+      "wet": "wet {{grams}} g",
+      "dry": "dry {{grams}} g",
+      "dayFromToToday": "day {{from}} → today",
+      "waterCount_one": "{{count}} water",
+      "waterCount_other": "{{count}} waters",
+      "feedCount_one": "{{count}} feed",
+      "feedCount_other": "{{count}} feeds"
+    },
+    "dayN": "day {{day}}",
+    "noController": "No controller where this grow stands · nothing to average",
+    "nothingMeasured": "Nothing measured this week"
+  },
+  "space": {
+    "tabsLabel": "Space page",
+    "tabs": {
+      "overview": "Overview",
+      "timeline": "Timeline",
+      "devices": "Devices",
+      "control": "Control",
+      "members": "Members"
+    },
+    "later": {
+      "timeline": "The camera frame with its slider, then temperature, humidity and CO₂ over time with the target band, night shading, alarms and the entries.",
+      "devices": "Every controller, camera and smart socket standing here, with its role and its switch.",
+      "control": "The grow plan with its steps, manual targets, and the rules and sockets under Advanced.",
+      "members": "Who can log and who can manage here, and the invites that bring them in."
+    },
+    "noReadingsYet": "Nothing reported yet",
+    "high": "high",
+    "low": "low",
+    "preset": "preset",
+    "day": "day",
+    "night": "night",
+    "dueNow": "Due now",
+    "doneWrites": "Done writes {{what}} · {{subject}}",
+    "growingHere": "Growing here",
+    "newGrow": "Grow",
+    "moveHere": "Move here",
+    "hereSince": "here since day {{day}}",
+    "today": "today",
+    "noStillsToday": "No pictures yet today",
+    "lastStill": "last one {{age}} ago",
+    "stillAlt": "{{name}} at {{time}}",
+    "climate24h": "Climate · 24 h",
+    "inBand": "{{percent}} % in band",
+    "verdict": {
+      "noTarget": "No target here · nothing to judge the day against",
+      "metric": {
+        "temperature": "temperature",
+        "humidity": "humidity",
+        "co2": "CO₂"
+      },
+      "excursion": "1 {{metric}} excursion {{from}}–{{to}}",
+      "excursions": "{{count}} {{metric}} excursions",
+      "stillOut": "now",
+      "ran": "{{output}} ran {{count}}×",
+      "noReadings": "Nothing heard in the last 24 h · nothing to judge the day by"
+    },
+    "output": {
+      "heater": "heater",
+      "dehumidifier": "dehumidifier",
+      "co2": "CO₂",
+      "fan": "fan",
+      "exhaust": "exhaust",
+      "relais": "relay"
+    },
+    "latest": "Latest",
+    "all": "All",
+    "climate24hUntil": "Climate · 24 h to {{time}}"
   }
 }

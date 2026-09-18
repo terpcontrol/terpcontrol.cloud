@@ -1,7 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCaptureAnswer = exports.cameraUpdate = exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.media = exports.mediaRender = exports.mediaRenderStatus = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.measurementEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.entryReading = void 0;
-exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growMeasurementSeries = exports.growSeriesPoint = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.weekClimate = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.climateVerdict = exports.climateVerdictMetric = exports.verdictRating = exports.homeAnswer = exports.person = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = void 0;
+exports.growSeriesPoint = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.cameraStill = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.person = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = void 0;
+exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growMeasurementSeries = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -557,10 +558,17 @@ exports.migrationPage = (0, common_js_1.named)('MigrationPage', (0, common_js_1.
  * answers a map keyed by metric.
  */
 exports.cardValue = (0, common_js_1.named)('CardValue', zod_1.z.object({ metric: common_js_1.metric, ...common_js_1.metricValue.shape }));
-/** What the controller is aiming at right now, for the metrics it steers. */
+/**
+ * What the controller is aiming at right now, for the metrics it steers, and
+ * how far a reading may stray from it and still count as on target. The band is
+ * `TARGET_BAND` stated on the wire, so the figure beside a value and the
+ * verdict's "in band" are judged by the same width and no client keeps a width
+ * of its own.
+ */
 exports.cardSetpoint = (0, common_js_1.named)('CardSetpoint', zod_1.z.object({
     metric: common_js_1.metric,
     value: zod_1.z.number().nullable(),
+    band: zod_1.z.number().nullable().describe('Half the width of the band around the target; null for a metric that has none.'),
 }));
 /** The newest picture of a space, as a card shows it. */
 exports.latestStill = (0, common_js_1.named)('LatestStill', zod_1.z.object({
@@ -664,39 +672,143 @@ exports.homeAnswer = (0, common_js_1.named)('HomeAnswer', zod_1.z.object({
     people: zod_1.z.array(exports.person).describe('Everyone the cards name, so a card can say who wrote an entry without another read.'),
 }));
 exports.verdictRating = (0, common_js_1.named)('VerdictRating', zod_1.z.enum(['good', 'watch', 'poor']));
-/** How one metric did over the window, against the band the phase's targets set. */
+/** A target widened by `TARGET_BAND`: what a chart shades green and a verdict counts time inside. */
+exports.targetBand = (0, common_js_1.named)('TargetBand', zod_1.z.object({ low: zod_1.z.number(), high: zod_1.z.number() }));
+/**
+ * One run outside the band, which is what "1 humidity excursion 02:10–05:30"
+ * names. `endedAt` is null for a run that was still going when the window
+ * ended - it has not ended, and saying so is not the same as ending it now.
+ */
+exports.climateExcursion = (0, common_js_1.named)('ClimateExcursion', zod_1.z.object({
+    startedAt: (0, common_js_1.instant)(),
+    endedAt: (0, common_js_1.instant)().nullable(),
+    above: zod_1.z.boolean().describe('Which edge it left over: true is above the band.'),
+    extremeValue: zod_1.z.number().nullable().describe('The furthest the reading got while it was out.'),
+}));
+/**
+ * How one metric did over the window, against the band its target sets. Day and
+ * night are told apart by the light output and each half is judged against its
+ * own band, which is why both are answered.
+ *
+ * The two counts are over the windows that held a reading: a device that was
+ * quiet adds to neither, so together they are the time that is known about
+ * rather than always the whole window.
+ */
 exports.climateVerdictMetric = (0, common_js_1.named)('ClimateVerdictMetric', zod_1.z.object({
     metric: common_js_1.metric,
-    rating: exports.verdictRating,
+    rating: exports.verdictRating.nullable().describe('Null where nothing here holds a target for this metric, so there is no band to judge it against.'),
     minValue: zod_1.z.number().nullable(),
     maxValue: zod_1.z.number().nullable(),
     averageValue: zod_1.z.number().nullable(),
-    targetLow: zod_1.z.number().nullable(),
-    targetHigh: zod_1.z.number().nullable(),
+    dayBand: exports.targetBand.nullable(),
+    nightBand: exports.targetBand.nullable().describe('Null where the metric is not steered in that half at all: CO2 is only raised while the light is on.'),
+    inBandSeconds: zod_1.z.number().int(),
     outOfBandSeconds: zod_1.z.number().int(),
+    excursions: zod_1.z.array(exports.climateExcursion).describe('In the order they happened; empty where the metric has no band.'),
 }));
-/** The 24 h verdict. `rating` is the worst of the metrics, which is what the headline says. */
+/**
+ * How often one output came on over the window, which is what "dehumidifier ran
+ * 14×" counts. A run is one reading showing it on after one showed it off, so an
+ * output stays what it was last reported to be across the windows that hold no
+ * reading, and a device that reported nothing about an output at all has no row
+ * here rather than a row of zeroes.
+ */
+exports.actuatorRuns = (0, common_js_1.named)('ActuatorRuns', zod_1.z.object({
+    output: common_js_1.outputMetric,
+    runCount: zod_1.z.number().int(),
+    forSeconds: zod_1.z.number().int().describe('How long it was on altogether, over the windows that held a reading.'),
+}));
+/**
+ * The 24 h verdict, from one aggregation over the window: the share of the time
+ * inside the band, the runs that left it, and how often each actuator came on.
+ *
+ * `rating` is the worst of the metrics, which is what the headline says.
+ * `stepSeconds` is the resolution the whole of it is stated at - an excursion
+ * shorter than one window, and an actuator that switched twice inside one, are
+ * not in the points that were read.
+ */
 exports.climateVerdict = (0, common_js_1.named)('ClimateVerdict', zod_1.z.object({
+    deviceId: (0, common_js_1.id)().nullable().describe('The device the window was read from; null in a space that has none.'),
+    startsAt: (0, common_js_1.instant)(),
+    endsAt: (0, common_js_1.instant)(),
     forSeconds: zod_1.z.number().int(),
-    rating: exports.verdictRating,
+    stepSeconds: zod_1.z.number().int(),
+    rating: exports.verdictRating.nullable(),
+    inBandFraction: zod_1.z
+        .number()
+        .nullable()
+        .describe('0 to 1 over every metric that has a band, of the time that was measured; the "91 % in band" of the headline. Null when nothing here is steered.'),
     metrics: zod_1.z.array(exports.climateVerdictMetric),
+    actuators: zod_1.z.array(exports.actuatorRuns),
+    trend: exports.cardTrend.nullable().describe('The same window as a line, coarsened; it comes out of the aggregation that was read anyway.'),
 }));
-/** The tent page: the home card of that space, plus its verdict and its cameras. */
+/** One picture of a camera, as the day's strip draws it: the camera is the row it sits in. */
+exports.cameraStill = (0, common_js_1.named)('CameraStill', zod_1.z.object({ mediaId: (0, common_js_1.id)(), capturedAt: (0, common_js_1.instant)() }));
+/** A camera of the space and the day it has taken so far. */
+exports.overviewCamera = (0, common_js_1.named)('OverviewCamera', zod_1.z.object({
+    cameraId: (0, common_js_1.id)(),
+    name: zod_1.z.string(),
+    lastStillAt: (0, common_js_1.instant)().nullable(),
+    stills: zod_1.z
+        .array(exports.cameraStill)
+        .describe("Today's, oldest first and at most one per slot of the day, so the strip spans the day rather than its last few minutes."),
+}));
+/**
+ * A grow standing in this space. The card the home draws, and what is true of it
+ * *here*: a grow moves between tents, so the day it arrived is not the day it
+ * started.
+ */
+exports.overviewGrow = (0, common_js_1.named)('OverviewGrow', exports.growCard.extend({
+    weekNumber: zod_1.z.number().int().nullable().describe("Counted like the day counter, so it lines up with the feeding scheme's grid."),
+    placedAt: (0, common_js_1.instant)(),
+    placedOnDay: zod_1.z
+        .number()
+        .int()
+        .nullable()
+        .describe('The grow’s own day counter on the day these plants arrived here, which is what "here since day 22" says.'),
+}));
+/**
+ * A due task with what its completion would be written with, so the Done button
+ * on the card needs nothing else read and can say what it is about to log.
+ * `POST /tasks/{id}/completions` takes these same values, and a completion that
+ * names none takes them from the task.
+ */
+exports.overviewTask = (0, common_js_1.named)('OverviewTask', exports.dueTask.extend({ defaults: (0, common_js_1.anyValue)().describe('Prefilled entry values for the completion; null when the task prefills nothing.') }));
+/**
+ * What the space's controller is aiming at in both halves of the cycle.
+ * `SpaceOverview.setpoints` is the half it is in right now, which is what a
+ * value is drawn against; this is the pair the header states, and the bands the
+ * verdict judges against are these widened by `TARGET_BAND`.
+ */
+exports.overviewTargets = (0, common_js_1.named)('OverviewTargets', zod_1.z.object({
+    day: zod_1.z.array(exports.cardSetpoint),
+    night: zod_1.z.array(exports.cardSetpoint),
+}));
+/**
+ * `GET /spaces/{id}/overview`, the tent page's landing tab: what is true here
+ * now, what needs a human, what grows here, what the cameras saw today, how the
+ * last 24 hours went and what was last written.
+ *
+ * It is the home card of that space with the four things a page has room for
+ * that a card does not - the verdict, the day's pictures, every grow rather
+ * than the headline one, and enough of a due task to tick it off.
+ */
 exports.spaceOverview = (0, common_js_1.named)('SpaceOverview', zod_1.z.object({
     spaceId: (0, common_js_1.id)(),
     name: zod_1.z.string(),
     kind: common_js_1.spaceKind,
     roomId: (0, common_js_1.id)().nullable(),
     deviceIds: zod_1.z.array((0, common_js_1.id)()),
-    cameraIds: zod_1.z.array((0, common_js_1.id)()),
     values: zod_1.z.array(exports.cardValue),
     setpoints: zod_1.z.array(exports.cardSetpoint),
+    targets: exports.overviewTargets.nullable().describe('Null in a space whose devices hold no targets at all.'),
     verdict: exports.climateVerdict,
-    grow: exports.growCard.nullable(),
-    entries: zod_1.z.array(exports.entry),
-    latestStill: exports.latestStill.nullable(),
-    dueTasks: zod_1.z.array(exports.dueTask),
+    grows: zod_1.z.array(exports.overviewGrow).describe('Every grow with open plants here, newest first.'),
+    cameras: zod_1.z.array(exports.overviewCamera),
+    entries: zod_1.z.array(exports.entry).describe('The newest lines of this space and of the grows standing in it, newest first.'),
+    dueTasks: zod_1.z.array(exports.overviewTask),
     openAlerts: zod_1.z.array(exports.openAlert),
+    people: zod_1.z.array(exports.person).describe('Everyone the answer names, so an entry can say who wrote it without another read.'),
 }));
 /** One device's newest values, as the space screen redraws them. */
 exports.spaceLiveDevice = (0, common_js_1.named)('SpaceLiveDevice', zod_1.z.object({
@@ -731,40 +843,128 @@ exports.spaceLive = (0, common_js_1.named)('SpaceLive', zod_1.z.object({
     devices: zod_1.z.array(exports.spaceLiveDevice),
     cameras: zod_1.z.array(exports.spaceLiveCamera),
 }));
-/** One metric aggregated over a week, which is one aggregate per week and controller. */
+/**
+ * One metric aggregated over a stretch of a grow, which is one time-series query
+ * per stretch and controller.
+ *
+ * Day and night are the controller's own cycle rather than hours of the clock:
+ * they are told apart by its light output, so a device that drives no light -
+ * a fridge drying, a tent lit from a socket nobody told the server about -
+ * answers `averageValue` and neither half.
+ */
 exports.weekClimate = (0, common_js_1.named)('WeekClimate', zod_1.z.object({
     metric: common_js_1.metric,
     minValue: zod_1.z.number().nullable(),
     maxValue: zod_1.z.number().nullable(),
     averageValue: zod_1.z.number().nullable(),
+    dayAverage: zod_1.z.number().nullable().describe('The mean over the windows in which the light was on.'),
+    nightAverage: zod_1.z.number().nullable(),
 }));
 /**
- * A week of a grow. `weekNumber` counts from the first phase, like the day
- * counter, so it lines up with the feeding scheme's grid.
+ * One of the seven thumbnails a week card is drawn with: the still taken
+ * nearest a fixed hour of that day, so the strip reads as one picture a day
+ * rather than as whatever the camera last sent. Null where no camera was
+ * watching, which is what leaves a slot empty.
+ */
+exports.growWeekDay = (0, common_js_1.named)('GrowWeekDay', zod_1.z.object({
+    dayNumber: zod_1.z.number().int(),
+    startsAt: (0, common_js_1.instant)(),
+    mediaId: (0, common_js_1.id)().nullable(),
+    cameraId: (0, common_js_1.id)().nullable(),
+    capturedAt: (0, common_js_1.instant)().nullable(),
+}));
+/**
+ * What the scheme says to feed this week, and how many feeds the week is
+ * supposed to have. `amounts` is the grid's row for this week with the grow's
+ * own strength already applied, so nobody multiplies it twice; how many of them
+ * were done is the card's `feedCount`.
+ *
+ * No screen has a control for the rhythm, so `plannedCount` is read from the
+ * grow's feed reminder, else its water reminder, else three.
+ */
+exports.growWeekFeeding = (0, common_js_1.named)('GrowWeekFeeding', zod_1.z.object({
+    amounts: zod_1.z.array(common_js_1.schemeAmount),
+    plannedCount: zod_1.z.number().int(),
+}));
+/**
+ * Where one of the grow's own measurements stood at the end of the week, and by
+ * how much it moved - "Height · 58 cm · +6". `change` is against the newest
+ * reading before this week began and is null when there was none.
+ *
+ * `key` names a definition in the grow's `measurements[]`, which is where its
+ * name, its unit and its target are; nothing about the measurement is copied
+ * onto the reading.
+ */
+exports.growWeekReading = (0, common_js_1.named)('GrowWeekReading', zod_1.z.object({
+    key: zod_1.z.string(),
+    value: zod_1.z.number(),
+    change: zod_1.z.number().nullable(),
+    measuredAt: (0, common_js_1.instant)(),
+}));
+/**
+ * A week of a grow, which is what the grow page is made of. `weekNumber` counts
+ * from the first phase, like the day counter, so it lines up with the feeding
+ * scheme's grid, and `dayFrom`/`dayTo` are the same count in days - always
+ * seven of them, because "day 29-35" is what the week is of; `endsAt` is where
+ * the week stops, which for the week a grow is in is now.
+ *
+ * `stageWeek` is which week of the current stage this is, so "Flower wk 2" can
+ * be drawn from the card alone: the public page carries these cards without the
+ * grow's phases beside them.
  */
 exports.growWeekCard = (0, common_js_1.named)('GrowWeekCard', zod_1.z.object({
     weekNumber: zod_1.z.number().int(),
+    dayFrom: zod_1.z.number().int(),
+    dayTo: zod_1.z.number().int(),
     startsAt: (0, common_js_1.instant)(),
     endsAt: (0, common_js_1.instant)(),
     stage: common_js_1.growthStage.nullable(),
     preset: zod_1.z.string().nullable(),
+    stageWeek: zod_1.z.number().int().nullable().describe('1 in the week the stage began; null before the first phase.'),
+    deviceIds: zod_1.z
+        .array((0, common_js_1.id)())
+        .describe('The controllers the averages were read from. Empty where nothing measures in the places the grow stood, which a card says rather than drawing dashes.'),
     climate: zod_1.z.array(exports.weekClimate),
+    lightHours: zod_1.z.number().nullable().describe('Hours of light per day over the week, from the controller’s light output.'),
+    days: zod_1.z.array(exports.growWeekDay).describe('Seven; a day that has not happened yet carries no picture.'),
+    feeding: exports.growWeekFeeding.nullable().describe('Null for a grow that is fed no scheme.'),
+    readings: zod_1.z.array(exports.growWeekReading),
     waterCount: zod_1.z.number().int(),
     feedCount: zod_1.z.number().int(),
-    entries: zod_1.z.array(exports.entry),
-    mediaIds: zod_1.z.array((0, common_js_1.id)()),
+    entries: zod_1.z.array(exports.entry).describe('The week’s diary lines, newest first, capped; `entryCount` is how many there are.'),
+    entryCount: zod_1.z.number().int(),
     timelapseMediaId: (0, common_js_1.id)().nullable(),
 }));
-exports.growWeekCardPage = (0, common_js_1.named)('GrowWeekCardPage', (0, common_js_1.page)(exports.growWeekCard));
-/** One stretch of the grow at one stage, as the report tells its story. */
+/**
+ * The week cards, page by page, with everyone they name. A page carries
+ * `people` for the same reason the home answer does - a card says who watered -
+ * and one Mongo read answers it for the whole page.
+ */
+exports.growWeekCardPage = (0, common_js_1.named)('GrowWeekCardPage', (0, common_js_1.page)(exports.growWeekCard).extend({ people: zod_1.z.array(exports.person) }));
+/**
+ * One stretch of the grow at one stage, as the report tells its story: a
+ * chapter with its cover, its day range, how it was kept and what was done to
+ * the plants in it.
+ */
 exports.growReportPhase = (0, common_js_1.named)('GrowReportPhase', zod_1.z.object({
     phaseId: (0, common_js_1.id)(),
     stage: common_js_1.growthStage,
     preset: zod_1.z.string().nullable(),
     startedAt: (0, common_js_1.instant)(),
     endedAt: (0, common_js_1.instant)().nullable(),
+    dayFrom: zod_1.z.number().int(),
+    dayTo: zod_1.z.number().int().nullable().describe('Null while the phase is the one the grow is in, which is what "→ today" says.'),
     dayCount: zod_1.z.number().int(),
+    spaceIds: zod_1.z.array((0, common_js_1.id)()).describe('Where the plants stood during it, in the order they arrived.'),
+    coverMediaId: (0, common_js_1.id)().nullable().describe('The still nearest the middle of the phase, which is the chapter’s picture.'),
     climate: zod_1.z.array(exports.weekClimate),
+    inBandPercent: zod_1.z
+        .number()
+        .nullable()
+        .describe('The share of the phase in which every metric with a target sat inside `TARGET_BAND`; null where nothing held a target.'),
+    waterCount: zod_1.z.number().int(),
+    feedCount: zod_1.z.number().int(),
+    training: zod_1.z.array(exports.entry).describe('What was done to the plants in this phase, oldest first - "topped d18 · LST d20".'),
 }));
 /** Stripped from every shared view when the owner hides weights, which is what `null` says here. */
 exports.growHarvest = (0, common_js_1.named)('GrowHarvest', zod_1.z.object({
@@ -778,6 +978,16 @@ exports.growTotals = (0, common_js_1.named)('GrowTotals', zod_1.z.object({
     feedCount: zod_1.z.number().int(),
     photoCount: zod_1.z.number().int(),
 }));
+/**
+ * `GET /grows/{id}/report`, the Report tab: the grow told as chapters, one per
+ * phase.
+ *
+ * It carries no week cards. The Report tab sits beside the Weeks tab, which
+ * reads `GET /grows/{id}/weeks`, and a week costs a time-series query per
+ * controller - a report that repeated them would make opening the second tab
+ * cost the first one twice over. The public page, which shows both, is a read
+ * model of its own and assembles them once.
+ */
 exports.growReport = (0, common_js_1.named)('GrowReport', zod_1.z.object({
     growId: (0, common_js_1.id)(),
     name: zod_1.z.string(),
@@ -790,10 +1000,10 @@ exports.growReport = (0, common_js_1.named)('GrowReport', zod_1.z.object({
     strains: zod_1.z.array(zod_1.z.string()),
     coverMediaId: (0, common_js_1.id)().nullable(),
     filmMediaId: (0, common_js_1.id)().nullable(),
-    phases: zod_1.z.array(exports.growReportPhase),
-    weeks: zod_1.z.array(exports.growWeekCard),
+    phases: zod_1.z.array(exports.growReportPhase).describe('Newest first, which is the order the chapters are read in.'),
     harvest: exports.growHarvest.nullable(),
     totals: exports.growTotals,
+    people: zod_1.z.array(exports.person).describe('Everyone the chapters name, so an entry can say who wrote it without another read.'),
 }));
 /**
  * One reading, as a chart draws it. Unlike a climate point, which summarises a

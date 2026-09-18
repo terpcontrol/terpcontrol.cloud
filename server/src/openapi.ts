@@ -30,6 +30,7 @@ const TAGS: readonly { name: string; description: string }[] = [
   { name: 'home', description: 'What the app opens on: one card per space, with everything the home screen shows.' },
   { name: 'spaces', description: 'The places a person grows in, the rooms that group them, and what stands in one.' },
   { name: 'grows', description: 'What is growing: its plants, the phases it has been through and where they stand.' },
+  { name: 'diary', description: 'The timeline: what a person, a device and an alarm each wrote, as one list under one scope.' },
   { name: 'devices', description: 'Claiming a device, what it is, what it measures and what it is told to do.' },
   { name: 'cameras', description: 'The cameras of a tent, and the stills and films of one camera.' },
   { name: 'media', description: 'One picture or film: what is known about it, and its bytes.' },

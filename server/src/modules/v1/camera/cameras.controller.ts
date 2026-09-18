@@ -17,8 +17,9 @@ import { AuthGuard } from '@common/auth/auth.guard';
 import { V1Body } from '@common/zod-validation.pipe';
 import { AccessGuard, Caller, CurrentGrant, Requires } from '@common/v1/access.guard';
 import { AccessService, subjectRef } from '@common/v1/access.service';
-import { AccessContext, AccessRange, Grant } from '@common/v1/access.types';
+import { AccessContext, Grant } from '@common/v1/access.types';
 import { badRequest, notFound } from '@common/v1/problem';
+import { clampRange } from '@common/v1/range';
 import { V1Query, pageQuery } from '@common/v1/validation';
 import { CamerasService } from './cameras.service';
 import { CameraPollerService } from './camera-poller.service';
@@ -188,7 +189,7 @@ export class CamerasController {
   @ApiOperation({ summary: 'The stills of one camera, newest first' })
   @V1Answer(mediaPage)
   public frames(@Param('id') id: string, @V1Query(spanQuery) query: SpanQuery, @CurrentGrant() grant: Grant | undefined): Promise<MediaPage> {
-    return this.media.page({ cameraId: id, kind: 'still', range: clamp(grant, query) }, query);
+    return this.media.page({ cameraId: id, kind: 'still', range: clampRange(grant, query) }, query);
   }
 
   @Get(':id/timelapses')
@@ -197,7 +198,7 @@ export class CamerasController {
   @ApiOperation({ summary: 'The films of one camera, newest first' })
   @V1Answer(mediaPage)
   public timelapses(@Param('id') id: string, @V1Query(spanQuery) query: SpanQuery, @CurrentGrant() grant: Grant | undefined): Promise<MediaPage> {
-    return this.media.page({ cameraId: id, kind: 'timelapse', range: clamp(grant, query) }, query);
+    return this.media.page({ cameraId: id, kind: 'timelapse', range: clampRange(grant, query) }, query);
   }
 
   /**
@@ -307,12 +308,3 @@ const spanOf = (body: TimelapseCreate): { startsAt: Date; endsAt: Date } => {
 
   return { startsAt, endsAt: new Date(startsAt.getTime() + span) };
 };
-
-/** A read never reaches outside the window the decision allows, whatever it asks for. */
-const clamp = (grant: Grant | undefined, asked: { startsAt?: Date; endsAt?: Date }): AccessRange => ({
-  startsAt: latest(grant?.range.startsAt ?? null, asked.startsAt ?? null),
-  endsAt: earliest(grant?.range.endsAt ?? null, asked.endsAt ?? null),
-});
-
-const latest = (a: Date | null, b: Date | null): Date | null => (a && b ? (a > b ? a : b) : (a ?? b));
-const earliest = (a: Date | null, b: Date | null): Date | null => (a && b ? (a < b ? a : b) : (a ?? b));

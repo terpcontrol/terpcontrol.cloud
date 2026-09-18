@@ -2,6 +2,7 @@ import { Box, Fan, Leaf, Refrigerator, Sun, type LucideIcon } from 'lucide-react
 import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import type { HomeSpaceCard, Person, SpaceKind } from '@fg2/shared-types/v1';
 import { mediaUrl } from '@/api/session';
 import { ageLabel } from '@/ui/age';
@@ -64,10 +65,12 @@ export function SpaceCard({ card, people, now, compact }: SpaceCardProps) {
         <div className={styles.title}>
           {growHeads ? (
             <>
-              <h2 className={styles.name}>{card.grow!.name}</h2>
+              <h2 className={styles.name}>
+                <Link to={`/grows/${card.grow!.growId}`}>{card.grow!.name}</Link>
+              </h2>
               <div className={styles.subtitle}>
                 <Icon size={13} strokeWidth={1.75} aria-hidden />
-                <span>{card.name}</span>
+                <Link to={`/spaces/${card.spaceId}`}>{card.name}</Link>
                 <span className={styles.subtitleLine}>
                   {' · '}
                   <PhaseLine grow={card.grow!} />
@@ -76,8 +79,10 @@ export function SpaceCard({ card, people, now, compact }: SpaceCardProps) {
             </>
           ) : (
             <h2 className={styles.name}>
-              <Icon size={16} strokeWidth={1.75} aria-hidden />
-              {card.name}
+              <Link to={`/spaces/${card.spaceId}`} className={styles.nameLink}>
+                <Icon size={16} strokeWidth={1.75} aria-hidden />
+                {card.name}
+              </Link>
             </h2>
           )}
         </div>
@@ -114,7 +119,7 @@ export function SpaceCard({ card, people, now, compact }: SpaceCardProps) {
 }
 
 /** "● live · 20 s" - the dot is the state, the age is the newest reading on the card. */
-function LivenessPill({ liveness, measuredAt, now }: { liveness: Liveness; measuredAt: string | null; now: DateTime }) {
+export function LivenessPill({ liveness, measuredAt, now }: { liveness: Liveness; measuredAt: string | null; now: DateTime }) {
   const { t } = useTranslation();
   if (liveness === 'none') return null;
 

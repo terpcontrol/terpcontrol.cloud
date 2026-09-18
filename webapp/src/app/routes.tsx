@@ -3,17 +3,21 @@ import { AppShell } from './shell/AppShell';
 import { RequireSession } from './RequireSession';
 import { Alerts } from '@/screens/Alerts';
 import { Devices } from '@/screens/Devices';
+import { GrowPage } from '@/screens/grow/GrowPage';
 import { Home } from '@/screens/Home';
 import { LogSheet } from '@/screens/LogSheet';
 import { Me } from '@/screens/Me';
 import { NotFound } from '@/screens/NotFound';
 import { SignIn } from '@/screens/SignIn';
+import { SpacePage } from '@/screens/space/SpacePage';
 import { Tasks } from '@/screens/Tasks';
 import { Timeline } from '@/screens/Timeline';
 
 /**
- * The five tabs, the account page and the alerts behind the bell, and nothing else yet. Every screen below
- * the shell is behind a session; the sign-in page is the only route that is not.
+ * The five tabs, the account page, the alerts behind the bell, and the two
+ * pages a home card opens: a grow and a space, each with its tab in the path so
+ * a tab survives a reload. Every screen below the shell is behind a session;
+ * the sign-in page is the only route that is not.
  *
  * `Log` is a route as well as the raised button, so it can be linked to and so
  * a wide window can show it as a page rather than as a sheet.
@@ -34,6 +38,8 @@ export const router = createBrowserRouter([
       { path: 'tasks', element: <Tasks /> },
       { path: 'me', element: <Me /> },
       { path: 'alerts', element: <Alerts /> },
+      { path: 'grows/:growId/:tab?', element: <GrowPage /> },
+      { path: 'spaces/:spaceId/:tab?', element: <SpacePage /> },
       { path: 'index.html', element: <Navigate to="/" replace /> },
       { path: '*', element: <NotFound /> },
     ],

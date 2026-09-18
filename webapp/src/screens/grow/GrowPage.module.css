@@ -1,0 +1,213 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.back {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  margin-left: calc(var(--space-2) * -1);
+  color: var(--muted);
+}
+
+.titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.name {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.subtitle {
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.place {
+  color: var(--ink);
+}
+
+/* "34 / DAY" */
+.day {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.dayFigure {
+  font-size: var(--text-figure);
+  font-weight: var(--weight-semibold);
+  line-height: 1.1;
+}
+
+/* The phase bar: six segments, filled as far as the grow has come, each named under its segment. */
+.phaseBar {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 3px;
+}
+
+.phaseSegment {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.phaseFill {
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--rule);
+}
+
+.phaseSegment[data-reached='true'] .phaseFill {
+  background: var(--green);
+}
+
+.phaseName,
+.phaseDetail {
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--label);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phaseSegment[data-current='true'] .phaseName {
+  color: var(--ink);
+  font-weight: var(--weight-semibold);
+}
+
+.phaseLine {
+  font-size: var(--text-sm);
+}
+
+.phase {
+  color: var(--ink);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.auto {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 0 var(--space-1);
+  border: var(--rule-solid);
+  border-radius: 3px;
+  font-size: 10px;
+  letter-spacing: var(--tracking-caption);
+  text-transform: uppercase;
+  color: var(--label);
+  vertical-align: 1px;
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}
+
+/* Dense rows, a rule apart: the plants, the scheme's weeks. */
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: var(--rule-solid);
+}
+
+.row[data-current='true'] {
+  border-left: 3px solid var(--green);
+  padding-left: var(--space-3);
+}
+
+.rowMain {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rowTitle {
+  font-weight: var(--weight-semibold);
+}
+
+.rowSub {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.rowAside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  text-align: right;
+}
+
+.thisWeekTag {
+  margin-left: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--green-ink);
+}
+
+.schemeLine {
+  padding-top: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--label);
+}
+
+.later {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+@media (min-width: 900px) {
+  .page {
+    max-width: 720px;
+    padding-top: 0;
+  }
+
+  .phaseName,
+  .phaseDetail {
+    font-size: var(--text-xs);
+  }
+}

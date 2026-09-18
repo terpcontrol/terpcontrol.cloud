@@ -3,9 +3,10 @@ import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Entry, GrowCard, GrowthStage, HomeSpaceCard, Person } from '@fg2/shared-types/v1';
-import { useSession, mediaUrl } from '@/api/session';
-import { entryHeadline } from '@/i18n/device-message';
+import { THUMBNAIL_WIDTH, useSession, mediaUrl } from '@/api/session';
 import { ageLabel } from '@/ui/age';
+import { authorOf, headlineOf } from '@/ui/entries';
+import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import styles from './SpaceCard.module.css';
 
@@ -29,12 +30,12 @@ export function GrowHalf({ card, people, now, headed, compact }: GrowHalfProps) 
   const grow = card.grow!;
   // A grow without a cover of its own is shown by the newest picture of where it stands.
   const coverId = grow.coverMediaId ?? card.latestStill?.mediaId ?? null;
-  const cover = coverId ? mediaUrl(coverId) : null;
+  const cover = coverId ? mediaUrl(coverId, THUMBNAIL_WIDTH.cover) : null;
 
   return (
     <div className={styles.grow}>
       {headed ? null : (
-        <div className={styles.growRow}>
+        <Link to={`/grows/${grow.growId}`} className={styles.growRow}>
           <span className={styles.cover}>{cover ? <img src={cover} alt="" /> : <Leaf size={22} strokeWidth={1.5} aria-hidden />}</span>
           <div className={styles.growText}>
             <div className={styles.growName}>{grow.name}</div>
@@ -43,7 +44,7 @@ export function GrowHalf({ card, people, now, headed, compact }: GrowHalfProps) 
             </div>
           </div>
           <DayCounter day={grow.dayNumber} />
-        </div>
+        </Link>
       )}
       <NewestEntry entry={card.entries[0] ?? null} people={people} now={now} />
       {compact || grow.stage === null ? null : <PhaseBar stage={grow.stage} />}
@@ -103,9 +104,6 @@ export function DayCounter({ day }: { day: number | null }) {
   );
 }
 
-/** The six stages in the order a grow passes them. Not the contract's enum order by accident: it is that order. */
-const STAGES: GrowthStage[] = ['germination', 'seedling', 'vegetative', 'flowering', 'drying', 'curing'];
-
 /**
  * Where the grow is on its way: the stages as segments, filled up to the one
  * it is in, whose name sits under it. No durations are known here - the
@@ -137,17 +135,8 @@ export function NewestEntry({ entry, people, now }: { entry: Entry | null; peopl
   const { user } = useSession();
   if (!entry) return <p className={`${styles.entry} ${styles.entryEmpty}`}>{t('home.card.noEntries')}</p>;
 
-  const headline =
-    entryHeadline(i18n, entry) ||
-    (entry.values.kind === 'phase'
-      ? t('home.card.enteredPhase', { stage: t(`home.stage.${entry.values.stage}`) })
-      : t(`home.entryKind.${entry.kind}`, { defaultValue: entry.kind }));
-  const author =
-    entry.source !== 'human'
-      ? t(`home.author.${entry.source}`)
-      : entry.authorId === user?.id
-        ? t('home.author.you')
-        : (people.find(person => person.id === entry.authorId)?.handle ?? t('home.author.someone'));
+  const headline = headlineOf(t, i18n, entry);
+  const author = authorOf(t, entry, people, user?.id);
 
   return (
     <p className={styles.entry}>

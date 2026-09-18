@@ -1,0 +1,87 @@
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}
+
+/* The four numbers above the chapters. */
+.totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-5);
+  margin: 0;
+  padding: var(--space-3) 0;
+  border-bottom: var(--rule-solid);
+}
+
+.total {
+  display: flex;
+  flex-direction: column;
+}
+
+.totalValue {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.harvest,
+.empty {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* A chapter: its cover at the left, its story beside it. */
+.chapter {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.cover {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--card-2);
+  color: var(--green);
+}
+
+.cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.chapterText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.chapterTitle {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.chapterMeta {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.training {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--rule-solid);
+}

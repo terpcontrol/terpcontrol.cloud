@@ -31,12 +31,12 @@ const card = (over: Partial<HomeSpaceCard>): HomeSpaceCard => ({
   deviceIds: ['device-1'],
   values: [
     { metric: 'temperature', value: 25.1, measuredAt: at(20), state: 'live' },
-    { metric: 'humidity', value: 55, measuredAt: at(20), state: 'live' },
+    { metric: 'humidity', value: 57, measuredAt: at(20), state: 'live' },
     { metric: 'co2', value: 1010, measuredAt: at(20), state: 'live' },
   ],
   setpoints: [
-    { metric: 'temperature', value: 25 },
-    { metric: 'humidity', value: 50 },
+    { metric: 'temperature', value: 25, band: 1 },
+    { metric: 'humidity', value: 50, band: 5 },
   ],
   trend: { metric: 'temperature', stepSeconds: 1800, endsAt: NOW.toISO()!, points: [24.6, 25.0, null, 25.3, 25.1] },
   grow: {
@@ -107,9 +107,10 @@ describe('the climate half', () => {
     expect(temperature).toHaveTextContent('→ 25');
     expect(temperature).toHaveTextContent('in band');
 
-    const humidity = screen.getByText('55').closest('[data-age]')!;
+    // Judged by the band the server put on the setpoint: 5 either side, so 57 is out and 55 would not be.
+    const humidity = screen.getByText('57').closest('[data-age]')!;
     expect(humidity).toHaveTextContent('→ 50');
-    expect(humidity).toHaveTextContent('+5');
+    expect(humidity).toHaveTextContent('+7');
   });
 
   it('dims an old value by its age and never hides it', () => {
@@ -155,7 +156,16 @@ describe('the grow half', () => {
     expect(screen.getByText(/Amnesia, Gelato/)).toBeInTheDocument();
     expect(screen.getByText('Defoliated')).toBeInTheDocument();
     expect(screen.getByText(/1 d ago · mia/)).toBeInTheDocument();
-    expect(screen.getAllByRole('link').map(link => link.textContent)).toEqual(['Water', 'Note', 'Photo']);
+    // The place and the grow each open their page; the three actions follow.
+    const links = screen.getAllByRole('link');
+    expect(links.map(link => link.getAttribute('href'))).toEqual([
+      '/spaces/space-1',
+      '/grows/grow-1',
+      '/log?kind=water&grow=grow-1',
+      '/log?kind=note&grow=grow-1',
+      '/log?kind=photo&grow=grow-1',
+    ]);
+    expect(links.slice(2).map(link => link.textContent)).toEqual(['Water', 'Note', 'Photo']);
   });
 
   it('draws no auto tag for a phase a person set', () => {
@@ -190,7 +200,7 @@ describe('the grow half', () => {
 
     expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Spring run');
     expect(screen.getByText('Balcony')).toBeInTheDocument();
-    expect(screen.getAllByRole('link').map(link => link.textContent)).toEqual(['Water', 'Photo', 'Reading']);
+    expect(screen.getAllByRole('link').map(link => link.textContent)).toEqual(['Spring run', 'Balcony', 'Water', 'Photo', 'Reading']);
   });
 });
 

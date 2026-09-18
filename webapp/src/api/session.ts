@@ -215,8 +215,20 @@ export const useSession = (): SessionState => useSyncExternalStore(session.subsc
 /**
  * Where a picture is. The media token is the only thing the API accepts in a
  * URL, and only on `/v1/media/...`, which is what an <img> or a <video> needs.
+ *
+ * `width` asks for a thumbnail: the server resizes on the way out and never
+ * enlarges, so a strip of seven thumbnails costs seven small pictures rather
+ * than seven whole stills. In device pixels, so a caller doubles what it draws.
  */
-export const mediaUrl = (mediaId: string): string | null => {
+export const mediaUrl = (mediaId: string, width?: number): string | null => {
   const token = session.mediaToken();
-  return token ? `${v1(`/media/${mediaId}/content`)}?token=${encodeURIComponent(token)}` : null;
+  if (!token) return null;
+
+  const query = new URLSearchParams({ token });
+  if (width) query.set('width', String(width));
+
+  return `${v1(`/media/${mediaId}/content`)}?${query.toString()}`;
 };
+
+/** The widths the small pictures are asked for at: twice what they are drawn at, for a phone's screen. */
+export const THUMBNAIL_WIDTH = { cover: 96, dayTile: 200, still: 240 } as const;
