@@ -1613,7 +1613,7 @@ const DEMO_GROWS = [
     ],
     phases: [
       { stage: 'vegetative', daysAgo: 34 },
-      { stage: 'flowering', preset: 'flower', daysAgo: 10 },
+      { stage: 'flowering', daysAgo: 10 },
     ],
   },
   {

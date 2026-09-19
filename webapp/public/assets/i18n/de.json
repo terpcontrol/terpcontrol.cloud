@@ -1464,8 +1464,7 @@
     "noController": "Kein Controller, wo dieser Grow steht · nichts zu mitteln",
     "nothingMeasured": "Diese Woche nichts gemessen",
     "presetName": {
-      "late_flowering": "Späte Blüte",
-      "flower": "Frühe Blüte"
+      "late_flowering": "Späte Blüte"
     },
     "lifecycle": {
       "actionsLabel": "Was mit diesem Grow passiert",

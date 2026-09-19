@@ -1468,8 +1468,7 @@
     "noController": "No controller where this grow stands · nothing to average",
     "nothingMeasured": "Nothing measured this week",
     "presetName": {
-      "late_flowering": "Late flower",
-      "flower": "Early flower"
+      "late_flowering": "Late flower"
     },
     "lifecycle": {
       "actionsLabel": "What this grow is doing",
