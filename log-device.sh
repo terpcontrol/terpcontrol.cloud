@@ -12,7 +12,7 @@ INIT_USB_LOCAL="$(dirname "${BASH_SOURCE[0]}")/init-usb.local.sh"
 
 DOCKER_USB_MOUNTS=${DOCKER_USB_MOUNTS:--v /dev/bus/usb:/dev/bus/usb --device /dev/ttyUSB0:/dev/ttyUSB0}
 
-docker run -i --rm \
+docker run -it --rm \
   --privileged \
   ${DOCKER_USB_MOUNTS} \
-  plantalytix-buildcontainer pio device monitor -p /dev/ttyUSB0
+  plantalytix-buildcontainer pio device monitor -p /dev/ttyUSB0 -b 115200
