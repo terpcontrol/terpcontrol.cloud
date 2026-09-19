@@ -34,6 +34,20 @@ const step = (name: string, over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+/**
+ * A step of the recipe every device in the field is actually running: a climate
+ * and a length, and not a word about a growth stage. It is written the way such
+ * a screen writes it - the two keys simply absent - because that is what has to
+ * be accepted for a migrated recipe to survive being opened and saved.
+ */
+const climateOnly = (name: string) => ({
+  name,
+  duration: { value: 7, unit: 'days' },
+  settings: { day: { temperature: 24 }, night: { temperature: 20 } },
+  waitForConfirmation: false,
+  confirmationMessage: null,
+});
+
 const aPlan = (over: Record<string, unknown> = {}) => ({
   templateId: null,
   name: 'Two weeks of veg',
@@ -129,6 +143,79 @@ describe('writing the plan', () => {
       .expect(422);
 
     expect(refused.body.code).toBe('duplicate_step_id');
+  });
+
+  /**
+   * The recipe every device in the field is running: steps that name a climate
+   * and say nothing at all about a growth stage. Every plan the migration
+   * carried over has that shape, so opening one and pressing save is the most
+   * ordinary thing anybody will do to this route - and it has to leave the tent
+   * on exactly what it was on, rather than putting it on a stage somebody's
+   * screen had to invent to get the body accepted.
+   */
+  it('takes a step that names no stage, and answers it as one that says nothing', async () => {
+    const mine = await aController(owner);
+
+    const written = await owner.client
+      .put(`/v1/devices/${mine.deviceId}/plan`)
+      .send(aPlan({ name: 'Fridgegrow 2.0', steps: [climateOnly('Woche 1'), climateOnly('Woche 2')] }))
+      .expect(200);
+
+    // Left out on the way in, and answered as `null` rather than as absent, so
+    // the plan a client reads has the same keys on every step.
+    expect(written.body.steps).toEqual([
+      { ...climateOnly('Woche 1'), id: expect.any(String), stage: null, preset: null },
+      { ...climateOnly('Woche 2'), id: expect.any(String), stage: null, preset: null },
+    ]);
+  });
+
+  it('gives back a stageless plan unchanged when it is saved again, and leaves the tent on its step', async () => {
+    const mine = await aController(owner);
+    const stageless = aPlan({ name: 'Fridgegrow 2.0', steps: [climateOnly('Woche 1'), climateOnly('Woche 2')] });
+    await owner.client.put(`/v1/devices/${mine.deviceId}/plan`).send(stageless).expect(200);
+    await owner.client.post(`/v1/devices/${mine.deviceId}/plan/transitions`).send({ kind: 'resume' }).expect(201);
+
+    const before = await planOf(owner, mine.deviceId);
+    expect(before.state).toMatchObject({ status: 'running', activeStepIndex: 0 });
+
+    // The plan as it was read, handed straight back: what a screen does when
+    // somebody opens the recipe, changes nothing and presses save.
+    const again = await owner.client
+      .put(`/v1/devices/${mine.deviceId}/plan`)
+      .send({ templateId: before.templateId, name: before.name, loop: before.loop, notify: before.notify, steps: before.steps })
+      .expect(200);
+
+    expect(again.body.steps).toEqual(before.steps);
+    expect(again.body.steps.every((one: { stage: string | null }) => one.stage === null)).toBe(true);
+    // Still running, still on the same step, still with the time it had served:
+    // re-saving the recipe is not a way of restarting the tent.
+    expect(again.body.state).toMatchObject({
+      status: 'running',
+      activeStepIndex: 0,
+      stepStartedAt: before.state.stepStartedAt,
+      pausedElapsedMs: before.state.pausedElapsedMs,
+    });
+    expect(await planOf(owner, mine.deviceId)).toEqual(again.body);
+  });
+
+  /**
+   * The old recipe screen took whatever somebody typed into a step's length, and
+   * one plan out on a real device holds half a day. A step like that has to be
+   * writable, because otherwise the plan it belongs to can be read and never
+   * saved - and the only way to save it would be to round the step under a tent
+   * that is running on it.
+   */
+  it('keeps a step whose length is not a whole number', async () => {
+    const mine = await aController(owner);
+    const half = { ...climateOnly('Anwachsen'), duration: { value: 0.5, unit: 'days' } };
+
+    const written = await owner.client
+      .put(`/v1/devices/${mine.deviceId}/plan`)
+      .send(aPlan({ steps: [half] }))
+      .expect(200);
+
+    expect(written.body.steps[0].duration).toEqual({ value: 0.5, unit: 'days' });
+    expect((await planOf(owner, mine.deviceId)).steps[0].duration).toEqual({ value: 0.5, unit: 'days' });
   });
 
   it('refuses a body the contract does not describe', async () => {

@@ -89,6 +89,12 @@ export const stopped = (): StoredPlanState => atRest('stopped');
  * move with it rather than staying on a number. A step that is new to the plan
  * carries none and gets one here.
  *
+ * A step that names no stage and no preset says nothing about the grow, which is
+ * what a recipe of nothing but climates says at every step. That is written down
+ * as `null` rather than left out, so the stored step and the step that is
+ * answered carry the same keys as every other one - and a step that said nothing
+ * before a person re-saved it says nothing after.
+ *
  * Two steps under one id would make that lookup pick whichever came first, so a
  * plan that carries one is refused rather than stored and misread later.
  */
@@ -100,7 +106,7 @@ export const stepsOf = (steps: PlanStepInput[]): PlanStep[] => {
     ]);
   }
 
-  return steps.map(step => ({ ...step, id: step.id ?? uuidv4() }));
+  return steps.map(step => ({ ...step, id: step.id ?? uuidv4(), stage: step.stage ?? null, preset: step.preset ?? null }));
 };
 
 /**

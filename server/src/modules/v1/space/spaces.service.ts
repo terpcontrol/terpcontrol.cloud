@@ -224,23 +224,34 @@ export class SpacesService {
    * Deleting ends the space for clients without removing the row: an entry, a
    * picture and a grow that once stood here still name it, and a list with a
    * dangling name in it is worse than a place nobody can reach any more. What
-   * does go is who was let in - a membership, an invite and a share link on a
-   * space that has ended are each a way into somebody's history.
+   * does go is the rest of the way in - an invite and a share link on a space
+   * that has ended are each a key to somebody's history that nothing would ever
+   * turn again.
+   *
+   * The people are not among them. A space with members is refused until they
+   * have been let go one at a time, so that ending a place is never how somebody
+   * finds out they were thrown out of it.
    */
   public async remove(id: string): Promise<void> {
     const space = await this.require(id);
     await this.refuseWhileOccupied(space);
 
     await this.spaces.updateOne({ id }, { $set: { archivedAt: space.archivedAt ?? new Date() } });
-    await this.memberships.deleteMany({ spaceId: id });
     await this.invites.deleteMany({ spaceId: id });
     await this.shareLinks.deleteMany({ 'subject.type': 'space', 'subject.id': id });
   }
 
   /**
-   * A space is only ended once nothing stands in it, and the refusal says what
-   * does: a place that is deleted out from under a running grow takes the
-   * grow's own history with it.
+   * A space is only ended once nothing stands in it and nobody else is in it,
+   * and the refusal says which: a place that is deleted out from under a running
+   * grow takes the grow's own history with it, and one deleted out from under
+   * the people sharing it takes theirs.
+   *
+   * The members counted are this space's own rows. A membership held on the room
+   * above reaches in here as well, but it is the room's to end, and a room is
+   * already refused while any space is grouped under it - so a shared room is
+   * emptied first and then meets its own members, rather than making every tent
+   * inside it undeletable.
    */
   private async refuseWhileOccupied(space: SpaceDocument): Promise<void> {
     const errors: ProblemError[] = [];
@@ -258,7 +269,22 @@ export class SpacesService {
       errors.push({ field: 'id', code: 'space_here', detail: 'Spaces are grouped under this room. Move them out first.' });
     }
 
-    if (errors.length > 0) throw conflict('space_in_use', 'Something still stands in this space.', errors);
+    const members = await this.memberships.countDocuments({ spaceId: space.id });
+    if (members > 0) {
+      errors.push({
+        field: 'id',
+        code: 'member_here',
+        detail:
+          members === 1
+            ? 'Somebody else is a member of this space. Remove them from it first.'
+            : `${members} other people are members of this space. Remove them from it first.`,
+      });
+    }
+
+    // One refusal listing everything, rather than the first thing in the way:
+    // emptying a tent is a round of errands, and being sent back for the next
+    // one each time is how somebody gives up half way.
+    if (errors.length > 0) throw conflict('space_in_use', 'This space is not ready to be ended.', errors);
   }
 
   /**

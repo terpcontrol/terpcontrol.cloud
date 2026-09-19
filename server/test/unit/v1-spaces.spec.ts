@@ -325,19 +325,76 @@ describe('archiving one', () => {
 describe('ending one', () => {
   const codesOf = (problem: ProblemException): string[] => problem.problem.errors.map(error => error.code);
 
+  /** The tent under test carries a member, and ending a space is refused while it does. */
+  const emptyOfPeople = () => db.memberships.deleteMany({ spaceId: SPACE });
+
   it('keeps the space as a tombstone, because history still names it', async () => {
+    await emptyOfPeople();
     await spaces.remove(SPACE);
 
     expect((await spaces.list(session(OWNER), {}, {})).items.map(space => space.id)).toEqual([ROOM, OTHER_SPACE]);
     expect((await spaces.byId(SPACE))?.archivedAt).not.toBeNull();
   });
 
-  it('takes the way in with it', async () => {
+  it('takes the rest of the way in with it', async () => {
     await db.invites.create({ id: 'invite-1', code: 'ABCD2345', spaceId: SPACE, role: 'can_log', createdBy: OWNER });
+    await emptyOfPeople();
     await spaces.remove(SPACE);
 
-    expect(await db.memberships.countDocuments({ spaceId: SPACE })).toBe(0);
     expect(await db.invites.countDocuments({ spaceId: SPACE })).toBe(0);
+  });
+
+  /**
+   * Letting somebody go is a thing their host does deliberately, one person at a
+   * time, so the delete button is not allowed to do it in passing. The refusal
+   * has to be actionable on its own: it says how many people are in the way and
+   * what to do about them, because a client that only gets `member_here` has to
+   * invent the sentence itself.
+   */
+  it('refuses while somebody else is a member, and says so in words', async () => {
+    const problem = await refusal(() => spaces.remove(SPACE));
+
+    expect(problem.problem).toMatchObject({ status: 409, code: 'space_in_use' });
+    expect(problem.problem.errors).toEqual([
+      { field: 'id', code: 'member_here', detail: 'Somebody else is a member of this space. Remove them from it first.' },
+    ]);
+    // And the space is still there, unarchived: a refusal changes nothing.
+    expect((await spaces.byId(SPACE))?.archivedAt).toBeNull();
+  });
+
+  it('counts the people it is waiting for', async () => {
+    await db.memberships.create({ id: 'membership-second', spaceId: SPACE, userId: STRANGER, role: 'can_log' });
+    const problem = await refusal(() => spaces.remove(SPACE));
+
+    expect(problem.problem.errors[0].detail).toBe('2 other people are members of this space. Remove them from it first.');
+  });
+
+  it('takes it once the last member has been let go', async () => {
+    await emptyOfPeople();
+    await spaces.remove(SPACE);
+
+    expect((await spaces.byId(SPACE))?.archivedAt).not.toBeNull();
+  });
+
+  /**
+   * A membership on the room reaches into the tents under it, but it is the
+   * room's and is ended there. Counting it here would make every tent in a
+   * shared room undeletable, and the room is already refused while anything is
+   * grouped under it - so the room is emptied first and then meets its own
+   * members.
+   */
+  it('does not count a membership held on the room above it', async () => {
+    await emptyOfPeople();
+    await spaces.remove(SPACE);
+
+    expect((await spaces.byId(SPACE))?.archivedAt).not.toBeNull();
+    expect(await db.memberships.countDocuments({ spaceId: ROOM })).toBe(1);
+  });
+
+  it('refuses the room itself while its own members are on it', async () => {
+    await db.spaces.updateMany({ roomId: ROOM }, { $set: { roomId: null } });
+
+    expect(codesOf(await refusal(() => spaces.remove(ROOM)))).toEqual(['member_here']);
   });
 
   it('refuses while a device stands there', async () => {
@@ -348,11 +405,19 @@ describe('ending one', () => {
   });
 
   it('refuses while a camera looks into it', async () => {
+    await emptyOfPeople();
     await db.cameras.create({ id: CAMERA, ownerId: OWNER, kind: 'terpcam_standalone', name: 'The cam', spaceId: SPACE });
     expect(codesOf(await refusal(() => spaces.remove(SPACE)))).toEqual(['camera_here']);
   });
 
+  it('names everything that is in the way at once, rather than the first thing', async () => {
+    await db.cameras.create({ id: CAMERA, ownerId: OWNER, kind: 'terpcam_standalone', name: 'The cam', spaceId: SPACE });
+
+    expect(codesOf(await refusal(() => spaces.remove(SPACE)))).toEqual(['camera_here', 'member_here']);
+  });
+
   it('refuses while a grow is standing in it', async () => {
+    await emptyOfPeople();
     await db.grows.create({
       id: GROW,
       ownerId: OWNER,
@@ -367,6 +432,7 @@ describe('ending one', () => {
   });
 
   it('allows it once the grow has moved on', async () => {
+    await emptyOfPeople();
     await db.grows.create({
       id: GROW,
       ownerId: OWNER,
@@ -389,8 +455,8 @@ describe('ending one', () => {
     expect((await spaces.byId(SPACE))?.archivedAt).not.toBeNull();
   });
 
-  it('refuses a room that still groups spaces', async () => {
-    expect(codesOf(await refusal(() => spaces.remove(ROOM)))).toEqual(['space_here']);
+  it('refuses a room that still groups spaces, and names its own members beside them', async () => {
+    expect(codesOf(await refusal(() => spaces.remove(ROOM)))).toEqual(['space_here', 'member_here']);
   });
 });
 
@@ -678,7 +744,15 @@ const ROUTES: RouteCase[] = [
   { name: 'update', handler: 'update', params: { id: SPACE }, run: ctx => controller.update(ctx, SPACE, { name: 'Renamed' }) },
   { name: 'archive', handler: 'archive', params: { id: SPACE }, run: () => controller.archive(SPACE) },
   { name: 'unarchive', handler: 'unarchive', params: { id: SPACE }, run: () => controller.unarchive(SPACE) },
-  { name: 'delete', handler: 'remove', params: { id: SPACE }, run: () => controller.remove(SPACE) },
+  {
+    name: 'delete',
+    handler: 'remove',
+    params: { id: SPACE },
+    // A space with members in it is refused whoever is asking, which would hide
+    // the decision this table is about behind a reason of the route's own.
+    setUp: () => db.memberships.deleteMany({ spaceId: SPACE }),
+    run: () => controller.remove(SPACE),
+  },
   {
     name: 'place a device',
     handler: 'placeDevice',

@@ -395,6 +395,27 @@ describe('replacing the steps', () => {
     expect(written.steps[1].id).not.toBe('a');
   });
 
+  /**
+   * The plan of a tent that has been running since before the rewrite: steps
+   * that name a climate and nothing else. The stored step has to come out of a
+   * save exactly as it went in, because the one thing a person re-saving their
+   * recipe must not do is give their tent stages it never had.
+   */
+  it('stores a step that named no stage as one that says nothing, and leaves it there on the next save', async () => {
+    await aDevice();
+    const { stage: _stage, preset: _preset, ...climateOnly } = newStep('Woche 1');
+
+    const written = await transitions.replace(DEVICE, replacement([climateOnly]));
+    expect(written.steps[0]).toMatchObject({ name: 'Woche 1', stage: null, preset: null });
+
+    // The stored document, not the answer: what the engine and the next reader see.
+    const storedFor = async () => (await plans.findOne({ deviceId: DEVICE }).lean<StoredPlan>().exec())!;
+    const first = await storedFor();
+    await transitions.replace(DEVICE, replacement(first.steps));
+
+    expect((await storedFor()).steps).toEqual(first.steps);
+  });
+
   it('refuses two steps under one id, which would make the running step ambiguous', async () => {
     await aDevice();
 

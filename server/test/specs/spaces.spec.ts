@@ -1,5 +1,6 @@
 import { createAccount, Session } from '../support/api';
 import { provisionDevice } from '../support/device';
+import { joinSpace } from '../support/fixtures';
 
 /**
  * A space over HTTP: the places somebody grows in, the room that groups them,
@@ -117,6 +118,27 @@ describe('what stands in a space', () => {
 
     await owner.client.delete(`/v1/spaces/${id}/devices/${device.deviceId}`).expect(204);
     await owner.client.delete(`/v1/spaces/${id}`).expect(204);
+  });
+
+  /**
+   * A person is not something a delete button removes in passing. The refusal
+   * has to stand on its own at the wire, because the sentence a client shows is
+   * the one the server wrote: a bare `member_here` would have the app make one
+   * up.
+   */
+  it('refuses to end a space while somebody else is a member of it', async () => {
+    const id = await makeSpace(owner, { kind: 'tent', name: 'The shared tent' });
+    await joinSpace(id, stranger.userId);
+
+    const refused = await owner.client.delete(`/v1/spaces/${id}`).expect(409);
+
+    expect(refused.body).toMatchObject({ status: 409, code: 'space_in_use' });
+    expect(refused.body.errors).toEqual([
+      { field: 'id', code: 'member_here', detail: 'Somebody else is a member of this space. Remove them from it first.' },
+    ]);
+    // Refused and unchanged: the space is still in the list and still open.
+    expect(await listed(owner)).toContain(id);
+    expect((await owner.client.get(`/v1/spaces/${id}`).expect(200)).body.archivedAt).toBeNull();
   });
 
   it('keeps an ended space readable, because history still names it', async () => {

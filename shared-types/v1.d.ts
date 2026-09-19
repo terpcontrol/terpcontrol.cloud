@@ -1058,11 +1058,11 @@ export interface PlanStepInput {
   /**
    * The stage this step puts the grow in; null leaves the phase alone.
    */
-  stage: GrowthStage | null;
+  stage?: GrowthStage | null;
   /**
    * The climate preset applied on top of the stage, such as `late_flowering`.
    */
-  preset: string | null;
+  preset?: string | null;
   duration: StepDuration;
   settings: DeviceConfiguration;
   waitForConfirmation: boolean;

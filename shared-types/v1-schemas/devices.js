@@ -358,7 +358,16 @@ exports.socketTestCreate = (0, common_js_1.named)('SocketTestCreate', zod_1.z.ob
 /* --------------------------------------------------------------------- plan */
 /** The user's own unit is the fact here, so a step's duration keeps it rather than being seconds. */
 exports.durationUnit = (0, common_js_1.named)('DurationUnit', zod_1.z.enum(['minutes', 'hours', 'days', 'weeks']));
-exports.stepDuration = (0, common_js_1.named)('StepDuration', zod_1.z.object({ value: zod_1.z.number().int(), unit: exports.durationUnit }));
+/**
+ * `value` is not required to be whole. The old recipe screen took whatever
+ * somebody typed, and a plan in the field holds a step of half a day - a tent is
+ * running on it right now. The engine multiplies the value by its unit and never
+ * cared, so the only thing a whole number would buy is that such a plan could be
+ * read and not written back, and the step's length would have to be rounded
+ * under a running tent to save the recipe it belongs to. Zero is the step with no
+ * length, which runs until somebody moves it on.
+ */
+exports.stepDuration = (0, common_js_1.named)('StepDuration', zod_1.z.object({ value: zod_1.z.number(), unit: exports.durationUnit }));
 exports.planStep = (0, common_js_1.named)('PlanStep', zod_1.z.object({
     id: (0, common_js_1.id)().describe('Stable across edits, so `state.activeStepIndex` survives a step being inserted above it.'),
     name: zod_1.z.string(),
@@ -402,12 +411,25 @@ exports.plan = (0, common_js_1.named)('Plan', zod_1.z.object({
     state: exports.planState,
 }));
 /**
- * A step as a client writes one. Its id is the only field the server may fill
- * in: an edit sends back the ids of the steps it kept, which is what lets the
- * running step survive another being inserted above it, and a step that is new
- * arrives without one.
+ * A step as a client writes one. Three fields the server fills in, and each for
+ * a reason of its own.
+ *
+ * Its **id** is the server's because identity is: an edit sends back the ids of
+ * the steps it kept, which is what lets the running step survive another being
+ * inserted above it, and a step that is new arrives without one.
+ *
+ * Its **stage** and its **preset** default to `null` because saying nothing
+ * about the grow is what nearly every recipe does. A recipe is a sequence of
+ * climates, and only the guided onboarding's reference plans ever put a step's
+ * name to a botanical stage - every recipe that came out of the old app carries
+ * none at all. Demanding the two keys on every step would make a screen with no
+ * stage picker unable to write a step without inventing a value for one, and a
+ * climate-only recipe that came back from such a screen with a stage on it would
+ * start driving phases its tent never had. The answer still carries both, always
+ * present and `null` where a step says nothing, so what a client reads back is
+ * what a client may write.
  */
-exports.planStepInput = (0, common_js_1.named)('PlanStepInput', exports.planStep.partial({ id: true }));
+exports.planStepInput = (0, common_js_1.named)('PlanStepInput', exports.planStep.partial({ id: true, stage: true, preset: true }));
 /**
  * `PUT /devices/{id}/plan`. A device runs one plan, so the route both writes the
  * first one and replaces the one that is there; where the plan stands is `state`

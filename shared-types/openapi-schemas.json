@@ -2870,9 +2870,7 @@
     "type": "object",
     "properties": {
       "value": {
-        "type": "integer",
-        "minimum": -9007199254740991,
-        "maximum": 9007199254740991
+        "type": "number"
       },
       "unit": {
         "$ref": "#/components/schemas/DurationUnit"
@@ -3148,8 +3146,6 @@
     },
     "required": [
       "name",
-      "stage",
-      "preset",
       "duration",
       "settings",
       "waitForConfirmation",
