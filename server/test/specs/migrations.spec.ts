@@ -75,7 +75,7 @@ beforeEach(async () => {
 describe('the migration command', () => {
   it('reads the whole database on a dry run and writes nothing at all', async () => {
     const before = await names();
-    const { code, output } = await migrate('--dry-run');
+    const { code, output } = await migrate('--dry-run', '--allow-rejects');
 
     expect(code).toBe(0);
     expect(output).toContain('Dry run: nothing was written.');
@@ -86,8 +86,19 @@ describe('the migration command', () => {
     expect(await database.collection('migrations').countDocuments()).toBe(0);
   }, 60_000);
 
+  it('stops at the row it could not take, and says which one it was', async () => {
+    const { code, output } = await migrate();
+
+    expect(code).toBe(1);
+    expect(output).toMatch(/could not take 2 rows, and the run stopped there/u);
+    expect(output).toMatch(/devicefirmwarebinaries/u);
+    expect(output).toMatch(/claimcodes\/CLAIM-ORPHAN-01/u);
+    // Nothing of what follows that step has run.
+    expect(await database.collection('entries').countDocuments()).toBe(0);
+  }, 120_000);
+
   it('migrates the database, reports what it could not take, and has nothing left to do the second time', async () => {
-    const first = await migrate();
+    const first = await migrate('--allow-rejects');
 
     expect(first.code).toBe(0);
     expect(first.output).toContain('Migrations applied.');
@@ -97,10 +108,10 @@ describe('the migration command', () => {
     expect(first.output).toMatch(new RegExp(`kept devices/${fixture.devices.fan}`, 'u'));
 
     expect(await database.collection('spaces').countDocuments()).toBe(5);
-    expect(await database.collection('entries').countDocuments()).toBe(fixture.counts.devicelogs - 1);
+    expect(await database.collection('entries').countDocuments()).toBe(fixture.counts.devicelogs);
     expect(await database.collection('legacy_devicelogs').countDocuments()).toBe(fixture.counts.devicelogs);
 
-    const second = await migrate();
+    const second = await migrate('--allow-rejects');
 
     expect(second.code).toBe(0);
     expect(second.output).toContain('Already applied:');
@@ -108,7 +119,7 @@ describe('the migration command', () => {
   }, 120_000);
 
   it('puts the old collections back on a rollback, and takes the new ones away', async () => {
-    await migrate();
+    await migrate('--allow-rejects');
     const { code, output } = await migrate('--rollback');
 
     expect(code).toBe(0);
