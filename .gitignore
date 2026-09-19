@@ -24,3 +24,8 @@ garmin/bin/
 
 # Integration test harness scratch space
 server/test/.tmp/
+
+# Local, uncommitted overrides
+/CLAUDE.local.md
+/*.local.sh
+/scripts/*.local.sh
