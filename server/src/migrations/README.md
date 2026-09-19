@@ -30,6 +30,23 @@ On an install with no old data — a fresh one, and the integration suite — **
 no documents in it is not renamed aside. Every step still runs, finds nothing and records itself, so a later boot
 has nothing to do.
 
+## A row it cannot take stops it
+
+A transform that meets a row it cannot carry records it with its reason and **stops the run there**. The steps
+before it stay applied, the step that rejected is not recorded, and the next run repeats it and stops again - a
+refusal that lasted one run would be no refusal at all.
+
+That is deliberate, and it is the lesson of a rule that read a diary entry's flag as a deletion: it dropped every
+line every grower had written, reported each one, and finished green. A report nobody has to read is not a
+safeguard.
+
+So the run ends in one of two places. Either the rows are fixed in the database and it is run again, or whoever
+read the report decides that leaving them behind is the intention and says so - `--allow-rejects` on the command
+line, `MIGRATION_ALLOW_REJECTS=true` where the server's environment is set, since nobody types a flag when a
+container starts.
+
+Read `--dry-run` first: it reports exactly the rows the real run would reject, and writes nothing at all.
+
 ## The steps, in order
 
 | | What it does |
@@ -60,6 +77,7 @@ documents rather than making second ones.
 npm run migrate:check          # only what a run refuses to start on; writes nothing (same as `npm run migrate -- --check`)
 npm run migrate -- --dry-run   # every transform, counts and rejects, writes nothing at all
 npm run migrate                # what the server does at boot, without the server
+npm run migrate -- --allow-rejects   # the same, told that the rows it cannot take may be left behind
 npm run migrate:rollback       # drop the new collections, put legacy_* back
 ```
 

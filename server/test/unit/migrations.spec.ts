@@ -19,7 +19,7 @@ import { usersSchema } from '@database/schemas/v1/users.schema';
 import { cameraIdOf, planIdOf, spaceIdOf } from '@/migrations/ids';
 import { MigrationContext } from '@/migrations/migration';
 import { applyRollback, planRollback } from '@/migrations/migration-rollback';
-import { MigrationRunner } from '@/migrations/migration-runner';
+import { MigrationRunner, RejectedRows } from '@/migrations/migration-runner';
 import { MIGRATION_STEPS } from '@/migrations/steps';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 
@@ -111,7 +111,11 @@ beforeEach(async () => {
   fixture = await seedLegacyDatabase(connection, AT);
 });
 
-const migrate = () => new MigrationRunner(connection).run({ dryRun: false });
+// The fixture holds rows on purpose that no transform can take, so a run of it
+// stops on them unless it is told that leaving them behind is the intention.
+// That refusal has a test of its own; everything else here is about what a
+// complete run produces.
+const migrate = () => new MigrationRunner(connection).run({ dryRun: false, allowRejects: true });
 
 /**
  * Everything in a database, ordered so two of them can be compared.
@@ -199,13 +203,13 @@ const migratedScratchDatabase = async (name: string, killIn: string | null): Pro
     if (killIn) {
       const restore = killPartWay(killIn, 5);
       try {
-        await expect(new MigrationRunner(scratch).run({ dryRun: false })).rejects.toThrow(/killed part-way/u);
+        await expect(new MigrationRunner(scratch).run({ dryRun: false, allowRejects: true })).rejects.toThrow(/killed part-way/u);
       } finally {
         restore();
       }
     }
 
-    await new MigrationRunner(scratch).run({ dryRun: false });
+    await new MigrationRunner(scratch).run({ dryRun: false, allowRejects: true });
     return await snapshotOf(scratch.db!, { acrossRuns: true });
   } finally {
     await scratch.dropDatabase();
@@ -216,7 +220,7 @@ const migratedScratchDatabase = async (name: string, killIn: string | null): Pro
 describe('a dry run', () => {
   it('reports what it would do and writes nothing at all', async () => {
     const before = await names();
-    const report = await new MigrationRunner(connection).run({ dryRun: true });
+    const report = await new MigrationRunner(connection).run({ dryRun: true, allowRejects: true });
 
     expect(report.dryRun).toBe(true);
     expect(report.applied.map(outcome => outcome.name)).toHaveLength(MIGRATION_STEPS.length);
@@ -231,7 +235,7 @@ describe('a dry run', () => {
     const described = (run: { applied: { name: string; rejects: { source: string; id: string; dropped: boolean }[] }[] }): string[] =>
       run.applied.flatMap(outcome => outcome.rejects.map(reject => `${outcome.name} ${reject.source}/${reject.id} ${reject.dropped}`));
 
-    const rehearsed = await new MigrationRunner(connection).run({ dryRun: true });
+    const rehearsed = await new MigrationRunner(connection).run({ dryRun: true, allowRejects: true });
 
     expect(described(await migrate())).toEqual(described(rehearsed));
   });
@@ -678,6 +682,36 @@ describe('media', () => {
 });
 
 describe('the documents no transform can take', () => {
+  it('stops the run at the step that could not take them, and says which rows they were', async () => {
+    // A report nobody has to read is not a safeguard: a rule that dropped every
+    // diary line anybody had written reported each one and finished green.
+    const run = new MigrationRunner(connection).run({ dryRun: false });
+
+    await expect(run).rejects.toThrow(RejectedRows);
+    await expect(run).rejects.toThrow(/devicefirmwarebinaries/u);
+
+    // It stopped where it stopped: the steps before it are applied, the ones
+    // after it have not run, and the collections they read are untouched.
+    expect(await collection('migrations').countDocuments()).toBeGreaterThan(0);
+    expect(await collection('migrations').countDocuments()).toBeLessThan(MIGRATION_STEPS.length);
+    expect(await collection('entries').countDocuments()).toBe(0);
+    expect(await collection('devicelogs').countDocuments()).toBe(fixture.counts.devicelogs);
+  });
+
+  it('stops again on the next run, rather than skipping the step it could not finish', async () => {
+    await expect(new MigrationRunner(connection).run({ dryRun: false })).rejects.toThrow(RejectedRows);
+    await expect(new MigrationRunner(connection).run({ dryRun: false })).rejects.toThrow(/devicefirmwarebinaries/u);
+  });
+
+  it('carries on from where it stopped once it is told the rows may be left behind', async () => {
+    await expect(new MigrationRunner(connection).run({ dryRun: false })).rejects.toThrow(RejectedRows);
+
+    const report = await migrate();
+
+    expect(report.applied.length + report.alreadyApplied.length).toBe(MIGRATION_STEPS.length);
+    expect(await collection('entries').countDocuments()).toBe(fixture.counts.devicelogs);
+  });
+
   it('reports every one of them and runs to the end anyway', async () => {
     const report = await migrate();
     const rejects = report.applied.flatMap(outcome => outcome.rejects.map(reject => ({ step: outcome.name, ...reject })));

@@ -3,7 +3,7 @@ import { config as readEnvFile } from 'dotenv';
 import { createConnection } from 'mongoose';
 import { databaseConfig } from '../config/configuration';
 import { mongoConnectionSettings } from '../database/mongo-connection';
-import { MigrationRunner, MigrationRunReport } from './migration-runner';
+import { MigrationRunner, MigrationRunReport, RejectedRows } from './migration-runner';
 import { applyRollback, planRollback } from './migration-rollback';
 import { PreflightFailure, preflight } from './preflight';
 
@@ -14,7 +14,8 @@ import { PreflightFailure, preflight } from './preflight';
  * upgrade happens - it is how a rehearsal happens. A dry run reads the whole
  * database, runs every transform and writes nothing at all, not even the rename,
  * and prints the counts and the rejects an operator reads before letting the
- * real thing run against the hosted database. `--check` is the short half of
+ * real thing run against the hosted database. `--allow-rejects` is how a run is
+ * told that leaving the rows it cannot take behind is the intention. `--check` is the short half of
  * that: only the checks a run refuses to start on, so a database can be cleared
  * for an upgrade before the day of it.
  *
@@ -82,15 +83,20 @@ const main = async (): Promise<void> => {
       return;
     }
 
-    printRun(await new MigrationRunner(connection).run({ dryRun: process.argv.includes('--dry-run') }));
+    printRun(
+      await new MigrationRunner(connection).run({
+        dryRun: process.argv.includes('--dry-run'),
+        allowRejects: process.argv.includes('--allow-rejects'),
+      }),
+    );
   } finally {
     await connection.close();
   }
 };
 
-/** A failed check is a report to read, not a crash: it prints as it was written, with no stack in front of it. */
+/** A refusal is a report to read, not a crash: it prints as it was written, with no stack in front of it. */
 const reasonFor = (error: unknown): string => {
-  if (error instanceof PreflightFailure) return error.message;
+  if (error instanceof PreflightFailure || error instanceof RejectedRows) return error.message;
   return error instanceof Error ? (error.stack ?? error.message) : String(error);
 };
 

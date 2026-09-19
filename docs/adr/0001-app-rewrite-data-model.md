@@ -407,6 +407,12 @@ For every collection that changes shape:
 2. transform it into the new collection or collections,
 3. compare counts and write the statistics and every rejected document to the migration record.
 
+A row a transform cannot take **stops the run at that step**. The steps before it stay applied, the step itself is
+not recorded, so the next run repeats it and stops again; going on anyway is something an operator says out loud
+(`--allow-rejects`, or `MIGRATION_ALLOW_REJECTS=true` where a container's environment is set). A report that stops
+nothing is not a safeguard: a rule that read a diary entry's flag as a deletion dropped every line every grower
+had written, reported each one, and finished green.
+
 Before any of this, the existing background job that moves picture bytes still stored inside old `images`
 documents into the GridFS bucket is run to completion as a migration of its own, because it looks for those
 documents under the collection's old name.

@@ -20,6 +20,40 @@ export interface MigrationOutcome {
   rejectCount: number;
 }
 
+/**
+ * What a run throws when a transform could not take a row.
+ *
+ * It carries the step's whole outcome rather than a sentence, so whoever reads
+ * it sees every row that step rejected and why - which is the thing to act on,
+ * and the thing a count alone hides.
+ */
+export class RejectedRows extends Error {
+  constructor(public readonly outcome: MigrationOutcome) {
+    super(formatRejects(outcome));
+    this.name = 'RejectedRows';
+  }
+}
+
+/** The report a person reads: what was refused, why, and which row it was. */
+const formatRejects = (outcome: MigrationOutcome): string => {
+  const shown = outcome.rejects.map(reject => {
+    const where = reject.detail ? ` (${reject.detail})` : '';
+    const kept = reject.dropped ? 'not migrated' : 'migrated without it';
+    return `  ${reject.source}/${reject.id}${where}\n    ${reject.reason}\n    ${kept}`;
+  });
+  const more = outcome.rejectCount > shown.length ? `\n  … and ${outcome.rejectCount - shown.length} more of the same kind.` : '';
+
+  return [
+    `${outcome.name} could not take ${outcome.rejectCount} row${outcome.rejectCount === 1 ? '' : 's'}, and the run stopped there.`,
+    '',
+    'What it was written after is kept, so fixing these and running again carries on rather than starting over.',
+    'If leaving them behind is what you want, run again with --allow-rejects (MIGRATION_ALLOW_REJECTS=true at boot).',
+    '',
+    ...shown,
+    more,
+  ].join('\n');
+};
+
 export interface MigrationRunReport {
   dryRun: boolean;
   applied: MigrationOutcome[];
@@ -46,7 +80,9 @@ export class MigrationRunner {
   }
 
   public async runAtBoot(): Promise<void> {
-    const report = await this.run({ dryRun: false });
+    // Nobody types a flag when a container starts, so the deliberate way past a
+    // rejected row is set where the rest of the deployment is.
+    const report = await this.run({ dryRun: false, allowRejects: process.env.MIGRATION_ALLOW_REJECTS === 'true' });
     for (const outcome of report.applied) {
       logger.info(`Migration ${outcome.name} applied in ${outcome.durationMs} ms: ${describe(outcome)}`);
     }
@@ -54,7 +90,7 @@ export class MigrationRunner {
     await this.buildSeparatedIndexes();
   }
 
-  public async run({ dryRun }: { dryRun: boolean }): Promise<MigrationRunReport> {
+  public async run({ dryRun, allowRejects = false }: { dryRun: boolean; allowRejects?: boolean }): Promise<MigrationRunReport> {
     const applied = await this.appliedNames();
     const report: MigrationRunReport = { dryRun, applied: [], alreadyApplied: MIGRATION_STEPS.filter(s => applied.has(s.name)).map(s => s.name) };
 
@@ -77,7 +113,19 @@ export class MigrationRunner {
 
       for (const step of MIGRATION_STEPS) {
         if (alreadyApplied.has(step.name)) continue;
-        report.applied.push(await this.apply(step, dryRun));
+
+        const outcome = await this.apply(step, dryRun, allowRejects);
+        report.applied.push(outcome);
+
+        // A row a transform could not take is a row that will not be in the new
+        // model, and a report nobody has to read is not a safeguard: an entry
+        // rule that dropped every diary line anybody had ever written reported
+        // each one and finished green. So the run stops here with what this step
+        // rejected, and whoever reads it decides - fix the rows and run again,
+        // or say with `allowRejects` that leaving them behind is the intention.
+        // What was written stays: every copy is an upsert keyed by the document
+        // it came from, so the next run carries on rather than starting over.
+        if (!allowRejects && outcome.rejectCount > 0) throw new RejectedRows(outcome);
       }
     } finally {
       await lock?.release();
@@ -115,7 +163,7 @@ export class MigrationRunner {
     }
   }
 
-  private async apply(step: MigrationStep, dryRun: boolean): Promise<MigrationOutcome> {
+  private async apply(step: MigrationStep, dryRun: boolean, allowRejects: boolean): Promise<MigrationOutcome> {
     const startedAt = Date.now();
     const context = new MigrationContext(this.db, dryRun, new Date());
 
@@ -134,7 +182,10 @@ export class MigrationRunner {
       rejectCount: context.rejectCount,
     };
 
-    if (!dryRun) {
+    // A step that could not take a row is not recorded as applied unless the run
+    // is allowed to leave those rows behind - otherwise the next run would skip
+    // it, and a refusal that lasts one run is no refusal at all.
+    if (!dryRun && (allowRejects || outcome.rejectCount === 0)) {
       const appliedAt = new Date();
       await this.db.collection(MIGRATIONS).updateOne(
         { name: step.name },
