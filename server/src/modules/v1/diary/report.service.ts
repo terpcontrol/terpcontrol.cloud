@@ -187,8 +187,12 @@ export class GrowReportService {
       .lean<EntryDocument[]>();
   }
 
-  /** The four numbers above the chapters, counted in the database rather than from the rows that were read. */
-  private async totalsOf(growId: string, grant: Grant): Promise<GrowTotals> {
+  /**
+   * The four numbers above the chapters, counted in the database rather than
+   * from the rows that were read. The public page states the same four, so it
+   * asks for them here rather than counting a grow's diary a second way.
+   */
+  public async totalsOf(growId: string, grant: Grant): Promise<GrowTotals> {
     const rows = await this.entries.aggregate<{ _id: EntryKind; count: number }>([
       { $match: { $and: [{ growId, kind: { $in: CHAPTER_KINDS } }, withinRange('occurredAt', clampRange(grant))] } },
       { $group: { _id: '$kind', count: { $sum: 1 } } },
@@ -229,8 +233,12 @@ const chaptersOf = (grow: GrowDocument, horizon: Date): Chapter[] => {
   return spine.map((phase, index) => ({ phase, startsAt: phase.startedAt, endsAt: spine[index + 1]?.startedAt ?? grow.endedAt ?? null }));
 };
 
-/** One harvest for the whole grow: when the first plant came down, and what the lot weighed. */
-const harvestOf = (plants: readonly PlantDocument[], hide: Redaction): GrowHarvest | null => {
+/**
+ * One harvest for the whole grow: when the first plant came down, and what the
+ * lot weighed. The report and the public page both state it, and a weight that
+ * two places worked out separately is a weight one of them could state wrongly.
+ */
+export const harvestOf = (plants: readonly PlantDocument[], hide: Redaction): GrowHarvest | null => {
   const harvested = plants.flatMap(plant => (plant.harvest ? [plant.harvest] : []));
   if (harvested.length === 0) return null;
 

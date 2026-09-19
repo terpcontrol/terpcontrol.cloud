@@ -4,6 +4,7 @@ import { FilterQuery, Model } from 'mongoose';
 import { DateTime } from 'luxon';
 import type {
   CameraStill,
+  Entry,
   Metric,
   OpenAlert,
   OverviewCamera,
@@ -16,7 +17,6 @@ import type {
 } from '@fg2/shared-types/v1';
 import { metric as metricSchema, outputMetric } from '@fg2/shared-types/v1-schemas';
 import { AccessRange, Grant } from '@common/v1/access.types';
-import { serialiseEntry } from '@common/v1/entries';
 import { clampRange, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
@@ -31,6 +31,7 @@ import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { setpointsOf } from '../device/setpoints';
+import { serialiseDiaryEntry } from '../diary/diary-entries';
 import { NOTHING_HIDDEN, Redaction, redactionOf, summaryOf } from '../grow/grow-serialiser';
 import { dueTasksOf, occurrencePrefix } from '../home/due-tasks';
 import { liveOfDevice, mergeLive, setpointOf } from '../space/space-live';
@@ -53,6 +54,9 @@ import { STEERED, verdictOf } from './climate-verdict';
  * Every read is clamped to what the caller was granted, because this is a route
  * a share link reaches: the window is the link's, and a grow read by somebody
  * who is neither its owner nor a member is served through its owner's privacy.
+ * The working half of the page goes with it - what is due and what is alarming
+ * is for whoever keeps the tent, and a reader who arrived on a link is not one
+ * of them.
  */
 
 /** How many lines of the diary a page opens with. */
@@ -114,7 +118,9 @@ export class OverviewService {
         .find({ $and: [{ resolvedAt: null }, this.raisedHere(spaceId, devices), withinRange('startedAt', range)] })
         .sort({ startedAt: -1 })
         .lean<StoredAlert[]>(),
-      this.users.findOne({ id: space.ownerId }, { id: 1, preferences: 1 }).lean<Pick<StoredUser, 'id' | 'preferences'> | null>(),
+      this.users
+        .findOne({ id: space.ownerId }, { id: 1, preferences: 1, privacy: 1 })
+        .lean<Pick<StoredUser, 'id' | 'preferences' | 'privacy'> | null>(),
     ]);
     const growIds = grows.map(grow => grow.id);
 
@@ -159,7 +165,22 @@ export class OverviewService {
     ]);
 
     const [completions, watched] = await Promise.all([this.completionsOf(reminders), this.metricsOf(alerts)]);
-    const dueTasks = dueTasksOf(reminders, completions, now).map(task => ({ ...task, defaults: defaultsOf(task.id, reminders) }));
+
+    /**
+     * What is due here and what is alarming are the working half of the page,
+     * and they belong to the people who keep the tent. A stranger who opened a
+     * link, and anybody reading a public grow, gets the diary and the climate
+     * and neither of these - which is what the contract means by a shared tent
+     * page whose tasks and alerts are empty.
+     */
+    const forKeepers = !grant.redacted;
+    const dueTasks = forKeepers ? dueTasksOf(reminders, completions, now).map(task => ({ ...task, defaults: defaultsOf(task.id, reminders) })) : [];
+    // The lines themselves are served through the same privacy as the grows
+    // above them: a harvest entry carries the weights the card is already
+    // hiding, and a photo line names the camera a link may not have been made
+    // to carry.
+    const lines = redactionOf(grant.redacted, owner?.privacy);
+    const told = entries.map(entry => serialiseDiaryEntry(entry, lines, grant.includeCameras));
 
     return {
       spaceId: space.id,
@@ -180,10 +201,10 @@ export class OverviewService {
         ),
       ),
       cameras: cameras.map(camera => cameraHere(camera, stills.get(camera.id) ?? [])),
-      entries: entries.map(serialiseEntry),
+      entries: told,
       dueTasks,
-      openAlerts: alerts.map(alert => openAlertOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
-      people: await this.peopleIn(entries, dueTasks),
+      openAlerts: forKeepers ? alerts.map(alert => openAlertOf(alert, watched.get(alert.ruleId ?? '') ?? null)) : [],
+      people: await this.peopleIn(told, dueTasks),
     };
   }
 
@@ -264,8 +285,12 @@ export class OverviewService {
       .lean<EntryDocument[]>();
   }
 
-  /** Everyone the page names, once, so "Mia fed" needs no second read. */
-  private async peopleIn(entries: EntryDocument[], tasks: OverviewTask[]): Promise<Person[]> {
+  /**
+   * Everyone the page names, once, so "Mia fed" needs no second read. Asked of
+   * the lines as they are answered rather than as they are stored: a page that
+   * names nobody has nobody to look up.
+   */
+  private async peopleIn(entries: Entry[], tasks: OverviewTask[]): Promise<Person[]> {
     const ids = new Set([...entries.map(entry => entry.authorId), ...tasks.map(task => task.assigneeId)]);
     ids.delete(null);
     if (ids.size === 0) return [];

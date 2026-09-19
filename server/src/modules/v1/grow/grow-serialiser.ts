@@ -1,4 +1,14 @@
-import type { GrowListItem, GrowLocation, GrowSummary, Phase, PhaseGroup, Placement, Plant, UserPrivacy } from '@fg2/shared-types/v1';
+import type {
+  FollowedGrowCard,
+  GrowListItem,
+  GrowLocation,
+  GrowSummary,
+  Phase,
+  PhaseGroup,
+  Placement,
+  Plant,
+  UserPrivacy,
+} from '@fg2/shared-types/v1';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 
@@ -21,14 +31,20 @@ type StoredPlacement = GrowDocument['placements'][number];
 /**
  * What is left out of an answer. A grow read by somebody who is neither its
  * owner nor a member of the space it stands in is served through its owner's
- * privacy settings, and those two switches are the whole of it.
+ * privacy settings, which are the first two switches.
+ *
+ * `authors` is not one of those settings and is not the owner's to turn off: who
+ * wrote which line is the account behind it, and a reader outside the tent is
+ * told what happened rather than who by. It is why a public page carries no
+ * `people` list where the owner's own week cards do.
  */
 export interface Redaction {
   weights: boolean;
   counts: boolean;
+  authors: boolean;
 }
 
-export const NOTHING_HIDDEN: Redaction = { weights: false, counts: false };
+export const NOTHING_HIDDEN: Redaction = { weights: false, counts: false, authors: false };
 
 /**
  * Whose privacy applies is decided by `access()`; this is what it comes to. An
@@ -36,7 +52,7 @@ export const NOTHING_HIDDEN: Redaction = { weights: false, counts: false };
  * for a reader who is already a stranger is the quieter one.
  */
 export const redactionOf = (redacted: boolean, privacy: UserPrivacy | null | undefined): Redaction =>
-  redacted ? { weights: privacy?.hideWeights ?? true, counts: privacy?.hideCounts ?? true } : NOTHING_HIDDEN;
+  redacted ? { weights: privacy?.hideWeights ?? true, counts: privacy?.hideCounts ?? true, authors: true } : NOTHING_HIDDEN;
 
 /**
  * A scope that is not shown is empty rather than absent: `null` already means
@@ -149,6 +165,33 @@ export const summaryOf = (grow: GrowDocument, plants: PlantDocument[], hide: Red
       plants.map(plant => plant.id),
       hide,
     ),
+  };
+};
+
+/**
+ * A public grow as it is named rather than opened: among the grows somebody
+ * follows on the home screen, and among the diaries on its author's public page.
+ * One card either way, because a grow that has been made public reads the same
+ * wherever it is listed - and the handle is the only name its author ever has.
+ */
+export const serialisePublicCard = (
+  grow: GrowDocument,
+  plants: PlantDocument[],
+  handle: string,
+  hide: Redaction,
+  now: Date = new Date(),
+): FollowedGrowCard => {
+  const summary = summaryOf(grow, plants, hide, now);
+
+  return {
+    growId: grow.id,
+    slug: grow.slug,
+    name: grow.name,
+    handle,
+    dayNumber: summary.dayNumber,
+    stage: summary.stage,
+    coverMediaId: grow.coverMediaId,
+    updatedAt: grow.updatedAt.toISOString(),
   };
 };
 

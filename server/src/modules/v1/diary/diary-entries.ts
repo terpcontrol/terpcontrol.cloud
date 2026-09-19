@@ -18,6 +18,11 @@ export const serialiseDiaryEntry = (entry: EntryDocument, hide: Redaction, inclu
 
   return {
     ...told,
+    // Who wrote it is the account behind it. A page that names nobody - which is
+    // every public page, and a tent somebody was sent a link to - says what was
+    // done and leaves the person out, rather than handing over an id that has no
+    // handle beside it to make sense of.
+    authorId: hide.authors ? null : told.authorId,
     // A list of plants is a count stated the long way round, and an empty one
     // already means "about whatever this is attached to" rather than about
     // single plants - which is what the grow serialiser answers a hidden scope

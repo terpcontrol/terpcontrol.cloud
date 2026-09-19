@@ -71,7 +71,7 @@ const fakeData = {
 const build = (): HomeService => {
   const access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
   const devices = new DevicesService(db.devices, db.claimCodes, db.spaces, db.memberships, db.cameras, db.plans, db.alarmRules, access);
-  const spaces = new SpacesService(db.spaces, db.memberships, db.invites, db.devices, db.cameras, db.grows, devices, access);
+  const spaces = new SpacesService(db.spaces, db.memberships, db.invites, db.shareLinks, db.devices, db.cameras, db.grows, devices, access);
   const live = new SpaceLiveService(db.devices, db.cameras, fakeData);
 
   return new HomeService(

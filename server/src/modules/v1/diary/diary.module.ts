@@ -41,5 +41,9 @@ import { TasksController } from './tasks.controller';
     GrowClimateService,
     OptionalSessionGuard,
   ],
+  // The week cards and the two figures above the chapters are what a public
+  // diary is made of as well, so the sharing slice reads them from here rather
+  // than assembling a grow's story a second way.
+  exports: [GrowWeeksService, GrowReportService],
 })
 export class DiaryModule {}

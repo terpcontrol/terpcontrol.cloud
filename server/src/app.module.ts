@@ -30,6 +30,7 @@ import { OverviewModule } from './modules/v1/overview/overview.module';
 import { PhaseModule } from './modules/v1/phase/phase.module';
 import { PlanModule } from './modules/v1/plan/plan.module';
 import { SessionsModule } from './modules/v1/sessions/sessions.module';
+import { SharingModule } from './modules/v1/sharing/sharing.module';
 import { SpaceModule } from './modules/v1/space/space.module';
 import { TimelineModule } from './modules/v1/timeline/timeline.module';
 import { WiringModule } from './wiring.module';
@@ -90,6 +91,7 @@ import { WiringModule } from './wiring.module';
     HomeModule,
     OverviewModule,
     TimelineModule,
+    SharingModule,
 
     // The probes, and the daily sweep for records nothing can reach any more.
     HealthModule,

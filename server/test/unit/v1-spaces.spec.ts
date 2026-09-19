@@ -89,7 +89,7 @@ beforeEach(async () => {
   await db.reset();
   access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
   const devices = new DevicesService(db.devices, db.claimCodes, db.spaces, db.memberships, db.cameras, db.plans, db.alarmRules, access);
-  spaces = new SpacesService(db.spaces, db.memberships, db.invites, db.devices, db.cameras, db.grows, devices, access);
+  spaces = new SpacesService(db.spaces, db.memberships, db.invites, db.shareLinks, db.devices, db.cameras, db.grows, devices, access);
   controller = new SpacesController(spaces, new SpaceLiveService(db.devices, db.cameras, {} as DataService), access);
   guard = new AccessGuard(new Reflector(), access);
   await seed();

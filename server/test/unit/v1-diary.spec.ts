@@ -121,6 +121,7 @@ const build = (): void => {
     db.memberships,
     db.spaces,
     db.users,
+    db.shareLinks,
     access,
     new PhaseWriterService(db.grows, writer),
     writer,

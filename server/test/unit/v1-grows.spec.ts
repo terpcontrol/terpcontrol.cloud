@@ -68,6 +68,7 @@ const build = (presetsPort: ClimatePresets | null): GrowsService => {
     db.memberships,
     db.spaces,
     db.users,
+    db.shareLinks,
     access,
     new PhaseWriterService(db.grows, entries),
     entries,
@@ -457,14 +458,14 @@ describe('plants', () => {
 // ---------------------------------------------------------------------------
 
 describe('what is left out for a stranger', () => {
-  const hidden = { weights: true, counts: true };
+  const hidden = { weights: true, counts: true, authors: true };
 
   it('hides the weights', async () => {
     const grow = await started();
     const plant = (await plantsOfGrow(grow.id))[0];
     await grows.updatePlant(plant.id, { harvest: { harvestedAt: TEN_DAYS_LATER.toISOString(), wetWeightG: 120, dryWeightG: 30 } }, NOTHING_HIDDEN);
 
-    const page = await grows.listPlants(grow.id, { weights: true, counts: false });
+    const page = await grows.listPlants(grow.id, { weights: true, counts: false, authors: true });
     expect(page.items[0].harvest).toMatchObject({ wetWeightG: null, dryWeightG: null });
   });
 

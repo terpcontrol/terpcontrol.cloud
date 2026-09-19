@@ -14,6 +14,7 @@ import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { InviteDocument } from '@database/schemas/v1/invites.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
+import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { DevicesService } from '../device/devices.service';
 
@@ -44,6 +45,7 @@ export class SpacesService {
     @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
     @InjectModel(MODEL_V1.membership) private readonly memberships: Model<MembershipDocument>,
     @InjectModel(MODEL_V1.invite) private readonly invites: Model<InviteDocument>,
+    @InjectModel(MODEL_V1.shareLink) private readonly shareLinks: Model<ShareLinkDocument>,
     // Read, never written, and each is the collection that carries the pointer:
     // a device and a camera name the space they stand in, a grow names it in a
     // placement. What may be deleted is decided from the pointers themselves.
@@ -222,8 +224,8 @@ export class SpacesService {
    * Deleting ends the space for clients without removing the row: an entry, a
    * picture and a grow that once stood here still name it, and a list with a
    * dangling name in it is worse than a place nobody can reach any more. What
-   * does go is who was let in - a membership on a space that has ended is a way
-   * into somebody's history.
+   * does go is who was let in - a membership, an invite and a share link on a
+   * space that has ended are each a way into somebody's history.
    */
   public async remove(id: string): Promise<void> {
     const space = await this.require(id);
@@ -232,6 +234,7 @@ export class SpacesService {
     await this.spaces.updateOne({ id }, { $set: { archivedAt: space.archivedAt ?? new Date() } });
     await this.memberships.deleteMany({ spaceId: id });
     await this.invites.deleteMany({ spaceId: id });
+    await this.shareLinks.deleteMany({ 'subject.type': 'space', 'subject.id': id });
   }
 
   /**

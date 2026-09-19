@@ -128,7 +128,7 @@ const fakeData = {
 const build = (): TimelineService => {
   access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
   const devices = new DevicesService(db.devices, db.claimCodes, db.spaces, db.memberships, db.cameras, db.plans, db.alarmRules, access);
-  const places = new SpacesService(db.spaces, db.memberships, db.invites, db.devices, db.cameras, db.grows, devices, access);
+  const places = new SpacesService(db.spaces, db.memberships, db.invites, db.shareLinks, db.devices, db.cameras, db.grows, devices, access);
 
   return new TimelineService(
     db.grows,

@@ -15,15 +15,19 @@ import { TimelapseContext } from './timelapse-context.service';
  * the generic families where it does not; the film is readable either way.
  */
 
-/** The look of round 15, so a film reads as the app it came out of. */
-const INK = '#e9edf4';
-const MUTED = '#8b95a8';
-const PANEL = 'rgb(13,17,24)';
+/**
+ * The look of round 15, so a film reads as the app it came out of - and so does
+ * the card a shared link is drawn as, which is the same trick: an SVG layer
+ * composited onto a picture by sharp.
+ */
+export const INK = '#e9edf4';
+export const MUTED = '#8b95a8';
+export const PANEL = 'rgb(13,17,24)';
 const TEMPERATURE = '#f39a3c';
 const HUMIDITY = '#5b93f5';
 
-const TEXT_FAMILY = 'IBM Plex Sans, DejaVu Sans, sans-serif';
-const FIGURE_FAMILY = 'JetBrains Mono, DejaVu Sans Mono, monospace';
+export const TEXT_FAMILY = 'IBM Plex Sans, DejaVu Sans, sans-serif';
+export const FIGURE_FAMILY = 'JetBrains Mono, DejaVu Sans Mono, monospace';
 
 /** How far either side of a diary line its caption is shown. */
 const CAPTION_WINDOW_MS = 30 * 60 * 1000;
@@ -203,9 +207,11 @@ const caption = (frame: OverlayFrame, context: TimelapseContext): string | null 
   </g>`;
 };
 
-/** A caption is whatever somebody typed, and it is being put into an XML document. */
-const escapeText = (text: string): string =>
-  text.slice(0, 80).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+/** Text somebody typed, being put into an XML document. */
+export const escapeXml = (text: string): string => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/** A caption is whatever somebody typed, and a frame has room for a line of it. */
+const escapeText = (text: string): string => escapeXml(text.slice(0, 80));
 
 const clamp = (value: number): number => Math.min(Math.max(value, 0), 1);
 

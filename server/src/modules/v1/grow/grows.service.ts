@@ -28,6 +28,7 @@ import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
+import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { targetsOf } from '../phase/phase-targets';
@@ -57,6 +58,7 @@ export class GrowsService {
     @InjectModel(MODEL_V1.membership) private readonly memberships: Model<MembershipDocument>,
     @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
     @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
+    @InjectModel(MODEL_V1.shareLink) private readonly shareLinks: Model<ShareLinkDocument>,
     private readonly access: AccessService,
     private readonly phases: PhaseWriterService,
     private readonly entries: EntryWriterService,
@@ -72,6 +74,16 @@ export class GrowsService {
     if (!grow) throw notFound('grow_not_found', 'There is no grow with that id.');
 
     return grow;
+  }
+
+  /**
+   * A grow by the address its public page is read at. The slug is unique, so
+   * there is at most one - and it is answered whatever the grow's visibility is,
+   * because whether a stranger may see it is `access()`'s decision and not a
+   * lookup's.
+   */
+  public bySlug(slug: string): Promise<GrowDocument | null> {
+    return this.grows.findOne({ slug }).lean<GrowDocument>();
   }
 
   /** Oldest first, and the plants of one batch share an instant, so the order they were written in decides between them. */
@@ -248,12 +260,17 @@ export class GrowsService {
    * space and a camera are. Its plants go with it; the diary it wrote and the
    * pictures it holds are removed by the sweep that deletes what nothing can
    * reach any more.
+   *
+   * So do the links onto it. They would resolve to nothing in any case, but a
+   * link is decided by what it points at, and one pointing at a grow that is
+   * gone is a row its owner can see in their list and never take out of it.
    */
   public async remove(id: string): Promise<void> {
     const removed = await this.grows.findOneAndDelete({ id }).lean<GrowDocument>();
     if (!removed) throw notFound('grow_not_found', 'There is no grow with that id.');
 
     await this.plants.deleteMany({ growId: id });
+    await this.shareLinks.deleteMany({ 'subject.type': 'grow', 'subject.id': id });
   }
 
   /**

@@ -73,4 +73,18 @@ export class ProblemExceptionFilter extends ApiExceptionFilter {
     const { status, message } = this.describe(exception);
     return problemOf(status, CODES[status] ?? CODES[HttpStatus.INTERNAL_SERVER_ERROR], message);
   }
+
+  /**
+   * A refusal that named its own status is one wherever it was thrown. The
+   * shareable addresses `/g/{slug}` and `/@{handle}` live outside `/v1` because
+   * they are what somebody pastes into a message rather than API routes, and
+   * they refuse the way the rest of the server does - so a diary that is not
+   * public has to answer 404 there rather than becoming a 500 for want of a
+   * version in the path.
+   */
+  protected describe(exception: unknown): { status: number; message: string } {
+    if (exception instanceof ProblemException) return { status: exception.problem.status, message: exception.problem.detail };
+
+    return super.describe(exception);
+  }
 }

@@ -30,7 +30,7 @@ import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
-import { NOTHING_HIDDEN, Redaction, redactionOf, summaryOf } from '../grow/grow-serialiser';
+import { NOTHING_HIDDEN, Redaction, redactionOf, serialisePublicCard, summaryOf } from '../grow/grow-serialiser';
 import { mergeLive } from '../space/space-live';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
@@ -244,23 +244,14 @@ export class HomeService {
       const owner = grow && owners.find(candidate => candidate.id === grow.ownerId);
       if (!grow || !owner) return [];
 
-      const summary = summaryOf(
-        grow,
-        plants.filter(plant => plant.growId === grow.id),
-        redactionOf(true, owner.privacy),
-        now,
-      );
       return [
-        {
-          growId: grow.id,
-          slug: grow.slug,
-          name: grow.name,
-          handle: owner.handle,
-          dayNumber: summary.dayNumber,
-          stage: summary.stage,
-          coverMediaId: grow.coverMediaId,
-          updatedAt: grow.updatedAt.toISOString(),
-        },
+        serialisePublicCard(
+          grow,
+          plants.filter(plant => plant.growId === grow.id),
+          owner.handle,
+          redactionOf(true, owner.privacy),
+          now,
+        ),
       ];
     });
   }

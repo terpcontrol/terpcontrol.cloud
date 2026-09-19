@@ -9,6 +9,7 @@ import { CamerasService } from './cameras.service';
 import { CaptureService } from './capture.service';
 import { EntitlementService } from './entitlement.service';
 import { MediaController } from './media.controller';
+import { MediaDeliveryService } from './media-delivery.service';
 import { MediaPresentationService } from './media-presentation.service';
 import { MediaService } from './media.service';
 import { OptionalSessionGuard } from './optional-session.guard';
@@ -42,6 +43,7 @@ import { TimelapseService } from './timelapse.service';
     CaptureService,
     EntitlementService,
     MediaService,
+    MediaDeliveryService,
     MediaPresentationService,
     OptionalSessionGuard,
     TerpCamService,
@@ -50,6 +52,6 @@ import { TimelapseService } from './timelapse.service';
     TimelapseContextService,
     TimelapseService,
   ],
-  exports: [CamerasService, MediaService, EntitlementService, TerpCamP2PService],
+  exports: [CamerasService, MediaService, MediaDeliveryService, EntitlementService, TerpCamP2PService],
 })
 export class CameraModule {}

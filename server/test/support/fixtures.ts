@@ -101,3 +101,64 @@ export const shareLinkOnGrow = (growId: string, token: string): Promise<void> =>
       state: { openCount: 0, lastOpenedAt: null },
     });
   });
+
+/**
+ * A reminder on a space, which is what a derived task comes from. Reminders
+ * have no routes yet - they arrive with the notifications round - and a spec
+ * that needs a tent with something due cannot wait for them.
+ */
+export const remindSpace = (spaceId: string, createdBy: string, label = 'Water the tent'): Promise<string> =>
+  withDatabase(async database => {
+    const id = randomUUID();
+
+    await database.collection('reminders').insertOne({
+      id,
+      createdAt: new Date(),
+      subject: { type: 'space', id: spaceId },
+      kind: 'water',
+      label,
+      everyDays: 1,
+      onceAt: null,
+      assigneeId: null,
+      defaults: null,
+      createdBy,
+    });
+
+    return id;
+  });
+
+/**
+ * A still of a camera, as the poller would have stored it: the bytes in the
+ * bucket under the id the row names. The poller only runs against a camera it
+ * can reach, and a spec that needs a picture to exist at a chosen moment needs
+ * one that no stream has to answer for.
+ */
+export const storeCameraStill = (cameraId: string, data: Buffer, capturedAt: Date): Promise<string> =>
+  withDatabase(async database => {
+    const id = randomUUID();
+
+    await pipeline(
+      Readable.from(data),
+      new GridFSBucket(database, { bucketName: BUCKET_NAME }).openUploadStreamWithId(id as unknown as ObjectId, id),
+    );
+
+    await database.collection('media').insertOne({
+      id,
+      createdAt: new Date(),
+      kind: 'still',
+      mime: 'image/jpeg',
+      bytes: data.length,
+      cameraId,
+      growId: null,
+      spaceId: null,
+      uploadedBy: null,
+      capturedAt,
+      endsAt: null,
+      window: null,
+      quality: null,
+      lengthSeconds: null,
+      render: null,
+    });
+
+    return id;
+  });
