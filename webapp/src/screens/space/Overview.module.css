@@ -78,7 +78,29 @@
   color: var(--muted);
 }
 
-.sectionActions a {
+.sectionActions a,
+.sectionButton {
+  color: var(--ink);
+}
+
+/* An action that opens a sheet rather than going somewhere: it reads like the
+   link beside it, because to a thumb they are the same offer. */
+.sectionButton {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* The tent's own actions, under what it is aiming at. */
+.spaceActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.spaceAction {
   color: var(--ink);
 }
 

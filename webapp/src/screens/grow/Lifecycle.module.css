@@ -1,0 +1,153 @@
+/* The row of actions on the grow page and the insides of the four sheets they
+   open. The sheet itself, the chips, the cards and the buttons are the app's
+   own, so nothing here restates a surface, a radius or a colour. */
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.action {
+  color: var(--ink);
+}
+
+/* One sheet, a few questions apart. */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-2) 0;
+}
+
+/* What the server last said the grow reads as, over the questions about it. */
+.now {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.submit {
+  width: 100%;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+/* A stretch that is over, or a plant that is already down: kept, and dimmed. */
+.row[data-dim='true'] {
+  opacity: var(--age-stale);
+}
+
+.rowHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.rowTitle {
+  font-weight: var(--weight-semibold);
+}
+
+.rowMeta {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-align: right;
+}
+
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.danger {
+  color: var(--alarm);
+  border-color: var(--alarm);
+}
+
+.dangerButton {
+  background: var(--alarm);
+  border-color: var(--alarm);
+  color: var(--on-green);
+}
+
+/* The correction or the withdrawal, opened inside the row it is about. */
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: var(--rule-dashed);
+  border-radius: var(--radius);
+}
+
+/* What a change will move, said before it moves. Sentences rather than bullets:
+   a list marker in front of each would read as options to choose between. */
+.effect {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+/* The one thing on these sheets that cannot be undone with another tap. */
+.warning {
+  padding: var(--space-3);
+  border-color: var(--warning);
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.weights {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.weight {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+.weightLabel {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.weightInput {
+  width: 100%;
+  min-width: 0;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font-size: var(--text-lg);
+  text-align: right;
+}
+
+.weightInput:focus {
+  outline: none;
+}

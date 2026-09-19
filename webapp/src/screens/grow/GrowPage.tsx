@@ -13,6 +13,7 @@ import { Tabs } from '@/ui/Tabs';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { Feeding } from './Feeding';
+import { GrowLifecycle } from './Lifecycle';
 import { PhaseBar } from './PhaseBar';
 import { Plants } from './Plants';
 import { Report } from './Report';
@@ -70,6 +71,7 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
         now={now}
         onShare={mayManage ? () => setSharing(true) : null}
       />
+      {mayManage ? <GrowLifecycle grow={grow.data} plants={plants.data?.items ?? []} spaces={spaces.data?.items ?? []} /> : null}
       <RefreshFailed failedAt={grow.isError ? grow.dataUpdatedAt : null} now={now} />
       <Tabs items={tabs} label={t('grow.tabsLabel')} />
       {tab === 'weeks' ? <Weeks grow={grow.data} now={now} /> : null}

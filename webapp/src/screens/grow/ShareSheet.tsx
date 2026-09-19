@@ -3,12 +3,12 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, ShareLink, TimeRange } from '@fg2/shared-types/v1';
 import { useUpdateGrow } from '@/api/grows';
-import { ApiError } from '@/api/problem';
 import { useCreateShareLink, useDeleteShareLink, useRevokeShareLink, useShareLinks, useUpdateShareLink } from '@/api/sharing';
 import { Sheet } from '@/log/Sheet';
 import { ageLabel } from '@/ui/age';
 import { appUrl } from '@/ui/clipboard';
 import { CopyButton } from '@/ui/CopyButton';
+import { Refused } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
 import ui from '@/ui/ui.module.css';
 import styles from './ShareSheet.module.css';
@@ -67,7 +67,7 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
             </div>
           ) : null}
 
-          {update.error ? <Problem error={update.error} /> : null}
+          {update.error ? <Refused error={update.error} /> : null}
         </section>
 
         <section className={styles.block}>
@@ -181,8 +181,8 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
         </div>
       )}
 
-      {revoke.error ? <Problem error={revoke.error} /> : null}
-      {remove.error ? <Problem error={remove.error} /> : null}
+      {revoke.error ? <Refused error={revoke.error} /> : null}
+      {remove.error ? <Refused error={remove.error} /> : null}
     </li>
   );
 }
@@ -246,7 +246,7 @@ function Editor({
         </button>
       </div>
 
-      {error ? <Problem error={error} /> : null}
+      {error ? <Refused error={error} /> : null}
 
       <div className={styles.linkActions}>
         <button type="button" className={`${ui.button} ${ui.primary}`} disabled={busy} onClick={() => onSubmit(draft)}>
@@ -267,16 +267,6 @@ function Field({ label, value, hint, onChange }: { label: string; value: string;
       <input className={`${ui.input} ${styles.date}`} type="date" value={value} placeholder={hint} onChange={event => onChange(event.target.value)} />
       <span className={`mono ${styles.hint}`}>{value ? '' : hint}</span>
     </label>
-  );
-}
-
-function Problem({ error }: { error: unknown }) {
-  const { t } = useTranslation();
-
-  return (
-    <p className={ui.problem} role="alert">
-      {error instanceof ApiError ? error.problem.detail || error.problem.title : t('shell.loadFailed')}
-    </p>
   );
 }
 

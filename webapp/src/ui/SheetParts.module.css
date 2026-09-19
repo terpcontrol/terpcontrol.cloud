@@ -1,0 +1,66 @@
+/* The shared insides of a recording sheet: the chips, the day, and the label
+   over a block. Layout only - every colour is a token. */
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.choice[data-chosen='true'] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
+
+.choice:disabled {
+  opacity: 0.45;
+}
+
+.when {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+
+.whenLabel {
+  flex: 1;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.whenInput {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--ink);
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The browser draws the picker glyph itself, in whichever mode `color-scheme`
+   put it in; all it is told here is to look like something to press. */
+.whenInput::-webkit-calendar-picker-indicator {
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.blockHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.blockAside {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-align: right;
+}

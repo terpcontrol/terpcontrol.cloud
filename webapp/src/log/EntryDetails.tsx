@@ -14,6 +14,7 @@ import type {
 } from '@fg2/shared-types/v1';
 import { correctEntry, diaryChanged, startPhase, useRecentEntries, writeEntry } from '@/api/entries';
 import { useGrow } from '@/api/grows';
+import { dayOf, momentOn } from '@/ui/days';
 import { readingFigure } from '@/ui/entries';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
@@ -302,23 +303,6 @@ const saveLabel = (t: Translate, kind: TileKind, entry: Entry | null, target: Lo
   if (entry) return t('log.saveCorrection');
   if (kind === 'feed' && planned) return t('log.logAsPlanned');
   return target.dayNumber === null ? t('log.save') : t('log.saveDay', { day: target.dayNumber });
-};
-
-/** The day part of an instant, in the browser's own zone, which is what a date field speaks. */
-const dayOf = (at: Date): string => `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, '0')}-${String(at.getDate()).padStart(2, '0')}`;
-
-/**
- * That day, at the hour the line already had. Nobody is asked what time it was,
- * and the hour it is being written down at is the closest thing to the truth
- * there is - so a watering remembered at nine in the evening is dated to nine
- * in the evening of the day it happened, and lands in that day's card.
- */
-const momentOn = (day: string, clock: Date): Date => {
-  const on = new Date(clock);
-  const [year, month, date] = day.split('-').map(Number);
-  on.setFullYear(year, month - 1, date);
-
-  return on;
 };
 
 /** Nothing at all unless somebody dated the line, so a write means "now" and a correction means "as it was". */

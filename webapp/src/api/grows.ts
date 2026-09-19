@@ -59,6 +59,18 @@ export const useUpdateGrow = (growId: string) => {
 };
 
 /**
+ * Every grow this account can see, for the sheets that ask which one: moving a
+ * grow into the tent you are standing in, and answering the server's question
+ * about a tent a preset was applied to with no grow in it. One page is every
+ * grow anybody has, so there is no cursor to follow.
+ */
+export const useGrows = () =>
+  useQuery({
+    queryKey: ['grows', 'all'],
+    queryFn: ({ signal }) => api.get<GrowPage>('/grows', { limit: 100 }, signal),
+  });
+
+/**
  * The grows standing in one space, which is how a camera's page learns where
  * the phase it would film began: a phase and a whole grow are stretches only
  * the client can name both ends of.

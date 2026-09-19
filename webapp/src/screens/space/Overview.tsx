@@ -1,5 +1,6 @@
-import { ChevronRight, Circle, Leaf } from 'lucide-react';
+import { ChevronRight, Circle, Leaf, Sliders } from 'lucide-react';
 import { DateTime } from 'luxon';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type {
@@ -18,10 +19,13 @@ import { ageAttribute, ageLabel } from '@/ui/age';
 import type { Liveness } from '../home/attention';
 import { EntryRow } from '@/ui/EntryRow';
 import { readingFigure } from '@/ui/entries';
+import { useMayManage } from '@/ui/session-access';
 import { weekOfPhase } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { livenessOf, measuredAtOf } from '../home/attention';
 import { figure, targetFigure, UNIT } from '../home/units';
+import { MoveHereSheet } from './MoveHereSheet';
+import { PresetSheet } from './PresetSheet';
 import styles from './Overview.module.css';
 
 /** Four tiles across a phone: the three the controller steers and the one it derives. */
@@ -40,13 +44,26 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  */
 export function Overview({ overview, now }: { overview: SpaceOverview; now: DateTime }) {
   const { t } = useTranslation();
+  const mayManage = useMayManage();
   const hasDevice = overview.deviceIds === null || overview.deviceIds.length > 0;
   const liveness = livenessOf(overview);
+  const [sheet, setSheet] = useState<'preset' | 'move' | null>(null);
 
   return (
     <div className={styles.overview}>
       {hasDevice ? <Values overview={overview} /> : <p className={`${ui.cardDashed} ${ui.note}`}>{t('home.invite.noSensor')}</p>}
       {overview.targets ? <TargetsLine overview={overview} /> : null}
+
+      {/* The phase tiles, as one sheet: what a tent is put on is a stage with a
+          climate on top of it, and what that comes to is said in the sheet. */}
+      {mayManage ? (
+        <div className={styles.spaceActions}>
+          <button type="button" className={`${ui.chip} ${styles.spaceAction}`} onClick={() => setSheet('preset')}>
+            <Sliders size={13} strokeWidth={1.75} aria-hidden />
+            {t('space.presets.open')}
+          </button>
+        </div>
+      ) : null}
 
       {overview.dueTasks.length > 0 ? (
         <Section label={t('space.dueNow')} link={{ to: '/tasks', label: t('shell.tabs.tasks') }}>
@@ -62,8 +79,15 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
         label={t('space.growingHere')}
         actions={
           <span className={`mono ${styles.sectionActions}`}>
-            <Link to={`/log?kind=phase&space=${overview.spaceId}`}>+ {t('space.newGrow')}</Link> ·{' '}
-            <Link to={`/log?kind=move&space=${overview.spaceId}`}>{t('space.moveHere')}</Link>
+            <Link to={`/log?kind=phase&space=${overview.spaceId}`}>+ {t('space.newGrow')}</Link>
+            {mayManage ? (
+              <>
+                {' · '}
+                <button type="button" className={styles.sectionButton} onClick={() => setSheet('move')}>
+                  {t('space.moveHere')}
+                </button>
+              </>
+            ) : null}
           </span>
         }
       >
@@ -104,6 +128,9 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
           </ul>
         )}
       </Section>
+
+      {sheet === 'preset' ? <PresetSheet overview={overview} onClose={() => setSheet(null)} /> : null}
+      {sheet === 'move' ? <MoveHereSheet spaceId={overview.spaceId} spaceName={overview.name} onClose={() => setSheet(null)} /> : null}
     </div>
   );
 }
