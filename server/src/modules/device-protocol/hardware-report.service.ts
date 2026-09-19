@@ -98,6 +98,16 @@ export class HardwareReportService {
    * survives being unpaired as a tombstone - so the pictures it took keep their
    * link, and pairing the same camera again gives it back the entitlement it
    * already had rather than a new year.
+   *
+   * A camera belongs to whoever owns the device that reported it, and a device
+   * changes hands, so the only rows a report ever reaches are that owner's. A
+   * camera this account has had before comes back whole; anything else - the
+   * camera the last owner had, a camera still working on another device - is a
+   * camera this account has not seen, and what it gets is a row of its own with
+   * a year of its own. Neither half of a revive would do: left as it was it
+   * photographs one person's tent into another person's camera, and re-owned it
+   * hands over every picture already taken under it. A new row does neither,
+   * and the old one stays buried with the pictures that are its owner's.
    */
   public async reconcileCamera(device: StoredDevice, did: string): Promise<void> {
     const paired = notNone(did);
@@ -110,19 +120,29 @@ export class HardwareReportService {
     // The id goes into a URL, so only the shape a real one has is adopted.
     if (!CAMERA_ID.test(paired)) return;
 
-    // A camera belongs to somebody. An unclaimed device keeps reporting its
-    // camera, and the row is made the next time it does once the device has an
-    // owner - or by the claim itself, which reconciles what the device reported.
+    // A camera belongs to somebody, and a device that is nobody's has nobody to
+    // make one for. It keeps reporting its camera while it waits, and the row is
+    // made the first time it reports after being claimed.
     if (!device.ownerId) return;
 
+    // This owner's rows and no others: the one this controller already answers
+    // for, whatever it has paired, and one this account itself buried for the
+    // very camera being reported. A buried row is only claimed back while it is
+    // buried - a row that is live is a camera working on the device it names,
+    // and reporting the same pairing id elsewhere does not move it there.
     const existing = await this.cameras
-      .findOne({ kind: 'terpcam_controller', $or: [{ deviceId: device.id }, { did: paired }] })
+      .findOne({ kind: 'terpcam_controller', ownerId: device.ownerId, $or: [{ deviceId: device.id }, { did: paired, removedAt: { $ne: null } }] })
       // A live row before a tombstone (a null sorts first), and the newest of each.
       .sort({ removedAt: 1, createdAt: -1 })
       .lean();
 
     if (existing) {
-      await this.cameras.updateOne({ id: existing.id }, { $set: { deviceId: device.id, did: paired, removedAt: null } });
+      // A camera coming back from the dead stands where its controller stands,
+      // because nothing it said about where it stood outlived being taken away.
+      // A live one is left where its owner put it, which is not always the
+      // controller's own tent.
+      const placed = existing.removedAt === null ? {} : { spaceId: device.spaceId };
+      await this.cameras.updateOne({ id: existing.id }, { $set: { deviceId: device.id, did: paired, removedAt: null, ...placed } });
       return;
     }
 

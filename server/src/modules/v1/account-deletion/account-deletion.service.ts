@@ -243,11 +243,12 @@ export class AccountDeletionService implements OnModuleInit, OnApplicationShutdo
   }
 
   /**
-   * The cameras, before the devices: releasing a device's claim tombstones the
-   * cameras its controller answered for, and a tombstone is not enough here. A
-   * controller reporting the same webcam again revives the row it finds by that
-   * webcam's pairing id, tombstone and all, and the row it revives still names
-   * an owner who no longer exists.
+   * The cameras, really gone rather than buried. Giving one device up leaves
+   * the row behind for the pictures taken under it, because the person is still
+   * there to be shown them and may claim the device back; an account that is
+   * being deleted is neither, and a row naming an owner who no longer exists is
+   * reachable from nothing. They go before the devices only so that what
+   * releasing the claim would bury has already gone.
    */
   private async eraseCameras(userId: string, tally: Tally): Promise<void> {
     const cameraIds = await this.cameras.distinct('id', { ownerId: userId });

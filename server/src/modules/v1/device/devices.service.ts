@@ -149,8 +149,13 @@ export class DevicesService {
     const spaceId = body.spaceId ?? made?.id ?? null;
 
     await this.devices.updateOne({ id: device.id }, { $set: { spaceId } });
-    // The camera a controller reported while it was nobody's now has an owner.
-    await this.cameras.updateMany({ deviceId: device.id, removedAt: null }, { $set: { ownerId, spaceId } });
+    // A report that arrived between the two writes above made the camera row
+    // before the device had anywhere to stand, so the place is put right here.
+    // The row is this owner's already - a camera is made for the owner of the
+    // device that reports it, and a device nobody owns gets no camera at all -
+    // and a live row belonging to somebody else is not a claim's to take, with
+    // every picture ever taken under it.
+    await this.cameras.updateMany({ deviceId: device.id, ownerId, removedAt: null }, { $set: { spaceId } });
 
     return { device: this.serialise({ ...claimed, spaceId }, ctx.isDemo), spaceCreated: made !== null };
   }
@@ -168,7 +173,16 @@ export class DevicesService {
       .lean<StoredDevice>();
     if (!released) throw notFound('device_not_found', 'There is no device with that id.');
 
-    await this.cameras.updateMany({ deviceId: id, removedAt: null }, { $set: { removedAt: new Date(), deviceId: null } });
+    // The camera rows stay behind for the pictures taken under them, and stop
+    // being a way to the camera itself: the credential and the addresses it is
+    // answered at go with the claim, so hardware that is somebody else's now
+    // cannot be read from the account that used to hold it. The pairing id
+    // stays, because it opens nothing on its own and it is what gives this same
+    // person their camera back if they ever claim the device again.
+    await this.cameras.updateMany(
+      { deviceId: id, removedAt: null },
+      { $set: { removedAt: new Date(), deviceId: null, uid: null, ip: null, secret: null } },
+    );
     await this.plans.deleteOne({ deviceId: id });
     await this.alarmRules.deleteMany({ deviceId: id });
   }

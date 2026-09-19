@@ -1,5 +1,5 @@
 import { anonymous, createAccount, Session } from '../support/api';
-import { provisionDevice } from '../support/device';
+import { claimCodeOf, DeviceSimulator, provisionDevice, settle, startSimulator } from '../support/device';
 
 /**
  * A camera: adding one, what the camera page edits about it, and the composer.
@@ -106,6 +106,105 @@ describe('what the camera page edits', () => {
     // public page has none; a caller with nothing is simply shown nothing.
     await anonymous().get(`/v1/cameras/${camera}`).expect(404);
     await anonymous().patch(`/v1/cameras/${camera}`).send({ name: 'Mine now' }).expect(401);
+  });
+});
+
+/**
+ * The Terp Cam a controller pairs is reported over MQTT and never created by
+ * hand, so this is the one part of a camera's life that starts at the hardware:
+ * both halves have to agree about who the picture belongs to when the hardware
+ * is sold on.
+ */
+describe('the camera of a controller that changes hands', () => {
+  const HANDED_ON = 'TERPCAMSOLD';
+  const STILL_IN_USE = 'TERPCAMKEPT';
+
+  let first: Session;
+  let next: Session;
+  let stranger: Session;
+  let sold: Awaited<ReturnType<typeof provisionDevice>>;
+  let kept: Awaited<ReturnType<typeof provisionDevice>>;
+  let theirs: Awaited<ReturnType<typeof provisionDevice>>;
+  let simulators: DeviceSimulator[];
+
+  const pairs = async (simulator: DeviceSimulator, did: string): Promise<void> => {
+    await simulator.publish('log', { severity: 0, message: `hardware-info:webcam_did=${did}` });
+    await settle(600);
+  };
+
+  const camerasOf = async (session: Session, query = ''): Promise<Record<string, any>[]> =>
+    (await session.client.get(`/v1/cameras${query}`).expect(200)).body.items;
+
+  const controller = async (session: Session) => {
+    const device = await provisionDevice(session, 'controller');
+    const simulator = await startSimulator(device);
+    simulators.push(simulator);
+    await settle();
+
+    return { device, simulator };
+  };
+
+  beforeAll(async () => {
+    simulators = [];
+    first = await createAccount('cameras-first-owner');
+    next = await createAccount('cameras-next-owner');
+    stranger = await createAccount('cameras-stranger-owner');
+
+    ({ device: sold } = await controller(first));
+    ({ device: kept } = await controller(first));
+    ({ device: theirs } = await controller(stranger));
+  });
+
+  afterAll(async () => {
+    for (const simulator of simulators) await simulator.close();
+  });
+
+  it('belongs to whoever owns the controller now, and leaves the last owner´s where it died', async () => {
+    const [sim] = simulators;
+    await pairs(sim, HANDED_ON);
+
+    const [hers] = await camerasOf(first, `?deviceId=${sold.deviceId}`);
+    expect(hers).toMatchObject({ ownerId: first.userId, did: HANDED_ON, deviceId: sold.deviceId });
+
+    await first.client.delete(`/v1/devices/${sold.deviceId}/claim`).expect(204);
+    await next.client
+      .post('/v1/devices/claims')
+      .send({ code: await claimCodeOf(sold.deviceId) })
+      .expect(201);
+    await pairs(sim, HANDED_ON);
+
+    const mine = await camerasOf(next);
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toMatchObject({ ownerId: next.userId, did: HANDED_ON, deviceId: sold.deviceId });
+    expect(mine[0].id).not.toBe(hers.id);
+    // In the new owner's own tent, with a year of its own and nothing the last
+    // owner decided about the camera.
+    expect(mine[0].spaceId).toBe((await next.client.get(`/v1/devices/${sold.deviceId}`).expect(200)).body.spaceId);
+    expect(mine[0].entitlement.grant).toBe('included');
+
+    // The first owner keeps the pictures she took and nothing else: her row is
+    // gone from her cameras, names no device, and is not the one taking them.
+    expect((await camerasOf(first)).some(camera => camera.id === hers.id)).toBe(false);
+    const buried = (await camerasOf(first, '?includeRemoved=true')).find(camera => camera.id === hers.id);
+    expect(buried).toMatchObject({ ownerId: first.userId, deviceId: null });
+    expect(buried?.removedAt).not.toBeNull();
+    await first.client.get(`/v1/cameras/${mine[0].id}`).expect(404);
+  });
+
+  it('is never taken from a device that is still using it', async () => {
+    const [, keptSim, strangerSim] = simulators;
+    await pairs(keptSim, STILL_IN_USE);
+    const [before] = await camerasOf(first, `?deviceId=${kept.deviceId}`);
+    expect(before).toMatchObject({ ownerId: first.userId, did: STILL_IN_USE, deviceId: kept.deviceId });
+
+    // The same pairing id on somebody else's controller. Two cameras, as far as
+    // this can tell, and the one that is working is left working.
+    await pairs(strangerSim, STILL_IN_USE);
+
+    expect(await camerasOf(first, `?deviceId=${kept.deviceId}`)).toEqual([before]);
+    const [other] = await camerasOf(stranger, `?deviceId=${theirs.deviceId}`);
+    expect(other).toMatchObject({ ownerId: stranger.userId, did: STILL_IN_USE, deviceId: theirs.deviceId });
+    expect(other.id).not.toBe(before.id);
   });
 });
 
