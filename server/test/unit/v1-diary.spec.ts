@@ -458,6 +458,52 @@ describe('who may read a timeline', () => {
     expect(seen).toMatchObject({ plantIds: [], values: { kind: 'harvest', wetWeightG: null, dryWeightG: null } });
     expect(own).toMatchObject({ plantIds: [PLANT], values: { kind: 'harvest', wetWeightG: 480, dryWeightG: 96 } });
   });
+
+  /**
+   * A count hidden on the card and named inside a reading is a count that can
+   * be collected: the distinct plant ids across a diary are how many plants
+   * there are, one measurement at a time.
+   */
+  it('names no plant inside a reading either, where the owner hides the counts', async () => {
+    await db.users.updateOne({ id: OWNER }, { $set: { privacy: { hideWeights: false, hideCounts: true } } });
+    await db.grows.updateOne({ id: GROW }, { $set: { visibility: 'public' } });
+
+    const seen = (await entries.list(anonymous, { growId: GROW })).items.find(line => line.id === 'entry-measured');
+    const own = (await entries.list(session(OWNER), { growId: GROW })).items.find(line => line.id === 'entry-measured');
+
+    expect(seen).toMatchObject({ plantIds: [], values: { kind: 'measurement', readings: [{ key: 'height', value: 52, plantId: null }] } });
+    expect(JSON.stringify(seen)).not.toContain(PLANT);
+    // The reading itself is the diary and stays; only whose plant it was goes.
+    expect(own?.values).toMatchObject({ readings: [{ key: 'height', value: 52, plantId: PLANT }] });
+  });
+
+  /**
+   * A grant reaches the grow and not each of its lines, so a link that was sent
+   * one fortnight of a diary would otherwise hand out every other line of it
+   * one id at a time - and the list next door has clamped since it was written.
+   */
+  it('is not there line by line either, where the line falls outside the window', async () => {
+    await db.shareLinks.create({
+      id: 'share-one-line',
+      token: 'one-fortnight',
+      kind: 'view',
+      subject: { type: 'grow', id: GROW },
+      range: { startsAt: onDay(29, 0), endsAt: onDay(32, 0) },
+      includeCameras: false,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+
+    const reader: AccessContext = { ...anonymous, shareToken: 'one-fortnight' };
+
+    expect((await entries.read(reader, 'entry-note-5')).id).toBe('entry-note-5');
+    // Day 33 and day 12 are both this grow's and neither is inside the window.
+    await expect(entries.read(reader, 'entry-defoliated')).rejects.toThrow(ProblemException);
+    await expect(entries.read(reader, 'entry-topped')).rejects.toThrow(ProblemException);
+    // The owner reads every one of them.
+    expect((await entries.read(session(OWNER), 'entry-defoliated')).id).toBe('entry-defoliated');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -615,6 +661,141 @@ describe('a week card', () => {
     expect(page.items.map(week => week.weekNumber)).toEqual([4, 3]);
   });
 
+  /**
+   * A week is seven days whatever a link says, so a link that opens mid-week
+   * used to be handed the whole of every week it touched - up to seven days of
+   * somebody's diary on each side of what was actually shared. The window
+   * belongs to the link, and a card is built over the week intersected with it.
+   */
+  it('hands out only the hours of a week the link´s window covers', async () => {
+    await db.shareLinks.create({
+      id: 'share-narrow',
+      token: 'a-day-of-it',
+      kind: 'view',
+      subject: { type: 'grow', id: GROW },
+      // Lunchtime on day 31 to lunchtime on day 32, inside week 5's days 29 to 35.
+      range: { startsAt: onDay(31, 12), endsAt: onDay(32, 12) },
+      includeCameras: true,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+
+    const page = await weeks.page(GROW, await grantFor({ ...anonymous, shareToken: 'a-day-of-it' }), {}, NOW);
+    const week = page.items[0];
+
+    expect(page.items.map(one => one.weekNumber)).toEqual([5]);
+    // The span the card states is the window's, not the week's.
+    expect(week).toMatchObject({ startsAt: onDay(31, 12).toISOString(), endsAt: onDay(32, 12).toISOString() });
+
+    // Day 31 at ten and day 33 are both inside the week and outside the window.
+    expect(week.entries.map(line => line.id)).toEqual(['entry-watered']);
+    expect({ entryCount: week.entryCount, waterCount: week.waterCount, feedCount: week.feedCount }).toEqual({
+      entryCount: 1,
+      waterCount: 1,
+      feedCount: 0,
+    });
+    expect(JSON.stringify(week)).not.toContain('entry-note-5');
+    expect(JSON.stringify(week)).not.toContain('entry-defoliated');
+
+    // The climate is read over the window rather than over the week.
+    expect(readWindows).toEqual([{ deviceId: CONTROLLER, startsAt: onDay(31, 12), endsAt: onDay(32, 12) }]);
+  });
+
+  /**
+   * A change is a subtraction, and a subtraction from a reading taken before
+   * the window opened states that reading as plainly as printing it would: 58
+   * with "+6" on it is 52 on a day the reader was never shown.
+   */
+  it('says what a measurement changed by only where it has something inside the window to have changed from', async () => {
+    await db.shareLinks.create({
+      id: 'share-since',
+      token: 'since-day-29',
+      kind: 'view',
+      subject: { type: 'grow', id: GROW },
+      // Week 4 held the height of 52; the window opens after it.
+      range: { startsAt: onDay(29, 0), endsAt: null },
+      includeCameras: true,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+
+    const seen = await weeks.page(GROW, await grantFor({ ...anonymous, shareToken: 'since-day-29' }), {}, NOW);
+
+    expect(seen.items[0].readings).toEqual([{ key: 'height', value: 58, change: null, measuredAt: onDay(32).toISOString() }]);
+    // The owner, whose window is open at both ends, still reads the change.
+    expect((await weekFive()).readings[0].change).toBe(6);
+  });
+
+  it('says nothing at all about a camera to a link that was not made to carry pictures', async () => {
+    await db.media.create([
+      { id: 'still-30', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(30, 4) },
+      { id: 'film-week-5', kind: 'timelapse', mime: 'video/mp4', bytes: 1, cameraId: CAMERA, window: 'week', capturedAt: onDay(31, 0) },
+    ]);
+    await db.shareLinks.create({
+      id: 'share-dark',
+      token: 'no-pictures-at-all',
+      kind: 'view',
+      subject: { type: 'grow', id: GROW },
+      range: { startsAt: null, endsAt: null },
+      includeCameras: false,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+
+    const own = await weekFive();
+    const seen = (await weeks.page(GROW, await grantFor({ ...anonymous, shareToken: 'no-pictures-at-all' }), {}, NOW)).items[0];
+
+    expect(own.days.map(day => day.mediaId)).toContain('still-30');
+    expect(own.timelapseMediaId).toBe('film-week-5');
+
+    // Not the picture, not its id, not the camera's, and not the instant it
+    // fired at: that the tent is watched at all is as much of it as the bytes.
+    expect(seen.days.every(day => day.mediaId === null && day.cameraId === null && day.capturedAt === null)).toBe(true);
+    expect(seen.timelapseMediaId).toBeNull();
+    expect(JSON.stringify(seen)).not.toContain(CAMERA);
+    expect(JSON.stringify(seen)).not.toContain('still-30');
+    expect(JSON.stringify(seen)).not.toContain('film-week-5');
+  });
+
+  it('shows no thumbnail from a day the window does not reach, however near midday it was taken', async () => {
+    await db.media.create([
+      { id: 'still-inside', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(32, 4) },
+      { id: 'still-outside', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(30, 4) },
+    ]);
+    await db.shareLinks.create({
+      id: 'share-two-days',
+      token: 'two-days',
+      kind: 'view',
+      subject: { type: 'grow', id: GROW },
+      range: { startsAt: onDay(32, 0), endsAt: onDay(33, 0) },
+      includeCameras: true,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+
+    const week = (await weeks.page(GROW, await grantFor({ ...anonymous, shareToken: 'two-days' }), {}, NOW)).items[0];
+
+    expect(week.days.map(day => day.mediaId)).toEqual([null, null, null, 'still-inside', null, null, null]);
+    expect(JSON.stringify(week)).not.toContain('still-outside');
+  });
+
+  it('names no controller to a reader outside the tent, however public the diary is', async () => {
+    await db.grows.updateOne({ id: GROW }, { $set: { visibility: 'public' } });
+
+    const mine = await weeks.page(GROW, await grantFor(session(OWNER)), { limit: 1 }, NOW);
+    const theirs = await weeks.page(GROW, await grantFor(anonymous), { limit: 1 }, NOW);
+
+    expect(mine.items[0].deviceIds).toEqual([CONTROLLER]);
+    expect(theirs.items[0].deviceIds).toBeNull();
+    expect(JSON.stringify(theirs.items[0])).not.toContain(CONTROLLER);
+    // The averages read from that controller are the diary and stay.
+    expect(theirs.items[0].climate.length).toBeGreaterThan(0);
+  });
+
   it('is refused to a stranger, like the grow itself', async () => {
     await expect(access.access(session(STRANGER), { type: 'grow', id: GROW }, 'view')).resolves.toBeNull();
   });
@@ -681,6 +862,62 @@ describe('the report', () => {
 
     expect(answer.phases[0].spaceIds).toEqual([TENT]);
     expect(answer.phases[0].coverMediaId).toBe('still-cover');
+  });
+
+  it('says where the plants stood only to somebody who keeps them', async () => {
+    await db.grows.updateOne({ id: GROW }, { $set: { visibility: 'public' } });
+
+    const seen = await report.read(GROW, await grantFor(anonymous), NOW);
+
+    expect(seen.phases.every(chapter => chapter.spaceIds === null)).toBe(true);
+    expect(JSON.stringify(seen)).not.toContain(TENT);
+  });
+
+  it('covers a chapter with nothing where the link was not made to carry pictures', async () => {
+    await db.media.create({ id: 'still-cover', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(28, 4) });
+    await db.shareLinks.create({
+      id: 'share-report',
+      token: 'report-no-pictures',
+      kind: 'view',
+      subject: { type: 'grow', id: GROW },
+      range: { startsAt: null, endsAt: null },
+      includeCameras: false,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+
+    const seen = await report.read(GROW, await grantFor({ ...anonymous, shareToken: 'report-no-pictures' }), NOW);
+
+    expect(seen.phases.every(chapter => chapter.coverMediaId === null)).toBe(true);
+    expect(JSON.stringify(seen)).not.toContain('still-cover');
+  });
+
+  it('covers a chapter with a picture from inside the window and never from beyond it', async () => {
+    await db.media.create([
+      { id: 'still-inside', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(28, 5) },
+      { id: 'still-beyond', kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt: onDay(28, 21.5) },
+    ]);
+    await db.shareLinks.create({
+      id: 'share-report-window',
+      token: 'report-until-day-28',
+      kind: 'view',
+      subject: { type: 'grow', id: GROW },
+      range: { startsAt: null, endsAt: onDay(28, 12) },
+      includeCameras: true,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+
+    // The middle of the flowering chapter falls late on day 28, so the picture
+    // nearest it is the one taken after the window closed.
+    const own = await report.read(GROW, await grantFor(session(OWNER)), NOW);
+    const seen = await report.read(GROW, await grantFor({ ...anonymous, shareToken: 'report-until-day-28' }), NOW);
+
+    expect(own.phases[0].coverMediaId).toBe('still-beyond');
+    expect(seen.phases[0].coverMediaId).toBe('still-inside');
+    expect(JSON.stringify(seen)).not.toContain('still-beyond');
   });
 
   it('counts the whole grow above the chapters, the device´s lines left out', async () => {

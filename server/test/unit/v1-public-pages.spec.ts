@@ -1,9 +1,8 @@
-import { FastifyRequest } from 'fastify';
 import { LinkCard } from '@fg2/shared-types/v1';
 import { Grant } from '@common/v1/access.types';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
-import { baseUrlOf, shellHtml } from '@modules/v1/sharing/link-card';
+import { CardCache, baseUrlOf, shellHtml } from '@modules/v1/sharing/link-card';
 import { belongsToGrow } from '@modules/v1/sharing/public-pages.service';
 
 /**
@@ -147,16 +146,53 @@ describe('the shell a crawler reads', () => {
 });
 
 describe('where the absolute URLs on a card come from', () => {
-  const request = { protocol: 'https', hostname: 'reached.example', headers: { host: 'reached.example' } } as unknown as FastifyRequest;
-
   it('is the address this install publishes, because that is what every other client is told to call', () => {
-    expect(baseUrlOf(request, 'https://published.example')).toBe('https://published.example');
+    expect(baseUrlOf('https://published.example')).toBe('https://published.example');
     // A trailing slash would double up in every URL built from it.
-    expect(baseUrlOf(request, 'https://published.example/')).toBe('https://published.example');
+    expect(baseUrlOf('https://published.example/')).toBe('https://published.example');
   });
 
-  it('falls back to the host the request arrived on, which is what a crawler followed to get here', () => {
-    expect(baseUrlOf(request, undefined)).toBe('https://reached.example');
-    expect(baseUrlOf(request, '   ')).toBe('https://reached.example');
+  /**
+   * It used to fall back to the `Host` header of the request that arrived,
+   * which is written by whoever made it: on an install that had never set the
+   * variable, a chosen `Host` put an attacker's address into the `canonical`,
+   * the `og:url` and the `og:image` of every public diary and of every card a
+   * chat window drew from them.
+   */
+  it('is never taken from the request, whatever the request says', () => {
+    expect(() => baseUrlOf(undefined)).toThrow(/API_URL_EXTERNAL/);
+    expect(() => baseUrlOf('   ')).toThrow(/API_URL_EXTERNAL/);
+  });
+});
+
+describe('the cards kept in memory', () => {
+  const png = (name: string): Buffer => Buffer.from(name);
+
+  it('draws one card once, however many readers open the link at the same time', async () => {
+    const cache = new CardCache();
+    let drawn = 0;
+    const draw = async (): Promise<Buffer> => {
+      drawn += 1;
+      return png('card');
+    };
+
+    const [first, second] = await Promise.all([cache.of('grow:1', draw), cache.of('grow:1', draw)]);
+    const later = await cache.of('grow:1', draw);
+
+    expect(drawn).toBe(1);
+    expect(first).toEqual(png('card'));
+    expect(second).toEqual(png('card'));
+    expect(later).toEqual(png('card'));
+  });
+
+  it('keeps one card per address, and keeps no failure at all', async () => {
+    const cache = new CardCache();
+
+    await expect(cache.of('grow:1', () => Promise.reject(new Error('no cover')))).rejects.toThrow('no cover');
+
+    // The next reader of the same address is drawn rather than handed the
+    // failure the first one got.
+    expect(await cache.of('grow:1', () => Promise.resolve(png('second try')))).toEqual(png('second try'));
+    expect(await cache.of('grow:2', () => Promise.resolve(png('another')))).toEqual(png('another'));
   });
 });

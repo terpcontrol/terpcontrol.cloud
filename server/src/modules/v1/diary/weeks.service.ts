@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { EntryKind, GrowWeekCard, GrowWeekCardPage, GrowWeekDay, GrowWeekFeeding, GrowWeekReading, SchemeAmount } from '@fg2/shared-types/v1';
-import { Grant } from '@common/v1/access.types';
+import { AccessRange, Grant } from '@common/v1/access.types';
 import { decodeCursor, pageOf } from '@common/v1/pages';
 import { clampRange, overlapsRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
@@ -71,11 +71,19 @@ interface PageRequest {
   cursor?: string;
 }
 
+/** A stretch of time with both ends named, which is what a card is built over. */
+interface Span {
+  startsAt: Date;
+  endsAt: Date;
+}
+
 /** Everything a card is built from that was read once for the whole page. */
 interface PageWorld {
   grow: GrowDocument;
   hide: Redaction;
   grant: Grant;
+  /** The window every card is intersected with, which is the grant's and nobody's else. */
+  range: AccessRange;
   origin: Date;
   plannedFeeds: number;
   diary: EntryDocument[];
@@ -107,14 +115,20 @@ export class GrowWeeksService {
     const page = pageOf(after(lived.reverse(), query.cursor), limitOf(query.limit), week => ({ at: week.startsAt, id: String(week.weekNumber) }));
     if (page.items.length === 0) return { items: [], nextCursor: null, people: [] };
 
-    const span = { startsAt: page.items[page.items.length - 1].startsAt, endsAt: page.items[0].endsAt };
+    // The part of the page the caller may see, which is where every read below
+    // starts: a week that merely touches a narrow window is on the page, and
+    // only the hours of it inside the window are.
+    const span = seenOf({ startsAt: page.items[page.items.length - 1].startsAt, endsAt: page.items[0].endsAt }, range);
     const spaceIds = spacesDuring(grow, span.startsAt, span.endsAt);
-    const cameras = await this.camerasIn(spaceIds);
+    // A link that was not made to carry pictures is not told that a camera
+    // exists either: its id, the instants it fired at and the films it made are
+    // as much of the tent as the pictures themselves.
+    const cameras = grant.includeCameras ? await this.camerasIn(spaceIds) : [];
 
     const [hide, diary, readings, controllers, plannedFeeds, films] = await Promise.all([
       this.grows.redaction(grant),
       this.diaryIn(grow.id, span),
-      this.readingsBefore(grow.id, span.endsAt),
+      this.readingsIn(grow.id, { startsAt: range.startsAt, endsAt: span.endsAt }),
       this.climate.controllersIn(spaceIds),
       this.feedsPerWeek(grow.id),
       this.weekFilms(cameras, span),
@@ -124,6 +138,7 @@ export class GrowWeeksService {
       grow,
       hide,
       grant,
+      range,
       origin,
       plannedFeeds,
       diary,
@@ -142,19 +157,24 @@ export class GrowWeeksService {
 
   private async cardOf(week: GrowWeekSpan, world: PageWorld): Promise<GrowWeekCard> {
     const { grow, origin } = world;
-    const here = spacesDuring(grow, week.startsAt, week.endsAt);
+    // The week is seven of the grow's days; what this reader may know about it
+    // is those days intersected with the window. Everything counted, summarised
+    // or pictured below is over `seen` rather than over the week, so a link that
+    // opens on a Wednesday does not hand out the Sunday before it.
+    const seen = seenOf(week, world.range);
+    const here = spacesDuring(grow, seen.startsAt, seen.endsAt);
     const deviceIds = world.controllers.filter(controller => here.includes(controller.spaceId)).map(controller => controller.deviceId);
-    const entries = world.diary.filter(entry => entry.occurredAt >= week.startsAt && entry.occurredAt < week.endsAt);
+    const entries = world.diary.filter(entry => entry.occurredAt >= seen.startsAt && entry.occurredAt < seen.endsAt);
     // The last instant inside the week, not the first outside it: a phase that
     // begins exactly where the week ends belongs to the next week.
-    const phase = headlinePhaseAt(grow, new Date(week.endsAt.getTime() - 1));
+    const phase = headlinePhaseAt(grow, new Date(seen.endsAt.getTime() - 1));
 
     const [climate, days] = await Promise.all([
       // A week card states how the tent was kept, not how well: judging it needs
       // a band, and the band belongs to the phase, which is what the report's
       // chapters are told against.
-      this.climate.summarise(deviceIds, week, null),
-      this.daysOf(week, world.cameraIds),
+      this.climate.summarise(deviceIds, seen, null),
+      this.daysOf(week, seen, world.cameraIds),
     ]);
 
     const counted = (kind: EntryKind): number => entries.filter(entry => entry.kind === kind).length;
@@ -163,17 +183,20 @@ export class GrowWeeksService {
       weekNumber: week.weekNumber,
       dayFrom: week.dayFrom,
       dayTo: week.dayTo,
-      startsAt: week.startsAt.toISOString(),
-      endsAt: week.endsAt.toISOString(),
+      startsAt: seen.startsAt.toISOString(),
+      endsAt: seen.endsAt.toISOString(),
       stage: phase?.stage ?? null,
       preset: phase?.preset ?? null,
       stageWeek: phase ? week.weekNumber - weekNumberOf(origin, phase.startedAt) + 1 : null,
-      deviceIds,
+      // A public diary is a diary and not an inventory: the averages are what a
+      // reader is shown, and which controller measured them ties the page to a
+      // named piece of somebody's hardware.
+      deviceIds: world.grant.redacted ? null : deviceIds,
       climate: climate.climate,
       lightHours: climate.lightHours,
       days,
       feeding: feedingOf(grow, week.weekNumber, world.plannedFeeds),
-      readings: readingsOf(grow, world.readings, week),
+      readings: readingsOf(grow, world.readings, seen, world.range),
       waterCount: counted('water'),
       feedCount: counted('feed'),
       entries: entries.slice(0, ENTRIES_PER_WEEK).map(entry => serialiseDiaryEntry(entry, world.hide, world.grant.includeCameras)),
@@ -187,23 +210,32 @@ export class GrowWeeksService {
    * middle of it. One read per week rather than one per day, and only the
    * pictures around each of the seven hours rather than every picture the
    * cameras took.
+   *
+   * The seven days are always answered - the card says which days it is of,
+   * whatever happened on them - but a day the window does not cover gets no
+   * picture, and the search itself is bounded by the window, so a thumbnail can
+   * never be a still taken outside it.
    */
-  private async daysOf(week: GrowWeekSpan, cameraIds: string[]): Promise<GrowWeekDay[]> {
+  private async daysOf(week: GrowWeekSpan, seen: Span, cameraIds: string[]): Promise<GrowWeekDay[]> {
     const days = Array.from({ length: week.dayTo - week.dayFrom + 1 }, (_, index) => {
       const startsAt = new Date(week.startsAt.getTime() + index * DAY_MS);
-      return { dayNumber: week.dayFrom + index, startsAt, nearest: pictureHourIn(startsAt) };
+      const endsAt = new Date(startsAt.getTime() + DAY_MS);
+
+      return { dayNumber: week.dayFrom + index, startsAt, nearest: pictureHourIn(startsAt), seen: startsAt < seen.endsAt && endsAt > seen.startsAt };
     });
+    const pictured = days.filter(day => day.seen);
 
     const stills =
-      cameraIds.length === 0
+      cameraIds.length === 0 || pictured.length === 0
         ? []
         : await this.media
             .find(
               {
                 $and: [
                   { cameraId: { $in: cameraIds }, kind: 'still' },
+                  { capturedAt: { $gte: seen.startsAt, $lte: seen.endsAt } },
                   {
-                    $or: days.map(day => ({
+                    $or: pictured.map(day => ({
                       capturedAt: {
                         $gte: new Date(day.nearest.getTime() - STILL_WINDOW_MS),
                         $lte: new Date(day.nearest.getTime() + STILL_WINDOW_MS),
@@ -217,7 +249,7 @@ export class GrowWeeksService {
             .lean<Pick<MediaDocument, 'id' | 'cameraId' | 'capturedAt'>[]>();
 
     return days.map(day => {
-      const closest = nearestTo(stills, day.nearest);
+      const closest = day.seen ? nearestTo(stills, day.nearest) : null;
 
       return {
         dayNumber: day.dayNumber,
@@ -229,7 +261,7 @@ export class GrowWeeksService {
     });
   }
 
-  private diaryIn(growId: string, span: { startsAt: Date; endsAt: Date }): Promise<EntryDocument[]> {
+  private diaryIn(growId: string, span: Span): Promise<EntryDocument[]> {
     return this.entries
       .find({ growId, kind: { $in: DIARY_KINDS }, occurredAt: { $gte: span.startsAt, $lt: span.endsAt } })
       .sort({ occurredAt: -1, id: -1 })
@@ -237,10 +269,17 @@ export class GrowWeeksService {
       .lean<EntryDocument[]>();
   }
 
-  /** Every reading up to the end of the page, newest first: a week's change is against the newest one before it. */
-  private readingsBefore(growId: string, endsAt: Date): Promise<EntryDocument[]> {
+  /**
+   * Every reading up to the end of the page, newest first: a week's change is
+   * against the newest one before it.
+   *
+   * "Before it" stops where the window does. A change is a subtraction, and a
+   * subtraction from a reading logged before a link's window opened states that
+   * reading as surely as printing it would.
+   */
+  private readingsIn(growId: string, window: { startsAt: Date | null; endsAt: Date }): Promise<EntryDocument[]> {
     return this.entries
-      .find({ growId, kind: { $in: READING_KINDS }, occurredAt: { $lt: endsAt } })
+      .find({ growId, kind: { $in: READING_KINDS }, occurredAt: { ...(window.startsAt ? { $gte: window.startsAt } : {}), $lt: window.endsAt } })
       .sort({ occurredAt: -1, id: -1 })
       .limit(READING_LOOKBACK)
       .lean<EntryDocument[]>();
@@ -258,7 +297,7 @@ export class GrowWeeksService {
   }
 
   /** The week films the timelapse builder has already made, so a card points at one rather than asking for it to be built. */
-  private weekFilms(cameras: CameraDocument[], span: { startsAt: Date; endsAt: Date }): Promise<Pick<MediaDocument, 'id' | 'capturedAt'>[]> {
+  private weekFilms(cameras: CameraDocument[], span: Span): Promise<Pick<MediaDocument, 'id' | 'capturedAt'>[]> {
     if (cameras.length === 0) return Promise.resolve([]);
 
     return this.media
@@ -286,6 +325,20 @@ export class GrowWeeksService {
     return rhythm?.everyDays ? Math.max(1, Math.floor(7 / rhythm.everyDays)) : FEEDS_PER_WEEK_WITHOUT_A_REMINDER;
   }
 }
+
+/**
+ * The part of a stretch of time a reader may see: the stretch itself, narrowed
+ * to the window the grant carries.
+ *
+ * The window belongs to the link and not to the grow, and a week is seven days
+ * whatever the link says - so a week that merely touches a narrow window would
+ * otherwise hand out up to seven days on each side of it. Every figure on a card
+ * is built over this rather than over the week.
+ */
+const seenOf = (span: Span, range: AccessRange): Span => ({
+  startsAt: range.startsAt && range.startsAt > span.startsAt ? range.startsAt : span.startsAt,
+  endsAt: range.endsAt && range.endsAt < span.endsAt ? range.endsAt : span.endsAt,
+});
 
 const nearestTo = <T extends { capturedAt: Date }>(rows: readonly T[], instant: Date): T | null =>
   rows.reduce<T | null>((best, row) => {
@@ -336,8 +389,13 @@ const feedingOf = (grow: GrowDocument, weekNumber: number, plannedCount: number)
  * how much it moved. The newest reading of a key inside the week is where it
  * stands; the newest one before the week began is what it moved from, and there
  * being none is what leaves the change null.
+ *
+ * Both lookups start where the window does. A change is stated as a difference,
+ * and a difference from a reading taken before a link's window opened hands that
+ * reading over as plainly as printing it: a week whose only earlier reading is
+ * outside the window has moved from nothing this reader knows about.
  */
-const readingsOf = (grow: GrowDocument, entries: readonly EntryDocument[], week: GrowWeekSpan): GrowWeekReading[] =>
+const readingsOf = (grow: GrowDocument, entries: readonly EntryDocument[], seen: Span, range: AccessRange): GrowWeekReading[] =>
   grow.measurements.flatMap(definition => {
     // The entries are newest first, so the first match is the newest reading.
     const newest = (from: Date, until: Date): { value: number; at: Date } | undefined =>
@@ -348,10 +406,10 @@ const readingsOf = (grow: GrowDocument, entries: readonly EntryDocument[], week:
         )
         .at(0);
 
-    const stands = newest(week.startsAt, week.endsAt);
+    const stands = newest(seen.startsAt, seen.endsAt);
     if (!stands) return [];
 
-    const was = newest(new Date(0), week.startsAt);
+    const was = newest(range.startsAt ?? new Date(0), seen.startsAt);
     return [{ key: definition.key, value: stands.value, change: was ? round(stands.value - was.value) : null, measuredAt: stands.at.toISOString() }];
   });
 

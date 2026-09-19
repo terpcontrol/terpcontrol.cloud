@@ -36,8 +36,25 @@ import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
  */
 const TOKEN_BYTES = 24;
 
+/**
+ * How often opening a link is allowed to write.
+ *
+ * Every anonymous read of a shared diary used to be a database write, which is
+ * the one thing an unauthenticated route should not be - a link pasted into a
+ * busy channel is a write per reader, and a loop is a write per request. The
+ * counters exist so that a grower can see their link is being read, and for
+ * that a minute's resolution is as good as an exact tally: what is lost is the
+ * difference between "read a lot" and "read a lot", and what is gained is that
+ * the write rate of the route is bounded by the number of links rather than by
+ * the number of requests.
+ */
+const COUNT_AT_MOST_EVERY_MS = 60_000;
+
 @Injectable()
 export class ShareLinksService {
+  /** When each token was last counted, so that a burst on one link is one write. In memory, like the rate limiter and for the same reason. */
+  private readonly counted = new Map<string, number>();
+
   constructor(
     @InjectModel(MODEL_V1.shareLink) private readonly shareLinks: Model<ShareLinkDocument>,
     @InjectModel(MODEL_V1.grow) private readonly grows: Model<GrowDocument>,
@@ -158,9 +175,10 @@ export class ShareLinksService {
    * link learns neither that it once worked nor that it was taken back - which
    * is why this is a 404 and not a 403.
    *
-   * The counters are moved on the way past. They are the owner's only sign that
-   * a link is being read at all, so a read that does not move them is a read
-   * they never see.
+   * The counters are moved on the way past, at most once a minute per token.
+   * They are the owner's only sign that a link is being read at all, so a read
+   * that does not move them is a read they never see - and a write per read is
+   * how an unauthenticated route becomes a way to make this server work.
    */
   public async open(token: string, now: Date = new Date()): Promise<ShareLinkDocument> {
     const link = await this.shareLinks.findOne({ token }).lean<ShareLinkDocument>();
@@ -168,8 +186,27 @@ export class ShareLinksService {
       throw notFound('share_link_not_found', 'That link leads nowhere.');
     }
 
-    await this.shareLinks.updateOne({ id: link.id }, { $inc: { 'state.openCount': 1 }, $set: { 'state.lastOpenedAt': now } });
+    if (this.countable(token, now)) {
+      await this.shareLinks.updateOne({ id: link.id }, { $inc: { 'state.openCount': 1 }, $set: { 'state.lastOpenedAt': now } });
+    }
+
     return link;
+  }
+
+  /** Whether this opening is the one that counts for its minute, and remembering that it was. */
+  private countable(token: string, now: Date): boolean {
+    const at = now.getTime();
+    const last = this.counted.get(token);
+    if (last !== undefined && at - last < COUNT_AT_MOST_EVERY_MS) return false;
+
+    // Swept as it is written rather than on a timer: what is left is the links
+    // opened in the last minute, which is as large as the traffic and no larger.
+    for (const [seen, when] of this.counted) {
+      if (at - when >= COUNT_AT_MOST_EVERY_MS) this.counted.delete(seen);
+    }
+
+    this.counted.set(token, at);
+    return true;
   }
 
   /**

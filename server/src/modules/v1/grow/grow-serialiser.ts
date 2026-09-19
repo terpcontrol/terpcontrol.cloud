@@ -135,6 +135,27 @@ const locationsOf = (placements: StoredPlacement[], plantIds: string[], hide: Re
   return [...located].map(([spaceId, ids]) => ({ spaceId, plantIds: hide.counts ? [] : ids }));
 };
 
+/**
+ * The grow as it stood at one instant, for a reader whose window closed before
+ * now.
+ *
+ * The window belongs to the link, so the story stops where the window does: a
+ * phase written after it is not part of what was sent, and a grow that ended
+ * afterwards has not ended as far as that reader is concerned. Without this the
+ * day counter runs to today and the headline names a stage entered long after
+ * the link was handed out - both of them facts dated outside the window.
+ */
+export const growUpTo = (grow: GrowDocument, at: Date): GrowDocument => ({
+  ...grow,
+  phases: grow.phases.filter(phase => phase.startedAt <= at),
+  // A placement that was closed after the instant was still open at it, which is
+  // what makes "where the plants are" answer where they were.
+  placements: grow.placements
+    .filter(placement => placement.startedAt <= at)
+    .map(placement => (placement.endedAt !== null && placement.endedAt > at ? { ...placement, endedAt: null } : placement)),
+  endedAt: grow.endedAt !== null && grow.endedAt <= at ? grow.endedAt : null,
+});
+
 export const summaryOf = (grow: GrowDocument, plants: PlantDocument[], hide: Redaction, now: Date = new Date()): GrowSummary => {
   // A grow that has ended stopped counting on the day it ended.
   const asOf = grow.endedAt ?? now;

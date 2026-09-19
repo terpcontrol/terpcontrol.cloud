@@ -10587,20 +10587,30 @@
           {
             "type": "null"
           }
-        ]
+        ],
+        "description": "Null where the space stands on its own, and on a shared or public read, which is not told how the place is arranged."
       },
       "deviceIds": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        }
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null on a shared or public read: what a reader is shown is the tent, not the hardware in it."
       },
       "values": {
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/CardValue"
-        }
+        },
+        "description": "Empty on a read through a window that has closed, which has no \"now\" to answer with."
       },
       "setpoints": {
         "type": "array",
@@ -10617,7 +10627,7 @@
             "type": "null"
           }
         ],
-        "description": "Null in a space whose devices hold no targets at all."
+        "description": "Null in a space whose devices hold no targets at all, and on a read through a window that has closed."
       },
       "verdict": {
         "$ref": "#/components/schemas/ClimateVerdict"
@@ -11371,12 +11381,19 @@
         "description": "1 in the week the stage began; null before the first phase."
       },
       "deviceIds": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "description": "The controllers the averages were read from. Empty where nothing measures in the places the grow stood, which a card says rather than drawing dashes."
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The controllers the averages were read from. Empty where nothing measures in the places the grow stood, which a card says rather than drawing dashes; null on a shared or public read, where the averages are the diary and the hardware behind them is not."
       },
       "climate": {
         "type": "array",
@@ -11557,12 +11574,19 @@
         "maximum": 9007199254740991
       },
       "spaceIds": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1
-        },
-        "description": "Where the plants stood during it, in the order they arrived."
+        "anyOf": [
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Where the plants stood during it, in the order they arrived; null on a shared or public read, which is told the story and not the address."
       },
       "coverMediaId": {
         "anyOf": [

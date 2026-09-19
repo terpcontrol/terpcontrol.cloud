@@ -156,11 +156,48 @@ describe('opening one', () => {
     const at = new Date('2026-06-01T10:00:00.000Z');
 
     await links.open(made.token, at);
-    await links.open(made.token, at);
 
     const row = await db.shareLinks.findOne({ id: made.id }).lean<ShareLinkDocument>();
-    expect(row?.state.openCount).toBe(2);
+    expect(row?.state.openCount).toBe(1);
     expect(row?.state.lastOpenedAt?.toISOString()).toBe(at.toISOString());
+  });
+
+  /**
+   * The route is anonymous and unauthenticated, so a write per read is a write
+   * per request from anybody at all. A minute's resolution says the same thing
+   * to the owner - their link is being read - and bounds the writes by the
+   * number of links rather than by the number of requests.
+   */
+  it('counts a burst on one link once, and goes on counting the minute after', async () => {
+    const made = await links.create(session(OWNER), { kind: 'view', subject: { type: 'grow', id: GROW } });
+    const at = new Date('2026-06-01T10:00:00.000Z');
+    const seconds = (count: number): Date => new Date(at.getTime() + count * 1000);
+
+    await links.open(made.token, at);
+    await links.open(made.token, seconds(1));
+    await links.open(made.token, seconds(59));
+
+    const burst = await db.shareLinks.findOne({ id: made.id }).lean<ShareLinkDocument>();
+    expect(burst?.state.openCount).toBe(1);
+    expect(burst?.state.lastOpenedAt?.toISOString()).toBe(at.toISOString());
+
+    await links.open(made.token, seconds(61));
+
+    const later = await db.shareLinks.findOne({ id: made.id }).lean<ShareLinkDocument>();
+    expect(later?.state.openCount).toBe(2);
+    expect(later?.state.lastOpenedAt?.toISOString()).toBe(seconds(61).toISOString());
+  });
+
+  it('counts each link for itself, so one busy link does not hide another being opened', async () => {
+    const one = await links.create(session(OWNER), { kind: 'view', subject: { type: 'grow', id: GROW } });
+    const other = await links.create(session(OWNER), { kind: 'view', subject: { type: 'grow', id: GROW } });
+    const at = new Date('2026-06-01T10:00:00.000Z');
+
+    await links.open(one.token, at);
+    await links.open(other.token, at);
+
+    const rows = await db.shareLinks.find({ id: { $in: [one.id, other.id] } }).lean<ShareLinkDocument[]>();
+    expect(rows.map(row => row.state.openCount)).toEqual([1, 1]);
   });
 
   it('leads nowhere once it is revoked or its day has passed, exactly as a token nobody issued does', async () => {

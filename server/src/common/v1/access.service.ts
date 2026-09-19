@@ -145,7 +145,7 @@ export class AccessService {
     if (!link || link.revokedAt !== null) return null;
     if (link.expiresAt !== null && link.expiresAt.getTime() <= Date.now()) return null;
 
-    const covers = link.subject.type === 'grow' ? subject.growId === link.subject.id : subject.spaceIds.includes(link.subject.id);
+    const covers = link.subject.type === 'grow' ? subject.growIds.includes(link.subject.id) : subject.spaceIds.includes(link.subject.id);
     if (!covers) return null;
 
     // Pictures are the one thing a link does not carry unless it was made to.
@@ -185,7 +185,7 @@ export class AccessService {
         const picture = await this.media.findOne({ id: ref.id }).lean();
         if (!picture) return null;
 
-        const subject = await this.ofAttachment(ref, need, picture.growId, picture.spaceId, null, picture.cameraId);
+        const subject = await this.ofAttachment(ref, need, picture.growId, picture.spaceId, null, picture.cameraId, picture.capturedAt);
         return { ...subject, ofACamera: picture.cameraId !== null };
       }
     }
@@ -204,6 +204,7 @@ export class AccessService {
     spaceId: string | null,
     deviceId: string | null,
     cameraId: string | null = null,
+    takenAt: Date | null = null,
   ): Promise<ResolvedSubject> {
     if (growId !== null) {
       const grow = await this.ofGrow(ref, growId, need);
@@ -222,7 +223,22 @@ export class AccessService {
 
     if (cameraId !== null) {
       const camera = await this.cameras.findOne({ id: cameraId }, { ownerId: 1, spaceId: 1, isDemo: 1 }).lean();
-      if (camera) return { ...(await this.inSpaces(ref, camera.spaceId)), ownerId: camera.ownerId, isDemo: camera.isDemo };
+      if (camera) {
+        return {
+          ...(await this.inSpaces(ref, camera.spaceId)),
+          ownerId: camera.ownerId,
+          isDemo: camera.isDemo,
+          // A still names no grow: it belongs to the camera that took it. What
+          // it is a picture of is whatever stood in front of that camera when
+          // the shutter closed - which is what a link onto that grow was made
+          // to show, and without it a link that includes cameras reaches none
+          // of the pictures its own week cards point at. It makes no picture
+          // public: a grow read through its own address is granted `view` by
+          // being public, and a camera never is, so a still is still refused to
+          // anybody who does not hold a link that carries cameras.
+          growIds: takenAt ? await this.growsInSpaceAt(camera.spaceId, takenAt) : [],
+        };
+      }
     }
 
     // Attached to nothing that still exists: nobody's but an admin's.
@@ -260,9 +276,24 @@ export class AccessService {
       isDemo: grow.isDemo,
       isPublic,
       spaceIds: await this.widen(placements.map(placement => placement.spaceId)),
-      growId: grow.id,
+      growIds: [grow.id],
       publicRange: isPublic ? { startsAt: grow.startedAt, endsAt: grow.endedAt ?? new Date() } : null,
     };
+  }
+
+  /**
+   * The grows that stood in a space at one instant. A tent holds one most of the
+   * time and two while a grow is being handed over, and a picture taken then is
+   * a picture of both.
+   */
+  private async growsInSpaceAt(spaceId: string | null, at: Date): Promise<string[]> {
+    if (spaceId === null) return [];
+
+    const rows = await this.grows
+      .find({ placements: { $elemMatch: { spaceId, startedAt: { $lte: at }, $or: [{ endedAt: null }, { endedAt: { $gt: at } }] } } }, { id: 1 })
+      .lean();
+
+    return rows.map(grow => grow.id);
   }
 
   private async inSpaces(ref: SubjectRef, spaceId: string | null): Promise<ResolvedSubject> {
@@ -290,7 +321,7 @@ export class AccessService {
       isDemo: false,
       isPublic: false,
       spaceIds: [],
-      growId: null,
+      growIds: [],
       publicRange: null,
       ofACamera: false,
       authorId: null,

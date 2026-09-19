@@ -32,7 +32,7 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { setpointsOf } from '../device/setpoints';
 import { serialiseDiaryEntry } from '../diary/diary-entries';
-import { NOTHING_HIDDEN, Redaction, redactionOf, summaryOf } from '../grow/grow-serialiser';
+import { NOTHING_HIDDEN, Redaction, growUpTo, redactionOf, summaryOf } from '../grow/grow-serialiser';
 import { dueTasksOf, occurrencePrefix } from '../home/due-tasks';
 import { liveOfDevice, mergeLive, setpointOf } from '../space/space-live';
 import { SpaceLiveService } from '../space/space-live.service';
@@ -104,13 +104,22 @@ export class OverviewService {
     // the answer of a share link is the link's window, not the tent's whole life.
     const range = clampRange(grant, { endsAt: now });
     const until = range.endsAt ?? now;
+    /**
+     * Whether the window this is read through has already closed, which is what
+     * separates a tent page from a tent page as it stood.
+     *
+     * A link carries a window, and the window belongs to the link: what is true
+     * in the tent *now* - the readings, what the controller is aiming for, when
+     * the camera last fired, which grow stands here today - is all dated after
+     * the window and is therefore none of that reader's business. So a closed
+     * window answers the diary, the pictures and the climate of the window and
+     * no "now" at all.
+     */
+    const closed = range.endsAt !== null && range.endsAt < now;
 
     const [readings, grows, cameras, alerts, owner] = await Promise.all([
-      Promise.all(devices.map(async device => ({ device, reading: await this.data.live(device.id) }))),
-      this.grows
-        .find({ endedAt: null, placements: { $elemMatch: { spaceId, endedAt: null } } })
-        .sort({ startedAt: -1, id: -1 })
-        .lean<GrowDocument[]>(),
+      closed ? Promise.resolve([]) : Promise.all(devices.map(async device => ({ device, reading: await this.data.live(device.id) }))),
+      this.growsHere(spaceId, range, closed),
       grant.includeCameras
         ? this.cameras.find({ spaceId, removedAt: null }).sort({ createdAt: 1, id: 1 }).lean<CameraDocument[]>()
         : Promise.resolve([]),
@@ -126,8 +135,11 @@ export class OverviewService {
 
     // The controller is what a tent's climate is; a plug's thermometer standing
     // beside it reports a temperature but aims at nothing, so it gets no verdict.
-    const [steering = null] = readings.flatMap(({ device, reading }) => {
-      const targets = setpointsOf(device.configuration, reading.isDay);
+    // Which device that is follows from its configuration rather than from a
+    // reading, so a window with no "now" in it still knows where to read the
+    // series from - what is not answered through it is the targets themselves.
+    const [steering = null] = devices.flatMap(device => {
+      const targets = setpointsOf(device.configuration, readings.find(one => one.device.id === device.id)?.reading.isDay ?? true);
       return targets ? [{ deviceId: device.id, targets }] : [];
     });
     const window = clampedWindow(grant, { startsAt: new Date(until.getTime() - VERDICT_HOURS * 3600 * 1000), endsAt: until });
@@ -165,6 +177,11 @@ export class OverviewService {
     ]);
 
     const [completions, watched] = await Promise.all([this.completionsOf(reminders), this.metricsOf(alerts)]);
+    // The band a window is judged against is the controller's configuration as
+    // it stands now, which a closed window may not be told either - so a tent
+    // read through one is stated rather than graded.
+    const band = closed ? null : (steering?.targets ?? null);
+    const verdict = verdictOf(series, band, window);
 
     /**
      * What is due here and what is alarming are the working half of the page,
@@ -186,21 +203,24 @@ export class OverviewService {
       spaceId: space.id,
       name: space.name,
       kind: space.kind,
-      roomId: space.roomId,
-      deviceIds: devices.map(device => device.id),
+      // How the place is arranged and what hardware stands in it are the
+      // grower's, not the reader's: a shared tent page is a tent, and a room id
+      // and a device id tie it to the rest of an account.
+      roomId: grant.redacted ? null : space.roomId,
+      deviceIds: grant.redacted ? null : devices.map(device => device.id),
       ...mergeLive(readings.map(liveOfDevice)),
-      targets: steering ? targetsOf(steering.targets) : null,
-      verdict: verdictOf(series, steering?.targets ?? null, window),
+      targets: closed || !steering ? null : targetsOf(steering.targets),
+      verdict: grant.redacted ? { ...verdict, deviceId: null } : verdict,
       grows: grows.map(grow =>
         growHere(
-          grow,
+          growUpTo(grow, until),
           spaceId,
           plants.filter(plant => plant.growId === grow.id),
-          hide.get(grow.ownerId) ?? NOTHING_HIDDEN,
-          now,
+          hide(grow.ownerId),
+          until,
         ),
       ),
-      cameras: cameras.map(camera => cameraHere(camera, stills.get(camera.id) ?? [])),
+      cameras: cameras.map(camera => cameraHere(camera, stills.get(camera.id) ?? [], closed)),
       entries: told,
       dueTasks,
       openAlerts: forKeepers ? alerts.map(alert => openAlertOf(alert, watched.get(alert.ruleId ?? '') ?? null)) : [],
@@ -211,6 +231,34 @@ export class OverviewService {
   /** An alert of this space, or of a device standing in it. */
   private raisedHere(spaceId: string, devices: StoredDevice[]): FilterQuery<StoredAlert> {
     return { $or: [{ spaceId }, { deviceId: { $in: devices.map(device => device.id) } }] };
+  }
+
+  /**
+   * Which grows stand here, which is a question with a date on it.
+   *
+   * While the window is open that is what stands here now: a grow that has not
+   * ended, placed here and not moved on. A window that has closed asks the same
+   * question of the window instead - a grow that stood here during it, whether
+   * or not it still does - because a grow started last week is not part of what
+   * a link handed out in August was sent to show, name, strains and all.
+   */
+  private growsHere(spaceId: string, range: AccessRange, closed: boolean): Promise<GrowDocument[]> {
+    // Still running, still standing here. A window that is open keeps up with
+    // the tent, so this is also what a link with no end answers.
+    const current: FilterQuery<GrowDocument> = { endedAt: null, placements: { $elemMatch: { spaceId, endedAt: null } } };
+
+    // Over before the window opened, in either sense: the grow itself, or the
+    // placement that put it here. An open start leaves nothing to be before.
+    const started = range.startsAt ? { $or: [{ endedAt: null }, { endedAt: { $gt: range.startsAt } }] } : {};
+    const during: FilterQuery<GrowDocument> = {
+      ...started,
+      placements: { $elemMatch: { spaceId, startedAt: { $lte: range.endsAt }, ...started } },
+    };
+
+    return this.grows
+      .find(closed ? during : current)
+      .sort({ startedAt: -1, id: -1 })
+      .lean<GrowDocument[]>();
   }
 
   /**
@@ -257,14 +305,24 @@ export class OverviewService {
     return new Map(rows);
   }
 
-  /** Whose privacy applies to each grow standing here; nothing is hidden from an owner or a member. */
-  private async redactionFor(grant: Grant, grows: GrowDocument[]): Promise<Map<string, Redaction>> {
-    if (!grant.redacted) return new Map();
+  /**
+   * Whose privacy applies to each grow standing here; nothing is hidden from an
+   * owner or a member.
+   *
+   * It answers a function rather than a map because the miss matters: an owner
+   * whose row could not be read - deleted, or deleted from under their grows -
+   * hides everything, which is the direction every other path already takes and
+   * the only one that is safe from somebody who is already a stranger. A map
+   * with a fallback beside it is a fallback somebody reads as "nothing to hide".
+   */
+  private async redactionFor(grant: Grant, grows: GrowDocument[]): Promise<(ownerId: string) => Redaction> {
+    if (!grant.redacted) return () => NOTHING_HIDDEN;
 
     const ownerIds = [...new Set(grows.map(grow => grow.ownerId))];
     const owners = await this.users.find({ id: { $in: ownerIds } }, { id: 1, privacy: 1 }).lean<Pick<StoredUser, 'id' | 'privacy'>[]>();
+    const byOwner = new Map(owners.map(owner => [owner.id, redactionOf(true, owner.privacy)]));
 
-    return new Map(owners.map(owner => [owner.id, redactionOf(true, owner.privacy)]));
+    return ownerId => byOwner.get(ownerId) ?? redactionOf(true, undefined);
   }
 
   /** What each open alert's rule watches: an alert stores the reading, its rule the metric the reading is of. */
@@ -364,10 +422,17 @@ const growHere = (grow: GrowDocument, spaceId: string, plants: PlantDocument[], 
   };
 };
 
-const cameraHere = (camera: CameraDocument, stills: CameraStill[]): OverviewCamera => ({
+/**
+ * A camera of this tent, with what it saw. `lastStillAt` is the one thing on it
+ * that is about now rather than about the window: it is when the camera last
+ * fired, which for a reader whose window closed in August is a fact about
+ * September. The strip itself is already clamped, so what is left is a camera
+ * that says what it took and not what it is taking.
+ */
+const cameraHere = (camera: CameraDocument, stills: CameraStill[], closed: boolean): OverviewCamera => ({
   cameraId: camera.id,
   name: camera.name,
-  lastStillAt: camera.state.lastStillAt?.toISOString() ?? null,
+  lastStillAt: closed ? null : (camera.state.lastStillAt?.toISOString() ?? null),
   stills,
 });
 

@@ -7,6 +7,7 @@ import { GrowModule } from '../grow/grow.module';
 import { OverviewModule } from '../overview/overview.module';
 import { FollowsController } from './follows.controller';
 import { FollowsService } from './follows.service';
+import { CardCache } from './link-card';
 import { LinkShellController } from './link-shell.controller';
 import { PublicController } from './public.controller';
 import { PublicPagesService } from './public-pages.service';
@@ -28,6 +29,6 @@ import { ShareLinksService } from './share-links.service';
 @Module({
   imports: [ModelsModule, V1CommonModule, CameraModule, DiaryModule, GrowModule, OverviewModule],
   controllers: [ShareLinksController, FollowsController, PublicController, LinkShellController],
-  providers: [ShareLinksService, FollowsService, PublicPagesService],
+  providers: [ShareLinksService, FollowsService, PublicPagesService, CardCache],
 })
 export class SharingModule {}

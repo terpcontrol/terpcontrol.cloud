@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { FastifyRequest } from 'fastify';
+import { Injectable } from '@nestjs/common';
 import { LinkCard } from '@fg2/shared-types/v1';
 import { FIGURE_FAMILY, INK, MUTED, PANEL, TEXT_FAMILY, escapeXml } from '@modules/v1/camera/timelapse-overlays';
 
@@ -16,6 +16,25 @@ import { FIGURE_FAMILY, INK, MUTED, PANEL, TEXT_FAMILY, escapeXml } from '@modul
 /** What every scraper expects of an Open Graph image, and what they all crop to. */
 export const CARD_WIDTH = 1200;
 export const CARD_HEIGHT = 630;
+
+/**
+ * How long a card and a shell may be held on to, by this server and by whatever
+ * is between it and a reader.
+ *
+ * **The trade.** A public diary goes private the instant its grower says so, and
+ * the origin stops answering at once - but a `public` answer that is already in
+ * a shared cache is out of reach until it expires. So the duration is the window
+ * in which a diary that has been taken down can still be fetched by somebody who
+ * never held a link, and it is chosen to be short enough to be honest about
+ * rather than long enough to be free. Five minutes for the picture, two for the
+ * page whose title states a day number that moves daily.
+ *
+ * What it costs is re-rendering a busy link a few times an hour instead of once,
+ * and `CardCache` below absorbs that: the extra fetches cost a request each and
+ * not a render.
+ */
+export const CARD_CACHE_SECONDS = 300;
+export const SHELL_CACHE_SECONDS = 120;
 
 const MARGIN = 72;
 const CONTENT_WIDTH = CARD_WIDTH - MARGIN * 2;
@@ -131,6 +150,56 @@ export const renderCard = async (card: LinkCard, cover: Buffer | null): Promise<
     .toBuffer();
 };
 
+/**
+ * How long a rendered card is kept, which is also how long it is served with.
+ *
+ * Nothing about a card is per-reader, and drawing one costs a read of the grow
+ * and its plants, the cover's bytes out of the bucket and a 1200x630 composite
+ * through sharp - while a link pasted into a channel with two hundred people in
+ * it is two hundred requests for the same picture inside a minute. What is kept
+ * is the in-flight promise rather than the bytes, so a burst that arrives before
+ * the first render finishes waits for it instead of starting a second.
+ *
+ * In memory, like the rate limiter and for the same reason: the server is
+ * deployed as one process. The map is swept as it is read, so it holds what has
+ * been asked for lately rather than every diary ever shared.
+ */
+const CARD_TTL_MS = CARD_CACHE_SECONDS * 1000;
+
+/** A safety net rather than a policy: a sweep only runs on a read, and a burst of unique addresses must not grow the map without bound. */
+const MOST_CARDS_KEPT = 200;
+
+@Injectable()
+export class CardCache {
+  private readonly rendered = new Map<string, { png: Promise<Buffer>; until: number }>();
+
+  public async of(key: string, draw: () => Promise<Buffer>): Promise<Buffer> {
+    const now = Date.now();
+    this.sweep(now);
+
+    const known = this.rendered.get(key);
+    if (known && known.until > now) return known.png;
+
+    const png = draw();
+    this.rendered.set(key, { png, until: now + CARD_TTL_MS });
+    // A render that failed is not an answer worth keeping for five minutes, and
+    // the rejection still reaches the caller that asked for it.
+    png.catch(() => this.rendered.delete(key));
+
+    return png;
+  }
+
+  private sweep(now: number): void {
+    for (const [key, entry] of this.rendered) {
+      if (entry.until <= now) this.rendered.delete(key);
+    }
+
+    // Oldest first, which is insertion order: what is left is all unexpired, so
+    // there is nothing better to drop than what was asked for longest ago.
+    while (this.rendered.size > MOST_CARDS_KEPT) this.rendered.delete(this.rendered.keys().next().value!);
+  }
+}
+
 /** Text being put into an HTML attribute, which is the same escaping an XML one needs plus the apostrophe. */
 const escapeHtml = (text: string): string => escapeXml(text).replace(/'/g, '&#39;');
 
@@ -180,14 +249,22 @@ export const shellHtml = (card: LinkCard): string => {
 };
 
 /**
- * What the absolute URLs on a card are built from. The address this install
- * publishes wins, because it is what every other client is told to call and what
- * the API document names; a stack that publishes none falls back to the host the
- * request arrived on, which is what a crawler followed to get here.
+ * What the absolute URLs on a card are built from: the address this install
+ * publishes, which is what every other client is told to call and what the API
+ * document names.
+ *
+ * It is required rather than guessed. A card is the one answer here that states
+ * an address instead of following one, and the `Host` header is written by
+ * whoever made the request - so falling back to it let a crawler be sent a
+ * `canonical` and an `og:image` pointing at somebody else's server, on an
+ * install that had simply never set the variable. `validateEnvironment` refuses
+ * to start without it, so this cannot be reached in a running server; it throws
+ * rather than returning nothing, because a card with a half-built address is
+ * worse than no card.
  */
-export const baseUrlOf = (request: FastifyRequest, configured: string | undefined): string => {
+export const baseUrlOf = (configured: string | undefined): string => {
   const published = (configured ?? '').trim().replace(/\/+$/, '');
-  if (published) return published;
+  if (!published) throw new Error('API_URL_EXTERNAL is not set, so no address can be published for a share card.');
 
-  return `${request.protocol}://${request.headers.host ?? request.hostname}`;
+  return published;
 };

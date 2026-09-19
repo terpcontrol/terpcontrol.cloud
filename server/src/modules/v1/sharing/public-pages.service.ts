@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { FollowedGrowCard, LinkCard, PublicAuthor, PublicGrowPage, PublicUserPage, SharedResolution } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
-import { AccessContext, Grant } from '@common/v1/access.types';
+import { AccessContext, AccessRange, Grant } from '@common/v1/access.types';
 import { clampRange } from '@common/v1/range';
 import { notFound } from '@common/v1/problem';
 import { MODEL_V1 } from '@database/models';
@@ -17,7 +17,7 @@ import { MediaService } from '../camera/media.service';
 import { spacesDuring } from '../diary/grow-places';
 import { GrowReportService, harvestOf } from '../diary/report.service';
 import { GrowWeeksService } from '../diary/weeks.service';
-import { redactionOf, serialisePublicCard, summaryOf } from '../grow/grow-serialiser';
+import { growUpTo, redactionOf, serialisePublicCard, summaryOf } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
 import { OverviewService } from '../overview/overview.service';
 import { ShareLinksService } from './share-links.service';
@@ -86,6 +86,12 @@ export class PublicPagesService {
    */
   public async growPage(grow: GrowDocument, grant: Grant, now: Date = new Date()): Promise<PublicGrowPage> {
     const range = clampRange(grant);
+    // Where the story stops for this reader. Everything the page states about
+    // the grow as a whole - the day it is on, the stage it is in, whether it is
+    // over - is worked out here rather than now, because a link whose window
+    // closed in August was not sent September.
+    const until = range.endsAt && range.endsAt < now ? range.endsAt : now;
+    const seen = growUpTo(grow, until);
 
     const [hide, plants, owner, page, totals] = await Promise.all([
       this.grows.redaction(grant),
@@ -95,7 +101,7 @@ export class PublicPagesService {
       this.report.totalsOf(grow.id, grant),
     ]);
 
-    const summary = summaryOf(grow, plants, hide, now);
+    const summary = summaryOf(seen, plants, hide, until);
 
     return {
       slug: grow.slug,
@@ -104,7 +110,7 @@ export class PublicPagesService {
       type: grow.type,
       author: authorOf(owner),
       startedAt: grow.startedAt.toISOString(),
-      endedAt: grow.endedAt?.toISOString() ?? null,
+      endedAt: seen.endedAt?.toISOString() ?? null,
       dayNumber: summary.dayNumber,
       stage: summary.stage,
       preset: summary.preset,
@@ -115,7 +121,14 @@ export class PublicPagesService {
       range: { startsAt: range.startsAt?.toISOString() ?? null, endsAt: range.endsAt?.toISOString() ?? null },
       includeCameras: grant.includeCameras,
       weeks: page.items,
-      harvest: harvestOf(plants, hide),
+      // A harvest is dated, so it belongs to the window like any other line: a
+      // plant that came down after a link's window closed has not come down as
+      // far as that link is concerned, and a grow whose whole harvest is outside
+      // it has none to state.
+      harvest: harvestOf(
+        plants.filter(plant => harvestedWithin(plant, range)),
+        hide,
+      ),
       totals,
     };
   }
@@ -291,6 +304,14 @@ export class PublicPagesService {
     return ownerId ? this.users.findOne({ id: ownerId }).lean<StoredUser>() : Promise.resolve(null);
   }
 }
+
+/** Whether a plant came down inside the window a reader holds. A plant that is still standing is not outside it. */
+const harvestedWithin = (plant: PlantDocument, range: AccessRange): boolean => {
+  if (!plant.harvest) return true;
+
+  const at = plant.harvest.harvestedAt;
+  return (!range.startsAt || at >= range.startsAt) && (!range.endsAt || at <= range.endsAt);
+};
 
 /**
  * Whether a picture is part of this grow's public page, which is the whole of

@@ -23,6 +23,14 @@ export const serialiseDiaryEntry = (entry: EntryDocument, hide: Redaction, inclu
     // done and leaves the person out, rather than handing over an id that has no
     // handle beside it to make sense of.
     authorId: hide.authors ? null : told.authorId,
+    // And where it happened is the place behind it. A week card that answers no
+    // `deviceIds` and a report that answers no `spaceIds` would say nothing at
+    // all if the lines under them named the tent and the controller anyway -
+    // every phase line carries the space it was written in, and every line a
+    // device wrote carries the device. A reader outside the tent is told what
+    // happened rather than which corner of somebody's flat it happened in.
+    spaceId: hide.authors ? null : told.spaceId,
+    deviceId: hide.authors ? null : told.deviceId,
     // A list of plants is a count stated the long way round, and an empty one
     // already means "about whatever this is attached to" rather than about
     // single plants - which is what the grow serialiser answers a hidden scope
@@ -32,8 +40,24 @@ export const serialiseDiaryEntry = (entry: EntryDocument, hide: Redaction, inclu
     // was about; the pictures themselves are refused per picture, by the same
     // decision, where they are fetched.
     cameraId: includeCameras ? told.cameraId : null,
-    values: hide.weights && told.values.kind === 'harvest' ? { ...told.values, wetWeightG: null, dryWeightG: null } : told.values,
+    values: valuesOf(told.values, hide),
   };
+};
+
+/**
+ * What is left of an entry's own values.
+ *
+ * The weights are the setting they are; the plant a reading is of is the count
+ * stated one measurement at a time. A page that answers `plantCount: null` and
+ * an empty `plantIds` and then names a real plant inside a reading hands the
+ * count back to anybody willing to collect the distinct ids across a diary - so
+ * a reading whose scope is hidden is a reading of whatever the line is about,
+ * which is what a null `plantId` already means.
+ */
+const valuesOf = (values: Entry['values'], hide: Redaction): Entry['values'] => {
+  const weighed = hide.weights && values.kind === 'harvest' ? { ...values, wetWeightG: null, dryWeightG: null } : values;
+
+  return hide.counts && 'readings' in weighed ? { ...weighed, readings: weighed.readings.map(reading => ({ ...reading, plantId: null })) } : weighed;
 };
 
 /**

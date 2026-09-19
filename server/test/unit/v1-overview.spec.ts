@@ -441,6 +441,98 @@ describe('who may read it', () => {
 
     expect((await readAs(visitor(token))).cameras).toEqual([]);
   });
+
+  /**
+   * A window that has closed has no "now" in it. What the tent reads this
+   * minute, what its controller is aiming for and when its camera last fired
+   * are all dated after the window - and the verdict and the entries beside
+   * them have been clamped since the page was written, so answering the live
+   * half was the rule applied unevenly inside one method.
+   */
+  it('answers a link with a closed window the tent as it was, and nothing of the tent as it is', async () => {
+    const page = await readAs(visitor(await linkFor({})));
+
+    expect(page.values).toEqual([]);
+    expect(page.setpoints).toEqual([]);
+    expect(page.targets).toBeNull();
+    expect(page.cameras.every(camera => camera.lastStillAt === null)).toBe(true);
+    // 25.4 is the plug's temperature this minute and 1010 the CO2; neither is
+    // a fact about the fortnight the link was made for.
+    expect(JSON.stringify(page)).not.toContain('25.4');
+    expect(JSON.stringify(page)).not.toContain('1010');
+  });
+
+  it('answers a link with no end the tent as it is, which is what sharing a running grow means', async () => {
+    const token = await linkFor({ range: { startsAt: null, endsAt: null } });
+    const page = await readAs(visitor(token));
+
+    expect(page.values.map(value => value.metric)).toEqual(['temperature', 'humidity', 'co2']);
+    expect(page.targets).not.toBeNull();
+    expect(page.cameras.some(camera => camera.lastStillAt !== null)).toBe(true);
+  });
+
+  it('lists the grows that stood here during the window rather than the ones standing here now', async () => {
+    await db.grows.create({
+      id: 'grow-arrived-later',
+      ownerId: OWNER,
+      name: 'Moved in last week',
+      type: 'autoflower',
+      phases: [{ ...phase, id: 'phase-4', startedAt: new Date('2026-06-09T08:00:00.000Z') }],
+      placements: [{ id: 'placement-later', spaceId: TENT, startedAt: new Date('2026-06-09T08:00:00.000Z'), endedAt: null, plantIds: null }],
+      slug: 'moved-in-last-week',
+      startedAt: new Date('2026-06-09T08:00:00.000Z'),
+      endedAt: null,
+    });
+
+    const mine = await readAs(session(OWNER));
+    const theirs = await readAs(visitor(await linkFor({})));
+
+    expect(mine.grows.map(grow => grow.growId)).toContain('grow-arrived-later');
+    // Not its name, not its strains, not that it exists.
+    expect(theirs.grows.map(grow => grow.growId)).not.toContain('grow-arrived-later');
+    expect(JSON.stringify(theirs)).not.toContain('Moved in last week');
+    // The grow that stood here during the window and has since moved on is
+    // what the link was sent to show.
+    expect(theirs.grows.map(grow => grow.growId)).toContain('grow-moved-out');
+  });
+
+  it('counts the days of a grow up to the end of the window rather than up to today', async () => {
+    const mine = await readAs(session(OWNER));
+    const theirs = await readAs(visitor(await linkFor({})));
+
+    expect(mine.grows.find(grow => grow.growId === GROW)?.dayNumber).toBe(34);
+    // The window closed on 8 June, two days into the diary this reader has not seen.
+    expect(theirs.grows.find(grow => grow.growId === GROW)?.dayNumber).toBe(31);
+  });
+
+  it('names no device and no room to somebody who was sent a link', async () => {
+    const mine = await readAs(session(OWNER));
+    const theirs = await readAs(visitor(await linkFor({})));
+
+    expect(mine).toMatchObject({ roomId: ROOM, deviceIds: [CONTROLLER, PLUG] });
+    expect(theirs).toMatchObject({ roomId: null, deviceIds: null });
+    expect(theirs.verdict.deviceId).toBeNull();
+    expect(JSON.stringify(theirs)).not.toContain(CONTROLLER);
+    expect(JSON.stringify(theirs)).not.toContain(PLUG);
+    expect(JSON.stringify(theirs)).not.toContain(ROOM);
+  });
+
+  /**
+   * Every other path takes the quiet direction when it cannot read the owner's
+   * settings; this one used to take the loud one, and an admin deleting a user
+   * row leaves their grows standing, so it was reachable.
+   */
+  it('hides everything where the owner´s settings cannot be read at all', async () => {
+    const token = await linkFor({});
+    const known = await readAs(visitor(token));
+    expect(known.grows.map(grow => grow.plantCount)).not.toContain(null);
+
+    await db.users.deleteOne({ id: OWNER });
+
+    const unknown = await readAs(visitor(token));
+    expect(unknown.grows.every(grow => grow.plantCount === null)).toBe(true);
+    expect(unknown.grows.every(grow => grow.stageGroups.every(group => group.plantCount === null))).toBe(true);
+  });
 });
 
 describe('the 24 h verdict', () => {

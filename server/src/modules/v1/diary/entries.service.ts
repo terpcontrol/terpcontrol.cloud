@@ -4,7 +4,7 @@ import { FilterQuery, Model } from 'mongoose';
 import type { Entry, EntryKind, EntryPage } from '@fg2/shared-types/v1';
 import { entryKind } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
-import { AccessContext, SubjectRef, SubjectType } from '@common/v1/access.types';
+import { AccessContext, AccessRange, SubjectRef, SubjectType } from '@common/v1/access.types';
 import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
 import { badRequest, notFound } from '@common/v1/problem';
 import { clampRange, withinRange } from '@common/v1/range';
@@ -81,14 +81,20 @@ export class EntriesService {
   }
 
   /**
-   * One line, read through the same decision and the same redaction as the list
-   * it would have come out of. The guard has already granted it, and the grant
-   * is what says how much of it is serialised.
+   * One line, read through the same decision, the same window and the same
+   * redaction as the list it would have come out of. The guard has already
+   * granted it, and the grant is what says how much of it is serialised.
+   *
+   * The window matters as much here as in the list. A grant reaches the grow,
+   * not each of its lines, so a link that was sent one fortnight of a diary
+   * would otherwise hand out every other line of it one id at a time - and an
+   * id is guessable enough to try. A line outside the window is not there, the
+   * same answer a line of somebody else's grow gets.
    */
   public async read(ctx: AccessContext, id: string): Promise<Entry> {
     const grant = await this.access.require(ctx, subjectRef('entry', id), 'view');
     const entry = await this.entries.findOne({ id }).lean<EntryDocument>();
-    if (!entry) throw notFound('entry_not_found', 'There is no entry with that id.');
+    if (!entry || outsideRange(entry.occurredAt, clampRange(grant))) throw notFound('entry_not_found', 'There is no entry with that id.');
 
     return serialiseDiaryEntry(entry, await this.grows.redaction(grant), grant.includeCameras);
   }
@@ -150,3 +156,7 @@ const kindsOf = (kinds: string | undefined): FilterQuery<EntryDocument> => {
 
 /** The query schema has already said it is an instant; this is only the boundary where the wire's string becomes one. */
 const instantOf = (value: string | undefined): Date | undefined => (value ? new Date(value) : undefined);
+
+/** Both ends count as inside, exactly as `withinRange` filters the list this line would have come out of. */
+const outsideRange = (at: Date, range: AccessRange): boolean =>
+  (range.startsAt !== null && at < range.startsAt) || (range.endsAt !== null && at > range.endsAt);

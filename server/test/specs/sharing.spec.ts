@@ -130,6 +130,80 @@ describe('a link that is already out of the house', () => {
     expect(patched.body.subject).toEqual({ type: 'grow', id: grow.id });
   });
 
+  /**
+   * Narrowing is the point of the route, so what it narrows is asserted rather
+   * than assumed: the window belongs to the link, and a link handed back a
+   * narrower one has to answer less from the next read on.
+   */
+  it('answers less the moment it is narrowed, and not merely a smaller list of weeks', async () => {
+    const daysAgo = (days: number): string => new Date(Date.now() - days * 24 * 3600 * 1000).toISOString();
+
+    const run = (
+      await owner.client
+        .post('/v1/grows')
+        .send({ name: 'Narrowing run', type: 'photoperiod', startedAt: daysAgo(10), plants: [], spaceId: tent })
+        .expect(201)
+    ).body;
+    await owner.client
+      .post(`/v1/grows/${run.id}/phases`)
+      .send({ stage: 'vegetative', startedAt: daysAgo(10) })
+      .expect(201);
+    await owner.client
+      .post('/v1/entries')
+      .send({ kind: 'note', growId: run.id, text: 'Early days', occurredAt: daysAgo(8), values: { kind: 'note' } })
+      .expect(201);
+    await owner.client
+      .post('/v1/entries')
+      .send({ kind: 'note', growId: run.id, text: 'Lately', values: { kind: 'note' } })
+      .expect(201);
+
+    const link = (
+      await owner.client
+        .post('/v1/share-links')
+        .send({ kind: 'view', subject: { type: 'grow', id: run.id } })
+        .expect(201)
+    ).body;
+
+    const wide = await anonymous().get(`/v1/shared/${link.token}`).expect(200);
+    expect(JSON.stringify(wide.body)).toContain('Early days');
+
+    await owner.client
+      .patch(`/v1/share-links/${link.id}`)
+      .send({ range: { startsAt: daysAgo(1), endsAt: null } })
+      .expect(200);
+
+    const narrowed = await anonymous().get(`/v1/shared/${link.token}`).expect(200);
+
+    // Not "a week that touches the window", which is how up to seven days on
+    // each side of it used to come out with it.
+    expect(JSON.stringify(narrowed.body)).not.toContain('Early days');
+    expect(JSON.stringify(narrowed.body)).toContain('Lately');
+  });
+
+  it('stops naming the camera at all once it is told not to carry pictures', async () => {
+    const cam = (
+      await owner.client.post('/v1/cameras').send({ kind: 'rtsp', spaceId: tent, name: 'Sharing cam', url: 'rtsp://10.0.0.40:554/s' }).expect(201)
+    ).body;
+
+    const link = (
+      await owner.client
+        .post('/v1/share-links')
+        .send({ kind: 'view', subject: { type: 'space', id: tent }, includeCameras: true })
+        .expect(201)
+    ).body;
+
+    const shown = await anonymous().get(`/v1/shared/${link.token}`).expect(200);
+    expect(JSON.stringify(shown.body)).toContain(cam.id);
+
+    await owner.client.patch(`/v1/share-links/${link.id}`).send({ includeCameras: false }).expect(200);
+
+    const hidden = await anonymous().get(`/v1/shared/${link.token}`).expect(200);
+    // Absent, not hidden: that a camera hangs in the tent is as much of the
+    // tent as the pictures it takes.
+    expect(hidden.body.subject.space.cameras).toEqual([]);
+    expect(JSON.stringify(hidden.body)).not.toContain(cam.id);
+  });
+
   it('is revoked rather than deleted, and revoking twice keeps the instant', async () => {
     const link = await aLink();
 

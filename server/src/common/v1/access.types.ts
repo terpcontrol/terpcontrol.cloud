@@ -85,8 +85,14 @@ export interface ResolvedSubject {
   isPublic: boolean;
   /** Every space a membership could cover it through, rooms included. */
   spaceIds: string[];
-  /** The grow it belongs to, which is what a share link on a grow covers. */
-  growId: string | null;
+  /**
+   * The grows it belongs to, which is what a share link on a grow covers.
+   *
+   * Usually one or none. A still names no grow at all - it belongs to the
+   * camera that took it - so what it is a picture of is whatever stood in front
+   * of that camera when the shutter closed, and two grows can share a tent.
+   */
+  growIds: string[];
   /** The life of the public grow it belongs to: what a public read is clamped to. */
   publicRange: AccessRange | null;
   /** A camera, or a picture one took. */

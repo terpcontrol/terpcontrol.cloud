@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { EntryKind, GrowHarvest, GrowReport, GrowReportPhase, GrowTotals } from '@fg2/shared-types/v1';
-import { Grant } from '@common/v1/access.types';
+import { AccessRange, Grant } from '@common/v1/access.types';
 import { clampRange, overlapsRange, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -79,7 +79,7 @@ export class GrowReportService {
     ]);
 
     const chapters = chaptersOf(grow, horizon).filter(chapter => overlapsRange(range, chapter.startsAt, chapter.endsAt ?? horizon));
-    const told = await Promise.all(chapters.map(chapter => this.chapterOf(chapter, { grow, hide, grant, origin, horizon, diary })));
+    const told = await Promise.all(chapters.map(chapter => this.chapterOf(chapter, { grow, hide, grant, range, origin, horizon, diary })));
 
     const named = told.flatMap(chapter => chapter.training);
     const rows = await this.users.find({ id: { $in: authorIdsOf(named) } }, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>();
@@ -119,7 +119,7 @@ export class GrowReportService {
         { startsAt: chapter.startsAt, endsAt },
         chapter.phase.targets ?? controllers[0]?.targets ?? null,
       ),
-      this.coverOf(spaceIds, new Date((chapter.startsAt.getTime() + endsAt.getTime()) / 2)),
+      this.coverOf(spaceIds, new Date((chapter.startsAt.getTime() + endsAt.getTime()) / 2), world.grant, world.range),
     ]);
 
     const counted = (kind: EntryKind): number => entries.filter(entry => entry.kind === kind).length;
@@ -135,7 +135,10 @@ export class GrowReportService {
       // before that instant rather than the day the next phase started on.
       dayTo: chapter.endsAt ? dayNumberOf(origin, new Date(chapter.endsAt.getTime() - 1)) : null,
       dayCount: dayNumberOf(origin, new Date(endsAt.getTime() - 1)) - dayNumberOf(origin, chapter.startsAt) + 1,
-      spaceIds: spaceIds.filter((id): id is string => id !== null),
+      // A chapter tells where the plants stood only to somebody who keeps them:
+      // a public diary is a story, and the spaces it names are addresses in
+      // somebody's flat that tie it to the rest of their account.
+      spaceIds: world.grant.redacted ? null : spaceIds.filter((id): id is string => id !== null),
       coverMediaId,
       climate: climate.climate,
       inBandPercent: climate.inBandPercent,
@@ -147,8 +150,19 @@ export class GrowReportService {
     };
   }
 
-  /** The still nearest the middle of a chapter, which is the picture it is told under. */
-  private async coverOf(spaceIds: readonly (string | null)[], middle: Date): Promise<string | null> {
+  /**
+   * The still nearest the middle of a chapter, which is the picture it is told
+   * under.
+   *
+   * A link that was not made to carry pictures gets none, and is not told that a
+   * camera hangs in the tent either: a cover's id is a picture that exists and
+   * the instant it was taken at. What is left is searched inside the window, so
+   * a chapter that reaches past a link's end is covered by a picture from inside
+   * it or by nothing.
+   */
+  private async coverOf(spaceIds: readonly (string | null)[], middle: Date, grant: Grant, range: AccessRange): Promise<string | null> {
+    if (!grant.includeCameras) return null;
+
     const named = spaceIds.filter((id): id is string => id !== null);
     if (named.length === 0) return null;
 
@@ -157,12 +171,18 @@ export class GrowReportService {
     const cameras = await this.cameras.find({ spaceId: { $in: named } }, { id: 1 }).lean<CameraDocument[]>();
     if (cameras.length === 0) return null;
 
+    const searched = {
+      startsAt: latestOf(new Date(middle.getTime() - COVER_WINDOW_MS), range.startsAt),
+      endsAt: earliestOf(new Date(middle.getTime() + COVER_WINDOW_MS), range.endsAt),
+    };
+    if (searched.startsAt > searched.endsAt) return null;
+
     const stills = await this.media
       .find(
         {
           cameraId: { $in: cameras.map(camera => camera.id) },
           kind: 'still',
-          capturedAt: { $gte: new Date(middle.getTime() - COVER_WINDOW_MS), $lte: new Date(middle.getTime() + COVER_WINDOW_MS) },
+          capturedAt: { $gte: searched.startsAt, $lte: searched.endsAt },
         },
         { id: 1, capturedAt: 1 },
       )
@@ -213,10 +233,15 @@ interface ReportWorld {
   grow: GrowDocument;
   hide: Redaction;
   grant: Grant;
+  /** The window the chapters and everything they are built from are clamped to. */
+  range: AccessRange;
   origin: Date;
   horizon: Date;
   diary: EntryDocument[];
 }
+
+const latestOf = (one: Date, other: Date | null): Date => (other && other > one ? other : one);
+const earliestOf = (one: Date, other: Date | null): Date => (other && other < one ? other : one);
 
 /**
  * The grow's spine: the phases the whole grow went through, each ending where

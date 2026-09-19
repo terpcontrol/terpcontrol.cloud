@@ -8,7 +8,7 @@ import { ProblemException } from '@common/v1/problem';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { AppliedPreset, ClimatePresets } from '@modules/v1/grow/climate-presets.port';
-import { NOTHING_HIDDEN, summaryOf } from '@modules/v1/grow/grow-serialiser';
+import { NOTHING_HIDDEN, growUpTo, summaryOf } from '@modules/v1/grow/grow-serialiser';
 import { GrowsController } from '@modules/v1/grow/grows.controller';
 import { GrowsService } from '@modules/v1/grow/grows.service';
 import { PlantsController } from '@modules/v1/grow/plants.controller';
@@ -198,6 +198,40 @@ describe('what a grow´s phases and placements mean', () => {
     const summary = summaryOf(grown({ phases: [phase({})], endedAt }), planted('a'), NOTHING_HIDDEN, TEN_DAYS_LATER);
 
     expect(summary.dayNumber).toBe(6);
+  });
+
+  /**
+   * What a reader whose window closed is told about the grow as a whole. The
+   * day counter and the headline are worked out from the phases and the end,
+   * so a grow read through a window that closed a month ago would otherwise
+   * answer today's day number and a stage entered long after the link was sent.
+   */
+  describe('a grow read up to an instant', () => {
+    const FIVE_DAYS_IN = new Date('2026-05-06T08:00:00.000Z');
+    const running = grown({
+      phases: [phase({ id: 'phase-veg' }), phase({ id: 'phase-flower', stage: 'flowering', startedAt: new Date('2026-05-09T08:00:00.000Z') })],
+      placements: [placement({}), placement({ id: 'placement-fridge', spaceId: 'space-fridge', startedAt: new Date('2026-05-09T08:00:00.000Z') })],
+      endedAt: new Date('2026-05-10T08:00:00.000Z'),
+    });
+
+    it('stops the day counter and the headline where the window did', () => {
+      const whole = summaryOf(running, planted('a'), NOTHING_HIDDEN, TEN_DAYS_LATER);
+      const seen = summaryOf(growUpTo(running, FIVE_DAYS_IN), planted('a'), NOTHING_HIDDEN, FIVE_DAYS_IN);
+
+      expect(whole).toMatchObject({ dayNumber: 10, stage: 'flowering' });
+      expect(seen).toMatchObject({ dayNumber: 6, stage: 'vegetative' });
+    });
+
+    it('has not ended, because a grow that ended after the window is still running as far as that reader knows', () => {
+      expect(growUpTo(running, FIVE_DAYS_IN).endedAt).toBeNull();
+      expect(growUpTo(running, TEN_DAYS_LATER).endedAt).toEqual(new Date('2026-05-10T08:00:00.000Z'));
+    });
+
+    it('leaves the plants where they stood, not where they were moved to afterwards', () => {
+      const seen = summaryOf(growUpTo(running, FIVE_DAYS_IN), planted('a'), NOTHING_HIDDEN, FIVE_DAYS_IN);
+
+      expect(seen.locations.map(where => where.spaceId)).toEqual([TENT]);
+    });
   });
 
   it('is auto when a preset or the plan put the grow there, and not when a person did', () => {

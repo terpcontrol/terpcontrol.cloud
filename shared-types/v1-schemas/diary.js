@@ -875,11 +875,11 @@ exports.spaceOverview = (0, common_js_1.named)('SpaceOverview', zod_1.z.object({
     spaceId: (0, common_js_1.id)(),
     name: zod_1.z.string(),
     kind: common_js_1.spaceKind,
-    roomId: (0, common_js_1.id)().nullable(),
-    deviceIds: zod_1.z.array((0, common_js_1.id)()),
-    values: zod_1.z.array(exports.cardValue),
+    roomId: (0, common_js_1.id)().nullable().describe('Null where the space stands on its own, and on a shared or public read, which is not told how the place is arranged.'),
+    deviceIds: zod_1.z.array((0, common_js_1.id)()).nullable().describe('Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.'),
+    values: zod_1.z.array(exports.cardValue).describe('Empty on a read through a window that has closed, which has no "now" to answer with.'),
     setpoints: zod_1.z.array(exports.cardSetpoint),
-    targets: exports.overviewTargets.nullable().describe('Null in a space whose devices hold no targets at all.'),
+    targets: exports.overviewTargets.nullable().describe('Null in a space whose devices hold no targets at all, and on a read through a window that has closed.'),
     verdict: exports.climateVerdict,
     grows: zod_1.z.array(exports.overviewGrow).describe('Every grow with open plants here, newest first.'),
     cameras: zod_1.z.array(exports.overviewCamera),
@@ -1106,7 +1106,8 @@ exports.growWeekCard = (0, common_js_1.named)('GrowWeekCard', zod_1.z.object({
     stageWeek: zod_1.z.number().int().nullable().describe('1 in the week the stage began; null before the first phase.'),
     deviceIds: zod_1.z
         .array((0, common_js_1.id)())
-        .describe('The controllers the averages were read from. Empty where nothing measures in the places the grow stood, which a card says rather than drawing dashes.'),
+        .nullable()
+        .describe('The controllers the averages were read from. Empty where nothing measures in the places the grow stood, which a card says rather than drawing dashes; null on a shared or public read, where the averages are the diary and the hardware behind them is not.'),
     climate: zod_1.z.array(exports.weekClimate),
     lightHours: zod_1.z.number().nullable().describe('Hours of light per day over the week, from the controller’s light output.'),
     days: zod_1.z.array(exports.growWeekDay).describe('Seven; a day that has not happened yet carries no picture.'),
@@ -1138,7 +1139,10 @@ exports.growReportPhase = (0, common_js_1.named)('GrowReportPhase', zod_1.z.obje
     dayFrom: zod_1.z.number().int(),
     dayTo: zod_1.z.number().int().nullable().describe('Null while the phase is the one the grow is in, which is what "→ today" says.'),
     dayCount: zod_1.z.number().int(),
-    spaceIds: zod_1.z.array((0, common_js_1.id)()).describe('Where the plants stood during it, in the order they arrived.'),
+    spaceIds: zod_1.z
+        .array((0, common_js_1.id)())
+        .nullable()
+        .describe('Where the plants stood during it, in the order they arrived; null on a shared or public read, which is told the story and not the address.'),
     coverMediaId: (0, common_js_1.id)().nullable().describe('The still nearest the middle of the phase, which is the chapter’s picture.'),
     climate: zod_1.z.array(exports.weekClimate),
     inBandPercent: zod_1.z

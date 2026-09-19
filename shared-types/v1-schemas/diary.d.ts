@@ -2836,7 +2836,7 @@ export declare const spaceOverview: z.ZodObject<{
         balcony: "balcony";
     }>;
     roomId: z.ZodNullable<z.ZodString>;
-    deviceIds: z.ZodArray<z.ZodString>;
+    deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
     values: z.ZodArray<z.ZodObject<{
         value: z.ZodNullable<z.ZodNumber>;
         measuredAt: z.ZodNullable<z.ZodISODateTime>;
@@ -3866,7 +3866,7 @@ export declare const growWeekCard: z.ZodObject<{
     }>>;
     preset: z.ZodNullable<z.ZodString>;
     stageWeek: z.ZodNullable<z.ZodNumber>;
-    deviceIds: z.ZodArray<z.ZodString>;
+    deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
     climate: z.ZodArray<z.ZodObject<{
         metric: z.ZodEnum<{
             offline: "offline";
@@ -4055,7 +4055,7 @@ export declare const growWeekCardPage: z.ZodObject<{
         }>>;
         preset: z.ZodNullable<z.ZodString>;
         stageWeek: z.ZodNullable<z.ZodNumber>;
-        deviceIds: z.ZodArray<z.ZodString>;
+        deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
         climate: z.ZodArray<z.ZodObject<{
             metric: z.ZodEnum<{
                 offline: "offline";
@@ -4249,7 +4249,7 @@ export declare const growReportPhase: z.ZodObject<{
     dayFrom: z.ZodNumber;
     dayTo: z.ZodNullable<z.ZodNumber>;
     dayCount: z.ZodNumber;
-    spaceIds: z.ZodArray<z.ZodString>;
+    spaceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
     coverMediaId: z.ZodNullable<z.ZodString>;
     climate: z.ZodArray<z.ZodObject<{
         metric: z.ZodEnum<{
@@ -4446,7 +4446,7 @@ export declare const growReport: z.ZodObject<{
         dayFrom: z.ZodNumber;
         dayTo: z.ZodNullable<z.ZodNumber>;
         dayCount: z.ZodNumber;
-        spaceIds: z.ZodArray<z.ZodString>;
+        spaceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
         coverMediaId: z.ZodNullable<z.ZodString>;
         climate: z.ZodArray<z.ZodObject<{
             metric: z.ZodEnum<{
@@ -4714,7 +4714,7 @@ export declare const publicGrowPage: z.ZodObject<{
         }>>;
         preset: z.ZodNullable<z.ZodString>;
         stageWeek: z.ZodNullable<z.ZodNumber>;
-        deviceIds: z.ZodArray<z.ZodString>;
+        deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
         climate: z.ZodArray<z.ZodObject<{
             metric: z.ZodEnum<{
                 offline: "offline";
@@ -4976,7 +4976,7 @@ export declare const sharedGrow: z.ZodObject<{
             }>>;
             preset: z.ZodNullable<z.ZodString>;
             stageWeek: z.ZodNullable<z.ZodNumber>;
-            deviceIds: z.ZodArray<z.ZodString>;
+            deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
             climate: z.ZodArray<z.ZodObject<{
                 metric: z.ZodEnum<{
                     offline: "offline";
@@ -5174,7 +5174,7 @@ export declare const sharedSpace: z.ZodObject<{
             balcony: "balcony";
         }>;
         roomId: z.ZodNullable<z.ZodString>;
-        deviceIds: z.ZodArray<z.ZodString>;
+        deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
         values: z.ZodArray<z.ZodObject<{
             value: z.ZodNullable<z.ZodNumber>;
             measuredAt: z.ZodNullable<z.ZodISODateTime>;
@@ -5587,7 +5587,7 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             }>>;
             preset: z.ZodNullable<z.ZodString>;
             stageWeek: z.ZodNullable<z.ZodNumber>;
-            deviceIds: z.ZodArray<z.ZodString>;
+            deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
             climate: z.ZodArray<z.ZodObject<{
                 metric: z.ZodEnum<{
                     offline: "offline";
@@ -5779,7 +5779,7 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             balcony: "balcony";
         }>;
         roomId: z.ZodNullable<z.ZodString>;
-        deviceIds: z.ZodArray<z.ZodString>;
+        deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
         values: z.ZodArray<z.ZodObject<{
             value: z.ZodNullable<z.ZodNumber>;
             measuredAt: z.ZodNullable<z.ZodISODateTime>;
@@ -6209,7 +6209,7 @@ export declare const sharedResolution: z.ZodObject<{
                 }>>;
                 preset: z.ZodNullable<z.ZodString>;
                 stageWeek: z.ZodNullable<z.ZodNumber>;
-                deviceIds: z.ZodArray<z.ZodString>;
+                deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
                 climate: z.ZodArray<z.ZodObject<{
                     metric: z.ZodEnum<{
                         offline: "offline";
@@ -6401,7 +6401,7 @@ export declare const sharedResolution: z.ZodObject<{
                 balcony: "balcony";
             }>;
             roomId: z.ZodNullable<z.ZodString>;
-            deviceIds: z.ZodArray<z.ZodString>;
+            deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
             values: z.ZodArray<z.ZodObject<{
                 value: z.ZodNullable<z.ZodNumber>;
                 measuredAt: z.ZodNullable<z.ZodISODateTime>;

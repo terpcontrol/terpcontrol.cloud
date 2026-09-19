@@ -1173,11 +1173,11 @@ export const spaceOverview = named(
     spaceId: id(),
     name: z.string(),
     kind: spaceKind,
-    roomId: id().nullable(),
-    deviceIds: z.array(id()),
-    values: z.array(cardValue),
+    roomId: id().nullable().describe('Null where the space stands on its own, and on a shared or public read, which is not told how the place is arranged.'),
+    deviceIds: z.array(id()).nullable().describe('Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.'),
+    values: z.array(cardValue).describe('Empty on a read through a window that has closed, which has no "now" to answer with.'),
     setpoints: z.array(cardSetpoint),
-    targets: overviewTargets.nullable().describe('Null in a space whose devices hold no targets at all.'),
+    targets: overviewTargets.nullable().describe('Null in a space whose devices hold no targets at all, and on a read through a window that has closed.'),
     verdict: climateVerdict,
     grows: z.array(overviewGrow).describe('Every grow with open plants here, newest first.'),
     cameras: z.array(overviewCamera),
@@ -1463,7 +1463,10 @@ export const growWeekCard = named(
     stageWeek: z.number().int().nullable().describe('1 in the week the stage began; null before the first phase.'),
     deviceIds: z
       .array(id())
-      .describe('The controllers the averages were read from. Empty where nothing measures in the places the grow stood, which a card says rather than drawing dashes.'),
+      .nullable()
+      .describe(
+        'The controllers the averages were read from. Empty where nothing measures in the places the grow stood, which a card says rather than drawing dashes; null on a shared or public read, where the averages are the diary and the hardware behind them is not.',
+      ),
     climate: z.array(weekClimate),
     lightHours: z.number().nullable().describe('Hours of light per day over the week, from the controller’s light output.'),
     days: z.array(growWeekDay).describe('Seven; a day that has not happened yet carries no picture.'),
@@ -1500,7 +1503,10 @@ export const growReportPhase = named(
     dayFrom: z.number().int(),
     dayTo: z.number().int().nullable().describe('Null while the phase is the one the grow is in, which is what "→ today" says.'),
     dayCount: z.number().int(),
-    spaceIds: z.array(id()).describe('Where the plants stood during it, in the order they arrived.'),
+    spaceIds: z
+      .array(id())
+      .nullable()
+      .describe('Where the plants stood during it, in the order they arrived; null on a shared or public read, which is told the story and not the address.'),
     coverMediaId: id().nullable().describe('The still nearest the middle of the phase, which is the chapter’s picture.'),
     climate: z.array(weekClimate),
     inBandPercent: z

@@ -189,8 +189,31 @@ describe('a private grow, in a tent in a room', () => {
     await expectMatrix(link(GROW_LINK), { ...nothingAtAll, view: ['grow', 'plant', 'entry', 'photo'] });
   });
 
-  it('shows a link on the grow no camera, because a still belongs to the camera and not to the grow', async () => {
-    await expectMatrix(link(GROW_LINK_WITH_CAMERAS), { ...nothingAtAll, view: ['grow', 'plant', 'entry', 'photo'] });
+  /**
+   * A still names no grow - it belongs to the camera that took it - so a link
+   * onto a grow used to reach none of the pictures its own week cards point at,
+   * whatever its owner had switched on. What a still is a picture of is what
+   * stood in front of the camera when the shutter closed.
+   *
+   * The camera itself stays out of it: the link carries the pictures of the
+   * grow, not the settings, the stream or the secret of the thing that took
+   * them.
+   */
+  it('shows a link on the grow that includes cameras the pictures taken of it', async () => {
+    await expectMatrix(link(GROW_LINK_WITH_CAMERAS), { ...nothingAtAll, view: ['grow', 'plant', 'entry', 'photo', 'still'] });
+  });
+
+  it('shows a link on the grow no still of the tent from before the plants stood in it', async () => {
+    // The camera did not move; the grow did. A picture from before the plants
+    // arrived is a picture of whatever stood there instead.
+    await db.grows.updateOne(
+      { id: GROW },
+      { placements: [{ id: 'placement-1', spaceId: SPACE, startedAt: new Date('2026-02-01T00:00:00.000Z'), endedAt: null, plantIds: null }] },
+    );
+
+    expect(await access.access(link(GROW_LINK_WITH_CAMERAS), SUBJECTS.still, 'view')).toBeNull();
+    // The grow itself is still reached by the link it was made for.
+    expect(await access.access(link(GROW_LINK_WITH_CAMERAS), SUBJECTS.grow, 'view')).not.toBeNull();
   });
 
   it('shows a link on the space everything standing in it, but no pictures of the camera', async () => {

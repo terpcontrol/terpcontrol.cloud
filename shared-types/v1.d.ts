@@ -3034,12 +3034,21 @@ export interface SpaceOverview {
   spaceId: string;
   name: string;
   kind: SpaceKind;
+  /**
+   * Null where the space stands on its own, and on a shared or public read, which is not told how the place is arranged.
+   */
   roomId: string | null;
-  deviceIds: string[];
+  /**
+   * Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.
+   */
+  deviceIds: string[] | null;
+  /**
+   * Empty on a read through a window that has closed, which has no "now" to answer with.
+   */
   values: CardValue[];
   setpoints: CardSetpoint[];
   /**
-   * Null in a space whose devices hold no targets at all.
+   * Null in a space whose devices hold no targets at all, and on a read through a window that has closed.
    */
   targets: OverviewTargets | null;
   verdict: ClimateVerdict;
@@ -3229,9 +3238,9 @@ export interface GrowWeekCard {
    */
   stageWeek: number | null;
   /**
-   * The controllers the averages were read from. Empty where nothing measures in the places the grow stood, which a card says rather than drawing dashes.
+   * The controllers the averages were read from. Empty where nothing measures in the places the grow stood, which a card says rather than drawing dashes; null on a shared or public read, where the averages are the diary and the hardware behind them is not.
    */
-  deviceIds: string[];
+  deviceIds: string[] | null;
   climate: WeekClimate[];
   /**
    * Hours of light per day over the week, from the controller’s light output.
@@ -3278,9 +3287,9 @@ export interface GrowReportPhase {
   dayTo: number | null;
   dayCount: number;
   /**
-   * Where the plants stood during it, in the order they arrived.
+   * Where the plants stood during it, in the order they arrived; null on a shared or public read, which is told the story and not the address.
    */
-  spaceIds: string[];
+  spaceIds: string[] | null;
   /**
    * The still nearest the middle of the phase, which is the chapter’s picture.
    */

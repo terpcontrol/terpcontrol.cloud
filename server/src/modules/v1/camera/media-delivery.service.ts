@@ -17,7 +17,16 @@ import { MediaService } from './media.service';
  * same file, narrowed by the same tier and with the same byte ranges honoured,
  * so the decision about who may look stays with the route and everything after
  * it lives here.
+ *
+ * **Why the bytes are cached privately.** A picture never changes, so an hour in
+ * the reader's own browser costs nothing and saves a round trip per thumbnail.
+ * What it must not do is sit in a cache somebody else is served from: the same
+ * route answers a session, a share link and a public diary, and a grower who
+ * takes a diary down stops the origin answering at once. `private` is what keeps
+ * that instant from becoming an hour.
  */
+const CACHE_CONTROL = 'private, max-age=3600';
+
 @Injectable()
 export class MediaDeliveryService {
   constructor(
@@ -35,7 +44,7 @@ export class MediaDeliveryService {
     // path stays off the videos, which run to tens of megabytes.
     if (media.mime.startsWith('image/') && (size.width || size.height)) {
       const resized = await this.presentation.resize(await this.media.download(media.id), size);
-      await reply.header('Content-type', media.mime).header('Cache-Control', 'max-age=3600').send(resized);
+      await reply.header('Content-type', media.mime).header('Cache-Control', CACHE_CONTROL).send(resized);
       return;
     }
 
@@ -61,7 +70,7 @@ export class MediaDeliveryService {
     const header = request.headers.range;
     const ranges = header ? parseRange(media.bytes, header, { combine: true }) : undefined;
 
-    void reply.header('Content-type', media.mime).header('Cache-Control', 'max-age=3600').header('Accept-Ranges', 'bytes');
+    void reply.header('Content-type', media.mime).header('Cache-Control', CACHE_CONTROL).header('Accept-Ranges', 'bytes');
 
     if (ranges === -1) {
       await reply.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE).header('Content-Range', `bytes */${media.bytes}`).send();
