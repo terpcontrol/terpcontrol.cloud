@@ -10,6 +10,7 @@ import { Tabs } from '@/ui/Tabs';
 import { useNow } from '@/ui/useNow';
 import { livenessOf, measuredAtOf } from '../home/attention';
 import { LivenessPill } from '../home/SpaceCard';
+import { Control } from '../control/Control';
 import { DeviceList } from '../devices/DeviceList';
 import { useRememberSpace } from '../timeline/last-space';
 import { Timeline } from '../timeline/Timeline';
@@ -20,7 +21,7 @@ const TABS = ['overview', 'timeline', 'devices', 'control', 'members'] as const;
 type SpaceTab = (typeof TABS)[number];
 
 /** Which round each of the other tabs arrives with, as the decision record numbers them. */
-const LATER: Record<Exclude<SpaceTab, 'overview' | 'timeline' | 'devices'>, number> = { control: 9, members: 13 };
+const LATER: Record<Exclude<SpaceTab, 'overview' | 'timeline' | 'devices' | 'control'>, number> = { members: 13 };
 
 const isTab = (value: string | undefined): value is SpaceTab => (TABS as readonly string[]).includes(value ?? '');
 
@@ -89,6 +90,8 @@ function SpaceScreen({ spaceId, tab }: { spaceId: string; tab: SpaceTab }) {
         <Timeline spaceId={spaceId} />
       ) : tab === 'devices' ? (
         <DeviceList spaceId={spaceId} verdict={current.verdict} />
+      ) : tab === 'control' ? (
+        <Control spaceId={spaceId} />
       ) : (
         <LaterRound round={LATER[tab]} what={`space.later.${tab}`} />
       )}

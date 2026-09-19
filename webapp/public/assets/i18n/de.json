@@ -1593,8 +1593,192 @@
     },
     "later": {
       "devices": "Jeder Controller, jede Kamera und jede Steckdose hier, mit Rolle und Schalter.",
-      "control": "Der Grow-Plan mit seinen Schritten, manuelle Ziele, und unter Erweitert die Regeln und Steckdosen.",
       "members": "Wer hier eintragen und wer verwalten darf, und die Einladungen dazu."
+    },
+    "control": {
+      "title": "Grow-Plan",
+      "noController": "Hier steht nichts, worauf ein Plan laufen könnte. Ein Plan schreibt seine Schritte an einen Controller, es muss also erst einer in dieses Zelt geholt werden.",
+      "laterRest": "Von Hand gesetzte Ziele für dieses Zelt und die Alarmregeln, die es überwachen. Die Steckdosen von allem, was hier steht, findest du im Reiter Geräte.",
+      "none": "Dieser Controller wird von keinem Plan gesteuert.",
+      "noneNote": "Ein Plan ist eine Liste von Schritten: ein Stadium, wie lange es dauert und was das Zelt währenddessen halten soll. Ihn zu speichern startet ihn nicht.",
+      "write": "Plan schreiben",
+      "edit": "Plan bearbeiten",
+      "keepAsTemplate": "Als Vorlage sichern",
+      "fromTemplate": "Mit einer Vorlage beginnen",
+      "noSteps": "Dieser Plan hat keine Schritte, also gibt es nichts zu laufen.",
+      "noStage": "Kein Stadium",
+      "waits": "wartet auf dich",
+      "stepOf": "Schritt {{number}} von {{count}}",
+      "served": "{{age}} in diesem Schritt",
+      "left": "noch {{age}}",
+      "over": "die Zeit ist um",
+      "openEnded": "läuft, bis er von Hand weitergesetzt wird",
+      "pausedFor": "Pausiert: {{reason}}",
+      "status": {
+        "running": "Läuft",
+        "paused": "Pausiert",
+        "stopped": "In Ruhe",
+        "completed": "Abgeschlossen"
+      },
+      "waiting": {
+        "title": "Wartet auf dich",
+        "short": "wartet",
+        "noMessage": "Der Schritt möchte bestätigt werden und hat keine Nachricht hinterlassen.",
+        "since": "Steht seit {{age}} still: Der Plan geht erst weiter, wenn er bestätigt wird."
+      },
+      "next": {
+        "step": "Als Nächstes · Schritt {{number}}, {{name}}",
+        "loops": "Als Nächstes · zurück zu Schritt 1, {{name}} — dieser Plan wiederholt sich.",
+        "ends": "Das ist der letzte Schritt: Danach ist der Plan abgeschlossen.",
+        "atRest": "Gestartet beginnt er bei Schritt 1.",
+        "completed": "Alle Schritte sind gelaufen. Erneut gestartet beginnt er bei Schritt 1."
+      },
+      "applied": {
+        "at": "Schritt vor {{age}} an den Controller geschickt",
+        "never": "Dieser Schritt wurde noch nicht an den Controller geschickt",
+        "atRest": "Der Controller läuft weiter mit den Einstellungen des letzten Schritts",
+        "quiet": "der Controller hat seit {{age}} nichts gesagt, was er wirklich fährt, kann also älter sein"
+      },
+      "move": {
+        "confirm": "Schritt bestätigen",
+        "skip": "Überspringen",
+        "extend": "Verlängern",
+        "pause": "Pausieren",
+        "resume": "Fortsetzen",
+        "start": "Plan starten",
+        "stop": "Stoppen"
+      },
+      "ask": {
+        "extend": "Mehr Zeit für den Schritt, in dem das Zelt steht. Der Schritt behält die Länge, mit der er geschrieben wurde, nur seine Uhr wird zurückgestellt — ein Schritt, der schon um Bestätigung gebeten hat, fragt erneut, wenn die längere Zeit um ist.",
+        "extendYes": "{{length}} draufgeben",
+        "skip": "Der Plan geht weiter zu Schritt {{number}}, {{name}}, und startet dessen Uhr. Was dieser Schritt noch vor sich hatte, bleibt nicht erhalten.",
+        "skipEnds": "Das ist der letzte Schritt, ihn zu überspringen schließt den Plan also ab. Der Controller behält die Einstellungen, die dieser Schritt ihm gegeben hat.",
+        "skipYes": "Schritt überspringen",
+        "stop": "Der Plan behält seine Schritte und steht wieder beim ersten, bereit zum Start. Der Controller behält die Einstellungen des letzten Schritts: Stoppen sagt nichts darüber, was das Zelt stattdessen tun soll.",
+        "stopYes": "Plan stoppen"
+      },
+      "unit": {
+        "minutes_one": "{{count}} Min.",
+        "minutes_other": "{{count}} Min.",
+        "hours_one": "{{count}} Std.",
+        "hours_other": "{{count}} Std.",
+        "days_one": "{{count}} Tag",
+        "days_other": "{{count}} Tage",
+        "weeks_one": "{{count}} Woche",
+        "weeks_other": "{{count}} Wochen"
+      },
+      "unitName": {
+        "minutes": "Minuten",
+        "hours": "Stunden",
+        "days": "Tage",
+        "weeks": "Wochen"
+      },
+      "editor": {
+        "title": "Plan bearbeiten",
+        "newTitle": "Plan schreiben",
+        "plan": "Der Plan",
+        "name": "Name",
+        "loop": "Wieder bei Schritt 1 beginnen",
+        "loopNote": "Ein Plan, der sich wiederholt, wird nie abgeschlossen: Auf den letzten Schritt folgt der erste.",
+        "steps": "Die Schritte",
+        "stepCount_one": "{{count}} Schritt",
+        "stepCount_other": "{{count}} Schritte",
+        "noSteps": "Noch keine Schritte. Ein Plan ohne sie hat nichts zu laufen.",
+        "save": "Plan speichern"
+      },
+      "step": {
+        "defaultName": "Schritt {{number}}",
+        "name": "Name",
+        "stage": "Stadium",
+        "stageNote": "Das Stadium ist das, in das der Schritt den hier stehenden Grow setzt, mit Tageszähler und Tagebuchzeile. Ein Schritt ohne Stadium lässt die Phase, wie sie ist.",
+        "preset": "Klima-Preset",
+        "duration": "Wie lange",
+        "durationValue": "Wie lange, als Zahl",
+        "durationUnit": "Wie lange, die Einheit",
+        "openEndedNote": "Ein Schritt ohne Länge läuft, bis ihn jemand von Hand weitersetzt.",
+        "settings": "Was der Controller halten soll",
+        "writesNothing": "Dieser Schritt schreibt nichts: Der Controller behält, was er beim Beginn des Schritts gefahren hat.",
+        "writesNothingShort": "schreibt nichts",
+        "writesSections": "Ein Schritt schreibt ganze Abschnitte der Controller-Einstellungen: die Ziele für Tag und Nacht, das CO₂-Ziel und die Grenze des Lichts. Einen Abschnitt, den er nicht anfasst, lässt er, wie er ist, und ein leer gelassener Wert nimmt die übrigen Werte seines Abschnitts mit.",
+        "alsoWrites": "Dieser Schritt trägt außerdem Einstellungen, die dieses Blatt nicht bearbeitet ({{sections}}); sie bleiben, wie sie sind.",
+        "takeFromController": "Übernehmen, was der Controller jetzt hält",
+        "waits": "Auf Bestätigung warten",
+        "waitsNote": "Ist die Zeit um, bleibt der Plan stehen und fragt, statt von selbst weiterzugehen.",
+        "message": "Was er beim Fragen sagen soll",
+        "messageHint": "Blüten prüfen, bevor gespült wird",
+        "up": "{{name}} nach oben",
+        "down": "{{name}} nach unten",
+        "open": "Bearbeiten",
+        "close": "Fertig",
+        "remove": "Entfernen",
+        "add": "Schritt hinzufügen"
+      },
+      "figure": {
+        "dayTemperature": "Tag · Temperatur",
+        "dayHumidity": "Tag · Feuchte",
+        "nightTemperature": "Nacht · Temperatur",
+        "nightHumidity": "Nacht · Feuchte",
+        "co2": "CO₂-Ziel",
+        "light": "Licht"
+      },
+      "figureUnit": {
+        "dayTemperature": "°C",
+        "dayHumidity": "%",
+        "nightTemperature": "°C",
+        "nightHumidity": "%",
+        "co2": "ppm",
+        "light": "%"
+      },
+      "notify": {
+        "label": "Wenn er weitergeht",
+        "mode": {
+          "off": "Nichts melden",
+          "on_step": "Bei jedem Schritt",
+          "on_confirmation": "Nur wenn er fragt"
+        },
+        "email": "Wohin geschrieben wird",
+        "ownAddress": "deine eigene Adresse",
+        "emailNote": "Leer gelassen schreibt der Plan an die Adresse, mit der sich dieses Konto anmeldet.",
+        "writeEntries": "Ins Tagebuch schreiben",
+        "writeEntriesNote": "Ein Schrittwechsel hinterlässt eine Zeile auf der Zeitleiste des Zelts, ob eine Mail rausgeht oder nicht."
+      },
+      "effect": {
+        "newPlan": "Dieser Controller wird von nichts gesteuert, der Plan wird also in Ruhe gespeichert. Ihn zu starten ist ein eigener Schritt.",
+        "atRest": "Dieser Plan läuft nicht, Speichern verschiebt also nichts: Gestartet beginnt er bei Schritt 1.",
+        "empties": "Ein Plan ohne Schritte hat nichts zu laufen, also stoppt er, und der Controller behält, was der letzte Schritt ihm gegeben hat.",
+        "stays": "Das Zelt läuft weiter mit {{name}} als Schritt {{number}}, mit der bereits gelaufenen Zeit.",
+        "moves": "{{name}} ist der Schritt, in dem das Zelt steht: Er rückt von {{from}} auf {{to}} und behält die bereits gelaufene Zeit.",
+        "relength": "Die neue Länge wird an dieser Zeit gemessen — ein Schritt, der schon länger gelaufen ist, als er jetzt dauert, ist damit sofort vorbei.",
+        "restarts": "{{gone}} ist der Schritt, in dem das Zelt steht, und er fehlt in der Liste: {{starts}} nimmt als Schritt {{number}} seinen Platz ein und beginnt bei null. Eine Bestätigung, auf die gewartet wurde, ist damit vergessen.",
+        "resends": "Die Einstellungen des Schritts gehen innerhalb der nächsten Minute erneut an den Controller statt erst zur nächsten vollen Stunde."
+      },
+      "refused": {
+        "nothing_to_confirm": "Dieser Schritt wartet nicht auf eine Bestätigung: Sie ist schon erfolgt, oder seine Zeit ist noch nicht um.",
+        "plan_not_running": "Dieser Plan läuft nicht mehr, es gibt also keinen Schritt zu bewegen.",
+        "plan_already_running": "Dieser Plan läuft bereits.",
+        "plan_not_found": "Dieser Controller wird von keinem Plan mehr gesteuert.",
+        "plan_has_no_steps": "Ein Plan ohne Schritte hat nichts zu laufen. Schreib zuerst einen Schritt.",
+        "invalid_duration": "Ein Schritt wird um eine Länge größer als null verlängert.",
+        "duplicate_step_id": "Zwei Schritte dieses Plans tragen dieselbe Id, es wurde also nichts gespeichert. Schließ das Blatt und öffne es erneut.",
+        "plan_template_name_taken": "Du hast schon eine Vorlage mit diesem Namen. Gib dieser einen anderen.",
+        "refresh": "Neu einlesen"
+      },
+      "template": {
+        "keepTitle": "Als Vorlage sichern",
+        "startTitle": "Mit einer Vorlage beginnen",
+        "name": "Name",
+        "keepNote_one": "Der {{count}} Schritt dieses Plans wird kopiert, wie er ist. Plan und Vorlage wissen danach nichts voneinander.",
+        "keepNote_other": "Alle {{count}} Schritte dieses Plans werden kopiert, wie sie sind. Plan und Vorlage wissen danach nichts voneinander.",
+        "publish": "Alle damit beginnen lassen",
+        "publishNote": "Eine veröffentlichte Vorlage kann jedes Konto lesen und kopieren; ändern und wegwerfen kannst nur du sie.",
+        "keep": "Vorlage sichern",
+        "startNote": "Eine auszuwählen öffnet den Plan mit ihren Schritten. Geschrieben wird erst beim Speichern, und was ein Speichern mit einem bereits laufenden Zelt macht, steht dort.",
+        "none": "Noch keine Vorlagen. Den Plan eines Zelts als eine zu sichern ist der Weg zur ersten.",
+        "steps_one": "{{count}} Schritt",
+        "steps_other": "{{count}} Schritte",
+        "yours": "deine",
+        "published": "von jemand anderem veröffentlicht"
+      }
     },
     "noReadingsYet": "Noch nichts gemeldet",
     "high": "zu hoch",

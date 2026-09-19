@@ -1597,8 +1597,192 @@
     },
     "later": {
       "devices": "Every controller, camera and smart socket standing here, with its role and its switch.",
-      "control": "The grow plan with its steps, manual targets, and the rules and sockets under Advanced.",
       "members": "Who can log and who can manage here, and the invites that bring them in."
+    },
+    "control": {
+      "title": "Grow plan",
+      "noController": "Nothing stands here for a plan to run on. A plan writes its steps to a controller, so one has to be claimed into this tent first.",
+      "laterRest": "Targets set by hand for this tent, and the alarm rules that watch it. The sockets of everything standing here are on the Devices tab.",
+      "none": "This controller is not being run by a plan.",
+      "noneNote": "A plan is a list of steps: a stage, how long it lasts, and what the tent should hold while it does. Saving one does not start it.",
+      "write": "Write a plan",
+      "edit": "Edit the plan",
+      "keepAsTemplate": "Keep as a template",
+      "fromTemplate": "Start from a template",
+      "noSteps": "This plan has no steps, so there is nothing for it to run.",
+      "noStage": "No stage",
+      "waits": "waits for you",
+      "stepOf": "Step {{number}} of {{count}}",
+      "served": "{{age}} on this step",
+      "left": "{{age}} left",
+      "over": "its time is up",
+      "openEnded": "runs until it is moved on",
+      "pausedFor": "Paused: {{reason}}",
+      "status": {
+        "running": "Running",
+        "paused": "Paused",
+        "stopped": "At rest",
+        "completed": "Completed"
+      },
+      "waiting": {
+        "title": "Waiting for you",
+        "short": "waiting",
+        "noMessage": "The step asks to be confirmed and left no message.",
+        "since": "Standing still for {{age}}: the plan goes no further until it is confirmed."
+      },
+      "next": {
+        "step": "Next · step {{number}}, {{name}}",
+        "loops": "Next · back to step 1, {{name}} — this plan loops.",
+        "ends": "This is the last step: the plan completes when it is over.",
+        "atRest": "Starting it begins at step 1.",
+        "completed": "Every step has run. Starting it again begins at step 1."
+      },
+      "applied": {
+        "at": "Step sent to the controller {{age}} ago",
+        "never": "This step has not been sent to the controller yet",
+        "atRest": "The controller is left running the settings the last step gave it",
+        "quiet": "the controller has said nothing for {{age}}, so what it is running may be older than this"
+      },
+      "move": {
+        "confirm": "Confirm the step",
+        "skip": "Skip",
+        "extend": "Extend",
+        "pause": "Pause",
+        "resume": "Resume",
+        "start": "Start the plan",
+        "stop": "Stop"
+      },
+      "ask": {
+        "extend": "More time on the step the tent is on. The step keeps the length it was written with and only its clock is put back, so a step that had already asked to be confirmed asks again when the longer time is up.",
+        "extendYes": "Add {{length}}",
+        "skip": "The plan moves on to step {{number}}, {{name}}, and starts its clock. What this step still had to run is not kept.",
+        "skipEnds": "This is the last step, so skipping it completes the plan. The controller keeps the settings this step gave it.",
+        "skipYes": "Skip the step",
+        "stop": "The plan keeps its steps and stands at the first one again, ready to be started. The controller keeps the settings the last step gave it: stopping says nothing about what the tent should be doing instead.",
+        "stopYes": "Stop the plan"
+      },
+      "unit": {
+        "minutes_one": "{{count}} min",
+        "minutes_other": "{{count}} min",
+        "hours_one": "{{count}} h",
+        "hours_other": "{{count}} h",
+        "days_one": "{{count}} d",
+        "days_other": "{{count}} d",
+        "weeks_one": "{{count}} wk",
+        "weeks_other": "{{count}} wk"
+      },
+      "unitName": {
+        "minutes": "minutes",
+        "hours": "hours",
+        "days": "days",
+        "weeks": "weeks"
+      },
+      "editor": {
+        "title": "Edit the plan",
+        "newTitle": "Write a plan",
+        "plan": "The plan",
+        "name": "Name",
+        "loop": "Start again at step 1",
+        "loopNote": "A plan that loops never completes: the last step is followed by the first.",
+        "steps": "The steps",
+        "stepCount_one": "{{count}} step",
+        "stepCount_other": "{{count}} steps",
+        "noSteps": "No steps yet. A plan without them has nothing to run.",
+        "save": "Save the plan"
+      },
+      "step": {
+        "defaultName": "Step {{number}}",
+        "name": "Name",
+        "stage": "Stage",
+        "stageNote": "The stage is what the step puts the grow standing here into, with the day counter and the diary line that go with it. A step with no stage leaves the phase where it is.",
+        "preset": "Climate preset",
+        "duration": "How long",
+        "durationValue": "How long, as a number",
+        "durationUnit": "How long, the unit",
+        "openEndedNote": "A step of no length runs until somebody moves it on by hand.",
+        "settings": "What the controller holds",
+        "writesNothing": "This step writes nothing: the controller keeps whatever it was running when the step began.",
+        "writesNothingShort": "writes nothing",
+        "writesSections": "A step writes whole sections of the controller's settings: the day and night targets, the CO₂ target and the light's limit. A section it does not touch is left as it is, and a figure left empty takes its section's other figures with it.",
+        "alsoWrites": "This step also carries settings this screen does not edit ({{sections}}); they are kept as they are.",
+        "takeFromController": "Take what the controller holds now",
+        "waits": "Wait to be confirmed",
+        "waitsNote": "When its time is up the plan stands still and asks, rather than moving on by itself.",
+        "message": "What to say when it asks",
+        "messageHint": "Check the buds before flushing",
+        "up": "Move {{name}} up",
+        "down": "Move {{name}} down",
+        "open": "Edit",
+        "close": "Done",
+        "remove": "Remove",
+        "add": "Add a step"
+      },
+      "figure": {
+        "dayTemperature": "Day · temperature",
+        "dayHumidity": "Day · humidity",
+        "nightTemperature": "Night · temperature",
+        "nightHumidity": "Night · humidity",
+        "co2": "CO₂ target",
+        "light": "Light"
+      },
+      "figureUnit": {
+        "dayTemperature": "°C",
+        "dayHumidity": "%",
+        "nightTemperature": "°C",
+        "nightHumidity": "%",
+        "co2": "ppm",
+        "light": "%"
+      },
+      "notify": {
+        "label": "When it moves on",
+        "mode": {
+          "off": "Say nothing",
+          "on_step": "Every step",
+          "on_confirmation": "Only when it asks"
+        },
+        "email": "Where to write",
+        "ownAddress": "your own address",
+        "emailNote": "Left empty, the plan writes to the address this account signs in with.",
+        "writeEntries": "Write it in the diary",
+        "writeEntriesNote": "A step change leaves a line on the tent's timeline, whether or not a mail goes out."
+      },
+      "effect": {
+        "newPlan": "This controller is being run by nothing, so the plan is saved at rest. Starting it is a separate tap.",
+        "atRest": "This plan is not running, so saving moves nothing: starting it begins at step 1.",
+        "empties": "A plan without steps has nothing to run, so it stops and the controller keeps what the last step gave it.",
+        "stays": "The tent goes on running {{name}} as step {{number}}, with the time it has already served.",
+        "moves": "{{name}} is the step the tent is on: it moves from {{from}} to {{to}} and keeps the time it has already served.",
+        "relength": "Its new length is measured against that time, so a step that has already served longer than it now lasts is over at once.",
+        "restarts": "{{gone}} is the step the tent is on and it is gone from the list, so {{starts}} takes its place as step {{number}} and starts from zero. A confirmation it was waiting for is forgotten.",
+        "resends": "The step's settings are sent to the controller again within the next minute rather than at the next hour."
+      },
+      "refused": {
+        "nothing_to_confirm": "This step is not waiting to be confirmed: it has been answered already, or its time is not up yet.",
+        "plan_not_running": "This plan is not running any more, so it has no step to move.",
+        "plan_already_running": "This plan is already running.",
+        "plan_not_found": "This controller is not being run by a plan any more.",
+        "plan_has_no_steps": "A plan without steps has nothing to run. Write a step first.",
+        "invalid_duration": "A step is extended by a length greater than zero.",
+        "duplicate_step_id": "Two steps of this plan carry the same id, so nothing was saved. Close the sheet and open it again.",
+        "plan_template_name_taken": "You already have a template with that name. Give this one another.",
+        "refresh": "Read it again"
+      },
+      "template": {
+        "keepTitle": "Keep as a template",
+        "startTitle": "Start from a template",
+        "name": "Name",
+        "keepNote_one": "The {{count}} step of this plan is copied as it stands. The plan and the template know nothing of each other afterwards.",
+        "keepNote_other": "All {{count}} steps of this plan are copied as they stand. The plan and the template know nothing of each other afterwards.",
+        "publish": "Let anybody start from it",
+        "publishNote": "A published template can be read and copied by every account; it stays yours to change and to throw away.",
+        "keep": "Keep the template",
+        "startNote": "Choosing one opens the plan with its steps in it. Nothing is written until it is saved, and what a save does to a tent that is already running is said there.",
+        "none": "No templates yet. Keeping the plan on a tent as one is how the first is made.",
+        "steps_one": "{{count}} step",
+        "steps_other": "{{count}} steps",
+        "yours": "yours",
+        "published": "published by somebody else"
+      }
     },
     "noReadingsYet": "Nothing reported yet",
     "high": "high",

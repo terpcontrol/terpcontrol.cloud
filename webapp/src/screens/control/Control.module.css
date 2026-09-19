@@ -1,0 +1,417 @@
+/* The Control tab and the two sheets it opens: where a plan stands, its steps,
+   and the fields that write them. The card, the chips, the buttons and the
+   switch are the app's own, so nothing here restates a surface or a colour. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.plan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.planName {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+/* What the plan is doing, in the one place it is stated: running is the green
+   the app emphasises with, paused and completed are quiet, and a plan at rest
+   is quieter still. */
+.status {
+  flex-shrink: 0;
+  padding: 0 var(--space-2);
+  border: var(--rule-solid);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  line-height: calc(var(--chip-height) - 2 * var(--rule-width));
+}
+
+.status[data-status='running'] {
+  border-color: var(--green);
+  color: var(--green-ink);
+}
+
+.status[data-status='paused'] {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+.stepLine {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.stepNumber {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--label);
+}
+
+.stepName {
+  font-weight: var(--weight-semibold);
+}
+
+.stepMeta {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* How far through the step the tent is. A rule, never a blur - and no bar at
+   all for a step that has no length to be a fraction of. */
+.track {
+  display: block;
+  height: 4px;
+  background: var(--card-2);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  background: var(--green);
+  border-radius: var(--radius-pill);
+}
+
+.fill[data-status='paused'] {
+  background: var(--warning);
+}
+
+.clock {
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+/* When the step's settings last reached the controller. Dimmed by how long the
+   controller has been quiet, because a device that says nothing may have been
+   running something else since. */
+.applied {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* The step that is standing still until somebody answers it. */
+.waiting {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-color: var(--warning);
+}
+
+.waitingWhat {
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.moves {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: var(--rule-solid);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* What a move will do, asked in the place the tap would be. */
+.asking {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--rule-dashed);
+  border-radius: var(--radius);
+}
+
+.danger {
+  color: var(--alarm);
+  border-color: var(--alarm);
+}
+
+.dangerButton {
+  background: var(--alarm);
+  border-color: var(--alarm);
+  color: var(--on-green);
+}
+
+.refusal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* A device with no plan, and the two ways to give it one. */
+.none {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.noneWhat {
+  font-weight: var(--weight-semibold);
+}
+
+.steps,
+.editSteps,
+.templates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step,
+.editStep {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+/* The step the device is standing on, marked as that rather than dimmed: the
+   others are not old, they are simply not now. It carries the colour of what
+   the plan is doing, so a step that is paused or waiting reads as that here as
+   well as on the card above. */
+.step[data-active='true'] {
+  border-color: var(--green);
+}
+
+.step[data-status='paused'],
+.step[data-status='waiting'] {
+  border-color: var(--warning);
+}
+
+.here[data-status='paused'],
+.here[data-status='waiting'] {
+  color: var(--warning);
+}
+
+.editStep {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.editHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.stepIndex {
+  flex-shrink: 0;
+  width: 18px;
+  font-size: var(--text-xs);
+  color: var(--label);
+}
+
+.stepText {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+
+.stepTitle {
+  font-weight: var(--weight-medium);
+}
+
+.stepNote {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.here {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--green-ink);
+}
+
+.editButtons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: var(--chip-height);
+  height: var(--chip-height);
+  background: transparent;
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  color: var(--ink);
+}
+
+.icon:disabled {
+  opacity: 0.4;
+}
+
+/* The sheet's insides: a few questions apart, like every other sheet. */
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-2) 0;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--rule-dashed);
+  border-radius: var(--radius);
+}
+
+.duration {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.number {
+  width: 88px;
+}
+
+.figures {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.figure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--card-2);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.figureLabel {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.figureInput {
+  width: 56px;
+  min-width: 0;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font-size: var(--text-md);
+  text-align: right;
+}
+
+.figureInput:focus {
+  outline: none;
+}
+
+.figureUnit {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--label);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.toggleText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.toggleLabel {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+/* What a save will do to a tent that is already running, said before it does
+   it. Sentences rather than bullets: a marker in front would read as options. */
+.effect {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.submit {
+  width: 100%;
+}
+
+.template {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-3);
+  text-align: left;
+}
+
+.templateName {
+  font-weight: var(--weight-medium);
+}
+
+.templateNote {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+@media (min-width: 900px) {
+  /* The figures fit three across once there is room, so the six read as the
+     two halves of the cycle they are. */
+  .figures {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
