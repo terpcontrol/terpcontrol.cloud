@@ -15,6 +15,7 @@ import { OptionalSessionGuard } from './optional-session.guard';
 import { TerpCamDirectService } from './terpcam-direct.service';
 import { TerpCamP2PService } from './terpcam-p2p.service';
 import { TerpCamService } from './terpcam.service';
+import { TimelapseContextService } from './timelapse-context.service';
 import { TimelapseService } from './timelapse.service';
 
 /**
@@ -25,10 +26,12 @@ import { TimelapseService } from './timelapse.service';
  * reaches itself. The poller reads them, the builder rolls the stills up, both
  * store `media` rows, and the bytes go into the bucket they have always gone in.
  *
- * Two ports are bound where the modules are wired together: `STILL_REQUEST`, to
- * ask a controller for a picture, and `LIGHT_STATE_READER`, which is the one
- * thing `nightOff` needs and is not this module's to know. `TerpCamP2PService`
- * goes the other way, as the protocol module's image sink.
+ * Three ports are bound where the modules are wired together: `STILL_REQUEST`,
+ * to ask a controller for a picture, `LIGHT_STATE_READER`, which is the one
+ * thing `nightOff` needs and is not this module's to know, and `SERIES_READER`,
+ * which is what the composer draws its climate curve from and reads the light
+ * of a past night off. `TerpCamP2PService` goes the other way, as the protocol
+ * module's image sink.
  */
 @Module({
   imports: [ModelsModule, V1CommonModule, TunnelModule],
@@ -44,6 +47,7 @@ import { TimelapseService } from './timelapse.service';
     TerpCamService,
     TerpCamP2PService,
     TerpCamDirectService,
+    TimelapseContextService,
     TimelapseService,
   ],
   exports: [CamerasService, MediaService, EntitlementService, TerpCamP2PService],

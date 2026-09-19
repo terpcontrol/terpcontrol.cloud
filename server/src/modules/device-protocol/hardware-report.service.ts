@@ -82,7 +82,7 @@ export class HardwareReportService {
     await this.devices.updateOne({ id: device.id }, { $set: { [`state.hardware.${key}`]: value } });
 
     if (key === 'sockets_n') await this.dropSupersededChunks(device.id, hardware, Number(value));
-    if (key === 'sockets_n' || socketListChunk(key) !== null) await this.stampSocketStates(device.id, device.state.hardware, hardware);
+    if (key === 'sockets_n' || socketListChunk(key) !== null) await this.noteSocketReport(device, device.state.hardware, hardware);
     if (key === 'webcam_did') await this.reconcileCamera({ ...device, state: { ...device.state, hardware } }, value);
     if (key === 'webcam_ip' || key === 'webcam_uid') await this.updateCamera(device.id, { [key === 'webcam_ip' ? 'ip' : 'uid']: notNone(value) });
 
@@ -174,25 +174,50 @@ export class HardwareReportService {
   }
 
   /**
-   * When a socket row was last seen to change state. The row says that it is on
-   * or off and never since when, so the instant is stamped here - and only where
-   * both the old and the new report say which it was, so a build that starts
-   * reporting the state column does not read as every socket having just moved.
+   * When the table arrived, and when a row was last seen to change state.
+   *
+   * The instant of the report is what an override's row is read against: it
+   * carries the seconds the override had left and never a time of day, so
+   * without the instant the same countdown would read as full every time
+   * somebody looked. A row says that it is on or off and never since when, so
+   * that instant is stamped too - and only where both the old and the new
+   * report say which it was, so a build that starts reporting the state column
+   * does not read as every socket having just moved.
+   *
+   * A stamp is keyed by slot, and a slot outlives the socket that sat in it:
+   * one that now holds a different plug, or none, is forgotten rather than
+   * answering "since" a moment that was another socket's.
    */
-  private async stampSocketStates(deviceId: string, before: Record<string, string>, after: Record<string, string>): Promise<void> {
-    const previous = new Map(decodeSockets(before).map(socket => [socket.slot, socket.state]));
+  private async noteSocketReport(device: StoredDevice, before: Record<string, string>, after: Record<string, string>): Promise<void> {
+    const previous = new Map(decodeSockets(before).map(socket => [socket.slot, socket]));
+    const sockets = decodeSockets(after);
     const now = new Date();
 
-    const changed = decodeSockets(after).filter(socket => {
+    const changed = sockets.filter(socket => {
       const was = previous.get(socket.slot);
-      return was !== undefined && was !== 'unknown' && socket.state !== 'unknown' && was !== socket.state;
+      if (!was) return false;
+      // A row whose hardware id has changed is another socket in the same slot.
+      if (was.hardwareId !== '' && socket.hardwareId !== '' && was.hardwareId !== socket.hardwareId) return false;
+
+      return was.state !== 'unknown' && socket.state !== 'unknown' && was.state !== socket.state;
     });
 
-    if (changed.length === 0) return;
+    const held = new Set(sockets.map(socket => String(socket.slot)));
+    const stale = Object.keys(device.state.socketStateChangedAt ?? {}).filter(slot => {
+      const socket = sockets.find(row => String(row.slot) === slot);
+      const was = previous.get(Number(slot));
+      return !held.has(slot) || (was && socket && was.hardwareId !== '' && socket.hardwareId !== '' && was.hardwareId !== socket.hardwareId);
+    });
 
     await this.devices.updateOne(
-      { id: deviceId },
-      { $set: Object.fromEntries(changed.map(socket => [`state.socketStateChangedAt.${socket.slot}`, now])) },
+      { id: device.id },
+      {
+        $set: {
+          'state.socketsReportedAt': now,
+          ...Object.fromEntries(changed.map(socket => [`state.socketStateChangedAt.${socket.slot}`, now])),
+        },
+        ...(stale.length > 0 ? { $unset: Object.fromEntries(stale.map(slot => [`state.socketStateChangedAt.${slot}`, ''])) } : {}),
+      },
     );
   }
 }

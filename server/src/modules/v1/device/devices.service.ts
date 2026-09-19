@@ -232,6 +232,7 @@ export class DevicesService {
         maintenanceUntil: device.state.maintenanceUntil?.toISOString() ?? null,
         hardware: device.state.hardware,
         socketStateChangedAt: Object.fromEntries(Object.entries(device.state.socketStateChangedAt).map(([slot, at]) => [slot, at.toISOString()])),
+        socketsReportedAt: device.state.socketsReportedAt?.toISOString() ?? null,
       },
     };
 

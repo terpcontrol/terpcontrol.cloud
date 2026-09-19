@@ -22,6 +22,27 @@
  */
 /** A device drives at most this many sockets, spread over the roles as it likes (`wifi.h`). */
 export declare const MAX_SOCKETS = 32;
+/**
+ * The address a row may carry (`wifi.cpp`). Three rows have to fit one log
+ * message and the address is the only column without a length of its own, so a
+ * longer one is refused by `socket_set` rather than stored and then left out of
+ * the table.
+ */
+export declare const SOCKET_ADDRESS_MAX_LEN = 40;
+/** A socket's own web credentials, each bounded so the whole command fits the device's parse buffer. */
+export declare const SOCKET_CREDENTIAL_MAX_LEN = 48;
+/**
+ * The longest an override may hold, and the longest a timer's period may be
+ * (`wifi.cpp`). It is a day: the override lives in the device's RAM and dies
+ * with a reboot, so nothing outside the firmware holds a socket for longer.
+ */
+export declare const SOCKET_HOLD_MAX_SECONDS = 86400;
+/**
+ * The roles whose socket follows a timer and nothing else. Every other role is
+ * driven by the control loop, so a timer sent with one is stored and never
+ * consulted - which is why it is refused rather than sent.
+ */
+export declare const TIMED_SOCKET_ROLES: readonly string[];
 /** Sockets per `socket_list<k>` chunk; it has to match what the firmware sends (`wifi.cpp`). */
 export declare const SOCKETS_PER_REPORT_CHUNK = 3;
 export declare const socketListKey: (chunk: number) => string;

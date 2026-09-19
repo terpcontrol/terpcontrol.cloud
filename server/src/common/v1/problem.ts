@@ -53,3 +53,4 @@ export const forbidden = refusal(HttpStatus.FORBIDDEN);
 export const notFound = refusal(HttpStatus.NOT_FOUND);
 export const conflict = refusal(HttpStatus.CONFLICT);
 export const unprocessable = refusal(HttpStatus.UNPROCESSABLE_ENTITY);
+export const serviceUnavailable = refusal(HttpStatus.SERVICE_UNAVAILABLE);

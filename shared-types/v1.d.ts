@@ -181,9 +181,11 @@ export type EntryValuesDraft =
   | TrainingEntryValues
   | VisitEntryValues;
 
-export type MediaWindow = 'day' | 'week' | 'month' | 'custom';
+export type MediaWindow = 'day' | 'week' | 'month' | 'phase' | 'grow' | 'custom';
 
 export type MediaQuality = 'sd' | 'hd';
+
+export type MediaAspect = '16_9' | '9_16' | '1_1';
 
 export type MediaRenderStatus = 'queued' | 'rendering' | 'ready' | 'failed';
 
@@ -623,6 +625,7 @@ export interface DeviceState {
   socketStateChangedAt: {
     [k: string]: string;
   };
+  socketsReportedAt: string | null;
 }
 
 export interface Device {
@@ -915,7 +918,7 @@ export interface SocketOverrideCommand {
   };
   state: SocketOverrideState;
   /**
-   * The override expires after this; a reboot ends it too.
+   * The override expires after this; a reboot ends it too. Zero only with `auto`, which carries no duration.
    */
   forSeconds: number;
 }
@@ -967,7 +970,7 @@ export interface SocketUpdate {
 export interface SocketOverrideUpdate {
   state: SocketOverrideState;
   /**
-   * The override expires after this; a reboot ends it too.
+   * The override expires after this; a reboot ends it too. Zero only with `auto`, which carries no duration.
    */
   forSeconds: number;
 }
@@ -2315,10 +2318,32 @@ export interface EntryUpdate {
   values?: EntryValuesDraft;
 }
 
+export interface MediaOverlays {
+  dayCounter: boolean;
+  /**
+   * The temperature and humidity of the span, with a cursor on the frame´s own instant.
+   */
+  climate: boolean;
+  /**
+   * The diary lines of the span, each as a caption on the frames around it.
+   */
+  entries: boolean;
+}
+
 export interface MediaRender {
   status: MediaRenderStatus;
   framesPerSecond: number;
   watermark: boolean;
+  aspect: MediaAspect;
+  overlays: MediaOverlays;
+  /**
+   * Whether the frames taken while the light was off are in the film.
+   */
+  includeLightsOff: boolean;
+  /**
+   * The camera shown beside the first one; null for a film of one camera.
+   */
+  secondCameraId: string | null;
   startedAt: string | null;
   endedAt: string | null;
   error: string | null;
@@ -2539,11 +2564,34 @@ export interface TimelapseCreate {
    */
   startsAt?: string;
   /**
-   * Only `custom` reads it.
+   * Read by `phase`, `grow` and `custom`, each of which needs both ends.
    */
   endsAt?: string;
-  quality?: MediaQuality;
+  /**
+   * `hd` needs entitlement and is refused without it rather than quietly made `sd`.
+   */
+  quality?: 'sd' | 'hd';
   framesPerSecond?: number;
+  /**
+   * A second camera of the same tent, shown beside the first one.
+   */
+  secondCameraId?: string;
+  overlays?: {
+    dayCounter?: boolean;
+    /**
+     * The temperature and humidity of the span, with a cursor on the frame´s own instant.
+     */
+    climate?: boolean;
+    /**
+     * The diary lines of the span, each as a caption on the frames around it.
+     */
+    entries?: boolean;
+  };
+  /**
+   * Defaults to leaving the frames taken in the dark out.
+   */
+  includeLightsOff?: boolean;
+  aspect?: MediaAspect;
 }
 
 export interface TimelapseAccepted {

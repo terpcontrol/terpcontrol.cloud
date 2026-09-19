@@ -4,6 +4,7 @@ exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDur
 exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
+const socket_report_js_1 = require("./socket-report.js");
 /**
  * The device half of the `/v1` contract: what a device is, what it runs and what
  * it is told, plus the read models the device screens are drawn from.
@@ -52,6 +53,10 @@ exports.deviceState = (0, common_js_1.named)('DeviceState', zod_1.z.object({
     // Keyed by slot, because that is how a socket is addressed; the report says
     // a row changed but not when, so the ingest stamps it.
     socketStateChangedAt: zod_1.z.record(zod_1.z.string(), (0, common_js_1.instant)()),
+    // An override's row carries the seconds it had left when the table was
+    // sent, so the instant the table arrived is what turns them into a time of
+    // day. Null for a build that reports no table.
+    socketsReportedAt: (0, common_js_1.instant)().nullable(),
 }));
 /**
  * A device as the API serves it. The broker credentials the device signs in with
@@ -199,8 +204,20 @@ exports.socketOverrideState = (0, common_js_1.named)('SocketOverrideState', zod_
  * which is the failsafe: nothing outside the firmware can hold a socket on.
  */
 exports.socketOverride = (0, common_js_1.named)('SocketOverride', zod_1.z.object({ state: exports.socketOverrideState, validUntil: (0, common_js_1.instant)() }));
-/** What a `pump` or a `custom_timer` socket repeats: on for so long, that often. */
-exports.socketTimer = (0, common_js_1.named)('SocketTimer', zod_1.z.object({ onSeconds: zod_1.z.number().int(), everySeconds: zod_1.z.number().int() }));
+/**
+ * What a `pump` or a `custom_timer` socket repeats: on for so long, that often.
+ * The bounds are the firmware's, which refuses a cycle that is on for at least
+ * as long as its period and one longer than an override may hold.
+ */
+exports.socketTimer = (0, common_js_1.named)('SocketTimer', zod_1.z
+    .object({
+    onSeconds: zod_1.z.number().int().positive(),
+    everySeconds: zod_1.z.number().int().positive().max(socket_report_js_1.SOCKET_HOLD_MAX_SECONDS),
+})
+    .refine(timer => timer.onSeconds < timer.everySeconds, {
+    message: 'A socket that is on for at least as long as its period never switches off',
+    path: ['onSeconds'],
+}));
 /**
  * One socket, as the API serves it: a typed view of `devices.state.hardware`,
  * never stored twice. The decoder's vocabulary is kept - `slot` is the position
@@ -264,20 +281,35 @@ exports.socketOverrideCommand = (0, common_js_1.named)('SocketOverrideCommand', 
     kind: zod_1.z.literal('socket_override'),
     subject: (0, common_js_1.subjectRef)(zod_1.z.enum(['socket', 'output'])),
     state: exports.socketOverrideState,
-    forSeconds: zod_1.z.number().int().describe('The override expires after this; a reboot ends it too.'),
+    forSeconds: zod_1.z
+        .number()
+        .int()
+        .min(0)
+        .max(socket_report_js_1.SOCKET_HOLD_MAX_SECONDS)
+        .describe('The override expires after this; a reboot ends it too. Zero only with `auto`, which carries no duration.'),
 }));
 /**
  * The socket's own web credentials, on their way to the device. They travel in
  * this direction only: a command carries them, and `Socket` answers none back.
  * Left out, the device keeps the pair it has.
  */
-exports.socketCredentials = (0, common_js_1.named)('SocketCredentials', zod_1.z.object({ username: zod_1.z.string(), password: zod_1.z.string() }));
+exports.socketCredentials = (0, common_js_1.named)('SocketCredentials', zod_1.z.object({
+    username: zod_1.z.string().max(socket_report_js_1.SOCKET_CREDENTIAL_MAX_LEN),
+    password: zod_1.z.string().max(socket_report_js_1.SOCKET_CREDENTIAL_MAX_LEN),
+}));
 /** Pairs a socket, re-addresses one, or gives it a role and a timer. */
 exports.socketSetCommand = (0, common_js_1.named)('SocketSetCommand', zod_1.z.object({
     kind: zod_1.z.literal('socket_set'),
     slot: zod_1.z.number().int().nullable().describe('null adds a socket to the role instead of configuring one it already has.'),
     role: common_js_1.socketRole,
-    address: zod_1.z.string().describe('Host or IP the device reaches the socket at, over plain HTTP on the local network.'),
+    // Bounded as the firmware bounds it: a row reports its address, and one the
+    // row cannot carry would be stored and then left out of the table.
+    address: zod_1.z
+        .string()
+        .min(1)
+        .max(socket_report_js_1.SOCKET_ADDRESS_MAX_LEN)
+        .regex(/^\S+$/, 'An address the device can reach carries no spaces')
+        .describe('Host or IP the device reaches the socket at, over plain HTTP on the local network.'),
     credentials: exports.socketCredentials.nullable(),
     timer: exports.socketTimer.nullable().describe('Only `pump` and `custom_timer` run on one.'),
 }));

@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCaptureAnswer = exports.cameraUpdate = exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.media = exports.mediaRender = exports.mediaRenderStatus = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryValuesDraft = exports.humanEntryKind = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.measurementEntryValues = exports.entryDose = exports.entryReading = void 0;
-exports.timelineCamera = exports.timelineAlarm = exports.timelineOutputLane = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.cameraStill = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.person = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = void 0;
-exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growMeasurementSeries = exports.growSeriesPoint = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = void 0;
+exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCaptureAnswer = exports.cameraUpdate = exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.media = exports.mediaRender = exports.mediaRenderStatus = exports.mediaOverlays = exports.mediaAspect = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryValuesDraft = exports.humanEntryKind = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.measurementEntryValues = exports.entryDose = exports.entryReading = void 0;
+exports.timelineOutputLane = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.cameraStill = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.person = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = void 0;
+exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growMeasurementSeries = exports.growSeriesPoint = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineAlarm = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -213,10 +213,32 @@ exports.entryUpdate = (0, common_js_1.named)('EntryUpdate', exports.entryCreate.
 // ---------------------------------------------------------------------------
 // Media
 // ---------------------------------------------------------------------------
-/** What a timelapse covers. `custom` is a range somebody asked the composer for. */
-exports.mediaWindow = (0, common_js_1.named)('MediaWindow', zod_1.z.enum(['day', 'week', 'month', 'custom']));
+/**
+ * What a timelapse covers. `day`, `week` and `month` are the rolling films the
+ * builder keeps by itself; `phase`, `grow` and `custom` are the composer's
+ * ranges, and each of them names both of its ends, because only the client
+ * knows where a phase or a grow began.
+ */
+exports.mediaWindow = (0, common_js_1.named)('MediaWindow', zod_1.z.enum(['day', 'week', 'month', 'phase', 'grow', 'custom']));
 /** A render's resolution. `hd` and whole-grow renders need entitlement; a free render carries a watermark. */
 exports.mediaQuality = (0, common_js_1.named)('MediaQuality', zod_1.z.enum(['sd', 'hd']));
+/**
+ * The shape a film is rendered to: landscape, the portrait one a reel is, or
+ * square. Named by their ratios rather than by a platform, which outlives the
+ * platform.
+ */
+exports.mediaAspect = (0, common_js_1.named)('MediaAspect', zod_1.z.enum(['16_9', '9_16', '1_1']));
+/**
+ * What is drawn over the frames. Each is off unless it is asked for, and each
+ * needs something to draw from - a grow for its day counter, a controller for
+ * its climate, entries for its captions - so one that has nothing simply draws
+ * nothing rather than refusing the render.
+ */
+exports.mediaOverlays = (0, common_js_1.named)('MediaOverlays', zod_1.z.object({
+    dayCounter: zod_1.z.boolean(),
+    climate: zod_1.z.boolean().describe('The temperature and humidity of the span, with a cursor on the frame´s own instant.'),
+    entries: zod_1.z.boolean().describe('The diary lines of the span, each as a caption on the frames around it.'),
+}));
 /** Only `queued` is a fact of the model; the rest is how far the hourly builder has got. */
 exports.mediaRenderStatus = (0, common_js_1.named)('MediaRenderStatus', zod_1.z.enum(['queued', 'rendering', 'ready', 'failed']));
 /**
@@ -228,6 +250,10 @@ exports.mediaRender = (0, common_js_1.named)('MediaRender', zod_1.z.object({
     status: exports.mediaRenderStatus,
     framesPerSecond: zod_1.z.number().int(),
     watermark: zod_1.z.boolean(),
+    aspect: exports.mediaAspect,
+    overlays: exports.mediaOverlays,
+    includeLightsOff: zod_1.z.boolean().describe('Whether the frames taken while the light was off are in the film.'),
+    secondCameraId: (0, common_js_1.id)().nullable().describe('The camera shown beside the first one; null for a film of one camera.'),
     startedAt: (0, common_js_1.instant)().nullable(),
     endedAt: (0, common_js_1.instant)().nullable(),
     error: zod_1.z.string().nullable(),
@@ -433,16 +459,24 @@ exports.testCaptureAnswer = (0, common_js_1.named)('TestCaptureAnswer', zod_1.z.
     error: zod_1.z.string().nullable(),
 }));
 /**
- * `POST /cameras/{id}/timelapses`. `window` says which span is meant: `day`,
- * `week` and `month` are worked out around `startsAt`, and `custom` is the only
- * one that reads both ends.
+ * `POST /cameras/{id}/timelapses`, which is the composer. `window` says which
+ * span is meant: `day`, `week` and `month` are worked out around `startsAt`,
+ * and `phase`, `grow` and `custom` each read both ends, because where a phase
+ * or a grow began is the client's to say and not a span this server can guess.
+ *
+ * Everything below `quality` is what the board offers and is optional, so the
+ * four one-tap buttons on the camera page send a window and nothing else.
  */
 exports.timelapseCreate = (0, common_js_1.named)('TimelapseCreate', zod_1.z.object({
     window: exports.mediaWindow,
     startsAt: (0, common_js_1.instant)().optional().describe('Defaults to the most recent complete window.'),
-    endsAt: (0, common_js_1.instant)().optional().describe('Only `custom` reads it.'),
-    quality: exports.mediaQuality.optional(),
-    framesPerSecond: zod_1.z.number().int().optional(),
+    endsAt: (0, common_js_1.instant)().optional().describe('Read by `phase`, `grow` and `custom`, each of which needs both ends.'),
+    quality: exports.mediaQuality.optional().describe('`hd` needs entitlement and is refused without it rather than quietly made `sd`.'),
+    framesPerSecond: zod_1.z.number().int().positive().max(60).optional(),
+    secondCameraId: (0, common_js_1.id)().optional().describe('A second camera of the same tent, shown beside the first one.'),
+    overlays: exports.mediaOverlays.partial().optional(),
+    includeLightsOff: zod_1.z.boolean().optional().describe('Defaults to leaving the frames taken in the dark out.'),
+    aspect: exports.mediaAspect.optional(),
 }));
 /**
  * What that request is answered with. A render does not finish inside the

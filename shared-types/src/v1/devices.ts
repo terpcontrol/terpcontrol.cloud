@@ -20,6 +20,7 @@ import {
   subjectRef,
   webhookMethod,
 } from './common.js';
+import { SOCKET_ADDRESS_MAX_LEN, SOCKET_CREDENTIAL_MAX_LEN, SOCKET_HOLD_MAX_SECONDS } from './socket-report.js';
 
 /**
  * The device half of the `/v1` contract: what a device is, what it runs and what
@@ -82,6 +83,10 @@ export const deviceState = named(
     // Keyed by slot, because that is how a socket is addressed; the report says
     // a row changed but not when, so the ingest stamps it.
     socketStateChangedAt: z.record(z.string(), instant()),
+    // An override's row carries the seconds it had left when the table was
+    // sent, so the instant the table arrived is what turns them into a time of
+    // day. Null for a build that reports no table.
+    socketsReportedAt: instant().nullable(),
   }),
 );
 
@@ -285,8 +290,23 @@ export const socketOverrideState = named('SocketOverrideState', z.enum(['on', 'o
  */
 export const socketOverride = named('SocketOverride', z.object({ state: socketOverrideState, validUntil: instant() }));
 
-/** What a `pump` or a `custom_timer` socket repeats: on for so long, that often. */
-export const socketTimer = named('SocketTimer', z.object({ onSeconds: z.number().int(), everySeconds: z.number().int() }));
+/**
+ * What a `pump` or a `custom_timer` socket repeats: on for so long, that often.
+ * The bounds are the firmware's, which refuses a cycle that is on for at least
+ * as long as its period and one longer than an override may hold.
+ */
+export const socketTimer = named(
+  'SocketTimer',
+  z
+    .object({
+      onSeconds: z.number().int().positive(),
+      everySeconds: z.number().int().positive().max(SOCKET_HOLD_MAX_SECONDS),
+    })
+    .refine(timer => timer.onSeconds < timer.everySeconds, {
+      message: 'A socket that is on for at least as long as its period never switches off',
+      path: ['onSeconds'],
+    }),
+);
 
 /**
  * One socket, as the API serves it: a typed view of `devices.state.hardware`,
@@ -375,7 +395,12 @@ export const socketOverrideCommand = named(
     kind: z.literal('socket_override'),
     subject: subjectRef(z.enum(['socket', 'output'])),
     state: socketOverrideState,
-    forSeconds: z.number().int().describe('The override expires after this; a reboot ends it too.'),
+    forSeconds: z
+      .number()
+      .int()
+      .min(0)
+      .max(SOCKET_HOLD_MAX_SECONDS)
+      .describe('The override expires after this; a reboot ends it too. Zero only with `auto`, which carries no duration.'),
   }),
 );
 
@@ -384,7 +409,13 @@ export const socketOverrideCommand = named(
  * this direction only: a command carries them, and `Socket` answers none back.
  * Left out, the device keeps the pair it has.
  */
-export const socketCredentials = named('SocketCredentials', z.object({ username: z.string(), password: z.string() }));
+export const socketCredentials = named(
+  'SocketCredentials',
+  z.object({
+    username: z.string().max(SOCKET_CREDENTIAL_MAX_LEN),
+    password: z.string().max(SOCKET_CREDENTIAL_MAX_LEN),
+  }),
+);
 
 /** Pairs a socket, re-addresses one, or gives it a role and a timer. */
 export const socketSetCommand = named(
@@ -393,7 +424,14 @@ export const socketSetCommand = named(
     kind: z.literal('socket_set'),
     slot: z.number().int().nullable().describe('null adds a socket to the role instead of configuring one it already has.'),
     role: socketRole,
-    address: z.string().describe('Host or IP the device reaches the socket at, over plain HTTP on the local network.'),
+    // Bounded as the firmware bounds it: a row reports its address, and one the
+    // row cannot carry would be stored and then left out of the table.
+    address: z
+      .string()
+      .min(1)
+      .max(SOCKET_ADDRESS_MAX_LEN)
+      .regex(/^\S+$/, 'An address the device can reach carries no spaces')
+      .describe('Host or IP the device reaches the socket at, over plain HTTP on the local network.'),
     credentials: socketCredentials.nullable(),
     timer: socketTimer.nullable().describe('Only `pump` and `custom_timer` run on one.'),
   }),

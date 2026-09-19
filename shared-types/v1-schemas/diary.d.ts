@@ -652,18 +652,46 @@ export declare const entryUpdate: z.ZodObject<{
     taskId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     mediaIds: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodString>>>;
 }, z.core.$strip>;
-/** What a timelapse covers. `custom` is a range somebody asked the composer for. */
+/**
+ * What a timelapse covers. `day`, `week` and `month` are the rolling films the
+ * builder keeps by itself; `phase`, `grow` and `custom` are the composer's
+ * ranges, and each of them names both of its ends, because only the client
+ * knows where a phase or a grow began.
+ */
 export declare const mediaWindow: z.ZodEnum<{
     custom: "custom";
     day: "day";
     month: "month";
     week: "week";
+    phase: "phase";
+    grow: "grow";
 }>;
 /** A render's resolution. `hd` and whole-grow renders need entitlement; a free render carries a watermark. */
 export declare const mediaQuality: z.ZodEnum<{
     sd: "sd";
     hd: "hd";
 }>;
+/**
+ * The shape a film is rendered to: landscape, the portrait one a reel is, or
+ * square. Named by their ratios rather than by a platform, which outlives the
+ * platform.
+ */
+export declare const mediaAspect: z.ZodEnum<{
+    "16_9": "16_9";
+    "9_16": "9_16";
+    "1_1": "1_1";
+}>;
+/**
+ * What is drawn over the frames. Each is off unless it is asked for, and each
+ * needs something to draw from - a grow for its day counter, a controller for
+ * its climate, entries for its captions - so one that has nothing simply draws
+ * nothing rather than refusing the render.
+ */
+export declare const mediaOverlays: z.ZodObject<{
+    dayCounter: z.ZodBoolean;
+    climate: z.ZodBoolean;
+    entries: z.ZodBoolean;
+}, z.core.$strip>;
 /** Only `queued` is a fact of the model; the rest is how far the hourly builder has got. */
 export declare const mediaRenderStatus: z.ZodEnum<{
     failed: "failed";
@@ -685,6 +713,18 @@ export declare const mediaRender: z.ZodObject<{
     }>;
     framesPerSecond: z.ZodNumber;
     watermark: z.ZodBoolean;
+    aspect: z.ZodEnum<{
+        "16_9": "16_9";
+        "9_16": "9_16";
+        "1_1": "1_1";
+    }>;
+    overlays: z.ZodObject<{
+        dayCounter: z.ZodBoolean;
+        climate: z.ZodBoolean;
+        entries: z.ZodBoolean;
+    }, z.core.$strip>;
+    includeLightsOff: z.ZodBoolean;
+    secondCameraId: z.ZodNullable<z.ZodString>;
     startedAt: z.ZodNullable<z.ZodISODateTime>;
     endedAt: z.ZodNullable<z.ZodISODateTime>;
     error: z.ZodNullable<z.ZodString>;
@@ -717,6 +757,8 @@ export declare const media: z.ZodObject<{
         day: "day";
         month: "month";
         week: "week";
+        phase: "phase";
+        grow: "grow";
     }>>;
     quality: z.ZodNullable<z.ZodEnum<{
         sd: "sd";
@@ -732,6 +774,18 @@ export declare const media: z.ZodObject<{
         }>;
         framesPerSecond: z.ZodNumber;
         watermark: z.ZodBoolean;
+        aspect: z.ZodEnum<{
+            "16_9": "16_9";
+            "9_16": "9_16";
+            "1_1": "1_1";
+        }>;
+        overlays: z.ZodObject<{
+            dayCounter: z.ZodBoolean;
+            climate: z.ZodBoolean;
+            entries: z.ZodBoolean;
+        }, z.core.$strip>;
+        includeLightsOff: z.ZodBoolean;
+        secondCameraId: z.ZodNullable<z.ZodString>;
         startedAt: z.ZodNullable<z.ZodISODateTime>;
         endedAt: z.ZodNullable<z.ZodISODateTime>;
         error: z.ZodNullable<z.ZodString>;
@@ -765,6 +819,8 @@ export declare const mediaPage: z.ZodObject<{
             day: "day";
             month: "month";
             week: "week";
+            phase: "phase";
+            grow: "grow";
         }>>;
         quality: z.ZodNullable<z.ZodEnum<{
             sd: "sd";
@@ -780,6 +836,18 @@ export declare const mediaPage: z.ZodObject<{
             }>;
             framesPerSecond: z.ZodNumber;
             watermark: z.ZodBoolean;
+            aspect: z.ZodEnum<{
+                "16_9": "16_9";
+                "9_16": "9_16";
+                "1_1": "1_1";
+            }>;
+            overlays: z.ZodObject<{
+                dayCounter: z.ZodBoolean;
+                climate: z.ZodBoolean;
+                entries: z.ZodBoolean;
+            }, z.core.$strip>;
+            includeLightsOff: z.ZodBoolean;
+            secondCameraId: z.ZodNullable<z.ZodString>;
             startedAt: z.ZodNullable<z.ZodISODateTime>;
             endedAt: z.ZodNullable<z.ZodISODateTime>;
             error: z.ZodNullable<z.ZodString>;
@@ -1147,9 +1215,13 @@ export declare const testCaptureAnswer: z.ZodObject<{
     error: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;
 /**
- * `POST /cameras/{id}/timelapses`. `window` says which span is meant: `day`,
- * `week` and `month` are worked out around `startsAt`, and `custom` is the only
- * one that reads both ends.
+ * `POST /cameras/{id}/timelapses`, which is the composer. `window` says which
+ * span is meant: `day`, `week` and `month` are worked out around `startsAt`,
+ * and `phase`, `grow` and `custom` each read both ends, because where a phase
+ * or a grow began is the client's to say and not a span this server can guess.
+ *
+ * Everything below `quality` is what the board offers and is optional, so the
+ * four one-tap buttons on the camera page send a window and nothing else.
  */
 export declare const timelapseCreate: z.ZodObject<{
     window: z.ZodEnum<{
@@ -1157,6 +1229,8 @@ export declare const timelapseCreate: z.ZodObject<{
         day: "day";
         month: "month";
         week: "week";
+        phase: "phase";
+        grow: "grow";
     }>;
     startsAt: z.ZodOptional<z.ZodISODateTime>;
     endsAt: z.ZodOptional<z.ZodISODateTime>;
@@ -1165,6 +1239,18 @@ export declare const timelapseCreate: z.ZodObject<{
         hd: "hd";
     }>>;
     framesPerSecond: z.ZodOptional<z.ZodNumber>;
+    secondCameraId: z.ZodOptional<z.ZodString>;
+    overlays: z.ZodOptional<z.ZodObject<{
+        dayCounter: z.ZodOptional<z.ZodBoolean>;
+        climate: z.ZodOptional<z.ZodBoolean>;
+        entries: z.ZodOptional<z.ZodBoolean>;
+    }, z.core.$strip>>;
+    includeLightsOff: z.ZodOptional<z.ZodBoolean>;
+    aspect: z.ZodOptional<z.ZodEnum<{
+        "16_9": "16_9";
+        "9_16": "9_16";
+        "1_1": "1_1";
+    }>>;
 }, z.core.$strip>;
 /**
  * What that request is answered with. A render does not finish inside the
@@ -1199,6 +1285,8 @@ export declare const timelapseAccepted: z.ZodObject<{
             day: "day";
             month: "month";
             week: "week";
+            phase: "phase";
+            grow: "grow";
         }>>;
         quality: z.ZodNullable<z.ZodEnum<{
             sd: "sd";
@@ -1214,6 +1302,18 @@ export declare const timelapseAccepted: z.ZodObject<{
             }>;
             framesPerSecond: z.ZodNumber;
             watermark: z.ZodBoolean;
+            aspect: z.ZodEnum<{
+                "16_9": "16_9";
+                "9_16": "9_16";
+                "1_1": "1_1";
+            }>;
+            overlays: z.ZodObject<{
+                dayCounter: z.ZodBoolean;
+                climate: z.ZodBoolean;
+                entries: z.ZodBoolean;
+            }, z.core.$strip>;
+            includeLightsOff: z.ZodBoolean;
+            secondCameraId: z.ZodNullable<z.ZodString>;
             startedAt: z.ZodNullable<z.ZodISODateTime>;
             endedAt: z.ZodNullable<z.ZodISODateTime>;
             error: z.ZodNullable<z.ZodString>;

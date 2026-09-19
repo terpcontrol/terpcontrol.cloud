@@ -16,7 +16,14 @@ import { setTimeout as sleep } from 'node:timers/promises';
 // The socket report is a contract between firmware, server and simulator; this
 // answers to the same one. The deep path is the point: that module of the
 // contract imports nothing, so this tool still runs from a bare checkout.
-import { MAX_SOCKETS, SOCKETS_PER_REPORT_CHUNK, socketListKey } from '../shared-types/v1-schemas/socket-report.js';
+import {
+  MAX_SOCKETS,
+  SOCKETS_PER_REPORT_CHUNK,
+  SOCKET_ADDRESS_MAX_LEN,
+  SOCKET_HOLD_MAX_SECONDS,
+  TIMED_SOCKET_ROLES,
+  socketListKey,
+} from '../shared-types/v1-schemas/socket-report.js';
 
 const STATE_DIR = '.simulated-devices';
 const API_URL = process.env.SIM_API_URL.replace(/\/$/, '');
@@ -57,9 +64,6 @@ const SOCKET_ROLES = [
 // The commands beyond the three socket ones this build takes.
 const SOCKET_CAPABILITIES = ['socket_override', 'socket_timer', 'light_override'];
 
-// The roles that repeat on the row's own timer rather than following an output.
-const TIMED_SOCKET_ROLES = ['pump', 'custom_timer'];
-
 // The seconds a role's socket is given to switch itself off in if the module
 // stops talking to it - Tasmota's own watchdog, as the firmware programs it.
 const SOCKET_PULSE_SECONDS = {
@@ -76,10 +80,6 @@ const SOCKET_PULSE_SECONDS = {
 };
 const socketPulseSeconds = role => SOCKET_PULSE_SECONDS[role] ?? 300;
 
-// Bounds an override and a timer, as the firmware bounds them.
-const SOCKET_HOLD_MAX_SECONDS = 86400;
-// Longest address a row may carry: three rows have to fit one log message.
-const SOCKET_ADDRESS_MAX_LEN = 40;
 // A row is reported again when it changes, but no more often than this.
 const SOCKET_REPORT_MIN_MS = 30000;
 

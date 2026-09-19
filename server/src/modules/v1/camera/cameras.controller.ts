@@ -1,8 +1,19 @@
-import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, HttpStatus, Inject, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
+import { ConfigType } from '@nestjs/config';
 import { ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { Camera, CameraCreate, CameraUpdate, MediaPage, TestCaptureAnswer, TimelapseAccepted, TimelapseCreate } from '@fg2/shared-types/v1';
+import {
+  Camera,
+  CameraCreate,
+  CameraUpdate,
+  MediaPage,
+  MediaQuality,
+  MediaWindow,
+  TestCaptureAnswer,
+  TimelapseAccepted,
+  TimelapseCreate,
+} from '@fg2/shared-types/v1';
 import {
   camera,
   cameraCreate,
@@ -18,15 +29,19 @@ import { V1Body } from '@common/zod-validation.pipe';
 import { AccessGuard, Caller, CurrentGrant, Requires } from '@common/v1/access.guard';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
-import { badRequest, notFound } from '@common/v1/problem';
+import { badRequest, notFound, unprocessable } from '@common/v1/problem';
 import { clampRange } from '@common/v1/range';
 import { V1Query, pageQuery } from '@common/v1/validation';
+import { terpCamConfig } from '@config/configuration';
+import { CameraDocument } from '@database/schemas/v1/cameras.schema';
+import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { CamerasService } from './cameras.service';
 import { CameraPollerService } from './camera-poller.service';
 import { CaptureService } from './capture.service';
 import { EntitlementService } from './entitlement.service';
 import { MediaService } from './media.service';
 import { OptionalSessionGuard } from './optional-session.guard';
+import { DEFAULT_ASPECT, DEFAULT_OVERLAYS } from './timelapse-overlays';
 import { V1Answer } from '../answer-shape';
 
 /**
@@ -53,6 +68,9 @@ type SpanQuery = z.infer<typeof spanQuery>;
 
 const DEFAULT_RENDER_FRAME_RATE = 25;
 
+/** The pipeline asks a camera for a picture every 30 seconds at most, so a shorter interval is a promise it cannot keep. */
+const MINIMUM_STILL_INTERVAL_SECONDS = 30;
+
 @ApiTags('cameras')
 @Controller('v1/cameras')
 export class CamerasController {
@@ -63,6 +81,7 @@ export class CamerasController {
     private readonly poller: CameraPollerService,
     private readonly entitlement: EntitlementService,
     private readonly access: AccessService,
+    @Inject(terpCamConfig.KEY) private readonly terpCam: ConfigType<typeof terpCamConfig>,
   ) {}
 
   @Get()
@@ -85,13 +104,15 @@ export class CamerasController {
   @ApiOperation({ summary: 'Add a camera' })
   @V1Answer(camera, { status: HttpStatus.CREATED })
   public async create(@Caller() ctx: AccessContext, @V1Body(cameraCreate) body: CameraCreate): Promise<Camera> {
-    if (body.kind === 'terpcam_standalone') {
-      // The model, the kind and the path to such a camera are here; pairing one
-      // is finished in its own session, because it needs a camera on a desk.
-      throw badRequest('not_yet', 'Pairing a standalone Terp Cam is coming; the tab that would do it says so.');
+    // The model, the kind and the path to such a camera are all here, and the
+    // path is the rendezvous the cloud finds a Terp Cam through. An install
+    // that has none cannot reach one at all, so the tab says it is coming
+    // rather than taking a camera it would never read a picture from.
+    if (body.kind === 'terpcam_standalone' && this.terpCam.rendezvousHosts.length === 0) {
+      throw badRequest('not_yet', 'Pairing a standalone Terp Cam is coming: this install has no rendezvous to find one through.');
     }
 
-    const deviceId = body.deviceId ?? null;
+    const deviceId = body.kind === 'terpcam_standalone' ? null : (body.deviceId ?? null);
     if (deviceId) await this.access.require(ctx, subjectRef('device', deviceId), 'manage');
     if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
     if (!deviceId && !body.spaceId) {
@@ -119,12 +140,33 @@ export class CamerasController {
     return this.cameras.serialise(await this.require(id), ctx.isDemo);
   }
 
+  /**
+   * What the camera page edits: its name, what it is pointed at, which plants
+   * it watches, how often it takes a picture, and the two switches that stop it
+   * doing so. A stream is the one thing only an RTSP camera has, so naming one
+   * on a Terp Cam is refused rather than stored where nothing would read it.
+   */
   @Patch(':id')
   @UseGuards(AuthGuard, AccessGuard)
   @Requires('manage', 'camera')
   @ApiOperation({ summary: 'Change a camera´s settings' })
   @V1Answer(camera)
-  public async update(@Param('id') id: string, @V1Body(cameraUpdate) body: CameraUpdate): Promise<Camera> {
+  public async update(@Caller() ctx: AccessContext, @Param('id') id: string, @V1Body(cameraUpdate) body: CameraUpdate): Promise<Camera> {
+    const current = await this.require(id);
+
+    // Moving a camera is managing two places, and the guard above has only
+    // decided about the one it stands in.
+    if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
+    if (current.kind !== 'rtsp' && namesAStream(body)) {
+      throw unprocessable('not_a_stream', 'This camera is a Terp Cam, which the cloud reaches by its own id rather than at a stream address.');
+    }
+    if (body.stillIntervalSeconds !== undefined && body.stillIntervalSeconds < MINIMUM_STILL_INTERVAL_SECONDS) {
+      throw unprocessable(
+        'still_interval_too_short',
+        `The pipeline asks a camera for a picture every ${MINIMUM_STILL_INTERVAL_SECONDS} seconds at most, so a shorter interval would not be kept.`,
+      );
+    }
+
     const updated = await this.cameras.update(id, body);
     if (!updated) throw notFound('camera_not_found', 'There is no camera with that id.');
 
@@ -202,11 +244,20 @@ export class CamerasController {
   }
 
   /**
-   * Ask for a film of a span. A render does not finish inside the request, so
-   * the row comes back with `render.status: queued` and is polled through
-   * `GET /media/{id}`; asking twice for the same span answers the film that
-   * already exists rather than making a second one, which is what `queued` and
-   * the status code say apart.
+   * The composer. A span, one camera or two side by side, what is drawn over
+   * the frames, whether the ones taken in the dark are in it, a shape and a
+   * resolution - and a job, because a render is minutes of ffmpeg and does not
+   * finish inside a request. The row comes back with `render.status: queued`
+   * and is polled through `GET /media/{id}`.
+   *
+   * A camera keeps one film per span and window, so asking for the same film
+   * twice answers the one that is there rather than making a second. Asking for
+   * the same span composed differently is a different film of it and replaces
+   * the composed one - a film is made again from frames that are still there,
+   * and the alternative is refusing somebody the reel they just changed their
+   * mind about. The rolling day, week and month the builder keeps by itself are
+   * never replaced: a composed film of one of those spans is stored as the
+   * range it covers.
    */
   @Post(':id/timelapses')
   @UseGuards(AuthGuard, AccessGuard)
@@ -217,32 +268,57 @@ export class CamerasController {
     description: 'Queued, and polled through `GET /media/{id}`. 200 where the film already exists.',
   })
   public async requestTimelapse(
+    @Caller() ctx: AccessContext,
     @Param('id') id: string,
     @V1Body(timelapseCreate) body: TimelapseCreate,
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<TimelapseAccepted> {
     const camera = await this.require(id);
     const span = spanOf(body);
-    const quality = this.entitlement.allowedQuality(camera, body.quality);
+    const entitled = this.entitlement.isEntitled(camera);
 
-    // A whole grow is a span nobody watches in a rolling window, and it is the
-    // one render the record puts behind entitlement outright.
-    if (body.window === 'custom' && !this.entitlement.isEntitled(camera)) {
-      throw badRequest('needs_entitlement', 'A film of a span of your choosing is part of Premium.');
+    // Refused rather than quietly rendered smaller: somebody who asked for HD
+    // and was handed SD without a word would think that is what HD looks like.
+    if (body.quality === 'hd' && !entitled) {
+      throw badRequest('needs_entitlement', 'Rendering in HD is part of Premium. Without it the film is rendered at the standard size.');
     }
+    if (body.window === 'grow' && !entitled) {
+      throw badRequest('needs_entitlement', 'A film of a whole grow is part of Premium.');
+    }
+
+    const secondCameraId = await this.besideId(ctx, camera, body.secondCameraId);
+    const render: MediaDocument['render'] = {
+      status: 'queued',
+      framesPerSecond: body.framesPerSecond ?? DEFAULT_RENDER_FRAME_RATE,
+      watermark: this.entitlement.watermarks(camera),
+      aspect: body.aspect ?? DEFAULT_ASPECT,
+      overlays: { ...DEFAULT_OVERLAYS, ...(body.overlays ?? {}) },
+      includeLightsOff: body.includeLightsOff ?? false,
+      secondCameraId,
+      startedAt: null,
+      endedAt: null,
+      error: null,
+    };
+
+    const quality = body.quality ?? 'sd';
+    const composed = isComposed(render, quality);
+    const window = composed && ROLLING_WINDOWS.includes(body.window) ? 'custom' : body.window;
 
     // `media` is unique on camera, kind, window and instant, so the film of this
     // very span either exists or is about to be the only one.
     const existing = await this.media.newest({
       cameraId: id,
       kind: 'timelapse',
-      window: body.window,
+      window,
       range: { startsAt: span.startsAt, endsAt: span.startsAt },
     });
-    if (existing) {
+
+    if (existing && (!composed || sameFilm(existing, render, quality, span.endsAt))) {
       void reply.status(HttpStatus.OK);
       return { media: this.media.serialise(existing), queued: false };
     }
+
+    if (existing) await this.media.delete(existing.id);
 
     const queued = await this.media.queue({
       kind: 'timelapse',
@@ -250,20 +326,32 @@ export class CamerasController {
       cameraId: id,
       capturedAt: span.startsAt,
       endsAt: span.endsAt,
-      window: body.window,
+      window,
       quality,
-      render: {
-        status: 'queued',
-        framesPerSecond: body.framesPerSecond ?? DEFAULT_RENDER_FRAME_RATE,
-        watermark: this.entitlement.watermarks(camera),
-        startedAt: null,
-        endedAt: null,
-        error: null,
-      },
+      render,
     });
 
     void reply.status(HttpStatus.ACCEPTED);
     return { media: this.media.serialise(queued), queued: true };
+  }
+
+  /**
+   * The camera shown beside this one. It is looked at rather than written to,
+   * so looking at it is what is asked of the caller - and it has to stand in
+   * the same place, because "both, split" is the two cameras of one tent and
+   * not a way to put somebody else's tent into this film.
+   */
+  private async besideId(ctx: AccessContext, camera: CameraDocument, secondCameraId: string | undefined): Promise<string | null> {
+    if (!secondCameraId || secondCameraId === camera.id) return null;
+
+    await this.access.require(ctx, subjectRef('camera', secondCameraId), 'view');
+    const second = await this.cameras.byId(secondCameraId);
+    if (!second || second.removedAt !== null) throw notFound('camera_not_found', 'There is no camera with that id.');
+    if (second.spaceId !== camera.spaceId) {
+      throw unprocessable('not_the_same_place', 'Two cameras are shown side by side when they stand in the same place.');
+    }
+
+    return second.id;
   }
 
   private async require(id: string) {
@@ -285,26 +373,70 @@ const settingsOf = (body: CameraCreate): CameraUpdate => ({
   logErrors: body.logErrors,
 });
 
+/** The fields only an RTSP camera has; a Terp Cam is reached by its own id. */
+const namesAStream = (body: CameraUpdate): boolean =>
+  body.url !== undefined || body.transport !== undefined || body.tunnel !== undefined || body.model !== undefined;
+
 const MS_IN_A_DAY = 24 * 60 * 60 * 1000;
 
 const SPANS: Record<string, number> = { day: MS_IN_A_DAY, week: 7 * MS_IN_A_DAY, month: 30 * MS_IN_A_DAY };
 
+/** The three the builder keeps by itself, which the composer never replaces. */
+const ROLLING_WINDOWS: MediaWindow[] = ['day', 'week', 'month'];
+
 /**
  * Which span was meant. `day`, `week` and `month` are worked out around the
- * instant given, and default to the most recent complete one; `custom` is the
- * only window that reads both ends.
+ * instant given, and default to the most recent complete one; a phase, a whole
+ * grow and a range somebody drew each read both ends, because where a phase or
+ * a grow began is the client's to say.
  */
 const spanOf = (body: TimelapseCreate): { startsAt: Date; endsAt: Date } => {
-  if (body.window === 'custom') {
+  const span = SPANS[body.window];
+
+  if (span === undefined) {
     if (!body.startsAt || !body.endsAt) {
-      throw badRequest('span_missing', 'A film of a span of your choosing needs both ends of it.');
+      throw badRequest('span_missing', 'A film of a phase, a whole grow or a span of your choosing needs both ends of it.');
     }
-    return { startsAt: new Date(body.startsAt), endsAt: new Date(body.endsAt) };
+
+    const startsAt = new Date(body.startsAt);
+    const endsAt = new Date(body.endsAt);
+    if (endsAt <= startsAt) throw unprocessable('span_backwards', 'A film ends after it begins.');
+
+    return { startsAt, endsAt };
   }
 
-  const span = SPANS[body.window];
   const around = body.startsAt ? new Date(body.startsAt).getTime() : Date.now() - span;
   const startsAt = new Date(Math.floor(around / span) * span);
 
   return { startsAt, endsAt: new Date(startsAt.getTime() + span) };
+};
+
+/** Whether anything was asked for beyond the plain film of that span. */
+const isComposed = (render: NonNullable<MediaDocument['render']>, quality: MediaQuality): boolean =>
+  render.secondCameraId !== null ||
+  render.overlays.dayCounter ||
+  render.overlays.climate ||
+  render.overlays.entries ||
+  render.includeLightsOff ||
+  render.aspect !== DEFAULT_ASPECT ||
+  render.framesPerSecond !== DEFAULT_RENDER_FRAME_RATE ||
+  quality !== 'sd';
+
+/** Whether the film that is already there is the one being asked for. */
+const sameFilm = (existing: MediaDocument, render: NonNullable<MediaDocument['render']>, quality: MediaQuality, endsAt: Date): boolean => {
+  const was = existing.render;
+
+  return (
+    was !== null &&
+    was.status !== 'failed' &&
+    (existing.quality ?? 'sd') === quality &&
+    existing.endsAt?.getTime() === endsAt.getTime() &&
+    was.framesPerSecond === render.framesPerSecond &&
+    was.aspect === render.aspect &&
+    was.includeLightsOff === render.includeLightsOff &&
+    was.secondCameraId === render.secondCameraId &&
+    was.overlays.dayCounter === render.overlays.dayCounter &&
+    was.overlays.climate === render.overlays.climate &&
+    was.overlays.entries === render.overlays.entries
+  );
 };

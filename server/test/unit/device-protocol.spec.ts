@@ -297,6 +297,24 @@ describe('the hardware report', () => {
     await report('socket_list0=heater|AA|10.0.0.1|off');
 
     expect((await stored())?.state.socketStateChangedAt['0']).toBeInstanceOf(Date);
+    // An override's row carries the seconds it has left and never an instant,
+    // so when the table arrived is what those seconds are read against.
+    expect((await stored())?.state.socketsReportedAt).toBeInstanceOf(Date);
+  });
+
+  it('forgets when a slot changed state once another socket sits in it', async () => {
+    await device();
+    await report('sockets_n=1');
+    await report('socket_list0=heater|AA|10.0.0.1|on');
+    await report('socket_list0=heater|AA|10.0.0.1|off');
+    expect((await stored())?.state.socketStateChangedAt['0']).toBeInstanceOf(Date);
+
+    // A stamp is keyed by slot, and a slot outlives the socket that sat in it.
+    await report('socket_list0=pump|BB|10.0.0.2|on');
+    expect((await stored())?.state.socketStateChangedAt).toEqual({});
+
+    await report('sockets_n=0');
+    expect((await stored())?.state.socketStateChangedAt).toEqual({});
   });
 });
 
@@ -362,7 +380,7 @@ describe('what the cloud tells a device', () => {
   });
 
   it('adds a socket to a role when no slot is named, and configures the named one otherwise', async () => {
-    await device();
+    await device({ state: { hardware: { sockets_n: '3', socket_list0: 'heater|AA|10.0.0.1,light|BB|10.0.0.2,heater|CC|10.0.0.3' } } as never });
 
     await publisher.command(DEVICE, { kind: 'socket_set', slot: null, role: 'heater', address: '10.0.0.9', credentials: null, timer: null });
     expect(sent()).toEqual({ action: 'socket_set', role: 'heater', ip: '10.0.0.9', append: true });
@@ -379,6 +397,15 @@ describe('what the cloud tells a device', () => {
     // An empty password puts the socket back on the device's default; leaving
     // the pair out keeps whatever it had.
     expect(sent()).toEqual({ action: 'socket_set', role: 'heater', ip: '10.0.0.9', slot: 2, user: 'admin', password: '' });
+  });
+
+  it('refuses a slot the device reports no socket in, rather than sending one it would drop', async () => {
+    await device({ state: { hardware: { sockets_n: '1', socket_list0: 'heater|AA|10.0.0.1' } } as never });
+
+    await expect(
+      publisher.command(DEVICE, { kind: 'socket_set', slot: 4, role: 'heater', address: '10.0.0.9', credentials: null, timer: null }),
+    ).rejects.toThrow(/no socket in slot 4/);
+    expect(published).toEqual([]);
   });
 
   it('sends nothing a device has not announced it understands', async () => {

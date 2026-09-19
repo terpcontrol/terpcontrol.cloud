@@ -304,11 +304,38 @@ export const entryUpdate = named('EntryUpdate', entryCreate.omit({ kind: true })
 // Media
 // ---------------------------------------------------------------------------
 
-/** What a timelapse covers. `custom` is a range somebody asked the composer for. */
-export const mediaWindow = named('MediaWindow', z.enum(['day', 'week', 'month', 'custom']));
+/**
+ * What a timelapse covers. `day`, `week` and `month` are the rolling films the
+ * builder keeps by itself; `phase`, `grow` and `custom` are the composer's
+ * ranges, and each of them names both of its ends, because only the client
+ * knows where a phase or a grow began.
+ */
+export const mediaWindow = named('MediaWindow', z.enum(['day', 'week', 'month', 'phase', 'grow', 'custom']));
 
 /** A render's resolution. `hd` and whole-grow renders need entitlement; a free render carries a watermark. */
 export const mediaQuality = named('MediaQuality', z.enum(['sd', 'hd']));
+
+/**
+ * The shape a film is rendered to: landscape, the portrait one a reel is, or
+ * square. Named by their ratios rather than by a platform, which outlives the
+ * platform.
+ */
+export const mediaAspect = named('MediaAspect', z.enum(['16_9', '9_16', '1_1']));
+
+/**
+ * What is drawn over the frames. Each is off unless it is asked for, and each
+ * needs something to draw from - a grow for its day counter, a controller for
+ * its climate, entries for its captions - so one that has nothing simply draws
+ * nothing rather than refusing the render.
+ */
+export const mediaOverlays = named(
+  'MediaOverlays',
+  z.object({
+    dayCounter: z.boolean(),
+    climate: z.boolean().describe('The temperature and humidity of the span, with a cursor on the frame´s own instant.'),
+    entries: z.boolean().describe('The diary lines of the span, each as a caption on the frames around it.'),
+  }),
+);
 
 /** Only `queued` is a fact of the model; the rest is how far the hourly builder has got. */
 export const mediaRenderStatus = named('MediaRenderStatus', z.enum(['queued', 'rendering', 'ready', 'failed']));
@@ -324,6 +351,10 @@ export const mediaRender = named(
     status: mediaRenderStatus,
     framesPerSecond: z.number().int(),
     watermark: z.boolean(),
+    aspect: mediaAspect,
+    overlays: mediaOverlays,
+    includeLightsOff: z.boolean().describe('Whether the frames taken while the light was off are in the film.'),
+    secondCameraId: id().nullable().describe('The camera shown beside the first one; null for a film of one camera.'),
     startedAt: instant().nullable(),
     endedAt: instant().nullable(),
     error: z.string().nullable(),
@@ -586,18 +617,26 @@ export const testCaptureAnswer = named(
 );
 
 /**
- * `POST /cameras/{id}/timelapses`. `window` says which span is meant: `day`,
- * `week` and `month` are worked out around `startsAt`, and `custom` is the only
- * one that reads both ends.
+ * `POST /cameras/{id}/timelapses`, which is the composer. `window` says which
+ * span is meant: `day`, `week` and `month` are worked out around `startsAt`,
+ * and `phase`, `grow` and `custom` each read both ends, because where a phase
+ * or a grow began is the client's to say and not a span this server can guess.
+ *
+ * Everything below `quality` is what the board offers and is optional, so the
+ * four one-tap buttons on the camera page send a window and nothing else.
  */
 export const timelapseCreate = named(
   'TimelapseCreate',
   z.object({
     window: mediaWindow,
     startsAt: instant().optional().describe('Defaults to the most recent complete window.'),
-    endsAt: instant().optional().describe('Only `custom` reads it.'),
-    quality: mediaQuality.optional(),
-    framesPerSecond: z.number().int().optional(),
+    endsAt: instant().optional().describe('Read by `phase`, `grow` and `custom`, each of which needs both ends.'),
+    quality: mediaQuality.optional().describe('`hd` needs entitlement and is refused without it rather than quietly made `sd`.'),
+    framesPerSecond: z.number().int().positive().max(60).optional(),
+    secondCameraId: id().optional().describe('A second camera of the same tent, shown beside the first one.'),
+    overlays: mediaOverlays.partial().optional(),
+    includeLightsOff: z.boolean().optional().describe('Defaults to leaving the frames taken in the dark out.'),
+    aspect: mediaAspect.optional(),
   }),
 );
 

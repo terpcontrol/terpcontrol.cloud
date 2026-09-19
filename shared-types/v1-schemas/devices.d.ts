@@ -55,6 +55,7 @@ export declare const deviceState: z.ZodObject<{
     maintenanceUntil: z.ZodNullable<z.ZodISODateTime>;
     hardware: z.ZodRecord<z.ZodString, z.ZodString>;
     socketStateChangedAt: z.ZodRecord<z.ZodString, z.ZodISODateTime>;
+    socketsReportedAt: z.ZodNullable<z.ZodISODateTime>;
 }, z.core.$strip>;
 /**
  * A device as the API serves it. The broker credentials the device signs in with
@@ -95,6 +96,7 @@ export declare const device: z.ZodObject<{
         maintenanceUntil: z.ZodNullable<z.ZodISODateTime>;
         hardware: z.ZodRecord<z.ZodString, z.ZodString>;
         socketStateChangedAt: z.ZodRecord<z.ZodString, z.ZodISODateTime>;
+        socketsReportedAt: z.ZodNullable<z.ZodISODateTime>;
     }, z.core.$strip>;
 }, z.core.$strip>;
 export declare const devicePage: z.ZodObject<{
@@ -132,6 +134,7 @@ export declare const devicePage: z.ZodObject<{
             maintenanceUntil: z.ZodNullable<z.ZodISODateTime>;
             hardware: z.ZodRecord<z.ZodString, z.ZodString>;
             socketStateChangedAt: z.ZodRecord<z.ZodString, z.ZodISODateTime>;
+            socketsReportedAt: z.ZodNullable<z.ZodISODateTime>;
         }, z.core.$strip>;
     }, z.core.$strip>>;
     nextCursor: z.ZodNullable<z.ZodString>;
@@ -382,6 +385,7 @@ export declare const deviceClaimResult: z.ZodObject<{
             maintenanceUntil: z.ZodNullable<z.ZodISODateTime>;
             hardware: z.ZodRecord<z.ZodString, z.ZodString>;
             socketStateChangedAt: z.ZodRecord<z.ZodString, z.ZodISODateTime>;
+            socketsReportedAt: z.ZodNullable<z.ZodISODateTime>;
         }, z.core.$strip>;
     }, z.core.$strip>;
     spaceCreated: z.ZodBoolean;
@@ -414,7 +418,11 @@ export declare const socketOverride: z.ZodObject<{
     }>;
     validUntil: z.ZodISODateTime;
 }, z.core.$strip>;
-/** What a `pump` or a `custom_timer` socket repeats: on for so long, that often. */
+/**
+ * What a `pump` or a `custom_timer` socket repeats: on for so long, that often.
+ * The bounds are the firmware's, which refuses a cycle that is on for at least
+ * as long as its period and one longer than an override may hold.
+ */
 export declare const socketTimer: z.ZodObject<{
     onSeconds: z.ZodNumber;
     everySeconds: z.ZodNumber;

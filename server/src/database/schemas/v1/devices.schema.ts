@@ -19,7 +19,7 @@ export interface StoredDeviceMqtt {
 
 export interface StoredDeviceState extends Omit<
   DeviceState,
-  'lastSeenAt' | 'claimedAt' | 'updateStartedAt' | 'updateEndedAt' | 'maintenanceUntil' | 'socketStateChangedAt'
+  'lastSeenAt' | 'claimedAt' | 'updateStartedAt' | 'updateEndedAt' | 'maintenanceUntil' | 'socketStateChangedAt' | 'socketsReportedAt'
 > {
   lastSeenAt: Date | null;
   claimedAt: Date | null;
@@ -27,6 +27,7 @@ export interface StoredDeviceState extends Omit<
   updateEndedAt: Date | null;
   maintenanceUntil: Date | null;
   socketStateChangedAt: Record<string, Date>;
+  socketsReportedAt: Date | null;
 }
 
 export interface StoredDevice extends Omit<Device, 'createdAt' | 'state'> {
@@ -77,6 +78,10 @@ const stateSchema = new Schema<StoredDeviceState>(
     // Slot to the instant that socket row was last seen to change state; the
     // report says a row changed but not when, so the ingest stamps it.
     socketStateChangedAt: { type: Schema.Types.Mixed, required: true, default: () => ({}) },
+    // When the socket table last arrived. An override's row carries the seconds
+    // it had left then and never an instant, so without this the countdown a
+    // person watches would restart on every read.
+    socketsReportedAt: { type: Date, default: null },
   },
   { _id: false, versionKey: false, minimize: false },
 );

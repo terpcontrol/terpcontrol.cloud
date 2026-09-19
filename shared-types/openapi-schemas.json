@@ -1703,6 +1703,18 @@
           "format": "date-time",
           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
         }
+      },
+      "socketsReportedAt": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ]
       }
     },
     "required": [
@@ -1713,7 +1725,8 @@
       "updateEndedAt",
       "maintenanceUntil",
       "hardware",
-      "socketStateChangedAt"
+      "socketStateChangedAt",
+      "socketsReportedAt"
     ]
   },
   "Device": {
@@ -2383,13 +2396,13 @@
     "properties": {
       "onSeconds": {
         "type": "integer",
-        "minimum": -9007199254740991,
+        "exclusiveMinimum": 0,
         "maximum": 9007199254740991
       },
       "everySeconds": {
         "type": "integer",
-        "minimum": -9007199254740991,
-        "maximum": 9007199254740991
+        "exclusiveMinimum": 0,
+        "maximum": 86400
       }
     },
     "required": [
@@ -2638,9 +2651,9 @@
       },
       "forSeconds": {
         "type": "integer",
-        "minimum": -9007199254740991,
-        "maximum": 9007199254740991,
-        "description": "The override expires after this; a reboot ends it too."
+        "minimum": 0,
+        "maximum": 86400,
+        "description": "The override expires after this; a reboot ends it too. Zero only with `auto`, which carries no duration."
       }
     },
     "required": [
@@ -2654,10 +2667,12 @@
     "type": "object",
     "properties": {
       "username": {
-        "type": "string"
+        "type": "string",
+        "maxLength": 48
       },
       "password": {
-        "type": "string"
+        "type": "string",
+        "maxLength": 48
       }
     },
     "required": [
@@ -2690,6 +2705,9 @@
       },
       "address": {
         "type": "string",
+        "minLength": 1,
+        "maxLength": 40,
+        "pattern": "^\\S+$",
         "description": "Host or IP the device reaches the socket at, over plain HTTP on the local network."
       },
       "credentials": {
@@ -2774,6 +2792,9 @@
       },
       "address": {
         "type": "string",
+        "minLength": 1,
+        "maxLength": 40,
+        "pattern": "^\\S+$",
         "description": "Host or IP the device reaches the socket at, over plain HTTP on the local network."
       },
       "credentials": {
@@ -2813,9 +2834,9 @@
       },
       "forSeconds": {
         "type": "integer",
-        "minimum": -9007199254740991,
-        "maximum": 9007199254740991,
-        "description": "The override expires after this; a reboot ends it too."
+        "minimum": 0,
+        "maximum": 86400,
+        "description": "The override expires after this; a reboot ends it too. Zero only with `auto`, which carries no duration."
       }
     },
     "required": [
@@ -7811,6 +7832,8 @@
       "day",
       "week",
       "month",
+      "phase",
+      "grow",
       "custom"
     ]
   },
@@ -7819,6 +7842,35 @@
     "enum": [
       "sd",
       "hd"
+    ]
+  },
+  "MediaAspect": {
+    "type": "string",
+    "enum": [
+      "16_9",
+      "9_16",
+      "1_1"
+    ]
+  },
+  "MediaOverlays": {
+    "type": "object",
+    "properties": {
+      "dayCounter": {
+        "type": "boolean"
+      },
+      "climate": {
+        "type": "boolean",
+        "description": "The temperature and humidity of the span, with a cursor on the frame´s own instant."
+      },
+      "entries": {
+        "type": "boolean",
+        "description": "The diary lines of the span, each as a caption on the frames around it."
+      }
+    },
+    "required": [
+      "dayCounter",
+      "climate",
+      "entries"
     ]
   },
   "MediaRenderStatus": {
@@ -7843,6 +7895,28 @@
       },
       "watermark": {
         "type": "boolean"
+      },
+      "aspect": {
+        "$ref": "#/components/schemas/MediaAspect"
+      },
+      "overlays": {
+        "$ref": "#/components/schemas/MediaOverlays"
+      },
+      "includeLightsOff": {
+        "type": "boolean",
+        "description": "Whether the frames taken while the light was off are in the film."
+      },
+      "secondCameraId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The camera shown beside the first one; null for a film of one camera."
       },
       "startedAt": {
         "anyOf": [
@@ -7879,6 +7953,10 @@
       "status",
       "framesPerSecond",
       "watermark",
+      "aspect",
+      "overlays",
+      "includeLightsOff",
+      "secondCameraId",
       "startedAt",
       "endedAt",
       "error"
@@ -8782,18 +8860,47 @@
         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
       },
       "endsAt": {
-        "description": "Only `custom` reads it.",
+        "description": "Read by `phase`, `grow` and `custom`, each of which needs both ends.",
         "type": "string",
         "format": "date-time",
         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
       },
       "quality": {
+        "description": "`hd` needs entitlement and is refused without it rather than quietly made `sd`.",
         "$ref": "#/components/schemas/MediaQuality"
       },
       "framesPerSecond": {
         "type": "integer",
-        "minimum": -9007199254740991,
-        "maximum": 9007199254740991
+        "exclusiveMinimum": 0,
+        "maximum": 60
+      },
+      "secondCameraId": {
+        "description": "A second camera of the same tent, shown beside the first one.",
+        "type": "string",
+        "minLength": 1
+      },
+      "overlays": {
+        "type": "object",
+        "properties": {
+          "dayCounter": {
+            "type": "boolean"
+          },
+          "climate": {
+            "type": "boolean",
+            "description": "The temperature and humidity of the span, with a cursor on the frame´s own instant."
+          },
+          "entries": {
+            "type": "boolean",
+            "description": "The diary lines of the span, each as a caption on the frames around it."
+          }
+        }
+      },
+      "includeLightsOff": {
+        "description": "Defaults to leaving the frames taken in the dark out.",
+        "type": "boolean"
+      },
+      "aspect": {
+        "$ref": "#/components/schemas/MediaAspect"
       }
     },
     "required": [

@@ -17,6 +17,7 @@ import { TunnelModule } from '@modules/tunnel/tunnel.module';
 import { TunnelService } from '@modules/tunnel/tunnel.service';
 import { CameraModule } from '@modules/v1/camera/camera.module';
 import { LIGHT_STATE_READER } from '@modules/v1/camera/light-state';
+import { SERIES_READER } from '@modules/v1/camera/series-reader';
 import { STILL_REQUEST } from '@modules/v1/camera/still-request';
 import { TerpCamP2PService } from '@modules/v1/camera/terpcam-p2p.service';
 import { FirmwareRolloutService } from '@modules/v1/fleet/firmware-rollout.service';
@@ -55,6 +56,9 @@ import { DEVICE_CONFIGURATION_WRITER } from '@modules/v1/plan/device-configurati
     // whether its light is on, which is the one thing `nightOff` asks.
     { provide: STILL_REQUEST, useExisting: DevicePublisherService },
     { provide: LIGHT_STATE_READER, useExisting: DataService },
+    // And what the composer needs of one: the climate it draws over the frames,
+    // and the light output that says which of them were taken in the dark.
+    { provide: SERIES_READER, useExisting: DataService },
     // The plan puts a device on the settings its step carries, and the protocol
     // module is what knows how to say so.
     { provide: DEVICE_CONFIGURATION_WRITER, useExisting: DeviceConfigurationService },
@@ -70,6 +74,7 @@ import { DEVICE_CONFIGURATION_WRITER } from '@modules/v1/plan/device-configurati
     DEVICE_PRESENCE_SINK,
     STILL_REQUEST,
     LIGHT_STATE_READER,
+    SERIES_READER,
     DEVICE_CONFIGURATION_WRITER,
     MAINTENANCE_STARTER,
   ],

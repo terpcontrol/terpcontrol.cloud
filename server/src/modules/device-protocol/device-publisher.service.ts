@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { DeviceCommand, DeviceConfiguration, SocketRole } from '@fg2/shared-types/v1';
-import { HttpException } from '@common/http-exception';
+import { TIMED_SOCKET_ROLES } from '@fg2/shared-types/v1-schemas';
+import { badRequest, conflict, notFound, serviceUnavailable, unprocessable } from '@common/v1/problem';
 import { isOffline } from '@common/v1/value-age';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -68,7 +69,7 @@ export class DevicePublisherService {
    */
   public async command(deviceId: string, command: DeviceCommand): Promise<CommandPublished> {
     const device = await this.devices.findOne({ id: deviceId }).lean();
-    if (!device) throw new HttpException(404, 'Device not found');
+    if (!device) throw notFound('device_not_found', 'There is no device with that id.');
 
     const payload = this.payloadFor(device, command);
 
@@ -113,19 +114,29 @@ export class DevicePublisherService {
    */
   public async socketAction(deviceId: string, action: 'socket_remove' | 'socket_test', target: number | SocketRole): Promise<CommandPublished> {
     const device = await this.devices.findOne({ id: deviceId }).lean();
-    if (!device) throw new HttpException(404, 'Device not found');
+    if (!device) throw notFound('device_not_found', 'There is no device with that id.');
+
+    const sockets = decodeSockets(device.state.hardware);
 
     if (typeof target === 'string') {
+      // A role is only an address where the device reports one under it.
+      // Anything else would be a command the firmware drops without a word.
+      if (!sockets.some(socket => socket.role === target)) {
+        throw notFound('socket_unknown', `This device reports no socket with the role ${target || 'unassigned'}.`);
+      }
+
       this.publishCommand(deviceId, { action, role: target });
       return { publishedAt: new Date(), deviceOnline: !isOffline(device.state.lastSeenAt) };
     }
 
     // Every row of a build that reports no table answers to the slot -1, so the
     // slot names none of them and the role is the only address there is.
-    if (target < 0) throw new HttpException(400, 'This device reports no socket table, so a socket is addressed by its role');
+    if (target < 0) {
+      throw badRequest('no_socket_table', 'This device reports no socket table, so a socket is addressed by its role.');
+    }
 
-    const socket = decodeSockets(device.state.hardware).find(candidate => candidate.slot === target);
-    if (!socket) throw new HttpException(404, 'The device reports no socket in that slot');
+    const socket = sockets.find(candidate => candidate.slot === target);
+    if (!socket) throw notFound('socket_unknown', `This device reports no socket in slot ${target}.`);
 
     this.publishCommand(deviceId, { action, role: socket.role, slot: target });
 
@@ -165,7 +176,7 @@ export class DevicePublisherService {
     // The device is not going to hear a command the broker could not take, so
     // saying so beats an ok - a client told this knows to try again.
     if (!this.mqtt.publish(deviceTopic(deviceId, 'command'), JSON.stringify(payload))) {
-      throw new HttpException(503, 'Not connected to the message broker');
+      throw serviceUnavailable('broker_unavailable', 'The message broker could not take the command, so the device did not hear it. Try again.');
     }
   }
 
@@ -191,24 +202,76 @@ export class DevicePublisherService {
     }
   }
 
+  /**
+   * Holding a socket, or the module's own light output, for a while.
+   *
+   * The only output that takes one is `light`, and a slot is addressed by the
+   * table the device reported: the firmware refuses a slot outside it, and a
+   * refusal it never sends back is indistinguishable from a command that
+   * worked, so the row is checked here instead.
+   */
   private overridePayload(device: StoredDevice, command: Extract<DeviceCommand, { kind: 'socket_override' }>): Record<string, unknown> {
     const capabilities = decodeCapabilities(device.state.hardware);
-    const output = command.subject.type === 'output';
+    const clearing = command.state === 'auto';
 
-    this.require(output ? capabilities.lightOverride : capabilities.socketOverride, 'overriding an output');
+    // `auto` ends an override rather than being one, which is why it carries no
+    // duration; everything else has to say how long, because a socket held with
+    // no end is what the expiry exists to make impossible.
+    if (!clearing && command.forSeconds <= 0) {
+      throw unprocessable('override_without_end', 'An override says how long it holds; only handing the socket back carries no duration.');
+    }
 
-    return {
-      action: 'socket_override',
-      ...(output ? { output: command.subject.id } : { slot: Number(command.subject.id) }),
-      state: command.state,
-      seconds: command.forSeconds,
-    };
+    if (command.subject.type === 'output') {
+      this.require(capabilities.lightOverride, 'overriding its own light output');
+      if (command.subject.id !== 'light') {
+        throw badRequest('output_not_overridable', `Only the light output takes an override, not ${command.subject.id}.`);
+      }
+
+      return { action: 'socket_override', output: command.subject.id, state: command.state, seconds: command.forSeconds };
+    }
+
+    this.require(capabilities.socketOverride, 'holding a socket on or off');
+    const slot = this.slotOf(device, command.subject.id);
+
+    return { action: 'socket_override', slot, state: command.state, seconds: command.forSeconds };
   }
 
+  /** The row a command names, as the device reports it. */
+  private slotOf(device: StoredDevice, id: string): number {
+    const slot = Number(id);
+    if (!Number.isInteger(slot) || slot < 0) {
+      throw badRequest('socket_unknown', 'A socket is named by the slot it sits in, which is a row of the table the device reports.');
+    }
+
+    const socket = decodeSockets(device.state.hardware).find(candidate => candidate.slot === slot);
+    if (!socket) throw notFound('socket_unknown', `This device reports no socket in slot ${slot}.`);
+
+    return slot;
+  }
+
+  /**
+   * Pairing a socket by its address, giving it a role, or giving a timed role
+   * its timer. The role has to be one this build takes and the timer one it
+   * consults, because a role it does not know is dropped when the table is
+   * loaded and a timer on any other role is stored and never read.
+   */
   private socketSetPayload(device: StoredDevice, command: Extract<DeviceCommand, { kind: 'socket_set' }>): Record<string, unknown> {
     const capabilities = decodeCapabilities(device.state.hardware);
-    this.require(capabilities.roles.includes(command.role), `the role ${command.role || 'unassigned'}`);
-    if (command.timer) this.require(capabilities.socketTimer, 'a socket timer');
+
+    // The unassigned role is the empty string, which a comma-separated list
+    // cannot carry, so no build ever announces it and every build takes it.
+    if (command.role !== '') this.require(capabilities.roles.includes(command.role), `the role ${command.role}`);
+    if (command.slot !== null) this.slotOf(device, String(command.slot));
+
+    if (command.timer) {
+      this.require(capabilities.socketTimer, 'a socket timer');
+      if (!TIMED_SOCKET_ROLES.includes(command.role)) {
+        throw unprocessable(
+          'timer_not_for_role',
+          `A ${command.role || 'unassigned'} socket follows the controller rather than a timer. Only ${TIMED_SOCKET_ROLES.join(' and ')} run on one.`,
+        );
+      }
+    }
 
     return {
       action: 'socket_set',
@@ -230,11 +293,13 @@ export class DevicePublisherService {
   /**
    * A device that has not announced something is never sent it: old firmware
    * drops what it does not know without a word, and the version it reports is
-   * the build's uuid, which cannot be compared against anything.
+   * the build's uuid, which cannot be compared against anything. So the reason
+   * a person is given is the only one there is - the controller needs its next
+   * firmware before this switch does anything.
    */
   private require(announced: boolean, what: string): void {
     if (!announced) {
-      throw new HttpException(409, `This device has not announced that it understands ${what}`);
+      throw conflict('capability_not_announced', `This device has not announced that it understands ${what}. It needs the next controller firmware.`);
     }
   }
 }

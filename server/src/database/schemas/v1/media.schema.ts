@@ -1,7 +1,7 @@
 import { Query, Schema } from 'mongoose';
-import { Media, MediaRender } from '@fg2/shared-types/v1';
+import { Media, MediaOverlays, MediaRender } from '@fg2/shared-types/v1';
 import { logger } from '@utils/logger';
-import { mediaKind, mediaQuality, mediaRenderStatus, mediaWindow } from '@fg2/shared-types/v1-schemas';
+import { mediaAspect, mediaKind, mediaQuality, mediaRenderStatus, mediaWindow } from '@fg2/shared-types/v1-schemas';
 import { deleteStoredImages } from '../../image-store';
 
 /**
@@ -25,12 +25,32 @@ export type MediaDocument = Omit<Media, 'createdAt' | 'capturedAt' | 'endsAt' | 
   render: MediaRenderDocument | null;
 };
 
-/** What the composer was asked for and how far it has got. Null for a picture nobody renders. */
+const overlaysSchema = new Schema<MediaOverlays>(
+  {
+    dayCounter: { type: Boolean, required: true, default: false },
+    climate: { type: Boolean, required: true, default: false },
+    entries: { type: Boolean, required: true, default: false },
+  },
+  { _id: false },
+);
+
+/**
+ * What the composer was asked for and how far it has got. Null for a picture
+ * nobody renders.
+ *
+ * Everything the composer added has a default, which is the plain film: a job
+ * queued before there was a composer at all reads as what it was asked for
+ * rather than as a document missing half its fields.
+ */
 const renderSchema = new Schema<MediaRenderDocument>(
   {
     status: { type: String, enum: mediaRenderStatus.options, required: true },
     framesPerSecond: { type: Number, required: true },
     watermark: { type: Boolean, required: true },
+    aspect: { type: String, enum: mediaAspect.options, required: true, default: '16_9' },
+    overlays: { type: overlaysSchema, required: true, default: () => ({}) },
+    includeLightsOff: { type: Boolean, required: true, default: false },
+    secondCameraId: { type: String, default: null },
     startedAt: { type: Date, default: null },
     endedAt: { type: Date, default: null },
     error: { type: String, default: null },

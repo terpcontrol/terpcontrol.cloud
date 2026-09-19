@@ -727,6 +727,12 @@ announced; `socket_remove` and `socket_test` name the row by its slot and take t
 reported. A socket test asks the firmware for the pulse it already gives — two seconds — because the command
 carries no duration and old firmware would ignore one.
 
+Every rule the firmware refuses one of these by is checked again before the publish, because a refusal never
+travels back: a slot the device reports no socket in, an address over `SOCKET_ADDRESS_MAX_LEN` or with a space in
+it, credentials over 48 characters, a timer that is on for at least as long as its period or that names a role
+which does not run on one, an override of any output but `light`, and an override that carries no duration while
+it is not `auto`. The caller is told which one; the firmware, asked anyway, would say nothing at all.
+
 **`slot` is optional everywhere and means one row of the table**, as reported in `socket_list<k>`. Left out, the
 command addresses every socket of the role for `socket_remove` and `socket_test`, and the single existing socket
 of the role for `socket_set` — which is all a command could mean back when a role could hold only one

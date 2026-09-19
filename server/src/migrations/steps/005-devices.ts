@@ -88,9 +88,11 @@ export const devices: MigrationStep = {
           updateEndedAt: instantOf(device.fwupdate_end),
           maintenanceUntil: instantOf(device.maintenance_mode_until),
           hardware: hardwareOf(device.hardwareInfo),
-          // Nothing has ever recorded when a socket row last changed state; the
-          // ingest stamps it the first time a device reports its table again.
+          // Nothing has ever recorded when a socket row last changed state, nor
+          // when its table arrived; the ingest stamps both the first time a
+          // device reports the table again.
           socketStateChangedAt: {},
+          socketsReportedAt: null,
         },
       });
     }

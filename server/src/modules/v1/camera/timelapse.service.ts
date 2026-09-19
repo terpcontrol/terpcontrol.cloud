@@ -12,6 +12,8 @@ import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { CamerasService } from './cameras.service';
 import { EntitlementService } from './entitlement.service';
 import { MediaPosition, MediaService } from './media.service';
+import { TimelapseContextService } from './timelapse-context.service';
+import { DEFAULT_ASPECT, FrameSize, OverlayFrame, composeFrame, overlayLayer, sizeFor, wasDark } from './timelapse-overlays';
 
 /**
  * Rolls a camera's stills up into the films a client plays back, renders the
@@ -63,6 +65,28 @@ const ROLLING: { window: MediaWindow; spanMs: number; frameIntervalMs: number; r
 /** How many queued renders one pass takes on: a render is minutes of ffmpeg, and the rolling films wait behind it. */
 const RENDERS_PER_PASS = 3;
 
+/** What ffmpeg is told; `size` is the shape a composed film was asked for and is absent on the rolling ones. */
+interface FfmpegOptions {
+  quality: MediaQuality;
+  watermark: string | null;
+  framesPerSecond?: number;
+  size?: FrameSize;
+}
+
+/**
+ * What one film is made of. `compose` is what the composer adds: the camera
+ * shown beside this one - `null` for a film of one - and the layer drawn over
+ * each frame.
+ */
+interface EncodeOptions extends Omit<FfmpegOptions, 'watermark'> {
+  watermark: boolean;
+  compose: {
+    beside: MediaPosition[] | null;
+    layer: (frame: OverlayFrame) => string | null;
+    tolerance: number;
+  } | null;
+}
+
 /** What an `sd` render is scaled to. `hd` keeps the frames at the size the camera delivered them. */
 const SD_WIDTH = 1280;
 
@@ -75,6 +99,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
     private readonly cameras: CamerasService,
     private readonly media: MediaService,
     private readonly entitlement: EntitlementService,
+    private readonly context: TimelapseContextService,
   ) {}
 
   public onModuleInit(): void {
@@ -154,7 +179,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
 
       const frames = await this.framesOf(camera.id, startsAt, endsAt, rolling.frameIntervalMs);
       const quality = this.entitlement.allowedQuality(camera, 'hd');
-      await this.encode(camera, frames, { quality, watermark: this.entitlement.watermarks(camera) }, async path => {
+      await this.encode(camera, frames, { quality, watermark: this.entitlement.watermarks(camera), compose: null }, async path => {
         // The film it replaces goes first: `media` is unique on camera, kind,
         // window and instant, and its delete hook takes the old bytes with it.
         if (existing) await this.media.delete(existing.id);
@@ -194,26 +219,60 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
   private async render(job: MediaDocument): Promise<void> {
     // Queued is a render's own status, so both are there; a camera deleted since
     // the request is the one thing that can be missing.
-    const render = job.render;
+    const queued = job.render;
     const camera = job.cameraId ? await this.cameras.byId(job.cameraId) : null;
-    if (!render) return;
+    if (!queued) return;
     if (!camera) {
-      await this.media.setRender(job.id, { ...render, status: 'failed', endedAt: new Date(), error: 'the camera this was asked of is gone' });
+      await this.media.setRender(job.id, { ...queued, status: 'failed', endedAt: new Date(), error: 'the camera this was asked of is gone' });
       return;
     }
 
-    await this.media.setRender(job.id, { ...render, status: 'rendering', startedAt: new Date(), error: null });
+    // Every later write carries the instant this one set, because each of them
+    // replaces the whole object: rebuilding it from the queued row would take
+    // back the moment the render started.
+    const render = { ...queued, startedAt: new Date(), error: null };
+    await this.media.setRender(job.id, { ...render, status: 'rendering' });
 
     const endsAt = job.endsAt ?? new Date();
+    const span = { startsAt: job.capturedAt, endsAt };
     // Enough frames for a film of a sensible length, however long the span is.
     const frameInterval = Math.max(Math.round((endsAt.getTime() - job.capturedAt.getTime()) / (render.framesPerSecond * 60)), 1000);
 
     try {
-      const frames = await this.framesOf(camera.id, job.capturedAt, endsAt, frameInterval);
+      const quality = job.quality ?? 'sd';
+      const overlays = render.overlays;
+      const context = await this.context.contextFor(camera, span, {
+        dayCounter: overlays.dayCounter,
+        climate: overlays.climate,
+        captions: overlays.entries,
+        // Leaving the dark frames out is what reads the light output; a film
+        // that keeps them asks for nothing.
+        light: !render.includeLightsOff,
+      });
+
+      const all = await this.framesOf(camera.id, span.startsAt, endsAt, frameInterval);
+      const frames = render.includeLightsOff ? all : all.filter(frame => !wasDark(frame.capturedAt, context.light));
+      const beside = render.secondCameraId ? await this.framesOf(render.secondCameraId, span.startsAt, endsAt, 0) : [];
+
       const built = await this.encode(
         camera,
         frames,
-        { quality: job.quality ?? 'sd', watermark: render.watermark, framesPerSecond: render.framesPerSecond },
+        {
+          quality,
+          watermark: render.watermark,
+          framesPerSecond: render.framesPerSecond,
+          size: sizeFor(render.aspect, quality),
+          // A frame is only drawn on where something was asked for; a plain
+          // film of one camera keeps the path that copies bytes and nothing else.
+          compose:
+            overlays.dayCounter || overlays.climate || overlays.entries || render.secondCameraId !== null
+              ? {
+                  beside: render.secondCameraId === null ? null : beside,
+                  layer: (frame: OverlayFrame) => overlayLayer(frame, overlays, context),
+                  tolerance: frameInterval,
+                }
+              : null,
+        },
         path => this.media.fill(job.id, path, { lengthSeconds: Math.round(frames.length / render.framesPerSecond) }),
       );
 
@@ -256,7 +315,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
   private async encode(
     camera: CameraDocument,
     frames: MediaPosition[],
-    options: { quality: MediaQuality; watermark: boolean; framesPerSecond?: number },
+    options: EncodeOptions,
     store: (path: string) => Promise<void>,
   ): Promise<boolean> {
     if (frames.length < MINIMUM_FRAMES) return false;
@@ -268,7 +327,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
       let written = 0;
       for (const frame of frames) {
         try {
-          await this.media.copyToFile(frame.id, join(directory, `${written + 1}.jpeg`));
+          await this.writeFrame(frame, options, join(directory, `${written + 1}.jpeg`));
           written++;
         } catch (e) {
           logger.error(`Skipping frame ${frame.id} of camera ${camera.id}: ${e}`);
@@ -289,11 +348,29 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
     }
   }
 
-  private runFfmpeg(
-    directory: string,
-    film: string,
-    options: { quality: MediaQuality; watermark: string | null; framesPerSecond?: number },
-  ): Promise<void> {
+  /**
+   * One frame on disk. A plain film copies the bytes across and nothing else,
+   * which is what keeps the three rolling films cheap; a composed one is drawn
+   * - the second camera beside it, the overlays on top - and written out at the
+   * size the whole film is rendered at.
+   */
+  private async writeFrame(frame: MediaPosition, options: EncodeOptions, path: string): Promise<void> {
+    const compose = options.compose;
+    if (!compose) {
+      await this.media.copyToFile(frame.id, path);
+      return;
+    }
+
+    const beside = compose.beside === null ? undefined : nearestFrame(frame.capturedAt, compose.beside, compose.tolerance);
+    const tiles = [
+      await this.media.download(frame.id),
+      ...(beside === undefined ? [] : [beside === null ? null : await this.media.download(beside.id)]),
+    ];
+
+    await composeFrame(tiles, options.size ?? sizeFor(DEFAULT_ASPECT, options.quality), compose.layer, frame.capturedAt, path);
+  }
+
+  private runFfmpeg(directory: string, film: string, options: FfmpegOptions): Promise<void> {
     return new Promise((resolve, reject) => {
       execFile(
         'ffmpeg',
@@ -417,15 +494,40 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
 }
 
 /**
- * How the frames are put together: scaled where the render is not HD, and with
- * the mark laid over the result rather than over the frames - so one mark keeps
- * its size whatever the film was scaled to.
+ * How the frames are put together: brought to the shape the film was asked for
+ * where one was, scaled where the render is not HD, and with the mark laid over
+ * the result rather than over the frames - so one mark keeps its size whatever
+ * the film was scaled to.
+ *
+ * The shape is a fill rather than a fit: a reel of a 16:9 camera is the middle
+ * of the picture, not the picture with two black bars, because that is what the
+ * person who picked 9:16 was looking at.
  */
-const filterArguments = (options: { quality: MediaQuality; watermark: string | null }): string[] => {
-  const scale = options.quality === 'hd' ? null : `scale=${SD_WIDTH}:-2`;
+const filterArguments = (options: FfmpegOptions): string[] => {
+  const scale = options.size
+    ? `scale=${options.size.width}:${options.size.height}:force_original_aspect_ratio=increase,crop=${options.size.width}:${options.size.height}`
+    : options.quality === 'hd'
+      ? null
+      : `scale=${SD_WIDTH}:-2`;
   const overlay = 'overlay=W-w-24:H-h-24';
 
   if (!options.watermark) return scale ? ['-vf', scale] : [];
 
   return ['-filter_complex', scale ? `[0:v]${scale}[base];[base][1:v]${overlay}` : `[0:v][1:v]${overlay}`];
+};
+
+/** The nearest picture of the camera shown beside this one, or null where it took none that close. */
+const nearestFrame = (at: Date, frames: readonly MediaPosition[], toleranceMs: number): MediaPosition | null => {
+  let best: MediaPosition | null = null;
+  let distance = Math.max(toleranceMs, 1000);
+
+  for (const frame of frames) {
+    const apart = Math.abs(frame.capturedAt.getTime() - at.getTime());
+    if (apart <= distance) {
+      best = frame;
+      distance = apart;
+    }
+  }
+
+  return best;
 };

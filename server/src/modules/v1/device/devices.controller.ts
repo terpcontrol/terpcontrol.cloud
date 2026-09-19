@@ -36,6 +36,7 @@ import {
   seriesQuery,
   socketOverrideUpdate,
   socketPage,
+  socketRole as socketRoleSchema,
   socketTestCreate,
   socketUpdate,
 } from '@fg2/shared-types/v1-schemas';
@@ -43,6 +44,7 @@ import { AuthGuard } from '@common/auth/auth.guard';
 import { AccessGuard, Caller, Requires } from '@common/v1/access.guard';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
+import { badRequest } from '@common/v1/problem';
 import { PageQuery, V1Query, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
 import { demoSockets } from '@utils/demo';
@@ -248,7 +250,13 @@ export class DevicesController {
   @V1Answer(socketPage)
   public async sockets(@Caller() ctx: AccessContext, @Param('id') id: string): Promise<SocketPage> {
     const device = await this.devices.require(id);
-    const sockets = decodeSockets(device.state.hardware, { stateChangedAt: device.state.socketStateChangedAt });
+    const sockets = decodeSockets(device.state.hardware, {
+      stateChangedAt: device.state.socketStateChangedAt,
+      // An override's row carries the seconds it had left when the table was
+      // sent, so it is read against the instant the table arrived; without that
+      // the countdown would read as full every time somebody looked.
+      reportedAt: device.state.socketsReportedAt ?? undefined,
+    });
 
     // One page, always: a device drives at most a table's worth of sockets.
     return { items: ctx.isDemo ? demoSockets(sockets) : sockets, nextCursor: null, capabilities: decodeCapabilities(device.state.hardware) };
@@ -335,12 +343,27 @@ const published = (result: { publishedAt: Date; deviceOnline: boolean }): Device
   deviceOnline: result.deviceOnline,
 });
 
-/** A slot is a number in the path; `null` adds a socket to the role rather than configuring one. */
-const slotOf = (slot: string): number | null => (slot === 'new' ? null : Number(slot));
+/** A slot is a number in the path; `new` adds a socket to the role rather than configuring one it has. */
+const slotOf = (slot: string): number | null => {
+  if (slot === 'new') return null;
+  if (!/^\d+$/.test(slot)) {
+    throw badRequest('socket_unknown', 'A socket is named by the slot it sits in, or by `new` to add one to a role.');
+  }
+
+  return Number(slot);
+};
 
 /**
  * The two commands that address a row of the reported table take a slot or, on a
  * build that reports no table, the role - which is the only address there is
- * there.
+ * there. A path segment that is neither is refused rather than sent on as a
+ * role the firmware would drop without a word.
  */
-const numberOrRole = (slot: string): number | SocketRole => (/^-?\d+$/.test(slot) ? Number(slot) : (slot as SocketRole));
+const numberOrRole = (slot: string): number | SocketRole => {
+  if (/^-?\d+$/.test(slot)) return Number(slot);
+
+  const role = socketRoleSchema.safeParse(slot);
+  if (!role.success) throw badRequest('socket_unknown', `There is no socket role called ${slot}.`);
+
+  return role.data;
+};
