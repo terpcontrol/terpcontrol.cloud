@@ -83,7 +83,9 @@ are omitted from a step a client writes, and the plan that comes back carries th
 2. **One API**, versioned under `/v1`, resource-oriented, with one set of conventions for names, ids, time,
    errors, lists and status codes. Today's app routes go away together with the Angular app.
 3. **A real migration.** Versioned, ordered, resumable migrations run at boot. Each old collection is renamed
-   aside and transformed into its new shape, so the old data stays untouched for one release as the way back.
+   aside and transformed into its new shape, so the old data stands untouched beside the new for one release.
+   The way back is a restore from the backup; what the old collections give is the evidence to put a wrong
+   transform right by hand without reaching for one.
 4. **A frozen device protocol.** The firmware's HTTP routes and the whole MQTT protocol keep their exact shapes.
    One server module owns them and translates between the device's vocabulary and the model.
 5. **One firmware change**, for smart sockets (item 11), gated by capabilities the device reports.
@@ -485,30 +487,34 @@ all. A later migration, in the following release, drops the `legacy_*` collectio
 
 ### Going back
 
-`npm run migrate:rollback` prints what it would drop, what it would rename back and what it would leave exactly
-where it is; `--confirm` beside it does the work. After that the previous release runs on exactly the data it
-left. Whatever was written after the migration is lost; picture bytes written meanwhile become orphans, which the
-existing sweep removes. Once the `legacy_*` collections are dropped, the way back is the backup.
+**The way back is the backup.** There is no rollback command, and there deliberately is not one: a command that
+undoes a migration is a second transform to get right, reached for exactly once, in the hour somebody is least
+able to read what it says it will do. Restoring the dump is the operation an operator already knows, it puts back
+the database that was actually there rather than one reconstructed from what a rename left behind, and it is the
+only answer that also covers the mistakes a rollback never could - a run that finished and was wrong.
 
-What may be dropped is derived from the model's own registrations rather than decided by exclusion, and it is
-defined for a run that **stopped part way** - which is when the way back is actually reached for. A collection no
-step has reached is still standing under its original name with the only copy of its rows in it, so it is
-reported and left alone; of the two names this release shares with the previous one, `users` and `devices` are
-dropped only where the `legacy_` twin proves the rename has happened. A name missing from the derived list
-therefore leaves a collection of the new model standing, which is a line in the report rather than a restore from
-the backup.
+So `./backup.sh` is taken before the upgrade and **restored somewhere once, to prove it restores**, rather than
+being trusted on the evening it is needed. An untested backup is a hope, and this is the release it would be
+tested by.
 
-It refuses on a database that holds no `legacy_*` at all, and on one holding two generations of the old data at
-once - a pre-upgrade dump restored over a migrated database - because nothing in the data says which copy is the
-one to keep. And it does not undo the first step's move of inline picture bytes into the bucket: the previous
-release reads them there by the same ids. For as long as `legacy_images` stands, the daily sweep and the
-timelapse thinning leave the pictures the migration carried over alone, so the way back stays a way back.
+The `legacy_*` collections still matter, for a different reason: they hold the old rows untouched under their old
+names for one release, so a transform that got something wrong can be read against what it read, and put right by
+hand without going anywhere near the backup. They are not a way back on their own - nothing renames them into
+place again - they are the evidence. The same goes for the picture bytes, which are never rewritten: the first
+step moves the inline ones into the bucket and everything after it reads them there by the same ids, and for as
+long as `legacy_images` stands, the daily sweep and the timelapse thinning leave the pictures the migration
+carried over alone.
+
+A run that stopped part way is therefore not a state anything undoes. The steps before it stay applied and are
+recorded, the step that stopped is not, and the next run repeats that step and continues - which is what each one
+being resumable and upsert-keyed is for. What an operator decides in that hour is whether to let it continue or
+to restore, and both are things they can say out loud.
 
 ### What an upgrade looks like
 
-- **The hosted install:** a rehearsal on the simulated database, a `./backup.sh`, then a deploy in a quiet
-  hour. The server is down for as long as the transforms run. Devices keep their broker connection; samples
-  published while the server is down are not recorded.
+- **The hosted install:** a rehearsal on the simulated database, a `./backup.sh` **restored once to prove it
+  restores**, then a deploy in a quiet hour. The server is down for as long as the transforms run. Devices keep
+  their broker connection; samples published while the server is down are not recorded.
 - **Self-hosted installs:** `git pull` and `docker compose up --build` as today. The migration runs by itself.
   The README's upgrade section gains one sentence: run `./backup.sh` first.
 - **Devices:** nothing. They see the same routes and the same topics before and after.
@@ -556,12 +562,14 @@ before the first screen can show a live value.
 
 ## Risks
 
-1. **The migration is the risk.** It touches every document once. The counts and the reject report, the
-   untouched `legacy_*` collections and the rollback command are what bound it - and the rollback only bounds
-   anything because it is defined for an incomplete run, which is the state it is reached for in. The migration
-   test on a database in today's shape is part of step 0, not of the end. The rehearsal runs on simulated data,
-   so the size of the hosted database and whatever is odd in it are met for the first time on the day itself;
-   that is what the backup and the reject report are for.
+1. **The migration is the risk.** It touches every document once. What bounds it is a backup taken before the
+   upgrade and **proved restorable**, the reject report that stops a run rather than colouring it green, the
+   counts, and the `legacy_*` collections standing untouched beside the new ones so a transform that read
+   something wrong can be read against what it read and put right by hand. There is no rollback command; going
+   back means restoring, which is the operation that also covers the run that finished and was wrong. The
+   migration test on a database in today's shape is part of step 0, not of the end. The rehearsal runs on
+   simulated data, so the size of the hosted database and whatever is odd in it are met for the first time on the
+   day itself; that is what the backup and the reject report are for.
 2. **Old links and saved views stop working**, deliberately. Share links people have sent out resolve to
    nothing after the migration, and saved chart presets are gone. Nothing else outside this repository calls the
    API, and the Garmin widget moves to `/v1` with it.
@@ -587,8 +595,8 @@ before the first screen can show a live value.
   construction, and rejected for exactly what it preserves: two names for every fact.
 - **A new database instead of renaming collections aside.** Cleaner still, but the picture bytes would have to
   be copied, which is most of the disk.
-- **Transforming documents in place.** No second copy, and no way back but a restore; a run killed half-way
-  leaves a collection in two shapes.
+- **Transforming documents in place.** No second copy, and nothing to read a wrong transform against afterwards;
+  a run killed half-way leaves a collection in two shapes, with no way to tell which rows have been through it.
 - **Keeping the old API beside `/v1` for a period.** Two APIs over one model double what has to be tested. A
   small read-only set for outside clients is a different question, see open question 1.
 - **Plants as "strain × count" rows inside the grow.** Less to store, but a single plant then has no identity
