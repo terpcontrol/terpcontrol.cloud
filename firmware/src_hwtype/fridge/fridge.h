@@ -159,8 +159,10 @@ namespace fg {
     bool is_legacy_board = false;
     bool sensors_valid = false;
     bool co2_warning_triggered = false;
-    bool sensor_deviation_logged = false;
-    bool sensor_fail_logged = false;
+    // Whether each external sensor fault was there on the last pass, so that a
+    // fault is reported when it appears rather than for as long as it lasts.
+    bool sensor_deviation_seen = false;
+    bool sensor_fail_seen = false;
 
     uint8_t fridge_on_fanspeed = 255;
     uint8_t fridge_off_fanspeed = 255;

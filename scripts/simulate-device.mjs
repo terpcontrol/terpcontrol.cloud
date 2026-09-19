@@ -83,6 +83,19 @@ const socketPulseSeconds = role => SOCKET_PULSE_SECONDS[role] ?? 300;
 // A row is reported again when it changes, but no more often than this.
 const SOCKET_REPORT_MIN_MS = 30000;
 
+// What a fridge says about the external sensor beside its own: that it stopped
+// answering, or that the two disagree by more than the firmware allows. No
+// other hardware type has one.
+const SENSOR_FAULTS = {
+  'ext-sensor-fail': 'message-ext-sensor-fail',
+  'ext-sensor-deviate': 'message-ext-sensor-deviate',
+};
+
+// A fault is reported when it appears, and then no more often than this however
+// often it comes back - the firmware's floor, so a flapping sensor costs the
+// diary four lines an hour here too.
+const SENSOR_FAULT_MIN_MS = 900000;
+
 
 // ---------------------------------------------------------------- MQTT client
 
@@ -655,6 +668,12 @@ class SimulatedDevice {
     this.lightOverride = null;
     this.lastSocketReport = 0;
     this.reportedSockets = null;
+    // Which sensor faults were there on the last pass, and when each kind was
+    // last reported. RAM rather than the state file, because the firmware keeps
+    // this in RTC memory: a reboot command leaves the interval running, a power
+    // cycle starts it again, and restarting this script is a power cycle.
+    this.faultSeen = new Set();
+    this.faultLogged = new Map();
   }
 
   // The device's NVS. What a socket is doing and an override holding it are RAM
@@ -713,6 +732,32 @@ class SimulatedDevice {
     this.log(`hardware-info:${key}=${value}`);
   }
 
+  /**
+   * What a fridge writes about its external sensor, under the rule the firmware
+   * writes it by: the line goes out when the fault appears and not again until
+   * the fault has cleared and returned, and never less than fifteen minutes
+   * after the last line of its kind. Each kind keeps its own last time, so a
+   * flapping sensor cannot silence the other line.
+   *
+   * `present` is the fault as this pass finds it. The firmware checks it on
+   * every control pass and this checks it on every sample, which is the only
+   * difference - the rule the cloud sees is the same one.
+   */
+  reportSensorFault(message, present, at = Date.now()) {
+    if (!present) {
+      this.faultSeen.delete(message);
+      return;
+    }
+    if (this.faultSeen.has(message)) return;
+    this.faultSeen.add(message);
+
+    const last = this.faultLogged.get(message);
+    if (last !== undefined && at - last < SENSOR_FAULT_MIN_MS) return;
+    this.log(message);
+    this.faultLogged.set(message, at);
+    console.error(`${new Date(at).toISOString()} log -> ${message}`);
+  }
+
   publishStatus(sample) {
     this.mqtt.publish(this.topic('status'), JSON.stringify(sample));
   }
@@ -730,6 +775,12 @@ class SimulatedDevice {
   // What it additionally reports once per boot. The hardware-info lines are
   // what the webapp reads to decide which capabilities this device has.
   boot(reason = 'POWERON') {
+    // Which faults are standing is the controller's own RAM and starts empty,
+    // so a fault that outlives the boot is found again as a new one. When each
+    // kind was last reported is not cleared here - that lives in RTC memory,
+    // which is what stops a device rebooting in a loop from reporting the same
+    // fault on every boot.
+    this.faultSeen.clear();
     this.log(`message-device-booted:${reason}`);
     this.fetch();
     this.hardwareInfo('firmware_version', this.memory.firmwareId);
@@ -1154,13 +1205,18 @@ Options:
       --set <key=value>  pin a value, repeatable; prefix outputs with out_
                          (e.g. --set temperature=31 --set out_light=0)
       --severity <0|1|2> severity of a log entry        (default 0, 2 = error)
+      --fault <kind>[=<sec>] break the fridge's external sensor while run is
+                         going: ext-sensor-fail|ext-sensor-deviate, repeatable.
+                         With a period the sensor flaps - broken for that many
+                         seconds, working for as many - and the device reports
+                         it the way the firmware does, at most every 15 minutes
       --camera           pair a simulated webcam, so run answers the still
                          requests the cloud makes every 30s
       --no-claim         skip claiming during setup
 `;
 
 const parseArgs = argv => {
-  const options = { deviceId: '', type: 'controller', interval: 30, days: 3, step: 10, severity: 0, overrides: {}, claim: true, camera: false };
+  const options = { deviceId: '', type: 'controller', interval: 30, days: 3, step: 10, severity: 0, overrides: {}, faults: [], claim: true, camera: false };
   const positional = [];
 
   for (let i = 0; i < argv.length; i++) {
@@ -1192,6 +1248,15 @@ const parseArgs = argv => {
         options.overrides[key] = value;
         break;
       }
+      case '--fault': {
+        const [kind, period] = next().split('=');
+        const message = SENSOR_FAULTS[kind];
+        if (!message) throw new Error(`Unknown fault "${kind}". Known: ${Object.keys(SENSOR_FAULTS).join(', ')}`);
+        const seconds = period === undefined ? 0 : Number(period);
+        if (!Number.isFinite(seconds) || seconds < 0) throw new Error(`Expected --fault ${kind}=<seconds>, got "${period}"`);
+        options.faults.push({ message, periodMs: seconds * 1000 });
+        break;
+      }
       case '--no-claim':
         options.claim = false;
         break;
@@ -1209,6 +1274,10 @@ const parseArgs = argv => {
   }
 
   if (!PROFILES[options.type]) throw new Error(`Unknown device type "${options.type}". Known: ${Object.keys(PROFILES).join(', ')}`);
+  // Only the fridge firmware reads a second sensor, so only a fridge can report
+  // one as broken - a controller doing so would be a device the server could
+  // tell from real hardware.
+  if (options.faults.length && options.type !== 'fridge') throw new Error('--fault needs -t fridge: no other type has an external sensor.');
   options.command = positional.shift();
   options.rest = positional;
   return options;
@@ -1357,6 +1426,11 @@ const history = options =>
     await sleep(2000);
   });
 
+// Whether a driven fault is there right now: one given a period is broken for
+// that long and then working for as long again, which is the sensor flapping
+// around its threshold rather than one that has simply died.
+const faultPresent = (fault, runningMs) => !fault.periodMs || Math.floor(runningMs / fault.periodMs) % 2 === 0;
+
 const run = async options => {
   const device = new SimulatedDevice({ deviceId: options.deviceId, type: options.type, ...credentials(options.deviceId) });
 
@@ -1372,7 +1446,11 @@ const run = async options => {
 
   await goOnline(true);
   device.warmUp(new Date());
+  const startedAt = Date.now();
   console.log(`${options.deviceId} (${options.type}) online, sampling every ${options.interval}s. Ctrl-C to stop.`);
+  for (const fault of options.faults) {
+    console.log(`  ${fault.message}${fault.periodMs ? ` every ${fault.periodMs / 1000}s` : ' standing'}`);
+  }
 
   for (const signal of ['SIGINT', 'SIGTERM']) {
     process.on(signal, () => {
@@ -1402,6 +1480,9 @@ const run = async options => {
     const sample = device.sample(now, options.interval, options.overrides);
     device.publishStatus(sample);
     device.syncSockets(sample, now);
+    for (const fault of options.faults) {
+      device.reportSensorFault(fault.message, faultPresent(fault, now.getTime() - startedAt), now.getTime());
+    }
     console.log(now.toISOString(), JSON.stringify(sample.sensors), JSON.stringify(sample.outputs));
     await sleep(options.interval * 1000);
   }

@@ -11,6 +11,25 @@ const uint8_t  SPRINTF_BUFFER_SIZE{32};
 MCP7940_Class MCP7940;
 char          inputBuffer[32];
 
+// A sensor fault is checked on every control pass, so the line that reports one
+// is written when the fault appears and then no more often than this, however
+// often it goes away and comes back. Without a floor a sensor flapping around
+// its threshold writes a diary line every second for as long as it flaps.
+static constexpr time_t SENSOR_FAULT_LOG_INTERVAL = 15 * 60;
+
+// The same plausibility the reading path applies before it dates a sample: a
+// clock below this has not been set by SNTP yet.
+static constexpr time_t SENSOR_FAULT_CLOCK_SET = 1000000000;
+
+// When each fault was last reported, in wall clock seconds. Wall clock because
+// the tick count starts at zero again on every boot, and RTC memory because the
+// interval has to outlive a restart: a panic, a watchdog or the connection
+// watchdog's recovery reboot would otherwise let a device with a standing fault
+// report it again on every boot. Power-on clears it, which is right - a device
+// that was just switched on reports what it finds at once.
+RTC_DATA_ATTR static time_t g_ext_sensor_fail_logged = 0;
+RTC_DATA_ATTR static time_t g_ext_sensor_deviate_logged = 0;
+
 static double ntcToTemp(uint16_t adc_val) {
   double R1 = 100000.0;   // voltage divider resistor value
   double Beta = 4250.0;  // Beta value
@@ -30,6 +49,32 @@ namespace fg {
 
   std::unique_ptr<AutomationController> createController(Fridgecloud& cloud) {
     return std::unique_ptr<AutomationController>(new FridgeController(cloud));
+  }
+
+  /**
+   * Reports a sensor fault that has just appeared, unless one of its kind was
+   * reported less than SENSOR_FAULT_LOG_INTERVAL ago. Each fault carries its
+   * own last time, so a flapping sensor cannot silence the other one.
+   *
+   * Returns whether the fault has been accounted for. Without a clock the
+   * interval cannot be measured and nothing is written: the fault is checked
+   * again on the next pass, and a device whose clock is unset is discarding its
+   * readings for the same reason, so it has nothing to say either way yet.
+   */
+  static bool logSensorFault(Fridgecloud& cloud, const char* message, time_t& last_logged) {
+    time_t now = 0;
+    time(&now);
+    if(now < SENSOR_FAULT_CLOCK_SET) {
+      return false;
+    }
+    // A clock corrected backwards would otherwise hold the line back for as
+    // long as the correction was large.
+    if(last_logged != 0 && now >= last_logged && now - last_logged < SENSOR_FAULT_LOG_INTERVAL) {
+      return true;
+    }
+    cloud.log(message);
+    last_logged = now;
+    return true;
   }
 
 
@@ -125,22 +170,26 @@ namespace fg {
       if(temperature_scd > state.temperature + MAX_SENSOR_DEVIATION || temperature_scd < state.temperature - MAX_SENSOR_DEVIATION) {
         state.humidity = humidity_scd;
         state.temperature = temperature_scd;
-        if(!sensor_deviation_logged) {
-          cloud.log("message-ext-sensor-deviate");
-          sensor_deviation_logged = true;
+        if(!sensor_deviation_seen) {
+          sensor_deviation_seen = logSensorFault(cloud, "message-ext-sensor-deviate", g_ext_sensor_deviate_logged);
         }
       }
       else {
-        sensor_deviation_logged = false;
+        sensor_deviation_seen = false;
       }
     }
 
-    if(sht_fails >= 10 && !sensor_fail_logged) {
-      cloud.log("message-ext-sensor-fail");
-      sensor_fail_logged = true;
+    // The fault is reported when it appears and not again until it has cleared
+    // and returned. The flag is cleared by a working sensor and by nothing
+    // else, so a sensor that stays broken costs one line rather than one per
+    // pass.
+    if(sht_fails >= 10) {
+      if(!sensor_fail_seen) {
+        sensor_fail_seen = logSensorFault(cloud, "message-ext-sensor-fail", g_ext_sensor_fail_logged);
+      }
     }
     else {
-      sensor_fail_logged = false;
+      sensor_fail_seen = false;
     }
 
     if(co2_fails < 10) {
