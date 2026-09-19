@@ -212,7 +212,44 @@ export const textOf = (value: string | null | undefined): string | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
-export const numberOf = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+/**
+ * A stored number, read the way the release that wrote it read it.
+ *
+ * Same reason as `flagOf` below: every reader these documents ever had was a
+ * mongoose model, and mongoose casts to a number rather than comparing - a
+ * threshold stored as `'30'` by a client that posted the form back as strings
+ * arrived as `30` and tripped its alarm for years. Read through the driver
+ * instead, a strict `typeof` turns that into no threshold at all, which is a
+ * rule that can never trip, and a plan step's duration into a zero.
+ *
+ * Anything the cast cannot read is no answer and stays `null`; where that is
+ * worth a word rather than a default, the step that reads it says so.
+ */
+export const numberOf = (value: unknown): number | null => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  // What mongoose's number cast takes beside a number: a boolean, and a string
+  // that is a number once it has been trimmed. An empty one is "no value".
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  if (typeof value !== 'string' || value.trim().length === 0) return null;
+
+  const cast = Number(value);
+  return Number.isFinite(cast) ? cast : null;
+};
+
+/** Whether a value the old database holds is a stored one at all, as against one nobody ever filled in. */
+export const isStored = (value: unknown): boolean => value !== null && value !== undefined && value !== '';
+
+/**
+ * A table looked up by a value out of an old document.
+ *
+ * Every one of these keys is whatever the old database happens to carry, and a
+ * plain object answers `constructor`, `toString` and `valueOf` out of its
+ * prototype - so an alarm whose `sensorType` is `constructor` reads as a metric
+ * the model knows and writes a rule whose `metric` is a function. Own keys only,
+ * which is the whole of what a table like that means.
+ */
+export const fromTable = <T>(table: Record<string, T>, key: string | null | undefined): T | undefined =>
+  typeof key === 'string' && Object.hasOwn(table, key) ? table[key] : undefined;
 
 /** What mongoose's boolean cast takes for set and unset, which is what every old document was read through. */
 const CAST_TO_TRUE: unknown[] = [true, 'true', 1, '1', 'yes'];

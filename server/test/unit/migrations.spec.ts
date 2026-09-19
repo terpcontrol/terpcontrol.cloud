@@ -18,9 +18,8 @@ import { spacesSchema } from '@database/schemas/v1/spaces.schema';
 import { usersSchema } from '@database/schemas/v1/users.schema';
 import { cameraIdOf, planIdOf, spaceIdOf } from '@/migrations/ids';
 import { MigrationContext } from '@/migrations/migration';
-import { BUILT_BY_THIS_RELEASE, RollbackPlan, applyRollback, planRollback } from '@/migrations/migration-rollback';
 import { MigrationRunner, RejectedRows, RunEvent, runProgress } from '@/migrations/migration-runner';
-import { StaleMigrationRecord } from '@/migrations/preflight';
+import { StaleMigrationRecord, TwoGenerationsOfOldData } from '@/migrations/preflight';
 import { MIGRATION_STEPS } from '@/migrations/steps';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 
@@ -628,6 +627,59 @@ describe('alarms', () => {
     expect(alert?.startedAt.getTime()).toBe(AT - 3 * 60 * 60 * 1000);
   });
 
+  it('reads a threshold and a duration stored as text the way the release that wrote them read them', async () => {
+    // The same cast as the flags above. Everything that ever read these
+    // documents read them through a mongoose model, so `'31'` was 31 and the
+    // alarm tripped at 31 degrees for years; read through the driver with a
+    // strict typeof it comes back with no band and no duration at all, which is
+    // a rule that can never trip and nothing said about it.
+    await collection('devices').updateOne(
+      { device_id: LEGACY_DEVICE_IDS.controller, 'alarms.alarmId': fixture.alarms.triggered },
+      { $set: { 'alarms.$.upperThreshold': '31', 'alarms.$.thresholdSeconds': '300' } },
+    );
+
+    await migrate();
+
+    expect(await one<Record<string, any>>('alarmRules', { id: fixture.alarms.triggered })).toMatchObject({
+      watch: { kind: 'reading', metric: 'temperature', upper: 31 },
+      forSeconds: 300,
+    });
+  });
+
+  it('says so when a threshold is stored and cannot be read as a number', async () => {
+    await collection('devices').updateOne(
+      { device_id: LEGACY_DEVICE_IDS.controller, 'alarms.alarmId': fixture.alarms.triggered },
+      { $set: { 'alarms.$.upperThreshold': 'warm' } },
+    );
+
+    const report = await migrate();
+    const rejects = report.applied.find(outcome => outcome.name === '007-alarm-rules')?.rejects ?? [];
+
+    // Written without its band rather than dropped, and named: a rule that
+    // never fires again is not something to find out from the alarm that did
+    // not come.
+    expect(rejects).toContainEqual(
+      expect.objectContaining({ id: fixture.alarms.triggered, dropped: false, detail: 'warm', reason: expect.stringContaining('upperThreshold') }),
+    );
+    expect(await one<Record<string, any>>('alarmRules', { id: fixture.alarms.triggered })).toMatchObject({ watch: { upper: null } });
+  });
+
+  it('rejects an alarm whose sensor is a name every object answers to', async () => {
+    // `constructor` is a key of every plain object, so a table looked up by it
+    // answers with a function rather than with nothing - and the rule that came
+    // out of that named neither a reading nor an output and was never refused.
+    await collection('devices').updateOne(
+      { device_id: LEGACY_DEVICE_IDS.fridge },
+      { $set: { alarms: [{ alarmId: 'alarm-fridge-prototype', sensorType: 'constructor', actionType: 'info', actionTarget: '' }] } },
+    );
+
+    const report = await migrate();
+    const reject = report.applied.find(outcome => outcome.name === '007-alarm-rules')?.rejects.find(entry => entry.id === 'alarm-fridge-prototype');
+
+    expect(reject?.reason).toContain('neither a reading nor an output');
+    expect(await one('alarmRules', { id: 'alarm-fridge-prototype' })).toBeNull();
+  });
+
   it('rejects an alarm on something that is neither a reading nor an output', async () => {
     await collection('devices').updateOne(
       { device_id: LEGACY_DEVICE_IDS.fridge },
@@ -846,6 +898,84 @@ describe('media', () => {
     expect(photo).toMatchObject({ kind: 'photo', cameraId: null, uploadedBy: LEGACY_USER_IDS.ada, spaceId: spaceIdOf(LEGACY_DEVICE_IDS.controller) });
     expect(photo?.growId).not.toBeNull();
   });
+
+  it('refuses a picture whose format is a name every object answers to', async () => {
+    // As with the alarm above: read off a plain object, `constructor` is a
+    // format the table appears to know, and the row that came out of it carried
+    // neither a kind nor a mime type and was never refused.
+    const picture = fixture.images.stills[0];
+    await collection('images').updateOne({ image_id: picture }, { $set: { format: 'constructor' } });
+
+    const report = await migrate();
+    const reject = report.applied.find(outcome => outcome.name === '012-media')?.rejects.find(entry => entry.id === picture);
+
+    expect(reject?.reason).toContain('a format nothing knows');
+    expect(await one('media', { id: picture })).toBeNull();
+  });
+});
+
+describe('the lines a controller repeats until somebody fixes it', () => {
+  const MINUTE = 60 * 1000;
+
+  /** `howMany` of one repeated line, a minute apart, the newest of them a minute before the fixture's instant. */
+  const repeat = async (deviceId: string, key: string, howMany: number): Promise<void> => {
+    await collection('devicelogs').insertMany(
+      Array.from({ length: howMany }, (unused, index) => ({
+        device_id: deviceId,
+        title: key,
+        message: key,
+        severity: 0,
+        time: new Date(AT - (howMany - index) * MINUTE),
+        categories: [],
+        __v: 0,
+      })),
+    );
+  };
+
+  const repeats = (deviceId: string, key: string) => collection('entries').countDocuments({ deviceId, 'message.key': key });
+
+  it('carries the newest hundred per device and leaves the rest behind, counted', async () => {
+    await repeat(LEGACY_DEVICE_IDS.controller, 'message-ext-sensor-fail', 130);
+    await repeat(LEGACY_DEVICE_IDS.controller, 'message-ext-sensor-deviate', 112);
+    await repeat(LEGACY_DEVICE_IDS.fridge, 'message-ext-sensor-fail', 40);
+
+    const outcome = (await migrate()).applied.find(applied => applied.name === '011-entries');
+
+    // Thirty of the first and thirteen of the second - the fixture's own deviate
+    // line is weeks older than these and counts with them, parameter and all. A
+    // device that repeated itself fewer than a hundred times loses nothing, and
+    // neither does anything else in the collection.
+    expect(outcome?.stats['entries.repeatedLeftBehind']).toBe(43);
+    expect(outcome?.rejectCount).toBe(0);
+    expect(await repeats(LEGACY_DEVICE_IDS.controller, 'message-ext-sensor-fail')).toBe(100);
+    expect(await repeats(LEGACY_DEVICE_IDS.controller, 'message-ext-sensor-deviate')).toBe(100);
+    expect(await repeats(LEGACY_DEVICE_IDS.fridge, 'message-ext-sensor-fail')).toBe(40);
+
+    // The newest hundred, rather than the first hundred the step met.
+    const kept = await collection<{ occurredAt: Date }>('entries')
+      .find({ deviceId: LEGACY_DEVICE_IDS.controller, 'message.key': 'message-ext-sensor-fail' })
+      .toArray();
+    expect(Math.min(...kept.map(entry => entry.occurredAt.getTime()))).toBe(AT - 100 * MINUTE);
+  });
+
+  it('leaves every other line exactly where it was', async () => {
+    await repeat(LEGACY_DEVICE_IDS.controller, 'message-ext-sensor-fail', 130);
+
+    await migrate();
+
+    expect(await collection('entries').countDocuments()).toBe(fixture.counts.devicelogs + 100);
+  });
+
+  it('keeps the same hundred on a second run, so a resumed run does not shift the window', async () => {
+    await repeat(LEGACY_DEVICE_IDS.controller, 'message-ext-sensor-fail', 130);
+    await migrate();
+
+    const first = await collection('entries').distinct('id', { 'message.key': 'message-ext-sensor-fail' });
+    await collection('migrations').deleteOne({ name: '011-entries' });
+    await migrate();
+
+    expect((await collection('entries').distinct('id', { 'message.key': 'message-ext-sensor-fail' })).sort()).toEqual(first.sort());
+  });
 });
 
 describe('the documents no transform can take', () => {
@@ -995,47 +1125,21 @@ const migrateUpTo = async (stopAfter: string): Promise<void> => {
   }
 };
 
-/**
- * Every document the previous release wrote, wherever it currently stands.
- *
- * `data` and `size` are dropped from the pictures because the first migration
- * moves an inline payload into the bucket and records its length, and that is
- * the one thing a rollback deliberately does not undo - the previous release
- * reads the bucket by the same ids.
- */
-const previousRelease = async (): Promise<Record<string, Document[]>> => {
-  const snapshot = await snapshotOf(db());
-  const kept: Record<string, Document[]> = {};
-
-  for (const name of Object.keys(fixture.counts)) {
-    if (name.startsWith('imagedata.')) continue;
-
-    kept[name] = (snapshot[name] ?? snapshot[`legacy_${name}`] ?? []).map(document => {
-      const copy = { ...document };
-      delete copy.data;
-      delete copy.size;
-      return copy;
-    });
-  }
-
-  return kept;
-};
-
-const rollBack = async (): Promise<RollbackPlan> => {
-  const plan = await planRollback(db());
-  await applyRollback(db(), plan);
-  return plan;
-};
+const recordsFor = (steps: { name: string }[]): Record<string, unknown>[] =>
+  steps.map(step => ({ id: `migration-${step.name}`, name: step.name, rejectCount: 0 }));
 
 describe('a record that claims more than the database holds', () => {
   it('refuses when a step that says it ran has not run over this data', async () => {
+    // A migration over a database with no old data in it moves nothing aside,
+    // so its record survives a restore with no `legacy_*` standing beside what
+    // was restored: one generation of the old shapes, and a record saying every
+    // step has already run over them.
+    for (const existing of await db().collections()) await existing.drop();
     await migrate();
-    // A dump taken before the upgrade, restored over it: `mongorestore --drop`
-    // drops only the collections its archive carries, so the record survives.
-    await collection('users').drop();
-    await collection('users').insertOne({ user_id: LEGACY_USER_IDS.ada, username: 'ada@example.test', __v: 0 });
+    fixture = await seedLegacyDatabase(connection, AT);
 
     await expect(new MigrationRunner(connection).run({ dryRun: false, allowRejects: true })).rejects.toThrow(StaleMigrationRecord);
+    expect(await collection('spaces').countDocuments()).toBe(0);
   });
 
   it('refuses the same way on a record of a run that only got part way', async () => {
@@ -1043,15 +1147,13 @@ describe('a record that claims more than the database holds', () => {
     // survive a restore exactly as fourteen do, but with steps still pending
     // the boot would transform the restored data from step eight on and then
     // *start*, serving accounts in a shape nobody can sign in to.
-    await migrateUpTo('007-alarm-rules');
-    await collection('users').drop();
-    await collection('users').insertOne({ user_id: LEGACY_USER_IDS.ada, username: 'ada@example.test', __v: 0 });
+    await collection('migrations').insertMany(recordsFor(MIGRATION_STEPS.slice(0, 7)));
 
     const run = new MigrationRunner(connection).run({ dryRun: false, allowRejects: true });
 
     await expect(run).rejects.toThrow(StaleMigrationRecord);
     await expect(run).rejects.toThrow(/7 of 14 migrations have already been applied/u);
-    // Nothing was written: the steps after it never ran.
+    // Nothing was written: no step ran at all.
     expect(await collection('entries').countDocuments()).toBe(0);
   });
 
@@ -1066,145 +1168,49 @@ describe('a record that claims more than the database holds', () => {
   });
 });
 
-describe('going back', () => {
-  it('drops what was built and puts the old collections back', async () => {
+/**
+ * The state the field reports came out of, and the one the advice was wrong for.
+ *
+ * A dump taken before the upgrade and restored over a migrated database leaves
+ * every old collection standing twice: the migration-day copy under `legacy_*`,
+ * and the restore under its own name. The rollback has always refused it and
+ * said why; the boot and the check said "drop `migrations` and `migrationLock`,
+ * then start again", which on this database migrates the migration-day copy and
+ * leaves the restore where it is.
+ */
+const restoreADumpOver = async (): Promise<void> => {
+  await collection('devicelogs').insertOne({ device_id: LEGACY_DEVICE_IDS.controller, message: 'restored from a dump', __v: 0 });
+  await collection('users').insertOne({ user_id: LEGACY_USER_IDS.ada, username: 'ada@example.test', __v: 0 });
+};
+
+describe('two generations of the old data at once', () => {
+  it('refuses to start, and does not send anybody back round the same loop', async () => {
     await migrate();
-    const migrated = await snapshotOf(db());
-
-    await rollBack();
-    const restored = await snapshotOf(db());
-
-    // Every collection that was moved aside stands under its own name again,
-    // with exactly the documents it was moved aside with.
-    for (const [name, documents] of Object.entries(migrated)) {
-      if (name.startsWith('legacy_')) expect(restored[name.slice('legacy_'.length)]).toEqual(documents);
-    }
-
-    // And nothing of the new model is left for the previous release to trip over.
-    expect(Object.keys(restored).sort()).toEqual(
-      ['imagedata.chunks', 'imagedata.files', ...Object.keys(fixture.counts).filter(name => !name.startsWith('imagedata.'))].sort(),
-    );
-
-    expect(await collection('devices').countDocuments()).toBe(fixture.counts.devices);
-    expect(await one<Record<string, any>>('devices', { device_id: LEGACY_DEVICE_IDS.controller })).toMatchObject({ owner_id: LEGACY_USER_IDS.ada });
-  });
-
-  // A run that stopped part way is precisely when the way back is reached for,
-  // and it is the state the old rule destroyed: it decided what to drop by
-  // "everything that is not legacy_*", which on a half-migrated database is
-  // every collection no step had reached yet - the only copy of each of them.
-  for (const stopAfter of ['002-users', '007-alarm-rules', '012-media']) {
-    it(`puts back every row of a run that stopped after ${stopAfter}`, async () => {
-      const before = await previousRelease();
-
-      await migrateUpTo(stopAfter);
-      const plan = await rollBack();
-
-      expect(await previousRelease()).toEqual(before);
-
-      // Counted as well as compared: a collection that is there and empty is
-      // what this used to leave behind.
-      for (const [name, count] of Object.entries(fixture.counts)) {
-        if (name.startsWith('imagedata.')) continue;
-        expect([name, await collection(name).countDocuments()]).toEqual([name, count]);
-      }
-
-      // Nothing of the new model, and nothing moved aside, is left standing.
-      const after = await names();
-      expect(after.filter(name => name.startsWith('legacy_'))).toEqual([]);
-      expect(after.filter(name => BUILT_BY_THIS_RELEASE.has(name)).sort()).toEqual(['devices', 'users']);
-
-      // What it did not touch it named, so an operator reads it rather than
-      // finding out later.
-      expect(plan.leftStanding.unrecognised).toEqual([]);
-    });
-  }
-
-  it('never drops the only copy of the devices when the run stopped before they were moved aside', async () => {
-    await migrateUpTo('002-users');
-
-    // `devices` is a name this release uses too, and at this point it still
-    // holds every device, its configuration and its alarms in the old shape.
-    expect(await one('devices', { device_id: LEGACY_DEVICE_IDS.controller })).toMatchObject({ owner_id: LEGACY_USER_IDS.ada });
-    expect((await planRollback(db())).drop).not.toContain('devices');
-
-    await rollBack();
-
-    expect(await collection('devices').countDocuments()).toBe(fixture.counts.devices);
-    expect(await one<Record<string, any>>('devices', { device_id: LEGACY_DEVICE_IDS.controller })).toMatchObject({
-      owner_id: LEGACY_USER_IDS.ada,
-      alarms: expect.any(Array),
-    });
-  });
-
-  it('leaves the collections no step reached exactly as they are, and says which they were', async () => {
-    await migrateUpTo('007-alarm-rules');
-    const plan = await planRollback(db());
-
-    expect(plan.leftStanding.old).toEqual(['chartpresets', 'devicelogs', 'images', 'passwordtokens', 'recipetemplates', 'shares']);
-    for (const name of plan.leftStanding.old) expect(plan.drop).not.toContain(name);
-
-    await applyRollback(db(), plan);
-
-    expect(await collection('devicelogs').countDocuments()).toBe(fixture.counts.devicelogs);
-    expect(await collection('images').countDocuments()).toBe(fixture.counts.images);
-    expect(await collection('shares').countDocuments()).toBe(fixture.counts.shares);
-  });
-
-  it('can be resumed after it was interrupted part way through', async () => {
-    await migrate();
-    const plan = await planRollback(db());
-
-    // As far as the drops and the first rename, and then killed.
-    for (const name of plan.drop) await db().dropCollection(name);
-    await db().renameCollection('legacy_users', 'users');
-
-    const resumed = await planRollback(db());
-
-    // `users` is back under its own name with nothing beside it, so it is not
-    // this release's to drop any more.
-    expect(resumed.drop).toEqual([]);
-    await applyRollback(db(), resumed);
-
-    expect(await collection('users').countDocuments()).toBe(fixture.counts.users);
-    expect(await collection('devices').countDocuments()).toBe(fixture.counts.devices);
-    expect(await collection('devicelogs').countDocuments()).toBe(fixture.counts.devicelogs);
-    expect((await names()).filter(name => name.startsWith('legacy_'))).toEqual([]);
-  });
-
-  it('refuses a database holding two generations of the old data at once', async () => {
-    await migrate();
-
-    // What a dump taken before the upgrade looks like once it has been restored
-    // over a migrated database: `mongorestore --drop` drops only the collections
-    // its archive carries, so the migration-day `legacy_*` survive beside what
-    // was just restored, and nothing in the data says which of the two to keep.
-    await collection('devicelogs').insertOne({ device_id: LEGACY_DEVICE_IDS.controller, message: 'restored from a dump', __v: 0 });
-    await collection('users').insertOne({ user_id: LEGACY_USER_IDS.ada, username: 'ada@example.test', __v: 0 });
+    await restoreADumpOver();
     const before = await snapshotOf(db());
 
-    await expect(planRollback(db())).rejects.toThrow(/two generations of the old data at once/u);
-    await expect(planRollback(db())).rejects.toThrow(/devicelogs, users/u);
+    const run = new MigrationRunner(connection).run({ dryRun: false, allowRejects: true });
+
+    await expect(run).rejects.toThrow(TwoGenerationsOfOldData);
+    await expect(run).rejects.toThrow(/two generations of the old data at once/u);
+    // The advice that would lose the restore, said to be no way out rather than
+    // said as the answer.
+    await expect(run).rejects.toThrow(/on this database it is not the way out/u);
+    await expect(run).rejects.toThrow(/Decide which of the two copies is authoritative and drop the other/u);
+
     expect(await snapshotOf(db())).toEqual(before);
   });
 
-  it('refuses on a database that was never migrated', async () => {
-    await expect(planRollback(db())).rejects.toThrow(/holds no legacy_\* collection/u);
-  });
-
-  it('drops only collections this release registers a model for', async () => {
+  it('refuses it whether or not there is a record to blame it on', async () => {
+    // What following the old advice left behind: no record at all, nothing
+    // pending, and a run that would have read `legacy_devicelogs` right past the
+    // restore beside it.
     await migrate();
+    await restoreADumpOver();
+    await collection('migrations').drop();
 
-    // The rule the drop list is built from, held to from the other end: a
-    // collection this release writes through the raw driver, with no model
-    // behind it, would be left standing by a rollback rather than dropped. The
-    // bucket and the migration lock are the only two today; a third added later
-    // fails here rather than surviving a rollback nobody reads.
-    const untouched = ['imagedata.files', 'imagedata.chunks'];
-    const unaccounted = (await names()).filter(
-      name => !BUILT_BY_THIS_RELEASE.has(name) && !name.startsWith('legacy_') && !untouched.includes(name) && !(name in fixture.counts),
-    );
-
-    expect(unaccounted).toEqual([]);
+    await expect(new MigrationRunner(connection).run({ dryRun: false, allowRejects: true })).rejects.toThrow(TwoGenerationsOfOldData);
+    expect(await collection('devicelogs').countDocuments()).toBe(1);
+    expect(await collection('legacy_devicelogs').countDocuments()).toBe(fixture.counts.devicelogs);
   });
 });

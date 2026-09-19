@@ -1,5 +1,5 @@
 import { spaceIdOf } from '../ids';
-import { LEGACY, LegacyDevice, createdAtOf, flagOf, textOf } from '../legacy';
+import { LEGACY, LegacyDevice, createdAtOf, flagOf, fromTable, textOf } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 
 /**
@@ -43,7 +43,7 @@ export const spaces: MigrationStep = {
       await context.write('spaces', {
         id: spaceIdOf(deviceId),
         ownerId,
-        kind: SPACE_KIND[textOf(device.device_type) ?? ''] ?? 'other',
+        kind: fromTable(SPACE_KIND, textOf(device.device_type)) ?? 'other',
         name: textOf(device.name) ?? deviceId,
         roomId: null,
         presetPrompt: 'ask',

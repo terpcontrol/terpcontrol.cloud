@@ -1,5 +1,6 @@
+import { logger } from '@utils/logger';
 import { derivedId, planIdOf } from '../ids';
-import { LEGACY, LegacyDevice, LegacyDeviceLog, createdAtOf, textOf } from '../legacy';
+import { LEGACY, LegacyDevice, LegacyDeviceLog, createdAtOf, fromTable, textOf } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 import { DeviceFacts, loadDeviceFacts } from '../device-facts';
 import { GrowsByDevice, growAt, isLifecycleEntry, reconstructGrows } from '../grow-cycles';
@@ -36,6 +37,16 @@ import { readingsOf } from '../measurements';
  * carries no other information at all. Every row that is still in the collection
  * is therefore a line somebody kept, and every one of them is migrated; the flag
  * itself has nothing to carry into a model whose diary is filtered by kind.
+ *
+ * **Two device lines are thinned**, and they are the only ones. A controller
+ * that cannot read its external sensor says so on every cycle, and the same for
+ * one whose two sensors disagree - which is not a diary of anything, it is one
+ * fault repeated until somebody fixes it. They are the great majority of the
+ * collection, they say nothing a hundred of them do not, and carrying them makes
+ * the timeline of every affected tent unreadable as well as slow. So the newest
+ * hundred per device are kept for each of the two and the rest are left behind,
+ * counted per device and in total, and named in the log - the firmware stops
+ * repeating them at the same time.
  */
 
 const SEVERITY = ['info', 'warning', 'critical'];
@@ -50,6 +61,12 @@ const DIARY_KIND: Record<string, string> = {
 
 const STAGES = ['germination', 'seedling', 'vegetative', 'flowering', 'drying', 'curing'];
 
+/** The two lines a controller repeats until the fault behind them is fixed. */
+const REPEATED = ['message-ext-sensor-fail', 'message-ext-sensor-deviate'];
+
+/** How many of each a device keeps: enough to see when it started and how often, and no diary of it. */
+const KEEP_NEWEST = 100;
+
 export const entries: MigrationStep = {
   name: '011-entries',
   moves: [LEGACY.devices, LEGACY.deviceLogs],
@@ -58,10 +75,18 @@ export const entries: MigrationStep = {
     const facts = await loadDeviceFacts(context);
     const grows = await reconstructGrows(context, facts);
     const devicesWithPlans = await planned(context);
+    const thinned = await thinRepeatedLines(context);
     const legacy = await context.source(LEGACY.deviceLogs);
 
     for await (const log of legacy.find<LegacyDeviceLog>({}).sort({ _id: 1 })) {
       context.count('entries.read');
+
+      // Left behind before anything else is asked of it: an older repeat is not
+      // carried over at all, whatever it names.
+      if (thinned.leftBehind(log)) {
+        context.count('entries.repeatedLeftBehind');
+        continue;
+      }
 
       const deviceId = textOf(log.device_id);
       const fact = deviceId ? facts.get(deviceId) : undefined;
@@ -137,7 +162,7 @@ const slugsOf = (log: LegacyDeviceLog): string[] => {
 const sourceOf = (slugs: string[]): string => {
   if (slugs.includes('alarm')) return 'alarm';
   if (slugs.includes('recipe')) return 'plan';
-  if (slugs.includes('diary') || slugs.some(slug => slug in DIARY_KIND)) return 'human';
+  if (slugs.includes('diary') || slugs.some(slug => fromTable(DIARY_KIND, slug) !== undefined)) return 'human';
   // A lifecycle entry without the app's `diary` beside it was written by the
   // plan engine as it moved the device into a step's stage.
   return slugs.some(slug => slug.endsWith('plant-lifecycle')) ? 'plan' : 'device';
@@ -155,7 +180,7 @@ const kindOf = (slugs: string[], log: LegacyDeviceLog, hasReadings: boolean, has
   if (hasGrow && isLifecycleEntry(log) && STAGES.includes(textOf(log.data?.newLifecycleStage as string | undefined) ?? '')) return 'phase';
   if (hasReadings) return 'measurement';
 
-  const diary = slugs.map(slug => DIARY_KIND[slug]).find(candidate => candidate !== undefined);
+  const diary = slugs.map(slug => fromTable(DIARY_KIND, slug)).find(candidate => candidate !== undefined);
   return diary ?? (slugs.includes('diary') ? 'note' : 'system');
 };
 
@@ -204,6 +229,82 @@ const messageOf = (value: string | undefined): { key: string; params: string[] }
 const freeText = (value: string | undefined): string | null => {
   const text = textOf(value);
   return text === null || text.startsWith('message-') ? null : text;
+};
+
+/**
+ * Which repeated sensor line a log entry is, by the same rule the transform
+ * reads its message by: the message where it is one of the device's own keys,
+ * and the title where a client saved none.
+ */
+const repeatedKeyOf = (log: LegacyDeviceLog): string | null => {
+  const message = textOf(log.message);
+  const key = (message?.startsWith('message-') ? message : textOf(log.title))?.split(':')[0] ?? null;
+  return key !== null && REPEATED.includes(key) ? key : null;
+};
+
+/**
+ * The newest hundred of each repeated line per device, and what that leaves
+ * behind.
+ *
+ * Counted and chosen in one aggregation rather than by reading the rows here:
+ * these are most of the collection, and the answer is a few ids per device
+ * either way. `time` descending is what "newest" means, with `_id` behind it so
+ * that two lines written in the same millisecond are ordered the same way on
+ * every run - a repeated run has to keep the same hundred.
+ */
+const thinRepeatedLines = async (context: MigrationContext): Promise<{ leftBehind: (log: LegacyDeviceLog) => boolean }> => {
+  const logs = await context.source(LEGACY.deviceLogs);
+  const looksLike = new RegExp(`^\\s*(${REPEATED.join('|')})(:|$)`, 'u');
+
+  // The message the transform would read, derived in the pipeline the same way
+  // `repeatedKeyOf` derives it, so the rows chosen here are exactly the rows
+  // recognised below.
+  const spoken = { $trim: { input: { $ifNull: ['$message', ''] } } };
+  const raw = { $cond: [{ $eq: [{ $indexOfCP: [spoken, 'message-'] }, 0] }, spoken, { $trim: { input: { $ifNull: ['$title', ''] } } }] };
+
+  const groups = await logs
+    .aggregate<{ _id: { deviceId: string | null; key: string }; keep: unknown[]; total: number }>(
+      [
+        { $match: { $or: [{ message: looksLike }, { title: looksLike }] } },
+        { $set: { repeatedKey: { $arrayElemAt: [{ $split: [raw, ':'] }, 0] } } },
+        { $match: { repeatedKey: { $in: REPEATED } } },
+        {
+          $group: {
+            _id: { deviceId: '$device_id', key: '$repeatedKey' },
+            keep: { $topN: { n: KEEP_NEWEST, sortBy: { time: -1, _id: -1 }, output: '$_id' } },
+            total: { $sum: 1 },
+          },
+        },
+      ],
+      { allowDiskUse: true },
+    )
+    .toArray();
+
+  const keep = new Set<string>();
+  const perDevice = new Map<string, number>();
+  let total = 0;
+
+  for (const group of groups) {
+    for (const id of group.keep) keep.add(String(id));
+
+    const left = group.total - group.keep.length;
+    if (left === 0) continue;
+
+    const deviceId = textOf(group._id.deviceId) ?? '(no device)';
+    perDevice.set(deviceId, (perDevice.get(deviceId) ?? 0) + left);
+    total += left;
+  }
+
+  if (total > 0) {
+    const where = [...perDevice].sort((left, right) => right[1] - left[1]);
+    logger.info(
+      `Migration 011-entries: leaving ${total} repeated sensor line(s) behind on ${where.length} device(s), ` +
+        `keeping the newest ${KEEP_NEWEST} of ${REPEATED.join(' and ')} each`,
+    );
+    for (const [deviceId, left] of where) logger.info(`Migration 011-entries:   ${deviceId}: ${left} left behind`);
+  }
+
+  return { leftBehind: log => repeatedKeyOf(log) !== null && !keep.has(String(log._id)) };
 };
 
 const planned = async (context: MigrationContext): Promise<Set<string>> => {

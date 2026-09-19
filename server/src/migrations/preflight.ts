@@ -1,7 +1,7 @@
 import { mongo } from 'mongoose';
 import { loadDeviceFacts } from './device-facts';
-import { LEGACY, flagOf, instantOf, numberOf, textOf } from './legacy';
-import { MigrationContext } from './migration';
+import { LEGACY, flagOf, fromTable, instantOf, numberOf, textOf } from './legacy';
+import { LEGACY_PREFIX, MigrationContext } from './migration';
 
 /**
  * What a migration refuses to start on, found before a single collection is
@@ -122,7 +122,68 @@ const OLD_SHAPE: Record<string, mongo.Filter<mongo.Document>> = {
 
 /** Whether a collection standing under its own name holds what only the previous release ever wrote. */
 export const holdsWhatThePreviousReleaseWrote = async (db: mongo.Db, collection: string): Promise<boolean> =>
-  (await db.collection(collection).countDocuments(OLD_SHAPE[collection] ?? {}, { limit: 1 })) > 0;
+  (await db.collection(collection).countDocuments(fromTable(OLD_SHAPE, collection) ?? {}, { limit: 1 })) > 0;
+
+/**
+ * The old data in two generations at once, which no command can reason about.
+ *
+ * A dump taken before the upgrade and restored over a migrated database leaves
+ * `devicelogs` standing beside the `legacy_devicelogs` the migration had moved
+ * aside on the day, because `mongorestore --drop` drops only the collections its
+ * own archive carries. Nothing in the data says which of the two is the one to
+ * keep, and every command here would pick the wrong one silently: a step reads
+ * its source under whichever name it currently has, and `legacy_*` is that name,
+ * so a run would transform the migration-day copy and leave the restore exactly
+ * where it is.
+ *
+ * Read off the `legacy_*` names that are actually there rather than off the list
+ * of collections this migration knows, because the question is about a pair of
+ * names and not about what either of them holds.
+ */
+export const twoGenerationsOfOldData = async (db: mongo.Db): Promise<string[]> => {
+  const names = (await db.listCollections({}, { nameOnly: true }).toArray()).map(entry => entry.name).sort();
+  const present = new Set(names);
+
+  const found: string[] = [];
+  for (const name of names.filter(name => name.startsWith(LEGACY_PREFIX)).map(name => name.slice(LEGACY_PREFIX.length))) {
+    if (present.has(name) && (await holdsWhatThePreviousReleaseWrote(db, name))) found.push(name);
+  }
+  return found;
+};
+
+/**
+ * What the boot and the check both say about that database, written once so they
+ * cannot say different things about it.
+ *
+ * It is the one refusal whose whole point is the advice under it. The
+ * stale-record refusal above ends with "drop `migrations` and `migrationLock`,
+ * then start again", which is right where there is one generation of the old
+ * data and quietly wrong where there are two: following it here migrates the
+ * migration-day copy and leaves the restore somebody has just performed
+ * standing, unread, in a database that now looks migrated. Its message is the
+ * whole reason, so whatever prints an error prints it.
+ */
+export class TwoGenerationsOfOldData extends Error {
+  constructor(public readonly collections: string[]) {
+    super(
+      [
+        `Refusing to start: ${collections.join(', ')} hold what the previous release wrote, and so do legacy_${collections.join(', legacy_')}.`,
+        '',
+        'This database carries two generations of the old data at once, which is what a dump taken before the upgrade looks like once it has',
+        'been restored over a migrated database: `mongorestore --drop` drops only the collections its archive carries, so what the migration',
+        'had moved aside on the day survives beside what was just restored. Nothing in the data says which of the two is the one to keep.',
+        '',
+        'Migrating would transform the migration-day copy and leave the restore standing untouched, because a step reads its source under',
+        'whichever name it currently has and `legacy_*` is that name. Dropping `migrations` and `migrationLock` and starting again does',
+        'exactly that, so on this database it is not the way out.',
+        '',
+        'Decide which of the two copies is authoritative and drop the other - one name and its `legacy_` twin are read as the same',
+        'collection, so one of them has to go. Then drop `migrations` and `migrationLock` and start again.',
+      ].join('\n'),
+    );
+    this.name = 'TwoGenerationsOfOldData';
+  }
+}
 
 export const unmigratedCollections = async (db: mongo.Db): Promise<string[]> => {
   const present = new Set((await db.listCollections({}, { nameOnly: true }).toArray()).map(entry => entry.name));

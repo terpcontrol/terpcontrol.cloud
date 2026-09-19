@@ -17,7 +17,6 @@
     "test:integration": "jest --config jest.integration.config.js",
     "migrate": "npm run build && node dist/migrations/cli.js",
     "migrate:check": "npm run build && node dist/migrations/cli.js --check",
-    "migrate:rollback": "npm run build && node dist/migrations/cli.js --rollback",
     "lint": "eslint src/ test/",
     "lint:fix": "npm run lint -- --fix"
   },

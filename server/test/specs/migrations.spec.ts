@@ -6,7 +6,7 @@ import { context } from '../support/api';
 
 /**
  * The migration as an operator runs it: `npm run migrate`, its dry run and its
- * rollback, against a database of its own on the MongoDB the suite already has.
+ * check, against a database of its own on the MongoDB the suite already has.
  *
  * Black box like every spec here - it spawns the command, reads what it printed
  * and looks at the database afterwards, and imports nothing of the server. What
@@ -107,6 +107,10 @@ let fixture: LegacyDatabase;
 
 const names = async (): Promise<string[]> => (await database.listCollections({}, { nameOnly: true }).toArray()).map(entry => entry.name).sort();
 
+/** The indexes a collection carries, named the way the schemas declare them. */
+const indexesOf = async (name: string): Promise<string[]> =>
+  (await database.collection(name).indexes()).map(index => `${JSON.stringify(index.key)}${index.unique ? ' unique' : ''}`);
+
 beforeAll(async () => {
   client = new MongoClient(context.mongoUri);
   await client.connect();
@@ -201,12 +205,46 @@ describe('the migration command', () => {
     expect(output).toMatch(/Migrations: finished; 14 migrations applied in \d+ ms, \d+ rows refused/u);
   }, 120_000);
 
+  it('starts from the index state a boot starts from, so a copy is not a collection scan', async () => {
+    // Every copy the migration makes is an upsert by `id`. A boot has the
+    // models compiled and their unique `id` index built before the first of
+    // them; under a bare connection the collection is created by the first
+    // write and carries `_id` and nothing else, so each upsert after it reads
+    // everything the step has written so far - which on 7.7 million entries is
+    // the difference between minutes and a day.
+    //
+    // This run stops at 003-fleet, long before an entry or a picture is
+    // written, so an index on those collections here is one that was built
+    // before a single step ran rather than by the writes themselves.
+    expect((await migrate()).code).toBe(1);
+
+    expect(await indexesOf('entries')).toContain('{"id":1} unique');
+    expect(await indexesOf('media')).toContain('{"id":1} unique');
+
+    // The two collections that keep the name of the shapes they are replacing
+    // are the exception a boot makes as well: an unmigrated document carries
+    // none of the fields their unique indexes are on, so nothing is built on
+    // them until the rename has separated the two.
+    expect(await indexesOf('users')).toEqual(['{"_id":1}']);
+    expect(await indexesOf('devices')).toEqual(['{"_id":1}']);
+
+    expect((await migrate('--allow-rejects')).code).toBe(0);
+
+    // And once a run has finished, where a boot builds them.
+    expect(await indexesOf('users')).toEqual(expect.arrayContaining(['{"id":1} unique', '{"email":1} unique', '{"handle":1} unique']));
+    expect(await indexesOf('devices')).toContain('{"id":1} unique');
+  }, 120_000);
+
   it('refuses a record that says everything has run over a database still in the old shapes', async () => {
     // What a restore of a dump from before the upgrade leaves behind:
     // `mongorestore --drop` drops only the collections the archive carries, so
     // a record written when this database was empty survives it.
     await database.dropDatabase();
     expect((await migrate()).code).toBe(0);
+    // `--drop` drops each collection the archive carries before restoring it,
+    // indexes and all - which is why an account of the old shape lands in a
+    // `users` the run had built the new model's unique indexes on.
+    for (const name of ['users', 'devices']) await database.dropCollection(name).catch(() => undefined);
     await seedLegacyDatabase(database, AT);
 
     const { code, output } = await migrate('--allow-rejects');
@@ -214,11 +252,50 @@ describe('the migration command', () => {
     expect(code).toBe(1);
     expect(output).toContain('still hold what the previous release wrote: users, devices');
     expect(output).toContain('Drop `migrations` and `migrationLock`');
-    // The reason is the whole answer: no stack, and nothing written.
+    // The reason is the whole answer: no stack, and nothing written. Counted
+    // rather than looked for by name - the run before it built the indexes a
+    // boot builds, and an index creates the empty collection it is on.
     expect(output).not.toContain('    at ');
-    expect(await names()).not.toContain('spaces');
+    expect(await database.collection('spaces').countDocuments()).toBe(0);
 
     expect((await migrate('--check')).output).toContain('still hold what the previous release wrote');
+  }, 120_000);
+
+  it('says what a rehearsal does not measure, because its duration is the only number anybody has', async () => {
+    const { code, output } = await migrate('--dry-run', '--allow-rejects');
+
+    expect(code).toBe(0);
+    // The clause on the run's own line, and the paragraph under the report.
+    expect(output).toMatch(/Migrations: finished; 14 migrations rehearsed in \d+ ms.*, of which \d+ documents were transformed and none written/u);
+    expect(output).toContain('How long that took is not how long the upgrade takes.');
+    expect(output).toContain('a real run upserts every one of them by `id`,');
+    // The real run says nothing of the sort, because its duration is the outage.
+    expect((await migrate('--allow-rejects')).output).not.toContain('How long that took is not how long the upgrade takes.');
+  }, 120_000);
+
+  it('refuses a database holding two generations of the old data, and says what to do with it', async () => {
+    await migrate('--allow-rejects');
+    // A dump taken before the upgrade, restored over the migrated database:
+    // what the migration moved aside on the day stands beside what was just
+    // restored, and following "drop the record and start again" would migrate
+    // the first and silently leave the second where it is.
+    await database.collection('devicelogs').insertOne({ device_id: fixture.devices.controller, message: 'restored from a dump' });
+
+    const run = await migrate('--allow-rejects');
+
+    expect(run.code).toBe(1);
+    expect(run.output).toContain('two generations of the old data at once');
+    expect(run.output).toContain('on this database it is not the way out');
+    expect(run.output).toContain('Decide which of the two copies is authoritative and drop the other');
+    expect(run.output).not.toContain('    at ');
+
+    const check = await migrate('--check');
+
+    expect(check.code).toBe(1);
+    expect(check.output).toContain('Decide which of the two copies is authoritative and drop the other');
+    // Nothing of the restore was touched, and nothing of the migration either.
+    expect(await database.collection('devicelogs').countDocuments()).toBe(1);
+    expect(await database.collection('legacy_devicelogs').countDocuments()).toBe(fixture.counts.devicelogs);
   }, 120_000);
 });
 
@@ -250,66 +327,4 @@ describe('what the server says at boot', () => {
     expect(output.split('could not take 2 rows')).toHaveLength(2);
     expect(output).toContain('Failed to start: Error: Migrations: the database was not migrated; the reason is above');
   }, 300_000);
-
-  it('puts the old collections back on a rollback, and takes the new ones away', async () => {
-    await migrate('--allow-rejects');
-    const { code, output } = await migrate('--rollback', '--confirm');
-
-    expect(code).toBe(0);
-    expect(output).toContain('Everything written since the migration is lost.');
-
-    const after = await names();
-    expect(after.filter(name => name.startsWith('legacy_'))).toEqual([]);
-    expect(after).not.toContain('spaces');
-    expect(after).not.toContain('migrations');
-    expect(await database.collection('devices').countDocuments()).toBe(fixture.counts.devices);
-    expect(await database.collection('devicelogs').countDocuments()).toBe(fixture.counts.devicelogs);
-  }, 120_000);
-
-  it('prints the plan and writes nothing until it is asked a second time', async () => {
-    await migrate('--allow-rejects');
-    const { code, output } = await migrate('--rollback');
-
-    expect(code).toBe(0);
-    expect(output).toContain('Run it again with --confirm');
-    expect(output).toMatch(/Dropping \(\d+\): .*\bspaces\b/u);
-    expect(output).toMatch(/Restoring \(\d+\): legacy_/u);
-
-    // Not a line of it happened.
-    expect(await names()).toEqual(expect.arrayContaining(['spaces', 'legacy_devicelogs']));
-    expect(await database.collection('entries').countDocuments()).toBe(fixture.counts.devicelogs);
-  }, 120_000);
-
-  it('rolls a half-migrated database back without touching what no step reached', async () => {
-    // The state the way back exists for. The run stops at the rows it cannot
-    // take, so seven old collections - `devices` among them, which is a name
-    // this release uses too - are still standing under their own names with the
-    // only copy of their rows in them.
-    expect((await migrate()).code).toBe(1);
-    expect(await names()).not.toContain('legacy_devicelogs');
-
-    const { code, output } = await migrate('--rollback', '--confirm');
-
-    expect(code).toBe(0);
-    expect(output).toContain('whose run stopped after 002-users');
-    expect(output).toContain('Left exactly as they are (7): chartpresets, devicelogs, devices, images, passwordtokens, recipetemplates, shares');
-
-    expect(await database.collection('devices').countDocuments()).toBe(fixture.counts.devices);
-    expect(await database.collection('devices').findOne({ device_id: { $exists: true } })).not.toBeNull();
-    expect(await names()).not.toContain('deviceClasses');
-    expect(await database.collection('devicelogs').countDocuments()).toBe(fixture.counts.devicelogs);
-    expect(await database.collection('images').countDocuments()).toBe(fixture.counts.images);
-    expect(await database.collection('shares').countDocuments()).toBe(fixture.counts.shares);
-    expect(await database.collection('chartpresets').countDocuments()).toBe(fixture.counts.chartpresets);
-    expect(await database.collection('recipetemplates').countDocuments()).toBe(fixture.counts.recipetemplates);
-    expect(await database.collection('passwordtokens').countDocuments()).toBe(fixture.counts.passwordtokens);
-  }, 120_000);
-
-  it('refuses to roll back a database that was never migrated', async () => {
-    const { code, output } = await migrate('--rollback');
-
-    expect(code).toBe(1);
-    expect(output).toContain('holds no legacy_* collection');
-    expect(await database.collection('devices').countDocuments()).toBe(fixture.counts.devices);
-  }, 60_000);
 });

@@ -1,5 +1,5 @@
 import { derivedId, planIdOf } from '../ids';
-import { LEGACY, LegacyDevice, LegacyRecipeStep, createdAtOf, flagOf, instantOf, numberOf, textOf } from '../legacy';
+import { LEGACY, LegacyDevice, LegacyRecipeStep, createdAtOf, flagOf, fromTable, instantOf, numberOf, textOf } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 
 /**
@@ -62,7 +62,7 @@ export const plans: MigrationStep = {
         steps: recipe.steps.map((step, index) => planStep(context, deviceId, step, index)),
         loop: flagOf(recipe.loop),
         notify: {
-          mode: NOTIFY_MODE[textOf(recipe.notifications) ?? ''] ?? 'off',
+          mode: fromTable(NOTIFY_MODE, textOf(recipe.notifications)) ?? 'off',
           email: textOf(recipe.email),
           writeEntries: flagOf(recipe.additionalInfo),
         },

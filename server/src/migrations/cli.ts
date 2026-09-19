@@ -1,14 +1,14 @@
 import 'reflect-metadata';
 import { config as readEnvFile } from 'dotenv';
 import { Connection, createConnection } from 'mongoose';
+import { V1_MODELS_MIGRATED_IN_PLACE, registerV1Models } from '@database/models.module';
 import { databaseConfig } from '../config/configuration';
 import { mongoConnectionSettings } from '../database/mongo-connection';
-import { MigrationRunner, MigrationRunReport, migrationFailureText, runProgress } from './migration-runner';
-import { applyRollback, planRollback } from './migration-rollback';
+import { MigrationRunner, MigrationRunReport, documentsCopied, migrationFailureText, runProgress } from './migration-runner';
 import { PreflightFailure, preflight } from './preflight';
 
 /**
- * `npm run migrate`, its `--dry-run` and `--check`, and `npm run migrate:rollback`.
+ * `npm run migrate`, its `--dry-run` and its `--check`.
  *
  * The server applies the migrations itself at boot, so this is not how an
  * upgrade happens - it is how a rehearsal happens. A dry run reads the whole
@@ -19,12 +19,14 @@ import { PreflightFailure, preflight } from './preflight';
  * that: only the checks a run refuses to start on, so a database can be cleared
  * for an upgrade before the day of it.
  *
- * `--rollback` prints what it would drop, restore and leave standing, and needs
- * `--confirm` beside it to do any of it.
+ * There is no command here that undoes a run. The way back out of an upgrade is
+ * the backup taken before it.
  *
  * It opens its own connection rather than building the application: the
  * migrations need the database and nothing else, and booting the server to run
- * them would start the broker connection and every timer with it.
+ * them would start the broker connection and every timer with it. What it does
+ * take from the application is the models, because their indexes are what makes
+ * the copying the same speed here as it is at boot - see `likeABoot` below.
  */
 
 const report = (line: string): void => {
@@ -51,49 +53,55 @@ const printRun = (result: MigrationRunReport): void => {
   }
 
   if (result.applied.length === 0) report('\nNothing to do.');
+
+  if (result.dryRun && result.applied.length > 0) {
+    // The rehearsal's duration is the only number anybody has for how long the
+    // server is down during the upgrade, and it is not that number. Said here in
+    // full, because the line the run itself printed has room for a clause.
+    report(
+      [
+        '',
+        'How long that took is not how long the upgrade takes. A rehearsal reads every row and runs every transform, and then writes none',
+        `of it: the ${documentsCopied(result.applied)} documents above were each built and thrown away, where a real run upserts every one of them by \`id\`,`,
+        'maintains the indexes of the collection it lands in, and renames the old collections aside first. The reading and the transforms',
+        'are in the figure above and none of that writing is, so the upgrade takes longer than this by whatever those upserts cost - which',
+        'is what a real run against a copy of the database measures and this one cannot.',
+      ].join('\n'),
+    );
+  }
 };
 
 /**
- * The plan first, and the work only when it is asked for a second time.
+ * The index state a boot starts from, on a connection that has no models at all.
  *
- * A rollback drops collections and loses everything written since the migration,
- * and on a database whose run stopped part way it also has to say what it is
- * *not* touching - the collections no step reached are the ones the old rule
- * destroyed. That is a plan to read, so printing it and acting on it cannot be
- * the same command.
+ * Every copy a migration makes is an upsert by `id`. At boot those land in
+ * collections mongoose has already declared a unique `id` index on; here the
+ * collection is created by the first write and carries `_id` and nothing else,
+ * so every upsert after it is a scan of everything the step has written so far -
+ * which is quadratic, and on the entries of a hosted database the difference
+ * between minutes and a day.
+ *
+ * Awaited rather than left to `autoIndex`, because the point is that the index
+ * is there before the first upsert rather than shortly afterwards. The two
+ * collections that still hold the previous release's shapes are the exception
+ * they are at boot: their documents carry none of the fields those unique
+ * indexes are on, so they are registered and left alone, and the runner builds
+ * them once the run has renamed the old rows aside.
+ *
+ * Only for a run that writes. A rehearsal writes nothing at all, and building an
+ * index creates the collection it is on.
  */
-const rollback = async (connection: Connection, confirmed: boolean): Promise<void> => {
-  const db = connection.db!;
-  const plan = await planRollback(db);
-  const { applied, pending } = await new MigrationRunner(connection).progress();
+const likeABoot = async (connection: Connection): Promise<void> => {
+  for (const model of registerV1Models(connection)) {
+    if (V1_MODELS_MIGRATED_IN_PLACE.includes(model.modelName)) continue;
 
-  const stoppedAfter = applied.length > 0 ? `stopped after ${applied[applied.length - 1]}` : 'recorded no step at all';
-  report(
-    pending.length === 0
-      ? '\nRolling back a database every migration has run on.'
-      : `\nRolling back a database whose run ${stoppedAfter}: ${pending.length} of ${applied.length + pending.length} migrations never ran.`,
-  );
-  report('Everything written since the migration is lost.\n');
-
-  report(`Dropping (${plan.drop.length}): ${plan.drop.join(', ') || 'nothing'}`);
-  report(`Restoring (${plan.restore.length}): ${plan.restore.map(entry => `${entry.from} -> ${entry.to}`).join(', ') || 'nothing'}`);
-
-  if (plan.leftStanding.old.length > 0) {
-    report(`Left exactly as they are (${plan.leftStanding.old.length}): ${plan.leftStanding.old.join(', ')}`);
-    report('  Nothing moved these aside, so they stand exactly where the previous release left them and nothing holds a second copy.');
+    try {
+      await model.createIndexes();
+    } catch (error) {
+      // As at boot: a missing index is slow, and refusing to migrate is worse.
+      report(`Migrations: building the indexes of ${model.collection.collectionName} failed: ${error}`);
+    }
   }
-  if (plan.leftStanding.unrecognised.length > 0) {
-    report(`Not recognised, and therefore not touched: ${plan.leftStanding.unrecognised.join(', ')}`);
-    report('  This command drops only what this release registers a model for. Anything else is yours to look at.');
-  }
-
-  if (!confirmed) {
-    report('\nNothing has been written. Run it again with --confirm to do all of the above.');
-    return;
-  }
-
-  await applyRollback(db, plan);
-  report('\nDone. The previous release runs on exactly the data it left.');
 };
 
 const main = async (): Promise<void> => {
@@ -106,15 +114,11 @@ const main = async (): Promise<void> => {
   await connection.asPromise();
 
   try {
-    if (process.argv.includes('--rollback')) {
-      await rollback(connection, process.argv.includes('--confirm'));
-      return;
-    }
-
     if (process.argv.includes('--check')) {
-      // The record against the database first: a rehearsal that says the
-      // migration has already run over a database still in the old shapes is
-      // the one answer nobody would act on.
+      // The database against itself and the record against the database, in the
+      // order a run asks them: an answer about a database holding two copies of
+      // the old data is an answer about neither of them.
+      await new MigrationRunner(connection).refuseTwoGenerationsOfOldData();
       await new MigrationRunner(connection).refuseAStaleRecord();
 
       const found = await preflight(connection.db!);
@@ -125,8 +129,11 @@ const main = async (): Promise<void> => {
     }
 
     const dryRun = process.argv.includes('--dry-run');
+    const runner = new MigrationRunner(connection);
+    if (!dryRun) await likeABoot(connection);
+
     printRun(
-      await new MigrationRunner(connection).run({
+      await runner.run({
         dryRun,
         allowRejects: process.argv.includes('--allow-rejects'),
         // The same lines the server writes at boot, as they happen: a dry run
@@ -134,6 +141,11 @@ const main = async (): Promise<void> => {
         watch: event => report(runProgress(event, dryRun).line),
       }),
     );
+
+    // Where a boot ends: the two collections that held the old shapes have been
+    // separated by now, so their indexes are built last, exactly as `runAtBoot`
+    // builds them.
+    if (!dryRun) await runner.buildSeparatedIndexes();
   } finally {
     await connection.close();
   }

@@ -6,9 +6,8 @@ import { MigrationContext, MigrationStep } from '../migration';
  * with everything else.
  *
  * Nothing is transformed here, and that is the point: `legacy_*` is then the
- * whole of the old database rather than most of it, the rollback is a clean
- * reversal, and an operator reading the record sees how much was left behind
- * rather than having to go looking.
+ * whole of the old database rather than most of it, and an operator reading the
+ * record sees how much was left behind rather than having to go looking.
  *
  * - **`passwordtokens`** live for minutes. `passwordResets` starts empty; a
  *   reset in flight during the upgrade is asked for again.

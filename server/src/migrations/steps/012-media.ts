@@ -1,6 +1,6 @@
 import { mongo } from 'mongoose';
 import { IMAGE_BUCKET_NAME } from '@database/image-store';
-import { LEGACY, LegacyDeviceLog, LegacyImage, createdAtOf, instantOf, numberOf, textOf } from '../legacy';
+import { LEGACY, LegacyDeviceLog, LegacyImage, createdAtOf, fromTable, instantOf, numberOf, textOf } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 import { loadDeviceFacts } from '../device-facts';
 import { growAt, reconstructGrows } from '../grow-cycles';
@@ -55,7 +55,7 @@ export const media: MigrationStep = {
       const id = textOf(image.image_id);
       const deviceId = textOf(image.device_id);
       const format = textOf(image.format);
-      const shape = format ? KIND[format] : undefined;
+      const shape = fromTable(KIND, format);
       const capturedAt = instantOf(image.timestamp);
 
       if (!id || !shape || !capturedAt) {
@@ -95,7 +95,7 @@ export const media: MigrationStep = {
         uploadedBy: isPhoto ? (fact?.ownerId ?? null) : null,
         capturedAt,
         endsAt: instantOf(image.timestampEnd),
-        window: WINDOW[textOf(image.duration) ?? ''] ?? null,
+        window: fromTable(WINDOW, textOf(image.duration)) ?? null,
         quality: null,
         lengthSeconds: null,
         render: null,

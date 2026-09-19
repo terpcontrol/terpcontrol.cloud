@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { Connection, Model } from 'mongoose';
 import { alarmRulesSchema } from '@database/schemas/v1/alarm-rules.schema';
 import { alertsSchema } from '@database/schemas/v1/alerts.schema';
 import { camerasSchema } from '@database/schemas/v1/cameras.schema';
@@ -94,6 +95,26 @@ export const V1_COLLECTIONS: string[] = features.map(feature => String(feature.s
 for (const feature of features) {
   if (V1_MODELS_MIGRATED_IN_PLACE.includes(feature.name)) feature.schema.set('autoIndex', false);
 }
+
+/**
+ * The same models on a connection Nest never built.
+ *
+ * The migration command opens a bare connection - the migrations need the
+ * database and nothing else, and booting the server to run them would start the
+ * broker connection and every timer with it. But a bare connection has no models
+ * on it, and therefore none of their indexes: every copy the migration makes is
+ * an upsert by `id`, and against a collection that carries `_id` and nothing
+ * else each of those is a scan of everything written so far. A boot has the
+ * indexes because mongoose builds them as it compiles the models, so the command
+ * registers the same models to start from the same place.
+ *
+ * Both halves of `autoIndex` are the registration's to keep: the two collections
+ * that hold the previous release's shapes until the run renames them aside say
+ * no here as they do at boot, and their indexes are built afterwards by the
+ * runner.
+ */
+export const registerV1Models = (connection: Connection): Model<unknown>[] =>
+  features.map(feature => connection.model<unknown>(feature.name, feature.schema, String(feature.schema.get('collection'))));
 
 /**
  * Every model in one module rather than a `forFeature` per feature module: the

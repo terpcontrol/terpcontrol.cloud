@@ -1,5 +1,5 @@
 import { derivedId } from '../ids';
-import { LEGACY, LegacyAlarm, LegacyDevice, createdAtOf, flagOf, instantOf, numberOf, textOf } from '../legacy';
+import { LEGACY, LegacyAlarm, LegacyDevice, createdAtOf, flagOf, fromTable, instantOf, isStored, numberOf, textOf } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 import { DeviceFacts, loadDeviceFacts } from '../device-facts';
 
@@ -68,29 +68,49 @@ const PERCENT_OF = 100;
 
 /** What the rule is about, in the shape the model has for it. */
 const watchOf = (sensorType: string): Record<string, unknown> | null => {
-  const metric = METRIC[sensorType];
+  const metric = fromTable(METRIC, sensorType);
   if (metric) return { kind: 'reading', metric, output: null };
-  if (!OUTPUT[sensorType]) return null;
 
-  return RUNNING.has(sensorType)
-    ? { kind: 'output_running', metric: null, output: OUTPUT[sensorType] }
-    : { kind: 'output_level', metric: null, output: OUTPUT[sensorType] };
+  const output = fromTable(OUTPUT, sensorType);
+  if (!output) return null;
+
+  return RUNNING.has(sensorType) ? { kind: 'output_running', metric: null, output } : { kind: 'output_level', metric: null, output };
 };
 
 /**
  * The band, as the watch carries it: none at all for an output watched for
  * running, and the heater's percentages back in the units the series is in.
+ *
+ * A threshold that is stored and cannot be read as a number is reported rather
+ * than quietly left out: the rule is still written, and without its band it is
+ * one that can never trip, which is not something to find out from an alarm that
+ * never came.
  */
-const boundsOf = (sensorType: string, alarm: LegacyAlarm): { upper: number | null; lower: number | null } => {
+const boundsOf = (context: MigrationContext, id: string, sensorType: string, alarm: LegacyAlarm): { upper: number | null; lower: number | null } => {
   if (RUNNING.has(sensorType)) return { upper: null, lower: null };
 
   const scale = sensorType === 'heater' ? PERCENT_OF : 1;
-  const bound = (value: unknown): number | null => {
-    const number = numberOf(value);
+  const bound = (field: string, value: unknown): number | null => {
+    const number = readable(context, id, field, value);
     return number === null ? null : number / scale;
   };
 
-  return { upper: bound(alarm.upperThreshold), lower: bound(alarm.lowerThreshold) };
+  return { upper: bound('upperThreshold', alarm.upperThreshold), lower: bound('lowerThreshold', alarm.lowerThreshold) };
+};
+
+/** A number the old document holds, with a word for one that is stored and unreadable. */
+const readable = (context: MigrationContext, id: string, field: string, value: unknown): number | null => {
+  const number = numberOf(value);
+  if (number === null && isStored(value)) {
+    context.reject({
+      source: LEGACY.devices,
+      id,
+      reason: `the alarm's ${field} is not a number; the rule is migrated without it`,
+      dropped: false,
+      detail: String(value),
+    });
+  }
+  return number;
 };
 
 export const alarmRules: MigrationStep = {
@@ -157,8 +177,8 @@ const migrateAlarm = async (
     createdAt: createdAtOf(device),
     deviceId: fact.id,
     name: textOf(alarm.name) ?? sensorType,
-    watch: { ...watch, ...boundsOf(sensorType, alarm) },
-    forSeconds: numberOf(alarm.thresholdSeconds) ?? 0,
+    watch: { ...watch, ...boundsOf(context, id, sensorType, alarm) },
+    forSeconds: readable(context, id, 'thresholdSeconds', alarm.thresholdSeconds) ?? 0,
     severity,
     origin: 'human',
     presetId: null,

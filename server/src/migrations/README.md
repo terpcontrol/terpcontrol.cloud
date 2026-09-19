@@ -17,7 +17,7 @@ collections carry the name of an old one: `users` and `devices`. So the moment t
 - **The server reads the new collections and nothing else.** There is no code left that knows the old shapes: the
   modules that read them are gone together with their routes, and what replaced them was written against the
   collections this migration builds.
-- **Nothing reads `legacy_*`.** It is the way back and nothing else, and a later release drops it.
+- **Nothing reads `legacy_*`.** It is the old database kept where it fell, and a later release drops it.
 - **The indexes of `users` and `devices` are built by the runner rather than by mongoose.** Those two collections
   hold the old shapes under their own name until the rename happens, and mongoose builds a model's indexes as the
   model is compiled — which is before this runs. So the two models say `autoIndex: false`
@@ -58,9 +58,17 @@ and the accounts are in a shape nobody can sign in to.
 
 So the record is not believed on its own, and the question is asked of **each step it says has run** rather than
 only of a full record. A step that ran has moved the collections it reads aside (`moves` on the step says which,
-which is also what the rollback reads), so finding one of them standing under its own name with old rows in it
+which the stale-record check reads), so finding one of them standing under its own name with old rows in it
 says the record is describing a database that is no longer there. The server then **refuses to start** naming
 them. Drop `migrations` and `migrationLock` and start again; `npm run migrate:check` asks the same thing.
+
+**Unless the old data is there twice**, which is what a restore over a *migrated* database leaves: the
+migration-day copy under `legacy_devicelogs` and the restore under `devicelogs`, because the archive carries only
+the second name. Dropping the record and starting again is then the wrong answer and a quiet one - a step reads
+its source under whichever name it currently has, and `legacy_*` is that name, so the run would transform the
+migration-day generation and leave the restore exactly where it is. The boot and `migrate:check` refuse that
+database in the same words (`preflight.ts`, `TwoGenerationsOfOldData`) and ask for the one thing that is not in
+the data: which of the two copies is authoritative. Drop the other, then drop `migrations` and `migrationLock`.
 
 A record of a run that stopped part way survives a restore exactly as a complete one does, and is the worse of
 the two: a handful of steps count as applied, the rest transform freshly restored old data, and the boot
@@ -101,7 +109,7 @@ whatsoever about the transforms after it.
 | `008-cameras` | `devices.cloudSettings` + `hardwareInfo.webcam_*` → `cameras`, including a retired one for a device whose pictures outlived its stream. |
 | `009-plan-templates` | `recipetemplates` → `planTemplates`. |
 | `010-grows` | The lifecycle entries → `grows` with their phases and one placement. A device running a plan and never logged into a stage becomes a grow that starts with its step — unless no step of that plan carries a stage at all, which says nothing about what is growing and becomes no grow, counted as `grows.planWithoutStage` and named in the log. That is the ordinary shape of a plan: only the guided onboarding's reference plans ever wrote a stage, and the old app made no grow of one either. |
-| `011-entries` | `devicelogs` → `entries`. |
+| `011-entries` | `devicelogs` → `entries`. The two lines a controller repeats until somebody fixes the fault behind them — `message-ext-sensor-fail` and `message-ext-sensor-deviate` — keep their newest 100 per device and the rest are left behind, counted as `entries.repeatedLeftBehind` and named in the log per device and in total. They are most of the collection and say nothing a hundred of them do not. |
 | `012-media` | `images` → `media`. The bytes are not touched. |
 | `013-retired-collections` | `passwordtokens`, `shares` and `chartpresets` aside, unmigrated by decision. |
 | `014-one-line-per-task` | Drops the non-unique `taskId` index on `entries`, so the schema's unique one is built on the next boot. |
@@ -109,7 +117,7 @@ whatsoever about the transforms after it.
 Each step declares the collections it reads as `moves` and the runner moves them aside before calling it; the move
 is skipped when it has already happened, so a step that shares a source with an earlier one finds it already moved,
 and a run that was killed after a rename repeats without ever touching the old data again. A step that has *not*
-run has moved nothing, which is what the rollback and the stale-record check read that declaration for.
+run has moved nothing, which is what the stale-record check reads that declaration for.
 
 Every copy is an upsert by `id`, and every id a migration invents is derived from what the old document already
 is (`ids.ts`), so a repeated run rewrites the same documents rather than making second ones.
@@ -119,49 +127,44 @@ is (`ids.ts`), so a repeated run rewrites the same documents rather than making 
 ```sh
 npm run migrate:check                    # only what a run refuses to start on; writes nothing (same as `--check`)
 npm run migrate -- --dry-run             # every transform, counts and rejects, writes nothing at all
-npm run migrate                          # what the server does at boot, without the server
+npm run migrate                          # the steps the server runs at boot, over the same indexes, without the server
 npm run migrate -- --allow-rejects       # the same, told that the rows it cannot take may be left behind
-npm run migrate:rollback                 # print what a rollback would drop, restore and leave standing
-npm run migrate:rollback -- --confirm    # do it
 ```
 
 `migrate:check` is the one to run days before an upgrade: it is the preflight below and nothing else, so it costs
 a few aggregations rather than a whole rehearsal, and it exits non-zero with the report on stderr. The dry run is
 the rehearsal: it reads the whole database, runs every transform and writes nothing, not even the rename. Take it
 against a copy of the database that is about to be migrated and read the rejects before the real run.
-`migrate:rollback` is the way back for one release, and it prints its plan and exits unless `--confirm` is beside
-it. **Everything written since the migration is lost** when it does run.
 
-## The way back, and what it does not do
+**A rehearsal's duration is not the outage.** It is the one number anybody has for how long the server is down
+during an upgrade, and it is not that number: the rehearsal reads every row and runs every transform and then
+writes none of it, so the upserts, the index maintenance on them and the renames are all missing from it. How
+much that is depends on how much the run writes, which is the one thing the rehearsal can say — it prints the
+count of documents it built and threw away beside its duration, and says what the duration leaves out. Read a
+rehearsal for its rejects and its counts; take the duration from a real run against a copy of the database.
 
-`migrate:rollback` drops what this release built and renames every `legacy_*` back, after which the previous
-release runs on exactly the data it left.
+**The command builds the indexes a boot has before it starts.** It opens a bare connection rather than building
+the application, and a bare connection has no models on it - so without this every upsert by `id` would land in
+a collection carrying `_id` and nothing else, and each one would read everything the step had written so far. It
+registers the models of `database/models.module.ts` and awaits their index builds first, which is why `users` and
+`devices` are still the exception here that they are at boot: they hold the previous release's shapes until the
+run renames them aside, so their own indexes are built after the run, by the same code that builds them at boot.
+A rehearsal registers nothing, because building an index creates the collection it is on.
 
-**What may be dropped is derived, not excluded.** The list is the collections the model registers
-(`database/models.module.ts`, `V1_COLLECTIONS`) plus the migration lock, intersected with what is actually there.
-Of the names this release shares with the previous one — `users` and `devices` — a collection is only dropped
-when its `legacy_` twin is standing beside it, because until the rename has happened it is still the only copy of
-that data. Everything else is reported and left exactly where it is.
+## Going back is the backup
 
-That asymmetry is the whole point. The rule used to be "drop everything that is not `legacy_*`", which reads
-"nothing has renamed this aside" as "this release built it" — true of a complete run and catastrophic on one that
-stopped part way, where the collections no step has reached are still standing under their original names. A name
-missing from the derived list now leaves a collection of the new model standing, which an operator reads off the
-"left standing" line and drops by hand. The old way round deleted the only copy of the data.
+**There is no command here that undoes a run.** Take a `./backup.sh` before the upgrade, and check that it
+restores — into a scratch database, on the machine that would have to do it — before the upgrade starts rather
+than on the evening it is needed. That check is the whole of the way back, and a backup nobody has restored is
+not one.
 
-**It is defined for a partial run**, which is when it is actually reached for: the report names the step the run
-stopped after, what is dropped, what is renamed back, and the collections no step reached — which are left
-untouched.
-
-**It refuses twice.** On a database with no `legacy_*` at all, because nothing was ever moved aside (an install
-with no old data migrates without moving anything, and the previous release reads what is already there). And on
-one holding two generations of the old data at once — a pre-upgrade dump restored over a migrated database leaves
-`devicelogs` beside `legacy_devicelogs`, and nothing in the data says which is authoritative.
-
-**What it does not undo:** the first step's move of inline picture bytes into the bucket. The previous release
-reads the bucket by the same file ids, so there is nothing to move back — which is also why the sweeps leave a
-picture the migration carried over alone for as long as `legacy_images` stands (`way-back.ts`). Bytes written
-after the migration become orphans and the existing sweep removes them. InfluxDB is not touched at all.
+What the migration leaves is not a substitute for it, though it is why a restore is a restore of the old shapes
+rather than an archaeology: the old collections stand untouched under `legacy_*` until the release that drops
+them, and a step that has not run has not moved its sources at all. The picture bytes are never rewritten — the
+first step moves an inline payload into the bucket and a `media` row keeps the `image_id` it was made from, so a
+restored `images` row finds its file by the same id. The sweeps leave a picture the migration carried over alone
+for as long as `legacy_images` stands (`way-back.ts`), which is what keeps those bytes there to be found.
+InfluxDB is not touched at all.
 
 ## The preflight
 

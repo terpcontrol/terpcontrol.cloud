@@ -32,18 +32,17 @@ export interface MigrationStep {
    * The old collections this step reads, and therefore the ones moved aside
    * before it runs.
    *
-   * Declared rather than moved inside `run`, because two things outside the step
-   * have to know it: a rollback has to tell a collection no step has reached yet
-   * from one this release built, and a record claiming a step has run is a lie
-   * when the collection that step moves is still standing under its own name.
-   * Both questions are about a step that did *not* finish, so neither can be
-   * answered by asking the step to say so while it works.
+   * Declared rather than moved inside `run`, because something outside the step
+   * has to know it: a record claiming a step has run is a lie when the
+   * collection that step moves is still standing under its own name. That is a
+   * question about a step that did *not* finish, so it cannot be answered by
+   * asking the step to say so while it works.
    */
   readonly moves?: readonly string[];
   run(context: MigrationContext): Promise<void>;
 }
 
-/** The prefix an old collection is moved under, which is also what a rollback finds it by. */
+/** The prefix an old collection is moved under, and what a restore of the old shapes finds beside it. */
 export const LEGACY_PREFIX = 'legacy_';
 
 export const legacyName = (collection: string): string => `${LEGACY_PREFIX}${collection}`;

@@ -6,8 +6,14 @@ import { logger } from '@utils/logger';
 import { derivedId } from './ids';
 import { MigrationContext, MigrationReject, MigrationStep } from './migration';
 import { MigrationLock } from './migration-lock';
-import { RollbackRefused } from './migration-rollback';
-import { PreflightFailure, StaleMigrationRecord, preflight, unmigratedCollections } from './preflight';
+import {
+  PreflightFailure,
+  StaleMigrationRecord,
+  TwoGenerationsOfOldData,
+  preflight,
+  twoGenerationsOfOldData,
+  unmigratedCollections,
+} from './preflight';
 import { MIGRATION_STEPS } from './steps';
 
 /** Where a run is recorded, and what says a migration has already been applied. */
@@ -122,7 +128,11 @@ export const runProgress = (event: RunEvent, dryRun = false): { level: 'info' | 
         level: 'info',
         line:
           `Migrations: finished; ${plural(event.applied.length, 'migration')} ${took} in ${event.durationMs} ms` +
-          `${refused > 0 ? `, ${plural(refused, 'row')} refused` : ''}`,
+          `${refused > 0 ? `, ${plural(refused, 'row')} refused` : ''}` +
+          // A rehearsal's duration is not the outage, and the number on its own
+          // reads exactly as if it were. What it leaves out is said where it is
+          // printed rather than in a paragraph further down.
+          `${dryRun ? `, of which ${plural(documentsCopied(event.applied), 'document')} were transformed and none written` : ''}`,
       };
     }
     case 'stopped':
@@ -132,9 +142,29 @@ export const runProgress = (event: RunEvent, dryRun = false): { level: 'info' | 
 
 const plural = (count: number, noun: string): string => `${count} ${noun}${count === 1 ? '' : 's'}`;
 
+/**
+ * Every document a run copied - and on a rehearsal, every document it did not.
+ *
+ * It is the size of the part a dry run leaves out. A rehearsal reads every row
+ * and runs every transform, and then writes none of them: each of these would
+ * have been an upsert with an index to maintain, which is the work the server is
+ * down for and the work the rehearsal's duration says nothing about.
+ */
+export const documentsCopied = (applied: MigrationOutcome[]): number =>
+  applied.reduce(
+    (total, outcome) =>
+      total + Object.entries(outcome.stats).reduce((written, [key, value]) => (key.endsWith('.written') ? written + value : written), 0),
+    0,
+  );
+
 /** A refusal is a report to read, not a crash: it prints as it was written, with no stack in front of it. */
 export const migrationFailureText = (error: unknown): string => {
-  if (error instanceof PreflightFailure || error instanceof RejectedRows || error instanceof StaleMigrationRecord || error instanceof RollbackRefused)
+  if (
+    error instanceof PreflightFailure ||
+    error instanceof RejectedRows ||
+    error instanceof StaleMigrationRecord ||
+    error instanceof TwoGenerationsOfOldData
+  )
     return error.message;
   return error instanceof Error ? (error.stack ?? error.message) : String(error);
 };
@@ -201,6 +231,20 @@ export class MigrationRunner {
    * A `listCollections` and at most twelve counts, on a boot that would
    * otherwise do nothing at all.
    */
+  /**
+   * Two copies of the old data, which no run can choose between.
+   *
+   * Asked before the record is, and whether or not there is a record at all: the
+   * advice that follows a stale record is to drop `migrations` and start again,
+   * and on this database that would transform the migration-day copy and discard
+   * the restore somebody had just performed. So it is a refusal of its own, in
+   * the same words `migrate:check` refuses it in.
+   */
+  public async refuseTwoGenerationsOfOldData(): Promise<void> {
+    const found = await twoGenerationsOfOldData(this.db);
+    if (found.length > 0) throw new TwoGenerationsOfOldData(found);
+  }
+
   public async refuseAStaleRecord(): Promise<void> {
     const applied = await this.appliedNames();
     if (applied.size === 0) return;
@@ -232,9 +276,10 @@ export class MigrationRunner {
     const applied = await this.appliedNames();
     const report: MigrationRunReport = { dryRun, applied: [], alreadyApplied: MIGRATION_STEPS.filter(s => applied.has(s.name)).map(s => s.name) };
 
-    // The record against the database, before the pending list is acted on and
-    // whether or not anything is pending: a record that describes a database
-    // this one is not is the one thing no step can recover from.
+    // The database against itself and then the record against the database,
+    // before the pending list is acted on and whether or not anything is
+    // pending: neither is something a step can recover from afterwards.
+    await this.refuseTwoGenerationsOfOldData();
     await this.refuseAStaleRecord();
 
     if (report.alreadyApplied.length === MIGRATION_STEPS.length) {
@@ -319,8 +364,11 @@ export class MigrationRunner {
    *
    * A failure is logged rather than thrown, as every index build in this server
    * is: a missing index is slow, and refusing to start is worse.
+   *
+   * Public because the command-line run has to end where a boot ends: it
+   * registers the same models and leaves the same database behind.
    */
-  private async buildSeparatedIndexes(): Promise<void> {
+  public async buildSeparatedIndexes(): Promise<void> {
     for (const name of V1_MODELS_MIGRATED_IN_PLACE) {
       const model = this.connection.models[name];
       if (!model) continue;
@@ -340,7 +388,7 @@ export class MigrationRunner {
     try {
       // The step's own sources, moved out of the way before it reads them. Here
       // rather than in the step, so that what a step has moved is something the
-      // rollback and the stale-record check can read off it without running it.
+      // stale-record check can read off it without running it.
       for (const collection of step.moves ?? []) await context.renameAside(collection);
       await step.run(context);
       await context.flushAll();
