@@ -4,6 +4,7 @@ import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule, alarmRulesSchema } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert, alertsSchema } from '@database/schemas/v1/alerts.schema';
 import { CameraDocument, camerasSchema } from '@database/schemas/v1/cameras.schema';
+import { ChartViewDocument, chartViewsSchema } from '@database/schemas/v1/chart-views.schema';
 import { StoredClaimCode, claimCodesSchema } from '@database/schemas/v1/claim-codes.schema';
 import { StoredDeviceClass, deviceClassesSchema } from '@database/schemas/v1/device-classes.schema';
 import { StoredDevice, devicesSchema } from '@database/schemas/v1/devices.schema';
@@ -14,11 +15,15 @@ import { GrowDocument, growsSchema } from '@database/schemas/v1/grows.schema';
 import { InviteDocument, invitesSchema } from '@database/schemas/v1/invites.schema';
 import { MediaDocument, mediaSchema } from '@database/schemas/v1/media.schema';
 import { MembershipDocument, membershipsSchema } from '@database/schemas/v1/memberships.schema';
+import { StoredNotificationLogEntry, notificationLogSchema } from '@database/schemas/v1/notification-log.schema';
 import { StoredPasswordReset, passwordResetsSchema } from '@database/schemas/v1/password-resets.schema';
+import { StoredPlanTemplate, planTemplatesSchema } from '@database/schemas/v1/plan-templates.schema';
 import { StoredPlan, plansSchema } from '@database/schemas/v1/plans.schema';
 import { PlantDocument, plantsSchema } from '@database/schemas/v1/plants.schema';
+import { StoredPushSubscription, pushSubscriptionsSchema } from '@database/schemas/v1/push-subscriptions.schema';
 import { ReminderDocument, remindersSchema } from '@database/schemas/v1/reminders.schema';
 import { StoredSession, sessionsSchema } from '@database/schemas/v1/sessions.schema';
+import { SchemeDocument, schemesSchema } from '@database/schemas/v1/schemes.schema';
 import { ShareLinkDocument, shareLinksSchema } from '@database/schemas/v1/share-links.schema';
 import { SpaceDocument, spacesSchema } from '@database/schemas/v1/spaces.schema';
 import { StoredUser, usersSchema } from '@database/schemas/v1/users.schema';
@@ -47,6 +52,11 @@ export interface V1TestDatabase {
   alarmRules: Model<StoredAlarmRule>;
   alerts: Model<StoredAlert>;
   reminders: Model<ReminderDocument>;
+  chartViews: Model<ChartViewDocument>;
+  schemes: Model<SchemeDocument>;
+  planTemplates: Model<StoredPlanTemplate>;
+  pushSubscriptions: Model<StoredPushSubscription>;
+  notificationLog: Model<StoredNotificationLogEntry>;
   follows: Model<FollowDocument>;
   shareLinks: Model<ShareLinkDocument>;
   users: Model<StoredUser>;
@@ -79,6 +89,11 @@ export const startV1TestDatabase = async (): Promise<V1TestDatabase> => {
     alarmRules: connection.model<StoredAlarmRule>(MODEL_V1.alarmRule, alarmRulesSchema),
     alerts: connection.model<StoredAlert>(MODEL_V1.alert, alertsSchema),
     reminders: connection.model<ReminderDocument>(MODEL_V1.reminder, remindersSchema),
+    chartViews: connection.model<ChartViewDocument>(MODEL_V1.chartView, chartViewsSchema),
+    schemes: connection.model<SchemeDocument>(MODEL_V1.scheme, schemesSchema),
+    planTemplates: connection.model<StoredPlanTemplate>(MODEL_V1.planTemplate, planTemplatesSchema),
+    pushSubscriptions: connection.model<StoredPushSubscription>(MODEL_V1.pushSubscription, pushSubscriptionsSchema),
+    notificationLog: connection.model<StoredNotificationLogEntry>(MODEL_V1.notificationLogEntry, notificationLogSchema),
     follows: connection.model<FollowDocument>(MODEL_V1.follow, followsSchema),
     shareLinks: connection.model<ShareLinkDocument>(MODEL_V1.shareLink, shareLinksSchema),
     users: connection.model<StoredUser>(MODEL_V1.user, usersSchema),

@@ -18,6 +18,7 @@ import { MailModule } from './modules/mail/mail.module';
 import { MqttModule } from './modules/mqtt/mqtt.module';
 import { MqttAuthModule } from './modules/mqtt-auth/mqtt-auth.module';
 import { TunnelModule } from './modules/tunnel/tunnel.module';
+import { AccountDeletionModule } from './modules/v1/account-deletion/account-deletion.module';
 import { AccountModule } from './modules/v1/account/account.module';
 import { AdminUsersModule } from './modules/v1/admin-users/admin-users.module';
 import { CameraModule } from './modules/v1/camera/camera.module';
@@ -83,6 +84,7 @@ import { WiringModule } from './wiring.module';
     // The routes of `/v1`.
     SessionsModule,
     AccountModule,
+    AccountDeletionModule,
     AdminUsersModule,
     DeviceModule,
     SpaceModule,

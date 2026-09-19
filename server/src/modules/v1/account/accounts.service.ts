@@ -92,9 +92,13 @@ export class AccountsService implements OnModuleInit {
    * The sign-in lookup. It answers the same nothing for an unknown address and
    * for a wrong password, so that what comes back never says who has an account
    * here.
+   *
+   * An account whose deletion has begun answers that same nothing: the run takes
+   * a while and can be resumed across a restart, and a session opened in the
+   * middle of one would write into the half that is still standing.
    */
   public async verify(email: string, password: string): Promise<StoredUser | null> {
-    const user = await this.users.findOne({ email }).select(WITH_PASSWORD).lean();
+    const user = await this.users.findOne({ email, deletionStartedAt: null }).select(WITH_PASSWORD).lean();
     if (!user) return null;
 
     return (await compare(password, user.passwordHash)) ? user : null;
@@ -176,6 +180,28 @@ export class AccountsService implements OnModuleInit {
     if (activated.matchedCount === 0) throw notFound('activation_code_unknown', 'That activation code belongs to no account.');
   }
 
+  /**
+   * The first write of a deletion, and the one the rest of it hangs off: there
+   * are no transactions here, so a single-document update is the only thing that
+   * either happened or did not. Filtered on the field still being empty, so a
+   * run picked up again after a restart keeps the moment it really began rather
+   * than moving it forward on every attempt.
+   */
+  public async beginDeletion(id: string): Promise<void> {
+    await this.users.updateOne({ id, deletionStartedAt: null }, { $set: { deletionStartedAt: new Date() } });
+  }
+
+  /** The accounts whose deletion began and never finished, which is what a boot sweep has to pick up. */
+  public async deletionsUnfinished(): Promise<string[]> {
+    const rows = await this.users.find({ deletionStartedAt: { $ne: null } }, { id: 1 }).lean();
+    return rows.map(row => row.id);
+  }
+
+  /**
+   * The row itself. It is deleted last of everything an account owns, because
+   * while it is there the marker above names a run that can be finished, and
+   * once it is gone nothing left behind can be found again.
+   */
   public async remove(id: string): Promise<void> {
     const removed = await this.users.deleteOne({ id });
     if (removed.deletedCount === 0) throw notFound('user_not_found', 'There is no account with that id.');

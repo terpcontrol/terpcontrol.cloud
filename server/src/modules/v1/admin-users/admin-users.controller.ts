@@ -6,9 +6,8 @@ import { AdminGuard } from '@common/auth/auth.guard';
 import { PageQuery, V1Query, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
 import { V1Answer } from '../answer-shape';
+import { AccountDeletionService } from '../account-deletion/account-deletion.service';
 import { AccountsService } from '../account/accounts.service';
-import { PasswordResetService } from '../account/password-reset.service';
-import { SessionsService } from '../sessions/sessions.service';
 
 /**
  * The accounts, as an administrator manages them.
@@ -23,8 +22,7 @@ import { SessionsService } from '../sessions/sessions.service';
 export class AdminUsersController {
   constructor(
     private readonly accounts: AccountsService,
-    private readonly resets: PasswordResetService,
-    private readonly sessions: SessionsService,
+    private readonly deletion: AccountDeletionService,
   ) {}
 
   @Get()
@@ -57,17 +55,17 @@ export class AdminUsersController {
   }
 
   /**
-   * The account, what it was signed in with and any recovery link outstanding
-   * for it. What it owned - devices, spaces, grows - goes with the resumable
-   * deletion an account starts for itself, and not from here.
+   * The same deletion an account starts for itself, so that what an
+   * administrator removes and what a person removes are one thing: the account,
+   * everything it owned, and the claims it held on hardware that is still out
+   * there. The account this install is configured with is refused, because it is
+   * written back by its address on every start.
    */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete an account' })
-  @ApiNoContentResponse({ description: 'The account is gone.' })
-  public async remove(@Param('id') id: string): Promise<void> {
-    await this.accounts.remove(id);
-    await this.sessions.revokeAllOf(id);
-    await this.resets.retire(id);
+  @ApiNoContentResponse({ description: 'The account is gone, and the devices it had claimed are claimable again.' })
+  public remove(@Param('id') id: string): Promise<void> {
+    return this.deletion.deleteAccount(id);
   }
 }

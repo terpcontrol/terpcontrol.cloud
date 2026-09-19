@@ -162,3 +162,38 @@ export const storeCameraStill = (cameraId: string, data: Buffer, capturedAt: Dat
 
     return id;
   });
+
+/**
+ * A row in a collection that has no routes yet. Five of them - the chart views,
+ * the feeding schemes, the plan templates, the push subscriptions and the
+ * notification log - are registered, indexed and injected nowhere, so a spec
+ * about what an account leaves behind can neither put one there nor read it back
+ * through the API.
+ */
+export const seedRow = (collection: string, document: Record<string, unknown>): Promise<void> =>
+  withDatabase(async database => {
+    await database.collection(collection).insertOne({ ...document });
+  });
+
+/** What is in a collection, for asserting that something is really gone rather than only unlisted. */
+export const rowsIn = (collection: string, filter: Record<string, unknown>): Promise<Record<string, unknown>[]> =>
+  withDatabase(database => database.collection(collection).find(filter).toArray());
+
+/**
+ * Somebody let into a space. There are no membership routes yet - they arrive
+ * with the sharing round - and what a member may do to the space owner's things
+ * is decided now.
+ */
+export const joinSpace = (spaceId: string, userId: string, role: 'can_log' | 'can_manage' = 'can_log'): Promise<void> =>
+  seedRow('memberships', { id: randomUUID(), spaceId, userId, role, invitedBy: null, inviteId: null, createdAt: new Date() });
+
+/**
+ * An account whose deletion began and then stopped: the marker set and the
+ * sessions gone, which is exactly what a run killed after its first step leaves
+ * behind. What picks it up again is either route, or the sweep at boot.
+ */
+export const beginDeletionOf = (userId: string): Promise<void> =>
+  withDatabase(async database => {
+    await database.collection('users').updateOne({ id: userId }, { $set: { deletionStartedAt: new Date() } });
+    await database.collection('sessions').deleteMany({ userId });
+  });
