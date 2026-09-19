@@ -396,7 +396,7 @@ The messages current firmware sends:
 | `message-device-firmware-update` | 0 | every type, before an OTA | `fridgecloud.cpp:190,210` |
 | `message-buffer-overflow` | 1 | every type, reading buffer full | `fridgecloud.cpp:490` |
 | `message-co2-low` | 0 | controller, fridge | `controller.cpp:931-944`, `fridge.cpp:981-992` |
-| `message-ext-sensor-deviate`, `message-ext-sensor-fail` | 0 | fridge | `fridge.cpp:129,139` |
+| `message-ext-sensor-deviate`, `message-ext-sensor-fail` | 0 | fridge, when the fault appears and **at most once per 15 min** each | `fridge.cpp` |
 | `message-maintenance-mode-activated:<min>` | 0 | controller, fridge | `controller.cpp:1069`, `fridge.cpp:1062` |
 | `message-maintenance-mode-activated-remote:<min>` | 0 | controller, fridge | `controller.cpp:574`, `fridge.cpp:634` |
 | `message-smart-socket-connected:<role>` | 0 | pairing or `socket_set` | `wifi.cpp:3021,3347` |
