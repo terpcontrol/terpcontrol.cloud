@@ -22,8 +22,10 @@ import { STILL_REQUEST } from '@modules/v1/camera/still-request';
 import { TerpCamP2PService } from '@modules/v1/camera/terpcam-p2p.service';
 import { FirmwareRolloutService } from '@modules/v1/fleet/firmware-rollout.service';
 import { FleetModule } from '@modules/v1/fleet/fleet.module';
+import { CLIMATE_PRESETS } from '@modules/v1/grow/climate-presets.port';
 import { MAINTENANCE_STARTER } from '@modules/v1/diary/maintenance.port';
 import { DEVICE_CONFIGURATION_WRITER } from '@modules/v1/plan/device-configuration.port';
+import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/climate-presets.service';
 
 /**
  * Where the slices are joined to each other.
@@ -42,7 +44,7 @@ import { DEVICE_CONFIGURATION_WRITER } from '@modules/v1/plan/device-configurati
  */
 @Global()
 @Module({
-  imports: [AlarmModule, CameraModule, DataModule, DeviceProtocolModule, FleetModule, TunnelModule],
+  imports: [AlarmModule, CameraModule, ClimatePresetsModule, DataModule, DeviceProtocolModule, FleetModule, TunnelModule],
   providers: [
     // What a device published, once it has been read: the measurement store,
     // the alarm state machine, the camera pipeline, the tunnel, and the rollout
@@ -65,6 +67,9 @@ import { DEVICE_CONFIGURATION_WRITER } from '@modules/v1/plan/device-configurati
     // A quarter of an hour in the tent keeps its devices quiet, and the same
     // module is what knows how to tell them.
     { provide: MAINTENANCE_STARTER, useExisting: DevicePublisherService },
+    // A grow entering a phase with a preset puts the tent it stands in on that
+    // climate, which is the space slice's table and the space slice's write.
+    { provide: CLIMATE_PRESETS, useExisting: ClimatePresetsService },
   ],
   exports: [
     DEVICE_SAMPLE_SINK,
@@ -77,6 +82,7 @@ import { DEVICE_CONFIGURATION_WRITER } from '@modules/v1/plan/device-configurati
     SERIES_READER,
     DEVICE_CONFIGURATION_WRITER,
     MAINTENANCE_STARTER,
+    CLIMATE_PRESETS,
   ],
 })
 export class WiringModule {}

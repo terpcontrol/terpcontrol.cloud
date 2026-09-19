@@ -1,11 +1,21 @@
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import type { DeviceConfiguration } from '@fg2/shared-types/v1';
 import { AccessGuard } from '@common/v1/access.guard';
 import { AccessService } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { ProblemException } from '@common/v1/problem';
+import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { DataService } from '@modules/data/data.service';
 import { DevicesService } from '@modules/v1/device/devices.service';
+import { GrowsService } from '@modules/v1/grow/grows.service';
+import { PhaseWriterService } from '@modules/v1/phase/phase-writer.service';
+import { DeviceConfigurationWriter } from '@modules/v1/plan/device-configuration.port';
+import { PlanProgressService } from '@modules/v1/plan/plan-progress.service';
+import { PlanService } from '@modules/v1/plan/plan.service';
+import { MailService } from '@modules/mail/mail.service';
+import { ClimatePresetsService } from '@modules/v1/space/climate-presets.service';
+import { PresetApplicationsService } from '@modules/v1/space/preset-applications.service';
 import { SpaceLiveService } from '@modules/v1/space/space-live.service';
 import { SpacesController } from '@modules/v1/space/spaces.controller';
 import { SpacesService } from '@modules/v1/space/spaces.service';
@@ -45,8 +55,12 @@ const demo: AccessContext = { userId: 'user-demo', isAdmin: false, isDemo: true,
 let db: V1TestDatabase;
 let access: AccessService;
 let spaces: SpacesService;
+let presets: PresetApplicationsService;
 let controller: SpacesController;
 let guard: AccessGuard;
+
+/** What was sent to a device, since a unit suite has no broker to send it over. */
+let configured: { deviceId: string; settings: DeviceConfiguration }[];
 
 const seed = async (): Promise<void> => {
   await db.spaces.create([
@@ -85,12 +99,59 @@ afterAll(async () => {
   await db.stop();
 });
 
+/**
+ * The preset half of this controller, built for real against the same database:
+ * what is asked of it here is who may apply one, and that decision is the
+ * guard's rather than the service's. Nothing is sent to a device, because there
+ * is no broker in a unit suite.
+ */
+const presetsOf = (): PresetApplicationsService => {
+  const written = new EntryWriterService(db.entries);
+  const phases = new PhaseWriterService(db.grows, written, db.entries);
+  const configuration: DeviceConfigurationWriter = {
+    applyConfiguration: async (deviceId, settings) => {
+      configured.push({ deviceId, settings });
+      return true;
+    },
+  };
+  const grows = new GrowsService(
+    db.grows,
+    db.plants,
+    db.devices,
+    db.memberships,
+    db.spaces,
+    db.users,
+    db.shareLinks,
+    db.entries,
+    access,
+    phases,
+    written,
+  );
+  const plans = new PlanService(
+    db.plans,
+    new PlanProgressService(db.plans, db.devices, db.users, written, phases, { send: async () => undefined } as unknown as MailService),
+  );
+
+  return new PresetApplicationsService(
+    db.devices,
+    db.grows,
+    new ClimatePresetsService(db.devices, configuration),
+    spaces,
+    phases,
+    plans,
+    grows,
+    access,
+  );
+};
+
 beforeEach(async () => {
   await db.reset();
   access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
   const devices = new DevicesService(db.devices, db.claimCodes, db.spaces, db.memberships, db.cameras, db.plans, db.alarmRules, access);
   spaces = new SpacesService(db.spaces, db.memberships, db.invites, db.shareLinks, db.devices, db.cameras, db.grows, devices, access);
-  controller = new SpacesController(spaces, new SpaceLiveService(db.devices, db.cameras, {} as DataService), access);
+  configured = [];
+  presets = presetsOf();
+  controller = new SpacesController(spaces, new SpaceLiveService(db.devices, db.cameras, {} as DataService), presets, access);
   guard = new AccessGuard(new Reflector(), access);
   await seed();
 });
@@ -362,6 +423,232 @@ describe('what stands in it', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// The phase tiles
+// ---------------------------------------------------------------------------
+
+/**
+ * Applying a climate preset: the tent is put on the stage's climate and the grow
+ * standing in it enters the stage. What is asserted is that neither invents the
+ * other - a tent with no grow in it still has its climate written, and a
+ * controller merely being on invents no grow - and that what reaches the device
+ * is the section it was tuned with rather than a fresh one.
+ */
+const CONTROLLER = 'device-controller';
+const GROW_HERE = 'grow-here';
+const GROW_ELSEWHERE = 'grow-elsewhere';
+const A_WHILE_AGO = new Date('2026-04-01T08:00:00.000Z');
+
+/** The firmware's own defaults, plus the ramps somebody tuned: lights on at 06:00, off at 18:00. */
+const TUNED: DeviceConfiguration = {
+  workmode: 'small',
+  daynight: { day: 21600, night: 64800, minimalDehumidifierOffTime: 240 },
+  day: { temperature: 25, humidity: 60 },
+  night: { temperature: 21, humidity: 55 },
+  co2: { target: 300 },
+  lights: { sunrise: 15, sunset: 15, limit: 100 },
+};
+
+const aController = (spaceId: string | null = SPACE, configuration: DeviceConfiguration | null = TUNED) =>
+  db.devices.create({ id: CONTROLLER, type: 'controller', ownerId: OWNER, spaceId, configuration });
+
+const aGrowIn = (id: string, spaceId: string) =>
+  db.grows.create({
+    id,
+    ownerId: OWNER,
+    name: id,
+    type: 'photoperiod',
+    slug: id,
+    startedAt: A_WHILE_AGO,
+    placements: [{ id: `placement-${id}`, spaceId, startedAt: A_WHILE_AGO, endedAt: null, plantIds: null }],
+  });
+
+const aRunningPlan = (stageOfTheNextStep: string | null) =>
+  db.plans.create({
+    id: 'plan-1',
+    deviceId: CONTROLLER,
+    name: 'The plan',
+    steps: [
+      { id: 'step-1', name: 'Veg', stage: 'vegetative', duration: { value: 3, unit: 'weeks' }, settings: {} },
+      { id: 'step-2', name: 'Next', stage: stageOfTheNextStep, duration: { value: 8, unit: 'weeks' }, settings: {} },
+    ],
+    loop: false,
+    notify: { mode: 'off', email: null, writeEntries: true },
+    state: { status: 'running', activeStepIndex: 0, stepStartedAt: A_WHILE_AGO, pausedElapsedMs: 0 },
+  });
+
+describe('applying a climate preset', () => {
+  it('puts the controllers standing here on the stage´s climate', async () => {
+    await aController();
+    const applied = await presets.apply(session(OWNER), SPACE, { stage: 'vegetative' });
+
+    expect(applied.deviceIds).toEqual([CONTROLLER]);
+    expect(configured[0].settings).toMatchObject({
+      day: { temperature: 26, humidity: 62 },
+      night: { temperature: 22, humidity: 58 },
+      co2: { target: 900 },
+      lights: { limit: 80 },
+    });
+  });
+
+  it('keeps the hour the light comes on and the tuning around it, and writes only how long it stays on', async () => {
+    await aController();
+    await presets.apply(session(OWNER), SPACE, { stage: 'flowering' });
+
+    // Twelve hours from the same 06:00, and the ramps and the dehumidifier
+    // timing untouched: a preset is a target climate, not a re-tuned tent.
+    expect(configured[0].settings).toMatchObject({
+      daynight: { day: 21600, night: 21600 + 12 * 60 * 60, minimalDehumidifierOffTime: 240 },
+      lights: { sunrise: 15, sunset: 15, limit: 100 },
+    });
+  });
+
+  it('draws late flower from the preset on top of the stage rather than from a seventh stage', async () => {
+    await aController();
+    const applied = await presets.apply(session(OWNER), SPACE, { stage: 'flowering', preset: 'late_flowering' });
+
+    expect(applied.stage).toBe('flowering');
+    expect(configured[0].settings).toMatchObject({ day: { temperature: 24, humidity: 45 }, night: { temperature: 18, humidity: 45 } });
+  });
+
+  it('falls back to the stage itself for a preset the table has never heard of', async () => {
+    await aController();
+    await presets.apply(session(OWNER), SPACE, { stage: 'vegetative', preset: 'whatever_the_client_ships_next' });
+
+    expect(configured[0].settings).toMatchObject({ day: { temperature: 26, humidity: 62 } });
+  });
+
+  it('writes nothing to a device that states no targets, because a plug has no climate', async () => {
+    await db.devices.create({ id: 'device-plug', type: 'plug', ownerId: OWNER, spaceId: SPACE, configuration: null });
+    const applied = await presets.apply(session(OWNER), SPACE, { stage: 'vegetative' });
+
+    expect(applied.deviceIds).toEqual([]);
+    expect(configured).toEqual([]);
+  });
+
+  it('sets the phase of the grow standing here, and marks it as the preset´s', async () => {
+    await aController();
+    await aGrowIn(GROW_HERE, SPACE);
+
+    const applied = await presets.apply(session(OWNER), SPACE, { stage: 'vegetative' });
+
+    expect(applied).toMatchObject({ growId: GROW_HERE, growDecisionNeeded: false, decisions: [] });
+    expect(applied.phaseId).toEqual(expect.any(String));
+
+    const grow = await db.grows.findOne({ id: GROW_HERE }).lean();
+    expect(grow?.phases[0]).toMatchObject({ stage: 'vegetative', source: 'preset', setBy: null, deviceId: CONTROLLER });
+    expect(grow?.phases[0].targets).toMatchObject({ day: { temperature: 26 } });
+  });
+
+  it('names the phase the grow already stood in rather than appending it twice', async () => {
+    await aController();
+    await aGrowIn(GROW_HERE, SPACE);
+
+    const first = await presets.apply(session(OWNER), SPACE, { stage: 'vegetative' });
+    const again = await presets.apply(session(OWNER), SPACE, { stage: 'vegetative' });
+
+    expect(again.phaseId).toBe(first.phaseId);
+    expect((await db.grows.findOne({ id: GROW_HERE }).lean())?.phases).toHaveLength(1);
+  });
+
+  it('asks what to do about the grow where none stands here, and changes the tent anyway', async () => {
+    await aController();
+    const applied = await presets.apply(session(OWNER), SPACE, { stage: 'vegetative' });
+
+    expect(applied).toMatchObject({ growId: null, phaseId: null, growDecisionNeeded: true });
+    expect(applied.decisions).toEqual(['start_grow', 'move_grow', 'climate_only']);
+    expect(applied.deviceIds).toEqual([CONTROLLER]);
+  });
+
+  it('does not ask a space that has been told never to', async () => {
+    await aController();
+    await db.spaces.updateOne({ id: SPACE }, { $set: { presetPrompt: 'never' } });
+
+    const applied = await presets.apply(session(OWNER), SPACE, { stage: 'vegetative' });
+    expect(applied).toMatchObject({ growDecisionNeeded: false, decisions: [] });
+  });
+
+  it('stops asking once the client has answered that only the climate was meant', async () => {
+    await aController();
+    const applied = await presets.apply(session(OWNER), SPACE, { stage: 'vegetative', decision: 'climate_only' });
+
+    expect(applied).toMatchObject({ growId: null, growDecisionNeeded: false, decisions: [] });
+  });
+
+  it('leaves the new-grow sheet to start a grow, because this route carries neither a name nor plants', async () => {
+    await aController();
+    const applied = await presets.apply(session(OWNER), SPACE, { stage: 'vegetative', decision: 'start_grow' });
+
+    expect(applied).toMatchObject({ growId: null, growDecisionNeeded: false });
+    expect(await db.grows.countDocuments()).toBe(0);
+  });
+
+  it('moves the grow the client named here and sets its phase', async () => {
+    await aController();
+    await aGrowIn(GROW_ELSEWHERE, OTHER_SPACE);
+
+    const applied = await presets.apply(session(OWNER), SPACE, { stage: 'flowering', decision: 'move_grow', growId: GROW_ELSEWHERE });
+
+    expect(applied.growId).toBe(GROW_ELSEWHERE);
+    const grow = await db.grows.findOne({ id: GROW_ELSEWHERE }).lean();
+    expect(grow?.placements.filter(row => row.endedAt === null).map(row => row.spaceId)).toEqual([SPACE]);
+    expect(grow?.phases[0]).toMatchObject({ stage: 'flowering', source: 'preset' });
+  });
+
+  it('refuses to move a grow the caller may not manage', async () => {
+    await aController();
+    await db.grows.create({
+      id: GROW_ELSEWHERE,
+      ownerId: STRANGER,
+      name: 'Somebody else´s',
+      type: 'photoperiod',
+      slug: GROW_ELSEWHERE,
+      startedAt: A_WHILE_AGO,
+      placements: [],
+    });
+
+    const problem = await refusal(() => presets.apply(session(OWNER), SPACE, { stage: 'flowering', decision: 'move_grow', growId: GROW_ELSEWHERE }));
+    expect(problem.problem.status).toBe(404);
+  });
+
+  it('refuses a move that names no grow', async () => {
+    await aController();
+    const problem = await refusal(() => presets.apply(session(OWNER), SPACE, { stage: 'flowering', decision: 'move_grow' }));
+
+    expect(problem.problem.code).toBe('grow_not_named');
+  });
+
+  /**
+   * A plan re-applies its step hourly, so the two cannot both hold the tent. The
+   * preset is written either way; what changes is whether the plan is carried
+   * forward to the same stage or stopped where it is.
+   */
+  it('moves a running plan on where its next step carries the stage that was asked for', async () => {
+    await aController();
+    await aRunningPlan('flowering');
+
+    const applied = await presets.apply(session(OWNER), SPACE, { stage: 'flowering' });
+
+    expect(applied.planEffect).toBe('skipped');
+    expect((await db.plans.findOne({ id: 'plan-1' }).lean())?.state).toMatchObject({ status: 'running', activeStepIndex: 1 });
+  });
+
+  it('pauses a running plan whose next step does not, so the preset is what the tent keeps', async () => {
+    await aController();
+    await aRunningPlan('curing');
+
+    const applied = await presets.apply(session(OWNER), SPACE, { stage: 'flowering' });
+
+    expect(applied.planEffect).toBe('paused');
+    expect((await db.plans.findOne({ id: 'plan-1' }).lean())?.state).toMatchObject({ status: 'paused', activeStepIndex: 0 });
+  });
+
+  it('leaves a tent with no plan in it alone', async () => {
+    await aController();
+    expect((await presets.apply(session(OWNER), SPACE, { stage: 'flowering' })).planEffect).toBe('none');
+  });
+});
+
 /**
  * Every route of this controller, run end to end for every kind of caller: the
  * guard that decides from what the route declares, and then the handler, which
@@ -404,6 +691,12 @@ const ROUTES: RouteCase[] = [
     params: { id: SPACE, deviceId: DEVICE },
     setUp: () => db.devices.updateOne({ id: DEVICE }, { $set: { spaceId: SPACE } }),
     run: ctx => controller.removeDevice(ctx, SPACE, DEVICE),
+  },
+  {
+    name: 'apply a preset',
+    handler: 'applyPreset',
+    params: { id: SPACE },
+    run: ctx => controller.applyPreset(ctx, SPACE, { stage: 'vegetative' }),
   },
 ];
 
@@ -485,6 +778,7 @@ describe('who may do what', () => {
       { name: 'delete', need: 'own', subject: 'space', param: 'id' },
       { name: 'place a device', need: 'manage', subject: 'space', param: 'id' },
       { name: 'take a device out', need: 'manage', subject: 'space', param: 'id' },
+      { name: 'apply a preset', need: 'manage', subject: 'space', param: 'id' },
     ]);
   });
 });

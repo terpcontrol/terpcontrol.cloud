@@ -7,14 +7,20 @@ import type {
   GrowListItem,
   GrowthStage,
   GrowUpdate,
+  HarvestCreate,
+  HarvestResult,
   Phase,
   PhaseCreate,
   PhaseTargets,
+  PhaseUpdate,
   Placement,
   PlacementCreate,
+  PlacementUpdate,
   Plant,
   PlantCreate,
   PlantUpdate,
+  SplitCreate,
+  SplitResult,
   UserPrivacy,
 } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
@@ -25,6 +31,7 @@ import { conflict, notFound, unprocessable } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
+import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
@@ -47,7 +54,15 @@ import { NOTHING_HIDDEN, Redaction, redactionOf, serialiseGrow, serialisePhase, 
  * makes a phase "auto".
  */
 
+type StoredPhase = GrowDocument['phases'][number];
 type StoredPlacement = GrowDocument['placements'][number];
+
+/** What a move says: where the plants go, when, and which of them. */
+interface Move {
+  spaceId: string | null;
+  startedAt: Date;
+  plantIds: string[] | null;
+}
 
 @Injectable()
 export class GrowsService {
@@ -59,6 +74,10 @@ export class GrowsService {
     @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
     @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
     @InjectModel(MODEL_V1.shareLink) private readonly shareLinks: Model<ShareLinkDocument>,
+    // A move and a harvest each leave a line behind, and correcting one moves
+    // the line with it: the rows are read here as well as written through the
+    // writer below.
+    @InjectModel(MODEL_V1.entry) private readonly entryRows: Model<EntryDocument>,
     private readonly access: AccessService,
     private readonly phases: PhaseWriterService,
     private readonly entries: EntryWriterService,
@@ -334,6 +353,32 @@ export class GrowsService {
   public async removePlant(id: string): Promise<void> {
     const removed = await this.plants.findOneAndDelete({ id }).lean<PlantDocument>();
     if (!removed) throw notFound('plant_not_found', 'There is no plant with that id.');
+
+    await this.forgetPlant(removed.growId, id);
+  }
+
+  /**
+   * A plant that is gone leaves the grow's two lists as well.
+   *
+   * A phase and a placement each state a set of plants, and an id in one of them
+   * that names no plant any more is a plant the grow still claims to have: the
+   * summary puts it somewhere and the count includes it. A row whose whole scope
+   * was that one plant goes with it, because a phase of nobody and a placement
+   * of nobody say nothing about the rest of the grow.
+   */
+  private async forgetPlant(growId: string, plantId: string): Promise<void> {
+    const grow = await this.grows.findOne({ id: growId }).lean<GrowDocument>();
+    if (!grow) return;
+
+    const without = <T extends { plantIds: string[] | null }>(rows: T[]): T[] =>
+      rows.flatMap(row => {
+        if (row.plantIds === null || !row.plantIds.includes(plantId)) return [row];
+
+        const kept = row.plantIds.filter(id => id !== plantId);
+        return kept.length > 0 ? [{ ...row, plantIds: kept }] : [];
+      });
+
+    await this.grows.updateOne({ id: growId }, { $set: { phases: without(grow.phases), placements: without(grow.placements) } });
   }
 
   // -------------------------------------------------------------------------
@@ -351,29 +396,76 @@ export class GrowsService {
     const grow = await this.require(growId);
     const plantIds = await this.scopeOf(grow, body.plantIds ?? null);
 
-    const preset = body.preset ?? null;
-    const spaceId = spaceOf(grow, plantIds);
-    const applied = preset !== null && spaceId !== null ? ((await this.presets?.applyToSpace(spaceId, body.stage, preset)) ?? []) : [];
+    const phase = await this.enterPhase(
+      growId,
+      {
+        stage: body.stage,
+        preset: body.preset ?? null,
+        plantIds: body.plantIds ?? null,
+        startedAt: body.startedAt ? new Date(body.startedAt) : undefined,
+      },
+      spaceOf(grow, plantIds),
+      setBy,
+    );
+
+    return serialisePhase(phase, hide);
+  }
+
+  /**
+   * The phase itself, whether it was the stage picker or a split that asked for
+   * it. `spaceId` is where the plants it is about stand, which the caller works
+   * out - a split knows it, because it has just put them there.
+   */
+  private async enterPhase(
+    growId: string,
+    request: { stage: GrowthStage; preset: string | null; plantIds: string[] | null; startedAt?: Date },
+    spaceId: string | null,
+    setBy: string | null,
+  ): Promise<StoredPhase> {
+    const applied =
+      request.preset !== null && spaceId !== null ? ((await this.presets?.applyToSpace(spaceId, request.stage, request.preset)) ?? []) : [];
     const controller = applied.length > 0 ? applied[0] : await this.controllerIn(spaceId);
 
     const phase = await this.phases.setPhase({
       growId,
-      stage: body.stage,
-      preset,
+      stage: request.stage,
+      preset: request.preset,
       source: applied.length > 0 ? 'preset' : 'human',
       // The contract names the person who picked the stage, and nobody picked
       // one when a preset wrote the phase.
       setBy: applied.length > 0 ? null : setBy,
-      plantIds: body.plantIds ?? null,
+      plantIds: request.plantIds,
       deviceId: controller?.deviceId ?? null,
       spaceId,
       targets: controller?.targets ?? null,
-      startedAt: body.startedAt ? new Date(body.startedAt) : undefined,
+      startedAt: request.startedAt,
     });
 
     // Putting a grow into the phase it already stands in changes nothing and is
     // not a failure; the phase it stands in comes back.
-    return serialisePhase(phase ?? (await this.phaseAlreadyStandingIn(growId, body.stage, preset)), hide);
+    return phase ?? (await this.phaseAlreadyStandingIn(growId, request.stage, request.preset));
+  }
+
+  /**
+   * A phase entered with the wrong stage or on the wrong day. The writer owns
+   * both halves of the correction - the phase and the line that announced it -
+   * so this is the scope check and nothing else.
+   */
+  public async updatePhase(growId: string, phaseId: string, body: PhaseUpdate, hide: Redaction): Promise<Phase> {
+    if (body.plantIds !== undefined && body.plantIds !== null) await this.scopeOf(await this.require(growId), body.plantIds);
+
+    const corrected = await this.phases.correctPhase(growId, phaseId, {
+      stage: body.stage,
+      preset: body.preset,
+      startedAt: body.startedAt ? new Date(body.startedAt) : undefined,
+      plantIds: body.plantIds,
+    });
+
+    return serialisePhase(corrected, hide);
+  }
+
+  public removePhase(growId: string, phaseId: string): Promise<void> {
+    return this.phases.removePhase(growId, phaseId);
   }
 
   private async phaseAlreadyStandingIn(growId: string, stage: GrowthStage, preset: string | null): Promise<GrowDocument['phases'][number]> {
@@ -394,39 +486,239 @@ export class GrowsService {
    */
   public async addPlacement(ctx: AccessContext, growId: string, body: PlacementCreate, authorId: string | null, hide: Redaction): Promise<Placement> {
     const grow = await this.require(growId);
+    await this.scopeOf(grow, body.plantIds ?? null);
+    await this.requireSpaceFor(ctx, body.spaceId);
+
+    const placement = await this.movePlants(
+      grow,
+      { spaceId: body.spaceId, startedAt: body.startedAt ? new Date(body.startedAt) : new Date(), plantIds: body.plantIds ?? null },
+      authorId,
+    );
+
+    return serialisePlacement(placement, hide);
+  }
+
+  /** The move itself, which a split makes as well: the open placement of these plants is closed and a new one opened. */
+  private async movePlants(grow: GrowDocument, move: Move, authorId: string | null): Promise<StoredPlacement> {
     const everything = await this.scopeOf(grow, null);
-    const moving = new Set(await this.scopeOf(grow, body.plantIds ?? null));
-
-    // Moving plants into a space that exists is managing that space.
-    if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
-
-    const startedAt = body.startedAt ? new Date(body.startedAt) : new Date();
-    const placement: StoredPlacement = { id: uuidv4(), spaceId: body.spaceId, startedAt, endedAt: null, plantIds: body.plantIds ?? null };
+    const moving = new Set(move.plantIds ?? everything);
+    // A move that names no plants is the whole grow moving, and a grow with no
+    // plants of its own - a migrated one has none - moves as much as any other.
+    // Asked as "is this every plant" rather than by matching ids, which an empty
+    // set never does, and which would leave the grow open in two places at once.
+    const takesEverything = move.plantIds === null;
+    const placement: StoredPlacement = { id: uuidv4(), spaceId: move.spaceId, startedAt: move.startedAt, endedAt: null, plantIds: move.plantIds };
 
     const placements = grow.placements.flatMap<StoredPlacement>(existing => {
       const covered = existing.plantIds ?? everything;
-      if (existing.endedAt !== null || !covered.some(plantId => moving.has(plantId))) return [existing];
+      if (existing.endedAt !== null || !(takesEverything || covered.some(plantId => moving.has(plantId)))) return [existing];
 
       const stayed = covered.filter(plantId => !moving.has(plantId));
       return [
-        { ...existing, endedAt: startedAt },
-        ...(stayed.length > 0 ? [{ id: uuidv4(), spaceId: existing.spaceId, startedAt, endedAt: null, plantIds: stayed }] : []),
+        { ...existing, endedAt: move.startedAt },
+        ...(stayed.length > 0 ? [{ id: uuidv4(), spaceId: existing.spaceId, startedAt: move.startedAt, endedAt: null, plantIds: stayed }] : []),
       ];
     });
 
-    await this.grows.updateOne({ id: growId }, { $set: { placements: [...placements, placement] } });
+    await this.grows.updateOne({ id: grow.id }, { $set: { placements: [...placements, placement] } });
 
     await this.entries.write({
       source: 'human',
       authorId,
-      growId,
-      spaceId: body.spaceId,
-      plantIds: body.plantIds ?? [],
-      occurredAt: startedAt,
-      values: { kind: 'move', placementId: placement.id, spaceId: body.spaceId },
+      growId: grow.id,
+      spaceId: move.spaceId,
+      plantIds: move.plantIds ?? [],
+      occurredAt: move.startedAt,
+      values: { kind: 'move', placementId: placement.id, spaceId: move.spaceId },
     });
 
-    return serialisePlacement(placement, hide);
+    return placement;
+  }
+
+  /**
+   * A placement recorded wrongly, `endedAt` included - which is also how a
+   * placement somebody forgot to close is closed on the day the plants really
+   * left. Moving them is `POST /grows/{id}/placements` and appends a row; this
+   * repairs the row that is already there, and the line that announced it with
+   * it, because the timeline says where the plants went and would otherwise go
+   * on saying the wrong thing.
+   */
+  public async updatePlacement(ctx: AccessContext, growId: string, placementId: string, body: PlacementUpdate, hide: Redaction): Promise<Placement> {
+    const grow = await this.require(growId);
+    const standing = grow.placements.find(placement => placement.id === placementId);
+    if (!standing) throw notFound('placement_not_found', 'There is no placement of that grow with that id.');
+
+    if (body.plantIds !== undefined && body.plantIds !== null) await this.scopeOf(grow, body.plantIds);
+    if (body.spaceId !== undefined) await this.requireSpaceFor(ctx, body.spaceId);
+
+    const corrected: StoredPlacement = {
+      ...standing,
+      spaceId: body.spaceId === undefined ? standing.spaceId : body.spaceId,
+      startedAt: body.startedAt ? new Date(body.startedAt) : standing.startedAt,
+      endedAt: body.endedAt === undefined ? standing.endedAt : body.endedAt === null ? null : new Date(body.endedAt),
+      plantIds: body.plantIds === undefined ? standing.plantIds : body.plantIds,
+    };
+
+    if (corrected.endedAt !== null && corrected.endedAt < corrected.startedAt) {
+      throw unprocessable('placement_ends_before_it_starts', 'Plants cannot leave a place before they arrived in it.', [
+        { field: 'endedAt', code: 'before_start', detail: 'The end of a placement is not earlier than its start.' },
+      ]);
+    }
+
+    const placements = [...grow.placements.filter(placement => placement.id !== placementId), corrected].sort(
+      (one, other) => one.startedAt.getTime() - other.startedAt.getTime(),
+    );
+    await this.grows.updateOne({ id: growId }, { $set: { placements } });
+
+    await this.entryRows.updateOne(
+      { growId, kind: 'move', 'values.placementId': placementId },
+      {
+        $set: {
+          occurredAt: corrected.startedAt,
+          spaceId: corrected.spaceId,
+          plantIds: corrected.plantIds ?? [],
+          'values.spaceId': corrected.spaceId,
+        },
+      },
+    );
+
+    return serialisePlacement(corrected, hide);
+  }
+
+  /**
+   * A move that never happened. The line that announced it goes with it, because
+   * a diary entry naming a placement that is gone points at nothing.
+   *
+   * A grow always answers where it is - the overview, the week cards and
+   * `access()` all read the open placements to say which spaces a grow is in -
+   * so the last open one is not removed. Saying "nowhere" is a move to a
+   * `spaceId` of null, which is a place a grow can be in rather than the absence
+   * of one.
+   */
+  public async removePlacement(growId: string, placementId: string): Promise<void> {
+    const grow = await this.require(growId);
+    if (!grow.placements.some(placement => placement.id === placementId)) {
+      throw notFound('placement_not_found', 'There is no placement of that grow with that id.');
+    }
+
+    const kept = grow.placements.filter(placement => placement.id !== placementId);
+    if (!kept.some(placement => placement.endedAt === null)) {
+      throw conflict('grow_stands_nowhere', 'This is the only placement saying where the grow is. Move the grow instead of removing it.');
+    }
+
+    await this.grows.updateOne({ id: growId }, { $set: { placements: kept } });
+    await this.entryRows.deleteMany({ growId, kind: 'move', 'values.placementId': placementId });
+  }
+
+  /** Putting plants into a space that exists is managing that space, which the guard on the route has not decided about. */
+  private async requireSpaceFor(ctx: AccessContext, spaceId: string | null | undefined): Promise<void> {
+    if (spaceId) await this.access.require(ctx, subjectRef('space', spaceId), 'manage');
+  }
+
+  // -------------------------------------------------------------------------
+  // Harvests and splits
+  // -------------------------------------------------------------------------
+
+  /**
+   * Cutting plants down. Naming none takes every plant that is still standing,
+   * which is the ordinary harvest; naming some is the staggered one, and the
+   * rest of the grow carries on above them.
+   *
+   * A grow ends when its last plant comes down, because there is nothing left
+   * for it to be a story of. It ends on the day of the harvest rather than the
+   * day it was typed in, so the day counter stops where the grow really did.
+   */
+  public async harvest(growId: string, body: HarvestCreate, authorId: string | null, hide: Redaction): Promise<HarvestResult> {
+    const grow = await this.require(growId);
+    const standing = await this.plantsOf(growId);
+
+    const named = body.plantIds ?? null;
+    if (named !== null) await this.scopeOf(grow, named);
+
+    const cut = named === null ? standing.filter(plant => plant.status === 'active') : standing.filter(plant => named.includes(plant.id));
+    const again = cut.filter(plant => plant.harvest !== null);
+    if (again.length > 0) {
+      throw conflict('plants_already_harvested', 'Some of the plants named have already come down. Correct what one weighed on the plant itself.', [
+        { field: 'plantIds', code: 'already_harvested', detail: again.map(plant => plant.label).join(', ') },
+      ]);
+    }
+    if (cut.length === 0) throw conflict('nothing_to_harvest', 'Every plant of this grow has already come down.');
+
+    const harvestedAt = body.harvestedAt ? new Date(body.harvestedAt) : new Date();
+    const wet = shareOut(body.wetWeightG ?? null, cut.length);
+    const dry = shareOut(body.dryWeightG ?? null, cut.length);
+
+    const harvested = cut.map((plant, index) => ({
+      ...plant,
+      status: 'harvested' as const,
+      harvest: { harvestedAt, wetWeightG: wet[index], dryWeightG: dry[index] },
+    }));
+
+    await this.plants.bulkWrite(
+      harvested.map(plant => ({ updateOne: { filter: { id: plant.id }, update: { $set: { status: plant.status, harvest: plant.harvest } } } })),
+    );
+
+    const plantIds = harvested.map(plant => plant.id);
+    const entry = await this.entries.write({
+      source: 'human',
+      authorId,
+      growId,
+      spaceId: spaceOf(grow, plantIds),
+      plantIds,
+      occurredAt: harvestedAt,
+      // The totals as they were typed in, not a plant's share of them: the
+      // timeline states the harvest, and the shares are the plants' own.
+      values: { kind: 'harvest', wetWeightG: body.wetWeightG ?? null, dryWeightG: body.dryWeightG ?? null },
+    });
+
+    if (standing.every(plant => plantIds.includes(plant.id) || plant.status !== 'active') && grow.endedAt === null) {
+      await this.grows.updateOne({ id: growId }, { $set: { endedAt: harvestedAt } });
+    }
+
+    return { plants: harvested.map(plant => serialisePlant(plant, hide)), entryId: entry.id };
+  }
+
+  /**
+   * Some plants go their own way while the rest of the grow carries on: a mother
+   * kept back, a clone run started beside its parents, four drying in the fridge
+   * while four go on flowering.
+   *
+   * It is one action rather than a phase and a move made in turn, because those
+   * two would each leave the grow half split, and because the phase has to be
+   * read from where the plants have gone: the split is placed first, so a stage
+   * with a preset puts the fridge on it and snapshots what the fridge runs.
+   */
+  public async split(ctx: AccessContext, growId: string, body: SplitCreate, authorId: string | null, hide: Redaction): Promise<SplitResult> {
+    const grow = await this.require(growId);
+    await this.scopeOf(grow, body.plantIds);
+
+    if (body.stage === undefined && body.spaceId === undefined) {
+      throw unprocessable('split_does_nothing', 'A split gives the plants a phase of their own, a place of their own, or both.', [
+        { field: 'stage', code: 'nothing_to_do', detail: 'Name a stage, a space, or both.' },
+      ]);
+    }
+
+    const startedAt = body.startedAt ? new Date(body.startedAt) : new Date();
+    await this.requireSpaceFor(ctx, body.spaceId);
+
+    const placement =
+      body.spaceId === undefined ? null : await this.movePlants(grow, { spaceId: body.spaceId, startedAt, plantIds: body.plantIds }, authorId);
+
+    const phase =
+      body.stage === undefined
+        ? null
+        : await this.enterPhase(
+            growId,
+            { stage: body.stage, preset: body.preset ?? null, plantIds: body.plantIds, startedAt },
+            placement ? placement.spaceId : spaceOf(grow, body.plantIds),
+            authorId,
+          );
+
+    return {
+      plantIds: body.plantIds,
+      phase: phase && serialisePhase(phase, hide),
+      placement: placement && serialisePlacement(placement, hide),
+    };
   }
 
   /** The plants a request is about: the ones it names, checked against the grow, or all of them. */
@@ -473,6 +765,23 @@ const slugify = (name: string): string =>
     .slice(0, 60);
 
 const instantOrNull = (value: unknown): Date | null => (typeof value === 'string' ? new Date(value) : null);
+
+/**
+ * The harvest sheet weighs what came down, while the model keeps a weight per
+ * plant so that a staggered harvest adds up rather than being counted twice.
+ * So the figure is shared out evenly over the plants it was weighed for, and the
+ * last of them takes whatever rounding left over, which keeps the total exactly
+ * what somebody typed in. A plant that really weighed something else is
+ * corrected on the plant, which is what `PATCH /plants/{id}` is for.
+ */
+const shareOut = (total: number | null, count: number): (number | null)[] => {
+  if (total === null || count === 0) return Array.from({ length: count }, () => null);
+
+  const each = round(total / count);
+  return Array.from({ length: count }, (_, index) => (index < count - 1 ? each : round(total - each * (count - 1))));
+};
+
+const round = (value: number): number => Math.round(value * 100) / 100;
 
 const harvestOf = (harvest: PlantUpdate['harvest']): PlantDocument['harvest'] =>
   harvest ? { ...harvest, harvestedAt: new Date(harvest.harvestedAt) } : null;

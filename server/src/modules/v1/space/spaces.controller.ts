@@ -1,8 +1,17 @@
 import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
-import { Device, Space, SpaceCreate, SpaceLive, SpacePage, SpaceUpdate } from '@fg2/shared-types/v1';
-import { device as deviceShape, space as spaceShape, spaceCreate, spaceLive, spacePage, spaceUpdate } from '@fg2/shared-types/v1-schemas';
+import { Device, PresetApplication, PresetApplicationCreate, Space, SpaceCreate, SpaceLive, SpacePage, SpaceUpdate } from '@fg2/shared-types/v1';
+import {
+  device as deviceShape,
+  presetApplication,
+  presetApplicationCreate,
+  space as spaceShape,
+  spaceCreate,
+  spaceLive,
+  spacePage,
+  spaceUpdate,
+} from '@fg2/shared-types/v1-schemas';
 import { AuthGuard } from '@common/auth/auth.guard';
 import { AccessGuard, Caller, Requires } from '@common/v1/access.guard';
 import { AccessService, subjectRef } from '@common/v1/access.service';
@@ -10,6 +19,7 @@ import { AccessContext } from '@common/v1/access.types';
 import { V1Query, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
 import { V1Answer } from '../answer-shape';
+import { PresetApplicationsService } from './preset-applications.service';
 import { SpaceLiveService } from './space-live.service';
 import { SpacesService } from './spaces.service';
 
@@ -35,6 +45,7 @@ export class SpacesController {
   constructor(
     private readonly spaces: SpacesService,
     private readonly live: SpaceLiveService,
+    private readonly presets: PresetApplicationsService,
     private readonly access: AccessService,
   ) {}
 
@@ -109,6 +120,25 @@ export class SpacesController {
   @V1Answer(spaceShape)
   public unarchive(@Param('id') id: string): Promise<Space> {
     return this.spaces.archive(id, false);
+  }
+
+  /**
+   * The phase tiles: a climate preset written to whatever stands here, and the
+   * stage the grow standing here enters with it. It is `manage` rather than
+   * `log`, because what it changes is the tent's configuration.
+   */
+  @Post(':id/preset-applications')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(AuthGuard, AccessGuard)
+  @Requires('manage', 'space')
+  @ApiOperation({ summary: 'Put this space, and the grow in it, on a climate preset' })
+  @V1Answer(presetApplication, { status: HttpStatus.CREATED })
+  public applyPreset(
+    @Caller() ctx: AccessContext,
+    @Param('id') id: string,
+    @V1Body(presetApplicationCreate) body: PresetApplicationCreate,
+  ): Promise<PresetApplication> {
+    return this.presets.apply(ctx, id, body);
   }
 
   @Put(':id/devices/:deviceId')

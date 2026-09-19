@@ -8,7 +8,7 @@ import { ProblemException } from '@common/v1/problem';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { AppliedPreset, ClimatePresets } from '@modules/v1/grow/climate-presets.port';
-import { NOTHING_HIDDEN, growUpTo, summaryOf } from '@modules/v1/grow/grow-serialiser';
+import { NOTHING_HIDDEN, growUpTo, serialiseGrow, summaryOf } from '@modules/v1/grow/grow-serialiser';
 import { GrowsController } from '@modules/v1/grow/grows.controller';
 import { GrowsService } from '@modules/v1/grow/grows.service';
 import { PlantsController } from '@modules/v1/grow/plants.controller';
@@ -69,8 +69,9 @@ const build = (presetsPort: ClimatePresets | null): GrowsService => {
     db.spaces,
     db.users,
     db.shareLinks,
+    db.entries,
     access,
-    new PhaseWriterService(db.grows, entries),
+    new PhaseWriterService(db.grows, entries, db.entries),
     entries,
     presetsPort,
   );
@@ -455,6 +456,344 @@ describe('moving plants', () => {
     const grow = await started();
     await expect(grows.addPlacement(session(MEMBER), grow.id, { spaceId: FRIDGE }, MEMBER, NOTHING_HIDDEN)).rejects.toThrow(ProblemException);
   });
+
+  /**
+   * A grow the migration reconstructed carries no plants at all, and moving one
+   * has to close where it was all the same - otherwise it stands in two tents
+   * at once, which is what every reader of the placements would then believe.
+   */
+  it('moves a grow with no plants of its own, and closes where it was', async () => {
+    const grow = await started({ plants: [] });
+    await grows.addPlacement(session(OWNER), grow.id, { spaceId: FRIDGE }, OWNER, NOTHING_HIDDEN);
+
+    const moved = await grows.read(grow.id, NOTHING_HIDDEN);
+    expect(moved.placements.filter(row => row.endedAt === null).map(row => row.spaceId)).toEqual([FRIDGE]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Corrections
+// ---------------------------------------------------------------------------
+
+/**
+ * A phase and a placement are each one fact told twice - once in the grow's own
+ * list and once as the line that announced it - so what is asserted about every
+ * correction is that both moved. A diary still saying the old thing is read as
+ * the truth by every week card, which take their stage from the phases and their
+ * lines from the diary.
+ */
+const phaseLineOf = async (growId: string, phaseId: string) => db.entries.findOne({ growId, kind: 'phase', 'values.phaseId': phaseId }).lean();
+const moveLineOf = async (growId: string, placementId: string) =>
+  db.entries.findOne({ growId, kind: 'move', 'values.placementId': placementId }).lean();
+
+describe('correcting a phase', () => {
+  const WRONG_DAY = new Date('2026-05-03T08:00:00.000Z');
+
+  it('moves the stage and the line that announced it together', async () => {
+    const grow = await started();
+    const entered = await grows.addPhase(grow.id, { stage: 'seedling' }, OWNER, NOTHING_HIDDEN);
+
+    const corrected = await grows.updatePhase(grow.id, entered.id, { stage: 'vegetative' }, NOTHING_HIDDEN);
+
+    expect(corrected.stage).toBe('vegetative');
+    expect((await phaseLineOf(grow.id, entered.id))?.values).toMatchObject({ kind: 'phase', stage: 'vegetative' });
+  });
+
+  it('leaves who put the grow there alone, because a mistyped date decided nothing', async () => {
+    const grow = await started();
+    const entered = await grows.addPhase(grow.id, { stage: 'seedling', preset: 'early_seedling' }, OWNER, NOTHING_HIDDEN);
+    expect(entered.source).toBe('preset');
+
+    const corrected = await grows.updatePhase(grow.id, entered.id, { startedAt: WRONG_DAY.toISOString() }, NOTHING_HIDDEN);
+    expect(corrected).toMatchObject({ source: 'preset', setBy: null, deviceId: DEVICE });
+  });
+
+  it('moves the day counter with the date, and the line with it', async () => {
+    const grow = await started();
+    const entered = await grows.addPhase(grow.id, { stage: 'vegetative', startedAt: WRONG_DAY.toISOString() }, OWNER, NOTHING_HIDDEN);
+
+    await grows.updatePhase(grow.id, entered.id, { startedAt: STARTED_AT.toISOString() }, NOTHING_HIDDEN);
+
+    const read = serialiseGrow(await grows.require(grow.id), await plantsOfGrow(grow.id), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    expect(read.summary.dayNumber).toBe(11);
+    expect((await phaseLineOf(grow.id, entered.id))?.occurredAt).toEqual(STARTED_AT);
+  });
+
+  it('keeps the phases in date order when a correction moves one past another', async () => {
+    const grow = await started();
+    const first = await grows.addPhase(grow.id, { stage: 'seedling', startedAt: STARTED_AT.toISOString() }, OWNER, NOTHING_HIDDEN);
+    await grows.addPhase(grow.id, { stage: 'vegetative', startedAt: WRONG_DAY.toISOString() }, OWNER, NOTHING_HIDDEN);
+
+    await grows.updatePhase(grow.id, first.id, { startedAt: TEN_DAYS_LATER.toISOString() }, NOTHING_HIDDEN);
+
+    const read = await grows.read(grow.id, NOTHING_HIDDEN);
+    expect(read.phases.map(row => row.stage)).toEqual(['vegetative', 'seedling']);
+    expect(read.summary.stage).toBe('seedling');
+  });
+
+  it('refuses a scope with a plant of another grow in it', async () => {
+    const grow = await started();
+    const entered = await grows.addPhase(grow.id, { stage: 'vegetative' }, OWNER, NOTHING_HIDDEN);
+
+    await expect(grows.updatePhase(grow.id, entered.id, { plantIds: ['plant-elsewhere'] }, NOTHING_HIDDEN)).rejects.toThrow(ProblemException);
+  });
+
+  it('says there is no such phase rather than inventing one', async () => {
+    const grow = await started();
+    await expect(grows.updatePhase(grow.id, 'no-such-phase', { stage: 'drying' }, NOTHING_HIDDEN)).rejects.toThrow(ProblemException);
+  });
+});
+
+describe('taking a phase back', () => {
+  it('removes the line that announced it', async () => {
+    const grow = await started();
+    const entered = await grows.addPhase(grow.id, { stage: 'vegetative' }, OWNER, NOTHING_HIDDEN);
+
+    await grows.removePhase(grow.id, entered.id);
+
+    expect((await grows.read(grow.id, NOTHING_HIDDEN)).phases).toEqual([]);
+    expect(await phaseLineOf(grow.id, entered.id)).toBeNull();
+  });
+
+  it('gives the day counter back to the phase that is left', async () => {
+    const grow = await started();
+    const tooEarly = await grows.addPhase(grow.id, { stage: 'germination', startedAt: STARTED_AT.toISOString() }, OWNER, NOTHING_HIDDEN);
+    await grows.addPhase(grow.id, { stage: 'seedling', startedAt: new Date('2026-05-06T08:00:00.000Z').toISOString() }, OWNER, NOTHING_HIDDEN);
+
+    await grows.removePhase(grow.id, tooEarly.id);
+
+    const read = serialiseGrow(await grows.require(grow.id), await plantsOfGrow(grow.id), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    expect(read.summary.dayNumber).toBe(6);
+  });
+
+  it('says there is no such phase', async () => {
+    const grow = await started();
+    await expect(grows.removePhase(grow.id, 'no-such-phase')).rejects.toThrow(ProblemException);
+  });
+});
+
+describe('correcting a placement', () => {
+  it('closes one that was left open, on the day the plants really left', async () => {
+    const grow = await started();
+    const open = (await grows.read(grow.id, NOTHING_HIDDEN)).placements[0];
+
+    const closed = await grows.updatePlacement(session(OWNER), grow.id, open.id, { endedAt: TEN_DAYS_LATER.toISOString() }, NOTHING_HIDDEN);
+
+    expect(closed.endedAt).toBe(TEN_DAYS_LATER.toISOString());
+    expect((await grows.read(grow.id, NOTHING_HIDDEN)).summary.locations).toEqual([]);
+  });
+
+  it('moves the line that announced the move with it', async () => {
+    const grow = await started();
+    const moved = await grows.addPlacement(session(OWNER), grow.id, { spaceId: FRIDGE }, OWNER, NOTHING_HIDDEN);
+
+    await grows.updatePlacement(session(OWNER), grow.id, moved.id, { spaceId: null }, NOTHING_HIDDEN);
+
+    const line = await moveLineOf(grow.id, moved.id);
+    expect(line?.values).toMatchObject({ kind: 'move', spaceId: null });
+    expect(line?.spaceId).toBeNull();
+  });
+
+  it('refuses an end that comes before the start', async () => {
+    const grow = await started();
+    const open = (await grows.read(grow.id, NOTHING_HIDDEN)).placements[0];
+
+    await expect(
+      grows.updatePlacement(
+        session(OWNER),
+        grow.id,
+        open.id,
+        { startedAt: TEN_DAYS_LATER.toISOString(), endedAt: STARTED_AT.toISOString() },
+        NOTHING_HIDDEN,
+      ),
+    ).rejects.toThrow(ProblemException);
+  });
+
+  it('refuses a space the caller may not manage', async () => {
+    const grow = await started();
+    const open = (await grows.read(grow.id, NOTHING_HIDDEN)).placements[0];
+
+    await expect(grows.updatePlacement(session(MEMBER), grow.id, open.id, { spaceId: FRIDGE }, NOTHING_HIDDEN)).rejects.toThrow(ProblemException);
+  });
+});
+
+describe('taking a move back', () => {
+  it('removes the placement and the line that announced it', async () => {
+    const grow = await started();
+    const moved = await grows.addPlacement(
+      session(OWNER),
+      grow.id,
+      { spaceId: FRIDGE, plantIds: (await plantsOfGrow(grow.id)).slice(0, 1).map(plant => plant.id) },
+      OWNER,
+      NOTHING_HIDDEN,
+    );
+
+    await grows.removePlacement(grow.id, moved.id);
+
+    expect((await grows.read(grow.id, NOTHING_HIDDEN)).placements.map(row => row.id)).not.toContain(moved.id);
+    expect(await moveLineOf(grow.id, moved.id)).toBeNull();
+  });
+
+  it('refuses the only placement that says where the grow is', async () => {
+    const grow = await started();
+    const open = (await grows.read(grow.id, NOTHING_HIDDEN)).placements[0];
+
+    await expect(grows.removePlacement(grow.id, open.id)).rejects.toThrow(ProblemException);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Harvests and splits
+// ---------------------------------------------------------------------------
+
+describe('harvesting', () => {
+  it('cuts every plant that is still standing and ends the grow', async () => {
+    const grow = await started();
+    await grows.addPhase(grow.id, { stage: 'flowering' }, OWNER, NOTHING_HIDDEN);
+
+    const cut = await grows.harvest(grow.id, { harvestedAt: TEN_DAYS_LATER.toISOString() }, OWNER, NOTHING_HIDDEN);
+
+    expect(cut.plants).toHaveLength(3);
+    expect(cut.plants.every(plant => plant.status === 'harvested')).toBe(true);
+    expect((await grows.require(grow.id)).endedAt).toEqual(TEN_DAYS_LATER);
+  });
+
+  it('leaves the grow running while some of its plants stay up', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+
+    const cut = await grows.harvest(grow.id, { plantIds: [plants[0].id] }, OWNER, NOTHING_HIDDEN);
+
+    expect(cut.plants.map(plant => plant.id)).toEqual([plants[0].id]);
+    expect((await grows.require(grow.id)).endedAt).toBeNull();
+  });
+
+  it('ends the grow once the last of them comes down', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+
+    await grows.harvest(grow.id, { plantIds: [plants[0].id] }, OWNER, NOTHING_HIDDEN);
+    expect((await grows.require(grow.id)).endedAt).toBeNull();
+
+    await grows.harvest(grow.id, { plantIds: [plants[1].id, plants[2].id] }, OWNER, NOTHING_HIDDEN);
+    expect((await grows.require(grow.id)).endedAt).not.toBeNull();
+  });
+
+  it('shares the weight out so that the plants add up to exactly what was typed in', async () => {
+    const grow = await started();
+    const cut = await grows.harvest(grow.id, { wetWeightG: 800, dryWeightG: 181 }, OWNER, NOTHING_HIDDEN);
+
+    const total = (weights: (number | null)[]): number => weights.reduce<number>((sum, weight) => sum + (weight ?? 0), 0);
+    expect(total(cut.plants.map(plant => plant.harvest?.wetWeightG ?? null))).toBeCloseTo(800, 5);
+    expect(total(cut.plants.map(plant => plant.harvest?.dryWeightG ?? null))).toBeCloseTo(181, 5);
+  });
+
+  it('writes the harvest on the timeline with the totals, not with a plant´s share', async () => {
+    const grow = await started();
+    const cut = await grows.harvest(grow.id, { wetWeightG: 800, dryWeightG: 181 }, OWNER, NOTHING_HIDDEN);
+
+    const line = await db.entries.findOne({ id: cut.entryId }).lean();
+    expect(line?.values).toMatchObject({ kind: 'harvest', wetWeightG: 800, dryWeightG: 181 });
+    expect(line?.plantIds).toHaveLength(3);
+    expect(line?.spaceId).toBe(TENT);
+  });
+
+  it('refuses a plant that has already come down, so the report cannot count it twice', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+    await grows.harvest(grow.id, { plantIds: [plants[0].id] }, OWNER, NOTHING_HIDDEN);
+
+    await expect(grows.harvest(grow.id, { plantIds: [plants[0].id] }, OWNER, NOTHING_HIDDEN)).rejects.toThrow(ProblemException);
+  });
+
+  it('refuses a grow with nothing left to cut', async () => {
+    const grow = await started();
+    await grows.harvest(grow.id, {}, OWNER, NOTHING_HIDDEN);
+
+    await expect(grows.harvest(grow.id, {}, OWNER, NOTHING_HIDDEN)).rejects.toThrow(ProblemException);
+  });
+
+  it('refuses a plant that belongs to another grow', async () => {
+    const grow = await started();
+    await expect(grows.harvest(grow.id, { plantIds: ['plant-elsewhere'] }, OWNER, NOTHING_HIDDEN)).rejects.toThrow(ProblemException);
+  });
+
+  it('hands back no weights to a reader they are hidden from', async () => {
+    const grow = await started();
+    const cut = await grows.harvest(grow.id, { wetWeightG: 800, dryWeightG: 181 }, OWNER, { weights: true, counts: false, authors: true });
+
+    expect(cut.plants.every(plant => plant.harvest?.wetWeightG === null && plant.harvest?.dryWeightG === null)).toBe(true);
+  });
+});
+
+describe('splitting a grow', () => {
+  it('gives the plants a phase and a place of their own and leaves the rest where they were', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+    await grows.addPhase(grow.id, { stage: 'flowering' }, OWNER, NOTHING_HIDDEN);
+
+    const split = await grows.split(session(OWNER), grow.id, { plantIds: [plants[0].id], stage: 'drying', spaceId: FRIDGE }, OWNER, NOTHING_HIDDEN);
+
+    expect(split.phase).toMatchObject({ stage: 'drying', plantIds: [plants[0].id] });
+    expect(split.placement).toMatchObject({ spaceId: FRIDGE, plantIds: [plants[0].id] });
+
+    const read = await grows.read(grow.id, NOTHING_HIDDEN);
+    expect(read.summary.stage).toBe('flowering');
+    expect(read.summary.groups.map(group => group.stage)).toEqual(['flowering', 'drying']);
+    expect(read.summary.locations).toEqual([
+      { spaceId: TENT, plantIds: [plants[1].id, plants[2].id] },
+      { spaceId: FRIDGE, plantIds: [plants[0].id] },
+    ]);
+  });
+
+  it('reads the phase from where the plants have gone, not from where they were', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+
+    const split = await grows.split(
+      session(OWNER),
+      grow.id,
+      { plantIds: [plants[0].id], stage: 'drying', preset: 'slow_dry', spaceId: FRIDGE },
+      OWNER,
+      NOTHING_HIDDEN,
+    );
+
+    expect(applied).toEqual([{ spaceId: FRIDGE, stage: 'drying', preset: 'slow_dry' }]);
+    expect(split.phase?.source).toBe('preset');
+  });
+
+  it('gives them a phase alone where no space was named', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+
+    const split = await grows.split(session(OWNER), grow.id, { plantIds: [plants[0].id], stage: 'drying' }, OWNER, NOTHING_HIDDEN);
+
+    expect(split.placement).toBeNull();
+    expect(split.phase?.stage).toBe('drying');
+  });
+
+  it('refuses a split that gives them neither', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+
+    await expect(grows.split(session(OWNER), grow.id, { plantIds: [plants[0].id] }, OWNER, NOTHING_HIDDEN)).rejects.toThrow(ProblemException);
+  });
+
+  it('refuses a plant that belongs to another grow', async () => {
+    const grow = await started();
+    await expect(grows.split(session(OWNER), grow.id, { plantIds: ['plant-elsewhere'], stage: 'drying' }, OWNER, NOTHING_HIDDEN)).rejects.toThrow(
+      ProblemException,
+    );
+  });
+
+  it('refuses a space the caller may not manage', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+
+    await expect(grows.split(session(MEMBER), grow.id, { plantIds: [plants[0].id], spaceId: FRIDGE }, MEMBER, NOTHING_HIDDEN)).rejects.toThrow(
+      ProblemException,
+    );
+  });
 });
 
 describe('plants', () => {
@@ -484,6 +823,35 @@ describe('plants', () => {
 
     expect(await plantsOfGrow(grow.id)).toEqual([]);
     await expect(grows.read(grow.id, NOTHING_HIDDEN)).rejects.toThrow(ProblemException);
+  });
+
+  /**
+   * A phase and a placement each state a set of plants, so a plant that is gone
+   * has to leave both: an id in one of them that names no plant is a plant the
+   * grow still says it has, which the summary would put somewhere and the count
+   * would include.
+   */
+  it('leaves the scopes that named it when it is removed', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+    await grows.split(session(OWNER), grow.id, { plantIds: [plants[0].id, plants[1].id], stage: 'drying', spaceId: FRIDGE }, OWNER, NOTHING_HIDDEN);
+
+    await grows.removePlant(plants[0].id);
+
+    const read = await grows.read(grow.id, NOTHING_HIDDEN);
+    expect(read.phases.flatMap(row => row.plantIds ?? [])).toEqual([plants[1].id]);
+    expect(read.placements.flatMap(row => row.plantIds ?? [])).not.toContain(plants[0].id);
+    expect(read.summary.locations.flatMap(where => where.plantIds)).not.toContain(plants[0].id);
+  });
+
+  it('takes a scope that was only that plant away with it', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+    await grows.addPhase(grow.id, { stage: 'drying', plantIds: [plants[0].id] }, OWNER, NOTHING_HIDDEN);
+
+    await grows.removePlant(plants[0].id);
+
+    expect((await grows.read(grow.id, NOTHING_HIDDEN)).phases).toEqual([]);
   });
 });
 
@@ -573,7 +941,13 @@ const ROUTES = {
   'GET /grows/{id}/plants': GrowsController.prototype.plants,
   'POST /grows/{id}/plants': GrowsController.prototype.addPlant,
   'POST /grows/{id}/phases': GrowsController.prototype.addPhase,
+  'PATCH /grows/{id}/phases/{phaseId}': GrowsController.prototype.updatePhase,
+  'DELETE /grows/{id}/phases/{phaseId}': GrowsController.prototype.removePhase,
   'POST /grows/{id}/placements': GrowsController.prototype.addPlacement,
+  'PATCH /grows/{id}/placements/{placementId}': GrowsController.prototype.updatePlacement,
+  'DELETE /grows/{id}/placements/{placementId}': GrowsController.prototype.removePlacement,
+  'POST /grows/{id}/harvests': GrowsController.prototype.harvest,
+  'POST /grows/{id}/splits': GrowsController.prototype.split,
   'PATCH /plants/{id}': PlantsController.prototype.update,
   'DELETE /plants/{id}': PlantsController.prototype.remove,
 } as const;

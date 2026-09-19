@@ -127,3 +127,85 @@ describe('what stands in a space', () => {
     expect((await owner.client.get(`/v1/spaces/${id}`).expect(200)).body.archivedAt).toEqual(expect.any(String));
   });
 });
+
+/**
+ * The phase tiles over HTTP: the tent is put on the stage's climate, the grow
+ * standing in it enters the stage, and where there is no grow the answer asks
+ * what to do about that rather than inventing one.
+ */
+describe('applying a climate preset', () => {
+  /** A tent with a controller in it that has said what it is running, which is what a preset is merged into. */
+  const tentWithAController = async (): Promise<string> => {
+    const device = await provisionDevice(owner, 'controller');
+    const spaceId = (await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.spaceId as string;
+
+    await owner.client
+      .put(`/v1/devices/${device.deviceId}/configuration`)
+      .send({
+        configuration: {
+          daynight: { day: 21600, night: 64800 },
+          day: { temperature: 25, humidity: 60 },
+          night: { temperature: 21, humidity: 55 },
+          lights: { sunrise: 15, sunset: 15, limit: 100 },
+        },
+      })
+      .expect(200);
+
+    return spaceId;
+  };
+
+  it('writes the stage´s climate to the controller and asks what to do about the grow', async () => {
+    const spaceId = await tentWithAController();
+
+    const applied = await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'vegetative' }).expect(201);
+
+    expect(applied.body).toMatchObject({ spaceId, stage: 'vegetative', preset: null, growId: null, growDecisionNeeded: true, planEffect: 'none' });
+    expect(applied.body.decisions).toEqual(['start_grow', 'move_grow', 'climate_only']);
+    expect(applied.body.deviceIds).toHaveLength(1);
+
+    const read = await owner.client.get(`/v1/devices/${applied.body.deviceIds[0]}/configuration`).expect(200);
+    // The targets of the stage, and the ramps the tent was tuned with left alone.
+    expect(read.body.configuration).toMatchObject({
+      day: { temperature: 26, humidity: 62 },
+      night: { temperature: 22, humidity: 58 },
+      lights: { sunrise: 15, sunset: 15, limit: 80 },
+    });
+  });
+
+  it('puts the grow standing there into the stage and tags the phase as the preset´s', async () => {
+    const spaceId = await tentWithAController();
+    const grow = (
+      await owner.client
+        .post('/v1/grows')
+        .send({ name: 'Preset run', type: 'photoperiod', plants: [{ strain: 'Amnesia', count: 1 }], spaceId })
+        .expect(201)
+    ).body;
+
+    const applied = await owner.client
+      .post(`/v1/spaces/${spaceId}/preset-applications`)
+      .send({ stage: 'flowering', preset: 'late_flowering' })
+      .expect(201);
+
+    expect(applied.body).toMatchObject({ growId: grow.id, growDecisionNeeded: false, decisions: [] });
+    expect(applied.body.phaseId).toEqual(expect.any(String));
+
+    const read = await owner.client.get(`/v1/grows/${grow.id}`).expect(200);
+    expect(read.body.summary).toMatchObject({ stage: 'flowering', preset: 'late_flowering', isAuto: true });
+    expect(read.body.phases[0]).toMatchObject({ source: 'preset', setBy: null });
+    expect(read.body.phases[0].targets).toMatchObject({ day: { temperature: 24 } });
+  });
+
+  it('refuses a stage the contract does not have', async () => {
+    const spaceId = await tentWithAController();
+    const refused = await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'harvesting' }).expect(400);
+
+    expect(refused.body.code).toBe('validation_failed');
+  });
+
+  it('is not a space a stranger can reach at all', async () => {
+    const spaceId = await tentWithAController();
+    const refused = await stranger.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'vegetative' }).expect(404);
+
+    expect(refused.body.code).toBe('space_not_found');
+  });
+});

@@ -1,4 +1,4 @@
-import { createAccount, Session } from '../support/api';
+import { anonymous, createAccount, Session } from '../support/api';
 import { claimCodeOf, registerDevice } from '../support/device';
 
 /**
@@ -135,6 +135,191 @@ describe('moving plants', () => {
   });
 });
 
+describe('correcting what was written down', () => {
+  const plantsOf = async (growId: string): Promise<string[]> =>
+    (await owner.client.get(`/v1/grows/${growId}/plants`).expect(200)).body.items.map((plant: { id: string }) => plant.id);
+
+  const diaryOf = async (growId: string, kind: string) =>
+    (await owner.client.get(`/v1/entries?growId=${growId}&kinds=${kind}`).expect(200)).body.items;
+
+  it('moves a phase and the line that announced it to the day it really began', async () => {
+    const grow = await startAGrow();
+    const phase = await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'seedling' }).expect(201);
+
+    const reallyBegan = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString();
+    const corrected = await owner.client
+      .patch(`/v1/grows/${grow.id}/phases/${phase.body.id}`)
+      .send({ stage: 'vegetative', startedAt: reallyBegan })
+      .expect(200);
+
+    expect(corrected.body).toMatchObject({ stage: 'vegetative', startedAt: reallyBegan, source: 'human', setBy: owner.userId });
+    expect((await owner.client.get(`/v1/grows/${grow.id}`).expect(200)).body.summary).toMatchObject({ dayNumber: 7, stage: 'vegetative' });
+
+    const [line] = await diaryOf(grow.id, 'phase');
+    expect(line).toMatchObject({ occurredAt: reallyBegan, values: { stage: 'vegetative' } });
+  });
+
+  it('takes a phase back together with the line that announced it', async () => {
+    const grow = await startAGrow();
+    const phase = await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'seedling' }).expect(201);
+
+    await owner.client.delete(`/v1/grows/${grow.id}/phases/${phase.body.id}`).expect(204);
+
+    expect((await owner.client.get(`/v1/grows/${grow.id}`).expect(200)).body.phases).toEqual([]);
+    expect(await diaryOf(grow.id, 'phase')).toEqual([]);
+    await owner.client.delete(`/v1/grows/${grow.id}/phases/${phase.body.id}`).expect(404);
+  });
+
+  it('closes a placement on the day the plants really left', async () => {
+    const grow = await startAGrow();
+    const moved = await owner.client
+      .post(`/v1/grows/${grow.id}/placements`)
+      .send({ spaceId: null, plantIds: [(await plantsOf(grow.id))[0]] })
+      .expect(201);
+
+    const left = new Date().toISOString();
+    const closed = await owner.client.patch(`/v1/grows/${grow.id}/placements/${moved.body.id}`).send({ endedAt: left }).expect(200);
+
+    expect(closed.body.endedAt).toBe(left);
+  });
+
+  it('refuses the only placement that says where the grow is', async () => {
+    const grow = await startAGrow();
+    const refused = await owner.client.delete(`/v1/grows/${grow.id}/placements/${grow.placements[0].id}`).expect(409);
+
+    expect(refused.body.code).toBe('grow_stands_nowhere');
+  });
+
+  it('takes a move back together with its line', async () => {
+    const grow = await startAGrow();
+    // One plant, so that the rest of the grow keeps an open placement: a grow
+    // always answers where it is, and the last one saying so is not removed.
+    const moved = await owner.client
+      .post(`/v1/grows/${grow.id}/placements`)
+      .send({ spaceId: null, plantIds: [(await plantsOf(grow.id))[0]] })
+      .expect(201);
+
+    await owner.client.delete(`/v1/grows/${grow.id}/placements/${moved.body.id}`).expect(204);
+
+    const read = await owner.client.get(`/v1/grows/${grow.id}`).expect(200);
+    expect(read.body.placements.map((row: { id: string }) => row.id)).not.toContain(moved.body.id);
+    expect(await diaryOf(grow.id, 'move')).toEqual([]);
+  });
+});
+
+describe('harvesting', () => {
+  it('cuts the whole grow down, weighs it and ends it', async () => {
+    const grow = await startAGrow();
+    await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'flowering' }).expect(201);
+
+    const harvestedAt = new Date().toISOString();
+    const cut = await owner.client.post(`/v1/grows/${grow.id}/harvests`).send({ harvestedAt, wetWeightG: 900, dryWeightG: 210 }).expect(201);
+
+    expect(cut.body.plants).toHaveLength(3);
+    expect(cut.body.plants.every((plant: { status: string }) => plant.status === 'harvested')).toBe(true);
+    expect(cut.body.entryId).toEqual(expect.any(String));
+
+    const read = await owner.client.get(`/v1/grows/${grow.id}`).expect(200);
+    expect(read.body.endedAt).toBe(harvestedAt);
+  });
+
+  it('leaves the grow running while some of its plants stay up', async () => {
+    const grow = await startAGrow();
+    const plants = await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200);
+    const first = plants.body.items[0].id;
+
+    const cut = await owner.client
+      .post(`/v1/grows/${grow.id}/harvests`)
+      .send({ plantIds: [first], wetWeightG: 300 })
+      .expect(201);
+    expect(cut.body.plants.map((plant: { id: string }) => plant.id)).toEqual([first]);
+
+    const read = await owner.client.get(`/v1/grows/${grow.id}`).expect(200);
+    expect(read.body.endedAt).toBeNull();
+
+    const refused = await owner.client
+      .post(`/v1/grows/${grow.id}/harvests`)
+      .send({ plantIds: [first] })
+      .expect(409);
+    expect(refused.body.code).toBe('plants_already_harvested');
+  });
+
+  /**
+   * The one thing a harvest leaves behind that a stranger could read. The page
+   * is asserted against rather than for: a weight that reached it would be a
+   * setting somebody turned on and the server ignored.
+   */
+  it('tells a stranger nothing about what it weighed', async () => {
+    const shy = await createAccount('grows-shy');
+    await shy.client
+      .patch('/v1/me')
+      .send({ privacy: { hideWeights: true, hideCounts: false } })
+      .expect(200);
+
+    const theirs = (
+      await shy.client
+        .post('/v1/grows')
+        .send({ name: 'Quiet harvest', type: 'autoflower', plants: [{ strain: 'Gelato', count: 2 }] })
+        .expect(201)
+    ).body;
+    await shy.client.post(`/v1/grows/${theirs.id}/phases`).send({ stage: 'flowering' }).expect(201);
+    await shy.client.post(`/v1/grows/${theirs.id}/harvests`).send({ wetWeightG: 777, dryWeightG: 181 }).expect(201);
+    await shy.client.patch(`/v1/grows/${theirs.id}`).send({ visibility: 'public' }).expect(200);
+
+    const page = await anonymous().get(`/v1/public/grows/${theirs.slug}`).expect(200);
+    expect(page.body.harvest).toMatchObject({ wetWeightG: null, dryWeightG: null });
+    // As whole numbers rather than as substrings: the page is full of ids, and
+    // three digits turn up inside a uuid often enough to fail on a Tuesday.
+    expect(JSON.stringify(page.body)).not.toMatch(/\b777\b/);
+    expect(JSON.stringify(page.body)).not.toMatch(/\b181\b/);
+  });
+});
+
+describe('splitting a grow', () => {
+  it('sends some of it to dry while the rest goes on flowering', async () => {
+    const grow = await startAGrow();
+    await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'flowering' }).expect(201);
+
+    const plants = await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200);
+    const drying = plants.body.items[0].id;
+
+    const split = await owner.client
+      .post(`/v1/grows/${grow.id}/splits`)
+      .send({ plantIds: [drying], stage: 'drying', spaceId: null })
+      .expect(201);
+
+    expect(split.body.phase).toMatchObject({ stage: 'drying', plantIds: [drying] });
+    expect(split.body.placement).toMatchObject({ spaceId: null, plantIds: [drying] });
+
+    const read = await owner.client.get(`/v1/grows/${grow.id}`).expect(200);
+    expect(read.body.summary.stage).toBe('flowering');
+    expect(read.body.summary.groups.map((group: { stage: string }) => group.stage)).toEqual(['flowering', 'drying']);
+    expect(read.body.summary.locations).toEqual([
+      { spaceId: tent, plantIds: plants.body.items.slice(1).map((plant: { id: string }) => plant.id) },
+      { spaceId: null, plantIds: [drying] },
+    ]);
+  });
+
+  it('refuses a split that gives the plants neither a phase nor a place', async () => {
+    const grow = await startAGrow();
+    const plants = await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200);
+
+    const refused = await owner.client
+      .post(`/v1/grows/${grow.id}/splits`)
+      .send({ plantIds: [plants.body.items[0].id] })
+      .expect(422);
+
+    expect(refused.body.code).toBe('split_does_nothing');
+  });
+
+  it('refuses a split that names no plant at all', async () => {
+    const grow = await startAGrow();
+    const refused = await owner.client.post(`/v1/grows/${grow.id}/splits`).send({ plantIds: [], stage: 'drying' }).expect(400);
+
+    expect(refused.body.code).toBe('validation_failed');
+  });
+});
+
 describe('somebody else´s grow', () => {
   it('is not there as far as a stranger is concerned', async () => {
     const grow = await startAGrow();
@@ -144,6 +329,22 @@ describe('somebody else´s grow', () => {
 
     await stranger.client.patch(`/v1/grows/${grow.id}`).send({ name: 'Mine now' }).expect(404);
     await stranger.client.delete(`/v1/grows/${grow.id}`).expect(404);
+  });
+
+  it('cannot be harvested, split or corrected by one either', async () => {
+    const grow = await startAGrow();
+    const phase = await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'flowering' }).expect(201);
+
+    await stranger.client.post(`/v1/grows/${grow.id}/harvests`).send({ wetWeightG: 900 }).expect(404);
+    await stranger.client.post(`/v1/grows/${grow.id}/splits`).send({ plantIds: [], stage: 'drying' }).expect(404);
+    await stranger.client.patch(`/v1/grows/${grow.id}/phases/${phase.body.id}`).send({ stage: 'curing' }).expect(404);
+    await stranger.client.delete(`/v1/grows/${grow.id}/phases/${phase.body.id}`).expect(404);
+    await stranger.client.patch(`/v1/grows/${grow.id}/placements/${grow.placements[0].id}`).send({ spaceId: null }).expect(404);
+    await stranger.client.delete(`/v1/grows/${grow.id}/placements/${grow.placements[0].id}`).expect(404);
+
+    // And none of it happened: the refusal is the guard's, before the handler.
+    const read = await owner.client.get(`/v1/grows/${grow.id}`).expect(200);
+    expect(read.body).toMatchObject({ endedAt: null, summary: { stage: 'flowering' } });
   });
 
   it('is not in the list either', async () => {
