@@ -44,6 +44,8 @@ const camera: Camera = {
   createdAt: NOW.toISO()!,
   ownerId: 'user-1',
   kind: 'terpcam_controller',
+  // On, the way a camera arrives and the way a migrated one is back-filled.
+  staleWarning: true,
   deviceId: 'device-1',
   spaceId: 'space-1',
   name: 'Terp Cam 1',

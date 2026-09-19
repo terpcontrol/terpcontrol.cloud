@@ -215,6 +215,10 @@ function StepFields({ step, device, onChange }: { step: StepDraft; device: Devic
           className={`${ui.input} ${styles.number}`}
           type="number"
           min={0}
+          // Not whole numbers only: a recipe written before the rewrite may hold
+          // half a day on a step, and a browser that calls that invalid would
+          // put a red ring around a length the tent is actually running.
+          step="any"
           value={step.duration.value}
           aria-label={t('space.control.step.durationValue')}
           onChange={event => onChange({ duration: { ...step.duration, value: Math.max(0, Number(event.target.value) || 0) } })}
