@@ -31,9 +31,11 @@ else
   PROV_MQTT_PORT=${MQTT_PORT_EXTERNAL}
 fi
 
+DOCKER_USB_MOUNTS=${DOCKER_USB_MOUNTS:--v /dev/bush/usb:/dev/bus/usb --device /dev/ttyUSB0:/dev/ttyUSB0}
+
 docker run -i --rm \
   --privileged \
-  -v /dev/bus/usb:/dev/bus/usb \
+  ${DOCKER_USB_MOUNTS} \
   -v fg2_firmware:/firmware \
   -e FG_AUTOMATION_TOKEN=${AUTOMATION_TOKEN} \
   -e FG_AUTOMATION_URL=${API_URL_EXTERNAL} \
