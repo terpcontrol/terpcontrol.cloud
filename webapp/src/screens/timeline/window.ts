@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import type { Metric, SpaceTimeline, TimelineAlarm, TimelinePanel, TimelineSpan, TimelineTarget } from '@fg2/shared-types/v1';
+import type { Metric, SpaceTimeline, TimelineAlarm, TimelinePanel, TimelineSpan, TimelineTarget, TimelineTargets } from '@fg2/shared-types/v1';
 
 /**
  * The arithmetic the stacked panels share: where an instant sits in the window,
@@ -63,16 +63,22 @@ export interface Stretch {
 }
 
 export const stretchesOf = (panel: TimelinePanel, nights: TimelineSpan[], from: number, to: number): Stretch[] =>
-  cut(from, to, nights).flatMap(piece => {
-    const targets = panel.targets.find(one => at(one.startsAt) < piece.to && at(one.endsAt) > piece.from);
+  cut(from, to, nights, panel.targets).flatMap(piece => {
+    const targets = panel.targets.find(one => at(one.startsAt) <= piece.from && at(one.endsAt) >= piece.to);
     const target = targets ? (piece.dark ? targets.night : targets.day) : null;
 
     return target ? [{ from: piece.from, to: piece.to, target }] : [];
   });
 
-/** The window split where the light went off and on again. */
-const cut = (from: number, to: number, nights: TimelineSpan[]): { from: number; to: number; dark: boolean }[] => {
-  const edges = [from, ...nights.flatMap(night => [at(night.startsAt), at(night.endsAt)]).filter(edge => edge > from && edge < to), to];
+/**
+ * The window split where the light went off and on again, and where one phase
+ * handed over to the next. Both edges have to cut it: a band that only moved
+ * with the lamp would carry the old phase's target through the half of the
+ * cycle the grow was moved on in.
+ */
+const cut = (from: number, to: number, nights: TimelineSpan[], targets: TimelineTargets[]): { from: number; to: number; dark: boolean }[] => {
+  const inside = [...nights, ...targets].flatMap(span => [at(span.startsAt), at(span.endsAt)]).filter(edge => edge > from && edge < to);
+  const edges = [...new Set([from, ...inside, to])].sort((one, other) => one - other);
 
   return edges.slice(0, -1).map((edge, index) => ({ from: edge, to: edges[index + 1], dark: spans(nights, (edge + edges[index + 1]) / 2) }));
 };

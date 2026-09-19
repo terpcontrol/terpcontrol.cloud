@@ -180,7 +180,10 @@ export class DataService implements LightStateReader {
       stepSeconds: stepFor(request.startsAt, request.endsAt, request.stepSeconds),
     };
 
-    const fields = fieldsFor(request.metrics, outputs);
+    // A window of no width holds no readings, and the store refuses to be asked
+    // about one at all: a share link whose range ends before the window a chip
+    // asked for begins leaves exactly that.
+    const fields = window.endsAt > window.startsAt ? fieldsFor(request.metrics, outputs) : [];
     const [rows, factors] = fields.length
       ? await Promise.all([this.read(seriesQuery(this.bucket, deviceId, fields, window)), this.factorsOf(deviceId)])
       : [[] as FluxRow[], DEFAULT_FACTORS];

@@ -69,11 +69,15 @@ const isLit = (at: Date): boolean => at.getUTCHours() >= 6 && at.getUTCHours() <
 let quietFrom: Date | null = null;
 let quietUntil: Date | null = null;
 
+/** How often the controller says anything at all. Zero is every window; a backfilled history is far slower than that. */
+let sampleEverySeconds = 0;
+
 /** What the tent measures. A test takes CO2 away to make the third panel disappear. */
 let sensed: Metric[] = ['temperature', 'humidity', 'co2'];
 
 const controllerReport = (at: Date): Reading | null => {
   if (quietFrom && quietUntil && at >= quietFrom && at < quietUntil) return null;
+  if (sampleEverySeconds && at.getTime() % (sampleEverySeconds * 1000) !== 0) return null;
 
   const lit = isLit(at);
   const readings: Partial<Record<Metric, number>> = {
@@ -339,6 +343,7 @@ beforeEach(async () => {
   sensed = ['temperature', 'humidity', 'co2'];
   quietFrom = null;
   quietUntil = null;
+  sampleEverySeconds = 0;
   timeline = build();
   await world();
 });
@@ -443,15 +448,29 @@ describe('the stacked panels', () => {
     expect([...values].sort((one, other) => one - other)).toEqual([20, 24.8]);
   });
 
-  it('draws the gap a device that went quiet left rather than joining across it', async () => {
+  it('breaks the curve where the device went quiet rather than joining across it', async () => {
     quietFrom = new Date('2026-06-10T02:00:00.000Z');
     quietUntil = new Date('2026-06-10T06:00:00.000Z');
-    const page = await readAs(session(OWNER));
-    const missing = page.panels[0].points.filter(point => point.value === null);
+    const points = (await readAs(session(OWNER))).panels[0].points;
+    const breaks = points.filter(point => point.value === null);
+    const lastHeard = new Date(quietFrom.getTime() - DAY_STEP_SECONDS * 1000);
 
-    expect(missing.length).toBe((4 * 3600) / DAY_STEP_SECONDS);
-    expect(missing[0].measuredAt).toBe(quietFrom.toISOString());
-    expect(page.panels[0].points.some(point => point.value !== null)).toBe(true);
+    // One break, the instant after the last thing the device said, and the line
+    // picks up again where it came back.
+    expect(breaks).toEqual([{ measuredAt: new Date(lastHeard.getTime() + 1).toISOString(), value: null }]);
+    expect(points[points.indexOf(breaks[0]) - 1].measuredAt).toBe(lastHeard.toISOString());
+    expect(points[points.indexOf(breaks[0]) + 1].measuredAt).toBe(quietUntil.toISOString());
+  });
+
+  it('answers the windows something was read in and not the empty ones between them', async () => {
+    // A backfilled history: one sample an hour, into windows of three minutes.
+    sampleEverySeconds = 3600;
+    const points = (await readAs(session(OWNER))).panels[0].points;
+
+    expect(points).toHaveLength(24);
+    // Nothing missing, so nothing to break at: an hourly history draws a line
+    // rather than twenty-four readings no two of which are neighbours.
+    expect(points.every(point => point.value !== null)).toBe(true);
   });
 });
 
@@ -531,6 +550,46 @@ describe('the night, the lanes and the alarms', () => {
     expect(page.outputs.find(lane => lane.output === 'dehumidifier')?.spans).toEqual([]);
     // Said nothing about at all: no lane rather than an empty one.
     expect(page.outputs.map(lane => lane.output)).not.toContain('fan');
+  });
+
+  it('stops the night and the lanes where the device went quiet instead of running them through it', async () => {
+    quietFrom = new Date('2026-06-10T02:00:00.000Z');
+    quietUntil = new Date('2026-06-10T06:00:00.000Z');
+    const lastHeard = new Date(quietFrom.getTime() - DAY_STEP_SECONDS * 1000).toISOString();
+    const page = await readAs(session(OWNER));
+
+    // Nobody said anything about the lamp for four hours, and the lamp was on
+    // again by the time anybody did: the night ends where it was last heard.
+    expect(page.nights).toEqual([{ startsAt: '2026-06-09T18:00:00.000Z', endsAt: lastHeard }]);
+    expect(page.outputs.find(lane => lane.output === 'heater')?.spans).toEqual([{ startsAt: '2026-06-09T18:00:00.000Z', endsAt: lastHeard }]);
+  });
+
+  it('starts the first run where the device turned up, and at the edge of the window where it was already there', async () => {
+    const opens = '2026-06-09T12:00:00.000Z';
+    const lit = { startsAt: opens, endsAt: '2026-06-09T18:00:00.000Z' };
+    const lightOf = async () => (await readAs(session(OWNER))).outputs.find(lane => lane.output === 'light')?.spans[0];
+
+    // Reporting from the first instant of the window: the lamp was on before it
+    // opened, so the run is drawn from the edge.
+    expect(await lightOf()).toEqual(lit);
+
+    // Nothing for the first half hour: the lamp is only known to have been on
+    // from where the device turned up, and that is where the run starts.
+    quietFrom = new Date(opens);
+    quietUntil = new Date('2026-06-09T12:30:00.000Z');
+    expect(await lightOf()).toEqual({ ...lit, startsAt: quietUntil.toISOString() });
+  });
+
+  it('keeps a lane whole across the gaps a device that reports slowly leaves between its samples', async () => {
+    sampleEverySeconds = 20 * 60;
+    const page = await readAs(session(OWNER));
+
+    // Nineteen empty windows between every two samples are this device's
+    // rhythm, not a silence: the lamp did not switch nineteen times.
+    expect(page.nights).toEqual([{ startsAt: '2026-06-09T18:00:00.000Z', endsAt: '2026-06-10T06:00:00.000Z' }]);
+    expect(page.outputs.find(lane => lane.output === 'heater')?.spans).toEqual([
+      { startsAt: '2026-06-09T18:00:00.000Z', endsAt: '2026-06-10T06:00:00.000Z' },
+    ]);
   });
 
   it('carries an alarm that was open across the whole window, with the metric its rule watched', async () => {
@@ -634,6 +693,26 @@ describe('who may read it', () => {
     expect(page.events.map(line => line.id)).toEqual(['entry-water']);
     expect(page.alarms.map(alarm => alarm.alertId)).toEqual(['alert-open']);
     expect(page.cameras[0].frames).toEqual([]);
+  });
+
+  it('counts a rolling range back from the end of the link´s window rather than from now', async () => {
+    const token = await linkFor({});
+    const page = await readAs(visitor(token), { range: '24h' });
+
+    // The link closed before the day the chip means, so `24 h` is the last day
+    // of the window it was given out for - and not an empty answer, or a refusal.
+    expect(page).toMatchObject({ startsAt: '2026-06-09T00:00:00.000Z', endsAt: '2026-06-10T00:00:00.000Z' });
+    expect(page.panels[0].points.length).toBeGreaterThan(0);
+    expect(page.panels[0].points.every(point => point.measuredAt <= page.endsAt)).toBe(true);
+  });
+
+  it('answers an empty window where the link and the range have nothing in common', async () => {
+    const token = await linkFor({ range: { startsAt: new Date('2026-05-01T00:00:00.000Z'), endsAt: new Date('2026-05-02T00:00:00.000Z') } });
+    const page = await readAs(visitor(token), { range: 'grow', growId: GROW });
+
+    // The link's week ended before the grow began: nothing at all, rather than
+    // the store being asked about a window of no width.
+    expect(page).toMatchObject({ startsAt: page.endsAt, panels: [], nights: [], outputs: [], events: [] });
   });
 
   it('opens nothing but its own subject', async () => {

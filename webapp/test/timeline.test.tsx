@@ -259,6 +259,28 @@ describe('what a panel is drawn against', () => {
     expect(stretches[1].target.setpoint).toBe(26);
   });
 
+  it('steps the band where one phase handed over to the next, and not only where the light did', () => {
+    const moved = {
+      ...temperature,
+      targets: [
+        { ...temperature.targets[0], endsAt: at(15) },
+        {
+          ...temperature.targets[0],
+          startsAt: at(15),
+          phaseId: 'phase-2',
+          day: { setpoint: 23, band: { low: 22, high: 24 } },
+          night: { setpoint: 18, band: { low: 17, high: 19 } },
+        },
+      ],
+    };
+    const stretches = stretchesOf(moved, answer.nights, from, to);
+
+    // The night, the rest of the old phase's day, and the new phase's day: the
+    // grow was moved on in the middle of a lit half, which is where it steps.
+    expect(stretches.map(one => one.target.setpoint)).toEqual([21, 26, 23]);
+    expect(stretches[1].to).toBe(DateTime.fromISO(at(15)).toMillis());
+  });
+
   it('leaves out the half of a metric that is not steered in it', () => {
     const unlit = { ...temperature, targets: [{ ...temperature.targets[0], night: null }] };
 

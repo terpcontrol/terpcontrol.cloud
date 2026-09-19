@@ -101,7 +101,9 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
   const frames = data.cameras.filter(camera => camera.frames.length > 0);
 
   return (
-    <div className={styles.screen} style={{ '--gutter': `${GUTTER}px` } as React.CSSProperties}>
+    // Busy while a chip's window is still on its way: what is drawn is the
+    // window before it, which is worth saying without taking it off the screen.
+    <div className={styles.screen} style={{ '--gutter': `${GUTTER}px` } as React.CSSProperties} aria-busy={timeline.isPlaceholderData}>
       {heading}
       {grow.data ? (
         <Link to={`/grows/${grow.data.id}`} className={`mono ${styles.subject}`}>

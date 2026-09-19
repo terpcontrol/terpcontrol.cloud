@@ -10,6 +10,12 @@
   padding-top: var(--space-2);
 }
 
+/* The window a chip asked for is still coming: the one on screen is the one
+   before it, dimmed rather than thrown away. */
+.screen[aria-busy='true'] {
+  opacity: 0.6;
+}
+
 .title {
   display: flex;
   align-items: baseline;
@@ -259,8 +265,12 @@
   top: calc(var(--topbar-height) + env(safe-area-inset-top));
   z-index: 3;
   display: flex;
+  /* A wide window writes the date as well as the clock, and the readings of
+     three metrics follow it: on a phone the line gives way between its parts
+     rather than inside a timestamp. */
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--space-2);
+  gap: var(--space-1) var(--space-2);
   padding: var(--space-2) var(--space-3);
   background: var(--card-2);
   border: var(--rule-solid);
@@ -270,6 +280,7 @@
 
 .scrubTime {
   font-weight: var(--weight-semibold);
+  white-space: nowrap;
 }
 
 .scrubValue {

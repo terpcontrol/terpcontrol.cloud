@@ -56,8 +56,14 @@ export const spineOf = (grow: GrowDocument): GrowDocument['phases'] =>
  * The window a range names, narrowed to what the caller was granted. A share
  * link asking for the whole grow is answered its own week of it, and a window
  * the clamp leaves nothing of is answered as nothing rather than as a refusal.
+ *
+ * The instant a rolling range counts back from is narrowed first. `24 h` through
+ * a link that closed last week is the last day of that week and not the last day
+ * of this one, which would be a window the clamp leaves nothing of at all.
  */
-export const windowOf = (range: TimelineRange, grant: Grant, grow: GrowDocument | null, at: Date): TimelineWindow => {
+export const windowOf = (range: TimelineRange, grant: Grant, grow: GrowDocument | null, asOf: Date): TimelineWindow => {
+  const granted = grant.range.endsAt;
+  const at = granted && granted < asOf ? granted : asOf;
   const asked = grow && (range === 'phase' || range === 'grow') ? stretchOf(range, grow, at) : rollingOf(range, at);
   const clamped = clampRange(grant, asked);
   const startsAt = clamped.startsAt ?? asked.startsAt;

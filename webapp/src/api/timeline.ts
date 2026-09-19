@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type { SpaceTimeline, TimelineRange } from '@fg2/shared-types/v1';
 import { api } from './client';
 
@@ -6,6 +6,11 @@ import { api } from './client';
  * The Timeline tab is one read per range chip - frames, panels, night, alarms,
  * lanes and rail are all views of the same window, so asking for them
  * separately would draw six windows that disagree at their edges.
+ *
+ * A chip is a change of window and not of screen, so the answer in hand stays
+ * drawn until the next one arrives: without that, every tap empties the frame,
+ * the header and the panels, and the two chips that need a grow go dead for as
+ * long as the read takes, because nothing on screen knows about one any more.
  *
  * Only the two rolling ranges are refreshed: a phase and a grow end where they
  * end, and re-reading them would redraw the same picture. A refresh that fails
@@ -22,4 +27,5 @@ export const useTimeline = (spaceId: string, range: TimelineRange, growId: strin
     queryFn: ({ signal }) => api.get<SpaceTimeline>(`/spaces/${spaceId}/timeline`, { range, growId }, signal),
     enabled: spaceId !== '' && (!rangeNeedsGrow(range) || growId !== null),
     refetchInterval: rangeNeedsGrow(range) ? false : TIMELINE_REFRESH_MS,
+    placeholderData: keepPreviousData,
   });

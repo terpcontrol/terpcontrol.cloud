@@ -9,6 +9,9 @@ import styles from './Timeline.module.css';
 /** How long one frame is held while the window plays. Fast enough to read as a day passing, slow enough to see. */
 const FRAME_MS = 320;
 
+/** How many frames are fetched ahead of the one on screen while it plays: a still that starts downloading when it is due arrives late. */
+const READ_AHEAD = 4;
+
 interface CameraFrameProps {
   /** At least one, each with frames of its own; a space where nothing took a picture loses the frame and keeps the slider. */
   cameras: SpaceTimeline['cameras'];
@@ -33,6 +36,7 @@ export function CameraFrame({ cameras, from, to, cursor, day, onScrub }: CameraF
   const playing = usePlay(camera.frames, cursor, onScrub);
   const source = frame ? mediaUrl(frame.mediaId, THUMBNAIL_WIDTH.frame) : null;
   const caption = frame ? captureOf(at(frame.capturedAt), to - from) : null;
+  useReadAhead(camera.frames, cursor, playing.on);
 
   return (
     <section className={styles.frame}>
@@ -94,6 +98,23 @@ export function Slider({ from, to, cursor, onScrub }: { from: number; to: number
     />
   );
 }
+
+/**
+ * The frames just after the cursor, fetched before they are due. Only while it
+ * plays: three pictures a second is faster than a phone fetches them one at a
+ * time, where a thumb on the slider asks for one and waits for it anyway.
+ */
+const useReadAhead = (frames: { mediaId: string; capturedAt: string }[], cursor: number, playing: boolean) => {
+  useEffect(() => {
+    if (!playing) return;
+
+    for (const frame of frames.filter(one => at(one.capturedAt) > cursor).slice(0, READ_AHEAD)) {
+      const source = mediaUrl(frame.mediaId, THUMBNAIL_WIDTH.frame);
+      // The browser keeps what it fetched; the element itself is only the ask.
+      if (source) new Image().src = source;
+    }
+  }, [frames, cursor, playing]);
+};
 
 /** Play walks the frames from where the cursor stands and stops at the last one; it never loops back. */
 const usePlay = (frames: { capturedAt: string }[], cursor: number, onScrub: (time: number) => void) => {
