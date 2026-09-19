@@ -396,7 +396,7 @@ The messages current firmware sends:
 | `message-device-firmware-update` | 0 | every type, before an OTA | `fridgecloud.cpp:190,210` |
 | `message-buffer-overflow` | 1 | every type, reading buffer full | `fridgecloud.cpp:490` |
 | `message-co2-low` | 0 | controller, fridge | `controller.cpp:931-944`, `fridge.cpp:981-992` |
-| `message-ext-sensor-deviate`, `message-ext-sensor-fail` | 0 | fridge, when the fault appears and **at most once per 15 min** each | `fridge.cpp` |
+| `message-ext-sensor-deviate`, `message-ext-sensor-fail` | 0 | fridge, when the fault appears and **at most once per 15 min** each (`SENSOR_FAULT_LOG_INTERVAL`, `fridge.cpp:64-78`) | `fridge.cpp:174,188` |
 | `message-maintenance-mode-activated:<min>` | 0 | controller, fridge | `controller.cpp:1069`, `fridge.cpp:1062` |
 | `message-maintenance-mode-activated-remote:<min>` | 0 | controller, fridge | `controller.cpp:574`, `fridge.cpp:634` |
 | `message-smart-socket-connected:<role>` | 0 | pairing or `socket_set` | `wifi.cpp:3021,3347` |
@@ -414,6 +414,16 @@ The messages current firmware sends:
 
 Boot reasons are `POWERON`, `EXT`, `SW`, `PANIC`, `INT_WDT`, `TASK_WDT`, `WDT`, `DEEPSLEEP`, `BROWNOUT`, `SDIO`,
 `UNKNOWN`, plus `REMOTE` for a reboot the cloud asked for (`fridgecloud.cpp:39-53,156-162`).
+
+The two external-sensor lines carry a floor of their own, for the reason the socket report's does: the fault
+behind them is looked at on every control pass, so a sensor sitting on its threshold would otherwise write a line
+every couple of seconds for as long as it sat there. Each of the two keeps its own last time, so one flapping
+cannot silence the other. That time is wall clock seconds in RTC memory rather than a tick count, because ticks
+start at zero on every boot and a panic, a watchdog or the connection watchdog's recovery reboot would otherwise
+let a device with a standing fault report it again each time it came back; a power-on clears it, which is what a
+device that was just switched on should do. While the clock is still unset nothing is written at all and the
+fault is looked at again on the next pass: the interval cannot be measured yet, and a device in that state is
+discarding its readings for the same reason.
 
 ### 6.2 `hardware-info:`
 
@@ -1043,6 +1053,13 @@ reader of either should not conclude from it.
 - **`message-cam-capture`.** The firmware sends only failures, keeping successes on the serial console. The
   server drops `…:ok` at ingest in any case, and the failures too unless webcam error logging is on. The
   simulator never sends the key.
+- **A failing external sensor.** Only the fridge has one, in the firmware and in the simulator alike — `--fault`
+  refuses any other type. What differs is where the fault comes from and where the interval lives. The simulator
+  is told to have one rather than measuring it, and `--fault <kind>=<seconds>` makes the sensor flap on that
+  period rather than stay broken, which is the shape that produced the flood. Its last-written times are ordinary
+  memory: its `boot` command keeps them, as a soft reset does, while restarting the process clears them, as a
+  power-on does. And it always has a clock, so it never reaches the case the firmware guards hardest — one that
+  SNTP has not set yet, where the firmware writes nothing.
 - **`test` outputs.** The server sends the fridge's seven names to every type. The controller, plug, light and
   cam ignore the command entirely, and the fan ignores the values. The simulator maps the names to its own keys
   and divides the three fan percentages by 100. The `/v1` contract describes the outputs of a test as partial and
