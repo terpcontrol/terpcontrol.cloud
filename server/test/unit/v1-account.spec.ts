@@ -1,5 +1,7 @@
 import { jest } from '@jest/globals';
 import jwt from 'jsonwebtoken';
+import { DataStoredInToken } from '@common/auth/auth.interface';
+import { TokenService } from '@common/auth/token.service';
 import { AccountsService } from '@modules/v1/account/accounts.service';
 import { PasswordResetService } from '@modules/v1/account/password-reset.service';
 import { SessionsService } from '@modules/v1/sessions/sessions.service';
@@ -356,5 +358,73 @@ describe('the account the install seeds', () => {
 
     expect(await database.users.countDocuments({ email: auth.adminUsername })).toBe(1);
     expect(await accounts.verify(auth.adminUsername, NEW_PASSWORD)).not.toBeNull();
+  });
+});
+
+/**
+ * A signed token states what was true when it was handed out, and goes on
+ * stating it for as long as it lives. What a request is really allowed to do is
+ * decided here instead, against the session row and the account row, which is
+ * why revoking, deactivating, demoting and deleting all take effect at once
+ * rather than five minutes later.
+ */
+describe('who a token still answers for', () => {
+  let tokens: TokenService;
+
+  const claimsOf = (token: string): DataStoredInToken => jwt.verify(token, auth.secretKey) as unknown as DataStoredInToken;
+
+  beforeEach(() => {
+    tokens = new TokenService(database.sessions, database.users, { ...auth });
+  });
+
+  it('answers for the account behind a live session, with the privilege the row carries now', async () => {
+    const user = await signUp('resolved');
+    const opened = await sessions.logIn(user.email, PASSWORD, false, null);
+
+    expect(await tokens.resolve(claimsOf(opened.userToken.token))).toEqual({ userId: user.id, isAdmin: false, isDemo: false });
+
+    await accounts.updateAsAdmin(user.id, { isAdmin: true });
+    expect((await tokens.resolve(claimsOf(opened.userToken.token)))?.isAdmin).toBe(true);
+
+    await accounts.updateAsAdmin(user.id, { isAdmin: false });
+    expect((await tokens.resolve(claimsOf(opened.userToken.token)))?.isAdmin).toBe(false);
+  });
+
+  it('answers for nobody once the session is revoked, the account deactivated, marked or gone', async () => {
+    const user = await signUp('no-longer');
+    const opened = await sessions.logIn(user.email, PASSWORD, false, null);
+    const claims = claimsOf(opened.userToken.token);
+
+    await sessions.revoke(user.id, opened.sessionId);
+    expect(await tokens.resolve(claims)).toBeNull();
+
+    const again = claimsOf((await sessions.logIn(user.email, PASSWORD, false, null)).userToken.token);
+    await accounts.updateAsAdmin(user.id, { isActive: false });
+    expect(await tokens.resolve(again)).toBeNull();
+
+    await accounts.updateAsAdmin(user.id, { isActive: true });
+    await accounts.beginDeletion(user.id);
+    expect(await tokens.resolve(again)).toBeNull();
+
+    await database.users.deleteOne({ id: user.id });
+    expect(await tokens.resolve(again)).toBeNull();
+  });
+
+  /**
+   * The three that are not an account, and must go on working: a picture's URL
+   * carries a token of its own for thirty days, the demo has a session and no
+   * row, and the install's own token has neither.
+   */
+  it('answers for the media token, the demo and the install´s own token', async () => {
+    const user = await signUp('the-three');
+    const opened = await sessions.logIn(user.email, PASSWORD, false, null);
+
+    expect(await tokens.resolve(claimsOf(opened.mediaToken.token))).toEqual({ userId: user.id, isAdmin: false, isDemo: false });
+
+    const demo = await sessions.openDemo(null);
+    expect(await tokens.resolve(claimsOf(demo.userToken.token))).toEqual({ userId: 'demo', isAdmin: false, isDemo: true });
+
+    const automation = sessions.automation(auth.automationToken);
+    expect(await tokens.resolve(claimsOf(automation.userToken.token))).toEqual({ userId: '', isAdmin: true, isDemo: false });
   });
 });

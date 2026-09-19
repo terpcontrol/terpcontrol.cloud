@@ -15,11 +15,12 @@ export class AuthGuard implements CanActivate {
     }
 
     const token = await this.tokens.verifyFirst(request, 'user');
-    if (!token) {
+    const caller = token && (await this.tokens.resolve(token));
+    if (!caller) {
       throw new HttpException(401, 'Wrong authentication token');
     }
 
-    request.auth = this.tokens.toContext(token);
+    request.auth = caller;
     return true;
   }
 }
@@ -46,7 +47,14 @@ export class AdminGuard implements CanActivate {
       throw new HttpException(401, 'Wrong authentication token');
     }
 
-    request.auth = this.tokens.toContext(token);
+    // The token says it was an administrator; the account row says whether it
+    // still is, and whether it is still an account at all.
+    const caller = await this.tokens.resolve(token);
+    if (!caller?.isAdmin) {
+      throw new HttpException(401, 'Wrong authentication token');
+    }
+
+    request.auth = caller;
     return true;
   }
 }

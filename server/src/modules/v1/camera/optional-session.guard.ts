@@ -9,8 +9,10 @@ import { AuthenticatedRequest, TokenService } from '@common/auth/token.service';
  * share link, and nobody at all on a public page. A guard that refused the last
  * two would make every such route a member-only route.
  *
- * A token that is present and invalid is simply not a session: the decision then
- * has a share link to go on, or refuses on its own.
+ * A token that is present and no longer answers to anybody is simply not a
+ * session - whether it was never signed here, or its session has been revoked,
+ * or the account it named is gone. The decision then has a share link to go on,
+ * or refuses on its own.
  */
 @Injectable()
 export class OptionalSessionGuard implements CanActivate {
@@ -20,7 +22,8 @@ export class OptionalSessionGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
 
     const token = await this.tokens.verifyFirst(request, 'image');
-    if (token) request.auth = this.tokens.toContext(token);
+    const caller = token && (await this.tokens.resolve(token));
+    if (caller) request.auth = caller;
 
     return true;
   }

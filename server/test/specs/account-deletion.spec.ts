@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
-import { anonymous, context, createAccount, demoSession, loginAsAdmin, Session, unique } from '../support/api';
+import { anonymous, context, createAccount, demoSession, login, loginAsAdmin, Session, unique } from '../support/api';
 import { claimCodeOf, provisionDevice } from '../support/device';
 import { beginDeletionOf, diaryEntriesOf, joinSpace, remindSpace, rowsIn, seedRow, storeCameraStill, storedImageExists } from '../support/fixtures';
 
@@ -382,6 +382,83 @@ describe('deleting yourself', () => {
     await anonymous().post('/v1/sessions').send({ email: leaving.username, password: leaving.password }).expect(401);
 
     await admin.client.delete(`/v1/admin/users/${leaving.userId}`).expect(204);
+  });
+});
+
+/**
+ * What the account was holding when it was deleted.
+ *
+ * A user token lives five minutes past the request that was answered with it,
+ * so without a lookup the cascade would be undone by the account it had just
+ * taken apart: a new public grow, a fresh picture, and the very device that was
+ * handed back claimed again by the id that no longer exists. Every route behind
+ * the guards resolves its caller against the session row, and the cascade ends
+ * every session before anything else, so there is nothing left to ask with.
+ */
+describe('the token the deleted account was holding', () => {
+  jest.setTimeout(60_000);
+
+  let home: Household;
+  let published: string;
+
+  beforeAll(async () => {
+    home = await aHousehold();
+
+    published = (await stranger.client.post('/v1/grows').send({ name: 'Published', type: 'photoperiod', plants: [] }).expect(201)).body.id;
+    await stranger.client.patch(`/v1/grows/${published}`).send({ visibility: 'public' }).expect(200);
+
+    // Good right up to the deletion, so what follows is about the deletion
+    // rather than about a token that never worked.
+    await home.owner.client.get('/v1/me').expect(200);
+
+    await admin.client.delete(`/v1/admin/users/${home.owner.userId}`).expect(204);
+  });
+
+  it('follows nothing, uploads nothing and publishes nothing with it', async () => {
+    await home.owner.client.put(`/v1/follows/${published}`).expect(401);
+    await home.owner.client.post('/v1/media').field('kind', 'avatar').attach('file', A_PICTURE, 'a.png').expect(401);
+    await home.owner.client.post('/v1/grows').send({ name: 'After the deletion', type: 'photoperiod', plants: [] }).expect(401);
+
+    expect(await rowsIn('follows', { userId: home.owner.userId })).toEqual([]);
+    expect(await rowsIn('media', { uploadedBy: home.owner.userId })).toEqual([]);
+    expect(await rowsIn('grows', { ownerId: home.owner.userId })).toEqual([]);
+  });
+
+  it('cannot claim back the device the cascade just handed over', async () => {
+    await home.owner.client
+      .post('/v1/devices/claims')
+      .send({ code: await claimCodeOf(home.deviceId) })
+      .expect(401);
+
+    expect((await rowsIn('devices', { id: home.deviceId }))[0].ownerId).toBeNull();
+  });
+
+  /** A stranger trying tokens must not learn that an account was ever here. */
+  it('is refused in the same words as a token this server never signed', async () => {
+    const deleted = await home.owner.client.get('/v1/me').expect(401);
+    const nonsense = await anonymous().get('/v1/me').set('Authorization', 'Bearer not-a-token-at-all').expect(401);
+
+    expect(deleted.body).toEqual(nonsense.body);
+  });
+
+  it('reads no accounts and deletes none, where it was an administrator', async () => {
+    const password = 'Passw0rd!test';
+    const username = `${unique('deletion-admin')}@test.invalid`;
+    const created = (
+      await admin.client
+        .post('/v1/admin/users')
+        .send({ email: username, handle: unique('deladmin'), password, isAdmin: true })
+        .expect(201)
+    ).body;
+
+    const wasAdmin = await login(username, password);
+    await wasAdmin.client.get('/v1/admin/users').expect(200);
+
+    await admin.client.delete(`/v1/admin/users/${created.id}`).expect(204);
+
+    await wasAdmin.client.get('/v1/admin/users').expect(401);
+    await wasAdmin.client.delete(`/v1/admin/users/${stranger.userId}`).expect(401);
+    expect(await rowsIn('users', { id: stranger.userId })).toHaveLength(1);
   });
 });
 
