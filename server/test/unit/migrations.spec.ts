@@ -19,7 +19,7 @@ import { usersSchema } from '@database/schemas/v1/users.schema';
 import { cameraIdOf, planIdOf, spaceIdOf } from '@/migrations/ids';
 import { MigrationContext } from '@/migrations/migration';
 import { applyRollback, planRollback } from '@/migrations/migration-rollback';
-import { MigrationRunner, RejectedRows } from '@/migrations/migration-runner';
+import { MigrationRunner, RejectedRows, RunEvent, runProgress } from '@/migrations/migration-runner';
 import { MIGRATION_STEPS } from '@/migrations/steps';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 
@@ -264,6 +264,62 @@ describe('the procedure', () => {
     expect(second.alreadyApplied).toHaveLength(MIGRATION_STEPS.length);
   });
 
+  it('says what it is doing while it does it, and not only once it is over', async () => {
+    const lines: string[] = [];
+    const watch = (event: RunEvent) => lines.push(runProgress(event).line);
+
+    await new MigrationRunner(connection).run({ dryRun: false, allowRejects: true, watch });
+
+    // Before the first step rather than after the last: a step that names
+    // itself as it starts is what a run of four minutes has instead of silence.
+    expect(lines[0]).toBe(`Migrations: ${MIGRATION_STEPS.length} of ${MIGRATION_STEPS.length} to apply; checking the database first`);
+    const started = lines.indexOf(`Migration ${MIGRATION_STEPS[0].name} starting (1 of ${MIGRATION_STEPS.length})`);
+    const applied = lines.findIndex(line => line.startsWith(`Migration ${MIGRATION_STEPS[0].name} applied in `));
+    expect(started).toBeGreaterThan(0);
+    expect(applied).toBe(started + 1);
+    expect(lines[lines.length - 1]).toMatch(new RegExp(`^Migrations: finished; ${MIGRATION_STEPS.length} migrations applied in \\d+ ms`, 'u'));
+
+    // The line that tells an already-migrated database from one the server
+    // never looked at. Before it there was nothing to tell them apart by.
+    const second: string[] = [];
+    await new MigrationRunner(connection).run({ dryRun: false, allowRejects: true, watch: event => second.push(runProgress(event).line) });
+    expect(second).toEqual([`Migrations: nothing to do; all ${MIGRATION_STEPS.length} of them have already been applied`]);
+  });
+
+  it('names the step it stopped at, so a log that ends in a failure says how far it got', async () => {
+    const lines: string[] = [];
+    const restore = killPartWay('004-spaces', 2);
+
+    try {
+      await expect(
+        new MigrationRunner(connection).run({ dryRun: false, allowRejects: true, watch: event => lines.push(runProgress(event).line) }),
+      ).rejects.toThrow(/killed part-way/u);
+    } finally {
+      restore();
+    }
+
+    expect(lines).toContain('Migrations: stopped at 004-spaces; nothing after that was written');
+    expect(lines.filter(line => /^Migration 00[123].* applied in /u.test(line))).toHaveLength(3);
+  });
+
+  it('refuses a record that says everything has run over a database still in the old shapes', async () => {
+    // What a restore leaves behind: `mongorestore --drop` drops only the
+    // collections the archive carries, so the record of this release survives a
+    // dump taken before it and claims a migration that never touched this data.
+    await collection('migrations').insertMany(MIGRATION_STEPS.map(step => ({ id: `migration-${step.name}`, name: step.name, rejectCount: 0 })));
+
+    await expect(migrate()).rejects.toThrow(/still hold what the previous release wrote: users, devices/u);
+    expect((await names()).filter(name => name.startsWith('legacy_'))).toEqual([]);
+  });
+
+  it('has nothing to say against a record that matches the database it was written for', async () => {
+    await migrate();
+
+    // The same complete record, and this time the collections behind it really
+    // are the new ones, so the second boot goes through in silence.
+    await expect(migrate()).resolves.toMatchObject({ applied: [] });
+  });
+
   it('leaves an empty collection where it is, because there is nothing there to migrate', async () => {
     // A fresh install, where mongoose has created the collections its models
     // declare an index on and nothing has ever been written into them.
@@ -370,6 +426,25 @@ describe('users', () => {
     expect(await one<{ notifications: { channels: { email: string | null } } }>('users', { id: LEGACY_USER_IDS.ada })).toMatchObject({
       notifications: { channels: { email: null } },
     });
+  });
+
+  it('reads a flag the way the release that wrote it read it', async () => {
+    await migrate();
+
+    const flags = async (id: string) => one<{ isActive: boolean; isAdmin: boolean }>('users', { id });
+
+    // Everything that ever read these rows read them through mongoose, which
+    // casts to a boolean rather than comparing: an account stored with `1` or
+    // `'true'` signed in for as long as the old app ran, so it signs in here.
+    expect(await flags(LEGACY_USER_IDS.activeAsNumber)).toMatchObject({ isActive: true, isAdmin: false });
+    expect(await flags(LEGACY_USER_IDS.activeAsString)).toMatchObject({ isActive: true, isAdmin: false });
+    expect(await flags(LEGACY_USER_IDS.adminAsNumber)).toMatchObject({ isActive: true, isAdmin: true });
+
+    // And an account the old app refused is still refused: the flag defaulted
+    // to false where it was declared, and no flag at all is that default.
+    expect(await flags(LEGACY_USER_IDS.withoutFlags)).toMatchObject({ isActive: false, isAdmin: false });
+    expect(await flags(LEGACY_USER_IDS.inactive)).toMatchObject({ isActive: false, isAdmin: false });
+    expect(await flags(LEGACY_USER_IDS.admin)).toMatchObject({ isActive: true, isAdmin: true });
   });
 
   it('refuses to run at all when two accounts share one user_id', async () => {
@@ -481,6 +556,20 @@ describe('alarms', () => {
     });
     // The episode began when the alarm last tripped, not when the migration ran.
     expect(alerts[0].startedAt.getTime()).toBe(AT - 2 * 60 * 60 * 1000);
+  });
+
+  it('leaves an alarm switched off whose flag is not a boolean', async () => {
+    // The same cast the accounts turn on, and the one with the loudest
+    // consequence: a rule that comes back enabled starts mailing whoever it
+    // names the moment the server is up.
+    await collection('devices').updateOne(
+      { device_id: LEGACY_DEVICE_IDS.controller, 'alarms.alarmId': fixture.alarms.disabled },
+      { $set: { 'alarms.$.disabled': 1 } },
+    );
+
+    await migrate();
+
+    expect(await one<{ enabled: boolean }>('alarmRules', { id: fixture.alarms.disabled })).toMatchObject({ enabled: false });
   });
 
   it('rejects a rule that watches an output, because the model has no metric for one', async () => {

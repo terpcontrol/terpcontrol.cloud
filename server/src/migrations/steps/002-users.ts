@@ -1,6 +1,6 @@
 import { mongo } from 'mongoose';
 import { notificationCategory } from '@fg2/shared-types/v1-schemas';
-import { LEGACY, LegacyUser, createdAtOf, textOf } from '../legacy';
+import { LEGACY, LegacyUser, createdAtOf, flagOf, textOf } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 
 /**
@@ -61,8 +61,8 @@ export const users: MigrationStep = {
         createdAt: createdAtOf(user),
         email,
         passwordHash,
-        isAdmin: user.is_admin === true,
-        isActive: user.is_active === true,
+        isAdmin: flagOf(user.is_admin),
+        isActive: flagOf(user.is_active),
         activationCode: textOf(user.activation_code),
         handle: handles.forEmail(email),
         bio: null,

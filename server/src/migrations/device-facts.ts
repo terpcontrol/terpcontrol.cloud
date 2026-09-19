@@ -1,5 +1,5 @@
 import { cameraIdOf, spaceIdOf } from './ids';
-import { LEGACY, LegacyDevice, terpCamLabelOf, textOf } from './legacy';
+import { LEGACY, LegacyDevice, flagOf, terpCamLabelOf, textOf } from './legacy';
 import { MigrationContext } from './migration';
 
 /**
@@ -54,7 +54,7 @@ export const loadDeviceFacts = async (context: MigrationContext): Promise<Map<st
       ownerId,
       spaceId: ownerId ? spaceIdOf(id) : null,
       cameraId: hasCamera ? cameraIdOf(id) : null,
-      isDemo: device.demoDevice === true,
+      isDemo: flagOf(device.demoDevice),
       stream,
       terpCamLabel: terpCamLabelOf(stream),
       cameraRetired: hasCamera && stream === null,

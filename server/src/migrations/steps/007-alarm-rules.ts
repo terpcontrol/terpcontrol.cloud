@@ -1,5 +1,5 @@
 import { derivedId } from '../ids';
-import { LEGACY, LegacyAlarm, LegacyDevice, createdAtOf, instantOf, numberOf, textOf } from '../legacy';
+import { LEGACY, LegacyAlarm, LegacyDevice, createdAtOf, flagOf, instantOf, numberOf, textOf } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 import { DeviceFacts, loadDeviceFacts } from '../device-facts';
 
@@ -94,7 +94,7 @@ const migrateAlarm = async (
   seen.add(id);
 
   const severity = alarm.actionType === 'info' ? 'info' : 'warning';
-  const triggered = alarm.isTriggered === true;
+  const triggered = flagOf(alarm.isTriggered);
   const lastTriggeredAt = instantOf(alarm.lastTriggeredAt);
 
   await context.write('alarmRules', {
@@ -109,7 +109,7 @@ const migrateAlarm = async (
     severity,
     origin: 'human',
     presetId: null,
-    enabled: alarm.disabled !== true,
+    enabled: !flagOf(alarm.disabled),
     cooldownSeconds: numberOf(alarm.cooldownSeconds) ?? 0,
     repeatSeconds: numberOf(alarm.retriggerSeconds) ?? 0,
     delivery: deliveryOf(alarm),
@@ -158,7 +158,7 @@ const deliveryOf = (alarm: LegacyAlarm): Record<string, unknown> => {
     custom: {
       channel: alarm.actionType,
       target,
-      includeDetails: alarm.additionalInfo !== false,
+      includeDetails: flagOf(alarm.additionalInfo, true),
       webhook:
         alarm.actionType === 'webhook'
           ? {
@@ -166,8 +166,8 @@ const deliveryOf = (alarm: LegacyAlarm): Record<string, unknown> => {
               headers: alarm.webhookHeaders ?? {},
               triggeredPayload: alarm.webhookTriggeredPayload ?? '',
               resolvedPayload: alarm.webhookResolvedPayload ?? '',
-              reportErrors: alarm.reportWebhookErrors === true,
-              tunnel: alarm.tunnelWebhook === true,
+              reportErrors: flagOf(alarm.reportWebhookErrors),
+              tunnel: flagOf(alarm.tunnelWebhook),
             }
           : null,
     },

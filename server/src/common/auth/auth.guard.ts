@@ -43,15 +43,23 @@ export class AdminGuard implements CanActivate {
     }
 
     const token = await this.tokens.verifySessionToken(request);
-    if (!token?.is_admin || token.is_demo || token.token_type !== 'user') {
+    if (!token || token.token_type !== 'user') {
       throw new HttpException(401, 'Wrong authentication token');
     }
 
-    // The token says it was an administrator; the account row says whether it
-    // still is, and whether it is still an account at all.
+    // The token says who it was; the account row says whether that is still
+    // true, and whether it is still an account at all.
     const caller = await this.tokens.resolve(token);
-    if (!caller?.isAdmin) {
+    if (!caller) {
       throw new HttpException(401, 'Wrong authentication token');
+    }
+
+    // Signed in, and simply not allowed here - a demo session, or an account
+    // that is not an administrator. Answering 401 to that reads as a dead token
+    // to any client that refreshes on one, so somebody who is only not an
+    // administrator is signed out of the application instead of being told no.
+    if (!caller.isAdmin || caller.isDemo) {
+      throw new HttpException(403, 'This is for administrators.');
     }
 
     request.auth = caller;

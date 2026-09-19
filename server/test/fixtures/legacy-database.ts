@@ -52,6 +52,14 @@ export const LEGACY_USER_IDS = {
   ben: 'user-ben',
   /** Signed up and never followed the link. */
   inactive: 'user-cleo',
+  /** Activated, with the flag stored as the number mongoose casts to true. */
+  activeAsNumber: 'user-dana',
+  /** Activated, with the flag stored as the string mongoose casts to true. */
+  activeAsString: 'user-eli',
+  /** An administrator whose flag is a number, and who is still an administrator. */
+  adminAsNumber: 'user-faye',
+  /** Neither flag stored at all, which is what the schema's defaults answered for. */
+  withoutFlags: 'user-gus',
 } as const;
 
 export const LEGACY_DEVICE_IDS = {
@@ -143,13 +151,20 @@ const configurationJson = (dayTemperature: number, limit: number) =>
 
 type Json = Record<string, unknown>;
 
+/**
+ * `is_admin` and `is_active` are declared `Boolean` and are not always one.
+ * Everything that ever read this collection read it through mongoose, which
+ * casts rather than compares, so a row written past the model - by a shell, an
+ * import, a release older than the schema - carries `1` or `'true'` and was
+ * read as set for as long as the old app ran.
+ */
 interface LegacyUser {
   _id: mongo.ObjectId;
   username: string;
   password: string;
   user_id: string;
-  is_admin: boolean;
-  is_active: boolean;
+  is_admin?: unknown;
+  is_active?: unknown;
   activation_code?: string;
   __v: number;
 }
@@ -347,6 +362,40 @@ export async function seedLegacyDatabase(target: Connection | mongo.Db, at: numb
       is_admin: false,
       is_active: false,
       activation_code: 'activation-cleo',
+      __v: 0,
+    },
+    {
+      _id: idAt(ago(650), 5),
+      username: 'dana@example.test',
+      password: PASSWORD_HASH,
+      user_id: LEGACY_USER_IDS.activeAsNumber,
+      is_admin: false,
+      is_active: 1,
+      __v: 0,
+    },
+    {
+      _id: idAt(ago(640), 6),
+      username: 'eli@example.test',
+      password: PASSWORD_HASH,
+      user_id: LEGACY_USER_IDS.activeAsString,
+      is_admin: false,
+      is_active: 'true',
+      __v: 0,
+    },
+    {
+      _id: idAt(ago(630), 7),
+      username: 'faye@example.test',
+      password: PASSWORD_HASH,
+      user_id: LEGACY_USER_IDS.adminAsNumber,
+      is_admin: 1,
+      is_active: true,
+      __v: 0,
+    },
+    {
+      _id: idAt(ago(620), 8),
+      username: 'gus@example.test',
+      password: PASSWORD_HASH,
+      user_id: LEGACY_USER_IDS.withoutFlags,
       __v: 0,
     },
   ];

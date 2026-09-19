@@ -3,7 +3,7 @@ import { config as readEnvFile } from 'dotenv';
 import { createConnection } from 'mongoose';
 import { databaseConfig } from '../config/configuration';
 import { mongoConnectionSettings } from '../database/mongo-connection';
-import { MigrationRunner, MigrationRunReport, RejectedRows } from './migration-runner';
+import { MigrationRunner, MigrationRunReport, migrationFailureText, runProgress } from './migration-runner';
 import { applyRollback, planRollback } from './migration-rollback';
 import { PreflightFailure, preflight } from './preflight';
 
@@ -33,11 +33,12 @@ const printRun = (result: MigrationRunReport): void => {
 
   if (result.alreadyApplied.length > 0) report(`Already applied: ${result.alreadyApplied.join(', ')}`);
 
+  // The counts are on the line each step printed as it finished; what is
+  // gathered here is what an operator has to decide about.
   for (const outcome of result.applied) {
-    report(`\n${outcome.name} (${outcome.durationMs} ms)`);
-    for (const [key, value] of Object.entries(outcome.stats)) {
-      if (value !== 0) report(`  ${key}: ${value}`);
-    }
+    if (outcome.rejects.length === 0) continue;
+
+    report(`\n${outcome.name}`);
     for (const reject of outcome.rejects) {
       report(`  ${reject.dropped ? 'dropped' : 'kept'} ${reject.source}/${reject.id}: ${reject.reason}${reject.detail ? ` [${reject.detail}]` : ''}`);
     }
@@ -76,6 +77,11 @@ const main = async (): Promise<void> => {
     }
 
     if (process.argv.includes('--check')) {
+      // The record against the database first: a rehearsal that says the
+      // migration has already run over a database still in the old shapes is
+      // the one answer nobody would act on.
+      await new MigrationRunner(connection).refuseAStaleRecord();
+
       const found = await preflight(connection.db!);
       if (found.problems.length > 0) throw new PreflightFailure(found);
 
@@ -83,10 +89,14 @@ const main = async (): Promise<void> => {
       return;
     }
 
+    const dryRun = process.argv.includes('--dry-run');
     printRun(
       await new MigrationRunner(connection).run({
-        dryRun: process.argv.includes('--dry-run'),
+        dryRun,
         allowRejects: process.argv.includes('--allow-rejects'),
+        // The same lines the server writes at boot, as they happen: a dry run
+        // over a hosted-size database is otherwise as silent as the boot was.
+        watch: event => report(runProgress(event, dryRun).line),
       }),
     );
   } finally {
@@ -94,13 +104,7 @@ const main = async (): Promise<void> => {
   }
 };
 
-/** A refusal is a report to read, not a crash: it prints as it was written, with no stack in front of it. */
-const reasonFor = (error: unknown): string => {
-  if (error instanceof PreflightFailure || error instanceof RejectedRows) return error.message;
-  return error instanceof Error ? (error.stack ?? error.message) : String(error);
-};
-
 main().catch(error => {
-  process.stderr.write(`${reasonFor(error)}\n`);
+  process.stderr.write(`${migrationFailureText(error)}\n`);
   process.exit(1);
 });

@@ -34,6 +34,12 @@ if [ -n "$MONGO_FILENAME" ]; then
   fi
 
   docker cp "$MONGO_FILENAME" "$MONGO_CONTAINER":/backup.mongodump
+  # --drop drops only the collections the archive carries. A dump taken before
+  # the data model was rewritten carries no `migrations` collection, so whatever
+  # this database already had of one survives the restore - and a record saying
+  # every migration has run is how the server decides there is nothing to do.
+  # It refuses to start on that rather than serving the restored shapes, and
+  # says to drop `migrations` and `migrationLock`; do that and start it again.
   docker compose exec mongodb mongorestore \
       --drop \
       --archive=/backup.mongodump \

@@ -1,5 +1,5 @@
 import { derivedId, planIdOf } from '../ids';
-import { LEGACY, LegacyDevice, LegacyRecipeStep, createdAtOf, instantOf, numberOf, textOf } from '../legacy';
+import { LEGACY, LegacyDevice, LegacyRecipeStep, createdAtOf, flagOf, instantOf, numberOf, textOf } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 
 /**
@@ -60,11 +60,11 @@ export const plans: MigrationStep = {
         templateId: null,
         name: textOf(device.name) ?? deviceId,
         steps: recipe.steps.map((step, index) => planStep(context, deviceId, step, index)),
-        loop: recipe.loop === true,
+        loop: flagOf(recipe.loop),
         notify: {
           mode: NOTIFY_MODE[textOf(recipe.notifications) ?? ''] ?? 'off',
           email: textOf(recipe.email),
-          writeEntries: recipe.additionalInfo === true,
+          writeEntries: flagOf(recipe.additionalInfo),
         },
         state: {
           // `activeSince` is the whole of what the old shape says about whether a
@@ -76,7 +76,7 @@ export const plans: MigrationStep = {
           pausedElapsedMs: 0,
           pauseReason: null,
           lastAppliedAt: activeSince ? lastAppliedAt : null,
-          confirmationNotifiedAt: activeSince && activeStep?.notified === true ? (lastAppliedAt ?? activeSince) : null,
+          confirmationNotifiedAt: activeSince && flagOf(activeStep?.notified) ? (lastAppliedAt ?? activeSince) : null,
         },
       });
     }
@@ -97,7 +97,7 @@ export const planStep = (context: MigrationContext, owner: string, step: LegacyR
     preset: null,
     duration: { value: numberOf(step.duration) ?? 0, unit: unit && DURATION_UNITS.includes(unit) ? unit : 'days' },
     settings: settingsOf(context, owner, index, step.settings),
-    waitForConfirmation: step.waitForConfirmation === true,
+    waitForConfirmation: flagOf(step.waitForConfirmation),
     confirmationMessage: textOf(step.confirmationMessage),
   };
 };

@@ -1,5 +1,5 @@
 import { spaceIdOf } from '../ids';
-import { LEGACY, LegacyDevice, createdAtOf, textOf } from '../legacy';
+import { LEGACY, LegacyDevice, createdAtOf, flagOf, textOf } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 
 /**
@@ -48,7 +48,7 @@ export const spaces: MigrationStep = {
         roomId: null,
         presetPrompt: 'ask',
         retention: { climateDays: null },
-        isDemo: device.demoDevice === true,
+        isDemo: flagOf(device.demoDevice),
         archivedAt: null,
         createdAt: createdAtOf(device),
       });

@@ -84,7 +84,9 @@ describe('an account an administrator changes underneath it', () => {
 
     await admin.client.patch(`/v1/admin/users/${made.id}`).send({ isAdmin: false }).expect(200);
 
-    await made.session.client.get('/v1/admin/users').expect(401);
+    // Told no rather than signed out: a 401 here reads as a dead token to a
+    // client that refreshes on one.
+    await made.session.client.get('/v1/admin/users').expect(403);
     // Still an account and still signed in; only no longer privileged.
     await made.session.client.get('/v1/me').expect(200);
   });

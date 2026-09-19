@@ -6,6 +6,7 @@ import {
   LegacyDeviceFirmware,
   LegacyDeviceFirmwareBinary,
   createdAtOf,
+  flagOf,
   instantOf,
   numberOf,
   textOf,
@@ -112,7 +113,7 @@ const firmwares = async (context: MigrationContext): Promise<void> => {
       classId,
       name: textOf(firmware.name),
       version,
-      wasStable: firmware.wasStable === true,
+      wasStable: flagOf(firmware.wasStable),
     });
   }
 };

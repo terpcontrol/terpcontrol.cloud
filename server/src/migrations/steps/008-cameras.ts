@@ -1,4 +1,4 @@
-import { LEGACY, LegacyDevice, createdAtOf, textOf } from '../legacy';
+import { LEGACY, LegacyDevice, createdAtOf, flagOf, textOf } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 import { loadDeviceFacts } from '../device-facts';
 
@@ -91,12 +91,12 @@ export const cameras: MigrationStep = {
         // the marker and the id, which is the camera's `did` and not an address.
         url: fact.terpCamLabel ? null : fact.stream,
         transport: enumOf(device.cloudSettings?.rtspStreamTransport, TRANSPORTS),
-        tunnel: device.cloudSettings?.tunnelRtspStream === true,
+        tunnel: flagOf(device.cloudSettings?.tunnelRtspStream),
         model: enumOf(device.cloudSettings?.webcamModel, MODELS),
         stillIntervalSeconds: STILL_INTERVAL_SECONDS,
         nightOff: false,
-        maintenanceOff: device.cloudSettings?.maintenanceWebcamOff === true,
-        logErrors: device.cloudSettings?.logRtspStreamErrors === true,
+        maintenanceOff: flagOf(device.cloudSettings?.maintenanceWebcamOff),
+        logErrors: flagOf(device.cloudSettings?.logRtspStreamErrors),
         entitlement: { validUntil, grant: 'migration' },
         isDemo: fact.isDemo,
         // A camera nothing streams from any more is a tombstone its pictures

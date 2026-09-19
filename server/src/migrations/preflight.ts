@@ -1,6 +1,6 @@
 import { mongo } from 'mongoose';
 import { loadDeviceFacts } from './device-facts';
-import { LEGACY, instantOf, numberOf, textOf } from './legacy';
+import { LEGACY, flagOf, instantOf, numberOf, textOf } from './legacy';
 import { MigrationContext } from './migration';
 
 /**
@@ -74,6 +74,55 @@ export class PreflightFailure extends Error {
     this.name = 'PreflightFailure';
   }
 }
+
+/**
+ * The record says every migration has already run, and the database says
+ * otherwise. Its message is the whole reason, so whatever prints an error
+ * prints it.
+ */
+export class StaleMigrationRecord extends Error {
+  constructor(public readonly collections: string[]) {
+    super(
+      [
+        `The record says every migration has already been applied, but these collections still hold what the previous release wrote: ${collections.join(', ')}.`,
+        '',
+        'Nothing has been written, and nothing would have been: with every step recorded there is nothing left to apply, so a boot would have',
+        'migrated none of this and served accounts in a shape nobody can sign in to.',
+        '',
+        'A dump taken before the upgrade, restored into a database this release had already started against, is exactly this: a restore drops',
+        'only the collections the archive carries, so the `migrations` record of the empty database it was restored into survives it.',
+        '',
+        'Drop `migrations` and `migrationLock`, then start again.',
+      ].join('\n'),
+    );
+    this.name = 'StaleMigrationRecord';
+  }
+}
+
+/**
+ * What only the previous release ever wrote, still standing under its own name.
+ *
+ * `users` and `devices` are the two collections this release keeps the name of,
+ * so those are asked for a field only the old shape carries. The other ten have
+ * no reader in this release at all, so rows standing in them is the whole
+ * answer - and an old collection that was empty is never renamed aside, so it
+ * is counted rather than looked for.
+ */
+const OLD_SHAPE: Record<string, mongo.Filter<mongo.Document>> = {
+  [LEGACY.users]: { user_id: { $exists: true } },
+  [LEGACY.devices]: { device_id: { $exists: true } },
+};
+
+export const unmigratedCollections = async (db: mongo.Db): Promise<string[]> => {
+  const present = new Set((await db.listCollections({}, { nameOnly: true }).toArray()).map(entry => entry.name));
+
+  const found: string[] = [];
+  for (const collection of Object.values(LEGACY)) {
+    if (!present.has(collection)) continue;
+    if ((await db.collection(collection).countDocuments(OLD_SHAPE[collection] ?? {}, { limit: 1 })) > 0) found.push(collection);
+  }
+  return found;
+};
 
 /**
  * Every check, over the collections under whichever name they currently have.
@@ -207,7 +256,7 @@ const devicesPerOwner = async (context: MigrationContext): Promise<Map<string, n
 /** What a decision between two accounts turns on: which address, how old, whether it was ever activated, how much it owns. */
 const accountRow = (row: RawRow, devices: number): PreflightRow => ({
   id: row.id,
-  facts: [asStored(row.email), created(row.id), row.active === true ? 'active' : 'not activated', `owns ${plural(devices, 'device')}`],
+  facts: [asStored(row.email), created(row.id), flagOf(row.active) ? 'active' : 'not activated', `owns ${plural(devices, 'device')}`],
 });
 
 const duplicateUserIds = async (context: MigrationContext, owned: Map<string, number>): Promise<PreflightProblem | null> => {
@@ -447,7 +496,7 @@ const templatesWithoutAnOwner = async (context: MigrationContext): Promise<Prefl
       value: group.value,
       rows: group.rows.map(row => ({
         id: String(row._id),
-        facts: [named(row.name, 'no name'), row.public === true ? 'public' : 'private', created(String(row._id))],
+        facts: [named(row.name, 'no name'), flagOf(row.public) ? 'public' : 'private', created(String(row._id))],
       })),
     })),
     capped,

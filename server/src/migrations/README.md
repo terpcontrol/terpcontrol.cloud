@@ -30,6 +30,37 @@ On an install with no old data — a fresh one, and the integration suite — **
 no documents in it is not renamed aside. Every step still runs, finds nothing and records itself, so a later boot
 has nothing to do.
 
+## What the log says
+
+A run reports as it happens rather than when it returns, so a long step names itself while it works and a run that
+was killed leaves a log saying how far it got. `Migrations:` is the run, `Migration <name>` is a step:
+
+```
+Migrations: 12 of 14 to apply (2 already applied); checking the database first
+Migrations: applying 003-fleet, 004-spaces, …
+Migration 003-fleet starting (1 of 12)
+Migration 003-fleet applied in 16 ms: deviceclasses.read=5, deviceClasses.written=5, …
+…
+Migrations: finished; 12 migrations applied in 1412 ms
+```
+
+A boot with nothing to do says so — `Migrations: nothing to do; all 14 of them have already been applied`. That
+line is the difference between a database that is migrated and one the server never looked at, and silence is not.
+A step that left rows behind is a warning rather than an info line and carries the count; a run that stops says
+`Migrations: stopped at 003-fleet; nothing after that was written` before the report of why.
+
+## A record that claims more than the database holds
+
+A restore of a dump taken before the upgrade puts the old collections back, and `mongorestore --drop` drops only
+the collections the archive carries — so a `migrations` record already in that database survives it. Every step
+then counts as applied over a database that still holds every old shape: nothing is pending, nothing is renamed,
+and the accounts are in a shape nobody can sign in to.
+
+So the record is not believed on its own. Where it says everything has run, the twelve old collections are counted
+first (`users` and `devices` by a field only the old shape carries, since those two keep their names), and the
+server **refuses to start** naming them, rather than serving what it found. Drop `migrations` and `migrationLock`
+and start again. `npm run migrate:check` asks the same thing.
+
 ## A row it cannot take stops it
 
 A transform that meets a row it cannot carry records it with its reason and **stops the run there**. The steps

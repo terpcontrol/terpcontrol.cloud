@@ -1,5 +1,5 @@
 import { spaceIdOf } from '../ids';
-import { LEGACY, LegacyDevice, createdAtOf, instantOf, numberOf, textOf } from '../legacy';
+import { LEGACY, LegacyDevice, createdAtOf, flagOf, instantOf, numberOf, textOf } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 
 /**
@@ -79,7 +79,7 @@ export const devices: MigrationStep = {
           vpdLeafOffsetNight: numberOf(cloud.vpdLeafTempOffsetNight) ?? DEFAULT_SETTINGS.vpdLeafOffsetNight,
           ppfdLuxFactor: numberOf(cloud.ppfdLuxFactor) ?? DEFAULT_SETTINGS.ppfdLuxFactor,
         },
-        isDemo: device.demoDevice === true,
+        isDemo: flagOf(device.demoDevice),
         state: {
           lastSeenAt: instantOf(device.lastseen),
           claimedAt: null,
@@ -102,7 +102,7 @@ export const devices: MigrationStep = {
 const channelOf = (device: LegacyDevice): string => {
   const channel = textOf(device.cloudSettings?.firmwareChannel);
   if (channel) return channel;
-  return device.cloudSettings?.autoFirmwareUpdate === true || device.firmwareSettings?.autoUpdate === true ? 'stable' : 'manual';
+  return flagOf(device.cloudSettings?.autoFirmwareUpdate) || flagOf(device.firmwareSettings?.autoUpdate) ? 'stable' : 'manual';
 };
 
 const configurationOf = (context: MigrationContext, id: string, stored: string | undefined): Record<string, unknown> | null => {

@@ -214,6 +214,34 @@ export const textOf = (value: string | null | undefined): string | null => {
 
 export const numberOf = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
 
+/** What mongoose's boolean cast takes for set and unset, which is what every old document was read through. */
+const CAST_TO_TRUE: unknown[] = [true, 'true', 1, '1', 'yes'];
+const CAST_TO_FALSE: unknown[] = [false, 'false', 0, '0', 'no'];
+
+/**
+ * A stored flag, read the way the release that wrote it read it.
+ *
+ * Everything that ever read these documents read them through a mongoose model,
+ * and mongoose casts to a boolean rather than comparing: `1`, `'1'`, `'true'`
+ * and `'yes'` all arrived as `true`. A transform reads the collection through
+ * the driver instead, where a strict comparison turns a flag the old release
+ * treated as set into an unset one - an activated account that can no longer
+ * sign in, an alarm that was switched off and starts mailing again. What an
+ * account or a device could already do is the only definition of what it should
+ * be able to do afterwards, so the flag is read by the same rule.
+ *
+ * A value the cast did not recognise is no answer at all and falls back to
+ * `whenAbsent`, which is whatever the field defaulted to where it was declared.
+ *
+ * Non-booleans are not in a document the model wrote; they are in one written
+ * past it, by a shell, an import or a release older than the schema.
+ */
+export const flagOf = (value: unknown, whenAbsent = false): boolean => {
+  if (CAST_TO_TRUE.includes(value)) return true;
+  if (CAST_TO_FALSE.includes(value)) return false;
+  return whenAbsent;
+};
+
 /**
  * How a paired Terp Cam is stored today: in the field meant for an RTSP URL,
  * under a marker followed by the camera's own id. The live reader of it is

@@ -1,5 +1,5 @@
 import { derivedId } from '../ids';
-import { LEGACY, LegacyRecipeTemplate, LegacyUser, createdAtOf, instantOf, textOf } from '../legacy';
+import { LEGACY, LegacyRecipeTemplate, LegacyUser, createdAtOf, flagOf, instantOf, textOf } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 import { planStep } from './006-plans';
 
@@ -33,7 +33,7 @@ export const planTemplates: MigrationStep = {
       context.count('planTemplates.read');
 
       const id = derivedId('planTemplate', String(template._id));
-      const isPublic = template.public === true;
+      const isPublic = flagOf(template.public);
       const ownerId = textOf(template.owner_id) ?? (isPublic ? fallbackOwnerId : null);
 
       if (!ownerId) {

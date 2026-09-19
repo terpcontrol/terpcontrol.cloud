@@ -6,7 +6,7 @@ import { logger } from '@utils/logger';
 import { derivedId } from './ids';
 import { MigrationContext, MigrationReject, MigrationStep } from './migration';
 import { MigrationLock } from './migration-lock';
-import { PreflightFailure, preflight } from './preflight';
+import { PreflightFailure, StaleMigrationRecord, preflight, unmigratedCollections } from './preflight';
 import { MIGRATION_STEPS } from './steps';
 
 /** Where a run is recorded, and what says a migration has already been applied. */
@@ -62,6 +62,82 @@ export interface MigrationRunReport {
 }
 
 /**
+ * What a run is doing, as it happens.
+ *
+ * A run that only reports when it returns is silent for exactly as long as it
+ * takes - four minutes of nothing on a database with a few hundred thousand
+ * rows in it - and a run that throws says nothing at all about the steps that
+ * applied before it. Neither is something an operator can read, so the report
+ * the caller gets at the end is what a run *did*, and this is what it is doing.
+ */
+export type RunEvent =
+  | { at: 'nothing-to-do'; applied: number }
+  | { at: 'checking'; pending: string[]; applied: string[] }
+  | { at: 'starting'; pending: string[] }
+  | { at: 'step-starting'; name: string; index: number; of: number }
+  | { at: 'step-finished'; outcome: MigrationOutcome; index: number; of: number }
+  | { at: 'finished'; applied: MigrationOutcome[]; durationMs: number }
+  | { at: 'stopped'; step: string | null };
+
+export type RunWatcher = (event: RunEvent) => void;
+
+/**
+ * One wording for what a run is doing, so the boot log and the command cannot
+ * drift apart. `Migrations:` for the run, `Migration <name>` for a step, which
+ * is the prefix the lock and the index builder already use. A dry run says
+ * rehearsed where a real one says applied, because it wrote none of it.
+ */
+export const runProgress = (event: RunEvent, dryRun = false): { level: 'info' | 'warn' | 'error'; line: string } => {
+  const took = dryRun ? 'rehearsed' : 'applied';
+
+  switch (event.at) {
+    case 'nothing-to-do':
+      // The line that tells "already migrated" from "never looked", which
+      // nothing said before: both were silence.
+      return { level: 'info', line: `Migrations: nothing to do; all ${event.applied} of them have already been applied` };
+    case 'checking':
+      return {
+        level: 'info',
+        line:
+          `Migrations: ${event.pending.length} of ${MIGRATION_STEPS.length} to apply` +
+          `${event.applied.length > 0 ? ` (${event.applied.length} already applied)` : ''}; checking the database first`,
+      };
+    case 'starting':
+      return event.pending.length === 0
+        ? { level: 'info', line: 'Migrations: nothing left to apply; another instance had just finished' }
+        : { level: 'info', line: `Migrations: ${dryRun ? 'rehearsing' : 'applying'} ${event.pending.join(', ')}` };
+    case 'step-starting':
+      return { level: 'info', line: `Migration ${event.name} starting (${event.index} of ${event.of})` };
+    case 'step-finished':
+      return {
+        level: event.outcome.rejectCount > 0 ? 'warn' : 'info',
+        line:
+          `Migration ${event.outcome.name} ${took} in ${event.outcome.durationMs} ms` +
+          `${event.outcome.rejectCount > 0 ? `, ${plural(event.outcome.rejectCount, 'row')} refused` : ''}: ${describe(event.outcome)}`,
+      };
+    case 'finished': {
+      const refused = event.applied.reduce((total, outcome) => total + outcome.rejectCount, 0);
+      return {
+        level: 'info',
+        line:
+          `Migrations: finished; ${plural(event.applied.length, 'migration')} ${took} in ${event.durationMs} ms` +
+          `${refused > 0 ? `, ${plural(refused, 'row')} refused` : ''}`,
+      };
+    }
+    case 'stopped':
+      return { level: 'error', line: `Migrations: stopped${event.step ? ` at ${event.step}` : ''}; nothing after that was written` };
+  }
+};
+
+const plural = (count: number, noun: string): string => `${count} ${noun}${count === 1 ? '' : 's'}`;
+
+/** A refusal is a report to read, not a crash: it prints as it was written, with no stack in front of it. */
+export const migrationFailureText = (error: unknown): string => {
+  if (error instanceof PreflightFailure || error instanceof RejectedRows || error instanceof StaleMigrationRecord) return error.message;
+  return error instanceof Error ? (error.stack ?? error.message) : String(error);
+};
+
+/**
  * Applies the migrations in order, once each.
  *
  * It runs at boot, before the server listens or subscribes to MQTT, so that
@@ -80,21 +156,66 @@ export class MigrationRunner {
   }
 
   public async runAtBoot(): Promise<void> {
-    // Nobody types a flag when a container starts, so the deliberate way past a
-    // rejected row is set where the rest of the deployment is.
-    const report = await this.run({ dryRun: false, allowRejects: process.env.MIGRATION_ALLOW_REJECTS === 'true' });
-    for (const outcome of report.applied) {
-      logger.info(`Migration ${outcome.name} applied in ${outcome.durationMs} ms: ${describe(outcome)}`);
+    try {
+      // Nobody types a flag when a container starts, so the deliberate way past
+      // a rejected row is set where the rest of the deployment is.
+      await this.run({
+        dryRun: false,
+        allowRejects: process.env.MIGRATION_ALLOW_REJECTS === 'true',
+        watch: event => {
+          const { level, line } = runProgress(event);
+          logger[level](line);
+        },
+      });
+    } catch (error) {
+      // Written here rather than left to the fatal handler, which would put a
+      // stack between the reason and the reader and print the whole of it twice.
+      logger.error(migrationFailureText(error));
+      throw new Error('Migrations: the database was not migrated; the reason is above');
     }
 
     await this.buildSeparatedIndexes();
   }
 
-  public async run({ dryRun, allowRejects = false }: { dryRun: boolean; allowRejects?: boolean }): Promise<MigrationRunReport> {
+  /**
+   * The record is not believed on its own, where it claims everything has run.
+   *
+   * A dump taken before the upgrade and restored into a database this release
+   * has already started against comes out looking migrated: a restore drops
+   * only the collections the archive carries, so the `migrations` record of the
+   * empty database it landed in survives. Nothing is then pending, nothing is
+   * renamed aside, and the server serves accounts in a shape nobody can sign in
+   * to. A `listCollections` and at most twelve counts, on a boot that would
+   * otherwise do nothing at all.
+   */
+  public async refuseAStaleRecord(): Promise<void> {
+    const applied = await this.appliedNames();
+    if (!MIGRATION_STEPS.every(step => applied.has(step.name))) return;
+
+    const stale = await unmigratedCollections(this.db);
+    if (stale.length > 0) throw new StaleMigrationRecord(stale);
+  }
+
+  public async run({
+    dryRun,
+    allowRejects = false,
+    watch,
+  }: {
+    dryRun: boolean;
+    allowRejects?: boolean;
+    watch?: RunWatcher;
+  }): Promise<MigrationRunReport> {
+    const startedAt = Date.now();
     const applied = await this.appliedNames();
     const report: MigrationRunReport = { dryRun, applied: [], alreadyApplied: MIGRATION_STEPS.filter(s => applied.has(s.name)).map(s => s.name) };
 
-    if (report.alreadyApplied.length === MIGRATION_STEPS.length) return report;
+    if (report.alreadyApplied.length === MIGRATION_STEPS.length) {
+      await this.refuseAStaleRecord();
+      watch?.({ at: 'nothing-to-do', applied: report.alreadyApplied.length });
+      return report;
+    }
+
+    watch?.({ at: 'checking', pending: MIGRATION_STEPS.filter(s => !applied.has(s.name)).map(s => s.name), applied: report.alreadyApplied });
 
     // Before the lock and before any step, on a dry run as much as on a real
     // one: a database that holds two rows claiming to be one thing is not one to
@@ -107,15 +228,21 @@ export class MigrationRunner {
     // Taken before the pending list is read again: the instance that waited for
     // it has just finished, and what it applied has to count as applied here.
     const lock = dryRun ? null : await MigrationLock.acquire(this.db);
+    let reached: string | null = null;
     try {
       const alreadyApplied = dryRun ? applied : await this.appliedNames();
       report.alreadyApplied = MIGRATION_STEPS.filter(step => alreadyApplied.has(step.name)).map(step => step.name);
 
-      for (const step of MIGRATION_STEPS) {
-        if (alreadyApplied.has(step.name)) continue;
+      const pending = MIGRATION_STEPS.filter(step => !alreadyApplied.has(step.name));
+      watch?.({ at: 'starting', pending: pending.map(step => step.name) });
+
+      for (const [index, step] of pending.entries()) {
+        reached = step.name;
+        watch?.({ at: 'step-starting', name: step.name, index: index + 1, of: pending.length });
 
         const outcome = await this.apply(step, dryRun, allowRejects);
         report.applied.push(outcome);
+        watch?.({ at: 'step-finished', outcome, index: index + 1, of: pending.length });
 
         // A row a transform could not take is a row that will not be in the new
         // model, and a report nobody has to read is not a safeguard: an entry
@@ -127,10 +254,19 @@ export class MigrationRunner {
         // it came from, so the next run carries on rather than starting over.
         if (!allowRejects && outcome.rejectCount > 0) throw new RejectedRows(outcome);
       }
+
+      reached = null;
+    } catch (error) {
+      // Said before the reason is, so that a log which ends in a crash still
+      // names how far the run got - which the report, discarded with the throw,
+      // no longer can.
+      watch?.({ at: 'stopped', step: reached });
+      throw error;
     } finally {
       await lock?.release();
     }
 
+    watch?.({ at: 'finished', applied: report.applied, durationMs: Date.now() - startedAt });
     return report;
   }
 
@@ -171,7 +307,7 @@ export class MigrationRunner {
       await step.run(context);
       await context.flushAll();
     } catch (error) {
-      throw new Error(`Migration ${step.name} failed: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`, { cause: error });
+      throw new Error(`Migration ${step.name} failed: ${reasonOf(error)}`, { cause: error });
     }
 
     const outcome: MigrationOutcome = {
@@ -187,14 +323,21 @@ export class MigrationRunner {
     // it, and a refusal that lasts one run is no refusal at all.
     if (!dryRun && (allowRejects || outcome.rejectCount === 0)) {
       const appliedAt = new Date();
-      await this.db.collection(MIGRATIONS).updateOne(
-        { name: step.name },
-        {
-          $set: { appliedAt, durationMs: outcome.durationMs, stats: outcome.stats, rejects: outcome.rejects, rejectCount: outcome.rejectCount },
-          $setOnInsert: { id: derivedId('migration', step.name), createdAt: appliedAt, name: step.name },
-        },
-        { upsert: true },
-      );
+      try {
+        await this.db.collection(MIGRATIONS).updateOne(
+          { name: step.name },
+          {
+            $set: { appliedAt, durationMs: outcome.durationMs, stats: outcome.stats, rejects: outcome.rejects, rejectCount: outcome.rejectCount },
+            $setOnInsert: { id: derivedId('migration', step.name), createdAt: appliedAt, name: step.name },
+          },
+          { upsert: true },
+        );
+      } catch (error) {
+        // Named like every other failure inside a step: without this the record
+        // being unwritable surfaces as a bare driver error with nothing in it
+        // saying which migration the run was on.
+        throw new Error(`Migration ${step.name} ran but could not be recorded as applied: ${reasonOf(error)}`, { cause: error });
+      }
     }
 
     return outcome;
@@ -208,6 +351,8 @@ export class MigrationRunner {
     return new Set(records.map(record => String(record.name)));
   }
 }
+
+const reasonOf = (error: unknown): string => (error instanceof Error ? (error.stack ?? error.message) : String(error));
 
 const describe = (outcome: MigrationOutcome): string => {
   const counts = Object.entries(outcome.stats)
