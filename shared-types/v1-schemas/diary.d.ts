@@ -2522,8 +2522,8 @@ export declare const homeAnswer: z.ZodObject<{
     }, z.core.$strip>>;
 }, z.core.$strip>;
 export declare const verdictRating: z.ZodEnum<{
-    good: "good";
     watch: "watch";
+    good: "good";
     poor: "poor";
 }>;
 /** A target widened by `TARGET_BAND`: what a chart shades green and a verdict counts time inside. */
@@ -2563,8 +2563,8 @@ export declare const climateVerdictMetric: z.ZodObject<{
         ppfd: "ppfd";
     }>;
     rating: z.ZodNullable<z.ZodEnum<{
-        good: "good";
         watch: "watch";
+        good: "good";
         poor: "poor";
     }>>;
     minValue: z.ZodNullable<z.ZodNumber>;
@@ -2625,8 +2625,8 @@ export declare const climateVerdict: z.ZodObject<{
     forSeconds: z.ZodNumber;
     stepSeconds: z.ZodNumber;
     rating: z.ZodNullable<z.ZodEnum<{
-        good: "good";
         watch: "watch";
+        good: "good";
         poor: "poor";
     }>>;
     inBandFraction: z.ZodNullable<z.ZodNumber>;
@@ -2642,8 +2642,8 @@ export declare const climateVerdict: z.ZodObject<{
             ppfd: "ppfd";
         }>;
         rating: z.ZodNullable<z.ZodEnum<{
-            good: "good";
             watch: "watch";
+            good: "good";
             poor: "poor";
         }>>;
         minValue: z.ZodNullable<z.ZodNumber>;
@@ -2907,8 +2907,8 @@ export declare const spaceOverview: z.ZodObject<{
         forSeconds: z.ZodNumber;
         stepSeconds: z.ZodNumber;
         rating: z.ZodNullable<z.ZodEnum<{
-            good: "good";
             watch: "watch";
+            good: "good";
             poor: "poor";
         }>>;
         inBandFraction: z.ZodNullable<z.ZodNumber>;
@@ -2924,8 +2924,8 @@ export declare const spaceOverview: z.ZodObject<{
                 ppfd: "ppfd";
             }>;
             rating: z.ZodNullable<z.ZodEnum<{
-                good: "good";
                 watch: "watch";
+                good: "good";
                 poor: "poor";
             }>>;
             minValue: z.ZodNullable<z.ZodNumber>;
@@ -5245,8 +5245,8 @@ export declare const sharedSpace: z.ZodObject<{
             forSeconds: z.ZodNumber;
             stepSeconds: z.ZodNumber;
             rating: z.ZodNullable<z.ZodEnum<{
-                good: "good";
                 watch: "watch";
+                good: "good";
                 poor: "poor";
             }>>;
             inBandFraction: z.ZodNullable<z.ZodNumber>;
@@ -5262,8 +5262,8 @@ export declare const sharedSpace: z.ZodObject<{
                     ppfd: "ppfd";
                 }>;
                 rating: z.ZodNullable<z.ZodEnum<{
-                    good: "good";
                     watch: "watch";
+                    good: "good";
                     poor: "poor";
                 }>>;
                 minValue: z.ZodNullable<z.ZodNumber>;
@@ -5850,8 +5850,8 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             forSeconds: z.ZodNumber;
             stepSeconds: z.ZodNumber;
             rating: z.ZodNullable<z.ZodEnum<{
-                good: "good";
                 watch: "watch";
+                good: "good";
                 poor: "poor";
             }>>;
             inBandFraction: z.ZodNullable<z.ZodNumber>;
@@ -5867,8 +5867,8 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     ppfd: "ppfd";
                 }>;
                 rating: z.ZodNullable<z.ZodEnum<{
-                    good: "good";
                     watch: "watch";
+                    good: "good";
                     poor: "poor";
                 }>>;
                 minValue: z.ZodNullable<z.ZodNumber>;
@@ -6472,8 +6472,8 @@ export declare const sharedResolution: z.ZodObject<{
                 forSeconds: z.ZodNumber;
                 stepSeconds: z.ZodNumber;
                 rating: z.ZodNullable<z.ZodEnum<{
-                    good: "good";
                     watch: "watch";
+                    good: "good";
                     poor: "poor";
                 }>>;
                 inBandFraction: z.ZodNullable<z.ZodNumber>;
@@ -6489,8 +6489,8 @@ export declare const sharedResolution: z.ZodObject<{
                         ppfd: "ppfd";
                     }>;
                     rating: z.ZodNullable<z.ZodEnum<{
-                        good: "good";
                         watch: "watch";
+                        good: "good";
                         poor: "poor";
                     }>>;
                     minValue: z.ZodNullable<z.ZodNumber>;

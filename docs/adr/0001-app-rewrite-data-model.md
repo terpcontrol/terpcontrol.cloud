@@ -175,7 +175,7 @@ the Telegram link and the webhook.
 | `claimCodes` | `code` (unique), `deviceId` (unique) |
 | `plans` | `deviceId` (unique), `templateId`, `name`, `steps[] { id, name, stage, preset, duration { value, unit }, settings, waitForConfirmation, confirmationMessage }`, `loop`, `notify { mode: off · on_step · on_confirmation, email, writeEntries }`, `state { status: running · paused · stopped · completed, activeStepIndex, stepStartedAt, pausedElapsedMs, pauseReason, lastAppliedAt, confirmationNotifiedAt }` |
 | `planTemplates` | `ownerId`, `name` (unique per owner), `isPublic`, `steps[]` |
-| `alarmRules` | `deviceId`, `name`, `metric`, `upper`, `lower`, `forSeconds`, `severity: critical · warning · info`, `origin: preset · always · device · human`, `presetId`, `enabled`, `cooldownSeconds`, `repeatSeconds`, `delivery { mode: routing · custom, custom }`, `silencedUntil`, `state { triggered, lastTriggeredAt, lastResolvedAt, extremeValue, lastSampleAt }` |
+| `alarmRules` | `deviceId`, `name`, `watch` (one of `{ kind: reading, metric, upper, lower }`, `{ kind: output_level, output, upper, lower }`, `{ kind: output_running, output }`), `forSeconds`, `severity: critical · warning · info`, `origin: preset · always · device · human`, `presetId`, `enabled`, `cooldownSeconds`, `repeatSeconds`, `delivery { mode: routing · custom, custom }`, `silencedUntil`, `state { triggered, lastTriggeredAt, lastResolvedAt, extremeValue, lastSampleAt }` |
 | `alerts` | `ruleId`, `deviceId`, `cameraId`, `spaceId`, `kind`, `severity`, `startedAt`, `resolvedAt`, `value`, `extremeValue` |
 
 The device document keeps what the device is. What a human thinks about moves out: the plan, the alarm rules,
@@ -185,6 +185,16 @@ factors to `devices.settings`, the camera fields to `cameras`. Sockets and capab
 resolution, which is what the alerts inbox shows; today it has to be paired from two log lines. `delivery.mode:
 custom` keeps today's per-alarm e-mail and webhook with its templates and the tunnel; `routing` uses the
 person's notification settings.
+
+An alarm watches a reading or an output. The tent that gets too warm is the rule everyone writes, but a grower
+also watches what the controller is *doing*: the fridge that has not stopped running in an hour, the CO2 valve
+that is still open, the heater working harder than it should be. Both are alarms in the same sense, and the
+outputs are a vocabulary the model already has for its charts, so the rule names one or the other rather than
+pretending an output is a reading. What trips them differs, though, which is why `watch` is a choice between
+shapes and not a wider enum: a band is what a reading is watched against and what an output's level is watched
+against, and an output watched for running at all has no band to give - anything above zero is the output
+working, and `forSeconds` is what makes that an alarm rather than a fact of every cycle. Written this way, a
+rule that names an output and a threshold nothing would read cannot be written down at all.
 
 ### Places, people, grows
 
@@ -434,7 +444,7 @@ all. A later migration, in the following release, drops the `legacy_*` collectio
 | every collection | every collection | mongoose's `__v` and the `_id` it adds to each subdocument (alarms, plan steps, `cloudSettings`) are dropped; they are its bookkeeping, not data |
 | `devices` | `devices` | renames; `configuration` parsed from its string, where an absent or empty string becomes `null` and an unparseable one becomes `null` with the original kept in the reject report; `hardwareInfo` → `state.hardware`; the three update settings (`firmwareSettings.autoUpdate`, `cloudSettings.autoFirmwareUpdate` and `cloudSettings.firmwareChannel`, of which the first two are deprecated) fold into the one `firmware.channel`; the two pending-firmware fields and the two update-channel fields fold into `firmware`; `owner_id: ''` → `ownerId: null` |
 | `devices.recipe` | `plans` | one plan per device that has steps; `state.status` is `running` when `activeSince > 0`, else `stopped`; step durations keep their unit; `email`, `notifications` and `additionalInfo` become `notify`; the active step's `lastTimeApplied` and `notified` become `state.lastAppliedAt` and `state.confirmationNotifiedAt`, and the same two flags on inactive steps are dropped because the engine resets them on every step change |
-| `devices.alarms[]` | `alarmRules`, `alerts` | one rule each; e-mail and webhook actions become `delivery.custom` unchanged; a triggered alarm also gets its open alert |
+| `devices.alarms[]` | `alarmRules`, `alerts` | one rule each; e-mail and webhook actions become `delivery.custom` unchanged; a triggered alarm also gets its open alert. An alarm on an output keeps watching it: `co2_valve` is the model's `co2` output, `dehumidifier` and `co2_valve` become `output_running` because that is what the old engine tripped them on, the other three become `output_level`, and the heater's thresholds are divided by a hundred - they were percentages of a fraction, and the model compares an output against the number the series carries |
 | `devices.cloudSettings` + `hardwareInfo.webcam_*` | `cameras`, `devices.settings`, `devices.firmware` | one camera per device that has a stream, its kind from the stream's scheme; a device with stills but no stream today gets a retired camera (`removedAt` set), so no picture loses its link |
 | each claimed device | `spaces` | one space per device, kind from the device type, name from the device |
 | `devicelogs` | `entries` | `kind` and `source` from `categories`; `message-key:param` parsed into `message`; `data` into `values` (the six fixed measurements become readings); `images` → `mediaIds`; `deleted` dropped, and **no row is dropped with it**: deleting a line really removed it, and the old app sets the flag on every diary entry it writes, so it means "not interesting on the device card" and nothing else. Every row still in the collection is a line somebody kept, and reading the flag as a deletion would empty a grower's whole diary; human diary entries get the device's owner as author, since a device has had exactly one writer |

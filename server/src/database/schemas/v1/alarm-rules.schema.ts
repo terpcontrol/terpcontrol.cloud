@@ -1,10 +1,29 @@
 import { Schema } from 'mongoose';
-import type { AlarmDelivery, AlarmDeliveryCustom, AlarmRule, AlarmRuleState, AlarmWebhook } from '@fg2/shared-types/v1';
-import { alarmDeliveryChannel, alarmDeliveryMode, alarmOrigin, metric, severity, webhookMethod } from '@fg2/shared-types/v1-schemas';
+import type {
+  AlarmDelivery,
+  AlarmDeliveryCustom,
+  AlarmRule,
+  AlarmRuleState,
+  AlarmWatch,
+  AlarmWebhook,
+  Metric,
+  OutputMetric,
+} from '@fg2/shared-types/v1';
+import {
+  alarmDeliveryChannel,
+  alarmDeliveryMode,
+  alarmOrigin,
+  alarmWatch,
+  metric,
+  outputMetric,
+  severity,
+  webhookMethod,
+} from '@fg2/shared-types/v1-schemas';
 
 /**
- * One threshold rule on one device's metric. What the rule says and where the
- * engine has got to are apart: `state` is the server's and no client writes it.
+ * One rule on one thing a device says: a reading it measures or an output it
+ * drives. What the rule says and where the engine has got to are apart: `state`
+ * is the server's and no client writes it.
  */
 export interface StoredAlarmRuleState extends Omit<AlarmRuleState, 'lastTriggeredAt' | 'lastResolvedAt' | 'lastSampleAt'> {
   lastTriggeredAt: Date | null;
@@ -17,6 +36,35 @@ export interface StoredAlarmRule extends Omit<AlarmRule, 'createdAt' | 'silenced
   silencedUntil: Date | null;
   state: StoredAlarmRuleState;
 }
+
+/**
+ * The watch as one subdocument, with the field of every arm and only those of
+ * its own kind filled - the way a camera stores the fields of the kind it is.
+ * The contract is where a reading with an output name cannot be written down;
+ * here the shape is flat so that `watch.metric` and `watch.output` are paths the
+ * engine can ask for and an index can cover. `StoredAlarmRule.watch` is the
+ * union all the same, so nothing reads a field the kind does not have.
+ */
+interface StoredAlarmWatch {
+  kind: AlarmWatch['kind'];
+  metric: Metric | null;
+  output: OutputMetric | null;
+  upper: number | null;
+  lower: number | null;
+}
+
+const watchKinds = alarmWatch.options.map(option => option.shape.kind.value);
+
+const watchSchema = new Schema<StoredAlarmWatch>(
+  {
+    kind: { type: String, enum: watchKinds, required: true },
+    metric: { type: String, enum: [...metric.options, null], default: null },
+    output: { type: String, enum: [...outputMetric.options, null], default: null },
+    upper: { type: Number, default: null },
+    lower: { type: Number, default: null },
+  },
+  { _id: false, versionKey: false },
+);
 
 const webhookSchema = new Schema<AlarmWebhook>(
   {
@@ -72,9 +120,7 @@ export const alarmRulesSchema = new Schema<StoredAlarmRule>(
     createdAt: { type: Date, required: true, default: () => new Date() },
     deviceId: { type: String, required: true },
     name: { type: String, required: true },
-    metric: { type: String, enum: metric.options, required: true },
-    upper: { type: Number, default: null },
-    lower: { type: Number, default: null },
+    watch: { type: watchSchema, required: true },
     forSeconds: { type: Number, required: true, default: 0 },
     severity: { type: String, enum: severity.options, required: true, default: 'warning' },
     origin: { type: String, enum: alarmOrigin.options, required: true, default: 'human' },
@@ -91,7 +137,9 @@ export const alarmRulesSchema = new Schema<StoredAlarmRule>(
   { collection: 'alarmRules', versionKey: false },
 );
 
-// Every sample the ingest takes asks for the rules on that device's metric.
-alarmRulesSchema.index({ deviceId: 1, metric: 1 });
+// Every sample the ingest takes asks for the rules on that device's readings
+// and on its outputs, and the health loop for the one that watches its silence.
+alarmRulesSchema.index({ deviceId: 1, 'watch.metric': 1 });
+alarmRulesSchema.index({ deviceId: 1, 'watch.output': 1 });
 // Applying a stage preset again finds the rules that preset wrote on the device.
 alarmRulesSchema.index({ deviceId: 1, presetId: 1 });

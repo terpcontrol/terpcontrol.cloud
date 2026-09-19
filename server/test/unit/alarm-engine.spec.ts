@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import { Model } from 'mongoose';
+import { OutputMetric } from '@fg2/shared-types/v1';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule, alarmRulesSchema } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert, alertsSchema } from '@database/schemas/v1/alerts.schema';
@@ -42,9 +43,7 @@ const ruleFor = (over: Partial<StoredAlarmRule> = {}): StoredAlarmRule => ({
   createdAt: new Date(),
   deviceId: DEVICE,
   name: 'Too warm',
-  metric: 'temperature',
-  upper: 30,
-  lower: null,
+  watch: { kind: 'reading', metric: 'temperature', upper: 30, lower: null },
   forSeconds: 0,
   severity: 'warning',
   origin: 'human',
@@ -58,7 +57,11 @@ const ruleFor = (over: Partial<StoredAlarmRule> = {}): StoredAlarmRule => ({
   ...over,
 });
 
-const reads = (temperature: number, at: Date) => engine.onSample({ deviceId: DEVICE, measuredAt: at, values: { temperature } });
+const reads = (temperature: number, at: Date) => engine.onSample({ deviceId: DEVICE, measuredAt: at, values: { temperature }, outputs: {} });
+
+/** The same message, read for what the controller was driving rather than for what it measured. */
+const drives = (outputs: Partial<Record<OutputMetric, number>>, at: Date) =>
+  engine.onSample({ deviceId: DEVICE, measuredAt: at, values: {}, outputs });
 
 const storedRule = async (): Promise<StoredAlarmRule> => (await rules.findOne({ id: 'rule-1' }).lean<StoredAlarmRule>())!;
 
@@ -186,13 +189,57 @@ describe('what keeps an alarm quiet', () => {
   });
 });
 
+describe('a rule on an output', () => {
+  it('trips on the output running at all, and lets go when it stops', async () => {
+    await device();
+    await rules.create(ruleFor({ name: 'Fridge never stops', watch: { kind: 'output_running', output: 'dehumidifier' } }));
+
+    await drives({ dehumidifier: 1 }, new Date(Date.now() - 2000));
+
+    const alert = await openAlert();
+    expect(alert).toMatchObject({ ruleId: 'rule-1', deviceId: DEVICE, kind: 'threshold', value: 1 });
+    expect((await storedRule()).state.triggered).toBe(true);
+
+    await drives({ dehumidifier: 0 }, new Date(Date.now() - 1000));
+
+    expect(await openAlert()).toBeNull();
+    // Running is running: there is no worse reading to keep than the one that
+    // opened it, which is what the old alarm on a compressor always recorded.
+    expect((await alerts.findOne({ ruleId: 'rule-1' }).lean<StoredAlert>())?.extremeValue).toBe(1);
+  });
+
+  it('trips on an output leaving its band, in the numbers the series carries', async () => {
+    await device();
+    await rules.create(ruleFor({ name: 'Heater working too hard', watch: { kind: 'output_level', output: 'heater', upper: 0.8, lower: null } }));
+
+    await drives({ heater: 0.5 }, new Date(Date.now() - 3000));
+    expect(await alerts.countDocuments({})).toBe(0);
+
+    await drives({ heater: 0.95 }, new Date(Date.now() - 2000));
+    expect(await openAlert()).toMatchObject({ ruleId: 'rule-1', value: 0.95 });
+
+    await drives({ heater: 1 }, new Date(Date.now() - 1000));
+    expect((await storedRule()).state.extremeValue).toBe(1);
+  });
+
+  it('is left alone by a message that says nothing about its output', async () => {
+    await device();
+    await rules.create(ruleFor({ watch: { kind: 'output_running', output: 'light' } }));
+
+    await reads(32, new Date());
+
+    expect(await alerts.countDocuments({})).toBe(0);
+    expect((await storedRule()).state.lastSampleAt).toBeNull();
+  });
+});
+
 describe('the health loop', () => {
   it('keeps an offline rule for every claimed device and raises when one goes quiet', async () => {
     await device({ state: { lastSeenAt: new Date(Date.now() - GONE_MS) } });
 
     await health.run(new Date());
 
-    const kept = await rules.findOne({ deviceId: DEVICE, metric: 'offline' }).lean<StoredAlarmRule>();
+    const kept = await rules.findOne({ deviceId: DEVICE, 'watch.metric': 'offline' }).lean<StoredAlarmRule>();
     expect(kept).toMatchObject({ origin: 'always', enabled: true });
     expect(await openAlert()).toMatchObject({ kind: 'offline', ruleId: kept!.id, deviceId: DEVICE });
   });

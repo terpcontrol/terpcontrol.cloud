@@ -172,9 +172,7 @@ describe('what reaches the hardware', () => {
 
 const aRule = () => ({
   name: 'Too hot',
-  metric: 'temperature',
-  upper: 30,
-  lower: null,
+  watch: { kind: 'reading', metric: 'temperature', upper: 30, lower: null },
   forSeconds: 60,
   severity: 'warning',
   enabled: true,

@@ -176,13 +176,16 @@ export class TimelineService {
     return named;
   }
 
-  /** What each alert's rule watches: an alert stores the reading, its rule the metric the reading is of. */
+  /**
+   * What each alert's rule watched: an alert stores the reading, its rule the
+   * metric the reading is of. A rule on an output names no metric.
+   */
   private async metricsOf(alerts: StoredAlert[]): Promise<Map<string, Metric>> {
     const ruleIds = [...new Set(alerts.flatMap(alert => (alert.ruleId ? [alert.ruleId] : [])))];
     if (ruleIds.length === 0) return new Map();
 
-    const rules = await this.rules.find({ id: { $in: ruleIds } }, { id: 1, metric: 1 }).lean<Pick<StoredAlarmRule, 'id' | 'metric'>[]>();
-    return new Map(rules.map(rule => [rule.id, rule.metric]));
+    const rules = await this.rules.find({ id: { $in: ruleIds } }, { id: 1, watch: 1 }).lean<Pick<StoredAlarmRule, 'id' | 'watch'>[]>();
+    return new Map(rules.flatMap(rule => (rule.watch.kind === 'reading' ? [[rule.id, rule.watch.metric] as [string, Metric]] : [])));
   }
 
   /**

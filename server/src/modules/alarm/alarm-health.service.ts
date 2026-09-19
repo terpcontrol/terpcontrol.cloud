@@ -75,7 +75,7 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
     await this.keepOfflineRule(device);
     const quietSeconds = (at.getTime() - device.state.lastSeenAt.getTime()) / 1000;
 
-    for (const rule of await this.rules.find({ deviceId: device.id, metric: 'offline' }).lean<StoredAlarmRule[]>()) {
+    for (const rule of await this.rules.find({ deviceId: device.id, 'watch.metric': 'offline' }).lean<StoredAlarmRule[]>()) {
       // `forSeconds` is patience on top of what already counts as gone, so that
       // a rule asking for an hour means an hour of silence, not an hour of alert.
       const gone = isOffline(device.state.lastSeenAt, at) && quietSeconds >= VALUE_AGE.staleSeconds + rule.forSeconds;
@@ -92,14 +92,20 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
   private async keepOfflineRule(device: AlarmDevice): Promise<void> {
     await this.rules
       .findOneAndUpdate(
-        { deviceId: device.id, metric: 'offline', origin: 'always' },
+        { deviceId: device.id, 'watch.metric': 'offline', origin: 'always' },
         {
           $setOnInsert: {
             id: uuidv4(),
             createdAt: new Date(),
             deviceId: device.id,
             name: OFFLINE_RULE_NAME,
-            metric: 'offline',
+            // Field by field rather than as one object: the metric is already in
+            // the query the upsert builds the document from, and an update that
+            // wrote the whole subdocument would collide with it.
+            'watch.kind': 'reading',
+            'watch.output': null,
+            'watch.upper': null,
+            'watch.lower': null,
             severity: 'warning',
             origin: 'always',
           },

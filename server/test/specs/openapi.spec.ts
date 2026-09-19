@@ -154,9 +154,7 @@ const createAccountAsAdmin = (): Promise<supertest.Response> =>
 
 const anAlarmRule = {
   name: 'Too hot',
-  metric: 'temperature',
-  upper: 30,
-  lower: null,
+  watch: { kind: 'reading', metric: 'temperature', upper: 30, lower: null },
   forSeconds: 60,
   severity: 'warning',
   enabled: true,
@@ -423,7 +421,10 @@ describe('what the alarm routes answer', () => {
     expect(listed.body.items.length).toBeGreaterThan(0);
     expectDocumented(listed, '/v1/devices/{id}/alarm-rules');
 
-    const changed = await owner.client.patch(`/v1/alarm-rules/${created.body.id}`).send({ upper: 31 }).expect(200);
+    const changed = await owner.client
+      .patch(`/v1/alarm-rules/${created.body.id}`)
+      .send({ watch: { kind: 'reading', metric: 'temperature', upper: 31, lower: null } })
+      .expect(200);
     expectDocumented(changed, '/v1/alarm-rules/{id}', 'patch');
 
     const silenced = await owner.client.put(`/v1/alarm-rules/${created.body.id}/silence`).send({ forSeconds: 3600 }).expect(200);
@@ -666,7 +667,7 @@ const bodyCases = (): BodyCase[] => [
     client: () => owner.client,
     accepted: () => ({ ...anAlarmRule, name: unique('openapi-rule') }),
     // A metric nothing measures cannot be watched for.
-    refused: () => ({ ...anAlarmRule, metric: 'moon-phase' }),
+    refused: () => ({ ...anAlarmRule, watch: { kind: 'reading', metric: 'moon-phase', upper: 30, lower: null } }),
   },
   {
     what: 'PUT /v1/alarm-rules/{id}/silence',

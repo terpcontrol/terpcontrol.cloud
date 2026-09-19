@@ -407,7 +407,14 @@ describe('the hardware', () => {
   const aDevice = async (ownerId: string): Promise<void> => {
     await db.devices.create({ id: 'device-1', type: 'controller', ownerId, spaceId: 'space-1', name: 'The tent' });
     await db.plans.create({ id: 'plan-1', deviceId: 'device-1', name: 'Nights off' });
-    await db.alarmRules.create({ id: 'rule-1', deviceId: 'device-1', name: 'Too warm', metric: 'temperature', origin: 'human', severity: 'warning' });
+    await db.alarmRules.create({
+      id: 'rule-1',
+      deviceId: 'device-1',
+      name: 'Too warm',
+      watch: { kind: 'reading', metric: 'temperature', upper: 30 },
+      origin: 'human',
+      severity: 'warning',
+    });
     await db.alerts.create({ id: 'alert-1', ruleId: 'rule-1', deviceId: 'device-1', kind: 'threshold', severity: 'warning', startedAt: new Date() });
     await db.entries.create({ id: 'entry-device', kind: 'note', occurredAt: new Date(), source: 'device', deviceId: 'device-1', values: {} });
   };

@@ -289,7 +289,12 @@ const world = async (): Promise<void> => {
     entry({ id: 'entry-system', spaceId: TENT, source: 'device', authorId: null, kind: 'system', occurredAt: new Date('2026-06-10T09:30:00.000Z') }),
   ]);
 
-  await db.alarmRules.create({ id: 'rule-humidity', deviceId: CONTROLLER, metric: 'humidity', name: 'Humidity too high', upper: 70 });
+  await db.alarmRules.create({
+    id: 'rule-humidity',
+    deviceId: CONTROLLER,
+    name: 'Humidity too high',
+    watch: { kind: 'reading', metric: 'humidity', upper: 70 },
+  });
   await db.alerts.create([
     // Open before the window began and still open: the span covers the whole of it.
     {

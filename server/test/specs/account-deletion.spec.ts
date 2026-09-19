@@ -145,7 +145,13 @@ const aHousehold = async (): Promise<Household> => {
   const planId = randomUUID();
   const ruleId = randomUUID();
   await seedRow('plans', { id: planId, createdAt: new Date(), deviceId: device.deviceId, templateId: null, steps: [] });
-  await seedRow('alarmRules', { id: ruleId, createdAt: new Date(), deviceId: device.deviceId, origin: 'human', metric: 'temperature' });
+  await seedRow('alarmRules', {
+    id: ruleId,
+    createdAt: new Date(),
+    deviceId: device.deviceId,
+    origin: 'human',
+    watch: { kind: 'reading', metric: 'temperature', output: null, upper: null, lower: null },
+  });
   await seedRow('alerts', {
     id: randomUUID(),
     createdAt: new Date(),

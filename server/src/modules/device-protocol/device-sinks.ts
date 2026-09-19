@@ -1,4 +1,4 @@
-import { Metric } from '@fg2/shared-types/v1';
+import { Metric, OutputMetric } from '@fg2/shared-types/v1';
 
 /**
  * What the ingest hands on once it has read a message.
@@ -29,9 +29,18 @@ export interface DeviceSampleSink {
 
 export const DEVICE_SAMPLE_SINK = 'device-protocol:samples';
 
-/** The same reading, in the names the contract gives them. Provided by the alarm engine (`onSample`). */
+/**
+ * The same reading, in the names the contract gives them: what the device
+ * measured and what it was driving. Provided by the alarm engine (`onSample`),
+ * which has rules on both.
+ */
 export interface MetricSampleSink {
-  onSample(sample: { deviceId: string; measuredAt: Date; values: Partial<Record<Metric, number>> }): Promise<void>;
+  onSample(sample: {
+    deviceId: string;
+    measuredAt: Date;
+    values: Partial<Record<Metric, number>>;
+    outputs: Partial<Record<OutputMetric, number>>;
+  }): Promise<void>;
 }
 
 export const DEVICE_METRIC_SINK = 'device-protocol:metrics';

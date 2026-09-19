@@ -109,6 +109,8 @@ export type AlarmDeliveryMode = 'routing' | 'custom';
 
 export type AlarmDeliveryChannel = 'email' | 'webhook';
 
+export type AlarmWatch = ReadingWatch | OutputLevelWatch | OutputRunningWatch;
+
 export type AdminLogLevel = 'error' | 'warn' | 'info';
 
 export type PresetPrompt = 'ask' | 'never';
@@ -1148,6 +1150,25 @@ export interface AlarmDelivery {
   custom: AlarmDeliveryCustom | null;
 }
 
+export interface ReadingWatch {
+  kind: 'reading';
+  metric: Metric;
+  upper: number | null;
+  lower: number | null;
+}
+
+export interface OutputLevelWatch {
+  kind: 'output_level';
+  output: OutputMetric;
+  upper: number | null;
+  lower: number | null;
+}
+
+export interface OutputRunningWatch {
+  kind: 'output_running';
+  output: OutputMetric;
+}
+
 export interface AlarmRuleState {
   triggered: boolean;
   lastTriggeredAt: string | null;
@@ -1167,11 +1188,9 @@ export interface AlarmRule {
   createdAt: string;
   deviceId: string;
   name: string;
-  metric: Metric;
-  upper: number | null;
-  lower: number | null;
+  watch: AlarmWatch;
   /**
-   * How long the reading has to be out of bounds before the rule triggers.
+   * How long the watch has to be out of bounds before the rule triggers.
    */
   forSeconds: number;
   severity: Severity;
@@ -1204,11 +1223,9 @@ export interface AlarmRulePage {
 
 export interface AlarmRuleCreate {
   name: string;
-  metric: Metric;
-  upper: number | null;
-  lower: number | null;
+  watch: AlarmWatch;
   /**
-   * How long the reading has to be out of bounds before the rule triggers.
+   * How long the watch has to be out of bounds before the rule triggers.
    */
   forSeconds: number;
   severity: Severity;
@@ -1226,11 +1243,9 @@ export interface AlarmRuleCreate {
 
 export interface AlarmRuleUpdate {
   name?: string;
-  metric?: Metric;
-  upper?: number | null;
-  lower?: number | null;
+  watch?: AlarmWatch;
   /**
-   * How long the reading has to be out of bounds before the rule triggers.
+   * How long the watch has to be out of bounds before the rule triggers.
    */
   forSeconds?: number;
   severity?: Severity;
@@ -2800,7 +2815,7 @@ export interface OpenAlert {
   startedAt: string;
   value: number | null;
   /**
-   * What the rule watches, so "78 % RH" can be said; null for an alert raised without a rule.
+   * The reading the rule watches, so "78 % RH" can be said; null for an alert raised without a rule, or by a rule watching an output.
    */
   metric: Metric | null;
 }
@@ -3136,7 +3151,7 @@ export interface TimelineAlarm {
   kind: AlertKind;
   severity: Severity;
   /**
-   * What the rule watched; null for an alert the health loop raised without one.
+   * The reading the rule watched; null for an alert the health loop raised without one, or one from a rule watching an output.
    */
   metric: Metric | null;
   startedAt: string;

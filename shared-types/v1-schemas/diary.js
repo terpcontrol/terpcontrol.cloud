@@ -688,7 +688,9 @@ exports.openAlert = (0, common_js_1.named)('OpenAlert', zod_1.z.object({
     severity: common_js_1.severity,
     startedAt: (0, common_js_1.instant)(),
     value: zod_1.z.number().nullable(),
-    metric: common_js_1.metric.nullable().describe('What the rule watches, so "78 % RH" can be said; null for an alert raised without a rule.'),
+    metric: common_js_1.metric
+        .nullable()
+        .describe('The reading the rule watches, so "78 % RH" can be said; null for an alert raised without a rule, or by a rule watching an output.'),
 }));
 /** One group of a split, as a card counts it: `GrowSummary.groups` names the plants instead. */
 exports.growCardStageGroup = (0, common_js_1.named)('GrowCardStageGroup', zod_1.z.object({
@@ -978,7 +980,9 @@ exports.timelineAlarm = (0, common_js_1.named)('TimelineAlarm', zod_1.z.object({
     alertId: (0, common_js_1.id)(),
     kind: common_js_1.alertKind,
     severity: common_js_1.severity,
-    metric: common_js_1.metric.nullable().describe('What the rule watched; null for an alert the health loop raised without one.'),
+    metric: common_js_1.metric
+        .nullable()
+        .describe('The reading the rule watched; null for an alert the health loop raised without one, or one from a rule watching an output.'),
     startedAt: (0, common_js_1.instant)(),
     endedAt: (0, common_js_1.instant)().nullable(),
     value: zod_1.z.number().nullable(),

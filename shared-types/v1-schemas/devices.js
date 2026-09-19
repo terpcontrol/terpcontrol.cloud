@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = exports.durationUnit = exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = exports.deviceCommand = exports.socketSetCommand = exports.socketCredentials = exports.socketOverrideCommand = exports.captureStillCommand = exports.stopTestCommand = exports.testCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.adminDeviceCreate = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.devicePage = exports.device = exports.deviceState = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
-exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = void 0;
+exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 const socket_report_js_1 = require("./socket-report.js");
@@ -472,6 +472,46 @@ exports.alarmDeliveryCustom = (0, common_js_1.named)('AlarmDeliveryCustom', zod_
     webhook: exports.alarmWebhook.nullable(),
 }));
 exports.alarmDelivery = (0, common_js_1.named)('AlarmDelivery', zod_1.z.object({ mode: exports.alarmDeliveryMode, custom: exports.alarmDeliveryCustom.nullable() }));
+/**
+ * A band around a reading: the rule most alarms are. `upper` and `lower` may
+ * both be null, which is a rule that watches without a bound - what `offline`
+ * is, where the health loop rather than a threshold decides.
+ */
+exports.readingWatch = (0, common_js_1.named)('ReadingWatch', zod_1.z.object({
+    kind: zod_1.z.literal('reading'),
+    metric: common_js_1.metric,
+    upper: zod_1.z.number().nullable(),
+    lower: zod_1.z.number().nullable(),
+}));
+/**
+ * A band around an output's level. `heater` and `fan` run at a rate and `light`
+ * dims, so "the heater is working harder than half the time" is a rule about a
+ * number like any other. The numbers are the ones the series carries: a
+ * fraction where the device reports a fraction, never a percentage of its own.
+ */
+exports.outputLevelWatch = (0, common_js_1.named)('OutputLevelWatch', zod_1.z.object({
+    kind: zod_1.z.literal('output_level'),
+    output: common_js_1.outputMetric,
+    upper: zod_1.z.number().nullable(),
+    lower: zod_1.z.number().nullable(),
+}));
+/**
+ * An output running at all: the fridge that has not stopped in an hour, the CO2
+ * valve that is still open. Anything above zero is the output doing something,
+ * so there is no band to give - and `forSeconds` is what makes it an alarm
+ * rather than a fact of every cycle.
+ */
+exports.outputRunningWatch = (0, common_js_1.named)('OutputRunningWatch', zod_1.z.object({ kind: zod_1.z.literal('output_running'), output: common_js_1.outputMetric }));
+/**
+ * What a rule watches: a reading the device measures, or an output it drives.
+ *
+ * One union rather than a metric enum widened to hold both, because what trips
+ * each of them differs - a band is meaningless on an output that is only ever on
+ * or off, and an output name is not something a reading can carry. So a rule
+ * that names an output and a threshold it ignores, or a reading with no metric,
+ * cannot be written down at all.
+ */
+exports.alarmWatch = (0, common_js_1.named)('AlarmWatch', zod_1.z.discriminatedUnion('kind', [exports.readingWatch, exports.outputLevelWatch, exports.outputRunningWatch]));
 exports.alarmRuleState = (0, common_js_1.named)('AlarmRuleState', zod_1.z.object({
     triggered: zod_1.z.boolean(),
     lastTriggeredAt: (0, common_js_1.instant)().nullable(),
@@ -484,10 +524,8 @@ exports.alarmRule = (0, common_js_1.named)('AlarmRule', zod_1.z.object({
     createdAt: (0, common_js_1.instant)(),
     deviceId: (0, common_js_1.id)(),
     name: zod_1.z.string(),
-    metric: common_js_1.metric,
-    upper: zod_1.z.number().nullable(),
-    lower: zod_1.z.number().nullable(),
-    forSeconds: zod_1.z.number().int().describe('How long the reading has to be out of bounds before the rule triggers.'),
+    watch: exports.alarmWatch,
+    forSeconds: zod_1.z.number().int().describe('How long the watch has to be out of bounds before the rule triggers.'),
     severity: common_js_1.severity,
     origin: exports.alarmOrigin,
     presetId: (0, common_js_1.id)().nullable().describe('The preset that wrote this rule, so applying it again can update it.'),
@@ -507,9 +545,7 @@ exports.alarmRulePage = (0, common_js_1.named)('AlarmRulePage', (0, common_js_1.
  */
 exports.alarmRuleCreate = (0, common_js_1.named)('AlarmRuleCreate', exports.alarmRule.pick({
     name: true,
-    metric: true,
-    upper: true,
-    lower: true,
+    watch: true,
     forSeconds: true,
     severity: true,
     enabled: true,
@@ -517,7 +553,10 @@ exports.alarmRuleCreate = (0, common_js_1.named)('AlarmRuleCreate', exports.alar
     repeatSeconds: true,
     delivery: true,
 }));
-/** `PATCH /alarm-rules/{id}`: the same fields, each only if it changes. */
+/**
+ * `PATCH /alarm-rules/{id}`: the same fields, each only if it changes. `watch`
+ * is given whole or not at all - half a watch is a rule watching two things.
+ */
 exports.alarmRuleUpdate = (0, common_js_1.named)('AlarmRuleUpdate', exports.alarmRuleCreate.partial());
 /**
  * `PUT /alarm-rules/{id}/silence`. A duration rather than the instant the rule

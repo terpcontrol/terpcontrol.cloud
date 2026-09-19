@@ -669,6 +669,59 @@ export const alarmDelivery = named(
   z.object({ mode: alarmDeliveryMode, custom: alarmDeliveryCustom.nullable() }),
 );
 
+/**
+ * A band around a reading: the rule most alarms are. `upper` and `lower` may
+ * both be null, which is a rule that watches without a bound - what `offline`
+ * is, where the health loop rather than a threshold decides.
+ */
+export const readingWatch = named(
+  'ReadingWatch',
+  z.object({
+    kind: z.literal('reading'),
+    metric: metric,
+    upper: z.number().nullable(),
+    lower: z.number().nullable(),
+  }),
+);
+
+/**
+ * A band around an output's level. `heater` and `fan` run at a rate and `light`
+ * dims, so "the heater is working harder than half the time" is a rule about a
+ * number like any other. The numbers are the ones the series carries: a
+ * fraction where the device reports a fraction, never a percentage of its own.
+ */
+export const outputLevelWatch = named(
+  'OutputLevelWatch',
+  z.object({
+    kind: z.literal('output_level'),
+    output: outputMetric,
+    upper: z.number().nullable(),
+    lower: z.number().nullable(),
+  }),
+);
+
+/**
+ * An output running at all: the fridge that has not stopped in an hour, the CO2
+ * valve that is still open. Anything above zero is the output doing something,
+ * so there is no band to give - and `forSeconds` is what makes it an alarm
+ * rather than a fact of every cycle.
+ */
+export const outputRunningWatch = named(
+  'OutputRunningWatch',
+  z.object({ kind: z.literal('output_running'), output: outputMetric }),
+);
+
+/**
+ * What a rule watches: a reading the device measures, or an output it drives.
+ *
+ * One union rather than a metric enum widened to hold both, because what trips
+ * each of them differs - a band is meaningless on an output that is only ever on
+ * or off, and an output name is not something a reading can carry. So a rule
+ * that names an output and a threshold it ignores, or a reading with no metric,
+ * cannot be written down at all.
+ */
+export const alarmWatch = named('AlarmWatch', z.discriminatedUnion('kind', [readingWatch, outputLevelWatch, outputRunningWatch]));
+
 export const alarmRuleState = named(
   'AlarmRuleState',
   z.object({
@@ -687,10 +740,8 @@ export const alarmRule = named(
     createdAt: instant(),
     deviceId: id(),
     name: z.string(),
-    metric: metric,
-    upper: z.number().nullable(),
-    lower: z.number().nullable(),
-    forSeconds: z.number().int().describe('How long the reading has to be out of bounds before the rule triggers.'),
+    watch: alarmWatch,
+    forSeconds: z.number().int().describe('How long the watch has to be out of bounds before the rule triggers.'),
     severity: severity,
     origin: alarmOrigin,
     presetId: id().nullable().describe('The preset that wrote this rule, so applying it again can update it.'),
@@ -715,9 +766,7 @@ export const alarmRuleCreate = named(
   'AlarmRuleCreate',
   alarmRule.pick({
     name: true,
-    metric: true,
-    upper: true,
-    lower: true,
+    watch: true,
     forSeconds: true,
     severity: true,
     enabled: true,
@@ -727,7 +776,10 @@ export const alarmRuleCreate = named(
   }),
 );
 
-/** `PATCH /alarm-rules/{id}`: the same fields, each only if it changes. */
+/**
+ * `PATCH /alarm-rules/{id}`: the same fields, each only if it changes. `watch`
+ * is given whole or not at all - half a watch is a rule watching two things.
+ */
 export const alarmRuleUpdate = named('AlarmRuleUpdate', alarmRuleCreate.partial());
 
 /**

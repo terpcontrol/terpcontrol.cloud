@@ -1259,18 +1259,13 @@ export declare const alarmDelivery: z.ZodObject<{
         }, z.core.$strip>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
-export declare const alarmRuleState: z.ZodObject<{
-    triggered: z.ZodBoolean;
-    lastTriggeredAt: z.ZodNullable<z.ZodISODateTime>;
-    lastResolvedAt: z.ZodNullable<z.ZodISODateTime>;
-    extremeValue: z.ZodNullable<z.ZodNumber>;
-    lastSampleAt: z.ZodNullable<z.ZodISODateTime>;
-}, z.core.$strip>;
-export declare const alarmRule: z.ZodObject<{
-    id: z.ZodString;
-    createdAt: z.ZodISODateTime;
-    deviceId: z.ZodString;
-    name: z.ZodString;
+/**
+ * A band around a reading: the rule most alarms are. `upper` and `lower` may
+ * both be null, which is a rule that watches without a bound - what `offline`
+ * is, where the health loop rather than a threshold decides.
+ */
+export declare const readingWatch: z.ZodObject<{
+    kind: z.ZodLiteral<"reading">;
     metric: z.ZodEnum<{
         offline: "offline";
         co2: "co2";
@@ -1283,6 +1278,156 @@ export declare const alarmRule: z.ZodObject<{
     }>;
     upper: z.ZodNullable<z.ZodNumber>;
     lower: z.ZodNullable<z.ZodNumber>;
+}, z.core.$strip>;
+/**
+ * A band around an output's level. `heater` and `fan` run at a rate and `light`
+ * dims, so "the heater is working harder than half the time" is a rule about a
+ * number like any other. The numbers are the ones the series carries: a
+ * fraction where the device reports a fraction, never a percentage of its own.
+ */
+export declare const outputLevelWatch: z.ZodObject<{
+    kind: z.ZodLiteral<"output_level">;
+    output: z.ZodEnum<{
+        dehumidifier: "dehumidifier";
+        heater: "heater";
+        light: "light";
+        co2: "co2";
+        fan: "fan";
+        relais: "relais";
+        fanInternal: "fanInternal";
+        fanExternal: "fanExternal";
+        fanBackwall: "fanBackwall";
+    }>;
+    upper: z.ZodNullable<z.ZodNumber>;
+    lower: z.ZodNullable<z.ZodNumber>;
+}, z.core.$strip>;
+/**
+ * An output running at all: the fridge that has not stopped in an hour, the CO2
+ * valve that is still open. Anything above zero is the output doing something,
+ * so there is no band to give - and `forSeconds` is what makes it an alarm
+ * rather than a fact of every cycle.
+ */
+export declare const outputRunningWatch: z.ZodObject<{
+    kind: z.ZodLiteral<"output_running">;
+    output: z.ZodEnum<{
+        dehumidifier: "dehumidifier";
+        heater: "heater";
+        light: "light";
+        co2: "co2";
+        fan: "fan";
+        relais: "relais";
+        fanInternal: "fanInternal";
+        fanExternal: "fanExternal";
+        fanBackwall: "fanBackwall";
+    }>;
+}, z.core.$strip>;
+/**
+ * What a rule watches: a reading the device measures, or an output it drives.
+ *
+ * One union rather than a metric enum widened to hold both, because what trips
+ * each of them differs - a band is meaningless on an output that is only ever on
+ * or off, and an output name is not something a reading can carry. So a rule
+ * that names an output and a threshold it ignores, or a reading with no metric,
+ * cannot be written down at all.
+ */
+export declare const alarmWatch: z.ZodDiscriminatedUnion<[z.ZodObject<{
+    kind: z.ZodLiteral<"reading">;
+    metric: z.ZodEnum<{
+        offline: "offline";
+        co2: "co2";
+        temperature: "temperature";
+        humidity: "humidity";
+        leafTemperature: "leafTemperature";
+        lux: "lux";
+        vpd: "vpd";
+        ppfd: "ppfd";
+    }>;
+    upper: z.ZodNullable<z.ZodNumber>;
+    lower: z.ZodNullable<z.ZodNumber>;
+}, z.core.$strip>, z.ZodObject<{
+    kind: z.ZodLiteral<"output_level">;
+    output: z.ZodEnum<{
+        dehumidifier: "dehumidifier";
+        heater: "heater";
+        light: "light";
+        co2: "co2";
+        fan: "fan";
+        relais: "relais";
+        fanInternal: "fanInternal";
+        fanExternal: "fanExternal";
+        fanBackwall: "fanBackwall";
+    }>;
+    upper: z.ZodNullable<z.ZodNumber>;
+    lower: z.ZodNullable<z.ZodNumber>;
+}, z.core.$strip>, z.ZodObject<{
+    kind: z.ZodLiteral<"output_running">;
+    output: z.ZodEnum<{
+        dehumidifier: "dehumidifier";
+        heater: "heater";
+        light: "light";
+        co2: "co2";
+        fan: "fan";
+        relais: "relais";
+        fanInternal: "fanInternal";
+        fanExternal: "fanExternal";
+        fanBackwall: "fanBackwall";
+    }>;
+}, z.core.$strip>], "kind">;
+export declare const alarmRuleState: z.ZodObject<{
+    triggered: z.ZodBoolean;
+    lastTriggeredAt: z.ZodNullable<z.ZodISODateTime>;
+    lastResolvedAt: z.ZodNullable<z.ZodISODateTime>;
+    extremeValue: z.ZodNullable<z.ZodNumber>;
+    lastSampleAt: z.ZodNullable<z.ZodISODateTime>;
+}, z.core.$strip>;
+export declare const alarmRule: z.ZodObject<{
+    id: z.ZodString;
+    createdAt: z.ZodISODateTime;
+    deviceId: z.ZodString;
+    name: z.ZodString;
+    watch: z.ZodDiscriminatedUnion<[z.ZodObject<{
+        kind: z.ZodLiteral<"reading">;
+        metric: z.ZodEnum<{
+            offline: "offline";
+            co2: "co2";
+            temperature: "temperature";
+            humidity: "humidity";
+            leafTemperature: "leafTemperature";
+            lux: "lux";
+            vpd: "vpd";
+            ppfd: "ppfd";
+        }>;
+        upper: z.ZodNullable<z.ZodNumber>;
+        lower: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"output_level">;
+        output: z.ZodEnum<{
+            dehumidifier: "dehumidifier";
+            heater: "heater";
+            light: "light";
+            co2: "co2";
+            fan: "fan";
+            relais: "relais";
+            fanInternal: "fanInternal";
+            fanExternal: "fanExternal";
+            fanBackwall: "fanBackwall";
+        }>;
+        upper: z.ZodNullable<z.ZodNumber>;
+        lower: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"output_running">;
+        output: z.ZodEnum<{
+            dehumidifier: "dehumidifier";
+            heater: "heater";
+            light: "light";
+            co2: "co2";
+            fan: "fan";
+            relais: "relais";
+            fanInternal: "fanInternal";
+            fanExternal: "fanExternal";
+            fanBackwall: "fanBackwall";
+        }>;
+    }, z.core.$strip>], "kind">;
     forSeconds: z.ZodNumber;
     severity: z.ZodEnum<{
         critical: "critical";
@@ -1340,18 +1485,49 @@ export declare const alarmRulePage: z.ZodObject<{
         createdAt: z.ZodISODateTime;
         deviceId: z.ZodString;
         name: z.ZodString;
-        metric: z.ZodEnum<{
-            offline: "offline";
-            co2: "co2";
-            temperature: "temperature";
-            humidity: "humidity";
-            leafTemperature: "leafTemperature";
-            lux: "lux";
-            vpd: "vpd";
-            ppfd: "ppfd";
-        }>;
-        upper: z.ZodNullable<z.ZodNumber>;
-        lower: z.ZodNullable<z.ZodNumber>;
+        watch: z.ZodDiscriminatedUnion<[z.ZodObject<{
+            kind: z.ZodLiteral<"reading">;
+            metric: z.ZodEnum<{
+                offline: "offline";
+                co2: "co2";
+                temperature: "temperature";
+                humidity: "humidity";
+                leafTemperature: "leafTemperature";
+                lux: "lux";
+                vpd: "vpd";
+                ppfd: "ppfd";
+            }>;
+            upper: z.ZodNullable<z.ZodNumber>;
+            lower: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"output_level">;
+            output: z.ZodEnum<{
+                dehumidifier: "dehumidifier";
+                heater: "heater";
+                light: "light";
+                co2: "co2";
+                fan: "fan";
+                relais: "relais";
+                fanInternal: "fanInternal";
+                fanExternal: "fanExternal";
+                fanBackwall: "fanBackwall";
+            }>;
+            upper: z.ZodNullable<z.ZodNumber>;
+            lower: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"output_running">;
+            output: z.ZodEnum<{
+                dehumidifier: "dehumidifier";
+                heater: "heater";
+                light: "light";
+                co2: "co2";
+                fan: "fan";
+                relais: "relais";
+                fanInternal: "fanInternal";
+                fanExternal: "fanExternal";
+                fanBackwall: "fanBackwall";
+            }>;
+        }, z.core.$strip>], "kind">;
         forSeconds: z.ZodNumber;
         severity: z.ZodEnum<{
             critical: "critical";
@@ -1412,8 +1588,6 @@ export declare const alarmRulePage: z.ZodObject<{
  * so neither is here.
  */
 export declare const alarmRuleCreate: z.ZodObject<{
-    upper: z.ZodNullable<z.ZodNumber>;
-    lower: z.ZodNullable<z.ZodNumber>;
     name: z.ZodString;
     delivery: z.ZodObject<{
         mode: z.ZodEnum<{
@@ -1442,16 +1616,49 @@ export declare const alarmRuleCreate: z.ZodObject<{
         }, z.core.$strip>>;
     }, z.core.$strip>;
     forSeconds: z.ZodNumber;
-    metric: z.ZodEnum<{
-        offline: "offline";
-        co2: "co2";
-        temperature: "temperature";
-        humidity: "humidity";
-        leafTemperature: "leafTemperature";
-        lux: "lux";
-        vpd: "vpd";
-        ppfd: "ppfd";
-    }>;
+    watch: z.ZodDiscriminatedUnion<[z.ZodObject<{
+        kind: z.ZodLiteral<"reading">;
+        metric: z.ZodEnum<{
+            offline: "offline";
+            co2: "co2";
+            temperature: "temperature";
+            humidity: "humidity";
+            leafTemperature: "leafTemperature";
+            lux: "lux";
+            vpd: "vpd";
+            ppfd: "ppfd";
+        }>;
+        upper: z.ZodNullable<z.ZodNumber>;
+        lower: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"output_level">;
+        output: z.ZodEnum<{
+            dehumidifier: "dehumidifier";
+            heater: "heater";
+            light: "light";
+            co2: "co2";
+            fan: "fan";
+            relais: "relais";
+            fanInternal: "fanInternal";
+            fanExternal: "fanExternal";
+            fanBackwall: "fanBackwall";
+        }>;
+        upper: z.ZodNullable<z.ZodNumber>;
+        lower: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"output_running">;
+        output: z.ZodEnum<{
+            dehumidifier: "dehumidifier";
+            heater: "heater";
+            light: "light";
+            co2: "co2";
+            fan: "fan";
+            relais: "relais";
+            fanInternal: "fanInternal";
+            fanExternal: "fanExternal";
+            fanBackwall: "fanBackwall";
+        }>;
+    }, z.core.$strip>], "kind">;
     severity: z.ZodEnum<{
         critical: "critical";
         warning: "warning";
@@ -1461,10 +1668,11 @@ export declare const alarmRuleCreate: z.ZodObject<{
     cooldownSeconds: z.ZodNumber;
     repeatSeconds: z.ZodNumber;
 }, z.core.$strip>;
-/** `PATCH /alarm-rules/{id}`: the same fields, each only if it changes. */
+/**
+ * `PATCH /alarm-rules/{id}`: the same fields, each only if it changes. `watch`
+ * is given whole or not at all - half a watch is a rule watching two things.
+ */
 export declare const alarmRuleUpdate: z.ZodObject<{
-    upper: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    lower: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     name: z.ZodOptional<z.ZodString>;
     delivery: z.ZodOptional<z.ZodObject<{
         mode: z.ZodEnum<{
@@ -1493,16 +1701,49 @@ export declare const alarmRuleUpdate: z.ZodObject<{
         }, z.core.$strip>>;
     }, z.core.$strip>>;
     forSeconds: z.ZodOptional<z.ZodNumber>;
-    metric: z.ZodOptional<z.ZodEnum<{
-        offline: "offline";
-        co2: "co2";
-        temperature: "temperature";
-        humidity: "humidity";
-        leafTemperature: "leafTemperature";
-        lux: "lux";
-        vpd: "vpd";
-        ppfd: "ppfd";
-    }>>;
+    watch: z.ZodOptional<z.ZodDiscriminatedUnion<[z.ZodObject<{
+        kind: z.ZodLiteral<"reading">;
+        metric: z.ZodEnum<{
+            offline: "offline";
+            co2: "co2";
+            temperature: "temperature";
+            humidity: "humidity";
+            leafTemperature: "leafTemperature";
+            lux: "lux";
+            vpd: "vpd";
+            ppfd: "ppfd";
+        }>;
+        upper: z.ZodNullable<z.ZodNumber>;
+        lower: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"output_level">;
+        output: z.ZodEnum<{
+            dehumidifier: "dehumidifier";
+            heater: "heater";
+            light: "light";
+            co2: "co2";
+            fan: "fan";
+            relais: "relais";
+            fanInternal: "fanInternal";
+            fanExternal: "fanExternal";
+            fanBackwall: "fanBackwall";
+        }>;
+        upper: z.ZodNullable<z.ZodNumber>;
+        lower: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"output_running">;
+        output: z.ZodEnum<{
+            dehumidifier: "dehumidifier";
+            heater: "heater";
+            light: "light";
+            co2: "co2";
+            fan: "fan";
+            relais: "relais";
+            fanInternal: "fanInternal";
+            fanExternal: "fanExternal";
+            fanBackwall: "fanBackwall";
+        }>;
+    }, z.core.$strip>], "kind">>;
     severity: z.ZodOptional<z.ZodEnum<{
         critical: "critical";
         warning: "warning";

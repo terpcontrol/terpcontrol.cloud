@@ -1,10 +1,22 @@
-import { AlarmRule, AlarmRuleState, Alert } from '@fg2/shared-types/v1';
+import { AlarmRule, AlarmRuleState, AlarmWatch, Alert } from '@fg2/shared-types/v1';
 import { StoredAlarmRule, StoredAlarmRuleState } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 
 /** The stored documents as the contract has them: instants as ISO strings, and nothing a reader may not see. */
 
 const iso = (at: Date | null): string | null => at?.toISOString() ?? null;
+
+/**
+ * The watch, with only the fields of its kind: the document carries a column
+ * per arm and the contract carries one arm, so the null that a running output
+ * has where a band would be never reaches a reader.
+ */
+const watchOf = (watch: AlarmWatch): AlarmWatch => {
+  if (watch.kind === 'reading') return { kind: 'reading', metric: watch.metric, upper: watch.upper, lower: watch.lower };
+  if (watch.kind === 'output_level') return { kind: 'output_level', output: watch.output, upper: watch.upper, lower: watch.lower };
+
+  return { kind: 'output_running', output: watch.output };
+};
 
 const stateOf = (state: StoredAlarmRuleState): AlarmRuleState => ({
   triggered: state.triggered,
@@ -25,9 +37,7 @@ export const alarmRuleOf = (rule: StoredAlarmRule, mayManage: boolean): AlarmRul
   createdAt: rule.createdAt.toISOString(),
   deviceId: rule.deviceId,
   name: rule.name,
-  metric: rule.metric,
-  upper: rule.upper,
-  lower: rule.lower,
+  watch: watchOf(rule.watch),
   forSeconds: rule.forSeconds,
   severity: rule.severity,
   origin: rule.origin,

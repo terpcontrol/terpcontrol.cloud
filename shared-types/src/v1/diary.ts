@@ -926,7 +926,9 @@ export const openAlert = named(
     severity: severity,
     startedAt: instant(),
     value: z.number().nullable(),
-    metric: metric.nullable().describe('What the rule watches, so "78 % RH" can be said; null for an alert raised without a rule.'),
+    metric: metric
+      .nullable()
+      .describe('The reading the rule watches, so "78 % RH" can be said; null for an alert raised without a rule, or by a rule watching an output.'),
   }),
 );
 
@@ -1307,7 +1309,9 @@ export const timelineAlarm = named(
     alertId: id(),
     kind: alertKind,
     severity: severity,
-    metric: metric.nullable().describe('What the rule watched; null for an alert the health loop raised without one.'),
+    metric: metric
+      .nullable()
+      .describe('The reading the rule watched; null for an alert the health loop raised without one, or one from a rule watching an output.'),
     startedAt: instant(),
     endedAt: instant().nullable(),
     value: z.number().nullable(),

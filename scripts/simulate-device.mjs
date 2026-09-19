@@ -1520,8 +1520,6 @@ const DEMO_STEP_MINUTES = 30;
 
 /** What every rule here is, apart from what it watches. */
 const DEMO_ALARM = {
-  upper: null,
-  lower: null,
   forSeconds: 900,
   severity: 'warning',
   enabled: true,
@@ -1553,8 +1551,8 @@ const DEMO_PLACES = [
       ['fans.internal', 65],
     ],
     alarms: [
-      { name: 'Too warm by day', metric: 'temperature', upper: 30 },
-      { name: 'Humidity into mould', metric: 'humidity', upper: 70, severity: 'critical' },
+      { name: 'Too warm by day', watch: { kind: 'reading', metric: 'temperature', upper: 30, lower: null } },
+      { name: 'Humidity into mould', watch: { kind: 'reading', metric: 'humidity', upper: 70, lower: null }, severity: 'critical' },
     ],
     diary: [
       { message: 'message-ext-sensor-deviate:1.8', severity: 1 },
@@ -1574,7 +1572,7 @@ const DEMO_PLACES = [
       ['daynight.night', 3600 * 22],
       ['lights.limit', 60],
     ],
-    alarms: [{ name: 'Mothers too dry', metric: 'humidity', lower: 45 }],
+    alarms: [{ name: 'Mothers too dry', watch: { kind: 'reading', metric: 'humidity', upper: null, lower: 45 } }],
     diary: [{ message: 'message-co2-low:415', severity: 1 }],
   },
   {
@@ -1589,7 +1587,12 @@ const DEMO_PLACES = [
       ['night.humidity', 80],
       ['co2.target', 800],
     ],
-    alarms: [{ name: 'Cuttings drying out', metric: 'humidity', lower: 65 }],
+    alarms: [
+      { name: 'Cuttings drying out', watch: { kind: 'reading', metric: 'humidity', upper: null, lower: 65 } },
+      // The other half of what a rule can watch: the compressor that has not
+      // stopped in a quarter of an hour, rather than a reading leaving a band.
+      { name: 'Fridge never stops', watch: { kind: 'output_running', output: 'dehumidifier' } },
+    ],
     diary: [{ message: 'message-device-booted:POWERON' }],
   },
 ];

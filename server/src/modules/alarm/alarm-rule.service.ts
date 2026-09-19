@@ -2,13 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { AlarmRuleCreate, AlarmRuleUpdate } from '@fg2/shared-types/v1';
+import { AlarmRuleCreate, AlarmRuleUpdate, AlarmWatch } from '@fg2/shared-types/v1';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { CursorPage, afterCursor, pageOf, readLimit } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
 import { conflict, notFound } from '@common/v1/problem';
+import { watchedName } from './alarm.watch';
 
 /**
  * What a person does to their rules. The engine's half of a rule - everything
@@ -59,7 +60,7 @@ export class AlarmRuleService {
   }
 
   public async update(rule: StoredAlarmRule, body: AlarmRuleUpdate): Promise<StoredAlarmRule> {
-    if (rule.origin === 'always' && body.metric !== undefined && body.metric !== rule.metric) {
+    if (rule.origin === 'always' && body.watch !== undefined && !watchesTheSame(body.watch, rule.watch)) {
       throw conflict('always_rule_metric', 'The rule the cloud keeps for this device watches whether it is there. Disable it instead.');
     }
 
@@ -97,3 +98,11 @@ export class AlarmRuleService {
     return changed;
   }
 }
+
+/**
+ * Whether a watch still watches the thing the rule was written for. A band may
+ * be moved and a duration may be changed; what the rule is *about* is what the
+ * cloud's own rule may not be turned into something else.
+ */
+const watchesTheSame = (watch: AlarmWatch, current: AlarmWatch): boolean =>
+  watch.kind === current.kind && watchedName(watch) === watchedName(current);

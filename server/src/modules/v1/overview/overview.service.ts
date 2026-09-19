@@ -325,13 +325,17 @@ export class OverviewService {
     return ownerId => byOwner.get(ownerId) ?? redactionOf(true, undefined);
   }
 
-  /** What each open alert's rule watches: an alert stores the reading, its rule the metric the reading is of. */
+  /**
+   * What each open alert's rule watches: an alert stores the reading, its rule
+   * the metric the reading is of. A rule on an output names no metric, so the
+   * card says what happened without a unit to say it in.
+   */
   private async metricsOf(alerts: StoredAlert[]): Promise<Map<string, Metric>> {
     const ruleIds = [...new Set(alerts.flatMap(alert => (alert.ruleId ? [alert.ruleId] : [])))];
     if (ruleIds.length === 0) return new Map();
 
-    const rules = await this.rules.find({ id: { $in: ruleIds } }, { id: 1, metric: 1 }).lean<Pick<StoredAlarmRule, 'id' | 'metric'>[]>();
-    return new Map(rules.map(rule => [rule.id, rule.metric]));
+    const rules = await this.rules.find({ id: { $in: ruleIds } }, { id: 1, watch: 1 }).lean<Pick<StoredAlarmRule, 'id' | 'watch'>[]>();
+    return new Map(rules.flatMap(rule => (rule.watch.kind === 'reading' ? [[rule.id, rule.watch.metric] as [string, Metric]] : [])));
   }
 
   /** The entries that completed a task of these reminders: a one-off by its id, a rhythm by any of its occurrences. */

@@ -1,4 +1,4 @@
-import { Metric } from '@fg2/shared-types/v1';
+import { Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { StoredDevice, StoredDeviceState } from '@database/schemas/v1/devices.schema';
@@ -11,12 +11,18 @@ import { StoredDevice, StoredDeviceState } from '@database/schemas/v1/devices.sc
  * wired in, so a part that is not there yet costs the alarm nothing.
  */
 
-/** One device's readings of one instant, in the names the contract gives them. */
+/**
+ * One device's readings of one instant, in the names the contract gives them,
+ * and the outputs it was driving at that instant beside them - a rule may watch
+ * either, so the sample carries both halves of the message.
+ */
 export interface MetricSample {
   deviceId: string;
   measuredAt: Date;
   /** A metric the device did not report is absent; no rule on it is evaluated. */
   values: Partial<Record<Metric, number>>;
+  /** The same, for the outputs: the value as the device reports it, never scaled. */
+  outputs: Partial<Record<OutputMetric, number>>;
 }
 
 /** The little of a device an alarm is about: where it is, and whether it is being worked on. */

@@ -95,8 +95,13 @@ export interface LegacyDatabase {
   at: number;
   users: Record<keyof typeof LEGACY_USER_IDS, string>;
   devices: Record<keyof typeof LEGACY_DEVICE_IDS, string>;
-  /** Alarm ids on the tent controller. */
-  alarms: { triggered: string; webhook: string; disabled: string };
+  /** Alarm ids on the tent controller: three on its readings, and one per output an alarm can watch. */
+  alarms: {
+    triggered: string;
+    webhook: string;
+    disabled: string;
+    outputs: { running: string; valve: string; heater: string; fan: string; light: string };
+  };
   grows: {
     /** Ended by the next cycle's rollback to germination. */
     finished: LegacyGrow;
@@ -448,6 +453,85 @@ export async function seedLegacyDatabase(target: Connection | mongo.Db, at: numb
       lowerThreshold: 400,
       actionType: 'info',
       actionTarget: '',
+    },
+    // One of each output an alarm can watch, which is what the real database
+    // turned out to hold: the two that trip on the output running at all, and
+    // the three that are bands on how hard it is working. The heater's
+    // thresholds are percentages of a fraction, as the old engine read them.
+    {
+      _id: idAt(ago(170), 4),
+      alarmId: 'alarm-tent-dehumidifier',
+      name: 'Fridge never stops',
+      sensorType: 'dehumidifier',
+      upperThreshold: null,
+      lowerThreshold: null,
+      actionType: 'email',
+      actionTarget: 'ada@example.test',
+      cooldownSeconds: 7200,
+      retriggerSeconds: 3600,
+      thresholdSeconds: 3600,
+      additionalInfo: true,
+      isTriggered: false,
+      extremeValue: 1,
+      lastTriggeredAt: ago(9),
+      lastResolvedAt: ago(8),
+    },
+    {
+      _id: idAt(ago(170), 5),
+      alarmId: 'alarm-tent-co2-valve',
+      name: 'CO2 valve stuck open',
+      sensorType: 'co2_valve',
+      // A threshold nothing has ever read: the old engine tripped this one on
+      // the valve being open, whatever stood here.
+      upperThreshold: 500,
+      lowerThreshold: null,
+      actionType: 'info',
+      actionTarget: '',
+      thresholdSeconds: 600,
+    },
+    {
+      _id: idAt(ago(170), 6),
+      alarmId: 'alarm-tent-heater',
+      name: 'Heater working too hard',
+      sensorType: 'heater',
+      upperThreshold: 80,
+      lowerThreshold: null,
+      actionType: 'email',
+      actionTarget: 'ada@example.test',
+      cooldownSeconds: 600,
+      thresholdSeconds: 300,
+      additionalInfo: true,
+    },
+    {
+      _id: idAt(ago(170), 7),
+      alarmId: 'alarm-tent-fan',
+      name: 'Fan racing',
+      sensorType: 'fan',
+      upperThreshold: 11,
+      lowerThreshold: null,
+      actionType: 'email',
+      actionTarget: 'ada@example.test',
+      cooldownSeconds: 6000,
+      retriggerSeconds: 3600,
+      thresholdSeconds: 30,
+      additionalInfo: true,
+      // Standing triggered, so an output alarm brings its open alert across too.
+      isTriggered: true,
+      lastTriggeredAt: now - 3 * HOUR,
+      extremeValue: 14,
+      latestDataPointTime: now - 5 * MINUTE,
+    },
+    {
+      _id: idAt(ago(170), 8),
+      alarmId: 'alarm-tent-light',
+      name: 'Light dimmed',
+      sensorType: 'light',
+      upperThreshold: 60,
+      lowerThreshold: 40,
+      actionType: 'info',
+      actionTarget: '',
+      cooldownSeconds: 600,
+      retriggerSeconds: 3600,
     },
   ];
 
@@ -1407,7 +1491,18 @@ export async function seedLegacyDatabase(target: Connection | mongo.Db, at: numb
     at: now,
     users: { ...LEGACY_USER_IDS },
     devices: { ...LEGACY_DEVICE_IDS },
-    alarms: { triggered: tentAlarms[0].alarmId, webhook: tentAlarms[1].alarmId, disabled: tentAlarms[2].alarmId },
+    alarms: {
+      triggered: tentAlarms[0].alarmId,
+      webhook: tentAlarms[1].alarmId,
+      disabled: tentAlarms[2].alarmId,
+      outputs: {
+        running: tentAlarms[3].alarmId,
+        valve: tentAlarms[4].alarmId,
+        heater: tentAlarms[5].alarmId,
+        fan: tentAlarms[6].alarmId,
+        light: tentAlarms[7].alarmId,
+      },
+    },
     grows: {
       finished: { deviceId: tent, name: 'Blue Dream', startedAt: ago(160), endedAt: ago(40), stages: 6 },
       running: { deviceId: tent, name: 'Purple Haze', startedAt: ago(40), stages: 3 },

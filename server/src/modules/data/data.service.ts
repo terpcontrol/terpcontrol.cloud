@@ -250,6 +250,12 @@ export class DataService implements LightStateReader {
     return metrics[0].points;
   }
 
+  /** The same, for an output: what an alarm on one reads back after a restart. */
+  public async outputPoints(deviceId: string, output: OutputMetric, window: Omit<SeriesRequest, 'metrics' | 'outputs'>): Promise<SeriesPoint[]> {
+    const { outputs } = await this.series(deviceId, { ...window, metrics: [], outputs: [output] });
+    return outputs[0].points;
+  }
+
   private get bucket(): string {
     // Required environment, as in `writeSample`.
     return this.config.bucket!;

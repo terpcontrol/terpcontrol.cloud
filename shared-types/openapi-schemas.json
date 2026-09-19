@@ -3497,6 +3497,95 @@
       "custom"
     ]
   },
+  "ReadingWatch": {
+    "type": "object",
+    "properties": {
+      "kind": {
+        "type": "string",
+        "const": "reading"
+      },
+      "metric": {
+        "$ref": "#/components/schemas/Metric"
+      },
+      "upper": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "lower": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "kind",
+      "metric",
+      "upper",
+      "lower"
+    ]
+  },
+  "OutputLevelWatch": {
+    "type": "object",
+    "properties": {
+      "kind": {
+        "type": "string",
+        "const": "output_level"
+      },
+      "output": {
+        "$ref": "#/components/schemas/OutputMetric"
+      },
+      "upper": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "lower": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "kind",
+      "output",
+      "upper",
+      "lower"
+    ]
+  },
+  "OutputRunningWatch": {
+    "type": "object",
+    "properties": {
+      "kind": {
+        "type": "string",
+        "const": "output_running"
+      },
+      "output": {
+        "$ref": "#/components/schemas/OutputMetric"
+      }
+    },
+    "required": [
+      "kind",
+      "output"
+    ]
+  },
+  "AlarmWatch": {
+    "oneOf": [
+      {
+        "$ref": "#/components/schemas/ReadingWatch"
+      },
+      {
+        "$ref": "#/components/schemas/OutputLevelWatch"
+      },
+      {
+        "$ref": "#/components/schemas/OutputRunningWatch"
+      }
+    ]
+  },
   "AlarmRuleState": {
     "type": "object",
     "properties": {
@@ -3575,26 +3664,14 @@
       "name": {
         "type": "string"
       },
-      "metric": {
-        "$ref": "#/components/schemas/Metric"
-      },
-      "upper": {
-        "type": [
-          "number",
-          "null"
-        ]
-      },
-      "lower": {
-        "type": [
-          "number",
-          "null"
-        ]
+      "watch": {
+        "$ref": "#/components/schemas/AlarmWatch"
       },
       "forSeconds": {
         "type": "integer",
         "minimum": -9007199254740991,
         "maximum": 9007199254740991,
-        "description": "How long the reading has to be out of bounds before the rule triggers."
+        "description": "How long the watch has to be out of bounds before the rule triggers."
       },
       "severity": {
         "$ref": "#/components/schemas/Severity"
@@ -3653,9 +3730,7 @@
       "createdAt",
       "deviceId",
       "name",
-      "metric",
-      "upper",
-      "lower",
+      "watch",
       "forSeconds",
       "severity",
       "origin",
@@ -3696,26 +3771,14 @@
       "name": {
         "type": "string"
       },
-      "metric": {
-        "$ref": "#/components/schemas/Metric"
-      },
-      "upper": {
-        "type": [
-          "number",
-          "null"
-        ]
-      },
-      "lower": {
-        "type": [
-          "number",
-          "null"
-        ]
+      "watch": {
+        "$ref": "#/components/schemas/AlarmWatch"
       },
       "forSeconds": {
         "type": "integer",
         "minimum": -9007199254740991,
         "maximum": 9007199254740991,
-        "description": "How long the reading has to be out of bounds before the rule triggers."
+        "description": "How long the watch has to be out of bounds before the rule triggers."
       },
       "severity": {
         "$ref": "#/components/schemas/Severity"
@@ -3741,9 +3804,7 @@
     },
     "required": [
       "name",
-      "metric",
-      "upper",
-      "lower",
+      "watch",
       "forSeconds",
       "severity",
       "enabled",
@@ -3758,26 +3819,14 @@
       "name": {
         "type": "string"
       },
-      "metric": {
-        "$ref": "#/components/schemas/Metric"
-      },
-      "upper": {
-        "type": [
-          "number",
-          "null"
-        ]
-      },
-      "lower": {
-        "type": [
-          "number",
-          "null"
-        ]
+      "watch": {
+        "$ref": "#/components/schemas/AlarmWatch"
       },
       "forSeconds": {
         "type": "integer",
         "minimum": -9007199254740991,
         "maximum": 9007199254740991,
-        "description": "How long the reading has to be out of bounds before the rule triggers."
+        "description": "How long the watch has to be out of bounds before the rule triggers."
       },
       "severity": {
         "$ref": "#/components/schemas/Severity"
@@ -9666,7 +9715,7 @@
             "type": "null"
           }
         ],
-        "description": "What the rule watches, so \"78 % RH\" can be said; null for an alert raised without a rule."
+        "description": "The reading the rule watches, so \"78 % RH\" can be said; null for an alert raised without a rule, or by a rule watching an output."
       }
     },
     "required": [
@@ -10962,7 +11011,7 @@
             "type": "null"
           }
         ],
-        "description": "What the rule watched; null for an alert the health loop raised without one."
+        "description": "The reading the rule watched; null for an alert the health loop raised without one, or one from a rule watching an output."
       },
       "startedAt": {
         "type": "string",

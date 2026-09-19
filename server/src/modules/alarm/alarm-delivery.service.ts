@@ -14,6 +14,7 @@ import { applyWebhookTemplate } from '@utils/webhookTemplate';
 import { MailService } from '../mail/mail.service';
 import { TunnelService } from '../tunnel/tunnel.service';
 import { ALARM_ROUTING, AlarmEvent, AlarmRouting } from './alarm.types';
+import { Band, bandOf, watchedName } from './alarm.watch';
 
 /**
  * Where an alarm is said out loud.
@@ -81,21 +82,22 @@ export class AlarmDeliveryService {
     value: number | null,
   ): Promise<void> {
     const subject = `[TERP CONTROL] Alarm ${name} ${event} for Device ${alert.deviceId}`;
+    const bounds = band(rule);
     const details =
-      `Sensor: ${rule?.metric ?? alert.kind}\n` +
-      (hasThresholds(rule)
-        ? `Threshold: ${rule?.upper !== null ? `Upper: ${rule?.upper}` : ''} ${rule?.lower !== null ? `Lower: ${rule?.lower}` : ''}\n`
+      `Sensor: ${watchedOf(rule, alert)}\n` +
+      (bounds
+        ? `Threshold: ${bounds.upper !== null ? `Upper: ${bounds.upper}` : ''} ${bounds.lower !== null ? `Lower: ${bounds.lower}` : ''}\n`
         : '') +
       `Value: ${value}\n` +
       `Alarm Name: ${name}\n` +
       `Alarm ID: ${alert.ruleId ?? alert.id}\n` +
-      (event === 'resolved' && hasThresholds(rule) ? `Extreme Value: ${alert.extremeValue}\n` : '');
+      (event === 'resolved' && bounds ? `Extreme Value: ${alert.extremeValue}\n` : '');
 
     const text = `An alarm has been ${event} for device ${alert.deviceId}.\n\n` + (custom.includeDetails ? details : '');
     const target = targetFor(custom.target, event);
     await this.mail.send({ to: target, subject, text });
 
-    logger.info(`Alarm email sent to ${target} for device ${alert.deviceId} and ${rule?.metric ?? alert.kind}.`);
+    logger.info(`Alarm email sent to ${target} for device ${alert.deviceId} and ${watchedOf(rule, alert)}.`);
   }
 
   private async callWebhook(
@@ -113,20 +115,21 @@ export class AlarmDeliveryService {
     }
 
     const webhook = custom.webhook;
+    const bounds = band(rule);
     // The keys are what somebody's home automation reads, so they are the ones
     // the cloud has always sent even where the model now names the field otherwise.
     const defaultPayload = JSON.stringify({
       deviceId: alert.deviceId,
-      sensorType: rule?.metric ?? alert.kind,
+      sensorType: watchedOf(rule, alert),
       value,
-      upperThreshold: hasThresholds(rule) ? (rule?.upper ?? undefined) : undefined,
-      lowerThreshold: hasThresholds(rule) ? (rule?.lower ?? undefined) : undefined,
+      upperThreshold: bounds?.upper ?? undefined,
+      lowerThreshold: bounds?.lower ?? undefined,
       timestamp: new Date().toISOString(),
       event,
       alarmName: name,
       alarmId: alert.ruleId ?? alert.id,
       lastTriggeredAt: alert.startedAt.getTime(),
-      extremeValue: event === 'resolved' && hasThresholds(rule) ? (alert.extremeValue ?? undefined) : undefined,
+      extremeValue: event === 'resolved' && bounds ? (alert.extremeValue ?? undefined) : undefined,
     });
 
     const template = event === 'triggered' ? webhook?.triggeredPayload : webhook?.resolvedPayload;
@@ -139,15 +142,15 @@ export class AlarmDeliveryService {
       const variables: Record<string, unknown> = {
         deviceId: alert.deviceId,
         deviceName: device?.name || alert.deviceId,
-        sensorType: rule?.metric ?? alert.kind,
+        sensorType: watchedOf(rule, alert),
         value,
-        upperThreshold: hasThresholds(rule) ? (rule?.upper ?? undefined) : undefined,
-        lowerThreshold: hasThresholds(rule) ? (rule?.lower ?? undefined) : undefined,
+        upperThreshold: bounds?.upper ?? undefined,
+        lowerThreshold: bounds?.lower ?? undefined,
         event,
         timestamp: new Date().toISOString(),
         alarmName: name,
         alarmId: alert.ruleId ?? alert.id,
-        extremeValue: event === 'resolved' && hasThresholds(rule) ? (alert.extremeValue ?? undefined) : undefined,
+        extremeValue: event === 'resolved' && bounds ? (alert.extremeValue ?? undefined) : undefined,
       };
       if (template) payload = applyWebhookTemplate(template, variables, 'json');
       target = applyWebhookTemplate(target, variables, 'url');
@@ -205,8 +208,24 @@ export class AlarmDeliveryService {
   }
 }
 
-/** A rule watching something with no band around it - the health metrics - reports no thresholds. */
-const hasThresholds = (rule: StoredAlarmRule | null): boolean => !!rule && (rule.upper !== null || rule.lower !== null);
+/**
+ * The band a rule reports, where it has one to report. A rule watching
+ * something with no band around it - the health metrics, and an output watched
+ * for running at all - says nothing about thresholds, exactly as the alarm on a
+ * fridge compressor always has.
+ */
+const band = (rule: StoredAlarmRule | null): Band | null => {
+  const watched = rule ? bandOf(rule.watch) : null;
+  return watched && (watched.upper !== null || watched.lower !== null) ? watched : null;
+};
+
+/**
+ * What the rule watches, in the word somebody's home automation has always read
+ * off `sensorType`: the metric, or the output - which is the same word the old
+ * alarms sent for four of the five outputs, `co2_valve` having become `co2`.
+ * An alert with no rule says what kind of alert it is, as it always has.
+ */
+const watchedOf = (rule: StoredAlarmRule | null, alert: StoredAlert): string => (rule ? watchedName(rule.watch) : alert.kind);
 
 /** One target for the trigger and another for the all-clear, as a single field with a separator. */
 const targetFor = (target: string, event: AlarmEvent): string => {

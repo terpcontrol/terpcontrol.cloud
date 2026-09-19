@@ -368,9 +368,10 @@ describe('what the migration wrote', () => {
       spaces: 5,
       // The two devices whose plan has steps, running or not.
       plans: 2,
-      alarmRules: 3,
-      // One per alarm standing triggered.
-      alerts: 1,
+      // Three on the tent's readings and one per output an alarm can watch.
+      alarmRules: 8,
+      // One per alarm standing triggered: the warm tent, and the racing fan.
+      alerts: 2,
       // A stream each for the tent, the fridge and the demo tent, and a retired
       // one for the fan, whose stills outlived the camera they came from.
       cameras: 4,
@@ -532,7 +533,12 @@ describe('alarms', () => {
     await migrate();
 
     const warm = await one<Record<string, any>>('alarmRules', { id: fixture.alarms.triggered });
-    expect(warm).toMatchObject({ metric: 'temperature', upper: 31, lower: null, forSeconds: 300, severity: 'warning', enabled: true });
+    expect(warm).toMatchObject({
+      watch: { kind: 'reading', metric: 'temperature', upper: 31, lower: null },
+      forSeconds: 300,
+      severity: 'warning',
+      enabled: true,
+    });
     expect(warm?.delivery).toMatchObject({ mode: 'custom', custom: { channel: 'email', target: 'ada@example.test' } });
     expect(warm?.state).toMatchObject({ triggered: true, extremeValue: 33.4 });
 
@@ -542,7 +548,7 @@ describe('alarms', () => {
 
     expect(await one<Record<string, any>>('alarmRules', { id: fixture.alarms.disabled })).toMatchObject({ enabled: false, severity: 'info' });
 
-    const alerts = await collection<Record<string, any>>('alerts').find({}).toArray();
+    const alerts = await collection<Record<string, any>>('alerts').find({ ruleId: fixture.alarms.triggered }).toArray();
     expect(alerts).toHaveLength(1);
     expect(alerts[0]).toMatchObject({
       ruleId: fixture.alarms.triggered,
@@ -572,18 +578,51 @@ describe('alarms', () => {
     expect(await one<{ enabled: boolean }>('alarmRules', { id: fixture.alarms.disabled })).toMatchObject({ enabled: false });
   });
 
-  it('rejects a rule that watches an output, because the model has no metric for one', async () => {
+  it('carries an alarm on an output across as a rule on that output', async () => {
+    await migrate();
+
+    const outputs = fixture.alarms.outputs;
+    const rule = (id: string) => one<Record<string, any>>('alarmRules', { id });
+
+    // The fridge that has not stopped and the valve that is still open: on at
+    // all is what trips them, so neither carries a band - and the threshold
+    // left beside the valve, which nothing has ever read, is left behind.
+    expect(await rule(outputs.running)).toMatchObject({
+      watch: { kind: 'output_running', output: 'dehumidifier' },
+      forSeconds: 3600,
+      severity: 'warning',
+    });
+    expect(await rule(outputs.valve)).toMatchObject({ watch: { kind: 'output_running', output: 'co2', upper: null }, severity: 'info' });
+
+    // The heater's thresholds were percentages of the fraction the device
+    // reports, so they come back in the units the series is in.
+    expect(await rule(outputs.heater)).toMatchObject({ watch: { kind: 'output_level', output: 'heater', upper: 0.8, lower: null } });
+
+    // Every other output is compared against what it reports, unscaled.
+    expect(await rule(outputs.fan)).toMatchObject({ watch: { kind: 'output_level', output: 'fan', upper: 11, lower: null }, forSeconds: 30 });
+    expect(await rule(outputs.light)).toMatchObject({ watch: { kind: 'output_level', output: 'light', upper: 60, lower: 40 } });
+  });
+
+  it('opens an alert for an output alarm standing triggered, as for any other', async () => {
+    await migrate();
+
+    const alert = await one<Record<string, any>>('alerts', { ruleId: fixture.alarms.outputs.fan });
+    expect(alert).toMatchObject({ deviceId: LEGACY_DEVICE_IDS.controller, resolvedAt: null, kind: 'threshold', extremeValue: 14 });
+    expect(alert?.startedAt.getTime()).toBe(AT - 3 * 60 * 60 * 1000);
+  });
+
+  it('rejects an alarm on something that is neither a reading nor an output', async () => {
     await collection('devices').updateOne(
       { device_id: LEGACY_DEVICE_IDS.fridge },
-      { $set: { alarms: [{ alarmId: 'alarm-fridge-dehumidifier', sensorType: 'dehumidifier', actionType: 'info', actionTarget: '' }] } },
+      { $set: { alarms: [{ alarmId: 'alarm-fridge-nonsense', sensorType: 'pressure', actionType: 'info', actionTarget: '' }] } },
     );
 
     const report = await migrate();
     const reject = report.applied.find(outcome => outcome.name === '007-alarm-rules')?.rejects[0];
 
-    expect(reject?.id).toBe('alarm-fridge-dehumidifier');
-    expect(reject?.reason).toContain('output');
-    expect(await one('alarmRules', { id: 'alarm-fridge-dehumidifier' })).toBeNull();
+    expect(reject?.id).toBe('alarm-fridge-nonsense');
+    expect(reject?.reason).toContain('neither a reading nor an output');
+    expect(await one('alarmRules', { id: 'alarm-fridge-nonsense' })).toBeNull();
   });
 });
 

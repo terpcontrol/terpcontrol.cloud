@@ -38,7 +38,7 @@ let ingest: DeviceIngestService;
 let publisher: DevicePublisherService;
 let registration: DeviceRegistrationService;
 let samples: { deviceId: string; sample: DeviceSample }[];
-let metrics: { deviceId: string; values: Record<string, number> }[];
+let metrics: { deviceId: string; values: Record<string, number>; outputs: Record<string, number> }[];
 let seen: string[];
 let firmwareReports: string[];
 
@@ -90,7 +90,7 @@ beforeEach(async () => {
     hardware,
     new EntryWriterService(db.entries),
     { writeSample: async (deviceId, sample) => void samples.push({ deviceId, sample }) },
-    { onSample: async sample => void metrics.push({ deviceId: sample.deviceId, values: sample.values }) },
+    { onSample: async sample => void metrics.push({ deviceId: sample.deviceId, values: sample.values, outputs: sample.outputs }) },
     null,
     null,
     { onDeviceSeen: deviceId => void seen.push(deviceId), onFirmwareReported: (_, firmwareId) => void firmwareReports.push(firmwareId) },
@@ -103,7 +103,7 @@ describe('what a device reports', () => {
 
     await messageOn('bulk', {
       sensors: { temperature: 24.6, leaf_temperature: 22.1, sensor_type: 2 },
-      outputs: { light: 100 },
+      outputs: { light: 100, 'fan-internal': 40, spindle: 1 },
       timestamp: 1758100000,
     });
 
@@ -111,8 +111,11 @@ describe('what a device reports', () => {
     // Stored as the device names them, diagnostics included; evaluated under the
     // names the contract gives them, which has no name for `sensor_type`.
     expect(samples[0].sample.sensors).toEqual({ temperature: 24.6, leaf_temperature: 22.1, sensor_type: 2 });
-    expect(samples[0].sample.outputs).toEqual({ light: 100 });
+    expect(samples[0].sample.outputs).toEqual({ light: 100, 'fan-internal': 40, spindle: 1 });
     expect(metrics[0].values).toEqual({ temperature: 24.6, leafTemperature: 22.1 });
+    // The outputs are named the same way, and an output the API names nothing
+    // for is no more evaluated than a diagnostic sensor is.
+    expect(metrics[0].outputs).toEqual({ light: 100, fanInternal: 40 });
     expect(seen).toEqual([DEVICE]);
   });
 

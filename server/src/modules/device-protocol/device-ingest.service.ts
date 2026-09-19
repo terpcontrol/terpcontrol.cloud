@@ -2,10 +2,10 @@ import { Inject, Injectable, OnApplicationShutdown, OnModuleInit, Optional } fro
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Subscription } from 'rxjs';
-import { Metric } from '@fg2/shared-types/v1';
+import { Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { HARDWARE_INFO_PREFIX, deviceMessageFact, parseDeviceMessage } from '@common/v1/device-messages';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
-import { metricOfField } from '@common/v1/metrics';
+import { metricOfField, outputMetricOfField } from '@common/v1/metrics';
 import { BackgroundWork } from '@common/background-work';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -223,7 +223,12 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
     if (!sample || !device.ownerId) return;
 
     await this.samples?.writeSample(device.id, sample);
-    await this.metrics?.onSample({ deviceId: device.id, measuredAt: sample.measuredAt, values: metricValues(sample.sensors) });
+    await this.metrics?.onSample({
+      deviceId: device.id,
+      measuredAt: sample.measuredAt,
+      values: metricValues(sample.sensors),
+      outputs: outputValues(sample.outputs),
+    });
   }
 
   /**
@@ -364,6 +369,22 @@ const metricValues = (sensors: Record<string, number>): Partial<Record<Metric, n
   for (const [field, value] of Object.entries(sensors)) {
     const metric = metricOfField(field);
     if (metric) values[metric] = value;
+  }
+
+  return values;
+};
+
+/**
+ * The outputs of the same message, likewise named. The device reports an output
+ * under its bare name and the store writes it with the `out_` prefix, so the
+ * translation goes through the stored field - one table for both directions.
+ */
+const outputValues = (outputs: Record<string, number>): Partial<Record<OutputMetric, number>> => {
+  const values: Partial<Record<OutputMetric, number>> = {};
+
+  for (const [key, value] of Object.entries(outputs)) {
+    const output = outputMetricOfField(`out_${key}`);
+    if (output) values[output] = value;
   }
 
   return values;

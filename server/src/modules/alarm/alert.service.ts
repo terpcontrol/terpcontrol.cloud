@@ -9,6 +9,7 @@ import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { AlarmDeliveryService } from './alarm-delivery.service';
 import { AlarmEvent, GROW_IN_SPACE, GrowInSpace } from './alarm.types';
+import { bandOf, watchedName } from './alarm.watch';
 
 /**
  * An alert's life: one document from the moment something is wrong to the moment
@@ -131,11 +132,12 @@ export class AlertService {
 /** The line the timeline shows, in the words it has always shown it in. */
 const summary = (subject: AlertSubject, alert: StoredAlert, value: number | null, event: AlarmEvent): string => {
   const rule = subject.rule;
-  const band = rule && (rule.upper !== null || rule.lower !== null);
+  const watched = rule ? bandOf(rule.watch) : null;
+  const band = watched && (watched.upper !== null || watched.lower !== null) ? watched : null;
 
   return (
-    `${subject.name} (${rule?.metric ?? alert.kind}), value=${value}` +
-    (band ? `, upper threshold=${rule.upper ?? 'n/a'}, lower threshold=${rule.lower ?? 'n/a'}` : '') +
+    `${subject.name} (${rule ? watchedName(rule.watch) : alert.kind}), value=${value}` +
+    (band ? `, upper threshold=${band.upper ?? 'n/a'}, lower threshold=${band.lower ?? 'n/a'}` : '') +
     (event === 'resolved' && band ? `, extreme value=${alert.extremeValue ?? 'n/a'}` : '')
   );
 };

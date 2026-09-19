@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Mutex, MutexInterface, withTimeout } from 'async-mutex';
-import { Metric } from '@fg2/shared-types/v1';
+import { Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
 import { VALUE_AGE } from '@fg2/shared-types/v1-schemas';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
@@ -10,10 +10,13 @@ import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { DataService } from '../data/data.service';
 import { AlertService, AlertSubject } from './alert.service';
 import { ALARM_DEVICE_FIELDS, AlarmDevice, MetricSample } from './alarm.types';
+import { bandOf, isOutOfBounds, watchedValue } from './alarm.watch';
 
 /**
- * The state machine: a reading, the rules watching it, and the alert that opens
- * or closes as a result.
+ * The state machine: what a device just said, the rules watching it, and the
+ * alert that opens or closes as a result. A rule watches a reading the device
+ * measures or an output it drives, and from here on the two are one thing - the
+ * watch answers what tripped it, and everything after that is the same.
  *
  * A rule is only as good as its patience. It triggers when the reading has been
  * out of its band for `forSeconds`, waits out its cooldown before saying so
@@ -60,10 +63,11 @@ export class AlarmEngineService {
   /** Per rule, when the reading was last inside its band. The answer to "for how long already". */
   private readonly insideSince = new Map<string, number>();
 
-  /** Everything a device reported at one instant, against every rule watching one of those metrics. */
+  /** Everything a device reported at one instant, against every rule watching one of those readings or outputs. */
   public async onSample(sample: MetricSample): Promise<void> {
     const metrics = Object.keys(sample.values) as Metric[];
-    if (metrics.length === 0) return;
+    const outputs = Object.keys(sample.outputs) as OutputMetric[];
+    if (metrics.length === 0 && outputs.length === 0) return;
 
     const release = await this.lock(sample.deviceId);
     const at = sample.measuredAt.getTime();
@@ -72,9 +76,11 @@ export class AlarmEngineService {
       const device = await this.deviceOf(sample.deviceId);
       if (!device) return;
 
-      const rules = await this.rules.find({ deviceId: device.id, metric: { $in: metrics } }).lean();
+      const rules = await this.rules
+        .find({ deviceId: device.id, $or: [{ 'watch.metric': { $in: metrics } }, { 'watch.output': { $in: outputs } }] })
+        .lean<StoredAlarmRule[]>();
       for (const rule of rules) {
-        const value = sample.values[rule.metric];
+        const value = watchedValue(rule.watch, sample);
         // Asked before the band is, because deciding that costs a query into the
         // stored series for a rule that is patient.
         if (value === undefined || this.saysNothingNew(rule, sample.measuredAt)) continue;
@@ -142,11 +148,16 @@ export class AlarmEngineService {
     await this.alerts.raise(subject, value, now);
   }
 
-  /** The worst reading of an open episode, on the rule and on the alert alike. */
+  /**
+   * The worst reading of an open episode, on the rule and on the alert alike. A
+   * rule with no band has no worse: an output that is running is running, and
+   * what was written down when it started is the whole of it.
+   */
   private async worsen(rule: StoredAlarmRule, value: number, at: Date): Promise<void> {
+    const band = bandOf(rule.watch);
     let extreme = rule.state.extremeValue ?? value;
-    if (rule.upper !== null && value > rule.upper) extreme = Math.max(extreme, value);
-    if (rule.lower !== null && value < rule.lower) extreme = Math.min(extreme, value);
+    if (band?.upper != null && value > band.upper) extreme = Math.max(extreme, value);
+    if (band?.lower != null && value < band.lower) extreme = Math.min(extreme, value);
     if (extreme === rule.state.extremeValue) return;
 
     await this.write(rule, at, { 'state.extremeValue': extreme });
@@ -188,7 +199,7 @@ export class AlarmEngineService {
   private async isOutOfBand(rule: StoredAlarmRule, deviceId: string, value: number, at: number): Promise<boolean> {
     if (!Number.isFinite(value)) return rule.state.triggered;
 
-    const outside = isOutsideBand(rule, value);
+    const outside = isOutOfBounds(rule.watch, value);
     if (rule.forSeconds <= MEANINGFUL_FOR_SECONDS) return outside;
 
     if (!outside) {
@@ -208,18 +219,18 @@ export class AlarmEngineService {
     return since === undefined || Date.now() - since >= rule.forSeconds * 1000;
   }
 
-  /** When the stored series last held a reading inside the band, or null if it never did. */
+  /** When the stored series last held a value inside the band, or null if it never did. */
   private async lastInsideFromSeries(rule: StoredAlarmRule, deviceId: string): Promise<number | null> {
     // The last few seconds are left out: a point that is still being written
     // reads as an empty window rather than as a good reading.
     const until = Date.now() - SETTLED_MS;
-    const points = await this.data.points(deviceId, rule.metric, {
-      startsAt: new Date(until - rule.forSeconds * 1000),
-      endsAt: new Date(until),
-      stepSeconds: 5,
-    });
+    const window = { startsAt: new Date(until - rule.forSeconds * 1000), endsAt: new Date(until), stepSeconds: 5 };
+    const points: SeriesPoint[] =
+      rule.watch.kind === 'reading'
+        ? await this.data.points(deviceId, rule.watch.metric, window)
+        : await this.data.outputPoints(deviceId, rule.watch.output, window);
 
-    const inside = [...points].reverse().find(point => point.value !== null && !isOutsideBand(rule, point.value));
+    const inside = [...points].reverse().find(point => point.value !== null && !isOutOfBounds(rule.watch, point.value));
     const at = Date.parse(inside?.measuredAt ?? '');
 
     return isNaN(at) ? null : at;
@@ -240,15 +251,12 @@ export class AlarmEngineService {
   }
 }
 
-const isOutsideBand = (rule: StoredAlarmRule, value: number): boolean =>
-  (rule.upper !== null && value > rule.upper) || (rule.lower !== null && value < rule.lower);
-
 /** A rule whose own delivery is a mail: the one that is never repeated and never fires twice in five minutes. */
 const isMailRule = (rule: StoredAlarmRule): boolean => rule.delivery.mode === 'custom' && rule.delivery.custom?.channel === 'email';
 
 const subjectOf = (rule: StoredAlarmRule, device: AlarmDevice): AlertSubject => ({
   name: rule.name,
-  kind: rule.metric === 'offline' ? 'offline' : 'threshold',
+  kind: rule.watch.kind === 'reading' && rule.watch.metric === 'offline' ? 'offline' : 'threshold',
   severity: rule.severity,
   rule,
   deviceId: device.id,
