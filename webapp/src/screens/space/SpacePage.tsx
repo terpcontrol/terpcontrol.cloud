@@ -10,6 +10,8 @@ import { Tabs } from '@/ui/Tabs';
 import { useNow } from '@/ui/useNow';
 import { livenessOf, measuredAtOf } from '../home/attention';
 import { LivenessPill } from '../home/SpaceCard';
+import { useRememberSpace } from '../timeline/last-space';
+import { Timeline } from '../timeline/Timeline';
 import { Overview } from './Overview';
 import styles from './SpacePage.module.css';
 
@@ -17,7 +19,7 @@ const TABS = ['overview', 'timeline', 'devices', 'control', 'members'] as const;
 type SpaceTab = (typeof TABS)[number];
 
 /** Which round each of the other tabs arrives with, as the decision record numbers them. */
-const LATER: Record<Exclude<SpaceTab, 'overview'>, number> = { timeline: 4, devices: 5, control: 9, members: 13 };
+const LATER: Record<Exclude<SpaceTab, 'overview' | 'timeline'>, number> = { devices: 5, control: 9, members: 13 };
 
 const isTab = (value: string | undefined): value is SpaceTab => (TABS as readonly string[]).includes(value ?? '');
 
@@ -39,6 +41,8 @@ export function SpacePage() {
 function SpaceScreen({ spaceId, tab }: { spaceId: string; tab: SpaceTab }) {
   const { t } = useTranslation();
   const now = useNow();
+  // The tab bar's own Timeline lands on the place last looked at, and looking at one here is what makes it that place.
+  useRememberSpace(spaceId);
   const overview = useSpaceOverview(spaceId);
   const live = useSpaceLive(spaceId, (overview.data?.deviceIds.length ?? 0) > 0);
 
@@ -78,7 +82,13 @@ function SpaceScreen({ spaceId, tab }: { spaceId: string; tab: SpaceTab }) {
       </header>
       <RefreshFailed failedAt={failedAt} now={now} />
       <Tabs items={tabs} label={t('space.tabsLabel')} />
-      {tab === 'overview' ? <Overview overview={current} now={now} /> : <LaterRound round={LATER[tab]} what={`space.later.${tab}`} />}
+      {tab === 'overview' ? (
+        <Overview overview={current} now={now} />
+      ) : tab === 'timeline' ? (
+        <Timeline spaceId={spaceId} />
+      ) : (
+        <LaterRound round={LATER[tab]} what={`space.later.${tab}`} />
+      )}
     </section>
   );
 }

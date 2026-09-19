@@ -1370,7 +1370,6 @@
       "members": "Mitglieder"
     },
     "later": {
-      "timeline": "Das Kamerabild mit Schieber, dann Temperatur, Feuchte und CO₂ über die Zeit mit Zielband, Nachtschattierung, Alarmen und Einträgen.",
       "devices": "Jeder Controller, jede Kamera und jede Steckdose hier, mit Rolle und Schalter.",
       "control": "Der Grow-Plan mit seinen Schritten, manuelle Ziele, und unter Erweitert die Regeln und Steckdosen.",
       "members": "Wer hier eintragen und wer verwalten darf, und die Einladungen dazu."
@@ -1481,5 +1480,48 @@
     "dismiss": "Schließen",
     "takingBack": "wird widerrufen",
     "undoFailed": "Der Eintrag konnte nicht widerrufen werden"
+  },
+  "timeline": {
+    "rangeLabel": "Zeitraum",
+    "range": {
+      "24h": "24 Std",
+      "7d": "7 T",
+      "phase": "Phase",
+      "grow": "Grow"
+    },
+    "pickSpace": "Welcher Ort",
+    "dayN": "Tag {{day}}",
+    "dayRange": "Tag {{from}}–{{to}}",
+    "now": "jetzt",
+    "play": "Zeitraum abspielen",
+    "pause": "Anhalten",
+    "scrubber": "Cursor durch den Zeitraum bewegen",
+    "frameAlt": "{{name}} am Cursor",
+    "noFrames": "Keine Bilder in diesem Zeitraum",
+    "metric": {
+      "temperature": "Temperatur",
+      "humidity": "Luftfeuchte",
+      "co2": "CO₂"
+    },
+    "panelAlt": "{{metric}} über den Zeitraum",
+    "band": "Band {{low}}–{{high}}",
+    "noTarget": "kein Ziel",
+    "allOff": "alles aus",
+    "outputOn": "{{output}} an",
+    "output": {
+      "heater": "Heizung",
+      "dehumidifier": "Entf.",
+      "co2": "CO₂",
+      "light": "Licht",
+      "fan": "Lüfter",
+      "relais": "Relais",
+      "fanInternal": "Lüfter in",
+      "fanExternal": "Abluft",
+      "fanBackwall": "Rückw."
+    },
+    "events": "Einträge",
+    "noEvents": "Nichts geschrieben in diesem Zeitraum",
+    "noPanels": "Hier misst nichts, also gibt es keine Kurven zu zeichnen",
+    "noSpaces": "Noch nichts zu zeichnen. Gerät hinzufügen oder Grow starten auf der"
   }
 }

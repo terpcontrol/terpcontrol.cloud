@@ -1,0 +1,554 @@
+/* The stacked timeline. Every plot and every lane leaves the same gutter on the
+   left - set once as `--gutter` by the screen and handed to ECharts as the same
+   number - so one cursor runs straight down through the whole stack. */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.titleDot {
+  color: var(--muted);
+}
+
+/* The name gives way before the pill does: which place it is can be truncated, how alive it is cannot. */
+.title > :last-child {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.pickerName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The name reads as part of the title; the select over it is what is operated. */
+.picker {
+  position: relative;
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  color: var(--muted);
+}
+
+.picker svg {
+  flex-shrink: 0;
+}
+
+.picker select {
+  position: absolute;
+  inset: -8px;
+  width: calc(100% + 16px);
+  opacity: 0;
+}
+
+.subject {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.chips {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chip {
+  flex-shrink: 0;
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--on-green);
+  font-weight: var(--weight-semibold);
+}
+
+.chip:disabled {
+  color: var(--label);
+  opacity: 0.55;
+}
+
+.days {
+  margin-left: auto;
+  padding-left: var(--space-2);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------ the frame */
+
+.frame {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  max-height: 46vh;
+  background: var(--card-2);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.still {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.noFrame {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.frameLabel {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: var(--toast);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  color: var(--toast-ink);
+}
+
+.dots {
+  position: absolute;
+  right: var(--space-2);
+  top: var(--space-2);
+  display: flex;
+  gap: var(--space-1);
+}
+
+.camDot {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+.camDot::after {
+  content: '';
+  display: block;
+  width: 8px;
+  height: 8px;
+  margin: auto;
+  background: var(--toast-ink);
+  border-radius: var(--radius-pill);
+  opacity: 0.45;
+}
+
+.camDot[aria-current='true']::after {
+  opacity: 1;
+}
+
+.transport {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.play {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: var(--toast);
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: var(--toast-ink);
+}
+
+.transportTime {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--toast-ink);
+  text-shadow: 0 0 4px var(--toast);
+}
+
+/* The window as a control a thumb can drag; it is the only scrubber on a tent
+   with no camera, and there it is drawn in the page's own colours rather than
+   in the ones that have to hold up over a picture. */
+.slider {
+  --scrub-ink: var(--toast-ink);
+  --scrub-track: color-mix(in srgb, var(--toast-ink) 30%, transparent);
+
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  margin: 0;
+  background: none;
+  appearance: none;
+}
+
+.bareSlider .slider {
+  --scrub-ink: var(--muted);
+  --scrub-track: var(--rule);
+}
+
+.slider::-webkit-slider-runnable-track {
+  height: 3px;
+  background: linear-gradient(to right, var(--scrub-ink) var(--filled), var(--scrub-track) var(--filled));
+  border-radius: var(--radius-pill);
+}
+
+.slider::-moz-range-track {
+  height: 3px;
+  background: linear-gradient(to right, var(--scrub-ink) var(--filled), var(--scrub-track) var(--filled));
+  border-radius: var(--radius-pill);
+}
+
+.slider::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: -6.5px;
+  background: var(--scrub-ink);
+  border: 0;
+  border-radius: var(--radius-pill);
+  appearance: none;
+}
+
+.slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--scrub-ink);
+  border: 0;
+  border-radius: var(--radius-pill);
+}
+
+.bareSlider {
+  display: flex;
+  padding: 0 var(--space-3);
+}
+
+/* ------------------------------------------------- the pinned scrub header */
+
+.scrubHead {
+  position: sticky;
+  top: calc(var(--topbar-height) + env(safe-area-inset-top));
+  z-index: 3;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--card-2);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+}
+
+.scrubTime {
+  font-weight: var(--weight-semibold);
+}
+
+.scrubValue {
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.scrubUnit {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+}
+
+.scrubOutputs {
+  margin-left: auto;
+  padding-left: var(--space-2);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+/* --------------------------------------------------------------- a panel */
+
+.panel {
+  padding: var(--space-3);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.panelHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
+.metric {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.panelValue {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.panelUnit {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.band {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.metric[data-metric='temperature'],
+.scrubValue[data-metric='temperature'] {
+  color: var(--temperature);
+}
+
+.metric[data-metric='humidity'],
+.scrubValue[data-metric='humidity'] {
+  color: var(--humidity);
+}
+
+.metric[data-metric='co2'],
+.scrubValue[data-metric='co2'] {
+  color: var(--co2);
+}
+
+.plot {
+  position: relative;
+  /* Three panels and the lanes fit a phone without scrolling past the camera. */
+  height: 104px;
+}
+
+.scaleHigh,
+.scaleLow {
+  position: absolute;
+  left: 0;
+  width: var(--gutter);
+  padding-right: var(--space-2);
+  font-size: var(--text-xs);
+  text-align: right;
+  color: var(--label);
+}
+
+.scaleHigh {
+  top: 0;
+}
+
+.scaleLow {
+  bottom: 0;
+}
+
+/* The surface the cursor is dragged over. It claims sideways gestures only, so
+   the page still scrolls under a thumb moving up or down. */
+.overlay {
+  position: absolute;
+  inset: 0 0 0 var(--gutter);
+  touch-action: pan-y;
+}
+
+.cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  margin-left: -0.5px;
+  background: var(--ink);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  background: var(--card);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius-pill);
+  pointer-events: none;
+}
+
+/* ------------------------------------------------ the lanes and the rail */
+
+.lanes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.lane {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.laneName {
+  flex-shrink: 0;
+  width: var(--gutter);
+  padding-right: var(--space-2);
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track {
+  position: relative;
+  flex: 1;
+  height: 10px;
+  min-width: 0;
+  background: var(--card-2);
+  border-radius: var(--radius-pill);
+  touch-action: pan-y;
+}
+
+.bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* Softened, not rounded away: a run of a few minutes reads as a tick rather than as a dot. */
+  min-width: 3px;
+  background: var(--warning);
+  border-radius: 3px;
+}
+
+.rail {
+  position: relative;
+  flex: 1;
+  height: 30px;
+  min-width: 0;
+}
+
+.mark {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  padding: 0;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+}
+
+.mark[aria-pressed='true'] {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.mark[data-severity='warning'] {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+.mark[data-severity='critical'] {
+  border-color: var(--alarm);
+  color: var(--alarm);
+}
+
+.markCount {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  padding: 0 2px;
+  background: var(--card);
+  border-radius: var(--radius-pill);
+  font-size: 9px;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.noEvents {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+  margin-left: var(--gutter);
+  padding-top: var(--space-1);
+}
+
+.stop {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* The first and the last stop sit on the ends of the track rather than centred under them. */
+.stop:first-child {
+  margin-left: calc(var(--space-2) * -1);
+}
+
+.stop:last-child {
+  margin-right: calc(var(--space-2) * -1);
+}
+
+.opened {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) 0 0;
+  border-top: var(--rule-solid);
+  list-style: none;
+}
+
+@media (min-width: 900px) {
+  .screen {
+    max-width: 720px;
+    padding-top: 0;
+  }
+
+  .scrubHead {
+    top: var(--space-2);
+    font-size: var(--text-md);
+  }
+
+  .frame {
+    max-height: 340px;
+  }
+
+  .plot {
+    height: 140px;
+  }
+}

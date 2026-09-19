@@ -17,7 +17,8 @@ export type ChartOption = echarts.EChartsCoreOption;
 interface ChartProps {
   /** Built from the palette, so the same series is drawn in either mode without a second option object. */
   option: (palette: ChartPalette) => ChartOption;
-  height: number;
+  /** A number of pixels, or a length the container gives a definite height; ECharts needs one either way. */
+  height: number | string;
   ariaLabel: string;
 }
 

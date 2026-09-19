@@ -1,0 +1,276 @@
+import '@testing-library/jest-dom/vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import i18next from 'i18next';
+import { DateTime } from 'luxon';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { initReactI18next } from 'react-i18next';
+import { MemoryRouter } from 'react-router';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Entry, SpaceTimeline } from '@fg2/shared-types/v1';
+import { Timeline } from '@/screens/timeline/Timeline';
+import { scaleOf, stretchesOf } from '@/screens/timeline/window';
+
+const state = vi.hoisted(() => ({ answer: null as SpaceTimeline | null }));
+
+// The one read the screen is made of, and the grow the subject line names.
+vi.mock('@/api/timeline', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useTimeline: () => ({ data: state.answer, isPending: false, isError: false, dataUpdatedAt: 1, refetch: () => {} }),
+}));
+
+vi.mock('@/api/grows', () => ({ useGrow: () => ({ data: { id: 'grow-1', name: 'Spring run' } }) }));
+
+// A chart is a canvas, which jsdom has not got. What it draws is checked by the
+// unit tests below; what the screen does with the cursor is checked around it.
+vi.mock('@/charts/Chart', () => ({ Chart: ({ ariaLabel }: { ariaLabel: string }) => <div role="img" aria-label={ariaLabel} /> }));
+
+vi.mock('@/api/session', async importOriginal => {
+  const { SIGNED_IN } = await import('./session');
+
+  return { ...(await importOriginal<object>()), mediaUrl: (id: string) => `/media/${id}`, useSession: () => SIGNED_IN };
+});
+
+/**
+ * The Timeline is one window seen six ways, moved by one cursor: the frame
+ * above the panels, the curves with the band that applied, the lanes and the
+ * rail. What it must get right is that they all say the same moment - and that
+ * a screen which may only be looked at offers nothing that writes.
+ */
+
+const FROM = DateTime.fromISO('2026-09-18T00:00:00.000Z');
+const TO = FROM.plus({ hours: 24 });
+const at = (hour: number) => FROM.plus({ hours: hour }).toISO()!;
+const clock = (hour: number) => FROM.plus({ hours: hour }).toFormat('HH:mm');
+const stamp = (hour: number) => FROM.plus({ hours: hour }).toFormat('ccc HH:mm');
+
+const entry = (id: string, hour: number, kind: Entry['kind'], text: string): Entry => ({
+  id,
+  createdAt: at(hour),
+  kind,
+  occurredAt: at(hour),
+  source: 'human',
+  authorId: 'user-1',
+  growId: 'grow-1',
+  spaceId: 'space-1',
+  deviceId: null,
+  plantIds: [],
+  cameraId: null,
+  taskId: null,
+  alertId: null,
+  severity: null,
+  text,
+  message: null,
+  values: { kind: kind as 'note' },
+  mediaIds: [],
+  undoUntil: null,
+});
+
+/** A day: dark until 06:00, warm and lit afterwards, aimed at 26 by day and 21 by night. */
+const answer: SpaceTimeline = {
+  spaceId: 'space-1',
+  name: 'Tent 1',
+  kind: 'tent',
+  range: '24h',
+  growId: 'grow-1',
+  dayFrom: 34,
+  dayTo: 34,
+  startsAt: FROM.toISO()!,
+  endsAt: TO.toISO()!,
+  stepSeconds: 3600,
+  deviceIds: ['device-1'],
+  panels: [
+    {
+      metric: 'temperature',
+      points: Array.from({ length: 24 }, (_, hour) => ({ measuredAt: at(hour), value: hour < 6 ? 21 : 26 })),
+      targets: [
+        {
+          startsAt: FROM.toISO()!,
+          endsAt: TO.toISO()!,
+          phaseId: 'phase-1',
+          stage: 'flowering',
+          day: { setpoint: 26, band: { low: 25, high: 27 } },
+          night: { setpoint: 21, band: { low: 20, high: 22 } },
+        },
+      ],
+    },
+    {
+      metric: 'humidity',
+      points: Array.from({ length: 24 }, (_, hour) => ({ measuredAt: at(hour), value: hour < 6 ? 58 : 62 })),
+      targets: [
+        {
+          startsAt: FROM.toISO()!,
+          endsAt: TO.toISO()!,
+          phaseId: 'phase-1',
+          stage: 'flowering',
+          day: { setpoint: 62, band: { low: 57, high: 67 } },
+          night: { setpoint: 58, band: { low: 53, high: 63 } },
+        },
+      ],
+    },
+  ],
+  nights: [{ startsAt: FROM.toISO()!, endsAt: at(6) }],
+  alarms: [
+    {
+      alertId: 'alert-1',
+      kind: 'threshold',
+      severity: 'warning',
+      metric: 'temperature',
+      startedAt: at(13),
+      endedAt: at(14),
+      value: 31,
+      extremeValue: 31,
+    },
+  ],
+  outputs: [
+    { output: 'light', deviceId: 'device-1', spans: [{ startsAt: at(6), endsAt: at(24) }] },
+    { output: 'heater', deviceId: 'device-1', spans: [{ startsAt: at(2), endsAt: at(3) }] },
+  ],
+  events: [entry('e1', 3, 'note', 'Checked the trim'), entry('e2', 16, 'water', 'Watered'), entry('e3', 16.2, 'measurement', 'Measured')],
+  cameras: [
+    {
+      cameraId: 'cam-1',
+      name: 'Canopy cam',
+      frames: [
+        { mediaId: 'media-early', capturedAt: at(2) },
+        { mediaId: 'media-late', capturedAt: at(20) },
+      ],
+    },
+  ],
+  people: [{ id: 'user-1', handle: 'you' }],
+};
+
+const draw = () =>
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter>
+        <Timeline spaceId="space-1" />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+
+/** The scrubber is what a thumb has, so the tests move the cursor the way a thumb does. */
+const scrubTo = (hour: number) =>
+  fireEvent.change(screen.getByLabelText('Move the cursor through the window'), { target: { value: String(FROM.plus({ hours: hour }).toMillis()) } });
+
+const header = () => screen.getByRole('status');
+
+beforeAll(async () => {
+  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
+  await i18next
+    .use(initReactI18next)
+    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
+});
+
+beforeEach(() => {
+  state.answer = answer;
+});
+
+describe('the timeline', () => {
+  it('stacks a panel per metric that is measured, and none for one that is not', () => {
+    draw();
+
+    expect(screen.getByText('Temperature')).toBeInTheDocument();
+    expect(screen.getByText('Humidity')).toBeInTheDocument();
+    expect(screen.queryByText('CO₂')).not.toBeInTheDocument();
+    expect(screen.getByText('Spring run')).toBeInTheDocument();
+    expect(screen.getByText('day 34')).toBeInTheDocument();
+  });
+
+  it('moves every part of the window with one cursor, into a header that stays put', () => {
+    draw();
+
+    // The end of the window: light on, the day's band, the newest picture.
+    expect(header()).toHaveTextContent(`${clock(24)}26.0 °C62 %Light on`);
+    expect(screen.getByText(/band 25–27/i)).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Canopy cam at the cursor' })).toHaveAttribute('src', '/media/media-late');
+
+    // Back into the night: the other band, the other readings, the other picture.
+    scrubTo(3);
+    expect(header()).toHaveTextContent(`${clock(3)}21.0 °C58 %Heat on`);
+    expect(screen.getByText(/band 20–22/i)).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Canopy cam at the cursor' })).toHaveAttribute('src', '/media/media-early');
+    expect(screen.getByRole('img', { name: 'Canopy cam at the cursor' }).parentElement).toHaveTextContent(`Canopy cam · ${stamp(2)} · day 34`);
+  });
+
+  it('opens the line a mark stands for, and moves the cursor onto it', () => {
+    draw();
+
+    // The two lines a few minutes apart share one mark, which says so.
+    const marks = screen.getAllByRole('button', { pressed: false }).filter(button => button.getAttribute('title'));
+    expect(marks).toHaveLength(2);
+
+    fireEvent.click(marks[1]);
+    expect(screen.getByText('Watered')).toBeInTheDocument();
+    expect(screen.getByText('Measured')).toBeInTheDocument();
+    expect(header()).toHaveTextContent(clock(16));
+  });
+
+  it('keeps the panels and loses the frame where nothing takes pictures', () => {
+    state.answer = { ...answer, cameras: [] };
+    draw();
+
+    expect(screen.queryByRole('img', { name: /at the cursor/ })).not.toBeInTheDocument();
+    // The scrubber is what a thumb has, so it stays even when there is no film to run.
+    expect(screen.getByLabelText('Move the cursor through the window')).toBeInTheDocument();
+    expect(screen.getByText('Temperature')).toBeInTheDocument();
+  });
+
+  it('says why there are no curves where nothing measures, and still draws the rail', () => {
+    state.answer = { ...answer, deviceIds: [], panels: [], outputs: [], nights: [], alarms: [], cameras: [] };
+    draw();
+
+    expect(screen.getByText(/Nothing measures here/)).toBeInTheDocument();
+    expect(screen.getByText('Events')).toBeInTheDocument();
+    // "Everything off" would be a claim about hardware this place has not got.
+    expect(screen.queryByText(/everything off/)).not.toBeInTheDocument();
+  });
+
+  it('offers nothing that writes', () => {
+    draw();
+
+    // Every control here moves the cursor or the window; none of them sends anything.
+    const written = screen.queryAllByRole('button').filter(button => /done|save|log|add|delete/i.test(button.textContent ?? ''));
+    expect(written).toHaveLength(0);
+    expect(within(header()).queryAllByRole('button')).toHaveLength(0);
+  });
+
+  it('will not ask for a stretch of a grow where nothing is growing', () => {
+    state.answer = { ...answer, growId: null, dayFrom: null, dayTo: null };
+    draw();
+
+    expect(screen.getByRole('button', { name: 'Phase' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Grow' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '24 h' })).toBeEnabled();
+  });
+});
+
+describe('what a panel is drawn against', () => {
+  const [temperature] = answer.panels;
+  const from = FROM.toMillis();
+  const to = TO.toMillis();
+
+  it('cuts the window where the light went on, so each half is judged by its own band', () => {
+    const stretches = stretchesOf(temperature, answer.nights, from, to);
+
+    expect(stretches).toHaveLength(2);
+    expect(stretches[0].target.setpoint).toBe(21);
+    expect(stretches[1].target.setpoint).toBe(26);
+  });
+
+  it('leaves out the half of a metric that is not steered in it', () => {
+    const unlit = { ...temperature, targets: [{ ...temperature.targets[0], night: null }] };
+
+    expect(stretchesOf(unlit, answer.nights, from, to)).toHaveLength(1);
+  });
+
+  it('spans everything measured and everything aimed at, and ends on round figures', () => {
+    const scale = scaleOf(temperature, stretchesOf(temperature, answer.nights, from, to));
+
+    expect(scale.low).toBeLessThanOrEqual(20);
+    expect(scale.high).toBeGreaterThanOrEqual(27);
+    expect(Number.isInteger(scale.low)).toBe(true);
+    expect(Number.isInteger(scale.high)).toBe(true);
+  });
+});

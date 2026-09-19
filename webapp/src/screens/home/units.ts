@@ -7,6 +7,9 @@ const DECIMALS: Partial<Record<Metric, number>> = { temperature: 1, humidity: 0,
 
 export const figure = (value: number, metric: Metric): string => value.toFixed(DECIMALS[metric] ?? 0);
 
+/** A target, a band edge and the corner of an axis are round numbers more often than not, and read as one. */
+export const targetFigure = (value: number, metric: Metric): string => (Number.isInteger(value) ? String(value) : figure(value, metric));
+
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** "Alarm · 78 % RH": the reading that set it off, in the words the card uses for that metric. */

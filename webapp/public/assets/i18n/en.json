@@ -1374,7 +1374,6 @@
       "members": "Members"
     },
     "later": {
-      "timeline": "The camera frame with its slider, then temperature, humidity and CO₂ over time with the target band, night shading, alarms and the entries.",
       "devices": "Every controller, camera and smart socket standing here, with its role and its switch.",
       "control": "The grow plan with its steps, manual targets, and the rules and sockets under Advanced.",
       "members": "Who can log and who can manage here, and the invites that bring them in."
@@ -1485,5 +1484,48 @@
     "dismiss": "Dismiss",
     "takingBack": "taking it back",
     "undoFailed": "Could not take that line back"
+  },
+  "timeline": {
+    "rangeLabel": "Range",
+    "range": {
+      "24h": "24 h",
+      "7d": "7 d",
+      "phase": "Phase",
+      "grow": "Grow"
+    },
+    "pickSpace": "Which place",
+    "dayN": "day {{day}}",
+    "dayRange": "day {{from}}–{{to}}",
+    "now": "now",
+    "play": "Play the window",
+    "pause": "Stop",
+    "scrubber": "Move the cursor through the window",
+    "frameAlt": "{{name}} at the cursor",
+    "noFrames": "No pictures in this window",
+    "metric": {
+      "temperature": "Temperature",
+      "humidity": "Humidity",
+      "co2": "CO₂"
+    },
+    "panelAlt": "{{metric}} over the window",
+    "band": "band {{low}}–{{high}}",
+    "noTarget": "no target",
+    "allOff": "everything off",
+    "outputOn": "{{output}} on",
+    "output": {
+      "heater": "Heat",
+      "dehumidifier": "Dehum",
+      "co2": "CO₂",
+      "light": "Light",
+      "fan": "Fan",
+      "relais": "Relay",
+      "fanInternal": "Fan in",
+      "fanExternal": "Exhaust",
+      "fanBackwall": "Back fan"
+    },
+    "events": "Events",
+    "noEvents": "Nothing written in this window",
+    "noPanels": "Nothing measures here, so there are no curves to draw",
+    "noSpaces": "Nothing to draw yet. Add a device or start a grow on the"
   }
 }

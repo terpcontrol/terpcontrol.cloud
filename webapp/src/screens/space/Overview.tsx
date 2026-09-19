@@ -21,7 +21,7 @@ import { readingFigure } from '@/ui/entries';
 import { weekOfPhase } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { livenessOf, measuredAtOf } from '../home/attention';
-import { figure, UNIT } from '../home/units';
+import { figure, targetFigure, UNIT } from '../home/units';
 import styles from './Overview.module.css';
 
 /** Four tiles across a phone: the three the controller steers and the one it derives. */
@@ -136,9 +136,6 @@ function Section({
   );
 }
 
-/** A target is a round number more often than not, and reads as one. */
-const target = (value: number, metric: Metric): string => (Number.isInteger(value) ? String(value) : figure(value, metric));
-
 /** The tiles: each value large, its target and where it stands against it, dimmed by its age and never hidden. */
 function Values({ overview }: { overview: SpaceOverview }) {
   const { t } = useTranslation();
@@ -171,7 +168,7 @@ function Tile({ value, setpoint }: { value: CardValue; setpoint: CardSetpoint | 
       <div className={`mono ${styles.tileTarget}`}>
         {setpoint && setpoint.value !== null ? (
           <>
-            <span>→ {target(setpoint.value, value.metric)}</span>
+            <span>→ {targetFigure(setpoint.value, value.metric)}</span>
             {delta !== null && band !== null ? (
               Math.abs(delta) <= band ? (
                 <span className={styles.inBand}>{t('home.card.inBand')}</span>
@@ -201,7 +198,7 @@ function TargetsLine({ overview }: { overview: SpaceOverview }) {
     ['temperature', 'humidity']
       .flatMap(metric => {
         const value = row.find(setpoint => setpoint.metric === metric)?.value;
-        return value === null || value === undefined ? [] : [target(value, metric as Metric)];
+        return value === null || value === undefined ? [] : [targetFigure(value, metric as Metric)];
       })
       .join(' / ');
   const co2 = targets.day.find(setpoint => setpoint.metric === 'co2')?.value ?? null;

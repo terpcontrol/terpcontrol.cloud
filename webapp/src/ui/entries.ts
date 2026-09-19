@@ -1,6 +1,39 @@
 import type { i18n as I18n } from 'i18next';
-import type { Entry, Person } from '@fg2/shared-types/v1';
+import {
+  Bell,
+  Camera,
+  Cpu,
+  Droplet,
+  Flag,
+  Leaf,
+  ListChecks,
+  MoveRight,
+  Package,
+  Pencil,
+  Ruler,
+  Scissors,
+  Timer,
+  type LucideIcon,
+} from 'lucide-react';
+import type { Entry, EntryKind, Person } from '@fg2/shared-types/v1';
 import { entryHeadline } from '@/i18n/device-message';
+
+/** One mark per kind of line, so a diary row and a mark on the timeline's rail draw the same thing the same way. */
+export const KIND_ICON: Record<EntryKind, LucideIcon> = {
+  water: Droplet,
+  feed: Leaf,
+  photo: Camera,
+  note: Pencil,
+  measurement: Ruler,
+  training: Scissors,
+  phase: Flag,
+  move: MoveRight,
+  harvest: Package,
+  visit: Timer,
+  alarm: Bell,
+  plan: ListChecks,
+  system: Cpu,
+};
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 

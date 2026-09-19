@@ -1,41 +1,9 @@
-import {
-  Bell,
-  Camera,
-  Cpu,
-  Droplet,
-  Flag,
-  Leaf,
-  ListChecks,
-  MoveRight,
-  Package,
-  Pencil,
-  Ruler,
-  Scissors,
-  Timer,
-  type LucideIcon,
-} from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
-import type { Entry, EntryKind, MeasurementDefinition, Person } from '@fg2/shared-types/v1';
+import type { Entry, MeasurementDefinition, Person } from '@fg2/shared-types/v1';
 import { useSession } from '@/api/session';
-import { authorOf, headlineOf, readingFigure } from './entries';
+import { authorOf, headlineOf, KIND_ICON, readingFigure } from './entries';
 import styles from './EntryRow.module.css';
-
-const KIND_ICON: Record<EntryKind, LucideIcon> = {
-  water: Droplet,
-  feed: Leaf,
-  photo: Camera,
-  note: Pencil,
-  measurement: Ruler,
-  training: Scissors,
-  phase: Flag,
-  move: MoveRight,
-  harvest: Package,
-  visit: Timer,
-  alarm: Bell,
-  plan: ListChecks,
-  system: Cpu,
-};
 
 interface EntryRowProps {
   entry: Entry;
