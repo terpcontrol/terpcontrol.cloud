@@ -111,3 +111,41 @@
   font-size: var(--text-sm);
   color: var(--muted);
 }
+
+/* The switch: what something is doing, and a tap that forces it the other way.
+   It is here rather than on a screen because a socket row, an overlay in the
+   composer and every later setting are the same control. */
+.switch {
+  position: relative;
+  flex: none;
+  width: 42px;
+  height: 24px;
+  padding: 0;
+  background: var(--card-2);
+  border: var(--rule-solid);
+  border-radius: var(--radius-pill);
+}
+
+.switch[aria-checked='true'] {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.switch:disabled {
+  opacity: 0.45;
+}
+
+.knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: var(--card);
+  border-radius: 50%;
+  transition: transform 120ms ease-out;
+}
+
+.switch[aria-checked='true'] .knob {
+  transform: translateX(18px);
+}

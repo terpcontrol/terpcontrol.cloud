@@ -2,7 +2,8 @@ import { createBrowserRouter, Navigate } from 'react-router';
 import { AppShell } from './shell/AppShell';
 import { RequireSession } from './RequireSession';
 import { Alerts } from '@/screens/Alerts';
-import { Devices } from '@/screens/Devices';
+import { CameraPage } from '@/screens/camera/CameraPage';
+import { Devices } from '@/screens/devices/Devices';
 import { GrowPage } from '@/screens/grow/GrowPage';
 import { Home } from '@/screens/Home';
 import { LogRoute } from '@/log/LogRoute';
@@ -21,7 +22,8 @@ import { Timeline } from '@/screens/Timeline';
  *
  * `Log` is a route as well, so that a link and a notification can open the
  * sheet; it is not a screen of its own, and gives the address straight back to
- * the one it opened over.
+ * the one it opened over. A camera is the third page a row opens, beside the
+ * grow and the space.
  */
 export const router = createBrowserRouter([
   { path: '/sign-in', element: <SignIn /> },
@@ -36,6 +38,7 @@ export const router = createBrowserRouter([
       { path: 'timeline', element: <Timeline /> },
       { path: 'log', element: <LogRoute /> },
       { path: 'devices', element: <Devices /> },
+      { path: 'cameras/:cameraId', element: <CameraPage /> },
       { path: 'tasks', element: <Tasks /> },
       { path: 'me', element: <Me /> },
       { path: 'alerts', element: <Alerts /> },

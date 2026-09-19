@@ -1,0 +1,298 @@
+/* The Devices tab: three lists of dense rows. A row is one card with a head
+   that never wraps and, where there is more to say, a panel under it. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.add {
+  height: var(--chip-height);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+}
+
+.addForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.addNote {
+  margin-top: var(--space-4);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row,
+.socket {
+  padding: var(--space-3);
+}
+
+.rowHead,
+.socketHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  color: inherit;
+}
+
+.rowIcon,
+.socketIcon {
+  flex: none;
+  color: var(--muted);
+}
+
+/* The last picture, in the place the icon would be. */
+.thumb {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 48px;
+  height: 36px;
+  object-fit: cover;
+  background: var(--card-2);
+  border: var(--rule-solid);
+  border-radius: calc(var(--radius) / 2);
+  color: var(--label);
+}
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 1px;
+  min-width: 0;
+}
+
+.rowTitle {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowNote {
+  font-size: var(--text-xs);
+  line-height: 1.35;
+  color: var(--muted);
+  /* One line: a row is a row, and everything that does not fit is in the panel
+     the chevron opens. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* RTSP is a Premium feature, which the row says on itself. */
+.premium {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 0 var(--space-2);
+  border: var(--rule-width) solid var(--warning);
+  border-radius: var(--radius-pill);
+  color: var(--warning);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-caption);
+  text-transform: uppercase;
+}
+
+.liveness,
+.since,
+.socketState {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* What a socket is doing gives way before its name does: the name is what the
+   row is, and the rest of the line is in the panel behind the chevron. A
+   socket's row carries a control as well, so the name keeps a floor and the
+   state is the one that shrinks into its ellipsis - "forced on · 42 min" and
+   "no answer · 4 min" are long enough to squeeze a name off the row otherwise. */
+.socketState {
+  flex: 0 1 auto;
+  max-width: 55%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.socket .rowText {
+  min-width: 6rem;
+}
+
+.socketHead {
+  gap: var(--space-2);
+}
+
+.liveness {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentcolor;
+}
+
+.liveness[data-liveness='live'] {
+  color: var(--green-ink);
+}
+
+.liveness[data-liveness='stale'] {
+  color: var(--warning);
+}
+
+.chevron,
+.expand {
+  flex: none;
+  color: var(--label);
+}
+
+.expand {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-right: calc(var(--space-1) * -1);
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+/* What a row has to say once it is opened: one fact per line, label left. */
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-3);
+  border-top: var(--rule-solid);
+}
+
+.fact {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.factValue {
+  margin: 0;
+  font-size: var(--text-xs);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.placeLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--brand);
+}
+
+/* Where the device does not say what the row is doing: auto, on, off. */
+.threeWay {
+  display: inline-flex;
+  flex: none;
+  border: var(--rule-solid);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.threeWayOption {
+  padding: 3px var(--space-2);
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-caption);
+  text-transform: uppercase;
+}
+
+.threeWayOption[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.threeWayOption:disabled {
+  opacity: 0.45;
+}
+
+.socketWhy {
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+}
+
+.socketPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.holds {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+@media (min-width: 900px) {
+  .page {
+    max-width: 720px;
+    padding-top: 0;
+  }
+
+  .rowNote,
+  .liveness,
+  .since,
+  .socketState {
+    font-size: var(--text-sm);
+  }
+}

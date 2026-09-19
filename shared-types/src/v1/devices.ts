@@ -342,9 +342,11 @@ export const deviceCapabilities = named(
     socketTimer: z.boolean(),
     lightOverride: z.boolean().describe("Whether the controller's own light output takes an override."),
     roles: z.array(socketRole).describe('The roles this build knows; a role outside it is never sent.'),
-    // The minimum a role's socket must stay on once switched, so the screen can
-    // stop a fridge compressor being cycled. Keyed by role, and only the roles
-    // the device named: most carry no pulse at all.
+    // The failsafe the device programs into each socket: how long after the
+    // last command a socket switches itself off, so a controller that goes
+    // quiet cannot leave a heater on. It is not a minimum on-time, and a screen
+    // that reads it as one would tell a grower the opposite of what it means.
+    // Keyed by role, and only the roles the device named.
     pulseSeconds: z.partialRecord(socketRole, z.number().int()),
   }),
 );

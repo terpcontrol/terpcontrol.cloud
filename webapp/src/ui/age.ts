@@ -1,5 +1,6 @@
 import { DateTime, Duration } from 'luxon';
 import type { MetricValue, ValueState } from '@fg2/shared-types/v1';
+import { VALUE_AGE } from '@fg2/shared-types/v1-schemas/value-age.js';
 
 /**
  * Every value on a screen carries its age. Whether it is live, stale or offline
@@ -26,3 +27,27 @@ export const ageLabel = (measuredAt: string | null, now: DateTime = DateTime.now
 export const ageAttribute = (state: ValueState): { 'data-age': ValueState } => ({ 'data-age': state });
 
 export const isStale = (value: Pick<MetricValue, 'state'>): boolean => value.state !== 'live';
+
+/**
+ * How alive a device is, from the last thing it said.
+ *
+ * The server decides the state of a *value* and answers it; a device's own
+ * liveness is in no answer, so it is worked out here - against the contract's
+ * one constant rather than a second copy of those seconds.
+ */
+export const deviceLiveness = (lastSeenAt: string | null, now: DateTime): ValueState => {
+  if (!lastSeenAt) return 'offline';
+  const seconds = (now.toMillis() - DateTime.fromISO(lastSeenAt).toMillis()) / 1000;
+  if (seconds <= VALUE_AGE.liveSeconds) return 'live';
+  return seconds <= VALUE_AGE.staleSeconds ? 'stale' : 'offline';
+};
+
+/** How much of a hold is left, in the same words an age is put in. */
+export const leftLabel = (until: string, now: DateTime): string => ageLabel(now.toISO(), DateTime.fromISO(until));
+
+/**
+ * An instant as the contract carries one: ISO 8601 in UTC, whatever zone the
+ * reader is in. A local offset is a different string for the same moment, and
+ * the server takes only this one.
+ */
+export const instantOf = (at: DateTime): string => at.toUTC().toISO()!;

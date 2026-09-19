@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { HomeSpaceCard, Person, SpaceKind } from '@fg2/shared-types/v1';
-import { mediaUrl } from '@/api/session';
+import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import { livenessOf, measuredAtOf, worstAlertOf, type Liveness } from './attention';
 import { ClimateHalf } from './ClimateHalf';
@@ -136,7 +136,7 @@ export function LivenessPill({ liveness, measuredAt, now }: { liveness: Liveness
 function Still({ card, now }: { card: HomeSpaceCard; now: DateTime }) {
   const { t } = useTranslation();
   const still = card.latestStill!;
-  const src = mediaUrl(still.mediaId);
+  const src = mediaUrl(still.mediaId, THUMBNAIL_WIDTH.frame);
   if (!src) return null;
 
   return (

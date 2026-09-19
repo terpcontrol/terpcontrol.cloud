@@ -71,8 +71,11 @@ const build = (rendezvous: string[] = []): void => {
   media = new MediaService(db.media, null as never);
   const access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
   const poller = { settingsChanged: () => undefined, forget: () => undefined };
+  // The builder is asked to take the queue now rather than on its hourly pass;
+  // what it then renders is the builder's own test.
+  const builder = { renderQueued: () => undefined };
 
-  controller = new CamerasController(cameras, media, null as never, poller as never, entitlement, access, {
+  controller = new CamerasController(cameras, media, null as never, poller as never, builder as never, entitlement, access, {
     rendezvousHosts: rendezvous,
     advertiseAddress: '',
     portsStart: 0,
@@ -205,6 +208,26 @@ describe('asking twice', () => {
     expect(status).toBe(200);
     expect(again.queued).toBe(false);
     expect(again.media.id).toBe(first.media.id);
+    expect(await db.media.countDocuments()).toBe(1);
+  });
+
+  it('answers the film the other tap made when two of them race for it', async () => {
+    // The index is what decides which of two requests makes the film, so it has
+    // to be there before one of them is turned away by it.
+    await db.media.createIndexes();
+    const first = await compose(PHASE);
+
+    // The second tap read before the first had written its row: its read misses
+    // once, and its insert is the one the index refuses.
+    const found = media.newest.bind(media);
+    let misses = 1;
+    media.newest = filter => (misses-- > 0 ? Promise.resolve(null) : found(filter));
+
+    const raced = await compose(PHASE);
+
+    expect(status).toBe(200);
+    expect(raced.queued).toBe(false);
+    expect(raced.media.id).toBe(first.media.id);
     expect(await db.media.countDocuments()).toBe(1);
   });
 

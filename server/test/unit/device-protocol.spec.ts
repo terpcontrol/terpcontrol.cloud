@@ -302,6 +302,28 @@ describe('the hardware report', () => {
     expect((await stored())?.state.socketsReportedAt).toBeInstanceOf(Date);
   });
 
+  it('stamps a socket that stopped answering, so the row can say since when', async () => {
+    await device();
+    await report('sockets_n=1');
+    await report('socket_list0=heater|AA|10.0.0.1|on');
+
+    // A socket that stops answering says nothing rather than repeating what it
+    // was last told, and how long it has been quiet is the rest of that fact.
+    await report('socket_list0=heater|AA|10.0.0.1||');
+
+    expect((await stored())?.state.socketStateChangedAt['0']).toBeInstanceOf(Date);
+  });
+
+  it('stamps nothing when a build starts reporting the state column', async () => {
+    await device();
+    await report('sockets_n=1');
+    await report('socket_list0=heater|AA|10.0.0.1');
+
+    await report('socket_list0=heater|AA|10.0.0.1|on');
+
+    expect((await stored())?.state.socketStateChangedAt).toEqual({});
+  });
+
   it('forgets when a slot changed state once another socket sits in it', async () => {
     await device();
     await report('sockets_n=1');
@@ -347,13 +369,14 @@ describe('the socket table', () => {
     const capabilities = decodeCapabilities({ sockets: 'none' });
 
     expect(capabilities).toMatchObject({ socketOverride: false, socketTimer: false, lightOverride: false });
-    expect(capabilities.roles).toEqual(['dehumidifier', 'heater', 'light', 'secondary_light', 'co2']);
+    // The empty role leads every list: it is how a socket is handed back, and no build announces it.
+    expect(capabilities.roles).toEqual(['', 'dehumidifier', 'heater', 'light', 'secondary_light', 'co2']);
   });
 
   it('reads what a build announces', () => {
     const capabilities = decodeCapabilities({ caps: 'socket_override,socket_timer', socket_roles: 'heater,pump', socket_pulse: 'heater:300' });
 
-    expect(capabilities).toMatchObject({ socketOverride: true, socketTimer: true, lightOverride: false, roles: ['heater', 'pump'] });
+    expect(capabilities).toMatchObject({ socketOverride: true, socketTimer: true, lightOverride: false, roles: ['', 'heater', 'pump'] });
     expect(capabilities.pulseSeconds).toEqual({ heater: 300 });
   });
 });

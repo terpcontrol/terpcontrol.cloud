@@ -183,14 +183,7 @@ export declare const valueState: z.ZodEnum<{
     live: "live";
     stale: "stale";
 }>;
-/**
- * The one place the ages are stated. The server decides `valueState` from these
- * and its own clock, so no client does the arithmetic.
- */
-export declare const VALUE_AGE: {
-    readonly liveSeconds: 120;
-    readonly staleSeconds: 600;
-};
+export { VALUE_AGE } from './value-age.js';
 /**
  * A measured value with its age. `state` is decided by the server from
  * `VALUE_AGE` and its own clock, so no client does the arithmetic; a value is

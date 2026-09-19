@@ -3,7 +3,7 @@ import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { DueTask, FollowedGrowCard, HomeSpaceCard } from '@fg2/shared-types/v1';
-import { mediaUrl } from '@/api/session';
+import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useLog, useMayLog } from '@/log/log-context';
 import { ageLabel } from '@/ui/age';
 import styles from './Strips.module.css';
@@ -90,7 +90,7 @@ export function FollowingStrip({ grows, now }: { grows: FollowedGrowCard[]; now:
       </header>
       <ul className={styles.tiles}>
         {grows.map(grow => {
-          const cover = grow.coverMediaId ? mediaUrl(grow.coverMediaId) : null;
+          const cover = grow.coverMediaId ? mediaUrl(grow.coverMediaId, THUMBNAIL_WIDTH.strip) : null;
           return (
             <li key={grow.growId} className={styles.tile}>
               <span className={styles.tileCover}>

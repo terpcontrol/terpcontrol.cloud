@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import type { GrowListItem, GrowReport, GrowWeekCardPage, PlantPage } from '@fg2/shared-types/v1';
+import type { GrowListItem, GrowPage, GrowReport, GrowWeekCardPage, PlantPage } from '@fg2/shared-types/v1';
 import { api } from './client';
 
 /**
@@ -39,4 +39,16 @@ export const useGrowReport = (growId: string) =>
   useQuery({
     queryKey: ['grow', growId, 'report'],
     queryFn: ({ signal }) => api.get<GrowReport>(`/grows/${growId}/report`, undefined, signal),
+  });
+
+/**
+ * The grows standing in one space, which is how a camera's page learns where
+ * the phase it would film began: a phase and a whole grow are stretches only
+ * the client can name both ends of.
+ */
+export const useSpaceGrows = (spaceId: string | null) =>
+  useQuery({
+    queryKey: ['grows', 'space', spaceId],
+    queryFn: ({ signal }) => api.get<GrowPage>('/grows', { spaceId }, signal),
+    enabled: spaceId !== null,
   });

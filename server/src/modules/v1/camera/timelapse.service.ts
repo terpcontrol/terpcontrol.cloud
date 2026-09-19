@@ -28,6 +28,14 @@ import { DEFAULT_ASPECT, FrameSize, OverlayFrame, composeFrame, overlayLayer, si
 const MS_IN_A_DAY = 24 * 60 * 60 * 1000;
 
 const BUILD_INTERVAL_MS = 60 * 60 * 1000;
+
+/**
+ * How long a film somebody just asked for waits before the queue is taken. The
+ * builder's own beat is hourly, which is right for the rolling films and far
+ * too slow for a person watching the job they started, so a render that is
+ * queued wakes the drain; the hourly pass keeps its place either way.
+ */
+const QUEUE_WAKE_MS = 2000;
 const THIN_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 /** What a still is kept for when nothing says otherwise, which is what this server has always kept. */
@@ -93,6 +101,9 @@ const SD_WIDTH = 1280;
 @Injectable()
 export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
   private lastThinningRun = 0;
+  // The hourly pass and a film somebody just asked for both drain the queue,
+  // and a job read by both would be rendered twice.
+  private draining = false;
   private readonly work = new BackgroundWork();
 
   constructor(
@@ -109,6 +120,11 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
   public onApplicationShutdown(): void {
     logger.info('Stopping the timelapse builder');
     this.work.stop();
+  }
+
+  /** A film was asked for: the queue is taken now rather than on the next hourly pass. */
+  public renderQueued(): void {
+    this.work.schedule('A film somebody asked for', () => this.drainTheQueue(), QUEUE_WAKE_MS);
   }
 
   private async pass(): Promise<void> {
@@ -210,9 +226,16 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
    * so the request answers at once and the person polls the row.
    */
   private async drainTheQueue(): Promise<void> {
-    for (const job of await this.media.queued(RENDERS_PER_PASS)) {
-      if (this.work.isStopped) return;
-      await this.render(job);
+    if (this.draining) return;
+
+    this.draining = true;
+    try {
+      for (const job of await this.media.queued(RENDERS_PER_PASS)) {
+        if (this.work.isStopped) return;
+        await this.render(job);
+      }
+    } finally {
+      this.draining = false;
     }
   }
 

@@ -477,7 +477,7 @@ Server-side handling beyond storage (`hardware-report.service.ts`):
 | `claimcode_auth` | `'on'` makes `POST /device/claimcode` require the device password |
 | `firmware_version` | the build is reported to the rollout and stored as `devices.state.firmwareId` |
 | `sockets_n` | superseded `socket_list<k>` chunks from a larger table are unset |
-| `socket_list<k>` | a row that was seen to change state stamps `devices.state.socketStateChangedAt.<slot>` |
+| `socket_list<k>` | a row whose state left the one the last report gave stamps `devices.state.socketStateChangedAt.<slot>`, falling silent included; a row that had no state yet stamps nothing, so a build that starts reporting the column does not read as every socket having just moved |
 | `webcam_did` | the camera the controller pairs is reconciled into a row of `cameras` |
 | `webcam_pwd` | the camera's `secret`; an empty value means "none" |
 | `webcam_uid`, `webcam_ip` | the camera's `uid` and `ip`, which is how the cloud reaches it directly |
@@ -689,7 +689,7 @@ important property for anything new: a caller cannot tell an unimplemented actio
 `{ "action": "reboot" }`. The device sets an RTC-memory flag and defers the restart until the log queue has
 drained, so pending messages still reach the cloud (`fridgecloud.cpp:28,226-230,433-437`). The flag survives the
 soft reset, so the next boot reports `message-device-booted:REMOTE` instead of the generic `SW`
-(`:158-160`). Published by `device-command.service.ts:45-49`.
+(`:158-160`). Published by `device-publisher.service.ts`.
 
 ### 8.2 `maintenance`
 
@@ -699,7 +699,7 @@ outputs for that long and answers with `message-maintenance-mode-activated-remot
 wrap (`controller.h:151-160`).
 
 The server sets its own `maintenance_mode_until` on the HTTP call as well, and sets it again when the device's
-log line arrives (`device.service.ts:107-111`, `:86-93`), so the window survives a device that never heard the
+log line arrives (`device-publisher.service.ts`, `device-ingest.service.ts`), so the window survives a device that never heard the
 command.
 
 ### 8.3 `test` and `stoptest`
@@ -746,7 +746,7 @@ several sockets when no `slot` was named and `append` was not set, or a full tab
 
 - **Credentials are only touched when the command carries them.** The firmware keys that on
   `command.containsKey("password")` (`wifi.cpp:3139`), and the server only includes `user`/`password` in the
-  payload when the caller supplied either (`device-command.service.ts:108-111`). Sending an empty password
+  payload when the caller supplied either (`device-publisher.service.ts`). Sending an empty password
   explicitly puts the socket back on the device's default credentials; leaving both out re-addresses the socket
   and keeps whatever it had, which is what stops a re-addressing from locking the device out of a socket with
   its own web password.
@@ -801,8 +801,8 @@ reports it as `hardware-info:webcam_did=<did>`; the cloud makes that a row of `c
 `terpcam_controller` and starts asking for pictures (`hardware-report.service.ts`). One camera per module: the
 pairing flow refuses a second while one is stored (`wifi.cpp:1382-1389`).
 
-The poller (`server/src/modules/image/webcam-poller.service.ts`) runs a pass every 5 s and asks each configured
-camera at most every 30 s, with a failure backoff of `min(30 s × 2^failures, 120 min)` (`:19-21,169-172`). It
+The poller (`server/src/modules/v1/camera/camera-poller.service.ts`) runs a pass every 5 s and asks each configured
+camera at most every `stillIntervalSeconds`, with a failure backoff of `min(interval × 2^failures, 120 min)`. It
 skips a device in maintenance or with `workmode: off`, and one whose previous read is still in flight.
 
 ### 9.1 Through the controller
@@ -848,10 +848,10 @@ ordinary fragment loss (`terpcam.cpp:76-82,924-932`).
 
 When `TERPCAM_RENDEZVOUS_HOSTS` is configured and the device has reported a `webcam_uid`, the server speaks the
 camera's P2P protocol itself over UDP and takes a full-resolution keyframe, which it decodes to JPEG
-(`server/src/modules/camera/terpcam-direct.service.ts`). **No MQTT is involved at all**: the only thing the
+(`server/src/modules/v1/camera/terpcam-direct.service.ts`). **No MQTT is involved at all**: the only thing the
 device contributes is the `hardware-info` that named the camera, its id, its last address and its password.
 
-Which path a poll takes (`webcam-poller.service.ts:287-313`):
+Which path a poll takes (`camera-poller.service.ts`):
 
 | Situation | Path |
 | --- | --- |
@@ -872,11 +872,11 @@ transport is in the code in this repository; **the full vendor CGI recipe is doc
 1. The device reports what it runs on every connect: `fetch {"firmware_id": "<FIRMWARE_VERSION>"}`
    (`fridgecloud.cpp:357,363-380`), and queues `hardware-info:firmware_version=<id>` at init (`:165`).
 2. The rollout loop picks online devices of a class whose firmware differs from the channel's and sets a pending
-   firmware id (`device-firmware-rollout.service.ts:142-247`). The next `status`, `bulk` or `fetch` arms a timer:
+   firmware id (`firmware-rollout.service.ts`). The next `status`, `bulk` or `fetch` arms a timer:
    the instruction goes out 30 s later, and the delay doubles on each resend up to 24 h
-   (`:12-14,55-107`). The backoff resets when the pending id changes or the device reports it.
+   (`INSTRUCTION_INITIAL_DELAY_MS`, `INSTRUCTION_MAX_DELAY_MS`). The backoff resets when the pending id changes or the device reports it.
 3. The server publishes the pending firmware id on `firmware` as a **bare string, not JSON**
-   (`device-firmware-rollout.service.ts:94`).
+   (`firmware-rollout.service.ts`).
 4. The device trims it and compares it against `FIRMWARE_VERSION` (`fridgecloud.cpp:185-195`). An empty or
    identical id is ignored. Otherwise it logs `message-device-firmware-update`, fires its update subject, and
    downloads `<API_URL>/device/firmware/<id>/firmware.bin`.
@@ -923,8 +923,8 @@ A build compiled without `FIRMWARE_VERSION` defines `NO_FIRMWARE_UPDATE` and ign
 | Capture timeout (cloud side) | 30 s | `terpcam-p2p.service.ts:42` |
 | Assembled picture cap (cloud side) | 2 MiB | `terpcam-p2p.service.ts:44` |
 | Capture transfer / idle (device side) | 20 s / 8 s | `terpcam.cpp:55-56` |
-| Still poll interval | 30 s per camera, backoff to 120 min | `webcam-poller.service.ts:20-21` |
-| Upgrade instruction | first after 30 s, doubling to at most 24 h | `device-firmware-rollout.service.ts:13-14` |
+| Still poll interval | the camera's own `stillIntervalSeconds`, backoff to 120 min | `camera-poller.service.ts` |
+| Upgrade instruction | first after 30 s, doubling to at most 24 h | `firmware-rollout.service.ts` |
 
 ### 11.1 How "online" is decided
 
@@ -997,7 +997,7 @@ which is the empty string and would vanish from a comma-separated list; every bu
 
 **A version comparison cannot be used as a gate.** The firmware version a device reports — in `fetch` and as
 `hardware-info:firmware_version` — is `FIRMWARE_VERSION`, a compile-time define whose value is the **uuid** the
-server minted for that build (`pioenv.py:8`; `device-firmware.service.ts:70-76` assigns `firmware_id: uuidv4()`).
+server minted for that build (`pioenv.py:8`; `fleet.service.ts` mints a firmware's `id` with `uuidv4()`).
 It is not ordered, not comparable, and carries no date; the human-readable `version` label lives only in the
 server's firmware record and never reaches the device. So there is no "if newer than X" anywhere in this
 protocol. The only thing a device's id is good for is equality against the id it was told to install.

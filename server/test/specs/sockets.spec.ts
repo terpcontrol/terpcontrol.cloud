@@ -72,7 +72,8 @@ describe('the table a device reports', () => {
     // A three-column row names the socket but not whether it is on.
     expect(answer.body.items[0]).toMatchObject({ slot: 0, role: 'heater', state: 'unknown', override: null, timer: null });
     expect(answer.body.capabilities).toMatchObject({ socketOverride: false, socketTimer: false, lightOverride: false });
-    expect(answer.body.capabilities.roles).toEqual(['dehumidifier', 'heater', 'light', 'secondary_light', 'co2']);
+    // The unassigned role leads the list: no build announces it, every build takes it.
+    expect(answer.body.capabilities.roles).toEqual(['', 'dehumidifier', 'heater', 'light', 'secondary_light', 'co2']);
   });
 });
 

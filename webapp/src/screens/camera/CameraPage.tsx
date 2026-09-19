@@ -1,0 +1,275 @@
+import { ChevronLeft, Play } from 'lucide-react';
+import { DateTime } from 'luxon';
+import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Link, useParams } from 'react-router';
+import type { Camera, GrowListItem, Media, TimelapseCreate } from '@fg2/shared-types/v1';
+import { useCamera, useCameraFrames, useRequestTimelapse, useTestCapture, useTimelapses } from '@/api/cameras';
+import { useSpaceGrows } from '@/api/grows';
+import { ApiError } from '@/api/problem';
+import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
+import { ageLabel, instantOf } from '@/ui/age';
+import { useReportFreshness } from '@/ui/freshness';
+import { LoadFailed, Waiting } from '@/ui/PageState';
+import { useMayManage } from '@/ui/session-access';
+import ui from '@/ui/ui.module.css';
+import { useNow } from '@/ui/useNow';
+import { cameraFreshness } from '../devices/cameras';
+import { at, stampOf } from '../timeline/window';
+import { Slider } from '../timeline/CameraFrame';
+import timeline from '../timeline/Timeline.module.css';
+import { Composer } from './Composer';
+import { Film } from './Film';
+import { CameraSettings } from './CameraSettings';
+import styles from './CameraPage.module.css';
+
+/**
+ * One camera: the picture it is taking, the day behind it, the four films it
+ * makes in one tap, the composer, and what the camera itself is set to.
+ */
+export function CameraPage() {
+  const { cameraId = '' } = useParams();
+  const { t } = useTranslation();
+  const camera = useCamera(cameraId);
+
+  useReportFreshness(camera.data?.state.lastStillAt ?? null);
+
+  if (camera.isPending) return <Waiting lines={3} />;
+  if (!camera.data) return <LoadFailed retry={() => void camera.refetch()} />;
+
+  return <CameraScreen camera={camera.data} refetching={camera.isError ? t('shell.loadFailed') : null} />;
+}
+
+function CameraScreen({ camera, refetching }: { camera: Camera; refetching: string | null }) {
+  const { t } = useTranslation();
+  const now = useNow();
+  const mayManage = useMayManage();
+  const [composing, setComposing] = useState(false);
+  const [job, setJob] = useState<Media | null>(null);
+
+  // The day the scrubber walks. Its ends are fixed for as long as the day is,
+  // so the frames are read once rather than on every tick of the clock.
+  const today = now.toISODate();
+  const day = useMemo(() => {
+    const start = DateTime.fromISO(today!).startOf('day');
+    return { startsAt: instantOf(start), endsAt: instantOf(start.endOf('day')) };
+  }, [today]);
+
+  const frames = useCameraFrames(camera.id, day);
+  const grows = useSpaceGrows(camera.spaceId);
+  const films = useTimelapses(camera.id);
+  const ask = useRequestTimelapse(camera.id);
+
+  const grow = growOf(grows.data?.items ?? []);
+  const shots = useMemo(() => [...(frames.data?.items ?? [])].sort((one, other) => at(one.capturedAt) - at(other.capturedAt)), [frames.data]);
+  const from = shots.length > 0 ? at(shots[0].capturedAt) : DateTime.fromISO(day.startsAt).toMillis();
+  const to = Math.max(now.toMillis(), from + 1);
+  const [cursor, setCursor] = useState<number | null>(null);
+  const time = cursor ?? to;
+  const shown = frameAt(shots, time);
+  const newest = shots.at(-1) ?? null;
+
+  const made = (films.data?.items ?? []).filter(film => film.id !== job?.id);
+
+  const request = (body: TimelapseCreate) =>
+    ask.mutate(body, {
+      onSuccess: accepted => {
+        setJob(accepted.media);
+        setComposing(false);
+      },
+    });
+
+  return (
+    <section className={styles.page}>
+      <header className={styles.header}>
+        <Link to="/devices" className={styles.back} aria-label={t('shell.tabs.devices')}>
+          <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
+        </Link>
+        <h1 className={styles.name}>{camera.name}</h1>
+        <span className={`mono ${styles.pill}`} data-liveness={cameraFreshness(camera, now)}>
+          <span className={styles.dot} aria-hidden />
+          {camera.state.lastStillAt ? ageLabel(camera.state.lastStillAt, now) : t('camera.never')}
+        </span>
+      </header>
+
+      {refetching ? (
+        <p className={`mono ${ui.note}`} role="status">
+          {refetching}
+        </p>
+      ) : null}
+      {camera.state.lastError ? (
+        <p className={`${ui.problem} ${styles.lastError}`} role="alert" title={camera.state.lastError}>
+          {t('camera.lastError', { reason: camera.state.lastError })}
+        </p>
+      ) : null}
+
+      <div className={styles.frame}>
+        {shown ? (
+          <img
+            className={styles.still}
+            src={mediaUrl(shown.id, THUMBNAIL_WIDTH.frame) ?? undefined}
+            alt={t('camera.frameAlt', { name: camera.name })}
+          />
+        ) : (
+          <p className={`mono ${styles.noFrame}`}>{frames.isPending ? t('home.waiting') : t('camera.noFramesToday')}</p>
+        )}
+        {shown ? (
+          <span className={`mono ${styles.frameLabel}`}>
+            {stampOf(at(shown.capturedAt), to - from)}
+            {newest && shown.id === newest.id ? ` · ${t('camera.live')}` : ''}
+          </span>
+        ) : null}
+        {mayManage ? <TestImage cameraId={camera.id} /> : null}
+      </div>
+
+      <div className={`${timeline.bareSlider} ${styles.transport}`}>
+        <span className={`mono ${styles.edge}`}>{DateTime.fromMillis(from).toFormat('HH:mm')}</span>
+        <Slider from={from} to={to} cursor={Math.min(Math.max(time, from), to)} onScrub={setCursor} />
+        <span className={`mono ${styles.edge}`}>{t('camera.now')}</span>
+      </div>
+      <p className={`mono ${styles.count}`}>{t('camera.framesToday', { count: shots.length })}</p>
+
+      <section className={styles.section}>
+        <span className="label">{t('camera.timelapses')}</span>
+        {mayManage ? <Quick buttons={quickFilms(t, camera, grow, now)} onPick={request} /> : null}
+        {mayManage ? (
+          <button type="button" className={`${ui.button} ${styles.compose}`} onClick={() => setComposing(true)}>
+            {t('camera.makeOne')}
+          </button>
+        ) : null}
+        {ask.error ? (
+          <p className={ui.problem} role="alert">
+            {ask.error instanceof ApiError ? ask.error.problem.detail || ask.error.problem.title : t('camera.askFailed')}
+          </p>
+        ) : null}
+        {job ? <Film mediaId={job.id} /> : null}
+        {made.length > 0 ? (
+          <ul className={styles.films}>
+            {made.slice(0, 3).map(film => (
+              <li key={film.id}>
+                <Film mediaId={film.id} collapsed />
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {!mayManage && made.length === 0 && !job ? <p className={ui.note}>{t('camera.noFilms')}</p> : null}
+      </section>
+
+      <CameraSettings camera={camera} mayManage={mayManage} />
+
+      {composing ? <Composer camera={camera} grow={grow} pending={ask.isPending} onRender={request} onClose={() => setComposing(false)} /> : null}
+    </section>
+  );
+}
+
+interface QuickFilm {
+  label: string;
+  body: TimelapseCreate;
+  /** Why this one cannot be asked for, or null when it can. */
+  reason: string | null;
+  premium: boolean;
+}
+
+/**
+ * The four one-tap films. One that cannot be asked for is drawn refused rather
+ * than left out, so the film that is missing has a reason beside it - and the
+ * reason is given once however many buttons share it.
+ */
+function Quick({ buttons, onPick }: { buttons: QuickFilm[]; onPick: (body: TimelapseCreate) => void }) {
+  const { t } = useTranslation();
+  const reasons = [...new Set(buttons.flatMap(one => (one.reason ? [one.reason] : [])))];
+
+  return (
+    <>
+      <div className={styles.buttons}>
+        {buttons.map(one => (
+          <button
+            key={one.label}
+            type="button"
+            className={`${ui.chip} ${styles.quick}`}
+            disabled={one.reason !== null}
+            onClick={() => onPick(one.body)}
+          >
+            <Play size={11} fill="currentColor" aria-hidden />
+            {one.label}
+            {one.premium ? <span className={styles.premium}>{t('devices.premium')}</span> : null}
+          </button>
+        ))}
+      </div>
+      {reasons.map(reason => (
+        <p key={reason} className={ui.note}>
+          {reason}
+        </p>
+      ))}
+    </>
+  );
+}
+
+/**
+ * What each of the four asks for. The two rolling spans carry only the instant
+ * the server works its bucket out around; a phase and a whole grow name both of
+ * their own ends, because where either began is the grow's record.
+ */
+const quickFilms = (t: Translate, camera: Camera, grow: GrowListItem | null, now: DateTime): QuickFilm[] => {
+  const free = camera.entitlement.tier === 'free';
+  const noGrow = grow ? null : t('camera.noGrowHere');
+
+  return [
+    { label: t('camera.window.day'), body: { window: 'day', startsAt: instantOf(now) }, reason: null, premium: false },
+    { label: t('camera.window.week'), body: { window: 'week', startsAt: instantOf(now) }, reason: null, premium: false },
+    {
+      label: t('camera.window.phase'),
+      body: { window: 'phase', startsAt: phaseStart(grow) ?? '', endsAt: instantOf(now) },
+      reason: noGrow,
+      premium: false,
+    },
+    {
+      label: `${t('camera.window.grow')} · ${t('camera.hd')}`,
+      body: { window: 'grow', startsAt: grow?.startedAt ?? '', endsAt: grow?.endedAt ?? instantOf(now), quality: 'hd' },
+      reason: noGrow ?? (free ? t('camera.needsPremium') : null),
+      premium: free,
+    },
+  ];
+};
+
+type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+/**
+ * One picture, now. A camera that could not be read says the reason it gave,
+ * because a wrong address is an ordinary outcome of this button.
+ */
+function TestImage({ cameraId }: { cameraId: string }) {
+  const { t } = useTranslation();
+  const test = useTestCapture(cameraId);
+
+  return (
+    <span className={styles.testWrap}>
+      <button type="button" className={`${ui.button} ${styles.test}`} disabled={test.isPending} onClick={() => test.mutate()}>
+        {test.isPending ? t('camera.testing') : t('camera.testImage')}
+      </button>
+      {test.data && !test.data.succeeded ? (
+        <span className={styles.testWhy} role="alert">
+          {test.data.error}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/** The grow this camera films: the one still standing in its space, else the last one that did. */
+const growOf = (grows: GrowListItem[]): GrowListItem | null => grows.find(grow => grow.endedAt === null) ?? grows[0] ?? null;
+
+/** Where the phase being filmed began, which is the grow's own record and never a day counter read backwards. */
+const phaseStart = (grow: GrowListItem | null): string | null => grow?.phases.at(-1)?.startedAt ?? null;
+
+/** The newest picture taken by the cursor, and the oldest there is before the first one. */
+const frameAt = (shots: Media[], time: number): Media | null => {
+  if (shots.length === 0) return null;
+  let found = shots[0];
+  for (const shot of shots) {
+    if (at(shot.capturedAt) > time) break;
+    found = shot;
+  }
+
+  return found;
+};

@@ -96,7 +96,7 @@ describe('a device that has announced nothing', () => {
       socketOverride: false,
       socketTimer: false,
       lightOverride: false,
-      roles: ['dehumidifier', 'heater', 'light', 'secondary_light', 'co2'],
+      roles: ['', 'dehumidifier', 'heater', 'light', 'secondary_light', 'co2'],
     });
   });
 

@@ -231,4 +231,4 @@ export const mediaUrl = (mediaId: string, width?: number): string | null => {
 };
 
 /** The widths the small pictures are asked for at: twice what they are drawn at, for a phone's screen. */
-export const THUMBNAIL_WIDTH = { cover: 96, dayTile: 200, still: 240, frame: 720 } as const;
+export const THUMBNAIL_WIDTH = { cover: 96, dayTile: 200, still: 240, strip: 320, frame: 720 } as const;

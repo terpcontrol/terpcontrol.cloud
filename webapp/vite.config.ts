@@ -45,7 +45,11 @@ export default defineConfig({
     // the browser a module it cannot take a named export out of, while the
     // production build - which converts it - works. Only the modules that carry
     // no schema are imported this way; the index would bring zod with it.
-    include: ['@fg2/shared-types/v1-schemas/feeding.js'],
+    include: [
+      '@fg2/shared-types/v1-schemas/feeding.js',
+      '@fg2/shared-types/v1-schemas/socket-report.js',
+      '@fg2/shared-types/v1-schemas/value-age.js',
+    ],
   },
   server: { port: 4200 },
   preview: { port: 4200 },

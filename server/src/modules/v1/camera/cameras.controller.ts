@@ -40,6 +40,7 @@ import { CameraPollerService } from './camera-poller.service';
 import { CaptureService } from './capture.service';
 import { EntitlementService } from './entitlement.service';
 import { MediaService } from './media.service';
+import { TimelapseService } from './timelapse.service';
 import { OptionalSessionGuard } from './optional-session.guard';
 import { DEFAULT_ASPECT, DEFAULT_OVERLAYS } from './timelapse-overlays';
 import { V1Answer } from '../answer-shape';
@@ -79,6 +80,7 @@ export class CamerasController {
     private readonly media: MediaService,
     private readonly capture: CaptureService,
     private readonly poller: CameraPollerService,
+    private readonly builder: TimelapseService,
     private readonly entitlement: EntitlementService,
     private readonly access: AccessService,
     @Inject(terpCamConfig.KEY) private readonly terpCam: ConfigType<typeof terpCamConfig>,
@@ -320,16 +322,36 @@ export class CamerasController {
 
     if (existing) await this.media.delete(existing.id);
 
-    const queued = await this.media.queue({
-      kind: 'timelapse',
-      mime: 'video/mp4',
-      cameraId: id,
-      capturedAt: span.startsAt,
-      endsAt: span.endsAt,
-      window,
-      quality,
-      render,
-    });
+    // Two taps on the same button are two requests, and the second may reach
+    // the read above before the first has written its row. The index is what
+    // decides which of them makes the film; the one it turns away answers the
+    // row that won, which is what asking for a film that exists answers anyway.
+    let queued: MediaDocument;
+    try {
+      queued = await this.media.queue({
+        kind: 'timelapse',
+        mime: 'video/mp4',
+        cameraId: id,
+        capturedAt: span.startsAt,
+        endsAt: span.endsAt,
+        window,
+        quality,
+        render,
+      });
+    } catch (error) {
+      if (!isDuplicateKey(error)) throw error;
+
+      const won = await this.media.newest({ cameraId: id, kind: 'timelapse', window, range: { startsAt: span.startsAt, endsAt: span.startsAt } });
+      if (!won) throw error;
+
+      void reply.status(HttpStatus.OK);
+      return { media: this.media.serialise(won), queued: false };
+    }
+
+    // The builder's own pass is hourly; a film somebody is waiting for is taken
+    // from the queue at once, so the job on their screen starts rather than
+    // sitting in `queued` for the rest of the hour.
+    this.builder.renderQueued();
 
     void reply.status(HttpStatus.ACCEPTED);
     return { media: this.media.serialise(queued), queued: true };
@@ -383,6 +405,9 @@ const SPANS: Record<string, number> = { day: MS_IN_A_DAY, week: 7 * MS_IN_A_DAY,
 
 /** The three the builder keeps by itself, which the composer never replaces. */
 const ROLLING_WINDOWS: MediaWindow[] = ['day', 'week', 'month'];
+
+/** What the unique index says when two requests raced for the same film. */
+const isDuplicateKey = (error: unknown): boolean => (error as { code?: number } | null)?.code === 11000;
 
 /**
  * Which span was meant. `day`, `week` and `month` are worked out around the

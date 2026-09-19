@@ -177,7 +177,10 @@ export const decodeCapabilities = (hardware: Record<string, string>): DeviceCapa
     socketOverride: caps.includes(CAPABILITY_KEYS.socketOverride),
     socketTimer: caps.includes(CAPABILITY_KEYS.socketTimer),
     lightOverride: caps.includes(CAPABILITY_KEYS.lightOverride),
-    roles: announced.length > 0 ? announced : [...DEPLOYED_SOCKET_ROLES],
+    // The empty role means "nobody drives this socket", which every build
+    // accepts and none can announce - a comma-separated list cannot carry it.
+    // Without this the server refuses to unassign a socket it just assigned.
+    roles: ['', ...(announced.length > 0 ? announced : DEPLOYED_SOCKET_ROLES)],
     pulseSeconds,
   };
 };

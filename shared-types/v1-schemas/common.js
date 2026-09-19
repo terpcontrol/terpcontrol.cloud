@@ -153,11 +153,11 @@ exports.socketRole = (0, exports.named)('SocketRole', zod_1.z.enum([
 ]));
 /** How old a value is. Dimmed on the screens, never hidden. */
 exports.valueState = (0, exports.named)('ValueState', zod_1.z.enum(['live', 'stale', 'offline']));
-/**
- * The one place the ages are stated. The server decides `valueState` from these
- * and its own clock, so no client does the arithmetic.
- */
-exports.VALUE_AGE = { liveSeconds: 120, staleSeconds: 600 };
+// Stated in a module of its own, which carries no schema, so that a client can
+// import the seconds without zod coming with them; re-exported here because
+// this is where the rest of the contract reaches for it.
+var value_age_js_1 = require("./value-age.js");
+Object.defineProperty(exports, "VALUE_AGE", { enumerable: true, get: function () { return value_age_js_1.VALUE_AGE; } });
 /**
  * A measured value with its age. `state` is decided by the server from
  * `VALUE_AGE` and its own clock, so no client does the arithmetic; a value is

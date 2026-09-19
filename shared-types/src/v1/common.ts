@@ -180,11 +180,10 @@ export const socketRole = named(
 /** How old a value is. Dimmed on the screens, never hidden. */
 export const valueState = named('ValueState', z.enum(['live', 'stale', 'offline']));
 
-/**
- * The one place the ages are stated. The server decides `valueState` from these
- * and its own clock, so no client does the arithmetic.
- */
-export const VALUE_AGE = { liveSeconds: 120, staleSeconds: 600 } as const;
+// Stated in a module of its own, which carries no schema, so that a client can
+// import the seconds without zod coming with them; re-exported here because
+// this is where the rest of the contract reaches for it.
+export { VALUE_AGE } from './value-age.js';
 
 /**
  * A measured value with its age. `state` is decided by the server from

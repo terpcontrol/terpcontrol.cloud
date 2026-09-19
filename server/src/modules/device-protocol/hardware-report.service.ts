@@ -180,9 +180,11 @@ export class HardwareReportService {
    * carries the seconds the override had left and never a time of day, so
    * without the instant the same countdown would read as full every time
    * somebody looked. A row says that it is on or off and never since when, so
-   * that instant is stamped too - and only where both the old and the new
-   * report say which it was, so a build that starts reporting the state column
-   * does not read as every socket having just moved.
+   * that instant is stamped too - and only where the previous report said which
+   * it was, so a build that starts reporting the state column does not read as
+   * every socket having just moved. A row that falls silent is such a change:
+   * a socket that stopped answering is the one thing the table says about it,
+   * and how long it has been quiet is the rest of that sentence.
    *
    * A stamp is keyed by slot, and a slot outlives the socket that sat in it:
    * one that now holds a different plug, or none, is forgotten rather than
@@ -199,7 +201,7 @@ export class HardwareReportService {
       // A row whose hardware id has changed is another socket in the same slot.
       if (was.hardwareId !== '' && socket.hardwareId !== '' && was.hardwareId !== socket.hardwareId) return false;
 
-      return was.state !== 'unknown' && socket.state !== 'unknown' && was.state !== socket.state;
+      return was.state !== 'unknown' && was.state !== socket.state;
     });
 
     const held = new Set(sockets.map(socket => String(socket.slot)));
