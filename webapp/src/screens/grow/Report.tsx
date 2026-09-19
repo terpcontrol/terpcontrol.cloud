@@ -75,7 +75,7 @@ function Chapter({
   const cover = chapter.coverMediaId ? mediaUrl(chapter.coverMediaId, THUMBNAIL_WIDTH.cover * 2) : null;
   const temperature = chapter.climate.find(row => row.metric === 'temperature');
   const humidity = chapter.climate.find(row => row.metric === 'humidity');
-  const where = chapter.spaceIds.map(id => spaces.find(space => space.id === id)?.name ?? '…').join(', ');
+  const where = (chapter.spaceIds ?? []).map(id => spaces.find(space => space.id === id)?.name ?? '…').join(', ');
 
   return (
     <article className={styles.chapter}>

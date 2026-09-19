@@ -12,6 +12,12 @@ interface EntryRowProps {
   measurements?: MeasurementDefinition[];
   /** Whether the stamp names the day as well as the hour; a week's rows need the day, today's do not. */
   withDay?: boolean;
+  /**
+   * Whether a line says who wrote it. A public diary has one author, named once
+   * at the top of the page, and the people an answer names are not part of what
+   * a stranger is given - so there its lines carry no name rather than a guess.
+   */
+  byline?: boolean;
 }
 
 /**
@@ -19,7 +25,7 @@ interface EntryRowProps {
  * it. It is the same row wherever a diary is shown, so a week card and a tent's
  * latest lines read alike.
  */
-export function EntryRow({ entry, people, measurements = [], withDay = false }: EntryRowProps) {
+export function EntryRow({ entry, people, measurements = [], withDay = false, byline = true }: EntryRowProps) {
   const { t, i18n } = useTranslation();
   const { user } = useSession();
   const Icon = KIND_ICON[entry.kind];
@@ -34,7 +40,7 @@ export function EntryRow({ entry, people, measurements = [], withDay = false }: 
       </span>
       <span className={styles.text}>
         {/* A device, the plan or an alarm is named by its mark; a person by name. */}
-        {entry.source === 'human' ? <span className={styles.author}>{authorOf(t, entry, people, user?.id)} </span> : null}
+        {byline && entry.source === 'human' ? <span className={styles.author}>{authorOf(t, entry, people, user?.id)} </span> : null}
         {headlineOf(t, i18n, entry)}
         {readings.length > 0 ? (
           <span className={`mono ${styles.readings}`}>

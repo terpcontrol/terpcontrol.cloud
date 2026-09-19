@@ -211,3 +211,24 @@
     font-size: var(--text-xs);
   }
 }
+
+/* Sharing, in the header: the button that opens the sheet, and the chip that
+   says the diary already has an address of its own and leads to it. */
+.share {
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.publicChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: var(--space-2);
+  padding: 1px var(--space-2);
+  border: var(--rule-solid);
+  border-color: var(--green);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  color: var(--green-ink);
+  vertical-align: middle;
+}

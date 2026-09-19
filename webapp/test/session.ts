@@ -13,3 +13,6 @@ const state = (user: SessionState['user']): SessionState => ({ user, tokens: nul
 export const SIGNED_IN = state({ id: 'user-1', handle: 'you', isAdmin: false, isDemo: false });
 
 export const ON_THE_DEMO = state({ id: 'user-demo', handle: 'demo', isAdmin: false, isDemo: true });
+
+/** Nobody at all, which is who a public page is read by and the one state no screen may put a wall in front of. */
+export const SIGNED_OUT = state(null);

@@ -1716,5 +1716,104 @@
     "renderSd": "Render · SD",
     "backwards": "A film ends after it begins; the second date has to be the later one.",
     "entriesHint": "the diary lines of the span, on the frames around them"
+  },
+  "publicPage": {
+    "footer": "Terp Control: a controller in the tent writes the climate down, a camera takes the pictures, and the grower writes the rest.",
+    "openApp": "Open the app",
+    "toLight": "Switch to light",
+    "toDark": "Switch to dark",
+    "coverAlt": "{{name}}, cover picture",
+    "film": "The whole grow, as a film",
+    "weekFilm": "Week film",
+    "weeks": "Weeks",
+    "noCameras": "Camera pictures are not part of this",
+    "nothingInWindow": "Nothing in this stretch of the diary",
+    "asOf": "as of {{age}} ago",
+    "type": {
+      "photoperiod": "photoperiod",
+      "autoflower": "autoflower"
+    },
+    "ran": "{{from}} → {{to}}",
+    "since": "since {{from}}",
+    "diaryCount_one": "{{count}} public diary",
+    "diaryCount_other": "{{count}} public diaries",
+    "noDiaries": "Nothing published yet",
+    "follow": "Follow",
+    "following": "Following",
+    "window": {
+      "all": "You are reading all of it, up to now",
+      "until": "You are reading up to {{to}}",
+      "since": "You are reading from {{from}} on",
+      "between": "You are reading {{from}} to {{to}}"
+    },
+    "expires": "This address stops working on {{date}}",
+    "spaceKind": {
+      "tent": "Tent",
+      "fridge": "Fridge",
+      "room": "Room",
+      "balcony": "Balcony",
+      "other": "Place"
+    },
+    "noDiary": {
+      "title": "Nothing to read here",
+      "body": "There is no public diary at this address. Whether a diary has one is the grower's decision, and it is theirs to take back."
+    },
+    "noProfile": {
+      "title": "Nobody here",
+      "body": "There is no public profile at this address."
+    },
+    "deadLink": {
+      "title": "This address leads nowhere",
+      "body": "An address that is shared can be given an end, and one that has passed reads exactly like an address nobody ever made. If somebody sent you this one, ask them for a new one."
+    },
+    "noPage": {
+      "title": "Nothing at this address",
+      "body": "The app has no page here."
+    }
+  },
+  "sharing": {
+    "title": "Share · {{name}}",
+    "share": "Share",
+    "publicChip": "Public",
+    "publicPage": "Public page",
+    "publicPageNote": "The diary gets an address of its own that anybody can open. Harvest weights and plant counts follow your privacy settings.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyFailed": "Copy it by hand",
+    "copyAddress": "Copy the public address",
+    "copyLink": "Copy the link",
+    "links": "Links",
+    "linksNote": "A key for one person: a stretch of days, with or without the camera's pictures.",
+    "newLink": "New link",
+    "createLink": "Create link",
+    "noLinks": "No links handed out",
+    "narrow": "Narrow",
+    "revoke": "Revoke",
+    "forget": "Forget",
+    "save": "Save",
+    "saving": "Saving",
+    "cancel": "Cancel",
+    "from": "From",
+    "to": "To",
+    "expires": "Expires",
+    "fromStart": "from the start",
+    "toOpen": "open end",
+    "never": "never",
+    "cameras": "Camera pictures",
+    "camerasNote": "Without this the link carries the diary and its photos, but no still from the tent.",
+    "withPictures": "with pictures",
+    "withoutPictures": "without pictures",
+    "opened_one": "opened {{count}}×",
+    "opened_other": "opened {{count}}×",
+    "lastOpened": "last {{age}} ago",
+    "revokedOn": "revoked {{date}}",
+    "expiredOn": "ran out {{date}}",
+    "expiresOn": "runs out {{date}}",
+    "window": {
+      "all": "the whole grow",
+      "until": "up to {{to}}",
+      "since": "from {{from}}",
+      "between": "{{from}} → {{to}}"
+    }
   }
 }

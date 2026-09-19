@@ -1,0 +1,724 @@
+/* The pages a stranger lands on. They carry no tab bar and no rail, so the
+   column centres itself and is a little wider than the app's - this is one
+   thing to read from top to bottom rather than a screen to work in. Every
+   colour is a token, so both modes are the token file and nothing here. */
+
+.page {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: calc(var(--topbar-height) + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) max(var(--space-4), env(safe-area-inset-right)) 0 max(var(--space-4), env(safe-area-inset-left));
+}
+
+.wordmark {
+  flex: 1;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+  color: var(--wordmark);
+}
+
+.themeSwitch {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: 0;
+  color: var(--muted);
+}
+
+.column {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 max(var(--space-4), env(safe-area-inset-left)) var(--space-6) max(var(--space-4), env(safe-area-inset-right));
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 720px;
+  margin: auto auto 0;
+  padding: var(--space-5) var(--space-4) calc(var(--space-5) + env(safe-area-inset-bottom));
+  border-top: var(--rule-solid);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.footLine {
+  text-align: center;
+}
+
+.footLink {
+  color: var(--green-ink);
+  font-weight: var(--weight-semibold);
+}
+
+/* ------------------------------------------------------------------ nothing */
+
+.nothing {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-6) 0;
+}
+
+.nothingTitle {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.nothingBody {
+  max-width: 48ch;
+  color: var(--muted);
+}
+
+/* -------------------------------------------------------------------- diary */
+
+.diary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-2);
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.cover {
+  display: grid;
+  place-items: center;
+  margin: 0;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--card-2);
+  color: var(--green);
+}
+
+.cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* No picture yet: a short panel with the mark on it rather than a blank screenful. */
+.cover[data-empty='true'] {
+  aspect-ratio: 5 / 1;
+  border-style: dashed;
+}
+
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.day {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.dayFigure {
+  font-size: var(--text-figure);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.author {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.authorLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.avatar,
+.profileAvatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  overflow: hidden;
+  border: var(--rule-solid);
+  border-radius: 50%;
+  background: var(--card-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}
+
+.avatar img,
+.profileAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.handle {
+  font-weight: var(--weight-semibold);
+}
+
+.bio {
+  margin-top: var(--space-1);
+  max-width: 62ch;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.description {
+  max-width: 62ch;
+  color: var(--ink);
+}
+
+.facts {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.film {
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--card-2);
+}
+
+.film video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--card-2);
+}
+
+/* A week's film is an aside inside the card, not the card - so it is capped
+   rather than laid across it. */
+.weekFilm {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 16 / 9;
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--card-2);
+}
+
+.weekFilmButton {
+  align-self: flex-start;
+}
+
+.filmCaption {
+  padding: var(--space-2) var(--space-3);
+  border-top: var(--rule-solid);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-5);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+.total {
+  display: flex;
+  flex-direction: column;
+}
+
+.totalValue {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.harvest {
+  padding: var(--space-2) var(--space-3);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  color: var(--green-ink);
+}
+
+/* What is not there, and why. Muted, never hidden. */
+.quiet {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.follow {
+  gap: var(--space-2);
+  color: var(--green-ink);
+  border-color: var(--green);
+}
+
+.follow[data-following='true'] {
+  color: var(--muted);
+  border-color: var(--rule);
+}
+
+/* -------------------------------------------------------------------- weeks */
+
+.weeks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.week {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+.weekHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+}
+
+.weekTitle {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.weekName {
+  font-weight: var(--weight-semibold);
+}
+
+.weekRange {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.stagePill {
+  flex: none;
+  padding: 2px var(--space-2);
+  border: var(--rule-solid);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.chevron {
+  flex: none;
+  color: var(--muted);
+  transition: transform 120ms ease-out;
+}
+
+.chevron[data-open='true'] {
+  transform: rotate(180deg);
+}
+
+.days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dayTile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* A day that has not happened yet is drawn and left empty, so the week keeps its shape. */
+.dayTile[data-future='true'] {
+  opacity: 0.35;
+}
+
+.thumb {
+  display: block;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: var(--rule-solid);
+  border-radius: 4px;
+  background: var(--card-2);
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dayName {
+  font-size: var(--text-xs);
+  color: var(--label);
+  text-align: center;
+}
+
+.stats {
+  display: flex;
+  gap: var(--space-5);
+  margin: 0;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.statValue {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.statUnit {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.feeding {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--card-2);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.feedsDone {
+  margin-left: auto;
+  color: var(--ink);
+}
+
+.readings {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.readingName {
+  color: var(--ink);
+}
+
+.change {
+  color: var(--green-ink);
+}
+
+.entries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ------------------------------------------------------------------ profile */
+
+.profile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-2);
+}
+
+.profileHead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.profileAvatar {
+  width: 56px;
+  height: 56px;
+  font-size: var(--text-md);
+}
+
+.profileText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.cards {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+.cardLink {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.cardCover {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 84px;
+  height: 60px;
+  overflow: hidden;
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--card-2);
+  color: var(--green);
+}
+
+.cardCover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cardText {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cardTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--weight-semibold);
+}
+
+.cardMeta {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------- a shared tent */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-2);
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+}
+
+.tileFigure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  font-size: var(--text-figure);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.tileUnit {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.tileTarget {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.verdict {
+  padding: var(--space-2) var(--space-3);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--card);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.verdict[data-rating='watch'] {
+  border-color: var(--warning);
+}
+
+.verdict[data-rating='poor'] {
+  border-color: var(--alarm);
+}
+
+.stills {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.stillStrip {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0 0 var(--space-1);
+  list-style: none;
+  overflow-x: auto;
+}
+
+.still {
+  display: flex;
+  flex: 0 0 120px;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stillFrame {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--card-2);
+}
+
+.stillFrame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.stillTime {
+  font-size: var(--text-xs);
+  color: var(--label);
+}
+
+.growRows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.growRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+/* ------------------------------------------------------------------- banner */
+
+/* What window the reader is inside. Outlined rather than filled: it is a fact
+   about the page, not a warning. */
+.banner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: var(--rule-dashed);
+  border-radius: var(--radius);
+}
+
+.bannerLine {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+@media (min-width: 900px) {
+  .bar,
+  .column,
+  .foot {
+    padding-left: var(--space-5);
+    padding-right: var(--space-5);
+  }
+
+  .title {
+    font-size: 28px;
+  }
+
+  .cards {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .tiles {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

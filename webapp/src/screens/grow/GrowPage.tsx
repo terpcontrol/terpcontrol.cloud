@@ -1,4 +1,5 @@
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Globe, Share2 } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams } from 'react-router';
 import type { GrowListItem, Plant, Space } from '@fg2/shared-types/v1';
@@ -6,13 +7,16 @@ import { useGrow, useGrowPlants } from '@/api/grows';
 import { useSpaces } from '@/api/spaces';
 import { useReportFreshness } from '@/ui/freshness';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
+import { useMayManage } from '@/ui/session-access';
 import { weekOfPhase } from '@/ui/stages';
 import { Tabs } from '@/ui/Tabs';
+import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { Feeding } from './Feeding';
 import { PhaseBar } from './PhaseBar';
 import { Plants } from './Plants';
 import { Report } from './Report';
+import { ShareSheet } from './ShareSheet';
 import { Weeks } from './Weeks';
 import styles from './GrowPage.module.css';
 
@@ -40,6 +44,8 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
   const grow = useGrow(growId);
   const plants = useGrowPlants(growId);
   const spaces = useSpaces();
+  const mayManage = useMayManage();
+  const [sharing, setSharing] = useState(false);
 
   useReportFreshness(grow.dataUpdatedAt ? new Date(grow.dataUpdatedAt).toISOString() : null);
 
@@ -57,13 +63,20 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
 
   return (
     <section className={styles.page}>
-      <Header grow={grow.data} plants={plants.data?.items ?? []} spaces={spaces.data?.items ?? []} now={now} />
+      <Header
+        grow={grow.data}
+        plants={plants.data?.items ?? []}
+        spaces={spaces.data?.items ?? []}
+        now={now}
+        onShare={mayManage ? () => setSharing(true) : null}
+      />
       <RefreshFailed failedAt={grow.isError ? grow.dataUpdatedAt : null} now={now} />
       <Tabs items={tabs} label={t('grow.tabsLabel')} />
       {tab === 'weeks' ? <Weeks grow={grow.data} now={now} /> : null}
       {tab === 'plants' ? <Plants grow={grow.data} plants={plants} spaces={spaces.data?.items ?? []} /> : null}
       {tab === 'feeding' ? <Feeding grow={grow.data} /> : null}
       {tab === 'report' ? <Report grow={grow.data} spaces={spaces.data?.items ?? []} now={now} /> : null}
+      {sharing ? <ShareSheet grow={grow.data} onClose={() => setSharing(false)} /> : null}
     </section>
   );
 }
@@ -77,7 +90,16 @@ const strainsOf = (plants: Plant[]): string =>
     })
     .join(' · ');
 
-function Header({ grow, plants, spaces, now }: { grow: GrowListItem; plants: Plant[]; spaces: Space[]; now: ReturnType<typeof useNow> }) {
+interface HeaderProps {
+  grow: GrowListItem;
+  plants: Plant[];
+  spaces: Space[];
+  now: ReturnType<typeof useNow>;
+  /** Null for a session that may only look: sharing a diary is the owner's, and a button that would be refused is not offered. */
+  onShare: (() => void) | null;
+}
+
+function Header({ grow, plants, spaces, now, onShare }: HeaderProps) {
   const { t } = useTranslation();
   const { summary } = grow;
   const week = weekOfPhase(summary.phaseDay);
@@ -108,8 +130,20 @@ function Header({ grow, plants, spaces, now }: { grow: GrowListItem; plants: Pla
                 )}
               </span>
             ))}
+            {grow.visibility === 'public' ? (
+              <Link to={`/g/${grow.slug}`} className={`mono ${styles.publicChip}`}>
+                <Globe size={12} strokeWidth={1.75} aria-hidden />
+                {t('sharing.publicChip')}
+              </Link>
+            ) : null}
           </p>
         </div>
+        {onShare ? (
+          <button type="button" className={`${ui.chip} ${styles.share}`} onClick={onShare}>
+            <Share2 size={13} strokeWidth={1.75} aria-hidden />
+            {t('sharing.share')}
+          </button>
+        ) : null}
         {summary.dayNumber !== null ? (
           <div className={styles.day}>
             <span className={`figure ${styles.dayFigure}`}>{summary.dayNumber}</span>

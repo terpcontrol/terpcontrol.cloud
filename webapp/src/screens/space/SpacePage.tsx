@@ -45,7 +45,7 @@ function SpaceScreen({ spaceId, tab }: { spaceId: string; tab: SpaceTab }) {
   // The tab bar's own Timeline lands on the place last looked at, and looking at one here is what makes it that place.
   useRememberSpace(spaceId);
   const overview = useSpaceOverview(spaceId);
-  const live = useSpaceLive(spaceId, (overview.data?.deviceIds.length ?? 0) > 0);
+  const live = useSpaceLive(spaceId, (overview.data?.deviceIds?.length ?? 0) > 0);
 
   const freshestAt = Math.max(overview.dataUpdatedAt, live.dataUpdatedAt);
   useReportFreshness(freshestAt ? new Date(freshestAt).toISOString() : null);

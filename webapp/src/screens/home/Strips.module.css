@@ -92,6 +92,13 @@
   flex: 0 0 160px;
 }
 
+.tileLink {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
 .tileCover {
   display: grid;
   place-items: center;

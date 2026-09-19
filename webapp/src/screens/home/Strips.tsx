@@ -3,8 +3,10 @@ import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { DueTask, FollowedGrowCard, HomeSpaceCard } from '@fg2/shared-types/v1';
-import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
+import { PUBLIC_WIDTH, publicPicture } from '@/api/public';
 import { useLog, useMayLog } from '@/log/log-context';
+import { FollowButton } from '@/screens/public/FollowButton';
+import { Photo } from '@/screens/public/Photo';
 import { ageLabel } from '@/ui/age';
 import styles from './Strips.module.css';
 import { alertLabel } from './units';
@@ -79,6 +81,15 @@ const dueLabel = (t: Translate, task: DueTask, now: DateTime): string => {
   return t('home.strip.tomorrow');
 };
 
+/**
+ * The diaries somebody keeps reading. Each tile is the public page it came
+ * from - a followed grow is somebody else's, and its public address is the
+ * whole of what a follower ever sees of it - with the way to stop beside it.
+ *
+ * A cover is fetched through the public route rather than with this session's
+ * media token: the token is good for what the account may see, and a diary
+ * somebody else made public is not that.
+ */
 export function FollowingStrip({ grows, now }: { grows: FollowedGrowCard[]; now: DateTime }) {
   const { t } = useTranslation();
   if (grows.length === 0) return null;
@@ -90,20 +101,21 @@ export function FollowingStrip({ grows, now }: { grows: FollowedGrowCard[]; now:
       </header>
       <ul className={styles.tiles}>
         {grows.map(grow => {
-          const cover = grow.coverMediaId ? mediaUrl(grow.coverMediaId, THUMBNAIL_WIDTH.strip) : null;
+          const cover = grow.coverMediaId ? publicPicture(grow.slug)(grow.coverMediaId, PUBLIC_WIDTH.card) : null;
           return (
             <li key={grow.growId} className={styles.tile}>
-              <span className={styles.tileCover}>
-                {cover ? <img src={cover} alt="" loading="lazy" /> : <Leaf size={22} strokeWidth={1.5} aria-hidden />}
-              </span>
-              <span className={styles.tileTitle}>
-                @{grow.handle} · {grow.name}
-              </span>
-              <span className={`mono ${styles.tileMeta}`}>
-                {grow.dayNumber !== null ? `${t('home.card.dayN', { day: grow.dayNumber })} · ` : ''}
-                {grow.stage ? `${t(`home.stage.${grow.stage}`)} · ` : ''}
-                {t('home.card.ago', { age: ageLabel(grow.updatedAt, now) })}
-              </span>
+              <Link to={`/g/${grow.slug}`} className={styles.tileLink}>
+                <Photo src={cover} alt="" className={styles.tileCover} fallback={<Leaf size={22} strokeWidth={1.5} aria-hidden />} />
+                <span className={styles.tileTitle}>
+                  @{grow.handle} · {grow.name}
+                </span>
+                <span className={`mono ${styles.tileMeta}`}>
+                  {grow.dayNumber !== null ? `${t('home.card.dayN', { day: grow.dayNumber })} · ` : ''}
+                  {grow.stage ? `${t(`home.stage.${grow.stage}`)} · ` : ''}
+                  {t('home.card.ago', { age: ageLabel(grow.updatedAt, now) })}
+                </span>
+              </Link>
+              <FollowButton growId={grow.growId} />
             </li>
           );
         })}

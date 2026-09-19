@@ -12,10 +12,18 @@ export type Liveness = ValueState | 'none';
 
 const RANK: Record<ValueState, number> = { live: 0, stale: 1, offline: 2 };
 
-/** The best of its values - one live sensor is a live card. A device that has reported nothing yet is offline, not absent. */
-export const livenessOf = (card: Pick<HomeSpaceCard, 'values' | 'deviceIds'>): Liveness => {
-  if (card.deviceIds.length === 0) return 'none';
-  if (card.values.length === 0) return 'offline';
+/**
+ * The best of its values - one live sensor is a live card. A device that has
+ * reported nothing yet is offline, not absent.
+ *
+ * `deviceIds` is null for a reader who was not told what hardware stands here,
+ * which is what a shared or public read answers. Then the values are the whole
+ * of what is known: some means something is reporting, none means there is
+ * nothing to show a dot for.
+ */
+export const livenessOf = (card: { values: CardValue[]; deviceIds: string[] | null }): Liveness => {
+  if (card.deviceIds?.length === 0) return 'none';
+  if (card.values.length === 0) return card.deviceIds === null ? 'none' : 'offline';
   return card.values.reduce<ValueState>((best, value) => (RANK[value.state] < RANK[best] ? value.state : best), 'offline');
 };
 

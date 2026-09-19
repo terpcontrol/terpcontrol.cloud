@@ -1712,5 +1712,104 @@
     "renderSd": "Rendern · SD",
     "backwards": "Ein Film endet nach seinem Anfang; das zweite Datum muss das spätere sein.",
     "entriesHint": "die Einträge des Zeitraums, auf den Bildern um sie herum"
+  },
+  "publicPage": {
+    "footer": "Terp Control: Ein Controller im Zelt schreibt das Klima mit, eine Kamera macht die Bilder, den Rest schreibt der Grower.",
+    "openApp": "Zur App",
+    "toLight": "Auf hell umschalten",
+    "toDark": "Auf dunkel umschalten",
+    "coverAlt": "Titelbild von {{name}}",
+    "film": "Der ganze Grow als Film",
+    "weekFilm": "Wochenfilm",
+    "weeks": "Wochen",
+    "noCameras": "Kamerabilder gehören nicht dazu",
+    "nothingInWindow": "In diesem Abschnitt des Tagebuchs steht nichts",
+    "asOf": "Stand vor {{age}}",
+    "type": {
+      "photoperiod": "photoperiodisch",
+      "autoflower": "Automatik"
+    },
+    "ran": "{{from}} → {{to}}",
+    "since": "seit {{from}}",
+    "diaryCount_one": "{{count}} öffentliches Tagebuch",
+    "diaryCount_other": "{{count}} öffentliche Tagebücher",
+    "noDiaries": "Noch nichts veröffentlicht",
+    "follow": "Folgen",
+    "following": "Du folgst",
+    "window": {
+      "all": "Du liest alles bis jetzt",
+      "until": "Du liest bis {{to}}",
+      "since": "Du liest ab {{from}}",
+      "between": "Du liest {{from}} bis {{to}}"
+    },
+    "expires": "Diese Adresse hört am {{date}} auf zu funktionieren",
+    "spaceKind": {
+      "tent": "Zelt",
+      "fridge": "Kühlschrank",
+      "room": "Raum",
+      "balcony": "Balkon",
+      "other": "Ort"
+    },
+    "noDiary": {
+      "title": "Hier gibt es nichts zu lesen",
+      "body": "Unter dieser Adresse liegt kein öffentliches Tagebuch. Ob ein Tagebuch eine hat, entscheidet der Grower, und er kann sie jederzeit wieder zurücknehmen."
+    },
+    "noProfile": {
+      "title": "Hier ist niemand",
+      "body": "Unter dieser Adresse gibt es kein öffentliches Profil."
+    },
+    "deadLink": {
+      "title": "Diese Adresse führt ins Leere",
+      "body": "Eine geteilte Adresse kann ein Ende bekommen, und eine abgelaufene sieht genauso aus wie eine, die es nie gegeben hat. Wenn dir jemand diese geschickt hat, bitte ihn um eine neue."
+    },
+    "noPage": {
+      "title": "Unter dieser Adresse liegt nichts",
+      "body": "Die App hat hier keine Seite."
+    }
+  },
+  "sharing": {
+    "title": "Teilen · {{name}}",
+    "share": "Teilen",
+    "publicChip": "Öffentlich",
+    "publicPage": "Öffentliche Seite",
+    "publicPageNote": "Das Tagebuch bekommt eine eigene Adresse, die jeder öffnen kann. Erntegewichte und Pflanzenzahlen richten sich nach deinen Privatsphäre-Einstellungen.",
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "copyFailed": "Von Hand kopieren",
+    "copyAddress": "Öffentliche Adresse kopieren",
+    "copyLink": "Link kopieren",
+    "links": "Links",
+    "linksNote": "Ein Schlüssel für eine Person: ein Zeitraum, mit oder ohne die Bilder der Kamera.",
+    "newLink": "Neuer Link",
+    "createLink": "Link erstellen",
+    "noLinks": "Keine Links vergeben",
+    "narrow": "Einengen",
+    "revoke": "Zurückziehen",
+    "forget": "Löschen",
+    "save": "Speichern",
+    "saving": "Speichert",
+    "cancel": "Abbrechen",
+    "from": "Ab",
+    "to": "Bis",
+    "expires": "Läuft ab",
+    "fromStart": "ab dem Anfang",
+    "toOpen": "offenes Ende",
+    "never": "nie",
+    "cameras": "Kamerabilder",
+    "camerasNote": "Ohne das trägt der Link das Tagebuch und seine Fotos, aber kein Bild aus dem Zelt.",
+    "withPictures": "mit Bildern",
+    "withoutPictures": "ohne Bilder",
+    "opened_one": "{{count}}× geöffnet",
+    "opened_other": "{{count}}× geöffnet",
+    "lastOpened": "zuletzt vor {{age}}",
+    "revokedOn": "am {{date}} zurückgezogen",
+    "expiredOn": "am {{date}} abgelaufen",
+    "expiresOn": "läuft am {{date}} ab",
+    "window": {
+      "all": "der ganze Grow",
+      "until": "bis {{to}}",
+      "since": "ab {{from}}",
+      "between": "{{from}} → {{to}}"
+    }
   }
 }

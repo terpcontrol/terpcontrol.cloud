@@ -67,7 +67,7 @@ export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
         })}
       </ul>
 
-      {week.deviceIds.length === 0 ? (
+      {week.deviceIds?.length === 0 ? (
         // Nothing measures where the grow stands, so there is nothing to average: the card says so rather than drawing dashes.
         <p className={`mono ${styles.noClimate}`}>{t('grow.noController')}</p>
       ) : week.climate.length === 0 ? (

@@ -1,5 +1,5 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import type { GrowListItem, GrowPage, GrowReport, GrowWeekCardPage, PlantPage } from '@fg2/shared-types/v1';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { GrowListItem, GrowPage, GrowReport, GrowUpdate, GrowWeekCardPage, PlantPage } from '@fg2/shared-types/v1';
 import { api } from './client';
 
 /**
@@ -40,6 +40,23 @@ export const useGrowReport = (growId: string) =>
     queryKey: ['grow', growId, 'report'],
     queryFn: ({ signal }) => api.get<GrowReport>(`/grows/${growId}/report`, undefined, signal),
   });
+
+/**
+ * Changing the grow itself. The one thing the app edits here today is whether
+ * the diary has a public address: the slug is fixed at creation, so turning the
+ * page on and off again never moves it.
+ */
+export const useUpdateGrow = (growId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: GrowUpdate) => api.patch<GrowListItem>(`/grows/${growId}`, body),
+    onSuccess: grow => {
+      queryClient.setQueryData(['grow', growId], grow);
+      void queryClient.invalidateQueries({ queryKey: ['home'] });
+    },
+  });
+};
 
 /**
  * The grows standing in one space, which is how a camera's page learns where

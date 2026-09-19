@@ -71,6 +71,7 @@ export const api = {
   /** A picture on its way to the diary: multipart, and not JSON. */
   upload: <T>(path: string, form: FormData) => apiRequest<T>(path, { method: 'POST', body: form }),
   patch: <T>(path: string, body: unknown) => apiRequest<T>(path, { method: 'PATCH', body }),
-  put: <T>(path: string, body: unknown) => apiRequest<T>(path, { method: 'PUT', body }),
+  /** A `PUT` that states a fact - a link is revoked, a grow is followed - carries nothing, so the body is optional. */
+  put: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: 'PUT', body }),
   delete: (path: string) => apiRequest<void>(path, { method: 'DELETE' }),
 };

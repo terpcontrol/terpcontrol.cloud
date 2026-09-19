@@ -40,7 +40,7 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  */
 export function Overview({ overview, now }: { overview: SpaceOverview; now: DateTime }) {
   const { t } = useTranslation();
-  const hasDevice = overview.deviceIds.length > 0;
+  const hasDevice = overview.deviceIds === null || overview.deviceIds.length > 0;
   const liveness = livenessOf(overview);
 
   return (

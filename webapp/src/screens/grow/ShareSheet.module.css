@@ -1,0 +1,134 @@
+/* The share sheet: two blocks, the page and the links. It sits inside the
+   app's one sheet, so nothing here restates a surface or a radius. */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-4) 0 var(--space-2);
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.blockTitle {
+  font-weight: var(--weight-semibold);
+}
+
+.switchRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.switchText {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.addressRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The address in full, and still selectable: a browser that refuses the
+   clipboard leaves reading it off the screen as the only way. */
+.address {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  padding: var(--space-2) var(--space-3);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--card-2);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+/* A link that has been revoked or has run out keeps its row, dimmed: it is
+   still a fact about what was handed out. */
+.link[data-dead='true'] {
+  opacity: var(--age-offline);
+}
+
+.linkMeta {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.linkActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.forget {
+  color: var(--alarm);
+  border-color: var(--alarm);
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: var(--rule-dashed);
+  border-radius: var(--radius);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.date {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+/* What an empty field means, under it - a date input has no placeholder. */
+.hint {
+  min-height: calc(var(--text-xs) * var(--line-body));
+  font-size: var(--text-xs);
+  color: var(--label);
+}
+
+@media (min-width: 560px) {
+  .fields {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
