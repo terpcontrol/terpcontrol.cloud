@@ -76,7 +76,13 @@ const deviceListQuery = pageQuery.extend({ spaceId: z.string().optional() });
 const one = <T>(value: T | T[]): T[] => (Array.isArray(value) ? value : [value]);
 
 const seriesFromQuery = seriesQuery.extend({
-  metrics: z.union([metric, z.array(metric)]).transform(one),
+  // The contract's list of metrics may be empty, and a caller that wants only
+  // what an output did - the level a dimmable light is running at - names none:
+  // a metric asked for and thrown away is a second field read off the store.
+  metrics: z
+    .union([metric, z.array(metric)])
+    .transform(one)
+    .optional(),
   outputs: z
     .union([outputMetric, z.array(outputMetric)])
     .transform(one)
@@ -230,7 +236,7 @@ export class DevicesController {
     await this.devices.require(id);
 
     return this.data.series(id, {
-      metrics: query.metrics,
+      metrics: query.metrics ?? [],
       outputs: query.outputs,
       startsAt: new Date(query.startsAt),
       endsAt: new Date(query.endsAt),

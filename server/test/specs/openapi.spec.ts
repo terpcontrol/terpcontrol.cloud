@@ -285,11 +285,14 @@ describe('the document', () => {
   });
 
   it('describes the query each validated route accepts', () => {
-    // A series cannot be asked for without naming the metrics and the window, so
-    // a document that omits them describes a route nobody can call.
+    // A series cannot be asked for without naming the window, so a document that
+    // omits it describes a route nobody can call. The metrics are another
+    // matter: a caller after what an output did - the level a dimmable light
+    // runs at - names none, and the document says so rather than demanding a
+    // reading it would throw away.
     const series = declaredQuery('/v1/devices/{id}/series');
     expect(Object.keys(series).sort()).toEqual(['endsAt', 'metrics', 'outputs', 'startsAt', 'stepSeconds']);
-    expect(series.metrics?.required).toBe(true);
+    expect(series.metrics?.required).toBe(false);
     expect(series.startsAt?.required).toBe(true);
     expect(series.endsAt?.required).toBe(true);
     expect(series.stepSeconds?.required).toBe(false);

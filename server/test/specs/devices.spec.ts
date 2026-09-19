@@ -168,6 +168,30 @@ describe('what reaches the hardware', () => {
     expect(live.body.metrics.temperature).toMatchObject({ value: 21.5, state: 'live' });
     expect(live.body.metrics.humidity).toMatchObject({ value: 55 });
   });
+
+  /**
+   * The light output runs at a level rather than on or off, and the level is a
+   * series: no read answers an output's newest value on its own, so a screen
+   * that draws a dimmer asks for the shortest series there is - and has no
+   * reading to ask for beside it.
+   */
+  it('answers a series asked for an output alone, with no metric named at all', async () => {
+    await simulator.reportStatus({ temperature: 21.5 }, { light: 40 });
+    await settle(1000);
+
+    const series = await owner.client
+      .get(`/v1/devices/${device.deviceId}/series`)
+      .query({ startsAt: new Date(Date.now() - 900_000).toISOString(), endsAt: new Date().toISOString(), stepSeconds: 30 })
+      .query('outputs=light')
+      .expect(200);
+
+    expect(series.body.metrics).toEqual([]);
+    expect(series.body.outputs).toHaveLength(1);
+    expect(series.body.outputs[0].output).toBe('light');
+    expect(series.body.outputs[0].points.filter((point: { value: number | null }) => point.value !== null)).toContainEqual(
+      expect.objectContaining({ value: 40 }),
+    );
+  });
 });
 
 const aRule = () => ({

@@ -707,6 +707,24 @@
     "controllers": "Controller",
     "cameras": "Kameras",
     "sockets": "Smarte Steckdosen",
+    "lights": "Licht",
+    "lightOutput": {
+      "title": "Lichtausgang",
+      "is": "eigener Ausgang des Geräts · dimmbar",
+      "brightness": "Helligkeit",
+      "force": "Lichtausgang halten",
+      "noLevel": "nichts gemeldet",
+      "noLimit": "nicht angegeben",
+      "setTo": "Eingestellt auf",
+      "running": "Läuft mit",
+      "saving": "Helligkeit wird gespeichert…",
+      "saved": "Gespeichert und gesendet. Das Gerät bestätigt keine Einstellung; was es wirklich fährt, steht oben als Wert.",
+      "saveFailed": "Diese Helligkeit wurde nicht gespeichert.",
+      "noSettings": "Dieses Gerät hat seine Einstellungen noch nicht geschickt; es gibt also nichts, worin eine Helligkeit stehen könnte. Es schickt sie, sobald es sich wieder verbindet.",
+      "needsFirmware": "Diesem Build lässt sich der Lichtausgang nicht von Hand halten. Die Helligkeit erreicht ihn trotzdem — sie ist eine Einstellung und kein Befehl.",
+      "keptForLater": "Niemand hört zu, die Tasten erreichen also nichts — eine Helligkeit wird trotzdem gespeichert, und das Gerät bekommt sie, sobald es sich wieder verbindet.",
+      "explained": "Das Gerät dimmt diesen Ausgang selbst und fährt ihn über Sonnenauf- und -untergang hoch und runter; die Helligkeit ist das Maximum, das es gibt. Eine smarte Steckdose mit Licht-Rolle hat keine eigene Stufe — sie folgt diesem Ausgang an oder aus, solange sie nicht von Hand gehalten wird. Lichtstunden zählen jede Stunde, in der die Lampe über null liegt: Dimmen ändert, wie hell der Tag ist, nicht wie lang."
+    },
     "noDevices": "Hier steht noch kein Gerät. Ein Controller kommt mit dem Code auf seinem Display dazu.",
     "noCameras": "Hier hängt noch keine Kamera.",
     "readingSockets": "Steckdosen werden gelesen…",
@@ -770,7 +788,7 @@
       "manual": "Manuell"
     },
     "socket": {
-      "needsFirmware": "Dieser Build kennt keinen Handbetrieb. Er läuft unverändert weiter; der Schalter kommt mit der nächsten Controller-Firmware.",
+      "needsFirmware": "Dieser Build kennt keinen Handbetrieb. Seine Steckdosen laufen unverändert weiter; der Schalter kommt mit der nächsten Controller-Firmware.",
       "offline": "Offline · niemand hört zu, also wird nichts gesendet.",
       "details": "Was {{name}} ist und wie lange es gehalten wird",
       "slot": "Platz",
@@ -785,8 +803,6 @@
       "asked": "Gesendet. Das Gerät meldet sich innerhalb einer halben Minute zurück.",
       "notListening": "Niemand hat zugehört: Das Gerät war nicht erreichbar. Es wurde nichts geändert.",
       "askFailed": "Das hat das Gerät nicht erreicht.",
-      "ownOutput": "PWM-Ausgang",
-      "roleIs": "Rolle: {{role}}",
       "timer": "{{on}} an, alle {{every}}",
       "forced": "{{state}} gehalten · {{left}}",
       "unknownState": "nicht gemeldet",
@@ -799,7 +815,9 @@
       "auto": "auto",
       "runs": "Lief",
       "runsValue_one": "{{count}}× in den letzten 24 h",
-      "runsValue_other": "{{count}}× in den letzten 24 h"
+      "runsValue_other": "{{count}}× in den letzten 24 h",
+      "isPlug": "smarte Steckdose",
+      "numbered": "{{name}} {{number}}"
     },
     "noDevicesHere": "Hier steht kein Gerät."
   },

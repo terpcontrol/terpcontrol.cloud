@@ -1,4 +1,4 @@
-import type { DeviceCapabilities, Socket, SocketOverride, SocketRole, SocketState, SocketTimer } from '@fg2/shared-types/v1';
+import type { Socket, SocketOverride, SocketRole, SocketState, SocketTimer } from '@fg2/shared-types/v1';
 import { SOCKET_HOLD_MAX_SECONDS } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import type { OverrideRequest } from '@/api/devices';
 
@@ -6,9 +6,9 @@ import type { OverrideRequest } from '@/api/devices';
  * What a socket row on the Devices tab is drawn from, and what a tap on its
  * switch means.
  *
- * The rows are the device's own table plus, on a build that takes one, the
- * controller's own light output: it is not a socket and has no slot, but it is
- * the one other thing on the tent a switch here forces.
+ * The rows are the device's own table and nothing else. The controller's own
+ * outputs are not sockets - one of them dims and none of them is reported in a
+ * table - so they are drawn from their own model, above these.
  */
 
 /** How long a plain tap holds a socket. A modest hold rather than the longest one the firmware allows. */
@@ -21,21 +21,19 @@ const HOLDS_SECONDS = [900, DEFAULT_HOLD_SECONDS, 4 * 3600, 8 * 3600, SOCKET_HOL
 export const TEST_SECONDS = 5;
 
 /**
- * The times a role may be held for, which is every one of them.
+ * The times anything may be held for, which is every one of them whatever is
+ * being held.
  *
  * `pulseSeconds` is not a minimum on-time and filtering by it read the device
  * backwards: it is the failsafe the socket programs itself with, the time after
  * the last command at which it switches off on its own, so that a controller
  * that goes quiet cannot leave a heater running. The controller re-asserts long
- * before then, so it never shortens a hold.
+ * before then, so it never shortens a hold - which is why neither the role nor
+ * the build narrows this list.
  */
-export const holdsFor = (_capabilities: DeviceCapabilities, _role: SocketRole): number[] => [...HOLDS_SECONDS];
+export const holdsFor = (): number[] => [...HOLDS_SECONDS];
 
-export const defaultHold = (capabilities: DeviceCapabilities, role: SocketRole): number => {
-  const offered = holdsFor(capabilities, role);
-
-  return offered.find(seconds => seconds >= DEFAULT_HOLD_SECONDS) ?? offered[offered.length - 1];
-};
+export const defaultHold = (): number => holdsFor().find(seconds => seconds >= DEFAULT_HOLD_SECONDS) ?? HOLDS_SECONDS[HOLDS_SECONDS.length - 1];
 
 /** "30 s", "15 min", "6 h", "24 h": the coarsest unit the number is whole in. */
 export const durationLabel = (seconds: number): string => {
@@ -44,15 +42,21 @@ export const durationLabel = (seconds: number): string => {
   return `${Math.round(seconds / 3600)} h`;
 };
 
-/** One row of the Devices tab's socket list: a socket, or the controller's own light output. */
+/** One row of the Devices tab's socket list: one plug of the device's own table. */
 export interface SocketRowModel {
   key: string;
   role: SocketRole;
   /** The name of the row: what the role is called, or "unassigned" for a socket nobody gave one. */
   titleKey: string;
+  /**
+   * Which of them this is, where a role holds several - a tent with two lamps
+   * has two rows called "Light", and a switch has to belong to one of them.
+   * Null where the role holds one socket and the name is already unambiguous.
+   */
+  ordinal: number | null;
   address: string;
   hardwareId: string;
-  slot: number | null;
+  slot: number;
   state: SocketState;
   override: SocketOverride | null;
   timer: SocketTimer | null;
@@ -60,10 +64,11 @@ export interface SocketRowModel {
   target: OverrideRequest['target'];
 }
 
-export const socketRow = (socket: Socket): SocketRowModel => ({
+export const socketRow = (socket: Socket, ordinal: number | null = null): SocketRowModel => ({
   key: `socket-${socket.slot}-${socket.role}`,
   role: socket.role,
   titleKey: `devices.role.${socket.role || 'unassigned'}`,
+  ordinal,
   address: socket.address,
   hardwareId: socket.hardwareId,
   slot: socket.slot,
@@ -75,36 +80,21 @@ export const socketRow = (socket: Socket): SocketRowModel => ({
 });
 
 /**
- * The controller's own light output as a row of the same list.
+ * The device's table in slot order, each row numbered within its role where
+ * that role holds more than one socket.
  *
- * Its state is deliberately `unknown`: an output's state is a series the cloud
- * records and no read answers what it is doing right now, so the row offers the
- * three-way control every row with an unknown state gets rather than a switch
- * drawn in a position nobody checked.
+ * Two plugs both called "Light" are two lamps a grower switches separately, and
+ * a row that cannot be told from the one under it is a switch nobody can aim.
  */
-export const lightOutputRow = (): SocketRowModel => ({
-  key: 'output-light',
-  role: 'light',
-  titleKey: 'devices.role.light',
-  address: '',
-  hardwareId: '',
-  slot: null,
-  state: 'unknown',
-  override: null,
-  timer: null,
-  stateChangedAt: null,
-  target: { kind: 'output', output: 'light' },
-});
+export const rowsOf = (sockets: Socket[]): SocketRowModel[] => {
+  const perRole = new Map<SocketRole, number>();
+  for (const socket of sockets) perRole.set(socket.role, (perRole.get(socket.role) ?? 0) + 1);
 
-/**
- * The rows of one device: its own light output first, as the board draws it,
- * then its table in slot order.
- *
- * The output row exists to carry a switch and reports no state of its own, so
- * it is left out for somebody who gets no switch: a line that says nothing to
- * a reader is not a row.
- */
-export const rowsOf = (sockets: Socket[], capabilities: DeviceCapabilities, mayManage = true): SocketRowModel[] => [
-  ...(capabilities.lightOverride && mayManage ? [lightOutputRow()] : []),
-  ...sockets.map(socketRow),
-];
+  const seen = new Map<SocketRole, number>();
+  return sockets.map(socket => {
+    const nth = (seen.get(socket.role) ?? 0) + 1;
+    seen.set(socket.role, nth);
+
+    return socketRow(socket, (perRole.get(socket.role) ?? 0) > 1 ? nth : null);
+  });
+};

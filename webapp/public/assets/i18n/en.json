@@ -711,6 +711,24 @@
     "controllers": "Controllers",
     "cameras": "Cameras",
     "sockets": "Smart sockets",
+    "lights": "Light",
+    "lightOutput": {
+      "title": "Light output",
+      "is": "the device's own output · dimmable",
+      "brightness": "Brightness",
+      "force": "Hold the light output",
+      "noLevel": "nothing reported",
+      "noLimit": "not stated",
+      "setTo": "Set to",
+      "running": "Running at",
+      "saving": "Saving the brightness…",
+      "saved": "Stored and sent. The device acknowledges no setting, so what it is running is the level above.",
+      "saveFailed": "That brightness was not saved.",
+      "noSettings": "This device has not sent its settings yet, so there is nothing to write a brightness into. It sends them when it next connects.",
+      "needsFirmware": "This build cannot be told to hold its light output. The brightness still reaches it — that is a setting and not a command.",
+      "keptForLater": "Nothing is listening, so the buttons reach nobody — a brightness is stored all the same, and the device is handed it when it connects again.",
+      "explained": "The device dims this output itself and ramps it through sunrise and sunset; the brightness is the most it gives. A smart socket with a light role has no level of its own — it follows this output on or off, unless it is being held. Hours of light count every hour the lamp is above zero, so dimming changes how bright the day is and not how long it is."
+    },
     "noDevices": "No device here yet. A controller joins with the claim code on its display.",
     "noCameras": "No camera here yet.",
     "readingSockets": "Reading the socket tables…",
@@ -774,7 +792,7 @@
       "manual": "Manual"
     },
     "socket": {
-      "needsFirmware": "This build takes no override. It keeps running exactly as it does; the switch arrives with the next controller firmware.",
+      "needsFirmware": "This build takes no override. Its sockets keep running exactly as they do; the switch arrives with the next controller firmware.",
       "offline": "Offline · nothing is listening, so nothing is sent.",
       "details": "What {{name}} is, and how long to hold it",
       "slot": "Slot",
@@ -789,8 +807,6 @@
       "asked": "Asked. The device reports back within half a minute.",
       "notListening": "Nobody was listening: the device has not been heard from. Nothing was changed.",
       "askFailed": "That did not reach the device.",
-      "ownOutput": "PWM output",
-      "roleIs": "role: {{role}}",
       "timer": "on {{on}} every {{every}}",
       "forced": "forced {{state}} · {{left}}",
       "unknownState": "not reported",
@@ -803,7 +819,9 @@
       "auto": "auto",
       "runs": "Came on",
       "runsValue_one": "{{count}}× in the last 24 h",
-      "runsValue_other": "{{count}}× in the last 24 h"
+      "runsValue_other": "{{count}}× in the last 24 h",
+      "isPlug": "smart plug",
+      "numbered": "{{name}} {{number}}"
     },
     "noDevicesHere": "No device here."
   },

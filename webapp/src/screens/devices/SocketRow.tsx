@@ -2,7 +2,7 @@ import { ChevronDown, ChevronRight, Plug } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ActuatorRuns, DeviceCapabilities, SocketOverrideState } from '@fg2/shared-types/v1';
+import type { ActuatorRuns, SocketOverrideState } from '@fg2/shared-types/v1';
 import { useSetOverride, useTestSocket } from '@/api/devices';
 import { ApiError } from '@/api/problem';
 import ui from '@/ui/ui.module.css';
@@ -17,7 +17,6 @@ const HOLD_MS = 450;
 interface SocketRowProps {
   row: SocketRowModel;
   deviceId: string;
-  capabilities: DeviceCapabilities;
   /**
    * Why nothing on this row can be switched, or null when it can. It is the
    * device's answer rather than the row's - an old build and a device nobody is
@@ -38,7 +37,12 @@ interface SocketRowProps {
 }
 
 /**
- * One socket, with the override on its switch.
+ * One smart socket, with the override on its switch.
+ *
+ * A socket is a plug: it is on or it is off, and a lamp on one is at whatever
+ * brightness its own driver gives it. That is the whole difference between this
+ * row and the light output above it, and it is why this row carries a switch and
+ * that one carries a dimmer.
  *
  * A tap forces the row the other way for a while; a tap while something is
  * forcing it hands it back to its role. Holding the switch opens the row, where
@@ -48,7 +52,7 @@ interface SocketRowProps {
  * Nothing here pretends a command arrived: the row goes on showing what the
  * device last reported, and what the command answered is said underneath.
  */
-export function SocketRow({ row, deviceId, capabilities, refusal, unheard, mayManage, runs, now }: SocketRowProps) {
+export function SocketRow({ row, deviceId, refusal, unheard, mayManage, runs, now }: SocketRowProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const override = useSetOverride();
@@ -57,13 +61,14 @@ export function SocketRow({ row, deviceId, capabilities, refusal, unheard, mayMa
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const forced = row.override && row.override.state !== 'auto' ? row.override : null;
+  const name = nameOf(t, row);
 
   const send = (state: SocketOverrideState, forSeconds: number) => override.mutate({ deviceId, target: row.target, state, forSeconds });
 
   /** A tap means "the other way" - and, while something is forcing the row, "let go". */
   const flip = () => {
     if (forced) return send('auto', 0);
-    send(row.state === 'on' ? 'off' : 'on', defaultHold(capabilities, row.role));
+    send(row.state === 'on' ? 'off' : 'on', defaultHold());
   };
 
   const startHold = () => {
@@ -84,13 +89,14 @@ export function SocketRow({ row, deviceId, capabilities, refusal, unheard, mayMa
       <div className={styles.socketHead}>
         <Plug className={styles.socketIcon} size={18} strokeWidth={1.75} aria-hidden />
         <div className={styles.rowText}>
-          <span className={styles.rowTitle}>{t(row.titleKey)}</span>
+          <span className={styles.rowTitle}>{name}</span>
           <span className={styles.rowNote}>{subtitle(t, row, now)}</span>
         </div>
         <span className={`mono ${styles.socketState}`}>{stateLine(t, row, runs, now, mayManage)}</span>
         {mayManage ? (
           <Control
             row={row}
+            name={name}
             forced={forced !== null}
             refusal={refusal}
             onFlip={() => {
@@ -98,7 +104,6 @@ export function SocketRow({ row, deviceId, capabilities, refusal, unheard, mayMa
               flip();
             }}
             onSet={send}
-            capabilities={capabilities}
             onHoldStart={startHold}
             onHoldEnd={endHold}
           />
@@ -107,7 +112,7 @@ export function SocketRow({ row, deviceId, capabilities, refusal, unheard, mayMa
           type="button"
           className={styles.expand}
           aria-expanded={open}
-          aria-label={t('devices.socket.details', { name: t(row.titleKey) })}
+          aria-label={t('devices.socket.details', { name })}
           onClick={() => setOpen(!open)}
         >
           {open ? <ChevronDown size={16} strokeWidth={2} aria-hidden /> : <ChevronRight size={16} strokeWidth={2} aria-hidden />}
@@ -119,9 +124,7 @@ export function SocketRow({ row, deviceId, capabilities, refusal, unheard, mayMa
       {open ? (
         <div className={styles.socketPanel}>
           <Facts>
-            {row.slot !== null ? (
-              <Fact label={t('devices.socket.slot')} value={row.slot < 0 ? t('devices.socket.byRole') : String(row.slot)} />
-            ) : null}
+            <Fact label={t('devices.socket.slot')} value={row.slot < 0 ? t('devices.socket.byRole') : String(row.slot)} />
             {row.address ? <Fact label={t('devices.socket.address')} value={row.address} /> : null}
             {row.hardwareId ? <Fact label={t('devices.socket.hardwareId')} value={row.hardwareId} /> : null}
             {row.stateChangedAt ? (
@@ -133,7 +136,7 @@ export function SocketRow({ row, deviceId, capabilities, refusal, unheard, mayMa
           {mayManage ? (
             <div className={styles.holds}>
               <span className="label">{t('devices.socket.holdFor')}</span>
-              {holdsFor(capabilities, row.role).map(seconds => (
+              {holdsFor().map(seconds => (
                 <button
                   key={seconds}
                   type="button"
@@ -149,12 +152,12 @@ export function SocketRow({ row, deviceId, capabilities, refusal, unheard, mayMa
                   {t('devices.socket.backToAuto')}
                 </button>
               ) : null}
-              {row.slot !== null && row.slot >= 0 ? (
+              {row.slot >= 0 ? (
                 <button
                   type="button"
                   className={ui.chip}
                   disabled={unheard !== null}
-                  onClick={() => test.mutate({ deviceId, slot: row.slot!, forSeconds: TEST_SECONDS })}
+                  onClick={() => test.mutate({ deviceId, slot: row.slot, forSeconds: TEST_SECONDS })}
                 >
                   {t('devices.socket.findIt')}
                 </button>
@@ -170,9 +173,9 @@ export function SocketRow({ row, deviceId, capabilities, refusal, unheard, mayMa
 
 interface ControlProps {
   row: SocketRowModel;
+  name: string;
   forced: boolean;
   refusal: string | null;
-  capabilities: DeviceCapabilities;
   onFlip: () => void;
   onSet: (state: SocketOverrideState, forSeconds: number) => void;
   onHoldStart: () => void;
@@ -181,14 +184,12 @@ interface ControlProps {
 
 /**
  * The switch, where the device says what the row is doing - and the three-way
- * where it does not. A row whose state is unknown is a build that reports the
- * older table, or the controller's own output, whose state is a series and not
- * a value anybody can read now: a switch would have to be drawn in a position
- * nobody checked, and that is the one thing it must not do.
+ * where it does not. A row whose state is unknown is a socket the module has
+ * never commanded or one that stopped answering: a switch would have to be drawn
+ * in a position nobody checked, and that is the one thing it must not do.
  */
-function Control({ row, forced, refusal, capabilities, onFlip, onSet, onHoldStart, onHoldEnd }: ControlProps) {
+function Control({ row, name, forced, refusal, onFlip, onSet, onHoldStart, onHoldEnd }: ControlProps) {
   const { t } = useTranslation();
-  const name = t(row.titleKey);
 
   if (row.state === 'unknown') {
     const current: SocketOverrideState = forced ? (row.override!.state as SocketOverrideState) : 'auto';
@@ -202,7 +203,7 @@ function Control({ row, forced, refusal, capabilities, onFlip, onSet, onHoldStar
             className={styles.threeWayOption}
             aria-pressed={state === current}
             disabled={refusal !== null}
-            onClick={() => onSet(state, state === 'auto' ? 0 : defaultHold(capabilities, row.role))}
+            onClick={() => onSet(state, state === 'auto' ? 0 : defaultHold())}
           >
             {t(`devices.socket.${state}`)}
           </button>
@@ -258,26 +259,33 @@ function Receipt({ result, error, pending }: { result?: { deviceOnline: boolean 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
- * What the row is: its role and where the device finds it, or the cycle a timed
+ * The row's name: the role, numbered where the role holds more than one socket.
+ * Two lamps in one tent are two rows called "Light", and a person switching one
+ * of them off has to know which one they have got.
+ */
+const nameOf = (t: Translate, row: SocketRowModel): string =>
+  row.ordinal === null ? t(row.titleKey) : t('devices.socket.numbered', { name: t(row.titleKey), number: row.ordinal });
+
+/**
+ * What the row is: a plug, and where the device finds it - or the cycle a timed
  * socket repeats.
  *
+ * It says "plug" first because the row above it may be the controller's own
+ * output, and the difference between the two is the whole point: this one is a
+ * socket on the network that is on or off, that one is a channel of the module
+ * that dims.
+ *
  * A socket that was answering and stopped says that here instead, and says
- * since when. It belongs on this line rather than beside the control, where the
- * name and a three-way are already sharing the width - and it is all this line
- * says, because the title already names the role and the address is one tap
- * away in the panel the chevron opens.
+ * since when.
  */
 const subtitle = (t: Translate, row: SocketRowModel, now: DateTime): string => {
   if (row.state === 'unknown' && row.stateChangedAt) return t('devices.socket.quiet', { age: ageLabel(row.stateChangedAt, now) });
-
-  const role = t('devices.socket.roleIs', { role: t(`devices.role.${row.role || 'unassigned'}`) });
-  if (row.slot === null) return [role, t('devices.socket.ownOutput')].join(' · ');
 
   const rest = row.timer
     ? t('devices.socket.timer', { on: durationLabel(row.timer.onSeconds), every: durationLabel(row.timer.everySeconds) })
     : row.address;
 
-  return [role, rest].filter(Boolean).join(' · ');
+  return [t('devices.socket.isPlug'), rest].filter(Boolean).join(' · ');
 };
 
 /**

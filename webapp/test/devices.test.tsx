@@ -8,22 +8,27 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Camera, DeviceCapabilities, Socket } from '@fg2/shared-types/v1';
+import type { Camera, Device, DeviceCapabilities, DeviceConfiguration, Socket } from '@fg2/shared-types/v1';
+import { LightOutputRow } from '@/screens/devices/LightOutputRow';
+import { lightOutputOf, withLightLimit } from '@/screens/devices/lights';
 import { SocketRow } from '@/screens/devices/SocketRow';
 import { defaultHold, holdsFor, rowsOf } from '@/screens/devices/sockets';
 import { cameraFreshness } from '@/screens/devices/cameras';
-import type { OverrideRequest } from '@/api/devices';
+import type { OutputLevel, OverrideRequest } from '@/api/devices';
 
 /**
- * The Devices tab's one moving part: the switch on a socket row.
+ * The two things the Devices tab lets a person move: the switch on a socket, and
+ * the dimmer on the controller's own light output.
  *
- * A tap forces the row the other way, a tap while something is forcing it hands
- * it back, and a build that takes no override is drawn disabled rather than
- * pretending. What a command answered is said underneath and never mistaken for
- * the row having changed: a row changes when the device says it did.
+ * They are different controls because they are different hardware and travel by
+ * different roads. A plug is on or off and is forced by a command a device
+ * either hears or does not; the output runs at a level, and that level is a key
+ * of the configuration document, which is stored whether anybody is listening or
+ * not. Neither control claims the device did what it was told.
  */
 
 const sent: OverrideRequest[] = [];
+const saved: { deviceId: string; configuration: DeviceConfiguration }[] = [];
 const state = vi.hoisted(() => ({ answer: { deviceOnline: true } as { deviceOnline: boolean } | undefined }));
 
 vi.mock('@/api/devices', async importOriginal => ({
@@ -35,6 +40,12 @@ vi.mock('@/api/devices', async importOriginal => ({
     isPending: false,
   }),
   useTestSocket: () => ({ mutate: () => {}, data: undefined, error: null, isPending: false }),
+  useSaveConfiguration: () => ({
+    mutate: (request: { deviceId: string; configuration: DeviceConfiguration }) => saved.push(request),
+    isPending: false,
+    isSuccess: false,
+    error: null,
+  }),
 }));
 
 const NOW = DateTime.fromISO('2026-09-19T12:00:00.000Z');
@@ -59,25 +70,33 @@ const socket = (over: Partial<Socket> = {}): Socket => ({
   ...over,
 });
 
-const draw = (one: Socket, capabilities = CAPABILITIES, refusal: string | null = null, mayManage = true, unheard: string | null = null) => {
-  const [row] = rowsOf([one], { ...capabilities, lightOverride: false });
-
-  return render(
+const wrap = (children: React.ReactNode) =>
+  render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <SocketRow
-          row={row}
-          deviceId="device-1"
-          capabilities={capabilities}
-          refusal={refusal}
-          unheard={unheard}
-          mayManage={mayManage}
-          runs={null}
-          now={NOW}
-        />
-      </MemoryRouter>
+      <MemoryRouter>{children}</MemoryRouter>
     </QueryClientProvider>,
   );
+
+const draw = (one: Socket, refusal: string | null = null, mayManage = true, unheard: string | null = null) => {
+  const [row] = rowsOf([one]);
+
+  return wrap(<SocketRow row={row} deviceId="device-1" refusal={refusal} unheard={unheard} mayManage={mayManage} runs={null} now={NOW} />);
+};
+
+const device = (configuration: DeviceConfiguration | null): Device => ({ id: 'device-1', type: 'controller', configuration }) as Device;
+
+const LIGHTS = { sunrise: 15, sunset: 15, limit: 80 };
+
+const drawOutput = (
+  configuration: DeviceConfiguration | null = { lights: LIGHTS },
+  capabilities = CAPABILITIES,
+  level: OutputLevel | null = { percent: 80, measuredAt: NOW.minus({ seconds: 20 }).toISO()! },
+  unheard: string | null = null,
+  mayManage = true,
+) => {
+  const output = lightOutputOf(device(configuration), capabilities, level)!;
+
+  return wrap(<LightOutputRow output={output} unheard={unheard} mayManage={mayManage} runs={null} now={NOW} />);
 };
 
 beforeAll(async () => {
@@ -89,6 +108,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   sent.length = 0;
+  saved.length = 0;
   state.answer = { deviceOnline: true };
 });
 
@@ -127,13 +147,13 @@ describe('the switch on a socket row', () => {
   });
 
   it('is drawn disabled when the build takes no override', () => {
-    draw(socket(), { ...CAPABILITIES, socketOverride: false }, 'This build takes no override.');
+    draw(socket(), 'This build takes no override.');
 
     expect(screen.getByRole('switch', { name: 'Force Heater' })).toBeDisabled();
   });
 
   it('is not drawn at all for somebody who may only look', () => {
-    draw(socket(), CAPABILITIES, null, false);
+    draw(socket(), null, false);
 
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     expect(screen.getByText('off')).toBeInTheDocument();
@@ -155,7 +175,7 @@ describe('the switch on a socket row', () => {
   });
 
   it('still offers to find a socket on a build that is too old to hold one', () => {
-    draw(socket(), { ...CAPABILITIES, socketOverride: false }, 'This build takes no override.');
+    draw(socket(), 'This build takes no override.');
 
     fireEvent.click(screen.getByRole('button', { name: /What Heater is/ }));
 
@@ -163,7 +183,7 @@ describe('the switch on a socket row', () => {
   });
 
   it('refuses to find a socket only where nobody is listening', () => {
-    draw(socket(), CAPABILITIES, 'Offline', true, 'Offline');
+    draw(socket(), 'Offline', true, 'Offline');
 
     fireEvent.click(screen.getByRole('button', { name: /What Heater is/ }));
 
@@ -184,24 +204,121 @@ describe('the switch on a socket row', () => {
 });
 
 describe('what a row is made of', () => {
-  it("puts the controller's own light output above the table, and only where the build takes one", () => {
-    expect(rowsOf([socket()], CAPABILITIES).map(row => row.key)).toEqual(['output-light', 'socket-0-heater']);
-    expect(rowsOf([socket()], { ...CAPABILITIES, lightOverride: false }).map(row => row.key)).toEqual(['socket-0-heater']);
+  it('is the device´s table and nothing else: an output is not a socket', () => {
+    expect(rowsOf([socket()]).map(row => row.key)).toEqual(['socket-0-heater']);
   });
 
-  it('leaves the output row out for somebody who may only look, because it carries nothing but a switch', () => {
-    expect(rowsOf([socket()], CAPABILITIES, false).map(row => row.key)).toEqual(['socket-0-heater']);
+  it('numbers the sockets of a role that has several, so two lamps are two rows a person can tell apart', () => {
+    const rows = rowsOf([
+      socket({ slot: 0, role: 'light', address: '10.0.0.61' }),
+      socket({ slot: 1, role: 'light', address: '10.0.0.62' }),
+      socket({ slot: 2, role: 'secondary_light', address: '10.0.0.63' }),
+    ]);
+
+    expect(rows.map(row => row.ordinal)).toEqual([1, 2, null]);
+    draw(socket({ slot: 1, role: 'light' }));
+    expect(screen.getByRole('switch', { name: 'Force Light' })).toBeInTheDocument();
   });
 
-  it('offers every hold whatever the role, because the pulse is a failsafe and not a minimum', () => {
+  it('says a socket is a plug, because the row above it may be the module´s own output', () => {
+    draw(socket({ role: 'light', address: '10.0.0.61' }));
+
+    expect(screen.getByText(/smart plug · 10.0.0.61/)).toBeInTheDocument();
+  });
+
+  it('offers every hold whatever is being held, because the pulse is a failsafe and not a minimum', () => {
     // `pulseSeconds` is the time after the last command at which the socket
     // switches itself off, so a role that carries one is held no differently
     // from a role that does not.
-    const holds = [900, 3600, 4 * 3600, 8 * 3600, 86400];
+    expect(holdsFor()).toEqual([900, 3600, 4 * 3600, 8 * 3600, 86400]);
+    expect(defaultHold()).toBe(3600);
+  });
+});
 
-    expect(holdsFor(CAPABILITIES, 'light')).toEqual(holds);
-    expect(holdsFor(CAPABILITIES, 'pump')).toEqual(holds);
-    expect(defaultHold(CAPABILITIES, 'light')).toBe(3600);
+/**
+ * The controller's own light output, which is the row that is not a socket.
+ *
+ * The firmware takes no command carrying a level: `socket_override` holds the
+ * output on or off and nothing else, and "on" means the brightness the stored
+ * configuration names. So the dimmer writes the configuration and the three
+ * buttons beside it send the command, and the two are refused for different
+ * reasons - which is the whole reason they are drawn apart.
+ */
+describe("the controller's own light output", () => {
+  it('says what the lamp is running at and how old that is, and offers no switch', () => {
+    drawOutput();
+
+    expect(screen.getByText(/80 % · 20 s ago/)).toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: 'Brightness' })).toHaveValue('80');
+  });
+
+  it('dims the lamp by writing the whole document back, keeping the ramps it was tuned with', () => {
+    drawOutput();
+
+    const slider = screen.getByRole('slider', { name: 'Brightness' });
+    fireEvent.change(slider, { target: { value: '40' } });
+    fireEvent.blur(slider);
+
+    expect(saved).toEqual([{ deviceId: 'device-1', configuration: { lights: { sunrise: 15, sunset: 15, limit: 40 } } }]);
+  });
+
+  it('holds the output on for a while, and hands it back with no duration at all', () => {
+    drawOutput();
+
+    fireEvent.click(screen.getByRole('button', { name: 'on' }));
+    fireEvent.click(screen.getByRole('button', { name: 'auto' }));
+
+    expect(sent).toEqual([
+      { deviceId: 'device-1', target: { kind: 'output', output: 'light' }, state: 'on', forSeconds: 3600 },
+      { deviceId: 'device-1', target: { kind: 'output', output: 'light' }, state: 'auto', forSeconds: 0 },
+    ]);
+  });
+
+  it('refuses to hold the output on a build that never announced it, and dims it all the same', () => {
+    drawOutput({ lights: LIGHTS }, { ...CAPABILITIES, lightOverride: false });
+
+    expect(screen.getByRole('button', { name: 'on' })).toBeDisabled();
+    expect(screen.getByText(/cannot be told to hold its light output/)).toBeInTheDocument();
+
+    const slider = screen.getByRole('slider', { name: 'Brightness' });
+    expect(slider).toBeEnabled();
+    fireEvent.change(slider, { target: { value: '55' } });
+    fireEvent.blur(slider);
+
+    expect(saved).toEqual([{ deviceId: 'device-1', configuration: { lights: { sunrise: 15, sunset: 15, limit: 55 } } }]);
+  });
+
+  it('stores a brightness for a device nobody is listening on, because a setting is not a command', () => {
+    drawOutput({ lights: LIGHTS }, CAPABILITIES, null, 'Offline · nothing is listening, so nothing is sent.');
+
+    expect(screen.getByRole('button', { name: 'off' })).toBeDisabled();
+    fireEvent.change(screen.getByRole('slider', { name: 'Brightness' }), { target: { value: '25' } });
+    fireEvent.blur(screen.getByRole('slider', { name: 'Brightness' }));
+
+    expect(saved).toHaveLength(1);
+    expect(screen.getByText('nothing reported')).toBeInTheDocument();
+  });
+
+  it('has nothing to write a brightness into until the device has sent its settings', () => {
+    drawOutput(null);
+
+    expect(screen.getByRole('slider', { name: 'Brightness' })).toBeDisabled();
+    expect(screen.getByText(/has not sent its settings yet/)).toBeInTheDocument();
+  });
+
+  it('is there for a build that announced the override, for one that states a brightness, and for a lamp that reported one', () => {
+    const none: DeviceCapabilities = { ...CAPABILITIES, lightOverride: false };
+
+    expect(lightOutputOf(device(null), CAPABILITIES, null)).not.toBeNull();
+    expect(lightOutputOf(device({ lights: LIGHTS }), none, null)?.limitPercent).toBe(80);
+    expect(lightOutputOf(device({}), none, { percent: 40, measuredAt: NOW.toISO()! })?.level?.percent).toBe(40);
+    expect(lightOutputOf(device({}), none, null)).toBeNull();
+  });
+
+  it('reads the brightness whether the document states it nested or flat, and writes only the nested one back', () => {
+    expect(lightOutputOf(device({ 'lights.limit': 60 }), CAPABILITIES, null)?.limitPercent).toBe(60);
+    expect(withLightLimit({ 'lights.limit': 60, day: { temperature: 25 } }, 30)).toEqual({ lights: { limit: 30 }, day: { temperature: 25 } });
   });
 });
 

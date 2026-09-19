@@ -270,6 +270,68 @@
   font-size: var(--text-xs);
 }
 
+/* The controller's own light output. It is a card of the same list, but it
+   carries a dimmer rather than a switch, so it is a line taller than a plug's
+   row and says so by having a rule under its head. */
+.dimmer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--rule-solid);
+}
+
+.slider {
+  flex: 1 1 140px;
+  min-width: 120px;
+  height: var(--chip-height);
+  accent-color: var(--brand);
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+.slider:disabled {
+  opacity: 0.45;
+}
+
+/* The figure the slider stands at, in the width its widest reading needs, so
+   dragging it does not shift everything beside it. */
+.level {
+  flex: none;
+  min-width: 3.5rem;
+  font-size: var(--text-sm);
+  text-align: right;
+}
+
+/* Holding the output on or off: three plain actions rather than a control drawn
+   in a position nobody checked. The device reports no override of its own
+   output, so none of them can claim to be the one in force. */
+.forces {
+  display: inline-flex;
+  flex: none;
+  border: var(--rule-solid);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.forceOption {
+  padding: 3px var(--space-2);
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-caption);
+  text-transform: uppercase;
+}
+
+.forceOption:disabled {
+  opacity: 0.45;
+}
+
 .socketPanel {
   display: flex;
   flex-direction: column;

@@ -1,11 +1,11 @@
 import { Camera as CameraIcon, ChevronDown, ChevronRight, Cpu } from 'lucide-react';
 import type { DateTime } from 'luxon';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { ActuatorRuns, Camera, ClimateVerdict, Device, OutputMetric, SocketPage, SocketRole, ValueState } from '@fg2/shared-types/v1';
 import { useCameras, useLatestStills } from '@/api/cameras';
-import { useDeviceFirmwares, useDevices, useSocketTables } from '@/api/devices';
+import { useDeviceFirmwares, useDevices, useLightLevels, useSocketTables } from '@/api/devices';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
@@ -16,7 +16,9 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { cameraFreshness } from './cameras';
 import { Fact, Facts } from './Facts';
-import { rowsOf } from './sockets';
+import { isLightRole, lightOutputOf } from './lights';
+import { LightOutputRow } from './LightOutputRow';
+import { rowsOf, type SocketRowModel } from './sockets';
 import { SocketRow } from './SocketRow';
 import styles from './Devices.module.css';
 
@@ -43,6 +45,10 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
     .sort((one, other) => RANK[deviceLiveness(one.state.lastSeenAt, now)] - RANK[deviceLiveness(other.state.lastSeenAt, now)]);
   const shown = cameras.data?.items ?? [];
   const tables = useSocketTables(mine.map(device => device.id));
+  // What each controller's lamp is running at. It is a reading and not a
+  // setting, and it is the only word the device gives on its own light output:
+  // a brightness is never acknowledged and an override is never reported back.
+  const levels = useLightLevels(mine.map(device => device.id));
   const stills = useLatestStills(shown.map(camera => camera.id));
 
   useReportFreshness(devices.dataUpdatedAt ? new Date(devices.dataUpdatedAt).toISOString() : null);
@@ -86,39 +92,66 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
 
       {mine.map(device => {
         const table = tables.tables.get(device.id);
-        const rows = table ? rowsOf(table.items, table.capabilities, mayManage) : [];
-        if (!table || rows.length === 0) return null;
+        if (!table) return null;
 
-        // Why none of these can be switched, said once: it is true of the
-        // device and not of a row, and repeating it eight times is noise. A
-        // device nobody is listening on hears nothing at all; one whose build
-        // predates the override still takes every command it always did, so
-        // that reason is kept apart from this one.
+        // What lights the tent stands apart from what else is plugged in, and
+        // the controller's own output stands at the head of it: a grower asking
+        // "why is it dark in there" is asking about one of these rows, and which
+        // of them it is is the question this screen used to leave open.
+        const rows = rowsOf(table.items);
+        const light = lightOutputOf(device, table.capabilities, levels.levels.get(device.id) ?? null);
+        const lamps = rows.filter(row => isLightRole(row.role));
+        const rest = rows.filter(row => !isLightRole(row.role));
+        if (!light && rows.length === 0) return null;
+
+        // Why none of the sockets can be switched, said once per list: it is
+        // true of the device and not of a row, and repeating it eight times is
+        // noise. A device nobody is listening on hears nothing at all; one whose
+        // build predates the override still takes every command it always did,
+        // so that reason is kept apart from this one.
         const unheard = deviceLiveness(device.state.lastSeenAt, now) === 'offline' ? t('devices.socket.offline') : null;
         const refusal = !table.capabilities.socketOverride ? t('devices.socket.needsFirmware') : unheard;
+        const place = placeOf(device.spaceId) ?? device.name ?? device.type;
+
+        const plugs = (list: SocketRowModel[]) =>
+          list.map(row => (
+            <SocketRow
+              key={row.key}
+              row={row}
+              deviceId={device.id}
+              refusal={refusal}
+              unheard={unheard}
+              mayManage={mayManage}
+              runs={runsOf(verdict, row.role)}
+              now={now}
+            />
+          ));
 
         return (
-          <section key={device.id} className={styles.section}>
-            <span className="label">
-              {t('devices.sockets')} · {placeOf(device.spaceId) ?? device.name ?? device.type}
-            </span>
-            {refusal && mayManage ? <p className={ui.note}>{refusal}</p> : null}
-            <ul className={styles.rows}>
-              {rows.map(row => (
-                <SocketRow
-                  key={row.key}
-                  row={row}
-                  deviceId={device.id}
-                  capabilities={table.capabilities}
-                  refusal={refusal}
-                  unheard={unheard}
-                  mayManage={mayManage}
-                  runs={runsOf(verdict, row.role)}
-                  now={now}
-                />
-              ))}
-            </ul>
-          </section>
+          <Fragment key={device.id}>
+            {light || lamps.length > 0 ? (
+              <section className={styles.section}>
+                <span className="label">
+                  {t('devices.lights')} · {place}
+                </span>
+                {refusal && mayManage && lamps.length > 0 ? <p className={ui.note}>{refusal}</p> : null}
+                <ul className={styles.rows}>
+                  {light ? <LightOutputRow output={light} unheard={unheard} mayManage={mayManage} runs={runsOf(verdict, 'light')} now={now} /> : null}
+                  {plugs(lamps)}
+                </ul>
+              </section>
+            ) : null}
+
+            {rest.length > 0 ? (
+              <section className={styles.section}>
+                <span className="label">
+                  {t('devices.sockets')} · {place}
+                </span>
+                {refusal && mayManage ? <p className={ui.note}>{refusal}</p> : null}
+                <ul className={styles.rows}>{plugs(rest)}</ul>
+              </section>
+            ) : null}
+          </Fragment>
         );
       })}
 
