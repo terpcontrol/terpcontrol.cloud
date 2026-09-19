@@ -270,6 +270,11 @@ strips harvest weights, and plant counts when that setting is on, for anyone who
 Routes declare their need with one decorator. Camera secrets, webhook targets, headers and payloads are never
 serialised to anyone but the owner.
 
+`publicProfile` gates the person, not the diary. Without it `/public/users/{handle}` answers 404 and a public
+grow's author carries no `bio` and no avatar; the handle is shown either way, because a diary has an author and
+the handle is the only name anybody ever gets. A grow's own `visibility` is what decides whether the grow is
+readable at all, so somebody can publish a diary without publishing a profile page.
+
 ## The API
 
 Everything below is under `/v1`. Every route that exists today and is not part of the device protocol is
@@ -292,7 +297,7 @@ removed together with the Angular app.
 | Media | `POST /media` (a photo), `GET /media/{id}`, `GET /media/{id}/content`, `DELETE /media/{id}` |
 | Schemes, charts | `GET/POST /schemes`, `PATCH/DELETE /schemes/{id}`, `GET/POST /chart-views`, `PATCH/DELETE /chart-views/{id}` |
 | Sharing | `GET/POST /share-links`, `PATCH/DELETE /share-links/{id}`, `PUT /share-links/{id}/revocation`, `GET /shared/{token}` (resolve), `GET /follows`, `PUT/DELETE /follows/{growId}` |
-| Public | `GET /public/grows/{slug}`, `GET /public/grows/{slug}/media/{id}`, `GET /public/grows/{slug}/card.png`, `GET /public/users/{handle}`; outside `/v1`, `GET /g/{slug}` and `GET /@{handle}` answer a small HTML shell with Open Graph tags |
+| Public | `GET /public/grows/{slug}`, `GET /public/grows/{slug}/media/{id}`, `GET /public/grows/{slug}/card.png`, `GET /public/users/{handle}`, `GET /public/users/{handle}/card.png`; outside `/v1`, `GET /g/{slug}` and `GET /@{handle}` answer a small HTML shell with Open Graph tags |
 | Admin | `GET/POST /admin/users`, `GET/PATCH/DELETE /admin/users/{id}`, `GET /admin/fleet`, `GET /admin/stats`, `GET /admin/logs`, `GET/POST /admin/devices`, `GET/POST /admin/device-classes`, `PATCH /admin/device-classes/{id}`, `GET/POST /admin/firmwares`, `PATCH/DELETE /admin/firmwares/{id}`, `PUT /admin/firmwares/{id}/binaries/{name}`, `PUT /admin/cameras/{id}/entitlement` |
 
 `GET /healthz` and `GET /readyz` replace `/` and `/readycheck`; the compose health check moves with them.
