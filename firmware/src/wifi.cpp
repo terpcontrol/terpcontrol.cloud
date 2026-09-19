@@ -56,6 +56,27 @@ static constexpr TickType_t SMART_SOCKET_ID_PROBE_INTERVAL = configTICK_RATE_HZ 
 // the role summary explicitly.
 static constexpr size_t SOCKETS_PER_REPORT_CHUNK = 3;
 static constexpr size_t MAX_REPORTED_VALUE_LEN = 288;
+// A row is reported again when its state changes, but no more often than this.
+// Without the re-report a socket that stopped answering would keep its last
+// reported state forever; without the limit an output oscillating around its
+// threshold would fill the log queue with tables.
+static constexpr TickType_t SMART_SOCKET_REPORT_MIN_INTERVAL = configTICK_RATE_HZ * 30;
+// Longest a cloud override or a socket timer may name. Both are bounded so the
+// tick arithmetic below cannot overflow, and so a mistyped duration cannot
+// outlive the reason for it by days.
+static constexpr uint32_t SOCKET_HOLD_MAX_SECONDS = 86400;
+// Longest address a row may carry. Three rows have to fit one log message, and
+// the address is the only field of a row without a bound of its own — 40
+// characters hold every IPv4 and every IPv6 literal (39 at most) and a short
+// hostname.
+static constexpr size_t SOCKET_ADDRESS_MAX_LEN = 40;
+// One report row at its longest: a role name, the Tasmota MAC, the address, the
+// state and an override or timer column, with a separator before each. The
+// assertion is what stops a longer role name or a sixth column from quietly
+// truncating a chunk into JSON the cloud cannot parse.
+static constexpr size_t SOCKET_ROW_MAX_LEN = 15 + 12 + SOCKET_ADDRESS_MAX_LEN + 3 + 19 + 4;
+static_assert(SOCKETS_PER_REPORT_CHUNK * (SOCKET_ROW_MAX_LEN + 1) <= MAX_REPORTED_VALUE_LEN,
+              "a socket_list chunk has to fit inside what one log message carries");
 
 
 namespace fg {
@@ -217,8 +238,11 @@ const std::vector<std::string>& getSocketRolesList();
 std::vector<std::string> getSocketRoleOptions();
 static std::string connectedSocketRolesCsv();
 static void reportSocketsHardwareInfo();
+static void reportSocketStateChanges();
 static bool isTerpCamSsid(const std::string& value);
 static bool isKnownSocketRole(const std::string& role);
+static bool isDeployedSocketRole(const std::string& role);
+static bool socketRoleRunsOnTimer(const std::string& role);
 boolean createConfigurationAP();
 bool connectToWifi(std::string ssid, std::string password);
 
@@ -269,14 +293,33 @@ struct SmartSocket {
   std::string user;      // empty -> default admin
   std::string password;  // empty -> default (provisioning mqtt password)
 
+  // What the roles that run on a timer repeat: on for so long, that often.
+  // Stored with the row, so it survives a restart.
+  uint32_t timer_on_s = 0;
+  uint32_t timer_every_s = 0;
+  TickType_t timer_cycle_tick = 0;
+
+  // A cloud override, in RAM only. It is consulted before the timer and before
+  // the role's target and dies with its expiry or with a reboot, which is what
+  // stops anything outside the firmware holding a socket indefinitely.
+  bool override_active = false;
+  bool override_on = false;
+  TickType_t override_until_tick = 0;
+
   bool initialized = false;
   bool last_target = false;
   bool id_probed = false;
+  // Whether the socket took the last command. A socket that stops answering
+  // reports an unknown state rather than the last one it was told.
+  bool state_known = false;
   TickType_t last_send_tick = 0;
   TickType_t disabled_until_tick = 0;
   TickType_t id_probe_tick = 0;
   uint8_t consecutive_failures = 0;   // drives the send backoff
   uint8_t failures_since_seen = 0;    // drives the network search
+  // What the last report said about this row, so a change can send the table
+  // again. See socketReportSignature().
+  uint8_t reported_signature = 0xFF;
 };
 
 static std::vector<SmartSocket> smart_sockets;
@@ -308,9 +351,21 @@ static fg::LanScan socket_search;
 static TickType_t socket_search_allowed_tick = 0;
 static bool socket_search_changed = false;
 
+// An override of the module's own light output, held like a socket's: in RAM,
+// with an expiry, so a reboot hands the light back to the day cycle.
+static bool light_output_override_active = false;
+static bool light_output_override_on = false;
+static TickType_t light_output_override_until_tick = 0;
+// When the socket table was last reported, which is what the re-report on a
+// state change is spaced out against.
+static TickType_t last_socket_report_tick = 0;
+
 static TickType_t socketRoleMinSendInterval(const std::string& role);
 static std::string socketAuthQuery(const SmartSocket& socket);
 static bool sendSocketPower(const SmartSocket& socket, bool turn_on);
+static bool socketOverrideHolds(SmartSocket& socket);
+static bool socketTarget(SmartSocket& socket, bool& drive);
+static uint8_t socketReportSignature(SmartSocket& socket);
 static void noteSocketCommandSent(SmartSocket& socket);
 static void syncSmartSockets();
 static void tickAuxDeviceSearch();
@@ -403,6 +458,7 @@ void wifiTick() {
   if(smart_socket_outputs_reported) {
     syncSmartSockets();
   }
+  reportSocketStateChanges();
 
   tickAuxDeviceSearch();
 }
@@ -437,7 +493,10 @@ void wifiForceAllSmartSocketsOff() {
   const TickType_t deadline = xTaskGetTickCount() + SMART_SOCKET_FLUSH_BUDGET;
   for(auto& socket : smart_sockets) {
     esp_task_wdt_reset();
-    sendSocketPower(socket, false);
+    // An override does not survive the reboot an update ends in, and it must
+    // not hold a socket on through the download either.
+    socket.override_active = false;
+    socket.state_known = sendSocketPower(socket, false);
     socket.last_target = false;
     socket.last_send_tick = xTaskGetTickCount();
     socket.initialized = true;
@@ -570,6 +629,7 @@ static void syncSmartSocket(SmartSocket& socket, bool target_on) {
   }
 
   const bool ok = sendSocketPower(socket, target_on);
+  socket.state_known = ok;
   if(ok) {
     socket.consecutive_failures = 0;
     socket.failures_since_seen = 0;
@@ -604,7 +664,70 @@ static bool socketTargetForRole(const std::string& role) {
   if(role == "light") return smart_socket_output_states.light_on;
   if(role == "secondary_light") return smart_socket_output_states.secondary_light_on;
   if(role == "co2") return smart_socket_output_states.co2_on;
+  if(role == "humidifier") return smart_socket_output_states.humidifier_on;
+  if(role == "exhaust") return smart_socket_output_states.exhaust_on;
+  if(role == "circulation" || role == "fan") return smart_socket_output_states.running;
+  // A pump and a custom timer run on the row's own timer, a manual socket only
+  // on an override, and a socket with no role is not driven at all.
   return false;
+}
+
+// Whether an override is holding this row right now. An expired one is
+// forgotten rather than left to the tick comparison: the tick counter wraps
+// every ~49 days, and a deadline long in the past would eventually read as
+// being in the future again.
+static bool socketOverrideHolds(SmartSocket& socket) {
+  if(!socket.override_active) {
+    return false;
+  }
+  if((int32_t)(socket.override_until_tick - xTaskGetTickCount()) > 0) {
+    return true;
+  }
+  socket.override_active = false;
+  return false;
+}
+
+// Where in its cycle a timed socket is. The cycle start is carried forward a
+// whole period at a time, so the unsigned difference stays smaller than one
+// period and the ~49 day tick wrap goes unnoticed.
+static bool socketTimerTarget(SmartSocket& socket) {
+  if(socket.timer_on_s == 0 || socket.timer_every_s == 0) {
+    return false;
+  }
+  const TickType_t period = (TickType_t)socket.timer_every_s * configTICK_RATE_HZ;
+  TickType_t elapsed = xTaskGetTickCount() - socket.timer_cycle_tick;
+  if(elapsed >= period) {
+    socket.timer_cycle_tick += period * (elapsed / period);
+    elapsed = xTaskGetTickCount() - socket.timer_cycle_tick;
+  }
+  return elapsed < (TickType_t)socket.timer_on_s * configTICK_RATE_HZ;
+}
+
+// What a socket should be doing, in the order the three answers override each
+// other: a cloud override first, then the row's timer, then the target its role
+// follows. `drive` says whether there is an answer at all — a socket with no
+// role and no override is one nobody assigned, so the module leaves it alone
+// and its own watchdog decides what happens to it.
+static bool socketTarget(SmartSocket& socket, bool& drive) {
+  drive = true;
+  if(socketOverrideHolds(socket)) {
+    return socket.override_on;
+  }
+  if(socketRoleRunsOnTimer(socket.role)) {
+    return socketTimerTarget(socket);
+  }
+  if(socket.role.empty()) {
+    drive = false;
+    return false;
+  }
+  return socketTargetForRole(socket.role);
+}
+
+// A socket nobody drives knows nothing about itself: the module stops
+// commanding it, so what it does next is between it and its own watchdog.
+static void releaseUndrivenSocket(SmartSocket& socket) {
+  socket.initialized = false;
+  socket.state_known = false;
 }
 
 static void syncSmartSockets() {
@@ -624,7 +747,12 @@ static void syncSmartSockets() {
   // couple of seconds, and a plain round-robin over a full table would stretch
   // that pulse well past its intended length.
   for(auto& socket : smart_sockets) {
-    const bool target = socketTargetForRole(socket.role);
+    bool drive = true;
+    const bool target = socketTarget(socket, drive);
+    if(!drive) {
+      releaseUndrivenSocket(socket);
+      continue;
+    }
     if(socket.initialized && socket.last_target == target) {
       continue;
     }
@@ -643,8 +771,14 @@ static void syncSmartSockets() {
       resend_cursor = 0;
     }
     SmartSocket& socket = smart_sockets[resend_cursor++];
+    bool drive = true;
+    const bool target = socketTarget(socket, drive);
+    if(!drive) {
+      releaseUndrivenSocket(socket);
+      continue;
+    }
     esp_task_wdt_reset();
-    syncSmartSocket(socket, socketTargetForRole(socket.role));
+    syncSmartSocket(socket, target);
     esp_task_wdt_reset();
     if((int32_t)(deadline - xTaskGetTickCount()) <= 0) {
       return;
@@ -674,10 +808,25 @@ uint8_t custom_mqtt_enabled;
 uint16_t socketRolePulseTimeValue(const std::string& role) {
   if(role == "heater") return 400;            // 300s
   if(role == "dehumidifier") return 700;      // 600s
+  if(role == "humidifier") return 700;        // 600s
   if(role == "co2") return 220;               // 120s
+  if(role == "pump") return 220;              // 120s
   if(role == "light") return 1900;            // 1800s
   if(role == "secondary_light") return 1900;  // 1800s
+  // Air keeps moving when the module falls silent: a fan left running is the
+  // harmless end of a controller that stopped talking, where a fan switched
+  // off in a closed tent is not.
+  if(role == "exhaust") return 1900;          // 1800s
+  if(role == "circulation") return 1900;      // 1800s
+  if(role == "fan") return 1900;              // 1800s
   return 400;                                 // 300s default
+}
+
+// The seconds each role's socket is given, as `hardware-info:socket_pulse`
+// reports them: Tasmota's own encoding turned back into seconds.
+static uint32_t socketRolePulseSeconds(const std::string& role) {
+  const uint16_t value = socketRolePulseTimeValue(role);
+  return value > 111 ? (uint32_t)(value - 100) : (uint32_t)value / 10;
 }
 
 // Minimum interval between two HTTP commands for a role. The 30s default
@@ -686,8 +835,10 @@ uint16_t socketRolePulseTimeValue(const std::string& role) {
 // ON+OFF pair per ~120s injection window, so it needs a short interval to
 // deliver its ~2s valve pulse (the OFF must follow the ON within seconds).
 static TickType_t socketRoleMinSendInterval(const std::string& role) {
-  if(role == "co2") return configTICK_RATE_HZ * 1;  // 1s
-  return SMART_SOCKET_MIN_SEND_INTERVAL;            // 30s
+  // A role that runs on a timer is exempt for the same reason as CO2: its ON
+  // is a pulse of seconds, and a 30s floor would stretch it past its length.
+  if(role == "co2" || socketRoleRunsOnTimer(role)) return configTICK_RATE_HZ * 1;  // 1s
+  return SMART_SOCKET_MIN_SEND_INTERVAL;                                           // 30s
 }
 
 static std::string defaultSocketAuthQuery() {
@@ -2200,14 +2351,23 @@ static void persistSmartSockets() {
     if(!socket.password.empty()) {
       record["p"] = socket.password;
     }
+    // The timer belongs to the socket, so it comes back with it after a power
+    // cut. An override deliberately does not.
+    if(socket.timer_on_s > 0 && socket.timer_every_s > 0) {
+      record["t"] = socket.timer_on_s;
+      record["e"] = socket.timer_every_s;
+    }
 
     char buffer[320];
     serializeJson(record, buffer, sizeof(buffer));
     fg::settings().setStr(key.c_str(), buffer);
   }
 
+  // Only the five roles a build without the table knows are written back to
+  // the per-role keys. The rest share one fallback key, so writing them there
+  // would let a rollback read one socket's address as another's role.
   for(const auto& role : getSocketRolesList()) {
-    if(role == "back") {
+    if(!isDeployedSocketRole(role)) {
       continue;
     }
     const SmartSocket* primary = nullptr;
@@ -2246,7 +2406,7 @@ static void migrateLegacySmartSockets() {
   bool adopted = false;
 
   for(const auto& role : getSocketRolesList()) {
-    if(role == "back" || smart_sockets.size() >= MAX_SMART_SOCKETS) {
+    if(!isDeployedSocketRole(role) || smart_sockets.size() >= MAX_SMART_SOCKETS) {
       continue;
     }
     const std::string ip = sanitizeSettingString(fg::settings().getStr(legacySocketRoleKey(role).c_str()));
@@ -2300,6 +2460,9 @@ static void ensureSmartSocketsLoaded() {
     socket.ip = record["a"] | "";
     socket.user = record["u"] | "";
     socket.password = record["p"] | "";
+    socket.timer_on_s = record["t"] | 0u;
+    socket.timer_every_s = record["e"] | 0u;
+    socket.timer_cycle_tick = xTaskGetTickCount();
     // A row that has lost its address keeps its place as long as it knows its
     // hardware id: that is what the network search finds it by, and dropping it
     // here would turn a socket that only moved into one that has to be paired
@@ -2449,8 +2612,29 @@ const std::vector<std::string>& getSocketRolesList() {
     "light",
     "secondary_light",
     "co2",
+    "humidifier",
+    "exhaust",
+    "circulation",
+    "fan",
+    "pump",
+    "custom_timer",
+    "manual",
   };
   return roles;
+}
+
+// The five roles every build in the field knows. They are the ones with a
+// per-role key in the pre-table storage, so they are also the only ones a
+// rollback to a build without this change finds where it looks for them.
+static bool isDeployedSocketRole(const std::string& role) {
+  return role == "dehumidifier" || role == "heater" || role == "light" ||
+         role == "secondary_light" || role == "co2";
+}
+
+// The roles that repeat on the row's own timer rather than following anything
+// the control loop computes.
+static bool socketRoleRunsOnTimer(const std::string& role) {
+  return role == "pump" || role == "custom_timer";
 }
 
 static std::string connectedSocketRolesCsv() {
@@ -2508,10 +2692,55 @@ static std::string connectedSocketIpsCsv() {
   return csv;
 }
 
+// What a row says about itself beyond its identity: whether it is on, off or
+// not known to be either, and whether an override or a timer is deciding that.
+// A change of this is what sends the table again - the seconds an override has
+// left are left out on purpose, because they tick down every second and would
+// re-report the table forever.
+static uint8_t socketReportSignature(SmartSocket& socket) {
+  const uint8_t state = !socket.state_known ? 0 : (socket.last_target ? 1 : 2);
+  const uint8_t hold = socketOverrideHolds(socket) ? (socket.override_on ? 1 : 2) : 0;
+  return (uint8_t)(state * 3 + hold);
+}
+
+// The state column: what the socket is doing, as far as the module knows. A
+// socket it cannot reach, or one nobody drives, is reported as neither on nor
+// off rather than as whatever it was last told.
+static std::string socketStateColumn(const SmartSocket& socket) {
+  if(!socket.state_known) {
+    return std::string();
+  }
+  return socket.last_target ? "on" : "off";
+}
+
+// The fifth column: the override holding the row, else the timer it repeats on,
+// else nothing. An override is reported with the seconds it has left, which is
+// what makes it readable as a deadline by whoever receives the report.
+static std::string socketHoldColumn(SmartSocket& socket) {
+  if(socketOverrideHolds(socket)) {
+    const TickType_t left = socket.override_until_tick - xTaskGetTickCount();
+    const uint32_t seconds = (uint32_t)((left + configTICK_RATE_HZ - 1) / configTICK_RATE_HZ);
+    return std::string("override=") + (socket.override_on ? "on" : "off") + "@" + std::to_string(seconds);
+  }
+  if(socket.timer_on_s > 0 && socket.timer_every_s > 0) {
+    return "timer=" + std::to_string(socket.timer_on_s) + "/" + std::to_string(socket.timer_every_s);
+  }
+  return std::string();
+}
+
+static std::string socketReportRow(SmartSocket& socket) {
+  // Everything but the address is bounded by what it can hold; a row stored by
+  // an older build may carry a longer one, and it loses its address here rather
+  // than pushing the chunk past what one log message carries.
+  const std::string address = socket.ip.size() <= SOCKET_ADDRESS_MAX_LEN ? socket.ip : std::string();
+  return socket.role + "|" + socket.id + "|" + address + "|" + socketStateColumn(socket) + "|" + socketHoldColumn(socket);
+}
+
 static void reportSocketsHardwareInfo() {
   if(smart_socket_cloud_handle == nullptr) {
     return;
   }
+  last_socket_report_tick = xTaskGetTickCount();
   smart_socket_cloud_handle->log("hardware-info:sockets=" + connectedSocketRolesCsv(), 0);
   smart_socket_cloud_handle->log("hardware-info:socket_ips=" + connectedSocketIpsCsv(), 0);
 
@@ -2532,10 +2761,56 @@ static void reportSocketsHardwareInfo() {
       if(!value.empty()) {
         value += ",";
       }
-      value += smart_sockets[slot].role + "|" + smart_sockets[slot].id + "|" + smart_sockets[slot].ip;
+      value += socketReportRow(smart_sockets[slot]);
+      smart_sockets[slot].reported_signature = socketReportSignature(smart_sockets[slot]);
     }
     smart_socket_cloud_handle->log("hardware-info:socket_list" + std::to_string(chunk) + "=" + value, 0);
   }
+}
+
+// Sends the table again once a row is doing something else than the last report
+// said. Spaced out, because a socket following an output that oscillates would
+// otherwise report on every control pass and fill the log queue.
+static void reportSocketStateChanges() {
+  if(smart_socket_cloud_handle == nullptr) {
+    return;
+  }
+  if((int32_t)(xTaskGetTickCount() - last_socket_report_tick) < (int32_t)SMART_SOCKET_REPORT_MIN_INTERVAL) {
+    return;
+  }
+  for(auto& socket : smart_sockets) {
+    if(socket.reported_signature != socketReportSignature(socket)) {
+      reportSocketsHardwareInfo();
+      return;
+    }
+  }
+}
+
+// What this build accepts, announced once at boot. The cloud cannot read the
+// firmware version as a number - it is the build's uuid - and a command a build
+// does not know is dropped without a word, so anything added since the builds
+// in the field has to be announced by name to be sent at all.
+static void reportSocketCapabilities() {
+  if(smart_socket_cloud_handle == nullptr) {
+    return;
+  }
+
+  std::string roles;
+  std::string pulses;
+  for(const auto& role : getSocketRolesList()) {
+    if(role == "back") {
+      continue;
+    }
+    // The unassigned role is not in here: it is the empty string, which a
+    // comma-separated list cannot carry, and no reader would gain anything
+    // from it. Every device accepts it.
+    roles += (roles.empty() ? "" : ",") + role;
+    pulses += (pulses.empty() ? "" : ",") + role + ":" + std::to_string(socketRolePulseSeconds(role));
+  }
+
+  smart_socket_cloud_handle->log("hardware-info:socket_roles=" + roles, 0);
+  smart_socket_cloud_handle->log("hardware-info:caps=socket_override,socket_timer,light_override", 0);
+  smart_socket_cloud_handle->log("hardware-info:socket_pulse=" + pulses, 0);
 }
 
 void wifiSetUserInterface(fg::UserInterface* ui) {
@@ -2545,6 +2820,7 @@ void wifiSetUserInterface(fg::UserInterface* ui) {
 void wifiInitAuxCloudReporting(fg::Fridgecloud* cloud) {
   smart_socket_cloud_handle = cloud;
   ensureSmartSocketsLoaded();
+  reportSocketCapabilities();
   reportSocketsHardwareInfo();
 
   if(cloud != nullptr) {
@@ -2570,6 +2846,11 @@ void wifiInitAuxCloudReporting(fg::Fridgecloud* cloud) {
 }
 
 static bool isKnownSocketRole(const std::string& role) {
+  // The empty role is "unassigned": a socket that is paired and reported but
+  // never driven. It is a role a command may set, not one the menu offers.
+  if(role.empty()) {
+    return true;
+  }
   const std::vector<std::string>& roles = getSocketRolesList();
   for(const auto& candidate : roles) {
     if(candidate != "back" && candidate == role) {
@@ -2633,16 +2914,28 @@ bool wifiRemoveSmartSocket(const std::string& role, int slot) {
   return true;
 }
 
-bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const std::string& user, const std::string& password, int slot, bool append, bool set_credentials) {
+bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const std::string& user, const std::string& password, int slot, bool append, bool set_credentials, uint32_t timer_on_s, uint32_t timer_every_s) {
   ensureSmartSocketsLoaded();
 
   if(!isKnownSocketRole(role)) {
     return false;
   }
 
+  // An address longer than a row can report is refused rather than stored and
+  // then left out of the table: a socket the cloud cannot see is worse than a
+  // command that says it did not work.
   const std::string clean_ip = sanitizeSettingString(ip);
-  if(clean_ip.empty() || clean_ip.size() > 64 || clean_ip.find(' ') != std::string::npos) {
+  if(clean_ip.empty() || clean_ip.size() > SOCKET_ADDRESS_MAX_LEN || clean_ip.find(' ') != std::string::npos) {
     return false;
+  }
+
+  // A timer names both halves or neither, and both are bounded like an
+  // override. On for at least as long as it is off makes no cycle.
+  if(timer_on_s > 0 || timer_every_s > 0) {
+    if(timer_on_s == 0 || timer_every_s == 0 || timer_on_s >= timer_every_s ||
+       timer_every_s > SOCKET_HOLD_MAX_SECONDS) {
+      return false;
+    }
   }
 
   const std::string clean_user = sanitizeSettingString(user);
@@ -2701,6 +2994,11 @@ bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const st
   }
   target->role = role;
   target->ip = clean_ip;
+  // The timer is part of the row a set writes, like the role beside it: a
+  // command that carries none leaves the socket without one.
+  target->timer_on_s = timer_on_s;
+  target->timer_every_s = timer_every_s;
+  target->timer_cycle_tick = xTaskGetTickCount();
   // Only a command that carries credentials touches them. Re-addressing a
   // socket is the common case — a DHCP lease moved it — and a socket that has
   // its own web password answers the default ones with 401, so overwriting
@@ -2746,6 +3044,64 @@ bool wifiTestSmartSocket(const std::string& role, int slot) {
   return ok;
 }
 
+// How long an override may hold, in ticks. `auto` ends one, which is why it
+// carries no duration.
+static bool overrideTicks(const std::string& state, uint32_t seconds, bool& active, bool& on, TickType_t& until_tick) {
+  if(state == "auto") {
+    active = false;
+    on = false;
+    return true;
+  }
+  if((state != "on" && state != "off") || seconds == 0 || seconds > SOCKET_HOLD_MAX_SECONDS) {
+    return false;
+  }
+  active = true;
+  on = state == "on";
+  until_tick = xTaskGetTickCount() + (TickType_t)seconds * configTICK_RATE_HZ;
+  return true;
+}
+
+bool wifiOverrideSmartSocket(int slot, const std::string& state, uint32_t seconds) {
+  ensureSmartSocketsLoaded();
+
+  // An override names one socket. The role cannot stand in for it the way it
+  // does for a removal: forcing every socket of a role from one tap is not
+  // something a caller could have meant before this command existed.
+  if(slot < 0 || (size_t)slot >= smart_sockets.size()) {
+    return false;
+  }
+
+  SmartSocket& socket = smart_sockets[(size_t)slot];
+  if(!overrideTicks(state, seconds, socket.override_active, socket.override_on, socket.override_until_tick)) {
+    return false;
+  }
+
+  // Somebody is waiting with a finger on a switch, so the socket is re-asserted
+  // on the next pass rather than at the end of the role's send interval.
+  socket.initialized = false;
+  return true;
+}
+
+bool wifiOverrideOutput(const std::string& output, const std::string& state, uint32_t seconds) {
+  if(output != "light") {
+    return false;
+  }
+  return overrideTicks(state, seconds, light_output_override_active, light_output_override_on, light_output_override_until_tick);
+}
+
+bool wifiLightOutputOverride(bool& on) {
+  if(!light_output_override_active) {
+    return false;
+  }
+  // Expired overrides are forgotten here for the same reason a socket's are.
+  if((int32_t)(light_output_override_until_tick - xTaskGetTickCount()) <= 0) {
+    light_output_override_active = false;
+    return false;
+  }
+  on = light_output_override_on;
+  return true;
+}
+
 bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
   if(!command["action"]) {
     return false;
@@ -2784,8 +3140,26 @@ bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
     // Adds a socket to the role rather than configuring the one it has. Absent
     // (every caller before a role could hold several) means the latter.
     const bool append = command["append"] | false;
-    if(!wifiSetSmartSocket(role, ip, user, password, slot, append, set_credentials) && cloud) {
+    // The timer the roles that run on one repeat. A command without it leaves
+    // the socket without a timer, as it leaves it without anything else it did
+    // not name.
+    const uint32_t timer_on_s = command["timer"]["onS"] | 0u;
+    const uint32_t timer_every_s = command["timer"]["everyS"] | 0u;
+    if(!wifiSetSmartSocket(role, ip, user, password, slot, append, set_credentials, timer_on_s, timer_every_s) && cloud) {
       cloud->log(std::string("message-aux-command-failed:socket_set:") + role, 1);
+    }
+    return true;
+  }
+
+  if(command["action"] == std::string("socket_override")) {
+    // One socket by its slot, or an output the module drives itself by name.
+    const std::string output = command["output"] | "";
+    const std::string state = command["state"] | "";
+    const uint32_t seconds = command["seconds"] | 0u;
+    const bool ok = output.empty() ? wifiOverrideSmartSocket(slot, state, seconds)
+                                   : wifiOverrideOutput(output, state, seconds);
+    if(!ok && cloud) {
+      cloud->log("message-aux-command-failed:socket_override:" + (output.empty() ? std::to_string(slot) : output), 1);
     }
     return true;
   }

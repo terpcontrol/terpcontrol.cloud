@@ -36,6 +36,53 @@ const simulatedSocketId = (role, ip) =>
     .slice(0, 12)
     .toUpperCase();
 
+// The roles the firmware knows, beside the unassigned one the empty string
+// stands for. A device is sent only a role it has announced, so announcing the
+// same list is what makes the new ones reachable here at all (`wifi.cpp`).
+const SOCKET_ROLES = [
+  'dehumidifier',
+  'heater',
+  'light',
+  'secondary_light',
+  'co2',
+  'humidifier',
+  'exhaust',
+  'circulation',
+  'fan',
+  'pump',
+  'custom_timer',
+  'manual',
+];
+
+// The commands beyond the three socket ones this build takes.
+const SOCKET_CAPABILITIES = ['socket_override', 'socket_timer', 'light_override'];
+
+// The roles that repeat on the row's own timer rather than following an output.
+const TIMED_SOCKET_ROLES = ['pump', 'custom_timer'];
+
+// The seconds a role's socket is given to switch itself off in if the module
+// stops talking to it - Tasmota's own watchdog, as the firmware programs it.
+const SOCKET_PULSE_SECONDS = {
+  heater: 300,
+  dehumidifier: 600,
+  humidifier: 600,
+  co2: 120,
+  pump: 120,
+  light: 1800,
+  secondary_light: 1800,
+  exhaust: 1800,
+  circulation: 1800,
+  fan: 1800,
+};
+const socketPulseSeconds = role => SOCKET_PULSE_SECONDS[role] ?? 300;
+
+// Bounds an override and a timer, as the firmware bounds them.
+const SOCKET_HOLD_MAX_SECONDS = 86400;
+// Longest address a row may carry: three rows have to fit one log message.
+const SOCKET_ADDRESS_MAX_LEN = 40;
+// A row is reported again when it changes, but no more often than this.
+const SOCKET_REPORT_MIN_MS = 30000;
+
 
 // ---------------------------------------------------------------- MQTT client
 
@@ -349,6 +396,43 @@ const step = (state, config, at, stepSeconds, random) => {
   };
 };
 
+/**
+ * What a socket role follows, as the firmware's control laws decide it: the
+ * outputs the module is already running for the five roles that have one, the
+ * cooling decision for an exhaust, the dehumidifier's band read the other way
+ * round for a humidifier, and anything that moves air whenever the module is
+ * controlling at all.
+ *
+ * The firmware is the witness. There is no PID and no hysteresis here, so the
+ * humidifier and the exhaust are read off the same sample the outputs are -
+ * enough to drive a screen, not a second implementation of the laws.
+ */
+const socketFollows = (role, sample, config, at) => {
+  const running = configValue(config, 'workmode', DEFAULT_CONFIG.workmode) !== 'off';
+  const secondsOfDay = at.getHours() * 3600 + at.getMinutes() * 60 + at.getSeconds();
+  const isDay = lightPercent(config, secondsOfDay) > 0.5;
+  const targetHumidity = configValue(config, isDay ? 'day.humidity' : 'night.humidity', isDay ? 60 : 55);
+  const targetTemperature = configValue(config, isDay ? 'day.temperature' : 'night.temperature', isDay ? 25 : 21);
+  const band = configValue(config, 'daynight.targetHumidityDiff', 5);
+
+  const follows = {
+    heater: sample.outputs.heater > 0,
+    dehumidifier: sample.outputs.dehumidifier > 0,
+    light: sample.outputs.light > 0,
+    secondary_light: sample.outputs.light > 0,
+    co2: sample.outputs.co2 > 0,
+    humidifier: running && sample.sensors.humidity < targetHumidity - band,
+    exhaust: running && sample.sensors.temperature > targetTemperature + 0.8,
+    circulation: running,
+    fan: running,
+  };
+  // A pump and a custom timer run on the row's timer, a manual socket only on
+  // an override, and an unassigned one is not driven at all. `=== true` rather
+  // than a lookup with a default, so a role this object has no answer for can
+  // never pick up one from the prototype chain.
+  return follows[role] === true;
+};
+
 // Trim a full sample down to the keys this hardware type reports and apply
 // whatever the caller pinned with --set.
 const shape = (sample, type, overrides) => {
@@ -567,11 +651,20 @@ class SimulatedDevice {
     this.memory.sockets = this.#loadSockets();
     this.captureCount = 0;
     this.configWaiters = [];
+    // An override of the module's own light output, held in RAM like a socket's.
+    this.lightOverride = null;
+    this.lastSocketReport = 0;
+    this.reportedSockets = null;
   }
 
+  // The device's NVS. What a socket is doing and an override holding it are RAM
+  // on real hardware, and are left out for the same reason: a restart is a
+  // power cycle, and an override that survived one would outlive the failsafe
+  // it is built on. The timer is part of the row and stays.
   remember() {
+    const inRam = new Set(['state', 'override', 'timerStart']);
     fs.mkdirSync(STATE_DIR, { recursive: true });
-    fs.writeFileSync(this.memoryFile, JSON.stringify(this.memory));
+    fs.writeFileSync(this.memoryFile, JSON.stringify(this.memory, (key, value) => (inRam.has(key) ? undefined : value)));
   }
 
   // Sockets used to be one address per role; they are a table now, any number
@@ -580,8 +673,11 @@ class SimulatedDevice {
   // it was paired with - the firmware migrates its own storage the same way.
   #loadSockets() {
     const stored = this.memory.sockets;
-    if (Array.isArray(stored)) return stored;
-    return Object.entries(stored ?? {}).map(([role, ip]) => ({ role, id: simulatedSocketId(role, ip), ip }));
+    const rows = Array.isArray(stored)
+      ? stored
+      : Object.entries(stored ?? {}).map(([role, ip]) => ({ role, id: simulatedSocketId(role, ip), ip }));
+    // Nothing is known about a socket until the device has commanded it once.
+    return rows.map(socket => ({ ...socket, state: null, override: null }));
   }
 
   // The broker refuses the odd connection attempt when its pooled HTTP
@@ -644,7 +740,21 @@ class SimulatedDevice {
       this.hardwareInfo('ppfd', 'on');
     }
     if (this.memory.webcamDid) this.hardwareInfo('webcam_did', this.memory.webcamDid);
+    this.publishCapabilities();
     this.publishSockets();
+  }
+
+  /**
+   * What this build understands, announced once per boot. The cloud cannot read
+   * the reported firmware version as anything but an opaque id, and a device
+   * drops a command it does not know without a word, so a role or a command
+   * added since the builds in the field is only ever sent to a device that has
+   * named it.
+   */
+  publishCapabilities() {
+    this.hardwareInfo('socket_roles', SOCKET_ROLES.join(','));
+    this.hardwareInfo('caps', SOCKET_CAPABILITIES.join(','));
+    this.hardwareInfo('socket_pulse', SOCKET_ROLES.map(role => `${role}:${socketPulseSeconds(role)}`).join(','));
   }
 
   // Pair a camera the way the module's menu does. The cloud turns the reported
@@ -681,6 +791,9 @@ class SimulatedDevice {
    * are the per-role summary older webapps read - one entry per role, however
    * many sockets share it - and the table itself travels as `sockets_n` plus
    * `socket_list<k>` chunks, because a log message has a fixed size budget.
+   *
+   * A row is `role|id|ip|state|override-or-timer`. A reader that stops after
+   * the third column reads exactly what it used to.
    */
   publishSockets() {
     const sockets = this.memory.sockets;
@@ -694,8 +807,72 @@ class SimulatedDevice {
     this.hardwareInfo('sockets_n', String(sockets.length));
     for (let chunk = 0; chunk * SOCKETS_PER_REPORT_CHUNK < sockets.length; chunk++) {
       const entries = sockets.slice(chunk * SOCKETS_PER_REPORT_CHUNK, (chunk + 1) * SOCKETS_PER_REPORT_CHUNK);
-      this.hardwareInfo(socketListKey(chunk), entries.map(socket => `${socket.role}|${socket.id}|${socket.ip}`).join(','));
+      this.hardwareInfo(socketListKey(chunk), entries.map(socket => this.#socketRow(socket)).join(','));
     }
+
+    this.reportedSockets = this.#socketSignature();
+    this.lastSocketReport = Date.now();
+  }
+
+  #socketRow(socket) {
+    return [socket.role, socket.id, socket.ip, socket.state ?? '', this.#socketHold(socket)].join('|');
+  }
+
+  // The fifth column: the override holding the row with the seconds it has
+  // left, else the timer it repeats on, else nothing.
+  #socketHold(socket) {
+    const left = this.#overrideSecondsLeft(socket);
+    if (left > 0) return `override=${socket.override.state}@${left}`;
+    if (socket.timer) return `timer=${socket.timer.onS}/${socket.timer.everyS}`;
+    return '';
+  }
+
+  #overrideSecondsLeft(socket) {
+    return socket.override ? Math.max(0, Math.ceil((socket.override.until - Date.now()) / 1000)) : 0;
+  }
+
+  // What the last report said about each row. The seconds an override has left
+  // are left out on purpose: they tick down every second and would re-send the
+  // table forever.
+  #socketSignature() {
+    const held = socket => (this.#overrideSecondsLeft(socket) > 0 ? socket.override.state : '');
+    return this.memory.sockets.map(socket => `${socket.state ?? ''}@${held(socket)}`).join(';');
+  }
+
+  /**
+   * What a socket is doing, in the order the three answers override each other:
+   * a cloud override first, then the row's timer for the roles that run on one,
+   * then the target the role follows. A socket nobody assigned is not driven at
+   * all, so the device knows nothing about it - which is what `null` says.
+   */
+  #socketState(socket, sample, at) {
+    const left = this.#overrideSecondsLeft(socket);
+    if (left > 0) return socket.override.state;
+    if (TIMED_SOCKET_ROLES.includes(socket.role)) return this.#timerState(socket);
+    if (!socket.role) return null;
+    return socketFollows(socket.role, sample, this.config, at) ? 'on' : 'off';
+  }
+
+  // Where in its cycle a timed socket is: on for `onS` out of every `everyS`,
+  // counted from when the timer was set, so a restart starts the cycle again.
+  #timerState(socket) {
+    if (!socket.timer) return 'off';
+    socket.timerStart ??= Date.now();
+    const elapsed = ((Date.now() - socket.timerStart) / 1000) % socket.timer.everyS;
+    return elapsed < socket.timer.onS ? 'on' : 'off';
+  }
+
+  /**
+   * Drives the sockets from the sample just published and sends the table again
+   * when a row is doing something else than the last report said - no more
+   * often than the firmware does it. Without the re-report a socket would keep
+   * the state of the boot report forever.
+   */
+  syncSockets(sample, at = new Date()) {
+    for (const socket of this.memory.sockets) socket.state = this.#socketState(socket, sample, at);
+    if (this.#socketSignature() === this.reportedSockets) return;
+    if (Date.now() - this.lastSocketReport < SOCKET_REPORT_MIN_MS) return;
+    this.publishSockets();
   }
 
   // Which sockets a command is aimed at: one named by its slot, or every
@@ -715,6 +892,16 @@ class SimulatedDevice {
     const failed = () => this.log(`message-aux-command-failed:socket_set:${command.role}`, 1);
     const existing = this.#addressedSockets(command);
 
+    // A role this build does not know is refused, as is an address longer than
+    // a report row can carry.
+    if (command.role !== '' && !SOCKET_ROLES.includes(command.role)) return failed();
+    if (!command.ip || String(command.ip).length > SOCKET_ADDRESS_MAX_LEN) return failed();
+
+    // A timer names both halves or neither, and on for at least as long as it
+    // is off is no cycle.
+    const timer = command.timer ? { onS: Number(command.timer.onS), everyS: Number(command.timer.everyS) } : null;
+    if (timer && !(timer.onS > 0 && timer.everyS > timer.onS && timer.everyS <= SOCKET_HOLD_MAX_SECONDS)) return failed();
+
     // A slot names one socket; a slot naming none is a stale table, not an
     // invitation to add one. `append` adds a socket to the role; without it the
     // command configures the role's one socket, and cannot tell which is meant
@@ -728,13 +915,43 @@ class SimulatedDevice {
     const target = command.append && !this.#namesSlot(command) ? -1 : (existing[0] ?? -1);
     if (target < 0 && this.memory.sockets.length >= MAX_SOCKETS) return failed();
 
-    const socket = { role: command.role, id: simulatedSocketId(command.role, command.ip), ip: command.ip };
+    // The timer is part of the row a set writes, like the role beside it: a
+    // command that carries none leaves the socket without one.
+    const socket = { role: command.role, id: simulatedSocketId(command.role, command.ip), ip: command.ip, timer, state: null, override: null };
     if (target < 0) this.memory.sockets.push(socket);
-    else this.memory.sockets[target] = socket;
+    else this.memory.sockets[target] = { ...socket, override: this.memory.sockets[target].override };
 
     this.remember();
     this.log(`message-smart-socket-connected:${socket.role}`);
     this.publishSockets();
+  }
+
+  /**
+   * Forces one socket, or the module's own light output, for a while; the state
+   * `auto` hands it back. The override lives in RAM with an expiry and is
+   * consulted before the row's timer and before its role's target, so it
+   * survives neither the expiry nor a restart. That is the failsafe.
+   */
+  #overrideSocket(command) {
+    const subject = command.output ? String(command.output) : Number(command.slot);
+    const failed = () => this.log(`message-aux-command-failed:socket_override:${subject}`, 1);
+    const seconds = Number(command.seconds ?? 0);
+    const clearing = command.state === 'auto';
+
+    if (!clearing && (!['on', 'off'].includes(command.state) || !(seconds > 0) || seconds > SOCKET_HOLD_MAX_SECONDS)) return failed();
+    const hold = clearing ? null : { state: command.state, until: Date.now() + seconds * 1000 };
+
+    if (command.output !== undefined) {
+      if (command.output !== 'light') return failed();
+      this.lightOverride = hold;
+      return;
+    }
+
+    // An override names one socket: forcing every socket of a role from one tap
+    // is not something a caller could have meant before this command existed.
+    const socket = this.memory.sockets[subject];
+    if (!socket) return failed();
+    socket.override = hold;
   }
 
   #removeSockets(command) {
@@ -836,6 +1053,9 @@ class SimulatedDevice {
         break;
       case 'reboot':
         this.testOutputs = null;
+        // An override is RAM and does not survive the restart.
+        this.lightOverride = null;
+        for (const socket of this.memory.sockets) socket.override = null;
         this.boot('REMOTE');
         break;
       case 'socket_set':
@@ -843,6 +1063,9 @@ class SimulatedDevice {
         break;
       case 'socket_remove':
         this.#removeSockets(command);
+        break;
+      case 'socket_override':
+        this.#overrideSocket(command);
         break;
       case 'socket_test':
         // The real device pulses the socket on and back off; nothing here has
@@ -875,6 +1098,12 @@ class SimulatedDevice {
       for (const key of ['heater', 'co2', 'dehumidifier']) {
         if (key in sample.outputs) sample.outputs[key] = 0;
       }
+    }
+    // An override from the cloud holds the light output for as long as it
+    // lasts, at the brightness the grower allows - after the control pass and
+    // the maintenance parking, exactly where the firmware applies it.
+    if (this.lightOverride && Date.now() < this.lightOverride.until && 'light' in sample.outputs) {
+      sample.outputs.light = this.lightOverride.state === 'on' ? configValue(this.config, 'lights.limit', 100) : 0;
     }
     return sample;
   }
@@ -1169,9 +1398,11 @@ const run = async options => {
       }
       console.log('reconnected');
     }
-    const sample = device.sample(new Date(), options.interval, options.overrides);
+    const now = new Date();
+    const sample = device.sample(now, options.interval, options.overrides);
     device.publishStatus(sample);
-    console.log(new Date().toISOString(), JSON.stringify(sample.sensors), JSON.stringify(sample.outputs));
+    device.syncSockets(sample, now);
+    console.log(now.toISOString(), JSON.stringify(sample.sensors), JSON.stringify(sample.outputs));
     await sleep(options.interval * 1000);
   }
 };

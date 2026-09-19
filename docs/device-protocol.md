@@ -144,7 +144,7 @@ Body (`fridgecloud.cpp:657-659`):
 
 The firmware checks for **200** (`:664`) and reads `claim_code` from the answer (`:672`); any other status yields
 an empty string and the display shows nothing. Called from the menu entry that shows the claim code
-(`wifi.cpp:1550`).
+(`wifi.cpp:1701`).
 
 Server side: `device-protocol.controller.ts` → `device-registration.service.ts`. The password is verified
 **only when the device has reported `hardware-info:claimcode_auth=on`**; otherwise any caller who
@@ -192,7 +192,7 @@ until no device in the field asks for them.
 
 It never authenticates with a session token, never polls, and never reports readings over HTTP. Everything else
 is MQTT. The two outbound HTTP calls a device makes to other hosts — Tasmota commands to a smart socket
-(`wifi.cpp:746-751`) and the camera's CGI over its P2P transport — are not part of this protocol.
+(`wifi.cpp:887-892`) and the camera's CGI over its P2P transport — are not part of this protocol.
 
 ---
 
@@ -327,9 +327,9 @@ A payload that is not JSON carries no `firmware_id` and is dropped rather than r
 
 ### 5.4 Which keys each hardware type reports
 
-- **controller** (`controller.cpp:963-996`) — sensors `temperature`, `humidity`, `sensor_type`, `co2`,
+- **controller** (`controller.cpp:1004-1037`) — sensors `temperature`, `humidity`, `sensor_type`, `co2`,
   `leaf_temperature`\*, `lux`\*; outputs `dehumidifier`, `heater`, `light`, `co2`.
-- **fridge** (`fridge.cpp:965-989`) — sensors `temperature`, `humidity`, `co2`; outputs `co2`, `dehumidifier`,
+- **fridge** (`fridge.cpp:1004-1028`) — sensors `temperature`, `humidity`, `co2`; outputs `co2`, `dehumidifier`,
   `heater`, `light`, `fan-internal`, `fan-external`, `fan-backwall`.
 - **plug** (`plug.cpp:810-826`) — sensors `temperature`, `humidity`, `co2`, `sensor_type`; output `relais`.
 - **fan** (`fan.cpp:182-194`) — sensors `temperature`, `humidity`, `rpm`, `day`; output `fan`.
@@ -337,7 +337,7 @@ A payload that is not JSON carries no `firmware_id` and is dropped rather than r
 - **cam** — nothing; it never calls `updateStatus` (`cam.cpp:64-66`).
 
 \* sent only when the optional sensor was detected, so no placeholder lands in the history
-(`controller.cpp:978-985`).
+(`controller.cpp:1019-1026`).
 
 Units and conventions:
 
@@ -345,11 +345,11 @@ Units and conventions:
   (`controller.h:74-77`, `plug.h:144-147`). Only the plug ever reports `3` (`plug.cpp:716`); the controller
   sets only the first three (`controller.cpp:180,669,708`).
 - `co2` on the controller is `-1` when no SCD sensor is fitted, for both the sensor and the output
-  (`controller.cpp:973,990`).
+  (`controller.cpp:1014,1031`).
 - The `co2` **output** is not a level: it is the number of ticks the valve was open since the last sample, reset
-  to zero after a successful publish (`controller.cpp:992-995`, `fridge.cpp:987-989`).
+  to zero after a successful publish (`controller.cpp:1033-1036`, `fridge.cpp:1026-1028`).
 - `heater` is the PID output, 0..1. `light` is a percentage, 0..100. `dehumidifier` and `relais` are 0 or 1. The
-  fridge's three fans are 0..1 (`fridge.cpp:982-984`). The fan's `fan` output is a percentage, and its `day`
+  fridge's three fans are 0..1 (`fridge.cpp:1021-1023`). The fan's `fan` output is a percentage, and its `day`
   sensor is `1.0` or `0.0` derived from a light sensor rather than the clock (`fan.cpp:191-192`).
 
 ---
@@ -395,18 +395,18 @@ The messages current firmware sends:
 | `message-device-booted:<reason>` | 0 | every type, at init | `fridgecloud.cpp:39-53,157-162` |
 | `message-device-firmware-update` | 0 | every type, before an OTA | `fridgecloud.cpp:190,210` |
 | `message-buffer-overflow` | 1 | every type, reading buffer full | `fridgecloud.cpp:490` |
-| `message-co2-low` | 0 | controller, fridge | `controller.cpp:890-903`, `fridge.cpp:942-953` |
+| `message-co2-low` | 0 | controller, fridge | `controller.cpp:931-944`, `fridge.cpp:981-992` |
 | `message-ext-sensor-deviate`, `message-ext-sensor-fail` | 0 | fridge | `fridge.cpp:129,139` |
-| `message-maintenance-mode-activated:<min>` | 0 | controller, fridge | `controller.cpp:1028`, `fridge.cpp:1023` |
+| `message-maintenance-mode-activated:<min>` | 0 | controller, fridge | `controller.cpp:1069`, `fridge.cpp:1062` |
 | `message-maintenance-mode-activated-remote:<min>` | 0 | controller, fridge | `controller.cpp:574`, `fridge.cpp:634` |
-| `message-smart-socket-connected:<role>` | 0 | pairing or `socket_set` | `wifi.cpp:2723,2973` |
-| `message-smart-socket-disconnected:<role>` | 0 | removal | `wifi.cpp:2618` |
-| `message-smart-socket-tested:<role>` | 0 | `socket_test` | `wifi.cpp:2801` |
-| `message-smart-socket-readdressed:<role>` | 0 | LAN search found it elsewhere | `wifi.cpp:2331` |
-| `message-smart-socket-address-lost:<role>` | 1 | identity probe mismatch | `wifi.cpp:494,536` |
-| `message-smart-socket-cmd-failed:<role>:<on\|off\|test>` | 1 | a socket HTTP command failed | `wifi.cpp:586,2797` |
-| `message-aux-command-failed:<what>` | 1 | a failed `cam_capture` or `socket_*` | `wifi.cpp:2758,2771,2788` |
-| `message-terp-cam-connected` | 0 | camera pairing | `wifi.cpp:1206` |
+| `message-smart-socket-connected:<role>` | 0 | pairing or `socket_set` | `wifi.cpp:3021,3347` |
+| `message-smart-socket-disconnected:<role>` | 0 | removal | `wifi.cpp:2899` |
+| `message-smart-socket-tested:<role>` | 0 | `socket_test` | `wifi.cpp:3175` |
+| `message-smart-socket-readdressed:<role>` | 0 | LAN search found it elsewhere | `wifi.cpp:2494` |
+| `message-smart-socket-address-lost:<role>` | 1 | identity probe mismatch | `wifi.cpp:553,595` |
+| `message-smart-socket-cmd-failed:<role>:<on\|off\|test>` | 1 | a socket HTTP command failed | `wifi.cpp:646,3171` |
+| `message-aux-command-failed:<what>` | 1 | a failed `cam_capture` or `socket_*` | `wifi.cpp:3114,3127,3149,3162` |
+| `message-terp-cam-connected` | 0 | camera pairing | `wifi.cpp:1357` |
 | `message-terp-cam-found` / `-not-found` | 0 / 1 | background camera search | `terpcam.cpp:473` |
 | `message-cam-reset:ok` / `:no-response` | 0 / 1 | camera factory reset | `terpcam.cpp:627` |
 | `message-cam-capture:skipped-low-heap …` | 1 | capture refused for want of heap | `terpcam.cpp:654-662` |
@@ -433,7 +433,8 @@ reply.
 Because it rides the log topic, a report inherits the log's limits: the queue may drop it when it is full, and
 the whole message has to fit the 384-byte serialisation buffer. That is why the firmware caps a reported value
 at `MAX_REPORTED_VALUE_LEN = 288` characters and splits the socket table into chunks of three
-(`wifi.cpp:53-58`).
+(`wifi.cpp:53-79`). Three rows at their longest are asserted against that cap at compile time, because a value
+over it would serialise into truncated JSON and the server would drop the whole chunk without a word.
 
 **Every key a device reports today:**
 
@@ -441,16 +442,19 @@ at `MAX_REPORTED_VALUE_LEN = 288` characters and splits the socket table into ch
 | --- | --- | --- | --- |
 | `claimcode_auth` | `on` | every type, at init | `fridgecloud.cpp:164` |
 | `firmware_version` | the build's uuid | every type, at init | `fridgecloud.cpp:165` |
-| `co2` | `on` / `off` | controller, when SCD presence changes | `controller.cpp:784` |
-| `leaf_temp` | `on` / `off` | controller, MLX90632 presence | `controller.cpp:793` |
-| `ppfd` | `on` / `off` | controller, VEML7700 presence | `controller.cpp:800` |
-| `sockets` | csv of roles that have a socket, or `none` | controller, fridge | `wifi.cpp:2515` |
-| `socket_ips` | `role@ip` per role, first socket only, or `none` | controller, fridge | `wifi.cpp:2516` |
-| `sockets_n` | how many rows the table holds | controller, fridge | `wifi.cpp:2523` |
-| `socket_list<k>` | up to three `role\|id\|ip` entries | controller, fridge | `wifi.cpp:2525-2537` |
-| `webcam_did` | the camera's device id, or `none` | at boot and on pairing | `wifi.cpp:2556-2558`, `:1207` |
-| `webcam_ip` | where the camera last answered, or `none` | at boot, and on discovery | `wifi.cpp:2562-2564` |
-| `webcam_url` | a legacy stored RTSP URL, or `none` | at boot | `wifi.cpp:2566-2568` |
+| `co2` | `on` / `off` | controller, when SCD presence changes | `controller.cpp:802` |
+| `leaf_temp` | `on` / `off` | controller, MLX90632 presence | `controller.cpp:811` |
+| `ppfd` | `on` / `off` | controller, VEML7700 presence | `controller.cpp:818` |
+| `sockets` | csv of roles that have a socket, or `none` | controller, fridge | `wifi.cpp:2744` |
+| `socket_ips` | `role@ip` per role, first socket only, or `none` | controller, fridge | `wifi.cpp:2745` |
+| `sockets_n` | how many rows the table holds | controller, fridge | `wifi.cpp:2752` |
+| `socket_list<k>` | up to three `role\|id\|ip\|state\|override-or-timer` entries | controller, fridge | `wifi.cpp:2754-2767` |
+| `socket_roles` | csv of the roles this build accepts | controller, fridge, at init | `wifi.cpp:2811` |
+| `caps` | csv of what it accepts beyond the frozen commands | controller, fridge, at init | `wifi.cpp:2812` |
+| `socket_pulse` | `role:seconds`: the failsafe each role's socket is given | controller, fridge, at init | `wifi.cpp:2813` |
+| `webcam_did` | the camera's device id, or `none` | at boot and on pairing | `wifi.cpp:2833-2835`, `:1358` |
+| `webcam_ip` | where the camera last answered, or `none` | at boot, and on discovery | `wifi.cpp:2839-2841` |
+| `webcam_url` | a legacy stored RTSP URL, or `none` | at boot | `wifi.cpp:2843-2845` |
 | `webcam_uid` | the camera's 20-byte P2P id, formatted | when discovery learns it | `terpcam.cpp:225-228` |
 | `webcam_pwd` | the password the controller set on the camera | after each securing attempt | `terpcam.cpp:566-571` |
 
@@ -460,7 +464,7 @@ discovery has learnt a new value, which is at the end of every capture.
 
 The `none` sentinel matters. A device reports `webcam_did=none` and `sockets=none` rather than staying silent,
 because silence cannot clear a stale value: the cloud would keep whatever it last heard, and a camera unpaired
-while the module was offline would look connected forever (`wifi.cpp:2551-2556`, `:2469-2473`).
+while the module was offline would look connected forever (`wifi.cpp:2828-2833`, `:2653-2657`).
 
 `webcam_pwd` is reported on **every** attempt to secure the camera, including the failed ones, where its value is
 the empty string (`terpcam.cpp:566-571`). Since securing is retried on every capture, a camera that cannot be
@@ -487,15 +491,18 @@ made when the device is claimed or the next time it reports.
 ### 6.3 The socket table, chunked and reassembled
 
 The full table cannot travel as one value, so it is reported as a count followed by chunks
-(`wifi.cpp:2511-2537`):
+(`wifi.cpp:2739-2767`):
 
 ```
-hardware-info:sockets=heater,light
-hardware-info:socket_ips=heater@192.168.1.60,light@192.168.1.61
+hardware-info:sockets=heater,light,pump
+hardware-info:socket_ips=heater@192.168.1.60,light@192.168.1.61,pump@192.168.1.63
 hardware-info:sockets_n=4
-hardware-info:socket_list0=heater|4C7525A1B2C3|192.168.1.60,heater|4C7525A1B2C4|192.168.1.62,light|…|…
-hardware-info:socket_list1=co2|…|…
+hardware-info:socket_list0=heater|4C7525A1B2C3|192.168.1.60|on|,heater|4C7525A1B2C4|192.168.1.62||,light|4C7525A1B2C5|192.168.1.61|off|override=off@120
+hardware-info:socket_list1=pump|4C7525A1B2C6|192.168.1.63|off|timer=30/900
 ```
+
+Four sockets: a heater that is on, a second heater the module could not reach and so says nothing about, a light
+an override is holding off for another two minutes, and a pump on a timer.
 
 Rules a reader has to follow:
 
@@ -504,26 +511,57 @@ Rules a reader has to follow:
 - `sockets_n` bounds the table. Chunks left over from a larger table must be ignored; the server also unsets
   them (`hardware-report.service.ts`).
 - The count is always sent **before** the chunks, so the cleanup never removes a chunk that is about to arrive.
-- Each entry is `role|id|ip`. `id` is the socket's Tasmota MAC in upper hex, learned after pairing; `ip` may be
-  empty for a row whose address was lost and which is being looked for again (`wifi.cpp:2535`). ADR 0001 adds two
-  columns to the row, `role|id|ip|state|override-or-timer`, where `state` is `on` or `off` and the last column is
-  `override=<on|off|auto>@<seconds>`, `timer=<onSeconds>/<everySeconds>` or empty. No shipped firmware sends them;
-  the decoder reads a row that ends after the third column as a socket whose state is unknown, which is what a
-  three-column parser does with the two new ones.
+- Each entry is `role|id|ip|state|override-or-timer` (`wifi.cpp:2731-2737`). `id` is the socket's Tasmota MAC in
+  upper hex, learned after pairing; `ip` may be empty for a row whose address was lost and which is being looked
+  for again (`wifi.cpp:2732`). `role` is empty for a socket nobody has assigned one to.
+- `state` is `on` or `off` when the module has commanded the socket and it answered, and **empty when it has
+  not**: a socket that stops answering, or one nobody drives, says nothing rather than repeating what it was
+  last told. A reader turns an empty state into "unknown".
+- The last column is `override=<on\|off>@<seconds>` with the seconds the override has left, `timer=<onS>/<everyS>`
+  for a socket that repeats on one, or empty. An override takes the column when both exist. `auto` is a state a
+  command may carry and one a report never does: it ends an override rather than being one.
+- A row from a build without the socket change ends after the third column, and a reader that stops there reads
+  every row the same way it always did. That is why the columns were added at the end.
+- The address a row can carry is bounded at `SOCKET_ADDRESS_MAX_LEN = 40` characters (`wifi.cpp:69-73`): three rows
+  have to fit one log message, and the address is the only column without a length of its own. Forty holds every
+  IPv4 and IPv6 literal and a short hostname; a longer one is refused by `socket_set` rather than stored and then
+  left out of the table.
 - `sockets` and `socket_ips` are the older, lossy summary: one entry per role. They stay because readers that
   predate the table understand them.
-- A whole report is re-sent on boot and on every change of the table (`wifi.cpp:2511`, called from
-  `wifiInitAuxCloudReporting` `:2548` and from each mutation at `:539,545,2365,2632,2725,2975`).
+- A whole report is re-sent on boot, on every change of the table (`wifi.cpp:2739`, called from
+  `wifiInitAuxCloudReporting` `:2824` and from each mutation at `:598,604,2528,2913,3023,3347`), and **when a
+  row's state or override changes, at most once per 30 s** (`SMART_SOCKET_REPORT_MIN_INTERVAL`,
+  `wifi.cpp:2769-2787`). Without that last rule a socket that stopped answering would keep the state of the boot
+  report forever; with no limit, an output oscillating around its threshold would fill the log queue with
+  tables. The seconds an override has left are deliberately not part of what counts as a change — they tick
+  down every second.
 
 How the report is spelled — `MAX_SOCKETS = 32`, `SOCKETS_PER_REPORT_CHUNK = 3`, `socketListKey`,
 `socketChunkCount` — is declared once in `shared-types/src/v1/socket-report.ts`, and the server and the simulator
 both read it from there. The decoders that turn a report into the rows the API answers with are in
 `server/src/modules/device-protocol/sockets.ts`; the web app reads those rows and never the report.
 
-Roles are a fixed list in the firmware: `dehumidifier`, `heater`, `light`, `secondary_light`, `co2`
-(`wifi.cpp:2444-2454`; the sixth entry `back` is a menu sentinel and never a role). Any number of sockets may
-share a role, up to `MAX_SMART_SOCKETS = 32` rows in total (`wifi.h:71`). A row with an unknown role is dropped
-when the table is loaded (`wifi.cpp:2307`).
+Roles are a fixed list in the firmware (`wifi.cpp:2607-2624`; the first entry `back` is a menu sentinel and never
+a role):
+
+| Role | What its socket follows |
+| --- | --- |
+| `dehumidifier` | the dehumidifier output |
+| `heater` | the heater output |
+| `light`, `secondary_light` | the light output |
+| `co2` | the CO2 valve |
+| `humidifier` | the dehumidifier's band read the other way round: on below the target minus `targetHumidityDiff`, off at the target |
+| `exhaust` | the cooling decision the temperature and breeding modes compute |
+| `circulation`, `fan` | anything: on whenever the module is controlling and not paused |
+| `pump`, `custom_timer` | the row's own timer, and nothing else |
+| `manual` | nothing: off unless an override holds it |
+| *(empty)* | nothing at all: an unassigned socket is never commanded |
+
+The five in the first block are what every build in the field knows; the rest arrive with the socket firmware
+change and are only ever sent to a device that announced them in `socket_roles`
+([12](#12-extending-it-safely)). Any number of sockets may share a role, up to `MAX_SMART_SOCKETS = 32` rows in
+total (`wifi.h:80`). A row with a role the build does not know is dropped when the table is loaded
+(`wifi.cpp:2470`), which is also what a rollback to a build without the new roles does with them.
 
 ---
 
@@ -607,7 +645,7 @@ Setting `mqttcontrol: true` on a `fridge`, `plug`, `fan` or `light` hands its ou
 (`fan.cpp:393-400`); light `light` (`light.cpp:344-351`). The controller has no `onControl` handler at all.
 
 Direct control expires 60 seconds after the last configuration message, after which the NVS configuration is
-reloaded (`fridge.h:119`, `fridge.cpp:837-841`; `plug.cpp:752-756`; `fan.cpp:166-170`; `light.cpp:82-86`). This
+reloaded (`fridge.h:119`, `fridge.cpp:859-863`; `plug.cpp:752-756`; `fan.cpp:166-170`; `light.cpp:82-86`). This
 server has never published on `control/#`.
 
 ---
@@ -625,10 +663,16 @@ own handler (`:226-232`).
 | `maintenance` | `durationMinutes` (number) | controller, fridge |
 | `test` | `outputs: { heater, dehumidifier, co2, lights, fanint, fanext, fanbw }` | fridge, fan |
 | `stoptest` | — | fridge, fan |
-| `socket_set` | `role`, `ip`, optional `slot`, `user`, `password`, `append` | controller, fridge |
+| `socket_set` | `role`, `ip`, optional `slot`, `user`, `password`, `append`, `timer { onS, everyS }` | controller, fridge |
 | `socket_remove` | `role`, optional `slot` | controller, fridge |
 | `socket_test` | `role`, optional `slot` | controller, fridge |
+| `socket_override` | `slot` **or** `output`, `state: on \| off \| auto`, `seconds` | controller, fridge announcing `socket_override` |
 | `cam_capture` | — | controller, fridge |
+
+`socket_set`'s `timer` and `socket_override` are the two additions since the builds in the field. They are sent
+only to a device that announced `socket_timer` and `socket_override` in `caps`, and a role outside `socket_roles`
+is never sent at all, because an old build drops what it does not know without a word
+([12](#12-extending-it-safely)).
 
 `plug`, `light` and `cam` have empty command handlers (`plug.cpp:588-590`, `light.cpp:353-360`,
 `cam.cpp:56-58`) and so honour nothing beyond `reboot`. None of `plug`, `fan`, `light` or `cam` calls
@@ -637,7 +681,7 @@ own handler (`:226-232`).
 
 **An action a device does not know is dropped silently.** There is no negative acknowledgement, no error log and
 no reply of any kind: the command subject fires, the type's handler matches nothing,
-`wifiHandleAuxCommand` returns `false` (`wifi.cpp:2806`), and the message ends there. That is the single most
+`wifiHandleAuxCommand` returns `false` (`wifi.cpp:3180`), and the message ends there. That is the single most
 important property for anything new: a caller cannot tell an unimplemented action from one that worked.
 
 ### 8.1 `reboot`
@@ -667,9 +711,9 @@ alone.
 
 The output names are the fridge's (`fridge.cpp:601-610`): `dehumidifier` and `co2` go to their pins as raw 8-bit
 values; `lights`, `fanint`, `fanext` and `fanbw` are percentages, multiplied by 2.55 into PWM; `heater` is a
-percentage of the control tick the heater is held on (`fridge.cpp:817`). Test mode lasts
+percentage of the control tick the heater is held on (`fridge.cpp:840`). Test mode lasts
 `TESTMODE_MAX_DURATION = 10`, decremented once per control tick of one second — about ten seconds after the last
-`test` (`fridge.h:121`, `fridge.cpp:813-814`; the `// times 10sec` comment at `fridge.h:121` is stale).
+`test` (`fridge.h:121`, `fridge.cpp:836-837`; the `// times 10sec` comment at `fridge.h:121` is stale).
 `stoptest` ends it at once (`fridge.cpp:627-628`).
 
 The fan accepts both actions but reads none of the values (`fan.cpp:384-389`). The controller, plug, light and
@@ -677,44 +721,67 @@ cam ignore them entirely.
 
 ### 8.4 The socket commands
 
-All three are composed server-side from a typed command (`device-publisher.service.ts`), so the action can only
-ever be one of `socket_remove`, `socket_test`, `socket_set`; the role must be one a device has announced;
-`socket_remove` and `socket_test` name the row by its slot and take the role from the table the device reported.
-A socket test asks the firmware for the pulse it already gives — two seconds — because the command carries no
-duration and old firmware would ignore one.
+All four are composed server-side from a typed command (`device-publisher.service.ts`), so the action can only
+ever be one of `socket_remove`, `socket_test`, `socket_set`, `socket_override`; the role must be one a device has
+announced; `socket_remove` and `socket_test` name the row by its slot and take the role from the table the device
+reported. A socket test asks the firmware for the pulse it already gives — two seconds — because the command
+carries no duration and old firmware would ignore one.
 
 **`slot` is optional everywhere and means one row of the table**, as reported in `socket_list<k>`. Left out, the
 command addresses every socket of the role for `socket_remove` and `socket_test`, and the single existing socket
 of the role for `socket_set` — which is all a command could mean back when a role could hold only one
-(`wifi.h:98-102`, `wifi.cpp:2585-2601`).
+(`wifi.h:107-111`, `wifi.cpp:2866-2882`).
 
-`socket_set` (`wifi.cpp:2636-2727`) assigns or re-addresses a socket. It fails — logging
-`message-aux-command-failed:socket_set:<role>` — for an unknown role, an empty or over-long address, an address
-containing a space, credentials over 48 characters, a role that already holds several sockets when no `slot` was
-named and `append` was not set, or a full table. Two subtleties:
+`socket_set` (`wifi.cpp:2917-3025`) assigns or re-addresses a socket. It fails — logging
+`message-aux-command-failed:socket_set:<role>` — for an unknown role, an empty address or one over
+`SOCKET_ADDRESS_MAX_LEN = 40` characters, an address containing a space, credentials over 48 characters, a timer
+that names one half without the other or is on for at least as long as its period, a role that already holds
+several sockets when no `slot` was named and `append` was not set, or a full table. Three subtleties:
 
 - **Credentials are only touched when the command carries them.** The firmware keys that on
-  `command.containsKey("password")` (`wifi.cpp:2783`), and the server only includes `user`/`password` in the
+  `command.containsKey("password")` (`wifi.cpp:3139`), and the server only includes `user`/`password` in the
   payload when the caller supplied either (`device-command.service.ts:108-111`). Sending an empty password
   explicitly puts the socket back on the device's default credentials; leaving both out re-addresses the socket
   and keeps whatever it had, which is what stops a re-addressing from locking the device out of a socket with
   its own web password.
 - **`append: true` adds a socket to a role** instead of configuring the one it has, because a caller who wants a
-  second heater has no slot to name yet (`wifi.cpp:2786`). An address the table already holds always
-  configures that existing row rather than adding a duplicate (`:2679-2686`).
+  second heater has no slot to name yet (`wifi.cpp:3142`). An address the table already holds always
+  configures that existing row rather than adding a duplicate (`:2969-2979`).
+- **The timer is part of the row a set writes**, the way the role and the address are: a command that carries
+  none leaves the socket without one (`wifi.cpp:2997-3001`). That is the opposite of how credentials behave,
+  and deliberately so — the caller sends the row it wants, and the credentials are the one thing it cannot
+  read back to send again. `timer { onS, everyS }` means on for `onS` seconds out of every `everyS`, is stored
+  in the socket's own NVS row and so survives a restart, and is only consulted for `pump` and `custom_timer`.
+  A restart starts the cycle again from its beginning.
 
-`socket_remove` (`wifi.cpp:2603-2634`) best-effort sends `Reset 1` to the socket so it reopens its pairing AP,
+`socket_override` (`wifi.cpp:3049-3103`, `:3154-3165`) forces one socket, or an output the module drives itself,
+for `seconds`; the state `auto` hands it back and carries no duration. The override **lives in RAM with an
+expiry** and is consulted before the row's timer and before its role's target, so it survives neither the expiry
+nor a reboot. That is the failsafe, and it is the point: with the socket's own `PulseTime` watchdog
+([11.2](#112-the-failsafe-that-switches-sockets-off)) it means nothing outside the firmware can hold a socket on
+for longer than it asked for. It fails — logging `message-aux-command-failed:socket_override:<slot or output>` —
+for a slot outside the table, a state that is not `on`, `off` or `auto`, a duration of zero or over
+`SOCKET_HOLD_MAX_SECONDS = 86400`, and for any `output` but `light`. A socket under an override is re-asserted on
+the next control pass rather than at the end of its role's send interval, because somebody is waiting with a
+finger on a switch.
+
+`{ "action": "socket_override", "output": "light", … }` holds the module's own light output instead of a socket:
+the light runs at the configured `lights.limit` while the override says on, and at nothing while it says off
+(`controller.cpp:906-913`, `fridge.cpp:958-965`). The light sockets follow the output, so they are held with it.
+This is the `light_override` capability, and it is the only output that takes one.
+
+`socket_remove` (`wifi.cpp:2884-2915`) best-effort sends `Reset 1` to the socket so it reopens its pairing AP,
 erases the rows, logs `message-smart-socket-disconnected:<role>` for each, and re-reports the table. It is
 idempotent for a known role and fails only on an unknown role or an out-of-range slot.
 
-`socket_test` (`wifi.cpp:2729-2747`) pulses the addressed sockets ON for two seconds and back OFF, blocking with
+`socket_test` (`wifi.cpp:3027-3045`) pulses the addressed sockets ON for two seconds and back OFF, blocking with
 the watchdog fed, and answers `message-smart-socket-tested:<role>` or
 `message-smart-socket-cmd-failed:<role>:test`. The control loop re-asserts the real target within its resend
 window afterwards.
 
 ### 8.5 `cam_capture`
 
-`{ "action": "cam_capture" }`, handled by `wifiHandleAuxCommand` (`wifi.cpp:2754-2761`) on the controller and the
+`{ "action": "cam_capture" }`, handled by `wifiHandleAuxCommand` (`wifi.cpp:3110-3117`) on the controller and the
 fridge. The camera pipeline asks for it, and the protocol module publishes it like every other command. A capture
 that fails logs
 `message-aux-command-failed:cam_capture`. See [9 The still cycle](#9-the-still-cycle).
@@ -726,7 +793,7 @@ that fails logs
 A camera is paired on the controller, in its menu. The controller stores the camera's device id in NVS and
 reports it as `hardware-info:webcam_did=<did>`; the cloud makes that a row of `cameras` of kind
 `terpcam_controller` and starts asking for pictures (`hardware-report.service.ts`). One camera per module: the
-pairing flow refuses a second while one is stored (`wifi.cpp:1231-1238`).
+pairing flow refuses a second while one is stored (`wifi.cpp:1382-1389`).
 
 The poller (`server/src/modules/image/webcam-poller.service.ts`) runs a pass every 5 s and asks each configured
 camera at most every 30 s, with a failure backoff of `min(30 s × 2^failures, 120 min)` (`:19-21,169-172`). It
@@ -810,7 +877,7 @@ transport is in the code in this repository; **the full vendor CGI recipe is doc
 5. The update subject is what makes the OTA safe: the controller and the fridge zero every output and flush every
    smart socket OFF **synchronously**, because the download blocks the loop task until the reboot and nothing
    else would push the OFF command out (`controller.cpp:584-603`, `fridge.cpp:646-667`,
-   `wifi.cpp:415-454`).
+   `wifi.cpp:471-513`).
 6. On success the device restarts, and the new id goes out on `fetch` and as `hardware-info:firmware_version`.
 7. The server compares the reported id: equal to the one it was running, nothing happens; different from the
    pending one, `devices.state.firmwareId` is updated and no more; equal to the pending one, the update is closed
@@ -841,7 +908,7 @@ A build compiled without `FIRMWARE_VERSION` defines `NO_FIRMWARE_UPDATE` and ign
 | `hardware-info` value cap (firmware) | 288 characters | `wifi.cpp:58` |
 | `hardware-info` key / value cap (server) | `[A-Za-z0-9_-]{1,64}` / 512 characters | `hardware-report.service.ts` |
 | Sockets per `socket_list` chunk | 3 | `wifi.cpp:57`, `device-protocol/sockets.ts` |
-| Smart sockets per device | 32 | `wifi.h:71`, `device-protocol/sockets.ts` |
+| Smart sockets per device | 32 | `wifi.h:80`, `device-protocol/sockets.ts` |
 | Consecutive failed publishes before a forced reconnect | 3 | `fridgecloud.h:88`, `.cpp:441-456` |
 | Tunnel slots | 3 | `fridgecloud.h:91` |
 | Tunnel TCP frame | ≤ 127 raw bytes, base64-encoded | `fridgecloud.h:19`, `.cpp:803-816` |
@@ -871,21 +938,30 @@ restarts:
 | Role | `PulseTime` |
 | --- | --- |
 | `heater` | 300 s |
-| `dehumidifier` | 600 s |
-| `co2` | 120 s |
+| `dehumidifier`, `humidifier` | 600 s |
+| `co2`, `pump` | 120 s |
 | `light`, `secondary_light` | 1800 s |
+| `exhaust`, `circulation`, `fan` | 1800 s |
 | anything else | 300 s |
 
-Source: `wifi.cpp:674-681`; the value is written at pairing (`wifi.cpp:2880-2885`). The controller resends every
-socket's state at least every `SMART_SOCKET_RESEND_PERIOD = 60 s` (`wifi.cpp:30,549-551`), so the timeout
-outlives normal operation and expires soon after a controller drops off the network. **Nothing outside the
-firmware can hold a socket on or off for longer than one resend period.**
+The three air roles get the light's long watchdog on purpose: a fan still running when the module falls silent
+is the harmless end of it, where a fan switched off in a closed tent is not.
 
-Around that: at most one command per role per 30 s, except `co2` which is exempt at 1 s because its valve pulse
-is two seconds long (`wifi.cpp:686-691`); three consecutive failures back a socket off for 300 s
-(`wifi.cpp:32-33,589-594`); ten failures trigger a LAN sweep that re-finds the socket by its MAC, with a 900 s
+Source: `wifi.cpp:808-826`; the value is written at pairing (`wifi.cpp:3254-3259`), and the same seconds are
+announced per role as `hardware-info:socket_pulse` ([6.2](#62-hardware-info)). A socket added by address from
+the cloud rather than paired through the module's own flow is never given one, because nothing but the pairing
+flow configures the plug. The controller resends every
+socket's state at least every `SMART_SOCKET_RESEND_PERIOD = 60 s` (`wifi.cpp:30,618-620`), so the timeout
+outlives normal operation and expires soon after a controller drops off the network. **Nothing outside the
+firmware can hold a socket on or off for longer than one resend period** — an override included: it is held in
+the module's RAM, and a reboot ends it as surely as its expiry does.
+
+Around that: at most one command per role per 30 s, except `co2`, `pump` and `custom_timer`, which are exempt at
+1 s because their ON is a pulse of seconds a 30 s floor would stretch (`wifi.cpp:837-844`); three consecutive
+failures back a socket off for 300 s
+(`wifi.cpp:32-33,649-654`); ten failures trigger a LAN sweep that re-finds the socket by its MAC, with a 900 s
 cooldown (`wifi.cpp:39-42`); a reachable socket is asked for its hardware id every 600 s, and a mismatch clears
-the stored address and logs `message-smart-socket-address-lost` (`wifi.cpp:52,510-546`). One control pass spends
+the stored address and logs `message-smart-socket-address-lost` (`wifi.cpp:52,569-605`). One control pass spends
 at most 2 s on sockets, and the pre-OTA flush at most 20 s (`wifi.cpp:46,48`).
 
 ---
@@ -900,13 +976,18 @@ at most 2 s on sockets, and the pre-OTA flush at most 20 s (`wifi.cpp:46,48`).
 | `claimcode_auth` | whether `POST /device/claimcode` needs the device password |
 | `co2`, `leaf_temp`, `ppfd` | which optional sensors are fitted |
 | `sockets`, `sockets_n`, `socket_list<k>` | that this build reports a socket table, and what is in it |
-| `socket_roles`, `caps`, `socket_pulse` | the roles, commands and minimum on-times the socket firmware change adds |
+| `socket_roles` | every role this build accepts, the empty "unassigned" one aside |
+| `caps` | what it accepts beyond the frozen commands: `socket_override`, `socket_timer`, `light_override` |
+| `socket_pulse` | the failsafe seconds each role's socket is programmed with at pairing |
 | `webcam_did`, `webcam_uid`, `webcam_pwd`, `webcam_ip`, `webcam_url` | that a camera is paired, and how to reach it |
 
 Note the difference between a key with the value `none` and a key that is absent. `sockets=none` and
 `webcam_did=none` mean "this build reports, and there is nothing"; the key missing altogether means "firmware too
-old to report". That distinction is deliberate (`wifi.cpp:2469-2473`, `:2551-2556`) and is the only reliable feature
-test in the protocol. ADR 0001's new socket keys (`socket_roles`, `caps`, `socket_pulse`) follow the same rule.
+old to report". That distinction is deliberate (`wifi.cpp:2653-2657`, `:2828-2833`) and is the only reliable feature
+test in the protocol. The socket keys (`socket_roles`, `caps`, `socket_pulse`) follow the same rule: a device
+that reports none of them is a build from before the socket change, is offered exactly the five roles every
+build knows, and is never sent `socket_override` or a `timer`. `socket_roles` cannot carry the unassigned role,
+which is the empty string and would vanish from a comma-separated list; every build takes it.
 
 **A version comparison cannot be used as a gate.** The firmware version a device reports — in `fetch` and as
 `hardware-info:firmware_version` — is `FIRMWARE_VERSION`, a compile-time define whose value is the **uuid** the
@@ -916,7 +997,7 @@ server's firmware record and never reaches the device. So there is no "if newer 
 protocol. The only thing a device's id is good for is equality against the id it was told to install.
 
 **An unknown command is dropped silently by old firmware.** No error, no log line, no reply
-(`fridgecloud.cpp:218-233`, `wifi.cpp:2806`). A new action sent to a device that does not know it looks
+(`fridgecloud.cpp:218-233`, `wifi.cpp:3180`). A new action sent to a device that does not know it looks
 exactly like one that worked. The same holds for a configuration key a device does not parse: it is ignored, and
 it also vanishes from the stored copy the next time the device uploads its settings
 ([7](#7-the-configuration-document)).
@@ -964,6 +1045,16 @@ reader of either should not conclude from it.
 - **Camera identity.** The firmware reports `webcam_did`, `webcam_uid`, `webcam_pwd`, `webcam_ip` and
   `webcam_url`. The simulator reports only `webcam_did`, so a simulated camera always takes the controller path
   and never exercises the direct one.
+- **Who reports sockets.** Only the controller and the fridge call `wifiInitAuxCloudReporting`, so only they
+  report a socket table and the three capability keys. The simulator reports both for every type it can be
+  started as, which means a simulated `plug` or `light` announces sockets no real one of that type ever would.
+- **The new control laws.** The firmware decides a humidifier from the dehumidifier's band and hysteresis and an
+  exhaust from the cooling decision the mode computed, with the state each of them carries between passes. The
+  simulator has neither a PID nor hysteresis and reads both off the sample it has just published — the same
+  shape, not the same code. What a socket does in the field is what the firmware does.
+- **The socket state column.** The firmware reports `on` or `off` only for a socket that answered its last
+  command, and nothing for one it could not reach, because the socket is HTTP away. Nothing in the simulator can
+  fail to answer, so its rows never report an unknown state after the first command.
 - **The tunnel.** Firmware and server implement it fully in both directions; the simulator does not implement it
   at all and its `watch` command only prints what arrives.
 - **`fwupdate` and `control/#`.** Subscribed by every device; published by neither the server nor the simulator.

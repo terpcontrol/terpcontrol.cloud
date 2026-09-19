@@ -56,12 +56,21 @@ namespace fg {
 
 }
 
+// What the hardware type is doing, as the socket roles that follow an output
+// read it. Roles that run on their own timer (pump, custom timer), one that
+// only ever follows an override (manual) and a socket with no role at all are
+// not in here: nothing the control loop computes decides them.
 struct SmartSocketOutputStates {
   bool dehumidifier_on = false;
   bool heater_on = false;
   bool light_on = false;
   bool secondary_light_on = false;
   bool co2_on = false;
+  bool humidifier_on = false;
+  bool exhaust_on = false;
+  // Circulation and fan sockets move air whenever the module is controlling at
+  // all, so both follow this instead of an output of their own.
+  bool running = false;
 };
 
 // Upper bound on the number of paired smart sockets. Any number of them may
@@ -122,11 +131,32 @@ bool wifiRemoveSmartSocket(const std::string& role, int slot = -1);
 // A caller that wants a second heater has no slot to name yet — the socket
 // does not exist — so it has to say so, and a slotless set keeps meaning
 // "configure this role's socket" for everyone who called it before.
-bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const std::string& user, const std::string& password, int slot = -1, bool append = false, bool set_credentials = true);
+//
+// `timer_on_s` / `timer_every_s` is what the roles that run on a timer repeat:
+// on for so long, that often. It belongs to the row and is stored with it, so
+// it survives a restart where an override does not. Zero is no timer, and a
+// command carrying none clears whatever the row had — the timer is part of what
+// a set writes, like the role and the address beside it.
+bool wifiSetSmartSocket(const std::string& role, const std::string& ip, const std::string& user, const std::string& password, int slot = -1, bool append = false, bool set_credentials = true, uint32_t timer_on_s = 0, uint32_t timer_every_s = 0);
 
 // Pulses the addressed sockets ON for ~2s and back OFF (blocking, watchdog-fed).
 // The control loop re-asserts the desired state within its resend window.
 bool wifiTestSmartSocket(const std::string& role, int slot = -1);
+
+// Forces one socket on or off for `seconds`; the state "auto" hands it back to
+// its role. The override lives in RAM with an expiry and is consulted before
+// the row's timer and before its role's target, so it survives neither the
+// expiry nor a reboot. That is the failsafe: nothing outside the firmware can
+// hold a socket for longer than it asked for.
+bool wifiOverrideSmartSocket(int slot, const std::string& state, uint32_t seconds);
+
+// The same for an output the module drives itself rather than through a socket.
+// Only the light output takes one.
+bool wifiOverrideOutput(const std::string& output, const std::string& state, uint32_t seconds);
+
+// Whether an override is holding the module's own light output, and to what.
+// The hardware type asks once it has computed the light it would otherwise run.
+bool wifiLightOutputOverride(bool& on);
 
 // Handles the cloud aux-device commands shared by all socket-capable
 // hwtypes (socket_remove / socket_set / socket_test). Returns true when the

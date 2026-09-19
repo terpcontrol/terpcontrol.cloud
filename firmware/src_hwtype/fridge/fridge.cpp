@@ -807,9 +807,31 @@ namespace fg {
     }
   }
 
+  // The humidifier is the dehumidifier's rule read the other way round: it runs
+  // while the air is drier than the target by more than the same band and stops
+  // once it is back at the target. It drives no output of the module's own,
+  // only a socket, so it is decided here rather than in a control pass.
+  static bool humidifierTarget(float humidity, float target, float band, bool stopped) {
+    static bool humidify = false;
+    if(stopped) {
+      humidify = false;
+    }
+    else if(humidify) {
+      humidify = humidity < target;
+    }
+    else {
+      humidify = humidity < (target - band);
+    }
+    return humidify;
+  }
+
   void FridgeController::loop() {
     updateSensors();
     checkDayCycle();
+
+    // Whether the module is cooling right now, which is what an exhaust socket
+    // follows: it is the same decision, taken by whichever mode computes it.
+    bool cooling_on = false;
 
     if(testmode_duration > 0) {
       testmode_duration--;
@@ -889,6 +911,7 @@ namespace fg {
         Serial.println("MODE TEMP");
         controlLight();
         controlCooling();
+        cooling_on = state.out_dehumidifier > 0;
         controlHeater();
         controlCo2();
         out_fan_external.set(settings.fans.external * 2.55);
@@ -906,6 +929,7 @@ namespace fg {
         Serial.println("MODE BREED");
         controlHeater();
         controlCooling();
+        cooling_on = state.out_dehumidifier > 0;
         out_co2.set(0);
         out_light.set(0);
         state.out_light = 0;
@@ -931,12 +955,27 @@ namespace fg {
           out_light.set(255.0f * (state.out_light / 100.0f));
       }
 
+      // An override from the cloud holds the light for as long as it lasts, at
+      // the brightness the grower allows. The light sockets follow the output,
+      // so they are held with it.
+      bool light_forced_on = false;
+      if(wifiLightOutputOverride(light_forced_on)) {
+        state.out_light = light_forced_on ? settings.lights.limit : 0;
+        out_light.set(255.0f * (state.out_light / 100.0f));
+      }
+
+      const bool controlling = settings.workmode != FridgeControllerSettings::MODE_OFF && !isPaused();
+
       SmartSocketOutputStates socket_states;
       socket_states.dehumidifier_on = state.out_dehumidifier > 0;
       socket_states.heater_on = state.out_heater > 0;
       socket_states.light_on = state.out_light > 0;
       socket_states.secondary_light_on = state.out_light > 0;
       socket_states.co2_on = state.out_co2 > 0;
+      socket_states.humidifier_on = humidifierTarget(state.humidity, state.target_humidity,
+                                                     settings.daynight.targetHumidityDiff, !controlling);
+      socket_states.exhaust_on = cooling_on;
+      socket_states.running = controlling;
       wifiReportSmartSocketOutputs(socket_states);
 
       if(state.co2 < CO2_LEVEL_CRITICAL) {
