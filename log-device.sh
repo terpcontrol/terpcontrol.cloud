@@ -15,7 +15,4 @@ DOCKER_USB_MOUNTS=${DOCKER_USB_MOUNTS:--v /dev/bus/usb:/dev/bus/usb --device /de
 docker run -it --rm \
   --privileged \
   ${DOCKER_USB_MOUNTS} \
-  -e LANG=C.UTF-8 \
-  -e LC_ALL=C.UTF-8 \
-  -e PYTHONIOENCODING=utf-8 \
-  plantalytix-buildcontainer pio device monitor -p /dev/ttyUSB0
+  plantalytix-buildcontainer pio device monitor -p /dev/ttyUSB0 -b 115200
