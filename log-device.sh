@@ -10,7 +10,7 @@ docker build -t plantalytix-buildcontainer fw-buildcontainer
 INIT_USB_LOCAL="$(dirname "${BASH_SOURCE[0]}")/init-usb.local.sh"
 [ -f "$INIT_USB_LOCAL" ] && . "$INIT_USB_LOCAL"
 
-DOCKER_USB_MOUNTS=${DOCKER_USB_MOUNTS:--v /dev/bush/usb:/dev/bus/usb --device /dev/ttyUSB0:/dev/ttyUSB0}
+DOCKER_USB_MOUNTS=${DOCKER_USB_MOUNTS:--v /dev/bus/usb:/dev/bus/usb --device /dev/ttyUSB0:/dev/ttyUSB0}
 
 docker run -i --rm \
   --privileged \
