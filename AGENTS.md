@@ -28,3 +28,8 @@
 ## Before committing
 - Read the **Development** section of `README.md` and run the listed lint/build steps for any subproject you touched (`webapp/`, `server/`, `garmin/`).
 - Ignore the `provision-fw.sh` instructions in that section — use `./build-fw.sh` instead.
+- Counting type errors needs `--pretty false`: with pretty output on, `tsc` writes ANSI colour codes between
+  "error" and "TS", so `tsc --noEmit -p tsconfig.json | grep -c "error TS"` prints 0 on a project that does not
+  compile. Use `npx tsc --noEmit -p tsconfig.json --pretty false 2>&1 | grep -c "error TS"`.
+- Run the checks and read their output *before* committing, in a separate command. A command that tests and
+  commits in one line commits whatever the tests said.
