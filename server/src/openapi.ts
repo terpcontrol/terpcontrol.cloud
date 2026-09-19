@@ -32,6 +32,7 @@ const TAGS: readonly { name: string; description: string }[] = [
   { name: 'grows', description: 'What is growing: its plants, the phases it has been through and where they stand.' },
   { name: 'diary', description: 'The timeline: what a person, a device and an alarm each wrote, as one list under one scope.' },
   { name: 'devices', description: 'Claiming a device, what it is, what it measures and what it is told to do.' },
+  { name: 'plans', description: 'The grow plan a controller is run by, the moves a person makes in one, and the templates one is started from.' },
   { name: 'cameras', description: 'The cameras of a tent, and the stills and films of one camera.' },
   { name: 'media', description: 'One picture or film: what is known about it, and its bytes.' },
   { name: 'alarms', description: 'The rules that watch a device, and the alerts they open.' },

@@ -164,11 +164,10 @@ export const storeCameraStill = (cameraId: string, data: Buffer, capturedAt: Dat
   });
 
 /**
- * A row in a collection that has no routes yet. Five of them - the chart views,
- * the feeding schemes, the plan templates, the push subscriptions and the
- * notification log - are registered, indexed and injected nowhere, so a spec
- * about what an account leaves behind can neither put one there nor read it back
- * through the API.
+ * A row in a collection that has no routes yet. Four of them - the chart views,
+ * the feeding schemes, the push subscriptions and the notification log - are
+ * registered, indexed and injected nowhere, so a spec about what an account
+ * leaves behind can neither put one there nor read it back through the API.
  */
 export const seedRow = (collection: string, document: Record<string, unknown>): Promise<void> =>
   withDatabase(async database => {

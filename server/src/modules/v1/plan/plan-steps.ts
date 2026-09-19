@@ -1,7 +1,13 @@
-import type { DurationUnit, PlanStep, StepDuration } from '@fg2/shared-types/v1';
+import { v4 as uuidv4 } from 'uuid';
+import type { DurationUnit, PlanStep, PlanStepInput, StepDuration } from '@fg2/shared-types/v1';
+import { unprocessable } from '@common/v1/problem';
 import { StoredPlan, StoredPlanState } from '@database/schemas/v1/plans.schema';
 
-/** How a step's clock is read. Nothing here touches the database, so both the engine and a transition compute it the same way. */
+/**
+ * What a plan's steps are, and how the clock on one is read. Nothing here
+ * touches the database, so the engine, a transition and a replaced plan all
+ * compute it the same way.
+ */
 
 const UNIT_MS: Readonly<Record<DurationUnit, number>> = {
   minutes: 60 * 1000,
@@ -51,9 +57,17 @@ export const running = (activeStepIndex: number, now: Date): StoredPlanState => 
   confirmationNotifiedAt: null,
 });
 
-/** The plan has run its last step and is not looping. It keeps its steps and stands at the first one. */
-export const completed = (): StoredPlanState => ({
-  status: 'completed',
+/**
+ * A plan that is not running. It keeps its steps and stands at the first one,
+ * which is where starting it again picks it up.
+ *
+ * `completed` is the plan that ran out of steps without looping; `stopped` is
+ * the one a person put away, which is what "Stop recipe" on the plan screen has
+ * always left behind and what the migration writes for a recipe whose
+ * `activeSince` was zero.
+ */
+const atRest = (status: 'completed' | 'stopped'): StoredPlanState => ({
+  status,
   activeStepIndex: 0,
   stepStartedAt: null,
   pausedElapsedMs: 0,
@@ -61,3 +75,62 @@ export const completed = (): StoredPlanState => ({
   lastAppliedAt: null,
   confirmationNotifiedAt: null,
 });
+
+export const completed = (): StoredPlanState => atRest('completed');
+
+export const stopped = (): StoredPlanState => atRest('stopped');
+
+/**
+ * The steps as they are stored, from the steps a client wrote.
+ *
+ * A step keeps the id it was answered with, because that id is how the plan
+ * finds the step it is standing on again once the array has been edited - a step
+ * inserted above the running one moves it down the list, and the plan has to
+ * move with it rather than staying on a number. A step that is new to the plan
+ * carries none and gets one here.
+ *
+ * Two steps under one id would make that lookup pick whichever came first, so a
+ * plan that carries one is refused rather than stored and misread later.
+ */
+export const stepsOf = (steps: PlanStepInput[]): PlanStep[] => {
+  const given = steps.filter(step => step.id !== undefined).map(step => step.id);
+  if (new Set(given).size !== given.length) {
+    throw unprocessable('duplicate_step_id', 'Two steps of this plan carry the same id.', [
+      { field: 'steps', code: 'duplicate', detail: 'A step keeps its own id; a new step carries none.' },
+    ]);
+  }
+
+  return steps.map(step => ({ ...step, id: step.id ?? uuidv4() }));
+};
+
+/**
+ * Where a plan stands once its steps have been replaced.
+ *
+ * The step the device is being run by is looked up by its id, so an edit that
+ * only inserts or reorders steps leaves the running step running, with the time
+ * it has already served. A step that the edit removed leaves nothing to
+ * continue, so the plan takes the step that stands at its place now and starts
+ * that one's clock; a plan with no steps at all has nothing to run and stops.
+ *
+ * `lastAppliedAt` is cleared either way. The device is running what the plan
+ * said before the edit, and the engine would otherwise leave it there for up to
+ * an hour.
+ */
+export const positionIn = (state: StoredPlanState, before: PlanStep[], after: PlanStep[], now: Date): StoredPlanState => {
+  if (after.length === 0) return stopped();
+
+  const standingOn = before[state.activeStepIndex]?.id ?? null;
+  const kept = standingOn === null ? -1 : after.findIndex(step => step.id === standingOn);
+  if (kept >= 0) return { ...state, activeStepIndex: kept, lastAppliedAt: null };
+
+  // Nothing of the removed step's clock carries over to the one standing at its
+  // place, and a confirmation it had asked for was about a step that is gone.
+  return {
+    ...state,
+    activeStepIndex: Math.min(Math.max(state.activeStepIndex, 0), after.length - 1),
+    stepStartedAt: state.status === 'running' ? now : null,
+    pausedElapsedMs: 0,
+    lastAppliedAt: null,
+    confirmationNotifiedAt: null,
+  };
+};

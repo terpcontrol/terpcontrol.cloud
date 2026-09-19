@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import { Model } from 'mongoose';
-import type { DeviceConfiguration, PlanStep } from '@fg2/shared-types/v1';
+import type { DeviceConfiguration, PlanReplace, PlanStep, PlanStepInput } from '@fg2/shared-types/v1';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { MODEL_V1 } from '@database/models';
 import { StoredPlan, plansSchema } from '@database/schemas/v1/plans.schema';
@@ -348,6 +348,155 @@ describe('the transitions', () => {
     expect((await stored()).state).toMatchObject({ status: 'running', activeStepIndex: 0 });
     expect((await entries()).map(entry => entry.message?.key)).toContain('message-recipe-step-manually-activated');
     expect((await grow()).phases).toHaveLength(1);
+  });
+});
+
+/**
+ * Writing the plan itself, which is the one thing a person does to a plan that
+ * is not a move of `state`. Where the plan stands has to survive it: a step
+ * inserted above the running one must not restart the tent, and a plan saved for
+ * the first time must not put a controller onto a step nobody has started.
+ */
+describe('replacing the steps', () => {
+  /** A step the client has never been answered, which is the one thing that arrives without an id. */
+  const newStep = (name: string): PlanStepInput => {
+    const { id: _id, ...rest } = step({ id: 'unused', name });
+    return rest;
+  };
+
+  const replacement = (steps: PlanStepInput[], rest: Partial<PlanReplace> = {}): PlanReplace => ({
+    templateId: null,
+    name: 'The plan',
+    loop: false,
+    notify: { mode: 'on_step', email: null, writeEntries: true },
+    steps,
+    ...rest,
+  });
+
+  it('creates the first plan of a device at rest, because saving one is not starting it', async () => {
+    await aDevice();
+
+    const written = await transitions.replace(DEVICE, replacement([step({ id: 'a', name: 'Veg' })]));
+
+    expect(written.state).toMatchObject({ status: 'stopped', activeStepIndex: 0, stepStartedAt: null });
+    expect(written.name).toBe('The plan');
+    // Nothing reaches the device until the plan is started and the engine comes past.
+    await engine.run(at(HOUR));
+    expect(applied).toHaveLength(0);
+  });
+
+  it('gives a step that is new an id and keeps the one a step came back with', async () => {
+    await aDevice();
+
+    const written = await transitions.replace(DEVICE, replacement([step({ id: 'a', name: 'Veg' }), newStep('Flower')]));
+
+    expect(written.steps[0].id).toBe('a');
+    expect(written.steps[1].id).toEqual(expect.any(String));
+    expect(written.steps[1].id).not.toBe('a');
+  });
+
+  it('refuses two steps under one id, which would make the running step ambiguous', async () => {
+    await aDevice();
+
+    await expect(transitions.replace(DEVICE, replacement([step({ id: 'a', name: 'Veg' }), step({ id: 'a', name: 'Flower' })]))).rejects.toMatchObject(
+      {
+        problem: { status: 422, code: 'duplicate_step_id' },
+      },
+    );
+  });
+
+  it('keeps the running step running when another is inserted above it', async () => {
+    await aDevice();
+    const startedAt = new Date(Date.now() - 12 * HOUR);
+    await aPlan([step({ id: 'a', name: 'Veg' }), step({ id: 'b', name: 'Flower', duration: { value: 2, unit: 'days' } })], {
+      state: { ...stoppedState, status: 'running', activeStepIndex: 1, stepStartedAt: startedAt, lastAppliedAt: startedAt },
+    });
+
+    const written = await transitions.replace(
+      DEVICE,
+      replacement([step({ id: 'seed', name: 'Seedling' }), step({ id: 'a', name: 'Veg' }), step({ id: 'b', name: 'Flower, longer' })]),
+    );
+
+    // The step moved down the list and the plan moved with it, with the half day
+    // it had already served.
+    expect(written.state).toMatchObject({ status: 'running', activeStepIndex: 2, stepStartedAt: startedAt });
+    expect(written.steps[2].name).toBe('Flower, longer');
+  });
+
+  it('sends the step again at once, rather than leaving the device on the settings the edit replaced', async () => {
+    await aDevice();
+    await aPlan([step({ id: 'a', name: 'Veg', settings: { workmode: 'small' } })]);
+    await engine.run(NOW);
+    expect(applied).toEqual([{ deviceId: DEVICE, settings: { workmode: 'small' } }]);
+
+    await transitions.replace(DEVICE, replacement([step({ id: 'a', name: 'Veg', settings: { workmode: 'large' } })]));
+
+    // Without the cleared `lastAppliedAt` the tent would keep the old settings
+    // for the rest of the hour the engine's re-apply covers.
+    expect((await stored()).state.lastAppliedAt).toBeNull();
+    await engine.run(at(MINUTE));
+    expect(applied[1]).toEqual({ deviceId: DEVICE, settings: { workmode: 'large' } });
+  });
+
+  it('starts the step standing at its place when the running one is deleted', async () => {
+    await aDevice();
+    await aPlan([step({ id: 'a', name: 'Veg' }), step({ id: 'b', name: 'Flower' })], {
+      state: { ...stoppedState, status: 'running', activeStepIndex: 1, stepStartedAt: new Date(Date.now() - 12 * HOUR) },
+    });
+
+    const written = await transitions.replace(DEVICE, replacement([step({ id: 'a', name: 'Veg' }), step({ id: 'c', name: 'Dry' })]));
+
+    expect(written.state.activeStepIndex).toBe(1);
+    // Nothing of the deleted step's clock carries over to the one that replaced it.
+    expect(written.state.stepStartedAt!.getTime()).toBeGreaterThan(Date.now() - MINUTE);
+    expect(written.state.pausedElapsedMs).toBe(0);
+  });
+
+  it('stops a plan that is left with no steps at all', async () => {
+    await aDevice();
+    await aPlan([step({ id: 'a', name: 'Veg' })]);
+
+    const written = await transitions.replace(DEVICE, replacement([]));
+
+    expect(written.state).toMatchObject({ status: 'stopped', activeStepIndex: 0, stepStartedAt: null });
+    await expect(transitions.transition(DEVICE, { kind: 'resume' })).rejects.toMatchObject({ problem: { code: 'plan_has_no_steps' } });
+  });
+});
+
+describe('stopping a plan', () => {
+  it('keeps its steps, stands it at the first one, and lets it be started again', async () => {
+    await aDevice();
+    await aPlan([step({ id: 'a', name: 'Veg' }), step({ id: 'b', name: 'Flower' })], {
+      state: { ...stoppedState, status: 'running', activeStepIndex: 1, stepStartedAt: NOW },
+    });
+
+    await transitions.stop(DEVICE);
+
+    const put = await stored();
+    expect(put.state).toMatchObject({ status: 'stopped', activeStepIndex: 0, stepStartedAt: null, pausedElapsedMs: 0 });
+    expect(put.steps.map(one => one.id)).toEqual(['a', 'b']);
+
+    await transitions.transition(DEVICE, { kind: 'resume' }, OWNER);
+    expect((await stored()).state).toMatchObject({ status: 'running', activeStepIndex: 0 });
+  });
+
+  it('leaves the device on the settings the last step gave it', async () => {
+    await aDevice();
+    await aPlan([step({ id: 'a', name: 'Veg', settings: { workmode: 'small' } })]);
+    await engine.run(NOW);
+
+    await transitions.stop(DEVICE);
+    await engine.run(at(2 * HOUR));
+
+    // One send, from before the stop: stopping a plan says nothing about what a
+    // tent should be doing instead.
+    expect(applied).toHaveLength(1);
+  });
+
+  it('refuses to stop what is not there', async () => {
+    await aDevice();
+
+    await expect(transitions.stop(DEVICE)).rejects.toMatchObject({ problem: { status: 404, code: 'plan_not_found' } });
   });
 });
 
