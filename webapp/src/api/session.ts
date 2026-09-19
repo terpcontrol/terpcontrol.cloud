@@ -18,6 +18,8 @@ export interface Tokens {
   refreshToken: string;
   refreshTokenUntil: number;
   mediaToken: string;
+  /** Kept so a refresh can tell a media token with weeks left from one about to die. */
+  mediaTokenUntil: number;
 }
 
 export interface SessionState {
@@ -33,6 +35,17 @@ const STORAGE_KEY = 'terp.session';
 
 /** Refresh this long before the token actually dies, so a slow request does not race its own expiry. */
 const REFRESH_MARGIN_MS = 30_000;
+
+/**
+ * How near its end a media token has to be before a refresh swaps it.
+ *
+ * A generous margin, because a picture's URL is not renewed the way a request
+ * is: it is whatever was put in an `src` when the element was drawn, and a card
+ * that nothing has re-rendered goes on asking for the same address. A day is
+ * far longer than any tab stays open on one page, and nothing against the
+ * thirty days the token lasts.
+ */
+const MEDIA_MARGIN_MS = 24 * 60 * 60 * 1000;
 
 interface Stored {
   refreshToken: string;
@@ -72,13 +85,41 @@ const writeStored = (value: Stored | null) => {
   target?.setItem(STORAGE_KEY, JSON.stringify(value));
 };
 
-const tokensOf = (result: SessionTokens): Tokens => ({
-  userToken: result.userToken.token,
-  userTokenUntil: Date.parse(result.userToken.validUntil),
-  refreshToken: result.refreshToken.token,
-  refreshTokenUntil: Date.parse(result.refreshToken.validUntil),
-  mediaToken: result.mediaToken.token,
-});
+/**
+ * What the server just answered, except that a media token still good for
+ * weeks is kept rather than replaced.
+ *
+ * The bearer token is renewed every few minutes, and the media token rides in
+ * the query string of every picture's URL because an `<img>` cannot carry a
+ * header. Taking the new one each time therefore rewrites the address of every
+ * picture on screen, and the browser fetches again what it already has - most
+ * visibly on the timeline, where playing the same day twice downloads the same
+ * ninety frames twice.
+ *
+ * Keeping the old one is safe because the server does not care which refresh
+ * issued it: a media token is verified by its signature and its type, and by
+ * nothing else - not the session it came from, not the `secret` claim inside
+ * it, which is read by nothing. So the one in hand is exactly as good as the
+ * one just offered, and a month long.
+ *
+ * `held` is the session's own tokens, and is null when there is no session to
+ * carry anything over from - at sign-in, where the token belongs to whoever
+ * just signed in, and at boot, where nothing is held yet.
+ */
+const tokensOf = (result: SessionTokens, held: Tokens | null): Tokens => {
+  // An unparsable date leaves `keep` false, so a token nobody can date is
+  // replaced rather than trusted.
+  const keep = held !== null && held.mediaTokenUntil - MEDIA_MARGIN_MS > Date.now();
+
+  return {
+    userToken: result.userToken.token,
+    userTokenUntil: Date.parse(result.userToken.validUntil),
+    refreshToken: result.refreshToken.token,
+    refreshTokenUntil: Date.parse(result.refreshToken.validUntil),
+    mediaToken: keep ? held.mediaToken : result.mediaToken.token,
+    mediaTokenUntil: keep ? held.mediaTokenUntil : Date.parse(result.mediaToken.validUntil),
+  };
+};
 
 class SessionStore {
   private state: SessionState = { user: null, tokens: null, sessionId: null, restored: false };
@@ -118,7 +159,9 @@ class SessionStore {
 
     const result = (await response.json()) as SessionResult;
     this.stayLoggedIn = stayLoggedIn;
-    const tokens = tokensOf(result);
+    // Nothing is carried over: whoever signs in here gets their own media
+    // token, and never the one the last person to use this tab was given.
+    const tokens = tokensOf(result, null);
     this.publish({ user: result.user, tokens, sessionId: result.sessionId, restored: true });
     writeStored({
       refreshToken: tokens.refreshToken,
@@ -192,7 +235,7 @@ class SessionStore {
       return null;
     }
 
-    const tokens = tokensOf((await response.json()) as SessionTokens);
+    const tokens = tokensOf((await response.json()) as SessionTokens, this.state.tokens);
     this.publish({ tokens });
     const { user, sessionId } = this.state;
     if (user && sessionId) {
