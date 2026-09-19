@@ -28,6 +28,18 @@ export interface MigrationReject {
 export interface MigrationStep {
   /** Unique, ordered by it, and what the `migrations` record says has already run. */
   readonly name: string;
+  /**
+   * The old collections this step reads, and therefore the ones moved aside
+   * before it runs.
+   *
+   * Declared rather than moved inside `run`, because two things outside the step
+   * have to know it: a rollback has to tell a collection no step has reached yet
+   * from one this release built, and a record claiming a step has run is a lie
+   * when the collection that step moves is still standing under its own name.
+   * Both questions are about a step that did *not* finish, so neither can be
+   * answered by asking the step to say so while it works.
+   */
+  readonly moves?: readonly string[];
   run(context: MigrationContext): Promise<void>;
 }
 

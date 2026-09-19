@@ -471,7 +471,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
       if (still.capturedAt.getTime() - lastKept < minIntervalMs) {
         doomed.push(still.id);
         if (doomed.length >= 500) {
-          await this.media.deleteMany(doomed);
+          await this.removeThinned(doomed);
           doomed = [];
         }
         continue;
@@ -479,7 +479,26 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
       lastKept = still.capturedAt.getTime();
     }
 
-    await this.media.deleteMany(doomed);
+    await this.removeThinned(doomed);
+  }
+
+  /**
+   * The stills a tier has thinned away, minus the ones the migration carried
+   * over and the previous release still holds a row for.
+   *
+   * These tiers are new. The release before them kept every still it ever took,
+   * so the first pass after an upgrade meets years of pictures at thirty-second
+   * spacing and applies all four tiers to the lot - and the bytes it frees are
+   * the only copy, because the first migration moved them out of the document
+   * and the rollback deliberately does not move them back. Whether history
+   * somebody already has should be thinned at all is a decision for the release
+   * that drops `legacy_*`; until then it is left alone.
+   */
+  private async removeThinned(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+
+    const held = await this.media.carriedOverAndStillHeld(ids);
+    await this.media.deleteMany(ids.filter(id => !held.has(id)));
   }
 
   /**

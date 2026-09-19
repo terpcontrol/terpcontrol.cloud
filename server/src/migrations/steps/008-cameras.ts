@@ -40,12 +40,12 @@ const MODELS = ['terp_cam', 'tapo_c200', 'reolink', 'hikvision', 'custom'];
 
 export const cameras: MigrationStep = {
   name: '008-cameras',
+  // The pictures are read here too, to find the devices that need a retired
+  // camera, but moving that collection aside belongs to the migration that
+  // transforms it - and a source is read under whichever name it has.
+  moves: [LEGACY.devices],
 
   async run(context: MigrationContext): Promise<void> {
-    await context.renameAside(LEGACY.devices);
-    // The pictures are only read here, to find the devices that need a retired
-    // camera; moving that collection aside belongs to the migration that
-    // transforms it, and a source is read under whichever name it has.
     const facts = await loadDeviceFacts(context);
     const legacy = await context.source(LEGACY.devices);
     const validUntil = new Date(context.at);

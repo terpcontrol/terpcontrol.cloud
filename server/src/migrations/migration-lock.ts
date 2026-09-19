@@ -17,7 +17,9 @@ import { logger } from '@utils/logger';
  * "this will be done by then".
  */
 
-const COLLECTION = 'migrationLock';
+/** The one collection this release writes through the raw driver, with no model of its own. */
+export const MIGRATION_LOCK_COLLECTION = 'migrationLock';
+
 const LOCK_ID = 'migrations';
 
 const LEASE_MS = 60_000;
@@ -44,7 +46,7 @@ export class MigrationLock {
   ) {}
 
   public static async acquire(db: mongo.Db): Promise<MigrationLock> {
-    const locks = db.collection<LockDocument>(COLLECTION);
+    const locks = db.collection<LockDocument>(MIGRATION_LOCK_COLLECTION);
     const owner = `${hostname()}:${process.pid}:${Date.now()}`;
     const until = Date.now() + WAIT_LIMIT_MS;
     let waited = false;

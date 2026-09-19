@@ -36,9 +36,9 @@ const STAGES = ['germination', 'seedling', 'vegetative', 'flowering', 'drying', 
 
 export const plans: MigrationStep = {
   name: '006-plans',
+  moves: [LEGACY.devices],
 
   async run(context: MigrationContext): Promise<void> {
-    await context.renameAside(LEGACY.devices);
     const legacy = await context.source(LEGACY.devices);
 
     for await (const device of legacy.find<LegacyDevice>({ 'recipe.steps.0': { $exists: true } }).sort({ _id: 1 })) {

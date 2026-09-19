@@ -95,9 +95,9 @@ const boundsOf = (sensorType: string, alarm: LegacyAlarm): { upper: number | nul
 
 export const alarmRules: MigrationStep = {
   name: '007-alarm-rules',
+  moves: [LEGACY.devices],
 
   async run(context: MigrationContext): Promise<void> {
-    await context.renameAside(LEGACY.devices);
     const facts = await loadDeviceFacts(context);
     const legacy = await context.source(LEGACY.devices);
     const seen = new Set<string>();

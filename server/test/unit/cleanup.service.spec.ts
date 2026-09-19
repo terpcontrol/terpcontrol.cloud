@@ -193,6 +193,52 @@ describe('pictures nothing points at', () => {
   });
 });
 
+describe('what the migration carried over, while the way back is still open', () => {
+  /** The old pictures table, exactly as the migration leaves it standing. */
+  const oldPicturesTable = (imageIds: string[]) =>
+    db.connection.db!.collection('legacy_images').insertMany(imageIds.map(id => ({ image_id: id, device_id: 'a-device', format: 'jpeg' })));
+
+  it('keeps a picture that arrived with no camera, no grow and no space', async () => {
+    // How a picture of a device whose row was already gone comes across: the
+    // step writes it with every anchor null and counts it, so a clean,
+    // reject-free migration hands the sweep a row it reads as rubbish.
+    await oldPicturesTable(['carried-over']);
+    await db.media.create([aPicture('carried-over', OLD, { kind: 'photo' }), aPicture('written-since', OLD, { kind: 'photo' })]);
+    for (const mediaId of ['carried-over', 'written-since']) await storeBytes(mediaId, OLD);
+
+    const result = await cleanup.run(NOW);
+
+    expect(result.deletedMedia).toBe(1);
+    expect(await remainingMedia()).toEqual(['carried-over']);
+    expect(await storedFileIds()).toEqual(['carried-over']);
+  });
+
+  it('keeps the bytes of a picture the migration had to drop, which have no row naming them', async () => {
+    // The first migration moved these bytes out of the document, so the bucket
+    // is the only copy and the rollback deliberately does not move them back.
+    await oldPicturesTable(['dropped-by-the-migration']);
+    await storeBytes('dropped-by-the-migration', OLD);
+    await storeBytes('a-real-orphan', OLD);
+
+    const result = await cleanup.run(NOW);
+
+    expect(result.deletedOrphanedFiles).toBe(1);
+    expect(await storedFileIds()).toEqual(['dropped-by-the-migration']);
+  });
+
+  it('collects both once the way back has been dropped', async () => {
+    await db.media.create(aPicture('carried-over', OLD, { kind: 'photo' }));
+    await storeBytes('carried-over', OLD);
+    await storeBytes('dropped-by-the-migration', OLD);
+
+    const result = await cleanup.run(NOW);
+
+    expect(result.deletedMedia).toBe(1);
+    expect(result.deletedOrphanedFiles).toBe(1);
+    expect(await storedFileIds()).toEqual([]);
+  });
+});
+
 describe('stored bytes no document names', () => {
   it('deletes the old orphans and keeps the rest', async () => {
     await db.cameras.create({ id: 'a-camera', ownerId: 'owner', kind: 'rtsp', name: 'The cam' });

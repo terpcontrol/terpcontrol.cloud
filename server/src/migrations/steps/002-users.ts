@@ -29,12 +29,12 @@ const DEFAULT_ROUTING = Object.fromEntries(notificationCategory.options.map(cate
 
 export const users: MigrationStep = {
   name: '002-users',
+  moves: [LEGACY.users],
 
   async run(context: MigrationContext): Promise<void> {
     const source = await context.source(LEGACY.users);
     await assertOneDocumentPerUserId(source);
 
-    await context.renameAside(LEGACY.users);
     const legacy = await context.source(LEGACY.users);
     const handles = new Handles();
 

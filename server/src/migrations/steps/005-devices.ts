@@ -39,9 +39,9 @@ const DEFAULT_SETTINGS = { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxF
 
 export const devices: MigrationStep = {
   name: '005-devices',
+  moves: [LEGACY.devices],
 
   async run(context: MigrationContext): Promise<void> {
-    await context.renameAside(LEGACY.devices);
     const legacy = await context.source(LEGACY.devices);
 
     for await (const device of legacy.find<LegacyDevice>({}).sort({ _id: 1 })) {

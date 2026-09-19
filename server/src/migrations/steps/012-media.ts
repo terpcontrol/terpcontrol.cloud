@@ -39,16 +39,13 @@ const WINDOW: Record<string, string> = { '1d': 'day', '1w': 'week', '1m': 'month
 
 export const media: MigrationStep = {
   name: '012-media',
+  moves: [LEGACY.devices, LEGACY.deviceLogs, LEGACY.images],
 
   async run(context: MigrationContext): Promise<void> {
-    await context.renameAside(LEGACY.devices);
-    await context.renameAside(LEGACY.deviceLogs);
-
     const facts = await loadDeviceFacts(context);
     const grows = await reconstructGrows(context, facts);
     const photoEntries = await entriesByPicture(context);
 
-    await context.renameAside(LEGACY.images);
     const legacy = await context.source(LEGACY.images);
     const files = context.db.collection<{ _id: unknown; length?: number }>(`${IMAGE_BUCKET_NAME}.files`);
 

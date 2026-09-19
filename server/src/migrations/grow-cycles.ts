@@ -1,3 +1,4 @@
+import { logger } from '@utils/logger';
 import { derivedId, growIdOf } from './ids';
 import { LEGACY, LegacyDevice, LegacyDeviceLog, textOf } from './legacy';
 import { MigrationContext } from './migration';
@@ -133,7 +134,16 @@ const cyclesOf = (deviceId: string, entries: LegacyDeviceLog[]): ReconstructedGr
  * that starts with the step that is running.
  *
  * A plan whose steps carry no stage at all says nothing about what is growing,
- * so it becomes nothing and is reported.
+ * so it becomes nothing. That is counted rather than rejected, because it is a
+ * decision this transform makes rather than a row it cannot read: no stage is
+ * the ordinary shape of a plan - only the guided onboarding's reference plans
+ * ever wrote one, and the expert plan editor never has - so a refusal here is a
+ * boot that stops on the normal case, with no fix an operator could make short
+ * of asserting a stage nobody chose. The device, its space, its plan and its
+ * diary all migrate; what it does not get is a grow, which is exactly what it
+ * had before the upgrade: the old app wrote a lifecycle entry only for a step
+ * that carried a stage, so these plans ran for years and produced no grow at
+ * all. The first climate preset applied to that space offers to start one.
  */
 const planGrows = async (
   context: MigrationContext,
@@ -143,6 +153,7 @@ const planGrows = async (
 ): Promise<ReconstructedGrow[]> => {
   const devices = await context.source(LEGACY.devices);
   const grows: ReconstructedGrow[] = [];
+  const withoutStage: string[] = [];
 
   const cursor = devices.find<LegacyDevice>({ 'recipe.activeSince': { $gt: 0 } });
   for await (const device of cursor) {
@@ -162,14 +173,10 @@ const planGrows = async (
       .find(candidate => candidate !== null && STAGE_ORDER.includes(candidate));
 
     if (!stage) {
-      if (report)
-        context.reject({
-          source: LEGACY.devices,
-          id: deviceId,
-          reason: 'a running plan with no stage on any step says nothing about what is growing, so no grow was reconstructed',
-          dropped: true,
-          detail: null,
-        });
+      if (report) {
+        context.count('grows.planWithoutStage');
+        withoutStage.push(deviceId);
+      }
       continue;
     }
 
@@ -181,6 +188,13 @@ const planGrows = async (
       endedAt: null,
       phases: [{ id: derivedId('phase', deviceId, startedAt.getTime()), stage, startedAt, source: 'plan' }],
     });
+  }
+
+  // Named rather than counted alone: the number goes into the step's record, and
+  // which devices it was about is the thing somebody reading that record later
+  // would otherwise have to work out again.
+  if (withoutStage.length > 0) {
+    logger.info(`Migration 010-grows: no grow for ${withoutStage.length} device(s) whose running plan carries no stage: ${withoutStage.join(', ')}`);
   }
 
   return grows;

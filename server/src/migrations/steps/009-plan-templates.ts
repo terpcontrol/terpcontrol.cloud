@@ -21,11 +21,11 @@ import { planStep } from './006-plans';
  */
 export const planTemplates: MigrationStep = {
   name: '009-plan-templates',
+  moves: [LEGACY.recipeTemplates],
 
   async run(context: MigrationContext): Promise<void> {
     const fallbackOwnerId = await oldestAdministrator(context);
 
-    await context.renameAside(LEGACY.recipeTemplates);
     const legacy = await context.source(LEGACY.recipeTemplates);
     const namesPerOwner = new Map<string, Set<string>>();
 

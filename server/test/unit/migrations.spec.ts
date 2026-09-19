@@ -18,8 +18,9 @@ import { spacesSchema } from '@database/schemas/v1/spaces.schema';
 import { usersSchema } from '@database/schemas/v1/users.schema';
 import { cameraIdOf, planIdOf, spaceIdOf } from '@/migrations/ids';
 import { MigrationContext } from '@/migrations/migration';
-import { applyRollback, planRollback } from '@/migrations/migration-rollback';
+import { BUILT_BY_THIS_RELEASE, RollbackPlan, applyRollback, planRollback } from '@/migrations/migration-rollback';
 import { MigrationRunner, RejectedRows, RunEvent, runProgress } from '@/migrations/migration-runner';
+import { StaleMigrationRecord } from '@/migrations/preflight';
 import { MIGRATION_STEPS } from '@/migrations/steps';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 
@@ -239,6 +240,22 @@ describe('a dry run', () => {
 
     expect(described(await migrate())).toEqual(described(rehearsed));
   });
+
+  it('runs every transform even where the real run would stop, because that is what it is read for', async () => {
+    // Without being told that the rows may be left behind, exactly as an
+    // operator runs it the first time. A rehearsal that stopped at the first
+    // step with a reject in it would name that step's rows and say nothing
+    // whatsoever about the transforms after it - which is the report the
+    // decision to set --allow-rejects is made from.
+    const rehearsed = await new MigrationRunner(connection).run({ dryRun: true });
+
+    expect(rehearsed.applied.map(outcome => outcome.name)).toHaveLength(MIGRATION_STEPS.length);
+    expect(rehearsed.applied.filter(outcome => outcome.rejectCount > 0).map(outcome => outcome.name)).toEqual(['003-fleet', '005-devices']);
+    expect(await collection('migrations').countDocuments()).toBe(0);
+
+    // And the real run still stops at the first of them.
+    await expect(new MigrationRunner(connection).run({ dryRun: false })).rejects.toThrow(RejectedRows);
+  });
 });
 
 describe('the procedure', () => {
@@ -366,8 +383,8 @@ describe('what the migration wrote', () => {
       claimCodes: fixture.counts.claimcodes - 1,
       // One per claimed device; the device nobody has ever seen gets none.
       spaces: 5,
-      // The two devices whose plan has steps, running or not.
-      plans: 2,
+      // The three devices whose plan has steps, running or not.
+      plans: 3,
       // Three on the tent's readings and one per output an alarm can watch.
       alarmRules: 8,
       // One per alarm standing triggered: the warm tent, and the racing fan.
@@ -708,6 +725,28 @@ describe('grows', () => {
     expect(grows.find(grow => grow.name === fixture.grows.merged.name)?.phases).toHaveLength(fixture.grows.merged.stages);
   });
 
+  it('makes no grow of a running plan with no stage, and does not stop the run for it', async () => {
+    const report = await migrate();
+    const grows = report.applied.find(outcome => outcome.name === '010-grows');
+
+    // A plan whose steps carry no stage is the ordinary shape of a plan - only
+    // the guided onboarding's reference plans ever wrote one - and the old app
+    // made no grow of it either. So it is a number in the step's own record
+    // rather than a row that stops the boot, which no operator could act on
+    // short of asserting a stage nobody chose.
+    expect(grows?.rejectCount).toBe(0);
+    expect(grows?.stats['grows.planWithoutStage']).toBe(1);
+    expect(await collection('grows').countDocuments({ 'placements.spaceId': spaceIdOf(LEGACY_DEVICE_IDS.plug) })).toBe(0);
+
+    // Everything else about that device comes across: the device, its space and
+    // its plan standing on the step it was running.
+    expect(await one('devices', { id: LEGACY_DEVICE_IDS.plug })).not.toBeNull();
+    expect(await one('spaces', { id: spaceIdOf(LEGACY_DEVICE_IDS.plug) })).not.toBeNull();
+    expect(await one<Record<string, any>>('plans', { deviceId: LEGACY_DEVICE_IDS.plug })).toMatchObject({
+      state: { status: 'running', activeStepIndex: 1 },
+    });
+  });
+
   it('starts the day counter where the first lifecycle entry is', async () => {
     await migrate();
 
@@ -938,12 +977,101 @@ describe('a run that was killed part-way', () => {
   });
 });
 
+/**
+ * A run that stopped after `stopAfter`, which is the state a killed migration
+ * leaves behind: the steps up to there recorded, the collections they read
+ * moved aside, and every collection no step has reached still standing under its
+ * own name with the only copy of its rows in it.
+ */
+const migrateUpTo = async (stopAfter: string): Promise<void> => {
+  const all = [...MIGRATION_STEPS];
+  const upTo = all.slice(0, all.findIndex(step => step.name === stopAfter) + 1);
+
+  MIGRATION_STEPS.splice(0, MIGRATION_STEPS.length, ...upTo);
+  try {
+    await new MigrationRunner(connection).run({ dryRun: false, allowRejects: true });
+  } finally {
+    MIGRATION_STEPS.splice(0, MIGRATION_STEPS.length, ...all);
+  }
+};
+
+/**
+ * Every document the previous release wrote, wherever it currently stands.
+ *
+ * `data` and `size` are dropped from the pictures because the first migration
+ * moves an inline payload into the bucket and records its length, and that is
+ * the one thing a rollback deliberately does not undo - the previous release
+ * reads the bucket by the same ids.
+ */
+const previousRelease = async (): Promise<Record<string, Document[]>> => {
+  const snapshot = await snapshotOf(db());
+  const kept: Record<string, Document[]> = {};
+
+  for (const name of Object.keys(fixture.counts)) {
+    if (name.startsWith('imagedata.')) continue;
+
+    kept[name] = (snapshot[name] ?? snapshot[`legacy_${name}`] ?? []).map(document => {
+      const copy = { ...document };
+      delete copy.data;
+      delete copy.size;
+      return copy;
+    });
+  }
+
+  return kept;
+};
+
+const rollBack = async (): Promise<RollbackPlan> => {
+  const plan = await planRollback(db());
+  await applyRollback(db(), plan);
+  return plan;
+};
+
+describe('a record that claims more than the database holds', () => {
+  it('refuses when a step that says it ran has not run over this data', async () => {
+    await migrate();
+    // A dump taken before the upgrade, restored over it: `mongorestore --drop`
+    // drops only the collections its archive carries, so the record survives.
+    await collection('users').drop();
+    await collection('users').insertOne({ user_id: LEGACY_USER_IDS.ada, username: 'ada@example.test', __v: 0 });
+
+    await expect(new MigrationRunner(connection).run({ dryRun: false, allowRejects: true })).rejects.toThrow(StaleMigrationRecord);
+  });
+
+  it('refuses the same way on a record of a run that only got part way', async () => {
+    // The more dangerous of the two, and the one nothing caught: seven records
+    // survive a restore exactly as fourteen do, but with steps still pending
+    // the boot would transform the restored data from step eight on and then
+    // *start*, serving accounts in a shape nobody can sign in to.
+    await migrateUpTo('007-alarm-rules');
+    await collection('users').drop();
+    await collection('users').insertOne({ user_id: LEGACY_USER_IDS.ada, username: 'ada@example.test', __v: 0 });
+
+    const run = new MigrationRunner(connection).run({ dryRun: false, allowRejects: true });
+
+    await expect(run).rejects.toThrow(StaleMigrationRecord);
+    await expect(run).rejects.toThrow(/7 of 14 migrations have already been applied/u);
+    // Nothing was written: the steps after it never ran.
+    expect(await collection('entries').countDocuments()).toBe(0);
+  });
+
+  it('says nothing about the collections a run that stopped part way has simply not reached', async () => {
+    // Six old collections stand under their own names here, and that is what a
+    // resumable run looks like rather than a record describing another database.
+    await migrateUpTo('007-alarm-rules');
+
+    await expect(new MigrationRunner(connection).refuseAStaleRecord()).resolves.toBeUndefined();
+    await expect(new MigrationRunner(connection).run({ dryRun: false, allowRejects: true })).resolves.toBeDefined();
+    expect(await collection('entries').countDocuments()).toBe(fixture.counts.devicelogs);
+  });
+});
+
 describe('going back', () => {
   it('drops what was built and puts the old collections back', async () => {
     await migrate();
     const migrated = await snapshotOf(db());
 
-    await applyRollback(db(), await planRollback(db()));
+    await rollBack();
     const restored = await snapshotOf(db());
 
     // Every collection that was moved aside stands under its own name again,
@@ -961,7 +1089,122 @@ describe('going back', () => {
     expect(await one<Record<string, any>>('devices', { device_id: LEGACY_DEVICE_IDS.controller })).toMatchObject({ owner_id: LEGACY_USER_IDS.ada });
   });
 
+  // A run that stopped part way is precisely when the way back is reached for,
+  // and it is the state the old rule destroyed: it decided what to drop by
+  // "everything that is not legacy_*", which on a half-migrated database is
+  // every collection no step had reached yet - the only copy of each of them.
+  for (const stopAfter of ['002-users', '007-alarm-rules', '012-media']) {
+    it(`puts back every row of a run that stopped after ${stopAfter}`, async () => {
+      const before = await previousRelease();
+
+      await migrateUpTo(stopAfter);
+      const plan = await rollBack();
+
+      expect(await previousRelease()).toEqual(before);
+
+      // Counted as well as compared: a collection that is there and empty is
+      // what this used to leave behind.
+      for (const [name, count] of Object.entries(fixture.counts)) {
+        if (name.startsWith('imagedata.')) continue;
+        expect([name, await collection(name).countDocuments()]).toEqual([name, count]);
+      }
+
+      // Nothing of the new model, and nothing moved aside, is left standing.
+      const after = await names();
+      expect(after.filter(name => name.startsWith('legacy_'))).toEqual([]);
+      expect(after.filter(name => BUILT_BY_THIS_RELEASE.has(name)).sort()).toEqual(['devices', 'users']);
+
+      // What it did not touch it named, so an operator reads it rather than
+      // finding out later.
+      expect(plan.leftStanding.unrecognised).toEqual([]);
+    });
+  }
+
+  it('never drops the only copy of the devices when the run stopped before they were moved aside', async () => {
+    await migrateUpTo('002-users');
+
+    // `devices` is a name this release uses too, and at this point it still
+    // holds every device, its configuration and its alarms in the old shape.
+    expect(await one('devices', { device_id: LEGACY_DEVICE_IDS.controller })).toMatchObject({ owner_id: LEGACY_USER_IDS.ada });
+    expect((await planRollback(db())).drop).not.toContain('devices');
+
+    await rollBack();
+
+    expect(await collection('devices').countDocuments()).toBe(fixture.counts.devices);
+    expect(await one<Record<string, any>>('devices', { device_id: LEGACY_DEVICE_IDS.controller })).toMatchObject({
+      owner_id: LEGACY_USER_IDS.ada,
+      alarms: expect.any(Array),
+    });
+  });
+
+  it('leaves the collections no step reached exactly as they are, and says which they were', async () => {
+    await migrateUpTo('007-alarm-rules');
+    const plan = await planRollback(db());
+
+    expect(plan.leftStanding.old).toEqual(['chartpresets', 'devicelogs', 'images', 'passwordtokens', 'recipetemplates', 'shares']);
+    for (const name of plan.leftStanding.old) expect(plan.drop).not.toContain(name);
+
+    await applyRollback(db(), plan);
+
+    expect(await collection('devicelogs').countDocuments()).toBe(fixture.counts.devicelogs);
+    expect(await collection('images').countDocuments()).toBe(fixture.counts.images);
+    expect(await collection('shares').countDocuments()).toBe(fixture.counts.shares);
+  });
+
+  it('can be resumed after it was interrupted part way through', async () => {
+    await migrate();
+    const plan = await planRollback(db());
+
+    // As far as the drops and the first rename, and then killed.
+    for (const name of plan.drop) await db().dropCollection(name);
+    await db().renameCollection('legacy_users', 'users');
+
+    const resumed = await planRollback(db());
+
+    // `users` is back under its own name with nothing beside it, so it is not
+    // this release's to drop any more.
+    expect(resumed.drop).toEqual([]);
+    await applyRollback(db(), resumed);
+
+    expect(await collection('users').countDocuments()).toBe(fixture.counts.users);
+    expect(await collection('devices').countDocuments()).toBe(fixture.counts.devices);
+    expect(await collection('devicelogs').countDocuments()).toBe(fixture.counts.devicelogs);
+    expect((await names()).filter(name => name.startsWith('legacy_'))).toEqual([]);
+  });
+
+  it('refuses a database holding two generations of the old data at once', async () => {
+    await migrate();
+
+    // What a dump taken before the upgrade looks like once it has been restored
+    // over a migrated database: `mongorestore --drop` drops only the collections
+    // its archive carries, so the migration-day `legacy_*` survive beside what
+    // was just restored, and nothing in the data says which of the two to keep.
+    await collection('devicelogs').insertOne({ device_id: LEGACY_DEVICE_IDS.controller, message: 'restored from a dump', __v: 0 });
+    await collection('users').insertOne({ user_id: LEGACY_USER_IDS.ada, username: 'ada@example.test', __v: 0 });
+    const before = await snapshotOf(db());
+
+    await expect(planRollback(db())).rejects.toThrow(/two generations of the old data at once/u);
+    await expect(planRollback(db())).rejects.toThrow(/devicelogs, users/u);
+    expect(await snapshotOf(db())).toEqual(before);
+  });
+
   it('refuses on a database that was never migrated', async () => {
-    await expect(planRollback(db())).rejects.toThrow(/never run on it/u);
+    await expect(planRollback(db())).rejects.toThrow(/holds no legacy_\* collection/u);
+  });
+
+  it('drops only collections this release registers a model for', async () => {
+    await migrate();
+
+    // The rule the drop list is built from, held to from the other end: a
+    // collection this release writes through the raw driver, with no model
+    // behind it, would be left standing by a rollback rather than dropped. The
+    // bucket and the migration lock are the only two today; a third added later
+    // fails here rather than surviving a rollback nobody reads.
+    const untouched = ['imagedata.files', 'imagedata.chunks'];
+    const unaccounted = (await names()).filter(
+      name => !BUILT_BY_THIS_RELEASE.has(name) && !name.startsWith('legacy_') && !untouched.includes(name) && !(name in fixture.counts),
+    );
+
+    expect(unaccounted).toEqual([]);
   });
 });

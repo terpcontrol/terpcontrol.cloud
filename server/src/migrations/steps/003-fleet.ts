@@ -34,6 +34,7 @@ import { MigrationContext, MigrationStep } from '../migration';
  */
 export const fleet: MigrationStep = {
   name: '003-fleet',
+  moves: [LEGACY.deviceClasses, LEGACY.deviceFirmwares, LEGACY.deviceFirmwareBinaries, LEGACY.claimCodes],
 
   async run(context: MigrationContext): Promise<void> {
     await deviceClasses(context);
@@ -44,7 +45,6 @@ export const fleet: MigrationStep = {
 };
 
 const deviceClasses = async (context: MigrationContext): Promise<void> => {
-  await context.renameAside(LEGACY.deviceClasses);
   const legacy = await context.source(LEGACY.deviceClasses);
   const seen = new Set<string>();
 
@@ -80,7 +80,6 @@ const deviceClasses = async (context: MigrationContext): Promise<void> => {
 };
 
 const firmwares = async (context: MigrationContext): Promise<void> => {
-  await context.renameAside(LEGACY.deviceFirmwares);
   const legacy = await context.source(LEGACY.deviceFirmwares);
   const seen = new Set<string>();
 
@@ -119,7 +118,6 @@ const firmwares = async (context: MigrationContext): Promise<void> => {
 };
 
 const firmwareBinaries = async (context: MigrationContext): Promise<void> => {
-  await context.renameAside(LEGACY.deviceFirmwareBinaries);
   const legacy = await context.source(LEGACY.deviceFirmwareBinaries);
 
   // One at a time and by `_id`: a row carries a whole firmware image, and a
@@ -154,7 +152,6 @@ const firmwareBinaries = async (context: MigrationContext): Promise<void> => {
 };
 
 const claimCodes = async (context: MigrationContext): Promise<void> => {
-  await context.renameAside(LEGACY.claimCodes);
   const legacy = await context.source(LEGACY.claimCodes);
 
   for await (const claimCode of legacy.find<LegacyClaimCode>({}).sort({ _id: 1 })) {

@@ -724,6 +724,40 @@ export async function seedLegacyDatabase(target: Connection | mongo.Db, at: numb
       cloudSettings: { _id: idAt(ago(150), 102), autoFirmwareUpdate: false, pendingFirmware: 'fw-plug-1.2.0' },
       fwupdate_start: ago(40),
       fwupdate_end: ago(40) + 4 * MINUTE,
+      // A plan that is running and carries no stage on any of its steps, with
+      // no lifecycle entry anywhere on this device. That is what a plan written
+      // outside the guided onboarding looks like - the expert plan editor reads
+      // the stage and has never written one - and it is the shape most plans in
+      // a database that has been running are in. The old app ran it and made no
+      // grow of it, because it wrote a lifecycle entry only for a step that
+      // carried a stage.
+      recipe: {
+        _id: idAt(ago(60), 103),
+        activeStepIndex: 1,
+        activeSince: ago(12),
+        loop: false,
+        notifications: 'off',
+        steps: [
+          {
+            _id: idAt(ago(60), 104),
+            name: 'Woche 1',
+            settings: configurationJson(24, 40),
+            durationUnit: 'weeks',
+            duration: 1,
+            waitForConfirmation: false,
+            lastTimeApplied: ago(19),
+          },
+          {
+            _id: idAt(ago(60), 105),
+            name: 'Woche 2',
+            settings: configurationJson(26, 60),
+            durationUnit: 'weeks',
+            duration: 3,
+            waitForConfirmation: false,
+            lastTimeApplied: ago(12),
+          },
+        ],
+      },
       // Firmware from before the socket table: the roles and one address each,
       // and no `sockets_n`.
       hardwareInfo: { firmware_version: '1.1.0', sockets: 'heater', socket_ips: 'heater@10.0.0.21' },

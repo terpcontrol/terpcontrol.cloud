@@ -24,9 +24,9 @@ const SPACE_KIND: Record<string, string> = { fridge: 'fridge', controller: 'tent
 
 export const spaces: MigrationStep = {
   name: '004-spaces',
+  moves: [LEGACY.devices],
 
   async run(context: MigrationContext): Promise<void> {
-    await context.renameAside(LEGACY.devices);
     const legacy = await context.source(LEGACY.devices);
 
     for await (const device of legacy.find<LegacyDevice>({}).sort({ _id: 1 })) {

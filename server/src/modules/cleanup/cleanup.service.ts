@@ -10,6 +10,7 @@ import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
+import { picturesTheWayBackHolds } from '@/migrations/way-back';
 import { BackgroundWork } from '../../common/background-work';
 import { ImageStore } from '../../database/image-store';
 
@@ -203,6 +204,10 @@ export class CleanupService implements OnModuleInit, OnApplicationShutdown {
         candidates.map(media => media.spaceId),
       );
       const referenced = await this.referencedPictures(candidates);
+      const spokenFor = await picturesTheWayBackHolds(
+        this.media.db.db,
+        candidates.map(media => media.id),
+      );
 
       const doomed = candidates
         .filter(
@@ -210,7 +215,8 @@ export class CleanupService implements OnModuleInit, OnApplicationShutdown {
             !named(media.cameraId).some(id => cameras.has(id)) &&
             !named(media.growId).some(id => grows.has(id)) &&
             !named(media.spaceId).some(id => spaces.has(id)) &&
-            !referenced.has(media.id),
+            !referenced.has(media.id) &&
+            !spokenFor.has(media.id),
         )
         .map(media => media.id);
       candidates = [];
@@ -261,7 +267,8 @@ export class CleanupService implements OnModuleInit, OnApplicationShutdown {
       if (candidates.length === 0) return;
 
       const known: string[] = await this.media.distinct('id', { id: { $in: candidates } });
-      const orphaned = candidates.filter(mediaId => !known.includes(mediaId));
+      const spokenFor = await picturesTheWayBackHolds(this.media.db.db, candidates);
+      const orphaned = candidates.filter(mediaId => !known.includes(mediaId) && !spokenFor.has(mediaId));
       candidates = [];
 
       if (orphaned.length > 0) {

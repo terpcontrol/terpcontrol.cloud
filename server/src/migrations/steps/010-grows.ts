@@ -32,11 +32,9 @@ import { MIGRATED_MEASUREMENTS } from '../measurements';
  */
 export const grows: MigrationStep = {
   name: '010-grows',
+  moves: [LEGACY.devices, LEGACY.deviceLogs],
 
   async run(context: MigrationContext): Promise<void> {
-    await context.renameAside(LEGACY.devices);
-    await context.renameAside(LEGACY.deviceLogs);
-
     const facts = await loadDeviceFacts(context);
     const reconstructed = await reconstructGrows(context, facts, { report: true });
 

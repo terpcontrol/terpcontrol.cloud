@@ -448,7 +448,7 @@ all. A later migration, in the following release, drops the `legacy_*` collectio
 | `devices.cloudSettings` + `hardwareInfo.webcam_*` | `cameras`, `devices.settings`, `devices.firmware` | one camera per device that has a stream, its kind from the stream's scheme; a device with stills but no stream today gets a retired camera (`removedAt` set), so no picture loses its link |
 | each claimed device | `spaces` | one space per device, kind from the device type, name from the device |
 | `devicelogs` | `entries` | `kind` and `source` from `categories`; `message-key:param` parsed into `message`; `data` into `values` (the six fixed measurements become readings); `images` → `mediaIds`; `deleted` dropped, and **no row is dropped with it**: deleting a line really removed it, and the old app sets the flag on every diary entry it writes, so it means "not interesting on the device card" and nothing else. Every row still in the collection is a line somebody kept, and reading the flag as a deletion would empty a grower's whole diary; human diary entries get the device's owner as author, since a device has had exactly one writer |
-| lifecycle entries | `grows` with `phases[]` and one placement | cycles by the rule today's grow report uses (a new cycle on a stage-order rollback or a changed name); a running plan without lifecycle entries becomes a grow that starts with its step; migrated grows have no plants, because none were ever recorded |
+| lifecycle entries | `grows` with `phases[]` and one placement | cycles by the rule today's grow report uses (a new cycle on a stage-order rollback or a changed name); a running plan without lifecycle entries becomes a grow that starts with its step, but only where a step of that plan carries a stage - a plan whose steps carry none says nothing about what is growing and becomes no grow, which is what it was before the upgrade too, since the old app wrote a lifecycle entry only for a step with a stage on it. That is the ordinary shape of a plan: only the guided onboarding's reference plans ever wrote a stage. The device, its space and its running plan migrate either way, and the first climate preset applied to that space offers to start a grow. Migrated grows have no plants, because none were ever recorded |
 | `images` | `media` | `jpeg` → `still`, `mp4` → `timelapse` with its window, `user/jpeg` → `photo`; stills and timelapses get the camera of their device, photos the space and, through their entry, the grow |
 | `shares` | – | not migrated: old links stop working, and `shareLinks` starts empty |
 | `chartpresets` | – | not migrated: saved chart views are made again in the new app |
@@ -457,10 +457,24 @@ all. A later migration, in the following release, drops the `legacy_*` collectio
 
 ### Going back
 
-`npm run migrate:rollback` drops the new collections and renames `legacy_*` back, after which the previous
-release runs on exactly the data it left. Whatever was written after the migration is lost in that case; picture
-bytes written meanwhile become orphans, which the existing sweep removes. Once the `legacy_*` collections are
-dropped, the way back is the backup.
+`npm run migrate:rollback` prints what it would drop, what it would rename back and what it would leave exactly
+where it is; `--confirm` beside it does the work. After that the previous release runs on exactly the data it
+left. Whatever was written after the migration is lost; picture bytes written meanwhile become orphans, which the
+existing sweep removes. Once the `legacy_*` collections are dropped, the way back is the backup.
+
+What may be dropped is derived from the model's own registrations rather than decided by exclusion, and it is
+defined for a run that **stopped part way** - which is when the way back is actually reached for. A collection no
+step has reached is still standing under its original name with the only copy of its rows in it, so it is
+reported and left alone; of the two names this release shares with the previous one, `users` and `devices` are
+dropped only where the `legacy_` twin proves the rename has happened. A name missing from the derived list
+therefore leaves a collection of the new model standing, which is a line in the report rather than a restore from
+the backup.
+
+It refuses on a database that holds no `legacy_*` at all, and on one holding two generations of the old data at
+once - a pre-upgrade dump restored over a migrated database - because nothing in the data says which copy is the
+one to keep. And it does not undo the first step's move of inline picture bytes into the bucket: the previous
+release reads them there by the same ids. For as long as `legacy_images` stands, the daily sweep and the
+timelapse thinning leave the pictures the migration carried over alone, so the way back stays a way back.
 
 ### What an upgrade looks like
 
@@ -515,10 +529,11 @@ before the first screen can show a live value.
 ## Risks
 
 1. **The migration is the risk.** It touches every document once. The counts and the reject report, the
-   untouched `legacy_*` collections and the rollback command are what bound it. The migration test on a
-   database in today's shape is part of step 0, not of the end. The rehearsal runs on simulated data, so the
-   size of the hosted database and whatever is odd in it are met for the first time on the day itself; that is
-   what the backup and the reject report are for.
+   untouched `legacy_*` collections and the rollback command are what bound it - and the rollback only bounds
+   anything because it is defined for an incomplete run, which is the state it is reached for in. The migration
+   test on a database in today's shape is part of step 0, not of the end. The rehearsal runs on simulated data,
+   so the size of the hosted database and whatever is odd in it are met for the first time on the day itself;
+   that is what the backup and the reject report are for.
 2. **Old links and saved views stop working**, deliberately. Share links people have sent out resolve to
    nothing after the migration, and saved chart presets are gone. Nothing else outside this repository calls the
    API, and the Garmin widget moves to `/v1` with it.

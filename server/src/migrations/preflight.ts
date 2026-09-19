@@ -81,16 +81,23 @@ export class PreflightFailure extends Error {
  * prints it.
  */
 export class StaleMigrationRecord extends Error {
-  constructor(public readonly collections: string[]) {
+  constructor(
+    public readonly collections: string[],
+    recorded: number,
+    ofSteps: number,
+  ) {
+    const whole = recorded >= ofSteps;
     super(
       [
-        `The record says every migration has already been applied, but these collections still hold what the previous release wrote: ${collections.join(', ')}.`,
+        `The record says ${whole ? 'every migration has already been applied' : `${recorded} of ${ofSteps} migrations have already been applied`}, ` +
+          `but these collections still hold what the previous release wrote: ${collections.join(', ')}.`,
         '',
-        'Nothing has been written, and nothing would have been: with every step recorded there is nothing left to apply, so a boot would have',
-        'migrated none of this and served accounts in a shape nobody can sign in to.',
+        whole
+          ? 'Nothing has been written, and nothing would have been: with every step recorded there is nothing left to apply, so a boot would have\nmigrated none of this and served accounts in a shape nobody can sign in to.'
+          : 'Nothing has been written. Each of these is a collection a recorded step reads and moves aside, so a step that says it ran has not run\nover this data - and the steps that are still pending would have transformed half of it and let the server start on the rest.',
         '',
         'A dump taken before the upgrade, restored into a database this release had already started against, is exactly this: a restore drops',
-        'only the collections the archive carries, so the `migrations` record of the empty database it was restored into survives it.',
+        'only the collections the archive carries, so the `migrations` record of the database it was restored into survives it.',
         '',
         'Drop `migrations` and `migrationLock`, then start again.',
       ].join('\n'),
@@ -113,13 +120,17 @@ const OLD_SHAPE: Record<string, mongo.Filter<mongo.Document>> = {
   [LEGACY.devices]: { device_id: { $exists: true } },
 };
 
+/** Whether a collection standing under its own name holds what only the previous release ever wrote. */
+export const holdsWhatThePreviousReleaseWrote = async (db: mongo.Db, collection: string): Promise<boolean> =>
+  (await db.collection(collection).countDocuments(OLD_SHAPE[collection] ?? {}, { limit: 1 })) > 0;
+
 export const unmigratedCollections = async (db: mongo.Db): Promise<string[]> => {
   const present = new Set((await db.listCollections({}, { nameOnly: true }).toArray()).map(entry => entry.name));
 
   const found: string[] = [];
   for (const collection of Object.values(LEGACY)) {
     if (!present.has(collection)) continue;
-    if ((await db.collection(collection).countDocuments(OLD_SHAPE[collection] ?? {}, { limit: 1 })) > 0) found.push(collection);
+    if (await holdsWhatThePreviousReleaseWrote(db, collection)) found.push(collection);
   }
   return found;
 };

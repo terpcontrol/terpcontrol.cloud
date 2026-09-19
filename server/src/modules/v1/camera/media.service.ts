@@ -10,6 +10,7 @@ import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { ImageStore } from '@database/image-store';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
+import { picturesTheWayBackHolds } from '@/migrations/way-back';
 
 /**
  * The `media` collection: one row per picture and per film, and the bytes of it.
@@ -176,6 +177,11 @@ export class MediaService {
 
     const result = await this.media.deleteMany({ id: { $in: ids } });
     return result?.deletedCount ?? 0;
+  }
+
+  /** Of these pictures, the ones the previous release still holds a row for, which no sweep of ours may remove yet. */
+  public carriedOverAndStillHeld(ids: string[]): Promise<Set<string>> {
+    return picturesTheWayBackHolds(this.media.db.db, ids);
   }
 
   /**

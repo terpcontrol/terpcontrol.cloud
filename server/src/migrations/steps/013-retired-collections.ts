@@ -22,12 +22,12 @@ import { MigrationContext, MigrationStep } from '../migration';
  */
 export const retiredCollections: MigrationStep = {
   name: '013-retired-collections',
+  moves: [LEGACY.passwordTokens, LEGACY.shares, LEGACY.chartPresets],
 
   async run(context: MigrationContext): Promise<void> {
-    for (const collection of [LEGACY.passwordTokens, LEGACY.shares, LEGACY.chartPresets]) {
+    for (const collection of retiredCollections.moves ?? []) {
       const source = await context.source(collection);
       context.count(`${collection}.leftBehind`, await source.countDocuments());
-      await context.renameAside(collection);
     }
   },
 };

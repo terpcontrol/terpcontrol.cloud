@@ -52,11 +52,9 @@ const STAGES = ['germination', 'seedling', 'vegetative', 'flowering', 'drying', 
 
 export const entries: MigrationStep = {
   name: '011-entries',
+  moves: [LEGACY.devices, LEGACY.deviceLogs],
 
   async run(context: MigrationContext): Promise<void> {
-    await context.renameAside(LEGACY.devices);
-    await context.renameAside(LEGACY.deviceLogs);
-
     const facts = await loadDeviceFacts(context);
     const grows = await reconstructGrows(context, facts);
     const devicesWithPlans = await planned(context);

@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { config as readEnvFile } from 'dotenv';
-import { createConnection } from 'mongoose';
+import { Connection, createConnection } from 'mongoose';
 import { databaseConfig } from '../config/configuration';
 import { mongoConnectionSettings } from '../database/mongo-connection';
 import { MigrationRunner, MigrationRunReport, migrationFailureText, runProgress } from './migration-runner';
@@ -18,6 +18,9 @@ import { PreflightFailure, preflight } from './preflight';
  * told that leaving the rows it cannot take behind is the intention. `--check` is the short half of
  * that: only the checks a run refuses to start on, so a database can be cleared
  * for an upgrade before the day of it.
+ *
+ * `--rollback` prints what it would drop, restore and leave standing, and needs
+ * `--confirm` beside it to do any of it.
  *
  * It opens its own connection rather than building the application: the
  * migrations need the database and nothing else, and booting the server to run
@@ -50,12 +53,44 @@ const printRun = (result: MigrationRunReport): void => {
   if (result.applied.length === 0) report('\nNothing to do.');
 };
 
-const rollback = async (db: Parameters<typeof planRollback>[0]): Promise<void> => {
+/**
+ * The plan first, and the work only when it is asked for a second time.
+ *
+ * A rollback drops collections and loses everything written since the migration,
+ * and on a database whose run stopped part way it also has to say what it is
+ * *not* touching - the collections no step reached are the ones the old rule
+ * destroyed. That is a plan to read, so printing it and acting on it cannot be
+ * the same command.
+ */
+const rollback = async (connection: Connection, confirmed: boolean): Promise<void> => {
+  const db = connection.db!;
   const plan = await planRollback(db);
+  const { applied, pending } = await new MigrationRunner(connection).progress();
 
-  report('\nRolling back. Everything written since the migration is lost.\n');
-  report(`Dropping: ${plan.drop.join(', ') || 'nothing'}`);
-  report(`Restoring: ${plan.restore.map(entry => `${entry.from} -> ${entry.to}`).join(', ')}`);
+  const stoppedAfter = applied.length > 0 ? `stopped after ${applied[applied.length - 1]}` : 'recorded no step at all';
+  report(
+    pending.length === 0
+      ? '\nRolling back a database every migration has run on.'
+      : `\nRolling back a database whose run ${stoppedAfter}: ${pending.length} of ${applied.length + pending.length} migrations never ran.`,
+  );
+  report('Everything written since the migration is lost.\n');
+
+  report(`Dropping (${plan.drop.length}): ${plan.drop.join(', ') || 'nothing'}`);
+  report(`Restoring (${plan.restore.length}): ${plan.restore.map(entry => `${entry.from} -> ${entry.to}`).join(', ') || 'nothing'}`);
+
+  if (plan.leftStanding.old.length > 0) {
+    report(`Left exactly as they are (${plan.leftStanding.old.length}): ${plan.leftStanding.old.join(', ')}`);
+    report('  Nothing moved these aside, so they stand exactly where the previous release left them and nothing holds a second copy.');
+  }
+  if (plan.leftStanding.unrecognised.length > 0) {
+    report(`Not recognised, and therefore not touched: ${plan.leftStanding.unrecognised.join(', ')}`);
+    report('  This command drops only what this release registers a model for. Anything else is yours to look at.');
+  }
+
+  if (!confirmed) {
+    report('\nNothing has been written. Run it again with --confirm to do all of the above.');
+    return;
+  }
 
   await applyRollback(db, plan);
   report('\nDone. The previous release runs on exactly the data it left.');
@@ -72,7 +107,7 @@ const main = async (): Promise<void> => {
 
   try {
     if (process.argv.includes('--rollback')) {
-      await rollback(connection.db!);
+      await rollback(connection, process.argv.includes('--confirm'));
       return;
     }
 

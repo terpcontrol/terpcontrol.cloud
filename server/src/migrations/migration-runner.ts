@@ -6,6 +6,7 @@ import { logger } from '@utils/logger';
 import { derivedId } from './ids';
 import { MigrationContext, MigrationReject, MigrationStep } from './migration';
 import { MigrationLock } from './migration-lock';
+import { RollbackRefused } from './migration-rollback';
 import { PreflightFailure, StaleMigrationRecord, preflight, unmigratedCollections } from './preflight';
 import { MIGRATION_STEPS } from './steps';
 
@@ -133,7 +134,8 @@ const plural = (count: number, noun: string): string => `${count} ${noun}${count
 
 /** A refusal is a report to read, not a crash: it prints as it was written, with no stack in front of it. */
 export const migrationFailureText = (error: unknown): string => {
-  if (error instanceof PreflightFailure || error instanceof RejectedRows || error instanceof StaleMigrationRecord) return error.message;
+  if (error instanceof PreflightFailure || error instanceof RejectedRows || error instanceof StaleMigrationRecord || error instanceof RollbackRefused)
+    return error.message;
   return error instanceof Error ? (error.stack ?? error.message) : String(error);
 };
 
@@ -178,22 +180,43 @@ export class MigrationRunner {
   }
 
   /**
-   * The record is not believed on its own, where it claims everything has run.
+   * The record is not believed on its own, where it claims a step has run.
    *
    * A dump taken before the upgrade and restored into a database this release
    * has already started against comes out looking migrated: a restore drops
    * only the collections the archive carries, so the `migrations` record of the
-   * empty database it landed in survives. Nothing is then pending, nothing is
-   * renamed aside, and the server serves accounts in a shape nobody can sign in
-   * to. A `listCollections` and at most twelve counts, on a boot that would
+   * database it landed in survives. Nothing is then pending, nothing is renamed
+   * aside, and the server serves accounts in a shape nobody can sign in to.
+   *
+   * A record of a run that stopped part way survives a restore exactly as a
+   * complete one does, and is the more dangerous of the two: a handful of steps
+   * count as applied, the rest run over freshly restored old data, and the boot
+   * *succeeds* half-migrated. So the question is asked of each recorded step
+   * rather than only of a full record - a step that ran has moved the
+   * collections it reads aside, and finding one of them still standing under its
+   * own name with old rows in it says the record is describing a database that
+   * is no longer there. The collections no recorded step has reached yet are
+   * exactly where a resumable run leaves them, and are not asked about.
+   *
+   * A `listCollections` and at most twelve counts, on a boot that would
    * otherwise do nothing at all.
    */
   public async refuseAStaleRecord(): Promise<void> {
     const applied = await this.appliedNames();
-    if (!MIGRATION_STEPS.every(step => applied.has(step.name))) return;
+    if (applied.size === 0) return;
 
-    const stale = await unmigratedCollections(this.db);
-    if (stale.length > 0) throw new StaleMigrationRecord(stale);
+    const moved = new Set(MIGRATION_STEPS.filter(step => applied.has(step.name)).flatMap(step => [...(step.moves ?? [])]));
+    const stale = (await unmigratedCollections(this.db)).filter(name => moved.has(name));
+    if (stale.length > 0) throw new StaleMigrationRecord(stale, applied.size, MIGRATION_STEPS.length);
+  }
+
+  /** How far this database has been taken, for a report that has to say where a run stopped. */
+  public async progress(): Promise<{ applied: string[]; pending: string[] }> {
+    const applied = await this.appliedNames();
+    return {
+      applied: MIGRATION_STEPS.filter(step => applied.has(step.name)).map(step => step.name),
+      pending: MIGRATION_STEPS.filter(step => !applied.has(step.name)).map(step => step.name),
+    };
   }
 
   public async run({
@@ -209,8 +232,12 @@ export class MigrationRunner {
     const applied = await this.appliedNames();
     const report: MigrationRunReport = { dryRun, applied: [], alreadyApplied: MIGRATION_STEPS.filter(s => applied.has(s.name)).map(s => s.name) };
 
+    // The record against the database, before the pending list is acted on and
+    // whether or not anything is pending: a record that describes a database
+    // this one is not is the one thing no step can recover from.
+    await this.refuseAStaleRecord();
+
     if (report.alreadyApplied.length === MIGRATION_STEPS.length) {
-      await this.refuseAStaleRecord();
       watch?.({ at: 'nothing-to-do', applied: report.alreadyApplied.length });
       return report;
     }
@@ -252,7 +279,14 @@ export class MigrationRunner {
         // or say with `allowRejects` that leaving them behind is the intention.
         // What was written stays: every copy is an upsert keyed by the document
         // it came from, so the next run carries on rather than starting over.
-        if (!allowRejects && outcome.rejectCount > 0) throw new RejectedRows(outcome);
+        //
+        // A rehearsal is the exception, and has to be: it is read to find out
+        // what the real run will refuse, and a dry run that stopped at the first
+        // step with a reject in it never rehearsed the transforms after that one
+        // - so the report an operator reads before setting `--allow-rejects`
+        // would name the rows of one step and stay silent about every step it
+        // never reached.
+        if (!dryRun && !allowRejects && outcome.rejectCount > 0) throw new RejectedRows(outcome);
       }
 
       reached = null;
@@ -304,6 +338,10 @@ export class MigrationRunner {
     const context = new MigrationContext(this.db, dryRun, new Date());
 
     try {
+      // The step's own sources, moved out of the way before it reads them. Here
+      // rather than in the step, so that what a step has moved is something the
+      // rollback and the stale-record check can read off it without running it.
+      for (const collection of step.moves ?? []) await context.renameAside(collection);
       await step.run(context);
       await context.flushAll();
     } catch (error) {
