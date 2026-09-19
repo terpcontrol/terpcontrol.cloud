@@ -34,7 +34,14 @@ const auth = {
 
 const premium = { enforced: true, freeStillWidth: 0, freeRetention: false, freeStillDays: 0, freeTimelapseDays: 0, extendUrl: '', priceLabel: '' };
 
-const notifications = { pushPublicKey: null, telegramBotToken: null };
+const notifications = {
+  pushPublicKey: null,
+  pushPrivateKey: null,
+  pushContact: null,
+  telegramBotToken: null,
+  telegramBotUsername: null,
+  telegramWebhookSecret: null,
+};
 
 const mailed: { to: string; subject: string; text: string }[] = [];
 

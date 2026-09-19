@@ -103,9 +103,9 @@ export const shareLinkOnGrow = (growId: string, token: string): Promise<void> =>
   });
 
 /**
- * A reminder on a space, which is what a derived task comes from. Reminders
- * have no routes yet - they arrive with the notifications round - and a spec
- * that needs a tent with something due cannot wait for them.
+ * A reminder on a space, which is what a derived task comes from. `POST
+ * /v1/reminders` writes one too; this puts the row there without a session, for
+ * the specs that only need a tent with something due in it.
  */
 export const remindSpace = (spaceId: string, createdBy: string, label = 'Water the tent'): Promise<string> =>
   withDatabase(async database => {
@@ -164,10 +164,10 @@ export const storeCameraStill = (cameraId: string, data: Buffer, capturedAt: Dat
   });
 
 /**
- * A row in a collection that has no routes yet. Four of them - the chart views,
- * the feeding schemes, the push subscriptions and the notification log - are
- * registered, indexed and injected nowhere, so a spec about what an account
- * leaves behind can neither put one there nor read it back through the API.
+ * A row in a collection a spec cannot reach through the API: one with no routes
+ * yet - the chart views and the feeding schemes - one the server writes for
+ * itself, like the notification log, and one whose state a route cannot put
+ * into the shape a case needs.
  */
 export const seedRow = (collection: string, document: Record<string, unknown>): Promise<void> =>
   withDatabase(async database => {

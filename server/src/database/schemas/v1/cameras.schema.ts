@@ -74,6 +74,11 @@ export const camerasSchema = new Schema<CameraDocument>(
     nightOff: { type: Boolean, required: true, default: false },
     maintenanceOff: { type: Boolean, required: true, default: false },
     logErrors: { type: Boolean, required: true, default: false },
+    // On unless it is turned off: the warning that a camera has stopped
+    // delivering is something somebody opts out of, not into. A row written
+    // before this field existed carries no value at all, which the health loop
+    // fills in rather than reading as "off".
+    staleWarning: { type: Boolean, required: true, default: true },
     entitlement: { type: entitlementSchema, required: true, default: () => ({ validUntil: null, grant: null }) },
     isDemo: { type: Boolean, required: true, default: false },
     removedAt: { type: Date, default: null },

@@ -141,6 +141,7 @@ export class CamerasService {
       nightOff: body.nightOff ?? false,
       maintenanceOff: body.maintenanceOff ?? false,
       logErrors: body.logErrors ?? false,
+      staleWarning: body.staleWarning ?? true,
       entitlement: isTerpCam ? { validUntil: yearFrom(createdAt), grant: 'included' } : { validUntil: null, grant: null },
       isDemo: device?.isDemo ?? false,
       removedAt: null,
@@ -203,6 +204,10 @@ export class CamerasService {
       nightOff: camera.nightOff,
       maintenanceOff: camera.maintenanceOff,
       logErrors: camera.logErrors,
+      // Read as an opt-out rather than as a truth: a row carried over by the
+      // migration has no value for this field until the health loop fills it
+      // in, and it is warned about meanwhile.
+      staleWarning: camera.staleWarning !== false,
       entitlement: this.entitlement.serialise(camera, now),
       isDemo: camera.isDemo,
       removedAt: camera.removedAt?.toISOString() ?? null,

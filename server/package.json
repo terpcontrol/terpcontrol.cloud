@@ -49,6 +49,7 @@
     "reflect-metadata": "^0.2.2",
     "sharp": "^0.34.5",
     "uuid": "^13.0.0",
+    "web-push": "^3.6.7",
     "winston": "^3.3.3",
     "winston-daily-rotate-file": "^4.5.5",
     "zod": "^4.6.1"

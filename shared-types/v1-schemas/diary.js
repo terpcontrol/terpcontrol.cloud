@@ -363,6 +363,9 @@ exports.camera = (0, common_js_1.named)('Camera', zod_1.z.object({
     nightOff: zod_1.z.boolean(),
     maintenanceOff: zod_1.z.boolean(),
     logErrors: zod_1.z.boolean(),
+    staleWarning: zod_1.z
+        .boolean()
+        .describe('Warn when this camera stops delivering pictures. On unless it is turned off, which is what makes it opt-out.'),
     entitlement: exports.cameraEntitlement,
     isDemo: zod_1.z.boolean(),
     removedAt: (0, common_js_1.instant)().nullable().describe('A removed camera is a tombstone, so its pictures keep their link.'),
@@ -385,6 +388,7 @@ const cameraSettings = exports.camera
     nightOff: true,
     maintenanceOff: true,
     logErrors: true,
+    staleWarning: true,
 })
     .partial({
     spaceId: true,
@@ -394,6 +398,7 @@ const cameraSettings = exports.camera
     nightOff: true,
     maintenanceOff: true,
     logErrors: true,
+    staleWarning: true,
 });
 /** How a stream is pulled, which is a question only an RTSP camera raises. */
 const rtspStream = exports.camera.pick({ transport: true, tunnel: true, model: true }).partial();

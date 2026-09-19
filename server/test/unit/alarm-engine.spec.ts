@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import { Model } from 'mongoose';
-import { OutputMetric } from '@fg2/shared-types/v1';
+import { OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule, alarmRulesSchema } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert, alertsSchema } from '@database/schemas/v1/alerts.schema';
@@ -37,6 +37,14 @@ let alerts: Model<StoredAlert>;
 let engine: AlarmEngineService;
 let health: AlarmHealthService;
 let mailed: string[];
+
+/** What the measurement store answers a rule reading its own past back: set per case. */
+let stored: SeriesPoint[];
+let seriesReads: number;
+
+/** A minute apart, oldest first, ending at `endingAt` - the shape `DataService` answers a window in. */
+const series = (values: (number | null)[], endingAt: number = Date.now()): SeriesPoint[] =>
+  values.map((value, index) => ({ measuredAt: new Date(endingAt - (values.length - 1 - index) * 60_000).toISOString(), value }));
 
 const ruleFor = (over: Partial<StoredAlarmRule> = {}): StoredAlarmRule => ({
   id: 'rule-1',
@@ -83,11 +91,17 @@ afterAll(async () => {
 beforeEach(async () => {
   await db.reset();
   mailed = [];
+  stored = [];
+  seriesReads = 0;
 
   const mail = { send: async (message: { subject: string }) => void mailed.push(message.subject) } as unknown as MailService;
   const entries = new EntryWriterService(db.entries);
   const delivery = new AlarmDeliveryService(db.devices, entries, mail, {} as TunnelService, null);
-  const data = { points: jest.fn(async () => []) } as unknown as DataService;
+  const answer = async () => {
+    seriesReads += 1;
+    return stored;
+  };
+  const data = { points: jest.fn(answer), outputPoints: jest.fn(answer) } as unknown as DataService;
   const alertService = new AlertService(alerts, entries, delivery, null);
 
   engine = new AlarmEngineService(rules, db.devices, data, alertService);
@@ -233,6 +247,105 @@ describe('a rule on an output', () => {
   });
 });
 
+/**
+ * A patient rule is the one an in-memory clock cannot answer on its own: the
+ * engine is a fresh one in every case here, which is what a restart leaves
+ * behind, and the only thing that remembers the episode is the stored series.
+ *
+ * The eleven fridge alarms the migration brought over are exactly this shape -
+ * "the compressor has not stopped in an hour" - so a clock that starts again
+ * with the server is an alarm that a continuously running fridge never raises.
+ */
+describe('a rule that waits', () => {
+  /** An hour of the compressor running, which is the episode the rule is there for. */
+  const anHourOfRunning = () => {
+    stored = series(Array.from({ length: 65 }, () => 1));
+  };
+
+  const patientRule = (over: Partial<StoredAlarmRule> = {}) =>
+    rules.create(ruleFor({ name: 'Fridge never stops', watch: { kind: 'output_running', output: 'dehumidifier' }, forSeconds: 3600, ...over }));
+
+  beforeEach(async () => {
+    await device();
+  });
+
+  it('triggers on the first sample after a restart when the series says the hour is already up', async () => {
+    anHourOfRunning();
+    await patientRule();
+
+    await drives({ dehumidifier: 1 }, new Date());
+
+    expect(seriesReads).toBe(1);
+    expect(await openAlert()).toMatchObject({ ruleId: 'rule-1', value: 1 });
+  });
+
+  it('starts the hour again where the series says the output stopped in the meantime', async () => {
+    stored = series([1, 1, 1, 0, 1, 1]);
+    await patientRule();
+
+    await drives({ dehumidifier: 1 }, new Date());
+
+    expect(await alerts.countDocuments({})).toBe(0);
+  });
+
+  it('starts the hour now where the series holds nothing to read', async () => {
+    stored = [];
+    await patientRule();
+
+    await drives({ dehumidifier: 1 }, new Date());
+
+    expect(await alerts.countDocuments({})).toBe(0);
+  });
+
+  it('reads its past back once and then watches for itself', async () => {
+    anHourOfRunning();
+    await patientRule({ cooldownSeconds: 3600 });
+
+    await drives({ dehumidifier: 1 }, new Date(Date.now() - 2000));
+    await drives({ dehumidifier: 1 }, new Date(Date.now() - 1000));
+
+    expect(seriesReads).toBe(1);
+  });
+
+  it('counts from the last reading this process saw inside the band', async () => {
+    await rules.create(ruleFor({ forSeconds: 60 }));
+
+    await reads(20, new Date(Date.now() - 20 * 60 * 1000));
+    await reads(32, new Date(Date.now() - 19 * 60 * 1000));
+
+    // Twenty minutes inside, then outside: the hour-old reading is what the
+    // duration is counted from, and nothing was read back for it.
+    expect(seriesReads).toBe(0);
+    expect(await openAlert()).toMatchObject({ ruleId: 'rule-1', value: 32 });
+  });
+
+  it('leaves an episode that is already open alone, however little the series reaches back', async () => {
+    // A minute of running, which is a fraction of the hour the rule waits for:
+    // the episode was opened before the restart and is not over.
+    stored = series([1, 1]);
+    await patientRule({ state: { ...ruleFor().state, triggered: true, extremeValue: 1, lastTriggeredAt: new Date(Date.now() - 3 * 3600_000) } });
+
+    await drives({ dehumidifier: 1 }, new Date());
+
+    expect((await storedRule()).state.triggered).toBe(true);
+    expect(await alerts.countDocuments({})).toBe(0);
+    // The duration was answered when it triggered; nothing is read back for it.
+    expect(seriesReads).toBe(0);
+  });
+
+  it('starts the duration again across a gap, because a device that was away held nothing', async () => {
+    await rules.create(ruleFor({ forSeconds: 60 }));
+
+    await reads(20, new Date(Date.now() - 20 * 60 * 1000));
+    await reads(32, new Date());
+
+    expect(await alerts.countDocuments({})).toBe(0);
+    // The gap answers it; the stored series is not asked about a device that
+    // was demonstrably not reporting.
+    expect(seriesReads).toBe(0);
+  });
+});
+
 describe('the health loop', () => {
   it('keeps an offline rule for every claimed device and raises when one goes quiet', async () => {
     await device({ state: { lastSeenAt: new Date(Date.now() - GONE_MS) } });
@@ -270,6 +383,53 @@ describe('the health loop', () => {
     await health.run(new Date());
 
     expect(await alerts.findOne({ kind: 'camera_stale' }).lean<StoredAlert>()).toMatchObject({ cameraId: 'camera-1', ruleId: null });
+  });
+
+  /**
+   * The stale warning is opted out of, never into. What matters is what a
+   * camera nobody has said anything about does - including one written before
+   * the switch existed, which carries no value for it at all.
+   */
+  it('warns about a camera that predates the switch, and fills the switch in', async () => {
+    await device();
+    await db.cameras.collection.insertOne({
+      id: 'camera-old',
+      createdAt: new Date(),
+      ownerId: OWNER,
+      kind: 'terpcam_controller',
+      name: 'Carried over',
+      deviceId: DEVICE,
+      spaceId: SPACE,
+      stillIntervalSeconds: 30,
+      nightOff: false,
+      maintenanceOff: false,
+      removedAt: null,
+      state: { lastStillAt: new Date(Date.now() - GONE_MS) },
+    });
+
+    await health.run(new Date());
+
+    expect(await alerts.countDocuments({ kind: 'camera_stale' })).toBe(1);
+    expect((await db.cameras.findOne({ id: 'camera-old' }).lean())?.staleWarning).toBe(true);
+  });
+
+  it('says nothing about a camera whose warning has been switched off', async () => {
+    await device();
+    await db.cameras.create({
+      id: 'camera-1',
+      ownerId: OWNER,
+      kind: 'terpcam_controller',
+      name: 'Tent',
+      deviceId: DEVICE,
+      spaceId: SPACE,
+      stillIntervalSeconds: 30,
+      staleWarning: false,
+      state: { lastStillAt: new Date(Date.now() - GONE_MS) },
+    });
+
+    await health.run(new Date());
+
+    expect(await alerts.countDocuments({ kind: 'camera_stale' })).toBe(0);
   });
 
   it('says nothing about a camera whose controller is itself away', async () => {

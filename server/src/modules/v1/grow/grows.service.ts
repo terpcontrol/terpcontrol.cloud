@@ -105,6 +105,23 @@ export class GrowsService {
     return this.grows.findOne({ slug }).lean<GrowDocument>();
   }
 
+  /**
+   * What is growing in a place right now, as an id and nothing more.
+   *
+   * It is what the alarms ask through `GROW_IN_SPACE`: an alarm happens in a
+   * tent, and a tent with a grow standing in it has a diary the line belongs
+   * in. The newest open placement answers it, because two grows can share a
+   * tent while one is on its way out.
+   */
+  public async growIdIn(spaceId: string): Promise<string | null> {
+    const grow = await this.grows
+      .findOne({ endedAt: null, placements: { $elemMatch: { spaceId, endedAt: null } } }, { id: 1 })
+      .sort({ startedAt: -1, id: -1 })
+      .lean<Pick<GrowDocument, 'id'>>();
+
+    return grow?.id ?? null;
+  }
+
   /** Oldest first, and the plants of one batch share an instant, so the order they were written in decides between them. */
   public plantsOf(growId: string): Promise<PlantDocument[]> {
     return this.plants.find({ growId }).sort({ createdAt: 1, _id: 1 }).lean<PlantDocument[]>();
@@ -152,7 +169,7 @@ export class GrowsService {
    * row: their own, and those standing in a space they are a member of. An
    * admin sees every grow, a demo session the demo ones.
    */
-  private async visibleTo(ctx: AccessContext): Promise<FilterQuery<GrowDocument>> {
+  public async visibleTo(ctx: AccessContext): Promise<FilterQuery<GrowDocument>> {
     if (ctx.isAdmin) return {};
     if (ctx.isDemo || ctx.userId === null) return { isDemo: true };
 

@@ -2463,6 +2463,10 @@ export interface Camera {
   nightOff: boolean;
   maintenanceOff: boolean;
   logErrors: boolean;
+  /**
+   * Warn when this camera stops delivering pictures. On unless it is turned off, which is what makes it opt-out.
+   */
+  staleWarning: boolean;
   entitlement: CameraEntitlement;
   isDemo: boolean;
   /**
@@ -2492,6 +2496,10 @@ export interface ControllerCameraCreate {
   nightOff?: boolean;
   maintenanceOff?: boolean;
   logErrors?: boolean;
+  /**
+   * Warn when this camera stops delivering pictures. On unless it is turned off, which is what makes it opt-out.
+   */
+  staleWarning?: boolean;
   kind: 'terpcam_controller';
   deviceId: string;
 }
@@ -2508,6 +2516,10 @@ export interface StandaloneCameraCreate {
   nightOff?: boolean;
   maintenanceOff?: boolean;
   logErrors?: boolean;
+  /**
+   * Warn when this camera stops delivering pictures. On unless it is turned off, which is what makes it opt-out.
+   */
+  staleWarning?: boolean;
   kind: 'terpcam_standalone';
   did: string;
 }
@@ -2524,6 +2536,10 @@ export interface RtspCameraCreate {
   nightOff?: boolean;
   maintenanceOff?: boolean;
   logErrors?: boolean;
+  /**
+   * Warn when this camera stops delivering pictures. On unless it is turned off, which is what makes it opt-out.
+   */
+  staleWarning?: boolean;
   transport?: CameraTransport | null;
   /**
    * Pull the stream through the controller’s tunnel rather than reaching it directly.
@@ -2553,6 +2569,10 @@ export interface CameraUpdate {
   nightOff?: boolean;
   maintenanceOff?: boolean;
   logErrors?: boolean;
+  /**
+   * Warn when this camera stops delivering pictures. On unless it is turned off, which is what makes it opt-out.
+   */
+  staleWarning?: boolean;
   transport?: CameraTransport | null;
   /**
    * Pull the stream through the controller’s tunnel rather than reaching it directly.

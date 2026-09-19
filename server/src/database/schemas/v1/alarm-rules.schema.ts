@@ -70,8 +70,12 @@ const webhookSchema = new Schema<AlarmWebhook>(
   {
     method: { type: String, enum: webhookMethod.options, required: true, default: 'POST' },
     headers: { type: Schema.Types.Mixed, required: true, default: () => ({}) },
-    triggeredPayload: { type: String, required: true, default: '' },
-    resolvedPayload: { type: String, required: true, default: '' },
+    // Not `required`: an empty template is the ordinary case and means "send
+    // the payload the cloud has always sent", which the delivery reads it as -
+    // and mongoose counts an empty string as a missing value, so requiring one
+    // refuses every rule that does not template its own body.
+    triggeredPayload: { type: String, default: '' },
+    resolvedPayload: { type: String, default: '' },
     reportErrors: { type: Boolean, required: true, default: true },
     tunnel: { type: Boolean, required: true, default: false },
   },

@@ -38,7 +38,14 @@ const AUTH = {
 };
 
 const PREMIUM = { enforced: true, freeStillWidth: 0, freeRetention: false, freeStillDays: 0, freeTimelapseDays: 0, extendUrl: '', priceLabel: '' };
-const NOTIFICATIONS = { pushPublicKey: null, telegramBotToken: null };
+const NOTIFICATIONS = {
+  pushPublicKey: null,
+  pushPrivateKey: null,
+  pushContact: null,
+  telegramBotToken: null,
+  telegramBotUsername: null,
+  telegramWebhookSecret: null,
+};
 const PASSWORD = 'Passw0rd!test';
 
 let db: V1TestDatabase;

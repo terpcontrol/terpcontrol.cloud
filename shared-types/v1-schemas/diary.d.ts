@@ -978,6 +978,7 @@ export declare const camera: z.ZodObject<{
     nightOff: z.ZodBoolean;
     maintenanceOff: z.ZodBoolean;
     logErrors: z.ZodBoolean;
+    staleWarning: z.ZodBoolean;
     entitlement: z.ZodObject<{
         validUntil: z.ZodNullable<z.ZodISODateTime>;
         grant: z.ZodNullable<z.ZodEnum<{
@@ -1034,6 +1035,7 @@ export declare const cameraPage: z.ZodObject<{
         nightOff: z.ZodBoolean;
         maintenanceOff: z.ZodBoolean;
         logErrors: z.ZodBoolean;
+        staleWarning: z.ZodBoolean;
         entitlement: z.ZodObject<{
             validUntil: z.ZodNullable<z.ZodISODateTime>;
             grant: z.ZodNullable<z.ZodEnum<{
@@ -1071,6 +1073,7 @@ export declare const controllerCameraCreate: z.ZodObject<{
     nightOff: z.ZodOptional<z.ZodBoolean>;
     maintenanceOff: z.ZodOptional<z.ZodBoolean>;
     logErrors: z.ZodOptional<z.ZodBoolean>;
+    staleWarning: z.ZodOptional<z.ZodBoolean>;
     kind: z.ZodLiteral<"terpcam_controller">;
     deviceId: z.ZodString;
 }, z.core.$strip>;
@@ -1088,6 +1091,7 @@ export declare const standaloneCameraCreate: z.ZodObject<{
     nightOff: z.ZodOptional<z.ZodBoolean>;
     maintenanceOff: z.ZodOptional<z.ZodBoolean>;
     logErrors: z.ZodOptional<z.ZodBoolean>;
+    staleWarning: z.ZodOptional<z.ZodBoolean>;
     kind: z.ZodLiteral<"terpcam_standalone">;
     did: z.ZodString;
 }, z.core.$strip>;
@@ -1108,6 +1112,7 @@ export declare const rtspCameraCreate: z.ZodObject<{
     nightOff: z.ZodOptional<z.ZodBoolean>;
     maintenanceOff: z.ZodOptional<z.ZodBoolean>;
     logErrors: z.ZodOptional<z.ZodBoolean>;
+    staleWarning: z.ZodOptional<z.ZodBoolean>;
     transport: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
         tcp: "tcp";
         udp: "udp";
@@ -1133,6 +1138,7 @@ export declare const cameraCreate: z.ZodDiscriminatedUnion<[z.ZodObject<{
     nightOff: z.ZodOptional<z.ZodBoolean>;
     maintenanceOff: z.ZodOptional<z.ZodBoolean>;
     logErrors: z.ZodOptional<z.ZodBoolean>;
+    staleWarning: z.ZodOptional<z.ZodBoolean>;
     kind: z.ZodLiteral<"terpcam_controller">;
     deviceId: z.ZodString;
 }, z.core.$strip>, z.ZodObject<{
@@ -1144,6 +1150,7 @@ export declare const cameraCreate: z.ZodDiscriminatedUnion<[z.ZodObject<{
     nightOff: z.ZodOptional<z.ZodBoolean>;
     maintenanceOff: z.ZodOptional<z.ZodBoolean>;
     logErrors: z.ZodOptional<z.ZodBoolean>;
+    staleWarning: z.ZodOptional<z.ZodBoolean>;
     kind: z.ZodLiteral<"terpcam_standalone">;
     did: z.ZodString;
 }, z.core.$strip>, z.ZodObject<{
@@ -1155,6 +1162,7 @@ export declare const cameraCreate: z.ZodDiscriminatedUnion<[z.ZodObject<{
     nightOff: z.ZodOptional<z.ZodBoolean>;
     maintenanceOff: z.ZodOptional<z.ZodBoolean>;
     logErrors: z.ZodOptional<z.ZodBoolean>;
+    staleWarning: z.ZodOptional<z.ZodBoolean>;
     transport: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
         tcp: "tcp";
         udp: "udp";
@@ -1198,6 +1206,7 @@ export declare const cameraUpdate: z.ZodObject<{
     nightOff: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
     maintenanceOff: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
     logErrors: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
+    staleWarning: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
 }, z.core.$strip>;
 /**
  * What `POST /cameras/{id}/test-captures` answers: one picture, taken now, so

@@ -207,20 +207,43 @@ export class AlarmEngineService {
       return false;
     }
 
-    if (!this.insideSince.has(rule.id)) {
-      this.insideSince.set(rule.id, (await this.lastInsideFromSeries(rule, deviceId)) ?? Date.now() - 5000);
-    }
+    // An episode that is already open has served its duration: "for how long"
+    // was answered when it triggered. Asking it again of a series that only
+    // reaches back `forSeconds` would let a restart sound the all-clear on
+    // something that never stopped, and raise it again a sample later.
+    if (rule.state.triggered) return true;
 
-    // The reading either side of a gap is not a reading held for the duration
-    // of it: a device that was away starts its duration again.
-    if (at - (this.lastSampleSeen.get(deviceId) ?? 0) >= GAP_MS) this.insideSince.set(rule.id, at - 5000);
+    const seenBefore = this.lastSampleSeen.get(deviceId);
+
+    if (seenBefore !== undefined && at - seenBefore >= GAP_MS) {
+      // The reading either side of a gap is not a reading held for the duration
+      // of it: a device that was away starts its duration again.
+      this.insideSince.set(rule.id, at - 5000);
+    } else if (!this.insideSince.has(rule.id)) {
+      // Nothing watched yet, and no gap to say the device was away either -
+      // which is a server that has just started. The series is what remembers
+      // the episode across that, and the answer has to be kept: a rule that
+      // waits an hour would otherwise restart its clock on every restart, and
+      // a fridge that never stops running would never raise the alarm it exists
+      // for.
+      this.insideSince.set(rule.id, (await this.outOfBoundsSince(rule, deviceId)) ?? Date.now() - 5000);
+    }
 
     const since = this.insideSince.get(rule.id);
     return since === undefined || Date.now() - since >= rule.forSeconds * 1000;
   }
 
-  /** When the stored series last held a value inside the band, or null if it never did. */
-  private async lastInsideFromSeries(rule: StoredAlarmRule, deviceId: string): Promise<number | null> {
+  /**
+   * Since when the stored series says the value has been out of the band: the
+   * instant it was last inside it, or - where the window holds nothing inside it
+   * at all - the oldest point it holds, because that is how far back the episode
+   * demonstrably reaches.
+   *
+   * Null where the window holds no measurement at all. A device with no history
+   * says nothing about how long anything has been wrong, and the rule's clock
+   * then starts now rather than triggering on silence.
+   */
+  private async outOfBoundsSince(rule: StoredAlarmRule, deviceId: string): Promise<number | null> {
     // The last few seconds are left out: a point that is still being written
     // reads as an empty window rather than as a good reading.
     const until = Date.now() - SETTLED_MS;
@@ -230,8 +253,12 @@ export class AlarmEngineService {
         ? await this.data.points(deviceId, rule.watch.metric, window)
         : await this.data.outputPoints(deviceId, rule.watch.output, window);
 
-    const inside = [...points].reverse().find(point => point.value !== null && !isOutOfBounds(rule.watch, point.value));
-    const at = Date.parse(inside?.measuredAt ?? '');
+    // An empty window is a gap in the series, not a measurement of nothing.
+    const measured = points.filter((point): point is SeriesPoint & { value: number } => point.value !== null);
+    if (measured.length === 0) return null;
+
+    const inside = [...measured].reverse().find(point => !isOutOfBounds(rule.watch, point.value));
+    const at = Date.parse(inside?.measuredAt ?? measured[0].measuredAt);
 
     return isNaN(at) ? null : at;
   }

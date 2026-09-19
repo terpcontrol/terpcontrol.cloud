@@ -8478,6 +8478,10 @@
       "logErrors": {
         "type": "boolean"
       },
+      "staleWarning": {
+        "type": "boolean",
+        "description": "Warn when this camera stops delivering pictures. On unless it is turned off, which is what makes it opt-out."
+      },
       "entitlement": {
         "$ref": "#/components/schemas/CameraEntitlement"
       },
@@ -8522,6 +8526,7 @@
       "nightOff",
       "maintenanceOff",
       "logErrors",
+      "staleWarning",
       "entitlement",
       "isDemo",
       "removedAt",
@@ -8595,6 +8600,10 @@
       "logErrors": {
         "type": "boolean"
       },
+      "staleWarning": {
+        "type": "boolean",
+        "description": "Warn when this camera stops delivering pictures. On unless it is turned off, which is what makes it opt-out."
+      },
       "kind": {
         "type": "string",
         "const": "terpcam_controller"
@@ -8655,6 +8664,10 @@
       "logErrors": {
         "type": "boolean"
       },
+      "staleWarning": {
+        "type": "boolean",
+        "description": "Warn when this camera stops delivering pictures. On unless it is turned off, which is what makes it opt-out."
+      },
       "kind": {
         "type": "string",
         "const": "terpcam_standalone"
@@ -8713,6 +8726,10 @@
       },
       "logErrors": {
         "type": "boolean"
+      },
+      "staleWarning": {
+        "type": "boolean",
+        "description": "Warn when this camera stops delivering pictures. On unless it is turned off, which is what makes it opt-out."
       },
       "transport": {
         "anyOf": [
@@ -8822,6 +8839,10 @@
       },
       "logErrors": {
         "type": "boolean"
+      },
+      "staleWarning": {
+        "type": "boolean",
+        "description": "Warn when this camera stops delivering pictures. On unless it is turned off, which is what makes it opt-out."
       },
       "transport": {
         "anyOf": [

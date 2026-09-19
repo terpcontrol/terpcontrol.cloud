@@ -263,8 +263,11 @@ export class AccountsService implements OnModuleInit {
         extendUrl: this.premium.extendUrl || null,
         priceLabel: this.premium.priceLabel || null,
       },
-      pushPublicKey: this.notifications.pushPublicKey,
-      telegramAvailable: this.notifications.telegramBotToken !== null,
+      // A key pair with a half missing cannot sign anything, and a bot with no
+      // name has no link to open, so each is offered only where it could
+      // actually send - which is what "the screen says so" needs to be true of.
+      pushPublicKey: this.notifications.pushPrivateKey && this.notifications.pushContact ? this.notifications.pushPublicKey : null,
+      telegramAvailable: !!(this.notifications.telegramBotToken && this.notifications.telegramBotUsername),
     };
   }
 

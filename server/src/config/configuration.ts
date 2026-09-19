@@ -79,14 +79,32 @@ export const authConfig = registerAs('auth', () => ({
 }));
 
 /**
- * The two facts an account screen needs before it can offer a notification
- * channel at all: the public half of the VAPID key pair a browser subscribes
- * with, and whether this install has a Telegram bot. Every channel is off until
- * it is configured, and the screen says so.
+ * What this install can send at all. Every channel is off until it is
+ * configured, and the screens say so: `/me` carries the public key a browser
+ * subscribes with and whether there is a bot, so an account screen can offer
+ * Web Push and Telegram or explain that this install does not have them.
+ *
+ * Mail and a person's own webhook need nothing here - they are addresses the
+ * person gives - which is why only the two outward-facing surfaces appear.
  */
 export const notificationsConfig = registerAs('notifications', () => ({
   pushPublicKey: process.env.VAPID_PUBLIC_KEY || null,
+  pushPrivateKey: process.env.VAPID_PRIVATE_KEY || null,
+  /**
+   * Whom a push service should complain to about this install, which the
+   * standard wants as a `mailto:` or an address. It is part of the key pair's
+   * identity, so Web Push is off until all three are set.
+   */
+  pushContact: process.env.VAPID_SUBJECT || null,
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || null,
+  /** Without a name there is no link to start a chat at, so the bot is off until it has one. */
+  telegramBotUsername: (process.env.TELEGRAM_BOT_USERNAME || '').replace(/^@/, '') || null,
+  /**
+   * The path Telegram is told to deliver updates to. It is the only thing
+   * guarding that route - anybody may post to it otherwise - so the webhook
+   * does not exist until this is set.
+   */
+  telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET || null,
 }));
 
 export const terpCamConfig = registerAs('terpcam', () => ({

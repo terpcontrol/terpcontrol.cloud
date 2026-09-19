@@ -23,6 +23,10 @@ import { ALARM_DEVICE_FIELDS, AlarmDevice } from './alarm.types';
  * pictures. The first goes through the same state machine as every other rule -
  * the device carries an `offline` rule the cloud keeps for it - and the second
  * raises an alert of its own, because no threshold can express it.
+ *
+ * Both are on out of the box and both can be turned off: the offline rule by
+ * disabling or silencing it, the stale warning by the switch on the camera. A
+ * grower who wants neither says so once; nobody has to go and switch them on.
  */
 
 const TICK_MS = 60 * 1000;
@@ -63,8 +67,25 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
     // A device nobody has claimed has nobody to tell, and so has no offline rule.
     const devices = await this.devices.find({ ownerId: { $ne: null } }, ALARM_DEVICE_FIELDS).lean<AlarmDevice[]>();
 
+    await this.keepStaleWarningOptOut();
     for (const device of devices) await this.checkDevice(device, at);
     await this.checkCameras(new Map(devices.map(device => [device.id, device])), at);
+  }
+
+  /**
+   * The stale warning is opted out of rather than into, so a camera that
+   * predates the switch has to come up with it on.
+   *
+   * A schema default only reaches a document being written, and the cameras a
+   * migration carried over were written from the old shape by a transform that
+   * never heard of this field - so several hundred of them would otherwise
+   * arrive with the warning silently off and somebody would have to turn each
+   * one on by hand. Filling it in here rather than in a migration step keeps
+   * that true whichever way a row arrived, and costs a query that matches
+   * nothing from the second pass onwards.
+   */
+  private async keepStaleWarningOptOut(): Promise<void> {
+    await this.cameras.updateMany({ staleWarning: { $exists: false } }, { $set: { staleWarning: true } });
   }
 
   private async checkDevice(device: AlarmDevice, at: Date): Promise<void> {
@@ -142,15 +163,21 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
   }
 
   /**
-   * When silence says nothing about the camera. A camera that is allowed to go
-   * dark at night, one switched off while somebody works on the tent, and one
-   * behind a controller that is itself away are all quiet for a reason - and the
-   * device's own offline alert already says the third out loud.
+   * When silence says nothing about the camera. A camera somebody has switched
+   * the warning off for, one that is allowed to go dark at night, one switched
+   * off while somebody works on the tent, and one behind a controller that is
+   * itself away are all quiet for a reason - and the device's own offline alert
+   * already says the last out loud.
    *
    * Nothing is resolved either while this holds: an alert raised before the tent
    * went dark stays open until a picture arrives.
    */
   private cannotJudge(camera: CameraDocument, devices: Map<string, AlarmDevice>): boolean {
+    // Somebody has said they do not want to hear about this one. Compared
+    // against `false` rather than read as a truth, so that a row written
+    // before the field existed - and not yet filled in - is warned about
+    // rather than quietly dropped.
+    if (camera.staleWarning === false) return true;
     if (camera.nightOff) return true;
 
     const device = camera.deviceId ? devices.get(camera.deviceId) : undefined;

@@ -55,6 +55,11 @@ gets twelve months of Premium when it is first claimed or paired, and every came
 starts its twelve months on migration day; pairing a standalone Terp Cam from the phone ships as "coming soon"
 and gets its own session once the rewrite is merged.
 
+Settled on 2026-09-20, after the backend was read through: **a space is not deleted while it still has members**,
+which is the opposite of what this record assumed. Deleting an account is the other act and stays possible, see
+"Places, people, grows" below. And a **plan step names no stage unless somebody says so**: `stage` and `preset`
+are omitted from a step a client writes, and the plan that comes back carries them as `null`.
+
 ### What is ambiguous today
 
 - **Two naming styles** in one document (`device_id`, `owner_id`, `maintenance_mode_until` beside `cloudSettings`,
@@ -223,6 +228,20 @@ rule that names an output and a threshold nothing would read cannot be written d
   flipWeek, edited, grid }`. Shipped schemes are JSON assets in the client and the server never reads one, so
   the grow stores the effective grid. That also keeps a grow's history stable when a scheme is edited later.
 - **`measurements[]`** `{ key, name, unit, perPlant, target, chart }`, the definitions of this grow.
+- **A space with members is not deleted.** `DELETE /v1/spaces/{id}` refuses while a membership names it, beside
+  the device, camera, grow and room it already refuses for, and the refusal says how many people are in it and
+  that they are removed first. Letting somebody go is a thing their host does deliberately, one person at a
+  time; a delete button that did it in passing would tell them by taking the tent away. The members counted are
+  the space's own rows - a membership held on the room above reaches in as well, but it is the room's, and a
+  room is already refused while any space is grouped under it, so a shared room is emptied and then meets its
+  own members rather than making every tent inside it undeletable.
+- **Deleting an account is the other act, and stays possible.** A person cannot be held in an account because
+  somebody else is a member of their tent, so `DELETE /me` removes the memberships on the spaces it owns as part
+  of deleting them. The two are not the same thing said twice: ending one space is a place closing while its
+  owner goes on using the app, and the people in it have somebody to hear it from, whereas deleting an account
+  ends everything at once and there is nobody left to hand a tent over to. Handing the space to a member instead
+  would give somebody a tent they never asked to own, with its devices and its history, at the moment its owner
+  left; the members lose their access either way, and this way nobody inherits anything by surprise.
 
 ### Diary, tasks, pictures
 
@@ -327,9 +346,18 @@ removed together with the Angular app.
   engine re-applies its step hourly, a preset applied beside a running plan would be undone: when the plan's
   next step carries the requested stage the action becomes a skip, otherwise the plan pauses and the preset is
   applied.
+- **A plan step names no stage unless somebody says so.** `stage` and `preset` are left out of a step a client
+  writes and come back as `null`, because a recipe of nothing but climates is the ordinary recipe: every plan
+  the migration carried over has a stage on none of its steps, and the guided onboarding's reference plans are
+  the only ones that ever wrote one. A step with no stage moves the plan on and writes its diary line like any
+  other and leaves the grow's phase exactly where it is. That is what makes the plan of a tent running since
+  before the rewrite survive being opened and saved: a contract that asked every step to name one of the six
+  stages would have the screen invent them, and the tent would start driving phases it never had.
 - **The alarm engine** keeps its state machine and reads `alarmRules`. A trigger opens an `alert` and writes an
   entry; a resolution closes it. A health loop evaluates the `offline` metric from `lastSeenAt` and raises an
-  alert for a camera that stopped delivering stills.
+  alert for a camera that stopped delivering stills. **The stale warning is opted out of, not into**: a camera
+  arrives with it on and its own settings turn it off, so an install that says nothing - a fresh one, and one
+  that has just been migrated - comes up warning about every camera rather than about none.
 - **Cameras.** The poller, the timelapse builder, thinning and retention iterate `cameras`. When a device
   reports a paired Terp Cam over MQTT, the protocol module upserts its camera row. A controller still pairs
   exactly one Terp Cam; "several cameras per tent" is that camera plus RTSP cameras pulled through the
@@ -586,12 +614,9 @@ sections above, not here.
 6. **Notification channels.** Assumed Web Push, a Telegram bot per install and a weekly link to the week's
    timelapse ship with step 10, each off until configured.
 7. **"Mute all" mutes critical alarms too**, for the person who tapped it only. Assumed yes.
-8. **Deleting an account that owns a space with members.** Assumed the members are removed and the space
-   deleted; the alternative refuses until the members are removed by hand.
-9. **Authors of migrated diary entries.** Assumed the device's owner, since a device has had exactly one
+8. **Authors of migrated diary entries.** Assumed the device's owner, since a device has had exactly one
    writer.
-10. **Migrated grows** merge when two consecutive cycles share a name, and carry no plants. Assumed acceptable.
-11. **How many feeds a week has.** Assumed from the feed reminder's rhythm, else the water reminder's, else
+9. **Migrated grows** merge when two consecutive cycles share a name, and carry no plants. Assumed acceptable.
+10. **How many feeds a week has.** Assumed from the feed reminder's rhythm, else the water reminder's, else
    three.
-12. **A stale alert out of the box.** Assumed opt-in beside the always-on offline alarm.
-13. **Invite codes.** Assumed one 8-character code for link, typed code and QR, with a rate-limited preview.
+11. **Invite codes.** Assumed one 8-character code for link, typed code and QR, with a rate-limited preview.

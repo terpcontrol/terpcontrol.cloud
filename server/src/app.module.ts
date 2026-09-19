@@ -27,6 +27,7 @@ import { DiaryModule } from './modules/v1/diary/diary.module';
 import { FleetModule } from './modules/v1/fleet/fleet.module';
 import { GrowModule } from './modules/v1/grow/grow.module';
 import { HomeModule } from './modules/v1/home/home.module';
+import { NotificationModule } from './modules/v1/notification/notification.module';
 import { OverviewModule } from './modules/v1/overview/overview.module';
 import { PhaseModule } from './modules/v1/phase/phase.module';
 import { PlanModule } from './modules/v1/plan/plan.module';
@@ -94,6 +95,7 @@ import { WiringModule } from './wiring.module';
     OverviewModule,
     TimelineModule,
     SharingModule,
+    NotificationModule,
 
     // The probes, and the daily sweep for records nothing can reach any more.
     HealthModule,

@@ -393,6 +393,7 @@ const settingsOf = (body: CameraCreate): CameraUpdate => ({
   nightOff: body.nightOff,
   maintenanceOff: body.maintenanceOff,
   logErrors: body.logErrors,
+  staleWarning: body.staleWarning,
 });
 
 /** The fields only an RTSP camera has; a Terp Cam is reached by its own id. */

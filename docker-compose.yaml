@@ -169,6 +169,15 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_SECURE: ${SMTP_SECURE}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
+      # The two notification channels an install has to set up before anybody
+      # can choose them. Unset is what a stack that has not is: the account
+      # screens offer neither, and the Telegram webhook route does not exist.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
       MQTTAUTH_SHARED_SECRET: ${MQTTAUTH_SHARED_SECRET:-terpcontrol}
       # The boot migration stops on a row it cannot take and the container with
       # it. This is how an operator who has read that report says the rows may

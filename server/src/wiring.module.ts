@@ -23,6 +23,11 @@ import { TerpCamP2PService } from '@modules/v1/camera/terpcam-p2p.service';
 import { FirmwareRolloutService } from '@modules/v1/fleet/firmware-rollout.service';
 import { FleetModule } from '@modules/v1/fleet/fleet.module';
 import { CLIMATE_PRESETS } from '@modules/v1/grow/climate-presets.port';
+import { ALARM_ROUTING, GROW_IN_SPACE } from '@modules/alarm/alarm.types';
+import { GrowsService } from '@modules/v1/grow/grows.service';
+import { GrowModule } from '@modules/v1/grow/grow.module';
+import { NotificationModule } from '@modules/v1/notification/notification.module';
+import { NotificationService } from '@modules/v1/notification/notification.service';
 import { MAINTENANCE_STARTER } from '@modules/v1/diary/maintenance.port';
 import { DEVICE_CONFIGURATION_WRITER } from '@modules/v1/plan/device-configuration.port';
 import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/climate-presets.service';
@@ -44,7 +49,17 @@ import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/c
  */
 @Global()
 @Module({
-  imports: [AlarmModule, CameraModule, ClimatePresetsModule, DataModule, DeviceProtocolModule, FleetModule, TunnelModule],
+  imports: [
+    AlarmModule,
+    CameraModule,
+    ClimatePresetsModule,
+    DataModule,
+    DeviceProtocolModule,
+    FleetModule,
+    GrowModule,
+    NotificationModule,
+    TunnelModule,
+  ],
   providers: [
     // What a device published, once it has been read: the measurement store,
     // the alarm state machine, the camera pipeline, the tunnel, and the rollout
@@ -70,6 +85,13 @@ import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/c
     // A grow entering a phase with a preset puts the tent it stands in on that
     // climate, which is the space slice's table and the space slice's write.
     { provide: CLIMATE_PRESETS, useExisting: ClimatePresetsService },
+    // An alarm is said out loud by the person's own notification settings
+    // unless the rule addresses itself, and the alarms know only that there may
+    // be somewhere to route a message to.
+    { provide: ALARM_ROUTING, useExisting: NotificationService },
+    // And an alarm belongs in the diary of whatever is growing where it
+    // happened, which only the grow slice can answer.
+    { provide: GROW_IN_SPACE, useExisting: GrowsService },
   ],
   exports: [
     DEVICE_SAMPLE_SINK,
@@ -83,6 +105,8 @@ import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/c
     DEVICE_CONFIGURATION_WRITER,
     MAINTENANCE_STARTER,
     CLIMATE_PRESETS,
+    ALARM_ROUTING,
+    GROW_IN_SPACE,
   ],
 })
 export class WiringModule {}
