@@ -703,7 +703,16 @@ describe('the arithmetic behind the cards', () => {
   });
 
   it('keeps an open alert under NOW however long ago it began', () => {
-    const groups = groupsOf([alert({ startedAt: iso(NOW.minus({ days: 3 })) }), alert({ id: 'r', resolvedAt: iso(NOW) })], NOW);
+    // Midday, not the actual clock: the resolved card below is grouped by the
+    // day it began in the reader's own zone, so a suite run in the small hours
+    // put a card two hours old under yesterday and failed a test about today.
+    // The day boundary the app reads is the right one; the hour this test
+    // picked was not.
+    const midday = NOW.startOf('day').plus({ hours: 12 });
+    const groups = groupsOf(
+      [alert({ startedAt: iso(midday.minus({ days: 3 })) }), alert({ id: 'r', startedAt: iso(midday), resolvedAt: iso(midday) })],
+      midday,
+    );
 
     expect(groups.map(group => group.heading.kind)).toEqual(['now', 'earlierToday']);
   });
