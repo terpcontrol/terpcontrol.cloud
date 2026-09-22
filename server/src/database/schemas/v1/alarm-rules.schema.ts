@@ -35,6 +35,12 @@ export interface StoredAlarmRule extends Omit<AlarmRule, 'createdAt' | 'silenced
   createdAt: Date;
   silencedUntil: Date | null;
   state: StoredAlarmRuleState;
+  /**
+   * Which of a stage's bands a `preset` rule is, so the next stage finds it
+   * whatever it has been renamed to. Server-side bookkeeping: it is not in the
+   * contract and the serialiser leaves it out.
+   */
+  presetKey: string | null;
 }
 
 /**
@@ -131,6 +137,7 @@ export const alarmRulesSchema = new Schema<StoredAlarmRule>(
     // The preset that wrote this rule, so applying the stage again updates it
     // instead of writing a second one.
     presetId: { type: String, default: null },
+    presetKey: { type: String, default: null },
     enabled: { type: Boolean, required: true, default: true },
     cooldownSeconds: { type: Number, required: true, default: 0 },
     repeatSeconds: { type: Number, required: true, default: 0 },
@@ -145,5 +152,5 @@ export const alarmRulesSchema = new Schema<StoredAlarmRule>(
 // and on its outputs, and the health loop for the one that watches its silence.
 alarmRulesSchema.index({ deviceId: 1, 'watch.metric': 1 });
 alarmRulesSchema.index({ deviceId: 1, 'watch.output': 1 });
-// Applying a stage preset again finds the rules that preset wrote on the device.
-alarmRulesSchema.index({ deviceId: 1, presetId: 1 });
+// A stage moving the thresholds finds each band's rule on the device by its key.
+alarmRulesSchema.index({ deviceId: 1, presetKey: 1 });

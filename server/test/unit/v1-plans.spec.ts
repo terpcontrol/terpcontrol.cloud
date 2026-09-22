@@ -139,7 +139,7 @@ beforeEach(async () => {
   };
   const mail = { send: async (message: (typeof mailed)[number]) => void mailed.push(message) } as unknown as MailService;
 
-  const phases = new PhaseWriterService(db.grows, new EntryWriterService(db.entries), db.entries, alarms);
+  const phases = new PhaseWriterService(db.grows, new EntryWriterService(db.entries), db.entries, db.devices, alarms);
   const progress = new PlanProgressService(plans, db.devices, db.users, new EntryWriterService(db.entries), phases, mail);
 
   engine = new PlanEngineService(plans, db.devices, configuration, progress);

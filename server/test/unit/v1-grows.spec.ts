@@ -71,7 +71,7 @@ const build = (presetsPort: ClimatePresets | null): GrowsService => {
     db.shareLinks,
     db.entries,
     access,
-    new PhaseWriterService(db.grows, entries, db.entries),
+    new PhaseWriterService(db.grows, entries, db.entries, db.devices),
     entries,
     presetsPort,
   );

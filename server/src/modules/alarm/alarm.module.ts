@@ -11,18 +11,20 @@ import { AlarmRuleService } from './alarm-rule.service';
 import { AlarmRulesController, AlertsController, DeviceAlarmRulesController } from './alarm.controller';
 import { AlertInboxService } from './alert-inbox.service';
 import { AlertService } from './alert.service';
+import { StageAlarmsService } from './stage-alarms.service';
 
 /**
  * Watches what a device reports and what it stops reporting, and tells the owner
  * when something is wrong.
  *
  * `AlarmEngineService.onSample` is what the device protocol hands every reading
- * to; everything else in here is the module's own.
+ * to, and `StageAlarmsService.applyStage` what the phase writer tells of a grow
+ * entering a stage; everything else in here is the module's own.
  */
 @Module({
   imports: [ModelsModule, V1CommonModule, MailModule, TunnelModule, DataModule],
   controllers: [DeviceAlarmRulesController, AlarmRulesController, AlertsController],
-  providers: [AlarmEngineService, AlarmHealthService, AlarmDeliveryService, AlarmRuleService, AlertService, AlertInboxService],
-  exports: [AlarmEngineService],
+  providers: [AlarmEngineService, AlarmHealthService, AlarmDeliveryService, AlarmRuleService, AlertService, AlertInboxService, StageAlarmsService],
+  exports: [AlarmEngineService, StageAlarmsService],
 })
 export class AlarmModule {}

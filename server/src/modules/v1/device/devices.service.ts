@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
@@ -17,6 +17,8 @@ import { StoredPlan } from '@database/schemas/v1/plans.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { demoDevice } from '@utils/demo';
+import { logger } from '@utils/logger';
+import { DEVICE_PLACEMENT, DevicePlacement } from './placement.port';
 
 /**
  * The `devices` collection: what a device is, and what a person decides about
@@ -46,6 +48,7 @@ export class DevicesService {
     @InjectModel(MODEL_V1.plan) private readonly plans: Model<StoredPlan>,
     @InjectModel(MODEL_V1.alarmRule) private readonly alarmRules: Model<StoredAlarmRule>,
     private readonly access: AccessService,
+    @Optional() @Inject(DEVICE_PLACEMENT) private readonly placement: DevicePlacement | null = null,
   ) {}
 
   public byId(id: string): Promise<StoredDevice | null> {
@@ -108,8 +111,22 @@ export class DevicesService {
 
     // A camera the controller answers for stands wherever the controller does.
     if (body.spaceId !== undefined) await this.cameras.updateMany({ deviceId: id, removedAt: null }, { $set: { spaceId: changed.spaceId } });
+    if (body.spaceId) await this.stoodIn(id, body.spaceId);
 
     return changed;
+  }
+
+  /**
+   * The space may already be in a stage, and the device then takes what that
+   * stage watches for. Nothing about it may refuse the move: the device stands
+   * where it was put, and the thresholds are the next phase's to put right.
+   */
+  private async stoodIn(deviceId: string, spaceId: string): Promise<void> {
+    try {
+      await this.placement?.restateThresholds(deviceId, spaceId);
+    } catch (error) {
+      logger.error(`Could not restate the stage thresholds of device ${deviceId}: ${error}`);
+    }
   }
 
   /**
@@ -156,6 +173,9 @@ export class DevicesService {
     // and a live row belonging to somebody else is not a claim's to take, with
     // every picture ever taken under it.
     await this.cameras.updateMany({ deviceId: device.id, ownerId, removedAt: null }, { $set: { spaceId } });
+    // A space made for the claim has nothing standing in it yet; one that was
+    // named may be a tent in the middle of a grow.
+    if (body.spaceId) await this.stoodIn(device.id, body.spaceId);
 
     return { device: this.serialise({ ...claimed, spaceId }, ctx.isDemo), spaceCreated: made !== null };
   }

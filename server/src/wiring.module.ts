@@ -24,11 +24,16 @@ import { FirmwareRolloutService } from '@modules/v1/fleet/firmware-rollout.servi
 import { FleetModule } from '@modules/v1/fleet/fleet.module';
 import { CLIMATE_PRESETS } from '@modules/v1/grow/climate-presets.port';
 import { ALARM_ROUTING, GROW_IN_SPACE } from '@modules/alarm/alarm.types';
+import { StageAlarmsService } from '@modules/alarm/stage-alarms.service';
 import { GrowsService } from '@modules/v1/grow/grows.service';
 import { GrowModule } from '@modules/v1/grow/grow.module';
 import { NotificationModule } from '@modules/v1/notification/notification.module';
 import { NotificationService } from '@modules/v1/notification/notification.service';
+import { DEVICE_PLACEMENT } from '@modules/v1/device/placement.port';
 import { MAINTENANCE_STARTER } from '@modules/v1/diary/maintenance.port';
+import { PhaseWriterService } from '@modules/v1/phase/phase-writer.service';
+import { PhaseModule } from '@modules/v1/phase/phase.module';
+import { STAGE_ALARMS } from '@modules/v1/phase/stage-alarms.port';
 import { DEVICE_CONFIGURATION_WRITER } from '@modules/v1/plan/device-configuration.port';
 import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/climate-presets.service';
 
@@ -58,6 +63,7 @@ import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/c
     FleetModule,
     GrowModule,
     NotificationModule,
+    PhaseModule,
     TunnelModule,
   ],
   providers: [
@@ -85,6 +91,12 @@ import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/c
     // A grow entering a phase with a preset puts the tent it stands in on that
     // climate, which is the space slice's table and the space slice's write.
     { provide: CLIMATE_PRESETS, useExisting: ClimatePresetsService },
+    // And the same phase moves the thresholds the stage binds, which are rules
+    // the alarms own and the phase writer only knows the stage of.
+    { provide: STAGE_ALARMS, useExisting: StageAlarmsService },
+    // A device stood in a tent that is already in a stage takes that stage's
+    // thresholds, and which stage that is only the phase writer can say.
+    { provide: DEVICE_PLACEMENT, useExisting: PhaseWriterService },
     // An alarm is said out loud by the person's own notification settings
     // unless the rule addresses itself, and the alarms know only that there may
     // be somewhere to route a message to.
@@ -105,6 +117,8 @@ import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/c
     DEVICE_CONFIGURATION_WRITER,
     MAINTENANCE_STARTER,
     CLIMATE_PRESETS,
+    STAGE_ALARMS,
+    DEVICE_PLACEMENT,
     ALARM_ROUTING,
     GROW_IN_SPACE,
   ],

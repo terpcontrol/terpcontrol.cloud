@@ -25,6 +25,9 @@
  * dehumidifying behaviour, the fans and the dimming ramps are what the hardware
  * is tuned to and survive a phase change. A preset is a target climate, not a
  * decision about the machine.
+ *
+ * The alarm bands at the end are derived from the same rows, so that what a
+ * stage watches for cannot drift from what it asks for.
  */
 export interface ClimatePreset {
     dayTemperature: number;
@@ -46,3 +49,45 @@ export declare const PRESETS_OF_STAGE: Readonly<Partial<Record<string, readonly 
 export declare const STAGES_WITH_CLIMATE: readonly string[];
 /** The row for a stage and the preset on top of it, falling back to the stage's own; null for a stage with none. */
 export declare const climatePreset: (stage: string, preset: string | null) => ClimatePreset | null;
+/**
+ * One alarm threshold a stage binds, derived from its climate row so that the
+ * rules a tent is watched by move with the stage the way its targets do.
+ *
+ * `key` is what a rule written from a band is found by again when the next
+ * stage moves it, whatever it has been renamed to since. The watch is the
+ * contract's own `ReadingWatch`, so the server stores it as it is.
+ */
+export interface StageAlarmBand {
+    key: 'too_hot' | 'too_humid' | 'too_cold' | 'co2_high';
+    watch: {
+        kind: 'reading';
+        metric: 'temperature' | 'humidity' | 'co2';
+        upper: number | null;
+        lower: number | null;
+    };
+    forSeconds: number;
+    severity: 'critical' | 'warning';
+}
+/**
+ * Above this, enriched air is wasted gas and most likely a valve that has stuck
+ * open. It is the same in every stage because it is about the valve, not the
+ * plants; the firmware forces the target to zero where no sensor is fitted, so
+ * the rule can only ever trip on a tent that measures it.
+ */
+export declare const CO2_ALARM_PPM = 1500;
+/**
+ * The four rules a stage implies, or null for a stage with no climate: curing
+ * happens in a jar, and a rule watching a flowering band there is noise.
+ *
+ * Each margin is what tells a failure from weather. Five degrees over the day
+ * target is a cooler that has failed rather than a warm afternoon, and it is
+ * critical because heat stress sets in within the hour. Ten points of humidity
+ * over the higher of the two targets is where mould starts, and it is given
+ * twenty minutes because a watering or a door opened for a look pushes the
+ * reading up for a while. Four degrees under the night target is a heater that
+ * has given up, and at night nobody is looking. Like the climate table these
+ * come from, the figures are deliberately conservative: they are the bands a
+ * beginner's tent is safe inside, and a grower who knows better moves them on
+ * the rule.
+ */
+export declare const stageAlarmBands: (stage: string, preset: string | null) => StageAlarmBand[] | null;

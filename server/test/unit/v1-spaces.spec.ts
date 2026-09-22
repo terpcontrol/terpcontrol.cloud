@@ -107,7 +107,7 @@ afterAll(async () => {
  */
 const presetsOf = (): PresetApplicationsService => {
   const written = new EntryWriterService(db.entries);
-  const phases = new PhaseWriterService(db.grows, written, db.entries);
+  const phases = new PhaseWriterService(db.grows, written, db.entries, db.devices);
   const configuration: DeviceConfigurationWriter = {
     applyConfiguration: async (deviceId, settings) => {
       configured.push({ deviceId, settings });

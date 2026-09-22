@@ -56,6 +56,7 @@ const ruleFor = (over: Partial<StoredAlarmRule> = {}): StoredAlarmRule => ({
   severity: 'warning',
   origin: 'human',
   presetId: null,
+  presetKey: null,
   enabled: true,
   cooldownSeconds: 0,
   repeatSeconds: 0,

@@ -51,6 +51,7 @@ export class AlarmRuleService {
       // own are made where they are decided.
       origin: 'human',
       presetId: null,
+      presetKey: null,
       silencedUntil: null,
       state: { triggered: false, lastTriggeredAt: null, lastResolvedAt: null, extremeValue: null, lastSampleAt: null },
     };

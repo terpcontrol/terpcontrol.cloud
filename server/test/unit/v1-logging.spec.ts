@@ -163,7 +163,7 @@ beforeEach(async () => {
 
   const alarms: StageAlarms = { applyStage: async () => undefined };
   const mail = { send: async () => undefined } as unknown as MailService;
-  const phases = new PhaseWriterService(db.grows, new EntryWriterService(db.entries), db.entries, alarms);
+  const phases = new PhaseWriterService(db.grows, new EntryWriterService(db.entries), db.entries, db.devices, alarms);
   plans = new PlanService(db.plans, new PlanProgressService(db.plans, db.devices, db.users, new EntryWriterService(db.entries), phases, mail));
 
   completions = new TaskCompletionsService(db.reminders, db.entries, access, entries, plans);
