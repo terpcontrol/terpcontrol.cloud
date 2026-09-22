@@ -11,6 +11,7 @@ import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
+import { MediaTally } from '@modules/v1/camera/media.service';
 import { dayNumberOf, originOf } from '../diary/grow-calendar';
 
 /**
@@ -337,6 +338,25 @@ export const camerasCsv = (cameras: readonly CameraDocument[], spaces: Names): B
       camera.deviceId,
       camera.id,
     ]),
+  );
+
+/**
+ * The single stills each camera holds, counted rather than carried.
+ *
+ * This is the one sheet that describes what is not in the zip. A camera keeps a
+ * picture every half minute and thins them as they age; one camera's three
+ * years still run to tens of thousands of files, so the bytes stay in the app
+ * and what travels is the tally - how many, how much and between which two
+ * instants - beside the films, which are what a grower keeps a camera for.
+ */
+export const stillsCsv = (cameras: readonly CameraDocument[], tally: ReadonlyMap<string, MediaTally>): Buffer =>
+  csvOf(
+    ['name', 'stills', 'bytes', 'firstAt', 'lastAt', 'cameraId'],
+    cameras.map(camera => {
+      const held = tally.get(camera.id);
+
+      return [camera.name, held?.count ?? 0, held?.bytes ?? 0, held?.from ?? null, held?.until ?? null, camera.id];
+    }),
   );
 
 /**

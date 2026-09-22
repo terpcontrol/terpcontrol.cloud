@@ -42,6 +42,14 @@ export interface MediaDraft {
   exportJob?: MediaDocument['exportJob'];
 }
 
+/** What a camera holds of one kind, which is what an export says about the stills it cannot carry. */
+export interface MediaTally {
+  count: number;
+  bytes: number;
+  from: Date;
+  until: Date;
+}
+
 /** Where a picture sits in its camera's history, which is all a sweep or a film needs of it. */
 export interface MediaPosition {
   id: string;
@@ -73,6 +81,38 @@ export class MediaService {
   /** Every picture a grow carries, which is what an export of that grow takes with it. */
   public ofGrow(growId: string): Promise<MediaDocument[]> {
     return this.media.find({ growId }).sort({ capturedAt: 1 }).lean<MediaDocument[]>();
+  }
+
+  /**
+   * The rows of a kind belonging to a set of cameras, oldest first. A still and
+   * a film carry their camera and nothing else - no grow, no space - so this is
+   * the only way to ask for an account's pictures, and it is what the export
+   * takes its films from.
+   */
+  public ofCameras(cameraIds: readonly string[], kind: MediaKind): Promise<MediaDocument[]> {
+    if (cameraIds.length === 0) return Promise.resolve([]);
+
+    return this.media
+      .find({ cameraId: { $in: [...cameraIds] }, kind })
+      .sort({ capturedAt: 1 })
+      .lean<MediaDocument[]>();
+  }
+
+  /**
+   * How many pictures of a kind each of these cameras holds, and how many bytes
+   * they come to. Counted rather than listed because the answer to "how many
+   * stills have I got" is a number, and the rows it is a number of run into six
+   * figures for one camera over a season.
+   */
+  public async tallyOfCameras(cameraIds: readonly string[], kind: MediaKind): Promise<Map<string, MediaTally>> {
+    if (cameraIds.length === 0) return new Map();
+
+    const rows = await this.media.aggregate<{ _id: string; count: number; bytes: number; from: Date; until: Date }>([
+      { $match: { cameraId: { $in: [...cameraIds] }, kind } },
+      { $group: { _id: '$cameraId', count: { $sum: 1 }, bytes: { $sum: '$bytes' }, from: { $min: '$capturedAt' }, until: { $max: '$capturedAt' } } },
+    ]);
+
+    return new Map(rows.map(row => [row._id, { count: row.count, bytes: row.bytes, from: row.from, until: row.until }]));
   }
 
   /** The newest row of a kind, which is what a card shows and what a film is built up to. */

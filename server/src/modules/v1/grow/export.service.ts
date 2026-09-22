@@ -50,6 +50,7 @@ import {
   plansCsv,
   plantsCsv,
   spacesCsv,
+  stillsCsv,
   tasksCsv,
 } from './export-csv';
 import { ZipWriter } from './export-zip';
@@ -373,8 +374,58 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
     await zip.add('diary.csv', user.createdAt, Readable.from(this.diaryOf(elsewhere, null, people, new Map())), true);
 
     await this.writeOwnPictures(zip, user, elsewhere, directory);
+    await this.writeFilms(zip, cameras, directory, user.createdAt);
+    await this.writeStillsInventory(zip, cameras, user.createdAt);
+    await zip.add('README.txt', user.createdAt, readmeOf(), true);
     for (const device of devices) await this.writeDeviceClimate(zip, device);
     for (const grow of grows) await this.writeGrow(zip, grow.id, `grows/${grow.slug}/`, directory);
+  }
+
+  /**
+   * Every finished film of every camera the account owns, in one folder.
+   *
+   * A film belongs to its camera and to nothing else - no grow, no space - so
+   * neither the grow folders nor the diary can reach one, and before this they
+   * were the part of "export everything" that was in no export at all. There
+   * are a handful per camera: the three rolling ones, which replace themselves,
+   * and whatever somebody composed and kept. A film that is still rendering or
+   * that failed is left out, because there are no bytes behind it.
+   */
+  private async writeFilms(zip: ZipWriter, cameras: readonly CameraDocument[], directory: string, listedAt: Date): Promise<void> {
+    const films = await this.media.ofCameras(
+      cameras.map(camera => camera.id),
+      'timelapse',
+    );
+
+    const ready = films.filter(film => film.render === null || film.render.status === 'ready');
+    await this.writeFiles(
+      zip,
+      '',
+      ready.map(film => film.id),
+      directory,
+      listedAt,
+      'films',
+    );
+  }
+
+  /**
+   * What the zip does not hold, named and counted rather than quietly absent -
+   * the rule the missing list beside it already follows.
+   *
+   * Single stills stay in the app. One camera keeps a picture every thirty
+   * seconds and thins them as they age, which still comes to tens of thousands
+   * of files and gigabytes over the three years they are kept, so a zip of them
+   * is neither buildable nor downloadable. What a grower is owed instead is the
+   * difference: how many each camera holds, how much they weigh and which
+   * stretch of time they cover, so that nobody has to guess what stayed behind.
+   */
+  private async writeStillsInventory(zip: ZipWriter, cameras: readonly CameraDocument[], listedAt: Date): Promise<void> {
+    const tally = await this.media.tallyOfCameras(
+      cameras.map(camera => camera.id),
+      'still',
+    );
+
+    await zip.add('stills.csv', listedAt, stillsCsv(cameras, tally), true);
   }
 
   /**
@@ -503,10 +554,15 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
   }
 
   /**
-   * The pictures: what the grow is of, and what its lines point at. Camera
-   * stills are not among them - a season of one is a hundred thousand files and
-   * the films made from them are what anybody keeps - but a film the grow itself
-   * names is, because it is the grow's own.
+   * The pictures of a grow: what its lines point at, and what it is shown by.
+   *
+   * Camera stills are not among them and never can be - a season of one camera
+   * is tens of thousands of files - and neither are its films, because a film
+   * belongs to the camera rather than to the grow it happened to watch. The
+   * account export writes those once, under `films/`, which is the only place
+   * they belong: a grow folder would copy the same film into every season the
+   * camera looked at. `grow.filmMediaId` is carried here because the model has
+   * it, not because anything writes one yet.
    */
   private async writePictures(zip: ZipWriter, prefix: string, grow: GrowDocument, directory: string): Promise<void> {
     const named: string[] = await this.entries.distinct('mediaIds', { growId: grow.id });
@@ -525,7 +581,14 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
    * archive that will not open; copying first is what makes a picture whose
    * bytes are gone one picture missing rather than the whole export lost.
    */
-  private async writeFiles(zip: ZipWriter, prefix: string, mediaIds: readonly (string | null)[], directory: string, listedAt: Date): Promise<void> {
+  private async writeFiles(
+    zip: ZipWriter,
+    prefix: string,
+    mediaIds: readonly (string | null)[],
+    directory: string,
+    listedAt: Date,
+    folder = 'photos',
+  ): Promise<void> {
     const ids = new Set(mediaIds.filter((id): id is string => typeof id === 'string'));
 
     const unreadable: string[] = [];
@@ -544,7 +607,7 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
       }
 
       try {
-        await zip.add(`${prefix}photos/${fileNameOf(row)}`, row.capturedAt, createReadStream(scratch));
+        await zip.add(`${prefix}${folder}/${fileNameOf(row)}`, row.capturedAt, createReadStream(scratch));
       } finally {
         await rm(scratch, { force: true });
       }
@@ -554,7 +617,7 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
     // counting their photos back is owed the difference.
     if (unreadable.length > 0) {
       await zip.add(
-        `${prefix}photos/missing.csv`,
+        `${prefix}${folder}/missing.csv`,
         listedAt,
         csvOf(
           ['mediaId'],
@@ -609,6 +672,41 @@ const accountCsv = (user: StoredUser): Buffer =>
   );
 
 /** What a picture is called in the archive: the day it was taken, so a folder sorts into the order the grow happened in. */
+/**
+ * What the zip says about itself.
+ *
+ * A grower who has just exported everything and is about to delete their
+ * account reads this rather than a settings screen, possibly years later and
+ * certainly without the app in front of them. So it names what is here, names
+ * what is not, and says why - the one thing left out is the single stills, and
+ * the reason is a number rather than a policy.
+ */
+const readmeOf = (): Buffer =>
+  Buffer.from(
+    [
+      'Your Terp Control export',
+      '',
+      'account.json / account.csv  your settings, as the app holds them',
+      'spaces.csv, devices.csv, cameras.csv, alarms.csv, alerts.csv, tasks.csv, plans.csv',
+      '                            the places, the hardware and what it was told to do',
+      'diary.csv                   every line that belongs to no grow, with its author',
+      'photos/                     the pictures those lines point at, and your avatar',
+      'films/                      every finished timelapse of every camera you own',
+      'climate/<device>.csv        every reading each device ever sent',
+      'grows/<grow>/               a folder each: the diary, the plants, the readings',
+      '                            and the photos of that season',
+      'stills.csv                  how many single stills each camera holds',
+      '',
+      'The single stills themselves are not in here. A camera keeps a picture every',
+      'thirty seconds and thins them as they age; one camera still comes to tens of',
+      'thousands of files over the years they are kept, which is not a file anybody',
+      'could download. stills.csv says exactly how many each camera has and which',
+      'stretch of time they cover, and the films above are made from them.',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+
 const fileNameOf = (row: MediaDocument): string => {
   const extension = row.mime.split('/')[1]?.replace('jpeg', 'jpg') ?? 'bin';
 

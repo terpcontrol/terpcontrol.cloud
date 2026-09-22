@@ -295,6 +295,41 @@ const world = async (): Promise<void> => {
     steps: [{ id: 'step-1', name: 'Stretch', stage: 'vegetative', duration: { value: 2, unit: 'weeks' }, settings: { day: { temperature: 26 } } }],
   });
 
+  // What a camera holds: stills, which belong to the camera and to nothing
+  // else, and the film made from them. Neither carries a grow or a space, so an
+  // export that looked for pictures by grow found none of either.
+  const rendered = {
+    status: 'ready' as const,
+    framesPerSecond: 25,
+    watermark: false,
+    aspect: '16_9' as const,
+    overlays: { dayCounter: false, climate: false, entries: false },
+    includeLightsOff: false,
+    secondCameraId: null,
+    startedAt: ORIGIN,
+    endedAt: ENDED,
+    error: null,
+  };
+
+  await media.storeBytes({ kind: 'still', mime: 'image/jpeg', cameraId: CAMERA, capturedAt: ORIGIN }, Buffer.from('a still'));
+  await media.storeBytes({ kind: 'still', mime: 'image/jpeg', cameraId: CAMERA, capturedAt: ENDED }, Buffer.from('another still'));
+  await media.storeBytes(
+    { kind: 'timelapse', mime: 'video/mp4', cameraId: CAMERA, capturedAt: ORIGIN, endsAt: ENDED, window: 'week', render: rendered },
+    Buffer.from('the week of it, as a film'),
+  );
+  // Queued rather than rendered: a row with no bytes behind it yet.
+  await media.storeBytes(
+    {
+      kind: 'timelapse',
+      mime: 'video/mp4',
+      cameraId: CAMERA,
+      capturedAt: new Date('2026-06-11T12:00:00.000Z'),
+      window: 'day',
+      render: { ...rendered, status: 'queued', startedAt: null, endedAt: null },
+    },
+    Buffer.from(''),
+  );
+
   // Somebody else's, in the same database: theirs to export and never ours.
   await db.spaces.create({ id: 'tent-theirs', ownerId: STRANGER, kind: 'tent', name: 'Their tent', roomId: null });
   await db.grows.create({
@@ -308,6 +343,10 @@ const world = async (): Promise<void> => {
     placements: [],
     measurements: [],
   });
+  await media.storeBytes(
+    { kind: 'timelapse', mime: 'video/mp4', cameraId: 'camera-theirs', capturedAt: ORIGIN, window: 'week', render: rendered },
+    Buffer.from('their week, as a film'),
+  );
 };
 
 beforeAll(async () => {
@@ -564,6 +603,45 @@ describe('what is in the zip', () => {
     // A device that never belonged to a grow would otherwise have no climate
     // anywhere in the archive.
     expect(files.get(`climate/${CONTROLLER}.csv`)!.toString('utf8')).toContain(`,${CONTROLLER},23.5`);
+  });
+
+  /**
+   * The films were the half of "export everything" that was in no export at
+   * all: a film belongs to its camera, and every query the builder had asked
+   * for pictures by grow.
+   */
+  it('carries every finished film of every camera the account owns, and none of a stranger´s', async () => {
+    const asked = await exports.ask(OWNER, 'account', null, NOW);
+    await exports.drain();
+
+    const files = await archiveOf(asked.media.id);
+    const films = [...files.keys()].filter(name => name.startsWith('films/'));
+
+    expect(films).toHaveLength(1);
+    expect(files.get(films[0])!.toString('utf8')).toBe('the week of it, as a film');
+    // A film still waiting for the composer has no bytes behind it, so it is
+    // not a file; and a stranger's is not this account's to be handed.
+    expect([...files.values()].map(body => body.toString('utf8'))).not.toContain('their week, as a film');
+  });
+
+  /**
+   * The stills are the one thing the zip cannot carry, so it says so in a
+   * figure rather than by their absence. A grower counting their pictures back
+   * is owed the difference, which is the rule the missing list already follows.
+   */
+  it('counts the single stills it does not carry, per camera, and says why in the zip itself', async () => {
+    const asked = await exports.ask(OWNER, 'account', null, NOW);
+    await exports.drain();
+
+    const files = await archiveOf(asked.media.id);
+    const stills = files.get('stills.csv')!.toString('utf8');
+
+    expect(stills).toContain('Tent cam,2,');
+    expect(stills).not.toContain('Their cam');
+    expect(files.get('README.txt')!.toString('utf8')).toContain('stills.csv');
+
+    // The bytes of a still stay in the app, which is what the figure is about.
+    expect([...files.values()].map(body => body.toString('utf8'))).not.toContain('a still');
   });
 
   it('holds nothing of anybody else´s, however much of it sits in the same database', async () => {
