@@ -10,10 +10,12 @@ import { NotificationLogService } from './notification-log.service';
 import { NotificationService } from './notification.service';
 import { NOTIFICATION_CHANNELS, NotificationChannelSender } from './notification.types';
 import { NotificationsController, TelegramWebhookController } from './notifications.controller';
+import { PlanAnnouncerService } from './plan-announcer.service';
 import { RecipientsService } from './recipients.service';
 import { TaskAnnouncerService } from './task-announcer.service';
 import { TelegramBotService } from './telegram-bot.service';
 import { TelegramUpdatesService } from './telegram-updates.service';
+import { WeeklyRecapService } from './weekly-recap.service';
 
 /**
  * Where the server says something to a person.
@@ -24,11 +26,12 @@ import { TelegramUpdatesService } from './telegram-updates.service';
  * provider and nothing else.
  *
  * What produces a notification lives elsewhere and reaches this through a port:
- * the alarms hand an alert to `ALARM_ROUTING`, which is bound to this service
- * where the slices are joined. The one producer that lives here is the task
- * announcer, because nothing else would notice that a rhythm has come round.
+ * the alarms hand an alert to `ALARM_ROUTING` and a waiting recipe step reaches
+ * `PLAN_ANNOUNCER`, both bound where the slices are joined. What lives here
+ * instead are the two producers nothing else would notice: a rhythm coming round
+ * and a week of pictures closing.
  *
- * The module is exported for that binding and for nothing else; every other
+ * The module is exported for those bindings and for nothing else; every other
  * slice should be telling somebody something rather than reaching in here.
  */
 @Module({
@@ -39,6 +42,8 @@ import { TelegramUpdatesService } from './telegram-updates.service';
     NotificationLogService,
     RecipientsService,
     TaskAnnouncerService,
+    WeeklyRecapService,
+    PlanAnnouncerService,
     TelegramBotService,
     TelegramUpdatesService,
     EmailChannel,
@@ -53,6 +58,6 @@ import { TelegramUpdatesService } from './telegram-updates.service';
       inject: [PushChannel, TelegramChannel, EmailChannel, WebhookChannel],
     },
   ],
-  exports: [NotificationService],
+  exports: [NotificationService, PlanAnnouncerService],
 })
 export class NotificationModule {}

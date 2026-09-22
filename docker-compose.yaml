@@ -129,6 +129,9 @@ services:
       SECRET_KEY: ${TOKEN_SECRET_KEY}
       PORT: 8081
       API_URL_EXTERNAL: ${API_URL_EXTERNAL}
+      # Where the app is served, for the links a notification carries. Unset, a
+      # message goes out without its link rather than with a broken one.
+      APP_URL_EXTERNAL: ${APP_URL_EXTERNAL:-}
       # Same numbers as the published range above: both sides must match.
       TERPCAM_P2P_PORTS_START: ${TERPCAM_P2P_PORTS_EXTERNAL_START:-32200}
       TERPCAM_P2P_PORTS_END: ${TERPCAM_P2P_PORTS_EXTERNAL_END:-32209}

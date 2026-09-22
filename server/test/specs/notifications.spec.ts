@@ -1,4 +1,7 @@
 import { anonymous, createAccount, Session, unique } from '../support/api';
+import { capturedMail, resetMail, waitForMail } from '../support/control';
+import { provisionDevice, settle } from '../support/device';
+import { joinSpace } from '../support/fixtures';
 
 /**
  * The account's half of the notification channels.
@@ -149,5 +152,127 @@ describe('the Telegram bot this install does not have', () => {
 
   it('asks anybody without a session to sign in first', async () => {
     await anonymous().post('/v1/me/telegram-link').expect(401);
+  });
+});
+
+/**
+ * A recipe that has stopped to ask something.
+ *
+ * Two deliveries meet here and neither is the other. The address written on the
+ * recipe is what its author asked of this plan and predates the routing grid
+ * entirely; the grid is what each person asked of their own phone, and it is
+ * read for everybody who keeps the tent - so a plan that mails nobody is still
+ * announced to whoever wanted to hear about it, and a plan that mails somebody
+ * goes on doing exactly that.
+ *
+ * The step is given a length of three seconds so that the engine, which comes
+ * past every twenty, meets it waiting within one pass.
+ */
+describe('a plan step that is waiting for somebody', () => {
+  const KEEPER = 'plan-keeper@test.invalid';
+  const HELPER = 'plan-helper@test.invalid';
+  const RECIPE = 'the-recipe@test.invalid';
+
+  /** Long enough for the engine's twenty-second pass, and for the send that follows it. */
+  const A_PASS_MS = 30_000;
+
+  let keeper: Session;
+  let helper: Session;
+  let controller: string;
+
+  const grid = (session: Session, email: string, plan: string[]) =>
+    session.client
+      .patch('/v1/me')
+      .send({
+        notifications: {
+          channels: { email, telegram: null, webhook: null },
+          routing: { alerts: [], warnings: [], tasks: [], plan, weekly_timelapse: [] },
+          quietHours: null,
+          mutedUntil: null,
+        },
+      })
+      .expect(200);
+
+  const recipe = (mode: string) => ({
+    templateId: null,
+    name: unique('Ask me'),
+    loop: false,
+    notify: { mode, email: RECIPE, writeEntries: true },
+    steps: [
+      {
+        name: 'Defoliate',
+        stage: null,
+        preset: null,
+        duration: { value: 0.05, unit: 'minutes' },
+        settings: {},
+        waitForConfirmation: true,
+        confirmationMessage: 'Take the big fan leaves off.',
+      },
+      {
+        name: 'Flower',
+        stage: null,
+        preset: null,
+        duration: { value: 1, unit: 'days' },
+        settings: {},
+        waitForConfirmation: false,
+        confirmationMessage: null,
+      },
+    ],
+  });
+
+  /**
+   * Writes the recipe, puts it at rest - a plan left waiting by the case before
+   * has nothing to resume - clears what has been sent so far, and starts it.
+   */
+  const startWaiting = async (mode: string) => {
+    await keeper.client.put(`/v1/devices/${controller}/plan`).send(recipe(mode)).expect(200);
+    await keeper.client.delete(`/v1/devices/${controller}/plan`).expect(204);
+    await resetMail();
+    await keeper.client.post(`/v1/devices/${controller}/plan/transitions`).send({ kind: 'resume' }).expect(201);
+  };
+
+  const to = (address: string) => (mail: { to: string[] }) => mail.to.includes(address);
+
+  beforeAll(async () => {
+    keeper = await createAccount('plan-ask-keeper');
+    helper = await createAccount('plan-ask-helper');
+
+    const claimed = await provisionDevice(keeper, 'controller');
+    controller = claimed.deviceId;
+    const device = await keeper.client.get(`/v1/devices/${controller}`).expect(200);
+    await joinSpace(device.body.spaceId, helper.userId);
+
+    await grid(keeper, KEEPER, ['email']);
+    await grid(helper, HELPER, []);
+  });
+
+  it('announces the ask to whoever routed it, sends the recipe´s own mail as before, and says nothing to anybody who routed nothing', async () => {
+    await startWaiting('on_step');
+
+    const announced = await waitForMail(to(KEEPER), A_PASS_MS);
+    expect(announced.subject).toContain('step #1 Defoliate is waiting for you');
+    expect(announced.body).toContain('Take the big fan leaves off.');
+
+    const recipes = await waitForMail(to(RECIPE), A_PASS_MS);
+    expect(recipes.subject).toContain('waiting for confirmation');
+    expect((await capturedMail()).filter(to(HELPER))).toEqual([]);
+  }, 60_000);
+
+  it('announces it once, however long the step keeps waiting and whatever the recipe sends of its own', async () => {
+    await startWaiting('off');
+
+    await waitForMail(to(KEEPER), A_PASS_MS);
+    // A recipe that sends nothing of its own writes nothing down about having
+    // asked either, so the engine works the same step out as waiting on every
+    // pass from here on: what keeps it to one message is the notification log.
+    await settle(A_PASS_MS);
+
+    expect((await capturedMail()).filter(to(KEEPER))).toHaveLength(1);
+    expect((await capturedMail()).filter(to(RECIPE))).toEqual([]);
+  }, 120_000);
+
+  afterAll(async () => {
+    await keeper.client.delete(`/v1/devices/${controller}/plan`).expect(204);
+    await resetMail();
   });
 });

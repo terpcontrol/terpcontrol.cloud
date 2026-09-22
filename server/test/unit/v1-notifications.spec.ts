@@ -1,19 +1,24 @@
 import { ConfigType } from '@nestjs/config';
-import type { NotificationChannel, Severity } from '@fg2/shared-types/v1';
-import { notificationsConfig, authConfig } from '../../src/config/configuration';
+import type { NotificationChannel, PlanStep, Severity } from '@fg2/shared-types/v1';
+import { appConfig, notificationsConfig, authConfig } from '../../src/config/configuration';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
+import { MediaDocument } from '@database/schemas/v1/media.schema';
+import { StoredPlan } from '@database/schemas/v1/plans.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { EmailChannel } from '@modules/v1/notification/channels/email.channel';
 import { PushChannel } from '@modules/v1/notification/channels/push.channel';
 import { TelegramChannel } from '@modules/v1/notification/channels/telegram.channel';
 import { WebhookChannel } from '@modules/v1/notification/channels/webhook.channel';
 import { NotificationLogService } from '@modules/v1/notification/notification-log.service';
+import { planAnnouncement, weeklyTimelapseAnnouncement } from '@modules/v1/notification/notification-messages';
 import { NotificationService, inQuietHours } from '@modules/v1/notification/notification.service';
 import { Announcement, NotificationChannelSender } from '@modules/v1/notification/notification.types';
+import { PlanAnnouncerService } from '@modules/v1/notification/plan-announcer.service';
 import { RecipientsService } from '@modules/v1/notification/recipients.service';
 import { TaskAnnouncerService } from '@modules/v1/notification/task-announcer.service';
 import { TelegramBotService } from '@modules/v1/notification/telegram-bot.service';
 import { LINK_VALID_MS, mintTelegramLink, readTelegramLink } from '@modules/v1/notification/telegram-link';
+import { WeeklyRecapService } from '@modules/v1/notification/weekly-recap.service';
 import { MailService } from '@modules/mail/mail.service';
 import { V1TestDatabase, startV1TestDatabase } from './support/v1-database';
 
@@ -40,6 +45,7 @@ let notifications: NotificationService;
 let log: NotificationLogService;
 let mailed: { to: string; subject: string }[];
 let sent: { channel: NotificationChannel; userId: string }[];
+let said: Announcement[];
 
 const alarm = (severity: Severity = 'warning'): Announcement => ({
   category: 'alerts',
@@ -52,8 +58,9 @@ const alarm = (severity: Severity = 'warning'): Announcement => ({
 /** A channel that is always configured, so that what the decision does is visible on its own. */
 const spyChannel = (name: NotificationChannel): NotificationChannelSender => ({
   name,
-  send: async (to: StoredUser) => {
+  send: async (to: StoredUser, message: Announcement) => {
     sent.push({ channel: name, userId: to.id });
+    said.push(message);
     return { externalMessageId: `${name}-1` };
   },
 });
@@ -61,7 +68,9 @@ const spyChannel = (name: NotificationChannel): NotificationChannelSender => ({
 const account = (id: string, over: Record<string, unknown> = {}) =>
   db.users.create({ id, email: `${id}@test.invalid`, handle: id, passwordHash: 'x', isActive: true, ...over });
 
-const routed = (channels: NotificationChannel[]) => ({ notifications: { routing: { alerts: channels, warnings: channels, tasks: channels } } });
+const routed = (channels: NotificationChannel[]) => ({
+  notifications: { routing: { alerts: channels, warnings: channels, tasks: channels, plan: channels, weekly_timelapse: channels } },
+});
 
 /** Everything an install can configure about the two outward-facing channels, all of it off. */
 const nothingConfigured = {
@@ -94,6 +103,7 @@ beforeEach(async () => {
   await db.reset();
   mailed = [];
   sent = [];
+  said = [];
   notifications = build([spyChannel('push'), spyChannel('telegram'), spyChannel('email'), spyChannel('webhook')]);
 });
 
@@ -357,6 +367,255 @@ describe('announcing a task that is due', () => {
     await announcer.run();
 
     expect(sent).toEqual([]);
+  });
+});
+
+/**
+ * A recipe standing still until somebody answers it.
+ *
+ * The plan has a delivery of its own, written on the recipe, and this is the
+ * other one: the people who keep the tent, each on the channels they asked for.
+ * What is asserted here is who hears it and how often - the plan's own mail is
+ * the plan module's and is asserted where the engine is driven.
+ */
+describe('asking somebody to confirm a plan step', () => {
+  let announcer: PlanAnnouncerService;
+
+  const step: PlanStep = {
+    id: 'step-1',
+    name: 'Defoliate',
+    stage: null,
+    preset: null,
+    duration: { value: 1, unit: 'days' },
+    settings: {},
+    waitForConfirmation: true,
+    confirmationMessage: 'Take the big fan leaves off.',
+  };
+
+  const waiting = (over: Partial<StoredPlan['state']> = {}): StoredPlan =>
+    ({
+      id: 'plan-1',
+      createdAt: new Date(),
+      deviceId: DEVICE,
+      templateId: null,
+      name: 'Two weeks of veg',
+      steps: [step],
+      loop: true,
+      notify: { mode: 'off', email: null, writeEntries: true },
+      state: {
+        status: 'running',
+        activeStepIndex: 0,
+        stepStartedAt: new Date('2026-09-15T08:00:00.000Z'),
+        pausedElapsedMs: 0,
+        pauseReason: null,
+        lastAppliedAt: null,
+        confirmationNotifiedAt: null,
+        ...over,
+      },
+    }) as StoredPlan;
+
+  beforeEach(async () => {
+    await Promise.all([account(OWNER, routed(['email'])), account(MEMBER, routed(['email'])), account(STRANGER, routed(['email']))]);
+    await db.spaces.create({ id: SPACE, ownerId: OWNER, kind: 'tent', name: 'The big tent' });
+    await db.memberships.create({ id: 'membership-1', spaceId: SPACE, userId: MEMBER, role: 'can_log', invitedBy: OWNER, inviteId: null });
+    await db.devices.create({ id: DEVICE, ownerId: OWNER, spaceId: SPACE, type: 'controller' });
+
+    announcer = new PlanAnnouncerService(
+      db.devices,
+      db.spaces,
+      notifications,
+      new RecipientsService(db.spaces, db.memberships, db.devices, db.cameras, db.grows),
+    );
+  });
+
+  it('tells everybody who keeps the tent, and nobody else', async () => {
+    await announcer.askedToConfirm(waiting(), step);
+
+    expect(sent.map(one => one.userId).sort()).toEqual([MEMBER, OWNER].sort());
+    expect(said[0]).toMatchObject({ category: 'plan', severity: 'info' });
+    expect(said[0].title).toContain('The big tent');
+    expect(said[0].body).toContain('Take the big fan leaves off.');
+  });
+
+  it('asks once, however often the step is read again while it waits', async () => {
+    const plan = waiting();
+
+    await announcer.askedToConfirm(plan, step);
+    await announcer.askedToConfirm(plan, step);
+    await announcer.askedToConfirm(plan, step);
+
+    expect(sent).toHaveLength(2);
+  });
+
+  it('asks again when the plan comes round to the same step a second time', async () => {
+    await announcer.askedToConfirm(waiting(), step);
+    await announcer.askedToConfirm(waiting({ stepStartedAt: new Date('2026-09-29T08:00:00.000Z') }), step);
+
+    expect(sent).toHaveLength(4);
+  });
+});
+
+/**
+ * The week a camera has just finished.
+ *
+ * Only that one week is ever read. The film of the open week is rebuilt every
+ * few hours under a new id, so a recap of it would arrive again with every
+ * rebuild; the weeks before it are history, and a fresh install must not
+ * announce a month of it on its first pass.
+ */
+describe('the weekly recap', () => {
+  const CAMERA = 'camera-1';
+  const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+  const openPeriodEnd = Math.ceil(Date.now() / WEEK_MS) * WEEK_MS;
+  const lastWeek = new Date(openPeriodEnd - 2 * WEEK_MS);
+
+  let recaps: WeeklyRecapService;
+
+  const film = (capturedAt: Date, over: Partial<MediaDocument> = {}) =>
+    db.media.create({
+      id: `film-${capturedAt.getTime()}`,
+      kind: 'timelapse',
+      mime: 'video/mp4',
+      bytes: 1024,
+      cameraId: CAMERA,
+      window: 'week',
+      capturedAt,
+      endsAt: new Date(capturedAt.getTime() + 6 * 24 * 60 * 60 * 1000),
+      ...over,
+    });
+
+  const still = (capturedAt: Date) =>
+    db.media.create({ id: `still-${capturedAt.getTime()}`, kind: 'still', mime: 'image/jpeg', bytes: 10, cameraId: CAMERA, capturedAt });
+
+  beforeEach(async () => {
+    await Promise.all([account(OWNER, routed(['email'])), account(MEMBER, routed(['email']))]);
+    await db.spaces.create({ id: SPACE, ownerId: OWNER, kind: 'tent', name: 'The big tent' });
+    await db.memberships.create({ id: 'membership-1', spaceId: SPACE, userId: MEMBER, role: 'can_log', invitedBy: OWNER, inviteId: null });
+    await db.cameras.create({ id: CAMERA, ownerId: OWNER, spaceId: SPACE, kind: 'rtsp', name: 'Above the canopy' });
+
+    recaps = new WeeklyRecapService(
+      db.cameras,
+      db.media,
+      { appUrlExternal: 'https://app.test.invalid' } as ConfigType<typeof appConfig>,
+      notifications,
+      new RecipientsService(db.spaces, db.memberships, db.devices, db.cameras, db.grows),
+    );
+  });
+
+  it('offers the week just gone to everybody who keeps the camera, once', async () => {
+    await film(lastWeek);
+
+    await recaps.run();
+    await recaps.run();
+
+    expect(sent.map(one => one.userId).sort()).toEqual([MEMBER, OWNER].sort());
+    expect(said[0]).toMatchObject({ category: 'weekly_timelapse', subject: { type: 'media', id: `film-${lastWeek.getTime()}` } });
+    expect(said[0].title).toContain('Above the canopy');
+    expect(said[0].body).toContain(`https://app.test.invalid/cameras/${CAMERA}?film=film-${lastWeek.getTime()}`);
+  });
+
+  it('says nothing about a week that is older than the one just gone', async () => {
+    await film(new Date(openPeriodEnd - 4 * WEEK_MS));
+
+    await recaps.run();
+
+    expect(sent).toEqual([]);
+  });
+
+  it('waits while the builder still has the film to finish', async () => {
+    await film(lastWeek);
+    await still(new Date(lastWeek.getTime() + 6.5 * 24 * 60 * 60 * 1000));
+
+    await recaps.run();
+
+    expect(sent).toEqual([]);
+  });
+
+  it('tells nobody who has asked for nothing', async () => {
+    await db.users.updateOne({ id: OWNER }, { $set: { 'notifications.routing': {} } });
+    await db.users.updateOne({ id: MEMBER }, { $set: { 'notifications.routing': { alerts: ['email'] } } });
+    await film(lastWeek);
+
+    await recaps.run();
+
+    expect(sent).toEqual([]);
+  });
+
+  it('sends the recap without a link where the install has not said where its app is served', async () => {
+    recaps = new WeeklyRecapService(
+      db.cameras,
+      db.media,
+      { appUrlExternal: null } as ConfigType<typeof appConfig>,
+      notifications,
+      new RecipientsService(db.spaces, db.memberships, db.devices, db.cameras, db.grows),
+    );
+    await film(lastWeek);
+
+    await recaps.run();
+
+    expect(sent).toHaveLength(2);
+    expect(said[0].body).not.toContain('http');
+  });
+});
+
+/**
+ * The words themselves. They leave the app - a mail and a chat message are read
+ * where no translator is - so what they say is worth asserting rather than only
+ * that something was said.
+ */
+describe('what the two new messages say', () => {
+  const step: PlanStep = {
+    id: 'step-1',
+    name: 'Defoliate',
+    stage: null,
+    preset: null,
+    duration: { value: 1, unit: 'days' },
+    settings: {},
+    waitForConfirmation: true,
+    confirmationMessage: '  Take the big fan leaves off.  ',
+  };
+
+  const plan = {
+    id: 'plan-1',
+    name: 'Two weeks of veg',
+    state: { activeStepIndex: 1, stepStartedAt: new Date('2026-09-15T08:00:00.000Z') },
+  } as StoredPlan;
+
+  it('names the tent, the step and what was asked', () => {
+    const message = planAnnouncement(plan, step, 'The big tent');
+
+    expect(message).toMatchObject({ category: 'plan', severity: 'info', subject: { type: 'plan' } });
+    expect(message.title).toBe('The big tent: step #2 Defoliate is waiting for you');
+    expect(message.body).toBe('The plan Two weeks of veg stands still until this step is confirmed. Take the big fan leaves off.');
+  });
+
+  it('keeps one ask apart from the next time round the same step', () => {
+    const again = { ...plan, state: { ...plan.state, stepStartedAt: new Date('2026-09-29T08:00:00.000Z') } } as StoredPlan;
+
+    expect(planAnnouncement(plan, step, 'The big tent').subject.id).toBe(planAnnouncement(plan, step, 'Renamed since').subject.id);
+    expect(planAnnouncement(again, step, 'The big tent').subject.id).not.toBe(planAnnouncement(plan, step, 'The big tent').subject.id);
+  });
+
+  it('says only that a step is waiting where it asks nothing in particular', () => {
+    const message = planAnnouncement(plan, { ...step, confirmationMessage: null }, 'The big tent');
+
+    expect(message.body).toBe('The plan Two weeks of veg stands still until this step is confirmed.');
+  });
+
+  it('names the camera, the week and where the film is watched', () => {
+    const week = { id: 'media-1', capturedAt: new Date('2026-09-10T00:00:00.000Z'), endsAt: new Date('2026-09-16T22:00:00.000Z') };
+    const message = weeklyTimelapseAnnouncement(week, 'Above the canopy', 'https://app.test.invalid/cameras/camera-1?film=media-1');
+
+    expect(message).toMatchObject({ category: 'weekly_timelapse', severity: 'info', subject: { type: 'media', id: 'media-1' } });
+    expect(message.title).toBe('Above the canopy: the week to 16 September 2026');
+    expect(message.body).toBe('A week of pictures, rolled up into one film. Watch it at https://app.test.invalid/cameras/camera-1?film=media-1.');
+  });
+
+  it('says its piece without a link rather than with a broken one', () => {
+    const week = { id: 'media-1', capturedAt: new Date('2026-09-10T00:00:00.000Z'), endsAt: null };
+
+    expect(weeklyTimelapseAnnouncement(week, 'Above the canopy', null).body).toBe('A week of pictures, rolled up into one film.');
+    expect(weeklyTimelapseAnnouncement(week, 'Above the canopy', null).title).toBe('Above the canopy: the week to 10 September 2026');
   });
 });
 

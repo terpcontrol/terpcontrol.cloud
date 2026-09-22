@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { PlanStep, PlanTransitionKind } from '@fg2/shared-types/v1';
@@ -11,6 +11,7 @@ import { logger } from '@utils/logger';
 import { MailService } from '@modules/mail/mail.service';
 import { targetsOf } from '../phase/phase-targets';
 import { PhaseWriterService } from '../phase/phase-writer.service';
+import { PLAN_ANNOUNCER, PlanAnnouncer } from './plan-announcer.port';
 import { activeStep, completed, running, stepAfterActive } from './plan-steps';
 
 /**
@@ -43,6 +44,7 @@ export class PlanProgressService {
     private readonly entries: EntryWriterService,
     private readonly phases: PhaseWriterService,
     private readonly mail: MailService,
+    @Optional() @Inject(PLAN_ANNOUNCER) private readonly announcer: PlanAnnouncer | null = null,
   ) {}
 
   /**
@@ -107,7 +109,10 @@ export class PlanProgressService {
    */
   public async awaitConfirmation(plan: StoredPlan, now: Date): Promise<StoredPlan> {
     const step = activeStep(plan);
-    if (!step || plan.notify.mode === 'off' || plan.state.confirmationNotifiedAt) return plan;
+    if (!step || plan.state.confirmationNotifiedAt) return plan;
+
+    await this.askToConfirm(plan, step);
+    if (plan.notify.mode === 'off') return plan;
 
     const asked = await this.store(plan, { ...plan.state, confirmationNotifiedAt: now });
     const place = await this.place(asked);
@@ -124,6 +129,29 @@ export class PlanProgressService {
     );
 
     return asked;
+  }
+
+  /**
+   * The same news, to the people who keep the tent rather than to the address
+   * the plan carries. The two are different settings and both are honoured: the
+   * plan's mail is what its author asked of this recipe, and the routing grid is
+   * what each person asked of their own phone - so a plan that sends nothing of
+   * its own is still announced to whoever wanted to hear about it.
+   *
+   * A plan that writes no `confirmationNotifiedAt` is read again every twenty
+   * seconds for as long as its step waits, which is why this is told once rather
+   * than simply told: the ask the message names is the same ask each time round
+   * and the notification log recognises it.
+   *
+   * Nobody being told must never stop the plan. The step has been worked out as
+   * waiting and would not be worked out again.
+   */
+  private async askToConfirm(plan: StoredPlan, step: PlanStep): Promise<void> {
+    try {
+      await this.announcer?.askedToConfirm(plan, step);
+    } catch (error) {
+      logger.error(`Failed announcing the confirmation of recipe step ${plan.state.activeStepIndex} on device ${plan.deviceId}: ${error}`);
+    }
   }
 
   /**

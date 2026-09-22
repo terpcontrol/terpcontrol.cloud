@@ -21,6 +21,14 @@ export const appConfig = registerAs('app', () => ({
   port: number(process.env.PORT, 3000),
   /** Published in the OpenAPI document as the server to call. */
   apiUrlExternal: process.env.API_URL_EXTERNAL,
+  /**
+   * Where the app itself is served, for the few messages that leave the server
+   * carrying a link back into it. It is not the API's address - a hosted
+   * install serves the two from different hosts - and it is not required, so a
+   * message that would have linked somewhere says its piece without a link
+   * rather than sending anybody to an address this install has never heard of.
+   */
+  appUrlExternal: (process.env.APP_URL_EXTERNAL ?? '').trim().replace(/\/+$/, '') || null,
   // Read by nothing today: the line that passed these to `cors()` has been
   // commented out since before this migration, so the plugin defaults apply.
   // They stay here because `.env.sample` still documents them.

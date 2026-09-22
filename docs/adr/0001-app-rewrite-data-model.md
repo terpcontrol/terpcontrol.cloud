@@ -391,10 +391,13 @@ removed together with the Angular app.
 - **Notifications.** One send decision per person: mute, quiet hours in the person's time zone (critical still
   comes through), otherwise the channels the routing names. An alarm is two rows of that routing rather than
   one - `alerts` for a critical rule, wanted where it wakes somebody, and `warnings` for a warning one, read in
-  the morning - and an info rule stays in the inbox and is announced on no row at all. E-mail and webhook as
-  today, Web Push with a VAPID key pair in configuration, Telegram as one bot per install with a webhook guarded
-  by a secret, where a reply to a message the bot sent becomes a note. Every channel is off until configured and
-  the screen says so.
+  the morning - and an info rule stays in the inbox and is announced on no row at all. The other three rows are
+  raised by a loop rather than by an event: `tasks` when a rhythm comes round, `plan` when a recipe step stands
+  waiting for somebody, and `weekly_timelapse` when a camera's week of pictures has closed - whose link is the
+  app's own address, from `APP_URL_EXTERNAL`, and is left out where an install has not said where its app is
+  served. E-mail and webhook as today, Web Push with a VAPID key pair in configuration, Telegram as one bot per
+  install with a webhook guarded by a secret, where a reply to a message the bot sent becomes a note. Every
+  channel is off until configured and the screen says so.
 - **Exports.** A zip of somebody's grows, their CSVs and their photos does not finish inside a request, so both
   `GET /me/export` and `GET /grows/{id}/export` answer a job that is polled until its file is ready, and the file
   is a `media` row of its own kind: it lives in the bucket the pictures already use, it is served by the route

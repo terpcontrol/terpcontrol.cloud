@@ -29,12 +29,14 @@ import { GrowsService } from '@modules/v1/grow/grows.service';
 import { GrowModule } from '@modules/v1/grow/grow.module';
 import { NotificationModule } from '@modules/v1/notification/notification.module';
 import { NotificationService } from '@modules/v1/notification/notification.service';
+import { PlanAnnouncerService } from '@modules/v1/notification/plan-announcer.service';
 import { DEVICE_PLACEMENT } from '@modules/v1/device/placement.port';
 import { MAINTENANCE_STARTER } from '@modules/v1/diary/maintenance.port';
 import { PhaseWriterService } from '@modules/v1/phase/phase-writer.service';
 import { PhaseModule } from '@modules/v1/phase/phase.module';
 import { STAGE_ALARMS } from '@modules/v1/phase/stage-alarms.port';
 import { DEVICE_CONFIGURATION_WRITER } from '@modules/v1/plan/device-configuration.port';
+import { PLAN_ANNOUNCER } from '@modules/v1/plan/plan-announcer.port';
 import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/climate-presets.service';
 
 /**
@@ -101,6 +103,10 @@ import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/c
     // unless the rule addresses itself, and the alarms know only that there may
     // be somewhere to route a message to.
     { provide: ALARM_ROUTING, useExisting: NotificationService },
+    // And a recipe step that waits for somebody is the same arrangement: the
+    // plan knows it is standing still, and who keeps the tent and what each of
+    // them asked to be told on is the notifications part's to answer.
+    { provide: PLAN_ANNOUNCER, useExisting: PlanAnnouncerService },
     // And an alarm belongs in the diary of whatever is growing where it
     // happened, which only the grow slice can answer.
     { provide: GROW_IN_SPACE, useExisting: GrowsService },
@@ -120,6 +126,7 @@ import { ClimatePresetsModule, ClimatePresetsService } from '@modules/v1/space/c
     STAGE_ALARMS,
     DEVICE_PLACEMENT,
     ALARM_ROUTING,
+    PLAN_ANNOUNCER,
     GROW_IN_SPACE,
   ],
 })
