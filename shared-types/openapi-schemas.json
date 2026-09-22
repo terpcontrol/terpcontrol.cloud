@@ -9379,6 +9379,76 @@
       "endsAt"
     ]
   },
+  "ChartViewSpan": {
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "last"
+          },
+          "forSeconds": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "kind",
+          "forSeconds"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "fixed"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          }
+        },
+        "required": [
+          "kind",
+          "range"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "phase"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "grow"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      }
+    ]
+  },
+  "ChartViewLayout": {
+    "type": "string",
+    "enum": [
+      "stacked",
+      "overlay",
+      "day_of_grow"
+    ]
+  },
   "ChartViewDefinition": {
     "type": "object",
     "properties": {
@@ -9412,27 +9482,18 @@
           "$ref": "#/components/schemas/OutputMetric"
         }
       },
-      "range": {
-        "anyOf": [
-          {
-            "$ref": "#/components/schemas/TimeRange"
-          },
-          {
-            "type": "null"
-          }
-        ]
+      "measurements": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Keys of the grow's own measurement definitions. A key the grow no longer defines draws nothing."
       },
-      "forSeconds": {
-        "anyOf": [
-          {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991
-          },
-          {
-            "type": "null"
-          }
-        ]
+      "span": {
+        "$ref": "#/components/schemas/ChartViewSpan"
+      },
+      "layout": {
+        "$ref": "#/components/schemas/ChartViewLayout"
       },
       "intervalSeconds": {
         "type": "integer",
@@ -9446,8 +9507,9 @@
       "growId",
       "metrics",
       "outputs",
-      "range",
-      "forSeconds",
+      "measurements",
+      "span",
+      "layout",
       "intervalSeconds"
     ]
   },

@@ -114,7 +114,16 @@ const aHousehold = async (): Promise<Household> => {
     createdAt: new Date(),
     ownerId: owner.userId,
     name: 'Last week',
-    definition: { deviceIds: [device.deviceId], growId: grow.id, metrics: [], outputs: [], range: null, forSeconds: null, intervalSeconds: 300 },
+    definition: {
+      deviceIds: [device.deviceId],
+      growId: grow.id,
+      metrics: [],
+      outputs: [],
+      measurements: [],
+      span: { kind: 'last', forSeconds: 7 * 24 * 60 * 60 },
+      layout: 'stacked',
+      intervalSeconds: 300,
+    },
   });
 
   const schemeId = randomUUID();

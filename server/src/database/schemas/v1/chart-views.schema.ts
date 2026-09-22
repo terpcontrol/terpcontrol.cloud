@@ -1,17 +1,32 @@
 import { Schema } from 'mongoose';
-import { ChartView, ChartViewDefinition, TimeRange } from '@fg2/shared-types/v1';
-import { metric, outputMetric } from '@fg2/shared-types/v1-schemas';
+import { ChartView, ChartViewDefinition, ChartViewSpan, TimeRange } from '@fg2/shared-types/v1';
+import { chartViewLayout, chartViewSpan, metric, outputMetric } from '@fg2/shared-types/v1-schemas';
 
 /**
  * A saved chart, structured rather than the query string the old app stored, so
  * that what a view draws can be read and validated instead of parsed.
  *
- * A view is either a fixed `range` or the last `forSeconds`, never both, which is
- * why each is nullable on its own.
+ * Nothing here is resolved on the way in. A span of "this phase" and a series
+ * named after one of the grow's measurements are both answered from the grow as
+ * it stands when the chart is drawn, which is what makes a view saved in week
+ * three still worth opening in week nine.
  */
 type TimeRangeDocument = Omit<TimeRange, 'startsAt' | 'endsAt'> & { startsAt: Date | null; endsAt: Date | null };
 
-type ChartViewDefinitionDocument = Omit<ChartViewDefinition, 'range'> & { range: TimeRangeDocument | null };
+/**
+ * The span as one subdocument, with the field of every arm and only those of its
+ * own kind filled, the way an alarm rule stores its watch. Mongoose has no union
+ * of subdocuments; the contract is where a span that is both a fixed range and a
+ * rolling one cannot be written down, and `ChartViewDefinitionDocument.span` is
+ * the union all the same, so nothing reads a field the kind does not have.
+ */
+interface StoredChartViewSpan {
+  kind: ChartViewSpan['kind'];
+  forSeconds: number | null;
+  range: TimeRangeDocument | null;
+}
+
+type ChartViewDefinitionDocument = Omit<ChartViewDefinition, 'span'> & { span: StoredChartViewSpan };
 
 export type ChartViewDocument = Omit<ChartView, 'createdAt' | 'definition'> & {
   createdAt: Date;
@@ -27,14 +42,28 @@ const rangeSchema = new Schema<TimeRangeDocument>(
   { _id: false },
 );
 
+const spanKinds = chartViewSpan.options.map(option => option.shape.kind.value);
+
+const spanSchema = new Schema<StoredChartViewSpan>(
+  {
+    kind: { type: String, enum: spanKinds, required: true },
+    forSeconds: { type: Number, default: null },
+    range: { type: rangeSchema, default: null },
+  },
+  { _id: false, versionKey: false },
+);
+
 const definitionSchema = new Schema<ChartViewDefinitionDocument>(
   {
     deviceIds: { type: [String], required: true, default: [] },
     growId: { type: String, default: null },
     metrics: { type: [{ type: String, enum: metric.options }], required: true, default: [] },
     outputs: { type: [{ type: String, enum: outputMetric.options }], required: true, default: [] },
-    range: { type: rangeSchema, default: null },
-    forSeconds: { type: Number, default: null },
+    // Free text rather than an enum: these are the keys of one grow's own
+    // measurement definitions, which are whatever that grower called them.
+    measurements: { type: [String], required: true, default: [] },
+    span: { type: spanSchema, required: true },
+    layout: { type: String, enum: chartViewLayout.options, required: true, default: 'stacked' },
     intervalSeconds: { type: Number, required: true },
   },
   { _id: false },

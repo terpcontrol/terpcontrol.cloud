@@ -131,7 +131,12 @@ describe('what the account owns', () => {
     await db.spaces.create({ id: 'space-1', ownerId: leaving.id, kind: 'tent', name: 'Tent' });
     await db.grows.create({ id: 'grow-1', ownerId: leaving.id, name: 'A run', type: 'photoperiod', slug: 'a-run', startedAt: new Date() });
     await db.plants.create({ id: 'plant-1', growId: 'grow-1', strain: 'Amnesia', label: '1' });
-    await db.chartViews.create({ id: 'chart-1', ownerId: leaving.id, name: 'Week', definition: { intervalSeconds: 300 } });
+    await db.chartViews.create({
+      id: 'chart-1',
+      ownerId: leaving.id,
+      name: 'Week',
+      definition: { span: { kind: 'last', forSeconds: 7 * 24 * 60 * 60 }, intervalSeconds: 300 },
+    });
     await db.schemes.create({ id: 'scheme-1', ownerId: leaving.id, name: 'House mix' });
     await db.planTemplates.create({ id: 'template-1', ownerId: leaving.id, name: 'Nights off', isPublic: true });
     await db.pushSubscriptions.create({

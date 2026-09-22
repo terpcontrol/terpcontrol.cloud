@@ -770,8 +770,40 @@ export const timeRange = named(
 );
 
 /**
+ * How far back a saved view looks. Four shapes rather than a pair of nullable
+ * fields, because the chips above the charts are four separate choices and only
+ * two of them carry a number at all: a fixed span and a rolling one written as
+ * two fields that must never both be filled is an invariant nothing holds a
+ * client to, while "this phase" and "the whole grow" have no dates of their own
+ * and are read off the grow at the moment the chart is drawn - which is the
+ * point of saving them, since a view saved in week three is still about week
+ * nine when it is opened again.
+ */
+export const chartViewSpan = named(
+  'ChartViewSpan',
+  z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('last'), forSeconds: z.number().int().positive() }),
+    z.object({ kind: z.literal('fixed'), range: timeRange }),
+    z.object({ kind: z.literal('phase') }),
+    z.object({ kind: z.literal('grow') }),
+  ]),
+);
+
+/**
+ * How the panels are drawn: one per series, all on shared axes, or counted in
+ * days since the grow began rather than in dates, which is what makes two runs
+ * of the same tent comparable.
+ */
+export const chartViewLayout = named('ChartViewLayout', z.enum(['stacked', 'overlay', 'day_of_grow']));
+
+/**
  * What a saved chart draws, structured rather than the query string the old app
- * saved. A view is either a fixed `range` or the last `forSeconds`, never both.
+ * saved.
+ *
+ * Climate and outputs come out of the device's store and `measurements` out of
+ * the diary, but a view names all three the same way: what somebody picked off
+ * the chip bar is one list of series to them, and which store answers each is
+ * the reader's business rather than the saved view's.
  */
 export const chartViewDefinition = named(
   'ChartViewDefinition',
@@ -780,8 +812,11 @@ export const chartViewDefinition = named(
     growId: id().nullable(),
     metrics: z.array(metric),
     outputs: z.array(outputMetric),
-    range: timeRange.nullable(),
-    forSeconds: z.number().int().nullable(),
+    measurements: z
+      .array(z.string())
+      .describe("Keys of the grow's own measurement definitions. A key the grow no longer defines draws nothing."),
+    span: chartViewSpan,
+    layout: chartViewLayout,
     intervalSeconds: z.number().int().describe('Width of one bucket, which is what decides how many points come back.'),
   }),
 );

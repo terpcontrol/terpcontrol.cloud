@@ -22,6 +22,7 @@ import { AccountDeletionModule } from './modules/v1/account-deletion/account-del
 import { AccountModule } from './modules/v1/account/account.module';
 import { AdminUsersModule } from './modules/v1/admin-users/admin-users.module';
 import { CameraModule } from './modules/v1/camera/camera.module';
+import { ChartViewModule } from './modules/v1/chart-view/chart-view.module';
 import { DeviceModule } from './modules/v1/device/device.module';
 import { DiaryModule } from './modules/v1/diary/diary.module';
 import { FleetModule } from './modules/v1/fleet/fleet.module';
@@ -31,6 +32,7 @@ import { NotificationModule } from './modules/v1/notification/notification.modul
 import { OverviewModule } from './modules/v1/overview/overview.module';
 import { PhaseModule } from './modules/v1/phase/phase.module';
 import { PlanModule } from './modules/v1/plan/plan.module';
+import { SchemeModule } from './modules/v1/scheme/scheme.module';
 import { SessionsModule } from './modules/v1/sessions/sessions.module';
 import { SharingModule } from './modules/v1/sharing/sharing.module';
 import { SpaceModule } from './modules/v1/space/space.module';
@@ -90,6 +92,8 @@ import { WiringModule } from './wiring.module';
     DeviceModule,
     SpaceModule,
     GrowModule,
+    SchemeModule,
+    ChartViewModule,
     DiaryModule,
     HomeModule,
     OverviewModule,

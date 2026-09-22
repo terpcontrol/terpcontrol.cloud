@@ -203,6 +203,24 @@ export type EntitlementTier = 'free' | 'premium';
 
 export type CameraCreate = ControllerCameraCreate | StandaloneCameraCreate | RtspCameraCreate;
 
+export type ChartViewSpan =
+  | {
+      kind: 'last';
+      forSeconds: number;
+    }
+  | {
+      kind: 'fixed';
+      range: TimeRange;
+    }
+  | {
+      kind: 'phase';
+    }
+  | {
+      kind: 'grow';
+    };
+
+export type ChartViewLayout = 'stacked' | 'overlay' | 'day_of_grow';
+
 export type VerdictRating = 'good' | 'watch' | 'poor';
 
 export type TimelineRange = '24h' | '7d' | 'phase' | 'grow';
@@ -2747,8 +2765,12 @@ export interface ChartViewDefinition {
   growId: string | null;
   metrics: Metric[];
   outputs: OutputMetric[];
-  range: TimeRange | null;
-  forSeconds: number | null;
+  /**
+   * Keys of the grow's own measurement definitions. A key the grow no longer defines draws nothing.
+   */
+  measurements: string[];
+  span: ChartViewSpan;
+  layout: ChartViewLayout;
   /**
    * Width of one bucket, which is what decides how many points come back.
    */

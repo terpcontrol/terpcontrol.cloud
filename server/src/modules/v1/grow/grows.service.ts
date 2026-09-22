@@ -9,6 +9,7 @@ import type {
   GrowUpdate,
   HarvestCreate,
   HarvestResult,
+  MeasurementDefinition,
   Phase,
   PhaseCreate,
   PhaseTargets,
@@ -224,6 +225,7 @@ export class GrowsService {
 
     // Putting a grow into a space that exists is managing that space.
     if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
+    requireDistinctKeys(body.measurements ?? []);
 
     const startedAt = body.startedAt ? new Date(body.startedAt) : new Date();
     const id = uuidv4();
@@ -280,6 +282,8 @@ export class GrowsService {
   }
 
   public async update(id: string, body: GrowUpdate, hide: Redaction): Promise<GrowListItem> {
+    if (body.measurements !== undefined) await this.checkMeasurements(id, body.measurements);
+
     const changes: Record<string, unknown> = {};
     for (const [field, value] of Object.entries(body)) {
       if (value !== undefined) changes[field] = field === 'startedAt' || field === 'endedAt' ? instantOrNull(value) : value;
@@ -289,6 +293,58 @@ export class GrowsService {
     if (!changed) throw notFound('grow_not_found', 'There is no grow with that id.');
 
     return serialiseGrow(changed, await this.plantsOf(id), hide);
+  }
+
+  /**
+   * What this grow measures, written again as a whole list.
+   *
+   * A reading carries a key and a number and nothing else - what it is called,
+   * what unit it is in and whether it belongs to a plant or to the grow all live
+   * here - so these definitions are not a settings list that can be rewritten
+   * freely. Taking out a key entries already carry would leave numbers in the
+   * diary that nothing can name, and turning one from per grow to per plant
+   * would make readings already written say something they never said. Both are
+   * refused while any reading uses the key, and the refusal says how many there
+   * are, in the same spirit as a space that is not deleted while somebody is
+   * still a member of it: what has to happen first is something a person does to
+   * their own diary deliberately, line by line, and not something an edit of a
+   * list does for them in passing.
+   *
+   * Everything else about a definition - its name, its unit, its target, whether
+   * it is drawn - is free to change at any time, because none of it is what a
+   * reading was keyed by.
+   */
+  private async checkMeasurements(growId: string, wanted: MeasurementDefinition[]): Promise<void> {
+    requireDistinctKeys(wanted);
+
+    const grow = await this.require(growId);
+    const kept = new Map(wanted.map(definition => [definition.key, definition]));
+    const gone = grow.measurements.filter(was => !kept.has(was.key)).map(was => was.key);
+    const rescoped = grow.measurements.filter(was => kept.get(was.key)?.perPlant === !was.perPlant).map(was => was.key);
+
+    const used = await this.keysWithReadings(growId, [...gone, ...rescoped]);
+    if (used.size === 0) return;
+
+    const removed = gone.filter(key => used.has(key));
+    if (removed.length > 0) {
+      throw unprocessable('measurement_has_readings', 'This grow has readings under that measurement, which would be left without a name.', [
+        { field: 'measurements', code: 'in_use', detail: `${removed.join(', ')}; turn it off the chart instead, or delete the entries first.` },
+      ]);
+    }
+
+    throw unprocessable('measurement_scope_fixed', 'Per plant or per grow is chosen once, and readings have been taken under this one.', [
+      { field: 'measurements', code: 'immutable', detail: rescoped.filter(key => used.has(key)).join(', ') },
+    ]);
+  }
+
+  /** Which of these keys the grow's diary already holds a reading under. */
+  private async keysWithReadings(growId: string, keys: string[]): Promise<Set<string>> {
+    if (keys.length === 0) return new Set();
+
+    const wanted = new Set(keys);
+    const used = await this.entryRows.distinct('values.readings.key', { growId, 'values.readings.key': { $in: keys } });
+
+    return new Set(used.filter((key): key is string => typeof key === 'string' && wanted.has(key)));
   }
 
   /**
@@ -799,6 +855,21 @@ const shareOut = (total: number | null, count: number): (number | null)[] => {
 };
 
 const round = (value: number): number => Math.round(value * 100) / 100;
+
+/**
+ * A key is what a reading is filed under, so two definitions sharing one would
+ * make every reading of either ambiguous. Refused where the list is written
+ * rather than sorted out where it is read.
+ */
+const requireDistinctKeys = (definitions: MeasurementDefinition[]): void => {
+  const keys = definitions.map(definition => definition.key);
+  const twice = keys.find((key, at) => keys.indexOf(key) !== at);
+  if (!twice) return;
+
+  throw unprocessable('measurement_key_twice', 'Two measurements of a grow cannot share a key.', [
+    { field: 'measurements', code: 'duplicate', detail: twice },
+  ]);
+};
 
 const harvestOf = (harvest: PlantUpdate['harvest']): PlantDocument['harvest'] =>
   harvest ? { ...harvest, harvestedAt: new Date(harvest.harvestedAt) } : null;

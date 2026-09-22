@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.testCaptureAnswer = exports.cameraUpdate = exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.exportAccepted = exports.media = exports.mediaExportJob = exports.exportScope = exports.mediaRender = exports.mediaRenderStatus = exports.mediaOverlays = exports.mediaAspect = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryValuesDraft = exports.humanEntryKind = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.measurementEntryValues = exports.entryDose = exports.entryReading = void 0;
-exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.cameraStill = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.person = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = void 0;
-exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineAlarm = exports.timelineOutputLane = exports.timelinePanel = exports.timelineTargets = void 0;
+exports.timelineRange = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.cameraStill = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.person = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.chartViewLayout = exports.chartViewSpan = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = void 0;
+exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineAlarm = exports.timelineOutputLane = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -578,16 +578,46 @@ exports.timeRange = (0, common_js_1.named)('TimeRange', zod_1.z.object({
     endsAt: (0, common_js_1.instant)().nullable(),
 }));
 /**
+ * How far back a saved view looks. Four shapes rather than a pair of nullable
+ * fields, because the chips above the charts are four separate choices and only
+ * two of them carry a number at all: a fixed span and a rolling one written as
+ * two fields that must never both be filled is an invariant nothing holds a
+ * client to, while "this phase" and "the whole grow" have no dates of their own
+ * and are read off the grow at the moment the chart is drawn - which is the
+ * point of saving them, since a view saved in week three is still about week
+ * nine when it is opened again.
+ */
+exports.chartViewSpan = (0, common_js_1.named)('ChartViewSpan', zod_1.z.discriminatedUnion('kind', [
+    zod_1.z.object({ kind: zod_1.z.literal('last'), forSeconds: zod_1.z.number().int().positive() }),
+    zod_1.z.object({ kind: zod_1.z.literal('fixed'), range: exports.timeRange }),
+    zod_1.z.object({ kind: zod_1.z.literal('phase') }),
+    zod_1.z.object({ kind: zod_1.z.literal('grow') }),
+]));
+/**
+ * How the panels are drawn: one per series, all on shared axes, or counted in
+ * days since the grow began rather than in dates, which is what makes two runs
+ * of the same tent comparable.
+ */
+exports.chartViewLayout = (0, common_js_1.named)('ChartViewLayout', zod_1.z.enum(['stacked', 'overlay', 'day_of_grow']));
+/**
  * What a saved chart draws, structured rather than the query string the old app
- * saved. A view is either a fixed `range` or the last `forSeconds`, never both.
+ * saved.
+ *
+ * Climate and outputs come out of the device's store and `measurements` out of
+ * the diary, but a view names all three the same way: what somebody picked off
+ * the chip bar is one list of series to them, and which store answers each is
+ * the reader's business rather than the saved view's.
  */
 exports.chartViewDefinition = (0, common_js_1.named)('ChartViewDefinition', zod_1.z.object({
     deviceIds: zod_1.z.array((0, common_js_1.id)()),
     growId: (0, common_js_1.id)().nullable(),
     metrics: zod_1.z.array(common_js_1.metric),
     outputs: zod_1.z.array(common_js_1.outputMetric),
-    range: exports.timeRange.nullable(),
-    forSeconds: zod_1.z.number().int().nullable(),
+    measurements: zod_1.z
+        .array(zod_1.z.string())
+        .describe("Keys of the grow's own measurement definitions. A key the grow no longer defines draws nothing."),
+    span: exports.chartViewSpan,
+    layout: exports.chartViewLayout,
     intervalSeconds: zod_1.z.number().int().describe('Width of one bucket, which is what decides how many points come back.'),
 }));
 exports.chartView = (0, common_js_1.named)('ChartView', zod_1.z.object({

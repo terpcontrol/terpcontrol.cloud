@@ -1636,8 +1636,47 @@ export declare const timeRange: z.ZodObject<{
     endsAt: z.ZodNullable<z.ZodISODateTime>;
 }, z.core.$strip>;
 /**
+ * How far back a saved view looks. Four shapes rather than a pair of nullable
+ * fields, because the chips above the charts are four separate choices and only
+ * two of them carry a number at all: a fixed span and a rolling one written as
+ * two fields that must never both be filled is an invariant nothing holds a
+ * client to, while "this phase" and "the whole grow" have no dates of their own
+ * and are read off the grow at the moment the chart is drawn - which is the
+ * point of saving them, since a view saved in week three is still about week
+ * nine when it is opened again.
+ */
+export declare const chartViewSpan: z.ZodDiscriminatedUnion<[z.ZodObject<{
+    kind: z.ZodLiteral<"last">;
+    forSeconds: z.ZodNumber;
+}, z.core.$strip>, z.ZodObject<{
+    kind: z.ZodLiteral<"fixed">;
+    range: z.ZodObject<{
+        startsAt: z.ZodNullable<z.ZodISODateTime>;
+        endsAt: z.ZodNullable<z.ZodISODateTime>;
+    }, z.core.$strip>;
+}, z.core.$strip>, z.ZodObject<{
+    kind: z.ZodLiteral<"phase">;
+}, z.core.$strip>, z.ZodObject<{
+    kind: z.ZodLiteral<"grow">;
+}, z.core.$strip>], "kind">;
+/**
+ * How the panels are drawn: one per series, all on shared axes, or counted in
+ * days since the grow began rather than in dates, which is what makes two runs
+ * of the same tent comparable.
+ */
+export declare const chartViewLayout: z.ZodEnum<{
+    overlay: "overlay";
+    stacked: "stacked";
+    day_of_grow: "day_of_grow";
+}>;
+/**
  * What a saved chart draws, structured rather than the query string the old app
- * saved. A view is either a fixed `range` or the last `forSeconds`, never both.
+ * saved.
+ *
+ * Climate and outputs come out of the device's store and `measurements` out of
+ * the diary, but a view names all three the same way: what somebody picked off
+ * the chip bar is one list of series to them, and which store answers each is
+ * the reader's business rather than the saved view's.
  */
 export declare const chartViewDefinition: z.ZodObject<{
     deviceIds: z.ZodArray<z.ZodString>;
@@ -1663,11 +1702,26 @@ export declare const chartViewDefinition: z.ZodObject<{
         fanExternal: "fanExternal";
         fanBackwall: "fanBackwall";
     }>>;
-    range: z.ZodNullable<z.ZodObject<{
-        startsAt: z.ZodNullable<z.ZodISODateTime>;
-        endsAt: z.ZodNullable<z.ZodISODateTime>;
-    }, z.core.$strip>>;
-    forSeconds: z.ZodNullable<z.ZodNumber>;
+    measurements: z.ZodArray<z.ZodString>;
+    span: z.ZodDiscriminatedUnion<[z.ZodObject<{
+        kind: z.ZodLiteral<"last">;
+        forSeconds: z.ZodNumber;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"fixed">;
+        range: z.ZodObject<{
+            startsAt: z.ZodNullable<z.ZodISODateTime>;
+            endsAt: z.ZodNullable<z.ZodISODateTime>;
+        }, z.core.$strip>;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"phase">;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"grow">;
+    }, z.core.$strip>], "kind">;
+    layout: z.ZodEnum<{
+        overlay: "overlay";
+        stacked: "stacked";
+        day_of_grow: "day_of_grow";
+    }>;
     intervalSeconds: z.ZodNumber;
 }, z.core.$strip>;
 export declare const chartView: z.ZodObject<{
@@ -1699,11 +1753,26 @@ export declare const chartView: z.ZodObject<{
             fanExternal: "fanExternal";
             fanBackwall: "fanBackwall";
         }>>;
-        range: z.ZodNullable<z.ZodObject<{
-            startsAt: z.ZodNullable<z.ZodISODateTime>;
-            endsAt: z.ZodNullable<z.ZodISODateTime>;
-        }, z.core.$strip>>;
-        forSeconds: z.ZodNullable<z.ZodNumber>;
+        measurements: z.ZodArray<z.ZodString>;
+        span: z.ZodDiscriminatedUnion<[z.ZodObject<{
+            kind: z.ZodLiteral<"last">;
+            forSeconds: z.ZodNumber;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"fixed">;
+            range: z.ZodObject<{
+                startsAt: z.ZodNullable<z.ZodISODateTime>;
+                endsAt: z.ZodNullable<z.ZodISODateTime>;
+            }, z.core.$strip>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"phase">;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"grow">;
+        }, z.core.$strip>], "kind">;
+        layout: z.ZodEnum<{
+            overlay: "overlay";
+            stacked: "stacked";
+            day_of_grow: "day_of_grow";
+        }>;
         intervalSeconds: z.ZodNumber;
     }, z.core.$strip>;
 }, z.core.$strip>;
@@ -1737,11 +1806,26 @@ export declare const chartViewPage: z.ZodObject<{
                 fanExternal: "fanExternal";
                 fanBackwall: "fanBackwall";
             }>>;
-            range: z.ZodNullable<z.ZodObject<{
-                startsAt: z.ZodNullable<z.ZodISODateTime>;
-                endsAt: z.ZodNullable<z.ZodISODateTime>;
-            }, z.core.$strip>>;
-            forSeconds: z.ZodNullable<z.ZodNumber>;
+            measurements: z.ZodArray<z.ZodString>;
+            span: z.ZodDiscriminatedUnion<[z.ZodObject<{
+                kind: z.ZodLiteral<"last">;
+                forSeconds: z.ZodNumber;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"fixed">;
+                range: z.ZodObject<{
+                    startsAt: z.ZodNullable<z.ZodISODateTime>;
+                    endsAt: z.ZodNullable<z.ZodISODateTime>;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"phase">;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"grow">;
+            }, z.core.$strip>], "kind">;
+            layout: z.ZodEnum<{
+                overlay: "overlay";
+                stacked: "stacked";
+                day_of_grow: "day_of_grow";
+            }>;
             intervalSeconds: z.ZodNumber;
         }, z.core.$strip>;
     }, z.core.$strip>>;
@@ -1774,11 +1858,26 @@ export declare const chartViewCreate: z.ZodObject<{
             fanExternal: "fanExternal";
             fanBackwall: "fanBackwall";
         }>>;
-        range: z.ZodNullable<z.ZodObject<{
-            startsAt: z.ZodNullable<z.ZodISODateTime>;
-            endsAt: z.ZodNullable<z.ZodISODateTime>;
-        }, z.core.$strip>>;
-        forSeconds: z.ZodNullable<z.ZodNumber>;
+        measurements: z.ZodArray<z.ZodString>;
+        span: z.ZodDiscriminatedUnion<[z.ZodObject<{
+            kind: z.ZodLiteral<"last">;
+            forSeconds: z.ZodNumber;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"fixed">;
+            range: z.ZodObject<{
+                startsAt: z.ZodNullable<z.ZodISODateTime>;
+                endsAt: z.ZodNullable<z.ZodISODateTime>;
+            }, z.core.$strip>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"phase">;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"grow">;
+        }, z.core.$strip>], "kind">;
+        layout: z.ZodEnum<{
+            overlay: "overlay";
+            stacked: "stacked";
+            day_of_grow: "day_of_grow";
+        }>;
         intervalSeconds: z.ZodNumber;
     }, z.core.$strip>;
 }, z.core.$strip>;
@@ -1809,11 +1908,26 @@ export declare const chartViewUpdate: z.ZodObject<{
             fanExternal: "fanExternal";
             fanBackwall: "fanBackwall";
         }>>;
-        range: z.ZodNullable<z.ZodObject<{
-            startsAt: z.ZodNullable<z.ZodISODateTime>;
-            endsAt: z.ZodNullable<z.ZodISODateTime>;
-        }, z.core.$strip>>;
-        forSeconds: z.ZodNullable<z.ZodNumber>;
+        measurements: z.ZodArray<z.ZodString>;
+        span: z.ZodDiscriminatedUnion<[z.ZodObject<{
+            kind: z.ZodLiteral<"last">;
+            forSeconds: z.ZodNumber;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"fixed">;
+            range: z.ZodObject<{
+                startsAt: z.ZodNullable<z.ZodISODateTime>;
+                endsAt: z.ZodNullable<z.ZodISODateTime>;
+            }, z.core.$strip>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"phase">;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"grow">;
+        }, z.core.$strip>], "kind">;
+        layout: z.ZodEnum<{
+            overlay: "overlay";
+            stacked: "stacked";
+            day_of_grow: "day_of_grow";
+        }>;
         intervalSeconds: z.ZodNumber;
     }, z.core.$strip>>;
 }, z.core.$strip>;
