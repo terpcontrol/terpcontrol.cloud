@@ -1,0 +1,285 @@
+/* The alarm rules page and the sheet that writes one: the groups, the card a
+   rule is, and the fields. The card, the chip, the switch and the field are
+   the app's own, so nothing here restates a surface or a colour. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.back {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.device {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.deviceName {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The label and, for the stage's group, what it means. On a phone the two do
+   not always fit on one line, and then the aside takes the next one whole
+   rather than each of them breaking mid-sentence. */
+.groupHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.groupAside {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+}
+
+/* The rule an alert linked to, marked as the one it is: a green rule, the
+   same way the step a plan stands on is marked, and not a fill. */
+.card[data-highlight] {
+  border-color: var(--green);
+}
+
+/* The tap that opens the sheet is the whole of the card but the switch, drawn
+   as the text it is rather than as a button. */
+.open {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  text-align: left;
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* A rule that stands triggered right now. */
+.dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  background: var(--alarm);
+  border-radius: 50%;
+}
+
+.name {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.bound {
+  font-size: var(--text-md);
+  color: var(--ink);
+}
+
+.origin {
+  height: 20px;
+  padding: 0 var(--space-2);
+  color: var(--muted);
+}
+
+.meta {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* Why the switch is not offered: the sensor the rule needs and the device
+   does not have. Said in the warning's colour, because it is one. */
+.reason {
+  font-size: var(--text-xs);
+  color: var(--warning);
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.add {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+/* The sheet's insides: a few questions apart, like every other sheet. */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-2) 0;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--rule-dashed);
+  border-radius: var(--radius);
+}
+
+.bounds {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.figure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--card-2);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.figureLabel {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.figureInput {
+  width: 72px;
+  min-width: 0;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font-size: var(--text-md);
+  text-align: right;
+}
+
+.figureInput:focus {
+  outline: none;
+}
+
+.figureUnit {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--label);
+}
+
+.duration {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.number {
+  width: 88px;
+}
+
+.textarea {
+  height: auto;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  resize: vertical;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.toggleText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.toggleLabel {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.submit {
+  width: 100%;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* What a delete will do, asked in the place the tap would be. */
+.asking {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--rule-dashed);
+  border-radius: var(--radius);
+}
+
+.danger {
+  color: var(--alarm);
+  border-color: var(--alarm);
+}
+
+.dangerButton {
+  background: var(--alarm);
+  border-color: var(--alarm);
+  color: var(--on-green);
+}

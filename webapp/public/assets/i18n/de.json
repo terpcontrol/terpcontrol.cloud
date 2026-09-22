@@ -2167,5 +2167,118 @@
       "since": "ab {{from}}",
       "between": "{{from}} → {{to}}"
     }
+  },
+  "alarms": {
+    "title": "Alarme",
+    "backToPlan": "‹ zurück zum Plan",
+    "noController": "Hier steht nichts, das Alarmregeln hat. Ein Controller oder ein Kühlschrankmodul muss erst in dieses Zelt geholt werden.",
+    "footer": "Stummschalten und Wartungsmodus pausieren alle; „Im Zelt“ aus dem Log-Blatt tut dasselbe für 15 Minuten.",
+    "add": "+ Alarm · Schwelle · Dauer · Stufe · Webhook",
+    "group": {
+      "presetOf": "Aus dem Preset {{name}}",
+      "presetNone": "Aus dem Stadium-Preset",
+      "presetAside": "Schwellen wandern mit dem Stadium",
+      "always": "Immer an",
+      "device": "Vom Gerät",
+      "human": "Deine"
+    },
+    "origin": {
+      "preset": "Preset",
+      "always": "immer",
+      "device": "Gerät",
+      "human": "deine"
+    },
+    "triggered": "gerade ausgelöst",
+    "enable": "{{name}} an oder aus",
+    "unsilence": "wieder laut",
+    "meta": {
+      "for": "für {{length}}",
+      "notAnnounced": "nicht gemeldet",
+      "ownTarget": "eigenes Ziel",
+      "repeatsUntilBack": "wiederholt sich, bis es vorbei ist",
+      "repeatsEvery": "wiederholt sich alle {{length}}",
+      "silencedUntil": "stumm bis {{time}}"
+    },
+    "severity": {
+      "critical": "kritisch",
+      "warning": "Warnung",
+      "info": "Info"
+    },
+    "channel": {
+      "push": "Push",
+      "telegram": "Telegram",
+      "email": "E-Mail",
+      "webhook": "Webhook"
+    },
+    "needs": {
+      "co2": "braucht einen CO₂-Sensor",
+      "leaf": "braucht einen Blattsensor",
+      "light": "braucht einen Lichtsensor"
+    },
+    "metric": {
+      "leafTemperature": "Blatttemp",
+      "lux": "Lux",
+      "ppfd": "PPFD",
+      "offline": "Offline"
+    },
+    "output": {
+      "heater": "Heizung",
+      "dehumidifier": "Entfeuchter",
+      "co2": "CO₂-Ventil",
+      "light": "Licht",
+      "fan": "Lüfter",
+      "relais": "Relais",
+      "fanInternal": "Innenlüfter",
+      "fanExternal": "Außenlüfter",
+      "fanBackwall": "Rückwandlüfter"
+    },
+    "sheet": {
+      "newTitle": "Neuer Alarm",
+      "title": "Alarm bearbeiten",
+      "name": "Name",
+      "nameHint": "Zu heiß",
+      "presetNote": "Diese Regel hat das Stadium geschrieben. Das nächste Stadium schreibt ihre Schwellen neu, was du hier änderst, gilt also bis dahin.",
+      "watch": "Beobachten",
+      "how": "Was daran",
+      "level": "seine Stufe",
+      "running": "ob er überhaupt läuft",
+      "bounds": "Wo die Grenze liegt",
+      "above": "über",
+      "below": "unter",
+      "fractionNote": "Als Anteil der Zeit, die er läuft: 0,5 ist die halbe Zeit.",
+      "noBound": "Gib ihm eine Grenze: über, unter oder beides.",
+      "for": "Wie lange",
+      "forNote": "Wie lange der Wert hinter der Grenze bleiben muss, bevor der Alarm ausgelöst wird. 0 löst sofort aus.",
+      "forRunningNote": "Wie lange der Ausgang ohne Pause laufen muss, bevor das ein Alarm ist und kein Zyklus.",
+      "minutes": "min",
+      "severity": "Stufe",
+      "tellBy": "Sag mir Bescheid per",
+      "by": {
+        "routing": "meinen Benachrichtigungseinstellungen",
+        "email": "E-Mail an",
+        "webhook": "Webhook"
+      },
+      "routingNote": "Geht raus per {{channels}}.",
+      "routingNone": "Nicht gemeldet: In deinen Benachrichtigungseinstellungen ist für {{severity}} nichts eingestellt.",
+      "infoNote": "Ein Info-Alarm wird ins Tagebuch geschrieben und nie gemeldet.",
+      "address": "Adresse",
+      "url": "URL",
+      "method": "Methode",
+      "headers": "Header",
+      "headersHint": "Name: Wert, einer pro Zeile",
+      "triggeredPayload": "Body beim Auslösen",
+      "resolvedPayload": "Body, wenn es vorbei ist",
+      "payloadHint": "leer schickt die Standardnachricht",
+      "reportErrors": "Fehler ins Tagebuch schreiben",
+      "tunnel": "Durch den Tunnel des Geräts",
+      "tunnelNote": "Für ein Ziel im lokalen Netz, das das Gerät erreicht und die Cloud nicht.",
+      "repeat": "Wiederholen",
+      "repeatEvery": "alle",
+      "repeatNote": "Solange es anhält, alle so viele Minuten; 0 sagt es einmal.",
+      "save": "Alarm speichern",
+      "delete": "Alarm löschen",
+      "deleteAsk": "Die Regel ist endgültig weg. Ein Alarm, den sie schon ausgelöst hat, bleibt im Posteingang.",
+      "deleteYes": "Löschen"
+    }
   }
 }

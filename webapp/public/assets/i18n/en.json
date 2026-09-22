@@ -2171,5 +2171,118 @@
       "since": "from {{from}}",
       "between": "{{from}} → {{to}}"
     }
+  },
+  "alarms": {
+    "title": "Alarms",
+    "backToPlan": "‹ back to the plan",
+    "noController": "Nothing stands here that has alarm rules. A controller or a fridge module has to be claimed into this tent first.",
+    "footer": "Silence and maintenance mode pause all of them; \"in the tent\" from the Log sheet does the same for 15 minutes.",
+    "add": "+ Alarm · threshold · duration · severity · webhook",
+    "group": {
+      "presetOf": "From the {{name}} preset",
+      "presetNone": "From the stage preset",
+      "presetAside": "thresholds move with the stage",
+      "always": "Always on",
+      "device": "From the device",
+      "human": "Yours"
+    },
+    "origin": {
+      "preset": "preset",
+      "always": "always",
+      "device": "device",
+      "human": "yours"
+    },
+    "triggered": "triggered right now",
+    "enable": "{{name}} on or off",
+    "unsilence": "unsilence",
+    "meta": {
+      "for": "for {{length}}",
+      "notAnnounced": "not announced",
+      "ownTarget": "its own target",
+      "repeatsUntilBack": "repeats until back",
+      "repeatsEvery": "repeats every {{length}}",
+      "silencedUntil": "silenced until {{time}}"
+    },
+    "severity": {
+      "critical": "critical",
+      "warning": "warning",
+      "info": "info"
+    },
+    "channel": {
+      "push": "push",
+      "telegram": "Telegram",
+      "email": "e-mail",
+      "webhook": "webhook"
+    },
+    "needs": {
+      "co2": "needs a CO₂ sensor",
+      "leaf": "needs a leaf sensor",
+      "light": "needs a light sensor"
+    },
+    "metric": {
+      "leafTemperature": "Leaf temp",
+      "lux": "Lux",
+      "ppfd": "PPFD",
+      "offline": "Offline"
+    },
+    "output": {
+      "heater": "Heater",
+      "dehumidifier": "Dehumidifier",
+      "co2": "CO₂ valve",
+      "light": "Light",
+      "fan": "Fan",
+      "relais": "Relay",
+      "fanInternal": "Internal fan",
+      "fanExternal": "External fan",
+      "fanBackwall": "Back-wall fan"
+    },
+    "sheet": {
+      "newTitle": "New alarm",
+      "title": "Edit the alarm",
+      "name": "Name",
+      "nameHint": "Too hot",
+      "presetNote": "The stage wrote this rule. The next stage writes its thresholds again, so what is changed here holds until then.",
+      "watch": "Watch",
+      "how": "What about it",
+      "level": "its level",
+      "running": "running at all",
+      "bounds": "Where the line is",
+      "above": "above",
+      "below": "below",
+      "fractionNote": "As a fraction of the time it runs: 0.5 is half the time.",
+      "noBound": "Give it a line to cross: above, below, or both.",
+      "for": "For how long",
+      "forNote": "How long the reading has to stay past the line before the alarm is raised. 0 raises it at once.",
+      "forRunningNote": "How long the output has to run without a pause before that is an alarm rather than a cycle.",
+      "minutes": "min",
+      "severity": "Severity",
+      "tellBy": "Tell me by",
+      "by": {
+        "routing": "my notification settings",
+        "email": "an e-mail to",
+        "webhook": "a webhook"
+      },
+      "routingNote": "Goes out by {{channels}}.",
+      "routingNone": "Not announced: nothing is routed for {{severity}} in your notification settings.",
+      "infoNote": "An info alarm is written to the diary and never announced.",
+      "address": "Address",
+      "url": "URL",
+      "method": "Method",
+      "headers": "Headers",
+      "headersHint": "Name: value, one per line",
+      "triggeredPayload": "Body when it triggers",
+      "resolvedPayload": "Body when it clears",
+      "payloadHint": "empty sends the standard message",
+      "reportErrors": "Report errors to the diary",
+      "tunnel": "Through the device's tunnel",
+      "tunnelNote": "For a target on the local network, which the device can reach and the cloud cannot.",
+      "repeat": "Repeat",
+      "repeatEvery": "every",
+      "repeatNote": "While it lasts, every so many minutes; 0 says it once.",
+      "save": "Save the alarm",
+      "delete": "Delete the alarm",
+      "deleteAsk": "The rule is gone for good. An alert it has already raised stays in the inbox.",
+      "deleteYes": "Delete it"
+    }
   }
 }
