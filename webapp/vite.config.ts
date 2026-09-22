@@ -16,7 +16,13 @@ export default defineConfig({
       // `public/manifest.webmanifest` is the manifest, linked from index.html.
       // Generating a second one would leave two answers to the same question.
       manifest: false,
-      workbox: {
+      // The worker is written out in `src/sw.ts` rather than generated, because
+      // a push is handed to the worker and to nothing else, and a generated one
+      // has no handler for it. What it precaches is decided here.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      injectManifest: {
         // Offline means the shell and both catalogues. The drawings under
         // `assets/` are megabytes and the onboarding videos tens of them, so
         // they are fetched and kept once they are actually looked at.
@@ -24,14 +30,6 @@ export default defineConfig({
         // The app speaks English and German; the other subsets of the two fonts
         // are downloaded if a name ever needs them, not kept for offline.
         globIgnores: ['**/*-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2'],
-        navigateFallback: 'index.html',
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith('/assets/'),
-            handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'assets' },
-          },
-        ],
       },
       devOptions: { enabled: false },
     }),
