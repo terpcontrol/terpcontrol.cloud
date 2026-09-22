@@ -1525,13 +1525,78 @@
       "footnote": "Es wird nie ein Standort gespeichert. Server in der EU. Der Team-Modus (Clubs) bringt Zuordnung und längere Aufbewahrung pro Zelt, nie pro Person."
     },
     "public": {
-      "title": "Öffentliche Grows und Profil"
+      "title": "Öffentliche Grows und Profil",
+      "demo": "Die Demo hat keine eigenen Grows zu veröffentlichen.",
+      "profile": "Profil",
+      "grows": "Grows",
+      "profileOff": "nicht öffentlich · der Schalter ist unter Privatsphäre",
+      "copyProfile": "Profiladresse kopieren",
+      "publicCount_one": "{{count}} öffentlich",
+      "publicCount_other": "{{count}} öffentlich",
+      "privateCount_one": "{{count}} privat",
+      "privateCount_other": "{{count}} privat",
+      "private": "privat",
+      "links_one": "{{count}} Link öffnet ihn",
+      "links_other": "{{count}} Links öffnen ihn",
+      "switch": "Öffentliche Seite von {{name}}",
+      "none": "Noch keine eigenen Grows",
+      "stranger": "Ein öffentlicher Grow zeigt einem Fremden das Tagebuch vom ersten Tag an: die Phasen, die Wochenkarten mit ihren Fotos und den Bildern der Kamera, die Klimamittelwerte, die Sorten und deinen Handle. Erntegewichte und Pflanzenzahlen richten sich nach deinen Privatsphäre-Einstellungen. Nie zu sehen sind die Live-Werte des Zelts, seine Geräte, seine Alarme oder seine Aufgaben, und nie deine E-Mail. Wer folgt, sieht dieselbe Seite, und schreiben kann niemand."
     },
     "following": {
-      "title": "Abonniert"
+      "title": "Abonniert",
+      "demo": "Die Demo folgt niemandem; Folgen braucht ein eigenes Konto.",
+      "count_one": "{{count}} Grow",
+      "count_other": "{{count}} Grows",
+      "none": "Du folgst noch niemandem. Folgen steht oben auf jedem öffentlichen Tagebuch.",
+      "note": "Ein abonnierter Grow ist die öffentliche Seite von jemand anderem: Du siehst, was jeder Fremde sieht, und er bleibt auf deiner Startseite, bis du nicht mehr folgst."
     },
     "shareLinks": {
-      "title": "Freigabelinks"
+      "title": "Freigabelinks",
+      "demo": "Die Demo hat keine eigenen Links zu vergeben.",
+      "active": "Aktiv",
+      "dead": "Abgelaufen oder zurückgezogen",
+      "none": "Noch keine Links vergeben",
+      "kind": {
+        "public_page": "öffentliche Seite",
+        "view": "Verlauf"
+      },
+      "days_one": "{{count}} Tag",
+      "days_other": "{{count}} Tage",
+      "permanentLink": "der dauerhafte Link des Grows",
+      "growPrivate": "Grow jetzt privat · öffnet trotzdem",
+      "readOnly": "nur lesen",
+      "permanent": "dauerhaft",
+      "expires": "läuft ab {{date}}",
+      "expired": "abgelaufen {{date}}",
+      "revoked": "zurückgezogen {{date}}",
+      "camsOn": "Cams an",
+      "camsOff": "Cams aus",
+      "weightsHidden": "Gewichte verborgen",
+      "countsHidden": "Pflanzenzahlen verborgen",
+      "opens_one": "{{count}} Aufruf",
+      "opens_other": "{{count}} Aufrufe",
+      "notOpened": "noch nie geöffnet",
+      "gone": "nicht mehr da",
+      "closing": "Zwei Arten: die öffentliche Seite eines Grows (dauerhaft, bis du den Grow privat stellst) und eine Nur-Lesen-Ansicht eines Zelts oder eines Zeitraums mit Ablaufdatum. Beide können die Cams enthalten oder nicht. Wer folgt, sieht die öffentliche Seite; ein Link erlaubt nie das Schreiben.",
+      "new": "+ Neuer Link · Grow oder Zelt · Cams · Ablauf",
+      "address": "Adresse",
+      "revokeNote": "Zurückziehen beendet den Link sofort. Wer ihn hat, sieht ab dann genau das, was ein nie vergebener Link zeigt: nichts. Er bleibt hier mit dem Datum stehen.",
+      "forgetNote": "Löschen nimmt den Link aus dieser Liste. Er hat schon aufgehört zu funktionieren.",
+      "sheet": {
+        "title": "Neuer Link",
+        "subject": "Grow oder Zelt",
+        "nothing": "Noch nichts Eigenes zum Teilen",
+        "kind": "Art",
+        "publicPage": "Öffentliche Seite",
+        "view": "Nur-Lesen-Ansicht",
+        "untilPrivate": "Dauerhaft, bis du den Grow privat stellst.",
+        "needsPublic": "{{name}} ist privat. Eine öffentliche Seite gibt es erst, wenn der Grow öffentlich ist:",
+        "viewNote": "Nur lesen: Wer ihn hat, kann schauen und nie schreiben.",
+        "cams": "Cams",
+        "expiry": "Ablauf",
+        "never": "nie",
+        "create": "Link erstellen"
+      }
     },
     "premium": {
       "title": "Premium",

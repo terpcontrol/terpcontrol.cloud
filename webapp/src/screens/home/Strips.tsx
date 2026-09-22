@@ -109,26 +109,37 @@ export function FollowingStrip({ grows, now }: { grows: FollowedGrowCard[]; now:
         <span className="label">{t('home.strip.following')}</span>
       </header>
       <ul className={styles.tiles}>
-        {grows.map(grow => {
-          const cover = grow.coverMediaId ? publicPicture(grow.slug)(grow.coverMediaId, PUBLIC_WIDTH.card) : null;
-          return (
-            <li key={grow.growId} className={styles.tile}>
-              <Link to={`/g/${grow.slug}`} className={styles.tileLink}>
-                <Photo src={cover} alt="" className={styles.tileCover} fallback={<Leaf size={22} strokeWidth={1.5} aria-hidden />} />
-                <span className={styles.tileTitle}>
-                  @{grow.handle} · {grow.name}
-                </span>
-                <span className={`mono ${styles.tileMeta}`}>
-                  {grow.dayNumber !== null ? `${t('home.card.dayN', { day: grow.dayNumber })} · ` : ''}
-                  {grow.stage ? `${t(`home.stage.${grow.stage}`)} · ` : ''}
-                  {t('home.card.ago', { age: ageLabel(grow.updatedAt, now) })}
-                </span>
-              </Link>
-              <FollowButton growId={grow.growId} />
-            </li>
-          );
-        })}
+        {grows.map(grow => (
+          <FollowedTile key={grow.growId} grow={grow} now={now} />
+        ))}
       </ul>
     </section>
+  );
+}
+
+/**
+ * One followed grow, on the home strip and on the Following page alike: the
+ * public page it came from, under its owner's handle, with the way to stop
+ * beside it. It is a list item because both places are lists.
+ */
+export function FollowedTile({ grow, now }: { grow: FollowedGrowCard; now: DateTime }) {
+  const { t } = useTranslation();
+  const cover = grow.coverMediaId ? publicPicture(grow.slug)(grow.coverMediaId, PUBLIC_WIDTH.card) : null;
+
+  return (
+    <li className={styles.tile}>
+      <Link to={`/g/${grow.slug}`} className={styles.tileLink}>
+        <Photo src={cover} alt="" className={styles.tileCover} fallback={<Leaf size={22} strokeWidth={1.5} aria-hidden />} />
+        <span className={styles.tileTitle}>
+          @{grow.handle} · {grow.name}
+        </span>
+        <span className={`mono ${styles.tileMeta}`}>
+          {grow.dayNumber !== null ? `${t('home.card.dayN', { day: grow.dayNumber })} · ` : ''}
+          {grow.stage ? `${t(`home.stage.${grow.stage}`)} · ` : ''}
+          {t('home.card.ago', { age: ageLabel(grow.updatedAt, now) })}
+        </span>
+      </Link>
+      <FollowButton growId={grow.growId} />
+    </li>
   );
 }

@@ -1,0 +1,221 @@
+/* Me › Share links, Public grows and profile, Following: the three pages about
+   what other people can see. One column under small-caps labels, built the way
+   Privacy is, so the rows below Me read as one screen. Phone first; the shell
+   keeps the column width on a desktop. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+/* The trail back to Me, kept for the width that has room for it; on a phone the
+   tab bar and the avatar already say where this page hangs. */
+.crumb {
+  display: none;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.crumb a {
+  color: var(--muted);
+}
+
+/* A label with the count the board puts opposite it. */
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.count {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* A link that has run out or was taken back keeps its card, dimmed: it is still
+   a fact about what was handed out, and never drawn as if it worked. */
+.card[data-dead] {
+  opacity: var(--age-offline);
+}
+
+/* The card's words are the door to the link's own sheet, so they are a button
+   with the button drawn off it. */
+.cardText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+}
+
+.cardTitle {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.cardLine {
+  font-size: var(--text-xs);
+  line-height: var(--line-body);
+  color: var(--muted);
+}
+
+/* The one thing on a card that is not merely a fact: a promise the server does
+   not keep, said in the warning colour so it is not read past. */
+.warn {
+  color: var(--warning);
+}
+
+.cardControl {
+  display: inline-flex;
+  flex: none;
+  gap: var(--space-2);
+}
+
+.closing {
+  line-height: var(--line-body);
+}
+
+/* The dashed row that starts a link: the lesser option beside bordered cards,
+   as a button, in the mono the board sets its caption in. */
+.new {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.new:disabled {
+  opacity: 0.45;
+}
+
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-3) 0 var(--space-2);
+}
+
+.addressRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* The address in full, and still selectable: a browser that refuses the
+   clipboard leaves reading it off the screen as the only way. */
+.address {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  padding: var(--space-2) var(--space-3);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--card-2);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.sentence {
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+}
+
+.sentence a {
+  color: var(--green-ink);
+  text-decoration: underline;
+}
+
+.switchRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.switchText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+/* Ending a link is outlined in the alarm colour rather than filled, like every
+   other irreversible button in the app: there is no ink token that reads on a
+   solid alarm in both themes, and the outline says the same thing in both. */
+.end {
+  border-color: var(--alarm);
+  color: var(--alarm);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* Following: the home strip's tiles, in a grid that fills the column rather
+   than a row that scrolls sideways - here the list is the page. */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 900px) {
+  .page {
+    max-width: 720px;
+    padding-top: 0;
+  }
+
+  .crumb {
+    display: inline;
+  }
+}

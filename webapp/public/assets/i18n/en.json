@@ -1529,13 +1529,78 @@
       "footnote": "No location is ever stored. Servers in the EU. Team mode (clubs) adds attribution and longer retention per tent, never per person."
     },
     "public": {
-      "title": "Public grows and profile"
+      "title": "Public grows and profile",
+      "demo": "The demo has no grows of its own to publish.",
+      "profile": "Profile",
+      "grows": "Grows",
+      "profileOff": "not public · the switch is under Privacy",
+      "copyProfile": "Copy the profile address",
+      "publicCount_one": "{{count}} public",
+      "publicCount_other": "{{count}} public",
+      "privateCount_one": "{{count}} private",
+      "privateCount_other": "{{count}} private",
+      "private": "private",
+      "links_one": "{{count}} link opens it",
+      "links_other": "{{count}} links open it",
+      "switch": "Public page of {{name}}",
+      "none": "No grows of your own yet",
+      "stranger": "A public grow shows a stranger the diary from its first day: the phases, the week cards with their photos and the camera's pictures, the climate averages, the strains, and your handle. Harvest weights and plant counts follow your privacy settings. It never shows the tent's live values, its devices, its alarms or its tasks, and never your e-mail. Followers see the same page, and nobody can write."
     },
     "following": {
-      "title": "Following"
+      "title": "Following",
+      "demo": "The demo follows nobody; following needs an account of its own.",
+      "count_one": "{{count}} grow",
+      "count_other": "{{count}} grows",
+      "none": "You follow nobody yet. Follow sits at the top of any public diary.",
+      "note": "A followed grow is somebody else's public page: you see what any stranger sees, and it stays on your home until you stop following."
     },
     "shareLinks": {
-      "title": "Share links"
+      "title": "Share links",
+      "demo": "The demo has no links of its own to hand out.",
+      "active": "Active",
+      "dead": "Expired or revoked",
+      "none": "No links handed out yet",
+      "kind": {
+        "public_page": "public page",
+        "view": "timeline"
+      },
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "permanentLink": "the grow's permanent link",
+      "growPrivate": "grow now private · still opens",
+      "readOnly": "read-only view",
+      "permanent": "permanent",
+      "expires": "expires {{date}}",
+      "expired": "expired {{date}}",
+      "revoked": "revoked {{date}}",
+      "camsOn": "cams on",
+      "camsOff": "cams off",
+      "weightsHidden": "weights hidden",
+      "countsHidden": "plant counts hidden",
+      "opens_one": "{{count}} open",
+      "opens_other": "{{count}} opens",
+      "notOpened": "not opened yet",
+      "gone": "no longer here",
+      "closing": "Two kinds: the public page of a grow (permanent until you make the grow private) and a read-only view of a tent or a time range with an expiry. Both can include the cams or not. Followers see the public page; a link never grants writing.",
+      "new": "+ New link · grow or tent · cams · expiry",
+      "address": "Address",
+      "revokeNote": "Revoking ends the link now. Whoever has it sees from then on exactly what a link nobody made shows: nothing. It stays listed here with the date.",
+      "forgetNote": "Forgetting takes the link off this list. It has already stopped working.",
+      "sheet": {
+        "title": "New link",
+        "subject": "Grow or tent",
+        "nothing": "Nothing of your own to share yet",
+        "kind": "Kind",
+        "publicPage": "Public page",
+        "view": "Read-only view",
+        "untilPrivate": "Permanent until you make the grow private.",
+        "needsPublic": "{{name}} is private. A public page needs the grow to be public first:",
+        "viewNote": "Read-only: whoever has it can look, and never write.",
+        "cams": "Cams",
+        "expiry": "Expiry",
+        "never": "never",
+        "create": "Create link"
+      }
     },
     "premium": {
       "title": "Premium",

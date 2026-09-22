@@ -14,6 +14,9 @@ import { LogRoute } from '@/log/LogRoute';
 import { Me } from '@/screens/Me';
 import { Privacy } from '@/screens/me/privacy/Privacy';
 import { Premium } from '@/screens/me/premium/Premium';
+import { Following } from '@/screens/me/sharing/Following';
+import { PublicGrows } from '@/screens/me/sharing/PublicGrows';
+import { ShareLinks } from '@/screens/me/sharing/ShareLinks';
 import { Measurements } from '@/screens/grow/measurements/Measurements';
 import { NewGrowRoute } from '@/screens/grow/new/NewGrowRoute';
 import { NotFound } from '@/screens/NotFound';
@@ -101,9 +104,9 @@ export const router = createBrowserRouter([
       { path: 'me', element: <Me /> },
       { path: 'me/notifications', element: <Notifications /> },
       { path: 'me/privacy', element: <Privacy /> },
-      { path: 'me/public', element: <Placeholder titleKey="me.public.title" /> },
-      { path: 'me/following', element: <Placeholder titleKey="me.following.title" /> },
-      { path: 'me/share-links', element: <Placeholder titleKey="me.shareLinks.title" /> },
+      { path: 'me/public', element: <PublicGrows /> },
+      { path: 'me/following', element: <Following /> },
+      { path: 'me/share-links', element: <ShareLinks /> },
       { path: 'me/premium', element: <Premium /> },
       { path: 'me/schemes', element: <Placeholder titleKey="me.schemes.title" /> },
       { path: 'me/appearance', element: <Placeholder titleKey="me.appearance" /> },
