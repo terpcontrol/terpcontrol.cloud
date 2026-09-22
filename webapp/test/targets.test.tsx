@@ -172,12 +172,16 @@ beforeEach(() => {
 });
 
 describe('the manual targets page', () => {
-  it('says so when nothing standing here states a climate', () => {
+  it('says so when nothing standing here states a climate, and offers the one thing that helps', () => {
     draw([device({ id: 'plug-1', type: 'plug', configuration: { workmode: 'heater', 'heater.day.on': 24 } })]);
 
-    expect(screen.getByText('Nothing standing here states a climate, so there is nothing to set.')).toBeInTheDocument();
+    expect(screen.getByText(/Nothing standing here states a climate/)).toBeInTheDocument();
     expect(screen.queryByRole('slider')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '‹ back to the plan' })).toHaveAttribute('href', '/spaces/space-1/control');
+    expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/spaces/space-1/devices');
+    // Neither the plan nor the pages under Advanced hold anything here, so neither is offered.
+    expect(screen.queryByRole('link', { name: '‹ back to the plan' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'alarms' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'sockets' })).not.toBeInTheDocument();
   });
 
   it('draws the targets the controller is running, with the VPD and the light window beside them', async () => {
@@ -257,7 +261,7 @@ describe('the manual targets page', () => {
     wire.plan = plan('running');
     await drawn();
 
-    expect(screen.getByText('The plan running here would put its own targets back within the hour. Saving pauses it.')).toBeInTheDocument();
+    expect(screen.getByText('Saving pauses the running plan, which would otherwise put its own targets back within the hour.')).toBeInTheDocument();
     slide('Day humidity', 65);
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 

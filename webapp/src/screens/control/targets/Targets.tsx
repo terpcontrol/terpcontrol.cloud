@@ -40,6 +40,11 @@ import styles from './Targets.module.css';
  * app keeps for a state somebody chose. Every device standing here that states
  * a climate gets a panel of its own, because the targets are that device's
  * document and a tent with two controllers holds two.
+ *
+ * A tent with nothing to set is a page with nowhere to go: the crumb back to
+ * the plan and the row under Advanced would both lead somewhere as empty as
+ * this, so neither is drawn and the note offers the one thing that helps,
+ * which is claiming a device into the tent.
  */
 export function Targets({ spaceId, devices, mayManage }: { spaceId: string; devices: Device[]; mayManage: boolean }) {
   const { t } = useTranslation();
@@ -48,6 +53,22 @@ export function Targets({ spaceId, devices, mayManage }: { spaceId: string; devi
   const controllers = devices.flatMap(device =>
     device.configuration && statesTargets(device.configuration) ? [{ device, configuration: device.configuration }] : [],
   );
+
+  if (controllers.length === 0) {
+    return (
+      <div className={styles.page}>
+        <header className={styles.head}>
+          <span className="label">{t('targets.title')}</span>
+        </header>
+        <p className={`${ui.cardDashed} ${ui.note}`}>
+          {t('targets.nothing')}{' '}
+          <Link to={`/spaces/${spaceId}/devices`} className={styles.addDevice}>
+            {t('space.control.noControllerAdd')}
+          </Link>
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>
@@ -58,13 +79,9 @@ export function Targets({ spaceId, devices, mayManage }: { spaceId: string; devi
         </Link>
       </header>
 
-      {controllers.length === 0 ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('targets.nothing')}</p>
-      ) : (
-        controllers.map(({ device, configuration }) => (
-          <Panel key={device.id} device={device} stored={configuration} mayManage={mayManage} titled={controllers.length > 1} />
-        ))
-      )}
+      {controllers.map(({ device, configuration }) => (
+        <Panel key={device.id} device={device} stored={configuration} mayManage={mayManage} titled={controllers.length > 1} />
+      ))}
 
       <p className={`mono ${styles.advanced}`}>
         <span className="label">{t('space.control.advanced')} ›</span>

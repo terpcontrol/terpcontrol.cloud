@@ -10,6 +10,7 @@ import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, Plan, PlanStep, PlanTransition } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
+import { Control } from '@/screens/control/Control';
 import { PlanPanel } from '@/screens/control/PlanPanel';
 import { movesOf } from '@/screens/control/plan-clock';
 import { CLIMATE_FIGURES, draftOf, editEffect, figureOf, moveStep, otherSections, withFigure } from '@/screens/control/plan-edit';
@@ -32,6 +33,12 @@ const state = vi.hoisted(() => ({
   plan: null as Plan | null,
   moveError: null as unknown,
   sent: [] as PlanTransition[],
+  devices: [] as unknown[],
+}));
+
+vi.mock('@/api/devices', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useDevices: () => ({ data: { items: state.devices, nextCursor: null }, isPending: false, refetch: () => {} }),
 }));
 
 vi.mock('@/api/plans', async importOriginal => ({
@@ -139,6 +146,24 @@ beforeEach(() => {
   state.plan = plan();
   state.moveError = null;
   state.sent = [];
+  state.devices = [];
+});
+
+describe('the tab of a place with nothing standing in it', () => {
+  it('offers the one thing that would change that, and no page that would be as empty', () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <Control spaceId="space-1" sub={null} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText(/Nothing stands here for a plan to run on/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/spaces/space-1/devices');
+    expect(screen.queryByRole('link', { name: 'Manual targets' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Advanced/ })).not.toBeInTheDocument();
+  });
 });
 
 describe('what saving an edited recipe would do to the tent', () => {

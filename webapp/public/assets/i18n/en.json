@@ -1621,6 +1621,7 @@
     "control": {
       "title": "Grow plan",
       "noController": "Nothing stands here for a plan to run on. A plan writes its steps to a controller, so one has to be claimed into this tent first.",
+      "noControllerAdd": "Add a device",
       "none": "This controller is not being run by a plan.",
       "noneNote": "A plan is a list of steps: a stage, how long it lasts, and what the tent should hold while it does. Saving one does not start it.",
       "write": "Write a plan",
@@ -2409,7 +2410,7 @@
       "hours": "h",
       "co2": "ppm"
     },
-    "planRunning": "The plan running here would put its own targets back within the hour. Saving pauses it.",
+    "planRunning": "Saving pauses the running plan, which would otherwise put its own targets back within the hour.",
     "planPaused": "The plan is paused while manual targets are on.",
     "resume": "Resume plan",
     "pauseReason": "Manual targets",

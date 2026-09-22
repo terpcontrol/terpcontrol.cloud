@@ -1617,6 +1617,7 @@
     "control": {
       "title": "Grow-Plan",
       "noController": "Hier steht nichts, worauf ein Plan laufen könnte. Ein Plan schreibt seine Schritte an einen Controller, es muss also erst einer in dieses Zelt geholt werden.",
+      "noControllerAdd": "Gerät hinzufügen",
       "none": "Dieser Controller wird von keinem Plan gesteuert.",
       "noneNote": "Ein Plan ist eine Liste von Schritten: ein Stadium, wie lange es dauert und was das Zelt währenddessen halten soll. Ihn zu speichern startet ihn nicht.",
       "write": "Plan schreiben",
@@ -2405,7 +2406,7 @@
       "hours": "h",
       "co2": "ppm"
     },
-    "planRunning": "Der Plan, der hier läuft, würde innerhalb einer Stunde seine eigenen Zielwerte zurücksetzen. Speichern pausiert ihn.",
+    "planRunning": "Speichern pausiert den laufenden Plan, der sonst innerhalb einer Stunde seine eigenen Zielwerte zurücksetzen würde.",
     "planPaused": "Der Plan ist pausiert, solange manuelle Zielwerte gelten.",
     "resume": "Plan fortsetzen",
     "pauseReason": "Manuelle Zielwerte",

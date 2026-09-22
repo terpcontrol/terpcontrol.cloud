@@ -23,7 +23,8 @@ const isSub = (value: string | null): value is ControlSub => (SUBPAGES as readon
  * that device's own configuration document - so a tent with two controllers in
  * it has two plans, and each is drawn with the name of the device it runs. A
  * tent with nothing in it says so rather than offering a recipe with nowhere to
- * send it.
+ * send it, and points at the one thing that would change that: claiming a
+ * device into the tent.
  *
  * Below the plan are the two pages that take the tent off it or watch over it:
  * targets set by hand, and, under Advanced, the alarm rules. Each is a page of
@@ -49,7 +50,12 @@ export function Control({ spaceId, sub }: { spaceId: string; sub: string | null 
   return (
     <div className={styles.page}>
       {here.length === 0 ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('space.control.noController')}</p>
+        <p className={`${ui.cardDashed} ${ui.note}`}>
+          {t('space.control.noController')}{' '}
+          <Link to={`/spaces/${spaceId}/devices`} className={styles.addDevice}>
+            {t('space.control.noControllerAdd')}
+          </Link>
+        </p>
       ) : (
         here.map(device => <PlanPanel key={device.id} device={device} mayManage={mayManage} />)
       )}

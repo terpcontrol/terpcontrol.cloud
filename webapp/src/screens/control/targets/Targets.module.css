@@ -58,12 +58,17 @@
   width: 7rem;
 }
 
+/* The figure and its unit are one thing and never break apart, whatever stands
+   beside them: "1100" on one line and "ppm" on the next would read as a
+   different number. Only what comes after them may wrap. */
 .figure {
   display: inline-flex;
+  flex-wrap: nowrap;
   align-items: baseline;
   justify-content: flex-end;
   gap: var(--space-1);
   font-size: var(--text-md);
+  white-space: nowrap;
 }
 
 .typed {
@@ -115,10 +120,12 @@
   color: var(--muted);
 }
 
-/* The slider. The track is a rule with the part up to the thumb in the green
-   the app emphasises with, and the thumb is a card with a rule around it:
-   the same surfaces as everything else, so it reads as a control and not as a
-   browser's. `--fill` is set per row from the value. */
+/* The slider. The track is a rule with the part up to the thumb a shade
+   darker, and the thumb is a card with a rule around it: the same surfaces as
+   everything else, so it reads as a control and not as a browser's. The fill
+   stays grey because seven filled tracks in the app's green would drown the
+   one green thing on the page, which is the Save. `--fill` is set per row from
+   the value. */
 .slider {
   width: 100%;
   height: var(--control-height);
@@ -136,7 +143,7 @@
 
 .slider::-webkit-slider-runnable-track {
   height: 4px;
-  background: linear-gradient(to right, var(--green) var(--fill), var(--rule) var(--fill));
+  background: linear-gradient(to right, var(--muted) var(--fill), var(--rule) var(--fill));
   border-radius: var(--radius-pill);
 }
 
@@ -148,7 +155,7 @@
 
 .slider::-moz-range-progress {
   height: 4px;
-  background: var(--green);
+  background: var(--muted);
   border-radius: var(--radius-pill);
 }
 
@@ -258,6 +265,16 @@
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+/* The way out of a tent with nothing to set, inside the dashed note: underlined
+   rather than coloured, because the note is a quiet one and the green is the
+   Save's. */
+.addDevice {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
 }
 
 @media (min-width: 900px) {
