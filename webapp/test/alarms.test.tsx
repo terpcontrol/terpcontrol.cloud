@@ -187,14 +187,14 @@ describe('the alarm rules page', () => {
 
     const hot = await card('Too hot');
     expect(within(hot).getByText('› 30 °C')).toBeInTheDocument();
-    expect(within(hot).getByText('preset · for 10 min · critical · push + Telegram · announced once')).toBeInTheDocument();
+    expect(within(hot).getByText('preset · for 10 min · critical · goes to you by push + Telegram · announced once')).toBeInTheDocument();
 
     const offline = await card('Controller offline');
-    expect(within(offline).getByText('always · for 10 min · critical · push + Telegram · repeats every 30 min')).toBeInTheDocument();
+    expect(within(offline).getByText('always · for 10 min · critical · goes to you by push + Telegram · repeats every 30 min')).toBeInTheDocument();
 
     const running = await card('Dehumidifier running non-stop');
     expect(within(running).getByText('› 2 h')).toBeInTheDocument();
-    expect(within(running).getByText('device · warning · push · announced once')).toBeInTheDocument();
+    expect(within(running).getByText('device · warning · goes to you by push · announced once')).toBeInTheDocument();
     expect(within(running).getByRole('img', { name: 'triggered right now' })).toBeInTheDocument();
 
     const hook = await card('Pump watchdog');
@@ -217,7 +217,9 @@ describe('the alarm rules page', () => {
     );
     draw();
 
-    expect(within(await card('Too hot')).getByText('preset · for 10 min · critical · push (off) + Telegram · announced once')).toBeInTheDocument();
+    expect(
+      within(await card('Too hot')).getByText('preset · for 10 min · critical · goes to you by push (off) + Telegram · announced once'),
+    ).toBeInTheDocument();
   });
 
   it('says nothing about where a rule goes until the account has answered', async () => {
@@ -225,7 +227,7 @@ describe('the alarm rules page', () => {
     draw();
 
     expect(within(await card('Too hot')).getByText('preset · for 10 min · critical · announced once')).toBeInTheDocument();
-    expect(screen.queryByText(/not announced/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/does not reach you/)).not.toBeInTheDocument();
   });
 
   it('switches a rule off with one field', async () => {
@@ -541,6 +543,13 @@ describe('the rule sheet', () => {
 
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/alarm-rules/rule-hook'));
   });
+
+  it('keeps what the sheet is for out of the part that scrolls, so a long rule still shows its Save', async () => {
+    const sheet = await openNew();
+
+    expect(sheet.querySelector('footer')).toContainElement(within(sheet).getByRole('button', { name: 'Save the alarm' }));
+    expect(within(sheet).getByRole('group', { name: 'Watch' }).closest('footer')).toBeNull();
+  });
 });
 
 describe('what a rule is called', () => {
@@ -577,5 +586,15 @@ describe('what a rule is called', () => {
 
   it('reads headers off their lines and drops what is not one', () => {
     expect(headersOf('X-Token: abc\n\nAuthorization: Bearer a:b\nnothing')).toEqual({ 'X-Token': 'abc', Authorization: 'Bearer a:b' });
+  });
+
+  /** The three stand next to each other in one row of chips, where one of them in another case reads as a mistake. */
+  it('writes the three severities in one case in each language', async () => {
+    for (const language of ['en', 'de']) {
+      const catalogue = JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'));
+      const cased = Object.values(catalogue.alarms.severity).map(label => /^\p{Lu}/u.test(String(label)));
+
+      expect(new Set(cased).size).toBe(1);
+    }
   });
 });

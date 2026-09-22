@@ -20,17 +20,26 @@ const STOPS =
  * keyboard while it cannot be reached by pointer. The focus is placed once, on
  * opening, and never again - a screen that re-renders on a clock would
  * otherwise take the cursor out of the field being typed in every few seconds.
+ *
+ * The panel never grows past the window, so what does not fit scrolls. Only
+ * the questions scroll, though: the title stays where it was read and a sheet
+ * that hands its actions over keeps them on the bottom edge, because a sheet
+ * long enough to scroll is exactly the one whose Save would otherwise sit
+ * below the fold with nothing on screen to say it was there.
  */
 export function Sheet({
   title,
   aside,
   children,
+  actions,
   onClose,
 }: {
   title: string;
   /** The line the board puts opposite the title, such as "long-press a tile for details". */
   aside?: ReactNode;
   children: ReactNode;
+  /** What the sheet is for, kept on the bottom edge while the questions above it scroll. */
+  actions?: ReactNode;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -82,7 +91,8 @@ export function Sheet({
             <X size={18} strokeWidth={1.75} aria-hidden />
           </button>
         </header>
-        {children}
+        <div className={styles.body}>{children}</div>
+        {actions ? <footer className={styles.actions}>{actions}</footer> : null}
       </div>
     </div>
   );

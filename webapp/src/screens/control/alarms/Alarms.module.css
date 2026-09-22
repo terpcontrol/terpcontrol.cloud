@@ -73,10 +73,15 @@
   padding: var(--space-3) var(--space-4);
 }
 
-/* The rule an alert linked to, marked as the one it is: a green rule, the
-   same way the step a plan stands on is marked, and not a fill. */
+/* The rule an alert linked to. "The one you followed" is not a state the rule
+   is in, so it is not drawn as one: green all round the card is how the app
+   says something is running now, and a ring in it here would read as a rule
+   that has just gone off. A bar down the left edge in plain ink is a pointing
+   finger instead, and says the same thing in both modes without borrowing a
+   colour that already means something else. */
 .card[data-highlight] {
-  border-color: var(--green);
+  border-left: 3px solid var(--ink);
+  padding-left: calc(var(--space-4) - 2px);
 }
 
 /* The tap that opens the sheet is the whole of the card but the switch, drawn
@@ -150,9 +155,15 @@
   text-align: center;
 }
 
-/* The one thing there is to do where nothing here has rules yet. */
+/* The one thing there is to do where nothing here has rules yet. The other
+   half of this tab draws the same way out of the same dashed note, so it is
+   drawn the same way here: underlined rather than coloured, because the note
+   is a quiet one and the green is the Save's. */
 .addDevice {
-  color: var(--green-ink);
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
 }
 
 /* The sheet's insides: a few questions apart, like every other sheet. */

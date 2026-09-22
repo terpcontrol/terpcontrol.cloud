@@ -20,7 +20,6 @@ import { AlarmRuleService } from './alarm-rule.service';
  * by the next stage, which only moves the band, the duration and the name.
  */
 
-/** What the rules are called where a name is shown. Stable, so a rule keeps its name when the band under it moves. */
 /**
  * A critical alarm repeats until it is resolved, as the decision record has
  * it, so a tent that is too hot is said again every half hour rather than once
@@ -30,6 +29,7 @@ import { AlarmRuleService } from './alarm-rule.service';
  */
 const CRITICAL_REPEAT_SECONDS = 30 * 60;
 
+/** What the rules are called where a name is shown. Stable, so a rule keeps its name when the band under it moves. */
 const BAND_NAME: Readonly<Record<StageAlarmBand['key'], string>> = {
   too_hot: 'Too hot',
   too_humid: 'Too humid',

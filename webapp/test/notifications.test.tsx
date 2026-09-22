@@ -64,8 +64,8 @@ const me = (notifications: Partial<NotificationSettings> = {}, over: Partial<Me>
   ...over,
 });
 
-/** The account the server answers, and what it says to a change. */
-const server = { me: me(), refuse: null as Problem | null, patched: [] as MeUpdate[], posted: [] as string[] };
+/** The account the server answers, and what it says to a change. `hold` keeps a write on the wire until a test lets it land. */
+const server = { me: me(), refuse: null as Problem | null, patched: [] as MeUpdate[], posted: [] as string[], hold: null as Promise<void> | null };
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -77,6 +77,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   if (url.endsWith('/v1/me') && method === 'PATCH') {
     const body = JSON.parse(String(init?.body)) as MeUpdate;
     server.patched.push(body);
+    if (server.hold) await server.hold;
     if (server.refuse) return json(server.refuse, server.refuse.status);
     server.me = { ...server.me, ...body } as Me;
     return json(server.me);
@@ -121,6 +122,7 @@ beforeEach(() => {
   server.refuse = null;
   server.patched = [];
   server.posted = [];
+  server.hold = null;
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -228,6 +230,26 @@ describe('an account with an address', () => {
     expect(screen.getByRole('switch', { name: 'Critical alarms by Push' })).toBeDisabled();
   });
 
+  it('draws a cell of a channel that can deliver nothing as off, keeps the routing, and says it is kept', async () => {
+    server.me = me({ ...WITH_MAIL, routing: { alerts: ['email', 'push'], warnings: [], tasks: ['email'], plan: [], weekly_timelapse: [] } });
+    await drawLoaded();
+
+    expect(screen.getByRole('switch', { name: 'Critical alarms by Push' })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByText(/That routing is kept/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Warnings by E-mail' }));
+
+    await waitFor(() => expect(server.patched).toHaveLength(1));
+    expect(lastPatch().routing.alerts).toEqual(['email', 'push']);
+  });
+
+  it('says nothing about kept routing where every routed channel can deliver', async () => {
+    server.me = me(WITH_MAIL);
+    await drawLoaded();
+
+    expect(screen.queryByText(/That routing is kept/)).not.toBeInTheDocument();
+  });
+
   it('switches e-mail off by writing null, and leaves the routing as it was', async () => {
     server.me = me(WITH_MAIL);
     await drawLoaded();
@@ -297,6 +319,30 @@ describe('quiet hours', () => {
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
     expect(lastPatch().quietHours).toEqual({ fromMinute: 1350, toMinute: 420 });
+  });
+
+  it('lose neither end when both are moved before the first write has landed', async () => {
+    server.me = me({ quietHours: { fromMinute: 1380, toMinute: 420 } });
+    await drawLoaded();
+
+    let land = () => {};
+    server.hold = new Promise<void>(resolve => (land = resolve));
+
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '22:00' } });
+    await waitFor(() => expect(server.patched).toHaveLength(1));
+
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '06:30' } });
+    await waitFor(() => expect(server.patched).toHaveLength(2));
+
+    // The second write carries the end the first one moved, rather than the one the account still says.
+    expect(server.patched[1].notifications!.quietHours).toEqual({ fromMinute: 1320, toMinute: 390 });
+
+    server.hold = null;
+    land();
+
+    await waitFor(() => expect(lastPatch().quietHours).toEqual({ fromMinute: 1320, toMinute: 390 }));
+    expect(screen.getByLabelText('From')).toHaveValue('22:00');
+    expect(screen.getByLabelText('To')).toHaveValue('06:30');
   });
 
   it('leave a field that was emptied saying what is stored', async () => {

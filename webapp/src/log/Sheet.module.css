@@ -15,9 +15,11 @@
 
 .sheet {
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-height: 88dvh;
-  overflow-y: auto;
+  overflow: hidden;
   /* The raised Log button stands half over the sheet's bottom edge, so the last
      thing in it keeps that much room and is never half a green circle. */
   padding: var(--space-2) var(--space-4) calc(var(--space-4) + var(--log-button) / 2);
@@ -40,6 +42,7 @@
 /* The handle the board draws: it says the sheet can be pushed away. */
 .grabber {
   display: block;
+  flex: none;
   width: 36px;
   height: 4px;
   margin: var(--space-2) auto var(--space-3);
@@ -49,6 +52,7 @@
 
 .header {
   display: flex;
+  flex: none;
   align-items: baseline;
   gap: var(--space-3);
   margin-bottom: var(--space-3);
@@ -78,6 +82,28 @@
   border: 0;
   padding: 0;
   color: var(--muted);
+}
+
+/* The questions, and the only part that scrolls: `min-height` is what lets a
+   flex item be shorter than its contents, without which the panel would grow
+   past the window again and take the last question with it. */
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* What the sheet is for, on the bottom edge of the panel with a rule between
+   it and the questions, so that the Save is on screen however long they run. */
+.actions {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--rule-solid);
 }
 
 @media (min-width: 900px) {

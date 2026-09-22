@@ -151,8 +151,13 @@
   gap: var(--space-2);
 }
 
+/* A phone's width is the width this reads at. Let it have the whole desktop
+   column and a row becomes a name, a stretch of nothing and four switches too
+   far away to belong to it, so the table stops where the longest category name
+   and the four cells do. */
 .grid {
   width: 100%;
+  max-width: 440px;
   border-collapse: collapse;
 }
 

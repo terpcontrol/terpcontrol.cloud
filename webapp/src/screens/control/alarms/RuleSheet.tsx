@@ -84,8 +84,43 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
     else create.mutate(createBody(draft), { onSuccess: onClose });
   };
 
+  const actions = (
+    <>
+      <Refused error={create.error ?? update.error ?? remove.error} />
+
+      <button type="button" className={`${ui.button} ${ui.primary} ${styles.submit}`} disabled={busy} onClick={save}>
+        {busy ? t('grow.lifecycle.saving') : t('alarms.sheet.save')}
+      </button>
+
+      {rule && rule.origin !== 'always' ? (
+        askingDelete ? (
+          <div className={styles.asking}>
+            <p className={ui.note}>{t('alarms.sheet.deleteAsk')}</p>
+            <div className={styles.actions}>
+              <button
+                type="button"
+                className={`${ui.button} ${styles.dangerButton}`}
+                disabled={busy}
+                onClick={() => remove.mutate(rule.id, { onSuccess: onClose })}
+              >
+                {t('alarms.sheet.deleteYes')}
+              </button>
+              <button type="button" className={ui.button} onClick={() => setAskingDelete(false)}>
+                {t('grow.lifecycle.cancel')}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button type="button" className={`${ui.button} ${styles.danger}`} disabled={busy} onClick={() => setAskingDelete(true)}>
+            {t('alarms.sheet.delete')}
+          </button>
+        )
+      ) : null}
+    </>
+  );
+
   return (
-    <Sheet title={t(rule ? 'alarms.sheet.title' : 'alarms.sheet.newTitle')} onClose={onClose}>
+    <Sheet title={t(rule ? 'alarms.sheet.title' : 'alarms.sheet.newTitle')} actions={actions} onClose={onClose}>
       <div className={styles.sheet}>
         <Block label={t('alarms.sheet.name')}>
           <input
@@ -193,37 +228,6 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
             <Minutes label={t('alarms.sheet.repeatEvery')} value={draft.repeatMinutes} onChange={repeatMinutes => change({ repeatMinutes })} />
             <p className={ui.note}>{t('alarms.sheet.repeatNote')}</p>
           </Block>
-        ) : null}
-
-        <Refused error={create.error ?? update.error ?? remove.error} />
-
-        <button type="button" className={`${ui.button} ${ui.primary} ${styles.submit}`} disabled={busy} onClick={save}>
-          {busy ? t('grow.lifecycle.saving') : t('alarms.sheet.save')}
-        </button>
-
-        {rule && rule.origin !== 'always' ? (
-          askingDelete ? (
-            <div className={styles.asking}>
-              <p className={ui.note}>{t('alarms.sheet.deleteAsk')}</p>
-              <div className={styles.actions}>
-                <button
-                  type="button"
-                  className={`${ui.button} ${styles.dangerButton}`}
-                  disabled={busy}
-                  onClick={() => remove.mutate(rule.id, { onSuccess: onClose })}
-                >
-                  {t('alarms.sheet.deleteYes')}
-                </button>
-                <button type="button" className={ui.button} onClick={() => setAskingDelete(false)}>
-                  {t('grow.lifecycle.cancel')}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button type="button" className={`${ui.button} ${styles.danger}`} disabled={busy} onClick={() => setAskingDelete(true)}>
-              {t('alarms.sheet.delete')}
-            </button>
-          )
         ) : null}
       </div>
     </Sheet>

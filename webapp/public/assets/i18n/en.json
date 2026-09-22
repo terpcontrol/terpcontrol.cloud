@@ -2201,11 +2201,12 @@
     "unsilence": "unsilence",
     "meta": {
       "for": "for {{length}}",
-      "notAnnounced": "not announced",
+      "notAnnounced": "does not reach you",
       "ownTarget": "its own target",
       "repeatsEvery": "repeats every {{length}}",
       "silencedUntil": "silenced until {{time}}",
-      "announcedOnce": "announced once"
+      "announcedOnce": "announced once",
+      "toYou": "goes to you by {{channels}}"
     },
     "severity": {
       "critical": "critical",
@@ -2500,7 +2501,8 @@
     },
     "grid": {
       "cell": "{{category}} by {{channel}}",
-      "note": "A channel is off until it is configured, and its column cannot be moved until then."
+      "note": "A channel is off until it is configured, and its column cannot be moved until then.",
+      "kept": "Something is still routed to a channel that is not configured. That routing is kept, and starts carrying the moment the channel has somewhere to deliver to."
     },
     "quiet": {
       "window": "{{from}} – {{to}}",

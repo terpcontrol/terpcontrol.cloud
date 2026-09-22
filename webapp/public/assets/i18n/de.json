@@ -2197,14 +2197,15 @@
     "unsilence": "wieder laut",
     "meta": {
       "for": "für {{length}}",
-      "notAnnounced": "nicht gemeldet",
+      "notAnnounced": "erreicht dich nicht",
       "ownTarget": "eigenes Ziel",
       "repeatsEvery": "wiederholt sich alle {{length}}",
       "silencedUntil": "stumm bis {{time}}",
-      "announcedOnce": "wird einmal gemeldet"
+      "announcedOnce": "wird einmal gemeldet",
+      "toYou": "geht an dich per {{channels}}"
     },
     "severity": {
-      "critical": "kritisch",
+      "critical": "Kritisch",
       "warning": "Warnung",
       "info": "Info"
     },
@@ -2496,7 +2497,8 @@
     },
     "grid": {
       "cell": "{{category}} per {{channel}}",
-      "note": "Ein Kanal ist aus, bis er eingerichtet ist, und seine Spalte lässt sich bis dahin nicht schalten."
+      "note": "Ein Kanal ist aus, bis er eingerichtet ist, und seine Spalte lässt sich bis dahin nicht schalten.",
+      "kept": "Zu einem Kanal, der nicht eingerichtet ist, wird noch etwas geleitet. Diese Zuordnung bleibt erhalten und greift, sobald der Kanal ein Ziel hat."
     },
     "quiet": {
       "window": "{{from}} – {{to}}",

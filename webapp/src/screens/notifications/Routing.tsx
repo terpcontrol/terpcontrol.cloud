@@ -10,9 +10,13 @@ import styles from './Notifications.module.css';
 
 /**
  * What goes where: a row per category, a column per channel, a switch in each
- * cell. A column whose channel is not configured is drawn but cannot be moved,
- * because a category routed to a channel with no address goes nowhere, and a
- * switch that reads on above nothing would be a promise the screen cannot keep.
+ * cell. A column whose channel is not configured is drawn off and cannot be
+ * moved, because a category routed to a channel with no address goes nowhere,
+ * and a switch that reads on above nothing would be a promise the screen
+ * cannot keep. What is stored for such a channel is not written away over it,
+ * though - it is what the channel will carry as soon as it has an address -
+ * and the line under the grid says so, so that a column of grey switches is
+ * not read as work the person has to do again.
  */
 export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
   const { t } = useTranslation();
@@ -27,6 +31,8 @@ export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
     email: channels.email !== null,
     webhook: channels.webhook !== null,
   };
+
+  const keptSomewhere = CHANNELS.some(channel => !configured[channel] && CATEGORIES.some(category => routes(routing, category, channel)));
 
   return (
     <div className={styles.gridBlock}>
@@ -56,7 +62,7 @@ export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
                         category: t(`notifications.category.${category}`),
                         channel: t(`notifications.channel.${channel}`),
                       })}
-                      on={on}
+                      on={on && configured[channel]}
                       disabled={held || !configured[channel]}
                       onToggle={() => write({ routing: routingWith(routing, category, channel, !on) })}
                     />
@@ -68,6 +74,7 @@ export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
         </tbody>
       </table>
       <p className={ui.note}>{t('notifications.grid.note')}</p>
+      {keptSomewhere ? <p className={ui.note}>{t('notifications.grid.kept')}</p> : null}
       <Refused error={error} />
     </div>
   );

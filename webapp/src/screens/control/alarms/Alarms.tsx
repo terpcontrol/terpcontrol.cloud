@@ -262,17 +262,21 @@ function RuleCard({ rule, device, me, mayManage, highlighted, busy, now, onOpen,
 }
 
 /**
- * "custom · for 10 min · critical · push + Telegram · repeats every 30 min":
- * where the rule came from, how long it has to last, how loud it is, where it
- * goes and how often it says so again. The origin rides here rather than
- * beside the name because a long name leaves it alone on a line of its own.
+ * "custom · for 10 min · critical · goes to you by push + Telegram · repeats
+ * every 30 min": where the rule came from, how long it has to last, how loud
+ * it is, where it goes and how often it says so again. The origin rides here
+ * rather than beside the name because a long name leaves it alone on a line of
+ * its own.
  *
  * A routed rule goes where the account's grid sends that severity, which may
  * be nowhere, and that is said rather than left blank - but only once the
- * account has answered, since until then nothing is known either way. A rule
- * with a delivery of its own names the channel, and one whose delivery this
- * session was not answered - it is a manager's to see - says only that it has
- * one. What repeats is what the rule itself carries, whoever wrote it: the
+ * account has answered, since until then nothing is known either way. It is
+ * said as the reader's own, because that is what it is: a tent with two
+ * managers has one rule and two routings, and naming the channels flatly would
+ * tell each of them that the rule itself is what the other one's settings say.
+ * A rule with a delivery of its own names the channel, and one whose delivery
+ * this session was not answered - it is a manager's to see - says only that it
+ * has one. What repeats is what the rule itself carries, whoever wrote it: the
  * engine says an alarm again on `repeatSeconds` and never on anything else, so
  * the rule the cloud keeps is described by its own half hour like the rest.
  * How often something is said is left off where it is not said at all.
@@ -286,7 +290,7 @@ const metaLine = (t: Translate, rule: AlarmRule, me: Me | undefined): string => 
   const announced = routed === null || me === undefined || routed.length > 0;
 
   if (routed === null) parts.push(rule.delivery.custom ? t(`alarms.channel.${rule.delivery.custom.channel}`) : t('alarms.meta.ownTarget'));
-  else if (me) parts.push(announced ? channelsLabel(t, routed) : t('alarms.meta.notAnnounced'));
+  else if (me) parts.push(announced ? t('alarms.meta.toYou', { channels: channelsLabel(t, routed) }) : t('alarms.meta.notAnnounced'));
 
   if (announced) {
     parts.push(
