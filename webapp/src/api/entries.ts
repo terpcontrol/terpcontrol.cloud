@@ -58,9 +58,10 @@ export const uploadPhoto = (file: File, about: { growId: string | null; spaceId:
 };
 
 /**
- * One line changes the home, the tent, the grow and every timeline at once, so
- * a write says so rather than each screen polling for it.
+ * One line changes the home, the tent, the grow, every timeline and the task
+ * list at once - a tick is a line, and so is taking it back - so a write says
+ * so rather than each screen polling for it.
  */
 export const diaryChanged = (client: QueryClient): void => {
-  for (const key of ['home', 'space', 'grow', 'entries']) void client.invalidateQueries({ queryKey: [key] });
+  for (const key of ['home', 'space', 'grow', 'entries', 'tasks']) void client.invalidateQueries({ queryKey: [key] });
 };

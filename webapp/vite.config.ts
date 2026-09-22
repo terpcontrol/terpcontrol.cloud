@@ -49,6 +49,7 @@ export default defineConfig({
       '@fg2/shared-types/v1-schemas/feeding.js',
       '@fg2/shared-types/v1-schemas/socket-report.js',
       '@fg2/shared-types/v1-schemas/value-age.js',
+      '@fg2/shared-types/v1-schemas/climate-presets.js',
     ],
   },
   server: { port: 4200 },
