@@ -43,9 +43,11 @@
   color: var(--alarm);
 }
 
-/* Outlined rather than filled, unlike every other primary in the app. A solid
-   alarm would need an ink colour that reads on it in both themes, and there is
-   no such token; the outline says the same thing and says it in both. */
+/* The button that does what cannot be taken back - ending the account, or
+   throwing readings away for a shorter window. Outlined rather than filled,
+   unlike every other primary in the app: a solid alarm would need an ink
+   colour that reads on it in both themes, and there is no such token; the
+   outline says the same thing and says it in both. */
 .dangerButton {
   display: inline-flex;
   align-items: center;

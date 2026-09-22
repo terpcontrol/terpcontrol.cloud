@@ -6,8 +6,10 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
+import { DateTime } from 'luxon';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Me, MeUpdate, Media } from '@fg2/shared-types/v1';
+import { cutoffDay, narrows } from '@/screens/me/privacy/climate';
 import { Privacy } from '@/screens/me/privacy/Privacy';
 
 /**
@@ -18,13 +20,20 @@ import { Privacy } from '@/screens/me/privacy/Privacy';
  * the thing to check about every switch is not only the field it moved but that
  * the other field of the same object went back exactly as it was read - a
  * screen that sent `{ hideWeights }` alone would quietly turn plant counts back
- * on. The deletion is checked for the opposite reason: that it does not happen
- * until the handle has been typed. The export is checked for being the job it
- * is on the account page - asked for once, followed by its media row - rather
- * than a chip that says the word Premium.
+ * on. The two irreversible controls are checked for the opposite reason: that
+ * neither happens until it has been asked about - the deletion until the
+ * handle has been typed, and a shorter climate window until the question that
+ * names what goes has been answered. The export is checked for being the job
+ * it is on the account page - asked for once, followed by its media row -
+ * rather than a chip that says the word Premium. And the footnote is checked
+ * for promising only what this install keeps.
  */
 
+const NOW = DateTime.fromISO('2026-09-22T12:00:00.000Z');
+
 const session = vi.hoisted(() => ({ demo: false }));
+
+vi.mock('@/ui/useNow', () => ({ useNow: () => NOW }));
 
 vi.mock('@/api/session', async importOriginal => {
   const { SIGNED_IN, ON_THE_DEMO } = await import('./session');
@@ -158,24 +167,80 @@ describe('what other people are shown', () => {
 });
 
 describe('how long anything is kept', () => {
-  it('shows what the account keeps and sends a new length in days', async () => {
-    await drawLoaded();
-    const menu = screen.getByRole('combobox', { name: 'Keep climate history' });
-    expect(menu).toHaveValue('365');
+  const menu = () => screen.getByRole('combobox', { name: 'Keep climate history' });
 
-    fireEvent.change(menu, { target: { value: '90' } });
+  it('shows what the account keeps and sends a wider window as soon as it is chosen', async () => {
+    await drawLoaded();
+    expect(menu()).toHaveValue('365');
+
+    fireEvent.change(menu(), { target: { value: '730' } });
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
-    expect(server.patched[0].retention).toEqual({ climateDays: 90 });
+    expect(server.patched[0].retention).toEqual({ climateDays: 730 });
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('sends null for keeping everything, which is what an install-long retention is', async () => {
+  it('sends null for keeping everything at once, which narrows nothing', async () => {
     await drawLoaded();
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Keep climate history' }), { target: { value: '' } });
+    fireEvent.change(menu(), { target: { value: '' } });
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
     expect(server.patched[0].retention).toEqual({ climateDays: null });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('asks before a narrower window, names what goes and from when, and writes only once told to keep it', async () => {
+    await drawLoaded();
+
+    fireEvent.change(menu(), { target: { value: '90' } });
+
+    const sheet = within(await screen.findByRole('dialog'));
+    expect(server.patched).toHaveLength(0);
+    expect(
+      sheet.getByText(
+        'Climate readings older than 90 days become one figure a day: everything before Jun 24, 2026, and from now on each day that leaves the window. The daily figure stays in the charts and in your export; the readings themselves are deleted and cannot come back.',
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(sheet.getByRole('button', { name: 'Keep 90 days' }));
+
+    await waitFor(() => expect(server.patched).toHaveLength(1));
+    expect(server.patched[0].retention).toEqual({ climateDays: 90 });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('leaves the account and the menu where they were when the question is put away', async () => {
+    await drawLoaded();
+
+    fireEvent.change(menu(), { target: { value: '90' } });
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Close' }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(server.patched).toHaveLength(0);
+    expect(menu()).toHaveValue('365');
+  });
+
+  it('asks before any number where everything was kept, since every number is narrower than that', async () => {
+    await drawLoaded({ retention: { climateDays: null } });
+
+    fireEvent.change(menu(), { target: { value: '730' } });
+
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Climate readings older than 2 years');
+    expect(server.patched).toHaveLength(0);
+  });
+
+  it('knows which choices keep less, and where the sweep would then cut', () => {
+    expect(narrows(365, 90)).toBe(true);
+    expect(narrows(null, 730)).toBe(true);
+    expect(narrows(90, 365)).toBe(false);
+    expect(narrows(365, 365)).toBe(false);
+    expect(narrows(365, null)).toBe(false);
+    expect(narrows(null, null)).toBe(false);
+
+    // The start of the UTC day, that many days back: the server's own cut.
+    expect(cutoffDay(90, NOW).toISO()).toBe('2026-06-24T00:00:00.000Z');
+    expect(cutoffDay(90, DateTime.fromISO('2026-09-22T23:30:00.000+02:00')).toISO()).toBe('2026-06-24T00:00:00.000Z');
   });
 
   it("states the install's own window for a free camera's stills rather than a number written into the app", async () => {
@@ -203,6 +268,24 @@ describe('how long anything is kept', () => {
     await drawLoaded({ premium: { enforced: true, extendUrl: null, priceLabel: null, free: { stillWidth: 640, stillDays: 90, timelapseDays: 30 } } });
 
     expect(screen.getByText(/free: 90 days/)).toBeInTheDocument();
+  });
+});
+
+describe('the footnote', () => {
+  it('promises a self-hosted install nothing about where its servers stand, and no mode that does not exist', async () => {
+    await drawLoaded();
+
+    expect(screen.getByText('No location is ever stored.')).toBeInTheDocument();
+    expect(screen.queryByText(/EU/)).toBeNull();
+    expect(screen.queryByText(/[Tt]eam mode|club/)).toBeNull();
+  });
+
+  it('says where the servers are on the hosted install, which is the one that enforces Premium', async () => {
+    await drawLoaded({
+      premium: { enforced: true, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
+    });
+
+    expect(screen.getByText('No location is ever stored. Servers in the EU.')).toBeInTheDocument();
   });
 });
 

@@ -6,7 +6,8 @@ import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { ExportRow, MePage, Menu, Row } from '../parts';
+import { ExportRow, MePage, Row } from '../parts';
+import { ClimateRow } from './ClimateRow';
 import { DeleteRow } from './DeleteRow';
 import { Switch } from './parts';
 
@@ -25,16 +26,14 @@ import { Switch } from './parts';
  * every control here sends the whole object it belongs to with one field
  * changed, and the screen holds still while a write is on its way - two changes
  * crossing would each carry the other's old state back.
+ *
+ * Every promise on the screen is one the install behind it keeps. The two
+ * that cannot be read off the account - that no location is stored, and where
+ * the servers stand - are said only as far as they are known: the app stores
+ * no location anywhere, and the servers are in the EU on the hosted install,
+ * which is the one that enforces Premium; a self-hosted one stands wherever
+ * its owner put it, and is promised nothing about that here.
  */
-
-/** How long raw climate points are kept. `null` is the one that keeps them for as long as the install does. */
-const KEEP: { key: string; days: number | null }[] = [
-  { key: 'd90', days: 90 },
-  { key: 'd180', days: 180 },
-  { key: 'd365', days: 365 },
-  { key: 'd730', days: 730 },
-  { key: 'forever', days: null },
-];
 
 export function Privacy() {
   const { t } = useTranslation();
@@ -110,20 +109,12 @@ export function Privacy() {
 
       <span className="label">{t('me.privacy.data')}</span>
 
-      <Row title={t('me.privacy.climate.title')} line={t('me.privacy.climate.line')}>
-        <Menu
-          name={t('me.privacy.climate.title')}
-          value={String(account.retention.climateDays ?? '')}
-          disabled={held}
-          onChange={value => update.mutate({ retention: { climateDays: value === '' ? null : Number(value) } })}
-        >
-          {KEEP.map(option => (
-            <option key={option.key} value={option.days === null ? '' : String(option.days)}>
-              {t(`me.privacy.keep.${option.key}`)}
-            </option>
-          ))}
-        </Menu>
-      </Row>
+      <ClimateRow
+        climateDays={account.retention.climateDays}
+        disabled={held}
+        now={now}
+        onChange={climateDays => update.mutate({ retention: { climateDays } })}
+      />
 
       {/*
         What a free camera's pictures are actually kept for is the install's own
@@ -147,7 +138,10 @@ export function Privacy() {
       <DeleteRow handle={account.handle} disabled={held} />
 
       <Refused error={update.error} />
-      <p className={ui.note}>{t('me.privacy.footnote')}</p>
+      <p className={ui.note}>
+        {t('me.privacy.footnote.location')}
+        {account.premium.enforced ? ` ${t('me.privacy.footnote.servers')}` : ''}
+      </p>
     </MePage>
   );
 }

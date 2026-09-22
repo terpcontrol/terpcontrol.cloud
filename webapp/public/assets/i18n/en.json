@@ -1627,7 +1627,11 @@
       },
       "climate": {
         "title": "Keep climate history",
-        "line": "raw samples · then daily summaries"
+        "line": "raw samples · then daily summaries",
+        "ask": {
+          "what": "Climate readings older than {{keep}} become one figure a day: everything before {{date}}, and from now on each day that leaves the window. The daily figure stays in the charts and in your export; the readings themselves are deleted and cannot come back.",
+          "yes": "Keep {{keep}}"
+        }
       },
       "keep": {
         "d90": "90 days",
@@ -1638,7 +1642,6 @@
       },
       "stills": {
         "title": "Keep camera stills",
-        "line": "Premium: full grow · free: 90 days · arrives with Premium",
         "kept": "Premium: the whole grow · free: kept just as long on this install",
         "keptDays_one": "Premium: the whole grow · free: {{count}} day",
         "keptDays_other": "Premium: the whole grow · free: {{count}} days"
@@ -1657,7 +1660,10 @@
         "typeHandle": "Type {{handle}} to confirm",
         "yes": "Delete my account"
       },
-      "footnote": "No location is ever stored. Servers in the EU. Team mode (clubs) adds attribution and longer retention per tent, never per person."
+      "footnote": {
+        "location": "No location is ever stored.",
+        "servers": "Servers in the EU."
+      }
     },
     "public": {
       "title": "Public grows and profile",

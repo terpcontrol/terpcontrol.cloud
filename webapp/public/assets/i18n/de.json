@@ -1623,7 +1623,11 @@
       },
       "climate": {
         "title": "Klimaverlauf aufbewahren",
-        "line": "Rohwerte · danach Tageswerte"
+        "line": "Rohwerte · danach Tageswerte",
+        "ask": {
+          "what": "Klimawerte, die älter sind als {{keep}}, werden zu einem Wert pro Tag: alles vor dem {{date}}, und von jetzt an jeder Tag, der aus dem Fenster fällt. Der Tageswert bleibt in den Diagrammen und im Export; die Messwerte selbst werden gelöscht und kommen nicht zurück.",
+          "yes": "{{keep}} behalten"
+        }
       },
       "keep": {
         "d90": "90 Tage",
@@ -1634,7 +1638,6 @@
       },
       "stills": {
         "title": "Kamerabilder aufbewahren",
-        "line": "Premium: ganzer Grow · gratis: 90 Tage · kommt mit Premium",
         "kept": "Premium: der ganze Grow · gratis: auf dieser Installation genauso lange",
         "keptDays_one": "Premium: der ganze Grow · gratis: {{count}} Tag",
         "keptDays_other": "Premium: der ganze Grow · gratis: {{count}} Tage"
@@ -1653,7 +1656,10 @@
         "typeHandle": "Tippe {{handle}} zur Bestätigung",
         "yes": "Mein Konto löschen"
       },
-      "footnote": "Es wird nie ein Standort gespeichert. Server in der EU. Der Team-Modus (Clubs) bringt Zuordnung und längere Aufbewahrung pro Zelt, nie pro Person."
+      "footnote": {
+        "location": "Es wird nie ein Standort gespeichert.",
+        "servers": "Server in der EU."
+      }
     },
     "public": {
       "title": "Öffentliche Grows und Profil",
