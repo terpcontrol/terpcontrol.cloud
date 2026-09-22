@@ -4,8 +4,10 @@ import { Link } from 'react-router';
 import type { Camera, Me, PremiumFree } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { useCameras } from '@/api/cameras';
+import { useDevices } from '@/api/devices';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
+import { cameraTitle } from '@/screens/devices/naming';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -83,6 +85,7 @@ function Account({ title }: { title: string }) {
   const now = useNow();
   const me = useMe();
   const cameras = useCameras();
+  const devices = useDevices();
   // The tent a camera stands in is the second handle a card needs: two
   // cameras may share a name, and this is the one screen that tells a grower
   // which of them is about to run out.
@@ -128,7 +131,18 @@ function Account({ title }: { title: string }) {
       ) : (
         <ul className={styles.cameras}>
           {list.map(camera => (
-            <CameraCard key={camera.id} camera={camera} place={placeOf(camera.spaceId)} premium={premium} now={now} />
+            <CameraCard
+              key={camera.id}
+              camera={camera}
+              // A camera a controller paired carries that controller's type as
+              // its name until somebody renames it, so it is drawn the way
+              // every other screen draws it - by what is printed on the cam -
+              // rather than as a second row called "controller".
+              name={cameraTitle(camera, devices.data?.items.find(device => device.id === camera.deviceId) ?? null, t)}
+              place={placeOf(camera.spaceId)}
+              premium={premium}
+              now={now}
+            />
           ))}
         </ul>
       )}
@@ -152,7 +166,19 @@ function Account({ title }: { title: string }) {
  * page has said once that every camera has everything, and a chip on each
  * would be the same claim made eleven times about something nobody bought.
  */
-function CameraCard({ camera, place, premium, now }: { camera: Camera; place: string | null; premium: Me['premium']; now: DateTime }) {
+function CameraCard({
+  camera,
+  name,
+  place,
+  premium,
+  now,
+}: {
+  camera: Camera;
+  name: string;
+  place: string | null;
+  premium: Me['premium'];
+  now: DateTime;
+}) {
   const { t } = useTranslation();
   const { enforced } = premium;
   const { tier, validUntil } = camera.entitlement;
@@ -164,7 +190,7 @@ function CameraCard({ camera, place, premium, now }: { camera: Camera; place: st
     <li className={`${ui.card} ${styles.camera}`}>
       <div className={styles.cameraHead}>
         <span className={styles.cameraName}>
-          <Link to={`/cameras/${camera.id}`}>{camera.name}</Link>
+          <Link to={`/cameras/${camera.id}`}>{name}</Link>
           <span className={`mono ${styles.kind}`}>
             · {t(`me.premium.kind.${camera.kind}`)}
             {place ? ` · ${place}` : ''}
