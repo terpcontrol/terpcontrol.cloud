@@ -10,7 +10,7 @@
     }
   ],
   "defaultPlantType": "terra",
-  "flipWeek": 4,
+  "flipWeek": 7,
   "source": {
     "title": "CANNA TERRA Grow Schedule (UK)",
     "url": "https://www.canna-uk.com/sites/united_kingdom/files/2023-02/downloads-grow-schedule-terra.pdf",
@@ -18,7 +18,7 @@
   },
   "notes": [
     "The chart doses in ml per 10 litres. Every figure here is that figure divided by ten, because the grid states what one litre takes and the feed sheet multiplies it by the can.",
-    "The chart's rows are cultivation periods of so many weeks, not single weeks. Each period is laid out at the middle of its printed length, halves rounded up: rooting 1 week, vegetative I 2, vegetative II 3, generative I 3, generative II 1, generative III 3, generative IV 2. The light goes from 18 to 12 hours at vegetative II, which is why the flip is week 4.",
+    "The chart's rows are cultivation periods of so many weeks, not single weeks. Each period is laid out at the middle of its printed length, halves rounded up: rooting 1 week, vegetative I 2, vegetative II 3, generative I 3, generative II 1, generative III 3, generative IV 2. The light goes from 18 to 12 hours where the generative period begins, which is week 7 here - the same week Terra Flores replaces Terra Vega.",
     "Where a figure is printed as a range it is the middle that is taken: Terra Vega 15-35 becomes 25, 30-50 becomes 40, 35-55 becomes 45; Terra Flores 50-70 becomes 60 and 40-60 becomes 50, all in ml per 10 litres, before the division.",
     "Cannaboost's 20-40 and Cannazym's 25-50 are not ranges of that kind: the chart's own notes call 20 ml and 25 ml per 10 litres the standard and the higher figure a deliberate step - more flowering power, or a substrate being used a second time. The standard is what is shipped.",
     "EC+ is printed per period as well, but the contract's grid carries doses only, so it is left to the chart."

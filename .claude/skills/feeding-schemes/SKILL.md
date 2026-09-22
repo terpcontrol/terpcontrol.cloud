@@ -52,7 +52,11 @@ so the grid has to suit it:
   numbered from the flip has to be laid out against a vegetative period first, and `flipWeek` then
   says where its own week 1 begins.
 - **A week's `stage`** is the botanical stage that week is in: `seedling` while it roots,
-  `vegetative`, then `flowering` from the flip. It is what the sheet groups the grid by.
+  `vegetative`, then `flowering` from the flip. It is what the sheet groups the grid by, and
+  `flipWeek` is therefore the first week the grid calls `flowering` - a scheme whose flip falls
+  anywhere else has the grow's feeding tab contradicting its own rows, and the test refuses it.
+  When a chart's own light row and its bloom nutrient disagree about where the change is, believe
+  the nutrient: the flip is the week the bloom feed starts.
 - **Every product appears in every week**, with `value: null` where the chart prints no figure for
   it. Null is "not this week" and is what lets the sheet grey a row out rather than dose it at zero.
   A product that never appears at all is left out of the scheme entirely.

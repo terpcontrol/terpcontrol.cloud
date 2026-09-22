@@ -40,6 +40,16 @@ describe('the shipped feeding schemes', () => {
     expect(asset.flipWeek).toBeLessThanOrEqual(asset.grid.length);
   });
 
+  /**
+   * The flip is the week the light goes to twelve hours, which is the week the
+   * chart turns the plant to flower - so it is the first week the grid calls
+   * flowering, and a scheme that said otherwise would have the grow's feeding
+   * tab disagree with its own rows.
+   */
+  it.each(assets.map(asset => [asset.id, asset] as const))('%s flips in the week its own grid begins to flower', (_id, asset) => {
+    expect(asset.flipWeek).toBe(asset.grid.find(week => week.stage === 'flowering')?.week);
+  });
+
   it.each(assets.map(asset => [asset.id, asset] as const))('%s doses per litre, in a unit the sheet can draw', (_id, asset) => {
     for (const week of asset.grid) {
       for (const amount of week.amounts) {
