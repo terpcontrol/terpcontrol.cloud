@@ -17,6 +17,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** How far ahead a card looks. Anything overdue is due; tomorrow is close enough to prepare for. */
 export const DUE_HORIZON_MS = 2 * DAY_MS;
 
+/** How far ahead the task list looks: its board has a column for the rest of the week. */
+export const WEEK_HORIZON_MS = 7 * DAY_MS;
+
 /** The prefix of every occurrence of a rhythm, which is how its completions are found. */
 export const occurrencePrefix = (reminderId: string): string => `${reminderId}:`;
 
@@ -32,12 +35,19 @@ const taskOf = (reminder: ReminderDocument, id: string, dueAt: Date): DueTask =>
 });
 
 /**
- * Which tasks are due now. `completions` are the entries that carry a task id of
- * these reminders; a rhythm counts from its newest completion, or from the day
- * it was set up.
+ * Which tasks are due within the horizon. `completions` are the entries that
+ * carry a task id of these reminders; a rhythm counts from its newest
+ * completion, or from the day it was set up. A rhythm yields its next
+ * occurrence and nothing after it, however far the horizon reaches: the one
+ * after that is counted from the completion that has not happened yet.
  */
-export const dueTasksOf = (reminders: ReminderDocument[], completions: EntryDocument[], now: Date = new Date()): DueTask[] => {
-  const horizon = now.getTime() + DUE_HORIZON_MS;
+export const dueTasksOf = (
+  reminders: ReminderDocument[],
+  completions: EntryDocument[],
+  now: Date = new Date(),
+  horizonMs: number = DUE_HORIZON_MS,
+): DueTask[] => {
+  const horizon = now.getTime() + horizonMs;
   const done = new Set(completions.map(entry => entry.taskId));
 
   return reminders.flatMap(reminder => {

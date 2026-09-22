@@ -112,7 +112,7 @@ describe('signing up', () => {
       retention: { climateDays: null },
       deletionStartedAt: null,
     });
-    expect(user.notifications.routing.alerts).toEqual([]);
+    expect(user.notifications.routing).toMatchObject({ alerts: [], warnings: [] });
     expect(user.preferences.timezone).toBe('UTC');
   });
 
@@ -181,7 +181,7 @@ describe('changing an account', () => {
       privacy: { hideWeights: true, hideCounts: false },
       notifications: {
         channels: { email: 'somewhere@test.invalid', telegram: null, webhook: null },
-        routing: { alerts: ['email'], tasks: [], plan: [], weekly_timelapse: [] },
+        routing: { alerts: ['email'], warnings: [], tasks: [], plan: [], weekly_timelapse: [] },
         quietHours: { fromMinute: 1320, toMinute: 420 },
         mutedUntil,
       },

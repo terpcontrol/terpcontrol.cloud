@@ -295,7 +295,9 @@ describe('the stale warning', () => {
 /**
  * The send decision, end to end. The alarm engine hands the alert to the
  * routing, the routing reads this person's grid, and the channel either has an
- * address or has not.
+ * address or has not. Which row of the grid is read is the rule's severity: a
+ * critical rule is `alerts`, a warning is `warnings`, and an info rule is on
+ * neither row and reaches no channel at all.
  */
 describe('being told about it', () => {
   let alarmed: Session;
@@ -320,7 +322,13 @@ describe('being told about it', () => {
       .send({
         notifications: {
           channels: { email: null, telegram: null, webhook: null },
-          routing: { alerts: ['email', 'push', 'telegram', 'webhook'], tasks: [], plan: [], weekly_timelapse: [] },
+          routing: {
+            alerts: ['email', 'push', 'telegram', 'webhook'],
+            warnings: ['email', 'push', 'telegram', 'webhook'],
+            tasks: [],
+            plan: [],
+            weekly_timelapse: [],
+          },
           quietHours: null,
           mutedUntil: null,
         },
@@ -341,19 +349,37 @@ describe('being told about it', () => {
     await alarmed.client.delete(`/v1/alarm-rules/${rule.id}`).expect(204);
   });
 
-  it('mails the address the person named once they have asked for it', async () => {
+  /** The person's grid, with the address named, so that what a case asserts is the row an alarm lands in. */
+  const routeTo = async (alerts: string[], warnings: string[], mutedUntil: string | null = null) => {
     await alarmed.client
       .patch('/v1/me')
       .send({
         notifications: {
           channels: { email: 'told@test.invalid', telegram: null, webhook: null },
-          routing: { alerts: ['email'], tasks: [], plan: [], weekly_timelapse: [] },
+          routing: { alerts, warnings, tasks: [], plan: [], weekly_timelapse: [] },
           quietHours: null,
-          mutedUntil: null,
+          mutedUntil,
         },
       })
       .expect(200);
     await resetMail();
+  };
+
+  /** Raises the rule, gives the send decision time to run, and settles the tent again. */
+  const raiseAndClear = async (rule: { id: string }, temperature: number) => {
+    await theirSimulator.reportStatus({ temperature });
+    await settle(2000);
+    const mails = await capturedMail();
+
+    await theirSimulator.reportStatus({ temperature: 20 });
+    await settle(1000);
+    await alarmed.client.delete(`/v1/alarm-rules/${rule.id}`).expect(204);
+
+    return mails;
+  };
+
+  it('mails the address the person named once they have asked for it', async () => {
+    await routeTo(['email'], []);
 
     const rule = await createRule(alarmed, theirDevice, aRule({ name: 'Freezing in here', severity: 'critical' }));
     await theirSimulator.reportStatus({ temperature: 36 });
@@ -366,25 +392,33 @@ describe('being told about it', () => {
     await alarmed.client.delete(`/v1/alarm-rules/${rule.id}`).expect(204);
   });
 
-  it('says nothing to somebody who has muted everything', async () => {
-    await alarmed.client
-      .patch('/v1/me')
-      .send({
-        notifications: {
-          channels: { email: 'told@test.invalid', telegram: null, webhook: null },
-          routing: { alerts: ['email'], tasks: [], plan: [], weekly_timelapse: [] },
-          quietHours: null,
-          mutedUntil: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-        },
-      })
-      .expect(200);
-    await resetMail();
+  it('sends a warning on the warnings row of the grid and not on the alerts row', async () => {
+    await routeTo([], ['email']);
+    const onWarnings = await createRule(alarmed, theirDevice, aRule({ name: unique('Read in the morning'), severity: 'warning' }));
+    const mails = await raiseAndClear(onWarnings, 38);
+    expect(mails.map(mail => mail.subject)).toEqual([expect.stringContaining('Read in the morning')]);
 
-    const rule = await createRule(alarmed, theirDevice, aRule({ name: unique('Muted') }));
-    await theirSimulator.reportStatus({ temperature: 37 });
+    await routeTo(['email'], []);
+    const offAlerts = await createRule(alarmed, theirDevice, aRule({ name: unique('Not a wake-up'), severity: 'warning' }));
+    expect(await raiseAndClear(offAlerts, 39)).toEqual([]);
+  });
+
+  it('announces an info rule nowhere, and still opens its alert', async () => {
+    await routeTo(['email'], ['email']);
+
+    const rule = await createRule(alarmed, theirDevice, aRule({ name: unique('For the record'), severity: 'info' }));
+    await theirSimulator.reportStatus({ temperature: 40 });
     await settle(2000);
 
-    expect(await capturedMail()).toEqual([]);
-    await alarmed.client.delete(`/v1/alarm-rules/${rule.id}`).expect(204);
+    const alerts = await alarmed.client.get(`/v1/alerts?deviceId=${theirDevice}`).expect(200);
+    expect(alerts.body.items.find((one: { ruleId: string }) => one.ruleId === rule.id)).toMatchObject({ severity: 'info', resolvedAt: null });
+    expect(await raiseAndClear(rule, 40)).toEqual([]);
+  });
+
+  it('says nothing to somebody who has muted everything, a critical alarm included', async () => {
+    await routeTo(['email'], ['email'], new Date(Date.now() + 60 * 60 * 1000).toISOString());
+
+    const rule = await createRule(alarmed, theirDevice, aRule({ name: unique('Muted'), severity: 'critical' }));
+    expect(await raiseAndClear(rule, 37)).toEqual([]);
   });
 });

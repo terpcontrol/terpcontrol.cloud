@@ -389,9 +389,12 @@ removed together with the Angular app.
   with `state` from one shared constant `VALUE_AGE = { live: 120 s, stale: 600 s }` and the server's clock, so no
   client does the arithmetic. Values are dimmed, never hidden.
 - **Notifications.** One send decision per person: mute, quiet hours in the person's time zone (critical still
-  comes through), otherwise the channels the routing names. E-mail and webhook as today, Web Push with a VAPID
-  key pair in configuration, Telegram as one bot per install with a webhook guarded by a secret, where a reply
-  to a message the bot sent becomes a note. Every channel is off until configured and the screen says so.
+  comes through), otherwise the channels the routing names. An alarm is two rows of that routing rather than
+  one - `alerts` for a critical rule, wanted where it wakes somebody, and `warnings` for a warning one, read in
+  the morning - and an info rule stays in the inbox and is announced on no row at all. E-mail and webhook as
+  today, Web Push with a VAPID key pair in configuration, Telegram as one bot per install with a webhook guarded
+  by a secret, where a reply to a message the bot sent becomes a note. Every channel is off until configured and
+  the screen says so.
 - **Exports.** A zip of somebody's grows, their CSVs and their photos does not finish inside a request, so both
   `GET /me/export` and `GET /grows/{id}/export` answer a job that is polled until its file is ready, and the file
   is a `media` row of its own kind: it lives in the bucket the pictures already use, it is served by the route

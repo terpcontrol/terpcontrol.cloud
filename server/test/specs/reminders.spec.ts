@@ -270,12 +270,33 @@ describe('the tasks a reminder derives', () => {
     expect((await tasksOf(owner)).map((one: { id: string }) => one.id)).not.toContain(task.id);
   });
 
-  it('shows what was ticked off when it is asked for', async () => {
+  it('shows what was ticked off when it is asked for, with the line that did it', async () => {
     const reminder = await create(owner, dueNow({ label: unique('Ticked') }));
-    await owner.client.post(`/v1/tasks/${reminder.id}/completions`).send({}).expect(201);
+    const waiting = (await tasksOf(owner)).find((one: { id: string }) => one.id === reminder.id);
+    expect(waiting).toMatchObject({ done: false, completion: null });
+
+    const line = await owner.client.post(`/v1/tasks/${reminder.id}/completions`).send({}).expect(201);
 
     const done = await tasksOf(owner, '?done=true');
-    expect(done.find((one: { id: string }) => one.id === reminder.id)).toMatchObject({ done: true, sourceId: reminder.id });
+    expect(done.find((one: { id: string }) => one.id === reminder.id)).toMatchObject({
+      done: true,
+      sourceId: reminder.id,
+      completion: { entryId: line.body.id, occurredAt: line.body.occurredAt, authorId: owner.userId },
+    });
+  });
+
+  it('lists the week ahead, where the home card shows only the next two days', async () => {
+    const reminder = await create(
+      owner,
+      aReminder({ everyDays: null, onceAt: new Date(Date.now() + 5 * DAY_MS).toISOString(), label: unique('Friday') }),
+    );
+
+    // Five days out sorts behind everything this spec has put on the list, so the page is asked for whole.
+    expect((await tasksOf(owner, '?limit=200')).map((one: { id: string }) => one.id)).toContain(reminder.id);
+
+    const cards = (await owner.client.get('/v1/home').expect(200)).body.spaces;
+    const card = cards.find((one: { spaceId: string }) => one.spaceId === tent);
+    expect(card.dueTasks.map((one: { id: string }) => one.id)).not.toContain(reminder.id);
   });
 
   it('refuses to tick the same task off twice', async () => {

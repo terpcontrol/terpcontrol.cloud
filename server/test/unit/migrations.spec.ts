@@ -21,6 +21,7 @@ import { MigrationContext } from '@/migrations/migration';
 import { MigrationRunner, RejectedRows, RunEvent, runProgress } from '@/migrations/migration-runner';
 import { StaleMigrationRecord, TwoGenerationsOfOldData } from '@/migrations/preflight';
 import { MIGRATION_STEPS } from '@/migrations/steps';
+import { warningsRouting } from '@/migrations/steps/015-warnings-routing';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 
 /**
@@ -469,6 +470,46 @@ describe('users', () => {
 
     await expect(migrate()).rejects.toThrow(/share one user_id/u);
     expect(await names()).not.toContain('legacy_users');
+  });
+
+  it('gives every migrated account the warnings row of its grid', async () => {
+    await migrate();
+
+    expect(await one<{ notifications: { routing: { warnings: string[] } } }>('users', { id: LEGACY_USER_IDS.ada })).toMatchObject({
+      notifications: { routing: { warnings: [] } },
+    });
+  });
+});
+
+/**
+ * The step for the accounts migrated before the row existed, run on its own
+ * over a database the rest of the run has already built.
+ */
+describe('the warnings row of the routing grid', () => {
+  const routingOf = async (id: string) =>
+    (await one<{ notifications: { routing: Record<string, string[]> } }>('users', { id }))?.notifications.routing;
+
+  it('adds the row where it is missing and leaves an account that has one alone', async () => {
+    await migrate();
+    await collection('users').updateOne({ id: LEGACY_USER_IDS.ada }, { $unset: { 'notifications.routing.warnings': '' } });
+    await collection('users').updateOne({ id: LEGACY_USER_IDS.admin }, { $set: { 'notifications.routing.warnings': ['email'] } });
+    expect(await routingOf(LEGACY_USER_IDS.ada)).not.toHaveProperty('warnings');
+
+    const context = new MigrationContext(db(), false, new Date(AT));
+    await warningsRouting.run(context);
+
+    expect(await routingOf(LEGACY_USER_IDS.ada)).toMatchObject({ alerts: [], warnings: [] });
+    expect(await routingOf(LEGACY_USER_IDS.admin)).toMatchObject({ warnings: ['email'] });
+    expect(context.stats).toMatchObject({ 'users.warningsRowAdded': 1 });
+  });
+
+  it('writes nothing in a rehearsal', async () => {
+    await migrate();
+    await collection('users').updateOne({ id: LEGACY_USER_IDS.ada }, { $unset: { 'notifications.routing.warnings': '' } });
+
+    await warningsRouting.run(new MigrationContext(db(), true, new Date(AT)));
+
+    expect(await routingOf(LEGACY_USER_IDS.ada)).not.toHaveProperty('warnings');
   });
 });
 
@@ -1144,7 +1185,7 @@ describe('a record that claims more than the database holds', () => {
 
   it('refuses the same way on a record of a run that only got part way', async () => {
     // The more dangerous of the two, and the one nothing caught: seven records
-    // survive a restore exactly as fourteen do, but with steps still pending
+    // survive a restore exactly as fifteen do, but with steps still pending
     // the boot would transform the restored data from step eight on and then
     // *start*, serving accounts in a shape nobody can sign in to.
     await collection('migrations').insertMany(recordsFor(MIGRATION_STEPS.slice(0, 7)));
@@ -1152,7 +1193,7 @@ describe('a record that claims more than the database holds', () => {
     const run = new MigrationRunner(connection).run({ dryRun: false, allowRejects: true });
 
     await expect(run).rejects.toThrow(StaleMigrationRecord);
-    await expect(run).rejects.toThrow(/7 of 14 migrations have already been applied/u);
+    await expect(run).rejects.toThrow(new RegExp(`7 of ${MIGRATION_STEPS.length} migrations have already been applied`, 'u'));
     // Nothing was written: no step ran at all.
     expect(await collection('entries').countDocuments()).toBe(0);
   });

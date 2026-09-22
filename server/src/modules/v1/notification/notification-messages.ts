@@ -1,4 +1,4 @@
-import type { Task } from '@fg2/shared-types/v1';
+import type { NotificationCategory, Severity, Task } from '@fg2/shared-types/v1';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { AlarmEvent } from '@modules/alarm/alarm.types';
@@ -19,15 +19,30 @@ import { Announcement } from './notification.types';
  * so it is written out here, as the alarm mails have always been.
  */
 
-export const alertAnnouncement = (event: AlarmEvent, alert: StoredAlert, rule: StoredAlarmRule | null): Announcement => {
+/**
+ * Which row of the routing grid an alarm falls in. It is read off the alert
+ * rather than the rule, so that a resolution lands in the row the alarm was
+ * announced in however the rule has been edited since. An info alarm is in
+ * neither row: it stays in the inbox and is never announced.
+ */
+export const alertCategory = (severity: Severity): NotificationCategory | null =>
+  severity === 'critical' ? 'alerts' : severity === 'warning' ? 'warnings' : null;
+
+/** Null for an alarm that is not announced at all. */
+export const alertAnnouncement = (event: AlarmEvent, alert: StoredAlert, rule: StoredAlarmRule | null): Announcement | null => {
+  const category = alertCategory(alert.severity);
+  if (!category) return null;
+
   const name = rule?.name ?? kindReads[alert.kind];
   const over = event === 'resolved';
 
   return {
-    category: 'alerts',
+    category,
     subject: { type: 'alert', id: alert.id },
     // That something is over is worth knowing and never worth waking up for,
-    // which is the same rule the diary line follows.
+    // which is the same rule the diary line follows: the all-clear of a
+    // critical alarm goes out on the same row of the grid, and quiet hours
+    // hold it back as they hold back any other news.
     severity: over ? 'info' : alert.severity,
     title: over ? `${name} is over` : name,
     body: [over ? 'The alarm has cleared.' : 'An alarm has been raised.', watched(alert, rule), value(alert, rule, over)].filter(Boolean).join(' '),

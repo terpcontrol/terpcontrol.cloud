@@ -36,15 +36,15 @@ A run reports as it happens rather than when it returns, so a long step names it
 was killed leaves a log saying how far it got. `Migrations:` is the run, `Migration <name>` is a step:
 
 ```
-Migrations: 12 of 14 to apply (2 already applied); checking the database first
+Migrations: 13 of 15 to apply (2 already applied); checking the database first
 Migrations: applying 003-fleet, 004-spaces, …
-Migration 003-fleet starting (1 of 12)
+Migration 003-fleet starting (1 of 13)
 Migration 003-fleet applied in 16 ms: deviceclasses.read=5, deviceClasses.written=5, …
 …
-Migrations: finished; 12 migrations applied in 1412 ms
+Migrations: finished; 13 migrations applied in 1412 ms
 ```
 
-A boot with nothing to do says so — `Migrations: nothing to do; all 14 of them have already been applied`. That
+A boot with nothing to do says so — `Migrations: nothing to do; all 15 of them have already been applied`. That
 line is the difference between a database that is migrated and one the server never looked at, and silence is not.
 A step that left rows behind is a warning rather than an info line and carries the count; a run that stops says
 `Migrations: stopped at 003-fleet; nothing after that was written` before the report of why.
@@ -113,6 +113,7 @@ whatsoever about the transforms after it.
 | `012-media` | `images` → `media`. The bytes are not touched. |
 | `013-retired-collections` | `passwordtokens`, `shares` and `chartpresets` aside, unmigrated by decision. |
 | `014-one-line-per-task` | Drops the non-unique `taskId` index on `entries`, so the schema's unique one is built on the next boot. |
+| `015-warnings-routing` | Writes `notifications.routing.warnings: []` into every account that has no such row, because a lean read answers what the document holds and not what the schema would default. Reads the new `users` and moves nothing aside. |
 
 Each step declares the collections it reads as `moves` and the runner moves them aside before calling it; the move
 is skipped when it has already happened, so a step that shares a source with an earlier one finds it already moved,

@@ -12,7 +12,7 @@ import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { StoredPlan } from '@database/schemas/v1/plans.schema';
 import { activeStep, durationMs, elapsedMs } from '../plan/plan-steps';
-import { dueTasksOf, occurrencePrefix } from '../home/due-tasks';
+import { WEEK_HORIZON_MS, dueTasksOf, occurrencePrefix } from '../home/due-tasks';
 import { planTaskId } from './task-ids';
 import { VisibleSubjectsService } from './visible-subjects.service';
 
@@ -113,10 +113,15 @@ export class TasksService {
       .lean<EntryDocument[]>();
   }
 
+  /**
+   * A week ahead rather than the card's two days: the board this list fills has
+   * a column for the rest of the week, and what is announced is decided
+   * elsewhere, on what is due now.
+   */
   private waiting(reminders: ReminderDocument[], completions: EntryDocument[], now: Date): Task[] {
     const byId = new Map(reminders.map(reminder => [reminder.id, reminder]));
 
-    return dueTasksOf(reminders, completions, now).map(due => {
+    return dueTasksOf(reminders, completions, now, WEEK_HORIZON_MS).map(due => {
       const reminder = byId.get(due.id.split(':')[0]);
 
       return { ...due, source: 'reminder', sourceId: reminder?.id ?? null, defaults: reminder?.defaults ?? null, done: false, completion: null };

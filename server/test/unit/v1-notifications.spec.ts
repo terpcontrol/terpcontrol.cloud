@@ -61,7 +61,7 @@ const spyChannel = (name: NotificationChannel): NotificationChannelSender => ({
 const account = (id: string, over: Record<string, unknown> = {}) =>
   db.users.create({ id, email: `${id}@test.invalid`, handle: id, passwordHash: 'x', isActive: true, ...over });
 
-const routed = (channels: NotificationChannel[]) => ({ notifications: { routing: { alerts: channels, tasks: channels } } });
+const routed = (channels: NotificationChannel[]) => ({ notifications: { routing: { alerts: channels, warnings: channels, tasks: channels } } });
 
 /** Everything an install can configure about the two outward-facing channels, all of it off. */
 const nothingConfigured = {
@@ -255,6 +255,37 @@ describe('who is told about an alarm', () => {
     await notifications.deliver('triggered', alert, null);
 
     expect(sent.map(one => one.userId)).toEqual([OWNER]);
+  });
+
+  it('sends a warning on the warnings row of the grid and not on the alerts row', async () => {
+    await db.users.updateOne({ id: OWNER }, { $set: { 'notifications.routing': { alerts: ['push'], warnings: ['email'] } } });
+    await db.users.updateOne({ id: MEMBER }, { $set: { 'notifications.routing': { alerts: ['push'], warnings: [] } } });
+
+    await notifications.deliver('triggered', alert, null);
+
+    expect(sent).toEqual([{ channel: 'email', userId: OWNER }]);
+    expect(await db.notificationLog.findOne({ userId: OWNER }).lean()).toMatchObject({ category: 'warnings' });
+  });
+
+  it('sends a critical alarm on the alerts row, and its all-clear on the same row', async () => {
+    await db.users.updateOne({ id: OWNER }, { $set: { 'notifications.routing': { alerts: ['push'], warnings: ['email'] } } });
+    await db.users.updateOne({ id: MEMBER }, { $set: { 'notifications.routing': { alerts: [], warnings: ['email'] } } });
+    const critical = { ...alert, id: 'alert-critical', severity: 'critical' } as StoredAlert;
+
+    await notifications.deliver('triggered', critical, null);
+    await notifications.deliver('resolved', { ...critical, resolvedAt: new Date() }, null);
+
+    expect(sent).toEqual([
+      { channel: 'push', userId: OWNER },
+      { channel: 'push', userId: OWNER },
+    ]);
+  });
+
+  it('announces an info alarm nowhere, however the grid is filled in', async () => {
+    await notifications.deliver('triggered', { ...alert, severity: 'info' } as StoredAlert, null);
+
+    expect(sent).toEqual([]);
+    expect(await db.notificationLog.countDocuments({})).toBe(0);
   });
 });
 

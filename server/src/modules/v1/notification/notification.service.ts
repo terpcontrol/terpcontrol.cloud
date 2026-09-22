@@ -44,13 +44,15 @@ export class NotificationService implements AlarmRouting {
    * An alarm, to everybody who keeps the place it happened in. A rule with a
    * delivery of its own never arrives here - that is the alarm module's own
    * decision - so what reaches this is either a routed rule or something the
-   * health loop raised, which has no rule to address itself.
+   * health loop raised, which has no rule to address itself. Its severity says
+   * which row of the grid it goes out on, and an info alarm is on no row at
+   * all: it is in the inbox and in the diary, and nobody's phone goes off.
    */
   public async deliver(event: AlarmEvent, alert: StoredAlert, rule: StoredAlarmRule | null): Promise<void> {
-    const people = await this.peopleFor(alert);
     const message = alertAnnouncement(event, alert, rule);
+    if (!message) return;
 
-    for (const userId of people) await this.tell(userId, message);
+    for (const userId of await this.peopleFor(alert)) await this.tell(userId, message);
   }
 
   /**

@@ -58,7 +58,7 @@ describe('the settings an account writes for itself', () => {
             telegram: null,
             webhook: { url: 'https://home.test.invalid/hook', method: 'POST', headers: { 'x-token': 'secret' } },
           },
-          routing: { alerts: ['email'], tasks: ['webhook'], plan: [], weekly_timelapse: [] },
+          routing: { alerts: ['email'], warnings: ['push'], tasks: ['webhook'], plan: [], weekly_timelapse: [] },
           quietHours: { fromMinute: 1320, toMinute: 420 },
           mutedUntil,
         },
@@ -67,7 +67,7 @@ describe('the settings an account writes for itself', () => {
 
     expect(written.body.notifications).toMatchObject({
       channels: { email: 'alarms@test.invalid', webhook: { url: 'https://home.test.invalid/hook', method: 'POST' } },
-      routing: { alerts: ['email'], tasks: ['webhook'] },
+      routing: { alerts: ['email'], warnings: ['push'], tasks: ['webhook'] },
       quietHours: { fromMinute: 1320, toMinute: 420 },
       mutedUntil,
     });

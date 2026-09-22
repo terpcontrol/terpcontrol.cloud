@@ -23,7 +23,7 @@ app, except where noted. Round 8 is visual direction and needs no backend.
 
 | Round | State |
 | --- | --- |
-| 0 Foundation | done: schemas, 14 migrations, the device-protocol module, the engines on the new collections |
+| 0 Foundation | done: schemas, 15 migrations, the device-protocol module, the engines on the new collections |
 | 1 Shell and home | done |
 | 2 Grow and tent pages | done |
 | 3 Logging | done |
