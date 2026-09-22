@@ -2280,5 +2280,73 @@
       "deleteAsk": "Die Regel ist endgültig weg. Ein Alarm, den sie schon ausgelöst hat, bleibt im Posteingang.",
       "deleteYes": "Löschen"
     }
+  },
+  "tasks": {
+    "title": "Aufgaben",
+    "scopeLabel": "Wessen Aufgaben",
+    "scope": {
+      "mine": "Meine",
+      "all": "Alle"
+    },
+    "group": {
+      "today": "Heute",
+      "tomorrow": "Morgen",
+      "week": "Diese Woche",
+      "done": "Erledigt"
+    },
+    "nothingDue": "Nichts ist fällig.",
+    "doneAria": "Erledigt: {{label}}",
+    "every": "alle {{count}} T",
+    "once": "einmalig",
+    "planStep": "Grow-Plan",
+    "kind": {
+      "water": "Gießen",
+      "feed": "Düngen",
+      "chore": "Routine",
+      "custom": "Eigene"
+    },
+    "due": {
+      "overdue": "{{count}} T überfällig",
+      "today": "heute",
+      "tomorrow": "morgen",
+      "inDays": "in {{count}} T"
+    },
+    "assignedToYou": "dir zugeteilt",
+    "assignedToSomeone": "jemand anderem zugeteilt",
+    "ticked": {
+      "you": "du",
+      "somebody": "jemand",
+      "today": "heute",
+      "yesterday": "gestern"
+    },
+    "edit": "ändern",
+    "add": "+ Erinnerung · alle N Tage · einmalig · Routine",
+    "sources": "Quellen: Gießrhythmus, Düngeplan, Grow-Plan, Routinen, Plan-Vorschläge. Eine hier erledigte Aufgabe schreibt die Tagebuchzeile mit denselben Vorgaben wie das Eintrag-Sheet.",
+    "sheet": {
+      "newTitle": "Neue Erinnerung",
+      "editTitle": "Erinnerung",
+      "what": "Was",
+      "label": "Was zu tun ist",
+      "labelPlaceholder": "Gießen, Aktivkohlefilter reinigen …",
+      "kind": "Art",
+      "litres": "Liter pro Kanne · optional",
+      "about": "Wofür",
+      "aboutFixed": "bleibt, wo sie angelegt wurde",
+      "nowhere": "Noch nichts da, woran erinnert werden könnte · zuerst einen Grow starten oder einen Raum anlegen",
+      "rhythm": "Rhythmus",
+      "every": "alle N Tage",
+      "everyDays": "Alle … Tage",
+      "once": "einmalig am",
+      "onceOn": "Tag",
+      "for": "Für",
+      "everyone": "alle",
+      "me": "mich",
+      "save": "Speichern",
+      "saving": "Wird gespeichert …",
+      "delete": "Diese Erinnerung löschen",
+      "deleteAsk": "Der Rhythmus endet, und seine offenen Aufgaben verschwinden mit ihm. Bereits geschriebene Tagebuchzeilen bleiben.",
+      "deleteYes": "Ja, löschen",
+      "cancel": "Abbrechen"
+    }
   }
 }

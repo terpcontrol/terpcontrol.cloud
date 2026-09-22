@@ -2284,5 +2284,73 @@
       "deleteAsk": "The rule is gone for good. An alert it has already raised stays in the inbox.",
       "deleteYes": "Delete it"
     }
+  },
+  "tasks": {
+    "title": "Tasks",
+    "scopeLabel": "Whose tasks",
+    "scope": {
+      "mine": "Mine",
+      "all": "All"
+    },
+    "group": {
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "week": "This week",
+      "done": "Done"
+    },
+    "nothingDue": "Nothing is due.",
+    "doneAria": "Done: {{label}}",
+    "every": "every {{count}} d",
+    "once": "once",
+    "planStep": "grow plan",
+    "kind": {
+      "water": "Water",
+      "feed": "Feed",
+      "chore": "Chore",
+      "custom": "Custom"
+    },
+    "due": {
+      "overdue": "overdue {{count}} d",
+      "today": "today",
+      "tomorrow": "tomorrow",
+      "inDays": "in {{count}} d"
+    },
+    "assignedToYou": "assigned to you",
+    "assignedToSomeone": "assigned to somebody else",
+    "ticked": {
+      "you": "you",
+      "somebody": "somebody",
+      "today": "today",
+      "yesterday": "yesterday"
+    },
+    "edit": "edit",
+    "add": "+ Reminder · every N days · once · chore",
+    "sources": "Sources: watering rhythm, feeding scheme, grow plan, chores, plan suggestions. A task done here writes the diary entry with the same defaults as the Log sheet.",
+    "sheet": {
+      "newTitle": "New reminder",
+      "editTitle": "Reminder",
+      "what": "What",
+      "label": "What to do",
+      "labelPlaceholder": "Water, Clean the carbon filter…",
+      "kind": "Kind",
+      "litres": "Litres per can · optional",
+      "about": "About",
+      "aboutFixed": "stays where it was made",
+      "nowhere": "Nothing to remind about yet · start a grow or add a space first",
+      "rhythm": "Rhythm",
+      "every": "every N days",
+      "everyDays": "Every … days",
+      "once": "once on",
+      "onceOn": "Day",
+      "for": "For",
+      "everyone": "everyone",
+      "me": "me",
+      "save": "Save",
+      "saving": "Saving…",
+      "delete": "Delete this reminder",
+      "deleteAsk": "The rhythm stops and its open tasks go with it. Diary lines already written stay.",
+      "deleteYes": "Yes, delete it",
+      "cancel": "Cancel"
+    }
   }
 }
