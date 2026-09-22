@@ -71,7 +71,7 @@ export class WeeklyRecapService implements OnModuleInit, OnApplicationShutdown {
       const film = await this.filmOfTheWeek(camera.id, week);
       if (!film) continue;
 
-      const message = weeklyTimelapseAnnouncement(film, camera.name, this.linkTo(camera.id, film.id));
+      const message = weeklyTimelapseAnnouncement(film, camera, this.linkTo(camera.id, film.id));
       for (const userId of await this.recipients.forCamera(camera.id)) await this.notifications.tellOnce(userId, message);
     }
   }

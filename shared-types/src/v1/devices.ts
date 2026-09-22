@@ -552,7 +552,15 @@ export const planState = named(
     pausedElapsedMs: z.number().int(),
     pauseReason: z.string().nullable(),
     lastAppliedAt: instant().nullable().describe('The engine re-applies the running step hourly.'),
-    confirmationNotifiedAt: instant().nullable(),
+    confirmationNotifiedAt: instant().nullable().describe("When the plan's own mail about the waiting step went out, which it does once."),
+    // The ask that goes to the people who keep the tent is a fact of the waiting
+    // step rather than of the pass that first noticed it: somebody whose night
+    // the ask fell into is told once their night is over, so the two instants
+    // below are kept apart from the mail above and from each other.
+    confirmationAskedAt: instant()
+      .nullable()
+      .describe('When everybody who keeps the tent had been told the step is waiting; null while the ask is still outstanding.'),
+    confirmationAskTriedAt: instant().nullable().describe('When that ask was last attempted; an outstanding ask is attempted again.'),
   }),
 );
 

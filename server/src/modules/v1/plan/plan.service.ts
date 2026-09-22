@@ -147,6 +147,8 @@ export class PlanService {
       stepStartedAt: plan.state.stepStartedAt ? new Date(plan.state.stepStartedAt.getTime() + moreMs) : null,
       pausedElapsedMs: plan.state.stepStartedAt ? plan.state.pausedElapsedMs : Math.max(0, plan.state.pausedElapsedMs - moreMs),
       confirmationNotifiedAt: null,
+      confirmationAskedAt: null,
+      confirmationAskTriedAt: null,
     });
   }
 

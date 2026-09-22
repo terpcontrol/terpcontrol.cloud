@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon';
 import type { Device, DeviceConfiguration, DeviceSettings, GrowthStage } from '@fg2/shared-types/v1';
 import { climatePreset, PRESETS_OF_STAGE, STAGES_WITH_CLIMATE, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 
 /**
  * The targets a controller holds by hand, read out of its configuration
@@ -186,17 +187,15 @@ export const sameDraft = (a: TargetsDraft, b: TargetsDraft): boolean => (Object.
 /** Whether the device reported a CO2 sensor; without one the firmware forces the target to zero. */
 export const hasCo2Sensor = (device: Device): boolean => device.state.hardware.co2 === 'on';
 
-/** Saturation vapour pressure in kPa, by Tetens - the same curve the server draws the VPD charts with. */
-const saturation = (temperature: number): number => 0.6108 * Math.exp((17.2694 * temperature) / (temperature + 237.3));
-
 /**
- * The VPD a pair of targets amounts to, worked out as the server works a
- * reading's: the deficit between the leaf, offset from the air by the device's
- * own setting, and the air at the target humidity. A grower sets temperature and
- * humidity but grows by this figure, so it stands beside them.
+ * The VPD a pair of targets amounts to, worked out along the contract's own
+ * curve, which is the one the server works a reading's VPD out along: the
+ * deficit between the leaf, offset from the air by the device's own setting,
+ * and the air at the target humidity. A grower sets temperature and humidity
+ * but grows by this figure, so it stands beside them.
  */
 export const vpdOf = (temperature: number, humidity: number, leafOffset: number): number =>
-  saturation(temperature + leafOffset) - saturation(temperature) * (humidity / 100);
+  vapourPressureDeficit(temperature, temperature + leafOffset, humidity);
 
 export const leafOffset = (settings: DeviceSettings, when: 'day' | 'night'): number =>
   when === 'day' ? settings.vpdLeafOffsetDay : settings.vpdLeafOffsetNight;

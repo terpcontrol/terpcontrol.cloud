@@ -77,6 +77,11 @@ export const plans: MigrationStep = {
           pauseReason: null,
           lastAppliedAt: activeSince ? lastAppliedAt : null,
           confirmationNotifiedAt: activeSince && flagOf(activeStep?.notified) ? (lastAppliedAt ?? activeSince) : null,
+          // The routing grid is newer than any of these plans, so nobody has
+          // been asked on it yet: a plan arriving mid-wait is asked about on the
+          // first pass after the migration.
+          confirmationAskedAt: null,
+          confirmationAskTriedAt: null,
         },
       });
     }

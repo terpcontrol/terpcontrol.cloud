@@ -410,6 +410,8 @@ describe('asking somebody to confirm a plan step', () => {
         pauseReason: null,
         lastAppliedAt: null,
         confirmationNotifiedAt: null,
+        confirmationAskedAt: null,
+        confirmationAskTriedAt: null,
         ...over,
       },
     }) as StoredPlan;
@@ -452,6 +454,28 @@ describe('asking somebody to confirm a plan step', () => {
     await announcer.askedToConfirm(waiting({ stepStartedAt: new Date('2026-09-29T08:00:00.000Z') }), step);
 
     expect(sent).toHaveLength(4);
+  });
+
+  it('is settled once everybody has heard it, and once for somebody who wanted to hear nothing', async () => {
+    expect(await announcer.askedToConfirm(waiting(), step)).toBe(true);
+
+    await db.users.updateOne({ id: MEMBER }, { $set: { 'notifications.routing.plan': [] } });
+    await db.notificationLog.deleteMany({});
+
+    expect(await announcer.askedToConfirm(waiting(), step)).toBe(true);
+  });
+
+  it('stays outstanding while somebody´s night holds it back, and reaches them once the night is over', async () => {
+    const allDay = { fromMinute: 0, toMinute: 1439 };
+    await db.users.updateOne({ id: MEMBER }, { $set: { 'notifications.quietHours': allDay } });
+
+    expect(await announcer.askedToConfirm(waiting(), step)).toBe(false);
+    expect(sent.map(one => one.userId)).toEqual([OWNER]);
+
+    await db.users.updateOne({ id: MEMBER }, { $set: { 'notifications.quietHours': null } });
+
+    expect(await announcer.askedToConfirm(waiting(), step)).toBe(true);
+    expect(sent.map(one => one.userId).sort()).toEqual([MEMBER, OWNER].sort());
   });
 });
 
@@ -581,6 +605,9 @@ describe('what the two new messages say', () => {
     state: { activeStepIndex: 1, stepStartedAt: new Date('2026-09-15T08:00:00.000Z') },
   } as StoredPlan;
 
+  /** The camera that shot the week, which is also the page a tap on the push has to land on. */
+  const CAMERA_ABOVE = { id: 'camera-1', name: 'Above the canopy' };
+
   it('names the tent, the step and what was asked', () => {
     const message = planAnnouncement(plan, step, 'The big tent');
 
@@ -604,9 +631,15 @@ describe('what the two new messages say', () => {
 
   it('names the camera, the week and where the film is watched', () => {
     const week = { id: 'media-1', capturedAt: new Date('2026-09-10T00:00:00.000Z'), endsAt: new Date('2026-09-16T22:00:00.000Z') };
-    const message = weeklyTimelapseAnnouncement(week, 'Above the canopy', 'https://app.test.invalid/cameras/camera-1?film=media-1');
+    const message = weeklyTimelapseAnnouncement(week, CAMERA_ABOVE, 'https://app.test.invalid/cameras/camera-1?film=media-1');
 
-    expect(message).toMatchObject({ category: 'weekly_timelapse', severity: 'info', subject: { type: 'media', id: 'media-1' } });
+    expect(message).toMatchObject({
+      category: 'weekly_timelapse',
+      severity: 'info',
+      subject: { type: 'media', id: 'media-1' },
+      // The film's own id addresses no screen, so the push carries the camera too.
+      cameraId: 'camera-1',
+    });
     expect(message.title).toBe('Above the canopy: the week to 16 September 2026');
     expect(message.body).toBe('A week of pictures, rolled up into one film. Watch it at https://app.test.invalid/cameras/camera-1?film=media-1.');
   });
@@ -614,8 +647,8 @@ describe('what the two new messages say', () => {
   it('says its piece without a link rather than with a broken one', () => {
     const week = { id: 'media-1', capturedAt: new Date('2026-09-10T00:00:00.000Z'), endsAt: null };
 
-    expect(weeklyTimelapseAnnouncement(week, 'Above the canopy', null).body).toBe('A week of pictures, rolled up into one film.');
-    expect(weeklyTimelapseAnnouncement(week, 'Above the canopy', null).title).toBe('Above the canopy: the week to 10 September 2026');
+    expect(weeklyTimelapseAnnouncement(week, CAMERA_ABOVE, null).body).toBe('A week of pictures, rolled up into one film.');
+    expect(weeklyTimelapseAnnouncement(week, CAMERA_ABOVE, null).title).toBe('Above the canopy: the week to 10 September 2026');
   });
 });
 

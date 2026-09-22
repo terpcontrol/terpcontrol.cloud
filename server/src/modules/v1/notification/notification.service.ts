@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { DateTime } from 'luxon';
-import type { NotificationChannel } from '@fg2/shared-types/v1';
+import type { NotificationChannel, Severity } from '@fg2/shared-types/v1';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
@@ -62,7 +62,7 @@ export class NotificationService implements AlarmRouting {
   public async tell(userId: string, message: Announcement): Promise<NotificationChannel[]> {
     const user = await this.users.findOne({ id: userId }).lean<StoredUser>();
     if (!user || !user.isActive || user.deletionStartedAt) return [];
-    if (this.heldBack(user.notifications, message, user.preferences.timezone)) return [];
+    if (heldBack(user.notifications, message.severity, user.preferences.timezone)) return [];
 
     const wanted = new Set(user.notifications.routing[message.category] ?? []);
     const sent: NotificationChannel[] = [];
@@ -86,22 +86,29 @@ export class NotificationService implements AlarmRouting {
 
   /** The same, unless this person has already been told about this thing. */
   public async tellOnce(userId: string, message: Announcement): Promise<NotificationChannel[]> {
-    if (await this.log.told(userId, message.subject)) return [];
+    if (await this.told(userId, message.subject)) return [];
 
     return this.tell(userId, message);
   }
 
-  /**
-   * Silence, in the two shapes a person can ask for it. A mute is absolute, on
-   * purpose: somebody who taps "mute all" while they work on a tent means every
-   * alarm the tent is about to raise. Quiet hours are a night's sleep, and a
-   * critical alarm is worth interrupting one.
-   */
-  private heldBack(settings: StoredNotificationSettings, message: Announcement, timezone: string): boolean {
-    if (settings.mutedUntil && settings.mutedUntil.getTime() > Date.now()) return true;
-    if (message.severity === 'critical') return false;
+  /** Whether this person has already been told about this thing, whichever channel it went out on. */
+  public told(userId: string, subject: Announcement['subject']): Promise<boolean> {
+    return this.log.told(userId, subject);
+  }
 
-    return inQuietHours(settings.quietHours, timezone);
+  /**
+   * Whether this person is being kept quiet at this moment.
+   *
+   * Saying nothing has two quite different reasons behind it, and a caller with
+   * news that keeps - a plan standing still until somebody answers it - has to
+   * be able to tell them apart: a grid that asks for nothing on this row is an
+   * answer, and will be the same answer in an hour, while a mute or a night is
+   * only a not-now and is worth coming back after.
+   */
+  public async silenced(userId: string, severity: Severity): Promise<boolean> {
+    const user = await this.users.findOne({ id: userId }).lean<StoredUser>();
+
+    return !!user && heldBack(user.notifications, severity, user.preferences.timezone);
   }
 
   /** Everybody who could have read the alert: what it is about decides, in the order it names things. */
@@ -113,6 +120,19 @@ export class NotificationService implements AlarmRouting {
     return Promise.resolve([]);
   }
 }
+
+/**
+ * Silence, in the two shapes a person can ask for it. A mute is absolute, on
+ * purpose: somebody who taps "mute all" while they work on a tent means every
+ * alarm the tent is about to raise. Quiet hours are a night's sleep, and a
+ * critical alarm is worth interrupting one.
+ */
+const heldBack = (settings: StoredNotificationSettings, severity: Severity, timezone: string): boolean => {
+  if (settings.mutedUntil && settings.mutedUntil.getTime() > Date.now()) return true;
+  if (severity === 'critical') return false;
+
+  return inQuietHours(settings.quietHours, timezone);
+};
 
 /**
  * A window with no date on it, read in the person's own time zone: it is

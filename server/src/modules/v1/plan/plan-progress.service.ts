@@ -27,6 +27,9 @@ import { activeStep, completed, running, stepAfterActive } from './plan-steps';
  * time.
  */
 
+/** How long an ask that has not reached anybody yet waits before it is put again. */
+const ASK_RETRY_MS = 5 * 60 * 1000;
+
 /** Where a plan's device stands, which is what a diary line is filed under. */
 interface DevicePlace {
   spaceId: string | null;
@@ -104,17 +107,20 @@ export class PlanProgressService {
   }
 
   /**
-   * A step somebody has to confirm has run out. It asks once: the plan stands
-   * still until a person answers, and the engine comes past every twenty seconds.
+   * A step somebody has to confirm has run out. The plan stands still until a
+   * person answers, and the engine comes past every twenty seconds, so both
+   * halves of the asking are written down: the plan's own mail and diary line go
+   * out on the first pass and never again, and the ask that goes to the people
+   * who keep the tent is kept up until it has reached them.
    */
   public async awaitConfirmation(plan: StoredPlan, now: Date): Promise<StoredPlan> {
     const step = activeStep(plan);
-    if (!step || plan.state.confirmationNotifiedAt) return plan;
+    if (!step) return plan;
 
-    await this.askToConfirm(plan, step);
-    if (plan.notify.mode === 'off') return plan;
+    const current = await this.askToConfirm(plan, step, now);
+    if (current.state.confirmationNotifiedAt) return current;
 
-    const asked = await this.store(plan, { ...plan.state, confirmationNotifiedAt: now });
+    const asked = await this.store(current, { ...current.state, confirmationNotifiedAt: now });
     const place = await this.place(asked);
     const number = asked.state.activeStepIndex + 1;
     const message = step.confirmationMessage || 'No additional information provided.';
@@ -138,20 +144,32 @@ export class PlanProgressService {
    * what each person asked of their own phone - so a plan that sends nothing of
    * its own is still announced to whoever wanted to hear about it.
    *
-   * A plan that writes no `confirmationNotifiedAt` is read again every twenty
-   * seconds for as long as its step waits, which is why this is told once rather
-   * than simply told: the ask the message names is the same ask each time round
-   * and the notification log recognises it.
+   * The ask belongs to the waiting step rather than to the pass that first
+   * noticed it. A pass that falls inside somebody's quiet hours says nothing,
+   * and an ask left at that would mean a person never learning that their plan
+   * is waiting; so it stays outstanding and is put again, and their night ending
+   * is enough for it to go out. What is written down is when it was last tried
+   * and whether it has landed - the engine comes past every twenty seconds, and
+   * a question worth asking twice is not worth asking three times a minute.
    *
    * Nobody being told must never stop the plan. The step has been worked out as
    * waiting and would not be worked out again.
    */
-  private async askToConfirm(plan: StoredPlan, step: PlanStep): Promise<void> {
+  private async askToConfirm(plan: StoredPlan, step: PlanStep, now: Date): Promise<StoredPlan> {
+    const { confirmationAskedAt, confirmationAskTriedAt } = plan.state;
+    if (confirmationAskedAt) return plan;
+    if (confirmationAskTriedAt && confirmationAskTriedAt.getTime() > now.getTime() - ASK_RETRY_MS) return plan;
+
+    let settled = false;
     try {
-      await this.announcer?.askedToConfirm(plan, step);
+      // Nothing wired in to announce with is nothing left to reach, so the ask
+      // is over rather than outstanding.
+      settled = (await this.announcer?.askedToConfirm(plan, step)) ?? true;
     } catch (error) {
       logger.error(`Failed announcing the confirmation of recipe step ${plan.state.activeStepIndex} on device ${plan.deviceId}: ${error}`);
     }
+
+    return this.store(plan, { ...plan.state, confirmationAskedAt: settled ? now : null, confirmationAskTriedAt: now });
   }
 
   /**

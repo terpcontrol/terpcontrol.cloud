@@ -493,11 +493,17 @@ describe('the push card', () => {
 });
 
 describe('where a tap on a push lands', () => {
-  it('opens the inbox for an alarm, the list for a task, and the home for anything else', () => {
-    expect(pathOf({ type: 'alert', id: 'alert-1' })).toBe('/alerts');
-    expect(pathOf({ type: 'task', id: 'task-1' })).toBe('/tasks');
-    expect(pathOf({ type: 'plan', id: 'plan-1' })).toBe('/');
-    expect(pathOf(undefined)).toBe('/');
+  it('opens the inbox for an alarm, the Tasks tab for a task and for a waiting plan, and the home for anything else', () => {
+    expect(pathOf({ subject: { type: 'alert', id: 'alert-1' } })).toBe('/alerts');
+    expect(pathOf({ subject: { type: 'task', id: 'task-1' } })).toBe('/tasks');
+    // A plan standing still is a task on that tab and can be answered nowhere else.
+    expect(pathOf({ subject: { type: 'plan', id: 'plan-1' } })).toBe('/tasks');
+    expect(pathOf({})).toBe('/');
+  });
+
+  it('opens a week´s film on the camera that shot it, and the home where the push does not say which', () => {
+    expect(pathOf({ subject: { type: 'media', id: 'media-1' }, cameraId: 'camera-1' })).toBe('/cameras/camera-1?film=media-1');
+    expect(pathOf({ subject: { type: 'media', id: 'media-1' } })).toBe('/');
   });
 
   it('reads the body the server sent, and a body that is not one as an empty push', () => {

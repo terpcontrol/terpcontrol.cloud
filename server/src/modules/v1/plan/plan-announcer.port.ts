@@ -13,6 +13,15 @@ import { StoredPlan } from '@database/schemas/v1/plans.schema';
 export const PLAN_ANNOUNCER = 'plan:announcer';
 
 export interface PlanAnnouncer {
-  /** A step that is waiting for somebody to confirm it, asked about once however often the plan is re-read. */
-  askedToConfirm(plan: StoredPlan, step: PlanStep): Promise<void>;
+  /**
+   * A step that is waiting for somebody to confirm it, asked about once per
+   * person however often the plan is re-read.
+   *
+   * It answers whether the ask is settled - whether everybody who keeps the tent
+   * has now heard it, or wanted to hear nothing of the sort. False means only
+   * that somebody is being kept quiet at this moment, and that asking again
+   * later will reach them; the plan re-attempts on that answer, so a question
+   * that fell into a person's night is put again once their night is over.
+   */
+  askedToConfirm(plan: StoredPlan, step: PlanStep): Promise<boolean>;
 }

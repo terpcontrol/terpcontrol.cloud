@@ -30,7 +30,7 @@ self.addEventListener('push', event => {
       icon: '/assets/icons/icon-192.png',
       // One notification per thing: a repeat of the same alarm replaces the last one rather than stacking.
       tag: payload.subject?.id ?? undefined,
-      data: { url: pathOf(payload.subject) },
+      data: { url: pathOf(payload) },
     }),
   );
 });

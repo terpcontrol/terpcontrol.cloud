@@ -540,9 +540,9 @@ export declare const entryValuesDraft: z.ZodDiscriminatedUnion<[z.ZodObject<{
  */
 export declare const entryCreate: z.ZodObject<{
     text: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    cameraId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     spaceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     deviceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    cameraId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     plantIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
     growId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     occurredAt: z.ZodOptional<z.ZodISODateTime>;
@@ -643,9 +643,9 @@ export declare const entryUpdate: z.ZodObject<{
         kind: z.ZodLiteral<"visit">;
     }, z.core.$strip>], "kind">>;
     text: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    cameraId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     spaceId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     deviceId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-    cameraId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     plantIds: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodString>>>;
     growId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     occurredAt: z.ZodOptional<z.ZodOptional<z.ZodISODateTime>>;

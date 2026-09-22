@@ -88,6 +88,8 @@ const plan = (over: Partial<Plan> = {}, stateOver: Partial<Plan['state']> = {}):
     pauseReason: null,
     lastAppliedAt: NOW.minus({ minutes: 20 }).toISO()!,
     confirmationNotifiedAt: null,
+    confirmationAskedAt: null,
+    confirmationAskTriedAt: null,
     ...stateOver,
   },
 });

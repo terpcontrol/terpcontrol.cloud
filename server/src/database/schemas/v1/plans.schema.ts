@@ -3,10 +3,15 @@ import type { Plan, PlanNotify, PlanState, PlanStep, StepDuration } from '@fg2/s
 import { durationUnit, growthStage, planNotifyMode, planStatus } from '@fg2/shared-types/v1-schemas';
 
 /** The plan a device is currently being run by: one per device, with where it stands in `state`. */
-export interface StoredPlanState extends Omit<PlanState, 'stepStartedAt' | 'lastAppliedAt' | 'confirmationNotifiedAt'> {
+export interface StoredPlanState extends Omit<
+  PlanState,
+  'stepStartedAt' | 'lastAppliedAt' | 'confirmationNotifiedAt' | 'confirmationAskedAt' | 'confirmationAskTriedAt'
+> {
   stepStartedAt: Date | null;
   lastAppliedAt: Date | null;
   confirmationNotifiedAt: Date | null;
+  confirmationAskedAt: Date | null;
+  confirmationAskTriedAt: Date | null;
 }
 
 export interface StoredPlan extends Omit<Plan, 'createdAt' | 'state'> {
@@ -65,7 +70,12 @@ const stateSchema = new Schema<StoredPlanState>(
     pausedElapsedMs: { type: Number, required: true, default: 0 },
     pauseReason: { type: String, default: null },
     lastAppliedAt: { type: Date, default: null },
+    // The plan's own mail about a waiting step, and the ask that goes to the
+    // people who keep the tent, are two different things and are written down
+    // separately: the ask is re-attempted until it has actually reached them.
     confirmationNotifiedAt: { type: Date, default: null },
+    confirmationAskedAt: { type: Date, default: null },
+    confirmationAskTriedAt: { type: Date, default: null },
   },
   { _id: false, versionKey: false },
 );

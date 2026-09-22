@@ -29,10 +29,24 @@ export class PlanAnnouncerService implements PlanAnnouncer {
     private readonly recipients: RecipientsService,
   ) {}
 
-  public async askedToConfirm(plan: StoredPlan, step: PlanStep): Promise<void> {
+  /**
+   * It answers whether there is anybody left to reach. Somebody who has been
+   * told is done with; so is somebody whose grid asks for nothing on this row,
+   * because no later pass would tell them either. Somebody who is muted or in
+   * their own night is neither, and is what makes the plan try again.
+   */
+  public async askedToConfirm(plan: StoredPlan, step: PlanStep): Promise<boolean> {
     const message = planAnnouncement(plan, step, await this.tentOf(plan.deviceId));
+    let settled = true;
 
-    for (const userId of await this.recipients.forDevice(plan.deviceId)) await this.notifications.tellOnce(userId, message);
+    for (const userId of await this.recipients.forDevice(plan.deviceId)) {
+      if (await this.notifications.told(userId, message.subject)) continue;
+      if ((await this.notifications.tell(userId, message)).length > 0) continue;
+
+      settled = settled && !(await this.notifications.silenced(userId, message.severity));
+    }
+
+    return settled;
   }
 
   /** What the place is called. A controller standing in no tent is named by the only name it has. */

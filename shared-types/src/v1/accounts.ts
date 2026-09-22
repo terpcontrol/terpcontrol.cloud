@@ -506,5 +506,9 @@ export const pushPayload = named(
     category: notificationCategory,
     subject: subjectRef(notificationSubjectType),
     severity: severity,
+    // A week's film is watched on the page of the camera that shot it, and the
+    // film's own id says nothing about which camera that is. Without this the
+    // worker has nowhere to send a tap but the home screen.
+    cameraId: id().nullable().describe('Where the subject is looked at, for a subject its own id cannot address.'),
   }),
 );

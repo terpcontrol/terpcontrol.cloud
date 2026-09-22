@@ -886,6 +886,8 @@ export declare const planState: z.ZodObject<{
     pauseReason: z.ZodNullable<z.ZodString>;
     lastAppliedAt: z.ZodNullable<z.ZodISODateTime>;
     confirmationNotifiedAt: z.ZodNullable<z.ZodISODateTime>;
+    confirmationAskedAt: z.ZodNullable<z.ZodISODateTime>;
+    confirmationAskTriedAt: z.ZodNullable<z.ZodISODateTime>;
 }, z.core.$strip>;
 /** One plan per device: it is what the device is currently being run by. */
 export declare const plan: z.ZodObject<{
@@ -942,6 +944,8 @@ export declare const plan: z.ZodObject<{
         pauseReason: z.ZodNullable<z.ZodString>;
         lastAppliedAt: z.ZodNullable<z.ZodISODateTime>;
         confirmationNotifiedAt: z.ZodNullable<z.ZodISODateTime>;
+        confirmationAskedAt: z.ZodNullable<z.ZodISODateTime>;
+        confirmationAskTriedAt: z.ZodNullable<z.ZodISODateTime>;
     }, z.core.$strip>;
 }, z.core.$strip>;
 /**

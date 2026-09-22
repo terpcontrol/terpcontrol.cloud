@@ -597,6 +597,10 @@ export interface PushPayload {
     id: string;
   };
   severity: Severity;
+  /**
+   * Where the subject is looked at, for a subject its own id cannot address.
+   */
+  cameraId: string | null;
 }
 
 export interface DeviceConfiguration {
@@ -1043,7 +1047,18 @@ export interface PlanState {
    * The engine re-applies the running step hourly.
    */
   lastAppliedAt: string | null;
+  /**
+   * When the plan's own mail about the waiting step went out, which it does once.
+   */
   confirmationNotifiedAt: string | null;
+  /**
+   * When everybody who keeps the tent had been told the step is waiting; null while the ask is still outstanding.
+   */
+  confirmationAskedAt: string | null;
+  /**
+   * When that ask was last attempted; an outstanding ask is attempted again.
+   */
+  confirmationAskTriedAt: string | null;
 }
 
 export interface Plan {

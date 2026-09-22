@@ -8,6 +8,7 @@ import { MailService } from '@modules/mail/mail.service';
 import { PhaseWriterService } from '@modules/v1/phase/phase-writer.service';
 import { StageAlarms } from '@modules/v1/phase/stage-alarms.port';
 import { DeviceConfigurationWriter } from '@modules/v1/plan/device-configuration.port';
+import { PlanAnnouncer } from '@modules/v1/plan/plan-announcer.port';
 import { PlanEngineService } from '@modules/v1/plan/plan-engine.service';
 import { PlanProgressService } from '@modules/v1/plan/plan-progress.service';
 import { PlanService } from '@modules/v1/plan/plan.service';
@@ -39,6 +40,8 @@ let db: V1TestDatabase;
 let plans: Model<StoredPlan>;
 let engine: PlanEngineService;
 let transitions: PlanService;
+/** The same engine with the routing grid's side of a confirmation wired in, which the plain one leaves out. */
+let engineWith: (announcer: PlanAnnouncer) => PlanEngineService;
 
 let applied: { deviceId: string; settings: DeviceConfiguration }[];
 let mailed: { to: string; subject: string; text: string }[];
@@ -101,6 +104,8 @@ const stoppedState = {
   pauseReason: null,
   lastAppliedAt: null,
   confirmationNotifiedAt: null,
+  confirmationAskedAt: null,
+  confirmationAskTriedAt: null,
 } as const;
 
 const stored = async (): Promise<StoredPlan> => (await plans.findOne({ id: 'plan-1' }).lean<StoredPlan>().exec())!;
@@ -140,9 +145,12 @@ beforeEach(async () => {
   const mail = { send: async (message: (typeof mailed)[number]) => void mailed.push(message) } as unknown as MailService;
 
   const phases = new PhaseWriterService(db.grows, new EntryWriterService(db.entries), db.entries, db.devices, alarms);
-  const progress = new PlanProgressService(plans, db.devices, db.users, new EntryWriterService(db.entries), phases, mail);
+  const progressWith = (announcer: PlanAnnouncer | null) =>
+    new PlanProgressService(plans, db.devices, db.users, new EntryWriterService(db.entries), phases, mail, announcer);
+  const progress = progressWith(null);
 
   engine = new PlanEngineService(plans, db.devices, configuration, progress);
+  engineWith = announcer => new PlanEngineService(plans, db.devices, configuration, progressWith(announcer));
   transitions = new PlanService(plans, progress);
 
   await db.users.create({ id: OWNER, email: 'grower@example.com', passwordHash: 'x', handle: 'grower' });
@@ -264,6 +272,61 @@ describe('a step that waits for a person', () => {
     expect((await stored()).state).toMatchObject({ activeStepIndex: 0, confirmationNotifiedAt: at(24 * HOUR) });
     expect(mailed).toHaveLength(1);
     expect(mailed[0].text).toContain('Cut the plants');
+    expect((await entries()).map(entry => entry.message?.key)).toEqual(['message-recipe-step-awaiting-confirmation']);
+  });
+
+  it('puts the ask to the tent´s people again until it lands, and not on every pass', async () => {
+    await aDevice();
+    await waiting();
+
+    const asked: Date[] = [];
+    let lands = false;
+    const running = engineWith({
+      askedToConfirm: async () => {
+        asked.push(new Date());
+        return lands;
+      },
+    });
+
+    await running.run(at(24 * HOUR));
+    await running.run(at(24 * HOUR + 20 * 1000));
+    expect(asked).toHaveLength(1);
+    expect((await stored()).state.confirmationAskedAt).toBeNull();
+
+    // Quiet hours ending is a later pass, and a later pass is enough.
+    lands = true;
+    await running.run(at(24 * HOUR + 6 * MINUTE));
+    expect(asked).toHaveLength(2);
+    expect((await stored()).state.confirmationAskedAt).toEqual(at(24 * HOUR + 6 * MINUTE));
+
+    await running.run(at(25 * HOUR));
+    expect(asked).toHaveLength(2);
+
+    // What the plan itself sends stays a once-only thing throughout.
+    expect(mailed).toHaveLength(1);
+    expect(await entries()).toHaveLength(1);
+  });
+
+  it('asks as sparingly for a plan that sends no mail of its own, and still writes its diary line', async () => {
+    await aDevice();
+    await aPlan([step({ id: 'a', name: 'Dry', waitForConfirmation: true, confirmationMessage: 'Cut the plants' })], {
+      notify: { mode: 'off', email: null, writeEntries: true },
+    });
+
+    let asked = 0;
+    const running = engineWith({
+      askedToConfirm: async () => {
+        asked += 1;
+        return true;
+      },
+    });
+
+    await running.run(at(24 * HOUR));
+    await running.run(at(24 * HOUR + 20 * 1000));
+    await running.run(at(25 * HOUR));
+
+    expect(asked).toBe(1);
+    expect(mailed).toHaveLength(0);
     expect((await entries()).map(entry => entry.message?.key)).toEqual(['message-recipe-step-awaiting-confirmation']);
   });
 

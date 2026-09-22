@@ -55,6 +55,7 @@ export class PushChannel implements NotificationChannelSender {
       category: message.category,
       subject: message.subject,
       severity: message.severity,
+      cameraId: message.cameraId ?? null,
     };
     const vapidDetails = {
       subject: this.config.pushContact!,

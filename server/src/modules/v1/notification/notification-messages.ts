@@ -3,6 +3,7 @@ import type { PlanStep, Task } from '@fg2/shared-types/v1';
 import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
+import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { StoredPlan } from '@database/schemas/v1/plans.schema';
 import { AlarmEvent } from '@modules/alarm/alarm.types';
@@ -97,13 +98,17 @@ const askOf = (plan: StoredPlan): string => `${plan.id}:${plan.state.activeStepI
  */
 export const weeklyTimelapseAnnouncement = (
   film: Pick<MediaDocument, 'id' | 'capturedAt' | 'endsAt'>,
-  camera: string,
+  camera: Pick<CameraDocument, 'id' | 'name'>,
   link: string | null,
 ): Announcement => ({
   category: 'weekly_timelapse',
   subject: { type: 'media', id: film.id },
+  // The film is watched on the page of the camera that shot it, which is why
+  // the camera is named beside the subject: a tap on the push has nowhere else
+  // to go from a film's id alone.
+  cameraId: camera.id,
   severity: 'info',
-  title: `${camera}: the week to ${dayOf(film.endsAt ?? film.capturedAt)}`,
+  title: `${camera.name}: the week to ${dayOf(film.endsAt ?? film.capturedAt)}`,
   body: ['A week of pictures, rolled up into one film.', link ? `Watch it at ${link}.` : null].filter(Boolean).join(' '),
 });
 

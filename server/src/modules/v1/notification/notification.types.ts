@@ -21,6 +21,8 @@ export interface Announcement {
   severity: Severity;
   title: string;
   body: string;
+  /** The camera a subject is looked at on, for a subject whose own id does not address a screen. A week's film is the one. */
+  cameraId?: string;
 }
 
 /** What a channel answers when it has sent something. */

@@ -1584,6 +1584,18 @@
       },
       "severity": {
         "$ref": "#/components/schemas/Severity"
+      },
+      "cameraId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Where the subject is looked at, for a subject its own id cannot address."
       }
     },
     "required": [
@@ -1591,7 +1603,8 @@
       "body",
       "category",
       "subject",
-      "severity"
+      "severity",
+      "cameraId"
     ]
   },
   "FirmwareChannel": {
@@ -3073,7 +3086,34 @@
           {
             "type": "null"
           }
-        ]
+        ],
+        "description": "When the plan's own mail about the waiting step went out, which it does once."
+      },
+      "confirmationAskedAt": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "When everybody who keeps the tent had been told the step is waiting; null while the ask is still outstanding."
+      },
+      "confirmationAskTriedAt": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "When that ask was last attempted; an outstanding ask is attempted again."
       }
     },
     "required": [
@@ -3083,7 +3123,9 @@
       "pausedElapsedMs",
       "pauseReason",
       "lastAppliedAt",
-      "confirmationNotifiedAt"
+      "confirmationNotifiedAt",
+      "confirmationAskedAt",
+      "confirmationAskTriedAt"
     ]
   },
   "Plan": {

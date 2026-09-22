@@ -10,7 +10,8 @@ import { MemoryRouter } from 'react-router';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DeviceConfiguration, Plan } from '@fg2/shared-types/v1';
 import { Targets } from '@/screens/control/targets/Targets';
-import { draftOf, lightWindowLabel, withDraft } from '@/screens/control/targets/targets-draft';
+import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
+import { draftOf, lightWindowLabel, vpdOf, withDraft } from '@/screens/control/targets/targets-draft';
 
 /**
  * What the manual targets page promises: that a chip only moves the sliders,
@@ -87,6 +88,8 @@ const plan = (status: Plan['state']['status']): Plan => ({
     pauseReason: null,
     lastAppliedAt: NOW.minus({ minutes: 20 }).toISO()!,
     confirmationNotifiedAt: null,
+    confirmationAskedAt: null,
+    confirmationAskTriedAt: null,
   },
 });
 
@@ -361,5 +364,12 @@ describe('the document a draft becomes', () => {
       lightHours: 16,
       co2: 400,
     });
+  });
+
+  it('works the VPD out along the contract´s own curve, which is the one the server charts a reading with', () => {
+    // The server rounds the same figure to two decimals before it stores it;
+    // the page shows one. Neither side draws the curve itself any more.
+    expect(vpdOf(26, 60, -2)).toBe(vapourPressureDeficit(26, 24, 60));
+    expect(vapourPressureDeficit(26, 24, 60)).toBeCloseTo(0.97, 2);
   });
 });

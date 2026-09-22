@@ -55,6 +55,8 @@ export const running = (activeStepIndex: number, now: Date): StoredPlanState => 
   pauseReason: null,
   lastAppliedAt: null,
   confirmationNotifiedAt: null,
+  confirmationAskedAt: null,
+  confirmationAskTriedAt: null,
 });
 
 /**
@@ -74,6 +76,8 @@ const atRest = (status: 'completed' | 'stopped'): StoredPlanState => ({
   pauseReason: null,
   lastAppliedAt: null,
   confirmationNotifiedAt: null,
+  confirmationAskedAt: null,
+  confirmationAskTriedAt: null,
 });
 
 export const completed = (): StoredPlanState => atRest('completed');
@@ -138,5 +142,7 @@ export const positionIn = (state: StoredPlanState, before: PlanStep[], after: Pl
     pausedElapsedMs: 0,
     lastAppliedAt: null,
     confirmationNotifiedAt: null,
+    confirmationAskedAt: null,
+    confirmationAskTriedAt: null,
   };
 };

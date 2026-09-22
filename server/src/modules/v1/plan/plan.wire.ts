@@ -14,6 +14,8 @@ const stateOf = (state: StoredPlanState): PlanState => ({
   pauseReason: state.pauseReason,
   lastAppliedAt: iso(state.lastAppliedAt),
   confirmationNotifiedAt: iso(state.confirmationNotifiedAt),
+  confirmationAskedAt: iso(state.confirmationAskedAt),
+  confirmationAskTriedAt: iso(state.confirmationAskTriedAt),
 });
 
 /**

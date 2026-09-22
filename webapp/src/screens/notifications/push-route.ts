@@ -21,9 +21,18 @@ export const payloadOf = (data: { json: () => unknown } | null | undefined): Pus
   }
 };
 
-/** Where a tap on the notification lands, by what it is about: the inbox for an alarm, the list for a task. */
-export const pathOf = (subject: PushPayload['subject']): string => {
+/**
+ * Where a tap on the notification lands, by what it is about: the inbox for an
+ * alarm, and the Tasks tab both for a task and for a plan standing still, which
+ * is a task on that tab and nothing the person can answer anywhere else.
+ *
+ * A week's film is watched on the page of the camera that shot it, so the push
+ * names that camera; one that does not - a push an older server sent - lands on
+ * the home screen, which is where anything unrecognised goes.
+ */
+export const pathOf = ({ subject, cameraId }: PushPayload): string => {
   if (subject?.type === 'alert') return '/alerts';
-  if (subject?.type === 'task') return '/tasks';
+  if (subject?.type === 'task' || subject?.type === 'plan') return '/tasks';
+  if (subject?.type === 'media' && cameraId) return `/cameras/${cameraId}?film=${subject.id}`;
   return '/';
 };

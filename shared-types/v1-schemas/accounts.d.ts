@@ -830,4 +830,5 @@ export declare const pushPayload: z.ZodObject<{
         warning: "warning";
         info: "info";
     }>;
+    cameraId: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;

@@ -396,7 +396,15 @@ exports.planState = (0, common_js_1.named)('PlanState', zod_1.z.object({
     pausedElapsedMs: zod_1.z.number().int(),
     pauseReason: zod_1.z.string().nullable(),
     lastAppliedAt: (0, common_js_1.instant)().nullable().describe('The engine re-applies the running step hourly.'),
-    confirmationNotifiedAt: (0, common_js_1.instant)().nullable(),
+    confirmationNotifiedAt: (0, common_js_1.instant)().nullable().describe("When the plan's own mail about the waiting step went out, which it does once."),
+    // The ask that goes to the people who keep the tent is a fact of the waiting
+    // step rather than of the pass that first noticed it: somebody whose night
+    // the ask fell into is told once their night is over, so the two instants
+    // below are kept apart from the mail above and from each other.
+    confirmationAskedAt: (0, common_js_1.instant)()
+        .nullable()
+        .describe('When everybody who keeps the tent had been told the step is waiting; null while the ask is still outstanding.'),
+    confirmationAskTriedAt: (0, common_js_1.instant)().nullable().describe('When that ask was last attempted; an outstanding ask is attempted again.'),
 }));
 /** One plan per device: it is what the device is currently being run by. */
 exports.plan = (0, common_js_1.named)('Plan', zod_1.z.object({
