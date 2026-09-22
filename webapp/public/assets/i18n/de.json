@@ -1520,6 +1520,27 @@
         "yes": "Mein Konto löschen"
       },
       "footnote": "Es wird nie ein Standort gespeichert. Server in der EU. Der Team-Modus (Clubs) bringt Zuordnung und längere Aufbewahrung pro Zelt, nie pro Person."
+    },
+    "public": {
+      "title": "Öffentliche Grows und Profil"
+    },
+    "following": {
+      "title": "Abonniert"
+    },
+    "shareLinks": {
+      "title": "Freigabelinks"
+    },
+    "premium": {
+      "title": "Premium"
+    },
+    "schemes": {
+      "title": "Düngepläne"
+    },
+    "account": {
+      "title": "Konto"
+    },
+    "about": {
+      "title": "Über"
     }
   },
   "later": {
@@ -3229,6 +3250,20 @@
       "noCam": "keine",
       "pairThere": "Im Tab Geräte koppeln",
       "bothCanWait": "Beides hat Zeit: ein Controller misst den Ort, an dem er steht, auch wenn nichts eingesteckt ist."
+    }
+  },
+  "admin": {
+    "fleet": {
+      "title": "Flotte"
+    },
+    "firmware": {
+      "title": "Firmware"
+    },
+    "users": {
+      "title": "Benutzer"
+    },
+    "demo": {
+      "title": "Demo-Gerät"
     }
   }
 }

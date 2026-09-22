@@ -1524,6 +1524,27 @@
         "yes": "Delete my account"
       },
       "footnote": "No location is ever stored. Servers in the EU. Team mode (clubs) adds attribution and longer retention per tent, never per person."
+    },
+    "public": {
+      "title": "Public grows and profile"
+    },
+    "following": {
+      "title": "Following"
+    },
+    "shareLinks": {
+      "title": "Share links"
+    },
+    "premium": {
+      "title": "Premium"
+    },
+    "schemes": {
+      "title": "Feeding schemes"
+    },
+    "account": {
+      "title": "Account"
+    },
+    "about": {
+      "title": "About"
     }
   },
   "later": {
@@ -3233,6 +3254,20 @@
       "noCam": "none",
       "pairThere": "Pair them on the Devices tab",
       "bothCanWait": "Both can wait: a controller with nothing plugged into it still measures the place it stands in."
+    }
+  },
+  "admin": {
+    "fleet": {
+      "title": "Fleet"
+    },
+    "firmware": {
+      "title": "Firmware"
+    },
+    "users": {
+      "title": "Users"
+    },
+    "demo": {
+      "title": "Demo device"
     }
   }
 }

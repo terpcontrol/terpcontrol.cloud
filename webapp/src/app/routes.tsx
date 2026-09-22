@@ -17,6 +17,7 @@ import { Measurements } from '@/screens/grow/measurements/Measurements';
 import { NewGrowRoute } from '@/screens/grow/new/NewGrowRoute';
 import { NotFound } from '@/screens/NotFound';
 import { PlantPage } from '@/screens/grow/plant/PlantPage';
+import { Placeholder } from '@/screens/Placeholder';
 import { Notifications } from '@/screens/notifications/Notifications';
 import { PublicGrowRoute } from '@/screens/public/PublicGrowRoute';
 import { PublicProfileRoute } from '@/screens/public/PublicProfileRoute';
@@ -67,7 +68,12 @@ import { Timeline } from '@/screens/Timeline';
  * A space's tab may have a page of its own below it - the manual targets and
  * the alarm rules under Control - which is the third segment, so that a link
  * from an alert can open the rule it came from and a reload lands where it was.
- * Notifications and privacy are the two pages below Me.
+ * Me is a page of doors rather than a screen of settings, so each of them is a
+ * route below it: what is public, what is followed, the links that were sent
+ * out, Premium, the feeding schemes, the appearance, the account itself and
+ * what this install is. The fleet is the one part of the app that is not for
+ * growers: it sits under `/admin`, is reached from the desktop rail alone, and
+ * a route of it that a phone or a non-administrator opens answers nothing.
  */
 export const router = createBrowserRouter([
   { path: '/sign-in', element: <SignIn /> },
@@ -94,6 +100,18 @@ export const router = createBrowserRouter([
       { path: 'me', element: <Me /> },
       { path: 'me/notifications', element: <Notifications /> },
       { path: 'me/privacy', element: <Privacy /> },
+      { path: 'me/public', element: <Placeholder titleKey="me.public.title" /> },
+      { path: 'me/following', element: <Placeholder titleKey="me.following.title" /> },
+      { path: 'me/share-links', element: <Placeholder titleKey="me.shareLinks.title" /> },
+      { path: 'me/premium', element: <Placeholder titleKey="me.premium.title" /> },
+      { path: 'me/schemes', element: <Placeholder titleKey="me.schemes.title" /> },
+      { path: 'me/appearance', element: <Placeholder titleKey="me.appearance" /> },
+      { path: 'me/account', element: <Placeholder titleKey="me.account.title" /> },
+      { path: 'me/about', element: <Placeholder titleKey="me.about.title" /> },
+      { path: 'admin/fleet', element: <Placeholder titleKey="admin.fleet.title" /> },
+      { path: 'admin/firmware', element: <Placeholder titleKey="admin.firmware.title" /> },
+      { path: 'admin/users', element: <Placeholder titleKey="admin.users.title" /> },
+      { path: 'admin/demo', element: <Placeholder titleKey="admin.demo.title" /> },
       { path: 'alerts', element: <Alerts /> },
       { path: 'grows/new', element: <NewGrowRoute /> },
       { path: 'grows/:growId/measurements', element: <Measurements /> },
