@@ -1,0 +1,68 @@
+{
+  "schemes": [
+    {
+      "id": "biobizz-light-mix",
+      "name": "Biobizz · Light·Mix",
+      "manufacturer": "Biobizz",
+      "version": "2025-05",
+      "plantTypes": [
+        {
+          "key": "light_mix",
+          "name": "Light·Mix"
+        },
+        {
+          "key": "coco_mix",
+          "name": "Coco·Mix"
+        }
+      ],
+      "defaultPlantType": "light_mix",
+      "weeks": 12,
+      "flipWeek": 4,
+      "source": {
+        "title": "Biobizz Nutrient Schedule, EN 2025",
+        "url": "https://biobizz.com/wp-content/uploads/2025/05/Nutrient-Schedule-EN-PF-2025.pdf",
+        "readAt": "2026-09-22"
+      }
+    },
+    {
+      "id": "biobizz-all-mix",
+      "name": "Biobizz · All·Mix",
+      "manufacturer": "Biobizz",
+      "version": "2025-05",
+      "plantTypes": [
+        {
+          "key": "all_mix",
+          "name": "All·Mix"
+        }
+      ],
+      "defaultPlantType": "all_mix",
+      "weeks": 12,
+      "flipWeek": 4,
+      "source": {
+        "title": "Biobizz Nutrient Schedule, EN 2025",
+        "url": "https://biobizz.com/wp-content/uploads/2025/05/Nutrient-Schedule-EN-PF-2025.pdf",
+        "readAt": "2026-09-22"
+      }
+    },
+    {
+      "id": "canna-terra",
+      "name": "Canna Terra",
+      "manufacturer": "CANNA",
+      "version": "2023-02",
+      "plantTypes": [
+        {
+          "key": "terra",
+          "name": "Terra"
+        }
+      ],
+      "defaultPlantType": "terra",
+      "weeks": 15,
+      "flipWeek": 4,
+      "source": {
+        "title": "CANNA TERRA Grow Schedule (UK)",
+        "url": "https://www.canna-uk.com/sites/united_kingdom/files/2023-02/downloads-grow-schedule-terra.pdf",
+        "readAt": "2026-09-22"
+      }
+    }
+  ]
+}

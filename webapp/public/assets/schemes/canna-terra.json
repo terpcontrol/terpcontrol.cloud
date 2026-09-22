@@ -1,0 +1,658 @@
+{
+  "id": "canna-terra",
+  "name": "Canna Terra",
+  "manufacturer": "CANNA",
+  "version": "2023-02",
+  "plantTypes": [
+    {
+      "key": "terra",
+      "name": "Terra"
+    }
+  ],
+  "defaultPlantType": "terra",
+  "flipWeek": 4,
+  "source": {
+    "title": "CANNA TERRA Grow Schedule (UK)",
+    "url": "https://www.canna-uk.com/sites/united_kingdom/files/2023-02/downloads-grow-schedule-terra.pdf",
+    "readAt": "2026-09-22"
+  },
+  "notes": [
+    "The chart doses in ml per 10 litres. Every figure here is that figure divided by ten, because the grid states what one litre takes and the feed sheet multiplies it by the can.",
+    "The chart's rows are cultivation periods of so many weeks, not single weeks. Each period is laid out at the middle of its printed length, halves rounded up: rooting 1 week, vegetative I 2, vegetative II 3, generative I 3, generative II 1, generative III 3, generative IV 2. The light goes from 18 to 12 hours at vegetative II, which is why the flip is week 4.",
+    "Where a figure is printed as a range it is the middle that is taken: Terra Vega 15-35 becomes 25, 30-50 becomes 40, 35-55 becomes 45; Terra Flores 50-70 becomes 60 and 40-60 becomes 50, all in ml per 10 litres, before the division.",
+    "Cannaboost's 20-40 and Cannazym's 25-50 are not ranges of that kind: the chart's own notes call 20 ml and 25 ml per 10 litres the standard and the higher figure a deliberate step - more flowering power, or a substrate being used a second time. The standard is what is shipped.",
+    "EC+ is printed per period as well, but the contract's grid carries doses only, so it is left to the chart."
+  ],
+  "grid": [
+    {
+      "week": 1,
+      "stage": "seedling",
+      "amounts": [
+        {
+          "productKey": "terra_vega",
+          "name": "Terra Vega",
+          "value": 2.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "terra_flores",
+          "name": "Terra Flores",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "rhizotonic",
+          "name": "Rhizotonic",
+          "value": 4,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannazym",
+          "name": "Cannazym",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannaboost",
+          "name": "Cannaboost",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "pk_13_14",
+          "name": "PK 13/14",
+          "value": null,
+          "unit": "ml/l"
+        }
+      ]
+    },
+    {
+      "week": 2,
+      "stage": "vegetative",
+      "amounts": [
+        {
+          "productKey": "terra_vega",
+          "name": "Terra Vega",
+          "value": 4,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "terra_flores",
+          "name": "Terra Flores",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "rhizotonic",
+          "name": "Rhizotonic",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannazym",
+          "name": "Cannazym",
+          "value": 2.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannaboost",
+          "name": "Cannaboost",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "pk_13_14",
+          "name": "PK 13/14",
+          "value": null,
+          "unit": "ml/l"
+        }
+      ]
+    },
+    {
+      "week": 3,
+      "stage": "vegetative",
+      "amounts": [
+        {
+          "productKey": "terra_vega",
+          "name": "Terra Vega",
+          "value": 4,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "terra_flores",
+          "name": "Terra Flores",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "rhizotonic",
+          "name": "Rhizotonic",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannazym",
+          "name": "Cannazym",
+          "value": 2.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannaboost",
+          "name": "Cannaboost",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "pk_13_14",
+          "name": "PK 13/14",
+          "value": null,
+          "unit": "ml/l"
+        }
+      ]
+    },
+    {
+      "week": 4,
+      "stage": "vegetative",
+      "amounts": [
+        {
+          "productKey": "terra_vega",
+          "name": "Terra Vega",
+          "value": 4.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "terra_flores",
+          "name": "Terra Flores",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "rhizotonic",
+          "name": "Rhizotonic",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannazym",
+          "name": "Cannazym",
+          "value": 2.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannaboost",
+          "name": "Cannaboost",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "pk_13_14",
+          "name": "PK 13/14",
+          "value": null,
+          "unit": "ml/l"
+        }
+      ]
+    },
+    {
+      "week": 5,
+      "stage": "vegetative",
+      "amounts": [
+        {
+          "productKey": "terra_vega",
+          "name": "Terra Vega",
+          "value": 4.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "terra_flores",
+          "name": "Terra Flores",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "rhizotonic",
+          "name": "Rhizotonic",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannazym",
+          "name": "Cannazym",
+          "value": 2.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannaboost",
+          "name": "Cannaboost",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "pk_13_14",
+          "name": "PK 13/14",
+          "value": null,
+          "unit": "ml/l"
+        }
+      ]
+    },
+    {
+      "week": 6,
+      "stage": "vegetative",
+      "amounts": [
+        {
+          "productKey": "terra_vega",
+          "name": "Terra Vega",
+          "value": 4.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "terra_flores",
+          "name": "Terra Flores",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "rhizotonic",
+          "name": "Rhizotonic",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannazym",
+          "name": "Cannazym",
+          "value": 2.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannaboost",
+          "name": "Cannaboost",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "pk_13_14",
+          "name": "PK 13/14",
+          "value": null,
+          "unit": "ml/l"
+        }
+      ]
+    },
+    {
+      "week": 7,
+      "stage": "flowering",
+      "amounts": [
+        {
+          "productKey": "terra_vega",
+          "name": "Terra Vega",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "terra_flores",
+          "name": "Terra Flores",
+          "value": 6,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "rhizotonic",
+          "name": "Rhizotonic",
+          "value": 0.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannazym",
+          "name": "Cannazym",
+          "value": 2.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannaboost",
+          "name": "Cannaboost",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "pk_13_14",
+          "name": "PK 13/14",
+          "value": null,
+          "unit": "ml/l"
+        }
+      ]
+    },
+    {
+      "week": 8,
+      "stage": "flowering",
+      "amounts": [
+        {
+          "productKey": "terra_vega",
+          "name": "Terra Vega",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "terra_flores",
+          "name": "Terra Flores",
+          "value": 6,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "rhizotonic",
+          "name": "Rhizotonic",
+          "value": 0.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannazym",
+          "name": "Cannazym",
+          "value": 2.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannaboost",
+          "name": "Cannaboost",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "pk_13_14",
+          "name": "PK 13/14",
+          "value": null,
+          "unit": "ml/l"
+        }
+      ]
+    },
+    {
+      "week": 9,
+      "stage": "flowering",
+      "amounts": [
+        {
+          "productKey": "terra_vega",
+          "name": "Terra Vega",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "terra_flores",
+          "name": "Terra Flores",
+          "value": 6,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "rhizotonic",
+          "name": "Rhizotonic",
+          "value": 0.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannazym",
+          "name": "Cannazym",
+          "value": 2.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannaboost",
+          "name": "Cannaboost",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "pk_13_14",
+          "name": "PK 13/14",
+          "value": null,
+          "unit": "ml/l"
+        }
+      ]
+    },
+    {
+      "week": 10,
+      "stage": "flowering",
+      "amounts": [
+        {
+          "productKey": "terra_vega",
+          "name": "Terra Vega",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "terra_flores",
+          "name": "Terra Flores",
+          "value": 6,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "rhizotonic",
+          "name": "Rhizotonic",
+          "value": 0.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannazym",
+          "name": "Cannazym",
+          "value": 2.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannaboost",
+          "name": "Cannaboost",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "pk_13_14",
+          "name": "PK 13/14",
+          "value": 1.5,
+          "unit": "ml/l"
+        }
+      ]
+    },
+    {
+      "week": 11,
+      "stage": "flowering",
+      "amounts": [
+        {
+          "productKey": "terra_vega",
+          "name": "Terra Vega",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "terra_flores",
+          "name": "Terra Flores",
+          "value": 5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "rhizotonic",
+          "name": "Rhizotonic",
+          "value": 0.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannazym",
+          "name": "Cannazym",
+          "value": 2.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannaboost",
+          "name": "Cannaboost",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "pk_13_14",
+          "name": "PK 13/14",
+          "value": null,
+          "unit": "ml/l"
+        }
+      ]
+    },
+    {
+      "week": 12,
+      "stage": "flowering",
+      "amounts": [
+        {
+          "productKey": "terra_vega",
+          "name": "Terra Vega",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "terra_flores",
+          "name": "Terra Flores",
+          "value": 5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "rhizotonic",
+          "name": "Rhizotonic",
+          "value": 0.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannazym",
+          "name": "Cannazym",
+          "value": 2.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannaboost",
+          "name": "Cannaboost",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "pk_13_14",
+          "name": "PK 13/14",
+          "value": null,
+          "unit": "ml/l"
+        }
+      ]
+    },
+    {
+      "week": 13,
+      "stage": "flowering",
+      "amounts": [
+        {
+          "productKey": "terra_vega",
+          "name": "Terra Vega",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "terra_flores",
+          "name": "Terra Flores",
+          "value": 5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "rhizotonic",
+          "name": "Rhizotonic",
+          "value": 0.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannazym",
+          "name": "Cannazym",
+          "value": 2.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannaboost",
+          "name": "Cannaboost",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "pk_13_14",
+          "name": "PK 13/14",
+          "value": null,
+          "unit": "ml/l"
+        }
+      ]
+    },
+    {
+      "week": 14,
+      "stage": "flowering",
+      "amounts": [
+        {
+          "productKey": "terra_vega",
+          "name": "Terra Vega",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "terra_flores",
+          "name": "Terra Flores",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "rhizotonic",
+          "name": "Rhizotonic",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannazym",
+          "name": "Cannazym",
+          "value": 2.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannaboost",
+          "name": "Cannaboost",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "pk_13_14",
+          "name": "PK 13/14",
+          "value": null,
+          "unit": "ml/l"
+        }
+      ]
+    },
+    {
+      "week": 15,
+      "stage": "flowering",
+      "amounts": [
+        {
+          "productKey": "terra_vega",
+          "name": "Terra Vega",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "terra_flores",
+          "name": "Terra Flores",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "rhizotonic",
+          "name": "Rhizotonic",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannazym",
+          "name": "Cannazym",
+          "value": 2.5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "cannaboost",
+          "name": "Cannaboost",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "pk_13_14",
+          "name": "PK 13/14",
+          "value": null,
+          "unit": "ml/l"
+        }
+      ]
+    }
+  ]
+}

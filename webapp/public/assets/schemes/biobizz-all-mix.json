@@ -1,0 +1,604 @@
+{
+  "id": "biobizz-all-mix",
+  "name": "Biobizz · All·Mix",
+  "manufacturer": "Biobizz",
+  "version": "2025-05",
+  "plantTypes": [
+    {
+      "key": "all_mix",
+      "name": "All·Mix"
+    }
+  ],
+  "defaultPlantType": "all_mix",
+  "flipWeek": 4,
+  "source": {
+    "title": "Biobizz Nutrient Schedule, EN 2025",
+    "url": "https://biobizz.com/wp-content/uploads/2025/05/Nutrient-Schedule-EN-PF-2025.pdf",
+    "readAt": "2026-09-22"
+  },
+  "notes": [
+    "The chart's columns are PROPAGATION, GROWTH and WK 1-10, where WK 1 is the first week of flowering. They are laid out here as week 1 (propagation), weeks 2-3 (growth, the column the chart says can last for as long as needed) and weeks 4-11 (WK 1-8), so the flip falls on week 4.",
+    "WK 9 is the chart's plain-water week and is kept as week 12 with every figure absent; WK 10 is the harvest and is no feeding week at all.",
+    "Fish·Mix is not a row of its own: the chart offers it as a replacement for Bio·Grow in the vegetative phase, and shipping both would dose the can twice.",
+    "CalMag is not a row either: the chart gives it only for RO or very soft water, as week ranges rather than per week, so it is something a grower adds to their own grid.",
+    "All·Mix is pre-fertilised, which is the whole of the difference: the chart holds Bio·Grow at 1 ml/l throughout and prints no Alg·A·Mic row."
+  ],
+  "grid": [
+    {
+      "week": 1,
+      "stage": "seedling",
+      "amounts": [
+        {
+          "productKey": "root_juice",
+          "name": "Root·Juice",
+          "value": 4,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_grow",
+          "name": "Bio·Grow",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_bloom",
+          "name": "Bio·Bloom",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "top_max",
+          "name": "Top·Max",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_heaven",
+          "name": "Bio·Heaven",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "acti_vera",
+          "name": "Acti·Vera",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "microbes",
+          "name": "Microbes",
+          "value": 0.4,
+          "unit": "g/l"
+        }
+      ]
+    },
+    {
+      "week": 2,
+      "stage": "vegetative",
+      "amounts": [
+        {
+          "productKey": "root_juice",
+          "name": "Root·Juice",
+          "value": 4,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_grow",
+          "name": "Bio·Grow",
+          "value": 1,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_bloom",
+          "name": "Bio·Bloom",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "top_max",
+          "name": "Top·Max",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_heaven",
+          "name": "Bio·Heaven",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "acti_vera",
+          "name": "Acti·Vera",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "microbes",
+          "name": "Microbes",
+          "value": 0.4,
+          "unit": "g/l"
+        }
+      ]
+    },
+    {
+      "week": 3,
+      "stage": "vegetative",
+      "amounts": [
+        {
+          "productKey": "root_juice",
+          "name": "Root·Juice",
+          "value": 4,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_grow",
+          "name": "Bio·Grow",
+          "value": 1,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_bloom",
+          "name": "Bio·Bloom",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "top_max",
+          "name": "Top·Max",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_heaven",
+          "name": "Bio·Heaven",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "acti_vera",
+          "name": "Acti·Vera",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "microbes",
+          "name": "Microbes",
+          "value": 0.4,
+          "unit": "g/l"
+        }
+      ]
+    },
+    {
+      "week": 4,
+      "stage": "flowering",
+      "amounts": [
+        {
+          "productKey": "root_juice",
+          "name": "Root·Juice",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_grow",
+          "name": "Bio·Grow",
+          "value": 1,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_bloom",
+          "name": "Bio·Bloom",
+          "value": 1,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "top_max",
+          "name": "Top·Max",
+          "value": 1,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_heaven",
+          "name": "Bio·Heaven",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "acti_vera",
+          "name": "Acti·Vera",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "microbes",
+          "name": "Microbes",
+          "value": 0.2,
+          "unit": "g/l"
+        }
+      ]
+    },
+    {
+      "week": 5,
+      "stage": "flowering",
+      "amounts": [
+        {
+          "productKey": "root_juice",
+          "name": "Root·Juice",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_grow",
+          "name": "Bio·Grow",
+          "value": 1,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_bloom",
+          "name": "Bio·Bloom",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "top_max",
+          "name": "Top·Max",
+          "value": 1,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_heaven",
+          "name": "Bio·Heaven",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "acti_vera",
+          "name": "Acti·Vera",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "microbes",
+          "name": "Microbes",
+          "value": 0.2,
+          "unit": "g/l"
+        }
+      ]
+    },
+    {
+      "week": 6,
+      "stage": "flowering",
+      "amounts": [
+        {
+          "productKey": "root_juice",
+          "name": "Root·Juice",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_grow",
+          "name": "Bio·Grow",
+          "value": 1,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_bloom",
+          "name": "Bio·Bloom",
+          "value": 2,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "top_max",
+          "name": "Top·Max",
+          "value": 1,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_heaven",
+          "name": "Bio·Heaven",
+          "value": 3,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "acti_vera",
+          "name": "Acti·Vera",
+          "value": 3,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "microbes",
+          "name": "Microbes",
+          "value": 0.4,
+          "unit": "g/l"
+        }
+      ]
+    },
+    {
+      "week": 7,
+      "stage": "flowering",
+      "amounts": [
+        {
+          "productKey": "root_juice",
+          "name": "Root·Juice",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_grow",
+          "name": "Bio·Grow",
+          "value": 1,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_bloom",
+          "name": "Bio·Bloom",
+          "value": 3,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "top_max",
+          "name": "Top·Max",
+          "value": 1,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_heaven",
+          "name": "Bio·Heaven",
+          "value": 4,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "acti_vera",
+          "name": "Acti·Vera",
+          "value": 4,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "microbes",
+          "name": "Microbes",
+          "value": 0.4,
+          "unit": "g/l"
+        }
+      ]
+    },
+    {
+      "week": 8,
+      "stage": "flowering",
+      "amounts": [
+        {
+          "productKey": "root_juice",
+          "name": "Root·Juice",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_grow",
+          "name": "Bio·Grow",
+          "value": 1,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_bloom",
+          "name": "Bio·Bloom",
+          "value": 3,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "top_max",
+          "name": "Top·Max",
+          "value": 1,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_heaven",
+          "name": "Bio·Heaven",
+          "value": 4,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "acti_vera",
+          "name": "Acti·Vera",
+          "value": 4,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "microbes",
+          "name": "Microbes",
+          "value": 0.4,
+          "unit": "g/l"
+        }
+      ]
+    },
+    {
+      "week": 9,
+      "stage": "flowering",
+      "amounts": [
+        {
+          "productKey": "root_juice",
+          "name": "Root·Juice",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_grow",
+          "name": "Bio·Grow",
+          "value": 1,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_bloom",
+          "name": "Bio·Bloom",
+          "value": 4,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "top_max",
+          "name": "Top·Max",
+          "value": 4,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_heaven",
+          "name": "Bio·Heaven",
+          "value": 5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "acti_vera",
+          "name": "Acti·Vera",
+          "value": 5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "microbes",
+          "name": "Microbes",
+          "value": 0.2,
+          "unit": "g/l"
+        }
+      ]
+    },
+    {
+      "week": 10,
+      "stage": "flowering",
+      "amounts": [
+        {
+          "productKey": "root_juice",
+          "name": "Root·Juice",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_grow",
+          "name": "Bio·Grow",
+          "value": 1,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_bloom",
+          "name": "Bio·Bloom",
+          "value": 4,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "top_max",
+          "name": "Top·Max",
+          "value": 4,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_heaven",
+          "name": "Bio·Heaven",
+          "value": 5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "acti_vera",
+          "name": "Acti·Vera",
+          "value": 5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "microbes",
+          "name": "Microbes",
+          "value": 0.2,
+          "unit": "g/l"
+        }
+      ]
+    },
+    {
+      "week": 11,
+      "stage": "flowering",
+      "amounts": [
+        {
+          "productKey": "root_juice",
+          "name": "Root·Juice",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_grow",
+          "name": "Bio·Grow",
+          "value": 1,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_bloom",
+          "name": "Bio·Bloom",
+          "value": 4,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "top_max",
+          "name": "Top·Max",
+          "value": 4,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_heaven",
+          "name": "Bio·Heaven",
+          "value": 5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "acti_vera",
+          "name": "Acti·Vera",
+          "value": 5,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "microbes",
+          "name": "Microbes",
+          "value": 0.2,
+          "unit": "g/l"
+        }
+      ]
+    },
+    {
+      "week": 12,
+      "stage": "flowering",
+      "amounts": [
+        {
+          "productKey": "root_juice",
+          "name": "Root·Juice",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_grow",
+          "name": "Bio·Grow",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_bloom",
+          "name": "Bio·Bloom",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "top_max",
+          "name": "Top·Max",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "bio_heaven",
+          "name": "Bio·Heaven",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "acti_vera",
+          "name": "Acti·Vera",
+          "value": null,
+          "unit": "ml/l"
+        },
+        {
+          "productKey": "microbes",
+          "name": "Microbes",
+          "value": null,
+          "unit": "g/l"
+        }
+      ]
+    }
+  ]
+}
