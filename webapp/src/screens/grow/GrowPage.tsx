@@ -1,4 +1,4 @@
-import { ChevronLeft, Globe, Share2 } from 'lucide-react';
+import { ChevronLeft, Globe, Ruler, Share2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams } from 'react-router';
@@ -175,6 +175,16 @@ function Header({ grow, plants, spaces, now, onShare }: HeaderProps) {
         ) : null}
         <span className={styles.muted}> · {t('home.card.plants', { count: plants.length })}</span>
       </p>
+
+      {/* What the grow measures is the grow's own, not a week's and not a
+          plant's, so the way in is a row of the header rather than a tab. It is
+          drawn for everybody: reading what a grow measures is reading. */}
+      <div className={styles.ways}>
+        <Link to={`/grows/${grow.id}/measurements`} className={ui.chip}>
+          <Ruler size={13} strokeWidth={1.75} aria-hidden />
+          {t('grow.measurements.title')}
+        </Link>
+      </div>
     </header>
   );
 }

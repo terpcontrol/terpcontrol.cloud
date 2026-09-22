@@ -135,13 +135,29 @@ exports.growScheme = (0, common_js_1.named)('GrowScheme', zod_1.z.object({
     edited: zod_1.z.boolean().describe('The grid was changed by hand and no longer matches its origin.'),
     grid: zod_1.z.array(common_js_1.schemeWeek),
 }));
-/** What this grow measures beyond climate. `entries.values.readings` is keyed by `key`. */
+/**
+ * What this grow measures beyond climate. `entries.values.readings` is keyed by
+ * `key`.
+ *
+ * What a grower aims at is a range and not a point - "EC 1.4 to 1.8", "pH 6.2
+ * to 6.5" - so the target is two ends rather than one number. They are two
+ * fields rather than a band object because a band object would have two ways of
+ * saying "no target at all", the null object and the object of two nulls, and a
+ * screen would have to read both; here both ends null is the only way to say it,
+ * and one end alone is the honest shape of "at least 45" or "under 1.8".
+ *
+ * A rule that is not a range at all - runoff EC below the input plus a fifth -
+ * is deliberately not expressible. A field that took an expression would be a
+ * little language nobody else can read, so such a rule stays words a person
+ * reads beside the figure.
+ */
 exports.measurementDefinition = (0, common_js_1.named)('MeasurementDefinition', zod_1.z.object({
     key: zod_1.z.string(),
     name: zod_1.z.string(),
     unit: zod_1.z.string(),
     perPlant: zod_1.z.boolean().describe('A reading is taken per plant rather than for the grow.'),
-    target: zod_1.z.number().nullable(),
+    targetMin: zod_1.z.number().nullable().describe('The low end of the band aimed at; null where the target is open below.'),
+    targetMax: zod_1.z.number().nullable().describe('The high end; null where it is open above. Both null is a measurement with no target.'),
     chart: zod_1.z.boolean().describe('Drawn as a series beside the climate charts.'),
 }));
 exports.growVisibility = (0, common_js_1.named)('GrowVisibility', zod_1.z.enum(['private', 'public']));

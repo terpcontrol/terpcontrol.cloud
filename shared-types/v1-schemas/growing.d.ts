@@ -204,13 +204,29 @@ export declare const growScheme: z.ZodObject<{
         }, z.core.$strip>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
-/** What this grow measures beyond climate. `entries.values.readings` is keyed by `key`. */
+/**
+ * What this grow measures beyond climate. `entries.values.readings` is keyed by
+ * `key`.
+ *
+ * What a grower aims at is a range and not a point - "EC 1.4 to 1.8", "pH 6.2
+ * to 6.5" - so the target is two ends rather than one number. They are two
+ * fields rather than a band object because a band object would have two ways of
+ * saying "no target at all", the null object and the object of two nulls, and a
+ * screen would have to read both; here both ends null is the only way to say it,
+ * and one end alone is the honest shape of "at least 45" or "under 1.8".
+ *
+ * A rule that is not a range at all - runoff EC below the input plus a fifth -
+ * is deliberately not expressible. A field that took an expression would be a
+ * little language nobody else can read, so such a rule stays words a person
+ * reads beside the figure.
+ */
 export declare const measurementDefinition: z.ZodObject<{
     key: z.ZodString;
     name: z.ZodString;
     unit: z.ZodString;
     perPlant: z.ZodBoolean;
-    target: z.ZodNullable<z.ZodNumber>;
+    targetMin: z.ZodNullable<z.ZodNumber>;
+    targetMax: z.ZodNullable<z.ZodNumber>;
     chart: z.ZodBoolean;
 }, z.core.$strip>;
 export declare const growVisibility: z.ZodEnum<{
@@ -302,7 +318,8 @@ export declare const grow: z.ZodObject<{
         name: z.ZodString;
         unit: z.ZodString;
         perPlant: z.ZodBoolean;
-        target: z.ZodNullable<z.ZodNumber>;
+        targetMin: z.ZodNullable<z.ZodNumber>;
+        targetMax: z.ZodNullable<z.ZodNumber>;
         chart: z.ZodBoolean;
     }, z.core.$strip>>;
     visibility: z.ZodEnum<{
@@ -586,7 +603,8 @@ export declare const growListItem: z.ZodObject<{
         name: z.ZodString;
         unit: z.ZodString;
         perPlant: z.ZodBoolean;
-        target: z.ZodNullable<z.ZodNumber>;
+        targetMin: z.ZodNullable<z.ZodNumber>;
+        targetMax: z.ZodNullable<z.ZodNumber>;
         chart: z.ZodBoolean;
     }, z.core.$strip>>;
     visibility: z.ZodEnum<{
@@ -931,7 +949,8 @@ export declare const growCreate: z.ZodObject<{
         name: z.ZodString;
         unit: z.ZodString;
         perPlant: z.ZodBoolean;
-        target: z.ZodNullable<z.ZodNumber>;
+        targetMin: z.ZodNullable<z.ZodNumber>;
+        targetMax: z.ZodNullable<z.ZodNumber>;
         chart: z.ZodBoolean;
     }, z.core.$strip>>>;
     visibility: z.ZodOptional<z.ZodEnum<{
@@ -1117,7 +1136,8 @@ export declare const growUpdate: z.ZodObject<{
         name: z.ZodString;
         unit: z.ZodString;
         perPlant: z.ZodBoolean;
-        target: z.ZodNullable<z.ZodNumber>;
+        targetMin: z.ZodNullable<z.ZodNumber>;
+        targetMax: z.ZodNullable<z.ZodNumber>;
         chart: z.ZodBoolean;
     }, z.core.$strip>>>;
     coverMediaId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -1388,7 +1408,8 @@ export declare const growPage: z.ZodObject<{
             name: z.ZodString;
             unit: z.ZodString;
             perPlant: z.ZodBoolean;
-            target: z.ZodNullable<z.ZodNumber>;
+            targetMin: z.ZodNullable<z.ZodNumber>;
+            targetMax: z.ZodNullable<z.ZodNumber>;
             chart: z.ZodBoolean;
         }, z.core.$strip>>;
         visibility: z.ZodEnum<{

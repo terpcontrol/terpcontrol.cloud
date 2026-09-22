@@ -111,6 +111,14 @@
   color: var(--ink);
 }
 
+/* The ways out of the grow page that are not tabs: what it measures, and
+   whatever later stands beside it. */
+.ways {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .muted {
   color: var(--muted);
 }

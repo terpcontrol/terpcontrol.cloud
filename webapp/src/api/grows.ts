@@ -1,17 +1,25 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  EntryPage,
   GrowCreate,
   GrowListItem,
   GrowPage,
   GrowReport,
+  GrowSeries,
+  GrowSeriesRange,
   GrowUpdate,
   GrowWeekCardPage,
   Phase,
   PhaseCreate,
+  Plant,
   PlantPage,
+  PlantUpdate,
 } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { growChanged } from './lifecycle';
+
+/** A plant's own page shows its lines rather than pages them: a plant of its own has few. */
+const PLANT_ENTRIES = 50;
 
 /**
  * The grow page's four reads. The grow itself carries its summary - the day
@@ -114,6 +122,60 @@ export const useCreateGrow = () => {
     onSuccess: grow => {
       queryClient.setQueryData(['grow', grow.id], grow);
       growChanged(queryClient);
+    },
+  });
+};
+
+/**
+ * Every reading a chart is drawn from, over one range. The same read answers a
+ * harder question the measurements screen has to ask before it offers to
+ * delete a definition: whether anything has ever been written under its key.
+ *
+ * Which keys are wanted is said in the request, because a series asked for and
+ * thrown away is a read of the store nobody looks at. They repeat as
+ * `measurements=` once per definition, which the shared client cannot spell -
+ * it writes each parameter once - so this query is built here and travels in
+ * the path.
+ */
+export const useGrowSeries = (growId: string | null, range: GrowSeriesRange, measurements: string[]) => {
+  const keys = [...measurements].sort();
+
+  return useQuery({
+    queryKey: ['grow', growId, 'series', range, keys],
+    queryFn: ({ signal }) => {
+      const query = new URLSearchParams([['range', range], ...keys.map((key): [string, string] => ['measurements', key])]);
+
+      return api.get<GrowSeries>(`/grows/${growId}/series?${query.toString()}`, undefined, signal);
+    },
+    enabled: growId !== null && keys.length > 0,
+  });
+};
+
+/**
+ * Everything written about one plant alone. A plant's page shows these apart
+ * from the grow's own lines, because a line about the whole grow applies to
+ * this plant as well and a list that mixed the two would say the plant was
+ * watered by itself.
+ */
+export const usePlantEntries = (plantId: string) =>
+  useQuery({
+    queryKey: ['entries', 'plant', plantId],
+    queryFn: ({ signal }) => api.get<EntryPage>('/entries', { plantId, limit: PLANT_ENTRIES }, signal),
+  });
+
+/**
+ * What a plant is called and which strain it is. It is the plant page's one
+ * write: a label typed in a hurry while the pots were being filled is corrected
+ * weeks later, when the tag on the pot has been read again.
+ */
+export const useUpdatePlant = (growId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ plantId, body }: { plantId: string; body: PlantUpdate }) => api.patch<Plant>(`/plants/${plantId}`, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['grow', growId, 'plants'] });
+      void queryClient.invalidateQueries({ queryKey: ['home'] });
     },
   });
 };

@@ -19,8 +19,8 @@ let helper: Session;
 let stranger: Session;
 let tent: string;
 
-const HEIGHT = { key: 'height', name: 'Height', unit: 'cm', perPlant: true, target: null, chart: true };
-const EC = { key: 'ec_input', name: 'EC · input', unit: 'mS/cm', perPlant: false, target: 1.6, chart: true };
+const HEIGHT = { key: 'height', name: 'Height', unit: 'cm', perPlant: true, targetMin: null, targetMax: null, chart: true };
+const EC = { key: 'ec_input', name: 'EC · input', unit: 'mS/cm', perPlant: false, targetMin: 1.6, targetMax: 1.6, chart: true };
 
 const startAGrow = async (measurements: Record<string, unknown>[] = [HEIGHT, EC]) =>
   (
@@ -66,7 +66,7 @@ describe('defining what a grow measures', () => {
 
   it('adds one after the grow was made', async () => {
     const grow = await startAGrow();
-    const ph = { key: 'ph_input', name: 'pH · input', unit: '', perPlant: false, target: 6.3, chart: true };
+    const ph = { key: 'ph_input', name: 'pH · input', unit: '', perPlant: false, targetMin: 6.3, targetMax: 6.3, chart: true };
 
     const changed = await owner.client
       .patch(`/v1/grows/${grow.id}`)
@@ -163,7 +163,7 @@ describe('a definition entries already carry readings for', () => {
   });
 
   it('does not stop a definition nothing has measured going out in the same edit', async () => {
-    const pot = { key: 'pot_size', name: 'Pot size', unit: 'L', perPlant: true, target: null, chart: false };
+    const pot = { key: 'pot_size', name: 'Pot size', unit: 'L', perPlant: true, targetMin: null, targetMax: null, chart: false };
     const grow = await startAGrow([HEIGHT, EC, pot]);
     await measure(grow.id, 'ec_input', 1.6);
 

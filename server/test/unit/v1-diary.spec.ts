@@ -210,8 +210,8 @@ const world = async (): Promise<void> => {
         grid: [{ week: 5, stage: 'flowering', amounts: [{ productKey: 'bio-bloom', name: 'Bio·Bloom', value: 2, unit: 'ml/l' }] }],
       },
       measurements: [
-        { key: 'height', name: 'Height', unit: 'cm', perPlant: false, target: null, chart: true },
-        { key: 'ph', name: 'pH', unit: '', perPlant: false, target: null, chart: true },
+        { key: 'height', name: 'Height', unit: 'cm', perPlant: false, targetMin: null, targetMax: null, chart: true },
+        { key: 'ph', name: 'pH', unit: '', perPlant: false, targetMin: null, targetMax: null, chart: true },
       ],
       slug: 'spring-run-3',
       startedAt: ORIGIN,

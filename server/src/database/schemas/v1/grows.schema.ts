@@ -120,7 +120,11 @@ const measurementSchema = new Schema<MeasurementDefinition>(
     // `required` on a string refuses exactly that, where the contract allows it.
     unit: { type: String, default: '' },
     perPlant: { type: Boolean, required: true, default: false },
-    target: { type: Number, default: null },
+    // Two ends of the band aimed at, either of which may be open. A stored row
+    // written before the band existed carries one number under `target`, which
+    // the migration spreads over both ends.
+    targetMin: { type: Number, default: null },
+    targetMax: { type: Number, default: null },
     chart: { type: Boolean, required: true, default: false },
   },
   embedded,

@@ -5220,7 +5220,15 @@
         "type": "boolean",
         "description": "A reading is taken per plant rather than for the grow."
       },
-      "target": {
+      "targetMin": {
+        "description": "The low end of the band aimed at; null where the target is open below.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "targetMax": {
+        "description": "The high end; null where it is open above. Both null is a measurement with no target.",
         "type": [
           "number",
           "null"
@@ -5236,7 +5244,8 @@
       "name",
       "unit",
       "perPlant",
-      "target",
+      "targetMin",
+      "targetMax",
       "chart"
     ]
   },

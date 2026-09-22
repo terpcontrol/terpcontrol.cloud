@@ -10,8 +10,10 @@ import { GrowPage } from '@/screens/grow/GrowPage';
 import { Home } from '@/screens/Home';
 import { LogRoute } from '@/log/LogRoute';
 import { Me } from '@/screens/Me';
+import { Measurements } from '@/screens/grow/measurements/Measurements';
 import { NewGrowRoute } from '@/screens/grow/new/NewGrowRoute';
 import { NotFound } from '@/screens/NotFound';
+import { PlantPage } from '@/screens/grow/plant/PlantPage';
 import { Notifications } from '@/screens/notifications/Notifications';
 import { PublicGrowRoute } from '@/screens/public/PublicGrowRoute';
 import { PublicProfileRoute } from '@/screens/public/PublicProfileRoute';
@@ -46,6 +48,12 @@ import { Timeline } from '@/screens/Timeline';
  * page of its own above it: a static segment outranks the parameter beside it,
  * so `/cameras/add` is never read as a camera called "add".
  *
+ * A grow has two pages below it rather than tabs: what it measures, and one of
+ * its plants. Both are about something narrower than the grow and are reached
+ * from it, and both keep their own address so that a plant can be linked to.
+ * Their static segments outrank the grow's tab parameter beside them, so
+ * `plants` is never read as a tab called "plants" once a plant follows it.
+ *
  * A space's tab may have a page of its own below it - the manual targets and
  * the alarm rules under Control - which is the third segment, so that a link
  * from an alert can open the rule it came from and a reload lands where it was.
@@ -75,6 +83,8 @@ export const router = createBrowserRouter([
       { path: 'me/notifications', element: <Notifications /> },
       { path: 'alerts', element: <Alerts /> },
       { path: 'grows/new', element: <NewGrowRoute /> },
+      { path: 'grows/:growId/measurements', element: <Measurements /> },
+      { path: 'grows/:growId/plants/:plantId', element: <PlantPage /> },
       { path: 'grows/:growId/:tab?', element: <GrowPage /> },
       { path: 'spaces/:spaceId/:tab?/:sub?', element: <SpacePage /> },
       { path: 'index.html', element: <Navigate to="/" replace /> },

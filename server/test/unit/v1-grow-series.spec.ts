@@ -186,8 +186,8 @@ const world = async (): Promise<void> => {
     ],
     placements: [{ id: 'placement-1', spaceId: TENT, startedAt: ORIGIN, endedAt: null, plantIds: null }],
     measurements: [
-      { key: 'height', name: 'Height', unit: 'cm', perPlant: true, target: null, chart: true },
-      { key: 'ec_in', name: 'EC · input', unit: 'mS/cm', perPlant: false, target: 1.6, chart: true },
+      { key: 'height', name: 'Height', unit: 'cm', perPlant: true, targetMin: null, targetMax: null, chart: true },
+      { key: 'ec_in', name: 'EC · input', unit: 'mS/cm', perPlant: false, targetMin: 1.6, targetMax: 1.6, chart: true },
     ],
   });
   await db.plants.create([

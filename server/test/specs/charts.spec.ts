@@ -31,7 +31,7 @@ const startAGrow = async () =>
         startedAt: new Date(Date.now() - 10 * 24 * 3600_000).toISOString(),
         plants: [{ strain: 'Amnesia', count: 2 }],
         spaceId: tent,
-        measurements: [{ key: 'height', name: 'Height', unit: 'cm', perPlant: true, target: null, chart: true }],
+        measurements: [{ key: 'height', name: 'Height', unit: 'cm', perPlant: true, targetMin: null, targetMax: null, chart: true }],
       })
       .expect(201)
   ).body;

@@ -16,19 +16,20 @@ export interface MigratedMeasurement {
   name: string;
   unit: string;
   perPlant: boolean;
-  target: number | null;
+  targetMin: number | null;
+  targetMax: number | null;
   chart: boolean;
 }
 
 export const MIGRATED_MEASUREMENTS: MigratedMeasurement[] = [
-  { key: 'lightMeasurement', name: 'Light measurement', unit: 'ppfd', perPlant: false, target: null, chart: true },
-  { key: 'distanceMeasurement', name: 'Distance measurement', unit: 'cm', perPlant: false, target: null, chart: false },
-  { key: 'tdsMeasurement', name: 'TDS measurement', unit: 'ppm', perPlant: false, target: null, chart: true },
-  { key: 'ecMeasurement', name: 'EC measurement', unit: 'mS/cm', perPlant: false, target: null, chart: true },
-  { key: 'outsideTemperatureMeasurement', name: 'Outside temperature', unit: '°C', perPlant: false, target: null, chart: true },
-  { key: 'phMeasurement', name: 'pH measurement', unit: '', perPlant: false, target: null, chart: true },
-  { key: 'co2FillingInitial', name: 'New cylinder filling', unit: 'g', perPlant: false, target: null, chart: false },
-  { key: 'co2FillingRest', name: 'Old cylinder rest', unit: 'g', perPlant: false, target: null, chart: false },
+  { key: 'lightMeasurement', name: 'Light measurement', unit: 'ppfd', perPlant: false, targetMin: null, targetMax: null, chart: true },
+  { key: 'distanceMeasurement', name: 'Distance measurement', unit: 'cm', perPlant: false, targetMin: null, targetMax: null, chart: false },
+  { key: 'tdsMeasurement', name: 'TDS measurement', unit: 'ppm', perPlant: false, targetMin: null, targetMax: null, chart: true },
+  { key: 'ecMeasurement', name: 'EC measurement', unit: 'mS/cm', perPlant: false, targetMin: null, targetMax: null, chart: true },
+  { key: 'outsideTemperatureMeasurement', name: 'Outside temperature', unit: '°C', perPlant: false, targetMin: null, targetMax: null, chart: true },
+  { key: 'phMeasurement', name: 'pH measurement', unit: '', perPlant: false, targetMin: null, targetMax: null, chart: true },
+  { key: 'co2FillingInitial', name: 'New cylinder filling', unit: 'g', perPlant: false, targetMin: null, targetMax: null, chart: false },
+  { key: 'co2FillingRest', name: 'Old cylinder rest', unit: 'g', perPlant: false, targetMin: null, targetMax: null, chart: false },
 ];
 
 const MEASUREMENT_KEYS = MIGRATED_MEASUREMENTS.map(measurement => measurement.key);

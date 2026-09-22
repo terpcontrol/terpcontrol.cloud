@@ -1652,7 +1652,14 @@ export interface MeasurementDefinition {
    * A reading is taken per plant rather than for the grow.
    */
   perPlant: boolean;
-  target: number | null;
+  /**
+   * The low end of the band aimed at; null where the target is open below.
+   */
+  targetMin: number | null;
+  /**
+   * The high end; null where it is open above. Both null is a measurement with no target.
+   */
+  targetMax: number | null;
   /**
    * Drawn as a series beside the climate charts.
    */

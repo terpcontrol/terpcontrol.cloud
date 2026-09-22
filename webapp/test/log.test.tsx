@@ -91,8 +91,8 @@ const grow: GrowListItem = {
     ],
   },
   measurements: [
-    { key: 'height', name: 'Height', unit: 'cm', perPlant: false, target: null, chart: true },
-    { key: 'ph', name: 'pH', unit: '', perPlant: false, target: 6.3, chart: true },
+    { key: 'height', name: 'Height', unit: 'cm', perPlant: false, targetMin: null, targetMax: null, chart: true },
+    { key: 'ph', name: 'pH', unit: '', perPlant: false, targetMin: 6.3, targetMax: 6.3, chart: true },
   ],
   visibility: 'private',
   slug: 'spring-run',

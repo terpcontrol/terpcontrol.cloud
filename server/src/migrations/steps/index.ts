@@ -14,6 +14,7 @@ import { media } from './012-media';
 import { retiredCollections } from './013-retired-collections';
 import { oneLinePerTask } from './014-one-line-per-task';
 import { warningsRouting } from './015-warnings-routing';
+import { measurementBand } from './016-measurement-band';
 
 /**
  * In order, and the order matters in three places:
@@ -44,4 +45,5 @@ export const MIGRATION_STEPS: MigrationStep[] = [
   retiredCollections,
   oneLinePerTask,
   warningsRouting,
+  measurementBand,
 ];

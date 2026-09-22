@@ -149,7 +149,7 @@ const world = async (): Promise<void> => {
       },
     ],
     placements: [{ id: 'placement-1', spaceId: TENT, startedAt: ORIGIN, endedAt: null, plantIds: null }],
-    measurements: [{ key: 'height', name: 'Height', unit: 'cm', perPlant: true, target: null, chart: true }],
+    measurements: [{ key: 'height', name: 'Height', unit: 'cm', perPlant: true, targetMin: null, targetMax: null, chart: true }],
   });
   await db.plants.create({ id: 'plant-1', growId: GROW, strain: 'Amnesia', label: 'Amnesia 1', status: 'active', createdAt: ORIGIN });
 

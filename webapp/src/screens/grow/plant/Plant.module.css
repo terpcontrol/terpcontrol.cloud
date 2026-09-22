@@ -1,0 +1,249 @@
+/* One plant's page: a title, a picture, four figures, its charts and its lines.
+   The same column every other page under the rail keeps. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.back {
+  display: inline-flex;
+  margin-left: calc(var(--space-2) * -1);
+  padding-top: 2px;
+  color: var(--ink);
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.subtitle {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.corner {
+  margin-left: auto;
+  padding-top: var(--space-1);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  text-align: right;
+}
+
+.hero {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  background: var(--card-2);
+}
+
+.hero img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.heroChip {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  padding: 0 var(--space-3);
+  height: var(--chip-height);
+  display: inline-flex;
+  align-items: center;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+}
+
+.figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin: 0;
+}
+
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.figure dt,
+.figure dd {
+  margin: 0;
+}
+
+.figureValue {
+  font-size: var(--text-figure);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.figureLabel {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+/* A measurement of this plant, against the band and its siblings. */
+.chartCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+.chartHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.chartName {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.chartUnit {
+  color: var(--muted);
+  font-weight: var(--weight-regular);
+}
+
+.legend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.mineMark,
+.otherMark {
+  display: inline-block;
+  width: 14px;
+  border-top: var(--rule-width) solid var(--ink);
+}
+
+.otherMark {
+  margin-left: var(--space-2);
+  border-top-style: dotted;
+  border-top-color: var(--muted);
+}
+
+.chartHead .label {
+  margin-left: auto;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: calc(var(--space-3) * -1);
+}
+
+.aside {
+  color: var(--label);
+  font-size: var(--text-xs);
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: var(--rule-solid);
+  font-size: var(--text-sm);
+}
+
+.line:last-child {
+  border-bottom: 0;
+}
+
+.lineDay {
+  flex: none;
+  width: 3.5em;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.lineKind {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  color: var(--muted);
+}
+
+.lineText {
+  flex: 1;
+  min-width: 0;
+}
+
+.lineReading {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.lineAuthor {
+  flex: none;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.submit {
+  width: 100%;
+}
+
+@media (min-width: 900px) {
+  .page {
+    max-width: 720px;
+    padding-top: 0;
+  }
+}

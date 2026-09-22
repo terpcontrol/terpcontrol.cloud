@@ -14,6 +14,7 @@ import type {
 } from '@fg2/shared-types/v1';
 import { correctEntry, diaryChanged, startPhase, useRecentEntries, writeEntry } from '@/api/entries';
 import { useGrow } from '@/api/grows';
+import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { dayOf, momentOn } from '@/ui/days';
 import { readingFigure } from '@/ui/entries';
 import { STAGES } from '@/ui/stages';
@@ -53,6 +54,18 @@ const FIELDS_SHOWN = 3;
 const LITRE_STEP = 0.5;
 
 export function EntryDetails({ kind, target, entry, onClose }: { kind: TileKind; target: LogTarget; entry: Entry | null; onClose: () => void }) {
+  // Measuring has a sheet of its own: it is the one tile whose fields are the
+  // grow's own definitions, and it is used with one hand in front of a plant.
+  // Correcting a line that already exists stays here, where every kind is
+  // corrected the same way - a keypad that rewrote a round of readings taken
+  // across several plants would be a second way to say what the line already
+  // says.
+  if (kind === 'measurement' && !entry) return <MeasureSheet target={target} onClose={onClose} />;
+
+  return <Details kind={kind} target={target} entry={entry} onClose={onClose} />;
+}
+
+function Details({ kind, target, entry, onClose }: { kind: TileKind; target: LogTarget; entry: Entry | null; onClose: () => void }) {
   const { t } = useTranslation();
   const { log } = useLog();
   const client = useQueryClient();
