@@ -11,7 +11,13 @@ import styles from './PageState.module.css';
  * Every refusal arrives as a problem document with a sentence in it written for
  * the person rather than for the client, so that sentence is what is shown; the
  * code behind it is for the screens that can offer a way out of one particular
- * refusal, and they read it themselves.
+ * refusal, and they read it themselves. A problem terse enough to carry no
+ * sentence still carries its title, which is a better answer than a stock one.
+ *
+ * Anything that is not a problem document never reached the server at all - a
+ * dropped connection, a request that timed out - and is said as that. It is a
+ * write that was refused rather than a page that would not load, so it offers
+ * the same tap again rather than a gesture.
  */
 export function Refused({ error }: { error: unknown }) {
   const { t } = useTranslation();
@@ -19,7 +25,7 @@ export function Refused({ error }: { error: unknown }) {
 
   return (
     <p className={ui.problem} role="alert">
-      {error instanceof ApiError ? error.problem.detail || error.problem.title : t('shell.loadFailed')}
+      {error instanceof ApiError ? error.problem.detail || error.problem.title : t('shell.unreachable')}
     </p>
   );
 }

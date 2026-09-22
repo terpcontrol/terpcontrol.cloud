@@ -295,11 +295,13 @@ const defaultsLabel = (defaults: unknown): string => {
     .join(' · ');
 };
 
+/** "today", "tomorrow", "in 3 d", or how overdue - the words the Tasks tab counts a task down in. */
 const dueLabel = (t: Translate, dueAt: string, now: DateTime): string => {
   const days = Math.floor(DateTime.fromISO(dueAt).startOf('day').diff(now.startOf('day'), 'days').days);
   if (days < 0) return t('home.strip.overdue', { count: -days });
   if (days === 0) return t('home.strip.today');
-  return t('home.strip.tomorrow');
+  if (days === 1) return t('home.strip.tomorrow');
+  return t('home.strip.inDays', { count: days });
 };
 
 /** A grow standing here: the card the home draws, plus since when it has stood here. */

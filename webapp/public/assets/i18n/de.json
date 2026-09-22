@@ -1264,7 +1264,8 @@
     },
     "updated": "aktualisiert vor {{age}}",
     "accountNote": "Du · Profil, Einstellungen",
-    "loadFailed": "Konnte nicht laden. Zum erneuten Versuch nach unten ziehen."
+    "loadFailed": "Konnte nicht laden. Bitte erneut versuchen.",
+    "unreachable": "Server nicht erreichbar. Bitte erneut versuchen."
   },
   "home": {
     "empty": {
@@ -1396,7 +1397,8 @@
       "tomorrow": "morgen",
       "overdue_one": "{{count}} Tag überfällig",
       "overdue_other": "{{count}} Tage überfällig",
-      "following": "Folge ich"
+      "following": "Folge ich",
+      "inDays": "in {{count}} T"
     }
   },
   "me": {
@@ -2354,7 +2356,7 @@
       "kind": "Art",
       "litres": "Liter pro Kanne · optional",
       "about": "Wofür",
-      "aboutFixed": "bleibt, wo sie angelegt wurde",
+      "aboutFixed": "später nicht mehr änderbar",
       "nowhere": "Noch nichts da, woran erinnert werden könnte · zuerst einen Grow starten oder einen Raum anlegen",
       "rhythm": "Rhythmus",
       "every": "alle N Tage",
@@ -2370,6 +2372,15 @@
       "delete": "Diese Erinnerung löschen",
       "deleteAsk": "Der Rhythmus endet, und seine offenen Aufgaben verschwinden mit ihm. Bereits geschriebene Tagebuchzeilen bleiben.",
       "deleteYes": "Ja, löschen",
+      "cancel": "Abbrechen",
+      "grows": "Grows",
+      "places": "Orte"
+    },
+    "confirm": {
+      "ask": "Das bestätigt den Schritt und startet {{name}}; es lässt sich nicht zurücknehmen.",
+      "askEnds": "Das bestätigt den letzten Schritt und schließt den Plan ab; es lässt sich nicht zurücknehmen.",
+      "askUnnamed": "Das bestätigt den Schritt und startet den nächsten; es lässt sich nicht zurücknehmen.",
+      "yes": "Schritt bestätigen",
       "cancel": "Abbrechen"
     }
   },
@@ -2538,8 +2549,11 @@
       "checkCam": "Cam prüfen"
     },
     "maintenance": {
-      "sent": "Angefragt. Das Gerät hält seine Alarme 15 min lang zurück, sobald es zuhört.",
-      "unheard": "Niemand hat zugehört: Das Gerät hat sich nicht gemeldet, der Befehl wartet auf es."
+      "sent": "Angefragt. Sobald es zuhört, stellt das Gerät Heizung, Entfeuchter und CO₂-Ventil ab und hält seine Alarme 15 min lang zurück.",
+      "unheard": "Niemand hat zugehört: Das Gerät hat sich nicht gemeldet, der Befehl wartet auf es.",
+      "ask": "Der Wartungsmodus stoppt Heizung, Entfeuchter und CO₂-Ventil fünfzehn Minuten lang und hält währenddessen jeden Alarm dieses Geräts ruhig.",
+      "yes": "Wartung starten",
+      "cancel": "Abbrechen"
     },
     "nothing": "Nichts ist schiefgegangen.",
     "note": "Eine Zeile pro Ereignis, nach Schwere gestuft, nie eine Push-Nachricht pro Sensor. Kritisches meldet sich, bis es behoben ist; Warnungen einmal; Infos bleiben nur in dieser Liste.",

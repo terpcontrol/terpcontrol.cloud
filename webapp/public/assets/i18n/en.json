@@ -1268,7 +1268,8 @@
     },
     "updated": "updated {{age}} ago",
     "accountNote": "You · profile, settings",
-    "loadFailed": "Could not load. Pull to try again."
+    "loadFailed": "Could not load. Try again.",
+    "unreachable": "Could not reach the server. Try again."
   },
   "home": {
     "empty": {
@@ -1400,7 +1401,8 @@
       "tomorrow": "tomorrow",
       "overdue_one": "{{count}} day overdue",
       "overdue_other": "{{count}} days overdue",
-      "following": "Following"
+      "following": "Following",
+      "inDays": "in {{count}} d"
     }
   },
   "me": {
@@ -2358,7 +2360,7 @@
       "kind": "Kind",
       "litres": "Litres per can · optional",
       "about": "About",
-      "aboutFixed": "stays where it was made",
+      "aboutFixed": "cannot be changed later",
       "nowhere": "Nothing to remind about yet · start a grow or add a space first",
       "rhythm": "Rhythm",
       "every": "every N days",
@@ -2374,6 +2376,15 @@
       "delete": "Delete this reminder",
       "deleteAsk": "The rhythm stops and its open tasks go with it. Diary lines already written stay.",
       "deleteYes": "Yes, delete it",
+      "cancel": "Cancel",
+      "grows": "Grows",
+      "places": "Places"
+    },
+    "confirm": {
+      "ask": "This confirms the step and starts {{name}}; it cannot be taken back.",
+      "askEnds": "This confirms the last step and completes the plan; it cannot be taken back.",
+      "askUnnamed": "This confirms the step and starts the next one; it cannot be taken back.",
+      "yes": "Confirm the step",
       "cancel": "Cancel"
     }
   },
@@ -2542,8 +2553,11 @@
       "checkCam": "Check cam"
     },
     "maintenance": {
-      "sent": "Asked. The device holds its alarms for 15 min once it hears.",
-      "unheard": "Nobody was listening: the device has not been heard from, so the command waits for it."
+      "sent": "Asked. Once it hears, the device parks its heater, dehumidifier and CO₂ valve and holds its alarms for 15 min.",
+      "unheard": "Nobody was listening: the device has not been heard from, so the command waits for it.",
+      "ask": "Maintenance mode stops the heater, the dehumidifier and the CO₂ valve for fifteen minutes, and quietens every alarm on this device while it lasts.",
+      "yes": "Start maintenance",
+      "cancel": "Cancel"
     },
     "nothing": "Nothing has gone wrong.",
     "note": "One line per event, graded by severity, never one push per sensor. Critical repeats until resolved; warnings once; info stays in this list only.",

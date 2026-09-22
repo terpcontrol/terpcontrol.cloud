@@ -475,16 +475,34 @@ describe('the inbox', () => {
     await waitFor(() => expect(sentTo('DELETE', '/v1/alarm-rules/rule-1/silence')).toHaveLength(1));
   });
 
-  it('asks the device for a quarter of an hour of maintenance', async () => {
+  // Maintenance parks the heater, the dehumidifier and the CO2 valve as well as
+  // the alarms, so the chip says what that means before anything is sent.
+  it('asks the device for a quarter of an hour of maintenance, after saying what it stops', async () => {
     server.alerts = [alert({})];
     server.rules = [rule()];
     draw();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Maintenance 15 min' }));
+    expect(sentTo('POST', '/v1/devices/device-1/commands')).toHaveLength(0);
+    expect(screen.getByText(/stops the heater, the dehumidifier and the CO₂ valve/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start maintenance' }));
 
     await waitFor(() => expect(sentTo('POST', '/v1/devices/device-1/commands')).toHaveLength(1));
     expect(sentTo('POST', '/v1/devices/device-1/commands')[0].body).toEqual({ kind: 'maintenance', forSeconds: 900 });
     expect(await screen.findByRole('status')).toHaveTextContent('Asked.');
+  });
+
+  it('sends nothing when the maintenance question is cancelled', async () => {
+    server.alerts = [alert({})];
+    server.rules = [rule()];
+    draw();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Maintenance 15 min' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByText(/stops the heater/)).not.toBeInTheDocument();
+    expect(sentTo('POST', '/v1/devices/device-1/commands')).toHaveLength(0);
   });
 
   it('shows what the server said when it refused, under the card', async () => {

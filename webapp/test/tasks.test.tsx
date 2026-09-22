@@ -121,6 +121,19 @@ const reminders = [
 const grows = [{ id: 'grow-1', name: 'Spring run', endedAt: null } as GrowListItem];
 const spaces = [{ id: 'space-1', name: 'Tent 1', kind: 'tent' } as Space];
 
+/** The controller in Tent 1, and the plan it is being run by: what a step's confirmation says it will start. */
+const devices = [{ id: 'device-1', spaceId: 'space-1' }];
+const plan = {
+  id: 'plan-1',
+  name: 'Spring run',
+  loop: false,
+  steps: [
+    { id: 'step-3', name: 'Late flower' },
+    { id: 'step-4', name: 'Flush' },
+  ],
+  state: { status: 'running', activeStepIndex: 0 },
+};
+
 const state = { waiting: [] as Task[], done: [] as Task[] };
 
 const answers = (path: string, query?: Record<string, unknown>) => {
@@ -128,6 +141,8 @@ const answers = (path: string, query?: Record<string, unknown>) => {
   if (path === '/reminders') return { items: reminders, nextCursor: null };
   if (path === '/grows') return { items: grows, nextCursor: null };
   if (path === '/spaces') return { items: spaces, nextCursor: null };
+  if (path === '/devices') return { items: devices, nextCursor: null };
+  if (path === '/devices/device-1/plan') return plan;
   throw new Error(`nothing mocked for ${path}`);
 };
 
@@ -274,15 +289,29 @@ describe('ticking one off', () => {
 
   // Confirming a step moves the plan on and sends the next step's targets to
   // the controller. Deleting the diary line would leave all of that standing,
-  // so the toast says what was confirmed and offers no way back.
-  it('confirms a plan step without offering to take it back', async () => {
+  // so the tick asks first, names what it will start, and offers no way back.
+  it('asks before it confirms a plan step, naming the step the plan will move to', async () => {
     await drawLoaded();
 
     fireEvent.click(screen.getByRole('button', { name: 'Done: Confirm: Late flower on day 36?' }));
+    expect(api.post).not.toHaveBeenCalled();
+    expect(await screen.findByText('This confirms the step and starts Flush; it cannot be taken back.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm the step' }));
 
     expect(api.post).toHaveBeenCalledWith('/tasks/plan%3Adevice-1%3A2/completions', {});
     expect(await screen.findByText('Step confirmed · Tent 1')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+  });
+
+  it('leaves the plan where it stands when the question is cancelled', async () => {
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Done: Confirm: Late flower on day 36?' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
+
+    expect(api.post).not.toHaveBeenCalled();
+    expect(screen.queryByText(/This confirms the step/)).not.toBeInTheDocument();
   });
 
   it('says why the server refused the tick, in the server´s own words, and offers it again', async () => {
@@ -338,6 +367,7 @@ describe('a reminder', () => {
 
     fireEvent.change(within(sheet).getByRole('textbox', { name: 'What to do' }), { target: { value: 'Water before the trip' } });
     fireEvent.change(within(sheet).getByLabelText('Litres per can · optional'), { target: { value: '4' } });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Spring run' }));
     fireEvent.click(within(sheet).getByRole('button', { name: 'once on' }));
     fireEvent.change(within(sheet).getByLabelText('Day'), { target: { value: '2026-09-20' } });
     fireEvent.click(within(sheet).getByRole('button', { name: 'Save' }));
@@ -370,10 +400,55 @@ describe('a reminder', () => {
     const sheet = screen.getByRole('dialog', { name: 'New reminder' });
 
     fireEvent.change(within(sheet).getByRole('textbox', { name: 'What to do' }), { target: { value: 'Flush' } });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Spring run' }));
     fireEvent.click(within(sheet).getByRole('button', { name: 'Save' }));
 
     expect(await within(sheet).findByRole('alert')).toHaveTextContent('Only whoever manages this tent can set a reminder for it.');
     expect(screen.getByRole('dialog', { name: 'New reminder' })).toBeInTheDocument();
+  });
+
+  // Where a reminder is about is the one thing that cannot be changed once it
+  // exists, so the screen never picks it: a label alone is not enough to save.
+  it('is about nothing until a place is chosen, and says that the choice is final', async () => {
+    await drawLoaded();
+    fireEvent.click(screen.getByRole('button', { name: '+ Reminder · every N days · once · chore' }));
+    const sheet = screen.getByRole('dialog', { name: 'New reminder' });
+
+    expect(within(sheet).getByRole('button', { name: 'Spring run' })).toHaveAttribute('aria-pressed', 'false');
+    expect(within(sheet).getByRole('button', { name: 'Tent 1' })).toHaveAttribute('aria-pressed', 'false');
+    expect(within(sheet).getByText('cannot be changed later')).toBeInTheDocument();
+
+    fireEvent.change(within(sheet).getByRole('textbox', { name: 'What to do' }), { target: { value: 'Flush' } });
+    expect(within(sheet).getByRole('button', { name: 'Save' })).toBeDisabled();
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Tent 1' }));
+    expect(within(sheet).getByRole('button', { name: 'Save' })).toBeEnabled();
+  });
+
+  // A grow and the tent it stands in are different arrangements, and one row of
+  // chips mixing them gives a reader no way to tell which is which.
+  it('asks for a grow and for a place under headings of their own', async () => {
+    await drawLoaded();
+    fireEvent.click(screen.getByRole('button', { name: '+ Reminder · every N days · once · chore' }));
+    const sheet = screen.getByRole('dialog', { name: 'New reminder' });
+
+    expect(within(within(sheet).getByRole('group', { name: 'Grows' })).getByRole('button', { name: 'Spring run' })).toBeInTheDocument();
+    expect(within(within(sheet).getByRole('group', { name: 'Places' })).getByRole('button', { name: 'Tent 1' })).toBeInTheDocument();
+  });
+
+  // A write that never reached the server is not a page that would not load,
+  // and the app has no gesture to offer for one either.
+  it('says the server could not be reached when the request never got there', async () => {
+    vi.mocked(api.post).mockRejectedValue(new TypeError('Failed to fetch'));
+    await drawLoaded();
+    fireEvent.click(screen.getByRole('button', { name: '+ Reminder · every N days · once · chore' }));
+    const sheet = screen.getByRole('dialog', { name: 'New reminder' });
+
+    fireEvent.change(within(sheet).getByRole('textbox', { name: 'What to do' }), { target: { value: 'Flush' } });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Tent 1' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save' }));
+
+    expect(await within(sheet).findByRole('alert')).toHaveTextContent('Could not reach the server. Try again.');
   });
 
   it('opens filled in from the card it made, and deletes only after asking', async () => {

@@ -1,0 +1,18 @@
+/* What the maintenance chip asks before it sends, drawn where the chip is so
+   the question stands in the place the tap was. Layout only - every colour is a
+   token. */
+
+.asking {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--rule-dashed);
+  border-radius: var(--radius);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

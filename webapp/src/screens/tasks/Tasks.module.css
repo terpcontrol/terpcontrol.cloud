@@ -74,11 +74,19 @@
   list-style: none;
 }
 
+/* A card is the one row, and under it the question a plan step's circle asks
+   before it is answered. */
 .card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+}
+
+.row {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
 }
 
 /* What was ticked off is dimmed like an old value: still there, still dated. */
@@ -184,6 +192,19 @@ button.none {
   padding: var(--space-2) 0;
 }
 
+/* Grows and places under ABOUT: each kind its own row, named in sentence case
+   so the block's own heading stays the only label above them. */
+.subgroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.subLabel {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
 .rhythm {
   display: flex;
   flex-wrap: wrap;
@@ -237,6 +258,17 @@ button.none {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+
+/* What ticking a plan step will do, set off from the row that asked it the way
+   the plan's own moves set their questions off. */
+.stepAsk {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--rule-dashed);
+  border-radius: var(--radius);
 }
 
 .submit {

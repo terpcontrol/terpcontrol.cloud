@@ -1,5 +1,5 @@
 import type { DateTime } from 'luxon';
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Alert, AlarmRule, Device, Me, Metric, OutputMetric } from '@fg2/shared-types/v1';
@@ -13,6 +13,7 @@ import { figure, targetFigure, UNIT } from '../home/units';
 import { isAhead } from '@/ui/age';
 import { clock, crossedBound, deliveryOf, lastedLabel, spanLabel } from './inbox';
 import type { AlertNames } from './names';
+import ask from './AlertCard.module.css';
 import styles from './Alerts.module.css';
 
 /** How long a silence from the card holds, and how long maintenance does. */
@@ -255,6 +256,12 @@ function TimelineChip({ spaceId }: { spaceId: string }) {
 /**
  * The chips on an open card. A camera that stopped delivering is looked at
  * rather than silenced, so it gets its own page instead of the rule's actions.
+ *
+ * Maintenance asks before it sends. It is not the quiet version of a silence:
+ * the device parks its heater, its dehumidifier and its CO2 valve as well, so
+ * for a quarter of an hour the tent is holding nothing, and a chip on a card
+ * that names a duration alone does not say that. The question stands in the
+ * place the tap was, the way the plan's own moves ask theirs.
  */
 function OpenChips({ alert, rule, now }: { alert: Alert; rule: AlarmRule | null; now: DateTime }) {
   const { t } = useTranslation();
@@ -263,6 +270,7 @@ function OpenChips({ alert, rule, now }: { alert: Alert; rule: AlarmRule | null;
   const silence = useSilenceAlarmRule(deviceId);
   const unsilence = useUnsilenceAlarmRule(deviceId);
   const maintenance = useDeviceCommand();
+  const [asking, setAsking] = useState(false);
   const silenced = rule !== null && isAhead(rule.silencedUntil, now);
   const busy = silence.isPending || unsilence.isPending || maintenance.isPending;
   const camera = alert.kind === 'camera_stale';
@@ -286,12 +294,7 @@ function OpenChips({ alert, rule, now }: { alert: Alert; rule: AlarmRule | null;
           </button>
         ) : null}
         {!camera && alert.deviceId ? (
-          <button
-            type="button"
-            className={ui.chip}
-            disabled={busy}
-            onClick={() => maintenance.mutate({ deviceId, command: { kind: 'maintenance', forSeconds: MAINTENANCE_SECONDS } })}
-          >
+          <button type="button" className={ui.chip} disabled={busy} aria-expanded={asking} onClick={() => setAsking(!asking)}>
             {t('alerts.action.maintenance')}
           </button>
         ) : null}
@@ -302,6 +305,30 @@ function OpenChips({ alert, rule, now }: { alert: Alert; rule: AlarmRule | null;
           </Link>
         ) : null}
       </div>
+
+      {asking ? (
+        <div className={ask.asking}>
+          <p className={ui.note}>{t('alerts.maintenance.ask')}</p>
+          <div className={ask.actions}>
+            <button
+              type="button"
+              className={`${ui.button} ${ui.primary}`}
+              disabled={busy}
+              onClick={() =>
+                maintenance.mutate(
+                  { deviceId, command: { kind: 'maintenance', forSeconds: MAINTENANCE_SECONDS } },
+                  { onSuccess: () => setAsking(false) },
+                )
+              }
+            >
+              {t('alerts.maintenance.yes')}
+            </button>
+            <button type="button" className={ui.button} onClick={() => setAsking(false)}>
+              {t('alerts.maintenance.cancel')}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {maintenance.data ? (
         <p className={`mono ${styles.answer}`} role="status">

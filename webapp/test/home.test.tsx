@@ -252,6 +252,37 @@ describe('what needs a person', () => {
     expect(within(dueList).getByRole('button', { name: 'Done' })).toBeInTheDocument();
   });
 
+  // A task three days out is three days out. Calling everything past today
+  // "tomorrow" turns a week's worth of chores into one that all look urgent.
+  it('counts a task down in days once it is further off than tomorrow', () => {
+    const later = card({
+      spaceId: 'space-5',
+      name: 'Veg room',
+      dueTasks: [
+        {
+          id: 'task-3',
+          kind: 'chore',
+          label: 'Check trichomes',
+          dueAt: NOW.plus({ days: 3 }).toISO()!,
+          subject: { type: 'space', id: 'space-5' },
+          assigneeId: null,
+        },
+        {
+          id: 'task-4',
+          kind: 'water',
+          label: 'Water',
+          dueAt: NOW.plus({ days: 1 }).toISO()!,
+          subject: { type: 'space', id: 'space-5' },
+          assigneeId: null,
+        },
+      ],
+    });
+    draw(<DueStrip cards={[later]} now={NOW} />);
+
+    expect(within(screen.getByText('Water').closest('li')!).getByText('tomorrow')).toBeInTheDocument();
+    expect(within(screen.getByText('Check trichomes').closest('li')!).getByText('in 3 d')).toBeInTheDocument();
+  });
+
   // The tent's own chores are the tent's, and stay the tent's while a grow
   // stands in it: naming one after the grow sends a person to the wrong place.
   it('names a chore after the place it is about rather than after the grow standing there', () => {

@@ -1,8 +1,11 @@
 import { UserRound } from 'lucide-react';
 import { DateTime } from 'luxon';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Reminder, SessionUser, Task } from '@fg2/shared-types/v1';
+import { useDevicePlan } from '@/api/plans';
 import { initials } from '@/app/shell/tabs';
+import { nextStepIndex } from '@/screens/control/plan-clock';
 import ui from '@/ui/ui.module.css';
 import { dayLabel, daysUntil, litresOf, type Translate } from './tasks';
 import styles from './Tasks.module.css';
@@ -13,6 +16,8 @@ interface TaskCardProps {
   name: string | null;
   /** The rhythm behind a reminder task, where it is known; null for a plan step. */
   reminder: Reminder | null;
+  /** The controller whose plan a step belongs to, where the device list has answered; null for anything else. */
+  deviceId: string | null;
   me: SessionUser | null;
   now: DateTime;
   /** The tick, or null for a session that may only look - which is then offered no circle to tap. */
@@ -32,29 +37,85 @@ interface TaskCardProps {
  * belongs on the line under it: on a phone the two together are wider than the
  * card, and it was the name that was cut off - the half that says which tent
  * is the half a person on the way to one needs.
+ *
+ * A plan step is the one task the circle asks about first. Ticking it moves the
+ * plan on and sends the next step's targets to the controller, which is a change
+ * to what the tent is holding rather than a diary line, and it cannot be taken
+ * back from here.
  */
-export function TaskCard({ task, name, reminder, me, now, onDone, onEdit }: TaskCardProps) {
+export function TaskCard({ task, name, reminder, deviceId, me, now, onDone, onEdit }: TaskCardProps) {
   const { t } = useTranslation();
+  const [asking, setAsking] = useState(false);
   const title = titleOf(t, task);
+  const asks = task.source === 'plan_step';
 
   return (
     <li className={`${ui.card} ${styles.card}`}>
-      {onDone ? (
-        <button type="button" className={styles.circle} aria-label={t('tasks.doneAria', { label: title })} onClick={onDone} />
-      ) : (
-        <span className={styles.circle} aria-hidden />
-      )}
-      <span className={styles.text}>
-        <span className={styles.cardTitle}>{title}</span>
-        <span className={`mono ${styles.meta}`}>{metaLine(t, task, name, reminder, now)}</span>
-      </span>
-      {onEdit ? (
-        <button type="button" className={`${ui.chip} ${styles.edit}`} onClick={onEdit}>
-          {t('tasks.edit')}
-        </button>
+      <div className={styles.row}>
+        {onDone ? (
+          <button
+            type="button"
+            className={styles.circle}
+            aria-label={t('tasks.doneAria', { label: title })}
+            aria-expanded={asks ? asking : undefined}
+            onClick={() => (asks ? setAsking(!asking) : onDone())}
+          />
+        ) : (
+          <span className={styles.circle} aria-hidden />
+        )}
+        <span className={styles.text}>
+          <span className={styles.cardTitle}>{title}</span>
+          <span className={`mono ${styles.meta}`}>{metaLine(t, task, name, reminder, now)}</span>
+        </span>
+        {onEdit ? (
+          <button type="button" className={`${ui.chip} ${styles.edit}`} onClick={onEdit}>
+            {t('tasks.edit')}
+          </button>
+        ) : null}
+        <Assignee task={task} me={me} />
+      </div>
+
+      {asking && onDone ? (
+        <div className={styles.stepAsk}>
+          {deviceId ? <NextStep deviceId={deviceId} /> : <p className={ui.note}>{t('tasks.confirm.askUnnamed')}</p>}
+          <div className={styles.actions}>
+            <button
+              type="button"
+              className={`${ui.button} ${ui.primary}`}
+              onClick={() => {
+                setAsking(false);
+                onDone();
+              }}
+            >
+              {t('tasks.confirm.yes')}
+            </button>
+            <button type="button" className={ui.button} onClick={() => setAsking(false)}>
+              {t('tasks.confirm.cancel')}
+            </button>
+          </div>
+        </div>
       ) : null}
-      <Assignee task={task} me={me} />
     </li>
+  );
+}
+
+/**
+ * What confirming the step will start, by name. The plan itself is read for it,
+ * because "the next one" is not what somebody standing in the tent needs to
+ * hear; a plan that has not answered yet, or a device that is running none, is
+ * said without the name rather than holding the question open until it does.
+ */
+function NextStep({ deviceId }: { deviceId: string }) {
+  const { t } = useTranslation();
+  const plan = useDevicePlan(deviceId);
+
+  if (!plan.data) return <p className={ui.note}>{t('tasks.confirm.askUnnamed')}</p>;
+
+  const next = nextStepIndex(plan.data);
+  const name = next === null ? null : (plan.data.steps[next]?.name ?? null);
+
+  return (
+    <p className={ui.note}>{next === null ? t('tasks.confirm.askEnds') : name ? t('tasks.confirm.ask', { name }) : t('tasks.confirm.askUnnamed')}</p>
   );
 }
 
@@ -70,22 +131,24 @@ export function DoneCard({ task, name, me, now }: { task: Task; name: string | n
 
   return (
     <li className={`${ui.card} ${styles.card}`} data-done="true">
-      <span className={styles.circle} data-filled="true" aria-hidden />
-      <span className={styles.text}>
-        <span className={styles.cardTitle}>{titleOf(t, task)}</span>
-        <span className={`mono ${styles.meta}`}>
-          {[
-            who,
-            name,
-            completion
-              ? `${dayLabel(t, completion.occurredAt, now, i18n.language)} ${DateTime.fromISO(completion.occurredAt).toFormat('HH:mm')}`
-              : null,
-          ]
-            .filter(part => part !== null)
-            .join(' · ')}
+      <div className={styles.row}>
+        <span className={styles.circle} data-filled="true" aria-hidden />
+        <span className={styles.text}>
+          <span className={styles.cardTitle}>{titleOf(t, task)}</span>
+          <span className={`mono ${styles.meta}`}>
+            {[
+              who,
+              name,
+              completion
+                ? `${dayLabel(t, completion.occurredAt, now, i18n.language)} ${DateTime.fromISO(completion.occurredAt).toFormat('HH:mm')}`
+                : null,
+            ]
+              .filter(part => part !== null)
+              .join(' · ')}
+          </span>
         </span>
-      </span>
-      <Assignee task={task} me={me} />
+        <Assignee task={task} me={me} />
+      </div>
     </li>
   );
 }

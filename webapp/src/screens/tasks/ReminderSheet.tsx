@@ -53,9 +53,9 @@ interface ReminderSheetProps {
  * same five questions, and the person who has just made one with the wrong
  * rhythm is exactly the person who needs to change it. What a reminder is
  * about cannot be changed afterwards - a rhythm moved to another tent is a
- * different arrangement, decided by whoever manages that tent - so the place
- * is shown fixed when editing, and the server would refuse a change to it
- * anyway.
+ * different arrangement, decided by whoever manages that tent - so the block
+ * says so while it is still open to be answered and shows the place fixed once
+ * it is not, and the server would refuse a change to it anyway.
  *
  * Deleting stops the rhythm and nothing else: the diary lines it produced stay,
  * because what was done does not stop having happened. It asks first, in the
@@ -66,7 +66,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
   const create = useCreateReminder();
   const update = useUpdateReminder(reminder?.id ?? '');
   const remove = useDeleteReminder(reminder?.id ?? '');
-  const [draft, setDraft] = useState<Draft>(() => draftOf(reminder, userId, grows, spaces));
+  const [draft, setDraft] = useState<Draft>(() => draftOf(reminder, userId));
   const [askingDelete, setAskingDelete] = useState(false);
 
   const change = (over: Partial<Draft>) => setDraft(current => ({ ...current, ...over }));
@@ -114,33 +114,24 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
           ) : null}
         </Block>
 
-        <Block label={t('tasks.sheet.about')} aside={reminder ? t('tasks.sheet.aboutFixed') : undefined}>
-          {grows.length === 0 && spaces.length === 0 ? (
-            <p className={ui.note}>{t('tasks.sheet.nowhere')}</p>
-          ) : (
-            <Choices label={t('tasks.sheet.about')}>
-              {grows.map(grow => (
-                <Choice
-                  key={grow.id}
-                  chosen={isSubject(draft.subject, 'grow', grow.id)}
-                  disabled={reminder !== null}
-                  onChoose={() => change({ subject: { type: 'grow', id: grow.id } })}
-                >
-                  {grow.name}
-                </Choice>
-              ))}
-              {spaces.map(space => (
-                <Choice
-                  key={space.id}
-                  chosen={isSubject(draft.subject, 'space', space.id)}
-                  disabled={reminder !== null}
-                  onChoose={() => change({ subject: { type: 'space', id: space.id } })}
-                >
-                  {space.name}
-                </Choice>
-              ))}
-            </Choices>
-          )}
+        <Block label={t('tasks.sheet.about')} aside={t('tasks.sheet.aboutFixed')}>
+          {grows.length === 0 && spaces.length === 0 ? <p className={ui.note}>{t('tasks.sheet.nowhere')}</p> : null}
+          <Group
+            label={t('tasks.sheet.grows')}
+            type="grow"
+            items={grows}
+            chosen={draft.subject}
+            fixed={reminder !== null}
+            onChoose={subject => change({ subject })}
+          />
+          <Group
+            label={t('tasks.sheet.places')}
+            type="space"
+            items={spaces}
+            chosen={draft.subject}
+            fixed={reminder !== null}
+            onChoose={subject => change({ subject })}
+          />
         </Block>
 
         <Block label={t('tasks.sheet.rhythm')}>
@@ -239,18 +230,61 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
   );
 }
 
+/**
+ * One kind of thing a reminder can be about, under its own heading. A grow and
+ * the tent it stands in are different arrangements, and a single row of chips
+ * mixing the two reads as one list of names with no way to tell which is which.
+ */
+function Group({
+  label,
+  type,
+  items,
+  chosen,
+  fixed,
+  onChoose,
+}: {
+  label: string;
+  type: GrowOrSpaceRef['type'];
+  items: { id: string; name: string }[];
+  chosen: GrowOrSpaceRef | null;
+  /** True once the reminder exists: what it is about is settled and the server would refuse a change to it. */
+  fixed: boolean;
+  onChoose: (subject: GrowOrSpaceRef) => void;
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <div className={styles.subgroup}>
+      <span className={styles.subLabel}>{label}</span>
+      <Choices label={label}>
+        {items.map(item => (
+          <Choice key={item.id} chosen={isSubject(chosen, type, item.id)} disabled={fixed} onChoose={() => onChoose({ type, id: item.id })}>
+            {item.name}
+          </Choice>
+        ))}
+      </Choices>
+    </div>
+  );
+}
+
 const isSubject = (subject: GrowOrSpaceRef | null, type: GrowOrSpaceRef['type'], id: string): boolean =>
   subject !== null && subject.type === type && subject.id === id;
 
-/** The reminder as it stands, or a new one pointed at the first grow - the place most reminders are about - and failing that the first space. */
-const draftOf = (reminder: Reminder | null, userId: string, grows: GrowListItem[], spaces: Space[]): Draft => {
+/**
+ * The reminder as it stands, or an empty one.
+ *
+ * A new reminder is about nothing until somebody says what it is about. What it
+ * is about is the one field that cannot be changed afterwards, so a place
+ * filled in by the screen would be a decision the screen made and nobody could
+ * undo; Save waits for it instead.
+ */
+const draftOf = (reminder: Reminder | null, userId: string): Draft => {
   const litres = reminder ? litresIn(reminder.defaults) : null;
-  const first: GrowOrSpaceRef | null = grows[0] ? { type: 'grow', id: grows[0].id } : spaces[0] ? { type: 'space', id: spaces[0].id } : null;
 
   return {
     label: reminder?.label ?? '',
     kind: reminder?.kind ?? 'water',
-    subject: reminder?.subject ?? first,
+    subject: reminder?.subject ?? null,
     rhythm: reminder?.onceAt ? 'once' : 'every',
     everyDays: reminder?.everyDays ?? DEFAULT_EVERY_DAYS,
     onceOn: reminder?.onceAt ? dayOf(new Date(reminder.onceAt)) : dayOf(new Date()),

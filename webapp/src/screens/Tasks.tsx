@@ -2,6 +2,7 @@ import type { DateTime } from 'luxon';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Reminder, Task } from '@fg2/shared-types/v1';
+import { useDevices } from '@/api/devices';
 import { useGrows } from '@/api/grows';
 import { useReminders } from '@/api/reminders';
 import { useSession } from '@/api/session';
@@ -138,6 +139,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
   const reminders = useReminders();
   const grows = useGrows();
   const spaces = useSpaces();
+  const devices = useDevices();
   const [scope, setScope] = useState<Scope>(storedScope);
   /** The sheet: closed, open on a new rhythm, or open on the one behind a card. */
   const [editing, setEditing] = useState<{ reminder: Reminder | null } | null>(null);
@@ -158,6 +160,19 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
   const ticked = newestFirst((done.data?.items ?? []).filter(task => scope === 'all' || isMine(task, user?.id ?? null)));
   const nameOf = (task: Task) => subjectName(task.subject, grows.data?.items, spaces.data?.items);
   const openGrows = (grows.data?.items ?? []).filter(grow => grow.endedAt === null);
+
+  /**
+   * The controller whose plan a step belongs to, so that the card can say what
+   * confirming it will start. The task names the space, and the plan is the
+   * device's, so the device standing there is the one to ask; where a place
+   * holds more than one, the card falls back to naming no step rather than the
+   * screen guessing which of them is being run by a plan.
+   */
+  const deviceOf = (task: Task): string | null => {
+    if (task.source !== 'plan_step' || task.subject.type !== 'space') return null;
+    const here = (devices.data?.items ?? []).filter(device => device.spaceId === task.subject.id);
+    return here.length === 1 ? here[0].id : null;
+  };
 
   /**
    * What the toast says the tick wrote: the line, not the task - "Watered ·
@@ -207,6 +222,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
                     task={task}
                     name={nameOf(task)}
                     reminder={reminder}
+                    deviceId={deviceOf(task)}
                     me={user}
                     now={now}
                     onDone={mayLog ? () => tick(task) : null}

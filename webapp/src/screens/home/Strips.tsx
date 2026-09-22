@@ -81,12 +81,13 @@ const placeOf = (task: DueTask, card: HomeSpaceCard): string => (task.subject.ty
 const doneLabel = (t: Translate, task: DueTask, card: HomeSpaceCard): string =>
   `${t(`home.entryKind.${task.kind === 'chore' || task.kind === 'custom' ? 'note' : task.kind}`)} · ${placeOf(task, card)}`;
 
-/** "today", "tomorrow", or how overdue. */
+/** "today", "tomorrow", "in 3 d", or how overdue - the words the Tasks tab counts a task down in. */
 const dueLabel = (t: Translate, task: DueTask, now: DateTime): string => {
   const days = Math.floor(DateTime.fromISO(task.dueAt).startOf('day').diff(now.startOf('day'), 'days').days);
   if (days < 0) return t('home.strip.overdue', { count: -days });
   if (days === 0) return t('home.strip.today');
-  return t('home.strip.tomorrow');
+  if (days === 1) return t('home.strip.tomorrow');
+  return t('home.strip.inDays', { count: days });
 };
 
 /**
