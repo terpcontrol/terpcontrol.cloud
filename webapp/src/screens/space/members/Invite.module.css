@@ -1,0 +1,192 @@
+/* The invite block on the Members tab and the sheet it opens. Every colour,
+   radius and step is a token; what is here is the arrangement the two boards
+   draw and nothing else. */
+
+/* ------------------------------------------------------------------ block */
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.addressRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The address takes what is left and wraps rather than pushing Copy off the
+   card: a code is eight characters and the host is as long as it is. */
+.address {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+/* What the link is worth, read off the row, and the two things that can be
+   done about it. One line where it fits; the chips drop under it on a phone. */
+.termsRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.terms {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.termsActions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.none {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.handleRow {
+  display: block;
+}
+
+.handleInput {
+  font-size: var(--text-sm);
+}
+
+/* ------------------------------------------------------------------ sheet */
+
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+}
+
+.roles {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* A role is a card to choose, as the board draws it: the name and what it
+   comes to. The chosen one carries the ink rule the board gives it, as a
+   second rule inside the first rather than a heavier border that would move
+   the text. */
+.role {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  color: var(--ink);
+  text-align: left;
+}
+
+.role[aria-checked='true'] {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 var(--rule-width) var(--ink);
+}
+
+.roleName {
+  font-weight: var(--weight-semibold);
+}
+
+.roleNote {
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+  color: var(--muted);
+}
+
+.sentence {
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+  color: var(--muted);
+}
+
+/* Link · Code · QR: the same filled segment the scope switch uses, because it
+   chooses what the card below is showing rather than which part of a page. */
+.ways {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: var(--space-1);
+  background: var(--card-2);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.way {
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.way[aria-selected='true'] {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* The code alone, in the largest mono the app has: it is read aloud or shown
+   across a table, and eight characters at figure size fit any phone. */
+.code {
+  font-size: var(--text-figure);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label);
+  overflow-wrap: anywhere;
+}
+
+.hint {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.made {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}

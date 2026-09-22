@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import type { SpaceKind } from '@fg2/shared-types/v1';
 import { useMembers } from '@/api/members';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
@@ -30,7 +31,7 @@ import styles from './Members.module.css';
  * leave. The demo owns nothing and is told so rather than shown a list the
  * server will not answer.
  */
-export function Members({ spaceId, name, roomId }: { spaceId: string; name: string; roomId: string | null }) {
+export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name: string; kind: SpaceKind; roomId: string | null }) {
   const { t } = useTranslation();
   const now = useNow();
   const { user } = useSession();
@@ -77,7 +78,7 @@ export function Members({ spaceId, name, roomId }: { spaceId: string; name: stri
       ) : null}
       <p className={ui.note}>{t('space.members.oneModel')}</p>
 
-      {isOwner ? <InviteBlock spaceId={spaceId} /> : null}
+      {isOwner ? <InviteBlock spaceId={spaceId} spaceName={name} kind={kind} /> : null}
 
       <header className={styles.peopleHead}>
         <span className="label">{t('space.members.peopleIn', { name })}</span>

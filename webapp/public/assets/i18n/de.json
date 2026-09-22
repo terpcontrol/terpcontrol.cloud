@@ -2569,7 +2569,6 @@
       "handleLabel": "Ein Name, mit dem du schon gemeinsam growst",
       "handlePlaceholder": "oder ein Name, mit dem du growst · @",
       "add": "Hinzufügen",
-      "linkTerms": "Link gilt {{days}} Tage · neue Leute kommen als „darf loggen“ herein · jederzeit zurückziehbar",
       "peopleIn": "Leute in {{name}}",
       "viaTheRoom_one": "{{count}} über den Raum",
       "viaTheRoom_other": "{{count}} über den Raum",
@@ -2640,6 +2639,54 @@
           "title": "Diese Einladung führt nirgendwohin",
           "body": "Ein Link gilt sieben Tage und kann jederzeit gestoppt werden. Wer ihn dir geschickt hat, kann dir einen neuen schicken."
         }
+      },
+      "newLink": "Neuer Link",
+      "links": {
+        "role": "kommt als „{{role}}“ herein",
+        "until": "bis {{date}}",
+        "never": "läuft nie ab",
+        "used_one": "{{count}}× benutzt",
+        "used_other": "{{count}}× benutzt",
+        "revokeAnyTime": "jederzeit zurückziehbar",
+        "show": "Code · QR",
+        "showOf": "{{code}} als Code und QR zeigen",
+        "revokeOf": "Den Link {{code}} zurückziehen"
+      },
+      "sheet": {
+        "title": "Einladen in {{name}}",
+        "role": "Rolle",
+        "roleNote": {
+          "can_log": "sieht das Zelt und seine Grows, loggt Einträge, hakt Aufgaben ab",
+          "can_manage": "darf loggen, dazu Sollwerte, Plan und Alarme"
+        },
+        "valid": "Gültig",
+        "validity": {
+          "day": "24 h",
+          "week": "7 Tage",
+          "never": "bis zum Zurückziehen"
+        },
+        "needAccount": "Sie brauchen ein eigenes Konto (E-Mail und Passwort, kein Name nötig).",
+        "sees": "Sie sehen: {{what}}.",
+        "seesRoom": "Sie sehen: jedes Zelt in {{name}}, was darin wächst, und die Kameras.",
+        "whatGrows": "was darin wächst",
+        "theCams": "die Kameras",
+        "doesNotSee": "Sie sehen nicht: deine anderen Zelte, deine privaten Grows.",
+        "make": "Link erzeugen",
+        "making": "Erzeugt den Link …",
+        "waysLabel": "Wie du ihn weitergibst",
+        "ways": {
+          "link": "Link",
+          "code": "Code",
+          "qr": "QR"
+        },
+        "codeHint": "Eingeben unter {{address}}",
+        "copyCode": "Code kopieren",
+        "qrLabel": "QR-Code für {{address}}",
+        "qrHint": "Mit der Handykamera scannen.",
+        "share": "Link teilen",
+        "copyLink": "Link kopieren",
+        "copyFailed": "Kopieren ging nicht · von Hand kopieren",
+        "done": "Fertig"
       }
     }
   },

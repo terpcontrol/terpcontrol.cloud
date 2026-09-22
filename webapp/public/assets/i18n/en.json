@@ -2573,7 +2573,6 @@
       "handleLabel": "A username you already grow with",
       "handlePlaceholder": "or a username you already grow with · @",
       "add": "Add",
-      "linkTerms": "Link valid {{days}} days · new people join as “can log” · revoke any time",
       "peopleIn": "People in {{name}}",
       "viaTheRoom_one": "{{count}} via the room",
       "viaTheRoom_other": "{{count}} via the room",
@@ -2644,6 +2643,54 @@
           "title": "This invitation leads nowhere",
           "body": "A link is good for seven days and can be stopped at any time. Ask whoever sent it for a new one."
         }
+      },
+      "newLink": "New link",
+      "links": {
+        "role": "joins as “{{role}}”",
+        "until": "until {{date}}",
+        "never": "never expires",
+        "used_one": "used {{count}}×",
+        "used_other": "used {{count}}×",
+        "revokeAnyTime": "revoke any time",
+        "show": "Code · QR",
+        "showOf": "Show {{code}} as a code and a QR",
+        "revokeOf": "Revoke the link {{code}}"
+      },
+      "sheet": {
+        "title": "Invite to {{name}}",
+        "role": "Role",
+        "roleNote": {
+          "can_log": "sees the tent and its grows, logs entries, ticks tasks",
+          "can_manage": "can log, plus targets, plan and alarms"
+        },
+        "valid": "Valid",
+        "validity": {
+          "day": "24 h",
+          "week": "7 days",
+          "never": "until revoked"
+        },
+        "needAccount": "They need their own account (e-mail and password, no name required).",
+        "sees": "They see: {{what}}.",
+        "seesRoom": "They see: every tent in {{name}}, what is growing there, and the cams.",
+        "whatGrows": "what is growing in it",
+        "theCams": "the cams",
+        "doesNotSee": "They do not see: your other tents, your private grows.",
+        "make": "Make the link",
+        "making": "Making the link …",
+        "waysLabel": "How to hand it over",
+        "ways": {
+          "link": "Link",
+          "code": "Code",
+          "qr": "QR"
+        },
+        "codeHint": "They type it at {{address}}",
+        "copyCode": "Copy the code",
+        "qrLabel": "QR code for {{address}}",
+        "qrHint": "Scan it with the phone’s camera.",
+        "share": "Share the link",
+        "copyLink": "Copy the link",
+        "copyFailed": "Could not copy · copy it by hand",
+        "done": "Done"
       }
     }
   },

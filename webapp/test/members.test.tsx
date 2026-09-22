@@ -159,7 +159,7 @@ const wrapped = (node: ReactNode, at = '/') =>
     </QueryClientProvider>,
   );
 
-const drawTab = (roomId: string | null = 'room-1') => wrapped(<Members spaceId="space-1" name="Blue Dream tent" roomId={roomId} />);
+const drawTab = (roomId: string | null = 'room-1') => wrapped(<Members spaceId="space-1" name="Blue Dream tent" kind="tent" roomId={roomId} />);
 
 const drawnPeople = async () => {
   drawTab();
@@ -323,18 +323,19 @@ describe('the Members tab as its owner', () => {
     expect(within(rows[2]).getByText('can manage')).toBeInTheDocument();
   });
 
-  it('makes a link that lives seven days and lets somebody in to log, and shows the address afterwards', async () => {
+  it('makes a link that lives seven days and lets somebody in to log unless told otherwise, and shows the address afterwards', async () => {
     drawTab();
     fireEvent.click(await screen.findByRole('button', { name: 'Make a link' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Make the link' }));
 
     await waitFor(() => expect(server.wrote).toHaveLength(1));
     const body = server.wrote[0].body as { role: string; expiresAt: string };
     expect(body.role).toBe('can_log');
     expect(DateTime.fromISO(body.expiresAt).diff(NOW, 'days').days).toBeCloseTo(7, 1);
 
-    await waitFor(() => expect(screen.getByText(/\/join\/K7QZ4M2P$/)).toBeInTheDocument());
-    expect(screen.getByRole('button', { name: 'Copy the invite link' })).toBeInTheDocument();
-    expect(screen.getByText(/Link valid 7 days · new people join as/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText(/\/join\/K7QZ4M2P$/).length).toBeGreaterThan(0));
+    expect(screen.getAllByRole('button', { name: 'Copy the invite link' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/joins as “can log” · until/).length).toBeGreaterThan(0);
   });
 
   it('adds by handle without the sigil people type out of habit, and empties the field', async () => {

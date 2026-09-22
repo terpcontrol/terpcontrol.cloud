@@ -90,7 +90,7 @@ function SpaceScreen({ spaceId, tab, sub }: { spaceId: string; tab: SpaceTab; su
       ) : tab === 'control' ? (
         <Control spaceId={spaceId} sub={sub} />
       ) : (
-        <Members spaceId={spaceId} name={current.name} roomId={current.roomId} />
+        <Members spaceId={spaceId} name={current.name} kind={current.kind} roomId={current.roomId} />
       )}
     </section>
   );

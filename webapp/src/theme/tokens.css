@@ -105,6 +105,13 @@
   --age-live: 1;
   --age-stale: 0.75;
   --age-offline: 0.45;
+
+  /* A QR code is printed, not themed: a phone's camera wants dark modules on
+     a light ground, and an inverted code is read by some scanners and not by
+     others. So these two are the light mode's ink and card, and the dark mode
+     below deliberately leaves them alone. */
+  --qr-ink: #1a1d29;
+  --qr-paper: #ffffff;
 }
 
 :root[data-theme='dark'] {

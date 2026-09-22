@@ -39,45 +39,7 @@
   color: var(--bg);
 }
 
-.invite {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-}
-
-.linkRow {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-/* The address takes what is left and wraps rather than pushing Copy off the
-   card: a code is eight characters and the host is as long as it is. */
-.link {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--text-sm);
-  overflow-wrap: anywhere;
-}
-
-/* What the link is worth, and the one thing that stops it. They are one line
-   because the sentence already says "revoke any time" and a button further up
-   would read as the way to make one. */
-.terms {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.handleRow {
-  display: block;
-}
-
-.handleInput {
-  font-size: var(--text-sm);
-}
+/* The invite block and its sheet keep their own module, `Invite.module.css`. */
 
 .peopleHead {
   display: flex;
