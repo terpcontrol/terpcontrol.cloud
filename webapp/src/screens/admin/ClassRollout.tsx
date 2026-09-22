@@ -81,7 +81,12 @@ export function ClassRollout({
 
   const ours = firmwares.filter(build => build.classId === deviceClass.id);
   const stands = channelStands(deviceClass, fleetClass, devices, firmwares, now);
-  const size = classSize(deviceClass, devices, now);
+  // The class's real size, which is the install's figure and not the page of
+  // devices this browser happens to hold: a stage that told an administrator it
+  // reached "16 of 16" while the heading beside it said 24 is the sort of
+  // arithmetic somebody would act on and then find they had not.
+  const loaded = classSize(deviceClass, devices, now);
+  const size = { total: fleetClass?.total ?? loaded.total, online: fleetClass?.online ?? loaded.online };
   const changes = changesOf(deviceClass, draft);
   const dirty = Object.keys(changes).length > 0;
 
@@ -133,7 +138,7 @@ export function ClassRollout({
       <div className={styles.blockHead}>
         <span className={styles.blockName}>{deviceClass.name}</span>
         <span className={`mono ${styles.consequence}`}>
-          {`${t('admin.count.devices', { count: fleetClass?.total ?? size.total })} · ${t('admin.count.online', { count: fleetClass?.online ?? size.online })}`}
+          {`${t('admin.count.devices', { count: size.total })} · ${t('admin.count.online', { count: size.online })}`}
           {deviceClass.description ? ` · ${deviceClass.description}` : ''}
         </span>
       </div>

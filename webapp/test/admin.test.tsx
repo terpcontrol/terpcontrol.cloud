@@ -468,6 +468,20 @@ describe('the fleet table', () => {
     expect(screen.getByText(/No further device of this class is told to update/)).toBeInTheDocument();
     expect(screen.getByText(/Staged at 100 %, which is about 3 of 3 devices/)).toBeInTheDocument();
   });
+
+  /**
+   * The table is paged and the class is not: a stage counted off the devices
+   * this browser happens to hold would have told an administrator it reached
+   * sixteen while the heading beside it said twenty-four, which is the sort of
+   * arithmetic somebody acts on and then finds they had not.
+   */
+  it('counts the stage against the whole class, not the page of devices loaded', async () => {
+    server.fleet = { ...FLEET, classes: [{ ...FLEET.classes[0], total: 24, online: 11 }] };
+    await drawFleet();
+
+    expect(screen.getByText(/24 devices · 11 online/)).toBeInTheDocument();
+    expect(screen.getByText(/Staged at 100 %, which is about 24 of 24 devices/)).toBeInTheDocument();
+  });
 });
 
 describe('the health card', () => {
