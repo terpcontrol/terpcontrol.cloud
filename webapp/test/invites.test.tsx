@@ -63,7 +63,7 @@ const invite = (over: Partial<Invite>): Invite => ({
   ...over,
 });
 
-const NOBODY_ELSE: MembershipPage = { items: [], nextCursor: null, people: [], room: null };
+const NOBODY_ELSE: MembershipPage = { items: [], nextCursor: null, people: [], room: null, activity: [] };
 
 /** What the server holds, and what it says to a write. Every body that arrives is kept so a test can read it. */
 const server = {

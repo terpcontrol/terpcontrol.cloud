@@ -15,13 +15,11 @@ import type { MemberRole, Membership, MembershipPage, Person } from '@fg2/shared
  */
 
 /**
- * When each person last wrote in the space. The server adds this beside the
- * rows; an answer from before it did carries none, and the row then says
- * nothing about it rather than guessing.
+ * When each person last wrote in the space, as the server answers it beside the
+ * rows. It is sparse on purpose: somebody who has never written is simply not
+ * in it, which is a different thing from somebody whose last entry is old.
  */
-export type Activity = { userId: string; lastEntryAt: string };
-
-export type MembershipAnswer = MembershipPage & { activity?: Activity[] };
+export type Activity = MembershipPage['activity'][number];
 
 /**
  * One person, however many rows carry them: the tent's own row, the room's, and
@@ -76,9 +74,6 @@ export const guestsOf = (page: MembershipPage, spaceId: string): Guest[] => {
 export const decidesHere = (guest: Guest): boolean =>
   guest.here !== null && (guest.viaRoom === null || RANK[guest.viaRoom.role] <= RANK[guest.here.role]);
 
-/**
- * When a person last wrote here: an instant, `null` for somebody who never has,
- * and `undefined` where the answer does not say either way.
- */
-export const lastLoggedOf = (page: MembershipAnswer, userId: string): string | null | undefined =>
-  page.activity === undefined ? undefined : (page.activity.find(one => one.userId === userId)?.lastEntryAt ?? null);
+/** When a person last wrote here, or `null` for somebody who never has. */
+export const lastLoggedOf = (page: MembershipPage, userId: string): string | null =>
+  page.activity.find(one => one.userId === userId)?.lastEntryAt ?? null;

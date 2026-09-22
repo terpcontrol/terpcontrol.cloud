@@ -9,10 +9,10 @@ import type { ReactNode } from 'react';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Invite, InvitePreview, Membership, Problem, Space } from '@fg2/shared-types/v1';
+import type { Invite, InvitePreview, Membership, MembershipPage, Problem, Space } from '@fg2/shared-types/v1';
 import { JoinRoute } from '@/screens/join/JoinRoute';
 import { Members } from '@/screens/space/members/Members';
-import { decidesHere, guestsOf, peopleCount, viaRoomCount, type MembershipAnswer } from '@/screens/space/members/people';
+import { decidesHere, guestsOf, peopleCount, viaRoomCount } from '@/screens/space/members/people';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 
 /**
@@ -87,7 +87,7 @@ const invite = (over: Partial<Invite> = {}): Invite => ({
   ...over,
 });
 
-const MEMBERS: MembershipAnswer = {
+const MEMBERS: MembershipPage = {
   items: [membership({}), membership({ id: 'membership-2', spaceId: 'room-1', userId: 'user-3', role: 'can_manage', inviteId: null })],
   nextCursor: null,
   people: [
@@ -100,7 +100,7 @@ const MEMBERS: MembershipAnswer = {
 };
 
 /** Lea twice: on the room and on the tent, with either the stronger role. */
-const BOTH_WAYS = (roomRole: 'can_log' | 'can_manage', tentRole: 'can_log' | 'can_manage'): MembershipAnswer => ({
+const BOTH_WAYS = (roomRole: 'can_log' | 'can_manage', tentRole: 'can_log' | 'can_manage'): MembershipPage => ({
   ...MEMBERS,
   items: [membership({ role: tentRole }), membership({ id: 'membership-2', spaceId: 'room-1', role: roomRole, inviteId: null })],
   people: [{ id: 'user-2', handle: 'lea' }],
@@ -111,7 +111,7 @@ const refusal = (code: string, detail: string, status = 409): Problem => ({ stat
 /** What the server holds, and what it says to a write. Every body that arrives is kept so a test can read it. */
 const server = {
   spaces: [] as Space[],
-  members: MEMBERS as MembershipAnswer,
+  members: MEMBERS,
   invites: [] as Invite[],
   preview: {} as InvitePreview,
   refuse: null as Problem | null,
@@ -246,12 +246,12 @@ describe('the Members tab as its owner', () => {
     expect(within(rows[2]).getByText(/nothing logged yet/)).toBeInTheDocument();
   });
 
-  it('says nothing about last writing while the answer does not carry it', async () => {
-    server.members = { ...MEMBERS, activity: undefined };
+  it('says somebody has written nothing rather than leaving the line at how they got here', async () => {
+    server.members = { ...MEMBERS, activity: [] };
     const rows = await drawnPeople();
 
-    expect(within(rows[1]).queryByText(/logged/)).not.toBeInTheDocument();
-    expect(within(rows[1]).getByText('joined via link')).toBeInTheDocument();
+    expect(within(rows[1]).getByText(/nothing logged yet/)).toBeInTheDocument();
+    expect(within(rows[1]).getByText(/joined via link/)).toBeInTheDocument();
   });
 
   it('draws somebody who is in the room and in the tent once, with the stronger role and both ways in', async () => {
