@@ -98,11 +98,11 @@ export function ClassRollout({
         ? t('admin.firmware.willPoint', {
             channel: t(`devices.channel.${channel}`),
             build: nameOf(draft[channel]),
-            devices: stand.devices,
+            devices: t('admin.count.devices', { count: stand.devices }),
             reach: staged(draft.percent, stand.devices),
             concurrent: draft.concurrentUpdates,
           })
-        : t('admin.firmware.willUnpoint', { channel: t(`devices.channel.${channel}`), devices: stand.devices }),
+        : t('admin.firmware.willUnpoint', { channel: t(`devices.channel.${channel}`), devices: t('admin.count.devices', { count: stand.devices }) }),
     );
   }
   if (deviceClass.rollout.percent !== draft.percent) {
@@ -112,7 +112,7 @@ export function ClassRollout({
         to: draft.percent,
         before: staged(deviceClass.rollout.percent, size.total),
         after: staged(draft.percent, size.total),
-        total: size.total,
+        ofDevices: t('admin.count.ofDevices', { count: size.total }),
       }),
     );
   }
@@ -120,7 +120,12 @@ export function ClassRollout({
     consequences.push(draft.paused ? t('admin.rollout.pauseWhat') : t('admin.rollout.resumeWhat'));
   }
   if (deviceClass.concurrentUpdates !== draft.concurrentUpdates || deviceClass.maxFailures !== draft.maxFailures) {
-    consequences.push(t('admin.firmware.willPace', { concurrent: draft.concurrentUpdates, failures: draft.maxFailures }));
+    consequences.push(
+      t('admin.firmware.willPace', {
+        devices: t('admin.count.devices', { count: draft.concurrentUpdates }),
+        failures: t('admin.count.failedUpdates', { count: draft.maxFailures }),
+      }),
+    );
   }
 
   return (
@@ -128,7 +133,7 @@ export function ClassRollout({
       <div className={styles.blockHead}>
         <span className={styles.blockName}>{deviceClass.name}</span>
         <span className={`mono ${styles.consequence}`}>
-          {t('admin.rollout.size', { total: fleetClass?.total ?? size.total, online: fleetClass?.online ?? size.online })}
+          {`${t('admin.count.devices', { count: fleetClass?.total ?? size.total })} · ${t('admin.count.online', { count: fleetClass?.online ?? size.online })}`}
           {deviceClass.description ? ` · ${deviceClass.description}` : ''}
         </span>
       </div>
@@ -139,7 +144,7 @@ export function ClassRollout({
         return (
           <label key={channel} className={styles.field}>
             <span className="label">
-              {t(`devices.channel.${channel}`)} · {t('admin.firmware.onChannel', { devices: stand.devices, online: stand.online })}
+              {`${t(`devices.channel.${channel}`)} · ${t('admin.count.devices', { count: stand.devices })} · ${t('admin.count.online', { count: stand.online })}`}
             </span>
             <select
               className={`mono ${ui.input} ${styles.menu}`}
@@ -173,7 +178,11 @@ export function ClassRollout({
             onChange={event => setDraft({ ...draft, percent: Number(event.target.value) })}
           />
           <span className={`mono ${styles.consequence}`}>
-            {t('admin.firmware.stageReach', { percent: draft.percent, reach: staged(draft.percent, size.total), total: size.total })}
+            {t('admin.firmware.stageReach', {
+              percent: draft.percent,
+              reach: staged(draft.percent, size.total),
+              ofDevices: t('admin.count.ofDevices', { count: size.total }),
+            })}
           </span>
         </span>
       </label>

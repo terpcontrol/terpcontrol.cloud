@@ -93,7 +93,9 @@ export function Fleet() {
     <section className={styles.page}>
       <header className={styles.head}>
         <h1 className={styles.title}>{t('admin.fleet.title')}</h1>
-        <span className={`mono ${styles.counts}`}>{t('admin.fleet.counts', { devices: counted, online })}</span>
+        <span className={`mono ${styles.counts}`}>
+          {`${t('admin.count.devices', { count: counted })} · ${t('admin.count.online', { count: online })}`}
+        </span>
         <Filters filter={filter} onChange={setFilter} types={typesOf(rows)} />
       </header>
 

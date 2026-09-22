@@ -164,6 +164,10 @@ const CAMERAS: Camera[] = [];
 const server = {
   wrote: [] as { method: string; path: string; body: unknown }[],
   asked: [] as string[],
+  // What the accounts and fleet routes answer; a test that needs a different
+  // install swaps these before drawing.
+  people: PEOPLE,
+  fleet: FLEET,
 };
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -181,9 +185,9 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   }
 
   server.asked.push(path);
-  if (path.startsWith('/admin/fleet')) return json(FLEET);
+  if (path.startsWith('/admin/fleet')) return json(server.fleet);
   if (path.startsWith('/admin/devices')) return json({ items: DEVICES, nextCursor: null });
-  if (path.startsWith('/admin/users')) return json({ items: PEOPLE, nextCursor: null });
+  if (path.startsWith('/admin/users')) return json({ items: server.people, nextCursor: null });
   if (path.startsWith('/admin/device-classes')) return json({ items: [CLASS], nextCursor: null });
   if (path.startsWith('/admin/firmwares')) return json({ items: [BUILD], nextCursor: null });
   if (path.startsWith('/cameras')) return json({ items: CAMERAS, nextCursor: null });
@@ -213,6 +217,8 @@ beforeEach(() => {
   session.who = 'admin';
   server.wrote = [];
   server.asked = [];
+  server.people = PEOPLE;
+  server.fleet = FLEET;
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -442,6 +448,30 @@ describe('the accounts', () => {
 
     expect(screen.getByText('mo@example.invalid')).toBeInTheDocument();
     expect(server.asked.some(path => path.includes('@') || path.includes('example'))).toBe(false);
+  });
+});
+
+describe('the counts', () => {
+  it('puts one device and one admin in the singular, and the rest in the plural', async () => {
+    server.fleet = { classes: [{ ...FLEET.classes[0], total: 1, online: 1 }], unclassifiedDevices: 0 };
+    server.people = [{ ...PEOPLE[0], id: 'user-1', handle: 'chris', email: 'chris@example.invalid', isAdmin: true }, PEOPLE[0]];
+
+    wrapped(
+      <AdminOnly>
+        <Fleet />
+      </AdminOnly>,
+    );
+    await screen.findByText('tc-7f3a');
+    // Once in the heading, once in the rollout card's block for the class.
+    expect(screen.getAllByText('1 device · 1 online')).toHaveLength(2);
+
+    wrapped(
+      <AdminOnly>
+        <Users />
+      </AdminOnly>,
+    );
+    await screen.findByText('@chris');
+    expect(screen.getByText('2 accounts · 1 admin · 0 not activated')).toBeInTheDocument();
   });
 });
 

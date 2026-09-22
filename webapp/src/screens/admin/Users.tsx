@@ -72,11 +72,11 @@ export function Users() {
       <header className={styles.head}>
         <h1 className={styles.title}>{t('admin.users.title')}</h1>
         <span className={`mono ${styles.counts}`}>
-          {t('admin.users.counts', {
-            total: all.length,
-            admins: all.filter(one => one.isAdmin).length,
-            inactive: all.filter(one => !one.isActive).length,
-          })}
+          {[
+            t('admin.count.accounts', { count: all.length }),
+            t('admin.count.admins', { count: all.filter(one => one.isAdmin).length }),
+            t('admin.count.notActivated', { count: all.filter(one => !one.isActive).length }),
+          ].join(' · ')}
         </span>
         <span className={styles.chips}>
           <input

@@ -49,16 +49,27 @@ export function HealthCard({ fleet, devices, cameras, now }: { fleet: Fleet; dev
         </span>
       </div>
 
-      <span className={`mono ${styles.figure}`}>{t('admin.health.updates', { updating, failed })}</span>
+      <span className={`mono ${styles.figure}`}>
+        {t('admin.health.updates', { installing: t('admin.count.installing', { count: updating }), failed })}
+      </span>
 
       <ul className={styles.lines}>
-        <li className="mono">{t('admin.health.cameras', { total: live.length, quiet })}</li>
-        <li className="mono">{t('admin.health.unclassified', { devices: fleet.unclassifiedDevices })}</li>
-        <li className="mono">{t('admin.health.paused', { paused, classes: fleet.classes.length })}</li>
+        <li className="mono">
+          {t('admin.health.cameras', {
+            cameras: t('admin.count.cameras', { count: live.length }),
+            quiet: t('admin.count.quietCameras', { count: quiet }),
+          })}
+        </li>
+        <li className="mono">{t('admin.health.unclassified', { devices: t('admin.count.devices', { count: fleet.unclassifiedDevices }) })}</li>
+        <li className="mono">{t('admin.health.paused', { paused, ofClasses: t('admin.count.ofClasses', { count: fleet.classes.length }) })}</li>
         <li className="mono">
           {demo.length === 0
             ? t('admin.health.noDemo')
-            : t('admin.health.demo', { total: demo.length, online: demoAlive.length, age: newest ? ageLabel(newest, now) : '—' })}
+            : t('admin.health.demo', {
+                ofDevices: t('admin.count.ofDevices', { count: demo.length }),
+                online: demoAlive.length,
+                age: newest ? ageLabel(newest, now) : '—',
+              })}
         </li>
       </ul>
 

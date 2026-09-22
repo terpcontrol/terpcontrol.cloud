@@ -210,7 +210,14 @@ function BuildRow({ build, classes, fleet }: { build: Firmware; classes: DeviceC
         {build.wasStable ? ` · ${t('admin.firmware.wasStable')}` : ''}
       </td>
       <td className={`mono ${styles.numbers}`}>
-        {stats ? t('admin.firmware.runningCount', { total: stats.total, online: stats.online, updating: stats.updating, failed: stats.failed }) : '—'}
+        {stats
+          ? t('admin.firmware.runningCount', {
+              total: stats.total,
+              online: t('admin.count.online', { count: stats.online }),
+              installing: t('admin.count.installing', { count: stats.updating }),
+              failed: stats.failed,
+            })
+          : '—'}
       </td>
       <td>
         <span className={styles.actions}>
@@ -287,7 +294,7 @@ function UploadSheet({ build, onClose }: { build: Firmware; onClose: () => void 
         <span className="label">{t('admin.firmware.fileName')}</span>
         <input className={`mono ${ui.input}`} value={name} autoComplete="off" onChange={event => setName(event.target.value)} />
       </label>
-      {file ? <p className={`mono ${styles.consequence}`}>{t('admin.firmware.fileSize', { bytes: file.size })}</p> : null}
+      {file ? <p className={`mono ${styles.consequence}`}>{t('admin.count.bytes', { count: file.size })}</p> : null}
       <Refused error={upload.error} />
     </Sheet>
   );

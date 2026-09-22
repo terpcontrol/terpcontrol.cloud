@@ -75,7 +75,7 @@ export function RolloutCard({
             <div className={styles.blockHead}>
               <span className={styles.blockName}>{deviceClass.name}</span>
               <span className={`mono ${styles.consequence}`}>
-                {t('admin.rollout.size', { total: fleetClass?.total ?? size.total, online: fleetClass?.online ?? size.online })}
+                {`${t('admin.count.devices', { count: fleetClass?.total ?? size.total })} · ${t('admin.count.online', { count: fleetClass?.online ?? size.online })}`}
               </span>
             </div>
 
@@ -84,7 +84,11 @@ export function RolloutCard({
                 <li key={stand.channel} className="mono">
                   {t(`devices.channel.${stand.channel}`)} ·{' '}
                   {stand.firmwareId
-                    ? t('admin.rollout.stand', { build: stand.label, running: stand.running, devices: stand.devices })
+                    ? t('admin.rollout.stand', {
+                        build: stand.label,
+                        running: t('admin.count.running', { count: stand.running }),
+                        devices: stand.devices,
+                      })
                     : t('admin.rollout.noBuild')}
                 </li>
               ))}
@@ -96,7 +100,7 @@ export function RolloutCard({
                 : t('admin.rollout.stagedNow', {
                     percent,
                     reach: staged(percent, size.total),
-                    total: size.total,
+                    ofDevices: t('admin.count.ofDevices', { count: size.total }),
                     concurrent: deviceClass.concurrentUpdates,
                   })}
             </p>

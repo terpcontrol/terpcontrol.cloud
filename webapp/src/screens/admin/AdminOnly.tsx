@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useSession } from '@/api/session';
 import ui from '@/ui/ui.module.css';
-import { useWideWindow } from './wide-window';
+import { ADMIN_MIN_WIDTH, useWideWindow } from './wide-window';
 import styles from './Admin.module.css';
 
 /**
@@ -40,7 +40,8 @@ export function AdminOnly({ children }: { children: ReactNode }) {
     return (
       <section className={styles.refusal}>
         <h1 className={styles.title}>{t('admin.narrow.title')}</h1>
-        <p className={ui.note}>{t('admin.narrow.line')}</p>
+        {/* The width is the one the gate checks, so the sentence cannot drift from it. */}
+        <p className={ui.note}>{t('admin.narrow.line', { width: ADMIN_MIN_WIDTH })}</p>
         <Link className={ui.button} to="/">
           {t('admin.refused.home')}
         </Link>
