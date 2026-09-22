@@ -19,3 +19,4 @@ export * from './diary.js';
 // the arithmetic the feed sheet and the entry writer both read a grid with.
 export * from './socket-report.js';
 export * from './feeding.js';
+export * from './climate-presets.js';

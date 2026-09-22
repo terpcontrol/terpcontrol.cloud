@@ -1620,7 +1620,6 @@
     "control": {
       "title": "Grow plan",
       "noController": "Nothing stands here for a plan to run on. A plan writes its steps to a controller, so one has to be claimed into this tent first.",
-      "laterRest": "Targets set by hand for this tent, and the alarm rules that watch it. The sockets of everything standing here are on the Devices tab.",
       "none": "This controller is not being run by a plan.",
       "noneNote": "A plan is a list of steps: a stage, how long it lasts, and what the tent should hold while it does. Saving one does not start it.",
       "write": "Write a plan",
@@ -1800,7 +1799,12 @@
         "steps_other": "{{count}} steps",
         "yours": "yours",
         "published": "published by somebody else"
-      }
+      },
+      "belowLabel": "Below the plan",
+      "targets": "Manual targets",
+      "advanced": "Advanced",
+      "advancedAlarms": "alarms",
+      "advancedSockets": "sockets, on the Devices tab"
     },
     "noReadingsYet": "Nothing reported yet",
     "high": "high",

@@ -43,8 +43,18 @@ export const userRetention = named(
   }),
 );
 
-/** What the server sends. Transactional mail - activation, password reset - is not routed and not listed. */
-export const notificationCategory = named('NotificationCategory', z.enum(['alerts', 'tasks', 'plan', 'weekly_timelapse']));
+/**
+ * What the server sends. Transactional mail - activation, password reset - is
+ * not routed and not listed.
+ *
+ * An alarm is two rows of the grid rather than one, because the two are wanted
+ * on different channels: a tent that is too hot is `alerts` and goes wherever
+ * somebody wants to be woken, a warning is `warnings` and is read in the
+ * morning. Which row an alarm falls in is its rule's severity, and an alarm
+ * whose severity is `info` is in neither - it stays in the inbox and is never
+ * announced.
+ */
+export const notificationCategory = named('NotificationCategory', z.enum(['alerts', 'warnings', 'tasks', 'plan', 'weekly_timelapse']));
 
 /**
  * A webhook the person owns. Its target and its headers are secrets - they can

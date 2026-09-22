@@ -41,10 +41,21 @@ export declare const userPreferences: z.ZodObject<{
 export declare const userRetention: z.ZodObject<{
     climateDays: z.ZodNullable<z.ZodNumber>;
 }, z.core.$strip>;
-/** What the server sends. Transactional mail - activation, password reset - is not routed and not listed. */
+/**
+ * What the server sends. Transactional mail - activation, password reset - is
+ * not routed and not listed.
+ *
+ * An alarm is two rows of the grid rather than one, because the two are wanted
+ * on different channels: a tent that is too hot is `alerts` and goes wherever
+ * somebody wants to be woken, a warning is `warnings` and is read in the
+ * morning. Which row an alarm falls in is its rule's severity, and an alarm
+ * whose severity is `info` is in neither - it stays in the inbox and is never
+ * announced.
+ */
 export declare const notificationCategory: z.ZodEnum<{
     plan: "plan";
     alerts: "alerts";
+    warnings: "warnings";
     tasks: "tasks";
     weekly_timelapse: "weekly_timelapse";
 }>;
@@ -97,6 +108,7 @@ export declare const notificationChannels: z.ZodObject<{
 export declare const notificationRouting: z.ZodRecord<z.ZodEnum<{
     plan: "plan";
     alerts: "alerts";
+    warnings: "warnings";
     tasks: "tasks";
     weekly_timelapse: "weekly_timelapse";
 }>, z.ZodArray<z.ZodEnum<{
@@ -136,6 +148,7 @@ export declare const notificationSettings: z.ZodObject<{
     routing: z.ZodRecord<z.ZodEnum<{
         plan: "plan";
         alerts: "alerts";
+        warnings: "warnings";
         tasks: "tasks";
         weekly_timelapse: "weekly_timelapse";
     }>, z.ZodArray<z.ZodEnum<{
@@ -215,6 +228,7 @@ export declare const user: z.ZodObject<{
         routing: z.ZodRecord<z.ZodEnum<{
             plan: "plan";
             alerts: "alerts";
+            warnings: "warnings";
             tasks: "tasks";
             weekly_timelapse: "weekly_timelapse";
         }>, z.ZodArray<z.ZodEnum<{
@@ -270,6 +284,7 @@ export declare const me: z.ZodObject<{
         routing: z.ZodRecord<z.ZodEnum<{
             plan: "plan";
             alerts: "alerts";
+            warnings: "warnings";
             tasks: "tasks";
             weekly_timelapse: "weekly_timelapse";
         }>, z.ZodArray<z.ZodEnum<{
@@ -352,6 +367,7 @@ export declare const meUpdate: z.ZodObject<{
         routing: z.ZodRecord<z.ZodEnum<{
             plan: "plan";
             alerts: "alerts";
+            warnings: "warnings";
             tasks: "tasks";
             weekly_timelapse: "weekly_timelapse";
         }>, z.ZodArray<z.ZodEnum<{
@@ -634,6 +650,7 @@ export declare const notificationLogEntry: z.ZodObject<{
     category: z.ZodEnum<{
         plan: "plan";
         alerts: "alerts";
+        warnings: "warnings";
         tasks: "tasks";
         weekly_timelapse: "weekly_timelapse";
     }>;
@@ -738,6 +755,7 @@ export declare const adminUserPage: z.ZodObject<{
             routing: z.ZodRecord<z.ZodEnum<{
                 plan: "plan";
                 alerts: "alerts";
+                warnings: "warnings";
                 tasks: "tasks";
                 weekly_timelapse: "weekly_timelapse";
             }>, z.ZodArray<z.ZodEnum<{

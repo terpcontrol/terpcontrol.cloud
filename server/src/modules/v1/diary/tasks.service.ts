@@ -119,7 +119,7 @@ export class TasksService {
     return dueTasksOf(reminders, completions, now).map(due => {
       const reminder = byId.get(due.id.split(':')[0]);
 
-      return { ...due, source: 'reminder', sourceId: reminder?.id ?? null, defaults: reminder?.defaults ?? null, done: false };
+      return { ...due, source: 'reminder', sourceId: reminder?.id ?? null, defaults: reminder?.defaults ?? null, done: false, completion: null };
     });
   }
 
@@ -154,6 +154,7 @@ export class TasksService {
           assigneeId: reminder.assigneeId,
           defaults: reminder.defaults,
           done: true,
+          completion: { entryId: entry.id, occurredAt: entry.occurredAt.toISOString(), authorId: entry.authorId },
         },
       ];
     });
@@ -190,6 +191,7 @@ export class TasksService {
           assigneeId: null,
           defaults: null,
           done: false,
+          completion: null,
         },
       ];
     });

@@ -304,6 +304,20 @@ export const reminder = named(
 export const taskSource = named('TaskSource', z.enum(['reminder', 'scheme', 'plan_step', 'plan_suggestion']));
 
 /**
+ * The entry that ticked a task off, as the list of what was done names it: a
+ * task has nothing of its own to say when it was done, so it says which line
+ * did and lets that line carry the instant and the author.
+ */
+export const taskCompletion = named(
+  'TaskCompletion',
+  z.object({
+    entryId: id(),
+    occurredAt: instant(),
+    authorId: id().nullable(),
+  }),
+);
+
+/**
  * Derived on every read and never stored, which is why nothing has to be kept
  * in sync. "Done" is an entry carrying this `id` as its `taskId`.
  */
@@ -320,6 +334,7 @@ export const task = named(
     assigneeId: id().nullable(),
     defaults: taskDefaults(),
     done: z.boolean(),
+    completion: taskCompletion.nullable().describe('The entry that ticked it off; null while it is still waiting.'),
   }),
 );
 

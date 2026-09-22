@@ -15,3 +15,4 @@ export * from './growing.js';
 export * from './diary.js';
 export * from './socket-report.js';
 export * from './feeding.js';
+export * from './climate-presets.js';

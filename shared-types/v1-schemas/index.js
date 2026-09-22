@@ -34,3 +34,4 @@ __exportStar(require("./diary.js"), exports);
 // the arithmetic the feed sheet and the entry writer both read a grid with.
 __exportStar(require("./socket-report.js"), exports);
 __exportStar(require("./feeding.js"), exports);
+__exportStar(require("./climate-presets.js"), exports);

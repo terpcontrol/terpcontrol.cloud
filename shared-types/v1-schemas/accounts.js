@@ -32,8 +32,18 @@ exports.userPreferences = (0, common_js_1.named)('UserPreferences', zod_1.z.obje
 exports.userRetention = (0, common_js_1.named)('UserRetention', zod_1.z.object({
     climateDays: zod_1.z.number().int().positive().nullable(),
 }));
-/** What the server sends. Transactional mail - activation, password reset - is not routed and not listed. */
-exports.notificationCategory = (0, common_js_1.named)('NotificationCategory', zod_1.z.enum(['alerts', 'tasks', 'plan', 'weekly_timelapse']));
+/**
+ * What the server sends. Transactional mail - activation, password reset - is
+ * not routed and not listed.
+ *
+ * An alarm is two rows of the grid rather than one, because the two are wanted
+ * on different channels: a tent that is too hot is `alerts` and goes wherever
+ * somebody wants to be woken, a warning is `warnings` and is read in the
+ * morning. Which row an alarm falls in is its rule's severity, and an alarm
+ * whose severity is `info` is in neither - it stays in the inbox and is never
+ * announced.
+ */
+exports.notificationCategory = (0, common_js_1.named)('NotificationCategory', zod_1.z.enum(['alerts', 'warnings', 'tasks', 'plan', 'weekly_timelapse']));
 /**
  * A webhook the person owns. Its target and its headers are secrets - they can
  * name an internal host and carry an authorisation header - so they are on the

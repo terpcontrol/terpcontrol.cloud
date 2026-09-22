@@ -394,6 +394,16 @@ export declare const taskSource: z.ZodEnum<{
     plan_suggestion: "plan_suggestion";
 }>;
 /**
+ * The entry that ticked a task off, as the list of what was done names it: a
+ * task has nothing of its own to say when it was done, so it says which line
+ * did and lets that line carry the instant and the author.
+ */
+export declare const taskCompletion: z.ZodObject<{
+    entryId: z.ZodString;
+    occurredAt: z.ZodISODateTime;
+    authorId: z.ZodNullable<z.ZodString>;
+}, z.core.$strip>;
+/**
  * Derived on every read and never stored, which is why nothing has to be kept
  * in sync. "Done" is an entry carrying this `id` as its `taskId`.
  */
@@ -424,6 +434,11 @@ export declare const task: z.ZodObject<{
     assigneeId: z.ZodNullable<z.ZodString>;
     defaults: z.ZodAny;
     done: z.ZodBoolean;
+    completion: z.ZodNullable<z.ZodObject<{
+        entryId: z.ZodString;
+        occurredAt: z.ZodISODateTime;
+        authorId: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 /** One phase and the plants in it, for a grow whose plants are not all in the same phase. */
 export declare const phaseGroup: z.ZodObject<{
@@ -1506,6 +1521,11 @@ export declare const taskPage: z.ZodObject<{
         assigneeId: z.ZodNullable<z.ZodString>;
         defaults: z.ZodAny;
         done: z.ZodBoolean;
+        completion: z.ZodNullable<z.ZodObject<{
+            entryId: z.ZodString;
+            occurredAt: z.ZodISODateTime;
+            authorId: z.ZodNullable<z.ZodString>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>;
     nextCursor: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;

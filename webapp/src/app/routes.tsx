@@ -9,6 +9,7 @@ import { Home } from '@/screens/Home';
 import { LogRoute } from '@/log/LogRoute';
 import { Me } from '@/screens/Me';
 import { NotFound } from '@/screens/NotFound';
+import { Notifications } from '@/screens/notifications/Notifications';
 import { PublicGrowRoute } from '@/screens/public/PublicGrowRoute';
 import { PublicProfileRoute } from '@/screens/public/PublicProfileRoute';
 import { SharedRoute } from '@/screens/public/SharedRoute';
@@ -34,6 +35,11 @@ import { Timeline } from '@/screens/Timeline';
  * sheet; it is not a screen of its own, and gives the address straight back to
  * the one it opened over. A camera is the third page a row opens, beside the
  * grow and the space.
+ *
+ * A space's tab may have a page of its own below it - the manual targets and
+ * the alarm rules under Control - which is the third segment, so that a link
+ * from an alert can open the rule it came from and a reload lands where it was.
+ * The notification settings are the one page below Me.
  */
 export const router = createBrowserRouter([
   { path: '/sign-in', element: <SignIn /> },
@@ -54,9 +60,10 @@ export const router = createBrowserRouter([
       { path: 'cameras/:cameraId', element: <CameraPage /> },
       { path: 'tasks', element: <Tasks /> },
       { path: 'me', element: <Me /> },
+      { path: 'me/notifications', element: <Notifications /> },
       { path: 'alerts', element: <Alerts /> },
       { path: 'grows/:growId/:tab?', element: <GrowPage /> },
-      { path: 'spaces/:spaceId/:tab?', element: <SpacePage /> },
+      { path: 'spaces/:spaceId/:tab?/:sub?', element: <SpacePage /> },
       { path: 'index.html', element: <Navigate to="/" replace /> },
       { path: '*', element: <NotFound /> },
     ],

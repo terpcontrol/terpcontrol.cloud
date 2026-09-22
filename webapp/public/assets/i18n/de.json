@@ -1616,7 +1616,6 @@
     "control": {
       "title": "Grow-Plan",
       "noController": "Hier steht nichts, worauf ein Plan laufen könnte. Ein Plan schreibt seine Schritte an einen Controller, es muss also erst einer in dieses Zelt geholt werden.",
-      "laterRest": "Von Hand gesetzte Ziele für dieses Zelt und die Alarmregeln, die es überwachen. Die Steckdosen von allem, was hier steht, findest du im Reiter Geräte.",
       "none": "Dieser Controller wird von keinem Plan gesteuert.",
       "noneNote": "Ein Plan ist eine Liste von Schritten: ein Stadium, wie lange es dauert und was das Zelt währenddessen halten soll. Ihn zu speichern startet ihn nicht.",
       "write": "Plan schreiben",
@@ -1796,7 +1795,12 @@
         "steps_other": "{{count}} Schritte",
         "yours": "deine",
         "published": "von jemand anderem veröffentlicht"
-      }
+      },
+      "belowLabel": "Unter dem Plan",
+      "targets": "Manuelle Zielwerte",
+      "advanced": "Erweitert",
+      "advancedAlarms": "Alarme",
+      "advancedSockets": "Steckdosen, im Reiter Geräte"
     },
     "noReadingsYet": "Noch nichts gemeldet",
     "high": "zu hoch",

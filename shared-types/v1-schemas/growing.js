@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.plantUpdate = exports.plantCreate = exports.growUpdate = exports.splitResult = exports.splitCreate = exports.harvestResult = exports.harvestCreate = exports.placementCreate = exports.phaseCreate = exports.growCreate = exports.plantBatch = exports.inviteAcceptance = exports.invitePreview = exports.inviteCreate = exports.membershipUpdate = exports.membershipCreate = exports.presetApplication = exports.presetApplicationCreate = exports.presetPlanEffect = exports.growDecision = exports.devicePlacement = exports.spaceUpdate = exports.spaceCreate = exports.growListItem = exports.growSummary = exports.growLocation = exports.phaseGroup = exports.task = exports.taskSource = exports.reminder = exports.follow = exports.plant = exports.plantHarvest = exports.plantStatus = exports.grow = exports.growVisibility = exports.measurementDefinition = exports.growScheme = exports.growSchemeOrigin = exports.placement = exports.phase = exports.phaseTargets = exports.climateTargets = exports.phaseSource = exports.invite = exports.inviteState = exports.membership = exports.space = exports.spaceRetention = exports.presetPrompt = void 0;
-exports.taskPage = exports.reminderPage = exports.followPage = exports.plantPage = exports.growPage = exports.invitePage = exports.membershipPage = exports.spacePage = exports.taskCompletionCreate = exports.reminderUpdate = exports.reminderCreate = exports.placementUpdate = exports.phaseUpdate = void 0;
+exports.plantCreate = exports.growUpdate = exports.splitResult = exports.splitCreate = exports.harvestResult = exports.harvestCreate = exports.placementCreate = exports.phaseCreate = exports.growCreate = exports.plantBatch = exports.inviteAcceptance = exports.invitePreview = exports.inviteCreate = exports.membershipUpdate = exports.membershipCreate = exports.presetApplication = exports.presetApplicationCreate = exports.presetPlanEffect = exports.growDecision = exports.devicePlacement = exports.spaceUpdate = exports.spaceCreate = exports.growListItem = exports.growSummary = exports.growLocation = exports.phaseGroup = exports.task = exports.taskCompletion = exports.taskSource = exports.reminder = exports.follow = exports.plant = exports.plantHarvest = exports.plantStatus = exports.grow = exports.growVisibility = exports.measurementDefinition = exports.growScheme = exports.growSchemeOrigin = exports.placement = exports.phase = exports.phaseTargets = exports.climateTargets = exports.phaseSource = exports.invite = exports.inviteState = exports.membership = exports.space = exports.spaceRetention = exports.presetPrompt = void 0;
+exports.taskPage = exports.reminderPage = exports.followPage = exports.plantPage = exports.growPage = exports.invitePage = exports.membershipPage = exports.spacePage = exports.taskCompletionCreate = exports.reminderUpdate = exports.reminderCreate = exports.placementUpdate = exports.phaseUpdate = exports.plantUpdate = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -219,6 +219,16 @@ exports.reminder = (0, common_js_1.named)('Reminder', zod_1.z.object({
 /** Where a derived task comes from: a reminder, the grow's scheme grid, the end of a plan step, or a plan's suggestion. */
 exports.taskSource = (0, common_js_1.named)('TaskSource', zod_1.z.enum(['reminder', 'scheme', 'plan_step', 'plan_suggestion']));
 /**
+ * The entry that ticked a task off, as the list of what was done names it: a
+ * task has nothing of its own to say when it was done, so it says which line
+ * did and lets that line carry the instant and the author.
+ */
+exports.taskCompletion = (0, common_js_1.named)('TaskCompletion', zod_1.z.object({
+    entryId: (0, common_js_1.id)(),
+    occurredAt: (0, common_js_1.instant)(),
+    authorId: (0, common_js_1.id)().nullable(),
+}));
+/**
  * Derived on every read and never stored, which is why nothing has to be kept
  * in sync. "Done" is an entry carrying this `id` as its `taskId`.
  */
@@ -233,6 +243,7 @@ exports.task = (0, common_js_1.named)('Task', zod_1.z.object({
     assigneeId: (0, common_js_1.id)().nullable(),
     defaults: taskDefaults(),
     done: zod_1.z.boolean(),
+    completion: exports.taskCompletion.nullable().describe('The entry that ticked it off; null while it is still waiting.'),
 }));
 /** One phase and the plants in it, for a grow whose plants are not all in the same phase. */
 exports.phaseGroup = (0, common_js_1.named)('PhaseGroup', zod_1.z.object({

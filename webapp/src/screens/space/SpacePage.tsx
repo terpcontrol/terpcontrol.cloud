@@ -34,13 +34,13 @@ const KIND_ICON: Record<SpaceKind, LucideIcon> = { tent: Box, fridge: Refrigerat
  * a refresh that fails keeps the last values with their ages.
  */
 export function SpacePage() {
-  const { spaceId = '', tab } = useParams();
+  const { spaceId = '', tab, sub = null } = useParams();
   if (!isTab(tab)) return <Navigate to={`/spaces/${spaceId}/overview`} replace />;
 
-  return <SpaceScreen spaceId={spaceId} tab={tab} />;
+  return <SpaceScreen spaceId={spaceId} tab={tab} sub={sub} />;
 }
 
-function SpaceScreen({ spaceId, tab }: { spaceId: string; tab: SpaceTab }) {
+function SpaceScreen({ spaceId, tab, sub }: { spaceId: string; tab: SpaceTab; sub: string | null }) {
   const { t } = useTranslation();
   const now = useNow();
   // The tab bar's own Timeline lands on the place last looked at, and looking at one here is what makes it that place.
@@ -91,7 +91,7 @@ function SpaceScreen({ spaceId, tab }: { spaceId: string; tab: SpaceTab }) {
       ) : tab === 'devices' ? (
         <DeviceList spaceId={spaceId} verdict={current.verdict} />
       ) : tab === 'control' ? (
-        <Control spaceId={spaceId} />
+        <Control spaceId={spaceId} sub={sub} />
       ) : (
         <LaterRound round={LATER[tab]} what={`space.later.${tab}`} />
       )}

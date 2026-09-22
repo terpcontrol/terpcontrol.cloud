@@ -65,7 +65,7 @@ export type Metric = 'temperature' | 'humidity' | 'co2' | 'leafTemperature' | 'l
 
 export type OutputMetric = 'heater' | 'dehumidifier' | 'co2' | 'light' | 'fan' | 'relais' | 'fanInternal' | 'fanExternal' | 'fanBackwall';
 
-export type NotificationCategory = 'alerts' | 'tasks' | 'plan' | 'weekly_timelapse';
+export type NotificationCategory = 'alerts' | 'warnings' | 'tasks' | 'plan' | 'weekly_timelapse';
 
 export type NotificationSubjectType = 'alert' | 'task' | 'plan' | 'media';
 
@@ -1685,6 +1685,12 @@ export interface Reminder {
   createdAt: string;
 }
 
+export interface TaskCompletion {
+  entryId: string;
+  occurredAt: string;
+  authorId: string | null;
+}
+
 export interface Task {
   /**
    * Deterministic: the same source and the same due instant always produce the same id, so a completion needs nothing stored beforehand.
@@ -1705,6 +1711,10 @@ export interface Task {
    */
   defaults: any;
   done: boolean;
+  /**
+   * The entry that ticked it off; null while it is still waiting.
+   */
+  completion: TaskCompletion | null;
 }
 
 export interface PhaseGroup {
