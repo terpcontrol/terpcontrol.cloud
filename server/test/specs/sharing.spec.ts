@@ -181,6 +181,32 @@ describe('a link that is already out of the house', () => {
     expect(JSON.stringify(narrowed.body)).toContain('Lately');
   });
 
+  /**
+   * The two kinds are not the same promise. A read-only view is a window
+   * somebody was given and stands until it expires; a public-page link is the
+   * public address in a form that can be sent, so the switch that takes the
+   * page down has to take it with it - otherwise "permanent until you make the
+   * grow private" would be permanent full stop, and every link ever sent would
+   * outlive the decision to stop being public.
+   */
+  it('stops answering a public-page link the moment the grow stops being public, and keeps answering a view', async () => {
+    const seen = await startAGrow({ name: 'Publicly seen' });
+    await owner.client.patch(`/v1/grows/${seen.id}`).send({ visibility: 'public' }).expect(200);
+
+    const page = await aLink({ kind: 'public_page', subject: { type: 'grow', id: seen.id } });
+    const view = await aLink({ kind: 'view', subject: { type: 'grow', id: seen.id } });
+
+    await anonymous().get(`/v1/shared/${page.token}`).expect(200);
+    await anonymous().get(`/v1/shared/${view.token}`).expect(200);
+
+    await owner.client.patch(`/v1/grows/${seen.id}`).send({ visibility: 'private' }).expect(200);
+
+    // Gone, rather than narrowed: the address it stood for does not exist.
+    await anonymous().get(`/v1/shared/${page.token}`).expect(404);
+    // The view was never the public page and is not withdrawn with it.
+    await anonymous().get(`/v1/shared/${view.token}`).expect(200);
+  });
+
   it('stops naming the camera at all once it is told not to carry pictures', async () => {
     const cam = (
       await owner.client.post('/v1/cameras').send({ kind: 'rtsp', spaceId: tent, name: 'Sharing cam', url: 'rtsp://10.0.0.40:554/s' }).expect(201)

@@ -148,6 +148,14 @@ export class AccessService {
     const covers = link.subject.type === 'grow' ? subject.growIds.includes(link.subject.id) : subject.spaceIds.includes(link.subject.id);
     if (!covers) return null;
 
+    // A public-page link is the public address in a form that can be sent, and
+    // is permanent only for as long as the page is: making a grow private is
+    // the act that takes it back, and a token that still answered afterwards
+    // would leave every link ever sent out standing. The other kind is a
+    // read-only view, which never claimed to be the public page and stands on
+    // its own window and expiry.
+    if (link.kind === 'public_page' && !subject.isPublic) return null;
+
     // Pictures are the one thing a link does not carry unless it was made to.
     return subject.ofACamera && !link.includeCameras ? null : link;
   }
