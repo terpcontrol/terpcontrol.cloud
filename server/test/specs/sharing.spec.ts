@@ -708,6 +708,42 @@ describe('the people in a space', () => {
       expect(hosts.map((one: { id: string }) => one.id)).toContain(card);
     });
 
+    /**
+     * What being shown the door has to be worth. The link is still in the chat
+     * it was pasted into, and the person just taken out of the tent is exactly
+     * the one holding it.
+     */
+    it('takes the key with the person when the host shows them out', async () => {
+      const shownOut = await createAccount('members-shownout');
+      const key = await invite(host, theirTent);
+      const another = await invite(host, theirTent);
+      await accept(shownOut, key.code);
+
+      await host.client.delete(`/v1/spaces/${theirTent}/members/${shownOut.userId}`).expect(204);
+
+      const refused = await accept(shownOut, key.code, 404);
+      expect(refused.body.code).toBe('invite_not_found');
+      expect((await anonymous().get(`/v1/invites/${key.code}`).expect(200)).body.isValid).toBe(false);
+      await shownOut.client.get(`/v1/spaces/${theirTent}`).expect(404);
+
+      // Only the key they came in through: the host's other codes are theirs.
+      expect((await anonymous().get(`/v1/invites/${another.code}`).expect(200)).body.isValid).toBe(true);
+      await host.client.delete(`/v1/invites/${another.code}`).expect(204);
+    });
+
+    it('leaves the host´s key alone when somebody walks out of their own accord', async () => {
+      const walkingOut = await createAccount('members-walkout');
+      const key = await invite(host, theirTent);
+      await accept(walkingOut, key.code);
+
+      await walkingOut.client.delete(`/v1/spaces/${theirTent}/members/${walkingOut.userId}`).expect(204);
+
+      // A key that several people were sent is the host's to stop, and a guest
+      // who could kill it by leaving would be revoking on their behalf.
+      expect((await anonymous().get(`/v1/invites/${key.code}`).expect(200)).body.isValid).toBe(true);
+      await host.client.delete(`/v1/invites/${key.code}`).expect(204);
+    });
+
     it('is ended by the host, and the space cannot be ended while it stands', async () => {
       const refused = await host.client.delete(`/v1/spaces/${theirTent}`).expect(409);
       expect(refused.body.code).toBe('space_in_use');

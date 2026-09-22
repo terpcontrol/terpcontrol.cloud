@@ -9,6 +9,7 @@ import { afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
 import { conflict, forbidden, notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
+import { InviteDocument } from '@database/schemas/v1/invites.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
@@ -31,6 +32,12 @@ export class MembersService {
     @InjectModel(MODEL_V1.membership) private readonly memberships: Model<MembershipDocument>,
     @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
     @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
+    // Read here as well as in the invites service: a row remembers the code it
+    // was written by, and taking the row out has to be able to take that code
+    // with it. The other direction already exists - the invites service asks
+    // this one to write the row a redemption makes - so the model is injected
+    // rather than the service, which would be a circle.
+    @InjectModel(MODEL_V1.invite) private readonly invites: Model<InviteDocument>,
     private readonly access: AccessService,
   ) {}
 
@@ -135,13 +142,41 @@ export class MembersService {
    * Leaving needs nothing beyond being able to see the space. Somebody who was
    * let into a tent has to be able to walk back out of it without asking the
    * person who let them in.
+   *
+   * Being shown the door also closes the door. The row is deleted and, when it
+   * was a code that wrote it, that code is revoked in the same breath: the link
+   * is still in the chat it was pasted into, and a person who has just been
+   * taken out of a tent is exactly the person holding it - so without this the
+   * sheet's promise lasts until they open their own history and tap Join again.
    */
   public async remove(ctx: AccessContext, spaceId: string, userId: string): Promise<void> {
-    await this.requireOwnRow(spaceId, userId);
+    const row = await this.requireOwnRow(spaceId, userId);
+    const shownTheDoor = ctx.isDemo || userId !== ctx.userId;
 
-    if (ctx.isDemo || userId !== ctx.userId) await this.access.require(ctx, subjectRef('space', spaceId), 'own');
+    if (shownTheDoor) await this.access.require(ctx, subjectRef('space', spaceId), 'own');
 
     await this.memberships.deleteOne({ spaceId, userId });
+    if (shownTheDoor) await this.closeTheWayIn(row);
+  }
+
+  /**
+   * The code somebody came in through, stopped when the host takes them out.
+   *
+   * Only that one code, and only when it was the host who acted. A link is one
+   * key that may have been sent to several people, so revoking it is a real
+   * cost and is spent where the host has just said in as many words that this
+   * person is not to be in here any more; every other invite the space has out
+   * is untouched, and a new link is one tap away. Somebody who leaves of their
+   * own accord takes nothing down with them - the key is the host's, and a
+   * guest who could kill it by walking out would be revoking on their behalf.
+   *
+   * Revoked rather than deleted, as the host's own Revoke does, so the list
+   * still shows that the key existed and when it stopped working.
+   */
+  private async closeTheWayIn(row: MembershipDocument): Promise<void> {
+    if (row.inviteId === null) return;
+
+    await this.invites.updateOne({ id: row.inviteId, revokedAt: null }, { $set: { revokedAt: new Date() } });
   }
 
   /**
