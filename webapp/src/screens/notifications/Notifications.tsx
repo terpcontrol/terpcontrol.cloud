@@ -1,5 +1,4 @@
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
 import type { Me } from '@fg2/shared-types/v1';
 import { useMe, useUpdatingMe } from '@/api/account';
 import { useSession } from '@/api/session';
@@ -7,6 +6,7 @@ import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { MePage } from '@/screens/me/parts';
 import { EmailCard, PushCard, TelegramCard, WebhookCard } from './Channels';
 import { useWriteNotifications } from './write';
 import { QuietHoursCard } from './QuietHours';
@@ -33,47 +33,36 @@ export function Notifications() {
   const mayManage = useMayManage();
   const updating = useUpdatingMe();
 
-  const header = (
-    <header className={styles.head}>
-      <h1 className={styles.title}>{t('notifications.title')}</h1>
-      <span className={`mono ${styles.crumb}`}>
-        <Link to="/me">{t('me.title')}</Link> › {t('notifications.title')}
-      </span>
-    </header>
-  );
+  const title = t('notifications.title');
 
   if (isDemo) {
     return (
-      <section className={styles.page}>
-        {header}
+      <MePage title={title}>
         <p className={`${ui.cardDashed} ${ui.note}`}>{t('notifications.demo')}</p>
-      </section>
+      </MePage>
     );
   }
 
   if (me.isPending) {
     return (
-      <section className={styles.page}>
-        {header}
+      <MePage title={title}>
         <Waiting lines={4} />
-      </section>
+      </MePage>
     );
   }
 
   if (!me.data) {
     return (
-      <section className={styles.page}>
-        {header}
+      <MePage title={title}>
         <LoadFailed retry={() => void me.refetch()} />
-      </section>
+      </MePage>
     );
   }
 
   const held = !mayManage || updating;
 
   return (
-    <section className={styles.page}>
-      {header}
+    <MePage title={title}>
       <RefreshFailed failedAt={me.isError ? me.dataUpdatedAt : null} now={now} />
 
       {isMuted(me.data.notifications.mutedUntil, now) ? <MutedLine me={me.data} held={held} until={me.data.notifications.mutedUntil!} /> : null}
@@ -89,7 +78,7 @@ export function Notifications() {
 
       <span className="label">{t('notifications.quietHours')}</span>
       <QuietHoursCard me={me.data} held={held} locked={!mayManage} />
-    </section>
+    </MePage>
   );
 }
 

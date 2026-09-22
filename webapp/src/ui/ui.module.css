@@ -154,17 +154,23 @@
   opacity: 0.6;
 }
 
+/* The knob is the muted ink while the switch is off, because in dark mode the
+   track, the card and the card's own colour are within a shade of each other
+   and an off switch drawn in them is an empty pill with nothing on it. Once it
+   is on, the green track does the telling and the knob goes back to the card's
+   colour so it reads as a hole in the green rather than a second mark. */
 .knob {
   position: absolute;
   top: 2px;
   left: 2px;
   width: 18px;
   height: 18px;
-  background: var(--card);
+  background: var(--muted);
   border-radius: 50%;
   transition: transform 120ms ease-out;
 }
 
 .switch[aria-checked='true'] .knob {
+  background: var(--card);
   transform: translateX(18px);
 }

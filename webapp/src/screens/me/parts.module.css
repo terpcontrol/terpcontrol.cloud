@@ -1,6 +1,6 @@
 /* The pages below Me: a column of setting cards under small-caps labels. Phone
-   first; the shell keeps the column width on a desktop. The same rules the
-   privacy and notification pages carry, so that a row is a row on all six. */
+   first; the shell keeps the column width on a desktop. One set of rules for
+   every page under Me, so that a row is a row on all of them. */
 
 .page {
   display: flex;
@@ -14,19 +14,33 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-2) var(--space-3);
   margin-bottom: var(--space-2);
 }
 
+/* The way back, at every width: the same chevron the tent and grow pages carry,
+   pulled left by its own padding so the title stays on the page's edge. */
+.back {
+  display: grid;
+  place-items: center;
+  flex: none;
+  align-self: center;
+  width: 32px;
+  height: 32px;
+  margin-left: calc(var(--space-2) * -1);
+  color: var(--muted);
+}
+
 .title {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: var(--text-xl);
   font-weight: var(--weight-semibold);
   line-height: var(--line-tight);
 }
 
-/* The trail back to Me, kept for the width that has room for it; on a phone the
-   tab bar and the avatar already say where this page hangs. */
+/* The trail, kept for the width that has room for it; on a phone the chevron
+   is the way back and the trail would only repeat the title. */
 .crumb {
   display: none;
   font-size: var(--text-xs);
@@ -84,10 +98,12 @@
 }
 
 /* A chip that is a menu: the native select, keeping its keyboard and the
-   platform's own picker, giving up only its arrow and its padding. */
+   platform's own picker, giving up only its arrow and its padding. The caret
+   is drawn 8 to 16 px in from the edge, so the padding has to reach past it or
+   the widest option's last letter sits against the triangle. */
 .menu {
   appearance: none;
-  padding-right: var(--space-4);
+  padding-right: var(--space-5);
   background-image: linear-gradient(45deg, transparent 50%, currentcolor 50%), linear-gradient(135deg, currentcolor 50%, transparent 50%);
   background-position:
     right 12px top 50%,
@@ -96,6 +112,12 @@
     4px 4px,
     4px 4px;
   background-repeat: no-repeat;
+}
+
+/* The export's state while the zip is being written: a figure's line, under the row. */
+.exportStatus {
+  font-size: var(--text-xs);
+  color: var(--muted);
 }
 
 @media (min-width: 900px) {

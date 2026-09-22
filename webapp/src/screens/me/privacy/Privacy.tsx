@@ -1,5 +1,4 @@
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
 import type { Me } from '@fg2/shared-types/v1';
 import { useMe, useUpdateMe, useUpdatingMe } from '@/api/account';
 import { useSession } from '@/api/session';
@@ -7,9 +6,9 @@ import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { ExportRow, MePage, Menu, Row } from '../parts';
 import { DeleteRow } from './DeleteRow';
-import { Row, Switch } from './parts';
-import styles from './Privacy.module.css';
+import { Switch } from './parts';
 
 /**
  * Me › Privacy: what other people are shown, how long anything is kept, and
@@ -19,7 +18,8 @@ import styles from './Privacy.module.css';
  * about what leaves this account - a link, a public page, an export - and every
  * switch on it hides something from everybody but the owner, who goes on seeing
  * their own figures. The second is about the server itself: how long it keeps
- * what it was given, and that leaving really is leaving.
+ * what it was given, that all of it can be taken away as a file, and that
+ * leaving really is leaving.
  *
  * `PATCH /me` replaces each object it is given rather than merging into it, so
  * every control here sends the whole object it belongs to with one field
@@ -45,40 +45,29 @@ export function Privacy() {
   const mayManage = useMayManage();
   const update = useUpdateMe();
   const updating = useUpdatingMe();
-
-  const header = (
-    <header className={styles.head}>
-      <h1 className={styles.title}>{t('me.privacy.title')}</h1>
-      <span className={`mono ${styles.crumb}`}>
-        <Link to="/me">{t('me.title')}</Link> › {t('me.privacy.title')}
-      </span>
-    </header>
-  );
+  const title = t('me.privacy.title');
 
   if (isDemo) {
     return (
-      <section className={styles.page}>
-        {header}
+      <MePage title={title}>
         <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.privacy.demo')}</p>
-      </section>
+      </MePage>
     );
   }
 
   if (me.isPending) {
     return (
-      <section className={styles.page}>
-        {header}
+      <MePage title={title}>
         <Waiting lines={4} />
-      </section>
+      </MePage>
     );
   }
 
   if (!me.data) {
     return (
-      <section className={styles.page}>
-        {header}
+      <MePage title={title}>
         <LoadFailed retry={() => void me.refetch()} />
-      </section>
+      </MePage>
     );
   }
 
@@ -87,8 +76,7 @@ export function Privacy() {
   const privacy = account.privacy;
 
   return (
-    <section className={styles.page}>
-      {header}
+    <MePage title={title}>
       <RefreshFailed failedAt={me.isError ? me.dataUpdatedAt : null} now={now} />
 
       <span className="label">{t('me.privacy.sharing')}</span>
@@ -123,19 +111,18 @@ export function Privacy() {
       <span className="label">{t('me.privacy.data')}</span>
 
       <Row title={t('me.privacy.climate.title')} line={t('me.privacy.climate.line')}>
-        <select
-          className={`mono ${ui.chip} ${styles.menu}`}
+        <Menu
+          name={t('me.privacy.climate.title')}
           value={String(account.retention.climateDays ?? '')}
-          aria-label={t('me.privacy.climate.title')}
           disabled={held}
-          onChange={event => update.mutate({ retention: { climateDays: event.target.value === '' ? null : Number(event.target.value) } })}
+          onChange={value => update.mutate({ retention: { climateDays: value === '' ? null : Number(value) } })}
         >
           {KEEP.map(option => (
             <option key={option.key} value={option.days === null ? '' : String(option.days)}>
               {t(`me.privacy.keep.${option.key}`)}
             </option>
           ))}
-        </select>
+        </Menu>
       </Row>
 
       {/*
@@ -155,14 +142,12 @@ export function Privacy() {
         <span className={ui.chip}>{t('me.privacy.premium')}</span>
       </Row>
 
-      <Row title={t('me.privacy.export.title')} line={t('me.privacy.export.line')}>
-        <span className={ui.chip}>{t('me.privacy.premium')}</span>
-      </Row>
+      <ExportRow title={t('me.privacy.export.title')} line={t('me.privacy.export.line')} ask={t('me.privacy.export.ask')} />
 
       <DeleteRow handle={account.handle} disabled={held} />
 
       <Refused error={update.error} />
       <p className={ui.note}>{t('me.privacy.footnote')}</p>
-    </section>
+    </MePage>
   );
 }

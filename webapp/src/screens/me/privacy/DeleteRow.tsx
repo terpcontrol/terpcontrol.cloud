@@ -5,7 +5,7 @@ import { useDeleteAccount } from '@/api/account';
 import { Sheet } from '@/log/Sheet';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
-import { Row } from './parts';
+import { Row } from '../parts';
 import styles from './Privacy.module.css';
 
 /**
@@ -17,7 +17,9 @@ import styles from './Privacy.module.css';
  * reflex that opened it, and this is the only control in the app where being
  * wrong costs everything. What it says it will do is what the server does -
  * the rows are deleted rather than hidden, and the hardware goes back to being
- * claimable by whoever holds it.
+ * claimable by whoever holds it. The button that opens it is drawn as the
+ * board's ellipsis, which read aloud is nothing at all, so it borrows the
+ * row's title for its name: the one control that ends an account has to say so.
  */
 export function DeleteRow({ handle, disabled }: { handle: string; disabled: boolean }) {
   const { t } = useTranslation();
@@ -26,7 +28,13 @@ export function DeleteRow({ handle, disabled }: { handle: string; disabled: bool
   return (
     <>
       <Row title={t('me.privacy.delete.title')} line={t('me.privacy.delete.line')} danger>
-        <button type="button" className={`${ui.chip} ${styles.danger}`} disabled={disabled} onClick={() => setAsking(true)}>
+        <button
+          type="button"
+          className={`${ui.chip} ${styles.danger}`}
+          aria-label={t('me.privacy.delete.title')}
+          disabled={disabled}
+          onClick={() => setAsking(true)}
+        >
           {t('me.privacy.delete.open')}
         </button>
       </Row>

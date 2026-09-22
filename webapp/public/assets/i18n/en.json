@@ -1615,7 +1615,8 @@
       },
       "export": {
         "title": "Export everything",
-        "line": "JSON + CSV + photos · yours to keep · arrives with Premium; one grow exports from its own page today"
+        "line": "JSON + CSV + photos · yours to keep",
+        "ask": "Export"
       },
       "delete": {
         "title": "Delete my account",

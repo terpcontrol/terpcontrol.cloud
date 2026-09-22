@@ -1605,17 +1605,18 @@
       "stills": {
         "title": "Kamerabilder aufbewahren",
         "line": "Premium: ganzer Grow · gratis: 90 Tage · kommt mit Premium",
-        "kept": "Premium: der ganze Grow · frei: auf dieser Installation genauso lange",
-        "keptDays_one": "Premium: der ganze Grow · frei: {{count}} Tag",
-        "keptDays_other": "Premium: der ganze Grow · frei: {{count}} Tage"
+        "kept": "Premium: der ganze Grow · gratis: auf dieser Installation genauso lange",
+        "keptDays_one": "Premium: der ganze Grow · gratis: {{count}} Tag",
+        "keptDays_other": "Premium: der ganze Grow · gratis: {{count}} Tage"
       },
       "export": {
         "title": "Alles exportieren",
-        "line": "JSON + CSV + Fotos · gehört dir · kommt mit Premium; ein einzelner Grow lässt sich schon heute auf seiner eigenen Seite exportieren"
+        "line": "JSON + CSV + Fotos · gehört dir",
+        "ask": "Exportieren"
       },
       "delete": {
         "title": "Mein Konto löschen",
-        "line": "wirklich gelöscht, nicht versteckt · Geräte bleiben beanspruchbar",
+        "line": "wirklich gelöscht, nicht versteckt · Geräte lassen sich neu beanspruchen",
         "open": "…",
         "what": "Alles, was diesem Konto gehört, ist weg: die Zelte, die Grows, die Einträge, die Fotos, die Pläne und die Alarme. Es wird gelöscht und nicht versteckt, und es gibt keinen Weg zurück.",
         "grows": "Geräte, die du beansprucht hast, kann danach wieder beanspruchen, wer sie in der Hand hat. Einen einzelnen Grow löschst du auf seiner eigenen Seite.",
