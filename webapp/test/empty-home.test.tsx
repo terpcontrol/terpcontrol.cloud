@@ -5,8 +5,16 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { EmptyHome } from '@/screens/EmptyHome';
+
+// The first door opens the new-grow sheet, and whether it is offered at all
+// depends on who is looking, so there has to be somebody.
+vi.mock('@/api/session', async importOriginal => {
+  const { SIGNED_IN } = await import('./session');
+
+  return { ...(await importOriginal<object>()), useSession: () => SIGNED_IN };
+});
 
 /**
  * The home before a grower has anything: a grow first, a device second, the
@@ -20,11 +28,11 @@ describe('the empty home', () => {
       .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
   });
 
-  const draw = () =>
+  const draw = (onStartGrow: () => void = () => undefined) =>
     render(
       <QueryClientProvider client={new QueryClient()}>
         <MemoryRouter>
-          <EmptyHome claimed={null} onClaimed={() => undefined} />
+          <EmptyHome claimed={null} onClaimed={() => undefined} onStartGrow={onStartGrow} />
         </MemoryRouter>
       </QueryClientProvider>,
     );
@@ -44,10 +52,11 @@ describe('the empty home', () => {
     expect(grow?.className).not.toMatch(/cardDashed/);
   });
 
-  it('says that a grow cannot be started yet instead of doing nothing', () => {
-    draw();
+  it('asks the home for the new-grow sheet rather than holding it itself', () => {
+    const start = vi.fn();
+    draw(start);
     fireEvent.click(screen.getByRole('button', { name: /New grow/ }));
-    expect(screen.getByRole('status')).toHaveTextContent('Not possible yet');
+    expect(start).toHaveBeenCalledTimes(1);
   });
 
   it('has the claim-code field with its scan option', () => {

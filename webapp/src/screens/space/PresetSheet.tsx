@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { GrowthStage, PresetApplication, SpaceOverview } from '@fg2/shared-types/v1';
 import { useGrows } from '@/api/grows';
 import { useApplyPreset } from '@/api/lifecycle';
+import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
 import { Sheet } from '@/log/Sheet';
 import { Refused } from '@/ui/PageState';
 import { presetsOf, writesClimate } from '@/ui/presets';
@@ -40,6 +41,8 @@ export function PresetSheet({ overview, onClose }: { overview: SpaceOverview; on
     here && here.stage && presetsOf(here.stage).includes(here.preset ?? '') ? here.preset : null,
   );
   const [done, setDone] = useState<PresetApplication | null>(null);
+  /** The new-grow sheet takes this one's place once it is opened, rather than standing over it. */
+  const [starting, setStarting] = useState(false);
   /** The question the server asked, once somebody has answered it here. */
   const [answered, setAnswered] = useState(false);
 
@@ -50,6 +53,8 @@ export function PresetSheet({ overview, onClose }: { overview: SpaceOverview; on
     setStage(next);
     setPreset(current => (presetsOf(next).includes(current ?? '') ? current : null));
   };
+
+  if (starting) return <NewGrowSheet spaceId={overview.spaceId} stage={done?.stage ?? stage} onClose={onClose} />;
 
   return (
     <Sheet title={t('space.presets.title', { name: overview.name })} onClose={onClose}>
@@ -134,6 +139,7 @@ export function PresetSheet({ overview, onClose }: { overview: SpaceOverview; on
                   setAnswered(true);
                   if (result) setDone(result);
                 }}
+                onStartGrow={() => setStarting(true)}
               />
             ) : null}
           </Block>
@@ -150,8 +156,9 @@ export function PresetSheet({ overview, onClose }: { overview: SpaceOverview; on
  * "Only the climate" is answered here rather than sent: the server does nothing
  * with that decision but stop asking, and asking it again would write the same
  * targets to the same controllers a second time for no reason. Starting a grow
- * is the new-grow sheet, which is somebody else's round, so it is named as what
- * it is instead of being offered as a button that goes nowhere.
+ * opens the new-grow sheet in this one's place, with the tent and the stage it
+ * was just put on already answered - one sheet at a time, because the question
+ * behind this one has been answered by opening it.
  */
 function GrowQuestion({
   spaceId,
@@ -159,12 +166,14 @@ function GrowQuestion({
   preset,
   decisions,
   onAnswered,
+  onStartGrow,
 }: {
   spaceId: string;
   stage: GrowthStage;
   preset: string | null;
   decisions: PresetApplication['decisions'];
   onAnswered: (result: PresetApplication | null) => void;
+  onStartGrow: () => void;
 }) {
   const { t } = useTranslation();
   const apply = useApplyPreset(spaceId);
@@ -201,6 +210,11 @@ function GrowQuestion({
         </>
       ) : (
         <div className={styles.answers}>
+          {decisions.includes('start_grow') ? (
+            <button type="button" className={ui.button} onClick={onStartGrow}>
+              {t('space.presets.startGrowHere')}
+            </button>
+          ) : null}
           {decisions.includes('move_grow') ? (
             <button type="button" className={ui.button} onClick={() => setPicking(true)}>
               {t('space.presets.moveGrowHere')}
@@ -213,8 +227,6 @@ function GrowQuestion({
           ) : null}
         </div>
       )}
-
-      {decisions.includes('start_grow') && !picking ? <p className={ui.note}>{t('space.presets.startGrowLater')}</p> : null}
     </div>
   );
 }

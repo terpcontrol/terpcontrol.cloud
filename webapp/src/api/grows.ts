@@ -1,6 +1,17 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { GrowListItem, GrowPage, GrowReport, GrowUpdate, GrowWeekCardPage, PlantPage } from '@fg2/shared-types/v1';
+import type {
+  GrowCreate,
+  GrowListItem,
+  GrowPage,
+  GrowReport,
+  GrowUpdate,
+  GrowWeekCardPage,
+  Phase,
+  PhaseCreate,
+  PlantPage,
+} from '@fg2/shared-types/v1';
 import { api } from './client';
+import { growChanged } from './lifecycle';
 
 /**
  * The grow page's four reads. The grow itself carries its summary - the day
@@ -81,3 +92,37 @@ export const useSpaceGrows = (spaceId: string | null) =>
     queryFn: ({ signal }) => api.get<GrowPage>('/grows', { spaceId }, signal),
     enabled: spaceId !== null,
   });
+
+/**
+ * Starting a grow, and the stage it starts in.
+ *
+ * They are two calls because they are two facts: a grow exists from the moment
+ * it is sown, and the day counter runs from the phase. The sheet that makes one
+ * sends them in that order and reports honestly if the second is refused - a
+ * grow with no phase yet is a grow that stands, not a grow that failed.
+ *
+ * The phase carries the grow's id rather than the hook, because the id is not
+ * known until the grow answers. Everything that draws a grow is read again
+ * afterwards: a new grow appears on the home, in the lists the sheets pick from
+ * and in the place it was put.
+ */
+export const useCreateGrow = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: GrowCreate) => api.post<GrowListItem>('/grows', body),
+    onSuccess: grow => {
+      queryClient.setQueryData(['grow', grow.id], grow);
+      growChanged(queryClient);
+    },
+  });
+};
+
+export const useStartingPhase = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ growId, body }: { growId: string; body: PhaseCreate }) => api.post<Phase>(`/grows/${growId}/phases`, body),
+    onSuccess: () => growChanged(queryClient),
+  });
+};

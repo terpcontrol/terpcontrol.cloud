@@ -10,6 +10,7 @@ import { session } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import { canScan } from '@/ui/barcode';
 import { QrScanner } from '@/ui/QrScanner';
+import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import styles from './EmptyHome.module.css';
@@ -19,7 +20,16 @@ import styles from './EmptyHome.module.css';
  * demo third. Nothing is asked about who the person is; the two doors lead to
  * the same place.
  */
-export function EmptyHome({ claimed, onClaimed }: { claimed: DeviceClaimResult | null; onClaimed: (result: DeviceClaimResult) => void }) {
+export function EmptyHome({
+  claimed,
+  onClaimed,
+  onStartGrow,
+}: {
+  claimed: DeviceClaimResult | null;
+  onClaimed: (result: DeviceClaimResult) => void;
+  /** The sheet belongs to the home: a grow, or a place made on the way to one, is what stops this screen being drawn at all. */
+  onStartGrow: () => void;
+}) {
   const { t } = useTranslation();
 
   return (
@@ -29,7 +39,7 @@ export function EmptyHome({ claimed, onClaimed }: { claimed: DeviceClaimResult |
         <p className={styles.text}>{t('home.empty.text')}</p>
       </header>
 
-      <StartGrow />
+      <StartGrow onOpen={onStartGrow} />
       <AddDevice claimed={claimed} onClaimed={onClaimed} />
       <TryDemo />
 
@@ -38,25 +48,28 @@ export function EmptyHome({ claimed, onClaimed }: { claimed: DeviceClaimResult |
   );
 }
 
-/** The API has no grows yet, and a button that cannot work says so instead of doing nothing. */
-function StartGrow() {
+/**
+ * The first door, and the one that needs no hardware at all. It only asks: the
+ * sheet it opens outlives this card, because the first thing that sheet makes -
+ * a grow, or the place to put it in - is what the home stops being empty by.
+ */
+function StartGrow({ onOpen }: { onOpen: () => void }) {
   const { t } = useTranslation();
-  const [asked, setAsked] = useState(false);
+  const mayManage = useMayManage();
 
   return (
     <article className={ui.card}>
       <h2 className={styles.cardTitle}>{t('home.startGrow.title')}</h2>
       <p className={styles.cardText}>{t('home.startGrow.text')}</p>
       <div className={styles.actions}>
-        <button type="button" className={ui.button} onClick={() => setAsked(true)} aria-describedby={asked ? 'start-grow-note' : undefined}>
-          {t('home.startGrow.button')}
-          <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
-        </button>
-        {asked ? (
-          <span id="start-grow-note" className={ui.note} role="status">
-            {t('home.startGrow.notYet')}
-          </span>
-        ) : null}
+        {mayManage ? (
+          <button type="button" className={ui.button} onClick={onOpen}>
+            {t('home.startGrow.button')}
+            <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
+          </button>
+        ) : (
+          <span className={ui.note}>{t('grow.new.readOnly')}</span>
+        )}
       </div>
     </article>
   );

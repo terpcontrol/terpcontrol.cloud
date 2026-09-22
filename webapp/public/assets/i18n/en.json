@@ -1280,8 +1280,7 @@
     "startGrow": {
       "title": "Start a grow",
       "text": "A diary for plants anywhere: balcony, windowsill, a tent without a controller. Add a device later.",
-      "button": "New grow",
-      "notYet": "Not possible yet: grows arrive with a later update."
+      "button": "New grow"
     },
     "addDevice": {
       "title": "Add a device",
@@ -1605,6 +1604,60 @@
         "submit_one": "Split off {{count}} plant",
         "submit_other": "Split off {{count}} plants"
       }
+    },
+    "new": {
+      "title": "New grow",
+      "row": "+ New grow",
+      "name": "Name",
+      "firstName": "First grow",
+      "plants": "Plants",
+      "plantsAside": "a count is enough; names help you compare later",
+      "strain": "Strain",
+      "more": "One more",
+      "fewer": "One fewer",
+      "removeStrain": "Remove this strain",
+      "addStrain": "+ Add a strain",
+      "type": "Type",
+      "typeAside": "autoflowers skip the 12/12 flip and feed lighter",
+      "photoperiod": "Photoperiod",
+      "autoflower": "Autoflower",
+      "where": "Where",
+      "whereAside": "the space's preset and cams follow the grow",
+      "cam": "Cam",
+      "newSpace": "New space",
+      "spaceName": "Name of the place",
+      "spaceKind": "Kind of place",
+      "kind": {
+        "tent": "Tent",
+        "fridge": "Fridge",
+        "balcony": "Balcony",
+        "other": "Somewhere else"
+      },
+      "makeSpace": "Make the place",
+      "makingSpace": "Making the place …",
+      "startingAt": "Starting at",
+      "startingAside": "seeds usually show in 2–5 days",
+      "today": "today",
+      "earlier": "Earlier date …",
+      "startedOn": "Started on",
+      "feeding": "Feeding",
+      "feedingAside": "a starting point, not a rule; edit any week",
+      "ownScheme": "None / my own",
+      "noSchemes": "This build ships no feeding schemes, so the grow is fed by hand or by one of your own.",
+      "schemeUnreadable": "That scheme could not be read, so the grow cannot be started on it.",
+      "tells": {
+        "preset": "{{place}} goes on the {{stage}} preset now.",
+        "noController": "Nothing in {{place}} steers a climate, so the stage is recorded and nothing is written to anything.",
+        "nowhere": "No place, so nothing is steered; the stages are recorded all the same.",
+        "auto": "From here the place's preset moves the grow on, and a phase written that way carries an “auto” tag.",
+        "autoflower": "Autoflower: the presets keep 18–20 h of light, and the scheme runs at half strength.",
+        "autoflowerAlone": "Autoflower: the presets keep 18–20 h of light instead of flipping to 12/12."
+      },
+      "submit": "Start the grow · Day {{day}}",
+      "starting": "Starting the grow …",
+      "growStands": "The grow is made and stands where it was put; only its first stage is missing. Trying again writes just that.",
+      "climateLeft": "The grow and its first stage stand; only the place's climate was not written.",
+      "readOnly": "The demo may look at a grow, not start one."
     }
   },
   "space": {
@@ -1881,8 +1934,8 @@
       "noGrowToMove": "There is no other running grow to move here.",
       "moveGrowHere": "Move a grow here",
       "climateOnly": "Only the climate",
-      "startGrowLater": "Starting a grow from here arrives with the new-grow sheet.",
-      "question": "The climate is written either way. What about the grow?"
+      "question": "The climate is written either way. What about the grow?",
+      "startGrowHere": "Start a grow here"
     }
   },
   "log": {

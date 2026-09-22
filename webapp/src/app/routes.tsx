@@ -8,6 +8,7 @@ import { GrowPage } from '@/screens/grow/GrowPage';
 import { Home } from '@/screens/Home';
 import { LogRoute } from '@/log/LogRoute';
 import { Me } from '@/screens/Me';
+import { NewGrowRoute } from '@/screens/grow/new/NewGrowRoute';
 import { NotFound } from '@/screens/NotFound';
 import { Notifications } from '@/screens/notifications/Notifications';
 import { PublicGrowRoute } from '@/screens/public/PublicGrowRoute';
@@ -33,8 +34,9 @@ import { Timeline } from '@/screens/Timeline';
  *
  * `Log` is a route as well, so that a link and a notification can open the
  * sheet; it is not a screen of its own, and gives the address straight back to
- * the one it opened over. A camera is the third page a row opens, beside the
- * grow and the space.
+ * the one it opened over. The new-grow sheet has an address for the same
+ * reason, and stands over the home when it is followed cold. A camera is the
+ * third page a row opens, beside the grow and the space.
  *
  * A space's tab may have a page of its own below it - the manual targets and
  * the alarm rules under Control - which is the third segment, so that a link
@@ -62,6 +64,7 @@ export const router = createBrowserRouter([
       { path: 'me', element: <Me /> },
       { path: 'me/notifications', element: <Notifications /> },
       { path: 'alerts', element: <Alerts /> },
+      { path: 'grows/new', element: <NewGrowRoute /> },
       { path: 'grows/:growId/:tab?', element: <GrowPage /> },
       { path: 'spaces/:spaceId/:tab?/:sub?', element: <SpacePage /> },
       { path: 'index.html', element: <Navigate to="/" replace /> },

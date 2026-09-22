@@ -77,11 +77,17 @@ export const schemeKey = (id: string | null) => ['schemes', id];
  */
 const FOREVER = { staleTime: Infinity, gcTime: Infinity } as const;
 
-/** Every scheme the build carries, in the order the index lists them. */
+/**
+ * Every scheme the build carries, in the order the index lists them. A build
+ * with no schemes folder answers an empty list rather than an error, because a
+ * client without them is a client that asks one question less - and a sheet
+ * that could not tell the two apart would draw a refusal where there is
+ * nothing to refuse.
+ */
 export const useSchemes = () =>
   useQuery({
     queryKey: schemesKey,
-    queryFn: async ({ signal }) => (await readAsset<SchemeIndex>('index.json', signal)).schemes,
+    queryFn: async ({ signal }) => (await readAsset<SchemeIndex>('index.json', signal).catch(() => ({ schemes: [] }))).schemes,
     ...FOREVER,
   });
 

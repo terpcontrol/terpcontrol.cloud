@@ -3,9 +3,11 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useGrows } from '@/api/grows';
 import { useMoveGrowHere } from '@/api/lifecycle';
+import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
 import { Sheet } from '@/log/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
+import { useMayManage } from '@/ui/session-access';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import styles from './PresetSheet.module.css';
@@ -18,16 +20,24 @@ import styles from './PresetSheet.module.css';
  * is given and the grow is the question, so that is what this asks - and the
  * grows already standing here are not among the answers, because a move to
  * where the plants already are is not a move.
+ *
+ * A tent with nothing to move into it is a tent waiting for its first grow, so
+ * that is what it is offered: the new-grow sheet takes this one's place with
+ * the tent already answered.
  */
 export function MoveHereSheet({ spaceId, spaceName, onClose }: { spaceId: string; spaceName: string; onClose: () => void }) {
   const { t } = useTranslation();
   const grows = useGrows();
   const move = useMoveGrowHere(spaceId);
+  const mayManage = useMayManage();
 
   const [growId, setGrowId] = useState<string | null>(null);
   const [at, setAt] = useState(() => new Date());
+  const [starting, setStarting] = useState(false);
 
   const movable = (grows.data?.items ?? []).filter(grow => grow.endedAt === null && !grow.summary.locations.some(one => one.spaceId === spaceId));
+
+  if (starting) return <NewGrowSheet spaceId={spaceId} onClose={onClose} />;
 
   return (
     <Sheet title={t('space.moveHereTitle', { name: spaceName })} onClose={onClose}>
@@ -36,7 +46,14 @@ export function MoveHereSheet({ spaceId, spaceName, onClose }: { spaceId: string
           {grows.isPending ? (
             <p className={ui.note}>{t('home.waiting')}</p>
           ) : movable.length === 0 ? (
-            <p className={ui.note}>{t('space.presets.noGrowToMove')}</p>
+            <>
+              <p className={ui.note}>{t('space.presets.noGrowToMove')}</p>
+              {mayManage ? (
+                <button type="button" className={ui.button} onClick={() => setStarting(true)}>
+                  {t('space.presets.startGrowHere')}
+                </button>
+              ) : null}
+            </>
           ) : (
             <Choices label={t('space.presets.whichGrow')}>
               {movable.map(grow => (

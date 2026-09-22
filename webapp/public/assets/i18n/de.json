@@ -1276,8 +1276,7 @@
     "startGrow": {
       "title": "Grow starten",
       "text": "Ein Tagebuch für Pflanzen überall: Balkon, Fensterbank, ein Zelt ohne Controller. Gerät später hinzufügen.",
-      "button": "Neuer Grow",
-      "notYet": "Noch nicht möglich: Grows kommen mit einem späteren Update."
+      "button": "Neuer Grow"
     },
     "addDevice": {
       "title": "Gerät hinzufügen",
@@ -1601,6 +1600,60 @@
         "submit_one": "{{count}} Pflanze abtrennen",
         "submit_other": "{{count}} Pflanzen abtrennen"
       }
+    },
+    "new": {
+      "title": "Neuer Grow",
+      "row": "+ Neuer Grow",
+      "name": "Name",
+      "firstName": "Erster Grow",
+      "plants": "Pflanzen",
+      "plantsAside": "eine Anzahl genügt; Namen helfen später beim Vergleichen",
+      "strain": "Sorte",
+      "more": "Eine mehr",
+      "fewer": "Eine weniger",
+      "removeStrain": "Diese Sorte entfernen",
+      "addStrain": "+ Sorte hinzufügen",
+      "type": "Art",
+      "typeAside": "Autoflower überspringen den 12/12-Umschlag und werden leichter gedüngt",
+      "photoperiod": "Photoperiode",
+      "autoflower": "Autoflower",
+      "where": "Wo",
+      "whereAside": "Preset und Kameras des Platzes folgen dem Grow",
+      "cam": "Cam",
+      "newSpace": "Neuer Platz",
+      "spaceName": "Name des Platzes",
+      "spaceKind": "Art des Platzes",
+      "kind": {
+        "tent": "Zelt",
+        "fridge": "Kühlschrank",
+        "balcony": "Balkon",
+        "other": "Woanders"
+      },
+      "makeSpace": "Platz anlegen",
+      "makingSpace": "Wird angelegt …",
+      "startingAt": "Startet bei",
+      "startingAside": "Samen zeigen sich meist in 2–5 Tagen",
+      "today": "heute",
+      "earlier": "Früheres Datum …",
+      "startedOn": "Gestartet am",
+      "feeding": "Düngung",
+      "feedingAside": "ein Ausgangspunkt, keine Vorschrift; jede Woche änderbar",
+      "ownScheme": "Keins / eigenes",
+      "noSchemes": "Dieser Build bringt keine Düngeschemata mit; der Grow wird von Hand gedüngt oder nach einem eigenen Schema.",
+      "schemeUnreadable": "Dieses Schema war nicht lesbar, der Grow kann damit nicht gestartet werden.",
+      "tells": {
+        "preset": "{{place}} geht jetzt auf das Preset für {{stage}}.",
+        "noController": "In {{place}} steuert nichts ein Klima, die Phase wird also nur festgehalten und nirgendwohin geschrieben.",
+        "nowhere": "Kein Platz, also wird nichts gesteuert; die Phasen werden trotzdem festgehalten.",
+        "auto": "Von hier an schiebt das Preset des Platzes den Grow weiter, und eine so geschriebene Phase trägt die Markierung „auto“.",
+        "autoflower": "Autoflower: Die Presets bleiben bei 18–20 h Licht, und das Schema läuft mit halber Stärke.",
+        "autoflowerAlone": "Autoflower: Die Presets bleiben bei 18–20 h Licht, statt auf 12/12 umzuschlagen."
+      },
+      "submit": "Grow starten · Tag {{day}}",
+      "starting": "Grow wird gestartet …",
+      "growStands": "Der Grow ist angelegt und steht, wo er hingestellt wurde; nur seine erste Phase fehlt. Ein neuer Versuch schreibt genau die.",
+      "climateLeft": "Der Grow und seine erste Phase stehen; nur das Klima des Platzes wurde nicht geschrieben.",
+      "readOnly": "Die Demo darf sich einen Grow ansehen, keinen starten."
     }
   },
   "space": {
@@ -1877,8 +1930,8 @@
       "noGrowToMove": "Es gibt keinen anderen laufenden Grow, der hierher ziehen könnte.",
       "moveGrowHere": "Grow hierher ziehen",
       "climateOnly": "Nur das Klima",
-      "startGrowLater": "Einen Grow von hier aus zu starten kommt mit dem Blatt für neue Grows.",
-      "question": "Das Klima ist so oder so geschrieben. Was ist mit dem Grow?"
+      "question": "Das Klima ist so oder so geschrieben. Was ist mit dem Grow?",
+      "startGrowHere": "Hier einen Grow starten"
     }
   },
   "log": {

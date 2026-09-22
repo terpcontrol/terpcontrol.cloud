@@ -1,0 +1,148 @@
+/* The new-grow sheet: a name, the rows of plants, and four rows of chips. The
+   sheet, the chips, the cards and the buttons are the app's own, so nothing
+   here restates a surface, a radius or a colour. */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-2) 0;
+}
+
+/* The field and, in its corner, the name this run would have. */
+.name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+
+.nameInput {
+  flex: 1;
+  min-width: 0;
+  height: var(--control-height);
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font-size: var(--text-md);
+}
+
+.nameInput:focus {
+  outline: none;
+}
+
+.nameInput::placeholder {
+  color: var(--label);
+}
+
+/* Offered rather than filled in: a tap takes it, and typing over it ignores it. */
+.suggestion {
+  flex: none;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+/* One strain: what it is, how many, and the two taps that change that. */
+.plant {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+.strain {
+  flex: 1;
+  min-width: 0;
+  height: var(--control-height);
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font-size: var(--text-md);
+}
+
+.strain:focus {
+  outline: none;
+}
+
+.strain::placeholder {
+  color: var(--label);
+}
+
+.count {
+  flex: none;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A chip with a glyph in it rather than a word: square, so the pair reads as one control. */
+.step {
+  flex: none;
+  width: var(--chip-height);
+  padding: 0;
+  justify-content: center;
+}
+
+.step:disabled {
+  opacity: 0.45;
+}
+
+.remove {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--chip-height);
+  height: var(--chip-height);
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--muted);
+}
+
+/* The row that is not a row yet. */
+.addRow {
+  padding: var(--space-3);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  text-align: left;
+}
+
+/* Photoperiod and autoflower: one question with two halves of an answer. */
+.halves {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.halves > button {
+  flex: 1;
+  justify-content: center;
+}
+
+.newSpace {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--rule-dashed);
+  border-radius: var(--radius);
+}
+
+/* What the choices come to, as sentences and without list markers - a marker in
+   front of each would read as something to choose between. */
+.tells {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.submit {
+  width: 100%;
+}

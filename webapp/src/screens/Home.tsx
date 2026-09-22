@@ -7,6 +7,8 @@ import { useReportFreshness } from '@/ui/freshness';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { EmptyHome } from './EmptyHome';
+import { NewGrowRow } from './grow/new/NewGrowRow';
+import { NewGrowSheet } from './grow/new/NewGrowSheet';
 import { isClub, sortedByAttention } from './home/attention';
 import { SpaceCard } from './home/SpaceCard';
 import { AttentionStrip, DueStrip, FollowingStrip } from './home/Strips';
@@ -21,6 +23,11 @@ export function Home() {
   const { t } = useTranslation();
   const home = useHome();
   const [claimed, setClaimed] = useState<DeviceClaimResult | null>(null);
+  // The sheet is held here rather than in either half of the home, because the
+  // first thing it writes - a grow, or the place to stand it in - is what
+  // decides which half is drawn, and a sheet inside that half would close on
+  // its own first answer.
+  const [starting, setStarting] = useState(false);
 
   useReportFreshness(home.dataUpdatedAt ? new Date(home.dataUpdatedAt).toISOString() : null);
 
@@ -39,14 +46,21 @@ export function Home() {
   }
 
   const answer = home.data!;
-  if (claimed || (answer.spaces.length === 0 && answer.followedGrows.length === 0)) {
-    return <EmptyHome claimed={claimed} onClaimed={setClaimed} />;
-  }
+  const nothingYet = claimed !== null || (answer.spaces.length === 0 && answer.followedGrows.length === 0);
 
-  return <Cards answer={answer} failedAt={home.isError ? home.dataUpdatedAt : null} />;
+  return (
+    <>
+      {nothingYet ? (
+        <EmptyHome claimed={claimed} onClaimed={setClaimed} onStartGrow={() => setStarting(true)} />
+      ) : (
+        <Cards answer={answer} failedAt={home.isError ? home.dataUpdatedAt : null} onStartGrow={() => setStarting(true)} />
+      )}
+      {starting ? <NewGrowSheet onClose={() => setStarting(false)} /> : null}
+    </>
+  );
 }
 
-function Cards({ answer, failedAt }: { answer: HomeAnswer; failedAt: number | null }) {
+function Cards({ answer, failedAt, onStartGrow }: { answer: HomeAnswer; failedAt: number | null; onStartGrow: () => void }) {
   const { t } = useTranslation();
   const now = useNow();
   const club = isClub(answer.spaces);
@@ -75,6 +89,8 @@ function Cards({ answer, failedAt }: { answer: HomeAnswer; failedAt: number | nu
           <SpaceCard key={card.spaceId} card={card} people={answer.people} now={now} compact={club} />
         ))}
       </div>
+
+      <NewGrowRow onOpen={onStartGrow} />
 
       <FollowingStrip grows={answer.followedGrows} now={now} />
     </section>
