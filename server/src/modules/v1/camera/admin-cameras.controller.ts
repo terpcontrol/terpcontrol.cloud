@@ -29,6 +29,6 @@ export class AdminCamerasController {
     });
     if (!updated) throw notFound('camera_not_found', 'There is no camera with that id.');
 
-    return this.cameras.serialise(updated);
+    return this.cameras.serialise(updated, 'admin');
   }
 }

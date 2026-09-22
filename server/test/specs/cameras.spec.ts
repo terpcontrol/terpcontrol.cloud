@@ -1,5 +1,6 @@
 import { anonymous, createAccount, Session } from '../support/api';
 import { claimCodeOf, DeviceSimulator, provisionDevice, settle, startSimulator } from '../support/device';
+import { joinSpace, setRow } from '../support/fixtures';
 
 /**
  * A camera: adding one, what the camera page edits about it, and the composer.
@@ -310,5 +311,70 @@ describe('the composer', () => {
       .post(`/v1/cameras/${camera}/timelapses`)
       .send({ window: 'phase', ...span })
       .expect(404);
+  });
+});
+
+/**
+ * What a camera is to somebody the tent was shared with.
+ *
+ * A guest is invited to a tent, its grows and its cams - which is the picture
+ * and what the camera is called, and never the id the hardware is paired by or
+ * the address it answers on at home. These cameras ship with a fixed default
+ * login, so an address plus an identity is most of a way in; the demo session
+ * has always been answered without them, and a round that let other people into
+ * the tent is what made the same redaction owed to everybody who is not the
+ * owner.
+ */
+describe('what somebody the tent is shared with is answered about a camera', () => {
+  const DID = 'SIMCAMD827A1';
+  const HOME = '192.168.1.40';
+  const TUNNEL = 'ffmpeg exited: rtsp://10.8.0.2:8554/tunnelled refused';
+
+  let guest: Session;
+  let theirs: string;
+
+  beforeAll(async () => {
+    guest = await createAccount('cameras-guest');
+    // The stronger of the two roles, so that what is held back is held back
+    // from the guest who may do most rather than only from the one who may least.
+    await joinSpace(owner, tent, guest, 'can_manage');
+
+    theirs = await addCamera(rtsp({ name: 'The host´s canopy cam', url: `rtsp://viewer:hunter2@${HOME}:554/stream1` }));
+    await setRow('cameras', { id: theirs }, { did: DID, uid: 'UID-827A1', ip: HOME, 'state.lastError': TUNNEL });
+  });
+
+  it('says what the camera is and nothing about where the host lives', async () => {
+    const read = (await guest.client.get(`/v1/cameras/${theirs}`).expect(200)).body;
+
+    expect(read).toMatchObject({ id: theirs, name: 'The host´s canopy cam', kind: 'rtsp', spaceId: tent });
+    expect(read.did).toBeNull();
+    expect(read.uid).toBeNull();
+    expect(read.ip).toBeNull();
+    expect(read.url).toBeNull();
+    expect(read.state.lastError).toBeNull();
+
+    const said = JSON.stringify(read);
+    expect(said).not.toContain(DID);
+    expect(said).not.toContain(HOME);
+    expect(said).not.toContain('10.8.0.2');
+  });
+
+  it('holds the same back in the list, and in the answer to the guest´s own edit', async () => {
+    const listed = (await guest.client.get('/v1/cameras?limit=200').expect(200)).body.items.find((one: { id: string }) => one.id === theirs);
+    expect(listed).toMatchObject({ did: null, uid: null, ip: null, url: null });
+    expect(listed.state.lastError).toBeNull();
+
+    const renamed = (await guest.client.patch(`/v1/cameras/${theirs}`).send({ name: 'Renamed by the guest' }).expect(200)).body;
+    expect(renamed).toMatchObject({ name: 'Renamed by the guest', did: null, ip: null, url: null });
+  });
+
+  it('is the guest´s standing and not the camera´s: the owner reads their own hardware whole', async () => {
+    const mine = (await owner.client.get(`/v1/cameras/${theirs}`).expect(200)).body;
+
+    expect(mine.did).toBe(DID);
+    expect(mine.ip).toBe(HOME);
+    // Without the credentials, which are nobody's to read back - the address is.
+    expect(mine.url).toBe(`rtsp://${HOME}:554/stream1`);
+    expect(mine.state.lastError).toBe(TUNNEL);
   });
 });

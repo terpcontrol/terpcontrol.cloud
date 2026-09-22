@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Camera, CameraCreate, CameraUpdate } from '@fg2/shared-types/v1';
 import { withoutCredentials } from '@common/log-path';
 import { demoCamera } from '@utils/demo';
-import { AccessContext } from '@common/v1/access.types';
+import { AccessContext, Grantee } from '@common/v1/access.types';
 import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -92,10 +92,26 @@ export class CamerasService {
     const rows = await this.cameras.find({ $and: conditions }).sort({ createdAt: -1, id: -1 }).limit(readLimit(limit)).lean<CameraDocument[]>();
 
     return pageOf(
-      rows.map(camera => this.serialise(camera, ctx.isDemo)),
+      rows.map(camera => this.serialise(camera, this.granteeOf(ctx, camera))),
       limit,
       camera => ({ at: new Date(camera.createdAt), id: camera.id }),
     );
+  }
+
+  /**
+   * Which of the six a caller is, for a camera they have already been allowed to
+   * read. It is not a decision about whether they may - `access()` and the
+   * filter below have made that - but about how much of the row is theirs to
+   * see, the same thing `Grant.grantee` carries on every route that reads one
+   * camera. A list cannot ask for a grant per row without a query per row, and
+   * it only ever answers a session, so the three standings a session can hold
+   * here are worked out from the row itself.
+   */
+  public granteeOf(ctx: AccessContext, camera: Pick<CameraDocument, 'ownerId'>): Grantee {
+    if (ctx.isAdmin) return 'admin';
+    if (ctx.isDemo) return 'demo';
+
+    return ctx.userId !== null && ctx.userId === camera.ownerId ? 'owner' : 'member';
   }
 
   /**
@@ -189,11 +205,19 @@ export class CamerasService {
   }
 
   /**
-   * `redacted` is for a demo session, which is shown somebody's real tent: what
-   * the camera *is* stays, and the address it is reached at, the id it is paired
-   * by and the reason it last failed go.
+   * What the camera *is* is answered to everybody who may read it; where it is
+   * reached, what it is paired by and why it last failed are the owner's alone.
+   *
+   * A demo session is shown somebody's real tent and a member is shown the
+   * host's, and neither of them is looking at their own hardware: `did` is the
+   * identity a Terp Cam is paired by, `ip` and `url` say where it sits on a home
+   * network - which these cameras answer on with a default login that is no
+   * secret - and `lastError` carries the paths and the tunnel address the
+   * server reached it over. None of it is part of seeing the tent, and the
+   * invitation promises the guest the tent and the cams, not the house they
+   * stand in.
    */
-  public serialise(camera: CameraDocument, redacted = false, now: Date = new Date()): Camera {
+  public serialise(camera: CameraDocument, to: Grantee = 'owner', now: Date = new Date()): Camera {
     const served: Camera = {
       id: camera.id,
       createdAt: camera.createdAt.toISOString(),
@@ -229,9 +253,26 @@ export class CamerasService {
       },
     };
 
-    return redacted ? demoCamera(served) : served;
+    if (to === 'demo') return demoCamera(served);
+
+    return to === 'owner' || to === 'admin' ? served : withoutTheOwnersAddress(served);
   }
 }
+
+/**
+ * A camera as somebody who does not own it is answered: still a camera, with a
+ * name, a place, a kind and a state, and with nothing in it that says where the
+ * owner lives or how their hardware is reached. It is what the demo redaction
+ * has always done, applied to the other people a round of sharing let in.
+ */
+const withoutTheOwnersAddress = (camera: Camera): Camera => ({
+  ...camera,
+  did: null,
+  uid: null,
+  ip: null,
+  url: null,
+  state: { ...camera.state, lastError: null },
+});
 
 /** How often the pipeline has always asked a camera for a picture. */
 export const DEFAULT_STILL_INTERVAL_SECONDS = 30;

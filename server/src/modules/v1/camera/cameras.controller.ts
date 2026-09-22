@@ -131,7 +131,10 @@ export class CamerasController {
     const camera = paired ? await this.cameras.update(paired.id, settingsOf(body)) : await this.cameras.create(owner, body);
     if (!camera) throw notFound('camera_not_found', 'There is no camera with that id.');
 
-    return this.cameras.serialise(camera);
+    // Adopting a controller's paired camera answers a row this caller may not
+    // own: a manager of somebody's tent may add a camera to it, and what comes
+    // back is then still the host's.
+    return this.cameras.serialise(camera, this.cameras.granteeOf(ctx, camera));
   }
 
   @Get(':id')
@@ -139,8 +142,8 @@ export class CamerasController {
   @Requires('view', 'camera')
   @ApiOperation({ summary: 'One camera' })
   @V1Answer(camera)
-  public async read(@Caller() ctx: AccessContext, @Param('id') id: string): Promise<Camera> {
-    return this.cameras.serialise(await this.require(id), ctx.isDemo);
+  public async read(@CurrentGrant() grant: Grant, @Param('id') id: string): Promise<Camera> {
+    return this.cameras.serialise(await this.require(id), grant.grantee);
   }
 
   /**
@@ -189,7 +192,7 @@ export class CamerasController {
 
     // The settings may be the ones that were failing, so it is tried again at once.
     this.poller.settingsChanged(id);
-    return this.cameras.serialise(updated);
+    return this.cameras.serialise(updated, this.cameras.granteeOf(ctx, updated));
   }
 
   /**
