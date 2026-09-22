@@ -1,4 +1,4 @@
-import type { Membership, MembershipPage, Person } from '@fg2/shared-types/v1';
+import type { MemberRole, Membership, MembershipPage, Person } from '@fg2/shared-types/v1';
 
 /**
  * The little arithmetic the member list does, kept out of the drawing so that
@@ -7,18 +7,78 @@ import type { Membership, MembershipPage, Person } from '@fg2/shared-types/v1';
  * Every question here comes back to one fact: the answer carries the rows of
  * this space and the rows of the room it stands in, told apart only by the
  * `spaceId` each one names. A row of the room's reaches into every tent grouped
- * under it, which is why it is drawn here and changed there.
+ * under it, which is why it is drawn here and changed there - and why one
+ * person can hold two rows at once, one on the room and one on this tent. In a
+ * club that is the ordinary shape rather than an edge case, so the list is
+ * folded to people before it is drawn: a person twice on the screen, with two
+ * roles and counted twice, is the one thing a guest list must not do.
  */
+
+/**
+ * When each person last wrote in the space. The server adds this beside the
+ * rows; an answer from before it did carries none, and the row then says
+ * nothing about it rather than guessing.
+ */
+export type Activity = { userId: string; lastEntryAt: string };
+
+export type MembershipAnswer = MembershipPage & { activity?: Activity[] };
+
+/**
+ * One person, however many rows carry them: the tent's own row, the room's, and
+ * the stronger of the two roles, which is the one the server actually grants.
+ */
+export type Guest = {
+  userId: string;
+  here: Membership | null;
+  viaRoom: Membership | null;
+  role: MemberRole;
+};
+
+/** The order the roles stack in: a stronger role includes the weaker one. */
+const RANK: Record<MemberRole, number> = { can_log: 1, can_manage: 2 };
+
+export const stronger = (left: MemberRole, right: MemberRole): MemberRole => (RANK[right] > RANK[left] ? right : left);
 
 export const isViaRoom = (row: Membership, spaceId: string): boolean => row.spaceId !== spaceId;
 
-export const viaRoomCount = (page: MembershipPage, spaceId: string): number => page.items.filter(row => isViaRoom(row, spaceId)).length;
+/** How many people reach in through the room, whether or not they are in the tent as well. */
+export const viaRoomCount = (page: MembershipPage, spaceId: string): number =>
+  new Set(page.items.filter(row => isViaRoom(row, spaceId)).map(row => row.userId)).size;
 
-/** The owner is never a row and is always exactly one person, so the list is one longer than it is. */
-export const peopleCount = (page: MembershipPage): number => page.items.length + 1;
+/** People, not rows: somebody in the room and in the tent is one. The owner is never a row and is always exactly one person. */
+export const peopleCount = (page: MembershipPage): number => new Set(page.items.map(row => row.userId)).size + 1;
 
 export const personOf = (page: MembershipPage, userId: string): Person | null => page.people.find(one => one.id === userId) ?? null;
 
-/** The rows in the order people arrived, with the room's held back so the tent's own read first. */
-export const sortedRows = (page: MembershipPage, spaceId: string): Membership[] =>
-  [...page.items].sort((left, right) => Number(isViaRoom(left, spaceId)) - Number(isViaRoom(right, spaceId)));
+/**
+ * One guest per person, in the order people arrived, with those who are here
+ * only through the room held back so the tent's own read first.
+ */
+export const guestsOf = (page: MembershipPage, spaceId: string): Guest[] => {
+  const byUser = new Map<string, Guest>();
+  for (const row of page.items) {
+    const guest = byUser.get(row.userId) ?? { userId: row.userId, here: null, viaRoom: null, role: row.role };
+    if (isViaRoom(row, spaceId)) guest.viaRoom = row;
+    else guest.here = row;
+    guest.role = stronger(guest.role, row.role);
+    byUser.set(row.userId, guest);
+  }
+
+  return [...byUser.values()].sort((left, right) => Number(left.here === null) - Number(right.here === null));
+};
+
+/**
+ * Whether the tent's own row is the one that decides what this person may do,
+ * so that a menu on it changes something. A room row that already grants more
+ * makes the tent's row moot, and a menu that showed the tent's weaker role
+ * would be stating a permission the server does not enforce.
+ */
+export const decidesHere = (guest: Guest): boolean =>
+  guest.here !== null && (guest.viaRoom === null || RANK[guest.viaRoom.role] <= RANK[guest.here.role]);
+
+/**
+ * When a person last wrote here: an instant, `null` for somebody who never has,
+ * and `undefined` where the answer does not say either way.
+ */
+export const lastLoggedOf = (page: MembershipAnswer, userId: string): string | null | undefined =>
+  page.activity === undefined ? undefined : (page.activity.find(one => one.userId === userId)?.lastEntryAt ?? null);

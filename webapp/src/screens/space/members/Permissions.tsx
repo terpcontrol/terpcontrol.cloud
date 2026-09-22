@@ -33,7 +33,7 @@ export function Permissions() {
           <tr>
             <th scope="col" />
             <th scope="col" className={`mono ${styles.column}`}>
-              {t('space.members.role.owner')}
+              {t('space.members.roleShort.owner')}
             </th>
             <th scope="col" className={`mono ${styles.column}`}>
               {t('space.members.roleShort.can_manage')}

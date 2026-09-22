@@ -9,7 +9,7 @@ import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { InviteBlock } from './InviteBlock';
-import { peopleCount, personOf, sortedRows, viaRoomCount } from './people';
+import { guestsOf, lastLoggedOf, peopleCount, personOf, viaRoomCount } from './people';
 import { Permissions } from './Permissions';
 import { PersonRow } from './PersonRow';
 import styles from './Members.module.css';
@@ -53,7 +53,12 @@ export function Members({ spaceId, name, roomId }: { spaceId: string; name: stri
   // Handing out the way in takes `own`, not `can_manage`, so the question here
   // is ownership rather than the role - a manager runs the tent and running it
   // is the one thing that does not include giving away a key to it.
-  const isOwner = mayWrite && spaces.data?.items.some(one => one.id === spaceId && one.ownerId === user?.id) === true;
+  const ownerId = spaces.data?.items.find(one => one.id === spaceId)?.ownerId ?? null;
+  const isOwner = mayWrite && ownerId !== null && ownerId === user?.id;
+  // The owner is named the way everybody else is, out of `people`, which the
+  // server fills for the rows and for the owner. Until an answer names them,
+  // the one person who can still be named is the reader.
+  const ownerHandle = (ownerId ? personOf(page, ownerId)?.handle : null) ?? (isOwner ? (user?.handle ?? null) : null);
   const viaRoom = viaRoomCount(page, spaceId);
 
   return (
@@ -83,16 +88,16 @@ export function Members({ spaceId, name, roomId }: { spaceId: string; name: stri
       </header>
 
       <ul className={styles.people}>
-        <OwnerRow isYou={isOwner} handle={isOwner ? (user?.handle ?? null) : null} />
-        {sortedRows(page, spaceId).map(row => (
+        <OwnerRow isYou={isOwner} handle={ownerHandle} name={name} />
+        {guestsOf(page, spaceId).map(guest => (
           <PersonRow
-            key={row.id}
+            key={guest.userId}
             spaceId={spaceId}
-            row={row}
-            handle={personOf(page, row.userId)?.handle ?? null}
+            guest={guest}
+            handle={personOf(page, guest.userId)?.handle ?? null}
             roomName={roomName}
-            viaRoom={row.spaceId !== spaceId}
-            isYou={row.userId === user?.id}
+            lastLogged={lastLoggedOf(page, guest.userId)}
+            isYou={guest.userId === user?.id}
             mayManage={isOwner}
             now={now}
           />
@@ -108,12 +113,13 @@ export function Members({ spaceId, name, roomId }: { spaceId: string; name: stri
  * The owner, who is the space's `ownerId` and never a membership row - so there
  * is nothing to change here and no menu to change it with.
  *
- * Their handle is in no part of this answer, which names only the rows. When
- * the person reading is the owner, the session knows it; when they are not, the
- * row still has to be here, because a list one person short would have the tent
- * belonging to nobody.
+ * They are named all the same, because a list on which every guest carries a
+ * handle and the one person who runs the tent is a dot fails at the reason a
+ * member is shown the list at all: telling whose entry they are reading. What
+ * is said under the name is that they own the place, which is a fact about the
+ * tent rather than a role in it.
  */
-function OwnerRow({ isYou, handle }: { isYou: boolean; handle: string | null }) {
+function OwnerRow({ isYou, handle, name }: { isYou: boolean; handle: string | null; name: string }) {
   const { t } = useTranslation();
 
   return (
@@ -122,8 +128,10 @@ function OwnerRow({ isYou, handle }: { isYou: boolean; handle: string | null }) 
         {handle ? initials(handle) : '·'}
       </span>
       <span className={styles.who}>
-        <span className={styles.handle}>{isYou ? t('space.members.you') : t('space.members.theOwner')}</span>
-        <span className={`mono ${styles.how}`}>{t('space.members.role.owner')}</span>
+        <span className={styles.handle}>{isYou ? t('space.members.you') : handle ? `@${handle}` : t('space.members.theOwner')}</span>
+        <span className={`mono ${styles.how}`}>
+          <span className={styles.howProse}>{t('space.members.owns', { name })}</span>
+        </span>
       </span>
       <span className={ui.chip}>{t('space.members.role.owner')}</span>
     </li>

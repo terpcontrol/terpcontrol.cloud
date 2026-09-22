@@ -2577,15 +2577,20 @@
       "viaLink": "per Link",
       "added": "von Hand",
       "viaRoom": "über {{room}}",
-      "joined": "{{how}} · vor {{age}}",
+      "alsoViaRoom": "{{how}} · auch über {{room}}",
+      "lastLogged": "geloggt vor {{age}}",
+      "neverLogged": "noch nichts geloggt",
+      "owns": "Besitzer:in von {{name}}",
       "roleOf": "Was {{name}} hier darf",
       "removeOf": "{{name}} aus diesem Zelt nehmen",
+      "leaveThis": "Dieses Zelt verlassen",
       "role": {
-        "owner": "Besitz",
+        "owner": "Besitzer:in",
         "can_log": "darf loggen",
         "can_manage": "darf steuern"
       },
       "roleShort": {
+        "owner": "Besitzer:in",
         "can_log": "loggen",
         "can_manage": "steuern"
       },
@@ -2599,20 +2604,22 @@
         "yes": "ja",
         "no": "nein"
       },
-      "noViewerRole": "Nur-Lesen ist das, wofür Freigabelinks da sind; eine Zuschauer-Rolle gibt es nicht. Jeder Eintrag trägt seinen Urheber. Aufgaben filtern nach Meine / Alle, Benachrichtigungen gehen pro Person.",
+      "noViewerRole": "Zum bloßen Mitlesen gibt es Freigabelinks; eine Zuschauer-Rolle gibt es nicht. Jeder Eintrag zeigt, wer ihn geschrieben hat. Aufgaben lassen sich nach Meine / Alle filtern, Benachrichtigungen gibt es pro Person.",
       "remove": {
-        "title": "@{{name}} hinausnehmen?",
+        "title": "@{{name}} aus dem Zelt nehmen?",
         "body": "Damit ist dieses Zelt für sie weg, samt allem, was darin steht. Was sie hier geschrieben haben, bleibt hier und trägt weiter ihren Namen.",
-        "yes": "Hinausnehmen"
+        "bodyKeepsRoom": "Dieses Zelt bleibt ihnen über {{room}} erhalten; sie verlieren nur die Rolle, die sie hier hatten. Was sie hier geschrieben haben, bleibt hier und trägt weiter ihren Namen.",
+        "yes": "Aus dem Zelt nehmen"
       },
       "leave": {
         "title": "Dieses Zelt verlassen?",
         "body": "Es verschwindet von deiner Startseite, und zurück kommst du nur, wenn du wieder hereingelassen wirst. Was du hier geschrieben hast, bleibt hier und trägt weiter deinen Namen.",
+        "bodyKeepsRoom": "Dieses Zelt bleibt dir über {{room}} erhalten; du gibst nur die Rolle auf, die du hier hattest. Was du hier geschrieben hast, bleibt hier und trägt weiter deinen Namen.",
         "yes": "Zelt verlassen"
       },
       "join": {
         "label": "Einladung",
-        "title": "Du bist eingeladen zu {{name}}",
+        "title": "Du bist zu {{name}} eingeladen",
         "by": "von @{{handle}}",
         "bySomebody": "von jemandem, der hier growt",
         "asRole": {
@@ -2628,7 +2635,7 @@
         "demo": "Die Demo hat kein eigenes Konto und kann eine Einladung deshalb nicht annehmen. Melde dich ab und mit deinem eigenen Konto wieder an.",
         "dead": {
           "title": "Diese Einladung führt nirgendwohin",
-          "body": "Ein Link gilt sieben Tage und kann jederzeit gestoppt werden. Bitte um einen neuen, wer ihn dir geschickt hat."
+          "body": "Ein Link gilt sieben Tage und kann jederzeit gestoppt werden. Wer ihn dir geschickt hat, kann dir einen neuen schicken."
         }
       }
     }

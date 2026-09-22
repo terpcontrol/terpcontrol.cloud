@@ -1,11 +1,11 @@
-/* The invitation, on the public chrome. One column, phone first, and the same
-   column block the signed-in pages keep on a wide window. */
+/* The invitation, on the public chrome. One column, phone first; the measure
+   is the shell's centred column, as it is on every other public page, so the
+   card and the button sit on the same axis as the line under the rule. */
 
 .invitation {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  max-width: var(--column-width);
 }
 
 .title {

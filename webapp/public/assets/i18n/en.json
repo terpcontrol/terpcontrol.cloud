@@ -2581,15 +2581,20 @@
       "viaLink": "joined via link",
       "added": "added by hand",
       "viaRoom": "via {{room}}",
-      "joined": "{{how}} · {{age}}",
+      "alsoViaRoom": "{{how}} · also via {{room}}",
+      "lastLogged": "last logged {{age}}",
+      "neverLogged": "nothing logged yet",
+      "owns": "owner of {{name}}",
       "roleOf": "What {{name}} may do here",
       "removeOf": "Take {{name}} out of this tent",
+      "leaveThis": "Leave this tent",
       "role": {
         "owner": "owner",
         "can_log": "can log",
         "can_manage": "can manage"
       },
       "roleShort": {
+        "owner": "owner",
         "can_log": "log",
         "can_manage": "manage"
       },
@@ -2607,11 +2612,13 @@
       "remove": {
         "title": "Take @{{name}} out?",
         "body": "They lose this tent and everything standing in it. What they wrote here stays here and goes on carrying their name.",
+        "bodyKeepsRoom": "They keep this tent through {{room}} and lose only what they held here. What they wrote here stays here and goes on carrying their name.",
         "yes": "Take them out"
       },
       "leave": {
         "title": "Leave this tent?",
         "body": "It goes off your home and you can only come back in if you are let in again. What you wrote here stays here and goes on carrying your name.",
+        "bodyKeepsRoom": "You keep this tent through {{room}} and give up only the role you held here. What you wrote here stays here and goes on carrying your name.",
         "yes": "Leave the tent"
       },
       "join": {
