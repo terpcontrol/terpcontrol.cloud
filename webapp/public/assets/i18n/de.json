@@ -1563,7 +1563,7 @@
       "days_one": "{{count}} Tag",
       "days_other": "{{count}} Tage",
       "permanentLink": "der dauerhafte Link des Grows",
-      "growPrivate": "Grow jetzt privat · öffnet trotzdem",
+      "growPrivate": "Grow jetzt privat · öffnet nicht mehr",
       "readOnly": "nur lesen",
       "permanent": "dauerhaft",
       "expires": "läuft ab {{date}}",

@@ -268,8 +268,10 @@ const opensOf = (t: Translate, link: ShareLink, now: DateTime): Part[] => {
 
 /**
  * What a live link grants. A public-page link onto a grow that has since gone
- * private is the one case said in the warning colour: the server keeps
- * answering such a link, so the card says that rather than "permanent".
+ * private is the one case said in the warning colour: making the grow private
+ * is what takes such a link back, so the card says the link no longer opens
+ * rather than calling it permanent - it is not revoked and would work again if
+ * the grow were published again, which is exactly what the words have to carry.
  */
 const grantParts = (t: Translate, link: ShareLink, subject: Subject, privacy: Me['privacy'] | null, now: DateTime, locale: string): Part[] => {
   const parts: Part[] = [];

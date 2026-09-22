@@ -100,7 +100,16 @@ function Grows({ userId }: { userId: string | null }) {
           <GrowRow
             key={grow.id}
             grow={grow}
-            links={live.filter(link => link.subject.type === 'grow' && link.subject.id === grow.id).length}
+            // Only the links that actually open the grow are counted. A
+            // public-page link is the public address in another form and stops
+            // working the moment the grow goes private, so counting it on a
+            // private grow would tell somebody their grow was still being read
+            // when it is not.
+            links={
+              live.filter(
+                link => link.subject.type === 'grow' && link.subject.id === grow.id && (link.kind === 'view' || grow.visibility === 'public'),
+              ).length
+            }
             held={!mayManage}
           />
         ))

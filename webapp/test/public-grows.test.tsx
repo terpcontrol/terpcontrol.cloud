@@ -16,7 +16,8 @@ import { PublicGrows } from '@/screens/me/sharing/PublicGrows';
  * What is checked is that only this account's own grows get a switch, that the
  * switch writes the one field and the list then agrees with the server, that
  * the profile's address is named while its switch stays on the privacy screen,
- * and that a private grow which a link still opens says so.
+ * and that a private grow says which links still open it - a read-only view does,
+ * and the public page's own address does not.
  */
 
 const session = vi.hoisted(() => ({ demo: false }));

@@ -185,7 +185,7 @@ describe('the active list', () => {
     server.links = [orphanPage];
     await drawLoaded();
 
-    expect(card('Balcony tomatoes · public page')).toHaveTextContent('grow now private · still opens');
+    expect(card('Balcony tomatoes · public page')).toHaveTextContent('grow now private · does not open');
   });
 
   it('closes with the paragraph the board writes, word for word', async () => {

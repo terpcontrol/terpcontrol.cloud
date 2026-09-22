@@ -1567,7 +1567,7 @@
       "days_one": "{{count}} day",
       "days_other": "{{count}} days",
       "permanentLink": "the grow's permanent link",
-      "growPrivate": "grow now private · still opens",
+      "growPrivate": "grow now private · does not open",
       "readOnly": "read-only view",
       "permanent": "permanent",
       "expires": "expires {{date}}",
