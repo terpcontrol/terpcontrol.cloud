@@ -1,11 +1,13 @@
 import { ChevronLeft, Download } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { fileSize, isBuilding, useAskAccountExport, useExport } from '@/api/exports';
+import { fileSize, isBuilding, useAskAccountExport, useAskedExport, useExport } from '@/api/exports';
 import { mediaUrl } from '@/api/session';
+import { ageLabel } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
+import { useNow } from '@/ui/useNow';
 import styles from './parts.module.css';
 
 /**
@@ -122,17 +124,26 @@ export function Menu({
  * account and the privacy screen, so it is one row with two sets of words
  * rather than two rows that could be told apart. The control is a chip like
  * every other control in the column, and turns green once there is a file.
+ *
+ * Which job it is drawing comes from the cache rather than from this
+ * component, so that walking away and back finds the file instead of a button
+ * offering to build one the server has already built; and the chip carries the
+ * file's age, because the route answers a standing export unchanged while it is
+ * under an hour old and a zip from before this morning's entry must not be
+ * handed over as the thing that was just asked for.
  */
 export function ExportRow({ title, line, ask }: { title: string; line: ReactNode; ask: string }) {
   const { t } = useTranslation();
+  const now = useNow();
   const request = useAskAccountExport();
-  const [mediaId, setMediaId] = useState<string | null>(null);
+  const mediaId = useAskedExport();
   const job = useExport(mediaId);
 
   const row = job.data;
   const status = row?.exportJob?.status ?? null;
   const ready = row && status === 'ready' ? row : null;
   const file = ready ? mediaUrl(ready.id) : null;
+  const built = ready?.exportJob?.endedAt ?? null;
 
   return (
     <Row
@@ -151,21 +162,20 @@ export function ExportRow({ title, line, ask }: { title: string; line: ReactNode
             </p>
           ) : null}
           <Refused error={request.error} />
+          {/* A poll that stopped answering leaves the last row in place, so it has to say so rather than sit at "building the file…" for ever. */}
+          <Refused error={job.error} />
         </>
       }
     >
       {ready && file ? (
         <a className={`${ui.chip} ${ui.primary}`} href={file} download>
           <Download size={14} strokeWidth={1.75} aria-hidden />
-          {t('me.account.export.download', { size: fileSize(ready.bytes) })}
+          {built
+            ? t('me.account.export.downloadAged', { size: fileSize(ready.bytes), age: ageLabel(built, now) })
+            : t('me.account.export.download', { size: fileSize(ready.bytes) })}
         </a>
       ) : (
-        <button
-          type="button"
-          className={ui.chip}
-          disabled={request.isPending || isBuilding(row)}
-          onClick={() => request.mutate(undefined, { onSuccess: accepted => setMediaId(accepted.media.id) })}
-        >
+        <button type="button" className={ui.chip} disabled={request.isPending || isBuilding(row)} onClick={() => request.mutate()}>
           {status === 'failed' ? t('me.account.export.again') : ask}
         </button>
       )}

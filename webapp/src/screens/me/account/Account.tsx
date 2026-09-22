@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Me } from '@fg2/shared-types/v1';
 import { useChangePassword, useMe, useRevokeSession, useSessions, useUpdatingMe } from '@/api/account';
-import { fileSize, isBuilding, useAskAccountExport, useExport } from '@/api/exports';
+import { fileSize, isBuilding, useAskAccountExport, useAskedExport, useExport } from '@/api/exports';
 import { mediaUrl, useSession } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
@@ -255,17 +255,26 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
  * it is ready or has failed, and a failure says what went wrong rather than
  * sitting at "building" for ever - the same shape, and the same polling, as
  * the export at the end of a grow's report.
+ *
+ * Which job that is comes from the cache rather than from this component, so
+ * that walking to another page and back finds the file instead of a button
+ * offering to build one the server has already built. And the file is dated on
+ * the chip: the route answers a standing export unchanged while it is under an
+ * hour old, so somebody who has just logged a harvest and taps to take a copy
+ * away can be handed a zip from before it, and has to be able to see that.
  */
 function ExportRow() {
   const { t } = useTranslation();
+  const now = useNow();
   const ask = useAskAccountExport();
-  const [mediaId, setMediaId] = useState<string | null>(null);
+  const mediaId = useAskedExport();
   const job = useExport(mediaId);
 
   const row = job.data;
   const status = row?.exportJob?.status ?? null;
   const ready = row && status === 'ready' ? row : null;
   const file = ready ? mediaUrl(ready.id) : null;
+  const built = ready?.exportJob?.endedAt ?? null;
 
   return (
     <Row
@@ -284,21 +293,20 @@ function ExportRow() {
             </p>
           ) : null}
           <Refused error={ask.error} />
+          {/* A poll that stopped answering leaves the last row in place, so it has to say so rather than sit at "building the file…" for ever. */}
+          <Refused error={job.error} />
         </>
       }
     >
       {ready && file ? (
         <a className={`${ui.button} ${ui.primary}`} href={file} download>
           <Download size={14} strokeWidth={1.75} aria-hidden />
-          {t('me.account.export.download', { size: fileSize(ready.bytes) })}
+          {built
+            ? t('me.account.export.downloadAged', { size: fileSize(ready.bytes), age: ageLabel(built, now) })
+            : t('me.account.export.download', { size: fileSize(ready.bytes) })}
         </a>
       ) : (
-        <button
-          type="button"
-          className={ui.button}
-          disabled={ask.isPending || isBuilding(row)}
-          onClick={() => ask.mutate(undefined, { onSuccess: accepted => setMediaId(accepted.media.id) })}
-        >
+        <button type="button" className={ui.button} disabled={ask.isPending || isBuilding(row)} onClick={() => ask.mutate()}>
           {status === 'failed' ? t('me.account.export.again') : t('me.account.export.ask')}
         </button>
       )}

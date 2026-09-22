@@ -28,6 +28,33 @@ export const useAskExport = (growId: string) => {
 };
 
 /**
+ * Which export of the whole account is going, or has gone, in this session.
+ *
+ * The id lives here rather than in the row that asked for it because the job
+ * outlives the screen: a season of readings takes a while to write, and
+ * somebody who walks to another page and back should find their file rather
+ * than a button offering to build one the server has already built. Nothing
+ * fetches this key - it is written by the ask below and read by every row that
+ * draws the export - and it is never collected, because the screen it belongs
+ * to is unmounted for exactly as long as the wait is worth remembering.
+ *
+ * It is not carried across a reload. The route that would find a standing
+ * export again is the one that starts a new one, so asking it on the way in
+ * would build a zip nobody asked for.
+ */
+const ASKED_KEY = ['export', 'asked'];
+
+export const useAskedExport = (): string | null =>
+  useQuery<string | null>({
+    queryKey: ASKED_KEY,
+    queryFn: () => null,
+    enabled: false,
+    initialData: null,
+    staleTime: Infinity,
+    gcTime: Infinity,
+  }).data;
+
+/**
  * The same job for everything the account has - every grow, every reading,
  * every photo - which is the export the privacy screen promises. It answers
  * the same row and is polled the same way; only the route differs, and with it
@@ -38,7 +65,10 @@ export const useAskAccountExport = () => {
 
   return useMutation({
     mutationFn: () => api.get<ExportAccepted>('/me/export'),
-    onSuccess: accepted => queryClient.setQueryData(['media', accepted.media.id], accepted.media),
+    onSuccess: accepted => {
+      queryClient.setQueryData(['media', accepted.media.id], accepted.media);
+      queryClient.setQueryData(ASKED_KEY, accepted.media.id);
+    },
   });
 };
 

@@ -1861,6 +1861,7 @@
         "queued": "in der Warteschlange",
         "rendering": "Datei wird erstellt …",
         "download": "Herunterladen · {{size}}",
+        "downloadAged": "Herunterladen · {{size}} · erstellt vor {{age}}",
         "failedPlain": "Die Datei konnte nicht erstellt werden."
       }
     },

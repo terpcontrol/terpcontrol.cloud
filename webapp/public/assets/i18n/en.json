@@ -1865,6 +1865,7 @@
         "queued": "queued",
         "rendering": "building the file…",
         "download": "Download · {{size}}",
+        "downloadAged": "Download · {{size}} · built {{age}} ago",
         "failedPlain": "The file could not be built."
       }
     },

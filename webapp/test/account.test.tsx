@@ -2,6 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
+import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
@@ -82,7 +83,7 @@ const exportRow = (status: 'queued' | 'ready'): Media =>
     kind: 'export',
     mime: 'application/zip',
     bytes: 13_000_000,
-    exportJob: { status, scope: 'account', growId: null, startedAt: null, endedAt: null, error: null },
+    exportJob: { status, scope: 'account', growId: null, startedAt: null, endedAt: status === 'ready' ? server.builtAt : null, error: null },
   }) as unknown as Media;
 
 const server = {
@@ -93,6 +94,8 @@ const server = {
   revoked: [] as string[],
   exportsAsked: 0,
   mediaAsked: 0,
+  /** When the server says the zip was written. The route hands back a standing export for an hour, so this is not always now. */
+  builtAt: null as string | null,
 };
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -130,14 +133,18 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
 });
 
-const draw = () =>
+const freshClient = () => new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+
+const drawIn = (client: QueryClient) =>
   render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
+    <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={['/me/account']}>
         <Account />
       </MemoryRouter>
     </QueryClientProvider>,
   );
+
+const draw = () => drawIn(freshClient());
 
 const drawLoaded = async () => {
   draw();
@@ -161,6 +168,7 @@ beforeEach(() => {
   server.revoked = [];
   server.exportsAsked = 0;
   server.mediaAsked = 0;
+  server.builtAt = null;
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -267,6 +275,37 @@ describe('taking everything away', () => {
     expect(await screen.findByRole('link', { name: /Download · 12\.4 MB/ })).toHaveAttribute('href', '/media/media-export/content');
     expect(server.exportsAsked).toBe(1);
     expect(server.mediaAsked).toBeGreaterThan(0);
+  });
+
+  /**
+   * A zip of a season does not finish while somebody stands and watches it, so
+   * the job's id is kept where leaving the page cannot lose it. Coming back to
+   * a button offering to build what the server has already built is how the
+   * finished file was orphaned and the wait started again.
+   */
+  it('finds the finished file again after a walk to another screen and back', async () => {
+    const client = freshClient();
+    const first = drawIn(client);
+    await screen.findByText('login@example.org');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Build the zip' }));
+    expect(await screen.findByRole('link', { name: /Download · 12\.4 MB/ })).toBeInTheDocument();
+
+    first.unmount();
+    drawIn(client);
+
+    expect(await screen.findByRole('link', { name: /Download · 12\.4 MB/ })).toHaveAttribute('href', '/media/media-export/content');
+    expect(screen.queryByRole('button', { name: 'Build the zip' })).not.toBeInTheDocument();
+    expect(server.exportsAsked).toBe(1);
+  });
+
+  it('dates the file it hands over, because the route answers a standing one for an hour', async () => {
+    server.builtAt = DateTime.now().minus({ minutes: 40 }).toISO();
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Build the zip' }));
+
+    expect(await screen.findByRole('link', { name: /Download · 12\.4 MB · built 40 min ago/ })).toBeInTheDocument();
   });
 
   it('carries the same door to deleting the account that the privacy page has', async () => {
