@@ -82,11 +82,16 @@ export class DevicesService {
 
   /**
    * The devices a caller may see at all, as one filter rather than a decision
-   * per row: their own, and those standing in a space they are a member of. An
-   * admin sees every device, a demo session the demo ones.
+   * per row: their own, and those standing in a space they are a member of. A
+   * demo session sees the demo ones.
+   *
+   * An administrator is answered as the person, not as the office: `GET
+   * /devices` feeds the screens that say "your devices", and the fleet is read
+   * through `/admin/devices` instead. One device asked for by id goes through
+   * `access()`, which stays admin-wide so that an operator can open the device
+   * a grower has just complained about.
    */
   private async visibleTo(ctx: AccessContext): Promise<FilterQuery<StoredDevice>> {
-    if (ctx.isAdmin) return {};
     if (ctx.isDemo || ctx.userId === null) return { isDemo: true };
 
     const rows = await this.memberships.find({ userId: ctx.userId }, { spaceId: 1 }).lean();

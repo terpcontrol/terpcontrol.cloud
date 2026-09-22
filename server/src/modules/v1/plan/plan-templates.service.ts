@@ -56,7 +56,7 @@ export class PlanTemplatesService {
 
   public async read(ctx: AccessContext, id: string): Promise<PlanTemplate> {
     const template = await this.templates
-      .findOne({ $and: [{ id }, this.visibleTo(ctx)] })
+      .findOne(ctx.isAdmin ? { id } : { $and: [{ id }, this.visibleTo(ctx)] })
       .lean<StoredPlanTemplate>()
       .exec();
     if (!template) throw notFound('plan_template_not_found', 'There is no plan template with that id.');
@@ -102,9 +102,16 @@ export class PlanTemplatesService {
     await this.templates.deleteOne({ id }).exec();
   }
 
-  /** The templates a caller may see at all, as one filter rather than a decision per row: their own, and the ones anybody published. */
+  /**
+   * The templates a caller may see at all, as one filter rather than a decision
+   * per row: their own, and the ones anybody published.
+   *
+   * An administrator is answered the same two, because this filter is what the
+   * listing is held to and that listing is a person's own shelf of plans. The
+   * office still reaches one template named by id, which is where the two
+   * routes below widen it.
+   */
   private visibleTo(ctx: AccessContext): FilterQuery<StoredPlanTemplate> {
-    if (ctx.isAdmin) return {};
     // A demo session is a tour and not an account, so it owns nothing; what it
     // may see is what everybody may see.
     if (ctx.isDemo || ctx.userId === null) return { isPublic: true };

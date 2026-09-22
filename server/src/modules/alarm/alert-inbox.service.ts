@@ -66,9 +66,11 @@ export class AlertInboxService {
     if (filter.spaceId) where.spaceId = filter.spaceId;
     if (filter.open !== undefined) where.resolvedAt = filter.open ? null : { $ne: null };
 
-    // A named subject has been decided on by `AccessService` already; an
-    // unnamed one is every place this person can see.
-    if (ctx.isAdmin || filter.deviceId || filter.spaceId) return where;
+    // A named subject has been decided on by `AccessService` already, and there
+    // the office is admin-wide as it should be; an unnamed one is every place
+    // this person can see, an administrator's included - the inbox is the
+    // reader's own alerts, not the install's.
+    if (filter.deviceId || filter.spaceId) return where;
 
     const spaceIds = await this.spaceIdsVisibleTo(ctx);
     return spaceIds.length > 0 ? { ...where, spaceId: { $in: spaceIds } } : null;

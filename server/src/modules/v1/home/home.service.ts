@@ -89,10 +89,12 @@ export class HomeService {
   ) {}
 
   public async read(ctx: AccessContext, now: Date = new Date()): Promise<HomeAnswer> {
-    // An administrator's home is their own tents, not every customer's: what an
-    // admin may look at is the fleet's business, and the fleet has its own routes.
+    // An administrator's home is their own tents, not every customer's - which
+    // is now what `visibleTo` answers for anybody, so this no longer has to say
+    // so for itself. What an admin may look at is the fleet's business, and the
+    // fleet has its own routes.
     const spaces = await this.spaces
-      .find({ $and: [await this.places.visibleTo({ ...ctx, isAdmin: false }), { archivedAt: null }] })
+      .find({ $and: [await this.places.visibleTo(ctx), { archivedAt: null }] })
       .sort({ createdAt: 1, id: 1 })
       .lean<SpaceDocument[]>();
     const spaceIds = spaces.map(space => space.id);

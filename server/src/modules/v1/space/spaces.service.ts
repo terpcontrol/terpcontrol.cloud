@@ -94,9 +94,13 @@ export class SpacesService {
    * The spaces a caller may see at all, as one filter rather than a decision per
    * row: their own, those they are a member of, and those inside a room they are
    * a member of - the widening `access()` does for every other subject.
+   *
+   * The one widening it does not copy is the administrator's. `access()` lets
+   * the office at any named space, and should; but this filter answers the
+   * lists a person reads about their own places, and an operator's home screen
+   * is not the whole install. Fleet work has its own screens under `/admin`.
    */
   public async visibleTo(ctx: AccessContext): Promise<FilterQuery<SpaceDocument>> {
-    if (ctx.isAdmin) return {};
     if (ctx.isDemo || ctx.userId === null) return { isDemo: true };
 
     const rows = await this.memberships.find({ userId: ctx.userId }, { spaceId: 1 }).lean();

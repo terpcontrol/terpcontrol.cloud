@@ -82,10 +82,15 @@ export class ShareLinksService {
    * row: the ones they made, and the ones onto something they own - because a
    * link somebody else made onto your tent is yours to find and revoke, and
    * because a link outlives whoever created it.
+   *
+   * An administrator is answered as the person here, not as the office. This
+   * list is what "Me - Share links" draws, and a serialised link carries the
+   * token itself, so widening it would put a working anonymous key to every
+   * customer's tent on the operator's own settings page. The office reaches one
+   * named link through `access()`, which is a deliberate act on a row somebody
+   * has reported; a listing is not.
    */
   private async visibleTo(ctx: AccessContext): Promise<FilterQuery<ShareLinkDocument>> {
-    if (ctx.isAdmin) return {};
-
     const userId = this.accountOf(ctx);
     const [grows, spaces] = await Promise.all([
       this.grows.find({ ownerId: userId }, { id: 1 }).lean<Pick<GrowDocument, 'id'>[]>(),

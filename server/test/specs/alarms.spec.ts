@@ -275,6 +275,17 @@ describe('an episode, from the reading to the inbox', () => {
     const any = await admin.client.get(`/v1/alerts?deviceId=${device}`).expect(200);
     expect(any.body.items.length).toBeGreaterThan(0);
   });
+
+  /**
+   * Named subject and no subject are two different questions. Asked about this
+   * device the office answers; asked for "my alerts" it is one more person with
+   * an inbox, and somebody else's tent is not in it.
+   */
+  it('answers an administrator asking for no subject in particular their own inbox alone', async () => {
+    const mine = await admin.client.get('/v1/alerts').expect(200);
+
+    expect(mine.body.items.map((one: { deviceId: string | null }) => one.deviceId)).not.toContain(device);
+  });
 });
 
 /**

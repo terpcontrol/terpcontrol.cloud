@@ -203,4 +203,17 @@ describe('an admin', () => {
 
     expect(renamed.body.name).toBe('Renamed by an admin');
   });
+
+  /**
+   * The list is the notebook, and a notebook is one person's. Being able to
+   * open a page of somebody else's when asked to is not the same as being
+   * handed all of them unasked.
+   */
+  it('is listed their own saved views and none of somebody else´s', async () => {
+    const saved = await create(owner, aView({ name: unique('Theirs alone') }));
+
+    const listed = (await admin.client.get('/v1/chart-views?limit=200').expect(200)).body.items;
+
+    expect(listed.map((row: { id: string }) => row.id)).not.toContain(saved.id);
+  });
 });

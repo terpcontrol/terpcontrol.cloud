@@ -1,4 +1,4 @@
-import { anonymous, createAccount, Session } from '../support/api';
+import { anonymous, createAccount, loginAsAdmin, Session } from '../support/api';
 import { claimCodeOf, DeviceSimulator, provisionDevice, settle, startSimulator } from '../support/device';
 import { joinSpace, setRow } from '../support/fixtures';
 
@@ -376,5 +376,27 @@ describe('what somebody the tent is shared with is answered about a camera', () 
     // Without the credentials, which are nobody's to read back - the address is.
     expect(mine.url).toBe(`rtsp://${HOME}:554/stream1`);
     expect(mine.state.lastError).toBe(TUNNEL);
+  });
+});
+
+/**
+ * The camera list is what the Premium screen counts, prices and offers to
+ * extend, so what it holds is what somebody will be asked to pay for. An
+ * administrator asking for it is asking as themselves; the office reaches one
+ * camera by id, and the fleet through its own screens.
+ */
+describe('the cameras an administrator is listed', () => {
+  it('holds none of somebody else´s, although the office may open each of them by id', async () => {
+    const admin = await loginAsAdmin();
+    const theirs = await addCamera(rtsp({ name: 'Canopy cam' }));
+
+    const listed = (await admin.client.get('/v1/cameras?limit=200').expect(200)).body.items;
+
+    expect(listed.map((one: { id: string }) => one.id)).not.toContain(theirs);
+    expect(listed.every((one: { ownerId: string }) => one.ownerId === admin.userId)).toBe(true);
+
+    // Still the office where it is asked to decide about one named camera:
+    // somebody has to be able to look at the row a grower is complaining about.
+    await admin.client.get(`/v1/cameras/${theirs}`).expect(200);
   });
 });

@@ -24,6 +24,7 @@ const TENT = 'space-tent';
 const GROW = 'grow-1';
 
 const session = (userId: string): AccessContext => ({ userId, isAdmin: false, isDemo: false, shareToken: null });
+const asAdmin = (userId: string): AccessContext => ({ userId, isAdmin: true, isDemo: false, shareToken: null });
 const demo: AccessContext = { userId: 'user-demo', isAdmin: false, isDemo: true, shareToken: null };
 
 let db: V1TestDatabase;
@@ -123,6 +124,23 @@ describe('the list of links', () => {
     });
 
     expect(await everyPage(session(OWNER))).toContain('link-by-an-admin');
+  });
+
+  /**
+   * The page this list draws is "Me - Share links", which is the person and not
+   * the office. A serialised link carries the token, so an install-wide answer
+   * would put a working key to every customer's tent under the operator's own
+   * settings, with the same Copy button beside it.
+   */
+  it('holds none of a stranger´s links for an administrator, whose own page this is', async () => {
+    const seen = await everyPage(asAdmin(OWNER));
+
+    const rows = await db.shareLinks.find({ id: { $in: seen } }).lean<ShareLinkDocument[]>();
+    expect(rows.some(row => row.createdBy === OTHER)).toBe(false);
+    expect(seen).toHaveLength(3);
+
+    const theirs = await db.shareLinks.find({ createdBy: OTHER }).lean<ShareLinkDocument[]>();
+    for (const link of theirs) expect(seen).not.toContain(link.id);
   });
 
   it('is nobody´s for a session that is not an account', async () => {

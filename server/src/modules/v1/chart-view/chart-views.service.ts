@@ -88,9 +88,13 @@ export class ChartViewsService {
    * The rows a caller may see at all, as one filter rather than a decision per
    * row, or null where that is none: a demo session is a tour and not an
    * account, so it has no saved views and may save none.
+   *
+   * An administrator is answered as the person here. This filter is what the
+   * listing is held to, and a list of saved charts is somebody's own notebook;
+   * an install-wide answer would have filled it with strangers' questions. One
+   * view named by id is widened instead, below.
    */
   private ownRows(ctx: AccessContext): FilterQuery<ChartViewDocument> | null {
-    if (ctx.isAdmin) return {};
     if (ctx.isDemo || ctx.userId === null) return null;
 
     return { ownerId: ctx.userId };
@@ -103,7 +107,9 @@ export class ChartViewsService {
    * otherwise.
    */
   private async ownedBy(ctx: AccessContext, id: string): Promise<ChartViewDocument> {
-    const own = this.ownRows(ctx);
+    // The office reaches a named view, the way it reaches any other named row;
+    // what it does not do is widen the listing, which is the person's own.
+    const own = ctx.isAdmin ? {} : this.ownRows(ctx);
     const view =
       own &&
       (await this.views

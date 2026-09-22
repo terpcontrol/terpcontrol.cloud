@@ -910,6 +910,29 @@ describe('the grows a caller is shown', () => {
     expect((await grows.list(session(userId), {})).items).toHaveLength(count);
   });
 
+  /**
+   * The office does not widen this list either: it feeds the grow list and the
+   * diary's subjects, both of which are the reader's own. An administrator
+   * opens one named grow through `access()`, where being the office is the
+   * whole point.
+   */
+  it('shows an administrator their own grows and none of a stranger´s', async () => {
+    await db.grows.create({
+      id: 'grow-theirs',
+      ownerId: STRANGER,
+      name: 'Theirs',
+      type: 'photoperiod',
+      slug: 'theirs',
+      startedAt: STARTED_AT,
+      updatedAt: STARTED_AT,
+    });
+
+    const listed = (await grows.list({ userId: OWNER, isAdmin: true, isDemo: false, shareToken: null }, {})).items.map(grow => grow.id);
+
+    expect(listed).not.toContain('grow-theirs');
+    expect(listed).toHaveLength(1);
+  });
+
   it('shows a demo session the demo grows and no others', async () => {
     expect((await grows.list(demo, {})).items).toHaveLength(0);
 

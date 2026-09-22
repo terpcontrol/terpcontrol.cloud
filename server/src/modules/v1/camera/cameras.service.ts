@@ -116,11 +116,15 @@ export class CamerasService {
 
   /**
    * The cameras a caller may see at all, as one filter rather than a decision per
-   * row: their own, and those standing in a space they are a member of. An admin
-   * sees every camera, a demo session the demo ones.
+   * row: their own, and those standing in a space they are a member of. A demo
+   * session sees the demo ones.
+   *
+   * An administrator is not widened here either, because this list is what the
+   * Premium screen counts and offers to bill: an install-wide answer would sell
+   * an operator somebody else's cameras. One camera asked for by id still goes
+   * through `access()`, where the office is exactly the point.
    */
   private async visibleTo(ctx: AccessContext): Promise<FilterQuery<CameraDocument>> {
-    if (ctx.isAdmin) return {};
     if (ctx.isDemo || ctx.userId === null) return { isDemo: true };
 
     const rows = await this.memberships.find({ userId: ctx.userId }, { spaceId: 1 }).lean();

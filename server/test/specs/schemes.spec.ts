@@ -230,4 +230,17 @@ describe('an admin', () => {
 
     expect(renamed.body.name).toBe('Renamed by an admin');
   });
+
+  /**
+   * Reaching one named scheme and being handed everybody's shelf are different
+   * things. The listing is what "Me - Feeding schemes" draws, so it answers the
+   * administrator as the person whose page it is.
+   */
+  it('is listed their own schemes and not the install´s', async () => {
+    const theirs = await create(owner, aScheme({ name: unique('Nobody else´s') }));
+
+    const listed = (await admin.client.get('/v1/schemes?limit=200').expect(200)).body.items;
+
+    expect(listed.map((row: { id: string }) => row.id)).not.toContain(theirs.id);
+  });
 });

@@ -167,11 +167,15 @@ export class GrowsService {
 
   /**
    * The grows a caller may see at all, as one filter rather than a decision per
-   * row: their own, and those standing in a space they are a member of. An
-   * admin sees every grow, a demo session the demo ones.
+   * row: their own, and those standing in a space they are a member of. A demo
+   * session sees the demo ones.
+   *
+   * An administrator is not widened here: every screen this filter feeds - the
+   * grow list, the diary's subjects - is the person's own, and an install-wide
+   * answer would put strangers' grows in them. The office still opens a named
+   * grow through `access()`.
    */
   public async visibleTo(ctx: AccessContext): Promise<FilterQuery<GrowDocument>> {
-    if (ctx.isAdmin) return {};
     if (ctx.isDemo || ctx.userId === null) return { isDemo: true };
 
     const rows = await this.memberships.find({ userId: ctx.userId }, { spaceId: 1 }).lean();

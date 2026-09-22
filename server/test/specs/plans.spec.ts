@@ -497,6 +497,23 @@ describe('the plans kept to start others from', () => {
     await stranger.client.delete(`/v1/plan-templates/${hidden.id}`).expect(204);
   });
 
+  /**
+   * A template stands in no space, so `access()` decides nothing about one and
+   * the office has no listing to be handed. An administrator opening a named
+   * template is a deliberate act; their own shelf is their own.
+   */
+  it('lists an administrator their own and the published ones, never a stranger´s private notebook', async () => {
+    const hidden = await aTemplate(stranger, { name: unique('admin-not-listed') });
+
+    const listed = (await admin.client.get('/v1/plan-templates?limit=200').expect(200)).body.items;
+    expect(listed.map((one: { id: string }) => one.id)).not.toContain(hidden.id);
+
+    // The office still reaches the one it is asked about by id.
+    await admin.client.get(`/v1/plan-templates/${hidden.id}`).expect(200);
+
+    await stranger.client.delete(`/v1/plan-templates/${hidden.id}`).expect(204);
+  });
+
   it('is what a plan says it was started from, and outlives being thrown away', async () => {
     const mine = await aController(owner);
     const template = await aTemplate(owner, { name: unique('started-from') });

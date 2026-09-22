@@ -84,6 +84,27 @@ describe('the devices a caller is shown', () => {
     expect(listed.sort()).toEqual([...expected].sort());
   });
 
+  /**
+   * An administrator is a person too, and this is the list their own screens are
+   * drawn from. The fleet is read through the admin routes instead, and one
+   * device by id still goes through `access()`, which is admin-wide on purpose.
+   */
+  it('shows an administrator their own devices and none of the install´s', async () => {
+    await db.spaces.create({ id: 'space-theirs', ownerId: STRANGER, kind: 'tent', name: 'Theirs', roomId: null });
+    await db.devices.create({
+      id: 'device-theirs',
+      type: 'controller',
+      ownerId: STRANGER,
+      spaceId: 'space-theirs',
+      createdAt: new Date('2026-01-04T12:00:00.000Z'),
+    });
+
+    const listed = (await devices.list({ userId: OWNER, isAdmin: true, isDemo: false, shareToken: null }, {})).items.map(device => device.id);
+
+    expect(listed).not.toContain('device-theirs');
+    expect(listed.sort()).toEqual([IN_THE_TENT, ON_THE_BALCONY].sort());
+  });
+
   it('shows a demo session the demo devices and no others', async () => {
     expect((await devices.list(demo, {})).items).toHaveLength(0);
 

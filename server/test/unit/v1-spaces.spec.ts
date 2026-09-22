@@ -265,6 +265,20 @@ describe('listing them', () => {
     expect((await spaces.list(session(STRANGER), {}, {})).items).toEqual([]);
   });
 
+  /**
+   * An administrator's home screen is their own tents. `access()` still lets the
+   * office at any named space - that is how a reported device gets opened - but
+   * a listing is what a person reads about their own places.
+   */
+  it('shows an administrator their own spaces and none of a stranger´s', async () => {
+    await db.spaces.create({ id: 'space-theirs', ownerId: STRANGER, kind: 'tent', name: 'Theirs', createdAt: new Date('2026-01-04T00:00:00.000Z') });
+
+    const page = await spaces.list({ userId: OWNER, isAdmin: true, isDemo: false, shareToken: null }, {}, {});
+
+    expect(page.items.map(space => space.id)).not.toContain('space-theirs');
+    expect(page.items.map(space => space.id)).toEqual([ROOM, SPACE, OTHER_SPACE]);
+  });
+
   it('shows a demo session the demo spaces, and nobody´s real ones', async () => {
     await db.spaces.create({ id: 'space-demo', ownerId: 'user-tour', kind: 'tent', name: 'The demo tent', isDemo: true });
 

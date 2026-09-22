@@ -101,9 +101,13 @@ export class SchemesService {
    * The rows a caller may see at all, as one filter rather than a decision per
    * row, or null where that is none: a demo session is a tour and not an
    * account, so it owns nothing, and nothing here is anybody's but its owner's.
+   *
+   * Not even an administrator's. This is the filter the listing is held to,
+   * and the listing is the person's own "Feeding schemes" page; answering it
+   * install-wide would have put strangers' rows on it. The office is kept where
+   * it means something - one scheme named by id, below.
    */
   private ownRows(ctx: AccessContext): FilterQuery<SchemeDocument> | null {
-    if (ctx.isAdmin) return {};
     if (ctx.isDemo || ctx.userId === null) return null;
 
     return { ownerId: ctx.userId };
@@ -116,7 +120,11 @@ export class SchemesService {
    * exists to a person with no way of knowing that otherwise.
    */
   private async ownedBy(ctx: AccessContext, id: string): Promise<SchemeDocument> {
-    const own = this.ownRows(ctx);
+    // Here, and not in the filter above, is where an administrator is widened:
+    // asking for one named scheme is the office acting deliberately on a row
+    // somebody has pointed at, which is the same distinction `access()` draws
+    // between deciding one subject and answering a list.
+    const own = ctx.isAdmin ? {} : this.ownRows(ctx);
     const scheme =
       own &&
       (await this.schemes
