@@ -3726,6 +3726,10 @@
       "noPlace": "Dieses Gerät steht an keinem Ort, es gibt also nichts zu öffnen.",
       "showing": "{{shown}} von {{loaded}} geladenen gezeigt · {{total}} auf dieser Installation",
       "loadMore": "Rest laden",
+      "noMatch": "Kein Gerät passt zu diesen Filtern.",
+      "noMatchSearch": "Kein Gerät passt zu „{{search}}“. Die Suche liest die ID eines Geräts, seinen Namen und das Handle des Besitzers, nicht den Ort, an dem es steht.",
+      "clearFilters": "Alles zeigen",
+      "empty": "Auf dieser Installation hat sich noch kein Gerät registriert.",
       "column": {
         "device": "Gerät",
         "type": "Typ",
@@ -3740,7 +3744,8 @@
         "allTypes": "Alle Typen",
         "quiet": "Über einen Tag still",
         "behind": "Nicht auf stable",
-        "search": "Suchen"
+        "search": "Suchen",
+        "searchReads": "ID, Name oder Besitzer suchen"
       }
     },
     "rollout": {
@@ -3825,6 +3830,7 @@
       "title": "Benutzer",
       "search": "Suchen",
       "create": "+ Konto",
+      "noMatch": "Kein Konto passt zu „{{search}}“. Die Suche liest Handles und Adressen.",
       "privacy": "Eine Adresse steht auf dieser Seite und auf keiner anderen in der App. Die Suche liest nur, was schon geladen ist - hier Getipptes wird nirgendwohin geschickt.",
       "showing": "{{shown}} von {{loaded}} geladenen gezeigt",
       "active": "aktiv",

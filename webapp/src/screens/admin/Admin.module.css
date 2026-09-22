@@ -98,11 +98,23 @@
   border-radius: var(--radius);
 }
 
+/* Wide enough that no cell wraps a line under another in a narrow window, and
+   no wider: at the app's own desktop width the card is 990 px, and every one
+   of these tables lays out inside it at its content's width. A larger minimum
+   only pushed the last readable column under the pinned one at exactly the
+   width these screens are made for. */
 .table {
   width: 100%;
-  min-width: 1040px;
+  min-width: 900px;
   border-collapse: collapse;
   text-align: left;
+}
+
+/* A table with no rows has nothing that needs the width: the header labels fit
+   any card, and the one row it draws - the sentence saying nothing matched -
+   would otherwise run off the right edge with the columns it spans. */
+.table[data-empty] {
+  min-width: 0;
 }
 
 .table thead th {
@@ -131,6 +143,46 @@
 
 .table tbody tr:hover td {
   background: var(--card-2);
+}
+
+/* The last column is the way into a row - the chevron, the actions - and it
+   is pinned to the scroller's right edge. Between the rail's breakpoint and
+   the width at which a table fits its card, the table scrolls sideways, and a
+   column that rode off with the rest would be off-screen with nothing to say
+   the row goes on; a device an administrator cannot open is the one thing
+   this screen must not produce. The pinned cell carries its own background so
+   what scrolls under it stays under it, a rule on its left so the pin reads as
+   one, and the same hover as the rest of its row. Where the table fits, the
+   rule is simply the last column's divider. The row a filter empties spans
+   every column, so it is not pinned to anything. */
+.table thead th:last-child,
+.table tbody td:last-child:not([colspan]) {
+  position: sticky;
+  right: 0;
+  border-left: var(--rule-solid);
+}
+
+.table tbody td:last-child:not([colspan]) {
+  background: var(--card);
+}
+
+.table tbody tr:hover td:last-child:not([colspan]) {
+  background: var(--card-2);
+}
+
+/* A table emptied by its filters says so where the rows were: the dashed card
+   the rest of the app draws for a filtered-out list, with the way back beside
+   the sentence. It is the one row the hover does not light up. */
+.table tbody tr:hover .noMatchCell {
+  background: transparent;
+}
+
+.noMatch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
 /* An id and a name in one cell: the id is the fact, the name is what somebody

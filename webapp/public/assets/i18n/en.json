@@ -3730,6 +3730,10 @@
       "noPlace": "This one stands in no place, so there is nothing to open.",
       "showing": "showing {{shown}} of {{loaded}} loaded · {{total}} on this install",
       "loadMore": "Load the rest",
+      "noMatch": "No device matches these filters.",
+      "noMatchSearch": "No device matches \"{{search}}\". The search reads a device's id, its name and its owner's handle, not the place it stands in.",
+      "clearFilters": "Show everything",
+      "empty": "No device has registered with this install yet.",
       "column": {
         "device": "Device",
         "type": "Type",
@@ -3744,7 +3748,8 @@
         "allTypes": "All types",
         "quiet": "Quiet over a day",
         "behind": "Not on stable",
-        "search": "Search"
+        "search": "Search",
+        "searchReads": "Search id, name or owner"
       }
     },
     "rollout": {
@@ -3829,6 +3834,7 @@
       "title": "Users",
       "search": "Search",
       "create": "+ Account",
+      "noMatch": "No account matches \"{{search}}\". The search reads handles and addresses.",
       "privacy": "An address is on this screen and on no other in the app. The search reads only what is already loaded, so nothing typed here is sent anywhere.",
       "showing": "showing {{shown}} of {{loaded}} loaded",
       "active": "active",

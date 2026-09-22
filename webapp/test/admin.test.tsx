@@ -346,6 +346,24 @@ describe('the fleet table', () => {
     expect(screen.queryByText('tc-7f3a')).not.toBeInTheDocument();
   });
 
+  it('says what a search that matches nothing was looking for, and what the search reads, where the rows were', async () => {
+    await drawFleet();
+
+    // The tent a device stands in is exactly what the search does not read,
+    // and what an operator with twenty tents types first.
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'Blue Dream' } });
+    expect(screen.queryByText('tc-7f3a')).not.toBeInTheDocument();
+    const rows = screen.getAllByRole('row');
+    expect(rows).toHaveLength(2);
+    expect(within(rows[1]).getByText(/No device matches "Blue Dream"/)).toBeInTheDocument();
+    expect(within(rows[1]).getByText(/not the place it stands in/)).toBeInTheDocument();
+
+    // One press shows everything again, the search included.
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Show everything' }));
+    expect(screen.getByText('tc-7f3a')).toBeInTheDocument();
+    expect(screen.getByLabelText('Search')).toHaveValue('');
+  });
+
   it('pauses a class with exactly the body the contract names, and nothing else', async () => {
     await drawFleet();
 

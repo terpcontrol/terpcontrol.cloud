@@ -13,6 +13,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { filteredRows, fleetRows, NO_FILTER, typesOf, type FleetFilter, type FleetRow } from './fleet-rows';
 import { HealthCard } from './HealthCard';
+import { NoMatch } from './NoMatch';
 import { useFollowCursor } from './pages';
 import { RolloutCard } from './RolloutCard';
 import styles from './Admin.module.css';
@@ -102,7 +103,7 @@ export function Fleet() {
       <RefreshFailed failedAt={fleet.isError ? fleet.dataUpdatedAt : null} now={now} />
 
       <div className={styles.tableCard}>
-        <table className={styles.table}>
+        <table className={styles.table} data-empty={shown.length === 0 ? '' : undefined}>
           <thead>
             <tr>
               <th>{t('admin.fleet.column.device')}</th>
@@ -115,9 +116,18 @@ export function Fleet() {
             </tr>
           </thead>
           <tbody>
-            {shown.map(row => (
-              <Row key={`${row.kind}:${row.id}`} row={row} now={now} />
-            ))}
+            {shown.length > 0 ? (
+              shown.map(row => <Row key={`${row.kind}:${row.id}`} row={row} now={now} />)
+            ) : rows.length === 0 ? (
+              <NoMatch columns={7} line={t('admin.fleet.empty')} />
+            ) : (
+              <NoMatch
+                columns={7}
+                line={filter.search.trim() ? t('admin.fleet.noMatchSearch', { search: filter.search.trim() }) : t('admin.fleet.noMatch')}
+                clear={t('admin.fleet.clearFilters')}
+                onClear={() => setFilter(NO_FILTER)}
+              />
+            )}
           </tbody>
         </table>
       </div>
@@ -188,7 +198,7 @@ function Filters({ filter, onChange, types }: { filter: FleetFilter; onChange: (
         type="search"
         autoComplete="off"
         aria-label={t('admin.fleet.filter.search')}
-        placeholder={t('admin.fleet.filter.search')}
+        placeholder={t('admin.fleet.filter.searchReads')}
         value={filter.search}
         onChange={event => onChange({ ...filter, search: event.target.value })}
       />

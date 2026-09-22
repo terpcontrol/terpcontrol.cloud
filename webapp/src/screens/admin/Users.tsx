@@ -8,6 +8,7 @@ import { useSession } from '@/api/session';
 import { Sheet } from '@/log/Sheet';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
+import { NoMatch } from './NoMatch';
 import { useFollowCursor } from './pages';
 import styles from './Admin.module.css';
 
@@ -97,7 +98,7 @@ export function Users() {
       <p className={`${ui.note} ${styles.consequence}`}>{t('admin.users.privacy')}</p>
 
       <div className={styles.tableCard}>
-        <table className={styles.table}>
+        <table className={styles.table} data-empty={shown.length === 0 ? '' : undefined}>
           <thead>
             <tr>
               <th>{t('admin.users.column.handle')}</th>
@@ -108,9 +109,16 @@ export function Users() {
             </tr>
           </thead>
           <tbody>
-            {shown.map(account => (
-              <AccountRow key={account.id} account={account} isMe={account.id === user?.id} />
-            ))}
+            {shown.length > 0 ? (
+              shown.map(account => <AccountRow key={account.id} account={account} isMe={account.id === user?.id} />)
+            ) : (
+              <NoMatch
+                columns={5}
+                line={t('admin.users.noMatch', { search: search.trim() })}
+                clear={t('admin.fleet.clearFilters')}
+                onClear={() => setSearch('')}
+              />
+            )}
           </tbody>
         </table>
       </div>
