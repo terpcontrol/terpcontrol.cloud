@@ -2181,13 +2181,13 @@
       "presetAside": "Schwellen wandern mit dem Stadium",
       "always": "Immer an",
       "device": "Vom Gerät",
-      "human": "Deine"
+      "human": "Hier angelegt"
     },
     "origin": {
       "preset": "Preset",
       "always": "immer",
       "device": "Gerät",
-      "human": "deine"
+      "human": "eigen"
     },
     "triggered": "gerade ausgelöst",
     "enable": "{{name}} an oder aus",
@@ -2196,9 +2196,9 @@
       "for": "für {{length}}",
       "notAnnounced": "nicht gemeldet",
       "ownTarget": "eigenes Ziel",
-      "repeatsUntilBack": "wiederholt sich, bis es vorbei ist",
       "repeatsEvery": "wiederholt sich alle {{length}}",
-      "silencedUntil": "stumm bis {{time}}"
+      "silencedUntil": "stumm bis {{time}}",
+      "announcedOnce": "wird einmal gemeldet"
     },
     "severity": {
       "critical": "kritisch",
@@ -2279,8 +2279,19 @@
       "save": "Alarm speichern",
       "delete": "Alarm löschen",
       "deleteAsk": "Die Regel ist endgültig weg. Ein Alarm, den sie schon ausgelöst hat, bleibt im Posteingang.",
-      "deleteYes": "Löschen"
-    }
+      "deleteYes": "Löschen",
+      "offlineWatch": "Diese Regel beobachtet, ob das Gerät überhaupt meldet; darauf lässt sich nichts anderes richten.",
+      "forOfflineNote": "Zusätzlich zu den zehn Minuten, nach denen ein Gerät als offline gilt."
+    },
+    "offlineRule": "{{device}} offline",
+    "presetRule": {
+      "tooHot": "Zu warm",
+      "tooCold": "Zu kalt",
+      "tooHumid": "Zu feucht",
+      "co2High": "CO₂ zu hoch"
+    },
+    "channelOff": "{{channel}} (aus)",
+    "addDevice": "Gerät hinzufügen"
   },
   "tasks": {
     "title": "Aufgaben",

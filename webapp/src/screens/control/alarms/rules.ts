@@ -6,13 +6,14 @@ import type {
   AlarmRuleCreate,
   AlarmWatch,
   Device,
+  Me,
   Metric,
   NotificationChannel,
-  NotificationRouting,
   OutputMetric,
   Severity,
   WebhookMethod,
 } from '@fg2/shared-types/v1';
+import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { UNIT, targetFigure } from '@/screens/home/units';
 
 /**
@@ -31,26 +32,62 @@ export const ORIGINS: AlarmOrigin[] = ['preset', 'always', 'device', 'human'];
 export const groupRules = (rules: AlarmRule[]): { origin: AlarmOrigin; rules: AlarmRule[] }[] =>
   ORIGINS.map(origin => ({ origin, rules: rules.filter(rule => rule.origin === origin) })).filter(group => group.rules.length > 0);
 
+/** The always-on watch: the health loop decides it, so it has no line to cross and cannot be pointed at anything else. */
+export const watchesOffline = (watch: AlarmWatch | RuleDraft['watch']): boolean => watch.kind === 'reading' && watch.metric === 'offline';
+
 /**
- * Every output the contract names, for the chips of a new rule. Listed here as
- * a record rather than read off the contract's schema, because that module
- * carries zod and the development server would have to be told to bundle it;
- * the record's type is the enum, so an output added to the contract and not
- * here does not compile.
+ * What a preset's rules are called, by what each watches. The catalogue has
+ * one name per band rather than per preset, because a stage writes the same
+ * four rules whichever preset it stands on.
  */
-const EVERY_OUTPUT: Record<OutputMetric, null> = {
-  heater: null,
-  dehumidifier: null,
-  co2: null,
-  light: null,
-  fan: null,
-  relais: null,
-  fanInternal: null,
-  fanExternal: null,
-  fanBackwall: null,
+const PRESET_TITLE: Record<string, string> = {
+  'temperature-upper': 'tooHot',
+  'temperature-lower': 'tooCold',
+  'humidity-upper': 'tooHumid',
+  'co2-upper': 'co2High',
 };
 
-export const OUTPUTS = Object.keys(EVERY_OUTPUT) as OutputMetric[];
+const presetTitle = (watch: AlarmWatch): string | null => {
+  if (watch.kind !== 'reading') return null;
+  const side = watch.upper !== null ? 'upper' : watch.lower !== null ? 'lower' : null;
+
+  return side ? (PRESET_TITLE[`${watch.metric}-${side}`] ?? null) : null;
+};
+
+/**
+ * What a rule is called on the card.
+ *
+ * A name the server wrote is English wherever it was written, so the two kinds
+ * of rule nobody here named - the one the cloud keeps for every device and the
+ * four a stage applies - are titled from what they watch instead, and read in
+ * the language the page is in. A rule somebody wrote, by hand or through the
+ * firmware, keeps the name it was given.
+ */
+export const ruleTitle = (t: Translate, rule: AlarmRule, device: Device): string => {
+  if (rule.origin === 'always') return t('alarms.offlineRule', { device: t(`devices.type.${device.type}`, { defaultValue: device.type }) });
+  if (rule.origin === 'preset') {
+    const title = presetTitle(rule.watch);
+    if (title) return t(`alarms.presetRule.${title}`);
+  }
+
+  return rule.name;
+};
+
+/**
+ * The outputs each kind of hardware drives, from the list of what every type
+ * reports in `docs/device-protocol.md`, section 5.4. A rule can only watch a
+ * series the device actually sends, so a tent controller is not offered the
+ * fridge's three fans and a fridge is not offered a relay.
+ */
+const OUTPUTS_OF: Record<string, OutputMetric[]> = {
+  controller: ['dehumidifier', 'heater', 'light', 'co2'],
+  fridge: ['co2', 'dehumidifier', 'heater', 'light', 'fanInternal', 'fanExternal', 'fanBackwall'],
+  plug: ['relais'],
+  fan: ['fan'],
+  light: ['light'],
+};
+
+export const outputsOf = (device: Device): OutputMetric[] => OUTPUTS_OF[device.type] ?? [];
 
 /**
  * The readings a device reports, from its own hardware report. Temperature,
@@ -109,19 +146,43 @@ export const boundLabel = (watch: AlarmWatch): string => {
 /** The order the channels are named in, whatever order the grid holds them in. */
 const CHANNELS: NotificationChannel[] = ['push', 'telegram', 'email', 'webhook'];
 
+/** What a screen says about a channel: its name, and whether the account has it to be reached on at all. */
+export interface RoutedChannel {
+  channel: NotificationChannel;
+  configured: boolean;
+}
+
+/** A channel is configured when the account has given it something to deliver to; push, when some browser of it is subscribed. */
+const isConfigured = (me: Me, channel: NotificationChannel): boolean =>
+  channel === 'push' ? me.pushSubscribed : me.notifications.channels[channel] !== null;
+
 /**
- * Which row of the routing grid a routed rule goes out on. An info rule is
- * written to the diary and never announced, so it has no row at all.
+ * Where a routed rule of this severity goes, read off the account's own grid.
+ * Which row that is belongs to the contract rather than to this screen, so the
+ * server announcing and the screen saying so cannot drift apart.
+ *
+ * A row may name a channel the account cannot be reached on - push before any
+ * browser has subscribed, e-mail before an address is confirmed - and that is
+ * carried rather than hidden: saying "push" of a rule nothing would arrive from
+ * is the one thing an alarm screen must not do.
  */
-export const categoryOf = (severity: Severity): 'alerts' | 'warnings' | null =>
-  severity === 'critical' ? 'alerts' : severity === 'warning' ? 'warnings' : null;
+export const routedChannels = (me: Me | undefined, severity: Severity): RoutedChannel[] => {
+  const category = alertCategory(severity);
+  const named = me && category ? (me.notifications.routing[category] ?? []) : [];
 
-export const routedChannels = (routing: NotificationRouting | undefined, severity: Severity): NotificationChannel[] => {
-  const category = categoryOf(severity);
-  const named = category ? (routing?.[category] ?? []) : [];
-
-  return CHANNELS.filter(channel => named.includes(channel));
+  return CHANNELS.filter(channel => named.includes(channel)).map(channel => ({ channel, configured: me !== undefined && isConfigured(me, channel) }));
 };
+
+export type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+/** "push + e-mail", with a channel the account has not set up marked as the dead end it is. */
+export const channelsLabel = (t: Translate, channels: RoutedChannel[]): string =>
+  channels
+    .map(routed => {
+      const name = t(`alarms.channel.${routed.channel}`);
+      return routed.configured ? name : t('alarms.channelOff', { channel: name });
+    })
+    .join(' + ');
 
 /**
  * The sheet's answers, in the shape its fields hold them: a bound is a string
@@ -149,7 +210,25 @@ export interface RuleDraft {
   repeatMinutes: number;
 }
 
-/** A rule as most of them start: ten minutes over the line, announced the way the account is. */
+/**
+ * How often a critical rule says itself again while it lasts. The same half
+ * hour the server writes into the rule the cloud keeps and into every critical
+ * rule a stage applies: something that wakes somebody is worth hearing twice,
+ * and anything quieter is said once and read when there is time.
+ */
+const CRITICAL_REPEAT_MINUTES = 30;
+
+/**
+ * The repeat a severity comes with. Changing the severity brings its repeat
+ * with it, because the two are one decision - how bad is this, and how often
+ * should it be said - and a critical rule that announces itself once and then
+ * goes quiet is the one thing nobody asked for. A severity chosen again is not
+ * a change, so a repeat typed by hand survives it.
+ */
+export const withSeverity = (draft: RuleDraft, severity: Severity): RuleDraft =>
+  severity === draft.severity ? draft : { ...draft, severity, repeatMinutes: severity === 'critical' ? CRITICAL_REPEAT_MINUTES : 0 };
+
+/** A rule as most of them start: ten minutes over the line, announced the way the account is, and repeated while it lasts. */
 export const emptyDraft = (metric: Metric): RuleDraft => ({
   name: '',
   watch: { kind: 'reading', metric },
@@ -167,7 +246,7 @@ export const emptyDraft = (metric: Metric): RuleDraft => ({
   reportErrors: true,
   tunnel: false,
   includeDetails: true,
-  repeatMinutes: 0,
+  repeatMinutes: CRITICAL_REPEAT_MINUTES,
 });
 
 const bound = (value: number | null): string => (value === null ? '' : String(value));
@@ -204,8 +283,12 @@ export const draftOf = (rule: AlarmRule): RuleDraft => {
 
 const numberOrNull = (field: string): number | null => (field.trim() === '' || Number.isNaN(Number(field)) ? null : Number(field));
 
-/** A rule about a level with no level in it would never trip, and is refused here before the server has to. */
-export const wantsBound = (draft: RuleDraft): boolean => draft.watch.kind !== 'output_running';
+/**
+ * A rule about a level with no level in it would never trip, and is refused
+ * here before the server has to. An output watched for running at all and the
+ * offline watch are not about a level, so neither is asked for one.
+ */
+export const wantsBound = (draft: RuleDraft): boolean => draft.watch.kind !== 'output_running' && !watchesOffline(draft.watch);
 
 export const hasBound = (draft: RuleDraft): boolean => !wantsBound(draft) || numberOrNull(draft.upper) !== null || numberOrNull(draft.lower) !== null;
 
@@ -247,7 +330,8 @@ const seconds = (minutes: number): number => Math.max(0, Math.round(minutes * 60
  * The body a new rule is created with. It starts enabled - a rule written and
  * switched off is two taps for one - and with no cooldown: what keeps a bad
  * hour from being a message a minute is that a rule says so once and then only
- * on the repeat it was given.
+ * on the repeat it was given. Only a critical rule carries a repeat at all, so
+ * one saved at any other severity goes out with none whatever it used to hold.
  */
 export const createBody = (draft: RuleDraft): AlarmRuleCreate => ({
   name: draft.name.trim(),
@@ -256,7 +340,7 @@ export const createBody = (draft: RuleDraft): AlarmRuleCreate => ({
   severity: draft.severity,
   enabled: true,
   cooldownSeconds: 0,
-  repeatSeconds: seconds(draft.repeatMinutes),
+  repeatSeconds: draft.severity === 'critical' ? seconds(draft.repeatMinutes) : 0,
   delivery: deliveryOf(draft),
 });
 

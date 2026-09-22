@@ -122,12 +122,6 @@
   color: var(--ink);
 }
 
-.origin {
-  height: 20px;
-  padding: 0 var(--space-2);
-  color: var(--muted);
-}
-
 .meta {
   font-size: var(--text-xs);
   color: var(--muted);
@@ -152,9 +146,13 @@
   width: 100%;
   padding: var(--space-3) var(--space-4);
   color: var(--muted);
-  font-family: var(--font-mono);
   font-size: var(--text-sm);
   text-align: center;
+}
+
+/* The one thing there is to do where nothing here has rules yet. */
+.addDevice {
+  color: var(--green-ink);
 }
 
 /* The sheet's insides: a few questions apart, like every other sheet. */

@@ -1,24 +1,28 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AlarmRule, Device, Metric, NotificationRouting, OutputMetric, Severity, WebhookMethod } from '@fg2/shared-types/v1';
+import type { AlarmRule, Device, Me, Metric, OutputMetric, Severity, WebhookMethod } from '@fg2/shared-types/v1';
 import { useCreateAlarmRule, useRemoveAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
 import { Sheet } from '@/log/Sheet';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import {
+  channelsLabel,
   createBody,
   draftOf,
   emptyDraft,
   hasBound,
-  OUTPUTS,
+  outputsOf,
   readingsOf,
   routedChannels,
   type RuleDraft,
+  type Translate,
   unitOf,
   updateBody,
+  watchesOffline,
   watchOf,
   wantsBound,
+  withSeverity,
 } from './rules';
 import styles from './Alarms.module.css';
 
@@ -37,18 +41,14 @@ const METHODS: WebhookMethod[] = ['GET', 'POST', 'PUT'];
  * What the sheet refuses itself is one thing only: a band with no edge, which
  * is a rule that could never trip. Everything else is the server's to refuse,
  * and its answer stays in the sheet under the button that asked.
+ *
+ * The rule the cloud keeps for every device is the one this sheet does not ask
+ * its usual questions of: what it watches is the health loop rather than a
+ * series, so it has neither a line to cross nor anything else it could be
+ * pointed at, and the sheet says so instead of demanding a bound it would then
+ * refuse to save.
  */
-export function RuleSheet({
-  device,
-  rule,
-  routing,
-  onClose,
-}: {
-  device: Device;
-  rule: AlarmRule | null;
-  routing: NotificationRouting | undefined;
-  onClose: () => void;
-}) {
+export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule: AlarmRule | null; me: Me | undefined; onClose: () => void }) {
   const { t } = useTranslation();
   const create = useCreateAlarmRule(device.id);
   const update = useUpdateAlarmRule(device.id);
@@ -61,13 +61,18 @@ export function RuleSheet({
   const change = (over: Partial<RuleDraft>) => setDraft(current => ({ ...current, ...over }));
   const busy = create.isPending || update.isPending || remove.isPending;
   const unit = unitOf(watchOf(draft));
-  const channels = routedChannels(routing, draft.severity);
+  const offline = watchesOffline(draft.watch);
+  const deliveryNote = draft.tellBy === 'routing' ? routingNote(t, draft, me) : null;
 
-  // A reading the device does not report is still drawn where the rule already
-  // watches it - the offline rule, a CO2 rule on a controller with no sensor -
-  // so the sheet says what the rule is rather than pretending it is something else.
+  // A reading or an output the device does not report is still drawn where the
+  // rule already watches it - a CO2 rule on a controller with no sensor, a
+  // fridge rule on hardware that was swapped - so the sheet says what the rule
+  // is rather than pretending it is something else.
   const current = draft.watch.kind === 'reading' ? draft.watch.metric : null;
   const offered: Metric[] = current && !readings.includes(current) ? [...readings, current] : readings;
+  const watchedOutput = draft.watch.kind === 'reading' ? null : draft.watch.output;
+  const outputs = outputsOf(device);
+  const outputChips: OutputMetric[] = watchedOutput && !outputs.includes(watchedOutput) ? [...outputs, watchedOutput] : outputs;
 
   const save = () => {
     if (!hasBound(draft)) {
@@ -95,28 +100,34 @@ export function RuleSheet({
         </Block>
 
         <Block label={t('alarms.sheet.watch')}>
-          <Choices label={t('alarms.sheet.watch')}>
-            {offered.map(metric => (
-              <Choice
-                key={metric}
-                chosen={draft.watch.kind === 'reading' && draft.watch.metric === metric}
-                onChoose={() => change({ watch: { kind: 'reading', metric } })}
-              >
-                {metricName(t, metric)}
-              </Choice>
-            ))}
-            {OUTPUTS.map(output => (
-              <Choice
-                key={output}
-                chosen={draft.watch.kind !== 'reading' && draft.watch.output === output}
-                onChoose={() => change({ watch: { kind: draft.watch.kind === 'reading' ? 'output_level' : draft.watch.kind, output } })}
-              >
-                {t(`alarms.output.${output}`)}
-              </Choice>
-            ))}
-          </Choices>
+          {offline ? (
+            <p className={ui.note}>{t('alarms.sheet.offlineWatch')}</p>
+          ) : (
+            <>
+              <Choices label={t('alarms.sheet.watch')}>
+                {offered.map(metric => (
+                  <Choice
+                    key={metric}
+                    chosen={draft.watch.kind === 'reading' && draft.watch.metric === metric}
+                    onChoose={() => change({ watch: { kind: 'reading', metric } })}
+                  >
+                    {metricName(t, metric)}
+                  </Choice>
+                ))}
+                {outputChips.map(output => (
+                  <Choice
+                    key={output}
+                    chosen={draft.watch.kind !== 'reading' && draft.watch.output === output}
+                    onChoose={() => change({ watch: { kind: draft.watch.kind === 'reading' ? 'output_level' : draft.watch.kind, output } })}
+                  >
+                    {t(`alarms.output.${output}`)}
+                  </Choice>
+                ))}
+              </Choices>
 
-          {draft.watch.kind !== 'reading' ? <OutputHow watch={draft.watch} onChange={watch => change({ watch })} /> : null}
+              {draft.watch.kind !== 'reading' ? <OutputHow watch={draft.watch} onChange={watch => change({ watch })} /> : null}
+            </>
+          )}
         </Block>
 
         {wantsBound(draft) ? (
@@ -138,13 +149,13 @@ export function RuleSheet({
 
         <Block label={t('alarms.sheet.for')}>
           <Minutes label={t('alarms.sheet.for')} value={draft.forMinutes} onChange={forMinutes => change({ forMinutes })} />
-          <p className={ui.note}>{t(draft.watch.kind === 'output_running' ? 'alarms.sheet.forRunningNote' : 'alarms.sheet.forNote')}</p>
+          <p className={ui.note}>{t(forNote(draft))}</p>
         </Block>
 
         <Block label={t('alarms.sheet.severity')}>
           <Choices label={t('alarms.sheet.severity')}>
             {SEVERITIES.map(severity => (
-              <Choice key={severity} chosen={draft.severity === severity} onChoose={() => change({ severity })}>
+              <Choice key={severity} chosen={draft.severity === severity} onChoose={() => setDraft(current => withSeverity(current, severity))}>
                 {t(`alarms.severity.${severity}`)}
               </Choice>
             ))}
@@ -160,15 +171,7 @@ export function RuleSheet({
             ))}
           </Choices>
 
-          {draft.tellBy === 'routing' ? (
-            <p className={ui.note}>
-              {draft.severity === 'info'
-                ? t('alarms.sheet.infoNote')
-                : channels.length > 0
-                  ? t('alarms.sheet.routingNote', { channels: channels.map(channel => t(`alarms.channel.${channel}`)).join(' + ') })
-                  : t('alarms.sheet.routingNone', { severity: t(`alarms.severity.${draft.severity}`) })}
-            </p>
-          ) : null}
+          {deliveryNote ? <p className={ui.note}>{deliveryNote}</p> : null}
 
           {draft.tellBy === 'email' ? (
             <input
@@ -185,10 +188,12 @@ export function RuleSheet({
           {draft.tellBy === 'webhook' ? <WebhookFields draft={draft} onChange={change} /> : null}
         </Block>
 
-        <Block label={t('alarms.sheet.repeat')}>
-          <Minutes label={t('alarms.sheet.repeatEvery')} value={draft.repeatMinutes} onChange={repeatMinutes => change({ repeatMinutes })} />
-          <p className={ui.note}>{t('alarms.sheet.repeatNote')}</p>
-        </Block>
+        {draft.severity === 'critical' ? (
+          <Block label={t('alarms.sheet.repeat')}>
+            <Minutes label={t('alarms.sheet.repeatEvery')} value={draft.repeatMinutes} onChange={repeatMinutes => change({ repeatMinutes })} />
+            <p className={ui.note}>{t('alarms.sheet.repeatNote')}</p>
+          </Block>
+        ) : null}
 
         <Refused error={create.error ?? update.error ?? remove.error} />
 
@@ -225,7 +230,28 @@ export function RuleSheet({
   );
 }
 
-type Translate = (key: string, options?: Record<string, unknown>) => string;
+/** What "for how long" means, which differs for an output that is only ever on, and for the ten minutes the health loop already waits. */
+const forNote = (draft: RuleDraft): string => {
+  if (watchesOffline(draft.watch)) return 'alarms.sheet.forOfflineNote';
+
+  return draft.watch.kind === 'output_running' ? 'alarms.sheet.forRunningNote' : 'alarms.sheet.forNote';
+};
+
+/**
+ * Where a rule delivered by the account's settings would actually go. Nothing
+ * is claimed before the account has answered - in the demo it never does - and
+ * a channel the account has not set up is named as the dead end it is rather
+ * than counted as a way of hearing about this.
+ */
+const routingNote = (t: Translate, draft: RuleDraft, me: Me | undefined): string | null => {
+  if (draft.severity === 'info') return t('alarms.sheet.infoNote');
+  if (!me) return null;
+  const channels = routedChannels(me, draft.severity);
+
+  return channels.length > 0
+    ? t('alarms.sheet.routingNote', { channels: channelsLabel(t, channels) })
+    : t('alarms.sheet.routingNone', { severity: t(`alarms.severity.${draft.severity}`) });
+};
 
 /** What a reading is called: the card's own word where the home has one, the alarm screen's for the sensors the home does not draw. */
 const metricName = (t: Translate, metric: Metric): string =>

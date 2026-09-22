@@ -2185,13 +2185,13 @@
       "presetAside": "thresholds move with the stage",
       "always": "Always on",
       "device": "From the device",
-      "human": "Yours"
+      "human": "Written here"
     },
     "origin": {
       "preset": "preset",
       "always": "always",
       "device": "device",
-      "human": "yours"
+      "human": "custom"
     },
     "triggered": "triggered right now",
     "enable": "{{name}} on or off",
@@ -2200,9 +2200,9 @@
       "for": "for {{length}}",
       "notAnnounced": "not announced",
       "ownTarget": "its own target",
-      "repeatsUntilBack": "repeats until back",
       "repeatsEvery": "repeats every {{length}}",
-      "silencedUntil": "silenced until {{time}}"
+      "silencedUntil": "silenced until {{time}}",
+      "announcedOnce": "announced once"
     },
     "severity": {
       "critical": "critical",
@@ -2283,8 +2283,19 @@
       "save": "Save the alarm",
       "delete": "Delete the alarm",
       "deleteAsk": "The rule is gone for good. An alert it has already raised stays in the inbox.",
-      "deleteYes": "Delete it"
-    }
+      "deleteYes": "Delete it",
+      "offlineWatch": "This one watches whether the device reports at all, which is not something that can be pointed elsewhere.",
+      "forOfflineNote": "On top of the ten minutes after which a device counts as offline."
+    },
+    "offlineRule": "{{device}} offline",
+    "presetRule": {
+      "tooHot": "Too hot",
+      "tooCold": "Too cold",
+      "tooHumid": "Too humid",
+      "co2High": "CO₂ too high"
+    },
+    "channelOff": "{{channel}} (off)",
+    "addDevice": "Add a device"
   },
   "tasks": {
     "title": "Tasks",
