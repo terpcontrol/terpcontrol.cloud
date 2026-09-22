@@ -74,5 +74,3 @@ export const lastedLabel = (alert: Alert, now: DateTime): string =>
 
 /** The hour an instant fell on, in the reader's own zone. */
 export const clock = (instant: string): string => DateTime.fromISO(instant).toFormat('HH:mm');
-
-export const isAhead = (instant: string | null, now: DateTime): boolean => instant !== null && DateTime.fromISO(instant) > now;

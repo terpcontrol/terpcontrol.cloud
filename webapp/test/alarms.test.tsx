@@ -12,7 +12,8 @@ import type { AlarmRule, AlarmRuleCreate, Device, Me, NotificationRouting, Space
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { Alarms } from '@/screens/control/alarms/Alarms';
-import { boundLabel, headersOf, routedChannels } from '@/screens/control/alarms/rules';
+import { boundLabel, routedChannels } from '@/screens/control/alarms/rules';
+import { headersOf } from '@/ui/headers';
 
 /**
  * The alarm rules page: what it says about each rule, and what the two things

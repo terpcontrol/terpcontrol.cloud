@@ -14,7 +14,8 @@ import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { AlertCard, type AlertNames } from './alerts/AlertCard';
-import { clock, groupsOf, isAhead, type GroupHeading } from './alerts/inbox';
+import { isAhead } from '@/ui/age';
+import { clock, groupsOf, type GroupHeading } from './alerts/inbox';
 import styles from './alerts/Alerts.module.css';
 
 /** How long "Mute all" holds. */

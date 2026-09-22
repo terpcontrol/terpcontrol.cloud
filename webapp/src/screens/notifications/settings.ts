@@ -62,27 +62,6 @@ export const timeOf = (minute: number): string => `${String(Math.floor(minute / 
 /** The window the board draws, and what switching quiet hours on starts from. */
 export const DEFAULT_QUIET: QuietHours = { fromMinute: 23 * 60, toMinute: 7 * 60 };
 
-/**
- * A webhook's headers are edited as lines of "Name: value", because a person
- * who has one to set has copied it from somewhere that writes it that way. A
- * line with no colon is not a header and is dropped rather than sent as one.
- */
-export const headersOf = (text: string): Record<string, string> => {
-  const headers: Record<string, string> = {};
-  for (const line of text.split('\n')) {
-    const at = line.indexOf(':');
-    if (at <= 0) continue;
-    const name = line.slice(0, at).trim();
-    if (name) headers[name] = line.slice(at + 1).trim();
-  }
-  return headers;
-};
-
-export const headersText = (headers: Record<string, string>): string =>
-  Object.entries(headers)
-    .map(([name, value]) => `${name}: ${value}`)
-    .join('\n');
-
 /** The host a webhook goes to, which is the part of it worth reading on a card; the rest is the person's secret. */
 export const hostOf = (url: string): string => {
   try {

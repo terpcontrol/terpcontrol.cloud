@@ -1,3 +1,4 @@
+import { headersOf } from '@/ui/headers';
 import type {
   AlarmDelivery,
   AlarmOrigin,
@@ -215,17 +216,6 @@ export const watchOf = (draft: RuleDraft): AlarmWatch => {
     return { kind: 'output_level', output: draft.watch.output, upper: numberOrNull(draft.upper), lower: numberOrNull(draft.lower) };
 
   return { kind: 'output_running', output: draft.watch.output };
-};
-
-/** "Name: value" lines back into a record. A line with no colon is not a header and is dropped rather than sent as one with no value. */
-export const headersOf = (text: string): Record<string, string> => {
-  const headers: Record<string, string> = {};
-  for (const line of text.split('\n')) {
-    const at = line.indexOf(':');
-    if (at <= 0) continue;
-    headers[line.slice(0, at).trim()] = line.slice(at + 1).trim();
-  }
-  return headers;
 };
 
 export const deliveryOf = (draft: RuleDraft): AlarmDelivery => {

@@ -11,7 +11,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import type { Me, MeUpdate, NotificationRouting, NotificationSettings, Problem } from '@fg2/shared-types/v1';
 import { LogProvider } from '@/log/LogProvider';
 import { Notifications } from '@/screens/notifications/Notifications';
-import { headersOf, headersText, minuteOf, routingWith, timeOf } from '@/screens/notifications/settings';
+import { minuteOf, routingWith, timeOf } from '@/screens/notifications/settings';
+import { headersOf, headersText } from '@/ui/headers';
 
 /**
  * Where notifications go, and what one switch sends.

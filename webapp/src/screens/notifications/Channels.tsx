@@ -12,7 +12,8 @@ import { useNow } from '@/ui/useNow';
 import { forgetId, pushKey, pushSupported, rememberedId, rememberId, subscribe, usePushSubscription } from './push';
 import { ChannelCard } from './parts';
 import { useWriteNotifications } from './write';
-import { categoriesOn, headersOf, headersText, hostOf, listed } from './settings';
+import { headersOf, headersText } from '@/ui/headers';
+import { categoriesOn, hostOf, listed } from './settings';
 import styles from './Notifications.module.css';
 
 /**

@@ -51,3 +51,6 @@ export const leftLabel = (until: string, now: DateTime): string => ageLabel(now.
  * the server takes only this one.
  */
 export const instantOf = (at: DateTime): string => at.toUTC().toISO()!;
+
+/** Whether an instant is still to come: a silence, a mute or a link that has not run out yet. */
+export const isAhead = (instant: string | null, now: DateTime): boolean => instant !== null && DateTime.fromISO(instant) > now;

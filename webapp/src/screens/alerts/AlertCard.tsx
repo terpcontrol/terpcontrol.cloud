@@ -8,7 +8,8 @@ import { ageAttribute } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { figure, targetFigure, UNIT } from '../home/units';
-import { clock, crossedBound, isAhead, lastedLabel, spanLabel } from './inbox';
+import { isAhead } from '@/ui/age';
+import { clock, crossedBound, lastedLabel, spanLabel } from './inbox';
 import styles from './Alerts.module.css';
 
 /** How long a silence from the card holds, and how long maintenance does. */
