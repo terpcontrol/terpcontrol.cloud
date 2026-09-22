@@ -493,6 +493,87 @@ describe('the counts', () => {
   });
 });
 
+describe("the administrator's own row", () => {
+  const ME: User = { ...PEOPLE[0], id: 'user-1', handle: 'chris', email: 'chris@example.invalid', isAdmin: true };
+  const OTHER_ADMIN: User = { ...PEOPLE[0], id: 'user-9', handle: 'mandy', email: 'mandy@example.invalid', isAdmin: true };
+
+  const drawUsers = async () => {
+    wrapped(
+      <AdminOnly>
+        <Users />
+      </AdminOnly>,
+    );
+    await screen.findByText('@chris');
+    return screen.getAllByRole('row');
+  };
+
+  it('never offers the flip that would leave the install with no administrator at all', async () => {
+    server.people = [ME, PEOPLE[0]];
+    const rows = await drawUsers();
+
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Change' }));
+    expect(await screen.findByText('This is your own account.')).toBeInTheDocument();
+    expect(screen.getByLabelText('May run this install')).toBeDisabled();
+    expect(screen.getByLabelText('Active')).toBeDisabled();
+    expect(screen.getByText(/the only administrator this install has/)).toBeInTheDocument();
+  });
+
+  it('asks before taking its own rights away, names what is lost, and writes nothing until the question is answered', async () => {
+    server.people = [ME, OTHER_ADMIN];
+    const rows = await drawUsers();
+
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Change' }));
+    const box = await screen.findByLabelText('May run this install');
+    expect(box).toBeEnabled();
+    fireEvent.click(box);
+    expect(screen.getByText(/the Admin section is gone for you the moment this is saved/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(server.wrote).toHaveLength(0);
+    expect(await screen.findByText('Change your own account?')).toBeInTheDocument();
+
+    // Back keeps the draft; the second press is the one that writes.
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(await screen.findByLabelText('May run this install')).not.toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save anyway' }));
+
+    await waitFor(() => expect(server.wrote).toHaveLength(1));
+    expect(server.wrote[0].method).toBe('PATCH');
+    expect(server.wrote[0].path).toBe('/admin/users/user-1');
+    expect(server.wrote[0].body).toEqual({ isAdmin: false });
+  });
+
+  it("changes somebody else's rights without a question, as before", async () => {
+    server.people = [ME, OTHER_ADMIN];
+    const rows = await drawUsers();
+
+    fireEvent.click(within(rows[2]).getByRole('button', { name: 'Change' }));
+    fireEvent.click(await screen.findByLabelText('May run this install'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(server.wrote).toHaveLength(1));
+    expect(server.wrote[0].body).toEqual({ isAdmin: false });
+  });
+
+  it('tells the truth about what deletion leaves behind, and that the configured account is kept', async () => {
+    server.people = [ME, PEOPLE[0]];
+    const rows = await drawUsers();
+
+    fireEvent.click(within(rows[2]).getByRole('button', { name: 'Delete' }));
+    expect(await screen.findByText(/What they wrote in other people's tents stays there and loses their name/)).toBeInTheDocument();
+    expect(screen.queryByText(/the server keeps it/)).not.toBeInTheDocument();
+    // The prompt is set in small caps and a phone capitalises the first
+    // letter, so the handle counts however it is cased.
+    fireEvent.change(screen.getByLabelText('Type mo to confirm'), { target: { value: 'Mo' } });
+    expect(screen.getByRole('button', { name: 'Delete the account' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Delete' }));
+    expect(await screen.findByText(/the server keeps it/)).toBeInTheDocument();
+  });
+});
+
 describe('the arithmetic behind the table', () => {
   const rows = () =>
     fleetRows({ devices: DEVICES, cameras: CAMERAS, classes: [CLASS], firmwares: [BUILD], people: new Map(PEOPLE.map(one => [one.id, one])) });

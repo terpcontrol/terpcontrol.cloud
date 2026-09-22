@@ -27,6 +27,13 @@ import styles from './Admin.module.css';
  * settings: the same form on Me is somebody deciding about themselves, and this
  * one is somebody deciding about a stranger, which is worth one sentence
  * wherever it happens.
+ *
+ * The one account an operator can lock themselves out with is their own. The
+ * server keeps no invariant here - it writes whatever it is sent - so the
+ * screen keeps two: it never offers the change that would leave the install
+ * with no administrator at all, as far as the loaded list can tell, and it
+ * asks before a change that takes the Admin section or the sign-in away from
+ * the person making it, naming what is lost.
  */
 export function Users() {
   const { t } = useTranslation();
@@ -67,6 +74,12 @@ export function Users() {
   const all = people.data.pages.flatMap(page => page.items);
   const needle = search.trim().toLowerCase().replace(/^@/, '');
   const shown = needle ? all.filter(one => one.handle.toLowerCase().includes(needle) || one.email.toLowerCase().includes(needle)) : all;
+
+  // Who could still run the install if one of them were taken out of it. The
+  // count is only known to be whole once every page is here; until then no
+  // account is called the last one, because the next page may hold another.
+  const activeAdmins = all.filter(one => one.isAdmin && one.isActive && !one.deletionStartedAt).length;
+  const wholeListLoaded = !people.hasNextPage;
 
   return (
     <section className={styles.page}>
@@ -110,7 +123,14 @@ export function Users() {
           </thead>
           <tbody>
             {shown.length > 0 ? (
-              shown.map(account => <AccountRow key={account.id} account={account} isMe={account.id === user?.id} />)
+              shown.map(account => (
+                <AccountRow
+                  key={account.id}
+                  account={account}
+                  isMe={account.id === user?.id}
+                  lastAdmin={wholeListLoaded && activeAdmins <= 1 && account.isAdmin && account.isActive && !account.deletionStartedAt}
+                />
+              ))
             ) : (
               <NoMatch
                 columns={5}
@@ -137,7 +157,7 @@ export function Users() {
   );
 }
 
-function AccountRow({ account, isMe }: { account: User; isMe: boolean }) {
+function AccountRow({ account, isMe, lastAdmin }: { account: User; isMe: boolean; lastAdmin: boolean }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState<'change' | 'delete' | null>(null);
 
@@ -163,7 +183,7 @@ function AccountRow({ account, isMe }: { account: User; isMe: boolean }) {
             {t('admin.users.delete')}
           </button>
         </span>
-        {open === 'change' ? <ChangeSheet account={account} isMe={isMe} onClose={() => setOpen(null)} /> : null}
+        {open === 'change' ? <ChangeSheet account={account} isMe={isMe} lastAdmin={lastAdmin} onClose={() => setOpen(null)} /> : null}
         {open === 'delete' ? <DeleteSheet account={account} isMe={isMe} onClose={() => setOpen(null)} /> : null}
       </td>
     </tr>
@@ -230,8 +250,17 @@ function CreateSheet({ onClose }: { onClose: () => void }) {
  * arrive in. The password field is blank and stays out of the write unless
  * something was typed into it, so saving a changed handle never quietly issues
  * a new password as well.
+ *
+ * On the operator's own row the two boxes are the two ways to lock oneself
+ * out: without "may run this install" the Admin section is gone the moment
+ * the save lands, and without "active" the account cannot sign in again.
+ * Neither is undone from inside the app by the person it happened to, so
+ * unticking one turns Save into a question that names the loss. Where the
+ * account is the last administrator the install has, the boxes are not
+ * offered at all - a control somebody may not use is absent, not refused
+ * after the tap.
  */
-function ChangeSheet({ account, isMe, onClose }: { account: User; isMe: boolean; onClose: () => void }) {
+function ChangeSheet({ account, isMe, lastAdmin, onClose }: { account: User; isMe: boolean; lastAdmin: boolean; onClose: () => void }) {
   const { t } = useTranslation();
   const change = useUpdateUser();
   const [email, setEmail] = useState(account.email);
@@ -239,6 +268,7 @@ function ChangeSheet({ account, isMe, onClose }: { account: User; isMe: boolean;
   const [password, setPassword] = useState('');
   const [isAdmin, setIsAdmin] = useState(account.isAdmin);
   const [isActive, setIsActive] = useState(account.isActive);
+  const [asking, setAsking] = useState(false);
 
   const body: AdminUserUpdate = {};
   if (email.trim() !== account.email) body.email = email.trim();
@@ -247,6 +277,43 @@ function ChangeSheet({ account, isMe, onClose }: { account: User; isMe: boolean;
   if (isAdmin !== account.isAdmin) body.isAdmin = isAdmin;
   if (isActive !== account.isActive) body.isActive = isActive;
   const dirty = Object.keys(body).length > 0;
+
+  // What the save would take from the person saving it, said under the boxes
+  // and asked about again in the save's place.
+  const losing = isMe
+    ? [
+        account.isAdmin && !isAdmin ? t('admin.users.demoteMine') : null,
+        account.isActive && !isActive ? t('admin.users.deactivateMine') : null,
+      ].filter((line): line is string => line !== null)
+    : [];
+  const save = () => change.mutate({ userId: account.id, body }, { onSuccess: onClose });
+
+  if (asking) {
+    return (
+      <Sheet
+        title={t('admin.users.confirmMineTitle')}
+        aside={account.email}
+        onClose={onClose}
+        actions={
+          <>
+            <button type="button" className={ui.button} disabled={change.isPending} onClick={() => setAsking(false)}>
+              {t('admin.users.confirmNo')}
+            </button>
+            <button type="button" className={`${ui.button} ${styles.danger}`} disabled={change.isPending} onClick={save}>
+              {t('admin.users.confirmMine')}
+            </button>
+          </>
+        }
+      >
+        {losing.map(line => (
+          <p key={line} className={styles.sheetBody}>
+            {line}
+          </p>
+        ))}
+        <Refused error={change.error} />
+      </Sheet>
+    );
+  }
 
   return (
     <Sheet
@@ -258,7 +325,7 @@ function ChangeSheet({ account, isMe, onClose }: { account: User; isMe: boolean;
           type="button"
           className={`${ui.button} ${ui.primary}`}
           disabled={!dirty || change.isPending}
-          onClick={() => change.mutate({ userId: account.id, body }, { onSuccess: onClose })}
+          onClick={() => (losing.length > 0 ? setAsking(true) : save())}
         >
           {t('admin.users.save')}
         </button>
@@ -286,13 +353,19 @@ function ChangeSheet({ account, isMe, onClose }: { account: User; isMe: boolean;
         />
       </label>
       <label className={styles.row}>
-        <input type="checkbox" checked={isActive} onChange={event => setIsActive(event.target.checked)} />
+        <input type="checkbox" checked={isActive} disabled={lastAdmin} onChange={event => setIsActive(event.target.checked)} />
         <span>{t('admin.users.isActive')}</span>
       </label>
       <label className={styles.row}>
-        <input type="checkbox" checked={isAdmin} onChange={event => setIsAdmin(event.target.checked)} />
+        <input type="checkbox" checked={isAdmin} disabled={lastAdmin} onChange={event => setIsAdmin(event.target.checked)} />
         <span>{t('admin.users.makeAdmin')}</span>
       </label>
+      {lastAdmin ? <p className={`${ui.note} ${styles.consequence}`}>{t('admin.users.lastAdmin')}</p> : null}
+      {losing.map(line => (
+        <p key={line} className={`${ui.note} ${styles.consequence}`}>
+          {line}
+        </p>
+      ))}
 
       {/* The code is serialised to an administrator alone, and handing it over is how such an account is activated. */}
       {account.activationCode ? (
@@ -307,14 +380,23 @@ function ChangeSheet({ account, isMe, onClose }: { account: User; isMe: boolean;
 /**
  * The end of somebody else's account. It asks for the handle to be typed, as
  * the account's own deletion does: this is the one control on the screen where
- * being wrong costs another person everything they logged, and a confirmation
- * that is one more tap is answered by the same reflex that opened it.
+ * being wrong costs another person everything they own, and a confirmation
+ * that is one more tap is answered by the same reflex that opened it. The
+ * handle is compared without regard to case, because the prompt above the
+ * field is set in small caps and a phone capitalises the first letter typed.
+ *
+ * What the sheet says is what the server does: what the account owns goes,
+ * and what the person wrote in other people's tents stays there without their
+ * name - a member's waterings are part of the host's diary, not theirs to take
+ * away. The account the install is configured with is the one the server
+ * always keeps; nothing on the wire says which account that is, so the sheet
+ * says so on every administrator's row before the field, rather than after.
  */
 function DeleteSheet({ account, isMe, onClose }: { account: User; isMe: boolean; onClose: () => void }) {
   const { t } = useTranslation();
   const remove = useDeleteUser();
   const [typed, setTyped] = useState('');
-  const sure = typed.trim().replace(/^@/, '') === account.handle;
+  const sure = typed.trim().replace(/^@/, '').toLowerCase() === account.handle.toLowerCase();
 
   return (
     <Sheet
@@ -335,9 +417,18 @@ function DeleteSheet({ account, isMe, onClose }: { account: User; isMe: boolean;
       <p className={styles.sheetBody}>{t('admin.users.deleteBody', { handle: account.handle })}</p>
       <p className={styles.sheetBody}>{t('admin.users.deleteDevices')}</p>
       {isMe ? <p className={styles.sheetBody}>{t('admin.users.deleteMine')}</p> : null}
+      {account.isAdmin ? <p className={styles.sheetBody}>{t('admin.users.deleteAdmin')}</p> : null}
       <label className={styles.field}>
         <span className="label">{t('admin.users.typeHandle', { handle: account.handle })}</span>
-        <input className={`mono ${ui.input}`} value={typed} autoComplete="off" onChange={event => setTyped(event.target.value)} />
+        <input
+          className={`mono ${ui.input}`}
+          value={typed}
+          autoComplete="off"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          onChange={event => setTyped(event.target.value)}
+        />
       </label>
       <Refused error={remove.error} />
     </Sheet>
