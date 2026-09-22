@@ -19,7 +19,7 @@ Do not rewrite history on that branch and do not push to any other without askin
 ## How far it has got
 
 The delivery order is the table at the end of the decision record. Rounds 0 to 7, 9 and 10 are built, server and
-app, except where noted. Round 8 is visual direction and needs no backend.
+app. Round 8 is visual direction and needs no backend.
 
 | Round | State |
 | --- | --- |
@@ -32,13 +32,13 @@ app, except where noted. Round 8 is visual direction and needs no backend.
 | 6 Public diary | done, after ten leaks were found and closed |
 | 7 Lifecycle | done |
 | 9 Controller | done, server and app |
-| 10 Alarms, tasks, notifications | **server done; the app side is not built** |
+| 10 Alarms, tasks, notifications | done, server and app, after two rounds of criticism |
 | 11 Onboarding | not started |
 | 12 Measurements and charts | not started |
 | 13 Sharing | not started |
 | 14 Account, entitlement, admin | not started |
 
-The next piece of work is round 10's app screens, then round 11.
+The next piece of work is round 11.
 
 ## What the checks are
 
@@ -56,7 +56,11 @@ cd webapp && npm run lint && npx vitest run && npm run build
 `--pretty false` is not optional. With pretty output on, `tsc` writes colour codes between "error" and "TS", so
 the grep prints 0 on a project that does not compile. Both of these are also in `AGENTS.md`.
 
-At the last full run: 775 server unit tests, 398 server integration tests, 146 app tests, everything else clean.
+At the last full run: 812 server unit tests, 411 server integration tests, 283 app tests, everything else clean.
+
+The integration suite needs the machine to itself. One run of it while five agents were driving a browser and a
+compose stack failed nineteen tests in three suites; three runs since, with nothing else going on, have been
+clean. It starts its own MongoDB and its own app on ports it picks, and that is what contention breaks.
 
 `npm run test:live` in `webapp/` needs a stack up and is not part of `npm test`.
 
@@ -136,5 +140,9 @@ unbuildable fix is not worth making. That one is waiting on Chris.
 - **A migration CLI run must build its indexes first.** Without them every upsert is a collection scan and the
   run is quadratic: one lookup against the 7.7 million row collection measured 15.7 seconds. `users` and
   `devices` are the exception and are indexed after the rename, because they hold the old shapes until then.
+- **The task list's ids carry the turn a plan step is on.** A plan-step task is
+  `plan:<device>:<step>:<the instant the step became active>`. Without the last field the entry that ticked the
+  task off answered every later turn of the same step as well, so a looping plan, or one stopped and started
+  again, stood waiting and was never asked.
 - **There is no rollback any more.** It was removed on Chris's instruction: a backup is the way back, and it
   should be checked restorable before an upgrade rather than on the evening it is needed.
