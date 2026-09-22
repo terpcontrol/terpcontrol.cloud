@@ -1,6 +1,18 @@
-import type { GrowSeries, MeasurementDefinition, Metric, OutputMetric, TimelinePanel } from '@fg2/shared-types/v1';
+import type { GrowSeries, MeasurementDefinition, Metric, OutputMetric, TimelinePanel, TimelineTarget, TimelineTargets } from '@fg2/shared-types/v1';
+import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { CHART_METRICS, CHART_OUTPUTS } from '@/api/charts';
-import { csvOf, dayOfGrow, niceScale, setpointPoints, stepPoints, type CsvColumn, type Plot, type PlotLine } from '@/charts/series';
+import {
+  axisFigure,
+  csvOf,
+  dayOfGrow,
+  niceScale,
+  setpointPoints,
+  stepPoints,
+  type CsvColumn,
+  type Plot,
+  type PlotLine,
+  type PlotSpan,
+} from '@/charts/series';
 import type { ChartToken } from '@/charts/tokens';
 import { UNIT } from '../home/units';
 import { at, stretchesOf } from '../timeline/window';
@@ -41,6 +53,24 @@ const METRIC_COLOUR: Partial<Record<Metric, ChartToken>> = { temperature: 'tempe
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
+/** How far the leaf sits under the air in either half of the cycle, which is what turns a pair of targets into a deficit. */
+export interface LeafOffsets {
+  day: number;
+  night: number;
+}
+
+/** A plant, as far as a chart needs one: a reading per plant is a line per plant, and each of them is called something. */
+export interface PlantName {
+  id: string;
+  label: string;
+}
+
+/** The earlier run laid over this one, which is what the day-of-grow layout exists for. */
+export interface Compared {
+  series: GrowSeries;
+  name: string;
+}
+
 /** What this answer has to offer, in the order the chips are drawn. */
 export interface Offered {
   metrics: Metric[];
@@ -63,6 +93,20 @@ export const prunedTo = (picked: Picked, offered: Offered): Picked => ({
 
 export const isEmpty = (picked: Picked): boolean => picked.metrics.length === 0 && picked.outputs.length === 0 && picked.measurements.length === 0;
 
+/**
+ * What a saved view named and this grow cannot draw. A view holds a question
+ * and not a grow's readings, so one saved over another run opens here as well -
+ * and then it has to say what it could not draw, rather than quietly drawing
+ * fewer lines than the name on the chip promises.
+ */
+export const droppedBy = (t: Translate, picked: Picked, offered: Offered, defined: readonly MeasurementDefinition[]): string[] => [
+  ...picked.metrics.filter(metric => !offered.metrics.includes(metric)).map(metric => t(`charts.metric.${metric}`, { defaultValue: metric })),
+  ...picked.measurements
+    .filter(key => !offered.measurements.some(one => one.key === key))
+    .map(key => defined.find(one => one.key === key)?.name ?? key),
+  ...picked.outputs.filter(output => !offered.outputs.includes(output)).map(output => t(`timeline.output.${output}`, { defaultValue: output })),
+];
+
 /** What the screen opens on: the climate a grower reads first, and nothing the account has not got. */
 export const defaultPick = (offered: Offered): Picked => ({
   metrics: offered.metrics.filter(metric => metric !== 'co2'),
@@ -77,6 +121,8 @@ export interface Card {
   about: string;
   /** At the right of the header; two units that belong together are written as one. */
   unit: string;
+  /** Each scale's two ends as they are written beside the plot; null where the scale is a switch and a figure would be an invention. */
+  scaleEnds: ({ low: string; high: string } | null)[];
   plot: Plot;
   /** What the card could not take, named rather than dropped in silence. */
   left: string[];
@@ -94,13 +140,25 @@ interface Drawn {
   csv: CsvColumn;
 }
 
-export const cardsOf = (t: Translate, series: GrowSeries, picked: Picked, layout: Layout, offered: Offered, leafOffset: number | null): Card[] => {
-  const drawn = drawnOf(t, series, picked, offered, leafOffset);
+export interface CardsInput {
+  picked: Picked;
+  layout: Layout;
+  offered: Offered;
+  leaf: LeafOffsets | null;
+  plants: readonly PlantName[];
+  /** Set only in the day-of-grow layout, which is the one thing two runs can share an axis in. */
+  compared?: Compared;
+}
+
+export const cardsOf = (t: Translate, series: GrowSeries, input: CardsInput): Card[] => {
+  const drawn = alongside(t, drawnOf(t, series, input), series, input);
   if (drawn.length === 0) return [];
 
-  const cards = layout === 'overlay' ? [overlaid(t, drawn)] : stacked(t, drawn);
+  const cards = input.layout === 'overlay' ? [overlaid(t, drawn)] : stacked(t, drawn);
 
-  return cards.map(card => (layout === 'day_of_grow' ? rebased(card, at(series.originAt)) : card)).map(card => framed(card, series, layout));
+  return cards
+    .map(card => (input.layout === 'day_of_grow' ? rebased(card, at(series.originAt)) : card))
+    .map(card => framed(card, series, input.layout));
 };
 
 /**
@@ -154,13 +212,19 @@ const together = (drawn: Drawn[], units: string[]): boolean => {
 const cardOf = (key: string, title: string, about: string, unit: string, drawn: Drawn[], left: string[]): Card => {
   const units = [...new Set(drawn.map(one => one.unit))];
   const lines = drawn.flatMap(one => one.lines.map(line => ({ ...line, axis: (units.indexOf(one.unit) === 1 ? 1 : 0) as 0 | 1 })));
-  const scales = units.map(name => niceScale(drawn.filter(one => one.unit === name).flatMap(one => one.values)));
+  const on = units.map(name => drawn.filter(one => one.unit === name));
+  const scales = on.map(here => niceScale(here.flatMap(one => one.values)));
 
   return {
     key,
     title,
     about,
     unit: unit || units.filter(Boolean).join(' · '),
+    // A square wave runs between off and on, and the round figures a scale is
+    // stretched to - -0.5 and 1.5 - are not states anything was ever in.
+    scaleEnds: scales.map((scale, index) =>
+      on[index].every(one => one.lines.every(line => line.shape === 'step')) ? null : { low: axisFigure(scale.low), high: axisFigure(scale.high) },
+    ),
     plot: { axis: 'time', from: 0, to: 0, scales, nights: [], lines },
     left,
   };
@@ -197,24 +261,64 @@ const rebased = (card: Card, originAt: number): Card => ({
   },
 });
 
+/**
+ * The earlier run's lines, folded in beside the ones they can be read against.
+ *
+ * Two grows are two answers about two different stretches of the calendar, and
+ * the only thing that makes them one picture is the day counter. So the other
+ * run's instants are moved onto this one's origin here, and the day axis that
+ * rebases every x afterwards counts both of them from their own day 1 without a
+ * second rebasing having to be kept in step with the first. It carries no band
+ * and no setpoint: what the earlier run was aimed at is not what this one is,
+ * and two greens on one card cannot be told apart anyway.
+ */
+const alongside = (t: Translate, drawn: Drawn[], series: GrowSeries, input: CardsInput): Drawn[] => {
+  const compared = input.compared;
+  if (!compared || input.layout !== 'day_of_grow') return drawn;
+
+  const other = drawnOf(t, compared.series, { ...input, compared: undefined, leaf: null });
+  const origin = at(series.originAt);
+  const theirs = at(compared.series.originAt);
+
+  return drawn.map(one => {
+    const mine = other.find(two => two.key === one.key);
+    if (!mine) return one;
+
+    const lines = mine.lines
+      .filter(line => line.label !== undefined)
+      .map(line => ({
+        ...line,
+        key: `${line.key}~compared`,
+        label: `${line.label} · ${compared.name}`,
+        dashed: true,
+        bands: undefined,
+        points: line.points.map(([time, value]) => [time - theirs + origin, value] as [number, number | null]),
+      }));
+
+    return { ...one, lines: [...one.lines, ...lines], values: [...one.values, ...mine.lines.flatMap(valuesOf)] };
+  });
+};
+
+const valuesOf = (line: PlotLine): number[] => line.points.flatMap(([, value]) => (value === null ? [] : [value]));
+
 /** Every ticked line, in the order the chips stand in, as something that can be put on a card. */
-const drawnOf = (t: Translate, series: GrowSeries, picked: Picked, offered: Offered, leafOffset: number | null): Drawn[] => [
-  ...offered.metrics
-    .filter(metric => picked.metrics.includes(metric))
+const drawnOf = (t: Translate, series: GrowSeries, input: CardsInput): Drawn[] => [
+  ...input.offered.metrics
+    .filter(metric => input.picked.metrics.includes(metric))
     .flatMap(metric => {
       const panel = series.climate.find(one => one.metric === metric);
 
-      return panel ? [metricDrawn(t, metric, panel, series, leafOffset)] : [];
+      return panel ? [metricDrawn(t, metric, panel, series, input.leaf)] : [];
     }),
-  ...offered.measurements
-    .filter(definition => picked.measurements.includes(definition.key))
+  ...input.offered.measurements
+    .filter(definition => input.picked.measurements.includes(definition.key))
     .flatMap(definition => {
       const measured = series.measurements.find(one => one.key === definition.key);
 
-      return measured ? [measurementDrawn(t, definition, measured.points, at(series.startsAt), at(series.endsAt))] : [];
+      return measured ? [measurementDrawn(t, definition, measured.points, input.plants, at(series.startsAt), at(series.endsAt))] : [];
     }),
-  ...offered.outputs
-    .filter(output => picked.outputs.includes(output))
+  ...input.offered.outputs
+    .filter(output => input.picked.outputs.includes(output))
     .flatMap(output => {
       const lanes = series.outputs.filter(one => one.output === output);
 
@@ -222,10 +326,11 @@ const drawnOf = (t: Translate, series: GrowSeries, picked: Picked, offered: Offe
     }),
 ];
 
-const metricDrawn = (t: Translate, metric: Metric, panel: TimelinePanel, series: GrowSeries, leafOffset: number | null): Drawn => {
+const metricDrawn = (t: Translate, metric: Metric, panel: TimelinePanel, series: GrowSeries, leaf: LeafOffsets | null): Drawn => {
   const from = at(series.startsAt);
   const to = at(series.endsAt);
-  const stretches = stretchesOf(panel, series.nights, from, to);
+  const aimed = metric === 'vpd' && panel.targets.length === 0 && leaf ? { ...panel, targets: vpdTargetsOf(series, leaf) } : panel;
+  const stretches = stretchesOf(aimed, series.nights, from, to);
   const points = panel.points.map(point => [at(point.measuredAt), point.value] as [number, number | null]);
   const title = t(`charts.metric.${metric}`, { defaultValue: metric });
   const unit = UNIT[metric] ?? '';
@@ -233,7 +338,7 @@ const metricDrawn = (t: Translate, metric: Metric, panel: TimelinePanel, series:
   return {
     key: metric,
     title,
-    about: aboutMetric(t, metric, stretches.length > 0, leafOffset),
+    about: aboutMetric(t, metric, stretches.length > 0, leaf),
     unit,
     values: [
       ...panel.points.flatMap(point => (point.value === null ? [] : [point.value])),
@@ -242,6 +347,8 @@ const metricDrawn = (t: Translate, metric: Metric, panel: TimelinePanel, series:
     lines: [
       {
         key: metric,
+        label: title,
+        unit,
         shape: 'line',
         colour: METRIC_COLOUR[metric] ?? 'ink',
         axis: 0,
@@ -266,22 +373,73 @@ const metricDrawn = (t: Translate, metric: Metric, panel: TimelinePanel, series:
 };
 
 /**
+ * What the VPD panel is aimed at.
+ *
+ * A controller is steered by a temperature and a humidity and never by a
+ * deficit, so there is no VPD target anywhere upstream to hand down: the band
+ * is what the pair the tent is already steered to amounts to, worked out along
+ * the contract's own curve - the one the targets screen prints beside the two
+ * dials and the one the server charts a reading's VPD along. That is also what
+ * makes it move with the phase without being told to: it is read off the two
+ * bands that already do.
+ *
+ * Its ends are the corners of the box those two describe, because the deficit
+ * rises with the air and falls with the humidity - cool and damp is its low end
+ * and warm and dry its high one - and each half of the cycle uses the leaf
+ * offset the device holds for that half.
+ */
+const vpdTargetsOf = (series: GrowSeries, leaf: LeafOffsets): TimelineTargets[] => {
+  const warm = series.climate.find(one => one.metric === 'temperature');
+  const damp = series.climate.find(one => one.metric === 'humidity');
+  if (!warm || !damp) return [];
+
+  return warm.targets.flatMap(stretch => {
+    const wet = damp.targets.find(one => one.startsAt === stretch.startsAt && one.endsAt === stretch.endsAt);
+    if (!wet) return [];
+
+    return [{ ...stretch, day: vpdTarget(stretch.day, wet.day, leaf.day), night: vpdTarget(stretch.night, wet.night, leaf.night) }];
+  });
+};
+
+const vpdTarget = (warm: TimelineTarget | null, damp: TimelineTarget | null, offset: number): TimelineTarget | null =>
+  warm && damp
+    ? {
+        setpoint: deficit(warm.setpoint, damp.setpoint, offset),
+        band: { low: deficit(warm.band.low, damp.band.high, offset), high: deficit(warm.band.high, damp.band.low, offset) },
+      }
+    : null;
+
+/** Two decimals, which is what a kPa is worth and what every other VPD figure in the app is written to. */
+const deficit = (temperature: number, humidity: number, offset: number): number =>
+  Math.round(vapourPressureDeficit(temperature, temperature + offset, Math.min(100, Math.max(0, humidity))) * 100) / 100;
+
+/**
  * A grower's own measurement: the readings as they were written, joined by a
  * thin line so that a season reads as a shape, and what was aimed at drawn the
  * way the climate panels draw it - a green band where the definition names both
  * ends, and one dashed line where it names only one, because a band needs two
  * sides and half of one is a threshold rather than a range.
+ *
+ * A measurement taken per plant is a line per plant. One line through every
+ * plant's readings in the order they happen to have been written is a zig-zag
+ * between three different plants and says nothing true about any of them.
  */
 const measurementDrawn = (
   t: Translate,
   definition: MeasurementDefinition,
-  readings: readonly { measuredAt: string; value: number }[],
+  readings: readonly { measuredAt: string; value: number; plantId: string | null }[],
+  plants: readonly PlantName[],
   from: number,
   to: number,
 ): Drawn => {
   const points = readings.map(reading => [at(reading.measuredAt), reading.value] as [number, number | null]);
   // One end alone is a line to stay under or over; two are the band above.
   const edge = definition.targetMin !== null && definition.targetMax !== null ? null : (definition.targetMin ?? definition.targetMax);
+  const bands =
+    definition.targetMin !== null && definition.targetMax !== null
+      ? [{ from, to, low: definition.targetMin, high: definition.targetMax }]
+      : undefined;
+  const perPlant = definition.perPlant ? [...new Set(readings.map(reading => reading.plantId))] : [null];
 
   return {
     key: definition.key,
@@ -290,17 +448,19 @@ const measurementDrawn = (
     unit: definition.unit,
     values: [...readings.map(reading => reading.value), ...[definition.targetMin, definition.targetMax].filter((end): end is number => end !== null)],
     lines: [
-      {
-        key: definition.key,
-        shape: 'points',
-        colour: 'ink',
-        axis: 0,
-        points,
-        bands:
-          definition.targetMin !== null && definition.targetMax !== null
-            ? [{ from, to, low: definition.targetMin, high: definition.targetMax }]
-            : undefined,
-      },
+      ...perPlant.map((plantId, index) => ({
+        key: plantId === null ? definition.key : `${definition.key}:${plantId}`,
+        label: plantLabel(definition.name, plantId, plants),
+        unit: definition.unit,
+        shape: 'points' as const,
+        colour: 'ink' as ChartToken,
+        axis: 0 as const,
+        points: readings
+          .filter(reading => plantId === null || reading.plantId === plantId)
+          .map(reading => [at(reading.measuredAt), reading.value] as [number, number | null]),
+        // The target belongs to the measurement and not to a plant, so it is drawn once however many plants carry it.
+        bands: index === 0 ? bands : undefined,
+      })),
       ...(edge === null
         ? []
         : [
@@ -318,33 +478,59 @@ const measurementDrawn = (
   };
 };
 
-/** An output as the square wave its spans describe. Two controllers in one tent are two lanes and one line. */
+/** "Height · Amnesia 1", or the measurement's own name where it is about the grow rather than about one plant. */
+const plantLabel = (name: string, plantId: string | null, plants: readonly PlantName[]): string => {
+  const plant = plantId === null ? null : plants.find(one => one.id === plantId);
+
+  return plant ? `${name} · ${plant.label}` : name;
+};
+
+/**
+ * An output as the square wave its spans describe.
+ *
+ * Two controllers in one tent each drive their own light and answer their own
+ * lane, and the line is when any of them ran: overlapping spans are joined
+ * first, because a list sorted by start alone walks back across the panel the
+ * moment one machine's window begins inside another's. The card says how many
+ * were pooled rather than passing off two machines as one.
+ */
 const outputDrawn = (
   t: Translate,
   output: OutputMetric,
-  lanes: readonly { spans: readonly { startsAt: string; endsAt: string }[] }[],
+  lanes: readonly { deviceId: string; spans: readonly { startsAt: string; endsAt: string }[] }[],
   from: number,
   to: number,
 ): Drawn => {
-  const spans = lanes
-    .flatMap(lane => lane.spans.map(span => ({ from: at(span.startsAt), to: at(span.endsAt) })))
-    .sort((one, other) => one.from - other.from);
+  const spans = joined(
+    lanes.flatMap(lane => lane.spans.map(span => ({ from: at(span.startsAt), to: at(span.endsAt) }))).sort((one, other) => one.from - other.from),
+  );
   const points = stepPoints(spans, from, to);
   const title = t(`timeline.output.${output}`, { defaultValue: output });
+  const devices = new Set(lanes.map(lane => lane.deviceId)).size;
 
   return {
     key: `out-${output}`,
     title,
-    about: t('charts.about.output'),
+    about: devices > 1 ? t('charts.about.outputPooled', { count: devices }) : t('charts.about.output'),
     unit: '',
     values: [0, 1],
-    lines: [{ key: `out-${output}`, shape: 'step', colour: 'warning', axis: 0, points }],
+    lines: [{ key: `out-${output}`, label: title, shape: 'step', colour: 'warning', axis: 0, points }],
     csv: { label: t('charts.csvOutput', { output: title }), points },
   };
 };
 
-const aboutMetric = (t: Translate, metric: Metric, steered: boolean, leafOffset: number | null): string =>
-  [steered ? t('charts.about.band') : null, metric === 'vpd' && leafOffset !== null ? t('charts.about.leaf', { offset: signed(leafOffset) }) : null]
+/** Spans sorted by start, run together where they touch or overlap, so the wave only ever steps forwards. */
+const joined = (spans: readonly PlotSpan[]): PlotSpan[] =>
+  spans.reduce<PlotSpan[]>((run, span) => {
+    const last = run.at(-1);
+    if (last && span.from <= last.to) last.to = Math.max(last.to, span.to);
+    else run.push({ ...span });
+
+    return run;
+  }, []);
+
+const aboutMetric = (t: Translate, metric: Metric, steered: boolean, leaf: LeafOffsets | null): string =>
+  [steered ? t('charts.about.band') : null, metric === 'vpd' && leaf ? t('charts.about.leaf', { offset: signed(leaf.day) }) : null]
     .filter(Boolean)
     .join(' · ');
 
@@ -352,8 +538,8 @@ const aboutMetric = (t: Translate, metric: Metric, steered: boolean, leafOffset:
 const signed = (value: number): string => (value < 0 ? `−${Math.abs(value)}` : `+${value}`);
 
 /** The table behind the CSV button: exactly the lines that are on the screen, in the order they are drawn. */
-export const csvForCards = (t: Translate, series: GrowSeries, picked: Picked, offered: Offered, leafOffset: number | null): string =>
+export const csvForCards = (t: Translate, series: GrowSeries, input: CardsInput): string =>
   csvOf(
-    drawnOf(t, series, picked, offered, leafOffset).map(one => one.csv),
+    drawnOf(t, series, input).map(one => one.csv),
     at(series.originAt),
   );

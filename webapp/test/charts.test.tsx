@@ -10,12 +10,16 @@ import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GrowListItem, GrowSeries, TimelineTargets } from '@fg2/shared-types/v1';
 import { Charts } from '@/screens/charts/Charts';
+import { cardsOf, offeredBy, type Offered } from '@/screens/charts/cards';
 import { csvOf, stepPoints } from '@/charts/series';
 
 const state = vi.hoisted(() => ({
   series: null as GrowSeries | null,
   posted: [] as { path: string; body: unknown }[],
   refuse: false,
+  views: [] as unknown[],
+  /** Set to have the next series read fail, which is how a chip is tapped against a server that cannot answer. */
+  breaks: false,
 }));
 
 // Every read the screen makes goes through the one client, so the hooks under
@@ -26,11 +30,20 @@ vi.mock('@/api/client', async () => {
   return {
     api: {
       get: (path: string) => {
-        if (path.startsWith('/grows/grow-1/series')) return Promise.resolve(state.series);
+        if (path.startsWith('/grows/grow-1/series')) {
+          return state.breaks
+            ? Promise.reject(new ApiError({ status: 503, code: 'unavailable', title: 'Nope', detail: 'The store said no.', errors: [] }))
+            : Promise.resolve(state.series);
+        }
+        if (path.startsWith('/grows/grow-2/series')) return Promise.resolve(earlier);
+        if (path === '/grows/grow-1/plants') return Promise.resolve({ items: plants, nextCursor: null });
         if (path === '/grows/grow-1') return Promise.resolve(grow);
+        if (path === '/grows') return Promise.resolve({ items: [grow, { ...grow, id: 'grow-2', name: 'Autumn run' }], nextCursor: null });
         if (path === '/spaces') return Promise.resolve({ items: [{ id: 'space-1', name: 'Tent 1' }], nextCursor: null });
-        if (path === '/devices') return Promise.resolve({ items: [{ id: 'device-1', settings: { vpdLeafOffsetDay: -2 } }], nextCursor: null });
-        if (path === '/chart-views') return Promise.resolve({ items: [], nextCursor: null });
+        if (path === '/devices') {
+          return Promise.resolve({ items: [{ id: 'device-1', settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0 } }], nextCursor: null });
+        }
+        if (path === '/chart-views') return Promise.resolve({ items: state.views, nextCursor: null });
         return Promise.resolve({ items: [], nextCursor: null });
       },
       post: (path: string, body: unknown) => {
@@ -106,6 +119,11 @@ const grow: GrowListItem = {
   summary: { dayNumber: 35, stage: 'flowering', preset: 'flower', phaseDay: 11, weekNumber: 5, isAuto: false, groups: [], locations: [] },
 };
 
+const plants = [
+  { id: 'plant-1', growId: 'grow-1', strain: 'Amnesia', label: 'Amnesia 1', status: 'growing', harvest: null, createdAt: at(0) },
+  { id: 'plant-2', growId: 'grow-1', strain: 'Amnesia', label: 'Amnesia 2', status: 'growing', harvest: null, createdAt: at(0) },
+];
+
 const series: GrowSeries = {
   growId: 'grow-1',
   range: '24h',
@@ -131,7 +149,38 @@ const series: GrowSeries = {
     { output: 'heater', deviceId: 'device-1', spans: [{ startsAt: at(2), endsAt: at(3) }] },
   ],
   nights: [{ startsAt: at(0), endsAt: at(6) }],
-  measurements: [{ key: 'height', points: [{ measuredAt: at(4), value: 54, plantId: 'plant-1', entryId: 'e1' }] }],
+  measurements: [
+    {
+      key: 'height',
+      points: [
+        { measuredAt: at(4), value: 54, plantId: 'plant-1', entryId: 'e1' },
+        { measuredAt: at(5), value: 61, plantId: 'plant-2', entryId: 'e2' },
+      ],
+    },
+  ],
+};
+
+/**
+ * A run of the same tent a hundred days earlier. Its instants are its own and
+ * so is its day 1, which is the whole point: laid over this one it has to land
+ * on the same day numbers and nowhere near the same dates.
+ */
+const before = (hour: number) => FROM.plus({ hours: hour }).minus({ days: 100 }).toISO()!;
+
+const earlier: GrowSeries = {
+  ...series,
+  growId: 'grow-2',
+  originAt: DateTime.fromISO(series.originAt).minus({ days: 100 }).toISO()!,
+  startsAt: before(0),
+  endsAt: before(24),
+  climate: [
+    { metric: 'temperature', points: [0, 6, 12, 18, 24].map(hour => ({ measuredAt: before(hour), value: 20 + hour / 24 })), targets: [] },
+    { metric: 'humidity', points: [0, 6, 12, 18, 24].map(hour => ({ measuredAt: before(hour), value: 70 })), targets: [] },
+    { metric: 'vpd', points: [0, 6, 12, 18, 24].map(hour => ({ measuredAt: before(hour), value: 0.9 })), targets: [] },
+  ],
+  outputs: [],
+  nights: [],
+  measurements: [],
 };
 
 const draw = () =>
@@ -154,6 +203,8 @@ beforeEach(() => {
   state.series = series;
   state.posted = [];
   state.refuse = false;
+  state.breaks = false;
+  state.views = [];
   session.demo = false;
 });
 
@@ -182,7 +233,8 @@ describe('the Charts view', () => {
     expect(screen.getByText('Temp + RH')).toBeInTheDocument();
     expect(screen.getByText('· overlaid, two axes')).toBeInTheDocument();
     expect(screen.getByText('°C · %')).toBeInTheDocument();
-    expect(screen.getAllByText('VPD')).toHaveLength(2);
+    // The chip, the card's own title and the line the pinned reading names.
+    expect(screen.getAllByText('VPD')).toHaveLength(3);
     expect(screen.getByText('· band moves with the phase · leaf −2 °C')).toBeInTheDocument();
     expect(screen.getByText('kPa')).toBeInTheDocument();
 
@@ -192,7 +244,22 @@ describe('the Charts view', () => {
     expect(screen.getByText(/The nerd's room/)).toHaveTextContent('Two units on one panel only when they belong together.');
   });
 
-  it('adds a measurement as a panel of its own, said to be measured rather than sensed', async () => {
+  it('reads out every line at the cursor and prints both ends of every scale', async () => {
+    draw();
+
+    // The cursor rests at the end of the window until it is moved, so what is
+    // pinned is the newest reading of each line, in its own unit.
+    const reading = await screen.findByRole('status');
+    expect(reading).toHaveTextContent('Temp 26 °C');
+    expect(reading).toHaveTextContent('RH 56 %');
+    expect(reading).toHaveTextContent('VPD 1.34 kPa');
+
+    // And the panel itself carries its scales: temperature on the left, humidity on the right.
+    const pair = screen.getByText('Temp + RH').closest('section')!;
+    for (const figure of ['27', '21', '65', '50']) expect(pair).toHaveTextContent(figure);
+  });
+
+  it('adds a measurement as a panel of its own, one line per plant rather than one across all of them', async () => {
     draw();
     fireEvent.click(await screen.findByRole('button', { name: 'Height' }));
 
@@ -200,6 +267,84 @@ describe('the Charts view', () => {
     expect(screen.getAllByText('Height')).toHaveLength(2);
     expect(screen.getByText('· measured · per plant')).toBeInTheDocument();
     expect(screen.getByText('cm')).toBeInTheDocument();
+
+    // Two plants were measured, so the card carries two lines and says which is which.
+    const reading = screen.getByRole('status');
+    expect(reading).toHaveTextContent('Height · Amnesia 1 54 cm');
+    expect(reading).toHaveTextContent('Height · Amnesia 2 61 cm');
+  });
+
+  it('works the VPD band out of the pair the tent is steered by when the answer carries none', async () => {
+    state.series = { ...series, climate: series.climate.map(panel => (panel.metric === 'vpd' ? { ...panel, targets: [] } : panel)) };
+    draw();
+
+    expect(await screen.findByText('· band moves with the phase · leaf −2 °C')).toBeInTheDocument();
+  });
+
+  it('keeps counting in days out of reach where no stretch of a grow is being drawn', async () => {
+    draw();
+
+    expect(await screen.findByRole('button', { name: 'Day-of-grow' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Grow' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Day-of-grow' })).toBeEnabled());
+  });
+
+  it('offers a view saved over another run and says what this grow cannot draw of it', async () => {
+    state.views = [
+      {
+        id: 'view-9',
+        createdAt: NOW.toISO(),
+        ownerId: 'user-1',
+        name: 'Water in',
+        definition: {
+          deviceIds: [],
+          growId: 'grow-9',
+          metrics: ['temperature'],
+          outputs: [],
+          measurements: ['ec'],
+          span: { kind: 'last', forSeconds: 86400 },
+          layout: 'stacked',
+          intervalSeconds: 300,
+        },
+      },
+    ];
+    draw();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Water in' }));
+
+    expect(screen.getByText('EC is not measured in this grow and is not drawn.')).toBeInTheDocument();
+    // What it could draw is drawn: the view names temperature and nothing else.
+    expect(screen.getByRole('button', { name: 'Temp' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'RH' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('lays an earlier run of the same tent over this one, each counted from its own day 1', async () => {
+    draw();
+    fireEvent.click(await screen.findByRole('button', { name: 'Grow' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Day-of-grow' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Autumn run' }));
+
+    // Its readings are a hundred days older and land on the same day of grow.
+    const reading = await screen.findByRole('status');
+    await waitFor(() => expect(reading).toHaveTextContent('Temp · Autumn run 21 °C'));
+    expect(reading).toHaveTextContent('day 35');
+  });
+
+  it('keeps the window already drawn when the next one cannot be read, dimmed rather than thrown away', async () => {
+    draw();
+    expect(await screen.findByText('Temp + RH')).toBeInTheDocument();
+
+    state.breaks = true;
+    fireEvent.click(screen.getByRole('button', { name: 'Phase' }));
+
+    await waitFor(() => expect(screen.getByText('Temp + RH').closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true'));
+    expect(screen.getByText('Temp + RH')).toBeInTheDocument();
+    expect(screen.queryByText('Could not load. Try again.')).not.toBeInTheDocument();
+    // And what the chart is drawn from is still offered: a read that failed is
+    // not the same claim as "nothing was ever measured here".
+    expect(screen.getByRole('button', { name: 'VPD' })).toBeInTheDocument();
+    expect(screen.queryByText('No measurements in this period — try a different range.')).not.toBeInTheDocument();
   });
 
   it('saves the chart as it stands, sending the question and no readings', async () => {
@@ -266,6 +411,34 @@ describe('what a plot is made of', () => {
       [20, 0],
       [30, 0],
     ]);
+  });
+
+  it('pools two controllers into one wave that only ever steps forwards, and says it pooled them', () => {
+    const lanes: GrowSeries['outputs'] = [
+      { output: 'light', deviceId: 'device-1', spans: [{ startsAt: at(10), endsAt: at(18) }] },
+      { output: 'light', deviceId: 'device-2', spans: [{ startsAt: at(9), endsAt: at(19) }] },
+    ];
+    const both = { ...series, outputs: lanes };
+    const offered: Offered = offeredBy(both, []);
+    const [card] = cardsOf(key => key, both, {
+      picked: { metrics: [], outputs: ['light'], measurements: [] },
+      layout: 'stacked',
+      offered,
+      leaf: null,
+      plants: [],
+    });
+
+    expect(card.about).toBe('charts.about.outputPooled');
+    const times = card.plot.lines[0].points.map(([time]) => time);
+    expect(times).toEqual([...times].sort((one, other) => one - other));
+    // A switch has no scale worth printing: it ran or it did not.
+    expect(card.scaleEnds).toEqual([null]);
+  });
+
+  it('counts a reading taken before day 1 as day 1, the way the grow´s own counter does', () => {
+    const csv = csvOf([{ label: 'Temp (°C)', points: [[FROM.minus({ days: 3 }).toMillis(), 24]] }], FROM.toMillis());
+
+    expect(csv.split('\n')[1]).toContain(',1,24');
   });
 
   it('writes a row per instant anything was measured at, leaving a cell empty rather than inventing one', () => {

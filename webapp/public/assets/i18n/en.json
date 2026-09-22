@@ -519,7 +519,8 @@
       "overlay": "overlaid",
       "measured": "measured",
       "perPlant": "per plant",
-      "output": "when it ran"
+      "output": "when it ran",
+      "outputPooled": "when any of {{count}} controllers ran"
     },
     "leftOut_one": "{{names}} is left out: two units on one panel only when they belong together.",
     "leftOut_other": "{{names}} are left out: two units on one panel only when they belong together.",
@@ -550,7 +551,12 @@
       "deleteAsk": "Throw this view away? Nothing measured goes with it.",
       "deleteYes": "Throw it away",
       "cancel": "Cancel"
-    }
+    },
+    "compareLabel": "Compare",
+    "on": "on",
+    "off": "off",
+    "notHere_one": "{{names}} is not measured in this grow and is not drawn.",
+    "notHere_other": "{{names}} are not measured in this grow and are not drawn."
   },
   "diagnostics": {
     "serialnumber": "Device serial number",

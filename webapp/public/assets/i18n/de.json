@@ -519,7 +519,8 @@
       "overlay": "überlagert",
       "measured": "erfasst",
       "perPlant": "je Pflanze",
-      "output": "wann er lief"
+      "output": "wann er lief",
+      "outputPooled": "wann einer von {{count}} Controllern lief"
     },
     "leftOut_one": "{{names}} bleibt weg: zwei Einheiten in einem Feld nur, wenn sie zusammengehören.",
     "leftOut_other": "{{names}} bleiben weg: zwei Einheiten in einem Feld nur, wenn sie zusammengehören.",
@@ -550,7 +551,12 @@
       "deleteAsk": "Diese Ansicht wegwerfen? Es geht nichts Gemessenes mit.",
       "deleteYes": "Wegwerfen",
       "cancel": "Abbrechen"
-    }
+    },
+    "compareLabel": "Vergleich",
+    "on": "an",
+    "off": "aus",
+    "notHere_one": "{{names}} wird in diesem Grow nicht erfasst und nicht gezeichnet.",
+    "notHere_other": "{{names}} werden in diesem Grow nicht erfasst und nicht gezeichnet."
   },
   "devices": {
     "button-settings": "Einstellungen",

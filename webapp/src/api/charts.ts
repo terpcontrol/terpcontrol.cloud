@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type { GrowSeries, GrowSeriesRange, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { api } from './client';
 
@@ -17,7 +17,11 @@ import { api } from './client';
  *
  * The window is the whole question, so a chip is a change of window and not of
  * screen: the answer in hand stays drawn until the next one arrives, as on the
- * Timeline tab.
+ * Timeline tab. That holds when the next one never arrives at all - a server
+ * that cannot answer the window just asked for has not made the window already
+ * on the screen untrue - so the last answer that did arrive is handed back
+ * beside the query, read out of the cache rather than kept by the screen, which
+ * is where it belongs: it is about this grow and not about what is drawn of it.
  */
 
 /** The climate a chart can draw. The other metrics of the contract are states and offsets rather than curves. */
@@ -38,13 +42,31 @@ export interface SeriesWindow {
 /** A custom range is the one window the chips cannot name, so it is the one that can be asked for incomplete. */
 const askable = (window: SeriesWindow): boolean => window.range !== 'custom' || (!!window.from && !!window.to);
 
-export const useGrowSeries = (growId: string | null, window: SeriesWindow) =>
-  useQuery({
+export const useGrowSeries = (growId: string | null, window: SeriesWindow) => {
+  const client = useQueryClient();
+  const query = useQuery({
     queryKey: ['grow', growId, 'series', window],
     queryFn: ({ signal }) => api.get<GrowSeries>(`/grows/${growId}/series?${queryOf(window)}`, undefined, signal),
     enabled: growId !== null && askable(window),
     placeholderData: keepPreviousData,
   });
+
+  return { ...query, held: query.data ? null : lastOf(client, growId) };
+};
+
+/** The freshest answer about this grow that really arrived, whichever window asked for it, and when it did. */
+const lastOf = (client: QueryClient, growId: string | null): { data: GrowSeries; at: number } | null => {
+  if (growId === null) return null;
+
+  return client
+    .getQueryCache()
+    .findAll({ queryKey: ['grow', growId, 'series'] })
+    .reduce<{ data: GrowSeries; at: number } | null>((found, one) => {
+      const state = one.state as { data?: GrowSeries; dataUpdatedAt: number };
+
+      return state.data && (!found || state.dataUpdatedAt > found.at) ? { data: state.data, at: state.dataUpdatedAt } : found;
+    }, null);
+};
 
 /**
  * The route reads a list as the same name repeated, which a flat record of
