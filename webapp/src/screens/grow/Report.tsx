@@ -1,17 +1,25 @@
-import { Leaf } from 'lucide-react';
+import { Download, Leaf } from 'lucide-react';
 import type { DateTime } from 'luxon';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowReportPhase, Space } from '@fg2/shared-types/v1';
+import { fileSize, isBuilding, useAskExport, useExport } from '@/api/exports';
 import { useGrowReport } from '@/api/grows';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { EntryRow } from '@/ui/EntryRow';
-import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
+import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
+import { useMayManage } from '@/ui/session-access';
+import ui from '@/ui/ui.module.css';
 import styles from './Report.module.css';
 
 /**
  * The Report tab: the grow as chapters, one per phase, newest first. Each
  * chapter is its cover, its day range, how the tent was kept during it and
  * what was done to the plants - the same story the public page will tell.
+ *
+ * It is also where the whole grow is taken away. A grower who wants everything
+ * wants it as the record rather than as a screen, and the record of a grow is
+ * what this tab already is, so the zip is offered at the end of it.
  */
 export function Report({ grow, spaces, now }: { grow: GrowListItem; spaces: Space[]; now: DateTime }) {
   const { t } = useTranslation();
@@ -47,7 +55,69 @@ export function Report({ grow, spaces, now }: { grow: GrowListItem; spaces: Spac
       {report.data.phases.map(chapter => (
         <Chapter key={chapter.phaseId} chapter={chapter} people={report.data.people} spaces={spaces} measurements={grow.measurements} />
       ))}
+
+      <Export growId={grow.id} />
     </div>
+  );
+}
+
+/**
+ * The grow as a file: its diary, its CSVs and its photos in one zip.
+ *
+ * The zip is built in the background, so this is a button and then a job: the
+ * row it is asked for is polled until it is ready or has failed, and a failure
+ * says what went wrong rather than sitting at "building" for ever. The demo is
+ * offered nothing, because a demo session owns none of this and the route
+ * refuses it - a button that would be refused is not a button.
+ */
+function Export({ growId }: { growId: string }) {
+  const { t } = useTranslation();
+  const mayManage = useMayManage();
+  const ask = useAskExport(growId);
+  const [mediaId, setMediaId] = useState<string | null>(null);
+  const job = useExport(mediaId);
+
+  if (!mayManage) return null;
+
+  const row = job.data;
+  const status = row?.exportJob?.status ?? null;
+  const ready = row && status === 'ready' ? row : null;
+  const file = ready ? mediaUrl(ready.id) : null;
+
+  return (
+    <section className={`${ui.card} ${styles.export}`}>
+      <div className={styles.exportText}>
+        <span className="label">{t('grow.report.export.title')}</span>
+        <p className={ui.note}>{t('grow.report.export.note')}</p>
+        {status === 'queued' || status === 'rendering' ? (
+          <p className={`mono ${styles.exportStatus}`} role="status">
+            {t(`grow.report.export.${status}`)}
+          </p>
+        ) : null}
+        {status === 'failed' ? (
+          <p className={ui.problem} role="alert">
+            {row?.exportJob?.error || t('grow.report.export.failedPlain')}
+          </p>
+        ) : null}
+        <Refused error={ask.error} />
+      </div>
+
+      {ready && file ? (
+        <a className={`${ui.button} ${ui.primary}`} href={file} download>
+          <Download size={14} strokeWidth={1.75} aria-hidden />
+          {t('grow.report.export.download', { size: fileSize(ready.bytes) })}
+        </a>
+      ) : (
+        <button
+          type="button"
+          className={ui.button}
+          disabled={ask.isPending || isBuilding(row)}
+          onClick={() => ask.mutate(undefined, { onSuccess: accepted => setMediaId(accepted.media.id) })}
+        >
+          {status === 'failed' ? t('grow.report.export.again') : t('grow.report.export.ask')}
+        </button>
+      )}
+    </section>
   );
 }
 

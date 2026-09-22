@@ -235,10 +235,20 @@ exports.schemeAmount = (0, exports.named)('SchemeAmount', zod_1.z.object({
     value: zod_1.z.number().nullable().describe('Null is "not this week".'),
     unit: zod_1.z.string().describe("The scheme's own unit, such as `ml/l`; never converted."),
 }));
-/** One row of the grid. */
+/**
+ * One row of the grid.
+ *
+ * `ecTarget` is the one figure here that is not a dose: it is what a meter
+ * should read at this week's doses on water of no EC, so the grower's own water
+ * is added to it before it is drawn. It is optional rather than merely
+ * nullable, because a grid written before the field existed carries nothing at
+ * all and must stay a grid the routes accept; null is the other case, a chart
+ * that publishes no EC.
+ */
 exports.schemeWeek = (0, exports.named)('SchemeWeek', zod_1.z.object({
     week: zod_1.z.number().int().describe('1-based, counted from the start of the grow.'),
     stage: exports.growthStage.nullable(),
+    ecTarget: zod_1.z.number().nullable().optional().describe('mS/cm on zero-EC water; null where the chart publishes none.'),
     amounts: zod_1.z.array(exports.schemeAmount),
 }));
 /**

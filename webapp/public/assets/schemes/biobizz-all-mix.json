@@ -21,12 +21,14 @@
     "WK 9 is the chart's plain-water week and is kept as week 12 with every figure absent; WK 10 is the harvest and is no feeding week at all.",
     "Fish·Mix is not a row of its own: the chart offers it as a replacement for Bio·Grow in the vegetative phase, and shipping both would dose the can twice.",
     "CalMag is not a row either: the chart gives it only for RO or very soft water, as week ranges rather than per week, so it is something a grower adds to their own grid.",
-    "All·Mix is pre-fertilised, which is the whole of the difference: the chart holds Bio·Grow at 1 ml/l throughout and prints no Alg·A·Mic row."
+    "All·Mix is pre-fertilised, which is the whole of the difference: the chart holds Bio·Grow at 1 ml/l throughout and prints no Alg·A·Mic row.",
+    "The chart prints no EC: it gives a pH range (6.2-6.5) and nothing a meter could be held against per week, so every week states ecTarget null and the grid draws no EC row."
   ],
   "grid": [
     {
       "week": 1,
       "stage": "seedling",
+      "ecTarget": null,
       "amounts": [
         {
           "productKey": "root_juice",
@@ -75,6 +77,7 @@
     {
       "week": 2,
       "stage": "vegetative",
+      "ecTarget": null,
       "amounts": [
         {
           "productKey": "root_juice",
@@ -123,6 +126,7 @@
     {
       "week": 3,
       "stage": "vegetative",
+      "ecTarget": null,
       "amounts": [
         {
           "productKey": "root_juice",
@@ -171,6 +175,7 @@
     {
       "week": 4,
       "stage": "flowering",
+      "ecTarget": null,
       "amounts": [
         {
           "productKey": "root_juice",
@@ -219,6 +224,7 @@
     {
       "week": 5,
       "stage": "flowering",
+      "ecTarget": null,
       "amounts": [
         {
           "productKey": "root_juice",
@@ -267,6 +273,7 @@
     {
       "week": 6,
       "stage": "flowering",
+      "ecTarget": null,
       "amounts": [
         {
           "productKey": "root_juice",
@@ -315,6 +322,7 @@
     {
       "week": 7,
       "stage": "flowering",
+      "ecTarget": null,
       "amounts": [
         {
           "productKey": "root_juice",
@@ -363,6 +371,7 @@
     {
       "week": 8,
       "stage": "flowering",
+      "ecTarget": null,
       "amounts": [
         {
           "productKey": "root_juice",
@@ -411,6 +420,7 @@
     {
       "week": 9,
       "stage": "flowering",
+      "ecTarget": null,
       "amounts": [
         {
           "productKey": "root_juice",
@@ -459,6 +469,7 @@
     {
       "week": 10,
       "stage": "flowering",
+      "ecTarget": null,
       "amounts": [
         {
           "productKey": "root_juice",
@@ -507,6 +518,7 @@
     {
       "week": 11,
       "stage": "flowering",
+      "ecTarget": null,
       "amounts": [
         {
           "productKey": "root_juice",
@@ -555,6 +567,7 @@
     {
       "week": 12,
       "stage": "flowering",
+      "ecTarget": null,
       "amounts": [
         {
           "productKey": "root_juice",

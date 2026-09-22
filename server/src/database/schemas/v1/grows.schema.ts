@@ -91,6 +91,10 @@ const schemeWeekSchema = new Schema<SchemeWeek>(
   {
     week: { type: Number, required: true },
     stage: { type: String, enum: growthStage.options, default: null },
+    // What a meter should read at this week's doses on water of no EC. Absent
+    // on a grid written before the charts were read for it, which is not the
+    // same as a chart that prints none, so there is no default to fill in.
+    ecTarget: { type: Number },
     amounts: { type: [schemeAmountSchema], required: true, default: [] },
   },
   embedded,

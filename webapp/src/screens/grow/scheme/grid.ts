@@ -36,6 +36,22 @@ export const productsOf = (grid: readonly SchemeWeek[]): Product[] => {
   return [...products.values()];
 };
 
+/**
+ * Whether the chart this grid came from publishes an EC target at all. Biobizz
+ * prints none and CANNA prints one per period, so the row is drawn for the one
+ * and not for the other rather than filled with dashes nobody can act on.
+ */
+export const hasEcTargets = (grid: readonly SchemeWeek[]): boolean => grid.some(week => week.ecTarget !== null && week.ecTarget !== undefined);
+
+/**
+ * What a meter should read in that week: the chart's figure on water of no EC,
+ * plus whatever the grower's own water measures. A grow that has never said
+ * what its water is gets the chart's figure alone, which is the honest answer
+ * to a question nobody has answered.
+ */
+export const ecTargetAt = (week: SchemeWeek, waterEc: number | null): number | null =>
+  week.ecTarget === null || week.ecTarget === undefined ? null : week.ecTarget + (waterEc ?? 0);
+
 /** What that week doses of that product, where null is "not this week" and a week that never names it is the same answer. */
 export const valueAt = (grid: readonly SchemeWeek[], weekNumber: number, productKey: string): number | null =>
   grid.find(week => week.week === weekNumber)?.amounts.find(amount => amount.productKey === productKey)?.value ?? null;

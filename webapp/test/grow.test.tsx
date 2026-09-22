@@ -7,18 +7,22 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
-import type { Entry, GrowListItem, GrowWeekCard } from '@fg2/shared-types/v1';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Entry, GrowListItem, GrowWeekCard, Media, MediaRenderStatus } from '@fg2/shared-types/v1';
 import { PhaseBar } from '@/screens/grow/PhaseBar';
+import { Report } from '@/screens/grow/Report';
 import { WeekCard } from '@/screens/grow/WeekCard';
+import { ON_THE_DEMO, SIGNED_IN } from './session';
 
 // A picture's address needs the session's media token, and what a screen offers
 // depends on who is looking, so both are answered here rather than reached for.
-vi.mock('@/api/session', async importOriginal => {
-  const { SIGNED_IN } = await import('./session');
+const session = { user: SIGNED_IN };
 
-  return { ...(await importOriginal<object>()), mediaUrl: (id: string) => `/media/${id}`, useSession: () => SIGNED_IN };
-});
+vi.mock('@/api/session', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  mediaUrl: (id: string) => `/media/${id}`,
+  useSession: () => session.user,
+}));
 
 /**
  * The grow page draws what the server worked out and nothing else: the phase
@@ -173,6 +177,101 @@ beforeAll(async () => {
   await i18next
     .use(initReactI18next)
     .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
+});
+
+/**
+ * The export is a job rather than a file: the button asks for it, the row it
+ * names is polled, and only a row that is ready is offered as something to
+ * download. The wire is stubbed rather than the hooks, because the point is
+ * which requests the screen makes and in what order.
+ */
+const EXPORT_ROW = (status: MediaRenderStatus, error: string | null = null): Media =>
+  ({
+    id: 'media-export',
+    createdAt: at(0),
+    kind: 'export',
+    mime: 'application/zip',
+    bytes: 12_582_912,
+    capturedAt: at(0),
+    exportJob: { status, scope: 'grow', growId: 'grow-1', startedAt: null, endedAt: null, error },
+    render: null,
+  }) as unknown as Media;
+
+const wire = { calls: [] as string[], job: EXPORT_ROW('queued') };
+
+const jsonOf = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+
+vi.stubGlobal(
+  'fetch',
+  vi.fn(async (input: RequestInfo | URL) => {
+    const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
+    wire.calls.push(path);
+
+    if (path === '/grows/grow-1/report') {
+      return jsonOf({ dayCount: 35, totals: { entryCount: 4, waterCount: 1, feedCount: 2, photoCount: 1 }, harvest: null, phases: [], people: [] });
+    }
+    if (path === '/grows/grow-1/export') return jsonOf({ media: wire.job, queued: true }, 202);
+    if (path === '/media/media-export') return jsonOf(wire.job);
+
+    return jsonOf({ status: 404, code: 'not_found', title: 'not_found', detail: `No stub for ${path}`, errors: [] }, 404);
+  }),
+);
+
+beforeEach(() => {
+  wire.calls = [];
+  wire.job = EXPORT_ROW('queued');
+  session.user = SIGNED_IN;
+});
+
+describe('the report tab', () => {
+  const drawReport = () => draw(<Report grow={grow} spaces={[]} now={NOW} />);
+
+  it('asks for the zip and says where the job has got to, with nothing to download until there is', async () => {
+    wire.job = EXPORT_ROW('rendering');
+    drawReport();
+    fireEvent.click(await screen.findByRole('button', { name: 'Export this grow' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('building the file');
+    expect(wire.calls).toContain('/grows/grow-1/export');
+    expect(screen.queryByRole('link', { name: /Download/ })).not.toBeInTheDocument();
+  });
+
+  it('offers the file itself once the job is ready, at the size it will cost', async () => {
+    wire.job = EXPORT_ROW('ready');
+    drawReport();
+    fireEvent.click(await screen.findByRole('button', { name: 'Export this grow' }));
+
+    const link = await screen.findByRole('link', { name: /Download/ });
+    expect(link).toHaveAttribute('href', '/media/media-export');
+    expect(link).toHaveTextContent('12.0 MB');
+  });
+
+  /** A diary of a fortnight is a few dozen kilobytes, and "0.0 MB" would read as an export that came out empty. */
+  it('gives a small zip its own unit rather than rounding it away to nothing', async () => {
+    wire.job = { ...EXPORT_ROW('ready'), bytes: 44_512 };
+    drawReport();
+    fireEvent.click(await screen.findByRole('button', { name: 'Export this grow' }));
+
+    expect(await screen.findByRole('link', { name: /Download/ })).toHaveTextContent('43 kB');
+  });
+
+  it('says in the builder\u2019s own words why a zip could not be built, rather than building for ever', async () => {
+    wire.job = EXPORT_ROW('failed', 'The pictures could not be read.');
+    drawReport();
+    fireEvent.click(await screen.findByRole('button', { name: 'Export this grow' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('The pictures could not be read.');
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled();
+  });
+
+  /** A demo session owns nothing to export and the route refuses it, so the tab offers it nothing. */
+  it('offers the demo no export at all', async () => {
+    session.user = ON_THE_DEMO;
+    drawReport();
+
+    expect(await screen.findByText('35')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Export this grow' })).not.toBeInTheDocument();
+  });
 });
 
 describe('the phase bar', () => {

@@ -69,10 +69,15 @@ so the grid has to suit it:
   power" is a standard of 20 with an option; ship the standard and write the footnote into the notes.
 - **A period printed as a span of weeks** ("2 - 4 weeks") is laid out at the middle of its span,
   halves rounded up, and the notes say which length each period was given.
+- **The EC target is carried, per week, as `ecTarget`.** It is the only figure of the grid that is
+  not a dose: the scheme editor draws it as its own row and adds the grower's own water EC to it, so
+  it is the chart's value on water of no EC that goes in - a chart that prints an "EC total" for an
+  example tap water prints its EC+ as well, and EC+ is the one to take. Ranges are taken at the
+  middle like any other figure, and a chart that publishes no EC states `null` in every week, which
+  is what leaves the row undrawn. The pH target stays out: there is no row for it.
 - **Leave out what is not part of the schedule**: a product the chart offers as a *replacement* for
-  another (both rows would dose the can twice), a supplement given only conditionally or as week
-  ranges rather than per week, and the EC or pH targets - the grid carries doses, and there is
-  nowhere in the contract for a target.
+  another (both rows would dose the can twice), and a supplement given only conditionally or as week
+  ranges rather than per week.
 
 ## The files
 

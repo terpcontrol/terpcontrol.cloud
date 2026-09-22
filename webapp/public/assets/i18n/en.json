@@ -1538,7 +1538,17 @@
       "waterCount_one": "{{count}} water",
       "waterCount_other": "{{count}} waters",
       "feedCount_one": "{{count}} feed",
-      "feedCount_other": "{{count}} feeds"
+      "feedCount_other": "{{count}} feeds",
+      "export": {
+        "title": "Export",
+        "note": "Everything about this grow in one zip: the diary, the readings and the climate as CSV, and every photo.",
+        "ask": "Export this grow",
+        "again": "Try again",
+        "queued": "queued",
+        "rendering": "building the file…",
+        "download": "Download · {{size}}",
+        "failedPlain": "The file could not be built."
+      }
     },
     "dayN": "day {{day}}",
     "noController": "No controller where this grow stands · nothing to average",
@@ -1886,7 +1896,13 @@
         "save": "Save",
         "saved": "Kept as {{name}}."
       },
-      "waterEc": "Water EC"
+      "waterEc": "Water EC",
+      "ecTarget": "EC target",
+      "ecUnit": "mS/cm",
+      "ecCaption": "EC values are what your meter should read with this water (chart value + water EC).",
+      "movedUnder": "changed elsewhere",
+      "keepMine": "Keep mine",
+      "takeTheirs": "Take theirs"
     }
   },
   "space": {

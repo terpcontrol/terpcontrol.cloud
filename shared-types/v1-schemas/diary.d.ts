@@ -1535,6 +1535,7 @@ export declare const scheme: z.ZodObject<{
             drying: "drying";
             curing: "curing";
         }>>;
+        ecTarget: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         amounts: z.ZodArray<z.ZodObject<{
             productKey: z.ZodString;
             name: z.ZodString;
@@ -1563,6 +1564,7 @@ export declare const schemePage: z.ZodObject<{
                 drying: "drying";
                 curing: "curing";
             }>>;
+            ecTarget: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             amounts: z.ZodArray<z.ZodObject<{
                 productKey: z.ZodString;
                 name: z.ZodString;
@@ -1594,6 +1596,7 @@ export declare const schemeCreate: z.ZodObject<{
             drying: "drying";
             curing: "curing";
         }>>;
+        ecTarget: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         amounts: z.ZodArray<z.ZodObject<{
             productKey: z.ZodString;
             name: z.ZodString;
@@ -1619,6 +1622,7 @@ export declare const schemeUpdate: z.ZodObject<{
             drying: "drying";
             curing: "curing";
         }>>;
+        ecTarget: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         amounts: z.ZodArray<z.ZodObject<{
             productKey: z.ZodString;
             name: z.ZodString;

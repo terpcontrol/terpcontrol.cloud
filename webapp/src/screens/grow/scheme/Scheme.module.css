@@ -141,9 +141,13 @@
 }
 
 /* Only as wide as the name: a row head that filled its cell would push the unit
-   beside it out from under the column that stays put while the weeks scroll. */
+   beside it out from under the column that stays put while the weeks scroll.
+   The face is set here rather than on .rowName alone, because the name is also
+   a .cellButton and that rule inherits the table's mono - a fertiliser is a
+   word, and only the figures around it are figures. */
 .rowHead .rowName {
   width: auto;
+  font-family: var(--font-text);
 }
 
 .rowName {

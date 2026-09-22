@@ -95,6 +95,24 @@ describe('the shipped feeding schemes', () => {
     expect(schemeWeekOf(lightMix.grid, 12)!.amounts.every(amount => amount.value === null)).toBe(true);
   });
 
+  /**
+   * The EC row is the one figure of a grid that is not a dose, and the one a
+   * chart may not print at all: CANNA prints EC+ per cultivation period and
+   * Biobizz prints none, so a shipped asset says which of the two it is rather
+   * than leaving the screen to guess.
+   */
+  it('carries the EC target a chart prints, and states its absence where one does not', () => {
+    const terra = assets.find(asset => asset.id === 'canna-terra')!;
+
+    // The chart's EC+ per period, each range at its middle: rooting 0.0, then
+    // vegetative I and II, the three generative periods and the ripening drop.
+    expect(terra.grid.map(week => week.ecTarget)).toEqual([0, 0.6, 0.6, 0.9, 0.9, 0.9, 1.1, 1.1, 1.1, 1.4, 1.7, 1.7, 1.7, 1.2, 1.2]);
+
+    for (const asset of assets.filter(one => one.manufacturer === 'Biobizz')) {
+      expect(asset.grid.every(week => week.ecTarget === null)).toBe(true);
+    }
+  });
+
   it('fills a five litre can the way the contract multiplies', () => {
     const terra = assets.find(asset => asset.id === 'canna-terra')!;
 

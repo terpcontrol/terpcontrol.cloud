@@ -286,12 +286,22 @@ export const schemeAmount = named(
   }),
 );
 
-/** One row of the grid. */
+/**
+ * One row of the grid.
+ *
+ * `ecTarget` is the one figure here that is not a dose: it is what a meter
+ * should read at this week's doses on water of no EC, so the grower's own water
+ * is added to it before it is drawn. It is optional rather than merely
+ * nullable, because a grid written before the field existed carries nothing at
+ * all and must stay a grid the routes accept; null is the other case, a chart
+ * that publishes no EC.
+ */
 export const schemeWeek = named(
   'SchemeWeek',
   z.object({
     week: z.number().int().describe('1-based, counted from the start of the grow.'),
     stage: growthStage.nullable(),
+    ecTarget: z.number().nullable().optional().describe('mS/cm on zero-EC water; null where the chart publishes none.'),
     amounts: z.array(schemeAmount),
   }),
 );

@@ -8,8 +8,10 @@ import { growSchemeLabel, schemeVersionLabel, useOwnSchemes, useScheme, useSchem
 import { Refused } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
+import { sameScheme, useSchemeEdit } from './scheme/edit-store';
 import {
   flowerWeeks,
+  hasEcTargets,
   productKeyFor,
   productsOf,
   withFlipWeek,
@@ -47,6 +49,13 @@ const UNITS = ['ml/l', 'g/l'];
  * Nothing is written until Save. A grid is a table somebody works across, and
  * a PATCH per cell would put a dozen writes and a dozen chances of a refusal
  * between a thought and its result.
+ *
+ * That is also why the draft is held against the grid it was changed against
+ * rather than seeded once. With nothing typed the screen follows the stored
+ * grow, so a correction made on another device is what is drawn; with something
+ * typed and the stored grow moved underneath it, the screen says so and asks
+ * which grid is to stand, because the alternative is one grower's Save quietly
+ * undoing another's.
  */
 export function Feeding({ grow }: { grow: GrowListItem }) {
   const { t } = useTranslation();
@@ -56,10 +65,17 @@ export function Feeding({ grow }: { grow: GrowListItem }) {
   const update = useUpdateGrow(grow.id);
   const queryClient = useQueryClient();
 
-  const [draft, setDraft] = useState<GrowScheme | null>(grow.scheme);
+  const [edit, setEdit] = useSchemeEdit(grow.id);
   const [picked, setPicked] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [choosing, setChoosing] = useState(false);
+
+  // With nothing typed the screen is the stored grow, so a correction saved
+  // elsewhere is what is drawn rather than a grid that no longer feeds anything.
+  const stored = grow.scheme;
+  const draft = edit ? edit.draft : stored;
+  const setDraft = (next: GrowScheme | null) => setEdit({ draft: next, against: stored });
+  const dirty = !sameScheme(draft, stored);
 
   const origin = draft?.origin ?? null;
   // The published grid, for the chip that goes back to it: a shipped asset is
@@ -68,20 +84,23 @@ export function Feeding({ grow }: { grow: GrowListItem }) {
   const ownOrigin = origin?.type === 'own' ? (own.data?.items.find(one => one.id === origin.schemeId) ?? null) : null;
   const published = origin?.type === 'own' ? (ownOrigin?.grid ?? null) : (asset.data?.grid ?? null);
 
-  const dirty = JSON.stringify(draft) !== JSON.stringify(grow.scheme);
+  // Somebody else has saved this grid since this one was started, and the two
+  // disagree. Until that is settled there is nothing honest for Save to send.
+  const moved = edit !== null && dirty && !sameScheme(edit.against, stored);
   const products = draft ? productsOf(draft.grid) : [];
   const pickedProduct = products.find(product => product.productKey === picked) ?? null;
 
   /** Every edit of the grid goes through here, so that "edited" is set by the same hand that changed a figure. */
-  const editGrid = (next: (grid: SchemeWeek[]) => SchemeWeek[]) =>
-    setDraft(current => (current ? { ...current, grid: next(current.grid), edited: true } : current));
+  const editGrid = (next: (grid: SchemeWeek[]) => SchemeWeek[]) => {
+    if (draft) setDraft({ ...draft, grid: next(draft.grid), edited: true });
+  };
 
   const save = () =>
     update.mutate(
       { scheme: draft },
       {
-        onSuccess: saved => {
-          setDraft(saved.scheme);
+        onSuccess: () => {
+          setEdit(null);
           // The week cards carry the doses this grid states, so they are now stale.
           void queryClient.invalidateQueries({ queryKey: ['grow', grow.id, 'weeks'] });
         },
@@ -94,14 +113,20 @@ export function Feeding({ grow }: { grow: GrowListItem }) {
   const unsaved =
     mayManage && dirty ? (
       <>
-        <div className={styles.unsaved}>
-          <span className={`mono ${styles.unsavedNote}`}>{t('grow.scheme.unsaved')}</span>
-          <button type="button" className={ui.button} disabled={update.isPending} onClick={() => setDraft(grow.scheme)}>
-            {t('grow.scheme.discard')}
+        <div className={styles.unsaved} role={moved ? 'alert' : undefined}>
+          <span className={`mono ${styles.unsavedNote}`}>{moved ? t('grow.scheme.movedUnder') : t('grow.scheme.unsaved')}</span>
+          <button type="button" className={ui.button} disabled={update.isPending} onClick={() => setEdit(null)}>
+            {moved ? t('grow.scheme.takeTheirs') : t('grow.scheme.discard')}
           </button>
-          <button type="button" className={`${ui.button} ${ui.primary}`} disabled={update.isPending} onClick={save}>
-            {update.isPending ? t('grow.scheme.saving') : t('grow.scheme.save')}
-          </button>
+          {moved ? (
+            <button type="button" className={ui.button} onClick={() => setEdit({ draft, against: stored })}>
+              {t('grow.scheme.keepMine')}
+            </button>
+          ) : (
+            <button type="button" className={`${ui.button} ${ui.primary}`} disabled={update.isPending} onClick={save}>
+              {update.isPending ? t('grow.scheme.saving') : t('grow.scheme.save')}
+            </button>
+          )}
         </div>
         <Refused error={update.error} />
       </>
@@ -245,6 +270,7 @@ export function Feeding({ grow }: { grow: GrowListItem }) {
         grid={draft.grid}
         currentWeek={currentWeek}
         mayEdit={mayManage}
+        waterEc={draft.waterEc}
         picked={picked}
         onPick={setPicked}
         onChange={(week, product, value) => editGrid(grid => withValue(grid, week, product, value))}
@@ -275,16 +301,12 @@ export function Feeding({ grow }: { grow: GrowListItem }) {
                 type="button"
                 className={ui.chip}
                 onClick={() =>
-                  setDraft(current =>
-                    current
-                      ? {
-                          ...current,
-                          edited: false,
-                          grid: published ?? current.grid,
-                          origin: current.origin.type === 'asset' && asset.data ? { ...current.origin, version: asset.data.version } : current.origin,
-                        }
-                      : current,
-                  )
+                  setDraft({
+                    ...draft,
+                    edited: false,
+                    grid: published,
+                    origin: draft.origin.type === 'asset' && asset.data ? { ...draft.origin, version: asset.data.version } : draft.origin,
+                  })
                 }
               >
                 {t('grow.scheme.reset', { name: label })}
@@ -319,6 +341,7 @@ export function Feeding({ grow }: { grow: GrowListItem }) {
       ) : null}
 
       <p className={styles.caption}>
+        {hasEcTargets(draft.grid) ? `${t('grow.scheme.ecCaption')} ` : ''}
         {t('grow.scheme.chartCaption')} {t('grow.scheme.honesty')}
       </p>
 

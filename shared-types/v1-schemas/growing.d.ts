@@ -196,6 +196,7 @@ export declare const growScheme: z.ZodObject<{
             drying: "drying";
             curing: "curing";
         }>>;
+        ecTarget: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         amounts: z.ZodArray<z.ZodObject<{
             productKey: z.ZodString;
             name: z.ZodString;
@@ -305,6 +306,7 @@ export declare const grow: z.ZodObject<{
                 drying: "drying";
                 curing: "curing";
             }>>;
+            ecTarget: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             amounts: z.ZodArray<z.ZodObject<{
                 productKey: z.ZodString;
                 name: z.ZodString;
@@ -590,6 +592,7 @@ export declare const growListItem: z.ZodObject<{
                 drying: "drying";
                 curing: "curing";
             }>>;
+            ecTarget: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             amounts: z.ZodArray<z.ZodObject<{
                 productKey: z.ZodString;
                 name: z.ZodString;
@@ -936,6 +939,7 @@ export declare const growCreate: z.ZodObject<{
                 drying: "drying";
                 curing: "curing";
             }>>;
+            ecTarget: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             amounts: z.ZodArray<z.ZodObject<{
                 productKey: z.ZodString;
                 name: z.ZodString;
@@ -1123,6 +1127,7 @@ export declare const growUpdate: z.ZodObject<{
                 drying: "drying";
                 curing: "curing";
             }>>;
+            ecTarget: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             amounts: z.ZodArray<z.ZodObject<{
                 productKey: z.ZodString;
                 name: z.ZodString;
@@ -1395,6 +1400,7 @@ export declare const growPage: z.ZodObject<{
                     drying: "drying";
                     curing: "curing";
                 }>>;
+                ecTarget: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
                 amounts: z.ZodArray<z.ZodObject<{
                     productKey: z.ZodString;
                     name: z.ZodString;

@@ -1534,7 +1534,17 @@
       "waterCount_one": "{{count}}× gegossen",
       "waterCount_other": "{{count}}× gegossen",
       "feedCount_one": "{{count}}× gedüngt",
-      "feedCount_other": "{{count}}× gedüngt"
+      "feedCount_other": "{{count}}× gedüngt",
+      "export": {
+        "title": "Export",
+        "note": "Alles zu diesem Grow in einer ZIP-Datei: das Tagebuch, die Messwerte und das Klima als CSV sowie jedes Foto.",
+        "ask": "Diesen Grow exportieren",
+        "again": "Erneut versuchen",
+        "queued": "in der Warteschlange",
+        "rendering": "Datei wird erstellt …",
+        "download": "Herunterladen · {{size}}",
+        "failedPlain": "Die Datei konnte nicht erstellt werden."
+      }
     },
     "dayN": "Tag {{day}}",
     "noController": "Kein Controller, wo dieser Grow steht · nichts zu mitteln",
@@ -1882,7 +1892,13 @@
         "save": "Speichern",
         "saved": "Als {{name}} abgelegt."
       },
-      "waterEc": "Wasser-EC"
+      "waterEc": "Wasser-EC",
+      "ecTarget": "EC-Ziel",
+      "ecUnit": "mS/cm",
+      "ecCaption": "Die EC-Werte sind das, was dein Messgerät mit diesem Wasser anzeigen sollte (Tabellenwert + Wasser-EC).",
+      "movedUnder": "anderswo geändert",
+      "keepMine": "Meines behalten",
+      "takeTheirs": "Deren übernehmen"
     }
   },
   "space": {

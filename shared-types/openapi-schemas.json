@@ -398,6 +398,13 @@
           }
         ]
       },
+      "ecTarget": {
+        "description": "mS/cm on zero-EC water; null where the chart publishes none.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
       "amounts": {
         "type": "array",
         "items": {

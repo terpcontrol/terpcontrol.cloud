@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -9,6 +9,7 @@ import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GrowListItem, GrowScheme, SchemeWeek } from '@fg2/shared-types/v1';
 import { Feeding } from '@/screens/grow/Feeding';
+import { forgetSchemeEdit } from '@/screens/grow/scheme/edit-store';
 import { ON_THE_DEMO, SIGNED_IN } from './session';
 
 /**
@@ -34,12 +35,12 @@ const amounts = (grow: number | null, bloom: number | null, calMag: number | nul
 ];
 
 const GRID: SchemeWeek[] = [
-  { week: 1, stage: 'seedling', amounts: amounts(1, null, null) },
-  { week: 2, stage: 'vegetative', amounts: amounts(2, null, 0.5) },
-  { week: 3, stage: 'vegetative', amounts: amounts(2, 1, 0.5) },
-  { week: 4, stage: 'flowering', amounts: amounts(2, 2, 0.5) },
-  { week: 5, stage: 'flowering', amounts: amounts(null, 2, 0.5) },
-  { week: 6, stage: 'flowering', amounts: amounts(null, 3, 0.5) },
+  { week: 1, stage: 'seedling', ecTarget: 0.4, amounts: amounts(1, null, null) },
+  { week: 2, stage: 'vegetative', ecTarget: 0.8, amounts: amounts(2, null, 0.5) },
+  { week: 3, stage: 'vegetative', ecTarget: 0.8, amounts: amounts(2, 1, 0.5) },
+  { week: 4, stage: 'flowering', ecTarget: 1.2, amounts: amounts(2, 2, 0.5) },
+  { week: 5, stage: 'flowering', ecTarget: 1.4, amounts: amounts(null, 2, 0.5) },
+  { week: 6, stage: 'flowering', ecTarget: null, amounts: amounts(null, 3, 0.5) },
 ];
 
 const SCHEME: GrowScheme = {
@@ -116,14 +117,21 @@ vi.stubGlobal(
   }),
 );
 
-const draw = (grow: GrowListItem) =>
-  render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <MemoryRouter>
-        <Feeding grow={grow} />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+const drawing = (grow: GrowListItem, queryClient: QueryClient) => (
+  <QueryClientProvider client={queryClient}>
+    <MemoryRouter>
+      <Feeding grow={grow} />
+    </MemoryRouter>
+  </QueryClientProvider>
+);
+
+/** `rerender` takes the grow rather than the tree, because what moves under this screen is the grow. */
+const draw = (grow: GrowListItem) => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const drawn = render(drawing(grow, queryClient));
+
+  return { ...drawn, rerender: (next: GrowListItem) => drawn.rerender(drawing(next, queryClient)) };
+};
 
 /** The tab once the shipped index has been read, which is when the scheme has a name rather than an id. */
 const drawn = async (grow = growOn(SCHEME)) => {
@@ -146,6 +154,8 @@ beforeEach(() => {
   wire.calls = [];
   wire.refuseSave = null;
   session.user = SIGNED_IN;
+  // One edit is held for the life of a tab, so each test is a fresh tab.
+  forgetSchemeEdit();
 });
 
 describe('the feeding tab', () => {
@@ -253,6 +263,108 @@ describe('the feeding tab', () => {
     expect(await screen.findByText('Kept as Biobizz, my way.')).toBeInTheDocument();
     // Saving a copy is not a change to the grow, so nothing was patched.
     expect(patched()).toHaveLength(0);
+  });
+
+  /**
+   * The EC row is the chart's target read back on the grower's own water, and
+   * the one row nobody types into: it is what the doses and the water amount
+   * to, so it moves when one of those does.
+   */
+  it('draws the chart\u2019s EC target on top of the water the grow is fed, and never as a cell to edit', async () => {
+    await drawn();
+
+    const row = screen.getByRole('row', { name: /EC target/ });
+    // The grow's water measures 0.4, so a chart figure of 0.8 is a meter reading of 1.2.
+    expect(
+      within(row)
+        .getAllByRole('cell')
+        .map(cell => cell.textContent),
+    ).toEqual(['0.8', '1.2', '1.2', '1.6', '1.8', '\u2013']);
+    expect(within(row).queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByText(/EC values are what your meter should read/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Water EC' }), { target: { value: '0.9' } });
+    expect(within(screen.getByRole('row', { name: /EC target/ })).getAllByRole('cell')[0]).toHaveTextContent('1.3');
+  });
+
+  it('leaves the EC row and its caption out where the chart publishes none', async () => {
+    const plain = GRID.map(week => ({ ...week, ecTarget: null }));
+    await drawn(growOn({ ...SCHEME, grid: plain }));
+
+    expect(screen.queryByRole('row', { name: /EC target/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/EC values are what your meter should read/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * The grid belongs to the grow and not to the reader, so a screen with
+   * nothing typed into it follows what the grow says - otherwise the figures on
+   * a second device go on being the ones that used to feed these plants, and
+   * the bar says "not saved" about a change nobody made.
+   */
+  it('follows a correction saved elsewhere while nothing has been typed here', async () => {
+    const { rerender } = draw(growOn(SCHEME));
+    await screen.findByText('Biobizz \u00b7 Light\u00b7Mix');
+
+    const elsewhere = { ...SCHEME, grid: GRID.map(week => (week.week === 1 ? { ...week, amounts: amounts(3, null, null) } : week)) };
+    rerender(growOn(elsewhere));
+
+    expect(screen.getByRole('button', { name: 'Bio\u00b7Grow, week 1' })).toHaveTextContent('3');
+    expect(screen.queryByText('not saved')).not.toBeInTheDocument();
+  });
+
+  /**
+   * The other half of the same rule: a grid that moved under somebody who *is*
+   * part way through changing it is a choice, never a silent overwrite.
+   */
+  it('says the grid was changed elsewhere rather than putting the older one back over it', async () => {
+    const { rerender } = draw(growOn(SCHEME));
+    await screen.findByText('Biobizz \u00b7 Light\u00b7Mix');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bio\u00b7Grow, week 1' }));
+    fireEvent.change(screen.getByLabelText('Bio\u00b7Grow, week 1'), { target: { value: '5' } });
+    fireEvent.blur(screen.getByLabelText('Bio\u00b7Grow, week 1'));
+
+    const elsewhere = { ...SCHEME, grid: GRID.map(week => (week.week === 1 ? { ...week, amounts: amounts(3, null, null) } : week)) };
+    rerender(growOn(elsewhere));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('changed elsewhere');
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Take theirs' }));
+    expect(screen.getByRole('button', { name: 'Bio\u00b7Grow, week 1' })).toHaveTextContent('3');
+    expect(screen.queryByText('changed elsewhere')).not.toBeInTheDocument();
+  });
+
+  it('keeps the edit when the reader decides theirs is the grid that stands, and sends that one', async () => {
+    const { rerender } = draw(growOn(SCHEME));
+    await screen.findByText('Biobizz \u00b7 Light\u00b7Mix');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bio\u00b7Grow, week 1' }));
+    fireEvent.change(screen.getByLabelText('Bio\u00b7Grow, week 1'), { target: { value: '5' } });
+    fireEvent.blur(screen.getByLabelText('Bio\u00b7Grow, week 1'));
+
+    const elsewhere = { ...SCHEME, grid: GRID.map(week => (week.week === 1 ? { ...week, amounts: amounts(3, null, null) } : week)) };
+    rerender(growOn(elsewhere));
+    fireEvent.click(screen.getByRole('button', { name: 'Keep mine' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(patched()).toHaveLength(1));
+    expect(patched()[0].body.scheme.grid[0].amounts[0].value).toBe(5);
+  });
+
+  /** The grow page mounts one tab at a time, so leaving the tab must not be how a half-filled grid is thrown away. */
+  it('still has the unsaved grid after the tab was left and come back to', async () => {
+    const { unmount } = draw(growOn(SCHEME));
+    await screen.findByText('Biobizz \u00b7 Light\u00b7Mix');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bio\u00b7Grow, week 1' }));
+    fireEvent.change(screen.getByLabelText('Bio\u00b7Grow, week 1'), { target: { value: '7' } });
+    fireEvent.blur(screen.getByLabelText('Bio\u00b7Grow, week 1'));
+    unmount();
+
+    await drawn();
+    expect(screen.getByRole('button', { name: 'Bio\u00b7Grow, week 1' })).toHaveTextContent('7');
+    expect(screen.getByText('not saved')).toBeInTheDocument();
   });
 
   it('shows the demo the same figures and none of the controls that would be refused', async () => {

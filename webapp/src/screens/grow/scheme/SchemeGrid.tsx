@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SchemeWeek } from '@fg2/shared-types/v1';
-import { productsOf, valueAt, type Product } from './grid';
+import { ecTargetAt, hasEcTargets, productsOf, valueAt, type Product } from './grid';
 import styles from './Scheme.module.css';
 
 interface SchemeGridProps {
@@ -10,6 +10,8 @@ interface SchemeGridProps {
   currentWeek: number | null;
   /** False for a session that may only look: the figures are the same, and nothing about them is a control. */
   mayEdit: boolean;
+  /** What the grower's own water measures, which the EC row is drawn on top of. Null where nobody has said. */
+  waterEc: number | null;
   /** The row the chips act on, which is how a product is removed without a button in every row. */
   picked: string | null;
   onPick: (productKey: string | null) => void;
@@ -28,8 +30,12 @@ interface SchemeGridProps {
  * A cell is edited where it stands. An empty cell is "not this week" rather
  * than zero, which is the difference between a row that has stopped and a row
  * that is dosed at nothing, and the grid is read that way everywhere else.
+ *
+ * The last row is the chart's EC target rather than a dose, and it is the one
+ * row nobody types into: it is the doses and the water read back as a figure a
+ * meter can be held against, so it is changed by changing one of those.
  */
-export function SchemeGrid({ grid, currentWeek, mayEdit, picked, onPick, onChange }: SchemeGridProps) {
+export function SchemeGrid({ grid, currentWeek, mayEdit, waterEc, picked, onPick, onChange }: SchemeGridProps) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState<{ week: number; productKey: string } | null>(null);
   const current = useRef<HTMLTableCellElement>(null);
@@ -115,6 +121,23 @@ export function SchemeGrid({ grid, currentWeek, mayEdit, picked, onPick, onChang
               })}
             </tr>
           ))}
+          {hasEcTargets(grid) ? (
+            <tr>
+              <th className={styles.rowHead} scope="row">
+                <span className={styles.rowName}>{t('grow.scheme.ecTarget')}</span>
+                <span className={styles.rowUnit}>{t('grow.scheme.ecUnit')}</span>
+              </th>
+              {grid.map(week => {
+                const target = ecTargetAt(week, waterEc);
+
+                return (
+                  <td key={week.week} className={styles.cell} data-current={week.week === currentWeek}>
+                    <span className={target === null ? styles.empty : undefined}>{target === null ? '–' : target.toFixed(1)}</span>
+                  </td>
+                );
+              })}
+            </tr>
+          ) : null}
         </tbody>
       </table>
     </div>

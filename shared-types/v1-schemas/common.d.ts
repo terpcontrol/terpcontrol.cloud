@@ -335,7 +335,16 @@ export declare const schemeAmount: z.ZodObject<{
     value: z.ZodNullable<z.ZodNumber>;
     unit: z.ZodString;
 }, z.core.$strip>;
-/** One row of the grid. */
+/**
+ * One row of the grid.
+ *
+ * `ecTarget` is the one figure here that is not a dose: it is what a meter
+ * should read at this week's doses on water of no EC, so the grower's own water
+ * is added to it before it is drawn. It is optional rather than merely
+ * nullable, because a grid written before the field existed carries nothing at
+ * all and must stay a grid the routes accept; null is the other case, a chart
+ * that publishes no EC.
+ */
 export declare const schemeWeek: z.ZodObject<{
     week: z.ZodNumber;
     stage: z.ZodNullable<z.ZodEnum<{
@@ -346,6 +355,7 @@ export declare const schemeWeek: z.ZodObject<{
         drying: "drying";
         curing: "curing";
     }>>;
+    ecTarget: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     amounts: z.ZodArray<z.ZodObject<{
         productKey: z.ZodString;
         name: z.ZodString;

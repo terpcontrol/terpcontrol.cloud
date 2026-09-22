@@ -297,6 +297,10 @@ export interface SchemeWeek {
    */
   week: number;
   stage: GrowthStage | null;
+  /**
+   * mS/cm on zero-EC water; null where the chart publishes none.
+   */
+  ecTarget?: number | null;
   amounts: SchemeAmount[];
 }
 
