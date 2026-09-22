@@ -25,8 +25,29 @@
   color: var(--wordmark);
 }
 
+/* The line above the fields: why this form, in the words of the page that sent somebody here. */
+.intro {
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+  color: var(--muted);
+}
+
+/* The one step that may stand between an account and its first sign-in. */
+.step {
+  margin-bottom: var(--space-2);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
 .fieldLabel {
   margin-bottom: var(--space-1);
+}
+
+.fieldNote {
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
 }
 
 .fieldLabel:not(:first-of-type) {

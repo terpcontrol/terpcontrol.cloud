@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { Navigate, useLocation, useNavigate } from 'react-router';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import type { SessionCreate } from '@fg2/shared-types/v1';
 import { CUSTOM_LINKS_HTML } from '@/api/config';
 import { ApiError } from '@/api/problem';
@@ -16,6 +16,10 @@ import styles from './SignIn.module.css';
  * answer - its `errors[]` come back keyed by the field they belong to.
  *
  * A phone is where the app lives, so a session stays until it is signed out.
+ *
+ * An account that is not yet activated is refused with a sentence that says
+ * so, and that sentence is shown as it came: the stock "check your e-mail and
+ * password" would send somebody to retype a password that was right.
  */
 export function SignIn() {
   const { t } = useTranslation();
@@ -39,7 +43,8 @@ export function SignIn() {
       if (error instanceof ApiError) {
         for (const [field, detail] of Object.entries(error.fieldErrors)) form.setError(field as keyof SessionCreate, { message: detail });
       }
-      setProblem(t('shell.signInFailed'));
+      const notActivated = error instanceof ApiError && error.problem.code === 'account_not_activated';
+      setProblem(notActivated ? error.problem.detail || error.problem.title : t('shell.signInFailed'));
     }
   });
 
@@ -100,6 +105,13 @@ export function SignIn() {
         <button className={`${ui.button} ${styles.demo}`} type="button" onClick={openDemo} disabled={busy}>
           {openingDemo ? t('demo.opening') : t('login.demo')}
         </button>
+
+        <p className={styles.links}>
+          {t('login.noAccount')}{' '}
+          <Link to="/sign-up" state={{ from: destination }}>
+            {t('login.createAccount')}
+          </Link>
+        </p>
 
         {CUSTOM_LINKS_HTML ? <div className={styles.links} dangerouslySetInnerHTML={{ __html: CUSTOM_LINKS_HTML }} /> : null}
       </form>

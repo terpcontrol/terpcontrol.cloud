@@ -275,7 +275,26 @@
     },
     "signIn": "Sign in",
     "demo": "Try the demo",
-    "demoFailed": "The demo could not be opened."
+    "demoFailed": "The demo could not be opened.",
+    "noAccount": "No account yet?",
+    "signUp": {
+      "intro": "An e-mail address, a username and a password. Nothing else is asked.",
+      "forInvitation": "An invitation to {{name}} is waiting. To take it up you need an account of your own: an e-mail address, a username and a password.",
+      "forInvitationUnnamed": "An invitation is waiting. To take it up you need an account of your own: an e-mail address, a username and a password.",
+      "handle": "Username",
+      "handleNote": "The only name anybody here ever sees.",
+      "create": "Create the account",
+      "creating": "Creating …",
+      "haveOne": "Already have an account?",
+      "signInFailed": "The account exists, but signing in with it failed. Sign in by hand.",
+      "activation": {
+        "title": "One more step: activation",
+        "body": "The account for {{email}} exists, but this install activates an account before it may sign in. The code for that is sent to {{email}}; enter it here once it arrives.",
+        "code": "Activation code",
+        "submit": "Activate and continue",
+        "later": "You can also come back later: once the account is active, sign in and open the invitation again."
+      }
+    }
   },
   "growPresets": {
     "seedling": {
@@ -2642,7 +2661,15 @@
         "demo": "The demo has no account of its own, so it cannot take an invitation up. Sign out and sign in with your own account to join.",
         "dead": {
           "title": "This invitation leads nowhere",
-          "body": "A link is good for seven days and can be stopped at any time. Ask whoever sent it for a new one."
+          "body": "A link can be stopped at any time, and some run out on their own. Ask whoever sent it for a new one."
+        },
+        "createAccount": "Create an account to join",
+        "takingUp": "Taking the invitation up …",
+        "code": {
+          "title": "Have an invitation code?",
+          "body": "Eight characters, read to you or written down. Type them here to see the invitation.",
+          "field": "Invitation code",
+          "open": "Open the invitation"
         }
       },
       "newLink": "New link",

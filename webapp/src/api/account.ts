@@ -7,7 +7,10 @@ import type {
   PushSubscription,
   PushSubscriptionCreate,
   SessionPage,
+  SignupUser,
   TelegramLink,
+  UserActivation,
+  UserCreate,
 } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { session } from './session';
@@ -22,6 +25,19 @@ import { session } from './session';
  */
 
 export const meKey = ['me'];
+
+/**
+ * The two writes that happen before there is a session to make them with.
+ *
+ * Signing up answers the account without its activation code, and says with
+ * `isActive` whether this install lets it sign in at once or wants the code
+ * from its mail first; the screen reads that answer rather than assuming
+ * either. Activation is addressed by the code alone and answers nothing, so
+ * that an open route never says which address an account belongs to.
+ */
+export const useSignUp = () => useMutation({ mutationFn: (body: UserCreate) => api.post<SignupUser>('/users', body) });
+
+export const useActivateAccount = () => useMutation({ mutationFn: (body: UserActivation) => api.post<void>('/users/activations', body) });
 
 /**
  * A screen that is waiting for the account to change behind its back - a

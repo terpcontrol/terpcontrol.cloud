@@ -275,7 +275,26 @@
     },
     "signIn": "Anmelden",
     "demo": "Demo ausprobieren",
-    "demoFailed": "Die Demo konnte nicht geöffnet werden."
+    "demoFailed": "Die Demo konnte nicht geöffnet werden.",
+    "noAccount": "Noch kein Konto?",
+    "signUp": {
+      "intro": "Eine E-Mail-Adresse, ein Benutzername und ein Passwort. Mehr wird nicht gefragt.",
+      "forInvitation": "Eine Einladung in {{name}} wartet. Um sie anzunehmen, brauchst du ein eigenes Konto: eine E-Mail-Adresse, einen Benutzernamen und ein Passwort.",
+      "forInvitationUnnamed": "Eine Einladung wartet. Um sie anzunehmen, brauchst du ein eigenes Konto: eine E-Mail-Adresse, einen Benutzernamen und ein Passwort.",
+      "handle": "Benutzername",
+      "handleNote": "Der einzige Name, den hier je jemand sieht.",
+      "create": "Konto anlegen",
+      "creating": "Legt an …",
+      "haveOne": "Schon ein Konto?",
+      "signInFailed": "Das Konto gibt es, aber die Anmeldung damit schlug fehl. Melde dich von Hand an.",
+      "activation": {
+        "title": "Noch ein Schritt: Aktivierung",
+        "body": "Das Konto für {{email}} gibt es jetzt, aber diese Installation aktiviert ein Konto, bevor es sich anmelden darf. Der Code dafür geht an {{email}}; gib ihn hier ein, sobald er da ist.",
+        "code": "Aktivierungscode",
+        "submit": "Aktivieren und weiter",
+        "later": "Du kannst auch später wiederkommen: Sobald das Konto aktiv ist, melde dich an und öffne die Einladung noch einmal."
+      }
+    }
   },
   "growPresets": {
     "seedling": {
@@ -2638,7 +2657,15 @@
         "demo": "Die Demo hat kein eigenes Konto und kann eine Einladung deshalb nicht annehmen. Melde dich ab und mit deinem eigenen Konto wieder an.",
         "dead": {
           "title": "Diese Einladung führt nirgendwohin",
-          "body": "Ein Link gilt sieben Tage und kann jederzeit gestoppt werden. Wer ihn dir geschickt hat, kann dir einen neuen schicken."
+          "body": "Ein Link kann jederzeit gestoppt werden, und manche laufen von selbst ab. Wer ihn dir geschickt hat, kann dir einen neuen schicken."
+        },
+        "createAccount": "Konto anlegen und beitreten",
+        "takingUp": "Nimmt die Einladung an …",
+        "code": {
+          "title": "Hast du einen Einladungscode?",
+          "body": "Acht Zeichen, vorgelesen oder aufgeschrieben. Tipp sie hier ein, um die Einladung zu sehen.",
+          "field": "Einladungscode",
+          "open": "Einladung öffnen"
         }
       },
       "newLink": "Neuer Link",

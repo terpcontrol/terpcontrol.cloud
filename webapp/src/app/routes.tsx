@@ -35,6 +35,7 @@ import { PublicGrowRoute } from '@/screens/public/PublicGrowRoute';
 import { PublicProfileRoute } from '@/screens/public/PublicProfileRoute';
 import { SharedRoute } from '@/screens/public/SharedRoute';
 import { SignIn } from '@/screens/SignIn';
+import { SignUp } from '@/screens/SignUp';
 import { SpacePage } from '@/screens/space/SpacePage';
 import { Tasks } from '@/screens/Tasks';
 import { Timeline } from '@/screens/Timeline';
@@ -43,13 +44,17 @@ import { Timeline } from '@/screens/Timeline';
  * The five tabs, the account page, the alerts behind the bell, and the two
  * pages a home card opens: a grow and a space, each with its tab in the path so
  * a tab survives a reload. Every screen below the shell is behind a session;
- * the sign-in page and the four public addresses are the routes that are not.
+ * the sign-in and sign-up pages and the public addresses are the routes that
+ * are not.
  *
- * Those four sit outside the session gate rather than behind a check inside it,
- * so a stranger who follows a link never meets the sign-in page and never sees
- * a frame of it either. An invitation is one of them for that reason above all:
- * it is sent to somebody who has no account yet, and a sign-in form with no
- * explanation in front of it is where they stop. `/@{handle}` is matched as a whole first
+ * The public ones sit outside the session gate rather than behind a check
+ * inside it, so a stranger who follows a link never meets the sign-in page and
+ * never sees a frame of it either. An invitation is one of them for that
+ * reason above all: it is sent to somebody who has no account yet, and a
+ * sign-in form with no explanation in front of it is where they stop - which
+ * is also why the sign-up page exists, and why the invitation is what sends
+ * somebody to it. `/join` without a code is where a code that was read aloud
+ * is typed. `/@{handle}` is matched as a whole first
  * segment because React Router reads a parameter only where a colon follows a
  * slash - which is also why it ranks below every named route and cannot take
  * `/timeline` or `/me` from the shell.
@@ -92,8 +97,10 @@ import { Timeline } from '@/screens/Timeline';
  */
 export const router = createBrowserRouter([
   { path: '/sign-in', element: <SignIn /> },
+  { path: '/sign-up', element: <SignUp /> },
   { path: '/g/:slug', element: <PublicGrowRoute /> },
   { path: '/shared/:token', element: <SharedRoute /> },
+  { path: '/join', element: <JoinRoute /> },
   { path: '/join/:code', element: <JoinRoute /> },
   { path: '/:handle', element: <PublicProfileRoute /> },
   {
