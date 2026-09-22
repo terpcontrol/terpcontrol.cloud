@@ -35,10 +35,10 @@ app. Round 8 is visual direction and needs no backend.
 | 10 Alarms, tasks, notifications | done, server and app, after two rounds of criticism |
 | 11 Onboarding | done, server and app, after two rounds of criticism |
 | 12 Measurements and charts | done, server and app, after one round of criticism |
-| 13 Sharing | not started |
-| 14 Account, entitlement, admin | not started |
+| 13 Sharing | done, server and app; criticism running |
+| 14 Account, entitlement, admin | building: four app slices and the server's export and retention |
 
-The next piece of work is round 13.
+The next piece of work is round 14, and after it the consistency sweep and the end-to-end tests that close the phase.
 
 ## What the checks are
 
