@@ -1486,7 +1486,8 @@
     "noController": "No controller where this grow stands · nothing to average",
     "nothingMeasured": "Nothing measured this week",
     "presetName": {
-      "late_flowering": "Late flower"
+      "late_flowering": "Late flower",
+      "autoflower": "Auto"
     },
     "lifecycle": {
       "actionsLabel": "What this grow is doing",
@@ -2352,5 +2353,51 @@
       "deleteYes": "Yes, delete it",
       "cancel": "Cancel"
     }
+  },
+  "targets": {
+    "title": "Manual targets",
+    "backToPlan": "‹ back to the plan",
+    "nothing": "Nothing standing here states a climate, so there is nothing to set.",
+    "prefill": "Prefill from a preset, then adjust anything:",
+    "presets": "Presets",
+    "day": "Targets · Day",
+    "night": "Targets · Night",
+    "toNight": "night ›",
+    "temperature": "Temperature",
+    "humidity": "Humidity",
+    "light": "Light",
+    "lightHours": "Light on for",
+    "co2": "CO₂ target",
+    "vpd": "VPD {{value}}",
+    "needsCo2": "needs a CO₂ sensor",
+    "typed": "{{name}}, typed",
+    "aria": {
+      "dayTemperature": "Day temperature",
+      "dayHumidity": "Day humidity",
+      "nightTemperature": "Night temperature",
+      "nightHumidity": "Night humidity",
+      "lightLimit": "Light limit",
+      "lightHours": "Light on for",
+      "co2": "CO₂ target"
+    },
+    "unit": {
+      "temperature": "°C",
+      "humidity": "%",
+      "percent": "%",
+      "hours": "h",
+      "co2": "ppm"
+    },
+    "planRunning": "The plan running here would put its own targets back within the hour. Saving pauses it.",
+    "planPaused": "The plan is paused while manual targets are on.",
+    "resume": "Resume plan",
+    "pauseReason": "Manual targets",
+    "unsaved": "Unsaved changes",
+    "save": "Save",
+    "saving": "Saving…",
+    "discard": "Discard",
+    "sentAt": "Sent to the controller {{time}}",
+    "sentNote": "The controller acknowledges no setting, so what it is running is not reported back.",
+    "sockets": "sockets",
+    "readOnly": "This session may look and not set."
   }
 }

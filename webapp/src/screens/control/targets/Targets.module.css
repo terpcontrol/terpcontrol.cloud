@@ -1,0 +1,267 @@
+/* The manual targets page: the chips, the rows of sliders, the card that says
+   what a save does to the plan, and the bar that holds the save. The card, the
+   chips and the buttons are the app's own; what is drawn here is the slider,
+   which the browser would otherwise draw in its own colours. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.back {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.deviceName {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+/* A row: the name, the slider, the figure with its unit, and what stands
+   beside the figure. The figure keeps the width its widest reading needs, so
+   dragging does not shift the slider under the thumb. */
+.row {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-3);
+  min-height: var(--control-height);
+}
+
+.rowLabel {
+  font-size: var(--text-sm);
+}
+
+.value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  column-gap: var(--space-2);
+  /* One width for every row, so the sliders line up whether or not something stands beside the figure. */
+  width: 7rem;
+}
+
+.figure {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  font-size: var(--text-md);
+}
+
+.typed {
+  width: 2.75rem;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-bottom: var(--rule-width) solid transparent;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.typed::-webkit-outer-spin-button,
+.typed::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.typed:focus {
+  outline: none;
+  border-bottom-color: var(--brand);
+}
+
+.typed:disabled {
+  opacity: 0.6;
+}
+
+.unit {
+  font-size: var(--text-xs);
+  color: var(--label);
+}
+
+.aside {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-align: right;
+}
+
+.needs {
+  grid-column: 2 / -1;
+  justify-self: end;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* The slider. The track is a rule with the part up to the thumb in the green
+   the app emphasises with, and the thumb is a card with a rule around it:
+   the same surfaces as everything else, so it reads as a control and not as a
+   browser's. `--fill` is set per row from the value. */
+.slider {
+  width: 100%;
+  height: var(--control-height);
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.slider:disabled {
+  opacity: 0.45;
+}
+
+.slider::-webkit-slider-runnable-track {
+  height: 4px;
+  background: linear-gradient(to right, var(--green) var(--fill), var(--rule) var(--fill));
+  border-radius: var(--radius-pill);
+}
+
+.slider::-moz-range-track {
+  height: 4px;
+  background: var(--rule);
+  border-radius: var(--radius-pill);
+}
+
+.slider::-moz-range-progress {
+  height: 4px;
+  background: var(--green);
+  border-radius: var(--radius-pill);
+}
+
+.slider::-webkit-slider-thumb {
+  width: 22px;
+  height: 22px;
+  margin-top: -9px;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: 50%;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: 50%;
+}
+
+.slider:focus-visible::-webkit-slider-thumb {
+  border-color: var(--brand);
+}
+
+.slider:focus-visible::-moz-range-thumb {
+  border-color: var(--brand);
+}
+
+/* Where "night ›" lands, a little above the block so its label is not under the top bar. */
+.anchor {
+  display: block;
+  height: 0;
+  scroll-margin-top: calc(var(--topbar-height) + var(--space-3));
+}
+
+/* What a save does to the plan. Amber: a plan that is running or paused is a
+   state somebody chose, and the card says what this page does to it. */
+.planCard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  border-color: var(--warning);
+}
+
+.planText {
+  flex: 1 1 200px;
+  font-size: var(--text-sm);
+}
+
+.sent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.sentNote {
+  font-family: var(--font-text);
+  font-size: var(--text-sm);
+}
+
+/* The controller has said nothing for a while: dimmed by its age, as the plan's line is. */
+.quiet {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* The save, kept in reach above the tab bar while the draft differs from the
+   device's document. Sticky rather than fixed, so it stays inside the column
+   on a wide screen and moves with the panel it belongs to. */
+.bar {
+  position: sticky;
+  bottom: calc(var(--tabbar-height) + var(--log-button) / 2 + var(--space-3) + env(safe-area-inset-bottom));
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+}
+
+.barText {
+  flex: 1;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.bar > p {
+  flex-basis: 100%;
+}
+
+.advanced {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.advanced a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (min-width: 900px) {
+  .bar {
+    bottom: var(--space-5);
+  }
+}

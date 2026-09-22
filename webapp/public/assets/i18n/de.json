@@ -1482,7 +1482,8 @@
     "noController": "Kein Controller, wo dieser Grow steht · nichts zu mitteln",
     "nothingMeasured": "Diese Woche nichts gemessen",
     "presetName": {
-      "late_flowering": "Späte Blüte"
+      "late_flowering": "Späte Blüte",
+      "autoflower": "Auto"
     },
     "lifecycle": {
       "actionsLabel": "Was mit diesem Grow passiert",
@@ -2348,5 +2349,51 @@
       "deleteYes": "Ja, löschen",
       "cancel": "Abbrechen"
     }
+  },
+  "targets": {
+    "title": "Manuelle Zielwerte",
+    "backToPlan": "‹ zurück zum Plan",
+    "nothing": "Nichts, was hier steht, nennt ein Klima — es gibt also nichts einzustellen.",
+    "prefill": "Mit einer Vorlage vorbelegen, dann alles anpassen:",
+    "presets": "Vorlagen",
+    "day": "Zielwerte · Tag",
+    "night": "Zielwerte · Nacht",
+    "toNight": "Nacht ›",
+    "temperature": "Temperatur",
+    "humidity": "Luftfeuchte",
+    "light": "Licht",
+    "lightHours": "Licht an für",
+    "co2": "CO₂-Ziel",
+    "vpd": "VPD {{value}}",
+    "needsCo2": "braucht einen CO₂-Sensor",
+    "typed": "{{name}}, eingetippt",
+    "aria": {
+      "dayTemperature": "Temperatur am Tag",
+      "dayHumidity": "Luftfeuchte am Tag",
+      "nightTemperature": "Temperatur in der Nacht",
+      "nightHumidity": "Luftfeuchte in der Nacht",
+      "lightLimit": "Lichtgrenze",
+      "lightHours": "Licht an für",
+      "co2": "CO₂-Ziel"
+    },
+    "unit": {
+      "temperature": "°C",
+      "humidity": "%",
+      "percent": "%",
+      "hours": "h",
+      "co2": "ppm"
+    },
+    "planRunning": "Der Plan, der hier läuft, würde innerhalb einer Stunde seine eigenen Zielwerte zurücksetzen. Speichern pausiert ihn.",
+    "planPaused": "Der Plan ist pausiert, solange manuelle Zielwerte gelten.",
+    "resume": "Plan fortsetzen",
+    "pauseReason": "Manuelle Zielwerte",
+    "unsaved": "Ungespeicherte Änderungen",
+    "save": "Speichern",
+    "saving": "Wird gespeichert…",
+    "discard": "Verwerfen",
+    "sentAt": "Um {{time}} an den Controller geschickt",
+    "sentNote": "Der Controller bestätigt keine Einstellung; was er wirklich fährt, meldet er nicht zurück.",
+    "sockets": "Steckdosen",
+    "readOnly": "Diese Sitzung darf schauen, aber nichts einstellen."
   }
 }
