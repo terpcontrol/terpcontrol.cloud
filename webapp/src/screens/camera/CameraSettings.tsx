@@ -1,13 +1,17 @@
 import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import type { Camera, CameraUpdate } from '@fg2/shared-types/v1';
+import { useMe } from '@/api/account';
 import { useRemoveCamera, useUpdateCamera } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { ApiError } from '@/api/problem';
+import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
+import { countdownDays } from '@/screens/me/premium/entitlement';
 import ui from '@/ui/ui.module.css';
+import { useNow } from '@/ui/useNow';
 import styles from './CameraPage.module.css';
 
 /**
@@ -22,8 +26,17 @@ import styles from './CameraPage.module.css';
 export function CameraSettings({ camera, mayManage }: { camera: Camera; mayManage: boolean }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const now = useNow();
+  const { user } = useSession();
   const devices = useDevices();
   const spaces = useSpaces();
+  // Whether this install gates anything at all is the account's answer, not
+  // the camera's: a camera's record carries its date on every install, and only
+  // `/me` says whether the date means anything here. The demo has no account to
+  // ask, so for it the camera's own record is all there is.
+  const me = useMe(false, user?.isDemo !== true);
+  const enforced = me.data ? me.data.premium.enforced : null;
+  const ending = enforced ? countdownDays(camera, now) : null;
   const update = useUpdateCamera(camera.id);
   const remove = useRemoveCamera(camera.id);
   const [draft, setDraft] = useState<CameraUpdate>({});
@@ -79,7 +92,20 @@ export function CameraSettings({ camera, mayManage }: { camera: Camera; mayManag
         </Row>
 
         <Row label={t('camera.premium')}>
-          <span className={`mono ${styles.settingValue}`}>{entitlementLine(t, camera)}</span>
+          <span className={styles.settingStack}>
+            <span className={`mono ${styles.settingValue}`}>{entitlementLine(t, camera, enforced)}</span>
+            {ending !== null ? (
+              <span className={`mono ${styles.settingWarning}`} role="status">
+                {ending === 0 ? t('me.premium.endsToday') : t('me.premium.endsIn', { count: ending })}
+              </span>
+            ) : null}
+            {camera.entitlement.tier === 'free' ? (
+              <span className={`${ui.note} ${styles.settingNote}`}>{t('camera.entitlement.freeLine')}</span>
+            ) : null}
+            <Link to="/me/premium" className={`mono ${styles.settingLink}`}>
+              {t('camera.seePremium')} ›
+            </Link>
+          </span>
         </Row>
 
         <Row label={t('camera.stillEvery')}>
@@ -173,14 +199,20 @@ const connection = (t: Translate, camera: Camera, through: string | null): strin
  * Twelve months per camera, never renewed by this server, so the line says
  * which twelve and why.
  *
- * With no date, the tier is what decides the words: an install that gates
- * nothing answers `premium` for every camera, and telling somebody their camera
- * is not entitled while it renders in HD would be the screen contradicting the
- * server.
+ * The tier is what decides the words, never the date: an install that gates
+ * nothing answers `premium` for every camera whatever its record says, and
+ * telling somebody their camera is not entitled while it renders in HD would be
+ * the screen contradicting the server. Where the account has said the install
+ * gates nothing, the date is not the news and is left out; where the server
+ * calls a camera free, its date is the day the year ran out and is said as that.
  */
-const entitlementLine = (t: Translate, camera: Camera): string => {
+const entitlementLine = (t: Translate, camera: Camera, enforced: boolean | null): string => {
   const { validUntil, grant, tier } = camera.entitlement;
+  if (enforced === false) return t('camera.entitlement.ungated');
   if (!validUntil) return t(tier === 'premium' ? 'camera.entitlement.ungated' : 'camera.entitlement.none');
 
-  return t(`camera.entitlement.${grant ?? 'purchase'}`, { date: DateTime.fromISO(validUntil).toFormat('d LLL yyyy') });
+  const date = DateTime.fromISO(validUntil).toFormat('d LLL yyyy');
+  if (tier === 'free') return t('camera.entitlement.ranOut', { date });
+
+  return t(`camera.entitlement.${grant ?? 'purchase'}`, { date });
 };

@@ -1531,7 +1531,57 @@
       "title": "Freigabelinks"
     },
     "premium": {
-      "title": "Premium"
+      "title": "Premium",
+      "demo": "Die Demo hat kein eigenes Konto, hier gibt es also kein Premium anzusehen.",
+      "ungated": "Diese Installation schaltet nichts ab: jede Kamera hier hat alles, was Premium umfasst, nichts läuft ab und nichts ist zu verlängern.",
+      "noCameras": "Noch keine Kamera. Premium gilt pro Kamera, hier steht also nichts, bis eine gekoppelt oder hinzugefügt ist.",
+      "kind": {
+        "terpcam_controller": "Terp Cam",
+        "terpcam_standalone": "Terp Cam · eigenständig",
+        "rtsp": "RTSP"
+      },
+      "tier": {
+        "premium": "Premium",
+        "free": "braucht Premium"
+      },
+      "until": "bis {{date}}",
+      "everything": "auf dieser Installation alles enthalten",
+      "grant": {
+        "included": "mit der Cam enthalten · 12 Monate · verlängert sich nur, wenn du es sagst",
+        "migration": "bei der Migration übernommen · 12 Monate ab diesem Tag · verlängert sich nur, wenn du es sagst",
+        "purchase": "für diese Kamera gekauft · verlängert sich nur, wenn du es sagst",
+        "granted": "Premium auf dieser Kamera · verlängert sich nur, wenn du es sagst"
+      },
+      "ranOut": "Ihr Premium ist am {{date}} abgelaufen: Bilder werden verkleinert ausgeliefert und Filme bleiben SD mit Wasserzeichen, bis es verlängert wird.",
+      "rtspFree": "RTSP-Kameras sind eine Premium-Funktion: diese zeigt alle {{seconds}} s ein Bild, doch die Bilder werden verkleinert ausgeliefert und ihre Filme bleiben SD mit Wasserzeichen, bis Premium sie abdeckt.",
+      "free": "Kein Premium auf dieser Kamera: Bilder werden verkleinert ausgeliefert und Filme bleiben SD mit Wasserzeichen, bis Premium sie abdeckt.",
+      "endsToday": "endet heute",
+      "endsIn_one": "endet in {{count}} Tag",
+      "endsIn_other": "endet in {{count}} Tagen",
+      "covers": "Was Premium umfasst",
+      "camerasOnly": "nur Kameras",
+      "table": {
+        "free": "Gratis",
+        "premium": "Premium",
+        "yes": "enthalten",
+        "no": "nicht enthalten",
+        "live": "Livebild und der Zeitraffer von heute",
+        "resolution": "Bilder in voller Auflösung",
+        "sd": "SD",
+        "mp": "3 MP",
+        "kept": "Bilder aufbewahrt",
+        "limited": "begrenzt",
+        "wholeGrow": "ganzer Grow",
+        "wholeGrowHd": "Zeitraffer über den ganzen Grow, HD",
+        "reel": "Reel-Export mit Overlays",
+        "watermark": "Wasserzeichen",
+        "rtsp": "RTSP-Kameras ohne Terp Cam",
+        "rest": "Steuerung, Diagramme, Tagebuch, Alarme, Teilen"
+      },
+      "perCamera": "Pro Kamera, nicht pro Konto. Der Preis für die Verlängerung steht hier, bevor das enthaltene Jahr endet; nichts verlängert sich von selbst. Selbst gehostete Installationen haben gar kein Premium.",
+      "extend": "Premium verlängern",
+      "priceLater": "Preis erscheint 60 Tage vorher",
+      "nowhereToExtend": "Diese Installation nennt keinen Ort, an dem sich Premium verlängern ließe; frag, wer sie betreibt."
     },
     "schemes": {
       "title": "Düngepläne"
@@ -2478,6 +2528,8 @@
     "hd": "HD",
     "noGrowHere": "Hier wächst nichts, also gibt es weder Phase noch Grow zum Filmen.",
     "needsPremium": "HD und der Film eines ganzen Grows gehören zu Premium.",
+    "seePremium": "Was Premium umfasst",
+    "reduced": "verkleinert ausgeliefert",
     "makeOne": "Zeitraffer bauen … (Zeitraum, Overlays, 9:16-Reel)",
     "askFailed": "Dieser Film wurde nicht angefordert.",
     "testImage": "Testbild",
@@ -2503,7 +2555,9 @@
       "ungated": "auf dieser Installation alles enthalten",
       "included": "enthalten bis {{date}}",
       "migration": "übernommen bis {{date}}",
-      "purchase": "bis {{date}}"
+      "purchase": "bis {{date}}",
+      "ranOut": "abgelaufen am {{date}}",
+      "freeLine": "Ohne Premium werden ihre Bilder verkleinert ausgeliefert und ihre Filme bleiben SD mit Wasserzeichen."
     },
     "film": {
       "queued": "in der Warteschlange",

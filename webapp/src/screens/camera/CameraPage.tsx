@@ -127,7 +127,11 @@ function CameraScreen({ camera, refetching }: { camera: Camera; refetching: stri
         <Slider from={from} to={to} cursor={Math.min(Math.max(time, from), to)} onScrub={setCursor} />
         <span className={`mono ${styles.edge}`}>{t('camera.now')}</span>
       </div>
-      <p className={`mono ${styles.count}`}>{t('camera.framesToday', { count: shots.length })}</p>
+      <p className={`mono ${styles.count}`}>
+        {t('camera.framesToday', { count: shots.length })}
+        {/* A free camera's picture is smaller than the one stored, and the line under it says so rather than leaving the blur unexplained. */}
+        {camera.entitlement.tier === 'free' ? ` · ${t('camera.reduced')}` : ''}
+      </p>
 
       <section className={styles.section}>
         <span className="label">{t('camera.timelapses')}</span>
@@ -173,11 +177,13 @@ interface QuickFilm {
 /**
  * The four one-tap films. One that cannot be asked for is drawn refused rather
  * than left out, so the film that is missing has a reason beside it - and the
- * reason is given once however many buttons share it.
+ * reason is given once however many buttons share it. Where the reason is
+ * Premium, the page that says what Premium covers is one tap away from it.
  */
 function Quick({ buttons, onPick }: { buttons: QuickFilm[]; onPick: (body: TimelapseCreate) => void }) {
   const { t } = useTranslation();
   const reasons = [...new Set(buttons.flatMap(one => (one.reason ? [one.reason] : [])))];
+  const premiumRefused = buttons.some(one => one.premium && one.reason !== null);
 
   return (
     <>
@@ -201,6 +207,11 @@ function Quick({ buttons, onPick }: { buttons: QuickFilm[]; onPick: (body: Timel
           {reason}
         </p>
       ))}
+      {premiumRefused ? (
+        <Link to="/me/premium" className={`mono ${styles.seePremium}`}>
+          {t('camera.seePremium')} ›
+        </Link>
+      ) : null}
     </>
   );
 }

@@ -1,0 +1,220 @@
+/* Me › Premium: a card per camera, the table of what Premium covers, and the
+   one button that leaves the app. Phone first; the shell keeps the column on a
+   desktop. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+/* The trail back to Me, kept for the width that has room for it; on a phone the
+   tab bar and the avatar already say where this page hangs. */
+.crumb {
+  display: none;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.crumb a {
+  color: var(--muted);
+}
+
+/* The one paragraph an install that gates nothing puts before its cameras. */
+.lead {
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+}
+
+/* ---------------------------------------------------------------- cameras */
+
+.cameras {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.camera {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.cameraHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.cameraName {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.kind {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}
+
+/* The tier chip, drawn as the devices list draws it: amber is the one colour
+   Premium wears anywhere in the app. */
+.chip {
+  padding: 0 var(--space-2);
+  border: var(--rule-width) solid var(--warning);
+  border-radius: var(--radius-pill);
+  color: var(--warning);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  line-height: 16px;
+  letter-spacing: var(--tracking-caption);
+  text-transform: uppercase;
+}
+
+/* The date at the right, or the two words that say there is none. */
+.until {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.until[data-tier='free'] {
+  color: var(--warning);
+}
+
+.line {
+  line-height: var(--line-body);
+}
+
+/* The countdown, inside the last sixty days: amber, as the rule that
+   something is about to run out is amber everywhere else. */
+.ending {
+  font-size: var(--text-xs);
+  color: var(--warning);
+}
+
+/* ----------------------------------------------------------------- covers */
+
+.covers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.coversHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.only {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* A real table, because it is one: a feature a row, a tier a column. The two
+   tier columns take exactly the width of their longest word and give the rest
+   to the feature, which is the one column that may wrap - at a phone's width a
+   German feature name takes two lines, and "Wasserzeichen" never breaks. */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: var(--space-2) 0;
+  text-align: left;
+  vertical-align: baseline;
+}
+
+.table thead th {
+  padding-top: 0;
+  padding-bottom: var(--space-1);
+}
+
+.table tbody tr {
+  border-top: var(--rule-solid);
+}
+
+.feature {
+  width: 100%;
+  padding-right: var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  line-height: var(--line-body);
+}
+
+.cell {
+  padding-left: var(--space-3);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.cell + .cell {
+  padding-left: var(--space-4);
+}
+
+/* ----------------------------------------------------------------- extend */
+
+/* The board's button, full width, with the price or the caption in it. A
+   button's text never wraps; this one carries a sentence's worth on a phone,
+   so it is allowed to and grows to hold it. */
+.extend {
+  flex-wrap: wrap;
+  width: 100%;
+  height: auto;
+  min-height: var(--control-height);
+  padding: var(--space-3) var(--space-4);
+  text-align: center;
+  white-space: normal;
+}
+
+.price {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}
+
+@media (min-width: 900px) {
+  .page {
+    max-width: 720px;
+    padding-top: 0;
+  }
+
+  .crumb {
+    display: inline;
+  }
+}

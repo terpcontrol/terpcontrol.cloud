@@ -13,6 +13,7 @@ import { JoinRoute } from '@/screens/join/JoinRoute';
 import { LogRoute } from '@/log/LogRoute';
 import { Me } from '@/screens/Me';
 import { Privacy } from '@/screens/me/privacy/Privacy';
+import { Premium } from '@/screens/me/premium/Premium';
 import { Measurements } from '@/screens/grow/measurements/Measurements';
 import { NewGrowRoute } from '@/screens/grow/new/NewGrowRoute';
 import { NotFound } from '@/screens/NotFound';
@@ -103,7 +104,7 @@ export const router = createBrowserRouter([
       { path: 'me/public', element: <Placeholder titleKey="me.public.title" /> },
       { path: 'me/following', element: <Placeholder titleKey="me.following.title" /> },
       { path: 'me/share-links', element: <Placeholder titleKey="me.shareLinks.title" /> },
-      { path: 'me/premium', element: <Placeholder titleKey="me.premium.title" /> },
+      { path: 'me/premium', element: <Premium /> },
       { path: 'me/schemes', element: <Placeholder titleKey="me.schemes.title" /> },
       { path: 'me/appearance', element: <Placeholder titleKey="me.appearance" /> },
       { path: 'me/account', element: <Placeholder titleKey="me.account.title" /> },

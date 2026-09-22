@@ -1535,7 +1535,57 @@
       "title": "Share links"
     },
     "premium": {
-      "title": "Premium"
+      "title": "Premium",
+      "demo": "The demo has no account of its own, so there is no Premium to look at.",
+      "ungated": "This installation gates nothing: every camera here has everything Premium covers, nothing runs out and there is nothing to extend.",
+      "noCameras": "No camera yet. Premium is per camera, so there is nothing here until one is paired or added.",
+      "kind": {
+        "terpcam_controller": "Terp Cam",
+        "terpcam_standalone": "Terp Cam · standalone",
+        "rtsp": "RTSP"
+      },
+      "tier": {
+        "premium": "Premium",
+        "free": "needs Premium"
+      },
+      "until": "until {{date}}",
+      "everything": "everything included on this install",
+      "grant": {
+        "included": "included with the cam · 12 months · renews only if you say so",
+        "migration": "carried over at the migration · 12 months from that day · renews only if you say so",
+        "purchase": "bought for this camera · renews only if you say so",
+        "granted": "Premium on this camera · renews only if you say so"
+      },
+      "ranOut": "Its Premium ran out on {{date}}: stills are served reduced and films stay SD with a watermark until it is extended.",
+      "rtspFree": "RTSP cameras are a Premium feature: this one shows stills every {{seconds}} s, but they are served reduced and its films stay SD with a watermark until Premium covers it.",
+      "free": "No Premium on this camera: stills are served reduced and films stay SD with a watermark until Premium covers it.",
+      "endsToday": "ends today",
+      "endsIn_one": "ends in {{count}} day",
+      "endsIn_other": "ends in {{count}} days",
+      "covers": "What Premium covers",
+      "camerasOnly": "cameras only",
+      "table": {
+        "free": "Free",
+        "premium": "Premium",
+        "yes": "included",
+        "no": "not included",
+        "live": "Live still and today's timelapse",
+        "resolution": "Full resolution stills",
+        "sd": "SD",
+        "mp": "3 MP",
+        "kept": "Stills kept",
+        "limited": "limited",
+        "wholeGrow": "whole grow",
+        "wholeGrowHd": "Timelapse over the whole grow, HD",
+        "reel": "Reel export with overlays",
+        "watermark": "watermark",
+        "rtsp": "RTSP cameras without a Terp Cam",
+        "rest": "Control, charts, diary, alarms, sharing"
+      },
+      "perCamera": "Per camera, not per account. The renewal price is shown here before the included year ends; nothing renews on its own. Self-hosted installations have no Premium at all.",
+      "extend": "Extend Premium",
+      "priceLater": "price shown 60 days before",
+      "nowhereToExtend": "This installation names no place to extend Premium from; ask whoever runs it."
     },
     "schemes": {
       "title": "Feeding schemes"
@@ -2482,6 +2532,8 @@
     "hd": "HD",
     "noGrowHere": "Nothing grows here, so there is no phase and no grow to film.",
     "needsPremium": "HD and a film of a whole grow are part of Premium.",
+    "seePremium": "What Premium covers",
+    "reduced": "served reduced",
     "makeOne": "Make a timelapse … (range, overlays, 9:16 reel)",
     "askFailed": "That film was not asked for.",
     "testImage": "Test image",
@@ -2507,7 +2559,9 @@
       "ungated": "everything included on this install",
       "included": "included until {{date}}",
       "migration": "carried over until {{date}}",
-      "purchase": "until {{date}}"
+      "purchase": "until {{date}}",
+      "ranOut": "ran out {{date}}",
+      "freeLine": "Without Premium its stills are served reduced and its films stay SD with a watermark."
     },
     "film": {
       "queued": "queued",
