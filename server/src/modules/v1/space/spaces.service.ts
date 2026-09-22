@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { Device, ProblemError, Space, SpaceCreate, SpaceKind, SpaceUpdate } from '@fg2/shared-types/v1';
+import { AccessNeed, Device, ProblemError, Space, SpaceCreate, SpaceKind, SpaceUpdate } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
@@ -86,7 +86,8 @@ export class SpacesService {
     const rows = await this.spaces.find({ $and: conditions }).sort({ createdAt: 1, id: 1 }).limit(readLimit(limit)).lean<SpaceDocument[]>();
 
     const page = pageOf(rows, limit, space => ({ at: space.createdAt, id: space.id }));
-    return { items: page.items.map(space => this.serialise(space)), nextCursor: page.nextCursor };
+    const may = await this.mayIn(ctx, page.items);
+    return { items: page.items.map(space => this.serialise(space, may.get(space.id))), nextCursor: page.nextCursor };
   }
 
   /**
@@ -126,7 +127,11 @@ export class SpacesService {
       createdAt: new Date(),
     });
 
-    return this.serialise(space.toObject<SpaceDocument>());
+    // Whoever made it may do everything in it - except in somebody else's room,
+    // where it was made for the room's owner and the maker keeps the role the
+    // room gave them.
+    const made = space.toObject<SpaceDocument>();
+    return this.serialise(made, await this.mayIn1(ctx, made));
   }
 
   public async update(ctx: AccessContext, id: string, body: SpaceUpdate): Promise<Space> {
@@ -163,7 +168,7 @@ export class SpacesService {
     const changed = await this.spaces.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<SpaceDocument>();
     if (!changed) throw notFound('space_not_found', 'There is no space with that id.');
 
-    return this.serialise(changed);
+    return this.serialise(changed, await this.mayIn1(ctx, changed));
   }
 
   /** The grouping is one level deep in both directions: a room holds spaces, a room never hangs in one. */
@@ -202,9 +207,9 @@ export class SpacesService {
    * every list and stays readable wherever history names it. The route is
    * idempotent, so archiving twice does not move the instant it carries.
    */
-  public async archive(id: string, archived: boolean): Promise<Space> {
+  public async archive(ctx: AccessContext, id: string, archived: boolean): Promise<Space> {
     const space = await this.require(id);
-    if (archived === (space.archivedAt !== null)) return this.serialise(space);
+    if (archived === (space.archivedAt !== null)) return this.serialise(space, await this.mayIn1(ctx, space));
 
     // A room whose spaces are still in use would leave the home screen with a
     // group whose room is gone, so it is emptied or archived with them.
@@ -217,7 +222,7 @@ export class SpacesService {
       .lean<SpaceDocument>();
     if (!changed) throw notFound('space_not_found', 'There is no space with that id.');
 
-    return this.serialise(changed);
+    return this.serialise(changed, await this.mayIn1(ctx, changed));
   }
 
   /**
@@ -307,11 +312,52 @@ export class SpacesService {
     await this.devices.update(deviceId, { spaceId: null });
   }
 
+  /**
+   * What the caller may do in each of these places, in one query rather than one
+   * per row. A membership on the room counts for every tent in it, and a tent's
+   * own row wins where it is the stronger of the two, which is what `access()`
+   * decides by and what this has to agree with exactly - a screen that is told
+   * more than the server will allow is worse than one that is told nothing.
+   */
+  public async mayIn(ctx: AccessContext, spaces: SpaceDocument[]): Promise<Map<string, AccessNeed>> {
+    const may = new Map<string, AccessNeed>();
+    if (spaces.length === 0) return may;
+
+    const userId = ctx.isDemo ? null : ctx.userId;
+    if (ctx.isAdmin) {
+      for (const space of spaces) may.set(space.id, 'own');
+      return may;
+    }
+
+    const covering = [...new Set(spaces.flatMap(space => [space.id, space.roomId]).filter((id): id is string => id !== null))];
+    const rows =
+      userId === null ? [] : await this.memberships.find({ userId, spaceId: { $in: covering } }, { spaceId: 1, role: 1 }).lean<Pick<MembershipDocument, 'spaceId' | 'role'>[]>();
+    const roles = new Map(rows.map(row => [row.spaceId, row.role]));
+
+    for (const space of spaces) {
+      if (userId !== null && space.ownerId === userId) {
+        may.set(space.id, 'own');
+        continue;
+      }
+
+      const here = [roles.get(space.id), space.roomId === null ? undefined : roles.get(space.roomId)];
+      may.set(space.id, here.includes('can_manage') ? 'manage' : here.includes('can_log') ? 'log' : 'view');
+    }
+
+    return may;
+  }
+
+  /** What one caller may do in one place, for the routes that answer a single space. */
+  public async mayIn1(ctx: AccessContext, space: SpaceDocument): Promise<AccessNeed> {
+    return (await this.mayIn(ctx, [space])).get(space.id) ?? 'view';
+  }
+
   /** Field by field, because `_id` rides on a stored document and never leaves the server. */
-  public serialise(space: SpaceDocument): Space {
+  public serialise(space: SpaceDocument, youMay: AccessNeed = 'view'): Space {
     return {
       id: space.id,
       ownerId: space.ownerId,
+      youMay,
       kind: space.kind,
       name: space.name,
       roomId: space.roomId,

@@ -48,6 +48,7 @@ const NOW = DateTime.now();
 const space = (over: Partial<Space>): Space => ({
   id: 'space-1',
   ownerId: 'user-1',
+  youMay: 'own',
   kind: 'tent',
   name: 'Blue Dream tent',
   roomId: null,

@@ -9,7 +9,9 @@ import type { Space } from '@fg2/shared-types/v1';
  * Stored is the wire shape with every instant a BSON date, so the schema and the
  * contract cannot describe different fields.
  */
-export type SpaceDocument = Omit<Space, 'archivedAt' | 'createdAt'> & {
+// `youMay` is about whoever is reading and is worked out per request, so it is
+// the one field of the wire shape that is not stored beside the others.
+export type SpaceDocument = Omit<Space, 'archivedAt' | 'createdAt' | 'youMay'> & {
   archivedAt: Date | null;
   createdAt: Date;
 };

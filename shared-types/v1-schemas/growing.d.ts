@@ -16,9 +16,32 @@ export declare const presetPrompt: z.ZodEnum<{
 export declare const spaceRetention: z.ZodObject<{
     climateDays: z.ZodNullable<z.ZodNumber>;
 }, z.core.$strip>;
+/**
+ * The most this account may do in a place, named after the four needs every
+ * route is decided by. It is answered rather than worked out by a client,
+ * because a screen that guesses draws a control the server will refuse - and
+ * being refused after the tap is how somebody finds out they were never
+ * allowed, which is the worst way to learn it.
+ *
+ * `own` is the owner and an administrator, `manage` and `log` are the two
+ * member roles, and `view` is everybody else who can see the place at all: a
+ * share link, a public page, the demo.
+ */
+export declare const accessNeed: z.ZodEnum<{
+    view: "view";
+    own: "own";
+    manage: "manage";
+    log: "log";
+}>;
 export declare const space: z.ZodObject<{
     id: z.ZodString;
     ownerId: z.ZodString;
+    youMay: z.ZodEnum<{
+        view: "view";
+        own: "own";
+        manage: "manage";
+        log: "log";
+    }>;
     kind: z.ZodEnum<{
         other: "other";
         tent: "tent";
@@ -880,6 +903,12 @@ export declare const inviteAcceptance: z.ZodObject<{
     space: z.ZodObject<{
         id: z.ZodString;
         ownerId: z.ZodString;
+        youMay: z.ZodEnum<{
+            view: "view";
+            own: "own";
+            manage: "manage";
+            log: "log";
+        }>;
         kind: z.ZodEnum<{
             other: "other";
             tent: "tent";
@@ -1277,6 +1306,12 @@ export declare const spacePage: z.ZodObject<{
     items: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         ownerId: z.ZodString;
+        youMay: z.ZodEnum<{
+            view: "view";
+            own: "own";
+            manage: "manage";
+            log: "log";
+        }>;
         kind: z.ZodEnum<{
             other: "other";
             tent: "tent";

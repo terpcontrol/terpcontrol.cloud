@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.plantCreate = exports.growUpdate = exports.splitResult = exports.splitCreate = exports.harvestResult = exports.harvestCreate = exports.placementCreate = exports.phaseCreate = exports.growCreate = exports.plantBatch = exports.inviteAcceptance = exports.invitePreview = exports.inviteCreate = exports.membershipUpdate = exports.membershipCreate = exports.presetApplication = exports.presetApplicationCreate = exports.presetPlanEffect = exports.growDecision = exports.devicePlacement = exports.spaceUpdate = exports.spaceCreate = exports.growListItem = exports.growSummary = exports.growLocation = exports.phaseGroup = exports.task = exports.taskCompletion = exports.taskSource = exports.reminder = exports.follow = exports.plant = exports.plantHarvest = exports.plantStatus = exports.grow = exports.growVisibility = exports.measurementDefinition = exports.growScheme = exports.growSchemeOrigin = exports.placement = exports.phase = exports.phaseTargets = exports.climateTargets = exports.phaseSource = exports.invite = exports.inviteState = exports.membership = exports.space = exports.spaceRetention = exports.presetPrompt = void 0;
-exports.taskPage = exports.reminderPage = exports.followPage = exports.plantPage = exports.growPage = exports.invitePage = exports.membershipPage = exports.spacePage = exports.taskCompletionCreate = exports.reminderUpdate = exports.reminderCreate = exports.placementUpdate = exports.phaseUpdate = exports.plantUpdate = void 0;
+exports.growUpdate = exports.splitResult = exports.splitCreate = exports.harvestResult = exports.harvestCreate = exports.placementCreate = exports.phaseCreate = exports.growCreate = exports.plantBatch = exports.inviteAcceptance = exports.invitePreview = exports.inviteCreate = exports.membershipUpdate = exports.membershipCreate = exports.presetApplication = exports.presetApplicationCreate = exports.presetPlanEffect = exports.growDecision = exports.devicePlacement = exports.spaceUpdate = exports.spaceCreate = exports.growListItem = exports.growSummary = exports.growLocation = exports.phaseGroup = exports.task = exports.taskCompletion = exports.taskSource = exports.reminder = exports.follow = exports.plant = exports.plantHarvest = exports.plantStatus = exports.grow = exports.growVisibility = exports.measurementDefinition = exports.growScheme = exports.growSchemeOrigin = exports.placement = exports.phase = exports.phaseTargets = exports.climateTargets = exports.phaseSource = exports.invite = exports.inviteState = exports.membership = exports.space = exports.accessNeed = exports.spaceRetention = exports.presetPrompt = void 0;
+exports.taskPage = exports.reminderPage = exports.followPage = exports.plantPage = exports.growPage = exports.invitePage = exports.membershipPage = exports.spacePage = exports.taskCompletionCreate = exports.reminderUpdate = exports.reminderCreate = exports.placementUpdate = exports.phaseUpdate = exports.plantUpdate = exports.plantCreate = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -18,9 +18,22 @@ exports.presetPrompt = (0, common_js_1.named)('PresetPrompt', zod_1.z.enum(['ask
 exports.spaceRetention = (0, common_js_1.named)('SpaceRetention', zod_1.z.object({
     climateDays: zod_1.z.number().int().positive().nullable().describe('How long raw climate points are kept; null is the install default.'),
 }));
+/**
+ * The most this account may do in a place, named after the four needs every
+ * route is decided by. It is answered rather than worked out by a client,
+ * because a screen that guesses draws a control the server will refuse - and
+ * being refused after the tap is how somebody finds out they were never
+ * allowed, which is the worst way to learn it.
+ *
+ * `own` is the owner and an administrator, `manage` and `log` are the two
+ * member roles, and `view` is everybody else who can see the place at all: a
+ * share link, a public page, the demo.
+ */
+exports.accessNeed = (0, common_js_1.named)('AccessNeed', zod_1.z.enum(['own', 'manage', 'log', 'view']));
 exports.space = (0, common_js_1.named)('Space', zod_1.z.object({
     id: (0, common_js_1.id)(),
     ownerId: (0, common_js_1.id)(),
+    youMay: exports.accessNeed.describe('The most this account may do here. It is about the reader, so two people reading the same space are answered differently.'),
     kind: common_js_1.spaceKind,
     name: zod_1.z.string(),
     roomId: (0, common_js_1.id)().nullable().describe('A space of kind `room`, one level deep. Null is a space that stands on its own.'),

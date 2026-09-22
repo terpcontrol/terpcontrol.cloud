@@ -115,6 +115,8 @@ export type AdminLogLevel = 'error' | 'warn' | 'info';
 
 export type PresetPrompt = 'ask' | 'never';
 
+export type AccessNeed = 'own' | 'manage' | 'log' | 'view';
+
 export type PhaseSource = 'preset' | 'plan' | 'human';
 
 export type GrowSchemeOrigin =
@@ -1537,6 +1539,10 @@ export interface SpaceRetention {
 export interface Space {
   id: string;
   ownerId: string;
+  /**
+   * The most this account may do here. It is about the reader, so two people reading the same space are answered differently.
+   */
+  youMay: 'own' | 'manage' | 'log' | 'view';
   kind: SpaceKind;
   name: string;
   /**

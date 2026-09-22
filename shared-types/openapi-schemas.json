@@ -4762,6 +4762,15 @@
       "climateDays"
     ]
   },
+  "AccessNeed": {
+    "type": "string",
+    "enum": [
+      "own",
+      "manage",
+      "log",
+      "view"
+    ]
+  },
   "Space": {
     "type": "object",
     "properties": {
@@ -4772,6 +4781,10 @@
       "ownerId": {
         "type": "string",
         "minLength": 1
+      },
+      "youMay": {
+        "description": "The most this account may do here. It is about the reader, so two people reading the same space are answered differently.",
+        "$ref": "#/components/schemas/AccessNeed"
       },
       "kind": {
         "$ref": "#/components/schemas/SpaceKind"
@@ -4822,6 +4835,7 @@
     "required": [
       "id",
       "ownerId",
+      "youMay",
       "kind",
       "name",
       "roomId",

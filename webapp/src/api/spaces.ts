@@ -11,10 +11,17 @@ import { api } from './client';
 export const OVERVIEW_REFRESH_MS = 60_000;
 export const LIVE_REFRESH_MS = 30_000;
 
-export const useSpaces = () =>
+/**
+ * Every place this account can see. `enabled` is here for the readers that only
+ * want one space's standing: a screen that stands above every place asks
+ * nothing rather than fetching the whole list to answer a question it has not
+ * got a place for.
+ */
+export const useSpaces = (enabled = true) =>
   useQuery({
     queryKey: ['spaces'],
     queryFn: ({ signal }) => api.get<SpacePage>('/spaces', undefined, signal),
+    enabled,
   });
 
 export const useSpaceOverview = (spaceId: string) =>

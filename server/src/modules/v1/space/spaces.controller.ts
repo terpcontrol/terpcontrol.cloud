@@ -71,8 +71,9 @@ export class SpacesController {
   @Requires('view', 'space')
   @ApiOperation({ summary: 'One space' })
   @V1Answer(spaceShape)
-  public async read(@Param('id') id: string): Promise<Space> {
-    return this.spaces.serialise(await this.spaces.require(id));
+  public async read(@Caller() ctx: AccessContext, @Param('id') id: string): Promise<Space> {
+    const space = await this.spaces.require(id);
+    return this.spaces.serialise(space, await this.spaces.mayIn1(ctx, space));
   }
 
   @Get(':id/live')
@@ -109,8 +110,8 @@ export class SpacesController {
   @Requires('manage', 'space')
   @ApiOperation({ summary: 'Put a space away without ending it' })
   @V1Answer(spaceShape)
-  public archive(@Param('id') id: string): Promise<Space> {
-    return this.spaces.archive(id, true);
+  public archive(@Caller() ctx: AccessContext, @Param('id') id: string): Promise<Space> {
+    return this.spaces.archive(ctx, id, true);
   }
 
   @Delete(':id/archive')
@@ -118,8 +119,8 @@ export class SpacesController {
   @Requires('manage', 'space')
   @ApiOperation({ summary: 'Take a space back out of the archive' })
   @V1Answer(spaceShape)
-  public unarchive(@Param('id') id: string): Promise<Space> {
-    return this.spaces.archive(id, false);
+  public unarchive(@Caller() ctx: AccessContext, @Param('id') id: string): Promise<Space> {
+    return this.spaces.archive(ctx, id, false);
   }
 
   /**
