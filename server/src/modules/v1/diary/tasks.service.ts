@@ -171,6 +171,13 @@ export class TasksService {
    * writes the line - and it is the one task whose subject is worked out rather
    * than stored: the plan belongs to a device, and what a device's work is about
    * is the grow standing in its tent, or the tent itself where nothing is.
+   *
+   * It is also the one task that is not offered to everybody who may write in
+   * the diary. Ticking it moves the controller on, which is `manage`, so a
+   * member who may log would be handed a card that the tap is refused on - and
+   * the list is where that is decided, because a card nobody may tick is not
+   * work waiting for them. The decision is asked once per device that is
+   * actually waiting, which is at most one per tent and usually none.
    */
   private async planSteps(ctx: AccessContext, where: { spaceIds: string[]; growIds: string[] }, now: Date): Promise<Task[]> {
     const places = await this.placesWithDevices(where);
@@ -185,18 +192,21 @@ export class TasksService {
 
       return [
         {
-          id: planTaskId(plan.deviceId, plan.state.activeStepIndex, plan.state.stepStartedAt),
-          source: 'plan_step' as const,
-          sourceId: step.id,
-          subject: place.subject,
-          kind: 'chore' as const,
-          label: step.confirmationMessage || step.name,
-          // When it fell due, which is what it has been waiting since.
-          dueAt: new Date(now.getTime() - (served - durationMs(step.duration))).toISOString(),
-          assigneeId: null,
-          defaults: null,
-          done: false,
-          completion: null,
+          deviceId: plan.deviceId,
+          task: {
+            id: planTaskId(plan.deviceId, plan.state.activeStepIndex, plan.state.stepStartedAt),
+            source: 'plan_step' as const,
+            sourceId: step.id,
+            subject: place.subject,
+            kind: 'chore' as const,
+            label: step.confirmationMessage || step.name,
+            // When it fell due, which is what it has been waiting since.
+            dueAt: new Date(now.getTime() - (served - durationMs(step.duration))).toISOString(),
+            assigneeId: null,
+            defaults: null,
+            done: false,
+            completion: null,
+          },
         },
       ];
     });
@@ -205,10 +215,24 @@ export class TasksService {
     // again; what is checked here is the tick that was taken back with Undo
     // while the step is still standing, which leaves the entry gone and the
     // task due - and the one that was not.
-    const done = await this.entries.find({ taskId: { $in: waiting.map(task => task.id) } }, { taskId: 1 }).lean<Pick<EntryDocument, 'taskId'>[]>();
+    const ids = waiting.map(one => one.task.id);
+    const done = await this.entries.find({ taskId: { $in: ids } }, { taskId: 1 }).lean<Pick<EntryDocument, 'taskId'>[]>();
     const ticked = new Set(done.map(entry => entry.taskId));
+    const mine = await this.mayConfirm(
+      ctx,
+      waiting.map(one => one.deviceId),
+    );
 
-    return waiting.filter(task => !ticked.has(task.id));
+    return waiting.filter(one => !ticked.has(one.task.id) && mine.has(one.deviceId)).map(one => one.task);
+  }
+
+  /** The devices among these whose plan this caller may move on, which is what ticking one of these cards does. */
+  private async mayConfirm(ctx: AccessContext, deviceIds: string[]): Promise<Set<string>> {
+    const decided = await Promise.all(
+      [...new Set(deviceIds)].map(async deviceId => [deviceId, await this.access.access(ctx, subjectRef('device', deviceId), 'manage')] as const),
+    );
+
+    return new Set(decided.filter(([, grant]) => grant !== null).map(([deviceId]) => deviceId));
   }
 
   /** The devices standing where this caller keeps, each with the grow or space its tasks belong to. */

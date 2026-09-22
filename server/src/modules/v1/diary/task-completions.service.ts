@@ -96,6 +96,14 @@ export class TaskCompletionsService {
    * comes before the confirmation and the confirmation before the line: a
    * stranger must not move somebody's plan on and only then be refused, and a
    * task nothing is waiting for should say so rather than leave a line behind.
+   *
+   * The decision is `manage` and not the `log` every other tick asks for,
+   * because what this tap does is not write a line: it confirms the step, which
+   * ends it, starts the next one and leaves that step's targets for the
+   * controller to run. That is the transition `POST /devices/{id}/plan/
+   * transitions` is guarded by, and a task that reached it with `log` would be
+   * the same act asked for twice and answered differently - the card is only
+   * the shape the confirmation is offered in.
    */
   private async completePlanStep(
     ctx: AccessContext,
@@ -103,7 +111,7 @@ export class TaskCompletionsService {
     ref: Extract<TaskRef, { source: 'plan_step' }>,
     body: TaskCompletionCreate,
   ): Promise<Entry> {
-    await this.access.require(ctx, subjectRef('device', ref.deviceId), 'log');
+    await this.access.require(ctx, subjectRef('device', ref.deviceId), 'manage');
 
     const plan = await this.plans.forDevice(ref.deviceId);
     if (!plan) throw notFound('task_not_found', 'There is no task with that id.');

@@ -499,10 +499,29 @@ describe('ticking a plan step off', () => {
 
   it('confirms the step and writes the line that says who did', async () => {
     await aWaitingPlan();
-    const entry = await completions.complete(session(LOGGER), planTaskId(DEVICE, 0, null), {});
+    const entry = await completions.complete(session(MANAGER), planTaskId(DEVICE, 0, null), {});
 
     expect(entry).toMatchObject({ kind: 'note', deviceId: DEVICE, taskId: planTaskId(DEVICE, 0, null), text: 'Soak' });
     expect((await plans.forDevice(DEVICE))!.state.activeStepIndex).toBe(1);
+  });
+
+  /**
+   * The one task that is not a line somebody writes. Ticking it ends the step,
+   * starts the next one and leaves that step's targets for the controller, which
+   * is what `POST /devices/{id}/plan/transitions` is guarded by - so the same
+   * act asked for through a card is held to the same need, and somebody who may
+   * write in the diary is not somebody who may move the plan.
+   */
+  it('is a transition in the shape of a task, so a member who may only log is refused and the plan stays put', async () => {
+    await aWaitingPlan();
+
+    expect(await problem(completions.complete(session(LOGGER), planTaskId(DEVICE, 0, null), {}))).toEqual({
+      status: 403,
+      code: 'insufficient_access',
+    });
+
+    expect((await plans.forDevice(DEVICE))!.state.activeStepIndex).toBe(0);
+    expect(await db.entries.countDocuments({ taskId: planTaskId(DEVICE, 0, null) })).toBe(0);
   });
 
   it('moves nobody else´s plan on, and is refused before it would have', async () => {

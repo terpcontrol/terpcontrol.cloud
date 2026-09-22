@@ -1,5 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { anonymous, createAccount, demoSession, Session } from '../support/api';
-import { setRow } from '../support/fixtures';
+import { seedRow, setRow } from '../support/fixtures';
 import { provisionDevice } from '../support/device';
 
 /**
@@ -644,6 +645,67 @@ describe('the people in a space', () => {
 
       expect((await host.client.get(`/v1/grows/${theirs.id}`).expect(200)).body.visibility).toBe('private');
       await anonymous().get(`/v1/public/grows/${theirs.slug}`).expect(404);
+    });
+
+    /**
+     * Ticking the card that confirms a plan step is the transition the Control
+     * tab refuses a member on, in the shape of a task. The card is the thing to
+     * check as well as the tap: a member who is told off for tapping what the
+     * app drew for them has been refused too late.
+     */
+    it('does not let somebody who may log move the plan on by ticking the card that confirms it', async () => {
+      const claimed = await provisionDevice(host, 'controller');
+      const itsTent = (await host.client.get(`/v1/devices/${claimed.deviceId}`).expect(200)).body.spaceId;
+      await accept(logger, (await invite(host, itsTent)).code);
+
+      // Seeded rather than driven: a step is only a task once its time is up,
+      // and the shortest step the API takes is a day long.
+      const stepStartedAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      await seedRow('plans', {
+        id: randomUUID(),
+        createdAt: new Date(),
+        deviceId: claimed.deviceId,
+        templateId: null,
+        name: 'Dry it',
+        loop: false,
+        notify: { mode: 'off', email: null, writeEntries: false },
+        steps: [
+          {
+            id: 'step-1',
+            name: 'Dry',
+            stage: null,
+            preset: null,
+            duration: { value: 1, unit: 'hours' },
+            settings: {},
+            waitForConfirmation: true,
+            confirmationMessage: 'Are the buds dry?',
+          },
+        ],
+        state: {
+          status: 'running',
+          activeStepIndex: 0,
+          stepStartedAt,
+          pausedElapsedMs: 0,
+          pauseReason: null,
+          lastAppliedAt: null,
+          confirmationNotifiedAt: null,
+        },
+      });
+
+      const card = `plan:${claimed.deviceId}:0:${stepStartedAt.getTime()}`;
+      const refused = await logger.client.post(`/v1/tasks/${card}/completions`).send({}).expect(403);
+      expect(refused.body.code).toBe('insufficient_access');
+
+      // Nothing moved, and nothing was written: the plan is where it was.
+      const plan = await host.client.get(`/v1/devices/${claimed.deviceId}/plan`).expect(200);
+      expect(plan.body.state).toMatchObject({ status: 'running', activeStepIndex: 0 });
+
+      // And the card was never on their list to tap in the first place.
+      const theirs = (await logger.client.get('/v1/tasks?limit=200').expect(200)).body.items;
+      expect(theirs.map((one: { id: string }) => one.id)).not.toContain(card);
+
+      const hosts = (await host.client.get('/v1/tasks?limit=200').expect(200)).body.items;
+      expect(hosts.map((one: { id: string }) => one.id)).toContain(card);
     });
 
     it('is ended by the host, and the space cannot be ended while it stands', async () => {
