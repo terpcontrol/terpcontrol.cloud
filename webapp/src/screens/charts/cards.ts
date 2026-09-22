@@ -267,10 +267,10 @@ const metricDrawn = (t: Translate, metric: Metric, panel: TimelinePanel, series:
 
 /**
  * A grower's own measurement: the readings as they were written, joined by a
- * thin line so that a season reads as a shape, and the target as one dashed
- * line across the window. There is no green band here, and that is deliberate -
- * a definition carries a target and no tolerance, so a band around it would be
- * a width nobody chose.
+ * thin line so that a season reads as a shape, and what was aimed at drawn the
+ * way the climate panels draw it - a green band where the definition names both
+ * ends, and one dashed line where it names only one, because a band needs two
+ * sides and half of one is a threshold rather than a range.
  */
 const measurementDrawn = (
   t: Translate,
@@ -280,16 +280,28 @@ const measurementDrawn = (
   to: number,
 ): Drawn => {
   const points = readings.map(reading => [at(reading.measuredAt), reading.value] as [number, number | null]);
+  // One end alone is a line to stay under or over; two are the band above.
+  const edge = definition.targetMin !== null && definition.targetMax !== null ? null : (definition.targetMin ?? definition.targetMax);
 
   return {
     key: definition.key,
     title: definition.name,
     about: [t('charts.about.measured'), definition.perPlant ? t('charts.about.perPlant') : null].filter(Boolean).join(' · '),
     unit: definition.unit,
-    values: [...readings.map(reading => reading.value), ...(definition.target === null ? [] : [definition.target])],
+    values: [...readings.map(reading => reading.value), ...[definition.targetMin, definition.targetMax].filter((end): end is number => end !== null)],
     lines: [
-      { key: definition.key, shape: 'points', colour: 'ink', axis: 0, points },
-      ...(definition.target === null
+      {
+        key: definition.key,
+        shape: 'points',
+        colour: 'ink',
+        axis: 0,
+        points,
+        bands:
+          definition.targetMin !== null && definition.targetMax !== null
+            ? [{ from, to, low: definition.targetMin, high: definition.targetMax }]
+            : undefined,
+      },
+      ...(edge === null
         ? []
         : [
             {
@@ -298,7 +310,7 @@ const measurementDrawn = (
               colour: 'muted' as ChartToken,
               axis: 0 as const,
               dashed: true,
-              points: setpointPoints([{ from, to, value: definition.target }]),
+              points: setpointPoints([{ from, to, value: edge }]),
             },
           ]),
     ],

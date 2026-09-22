@@ -91,8 +91,8 @@ const grow: GrowListItem = {
   placements: [{ id: 'pl1', spaceId: 'space-1', startedAt: at(0), endedAt: null, plantIds: null }],
   scheme: null,
   measurements: [
-    { key: 'height', name: 'Height', unit: 'cm', perPlant: true, target: null, chart: true },
-    { key: 'ec', name: 'EC', unit: '', perPlant: false, target: 1.4, chart: true },
+    { key: 'height', name: 'Height', unit: 'cm', perPlant: true, targetMin: null, targetMax: null, chart: true },
+    { key: 'ec', name: 'EC', unit: '', perPlant: false, targetMin: 1.4, targetMax: 1.8, chart: true },
   ],
   visibility: 'private',
   slug: 'spring-run',
