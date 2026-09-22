@@ -1633,7 +1633,7 @@ const DEMO_PLACES = [
     ],
     alarms: [
       { name: 'Too warm by day', watch: { kind: 'reading', metric: 'temperature', upper: 30, lower: null } },
-      { name: 'Humidity into mould', watch: { kind: 'reading', metric: 'humidity', upper: 70, lower: null }, severity: 'critical' },
+      { name: 'Humidity into mould', watch: { kind: 'reading', metric: 'humidity', upper: 70, lower: null }, severity: 'critical', repeatSeconds: 1800 },
     ],
     diary: [
       { message: 'message-ext-sensor-deviate:1.8', severity: 1 },

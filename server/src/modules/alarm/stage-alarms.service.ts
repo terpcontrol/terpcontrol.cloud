@@ -21,6 +21,15 @@ import { AlarmRuleService } from './alarm-rule.service';
  */
 
 /** What the rules are called where a name is shown. Stable, so a rule keeps its name when the band under it moves. */
+/**
+ * A critical alarm repeats until it is resolved, as the decision record has
+ * it, so a tent that is too hot is said again every half hour rather than once
+ * to whoever happened to hold the phone; a warning is read in the morning and
+ * is said once. It is written on the rule at insert, so a person can still
+ * turn a preset rule's repeat off and have it stay off through the next stage.
+ */
+const CRITICAL_REPEAT_SECONDS = 30 * 60;
+
 const BAND_NAME: Readonly<Record<StageAlarmBand['key'], string>> = {
   too_hot: 'Too hot',
   too_humid: 'Too humid',
@@ -56,7 +65,7 @@ export class StageAlarmsService implements StageAlarms {
             severity: band.severity,
             enabled: true,
             cooldownSeconds: 0,
-            repeatSeconds: 0,
+            repeatSeconds: band.severity === 'critical' ? CRITICAL_REPEAT_SECONDS : 0,
             delivery: { mode: 'routing', custom: null },
             silencedUntil: null,
             state: { triggered: false, lastTriggeredAt: null, lastResolvedAt: null, extremeValue: null, lastSampleAt: null },

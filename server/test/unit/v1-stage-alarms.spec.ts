@@ -83,7 +83,8 @@ describe('the rules the stage writes on a device', () => {
       enabled: true,
       severity: 'critical',
       cooldownSeconds: 0,
-      repeatSeconds: 0,
+      // A critical rule says it again until it is resolved; a warning is said once.
+      repeatSeconds: 30 * 60,
       silencedUntil: null,
       delivery: { mode: 'routing', custom: null },
       state: { triggered: false, lastTriggeredAt: null, extremeValue: null },
