@@ -138,7 +138,20 @@ export function Privacy() {
         </select>
       </Row>
 
-      <Row title={t('me.privacy.stills.title')} line={t('me.privacy.stills.line')}>
+      {/*
+        What a free camera's pictures are actually kept for is the install's own
+        configuration, so the line states the days this install names and says
+        plainly that nothing is deleted where it names none - which is the
+        default, and was the promise made when the sweep was left off.
+      */}
+      <Row
+        title={t('me.privacy.stills.title')}
+        line={
+          account.premium.free.stillDays === null
+            ? t('me.privacy.stills.kept')
+            : t('me.privacy.stills.keptDays', { count: account.premium.free.stillDays })
+        }
+      >
         <span className={ui.chip}>{t('me.privacy.premium')}</span>
       </Row>
 

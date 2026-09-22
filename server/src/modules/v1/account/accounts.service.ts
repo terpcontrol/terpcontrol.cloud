@@ -12,6 +12,7 @@ import { MODEL_V1 } from '@database/models';
 import { StoredPushSubscription } from '@database/schemas/v1/push-subscriptions.schema';
 import { StoredNotificationSettings, StoredUser } from '@database/schemas/v1/users.schema';
 import { authConfig, notificationsConfig, premiumConfig } from '@config/configuration';
+import { freeTierOf } from '../camera/entitlement.service';
 import { logger } from '@utils/logger';
 
 /**
@@ -267,6 +268,11 @@ export class AccountsService implements OnModuleInit {
         enforced: this.premium.enforced,
         extendUrl: this.premium.extendUrl || null,
         priceLabel: this.premium.priceLabel || null,
+        // The free tier's own numbers, so the Premium screen and the privacy
+        // screen state what this install actually does rather than a window
+        // written into the app. They are configuration, and an install that has
+        // said nothing answers null to each of them.
+        free: freeTierOf(this.premium),
       },
       // A key pair with a half missing cannot sign anything, and a bot with no
       // name has no link to open, so each is offered only where it could

@@ -776,6 +776,54 @@
       "deletionStartedAt"
     ]
   },
+  "PremiumFree": {
+    "type": "object",
+    "properties": {
+      "stillWidth": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The width a free camera's stills are served at; null is the stored picture whole."
+      },
+      "stillDays": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "How long a free camera's stills are kept; null is for as long as an entitled one's."
+      },
+      "timelapseDays": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "required": [
+      "stillWidth",
+      "stillDays",
+      "timelapseDays"
+    ]
+  },
   "Premium": {
     "type": "object",
     "properties": {
@@ -793,12 +841,16 @@
           "string",
           "null"
         ]
+      },
+      "free": {
+        "$ref": "#/components/schemas/PremiumFree"
       }
     },
     "required": [
       "enforced",
       "extendUrl",
-      "priceLabel"
+      "priceLabel",
+      "free"
     ]
   },
   "Me": {

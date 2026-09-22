@@ -1508,7 +1508,10 @@
       },
       "stills": {
         "title": "Keep camera stills",
-        "line": "Premium: full grow · free: 90 days · arrives with Premium"
+        "line": "Premium: full grow · free: 90 days · arrives with Premium",
+        "kept": "Premium: the whole grow · free: kept just as long on this install",
+        "keptDays_one": "Premium: the whole grow · free: {{count}} day",
+        "keptDays_other": "Premium: the whole grow · free: {{count}} days"
       },
       "export": {
         "title": "Export everything",
@@ -1580,7 +1583,9 @@
         "reel": "Reel export with overlays",
         "watermark": "watermark",
         "rtsp": "RTSP cameras without a Terp Cam",
-        "rest": "Control, charts, diary, alarms, sharing"
+        "rest": "Control, charts, diary, alarms, sharing",
+        "keptDays_one": "{{count}} day",
+        "keptDays_other": "{{count}} days"
       },
       "perCamera": "Per camera, not per account. The renewal price is shown here before the included year ends; nothing renews on its own. Self-hosted installations have no Premium at all.",
       "extend": "Extend Premium",

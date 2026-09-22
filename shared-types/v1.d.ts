@@ -386,10 +386,23 @@ export interface User {
   deletionStartedAt: string | null;
 }
 
+export interface PremiumFree {
+  /**
+   * The width a free camera's stills are served at; null is the stored picture whole.
+   */
+  stillWidth: number | null;
+  /**
+   * How long a free camera's stills are kept; null is for as long as an entitled one's.
+   */
+  stillDays: number | null;
+  timelapseDays: number | null;
+}
+
 export interface Premium {
   enforced: boolean;
   extendUrl: string | null;
   priceLabel: string | null;
+  free: PremiumFree;
 }
 
 export interface Me {

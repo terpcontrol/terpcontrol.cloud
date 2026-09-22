@@ -246,15 +246,38 @@ export declare const user: z.ZodObject<{
     deletionStartedAt: z.ZodNullable<z.ZodISODateTime>;
 }, z.core.$strip>;
 /**
+ * What a free camera gets here. Every one of these is configuration of the
+ * install rather than a number in the code, and every one of them is `null`
+ * where the install has not set it - a served width of null is the stored
+ * picture whole, and a window of null is "kept as long as it always has been",
+ * which is what an install that has not turned the sweep on does.
+ *
+ * They are answered so that a screen can say what the free tier actually is
+ * here instead of printing a number this repository invented. A screen that
+ * reads `null` says what it does not know rather than guessing a window.
+ */
+export declare const premiumFree: z.ZodObject<{
+    stillWidth: z.ZodNullable<z.ZodNumber>;
+    stillDays: z.ZodNullable<z.ZodNumber>;
+    timelapseDays: z.ZodNullable<z.ZodNumber>;
+}, z.core.$strip>;
+/**
  * What this install says about Premium, read from its configuration. `enforced`
  * is false in a self-hosted install, where nothing is gated; `extendUrl` and
  * `priceLabel` are what the renewal notice links to and says, which is why this
- * server needs no billing of its own.
+ * server needs no billing of its own; `free` is what a camera without Premium
+ * gets here, so the screens state this install's limits rather than a number
+ * written into the app.
  */
 export declare const premium: z.ZodObject<{
     enforced: z.ZodBoolean;
     extendUrl: z.ZodNullable<z.ZodString>;
     priceLabel: z.ZodNullable<z.ZodString>;
+    free: z.ZodObject<{
+        stillWidth: z.ZodNullable<z.ZodNumber>;
+        stillDays: z.ZodNullable<z.ZodNumber>;
+        timelapseDays: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>;
 }, z.core.$strip>;
 /**
  * `GET /me`: the account as its owner sees it, plus the three facts about the
@@ -337,6 +360,11 @@ export declare const me: z.ZodObject<{
         enforced: z.ZodBoolean;
         extendUrl: z.ZodNullable<z.ZodString>;
         priceLabel: z.ZodNullable<z.ZodString>;
+        free: z.ZodObject<{
+            stillWidth: z.ZodNullable<z.ZodNumber>;
+            stillDays: z.ZodNullable<z.ZodNumber>;
+            timelapseDays: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>;
     }, z.core.$strip>;
     pushPublicKey: z.ZodNullable<z.ZodString>;
     telegramAvailable: z.ZodBoolean;

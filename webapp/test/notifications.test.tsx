@@ -57,7 +57,7 @@ const me = (notifications: Partial<NotificationSettings> = {}, over: Partial<Me>
   retention: { climateDays: null },
   notifications: { ...NOTHING, ...notifications },
   deletionStartedAt: null,
-  premium: { enforced: false, extendUrl: null, priceLabel: null },
+  premium: { enforced: false, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
   pushPublicKey: 'BAbC',
   telegramAvailable: true,
   pushSubscribed: false,

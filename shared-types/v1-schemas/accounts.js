@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.pushPayload = exports.adminUserUpdate = exports.adminUserCreate = exports.adminUserPage = exports.userExport = exports.exportStatus = exports.notificationLogEntry = exports.notificationSubjectType = exports.telegramLink = exports.pushSubscriptionCreate = exports.pushSubscription = exports.pushSubscriptionKeys = exports.passwordResetRedemption = exports.passwordResetCreate = exports.automationSession = exports.automationSessionCreate = exports.sessionRefresh = exports.demoSessionCreate = exports.sessionResult = exports.sessionUser = exports.sessionCreate = exports.sessionPage = exports.session = exports.sessionTokens = exports.authToken = exports.userActivation = exports.signupUser = exports.userCreate = exports.passwordChange = exports.meUpdate = exports.me = exports.premium = exports.user = exports.notificationSettings = exports.quietHours = exports.notificationRouting = exports.notificationChannels = exports.telegramChannel = exports.webhookChannel = exports.notificationCategory = exports.userRetention = exports.userPreferences = exports.userPrivacy = void 0;
+exports.pushPayload = exports.adminUserUpdate = exports.adminUserCreate = exports.adminUserPage = exports.userExport = exports.exportStatus = exports.notificationLogEntry = exports.notificationSubjectType = exports.telegramLink = exports.pushSubscriptionCreate = exports.pushSubscription = exports.pushSubscriptionKeys = exports.passwordResetRedemption = exports.passwordResetCreate = exports.automationSession = exports.automationSessionCreate = exports.sessionRefresh = exports.demoSessionCreate = exports.sessionResult = exports.sessionUser = exports.sessionCreate = exports.sessionPage = exports.session = exports.sessionTokens = exports.authToken = exports.userActivation = exports.signupUser = exports.userCreate = exports.passwordChange = exports.meUpdate = exports.me = exports.premium = exports.premiumFree = exports.user = exports.notificationSettings = exports.quietHours = exports.notificationRouting = exports.notificationChannels = exports.telegramChannel = exports.webhookChannel = exports.notificationCategory = exports.userRetention = exports.userPreferences = exports.userPrivacy = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -123,15 +123,34 @@ exports.user = (0, common_js_1.named)('User', zod_1.z.object({
     deletionStartedAt: (0, common_js_1.instant)().nullable().describe('Set when deletion begins; it is resumable, so it outlives one request.'),
 }));
 /**
+ * What a free camera gets here. Every one of these is configuration of the
+ * install rather than a number in the code, and every one of them is `null`
+ * where the install has not set it - a served width of null is the stored
+ * picture whole, and a window of null is "kept as long as it always has been",
+ * which is what an install that has not turned the sweep on does.
+ *
+ * They are answered so that a screen can say what the free tier actually is
+ * here instead of printing a number this repository invented. A screen that
+ * reads `null` says what it does not know rather than guessing a window.
+ */
+exports.premiumFree = (0, common_js_1.named)('PremiumFree', zod_1.z.object({
+    stillWidth: zod_1.z.number().int().positive().nullable().describe('The width a free camera\'s stills are served at; null is the stored picture whole.'),
+    stillDays: zod_1.z.number().int().positive().nullable().describe('How long a free camera\'s stills are kept; null is for as long as an entitled one\'s.'),
+    timelapseDays: zod_1.z.number().int().positive().nullable(),
+}));
+/**
  * What this install says about Premium, read from its configuration. `enforced`
  * is false in a self-hosted install, where nothing is gated; `extendUrl` and
  * `priceLabel` are what the renewal notice links to and says, which is why this
- * server needs no billing of its own.
+ * server needs no billing of its own; `free` is what a camera without Premium
+ * gets here, so the screens state this install's limits rather than a number
+ * written into the app.
  */
 exports.premium = (0, common_js_1.named)('Premium', zod_1.z.object({
     enforced: zod_1.z.boolean(),
     extendUrl: zod_1.z.string().nullable(),
     priceLabel: zod_1.z.string().nullable(),
+    free: exports.premiumFree,
 }));
 /**
  * `GET /me`: the account as its owner sees it, plus the three facts about the

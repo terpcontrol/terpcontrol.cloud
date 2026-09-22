@@ -160,10 +160,32 @@ export const user = named(
 );
 
 /**
+ * What a free camera gets here. Every one of these is configuration of the
+ * install rather than a number in the code, and every one of them is `null`
+ * where the install has not set it - a served width of null is the stored
+ * picture whole, and a window of null is "kept as long as it always has been",
+ * which is what an install that has not turned the sweep on does.
+ *
+ * They are answered so that a screen can say what the free tier actually is
+ * here instead of printing a number this repository invented. A screen that
+ * reads `null` says what it does not know rather than guessing a window.
+ */
+export const premiumFree = named(
+  'PremiumFree',
+  z.object({
+    stillWidth: z.number().int().positive().nullable().describe('The width a free camera\'s stills are served at; null is the stored picture whole.'),
+    stillDays: z.number().int().positive().nullable().describe('How long a free camera\'s stills are kept; null is for as long as an entitled one\'s.'),
+    timelapseDays: z.number().int().positive().nullable(),
+  }),
+);
+
+/**
  * What this install says about Premium, read from its configuration. `enforced`
  * is false in a self-hosted install, where nothing is gated; `extendUrl` and
  * `priceLabel` are what the renewal notice links to and says, which is why this
- * server needs no billing of its own.
+ * server needs no billing of its own; `free` is what a camera without Premium
+ * gets here, so the screens state this install's limits rather than a number
+ * written into the app.
  */
 export const premium = named(
   'Premium',
@@ -171,6 +193,7 @@ export const premium = named(
     enforced: z.boolean(),
     extendUrl: z.string().nullable(),
     priceLabel: z.string().nullable(),
+    free: premiumFree,
   }),
 );
 

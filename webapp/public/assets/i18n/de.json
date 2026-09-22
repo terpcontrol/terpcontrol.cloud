@@ -1504,7 +1504,10 @@
       },
       "stills": {
         "title": "Kamerabilder aufbewahren",
-        "line": "Premium: ganzer Grow · gratis: 90 Tage · kommt mit Premium"
+        "line": "Premium: ganzer Grow · gratis: 90 Tage · kommt mit Premium",
+        "kept": "Premium: der ganze Grow · frei: auf dieser Installation genauso lange",
+        "keptDays_one": "Premium: der ganze Grow · frei: {{count}} Tag",
+        "keptDays_other": "Premium: der ganze Grow · frei: {{count}} Tage"
       },
       "export": {
         "title": "Alles exportieren",
@@ -1576,7 +1579,9 @@
         "reel": "Reel-Export mit Overlays",
         "watermark": "Wasserzeichen",
         "rtsp": "RTSP-Kameras ohne Terp Cam",
-        "rest": "Steuerung, Diagramme, Tagebuch, Alarme, Teilen"
+        "rest": "Steuerung, Diagramme, Tagebuch, Alarme, Teilen",
+        "keptDays_one": "{{count}} Tag",
+        "keptDays_other": "{{count}} Tage"
       },
       "perCamera": "Pro Kamera, nicht pro Konto. Der Preis für die Verlängerung steht hier, bevor das enthaltene Jahr endet; nichts verlängert sich von selbst. Selbst gehostete Installationen haben gar kein Premium.",
       "extend": "Premium verlängern",

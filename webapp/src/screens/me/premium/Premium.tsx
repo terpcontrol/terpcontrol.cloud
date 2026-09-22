@@ -1,7 +1,7 @@
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { Camera, Me } from '@fg2/shared-types/v1';
+import type { Camera, Me, PremiumFree } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { useCameras } from '@/api/cameras';
 import { useSession } from '@/api/session';
@@ -33,11 +33,12 @@ import styles from './Premium.module.css';
 type Cell = 'yes' | 'no' | 'sd' | 'mp' | 'limited' | 'wholeGrow' | 'watermark';
 
 /**
- * The table, row for row as the board draws it. The one departure is the free
- * window of "Stills kept": the board writes a number of days, but that window
- * is the hosted install's configuration and no route answers it, so the cell
- * says the stills are kept for a limited time and names no figure the server
- * has not given.
+ * The table, row for row as the board draws it. The free window of "Stills kept"
+ * is the one cell that is not a fixed word: the board writes a number of days,
+ * but that window is the install's own configuration, so the cell says the days
+ * the install names and falls back to "limited" where it names none - which is
+ * also the truthful answer on an install whose sweep is off and which therefore
+ * keeps a free camera's stills exactly as long as an entitled one's.
  */
 const ROWS: { key: string; free: Cell; premium: Cell }[] = [
   { key: 'live', free: 'yes', premium: 'yes' },
@@ -132,7 +133,7 @@ function Account({ header }: { header: React.ReactNode }) {
         </ul>
       )}
 
-      <Covers />
+      <Covers free={premium.free} />
       <p className={ui.note}>{t('me.premium.perCamera')}</p>
 
       {premium.enforced ? <Extend premium={premium} due={due} /> : null}
@@ -195,10 +196,14 @@ const lineOf = (t: Translate, camera: Camera, enforced: boolean): string => {
 };
 
 /** The free-versus-Premium table, with the board's note that it is about cameras and nothing else. */
-function Covers() {
+function Covers({ free }: { free?: PremiumFree }) {
   const { t } = useTranslation();
 
   const cell = (value: Cell) => {
+    // The one figure the install owns. Without it the cell says what it knows -
+    // that the window is shorter - rather than a number nobody configured.
+    if (value === 'limited' && free?.stillDays) return t('me.premium.table.keptDays', { count: free.stillDays });
+
     if (value === 'yes' || value === 'no') {
       return (
         <span role="img" aria-label={t(`me.premium.table.${value}`)}>

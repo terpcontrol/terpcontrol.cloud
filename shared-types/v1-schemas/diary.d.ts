@@ -1045,8 +1045,8 @@ export declare const cameraModel: z.ZodEnum<{
 }>;
 /** `free` is what an install with `PREMIUM_ENFORCED` unset never sees, because nothing is gated then. */
 export declare const entitlementTier: z.ZodEnum<{
-    premium: "premium";
     free: "free";
+    premium: "premium";
 }>;
 /**
  * Twelve months per camera, never renewed by this server: the admin route is the
@@ -1062,8 +1062,8 @@ export declare const cameraEntitlement: z.ZodObject<{
         purchase: "purchase";
     }>>;
     tier: z.ZodEnum<{
-        premium: "premium";
         free: "free";
+        premium: "premium";
     }>;
     renewalVisible: z.ZodBoolean;
 }, z.core.$strip>;
@@ -1139,8 +1139,8 @@ export declare const camera: z.ZodObject<{
             purchase: "purchase";
         }>>;
         tier: z.ZodEnum<{
-            premium: "premium";
             free: "free";
+            premium: "premium";
         }>;
         renewalVisible: z.ZodBoolean;
     }, z.core.$strip>;
@@ -1196,8 +1196,8 @@ export declare const cameraPage: z.ZodObject<{
                 purchase: "purchase";
             }>>;
             tier: z.ZodEnum<{
-                premium: "premium";
                 free: "free";
+                premium: "premium";
             }>;
             renewalVisible: z.ZodBoolean;
         }, z.core.$strip>;

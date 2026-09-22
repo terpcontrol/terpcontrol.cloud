@@ -45,7 +45,7 @@ const me = (over: Partial<Me> = {}): Me => ({
   retention: { climateDays: 365 },
   notifications: { channels: { email: null, telegram: null, webhook: null }, routing: {}, quietHours: null, mutedUntil: null },
   deletionStartedAt: null,
-  premium: { enforced: false, extendUrl: null, priceLabel: null },
+  premium: { enforced: false, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
   pushPublicKey: null,
   telegramAvailable: false,
   pushSubscribed: false,
@@ -83,7 +83,8 @@ const draw = () =>
     </QueryClientProvider>,
   );
 
-const drawLoaded = async () => {
+const drawLoaded = async (over: Partial<Me> = {}) => {
+  server.me = me(over);
   draw();
   await screen.findByRole('switch', { name: 'Public profile' });
 };
@@ -155,11 +156,19 @@ describe('how long anything is kept', () => {
     expect(server.patched[0].retention).toEqual({ climateDays: null });
   });
 
-  it('says plainly that camera stills and the whole-account export are not settled here yet', async () => {
+  it("states the install's own window for a free camera's stills rather than a number written into the app", async () => {
     await drawLoaded();
 
-    expect(screen.getByText(/free: 90 days · arrives with Premium/)).toBeInTheDocument();
+    // This install has turned no sweep on, which is the default and which the
+    // line has to say plainly: nothing of a free camera's is deleted here.
+    expect(screen.getByText(/free: kept just as long on this install/)).toBeInTheDocument();
     expect(screen.getByText(/one grow exports from its own page today/)).toBeInTheDocument();
+  });
+
+  it('names the days where the install has named them', async () => {
+    await drawLoaded({ premium: { enforced: true, extendUrl: null, priceLabel: null, free: { stillWidth: 640, stillDays: 90, timelapseDays: 30 } } });
+
+    expect(screen.getByText(/free: 90 days/)).toBeInTheDocument();
   });
 });
 
