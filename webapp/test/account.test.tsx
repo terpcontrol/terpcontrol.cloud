@@ -260,6 +260,28 @@ describe('where this person is signed in', () => {
     expect(deviceLabel(null)).toBeNull();
   });
 
+  /**
+   * Every agent run and every script signs in, so this list grows without
+   * anybody browsing it, and under it stand the export and the deletion, which
+   * are what somebody came to this page for. A ceiling keeps them in reach; the
+   * rest is one tap away and nothing about it is hidden.
+   */
+  it('draws a handful of sessions and offers the rest', async () => {
+    server.sessions = [
+      at('session-1', IPHONE_SAFARI, '2026-09-22T09:00:00.000Z'),
+      ...Array.from({ length: 12 }, (_, index) => at(`bulk-${index}`, MAC_CHROME, `2026-09-${String(index + 1).padStart(2, '0')}T09:00:00.000Z`)),
+    ];
+    await drawLoaded();
+
+    expect(await screen.findByText('this device')).toBeInTheDocument();
+    expect(screen.getAllByRole('listitem')).toHaveLength(6);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show the rest' }));
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(13);
+    expect(screen.queryByRole('button', { name: 'Show the rest' })).not.toBeInTheDocument();
+  });
+
   it('puts this device first and the rest by when they were last used', () => {
     expect(sortedSessions(SESSIONS, 'session-1').map(row => row.id)).toEqual(['session-1', 'session-2', 'session-3']);
     expect(sortedSessions(SESSIONS, null).map(row => row.id)).toEqual(['session-2', 'session-3', 'session-1']);

@@ -198,15 +198,32 @@ function PasswordRow({ held }: { held: boolean }) {
 }
 
 /**
+ * How many sessions stand on the page before it offers the rest: this device,
+ * which is always first, and a handful of the browsers used most recently.
+ * Every agent run and every script signs in, so an account that is worked on
+ * accumulates rows nobody will ever tap, and the two irreversible controls
+ * below - the export and the deletion - are what somebody came to this page
+ * for. They must not sit under a screen and a half of scrolling.
+ */
+const SESSIONS_SHOWN = 6;
+
+/**
  * Every session of this account, this one first. Another one is ended with a
  * tap and the list read again, so that it is seen to be gone; this one has no
  * such tap, because ending it is what the sign-out button on Me is for and a
  * list is where a tap lands on the wrong row.
+ *
+ * The list has a ceiling and says so. Nothing is hidden that cannot be asked
+ * for in one tap, and the count is not stated, because what is loaded is not
+ * what there is: the cursor may still have pages behind it, and a figure that
+ * counts the rows this browser happens to hold would be an answer to a
+ * different question.
  */
 function Sessions({ currentId, now, held }: { currentId: string | null; now: DateTime; held: boolean }) {
   const { t } = useTranslation();
   const sessions = useSessions();
   const revoke = useRevokeSession();
+  const [all, setAll] = useState(false);
 
   if (sessions.isPending) return <Waiting lines={2} />;
   if (!sessions.data) return <LoadFailed retry={() => void sessions.refetch()} />;
@@ -215,12 +232,14 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
     sessions.data.pages.flatMap(page => page.items),
     currentId,
   );
+  const shown = all ? rows : rows.slice(0, SESSIONS_SHOWN);
+  const rest = rows.length > shown.length || sessions.hasNextPage;
 
   return (
     <section className={`${ui.card} ${styles.sessions}`}>
       <p className={ui.note}>{t('me.account.sessions.line')}</p>
       <ul className={styles.sessionList}>
-        {rows.map(row => (
+        {shown.map(row => (
           <li key={row.id} className={styles.session}>
             <div className={styles.sessionText}>
               <span className={styles.sessionDevice}>{deviceLabel(row.userAgent) ?? t('me.account.sessions.unknownDevice')}</span>
@@ -239,7 +258,12 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
           </li>
         ))}
       </ul>
-      {sessions.hasNextPage ? (
+      {!all && rest ? (
+        <button type="button" className={ui.chip} onClick={() => setAll(true)}>
+          {t('me.account.sessions.showAll')}
+        </button>
+      ) : null}
+      {all && sessions.hasNextPage ? (
         <button type="button" className={ui.chip} disabled={sessions.isFetchingNextPage} onClick={() => void sessions.fetchNextPage()}>
           {t('me.account.sessions.more')}
         </button>

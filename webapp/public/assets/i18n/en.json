@@ -1855,6 +1855,7 @@
         "lastSeen": "last seen {{age}} ago",
         "until": "until {{date}}",
         "unknownDevice": "unknown device",
+        "showAll": "Show the rest",
         "more": "More"
       },
       "data": "Data",
