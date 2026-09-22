@@ -3,10 +3,10 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, ShareLink, Space } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
-import { useGrows } from '@/api/grows';
+import { useEveryGrow } from '@/api/grows';
 import { useSession } from '@/api/session';
 import { useDeleteShareLink, useRevokeShareLink, useShareLinks } from '@/api/sharing';
-import { useSpaces } from '@/api/spaces';
+import { useEverySpace } from '@/api/spaces';
 import { Sheet } from '@/log/Sheet';
 import { ageLabel } from '@/ui/age';
 import { CopyButton } from '@/ui/CopyButton';
@@ -54,11 +54,19 @@ export function ShareLinks() {
   );
 }
 
-/** What a link points at, as far as this account can name it, and whether that is a grow with a public page. */
-interface Subject {
-  name: string;
-  isPublic: boolean | null;
-}
+/**
+ * What a link points at, as far as this account can name it.
+ *
+ * The three states are kept apart because two of them used to be one. A subject
+ * the lists have not reached is not a subject that has been deleted, and this
+ * is the screen whose whole job is telling somebody what they have sent out: a
+ * live key titled "no longer here" is a key nobody revokes, while it goes on
+ * handing the tent out. So `gone` is said only after both lists have been read
+ * to their last page and the subject was in neither; until then the card says
+ * that the name is still coming, or that it could not be read, and the grant
+ * line states nothing about a grow whose visibility nobody has answered.
+ */
+type Subject = { known: 'named'; name: string; isPublic: boolean | null } | { known: 'unread'; word: string } | { known: 'gone' };
 
 /**
  * What a shared view strips, which is the account's own privacy setting and so
@@ -72,8 +80,8 @@ function Links({ userId }: { userId: string | null }) {
   const { t, i18n } = useTranslation();
   const now = useNow();
   const links = useShareLinks();
-  const grows = useGrows();
-  const spaces = useSpaces();
+  const grows = useEveryGrow();
+  const spaces = useEverySpace();
   const me = useMe();
   const mayManage = useMayManage();
   const [drafting, setDrafting] = useState(false);
@@ -82,13 +90,23 @@ function Links({ userId }: { userId: string | null }) {
   if (links.isPending) return <Waiting lines={4} />;
   if (!links.data) return <LoadFailed retry={() => void links.refetch()} />;
 
+  /** The word for a list that has not been read: it is loading, or it failed, or the cursor outran the cap - never that what it holds is not there. */
+  const unread = (list: { isPending: boolean }): Subject => ({ known: 'unread', word: list.isPending ? t('home.waiting') : t('shell.loadFailed') });
+
   const subjectOf = (link: ShareLink): Subject => {
     if (link.subject.type === 'grow') {
-      const grow = grows.data?.items.find(row => row.id === link.subject.id);
-      return grow ? { name: grow.name, isPublic: grow.visibility === 'public' } : { name: t('me.shareLinks.gone'), isPublic: null };
+      if (!grows.data) return unread(grows);
+      const grow = grows.data.items.find(row => row.id === link.subject.id);
+      if (grow) return { known: 'named', name: grow.name, isPublic: grow.visibility === 'public' };
+
+      return grows.data.complete ? { known: 'gone' } : { known: 'unread', word: t('shell.loadFailed') };
     }
-    const space = spaces.data?.items.find(row => row.id === link.subject.id);
-    return { name: space?.name ?? t('me.shareLinks.gone'), isPublic: null };
+
+    if (!spaces.data) return unread(spaces);
+    const space = spaces.data.items.find(row => row.id === link.subject.id);
+    if (space) return { known: 'named', name: space.name, isPublic: null };
+
+    return spaces.data.complete ? { known: 'gone' } : { known: 'unread', word: t('shell.loadFailed') };
   };
 
   const active = links.data.items.filter(link => !isDead(link, now));
@@ -135,7 +153,13 @@ function Links({ userId }: { userId: string | null }) {
 
       <p className={`${ui.note} ${styles.closing}`}>{t('me.shareLinks.closing')}</p>
 
-      <button type="button" className={`${ui.cardDashed} ${styles.new}`} disabled={!mayManage} onClick={() => setDrafting(true)}>
+      {/* A picker built from half a list offers half the tents, so the sheet waits for both lists rather than opening onto what happened to arrive. */}
+      <button
+        type="button"
+        className={`${ui.cardDashed} ${styles.new}`}
+        disabled={!mayManage || !grows.data || !spaces.data}
+        onClick={() => setDrafting(true)}
+      >
         {t('me.shareLinks.new')}
       </button>
 
@@ -253,10 +277,9 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 /** "Tent 1 · timeline · 7 days": what it is about, of which kind, and for how long it was made. */
 const titleOf = (t: Translate, link: ShareLink, subject: Subject): string => {
   const days = link.kind === 'view' ? lifetimeDays(link) : null;
+  const name = subject.known === 'named' ? subject.name : subject.known === 'gone' ? t('me.shareLinks.gone') : subject.word;
 
-  return [subject.name, t(`me.shareLinks.kind.${link.kind}`), days === null ? null : t('me.shareLinks.days', { count: days })]
-    .filter(Boolean)
-    .join(' · ');
+  return [name, t(`me.shareLinks.kind.${link.kind}`), days === null ? null : t('me.shareLinks.days', { count: days })].filter(Boolean).join(' · ');
 };
 
 /** The link's window, in the words the grow's share sheet uses, where it has one. */
@@ -282,12 +305,19 @@ const opensOf = (t: Translate, link: ShareLink, now: DateTime): Part[] => {
  * is what takes such a link back, so the card says the link no longer opens
  * rather than calling it permanent - it is not revoked and would work again if
  * the grow were published again, which is exactly what the words have to carry.
+ *
+ * Both of those sentences are about a grow whose visibility somebody answered.
+ * Where the grow has not been named, neither is said: the title already carries
+ * that its name is still coming, and "the grow's permanent link" would promise
+ * that a link opens something nobody has looked up yet.
  */
 const grantParts = (t: Translate, link: ShareLink, subject: Subject, privacy: Stripping, now: DateTime, locale: string): Part[] => {
   const parts: Part[] = [];
 
   if (link.kind === 'public_page') {
-    parts.push(subject.isPublic === false ? { text: t('me.shareLinks.growPrivate'), warn: true } : { text: t('me.shareLinks.permanentLink') });
+    if (subject.known === 'named') {
+      parts.push(subject.isPublic === false ? { text: t('me.shareLinks.growPrivate'), warn: true } : { text: t('me.shareLinks.permanentLink') });
+    }
   } else {
     parts.push({ text: t('me.shareLinks.readOnly') });
   }

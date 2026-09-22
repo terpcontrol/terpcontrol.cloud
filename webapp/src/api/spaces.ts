@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PresetPrompt, Space, SpaceLive, SpaceOverview, SpacePage } from '@fg2/shared-types/v1';
 import { api } from './client';
+import { readEvery } from './pages';
 
 /**
  * The tent page reads its overview once a minute and its live values every
@@ -22,6 +23,20 @@ export const useSpaces = (enabled = true) =>
     queryKey: ['spaces'],
     queryFn: ({ signal }) => api.get<SpacePage>('/spaces', undefined, signal),
     enabled,
+  });
+
+/**
+ * Every place, to the last page of them, for the screens that look a name up
+ * rather than list what they were given. One page is enough to draw a picker or
+ * a board; it is not enough to decide that the tent a share link points at no
+ * longer exists, and an owner with more tents than a page holds would be told
+ * that live keys are dead. The answer says whether the cursor ran out, so a
+ * caller can tell "not there" from "not read".
+ */
+export const useEverySpace = () =>
+  useQuery({
+    queryKey: ['spaces', 'every'],
+    queryFn: ({ signal }) => readEvery<Space>('/spaces', signal),
   });
 
 export const useSpaceOverview = (spaceId: string) =>

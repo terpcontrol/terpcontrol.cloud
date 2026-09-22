@@ -169,7 +169,7 @@ const server = {
   follows: 2,
   asked: [] as string[],
   failing: [] as string[],
-  held: {} as Record<string, Promise<Response>>,
+  held: {} as Record<string, Promise<Response> | undefined>,
 };
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });

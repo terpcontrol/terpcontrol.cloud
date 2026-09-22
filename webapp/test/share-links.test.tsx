@@ -88,13 +88,36 @@ const expired = link({ id: 'link-expired', token: 'tok-expired', createdAt: days
 
 const orphanPage = link({ id: 'link-orphan', token: 'tok-orphan', kind: 'public_page', subject: { type: 'grow', id: 'grow-2' } });
 
-const server = { links: [] as ShareLink[], created: [] as ShareLinkCreate[], revoked: [] as string[], forgotten: [] as string[] };
+const server = {
+  links: [] as ShareLink[],
+  created: [] as ShareLinkCreate[],
+  revoked: [] as string[],
+  forgotten: [] as string[],
+  /** Rows per page of `/grows` and `/spaces`; nought answers the whole list at once, as this install's does today. */
+  pageSize: 0,
+  failing: [] as string[],
+  asked: [] as string[],
+};
+
+/** The server's own paging, reproduced: a page of `pageSize` rows and the cursor for the rest, which is the shape an owner past fifty tents gets. */
+const pageOf = <T extends { id: string }>(rows: T[], url: URL) => {
+  if (server.pageSize < 1) return { items: rows, nextCursor: null };
+  const cursor = url.searchParams.get('cursor');
+  const from = cursor ? rows.findIndex(row => row.id === cursor) + 1 : 0;
+  const items = rows.slice(from, from + server.pageSize);
+  const more = from + server.pageSize < rows.length;
+
+  return { items, nextCursor: more && items.length > 0 ? items[items.length - 1].id : null };
+};
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-  const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
+  const url = new URL(String(input), 'http://localhost');
+  const path = url.pathname.replace(/^\/v1/, '');
   const method = init?.method ?? 'GET';
+  server.asked.push(`${path}${url.search}`);
+  if (server.failing.includes(path)) return json({ status: 500, code: 'server_error', title: 'Server error', detail: '', errors: [] }, 500);
 
   if (path === '/share-links' && method === 'GET') return json({ items: server.links, nextCursor: null });
   if (path === '/share-links' && method === 'POST') {
@@ -115,8 +138,8 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     server.links = server.links.filter(row => row.id !== one[1]);
     return new Response(null, { status: 204 });
   }
-  if (path === '/grows') return json({ items: grows, nextCursor: null });
-  if (path === '/spaces') return json({ items: spaces, nextCursor: null });
+  if (path === '/grows') return json(pageOf(grows, url));
+  if (path === '/spaces') return json(pageOf(spaces, url));
   if (path === '/me') return json(me);
   return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
 }) as unknown as typeof fetch;
@@ -153,9 +176,67 @@ beforeEach(() => {
   server.created = [];
   server.revoked = [];
   server.forgotten = [];
+  server.pageSize = 0;
+  server.failing = [];
+  server.asked = [];
 });
 
 afterEach(() => vi.unstubAllGlobals());
+
+/**
+ * What a card is titled by is two further reads, and both of them are paged. An
+ * owner with more tents than one page holds used to find every link past that
+ * page titled "no longer here": a live key drawn as a dead one, on the screen
+ * whose whole job is taking such a key back. So the lists are followed to their
+ * last page, and a subject that has not turned up yet is said to be still
+ * coming - "gone" is kept for the one case that has been proved.
+ */
+describe('a subject the first page does not hold', () => {
+  it('follows the cursor and names a tent that only the second page holds', async () => {
+    server.pageSize = 1;
+    server.links = [link({ subject: { type: 'space', id: 'space-9' } })];
+    await drawLoaded();
+
+    expect(card("Mia's tent · timeline")).toBeInTheDocument();
+    expect(server.asked.filter(asked => asked.startsWith('/spaces')).length).toBeGreaterThan(1);
+  });
+
+  it('never calls a link gone while the list it is named from is still coming', async () => {
+    server.pageSize = 1;
+    server.links = [link({ subject: { type: 'space', id: 'space-9' } })];
+    draw();
+
+    await screen.findByText('Active');
+    expect(screen.queryByText(/no longer here/)).not.toBeInTheDocument();
+    await waitFor(() => expect(card("Mia's tent · timeline")).toBeInTheDocument());
+  });
+
+  it('says the name could not be read when that list fails, rather than that the link has gone', async () => {
+    server.failing = ['/spaces'];
+    server.links = [link({})];
+    draw();
+
+    await waitFor(() => expect(card('Could not load. Try again. · timeline')).toBeInTheDocument());
+    expect(screen.queryByText(/no longer here/)).not.toBeInTheDocument();
+  });
+
+  it('states nothing about a grow whose visibility nobody has answered', async () => {
+    server.failing = ['/grows'];
+    server.links = [orphanPage];
+    draw();
+
+    const gone = await waitFor(() => card('Could not load. Try again. · public page'));
+    expect(gone).not.toHaveTextContent('grow now private');
+    expect(gone).not.toHaveTextContent("the grow's permanent link");
+  });
+
+  it('still calls a link gone once both lists have been read to their end without it', async () => {
+    server.links = [link({ subject: { type: 'space', id: 'space-404' } })];
+    draw();
+
+    await waitFor(() => expect(card('no longer here · timeline')).toBeInTheDocument());
+  });
+});
 
 describe('the active list', () => {
   it('draws both kinds with their count, each saying what it grants from the server’s own figures', async () => {

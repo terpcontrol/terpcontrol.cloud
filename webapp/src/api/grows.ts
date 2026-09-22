@@ -17,6 +17,7 @@ import type {
 } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { growChanged } from './lifecycle';
+import { readEvery } from './pages';
 
 /** A plant's own page shows its lines rather than pages them: a plant of its own has few. */
 const PLANT_ENTRIES = 50;
@@ -87,6 +88,20 @@ export const useGrows = () =>
   useQuery({
     queryKey: ['grows', 'all'],
     queryFn: ({ signal }) => api.get<GrowPage>('/grows', { limit: 100 }, signal),
+  });
+
+/**
+ * Every grow, to the last page of them, for the screens that look a name up
+ * rather than list what they were given. A hundred is a generous screenful and
+ * the wrong thing to decide an absence by: a share link onto the grow that
+ * happens to sort past it is a live key, and calling it gone is the one label
+ * that stops somebody taking it back. The answer says whether the cursor ran
+ * out, so a caller can tell "not there" from "not read".
+ */
+export const useEveryGrow = () =>
+  useQuery({
+    queryKey: ['grows', 'every'],
+    queryFn: ({ signal }) => readEvery<GrowListItem>('/grows', signal),
   });
 
 /**
