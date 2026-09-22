@@ -1751,9 +1751,9 @@
         "purchase": "für diese Kamera gekauft · verlängert sich nur, wenn du es sagst",
         "granted": "Premium auf dieser Kamera · verlängert sich nur, wenn du es sagst"
       },
-      "ranOut": "Ihr Premium ist am {{date}} abgelaufen: Bilder werden verkleinert ausgeliefert und Filme bleiben SD mit Wasserzeichen, bis es verlängert wird.",
-      "rtspFree": "RTSP-Kameras sind eine Premium-Funktion: diese zeigt alle {{seconds}} s ein Bild, doch die Bilder werden verkleinert ausgeliefert und ihre Filme bleiben SD mit Wasserzeichen, bis Premium sie abdeckt.",
-      "free": "Kein Premium auf dieser Kamera: Bilder werden verkleinert ausgeliefert und Filme bleiben SD mit Wasserzeichen, bis Premium sie abdeckt.",
+      "ranOut": "Ihr Premium ist am {{date}} abgelaufen: {{missing}}, bis es verlängert wird.",
+      "rtspFree": "RTSP-Kameras sind eine Premium-Funktion: diese zeigt alle {{seconds}} s ein Bild; {{missing}}, bis Premium sie abdeckt.",
+      "free": "Kein Premium auf dieser Kamera: {{missing}}, bis Premium sie abdeckt.",
       "endsToday": "endet heute",
       "endsIn_one": "endet in {{count}} Tag",
       "endsIn_other": "endet in {{count}} Tagen",
@@ -1766,10 +1766,7 @@
         "no": "nicht enthalten",
         "live": "Livebild und der Zeitraffer von heute",
         "resolution": "Bilder in voller Auflösung",
-        "sd": "SD",
-        "mp": "3 MP",
         "kept": "Bilder aufbewahrt",
-        "limited": "begrenzt",
         "wholeGrow": "ganzer Grow",
         "wholeGrowHd": "Zeitraffer über den ganzen Grow, HD",
         "reel": "Reel-Export mit Overlays",
@@ -1777,12 +1774,23 @@
         "rtsp": "RTSP-Kameras ohne Terp Cam",
         "rest": "Steuerung, Diagramme, Tagebuch, Alarme, Teilen",
         "keptDays_one": "{{count}} Tag",
-        "keptDays_other": "{{count}} Tage"
+        "keptDays_other": "{{count}} Tage",
+        "widthPx": "{{width}} px",
+        "whole": "ganz",
+        "perInstall": "je Installation"
       },
-      "perCamera": "Pro Kamera, nicht pro Konto. Der Preis für die Verlängerung steht hier, bevor das enthaltene Jahr endet; nichts verlängert sich von selbst. Selbst gehostete Installationen haben gar kein Premium.",
+      "perCamera": "Pro Kamera, nicht pro Konto. Das Angebot zur Verlängerung steht auf der Karte der Kamera ab {{days}} Tage, bevor ihr Jahr endet; nichts verlängert sich von selbst. Selbst gehostete Installationen haben gar kein Premium.",
       "extend": "Premium verlängern",
-      "priceLater": "Preis erscheint 60 Tage vorher",
-      "nowhereToExtend": "Diese Installation nennt keinen Ort, an dem sich Premium verlängern ließe; frag, wer sie betreibt."
+      "nowhereToExtend": "Diese Installation nennt keinen Ort, an dem sich Premium verlängern ließe; frag, wer sie betreibt.",
+      "missing": {
+        "widthAndDays_one": "ihre Bilder werden {{width}} px breit ausgeliefert und {{count}} Tag aufbewahrt, und ihre Filme bleiben SD mit Wasserzeichen",
+        "widthAndDays_other": "ihre Bilder werden {{width}} px breit ausgeliefert und {{count}} Tage aufbewahrt, und ihre Filme bleiben SD mit Wasserzeichen",
+        "width": "ihre Bilder werden {{width}} px breit ausgeliefert und ihre Filme bleiben SD mit Wasserzeichen",
+        "days_one": "ihre Bilder werden {{count}} Tag aufbewahrt und ihre Filme bleiben SD mit Wasserzeichen",
+        "days_other": "ihre Bilder werden {{count}} Tage aufbewahrt und ihre Filme bleiben SD mit Wasserzeichen",
+        "films": "ihre Bilder kommen ganz und bleiben genauso lange, doch ihre Filme bleiben SD mit Wasserzeichen"
+      },
+      "get": "Premium holen"
     },
     "schemes": {
       "title": "Düngepläne",

@@ -1,42 +1,7 @@
-/* Me › Premium: a card per camera, the table of what Premium covers, and the
-   one button that leaves the app. Phone first; the shell keeps the column on a
-   desktop. */
-
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  max-width: var(--column-width);
-  padding-top: var(--space-2);
-}
-
-.head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-2);
-}
-
-.title {
-  font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-tight);
-}
-
-/* The trail back to Me, kept for the width that has room for it; on a phone the
-   tab bar and the avatar already say where this page hangs. */
-.crumb {
-  display: none;
-  font-size: var(--text-xs);
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.crumb a {
-  color: var(--muted);
-}
+/* Me › Premium: a card per camera, the table of what Premium covers, and on
+   the cards that need one the link that leaves the app. The page frame is the
+   one every page below Me shares; what is here is only the cards and the
+   table. */
 
 /* The one paragraph an install that gates nothing puts before its cameras. */
 .lead {
@@ -79,6 +44,8 @@
   line-height: var(--line-tight);
 }
 
+/* The kind and the tent, which together are what tells two cameras with one
+   name apart. */
 .kind {
   font-size: var(--text-xs);
   font-weight: var(--weight-regular);
@@ -86,7 +53,8 @@
 }
 
 /* The tier chip, drawn as the devices list draws it: amber is the one colour
-   Premium wears anywhere in the app. */
+   Premium wears anywhere in the app. It is drawn only where the install
+   gates something, because only there is a tier a fact about the camera. */
 .chip {
   padding: 0 var(--space-2);
   border: var(--rule-width) solid var(--warning);
@@ -123,6 +91,27 @@
   color: var(--warning);
 }
 
+/* The board's button, full width, on the card it is for, with the price in
+   it where the install names one. A button's text never wraps; this one
+   carries a sentence's worth on a phone, so it is allowed to and grows to hold
+   it. */
+.offer {
+  flex-wrap: wrap;
+  width: 100%;
+  height: auto;
+  min-height: var(--control-height);
+  margin-top: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  text-align: center;
+  white-space: normal;
+}
+
+.price {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}
+
 /* ----------------------------------------------------------------- covers */
 
 .covers {
@@ -147,7 +136,10 @@
 /* A real table, because it is one: a feature a row, a tier a column. The two
    tier columns take exactly the width of their longest word and give the rest
    to the feature, which is the one column that may wrap - at a phone's width a
-   German feature name takes two lines, and "Wasserzeichen" never breaks. */
+   German feature name takes two lines, and "Wasserzeichen" never breaks. The
+   column rules are written under `.table` so that they outweigh the shared
+   cell rule, which names the element: a bare class would lose to it and the
+   gutters between the columns would silently be zero. */
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -169,7 +161,7 @@
   border-top: var(--rule-solid);
 }
 
-.feature {
+.table .feature {
   width: 100%;
   padding-right: var(--space-3);
   font-size: var(--text-sm);
@@ -177,44 +169,12 @@
   line-height: var(--line-body);
 }
 
-.cell {
+.table .cell {
   padding-left: var(--space-3);
   font-size: var(--text-xs);
   white-space: nowrap;
 }
 
-.cell + .cell {
+.table .cell + .cell {
   padding-left: var(--space-4);
-}
-
-/* ----------------------------------------------------------------- extend */
-
-/* The board's button, full width, with the price or the caption in it. A
-   button's text never wraps; this one carries a sentence's worth on a phone,
-   so it is allowed to and grows to hold it. */
-.extend {
-  flex-wrap: wrap;
-  width: 100%;
-  height: auto;
-  min-height: var(--control-height);
-  padding: var(--space-3) var(--space-4);
-  text-align: center;
-  white-space: normal;
-}
-
-.price {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-regular);
-  color: var(--muted);
-}
-
-@media (min-width: 900px) {
-  .page {
-    max-width: 720px;
-    padding-top: 0;
-  }
-
-  .crumb {
-    display: inline;
-  }
 }

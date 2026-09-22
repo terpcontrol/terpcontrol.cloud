@@ -1755,9 +1755,9 @@
         "purchase": "bought for this camera · renews only if you say so",
         "granted": "Premium on this camera · renews only if you say so"
       },
-      "ranOut": "Its Premium ran out on {{date}}: stills are served reduced and films stay SD with a watermark until it is extended.",
-      "rtspFree": "RTSP cameras are a Premium feature: this one shows stills every {{seconds}} s, but they are served reduced and its films stay SD with a watermark until Premium covers it.",
-      "free": "No Premium on this camera: stills are served reduced and films stay SD with a watermark until Premium covers it.",
+      "ranOut": "Its Premium ran out on {{date}}: {{missing}} until it is extended.",
+      "rtspFree": "RTSP cameras are a Premium feature: this one shows stills every {{seconds}} s; {{missing}} until Premium covers it.",
+      "free": "No Premium on this camera: {{missing}} until Premium covers it.",
       "endsToday": "ends today",
       "endsIn_one": "ends in {{count}} day",
       "endsIn_other": "ends in {{count}} days",
@@ -1770,10 +1770,7 @@
         "no": "not included",
         "live": "Live still and today's timelapse",
         "resolution": "Full resolution stills",
-        "sd": "SD",
-        "mp": "3 MP",
         "kept": "Stills kept",
-        "limited": "limited",
         "wholeGrow": "whole grow",
         "wholeGrowHd": "Timelapse over the whole grow, HD",
         "reel": "Reel export with overlays",
@@ -1781,12 +1778,23 @@
         "rtsp": "RTSP cameras without a Terp Cam",
         "rest": "Control, charts, diary, alarms, sharing",
         "keptDays_one": "{{count}} day",
-        "keptDays_other": "{{count}} days"
+        "keptDays_other": "{{count}} days",
+        "widthPx": "{{width}} px",
+        "whole": "whole",
+        "perInstall": "per install"
       },
-      "perCamera": "Per camera, not per account. The renewal price is shown here before the included year ends; nothing renews on its own. Self-hosted installations have no Premium at all.",
+      "perCamera": "Per camera, not per account. The offer to extend stands on a camera's own card from {{days}} days before its year ends; nothing renews on its own. Self-hosted installations have no Premium at all.",
       "extend": "Extend Premium",
-      "priceLater": "price shown 60 days before",
-      "nowhereToExtend": "This installation names no place to extend Premium from; ask whoever runs it."
+      "nowhereToExtend": "This installation names no place to extend Premium from; ask whoever runs it.",
+      "missing": {
+        "widthAndDays_one": "its stills are served {{width}} px wide and kept {{count}} day, and its films stay SD with a watermark",
+        "widthAndDays_other": "its stills are served {{width}} px wide and kept {{count}} days, and its films stay SD with a watermark",
+        "width": "its stills are served {{width}} px wide and its films stay SD with a watermark",
+        "days_one": "its stills are kept {{count}} day and its films stay SD with a watermark",
+        "days_other": "its stills are kept {{count}} days and its films stay SD with a watermark",
+        "films": "its stills are served whole and kept just as long, but its films stay SD with a watermark"
+      },
+      "get": "Get Premium"
     },
     "schemes": {
       "title": "Feeding schemes",
