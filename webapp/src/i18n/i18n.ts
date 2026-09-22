@@ -1,4 +1,5 @@
 import i18next from 'i18next';
+import { Settings } from 'luxon';
 import { initReactI18next } from 'react-i18next';
 
 /**
@@ -16,6 +17,19 @@ export type Language = (typeof LANGUAGES)[number];
 export const FALLBACK_LANGUAGE: Language = 'en';
 
 const STORAGE_KEY = 'terp.language';
+
+/**
+ * Dates follow the language, not the browser. Luxon formats with the browser's
+ * locale unless told otherwise, and the app's language is chosen on the
+ * Appearance page rather than read from the browser - so without this a German
+ * grower on an English phone reads German prose with English month names, and
+ * the other way round. Every `toFormat` and `toLocaleString` in the app picks
+ * the default up, so it is set in the two places the language is decided and
+ * nowhere else.
+ */
+const followLanguage = (language: Language): void => {
+  Settings.defaultLocale = language;
+};
 
 const catalogue = async (language: Language): Promise<Record<string, unknown>> => {
   const response = await fetch(`/assets/i18n/${language}.json`);
@@ -44,12 +58,15 @@ export const setLanguage = async (language: Language): Promise<void> => {
   if (!i18next.hasResourceBundle(language, 'translation')) {
     i18next.addResourceBundle(language, 'translation', await catalogue(language));
   }
+  // Before the switch, so the render the switch triggers already formats its dates in the new language.
+  followLanguage(language);
   await i18next.changeLanguage(language);
   document.documentElement.lang = language;
 };
 
 export const initI18n = async (): Promise<typeof i18next> => {
   const language = preferredLanguage();
+  followLanguage(language);
   const [active, fallback] = await Promise.all([catalogue(language), language === FALLBACK_LANGUAGE ? null : catalogue(FALLBACK_LANGUAGE)]);
 
   await i18next.use(initReactI18next).init({
