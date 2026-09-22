@@ -80,7 +80,7 @@ describe('defining what a grow measures', () => {
     const grow = await startAGrow();
     await measure(grow.id, 'ec_input', 1.8);
 
-    const renamed = { ...EC, name: 'Runoff EC', unit: 'µS/cm', target: 2.2, chart: false };
+    const renamed = { ...EC, name: 'Runoff EC', unit: 'µS/cm', targetMin: 2.2, targetMax: 2.6, chart: false };
     const changed = await owner.client
       .patch(`/v1/grows/${grow.id}`)
       .send({ measurements: [HEIGHT, renamed] })

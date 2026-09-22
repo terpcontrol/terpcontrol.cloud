@@ -1,8 +1,16 @@
 import { spawn } from 'node:child_process';
+import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { Db, MongoClient } from 'mongodb';
 import { LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { context } from '../support/api';
+/**
+ * How many steps there are, counted rather than written down, so that a step
+ * added next round does not fail four assertions about log lines. It is read
+ * off the directory rather than imported: this suite is black box, and
+ * importing the list would pull the whole application in behind it.
+ */
+const STEPS = readdirSync(join(__dirname, '..', '..', 'src', 'migrations', 'steps')).filter(name => /^\d{3}-.*\.ts$/u.test(name)).length;
 
 /**
  * The migration as an operator runs it: `npm run migrate`, its dry run and its
@@ -153,7 +161,7 @@ describe('the migration command', () => {
     expect(output).toContain('Dry run: nothing was written.');
     expect(output).toContain('Migration 003-fleet rehearsed in');
     expect(output).toContain(`media.written=${fixture.counts.images}`);
-    expect(output).toMatch(/Migrations: finished; 15 migrations rehearsed in/u);
+    expect(output).toMatch(new RegExp(`Migrations: finished; ${STEPS} migrations rehearsed in`, 'u'));
     expect(await names()).not.toContain('spaces');
   }, 120_000);
 
@@ -193,16 +201,16 @@ describe('the migration command', () => {
     const { output } = await migrate('--allow-rejects');
     const lines = output.split('\n');
 
-    const starting = lines.findIndex(line => line === 'Migration 002-users starting (2 of 15)');
+    const starting = lines.findIndex(line => line === `Migration 002-users starting (2 of ${STEPS})`);
     const applied = lines.findIndex(line => line.startsWith('Migration 002-users applied in '));
-    const later = lines.findIndex(line => line === 'Migration 003-fleet starting (3 of 15)');
+    const later = lines.findIndex(line => line === `Migration 003-fleet starting (3 of ${STEPS})`);
 
-    expect(lines[0]).toContain('15 of 15 to apply; checking the database first');
+    expect(lines[0]).toContain(`${STEPS} of ${STEPS} to apply; checking the database first`);
     expect(starting).toBeGreaterThan(0);
     // Each step is reported where it happens, rather than every step at the end.
     expect(applied).toBe(starting + 1);
     expect(later).toBe(applied + 1);
-    expect(output).toMatch(/Migrations: finished; 15 migrations applied in \d+ ms, \d+ rows refused/u);
+    expect(output).toMatch(new RegExp(`Migrations: finished; ${STEPS} migrations applied in \\d+ ms, \\d+ rows refused`, 'u'));
   }, 120_000);
 
   it('starts from the index state a boot starts from, so a copy is not a collection scan', async () => {
@@ -266,7 +274,9 @@ describe('the migration command', () => {
 
     expect(code).toBe(0);
     // The clause on the run's own line, and the paragraph under the report.
-    expect(output).toMatch(/Migrations: finished; 15 migrations rehearsed in \d+ ms.*, of which \d+ documents were transformed and none written/u);
+    expect(output).toMatch(
+      new RegExp(`Migrations: finished; ${STEPS} migrations rehearsed in \\d+ ms.*, of which \\d+ documents were transformed and none written`, 'u'),
+    );
     expect(output).toContain('How long that took is not how long the upgrade takes.');
     expect(output).toContain('a real run upserts every one of them by `id`,');
     // The real run says nothing of the sort, because its duration is the outage.
@@ -303,16 +313,16 @@ describe('what the server says at boot', () => {
   it('says the migration ran, step by step, and says so again when there is nothing to do', async () => {
     const first = await boot({ allowRejects: true });
 
-    expect(first).toContain('Migrations: 15 of 15 to apply');
-    expect(first).toContain('Migration 002-users starting (2 of 15)');
-    expect(first).toMatch(/Migrations: finished; 15 migrations applied in \d+ ms/u);
+    expect(first).toContain(`Migrations: ${STEPS} of ${STEPS} to apply`);
+    expect(first).toContain(`Migration 002-users starting (2 of ${STEPS})`);
+    expect(first).toMatch(new RegExp(`Migrations: finished; ${STEPS} migrations applied in \\d+ ms`, 'u'));
     expect(first).toContain('API listening on port');
 
     // The line report 1 was about: before it, a boot with nothing to do said
     // nothing at all, and "already migrated" looked exactly like "never ran".
     const second = await boot({ allowRejects: true });
 
-    expect(second).toContain('Migrations: nothing to do; all 15 of them have already been applied');
+    expect(second).toContain(`Migrations: nothing to do; all ${STEPS} of them have already been applied`);
     expect(second).toContain('API listening on port');
   }, 300_000);
 
