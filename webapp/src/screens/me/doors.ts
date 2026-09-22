@@ -66,10 +66,15 @@ export const shareLinksLine = (t: TFunction, links: ShareLink[], now: DateTime):
  * The cameras and their entitlement, with the state word the board sets at
  * the right edge. One camera is named with its own date; several are counted,
  * and the state word then speaks for all of them or says that it cannot.
+ *
+ * An install that gates nothing is said in those words rather than as "active".
+ * Every camera does read as entitled there, but calling that Premium would
+ * promise a self-hosted grower something they have not got and could not lose.
  */
-export const premiumLine = (t: TFunction, cameras: Camera[], now: DateTime): { text: string; aside: string | null } => {
+export const premiumLine = (t: TFunction, cameras: Camera[], now: DateTime, enforced: boolean): { text: string; aside: string | null } => {
   const owned = cameras.filter(camera => camera.removedAt === null && !camera.isDemo);
   if (owned.length === 0) return { text: t('me.door.premium.none'), aside: null };
+  if (!enforced) return { text: t('me.door.premium.ungated', { count: owned.length }), aside: null };
 
   const premium = owned.filter(camera => camera.entitlement.tier === 'premium').length;
   if (owned.length === 1) {

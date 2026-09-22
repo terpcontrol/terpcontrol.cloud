@@ -86,7 +86,7 @@ function AccountDoors({ handle }: { handle: string }) {
   const line = (queries: { data: unknown; isPending: boolean }[], text: () => string): string =>
     queries.every(query => query.data !== undefined) ? text() : queries.some(query => query.isPending) ? t('home.waiting') : t('shell.loadFailed');
 
-  const premium = cameras.data ? premiumLine(t, cameras.data.items, now) : null;
+  const premium = cameras.data && me.data ? premiumLine(t, cameras.data.items, now, me.data.premium.enforced) : null;
 
   return (
     <>

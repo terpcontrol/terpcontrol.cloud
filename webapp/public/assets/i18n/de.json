@@ -1541,7 +1541,9 @@
           "expired": "abgelaufen",
           "free": "gratis",
           "partly": "teils"
-        }
+        },
+        "ungated_one": "{{count}} Kamera · auf dieser Installation ist nichts eingeschränkt",
+        "ungated_other": "{{count}} Kameras · auf dieser Installation ist nichts eingeschränkt"
       },
       "notifications": {
         "none": "kein Kanal an",

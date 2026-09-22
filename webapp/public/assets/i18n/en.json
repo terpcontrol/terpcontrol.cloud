@@ -1545,7 +1545,9 @@
           "expired": "expired",
           "free": "free",
           "partly": "partly"
-        }
+        },
+        "ungated_one": "{{count}} camera · nothing is gated on this install",
+        "ungated_other": "{{count}} cameras · nothing is gated on this install"
       },
       "notifications": {
         "none": "no channel on",
