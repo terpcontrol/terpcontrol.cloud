@@ -29,6 +29,9 @@
  * The alarm bands at the end are derived from the same rows, so that what a
  * stage watches for cannot drift from what it asks for.
  */
+import type { z } from 'zod';
+import type { growthStage } from './common.js';
+type GrowthStage = z.infer<typeof growthStage>;
 export interface ClimatePreset {
     dayTemperature: number;
     nightTemperature: number;
@@ -44,11 +47,11 @@ export interface ClimatePreset {
 /** What outdoor air holds: the target a stage that does not enrich is written with. */
 export declare const AMBIENT_CO2 = 400;
 /** The presets that refine a stage, by the stage they refine. The stage on its own is always an option and is not one of them. */
-export declare const PRESETS_OF_STAGE: Readonly<Partial<Record<string, readonly string[]>>>;
+export declare const PRESETS_OF_STAGE: Readonly<Partial<Record<GrowthStage, readonly string[]>>>;
 /** The stages that have a climate at all, in the order a grow passes through them. */
-export declare const STAGES_WITH_CLIMATE: readonly string[];
+export declare const STAGES_WITH_CLIMATE: readonly GrowthStage[];
 /** The row for a stage and the preset on top of it, falling back to the stage's own; null for a stage with none. */
-export declare const climatePreset: (stage: string, preset: string | null) => ClimatePreset | null;
+export declare const climatePreset: (stage: GrowthStage, preset: string | null) => ClimatePreset | null;
 /**
  * One alarm threshold a stage binds, derived from its climate row so that the
  * rules a tent is watched by move with the stage the way its targets do.
@@ -90,4 +93,5 @@ export declare const CO2_ALARM_PPM = 1500;
  * beginner's tent is safe inside, and a grower who knows better moves them on
  * the rule.
  */
-export declare const stageAlarmBands: (stage: string, preset: string | null) => StageAlarmBand[] | null;
+export declare const stageAlarmBands: (stage: GrowthStage, preset: string | null) => StageAlarmBand[] | null;
+export {};

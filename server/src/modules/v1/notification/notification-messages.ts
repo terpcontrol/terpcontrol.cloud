@@ -1,4 +1,5 @@
-import type { NotificationCategory, Severity, Task } from '@fg2/shared-types/v1';
+import type { Task } from '@fg2/shared-types/v1';
+import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { AlarmEvent } from '@modules/alarm/alarm.types';
@@ -20,15 +21,11 @@ import { Announcement } from './notification.types';
  */
 
 /**
- * Which row of the routing grid an alarm falls in. It is read off the alert
- * rather than the rule, so that a resolution lands in the row the alarm was
- * announced in however the rule has been edited since. An info alarm is in
- * neither row: it stays in the inbox and is never announced.
+ * Null for an alarm that is not announced at all. The row is the contract's
+ * `alertCategory`, read off the alert rather than the rule so that a resolution
+ * lands in the row the alarm was announced in however the rule has been edited
+ * since.
  */
-export const alertCategory = (severity: Severity): NotificationCategory | null =>
-  severity === 'critical' ? 'alerts' : severity === 'warning' ? 'warnings' : null;
-
-/** Null for an alarm that is not announced at all. */
 export const alertAnnouncement = (event: AlarmEvent, alert: StoredAlert, rule: StoredAlarmRule | null): Announcement | null => {
   const category = alertCategory(alert.severity);
   if (!category) return null;

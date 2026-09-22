@@ -1637,6 +1637,11 @@ export declare const alarmRuleCreate: z.ZodObject<{
             }, z.core.$strip>>;
         }, z.core.$strip>>;
     }, z.core.$strip>;
+    severity: z.ZodEnum<{
+        critical: "critical";
+        warning: "warning";
+        info: "info";
+    }>;
     forSeconds: z.ZodNumber;
     watch: z.ZodDiscriminatedUnion<[z.ZodObject<{
         kind: z.ZodLiteral<"reading">;
@@ -1681,11 +1686,6 @@ export declare const alarmRuleCreate: z.ZodObject<{
             fanBackwall: "fanBackwall";
         }>;
     }, z.core.$strip>], "kind">;
-    severity: z.ZodEnum<{
-        critical: "critical";
-        warning: "warning";
-        info: "info";
-    }>;
     enabled: z.ZodBoolean;
     cooldownSeconds: z.ZodNumber;
     repeatSeconds: z.ZodNumber;
@@ -1722,6 +1722,11 @@ export declare const alarmRuleUpdate: z.ZodObject<{
             }, z.core.$strip>>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    severity: z.ZodOptional<z.ZodEnum<{
+        critical: "critical";
+        warning: "warning";
+        info: "info";
+    }>>;
     forSeconds: z.ZodOptional<z.ZodNumber>;
     watch: z.ZodOptional<z.ZodDiscriminatedUnion<[z.ZodObject<{
         kind: z.ZodLiteral<"reading">;
@@ -1766,11 +1771,6 @@ export declare const alarmRuleUpdate: z.ZodObject<{
             fanBackwall: "fanBackwall";
         }>;
     }, z.core.$strip>], "kind">>;
-    severity: z.ZodOptional<z.ZodEnum<{
-        critical: "critical";
-        warning: "warning";
-        info: "info";
-    }>>;
     enabled: z.ZodOptional<z.ZodBoolean>;
     cooldownSeconds: z.ZodOptional<z.ZodNumber>;
     repeatSeconds: z.ZodOptional<z.ZodNumber>;

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.adminUserUpdate = exports.adminUserCreate = exports.adminUserPage = exports.userExport = exports.exportStatus = exports.notificationLogEntry = exports.notificationSubjectType = exports.telegramLink = exports.pushSubscriptionCreate = exports.pushSubscription = exports.pushSubscriptionKeys = exports.passwordResetRedemption = exports.passwordResetCreate = exports.automationSession = exports.automationSessionCreate = exports.sessionRefresh = exports.demoSessionCreate = exports.sessionResult = exports.sessionUser = exports.sessionCreate = exports.sessionPage = exports.session = exports.sessionTokens = exports.authToken = exports.userActivation = exports.signupUser = exports.userCreate = exports.passwordChange = exports.meUpdate = exports.me = exports.premium = exports.user = exports.notificationSettings = exports.quietHours = exports.notificationRouting = exports.notificationChannels = exports.telegramChannel = exports.webhookChannel = exports.notificationCategory = exports.userRetention = exports.userPreferences = exports.userPrivacy = void 0;
+exports.pushPayload = exports.adminUserUpdate = exports.adminUserCreate = exports.adminUserPage = exports.userExport = exports.exportStatus = exports.notificationLogEntry = exports.notificationSubjectType = exports.telegramLink = exports.pushSubscriptionCreate = exports.pushSubscription = exports.pushSubscriptionKeys = exports.passwordResetRedemption = exports.passwordResetCreate = exports.automationSession = exports.automationSessionCreate = exports.sessionRefresh = exports.demoSessionCreate = exports.sessionResult = exports.sessionUser = exports.sessionCreate = exports.sessionPage = exports.session = exports.sessionTokens = exports.authToken = exports.userActivation = exports.signupUser = exports.userCreate = exports.passwordChange = exports.meUpdate = exports.me = exports.premium = exports.user = exports.notificationSettings = exports.quietHours = exports.notificationRouting = exports.notificationChannels = exports.telegramChannel = exports.webhookChannel = exports.notificationCategory = exports.userRetention = exports.userPreferences = exports.userPrivacy = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -143,6 +143,7 @@ exports.me = (0, common_js_1.named)('Me', exports.user.omit({ activationCode: tr
     premium: exports.premium,
     pushPublicKey: zod_1.z.string().nullable().describe('VAPID public key; null until the install configures a key pair.'),
     telegramAvailable: zod_1.z.boolean(),
+    pushSubscribed: zod_1.z.boolean().describe('Whether any browser of this account is subscribed to push, so a screen can say whether the push row of the grid goes anywhere.'),
 }));
 /**
  * `PATCH /me`. Only what the person owns: the login address is the identity and
@@ -372,3 +373,17 @@ exports.adminUserCreate = (0, common_js_1.named)('AdminUserCreate', exports.user
  * receive the mail.
  */
 exports.adminUserUpdate = (0, common_js_1.named)('AdminUserUpdate', exports.adminUserCreate.partial());
+/**
+ * What a Web Push carries, as the server encodes it and the service worker
+ * reads it: the two lines of the announcement and what it is about. It is
+ * named here because the worker in the browser and the channel on the server
+ * are two ends of one wire, and a field renamed on one end would otherwise be
+ * found by a push that shows nothing.
+ */
+exports.pushPayload = (0, common_js_1.named)('PushPayload', zod_1.z.object({
+    title: zod_1.z.string(),
+    body: zod_1.z.string(),
+    category: exports.notificationCategory,
+    subject: (0, common_js_1.subjectRef)(exports.notificationSubjectType),
+    severity: common_js_1.severity,
+}));

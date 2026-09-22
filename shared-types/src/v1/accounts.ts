@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { id, instant, named, notificationChannel, page, subjectRef, unitPreference, webhookMethod } from './common.js';
+import { id, instant, named, notificationChannel, page, severity, subjectRef, unitPreference, webhookMethod } from './common.js';
 
 /**
  * The account half of `/v1`: who somebody is, how they are signed in, and how
@@ -186,6 +186,7 @@ export const me = named(
     premium: premium,
     pushPublicKey: z.string().nullable().describe('VAPID public key; null until the install configures a key pair.'),
     telegramAvailable: z.boolean(),
+    pushSubscribed: z.boolean().describe('Whether any browser of this account is subscribed to push, so a screen can say whether the push row of the grid goes anywhere.'),
   }),
 );
 
@@ -489,3 +490,21 @@ export const adminUserCreate = named(
  * receive the mail.
  */
 export const adminUserUpdate = named('AdminUserUpdate', adminUserCreate.partial());
+
+/**
+ * What a Web Push carries, as the server encodes it and the service worker
+ * reads it: the two lines of the announcement and what it is about. It is
+ * named here because the worker in the browser and the channel on the server
+ * are two ends of one wire, and a field renamed on one end would otherwise be
+ * found by a push that shows nothing.
+ */
+export const pushPayload = named(
+  'PushPayload',
+  z.object({
+    title: z.string(),
+    body: z.string(),
+    category: notificationCategory,
+    subject: subjectRef(notificationSubjectType),
+    severity: severity,
+  }),
+);

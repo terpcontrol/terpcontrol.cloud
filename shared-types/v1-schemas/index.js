@@ -35,3 +35,4 @@ __exportStar(require("./diary.js"), exports);
 __exportStar(require("./socket-report.js"), exports);
 __exportStar(require("./feeding.js"), exports);
 __exportStar(require("./climate-presets.js"), exports);
+__exportStar(require("./alert-routing.js"), exports);

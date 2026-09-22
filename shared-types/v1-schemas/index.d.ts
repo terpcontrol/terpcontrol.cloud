@@ -16,3 +16,4 @@ export * from './diary.js';
 export * from './socket-report.js';
 export * from './feeding.js';
 export * from './climate-presets.js';
+export * from './alert-routing.js';

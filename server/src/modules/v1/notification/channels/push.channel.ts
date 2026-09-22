@@ -5,6 +5,7 @@ import { Model } from 'mongoose';
 // A default import: the package is CommonJS, and a named import cannot be
 // linked from it by a static module reader.
 import webPush from 'web-push';
+import type { PushPayload } from '@fg2/shared-types/v1';
 import { notificationsConfig } from '../../../../config/configuration';
 import { MODEL_V1 } from '@database/models';
 import { StoredPushSubscription } from '@database/schemas/v1/push-subscriptions.schema';
@@ -46,13 +47,15 @@ export class PushChannel implements NotificationChannelSender {
     const subscriptions = await this.subscriptions.find({ userId: to.id }).lean<StoredPushSubscription[]>();
     if (subscriptions.length === 0) return null;
 
-    const payload = JSON.stringify({
+    // The shape the service worker in the browser reads: named in the contract,
+    // because the two are ends of one wire.
+    const payload: PushPayload = {
       title: message.title,
       body: message.body,
       category: message.category,
       subject: message.subject,
       severity: message.severity,
-    });
+    };
     const vapidDetails = {
       subject: this.config.pushContact!,
       publicKey: this.config.pushPublicKey!,
@@ -62,7 +65,7 @@ export class PushChannel implements NotificationChannelSender {
     let delivered = 0;
     for (const subscription of subscriptions) {
       try {
-        await webPush.sendNotification({ endpoint: subscription.endpoint, keys: subscription.keys }, payload, { vapidDetails });
+        await webPush.sendNotification({ endpoint: subscription.endpoint, keys: subscription.keys }, JSON.stringify(payload), { vapidDetails });
         delivered += 1;
       } catch (error) {
         await this.forget(subscription, error);

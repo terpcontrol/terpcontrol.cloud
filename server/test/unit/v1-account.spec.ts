@@ -61,7 +61,7 @@ let resets: PasswordResetService;
 let sessions: SessionsService;
 
 const build = (): void => {
-  accounts = new AccountsService(database.users, { ...auth }, { ...premium }, { ...notifications });
+  accounts = new AccountsService(database.users, database.pushSubscriptions, { ...auth }, { ...premium }, { ...notifications });
   resets = new PasswordResetService(database.passwordResets, accounts, mail as never, app as never);
   sessions = new SessionsService(database.sessions, accounts, { ...auth });
 };
@@ -124,7 +124,13 @@ describe('signing up', () => {
   });
 
   it('is sent a code, and is not active until it is used, where the install asks for one', async () => {
-    accounts = new AccountsService(database.users, { ...auth, requireActivation: true }, { ...premium }, { ...notifications });
+    accounts = new AccountsService(
+      database.users,
+      database.pushSubscriptions,
+      { ...auth, requireActivation: true },
+      { ...premium },
+      { ...notifications },
+    );
 
     const user = await signUp('activating');
     expect(user.isActive).toBe(false);
@@ -147,21 +153,41 @@ describe('signing up', () => {
 
 describe('what is serialised', () => {
   it('hands an administrator the activation code and its owner nothing of the kind', async () => {
-    accounts = new AccountsService(database.users, { ...auth, requireActivation: true }, { ...premium }, { ...notifications });
+    accounts = new AccountsService(
+      database.users,
+      database.pushSubscriptions,
+      { ...auth, requireActivation: true },
+      { ...premium },
+      { ...notifications },
+    );
     const user = await signUp('serialised');
 
     expect(accounts.serialise(user).activationCode).not.toBeNull();
-    expect(accounts.serialiseMe(user)).not.toHaveProperty('activationCode');
+    expect(await accounts.serialiseMe(user)).not.toHaveProperty('activationCode');
   });
 
   it('tells the account what this install says about Premium and its channels', async () => {
     const user = await signUp('install');
 
-    expect(accounts.serialiseMe(user)).toMatchObject({
+    expect(await accounts.serialiseMe(user)).toMatchObject({
       premium: { enforced: true, extendUrl: null, priceLabel: null },
       pushPublicKey: null,
       telegramAvailable: false,
+      pushSubscribed: false,
     });
+  });
+
+  it('says a browser of the account has subscribed to push, whichever browser it was', async () => {
+    const user = await signUp('subscribed');
+    await database.pushSubscriptions.create({
+      id: 'sub-1',
+      userId: user.id,
+      endpoint: 'https://push.example/sub-1',
+      keys: { p256dh: 'p', auth: 'a' },
+      userAgent: null,
+    });
+
+    expect((await accounts.serialiseMe(user)).pushSubscribed).toBe(true);
   });
 
   it('answers instants as ISO strings, never as dates', async () => {
@@ -188,7 +214,7 @@ describe('changing an account', () => {
     });
 
     expect(updated.notifications.mutedUntil).toBeInstanceOf(Date);
-    expect(accounts.serialiseMe(updated)).toMatchObject({
+    expect(await accounts.serialiseMe(updated)).toMatchObject({
       privacy: { hideWeights: true, hideCounts: false },
       notifications: { channels: { email: 'somewhere@test.invalid' }, mutedUntil },
     });
@@ -229,7 +255,13 @@ describe('signing in', () => {
   });
 
   it('refuses an account that has not been activated, and says which it is', async () => {
-    accounts = new AccountsService(database.users, { ...auth, requireActivation: true }, { ...premium }, { ...notifications });
+    accounts = new AccountsService(
+      database.users,
+      database.pushSubscriptions,
+      { ...auth, requireActivation: true },
+      { ...premium },
+      { ...notifications },
+    );
     sessions = new SessionsService(database.sessions, accounts, { ...auth });
 
     const user = await signUp('inactive');
@@ -360,7 +392,13 @@ describe('the account the install seeds', () => {
     expect(seeded?.isAdmin).toBe(true);
     expect(seeded?.handle).toBe('admin');
 
-    accounts = new AccountsService(database.users, { ...auth, adminPassword: NEW_PASSWORD }, { ...premium }, { ...notifications });
+    accounts = new AccountsService(
+      database.users,
+      database.pushSubscriptions,
+      { ...auth, adminPassword: NEW_PASSWORD },
+      { ...premium },
+      { ...notifications },
+    );
     await accounts.onModuleInit();
 
     expect(await database.users.countDocuments({ email: auth.adminUsername })).toBe(1);

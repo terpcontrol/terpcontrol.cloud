@@ -34,6 +34,9 @@ const TICK_MS = 60 * 1000;
 /** What the always-on offline rule is called where a name is shown. */
 const OFFLINE_RULE_NAME = 'Device offline';
 
+/** How often a device that stays gone is said to be gone. */
+const OFFLINE_REPEAT_SECONDS = 30 * 60;
+
 /**
  * How many stills a camera may miss before it is called stale, and the floor
  * under that: a camera asked every 30 seconds is not stale after two minutes,
@@ -127,7 +130,12 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
             'watch.output': null,
             'watch.upper': null,
             'watch.lower': null,
-            severity: 'warning',
+            // A controller that has gone quiet is the one alarm nothing else
+            // can raise, so it is critical and said again until the device is
+            // back, as the decided screen has it. Once written it is the
+            // grower's rule: a severity or a repeat they changed stays changed.
+            severity: 'critical',
+            repeatSeconds: OFFLINE_REPEAT_SECONDS,
             origin: 'always',
           },
         },

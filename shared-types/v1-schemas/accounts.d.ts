@@ -340,6 +340,7 @@ export declare const me: z.ZodObject<{
     }, z.core.$strip>;
     pushPublicKey: z.ZodNullable<z.ZodString>;
     telegramAvailable: z.ZodBoolean;
+    pushSubscribed: z.ZodBoolean;
 }, z.core.$strip>;
 /**
  * `PATCH /me`. Only what the person owns: the login address is the identity and
@@ -797,4 +798,36 @@ export declare const adminUserUpdate: z.ZodObject<{
     password: z.ZodOptional<z.ZodString>;
     isAdmin: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
     isActive: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
+}, z.core.$strip>;
+/**
+ * What a Web Push carries, as the server encodes it and the service worker
+ * reads it: the two lines of the announcement and what it is about. It is
+ * named here because the worker in the browser and the channel on the server
+ * are two ends of one wire, and a field renamed on one end would otherwise be
+ * found by a push that shows nothing.
+ */
+export declare const pushPayload: z.ZodObject<{
+    title: z.ZodString;
+    body: z.ZodString;
+    category: z.ZodEnum<{
+        plan: "plan";
+        alerts: "alerts";
+        warnings: "warnings";
+        tasks: "tasks";
+        weekly_timelapse: "weekly_timelapse";
+    }>;
+    subject: z.ZodObject<{
+        type: z.ZodEnum<{
+            media: "media";
+            alert: "alert";
+            plan: "plan";
+            task: "task";
+        }>;
+        id: z.ZodString;
+    }, z.core.$strip>;
+    severity: z.ZodEnum<{
+        critical: "critical";
+        warning: "warning";
+        info: "info";
+    }>;
 }, z.core.$strip>;

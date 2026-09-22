@@ -9,6 +9,7 @@ import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v
 import { PageQuery } from '@common/v1/validation';
 import { conflict, notFound } from '@common/v1/problem';
 import { MODEL_V1 } from '@database/models';
+import { StoredPushSubscription } from '@database/schemas/v1/push-subscriptions.schema';
 import { StoredNotificationSettings, StoredUser } from '@database/schemas/v1/users.schema';
 import { authConfig, notificationsConfig, premiumConfig } from '@config/configuration';
 import { logger } from '@utils/logger';
@@ -36,6 +37,7 @@ const WITH_PASSWORD = '+passwordHash';
 export class AccountsService implements OnModuleInit {
   constructor(
     @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
+    @InjectModel(MODEL_V1.pushSubscription) private readonly pushSubscriptions: Model<StoredPushSubscription>,
     @Inject(authConfig.KEY) private readonly auth: ConfigType<typeof authConfig>,
     @Inject(premiumConfig.KEY) private readonly premium: ConfigType<typeof premiumConfig>,
     @Inject(notificationsConfig.KEY) private readonly notifications: ConfigType<typeof notificationsConfig>,
@@ -253,8 +255,11 @@ export class AccountsService implements OnModuleInit {
    * only ever handed to an administrator, and with the three facts about this
    * install that the account screens need before they can offer anything.
    */
-  public serialiseMe(user: StoredUser): Me {
+  public async serialiseMe(user: StoredUser): Promise<Me> {
     const { activationCode: _code, ...rest } = this.serialise(user);
+    // Whether the push row of the grid goes anywhere: a browser somewhere has
+    // subscribed, which is the one half of the channel the account holds.
+    const pushSubscribed = (await this.pushSubscriptions.countDocuments({ userId: user.id })) > 0;
 
     return {
       ...rest,
@@ -268,6 +273,7 @@ export class AccountsService implements OnModuleInit {
       // actually send - which is what "the screen says so" needs to be true of.
       pushPublicKey: this.notifications.pushPrivateKey && this.notifications.pushContact ? this.notifications.pushPublicKey : null,
       telegramAvailable: !!(this.notifications.telegramBotToken && this.notifications.telegramBotUsername),
+      pushSubscribed,
     };
   }
 

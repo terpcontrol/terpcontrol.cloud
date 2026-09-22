@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import type { Device, DeviceConfiguration, DeviceSettings } from '@fg2/shared-types/v1';
+import type { Device, DeviceConfiguration, DeviceSettings, GrowthStage } from '@fg2/shared-types/v1';
 import { climatePreset, PRESETS_OF_STAGE, STAGES_WITH_CLIMATE, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 
 /**
@@ -126,7 +126,7 @@ export const withDraft = (configuration: DeviceConfiguration, draft: TargetsDraf
 
 /** A chip: a stage on its own, or a preset refining one. */
 export interface PresetChip {
-  stage: string;
+  stage: GrowthStage;
   preset: string | null;
 }
 

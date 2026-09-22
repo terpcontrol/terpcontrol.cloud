@@ -1,4 +1,5 @@
 /// <reference lib="webworker" />
+import type { PushPayload as ContractPushPayload } from '@fg2/shared-types/v1';
 import { createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
 import { StaleWhileRevalidate } from 'workbox-strategies';
@@ -20,12 +21,8 @@ precacheAndRoute(self.__WB_MANIFEST);
 registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')));
 registerRoute(({ url }) => url.pathname.startsWith('/assets/'), new StaleWhileRevalidate({ cacheName: 'assets' }));
 
-/** What the server encodes into a push: the two lines of the announcement and what it is about. */
-interface PushPayload {
-  title?: string;
-  body?: string;
-  subject?: { type?: string; id?: string };
-}
+/** What the server encodes into a push, in the contract's shape; a push with a body that is not one still shows something. */
+type PushPayload = Partial<ContractPushPayload>;
 
 /** Where a tap on the notification lands, by what it is about: the inbox for an alarm, the list for a task. */
 const pathOf = (subject: PushPayload['subject']): string => {

@@ -859,6 +859,10 @@
       },
       "telegramAvailable": {
         "type": "boolean"
+      },
+      "pushSubscribed": {
+        "type": "boolean",
+        "description": "Whether any browser of this account is subscribed to push, so a screen can say whether the push row of the grid goes anywhere."
       }
     },
     "required": [
@@ -878,7 +882,8 @@
       "deletionStartedAt",
       "premium",
       "pushPublicKey",
-      "telegramAvailable"
+      "telegramAvailable",
+      "pushSubscribed"
     ]
   },
   "MeUpdate": {
@@ -1548,6 +1553,46 @@
         "type": "boolean"
       }
     }
+  },
+  "PushPayload": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string"
+      },
+      "body": {
+        "type": "string"
+      },
+      "category": {
+        "$ref": "#/components/schemas/NotificationCategory"
+      },
+      "subject": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/NotificationSubjectType"
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "type",
+          "id"
+        ]
+      },
+      "severity": {
+        "$ref": "#/components/schemas/Severity"
+      }
+    },
+    "required": [
+      "title",
+      "body",
+      "category",
+      "subject",
+      "severity"
+    ]
   },
   "FirmwareChannel": {
     "type": "string",

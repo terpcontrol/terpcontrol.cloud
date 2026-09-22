@@ -30,6 +30,11 @@
  * stage watches for cannot drift from what it asks for.
  */
 
+import type { z } from 'zod';
+import type { growthStage } from './common.js';
+
+type GrowthStage = z.infer<typeof growthStage>;
+
 export interface ClimatePreset {
   dayTemperature: number;
   nightTemperature: number;
@@ -47,7 +52,7 @@ export interface ClimatePreset {
 export const AMBIENT_CO2 = 400;
 
 /** The presets that refine a stage, by the stage they refine. The stage on its own is always an option and is not one of them. */
-export const PRESETS_OF_STAGE: Readonly<Partial<Record<string, readonly string[]>>> = {
+export const PRESETS_OF_STAGE: Readonly<Partial<Record<GrowthStage, readonly string[]>>> = {
   vegetative: ['autoflower'],
   flowering: ['late_flowering', 'autoflower'],
 };
@@ -72,10 +77,10 @@ const PRESETS: Readonly<Record<string, ClimatePreset>> = {
 };
 
 /** The stages that have a climate at all, in the order a grow passes through them. */
-export const STAGES_WITH_CLIMATE: readonly string[] = ['germination', 'seedling', 'vegetative', 'flowering', 'drying'];
+export const STAGES_WITH_CLIMATE: readonly GrowthStage[] = ['germination', 'seedling', 'vegetative', 'flowering', 'drying'];
 
 /** The row for a stage and the preset on top of it, falling back to the stage's own; null for a stage with none. */
-export const climatePreset = (stage: string, preset: string | null): ClimatePreset | null =>
+export const climatePreset = (stage: GrowthStage, preset: string | null): ClimatePreset | null =>
   (preset === null ? null : PRESETS[`${stage}:${preset}`]) ?? PRESETS[stage] ?? null;
 
 /* ------------------------------------------------------------ alarm bands */
@@ -120,7 +125,7 @@ const MINUTE = 60;
  * beginner's tent is safe inside, and a grower who knows better moves them on
  * the rule.
  */
-export const stageAlarmBands = (stage: string, preset: string | null): StageAlarmBand[] | null => {
+export const stageAlarmBands = (stage: GrowthStage, preset: string | null): StageAlarmBand[] | null => {
   const climate = climatePreset(stage, preset);
   if (!climate) return null;
 

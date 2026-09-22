@@ -55,6 +55,7 @@ const me = (notifications: Partial<NotificationSettings> = {}, over: Partial<Me>
   premium: { enforced: false, extendUrl: null, priceLabel: null },
   pushPublicKey: 'BAbC',
   telegramAvailable: true,
+  pushSubscribed: false,
   ...over,
 });
 

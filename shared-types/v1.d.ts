@@ -388,6 +388,10 @@ export interface Me {
    */
   pushPublicKey: string | null;
   telegramAvailable: boolean;
+  /**
+   * Whether any browser of this account is subscribed to push, so a screen can say whether the push row of the grid goes anywhere.
+   */
+  pushSubscribed: boolean;
 }
 
 export interface MeUpdate {
@@ -582,6 +586,17 @@ export interface AdminUserUpdate {
   password?: string;
   isAdmin?: boolean;
   isActive?: boolean;
+}
+
+export interface PushPayload {
+  title: string;
+  body: string;
+  category: NotificationCategory;
+  subject: {
+    type: NotificationSubjectType;
+    id: string;
+  };
+  severity: Severity;
 }
 
 export interface DeviceConfiguration {
