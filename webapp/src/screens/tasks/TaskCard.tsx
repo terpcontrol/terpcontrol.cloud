@@ -24,6 +24,11 @@ interface TaskCardProps {
   onDone: (() => void) | null;
   /** Opening the rhythm to change it, where this session manages the place and the task is a reminder's. */
   onEdit: (() => void) | null;
+  /**
+   * Why there is no circle to tap, where the reason is worth saying: a card
+   * with a dead circle and nothing beside it reads as a card that is broken.
+   */
+  why?: string | null;
 }
 
 /**
@@ -43,7 +48,7 @@ interface TaskCardProps {
  * to what the tent is holding rather than a diary line, and it cannot be taken
  * back from here.
  */
-export function TaskCard({ task, name, reminder, deviceId, me, now, onDone, onEdit }: TaskCardProps) {
+export function TaskCard({ task, name, reminder, deviceId, me, now, onDone, onEdit, why = null }: TaskCardProps) {
   const { t } = useTranslation();
   const [asking, setAsking] = useState(false);
   const title = titleOf(t, task);
@@ -74,6 +79,8 @@ export function TaskCard({ task, name, reminder, deviceId, me, now, onDone, onEd
         ) : null}
         <Assignee task={task} me={me} />
       </div>
+
+      {!onDone && why ? <p className={`${ui.note} ${styles.why}`}>{why}</p> : null}
 
       {asking && onDone ? (
         <div className={styles.stepAsk}>

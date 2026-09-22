@@ -135,6 +135,14 @@
 /* What the camera last said went wrong. It is the camera's own words and can be
    a paragraph of ffmpeg, so the line says as much of it as a line holds and
    keeps the rest where hovering finds it. */
+/* What a member is told where the settings form and the film buttons are not. */
+.role {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 .lastError {
   display: -webkit-box;
   overflow: hidden;

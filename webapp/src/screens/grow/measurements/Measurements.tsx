@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import type { MeasurementDefinition } from '@fg2/shared-types/v1';
 import { useGrow, useGrowSeries, useUpdateGrow } from '@/api/grows';
-import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
-import { useMayManage } from '@/ui/session-access';
+import { noLongerThere } from '@/api/problem';
+import { LoadFailed, NoLongerHere, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
+import { enough, standsIn, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { bandOf, fromTemplate, readingCounts, ruleOf, TEMPLATES } from './definitions';
@@ -41,7 +42,9 @@ function MeasurementsScreen({ growId }: { growId: string }) {
     definitions.map(definition => definition.key),
   );
   const update = useUpdateGrow(growId);
-  const mayManage = useMayManage();
+  // What a grow measures is part of the grow, so changing it is `manage` where
+  // the grow stands rather than anything about the session.
+  const mayWith = useMayWith();
   const [editing, setEditing] = useState<MeasurementDefinition | null>(null);
   const [adding, setAdding] = useState(false);
 
@@ -53,7 +56,9 @@ function MeasurementsScreen({ growId }: { growId: string }) {
       </section>
     );
   }
-  if (!grow.data) return <LoadFailed retry={() => void grow.refetch()} />;
+  if (!grow.data) return noLongerThere(grow.error) ? <NoLongerHere what="grow" /> : <LoadFailed retry={() => void grow.refetch()} />;
+
+  const mayManage = enough(mayWith({ ownerId: grow.data.ownerId, spaceId: standsIn(grow.data) }), 'manage');
 
   // Null until the series has answered: what has been measured is what settles
   // a definition, and the screen says nothing about it before it knows.

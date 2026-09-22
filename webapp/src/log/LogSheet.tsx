@@ -8,6 +8,7 @@ import { useGrow, useGrowPlants } from '@/api/grows';
 import { useHome } from '@/api/home';
 import { ageLabel } from '@/ui/age';
 import { readingFigure } from '@/ui/entries';
+import { enough, standsIn, useMayWith } from '@/ui/session-access';
 import { useNow } from '@/ui/useNow';
 import ui from '@/ui/ui.module.css';
 import { lastCan, newestOf, nextStage, schemeStep } from './defaults';
@@ -59,6 +60,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
   const now = useNow();
   const { log, openDetails } = useLog();
   const { data: home, isPending } = useHome();
+  const mayWith = useMayWith();
 
   // Two choices, because the second one lives inside the first: which place,
   // and whether the line is about the tent or one plant of it rather than the
@@ -78,9 +80,15 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
   const narrower = useMemo(() => narrowerTargets(home, place, plants?.items ?? []), [home, place, plants]);
   const target = narrower.find(one => one.key === narrowKey) ?? place;
   const entries = recent?.items ?? [];
+  // Seven of the eight tiles write a diary line, which is what a membership to
+  // log is for. A phase is the one that is not: it moves the grow to another
+  // stage and puts the tent's climate on it, which the decision record keeps at
+  // `manage` where the grow stands - so in a tent somebody only writes in, that
+  // tile is not there rather than there and refused.
+  const mayStartAPhase = grow ? enough(mayWith({ ownerId: grow.ownerId, spaceId: standsIn(grow) }), 'manage') : false;
   // A reading is written against a grow's own measurements, so a tent with
   // nothing growing in it has nothing to measure and is not offered the tile.
-  const tiles = TILES.filter(tile => tile.kind !== 'measurement' || Boolean(target?.growId));
+  const tiles = TILES.filter(tile => (tile.kind === 'measurement' ? Boolean(target?.growId) : tile.kind === 'phase' ? mayStartAPhase : true));
 
   // A tile says what it is about to write - "2 L · last 3 d" - and one tap
   // writes exactly that, so until the lines it reads that off are here it

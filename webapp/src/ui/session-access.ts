@@ -1,4 +1,4 @@
-import type { AccessNeed, Space } from '@fg2/shared-types/v1';
+import type { AccessNeed, Placement, Space } from '@fg2/shared-types/v1';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 
@@ -16,6 +16,14 @@ import { useSpaces } from '@/api/spaces';
  * worked out here from an owner id and a membership list - the server decides
  * access and this only decides what to draw, so the two must not be able to
  * disagree.
+ *
+ * Which of the four needs a control wants is the same table the routes declare
+ * with `@Requires`: `own` for claiming, unclaiming, unpairing, publishing and
+ * everything about who else is here; `manage` for configuration, the plan, the
+ * alarm rules, the sockets, a camera's settings and other people's entries;
+ * `log` for writing a line, a photo or a tick of one's own. A screen that asks
+ * for more than the route does hides a control somebody is allowed to use,
+ * which is the same kind of lie in the other direction.
  */
 
 /** The four needs as the ladder they are: `own` implies the rest, `manage` implies `log` and `view`. */
@@ -33,34 +41,98 @@ export const mayInSpace = (space: Space | null | undefined, isDemo: boolean): Ac
   space === null || space === undefined ? undefined : isDemo ? 'view' : space.youMay;
 
 /**
+ * The same question asked of many places at once, as the question rather than
+ * as an answer.
+ *
+ * A list that draws rows from more than one place - every device this account
+ * has, every task that is due, the cameras of a whole account - cannot ask per
+ * row, because a hook is not called in a loop. So this reads the list the shell
+ * already holds once and hands back the lookup, which is a plain function and
+ * may be called as often as there are rows.
+ *
+ * `enabled` is for the one reader that may have no place to ask about at all: a
+ * screen standing above every place asks nothing rather than fetching the whole
+ * list to answer a question it has not got a place for.
+ */
+export const useMayInEach = (enabled = true): ((spaceId: string | null) => AccessNeed | undefined) => {
+  const { user } = useSession();
+  const spaces = useSpaces(enabled);
+
+  return (spaceId: string | null) => {
+    if (spaceId === null) return undefined;
+    if (user?.isDemo === true) return 'view';
+
+    return spaces.data?.items.find(space => space.id === spaceId)?.youMay;
+  };
+};
+
+/**
  * The same answer for a space known only by its id, read from the list the
  * shell already holds. A space that is not in the list is one this account
  * cannot see at all, so the answer is `undefined` rather than `view` - "not
  * yet" and "not yours" are different things and only one of them is worth
  * waiting for.
  */
-export const useMayInSpace = (spaceId: string | null): AccessNeed | undefined => {
+export const useMayInSpace = (spaceId: string | null): AccessNeed | undefined => useMayInEach(spaceId !== null)(spaceId);
+
+/** Something that stands somewhere: a device, a camera, a grow. Both fields are what the access decision is made of. */
+export interface Standing {
+  ownerId: string | null;
+  spaceId: string | null;
+}
+
+/**
+ * What this session may do with a thing that stands in a place.
+ *
+ * Whoever owns it may do everything with it wherever it is, which is the answer
+ * for a device that has been claimed and not yet put anywhere and for a grow
+ * with no fixed place; for everybody else the place it stands in decides,
+ * exactly as `access()` decides it. A thing standing nowhere that is not yours
+ * is one you could not have been shown at all, so it answers `undefined`.
+ */
+export const useMayWith = (): ((thing: Standing) => AccessNeed | undefined) => {
   const { user } = useSession();
-  const spaces = useSpaces(spaceId !== null);
+  const mayIn = useMayInEach();
 
-  if (spaceId === null) return undefined;
-  if (user?.isDemo === true) return 'view';
+  return thing => {
+    if (user === null) return undefined;
+    if (user.isDemo) return 'view';
+    if (thing.ownerId !== null && thing.ownerId === user.id) return 'own';
 
-  return spaces.data?.items.find(space => space.id === spaceId)?.youMay;
+    return mayIn(thing.spaceId);
+  };
 };
 
 /**
- * Whether this session may change hardware in a given place: a socket's
- * override, a camera's settings, a film it is asked to render, the plan.
+ * Where a grow stands now, which is the place that decides what may be done to
+ * it. A grow is read through every place it has ever stood in and written to
+ * only through the one it stands in today, so the open placement is the one
+ * that answers; a grow with no fixed place is its owner's alone.
+ */
+export const standsIn = (grow: { placements: Placement[] }): string | null =>
+  grow.placements.find(placement => placement.endedAt === null)?.spaceId ?? null;
+
+/**
+ * Whether this session reaches a given need in a given place.
  *
  * Called without a place it answers only the session's half - the demo may
- * not - which is what the screens that stand above any one space need.
+ * not - which is what the screens that stand above any one space need: the
+ * account's own settings, a chart view, the mute on the inbox.
  */
-export const useMayManage = (spaceId: string | null = null): boolean => {
+export const useMayIn = (spaceId: string | null, needed: AccessNeed): boolean => {
   const { user } = useSession();
   const may = useMayInSpace(spaceId);
 
   if (user === null || user.isDemo) return false;
 
-  return spaceId === null ? true : enough(may, 'manage');
+  return spaceId === null ? true : enough(may, needed);
 };
+
+/**
+ * Whether this session may change hardware in a given place: a socket's
+ * override, a camera's settings, a film it is asked to render, the plan.
+ */
+export const useMayManage = (spaceId: string | null = null): boolean => useMayIn(spaceId, 'manage');
+
+/** Whether this session may write a line of its own in a given place. */
+export const useMayLogIn = (spaceId: string | null = null): boolean => useMayIn(spaceId, 'log');

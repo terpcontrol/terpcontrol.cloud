@@ -433,6 +433,15 @@
   color: var(--muted);
 }
 
+/* What somebody who may only write lines is told instead of the moves: a
+   sentence in the page's own quiet voice, never styled as a control. */
+.role {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 .advancedNote a {
   color: inherit;
 }

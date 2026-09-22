@@ -117,25 +117,27 @@ vi.stubGlobal(
   }),
 );
 
-const drawing = (grow: GrowListItem, queryClient: QueryClient) => (
+// Whether the grid may be changed is the grow page's question, asked of the
+// tent this grow stands in; this screen is handed the answer.
+const drawing = (grow: GrowListItem, queryClient: QueryClient, mayManage = true) => (
   <QueryClientProvider client={queryClient}>
     <MemoryRouter>
-      <Feeding grow={grow} />
+      <Feeding grow={grow} mayManage={mayManage} />
     </MemoryRouter>
   </QueryClientProvider>
 );
 
 /** `rerender` takes the grow rather than the tree, because what moves under this screen is the grow. */
-const draw = (grow: GrowListItem) => {
+const draw = (grow: GrowListItem, mayManage = true) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  const drawn = render(drawing(grow, queryClient));
+  const drawn = render(drawing(grow, queryClient, mayManage));
 
-  return { ...drawn, rerender: (next: GrowListItem) => drawn.rerender(drawing(next, queryClient)) };
+  return { ...drawn, rerender: (next: GrowListItem) => drawn.rerender(drawing(next, queryClient, mayManage)) };
 };
 
 /** The tab once the shipped index has been read, which is when the scheme has a name rather than an id. */
-const drawn = async (grow = growOn(SCHEME)) => {
-  draw(grow);
+const drawn = async (grow = growOn(SCHEME), mayManage = true) => {
+  draw(grow, mayManage);
   return screen.findByText('Biobizz · Light·Mix');
 };
 
@@ -367,9 +369,12 @@ describe('the feeding tab', () => {
     expect(screen.getByText('not saved')).toBeInTheDocument();
   });
 
-  it('shows the demo the same figures and none of the controls that would be refused', async () => {
+  // The demo and a member who may only write lines reach this tab the same way:
+  // the grow page works out what they may do and hands it down, and the tab
+  // draws the figures either way.
+  it('shows somebody who may not change it the same figures and none of the controls', async () => {
     session.user = ON_THE_DEMO;
-    await drawn();
+    await drawn(growOn(SCHEME), false);
 
     expect(screen.getAllByRole('cell', { name: '2' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: 'Bio·Bloom, week 5' })).not.toBeInTheDocument();

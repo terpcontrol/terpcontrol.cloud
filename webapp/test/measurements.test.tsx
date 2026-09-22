@@ -7,12 +7,13 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Entry, GrowListItem, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
+import type { AccessNeed, Entry, GrowListItem, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { LogProvider } from '@/log/LogProvider';
 import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { Measurements } from '@/screens/grow/measurements/Measurements';
+import { spaceWhere, THE_HOST, YOU } from './session';
 
 /**
  * What a grow measures, and taking a reading.
@@ -57,11 +58,16 @@ const runoff: MeasurementDefinition = {
   chart: false,
 };
 
+/** What the reader may do in the tent the grow stands in, which is what decides the form. */
+const state = { measurements: [] as MeasurementDefinition[], seriesFails: false, youMay: 'own' as AccessNeed };
+
 const grow = (measurements: MeasurementDefinition[]): GrowListItem =>
   ({
     id: 'grow-1',
+    ownerId: state.youMay === 'own' ? YOU : THE_HOST,
     name: 'Spring run',
     measurements,
+    placements: [{ id: 'pl-1', spaceId: 'space-1', startedAt: at(35), endedAt: null, plantIds: null }],
     summary: { dayNumber: 35, stage: 'flowering', groups: [], locations: [] },
   }) as unknown as GrowListItem;
 
@@ -125,8 +131,6 @@ const measured: Entry = {
   undoUntil: null,
 };
 
-const state = { measurements: [height, ec, runoff] as MeasurementDefinition[], seriesFails: false };
-
 const answers = (path: string) => {
   if (path.startsWith('/grows/grow-1/series')) {
     if (state.seriesFails) throw new ApiError({ status: 500, code: 'boom', title: 'Server error', detail: 'Something broke.', errors: [] });
@@ -135,6 +139,7 @@ const answers = (path: string) => {
   if (path === '/grows/grow-1/plants') return { items: plants, nextCursor: null };
   if (path === '/grows/grow-1') return grow(state.measurements);
   if (path === '/entries') return { items: [measured], nextCursor: null };
+  if (path === '/spaces') return { items: [spaceWhere(state.youMay)], nextCursor: null };
   throw new Error(`nothing mocked for ${path}`);
 };
 
@@ -175,6 +180,7 @@ beforeEach(() => {
   who.demo = false;
   state.measurements = [height, ec, runoff];
   state.seriesFails = false;
+  state.youMay = 'own';
   vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);
   vi.mocked(api.patch).mockImplementation(
     (_path: string, body: unknown) => Promise.resolve(grow((body as { measurements: MeasurementDefinition[] }).measurements)) as never,
@@ -282,6 +288,31 @@ describe('what a grow measures', () => {
     // The switch still says what is drawn; it simply cannot be moved.
     expect(screen.getByRole('switch', { name: 'Height on the chart' })).toBeDisabled();
     expect(screen.getByRole('switch', { name: 'Height on the chart' })).toHaveAttribute('aria-checked', 'true');
+  });
+});
+
+/**
+ * The same grow, standing in a tent this account was let into. What a grow
+ * measures is part of the grow, so changing it is `manage` there - and a member
+ * who may only write lines reads the list and is offered no way to change it.
+ */
+describe('a member who may only log', () => {
+  it('sees the definitions and is offered no templates, no edit and no chart switch', async () => {
+    state.youMay = 'log';
+    await drawScreen();
+
+    const rows = within(screen.getByRole('list', { name: 'Yours' })).getAllByRole('listitem');
+    expect(rows[0]).toHaveTextContent('Height · cm');
+    expect(screen.queryByRole('group', { name: 'Templates' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit Height' })).toBeDisabled();
+    expect(within(rows[2]).getByRole('switch')).toBeDisabled();
+  });
+
+  it('is what the owner is not: the owner gets the templates and the edit', async () => {
+    await drawScreen();
+
+    expect(screen.getByRole('group', { name: 'Templates' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit Height' })).toBeEnabled();
   });
 });
 

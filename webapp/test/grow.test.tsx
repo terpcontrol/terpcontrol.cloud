@@ -224,7 +224,9 @@ beforeEach(() => {
 });
 
 describe('the report tab', () => {
-  const drawReport = () => draw(<Report grow={grow} spaces={[]} now={NOW} />);
+  // Getting a whole grow out as a zip is the owner's; the grow page works out
+  // whose the grow is and hands the answer down.
+  const drawReport = (mayOwn = true) => draw(<Report grow={grow} spaces={[]} mayOwn={mayOwn} now={NOW} />);
 
   it('asks for the zip and says where the job has got to, with nothing to download until there is', async () => {
     wire.job = EXPORT_ROW('rendering');
@@ -264,10 +266,10 @@ describe('the report tab', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled();
   });
 
-  /** A demo session owns nothing to export and the route refuses it, so the tab offers it nothing. */
-  it('offers the demo no export at all', async () => {
+  /** A demo session, and a member of somebody's tent, own nothing to export, so the tab offers them nothing. */
+  it('offers somebody who does not own the grow no export at all', async () => {
     session.user = ON_THE_DEMO;
-    drawReport();
+    drawReport(false);
 
     expect(await screen.findByText('35')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Export this grow' })).not.toBeInTheDocument();

@@ -19,7 +19,7 @@ import { ageAttribute, ageLabel } from '@/ui/age';
 import type { Liveness } from '../home/attention';
 import { EntryRow } from '@/ui/EntryRow';
 import { readingFigure } from '@/ui/entries';
-import { useMayManage } from '@/ui/session-access';
+import { useMayLogIn, useMayManage } from '@/ui/session-access';
 import { weekOfPhase } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { livenessOf, measuredAtOf } from '../home/attention';
@@ -44,7 +44,10 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  */
 export function Overview({ overview, now }: { overview: SpaceOverview; now: DateTime }) {
   const { t } = useTranslation();
-  const mayManage = useMayManage();
+  // What may be done here is a fact about this place and not about the session:
+  // the same account owns the tent above this one and only writes lines in this.
+  const mayManage = useMayManage(overview.spaceId);
+  const mayLog = useMayLogIn(overview.spaceId);
   const hasDevice = overview.deviceIds === null || overview.deviceIds.length > 0;
   const liveness = livenessOf(overview);
   const [sheet, setSheet] = useState<'preset' | 'move' | null>(null);
@@ -63,6 +66,11 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
             {t('space.presets.open')}
           </button>
         </div>
+      ) : mayLog ? (
+        /* The chips above are gone rather than refused, and their absence is
+           the kind somebody would look for - so this says what this person may
+           do here instead, once, where the missing row was. */
+        <p className={`mono ${styles.role}`}>{t('space.youMayLog')}</p>
       ) : null}
 
       {overview.dueTasks.length > 0 ? (
@@ -79,9 +87,10 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
         label={t('space.growingHere')}
         actions={
           <span className={`mono ${styles.sectionActions}`}>
-            <Link to={`/log?kind=phase&space=${overview.spaceId}`}>+ {t('space.newGrow')}</Link>
+            {/* Both of these put a grow into this place, which is managing it. */}
             {mayManage ? (
               <>
+                <Link to={`/log?kind=phase&space=${overview.spaceId}`}>+ {t('space.newGrow')}</Link>
                 {' · '}
                 <button type="button" className={styles.sectionButton} onClick={() => setSheet('move')}>
                   {t('space.moveHere')}

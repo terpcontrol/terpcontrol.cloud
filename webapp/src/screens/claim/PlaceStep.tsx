@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Space, SpaceKind } from '@fg2/shared-types/v1';
 import { useArchiveSpace, usePlaceDevice, useRenameSpace } from '@/api/claims';
 import { Refused } from '@/ui/PageState';
+import { enough } from '@/ui/session-access';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import styles from './Claim.module.css';
@@ -61,8 +62,9 @@ export function PlaceStep({
   // said before the rename rather than refused after it.
   const taken = trimmed !== '' && places.some(one => one.id !== space?.id && one.name.trim().toLowerCase() === trimmed.toLowerCase());
   // A room groups other places rather than holding anything, so a controller
-  // never stands in one.
-  const elsewhere = places.filter(one => one.id !== space?.id && one.kind !== 'room');
+  // never stands in one - and moving a device into a place is managing that
+  // place, so a tent this account only writes lines in is not on offer either.
+  const elsewhere = places.filter(one => one.id !== space?.id && one.kind !== 'room' && enough(one.youMay, 'manage'));
   const busy = place.isPending || archive.isPending;
 
   // The place the claim invented holds this device and nothing else, so once

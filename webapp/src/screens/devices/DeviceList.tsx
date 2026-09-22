@@ -11,7 +11,7 @@ import { useSpaces } from '@/api/spaces';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
-import { useMayManage } from '@/ui/session-access';
+import { enough, useMayLogIn, useMayManage, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { cameraFreshness } from './cameras';
@@ -34,7 +34,14 @@ import styles from './Devices.module.css';
 export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: ClimateVerdict }) {
   const { t } = useTranslation();
   const now = useNow();
-  const mayManage = useMayManage();
+  // The whole-account list draws rows from every place at once, so what may be
+  // done is asked of the row and not of the screen: the same reader owns one
+  // tent and only writes lines in the next, and the sockets of the two must not
+  // look alike. Claiming makes a place of its own and belongs to the session.
+  const mayWith = useMayWith();
+  const maySetUp = useMayManage();
+  const mayManageHere = useMayManage(spaceId ?? null);
+  const mayLogHere = useMayLogIn(spaceId ?? null);
   const devices = useDevices();
   const cameras = useCameras(spaceId);
   const spaces = useSpaces();
@@ -64,7 +71,12 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
     <div className={styles.list}>
       <RefreshFailed failedAt={failedAt} now={now} />
 
-      <Section label={t('devices.controllers')} empty={mine.length === 0 ? t(mayManage ? 'devices.noDevices' : 'devices.noDevicesHere') : null}>
+      {/* On a tent's own tab the switches below are simply gone for somebody
+          who may only write lines, and a list of rows with nothing to press is
+          the kind of absence that reads as a fault. */}
+      {spaceId !== undefined && mayLogHere && !mayManageHere ? <p className={`mono ${styles.role}`}>{t('devices.youMayLog')}</p> : null}
+
+      <Section label={t('devices.controllers')} empty={mine.length === 0 ? t(maySetUp ? 'devices.noDevices' : 'devices.noDevicesHere') : null}>
         {mine.map(device => (
           <DeviceRow
             key={device.id}
@@ -81,7 +93,7 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
       {/* A claim always makes a place of its own, so this is offered on the tab
           that shows everything and not on a tent's list, where it would read as
           adding a device to that tent. */}
-      {spaceId === undefined && mayManage ? (
+      {spaceId === undefined && maySetUp ? (
         <Link className={`${ui.cardDashed} ${styles.addRow}`} to="/claim">
           + {t('claim.addDevice')}
         </Link>
@@ -94,7 +106,7 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
           // Only on the Devices tab: a tent's own list is the same component,
           // and the screen behind this asks which place a camera is for rather
           // than taking the one it was opened from.
-          mayManage && spaceId === undefined ? (
+          maySetUp && spaceId === undefined ? (
             <Link className={`${ui.chip} ${styles.addCamera}`} to="/cameras/add">
               + {t('cameras.add.title')}
             </Link>
@@ -135,6 +147,9 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
         const unheard = deviceLiveness(device.state.lastSeenAt, now) === 'offline' ? t('devices.socket.offline') : null;
         const refusal = !table.capabilities.socketOverride ? t('devices.socket.needsFirmware') : unheard;
         const place = placeOf(device.spaceId) ?? deviceTitle(device, t);
+        // A socket and the lamp above it are this device's configuration, which
+        // is `manage` where the device stands.
+        const mayManage = enough(mayWith(device), 'manage');
 
         const plugs = (list: SocketRowModel[]) =>
           list.map(row => (

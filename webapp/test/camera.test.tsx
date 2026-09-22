@@ -8,9 +8,11 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Camera, GrowListItem, TimelapseCreate } from '@fg2/shared-types/v1';
+import type { AccessNeed, Camera, GrowListItem, TimelapseCreate } from '@fg2/shared-types/v1';
+import { CameraScreen } from '@/screens/camera/CameraPage';
 import { Composer } from '@/screens/camera/Composer';
 import { Film } from '@/screens/camera/Film';
+import { THE_HOST, YOU } from './session';
 
 /**
  * The composer, and the job it starts.
@@ -22,7 +24,7 @@ import { Film } from '@/screens/camera/Film';
  */
 
 const asked: TimelapseCreate[] = [];
-const state = vi.hoisted(() => ({ film: null as unknown }));
+const state = vi.hoisted(() => ({ film: null as unknown, youMay: 'own' as AccessNeed, lastError: null as string | null }));
 
 vi.mock('@/api/cameras', async importOriginal => ({
   ...(await importOriginal<object>()),
@@ -35,6 +37,16 @@ vi.mock('@/api/session', async importOriginal => {
   const { SIGNED_IN } = await import('./session');
 
   return { ...(await importOriginal<object>()), mediaUrl: (id: string) => `/media/${id}`, useSession: () => SIGNED_IN };
+});
+
+/**
+ * What this account may do with the camera is worked out from the place it
+ * stands in and from who owns it, so both halves are answered here.
+ */
+vi.mock('@/api/spaces', async importOriginal => {
+  const { spaceWhere, spacesAnswering } = await import('./session');
+
+  return { ...(await importOriginal<object>()), useSpaces: () => spacesAnswering(spaceWhere(state.youMay)) };
 });
 
 const NOW = DateTime.fromISO('2026-09-19T12:00:00.000Z');
@@ -99,6 +111,8 @@ beforeAll(async () => {
 beforeEach(() => {
   asked.length = 0;
   state.film = null;
+  state.youMay = 'own';
+  state.lastError = null;
 });
 
 describe('the composer', () => {
@@ -160,6 +174,62 @@ describe('the composer', () => {
     expect(asked[0].overlays).toEqual({ dayCounter: false, climate: true, entries: true });
     expect(asked[0].includeLightsOff).toBe(true);
     expect(asked[0].aspect).toBe('9_16');
+  });
+});
+
+/**
+ * The camera's own page, by who is reading it.
+ *
+ * Its settings and the films it renders are `manage` where it stands, taking it
+ * off the account is `own`, and the reason a capture last failed is the
+ * camera's address, its tunnel and the paths of the process that reached for
+ * it - which the decision record keeps for the owner along with every other way
+ * of finding the hardware on somebody's home network.
+ */
+describe('the camera page, by who is reading', () => {
+  const drawPage = () =>
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <CameraScreen
+            camera={{ ...camera, ownerId: state.youMay === 'own' ? YOU : THE_HOST, state: { ...camera.state, lastError: state.lastError } }}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+  it('gives the owner the test image, the films, the form and the way to unpair it', () => {
+    state.lastError = 'rtsp://192.168.1.40/stream1 refused';
+    drawPage();
+
+    expect(screen.getByRole('button', { name: 'Test image' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Make a timelapse/ })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Name' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Unpair' })).toBeInTheDocument();
+    expect(screen.getByText(/192\.168\.1\.40/)).toBeInTheDocument();
+  });
+
+  it('gives a member the pictures, none of the controls, and not the address the cloud reaches it at', () => {
+    state.youMay = 'log';
+    state.lastError = 'rtsp://192.168.1.40/stream1 refused';
+    drawPage();
+
+    expect(screen.queryByRole('button', { name: 'Test image' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Make a timelapse/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Name' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Unpair' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/192\.168\.1\.40/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Its settings, its test image and its timelapses are for whoever steers the tent/)).toBeInTheDocument();
+  });
+
+  /** A co-manager runs the tent and may set the camera up; ending it is still the owner's. */
+  it('gives a co-manager the form and withholds the unpair', () => {
+    state.youMay = 'manage';
+    drawPage();
+
+    expect(screen.getByRole('textbox', { name: 'Name' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Test image' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Unpair' })).not.toBeInTheDocument();
   });
 });
 

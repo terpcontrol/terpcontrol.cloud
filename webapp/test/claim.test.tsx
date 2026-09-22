@@ -12,6 +12,7 @@ import type { Device, DeviceCapabilities, GrowListItem, Space } from '@fg2/share
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { Claim } from '@/screens/claim/Claim';
+import { spaceWhere } from './session';
 
 /**
  * Adding a device: what the four steps ask, what each answer puts on the wire,
@@ -71,7 +72,8 @@ const device: Device = {
   },
 };
 
-const space: Space = { id: 'space-new', ownerId: 'user-1', kind: 'other', name: 'Terp Controller', roomId: null } as Space;
+// A device is moved into a place by managing it, so every place here says so.
+const space: Space = spaceWhere('own', { id: 'space-new', kind: 'other', name: 'Terp Controller' });
 
 /** The build the device reports, which is a uuid until the build list gives it a name. */
 const BUILD = { id: 'build-uuid', createdAt: NOW.toISO()!, classId: 'class-1', name: '2.4.1', version: 'build-uuid', wasStable: true };
@@ -79,6 +81,7 @@ const BUILD = { id: 'build-uuid', createdAt: NOW.toISO()!, classId: 'class-1', n
 /** Day 35 of a flowering run in a tent of its own, which is what a move out of it would cost. */
 const spring: GrowListItem = {
   id: 'grow-1',
+  ownerId: 'user-1',
   name: 'Spring run',
   endedAt: null,
   placements: [{ id: 'placement-1', spaceId: 'space-other', startedAt: NOW.minus({ days: 35 }).toISO()!, endedAt: null, plantIds: null }],

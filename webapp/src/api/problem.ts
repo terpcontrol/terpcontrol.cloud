@@ -25,6 +25,20 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Whether a read failed because its subject is not there for this account any
+ * more, rather than because the request never reached an answer.
+ *
+ * The two are worth telling apart on a page somebody is standing on: a dropped
+ * connection is put right by asking again, and being taken out of somebody's
+ * tent never is, so a retry button under that one is a button that can only
+ * fail. `access()` answers 404 to a reader who may not see a subject at all -
+ * it never reports the existence of something somebody may not know about - so
+ * a 404 on the page's own read is the whole signal. A *write* that is refused
+ * comes back 403 and is a different sentence, said where it was asked for.
+ */
+export const noLongerThere = (error: unknown): boolean => error instanceof ApiError && error.status === 404;
+
 /** A response that failed, read as a problem - or turned into one when it is not JSON at all. */
 export const readProblem = async (response: Response): Promise<Problem> => {
   try {

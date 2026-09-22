@@ -15,7 +15,7 @@ import { instantOf } from '@/ui/age';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import { writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
-import { useMayManage } from '@/ui/session-access';
+import { enough, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useCreateSpace } from './create-space';
@@ -148,7 +148,9 @@ function Form({
   const navigate = useNavigate();
   const mayManage = useMayManage();
 
-  const places = spaces.filter(space => space.archivedAt === null && space.kind !== 'room');
+  // Starting a grow in a place is managing it, so the places on offer are the
+  // ones this account manages; "no fixed place" needs none and stays.
+  const places = spaces.filter(space => space.archivedAt === null && space.kind !== 'room' && enough(space.youMay, 'manage'));
   const [draft, setDraft] = useState<Draft>(() => ({
     name: '',
     plants: [{ key: '1', strain: '', count: 1 }],

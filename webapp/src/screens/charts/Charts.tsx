@@ -8,11 +8,12 @@ import { useChartViews } from '@/api/chart-views';
 import { useGrowSeries } from '@/api/charts';
 import { useDevices } from '@/api/devices';
 import { useGrow, useGrowPlants, useSpaceGrows } from '@/api/grows';
+import { noLongerThere } from '@/api/problem';
 import { useSpaces } from '@/api/spaces';
 import { useScrub } from '@/charts/scrub';
 import { axisFigure, dayOfGrow, downloadCsv, valueAt, type PlotLine } from '@/charts/series';
-import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
-import { useMayManage } from '@/ui/session-access';
+import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
+import { standsIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { MoveHereSheet } from '../space/MoveHereSheet';
@@ -82,7 +83,7 @@ export function Charts() {
     return <NoGrow spaceId={spaceId} />;
   }
 
-  if (!grow.data) return <LoadFailed retry={() => void grow.refetch()} />;
+  if (!grow.data) return noLongerThere(grow.error) ? <NoLongerHere what="grow" /> : <LoadFailed retry={() => void grow.refetch()} />;
 
   return <ChartsFor key={growId} grow={grow.data} spaceId={spaceId} />;
 }
@@ -95,7 +96,9 @@ export function Charts() {
  */
 function NoGrow({ spaceId }: { spaceId: string | null }) {
   const { t } = useTranslation();
-  const mayManage = useMayManage();
+  // Both ways on put a grow into this place, which is managing it - so the
+  // question is about the tent named in the query rather than about the session.
+  const mayManage = useMayManage(spaceId);
   const spaces = useSpaces();
   const [moving, setMoving] = useState(false);
   const space = spaces.data?.items.find(one => one.id === spaceId) ?? null;
@@ -106,9 +109,11 @@ function NoGrow({ spaceId }: { spaceId: string | null }) {
       <p className={`${ui.cardDashed} ${ui.note}`}>{t('charts.noGrow')}</p>
       {spaceId === null ? null : (
         <div className={styles.chips}>
-          <Link to={`/log?kind=phase&space=${spaceId}`} className={`${ui.chip} ${styles.chip}`}>
-            + {t('space.newGrow')}
-          </Link>
+          {mayManage ? (
+            <Link to={`/log?kind=phase&space=${spaceId}`} className={`${ui.chip} ${styles.chip}`}>
+              + {t('space.newGrow')}
+            </Link>
+          ) : null}
           {mayManage && space ? (
             <button type="button" className={`${ui.chip} ${styles.chip}`} onClick={() => setMoving(true)}>
               {t('space.moveHere')}
@@ -156,7 +161,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
   const dayAxis = DAY_RANGES.includes(range);
   const layout = asked === 'day_of_grow' && !dayAxis ? 'stacked' : asked;
 
-  const place = placedIn(grow);
+  const place = standsIn(grow);
   const siblings = useSpaceGrows(layout === 'day_of_grow' ? place : null);
   const others = (siblings.data?.items ?? []).filter(one => one.id !== grow.id);
   const comparedId = params.get('compare');
@@ -537,9 +542,6 @@ const edgesOf = (from: number, to: number): [string, string] => {
 
   return written.find(([one, other]) => one !== other) ?? written[written.length - 1];
 };
-
-/** Where the grow stands now, which is the place the corner names. */
-const placedIn = (grow: GrowListItem): string | null => grow.placements.find(placement => placement.endedAt === null)?.spaceId ?? null;
 
 /**
  * The two date fields are days and the route takes instants, so a custom range

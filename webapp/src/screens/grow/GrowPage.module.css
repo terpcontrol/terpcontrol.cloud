@@ -12,6 +12,15 @@
   gap: var(--space-3);
 }
 
+/* Where the lifecycle row would be, for somebody who writes in this grow's
+   diary but does not move it, harvest it or split it. */
+.role {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 .titleRow {
   display: flex;
   align-items: flex-start;

@@ -8,7 +8,6 @@ import { useGrowReport } from '@/api/grows';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { EntryRow } from '@/ui/EntryRow';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
-import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import styles from './Report.module.css';
 
@@ -21,7 +20,7 @@ import styles from './Report.module.css';
  * wants it as the record rather than as a screen, and the record of a grow is
  * what this tab already is, so the zip is offered at the end of it.
  */
-export function Report({ grow, spaces, now }: { grow: GrowListItem; spaces: Space[]; now: DateTime }) {
+export function Report({ grow, spaces, mayOwn, now }: { grow: GrowListItem; spaces: Space[]; mayOwn: boolean; now: DateTime }) {
   const { t } = useTranslation();
   const report = useGrowReport(grow.id);
 
@@ -56,7 +55,7 @@ export function Report({ grow, spaces, now }: { grow: GrowListItem; spaces: Spac
         <Chapter key={chapter.phaseId} chapter={chapter} people={report.data.people} spaces={spaces} measurements={grow.measurements} />
       ))}
 
-      <Export growId={grow.id} />
+      <Export growId={grow.id} mayOwn={mayOwn} />
     </div>
   );
 }
@@ -70,14 +69,13 @@ export function Report({ grow, spaces, now }: { grow: GrowListItem; spaces: Spac
  * offered nothing, because a demo session owns none of this and the route
  * refuses it - a button that would be refused is not a button.
  */
-function Export({ growId }: { growId: string }) {
+function Export({ growId, mayOwn }: { growId: string; mayOwn: boolean }) {
   const { t } = useTranslation();
-  const mayManage = useMayManage();
   const ask = useAskExport(growId);
   const [mediaId, setMediaId] = useState<string | null>(null);
   const job = useExport(mediaId);
 
-  if (!mayManage) return null;
+  if (!mayOwn) return null;
 
   const row = job.data;
   const status = row?.exportJob?.status ?? null;

@@ -11,6 +11,7 @@ import type { Camera, Device, GrowListItem, Space } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
+import { spaceWhere } from './session';
 
 /**
  * The new-grow sheet: what it offers, what it promises before the tap, and
@@ -34,8 +35,10 @@ vi.mock('@/api/session', async importOriginal => {
   return { ...(await importOriginal<object>()), useSession: () => (who.demo ? ON_THE_DEMO : SIGNED_IN) };
 });
 
-const tent = { id: 'space-1', kind: 'tent', name: 'Blue Dream tent', archivedAt: null } as Space;
-const balcony = { id: 'space-2', kind: 'balcony', name: 'Balcony', archivedAt: null } as Space;
+// Starting a grow in a place is managing it, so the places carry the standing
+// that decides whether the sheet offers them at all.
+const tent = spaceWhere('own', { id: 'space-1', kind: 'tent', name: 'Blue Dream tent' });
+const balcony = spaceWhere('own', { id: 'space-2', kind: 'balcony', name: 'Balcony' });
 const controller = { id: 'device-1', type: 'controller', spaceId: 'space-1' } as Device;
 const cam = { id: 'cam-1', spaceId: 'space-1', removedAt: null } as Camera;
 
@@ -314,9 +317,23 @@ describe('the new-grow sheet', () => {
 });
 
 describe('where the plants go', () => {
+  /**
+   * Starting a grow in a place writes that place's climate and pauses a plan
+   * running in it, which is `manage`. A tent this account was only let into to
+   * write lines is therefore not an answer the sheet offers: the refusal would
+   * come after the strains, the stage and the day had all been typed in.
+   */
+  it('offers only the places this account manages', async () => {
+    stack.spaces = [tent, spaceWhere('log', { id: 'space-9', kind: 'tent', name: 'Their tent' })];
+    await drawLoaded();
+
+    expect(screen.getByRole('button', { name: 'Blue Dream tent · Controller + Cam' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Their tent' })).not.toBeInTheDocument();
+  });
+
   it('opens on the first place with nothing standing in it', async () => {
     stack.grows = [{ ...spring, endedAt: null, placements: [placement('space-1', null)] } as GrowListItem, tomatoes];
-    stack.spaces = [tent, balcony, { id: 'space-3', kind: 'tent', name: 'Mother tent', archivedAt: null } as Space];
+    stack.spaces = [tent, balcony, spaceWhere('own', { id: 'space-3', kind: 'tent', name: 'Mother tent' })];
     await drawLoaded();
 
     expect(screen.getByRole('button', { name: 'Mother tent' })).toHaveAttribute('aria-pressed', 'true');

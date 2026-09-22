@@ -908,7 +908,8 @@
       "numbered": "{{name}} {{number}}"
     },
     "noDevicesHere": "No device here.",
-    "unnamed": "{{type}} · {{tag}}"
+    "unnamed": "{{type}} · {{tag}}",
+    "youMayLog": "What the devices here are doing is shown. A socket or the lamp is switched by whoever steers this tent."
   },
   "diary": {
     "title": "Diary",
@@ -1354,7 +1355,15 @@
     "updated": "updated {{age}} ago",
     "accountNote": "You · profile, settings",
     "loadFailed": "Could not load. Try again.",
-    "unreachable": "Could not reach the server. Try again."
+    "unreachable": "Could not reach the server. Try again.",
+    "gone": {
+      "space": "This tent is not shared with you.",
+      "grow": "This grow is not shared with you.",
+      "camera": "This camera is not shared with you.",
+      "device": "This device is not shared with you.",
+      "why": "Either it has ended, or whoever shares it has taken you out. Trying again will not bring it back.",
+      "home": "Home"
+    }
   },
   "home": {
     "empty": {
@@ -2295,7 +2304,8 @@
       "movedUnder": "changed elsewhere",
       "keepMine": "Keep mine",
       "takeTheirs": "Take theirs"
-    }
+    },
+    "youMayLog": "You may write in this grow's diary. Moving it, splitting it and harvesting it are for whoever steers the tent it stands in."
   },
   "space": {
     "tabsLabel": "Space page",
@@ -2498,7 +2508,8 @@
       "targets": "Manual targets",
       "advanced": "Advanced",
       "advancedAlarms": "alarms",
-      "advancedSockets": "sockets, on the Devices tab"
+      "advancedSockets": "sockets, on the Devices tab",
+      "youMayLog": "You may log in this tent, not steer it. The plan, the targets and the alarm rules stand here as they are set; changing them is for whoever steers the tent."
     },
     "noReadingsYet": "Nothing reported yet",
     "high": "high",
@@ -2741,7 +2752,8 @@
         "tentsIn_other": "{{count}} tents in this room",
         "noTents": "No tent stands in this room yet. A tent is put in from its own Members tab."
       }
-    }
+    },
+    "youMayLog": "You may log here: entries, tasks and photos. Targets, plan, alarms and sockets are changed by whoever steers this tent."
   },
   "log": {
     "title": "Log",
@@ -2916,7 +2928,8 @@
       "open": "Open the film",
       "queuedNote": "Waiting for the builder, which takes the queue on its next pass. This page follows it; nothing is lost by leaving."
     },
-    "noFilms": "No film of this camera yet."
+    "noFilms": "No film of this camera yet.",
+    "youMayLog": "You can see what this camera sees. Its settings, its test image and its timelapses are for whoever steers the tent it stands in."
   },
   "cameras": {
     "add": {
@@ -3348,7 +3361,8 @@
       "askUnnamed": "This confirms the step and starts the next one; it cannot be taken back.",
       "yes": "Confirm the step",
       "cancel": "Cancel"
-    }
+    },
+    "stepIsManaged": "Confirming a step moves the plan on and sends the next step's targets to the controller. Only whoever steers the tent can do that."
   },
   "targets": {
     "title": "Manual targets",

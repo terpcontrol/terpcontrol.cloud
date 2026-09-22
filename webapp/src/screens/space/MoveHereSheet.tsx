@@ -30,7 +30,7 @@ export function MoveHereSheet({ spaceId, spaceName, onClose }: { spaceId: string
   const { t } = useTranslation();
   const movable = useMovableGrows(spaceId);
   const move = useMoveGrowHere(spaceId);
-  const mayManage = useMayManage();
+  const mayManage = useMayManage(spaceId);
 
   const [growId, setGrowId] = useState<string | null>(null);
   const [at, setAt] = useState(() => new Date());

@@ -243,17 +243,24 @@ function RuleCard({ rule, device, me, mayManage, highlighted, busy, now, onOpen,
         <div className={styles.open}>{summary}</div>
       )}
       <span className={styles.side}>
-        <button
-          type="button"
-          className={ui.switch}
-          role="switch"
-          aria-checked={rule.enabled}
-          aria-label={t('alarms.enable', { name: title })}
-          disabled={!mayManage || missing !== null || busy}
-          onClick={() => onToggle(!rule.enabled)}
-        >
-          <span className={ui.knob} aria-hidden />
-        </button>
+        {/* Whether a rule is watching is worth knowing to anybody who can see
+            the tent; the switch that changes it belongs to whoever manages the
+            device, so the other reader is given the fact and not the control. */}
+        {mayManage ? (
+          <button
+            type="button"
+            className={ui.switch}
+            role="switch"
+            aria-checked={rule.enabled}
+            aria-label={t('alarms.enable', { name: title })}
+            disabled={missing !== null || busy}
+            onClick={() => onToggle(!rule.enabled)}
+          >
+            <span className={ui.knob} aria-hidden />
+          </button>
+        ) : (
+          <span className={`mono ${styles.state}`}>{t(rule.enabled ? 'misc.on' : 'misc.off')}</span>
+        )}
         {silenced && mayManage ? (
           <button type="button" className={ui.chip} disabled={busy} onClick={onUnsilence}>
             {t('alarms.unsilence')}

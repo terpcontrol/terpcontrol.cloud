@@ -1,5 +1,6 @@
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import { ApiError } from '@/api/problem';
 import { ageLabel } from './age';
 import ui from './ui.module.css';
@@ -42,6 +43,40 @@ export function LoadFailed({ retry }: { retry: () => void }) {
       <button type="button" className={ui.button} onClick={retry}>
         {t('home.retry')}
       </button>
+    </section>
+  );
+}
+
+/** The four things a page can be about that somebody can stop being able to reach. */
+export type Subject = 'space' | 'grow' | 'camera' | 'device';
+
+/**
+ * A page whose subject the server says is not there for this account.
+ *
+ * It is the one failure that is not worth trying again, and the reason it
+ * happens is almost always another person: somebody was taken out of a tent
+ * they were standing in, and every read behind the page they are looking at
+ * has been answering 404 ever since. Drawn as an ordinary load failure it
+ * reads as a broken app and leaves them tapping a button that can never work,
+ * so it says what is true - this is not yours to see - and offers the only
+ * move that leads anywhere, which is home.
+ *
+ * It does not claim to know *why*, because the server does not say: a tent
+ * that ended and a bookmark to an id that never existed answer the same 404,
+ * and both are honestly described by the same sentence.
+ */
+export function NoLongerHere({ what }: { what: Subject }) {
+  const { t } = useTranslation();
+
+  return (
+    <section className={styles.failed}>
+      <p className={ui.problem} role="alert">
+        {t(`shell.gone.${what}`)}
+      </p>
+      <p className={ui.note}>{t('shell.gone.why')}</p>
+      <Link to="/" className={ui.button}>
+        {t('shell.gone.home')}
+      </Link>
     </section>
   );
 }

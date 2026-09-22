@@ -4,10 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams } from 'react-router';
 import type { GrowListItem, Plant, Space } from '@fg2/shared-types/v1';
 import { useGrow, useGrowPlants } from '@/api/grows';
+import { noLongerThere } from '@/api/problem';
 import { useSpaces } from '@/api/spaces';
 import { useReportFreshness } from '@/ui/freshness';
-import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
-import { useMayManage } from '@/ui/session-access';
+import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
+import { enough, standsIn, useMayWith } from '@/ui/session-access';
 import { weekOfPhase } from '@/ui/stages';
 import { Tabs } from '@/ui/Tabs';
 import ui from '@/ui/ui.module.css';
@@ -45,7 +46,7 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
   const grow = useGrow(growId);
   const plants = useGrowPlants(growId);
   const spaces = useSpaces();
-  const mayManage = useMayManage();
+  const mayWith = useMayWith();
   const [sharing, setSharing] = useState(false);
 
   useReportFreshness(grow.dataUpdatedAt ? new Date(grow.dataUpdatedAt).toISOString() : null);
@@ -58,8 +59,14 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
       </section>
     );
   }
-  if (!grow.data) return <LoadFailed retry={() => void grow.refetch()} />;
+  if (!grow.data) return noLongerThere(grow.error) ? <NoLongerHere what="grow" /> : <LoadFailed retry={() => void grow.refetch()} />;
 
+  // A grow is written to through the place it stands in today, which is what
+  // `access()` widens a membership over; the lifecycle moves are `manage` there
+  // and putting the diary on the open web is the owner's alone.
+  const youMay = mayWith({ ownerId: grow.data.ownerId, spaceId: standsIn(grow.data) });
+  const mayManage = enough(youMay, 'manage');
+  const mayOwn = enough(youMay, 'own');
   const tabs = TABS.map(key => ({ key, label: t(`grow.tabs.${key}`), to: `/grows/${growId}/${key}` }));
 
   return (
@@ -69,15 +76,19 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
         plants={plants.data?.items ?? []}
         spaces={spaces.data?.items ?? []}
         now={now}
-        onShare={mayManage ? () => setSharing(true) : null}
+        onShare={mayOwn ? () => setSharing(true) : null}
       />
-      {mayManage ? <GrowLifecycle grow={grow.data} plants={plants.data?.items ?? []} spaces={spaces.data?.items ?? []} /> : null}
+      {mayManage ? (
+        <GrowLifecycle grow={grow.data} plants={plants.data?.items ?? []} spaces={spaces.data?.items ?? []} />
+      ) : enough(youMay, 'log') ? (
+        <p className={`mono ${styles.role}`}>{t('grow.youMayLog')}</p>
+      ) : null}
       <RefreshFailed failedAt={grow.isError ? grow.dataUpdatedAt : null} now={now} />
       <Tabs items={tabs} label={t('grow.tabsLabel')} />
       {tab === 'weeks' ? <Weeks grow={grow.data} now={now} /> : null}
       {tab === 'plants' ? <Plants grow={grow.data} plants={plants} spaces={spaces.data?.items ?? []} /> : null}
-      {tab === 'feeding' ? <Feeding grow={grow.data} /> : null}
-      {tab === 'report' ? <Report grow={grow.data} spaces={spaces.data?.items ?? []} now={now} /> : null}
+      {tab === 'feeding' ? <Feeding grow={grow.data} mayManage={mayManage} /> : null}
+      {tab === 'report' ? <Report grow={grow.data} spaces={spaces.data?.items ?? []} mayOwn={mayOwn} now={now} /> : null}
       {sharing ? <ShareSheet grow={grow.data} onClose={() => setSharing(false)} /> : null}
     </section>
   );

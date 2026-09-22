@@ -6,12 +6,12 @@ import { Link, useParams } from 'react-router';
 import type { Camera, GrowListItem, Media, TimelapseCreate } from '@fg2/shared-types/v1';
 import { useCamera, useCameraFrames, useRequestTimelapse, useTestCapture, useTimelapses } from '@/api/cameras';
 import { useSpaceGrows } from '@/api/grows';
-import { ApiError } from '@/api/problem';
+import { ApiError, noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { ageLabel, instantOf } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
-import { LoadFailed, Waiting } from '@/ui/PageState';
-import { useMayManage } from '@/ui/session-access';
+import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
+import { enough, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { cameraFreshness } from '../devices/cameras';
@@ -35,15 +35,21 @@ export function CameraPage() {
   useReportFreshness(camera.data?.state.lastStillAt ?? null);
 
   if (camera.isPending) return <Waiting lines={3} />;
-  if (!camera.data) return <LoadFailed retry={() => void camera.refetch()} />;
+  if (!camera.data) return noLongerThere(camera.error) ? <NoLongerHere what="camera" /> : <LoadFailed retry={() => void camera.refetch()} />;
 
   return <CameraScreen camera={camera.data} refetching={camera.isError ? t('shell.loadFailed') : null} />;
 }
 
-function CameraScreen({ camera, refetching }: { camera: Camera; refetching: string | null }) {
+/** Exported for the tests, which drive the page itself rather than the read above it. */
+export function CameraScreen({ camera, refetching = null }: { camera: Camera; refetching?: string | null }) {
   const { t } = useTranslation();
   const now = useNow();
-  const mayManage = useMayManage();
+  // A camera belongs to whoever claimed it and stands in a place, and the two
+  // answer different halves: its settings and the films it renders are `manage`
+  // where it stands, unpairing it is `own` and reaches nobody else at all.
+  const youMay = useMayWith()(camera);
+  const mayManage = enough(youMay, 'manage');
+  const mayOwn = enough(youMay, 'own');
   const [composing, setComposing] = useState(false);
   const [job, setJob] = useState<Media | null>(null);
 
@@ -97,7 +103,12 @@ function CameraScreen({ camera, refetching }: { camera: Camera; refetching: stri
           {refetching}
         </p>
       ) : null}
-      {camera.state.lastError ? (
+      {/* The reason a capture failed is the camera's address, its tunnel and the
+          paths of the process that reached for it - which the decision record
+          keeps for the owner, like every other way of finding the hardware.
+          Somebody who shares the tent is told it is not delivering, and that is
+          what the pill above already says. */}
+      {mayOwn && camera.state.lastError ? (
         <p className={`${ui.problem} ${styles.lastError}`} role="alert" title={camera.state.lastError}>
           {t('camera.lastError', { reason: camera.state.lastError })}
         </p>
@@ -159,7 +170,9 @@ function CameraScreen({ camera, refetching }: { camera: Camera; refetching: stri
         {!mayManage && made.length === 0 && !job ? <p className={ui.note}>{t('camera.noFilms')}</p> : null}
       </section>
 
-      <CameraSettings camera={camera} mayManage={mayManage} />
+      {!mayManage && enough(youMay, 'log') ? <p className={`mono ${styles.role}`}>{t('camera.youMayLog')}</p> : null}
+
+      <CameraSettings camera={camera} mayManage={mayManage} mayOwn={mayOwn} />
 
       {composing ? <Composer camera={camera} grow={grow} pending={ask.isPending} onRender={request} onClose={() => setComposing(false)} /> : null}
     </section>

@@ -22,8 +22,13 @@ import styles from './CameraPage.module.css';
  * a Terp Cam is paired at its controller and an RTSP camera is an address, and
  * neither is something this form turns into the other. Somebody who may only
  * look is shown the same facts with no fields at all.
+ *
+ * The two questions are asked apart because the routes ask them apart: the
+ * fields are `manage` where the camera stands, which a co-manager of the tent
+ * reaches, and taking the camera off the account is `own`, which nobody but its
+ * owner ever reaches however much they may run the tent.
  */
-export function CameraSettings({ camera, mayManage }: { camera: Camera; mayManage: boolean }) {
+export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; mayManage: boolean; mayOwn: boolean }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const now = useNow();
@@ -150,7 +155,7 @@ export function CameraSettings({ camera, mayManage }: { camera: Camera; mayManag
           <button type="button" className={`${ui.button} ${changed ? ui.primary : ''}`} disabled={!changed || update.isPending} onClick={save}>
             {update.isPending ? t('camera.saving') : t('camera.save')}
           </button>
-          {unpairing ? (
+          {!mayOwn ? null : unpairing ? (
             <>
               <span className={ui.note}>{t('camera.unpairSure')}</span>
               <button
@@ -172,7 +177,7 @@ export function CameraSettings({ camera, mayManage }: { camera: Camera; mayManag
           )}
         </div>
       ) : null}
-      {mayManage ? <p className={ui.note}>{t('camera.unpairNote')}</p> : null}
+      {mayOwn ? <p className={ui.note}>{t('camera.unpairNote')}</p> : null}
     </section>
   );
 }

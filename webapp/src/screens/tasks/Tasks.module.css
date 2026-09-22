@@ -271,6 +271,14 @@ button.none {
   border-radius: var(--radius);
 }
 
+/* Where the circle would have led: one quiet line, indented to the text column
+   so it reads as belonging to the card rather than to the list. */
+.why {
+  margin: 0;
+  padding-left: calc(22px + var(--space-3));
+  line-height: 1.5;
+}
+
 .submit {
   width: 100%;
 }

@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Device, Plan, PlanStep, PlanTransition } from '@fg2/shared-types/v1';
+import type { AccessNeed, Device, Plan, PlanStep, PlanTransition } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
 import { Control } from '@/screens/control/Control';
 import { PlanPanel } from '@/screens/control/PlanPanel';
@@ -56,6 +56,15 @@ vi.mock('@/api/session', async importOriginal => {
   const { SIGNED_IN } = await import('./session');
 
   return { ...(await importOriginal<object>()), useSession: () => SIGNED_IN };
+});
+
+/** What the reader may do in the tent, which is what the whole tab is gated on. */
+const may = vi.hoisted(() => ({ youMay: 'own' as AccessNeed }));
+
+vi.mock('@/api/spaces', async importOriginal => {
+  const { spaceWhere, spacesAnswering } = await import('./session');
+
+  return { ...(await importOriginal<object>()), useSpaces: () => spacesAnswering(spaceWhere(may.youMay)) };
 });
 
 const step = (over: Partial<PlanStep> = {}): PlanStep => ({
@@ -145,6 +154,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  may.youMay = 'own';
   state.plan = plan();
   state.moveError = null;
   state.sent = [];
@@ -165,6 +175,47 @@ describe('the tab of a place with nothing standing in it', () => {
     expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/spaces/space-1/devices');
     expect(screen.queryByRole('link', { name: 'Manual targets' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Advanced/ })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The tab, by who is reading it. Everything on it writes to a controller
+ * standing here, which the decision record puts at `manage`: the moves, the
+ * manual targets, the alarm rules. A member who was let in to write in the
+ * diary sees the plan and none of the buttons, and is told whose they are
+ * rather than left in front of a half-drawn tab.
+ */
+describe('what the Control tab offers, by who is reading', () => {
+  const drawTab = () =>
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <Control spaceId="space-1" sub={null} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+  beforeEach(() => {
+    state.devices = [device()];
+  });
+
+  it('gives the owner the moves and both pages below them', async () => {
+    drawTab();
+
+    expect(await screen.findByRole('button', { name: 'Pause' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Manual targets' })).toBeInTheDocument();
+    expect(screen.queryByText(/You may log in this tent, not steer it/)).not.toBeInTheDocument();
+  });
+
+  it('gives a member the plan to read, no move at all, and the reason', async () => {
+    may.youMay = 'log';
+    drawTab();
+
+    expect(await screen.findByText(/You may log in this tent, not steer it/)).toBeInTheDocument();
+    for (const move of ['Pause', 'Extend', 'Skip', 'Stop', 'Confirm the step'])
+      expect(screen.queryByRole('button', { name: move })).not.toBeInTheDocument();
+    // The two pages below still open: what the tent is set to is worth reading.
+    expect(screen.getByRole('link', { name: 'Manual targets' })).toBeInTheDocument();
   });
 });
 

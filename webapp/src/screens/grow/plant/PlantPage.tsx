@@ -6,12 +6,13 @@ import { Link, useParams } from 'react-router';
 import type { Entry, GrowListItem, GrowSeries, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
 import { growDayAt, growOriginOf } from '@fg2/shared-types/v1-schemas/feeding.js';
 import { useGrow, useGrowPlants, useGrowSeries, usePlantEntries } from '@/api/grows';
+import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
-import { useLog, useMayLog, type LogTarget, type TileKind } from '@/log/log-context';
+import { useLog, type LogTarget, type TileKind } from '@/log/log-context';
 import { authorOf, headlineOf, KIND_ICON, readingFigure } from '@/ui/entries';
-import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
-import { useMayManage } from '@/ui/session-access';
+import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
+import { enough, standsIn, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { HarvestSheet } from '../HarvestSheet';
@@ -53,7 +54,7 @@ function PlantScreen({ growId, plantId }: { growId: string; plantId: string }) {
     perPlant.map(definition => definition.key),
   );
   const spaces = useSpaces();
-  const mayManage = useMayManage();
+  const mayWith = useMayWith();
   const [sheet, setSheet] = useState<PlantSheet | null>(null);
 
   if (grow.isPending || plants.isPending) {
@@ -65,7 +66,9 @@ function PlantScreen({ growId, plantId }: { growId: string; plantId: string }) {
     );
   }
   if (!grow.data || !plants.data) {
-    return (
+    return noLongerThere(grow.error) || noLongerThere(plants.error) ? (
+      <NoLongerHere what="grow" />
+    ) : (
       <LoadFailed
         retry={() => {
           void grow.refetch();
@@ -79,6 +82,10 @@ function PlantScreen({ growId, plantId }: { growId: string; plantId: string }) {
   const plant = all.find(one => one.id === plantId);
   if (!plant) return <p className={`${ui.cardDashed} ${ui.note}`}>{t('grow.plant.notHere')}</p>;
 
+  // Moving, splitting, harvesting and renaming a plant are the grow's own
+  // moves, which are `manage` where the grow stands today.
+  const youMay = mayWith({ ownerId: grow.data.ownerId, spaceId: standsIn(grow.data) });
+  const mayManage = enough(youMay, 'manage');
   const lines = entries.data?.items ?? [];
   const photos = lines.filter(entry => entry.mediaIds.length > 0);
 
@@ -290,16 +297,22 @@ interface LineProps {
  * the diary that carries a reading has to be able to carry the correction too.
  * What a device or the server recorded is not ours to rewrite, so those lines
  * stay what they are.
+ *
+ * Whose line it is decides who may open it: one's own is `log` and anybody
+ * else's is `manage`, which is the rule the server writes down in one place and
+ * this row has to agree with - otherwise a member taps somebody else's reading,
+ * fills the sheet in and is refused on save.
  */
 function Line({ entry, grow, plant, measurements }: LineProps) {
   const { t, i18n } = useTranslation();
   const { user } = useSession();
   const { openDetails } = useLog();
-  const mayLog = useMayLog();
+  const youMay = useMayWith()({ ownerId: grow.ownerId, spaceId: standsIn(grow) });
   const Icon = KIND_ICON[entry.kind];
   const day = dayOfEntry(grow, entry);
   const readings = 'readings' in entry.values ? entry.values.readings : [];
-  const correctable = mayLog ? correctableKind(entry) : null;
+  const mine = user !== null && !user.isDemo && entry.authorId === user.id;
+  const correctable = enough(youMay, mine ? 'log' : 'manage') ? correctableKind(entry) : null;
 
   const body = (
     <>

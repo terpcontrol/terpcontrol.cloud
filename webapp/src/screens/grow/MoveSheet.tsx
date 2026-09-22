@@ -7,6 +7,7 @@ import { useCorrectPlacement, useMovePlants, useWithdrawPlacement } from '@/api/
 import { Sheet } from '@/log/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
+import { enough } from '@/ui/session-access';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { PlantPicker } from './PlantPicker';
@@ -39,7 +40,9 @@ export function MoveSheet({
   const { t } = useTranslation();
   const move = useMovePlants(grow.id);
 
-  const open = spaces.filter(space => space.archivedAt === null && space.kind !== 'room');
+  // A move is written against the destination as well as against the grow, so a
+  // tent this account may only write lines in is not one of the answers.
+  const open = spaces.filter(space => space.archivedAt === null && space.kind !== 'room' && enough(space.youMay, 'manage'));
   const [spaceId, setSpaceId] = useState<string | null>(() => open.find(space => !standsIn(grow, space.id))?.id ?? null);
   const [chosen, setChosen] = useState<string[] | null>(preselect ?? null);
   const [at, setAt] = useState(() => new Date());
@@ -184,7 +187,7 @@ function PlacementEditor({ grow, placement, spaces, onDone }: { grow: GrowListIt
     <div className={styles.editor}>
       <Choices label={t('grow.lifecycle.move.moveTo')}>
         {spaces
-          .filter(space => space.archivedAt === null && space.kind !== 'room')
+          .filter(space => space.archivedAt === null && space.kind !== 'room' && enough(space.youMay, 'manage'))
           .map(space => (
             <Choice key={space.id} chosen={spaceId === space.id} onChoose={() => setSpaceId(space.id)}>
               {space.name}

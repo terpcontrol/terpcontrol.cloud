@@ -364,11 +364,14 @@ describe('when the renewal is due', () => {
 });
 
 describe('the camera page', () => {
+  // The camera page works out what this reader may do with this camera and
+  // hands it down as two answers: its settings are `manage` where it stands,
+  // and taking it off the account is `own`.
   const drawSettings = (one: Camera) =>
     render(
       <QueryClientProvider client={client()}>
         <MemoryRouter>
-          <CameraSettings camera={one} mayManage={false} />
+          <CameraSettings camera={one} mayManage={false} mayOwn={false} />
         </MemoryRouter>
       </QueryClientProvider>,
     );

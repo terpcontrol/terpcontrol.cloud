@@ -7,9 +7,10 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Device, Space } from '@fg2/shared-types/v1';
+import type { Device } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { NewGrowRoute } from '@/screens/grow/new/NewGrowRoute';
+import { spaceWhere } from './session';
 
 /**
  * `/grows/new` as an address: what the search parameters on it are worth by the
@@ -37,7 +38,8 @@ vi.mock('@/api/session', async importOriginal => {
   return { ...(await importOriginal<object>()), useSession: () => SIGNED_IN };
 });
 
-const tent = { id: 'space-1', kind: 'tent', name: 'Blue Dream tent', archivedAt: null } as Space;
+// The sheet offers a place only where the reader manages it, so the standing rides on the row.
+const tent = spaceWhere('own', { id: 'space-1', kind: 'tent', name: 'Blue Dream tent' });
 const controller = { id: 'device-1', type: 'controller', spaceId: 'space-1' } as Device;
 
 const answers = (path: string): unknown => {

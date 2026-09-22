@@ -2,9 +2,10 @@ import { Box, ChevronLeft, Fan, Leaf, Refrigerator, Sun, type LucideIcon } from 
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams } from 'react-router';
 import type { SpaceKind, SpaceOverview } from '@fg2/shared-types/v1';
+import { noLongerThere } from '@/api/problem';
 import { useSpaceLive, useSpaceOverview } from '@/api/spaces';
 import { useReportFreshness } from '@/ui/freshness';
-import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
+import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { Tabs } from '@/ui/Tabs';
 import { useNow } from '@/ui/useNow';
 import { livenessOf, measuredAtOf } from '../home/attention';
@@ -56,7 +57,10 @@ function SpaceScreen({ spaceId, tab, sub }: { spaceId: string; tab: SpaceTab; su
       </section>
     );
   }
-  if (!overview.data) return <LoadFailed retry={() => void overview.refetch()} />;
+  // Being taken out of somebody's tent is what this usually is, and it is the
+  // one failure a retry can never mend: every read behind this page answers 404
+  // from then on.
+  if (!overview.data) return noLongerThere(overview.error) ? <NoLongerHere what="space" /> : <LoadFailed retry={() => void overview.refetch()} />;
 
   // The live read is the newer of the two more often than not; the overview's own values stand in until it answers.
   const current: SpaceOverview =

@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Camera, Device, DeviceCapabilities, DeviceConfiguration, Socket, Space } from '@fg2/shared-types/v1';
+import type { AccessNeed, Camera, Device, DeviceCapabilities, DeviceConfiguration, Socket, Space } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { DeviceList } from '@/screens/devices/DeviceList';
 import { LightOutputRow } from '@/screens/devices/LightOutputRow';
@@ -17,6 +17,7 @@ import { SocketRow } from '@/screens/devices/SocketRow';
 import { defaultHold, holdsFor, rowsOf } from '@/screens/devices/sockets';
 import { cameraFreshness } from '@/screens/devices/cameras';
 import type { OutputLevel, OverrideRequest } from '@/api/devices';
+import { spaceWhere, THE_HOST } from './session';
 
 /**
  * The two things the Devices tab lets a person move: the switch on a socket, and
@@ -355,6 +356,57 @@ describe('how late a camera is', () => {
  * for would inherit it. These rows are what a grower reads first after
  * onboarding, so what they print is worth asserting.
  */
+/**
+ * The same list, read by the owner of the tent and by somebody let into it to
+ * write in its diary. A socket's override and the lamp's brightness are the
+ * device's configuration, which the decision record puts at `manage` where the
+ * device stands - so on a tent's own tab the switches are gone for a member and
+ * the list says once whose they are.
+ */
+describe('what the sockets offer, by who is reading', () => {
+  const standing = {
+    id: 'device-1',
+    name: 'Blue Dream tent',
+    type: 'controller',
+    ownerId: THE_HOST,
+    spaceId: 'space-1',
+    configuration: { lights: LIGHTS },
+    firmware: { channel: 'stable' },
+    state: { lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!, firmwareId: null },
+  } as unknown as Device;
+
+  const drawTab = async (youMay: AccessNeed) => {
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      if (path === '/devices') return Promise.resolve({ items: [standing], nextCursor: null }) as never;
+      if (path === '/cameras') return Promise.resolve({ items: [], nextCursor: null }) as never;
+      if (path === '/spaces') return Promise.resolve({ items: [spaceWhere(youMay)], nextCursor: null }) as never;
+      if (path.endsWith('/sockets')) return Promise.resolve({ items: [socket({ role: 'light' })], capabilities: CAPABILITIES }) as never;
+      if (path.endsWith('/series')) return Promise.resolve({ readings: [], outputs: [] }) as never;
+
+      return Promise.resolve({ items: [], nextCursor: null }) as never;
+    });
+    wrap(<DeviceList spaceId="space-1" />);
+    await screen.findByText('Cameras');
+  };
+
+  it('gives the owner the lamp’s brightness and the three states of the plug', async () => {
+    await drawTab('own');
+
+    expect(await screen.findByRole('slider', { name: 'Brightness' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'auto' }).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/A socket or the lamp is switched by whoever steers this tent\./)).not.toBeInTheDocument();
+  });
+
+  it('gives a member the readings, no switch at all, and the reason once', async () => {
+    await drawTab('log');
+
+    expect(await screen.findByText(/A socket or the lamp is switched by whoever steers this tent\./)).toBeInTheDocument();
+    expect(screen.queryByRole('slider', { name: 'Brightness' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'auto' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'on' })).not.toBeInTheDocument();
+  });
+});
+
 describe('what the Devices tab calls a device', () => {
   const standing = (over: Partial<Device>): Device =>
     ({

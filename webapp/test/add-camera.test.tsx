@@ -7,10 +7,11 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Camera, Device, Me, Space } from '@fg2/shared-types/v1';
+import type { Camera, Device, Me } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { AddCamera } from '@/screens/camera/add/AddCamera';
+import { spaceWhere } from './session';
 
 /**
  * Adding a camera: what the three tabs offer, what turns up while somebody
@@ -83,9 +84,11 @@ const secondController = device({ id: 'device-2', name: 'Veg controller' });
 const coldController = device({ id: 'device-3', name: 'Old controller', seenSecondsAgo: 4 * 60 * 60 });
 const fridge = device({ id: 'device-4', name: 'Fridge module', type: 'fridge', spaceId: 'space-2' });
 
-const spaces = [{ id: 'space-1', name: 'Tent 1' } as Space, { id: 'space-2', name: 'Balcony' } as Space];
+// A camera is put into a place by managing it, so the tents on offer carry the
+// standing that decides whether they are offered at all.
+const spaces = [spaceWhere('own'), spaceWhere('own', { id: 'space-2', name: 'Balcony' })];
 
-const madeSpace = { id: 'space-3', name: 'Attic', kind: 'room' } as Space;
+const madeSpace = spaceWhere('own', { id: 'space-3', name: 'Attic', kind: 'room' });
 
 const me = (enforced: boolean): Me =>
   ({ id: 'user-1', premium: { enforced, extendUrl: null, priceLabel: '29 € a year' }, pushPublicKey: null }) as unknown as Me;

@@ -38,6 +38,15 @@
   gap: var(--space-4);
 }
 
+/* What a reader who may not switch anything is told, once, at the top of the
+   list rather than beside each row it is true of. */
+.role {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 .section {
   display: flex;
   flex-direction: column;

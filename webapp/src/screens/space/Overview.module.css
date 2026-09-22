@@ -104,6 +104,15 @@
   color: var(--ink);
 }
 
+/* Where the chips a manager gets would have stood: one line, dimmed, so it
+   reads as the page explaining itself rather than as another control. */
+.role {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 .list,
 .entries,
 .strip {

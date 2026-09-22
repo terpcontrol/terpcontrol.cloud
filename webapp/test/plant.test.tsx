@@ -7,11 +7,12 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Entry, GrowListItem, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
+import type { AccessNeed, Entry, GrowListItem, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { LogProvider } from '@/log/LogProvider';
 import { PlantPage } from '@/screens/grow/plant/PlantPage';
+import { spaceWhere, THE_HOST, YOU } from './session';
 
 /**
  * One plant's page: what is true of this plant and of no other.
@@ -39,8 +40,12 @@ const at = (daysAgo: number) => new Date(Date.now() - daysAgo * 86_400_000).toIS
 
 const height: MeasurementDefinition = { key: 'height', name: 'Height', unit: 'cm', perPlant: true, targetMin: null, targetMax: null, chart: true };
 
+/** What the reader may do in Mother tent, where this grow stands: the whole of what the page offers. */
+const state = { lines: [] as Entry[], series: null as unknown, plants: [] as Plant[], seriesFails: false, youMay: 'own' as AccessNeed };
+
 const grow: GrowListItem = {
   id: 'grow-1',
+  ownerId: 'user-1',
   name: 'Spring run',
   phases: [
     {
@@ -55,7 +60,7 @@ const grow: GrowListItem = {
       setBy: 'user-1',
     },
   ],
-  placements: [],
+  placements: [{ id: 'pl-1', spaceId: 'space-2', startedAt: at(35), endedAt: null, plantIds: null }],
   measurements: [height],
   startedAt: at(35),
   summary: { dayNumber: 35, stage: 'flowering', preset: null, phaseDay: 35, weekNumber: 5, isAuto: false, groups: [], locations: [] },
@@ -121,9 +126,7 @@ const lines = [
   entry({ id: 'e-5', kind: 'photo', occurredAt: at(5), mediaIds: ['media-1'], values: { kind: 'photo' } }),
 ];
 
-const state = { lines, series, plants, seriesFails: false };
-
-const spaces = [{ id: 'space-2', name: 'Mother tent', kind: 'tent', archivedAt: null }];
+const spaces = () => [spaceWhere(state.youMay, { id: 'space-2', name: 'Mother tent' })];
 
 const answers = (path: string) => {
   if (path.startsWith('/grows/grow-1/series')) {
@@ -131,8 +134,10 @@ const answers = (path: string) => {
     return state.series;
   }
   if (path === '/grows/grow-1/plants') return { items: state.plants, nextCursor: null };
-  if (path === '/grows/grow-1') return grow;
-  if (path === '/spaces') return { items: spaces, nextCursor: null };
+  // The grow belongs to whoever the tent it stands in does, so the two halves of
+  // one reader's standing cannot contradict each other.
+  if (path === '/grows/grow-1') return { ...grow, ownerId: state.youMay === 'own' ? YOU : THE_HOST };
+  if (path === '/spaces') return { items: spaces(), nextCursor: null };
   if (path === '/entries') return { items: state.lines, nextCursor: null };
   throw new Error(`nothing mocked for ${path}`);
 };
@@ -169,8 +174,48 @@ beforeEach(() => {
   state.series = series;
   state.plants = plants;
   state.seriesFails = false;
+  state.youMay = 'own';
   vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);
   vi.mocked(api.patch).mockResolvedValue(plant('plant-1', 'Tall one') as never);
+});
+
+/**
+ * The same plant, in a tent this account was let into rather than owns. The
+ * plant's own moves are the grow's and want `manage`; a line is `log` when it
+ * is your own and `manage` when it is somebody else's, which is the rule the
+ * server keeps in one place and this row has to agree with.
+ */
+describe('a member who may only log', () => {
+  beforeEach(() => {
+    state.youMay = 'log';
+  });
+
+  it('is offered none of the plant’s moves', async () => {
+    await drawLoaded();
+
+    expect(screen.queryByRole('group', { name: 'What can be done with this plant' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
+  });
+
+  it('may still correct its own line, and may not open somebody else’s', async () => {
+    state.lines = [entry({}), entry({ id: 'e-host', authorId: THE_HOST, occurredAt: at(4) })];
+    await drawLoaded();
+
+    const own = within(screen.getByRole('list', { name: 'Own entries' })).getAllByRole('listitem');
+    expect(within(own[0]).getByRole('button', { name: 'Correct this line' })).toBeInTheDocument();
+    expect(within(own[1]).queryByRole('button', { name: 'Correct this line' })).not.toBeInTheDocument();
+  });
+
+  it('is what the owner is not: the owner opens both lines and keeps the moves', async () => {
+    state.youMay = 'own';
+    state.lines = [entry({}), entry({ id: 'e-host', authorId: THE_HOST, occurredAt: at(4) })];
+    await drawLoaded();
+
+    const own = within(screen.getByRole('list', { name: 'Own entries' })).getAllByRole('listitem');
+    expect(within(own[0]).getByRole('button', { name: 'Correct this line' })).toBeInTheDocument();
+    expect(within(own[1]).getByRole('button', { name: 'Correct this line' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Rename' })).toBeInTheDocument();
+  });
 });
 
 describe('a plant of a grow', () => {

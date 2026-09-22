@@ -315,8 +315,11 @@ describe('the alarm rules page', () => {
     );
     draw([device()], false);
 
-    await card('Too hot');
-    for (const one of screen.getAllByRole('switch')) expect(one).toBeDisabled();
+    const hot = await card('Too hot');
+    // Whether a rule is watching is worth reading; the switch that throws it is
+    // absent rather than drawn dead, which is the rule for every control here.
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(within(hot as HTMLElement).getByText('On')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /\+ Alarm/ })).not.toBeInTheDocument();
     expect(screen.getAllByText('preset · for 10 min · critical · announced once')).toHaveLength(2);
   });

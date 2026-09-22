@@ -6,10 +6,12 @@ import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import type { SpaceOverview } from '@fg2/shared-types/v1';
+import type { AccessNeed, SpaceOverview } from '@fg2/shared-types/v1';
+import { ApiError } from '@/api/problem';
 import { Overview } from '@/screens/space/Overview';
+import { SpacePage } from '@/screens/space/SpacePage';
 import { LaterRound } from '@/ui/LaterRound';
 import { LogProvider } from '@/log/LogProvider';
 
@@ -19,6 +21,23 @@ vi.mock('@/api/session', async importOriginal => {
   const { SIGNED_IN } = await import('./session');
 
   return { ...(await importOriginal<object>()), mediaUrl: (id: string) => `/media/${id}`, useSession: () => SIGNED_IN };
+});
+
+/** What the reader may do in Tent 1, which is the other half of "what does this screen offer". */
+const may = vi.hoisted(() => ({ youMay: 'own' as AccessNeed }));
+
+/** What the tent page's own read answers, so that a failure can be given its real shape. */
+const read = vi.hoisted(() => ({ error: null as unknown }));
+
+vi.mock('@/api/spaces', async importOriginal => {
+  const { spaceWhere, spacesAnswering } = await import('./session');
+
+  return {
+    ...(await importOriginal<object>()),
+    useSpaces: () => spacesAnswering(spaceWhere(may.youMay)),
+    useSpaceOverview: () => ({ data: undefined, error: read.error, isPending: false, isError: true, dataUpdatedAt: 0, refetch: () => {} }),
+    useSpaceLive: () => ({ data: undefined, isError: false, dataUpdatedAt: 0 }),
+  };
 });
 
 /**
@@ -219,6 +238,76 @@ describe('the tent overview', () => {
     draw(<Overview overview={unsteered} now={NOW} />);
 
     expect(screen.getByText(/nothing to judge/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * The same tent, read by its owner and by somebody let into it to write in its
+ * diary. What a control is for decides which of the two gets it: putting the
+ * tent on a stage writes the climate to the controller and moving a grow in
+ * writes a placement, and both are `manage`.
+ */
+describe('what the tent offers, by who is reading', () => {
+  it('offers the owner the climate preset and both ways to put a grow here', () => {
+    draw(<Overview overview={overview} now={NOW} />);
+
+    expect(screen.getByRole('button', { name: 'Climate preset' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Move here' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '+ Grow' })).toBeInTheDocument();
+  });
+
+  it('offers a member none of them, and says once what they may do instead', () => {
+    may.youMay = 'log';
+    draw(<Overview overview={overview} now={NOW} />);
+
+    expect(screen.queryByRole('button', { name: 'Climate preset' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Move here' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '+ Grow' })).not.toBeInTheDocument();
+    expect(screen.getByText(/You may log here: entries, tasks and photos\./)).toBeInTheDocument();
+    // What they were let in for is still theirs.
+    expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument();
+    may.youMay = 'own';
+  });
+});
+
+/**
+ * Being taken out of somebody's tent while standing in it.
+ *
+ * The server is unambiguous - every read of that space answers 404 from the
+ * moment the membership goes - and the difference between that and a dropped
+ * connection is the difference between a retry that can work and one that never
+ * can. The page says which of the two it is, and offers the way out rather than
+ * a button that only fails.
+ */
+describe('a tent that is no longer shared with the reader', () => {
+  const drawPage = () =>
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/spaces/space-1/overview']}>
+          <LogProvider>
+            <Routes>
+              <Route path="/spaces/:spaceId/:tab" element={<SpacePage />} />
+            </Routes>
+          </LogProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+  it('says so, and offers the way home rather than a retry that can never work', () => {
+    read.error = new ApiError({ status: 404, code: 'space_not_found', title: 'Not found', detail: 'There is no space with that id.', errors: [] });
+    drawPage();
+
+    expect(screen.getByRole('alert')).toHaveTextContent('This tent is not shared with you.');
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+  });
+
+  it('does not turn a server that never answered into somebody taking the tent away', () => {
+    read.error = new Error('network down');
+    drawPage();
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not load. Try again.');
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 });
 

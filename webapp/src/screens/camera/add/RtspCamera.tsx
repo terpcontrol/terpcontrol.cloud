@@ -10,6 +10,7 @@ import { deviceName } from '@/screens/devices/naming';
 import { useCreateSpace } from '@/screens/grow/new/create-space';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
+import { enough } from '@/ui/session-access';
 import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -62,6 +63,11 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
 
   if (spaces.isPending) return <Waiting lines={3} />;
   if (!spaces.data) return <LoadFailed retry={() => void spaces.refetch()} />;
+
+  // Putting a camera somewhere is managing that place, so a tent this account
+  // only writes lines in is not among the answers: offering it would end in a
+  // refusal after the address and the name had already been typed.
+  const places = spaces.data.items.filter(space => enough(space.youMay, 'manage'));
 
   // Only a controller has a tunnel, so a fridge module standing in the tent is
   // not a way in and the stream has to be opened from the cloud instead.
@@ -166,11 +172,11 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
 
       <section className={styles.block}>
         <span className="label">{t('cameras.add.rtsp.where')}</span>
-        {spaces.data.items.length === 0 ? (
+        {places.length === 0 ? (
           <NewPlace onMade={space => putIn(space.id)} />
         ) : (
           <Choices label={t('cameras.add.rtsp.where')}>
-            {spaces.data.items.map(space => (
+            {places.map(space => (
               <Choice key={space.id} chosen={space.id === spaceId} onChoose={() => putIn(space.id)}>
                 {space.name}
               </Choice>

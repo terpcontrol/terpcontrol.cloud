@@ -15,6 +15,7 @@ import { LogProvider } from '@/log/LogProvider';
 import { Alerts } from '@/screens/Alerts';
 import { crossedBound, groupsOf } from '@/screens/alerts/inbox';
 import { alertLabel } from '@/screens/home/units';
+import { spaceWhere } from './session';
 
 /**
  * The inbox behind the bell is the alarm engine's own record drawn as it came,
@@ -30,6 +31,8 @@ import { alertLabel } from '@/screens/home/units';
 
 const state = vi.hoisted(() => ({
   who: 'you' as 'you' | 'demo',
+  /** The most the reader may do in the tent every alert here happened in. */
+  youMay: 'own' as 'own' | 'manage' | 'log' | 'view',
   refuse: null as { method: string; path: string; problem: Problem } | null,
   /** A route answered only once the test lets it, for looking at a page while one of its reads is still out. */
   hold: null as { path: string; until: Promise<void> } | null,
@@ -152,7 +155,10 @@ const answer = (method: string, path: string, body: unknown): Response => {
 
     return json({ items: half(server.alerts), nextCursor: server.older.length ? 'cursor-1' : null });
   }
-  if (method === 'GET' && path === '/v1/spaces') return json({ items: [{ id: 'space-1', name: 'Flower room B' }], nextCursor: null });
+  // What a card offers - silencing the rule, sending the tent into maintenance -
+  // is `manage` where the alert happened, so the space list carries the standing.
+  if (method === 'GET' && path === '/v1/spaces')
+    return json({ items: [spaceWhere(state.youMay, { id: 'space-1', name: 'Flower room B' })], nextCursor: null });
   if (method === 'GET' && path === '/v1/devices') return json({ items: server.devices, nextCursor: null });
   if (method === 'GET' && path === '/v1/cameras') return json({ items: server.cameras, nextCursor: null });
   if (method === 'GET' && path.startsWith('/v1/devices/device-1/alarm-rules')) return json({ items: server.rules, nextCursor: null });
@@ -187,6 +193,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   state.who = 'you';
+  state.youMay = 'own';
   state.refuse = null;
   state.hold = null;
   server.alerts = [];
@@ -599,6 +606,39 @@ describe('the inbox', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+/**
+ * The same inbox, read by somebody who was let into that tent to write in its
+ * diary. The cards are theirs to read - an alarm is news wherever it comes
+ * from - and everything a card would do to the device is not: silencing a rule
+ * and parking the tent for a quarter of an hour are `manage`, which the server
+ * refuses them, so the chips are not there to be tapped.
+ */
+describe('a member who may only log', () => {
+  beforeEach(() => {
+    state.youMay = 'log';
+  });
+
+  it('reads the card and is offered neither the silence nor the maintenance', async () => {
+    server.alerts = [alert({})];
+    server.rules = [rule()];
+    draw();
+
+    expect(await screen.findByText(/Flower room B/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Silence 1 h' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Maintenance 15 min' })).not.toBeInTheDocument();
+  });
+
+  it('is what the owner is not: the owner gets both chips', async () => {
+    state.youMay = 'own';
+    server.alerts = [alert({})];
+    server.rules = [rule()];
+    draw();
+
+    expect(await screen.findByRole('button', { name: 'Silence 1 h' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Maintenance 15 min' })).toBeInTheDocument();
   });
 });
 

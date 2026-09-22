@@ -7,10 +7,11 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Entry, GrowListItem, HomeAnswer, PlantPage } from '@fg2/shared-types/v1';
+import type { AccessNeed, Entry, GrowListItem, HomeAnswer, PlantPage } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { LogProvider } from '@/log/LogProvider';
 import { useLog } from '@/log/log-context';
+import { spaceWhere, THE_HOST, YOU } from './session';
 
 /**
  * The Log sheet: what one tap writes, what it says it wrote, and what happens
@@ -23,6 +24,14 @@ import { useLog } from '@/log/log-context';
 vi.mock('@/api/client', () => ({
   api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn(), upload: vi.fn() },
 }));
+
+// A phase is the one tile on this sheet that is not a diary line, so the sheet
+// asks who is looking and what they may do where the grow stands.
+vi.mock('@/api/session', async importOriginal => {
+  const { SIGNED_IN } = await import('./session');
+
+  return { ...(await importOriginal<object>()), useSession: () => SIGNED_IN };
+});
 
 const NOW = new Date('2026-09-18T12:00:00.000Z');
 const daysAgo = (days: number) => new Date(NOW.getTime() - days * 86_400_000).toISOString();
@@ -157,9 +166,15 @@ const lastFeed: Entry = {
 
 const written: Entry = { ...lastWater, id: 'entry-new', occurredAt: NOW.toISOString(), undoUntil: new Date(NOW.getTime() + 300_000).toISOString() };
 
+/** What the reader may do in Tent 1: a phase is the one tile that is not a diary line. */
+const may = { youMay: 'own' as AccessNeed };
+
 const answers = (path: string) => {
   if (path === '/home') return home;
-  if (path === '/grows/grow-1') return grow;
+  if (path === '/spaces') return { items: [spaceWhere(may.youMay)], nextCursor: null };
+  // The grow belongs to whoever the tent it stands in does, so one reader's two
+  // standings cannot contradict each other.
+  if (path === '/grows/grow-1') return { ...grow, ownerId: may.youMay === 'own' ? YOU : THE_HOST };
   if (path === '/grows/grow-1/plants') return plants;
   if (path === '/entries') return { items: [lastFeed, lastWater], nextCursor: null };
   throw new Error(`nothing mocked for ${path}`);
@@ -215,6 +230,7 @@ afterAll(() => vi.useRealTimers());
 
 beforeEach(() => {
   vi.setSystemTime(NOW);
+  may.youMay = 'own';
   vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);
   vi.mocked(api.post).mockResolvedValue(written as never);
   vi.mocked(api.delete).mockResolvedValue(undefined as never);
@@ -237,6 +253,22 @@ describe('the log sheet', () => {
     expect(within(sheet).getByText('Bio·Bloom · wk 5')).toBeInTheDocument();
     expect(within(sheet).getByText('Height · pH')).toBeInTheDocument();
     expect(within(sheet).getByText('→ Drying')).toBeInTheDocument();
+  });
+
+  /**
+   * Seven of the eight tiles write a diary line, which is what somebody is let
+   * into a tent to do. A phase is not one: it moves the grow to another stage
+   * and puts the tent's climate on it, which the Control tab already refuses a
+   * member - so the tile is gone rather than there and refused on save.
+   */
+  it('keeps the seven that write a line for a member, and drops the phase', async () => {
+    may.youMay = 'log';
+    await openSheet();
+    const sheet = screen.getByRole('dialog', { name: 'Log' });
+
+    for (const tile of ['Water', 'Feed', 'Photo', 'Note', 'Measure', 'Training', 'In the tent'])
+      expect(within(sheet).getByRole('button', { name: new RegExp(`^${tile}`) })).toBeInTheDocument();
+    expect(within(sheet).queryByRole('button', { name: /^Phase/ })).not.toBeInTheDocument();
   });
 
   it('writes the last can on one tap, says so, and takes it back again', async () => {

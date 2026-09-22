@@ -8,11 +8,12 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Entry, GrowListItem, Reminder, Space, Task } from '@fg2/shared-types/v1';
+import type { AccessNeed, Entry, GrowListItem, Reminder, Task } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { LogProvider } from '@/log/LogProvider';
 import { Tasks } from '@/screens/Tasks';
+import { spaceWhere, THE_HOST, YOU } from './session';
 
 /**
  * The Tasks tab: what the server said is waiting, sorted into the reader's
@@ -118,8 +119,23 @@ const reminders = [
   reminder({ id: 'rem-3', kind: 'feed', label: 'Feed', everyDays: 7, assigneeId: 'user-mia', defaults: null }),
 ];
 
-const grows = [{ id: 'grow-1', name: 'Spring run', endedAt: null } as GrowListItem];
-const spaces = [{ id: 'space-1', name: 'Tent 1', kind: 'tent' } as Space];
+/** What the reader may do in Tent 1, which is what decides every control on this screen. */
+const state = { waiting: [] as Task[], done: [] as Task[], youMay: 'own' as AccessNeed };
+
+const spaces = () => [spaceWhere(state.youMay)];
+
+// The grow stands in Tent 1 and belongs to whoever the tent does, so that the
+// two halves of one account's standing cannot contradict each other.
+const grows = () =>
+  [
+    {
+      id: 'grow-1',
+      ownerId: state.youMay === 'own' ? YOU : THE_HOST,
+      name: 'Spring run',
+      endedAt: null,
+      placements: [{ id: 'pl-1', spaceId: 'space-1', startedAt: daysFromNow(-30), endedAt: null, plantIds: null }],
+    } as GrowListItem,
+  ] as GrowListItem[];
 
 /** The controller in Tent 1, and the plan it is being run by: what a step's confirmation says it will start. */
 const devices = [{ id: 'device-1', spaceId: 'space-1' }];
@@ -134,13 +150,11 @@ const plan = {
   state: { status: 'running', activeStepIndex: 0 },
 };
 
-const state = { waiting: [] as Task[], done: [] as Task[] };
-
 const answers = (path: string, query?: Record<string, unknown>) => {
   if (path === '/tasks') return { items: query?.done ? state.done : state.waiting, nextCursor: null };
   if (path === '/reminders') return { items: reminders, nextCursor: null };
-  if (path === '/grows') return { items: grows, nextCursor: null };
-  if (path === '/spaces') return { items: spaces, nextCursor: null };
+  if (path === '/grows') return { items: grows(), nextCursor: null };
+  if (path === '/spaces') return { items: spaces(), nextCursor: null };
   if (path === '/devices') return { items: devices, nextCursor: null };
   if (path === '/devices/device-1/plan') return plan;
   throw new Error(`nothing mocked for ${path}`);
@@ -185,6 +199,7 @@ beforeEach(() => {
   vi.setSystemTime(NOW.toJSDate());
   who.demo = false;
   localStorage.clear();
+  state.youMay = 'own';
   state.waiting = [water, chore, planStep, mias, overdue];
   state.done = [ticked];
   vi.mocked(api.get).mockImplementation((path: string, query?: Record<string, unknown>) => Promise.resolve(answers(path, query)) as never);
@@ -520,6 +535,51 @@ describe('the demo', () => {
     expect(screen.queryByRole('button', { name: /^Done:/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^\+ Reminder/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The same account, the same tasks, and a tent it was let into rather than one
+ * it owns. What changes is every control: a member may tick off the lines they
+ * were let in to write, and may not confirm a plan step - which moves the
+ * owner's plan on and sends the next step's targets to the controller, and is
+ * exactly what the Control tab already refuses them.
+ */
+describe('a member who may only log', () => {
+  beforeEach(() => {
+    state.youMay = 'log';
+  });
+
+  it('still ticks off the tasks that are diary lines', async () => {
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Done: Water' }));
+
+    expect(api.post).toHaveBeenCalledWith('/tasks/rem-1%3A2026-09-16/completions', {});
+  });
+
+  it('is offered no circle on a plan step, and is told whose the plan is', async () => {
+    await drawLoaded();
+
+    expect(section('This week').getByText('Confirm: Late flower on day 36?')).toBeInTheDocument();
+    expect(section('This week').queryByRole('button', { name: /^Done:/ })).not.toBeInTheDocument();
+    expect(section('This week').getByText(/Only whoever steers the tent can do that\./)).toBeInTheDocument();
+  });
+
+  it('is offered neither the Edit on somebody else’s rhythm nor a new one', async () => {
+    await drawLoaded();
+
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^\+ Reminder/ })).not.toBeInTheDocument();
+  });
+
+  it('is what the owner is not: the owner keeps all three', async () => {
+    state.youMay = 'own';
+    await drawLoaded();
+
+    expect(section('This week').getByRole('button', { name: /^Done:/ })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Edit' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: /^\+ Reminder/ })).toBeInTheDocument();
   });
 });
 

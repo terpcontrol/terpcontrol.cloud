@@ -6,7 +6,6 @@ import type { GrowListItem, GrowScheme, SchemeWeek } from '@fg2/shared-types/v1'
 import { useUpdateGrow } from '@/api/grows';
 import { growSchemeLabel, schemeVersionLabel, useOwnSchemes, useScheme, useSchemes } from '@/api/schemes';
 import { Refused } from '@/ui/PageState';
-import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { sameScheme, useSchemeEdit } from './scheme/edit-store';
 import { hasEcTargets, withFlipWeek } from './scheme/grid';
@@ -39,9 +38,8 @@ const STRENGTHS = [0.5, 0.75, 1, 1.25];
  * which grid is to stand, because the alternative is one grower's Save quietly
  * undoing another's.
  */
-export function Feeding({ grow }: { grow: GrowListItem }) {
+export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: boolean }) {
   const { t } = useTranslation();
-  const mayManage = useMayManage();
   const shipped = useSchemes();
   const own = useOwnSchemes();
   const update = useUpdateGrow(grow.id);

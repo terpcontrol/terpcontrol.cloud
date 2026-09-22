@@ -8,7 +8,7 @@ import { useSession } from '@/api/session';
 import { instantOf } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
-import { useMayManage } from '@/ui/session-access';
+import { enough, useMayInEach, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { AlertCard } from './alerts/AlertCard';
@@ -45,7 +45,15 @@ const RULES_BEAT_MS = 300_000;
 export function Alerts() {
   const { t } = useTranslation();
   const now = useNow();
-  const mayManage = useMayManage();
+  // The mute is the account's own and stands above every place; silencing a
+  // rule or sending a device into maintenance is `manage` on the device the
+  // card is about, which is why the two are asked separately.
+  const mayWriteAtAll = useMayManage();
+  const mayManageIn = useMayInEach();
+  // An alert that names no place is about something standing nowhere, which
+  // nobody but its owner can be shown at all - so there the session's own half
+  // is the whole answer, and everywhere else the place decides.
+  const mayActOn = (alert: Alert): boolean => (alert.spaceId === null ? mayWriteAtAll : enough(mayManageIn(alert.spaceId), 'manage'));
   const { user } = useSession();
   const me = useMe();
   const open = useOpenAlerts();
@@ -64,7 +72,7 @@ export function Alerts() {
   const head = (
     <header className={styles.head}>
       <h1 className={styles.title}>{t('shell.alerts')}</h1>
-      {mayManage ? <MuteCorner now={now} /> : null}
+      {mayWriteAtAll ? <MuteCorner now={now} /> : null}
     </header>
   );
 
@@ -132,7 +140,7 @@ export function Alerts() {
                   rule={alert.ruleId ? (rules.rules.get(alert.ruleId) ?? null) : null}
                   names={names}
                   me={me.data}
-                  mayManage={mayManage}
+                  mayManage={mayActOn(alert)}
                   now={now}
                 />
               ))}

@@ -904,7 +904,8 @@
       "numbered": "{{name}} {{number}}"
     },
     "noDevicesHere": "Hier steht kein Gerät.",
-    "unnamed": "{{type}} · {{tag}}"
+    "unnamed": "{{type}} · {{tag}}",
+    "youMayLog": "Was die Geräte hier tun, steht hier. Eine Steckdose oder die Lampe schaltet nur, wer dieses Zelt steuert."
   },
   "diary": {
     "title": "Tagebuch",
@@ -1350,7 +1351,15 @@
     "updated": "aktualisiert vor {{age}}",
     "accountNote": "Du · Profil, Einstellungen",
     "loadFailed": "Konnte nicht laden. Bitte erneut versuchen.",
-    "unreachable": "Server nicht erreichbar. Bitte erneut versuchen."
+    "unreachable": "Server nicht erreichbar. Bitte erneut versuchen.",
+    "gone": {
+      "space": "Dieses Zelt ist nicht mit dir geteilt.",
+      "grow": "Dieser Grow ist nicht mit dir geteilt.",
+      "camera": "Diese Kamera ist nicht mit dir geteilt.",
+      "device": "Dieses Gerät ist nicht mit dir geteilt.",
+      "why": "Entweder ist es beendet, oder wer es teilt, hat dich herausgenommen. Ein erneuter Versuch bringt es nicht zurück.",
+      "home": "Start"
+    }
   },
   "home": {
     "empty": {
@@ -2291,7 +2300,8 @@
       "movedUnder": "anderswo geändert",
       "keepMine": "Meines behalten",
       "takeTheirs": "Deren übernehmen"
-    }
+    },
+    "youMayLog": "Du darfst in das Tagebuch dieses Grows schreiben. Umziehen, teilen und ernten kann nur, wer das Zelt steuert, in dem er steht."
   },
   "space": {
     "tabsLabel": "Bereichsseite",
@@ -2494,7 +2504,8 @@
       "targets": "Manuelle Zielwerte",
       "advanced": "Erweitert",
       "advancedAlarms": "Alarme",
-      "advancedSockets": "Steckdosen, im Reiter Geräte"
+      "advancedSockets": "Steckdosen, im Reiter Geräte",
+      "youMayLog": "Du darfst in diesem Zelt loggen, es aber nicht steuern. Plan, Sollwerte und Alarmregeln stehen hier so, wie sie eingestellt sind; ändern kann sie nur, wer das Zelt steuert."
     },
     "noReadingsYet": "Noch nichts gemeldet",
     "high": "zu hoch",
@@ -2737,7 +2748,8 @@
         "tentsIn_other": "{{count}} Zelte in diesem Raum",
         "noTents": "Noch kein Zelt steht in diesem Raum. Ein Zelt kommt über seinen eigenen Mitglieder-Tab hinein."
       }
-    }
+    },
+    "youMayLog": "Du darfst hier loggen: Einträge, Aufgaben und Fotos. Sollwerte, Plan, Alarme und Steckdosen ändert nur, wer dieses Zelt steuert."
   },
   "log": {
     "title": "Eintrag",
@@ -2912,7 +2924,8 @@
       "open": "Film öffnen",
       "queuedNote": "Wartet auf den Builder, der die Warteschlange beim nächsten Durchlauf abarbeitet. Diese Seite verfolgt das; beim Weggehen geht nichts verloren."
     },
-    "noFilms": "Von dieser Kamera gibt es noch keinen Film."
+    "noFilms": "Von dieser Kamera gibt es noch keinen Film.",
+    "youMayLog": "Du siehst, was diese Kamera sieht. Einstellungen, Testbild und Zeitraffer sind Sache derer, die das Zelt steuern, in dem sie steht."
   },
   "cameras": {
     "add": {
@@ -3344,7 +3357,8 @@
       "askUnnamed": "Das bestätigt den Schritt und startet den nächsten; es lässt sich nicht zurücknehmen.",
       "yes": "Schritt bestätigen",
       "cancel": "Abbrechen"
-    }
+    },
+    "stepIsManaged": "Einen Schritt zu bestätigen, rückt den Plan weiter und schickt die Sollwerte des nächsten Schritts an den Controller. Das kann nur, wer das Zelt steuert."
   },
   "targets": {
     "title": "Manuelle Zielwerte",

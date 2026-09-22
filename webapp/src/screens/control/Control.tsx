@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, Navigate } from 'react-router';
 import { useDevices } from '@/api/devices';
 import { LoadFailed, Waiting } from '@/ui/PageState';
-import { useMayManage } from '@/ui/session-access';
+import { useMayLogIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { Alarms } from './alarms/Alarms';
 import { PlanPanel } from './PlanPanel';
@@ -34,7 +34,11 @@ const isSub = (value: string | null): value is ControlSub => (SUBPAGES as readon
  */
 export function Control({ spaceId, sub }: { spaceId: string; sub: string | null }) {
   const { t } = useTranslation();
-  const mayManage = useMayManage();
+  // Everything on this tab and on the two pages below it writes to a device
+  // standing here, which the ADR's table puts at `manage` - so the question is
+  // about this place and not about the session.
+  const mayManage = useMayManage(spaceId);
+  const mayLog = useMayLogIn(spaceId);
   const devices = useDevices();
 
   if (sub !== null && !isSub(sub)) return <Navigate to={`/spaces/${spaceId}/control`} replace />;
@@ -59,6 +63,11 @@ export function Control({ spaceId, sub }: { spaceId: string; sub: string | null 
       ) : (
         here.map(device => <PlanPanel key={device.id} device={device} mayManage={mayManage} />)
       )}
+
+      {/* The moves, the manual targets and the alarm rules are all absent for
+          somebody who may only write lines, which leaves a tab that looks half
+          drawn - so it says whose they are and that what is set is still shown. */}
+      {!mayManage && mayLog && here.length > 0 ? <p className={`mono ${styles.role}`}>{t('space.control.youMayLog')}</p> : null}
 
       {here.length > 0 ? (
         <nav className={styles.below} aria-label={t('space.control.belowLabel')}>

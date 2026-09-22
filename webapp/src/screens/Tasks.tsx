@@ -11,7 +11,7 @@ import { useTasks } from '@/api/tasks';
 import { useLog, useMayLog } from '@/log/log-context';
 import { useReportFreshness } from '@/ui/freshness';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
-import { useMayManage } from '@/ui/session-access';
+import { enough, standsIn, useMayManage, useMayWith, type Standing } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { ReminderSheet } from './tasks/ReminderSheet';
@@ -135,6 +135,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
   const { complete } = useLog();
   const mayLog = useMayLog();
   const mayManage = useMayManage();
+  const mayWith = useMayWith();
   const done = useTasks(true);
   const reminders = useReminders();
   const grows = useGrows();
@@ -160,6 +161,43 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
   const ticked = newestFirst((done.data?.items ?? []).filter(task => scope === 'all' || isMine(task, user?.id ?? null)));
   const nameOf = (task: Task) => subjectName(task.subject, grows.data?.items, spaces.data?.items);
   const openGrows = (grows.data?.items ?? []).filter(grow => grow.endedAt === null);
+
+  /**
+   * Where a task's subject stands, which is what decides who may act on it.
+   * This list is the one screen that gathers tasks from every place at once, so
+   * the question is asked per card; null while the grows have not answered, and
+   * a control is not drawn on a guess.
+   */
+  const standingOf = (task: Task): Standing | null => {
+    if (task.subject.type === 'space') return { ownerId: null, spaceId: task.subject.id };
+    const grow = (grows.data?.items ?? []).find(one => one.id === task.subject.id);
+
+    return grow ? { ownerId: grow.ownerId, spaceId: standsIn(grow) } : null;
+  };
+
+  /**
+   * What ticking one off really needs. Almost every task is a diary line and
+   * wants `log`, but a plan step is not a line: it moves the plan on and sends
+   * the next step's targets to the controller, which the decision record puts
+   * under `manage` and the Control tab already refuses. Two screens deciding
+   * the same thing differently is how a guest gets to do through the back door
+   * what the front door would not let them.
+   */
+  const mayTick = (task: Task): boolean => {
+    const standing = standingOf(task);
+
+    return standing !== null && enough(mayWith(standing), task.source === 'plan_step' ? 'manage' : 'log');
+  };
+
+  const mayEdit = (task: Task): boolean => {
+    const standing = standingOf(task);
+
+    return standing !== null && enough(mayWith(standing), 'manage');
+  };
+
+  /** The places a rhythm can be hung on: a reminder is `manage` on its subject, so nothing else may be offered. */
+  const reminderGrows = openGrows.filter(grow => enough(mayWith({ ownerId: grow.ownerId, spaceId: standsIn(grow) }), 'manage'));
+  const reminderSpaces = (spaces.data?.items ?? []).filter(space => enough(space.youMay, 'manage'));
 
   /**
    * The controller whose plan a step belongs to, so that the card can say what
@@ -225,8 +263,9 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
                     deviceId={deviceOf(task)}
                     me={user}
                     now={now}
-                    onDone={mayLog ? () => tick(task) : null}
-                    onEdit={mayManage && reminder ? () => setEditing({ reminder }) : null}
+                    onDone={mayLog && mayTick(task) ? () => tick(task) : null}
+                    onEdit={mayEdit(task) && reminder ? () => setEditing({ reminder }) : null}
+                    why={task.source === 'plan_step' && !mayTick(task) ? t('tasks.stepIsManaged') : null}
                   />
                 );
               })}
@@ -251,14 +290,16 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
 
       <p className={ui.note}>{t('tasks.sources')}</p>
 
-      {mayManage ? (
+      {/* A rhythm has to hang on a grow or a place this account manages; with
+          none of either there is nothing the sheet could write. */}
+      {mayManage && (reminderGrows.length > 0 || reminderSpaces.length > 0) ? (
         <button type="button" className={`${ui.cardDashed} ${styles.add}`} onClick={() => setEditing({ reminder: null })}>
           {t('tasks.add')}
         </button>
       ) : null}
 
       {editing && user ? (
-        <ReminderSheet reminder={editing.reminder} grows={openGrows} spaces={spaces.data?.items ?? []} userId={user.id} onClose={closeSheet} />
+        <ReminderSheet reminder={editing.reminder} grows={reminderGrows} spaces={reminderSpaces} userId={user.id} onClose={closeSheet} />
       ) : null}
     </section>
   );
