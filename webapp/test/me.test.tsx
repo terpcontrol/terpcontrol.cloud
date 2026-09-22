@@ -160,13 +160,26 @@ const INDEX = {
   ],
 };
 
-const server = { me: me(), grows: GROWS, links: LINKS, cameras: [camera({})], own: [OWN], follows: 2, asked: [] as string[] };
+const server = {
+  me: me(),
+  grows: GROWS,
+  links: LINKS,
+  cameras: [camera({})],
+  own: [OWN],
+  follows: 2,
+  asked: [] as string[],
+  failing: [] as string[],
+  held: {} as Record<string, Promise<Response>>,
+};
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   const { pathname } = new URL(String(input), 'http://localhost');
   server.asked.push(pathname);
+  if (server.failing.includes(pathname)) return json({ status: 500, code: 'server_error', title: 'Server error', detail: '', errors: [] }, 500);
+  // A read the test holds open, which is how one answer arriving before another is staged.
+  if (server.held[pathname]) return server.held[pathname];
 
   if (pathname === '/v1/me') return json(server.me);
   if (pathname === '/v1/grows') return json({ items: server.grows, nextCursor: null });
@@ -215,6 +228,8 @@ beforeEach(() => {
   server.own = [OWN];
   server.follows = 2;
   server.asked = [];
+  server.failing = [];
+  server.held = {};
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -300,6 +315,62 @@ describe('what each door says', () => {
 
     expect(await lineUnder('Account')).toBe('e-mail · password · sessions · export · delete');
     expect(await lineUnder('About')).toMatch(/^v\d+\.\d+\.\d+ · /);
+  });
+});
+
+/**
+ * Eight reads fan out from this page and they answer in whatever order the
+ * connection gives them, so each is failed in turn here and the page is asked
+ * for all ten of its doors. Me is the only way to privacy, to the export and
+ * to signing out, and a read that never answers has to cost its own line and
+ * nothing else; the mixed state - one read in and another not - is the one
+ * that took the whole screen down, so the door built from two of them is
+ * checked with each half failing on its own.
+ */
+describe('one read that fails', () => {
+  const DOORS = [
+    'Public grows and profile',
+    'Following',
+    'Share links',
+    'Premium',
+    'Notifications',
+    'Privacy',
+    'Feeding schemes',
+    'Account',
+    'Appearance',
+    'About',
+  ];
+
+  it.each([
+    ['/v1/me', ['Public grows and profile', 'Premium', 'Notifications', 'Privacy', 'Appearance']],
+    ['/v1/grows', ['Public grows and profile', 'Feeding schemes']],
+    ['/v1/follows', ['Following']],
+    ['/v1/share-links', ['Share links']],
+    ['/v1/cameras', ['Premium']],
+    ['/v1/schemes', ['Feeding schemes']],
+  ])('keeps every door when %s fails, and says so under the ones that needed it', async (path, affected) => {
+    server.failing = [path];
+    draw();
+
+    for (const name of DOORS) expect(screen.getByRole('link', { name: new RegExp(`^${name}`) })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
+    for (const name of affected) expect(await lineUnder(name)).toBe('Could not load. Try again.');
+  });
+
+  it('draws the Premium line as loading while the account read is still out, whatever the cameras have said', async () => {
+    let answerMe = (_: Response) => {};
+    const held = new Promise<Response>(resolve => {
+      answerMe = resolve;
+    });
+    server.held = { '/v1/me': held };
+    draw();
+
+    expect(await lineUnder('Share links')).toBe('1 active · 1 expired · 1 revoked');
+    expect(screen.getByRole('link', { name: /^Premium/ })).toHaveTextContent('loading');
+
+    answerMe(json(server.me));
+    const until = DateTime.fromISO('2027-10-14T12:00:00.000Z').toLocaleString(DateTime.DATE_MED);
+    expect(await lineUnder('Premium')).toBe(`Terp Cam 1 · included until ${until}active`);
   });
 });
 

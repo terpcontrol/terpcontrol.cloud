@@ -83,10 +83,22 @@ function AccountDoors({ handle }: { handle: string }) {
   const shipped = useSchemes();
   const own = useOwnSchemes();
 
+  /**
+   * One door's line, drawn only once every read it is worked out from has
+   * answered. Eight reads fan out from this page and they land in whatever
+   * order the connection gives them, so a line must name every query it reads
+   * rather than the first of them: a gate that lists one of two is a promise
+   * that the other has arrived, and a line that believes it takes the hub - and
+   * with it the only way to privacy, the export and signing out - down to the
+   * router's error screen on a phone. A read still outstanding says it is
+   * loading and a read that failed says so, each under its own door, so one
+   * answer missing costs its own line and nothing else.
+   */
   const line = (queries: { data: unknown; isPending: boolean }[], text: () => string): string =>
     queries.every(query => query.data !== undefined) ? text() : queries.some(query => query.isPending) ? t('home.waiting') : t('shell.loadFailed');
 
-  const premium = cameras.data && me.data ? premiumLine(t, cameras.data.items, now, me.data.premium.enforced) : null;
+  // Gated exactly as `line` gates, so that the two cannot disagree about whether this is safe to read.
+  const premium = cameras.data !== undefined && me.data !== undefined ? premiumLine(t, cameras.data.items, now, me.data.premium.enforced) : null;
 
   return (
     <>
@@ -101,7 +113,7 @@ function AccountDoors({ handle }: { handle: string }) {
       />
       <Door to="/me/following" title={t('me.following.title')} line={line([follows], () => followingLine(t, follows.data!.items.length))} />
       <Door to="/me/share-links" title={t('me.shareLinks.title')} line={line([links], () => shareLinksLine(t, links.data!.items, now))} />
-      <Door to="/me/premium" title={t('me.premium.title')} line={line([cameras], () => premium!.text)} aside={premium?.aside ?? null} />
+      <Door to="/me/premium" title={t('me.premium.title')} line={line([cameras, me], () => premium!.text)} aside={premium?.aside ?? null} />
       <Door to="/me/notifications" title={t('notifications.title')} line={line([me], () => notificationsLine(t, me.data!, now))} />
       <Door to="/me/privacy" title={t('me.privacy.title')} line={line([me], () => privacyLine(t, me.data!))} />
       <Door
@@ -137,8 +149,10 @@ function DemoDoors({ handle }: { handle: string }) {
 /**
  * The theme and the language are the browser's and known at once; the units
  * are the account's and arrive with it, so the line waits for the account
- * like every other rather than saying half of itself first. The demo has no
- * units to wait for.
+ * like every other rather than saying half of itself first. A read that failed
+ * says so instead of dropping the units quietly, because a line of two thirds
+ * reads as a settled answer rather than as an answer that never came. The demo
+ * has no units to wait for.
  */
 function AppearanceLine({ language }: { language: string }) {
   const { t } = useTranslation();
@@ -147,7 +161,10 @@ function AppearanceLine({ language }: { language: string }) {
   const hasAccount = user !== null && !user.isDemo;
   const me = useMe(false, hasAccount);
 
-  if (hasAccount && me.isPending) return t('home.waiting');
+  if (hasAccount) {
+    if (me.isPending) return t('home.waiting');
+    if (!me.data) return t('shell.loadFailed');
+  }
 
   return appearanceLine(t, choice, me.data?.preferences.units ?? null, language);
 }

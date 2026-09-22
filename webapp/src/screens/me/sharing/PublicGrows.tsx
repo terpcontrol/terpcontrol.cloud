@@ -74,8 +74,30 @@ function Grows({ userId }: { userId: string | null }) {
 
   const own = grows.data.items.filter(grow => grow.ownerId === userId);
   const publicCount = own.filter(grow => grow.visibility === 'public').length;
-  const live = (links.data?.items ?? []).filter(link => !isDead(link, now));
   const profile = appUrl(`/@${me.data.handle}`);
+
+  /**
+   * How many live links open a grow, which is a third read and lands after the
+   * two this page waits for. Until it does the answer is not nought: a grow
+   * whose links have not been counted yet would otherwise read as one nobody
+   * can reach, which is the very thing the count is here to disprove. So the
+   * row says that the count is still coming, or that it could not be read, and
+   * only ever states a figure it has.
+   *
+   * Only the links that actually open the grow are counted. A public-page link
+   * is the public address in another form and stops working the moment the grow
+   * goes private, so counting it on a private grow would tell somebody their
+   * grow was still being read when it is not.
+   */
+  const linksOpening = (grow: GrowListItem): string | null => {
+    if (!links.data) return links.isPending ? t('home.waiting') : t('shell.loadFailed');
+    const open = links.data.items.filter(
+      link =>
+        !isDead(link, now) && link.subject.type === 'grow' && link.subject.id === grow.id && (link.kind === 'view' || grow.visibility === 'public'),
+    ).length;
+
+    return open > 0 ? t('me.public.links', { count: open }) : null;
+  };
 
   return (
     <>
@@ -96,23 +118,7 @@ function Grows({ userId }: { userId: string | null }) {
       {own.length === 0 ? (
         <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.public.none')}</p>
       ) : (
-        own.map(grow => (
-          <GrowRow
-            key={grow.id}
-            grow={grow}
-            // Only the links that actually open the grow are counted. A
-            // public-page link is the public address in another form and stops
-            // working the moment the grow goes private, so counting it on a
-            // private grow would tell somebody their grow was still being read
-            // when it is not.
-            links={
-              live.filter(
-                link => link.subject.type === 'grow' && link.subject.id === grow.id && (link.kind === 'view' || grow.visibility === 'public'),
-              ).length
-            }
-            held={!mayManage}
-          />
-        ))
+        own.map(grow => <GrowRow key={grow.id} grow={grow} links={linksOpening(grow)} held={!mayManage} />)
       )}
 
       <p className={`${ui.note} ${styles.closing}`}>{t('me.public.stranger')}</p>
@@ -125,14 +131,12 @@ function Grows({ userId }: { userId: string | null }) {
  * than patched, because the list is where this row came from, and a switch
  * that snapped back while the server had agreed would be the worst of both.
  */
-function GrowRow({ grow, links, held }: { grow: GrowListItem; links: number; held: boolean }) {
+function GrowRow({ grow, links, held }: { grow: GrowListItem; links: string | null; held: boolean }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const update = useUpdateGrow(grow.id);
   const isPublic = grow.visibility === 'public';
-  const line = [isPublic ? appUrl(`/g/${grow.slug}`) : t('me.public.private'), links > 0 ? t('me.public.links', { count: links }) : null]
-    .filter(Boolean)
-    .join(' · ');
+  const line = [isPublic ? appUrl(`/g/${grow.slug}`) : t('me.public.private'), links].filter(Boolean).join(' · ');
 
   return (
     <>

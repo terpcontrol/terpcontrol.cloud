@@ -1,7 +1,7 @@
 import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { GrowListItem, Me, ShareLink, Space } from '@fg2/shared-types/v1';
+import type { GrowListItem, ShareLink, Space } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { useGrows } from '@/api/grows';
 import { useSession } from '@/api/session';
@@ -60,6 +60,14 @@ interface Subject {
   isPublic: boolean | null;
 }
 
+/**
+ * What a shared view strips, which is the account's own privacy setting and so
+ * its own read. Until that read answers, the grant line says that rather than
+ * listing nothing: a line with no "weights hidden" on it is read as a link that
+ * hides nothing, which is a claim this screen cannot make before it knows.
+ */
+type Stripping = { known: true; hideWeights: boolean; hideCounts: boolean } | { known: false; word: string };
+
 function Links({ userId }: { userId: string | null }) {
   const { t, i18n } = useTranslation();
   const now = useNow();
@@ -85,7 +93,9 @@ function Links({ userId }: { userId: string | null }) {
 
   const active = links.data.items.filter(link => !isDead(link, now));
   const dead = links.data.items.filter(link => isDead(link, now));
-  const privacy = me.data?.privacy ?? null;
+  const privacy: Stripping = me.data
+    ? { known: true, hideWeights: me.data.privacy.hideWeights, hideCounts: me.data.privacy.hideCounts }
+    : { known: false, word: me.isPending ? t('home.waiting') : t('shell.loadFailed') };
   const opened = links.data.items.find(link => link.id === openId) ?? null;
   const own = <T extends GrowListItem | Space>(rows: T[] | undefined): T[] => (rows ?? []).filter(row => row.ownerId === userId);
 
@@ -273,7 +283,7 @@ const opensOf = (t: Translate, link: ShareLink, now: DateTime): Part[] => {
  * rather than calling it permanent - it is not revoked and would work again if
  * the grow were published again, which is exactly what the words have to carry.
  */
-const grantParts = (t: Translate, link: ShareLink, subject: Subject, privacy: Me['privacy'] | null, now: DateTime, locale: string): Part[] => {
+const grantParts = (t: Translate, link: ShareLink, subject: Subject, privacy: Stripping, now: DateTime, locale: string): Part[] => {
   const parts: Part[] = [];
 
   if (link.kind === 'public_page') {
@@ -289,8 +299,12 @@ const grantParts = (t: Translate, link: ShareLink, subject: Subject, privacy: Me
   }
 
   parts.push({ text: t(link.includeCameras ? 'me.shareLinks.camsOn' : 'me.shareLinks.camsOff') });
-  if (privacy?.hideWeights) parts.push({ text: t('me.shareLinks.weightsHidden') });
-  if (privacy?.hideCounts) parts.push({ text: t('me.shareLinks.countsHidden') });
+  if (!privacy.known) {
+    parts.push({ text: privacy.word });
+  } else {
+    if (privacy.hideWeights) parts.push({ text: t('me.shareLinks.weightsHidden') });
+    if (privacy.hideCounts) parts.push({ text: t('me.shareLinks.countsHidden') });
+  }
 
   return [...parts, ...opensOf(t, link, now)];
 };
