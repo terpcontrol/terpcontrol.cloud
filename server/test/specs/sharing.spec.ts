@@ -623,6 +623,45 @@ describe('the people in a space', () => {
       expect(listed.body.items.map((row: { userId: string }) => row.userId)).toContain(inside.userId);
     });
 
+    /**
+     * What the board draws on every row beside how somebody arrived: the one
+     * fact that says whether letting them in came to anything.
+     */
+    it('says when each person last wrote here, and leaves out whoever never has', async () => {
+      const wrote = await createAccount('members-wrote');
+      const silent = await createAccount('members-silent');
+
+      const written = (await host.client.post('/v1/spaces').send({ kind: 'tent', name: 'The written-in tent' }).expect(201)).body.id;
+      const elsewhere = (await host.client.post('/v1/spaces').send({ kind: 'tent', name: 'The other tent' }).expect(201)).body.id;
+      await accept(wrote, (await invite(host, written)).code);
+      await accept(silent, (await invite(host, written)).code);
+      await accept(silent, (await invite(host, elsewhere)).code);
+
+      const standing = (
+        await host.client.post('/v1/grows').send({ name: 'Logged in', type: 'photoperiod', plants: [], spaceId: written }).expect(201)
+      ).body;
+
+      // A line about the grow standing in the tent, which is where nearly
+      // everything a person logs is written.
+      const line = (
+        await wrote.client
+          .post('/v1/entries')
+          .send({ kind: 'note', growId: standing.id, text: 'Watered them.', values: { kind: 'note' } })
+          .expect(201)
+      ).body;
+      // And one written somewhere else entirely, which says nothing about here.
+      await silent.client
+        .post('/v1/entries')
+        .send({ kind: 'note', spaceId: elsewhere, text: 'Not in that tent.', values: { kind: 'note' } })
+        .expect(201);
+
+      const listed = await host.client.get(`/v1/spaces/${written}/members?limit=200`).expect(200);
+      const activity: { userId: string; lastEntryAt: string }[] = listed.body.activity;
+
+      expect(activity).toContainEqual({ userId: wrote.userId, lastEntryAt: line.occurredAt });
+      expect(activity.map(one => one.userId)).not.toContain(silent.userId);
+    });
+
     it('is continued page by page without widening past this tent and its room', async () => {
       const elsewhere = (await host.client.post('/v1/spaces').send({ kind: 'tent', name: 'Another tent' }).expect(201)).body.id;
       const other = await createAccount('members-elsewhere');

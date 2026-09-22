@@ -782,12 +782,20 @@ export const spacePage = named('SpacePage', page(space));
  * tent alone never sees the room in any other list and would otherwise have an
  * id to draw. `people` is here for the reason every list of ids is: a membership
  * names an account, and a handle is the only name anybody ever gets.
+ *
+ * `activity` is when each of them last wrote in this space - the one fact that
+ * tells a host whether somebody they let in is actually using the tent, which is
+ * why the row draws it beside how they arrived. It is not a field of a
+ * membership: it is read off the timeline, an entry of theirs naming this space
+ * or a grow standing in it, and somebody who has never written is simply absent
+ * rather than dated with a zero.
  */
 export const membershipPage = named(
   'MembershipPage',
   page(membership).extend({
     people: z.array(person),
     room: z.object({ id: id(), name: z.string() }).nullable(),
+    activity: z.array(z.object({ userId: id(), lastEntryAt: instant() })),
   }),
 );
 export const invitePage = named('InvitePage', page(invite));

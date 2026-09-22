@@ -2193,6 +2193,10 @@ export interface MembershipPage {
     id: string;
     name: string;
   } | null;
+  activity: {
+    userId: string;
+    lastEntryAt: string;
+  }[];
 }
 
 export interface InvitePage {

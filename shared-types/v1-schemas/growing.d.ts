@@ -1344,6 +1344,13 @@ export declare const spacePage: z.ZodObject<{
  * tent alone never sees the room in any other list and would otherwise have an
  * id to draw. `people` is here for the reason every list of ids is: a membership
  * names an account, and a handle is the only name anybody ever gets.
+ *
+ * `activity` is when each of them last wrote in this space - the one fact that
+ * tells a host whether somebody they let in is actually using the tent, which is
+ * why the row draws it beside how they arrived. It is not a field of a
+ * membership: it is read off the timeline, an entry of theirs naming this space
+ * or a grow standing in it, and somebody who has never written is simply absent
+ * rather than dated with a zero.
  */
 export declare const membershipPage: z.ZodObject<{
     items: z.ZodArray<z.ZodObject<{
@@ -1366,6 +1373,10 @@ export declare const membershipPage: z.ZodObject<{
     room: z.ZodNullable<z.ZodObject<{
         id: z.ZodString;
         name: z.ZodString;
+    }, z.core.$strip>>;
+    activity: z.ZodArray<z.ZodObject<{
+        userId: z.ZodString;
+        lastEntryAt: z.ZodISODateTime;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 export declare const invitePage: z.ZodObject<{

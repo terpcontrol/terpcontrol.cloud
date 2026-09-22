@@ -591,10 +591,18 @@ exports.spacePage = (0, common_js_1.named)('SpacePage', (0, common_js_1.page)(ex
  * tent alone never sees the room in any other list and would otherwise have an
  * id to draw. `people` is here for the reason every list of ids is: a membership
  * names an account, and a handle is the only name anybody ever gets.
+ *
+ * `activity` is when each of them last wrote in this space - the one fact that
+ * tells a host whether somebody they let in is actually using the tent, which is
+ * why the row draws it beside how they arrived. It is not a field of a
+ * membership: it is read off the timeline, an entry of theirs naming this space
+ * or a grow standing in it, and somebody who has never written is simply absent
+ * rather than dated with a zero.
  */
 exports.membershipPage = (0, common_js_1.named)('MembershipPage', (0, common_js_1.page)(exports.membership).extend({
     people: zod_1.z.array(common_js_1.person),
     room: zod_1.z.object({ id: (0, common_js_1.id)(), name: zod_1.z.string() }).nullable(),
+    activity: zod_1.z.array(zod_1.z.object({ userId: (0, common_js_1.id)(), lastEntryAt: (0, common_js_1.instant)() })),
 }));
 exports.invitePage = (0, common_js_1.named)('InvitePage', (0, common_js_1.page)(exports.invite));
 exports.growPage = (0, common_js_1.named)('GrowPage', (0, common_js_1.page)(exports.growListItem));

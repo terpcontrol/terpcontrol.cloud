@@ -9,6 +9,8 @@ import { afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
 import { conflict, forbidden, notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
+import { EntryDocument } from '@database/schemas/v1/entries.schema';
+import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { InviteDocument } from '@database/schemas/v1/invites.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
@@ -38,6 +40,10 @@ export class MembersService {
     // this one to write the row a redemption makes - so the model is injected
     // rather than the service, which would be a circle.
     @InjectModel(MODEL_V1.invite) private readonly invites: Model<InviteDocument>,
+    // The list says when each person was last here, which is a fact of the
+    // timeline and of nothing this module stores.
+    @InjectModel(MODEL_V1.grow) private readonly grows: Model<GrowDocument>,
+    @InjectModel(MODEL_V1.entry) private readonly entries: Model<EntryDocument>,
     private readonly access: AccessService,
   ) {}
 
@@ -75,7 +81,41 @@ export class MembersService {
       // alone never meets the room in any other list and would have nothing to
       // draw "via Grow room" from.
       room: room ? { id: room.id, name: room.name } : null,
+      activity: await this.activityOf(space, page.items),
     };
+  }
+
+  /**
+   * When each of these people last wrote here, which is the one thing on a
+   * member row that says whether letting somebody in came to anything.
+   *
+   * What counts as here is what the tent's own timeline shows: a line naming
+   * this space, or naming a grow that has stood in it. The grow half matters
+   * because almost everything a person logs is logged about the grow rather
+   * than about the room it stands in, and a list that asked only for the space
+   * would date every gardener as never.
+   *
+   * One aggregate for the whole page rather than a query per row: the list is
+   * drawn as one screen, and a member list of twenty people is not twenty reads
+   * of the busiest collection in the database. Somebody who has written nothing
+   * is left out rather than carried with a null, because absent is the only
+   * honest value for a date that does not exist - and the owner is asked about
+   * beside the members, since the screen draws their row too.
+   */
+  private async activityOf(space: SpaceDocument, rows: readonly MembershipDocument[]): Promise<MembershipPage['activity']> {
+    const people = [...new Set([...rows.map(row => row.userId), space.ownerId])];
+    const grows = await this.grows.find({ placements: { $elemMatch: { spaceId: space.id } } }, { id: 1 }).lean<Pick<GrowDocument, 'id'>[]>();
+
+    // Every placement and not only the open one: a grow that left this tent in
+    // spring was written in this tent while it stood here, and the timeline
+    // that shows those lines is the one this date is read off.
+    const newest = await this.entries.aggregate<{ _id: string; lastEntryAt: Date }>([
+      { $match: { authorId: { $in: people }, $or: [{ spaceId: space.id }, { growId: { $in: grows.map(grow => grow.id) } }] } },
+      { $group: { _id: '$authorId', lastEntryAt: { $max: '$occurredAt' } } },
+      { $sort: { lastEntryAt: -1 } },
+    ]);
+
+    return newest.map(row => ({ userId: row._id, lastEntryAt: row.lastEntryAt.toISOString() }));
   }
 
   /**
