@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import styles from './Claim.module.css';
 
 /**
@@ -14,6 +14,11 @@ import styles from './Claim.module.css';
  *
  * A step already settled stays reachable through its own heading, because the
  * wrong tent gets named first far more often than the right one does.
+ *
+ * The heading of the open step is where keyboard focus is put when a step
+ * settles, so it can be reached from outside: the question is read before the
+ * field, and a phone does not raise its keyboard while somebody is still
+ * holding the hardware.
  */
 export function Step({
   number,
@@ -21,6 +26,7 @@ export function Step({
   title,
   text,
   onOpen,
+  headingRef,
   children,
 }: {
   number: number;
@@ -29,6 +35,7 @@ export function Step({
   title: ReactNode;
   text: ReactNode;
   onOpen: () => void;
+  headingRef?: RefObject<HTMLHeadingElement | null>;
   children?: ReactNode;
 }) {
   const open = state === 'open';
@@ -40,7 +47,7 @@ export function Step({
       </span>
 
       <div className={styles.stepBody}>
-        <h2 className={styles.stepTitle}>
+        <h2 className={styles.stepTitle} ref={headingRef} tabIndex={open ? -1 : undefined}>
           {state === 'done' ? (
             <button type="button" className={styles.reopen} onClick={onOpen}>
               {title}

@@ -143,9 +143,15 @@ export class DevicesService {
     if (!claimCode) throw notFound('claim_code_unknown', 'No device is showing that code. Read it off the display again.');
 
     const device = await this.require(claimCode.deviceId);
+    // Reading a fresh code off hardware that is already on this account is what
+    // somebody does when a half-finished claim was interrupted, so it is worth
+    // its own refusal: "belongs to somebody" reads as broken hardware when the
+    // somebody is the person holding it.
+    if (device.ownerId === ownerId) throw conflict('device_already_yours', 'You have already added this device. It is on your Devices list.');
     if (device.ownerId !== null) throw conflict('device_claimed', 'That device already belongs to somebody.');
 
-    const name = body.name ?? device.name ?? device.type;
+    const given = body.name ?? device.name ?? null;
+    const name = given ?? device.type;
     // Putting a device into a space that exists is managing that space.
     if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
 
@@ -162,7 +168,7 @@ export class DevicesService {
 
     // A device that belongs to no space has no card to appear on, so a claim
     // always ends in one: naming none makes one.
-    const made = body.spaceId ? null : await this.spaces.create(this.spaceFor(ownerId, claimed, name));
+    const made = body.spaceId ? null : await this.spaces.create(this.spaceFor(ownerId, claimed, given));
     const spaceId = body.spaceId ?? made?.id ?? null;
 
     await this.devices.updateOne({ id: device.id }, { $set: { spaceId } });
@@ -222,13 +228,23 @@ export class DevicesService {
     return device.toObject<StoredDevice>();
   }
 
-  /** The space a claim makes when it is given none: a place of its own, named after the device that stands in it. */
-  private spaceFor(ownerId: string, device: StoredDevice, name: string): SpaceDocument {
+  /**
+   * The space a claim makes when it is given none: a place of its own for the
+   * device to stand in.
+   *
+   * A place is not a piece of hardware, so its name is never the hardware's
+   * type: "controller" would head the first card of a grower's home, in lower
+   * case and in English whatever language they read. A claim that brings no
+   * name leaves the tail of the id the device has printed on it, which belongs
+   * to no language and to no second device, and stands there until the person
+   * who plugged the device in says what the place is called.
+   */
+  private spaceFor(ownerId: string, device: StoredDevice, name: string | null): SpaceDocument {
     return {
       id: uuidv4(),
       ownerId,
       kind: SPACE_KIND[device.type] ?? 'other',
-      name,
+      name: name ?? device.id.slice(-6).toUpperCase(),
       roomId: null,
       presetPrompt: 'ask',
       retention: { climateDays: null },

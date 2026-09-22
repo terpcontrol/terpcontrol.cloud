@@ -29,6 +29,36 @@ describe('claiming a device', () => {
     expect(claimed.body.device).toMatchObject({ id: device.deviceId, ownerId: owner.userId, type: 'fridge' });
     expect(claimed.body.device.spaceId).toEqual(expect.any(String));
     expect(claimed.body.device.state.claimedAt).toEqual(expect.any(String));
+
+    // The place is not called after the hardware: a space named "fridge" is
+    // what a grower would read on their first home card, in every language.
+    const place = (await owner.client.get(`/v1/spaces/${claimed.body.device.spaceId}`).expect(200)).body;
+    expect(place.name).not.toBe('fridge');
+    expect(place.name).toBe(device.deviceId.slice(-6).toUpperCase());
+  });
+
+  it('takes the name the claim gives the place instead of inventing one', async () => {
+    const device = await registerDevice('controller');
+
+    const claimed = await owner.client
+      .post('/v1/devices/claims')
+      .send({ code: await claimCodeOf(device.deviceId), name: 'Tent 1' })
+      .expect(201);
+
+    const place = (await owner.client.get(`/v1/spaces/${claimed.body.device.spaceId}`).expect(200)).body;
+    expect(place).toMatchObject({ name: 'Tent 1', kind: 'tent' });
+  });
+
+  it('tells the owner of a device that they already added it', async () => {
+    const device = await provisionDevice(owner);
+
+    const refused = await owner.client
+      .post('/v1/devices/claims')
+      .send({ code: await claimCodeOf(device.deviceId) })
+      .expect(409);
+
+    expect(refused.body.code).toBe('device_already_yours');
+    expect(refused.body.detail).toMatch(/already added this device/);
   });
 
   it('puts it into a space that was named instead of making a second one', async () => {

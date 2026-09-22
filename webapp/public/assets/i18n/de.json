@@ -1284,12 +1284,6 @@
       "scan": "QR scannen",
       "code": "Claim-Code",
       "orScan": "oder scannen",
-      "claiming": "Verbinde…",
-      "claimed": "Verbunden",
-      "spaceCreated": "ein neuer Bereich wurde dafür angelegt",
-      "heard": "online vor {{age}}",
-      "notHeard": "noch nicht gemeldet",
-      "alreadyClaimed": "Dieses Gerät gehört schon jemandem.",
       "scanUnavailable": "Dieser Browser kann keine QR-Codes lesen; tipp den Code ein.",
       "scanHint": "Halte die Kamera auf den QR-Code auf der Verpackung.",
       "cancel": "Abbrechen"
@@ -2722,6 +2716,7 @@
   },
   "claim": {
     "title": "Gerät hinzufügen · {{step}} von {{of}}",
+    "opened": "{{title}} · Schritt {{step}} von {{of}}",
     "skip": "überspringen",
     "next": "Weiter · {{what}}",
     "finish": "Fertig · Bereich öffnen",
@@ -2753,13 +2748,18 @@
       "title": "Wo steht es?",
       "text": "Der Name des Bereichs; Geräte und Grows hängen daran.",
       "field": "Name des Bereichs",
+      "newName": {
+        "controller": "Zelt {{n}}",
+        "fridge": "Kühlschrank {{n}}",
+        "other": "Platz {{n}}"
+      },
+      "nameTaken": "Ein Bereich heißt schon so.",
       "rename": "umbenennen",
       "renaming": "wird umbenannt…",
       "kindLabel": "Was für ein Ort das ist",
       "kind": {
         "tent": "Zelt",
         "fridge": "Kühlschrank",
-        "room": "Raum",
         "other": "anderes"
       },
       "unknown": "noch kein Bereich"
@@ -2778,7 +2778,9 @@
       "wroteTo_other": "Die Zielwerte gingen an {{count}} Controller.",
       "phaseWritten": "Ein Grow hier ist in {{stage}} übergegangen.",
       "noPhaseWritten": "Kein Grow ist in die Phase übergegangen; geschrieben wurde nur das Klima.",
+      "noPhaseNoClimate": "Kein Grow ist in die Phase übergegangen, und es wurde kein Klima geschrieben.",
       "question": "Hier wächst noch nichts. Das Klima wurde trotzdem geschrieben.",
+      "questionNothingWritten": "Hier wächst noch nichts, und kein Controller hier hat das Klima übernommen. Du kannst trotzdem entscheiden, was mit dem Grow passiert.",
       "startGrow": "Hier einen Grow starten",
       "moveGrowHere": "Einen Grow hierher umziehen",
       "climateOnly": "Nur das Klima",

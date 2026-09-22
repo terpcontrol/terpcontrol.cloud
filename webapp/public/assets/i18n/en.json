@@ -1288,12 +1288,6 @@
       "scan": "scan QR",
       "code": "Claim code",
       "orScan": "or scan",
-      "claiming": "Claiming…",
-      "claimed": "Claimed",
-      "spaceCreated": "a new space was made for it",
-      "heard": "online {{age}} ago",
-      "notHeard": "not heard from yet",
-      "alreadyClaimed": "That device already belongs to somebody.",
       "scanUnavailable": "This browser cannot read QR codes; type the code instead.",
       "scanHint": "Point the camera at the QR code on the box.",
       "cancel": "Cancel"
@@ -2726,6 +2720,7 @@
   },
   "claim": {
     "title": "Add a device · {{step}} of {{of}}",
+    "opened": "{{title}} · step {{step}} of {{of}}",
     "skip": "skip",
     "next": "Next · {{what}}",
     "finish": "Done · open the place",
@@ -2757,13 +2752,18 @@
       "title": "Where is it?",
       "text": "The name of the space; devices and grows attach to it.",
       "field": "Name of the space",
+      "newName": {
+        "controller": "Tent {{n}}",
+        "fridge": "Fridge {{n}}",
+        "other": "Place {{n}}"
+      },
+      "nameTaken": "A place is already called that.",
       "rename": "rename",
       "renaming": "renaming…",
       "kindLabel": "What kind of place it is",
       "kind": {
         "tent": "tent",
         "fridge": "fridge",
-        "room": "room",
         "other": "other"
       },
       "unknown": "no place yet"
@@ -2782,7 +2782,9 @@
       "wroteTo_other": "The targets went to {{count}} controllers.",
       "phaseWritten": "A grow here entered {{stage}}.",
       "noPhaseWritten": "No grow entered the stage; only the climate was written.",
+      "noPhaseNoClimate": "No grow entered the stage, and no climate was written.",
       "question": "Nothing is growing here yet. The climate has been written either way.",
+      "questionNothingWritten": "Nothing is growing here yet, and no controller here took the climate. You can still decide what happens to the grow.",
       "startGrow": "Start a grow here",
       "moveGrowHere": "Move a grow here",
       "climateOnly": "Only the climate",

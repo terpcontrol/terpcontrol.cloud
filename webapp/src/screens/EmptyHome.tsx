@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { claimCodeOf } from '@/api/claims';
-import { session } from '@/api/session';
+import { session, useSession } from '@/api/session';
 import { canScan } from '@/ui/barcode';
 import { useMayManage } from '@/ui/session-access';
 import { QrScanner } from '@/ui/QrScanner';
@@ -58,12 +58,32 @@ function StartGrow({ onOpen }: { onOpen: () => void }) {
 }
 
 /**
- * The second door. The code is read here, with the scanner the box's QR needs,
- * and handed to the claim flow rather than spent here: claiming is the first of
- * four steps, and a card that did only that one would leave a controller owned,
- * standing nowhere in particular and doing nothing.
+ * The second door, which the demo is shown and not offered: a field it could
+ * type into ends in a refusal one screen later, and the reason for that refusal
+ * is what the card says instead.
  */
 function AddDevice() {
+  const { t } = useTranslation();
+  const mayManage = useMayManage();
+
+  if (mayManage) return <ClaimCode />;
+
+  return (
+    <article className={ui.card}>
+      <h2 className={styles.cardTitle}>{t('home.addDevice.title')}</h2>
+      <p className={styles.cardText}>{t('home.addDevice.text')}</p>
+      <p className={ui.note}>{t('claim.demo')}</p>
+    </article>
+  );
+}
+
+/**
+ * The code is read here, with the scanner the box's QR needs, and handed to the
+ * claim flow rather than spent here: claiming is the first of four steps, and a
+ * card that did only that one would leave a controller owned, standing nowhere
+ * in particular and doing nothing.
+ */
+function ClaimCode() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [code, setCode] = useState('');
@@ -139,10 +159,16 @@ function AddDevice() {
   );
 }
 
-/** The demo is a session of its own: opening it means leaving this one. */
+/**
+ * The demo is a session of its own: opening it means leaving this one, so it is
+ * not a door out of the demo and is not drawn there. Whether this is the demo
+ * is the session's own answer and not a question about hardware, which is a
+ * different thing and will part company with it.
+ */
 function TryDemo() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useSession();
   const [state, setState] = useState<'idle' | 'opening' | 'failed'>('idle');
 
   const open = async () => {
@@ -154,6 +180,8 @@ function TryDemo() {
       setState('failed');
     }
   };
+
+  if (user?.isDemo) return null;
 
   return (
     <article className={`${ui.cardDashed} ${styles.demo}`}>

@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { useClaimedDevice } from '@/api/claims';
+import type { Device } from '@fg2/shared-types/v1';
+import { useClaimedDevice, useNameNewPlace } from '@/api/claims';
 import { useSocketTables } from '@/api/devices';
+import { useApplyPreset } from '@/api/lifecycle';
+import { ApiError } from '@/api/problem';
 import { useSpaces } from '@/api/spaces';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
@@ -13,11 +16,24 @@ import { DoingStep } from './DoingStep';
 import { HardwareStep } from './HardwareStep';
 import { PlaceStep } from './PlaceStep';
 import { Step } from './Step';
-import { doingSummary, hardwareSummary, NOTHING_DOING, placeSummary, type Doing } from './steps';
+import { doingSummary, hardwareSummary, MEASURE, newPlaceName, NOTHING_DOING, placeSummary, type Doing } from './steps';
 import styles from './Claim.module.css';
 
 /** The four steps, in order, so the bottom button can carry the next one's name. */
 const STEPS = ['code', 'place', 'doing', 'hardware'] as const;
+
+/**
+ * Which step the address says was open, kept inside the four. Without a device
+ * there is nothing to resume and the first question is the only one that can be
+ * asked.
+ */
+const stepIn = (params: URLSearchParams): number => {
+  if (!params.get('device')) return 0;
+  const raw = params.get('at');
+  const at = raw === null ? 1 : Number(raw);
+
+  return Number.isInteger(at) && at >= 0 && at < STEPS.length ? at : 1;
+};
 
 /**
  * Adding a device: the four things that have to be true before a controller is
@@ -31,6 +47,12 @@ const STEPS = ['code', 'place', 'doing', 'hardware'] as const;
  * only step that has to happen here, and the other three are the ordinary
  * screens, reached from Devices and from the tent's Control tab.
  *
+ * Which device was claimed, and which question was open, live in the address
+ * rather than in this component, because the phone in that room locks, drops
+ * the tab and follows links out of the flow. A claim spends the code on the
+ * display, so a screen that came back asking for it again would be asking for
+ * something that no longer exists.
+ *
  * The device's own words are what the first step reports, read again on a beat,
  * because a controller that has just been given Wi-Fi comes online while this
  * screen is open and "not heard from yet" is only true until it does.
@@ -40,33 +62,96 @@ export function Claim() {
   const navigate = useNavigate();
   const now = useNow();
   const mayManage = useMayManage();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
 
-  const [deviceId, setDeviceId] = useState<string | null>(null);
-  const [at, setAt] = useState(0);
+  const [deviceId, setDeviceId] = useState<string | null>(() => params.get('device'));
+  const [step, setStep] = useState(() => stepIn(params));
   // The furthest step opened, so that going back to correct the tent's name
   // does not turn the two steps after it back into questions nobody answered.
-  const [seen, setSeen] = useState(0);
+  const [furthest, setFurthest] = useState(() => stepIn(params));
   const [doing, setDoing] = useState<Doing>(NOTHING_DOING);
 
   const device = useClaimedDevice(deviceId);
   const spaces = useSpaces();
   const tables = useSocketTables(deviceId ? [deviceId] : []);
   const sockets = deviceId ? tables.tables.get(deviceId) : undefined;
+  const namePlace = useNameNewPlace();
 
   const claimed = device.data ?? null;
   const spaceId = claimed?.spaceId ?? null;
-  const space = spaces.data?.items.find(one => one.id === spaceId) ?? null;
+  const places = spaces.data?.items ?? [];
+  const space = places.find(one => one.id === spaceId) ?? null;
+  const apply = useApplyPreset(spaceId ?? '');
+
+  // A device id in the address that this account cannot read - stale, or
+  // somebody else's - would leave the screen failing to load with no field to
+  // type a code into, so the flow falls back to its first question and offers
+  // the field again. A server that could not be reached at all is a different
+  // thing and keeps its retry.
+  const lost = device.error instanceof ApiError && !device.data;
+  const at = lost ? 0 : step;
+  const seen = lost ? 0 : furthest;
+
+  // Where the keyboard and the screen reader are put when a step settles: the
+  // heading of the question that just opened, which without this is nowhere at
+  // all - the form that was focused has been taken off the page.
+  const codeHeading = useRef<HTMLHeadingElement>(null);
+  const placeHeading = useRef<HTMLHeadingElement>(null);
+  const doingHeading = useRef<HTMLHeadingElement>(null);
+  const hardwareHeading = useRef<HTMLHeadingElement>(null);
+  const moved = useRef(false);
+  useEffect(() => {
+    if (moved.current) [codeHeading, placeHeading, doingHeading, hardwareHeading][at]?.current?.focus();
+    moved.current = true;
+  }, [at]);
 
   if (!mayManage) return <OnlyLooking />;
 
   const leave = () => void navigate(spaceId ? `/spaces/${spaceId}` : '/', { replace: true });
-  const go = (index: number) => {
-    setAt(index);
-    setSeen(furthest => Math.max(furthest, index));
+  const go = (index: number, claimedId = deviceId) => {
+    setStep(index);
+    setFurthest(was => Math.max(was, index));
+    if (claimedId) setParams({ device: claimedId, at: String(index) }, { replace: true });
   };
   const stateOf = (index: number) => (index === at ? 'open' : index <= seen ? 'done' : 'ahead');
   const said = (index: number, summary: string, question: string) => (stateOf(index) === 'done' ? summary : question);
+
+  /**
+   * Naming the place a claim has just made. The word is the app's and not the
+   * server's, because a name has to be in the language the grower reads and
+   * the server has none, and the number is counted past the places this
+   * account already has - a list still on its way is waited for rather than
+   * read as empty, which would call every claim "Tent 1".
+   */
+  const namePlaceOf = async (made: Device) => {
+    if (!made.spaceId) return;
+    const items = spaces.data?.items ?? (await spaces.refetch()).data?.items ?? [];
+    namePlace.mutate({ spaceId: made.spaceId, name: newPlaceName(made.type, items, t) });
+  };
+
+  // A stage picked on the third step but not yet written. The bottom button is
+  // where every step is left, so leaving this one carries the choice into the
+  // write rather than dropping it.
+  const pending = at === 2 && doing.chosen !== null && doing.chosen !== MEASURE && doing.applied === null ? doing.chosen : null;
+  const onward = () => {
+    if (!pending || !spaceId) {
+      if (at + 1 < STEPS.length) go(at + 1);
+      else leave();
+      return;
+    }
+
+    apply.mutate(
+      { stage: pending },
+      {
+        onSuccess: result => {
+          setDoing({ chosen: pending, applied: result });
+          // What to do about the grow is the server's own question and it has
+          // only just been asked, so the step stays open to be answered.
+          if (!result.growDecisionNeeded) go(at + 1);
+        },
+      },
+    );
+  };
 
   return (
     <section className={styles.screen}>
@@ -77,6 +162,13 @@ export function Claim() {
         </button>
       </header>
 
+      {/* Nothing announces a step change on its own: the heading's text swaps and
+          `aria-current` moves, neither of which is read out. This says what has
+          just opened, and stays empty until something has. */}
+      <p className={styles.announce} role="status">
+        {at > 0 ? t('claim.opened', { title: t(`claim.${STEPS[at]}.title`), step: at + 1, of: STEPS.length }) : ''}
+      </p>
+
       <div className={styles.progress} aria-hidden>
         {STEPS.map((step, index) => (
           <span key={step} className={styles.segment} data-filled={index <= at} />
@@ -84,13 +176,14 @@ export function Claim() {
       </div>
 
       {deviceId && device.isPending ? <Waiting lines={2} /> : null}
-      {deviceId && !device.data && device.isError ? <LoadFailed retry={() => void device.refetch()} /> : null}
+      {deviceId && !device.data && device.isError && !lost ? <LoadFailed retry={() => void device.refetch()} /> : null}
       {device.data && device.isError ? <RefreshFailed failedAt={device.dataUpdatedAt} now={now} /> : null}
 
       <Step
         number={1}
         state={stateOf(0)}
         onOpen={() => go(0)}
+        headingRef={codeHeading}
         title={claimed ? <ClaimedTitle device={claimed} /> : t('claim.code.title')}
         text={claimed ? <ClaimedFacts device={claimed} sockets={sockets} now={now} /> : t('claim.code.text')}
       >
@@ -99,7 +192,8 @@ export function Claim() {
             initialCode={params.get('code') ?? ''}
             onClaimed={result => {
               setDeviceId(result.device.id);
-              go(1);
+              go(1, result.device.id);
+              if (result.spaceCreated) void namePlaceOf(result.device);
             }}
           />
         )}
@@ -109,26 +203,29 @@ export function Claim() {
         number={2}
         state={stateOf(1)}
         onOpen={() => go(1)}
+        headingRef={placeHeading}
         title={t('claim.place.title')}
         text={said(1, placeSummary(space, t), t('claim.place.text'))}
       >
-        <PlaceStep space={space} />
+        <PlaceStep space={space} places={places} />
       </Step>
 
       <Step
         number={3}
         state={stateOf(2)}
         onOpen={() => go(2)}
+        headingRef={doingHeading}
         title={t('claim.doing.title')}
         text={said(2, doingSummary(doing, t), t('claim.doing.text'))}
       >
-        <DoingStep spaceId={spaceId} doing={doing} onDoing={setDoing} />
+        <DoingStep spaceId={spaceId} doing={doing} onDoing={setDoing} apply={apply} />
       </Step>
 
       <Step
         number={4}
         state={stateOf(3)}
         onOpen={() => go(3)}
+        headingRef={hardwareHeading}
         title={t('claim.hardware.title')}
         text={said(3, hardwareSummary(claimed, sockets, t), t('claim.hardware.text'))}
       >
@@ -138,9 +235,9 @@ export function Claim() {
       <footer className={styles.foot}>
         <button
           type="button"
-          className={`${ui.button} ${deviceId ? ui.primary : ''} ${styles.wide}`}
-          disabled={deviceId === null}
-          onClick={() => (at + 1 < STEPS.length ? go(at + 1) : leave())}
+          className={`${ui.button} ${deviceId && !lost ? ui.primary : ''} ${styles.wide}`}
+          disabled={deviceId === null || lost || apply.isPending}
+          onClick={onward}
         >
           {at + 1 < STEPS.length ? t('claim.next', { what: t(`claim.${STEPS[at + 1]}.next`) }) : t('claim.finish')}
         </button>

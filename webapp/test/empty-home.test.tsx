@@ -5,15 +5,18 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EmptyHome } from '@/screens/EmptyHome';
 
-// The first door opens the new-grow sheet, and whether it is offered at all
-// depends on who is looking, so there has to be somebody.
-vi.mock('@/api/session', async importOriginal => {
-  const { SIGNED_IN } = await import('./session');
+// Every door here depends on who is looking, so there has to be somebody: the
+// demo may read the whole account and write nothing to it, and a door that
+// ended in a refusal would be a door drawn for nobody.
+const who = vi.hoisted(() => ({ demo: false }));
 
-  return { ...(await importOriginal<object>()), useSession: () => SIGNED_IN };
+vi.mock('@/api/session', async importOriginal => {
+  const { SIGNED_IN, ON_THE_DEMO } = await import('./session');
+
+  return { ...(await importOriginal<object>()), useSession: () => (who.demo ? ON_THE_DEMO : SIGNED_IN) };
 });
 
 /**
@@ -26,6 +29,10 @@ describe('the empty home', () => {
     await i18next
       .use(initReactI18next)
       .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
+  });
+
+  beforeEach(() => {
+    who.demo = false;
   });
 
   const draw = (onStartGrow: () => void = () => undefined) =>
@@ -65,5 +72,22 @@ describe('the empty home', () => {
     expect(within(card).getByRole('textbox', { name: 'Claim code' })).toBeInTheDocument();
     expect(within(card).getByRole('button', { name: /or scan/ })).toBeInTheDocument();
     expect(within(card).getByRole('button', { name: 'scan QR' })).toBeInTheDocument();
+  });
+
+  it('shows the demo why it cannot add hardware instead of a field it would be refused', () => {
+    who.demo = true;
+    draw();
+    const card = screen.getByRole('heading', { name: 'Add a device' }).closest('article')!;
+
+    expect(within(card).queryByRole('textbox', { name: 'Claim code' })).not.toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'scan QR' })).not.toBeInTheDocument();
+    expect(within(card).getByText(/cannot claim hardware/)).toBeInTheDocument();
+  });
+
+  it('does not offer the demo a second demo to open', () => {
+    who.demo = true;
+    draw();
+
+    expect(screen.queryByRole('heading', { name: 'Try the demo' })).not.toBeInTheDocument();
   });
 });

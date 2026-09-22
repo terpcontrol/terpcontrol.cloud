@@ -38,21 +38,47 @@ export const useClaimDevice = () => {
  */
 export const CLAIM_REFRESH_MS = 10_000;
 
-/** The claimed device on its own, so that its firmware, its age and its camera are the device's own words. */
+/**
+ * The claimed device on its own, so that its firmware, its age and its camera
+ * are the device's own words.
+ *
+ * The beat stops once the server has refused the read: an id carried in the
+ * address may be stale or somebody else's, and asking again every ten seconds
+ * would not make it any more readable.
+ */
 export const useClaimedDevice = (deviceId: string | null) =>
   useQuery({
     queryKey: ['devices', deviceId],
     queryFn: ({ signal }) => api.get<Device>(`/devices/${deviceId}`, undefined, signal),
     enabled: deviceId !== null,
-    refetchInterval: CLAIM_REFRESH_MS,
+    refetchInterval: query => (query.state.error ? false : CLAIM_REFRESH_MS),
   });
+
+/**
+ * Naming the place a claim has just made.
+ *
+ * It is the same write the second step's rename makes, with the space named in
+ * the call rather than in the hook, because at the instant a claim answers
+ * there is no space on the screen to bind one to. The word is the app's to
+ * choose and not the server's: a name has to be in the language the grower
+ * reads, and the server has no language.
+ */
+export const useNameNewPlace = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ spaceId, name }: { spaceId: string; name: string }) => api.patch<Space>(`/spaces/${spaceId}`, { name }),
+    onSuccess: () => claimChanged(queryClient),
+  });
+};
 
 /**
  * The name and the kind of the place the device stands in.
  *
- * A claim already made a space and named it after the device, so onboarding
- * corrects that one rather than making a second: a grower who types "Tent 1"
- * here wants the tent renamed, not two tents with one controller between them.
+ * A claim already made a space and gave it a name to be corrected, so
+ * onboarding corrects that one rather than making a second: a grower who types
+ * "Flower tent" here wants the tent renamed, not two tents with one controller
+ * between them.
  */
 export const useRenameSpace = (spaceId: string | null) => {
   const queryClient = useQueryClient();

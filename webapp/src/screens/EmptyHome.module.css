@@ -52,27 +52,6 @@
   margin-top: var(--space-2);
 }
 
-.claimed {
-  padding: var(--space-3);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
-  background: var(--card-2);
-}
-
-.claimedLine {
-  font-weight: var(--weight-semibold);
-}
-
-.claimedMark {
-  color: var(--green-ink);
-}
-
-.claimedNote {
-  margin-top: var(--space-1);
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
 .demo .cardText {
   margin-bottom: 0;
 }

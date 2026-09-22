@@ -22,9 +22,32 @@ export const NOTHING_DOING: Doing = { chosen: null, applied: null };
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
+/**
+ * What to call the place a claim has just made.
+ *
+ * A place is named after what it is and in the language the grower reads, so
+ * the word comes out of the catalogue by the type of hardware standing in it
+ * rather than being the type key itself - a home whose first card says
+ * "controller" names a part and not a place, and says it in English whatever
+ * the account is set to. The number is the first one none of their places
+ * carries, so claiming a second controller gives "Tent 2" rather than a second
+ * "Tent 1".
+ */
+export const newPlaceName = (type: string, spaces: readonly Space[], t: Translate): string => {
+  const taken = new Set(spaces.map(one => one.name.trim().toLowerCase()));
+  let name = '';
+
+  for (let n = 1; n <= spaces.length + 1; n += 1) {
+    name = t(`claim.place.newName.${type}`, { n, defaultValue: t('claim.place.newName.other', { n }) });
+    if (!taken.has(name.toLowerCase())) break;
+  }
+
+  return name;
+};
+
 /** The place, and what kind of place it is. */
 export const placeSummary = (space: Space | null, t: Translate): string =>
-  space ? `${space.name} · ${t(`claim.place.kind.${space.kind}`)}` : t('claim.place.unknown');
+  space ? `${space.name} · ${t(`claim.place.kind.${space.kind}`, { defaultValue: space.kind })}` : t('claim.place.unknown');
 
 /** The stage the place was put on, or that it is only being watched. */
 export const doingSummary = ({ chosen, applied }: Doing, t: Translate): string =>
