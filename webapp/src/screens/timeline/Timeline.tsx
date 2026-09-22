@@ -1,3 +1,4 @@
+import { LineChart } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -79,6 +80,12 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
           {t(`timeline.range.${one}`)}
         </button>
       ))}
+      {/* The way into the Charts view. It is not a tab of its own - it opens on
+          the grow standing here, and this row is where the window is chosen. */}
+      <Link to={`/charts?space=${spaceId}`} className={`${ui.chip} ${styles.chip}`}>
+        <LineChart size={13} strokeWidth={1.75} aria-hidden />
+        {t('charts.title')}
+      </Link>
       {data ? <span className={`mono ${styles.days}`}>{dayLabel(t, data)}</span> : null}
     </div>
   );

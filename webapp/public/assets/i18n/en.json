@@ -491,7 +491,66 @@
     "resetZoom": "Reset zoom",
     "resetZoomTitle": "Reset zoom to 1:1",
     "customRange": "Custom range",
-    "resetRange": "Reset"
+    "resetRange": "Reset",
+    "back": "Back",
+    "rangeLabel": "Range",
+    "range": {
+      "custom": "Custom …"
+    },
+    "custom": {
+      "from": "From",
+      "to": "To",
+      "need": "Pick both ends and the chart is drawn between them."
+    },
+    "seriesLabel": "Series",
+    "metric": {
+      "temperature": "Temp",
+      "humidity": "RH",
+      "vpd": "VPD",
+      "co2": "CO2"
+    },
+    "more": "+ more",
+    "less": "− less",
+    "savedLabel": "Saved",
+    "about": {
+      "band": "band moves with the phase",
+      "leaf": "leaf {{offset}} °C",
+      "pair": "overlaid, two axes",
+      "overlay": "overlaid",
+      "measured": "measured",
+      "perPlant": "per plant",
+      "output": "when it ran"
+    },
+    "leftOut_one": "{{names}} is left out: two units on one panel only when they belong together.",
+    "leftOut_other": "{{names}} are left out: two units on one panel only when they belong together.",
+    "plotAlt": "{{title}} over the window",
+    "layoutLabel": "Layout",
+    "layout": {
+      "stacked": "Stacked",
+      "overlay": "Overlay",
+      "day_of_grow": "Day-of-grow"
+    },
+    "saveView": "Save view",
+    "csv": "CSV",
+    "csvOutput": "{{output}} (on/off)",
+    "csvNote": "CSV takes what is on the screen. The whole grow, pictures and diary included, is under Export on",
+    "note": "The nerd's room: any series, any range, saved views, export with actuator state at native rate. Two units on one panel only when they belong together.",
+    "nothingPicked": "Nothing picked yet — tap a series above.",
+    "noGrow": "Nothing grows here yet, and a chart is drawn about a grow.",
+    "views": {
+      "newTitle": "Save this view",
+      "editTitle": "Saved view",
+      "name": "Name",
+      "placeholder": "Flower weeks, temp and RH",
+      "holdsTheQuestion": "A view keeps the question and never the readings, so saving over one costs no measurement.",
+      "save": "Save",
+      "saving": "Saving…",
+      "saveAsNew": "Save as new",
+      "delete": "Delete",
+      "deleteAsk": "Throw this view away? Nothing measured goes with it.",
+      "deleteYes": "Throw it away",
+      "cancel": "Cancel"
+    }
   },
   "diagnostics": {
     "serialnumber": "Device serial number",

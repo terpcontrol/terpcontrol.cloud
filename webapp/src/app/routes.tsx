@@ -4,6 +4,7 @@ import { RequireSession } from './RequireSession';
 import { AddCamera } from '@/screens/camera/add/AddCamera';
 import { Alerts } from '@/screens/Alerts';
 import { CameraPage } from '@/screens/camera/CameraPage';
+import { Charts } from '@/screens/charts/Charts';
 import { Claim } from '@/screens/claim/Claim';
 import { Devices } from '@/screens/devices/Devices';
 import { GrowPage } from '@/screens/grow/GrowPage';
@@ -54,6 +55,11 @@ import { Timeline } from '@/screens/Timeline';
  * Their static segments outrank the grow's tab parameter beside them, so
  * `plants` is never read as a tab called "plants" once a plant follows it.
  *
+ * Charts is a route rather than a tab for the same reason: it is opened from
+ * the Timeline header and from a tent page, and carries the grow or the place
+ * it is about in its query, so a link to a particular chart is a link somebody
+ * can send.
+ *
  * A space's tab may have a page of its own below it - the manual targets and
  * the alarm rules under Control - which is the third segment, so that a link
  * from an alert can open the rule it came from and a reload lands where it was.
@@ -73,6 +79,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Home /> },
       { path: 'timeline', element: <Timeline /> },
+      { path: 'charts', element: <Charts /> },
       { path: 'log', element: <LogRoute /> },
       { path: 'devices', element: <Devices /> },
       { path: 'claim', element: <Claim /> },

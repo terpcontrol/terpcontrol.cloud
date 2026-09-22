@@ -491,7 +491,66 @@
     "resetZoom": "Zoom zurücksetzen",
     "resetZoomTitle": "Zoom auf 1:1 zurücksetzen",
     "customRange": "Eigener Zeitraum",
-    "resetRange": "Zurücksetzen"
+    "resetRange": "Zurücksetzen",
+    "back": "Zurück",
+    "rangeLabel": "Zeitraum",
+    "range": {
+      "custom": "Eigener …"
+    },
+    "custom": {
+      "from": "Von",
+      "to": "Bis",
+      "need": "Beide Enden wählen, dann wird dazwischen gezeichnet."
+    },
+    "seriesLabel": "Kurven",
+    "metric": {
+      "temperature": "Temp",
+      "humidity": "rF",
+      "vpd": "VPD",
+      "co2": "CO2"
+    },
+    "more": "+ mehr",
+    "less": "− weniger",
+    "savedLabel": "Gespeichert",
+    "about": {
+      "band": "Band wandert mit der Phase",
+      "leaf": "Blatt {{offset}} °C",
+      "pair": "überlagert, zwei Achsen",
+      "overlay": "überlagert",
+      "measured": "erfasst",
+      "perPlant": "je Pflanze",
+      "output": "wann er lief"
+    },
+    "leftOut_one": "{{names}} bleibt weg: zwei Einheiten in einem Feld nur, wenn sie zusammengehören.",
+    "leftOut_other": "{{names}} bleiben weg: zwei Einheiten in einem Feld nur, wenn sie zusammengehören.",
+    "plotAlt": "{{title}} über den Zeitraum",
+    "layoutLabel": "Darstellung",
+    "layout": {
+      "stacked": "Gestapelt",
+      "overlay": "Überlagert",
+      "day_of_grow": "Grow-Tag"
+    },
+    "saveView": "Sichern",
+    "csv": "CSV",
+    "csvOutput": "{{output}} (an/aus)",
+    "csvNote": "CSV nimmt, was auf dem Schirm steht. Den ganzen Grow mit Bildern und Tagebuch gibt es unter Export bei",
+    "note": "Die Messwarte: jede Kurve, jeder Zeitraum, gesicherte Ansichten, Export mit Aktorzuständen in voller Auflösung. Zwei Einheiten in einem Feld nur, wenn sie zusammengehören.",
+    "nothingPicked": "Noch nichts gewählt — oben eine Kurve antippen.",
+    "noGrow": "Hier wächst noch nichts, und ein Chart handelt von einem Grow.",
+    "views": {
+      "newTitle": "Diese Ansicht sichern",
+      "editTitle": "Gesicherte Ansicht",
+      "name": "Name",
+      "placeholder": "Blütewochen, Temp und rF",
+      "holdsTheQuestion": "Eine Ansicht merkt sich die Frage und nie die Messwerte; Überschreiben kostet also keinen Messwert.",
+      "save": "Sichern",
+      "saving": "Wird gesichert…",
+      "saveAsNew": "Als neue sichern",
+      "delete": "Löschen",
+      "deleteAsk": "Diese Ansicht wegwerfen? Es geht nichts Gemessenes mit.",
+      "deleteYes": "Wegwerfen",
+      "cancel": "Abbrechen"
+    }
   },
   "devices": {
     "button-settings": "Einstellungen",

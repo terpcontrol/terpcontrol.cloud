@@ -1,0 +1,258 @@
+/* The Charts view. Two bars of chips over a stack of cards, and the three
+   layouts with Save and CSV under it. Everything here is layout: the colours,
+   the radii and the shapes come from the tokens and from `ui.module.css`. */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+/* The window a chip asked for is still coming: the one on screen is the one
+   before it, dimmed rather than thrown away. */
+.screen[aria-busy='true'] {
+  opacity: 0.6;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.back {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  margin-left: calc(var(--space-2) * -1);
+  color: var(--muted);
+  transform: translateY(4px);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+/* Which grow, in which place. It gives way before the title does. */
+.subject {
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  padding-left: var(--space-2);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+/* The chips wrap rather than scroll: the series bar is two rows on a phone by
+   design, and a row that scrolled sideways would hide half of what is on. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+  font-weight: var(--weight-semibold);
+}
+
+/* Out of reach, at the strength the chips elsewhere use for it. */
+.chip:disabled {
+  color: var(--label);
+  opacity: 0.55;
+}
+
+/* The rest of the outputs, which are a lesser offer than the series themselves. */
+.more {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+/* What says a chip is something somebody wrote down rather than something a sensor reported. */
+.dot {
+  width: 5px;
+  height: 5px;
+  margin-left: var(--space-1);
+  background: currentcolor;
+  border-radius: var(--radius-pill);
+}
+
+.days {
+  margin-left: auto;
+  padding-left: var(--space-2);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------- the custom range */
+
+.custom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.customField {
+  display: flex;
+  flex: 1 1 140px;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.customNote {
+  flex-basis: 100%;
+}
+
+/* -------------------------------------------------------------- a card */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+.cardHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.cardTitle {
+  flex-shrink: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+/* What the panel is, in the same line and one step quieter. It is the first
+   thing to give way, because the title and the unit are what cannot be lost. */
+.cardAbout {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.cardUnit {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.plot {
+  /* Three cards and the footer fit a phone without the chips scrolling away. */
+  height: 96px;
+}
+
+.leftOut {
+  margin: 0;
+}
+
+/* --------------------------------------------------------- the footer */
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Saving and taking away are what is done with the chart rather than to it, so
+   they stay together: where the three layouts leave them no room on a phone,
+   the pair drops to the next line as a pair. */
+.footerActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* The three layouts as one control: they are one answer, so they share an
+   outline, and they sit at the height of the chips above rather than at the
+   height of a field - nothing here is typed into. */
+.segmented {
+  display: inline-flex;
+  overflow: hidden;
+  height: var(--chip-height);
+  background: transparent;
+  border: var(--rule-solid);
+  border-radius: var(--radius-pill);
+}
+
+.segment {
+  padding: 0 var(--space-1);
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.segment[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--bg);
+  font-weight: var(--weight-semibold);
+}
+
+.csvNote,
+.note {
+  margin: 0;
+}
+
+/* ------------------------------------------------------- the save sheet */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: var(--space-4);
+}
+
+.sheetAction {
+  width: 100%;
+}
+
+.asking {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: var(--rule-solid);
+}
+
+.askingRow {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.danger {
+  color: var(--alarm);
+}
+
+@media (min-width: 900px) {
+  .screen {
+    max-width: 720px;
+    padding-top: 0;
+  }
+
+  .plot {
+    height: 140px;
+  }
+}

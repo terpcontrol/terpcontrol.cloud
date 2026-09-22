@@ -111,6 +111,13 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
       {hasDevice ? (
         <Section
           label={climateLabel(t, liveness, measuredAtOf(overview.values), now)}
+          // Charts opens from here as well as from the Timeline header: this is
+          // the section a grower is already reading the climate in.
+          actions={
+            <span className={`mono ${styles.sectionActions}`}>
+              <Link to={`/charts?space=${overview.spaceId}`}>{t('charts.title')}</Link>
+            </span>
+          }
           link={{ to: `/spaces/${overview.spaceId}/timeline`, label: t('space.tabs.timeline') }}
         >
           <Verdict verdict={overview.verdict} liveness={liveness} />
