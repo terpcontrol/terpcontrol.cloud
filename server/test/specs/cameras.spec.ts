@@ -56,6 +56,16 @@ describe('adding a camera', () => {
     expect(refused.body.detail).toMatch(/no rendezvous/);
   });
 
+  it('will not pull a stream through hardware that has no tunnel', async () => {
+    const fridge = await provisionDevice(owner, 'fridge');
+
+    const refused = await owner.client
+      .post('/v1/cameras')
+      .send(rtsp({ deviceId: fridge.deviceId, tunnel: true }))
+      .expect(422);
+    expect(refused.body.code).toBe('not_a_controller');
+  });
+
   it('will not put a camera nowhere, nor into somebody else´s tent', async () => {
     const nowhere = await owner.client.post('/v1/cameras').send({ kind: 'rtsp', name: 'Nowhere', url: 'rtsp://10.0.0.31/s' }).expect(400);
     expect(nowhere.body.code).toBe('nowhere_to_put_it');
@@ -95,6 +105,37 @@ describe('what the camera page edits', () => {
 
     const refused = await owner.client.patch(`/v1/cameras/${paired.body.id}`).send({ url: 'rtsp://10.0.0.40/s' }).expect(422);
     expect(refused.body.code).toBe('not_a_stream');
+
+    // Its controller is the one that paired it, which is not a thing to move.
+    const moved = await owner.client.patch(`/v1/cameras/${paired.body.id}`).send({ deviceId: null }).expect(422);
+    expect(moved.body.code).toBe('not_a_stream');
+  });
+
+  it('moves the controller a stream is pulled through when the camera is moved', async () => {
+    const moved = await owner.client.patch(`/v1/cameras/${camera}`).send({ deviceId: device.deviceId, tunnel: true }).expect(200);
+    expect(moved.body).toMatchObject({ deviceId: device.deviceId, tunnel: true });
+
+    // A tent with no controller in it is reached by the cloud itself, and the
+    // stored camera has to stop naming the one it used to be pulled through.
+    const away = await owner.client.patch(`/v1/cameras/${camera}`).send({ deviceId: null, tunnel: false }).expect(200);
+    expect(away.body).toMatchObject({ deviceId: null, tunnel: false });
+  });
+
+  it('refuses a tunnel through hardware that has none, and a tunnel through nothing at all', async () => {
+    const fridge = await provisionDevice(owner, 'fridge');
+
+    const notAController = await owner.client.patch(`/v1/cameras/${camera}`).send({ deviceId: fridge.deviceId, tunnel: true }).expect(422);
+    expect(notAController.body.code).toBe('not_a_controller');
+
+    const nothingToTunnelThrough = await owner.client.patch(`/v1/cameras/${camera}`).send({ deviceId: null, tunnel: true }).expect(422);
+    expect(nothingToTunnelThrough.body.code).toBe('tunnel_without_controller');
+  });
+
+  it('refuses a controller a stranger owns', async () => {
+    const stranger = await createAccount('cameras-tunnel-stranger');
+    const theirs = await provisionDevice(stranger, 'controller');
+
+    await owner.client.patch(`/v1/cameras/${camera}`).send({ deviceId: theirs.deviceId, tunnel: true }).expect(404);
   });
 
   it('is hidden from everyone it does not belong to', async () => {

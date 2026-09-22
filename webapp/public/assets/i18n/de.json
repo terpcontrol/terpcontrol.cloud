@@ -2125,7 +2125,12 @@
           "title": "Sie taucht hier auf",
           "text": "Das erste Bild kommt nach etwa einer Minute. Gib ihr einen Namen und sag, worauf sie zeigt."
         },
-        "watching": "Noch nichts Neues. Diese Liste füllt sich von selbst, solange sie offen ist."
+        "watching": "Noch nichts Neues. Diese Liste füllt sich von selbst, solange sie offen ist.",
+        "noController": {
+          "label": "Noch kein Controller",
+          "text": "Eine Terp Cam wird über den Knopf am Controller gekoppelt, und dieses Konto hat noch keinen übernommen. Übernimm zuerst einen, dann führt dich dieser Reiter durch das Koppeln.",
+          "claim": "Controller übernehmen"
+        }
       },
       "found": {
         "title": "Terp Cam · {{tag}}",
@@ -2149,7 +2154,7 @@
         "gatesNothing": "Diese Installation schaltet nichts frei und sperrt nichts, hier steht das Siegel also vor keiner Tür.",
         "address": "Stream-Adresse",
         "placeholder": "rtsp://user:pass@192.168.1.40/stream1",
-        "throughController": "Wird über den Controller in deinem Netz geholt; alle 30 s ein Bild wie bei einer Terp Cam.",
+        "throughController": "Wird über {{controller}} in deinem Netz geholt; alle 30 s ein Bild wie bei einer Terp Cam.",
         "direct": "Dort steht kein Controller, die Cloud öffnet den Stream also selbst: eine Adresse aus deinem Heimnetz antwortet ihr nicht.",
         "where": "Wo schaut sie hin?",
         "nowhere": "Es gibt noch keinen Bereich, in den eine Kamera passt.",
@@ -2162,7 +2167,13 @@
         "worked": "Ein Bild kam zurück · {{age}}",
         "failed": "Kein Bild: {{reason}}",
         "noReason": "die Kamera nannte keinen Grund",
-        "shotAlt": "Das Bild aus dem Test"
+        "shotAlt": "Das Bild aus dem Test",
+        "pickAPlace": "Wähle unten den Ort, auf den sie schaut: ein Zelt mit Controller wird über diesen Controller erreicht, eines ohne nicht.",
+        "throughWhich": "Über welchen Controller?",
+        "carrier": {
+          "stale": "{{controller}} hat zuletzt vor {{age}} etwas gemeldet",
+          "offline": "{{controller}} ist offline · zuletzt gemeldet vor {{age}}, der Stream antwortet also erst wieder, wenn er zurück ist"
+        }
       }
     }
   },

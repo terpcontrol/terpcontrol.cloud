@@ -2,8 +2,12 @@ import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { useCamerasAsOpened } from '@/api/cameras';
+import { useDevices } from '@/api/devices';
+import { LoadFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
+import { controllersOf } from './controllers';
 import { PairTerpCam } from './PairTerpCam';
 import { RtspCamera } from './RtspCamera';
 import styles from './AddCamera.module.css';
@@ -28,7 +32,6 @@ import styles from './AddCamera.module.css';
 export function AddCamera() {
   const { t } = useTranslation();
   const mayManage = useMayManage();
-  const [kind, setKind] = useState<Kind>('controller');
 
   return (
     <section className={styles.page}>
@@ -39,35 +42,62 @@ export function AddCamera() {
         <h1 className={styles.title}>{t('cameras.add.title')}</h1>
       </header>
 
-      {mayManage ? (
-        <>
-          <div className={styles.tabs} role="tablist" aria-label={t('cameras.add.which')}>
-            {KINDS.map(one => (
-              <button
-                key={one}
-                type="button"
-                role="tab"
-                id={`add-camera-${one}`}
-                className={styles.tab}
-                aria-selected={one === kind}
-                aria-controls="add-camera-panel"
-                onClick={() => setKind(one)}
-              >
-                {t(`cameras.add.tab.${one}`)}
-              </button>
-            ))}
-          </div>
-
-          <div className={styles.panel} id="add-camera-panel" role="tabpanel" aria-labelledby={`add-camera-${kind}`}>
-            {kind === 'controller' ? <PairTerpCam /> : null}
-            {kind === 'standalone' ? <Standalone /> : null}
-            {kind === 'rtsp' ? <RtspCamera /> : null}
-          </div>
-        </>
-      ) : (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('cameras.add.demo')}</p>
-      )}
+      {mayManage ? <Ways /> : <p className={`${ui.cardDashed} ${ui.note}`}>{t('cameras.add.demo')}</p>}
     </section>
+  );
+}
+
+/**
+ * The tabs and whichever of the three is open, which is everything that reads
+ * an account. It is its own component so that a session which may only look
+ * asks for none of it.
+ *
+ * Two things are owned here rather than by the tab that uses them. The first is
+ * which tab opens: pairing at a controller is the way in only for somebody who
+ * has one, so an account with none opens on the address form instead, and the
+ * choice waits for the device list so that the tab never moves under a finger.
+ * The second is the line a newly paired camera is measured against, which has
+ * to outlive a tab change: it is the cameras this account had when the *screen*
+ * was opened, and looking at the RTSP tab and back is not opening it again.
+ */
+function Ways() {
+  const { t } = useTranslation();
+  const devices = useDevices();
+  const [chosen, setChosen] = useState<Kind | null>(null);
+
+  const controllers = controllersOf(devices.data?.items ?? []);
+  const opened = useCamerasAsOpened(controllers.length > 0);
+
+  if (devices.isPending) return <Waiting lines={4} />;
+  if (!devices.data) return <LoadFailed retry={() => void devices.refetch()} />;
+
+  const kind = chosen ?? (controllers.length > 0 ? 'controller' : 'rtsp');
+
+  return (
+    <>
+      <div className={styles.tabs} role="tablist" aria-label={t('cameras.add.which')}>
+        {KINDS.map(one => (
+          <button
+            key={one}
+            type="button"
+            role="tab"
+            id={`add-camera-${one}`}
+            className={styles.tab}
+            aria-selected={one === kind}
+            aria-controls="add-camera-panel"
+            onClick={() => setChosen(one)}
+          >
+            {t(`cameras.add.tab.${one}`)}
+          </button>
+        ))}
+      </div>
+
+      <div className={styles.panel} id="add-camera-panel" role="tabpanel" aria-labelledby={`add-camera-${kind}`}>
+        {kind === 'controller' ? <PairTerpCam controllers={controllers} opened={opened} /> : null}
+        {kind === 'standalone' ? <Standalone /> : null}
+        {kind === 'rtsp' ? <RtspCamera devices={devices.data.items} /> : null}
+      </div>
+    </>
   );
 }
 

@@ -40,14 +40,17 @@ export const useCameras = (spaceId?: string) =>
  * Its key deliberately stands outside the `cameras` family, so that creating or
  * changing a camera does not invalidate the very answer that says what was
  * there before; it is thrown away as soon as nobody is reading it, so opening
- * the screen again asks afresh.
+ * the screen again asks afresh. That makes the reader's lifetime the line's
+ * lifetime, so it is read by the screen that watches rather than by a tab of
+ * it, and not at all where there is no hardware that could pair anything.
  */
-export const useCamerasAsOpened = () =>
+export const useCamerasAsOpened = (enabled = true) =>
   useQuery({
     queryKey: ['cameras-as-opened'],
     queryFn: ({ signal }) => api.get<CameraPage>('/cameras', undefined, signal),
     staleTime: Infinity,
     gcTime: 0,
+    enabled,
   });
 
 export const useCamera = (cameraId: string) =>

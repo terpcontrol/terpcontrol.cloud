@@ -116,6 +116,7 @@ export class CamerasController {
 
     const deviceId = body.kind === 'terpcam_standalone' ? null : (body.deviceId ?? null);
     if (deviceId) await this.access.require(ctx, subjectRef('device', deviceId), 'manage');
+    if (body.kind === 'rtsp' && body.tunnel) await this.requireATunnel(deviceId);
     if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
     if (!deviceId && !body.spaceId) {
       throw badRequest('nowhere_to_put_it', 'A camera belongs to a space or to the controller that answers for it; name one of them.');
@@ -147,6 +148,11 @@ export class CamerasController {
    * it watches, how often it takes a picture, and the two switches that stop it
    * doing so. A stream is the one thing only an RTSP camera has, so naming one
    * on a Terp Cam is refused rather than stored where nothing would read it.
+   *
+   * A stream also carries the controller it is pulled through, and that follows
+   * the tent: a camera moved to a place another controller stands in has to be
+   * pulled through that one, so the screen that moves it sends both and this
+   * route checks the pair is one the cloud could act on.
    */
   @Patch(':id')
   @UseGuards(AuthGuard, AccessGuard)
@@ -159,8 +165,17 @@ export class CamerasController {
     // Moving a camera is managing two places, and the guard above has only
     // decided about the one it stands in.
     if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
-    if (current.kind !== 'rtsp' && namesAStream(body)) {
+    if (current.kind !== 'rtsp' && (namesAStream(body) || body.deviceId !== undefined)) {
       throw unprocessable('not_a_stream', 'This camera is a Terp Cam, which the cloud reaches by its own id rather than at a stream address.');
+    }
+    // Naming somebody else's controller would pull a stream through hardware
+    // they never offered, so moving a camera onto one is managing that one too.
+    if (body.deviceId) await this.access.require(ctx, subjectRef('device', body.deviceId), 'manage');
+    // Either half of the pair decides the other, so both are judged together,
+    // and only when this request is what changes them: a camera stored before
+    // the pair was checked is not made unrenameable by it.
+    if ((body.deviceId !== undefined || body.tunnel !== undefined) && (body.tunnel ?? current.tunnel)) {
+      await this.requireATunnel(body.deviceId !== undefined ? body.deviceId : current.deviceId);
     }
     if (body.stillIntervalSeconds !== undefined && body.stillIntervalSeconds < MINIMUM_STILL_INTERVAL_SECONDS) {
       throw unprocessable(
@@ -380,6 +395,19 @@ export class CamerasController {
     const camera = await this.cameras.byId(id);
     if (!camera) throw notFound('camera_not_found', 'There is no camera with that id.');
     return camera;
+  }
+
+  /**
+   * That a stream said to be pulled through a tunnel has one to be pulled
+   * through. A camera may name a device without that: the device is then only
+   * where it stands. A tunnel is a promise about the network, and the
+   * controller is the only hardware that keeps it.
+   */
+  private async requireATunnel(deviceId: string | null | undefined): Promise<void> {
+    if (!deviceId) throw unprocessable('tunnel_without_controller', 'A stream pulled through a tunnel needs the controller whose tunnel it is.');
+    if (!(await this.cameras.carriesATunnel(deviceId))) {
+      throw unprocessable('not_a_controller', 'Only a controller has a tunnel to pull a stream through.');
+    }
   }
 }
 

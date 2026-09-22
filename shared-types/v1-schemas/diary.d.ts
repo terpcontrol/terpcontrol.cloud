@@ -1181,8 +1181,13 @@ export declare const cameraCreate: z.ZodDiscriminatedUnion<[z.ZodObject<{
 }, z.core.$strip>], "kind">;
 /**
  * `PATCH /cameras/{id}`: everything a camera is given at creation except what
- * says which camera it is. Its kind, its controller and its P2P id are what it
- * is; a camera that is not RTSP simply never carries the stream fields.
+ * says which camera it is. Its kind and its P2P id are what it is; a camera
+ * that is not RTSP simply never carries the stream fields.
+ *
+ * The controller is here because for a stream it is not part of what the camera
+ * is but of how it is reached: an RTSP camera moved to another tent is pulled
+ * through whatever controller stands there, or through none. A Terp Cam's
+ * controller is the one that paired it and is refused on this route.
  */
 export declare const cameraUpdate: z.ZodObject<{
     name: z.ZodOptional<z.ZodString>;
@@ -1192,6 +1197,7 @@ export declare const cameraUpdate: z.ZodObject<{
         udp: "udp";
     }>>>>;
     spaceId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    deviceId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     tunnel: z.ZodOptional<z.ZodOptional<z.ZodBoolean>>;
     plantIds: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodString>>>;
     looksAt: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;

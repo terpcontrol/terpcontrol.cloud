@@ -49,6 +49,17 @@ export class CamerasService {
     return this.cameras.findOne({ id }).lean<CameraDocument>();
   }
 
+  /**
+   * Whether a stream may be pulled through this device. The tunnel is a
+   * controller's alone: every other type stands in a tent without offering the
+   * network a way in, so a fridge module named as the carrier of a stream is a
+   * promise nothing could keep.
+   */
+  public async carriesATunnel(deviceId: string): Promise<boolean> {
+    const device = await this.devices.findOne({ id: deviceId }, { type: 1 }).lean();
+    return device?.type === 'controller';
+  }
+
   /** The one Terp Cam this controller has paired, which `POST /cameras` adopts rather than doubling. */
   public controllerCameraOf(deviceId: string | null | undefined): Promise<CameraDocument | null> {
     if (!deviceId) return Promise.resolve(null);
@@ -152,7 +163,7 @@ export class CamerasService {
     return camera;
   }
 
-  /** Only what a client may write; what a camera *is* - its kind, its controller, its id - is not patched. */
+  /** Only what a client may write; what a camera *is* - its kind and its id - is not patched. */
   public async update(id: string, body: CameraUpdate): Promise<CameraDocument | null> {
     const changes = Object.fromEntries(Object.entries(body).filter(([, value]) => value !== undefined));
     return this.cameras.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<CameraDocument>();

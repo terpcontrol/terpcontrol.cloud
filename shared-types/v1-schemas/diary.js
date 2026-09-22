@@ -444,10 +444,15 @@ exports.rtspCameraCreate = (0, common_js_1.named)('RtspCameraCreate', cameraSett
 exports.cameraCreate = (0, common_js_1.named)('CameraCreate', zod_1.z.discriminatedUnion('kind', [exports.controllerCameraCreate, exports.standaloneCameraCreate, exports.rtspCameraCreate]));
 /**
  * `PATCH /cameras/{id}`: everything a camera is given at creation except what
- * says which camera it is. Its kind, its controller and its P2P id are what it
- * is; a camera that is not RTSP simply never carries the stream fields.
+ * says which camera it is. Its kind and its P2P id are what it is; a camera
+ * that is not RTSP simply never carries the stream fields.
+ *
+ * The controller is here because for a stream it is not part of what the camera
+ * is but of how it is reached: an RTSP camera moved to another tent is pulled
+ * through whatever controller stands there, or through none. A Terp Cam's
+ * controller is the one that paired it and is refused on this route.
  */
-exports.cameraUpdate = (0, common_js_1.named)('CameraUpdate', exports.rtspCameraCreate.omit({ kind: true, deviceId: true }).partial());
+exports.cameraUpdate = (0, common_js_1.named)('CameraUpdate', exports.rtspCameraCreate.omit({ kind: true }).partial());
 /**
  * What `POST /cameras/{id}/test-captures` answers: one picture, taken now, so
  * that whoever is setting a camera up learns whether it answers at all. The

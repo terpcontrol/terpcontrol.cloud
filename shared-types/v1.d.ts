@@ -2620,6 +2620,10 @@ export interface CameraUpdate {
   tunnel?: boolean;
   model?: CameraModel | null;
   /**
+   * The controller whose tunnel the stream is pulled through; absent or null is one the cloud reaches itself.
+   */
+  deviceId?: string | null;
+  /**
    * The whole stream URL, credentials included.
    */
   url?: string;

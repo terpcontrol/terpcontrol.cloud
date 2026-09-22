@@ -8995,6 +8995,18 @@
           }
         ]
       },
+      "deviceId": {
+        "description": "The controller whose tunnel the stream is pulled through; absent or null is one the cloud reaches itself.",
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "url": {
         "type": "string",
         "description": "The whole stream URL, credentials included."

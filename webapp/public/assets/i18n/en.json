@@ -2129,7 +2129,12 @@
           "title": "It shows up here",
           "text": "First still in about a minute. Name it and say what it looks at."
         },
-        "watching": "Nothing new yet. This list fills itself for as long as it is open."
+        "watching": "Nothing new yet. This list fills itself for as long as it is open.",
+        "noController": {
+          "label": "No controller yet",
+          "text": "A Terp Cam is paired by the knob on a controller, and this account has none claimed. Claim one first and this tab will walk you through the pairing.",
+          "claim": "Claim a controller"
+        }
       },
       "found": {
         "title": "Terp Cam · {{tag}}",
@@ -2153,7 +2158,7 @@
         "gatesNothing": "This install enforces nothing, so the tag gates nothing here.",
         "address": "Stream address",
         "placeholder": "rtsp://user:pass@192.168.1.40/stream1",
-        "throughController": "Pulled through the controller on your network; stills every 30 s like a Terp Cam.",
+        "throughController": "Pulled through {{controller}} on your network; stills every 30 s like a Terp Cam.",
         "direct": "No controller stands there, so the cloud opens the stream itself: an address on your home network will not answer it.",
         "where": "Where does it look?",
         "nowhere": "There is no space to put a camera in yet.",
@@ -2166,7 +2171,13 @@
         "worked": "A picture came back · {{age}}",
         "failed": "No picture: {{reason}}",
         "noReason": "the camera gave no reason",
-        "shotAlt": "The picture the test came back with"
+        "shotAlt": "The picture the test came back with",
+        "pickAPlace": "Pick the place it looks at below: a tent with a controller in it is reached through that controller, one without is not.",
+        "throughWhich": "Through which controller?",
+        "carrier": {
+          "stale": "{{controller}} last said something {{age}} ago",
+          "offline": "{{controller}} is offline · last heard {{age}} ago, so the stream will not answer until it is back"
+        }
       }
     }
   },

@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
-import type { Camera, RtspCameraCreate } from '@fg2/shared-types/v1';
+import type { Camera, Device, RtspCameraCreate } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { useAmendCamera, useCaptureOnce, useCreateCamera } from '@/api/cameras';
-import { useDevices } from '@/api/devices';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
-import { ageLabel } from '@/ui/age';
+import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { controllerName, controllersOf } from './controllers';
 import styles from './AddCamera.module.css';
 
 /**
@@ -27,16 +27,16 @@ import styles from './AddCamera.module.css';
  *
  * Where a controller stands in the tent the stream is pulled through its
  * tunnel, which is what makes an address on a home network reachable at all;
- * where none does, the cloud opens the stream itself and the screen says so
- * before the test rather than after it.
+ * where none does, the cloud opens the stream itself. Which controller that is
+ * is said before the test rather than found out after it, because a tent may
+ * hold more than one and an offline one is a stream that will not answer.
  */
-export function RtspCamera() {
+export function RtspCamera({ devices }: { devices: Device[] }) {
   const { t } = useTranslation();
   const now = useNow();
   const navigate = useNavigate();
   const me = useMe();
   const spaces = useSpaces();
-  const devices = useDevices();
   const create = useCreateCamera();
   const amend = useAmendCamera();
   const capture = useCaptureOnce();
@@ -44,26 +44,42 @@ export function RtspCamera() {
   const [url, setUrl] = useState('');
   const [name, setName] = useState('');
   const [spaceId, setSpaceId] = useState<string | null>(null);
+  /** Which of a tent's controllers carries the stream, where it holds more than one. */
+  const [carrierId, setCarrierId] = useState<string | null>(null);
   /** The camera once it exists, so a second test amends it rather than making another. */
   const [made, setMade] = useState<Camera | null>(null);
 
   if (spaces.isPending) return <Waiting lines={3} />;
   if (!spaces.data) return <LoadFailed retry={() => void spaces.refetch()} />;
 
-  const controller = devices.data?.items.find(device => device.spaceId === spaceId) ?? null;
+  // Only a controller has a tunnel, so a fridge module standing in the tent is
+  // not a way in and the stream has to be opened from the cloud instead.
+  const carriers = spaceId === null ? [] : controllersOf(devices, spaceId);
+  const controller = carriers.find(device => device.id === carrierId) ?? carriers[0] ?? null;
+
   const ready = url.trim().length > 0 && name.trim().length > 0 && spaceId !== null;
   const working = create.isPending || amend.isPending || capture.isPending;
 
-  /** The camera this form is about, made the first time it is needed and kept afterwards. */
+  /** A different tent is a different set of controllers, so the one picked here does not follow. */
+  const putIn = (id: string) => {
+    setSpaceId(id);
+    setCarrierId(null);
+  };
+
+  /**
+   * The camera this form is about, made the first time it is needed and kept
+   * afterwards. The tunnel is worked out again on every write, because the tent
+   * may have been changed since the test that made the camera.
+   */
   const ensure = async (): Promise<Camera> => {
-    const settings = { name: name.trim(), spaceId, url: url.trim() };
+    const settings = { name: name.trim(), spaceId, url: url.trim(), deviceId: controller?.id ?? null, tunnel: controller !== null };
     if (made) {
       const amended = await amend.mutateAsync({ cameraId: made.id, body: settings });
       setMade(amended);
       return amended;
     }
 
-    const body: RtspCameraCreate = { kind: 'rtsp', ...settings, deviceId: controller?.id ?? null, tunnel: controller !== null };
+    const body: RtspCameraCreate = { kind: 'rtsp', ...settings };
     const fresh = await create.mutateAsync(body);
     setMade(fresh);
     return fresh;
@@ -82,6 +98,7 @@ export function RtspCamera() {
       .catch(() => undefined);
 
   const shot = capture.data?.mediaId ? mediaUrl(capture.data.mediaId, THUMBNAIL_WIDTH.frame) : null;
+  const liveness = controller ? deviceLiveness(controller.state.lastSeenAt, now) : null;
 
   return (
     <>
@@ -109,7 +126,15 @@ export function RtspCamera() {
           spellCheck={false}
           onChange={event => setUrl(event.target.value)}
         />
-        <p className={styles.text}>{spaceId && !controller ? t('cameras.add.rtsp.direct') : t('cameras.add.rtsp.throughController')}</p>
+        <p className={styles.text}>{wayIn(t, spaceId, controller)}</p>
+        {controller && liveness && liveness !== 'live' ? (
+          <p className={styles.text} {...ageAttribute(liveness)}>
+            {t(`cameras.add.rtsp.carrier.${liveness}`, {
+              controller: controllerName(controller, t),
+              age: ageLabel(controller.state.lastSeenAt, now),
+            })}
+          </p>
+        ) : null}
       </section>
 
       <section className={styles.block}>
@@ -119,13 +144,26 @@ export function RtspCamera() {
         ) : (
           <Choices label={t('cameras.add.rtsp.where')}>
             {spaces.data.items.map(space => (
-              <Choice key={space.id} chosen={space.id === spaceId} onChoose={() => setSpaceId(space.id)}>
+              <Choice key={space.id} chosen={space.id === spaceId} onChoose={() => putIn(space.id)}>
                 {space.name}
               </Choice>
             ))}
           </Choices>
         )}
       </section>
+
+      {carriers.length > 1 ? (
+        <section className={styles.block}>
+          <span className="label">{t('cameras.add.rtsp.throughWhich')}</span>
+          <Choices label={t('cameras.add.rtsp.throughWhich')}>
+            {carriers.map(device => (
+              <Choice key={device.id} chosen={device.id === controller?.id} onChoose={() => setCarrierId(device.id)}>
+                {controllerName(device, t)}
+              </Choice>
+            ))}
+          </Choices>
+        </section>
+      ) : null}
 
       <section className={styles.block}>
         <label className="label" htmlFor="rtsp-name">
@@ -173,6 +211,21 @@ export function RtspCamera() {
 }
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+/**
+ * How the cloud will reach this address, which is a fact about the place the
+ * camera looks at rather than about the address: a tent with a controller in it
+ * is reached through that controller's tunnel, and one without is not reachable
+ * at all unless the stream is already open to the internet. Before a place is
+ * picked neither is true yet, so the line says which question is still open
+ * instead of promising a tunnel through a controller nobody has named.
+ */
+const wayIn = (t: Translate, spaceId: string | null, controller: Device | null): string => {
+  if (spaceId === null) return t('cameras.add.rtsp.pickAPlace');
+  if (controller) return t('cameras.add.rtsp.throughController', { controller: controllerName(controller, t) });
+
+  return t('cameras.add.rtsp.direct');
+};
 
 /**
  * What the Premium tag means here. An RTSP camera has no included year of its

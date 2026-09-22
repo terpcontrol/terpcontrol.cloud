@@ -237,6 +237,12 @@
   color: var(--ink);
 }
 
+/* The way out of a tab that cannot do its own job: a button at its own width
+   rather than a bar across a panel that is otherwise all explanation. */
+.way {
+  align-self: flex-start;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;

@@ -1,8 +1,10 @@
 import { Camera as CameraIcon, ChevronRight } from 'lucide-react';
+import type { UseQueryResult } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Camera, Device, Space } from '@fg2/shared-types/v1';
-import { useCameras, useCamerasAsOpened, useLatestStills, useUpdateCamera } from '@/api/cameras';
+import { Link } from 'react-router';
+import type { Camera, CameraPage, Device, Space } from '@fg2/shared-types/v1';
+import { useCameras, useLatestStills, useUpdateCamera } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
@@ -24,18 +26,30 @@ const STEPS = ['one', 'two', 'three'] as const;
  * was opened, so the list is read twice: once and never again, which is the
  * line new is measured from, and on its beat, which is what crosses it. That
  * also makes the screen honest about a second cam paired while somebody is
- * still standing at the tent: it appears the same way the first one did.
+ * still standing at the tent: it appears the same way the first one did. The
+ * line itself belongs to the screen rather than to this tab, because looking at
+ * another tab and coming back is not opening the screen again.
+ *
+ * All of that presumes the knob these steps describe, so an account with no
+ * controller is told it has none and pointed at the claim flow instead: a watch
+ * that nothing can ever cross is not an honest thing to leave running.
+ */
+export function PairTerpCam({ controllers, opened }: { controllers: Device[]; opened: UseQueryResult<CameraPage> }) {
+  return controllers.length === 0 ? <NoController /> : <Watching opened={opened} />;
+}
+
+/**
+ * The steps to take at the controller, and what turns up because of them.
  *
  * The watching is the ordinary camera read on its ordinary beat rather than a
  * loop of its own - the first still is about a minute away, so asking faster
  * would tell nobody anything sooner - and it stops when the screen is left,
- * because that is when the query has no reader left.
+ * because that is when the line it is measured against has no reader left.
  */
-export function PairTerpCam() {
+function Watching({ opened }: { opened: UseQueryResult<CameraPage> }) {
   const { t } = useTranslation();
   const now = useNow();
   const cameras = useCameras();
-  const opened = useCamerasAsOpened();
   const devices = useDevices();
   const spaces = useSpaces();
 
@@ -82,6 +96,27 @@ export function PairTerpCam() {
         </ul>
       )}
     </>
+  );
+}
+
+/**
+ * What this tab is for somebody who has no controller: the missing part, named,
+ * and the way to get one. The three steps are left undrawn rather than greyed
+ * out, because none of them is a thing that could be done here later - the knob
+ * they describe is on hardware this account has not claimed.
+ */
+function NoController() {
+  const { t } = useTranslation();
+
+  return (
+    <section className={`${ui.cardDashed} ${styles.block}`}>
+      <span className="label">{t('cameras.add.terpcam.noController.label')}</span>
+      <p className={styles.text}>{t('cameras.add.terpcam.noController.text')}</p>
+      <Link className={`${ui.button} ${styles.way}`} to="/claim">
+        {t('cameras.add.terpcam.noController.claim')}
+        <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
+      </Link>
+    </section>
   );
 }
 
