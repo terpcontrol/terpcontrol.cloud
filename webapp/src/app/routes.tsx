@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router';
 import { AppShell } from './shell/AppShell';
 import { RequireSession } from './RequireSession';
+import { AddCamera } from '@/screens/camera/add/AddCamera';
 import { Alerts } from '@/screens/Alerts';
 import { CameraPage } from '@/screens/camera/CameraPage';
 import { Claim } from '@/screens/claim/Claim';
@@ -41,7 +42,9 @@ import { Timeline } from '@/screens/Timeline';
  * sheet; it is not a screen of its own, and gives the address straight back to
  * the one it opened over. The new-grow sheet has an address for the same
  * reason, and stands over the home when it is followed cold. A camera is the
- * third page a row opens, beside the grow and the space.
+ * third page a row opens, beside the grow and the space, and adding one is a
+ * page of its own above it: a static segment outranks the parameter beside it,
+ * so `/cameras/add` is never read as a camera called "add".
  *
  * A space's tab may have a page of its own below it - the manual targets and
  * the alarm rules under Control - which is the third segment, so that a link
@@ -65,6 +68,7 @@ export const router = createBrowserRouter([
       { path: 'log', element: <LogRoute /> },
       { path: 'devices', element: <Devices /> },
       { path: 'claim', element: <Claim /> },
+      { path: 'cameras/add', element: <AddCamera /> },
       { path: 'cameras/:cameraId', element: <CameraPage /> },
       { path: 'tasks', element: <Tasks /> },
       { path: 'me', element: <Me /> },

@@ -86,7 +86,20 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
         </Link>
       ) : null}
 
-      <Section label={t('devices.cameras')} empty={shown.length === 0 ? t('devices.noCameras') : null}>
+      <Section
+        label={t('devices.cameras')}
+        empty={shown.length === 0 ? t('devices.noCameras') : null}
+        action={
+          // Only on the Devices tab: a tent's own list is the same component,
+          // and the screen behind this asks which place a camera is for rather
+          // than taking the one it was opened from.
+          mayManage && spaceId === undefined ? (
+            <Link className={`${ui.chip} ${styles.addCamera}`} to="/cameras/add">
+              + {t('cameras.add.title')}
+            </Link>
+          ) : null
+        }
+      >
         {shown.map(camera => (
           <CameraRow
             key={camera.id}
@@ -170,10 +183,14 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
   );
 }
 
-function Section({ label, empty, children }: { label: string; empty: string | null; children: React.ReactNode }) {
+/** A list of rows under its label, with the one way of adding to it beside that label where there is one. */
+function Section({ label, empty, action, children }: { label: string; empty: string | null; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className={styles.section}>
-      <span className="label">{label}</span>
+      <div className={styles.sectionHead}>
+        <span className="label">{label}</span>
+        {action}
+      </div>
       {empty ? <p className={`${ui.cardDashed} ${ui.note}`}>{empty}</p> : <ul className={styles.rows}>{children}</ul>}
     </section>
   );

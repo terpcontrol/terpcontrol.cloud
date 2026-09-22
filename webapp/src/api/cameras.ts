@@ -1,5 +1,15 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Camera, CameraPage, CameraUpdate, Media, MediaPage, TestCaptureAnswer, TimelapseAccepted, TimelapseCreate } from '@fg2/shared-types/v1';
+import type {
+  Camera,
+  CameraCreate,
+  CameraPage,
+  CameraUpdate,
+  Media,
+  MediaPage,
+  TestCaptureAnswer,
+  TimelapseAccepted,
+  TimelapseCreate,
+} from '@fg2/shared-types/v1';
 import { api } from './client';
 
 /**
@@ -19,6 +29,25 @@ export const useCameras = (spaceId?: string) =>
     queryKey: ['cameras', spaceId ?? null],
     queryFn: ({ signal }) => api.get<CameraPage>('/cameras', spaceId ? { spaceId } : undefined, signal),
     refetchInterval: CAMERAS_REFRESH_MS,
+  });
+
+/**
+ * The cameras this account had at the moment this was first read, and never
+ * again: a screen watching for a camera to be paired has to know which ones
+ * were already there, and a list that refreshed itself would keep moving that
+ * line until nothing was ever new.
+ *
+ * Its key deliberately stands outside the `cameras` family, so that creating or
+ * changing a camera does not invalidate the very answer that says what was
+ * there before; it is thrown away as soon as nobody is reading it, so opening
+ * the screen again asks afresh.
+ */
+export const useCamerasAsOpened = () =>
+  useQuery({
+    queryKey: ['cameras-as-opened'],
+    queryFn: ({ signal }) => api.get<CameraPage>('/cameras', undefined, signal),
+    staleTime: Infinity,
+    gcTime: 0,
   });
 
 export const useCamera = (cameraId: string) =>
@@ -56,6 +85,40 @@ export const useMedia = (mediaId: string | null) =>
 
 export const isRendering = (media: Media | undefined): boolean => media?.render?.status === 'queued' || media?.render?.status === 'rendering';
 
+/**
+ * Adding a camera: the Terp Cam a controller has paired, which this adopts
+ * rather than doubling, or a stream at an address. What comes back is the whole
+ * camera, so the screen that made it can go straight to its page.
+ */
+export const useCreateCamera = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: CameraCreate) => api.post<Camera>('/cameras', body),
+    onSuccess: created => {
+      queryClient.setQueryData(['camera', created.id], created);
+      void queryClient.invalidateQueries({ queryKey: ['cameras'] });
+    },
+  });
+};
+
+/**
+ * The same change as `useUpdateCamera`, for a screen that learns which camera
+ * it is about only while it is running: the camera being set up is made by the
+ * tap that tests it, so the id cannot be named when the hook is called.
+ */
+export const useAmendCamera = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ cameraId, body }: { cameraId: string; body: CameraUpdate }) => api.patch<Camera>(`/cameras/${cameraId}`, body),
+    onSuccess: camera => {
+      queryClient.setQueryData(['camera', camera.id], camera);
+      void queryClient.invalidateQueries({ queryKey: ['cameras'] });
+    },
+  });
+};
+
 export const useUpdateCamera = (cameraId: string) => {
   const queryClient = useQueryClient();
 
@@ -84,6 +147,10 @@ export const useRemoveCamera = (cameraId: string) => {
  */
 export const useTestCapture = (cameraId: string) =>
   useMutation({ mutationFn: () => api.post<TestCaptureAnswer>(`/cameras/${cameraId}/test-captures`) });
+
+/** A picture from a camera named as the request is made, for the same reason `useAmendCamera` exists. */
+export const useCaptureOnce = () =>
+  useMutation({ mutationFn: (cameraId: string) => api.post<TestCaptureAnswer>(`/cameras/${cameraId}/test-captures`) });
 
 /**
  * The composer, and the four one-tap buttons above it. The answer is the media

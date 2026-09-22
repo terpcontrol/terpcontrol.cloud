@@ -707,7 +707,7 @@
     "claiming": "Claiming…",
     "claimLabel": "The code on the display",
     "claimFailed": "That code was not taken.",
-    "addCameraLater": "A camera is added where it lives: a Terp Cam pairs at the controller, a standalone one joins Wi-Fi from your phone, and any other camera takes a stream address. Those three arrive with round 11.",
+    "addCameraLater": "A camera is added on a screen of its own: a Terp Cam pairs at the controller, a standalone one joins Wi-Fi from your phone, and any other camera takes a stream address. Add one from the camera list on this tab.",
     "controllers": "Controllers",
     "cameras": "Cameras",
     "sockets": "Smart sockets",
@@ -2104,6 +2104,71 @@
       "queuedNote": "Waiting for the builder, which takes the queue on its next pass. This page follows it; nothing is lost by leaving."
     },
     "noFilms": "No film of this camera yet."
+  },
+  "cameras": {
+    "add": {
+      "title": "Add a camera",
+      "which": "Which camera",
+      "cancel": "Cancel",
+      "demo": "The demo may look at everything and change nothing, so it cannot add a camera.",
+      "tab": {
+        "controller": "Terp Cam",
+        "standalone": "Terp Cam · standalone",
+        "rtsp": "RTSP"
+      },
+      "terpcam": {
+        "one": {
+          "title": "Plug the cam in near the controller",
+          "text": "Blue light blinks when it is ready to pair."
+        },
+        "two": {
+          "title": "On the controller: turn the knob to Cam › Pair",
+          "text": "No phone app, no Wi-Fi password: the controller hands the cam its network."
+        },
+        "three": {
+          "title": "It shows up here",
+          "text": "First still in about a minute. Name it and say what it looks at."
+        },
+        "watching": "Nothing new yet. This list fills itself for as long as it is open."
+      },
+      "found": {
+        "title": "Terp Cam · {{tag}}",
+        "pill": "found",
+        "name": "Name",
+        "nameLabel": "Name",
+        "looksAtLabel": "Looks at",
+        "looksAtHint": "Canopy, side view …",
+        "save": "Save",
+        "saving": "Saving…"
+      },
+      "standalone": {
+        "label": "Standalone Terp Cam",
+        "text": "Joins your Wi-Fi from this phone (QR on the cam). Lives in a space with no controller; gets its own timelapses; Premium included 12 months.",
+        "coming": "Coming soon."
+      },
+      "rtsp": {
+        "label": "RTSP camera",
+        "premium": "An RTSP camera has no included year of its own: Premium is bought for it.",
+        "premiumPriced": "An RTSP camera has no included year of its own: Premium is bought for it, {{price}}.",
+        "gatesNothing": "This install enforces nothing, so the tag gates nothing here.",
+        "address": "Stream address",
+        "placeholder": "rtsp://user:pass@192.168.1.40/stream1",
+        "throughController": "Pulled through the controller on your network; stills every 30 s like a Terp Cam.",
+        "direct": "No controller stands there, so the cloud opens the stream itself: an address on your home network will not answer it.",
+        "where": "Where does it look?",
+        "nowhere": "There is no space to put a camera in yet.",
+        "name": "Name",
+        "nameHint": "Tent camera",
+        "test": "Test",
+        "testing": "Taking a picture…",
+        "save": "Add camera",
+        "saving": "Adding…",
+        "worked": "A picture came back · {{age}}",
+        "failed": "No picture: {{reason}}",
+        "noReason": "the camera gave no reason",
+        "shotAlt": "The picture the test came back with"
+      }
+    }
   },
   "composer": {
     "title": "Timelapse",

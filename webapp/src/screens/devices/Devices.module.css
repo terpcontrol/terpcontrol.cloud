@@ -44,6 +44,19 @@
   gap: var(--space-2);
 }
 
+/* A list's label, and beside it the one way of adding to that list. */
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.addCamera {
+  flex: none;
+  color: var(--brand);
+}
+
 .rows {
   display: flex;
   flex-direction: column;

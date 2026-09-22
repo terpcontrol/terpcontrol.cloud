@@ -1,0 +1,274 @@
+/* Adding a camera: one page with three ways in, each of which is a different
+   thing to explain rather than a different field to fill in. The three panels
+   share this file because they are one screen and read as one. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.back {
+  display: grid;
+  place-items: center;
+  margin-left: calc(var(--space-2) * -1);
+  color: var(--ink);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+/* The three ways in, as one control: which of them is meant is a choice
+   between three, not three buttons that each do something. */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.tab {
+  padding: var(--space-3) var(--space-2);
+  background: none;
+  border: 0;
+  border-left: var(--rule-solid);
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.tab:first-child {
+  border-left: 0;
+}
+
+.tab[aria-selected='true'] {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* What to do, in the order it is done. The number is drawn rather than
+   counted, so a step reads as a step even where the list is read aloud. */
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.stepMark {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: var(--rule-solid);
+  border-radius: 50%;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.stepTitle {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.stepText {
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+  color: var(--muted);
+}
+
+.founds {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.found {
+  padding: var(--space-3);
+}
+
+.foundHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* Where the first still will be, empty until there is one. */
+.thumb {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 48px;
+  height: 36px;
+  background: var(--card-2);
+  border: var(--rule-solid);
+  border-radius: calc(var(--radius) / 2);
+  color: var(--label);
+  object-fit: cover;
+}
+
+.foundText {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 1px;
+  min-width: 0;
+}
+
+.foundTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.foundName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pill {
+  flex: none;
+  padding: 0 var(--space-2);
+  border: var(--rule-width) solid var(--green-ink);
+  border-radius: var(--radius-pill);
+  color: var(--green-ink);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-caption);
+}
+
+.foundNote {
+  font-size: var(--text-xs);
+  line-height: 1.35;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nameButton {
+  flex: none;
+}
+
+/* Naming what has just turned up: the two things step three promises, under
+   the row they belong to. */
+.naming {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--rule-solid);
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.blockHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* RTSP is a Premium feature by the record, and the tag says so where the
+   record puts it: beside the name of the thing, not beside the button. */
+.premium {
+  padding: 0 var(--space-2);
+  border: var(--rule-width) solid var(--warning);
+  border-radius: var(--radius-pill);
+  color: var(--warning);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-caption);
+  text-transform: uppercase;
+}
+
+.text {
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+  color: var(--muted);
+}
+
+.coming {
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.actions .grow {
+  flex: 1 1 auto;
+}
+
+/* What the test capture came back with: the picture at the width a phone draws
+   it, or the reason there is none. */
+.shot {
+  width: 100%;
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.shotNote {
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+@media (min-width: 900px) {
+  .page {
+    max-width: 720px;
+    padding-top: 0;
+  }
+
+  .foundNote,
+  .shotNote {
+    font-size: var(--text-sm);
+  }
+}

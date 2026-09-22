@@ -703,7 +703,7 @@
     "claiming": "Wird übernommen…",
     "claimLabel": "Der Code auf dem Display",
     "claimFailed": "Dieser Code wurde nicht angenommen.",
-    "addCameraLater": "Eine Kamera wird dort hinzugefügt, wo sie hängt: eine Terp Cam koppelt am Controller, eine eigenständige kommt per Handy ins WLAN, jede andere bekommt eine Stream-Adresse. Diese drei Wege kommen mit Runde 11.",
+    "addCameraLater": "Eine Kamera wird auf einem eigenen Bildschirm hinzugefügt: eine Terp Cam koppelt am Controller, eine eigenständige kommt per Handy ins WLAN, jede andere bekommt eine Stream-Adresse. Los geht es über der Kameraliste in diesem Tab.",
     "controllers": "Controller",
     "cameras": "Kameras",
     "sockets": "Smarte Steckdosen",
@@ -2100,6 +2100,71 @@
       "queuedNote": "Wartet auf den Builder, der die Warteschlange beim nächsten Durchlauf abarbeitet. Diese Seite verfolgt das; beim Weggehen geht nichts verloren."
     },
     "noFilms": "Von dieser Kamera gibt es noch keinen Film."
+  },
+  "cameras": {
+    "add": {
+      "title": "Kamera hinzufügen",
+      "which": "Welche Kamera",
+      "cancel": "Abbrechen",
+      "demo": "Die Demo darf alles ansehen und nichts ändern, sie kann also keine Kamera hinzufügen.",
+      "tab": {
+        "controller": "Terp Cam",
+        "standalone": "Terp Cam · eigenständig",
+        "rtsp": "RTSP"
+      },
+      "terpcam": {
+        "one": {
+          "title": "Die Cam in der Nähe des Controllers einstecken",
+          "text": "Das blaue Licht blinkt, sobald sie bereit zum Koppeln ist."
+        },
+        "two": {
+          "title": "Am Controller: den Knopf auf Cam › Pair drehen",
+          "text": "Keine App, kein WLAN-Passwort: der Controller gibt der Cam sein Netz."
+        },
+        "three": {
+          "title": "Sie taucht hier auf",
+          "text": "Das erste Bild kommt nach etwa einer Minute. Gib ihr einen Namen und sag, worauf sie zeigt."
+        },
+        "watching": "Noch nichts Neues. Diese Liste füllt sich von selbst, solange sie offen ist."
+      },
+      "found": {
+        "title": "Terp Cam · {{tag}}",
+        "pill": "gefunden",
+        "name": "Benennen",
+        "nameLabel": "Name",
+        "looksAtLabel": "Zeigt auf",
+        "looksAtHint": "Kronendach, Seitenansicht …",
+        "save": "Speichern",
+        "saving": "Wird gespeichert…"
+      },
+      "standalone": {
+        "label": "Eigenständige Terp Cam",
+        "text": "Kommt per Handy in dein WLAN (QR-Code auf der Cam). Hängt in einem Bereich ohne Controller, bekommt eigene Zeitraffer, Premium für 12 Monate enthalten.",
+        "coming": "Kommt bald."
+      },
+      "rtsp": {
+        "label": "RTSP-Kamera",
+        "premium": "Eine RTSP-Kamera hat kein eigenes Freijahr: Premium wird für sie gekauft.",
+        "premiumPriced": "Eine RTSP-Kamera hat kein eigenes Freijahr: Premium wird für sie gekauft, {{price}}.",
+        "gatesNothing": "Diese Installation schaltet nichts frei und sperrt nichts, hier steht das Siegel also vor keiner Tür.",
+        "address": "Stream-Adresse",
+        "placeholder": "rtsp://user:pass@192.168.1.40/stream1",
+        "throughController": "Wird über den Controller in deinem Netz geholt; alle 30 s ein Bild wie bei einer Terp Cam.",
+        "direct": "Dort steht kein Controller, die Cloud öffnet den Stream also selbst: eine Adresse aus deinem Heimnetz antwortet ihr nicht.",
+        "where": "Wo schaut sie hin?",
+        "nowhere": "Es gibt noch keinen Bereich, in den eine Kamera passt.",
+        "name": "Name",
+        "nameHint": "Zeltkamera",
+        "test": "Test",
+        "testing": "Bild wird geholt…",
+        "save": "Kamera hinzufügen",
+        "saving": "Wird hinzugefügt…",
+        "worked": "Ein Bild kam zurück · {{age}}",
+        "failed": "Kein Bild: {{reason}}",
+        "noReason": "die Kamera nannte keinen Grund",
+        "shotAlt": "Das Bild aus dem Test"
+      }
+    }
   },
   "composer": {
     "title": "Zeitraffer",
