@@ -3,7 +3,7 @@ import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Me } from '@fg2/shared-types/v1';
-import { useChangePassword, useMe, useRevokeSession, useSessions, useUpdatingMe } from '@/api/account';
+import { useChangePassword, useMe, useRevokeOtherSessions, useRevokeSession, useSessions, useUpdatingMe } from '@/api/account';
 import { fileSize, isBuilding, useAskAccountExport, useAskedExport, useExport } from '@/api/exports';
 import { mediaUrl, useSession } from '@/api/session';
 import { ageLabel } from '@/ui/age';
@@ -223,6 +223,7 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
   const { t } = useTranslation();
   const sessions = useSessions();
   const revoke = useRevokeSession();
+  const others = useRevokeOtherSessions();
   const [all, setAll] = useState(false);
 
   if (sessions.isPending) return <Waiting lines={2} />;
@@ -268,7 +269,23 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
           {t('me.account.sessions.more')}
         </button>
       ) : null}
+      {/*
+        One act rather than a row at a time, because the sessions worth ending
+        are the ones nobody can see from here: a browser left signed in
+        somewhere is not on the first page of anything. It spares this one.
+      */}
+      {rows.length > 1 ? (
+        <button
+          type="button"
+          className={`${ui.chip} ${styles.signOutEverywhere}`}
+          disabled={held || others.isPending}
+          onClick={() => others.mutate()}
+        >
+          {t('me.account.sessions.signOutOthers')}
+        </button>
+      ) : null}
       <Refused error={revoke.error} />
+      <Refused error={others.error} />
     </section>
   );
 }

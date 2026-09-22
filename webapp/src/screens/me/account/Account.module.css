@@ -81,3 +81,14 @@
   font-size: var(--text-xs);
   color: var(--muted);
 }
+
+/*
+ * The sweep stands apart from the two chips that ask for more of the list: it
+ * ends sessions rather than showing them, and a row of three identical chips
+ * would have somebody tap it while looking for the next page.
+ */
+.signOutEverywhere {
+  align-self: flex-start;
+  margin-top: var(--space-2);
+  border-color: var(--rule);
+}

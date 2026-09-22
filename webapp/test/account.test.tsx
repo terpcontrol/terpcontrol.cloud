@@ -92,6 +92,7 @@ const server = {
   wrongPassword: false,
   passwords: [] as PasswordChange[],
   revoked: [] as string[],
+  sweptOthers: 0,
   exportsAsked: 0,
   mediaAsked: 0,
   /** When the server says the zip was written. The route hands back a standing export for an hour, so this is not always now. */
@@ -116,6 +117,11 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     return new Response(null, { status: 204 });
   }
   if (pathname === '/v1/sessions' && method === 'GET') return json({ items: server.sessions, nextCursor: null });
+  if (pathname === '/v1/sessions' && method === 'DELETE') {
+    server.sweptOthers += 1;
+    server.sessions = server.sessions.filter(row => row.id === 'session-1');
+    return new Response(null, { status: 204 });
+  }
   if (pathname.startsWith('/v1/sessions/') && method === 'DELETE') {
     const id = pathname.slice('/v1/sessions/'.length);
     server.revoked.push(id);
@@ -166,6 +172,7 @@ beforeEach(() => {
   server.wrongPassword = false;
   server.passwords = [];
   server.revoked = [];
+  server.sweptOthers = 0;
   server.exportsAsked = 0;
   server.mediaAsked = 0;
   server.builtAt = null;
@@ -246,6 +253,24 @@ describe('where this person is signed in', () => {
 
     await waitFor(() => expect(server.revoked).toEqual(['session-2']));
     await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(2));
+  });
+
+  it('signs every other browser out in one act, and keeps this one', async () => {
+    await drawLoaded();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign every other browser out' }));
+
+    await waitFor(() => expect(server.sweptOthers).toBe(1));
+    // The list is read again, and what is left is the browser doing the asking.
+    await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1));
+    expect(screen.getByText('this device')).toBeInTheDocument();
+  });
+
+  it('offers no sweep to somebody signed in nowhere else', async () => {
+    server.sessions = server.sessions.slice(0, 1);
+    await drawLoaded();
+
+    expect(screen.queryByRole('button', { name: 'Sign every other browser out' })).not.toBeInTheDocument();
   });
 
   it('reads a browser off its user agent and repeats what it cannot read', () => {

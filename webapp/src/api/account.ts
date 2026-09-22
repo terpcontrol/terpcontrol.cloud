@@ -152,3 +152,18 @@ export const useRevokeSession = () => {
     onSuccess: () => client.invalidateQueries({ queryKey: sessionsKey }),
   });
 };
+
+/**
+ * Ending every other session at once, which is what somebody reaches for when a
+ * laptop has gone missing rather than when a tab is stale. The server spares
+ * the session asking, so this browser stays signed in and the list is read
+ * again to show what is left of the others.
+ */
+export const useRevokeOtherSessions = () => {
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => api.delete('/sessions'),
+    onSuccess: () => client.invalidateQueries({ queryKey: sessionsKey }),
+  });
+};

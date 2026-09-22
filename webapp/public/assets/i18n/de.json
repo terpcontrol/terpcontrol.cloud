@@ -1852,7 +1852,8 @@
         "until": "bis {{date}}",
         "unknownDevice": "unbekanntes Gerät",
         "showAll": "Die übrigen anzeigen",
-        "more": "Mehr"
+        "more": "Mehr",
+        "signOutOthers": "Alle anderen Browser abmelden"
       },
       "data": "Daten",
       "export": {

@@ -1856,7 +1856,8 @@
         "until": "until {{date}}",
         "unknownDevice": "unknown device",
         "showAll": "Show the rest",
-        "more": "More"
+        "more": "More",
+        "signOutOthers": "Sign every other browser out"
       },
       "data": "Data",
       "export": {
