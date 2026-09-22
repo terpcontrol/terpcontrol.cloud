@@ -86,7 +86,10 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
           />
         </Block>
 
-        <Block label={t('space.control.editor.steps')} aside={t('space.control.editor.stepCount', { count: draft.steps.length })}>
+        <Block
+          label={t('space.control.editor.steps')}
+          aside={<span className="mono">{t('space.control.editor.stepCount', { count: draft.steps.length })}</span>}
+        >
           {draft.steps.length === 0 ? <p className={ui.note}>{t('space.control.editor.noSteps')}</p> : null}
 
           <ol className={styles.editSteps}>

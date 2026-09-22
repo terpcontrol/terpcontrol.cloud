@@ -58,7 +58,10 @@ export function HarvestSheet({ grow, plants, onClose }: { grow: GrowListItem; pl
         {standing.length === 0 ? (
           <p className={ui.note}>{t('grow.lifecycle.harvest.nothingStanding')}</p>
         ) : (
-          <Block label={t('grow.lifecycle.harvest.whatComesDown')} aside={t('grow.lifecycle.harvest.standing', { count: standing.length })}>
+          <Block
+            label={t('grow.lifecycle.harvest.whatComesDown')}
+            aside={<span className="mono">{t('grow.lifecycle.harvest.standing', { count: standing.length })}</span>}
+          >
             <PlantPicker
               plants={plants}
               chosen={chosen}
@@ -72,7 +75,7 @@ export function HarvestSheet({ grow, plants, onClose }: { grow: GrowListItem; pl
         )}
 
         {standing.length === 0 ? null : (
-          <Block label={t('grow.lifecycle.harvest.weights')} aside={t('grow.lifecycle.harvest.grams')}>
+          <Block label={t('grow.lifecycle.harvest.weights')} aside={<span className="mono">{t('grow.lifecycle.harvest.grams')}</span>}>
             <div className={styles.weights}>
               <Weight label={t('grow.lifecycle.harvest.wet')} value={wet} onChange={setWet} />
               <Weight label={t('grow.lifecycle.harvest.dry')} value={dry} onChange={setDry} />

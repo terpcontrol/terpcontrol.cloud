@@ -114,7 +114,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
           ) : null}
         </Block>
 
-        <Block label={t('tasks.sheet.about')} aside={t('tasks.sheet.aboutFixed')}>
+        <Block label={t('tasks.sheet.about')} aside={<span className="mono">{t('tasks.sheet.aboutFixed')}</span>}>
           {grows.length === 0 && spaces.length === 0 ? <p className={ui.note}>{t('tasks.sheet.nowhere')}</p> : null}
           <Group
             label={t('tasks.sheet.grows')}

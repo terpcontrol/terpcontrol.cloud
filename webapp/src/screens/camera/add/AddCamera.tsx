@@ -17,7 +17,9 @@ import styles from './AddCamera.module.css';
  * hardware and then watches for what turns up. A standalone Terp Cam is the
  * same camera without a controller to pair it, and that flow is unproven
  * against a camera on a desk, so the tab says what it will do and offers
- * nothing that could fail on somebody's. Only the third has a form, because a
+ * nothing that could fail on somebody's - drawn in the dashed card the app
+ * gives every "not here yet", so that the tab has the shape its two siblings
+ * get from the controls inside them. Only the third has a form, because a
  * stream is an address and nobody but the person knows it.
  *
  * Which of the three is meant is held here rather than in the address: they are
@@ -83,7 +85,7 @@ function Standalone() {
   const { t } = useTranslation();
 
   return (
-    <section className={styles.block}>
+    <section className={`${ui.cardDashed} ${styles.block}`}>
       <span className="label">{t('cameras.add.standalone.label')}</span>
       <p className={styles.text}>{t('cameras.add.standalone.text')}</p>
       <p className={`${styles.text} ${styles.coming}`}>{t('cameras.add.standalone.coming')}</p>

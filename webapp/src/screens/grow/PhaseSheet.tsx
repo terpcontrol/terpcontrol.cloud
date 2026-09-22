@@ -86,7 +86,7 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
           </button>
         </Block>
 
-        <Block label={t('grow.lifecycle.phase.history')} aside={t('grow.lifecycle.phase.oldestFirst')}>
+        <Block label={t('grow.lifecycle.phase.history')} aside={<span className="mono">{t('grow.lifecycle.phase.oldestFirst')}</span>}>
           {ordered.length === 0 ? (
             <p className={ui.note}>{t('grow.lifecycle.phase.noneYet')}</p>
           ) : (

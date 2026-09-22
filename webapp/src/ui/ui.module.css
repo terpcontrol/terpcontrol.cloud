@@ -32,8 +32,10 @@
   white-space: nowrap;
 }
 
+/* Out of reach, at the one strength the app uses for it: the outlined chips
+   turn down this far too, so "not now" looks the same wherever it is met. */
 .button:disabled {
-  opacity: 0.6;
+  opacity: 0.45;
 }
 
 /* The one primary action on a screen. */
@@ -41,6 +43,19 @@
   background: var(--green);
   border-color: var(--green);
   color: var(--on-green);
+}
+
+/* A primary that cannot be pressed gives the green up rather than fading it.
+   Turning green down works in the light theme, where it washes towards a pale
+   page, and fails in the dark one, where it lands on a still-saturated green
+   that is the brightest thing on the screen; the card's own surface under muted
+   ink is dead in both, because both of those tokens flip with the theme. This
+   rule follows `.button:disabled` so that it wins the tie on equal weight. */
+.primary:disabled {
+  background: var(--card-2);
+  border-color: var(--rule);
+  color: var(--muted);
+  opacity: 1;
 }
 
 .chip {

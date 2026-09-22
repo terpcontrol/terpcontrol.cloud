@@ -217,6 +217,12 @@ describe('the harvest sheet', () => {
     expect(screen.getByRole('button', { name: 'Gelato 1' })).toBeDisabled();
     expect(screen.getByText(/wet 90 g/)).toBeInTheDocument();
   });
+
+  it('keeps the unit over the weights in the figure face', () => {
+    draw(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
+
+    expect(screen.getByText('grams, as a total').className).toMatch(/mono/);
+  });
 });
 
 describe('the climate preset sheet', () => {

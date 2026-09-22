@@ -95,3 +95,13 @@
   font-size: var(--text-sm);
   color: var(--muted);
 }
+
+/* The column the rest of the app carries on a wide window, at Home's own width
+   so that nothing moves sideways the moment the first space turns this screen
+   into the populated home. */
+@media (min-width: 900px) {
+  .screen {
+    max-width: 480px;
+    padding-top: 0;
+  }
+}

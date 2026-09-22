@@ -137,6 +137,19 @@ describe('the new-grow sheet', () => {
     expect(screen.getByRole('button', { name: 'Start the grow · Day 1' })).toBeDisabled();
   });
 
+  it('sets its five hints in the text face, because they are advice and not figures', async () => {
+    await drawLoaded();
+
+    const hints = [
+      'a count is enough; names help you compare later',
+      'autoflowers skip the 12/12 flip and feed lighter',
+      "the space's preset and cams follow the grow",
+      'seeds usually show in 2\u20135 days',
+      'a starting point, not a rule; edit any week',
+    ];
+    for (const hint of hints) expect(screen.getByText(hint).className).not.toMatch(/mono/);
+  });
+
   it('offers an account with nothing a place to invent and a name to start from', async () => {
     stack.spaces = [];
     stack.grows = [];

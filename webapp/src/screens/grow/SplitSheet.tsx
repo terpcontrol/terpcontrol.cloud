@@ -49,7 +49,7 @@ export function SplitSheet({ grow, plants, spaces, onClose }: { grow: GrowListIt
 
         <Block
           label={t('grow.lifecycle.split.whichGoTheirOwnWay')}
-          aside={chosen.length > 0 ? t('grow.lifecycle.split.staying', { count: staying }) : undefined}
+          aside={chosen.length > 0 ? <span className="mono">{t('grow.lifecycle.split.staying', { count: staying })}</span> : undefined}
         >
           <PlantPicker
             plants={plants}

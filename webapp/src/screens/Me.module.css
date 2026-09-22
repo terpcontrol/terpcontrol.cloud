@@ -82,3 +82,12 @@
   border-color: var(--brand);
   color: var(--brand);
 }
+
+/* The same column as the settings screen this one leads to, rather than the
+   phone's width and the phone's top padding kept on a wide window. */
+@media (min-width: 900px) {
+  .screen {
+    max-width: 720px;
+    padding-top: 0;
+  }
+}

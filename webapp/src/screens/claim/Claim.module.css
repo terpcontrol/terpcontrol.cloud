@@ -133,9 +133,12 @@
   color: var(--green-ink);
 }
 
-/* A device that has never spoken: said plainly, never as a row of dashes. */
+/* A device that has never spoken: said plainly, never as a row of dashes, and
+   in the grey the rest of the app gives a thing that has reported nothing. The
+   step it sits under is settled, not wrong, so it does not wear the amber that
+   means stale liveness, a warning-severity alert or a refresh that failed. */
 .waitingForIt {
-  color: var(--warning);
+  color: var(--muted);
 }
 
 /* What a preset did, once it has been applied. Sentences rather than figures,

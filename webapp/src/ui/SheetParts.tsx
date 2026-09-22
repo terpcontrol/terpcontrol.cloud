@@ -50,13 +50,21 @@ export function WhenField({ label, at, onChange }: { label: string; at: Date; on
   );
 }
 
-/** A labelled block inside a sheet, so that a long sheet reads as the few questions it is. */
+/**
+ * A labelled block inside a sheet, so that a long sheet reads as the few
+ * questions it is.
+ *
+ * The aside is set in the text face and left there: it carries a count as
+ * often as it carries a sentence of advice, and mono belongs to the figures.
+ * A caller whose aside really is a figure or a caption wraps it in `mono`
+ * itself, which is the one place that knows which of the two it has.
+ */
 export function Block({ label, aside, children }: { label: string; aside?: ReactNode; children: ReactNode }) {
   return (
     <section className={styles.block}>
       <header className={styles.blockHeader}>
         <span className="label">{label}</span>
-        {aside ? <span className={`mono ${styles.blockAside}`}>{aside}</span> : null}
+        {aside ? <span className={styles.blockAside}>{aside}</span> : null}
       </header>
       {children}
     </section>

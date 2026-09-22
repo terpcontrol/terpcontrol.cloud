@@ -207,6 +207,12 @@ describe('the standalone tab', () => {
     expect(panel().queryAllByRole('button')).toHaveLength(0);
     expect(panel().queryAllByRole('textbox')).toHaveLength(0);
   });
+
+  it('stands in the dashed card every other "not here yet" state stands in', async () => {
+    await openTab('Terp Cam · standalone');
+
+    expect(panel().getByText('Coming soon.').closest('section')?.className).toMatch(/cardDashed/);
+  });
 });
 
 describe('a camera at a stream address', () => {

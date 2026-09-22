@@ -228,6 +228,16 @@ describe('adding a device', () => {
     expect(screen.getByRole('textbox', { name: 'Claim code' })).toHaveValue('ABCD1234');
   });
 
+  it('says the claim never reached the server, rather than blaming a page that was not being loaded', async () => {
+    vi.mocked(api.post).mockRejectedValue(new TypeError('Failed to fetch'));
+
+    draw();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: 'ABCD1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the server. Try again.');
+  });
+
   it('says a controller that has never spoken was claimed all the same', async () => {
     vi.mocked(api.post).mockResolvedValue({
       device: { ...device, state: { ...device.state, lastSeenAt: null } },

@@ -79,7 +79,7 @@ export function MoveSheet({ grow, plants, spaces, onClose }: { grow: GrowListIte
           </button>
         </Block>
 
-        <Block label={t('grow.lifecycle.move.history')} aside={t('grow.lifecycle.move.newestFirst')}>
+        <Block label={t('grow.lifecycle.move.history')} aside={<span className="mono">{t('grow.lifecycle.move.newestFirst')}</span>}>
           <ul className={styles.rows}>
             {placements.map(placement => (
               <PlacementRow
