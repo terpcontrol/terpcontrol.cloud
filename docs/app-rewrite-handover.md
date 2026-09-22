@@ -80,6 +80,15 @@ clean. It starts its own MongoDB and its own app on ports it picks, and that is 
 - **Both themes, both widths, both languages.** Dark and light, phone and desktop, English and German, with no
   English left in the German catalogue and no hard-coded colour anywhere.
 - **Doc comments are prose in complete sentences explaining *why*.** Read the file you are editing and match it.
+- **What a screen may draw is the server's answer, not the client's arithmetic.** A space answers `youMay`
+  (`own` · `manage` · `log` · `view`), worked out per reader in `SpacesService.mayIn` and asserted against
+  `access()` in its spec. Read it with `useMayInSpace` / `useMayManage(spaceId)`; never re-derive a role from an
+  owner id and a membership list, and never draw a control that the answer does not reach - **a control somebody
+  may not use is absent, not refused after the tap.** Seven critics found the same hole in round 13 because the
+  gate asked only "signed in and not the demo".
+- **A contract change needs the stack's server rebuilt before anything is looked at.** `docker compose -p
+  tcrewrite up --build -d server` takes a minute; without it every screenshot and every agent driving the app is
+  reading fields the running image has never heard of, and a screen crashes on the one that is missing.
 - **Commit messages**: a short imperative subject, then prose. No bullet lists of the obvious, and **no model,
   tool or assistant identifiers anywhere in the message**.
 
