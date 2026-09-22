@@ -59,6 +59,7 @@ const me = (over: Partial<Me> = {}): Me => ({
   privacy: { hideWeights: true, hideCounts: false },
   preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'Europe/Berlin' },
   retention: { climateDays: 365 },
+  climateRetention: { installDays: null, appliesDays: null },
   notifications: { channels: { email: null, telegram: null, webhook: null }, routing: {}, quietHours: null, mutedUntil: null },
   deletionStartedAt: null,
   premium: { enforced: false, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
@@ -256,11 +257,14 @@ describe('how long anything is kept', () => {
 
     // Premium is the stills row's word and nobody else's on this screen.
     expect(screen.getAllByText('Premium')).toHaveLength(1);
-    expect(screen.getByText('JSON + CSV + photos · yours to keep')).toBeInTheDocument();
+    expect(screen.getByText('JSON + CSV + diary photos + films · yours to keep')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Export' }));
 
-    expect(await screen.findByRole('link', { name: /Download · 12\.4 MB/ })).toHaveAttribute('href', '/media/media-export/content');
+    // A button, not a link: the zip is served to a session, and nothing sets an
+    // Authorization header on a navigation - so the bytes are fetched and handed
+    // to a download of the app's own making.
+    expect(await screen.findByRole('button', { name: /Download · 12\.4 MB/ })).toBeInTheDocument();
     expect(server.exportsAsked).toBe(1);
   });
 

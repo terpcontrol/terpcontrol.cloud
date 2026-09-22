@@ -49,6 +49,7 @@ const me = (): Me => ({
   privacy: { hideWeights: false, hideCounts: false },
   preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'Europe/Berlin' },
   retention: { climateDays: null },
+  climateRetention: { installDays: null, appliesDays: null },
   notifications: { channels: { email: null, telegram: null, webhook: null }, routing: {}, quietHours: null, mutedUntil: null },
   deletionStartedAt: null,
   premium: { enforced: false, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
@@ -319,7 +320,10 @@ describe('taking everything away', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Build the zip' }));
 
-    expect(await screen.findByRole('link', { name: /Download · 12\.4 MB/ })).toHaveAttribute('href', '/media/media-export/content');
+    // A button, not a link: the zip is served to a session, and nothing sets an
+    // Authorization header on a navigation - so the bytes are fetched and handed
+    // to a download of the app's own making.
+    expect(await screen.findByRole('button', { name: /Download · 12\.4 MB/ })).toBeInTheDocument();
     expect(server.exportsAsked).toBe(1);
     expect(server.mediaAsked).toBeGreaterThan(0);
   });
@@ -336,12 +340,15 @@ describe('taking everything away', () => {
     await screen.findByText('login@example.org');
 
     fireEvent.click(screen.getByRole('button', { name: 'Build the zip' }));
-    expect(await screen.findByRole('link', { name: /Download · 12\.4 MB/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Download · 12\.4 MB/ })).toBeInTheDocument();
 
     first.unmount();
     drawIn(client);
 
-    expect(await screen.findByRole('link', { name: /Download · 12\.4 MB/ })).toHaveAttribute('href', '/media/media-export/content');
+    // A button, not a link: the zip is served to a session, and nothing sets an
+    // Authorization header on a navigation - so the bytes are fetched and handed
+    // to a download of the app's own making.
+    expect(await screen.findByRole('button', { name: /Download · 12\.4 MB/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Build the zip' })).not.toBeInTheDocument();
     expect(server.exportsAsked).toBe(1);
   });
@@ -352,7 +359,7 @@ describe('taking everything away', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Build the zip' }));
 
-    expect(await screen.findByRole('link', { name: /Download · 12\.4 MB · built 40 min ago/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Download · 12\.4 MB · built 40 min ago/ })).toBeInTheDocument();
   });
 
   it('carries the same door to deleting the account that the privacy page has', async () => {

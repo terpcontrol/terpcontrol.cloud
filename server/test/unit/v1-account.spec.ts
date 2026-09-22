@@ -214,7 +214,7 @@ describe('what is serialised', () => {
    */
   describe('what "keep everything" will really come to', () => {
     const withInstallWindow = (days: number): AccountsService =>
-      new AccountsService(database.users, database.pushSubscriptions, { ...auth }, { ...premium }, { ...notifications }, { climateDays: days });
+      new AccountsService(database.users, database.pushSubscriptions, database.sessions, { ...auth }, { ...premium }, { ...notifications }, { climateDays: days });
 
     it('names the install´s window, and does not let an account that named none be told its samples are kept for ever', async () => {
       const user = await signUp('install-window');

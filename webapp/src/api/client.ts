@@ -65,6 +65,27 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   return (await response.json()) as T;
 }
 
+/**
+ * A file the session is allowed to have, fetched as bytes rather than linked to.
+ *
+ * An export is the whole of somebody's account in one zip, so it is served to a
+ * session and not to the long-lived token a picture's URL carries - which means
+ * an `<a href>` cannot fetch it, because nothing sets a header on a navigation.
+ * The bytes come back through the ordinary client, with its renewal, and the
+ * caller hands the blob to a download and releases it afterwards.
+ */
+export async function apiBlob(path: string): Promise<Blob> {
+  let response = await send(path, {}, await session.validToken());
+
+  if (response.status === 401) {
+    const refreshed = await session.refresh(session.snapshot().tokens?.refreshToken);
+    if (refreshed) response = await send(path, {}, refreshed.userToken);
+  }
+
+  if (!response.ok) throw new ApiError(await readProblem(response));
+  return response.blob();
+}
+
 export const api = {
   get: <T>(path: string, query?: Query, signal?: AbortSignal) => apiRequest<T>(path, { query, signal }),
   post: <T>(path: string, body?: unknown) => apiRequest<T>(path, { method: 'POST', body }),

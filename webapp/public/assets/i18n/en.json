@@ -1648,7 +1648,7 @@
       },
       "export": {
         "title": "Export everything",
-        "line": "JSON + CSV + photos · yours to keep",
+        "line": "JSON + CSV + diary photos + films · yours to keep",
         "ask": "Export"
       },
       "delete": {
@@ -1862,7 +1862,7 @@
       "data": "Data",
       "export": {
         "title": "Export everything",
-        "note": "Every grow, every reading and every photo in one zip: JSON, CSV and the pictures. Yours to keep.",
+        "note": "Every grow, every reading, your diary photos and the finished films in one zip: JSON, CSV and the pictures. Single camera stills stay in the app - there are tens of thousands of them - and the zip counts them per camera.",
         "ask": "Build the zip",
         "again": "Try again",
         "queued": "queued",
@@ -1952,7 +1952,7 @@
       "feedCount_other": "{{count}} feeds",
       "export": {
         "title": "Export",
-        "note": "Everything about this grow in one zip: the diary, the readings and the climate as CSV, and every photo.",
+        "note": "Everything about this grow in one zip: the diary, the readings and the climate as CSV, and every photo of it.",
         "ask": "Export this grow",
         "again": "Try again",
         "queued": "queued",

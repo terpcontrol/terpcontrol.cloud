@@ -2,8 +2,7 @@ import { ChevronLeft, Download } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { fileSize, isBuilding, useAskAccountExport, useAskedExport, useExport } from '@/api/exports';
-import { mediaUrl } from '@/api/session';
+import { exportFilename, fileSize, isBuilding, useAskAccountExport, useAskedExport, useDownloadExport, useExport } from '@/api/exports';
 import { ageLabel } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
@@ -139,10 +138,10 @@ export function ExportRow({ title, line, ask }: { title: string; line: ReactNode
   const mediaId = useAskedExport();
   const job = useExport(mediaId);
 
+  const download = useDownloadExport();
   const row = job.data;
   const status = row?.exportJob?.status ?? null;
   const ready = row && status === 'ready' ? row : null;
-  const file = ready ? mediaUrl(ready.id) : null;
   const built = ready?.exportJob?.endedAt ?? null;
 
   return (
@@ -164,16 +163,22 @@ export function ExportRow({ title, line, ask }: { title: string; line: ReactNode
           <Refused error={request.error} />
           {/* A poll that stopped answering leaves the last row in place, so it has to say so rather than sit at "building the file…" for ever. */}
           <Refused error={job.error} />
+          <Refused error={download.error} />
         </>
       }
     >
-      {ready && file ? (
-        <a className={`${ui.chip} ${ui.primary}`} href={file} download>
+      {ready ? (
+        <button
+          type="button"
+          className={`${ui.chip} ${ui.primary}`}
+          disabled={download.isPending}
+          onClick={() => download.mutate({ mediaId: ready.id, filename: exportFilename(ready) })}
+        >
           <Download size={14} strokeWidth={1.75} aria-hidden />
           {built
             ? t('me.account.export.downloadAged', { size: fileSize(ready.bytes), age: ageLabel(built, now) })
             : t('me.account.export.download', { size: fileSize(ready.bytes) })}
-        </a>
+        </button>
       ) : (
         <button type="button" className={ui.chip} disabled={request.isPending || isBuilding(row)} onClick={() => request.mutate()}>
           {status === 'failed' ? t('me.account.export.again') : ask}

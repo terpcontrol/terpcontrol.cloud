@@ -1644,7 +1644,7 @@
       },
       "export": {
         "title": "Alles exportieren",
-        "line": "JSON + CSV + Fotos · gehört dir",
+        "line": "JSON + CSV + Tagebuchfotos + Filme · gehört dir",
         "ask": "Exportieren"
       },
       "delete": {
@@ -1858,7 +1858,7 @@
       "data": "Daten",
       "export": {
         "title": "Alles exportieren",
-        "note": "Jeder Grow, jeder Messwert und jedes Foto in einer ZIP-Datei: JSON, CSV und die Bilder. Gehört dir.",
+        "note": "Jeder Grow, jede Messung, deine Tagebuchfotos und die fertigen Filme in einem Zip: JSON, CSV und die Bilder. Einzelne Kamerabilder bleiben in der App - es sind Zehntausende - und das Zip zählt sie pro Kamera.",
         "ask": "ZIP erstellen",
         "again": "Erneut versuchen",
         "queued": "in der Warteschlange",
@@ -1948,7 +1948,7 @@
       "feedCount_other": "{{count}}× gedüngt",
       "export": {
         "title": "Export",
-        "note": "Alles zu diesem Grow in einer ZIP-Datei: das Tagebuch, die Messwerte und das Klima als CSV sowie jedes Foto.",
+        "note": "Alles über diesen Grow in einem Zip: das Tagebuch, die Messwerte und das Klima als CSV, und jedes Foto davon.",
         "ask": "Diesen Grow exportieren",
         "again": "Erneut versuchen",
         "queued": "in der Warteschlange",

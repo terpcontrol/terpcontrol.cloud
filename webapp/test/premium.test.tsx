@@ -63,6 +63,7 @@ const me = (premium: Partial<Me['premium']> = {}): Me => ({
   privacy: { hideWeights: false, hideCounts: false },
   preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'Europe/Berlin' },
   retention: { climateDays: null },
+  climateRetention: { installDays: null, appliesDays: null },
   notifications: { channels: { email: null, telegram: null, webhook: null }, routing: {}, quietHours: null, mutedUntil: null },
   deletionStartedAt: null,
   premium: {

@@ -3,7 +3,7 @@ import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowReportPhase, Space } from '@fg2/shared-types/v1';
-import { fileSize, isBuilding, useAskExport, useExport } from '@/api/exports';
+import { exportFilename, fileSize, isBuilding, useAskExport, useDownloadExport, useExport } from '@/api/exports';
 import { useGrowReport } from '@/api/grows';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { EntryRow } from '@/ui/EntryRow';
@@ -74,13 +74,13 @@ function Export({ growId, mayOwn }: { growId: string; mayOwn: boolean }) {
   const ask = useAskExport(growId);
   const [mediaId, setMediaId] = useState<string | null>(null);
   const job = useExport(mediaId);
+  const download = useDownloadExport();
 
   if (!mayOwn) return null;
 
   const row = job.data;
   const status = row?.exportJob?.status ?? null;
   const ready = row && status === 'ready' ? row : null;
-  const file = ready ? mediaUrl(ready.id) : null;
 
   return (
     <section className={`${ui.card} ${styles.export}`}>
@@ -98,13 +98,24 @@ function Export({ growId, mayOwn }: { growId: string; mayOwn: boolean }) {
           </p>
         ) : null}
         <Refused error={ask.error} />
+        <Refused error={download.error} />
       </div>
 
-      {ready && file ? (
-        <a className={`${ui.button} ${ui.primary}`} href={file} download>
+      {/*
+        A button rather than a link: an export is served to a session, not to
+        the long-lived token a picture's URL carries, and nothing sets a header
+        on a navigation - so the bytes are fetched and handed to a download.
+      */}
+      {ready ? (
+        <button
+          type="button"
+          className={`${ui.button} ${ui.primary}`}
+          disabled={download.isPending}
+          onClick={() => download.mutate({ mediaId: ready.id, filename: exportFilename(ready) })}
+        >
           <Download size={14} strokeWidth={1.75} aria-hidden />
           {t('grow.report.export.download', { size: fileSize(ready.bytes) })}
-        </a>
+        </button>
       ) : (
         <button
           type="button"

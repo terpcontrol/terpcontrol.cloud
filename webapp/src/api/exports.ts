@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ExportAccepted, Media } from '@fg2/shared-types/v1';
-import { api } from './client';
+import { api, apiBlob } from './client';
 
 /**
  * Taking a copy of a whole grow away.
@@ -90,3 +90,34 @@ export const isBuilding = (media: Media | undefined): boolean => media?.exportJo
  */
 export const fileSize = (bytes: number): string =>
   bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} kB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+
+/**
+ * What the zip is called once it is on somebody's disk. The server names no
+ * file, and a browser left to itself would call it after the media id - which
+ * is nothing anybody could find again among a year of downloads.
+ */
+export const exportFilename = (row: Media): string => `terp-control-${row.growId ? 'grow' : 'account'}-${row.createdAt.slice(0, 10)}.zip`;
+
+/**
+ * Handing the finished zip over. The route wants a session rather than the
+ * token a picture's URL carries, so the bytes are fetched and given to a
+ * download of their own making; the object URL is released on the next tick,
+ * once the browser has taken it.
+ *
+ * It answers what went wrong rather than throwing into nothing, because the
+ * one thing worse than a refused download is a button that does nothing twice.
+ */
+export const useDownloadExport = () =>
+  useMutation({
+    mutationFn: async ({ mediaId, filename }: { mediaId: string; filename: string }) => {
+      const blob = await apiBlob(`/media/${mediaId}/content`);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    },
+  });

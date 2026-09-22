@@ -235,7 +235,7 @@ describe('the report tab', () => {
 
     expect(await screen.findByRole('status')).toHaveTextContent('building the file');
     expect(wire.calls).toContain('/grows/grow-1/export');
-    expect(screen.queryByRole('link', { name: /Download/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Download/ })).not.toBeInTheDocument();
   });
 
   it('offers the file itself once the job is ready, at the size it will cost', async () => {
@@ -243,9 +243,9 @@ describe('the report tab', () => {
     drawReport();
     fireEvent.click(await screen.findByRole('button', { name: 'Export this grow' }));
 
-    const link = await screen.findByRole('link', { name: /Download/ });
-    expect(link).toHaveAttribute('href', '/media/media-export');
-    expect(link).toHaveTextContent('12.0 MB');
+    // A button rather than a link: the zip is served to a session, so the bytes
+    // are fetched with the token and handed to a download the app makes itself.
+    expect(await screen.findByRole('button', { name: /Download/ })).toHaveTextContent('12.0 MB');
   });
 
   /** A diary of a fortnight is a few dozen kilobytes, and "0.0 MB" would read as an export that came out empty. */
@@ -254,7 +254,7 @@ describe('the report tab', () => {
     drawReport();
     fireEvent.click(await screen.findByRole('button', { name: 'Export this grow' }));
 
-    expect(await screen.findByRole('link', { name: /Download/ })).toHaveTextContent('43 kB');
+    expect(await screen.findByRole('button', { name: /Download/ })).toHaveTextContent('43 kB');
   });
 
   it('says in the builder\u2019s own words why a zip could not be built, rather than building for ever', async () => {

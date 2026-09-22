@@ -55,6 +55,7 @@ const me = (notifications: Partial<NotificationSettings> = {}, over: Partial<Me>
   privacy: { hideWeights: false, hideCounts: false },
   preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'Europe/Berlin' },
   retention: { climateDays: null },
+  climateRetention: { installDays: null, appliesDays: null },
   notifications: { ...NOTHING, ...notifications },
   deletionStartedAt: null,
   premium: { enforced: false, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },

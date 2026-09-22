@@ -1,17 +1,15 @@
-import { Download } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Me } from '@fg2/shared-types/v1';
 import { useChangePassword, useMe, useRevokeOtherSessions, useRevokeSession, useSessions, useUpdatingMe } from '@/api/account';
-import { fileSize, isBuilding, useAskAccountExport, useAskedExport, useExport } from '@/api/exports';
-import { mediaUrl, useSession } from '@/api/session';
+import { useSession } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { MePage, Row } from '../parts';
+import { ExportRow, MePage, Row } from '../parts';
 import { DeleteRow } from '../privacy/DeleteRow';
 import { deviceLabel, sortedSessions } from './sessions';
 import styles from './Account.module.css';
@@ -88,7 +86,7 @@ export function Account() {
       <Sessions currentId={sessionId} now={now} held={held} />
 
       <span className="label">{t('me.account.data')}</span>
-      <ExportRow />
+      <ExportRow title={t('me.account.export.title')} line={t('me.account.export.note')} ask={t('me.account.export.ask')} />
       <DeleteRow handle={account.handle} disabled={held} />
     </MePage>
   );
@@ -304,53 +302,3 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
  * hour old, so somebody who has just logged a harvest and taps to take a copy
  * away can be handed a zip from before it, and has to be able to see that.
  */
-function ExportRow() {
-  const { t } = useTranslation();
-  const now = useNow();
-  const ask = useAskAccountExport();
-  const mediaId = useAskedExport();
-  const job = useExport(mediaId);
-
-  const row = job.data;
-  const status = row?.exportJob?.status ?? null;
-  const ready = row && status === 'ready' ? row : null;
-  const file = ready ? mediaUrl(ready.id) : null;
-  const built = ready?.exportJob?.endedAt ?? null;
-
-  return (
-    <Row
-      title={t('me.account.export.title')}
-      line={t('me.account.export.note')}
-      below={
-        <>
-          {status === 'queued' || status === 'rendering' ? (
-            <p className={`mono ${styles.exportStatus}`} role="status">
-              {t(`me.account.export.${status}`)}
-            </p>
-          ) : null}
-          {status === 'failed' ? (
-            <p className={ui.problem} role="alert">
-              {row?.exportJob?.error || t('me.account.export.failedPlain')}
-            </p>
-          ) : null}
-          <Refused error={ask.error} />
-          {/* A poll that stopped answering leaves the last row in place, so it has to say so rather than sit at "building the file…" for ever. */}
-          <Refused error={job.error} />
-        </>
-      }
-    >
-      {ready && file ? (
-        <a className={`${ui.button} ${ui.primary}`} href={file} download>
-          <Download size={14} strokeWidth={1.75} aria-hidden />
-          {built
-            ? t('me.account.export.downloadAged', { size: fileSize(ready.bytes), age: ageLabel(built, now) })
-            : t('me.account.export.download', { size: fileSize(ready.bytes) })}
-        </a>
-      ) : (
-        <button type="button" className={ui.button} disabled={ask.isPending || isBuilding(row)} onClick={() => ask.mutate()}>
-          {status === 'failed' ? t('me.account.export.again') : t('me.account.export.ask')}
-        </button>
-      )}
-    </Row>
-  );
-}

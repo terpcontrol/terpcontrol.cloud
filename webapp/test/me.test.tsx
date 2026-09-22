@@ -47,6 +47,7 @@ const me = (over: Partial<Me> = {}): Me => ({
   privacy: { hideWeights: true, hideCounts: false },
   preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'Europe/Berlin' },
   retention: { climateDays: 365 },
+  climateRetention: { installDays: null, appliesDays: null },
   notifications: {
     channels: { email: 'mail@example.org', telegram: { chatId: '1', linkedAt: '2026-02-01T00:00:00.000Z' }, webhook: null },
     routing: {},
