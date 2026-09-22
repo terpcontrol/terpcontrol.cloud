@@ -33,12 +33,12 @@ app. Round 8 is visual direction and needs no backend.
 | 7 Lifecycle | done |
 | 9 Controller | done, server and app |
 | 10 Alarms, tasks, notifications | done, server and app, after two rounds of criticism |
-| 11 Onboarding | not started |
-| 12 Measurements and charts | not started |
+| 11 Onboarding | done, server and app, after two rounds of criticism |
+| 12 Measurements and charts | done, server and app, after one round of criticism |
 | 13 Sharing | not started |
 | 14 Account, entitlement, admin | not started |
 
-The next piece of work is round 11.
+The next piece of work is round 13.
 
 ## What the checks are
 
@@ -56,7 +56,7 @@ cd webapp && npm run lint && npx vitest run && npm run build
 `--pretty false` is not optional. With pretty output on, `tsc` writes colour codes between "error" and "TS", so
 the grep prints 0 on a project that does not compile. Both of these are also in `AGENTS.md`.
 
-At the last full run: 812 server unit tests, 411 server integration tests, 283 app tests, everything else clean.
+At the last full run: 846 server unit tests, 468 server integration tests, 467 app tests, everything else clean.
 
 The integration suite needs the machine to itself. One run of it while five agents were driving a browser and a
 compose stack failed nineteen tests in three suites; three runs since, with nothing else going on, have been
@@ -140,6 +140,9 @@ unbuildable fix is not worth making. That one is waiting on Chris.
 - **A migration CLI run must build its indexes first.** Without them every upsert is a collection scan and the
   run is quadratic: one lookup against the 7.7 million row collection measured 15.7 seconds. `users` and
   `devices` are the exception and are indexed after the rename, because they hold the old shapes until then.
+- **A chart is not finished until it states a number.** Round 12's Charts view drew correct curves with no axis, no
+  cursor and no readout, and looked right in a screenshot; what a grower opens it for is the figure. The Timeline's
+  pinned scrub header is the idiom, and both screens now share it.
 - **The task list's ids carry the turn a plan step is on.** A plan-step task is
   `plan:<device>:<step>:<the instant the step became active>`. Without the last field the entry that ticked the
   task off answered every later turn of the same step as well, so a looping plan, or one stopped and started
