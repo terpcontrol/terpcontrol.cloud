@@ -1,8 +1,16 @@
 import type { MeasurementDefinition, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { DeviceSeries } from '@fg2/shared-types/v1';
+import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
+import { StoredAlert } from '@database/schemas/v1/alerts.schema';
+import { CameraDocument } from '@database/schemas/v1/cameras.schema';
+import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
+import { StoredPlan } from '@database/schemas/v1/plans.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
+import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
+import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
+import { StoredUser } from '@database/schemas/v1/users.schema';
 import { dayNumberOf, originOf } from '../diary/grow-calendar';
 
 /**
@@ -205,3 +213,258 @@ export const growCsv = (grow: GrowDocument, spaces: Names): Buffer => {
     ],
   );
 };
+
+/**
+ * What an account is beyond the row that names it: its settings, in the shape
+ * they are stored in.
+ *
+ * This one file is JSON rather than CSV, and deliberately. Preferences,
+ * privacy, retention and the notification grid are nested - the grid is a list
+ * of channels per category - and flattening them into columns would either lose
+ * the shape or invent a column per cell. The rest of the archive is a
+ * spreadsheet; this is the settings screen, written down.
+ *
+ * Every field is named rather than the document handed over whole, because two
+ * of them are never anybody's to export: the password hash and the activation
+ * code. A field added to the schema is then missing here until somebody adds
+ * it, which is the failure worth having.
+ */
+export const accountSettingsJson = (user: StoredUser): Buffer =>
+  Buffer.from(
+    `${JSON.stringify(
+      {
+        userId: user.id,
+        handle: user.handle,
+        email: user.email,
+        createdAt: user.createdAt,
+        bio: user.bio,
+        avatarMediaId: user.avatarMediaId,
+        publicProfile: user.publicProfile,
+        privacy: { hideWeights: user.privacy.hideWeights, hideCounts: user.privacy.hideCounts },
+        preferences: { units: user.preferences.units, locale: user.preferences.locale, timezone: user.preferences.timezone },
+        retention: { climateDays: user.retention.climateDays },
+        notifications: {
+          channels: user.notifications.channels,
+          routing: user.notifications.routing,
+          quietHours: user.notifications.quietHours,
+          mutedUntil: user.notifications.mutedUntil,
+        },
+      },
+      null,
+      2,
+    )}\n`,
+    'utf8',
+  );
+
+/** The places, with the people each is shared with - which is the half of a tent that is not in the tent. */
+export const spacesCsv = (spaces: readonly SpaceDocument[], rooms: Names, members: ReadonlyMap<string, string[]>): Buffer =>
+  csvOf(
+    ['name', 'kind', 'room', 'sharedWith', 'presetPrompt', 'climateDays', 'archivedAt', 'createdAt', 'spaceId'],
+    spaces.map(space => [
+      space.name,
+      space.kind,
+      space.roomId ? (rooms.get(space.roomId) ?? space.roomId) : null,
+      (members.get(space.id) ?? []).join(' | '),
+      space.presetPrompt,
+      space.retention.climateDays,
+      space.archivedAt,
+      space.createdAt,
+      space.id,
+    ]),
+  );
+
+/** The hardware, and where each piece of it stands. */
+export const devicesCsv = (devices: readonly StoredDevice[], spaces: Names): Buffer =>
+  csvOf(
+    ['name', 'type', 'space', 'serialNumber', 'claimedAt', 'lastSeenAt', 'firmwareChannel', 'firmwareId', 'deviceId'],
+    devices.map(device => [
+      device.name,
+      device.type,
+      device.spaceId ? (spaces.get(device.spaceId) ?? device.spaceId) : null,
+      device.serialNumber,
+      device.state?.claimedAt ?? null,
+      device.state?.lastSeenAt ?? null,
+      device.firmware?.channel ?? null,
+      device.state?.firmwareId ?? null,
+      device.id,
+    ]),
+  );
+
+/**
+ * The cameras, with the settings that decide what they do. What lets the cloud
+ * reach one is left out - the secret, and the credentials that live inside an
+ * RTSP address - because an export is read on a laptop and passed on, and a
+ * camera's password is not what somebody asked for when they asked for their
+ * diary.
+ */
+export const camerasCsv = (cameras: readonly CameraDocument[], spaces: Names): Buffer =>
+  csvOf(
+    [
+      'name',
+      'kind',
+      'model',
+      'space',
+      'looksAt',
+      'stillIntervalSeconds',
+      'nightOff',
+      'maintenanceOff',
+      'logErrors',
+      'staleWarning',
+      'entitlementUntil',
+      'entitlementGrant',
+      'lastStillAt',
+      'createdAt',
+      'removedAt',
+      'deviceId',
+      'cameraId',
+    ],
+    cameras.map(camera => [
+      camera.name,
+      camera.kind,
+      camera.model,
+      camera.spaceId ? (spaces.get(camera.spaceId) ?? camera.spaceId) : null,
+      camera.looksAt,
+      camera.stillIntervalSeconds,
+      camera.nightOff,
+      camera.maintenanceOff,
+      camera.logErrors,
+      camera.staleWarning,
+      camera.entitlement.validUntil,
+      camera.entitlement.grant,
+      camera.state.lastStillAt,
+      camera.createdAt,
+      camera.removedAt,
+      camera.deviceId,
+      camera.id,
+    ]),
+  );
+
+/**
+ * The alarm rules. `watch` is flat here where the model keeps it a union, so a
+ * rule on a reading and a rule on an output sit in one sheet and the columns of
+ * the kind a row is not are simply empty.
+ *
+ * A rule's own delivery is named but not spelled out: `delivery.custom` carries
+ * a webhook's address and its headers, which may hold an authorisation for a
+ * machine on the grower's own network.
+ */
+export const alarmsCsv = (rules: readonly StoredAlarmRule[], devices: Names): Buffer =>
+  csvOf(
+    [
+      'name',
+      'device',
+      'watches',
+      'metric',
+      'output',
+      'lower',
+      'upper',
+      'forSeconds',
+      'severity',
+      'origin',
+      'enabled',
+      'cooldownSeconds',
+      'repeatSeconds',
+      'delivery',
+      'silencedUntil',
+      'triggered',
+      'lastTriggeredAt',
+      'lastResolvedAt',
+      'createdAt',
+      'deviceId',
+      'ruleId',
+    ],
+    rules.map(rule => [
+      rule.name,
+      devices.get(rule.deviceId) ?? rule.deviceId,
+      rule.watch.kind,
+      'metric' in rule.watch ? rule.watch.metric : null,
+      'output' in rule.watch ? rule.watch.output : null,
+      'lower' in rule.watch ? rule.watch.lower : null,
+      'upper' in rule.watch ? rule.watch.upper : null,
+      rule.forSeconds,
+      rule.severity,
+      rule.origin,
+      rule.enabled,
+      rule.cooldownSeconds,
+      rule.repeatSeconds,
+      rule.delivery.mode === 'custom' ? `custom · ${rule.delivery.custom?.channel ?? ''}` : 'routing',
+      rule.silencedUntil,
+      rule.state.triggered,
+      rule.state.lastTriggeredAt,
+      rule.state.lastResolvedAt,
+      rule.createdAt,
+      rule.deviceId,
+      rule.id,
+    ]),
+  );
+
+/** Every alarm that ever opened, from trigger to resolution: one row an episode, which is what the alerts inbox shows. */
+export const alertsCsv = (alerts: readonly StoredAlert[], devices: Names, cameras: Names): Buffer =>
+  csvOf(
+    ['startedAt', 'resolvedAt', 'kind', 'severity', 'device', 'camera', 'value', 'extremeValue', 'ruleId', 'deviceId', 'cameraId', 'alertId'],
+    alerts.map(alert => [
+      alert.startedAt,
+      alert.resolvedAt,
+      alert.kind,
+      alert.severity,
+      alert.deviceId ? (devices.get(alert.deviceId) ?? alert.deviceId) : null,
+      alert.cameraId ? (cameras.get(alert.cameraId) ?? alert.cameraId) : null,
+      alert.value,
+      alert.extremeValue,
+      alert.ruleId,
+      alert.deviceId,
+      alert.cameraId,
+      alert.id,
+    ]),
+  );
+
+/**
+ * The rhythms the task list is derived from. A task is never stored - it is
+ * worked out from the rhythm and from what has already been logged - so the
+ * rhythm is the only row there is to hand over, and the entries that answered
+ * each turn of it are in the diary.
+ */
+export const tasksCsv = (reminders: readonly ReminderDocument[], subjects: Names, people: Names): Buffer =>
+  csvOf(
+    ['label', 'kind', 'about', 'everyDays', 'onceAt', 'assignee', 'createdAt', 'subjectType', 'subjectId', 'reminderId'],
+    reminders.map(reminder => [
+      reminder.label,
+      reminder.kind,
+      subjects.get(reminder.subject.id) ?? reminder.subject.id,
+      reminder.everyDays,
+      reminder.onceAt,
+      reminder.assigneeId ? (people.get(reminder.assigneeId) ?? reminder.assigneeId) : null,
+      reminder.createdAt,
+      reminder.subject.type,
+      reminder.subject.id,
+      reminder.id,
+    ]),
+  );
+
+/**
+ * The control plans, a row per step, in the order the controller walks them.
+ * What a step applies is the firmware's own vocabulary and differs by device
+ * type, so it is written as JSON in a column of its own - for the same reason
+ * an entry's values are.
+ */
+export const plansCsv = (plans: readonly StoredPlan[], devices: Names): Buffer =>
+  csvOf(
+    ['plan', 'device', 'step', 'name', 'stage', 'preset', 'duration', 'waitForConfirmation', 'settings', 'status', 'loop', 'deviceId', 'planId'],
+    plans.flatMap(plan =>
+      plan.steps.map((step, index) => [
+        plan.name,
+        devices.get(plan.deviceId) ?? plan.deviceId,
+        index + 1,
+        step.name,
+        step.stage,
+        step.preset,
+        `${step.duration.value} ${step.duration.unit}`,
+        step.waitForConfirmation,
+        JSON.stringify(step.settings),
+        plan.state.status,
+        plan.loop,
+        plan.deviceId,
+        plan.id,
+      ]),
+    ),
+  );

@@ -72,6 +72,7 @@ const STRANGER = 'user-stranger';
 
 const TENT = 'tent-1';
 const CONTROLLER = 'device-controller';
+const CAMERA = 'camera-mine';
 const GROW = 'grow-spring';
 
 const ORIGIN = new Date('2026-06-08T12:00:00.000Z');
@@ -255,6 +256,58 @@ const world = async (): Promise<void> => {
     createdBy: OWNER,
     range: { startsAt: null, endsAt: null },
   });
+
+  // The rest of what an account has, and beside each of them the same thing
+  // belonging to somebody else, so that every assertion about what is in the
+  // archive has one about what is not.
+  await db.cameras.create([
+    { id: CAMERA, ownerId: OWNER, kind: 'terpcam_controller', name: 'Tent cam', deviceId: CONTROLLER, spaceId: TENT, createdAt: ORIGIN },
+    { id: 'camera-theirs', ownerId: STRANGER, kind: 'rtsp', name: 'Their cam', createdAt: ORIGIN },
+  ]);
+  await db.alarmRules.create({
+    id: 'rule-too-warm',
+    deviceId: CONTROLLER,
+    name: 'Too warm',
+    watch: { kind: 'reading', metric: 'temperature', upper: 30, lower: null },
+    severity: 'critical',
+    createdAt: ORIGIN,
+  });
+  await db.alerts.create({
+    id: 'alert-1',
+    ruleId: 'rule-too-warm',
+    deviceId: CONTROLLER,
+    kind: 'threshold',
+    severity: 'critical',
+    startedAt: ORIGIN,
+  });
+  await db.reminders.create({
+    id: 'reminder-water',
+    subject: { type: 'space', id: TENT },
+    kind: 'water',
+    label: 'Water',
+    everyDays: 3,
+    createdBy: OWNER,
+  });
+  await db.plans.create({
+    id: 'plan-1',
+    deviceId: CONTROLLER,
+    name: 'Spring plan',
+    steps: [{ id: 'step-1', name: 'Stretch', stage: 'vegetative', duration: { value: 2, unit: 'weeks' }, settings: { day: { temperature: 26 } } }],
+  });
+
+  // Somebody else's, in the same database: theirs to export and never ours.
+  await db.spaces.create({ id: 'tent-theirs', ownerId: STRANGER, kind: 'tent', name: 'Their tent', roomId: null });
+  await db.grows.create({
+    id: 'grow-theirs',
+    ownerId: STRANGER,
+    name: 'Their run',
+    type: 'photoperiod',
+    slug: 'their-run',
+    startedAt: ORIGIN,
+    phases: [],
+    placements: [],
+    measurements: [],
+  });
 };
 
 beforeAll(async () => {
@@ -278,7 +331,23 @@ beforeEach(async () => {
   access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
   store = new ImageStore(db.connection);
   media = new MediaService(db.media, store);
-  exports = new ExportService(db.grows, db.plants, db.entries, db.spaces, db.devices, db.users, media, fakeData);
+  exports = new ExportService(
+    db.grows,
+    db.plants,
+    db.entries,
+    db.spaces,
+    db.devices,
+    db.users,
+    db.cameras,
+    db.alarmRules,
+    db.alerts,
+    db.reminders,
+    db.plans,
+    db.memberships,
+    media,
+    fakeData,
+    access,
+  );
   await world();
 });
 
@@ -449,10 +518,17 @@ describe('what is in the zip', () => {
     const files = await archiveOf(asked.media.id);
     expect([...files.keys()]).toEqual(
       expect.arrayContaining([
+        'account.json',
         'account.csv',
         'spaces.csv',
         'devices.csv',
+        'cameras.csv',
+        'alarms.csv',
+        'alerts.csv',
+        'tasks.csv',
+        'plans.csv',
         'diary.csv',
+        `climate/${CONTROLLER}.csv`,
         'grows/spring-run-3/diary.csv',
         'grows/spring-run-3/climate.csv',
       ]),
@@ -460,6 +536,70 @@ describe('what is in the zip', () => {
     expect(files.get('account.csv')!.toString('utf8')).toContain('owner,owner@test.invalid');
     expect(files.get('diary.csv')!.toString('utf8')).toContain('entry-in-the-tent');
     expect(files.get('grows/spring-run-3/diary.csv')!.toString('utf8')).toContain('entry-measure');
+  });
+
+  it('hands over everything the privacy screen promises: the settings, the hardware, the alarms, the tasks and the plans', async () => {
+    const asked = await exports.ask(OWNER, 'account', null, NOW);
+    await exports.drain();
+
+    const files = await archiveOf(asked.media.id);
+
+    // The settings are JSON because they are nested, and the two secrets of an
+    // account are in none of it.
+    const settings = JSON.parse(files.get('account.json')!.toString('utf8'));
+    expect(settings).toMatchObject({ handle: 'owner', email: 'owner@test.invalid', privacy: { hideWeights: false }, retention: {} });
+    expect(files.get('account.json')!.toString('utf8')).not.toContain('passwordHash');
+    expect(files.get('account.json')!.toString('utf8')).not.toContain('activationCode');
+
+    expect(files.get('spaces.csv')!.toString('utf8')).toContain('Tent 1,tent');
+    // A tent says who it is shared with, which is half of what a tent is now.
+    expect(files.get('spaces.csv')!.toString('utf8')).toContain('mia');
+    expect(files.get('cameras.csv')!.toString('utf8')).toContain('Tent cam,terpcam_controller');
+    expect(files.get('alarms.csv')!.toString('utf8')).toContain('Too warm,');
+    expect(files.get('alarms.csv')!.toString('utf8')).toContain('reading,temperature,,,30');
+    expect(files.get('alerts.csv')!.toString('utf8')).toContain('threshold,critical');
+    expect(files.get('tasks.csv')!.toString('utf8')).toContain('Water,water,Tent 1,3');
+    expect(files.get('plans.csv')!.toString('utf8')).toContain('Spring plan,');
+    expect(files.get('plans.csv')!.toString('utf8')).toContain('Stretch,vegetative,,2 weeks');
+    // A device that never belonged to a grow would otherwise have no climate
+    // anywhere in the archive.
+    expect(files.get(`climate/${CONTROLLER}.csv`)!.toString('utf8')).toContain(`,${CONTROLLER},23.5`);
+  });
+
+  it('holds nothing of anybody else´s, however much of it sits in the same database', async () => {
+    const asked = await exports.ask(OWNER, 'account', null, NOW);
+    await exports.drain();
+
+    const files = await archiveOf(asked.media.id);
+    const everything = [...files.entries()].map(([name, body]) => `${name}\n${body.toString('utf8')}`).join('\n');
+
+    // A stranger's grow, their tent and their camera are each one query away
+    // from this account's own, and the boundary is ownership rather than
+    // reach.
+    expect([...files.keys()].filter(name => name.startsWith('grows/'))).toEqual(expect.not.arrayContaining([expect.stringContaining('their-run')]));
+    expect(everything).not.toContain('grow-theirs');
+    expect(everything).not.toContain('Their tent');
+    expect(everything).not.toContain('camera-theirs');
+    expect(everything).not.toContain('Their cam');
+  });
+
+  it('is not widened by a membership: what this account may manage is not what it owns', async () => {
+    // The member may read, log in and manage the owner's tent and everything
+    // standing in it, and owns none of it.
+    const asked = await exports.ask(MEMBER, 'account', null, NOW);
+    await exports.drain();
+
+    const files = await archiveOf(asked.media.id);
+    const everything = [...files.entries()].map(([name, body]) => `${name}\n${body.toString('utf8')}`).join('\n');
+
+    expect(files.get('account.json')!.toString('utf8')).toContain('member@test.invalid');
+    expect([...files.keys()].filter(name => name.startsWith('grows/'))).toEqual([]);
+    expect(everything).not.toContain('Tent 1');
+    expect(everything).not.toContain('Tent cam');
+    expect(everything).not.toContain('Spring plan');
+    // Not even the line the member wrote themselves in somebody else's tent:
+    // it is on the owner's timeline, and the owner is who exports it.
+    expect(everything).not.toContain('entry-in-the-tent');
   });
 });
 

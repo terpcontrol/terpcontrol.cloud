@@ -10,12 +10,20 @@ import { Model } from 'mongoose';
 import type { DeviceSeries, ExportAccepted, ExportScope, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { metric as metricShape, outputMetric } from '@fg2/shared-types/v1-schemas';
 import { BackgroundWork } from '@common/background-work';
+import { AccessService, subjectRef } from '@common/v1/access.service';
+import { AccessContext, SubjectType } from '@common/v1/access.types';
 import { MODEL_V1 } from '@database/models';
+import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
+import { StoredAlert } from '@database/schemas/v1/alerts.schema';
+import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
+import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
+import { StoredPlan } from '@database/schemas/v1/plans.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
+import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
@@ -26,15 +34,23 @@ import { spacesDuring } from '../diary/grow-places';
 import {
   DIARY_COLUMNS,
   Names,
+  accountSettingsJson,
+  alarmsCsv,
+  alertsCsv,
+  camerasCsv,
   climateColumns,
   climateRows,
   csvHeader,
   csvOf,
   csvRows,
+  devicesCsv,
   diaryRows,
   growCsv,
   measurementsCsv,
+  plansCsv,
   plantsCsv,
+  spacesCsv,
+  tasksCsv,
 } from './export-csv';
 import { ZipWriter } from './export-zip';
 
@@ -114,8 +130,15 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
     @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
+    @InjectModel(MODEL_V1.camera) private readonly cameras: Model<CameraDocument>,
+    @InjectModel(MODEL_V1.alarmRule) private readonly alarmRules: Model<StoredAlarmRule>,
+    @InjectModel(MODEL_V1.alert) private readonly alerts: Model<StoredAlert>,
+    @InjectModel(MODEL_V1.reminder) private readonly reminders: Model<ReminderDocument>,
+    @InjectModel(MODEL_V1.plan) private readonly plans: Model<StoredPlan>,
+    @InjectModel(MODEL_V1.membership) private readonly memberships: Model<MembershipDocument>,
     private readonly media: MediaService,
     private readonly data: DataService,
+    private readonly access: AccessService,
   ) {}
 
   public onModuleInit(): void {
@@ -267,56 +290,140 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
   }
 
   /**
-   * The whole account: its own row, the places and the hardware in it, every
-   * line it wrote that belongs to no grow, and a folder per grow.
+   * The whole account, which is what the privacy screen calls "export
+   * everything": its settings, the places and the hardware in it, the cameras,
+   * the alarms and what they raised, the rhythms the task list comes from, the
+   * plans its controllers run, every line it wrote that belongs to no grow,
+   * the pictures of those lines, the climate of every device it owns, and a
+   * folder per grow.
+   *
+   * Ownership is the boundary and `access()` draws it. The queries narrow by
+   * `ownerId` because something has to - `access()` answers about one subject
+   * and there is no asking it about a collection - but every row they find is
+   * then put to the same decision every request goes through, with the asking
+   * account's own context and nothing else. A grow this account was invited to
+   * is therefore not here: a member may read it, log in it and manage it, and
+   * `own` is the one need a membership never widens. That is also why an
+   * administrator exporting their own account gets their own account: the
+   * context is built without `isAdmin`, so the decision is made as the person
+   * rather than as the office.
+   *
+   * What a member wrote inside a grow this account owns *is* here, because the
+   * grow is. The diary carries its author, so a line of somebody else's is
+   * theirs on the page as well as in the model.
    */
   private async writeAccount(zip: ZipWriter, userId: string | null, directory: string): Promise<void> {
     const user = userId ? await this.users.findOne({ id: userId }).lean<StoredUser>() : null;
     if (!user) return;
 
-    const [spaces, devices, grows] = await Promise.all([
-      this.spaces.find({ ownerId: user.id }).sort({ createdAt: 1 }).lean<SpaceDocument[]>(),
-      this.devices.find({ ownerId: user.id }).sort({ createdAt: 1 }).lean<StoredDevice[]>(),
-      this.grows.find({ ownerId: user.id }).sort({ startedAt: 1 }).lean<GrowDocument[]>(),
+    const ctx: AccessContext = { userId: user.id, isAdmin: false, isDemo: false, shareToken: null };
+    const [spaces, devices, grows, cameras] = await Promise.all([
+      this.owned(ctx, 'space', await this.spaces.find({ ownerId: user.id }).sort({ createdAt: 1 }).lean<SpaceDocument[]>()),
+      this.owned(ctx, 'device', await this.devices.find({ ownerId: user.id }).sort({ createdAt: 1 }).lean<StoredDevice[]>()),
+      this.owned(ctx, 'grow', await this.grows.find({ ownerId: user.id }).sort({ startedAt: 1 }).lean<GrowDocument[]>()),
+      this.owned(ctx, 'camera', await this.cameras.find({ ownerId: user.id }).sort({ createdAt: 1 }).lean<CameraDocument[]>()),
     ]);
-    const people: Names = new Map([[user.id, user.handle]]);
 
+    const spaceIds = spaces.map(space => space.id);
+    const deviceIds = devices.map(device => device.id);
+    const spaceNames: Names = new Map(spaces.map(space => [space.id, space.name]));
+    // A device that has never been named is known by its id, which is what the
+    // fleet screen falls back to as well.
+    const deviceNames: Names = new Map(devices.map(device => [device.id, device.name ?? device.id]));
+    const cameraNames: Names = new Map(cameras.map(camera => [camera.id, camera.name]));
+    const subjects: Names = new Map([...spaceNames, ...grows.map((grow): [string, string] => [grow.id, grow.name])]);
+    const people = await this.namesOf(this.users.find({}, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>(), row => row.handle);
+
+    const [members, rules, alerts, reminders, plans] = await Promise.all([
+      this.membersOf(spaceIds, people),
+      this.alarmRules
+        .find({ deviceId: { $in: deviceIds } })
+        .sort({ createdAt: 1 })
+        .lean<StoredAlarmRule[]>(),
+      this.alerts
+        .find({ $or: [{ deviceId: { $in: deviceIds } }, { cameraId: { $in: cameras.map(camera => camera.id) } }] })
+        .sort({ startedAt: 1 })
+        .lean<StoredAlert[]>(),
+      this.reminders
+        .find({ 'subject.id': { $in: [...spaceIds, ...grows.map(grow => grow.id)] } })
+        .sort({ createdAt: 1 })
+        .lean<ReminderDocument[]>(),
+      this.plans
+        .find({ deviceId: { $in: deviceIds } })
+        .sort({ createdAt: 1 })
+        .lean<StoredPlan[]>(),
+    ]);
+
+    await zip.add('account.json', user.createdAt, accountSettingsJson(user), true);
     await zip.add('account.csv', user.createdAt, accountCsv(user), true);
-    await zip.add(
-      'spaces.csv',
-      user.createdAt,
-      csvOf(
-        ['name', 'kind', 'room', 'archivedAt', 'createdAt', 'spaceId'],
-        spaces.map(space => [space.name, space.kind, space.roomId, space.archivedAt, space.createdAt, space.id]),
-      ),
-      true,
-    );
-    await zip.add(
-      'devices.csv',
-      user.createdAt,
-      csvOf(
-        ['name', 'type', 'space', 'lastSeenAt', 'firmwareId', 'deviceId'],
-        devices.map(device => [
-          device.name,
-          device.type,
-          spaces.find(space => space.id === device.spaceId)?.name ?? device.spaceId,
-          device.state?.lastSeenAt ?? null,
-          device.state?.firmwareId ?? null,
-          device.id,
-        ]),
-      ),
-      true,
-    );
+    await zip.add('spaces.csv', user.createdAt, spacesCsv(spaces, spaceNames, members), true);
+    await zip.add('devices.csv', user.createdAt, devicesCsv(devices, spaceNames), true);
+    await zip.add('cameras.csv', user.createdAt, camerasCsv(cameras, spaceNames), true);
+    await zip.add('alarms.csv', user.createdAt, alarmsCsv(rules, deviceNames), true);
+    await zip.add('alerts.csv', user.createdAt, alertsCsv(alerts, deviceNames, cameraNames), true);
+    await zip.add('tasks.csv', user.createdAt, tasksCsv(reminders, subjects, people), true);
+    await zip.add('plans.csv', user.createdAt, plansCsv(plans, deviceNames), true);
 
     // The lines that belong to no grow: what happened in a tent, and what the
     // hardware said. Each grow's own diary is in its folder.
     const elsewhere = {
       growId: null,
-      $or: [{ spaceId: { $in: spaces.map(space => space.id) } }, { deviceId: { $in: devices.map(device => device.id) } }],
+      $or: [{ spaceId: { $in: spaceIds } }, { deviceId: { $in: deviceIds } }],
     };
     await zip.add('diary.csv', user.createdAt, Readable.from(this.diaryOf(elsewhere, null, people, new Map())), true);
 
+    await this.writeOwnPictures(zip, user, elsewhere, directory);
+    for (const device of devices) await this.writeDeviceClimate(zip, device);
     for (const grow of grows) await this.writeGrow(zip, grow.id, `grows/${grow.slug}/`, directory);
+  }
+
+  /**
+   * The rows of a batch this account really owns. The query that found them
+   * said so already; this is the same claim put to the one function that
+   * decides it, so that an export cannot be the one place in the server where
+   * ownership means something slightly different.
+   */
+  private async owned<T extends { id: string }>(ctx: AccessContext, type: SubjectType, rows: T[]): Promise<T[]> {
+    const allowed: T[] = [];
+    for (const row of rows) {
+      if (await this.access.access(ctx, subjectRef(type, row.id), 'own')) allowed.push(row);
+    }
+
+    return allowed;
+  }
+
+  /** Who each place is shared with, by handle: the grower reading this knows their tent by its name and their friend by theirs. */
+  private async membersOf(spaceIds: string[], people: Names): Promise<Map<string, string[]>> {
+    const rows = await this.memberships.find({ spaceId: { $in: spaceIds } }).lean<MembershipDocument[]>();
+
+    const bySpace = new Map<string, string[]>();
+    for (const row of rows) bySpace.set(row.spaceId, [...(bySpace.get(row.spaceId) ?? []), people.get(row.userId) ?? row.userId]);
+
+    return bySpace;
+  }
+
+  /**
+   * A device's whole climate, whatever it was ever pointed at. The grow folders
+   * hold the same readings cut to the seasons they belong to, and this is what
+   * is left over: a fridge that has never been part of a grow, and the weeks
+   * between two of them, which would otherwise be the one thing an export of
+   * everything did not have.
+   *
+   * It starts where the device does rather than at an arbitrary depth, so an
+   * install with years behind it hands over the years.
+   */
+  private async writeDeviceClimate(zip: ZipWriter, device: StoredDevice): Promise<void> {
+    const from = device.state?.claimedAt ?? device.createdAt;
+    await zip.add(`climate/${device.id}.csv`, from, Readable.from(this.climateBetween([device.id], from, new Date())), true);
+  }
+
+  /**
+   * The pictures of the lines that belong to no grow, and the face the account
+   * wears. Each grow's own are written with the grow.
+   */
+  private async writeOwnPictures(zip: ZipWriter, user: StoredUser, elsewhere: Record<string, unknown>, directory: string): Promise<void> {
+    const named: string[] = await this.entries.distinct('mediaIds', elsewhere);
+    await this.writeFiles(zip, '', [...named, user.avatarMediaId], directory, user.createdAt);
   }
 
   /**
@@ -356,22 +463,32 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
    * an hour of a heater.
    */
   private async *climateOf(grow: GrowDocument): AsyncGenerator<Buffer> {
-    yield csvHeader(climateColumns(EXPORTED_METRICS, EXPORTED_OUTPUTS));
-
     const endsAt = grow.endedAt ?? new Date();
     const spaceIds = spacesDuring(grow, grow.startedAt, endsAt).filter((id): id is string => id !== null);
-    if (spaceIds.length === 0) return;
+    const devices = spaceIds.length
+      ? await this.devices
+          .find({ spaceId: { $in: spaceIds } }, { id: 1 })
+          .sort({ createdAt: 1, id: 1 })
+          .lean<StoredDevice[]>()
+      : [];
 
-    const devices = await this.devices
-      .find({ spaceId: { $in: spaceIds } }, { id: 1 })
-      .sort({ createdAt: 1, id: 1 })
-      .lean<StoredDevice[]>();
+    yield* this.climateBetween(
+      devices.map(device => device.id),
+      grow.startedAt,
+      endsAt,
+    );
+  }
 
-    for (let from = grow.startedAt.getTime(); from < endsAt.getTime(); from += CLIMATE_CHUNK_MS) {
+  /** The same file for whatever devices and whatever stretch of time the caller means, which is a grow's place or a device's whole life. */
+  private async *climateBetween(deviceIds: readonly string[], startsAt: Date, endsAt: Date): AsyncGenerator<Buffer> {
+    yield csvHeader(climateColumns(EXPORTED_METRICS, EXPORTED_OUTPUTS));
+    if (deviceIds.length === 0) return;
+
+    for (let from = startsAt.getTime(); from < endsAt.getTime(); from += CLIMATE_CHUNK_MS) {
       const window = { startsAt: new Date(from), endsAt: new Date(Math.min(from + CLIMATE_CHUNK_MS, endsAt.getTime())) };
       const series: DeviceSeries[] = await Promise.all(
-        devices.map(device =>
-          this.data.series(device.id, {
+        deviceIds.map(deviceId =>
+          this.data.series(deviceId, {
             ...window,
             stepSeconds: CLIMATE_STEP_SECONDS,
             metrics: EXPORTED_METRICS,
@@ -390,6 +507,17 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
    * stills are not among them - a season of one is a hundred thousand files and
    * the films made from them are what anybody keeps - but a film the grow itself
    * names is, because it is the grow's own.
+   */
+  private async writePictures(zip: ZipWriter, prefix: string, grow: GrowDocument, directory: string): Promise<void> {
+    const named: string[] = await this.entries.distinct('mediaIds', { growId: grow.id });
+    const own = await this.media.ofGrow(grow.id);
+
+    await this.writeFiles(zip, prefix, [...own.map(row => row.id), ...named, grow.coverMediaId, grow.filmMediaId], directory, grow.startedAt);
+  }
+
+  /**
+   * The copying itself, which a grow's folder and the account's own root both
+   * do.
    *
    * Each picture is taken out of the bucket onto the disk before it goes into
    * the archive, one at a time. An entry's header is written before its bytes,
@@ -397,16 +525,12 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
    * archive that will not open; copying first is what makes a picture whose
    * bytes are gone one picture missing rather than the whole export lost.
    */
-  private async writePictures(zip: ZipWriter, prefix: string, grow: GrowDocument, directory: string): Promise<void> {
-    const named: string[] = await this.entries.distinct('mediaIds', { growId: grow.id });
-    const own = await this.media.ofGrow(grow.id);
-    const ids = new Set(
-      [...own.map(row => row.id), ...named, grow.coverMediaId, grow.filmMediaId].filter((id): id is string => typeof id === 'string'),
-    );
+  private async writeFiles(zip: ZipWriter, prefix: string, mediaIds: readonly (string | null)[], directory: string, listedAt: Date): Promise<void> {
+    const ids = new Set(mediaIds.filter((id): id is string => typeof id === 'string'));
 
     const unreadable: string[] = [];
     for (const id of ids) {
-      const row = own.find(picture => picture.id === id) ?? (await this.media.byId(id));
+      const row = await this.media.byId(id);
       // An export of an export would be this week's zip inside next week's.
       if (!row || row.kind === 'export') continue;
 
@@ -414,7 +538,7 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
       try {
         await this.media.copyToFile(row.id, scratch);
       } catch (error) {
-        logger.error(`Leaving picture ${row.id} out of the export of grow ${grow.id}: ${error}`);
+        logger.error(`Leaving picture ${row.id} out of an export: ${error}`);
         unreadable.push(row.id);
         continue;
       }
@@ -431,7 +555,7 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
     if (unreadable.length > 0) {
       await zip.add(
         `${prefix}photos/missing.csv`,
-        grow.startedAt,
+        listedAt,
         csvOf(
           ['mediaId'],
           unreadable.map(id => [id]),
