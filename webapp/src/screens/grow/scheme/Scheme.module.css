@@ -1,0 +1,291 @@
+/* The feeding scheme: the card that says where the grid came from, the four
+   things that are the grow's own, and the grid itself as a table wide enough to
+   scroll. Every colour, size and radius is a token. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}
+
+/* "Based on Biobizz · Light·Mix — edited · v2025-05 ›" */
+.basedOn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  text-align: left;
+  color: var(--ink);
+}
+
+.basedOnName {
+  font-weight: var(--weight-semibold);
+}
+
+.basedOnAside {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* The four the grow decides for itself: how strong, on what water, which of the
+   chart's media, and the week the light is flipped. They wrap rather than
+   shrink, because a two-up pair reads on a phone and a four-up row does not. */
+.settings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-2);
+}
+
+.setting {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+}
+
+.settingValue {
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.settingValue:disabled {
+  opacity: 0.6;
+}
+
+/* "tap · EC 0.4": what the water is, read off the figure beside it. */
+.waterRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.waterKind {
+  flex: none;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+/* A grid is as wide as the grow is long, so the weeks scroll under a product
+   column that stays where it was read. */
+.tableWrap {
+  overflow-x: auto;
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+/* Natural column widths, never narrower than the card: a table squeezed to the
+   width of the screen pushes a product's name out from under its own cell. */
+.table {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.corner,
+.weekHead,
+.rowHead,
+.cell {
+  border-bottom: var(--rule-solid);
+  padding: var(--space-2) var(--space-1);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.table tbody tr:last-child .rowHead,
+.table tbody tr:last-child .cell {
+  border-bottom: 0;
+}
+
+.corner,
+.rowHead {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 92px;
+  padding-left: var(--space-3);
+  padding-right: var(--space-2);
+  background: var(--card);
+  border-right: var(--rule-solid);
+  text-align: left;
+}
+
+.corner,
+.weekHead {
+  background: var(--card-2);
+  color: var(--label);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-caption);
+}
+
+.corner {
+  background: var(--card-2);
+}
+
+.weekHead[data-current='true'] {
+  color: var(--green-ink);
+  font-weight: var(--weight-semibold);
+}
+
+/* Only as wide as the name: a row head that filled its cell would push the unit
+   beside it out from under the column that stays put while the weeks scroll. */
+.rowHead .rowName {
+  width: auto;
+}
+
+.rowName {
+  font-family: var(--font-text);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  text-align: left;
+}
+
+.rowUnit {
+  margin-left: var(--space-1);
+  color: var(--label);
+}
+
+/* A row picked out, so that the chip which removes it says which one it means. */
+.rowHead[data-picked='true'] {
+  color: var(--green-ink);
+}
+
+.cell {
+  min-width: 42px;
+  color: var(--ink);
+}
+
+.cell[data-current='true'] {
+  background: var(--card-2);
+  color: var(--green-ink);
+}
+
+.cellButton {
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: var(--space-1) var(--space-2);
+  border-radius: 3px;
+  color: inherit;
+  font: inherit;
+}
+
+.cellButton[data-chosen='true'] {
+  box-shadow: inset 0 0 0 var(--rule-width) var(--ink);
+}
+
+.cellInput {
+  width: 100%;
+  min-width: 44px;
+  background: var(--card);
+  border: var(--rule-width) solid var(--ink);
+  border-radius: 3px;
+  padding: var(--space-1) 0;
+  color: var(--ink);
+  font: inherit;
+  text-align: center;
+}
+
+.cellInput:focus {
+  outline: none;
+}
+
+.empty {
+  color: var(--label);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.note {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.caption {
+  font-size: var(--text-xs);
+  color: var(--label);
+}
+
+/* What is not saved yet, said where the edits were made. */
+.unsaved {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.unsavedNote {
+  flex: 1;
+  font-size: var(--text-xs);
+  color: var(--label);
+}
+
+/* Adding a row: a name, the unit it is measured in, and the tap that makes it. */
+.newProduct {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.newProductName {
+  flex: 1;
+  min-width: 140px;
+}
+
+.newProductUnit {
+  height: var(--control-height);
+  padding: 0 var(--space-2);
+  background: var(--card-2);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+/* The sheet behind the card: which scheme this grow follows, and the shelf. */
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.shelf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.saveOwn {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.saveOwnName {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .page {
+    max-width: 720px;
+    padding-top: 0;
+  }
+}

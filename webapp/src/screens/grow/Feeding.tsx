@@ -1,58 +1,420 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { ChevronRight } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { GrowListItem } from '@fg2/shared-types/v1';
+import type { GrowListItem, GrowScheme, SchemeWeek } from '@fg2/shared-types/v1';
+import { useUpdateGrow } from '@/api/grows';
+import { growSchemeLabel, schemeVersionLabel, useOwnSchemes, useScheme, useSchemes } from '@/api/schemes';
+import { Refused } from '@/ui/PageState';
+import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
-import { amountLabel, schemeName } from './scheme';
-import styles from './GrowPage.module.css';
+import {
+  flowerWeeks,
+  productKeyFor,
+  productsOf,
+  withFlipWeek,
+  withFlowerWeeks,
+  withLastWeekRepeated,
+  withProduct,
+  withValue,
+  withoutProduct,
+  type Product,
+} from './scheme/grid';
+import { SchemeGrid } from './scheme/SchemeGrid';
+import { SchemeSheet } from './scheme/SchemeSheet';
+import styles from './scheme/Scheme.module.css';
+
+/** How strong a can is mixed, as the steps a grower actually reaches for; a grow already on something else keeps its own. */
+const STRENGTHS = [0.5, 0.75, 1, 1.25];
+
+/** The bloom most strains are given when the chart runs out first. The chip only ever offers to reach it. */
+const LONG_BLOOM = 10;
+
+/** What a row can be measured in. Both are per litre, which is what the feed sheet multiplies by the can. */
+const UNITS = ['ml/l', 'g/l'];
 
 /**
- * The Feeding tab: the scheme's weeks as the grow stores them. The grow
- * carries its own copy of the grid, so what is shown is what the week cards
- * were fed from, whatever happened to the scheme it came from since.
+ * The Feeding tab: which scheme this grow is on, at what strength and on what
+ * water, and the grid itself, editable cell by cell.
+ *
+ * The grid the grow carries is the grow's, not the scheme's. That is the one
+ * thing this screen keeps saying, because everything about it invites the
+ * opposite assumption: a correction made here feeds these plants and no
+ * others, and a scheme saved to the shelf afterwards is a copy that reaches
+ * nothing already growing. A grower who believes otherwise finds out in a
+ * season they cannot have back.
+ *
+ * Nothing is written until Save. A grid is a table somebody works across, and
+ * a PATCH per cell would put a dozen writes and a dozen chances of a refusal
+ * between a thought and its result.
  */
 export function Feeding({ grow }: { grow: GrowListItem }) {
   const { t } = useTranslation();
-  const scheme = grow.scheme;
+  const mayManage = useMayManage();
+  const shipped = useSchemes();
+  const own = useOwnSchemes();
+  const update = useUpdateGrow(grow.id);
+  const queryClient = useQueryClient();
 
-  if (!scheme) {
+  const [draft, setDraft] = useState<GrowScheme | null>(grow.scheme);
+  const [picked, setPicked] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [choosing, setChoosing] = useState(false);
+
+  const origin = draft?.origin ?? null;
+  // The published grid, for the chip that goes back to it: a shipped asset is
+  // read from the bundle, one of the grower's own came with the shelf.
+  const asset = useScheme(origin?.type === 'asset' ? origin.assetId : null);
+  const ownOrigin = origin?.type === 'own' ? (own.data?.items.find(one => one.id === origin.schemeId) ?? null) : null;
+  const published = origin?.type === 'own' ? (ownOrigin?.grid ?? null) : (asset.data?.grid ?? null);
+
+  const dirty = JSON.stringify(draft) !== JSON.stringify(grow.scheme);
+  const products = draft ? productsOf(draft.grid) : [];
+  const pickedProduct = products.find(product => product.productKey === picked) ?? null;
+
+  /** Every edit of the grid goes through here, so that "edited" is set by the same hand that changed a figure. */
+  const editGrid = (next: (grid: SchemeWeek[]) => SchemeWeek[]) =>
+    setDraft(current => (current ? { ...current, grid: next(current.grid), edited: true } : current));
+
+  const save = () =>
+    update.mutate(
+      { scheme: draft },
+      {
+        onSuccess: saved => {
+          setDraft(saved.scheme);
+          // The week cards carry the doses this grid states, so they are now stale.
+          void queryClient.invalidateQueries({ queryKey: ['grow', grow.id, 'weeks'] });
+        },
+      },
+    );
+
+  // Taking a grow off its scheme leaves a draft of nothing, which is still a
+  // change and still has to be saved: the empty state therefore carries the
+  // same bar as the grid does rather than swallowing the decision.
+  const unsaved =
+    mayManage && dirty ? (
+      <>
+        <div className={styles.unsaved}>
+          <span className={`mono ${styles.unsavedNote}`}>{t('grow.scheme.unsaved')}</span>
+          <button type="button" className={ui.button} disabled={update.isPending} onClick={() => setDraft(grow.scheme)}>
+            {t('grow.scheme.discard')}
+          </button>
+          <button type="button" className={`${ui.button} ${ui.primary}`} disabled={update.isPending} onClick={save}>
+            {update.isPending ? t('grow.scheme.saving') : t('grow.scheme.save')}
+          </button>
+        </div>
+        <Refused error={update.error} />
+      </>
+    ) : null;
+
+  if (!draft) {
     return (
-      <section className={`${ui.cardDashed} ${styles.later}`}>
-        <span className="label">{t('grow.noScheme')}</span>
-        <p className={ui.note}>{t('grow.noSchemeNote')}</p>
-      </section>
+      <div className={styles.page}>
+        <section className={ui.cardDashed}>
+          <span className="label">{t('grow.noScheme')}</span>
+          <p className={ui.note}>{t('grow.noSchemeNote')}</p>
+        </section>
+        {mayManage ? (
+          <div className={styles.chips}>
+            <button type="button" className={ui.button} onClick={() => setChoosing(true)}>
+              {t('grow.scheme.choose')}
+            </button>
+          </div>
+        ) : null}
+        {unsaved}
+        {choosing ? (
+          <SchemeSheet
+            grow={grow}
+            shipped={shipped.data ?? []}
+            own={own.data?.items ?? []}
+            grid={[]}
+            onSwitch={scheme => {
+              setDraft(scheme);
+              setChoosing(false);
+            }}
+            onClose={() => setChoosing(false)}
+          />
+        ) : null}
+      </div>
     );
   }
 
+  const fromAsset = draft.origin.type === 'asset' ? draft.origin : null;
+  const label = growSchemeLabel(draft.origin, shipped.data ?? [], own.data?.items ?? [], t('grow.ownScheme'));
+  const version = fromAsset ? schemeVersionLabel(fromAsset.version) : null;
+  const plantTypes = fromAsset ? (shipped.data?.find(summary => summary.id === fromAsset.assetId)?.plantTypes ?? []) : [];
+  const currentWeek = grow.summary.weekNumber;
+  const strengths = [...new Set([...STRENGTHS, draft.strength])].sort((a, b) => a - b);
+
   return (
-    <div className={styles.cards}>
-      <p className={`mono ${styles.schemeLine}`}>
-        {schemeName(grow, t)}
-        {scheme.edited ? ` · ${t('grow.edited')}` : ''}
-        {` · ${t('grow.strength', { percent: Math.round(scheme.strength * 100) })}`}
-        {scheme.waterEc !== null ? ` · ${t('grow.waterEc', { ec: scheme.waterEc })}` : ''}
-        {scheme.flipWeek !== null ? ` · ${t('grow.flipWeek', { week: scheme.flipWeek })}` : ''}
+    <div className={styles.page}>
+      <BasedOn
+        name={label}
+        edited={draft.edited}
+        version={version}
+        onOpen={mayManage ? () => setChoosing(true) : null}
+        openLabel={t('grow.scheme.sheet.title')}
+      />
+
+      <div className={styles.settings}>
+        <label className={`${ui.card} ${styles.setting}`}>
+          <span className="label">{t('grow.scheme.strength')}</span>
+          <select
+            className={styles.settingValue}
+            disabled={!mayManage}
+            value={String(draft.strength)}
+            onChange={event => setDraft({ ...draft, strength: Number(event.target.value) })}
+          >
+            {strengths.map(strength => (
+              <option key={strength} value={strength}>
+                {STRENGTHS.includes(strength)
+                  ? t(`grow.scheme.strengthStep.${stepKey(strength)}`)
+                  : t('grow.strength', { percent: Math.round(strength * 100) })}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className={`${ui.card} ${styles.setting}`}>
+          <span className="label">{t('grow.scheme.water')}</span>
+          <span className={styles.waterRow}>
+            <span className={styles.waterKind}>{t(waterKey(draft.waterEc))}</span>
+            <input
+              className={styles.settingValue}
+              type="number"
+              min={0}
+              step={0.1}
+              disabled={!mayManage}
+              aria-label={t('grow.scheme.waterEc')}
+              placeholder={t('grow.scheme.ecPlaceholder')}
+              value={draft.waterEc ?? ''}
+              onChange={event => setDraft({ ...draft, waterEc: event.target.value === '' ? null : Number(event.target.value) })}
+            />
+          </span>
+        </label>
+
+        <label className={`${ui.card} ${styles.setting}`}>
+          <span className="label">{t('grow.scheme.plantType')}</span>
+          {plantTypes.length > 0 ? (
+            <select
+              className={styles.settingValue}
+              disabled={!mayManage}
+              value={draft.plantType}
+              onChange={event => setDraft({ ...draft, plantType: event.target.value })}
+            >
+              {plantTypes.some(one => one.key === draft.plantType) ? null : <option value={draft.plantType}>{draft.plantType}</option>}
+              {plantTypes.map(one => (
+                <option key={one.key} value={one.key}>
+                  {one.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              className={styles.settingValue}
+              disabled={!mayManage}
+              placeholder={t('grow.scheme.plantTypePlaceholder')}
+              value={draft.plantType}
+              onChange={event => setDraft({ ...draft, plantType: event.target.value })}
+            />
+          )}
+        </label>
+
+        <label className={`${ui.card} ${styles.setting}`}>
+          <span className="label">{t('grow.scheme.flip')}</span>
+          <select
+            className={styles.settingValue}
+            disabled={!mayManage}
+            value={draft.flipWeek === null ? '' : String(draft.flipWeek)}
+            onChange={event => {
+              const flipWeek = event.target.value === '' ? null : Number(event.target.value);
+              setDraft({ ...draft, flipWeek, grid: withFlipWeek(draft.grid, flipWeek) });
+            }}
+          >
+            <option value="">{t('grow.scheme.noFlip')}</option>
+            {draft.grid.map(week => (
+              <option key={week.week} value={week.week}>
+                {t('grow.scheme.weekShort', { week: week.week })}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <SchemeGrid
+        grid={draft.grid}
+        currentWeek={currentWeek}
+        mayEdit={mayManage}
+        picked={picked}
+        onPick={setPicked}
+        onChange={(week, product, value) => editGrid(grid => withValue(grid, week, product, value))}
+      />
+
+      <p className={styles.note}>
+        {currentWeek !== null ? `${t('grow.scheme.thisWeekLine', { week: currentWeek })} ` : ''}
+        {draft.flipWeek !== null ? `${t('grow.scheme.flipLine', { week: draft.flipWeek })} ` : ''}
+        {mayManage ? t('grow.scheme.howLine') : null}
       </p>
-      <ul className={styles.rows} aria-label={t('grow.tabs.feeding')}>
-        {scheme.grid.map(week => {
-          const current = week.week === grow.summary.weekNumber;
-          return (
-            <li key={week.week} className={styles.row} data-current={current}>
-              <div className={styles.rowMain}>
-                <span className={styles.rowTitle}>
-                  {t('grow.weekN', { week: week.week })}
-                  {week.stage ? <span className={styles.muted}> · {t(`home.stage.${week.stage}`)}</span> : null}
-                  {current ? <span className={`mono ${styles.thisWeekTag}`}>{t('grow.thisWeek')}</span> : null}
-                </span>
-                <span className={styles.rowSub}>
-                  {week.amounts
-                    .filter(amount => amount.value !== null)
-                    .map(amountLabel)
-                    .join(' · ') || t('grow.nothingThisWeek')}
-                </span>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+
+      {mayManage ? (
+        <>
+          <div className={styles.chips}>
+            <button type="button" className={ui.chip} onClick={() => setAdding(value => !value)}>
+              {t('grow.scheme.addProduct')}
+            </button>
+            <button type="button" className={ui.chip} onClick={() => editGrid(withLastWeekRepeated)}>
+              {t('grow.scheme.repeatLastWeek')}
+            </button>
+            {flowerWeeks(draft.grid) < LONG_BLOOM ? (
+              <button type="button" className={ui.chip} onClick={() => editGrid(grid => withFlowerWeeks(grid, LONG_BLOOM))}>
+                {t('grow.scheme.stretch', { count: LONG_BLOOM })}
+              </button>
+            ) : null}
+            {published && draft.edited ? (
+              <button
+                type="button"
+                className={ui.chip}
+                onClick={() =>
+                  setDraft(current =>
+                    current
+                      ? {
+                          ...current,
+                          edited: false,
+                          grid: published ?? current.grid,
+                          origin: current.origin.type === 'asset' && asset.data ? { ...current.origin, version: asset.data.version } : current.origin,
+                        }
+                      : current,
+                  )
+                }
+              >
+                {t('grow.scheme.reset', { name: label })}
+              </button>
+            ) : null}
+            {pickedProduct ? (
+              <button
+                type="button"
+                className={ui.chip}
+                onClick={() => {
+                  editGrid(grid => withoutProduct(grid, pickedProduct.productKey));
+                  setPicked(null);
+                }}
+              >
+                {t('grow.scheme.removeProduct', { name: pickedProduct.name })}
+              </button>
+            ) : null}
+          </div>
+
+          {adding ? (
+            <AddProduct
+              taken={products}
+              onAdd={product => {
+                editGrid(grid => withProduct(grid, product));
+                setAdding(false);
+              }}
+            />
+          ) : null}
+
+          {unsaved}
+        </>
+      ) : null}
+
+      <p className={styles.caption}>
+        {t('grow.scheme.chartCaption')} {t('grow.scheme.honesty')}
+      </p>
+
+      {choosing ? (
+        <SchemeSheet
+          grow={grow}
+          shipped={shipped.data ?? []}
+          own={own.data?.items ?? []}
+          grid={draft.grid}
+          onSwitch={scheme => {
+            setDraft(scheme);
+            setChoosing(false);
+          }}
+          onClose={() => setChoosing(false)}
+        />
+      ) : null}
     </div>
   );
 }
+
+/** Where the grid came from, and whether it is still what that chart says. */
+function BasedOn({
+  name,
+  edited,
+  version,
+  onOpen,
+  openLabel,
+}: {
+  name: string;
+  edited: boolean;
+  version: string | null;
+  /** Null for a session that may only look: there is nothing behind the card it could do. */
+  onOpen: (() => void) | null;
+  openLabel: string;
+}) {
+  const { t } = useTranslation();
+  const inside = (
+    <>
+      <span>
+        {t('grow.scheme.basedOn')} <span className={styles.basedOnName}>{name}</span>
+      </span>
+      <span className={`mono ${styles.basedOnAside}`}>
+        {edited ? `${t('grow.edited')} · ` : ''}
+        {version ?? ''}
+        {onOpen ? <ChevronRight size={14} strokeWidth={1.75} aria-hidden /> : null}
+      </span>
+    </>
+  );
+
+  return onOpen ? (
+    <button type="button" className={`${ui.card} ${styles.basedOn}`} aria-label={openLabel} onClick={onOpen}>
+      {inside}
+    </button>
+  ) : (
+    <section className={`${ui.card} ${styles.basedOn}`}>{inside}</section>
+  );
+}
+
+/** A row of one's own: what it is called and what it is measured in. */
+function AddProduct({ taken, onAdd }: { taken: Product[]; onAdd: (product: Product) => void }) {
+  const { t } = useTranslation();
+  const [name, setName] = useState('');
+  const [unit, setUnit] = useState(UNITS[0]);
+
+  return (
+    <div className={styles.newProduct}>
+      <input
+        className={`${ui.input} ${styles.newProductName}`}
+        value={name}
+        placeholder={t('grow.scheme.productPlaceholder')}
+        aria-label={t('grow.scheme.productName')}
+        autoComplete="off"
+        onChange={event => setName(event.target.value)}
+      />
+      <select className={styles.newProductUnit} aria-label={t('grow.scheme.unit')} value={unit} onChange={event => setUnit(event.target.value)}>
+        {UNITS.map(one => (
+          <option key={one} value={one}>
+            {one}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        className={ui.button}
+        disabled={name.trim() === ''}
+        onClick={() => onAdd({ productKey: productKeyFor(name.trim(), taken), name: name.trim(), unit })}
+      >
+        {t('grow.scheme.add')}
+      </button>
+    </div>
+  );
+}
+
+/** A catalogue key for a step, since a decimal point is the separator in one. */
+const stepKey = (strength: number): string => String(strength).replace('.', '_');
+
+/** What the water is, read off its own EC: osmosis water measures nothing, tap water measures something, and an empty field says nobody has looked. */
+const waterKey = (waterEc: number | null): string =>
+  waterEc === null ? 'grow.scheme.waterUnknown' : waterEc === 0 ? 'grow.scheme.waterOsmosis' : 'grow.scheme.waterTap';

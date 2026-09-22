@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
-import type { GrowScheme, GrowType, SchemeWeek } from '@fg2/shared-types/v1';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { GrowScheme, GrowSchemeOrigin, GrowType, Scheme, SchemeCreate, SchemePage, SchemeWeek } from '@fg2/shared-types/v1';
+import { api } from './client';
 
 /**
  * The feeding schemes the app ships: a manufacturer's published chart, read
@@ -143,3 +144,47 @@ export const growSchemeOf = (
   edited: false,
   grid: asset.grid,
 });
+
+// ---------------------------------------------------------------------------
+// The grower's own schemes
+// ---------------------------------------------------------------------------
+
+/**
+ * A scheme somebody wrote themselves, which the API does hold: the same grid,
+ * under a name of their own, with the asset it started from remembered in
+ * `origin` so that it can be started from again.
+ *
+ * It is a shelf and not a link. Saving a grow's grid here copies it, and
+ * editing the copy afterwards changes nothing that is already growing - a grow
+ * carries its own grid for exactly the reason a shipped asset is versioned.
+ * That is said on the screen as well, where somebody is about to expect
+ * otherwise.
+ */
+export const ownSchemesKey = ['own-schemes'];
+
+/** One page is every scheme a person has written; no shelf is long enough to need a cursor. */
+export const useOwnSchemes = () =>
+  useQuery({
+    queryKey: ownSchemesKey,
+    queryFn: ({ signal }) => api.get<SchemePage>('/schemes', { limit: 100 }, signal),
+  });
+
+export const useCreateScheme = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: SchemeCreate) => api.post<Scheme>('/schemes', body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ownSchemesKey }),
+  });
+};
+
+/**
+ * What a grow's scheme is called: the asset's name in the manufacturer's own
+ * spelling, the person's own name for one of theirs, and for an asset this
+ * build no longer ships, the id the grid was taken from - a worse name than
+ * either, and still better than saying nothing.
+ */
+export const growSchemeLabel = (origin: GrowSchemeOrigin, shipped: SchemeSummary[], own: Scheme[], goneName: string): string =>
+  origin.type === 'own'
+    ? (own.find(scheme => scheme.id === origin.schemeId)?.name ?? goneName)
+    : (shipped.find(summary => summary.id === origin.assetId)?.name ?? origin.assetId);

@@ -86,8 +86,11 @@ export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
             <div className={styles.feeding}>
               <Leaf size={14} strokeWidth={1.75} className={styles.feedingIcon} aria-hidden />
               <div className={styles.feedingText}>
+                {/* A grid the grower has corrected is no longer the chart it was printed from, and a card that
+                    named the manufacturer alone would credit that chart with figures it never published. */}
                 <span className={styles.feedingTitle}>
-                  {schemeName(grow, t)} · {t('grow.weekN', { week: week.weekNumber }).toLowerCase()}
+                  {schemeName(grow, t)}
+                  {grow.scheme?.edited ? ` · ${t('grow.edited')}` : ''} · {t('grow.weekN', { week: week.weekNumber }).toLowerCase()}
                 </span>
                 <span className={styles.feedingAmounts}>
                   {week.feeding.amounts
