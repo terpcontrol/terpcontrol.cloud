@@ -255,8 +255,9 @@ describe('how long anything is kept', () => {
   it('asks for the whole account as a file when told to, follows the job, and never calls the export Premium', async () => {
     await drawLoaded();
 
-    // Premium is the stills row's word and nobody else's on this screen.
-    expect(screen.getAllByText('Premium')).toHaveLength(1);
+    // This install gates nothing, so the word does not appear at all: the chip
+    // is a price tag, and there is nothing being sold here.
+    expect(screen.queryByText('Premium')).not.toBeInTheDocument();
     expect(screen.getByText('JSON + CSV + diary photos + films · yours to keep')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Export' }));
@@ -291,6 +292,14 @@ describe('the footnote', () => {
     expect(screen.getByText('No location is ever stored.')).toBeInTheDocument();
     expect(screen.queryByText(/EU/)).toBeNull();
     expect(screen.queryByText(/[Tt]eam mode|club/)).toBeNull();
+  });
+
+  it('badges the stills row only where the install actually gates something', async () => {
+    await drawLoaded({
+      premium: { enforced: true, extendUrl: null, priceLabel: null, free: { stillWidth: 640, stillDays: 90, timelapseDays: 30 } },
+    });
+
+    expect(screen.getAllByText('Premium')).toHaveLength(1);
   });
 
   it('says where the servers are on the hosted install, which is the one that enforces Premium', async () => {

@@ -131,7 +131,12 @@ export function Privacy() {
             : t('me.privacy.stills.keptDays', { count: account.premium.free.stillDays })
         }
       >
-        <span className={ui.chip}>{t('me.privacy.premium')}</span>
+        {/*
+          The chip is a price tag, and an install that gates nothing is not
+          selling this - the Premium screen says so in as many words, and a
+          badge here saying otherwise is the same claim twice removed.
+        */}
+        {account.premium.enforced ? <span className={ui.chip}>{t('me.privacy.premium')}</span> : null}
       </Row>
 
       <ExportRow title={t('me.privacy.export.title')} line={t('me.privacy.export.line')} ask={t('me.privacy.export.ask')} />
