@@ -331,7 +331,11 @@ export class SpacesService {
 
     const covering = [...new Set(spaces.flatMap(space => [space.id, space.roomId]).filter((id): id is string => id !== null))];
     const rows =
-      userId === null ? [] : await this.memberships.find({ userId, spaceId: { $in: covering } }, { spaceId: 1, role: 1 }).lean<Pick<MembershipDocument, 'spaceId' | 'role'>[]>();
+      userId === null
+        ? []
+        : await this.memberships
+            .find({ userId, spaceId: { $in: covering } }, { spaceId: 1, role: 1 })
+            .lean<Pick<MembershipDocument, 'spaceId' | 'role'>[]>();
     const roles = new Map(rows.map(row => [row.spaceId, row.role]));
 
     for (const space of spaces) {

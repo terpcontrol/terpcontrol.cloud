@@ -240,7 +240,7 @@ describe('changing one', () => {
 
 describe('listing them', () => {
   it('leaves archived spaces out, and lists them when they are asked for', async () => {
-    await spaces.archive(SPACE, true);
+    await spaces.archive(session(OWNER), SPACE, true);
 
     const inUse = await spaces.list(session(OWNER), {}, {});
     const archived = await spaces.list(session(OWNER), {}, { archived: true });
@@ -293,32 +293,73 @@ describe('listing them', () => {
   });
 });
 
+describe('what the reader may do here', () => {
+  /**
+   * The field exists so a screen draws only what the server would allow, so the
+   * thing to assert is that the two agree: every answer below is checked
+   * against `access()` rather than against what the setup says, because a
+   * `youMay` that is merely plausible is what would put a refused button on a
+   * guest's screen.
+   */
+  const asked = async (ctx: AccessContext, spaceId: string) => (await spaces.list(ctx, {}, {})).items.find(space => space.id === spaceId);
+
+  it('tells the owner they own it and the manager of the room that they manage every tent in it', async () => {
+    expect((await asked(session(OWNER), SPACE))?.youMay).toBe('own');
+    expect((await asked(session(MANAGER), SPACE))?.youMay).toBe('manage');
+    expect((await asked(session(MANAGER), OTHER_SPACE))?.youMay).toBe('manage');
+  });
+
+  it('tells somebody who may only write in one tent exactly that, and nothing about the other', async () => {
+    expect((await asked(session(MEMBER), SPACE))?.youMay).toBe('log');
+    // Not "view": a tent they are not in is not in their list at all.
+    expect(await asked(session(MEMBER), OTHER_SPACE)).toBeUndefined();
+  });
+
+  it('agrees with access() for every caller, which is the only reason it can be drawn from', async () => {
+    for (const ctx of [session(OWNER), session(MANAGER), session(MEMBER), admin]) {
+      const space = await spaces.require(SPACE);
+      const may = await spaces.mayIn1(ctx, space);
+      const ref = { type: 'space' as const, id: SPACE };
+
+      expect(await access.access(ctx, ref, 'manage')).toEqual(may === 'own' || may === 'manage' ? expect.anything() : null);
+      expect(await access.access(ctx, ref, 'own')).toEqual(may === 'own' ? expect.anything() : null);
+    }
+  });
+
+  it('says only "view" to a session that is nobody in particular', async () => {
+    const space = await spaces.require(SPACE);
+
+    expect(await spaces.mayIn1(session(STRANGER), space)).toBe('view');
+    expect(await spaces.mayIn1(demo, space)).toBe('view');
+  });
+});
+
 describe('archiving one', () => {
   it('says the same thing twice without moving the instant it carries', async () => {
-    const archived = await spaces.archive(SPACE, true);
-    const again = await spaces.archive(SPACE, true);
+    const archived = await spaces.archive(session(OWNER), SPACE, true);
+    const again = await spaces.archive(session(OWNER), SPACE, true);
 
     expect(archived.archivedAt).not.toBeNull();
     expect(again.archivedAt).toBe(archived.archivedAt);
   });
 
   it('brings it back', async () => {
-    await spaces.archive(SPACE, true);
+    await spaces.archive(session(OWNER), SPACE, true);
 
-    expect((await spaces.archive(SPACE, false)).archivedAt).toBeNull();
+    expect((await spaces.archive(session(OWNER), SPACE, false)).archivedAt).toBeNull();
   });
 
   it('refuses a room whose spaces are still in use', async () => {
-    const problem = await refusal(() => spaces.archive(ROOM, true));
+    const problem = await refusal(() => spaces.archive(session(OWNER), ROOM, true));
 
     expect(problem.problem).toMatchObject({ status: 409, code: 'room_not_empty' });
   });
 
   it('takes a room once the spaces in it are archived too', async () => {
-    await spaces.archive(SPACE, true);
-    await spaces.archive(OTHER_SPACE, true);
+    await spaces.archive(session(OWNER), SPACE, true);
+    await spaces.archive(session(OWNER), OTHER_SPACE, true);
 
-    expect((await spaces.archive(ROOM, true)).archivedAt).not.toBeNull();
+    expect((await spaces.archive(session(OWNER), ROOM, true)).archivedAt).not.toBeNull();
   });
 });
 
@@ -482,7 +523,7 @@ describe('what stands in it', () => {
   });
 
   it('refuses to put anything into a space that has ended', async () => {
-    await spaces.archive(SPACE, true);
+    await spaces.archive(session(OWNER), SPACE, true);
     const problem = await refusal(() => spaces.placeDevice(SPACE, DEVICE, false));
 
     expect(problem.problem).toMatchObject({ status: 409, code: 'space_archived' });
@@ -749,10 +790,10 @@ const ROUTES: RouteCase[] = [
     params: {},
     run: ctx => controller.create(ctx, { kind: 'tent', name: 'One more', roomId: ROOM }),
   },
-  { name: 'read', handler: 'read', params: { id: SPACE }, run: () => controller.read(SPACE) },
+  { name: 'read', handler: 'read', params: { id: SPACE }, run: ctx => controller.read(ctx, SPACE) },
   { name: 'update', handler: 'update', params: { id: SPACE }, run: ctx => controller.update(ctx, SPACE, { name: 'Renamed' }) },
-  { name: 'archive', handler: 'archive', params: { id: SPACE }, run: () => controller.archive(SPACE) },
-  { name: 'unarchive', handler: 'unarchive', params: { id: SPACE }, run: () => controller.unarchive(SPACE) },
+  { name: 'archive', handler: 'archive', params: { id: SPACE }, run: ctx => controller.archive(ctx, SPACE) },
+  { name: 'unarchive', handler: 'unarchive', params: { id: SPACE }, run: ctx => controller.unarchive(ctx, SPACE) },
   {
     name: 'delete',
     handler: 'remove',
