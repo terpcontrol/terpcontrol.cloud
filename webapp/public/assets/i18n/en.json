@@ -1469,7 +1469,30 @@
   },
   "me": {
     "title": "Me",
-    "appearance": "Appearance",
+    "appearance": {
+      "title": "Appearance",
+      "display": "Display",
+      "themeLine": "follows the system until you choose",
+      "language": "Language",
+      "languageLine": "kept in this browser",
+      "languageNames": {
+        "en": "English",
+        "de": "Deutsch"
+      },
+      "units": "Units",
+      "unitsLine": "kept with your account · every screen still draws metric",
+      "temperature": "Temperature",
+      "weight": "Weight",
+      "volume": "Volume",
+      "unit": {
+        "celsius": "°C",
+        "fahrenheit": "°F",
+        "grams": "g",
+        "ounces": "oz",
+        "liters": "l",
+        "gallons": "gal"
+      }
+    },
     "theme": {
       "label": "Theme",
       "system": "System",
@@ -1477,6 +1500,83 @@
       "dark": "Dark"
     },
     "signOut": "Sign out",
+    "demo": "The demo has no account of its own, so there is nothing of it to change.",
+    "identity": {
+      "profileOn": "public profile on",
+      "profileOff": "public profile off"
+    },
+    "door": {
+      "public": {
+        "none": "no grows yet",
+        "public_one": "{{count}} public",
+        "public_other": "{{count}} public",
+        "private_one": "{{count}} private",
+        "private_other": "{{count}} private",
+        "profileOff": "profile off"
+      },
+      "following": {
+        "none": "nobody yet",
+        "grows_one": "{{count}} grow",
+        "grows_other": "{{count}} grows"
+      },
+      "shareLinks": {
+        "none": "no links yet",
+        "active_one": "{{count}} active",
+        "active_other": "{{count}} active",
+        "expired_one": "{{count}} expired",
+        "expired_other": "{{count}} expired",
+        "revoked_one": "{{count}} revoked",
+        "revoked_other": "{{count}} revoked"
+      },
+      "premium": {
+        "none": "no cameras",
+        "cameras_one": "{{count}} camera",
+        "cameras_other": "{{count}} cameras",
+        "premium_one": "{{count}} premium",
+        "premium_other": "{{count}} premium",
+        "noEntitlement": "no entitlement",
+        "grant": {
+          "included": "included until {{date}}",
+          "migration": "carried over until {{date}}",
+          "purchase": "paid until {{date}}"
+        },
+        "state": {
+          "active": "active",
+          "expired": "expired",
+          "free": "free",
+          "partly": "partly"
+        }
+      },
+      "notifications": {
+        "none": "no channel on",
+        "muted": "muted",
+        "quiet": "quiet {{from}}–{{to}}"
+      },
+      "privacy": {
+        "weights": "weights hidden in shared views",
+        "counts": "plant counts hidden in shared views",
+        "both": "weights and counts hidden in shared views",
+        "nothing": "nothing hidden in shared views",
+        "retention": "retention {{keep}}",
+        "days_one": "{{count}} day",
+        "days_other": "{{count}} days"
+      },
+      "appearance": {
+        "theme": "theme: {{theme}}",
+        "units": "units: {{units}}",
+        "language": "language: {{language}}"
+      },
+      "schemes": {
+        "none": "none in use",
+        "several": "{{count}} in use",
+        "edited": "{{name}} (edited)",
+        "own_one": "{{count}} own",
+        "own_other": "{{count}} own",
+        "noOwn": "no own yet"
+      },
+      "account": "e-mail · password · sessions · export · delete",
+      "about": "v{{version}} · {{build}}"
+    },
     "privacy": {
       "title": "Privacy",
       "demo": "The demo has no account of its own, so there is nothing here to settle.",
@@ -1658,13 +1758,80 @@
       "nowhereToExtend": "This installation names no place to extend Premium from; ask whoever runs it."
     },
     "schemes": {
-      "title": "Feeding schemes"
+      "title": "Feeding schemes",
+      "shipped": "Shipped with the app",
+      "mine": "Mine",
+      "weeks_one": "{{count}} week",
+      "weeks_other": "{{count}} weeks",
+      "flip": "flip week {{week}}",
+      "noneShipped": "This build ships no schemes.",
+      "howToKeep": "A scheme of your own is kept from a grow's Feeding tab: “Save as my own”.",
+      "fromAsset": "from {{name}}",
+      "byHand": "written by hand",
+      "readFrom": "read from",
+      "readAt": "read {{date}}",
+      "copyNote": "A scheme on this shelf is a copy. Editing it changes what the next grow starts from and nothing that is already growing.",
+      "name": "Name",
+      "save": "Save",
+      "saving": "Saving…",
+      "delete": "Delete",
+      "deleteAsk": "Delete {{name}}? Grows already fed by it keep their own grid.",
+      "deleteYes": "Delete it",
+      "cancel": "Cancel",
+      "demo": "The demo has no shelf of its own, so only the shipped schemes are here."
     },
     "account": {
-      "title": "Account"
+      "title": "Account",
+      "demo": "The demo has no account of its own, so there is nothing here to settle.",
+      "signIn": "Sign-in",
+      "email": {
+        "title": "E-mail",
+        "line": "how you sign in · this server offers no way to change it"
+      },
+      "password": {
+        "title": "Password",
+        "line": "the current one is asked for first",
+        "change": "Change",
+        "current": "Current password",
+        "new": "New password",
+        "repeat": "New password again",
+        "mismatch": "The two new passwords differ.",
+        "save": "Save",
+        "cancel": "Cancel",
+        "saving": "Saving…",
+        "changed": "Password changed."
+      },
+      "sessions": {
+        "title": "Sessions",
+        "line": "every browser and script signed in as you",
+        "thisDevice": "this device",
+        "signOut": "Sign out",
+        "lastSeen": "last seen {{age}} ago",
+        "until": "until {{date}}",
+        "unknownDevice": "unknown device",
+        "more": "More"
+      },
+      "data": "Data",
+      "export": {
+        "title": "Export everything",
+        "note": "Every grow, every reading and every photo in one zip: JSON, CSV and the pictures. Yours to keep.",
+        "ask": "Build the zip",
+        "again": "Try again",
+        "queued": "queued",
+        "rendering": "building the file…",
+        "download": "Download · {{size}}",
+        "failedPlain": "The file could not be built."
+      }
     },
     "about": {
-      "title": "About"
+      "title": "About",
+      "app": "This app",
+      "server": "Server",
+      "links": "Links",
+      "build": {
+        "production": "production build",
+        "development": "development build"
+      }
     }
   },
   "later": {

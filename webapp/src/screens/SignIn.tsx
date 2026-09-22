@@ -3,17 +3,11 @@ import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import type { SessionCreate } from '@fg2/shared-types/v1';
+import { CUSTOM_LINKS_HTML } from '@/api/config';
 import { ApiError } from '@/api/problem';
 import { session, useSession } from '@/api/session';
 import ui from '@/ui/ui.module.css';
 import styles from './SignIn.module.css';
-
-/**
- * An install's own links below the form. It is markup because whoever builds
- * the image writes it - it is configuration of that build, not anything a
- * request can reach.
- */
-const CUSTOM_LINKS_HTML = (import.meta.env.VITE_CUSTOM_LINKS_HTML as string | undefined) ?? '';
 
 /**
  * The one screen outside the shell, and the pattern for every form after it:

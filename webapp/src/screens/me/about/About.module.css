@@ -1,0 +1,22 @@
+/* Me › About: two rows of facts and, where the install wrote any, its links. */
+
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The install's own markup, given the page's own type and nothing else: a
+   link in it is a link, coloured as the ink and underlined so it is found. */
+.linksBody {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.linksBody a {
+  color: var(--ink);
+  text-decoration: underline;
+}

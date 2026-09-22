@@ -1,0 +1,110 @@
+/* The pages below Me: a column of setting cards under small-caps labels. Phone
+   first; the shell keeps the column width on a desktop. The same rules the
+   privacy and notification pages carry, so that a row is a row on all six. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+/* The trail back to Me, kept for the width that has room for it; on a phone the
+   tab bar and the avatar already say where this page hangs. */
+.crumb {
+  display: none;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.crumb a {
+  color: var(--muted);
+}
+
+/* A card that may open downwards: the head is the row, and whatever the
+   control opened stacks under it with the same gap the page uses. */
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.rowHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* The one row whose outcome cannot be taken back wears the alarm colour on its
+   rule, which is the only place on these pages anything is coloured at all. */
+.row[data-danger] {
+  border-color: var(--alarm);
+}
+
+.rowText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.rowTitle {
+  font-weight: var(--weight-semibold);
+}
+
+.row[data-danger] .rowTitle {
+  color: var(--alarm);
+}
+
+.rowLine {
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.rowControl {
+  flex: none;
+}
+
+/* A chip that is a menu: the native select, keeping its keyboard and the
+   platform's own picker, giving up only its arrow and its padding. */
+.menu {
+  appearance: none;
+  padding-right: var(--space-4);
+  background-image: linear-gradient(45deg, transparent 50%, currentcolor 50%), linear-gradient(135deg, currentcolor 50%, transparent 50%);
+  background-position:
+    right 12px top 50%,
+    right 8px top 50%;
+  background-size:
+    4px 4px,
+    4px 4px;
+  background-repeat: no-repeat;
+}
+
+@media (min-width: 900px) {
+  .page {
+    max-width: 720px;
+    padding-top: 0;
+  }
+
+  .crumb {
+    display: inline;
+  }
+}

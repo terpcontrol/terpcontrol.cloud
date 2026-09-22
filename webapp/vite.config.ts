@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
@@ -8,7 +9,11 @@ import { VitePWA } from 'vite-plugin-pwa';
  * origin, so nothing here proxies: `VITE_API_URL` names the API in development
  * and in the image alike, and the server answers CORS for both.
  */
+/** The version the app states about itself, read from its own package rather than typed a second time. */
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
+
 export default defineConfig({
+  define: { __APP_VERSION__: JSON.stringify(version) },
   plugins: [
     react(),
     VitePWA({

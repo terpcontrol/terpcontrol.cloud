@@ -1,5 +1,14 @@
-import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Me, MeUpdate, NotificationSettings, PushSubscription, PushSubscriptionCreate, TelegramLink } from '@fg2/shared-types/v1';
+import { useInfiniteQuery, useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type {
+  Me,
+  MeUpdate,
+  NotificationSettings,
+  PasswordChange,
+  PushSubscription,
+  PushSubscriptionCreate,
+  SessionPage,
+  TelegramLink,
+} from '@fg2/shared-types/v1';
 import { api } from './client';
 import { session } from './session';
 
@@ -85,5 +94,45 @@ export const useDeleteAccount = () => {
       await session.logOut();
       client.clear();
     },
+  });
+};
+
+/**
+ * A new password. The current one travels with it, because a stolen session
+ * must not be able to keep itself by locking the owner out - which is also why
+ * a wrong current password comes back as a refusal of this one request rather
+ * than as the end of the session: the client retries a 401 once behind a fresh
+ * token, finds the same answer, and hands the problem to the form.
+ */
+export const useChangePassword = () => useMutation({ mutationFn: (body: PasswordChange) => api.put<void>('/me/password', body) });
+
+/**
+ * Every browser and script this account is signed in with. Paged, because the
+ * server pages it, and read a page at a time: a person who has signed in from
+ * a phone, a laptop and a tab or two has a handful, and the one who has a
+ * hundred is the one who most wants to see the end of the list.
+ */
+export const sessionsKey = ['sessions'];
+
+export const useSessions = (enabled = true) =>
+  useInfiniteQuery({
+    queryKey: sessionsKey,
+    queryFn: ({ pageParam, signal }) => api.get<SessionPage>('/sessions', { cursor: pageParam }, signal),
+    initialPageParam: null as string | null,
+    getNextPageParam: last => last.nextCursor,
+    enabled,
+  });
+
+/**
+ * Ending one session from another. This session's own end is `session.logOut`,
+ * which forgets the tokens first; a session ended here is somebody else's
+ * browser, and the list is read again so that it is seen to be gone.
+ */
+export const useRevokeSession = () => {
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/sessions/${id}`),
+    onSuccess: () => client.invalidateQueries({ queryKey: sessionsKey }),
   });
 };

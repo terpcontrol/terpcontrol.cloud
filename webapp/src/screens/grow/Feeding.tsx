@@ -9,31 +9,13 @@ import { Refused } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { sameScheme, useSchemeEdit } from './scheme/edit-store';
-import {
-  flowerWeeks,
-  hasEcTargets,
-  productKeyFor,
-  productsOf,
-  withFlipWeek,
-  withFlowerWeeks,
-  withLastWeekRepeated,
-  withProduct,
-  withValue,
-  withoutProduct,
-  type Product,
-} from './scheme/grid';
-import { SchemeGrid } from './scheme/SchemeGrid';
+import { hasEcTargets, withFlipWeek } from './scheme/grid';
+import { GridEditor } from './scheme/GridEditor';
 import { SchemeSheet } from './scheme/SchemeSheet';
 import styles from './scheme/Scheme.module.css';
 
 /** How strong a can is mixed, as the steps a grower actually reaches for; a grow already on something else keeps its own. */
 const STRENGTHS = [0.5, 0.75, 1, 1.25];
-
-/** The bloom most strains are given when the chart runs out first. The chip only ever offers to reach it. */
-const LONG_BLOOM = 10;
-
-/** What a row can be measured in. Both are per litre, which is what the feed sheet multiplies by the can. */
-const UNITS = ['ml/l', 'g/l'];
 
 /**
  * The Feeding tab: which scheme this grow is on, at what strength and on what
@@ -66,8 +48,6 @@ export function Feeding({ grow }: { grow: GrowListItem }) {
   const queryClient = useQueryClient();
 
   const [edit, setEdit] = useSchemeEdit(grow.id);
-  const [picked, setPicked] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
   const [choosing, setChoosing] = useState(false);
 
   // With nothing typed the screen is the stored grow, so a correction saved
@@ -87,8 +67,6 @@ export function Feeding({ grow }: { grow: GrowListItem }) {
   // Somebody else has saved this grid since this one was started, and the two
   // disagree. Until that is settled there is nothing honest for Save to send.
   const moved = edit !== null && dirty && !sameScheme(edit.against, stored);
-  const products = draft ? productsOf(draft.grid) : [];
-  const pickedProduct = products.find(product => product.productKey === picked) ?? null;
 
   /** Every edit of the grid goes through here, so that "edited" is set by the same hand that changed a figure. */
   const editGrid = (next: (grid: SchemeWeek[]) => SchemeWeek[]) => {
@@ -266,79 +244,37 @@ export function Feeding({ grow }: { grow: GrowListItem }) {
         </label>
       </div>
 
-      <SchemeGrid
+      <GridEditor
         grid={draft.grid}
         currentWeek={currentWeek}
         mayEdit={mayManage}
         waterEc={draft.waterEc}
-        picked={picked}
-        onPick={setPicked}
-        onChange={(week, product, value) => editGrid(grid => withValue(grid, week, product, value))}
-      />
-
-      <p className={styles.note}>
-        {currentWeek !== null ? `${t('grow.scheme.thisWeekLine', { week: currentWeek })} ` : ''}
-        {draft.flipWeek !== null ? `${t('grow.scheme.flipLine', { week: draft.flipWeek })} ` : ''}
-        {mayManage ? t('grow.scheme.howLine') : null}
-      </p>
-
-      {mayManage ? (
-        <>
-          <div className={styles.chips}>
-            <button type="button" className={ui.chip} onClick={() => setAdding(value => !value)}>
-              {t('grow.scheme.addProduct')}
-            </button>
-            <button type="button" className={ui.chip} onClick={() => editGrid(withLastWeekRepeated)}>
-              {t('grow.scheme.repeatLastWeek')}
-            </button>
-            {flowerWeeks(draft.grid) < LONG_BLOOM ? (
-              <button type="button" className={ui.chip} onClick={() => editGrid(grid => withFlowerWeeks(grid, LONG_BLOOM))}>
-                {t('grow.scheme.stretch', { count: LONG_BLOOM })}
-              </button>
-            ) : null}
-            {published && draft.edited ? (
-              <button
-                type="button"
-                className={ui.chip}
-                onClick={() =>
+        reset={
+          published && draft.edited
+            ? {
+                name: label,
+                // Back to the chart as this build ships it, which for a
+                // shipped asset also means the version this build ships.
+                onReset: () =>
                   setDraft({
                     ...draft,
                     edited: false,
                     grid: published,
                     origin: draft.origin.type === 'asset' && asset.data ? { ...draft.origin, version: asset.data.version } : draft.origin,
-                  })
-                }
-              >
-                {t('grow.scheme.reset', { name: label })}
-              </button>
-            ) : null}
-            {pickedProduct ? (
-              <button
-                type="button"
-                className={ui.chip}
-                onClick={() => {
-                  editGrid(grid => withoutProduct(grid, pickedProduct.productKey));
-                  setPicked(null);
-                }}
-              >
-                {t('grow.scheme.removeProduct', { name: pickedProduct.name })}
-              </button>
-            ) : null}
-          </div>
+                  }),
+              }
+            : null
+        }
+        onEdit={editGrid}
+      >
+        <p className={styles.note}>
+          {currentWeek !== null ? `${t('grow.scheme.thisWeekLine', { week: currentWeek })} ` : ''}
+          {draft.flipWeek !== null ? `${t('grow.scheme.flipLine', { week: draft.flipWeek })} ` : ''}
+          {mayManage ? t('grow.scheme.howLine') : null}
+        </p>
+      </GridEditor>
 
-          {adding ? (
-            <AddProduct
-              taken={products}
-              onAdd={product => {
-                editGrid(grid => withProduct(grid, product));
-                setAdding(false);
-              }}
-            />
-          ) : null}
-
-          {unsaved}
-        </>
-      ) : null}
+      {unsaved}
 
       <p className={styles.caption}>
         {hasEcTargets(draft.grid) ? `${t('grow.scheme.ecCaption')} ` : ''}
@@ -397,41 +333,6 @@ function BasedOn({
     </button>
   ) : (
     <section className={`${ui.card} ${styles.basedOn}`}>{inside}</section>
-  );
-}
-
-/** A row of one's own: what it is called and what it is measured in. */
-function AddProduct({ taken, onAdd }: { taken: Product[]; onAdd: (product: Product) => void }) {
-  const { t } = useTranslation();
-  const [name, setName] = useState('');
-  const [unit, setUnit] = useState(UNITS[0]);
-
-  return (
-    <div className={styles.newProduct}>
-      <input
-        className={`${ui.input} ${styles.newProductName}`}
-        value={name}
-        placeholder={t('grow.scheme.productPlaceholder')}
-        aria-label={t('grow.scheme.productName')}
-        autoComplete="off"
-        onChange={event => setName(event.target.value)}
-      />
-      <select className={styles.newProductUnit} aria-label={t('grow.scheme.unit')} value={unit} onChange={event => setUnit(event.target.value)}>
-        {UNITS.map(one => (
-          <option key={one} value={one}>
-            {one}
-          </option>
-        ))}
-      </select>
-      <button
-        type="button"
-        className={ui.button}
-        disabled={name.trim() === ''}
-        onClick={() => onAdd({ productKey: productKeyFor(name.trim(), taken), name: name.trim(), unit })}
-      >
-        {t('grow.scheme.add')}
-      </button>
-    </div>
   );
 }
 

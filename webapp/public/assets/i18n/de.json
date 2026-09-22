@@ -1465,7 +1465,30 @@
   },
   "me": {
     "title": "Ich",
-    "appearance": "Darstellung",
+    "appearance": {
+      "title": "Darstellung",
+      "display": "Anzeige",
+      "themeLine": "folgt dem System, bis du wählst",
+      "language": "Sprache",
+      "languageLine": "in diesem Browser gemerkt",
+      "languageNames": {
+        "en": "English",
+        "de": "Deutsch"
+      },
+      "units": "Einheiten",
+      "unitsLine": "beim Konto gespeichert · jede Ansicht zeigt noch metrisch",
+      "temperature": "Temperatur",
+      "weight": "Gewicht",
+      "volume": "Volumen",
+      "unit": {
+        "celsius": "°C",
+        "fahrenheit": "°F",
+        "grams": "g",
+        "ounces": "oz",
+        "liters": "l",
+        "gallons": "gal"
+      }
+    },
     "theme": {
       "label": "Design",
       "system": "System",
@@ -1473,6 +1496,83 @@
       "dark": "Dunkel"
     },
     "signOut": "Abmelden",
+    "demo": "Die Demo hat kein eigenes Konto, hier gibt es also nichts davon zu ändern.",
+    "identity": {
+      "profileOn": "Profil öffentlich",
+      "profileOff": "Profil privat"
+    },
+    "door": {
+      "public": {
+        "none": "noch keine Grows",
+        "public_one": "{{count}} öffentlich",
+        "public_other": "{{count}} öffentlich",
+        "private_one": "{{count}} privat",
+        "private_other": "{{count}} privat",
+        "profileOff": "Profil aus"
+      },
+      "following": {
+        "none": "noch niemand",
+        "grows_one": "{{count}} Grow",
+        "grows_other": "{{count}} Grows"
+      },
+      "shareLinks": {
+        "none": "noch keine Links",
+        "active_one": "{{count}} aktiv",
+        "active_other": "{{count}} aktiv",
+        "expired_one": "{{count}} abgelaufen",
+        "expired_other": "{{count}} abgelaufen",
+        "revoked_one": "{{count}} zurückgezogen",
+        "revoked_other": "{{count}} zurückgezogen"
+      },
+      "premium": {
+        "none": "keine Kameras",
+        "cameras_one": "{{count}} Kamera",
+        "cameras_other": "{{count}} Kameras",
+        "premium_one": "{{count}} Premium",
+        "premium_other": "{{count}} Premium",
+        "noEntitlement": "kein Anspruch",
+        "grant": {
+          "included": "inklusive bis {{date}}",
+          "migration": "übernommen bis {{date}}",
+          "purchase": "bezahlt bis {{date}}"
+        },
+        "state": {
+          "active": "aktiv",
+          "expired": "abgelaufen",
+          "free": "gratis",
+          "partly": "teils"
+        }
+      },
+      "notifications": {
+        "none": "kein Kanal an",
+        "muted": "stumm",
+        "quiet": "Ruhe {{from}}–{{to}}"
+      },
+      "privacy": {
+        "weights": "Gewichte in geteilten Ansichten verborgen",
+        "counts": "Pflanzenzahlen in geteilten Ansichten verborgen",
+        "both": "Gewichte und Zahlen in geteilten Ansichten verborgen",
+        "nothing": "nichts in geteilten Ansichten verborgen",
+        "retention": "Aufbewahrung {{keep}}",
+        "days_one": "{{count}} Tag",
+        "days_other": "{{count}} Tage"
+      },
+      "appearance": {
+        "theme": "Design: {{theme}}",
+        "units": "Einheiten: {{units}}",
+        "language": "Sprache: {{language}}"
+      },
+      "schemes": {
+        "none": "keins in Gebrauch",
+        "several": "{{count}} in Gebrauch",
+        "edited": "{{name}} (bearbeitet)",
+        "own_one": "{{count}} eigenes",
+        "own_other": "{{count}} eigene",
+        "noOwn": "noch kein eigenes"
+      },
+      "account": "E-Mail · Passwort · Sitzungen · Export · Löschen",
+      "about": "v{{version}} · {{build}}"
+    },
     "privacy": {
       "title": "Privatsphäre",
       "demo": "Die Demo hat kein eigenes Konto, hier gibt es also nichts einzustellen.",
@@ -1654,13 +1754,80 @@
       "nowhereToExtend": "Diese Installation nennt keinen Ort, an dem sich Premium verlängern ließe; frag, wer sie betreibt."
     },
     "schemes": {
-      "title": "Düngepläne"
+      "title": "Düngepläne",
+      "shipped": "Mit der App geliefert",
+      "mine": "Meine",
+      "weeks_one": "{{count}} Woche",
+      "weeks_other": "{{count}} Wochen",
+      "flip": "Umstellung in Woche {{week}}",
+      "noneShipped": "Dieser Build liefert keine Schemata mit.",
+      "howToKeep": "Ein eigenes Schema legst du im Reiter Düngung eines Grows an: „Als eigenes speichern“.",
+      "fromAsset": "aus {{name}}",
+      "byHand": "von Hand geschrieben",
+      "readFrom": "gelesen aus",
+      "readAt": "Stand {{date}}",
+      "copyNote": "Ein Schema in diesem Regal ist eine Kopie. Wird es bearbeitet, ändert das, womit der nächste Grow startet, und nichts, was schon wächst.",
+      "name": "Name",
+      "save": "Speichern",
+      "saving": "Speichert …",
+      "delete": "Löschen",
+      "deleteAsk": "{{name}} löschen? Grows, die schon danach gedüngt werden, behalten ihr eigenes Raster.",
+      "deleteYes": "Ja, löschen",
+      "cancel": "Abbrechen",
+      "demo": "Die Demo hat kein eigenes Regal, hier stehen also nur die mitgelieferten Schemata."
     },
     "account": {
-      "title": "Konto"
+      "title": "Konto",
+      "demo": "Die Demo hat kein eigenes Konto, hier gibt es also nichts einzustellen.",
+      "signIn": "Anmeldung",
+      "email": {
+        "title": "E-Mail",
+        "line": "damit meldest du dich an · dieser Server bietet keinen Weg, sie zu ändern"
+      },
+      "password": {
+        "title": "Passwort",
+        "line": "das aktuelle wird zuerst abgefragt",
+        "change": "Ändern",
+        "current": "Aktuelles Passwort",
+        "new": "Neues Passwort",
+        "repeat": "Neues Passwort noch einmal",
+        "mismatch": "Die beiden neuen Passwörter sind verschieden.",
+        "save": "Speichern",
+        "cancel": "Abbrechen",
+        "saving": "Speichert …",
+        "changed": "Passwort geändert."
+      },
+      "sessions": {
+        "title": "Sitzungen",
+        "line": "jeder Browser und jedes Skript, das als du angemeldet ist",
+        "thisDevice": "dieses Gerät",
+        "signOut": "Abmelden",
+        "lastSeen": "zuletzt vor {{age}}",
+        "until": "bis {{date}}",
+        "unknownDevice": "unbekanntes Gerät",
+        "more": "Mehr"
+      },
+      "data": "Daten",
+      "export": {
+        "title": "Alles exportieren",
+        "note": "Jeder Grow, jeder Messwert und jedes Foto in einer ZIP-Datei: JSON, CSV und die Bilder. Gehört dir.",
+        "ask": "ZIP erstellen",
+        "again": "Erneut versuchen",
+        "queued": "in der Warteschlange",
+        "rendering": "Datei wird erstellt …",
+        "download": "Herunterladen · {{size}}",
+        "failedPlain": "Die Datei konnte nicht erstellt werden."
+      }
     },
     "about": {
-      "title": "Über"
+      "title": "Über",
+      "app": "Diese App",
+      "server": "Server",
+      "links": "Links",
+      "build": {
+        "production": "Produktions-Build",
+        "development": "Entwicklungs-Build"
+      }
     }
   },
   "later": {

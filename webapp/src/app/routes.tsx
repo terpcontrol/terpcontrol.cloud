@@ -12,8 +12,12 @@ import { Home } from '@/screens/Home';
 import { JoinRoute } from '@/screens/join/JoinRoute';
 import { LogRoute } from '@/log/LogRoute';
 import { Me } from '@/screens/Me';
+import { About } from '@/screens/me/about/About';
+import { Account } from '@/screens/me/account/Account';
+import { Appearance } from '@/screens/me/appearance/Appearance';
 import { Privacy } from '@/screens/me/privacy/Privacy';
 import { Premium } from '@/screens/me/premium/Premium';
+import { Schemes } from '@/screens/me/schemes/Schemes';
 import { Following } from '@/screens/me/sharing/Following';
 import { PublicGrows } from '@/screens/me/sharing/PublicGrows';
 import { ShareLinks } from '@/screens/me/sharing/ShareLinks';
@@ -108,10 +112,10 @@ export const router = createBrowserRouter([
       { path: 'me/following', element: <Following /> },
       { path: 'me/share-links', element: <ShareLinks /> },
       { path: 'me/premium', element: <Premium /> },
-      { path: 'me/schemes', element: <Placeholder titleKey="me.schemes.title" /> },
-      { path: 'me/appearance', element: <Placeholder titleKey="me.appearance" /> },
-      { path: 'me/account', element: <Placeholder titleKey="me.account.title" /> },
-      { path: 'me/about', element: <Placeholder titleKey="me.about.title" /> },
+      { path: 'me/schemes', element: <Schemes /> },
+      { path: 'me/appearance', element: <Appearance /> },
+      { path: 'me/account', element: <Account /> },
+      { path: 'me/about', element: <About /> },
       { path: 'admin/fleet', element: <Placeholder titleKey="admin.fleet.title" /> },
       { path: 'admin/firmware', element: <Placeholder titleKey="admin.firmware.title" /> },
       { path: 'admin/users', element: <Placeholder titleKey="admin.users.title" /> },

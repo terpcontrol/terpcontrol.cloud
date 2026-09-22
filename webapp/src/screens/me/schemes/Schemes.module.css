@@ -1,0 +1,98 @@
+/* Me › Feeding schemes: two shelves of rows, and a sheet over them holding one
+   scheme's grid. */
+
+/* A row that is a door to a sheet: the whole card is the button, the chevron
+   says so, and the text keeps the page's own alignment rather than a button's. */
+.schemeRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  text-align: left;
+  color: var(--ink);
+}
+
+.schemeRow svg {
+  flex: none;
+  color: var(--muted);
+}
+
+.schemeText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.schemeTitle {
+  font-weight: var(--weight-semibold);
+}
+
+.schemeLine {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.meta {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.caption {
+  font-size: var(--text-xs);
+  line-height: var(--line-body);
+  color: var(--label);
+}
+
+.caption a {
+  color: var(--muted);
+  text-decoration: underline;
+}
+
+/* Deleting asks first, in the place the tap was. */
+.asking {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--rule-dashed);
+  border-radius: var(--radius);
+}
+
+.askingActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.danger {
+  border-color: var(--alarm);
+  color: var(--alarm);
+}
+
+/* Outlined rather than filled, as the privacy page's is: a solid alarm would
+   need an ink that reads on it in both themes, and there is no such token. */
+.dangerButton {
+  background: transparent;
+  border-color: var(--alarm);
+  color: var(--alarm);
+}
+
+.dangerButton:disabled {
+  border-color: var(--rule);
+  color: var(--muted);
+}

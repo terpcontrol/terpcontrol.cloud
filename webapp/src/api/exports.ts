@@ -27,6 +27,21 @@ export const useAskExport = (growId: string) => {
   });
 };
 
+/**
+ * The same job for everything the account has - every grow, every reading,
+ * every photo - which is the export the privacy screen promises. It answers
+ * the same row and is polled the same way; only the route differs, and with it
+ * who may ask: a demo session owns nothing and is refused.
+ */
+export const useAskAccountExport = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => api.get<ExportAccepted>('/me/export'),
+    onSuccess: accepted => queryClient.setQueryData(['media', accepted.media.id], accepted.media),
+  });
+};
+
 /** One export's row, asked about while the zip is still being written and left alone once it is not. */
 export const useExport = (mediaId: string | null) =>
   useQuery({

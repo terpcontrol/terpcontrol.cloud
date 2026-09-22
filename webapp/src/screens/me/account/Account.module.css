@@ -1,0 +1,83 @@
+/* Me › Account: the sign-in rows, the list of sessions, and the two ways out. */
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.sessions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sessionList {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* One session a rule apart from the next, the browser on the left and what can
+   be done to it on the right. */
+.session {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: var(--rule-solid);
+}
+
+.session:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.sessionText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+/* A user agent nothing could shorten is shown as it came, cut rather than
+   wrapped: a name is recognised from its start. */
+.sessionDevice {
+  overflow: hidden;
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sessionMeta {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* The one row that is not a control wears the chip's shape in the muted ink,
+   so that it lines up with the buttons below it without pretending to be one. */
+.thisDevice {
+  flex: none;
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.exportStatus {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}

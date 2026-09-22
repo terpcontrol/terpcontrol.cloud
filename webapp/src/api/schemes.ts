@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { GrowScheme, GrowSchemeOrigin, GrowType, Scheme, SchemeCreate, SchemePage, SchemeWeek } from '@fg2/shared-types/v1';
+import type { GrowScheme, GrowSchemeOrigin, GrowType, Scheme, SchemeCreate, SchemePage, SchemeUpdate, SchemeWeek } from '@fg2/shared-types/v1';
 import { api } from './client';
 
 /**
@@ -162,11 +162,16 @@ export const growSchemeOf = (
  */
 export const ownSchemesKey = ['own-schemes'];
 
-/** One page is every scheme a person has written; no shelf is long enough to need a cursor. */
-export const useOwnSchemes = () =>
+/**
+ * One page is every scheme a person has written; no shelf is long enough to
+ * need a cursor. A screen that knows the shelf will be refused - the demo has
+ * no account to keep one on - says so rather than asking.
+ */
+export const useOwnSchemes = (enabled = true) =>
   useQuery({
     queryKey: ownSchemesKey,
     queryFn: ({ signal }) => api.get<SchemePage>('/schemes', { limit: 100 }, signal),
+    enabled,
   });
 
 export const useCreateScheme = () => {
@@ -174,6 +179,30 @@ export const useCreateScheme = () => {
 
   return useMutation({
     mutationFn: (body: SchemeCreate) => api.post<Scheme>('/schemes', body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ownSchemesKey }),
+  });
+};
+
+/**
+ * Changing or discarding one off the shelf. Neither reaches a grow: a grow
+ * carries its own copy of the grid, which is what makes editing the shelf safe
+ * and deleting from it cheap - the seasons already fed by a scheme keep every
+ * figure they were started with.
+ */
+export const useUpdateScheme = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: SchemeUpdate }) => api.patch<Scheme>(`/schemes/${id}`, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ownSchemesKey }),
+  });
+};
+
+export const useDeleteScheme = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/schemes/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ownSchemesKey }),
   });
 };

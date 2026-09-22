@@ -1,0 +1,15 @@
+/* Me › Appearance: the theme as three segments, the rest as menus. */
+
+.segments {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+.segment {
+  color: var(--muted);
+}
+
+.segmentActive {
+  border-color: var(--brand);
+  color: var(--brand);
+}

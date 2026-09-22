@@ -18,6 +18,7 @@
 
 .avatar {
   display: grid;
+  flex: none;
   place-items: center;
   width: 44px;
   height: 44px;
@@ -28,9 +29,28 @@
   font-weight: var(--weight-bold);
 }
 
+.who {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
 .handle {
   font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
+}
+
+/* The e-mail address and the state of the profile in one line. The address
+   is the part that can be any length, so the line is cut with an ellipsis
+   rather than wrapped: an address is recognised from its first letters. */
+.whoLine {
+  overflow: hidden;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Dense rows, each one a rule apart. */
@@ -53,6 +73,29 @@
 }
 
 .link svg {
+  flex: none;
+  color: var(--muted);
+}
+
+.doorText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+/* What the page behind the door currently says, in figures. */
+.doorLine {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* The state word the board sets against the right edge: "active", "expired". */
+.aside {
+  flex: none;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
@@ -61,29 +104,7 @@
   margin-top: var(--space-1);
 }
 
-.rowBody {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-top: var(--space-2);
-}
-
-.segments {
-  display: inline-flex;
-  gap: var(--space-1);
-}
-
-.segment {
-  color: var(--muted);
-}
-
-.segmentActive {
-  border-color: var(--brand);
-  color: var(--brand);
-}
-
-/* The same column as the settings screen this one leads to, rather than the
+/* The same column as the settings screens this one leads to, rather than the
    phone's width and the phone's top padding kept on a wide window. */
 @media (min-width: 900px) {
   .screen {
