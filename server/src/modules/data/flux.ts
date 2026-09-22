@@ -16,6 +16,20 @@ import { fieldOfMetric, fieldOfOutputMetric } from '@common/v1/metrics';
 const MEASUREMENT = 'status';
 
 /**
+ * Where a day that has left the retention window ends up: one point per field
+ * per day, the mean of the raw samples of that day, stamped at the day's start.
+ *
+ * It is a measurement of its own rather than a coarser row in `status`, so that
+ * nothing has to tell a summary from a sample by its spacing: the sweep reads
+ * and deletes `status` alone and can be run twice without summarising its own
+ * summaries, and a read that wants the years back asks for both by name.
+ */
+export const SUMMARY_MEASUREMENT = 'status_daily';
+
+/** Days are cut in UTC, because the points are stamped in it and a summary must not move when somebody changes their time zone. */
+const A_DAY = '1d';
+
+/**
  * The lux a light meter reports becomes PPFD through a factor that depends on
  * the spectrum, so it is a per-device calibration rather than physics. The
  * default assumes a white full-spectrum LED.
@@ -66,7 +80,7 @@ const head = (bucket: string, deviceId: string, range: string): string => `
     |> filter(fn: (r) => r["_measurement"] == "${MEASUREMENT}")
     |> filter(fn: (r) => r["device_id"] == "${safe(deviceId, SAFE_NAME, 'device id')}")`;
 
-const rangeOf = (window: FluxWindow): string => `start: ${window.startsAt.toISOString()}, stop: ${window.endsAt.toISOString()}`;
+const rangeOf = (window: Omit<FluxWindow, 'stepSeconds'>): string => `start: ${window.startsAt.toISOString()}, stop: ${window.endsAt.toISOString()}`;
 
 const aggregate = (window: FluxWindow): string => `
     |> aggregateWindow(every: ${Math.max(1, Math.trunc(window.stepSeconds))}s, fn: mean, createEmpty: true)
@@ -105,6 +119,73 @@ export const seriesQuery = (bucket: string, deviceId: string, fields: readonly s
   return `${head(bucket, deviceId, rangeOf(window))}
     |> filter(fn: (r) => ${filter})${aggregate(window)}`;
 };
+
+/**
+ * The days that have already been summarised, read back as they were stored.
+ *
+ * They are not aggregated a second time. A summary is one point a day and the
+ * step a chart asked for is finer than that, so windowing them would only spread
+ * each day over the empty windows around it; the points go into the same grid as
+ * the raw ones at the instants they carry, which is the start of their day.
+ */
+export const summaryQuery = (bucket: string, deviceId: string, fields: readonly string[], window: Omit<FluxWindow, 'stepSeconds'>): string => {
+  const filter = fields.map(field => `r["_field"] == "${safe(field, FIELD_NAME, 'field name')}"`).join(' or ');
+
+  return `
+  from(bucket: "${safe(bucket, SAFE_NAME, 'bucket')}")
+    |> range(${rangeOf(window)})
+    |> filter(fn: (r) => r["_measurement"] == "${SUMMARY_MEASUREMENT}")
+    |> filter(fn: (r) => r["device_id"] == "${safe(deviceId, SAFE_NAME, 'device id')}")
+    |> filter(fn: (r) => ${filter})
+    |> limit(n: ${MAX_POINTS})`;
+};
+
+/**
+ * The oldest raw sample a device still has that is older than an instant, which
+ * is where the retention sweep starts its next pass.
+ *
+ * The sweep keeps no bookmark of its own: where it has got to is what is left in
+ * the store, so a pass that was interrupted half way through costs the next one
+ * nothing and a server that was down for a month catches up a chunk at a time.
+ * `first()` answers one row per field; the earliest of them is the answer.
+ */
+export const oldestSampleQuery = (bucket: string, deviceId: string, before: Date): string => `${head(
+  bucket,
+  deviceId,
+  `start: 0, stop: ${before.toISOString()}`,
+)}
+    |> first()`;
+
+/**
+ * A stretch of a device's raw samples as one figure a day.
+ *
+ * The store does the arithmetic. A year of thirty-second samples is a million
+ * points per field, and reading them into this process to average them is the
+ * difference between a sweep that runs on an install with years behind it and
+ * one that does not. Empty days are not created: a device that was unplugged
+ * for a week leaves that week absent rather than as seven rows of nothing.
+ *
+ * `timeSrc` stamps each day at its start rather than at its end, so a summary
+ * falls inside the day it is about.
+ */
+export const dailyMeanQuery = (bucket: string, deviceId: string, window: Omit<FluxWindow, 'stepSeconds'>): string => `${head(
+  bucket,
+  deviceId,
+  rangeOf(window),
+)}
+    |> aggregateWindow(every: ${A_DAY}, fn: mean, createEmpty: false, timeSrc: "_start")
+    |> limit(n: ${MAX_POINTS})`;
+
+/**
+ * Which points a delete is to take: one device's raw samples and nothing else.
+ *
+ * It is built here with the rest of what is sent to the store, and through the
+ * same check, because it is interpolated the same way and names the one
+ * measurement that must be spared - the summaries the sweep has just written
+ * stand in `status_daily`.
+ */
+export const rawSamplePredicate = (deviceId: string): string =>
+  `_measurement="${MEASUREMENT}" AND device_id="${safe(deviceId, SAFE_NAME, 'device id')}"`;
 
 /**
  * The same aggregate of one field over several devices, one series per device.
@@ -167,7 +248,13 @@ export const gridOf = (rows: FluxRow[]): SeriesGrid => {
 
     instants.add(row._time);
     const values = valuesByField.get(row._field) ?? new Map<string, number | null>();
-    values.set(row._time, numberOf(row._value));
+    // A reading already at that instant is never replaced by nothing. Two reads
+    // build one grid - the raw samples and the daily summaries behind them -
+    // and an empty window of the one falls on the start of a day the other has
+    // a figure for, which would otherwise blank it.
+    const known = values.get(row._time);
+    const value = numberOf(row._value);
+    if (!(value === null && known !== null && known !== undefined)) values.set(row._time, value);
     valuesByField.set(row._field, values);
   }
 
@@ -251,3 +338,44 @@ export const fieldsFor = (metrics: readonly Metric[], outputs: readonly OutputMe
 
 export const pointsOf = (instants: string[], valueAt: (instant: string) => number | null): SeriesPoint[] =>
   instants.map(instant => ({ measuredAt: instant, value: valueAt(instant) }));
+
+/** One day of a device, as it will be written: the instant the day starts, and every field that had a reading in it. */
+export interface DailySummary {
+  at: Date;
+  fields: Record<string, number>;
+}
+
+/**
+ * The rows of a daily aggregate, gathered into the points that are written.
+ *
+ * One row per field per day comes back and one point per day goes in, so the
+ * rows are grouped by the instant they share. A window whose mean is not a
+ * number is left out rather than written as one: Influx renders an aggregate of
+ * nothing as an empty cell, and a field that is absent from a summary says the
+ * device measured nothing that day, where a zero would say it measured zero.
+ *
+ * A day that ends up with no field at all is not a point. Writing it would cost
+ * a row to say nothing, and the sweep would then have no way of telling a day
+ * it has summarised from a day there was nothing to summarise.
+ */
+export const dailySummariesOf = (rows: FluxRow[]): DailySummary[] => {
+  const days = new Map<string, Record<string, number>>();
+
+  for (const row of rows) {
+    const value = numberOf(row._value);
+    if (!row._field || !row._time || value === null) continue;
+
+    const fields = days.get(row._time) ?? {};
+    fields[row._field] = value;
+    days.set(row._time, fields);
+  }
+
+  return [...days]
+    .filter(([, fields]) => Object.keys(fields).length > 0)
+    .map(([instant, fields]) => ({ at: new Date(instant), fields }))
+    .filter(day => !Number.isNaN(day.at.getTime()))
+    .sort((one, other) => one.at.getTime() - other.at.getTime());
+};
+
+/** The start of the UTC day an instant falls in, which is where a summary is stamped and where a sweep's chunks begin and end. */
+export const startOfDay = (at: Date): Date => new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));

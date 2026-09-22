@@ -13,6 +13,9 @@ import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { influxConfig } from '../../config/configuration';
 import {
   computedValue,
+  DailySummary,
+  dailyMeanQuery,
+  dailySummariesOf,
   DEFAULT_PPFD_LUX_FACTOR,
   DeviceFactors,
   fieldsFor,
@@ -20,10 +23,14 @@ import {
   gridOf,
   latestByField,
   liveQuery,
+  oldestSampleQuery,
   pointsOf,
+  rawSamplePredicate,
   readingsOf,
   seriesQuery,
   stepFor,
+  summaryQuery,
+  SUMMARY_MEASUREMENT,
   trendQuery,
 } from './flux';
 
@@ -184,11 +191,21 @@ export class DataService implements LightStateReader {
     // about one at all: a share link whose range ends before the window a chip
     // asked for begins leaves exactly that.
     const fields = window.endsAt > window.startsAt ? fieldsFor(request.metrics, outputs) : [];
-    const [rows, factors] = fields.length
-      ? await Promise.all([this.read(seriesQuery(this.bucket, deviceId, fields, window)), this.factorsOf(deviceId)])
-      : [[] as FluxRow[], DEFAULT_FACTORS];
+    // The raw samples and, behind them, the days that have already been
+    // summarised away. Retention is what makes the second read necessary:
+    // without it a chart of last year would be empty on an install that keeps a
+    // shorter window, and the readings are not gone - they are a day apart.
+    // They never overlap, because a day is summarised and dropped in one act,
+    // so the two sets of points go into one grid at the instants they carry.
+    const [rows, summaries, factors] = fields.length
+      ? await Promise.all([
+          this.read(seriesQuery(this.bucket, deviceId, fields, window)),
+          this.read(summaryQuery(this.bucket, deviceId, fields, window)),
+          this.factorsOf(deviceId),
+        ])
+      : [[] as FluxRow[], [] as FluxRow[], DEFAULT_FACTORS];
 
-    const grid = gridOf(rows);
+    const grid = gridOf([...summaries, ...rows]);
     const valueAt = (field: string, instant: string): number | null => grid.valuesByField.get(field)?.get(instant) ?? null;
 
     return {
@@ -254,6 +271,75 @@ export class DataService implements LightStateReader {
   public async outputPoints(deviceId: string, output: OutputMetric, window: Omit<SeriesRequest, 'metrics' | 'outputs'>): Promise<SeriesPoint[]> {
     const { outputs } = await this.series(deviceId, { ...window, metrics: [], outputs: [output] });
     return outputs[0].points;
+  }
+
+  /**
+   * The oldest raw sample a device has that is older than an instant, which is
+   * where the retention sweep picks up. Null is "nothing that old is left",
+   * which is how a device that has been swept says it is done.
+   */
+  public async oldestSampleBefore(deviceId: string, before: Date): Promise<Date | null> {
+    const rows = await this.read(oldestSampleQuery(this.bucket, deviceId, before));
+    const instants = rows.map(row => (row._time ? new Date(row._time).getTime() : NaN)).filter(at => Number.isFinite(at));
+
+    return instants.length > 0 ? new Date(Math.min(...instants)) : null;
+  }
+
+  /**
+   * A stretch of a device's raw samples, read back as one figure a day. The
+   * points are answered rather than written so that the sweep decides what to do
+   * with them - and so that the arithmetic can be looked at without a store.
+   */
+  public async dailySummariesOf(deviceId: string, window: { startsAt: Date; endsAt: Date }): Promise<DailySummary[]> {
+    return dailySummariesOf(await this.read(dailyMeanQuery(this.bucket, deviceId, window)));
+  }
+
+  /**
+   * The summaries, stored. They carry the same tag and the same field names as
+   * the samples they stand for, so a read of them needs to know nothing but the
+   * measurement they are in - and writing the same day twice replaces it, which
+   * is what makes a sweep that is interrupted safe to run again.
+   */
+  public async writeDailySummaries(deviceId: string, summaries: readonly DailySummary[]): Promise<void> {
+    if (summaries.length === 0) return;
+
+    const writeApi = this.influx.getWriteApi(this.config.org!, this.bucket, 'ns');
+    writeApi.useDefaultTags({ device_id: deviceId });
+
+    for (const day of summaries) {
+      const point = new Point(SUMMARY_MEASUREMENT);
+      for (const [field, value] of Object.entries(day.fields)) point.floatField(field, value);
+      point.timestamp(day.at);
+      writeApi.writePoint(point);
+    }
+
+    // Unlike a lost sample, a failure here has to reach the caller: the sweep
+    // deletes what it has summarised, and deleting after a write that did not
+    // happen is how a year of somebody's readings would go missing.
+    await writeApi.close();
+  }
+
+  /**
+   * The raw samples of a stretch, dropped. Only `status` - the summaries just
+   * written are a measurement of their own and this must not take them with it.
+   *
+   * The client package has no delete API, so this is the HTTP one it would call.
+   * The range is closed at the start and open at the end, which is what the
+   * store does with it, so a chunk that ends where the next begins drops each
+   * point exactly once.
+   */
+  public async dropRawSamples(deviceId: string, startsAt: Date, endsAt: Date): Promise<void> {
+    const url = new URL('/api/v2/delete', this.config.url);
+    url.searchParams.set('org', this.config.org!);
+    url.searchParams.set('bucket', this.bucket);
+
+    const answer = await fetch(url, {
+      method: 'POST',
+      headers: { authorization: `Token ${this.config.token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ start: startsAt.toISOString(), stop: endsAt.toISOString(), predicate: rawSamplePredicate(deviceId) }),
+    });
+
+    if (!answer.ok) throw new Error(`The store refused to drop ${deviceId}'s raw samples: ${answer.status} ${await answer.text()}`);
   }
 
   private get bucket(): string {

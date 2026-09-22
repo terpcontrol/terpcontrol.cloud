@@ -17,6 +17,7 @@ import { HealthModule } from './modules/health/health.module';
 import { MailModule } from './modules/mail/mail.module';
 import { MqttModule } from './modules/mqtt/mqtt.module';
 import { MqttAuthModule } from './modules/mqtt-auth/mqtt-auth.module';
+import { RetentionModule } from './modules/retention/retention.module';
 import { TunnelModule } from './modules/tunnel/tunnel.module';
 import { AccountDeletionModule } from './modules/v1/account-deletion/account-deletion.module';
 import { AccountModule } from './modules/v1/account/account.module';
@@ -103,9 +104,11 @@ import { WiringModule } from './wiring.module';
     SharingModule,
     NotificationModule,
 
-    // The probes, and the daily sweep for records nothing can reach any more.
+    // The probes, the daily sweep for records nothing can reach any more, and
+    // the nightly one that summarises climate past its window.
     HealthModule,
     CleanupModule,
+    RetentionModule,
 
     WiringModule,
   ],

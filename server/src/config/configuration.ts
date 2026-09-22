@@ -162,6 +162,24 @@ export const premiumConfig = registerAs('premium', () => ({
   priceLabel: (process.env.PREMIUM_PRICE_LABEL ?? '').trim(),
 }));
 
+/**
+ * How long raw climate points are kept where nobody has said otherwise.
+ *
+ * An account sets its own window and a tent may set a narrower one; this is the
+ * figure a `null` window falls back to, and it is configuration for the same
+ * reason the free picture windows are - the mechanism belongs in this
+ * repository and the numbers in the install that runs it.
+ *
+ * Zero is "keep everything", and it is the default on purpose. The app offers
+ * "keep everything" as a window of its own, and an install that has never said
+ * a word about retention must not start summarising three years of somebody's
+ * readings away the first time it is upgraded. An install that wants a window
+ * says so.
+ */
+export const retentionConfig = registerAs('retention', () => ({
+  climateDays: number(process.env.RETENTION_CLIMATE_DAYS, 0),
+}));
+
 export const configNamespaces = [
   appConfig,
   databaseConfig,
@@ -171,5 +189,6 @@ export const configNamespaces = [
   authConfig,
   terpCamConfig,
   premiumConfig,
+  retentionConfig,
   notificationsConfig,
 ];
