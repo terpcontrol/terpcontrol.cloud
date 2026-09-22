@@ -1,28 +1,15 @@
 import type { ReactNode } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { MePage } from '../parts';
 import styles from './sharing.module.css';
 
 /**
- * The frame the three pages share: the title, the trail back to Me, and the
- * column under them. It is the frame Privacy draws for itself, kept here once
- * so that three screens about the same subject - what other people can see -
- * cannot drift apart from each other or from it.
+ * The frame the three pages share, which is the frame every page below Me
+ * shares: it was drawn twice for a while and the copy here lost the way back a
+ * phone needs, because a trail of words is not something a thumb finds. There
+ * is one frame now and this is the name these three screens call it by.
  */
 export function Page({ title, children }: { title: string; children: ReactNode }) {
-  const { t } = useTranslation();
-
-  return (
-    <section className={styles.page}>
-      <header className={styles.head}>
-        <h1 className={styles.title}>{title}</h1>
-        <span className={`mono ${styles.crumb}`}>
-          <Link to="/me">{t('me.title')}</Link> › {title}
-        </span>
-      </header>
-      {children}
-    </section>
-  );
+  return <MePage title={title}>{children}</MePage>;
 }
 
 /** A small-caps label over a block, with the figure the board puts opposite it. */

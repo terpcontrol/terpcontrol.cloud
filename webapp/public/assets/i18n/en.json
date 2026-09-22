@@ -1631,7 +1631,9 @@
         "ask": {
           "what": "Climate readings older than {{keep}} become one figure a day: everything before {{date}}, and from now on each day that leaves the window. The daily figure stays in the charts and in your export; the readings themselves are deleted and cannot come back.",
           "yes": "Keep {{keep}}"
-        }
+        },
+        "installKeeps_one": "this install keeps at most {{count}} day of raw samples · then daily summaries",
+        "installKeeps_other": "this install keeps at most {{count}} days of raw samples · then daily summaries"
       },
       "keep": {
         "d90": "90 days",

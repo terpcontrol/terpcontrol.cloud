@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import { useState } from 'react';
+import type { Me } from '@fg2/shared-types/v1';
 import { useTranslation } from 'react-i18next';
 import { Sheet } from '@/log/Sheet';
 import ui from '@/ui/ui.module.css';
@@ -26,11 +27,13 @@ import styles from './Privacy.module.css';
  */
 export function ClimateRow({
   climateDays,
+  retention,
   disabled,
   now,
   onChange,
 }: {
   climateDays: number | null;
+  retention: Me['climateRetention'];
   disabled: boolean;
   now: DateTime;
   onChange: (days: number | null) => void;
@@ -46,7 +49,21 @@ export function ClimateRow({
 
   return (
     <>
-      <Row title={t('me.privacy.climate.title')} line={t('me.privacy.climate.line')}>
+      {/*
+        "Keep everything" is the account saying nothing, and an install may have
+        a window of its own behind that - so the line says what will really
+        happen here rather than repeating the choice back.
+      */}
+      <Row
+        title={t('me.privacy.climate.title')}
+        line={
+          retention.appliesDays === null
+            ? t('me.privacy.climate.line')
+            : climateDays === null
+              ? t('me.privacy.climate.installKeeps', { count: retention.appliesDays })
+              : t('me.privacy.climate.line')
+        }
+      >
         <Menu name={t('me.privacy.climate.title')} value={String(climateDays ?? '')} disabled={disabled} onChange={choose}>
           {KEEP.map(option => (
             <option key={option.key} value={option.days === null ? '' : String(option.days)}>

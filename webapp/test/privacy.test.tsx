@@ -268,6 +268,15 @@ describe('how long anything is kept', () => {
     expect(server.exportsAsked).toBe(1);
   });
 
+  it('says what this install will really keep where the account has said nothing', async () => {
+    await drawLoaded({
+      retention: { climateDays: null },
+      climateRetention: { installDays: 365, appliesDays: 365 },
+    });
+
+    expect(screen.getByText(/this install keeps at most 365 days of raw samples/)).toBeInTheDocument();
+  });
+
   it('names the days where the install has named them', async () => {
     await drawLoaded({ premium: { enforced: true, extendUrl: null, priceLabel: null, free: { stillWidth: 640, stillDays: 90, timelapseDays: 30 } } });
 

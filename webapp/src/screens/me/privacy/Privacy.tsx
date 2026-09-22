@@ -110,6 +110,7 @@ export function Privacy() {
       <span className="label">{t('me.privacy.data')}</span>
 
       <ClimateRow
+        retention={account.climateRetention}
         climateDays={account.retention.climateDays}
         disabled={held}
         now={now}

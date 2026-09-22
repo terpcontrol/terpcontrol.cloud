@@ -1627,7 +1627,9 @@
         "ask": {
           "what": "Klimawerte, die älter sind als {{keep}}, werden zu einem Wert pro Tag: alles vor dem {{date}}, und von jetzt an jeder Tag, der aus dem Fenster fällt. Der Tageswert bleibt in den Diagrammen und im Export; die Messwerte selbst werden gelöscht und kommen nicht zurück.",
           "yes": "{{keep}} behalten"
-        }
+        },
+        "installKeeps_one": "diese Installation behält höchstens {{count}} Tag Rohdaten · danach Tageswerte",
+        "installKeeps_other": "diese Installation behält höchstens {{count}} Tage Rohdaten · danach Tageswerte"
       },
       "keep": {
         "d90": "90 Tage",

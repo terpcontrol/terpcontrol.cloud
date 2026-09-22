@@ -1,44 +1,7 @@
 /* Me › Share links, Public grows and profile, Following: the three pages about
-   what other people can see. One column under small-caps labels, built the way
-   Privacy is, so the rows below Me read as one screen. Phone first; the shell
-   keeps the column width on a desktop. */
-
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  max-width: var(--column-width);
-  padding-top: var(--space-2);
-}
-
-.head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-2);
-}
-
-.title {
-  font-size: var(--text-xl);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-tight);
-}
-
-/* The trail back to Me, kept for the width that has room for it; on a phone the
-   tab bar and the avatar already say where this page hangs. */
-.crumb {
-  display: none;
-  font-size: var(--text-xs);
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.crumb a {
-  color: var(--muted);
-}
-
+   what other people can see. One column under small-caps labels, inside the
+   frame every page below Me shares. Phone first; the shell keeps the column
+   width on a desktop. */
 /* A label with the count the board puts opposite it. */
 .sectionHead {
   display: flex;
@@ -210,12 +173,4 @@
 }
 
 @media (min-width: 900px) {
-  .page {
-    max-width: 720px;
-    padding-top: 0;
-  }
-
-  .crumb {
-    display: inline;
-  }
 }
