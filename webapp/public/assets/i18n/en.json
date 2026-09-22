@@ -3713,7 +3713,17 @@
       "admins_other": "{{count}} admins",
       "notActivated": "{{count}} not activated",
       "bytes_one": "{{count}} byte",
-      "bytes_other": "{{count}} bytes"
+      "bytes_other": "{{count}} bytes",
+      "gaveUp_one": "{{count}} gave up",
+      "gaveUp_other": "{{count}} gave up",
+      "rendersQueued_one": "{{count}} render queued",
+      "rendersQueued_other": "{{count}} renders queued",
+      "rendersFailed_one": "{{count}} failed",
+      "rendersFailed_other": "{{count}} failed",
+      "reached_one": "{{count}} device reached",
+      "reached_other": "{{count}} devices reached",
+      "errors_one": "{{count}} error",
+      "errors_other": "{{count}} errors"
     },
     "refused": {
       "title": "Not for this account",
@@ -3730,7 +3740,8 @@
       "neverSeen": "never",
       "open": "Open {{id}}",
       "noPlace": "This one stands in no place, so there is nothing to open.",
-      "showing": "showing {{shown}} of {{loaded}} loaded · {{total}} on this install",
+      "showing": "showing {{shown}} of {{loaded}} loaded · {{devices}} on this install",
+      "camerasOwn": "cams and the camera rows are the ones this account can see - the camera list answers an account, not the install, whose count is on the health card",
       "loadMore": "Load the rest",
       "noMatch": "No device matches these filters.",
       "noMatchSearch": "No device matches \"{{search}}\". The search reads a device's id, its name and its owner's handle, not the place it stands in.",
@@ -3752,7 +3763,8 @@
         "behind": "Not on stable",
         "search": "Search",
         "searchReads": "Search id, name or owner"
-      }
+      },
+      "camerasPartial": "the cameras past the loaded pages are on no row and in no cams count"
     },
     "rollout": {
       "title": "Firmware rollout",
@@ -3774,13 +3786,20 @@
     "health": {
       "title": "Health",
       "openDemo": "Open the demo",
-      "updates": "{{installing}} · {{failed}} gave up",
+      "asOf": "figures as of {{age}} ago",
+      "pictures": "pictures {{size}}",
+      "retention": "Retention ran {{time}} · {{age}} ago · {{reached}}",
+      "noRetention": "No retention pass since this server started",
+      "updates": "{{installing}} · {{gaveUp}}",
+      "statsFailed": "Could not read the install's own figures.",
+      "statsMissing": "This server does not answer its own figures yet: it has no /admin/stats route.",
+      "statsGap": "Nor, until they are read: devices online, what the pictures weigh, the render queue, the camera count and the retention pass.",
+      "notAnswered": "Not here because this install answers no figure for them yet: MQTT connections as the broker counts them - online above is what has been heard from, not what is connected -, the size of the time-series database, the server's own log, and the alarms of the last seven days per device.",
       "cameras": "{{cameras}} · {{quiet}}",
       "unclassified": "{{devices}} in no class, which no rollout reaches",
       "paused": "{{paused}} {{ofClasses}} paused",
       "demo": "Demo · {{online}} {{ofDevices}} alive · last word {{age}} ago",
-      "noDemo": "No device is marked as a demo one",
-      "notAnswered": "Not here because this install answers no figure for them yet: MQTT connections, the size of the time-series database and of the picture bucket, films queued for rendering, when the retention jobs last ran and with how many errors, the server's own log, and the alarms of the last seven days per device."
+      "noDemo": "No device is marked as a demo one"
     },
     "firmware": {
       "title": "Firmware",

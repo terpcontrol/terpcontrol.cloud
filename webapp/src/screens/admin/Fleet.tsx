@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { User } from '@fg2/shared-types/v1';
-import { useAdminDevices, useAdminUsers, useDeviceClasses, useFirmwares, useFleet } from '@/api/admin';
-import { useCameras } from '@/api/cameras';
+import { useAdminCameras, useAdminDevices, useAdminStats, useAdminUsers, useDeviceClasses, useFirmwares, useFleet } from '@/api/admin';
+import { useSession } from '@/api/session';
 import { ageLabel, deviceLiveness } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
@@ -28,7 +28,16 @@ import styles from './Admin.module.css';
  * are - and a column of cards answers none of them. The counts in the heading
  * come from `GET /admin/fleet`, which counts the whole fleet in the database;
  * the rows come from the device list, which is paged, so the two are stated
- * apart and the table says how much of the fleet it is showing.
+ * apart and the table says how much of the fleet it is showing. The camera
+ * list is paged the same way and is followed to its end beside the devices,
+ * because a standalone Terp Cam is a row here and a controller's cams are a
+ * column: a count taken off the first page of a longer list would be drawn as
+ * a fact, and where the pages run past the cap the line under the table says
+ * which cameras are on no row. That list is also the one read here that the
+ * server answers per account rather than for the install, an administrator's
+ * included, so the line under the table says so and the cams column is only
+ * filled on the reader's own devices; the install's camera count is the stats
+ * route's and stands on the health card.
  *
  * What the board draws and this does not is the alarms of the last seven days
  * per device: no read answers a count of alerts over a range, and a number
@@ -38,18 +47,21 @@ import styles from './Admin.module.css';
  */
 export function Fleet() {
   const { t } = useTranslation();
+  const { user } = useSession();
   const now = useNow();
   const [filter, setFilter] = useState<FleetFilter>(NO_FILTER);
 
   const fleet = useFleet();
   const devices = useAdminDevices();
   const people = useAdminUsers();
-  const cameras = useCameras();
+  const cameras = useAdminCameras();
   const classes = useDeviceClasses();
   const firmwares = useFirmwares(null);
+  const stats = useAdminStats();
 
   useFollowCursor(devices);
   useFollowCursor(people);
+  useFollowCursor(cameras);
   useFollowCursor(firmwares);
   useReportFreshness(fleet.dataUpdatedAt ? new Date(fleet.dataUpdatedAt).toISOString() : null);
 
@@ -78,12 +90,14 @@ export function Fleet() {
   }
 
   const known: Map<string, User> = new Map((people.data?.pages ?? []).flatMap(page => page.items).map(one => [one.id, one]));
+  const loadedCameras = (cameras.data?.pages ?? []).flatMap(page => page.items);
   const rows = fleetRows({
     devices: devices.data.pages.flatMap(page => page.items),
-    cameras: cameras.data?.items ?? [],
+    cameras: loadedCameras,
     classes: classes.data?.items ?? [],
     firmwares: (firmwares.data?.pages ?? []).flatMap(page => page.items),
     people: known,
+    readerId: user?.id ?? null,
   });
   const shown = filteredRows(rows, filter, now);
 
@@ -132,10 +146,25 @@ export function Fleet() {
         </table>
       </div>
 
+      {/* The total under the table is the install's device count, said as
+          that, because the rows above it also hold the standalone cameras and
+          no route counts those on their own. */}
       <div className={styles.row}>
-        <span className={`mono ${styles.consequence}`}>{t('admin.fleet.showing', { shown: shown.length, loaded: rows.length, total: counted })}</span>
-        {devices.hasNextPage ? (
-          <button type="button" className={ui.chip} onClick={() => void devices.fetchNextPage()} disabled={devices.isFetchingNextPage}>
+        <span className={`mono ${styles.consequence}`}>
+          {t('admin.fleet.showing', { shown: shown.length, loaded: rows.length, devices: t('admin.count.devices', { count: counted }) })}
+          {` · ${t('admin.fleet.camerasOwn')}`}
+          {cameras.hasNextPage ? ` · ${t('admin.fleet.camerasPartial')}` : ''}
+        </span>
+        {devices.hasNextPage || cameras.hasNextPage ? (
+          <button
+            type="button"
+            className={ui.chip}
+            disabled={devices.isFetchingNextPage || cameras.isFetchingNextPage}
+            onClick={() => {
+              if (devices.hasNextPage) void devices.fetchNextPage();
+              if (cameras.hasNextPage) void cameras.fetchNextPage();
+            }}
+          >
             {t('admin.fleet.loadMore')}
           </button>
         ) : null}
@@ -149,7 +178,7 @@ export function Fleet() {
           firmwares={(firmwares.data?.pages ?? []).flatMap(page => page.items)}
           now={now}
         />
-        <HealthCard fleet={fleet.data} devices={devices.data.pages.flatMap(page => page.items)} cameras={cameras.data?.items ?? []} now={now} />
+        <HealthCard fleet={fleet.data} devices={devices.data.pages.flatMap(page => page.items)} stats={stats} now={now} />
       </div>
     </section>
   );

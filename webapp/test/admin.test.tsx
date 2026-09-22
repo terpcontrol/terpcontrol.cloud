@@ -9,7 +9,7 @@ import type { ReactNode } from 'react';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Camera, Device, DeviceClass, Firmware, Fleet as FleetAnswer, User } from '@fg2/shared-types/v1';
+import type { AdminStats, Camera, Device, DeviceClass, Firmware, Fleet as FleetAnswer, User } from '@fg2/shared-types/v1';
 import { Rail } from '@/app/shell/Rail';
 import { LogProvider } from '@/log/LogProvider';
 import { AdminOnly } from '@/screens/admin/AdminOnly';
@@ -32,6 +32,12 @@ import { ThemeProvider } from '@/theme/ThemeProvider';
  * on the wire is asserted field by field - it reaches hardware standing in
  * somebody's tent, and the contract is the only thing that says what it may
  * contain.
+ *
+ * The health card is the fourth: it is where whoever runs the install learns
+ * that something has quietly stopped, so what it draws when the install's own
+ * figures arrive, when the retention pass is null, and when that read fails
+ * while the fleet answered are each checked - a figure nobody computed must
+ * not appear, and a pass that has not happened must not read as a zero.
  *
  * The fetch is stubbed by route rather than the hooks being mocked, so what is
  * asserted about a write is the body that went on the wire.
@@ -159,20 +165,69 @@ const FLEET: FleetAnswer = {
   unclassifiedDevices: 1,
 };
 
-const CAMERAS: Camera[] = [];
+const camera = (over: Partial<Camera> & { id: string }): Camera => ({
+  createdAt: NOW.minus({ months: 2 }).toISO()!,
+  ownerId: 'user-2',
+  kind: 'terpcam_controller',
+  deviceId: 'tc-7f3a',
+  spaceId: 'space-1',
+  name: 'Cam',
+  looksAt: null,
+  plantIds: [],
+  did: null,
+  uid: null,
+  ip: null,
+  url: null,
+  transport: null,
+  tunnel: false,
+  model: null,
+  stillIntervalSeconds: 30,
+  nightOff: false,
+  maintenanceOff: false,
+  logErrors: false,
+  staleWarning: true,
+  entitlement: { validUntil: null, grant: null, tier: 'premium', renewalVisible: false },
+  isDemo: false,
+  removedAt: null,
+  state: { lastStillAt: NOW.minus({ seconds: 40 }).toISO()!, lastError: null, firmwareVersion: '1.2.0' },
+  ...over,
+});
+
+/** A pass from last night, so that its hour is what the card draws and its age is at least a day short of two. */
+const LAST_NIGHT = NOW.minus({ days: 1 }).startOf('day').set({ hour: 3 });
+
+const STATS: AdminStats = {
+  collectedAt: NOW.minus({ seconds: 20 }).toISO()!,
+  users: { total: 2, active: 2, admins: 1 },
+  devices: { total: 4, claimed: 3, online: 1, updating: 0 },
+  cameras: { total: 11, entitled: 11, stale: 4 },
+  content: { spaces: 3, grows: 5, publicGrows: 1, plants: 12, entries: 400, media: 9000, mediaBytes: 2_254_857_830 },
+  renders: { queued: 3, rendering: 1, failed: 0 },
+  retention: { ranAt: LAST_NIGHT.toISO()!, reached: 143, devices: 96, days: 12, errors: 0 },
+};
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
+/** The reader's own controller: the one row whose cams the account-scoped camera list can count. */
+const MINE: Device = device({ id: 'tc-mine', name: 'My tent', ownerId: 'user-1' });
 
 const server = {
   wrote: [] as { method: string; path: string; body: unknown }[],
   asked: [] as string[],
-  // What the accounts and fleet routes answer; a test that needs a different
-  // install swaps these before drawing.
+  devices: DEVICES,
+  // What the accounts, fleet, stats and camera routes answer; a test that
+  // needs a different install swaps these before drawing. The cameras are
+  // pages, because the screen is expected to follow them.
   people: PEOPLE,
   fleet: FLEET,
+  stats: (() => json(STATS)) as () => Response,
+  cameras: [[]] as Camera[][],
 };
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
 const NOT_FOUND = { status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] };
+const BROKEN = { status: 500, code: 'internal', title: 'Something went wrong', detail: '', errors: [] };
 
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const path = String(input).replace(/^.*\/v1/, '');
@@ -186,11 +241,16 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
 
   server.asked.push(path);
   if (path.startsWith('/admin/fleet')) return json(server.fleet);
-  if (path.startsWith('/admin/devices')) return json({ items: DEVICES, nextCursor: null });
+  if (path.startsWith('/admin/stats')) return server.stats();
+  if (path.startsWith('/admin/devices')) return json({ items: server.devices, nextCursor: null });
   if (path.startsWith('/admin/users')) return json({ items: server.people, nextCursor: null });
   if (path.startsWith('/admin/device-classes')) return json({ items: [CLASS], nextCursor: null });
   if (path.startsWith('/admin/firmwares')) return json({ items: [BUILD], nextCursor: null });
-  if (path.startsWith('/cameras')) return json({ items: CAMERAS, nextCursor: null });
+  if (path.startsWith('/cameras')) {
+    const cursor = new URL(String(input), 'http://stub.invalid').searchParams.get('cursor');
+    const at = cursor ? Number(cursor.replace('page-', '')) : 0;
+    return json({ items: server.cameras[at] ?? [], nextCursor: at + 1 < server.cameras.length ? `page-${at + 1}` : null });
+  }
   if (path.startsWith('/alerts')) return json({ items: [], nextCursor: null });
 
   return json(NOT_FOUND, 404);
@@ -219,6 +279,9 @@ beforeEach(() => {
   server.asked = [];
   server.people = PEOPLE;
   server.fleet = FLEET;
+  server.stats = () => json(STATS);
+  server.devices = DEVICES;
+  server.cameras = [[]];
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -300,7 +363,29 @@ describe('the fleet table', () => {
     // Three devices in the one class plus the one in no class, and what the
     // server said is online - never a count of the rows that happen to be here.
     expect(screen.getByText('4 devices · 1 online')).toBeInTheDocument();
-    expect(screen.getByText(/showing 3 of 3 loaded · 4 on this install/)).toBeInTheDocument();
+    expect(screen.getByText(/showing 3 of 3 loaded · 4 devices on this install/)).toBeInTheDocument();
+  });
+
+  it("follows the camera list past its first page, so a standalone cam on the second page is a row and the reader's own cams are counted whole", async () => {
+    server.devices = [...DEVICES, MINE];
+    server.cameras = [
+      [camera({ id: 'cam-1', deviceId: 'tc-mine', ownerId: 'user-1' })],
+      [camera({ id: 'cam-a41c', kind: 'terpcam_standalone', deviceId: null, name: 'standalone' })],
+    ];
+    await drawFleet();
+
+    expect(await screen.findByText('cam-a41c')).toBeInTheDocument();
+    const rows = screen.getAllByRole('row');
+    expect(within(rows.find(row => within(row).queryByText('tc-mine'))!).getByText('6 · 1')).toBeInTheDocument();
+    // Somebody else's controller: the account's camera list cannot count its cams, so the cell says nothing rather than zero.
+    expect(within(rows.find(row => within(row).queryByText('tc-7f3a'))!).getByText('6 · —')).toBeInTheDocument();
+    expect(screen.getByText(/cams and the camera rows are the ones this account can see/)).toBeInTheDocument();
+    // Every camera read asks for the biggest page there is, and the second hands the cursor back.
+    const cameraReads = server.asked.filter(path => path.startsWith('/cameras'));
+    expect(cameraReads.length).toBeGreaterThanOrEqual(2);
+    expect(cameraReads.every(path => path.includes('limit=200'))).toBe(true);
+    expect(cameraReads.some(path => path.includes('cursor=page-1'))).toBe(true);
+    expect(screen.queryByText(/on no row/)).not.toBeInTheDocument();
   });
 
   it('names the owner by handle, says unclaimed where there is none, and never ranks a build', async () => {
@@ -383,12 +468,77 @@ describe('the fleet table', () => {
     expect(screen.getByText(/No further device of this class is told to update/)).toBeInTheDocument();
     expect(screen.getByText(/Staged at 100 %, which is about 3 of 3 devices/)).toBeInTheDocument();
   });
+});
 
-  it('draws no figure the server does not answer, and says which those are', async () => {
+describe('the health card', () => {
+  const drawFleet = async () => {
+    wrapped(
+      <AdminOnly>
+        <Fleet />
+      </AdminOnly>,
+    );
+    await screen.findByText('tc-7f3a');
+  };
+
+  it("draws the board's figures from the install's own answer, in its order, and calls the liveness what it is", async () => {
     await drawFleet();
 
-    expect(screen.queryByText(/InfluxDB|MQTT 1|renders queued/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Not here because this install answers no figure for them yet/)).toBeInTheDocument();
+    // Devices heard from, the picture bucket, the composer's queue - and never
+    // a broker connection count, which is not this server's to give.
+    expect(await screen.findByText(/^1 online · pictures 2\.1 GB · 3 renders queued ·$/)).toBeInTheDocument();
+    expect(screen.getByText('0 failed')).toBeInTheDocument();
+    expect(screen.queryByText(/MQTT \d|\d connected/)).not.toBeInTheDocument();
+
+    // The pass from last night: its hour, its age, how far it got, and its errors as their own figure.
+    expect(screen.getByText(/^Retention ran 03:00 · \d+ (h|d) ago · 143 devices reached ·$/)).toBeInTheDocument();
+    expect(screen.getByText('0 errors')).toBeInTheDocument();
+
+    // The camera count is the install's total, not the length of the loaded list, which is empty here.
+    expect(screen.getByText('11 cameras · 4 delivering nothing')).toBeInTheDocument();
+    expect(screen.getByText(/figures as of \d+ s ago/)).toBeInTheDocument();
+
+    // What is still not answered is named, and what now is has left the sentence.
+    const closing = screen.getByText(/Not here because this install answers no figure for them yet/);
+    expect(closing).toHaveTextContent(/time-series database/);
+    expect(closing).toHaveTextContent(/MQTT connections/);
+    expect(closing).not.toHaveTextContent(/retention/);
+    expect(closing).not.toHaveTextContent(/picture bucket/);
+  });
+
+  it('says nobody has swept since this server started when the pass is null, and never draws that as a zero', async () => {
+    server.stats = () => json({ ...STATS, retention: null });
+    await drawFleet();
+
+    expect(await screen.findByText('No retention pass since this server started')).toBeInTheDocument();
+    expect(screen.queryByText(/0 errors/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Retention ran/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the table and the lines counted from the fleet when the install's figures cannot be read, and names what is missing with them", async () => {
+    server.stats = () => json(BROKEN, 500);
+    await drawFleet();
+
+    expect(await screen.findByText("Could not read the install's own figures.")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    // Nothing that only the stats route answers is drawn from anything else.
+    expect(screen.queryByText(/pictures \d/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/renders queued/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Retention ran|No retention pass/)).not.toBeInTheDocument();
+    // The fleet answer's own lines stay, and the closing line says what went with the failed read.
+    expect(screen.getByText('0 installing · 0 gave up')).toBeInTheDocument();
+    expect(screen.getByText('1 device in no class, which no rollout reaches')).toBeInTheDocument();
+    expect(screen.getByText(/Nor, until they are read: devices online/)).toBeInTheDocument();
+    expect(screen.getByText('4 devices · 1 online')).toBeInTheDocument();
+  });
+
+  it('tells an administrator of an older server that the route is not there, rather than that the read failed', async () => {
+    server.stats = () => json(NOT_FOUND, 404);
+    await drawFleet();
+
+    expect(await screen.findByText(/This server does not answer its own figures yet/)).toBeInTheDocument();
+    // The account's own camera list never stands in for the install's count.
+    expect(screen.queryByText(/delivering nothing/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Nor, until they are read:.*the camera count/)).toBeInTheDocument();
   });
 });
 
@@ -576,7 +726,14 @@ describe("the administrator's own row", () => {
 
 describe('the arithmetic behind the table', () => {
   const rows = () =>
-    fleetRows({ devices: DEVICES, cameras: CAMERAS, classes: [CLASS], firmwares: [BUILD], people: new Map(PEOPLE.map(one => [one.id, one])) });
+    fleetRows({
+      devices: DEVICES,
+      cameras: [],
+      classes: [CLASS],
+      firmwares: [BUILD],
+      people: new Map(PEOPLE.map(one => [one.id, one])),
+      readerId: 'user-1',
+    });
 
   it('puts the hardware heard from most recently first, and the one that never spoke last', () => {
     expect(rows().map(row => row.id)).toEqual(['tc-7f3a', 'fg-1102', 'tc-00d4']);
@@ -588,7 +745,14 @@ describe('the arithmetic behind the table', () => {
 
   it('counts a device with no class as neither behind nor on stable, so a filter never claims it is either', () => {
     const noClass = filteredRows(
-      fleetRows({ devices: [device({ id: 'sim-1', classId: null })], cameras: [], classes: [CLASS], firmwares: [BUILD], people: new Map() }),
+      fleetRows({
+        devices: [device({ id: 'sim-1', classId: null })],
+        cameras: [],
+        classes: [CLASS],
+        firmwares: [BUILD],
+        people: new Map(),
+        readerId: null,
+      }),
       { ...NO_FILTER, behind: true },
       NOW,
     );

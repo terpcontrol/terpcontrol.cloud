@@ -15,6 +15,14 @@ import type { Camera, Device, DeviceClass, Firmware, User } from '@fg2/shared-ty
  * that no controller answers for; one paired to a controller is counted in that
  * controller's `cams` instead, which is the only place it would otherwise be
  * missed.
+ *
+ * The camera list is the one source here that is not the install's. The server
+ * answers it per account, an administrator's included, by decision: it is what
+ * the Premium screen counts and offers to bill, and an install-wide answer
+ * would sell an operator somebody else's cameras. So the cameras in these rows
+ * are the ones the reader's own account can see, and a cams count is only
+ * known for a device the reader owns - on anybody else's the cell says nothing
+ * rather than a zero that would be read as a fact.
  */
 
 /** Offline for longer than this is what the board's second chip filters on. */
@@ -38,7 +46,7 @@ export interface FleetRow {
   lastSeenAt: string | null;
   /** How many smart sockets the device says it has paired; null for a build that reports none and for a camera. */
   sockets: number | null;
-  /** How many cams answer through this device; null on a camera's own row. */
+  /** How many cams answer through this device; null on a camera's own row, and on a device the reader does not own. */
   cams: number | null;
   /** Whether the build it reports is the one its class calls stable; null where the class points nowhere yet. */
   onStable: boolean | null;
@@ -67,10 +75,13 @@ const handleOf = (ownerId: string | null, people: Map<string, User>): string | n
 
 export interface FleetSources {
   devices: Device[];
+  /** The cameras the reader's account can see, which is not every camera on the install. */
   cameras: Camera[];
   classes: DeviceClass[];
   firmwares: Firmware[];
   people: Map<string, User>;
+  /** Whose account is reading, so a cams count is drawn only where the list can answer it. */
+  readerId: string | null;
 }
 
 /**
@@ -81,7 +92,7 @@ export interface FleetSources {
  * has delivered nothing - belong at the end of it rather than at the top where
  * an empty date would sort them.
  */
-export const fleetRows = ({ devices, cameras, classes, firmwares, people }: FleetSources): FleetRow[] => {
+export const fleetRows = ({ devices, cameras, classes, firmwares, people, readerId }: FleetSources): FleetRow[] => {
   const stable = new Map(classes.map(one => [one.id, one.firmwareIds.stable]));
   const builds = new Map(firmwares.map(one => [one.id, one]));
   const camsOf = (deviceId: string) => cameras.filter(camera => camera.deviceId === deviceId).length;
@@ -100,7 +111,7 @@ export const fleetRows = ({ devices, cameras, classes, firmwares, people }: Flee
       firmwareName: (device.state.firmwareId && builds.get(device.state.firmwareId)?.name) || null,
       lastSeenAt: device.state.lastSeenAt,
       sockets: socketsOf(device),
-      cams: camsOf(device.id),
+      cams: readerId !== null && device.ownerId === readerId ? camsOf(device.id) : null,
       onStable: calledStable === null ? null : device.state.firmwareId === calledStable,
       opens: device.spaceId ? `/spaces/${device.spaceId}/devices` : null,
     };

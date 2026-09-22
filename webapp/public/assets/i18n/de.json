@@ -3709,7 +3709,17 @@
       "admins_other": "{{count}} Admins",
       "notActivated": "{{count}} nicht aktiviert",
       "bytes_one": "{{count}} Byte",
-      "bytes_other": "{{count}} Bytes"
+      "bytes_other": "{{count}} Bytes",
+      "gaveUp_one": "{{count}} aufgegeben",
+      "gaveUp_other": "{{count}} aufgegeben",
+      "rendersQueued_one": "{{count}} Zeitraffer wartet",
+      "rendersQueued_other": "{{count}} Zeitraffer warten",
+      "rendersFailed_one": "{{count}} fehlgeschlagen",
+      "rendersFailed_other": "{{count}} fehlgeschlagen",
+      "reached_one": "{{count}} Gerät erreicht",
+      "reached_other": "{{count}} Geräte erreicht",
+      "errors_one": "{{count}} Fehler",
+      "errors_other": "{{count}} Fehler"
     },
     "refused": {
       "title": "Nicht für dieses Konto",
@@ -3726,7 +3736,8 @@
       "neverSeen": "nie",
       "open": "{{id}} öffnen",
       "noPlace": "Dieses Gerät steht an keinem Ort, es gibt also nichts zu öffnen.",
-      "showing": "{{shown}} von {{loaded}} geladenen gezeigt · {{total}} auf dieser Installation",
+      "showing": "{{shown}} von {{loaded}} geladenen gezeigt · {{devices}} auf dieser Installation",
+      "camerasOwn": "Cams und Kamerazeilen sind die, die dieses Konto sehen kann - die Kameraliste antwortet einem Konto, nicht der Installation, deren Zahl auf der Zustandskarte steht",
       "loadMore": "Rest laden",
       "noMatch": "Kein Gerät passt zu diesen Filtern.",
       "noMatchSearch": "Kein Gerät passt zu „{{search}}“. Die Suche liest die ID eines Geräts, seinen Namen und das Handle des Besitzers, nicht den Ort, an dem es steht.",
@@ -3748,7 +3759,8 @@
         "behind": "Nicht auf stable",
         "search": "Suchen",
         "searchReads": "ID, Name oder Besitzer suchen"
-      }
+      },
+      "camerasPartial": "Kameras jenseits der geladenen Seiten stehen in keiner Zeile und zählen in keiner Cams-Spalte"
     },
     "rollout": {
       "title": "Firmware-Ausrollung",
@@ -3770,13 +3782,20 @@
     "health": {
       "title": "Zustand",
       "openDemo": "Demo öffnen",
-      "updates": "{{installing}} · {{failed}} aufgegeben",
+      "asOf": "Zahlen von vor {{age}}",
+      "pictures": "Bilder {{size}}",
+      "retention": "Aufräumlauf um {{time}} · vor {{age}} · {{reached}}",
+      "noRetention": "Kein Aufräumlauf, seit dieser Server gestartet ist",
+      "updates": "{{installing}} · {{gaveUp}}",
+      "statsFailed": "Die Zahlen der Installation ließen sich nicht lesen.",
+      "statsMissing": "Dieser Server liefert seine eigenen Zahlen noch nicht: Er hat keine Route /admin/stats.",
+      "statsGap": "Solange sie nicht gelesen sind, fehlen auch: Geräte online, das Gewicht der Bilder, die Zeitraffer-Warteschlange, die Kamerazahl und der Aufräumlauf.",
+      "notAnswered": "Nicht hier, weil diese Installation dafür noch keine Zahl liefert: MQTT-Verbindungen, wie der Broker sie zählt - „online“ oben ist, was gehört wurde, nicht, was verbunden ist -, die Größe der Zeitreihen-Datenbank, das Server-Log und die Alarme der letzten sieben Tage je Gerät.",
       "cameras": "{{cameras}} · {{quiet}}",
       "unclassified": "{{devices}} in keiner Klasse, die keine Ausrollung erreicht",
       "paused": "{{paused}} {{ofClasses}} pausiert",
       "demo": "Demo · {{online}} {{ofDevices}} am Leben · letztes Wort vor {{age}}",
-      "noDemo": "Kein Gerät ist als Demo-Gerät markiert",
-      "notAnswered": "Nicht hier, weil diese Installation dafür noch keine Zahl liefert: MQTT-Verbindungen, die Größe der Zeitreihen-Datenbank und des Bilderspeichers, wartende Zeitraffer, wann die Aufräumjobs zuletzt liefen und mit wie vielen Fehlern, das Server-Log und die Alarme der letzten sieben Tage je Gerät."
+      "noDemo": "Kein Gerät ist als Demo-Gerät markiert"
     },
     "firmware": {
       "title": "Firmware",

@@ -1,8 +1,10 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  AdminStats,
   AdminUserCreate,
   AdminUserPage,
   AdminUserUpdate,
+  CameraPage,
   DeviceClassPage,
   DeviceClassUpdate,
   DevicePage,
@@ -39,7 +41,18 @@ export const FLEET_REFRESH_MS = 30_000;
 /** The largest page the server serves. One read stays one read. */
 export const ADMIN_PAGE_LIMIT = 200;
 
+/**
+ * The beat the install's own figures are read on. Each read is a dozen counts
+ * across every collection, and what they answer moves on the composer's beat
+ * and the sweep's rather than the device's: a render takes minutes and the
+ * retention pass runs once a night, so a minute is as fresh as the answer can
+ * usefully be.
+ */
+export const STATS_REFRESH_MS = 60_000;
+
 export const fleetKey = ['admin', 'fleet'];
+export const adminStatsKey = ['admin', 'stats'];
+export const adminCamerasKey = ['admin', 'cameras'];
 export const adminDevicesKey = ['admin', 'devices'];
 export const adminUsersKey = ['admin', 'users'];
 export const deviceClassesKey = ['admin', 'device-classes'];
@@ -50,6 +63,43 @@ export const useFleet = () =>
   useQuery({
     queryKey: fleetKey,
     queryFn: ({ signal }) => api.get<Fleet>('/admin/fleet', undefined, signal),
+    refetchInterval: FLEET_REFRESH_MS,
+  });
+
+/**
+ * How the install itself is doing: the figures the health card is drawn from.
+ *
+ * Two of them are deliberately not what the board drew, and the card says so
+ * rather than relabelling them. `devices.online` is devices heard from inside
+ * the offline window, not connections on the broker: the broker is RabbitMQ
+ * and its socket count is its own to report, and the fleet's liveness is the
+ * figure every other screen already uses. `retention` is the sweep's last pass
+ * as the running server remembers it, and it is stored nowhere - so a server
+ * that has just restarted answers null, which means no pass since it started
+ * and not a night on which nothing happened.
+ */
+export const useAdminStats = () =>
+  useQuery({
+    queryKey: adminStatsKey,
+    queryFn: ({ signal }) => api.get<AdminStats>('/admin/stats', undefined, signal),
+    refetchInterval: STATS_REFRESH_MS,
+  });
+
+/**
+ * Every camera on the install. An administrator's session is answered every
+ * camera by the route a grower reads their own from, and that list is paged
+ * like every other: read as one page it stopped at fifty, and the fleet's cams
+ * column and camera count were drawn from those fifty as if they were all of
+ * them. It is followed to its end here, as the device list is, so a standalone
+ * Terp Cam past the first page has a row and a controller's cams are counted
+ * whole.
+ */
+export const useAdminCameras = () =>
+  useInfiniteQuery({
+    queryKey: adminCamerasKey,
+    queryFn: ({ pageParam, signal }) => api.get<CameraPage>('/cameras', { limit: ADMIN_PAGE_LIMIT, cursor: pageParam }, signal),
+    initialPageParam: null as string | null,
+    getNextPageParam: last => last.nextCursor,
     refetchInterval: FLEET_REFRESH_MS,
   });
 

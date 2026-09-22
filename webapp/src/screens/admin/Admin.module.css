@@ -340,6 +340,18 @@
   color: var(--alarm);
 }
 
+/* A figure that says something has gone wrong - renders the composer gave up
+   on, devices a sweep left as they were - in the token every other failure
+   is drawn in. */
+.trouble {
+  color: var(--alarm);
+}
+
+/* The figure's place while its answer is on the way. */
+.waitingFigure {
+  color: var(--label);
+}
+
 .sheetBody {
   font-size: var(--text-sm);
   line-height: var(--line-body);

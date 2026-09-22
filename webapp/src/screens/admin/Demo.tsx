@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { useAdminDevices } from '@/api/admin';
-import { useCameras } from '@/api/cameras';
+import { useAdminCameras, useAdminDevices } from '@/api/admin';
 import { useGrows } from '@/api/grows';
 import { useSpaces } from '@/api/spaces';
 import { ageLabel, deviceLiveness } from '@/ui/age';
@@ -35,10 +34,11 @@ export function Demo() {
 
   const devices = useAdminDevices();
   const spaces = useSpaces();
-  const cameras = useCameras();
+  const cameras = useAdminCameras();
   const grows = useGrows();
 
   useFollowCursor(devices);
+  useFollowCursor(cameras);
 
   const header = (
     <header className={styles.head}>
@@ -69,7 +69,7 @@ export function Demo() {
 
   const shownDevices = devices.data.pages.flatMap(page => page.items).filter(device => device.isDemo);
   const shownSpaces = (spaces.data?.items ?? []).filter(space => space.isDemo);
-  const shownCameras = (cameras.data?.items ?? []).filter(camera => camera.isDemo && camera.removedAt === null);
+  const shownCameras = (cameras.data?.pages ?? []).flatMap(page => page.items).filter(camera => camera.isDemo && camera.removedAt === null);
   const shownGrows = (grows.data?.items ?? []).filter(grow => grow.isDemo);
 
   return (

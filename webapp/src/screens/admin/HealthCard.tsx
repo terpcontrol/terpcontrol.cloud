@@ -1,67 +1,102 @@
-import type { DateTime } from 'luxon';
+import type { UseQueryResult } from '@tanstack/react-query';
+import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { Camera, Device, Fleet } from '@fg2/shared-types/v1';
+import type { AdminRetentionRun, AdminStats, Device, Fleet } from '@fg2/shared-types/v1';
+import { ApiError } from '@/api/problem';
 import { ageLabel, deviceLiveness } from '@/ui/age';
 import ui from '@/ui/ui.module.css';
-import { cameraFreshness } from '../devices/cameras';
 import styles from './Admin.module.css';
 
 /**
  * How the install itself is doing, in the figures it actually answers.
  *
- * The board drew more than this: MQTT connections, the size of the time-series
- * database and of the picture bucket, how many films are queued for rendering,
- * when the retention jobs last ran and with how many errors. Every one of those
- * belongs to `GET /admin/stats` and `GET /admin/logs`, which the decision
- * record lists and this server has not built - so they are named as missing
- * rather than drawn from something else that happens to be a number. A health
- * card that showed a figure nobody computed would be worse than one that is
- * short.
+ * The board drew one line of figures and one of jobs: MQTT connections, the
+ * size of the time-series database and of the picture bucket, films queued for
+ * rendering; then when the retention jobs last ran, with how many errors, and
+ * whether the demo device is alive. `GET /admin/stats` answers most of that
+ * now, and the card is drawn from it in the board's order - with two of the
+ * figures deliberately not what the board called them, and said as such rather
+ * than relabelled. The broker's connection count is the broker's to report,
+ * RabbitMQ's and not this server's, so the first slot is devices heard from
+ * inside the offline window, which is the liveness every other screen uses,
+ * and it is called that. The retention pass is the running server's own memory
+ * and is stored nowhere, so a server that has just restarted answers null; the
+ * line then says that nobody has swept since this server started, which is a
+ * different fact from a pass that met nothing, and is never drawn as a zero.
  *
- * What is here is counted from answers that do exist: the rollout statistics in
- * the fleet answer, the device list, and the camera list. The demo device is
- * the one the board points its "open device" button at, and it has a screen of
- * its own.
+ * What the route still does not answer stays in the closing line, because the
+ * point of that line is that an operator can tell what this install does not
+ * know from what it knows. A figure the server did not compute is not drawn
+ * from something else that happens to be a number: when the stats read fails,
+ * the lines counted from the fleet answer stay, the figure's place says why,
+ * and the closing line names what went missing with it.
+ *
+ * The camera count is the stats route's and nothing else's. The camera list
+ * the fleet table reads is answered per account, an administrator's included,
+ * so a count of it would be the operator's own cameras drawn as the install's;
+ * without the stats answer there is no honest number, and the line is not
+ * drawn.
  */
-export function HealthCard({ fleet, devices, cameras, now }: { fleet: Fleet; devices: Device[]; cameras: Camera[]; now: DateTime }) {
-  const { t } = useTranslation();
+export function HealthCard({ fleet, devices, stats, now }: { fleet: Fleet; devices: Device[]; stats: UseQueryResult<AdminStats>; now: DateTime }) {
+  const { t, i18n } = useTranslation();
 
   const updating = fleet.classes.reduce((count, one) => count + one.firmwares.reduce((sum, build) => sum + build.updating, 0), 0);
-  const failed = fleet.classes.reduce((count, one) => count + one.firmwares.reduce((sum, build) => sum + build.failed, 0), 0);
+  const gaveUp = fleet.classes.reduce((count, one) => count + one.firmwares.reduce((sum, build) => sum + build.failed, 0), 0);
   const paused = fleet.classes.filter(one => one.rollout.paused).length;
-
-  const live = cameras.filter(camera => camera.removedAt === null);
-  const quiet = live.filter(camera => cameraFreshness(camera, now) === 'offline').length;
 
   const demo = devices.filter(device => device.isDemo);
   const demoAlive = demo.filter(device => deviceLiveness(device.state.lastSeenAt, now) !== 'offline');
   const newest = demo.map(device => device.state.lastSeenAt).filter((at): at is string => at !== null)[0] ?? null;
+
+  const answer = stats.data ?? null;
 
   return (
     <section className={styles.card}>
       <div className={styles.cardHead}>
         <span className="label">{t('admin.health.title')}</span>
         <span className={styles.actions}>
+          {/* A dozen counts gathered over a second are not "now", and the
+              answer says when it was taken; so does the card. */}
+          {answer ? <span className={`mono ${styles.consequence}`}>{t('admin.health.asOf', { age: ageLabel(answer.collectedAt, now) })}</span> : null}
           <Link className={ui.chip} to="/admin/demo">
             {t('admin.health.openDemo')}
           </Link>
         </span>
       </div>
 
-      <span className={`mono ${styles.figure}`}>
-        {t('admin.health.updates', { installing: t('admin.count.installing', { count: updating }), failed })}
-      </span>
+      {answer ? (
+        <span className={`mono ${styles.figure}`}>
+          {[
+            t('admin.count.online', { count: answer.devices.online }),
+            t('admin.health.pictures', { size: sizeLabel(answer.content.mediaBytes, i18n.language, t) }),
+            t('admin.count.rendersQueued', { count: answer.renders.queued }),
+          ].join(' · ')}
+          {' · '}
+          {/* A queue that fails every night looks exactly like an empty one
+              from every other screen, so the failures are the one figure here
+              that changes colour. */}
+          <span className={answer.renders.failed > 0 ? styles.trouble : undefined}>
+            {t('admin.count.rendersFailed', { count: answer.renders.failed })}
+          </span>
+        </span>
+      ) : stats.isPending ? (
+        <span className={`mono ${styles.figure} ${styles.waitingFigure}`}>{t('home.waiting')}</span>
+      ) : (
+        <div className={styles.row}>
+          <p className={ui.problem} role="alert">
+            {stats.error instanceof ApiError && stats.error.status === 404 ? t('admin.health.statsMissing') : t('admin.health.statsFailed')}
+          </p>
+          <button type="button" className={ui.chip} disabled={stats.isFetching} onClick={() => void stats.refetch()}>
+            {t('home.retry')}
+          </button>
+        </div>
+      )}
 
       <ul className={styles.lines}>
-        <li className="mono">
-          {t('admin.health.cameras', {
-            cameras: t('admin.count.cameras', { count: live.length }),
-            quiet: t('admin.count.quietCameras', { count: quiet }),
-          })}
-        </li>
-        <li className="mono">{t('admin.health.unclassified', { devices: t('admin.count.devices', { count: fleet.unclassifiedDevices }) })}</li>
-        <li className="mono">{t('admin.health.paused', { paused, ofClasses: t('admin.count.ofClasses', { count: fleet.classes.length }) })}</li>
+        {answer ? (
+          <li className="mono">{answer.retention ? <RetentionLine run={answer.retention} now={now} /> : t('admin.health.noRetention')}</li>
+        ) : null}
         <li className="mono">
           {demo.length === 0
             ? t('admin.health.noDemo')
@@ -71,11 +106,68 @@ export function HealthCard({ fleet, devices, cameras, now }: { fleet: Fleet; dev
                 age: newest ? ageLabel(newest, now) : '—',
               })}
         </li>
+        <li className="mono">
+          {t('admin.health.updates', {
+            installing: t('admin.count.installing', { count: updating }),
+            gaveUp: t('admin.count.gaveUp', { count: gaveUp }),
+          })}
+        </li>
+        {answer ? (
+          <li className="mono">
+            {t('admin.health.cameras', {
+              cameras: t('admin.count.cameras', { count: answer.cameras.total }),
+              quiet: t('admin.count.quietCameras', { count: answer.cameras.stale }),
+            })}
+          </li>
+        ) : null}
+        <li className="mono">{t('admin.health.unclassified', { devices: t('admin.count.devices', { count: fleet.unclassifiedDevices }) })}</li>
+        <li className="mono">{t('admin.health.paused', { paused, ofClasses: t('admin.count.ofClasses', { count: fleet.classes.length }) })}</li>
       </ul>
 
       {/* Said plainly, because an operator who cannot see a figure should know
           whether it is zero or whether nobody is counting it. */}
-      <p className={`${ui.note} ${styles.consequence}`}>{t('admin.health.notAnswered')}</p>
+      <p className={`${ui.note} ${styles.consequence}`}>
+        {t('admin.health.notAnswered')}
+        {answer ? '' : ` ${t('admin.health.statsGap')}`}
+      </p>
     </section>
   );
 }
+
+/**
+ * The sweep's last pass: the hour the board drew, how long ago that was so a
+ * pass from three nights back reads as one, how far round the fleet it got,
+ * and the devices it left as they were. Those errors are the figure this line
+ * exists for, so they alone change colour when there are any.
+ */
+function RetentionLine({ run, now }: { run: AdminRetentionRun; now: DateTime }) {
+  const { t } = useTranslation();
+
+  return (
+    <>
+      {t('admin.health.retention', {
+        time: DateTime.fromISO(run.ranAt).toFormat('HH:mm'),
+        age: ageLabel(run.ranAt, now),
+        reached: t('admin.count.reached', { count: run.reached }),
+      })}
+      {' · '}
+      <span className={run.errors > 0 ? styles.trouble : undefined}>{t('admin.count.errors', { count: run.errors })}</span>
+    </>
+  );
+}
+
+type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+/**
+ * What a bucket weighs, in the unit it is felt in. A picture bucket is measured
+ * in gigabytes, which the export's own formatter never reaches, and the decimal
+ * is written the way the language writes one.
+ */
+const sizeLabel = (bytes: number, language: string, t: Translate): string => {
+  const figure = (value: number) => new Intl.NumberFormat(language, { maximumFractionDigits: 1 }).format(value);
+  if (bytes >= 1024 ** 3) return `${figure(bytes / 1024 ** 3)} GB`;
+  if (bytes >= 1024 ** 2) return `${figure(bytes / 1024 ** 2)} MB`;
+  if (bytes >= 1024) return `${figure(bytes / 1024)} kB`;
+
+  return t('admin.count.bytes', { count: bytes });
+};
