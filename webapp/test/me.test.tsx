@@ -54,7 +54,7 @@ const me = (over: Partial<Me> = {}): Me => ({
     mutedUntil: null,
   },
   deletionStartedAt: null,
-  premium: { enforced: true, extendUrl: null, priceLabel: null },
+  premium: { enforced: true, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
   pushPublicKey: null,
   telegramAvailable: true,
   pushSubscribed: false,

@@ -47,7 +47,7 @@ const me = (): Me => ({
   retention: { climateDays: null },
   notifications: { channels: { email: null, telegram: null, webhook: null }, routing: {}, quietHours: null, mutedUntil: null },
   deletionStartedAt: null,
-  premium: { enforced: false, extendUrl: null, priceLabel: null },
+  premium: { enforced: false, extendUrl: null, priceLabel: null, free: { stillWidth: null, stillDays: null, timelapseDays: null } },
   pushPublicKey: null,
   telegramAvailable: false,
   pushSubscribed: false,
