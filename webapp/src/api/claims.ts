@@ -93,6 +93,42 @@ export const useRenameSpace = (spaceId: string | null) => {
 };
 
 /**
+ * Moving the device into a place the account already has.
+ *
+ * It is the narrower of the two ways to say it: the route puts one device in
+ * one space and answers nothing else, so a correction made here cannot carry a
+ * name or a firmware channel with it by accident. Hardware that was plugged in
+ * before anybody decided where it stands is the ordinary reason - a claim has
+ * to end in some space, and the one it invents is a guess.
+ */
+export const usePlaceDevice = (deviceId: string | null) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (spaceId: string) => api.put<Device>(`/spaces/${spaceId}/devices/${deviceId}`),
+    onSuccess: device => {
+      queryClient.setQueryData(['devices', device.id], device);
+      claimChanged(queryClient);
+    },
+  });
+};
+
+/**
+ * Archiving the place a claim invented, once the device has been moved out of
+ * it. It is a tombstone rather than a deletion, so nothing that ever named the
+ * space loses its name; what it buys is a list that does not grow an empty
+ * "Tent 1" every time somebody corrects where a controller stands.
+ */
+export const useArchiveSpace = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (spaceId: string) => api.put<Space>(`/spaces/${spaceId}/archive`),
+    onSuccess: () => claimChanged(queryClient),
+  });
+};
+
+/**
  * What a QR code on the box says. It may carry the code alone or a link that
  * names it, and either way the code is what the claim needs.
  */

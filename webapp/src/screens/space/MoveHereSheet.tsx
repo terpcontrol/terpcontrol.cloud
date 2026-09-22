@@ -1,15 +1,16 @@
 import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useGrows } from '@/api/grows';
 import { useMoveGrowHere } from '@/api/lifecycle';
 import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
 import { Sheet } from '@/log/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
-import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
+import { Block, WhenField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
+import { GrowPicker } from './GrowPicker';
+import { useMovableGrows } from './movable-grows';
 import styles from './PresetSheet.module.css';
 
 /**
@@ -27,7 +28,7 @@ import styles from './PresetSheet.module.css';
  */
 export function MoveHereSheet({ spaceId, spaceName, onClose }: { spaceId: string; spaceName: string; onClose: () => void }) {
   const { t } = useTranslation();
-  const grows = useGrows();
+  const movable = useMovableGrows(spaceId);
   const move = useMoveGrowHere(spaceId);
   const mayManage = useMayManage();
 
@@ -35,17 +36,15 @@ export function MoveHereSheet({ spaceId, spaceName, onClose }: { spaceId: string
   const [at, setAt] = useState(() => new Date());
   const [starting, setStarting] = useState(false);
 
-  const movable = (grows.data?.items ?? []).filter(grow => grow.endedAt === null && !grow.summary.locations.some(one => one.spaceId === spaceId));
-
   if (starting) return <NewGrowSheet spaceId={spaceId} onClose={onClose} />;
 
   return (
     <Sheet title={t('space.moveHereTitle', { name: spaceName })} onClose={onClose}>
       <div className={styles.body}>
         <Block label={t('space.presets.whichGrow')}>
-          {grows.isPending ? (
+          {movable.pending ? (
             <p className={ui.note}>{t('home.waiting')}</p>
-          ) : movable.length === 0 ? (
+          ) : movable.items.length === 0 ? (
             <>
               <p className={ui.note}>{t('space.presets.noGrowToMove')}</p>
               {mayManage ? (
@@ -55,13 +54,7 @@ export function MoveHereSheet({ spaceId, spaceName, onClose }: { spaceId: string
               ) : null}
             </>
           ) : (
-            <Choices label={t('space.presets.whichGrow')}>
-              {movable.map(grow => (
-                <Choice key={grow.id} chosen={growId === grow.id} onChoose={() => setGrowId(grow.id)}>
-                  {grow.name}
-                </Choice>
-              ))}
-            </Choices>
+            <GrowPicker grows={movable.items} chosen={growId} onChoose={setGrowId} />
           )}
         </Block>
 

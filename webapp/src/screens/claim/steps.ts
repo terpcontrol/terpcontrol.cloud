@@ -49,13 +49,24 @@ export const newPlaceName = (type: string, spaces: readonly Space[], t: Translat
 export const placeSummary = (space: Space | null, t: Translate): string =>
   space ? `${space.name} · ${t(`claim.place.kind.${space.kind}`, { defaultValue: space.kind })}` : t('claim.place.unknown');
 
-/** The stage the place was put on, or that it is only being watched. */
-export const doingSummary = ({ chosen, applied }: Doing, t: Translate): string =>
-  applied
-    ? t('claim.doing.onStage', { stage: t(`home.stage.${applied.stage}`) })
-    : chosen === MEASURE
-      ? t('claim.doing.measuring')
-      : t('claim.doing.nothingYet');
+/**
+ * The stage the place was put on, or that it is only being watched.
+ *
+ * What this screen chose lives in the screen and what it wrote lives on the
+ * server, and only the second of those survives a locked phone. So where the
+ * flow has no answer of its own it falls back to the stage the place is
+ * actually on, and says nothing at all - null, for the question to be asked
+ * again - until that is known: "nothing set yet" is a claim about the world,
+ * and a ticked step is the worst place to guess one.
+ */
+export const doingSummary = ({ chosen, applied }: Doing, onServer: GrowthStage | null | undefined, t: Translate): string | null => {
+  const stage = applied?.stage ?? (chosen === MEASURE ? null : onServer);
+
+  if (stage) return t('claim.doing.onStage', { stage: t(`home.stage.${stage}`) });
+  if (chosen === MEASURE) return t('claim.doing.measuring');
+
+  return stage === null ? t('claim.doing.nothingYet') : null;
+};
 
 /** What the device reported, rather than anything that was set up in the step. */
 export const hardwareSummary = (device: Device | null, sockets: SocketPage | undefined, t: Translate): string =>

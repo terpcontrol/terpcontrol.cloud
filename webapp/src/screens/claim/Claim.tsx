@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router';
 import type { Device } from '@fg2/shared-types/v1';
 import { useClaimedDevice, useNameNewPlace } from '@/api/claims';
 import { useSocketTables } from '@/api/devices';
+import { useSpaceGrows } from '@/api/grows';
 import { useApplyPreset } from '@/api/lifecycle';
 import { ApiError } from '@/api/problem';
 import { useSpaces } from '@/api/spaces';
@@ -70,6 +71,10 @@ export function Claim() {
   // does not turn the two steps after it back into questions nobody answered.
   const [furthest, setFurthest] = useState(() => stepIn(params));
   const [doing, setDoing] = useState<Doing>(NOTHING_DOING);
+  // The space this claim invented, if it invented one: it holds this device and
+  // nothing else, so it is the one that may be archived if the device turns out
+  // to belong in a place the account already had.
+  const [invented, setInvented] = useState<string | null>(null);
 
   const device = useClaimedDevice(deviceId);
   const spaces = useSpaces();
@@ -82,6 +87,12 @@ export function Claim() {
   const places = spaces.data?.items ?? [];
   const space = places.find(one => one.id === spaceId) ?? null;
   const apply = useApplyPreset(spaceId ?? '');
+  // What the place is on according to the server, for the step that was
+  // answered on a phone that has since been locked: the choice made here is
+  // this component's and does not survive the reload the address does.
+  const growsHere = useSpaceGrows(spaceId);
+  const onServer =
+    spaceId === null || !growsHere.isPending ? (growsHere.data?.items.find(grow => grow.endedAt === null)?.summary.stage ?? null) : undefined;
 
   // A device id in the address that this account cannot read - stale, or
   // somebody else's - would leave the screen failing to load with no field to
@@ -190,10 +201,14 @@ export function Claim() {
         {claimed ? null : (
           <CodeStep
             initialCode={params.get('code') ?? ''}
+            places={places}
             onClaimed={result => {
               setDeviceId(result.device.id);
               go(1, result.device.id);
-              if (result.spaceCreated) void namePlaceOf(result.device);
+              if (result.spaceCreated) {
+                setInvented(result.device.spaceId);
+                void namePlaceOf(result.device);
+              }
             }}
           />
         )}
@@ -207,7 +222,7 @@ export function Claim() {
         title={t('claim.place.title')}
         text={said(1, placeSummary(space, t), t('claim.place.text'))}
       >
-        <PlaceStep space={space} places={places} />
+        <PlaceStep space={space} places={places} deviceId={deviceId} invented={invented} />
       </Step>
 
       <Step
@@ -216,7 +231,7 @@ export function Claim() {
         onOpen={() => go(2)}
         headingRef={doingHeading}
         title={t('claim.doing.title')}
-        text={said(2, doingSummary(doing, t), t('claim.doing.text'))}
+        text={said(2, doingSummary(doing, onServer, t) ?? t('claim.doing.text'), t('claim.doing.text'))}
       >
         <DoingStep spaceId={spaceId} doing={doing} onDoing={setDoing} apply={apply} />
       </Step>

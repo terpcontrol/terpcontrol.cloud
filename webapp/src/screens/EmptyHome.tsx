@@ -112,6 +112,10 @@ function ClaimCode() {
     [hand],
   );
   const closeScanner = useCallback(() => setScanning(false), []);
+  const onFailed = useCallback(() => {
+    setScanning(false);
+    setScanNote(t('home.addDevice.scanDenied'));
+  }, [t]);
 
   return (
     <article className={ui.card}>
@@ -148,13 +152,13 @@ function ClaimCode() {
           </button>
         </div>
         {scanNote ? (
-          <p className={`${ui.note} ${styles.problem}`} role="status">
+          <p className={`${ui.note} ${styles.problem}`} role="alert">
             {scanNote}
           </p>
         ) : null}
       </form>
 
-      {scanning ? <QrScanner onCode={onCode} onClose={closeScanner} /> : null}
+      {scanning ? <QrScanner onCode={onCode} onClose={closeScanner} onFailed={onFailed} /> : null}
     </article>
   );
 }
@@ -164,12 +168,18 @@ function ClaimCode() {
  * not a door out of the demo and is not drawn there. Whether this is the demo
  * is the session's own answer and not a question about hardware, which is a
  * different thing and will part company with it.
+ *
+ * Leaving this one is the whole of what the card costs, so it is asked before
+ * it is done rather than discovered afterwards. The two doors above add
+ * something to the account that was just made; this one signs out of it, and
+ * the way back is signing in again - which is not something to find out from
+ * the Me page.
  */
 function TryDemo() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useSession();
-  const [state, setState] = useState<'idle' | 'opening' | 'failed'>('idle');
+  const [state, setState] = useState<'idle' | 'asking' | 'opening' | 'failed'>('idle');
 
   const open = async () => {
     setState('opening');
@@ -185,10 +195,20 @@ function TryDemo() {
 
   return (
     <article className={`${ui.cardDashed} ${styles.demo}`}>
-      <button type="button" className={styles.demoButton} onClick={open} disabled={state === 'opening'}>
+      <button type="button" className={styles.demoButton} onClick={() => setState('asking')} disabled={state !== 'idle'}>
         <h2 className={styles.cardTitle}>{t('home.demo.title')}</h2>
         <p className={styles.cardText}>{t('home.demo.text')}</p>
       </button>
+      {state === 'asking' ? (
+        <div className={styles.actions}>
+          <button type="button" className={ui.button} onClick={() => void open()}>
+            {t('home.demo.confirm')}
+          </button>
+          <button type="button" className={ui.button} onClick={() => setState('idle')}>
+            {t('home.demo.stay')}
+          </button>
+        </div>
+      ) : null}
       {state === 'opening' ? <p className={ui.note}>{t('home.demo.opening')}</p> : null}
       {state === 'failed' ? (
         <p className={ui.problem} role="alert">

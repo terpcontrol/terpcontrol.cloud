@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter, useLocation } from 'react-router';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Device, DeviceCapabilities, Space } from '@fg2/shared-types/v1';
+import type { Device, DeviceCapabilities, GrowListItem, Space } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { Claim } from '@/screens/claim/Claim';
@@ -73,13 +73,26 @@ const device: Device = {
 
 const space: Space = { id: 'space-new', ownerId: 'user-1', kind: 'other', name: 'Terp Controller', roomId: null } as Space;
 
-const state = { spaces: [] as Space[] };
+/** The build the device reports, which is a uuid until the build list gives it a name. */
+const BUILD = { id: 'build-uuid', createdAt: NOW.toISO()!, classId: 'class-1', name: '2.4.1', version: 'build-uuid', wasStable: true };
+
+/** Day 35 of a flowering run in a tent of its own, which is what a move out of it would cost. */
+const spring: GrowListItem = {
+  id: 'grow-1',
+  name: 'Spring run',
+  endedAt: null,
+  placements: [{ id: 'placement-1', spaceId: 'space-other', startedAt: NOW.minus({ days: 35 }).toISO()!, endedAt: null, plantIds: null }],
+  summary: { locations: [{ spaceId: 'space-other', plantIds: [] }] },
+} as unknown as GrowListItem;
+
+const state = { spaces: [] as Space[], grows: [] as GrowListItem[] };
 
 const answers = (path: string) => {
   if (path === '/devices/sim-controller-7f3a') return device;
   if (path === '/devices/sim-controller-7f3a/sockets') return { items: [], nextCursor: null, capabilities: CAPABILITIES };
+  if (path === '/devices/sim-controller-7f3a/firmwares') return { items: [BUILD], nextCursor: null };
   if (path === '/spaces') return { items: state.spaces, nextCursor: null };
-  if (path === '/grows') return { items: [], nextCursor: null };
+  if (path === '/grows') return { items: state.grows, nextCursor: null };
   throw new Error(`nothing mocked for ${path}`);
 };
 
@@ -126,6 +139,7 @@ beforeEach(() => {
   vi.setSystemTime(NOW.toJSDate());
   who.demo = false;
   state.spaces = [space];
+  state.grows = [];
   vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);
   vi.mocked(api.post).mockImplementation((path: string) =>
     path === '/devices/claims'
@@ -184,7 +198,7 @@ describe('adding a device', () => {
 
     const steps = screen.getAllByRole('heading', { level: 2 }).map(one => one.textContent);
     expect(steps).toEqual(['Claimed · Terp Controller · 7F3A', 'Where is it?', 'What is it doing right now?', 'Sockets and cam']);
-    expect(screen.getByText('Every step can be done later from Devices or Control.')).toBeInTheDocument();
+    expect(screen.getByText('The preset can be changed later from Control, the sockets and the cam from Devices.')).toBeInTheDocument();
   });
 
   it('renames the space the claim already made rather than making another', async () => {
@@ -371,8 +385,125 @@ describe('adding a device', () => {
 
     expect(await screen.findByText('No controller here took the targets.')).toBeInTheDocument();
     expect(screen.getByText('No grow entered the stage, and no climate was written.')).toBeInTheDocument();
-    expect(screen.getByText(/no controller here took the climate/)).toBeInTheDocument();
+    // Once in the visible note and once in the live region, which is the whole point of the second copy.
+    expect(screen.getAllByText(/no controller here took the climate/)).toHaveLength(2);
     expect(screen.queryByText(/written either way/)).not.toBeInTheDocument();
+  });
+
+  it('names the build rather than printing the uuid the hardware reports', async () => {
+    await drawClaimed();
+
+    expect(screen.getByText(/online 20 s ago/)).toHaveTextContent('firmware 2.4.1');
+    expect(screen.getByText(/online 20 s ago/)).not.toHaveTextContent('build-uuid');
+  });
+
+  it('leaves the build out altogether rather than naming it after a uuid nobody named', async () => {
+    vi.mocked(api.get).mockImplementation((path: string) =>
+      Promise.resolve(path === '/devices/sim-controller-7f3a/firmwares' ? { items: [{ ...BUILD, name: null }], nextCursor: null } : answers(path)),
+    );
+
+    await drawClaimed();
+
+    await waitFor(() => expect(screen.getByText(/online 20 s ago/)).toHaveTextContent('online 20 s ago · 0 sockets · Cam: none'));
+  });
+
+  it('claims into a place the account already has instead of inventing another', async () => {
+    state.spaces = [{ ...space, id: 'space-mother', name: 'Mother tent' }];
+    draw();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: 'ABCD1234' } });
+    await screen.findByRole('button', { name: 'Mother tent' });
+    fireEvent.click(screen.getByRole('button', { name: 'Mother tent' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', spaceId: 'space-mother' }));
+  });
+
+  it('moves the device into a place that already exists, and archives the one the claim invented', async () => {
+    state.spaces = [space, { ...space, id: 'space-mother', name: 'Mother tent' }];
+    vi.mocked(api.put).mockResolvedValue({ ...device, spaceId: 'space-mother' } as never);
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: 'Mother tent' }));
+
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/spaces/space-mother/devices/sim-controller-7f3a'));
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/spaces/space-new/archive'));
+  });
+
+  /** The stage applied here is what the sheet must continue, or it writes germination over it a moment later. */
+  it('carries the applied stage into the link that starts a grow', async () => {
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
+
+    expect(await screen.findByRole('link', { name: /Start a grow here/ })).toHaveAttribute('href', '/grows/new?space=space-new&stage=flowering');
+  });
+
+  it('says what the write did, for a screen reader that was told only where the button goes', async () => {
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    // The region is on the page and empty first; a live region filled in the same commit is not read out.
+    expect(screen.getAllByRole('status').map(one => one.textContent)).toContain('');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
+
+    await waitFor(() =>
+      expect(screen.getAllByRole('status').map(one => one.textContent)).toContain(
+        'The targets went to 1 controller. No grow entered the stage; only the climate was written. Nothing is growing here yet. The climate has been written either way.',
+      ),
+    );
+  });
+
+  it('does not move a running grow on one tap, and says where it stands now', async () => {
+    state.grows = [spring];
+    state.spaces = [space, { ...space, id: 'space-other', name: 'Blue Dream tent' }];
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Move a grow here' }));
+
+    const chip = await screen.findByRole('button', { name: 'Spring run · Blue Dream tent' });
+    expect(screen.getByRole('button', { name: 'Move a grow here' })).toBeDisabled();
+
+    fireEvent.click(chip);
+    expect(api.post).toHaveBeenCalledTimes(2);
+
+    fireEvent.click(screen.getByRole('button', { name: /Move Spring run here/ }));
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith('/spaces/space-new/preset-applications', { stage: 'flowering', decision: 'move_grow', growId: 'grow-1' }),
+    );
+  });
+
+  it('can be told never to ask about the grow here again', async () => {
+    await drawClaimed();
+    fireEvent.click(screen.getByRole('button', { name: /Next/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
+    fireEvent.click(await screen.findByRole('button', { name: /never ask again/ }));
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/space-new', { presetPrompt: 'never' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: /never ask again/ })).not.toBeInTheDocument());
+  });
+
+  it('reads the resumed step off the server rather than claiming nothing was set', async () => {
+    state.grows = [{ ...spring, summary: { ...spring.summary, stage: 'vegetative' } } as GrowListItem];
+    draw('/claim?device=sim-controller-7f3a&at=3');
+
+    await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: /What is it doing/ })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('on Veg')).toBeInTheDocument());
+    expect(screen.queryByText('nothing set yet')).not.toBeInTheDocument();
+  });
+
+  it('says the camera was refused rather than letting the overlay vanish', async () => {
+    vi.stubGlobal('BarcodeDetector', class {});
+    vi.stubGlobal('navigator', { ...navigator, mediaDevices: { getUserMedia: () => Promise.reject(new Error('NotAllowedError')) } });
+
+    draw();
+    fireEvent.click(screen.getByRole('button', { name: /or scan/ }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('The camera was not allowed');
+    vi.unstubAllGlobals();
   });
 
   it('shows the demo why it cannot claim instead of a field it would be refused', () => {

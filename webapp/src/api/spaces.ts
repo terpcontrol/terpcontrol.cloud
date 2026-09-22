@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import type { SpaceLive, SpaceOverview, SpacePage } from '@fg2/shared-types/v1';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { PresetPrompt, Space, SpaceLive, SpaceOverview, SpacePage } from '@fg2/shared-types/v1';
 import { api } from './client';
 
 /**
@@ -31,3 +31,25 @@ export const useSpaceLive = (spaceId: string, enabled: boolean) =>
     refetchInterval: LIVE_REFRESH_MS,
     enabled,
   });
+
+/**
+ * Whether this place asks what should happen to the grow every time a preset is
+ * applied to it.
+ *
+ * A tent that is only ever watched, and a fridge full of jars, are put on a
+ * stage over and over and never hold a grow, so the question is one they can
+ * only ever answer the same way. The answer belongs to the space rather than to
+ * a memory this session keeps, because a question that comes back on the next
+ * phone is not one that was answered.
+ */
+export const useSetPresetPrompt = (spaceId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (presetPrompt: PresetPrompt) => api.patch<Space>(`/spaces/${spaceId}`, { presetPrompt }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['spaces'] });
+      void queryClient.invalidateQueries({ queryKey: ['space', spaceId] });
+    },
+  });
+};

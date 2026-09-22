@@ -1,11 +1,8 @@
 import { X } from 'lucide-react';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useModalFocus } from '@/ui/modal-focus';
 import styles from './Sheet.module.css';
-
-/** Everything inside the panel that a Tab can land on, in the order it would. */
-const STOPS =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
  * What logging happens in: a sheet over the screen you were on, so that a tap
@@ -43,42 +40,7 @@ export function Sheet({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const panel = useRef<HTMLDivElement>(null);
-  // Held in a ref rather than depended on: the caller writes the handler inline,
-  // so it is a new function on every render and the effect would run again with it.
-  const close = useRef(onClose);
-
-  useEffect(() => {
-    close.current = onClose;
-  }, [onClose]);
-
-  useEffect(() => {
-    const before = document.activeElement;
-    panel.current?.focus();
-
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        close.current();
-        return;
-      }
-      if (event.key !== 'Tab' || !panel.current) return;
-
-      const stops = [...panel.current.querySelectorAll<HTMLElement>(STOPS)];
-      const inside = document.activeElement instanceof Node && panel.current.contains(document.activeElement);
-      const edge = event.shiftKey ? stops[0] : stops[stops.length - 1];
-      if (stops.length > 0 && inside && document.activeElement !== edge) return;
-
-      event.preventDefault();
-      const wrap = event.shiftKey ? stops[stops.length - 1] : stops[0];
-      (wrap ?? panel.current).focus();
-    };
-    document.addEventListener('keydown', onKey);
-
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      if (before instanceof HTMLElement) before.focus();
-    };
-  }, []);
+  const panel = useModalFocus<HTMLDivElement>(onClose);
 
   return (
     <div className={styles.scrim} onPointerDown={event => event.target === event.currentTarget && onClose()}>

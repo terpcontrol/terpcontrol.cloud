@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowthStage, PresetApplication, SpaceOverview } from '@fg2/shared-types/v1';
-import { useGrows } from '@/api/grows';
 import { useApplyPreset } from '@/api/lifecycle';
+import { useSetPresetPrompt } from '@/api/spaces';
 import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
 import { Sheet } from '@/log/Sheet';
 import { Refused } from '@/ui/PageState';
@@ -10,6 +10,8 @@ import { presetsOf, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
+import { GrowPicker } from './GrowPicker';
+import { useMovableGrows } from './movable-grows';
 import styles from './PresetSheet.module.css';
 
 /**
@@ -155,10 +157,16 @@ export function PresetSheet({ overview, onClose }: { overview: SpaceOverview; on
  *
  * "Only the climate" is answered here rather than sent: the server does nothing
  * with that decision but stop asking, and asking it again would write the same
- * targets to the same controllers a second time for no reason. Starting a grow
- * opens the new-grow sheet in this one's place, with the tent and the stage it
- * was just put on already answered - one sheet at a time, because the question
- * behind this one has been answered by opening it.
+ * targets to the same controllers a second time for no reason. Beside it stands
+ * the lasting form of the same answer, because a place that will never hold a
+ * grow - a fridge of jars, a room somebody only watches - can only ever answer
+ * this one way, and a question like that should be asked once.
+ *
+ * Starting a grow opens the new-grow sheet in this one's place, with the tent
+ * and the stage it was just put on already answered - one sheet at a time,
+ * because the question behind this one has been answered by opening it. Moving
+ * one in is two taps rather than one: a chip carries a name, and what it would
+ * spend may be a flowering run in another tent with a plan following it.
  */
 function GrowQuestion({
   spaceId,
@@ -177,10 +185,12 @@ function GrowQuestion({
 }) {
   const { t } = useTranslation();
   const apply = useApplyPreset(spaceId);
-  const grows = useGrows();
+  const prompt = useSetPresetPrompt(spaceId);
+  const movable = useMovableGrows(spaceId);
   const [picking, setPicking] = useState(false);
+  const [growId, setGrowId] = useState<string | null>(null);
 
-  const movable = (grows.data?.items ?? []).filter(grow => grow.endedAt === null && !grow.summary.locations.some(one => one.spaceId === spaceId));
+  const moving = movable.items.find(grow => grow.id === growId) ?? null;
 
   return (
     <div className={styles.question}>
@@ -188,23 +198,26 @@ function GrowQuestion({
 
       {picking ? (
         <>
-          {movable.length === 0 ? (
+          {movable.items.length === 0 ? (
             <p className={ui.note}>{t('space.presets.noGrowToMove')}</p>
           ) : (
-            <Choices label={t('space.presets.whichGrow')}>
-              {movable.map(grow => (
-                <Choice
-                  key={grow.id}
-                  chosen={false}
-                  disabled={apply.isPending}
-                  onChoose={() =>
-                    apply.mutate({ stage, preset, decision: 'move_grow', growId: grow.id }, { onSuccess: result => onAnswered(result) })
-                  }
-                >
-                  {grow.name}
-                </Choice>
-              ))}
-            </Choices>
+            <>
+              <GrowPicker grows={movable.items} chosen={growId} disabled={apply.isPending} onChoose={setGrowId} />
+              <button
+                type="button"
+                className={ui.button}
+                disabled={moving === null || apply.isPending}
+                onClick={() =>
+                  moving && apply.mutate({ stage, preset, decision: 'move_grow', growId: moving.id }, { onSuccess: result => onAnswered(result) })
+                }
+              >
+                {apply.isPending
+                  ? t('grow.lifecycle.saving')
+                  : moving
+                    ? t('space.presets.moveThisOne', { name: moving.name })
+                    : t('space.presets.moveGrowHere')}
+              </button>
+            </>
           )}
           <Refused error={apply.error} />
         </>
@@ -221,10 +234,21 @@ function GrowQuestion({
             </button>
           ) : null}
           {decisions.includes('climate_only') ? (
-            <button type="button" className={ui.button} onClick={() => onAnswered(null)}>
-              {t('space.presets.climateOnly')}
-            </button>
+            <>
+              <button type="button" className={ui.button} onClick={() => onAnswered(null)}>
+                {t('space.presets.climateOnly')}
+              </button>
+              <button
+                type="button"
+                className={ui.button}
+                disabled={prompt.isPending}
+                onClick={() => prompt.mutate('never', { onSuccess: () => onAnswered(null) })}
+              >
+                {t('space.presets.climateOnlyNever')}
+              </button>
+            </>
           ) : null}
+          <Refused error={prompt.error} />
         </div>
       )}
     </div>

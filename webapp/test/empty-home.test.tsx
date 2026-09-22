@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { session } from '@/api/session';
 import { EmptyHome } from '@/screens/EmptyHome';
 
 // Every door here depends on who is looking, so there has to be somebody: the
@@ -82,6 +83,35 @@ describe('the empty home', () => {
     expect(within(card).queryByRole('textbox', { name: 'Claim code' })).not.toBeInTheDocument();
     expect(within(card).queryByRole('button', { name: 'scan QR' })).not.toBeInTheDocument();
     expect(within(card).getByText(/cannot claim hardware/)).toBeInTheDocument();
+  });
+
+  /** The third door is not the same kind of door as the two above it: it signs out of the account just made. */
+  it('says what the demo costs, and asks before it takes it', async () => {
+    const opened = vi.spyOn(session, 'openDemo').mockResolvedValue(undefined as never);
+    draw();
+
+    expect(screen.getByText(/signed out of yours/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('heading', { name: 'Try the demo' }).closest('button')!);
+    expect(opened).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stay in my account' }));
+    expect(screen.queryByRole('button', { name: /sign out of mine/ })).not.toBeInTheDocument();
+    expect(opened).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('heading', { name: 'Try the demo' }).closest('button')!);
+    fireEvent.click(screen.getByRole('button', { name: /sign out of mine/ }));
+    await waitFor(() => expect(opened).toHaveBeenCalledTimes(1));
+  });
+
+  it('says the camera was refused rather than letting the overlay vanish', async () => {
+    vi.stubGlobal('BarcodeDetector', class {});
+    vi.stubGlobal('navigator', { ...navigator, mediaDevices: { getUserMedia: () => Promise.reject(new Error('NotAllowedError')) } });
+
+    draw();
+    fireEvent.click(screen.getByRole('button', { name: 'scan QR' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('The camera was not allowed');
+    vi.unstubAllGlobals();
   });
 
   it('does not offer the demo a second demo to open', () => {
