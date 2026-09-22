@@ -1,12 +1,17 @@
-import { createBrowserRouter, Navigate } from 'react-router';
+import { createBrowserRouter, Navigate, Outlet } from 'react-router';
 import { AppShell } from './shell/AppShell';
 import { RequireSession } from './RequireSession';
 import { AddCamera } from '@/screens/camera/add/AddCamera';
+import { AdminOnly } from '@/screens/admin/AdminOnly';
+import { Users as AdminUsers } from '@/screens/admin/Users';
 import { Alerts } from '@/screens/Alerts';
 import { CameraPage } from '@/screens/camera/CameraPage';
 import { Charts } from '@/screens/charts/Charts';
 import { Claim } from '@/screens/claim/Claim';
+import { Demo } from '@/screens/admin/Demo';
 import { Devices } from '@/screens/devices/Devices';
+import { FirmwareScreen } from '@/screens/admin/Firmware';
+import { Fleet } from '@/screens/admin/Fleet';
 import { GrowPage } from '@/screens/grow/GrowPage';
 import { Home } from '@/screens/Home';
 import { JoinRoute } from '@/screens/join/JoinRoute';
@@ -81,7 +86,10 @@ import { Timeline } from '@/screens/Timeline';
  * out, Premium, the feeding schemes, the appearance, the account itself and
  * what this install is. The fleet is the one part of the app that is not for
  * growers: it sits under `/admin`, is reached from the desktop rail alone, and
- * a route of it that a phone or a non-administrator opens answers nothing.
+ * the four screens share one guarded parent - so the guard is stated once, and
+ * an account that may not read them, or a window too narrow to draw them, is
+ * answered with the sentence that says which of the two it is rather than with
+ * an empty page.
  */
 export const router = createBrowserRouter([
   { path: '/sign-in', element: <SignIn /> },
@@ -116,10 +124,20 @@ export const router = createBrowserRouter([
       { path: 'me/appearance', element: <Appearance /> },
       { path: 'me/account', element: <Account /> },
       { path: 'me/about', element: <About /> },
-      { path: 'admin/fleet', element: <Placeholder titleKey="admin.fleet.title" /> },
-      { path: 'admin/firmware', element: <Placeholder titleKey="admin.firmware.title" /> },
-      { path: 'admin/users', element: <Placeholder titleKey="admin.users.title" /> },
-      { path: 'admin/demo', element: <Placeholder titleKey="admin.demo.title" /> },
+      {
+        path: 'admin',
+        element: (
+          <AdminOnly>
+            <Outlet />
+          </AdminOnly>
+        ),
+        children: [
+          { path: 'fleet', element: <Fleet /> },
+          { path: 'firmware', element: <FirmwareScreen /> },
+          { path: 'users', element: <AdminUsers /> },
+          { path: 'demo', element: <Demo /> },
+        ],
+      },
       { path: 'alerts', element: <Alerts /> },
       { path: 'grows/new', element: <NewGrowRoute /> },
       { path: 'grows/:growId/measurements', element: <Measurements /> },

@@ -11,6 +11,14 @@ import styles from './Rail.module.css';
 
 const LOG_KEY = 'l';
 
+/** The four fleet screens, in the order the board puts them. They are the rail's alone; the phone's tab bar gains nothing. */
+const ADMIN_LINKS = [
+  { path: '/admin/fleet', labelKey: 'admin.fleet.title' },
+  { path: '/admin/firmware', labelKey: 'admin.firmware.title' },
+  { path: '/admin/users', labelKey: 'admin.users.title' },
+  { path: '/admin/demo', labelKey: 'admin.demo.title' },
+] as const;
+
 const isTyping = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 
@@ -64,6 +72,21 @@ export function Rail() {
       ))}
 
       <div className={styles.spacer} />
+
+      {/* The fleet, for whoever runs this install. It is on the rail and
+          nowhere else: there is no tab for it on a phone, because the screens
+          behind it are tables that need a desktop and say so, and an account
+          that is not an administrator is shown no section it cannot open. */}
+      {user?.isAdmin ? (
+        <div className={styles.section}>
+          <span className={`label ${styles.sectionLabel}`}>{t('admin.section')}</span>
+          {ADMIN_LINKS.map(({ path, labelKey }) => (
+            <NavLink key={path} to={path} className={itemClass}>
+              <span>{t(labelKey)}</span>
+            </NavLink>
+          ))}
+        </div>
+      ) : null}
 
       <NavLink to="/alerts" className={itemClass} aria-label={bell ? t(bell.key, { count: bell.count }) : t('shell.alerts')}>
         <Bell size={18} strokeWidth={1.75} aria-hidden />

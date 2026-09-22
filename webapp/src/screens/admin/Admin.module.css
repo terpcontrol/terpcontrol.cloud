@@ -1,0 +1,308 @@
+/* The four fleet screens, which are one look: a heading with the counts it is
+   read for, a row of chips that narrow what is below, and dense bordered
+   tables. They are desktop only and say so, so nothing here has a phone layout
+   - the widths owed are 1280 px and wider, and between the rail's breakpoint
+   and that the table scrolls sideways rather than wrapping a column under
+   another. Every colour is a token; this file names no literal. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-2);
+}
+
+/* What a refused screen is: the sentence, and the way back. It keeps the
+   column width the rest of the app uses, because it is prose and not a table. */
+.refusal {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  max-width: var(--column-width);
+  padding-top: var(--space-5);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+/* The counts beside the heading: figures, so mono. */
+.counts {
+  flex: 1;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.crumb {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.crumb a {
+  color: var(--muted);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* A chip that is on. The outline carries it: a filled one would be a second
+   primary on a screen that already has the rollout's. */
+.chipOn {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+/* A chip that is a menu: the native select, keeping its keyboard and the
+   platform's own picker, giving up only its arrow and its padding. */
+.menu {
+  appearance: none;
+  padding-right: var(--space-5);
+  background-image: linear-gradient(45deg, transparent 50%, currentcolor 50%), linear-gradient(135deg, currentcolor 50%, transparent 50%);
+  background-position:
+    right 12px top 50%,
+    right 8px top 50%;
+  background-size:
+    4px 4px,
+    4px 4px;
+  background-repeat: no-repeat;
+}
+
+/* A search field the width of what is typed into it, beside the chips rather
+   than over them. */
+.search {
+  width: 220px;
+  height: var(--chip-height);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+}
+
+.tableCard {
+  overflow-x: auto;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.table {
+  width: 100%;
+  min-width: 1040px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.table thead th {
+  padding: var(--space-3) var(--space-4);
+  background: var(--card-2);
+  border-bottom: var(--rule-solid);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--label);
+  white-space: nowrap;
+}
+
+.table tbody td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--rule-solid);
+  font-size: var(--text-sm);
+  vertical-align: middle;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody tr:hover td {
+  background: var(--card-2);
+}
+
+/* An id and a name in one cell: the id is the fact, the name is what somebody
+   called it, so the id leads and is mono. */
+.idCell {
+  white-space: nowrap;
+}
+
+.rowName {
+  color: var(--muted);
+}
+
+.numbers {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.liveness {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentcolor;
+}
+
+.liveness[data-liveness='live'] {
+  color: var(--green-ink);
+}
+
+.liveness[data-liveness='stale'] {
+  color: var(--warning);
+}
+
+.chevron {
+  color: var(--label);
+}
+
+/* A row that opens nothing says so with a dash rather than with a chevron that
+   would go nowhere. */
+.noWhere {
+  color: var(--label);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/* The one figure a card is read for, in the size the design keeps for it. */
+.figure {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* A block inside a card: one device class, one build, one account. */
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: var(--rule-solid);
+}
+
+.blockHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.blockName {
+  font-weight: var(--weight-semibold);
+}
+
+/* What a control would do, said before it is pressed. */
+.consequence {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The percentage, beside the number it is set to. */
+.slider {
+  flex: 1;
+  min-width: 160px;
+  accent-color: var(--brand);
+}
+
+.paused {
+  color: var(--warning);
+}
+
+.danger {
+  border-color: var(--alarm);
+  color: var(--alarm);
+}
+
+.sheetBody {
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+}
+
+/* An address is the one thing on these screens that nobody but an
+   administrator sees. It is drawn as the fact it is, never emphasised, and the
+   sentence beside it says whose account is being changed. */
+.address {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+@media (min-width: 1280px) {
+  .cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
