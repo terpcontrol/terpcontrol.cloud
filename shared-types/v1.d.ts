@@ -2920,9 +2920,18 @@ export interface GrowCard {
 }
 
 export interface HomeSpaceCard {
-  spaceId: string;
+  /**
+   * Null is “no fixed place”: the card stands for the grow alone.
+   */
+  spaceId: string | null;
+  /**
+   * The place’s name, or the grow’s own where the card stands for no place.
+   */
   name: string;
-  kind: SpaceKind;
+  /**
+   * Null where there is no place, and so no kind of one.
+   */
+  kind: SpaceKind | null;
   roomId: string | null;
   deviceIds: string[];
   values: CardValue[];

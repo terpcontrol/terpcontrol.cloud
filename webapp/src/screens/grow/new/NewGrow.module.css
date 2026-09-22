@@ -143,6 +143,16 @@
   color: var(--muted);
 }
 
+/* The way out of a read that failed, inside the sentence that reports it. */
+.retry {
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font: inherit;
+  text-decoration: underline;
+}
+
 .submit {
   width: 100%;
 }

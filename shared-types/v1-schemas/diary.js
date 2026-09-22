@@ -727,11 +727,17 @@ exports.growCard = (0, common_js_1.named)('GrowCard', zod_1.z.object({
     coverMediaId: (0, common_js_1.id)().nullable(),
     stageGroups: zod_1.z.array(exports.growCardStageGroup),
 }));
-/** One space, with everything the home screen shows about it. */
+/**
+ * One space, with everything the home screen shows about it - or, where the
+ * ids are null, one open grow that stands in no space at all. A grow is
+ * first-class without a place, so "no fixed place" is a card rather than a
+ * hole in the home, and the app opens it at the grow because there is no space
+ * page to open.
+ */
 exports.homeSpaceCard = (0, common_js_1.named)('HomeSpaceCard', zod_1.z.object({
-    spaceId: (0, common_js_1.id)(),
-    name: zod_1.z.string(),
-    kind: common_js_1.spaceKind,
+    spaceId: (0, common_js_1.id)().nullable().describe('Null is “no fixed place”: the card stands for the grow alone.'),
+    name: zod_1.z.string().describe('The place’s name, or the grow’s own where the card stands for no place.'),
+    kind: common_js_1.spaceKind.nullable().describe('Null where there is no place, and so no kind of one.'),
     roomId: (0, common_js_1.id)().nullable(),
     deviceIds: zod_1.z.array((0, common_js_1.id)()),
     values: zod_1.z.array(exports.cardValue),

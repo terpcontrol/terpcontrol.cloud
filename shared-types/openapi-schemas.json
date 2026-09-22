@@ -10027,14 +10027,31 @@
     "type": "object",
     "properties": {
       "spaceId": {
-        "type": "string",
-        "minLength": 1
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null is “no fixed place”: the card stands for the grow alone."
       },
       "name": {
-        "type": "string"
+        "type": "string",
+        "description": "The place’s name, or the grow’s own where the card stands for no place."
       },
       "kind": {
-        "$ref": "#/components/schemas/SpaceKind"
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/SpaceKind"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null where there is no place, and so no kind of one."
       },
       "roomId": {
         "anyOf": [

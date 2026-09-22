@@ -1,5 +1,6 @@
 import { Camera, Droplet, Leaf, Pencil, Ruler, Timer, type LucideIcon } from 'lucide-react';
 import type { DateTime } from 'luxon';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Entry, GrowCard, GrowthStage, HomeSpaceCard, Person } from '@fg2/shared-types/v1';
@@ -8,6 +9,7 @@ import { ageLabel } from '@/ui/age';
 import { authorOf, headlineOf } from '@/ui/entries';
 import { STAGES } from '@/ui/stages';
 import { useLog, useMayLog, type TileKind } from '@/log/log-context';
+import { MoveHereSheet } from '@/screens/space/MoveHereSheet';
 import ui from '@/ui/ui.module.css';
 import styles from './SpaceCard.module.css';
 
@@ -140,26 +142,36 @@ export function NewestEntry({ entry, people, now }: { entry: Entry | null; peopl
   );
 }
 
-/** The grow half of a place that has no grow: one line, and the three ways out of it. */
+/**
+ * The grow half of a place that has no grow: one line, and the three ways out
+ * of it. Both ways in name this card's place - the invitation is about this
+ * tent, so the sheet it opens has to be about this tent too, and a sheet that
+ * arrived with no subject would fall back to whatever grow the account has
+ * running somewhere else.
+ */
 export function NoGrow({ card, onNotNow }: { card: HomeSpaceCard; onNotNow: () => void }) {
   const { t } = useTranslation();
+  const [moving, setMoving] = useState(false);
 
   return (
-    <p className={styles.invite}>
-      {t('home.invite.noGrow')}
-      {' · '}
-      <Link to="/log?kind=phase" className={styles.inviteAction}>
-        {t('home.invite.startGrow')}
-      </Link>
-      {' · '}
-      <Link to="/log?kind=move" className={styles.inviteAction}>
-        {t('home.invite.moveGrow')}
-      </Link>
-      {' · '}
-      <button type="button" className={styles.inviteDismiss} onClick={onNotNow} aria-label={t('home.invite.notNowFor', { name: card.name })}>
-        {t('home.invite.notNow')}
-      </button>
-    </p>
+    <>
+      <p className={styles.invite}>
+        {t('home.invite.noGrow')}
+        {' · '}
+        <Link to={`/grows/new?space=${card.spaceId}`} className={styles.inviteAction}>
+          {t('home.invite.startGrow')}
+        </Link>
+        {' · '}
+        <button type="button" className={styles.inviteAction} onClick={() => setMoving(true)}>
+          {t('home.invite.moveGrow')}
+        </button>
+        {' · '}
+        <button type="button" className={styles.inviteDismiss} onClick={onNotNow} aria-label={t('home.invite.notNowFor', { name: card.name })}>
+          {t('home.invite.notNow')}
+        </button>
+      </p>
+      {moving && card.spaceId !== null ? <MoveHereSheet spaceId={card.spaceId} spaceName={card.name} onClose={() => setMoving(false)} /> : null}
+    </>
   );
 }
 

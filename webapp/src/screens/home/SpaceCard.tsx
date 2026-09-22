@@ -24,6 +24,9 @@ interface SpaceCardProps {
 /** "Not now" is remembered per place and per browser; it is a preference, not a fact about the space. */
 const DISMISSED_KEY = 'terp.home.noGrowDismissed';
 
+/** What a card is remembered by. A card with no place is its grow, and one null would stand for every one of them. */
+const keyOf = (card: HomeSpaceCard): string => card.spaceId ?? `grow:${card.grow?.growId ?? ''}`;
+
 const dismissed = (): string[] => {
   try {
     return JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? '[]') as string[];
@@ -32,9 +35,9 @@ const dismissed = (): string[] => {
   }
 };
 
-const dismiss = (spaceId: string) => {
+const dismiss = (key: string) => {
   try {
-    localStorage.setItem(DISMISSED_KEY, JSON.stringify([...new Set([...dismissed(), spaceId])]));
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify([...new Set([...dismissed(), key])]));
   } catch {
     // Private mode: the invitation comes back next time, which is no worse.
   }
@@ -45,17 +48,23 @@ const dismiss = (spaceId: string) => {
  * may be the one-line invitation instead - and when there is nothing measuring
  * and one grow, the grow takes the header, because the place is then only where
  * the plants happen to be.
+ *
+ * A card whose place is null is the whole of that last case: a grow standing
+ * nowhere. It is named for the chip that put it there, its icon is the plain
+ * leaf no kind of place carries, and nothing on it opens a space page, because
+ * there is no space to open.
  */
 export function SpaceCard({ card, people, now, compact }: SpaceCardProps) {
   const { t } = useTranslation();
-  const [hidden, setHidden] = useState(() => dismissed().includes(card.spaceId));
+  const [hidden, setHidden] = useState(() => dismissed().includes(keyOf(card)));
   const liveness = livenessOf(card);
   const alert = worstAlertOf(card);
   const growHeads = liveness === 'none' && card.grow !== null;
-  const Icon = KIND_ICON[card.kind];
+  const Icon = card.kind === null ? Leaf : KIND_ICON[card.kind];
+  const placeName = card.spaceId === null ? t('grow.noFixedPlace') : card.name;
 
   const notNow = () => {
-    dismiss(card.spaceId);
+    dismiss(keyOf(card));
     setHidden(true);
   };
 
@@ -70,7 +79,7 @@ export function SpaceCard({ card, people, now, compact }: SpaceCardProps) {
               </h2>
               <div className={styles.subtitle}>
                 <Icon size={13} strokeWidth={1.75} aria-hidden />
-                <Link to={`/spaces/${card.spaceId}`}>{card.name}</Link>
+                {card.spaceId === null ? <span>{placeName}</span> : <Link to={`/spaces/${card.spaceId}`}>{placeName}</Link>}
                 <span className={styles.subtitleLine}>
                   {' · '}
                   <PhaseLine grow={card.grow!} />
@@ -79,9 +88,9 @@ export function SpaceCard({ card, people, now, compact }: SpaceCardProps) {
             </>
           ) : (
             <h2 className={styles.name}>
-              <Link to={`/spaces/${card.spaceId}`} className={styles.nameLink}>
+              <Link to={card.spaceId === null ? `/grows/${card.grow?.growId}` : `/spaces/${card.spaceId}`} className={styles.nameLink}>
                 <Icon size={16} strokeWidth={1.75} aria-hidden />
-                {card.name}
+                {placeName}
               </Link>
             </h2>
           )}

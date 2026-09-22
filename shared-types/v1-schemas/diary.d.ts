@@ -1959,17 +1959,23 @@ export declare const growCard: z.ZodObject<{
         plantCount: z.ZodNullable<z.ZodNumber>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
-/** One space, with everything the home screen shows about it. */
+/**
+ * One space, with everything the home screen shows about it - or, where the
+ * ids are null, one open grow that stands in no space at all. A grow is
+ * first-class without a place, so "no fixed place" is a card rather than a
+ * hole in the home, and the app opens it at the grow because there is no space
+ * page to open.
+ */
 export declare const homeSpaceCard: z.ZodObject<{
-    spaceId: z.ZodString;
+    spaceId: z.ZodNullable<z.ZodString>;
     name: z.ZodString;
-    kind: z.ZodEnum<{
+    kind: z.ZodNullable<z.ZodEnum<{
         other: "other";
         tent: "tent";
         fridge: "fridge";
         room: "room";
         balcony: "balcony";
-    }>;
+    }>>;
     roomId: z.ZodNullable<z.ZodString>;
     deviceIds: z.ZodArray<z.ZodString>;
     values: z.ZodArray<z.ZodObject<{
@@ -2250,15 +2256,15 @@ export declare const person: z.ZodObject<{
 }, z.core.$strip>;
 export declare const homeAnswer: z.ZodObject<{
     spaces: z.ZodArray<z.ZodObject<{
-        spaceId: z.ZodString;
+        spaceId: z.ZodNullable<z.ZodString>;
         name: z.ZodString;
-        kind: z.ZodEnum<{
+        kind: z.ZodNullable<z.ZodEnum<{
             other: "other";
             tent: "tent";
             fridge: "fridge";
             room: "room";
             balcony: "balcony";
-        }>;
+        }>>;
         roomId: z.ZodNullable<z.ZodString>;
         deviceIds: z.ZodArray<z.ZodString>;
         values: z.ZodArray<z.ZodObject<{

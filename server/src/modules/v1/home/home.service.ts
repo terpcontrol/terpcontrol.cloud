@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { FilterQuery, Model } from 'mongoose';
 import type {
   CardTrend,
   DueTask,
@@ -44,6 +44,12 @@ import { dueTasksOf, occurrencePrefix } from './due-tasks';
  * is due and what is alarming - a handful of queries, and one Influx read per
  * device.
  *
+ * A grow standing in no place at all gets a card of its own, with the ids null
+ * and the climate half empty. Without it the diary-only grower - the balcony,
+ * the windowsill, the tent with no controller - would start a grow and find the
+ * home unchanged, because a place is the only thing the cards would be counted
+ * from.
+ *
  * Every figure here is what a screen draws and nothing else: the day counter
  * and the phase come from the grow serialiser, the age of a value from the
  * shared constant, the tasks from the reminders. Nothing is decided twice.
@@ -58,7 +64,8 @@ const TREND_HOURS = 24;
 const TREND_STEP_SECONDS = 1800;
 
 interface Card {
-  space: SpaceDocument;
+  /** Null on the card that stands for a grow with no place, which is drawn from the grow alone. */
+  space: SpaceDocument | null;
   grow: GrowDocument | null;
 }
 
@@ -93,16 +100,33 @@ export class HomeService {
     const [devices, grows] = await Promise.all([
       this.live.devicesIn(spaceIds),
       this.grows
-        .find({ endedAt: null, placements: { $elemMatch: { spaceId: { $in: spaceIds }, endedAt: null } } })
+        .find({
+          // Combined rather than merged: the ownership scope is an `$or` of its
+          // own and would silently replace the branch that finds placed grows.
+          $and: [
+            { endedAt: null },
+            {
+              $or: [
+                { placements: { $elemMatch: { spaceId: { $in: spaceIds }, endedAt: null } } },
+                { $and: [ownGrows(ctx), { placements: { $not: { $elemMatch: { spaceId: { $ne: null }, endedAt: null } } } }] },
+              ],
+            },
+          ],
+        })
         .sort({ startedAt: -1 })
         .lean<GrowDocument[]>(),
     ]);
 
     // A room is where tents are grouped, not a card of its own - unless
-    // something stands in the room itself.
-    const cards: Card[] = spaces
-      .map(space => ({ space, grow: grows.find(grow => standsIn(grow, space.id)) ?? null }))
-      .filter(({ space, grow }) => space.kind !== 'room' || grow !== null || devices.some(device => device.spaceId === space.id));
+    // something stands in the room itself. A placeless grow follows the places,
+    // because it has no order among them and the app lifts whatever needs a
+    // person to the top anyway.
+    const cards: Card[] = [
+      ...spaces
+        .map(space => ({ space, grow: grows.find(grow => standsIn(grow, space.id)) ?? null }))
+        .filter(({ space, grow }) => space.kind !== 'room' || grow !== null || devices.some(device => device.spaceId === space.id)),
+      ...grows.filter(standsNowhere).map(grow => ({ space: null, grow })),
+    ];
     const growIds = cards.flatMap(card => (card.grow ? [card.grow.id] : []));
 
     const trendWindow = { startsAt: new Date(now.getTime() - TREND_HOURS * 3600 * 1000), endsAt: now, stepSeconds: TREND_STEP_SECONDS };
@@ -137,16 +161,17 @@ export class HomeService {
 
     const answers = await Promise.all(
       cards.map(async ({ space, grow }): Promise<HomeSpaceCard> => {
-        const here = devices.filter(device => device.spaceId === space.id).map(device => device.id);
-        const eyes = cameras.filter(camera => camera.spaceId === space.id).map(camera => camera.id);
-        const [entries, still] = await Promise.all([this.newestEntries(space.id, grow?.id ?? null), this.latestStill(eyes)]);
+        const here = space ? devices.filter(device => device.spaceId === space.id).map(device => device.id) : [];
+        const eyes = space ? cameras.filter(camera => camera.spaceId === space.id).map(camera => camera.id) : [];
+        const [entries, still] = await Promise.all([this.newestEntries(space?.id ?? null, grow?.id ?? null), this.latestStill(eyes)]);
         const inSpace = readings.filter(reading => here.includes(reading.deviceId));
 
         return {
-          spaceId: space.id,
-          name: space.name,
-          kind: space.kind,
-          roomId: space.roomId,
+          spaceId: space?.id ?? null,
+          // A card with no place is known by its grow, which is the only name it has.
+          name: space?.name ?? grow!.name,
+          kind: space?.kind ?? null,
+          roomId: space?.roomId ?? null,
           deviceIds: here,
           ...mergeLive(inSpace),
           trend: trendOf(here, trends, trendWindow),
@@ -160,9 +185,9 @@ export class HomeService {
             : null,
           entries: entries.map(serialiseEntry),
           latestStill: still,
-          dueTasks: tasks.filter(task => isAbout(task, space.id, grow?.id ?? null)),
+          dueTasks: tasks.filter(task => isAbout(task, space?.id ?? null, grow?.id ?? null)),
           openAlerts: alerts
-            .filter(alert => alert.spaceId === space.id || (alert.deviceId !== null && here.includes(alert.deviceId)))
+            .filter(alert => space !== null && (alert.spaceId === space.id || (alert.deviceId !== null && here.includes(alert.deviceId))))
             .map(alert => openAlertOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
         };
       }),
@@ -187,7 +212,7 @@ export class HomeService {
   }
 
   /** The grow's diary where there is a grow; the space's own lines - a device's, an alarm's - where there is none. */
-  private newestEntries(spaceId: string, growId: string | null): Promise<EntryDocument[]> {
+  private newestEntries(spaceId: string | null, growId: string | null): Promise<EntryDocument[]> {
     return this.entries
       .find(growId ? { growId } : { spaceId })
       .sort({ occurredAt: -1, _id: -1 })
@@ -274,6 +299,22 @@ export class HomeService {
 const standsIn = (grow: GrowDocument, spaceId: string): boolean =>
   grow.placements.some(placement => placement.spaceId === spaceId && placement.endedAt === null);
 
+/**
+ * A grow with no open placement into any space: either started on "no fixed
+ * place", which stores a placement with no space, or moved out of everywhere
+ * since. A grow whose open placement names a space the reader cannot see is
+ * not one of these, so an archived tent keeps its grow hidden rather than
+ * turning it into a placeless card.
+ */
+const standsNowhere = (grow: GrowDocument): boolean => !grow.placements.some(placement => placement.spaceId !== null && placement.endedAt === null);
+
+/**
+ * The grows a placeless card may be drawn from. Standing in no space, such a
+ * grow can be reached by no membership, so ownership is the whole of the
+ * widening `visibleTo` would do for it.
+ */
+const ownGrows = (ctx: AccessContext): FilterQuery<GrowDocument> => (ctx.isDemo || ctx.userId === null ? { isDemo: true } : { ownerId: ctx.userId });
+
 /** The first device in the space that has a day of history; a card draws one line, not one per device. */
 const trendOf = (deviceIds: string[], trends: Map<string, SeriesPoint[]>, window: { endsAt: Date; stepSeconds: number }): CardTrend | null => {
   const points = deviceIds.map(id => trends.get(id)).find(own => own !== undefined);
@@ -283,7 +324,7 @@ const trendOf = (deviceIds: string[], trends: Map<string, SeriesPoint[]>, window
     : null;
 };
 
-const isAbout = (task: DueTask, spaceId: string, growId: string | null): boolean =>
+const isAbout = (task: DueTask, spaceId: string | null, growId: string | null): boolean =>
   task.subject.type === 'space' ? task.subject.id === spaceId : task.subject.id === growId;
 
 const growCardOf = (grow: GrowDocument, plants: PlantDocument[], hide: Redaction, now: Date): GrowCard => {

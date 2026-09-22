@@ -2,6 +2,7 @@ import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import type { HomeSpaceCard } from '@fg2/shared-types/v1';
 import { useHome } from '@/api/home';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
@@ -27,7 +28,9 @@ export function Timeline() {
   if (home.isPending) return <Waiting lines={3} />;
   if (!home.data) return <LoadFailed retry={() => void home.refetch()} />;
 
-  const places = home.data.spaces;
+  // A timeline is a place's measurements over a window, so the cards that stand
+  // for a grow and no place have nothing to draw here and are not offered.
+  const places = home.data.spaces.filter((card): card is HomeSpaceCard & { spaceId: string } => card.spaceId !== null);
   if (places.length === 0) {
     return (
       <section className={styles.screen}>

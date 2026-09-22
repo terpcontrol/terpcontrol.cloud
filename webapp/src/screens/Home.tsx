@@ -15,9 +15,11 @@ import { AttentionStrip, DueStrip, FollowingStrip } from './home/Strips';
 import styles from './Home.module.css';
 
 /**
- * Home is one card per space. It waits in its own shape, and once it has
- * answered it never goes blank again: a refresh that fails keeps the last
- * answer on the screen with its ages, which is what the ages are for.
+ * Home is one card per space, plus one for each open grow that stands in no
+ * space at all - "no fixed place" is a card and not a hole. It waits in its own
+ * shape, and once it has answered it never goes blank again: a refresh that
+ * fails keeps the last answer on the screen with its ages, which is what the
+ * ages are for.
  */
 export function Home() {
   const { t } = useTranslation();
@@ -45,16 +47,32 @@ export function Home() {
   }
 
   const answer = home.data!;
-  const nothingYet = answer.spaces.length === 0 && answer.followedGrows.length === 0;
+  // Owning nothing is what makes the home empty. Following somebody is not
+  // owning something, so a grower who follows a friend while their hardware is
+  // in the post keeps the two doors and the claim-code field, with the strip
+  // under them where a strip belongs.
+  const nothingYet = answer.spaces.length === 0;
 
   return (
     <>
       {nothingYet ? (
-        <EmptyHome onStartGrow={() => setStarting(true)} />
+        <Nothing grows={answer.followedGrows} onStartGrow={() => setStarting(true)} />
       ) : (
         <Cards answer={answer} failedAt={home.isError ? home.dataUpdatedAt : null} onStartGrow={() => setStarting(true)} />
       )}
       {starting ? <NewGrowSheet onClose={() => setStarting(false)} /> : null}
+    </>
+  );
+}
+
+/** The empty home, and under it whatever is being followed from it. */
+function Nothing({ grows, onStartGrow }: { grows: HomeAnswer['followedGrows']; onStartGrow: () => void }) {
+  const now = useNow();
+
+  return (
+    <>
+      <EmptyHome onStartGrow={onStartGrow} />
+      <FollowingStrip grows={grows} now={now} />
     </>
   );
 }
@@ -85,7 +103,8 @@ function Cards({ answer, failedAt, onStartGrow }: { answer: HomeAnswer; failedAt
 
       <div className={styles.cards}>
         {cards.map(card => (
-          <SpaceCard key={card.spaceId} card={card} people={answer.people} now={now} compact={club} />
+          // A card with no place is known by its grow, which is the only id it has.
+          <SpaceCard key={card.spaceId ?? card.grow?.growId} card={card} people={answer.people} now={now} compact={club} />
         ))}
       </div>
 

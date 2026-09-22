@@ -61,8 +61,12 @@ interface SchemeIndex {
   schemes: SchemeSummary[];
 }
 
+/** The asset is not there at all, which for the index means a build that ships no schemes rather than a read that went wrong. */
+class AssetMissing extends Error {}
+
 const readAsset = async <T>(file: string, signal?: AbortSignal): Promise<T> => {
   const response = await fetch(`${FOLDER}/${file}`, { signal });
+  if (response.status === 404) throw new AssetMissing(`scheme asset ${file}: 404`);
   if (!response.ok) throw new Error(`scheme asset ${file}: ${response.status}`);
   return (await response.json()) as T;
 };
@@ -82,12 +86,20 @@ const FOREVER = { staleTime: Infinity, gcTime: Infinity } as const;
  * with no schemes folder answers an empty list rather than an error, because a
  * client without them is a client that asks one question less - and a sheet
  * that could not tell the two apart would draw a refusal where there is
- * nothing to refuse.
+ * nothing to refuse. A read that merely failed is the other case and is left to
+ * fail, so the sheet says so instead of asserting an empty shelf.
  */
 export const useSchemes = () =>
   useQuery({
     queryKey: schemesKey,
-    queryFn: async ({ signal }) => (await readAsset<SchemeIndex>('index.json', signal).catch(() => ({ schemes: [] }))).schemes,
+    queryFn: async ({ signal }) => {
+      try {
+        return (await readAsset<SchemeIndex>('index.json', signal)).schemes;
+      } catch (error) {
+        if (error instanceof AssetMissing) return [];
+        throw error;
+      }
+    },
     ...FOREVER,
   });
 

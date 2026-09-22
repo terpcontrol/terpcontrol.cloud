@@ -282,8 +282,56 @@ describe('the cards', () => {
 
   it('shows an administrator their own places and not everybody´s', async () => {
     const admin: AccessContext = { userId: STRANGER, isAdmin: true, isDemo: false, shareToken: null };
+    const answer = await home.read(admin, NOW);
 
-    expect((await home.read(admin, NOW)).spaces).toEqual([]);
+    // The stranger owns no place, so the one card is their own placeless grow
+    // and none of the owner's three.
+    expect(answer.spaces.map(card => card.spaceId)).toEqual([null]);
+    expect(answer.spaces.map(card => card.grow?.growId)).toEqual([PUBLIC_GROW]);
+  });
+
+  // A grow is first-class without a place, so "no fixed place" is a card and
+  // not a hole: without this the grower who picks that chip starts a grow and
+  // finds the home exactly as they left it.
+  it('draws an open grow that stands in no place at all as a card of its own', async () => {
+    await db.grows.create({
+      id: 'grow-nowhere',
+      ownerId: OWNER,
+      name: 'Windowsill basil',
+      type: 'photoperiod',
+      phases: [],
+      placements: [{ id: 'placement-nowhere', spaceId: null, startedAt: STARTED_AT, endedAt: null, plantIds: null }],
+      slug: 'windowsill-basil',
+      startedAt: STARTED_AT,
+      endedAt: null,
+    });
+    await db.reminders.create({
+      id: 'reminder-basil',
+      subject: { type: 'grow', id: 'grow-nowhere' },
+      kind: 'water',
+      label: 'Water',
+      everyDays: 2,
+      onceAt: null,
+      assigneeId: null,
+      createdBy: OWNER,
+      createdAt: STARTED_AT,
+    });
+
+    const answer = await home.read(session(OWNER), NOW);
+    const nowhere = answer.spaces.find(card => card.spaceId === null)!;
+
+    expect(answer.spaces.map(card => card.spaceId)).toEqual([TENT, FRIDGE, BALCONY, null]);
+    expect(nowhere.name).toBe('Windowsill basil');
+    expect(nowhere.kind).toBeNull();
+    expect(nowhere.roomId).toBeNull();
+    expect(nowhere.grow?.growId).toBe('grow-nowhere');
+    expect(nowhere.deviceIds).toEqual([]);
+    expect(nowhere.values).toEqual([]);
+    expect(nowhere.trend).toBeNull();
+    expect(nowhere.latestStill).toBeNull();
+    expect(nowhere.openAlerts).toEqual([]);
+    // The widened grow ids are what carry its reminders into the task list.
+    expect(nowhere.dueTasks.map(task => task.label)).toEqual(['Water']);
   });
 
   it('is empty for somebody with nothing, rather than a refusal', async () => {

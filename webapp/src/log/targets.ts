@@ -36,9 +36,9 @@ const spaceTarget = (card: HomeSpaceCard): LogTarget => ({
 /** One chip per place, in the order the home lists them: its grow where one grows, the space itself where none does. */
 export const targetsOf = (home: HomeAnswer | undefined): LogTarget[] => (home?.spaces ?? []).map(card => growTarget(card) ?? spaceTarget(card));
 
-/** The card the chosen target belongs to, which is where its tent and its own name are. */
+/** The card the chosen target belongs to, which is where its tent and its own name are. A grow that stands nowhere has none. */
 const cardOf = (home: HomeAnswer | undefined, target: LogTarget | null): HomeSpaceCard | null =>
-  (home?.spaces ?? []).find(card => card.spaceId === target?.standsIn) ?? null;
+  target?.standsIn ? ((home?.spaces ?? []).find(card => card.spaceId === target.standsIn) ?? null) : null;
 
 /** The tent the chosen grow stands in and its plants: the rest of the board's row, and only while a grow is chosen. */
 export const narrowerTargets = (home: HomeAnswer | undefined, target: LogTarget | null, plants: Plant[]): LogTarget[] => {

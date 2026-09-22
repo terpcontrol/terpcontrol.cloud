@@ -19,7 +19,7 @@ import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useCreateSpace } from './create-space';
-import { dayNumber, growBody, plantsOf, presetFor, START_STAGES, suggestedName, tells, type Draft, type PlantRow } from './new-grow';
+import { dayNumber, growBody, growIn, presetFor, START_STAGES, suggestedName, tells, type Draft, type PlantRow } from './new-grow';
 import styles from './NewGrow.module.css';
 
 /** The kinds of place a grow can be started in. A room holds other places rather than plants, so it is not one of them. */
@@ -66,7 +66,10 @@ export function NewGrowSheet({ spaceId = null, stage = null, replace = false, on
   const cameras = useCameras();
   const schemes = useSchemes();
 
-  if (spaces.isPending || grows.isPending) {
+  // The schemes are waited for with the rest, because the draft opens on the
+  // first of them and a draft built before they arrive would keep "None / my
+  // own" for the whole session - which is the very first grow of a cold cache.
+  if (spaces.isPending || grows.isPending || schemes.isPending) {
     return (
       <Sheet title={t('grow.new.title')} onClose={onClose}>
         <Waiting />
@@ -91,9 +94,12 @@ export function NewGrowSheet({ spaceId = null, stage = null, replace = false, on
     <Form
       spaces={spaces.data.items}
       grows={grows.data.items}
-      devices={devices.data?.items ?? []}
+      devices={devices.data?.items ?? null}
+      devicesFailed={devices.isError && devices.data === undefined}
+      retryDevices={() => void devices.refetch()}
       cameras={cameras.data?.items ?? []}
       schemes={schemes.data ?? []}
+      schemesFailed={schemes.isError}
       spaceId={spaceId}
       stage={stage}
       replace={replace}
@@ -105,10 +111,17 @@ export function NewGrowSheet({ spaceId = null, stage = null, replace = false, on
 interface FormProps extends NewGrowSheetProps {
   spaces: Space[];
   grows: GrowListItem[];
-  devices: Device[];
+  /** Null where the devices could not be read: a failed read is not an empty room, and the sheet says which it is. */
+  devices: Device[] | null;
+  devicesFailed: boolean;
+  retryDevices: () => void;
   cameras: Camera[];
   schemes: SchemeSummary[];
+  schemesFailed: boolean;
 }
+
+/** What the reason under a dead primary is called, so the button can point at it. */
+const REASON_ID = 'new-grow-reason';
 
 /**
  * The questions, once there is enough to draw them with. They are split from
@@ -116,7 +129,20 @@ interface FormProps extends NewGrowSheetProps {
  * place the plants most likely go, and the name after the last run - rather
  * than on a guess corrected a moment later by an answer arriving.
  */
-function Form({ spaces, grows, devices, cameras, schemes, spaceId = null, stage = null, replace = false, onClose }: FormProps) {
+function Form({
+  spaces,
+  grows,
+  devices,
+  devicesFailed,
+  retryDevices,
+  cameras,
+  schemes,
+  schemesFailed,
+  spaceId = null,
+  stage = null,
+  replace = false,
+  onClose,
+}: FormProps) {
   const { t } = useTranslation();
   const now = useNow();
   const navigate = useNavigate();
@@ -127,10 +153,14 @@ function Form({ spaces, grows, devices, cameras, schemes, spaceId = null, stage 
     name: '',
     plants: [{ key: '1', strain: '', count: 1 }],
     type: 'photoperiod',
-    spaceId: spaceId ?? places[0]?.id ?? null,
+    // A place that was asked for wins, but only if it still exists: this sheet
+    // is an address, and an address outlives the tent it named. Otherwise the
+    // first free place, because defaulting into somebody's flowering tent puts
+    // a second grow in it and pauses the plan steering the first.
+    spaceId: places.some(one => one.id === spaceId) ? spaceId : (places.find(one => growIn(grows, one.id) === null)?.id ?? null),
     stage: stage ?? 'germination',
     startedAt: new Date(),
-    schemeId: null,
+    schemeId: schemes[0]?.id ?? null,
   }));
   /** Open while a place is being invented, and closed again by the place existing. */
   const [naming, setNaming] = useState(false);
@@ -149,21 +179,52 @@ function Form({ spaces, grows, devices, cameras, schemes, spaceId = null, stage 
 
   const change = (over: Partial<Draft>) => setDraft(current => ({ ...current, ...over }));
   const place = places.find(one => one.id === draft.spaceId) ?? null;
-  const standing = place === null ? [] : devices.filter(device => device.spaceId === place.id);
-  const suggestion = suggestedName(grows, t('grow.new.firstName'));
+  const standing = place === null || devices === null ? null : devices.filter(device => device.spaceId === place.id);
+  const already = place === null ? null : growIn(grows, place.id);
+  const suggestion = suggestedName(grows, draft.spaceId, t('grow.new.firstName'));
   const preset = presetFor(draft.type, draft.stage);
   const day = dayNumber(draft.startedAt, now);
   // The phase writes the tent's climate only where it carries a preset, so the
   // stage that carries none is applied to the place on its own - unless the
-  // sheet that opened this one has just written that very stage there.
+  // sheet that opened this one has just written that very stage there. A place
+  // whose hardware could not be read is not written to at all: guessing there
+  // is a controller is the one mistake that cannot be taken back.
   const alsoClimate =
-    place !== null && preset === null && writesClimate(draft.stage) && standing.length > 0 && !(stage !== null && draft.stage === stage);
+    place !== null &&
+    preset === null &&
+    writesClimate(draft.stage) &&
+    standing !== null &&
+    standing.length > 0 &&
+    !(stage !== null && draft.stage === stage);
   const busy = createGrow.isPending || startingPhase.isPending || applyPreset.isPending;
   const refused = createGrow.error ?? startingPhase.error ?? applyPreset.error;
-  const ready = plantsOf(draft.plants).length > 0 && (draft.schemeId === null || scheme.data !== undefined);
+  const ready = draft.schemeId === null || scheme.data !== undefined;
+  // Why the primary cannot act, said rather than left to be discovered: a place
+  // that is being invented is not a place yet, and a scheme that has not been
+  // read is not a grid to feed from.
+  const blocked = naming ? 'grow.new.placeFirst' : ready ? null : 'grow.new.notReady';
+
+  const told = tells(
+    draft,
+    place === null
+      ? null
+      : {
+          name: place.name,
+          steered: standing === null ? null : standing.length > 0,
+          standing: already?.name ?? null,
+          writesClimate: alsoClimate,
+        },
+    t(`home.stage.${draft.stage}`),
+  );
+  const warning = told.find(one => one.warns) ?? null;
 
   const start = async () => {
-    const body = growBody(draft, draft.name.trim() || suggestion, scheme.data ? growSchemeOf(scheme.data, { type: draft.type }) : null);
+    const body = growBody(
+      draft,
+      draft.name.trim() || suggestion,
+      scheme.data ? growSchemeOf(scheme.data, { type: draft.type }) : null,
+      t('grow.new.unnamedStrain'),
+    );
     try {
       let growId = made.growId;
       if (growId === null) {
@@ -200,8 +261,22 @@ function Form({ spaces, grows, devices, cameras, schemes, spaceId = null, stage 
                 {t(made.phaseDone ? 'grow.new.climateLeft' : 'grow.new.growStands')}
               </p>
             ) : null}
+            {/* The sentences under the chips scroll away on a phone, and what
+                the tap would disturb is the one of them that must not. */}
+            {warning ? <p className={ui.note}>{t(warning.key, warning.values)}</p> : null}
+            {blocked ? (
+              <p className={ui.note} id={REASON_ID}>
+                {t(blocked)}
+              </p>
+            ) : null}
             <Refused error={refused} />
-            <button type="button" className={`${ui.button} ${ui.primary} ${styles.submit}`} disabled={!ready || busy} onClick={() => void start()}>
+            <button
+              type="button"
+              className={`${ui.button} ${ui.primary} ${styles.submit}`}
+              disabled={blocked !== null || busy}
+              aria-describedby={blocked ? REASON_ID : undefined}
+              onClick={() => void start()}
+            >
               {busy ? t('grow.new.starting') : t('grow.new.submit', { day })}
             </button>
           </>
@@ -269,7 +344,16 @@ function Form({ spaces, grows, devices, cameras, schemes, spaceId = null, stage 
                 {standsIn(one, devices, cameras, t)}
               </Choice>
             ))}
-            <Choice chosen={naming} onChoose={() => setNaming(true)}>
+            {/* Letting go of the held place as well as opening the form, so
+                that what is printed under the chips is the answer on screen
+                rather than the tent that was chosen before. */}
+            <Choice
+              chosen={naming}
+              onChoose={() => {
+                setNaming(true);
+                change({ spaceId: null });
+              }}
+            >
               {t('grow.new.newSpace')}
             </Choice>
             <Choice
@@ -282,6 +366,14 @@ function Form({ spaces, grows, devices, cameras, schemes, spaceId = null, stage 
               {t('grow.noFixedPlace')}
             </Choice>
           </Choices>
+          {devicesFailed ? (
+            <p className={ui.note}>
+              {t('grow.new.devicesUnread')}{' '}
+              <button type="button" className={styles.retry} onClick={retryDevices}>
+                {t('home.retry')}
+              </button>
+            </p>
+          ) : null}
           {naming ? (
             <NewSpace
               onMade={space => {
@@ -324,7 +416,10 @@ function Form({ spaces, grows, devices, cameras, schemes, spaceId = null, stage 
               {t('grow.new.ownScheme')}
             </Choice>
           </Choices>
-          {schemes.length === 0 ? <p className={ui.note}>{t('grow.new.noSchemes')}</p> : null}
+          {/* A build with no schemes folder and a read that failed are not the
+              same thing, and only one of them is worth trying again. */}
+          {schemesFailed ? <p className={ui.note}>{t('grow.new.schemesUnread')}</p> : null}
+          {!schemesFailed && schemes.length === 0 ? <p className={ui.note}>{t('grow.new.noSchemes')}</p> : null}
           {scheme.isError ? (
             <p className={ui.problem} role="alert">
               {t('grow.new.schemeUnreadable')}
@@ -333,8 +428,8 @@ function Form({ spaces, grows, devices, cameras, schemes, spaceId = null, stage 
         </Block>
 
         <ul className={styles.tells}>
-          {tells(draft, place === null ? null : { name: place.name, steered: standing.length > 0 }, t(`home.stage.${draft.stage}`)).map(told => (
-            <li key={told.key}>{t(told.key, told.values)}</li>
+          {told.map(one => (
+            <li key={one.key}>{t(one.key, one.values)}</li>
           ))}
         </ul>
       </div>
@@ -344,8 +439,14 @@ function Form({ spaces, grows, devices, cameras, schemes, spaceId = null, stage 
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
-/** "Tent 1 · Controller + Cam": the place, and what stands in it, because that is what a grower knows it by. */
-const standsIn = (space: Space, devices: Device[], cameras: Camera[], t: Translate): string => {
+/**
+ * "Tent 1 · Controller + Cam": the place, and what stands in it, because that is
+ * what a grower knows it by. Where the devices could not be read the name goes
+ * on its own, since half the hardware is a claim about the other half.
+ */
+const standsIn = (space: Space, devices: Device[] | null, cameras: Camera[], t: Translate): string => {
+  if (devices === null) return space.name;
+
   const kinds = [...new Set(devices.filter(device => device.spaceId === space.id).map(device => device.type))];
   const here = kinds.map(kind => t(`devices.type.${kind}`, { defaultValue: kind }));
   if (cameras.some(camera => camera.spaceId === space.id && camera.removedAt === null)) here.push(t('grow.new.cam'));

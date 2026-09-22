@@ -191,6 +191,28 @@ describe('the grow half', () => {
     expect(screen.queryByText(/Nothing growing here yet/)).not.toBeInTheDocument();
   });
 
+  // Both ways out of an empty half are about this card's place. A sheet opened
+  // with no subject falls back to whatever the account has running elsewhere,
+  // which is how one tap on an empty tent ends a flowering grow in another.
+  it('points both invitations at this card´s own place', () => {
+    draw(<SpaceCard card={card({ spaceId: 'space-empty', grow: null, entries: [] })} people={people} now={NOW} compact={false} />);
+
+    expect(screen.getByRole('link', { name: 'Start a grow' })).toHaveAttribute('href', '/grows/new?space=space-empty');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move a grow here' }));
+    expect(screen.getByRole('dialog', { name: 'Move a grow into Tent 1' })).toBeInTheDocument();
+  });
+
+  it('draws a grow with no place at all, and opens it at the grow because there is no place to open', () => {
+    const nowhere = card({ spaceId: null, kind: null, name: 'Windowsill basil', deviceIds: [], values: [], setpoints: [], trend: null });
+    draw(<SpaceCard card={nowhere} people={people} now={NOW} compact={false} />);
+
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Spring run');
+    expect(screen.getByText('No fixed place')).toBeInTheDocument();
+    expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['/grows/grow-1']);
+    expect(screen.queryByText(/No sensor/)).not.toBeInTheDocument();
+  });
+
   it('shows a place without a grow its own newest line - what its device or an alarm wrote', () => {
     const line = { ...card({}).entries[0], growId: null, source: 'alarm' as const, authorId: null, text: 'Humidity high 72 % · resolved' };
     draw(<SpaceCard card={card({ spaceId: 'space-device-only', grow: null, entries: [line] })} people={people} now={NOW} compact={false} />);
