@@ -1654,6 +1654,7 @@
         "what": "Alles, was diesem Konto gehört, ist weg: die Zelte, die Grows, die Einträge, die Fotos, die Pläne und die Alarme. Es wird gelöscht und nicht versteckt, und es gibt keinen Weg zurück.",
         "grows": "Geräte, die du beansprucht hast, kann danach wieder beanspruchen, wer sie in der Hand hat. Einen einzelnen Grow löschst du auf seiner eigenen Seite.",
         "typeHandle": "Tippe {{handle}} zur Bestätigung",
+        "notHandle": "Das ist nicht dein Handle.",
         "yes": "Mein Konto löschen"
       },
       "footnote": {

@@ -1658,6 +1658,7 @@
         "what": "Everything this account owns goes: the tents, the grows, the entries, the photos, the plans and the alarms. It is deleted rather than hidden, and there is no way back.",
         "grows": "Devices you claimed become claimable again by whoever holds them. A single grow is deleted from the grow's own page.",
         "typeHandle": "Type {{handle}} to confirm",
+        "notHandle": "That is not your handle.",
         "yes": "Delete my account"
       },
       "footnote": {

@@ -314,6 +314,34 @@ describe('taking everything away', () => {
     expect(screen.getByText('Delete my account')).toBeInTheDocument();
     expect(screen.getByText('really deleted, not hidden · devices stay claimable')).toBeInTheDocument();
   });
+
+  /**
+   * The prompt is drawn in the small caps this app labels with, so a handle of
+   * `you` is read as YOU and that is what gets typed; a phone capitalises the
+   * first letter of it anyway. The sheet has to take what it asked for, and to
+   * say so when what was typed is something else instead of leaving a grey
+   * button and no reason.
+   */
+  it('takes the handle as the sheet prints it, whatever the keyboard did to the case', async () => {
+    await drawLoaded();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete my account' }));
+
+    const confirm = within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete my account' });
+    const field = screen.getByLabelText('Type you to confirm');
+    expect(field).toHaveAttribute('autocapitalize', 'none');
+    expect(confirm).toBeDisabled();
+
+    fireEvent.change(field, { target: { value: 'yo' } });
+    expect(confirm).toBeDisabled();
+    expect(screen.getByText('That is not your handle.')).toBeInTheDocument();
+
+    fireEvent.change(field, { target: { value: 'YOU' } });
+    expect(confirm).toBeEnabled();
+    expect(screen.queryByText('That is not your handle.')).not.toBeInTheDocument();
+
+    fireEvent.change(field, { target: { value: ' @You ' } });
+    expect(confirm).toBeEnabled();
+  });
 });
 
 describe('the demo', () => {
