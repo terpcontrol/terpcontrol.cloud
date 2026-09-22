@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
-import type { PushPayload as ContractPushPayload } from '@fg2/shared-types/v1';
 import { createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
 import { StaleWhileRevalidate } from 'workbox-strategies';
+import { pathOf, payloadOf } from './screens/notifications/push-route';
 
 /**
  * The service worker: what is kept for offline, and what a push says when it
@@ -21,23 +21,8 @@ precacheAndRoute(self.__WB_MANIFEST);
 registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')));
 registerRoute(({ url }) => url.pathname.startsWith('/assets/'), new StaleWhileRevalidate({ cacheName: 'assets' }));
 
-/** What the server encodes into a push, in the contract's shape; a push with a body that is not one still shows something. */
-type PushPayload = Partial<ContractPushPayload>;
-
-/** Where a tap on the notification lands, by what it is about: the inbox for an alarm, the list for a task. */
-const pathOf = (subject: PushPayload['subject']): string => {
-  if (subject?.type === 'alert') return '/alerts';
-  if (subject?.type === 'task') return '/tasks';
-  return '/';
-};
-
 self.addEventListener('push', event => {
-  let payload: PushPayload = {};
-  try {
-    payload = (event.data?.json() as PushPayload) ?? {};
-  } catch {
-    // A push with no JSON body is still a push worth showing.
-  }
+  const payload = payloadOf(event.data);
 
   event.waitUntil(
     self.registration.showNotification(payload.title ?? 'Terp Control', {

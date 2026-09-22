@@ -131,8 +131,12 @@
   border-color: var(--green);
 }
 
+/* A switch that cannot be moved is turned down, not recoloured: the outline stays
+   the ordinary rule so an off one is still visibly a switch on a light card, and
+   an on one fades far enough to read as held rather than as a second green. */
 .switch:disabled {
-  opacity: 0.45;
+  border-color: var(--rule);
+  opacity: 0.6;
 }
 
 .knob {

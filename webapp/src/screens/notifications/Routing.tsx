@@ -21,7 +21,8 @@ export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
   const { channels, routing } = me.notifications;
 
   const configured: Record<NotificationChannel, boolean> = {
-    push: subscription.data != null,
+    // Push goes somewhere as soon as any browser of the account is subscribed, not only this one.
+    push: subscription.data != null || me.pushSubscribed,
     telegram: channels.telegram !== null,
     email: channels.email !== null,
     webhook: channels.webhook !== null,

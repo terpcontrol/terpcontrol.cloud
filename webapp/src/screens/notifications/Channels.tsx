@@ -50,10 +50,39 @@ function Carries({ me, channel }: { me: Me; channel: NotificationChannel }) {
   );
 }
 
+/** The chip that opens a card's fields, drawn only while they are closed. */
+function EditChip({ disabled, onOpen }: { disabled: boolean; onOpen: () => void }) {
+  const { t } = useTranslation();
+
+  return (
+    <button type="button" className={ui.chip} disabled={disabled} onClick={onOpen}>
+      {t('notifications.edit')}
+    </button>
+  );
+}
+
+/** Save what was typed, or leave it as it was. Drawn only while a card is being edited. */
+function EditActions({ save, cancel, onCancel }: { save: boolean; cancel: string; onCancel: () => void }) {
+  const { t } = useTranslation();
+
+  return (
+    <div className={styles.actions}>
+      <button type="submit" className={`${ui.button} ${ui.primary}`} disabled={!save}>
+        {t('notifications.save')}
+      </button>
+      <button type="button" className={ui.button} onClick={onCancel}>
+        {cancel}
+      </button>
+    </div>
+  );
+}
+
 /**
  * This browser. The switch is what the browser holds, not what the account
  * says: a subscription lives in the service worker of the browser it was made
- * in, so the same account on another phone starts this card switched off.
+ * in, so the same account on another phone starts this card switched off. The
+ * line says the difference, because a person who subscribed on their phone and
+ * is now looking at their laptop is not somebody nothing is pushed to.
  */
 export function PushCard({ me, held }: CardProps) {
   const { t } = useTranslation();
@@ -115,6 +144,10 @@ export function PushCard({ me, held }: CardProps) {
         ) : on ? (
           <>
             {t('notifications.push.thisBrowser')} · <Carries me={me} channel="push" />
+          </>
+        ) : me.pushSubscribed ? (
+          <>
+            {t('notifications.push.otherDevice')} · <Carries me={me} channel="push" />
           </>
         ) : (
           `${t('notifications.off')} · ${t('notifications.push.notSubscribed')}`
@@ -226,28 +259,37 @@ export function TelegramCard({ me, held }: CardProps) {
 }
 
 /**
- * An address, entered here on purpose. The field stays open while the channel
- * is on so that the address can be changed, and switching on with no address
- * yet opens it: the switch reads as on, and the line under it says what is
+ * An address, entered here on purpose. At rest the card is the address and the
+ * switch; the field is opened by the chip, and switching on with no address
+ * yet opens it too: the switch reads as on, and the line under it says what is
  * still missing before anything is sent.
  */
 export function EmailCard({ me, held }: CardProps) {
   const { t } = useTranslation();
   const { write, error, pending } = useWriteNotifications(me);
   const address = me.notifications.channels.email;
-  const [opening, setOpening] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(address ?? '');
 
-  const on = address !== null || opening;
+  const on = address !== null || editing;
   const changed = draft.trim() !== (address ?? '');
+
+  const open = () => {
+    setDraft(address ?? '');
+    setEditing(true);
+  };
 
   const toggle = () => {
     if (address !== null) {
-      setOpening(false);
+      setEditing(false);
       write({ channels: { ...me.notifications.channels, email: null } });
       return;
     }
-    setOpening(!opening);
+    if (editing) {
+      setEditing(false);
+      return;
+    }
+    open();
   };
 
   return (
@@ -258,7 +300,7 @@ export function EmailCard({ me, held }: CardProps) {
           <>
             {address} · <Carries me={me} channel="email" />
           </>
-        ) : opening ? (
+        ) : editing ? (
           t('notifications.email.addressNeeded')
         ) : (
           `${t('notifications.off')} · ${t('notifications.notConfigured')}`
@@ -267,14 +309,15 @@ export function EmailCard({ me, held }: CardProps) {
       on={on}
       disabled={held}
       onToggle={toggle}
+      action={address !== null && !editing ? <EditChip disabled={held} onOpen={open} /> : null}
     >
-      {on ? (
+      {editing ? (
         <form
           className={styles.fields}
           onSubmit={event => {
             event.preventDefault();
             if (!draft.trim()) return;
-            setOpening(false);
+            setEditing(false);
             write({ channels: { ...me.notifications.channels, email: draft.trim() } });
           }}
         >
@@ -289,11 +332,11 @@ export function EmailCard({ me, held }: CardProps) {
               onChange={event => setDraft(event.target.value)}
             />
           </label>
-          <div className={styles.actions}>
-            <button type="submit" className={`${ui.button} ${ui.primary}`} disabled={held || pending || !changed || !draft.trim()}>
-              {t('notifications.save')}
-            </button>
-          </div>
+          <EditActions
+            save={!held && !pending && changed && draft.trim() !== ''}
+            cancel={t('notifications.cancel')}
+            onCancel={() => setEditing(false)}
+          />
         </form>
       ) : null}
       <Refused error={error} />
@@ -304,28 +347,39 @@ export function EmailCard({ me, held }: CardProps) {
 /**
  * A webhook: a URL of the person's own, the method, and headers as lines. The
  * target and the headers are secrets the server hands only to their owner, so
- * the card names the host and nothing more until the fields are opened.
+ * the card names the host and nothing more until the chip opens the fields.
  */
 export function WebhookCard({ me, held }: CardProps) {
   const { t } = useTranslation();
   const { write, error, pending } = useWriteNotifications(me);
   const webhook = me.notifications.channels.webhook;
-  const [opening, setOpening] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [url, setUrl] = useState(webhook?.url ?? '');
   const [method, setMethod] = useState<WebhookMethod>(webhook?.method ?? 'POST');
   const [headers, setHeaders] = useState(webhook ? headersText(webhook.headers) : '');
 
-  const on = webhook !== null || opening;
+  const on = webhook !== null || editing;
   const draft = { url: url.trim(), method, headers: headersOf(headers) };
   const changed = JSON.stringify(draft) !== JSON.stringify(webhook);
 
+  const open = () => {
+    setUrl(webhook?.url ?? '');
+    setMethod(webhook?.method ?? 'POST');
+    setHeaders(webhook ? headersText(webhook.headers) : '');
+    setEditing(true);
+  };
+
   const toggle = () => {
     if (webhook !== null) {
-      setOpening(false);
+      setEditing(false);
       write({ channels: { ...me.notifications.channels, webhook: null } });
       return;
     }
-    setOpening(!opening);
+    if (editing) {
+      setEditing(false);
+      return;
+    }
+    open();
   };
 
   return (
@@ -334,21 +388,22 @@ export function WebhookCard({ me, held }: CardProps) {
       line={
         webhook
           ? `${hostOf(webhook.url)} · ${t('notifications.webhook.json')}`
-          : opening
+          : editing
             ? t('notifications.webhook.urlNeeded')
             : `${t('notifications.off')} · ${t('notifications.notConfigured')}`
       }
       on={on}
       disabled={held}
       onToggle={toggle}
+      action={webhook !== null && !editing ? <EditChip disabled={held} onOpen={open} /> : null}
     >
-      {on ? (
+      {editing ? (
         <form
           className={styles.fields}
           onSubmit={event => {
             event.preventDefault();
             if (!draft.url) return;
-            setOpening(false);
+            setEditing(false);
             write({ channels: { ...me.notifications.channels, webhook: draft } });
           }}
         >
@@ -385,11 +440,11 @@ export function WebhookCard({ me, held }: CardProps) {
               onChange={event => setHeaders(event.target.value)}
             />
           </label>
-          <div className={styles.actions}>
-            <button type="submit" className={`${ui.button} ${ui.primary}`} disabled={held || pending || !changed || !draft.url}>
-              {t('notifications.save')}
-            </button>
-          </div>
+          <EditActions
+            save={!held && !pending && changed && draft.url !== ''}
+            cancel={t('notifications.cancel')}
+            onCancel={() => setEditing(false)}
+          />
         </form>
       ) : null}
       <Refused error={error} />

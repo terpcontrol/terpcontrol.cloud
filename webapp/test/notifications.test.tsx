@@ -5,13 +5,17 @@ import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import type { ReactNode } from 'react';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Me, MeUpdate, NotificationRouting, NotificationSettings, Problem } from '@fg2/shared-types/v1';
 import { LogProvider } from '@/log/LogProvider';
+import { Me as MeScreen } from '@/screens/Me';
 import { Notifications } from '@/screens/notifications/Notifications';
+import { pathOf, payloadOf } from '@/screens/notifications/push-route';
 import { minuteOf, routingWith, timeOf } from '@/screens/notifications/settings';
+import { ThemeProvider } from '@/theme/ThemeProvider';
 import { headersOf, headersText } from '@/ui/headers';
 
 /**
@@ -84,16 +88,16 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
 });
 
-const draw = () =>
+const wrapped = (screenUnderTest: ReactNode) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
       <MemoryRouter initialEntries={['/me/notifications']}>
-        <LogProvider>
-          <Notifications />
-        </LogProvider>
+        <LogProvider>{screenUnderTest}</LogProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   );
+
+const draw = () => wrapped(<Notifications />);
 
 /** The screen once the account has arrived. */
 const drawLoaded = async () => {
@@ -166,6 +170,39 @@ describe('an account with an address', () => {
     expect(screen.getByRole('switch', { name: 'Warnings by E-mail' })).toHaveAttribute('aria-checked', 'false');
   });
 
+  it('keeps the card to its line until Edit is tapped, and only saves a changed address', async () => {
+    server.me = me(WITH_MAIL);
+    await drawLoaded();
+
+    expect(screen.queryByLabelText('Address')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByLabelText('Address')).toHaveValue('you@example.org');
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText('Address'), { target: { value: 'other@example.org' } });
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(server.patched).toHaveLength(1));
+    expect(lastPatch().channels.email).toBe('other@example.org');
+    await waitFor(() => expect(screen.queryByLabelText('Address')).not.toBeInTheDocument());
+  });
+
+  it('closes the field again when the change is taken back', async () => {
+    server.me = me(WITH_MAIL);
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.change(screen.getByLabelText('Address'), { target: { value: 'typo@example' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByLabelText('Address')).not.toBeInTheDocument();
+    expect(server.patched).toHaveLength(0);
+    expect(screen.getByText('you@example.org · critical and tasks due')).toBeInTheDocument();
+  });
+
   it('routes one more category to it and sends everything else back unchanged', async () => {
     server.me = me(WITH_MAIL);
     await drawLoaded();
@@ -227,6 +264,12 @@ describe('quiet hours', () => {
     expect(screen.getByText('in your time zone (Europe/Berlin)')).toBeInTheDocument();
   });
 
+  it('say Off as the card of every other channel says its name', async () => {
+    await drawLoaded();
+
+    expect(screen.getByText('Off')).toBeInTheDocument();
+  });
+
   it('take a new end from the time field', async () => {
     server.me = me({ quietHours: { fromMinute: 1380, toMinute: 420 } });
     await drawLoaded();
@@ -235,6 +278,38 @@ describe('quiet hours', () => {
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
     expect(lastPatch().quietHours).toEqual({ fromMinute: 1380, toMinute: 390 });
+  });
+
+  it('write nothing while a time is being typed, and the whole time once the field is left', async () => {
+    server.me = me({ quietHours: { fromMinute: 1380, toMinute: 420 } });
+    await drawLoaded();
+
+    const from = screen.getByLabelText('From');
+    from.focus();
+    // A time field hands over a whole time after every keystroke: the "2" of 23:00 arrives as 02:00.
+    fireEvent.change(from, { target: { value: '02:00' } });
+    fireEvent.change(from, { target: { value: '22:00' } });
+    expect(server.patched).toHaveLength(0);
+    expect(from).toBeEnabled();
+
+    fireEvent.change(from, { target: { value: '22:30' } });
+    fireEvent.blur(from);
+
+    await waitFor(() => expect(server.patched).toHaveLength(1));
+    expect(lastPatch().quietHours).toEqual({ fromMinute: 1350, toMinute: 420 });
+  });
+
+  it('leave a field that was emptied saying what is stored', async () => {
+    server.me = me({ quietHours: { fromMinute: 1380, toMinute: 420 } });
+    await drawLoaded();
+
+    const to = screen.getByLabelText('To');
+    to.focus();
+    fireEvent.change(to, { target: { value: '' } });
+    fireEvent.blur(to);
+
+    expect(server.patched).toHaveLength(0);
+    expect(to).toHaveValue('07:00');
   });
 
   it('are switched off by writing null', async () => {
@@ -253,7 +328,7 @@ describe('the mute', () => {
     server.me = me({ mutedUntil: DateTime.now().plus({ hours: 2 }).toISO()! });
     await drawLoaded();
 
-    expect(screen.getByRole('status')).toHaveTextContent(/^Muted until /);
+    expect(screen.getByRole('status')).toHaveTextContent(/^Your channels are muted until /);
     fireEvent.click(screen.getByRole('button', { name: 'Unmute' }));
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
@@ -264,7 +339,7 @@ describe('the mute', () => {
     server.me = me({ mutedUntil: DateTime.now().minus({ hours: 2 }).toISO()! });
     await drawLoaded();
 
-    expect(screen.queryByText(/Muted until/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/muted until/)).not.toBeInTheDocument();
   });
 });
 
@@ -315,14 +390,89 @@ describe('the webhook', () => {
 });
 
 describe('the demo', () => {
-  it('sees every setting and can move none of them', async () => {
+  it('is told there are no settings rather than shown a retry the server would refuse', async () => {
     session.demo = true;
-    server.me = me({ channels: { email: 'you@example.org', telegram: null, webhook: null }, routing: { ...NOTHING.routing, alerts: ['email'] } });
+    draw();
+
+    expect(await screen.findByText('The demo has no account settings.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+    expect(fetchStub.mock.calls.filter(([input]) => String(input).endsWith('/v1/me'))).toHaveLength(0);
+  });
+
+  it('is not offered the door to them on Me either', () => {
+    session.demo = true;
+    wrapped(
+      <ThemeProvider>
+        <MeScreen />
+      </ThemeProvider>,
+    );
+
+    expect(screen.queryByRole('link', { name: 'Notifications' })).not.toBeInTheDocument();
+    expect(screen.getByText('The demo has no account settings.')).toBeInTheDocument();
+  });
+});
+
+describe('the push card', () => {
+  /**
+   * jsdom is a browser without a push service, which the card would say
+   * instead of anything about the account. This is the least that makes it a
+   * browser that could be subscribed but is not.
+   */
+  beforeEach(() => {
+    vi.stubGlobal('Notification', { permission: 'default' });
+    vi.stubGlobal('PushManager', class {});
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: { ready: Promise.resolve({ pushManager: { getSubscription: () => Promise.resolve(null) } }) },
+    });
+  });
+
+  afterEach(() => Reflect.deleteProperty(navigator, 'serviceWorker'));
+
+  it('says the account is pushed to elsewhere when this browser is not the one subscribed', async () => {
+    server.me = me({ routing: { ...NOTHING.routing, alerts: ['push'] } }, { pushSubscribed: true });
     await drawLoaded();
 
-    expect(screen.getByText('you@example.org · critical')).toBeInTheDocument();
-    for (const one of screen.getAllByRole('switch')) expect(one).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    expect(screen.getByText('subscribed on another device · critical')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Push' })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByRole('switch', { name: 'Critical alarms by Push' })).toBeEnabled();
+  });
+
+  it('is off when no browser of the account is subscribed, and its column with it', async () => {
+    await drawLoaded();
+
+    expect(screen.getByText('off · this browser is not subscribed')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Critical alarms by Push' })).toBeDisabled();
+  });
+});
+
+describe('where a tap on a push lands', () => {
+  it('opens the inbox for an alarm, the list for a task, and the home for anything else', () => {
+    expect(pathOf({ type: 'alert', id: 'alert-1' })).toBe('/alerts');
+    expect(pathOf({ type: 'task', id: 'task-1' })).toBe('/tasks');
+    expect(pathOf({ type: 'plan', id: 'plan-1' })).toBe('/');
+    expect(pathOf(undefined)).toBe('/');
+  });
+
+  it('reads the body the server sent, and a body that is not one as an empty push', () => {
+    const payload = {
+      title: 'Humidity into mould',
+      body: '80 % RH',
+      category: 'alerts',
+      subject: { type: 'alert', id: 'alert-1' },
+      severity: 'critical',
+    };
+
+    expect(payloadOf({ json: () => payload })).toEqual(payload);
+    expect(
+      payloadOf({
+        json: () => {
+          throw new SyntaxError('not JSON');
+        },
+      }),
+    ).toEqual({});
+    expect(payloadOf(null)).toEqual({});
+    expect(payloadOf({ json: () => null })).toEqual({});
   });
 });
 

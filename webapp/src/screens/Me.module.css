@@ -56,6 +56,11 @@
   color: var(--muted);
 }
 
+/* A row that leads nowhere says why, under its title. */
+.rowNote {
+  margin-top: var(--space-1);
+}
+
 .rowBody {
   display: flex;
   align-items: center;

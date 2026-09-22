@@ -17,13 +17,16 @@ export const meKey = ['me'];
  * A screen that is waiting for the account to change behind its back - a
  * Telegram chat is linked from the other app - asks to be read again every so
  * often. The query takes the shortest interval of everyone reading it, so a
- * card can ask for its own beat without the screen around it knowing.
+ * card can ask for its own beat without the screen around it knowing. A screen
+ * that knows the answer will be refused - the demo has no account of its own -
+ * says so rather than asking and drawing the refusal.
  */
-export const useMe = (refetchEveryMs: number | false = false) =>
+export const useMe = (refetchEveryMs: number | false = false, enabled = true) =>
   useQuery({
     queryKey: meKey,
     queryFn: ({ signal }) => api.get<Me>('/me', undefined, signal),
     refetchInterval: refetchEveryMs,
+    enabled,
   });
 
 export const useUpdateMe = () => {

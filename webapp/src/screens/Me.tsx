@@ -12,7 +12,8 @@ const CHOICES: ThemeChoice[] = ['system', 'light', 'dark'];
 /**
  * Where the avatar leads. Only what already works is on it: who is signed in,
  * the theme, where notifications go, and the way out; the rest of the account
- * arrives with its slice.
+ * arrives with its slice. The demo looks at somebody else's grow and has no
+ * account of its own, so the door to the settings is a line saying that.
  */
 export function Me() {
   const { t } = useTranslation();
@@ -57,10 +58,17 @@ export function Me() {
         </div>
       </div>
 
-      <Link to="/me/notifications" className={`${styles.row} ${styles.link}`}>
-        <span className={styles.rowTitle}>{t('notifications.title')}</span>
-        <ChevronRight size={18} strokeWidth={1.75} aria-hidden />
-      </Link>
+      {user?.isDemo ? (
+        <div className={styles.row}>
+          <span className={styles.rowTitle}>{t('notifications.title')}</span>
+          <p className={`${ui.note} ${styles.rowNote}`}>{t('notifications.demo')}</p>
+        </div>
+      ) : (
+        <Link to="/me/notifications" className={`${styles.row} ${styles.link}`}>
+          <span className={styles.rowTitle}>{t('notifications.title')}</span>
+          <ChevronRight size={18} strokeWidth={1.75} aria-hidden />
+        </Link>
+      )}
 
       <div className={styles.row}>
         <button type="button" className={ui.button} onClick={signOut}>

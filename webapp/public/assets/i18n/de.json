@@ -2421,7 +2421,7 @@
   },
   "notifications": {
     "title": "Benachrichtigungen",
-    "muted": "Stumm bis {{time}}",
+    "muted": "Deine Kanäle sind stumm bis {{time}}",
     "unmute": "Wieder laut",
     "channels": "Kanäle",
     "what": "Was",
@@ -2457,7 +2457,8 @@
       "noKey": "diese Installation hat keinen Push-Schlüssel",
       "unsupported": "dieser Browser kann keine Push-Nachrichten empfangen",
       "denied": "Die Erlaubnis wurde nicht erteilt, also bekommt dieser Browser keine Push-Nachrichten.",
-      "asking": "Der Browser wird gefragt…"
+      "asking": "Der Browser wird gefragt…",
+      "otherDevice": "auf einem anderen Gerät angemeldet"
     },
     "telegram": {
       "linked": "verknüpft {{date}} · Alarme, Wochenrückblick, Tagebuch per Antwort",
@@ -2492,8 +2493,11 @@
       "offLine": "alles kommt, sobald es passiert",
       "from": "Von",
       "to": "Bis",
-      "zone": "in deiner Zeitzone ({{zone}})"
-    }
+      "zone": "in deiner Zeitzone ({{zone}})",
+      "offTitle": "Aus"
+    },
+    "demo": "Die Demo hat keine Kontoeinstellungen.",
+    "edit": "Bearbeiten"
   },
   "alerts": {
     "bell_one": "Meldungen · {{count}} offen",

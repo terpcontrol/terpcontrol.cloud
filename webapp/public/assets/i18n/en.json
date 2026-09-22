@@ -2425,7 +2425,7 @@
   },
   "notifications": {
     "title": "Notifications",
-    "muted": "Muted until {{time}}",
+    "muted": "Your channels are muted until {{time}}",
     "unmute": "Unmute",
     "channels": "Channels",
     "what": "What",
@@ -2461,7 +2461,8 @@
       "noKey": "this install has no push key",
       "unsupported": "this browser cannot receive push",
       "denied": "Permission was not given, so nothing can be pushed to this browser.",
-      "asking": "Asking the browser…"
+      "asking": "Asking the browser…",
+      "otherDevice": "subscribed on another device"
     },
     "telegram": {
       "linked": "linked {{date}} · alarms, weekly recap, log by replying",
@@ -2496,8 +2497,11 @@
       "offLine": "everything comes through as it happens",
       "from": "From",
       "to": "To",
-      "zone": "in your time zone ({{zone}})"
-    }
+      "zone": "in your time zone ({{zone}})",
+      "offTitle": "Off"
+    },
+    "demo": "The demo has no account settings.",
+    "edit": "Edit"
   },
   "alerts": {
     "bell_one": "Alerts · {{count}} open",

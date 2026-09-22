@@ -13,8 +13,10 @@ export function Switch({ name, on, disabled, onToggle }: { name: string; on: boo
 
 /**
  * A channel: its name, one line about where it stands, and the switch at the
- * right. Whatever the channel needs beyond the switch - a field, a link, a
- * refusal - goes underneath, inside the same card.
+ * right. A channel with something to change puts a chip next to its switch
+ * rather than its fields, so that every card at rest is the same height and
+ * the column reads as four equal things. What the chip opens - a field, a
+ * question, a refusal - goes underneath, inside the same card.
  */
 export function ChannelCard({
   title,
@@ -22,6 +24,7 @@ export function ChannelCard({
   on,
   disabled,
   onToggle,
+  action,
   children,
 }: {
   title: string;
@@ -29,6 +32,7 @@ export function ChannelCard({
   on: boolean;
   disabled: boolean;
   onToggle: () => void;
+  action?: ReactNode;
   children?: ReactNode;
 }) {
   return (
@@ -38,7 +42,10 @@ export function ChannelCard({
           <span className={styles.channelTitle}>{title}</span>
           <span className={`${ui.note} ${styles.channelLine}`}>{line}</span>
         </div>
-        <Switch name={title} on={on} disabled={disabled} onToggle={onToggle} />
+        <div className={styles.channelActions}>
+          {action}
+          <Switch name={title} on={on} disabled={disabled} onToggle={onToggle} />
+        </div>
       </div>
       {children}
     </div>

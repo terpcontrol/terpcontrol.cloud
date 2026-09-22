@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Me } from '@fg2/shared-types/v1';
 import { useMe, useUpdatingMe } from '@/api/account';
+import { useSession } from '@/api/session';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -20,12 +21,15 @@ import styles from './Notifications.module.css';
  * than quietly mailing the login address. Each write is the whole settings
  * object, so while one is on its way every switch on the screen holds still -
  * two changes crossing would each carry the other's old state back. The demo
- * sees all of it and may move none of it.
+ * has no account of its own to settle, so it is told that instead of being
+ * handed a screen the server will not answer.
  */
 export function Notifications() {
   const { t } = useTranslation();
   const now = useNow();
-  const me = useMe();
+  const { user } = useSession();
+  const isDemo = user?.isDemo === true;
+  const me = useMe(false, !isDemo);
   const mayManage = useMayManage();
   const updating = useUpdatingMe();
 
@@ -37,6 +41,15 @@ export function Notifications() {
       </span>
     </header>
   );
+
+  if (isDemo) {
+    return (
+      <section className={styles.page}>
+        {header}
+        <p className={`${ui.cardDashed} ${ui.note}`}>{t('notifications.demo')}</p>
+      </section>
+    );
+  }
 
   if (me.isPending) {
     return (
@@ -75,7 +88,7 @@ export function Notifications() {
       <RoutingGrid me={me.data} held={held} />
 
       <span className="label">{t('notifications.quietHours')}</span>
-      <QuietHoursCard me={me.data} held={held} />
+      <QuietHoursCard me={me.data} held={held} locked={!mayManage} />
     </section>
   );
 }

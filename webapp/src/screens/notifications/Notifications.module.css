@@ -25,7 +25,11 @@
   line-height: var(--line-tight);
 }
 
+/* The trail back to Me. On a phone the tab bar and the avatar already say where
+   this page hangs, and a German crumb is long enough to drop onto a line of its
+   own under the title, so it is kept for the width that has room for it. */
 .crumb {
+  display: none;
   font-size: var(--text-xs);
   color: var(--muted);
   white-space: nowrap;
@@ -67,9 +71,18 @@
 
 .channelText {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: var(--space-1);
   min-width: 0;
+}
+
+/* Whatever a card is changed with, beside the switch rather than under the line. */
+.channelActions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .channelTitle {
@@ -175,4 +188,16 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-3);
+}
+
+/* The width the pages that share the rail with Devices take once there is room for it. */
+@media (min-width: 900px) {
+  .page {
+    max-width: 720px;
+    padding-top: 0;
+  }
+
+  .crumb {
+    display: inline;
+  }
 }
