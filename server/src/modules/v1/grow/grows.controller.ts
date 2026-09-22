@@ -46,6 +46,7 @@ import {
 } from '@fg2/shared-types/v1-schemas';
 import { AuthGuard } from '@common/auth/auth.guard';
 import { AccessGuard, Caller, CurrentGrant, Requires } from '@common/v1/access.guard';
+import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { V1Query, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
@@ -63,9 +64,10 @@ import { GrowsService } from './grows.service';
  * and rides on every answer here, so that no client counts days for itself.
  *
  * The needs are the checklist of what a membership widens: reading is `view`,
- * changing the grow or what is in it is `manage`, and only deleting it is `own`.
- * A plant is not among the things the record says an owner alone may delete - a
- * space, a grow and a camera are - so removing one is managing the grow.
+ * changing the grow or what is in it is `manage`, and deleting it or publishing
+ * it is `own`. A plant is not among the things the record says an owner alone
+ * may delete - a space, a grow and a camera are - so removing one is managing
+ * the grow.
  */
 const growListQuery = pageQuery.extend({ spaceId: z.string().optional().describe('Only the grows standing in this space.') });
 
@@ -104,6 +106,7 @@ export class GrowsController {
   constructor(
     private readonly grows: GrowsService,
     private readonly series: GrowSeriesService,
+    private readonly access: AccessService,
   ) {}
 
   @Get()
@@ -132,12 +135,29 @@ export class GrowsController {
     return this.grows.read(id, await this.grows.redaction(grant));
   }
 
+  /**
+   * Everything about a grow that running it involves is `manage`, and
+   * `visibility` is the one field here that is not: it is what puts the diary at
+   * a public address, under the owner's handle and beside whatever else they
+   * have published, and the record puts publishing with the share links and the
+   * member list on the `own` line. A co-manager runs somebody's tent; deciding
+   * that the tent is now the internet's to read is not running it, and it is
+   * the one change on this route the owner could not take back by simply
+   * changing it again - the address has been seen by then.
+   */
   @Patch(':id')
   @UseGuards(AuthGuard, AccessGuard)
   @Requires('manage', 'grow')
   @ApiOperation({ summary: 'Rename a grow, end it, or change what it is fed' })
   @V1Answer(growListItem)
-  public async update(@CurrentGrant() grant: Grant, @Param('id') id: string, @V1Body(growUpdate) body: GrowUpdate): Promise<GrowListItem> {
+  public async update(
+    @Caller() ctx: AccessContext,
+    @CurrentGrant() grant: Grant,
+    @Param('id') id: string,
+    @V1Body(growUpdate) body: GrowUpdate,
+  ): Promise<GrowListItem> {
+    if (body.visibility !== undefined) await this.access.require(ctx, subjectRef('grow', id), 'own');
+
     return this.grows.update(id, body, await this.grows.redaction(grant));
   }
 

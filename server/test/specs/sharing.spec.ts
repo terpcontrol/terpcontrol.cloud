@@ -623,6 +623,29 @@ describe('the people in a space', () => {
       expect(listed.body.items.map((row: { userId: string }) => row.userId)).not.toContain(leaving.userId);
     });
 
+    /**
+     * The one field on the grow that is not about running it. A manager may end
+     * a grow, rename it and change what it is fed; putting it at a public
+     * address under the owner's handle is the owner's own act.
+     */
+    it('does not hand the host´s diary to the open web', async () => {
+      const ownTent = (await host.client.post('/v1/spaces').send({ kind: 'tent', name: 'The unpublished tent' }).expect(201)).body.id;
+      await accept(manager, (await invite(host, ownTent, { role: 'can_manage' })).code);
+
+      const theirs = (
+        await host.client.post('/v1/grows').send({ name: 'Not for the internet', type: 'photoperiod', plants: [], spaceId: ownTent }).expect(201)
+      ).body;
+
+      const refused = await manager.client.patch(`/v1/grows/${theirs.id}`).send({ visibility: 'public' }).expect(403);
+      expect(refused.body.code).toBe('insufficient_access');
+
+      // Running the grow is still theirs to do; it is the address that is not.
+      await manager.client.patch(`/v1/grows/${theirs.id}`).send({ name: 'Renamed by the manager' }).expect(200);
+
+      expect((await host.client.get(`/v1/grows/${theirs.id}`).expect(200)).body.visibility).toBe('private');
+      await anonymous().get(`/v1/public/grows/${theirs.slug}`).expect(404);
+    });
+
     it('is ended by the host, and the space cannot be ended while it stands', async () => {
       const refused = await host.client.delete(`/v1/spaces/${theirTent}`).expect(409);
       expect(refused.body.code).toBe('space_in_use');
