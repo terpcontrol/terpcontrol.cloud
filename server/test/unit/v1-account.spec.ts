@@ -6,6 +6,7 @@ import { AccountsService } from '@modules/v1/account/accounts.service';
 import { PasswordResetService } from '@modules/v1/account/password-reset.service';
 import { SessionsService } from '@modules/v1/sessions/sessions.service';
 import { ProblemException } from '@common/v1/problem';
+import { StoredUser } from '@database/schemas/v1/users.schema';
 import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
 
 /**
@@ -34,6 +35,9 @@ const auth = {
 
 const premium = { enforced: true, freeStillWidth: 0, freeRetention: false, freeStillDays: 0, freeTimelapseDays: 0, extendUrl: '', priceLabel: '' };
 
+/** No install-wide climate window, which is what a server that has said nothing has. */
+const retention = { climateDays: 0 };
+
 const notifications = {
   pushPublicKey: null,
   pushPrivateKey: null,
@@ -61,7 +65,7 @@ let resets: PasswordResetService;
 let sessions: SessionsService;
 
 const build = (): void => {
-  accounts = new AccountsService(database.users, database.pushSubscriptions, database.sessions, { ...auth }, { ...premium }, { ...notifications });
+  accounts = new AccountsService(database.users, database.pushSubscriptions, database.sessions, { ...auth }, { ...premium }, { ...notifications }, { ...retention });
   resets = new PasswordResetService(database.passwordResets, accounts, mail as never, app as never);
   sessions = new SessionsService(database.sessions, accounts, { ...auth });
 };
@@ -131,6 +135,7 @@ describe('signing up', () => {
       { ...auth, requireActivation: true },
       { ...premium },
       { ...notifications },
+      { ...retention },
     );
 
     const user = await signUp('activating');
@@ -161,6 +166,7 @@ describe('what is serialised', () => {
       { ...auth, requireActivation: true },
       { ...premium },
       { ...notifications },
+      { ...retention },
     );
     const user = await signUp('serialised');
 
@@ -197,6 +203,43 @@ describe('what is serialised', () => {
 
     expect(typeof user.createdAt).toBe('string');
     expect(new Date(user.createdAt).getTime()).not.toBeNaN();
+  });
+
+  /**
+   * The privacy screen's menu offers "keep everything" and stores `null`, which
+   * is "I have not said" rather than "for ever". On an install that sets a
+   * window of its own the sweep then summarises and deletes at that age, and
+   * the screen had nothing to say so with. These are the two figures it says it
+   * with.
+   */
+  describe('what "keep everything" will really come to', () => {
+    const withInstallWindow = (days: number): AccountsService =>
+      new AccountsService(database.users, database.pushSubscriptions, { ...auth }, { ...premium }, { ...notifications }, { climateDays: days });
+
+    it('names the install´s window, and does not let an account that named none be told its samples are kept for ever', async () => {
+      const user = await signUp('install-window');
+      const me = await withInstallWindow(365).serialiseMe(user);
+
+      expect(me.retention.climateDays).toBeNull();
+      expect(me.climateRetention).toEqual({ installDays: 365, appliesDays: 365 });
+    });
+
+    it('keeps everything only where the install keeps everything too', async () => {
+      const user = await signUp('no-window');
+      const me = await withInstallWindow(0).serialiseMe(user);
+
+      expect(me.climateRetention).toEqual({ installDays: null, appliesDays: null });
+    });
+
+    it('does not cap what the account asked for: the install´s figure is a default and not a ceiling', async () => {
+      const user = await signUp('longer-window');
+      await database.users.updateOne({ id: user.id }, { $set: { retention: { climateDays: 730 } } });
+      const stored = await database.users.findOne({ id: user.id }).lean<StoredUser>();
+
+      const me = await withInstallWindow(365).serialiseMe(stored!);
+
+      expect(me.climateRetention).toEqual({ installDays: 365, appliesDays: 730 });
+    });
   });
 });
 
@@ -264,6 +307,7 @@ describe('signing in', () => {
       { ...auth, requireActivation: true },
       { ...premium },
       { ...notifications },
+      { ...retention },
     );
     sessions = new SessionsService(database.sessions, accounts, { ...auth });
 
@@ -402,6 +446,7 @@ describe('the account the install seeds', () => {
       { ...auth, adminPassword: NEW_PASSWORD },
       { ...premium },
       { ...notifications },
+      { ...retention },
     );
     await accounts.onModuleInit();
 

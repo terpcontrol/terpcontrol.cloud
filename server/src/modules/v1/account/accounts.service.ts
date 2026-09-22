@@ -12,7 +12,8 @@ import { MODEL_V1 } from '@database/models';
 import { StoredPushSubscription } from '@database/schemas/v1/push-subscriptions.schema';
 import { StoredSession } from '@database/schemas/v1/sessions.schema';
 import { StoredNotificationSettings, StoredUser } from '@database/schemas/v1/users.schema';
-import { authConfig, notificationsConfig, premiumConfig } from '@config/configuration';
+import { authConfig, notificationsConfig, premiumConfig, retentionConfig } from '@config/configuration';
+import { climateWindowOf } from '@modules/retention/climate-window';
 import { freeTierOf } from '../camera/entitlement.service';
 import { logger } from '@utils/logger';
 
@@ -44,6 +45,7 @@ export class AccountsService implements OnModuleInit {
     @Inject(authConfig.KEY) private readonly auth: ConfigType<typeof authConfig>,
     @Inject(premiumConfig.KEY) private readonly premium: ConfigType<typeof premiumConfig>,
     @Inject(notificationsConfig.KEY) private readonly notifications: ConfigType<typeof notificationsConfig>,
+    @Inject(retentionConfig.KEY) private readonly retention: ConfigType<typeof retentionConfig>,
   ) {}
 
   /**
@@ -273,8 +275,8 @@ export class AccountsService implements OnModuleInit {
 
   /**
    * The account as its owner reads it: without the activation code, which is
-   * only ever handed to an administrator, and with the three facts about this
-   * install that the account screens need before they can offer anything.
+   * only ever handed to an administrator, and with the facts about this install
+   * that the account screens need before they can offer anything.
    */
   public async serialiseMe(user: StoredUser): Promise<Me> {
     const { activationCode: _code, ...rest } = this.serialise(user);
@@ -293,6 +295,17 @@ export class AccountsService implements OnModuleInit {
         // written into the app. They are configuration, and an install that has
         // said nothing answers null to each of them.
         free: freeTierOf(this.premium),
+      },
+      // What the privacy screen's menu will really come to. Its "keep
+      // everything" option stores null, which means "I have not said" and not
+      // "for ever": on an install that sets RETENTION_CLIMATE_DAYS the sweep
+      // then summarises and deletes at the install's own age, and the screen
+      // had no figure with which to say so. Both numbers come out of the very
+      // function the sweep decides by, so the answer and the deletion cannot
+      // drift apart.
+      climateRetention: {
+        installDays: climateWindowOf(null, null, this.retention.climateDays),
+        appliesDays: climateWindowOf(null, user.retention, this.retention.climateDays),
       },
       // A key pair with a half missing cannot sign anything, and a bot with no
       // name has no link to open, so each is offered only where it could

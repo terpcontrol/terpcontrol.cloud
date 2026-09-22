@@ -198,15 +198,52 @@ export const premium = named(
 );
 
 /**
- * `GET /me`: the account as its owner sees it, plus the three facts about the
- * install that the account screens need before they can offer anything - what
- * Premium costs here, the VAPID key a push subscription is made with, and
+ * What the account's own climate window comes to on this install.
+ *
+ * `retention.climateDays` is what the person chose and `null` there is "I have
+ * not said", not "keep everything": where the account names no window the
+ * install's own decides, and an install that sets one summarises and deletes
+ * raw samples at that age whatever the menu offering "keep everything" led
+ * somebody to believe. So the figure is answered here, beside `premium.free`
+ * and for the same reason - no screen should print a window nobody configured,
+ * and none should promise one the install will not keep.
+ *
+ * A number the account names is never capped by the install's: somebody asking
+ * to keep three years of raw samples on an install whose default is one gets
+ * three, because the install figure is a default and not a ceiling.
+ */
+export const meClimateRetention = named(
+  'MeClimateRetention',
+  z.object({
+    installDays: z
+      .number()
+      .int()
+      .positive()
+      .nullable()
+      .describe('The install´s own window, which applies where the account has named none. Null where the install has named none either, and then nothing is ever swept.'),
+    appliesDays: z
+      .number()
+      .int()
+      .positive()
+      .nullable()
+      .describe(
+        'What will actually happen to this account´s raw samples: its own window where it named one, otherwise the install´s. Null keeps them for ever. A tent may name a window of its own, which wins for the devices standing in it.',
+      ),
+  }),
+);
+
+/**
+ * `GET /me`: the account as its owner sees it, plus the facts about the install
+ * that the account screens need before they can offer anything - what Premium
+ * costs here, what this install will really do with the climate the privacy
+ * screen offers to keep, the VAPID key a push subscription is made with, and
  * whether a Telegram bot is configured at all.
  */
 export const me = named(
   'Me',
   user.omit({ activationCode: true }).extend({
     premium: premium,
+    climateRetention: meClimateRetention,
     pushPublicKey: z.string().nullable().describe('VAPID public key; null until the install configures a key pair.'),
     telegramAvailable: z.boolean(),
     pushSubscribed: z.boolean().describe('Whether any browser of this account is subscribed to push, so a screen can say whether the push row of the grid goes anywhere.'),

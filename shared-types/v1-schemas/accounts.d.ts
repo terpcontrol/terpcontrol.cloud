@@ -280,9 +280,29 @@ export declare const premium: z.ZodObject<{
     }, z.core.$strip>;
 }, z.core.$strip>;
 /**
- * `GET /me`: the account as its owner sees it, plus the three facts about the
- * install that the account screens need before they can offer anything - what
- * Premium costs here, the VAPID key a push subscription is made with, and
+ * What the account's own climate window comes to on this install.
+ *
+ * `retention.climateDays` is what the person chose and `null` there is "I have
+ * not said", not "keep everything": where the account names no window the
+ * install's own decides, and an install that sets one summarises and deletes
+ * raw samples at that age whatever the menu offering "keep everything" led
+ * somebody to believe. So the figure is answered here, beside `premium.free`
+ * and for the same reason - no screen should print a window nobody configured,
+ * and none should promise one the install will not keep.
+ *
+ * A number the account names is never capped by the install's: somebody asking
+ * to keep three years of raw samples on an install whose default is one gets
+ * three, because the install figure is a default and not a ceiling.
+ */
+export declare const meClimateRetention: z.ZodObject<{
+    installDays: z.ZodNullable<z.ZodNumber>;
+    appliesDays: z.ZodNullable<z.ZodNumber>;
+}, z.core.$strip>;
+/**
+ * `GET /me`: the account as its owner sees it, plus the facts about the install
+ * that the account screens need before they can offer anything - what Premium
+ * costs here, what this install will really do with the climate the privacy
+ * screen offers to keep, the VAPID key a push subscription is made with, and
  * whether a Telegram bot is configured at all.
  */
 export declare const me: z.ZodObject<{
@@ -365,6 +385,10 @@ export declare const me: z.ZodObject<{
             stillDays: z.ZodNullable<z.ZodNumber>;
             timelapseDays: z.ZodNullable<z.ZodNumber>;
         }, z.core.$strip>;
+    }, z.core.$strip>;
+    climateRetention: z.ZodObject<{
+        installDays: z.ZodNullable<z.ZodNumber>;
+        appliesDays: z.ZodNullable<z.ZodNumber>;
     }, z.core.$strip>;
     pushPublicKey: z.ZodNullable<z.ZodString>;
     telegramAvailable: z.ZodBoolean;

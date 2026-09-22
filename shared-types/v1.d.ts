@@ -407,6 +407,17 @@ export interface Premium {
   free: PremiumFree;
 }
 
+export interface MeClimateRetention {
+  /**
+   * The install´s own window, which applies where the account has named none. Null where the install has named none either, and then nothing is ever swept.
+   */
+  installDays: number | null;
+  /**
+   * What will actually happen to this account´s raw samples: its own window where it named one, otherwise the install´s. Null keeps them for ever. A tent may name a window of its own, which wins for the devices standing in it.
+   */
+  appliesDays: number | null;
+}
+
 export interface Me {
   id: string;
   createdAt: string;
@@ -429,6 +440,7 @@ export interface Me {
    */
   deletionStartedAt: string | null;
   premium: Premium;
+  climateRetention: MeClimateRetention;
   /**
    * VAPID public key; null until the install configures a key pair.
    */

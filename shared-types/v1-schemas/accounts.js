@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.pushPayload = exports.adminUserUpdate = exports.adminUserCreate = exports.adminUserPage = exports.userExport = exports.exportStatus = exports.notificationLogEntry = exports.notificationSubjectType = exports.telegramLink = exports.pushSubscriptionCreate = exports.pushSubscription = exports.pushSubscriptionKeys = exports.passwordResetRedemption = exports.passwordResetCreate = exports.automationSession = exports.automationSessionCreate = exports.sessionRefresh = exports.demoSessionCreate = exports.sessionResult = exports.sessionUser = exports.sessionCreate = exports.sessionPage = exports.session = exports.sessionTokens = exports.authToken = exports.userActivation = exports.signupUser = exports.userCreate = exports.passwordChange = exports.meUpdate = exports.me = exports.premium = exports.premiumFree = exports.user = exports.notificationSettings = exports.quietHours = exports.notificationRouting = exports.notificationChannels = exports.telegramChannel = exports.webhookChannel = exports.notificationCategory = exports.userRetention = exports.userPreferences = exports.userPrivacy = void 0;
+exports.pushPayload = exports.adminUserUpdate = exports.adminUserCreate = exports.adminUserPage = exports.userExport = exports.exportStatus = exports.notificationLogEntry = exports.notificationSubjectType = exports.telegramLink = exports.pushSubscriptionCreate = exports.pushSubscription = exports.pushSubscriptionKeys = exports.passwordResetRedemption = exports.passwordResetCreate = exports.automationSession = exports.automationSessionCreate = exports.sessionRefresh = exports.demoSessionCreate = exports.sessionResult = exports.sessionUser = exports.sessionCreate = exports.sessionPage = exports.session = exports.sessionTokens = exports.authToken = exports.userActivation = exports.signupUser = exports.userCreate = exports.passwordChange = exports.meUpdate = exports.me = exports.meClimateRetention = exports.premium = exports.premiumFree = exports.user = exports.notificationSettings = exports.quietHours = exports.notificationRouting = exports.notificationChannels = exports.telegramChannel = exports.webhookChannel = exports.notificationCategory = exports.userRetention = exports.userPreferences = exports.userPrivacy = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -153,13 +153,44 @@ exports.premium = (0, common_js_1.named)('Premium', zod_1.z.object({
     free: exports.premiumFree,
 }));
 /**
- * `GET /me`: the account as its owner sees it, plus the three facts about the
- * install that the account screens need before they can offer anything - what
- * Premium costs here, the VAPID key a push subscription is made with, and
+ * What the account's own climate window comes to on this install.
+ *
+ * `retention.climateDays` is what the person chose and `null` there is "I have
+ * not said", not "keep everything": where the account names no window the
+ * install's own decides, and an install that sets one summarises and deletes
+ * raw samples at that age whatever the menu offering "keep everything" led
+ * somebody to believe. So the figure is answered here, beside `premium.free`
+ * and for the same reason - no screen should print a window nobody configured,
+ * and none should promise one the install will not keep.
+ *
+ * A number the account names is never capped by the install's: somebody asking
+ * to keep three years of raw samples on an install whose default is one gets
+ * three, because the install figure is a default and not a ceiling.
+ */
+exports.meClimateRetention = (0, common_js_1.named)('MeClimateRetention', zod_1.z.object({
+    installDays: zod_1.z
+        .number()
+        .int()
+        .positive()
+        .nullable()
+        .describe('The install´s own window, which applies where the account has named none. Null where the install has named none either, and then nothing is ever swept.'),
+    appliesDays: zod_1.z
+        .number()
+        .int()
+        .positive()
+        .nullable()
+        .describe('What will actually happen to this account´s raw samples: its own window where it named one, otherwise the install´s. Null keeps them for ever. A tent may name a window of its own, which wins for the devices standing in it.'),
+}));
+/**
+ * `GET /me`: the account as its owner sees it, plus the facts about the install
+ * that the account screens need before they can offer anything - what Premium
+ * costs here, what this install will really do with the climate the privacy
+ * screen offers to keep, the VAPID key a push subscription is made with, and
  * whether a Telegram bot is configured at all.
  */
 exports.me = (0, common_js_1.named)('Me', exports.user.omit({ activationCode: true }).extend({
     premium: exports.premium,
+    climateRetention: exports.meClimateRetention,
     pushPublicKey: zod_1.z.string().nullable().describe('VAPID public key; null until the install configures a key pair.'),
     telegramAvailable: zod_1.z.boolean(),
     pushSubscribed: zod_1.z.boolean().describe('Whether any browser of this account is subscribed to push, so a screen can say whether the push row of the grid goes anywhere.'),
