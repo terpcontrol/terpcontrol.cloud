@@ -76,7 +76,7 @@ export class MembersService {
     return {
       items: page.items.map(serialise),
       nextCursor: page.nextCursor,
-      people: await this.peopleOf(page.items),
+      people: await this.peopleOf(page.items, space.ownerId),
       // Named rather than left as an id, because somebody who is in the tent
       // alone never meets the room in any other list and would have nothing to
       // draw "via Grow room" from.
@@ -273,8 +273,12 @@ export class MembersService {
     return new Set([...owned.map(space => space.id), ...joined.map(row => row.spaceId)]);
   }
 
-  private async peopleOf(rows: readonly MembershipDocument[]): Promise<Person[]> {
-    const ids = [...new Set(rows.map(row => row.userId))];
+  private async peopleOf(rows: readonly MembershipDocument[], ownerId: string): Promise<Person[]> {
+    // The owner holds no membership row, so a list built from the rows alone
+    // leaves the one person who runs the tent as the only nameless face on it -
+    // which is exactly backwards for a guest trying to work out whose diary
+    // they are reading. A handle is the only name anybody ever gets anyway.
+    const ids = [...new Set([ownerId, ...rows.map(row => row.userId)])];
     if (ids.length === 0) return [];
 
     const people = await this.users.find({ id: { $in: ids } }, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>();

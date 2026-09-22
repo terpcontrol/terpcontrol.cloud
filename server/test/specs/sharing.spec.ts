@@ -570,6 +570,9 @@ describe('the people in a space', () => {
       expect(rows.find(row => row.userId === ofTheTent.userId)?.spaceId).toBe(inTheRoom);
       expect(listed.body.room).toEqual({ id: room, name: 'Grow room' });
       expect(listed.body.people.map((one: { id: string }) => one.id)).toEqual(expect.arrayContaining([ofTheRoom.userId, ofTheTent.userId]));
+      // The owner holds no row and would otherwise be the one person on the
+      // list a guest could not put a name to.
+      expect(listed.body.people.map((one: { id: string }) => one.id)).toContain(host.userId);
     });
 
     it('is read by everybody who is in the tent and by nobody who merely holds a key to it', async () => {
