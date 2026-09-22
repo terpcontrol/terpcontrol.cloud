@@ -116,15 +116,16 @@ button.circle {
   gap: var(--space-1);
 }
 
+/* Both lines wrap rather than being cut: a task whose name does not fit is
+   read on two lines, where one that is cut off is not read at all. */
 .cardTitle {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .meta {
   font-size: var(--text-xs);
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .edit {
@@ -154,9 +155,16 @@ button.circle {
   color: var(--muted);
 }
 
+/* Nothing to show, in the dashed shape the rest of the app says that in. It is
+   a button where the emptiness has a way out of it - a list that is empty only
+   because it is filtered. */
 .none {
+  width: 100%;
   text-align: center;
-  color: var(--muted);
+}
+
+button.none {
+  cursor: pointer;
 }
 
 /* The dashed row that opens the sheet: a button in the shape of the lesser card. */
@@ -244,4 +252,13 @@ button.circle {
   background: var(--alarm);
   border-color: var(--alarm);
   color: var(--on-green);
+}
+
+/* The pages that share the rail read as one column of the same width, so that
+   moving between Devices and Tasks does not move the list under the cursor. */
+@media (min-width: 900px) {
+  .page {
+    max-width: 720px;
+    padding-top: 0;
+  }
 }

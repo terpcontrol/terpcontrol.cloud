@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
@@ -71,7 +71,7 @@ const planStep = task({
   sourceId: 'step-3',
   subject: { type: 'space', id: 'space-1' },
   kind: 'chore',
-  label: 'Confirm: late flower on day 36',
+  label: 'Late flower on day 36?',
   dueAt: daysFromNow(2),
   assigneeId: null,
   defaults: null,
@@ -182,12 +182,14 @@ describe('the groups', () => {
   it('sorts what is waiting into today, tomorrow and this week, and what was ticked off under done', async () => {
     await drawLoaded();
 
-    expect(section('Today').getByText('Water · Spring run')).toBeInTheDocument();
-    expect(section('Today').getByText('Water the seedlings · Spring run')).toBeInTheDocument();
-    expect(section('Tomorrow').getByText('Clean the carbon filter · Tent 1')).toBeInTheDocument();
-    // A plan step's title is the step's own message; where it stands is on the line under it.
-    expect(section('This week').getByText('Confirm: late flower on day 36')).toBeInTheDocument();
-    expect(section('Done').getByText('Defoliate lower leaves · Spring run')).toBeInTheDocument();
+    // The title is the label alone: the name of the place is on the line under
+    // it, where a phone has the width for it.
+    expect(section('Today').getByText('Water')).toBeInTheDocument();
+    expect(section('Today').getByText('Water the seedlings')).toBeInTheDocument();
+    expect(section('Tomorrow').getByText('Clean the carbon filter')).toBeInTheDocument();
+    // A plan step is what the plan is waiting to be told, and says so.
+    expect(section('This week').getByText('Confirm: Late flower on day 36?')).toBeInTheDocument();
+    expect(section('Done').getByText('Defoliate lower leaves')).toBeInTheDocument();
 
     // Today's date beside the label, in the reader's locale; the done group is dated by its newest tick.
     expect(screen.getByRole('region', { name: 'Today' })).toHaveTextContent(/16/);
@@ -195,23 +197,25 @@ describe('the groups', () => {
     expect(screen.getByRole('region', { name: 'Done' })).toHaveTextContent('yesterday');
   });
 
-  it('says where each task came from and when it is due', async () => {
+  it('says where each task came from, which place it is about and when it is due', async () => {
     await drawLoaded();
 
-    expect(screen.getByText('every 3 d · 2 L · today')).toBeInTheDocument();
-    expect(screen.getByText('every 30 d · Chore · tomorrow')).toBeInTheDocument();
+    expect(screen.getByText('every 3 d · Spring run · water · 2 L · today')).toBeInTheDocument();
+    // The kind reads as the lowercase word the rest of the line is written in,
+    // and a custom reminder, whose label already says everything, names none.
+    expect(screen.getByText('every 30 d · Tent 1 · chore · tomorrow')).toBeInTheDocument();
     expect(screen.getByText('grow plan · Tent 1 · in 2 d')).toBeInTheDocument();
-    expect(screen.getByText('every 3 d · 2 L · overdue 2 d')).toBeInTheDocument();
-    expect(screen.getByText('you · yesterday 19:40')).toBeInTheDocument();
+    expect(screen.getByText('every 3 d · Spring run · water · 2 L · overdue 2 d')).toBeInTheDocument();
+    expect(screen.getByText('you · Spring run · yesterday 19:40')).toBeInTheDocument();
   });
 
   it('marks whose a task is: my initials, a plain mark for somebody else, nothing for everyone', async () => {
     await drawLoaded();
     fireEvent.click(screen.getByRole('radio', { name: 'All' }));
 
-    expect(within(screen.getByText('Water · Spring run').closest('li')!).getByRole('img', { name: 'assigned to you' })).toHaveTextContent('YO');
-    expect(within(screen.getByText('Feed · Spring run').closest('li')!).getByRole('img', { name: 'assigned to somebody else' })).toBeInTheDocument();
-    expect(within(screen.getByText('Clean the carbon filter · Tent 1').closest('li')!).queryByRole('img')).not.toBeInTheDocument();
+    expect(within(screen.getByText('Water').closest('li')!).getByRole('img', { name: 'assigned to you' })).toHaveTextContent('YO');
+    expect(within(screen.getByText('Feed').closest('li')!).getByRole('img', { name: 'assigned to somebody else' })).toBeInTheDocument();
+    expect(within(screen.getByText('Clean the carbon filter').closest('li')!).queryByRole('img')).not.toBeInTheDocument();
   });
 
   it('says so when nothing is due', async () => {
@@ -229,13 +233,25 @@ describe('mine and all', () => {
     await drawLoaded();
 
     expect(screen.getByRole('radio', { name: 'Mine' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.queryByText('Feed · Spring run')).not.toBeInTheDocument();
-    expect(screen.getByText('Clean the carbon filter · Tent 1')).toBeInTheDocument();
+    expect(screen.queryByText('Feed')).not.toBeInTheDocument();
+    expect(screen.getByText('Clean the carbon filter')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('radio', { name: 'All' }));
 
-    expect(screen.getByText('Feed · Spring run')).toBeInTheDocument();
+    expect(screen.getByText('Feed')).toBeInTheDocument();
     expect(localStorage.getItem('terp.tasks.scope')).toBe('all');
+  });
+
+  it('says how much Mine is hiding rather than that nothing is due, and the line switches to All', async () => {
+    state.waiting = [mias, task({ id: 'rem-3:2026-09-17', sourceId: 'rem-3', label: 'Feed again', assigneeId: 'user-mia' })];
+    state.done = [];
+    draw();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Nothing for you · 2 waiting for others' }));
+    expect(screen.queryByText('Nothing is due.')).not.toBeInTheDocument();
+
+    expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByText('Feed')).toBeInTheDocument();
   });
 });
 
@@ -243,16 +259,49 @@ describe('ticking one off', () => {
   it('writes the completion of exactly that task, and says what line it wrote', async () => {
     await drawLoaded();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Done: Water · Spring run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Done: Water' }));
 
     expect(api.post).toHaveBeenCalledWith('/tasks/rem-1%3A2026-09-16/completions', {});
     expect(await screen.findByText('Watered · Spring run')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument();
   });
 
   it('is not a control on a card that is already done', async () => {
     await drawLoaded();
 
     expect(section('Done').queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  // Confirming a step moves the plan on and sends the next step's targets to
+  // the controller. Deleting the diary line would leave all of that standing,
+  // so the toast says what was confirmed and offers no way back.
+  it('confirms a plan step without offering to take it back', async () => {
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Done: Confirm: Late flower on day 36?' }));
+
+    expect(api.post).toHaveBeenCalledWith('/tasks/plan%3Adevice-1%3A2/completions', {});
+    expect(await screen.findByText('Step confirmed · Tent 1')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+  });
+
+  it('says why the server refused the tick, in the server´s own words, and offers it again', async () => {
+    vi.mocked(api.post).mockRejectedValue(
+      new ApiError({
+        status: 409,
+        code: 'already-done',
+        title: 'Conflict',
+        detail: 'Somebody has already ticked this one off.',
+        errors: [],
+      }),
+    );
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Done: Water' }));
+
+    expect(await screen.findByText('Somebody has already ticked this one off.')).toBeInTheDocument();
+    expect(screen.queryByText('Could not save that line')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 });
 
@@ -329,8 +378,8 @@ describe('a reminder', () => {
 
   it('opens filled in from the card it made, and deletes only after asking', async () => {
     await drawLoaded();
-    const card = screen.getByText('Water · Spring run').closest('li')!;
-    fireEvent.click(within(card).getByRole('button', { name: 'edit' }));
+    const card = screen.getByText('Water').closest('li')!;
+    fireEvent.click(within(card).getByRole('button', { name: 'Edit' }));
     const sheet = screen.getByRole('dialog', { name: 'Reminder' });
 
     expect(within(sheet).getByRole('textbox', { name: 'What to do' })).toHaveValue('Water');
@@ -347,20 +396,85 @@ describe('a reminder', () => {
 
   it('is not offered on a plan step, which has no rhythm to change', async () => {
     await drawLoaded();
-    const card = screen.getByText('Confirm: late flower on day 36').closest('li')!;
+    const card = screen.getByText('Confirm: Late flower on day 36?').closest('li')!;
 
-    expect(within(card).queryByRole('button', { name: 'edit' })).not.toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+  });
+
+  // Whose a reminder is cannot be handed to a third person here, but a rhythm
+  // edited by somebody who came to change the days must not quietly land on
+  // them instead of the person it was written for.
+  it('keeps somebody else´s name on it when the rhythm is changed', async () => {
+    await drawLoaded();
+    fireEvent.click(screen.getByRole('radio', { name: 'All' }));
+    fireEvent.click(within(screen.getByText('Feed').closest('li')!).getByRole('button', { name: 'Edit' }));
+    const sheet = screen.getByRole('dialog', { name: 'Reminder' });
+
+    const kept = within(sheet).getByRole('button', { name: 'somebody else · kept' });
+    expect(kept).toHaveAttribute('aria-pressed', 'true');
+    expect(kept).toBeDisabled();
+    expect(within(sheet).getByRole('button', { name: 'everyone' })).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.change(within(sheet).getByLabelText('Every … days'), { target: { value: '9' } });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(api.patch).toHaveBeenCalledWith('/reminders/rem-3', expect.objectContaining({ everyDays: 9, assigneeId: 'user-mia' })),
+    );
+  });
+
+  it('is offered no third choice when it is everyone´s', async () => {
+    await drawLoaded();
+    fireEvent.click(within(screen.getByText('Clean the carbon filter').closest('li')!).getByRole('button', { name: 'Edit' }));
+
+    expect(within(screen.getByRole('dialog', { name: 'Reminder' })).queryByRole('button', { name: 'somebody else · kept' })).not.toBeInTheDocument();
   });
 });
 
 describe('the demo', () => {
-  it('sees every task and is offered nothing to tap', async () => {
+  // The demo reads somebody else's account, and the server answers it no task
+  // list at all - so the page says that rather than that nothing is due.
+  it('is told it has no task list, and is offered nothing to tap', async () => {
     who.demo = true;
+    state.waiting = [];
+    state.done = [];
     await drawLoaded();
 
-    expect(screen.getByText('Clean the carbon filter · Tent 1')).toBeInTheDocument();
+    expect(screen.getByText('The demo has no task list; open a tent to see what is due there.')).toBeInTheDocument();
+    expect(screen.queryByText('Nothing is due.')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Done:/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^\+ Reminder/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'edit' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+  });
+});
+
+describe('the sheet', () => {
+  /**
+   * The clock above the screen re-renders it every ten seconds. A sheet that is
+   * handed a new closer on each of those re-runs its opening effect and pulls
+   * the focus back onto itself, which on a phone means the keyboard closing
+   * halfway through a label.
+   */
+  it('keeps the focus in the field being typed in while the clock ticks', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    vi.setSystemTime(NOW.toJSDate());
+
+    try {
+      draw();
+      await screen.findByRole('radiogroup', { name: 'Whose tasks' });
+      fireEvent.click(await screen.findByRole('button', { name: '+ Reminder · every N days · once · chore' }));
+
+      const field = within(screen.getByRole('dialog', { name: 'New reminder' })).getByRole('textbox', { name: 'What to do' });
+      field.focus();
+      fireEvent.change(field, { target: { value: 'Flu' } });
+
+      act(() => void vi.advanceTimersByTime(10_000));
+
+      expect(document.activeElement).toBe(field);
+      expect(field).toHaveValue('Flu');
+    } finally {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(NOW.toJSDate());
+    }
   });
 });

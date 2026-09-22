@@ -2296,15 +2296,25 @@
       "done": "Erledigt"
     },
     "nothingDue": "Nichts ist fällig.",
+    "nothingForYou_one": "Nichts für dich · {{count}} wartet auf andere",
+    "nothingForYou_other": "Nichts für dich · {{count}} warten auf andere",
+    "demoNoList": "Die Demo hat keine Aufgabenliste; öffne ein Zelt, um zu sehen, was dort ansteht.",
     "doneAria": "Erledigt: {{label}}",
     "every": "alle {{count}} T",
     "once": "einmalig",
     "planStep": "Grow-Plan",
+    "planStepTitle": "Bestätigen: {{label}}",
+    "stepConfirmed": "Schritt bestätigt",
     "kind": {
       "water": "Gießen",
       "feed": "Düngen",
       "chore": "Routine",
       "custom": "Eigene"
+    },
+    "kindMeta": {
+      "water": "gießen",
+      "feed": "düngen",
+      "chore": "Routine"
     },
     "due": {
       "overdue": "{{count}} T überfällig",
@@ -2320,7 +2330,7 @@
       "today": "heute",
       "yesterday": "gestern"
     },
-    "edit": "ändern",
+    "edit": "Ändern",
     "add": "+ Erinnerung · alle N Tage · einmalig · Routine",
     "sources": "Quellen: Gießrhythmus, Düngeplan, Grow-Plan, Routinen, Plan-Vorschläge. Eine hier erledigte Aufgabe schreibt die Tagebuchzeile mit denselben Vorgaben wie das Eintrag-Sheet.",
     "sheet": {
@@ -2342,6 +2352,7 @@
       "for": "Für",
       "everyone": "alle",
       "me": "mich",
+      "somebodyElse": "jemand anderen · bleibt",
       "save": "Speichern",
       "saving": "Wird gespeichert …",
       "delete": "Diese Erinnerung löschen",

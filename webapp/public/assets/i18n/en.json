@@ -2300,15 +2300,25 @@
       "done": "Done"
     },
     "nothingDue": "Nothing is due.",
+    "nothingForYou_one": "Nothing for you · {{count}} waiting for others",
+    "nothingForYou_other": "Nothing for you · {{count}} waiting for others",
+    "demoNoList": "The demo has no task list; open a tent to see what is due there.",
     "doneAria": "Done: {{label}}",
     "every": "every {{count}} d",
     "once": "once",
     "planStep": "grow plan",
+    "planStepTitle": "Confirm: {{label}}",
+    "stepConfirmed": "Step confirmed",
     "kind": {
       "water": "Water",
       "feed": "Feed",
       "chore": "Chore",
       "custom": "Custom"
+    },
+    "kindMeta": {
+      "water": "water",
+      "feed": "feed",
+      "chore": "chore"
     },
     "due": {
       "overdue": "overdue {{count}} d",
@@ -2324,7 +2334,7 @@
       "today": "today",
       "yesterday": "yesterday"
     },
-    "edit": "edit",
+    "edit": "Edit",
     "add": "+ Reminder · every N days · once · chore",
     "sources": "Sources: watering rhythm, feeding scheme, grow plan, chores, plan suggestions. A task done here writes the diary entry with the same defaults as the Log sheet.",
     "sheet": {
@@ -2346,6 +2356,7 @@
       "for": "For",
       "everyone": "everyone",
       "me": "me",
+      "somebodyElse": "somebody else · kept",
       "save": "Save",
       "saving": "Saving…",
       "delete": "Delete this reminder",

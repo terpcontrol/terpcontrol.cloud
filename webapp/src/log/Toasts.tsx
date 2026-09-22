@@ -22,8 +22,12 @@ export interface LoggedLine {
   state: 'saving' | 'saved' | 'failed';
   /** Which thing failed, so Try again knows what to try. */
   failure: 'write' | 'undo' | null;
+  /** What the server said when it refused, in its own words; null where the failure has none. */
+  reason: string | null;
   undoing: boolean;
   entry: Entry | null;
+  /** Whether Undo is offered at all; a tick that set more than a diary line in motion is not taken back here. */
+  undoable: boolean;
   /** When the Undo stops being offered and the toast goes away. */
   undoUntil: number | null;
 }
@@ -61,9 +65,12 @@ function Toast({ line, onUndo, onRetry, onDismiss, onDetails }: Omit<ToastsProps
   }, [line.undoUntil, line.undoing, line.key, onDismiss]);
 
   if (line.state === 'failed') {
+    // A refusal arrives with a sentence written for the person in it, and that
+    // sentence says which tent or which rule stood in the way; the generic line
+    // is for a failure that has nothing to say, such as a connection that died.
     return (
       <div className={styles.toast} data-failed>
-        <span className={styles.label}>{t(line.failure === 'undo' ? 'log.undoFailed' : 'log.saveFailed')}</span>
+        <span className={styles.label}>{line.reason ?? t(line.failure === 'undo' ? 'log.undoFailed' : 'log.saveFailed')}</span>
         <button type="button" className={styles.action} onClick={() => onRetry(line)}>
           {t('log.tryAgain')}
         </button>
@@ -81,14 +88,18 @@ function Toast({ line, onUndo, onRetry, onDismiss, onDetails }: Omit<ToastsProps
         <span className={`mono ${styles.quiet}`}>{t('log.takingBack')}</span>
       ) : (
         <>
-          <button type="button" className={styles.action} onClick={() => onUndo(line)}>
-            {t('log.undo')}
-          </button>
+          {line.undoable ? (
+            <button type="button" className={styles.action} onClick={() => onUndo(line)}>
+              {t('log.undo')}
+            </button>
+          ) : null}
           {line.details && line.state === 'saved' ? (
             <>
-              <span className={styles.between} aria-hidden>
-                ·
-              </span>
+              {line.undoable ? (
+                <span className={styles.between} aria-hidden>
+                  ·
+                </span>
+              ) : null}
               <button type="button" className={styles.action} onClick={() => onDetails(line)}>
                 {t('log.details')}
               </button>

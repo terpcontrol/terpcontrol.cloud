@@ -45,6 +45,18 @@ export interface LogRequest {
   send: () => Promise<Entry>;
   /** The tile whose details the toast offers afterwards; absent where there are none to offer. */
   details?: { kind: TileKind; target: LogTarget } | null;
+  /**
+   * Whether the toast may offer to take the line back, which is true of
+   * everything a person writes by hand. It is false where deleting the diary
+   * line would leave the rest of what the tick set in motion standing, and a
+   * button that undoes half of something is worse than no button at all.
+   */
+  undoable?: boolean;
+}
+
+/** What a tick may still be taken back, for the ticks where taking it back would only be half of one. */
+export interface CompleteOptions {
+  undoable?: boolean;
 }
 
 export interface LogState {
@@ -53,7 +65,7 @@ export interface LogState {
   /** Write a line now: the sheet closes, the toast appears, and the request is somebody else's problem. */
   log: (request: LogRequest) => void;
   /** The Done on a due card, which writes the entry the task implies. */
-  complete: (taskId: string, label: string) => void;
+  complete: (taskId: string, label: string, options?: CompleteOptions) => void;
 }
 
 export const LogContext = createContext<LogState | null>(null);

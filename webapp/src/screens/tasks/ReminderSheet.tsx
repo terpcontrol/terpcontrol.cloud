@@ -16,6 +16,14 @@ const KINDS: ReminderKind[] = ['water', 'feed', 'chore', 'custom'];
 /** The rhythm a new reminder opens on: often enough to be worth a reminder, seldom enough to be edited down rather than up. */
 const DEFAULT_EVERY_DAYS = 3;
 
+/**
+ * Whose the reminder is. "Somebody else" is not a choice that can be made here
+ * - the handles of the other people in a place do not travel with a reminder
+ * yet - but it is a state a reminder can be in, and it has to survive being
+ * edited by somebody who only came to change the rhythm.
+ */
+type ForWhom = 'everyone' | 'me' | 'other';
+
 interface Draft {
   label: string;
   kind: ReminderKind;
@@ -24,7 +32,7 @@ interface Draft {
   everyDays: number;
   /** The day a one-off falls due, as a date field speaks it. */
   onceOn: string;
-  forMe: boolean;
+  forWhom: ForWhom;
   /** The can, for a watering or a feed; empty is a task that asks nothing about the volume. */
   litres: string;
 }
@@ -67,7 +75,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
   const asksForCan = draft.kind === 'water' || draft.kind === 'feed';
 
   const save = () => {
-    const body = bodyOf(draft, userId);
+    const body = bodyOf(draft, userId, reminder?.assigneeId ?? null);
     if (reminder) update.mutate(body, { onSuccess: onClose });
     else create.mutate(body, { onSuccess: onClose });
   };
@@ -177,12 +185,19 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
 
         <Block label={t('tasks.sheet.for')}>
           <Choices label={t('tasks.sheet.for')}>
-            <Choice chosen={!draft.forMe} onChoose={() => change({ forMe: false })}>
+            <Choice chosen={draft.forWhom === 'everyone'} onChoose={() => change({ forWhom: 'everyone' })}>
               {t('tasks.sheet.everyone')}
             </Choice>
-            <Choice chosen={draft.forMe} onChoose={() => change({ forMe: true })}>
+            <Choice chosen={draft.forWhom === 'me'} onChoose={() => change({ forWhom: 'me' })}>
               {t('tasks.sheet.me')}
             </Choice>
+            {/* Shown only for a reminder that already is somebody else's, so that
+                editing the rhythm of one does not quietly take it off them. */}
+            {reminder && reminder.assigneeId !== null && reminder.assigneeId !== userId ? (
+              <Choice chosen={draft.forWhom === 'other'} disabled onChoose={() => change({ forWhom: 'other' })}>
+                {t('tasks.sheet.somebodyElse')}
+              </Choice>
+            ) : null}
           </Choices>
         </Block>
 
@@ -239,7 +254,7 @@ const draftOf = (reminder: Reminder | null, userId: string, grows: GrowListItem[
     rhythm: reminder?.onceAt ? 'once' : 'every',
     everyDays: reminder?.everyDays ?? DEFAULT_EVERY_DAYS,
     onceOn: reminder?.onceAt ? dayOf(new Date(reminder.onceAt)) : dayOf(new Date()),
-    forMe: reminder?.assigneeId === userId,
+    forWhom: !reminder || reminder.assigneeId === null ? 'everyone' : reminder.assigneeId === userId ? 'me' : 'other',
     litres: litres === null ? '' : String(litres),
   };
 };
@@ -255,8 +270,11 @@ const litresIn = (defaults: unknown): number | null => {
  * zone, so it is today's task from the morning on. The can is the entry's
  * default of the same shape the Log sheet writes, so a tick records it the
  * way a tap on the Water tile would.
+ *
+ * A reminder that is somebody else's is sent back with that person still on it:
+ * whoever is editing it can only have come to change something else.
  */
-const bodyOf = (draft: Draft, userId: string): ReminderCreate => {
+const bodyOf = (draft: Draft, userId: string, assigneeId: string | null): ReminderCreate => {
   const litres = Number(draft.litres);
   const asksForCan = draft.kind === 'water' || draft.kind === 'feed';
 
@@ -266,7 +284,7 @@ const bodyOf = (draft: Draft, userId: string): ReminderCreate => {
     label: draft.label.trim(),
     everyDays: draft.rhythm === 'every' ? draft.everyDays : null,
     onceAt: draft.rhythm === 'once' ? instantOf(DateTime.fromISO(draft.onceOn).startOf('day')) : null,
-    assigneeId: draft.forMe ? userId : null,
+    assigneeId: draft.forWhom === 'me' ? userId : draft.forWhom === 'other' ? assigneeId : null,
     defaults: asksForCan && draft.litres !== '' && litres > 0 ? { kind: draft.kind, litres } : null,
   };
 };

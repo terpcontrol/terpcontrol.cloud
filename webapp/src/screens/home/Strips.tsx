@@ -53,7 +53,7 @@ export function DueStrip({ cards, now }: { cards: HomeSpaceCard[]; now: DateTime
           <div className={styles.chip}>
             <Circle size={16} strokeWidth={1.75} className={styles.circle} aria-hidden />
             <span className={styles.chipText}>
-              <strong>{task.label}</strong> · {card.grow?.name ?? card.name}
+              <strong>{task.label}</strong> · {placeOf(task, card)}
             </span>
             <span className={`mono ${styles.chipMeta}`}>{dueLabel(t, task, now)}</span>
             {/* Done writes the entry the task implies; the toast is where it can still be taken back. */}
@@ -69,9 +69,17 @@ export function DueStrip({ cards, now }: { cards: HomeSpaceCard[]; now: DateTime
   );
 }
 
+/**
+ * What the task is about, by name. A task written against the grow is named
+ * after the grow, and one written against the tent after the tent: cleaning
+ * the carbon filter is the tent's chore and stays the tent's when the grow in
+ * it is harvested.
+ */
+const placeOf = (task: DueTask, card: HomeSpaceCard): string => (task.subject.type === 'grow' ? (card.grow?.name ?? card.name) : card.name);
+
 /** What the toast will say the tick wrote: the line, not the task - "Watered · Spring run". */
 const doneLabel = (t: Translate, task: DueTask, card: HomeSpaceCard): string =>
-  `${t(`home.entryKind.${task.kind === 'chore' || task.kind === 'custom' ? 'note' : task.kind}`)} · ${card.grow?.name ?? card.name}`;
+  `${t(`home.entryKind.${task.kind === 'chore' || task.kind === 'custom' ? 'note' : task.kind}`)} · ${placeOf(task, card)}`;
 
 /** "today", "tomorrow", or how overdue. */
 const dueLabel = (t: Translate, task: DueTask, now: DateTime): string => {

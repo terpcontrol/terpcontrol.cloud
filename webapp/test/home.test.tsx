@@ -252,6 +252,28 @@ describe('what needs a person', () => {
     expect(within(dueList).getByRole('button', { name: 'Done' })).toBeInTheDocument();
   });
 
+  // The tent's own chores are the tent's, and stay the tent's while a grow
+  // stands in it: naming one after the grow sends a person to the wrong place.
+  it('names a chore after the place it is about rather than after the grow standing there', () => {
+    const chore = card({
+      spaceId: 'space-4',
+      name: 'Veg room',
+      dueTasks: [
+        {
+          id: 'task-2',
+          kind: 'chore',
+          label: 'Clean the carbon filter',
+          dueAt: NOW.toISO()!,
+          subject: { type: 'space', id: 'space-4' },
+          assigneeId: null,
+        },
+      ],
+    });
+    draw(<DueStrip cards={[chore]} now={NOW} />);
+
+    expect(screen.getByRole('list', { name: 'Due' })).toHaveTextContent('Clean the carbon filter · Veg room');
+  });
+
   it('draws nothing at all when nothing is open, due or followed', () => {
     const { container } = draw(
       <>

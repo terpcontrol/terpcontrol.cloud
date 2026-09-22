@@ -25,12 +25,17 @@ interface TaskCardProps {
  * One thing waiting to be done. The circle on the left is the whole
  * interaction: a tap writes the diary line the task implies, and the toast is
  * where it can still be taken back. The line under the title says where the
- * task came from and when it is due, and the mark on the right says whose it
- * is.
+ * task came from, which place it is about and when it is due, and the mark on
+ * the right says whose it is.
+ *
+ * The title is the label and nothing else. The name of the tent or the grow
+ * belongs on the line under it: on a phone the two together are wider than the
+ * card, and it was the name that was cut off - the half that says which tent
+ * is the half a person on the way to one needs.
  */
 export function TaskCard({ task, name, reminder, me, now, onDone, onEdit }: TaskCardProps) {
   const { t } = useTranslation();
-  const title = task.source === 'plan_step' || !name ? task.label : `${task.label} · ${name}`;
+  const title = titleOf(t, task);
 
   return (
     <li className={`${ui.card} ${styles.card}`}>
@@ -67,12 +72,17 @@ export function DoneCard({ task, name, me, now }: { task: Task; name: string | n
     <li className={`${ui.card} ${styles.card}`} data-done="true">
       <span className={styles.circle} data-filled="true" aria-hidden />
       <span className={styles.text}>
-        <span className={styles.cardTitle}>{name ? `${task.label} · ${name}` : task.label}</span>
+        <span className={styles.cardTitle}>{titleOf(t, task)}</span>
         <span className={`mono ${styles.meta}`}>
-          {who}
-          {completion
-            ? ` · ${dayLabel(t, completion.occurredAt, now, i18n.language)} ${DateTime.fromISO(completion.occurredAt).toFormat('HH:mm')}`
-            : ''}
+          {[
+            who,
+            name,
+            completion
+              ? `${dayLabel(t, completion.occurredAt, now, i18n.language)} ${DateTime.fromISO(completion.occurredAt).toFormat('HH:mm')}`
+              : null,
+          ]
+            .filter(part => part !== null)
+            .join(' · ')}
         </span>
       </span>
       <Assignee task={task} me={me} />
@@ -105,7 +115,15 @@ function Assignee({ task, me }: { task: Task; me: SessionUser | null }) {
   );
 }
 
-/** "every 3 d · 2 L · today", or "grow plan · Tent 1 · in 2 d": where the task came from, then when it is due. */
+/**
+ * What the card is called. A plan step is not a chore that was thought of in
+ * advance but a question the plan is waiting to have answered, and the tick
+ * answers it: saying so in the title is what makes the circle beside it read
+ * as the confirmation it is.
+ */
+const titleOf = (t: Translate, task: Task): string => (task.source === 'plan_step' ? t('tasks.planStepTitle', { label: task.label }) : task.label);
+
+/** "every 3 d · Spring run · water · 2 L · today", or "grow plan · Tent 1 · in 2 d": where the task came from, which place it is about, then when it is due. */
 const metaLine = (t: Translate, task: Task, name: string | null, reminder: Reminder | null, now: DateTime): string => {
   const parts: string[] = [];
 
@@ -114,7 +132,10 @@ const metaLine = (t: Translate, task: Task, name: string | null, reminder: Remin
     if (name) parts.push(name);
   } else {
     if (reminder) parts.push(reminder.everyDays ? t('tasks.every', { count: reminder.everyDays }) : t('tasks.once'));
-    if (task.kind === 'chore' || task.kind === 'custom') parts.push(t(`tasks.kind.${task.kind}`));
+    if (name) parts.push(name);
+    // A category of its own only where there is one to name: "custom" is what a
+    // reminder is called when its label already says everything about it.
+    if (task.kind !== 'custom') parts.push(t(`tasks.kindMeta.${task.kind}`));
     const litres = litresOf(task.defaults);
     if (litres !== null) parts.push(t('log.litres', { litres }));
   }

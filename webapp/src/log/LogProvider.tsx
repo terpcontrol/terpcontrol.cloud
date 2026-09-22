@@ -2,7 +2,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import type { Entry } from '@fg2/shared-types/v1';
 import { completeTask, diaryChanged, takeEntryBack } from '@/api/entries';
-import { LogContext, type LogOpening, type LogRequest, type LogTarget, type TileKind } from './log-context';
+import { ApiError } from '@/api/problem';
+import { LogContext, type CompleteOptions, type LogOpening, type LogRequest, type LogTarget, type TileKind } from './log-context';
 import { LogSheet } from './LogSheet';
 import { EntryDetails } from './EntryDetails';
 import { PhotoEntry } from './PhotoEntry';
@@ -51,7 +52,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
           diaryChanged(client);
           dismiss(key);
         },
-        () => change(key, { state: 'failed', failure: 'undo', entry }),
+        error => change(key, { state: 'failed', failure: 'undo', entry, reason: reasonOf(error) }),
       ),
     [change, client, dismiss],
   );
@@ -65,7 +66,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
           change(key, { state: 'saved', entry, undoUntil: Date.now() + UNDO_MS });
           diaryChanged(client);
         },
-        () => change(key, { state: 'failed', failure: 'write' }),
+        error => change(key, { state: 'failed', failure: 'write', reason: reasonOf(error) }),
       );
     },
     [change, client, remove],
@@ -81,8 +82,10 @@ export function LogProvider({ children }: { children: ReactNode }) {
         details: request.details ?? null,
         state: 'saving',
         failure: null,
+        reason: null,
         undoing: false,
         entry: null,
+        undoable: request.undoable ?? true,
         undoUntil: null,
       };
       setLines(current => [...current, line]);
@@ -109,7 +112,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
 
   const retry = useCallback(
     (line: LoggedLine) => {
-      change(line.key, { state: 'saving', failure: null });
+      change(line.key, { state: 'saving', failure: null, reason: null });
       if (line.failure === 'undo' && line.entry) void remove(line.key, line.entry);
       else attempt(line.key, line.send);
     },
@@ -127,14 +130,18 @@ export function LogProvider({ children }: { children: ReactNode }) {
     }, []),
     log,
     complete: useCallback(
-      (taskId: string, label: string) => {
+      (taskId: string, label: string, options: CompleteOptions = {}) => {
         // A card tapped twice is one instruction: the second tap comes before
         // the first has answered, which is the only moment the card is still
         // there to tap. The server refuses a second tick as well.
         if (ticking.current.has(taskId)) return;
         ticking.current.add(taskId);
 
-        log({ label, send: () => completeTask(taskId).finally(() => ticking.current.delete(taskId)) });
+        log({
+          label,
+          undoable: options.undoable,
+          send: () => completeTask(taskId).finally(() => ticking.current.delete(taskId)),
+        });
       },
       [log],
     ),
@@ -154,6 +161,13 @@ export function LogProvider({ children }: { children: ReactNode }) {
     </LogContext>
   );
 }
+
+/**
+ * What the toast says instead of the generic line. A refusal carries a sentence
+ * written for the person - which tent it was, which rule stood in the way - and
+ * that is worth far more than "could not save"; anything else has nothing to say.
+ */
+const reasonOf = (error: unknown): string | null => (error instanceof ApiError ? error.problem.detail || error.problem.title || null : null);
 
 /** The toast's Details: the line that was just written, opened in the tile it came from. */
 const openDetailsOf = (setDetails: (details: Details) => void) => (line: LoggedLine) => {
