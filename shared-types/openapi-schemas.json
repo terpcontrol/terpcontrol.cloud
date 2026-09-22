@@ -4620,6 +4620,73 @@
       "mediaBytes"
     ]
   },
+  "AdminRenderStats": {
+    "type": "object",
+    "properties": {
+      "queued": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+      },
+      "rendering": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991
+      },
+      "failed": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991,
+        "description": "Films the composer gave up on; each of them is a picture somebody asked for and did not get."
+      }
+    },
+    "required": [
+      "queued",
+      "rendering",
+      "failed"
+    ]
+  },
+  "AdminRetentionRun": {
+    "type": "object",
+    "properties": {
+      "ranAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "reached": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991,
+        "description": "Devices the pass looked at, which is how far round the rotation one pass gets."
+      },
+      "devices": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991,
+        "description": "Devices it summarised something of; the rest had nothing outside their window."
+      },
+      "days": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991,
+        "description": "Days of raw samples rolled into daily summaries."
+      },
+      "errors": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991,
+        "description": "Devices the pass left exactly as they were. It goes on to the next one."
+      }
+    },
+    "required": [
+      "ranAt",
+      "reached",
+      "devices",
+      "days",
+      "errors"
+    ]
+  },
   "AdminStats": {
     "type": "object",
     "properties": {
@@ -4639,6 +4706,20 @@
       },
       "content": {
         "$ref": "#/components/schemas/AdminContentStats"
+      },
+      "renders": {
+        "$ref": "#/components/schemas/AdminRenderStats"
+      },
+      "retention": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/AdminRetentionRun"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null when this server has not run a retention pass since it started."
       }
     },
     "required": [
@@ -4646,7 +4727,9 @@
       "users",
       "devices",
       "cameras",
-      "content"
+      "content",
+      "renders",
+      "retention"
     ]
   },
   "AdminLogLevel": {

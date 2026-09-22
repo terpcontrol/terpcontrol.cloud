@@ -990,6 +990,36 @@ export const adminContentStats = named(
   }),
 );
 
+/** The composer's queue, which is the one piece of work on an install that can quietly stop moving. */
+export const adminRenderStats = named(
+  'AdminRenderStats',
+  z.object({
+    queued: z.number().int(),
+    rendering: z.number().int(),
+    failed: z.number().int().describe('Films the composer gave up on; each of them is a picture somebody asked for and did not get.'),
+  }),
+);
+
+/**
+ * The last pass of the climate retention sweep.
+ *
+ * It is the only background job on an install that deletes a grower's raw
+ * samples, so whether it ran, how far it got and whether it is erroring is
+ * something an operator has to be able to see. The pass is kept by the running
+ * server and not stored, so this is null on a server that has not yet swept
+ * since it came up; a screen says that rather than inventing an hour.
+ */
+export const adminRetentionRun = named(
+  'AdminRetentionRun',
+  z.object({
+    ranAt: instant(),
+    reached: z.number().int().describe('Devices the pass looked at, which is how far round the rotation one pass gets.'),
+    devices: z.number().int().describe('Devices it summarised something of; the rest had nothing outside their window.'),
+    days: z.number().int().describe('Days of raw samples rolled into daily summaries.'),
+    errors: z.number().int().describe('Devices the pass left exactly as they were. It goes on to the next one.'),
+  }),
+);
+
 /**
  * `GET /admin/stats`. Counting every collection is not free, so the answer may
  * be a cached pass and says when it was taken rather than implying "now".
@@ -1002,6 +1032,8 @@ export const adminStats = named(
     devices: adminDeviceStats,
     cameras: adminCameraStats,
     content: adminContentStats,
+    renders: adminRenderStats,
+    retention: adminRetentionRun.nullable().describe('Null when this server has not run a retention pass since it started.'),
   }),
 );
 

@@ -33,6 +33,12 @@ export interface StoredDeviceState extends Omit<
 export interface StoredDevice extends Omit<Device, 'createdAt' | 'state'> {
   createdAt: Date;
   mqtt: StoredDeviceMqtt | null;
+  /**
+   * When the climate retention sweep last reached this device. Stored rather
+   * than served: it is the sweep's own fairness cursor, and the app has no
+   * business reading one.
+   */
+  climateSweptAt: Date | null;
   state: StoredDeviceState;
 }
 
@@ -101,6 +107,9 @@ export const devicesSchema = new Schema<StoredDevice>(
     // Never served: the contract has no field for it. Read by `MqttAuthService`
     // alone, which asks for it explicitly.
     mqtt: { type: mqttSchema, default: null, select: false },
+    // Never served either: the retention sweep orders its pass by this, and a
+    // device that has never been swept sorts to the front because null does.
+    climateSweptAt: { type: Date, default: null },
     firmware: { type: firmwareTargetSchema, required: true, default: () => ({}) },
     // The device's own configuration document, null until it reports one. Its
     // schema belongs to the firmware of that type and is not restated here.
@@ -122,3 +131,7 @@ devicesSchema.index({ ownerId: 1 });
 devicesSchema.index({ spaceId: 1 });
 // The rollout counts a class by the build its devices run, and picks the next ones to update.
 devicesSchema.index({ classId: 1, 'state.firmwareId': 1 });
+// The retention sweep's rotation: least recently swept first, oldest first
+// among devices that tie - which is every device on an install that has never
+// swept, so the very first pass is the order the sweep used to have for ever.
+devicesSchema.index({ climateSweptAt: 1, createdAt: 1 });

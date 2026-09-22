@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 import { DailySummary, dailySummariesOf, FluxRow, gridOf, startOfDay } from '@modules/data/flux';
 import { DataService } from '@modules/data/data.service';
-import { ClimateRetentionService, untilNextRun } from '@modules/retention/climate-retention.service';
+import { ClimateRetentionService, DEVICES_PER_PASS, untilNextRun } from '@modules/retention/climate-retention.service';
 import { chunkOf, climateWindowOf, cutoffOf } from '@modules/retention/climate-window';
 import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
 
@@ -196,7 +196,7 @@ describe('a pass of the sweep', () => {
 
     const run = await sweeper(0).run(NOW);
 
-    expect(run).toEqual({ devices: 1, days: 2, errors: 0 });
+    expect(run).toEqual({ reached: 1, devices: 1, days: 2, errors: 0 });
     expect(store.written).toEqual([{ deviceId: CONTROLLER, summaries: store.summaries }]);
     // Ninety days back from the 22nd, and ninety days on from the oldest
     // sample's own day, whichever comes first.
@@ -223,7 +223,7 @@ describe('a pass of the sweep', () => {
 
     const run = await sweeper(0).run(NOW);
 
-    expect(run).toEqual({ devices: 0, days: 0, errors: 0 });
+    expect(run).toEqual({ reached: 1, devices: 0, days: 0, errors: 0 });
     expect(store.written).toEqual([]);
     expect(store.dropped).toEqual([]);
   });
@@ -238,7 +238,7 @@ describe('a pass of the sweep', () => {
     await world({ space: null, owner: 90 });
     store.oldest = null;
 
-    expect(await sweeper(0).run(NOW)).toEqual({ devices: 0, days: 0, errors: 0 });
+    expect(await sweeper(0).run(NOW)).toEqual({ reached: 1, devices: 0, days: 0, errors: 0 });
     expect(store.dropped).toEqual([]);
   });
 
@@ -246,7 +246,7 @@ describe('a pass of the sweep', () => {
     await world({ space: null, owner: 90 });
     store.oldest = new Date('2026-09-20T00:00:00.000Z');
 
-    expect(await sweeper(0).run(NOW)).toEqual({ devices: 0, days: 0, errors: 0 });
+    expect(await sweeper(0).run(NOW)).toEqual({ reached: 1, devices: 0, days: 0, errors: 0 });
     expect(store.dropped).toEqual([]);
   });
 
@@ -288,9 +288,84 @@ describe('a pass of the sweep', () => {
     store.oldest = null;
     const again = await sweeper(0).run(NOW);
 
-    expect(again).toEqual({ devices: 0, days: 0, errors: 0 });
+    expect(again).toEqual({ reached: 1, devices: 0, days: 0, errors: 0 });
     expect(store.written).toHaveLength(1);
     expect(store.dropped).toHaveLength(1);
+  });
+
+  /**
+   * The pass is capped, so on a fleet larger than the cap the order is the
+   * whole question. Ordered by creation, as it was, the same oldest five
+   * hundred were read every night and the five hundred and first was swept
+   * never - so this asserts its absence from the first pass as much as its
+   * presence in the second.
+   */
+  it('reaches the device past the cap on the next pass, which an unrotated order never did', async () => {
+    await world({ space: null, owner: 90 });
+    // The world's own controller is the oldest, so the fleet is exactly one
+    // device longer than a pass and the newest of them is the one the old
+    // order could never reach.
+    await db.devices.updateOne({ id: CONTROLLER }, { $set: { createdAt: new Date('2020-01-01T00:00:00.000Z') } });
+    await db.devices.create(
+      Array.from({ length: DEVICES_PER_PASS }, (_unused, index) => ({
+        id: `device-${index}`,
+        type: 'controller',
+        ownerId: OWNER,
+        spaceId: TENT,
+        configuration: null,
+        createdAt: new Date(NOW.getTime() + index * 1000),
+      })),
+    );
+    const beyond = `device-${DEVICES_PER_PASS - 1}`;
+
+    const first = await sweeper(0).run(NOW);
+    expect(first.reached).toBe(DEVICES_PER_PASS);
+    expect(store.written.map(write => write.deviceId)).not.toContain(beyond);
+
+    store.written = [];
+    // A minute later, so the devices the first pass stamped sort behind the one
+    // it never got to - which is the whole of the rotation.
+    await sweeper(0).run(new Date(NOW.getTime() + 60_000));
+
+    expect(store.written.map(write => write.deviceId)).toContain(beyond);
+  });
+
+  /**
+   * Stamping only the devices that were swept is the same starvation one device
+   * at a time: a device nobody can sweep - no window at all, or a store that
+   * refuses it every night - would stand at the head of the order for ever and
+   * take a place in every pass.
+   */
+  it('stamps every device it reached, the one with no window and the one that threw included', async () => {
+    await world({ space: null, owner: null });
+    await db.devices.create({ id: 'device-second', type: 'fridge', ownerId: OWNER, spaceId: TENT, configuration: null });
+    const refuses = {
+      ...fakeData,
+      oldestSampleBefore: async () => {
+        throw new Error('the store said no');
+      },
+    } as unknown as DataService;
+
+    // The first device has no window anywhere, the second is refused by the
+    // store; neither is swept and both have had their turn.
+    await new ClimateRetentionService(db.devices, db.spaces, db.users, refuses, { climateDays: 0 }).run(NOW);
+    await new ClimateRetentionService(db.devices, db.spaces, db.users, refuses, { climateDays: 90 }).run(NOW);
+
+    const unstamped = await db.devices.countDocuments({ climateSweptAt: null });
+    expect(unstamped).toBe(0);
+  });
+
+  /** What the fleet's health card reads: a pass that happened, and how badly it went. */
+  it('keeps its last pass where a screen can read it, and says nothing before one has run', async () => {
+    await world({ space: null, owner: 90 });
+    const sweep = sweeper(0);
+
+    expect(sweep.lastRun).toBeNull();
+
+    await sweep.run(NOW);
+
+    expect(sweep.lastRun).toMatchObject({ reached: 1, devices: 1, days: 2, errors: 0 });
+    expect(sweep.lastRun?.ranAt).toBeInstanceOf(Date);
   });
 });
 

@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = exports.durationUnit = exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = exports.deviceCommand = exports.socketSetCommand = exports.socketCredentials = exports.socketOverrideCommand = exports.captureStillCommand = exports.stopTestCommand = exports.testCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.adminDeviceCreate = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.devicePage = exports.device = exports.deviceState = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
-exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = void 0;
+exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 const socket_report_js_1 = require("./socket-report.js");
@@ -712,6 +712,28 @@ exports.adminContentStats = (0, common_js_1.named)('AdminContentStats', zod_1.z.
     media: zod_1.z.number().int(),
     mediaBytes: zod_1.z.number().int().describe('What the picture bucket holds, which is nearly all of the disk.'),
 }));
+/** The composer's queue, which is the one piece of work on an install that can quietly stop moving. */
+exports.adminRenderStats = (0, common_js_1.named)('AdminRenderStats', zod_1.z.object({
+    queued: zod_1.z.number().int(),
+    rendering: zod_1.z.number().int(),
+    failed: zod_1.z.number().int().describe('Films the composer gave up on; each of them is a picture somebody asked for and did not get.'),
+}));
+/**
+ * The last pass of the climate retention sweep.
+ *
+ * It is the only background job on an install that deletes a grower's raw
+ * samples, so whether it ran, how far it got and whether it is erroring is
+ * something an operator has to be able to see. The pass is kept by the running
+ * server and not stored, so this is null on a server that has not yet swept
+ * since it came up; a screen says that rather than inventing an hour.
+ */
+exports.adminRetentionRun = (0, common_js_1.named)('AdminRetentionRun', zod_1.z.object({
+    ranAt: (0, common_js_1.instant)(),
+    reached: zod_1.z.number().int().describe('Devices the pass looked at, which is how far round the rotation one pass gets.'),
+    devices: zod_1.z.number().int().describe('Devices it summarised something of; the rest had nothing outside their window.'),
+    days: zod_1.z.number().int().describe('Days of raw samples rolled into daily summaries.'),
+    errors: zod_1.z.number().int().describe('Devices the pass left exactly as they were. It goes on to the next one.'),
+}));
 /**
  * `GET /admin/stats`. Counting every collection is not free, so the answer may
  * be a cached pass and says when it was taken rather than implying "now".
@@ -722,6 +744,8 @@ exports.adminStats = (0, common_js_1.named)('AdminStats', zod_1.z.object({
     devices: exports.adminDeviceStats,
     cameras: exports.adminCameraStats,
     content: exports.adminContentStats,
+    renders: exports.adminRenderStats,
+    retention: exports.adminRetentionRun.nullable().describe('Null when this server has not run a retention pass since it started.'),
 }));
 exports.adminLogLevel = (0, common_js_1.named)('AdminLogLevel', zod_1.z.enum(['error', 'warn', 'info']));
 /**

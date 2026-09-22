@@ -1500,12 +1500,46 @@ export interface AdminContentStats {
   mediaBytes: number;
 }
 
+export interface AdminRenderStats {
+  queued: number;
+  rendering: number;
+  /**
+   * Films the composer gave up on; each of them is a picture somebody asked for and did not get.
+   */
+  failed: number;
+}
+
+export interface AdminRetentionRun {
+  ranAt: string;
+  /**
+   * Devices the pass looked at, which is how far round the rotation one pass gets.
+   */
+  reached: number;
+  /**
+   * Devices it summarised something of; the rest had nothing outside their window.
+   */
+  devices: number;
+  /**
+   * Days of raw samples rolled into daily summaries.
+   */
+  days: number;
+  /**
+   * Devices the pass left exactly as they were. It goes on to the next one.
+   */
+  errors: number;
+}
+
 export interface AdminStats {
   collectedAt: string;
   users: AdminUserStats;
   devices: AdminDeviceStats;
   cameras: AdminCameraStats;
   content: AdminContentStats;
+  renders: AdminRenderStats;
+  /**
+   * Null when this server has not run a retention pass since it started.
+   */
+  retention: AdminRetentionRun | null;
 }
 
 export interface AdminLogLine {

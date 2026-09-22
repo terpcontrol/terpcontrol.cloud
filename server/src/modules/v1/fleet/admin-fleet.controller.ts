@@ -2,6 +2,7 @@ import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put,
 import { ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import {
+  AdminStats,
   DeviceClass,
   DeviceClassCreate,
   DeviceClassPage,
@@ -14,6 +15,7 @@ import {
   Fleet,
 } from '@fg2/shared-types/v1';
 import {
+  adminStats as adminStatsShape,
   deviceClass as deviceClassShape,
   deviceClassCreate,
   deviceClassPage,
@@ -30,6 +32,7 @@ import { badRequest } from '@common/v1/problem';
 import { PageQuery, V1Query, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
 import { V1Answer } from '../answer-shape';
+import { AdminStatsService } from './admin-stats.service';
 import { FleetService, serialiseClass } from './fleet.service';
 
 /**
@@ -46,13 +49,28 @@ const firmwareListQuery = pageQuery.extend({ classId: z.string().optional() });
 @Controller('v1/admin')
 @UseGuards(AdminGuard)
 export class AdminFleetController {
-  constructor(private readonly fleet: FleetService) {}
+  constructor(
+    private readonly fleet: FleetService,
+    private readonly health: AdminStatsService,
+  ) {}
 
   @Get('fleet')
   @ApiOperation({ summary: 'What the fleet is running, class by class' })
   @V1Answer(fleetShape)
   public overview(): Promise<Fleet> {
     return this.fleet.fleet();
+  }
+
+  /**
+   * How the install itself is doing. It sits beside the fleet rather than under
+   * the accounts because it is read on the same screen and answers the same
+   * question: whether anything here has quietly stopped working.
+   */
+  @Get('stats')
+  @ApiOperation({ summary: 'The install´s own figures: its accounts, its hardware, its pictures and its background work' })
+  @V1Answer(adminStatsShape)
+  public stats(): Promise<AdminStats> {
+    return this.health.stats();
   }
 
   @Get('device-classes')

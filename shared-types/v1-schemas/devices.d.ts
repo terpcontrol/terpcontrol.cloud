@@ -2116,6 +2116,28 @@ export declare const adminContentStats: z.ZodObject<{
     media: z.ZodNumber;
     mediaBytes: z.ZodNumber;
 }, z.core.$strip>;
+/** The composer's queue, which is the one piece of work on an install that can quietly stop moving. */
+export declare const adminRenderStats: z.ZodObject<{
+    queued: z.ZodNumber;
+    rendering: z.ZodNumber;
+    failed: z.ZodNumber;
+}, z.core.$strip>;
+/**
+ * The last pass of the climate retention sweep.
+ *
+ * It is the only background job on an install that deletes a grower's raw
+ * samples, so whether it ran, how far it got and whether it is erroring is
+ * something an operator has to be able to see. The pass is kept by the running
+ * server and not stored, so this is null on a server that has not yet swept
+ * since it came up; a screen says that rather than inventing an hour.
+ */
+export declare const adminRetentionRun: z.ZodObject<{
+    ranAt: z.ZodISODateTime;
+    reached: z.ZodNumber;
+    devices: z.ZodNumber;
+    days: z.ZodNumber;
+    errors: z.ZodNumber;
+}, z.core.$strip>;
 /**
  * `GET /admin/stats`. Counting every collection is not free, so the answer may
  * be a cached pass and says when it was taken rather than implying "now".
@@ -2147,6 +2169,18 @@ export declare const adminStats: z.ZodObject<{
         media: z.ZodNumber;
         mediaBytes: z.ZodNumber;
     }, z.core.$strip>;
+    renders: z.ZodObject<{
+        queued: z.ZodNumber;
+        rendering: z.ZodNumber;
+        failed: z.ZodNumber;
+    }, z.core.$strip>;
+    retention: z.ZodNullable<z.ZodObject<{
+        ranAt: z.ZodISODateTime;
+        reached: z.ZodNumber;
+        devices: z.ZodNumber;
+        days: z.ZodNumber;
+        errors: z.ZodNumber;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 export declare const adminLogLevel: z.ZodEnum<{
     error: "error";

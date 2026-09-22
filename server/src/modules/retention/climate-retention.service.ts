@@ -25,17 +25,25 @@ import { chunkOf, climateWindowOf, cutoffOf } from './climate-window';
  * window is still drawn; it is a point a day rather than one every thirty
  * seconds.
  *
- * **It is safe to run twice, and safe on an install with years in it.** Nothing
- * is remembered between passes: where the sweep has got to for a device is
- * simply the oldest raw sample that device still has, so a pass that died half
- * way through costs the next one nothing, and a summary written twice is the
- * same summary - the store replaces a point with the same measurement, tag,
- * instant and field. The two acts are ordered the only way they can be, the
- * write before the delete, so an interruption between them leaves a day both
- * summarised and still raw, which the next pass puts right. Each device is
- * taken a few weeks at a time and only so many devices a pass, so the first
- * sweep of an old install is many small pieces of work rather than one
- * enormous one.
+ * **It is safe to run twice, and safe on an install with years in it.** Where
+ * the sweep has got to *for a device* is remembered nowhere: it is simply the
+ * oldest raw sample that device still has, so a pass that died half way through
+ * costs the next one nothing, and a summary written twice is the same summary -
+ * the store replaces a point with the same measurement, tag, instant and field.
+ * The two acts are ordered the only way they can be, the write before the
+ * delete, so an interruption between them leaves a day both summarised and
+ * still raw, which the next pass puts right. Each device is taken a few weeks
+ * at a time and only so many devices a pass, so the first sweep of an old
+ * install is many small pieces of work rather than one enormous one.
+ *
+ * The one thing that is remembered is *which devices have had a turn*, stamped
+ * on each of them as `climateSweptAt`. It is a fairness cursor and not resume
+ * state: losing it, or a pass that dies before it stamps, costs nothing but a
+ * repeated turn, because the real position for a device is still its oldest raw
+ * sample. Without it the pass read the same oldest five hundred devices every
+ * night and the five hundred and first was never swept at all - which on any
+ * fleet larger than that made the privacy screen's window a lie for the tail of
+ * it, silently and for ever.
  *
  * **What it does not do.** Camera stills are not climate and are not touched
  * here: deleting a free camera's older pictures is a switch of its own
@@ -46,10 +54,11 @@ import { chunkOf, climateWindowOf, cutoffOf } from './climate-window';
 const MS_IN_A_DAY = 24 * 60 * 60 * 1000;
 
 /**
- * Three in the morning, which is what the fleet screen says on the health card
- * - "retention jobs ran 03:00" - and what an administrator reads that line
- * against. It is the server's own clock: an install serves one time zone's
- * worth of growers and this is the hour nobody is looking.
+ * Three in the morning, which is what the fleet screen's health card reads
+ * against - it draws the last pass from `GET /admin/stats`, and the hour is
+ * what tells an operator whether the figure beside it is last night's. It is
+ * the server's own clock: an install serves one time zone's worth of growers
+ * and this is the hour nobody is looking.
  */
 const RUNS_AT_HOUR = 3;
 
@@ -63,19 +72,36 @@ const FIRST_PASS_MS = 10 * 60 * 1000;
  */
 const DAYS_PER_PASS = 90;
 
-/** How many devices one pass sweeps. The rest wait for the next one; nothing is lost by waiting a day. */
-const DEVICES_PER_PASS = 500;
+/**
+ * How many devices one pass reaches. The rest wait for the next one and nothing
+ * is lost by waiting a day, which is only true because the pass rotates: every
+ * device it touches is stamped, and the next pass starts with whoever has been
+ * waiting longest.
+ */
+export const DEVICES_PER_PASS = 500;
 
-/** What a pass did, which is what it logs and what a test reads. */
+/** What a pass did, which is what it logs, what a test reads and what the fleet's health card is drawn from. */
 export interface RetentionRun {
+  reached: number;
   devices: number;
   days: number;
   errors: number;
 }
 
+/** The same, with the instant it finished, which is the half a screen needs and a test does not. */
+export type LastRetentionRun = RetentionRun & { ranAt: Date };
+
 @Injectable()
 export class ClimateRetentionService implements OnModuleInit, OnApplicationShutdown {
   private readonly work = new BackgroundWork();
+
+  /**
+   * The last pass, kept by this process and stored nowhere. Deliberately: it is
+   * a figure about this server's own night, and a restart answering "no pass
+   * yet" is honest, where a row read back out of the database would report a
+   * pass this server knows nothing about.
+   */
+  private last: LastRetentionRun | null = null;
 
   constructor(
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
@@ -105,29 +131,47 @@ export class ClimateRetentionService implements OnModuleInit, OnApplicationShutd
     try {
       await this.run();
     } catch (error) {
+      // Kept as a pass that happened rather than left looking like a pass that
+      // never ran: a sweep throwing before the loop ends is exactly what an
+      // operator has to be able to see on the health card.
+      this.last = { reached: 0, devices: 0, days: 0, errors: 1, ranAt: new Date() };
       logger.error(`The climate retention sweep failed: ${error}`);
     } finally {
       this.work.schedule('The climate retention sweep', () => this.runPeriodically(), untilNextRun(new Date()));
     }
   }
 
+  /** The last pass, which `GET /admin/stats` answers, or null on a server that has not swept since it came up. */
+  public get lastRun(): LastRetentionRun | null {
+    return this.last;
+  }
+
   /**
    * One pass over the devices. Public so it can be run once, by a test or by
    * hand.
    *
+   * The order is the rotation: least recently swept first, and among devices
+   * that have never been swept - which is all of them on a fresh install -
+   * oldest first, so the pass is stable and does not repeat the one before it.
+   * Every device the loop reaches is stamped, whether it was summarised, had no
+   * window at all, or threw; stamping only the ones that were swept would leave
+   * a device nobody can sweep at the head of the order for ever and reproduce
+   * the same starvation one device at a time.
+   *
    * A device that fails is counted and the pass goes on. One camera, one broken
    * query or one store that refuses a delete must not leave every other device
-   * unswept - and the count is the point of the line the fleet screen reads:
+   * unswept - and the count is the point of what the health card reads:
    * "retention jobs ran 03:00 · 0 errors" is only worth printing if a number
    * other than zero can appear there.
    */
   public async run(now: Date = new Date()): Promise<RetentionRun> {
-    const run: RetentionRun = { devices: 0, days: 0, errors: 0 };
+    const run: RetentionRun = { reached: 0, devices: 0, days: 0, errors: 0 };
 
     const owners = new Map<string, StoredUser | null>();
     const places = new Map<string, SpaceDocument | null>();
 
-    for (const device of await this.devices.find({}).sort({ createdAt: 1 }).limit(DEVICES_PER_PASS).lean<StoredDevice[]>()) {
+    const due = await this.devices.find({}).sort({ climateSweptAt: 1, createdAt: 1 }).limit(DEVICES_PER_PASS).lean<StoredDevice[]>();
+    for (const device of due) {
       if (this.work.isStopped) break;
 
       try {
@@ -135,20 +179,26 @@ export class ClimateRetentionService implements OnModuleInit, OnApplicationShutd
         const owner = device.ownerId ? await remember(owners, device.ownerId, id => this.users.findOne({ id }).lean<StoredUser>()) : null;
 
         const days = climateWindowOf(space?.retention ?? null, owner?.retention ?? null, this.config.climateDays);
-        if (days === null) continue;
-
-        const summarised = await this.sweep(device.id, cutoffOf(days, now));
-        if (summarised > 0) {
-          run.devices += 1;
-          run.days += summarised;
+        if (days !== null) {
+          const summarised = await this.sweep(device.id, cutoffOf(days, now));
+          if (summarised > 0) {
+            run.devices += 1;
+            run.days += summarised;
+          }
         }
       } catch (error) {
         run.errors += 1;
         logger.error(`Climate retention left device ${device.id} as it was: ${error}`);
+      } finally {
+        run.reached += 1;
+        await this.devices.updateOne({ id: device.id }, { $set: { climateSweptAt: now } }).catch(() => undefined);
       }
     }
 
-    logger.info(`Climate retention summarised ${run.days} day(s) of ${run.devices} device(s), ${run.errors} error(s)`);
+    this.last = { ...run, ranAt: new Date() };
+    logger.info(
+      `Climate retention reached ${run.reached} device(s), summarised ${run.days} day(s) of ${run.devices} of them, ${run.errors} error(s)`,
+    );
 
     return run;
   }

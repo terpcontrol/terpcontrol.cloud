@@ -219,6 +219,7 @@ describe('the document', () => {
     expect(declaredSchema('/v1/cameras')).toEqual({ $ref: '#/components/schemas/CameraPage' });
     expect(declaredSchema('/v1/alerts')).toEqual({ $ref: '#/components/schemas/AlertPage' });
     expect(declaredSchema('/v1/admin/fleet')).toEqual({ $ref: '#/components/schemas/Fleet' });
+    expect(declaredSchema('/v1/admin/stats')).toEqual({ $ref: '#/components/schemas/AdminStats' });
     expect(declaredSchema('/v1/me')).toEqual({ $ref: '#/components/schemas/Me' });
   });
 
@@ -505,6 +506,10 @@ describe('what the admin routes answer', () => {
 
   it('matches the declared shape for the fleet', async () => {
     expectDocumented(await admin.client.get('/v1/admin/fleet').expect(200), '/v1/admin/fleet');
+  });
+
+  it('matches the declared shape for the install´s own figures', async () => {
+    expectDocumented(await admin.client.get('/v1/admin/stats').expect(200), '/v1/admin/stats');
   });
 
   it('matches the declared shape for a device row it made by hand', async () => {
