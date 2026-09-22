@@ -1472,7 +1472,55 @@
       "light": "Hell",
       "dark": "Dunkel"
     },
-    "signOut": "Abmelden"
+    "signOut": "Abmelden",
+    "privacy": {
+      "title": "Privatsphäre",
+      "demo": "Die Demo hat kein eigenes Konto, hier gibt es also nichts einzustellen.",
+      "sharing": "Teilen",
+      "data": "Daten",
+      "premium": "Premium",
+      "weights": {
+        "title": "Erntegewichte in geteilten Ansichten verbergen",
+        "line": "Links, öffentliche Seite, Exporte · du selbst siehst sie weiter"
+      },
+      "counts": {
+        "title": "Pflanzenzahlen in geteilten Ansichten verbergen",
+        "line": "aus „2 Pflanzen“ wird „Pflanzen“"
+      },
+      "profile": {
+        "title": "Öffentliches Profil",
+        "line": "@{{handle}} · zeigt nur Grows, die du öffentlich gestellt hast"
+      },
+      "climate": {
+        "title": "Klimaverlauf aufbewahren",
+        "line": "Rohwerte · danach Tageswerte"
+      },
+      "keep": {
+        "d90": "90 Tage",
+        "d180": "6 Monate",
+        "d365": "1 Jahr",
+        "d730": "2 Jahre",
+        "forever": "alles behalten"
+      },
+      "stills": {
+        "title": "Kamerabilder aufbewahren",
+        "line": "Premium: ganzer Grow · gratis: 90 Tage · kommt mit Premium"
+      },
+      "export": {
+        "title": "Alles exportieren",
+        "line": "JSON + CSV + Fotos · gehört dir · kommt mit Premium; ein einzelner Grow lässt sich schon heute auf seiner eigenen Seite exportieren"
+      },
+      "delete": {
+        "title": "Mein Konto löschen",
+        "line": "wirklich gelöscht, nicht versteckt · Geräte bleiben beanspruchbar",
+        "open": "…",
+        "what": "Alles, was diesem Konto gehört, ist weg: die Zelte, die Grows, die Einträge, die Fotos, die Pläne und die Alarme. Es wird gelöscht und nicht versteckt, und es gibt keinen Weg zurück.",
+        "grows": "Geräte, die du beansprucht hast, kann danach wieder beanspruchen, wer sie in der Hand hat. Einen einzelnen Grow löschst du auf seiner eigenen Seite.",
+        "typeHandle": "Tippe {{handle}} zur Bestätigung",
+        "yes": "Mein Konto löschen"
+      },
+      "footnote": "Es wird nie ein Standort gespeichert. Server in der EU. Der Team-Modus (Clubs) bringt Zuordnung und längere Aufbewahrung pro Zelt, nie pro Person."
+    }
   },
   "later": {
     "round": "Kommt mit Runde {{round}}"
@@ -2195,6 +2243,86 @@
       "climateOnlyNever": "Nur das Klima · nicht mehr fragen",
       "question": "Das Klima ist so oder so geschrieben. Was ist mit dem Grow?",
       "startGrowHere": "Hier einen Grow starten"
+    },
+    "members": {
+      "scopeLabel": "Was geteilt wird",
+      "roomWithTents_one": "{{room}} · {{count}} Zelt",
+      "roomWithTents_other": "{{room}} · {{count}} Zelte",
+      "oneModel": "Teile ein einzelnes Zelt oder den Raum, zu dem es gehört. Wer im Raum ist, sieht jedes Zelt darin; wer nur im Zelt ist, sieht dieses eine.",
+      "demo": "Die Demo schaut in ein fremdes Zelt und besitzt nichts — es gibt also niemanden hereinzulassen und niemanden hinauszuschicken.",
+      "invite": "Einladen",
+      "noLink": "Kein Link unterwegs",
+      "makeLink": "Link erzeugen",
+      "copyLink": "Einladungslink kopieren",
+      "revoke": "Zurückziehen",
+      "handleLabel": "Ein Name, mit dem du schon gemeinsam growst",
+      "handlePlaceholder": "oder ein Name, mit dem du growst · @",
+      "add": "Hinzufügen",
+      "linkTerms": "Link gilt {{days}} Tage · neue Leute kommen als „darf loggen“ herein · jederzeit zurückziehbar",
+      "peopleIn": "Leute in {{name}}",
+      "viaTheRoom_one": "{{count}} über den Raum",
+      "viaTheRoom_other": "{{count}} über den Raum",
+      "you": "Du",
+      "theOwner": "Besitzer:in",
+      "someone": "jemand",
+      "theRoom": "den Raum",
+      "viaLink": "per Link",
+      "added": "von Hand",
+      "viaRoom": "über {{room}}",
+      "joined": "{{how}} · vor {{age}}",
+      "roleOf": "Was {{name}} hier darf",
+      "removeOf": "{{name}} aus diesem Zelt nehmen",
+      "role": {
+        "owner": "Besitz",
+        "can_log": "darf loggen",
+        "can_manage": "darf steuern"
+      },
+      "roleShort": {
+        "can_log": "loggen",
+        "can_manage": "steuern"
+      },
+      "can": {
+        "see": "Zelt, Grows und Kameras sehen",
+        "log": "Einträge, Aufgaben, Fotos",
+        "steer": "Sollwerte, Plan, Alarme, Steckdosen",
+        "own": "Geräte, Teilen, Löschen"
+      },
+      "mark": {
+        "yes": "ja",
+        "no": "nein"
+      },
+      "noViewerRole": "Nur-Lesen ist das, wofür Freigabelinks da sind; eine Zuschauer-Rolle gibt es nicht. Jeder Eintrag trägt seinen Urheber. Aufgaben filtern nach Meine / Alle, Benachrichtigungen gehen pro Person.",
+      "remove": {
+        "title": "@{{name}} hinausnehmen?",
+        "body": "Damit ist dieses Zelt für sie weg, samt allem, was darin steht. Was sie hier geschrieben haben, bleibt hier und trägt weiter ihren Namen.",
+        "yes": "Hinausnehmen"
+      },
+      "leave": {
+        "title": "Dieses Zelt verlassen?",
+        "body": "Es verschwindet von deiner Startseite, und zurück kommst du nur, wenn du wieder hereingelassen wirst. Was du hier geschrieben hast, bleibt hier und trägt weiter deinen Namen.",
+        "yes": "Zelt verlassen"
+      },
+      "join": {
+        "label": "Einladung",
+        "title": "Du bist eingeladen zu {{name}}",
+        "by": "von @{{handle}}",
+        "bySomebody": "von jemandem, der hier growt",
+        "asRole": {
+          "can_log": "Du könntest hier Einträge, Fotos und Aufgaben loggen.",
+          "can_manage": "Du könntest hier loggen und außerdem Sollwerte, Plan, Alarme und Steckdosen ändern."
+        },
+        "sees": "Du siehst: {{name}}, was darin wächst, und die Kameras.",
+        "doesNotSee": "Du siehst nicht: die anderen Zelte, die privaten Grows und auch nicht, wer sonst noch einen Link hat.",
+        "until": "Dieser Link gilt bis {{date}}",
+        "accept": "{{name}} beitreten",
+        "signIn": "Zum Beitreten anmelden",
+        "needAnAccount": "Du brauchst ein eigenes Konto: eine E-Mail-Adresse und ein Passwort, keinen Namen.",
+        "demo": "Die Demo hat kein eigenes Konto und kann eine Einladung deshalb nicht annehmen. Melde dich ab und mit deinem eigenen Konto wieder an.",
+        "dead": {
+          "title": "Diese Einladung führt nirgendwohin",
+          "body": "Ein Link gilt sieben Tage und kann jederzeit gestoppt werden. Bitte um einen neuen, wer ihn dir geschickt hat."
+        }
+      }
     }
   },
   "log": {

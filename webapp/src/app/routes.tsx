@@ -9,8 +9,10 @@ import { Claim } from '@/screens/claim/Claim';
 import { Devices } from '@/screens/devices/Devices';
 import { GrowPage } from '@/screens/grow/GrowPage';
 import { Home } from '@/screens/Home';
+import { JoinRoute } from '@/screens/join/JoinRoute';
 import { LogRoute } from '@/log/LogRoute';
 import { Me } from '@/screens/Me';
+import { Privacy } from '@/screens/me/privacy/Privacy';
 import { Measurements } from '@/screens/grow/measurements/Measurements';
 import { NewGrowRoute } from '@/screens/grow/new/NewGrowRoute';
 import { NotFound } from '@/screens/NotFound';
@@ -28,11 +30,13 @@ import { Timeline } from '@/screens/Timeline';
  * The five tabs, the account page, the alerts behind the bell, and the two
  * pages a home card opens: a grow and a space, each with its tab in the path so
  * a tab survives a reload. Every screen below the shell is behind a session;
- * the sign-in page and the three public addresses are the routes that are not.
+ * the sign-in page and the four public addresses are the routes that are not.
  *
- * The public three sit outside the session gate rather than behind a check
- * inside it, so a stranger who follows a link never meets the sign-in page and
- * never sees a frame of it either. `/@{handle}` is matched as a whole first
+ * Those four sit outside the session gate rather than behind a check inside it,
+ * so a stranger who follows a link never meets the sign-in page and never sees
+ * a frame of it either. An invitation is one of them for that reason above all:
+ * it is sent to somebody who has no account yet, and a sign-in form with no
+ * explanation in front of it is where they stop. `/@{handle}` is matched as a whole first
  * segment because React Router reads a parameter only where a colon follows a
  * slash - which is also why it ranks below every named route and cannot take
  * `/timeline` or `/me` from the shell.
@@ -63,12 +67,13 @@ import { Timeline } from '@/screens/Timeline';
  * A space's tab may have a page of its own below it - the manual targets and
  * the alarm rules under Control - which is the third segment, so that a link
  * from an alert can open the rule it came from and a reload lands where it was.
- * The notification settings are the one page below Me.
+ * Notifications and privacy are the two pages below Me.
  */
 export const router = createBrowserRouter([
   { path: '/sign-in', element: <SignIn /> },
   { path: '/g/:slug', element: <PublicGrowRoute /> },
   { path: '/shared/:token', element: <SharedRoute /> },
+  { path: '/join/:code', element: <JoinRoute /> },
   { path: '/:handle', element: <PublicProfileRoute /> },
   {
     element: (
@@ -88,6 +93,7 @@ export const router = createBrowserRouter([
       { path: 'tasks', element: <Tasks /> },
       { path: 'me', element: <Me /> },
       { path: 'me/notifications', element: <Notifications /> },
+      { path: 'me/privacy', element: <Privacy /> },
       { path: 'alerts', element: <Alerts /> },
       { path: 'grows/new', element: <NewGrowRoute /> },
       { path: 'grows/:growId/measurements', element: <Measurements /> },

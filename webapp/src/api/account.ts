@@ -1,6 +1,7 @@
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Me, MeUpdate, NotificationSettings, PushSubscription, PushSubscriptionCreate, TelegramLink } from '@fg2/shared-types/v1';
 import { api } from './client';
+import { session } from './session';
 
 /**
  * The account as its owner sees it, and the one way it is changed.
@@ -67,3 +68,22 @@ export const useSubscribePush = () =>
 export const useUnsubscribePush = () => useMutation({ mutationFn: (id: string) => api.delete(`/me/push-subscriptions/${id}`) });
 
 export const useTelegramLink = () => useMutation({ mutationFn: () => api.post<TelegramLink>('/me/telegram-link') });
+
+/**
+ * Leaving for good. The route answers when the deletion has finished rather
+ * than when it started, so what comes back is a server that has already
+ * forgotten this account - which is why the session ends and the cache is
+ * emptied here rather than on the screen: every query still held is a question
+ * nobody will answer.
+ */
+export const useDeleteAccount = () => {
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => api.delete('/me'),
+    onSuccess: async () => {
+      await session.logOut();
+      client.clear();
+    },
+  });
+};

@@ -1476,7 +1476,55 @@
       "light": "Light",
       "dark": "Dark"
     },
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "privacy": {
+      "title": "Privacy",
+      "demo": "The demo has no account of its own, so there is nothing here to settle.",
+      "sharing": "Sharing",
+      "data": "Data",
+      "premium": "Premium",
+      "weights": {
+        "title": "Hide harvest weights in shared views",
+        "line": "links, public page, exports · you still see them"
+      },
+      "counts": {
+        "title": "Hide plant counts in shared views",
+        "line": "“2 plants” becomes “plants”"
+      },
+      "profile": {
+        "title": "Public profile",
+        "line": "@{{handle}} · lists only grows you set public"
+      },
+      "climate": {
+        "title": "Keep climate history",
+        "line": "raw samples · then daily summaries"
+      },
+      "keep": {
+        "d90": "90 days",
+        "d180": "6 months",
+        "d365": "1 year",
+        "d730": "2 years",
+        "forever": "keep everything"
+      },
+      "stills": {
+        "title": "Keep camera stills",
+        "line": "Premium: full grow · free: 90 days · arrives with Premium"
+      },
+      "export": {
+        "title": "Export everything",
+        "line": "JSON + CSV + photos · yours to keep · arrives with Premium; one grow exports from its own page today"
+      },
+      "delete": {
+        "title": "Delete my account",
+        "line": "really deleted, not hidden · devices stay claimable",
+        "open": "…",
+        "what": "Everything this account owns goes: the tents, the grows, the entries, the photos, the plans and the alarms. It is deleted rather than hidden, and there is no way back.",
+        "grows": "Devices you claimed become claimable again by whoever holds them. A single grow is deleted from the grow's own page.",
+        "typeHandle": "Type {{handle}} to confirm",
+        "yes": "Delete my account"
+      },
+      "footnote": "No location is ever stored. Servers in the EU. Team mode (clubs) adds attribution and longer retention per tent, never per person."
+    }
   },
   "later": {
     "round": "Arrives with round {{round}}"
@@ -2199,6 +2247,86 @@
       "climateOnlyNever": "Only the climate · never ask again",
       "question": "The climate is written either way. What about the grow?",
       "startGrowHere": "Start a grow here"
+    },
+    "members": {
+      "scopeLabel": "What is shared",
+      "roomWithTents_one": "{{room}} · {{count}} tent",
+      "roomWithTents_other": "{{room}} · {{count}} tents",
+      "oneModel": "Share one tent, or the room it belongs to. Room members see every tent in the room; tent members see just this one.",
+      "demo": "The demo looks at somebody else's tent and owns nothing, so there is nobody to let in and nobody to let go.",
+      "invite": "Invite",
+      "noLink": "No link out",
+      "makeLink": "Make a link",
+      "copyLink": "Copy the invite link",
+      "revoke": "Revoke",
+      "handleLabel": "A username you already grow with",
+      "handlePlaceholder": "or a username you already grow with · @",
+      "add": "Add",
+      "linkTerms": "Link valid {{days}} days · new people join as “can log” · revoke any time",
+      "peopleIn": "People in {{name}}",
+      "viaTheRoom_one": "{{count}} via the room",
+      "viaTheRoom_other": "{{count}} via the room",
+      "you": "You",
+      "theOwner": "The owner",
+      "someone": "somebody",
+      "theRoom": "the room",
+      "viaLink": "joined via link",
+      "added": "added by hand",
+      "viaRoom": "via {{room}}",
+      "joined": "{{how}} · {{age}}",
+      "roleOf": "What {{name}} may do here",
+      "removeOf": "Take {{name}} out of this tent",
+      "role": {
+        "owner": "owner",
+        "can_log": "can log",
+        "can_manage": "can manage"
+      },
+      "roleShort": {
+        "can_log": "log",
+        "can_manage": "manage"
+      },
+      "can": {
+        "see": "See the tent, its grows and cams",
+        "log": "Log entries, tick tasks, photos",
+        "steer": "Targets, plan, alarms, sockets",
+        "own": "Devices, sharing, delete"
+      },
+      "mark": {
+        "yes": "yes",
+        "no": "no"
+      },
+      "noViewerRole": "Read-only viewing is what share links do; there is no viewer role. Every entry carries its author. Tasks filter Mine / All, notifications are per person.",
+      "remove": {
+        "title": "Take @{{name}} out?",
+        "body": "They lose this tent and everything standing in it. What they wrote here stays here and goes on carrying their name.",
+        "yes": "Take them out"
+      },
+      "leave": {
+        "title": "Leave this tent?",
+        "body": "It goes off your home and you can only come back in if you are let in again. What you wrote here stays here and goes on carrying your name.",
+        "yes": "Leave the tent"
+      },
+      "join": {
+        "label": "Invitation",
+        "title": "You are invited to {{name}}",
+        "by": "from @{{handle}}",
+        "bySomebody": "from somebody who grows here",
+        "asRole": {
+          "can_log": "You would be able to log entries, photos and tasks here.",
+          "can_manage": "You would be able to log here, and to change the targets, the plan, the alarms and the sockets."
+        },
+        "sees": "You see: {{name}}, what is growing in it, and the cams.",
+        "doesNotSee": "You do not see: their other tents, their private grows, or who else holds a link.",
+        "until": "This link works until {{date}}",
+        "accept": "Join {{name}}",
+        "signIn": "Sign in to join",
+        "needAnAccount": "You need an account of your own: an e-mail address and a password, and no name.",
+        "demo": "The demo has no account of its own, so it cannot take an invitation up. Sign out and sign in with your own account to join.",
+        "dead": {
+          "title": "This invitation leads nowhere",
+          "body": "A link is good for seven days and can be stopped at any time. Ask whoever sent it for a new one."
+        }
+      }
     }
   },
   "log": {

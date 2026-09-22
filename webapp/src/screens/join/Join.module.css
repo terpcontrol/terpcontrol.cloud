@@ -1,0 +1,41 @@
+/* The invitation, on the public chrome. One column, phone first, and the same
+   column block the signed-in pages keep on a wide window. */
+
+.invitation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--column-width);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+.by {
+  font-size: var(--text-md);
+  color: var(--muted);
+}
+
+.terms {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.term {
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+}
+
+.until {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* The one thing this page is for, at a width a thumb cannot miss. */
+.go {
+  width: 100%;
+}

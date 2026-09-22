@@ -1,0 +1,138 @@
+/* Me › Privacy: a column of setting cards under two small-caps labels. Phone
+   first; the shell keeps the column width on a desktop. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+/* The trail back to Me, kept for the width that has room for it; on a phone the
+   tab bar and the avatar already say where this page hangs. */
+.crumb {
+  display: none;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.crumb a {
+  color: var(--muted);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* The one row whose outcome cannot be taken back wears the alarm colour on its
+   rule, which is the only place on this screen anything is coloured at all. */
+.row[data-danger] {
+  border-color: var(--alarm);
+}
+
+.rowText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.rowTitle {
+  font-weight: var(--weight-semibold);
+}
+
+.row[data-danger] .rowTitle {
+  color: var(--alarm);
+}
+
+.rowLine {
+  font-size: var(--text-xs);
+}
+
+.rowControl {
+  flex: none;
+}
+
+/* A chip that is a menu: the native select, keeping its keyboard and the
+   platform's own picker, giving up only its arrow and its padding. */
+.menu {
+  appearance: none;
+  padding-right: var(--space-4);
+  background-image: linear-gradient(45deg, transparent 50%, currentcolor 50%), linear-gradient(135deg, currentcolor 50%, transparent 50%);
+  background-position:
+    right 12px top 50%,
+    right 8px top 50%;
+  background-size:
+    4px 4px,
+    4px 4px;
+  background-repeat: no-repeat;
+}
+
+.danger {
+  border-color: var(--alarm);
+  color: var(--alarm);
+}
+
+/* Outlined rather than filled, unlike every other primary in the app. A solid
+   alarm would need an ink colour that reads on it in both themes, and there is
+   no such token; the outline says the same thing and says it in both. */
+.dangerButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--control-height);
+  padding: 0 var(--space-4);
+  background: transparent;
+  border: var(--rule-width) solid var(--alarm);
+  border-radius: var(--radius);
+  color: var(--alarm);
+  font-weight: var(--weight-semibold);
+}
+
+.dangerButton:disabled {
+  border-color: var(--rule);
+  color: var(--muted);
+}
+
+.sheetBody {
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+@media (min-width: 900px) {
+  .page {
+    max-width: 720px;
+    padding-top: 0;
+  }
+
+  .crumb {
+    display: inline;
+  }
+}

@@ -11,9 +11,10 @@ const CHOICES: ThemeChoice[] = ['system', 'light', 'dark'];
 
 /**
  * Where the avatar leads. Only what already works is on it: who is signed in,
- * the theme, where notifications go, and the way out; the rest of the account
- * arrives with its slice. The demo looks at somebody else's grow and has no
- * account of its own, so the door to the settings is a line saying that.
+ * the theme, where notifications go, what other people are shown, and the way
+ * out; the rest of the account arrives with its slice. The demo looks at
+ * somebody else's grow and has no account of its own, so each door to the
+ * settings is a line saying that.
  */
 export function Me() {
   const { t } = useTranslation();
@@ -59,15 +60,27 @@ export function Me() {
       </div>
 
       {user?.isDemo ? (
-        <div className={styles.row}>
-          <span className={styles.rowTitle}>{t('notifications.title')}</span>
-          <p className={`${ui.note} ${styles.rowNote}`}>{t('notifications.demo')}</p>
-        </div>
+        <>
+          <div className={styles.row}>
+            <span className={styles.rowTitle}>{t('notifications.title')}</span>
+            <p className={`${ui.note} ${styles.rowNote}`}>{t('notifications.demo')}</p>
+          </div>
+          <div className={styles.row}>
+            <span className={styles.rowTitle}>{t('me.privacy.title')}</span>
+            <p className={`${ui.note} ${styles.rowNote}`}>{t('me.privacy.demo')}</p>
+          </div>
+        </>
       ) : (
-        <Link to="/me/notifications" className={`${styles.row} ${styles.link}`}>
-          <span className={styles.rowTitle}>{t('notifications.title')}</span>
-          <ChevronRight size={18} strokeWidth={1.75} aria-hidden />
-        </Link>
+        <>
+          <Link to="/me/notifications" className={`${styles.row} ${styles.link}`}>
+            <span className={styles.rowTitle}>{t('notifications.title')}</span>
+            <ChevronRight size={18} strokeWidth={1.75} aria-hidden />
+          </Link>
+          <Link to="/me/privacy" className={`${styles.row} ${styles.link}`}>
+            <span className={styles.rowTitle}>{t('me.privacy.title')}</span>
+            <ChevronRight size={18} strokeWidth={1.75} aria-hidden />
+          </Link>
+        </>
       )}
 
       <div className={styles.row}>

@@ -4,7 +4,6 @@ import { Link, Navigate, useParams } from 'react-router';
 import type { SpaceKind, SpaceOverview } from '@fg2/shared-types/v1';
 import { useSpaceLive, useSpaceOverview } from '@/api/spaces';
 import { useReportFreshness } from '@/ui/freshness';
-import { LaterRound } from '@/ui/LaterRound';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { Tabs } from '@/ui/Tabs';
 import { useNow } from '@/ui/useNow';
@@ -14,14 +13,12 @@ import { Control } from '../control/Control';
 import { DeviceList } from '../devices/DeviceList';
 import { useRememberSpace } from '../timeline/last-space';
 import { Timeline } from '../timeline/Timeline';
+import { Members } from './members/Members';
 import { Overview } from './Overview';
 import styles from './SpacePage.module.css';
 
 const TABS = ['overview', 'timeline', 'devices', 'control', 'members'] as const;
 type SpaceTab = (typeof TABS)[number];
-
-/** Which round each of the other tabs arrives with, as the decision record numbers them. */
-const LATER: Record<Exclude<SpaceTab, 'overview' | 'timeline' | 'devices' | 'control'>, number> = { members: 13 };
 
 const isTab = (value: string | undefined): value is SpaceTab => (TABS as readonly string[]).includes(value ?? '');
 
@@ -93,7 +90,7 @@ function SpaceScreen({ spaceId, tab, sub }: { spaceId: string; tab: SpaceTab; su
       ) : tab === 'control' ? (
         <Control spaceId={spaceId} sub={sub} />
       ) : (
-        <LaterRound round={LATER[tab]} what={`space.later.${tab}`} />
+        <Members spaceId={spaceId} name={current.name} roomId={current.roomId} />
       )}
     </section>
   );
