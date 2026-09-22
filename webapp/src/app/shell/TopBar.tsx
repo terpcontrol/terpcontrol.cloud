@@ -1,6 +1,7 @@
 import { Bell } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { useOpenAlertCount } from '@/api/alerts';
 import { useSession } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import { useFreshness } from '@/ui/freshness';
@@ -20,10 +21,16 @@ export function Freshness({ className }: { className?: string }) {
   );
 }
 
-/** The phone's header: the wordmark with the freshness line, the alerts bell, and the avatar that opens Me. */
+/**
+ * The phone's header: the wordmark with the freshness line, the alerts bell,
+ * and the avatar that opens Me. The bell carries the open count, or nothing at
+ * all when none is open, so it reads as quiet rather than as a zero; the link
+ * says the count too, for anybody who cannot see the badge.
+ */
 export function TopBar() {
   const { t } = useTranslation();
   const { user } = useSession();
+  const open = useOpenAlertCount().data ?? 0;
 
   return (
     <header className={styles.bar}>
@@ -31,8 +38,9 @@ export function TopBar() {
         <div className={styles.wordmark}>Terp Control</div>
         <Freshness />
       </div>
-      <Link to="/alerts" className={styles.action} aria-label={t('shell.alerts')}>
+      <Link to="/alerts" className={styles.action} aria-label={open > 0 ? t('alerts.bell', { count: open }) : t('shell.alerts')}>
         <Bell size={20} strokeWidth={1.75} aria-hidden />
+        {open > 0 ? <span className={`mono ${styles.badge}`}>{open}</span> : null}
       </Link>
       <Link to="/me" className={styles.avatar} aria-label={t('shell.account')}>
         <span className="mono">{initials(user?.handle ?? '?')}</span>

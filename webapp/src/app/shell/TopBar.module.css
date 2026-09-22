@@ -29,11 +29,30 @@
 }
 
 .action {
+  position: relative;
   display: grid;
   place-items: center;
   width: 40px;
   height: 40px;
   color: var(--muted);
+}
+
+/* The open count, on the bell's shoulder. */
+.badge {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--alarm);
+  color: var(--card);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  line-height: 1;
 }
 
 .avatar {

@@ -2471,5 +2471,67 @@
       "to": "Bis",
       "zone": "in deiner Zeitzone ({{zone}})"
     }
+  },
+  "alerts": {
+    "bell_one": "Meldungen · {{count}} offen",
+    "bell_other": "Meldungen · {{count}} offen",
+    "muteAll": "Alles 1 h stumm",
+    "mutedUntil": "Stumm bis {{time}}",
+    "unmute": "Wieder laut",
+    "group": {
+      "now": "Jetzt",
+      "earlierToday": "Früher heute",
+      "yesterday": "Gestern"
+    },
+    "active_one": "{{count}} aktiv",
+    "active_other": "{{count}} aktiv",
+    "what": {
+      "running": "{{output}} läuft ohne Pause › {{for}}",
+      "threshold": "Alarm",
+      "thresholdValue": "Alarm · {{value}}",
+      "offline": "offline · kein Messwert seit {{age}}",
+      "wasOffline": "war offline",
+      "cameraStale": "{{camera}} · kein Bild seit {{time}}",
+      "camera": "Cam"
+    },
+    "meta": {
+      "since": "seit {{time}} · schon {{age}}",
+      "repeats": "meldet sich alle {{every}}, bis es behoben ist",
+      "once": "meldet sich einmal",
+      "silenced": "stumm bis {{time}}",
+      "resolved": "behoben {{time}} · dauerte {{age}}",
+      "lowPriority": "niedrige Priorität"
+    },
+    "action": {
+      "silence": "1 h stumm",
+      "unsilence": "Wieder laut",
+      "maintenance": "Wartung 15 min",
+      "timeline": "Verlauf öffnen",
+      "editRule": "Regel bearbeiten",
+      "checkCam": "Cam prüfen"
+    },
+    "maintenance": {
+      "sent": "Angefragt. Das Gerät hält seine Alarme 15 min lang zurück, sobald es zuhört.",
+      "unheard": "Niemand hat zugehört: Das Gerät hat sich nicht gemeldet, der Befehl wartet auf es."
+    },
+    "nothing": "Nichts ist schiefgegangen.",
+    "note": "Eine Zeile pro Ereignis, nach Schwere gestuft, nie eine Push-Nachricht pro Sensor. Kritisches meldet sich, bis es behoben ist; Warnungen einmal; Infos bleiben nur in dieser Liste.",
+    "output": {
+      "heater": "Heizung",
+      "dehumidifier": "Entfeuchter",
+      "co2": "CO₂",
+      "light": "Licht",
+      "fan": "Lüfter",
+      "relais": "Relais",
+      "fanInternal": "Lüfter innen",
+      "fanExternal": "Abluft",
+      "fanBackwall": "Rückwandlüfter"
+    },
+    "metric": {
+      "leafTemperature": "Blatt",
+      "lux": "Lux",
+      "ppfd": "PPFD",
+      "offline": "offline"
+    }
   }
 }

@@ -2475,5 +2475,67 @@
       "to": "To",
       "zone": "in your time zone ({{zone}})"
     }
+  },
+  "alerts": {
+    "bell_one": "Alerts · {{count}} open",
+    "bell_other": "Alerts · {{count}} open",
+    "muteAll": "Mute all 1 h",
+    "mutedUntil": "Muted until {{time}}",
+    "unmute": "Unmute",
+    "group": {
+      "now": "Now",
+      "earlierToday": "Earlier today",
+      "yesterday": "Yesterday"
+    },
+    "active_one": "{{count}} active",
+    "active_other": "{{count}} active",
+    "what": {
+      "running": "{{output}} running non-stop › {{for}}",
+      "threshold": "alarm",
+      "thresholdValue": "alarm · {{value}}",
+      "offline": "offline · no sample for {{age}}",
+      "wasOffline": "was offline",
+      "cameraStale": "{{camera}} · no image since {{time}}",
+      "camera": "Cam"
+    },
+    "meta": {
+      "since": "since {{time}} · for {{age}}",
+      "repeats": "repeats every {{every}} until resolved",
+      "once": "says it once",
+      "silenced": "silenced until {{time}}",
+      "resolved": "resolved {{time}} · lasted {{age}}",
+      "lowPriority": "low priority"
+    },
+    "action": {
+      "silence": "Silence 1 h",
+      "unsilence": "Unsilence",
+      "maintenance": "Maintenance 15 min",
+      "timeline": "Open timeline",
+      "editRule": "Edit rule",
+      "checkCam": "Check cam"
+    },
+    "maintenance": {
+      "sent": "Asked. The device holds its alarms for 15 min once it hears.",
+      "unheard": "Nobody was listening: the device has not been heard from, so the command waits for it."
+    },
+    "nothing": "Nothing has gone wrong.",
+    "note": "One line per event, graded by severity, never one push per sensor. Critical repeats until resolved; warnings once; info stays in this list only.",
+    "output": {
+      "heater": "heater",
+      "dehumidifier": "dehumidifier",
+      "co2": "CO₂",
+      "light": "light",
+      "fan": "fan",
+      "relais": "relay",
+      "fanInternal": "fan in",
+      "fanExternal": "exhaust",
+      "fanBackwall": "back fan"
+    },
+    "metric": {
+      "leafTemperature": "Leaf",
+      "lux": "Lux",
+      "ppfd": "PPFD",
+      "offline": "offline"
+    }
   }
 }

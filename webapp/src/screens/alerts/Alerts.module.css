@@ -1,0 +1,115 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+/* The mute, top right: a chip, and while it holds the hour it holds until above it. */
+.corner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.mutedUntil {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.groupHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.aside {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The severity is the card's left edge, the only place it is drawn in colour. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.card[data-severity='critical'] {
+  border-left: 3px solid var(--alarm);
+}
+
+.card[data-severity='warning'] {
+  border-left: 3px solid var(--warning);
+}
+
+.card[data-severity='info'] {
+  border-left: 3px solid var(--muted);
+}
+
+/* Where and what on the left, when and for how long beside it. */
+.lines {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 42%);
+  gap: var(--space-1) var(--space-3);
+  align-items: start;
+}
+
+.what {
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  line-height: var(--line-tight);
+}
+
+.meta {
+  font-size: var(--text-xs);
+  line-height: var(--line-body);
+  color: var(--muted);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* What the server answered a command with, under the chip that sent it. */
+.answer {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.nothing {
+  font-weight: var(--weight-medium);
+}
