@@ -7,6 +7,7 @@ import { useMembers } from '@/api/members';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { initials } from '@/app/shell/tabs';
+import { ageLabel } from '@/ui/age';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -124,7 +125,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
       </header>
 
       <ul className={styles.people}>
-        <OwnerRow isYou={isOwner} handle={ownerHandle} name={name} />
+        <OwnerRow isYou={isOwner} handle={ownerHandle} name={name} lastLogged={ownerId ? lastLoggedOf(page, ownerId) : null} />
         {guestsOf(page, spaceId).map(guest => (
           <PersonRow
             key={guest.userId}
@@ -181,8 +182,9 @@ function TentsInRoom({ tents, pending }: { tents: Space[]; pending: boolean }) {
  * is said under the name is that they own the place, which is a fact about the
  * tent rather than a role in it.
  */
-function OwnerRow({ isYou, handle, name }: { isYou: boolean; handle: string | null; name: string }) {
+function OwnerRow({ isYou, handle, name, lastLogged }: { isYou: boolean; handle: string | null; name: string; lastLogged: string | null }) {
   const { t } = useTranslation();
+  const now = useNow();
 
   return (
     <li className={`${ui.card} ${styles.person}`}>
@@ -193,6 +195,15 @@ function OwnerRow({ isYou, handle, name }: { isYou: boolean; handle: string | nu
         <span className={styles.handle}>{isYou ? t('space.members.you') : handle ? `@${handle}` : t('space.members.theOwner')}</span>
         <span className={`mono ${styles.how}`}>
           <span className={styles.howProse}>{t('space.members.owns', { name })}</span>
+          {/*
+            The owner writes in their own tent like anybody else, and a list
+            that dated every guest's last entry but not theirs would read as if
+            the person who runs the place never touched it.
+          */}
+          <span className={styles.howFigure}>
+            {' · '}
+            {lastLogged === null ? t('space.members.neverLogged') : t('space.members.lastLogged', { age: ageLabel(lastLogged, now) })}
+          </span>
         </span>
       </span>
       <span className={ui.chip}>{t('space.members.role.owner')}</span>

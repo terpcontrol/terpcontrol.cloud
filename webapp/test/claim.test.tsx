@@ -295,7 +295,11 @@ describe('adding a device', () => {
   it('puts the claimed device in the address, so nothing of the claim is lost by a reload', async () => {
     await drawClaimed();
 
-    expect(address()).toBe('/claim?device=sim-controller-7f3a&at=1');
+    // The address is written by the step's own effect, one tick after the claim
+    // has been drawn, so this waits for it rather than for the screen - reading
+    // it straight after the heading made this the one test in the suite that
+    // failed about a third of the time.
+    await waitFor(() => expect(address()).toBe('/claim?device=sim-controller-7f3a&at=1'));
   });
 
   it('comes back on the step it was left on rather than asking for a code that is spent', async () => {

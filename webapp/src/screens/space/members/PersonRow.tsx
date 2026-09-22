@@ -49,7 +49,7 @@ export function PersonRow({
   handle: string | null;
   roomName: string | null;
   /** When they last wrote here; `null` never, `undefined` not answered. */
-  lastLogged: string | null | undefined;
+  lastLogged: string | null;
   isYou: boolean;
   /** Whether this session owns the space, which is what changing and ending a membership takes. */
   mayManage: boolean;
@@ -64,12 +64,7 @@ export function PersonRow({
 
   const how = here ? (here.inviteId ? t('space.members.viaLink') : t('space.members.added')) : t('space.members.viaRoom', { room });
   const origin = here && viaRoom ? t('space.members.alsoViaRoom', { how, room }) : how;
-  const figure =
-    lastLogged === undefined
-      ? null
-      : lastLogged === null
-        ? t('space.members.neverLogged')
-        : t('space.members.lastLogged', { age: ageLabel(lastLogged, now) });
+  const figure = lastLogged === null ? t('space.members.neverLogged') : t('space.members.lastLogged', { age: ageLabel(lastLogged, now) });
 
   return (
     <li className={`${ui.card} ${styles.person}`}>
