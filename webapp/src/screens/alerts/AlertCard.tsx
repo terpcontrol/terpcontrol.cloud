@@ -1,16 +1,18 @@
 import type { DateTime } from 'luxon';
+import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { Alert, AlarmRule, Metric, OutputMetric } from '@fg2/shared-types/v1';
+import type { Alert, AlarmRule, Device, Me, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
+import { ruleTitle } from '@/screens/control/alarms/rules';
 import { ageAttribute, ageLabel } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { figure, targetFigure, UNIT } from '../home/units';
 import { isAhead } from '@/ui/age';
-import { clock, crossedBound, lastedLabel, spanLabel } from './inbox';
-import type { AlertNames, DeviceName } from './names';
+import { clock, crossedBound, deliveryOf, lastedLabel, spanLabel } from './inbox';
+import type { AlertNames } from './names';
 import styles from './Alerts.module.css';
 
 /** How long a silence from the card holds, and how long maintenance does. */
@@ -24,38 +26,46 @@ interface AlertCardProps {
   /** The rule that raised it, where it still exists; null for a health-loop alert and for a rule since removed. */
   rule: AlarmRule | null;
   names: AlertNames;
+  /** The account behind the routing, so the card can say whether anybody was told; undefined until it has answered. */
+  me: Me | undefined;
   mayManage: boolean;
   now: DateTime;
 }
 
 /**
  * One event, graded by its severity on the left edge and drawn from the
- * server's instants alone. The first line says where and what, the second when
- * and for how long; a resolved card keeps both, dimmed and dated, because a
- * night the tent ran hot is still worth reading in the morning.
+ * server's instants alone. The first line says where and what, the second which
+ * rule, how bad, when and for how long; a resolved card keeps both, dimmed and
+ * dated, because a night the tent ran hot is still worth reading in the morning.
  *
  * What can be done about it sits on the card, and only while it is open:
  * silence the rule, put the device into maintenance, open the timeline it
  * happened in, or edit the rule. Nothing here claims a device heard a command;
  * what the server answered is said underneath.
  */
-export function AlertCard({ alert, rule, names, mayManage, now }: AlertCardProps) {
+export function AlertCard({ alert, rule, names, me, mayManage, now }: AlertCardProps) {
   const { t } = useTranslation();
   const open = alert.resolvedAt === null;
-  const place = placeOf(t, alert, names);
-  const { label, figure: reading } = whatOf(t, alert, rule, names, now);
+  const device = (alert.deviceId && names.devices.get(alert.deviceId)) || null;
+  const { label, figure: reading } = whatOf(t, alert, rule, device, now);
+  const parts = [...placeOf(t, alert, names, device), { text: label, known: true }];
   const severity = t(`alerts.severity.${alert.severity}`);
 
   return (
     <li
       className={`${ui.card} ${styles.card}`}
       data-severity={alert.severity}
-      aria-label={[severity, place, label, reading].filter(Boolean).join(' · ')}
+      aria-label={[severity, ...parts.map(part => part.text), reading].filter(Boolean).join(' · ')}
       {...(open ? {} : ageAttribute('stale'))}
     >
       <div className={styles.lines}>
         <p className={styles.what}>
-          {[place, label].filter(Boolean).join(' · ')}
+          {parts.map((part, index) => (
+            <Fragment key={index}>
+              {index > 0 ? ' · ' : null}
+              {part.known ? part.text : <span className={styles.unnamed}>{part.text}</span>}
+            </Fragment>
+          ))}
           {reading ? (
             <>
               {' '}
@@ -63,7 +73,7 @@ export function AlertCard({ alert, rule, names, mayManage, now }: AlertCardProps
             </>
           ) : null}
         </p>
-        <p className={`mono ${styles.meta}`}>{metaOf(t, alert, rule, now, severity)}</p>
+        <p className={`mono ${styles.meta}`}>{metaOf(t, alert, rule, device, me, now, severity)}</p>
       </div>
 
       {open && mayManage ? (
@@ -77,19 +87,43 @@ export function AlertCard({ alert, rule, names, mayManage, now }: AlertCardProps
   );
 }
 
-/** The space the alert names, or the device or camera where it names no space. */
-const placeOf = (t: Translate, alert: Alert, names: AlertNames): string | null => {
-  if (alert.spaceId) return names.spaces.get(alert.spaceId) ?? null;
-  if (alert.deviceId) {
-    const device = names.devices.get(alert.deviceId);
-    return device ? deviceName(t, device) : null;
+/** A word of the first line, and whether it is a name or the bare id something is known by. */
+interface Part {
+  text: string;
+  known: boolean;
+}
+
+/**
+ * What something is called, or the id it is known by once a read has come back
+ * without a name for it. A list still on its way says nothing rather than
+ * flashing an id that a name is about to replace; a list that was refused says
+ * the id, because a card whose place has quietly gone missing is a card about
+ * nothing in particular.
+ */
+const nameOrId = (name: string | undefined, id: string, names: AlertNames): Part | null =>
+  name !== undefined ? { text: name, known: true } : names.pending ? null : { text: id, known: false };
+
+/**
+ * Where it happened: the space, and under it the device where the space holds
+ * more than one and naming it is the only way to tell two cards apart. An alert
+ * that names no space is placed by the device or the camera it came from.
+ */
+const placeOf = (t: Translate, alert: Alert, names: AlertNames, device: Device | null): Part[] => {
+  if (alert.spaceId) {
+    const space = nameOrId(names.spaces.get(alert.spaceId), alert.spaceId, names);
+    const crowded = (names.devicesInSpace.get(alert.spaceId) ?? 0) > 1;
+
+    return [space, device && crowded ? { text: deviceName(t, device), known: true } : null].filter(part => part !== null);
   }
-  if (alert.cameraId && alert.kind !== 'camera_stale') return names.cameras.get(alert.cameraId) ?? null;
-  return null;
+  if (alert.deviceId)
+    return [device ? { text: deviceName(t, device), known: true } : nameOrId(undefined, alert.deviceId, names)].filter(part => part !== null);
+  if (alert.cameraId) return [nameOrId(names.cameras.get(alert.cameraId), alert.cameraId, names)].filter(part => part !== null);
+
+  return [];
 };
 
 /** What a device is called, or what kind of thing it is where nobody has named it. */
-const deviceName = (t: Translate, device: DeviceName): string => device.name ?? t(`devices.type.${device.type}`, { defaultValue: device.type });
+const deviceName = (t: Translate, device: Device): string => device.name ?? t(`devices.type.${device.type}`, { defaultValue: device.type });
 
 // The inbox writes a metric out in full - "humidity" rather than "RH" - so its
 // own words come first and the short ones the dense cards elsewhere use stand
@@ -115,28 +149,22 @@ interface What {
  * has gone unwatched and not how long ago the cloud noticed. A device this
  * account cannot see leaves the alert's own start as the only answer there is.
  */
-const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, names: AlertNames, now: DateTime): What => {
+const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Device | null, now: DateTime): What => {
   switch (alert.kind) {
     case 'offline': {
       if (alert.resolvedAt) return { label: t('alerts.what.wasOffline'), figure: null };
-      const quietSince = (alert.deviceId && names.devices.get(alert.deviceId)?.lastSeenAt) || alert.startedAt;
+      const quietSince = device?.state.lastSeenAt || alert.startedAt;
       return { label: t('alerts.what.offline', { age: ageLabel(quietSince, now) }), figure: null };
     }
     case 'camera_stale':
-      return {
-        label: t('alerts.what.cameraStale', {
-          camera: (alert.cameraId && names.cameras.get(alert.cameraId)) || t('alerts.what.camera'),
-          time: clock(alert.startedAt),
-        }),
-        figure: null,
-      };
+      return { label: t('alerts.what.cameraSince', { time: clock(alert.startedAt) }), figure: null };
     case 'threshold':
       return rule ? watched(t, alert, rule, now) : { label: t('alerts.what.threshold'), figure: alert.value === null ? null : String(alert.value) };
   }
 };
 
 /** A figure and what belongs to it, held together so a narrow card wraps the pair rather than splitting it. */
-const tight = (part: string): string => part.replace(/ /g, '\u00a0');
+const tight = (part: string): string => part.replace(/ /g, ' ');
 
 const watched = (t: Translate, alert: Alert, rule: AlarmRule, now: DateTime): What => {
   const { watch } = rule;
@@ -167,25 +195,52 @@ const watched = (t: Translate, alert: Alert, rule: AlarmRule, now: DateTime): Wh
 };
 
 /**
- * How much it matters, when it began and how long it stood, then what the rule
- * will go on doing about it. The severity leads the line because the coloured
- * edge beside it is the only other place it is said, and a colour is not a word.
+ * Which rule raised it, how much it matters, when it began and how long it
+ * stood, then what will go on being done about it. The rule leads the line
+ * because two rules on one sensor make two cards that are otherwise word for
+ * word the same, and the severity follows it because the coloured edge beside
+ * it is the only other place that is said and a colour is not a word.
+ *
+ * The severity is the alert's own - the grade the episode was raised and
+ * announced at - and so is everything said about being told, so that the card
+ * cannot promise what the rule would do today about a grade it no longer
+ * carries. A rule re-graded while its episode is open carries the change into
+ * the alert, so the two only differ where somebody edited the rule before that
+ * was so; where they do differ the card says which, rather than quietly
+ * reading half from each.
  */
-const metaOf = (t: Translate, alert: Alert, rule: AlarmRule | null, now: DateTime, severity: string): string => {
+const metaOf = (
+  t: Translate,
+  alert: Alert,
+  rule: AlarmRule | null,
+  device: Device | null,
+  me: Me | undefined,
+  now: DateTime,
+  severity: string,
+): string => {
   const parts = [
+    rule ? ruleName(t, rule, device) : null,
     severity,
     alert.resolvedAt
       ? t('alerts.meta.resolved', { time: clock(alert.resolvedAt), age: lastedLabel(alert, now) })
       : t('alerts.meta.since', { time: clock(alert.startedAt), age: lastedLabel(alert, now) }),
-  ];
+  ].filter((part): part is string => part !== null);
 
   if (!alert.resolvedAt && rule) {
-    parts.push(rule.repeatSeconds > 0 ? t('alerts.meta.repeats', { every: spanLabel(rule.repeatSeconds, now) }) : t('alerts.meta.once'));
+    if (rule.severity !== alert.severity) parts.push(t('alerts.meta.ruleNow', { severity: t(`alerts.severity.${rule.severity}`) }));
+
+    const delivery = deliveryOf(alert, rule, me);
+    if (delivery === 'repeats') parts.push(t('alerts.meta.repeats', { every: spanLabel(rule.repeatSeconds, now) }));
+    else if (delivery) parts.push(t(`alerts.meta.${delivery}`));
+
     if (isAhead(rule.silencedUntil, now)) parts.push(t('alerts.meta.silenced', { time: clock(rule.silencedUntil!) }));
   }
 
   return parts.join(' · ');
 };
+
+/** What the rule is called, in the words the alarm rules page calls it by; a device not in hand leaves the name the rule carries. */
+const ruleName = (t: Translate, rule: AlarmRule, device: Device | null): string => (device ? ruleTitle(t, rule, device) : rule.name);
 
 function TimelineChip({ spaceId }: { spaceId: string }) {
   const { t } = useTranslation();

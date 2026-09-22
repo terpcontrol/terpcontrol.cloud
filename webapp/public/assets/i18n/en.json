@@ -1371,7 +1371,7 @@
       "system": "System"
     },
     "alert": {
-      "threshold": "Alarm · {{value}}",
+      "threshold": "Alarm",
       "offline": "Offline",
       "camera_stale": "Cam not delivering"
     },
@@ -2521,15 +2521,17 @@
       "threshold": "alarm",
       "offline": "offline · no sample for {{age}}",
       "wasOffline": "was offline",
-      "cameraStale": "{{camera}} · no image since {{time}}",
-      "camera": "Cam"
+      "cameraSince": "no image since {{time}}"
     },
     "meta": {
       "since": "since {{time}} · for {{age}}",
       "repeats": "repeats every {{every}} until resolved",
       "once": "announced once",
       "silenced": "silenced for everyone until {{time}}",
-      "resolved": "resolved {{time}} · lasted {{age}}"
+      "resolved": "resolved {{time}} · lasted {{age}}",
+      "notAnnounced": "not announced",
+      "unheard": "nobody was listening",
+      "ruleNow": "the rule now says {{severity}}"
     },
     "action": {
       "silence": "Silence 1 h",
@@ -2574,6 +2576,7 @@
       "critical": "critical",
       "warning": "warning",
       "info": "info"
-    }
+    },
+    "namesFailed": "Could not read the names · tents, devices and cams are shown by their id"
   }
 }

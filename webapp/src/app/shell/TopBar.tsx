@@ -30,7 +30,7 @@ export function Freshness({ className }: { className?: string }) {
 export function TopBar() {
   const { t } = useTranslation();
   const { user } = useSession();
-  const bell = bellOf(useOpenAlertCount().data);
+  const bell = bellOf(useOpenAlertCount());
 
   return (
     <header className={styles.bar}>

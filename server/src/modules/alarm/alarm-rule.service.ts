@@ -60,12 +60,26 @@ export class AlarmRuleService {
     return rule;
   }
 
+  /**
+   * An alert is the record of an episode and keeps the severity it was raised
+   * with, so re-grading a rule leaves everything it has ever closed alone. What
+   * is still open is not a record yet but a thing happening now, and how bad it
+   * is is whatever the rule says today: the inbox, the coloured edge on its
+   * card and the row of the routing grid the all-clear goes out on all read the
+   * alert rather than the rule, so an open episode left at the old grade would
+   * be the cloud saying two different things about one tent.
+   */
   public async update(rule: StoredAlarmRule, body: AlarmRuleUpdate): Promise<StoredAlarmRule> {
     if (rule.origin === 'always' && body.watch !== undefined && !watchesTheSame(body.watch, rule.watch)) {
       throw conflict('always_rule_metric', 'The rule the cloud keeps for this device watches whether it is there. Disable it instead.');
     }
 
-    return this.change(rule, body);
+    const changed = await this.change(rule, body);
+    if (body.severity !== undefined && body.severity !== rule.severity) {
+      await this.alerts.updateMany({ ruleId: rule.id, resolvedAt: null }, { $set: { severity: body.severity } });
+    }
+
+    return changed;
   }
 
   /**

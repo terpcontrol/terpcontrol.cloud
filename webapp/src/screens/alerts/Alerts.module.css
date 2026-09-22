@@ -102,6 +102,21 @@
   color: var(--muted);
 }
 
+/* The id something is known by, where the list that holds its name could not be
+   read. It is not a name, so it is not set like one - and an id is long enough
+   to need a break anywhere rather than a line of its own. */
+.unnamed {
+  color: var(--muted);
+  font-weight: var(--weight-regular);
+  overflow-wrap: anywhere;
+}
+
+/* That the names could not be read, said once above the cards rather than on each. */
+.namesFailed {
+  font-size: var(--text-xs);
+  color: var(--warning);
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;

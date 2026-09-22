@@ -1367,7 +1367,7 @@
       "system": "System"
     },
     "alert": {
-      "threshold": "Alarm · {{value}}",
+      "threshold": "Alarm",
       "offline": "Offline",
       "camera_stale": "Cam liefert nicht"
     },
@@ -2517,15 +2517,17 @@
       "threshold": "Alarm",
       "offline": "offline · kein Messwert seit {{age}}",
       "wasOffline": "war offline",
-      "cameraStale": "{{camera}} · kein Bild seit {{time}}",
-      "camera": "Cam"
+      "cameraSince": "kein Bild seit {{time}}"
     },
     "meta": {
       "since": "seit {{time}} · schon {{age}}",
       "repeats": "meldet sich alle {{every}}, bis es behoben ist",
       "once": "meldet sich einmal",
       "silenced": "für alle stumm bis {{time}}",
-      "resolved": "behoben {{time}} · dauerte {{age}}"
+      "resolved": "behoben {{time}} · dauerte {{age}}",
+      "notAnnounced": "nicht gemeldet",
+      "unheard": "niemand hat zugehört",
+      "ruleNow": "die Regel sagt inzwischen {{severity}}"
     },
     "action": {
       "silence": "1 h stumm",
@@ -2570,6 +2572,7 @@
       "critical": "kritisch",
       "warning": "Warnung",
       "info": "Info"
-    }
+    },
+    "namesFailed": "Namen nicht lesbar · Zelte, Geräte und Cams stehen mit ihrer Id"
   }
 }

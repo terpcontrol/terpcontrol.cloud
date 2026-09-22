@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Alert } from '@fg2/shared-types/v1';
 import { notificationsWith, useMe, useUpdateMe } from '@/api/account';
 import { useAlarmRulesOf } from '@/api/alarm-rules';
-import { useAlerts } from '@/api/alerts';
+import { useOpenAlerts, useResolvedAlerts } from '@/api/alerts';
 import { useSession } from '@/api/session';
 import { instantOf } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
@@ -29,30 +29,37 @@ const RULES_BEAT_MS = 300_000;
 
 /**
  * The inbox behind the bell: one line per event, graded by severity, with what
- * can be done about it on the card. Everything still open is at the top, and
- * everything that has resolved stays below it under the day it began - dimmed,
- * dated, and never dropped for being old.
+ * can be done about it on the card. Everything still open is at the top, worst
+ * first, and everything that has resolved stays below it under the day it began
+ * - dimmed, dated, and never dropped for being old.
  *
  * The list is the alarm engine's own record, read on the beat live values age
- * on. What each card says about its rule - what it watched, whether it repeats,
- * whether it is silenced - comes from the rule read per device, so a rule that
- * has since been removed leaves a card that says only the kind of thing it was.
+ * on, and it is drawn the moment it arrives. What a name and a rule add to a
+ * card - which tent this is, what the rule watched, whether it repeats - lands
+ * as it comes and never holds the alerts back: those reads are slower, they
+ * fail on their own, and a reader kept in front of skeletons while the answer
+ * sits in the browser has been told nothing at all. Where a name has not
+ * arrived the card falls back to the id and a failed read is said out loud, so
+ * a card is never quietly about nowhere.
  */
 export function Alerts() {
   const { t } = useTranslation();
   const now = useNow();
   const mayManage = useMayManage();
   const { user } = useSession();
-  const alerts = useAlerts(null);
-  const { names, isPending: namesPending, watching } = useInboxNames();
+  const me = useMe();
+  const open = useOpenAlerts();
+  const resolved = useResolvedAlerts();
+  const { names, watching } = useInboxNames();
 
-  const items = alerts.data?.pages.flatMap(page => page.items) ?? [];
+  const items = [...pagesOf(open.data), ...pagesOf(resolved.data)];
   // Only the devices something has actually gone wrong on: a rule is read to
   // say what a card watched, and a device with no card on the page says nothing.
   const ruleDevices = [...new Set(items.filter(alert => alert.ruleId && alert.deviceId).map(alert => alert.deviceId!))];
   const rules = useAlarmRulesOf(ruleDevices, { refetchIntervalMs: RULES_BEAT_MS });
 
-  useReportFreshness(alerts.dataUpdatedAt ? new Date(alerts.dataUpdatedAt).toISOString() : null);
+  const readAt = Math.min(open.dataUpdatedAt || Infinity, resolved.dataUpdatedAt || Infinity);
+  useReportFreshness(Number.isFinite(readAt) ? new Date(readAt).toISOString() : null);
 
   const head = (
     <header className={styles.head}>
@@ -61,15 +68,9 @@ export function Alerts() {
     </header>
   );
 
-  // Nothing is drawn until everything the first page of cards says is in hand.
-  // A card drawn before its space is named and before its rule says what it
-  // watched changes length twice under the reader's thumb, and a list that
-  // reflows while it is being read is worse than one that arrives a moment
-  // later. Only a read still outstanding holds it - a rule list that was
-  // refused leaves its cards in the bare wording rather than holding the inbox
-  // - and only the first page, because what is already on screen must stay
-  // there while the page before it is fetched.
-  if (alerts.isPending || namesPending || (rules.isPending && alerts.data?.pages.length === 1)) {
+  // What is open is the half a reader came for, so the page waits for that one
+  // and for nothing else.
+  if (open.isPending) {
     return (
       <section className={styles.page}>
         {head}
@@ -79,23 +80,40 @@ export function Alerts() {
     );
   }
 
-  if (!alerts.data) {
+  if (!open.data) {
     return (
       <section className={styles.page}>
         {head}
-        <LoadFailed retry={() => void alerts.refetch()} />
+        <LoadFailed
+          retry={() => {
+            void open.refetch();
+            void resolved.refetch();
+          }}
+        />
       </section>
     );
   }
 
   const groups = groupsOf(items, now);
+  // What is on screen is as old as its older half, whichever half failed.
+  const failedAt = (open.isError || resolved.isError) && Number.isFinite(readAt) ? readAt : null;
+  const more = open.hasNextPage || resolved.hasNextPage;
+  const fetchMore = () => {
+    if (open.hasNextPage) void open.fetchNextPage();
+    if (resolved.hasNextPage) void resolved.fetchNextPage();
+  };
 
   return (
     <section className={styles.page}>
       {head}
-      <RefreshFailed failedAt={alerts.isError ? alerts.dataUpdatedAt : null} now={now} />
+      <RefreshFailed failedAt={failedAt} now={now} />
+      {names.failed ? (
+        <p className={`mono ${styles.namesFailed}`} role="status">
+          {t('alerts.namesFailed')}
+        </p>
+      ) : null}
 
-      {groups.length === 0 ? (
+      {groups.length === 0 && !resolved.isPending ? (
         <p className={`${ui.cardDashed} ${ui.note}`}>{t(emptyKey(user?.isDemo === true, watching))}</p>
       ) : (
         groups.map(group => (
@@ -113,6 +131,7 @@ export function Alerts() {
                   alert={alert}
                   rule={alert.ruleId ? (rules.rules.get(alert.ruleId) ?? null) : null}
                   names={names}
+                  me={me.data}
                   mayManage={mayManage}
                   now={now}
                 />
@@ -122,9 +141,11 @@ export function Alerts() {
         ))
       )}
 
-      {alerts.hasNextPage ? (
-        <button type="button" className={ui.button} disabled={alerts.isFetchingNextPage} onClick={() => void alerts.fetchNextPage()}>
-          {alerts.isFetchingNextPage ? t('home.waiting') : t('alerts.earlier')}
+      {resolved.isPending ? <Waiting lines={2} /> : null}
+
+      {more ? (
+        <button type="button" className={ui.button} disabled={open.isFetchingNextPage || resolved.isFetchingNextPage} onClick={fetchMore}>
+          {open.isFetchingNextPage || resolved.isFetchingNextPage ? t('home.waiting') : t('alerts.earlier')}
         </button>
       ) : null}
 
@@ -132,6 +153,8 @@ export function Alerts() {
     </section>
   );
 }
+
+const pagesOf = (data: { pages: { items: Alert[] }[] } | undefined): Alert[] => data?.pages.flatMap(page => page.items) ?? [];
 
 const headingOf = (t: ReturnType<typeof useTranslation>['t'], heading: GroupHeading): string =>
   heading.kind === 'day' ? heading.day.toFormat('ccc d LLL') : t(`alerts.group.${heading.kind}`);

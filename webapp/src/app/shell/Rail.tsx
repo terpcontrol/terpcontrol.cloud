@@ -20,7 +20,7 @@ export function Rail() {
   const { user } = useSession();
   const { openSheet } = useLog();
   const mayLog = useMayLog();
-  const bell = bellOf(useOpenAlertCount().data);
+  const bell = bellOf(useOpenAlertCount());
 
   const log = mayLog ? TABS.find(tab => tab.raised) : undefined;
   const tabs = TABS.filter(tab => !tab.raised);

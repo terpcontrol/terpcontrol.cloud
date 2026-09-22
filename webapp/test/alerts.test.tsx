@@ -8,12 +8,13 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AlarmRule, Alert, Me, Problem } from '@fg2/shared-types/v1';
+import type { AlarmRule, Alert, Me, OpenAlert, Problem } from '@fg2/shared-types/v1';
 import { Rail } from '@/app/shell/Rail';
 import { TopBar } from '@/app/shell/TopBar';
 import { LogProvider } from '@/log/LogProvider';
 import { Alerts } from '@/screens/Alerts';
 import { crossedBound, groupsOf } from '@/screens/alerts/inbox';
+import { alertLabel } from '@/screens/home/units';
 
 /**
  * The inbox behind the bell is the alarm engine's own record drawn as it came,
@@ -30,6 +31,8 @@ import { crossedBound, groupsOf } from '@/screens/alerts/inbox';
 const state = vi.hoisted(() => ({
   who: 'you' as 'you' | 'demo',
   refuse: null as { method: string; path: string; problem: Problem } | null,
+  /** A route answered only once the test lets it, for looking at a page while one of its reads is still out. */
+  hold: null as { path: string; until: Promise<void> } | null,
 }));
 
 vi.mock('@/api/session', async importOriginal => {
@@ -89,6 +92,7 @@ const rule = (over: Partial<AlarmRule> = {}): AlarmRule => ({
 });
 
 const me: Me = {
+  pushSubscribed: false,
   id: 'user-1',
   createdAt: iso(NOW.minus({ days: 90 })),
   email: 'you@example.com',
@@ -113,6 +117,7 @@ const deviceRow = (over: Record<string, unknown> = {}) => ({
   id: 'device-1',
   type: 'controller',
   name: 'Blue Dream tent',
+  spaceId: 'space-1',
   state: { lastSeenAt: iso(NOW.minus({ minutes: 1 })) },
   ...over,
 });
@@ -140,12 +145,12 @@ const answer = (method: string, path: string, body: unknown): Response => {
     // is the one thing this route does differently for it.
     if (state.who === 'demo') return json({ items: [], nextCursor: null });
     const query = new URL(path, 'http://x').searchParams;
-    if (query.get('cursor')) return json({ items: server.older, nextCursor: null });
-    const open = query.get('open');
-    return json({
-      items: open === 'true' ? server.alerts.filter(one => one.resolvedAt === null) : server.alerts,
-      nextCursor: server.older.length ? 'cursor-1' : null,
-    });
+    // What is open and what is over are asked for apart, and the route answers
+    // each half on its own as the server does.
+    const half = (list: Alert[]) => list.filter(one => (query.get('open') === 'true' ? one.resolvedAt === null : one.resolvedAt !== null));
+    if (query.get('cursor')) return json({ items: half(server.older), nextCursor: null });
+
+    return json({ items: half(server.alerts), nextCursor: server.older.length ? 'cursor-1' : null });
   }
   if (method === 'GET' && path === '/v1/spaces') return json({ items: [{ id: 'space-1', name: 'Flower room B' }], nextCursor: null });
   if (method === 'GET' && path === '/v1/devices') return json({ items: server.devices, nextCursor: null });
@@ -183,6 +188,7 @@ beforeAll(async () => {
 beforeEach(() => {
   state.who = 'you';
   state.refuse = null;
+  state.hold = null;
   server.alerts = [];
   server.older = [];
   server.rules = [];
@@ -197,6 +203,8 @@ beforeEach(() => {
       const method = init?.method ?? 'GET';
       const body = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
       server.sent.push({ method, path: url.pathname + url.search, body });
+      if (state.hold && url.pathname.startsWith(state.hold.path)) await state.hold.until;
+
       return answer(method, url.pathname + url.search, body);
     }),
   );
@@ -257,7 +265,7 @@ describe('the inbox', () => {
     const lists = screen.getAllByRole('list');
     expect(within(lists[1]).getByText('Flower room B · was offline')).toBeInTheDocument();
     expect(within(lists[1]).getByText(`warning · resolved ${clock(today.plus({ minutes: 6 }))} · lasted 6 min`)).toBeInTheDocument();
-    expect(within(lists[3]).getByText(/^info · resolved/)).toBeInTheDocument();
+    expect(within(lists[3]).getByText(/^Humidity high · info · resolved/)).toBeInTheDocument();
     // A resolved card is dimmed and dated, never dropped - and offers only the timeline.
     expect(lists[1].firstElementChild).toHaveAttribute('data-age', 'stale');
     expect(
@@ -274,7 +282,9 @@ describe('the inbox', () => {
 
     expect(await screen.findByText(title('Flower room B · humidity 68 % › 60'))).toBeInTheDocument();
     expect(
-      screen.getByText(`critical · since ${clock(NOW.minus({ hours: 2, minutes: 20 }))} · for 2 h · repeats every 30 min until resolved`),
+      screen.getByText(
+        `Humidity high · critical · since ${clock(NOW.minus({ hours: 2, minutes: 20 }))} · for 2 h · repeats every 30 min until resolved`,
+      ),
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open timeline' })).toHaveAttribute('href', '/spaces/space-1/timeline');
     expect(screen.getByRole('link', { name: 'Edit rule' })).toHaveAttribute('href', '/spaces/space-1/control/alarms?rule=rule-1');
@@ -306,10 +316,122 @@ describe('the inbox', () => {
 
     expect(await screen.findByText(title('Flower room B · dehumidifier running non-stop › 2 h'))).toBeInTheDocument();
     expect(screen.getByText(/announced once$/)).toBeInTheDocument();
-    // A rule that trips the moment the output starts has no span worth drawing.
+    // A rule that trips the moment the output starts has no span worth drawing,
+    // on the line that says what happened or on the one that says what the rule
+    // will go on doing.
     expect(screen.getByText('Flower room B · heater running non-stop')).toBeInTheDocument();
     expect(screen.queryByText(/0 s/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/›\s*0/)).not.toBeInTheDocument();
     expect(screen.getByText(title('Flower room B · alarm 68'))).toBeInTheDocument();
+  });
+
+  it('keeps the grade the episode was raised at, says what its rule says now, and promises only what that grade gets', async () => {
+    server.alerts = [alert({ severity: 'warning' })];
+    server.rules = [rule({ severity: 'critical' })];
+    draw();
+
+    const since = clock(NOW.minus({ hours: 2, minutes: 20 }));
+    expect(
+      await screen.findByText(
+        `Humidity high · warning · since ${since} · for 2 h · the rule now says critical · repeats every 30 min until resolved`,
+      ),
+    ).toBeInTheDocument();
+    // The coloured edge is the same one decision, not the rule's.
+    expect(screen.getByRole('listitem')).toHaveAttribute('data-severity', 'warning');
+  });
+
+  it('announces an info alarm nowhere, and says of a routed one that nobody would have heard it', async () => {
+    server.me = {
+      ...me,
+      notifications: { ...me.notifications, routing: { ...me.notifications.routing, warnings: ['push'] } },
+    } as unknown as Me;
+    server.alerts = [
+      alert({ id: 'quiet', ruleId: 'rule-2', severity: 'info', startedAt: iso(NOW.minus({ minutes: 10 })) }),
+      alert({ id: 'warn', severity: 'warning', startedAt: iso(NOW.minus({ minutes: 20 })) }),
+    ];
+    server.rules = [rule({ severity: 'warning' }), rule({ id: 'rule-2', name: 'Leaf cool', severity: 'info', repeatSeconds: 0 })];
+    draw();
+
+    expect(await screen.findByText(/^Leaf cool · info · .* · not announced$/)).toBeInTheDocument();
+    // A row of the grid that names only a channel this account cannot be
+    // reached on is a rule nobody would hear.
+    expect(screen.getByText(/^Humidity high · warning · .* · nobody was listening$/)).toBeInTheDocument();
+    expect(screen.queryByText(/announced once/)).not.toBeInTheDocument();
+  });
+
+  it('puts the worst first under NOW and lets the clock decide only between equals', async () => {
+    server.alerts = [
+      alert({ id: 'warn', severity: 'warning', startedAt: iso(NOW.minus({ minutes: 5 })) }),
+      alert({ id: 'info', severity: 'info', startedAt: iso(NOW.minus({ minutes: 1 })) }),
+      alert({ id: 'old-critical', severity: 'critical', startedAt: iso(NOW.minus({ hours: 4 })) }),
+      alert({ id: 'new-critical', severity: 'critical', startedAt: iso(NOW.minus({ hours: 1 })) }),
+    ];
+    server.rules = [rule()];
+    draw();
+
+    await screen.findByText('Now');
+    const cards = within(screen.getAllByRole('list')[0]).getAllByRole('listitem');
+    expect(cards.map(card => card.getAttribute('data-severity'))).toEqual(['critical', 'critical', 'warning', 'info']);
+    expect(cards[0].textContent).toContain(`since ${clock(NOW.minus({ hours: 1 }))}`);
+  });
+
+  it('names the device as well as the tent where the tent holds more than one', async () => {
+    server.devices = [deviceRow(), deviceRow({ id: 'device-2', name: 'Cutting fridge' })];
+    server.alerts = [alert({})];
+    server.rules = [rule()];
+    draw();
+
+    expect(await screen.findByText(title('Flower room B · Blue Dream tent · humidity 68 % › 60'))).toBeInTheDocument();
+  });
+
+  it('draws the cards as soon as the alerts are there, waiting for no name to do it', async () => {
+    let arrive = () => {};
+    state.hold = {
+      path: '/v1/spaces',
+      until: new Promise<void>(resolve => {
+        arrive = resolve;
+      }),
+    };
+    server.alerts = [alert({})];
+    server.rules = [rule()];
+    draw();
+
+    expect(await screen.findByText(title('humidity 68 % › 60'))).toBeInTheDocument();
+    arrive();
+    expect(await screen.findByText(title('Flower room B · humidity 68 % › 60'))).toBeInTheDocument();
+  });
+
+  it('falls back to the id when a name cannot be read, and says that it could not', async () => {
+    state.refuse = {
+      method: 'GET',
+      path: '/v1/spaces',
+      problem: { status: 503, code: 'unavailable', title: 'Unavailable', detail: 'Try again.', errors: [] },
+    };
+    server.alerts = [alert({})];
+    server.rules = [rule()];
+    draw();
+
+    expect(await screen.findByText(title('space-1 · humidity 68 % › 60'))).toBeInTheDocument();
+    expect(screen.getByText('Could not read the names · tents, devices and cams are shown by their id')).toBeInTheDocument();
+  });
+
+  it('reads what is open once for the bell and the list together', async () => {
+    server.alerts = [alert({ id: 'open' }), alert({ id: 'over', resolvedAt: iso(NOW.minus({ hours: 1 })) })];
+    server.rules = [rule()];
+    draw(
+      <>
+        <TopBar />
+        <Alerts />
+      </>,
+    );
+
+    const link = await screen.findByRole('link', { name: 'Alerts · 1 open' });
+    expect(within(link).getByText('1')).toBeInTheDocument();
+    await waitFor(() => expect(readsOf('/v1/alerts')).toHaveLength(2));
+    // One read of what is open, one of what is over, and the badge on top of
+    // neither: the bell counts the list the inbox is drawing.
+    expect(readsOf('/v1/alerts').filter(one => one.path.includes('open=true'))).toHaveLength(1);
+    expect(readsOf('/v1/alerts').filter(one => one.path.includes('open=false'))).toHaveLength(1);
   });
 
   it('dates an offline alert from the device’s own last sample rather than from when the cloud noticed', async () => {
@@ -429,7 +551,7 @@ describe('the inbox', () => {
   it('reads a name once and a rule only for the devices something went wrong on', async () => {
     server.alerts = [alert({}), alert({ id: 'second', startedAt: iso(NOW.minus({ minutes: 5 })) })];
     server.rules = [rule()];
-    server.devices = [deviceRow(), deviceRow({ id: 'device-2', name: 'Mother tent' })];
+    server.devices = [deviceRow(), deviceRow({ id: 'device-2', name: 'Mother tent', spaceId: 'space-2' })];
     draw();
 
     await waitFor(() => expect(screen.getAllByText(title('Flower room B · humidity 68 % › 60'))).toHaveLength(2));
@@ -438,9 +560,9 @@ describe('the inbox', () => {
     expect(readsOf('/v1/spaces')).toHaveLength(1);
     expect(readsOf('/v1/devices')).toHaveLength(1);
     expect(readsOf('/v1/cameras')).toHaveLength(1);
-    // The page, the three names, the account behind the mute, and one rule
-    // list: six reads for two alerts on one of two devices.
-    expect(server.sent.filter(one => one.method === 'GET')).toHaveLength(6);
+    // Both halves of the list, the three names, the account behind the mute,
+    // and one rule list: seven reads for two alerts on one of two devices.
+    expect(server.sent.filter(one => one.method === 'GET')).toHaveLength(7);
   });
 
   it('keeps the list on the live beat and the rules at a walk', async () => {
@@ -502,6 +624,24 @@ describe('the arithmetic behind the cards', () => {
     expect(crossedBound({ upper: 60, lower: 40 }, 50)).toEqual({ over: true, bound: 60 });
     expect(crossedBound({ upper: null, lower: 40 }, null)).toEqual({ over: false, bound: 40 });
     expect(crossedBound({ upper: null, lower: null }, 50)).toBeNull();
+  });
+
+  it('says the kind alone where an alarm watched an output and carries no metric', () => {
+    const open = (over: Partial<OpenAlert>): OpenAlert => ({
+      alertId: 'alert-1',
+      kind: 'threshold',
+      severity: 'critical',
+      startedAt: iso(NOW),
+      value: 68,
+      metric: 'humidity',
+      ...over,
+    });
+
+    expect(alertLabel(i18next.t, open({}))).toBe('Alarm · 68 % RH');
+    // A rule watching an output leaves a number with no unit and no name, and
+    // "Alarm · 1" reads as a count of something.
+    expect(alertLabel(i18next.t, open({ metric: null, value: 1 }))).toBe('Alarm');
+    expect(alertLabel(i18next.t, open({ kind: 'offline', metric: null, value: null }))).toBe('Offline');
   });
 
   it('keeps an open alert under NOW however long ago it began', () => {

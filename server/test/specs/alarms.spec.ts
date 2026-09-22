@@ -224,6 +224,24 @@ describe('an episode, from the reading to the inbox', () => {
     expect(closed.body.resolvedAt).toEqual(expect.any(String));
   });
 
+  it('re-grades an open alert with its rule, and leaves an episode that is already over at the grade it was raised with', async () => {
+    const rule = await createRule(owner, device, aRule({ name: unique('Heat'), severity: 'warning' }));
+
+    await simulator.reportStatus({ temperature: 34 });
+    const alert = await waitForAlert(owner, rule.id);
+    expect(alert.severity).toBe('warning');
+
+    await owner.client.patch(`/v1/alarm-rules/${rule.id}`).send({ severity: 'critical' }).expect(200);
+    expect((await owner.client.get(`/v1/alerts/${alert.id}`).expect(200)).body.severity).toBe('critical');
+
+    await simulator.reportStatus({ temperature: 21 });
+    await settle(1500);
+    await owner.client.patch(`/v1/alarm-rules/${rule.id}`).send({ severity: 'info' }).expect(200);
+
+    const over = await owner.client.get(`/v1/alerts/${alert.id}`).expect(200);
+    expect(over.body).toMatchObject({ resolvedAt: expect.any(String), severity: 'critical' });
+  });
+
   it('lists what is open and what is over, apart', async () => {
     const open = await owner.client.get(`/v1/alerts?deviceId=${device}&open=true`).expect(200);
     expect(open.body.items.every((one: { resolvedAt: string | null }) => one.resolvedAt === null)).toBe(true);
