@@ -77,6 +77,15 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
         ))}
       </Section>
 
+      {/* A claim always makes a place of its own, so this is offered on the tab
+          that shows everything and not on a tent's list, where it would read as
+          adding a device to that tent. */}
+      {spaceId === undefined && mayManage ? (
+        <Link className={`${ui.cardDashed} ${styles.addRow}`} to="/claim">
+          + {t('claim.addDevice')}
+        </Link>
+      ) : null}
+
       <Section label={t('devices.cameras')} empty={shown.length === 0 ? t('devices.noCameras') : null}>
         {shown.map(camera => (
           <CameraRow

@@ -2643,5 +2643,86 @@
       "info": "Info"
     },
     "namesFailed": "Namen nicht lesbar · Zelte, Geräte und Cams stehen mit ihrer Id"
+  },
+  "claim": {
+    "title": "Gerät hinzufügen · {{step}} von {{of}}",
+    "skip": "überspringen",
+    "next": "Weiter · {{what}}",
+    "finish": "Fertig · Bereich öffnen",
+    "later": "Jeder Schritt lässt sich später unter Geräte oder Steuerung nachholen.",
+    "addDevice": "Gerät hinzufügen",
+    "demo": "Die Demo darf alles ansehen und nichts ändern, also kann sie keine Hardware übernehmen. Melde dich mit deinem eigenen Konto an, um ein Gerät hinzuzufügen.",
+    "backToDevices": "Zurück zu Geräte",
+    "code": {
+      "title": "Den Code vom Display ablesen",
+      "text": "Der Controller zeigt einen kurzen Code; auf der Verpackung steht derselbe als QR-Code.",
+      "field": "Claim-Code",
+      "orScan": "oder scannen",
+      "claim": "Übernehmen",
+      "claiming": "Wird übernommen…",
+      "claimed": "Übernommen",
+      "scanUnavailable": "Dieser Browser kann keine QR-Codes lesen; tipp den Code ein.",
+      "live": "online vor {{age}}",
+      "stale": "zuletzt gemeldet vor {{age}}",
+      "offline": "offline · zuletzt gemeldet vor {{age}}",
+      "neverHeard": "Übernommen, aber es hat sich noch nicht gemeldet. Es erscheint hier, sobald es verbunden ist; der Rest lässt sich schon einrichten.",
+      "firmware": "Firmware {{version}}",
+      "sockets_one": "{{count}} Steckdose",
+      "sockets_other": "{{count}} Steckdosen",
+      "camera": "Cam: {{name}}",
+      "noCamera": "keine"
+    },
+    "place": {
+      "next": "wo steht es?",
+      "title": "Wo steht es?",
+      "text": "Der Name des Bereichs; Geräte und Grows hängen daran.",
+      "field": "Name des Bereichs",
+      "rename": "umbenennen",
+      "renaming": "wird umbenannt…",
+      "kindLabel": "Was für ein Ort das ist",
+      "kind": {
+        "tent": "Zelt",
+        "fridge": "Kühlschrank",
+        "room": "Raum",
+        "other": "anderes"
+      },
+      "unknown": "noch kein Bereich"
+    },
+    "doing": {
+      "next": "was macht es?",
+      "title": "Was macht es gerade?",
+      "text": "Wähl eine Phase als Vorgabe oder „nur messen“ für reine Überwachung. Eine Vorgabe startet einen Grow.",
+      "pick": "Was der Bereich gerade macht",
+      "measure": "nur messen",
+      "measureNote": "Es wird nichts an den Controller geschrieben. Er meldet weiter, Charts und Alarme laufen wie gewohnt.",
+      "apply": "Auf {{stage}} stellen",
+      "applying": "Zielwerte werden geschrieben…",
+      "wroteNothing": "Kein Controller hier hat die Zielwerte übernommen.",
+      "wroteTo_one": "Die Zielwerte gingen an {{count}} Controller.",
+      "wroteTo_other": "Die Zielwerte gingen an {{count}} Controller.",
+      "phaseWritten": "Ein Grow hier ist in {{stage}} übergegangen.",
+      "noPhaseWritten": "Kein Grow ist in die Phase übergegangen; geschrieben wurde nur das Klima.",
+      "question": "Hier wächst noch nichts. Das Klima wurde trotzdem geschrieben.",
+      "startGrow": "Hier einen Grow starten",
+      "moveGrowHere": "Einen Grow hierher umziehen",
+      "climateOnly": "Nur das Klima",
+      "noGrowToMove": "Es gibt keinen anderen laufenden Grow, der hierher umziehen könnte.",
+      "whichGrow": "Welcher Grow zieht hierher",
+      "onStage": "auf {{stage}}",
+      "measuring": "nur messen",
+      "nothingYet": "noch nichts gesetzt"
+    },
+    "hardware": {
+      "next": "Steckdosen und Cam?",
+      "title": "Steckdosen und Cam",
+      "text": "Tasmota-Steckdosen koppeln und ihnen Rollen geben; die Terp Cam am Controller koppeln. Beides hat Zeit.",
+      "sockets": "Gemeldete Steckdosen",
+      "noSockets": "noch keine",
+      "notReported": "noch nicht gemeldet",
+      "cam": "Cam",
+      "noCam": "keine",
+      "pairThere": "Im Tab Geräte koppeln",
+      "bothCanWait": "Beides hat Zeit: ein Controller misst den Ort, an dem er steht, auch wenn nichts eingesteckt ist."
+    }
   }
 }

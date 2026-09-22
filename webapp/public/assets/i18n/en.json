@@ -2647,5 +2647,86 @@
       "info": "info"
     },
     "namesFailed": "Could not read the names · tents, devices and cams are shown by their id"
+  },
+  "claim": {
+    "title": "Add a device · {{step}} of {{of}}",
+    "skip": "skip",
+    "next": "Next · {{what}}",
+    "finish": "Done · open the place",
+    "later": "Every step can be done later from Devices or Control.",
+    "addDevice": "Add a device",
+    "demo": "The demo may look at everything and change nothing, so it cannot claim hardware. Sign in with your own account to add a device.",
+    "backToDevices": "Back to Devices",
+    "code": {
+      "title": "Read the code off the display",
+      "text": "The controller shows a short code, and the box carries the same one as a QR.",
+      "field": "Claim code",
+      "orScan": "or scan",
+      "claim": "Claim it",
+      "claiming": "Claiming…",
+      "claimed": "Claimed",
+      "scanUnavailable": "This browser cannot read QR codes; type the code instead.",
+      "live": "online {{age}} ago",
+      "stale": "last heard {{age}} ago",
+      "offline": "offline · last heard {{age}} ago",
+      "neverHeard": "Claimed, but it has not said anything yet. It appears here the moment it connects; the rest can be set up meanwhile.",
+      "firmware": "firmware {{version}}",
+      "sockets_one": "{{count}} socket",
+      "sockets_other": "{{count}} sockets",
+      "camera": "Cam: {{name}}",
+      "noCamera": "none"
+    },
+    "place": {
+      "next": "where is it?",
+      "title": "Where is it?",
+      "text": "The name of the space; devices and grows attach to it.",
+      "field": "Name of the space",
+      "rename": "rename",
+      "renaming": "renaming…",
+      "kindLabel": "What kind of place it is",
+      "kind": {
+        "tent": "tent",
+        "fridge": "fridge",
+        "room": "room",
+        "other": "other"
+      },
+      "unknown": "no place yet"
+    },
+    "doing": {
+      "next": "what is it doing?",
+      "title": "What is it doing right now?",
+      "text": "Pick a stage preset, or “just measure” for monitoring only. A preset starts a grow.",
+      "pick": "What the place is doing",
+      "measure": "just measure",
+      "measureNote": "Nothing is written to the controller. It goes on reporting, and the charts and alarms work as they do.",
+      "apply": "Put it on {{stage}}",
+      "applying": "Writing the targets…",
+      "wroteNothing": "No controller here took the targets.",
+      "wroteTo_one": "The targets went to {{count}} controller.",
+      "wroteTo_other": "The targets went to {{count}} controllers.",
+      "phaseWritten": "A grow here entered {{stage}}.",
+      "noPhaseWritten": "No grow entered the stage; only the climate was written.",
+      "question": "Nothing is growing here yet. The climate has been written either way.",
+      "startGrow": "Start a grow here",
+      "moveGrowHere": "Move a grow here",
+      "climateOnly": "Only the climate",
+      "noGrowToMove": "There is no other open grow to move here.",
+      "whichGrow": "Which grow moves here",
+      "onStage": "on {{stage}}",
+      "measuring": "measuring only",
+      "nothingYet": "nothing set yet"
+    },
+    "hardware": {
+      "next": "sockets and cam?",
+      "title": "Sockets and cam",
+      "text": "Pair Tasmota sockets and give them roles; pair the Terp Cam at the controller. Both can wait.",
+      "sockets": "Reported sockets",
+      "noSockets": "none yet",
+      "notReported": "not reported yet",
+      "cam": "Cam",
+      "noCam": "none",
+      "pairThere": "Pair them on the Devices tab",
+      "bothCanWait": "Both can wait: a controller with nothing plugged into it still measures the place it stands in."
+    }
   }
 }

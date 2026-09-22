@@ -3,6 +3,7 @@ import { AppShell } from './shell/AppShell';
 import { RequireSession } from './RequireSession';
 import { Alerts } from '@/screens/Alerts';
 import { CameraPage } from '@/screens/camera/CameraPage';
+import { Claim } from '@/screens/claim/Claim';
 import { Devices } from '@/screens/devices/Devices';
 import { GrowPage } from '@/screens/grow/GrowPage';
 import { Home } from '@/screens/Home';
@@ -32,6 +33,10 @@ import { Timeline } from '@/screens/Timeline';
  * slash - which is also why it ranks below every named route and cannot take
  * `/timeline` or `/me` from the shell.
  *
+ * Adding a device is a route of its own as well: it is four steps long, every
+ * one of them writes as it is answered, and a link may land straight on it with
+ * a claim code already in hand.
+ *
  * `Log` is a route as well, so that a link and a notification can open the
  * sheet; it is not a screen of its own, and gives the address straight back to
  * the one it opened over. The new-grow sheet has an address for the same
@@ -59,6 +64,7 @@ export const router = createBrowserRouter([
       { path: 'timeline', element: <Timeline /> },
       { path: 'log', element: <LogRoute /> },
       { path: 'devices', element: <Devices /> },
+      { path: 'claim', element: <Claim /> },
       { path: 'cameras/:cameraId', element: <CameraPage /> },
       { path: 'tasks', element: <Tasks /> },
       { path: 'me', element: <Me /> },

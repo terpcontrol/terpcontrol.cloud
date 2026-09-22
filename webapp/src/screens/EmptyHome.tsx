@@ -1,18 +1,13 @@
 import { ChevronRight } from 'lucide-react';
 import { useCallback, useState } from 'react';
-import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
-import type { DeviceClaimCreate, DeviceClaimResult } from '@fg2/shared-types/v1';
-import { claimCodeOf, useClaimDevice } from '@/api/claims';
-import { ApiError } from '@/api/problem';
+import { claimCodeOf } from '@/api/claims';
 import { session } from '@/api/session';
-import { ageLabel } from '@/ui/age';
 import { canScan } from '@/ui/barcode';
-import { QrScanner } from '@/ui/QrScanner';
 import { useMayManage } from '@/ui/session-access';
+import { QrScanner } from '@/ui/QrScanner';
 import ui from '@/ui/ui.module.css';
-import { useNow } from '@/ui/useNow';
 import styles from './EmptyHome.module.css';
 
 /**
@@ -20,16 +15,7 @@ import styles from './EmptyHome.module.css';
  * demo third. Nothing is asked about who the person is; the two doors lead to
  * the same place.
  */
-export function EmptyHome({
-  claimed,
-  onClaimed,
-  onStartGrow,
-}: {
-  claimed: DeviceClaimResult | null;
-  onClaimed: (result: DeviceClaimResult) => void;
-  /** The sheet belongs to the home: a grow, or a place made on the way to one, is what stops this screen being drawn at all. */
-  onStartGrow: () => void;
-}) {
+export function EmptyHome({ onStartGrow }: { onStartGrow: () => void }) {
   const { t } = useTranslation();
 
   return (
@@ -40,7 +26,7 @@ export function EmptyHome({
       </header>
 
       <StartGrow onOpen={onStartGrow} />
-      <AddDevice claimed={claimed} onClaimed={onClaimed} />
+      <AddDevice />
       <TryDemo />
 
       <p className={styles.following}>{t('home.empty.following')}</p>
@@ -48,11 +34,7 @@ export function EmptyHome({
   );
 }
 
-/**
- * The first door, and the one that needs no hardware at all. It only asks: the
- * sheet it opens outlives this card, because the first thing that sheet makes -
- * a grow, or the place to put it in - is what the home stops being empty by.
- */
+/** The first door, and the one that needs nothing but a name: the sheet is the home's, because what it writes is what stops this screen being drawn. */
 function StartGrow({ onOpen }: { onOpen: () => void }) {
   const { t } = useTranslation();
   const mayManage = useMayManage();
@@ -75,20 +57,26 @@ function StartGrow({ onOpen }: { onOpen: () => void }) {
   );
 }
 
-function AddDevice({ claimed, onClaimed }: { claimed: DeviceClaimResult | null; onClaimed: (result: DeviceClaimResult) => void }) {
+/**
+ * The second door. The code is read here, with the scanner the box's QR needs,
+ * and handed to the claim flow rather than spent here: claiming is the first of
+ * four steps, and a card that did only that one would leave a controller owned,
+ * standing nowhere in particular and doing nothing.
+ */
+function AddDevice() {
   const { t } = useTranslation();
-  const claim = useClaimDevice();
+  const navigate = useNavigate();
+  const [code, setCode] = useState('');
   const [scanning, setScanning] = useState(false);
   const [scanNote, setScanNote] = useState<string | null>(null);
-  const form = useForm<DeviceClaimCreate>({ defaultValues: { code: '' } });
 
-  const submit = form.handleSubmit(async body => {
-    try {
-      onClaimed(await claim.mutateAsync({ code: body.code.trim() }));
-    } catch (error) {
-      form.setError('code', { message: claimProblem(error, t) });
-    }
-  });
+  const hand = useCallback(
+    (value: string) => {
+      const found = claimCodeOf(value);
+      void navigate(found ? `/claim?code=${encodeURIComponent(found)}` : '/claim');
+    },
+    [navigate],
+  );
 
   const scan = () => {
     if (!canScan()) return setScanNote(t('home.addDevice.scanUnavailable'));
@@ -99,81 +87,55 @@ function AddDevice({ claimed, onClaimed }: { claimed: DeviceClaimResult | null; 
   const onCode = useCallback(
     (value: string) => {
       setScanning(false);
-      form.setValue('code', claimCodeOf(value));
-      void submit();
+      hand(value);
     },
-    [form, submit],
+    [hand],
   );
   const closeScanner = useCallback(() => setScanning(false), []);
-
-  const problem = form.formState.errors.code?.message ?? scanNote;
 
   return (
     <article className={ui.card}>
       <div className={styles.cardHeader}>
         <h2 className={styles.cardTitle}>{t('home.addDevice.title')}</h2>
-        {claimed ? null : (
-          <button type="button" className={ui.chip} onClick={scan}>
-            {t('home.addDevice.scan')}
-          </button>
-        )}
+        <button type="button" className={ui.chip} onClick={scan}>
+          {t('home.addDevice.scan')}
+        </button>
       </div>
       <p className={styles.cardText}>{t('home.addDevice.text')}</p>
 
-      {claimed ? (
-        <Claimed result={claimed} />
-      ) : (
-        <form onSubmit={submit} noValidate>
-          <div className={ui.fieldRow}>
-            <input
-              className={`mono ${ui.input}`}
-              placeholder={t('home.addDevice.code')}
-              aria-label={t('home.addDevice.code')}
-              autoCapitalize="characters"
-              autoComplete="off"
-              enterKeyHint="go"
-              spellCheck={false}
-              aria-invalid={problem ? true : undefined}
-              disabled={claim.isPending}
-              {...form.register('code', { required: true })}
-            />
-            <button type="button" className={ui.fieldAction} onClick={scan}>
-              {t('home.addDevice.orScan')}
-              <ChevronRight size={14} strokeWidth={1.75} aria-hidden />
-            </button>
-          </div>
-          {problem ? (
-            <p className={`${ui.problem} ${styles.problem}`} role="alert">
-              {problem}
-            </p>
-          ) : null}
-          {claim.isPending ? <p className={`${ui.note} ${styles.problem}`}>{t('home.addDevice.claiming')}</p> : null}
-        </form>
-      )}
+      <form
+        onSubmit={event => {
+          event.preventDefault();
+          hand(code);
+        }}
+        noValidate
+      >
+        <div className={ui.fieldRow}>
+          <input
+            className={`mono ${ui.input}`}
+            placeholder={t('home.addDevice.code')}
+            aria-label={t('home.addDevice.code')}
+            autoCapitalize="characters"
+            autoComplete="off"
+            enterKeyHint="go"
+            spellCheck={false}
+            value={code}
+            onChange={event => setCode(event.target.value)}
+          />
+          <button type="button" className={ui.fieldAction} onClick={scan}>
+            {t('home.addDevice.orScan')}
+            <ChevronRight size={14} strokeWidth={1.75} aria-hidden />
+          </button>
+        </div>
+        {scanNote ? (
+          <p className={`${ui.note} ${styles.problem}`} role="status">
+            {scanNote}
+          </p>
+        ) : null}
+      </form>
 
       {scanning ? <QrScanner onCode={onCode} onClose={closeScanner} /> : null}
     </article>
-  );
-}
-
-/** What the claim came back with, until the steps that follow it are built. */
-function Claimed({ result }: { result: DeviceClaimResult }) {
-  const { t } = useTranslation();
-  const now = useNow();
-  const { device, spaceCreated } = result;
-  const heardAt = device.state.lastSeenAt;
-
-  return (
-    <div className={styles.claimed} role="status">
-      <div className={styles.claimedLine}>
-        <span className={styles.claimedMark}>{t('home.addDevice.claimed')}</span> · {device.name ?? device.type} ·{' '}
-        <span className="mono">{device.id.slice(-4).toUpperCase()}</span>
-      </div>
-      <div className={`mono ${styles.claimedNote}`}>
-        {heardAt ? t('home.addDevice.heard', { age: ageLabel(heardAt, now) }) : t('home.addDevice.notHeard')}
-        {spaceCreated ? ` · ${t('home.addDevice.spaceCreated')}` : ''}
-      </div>
-    </div>
   );
 }
 
@@ -208,10 +170,3 @@ function TryDemo() {
     </article>
   );
 }
-
-const claimProblem = (error: unknown, t: (key: string) => string): string => {
-  if (!(error instanceof ApiError)) return t('login.messages.connectionError');
-  if (error.problem.code === 'claim_code_unknown') return t('onboarding.claimFailed');
-  if (error.problem.code === 'device_claimed') return t('home.addDevice.alreadyClaimed');
-  return error.problem.detail || error.problem.title;
-};

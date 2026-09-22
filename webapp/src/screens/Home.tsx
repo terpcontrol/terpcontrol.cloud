@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { DeviceClaimResult, HomeAnswer } from '@fg2/shared-types/v1';
+import type { HomeAnswer } from '@fg2/shared-types/v1';
 import { useHome } from '@/api/home';
 import { ageLabel } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
@@ -22,7 +22,6 @@ import styles from './Home.module.css';
 export function Home() {
   const { t } = useTranslation();
   const home = useHome();
-  const [claimed, setClaimed] = useState<DeviceClaimResult | null>(null);
   // The sheet is held here rather than in either half of the home, because the
   // first thing it writes - a grow, or the place to stand it in - is what
   // decides which half is drawn, and a sheet inside that half would close on
@@ -46,12 +45,12 @@ export function Home() {
   }
 
   const answer = home.data!;
-  const nothingYet = claimed !== null || (answer.spaces.length === 0 && answer.followedGrows.length === 0);
+  const nothingYet = answer.spaces.length === 0 && answer.followedGrows.length === 0;
 
   return (
     <>
       {nothingYet ? (
-        <EmptyHome claimed={claimed} onClaimed={setClaimed} onStartGrow={() => setStarting(true)} />
+        <EmptyHome onStartGrow={() => setStarting(true)} />
       ) : (
         <Cards answer={answer} failedAt={home.isError ? home.dataUpdatedAt : null} onStartGrow={() => setStarting(true)} />
       )}

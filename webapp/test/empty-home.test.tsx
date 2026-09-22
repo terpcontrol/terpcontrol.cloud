@@ -32,7 +32,7 @@ describe('the empty home', () => {
     render(
       <QueryClientProvider client={new QueryClient()}>
         <MemoryRouter>
-          <EmptyHome claimed={null} onClaimed={() => undefined} onStartGrow={onStartGrow} />
+          <EmptyHome onStartGrow={onStartGrow} />
         </MemoryRouter>
       </QueryClientProvider>,
     );

@@ -1,0 +1,221 @@
+/* Adding a device: a header with the count and the way out, a bar of four
+   segments, the four steps down the page, and the action on the bottom edge.
+   Every shape below is the app's own card, chip, field and button; this file
+   is the column they stand in and the numbered marker beside them. */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+}
+
+/* Leaving is a way out rather than an action, so it is drawn as the lesser of
+   the two things on this screen that can be tapped. */
+.skip {
+  flex: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.progress {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.segment {
+  flex: 1;
+  height: 3px;
+  background: var(--rule);
+  border-radius: var(--radius-pill);
+}
+
+.segment[data-filled='true'] {
+  background: var(--ink);
+}
+
+/* One step: the marker in its own column, everything the step says in the
+   other. The gap between steps is the screen's, so the list reads as a list
+   rather than as four cards. */
+.step {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.marker {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border: var(--rule-solid);
+  border-radius: 50%;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* The step being asked is the one filled in; a settled one keeps the outline
+   and carries its tick, so the page shows at a glance how far it has got. */
+.marker[data-state='open'] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
+
+.marker[data-state='done'] {
+  border-color: var(--green);
+  color: var(--green-ink);
+}
+
+.stepBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: var(--space-1);
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.stepTitle {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+  text-align: left;
+}
+
+/* A step still ahead says what it will ask and reads as not yet its turn. */
+.step[data-state='ahead'] .stepTitle {
+  color: var(--muted);
+}
+
+.stepText {
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+  color: var(--muted);
+}
+
+.stepFields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+/* A settled step's header is how it is corrected, and it is not a control to
+   look at: it is the title, tappable. */
+.reopen {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.claimedMark {
+  color: var(--green-ink);
+}
+
+/* A device that has never spoken: said plainly, never as a row of dashes. */
+.waitingForIt {
+  color: var(--warning);
+}
+
+/* What a preset did, once it has been applied. Sentences rather than figures,
+   and without list markers, which would read as options to choose between. */
+.effect,
+.reported {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.reported li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.reportedValue {
+  font-size: var(--text-xs);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* The question the server asks about the grow when there is none in the tent. */
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--rule-dashed);
+  border-radius: var(--radius);
+}
+
+.answers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.wide {
+  width: 100%;
+}
+
+/* A link out of a step is a link and not a bar across it: the column stretches
+   what it holds, and only the step's own action wants that width. */
+.aside {
+  align-self: flex-start;
+}
+
+.claimForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.laterNote {
+  text-align: center;
+}
+
+.demoNote {
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+  color: var(--muted);
+}
+
+@media (min-width: 900px) {
+  .screen {
+    max-width: 720px;
+    padding-top: 0;
+  }
+}
