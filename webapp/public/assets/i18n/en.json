@@ -2399,5 +2399,81 @@
     "sentNote": "The controller acknowledges no setting, so what it is running is not reported back.",
     "sockets": "sockets",
     "readOnly": "This session may look and not set."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "muted": "Muted until {{time}}",
+    "unmute": "Unmute",
+    "channels": "Channels",
+    "what": "What",
+    "quietHours": "Quiet hours",
+    "off": "off",
+    "notConfigured": "not configured",
+    "nothingRouted": "nothing routed here yet",
+    "save": "Save",
+    "cancel": "Cancel",
+    "channel": {
+      "push": "Push",
+      "telegram": "Telegram",
+      "email": "E-mail",
+      "webhook": "Webhook"
+    },
+    "category": {
+      "alerts": "Critical alarms",
+      "warnings": "Warnings",
+      "tasks": "Tasks due",
+      "plan": "Plan asks",
+      "weekly_timelapse": "Weekly recap video"
+    },
+    "short": {
+      "alerts": "critical",
+      "warnings": "warnings",
+      "tasks": "tasks due",
+      "plan": "plan asks",
+      "weekly_timelapse": "weekly recap"
+    },
+    "push": {
+      "thisBrowser": "this browser",
+      "notSubscribed": "this browser is not subscribed",
+      "noKey": "this install has no push key",
+      "unsupported": "this browser cannot receive push",
+      "denied": "Permission was not given, so nothing can be pushed to this browser.",
+      "asking": "Asking the browser…"
+    },
+    "telegram": {
+      "linked": "linked {{date}} · alarms, weekly recap, log by replying",
+      "notLinked": "not linked",
+      "noBot": "this install has no Telegram bot",
+      "waiting": "open the link in Telegram to finish linking",
+      "open": "Open Telegram",
+      "validUntil": "valid until {{time}}",
+      "expired": "The link ran out. Switch on again for a new one.",
+      "ask": "Unlink this chat? Nothing goes to Telegram until a chat is linked again.",
+      "unlink": "Unlink"
+    },
+    "email": {
+      "address": "Address",
+      "addressNeeded": "enter an address to switch on"
+    },
+    "webhook": {
+      "url": "URL",
+      "method": "Method",
+      "headers": "Headers",
+      "headersHint": "One per line, as Name: value",
+      "urlNeeded": "enter a URL to switch on",
+      "json": "JSON"
+    },
+    "grid": {
+      "cell": "{{category}} by {{channel}}",
+      "note": "A channel is off until it is configured, and its column cannot be moved until then."
+    },
+    "quiet": {
+      "window": "{{from}} – {{to}}",
+      "critical": "critical still comes through",
+      "offLine": "everything comes through as it happens",
+      "from": "From",
+      "to": "To",
+      "zone": "in your time zone ({{zone}})"
+    }
   }
 }

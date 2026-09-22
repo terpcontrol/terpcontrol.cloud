@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
+import { ChevronRight } from 'lucide-react';
+import { Link, useNavigate } from 'react-router';
 import { session, useSession } from '@/api/session';
 import { initials } from '@/app/shell/tabs';
 import { useTheme, type ThemeChoice } from '@/theme/theme-context';
@@ -10,7 +11,8 @@ const CHOICES: ThemeChoice[] = ['system', 'light', 'dark'];
 
 /**
  * Where the avatar leads. Only what already works is on it: who is signed in,
- * the theme, and the way out; the rest of the account arrives with its slice.
+ * the theme, where notifications go, and the way out; the rest of the account
+ * arrives with its slice.
  */
 export function Me() {
   const { t } = useTranslation();
@@ -54,6 +56,11 @@ export function Me() {
           </div>
         </div>
       </div>
+
+      <Link to="/me/notifications" className={`${styles.row} ${styles.link}`}>
+        <span className={styles.rowTitle}>{t('notifications.title')}</span>
+        <ChevronRight size={18} strokeWidth={1.75} aria-hidden />
+      </Link>
 
       <div className={styles.row}>
         <button type="button" className={ui.button} onClick={signOut}>

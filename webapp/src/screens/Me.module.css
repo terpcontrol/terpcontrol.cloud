@@ -43,6 +43,19 @@
   font-weight: var(--weight-semibold);
 }
 
+/* A row that is a door to another screen: the chevron says so. */
+.link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--ink);
+}
+
+.link svg {
+  color: var(--muted);
+}
+
 .rowBody {
   display: flex;
   align-items: center;

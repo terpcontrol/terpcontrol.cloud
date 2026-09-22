@@ -2395,5 +2395,81 @@
     "sentNote": "Der Controller bestätigt keine Einstellung; was er wirklich fährt, meldet er nicht zurück.",
     "sockets": "Steckdosen",
     "readOnly": "Diese Sitzung darf schauen, aber nichts einstellen."
+  },
+  "notifications": {
+    "title": "Benachrichtigungen",
+    "muted": "Stumm bis {{time}}",
+    "unmute": "Wieder laut",
+    "channels": "Kanäle",
+    "what": "Was",
+    "quietHours": "Ruhezeiten",
+    "off": "aus",
+    "notConfigured": "nicht eingerichtet",
+    "nothingRouted": "noch nichts hierher geleitet",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "channel": {
+      "push": "Push",
+      "telegram": "Telegram",
+      "email": "E-Mail",
+      "webhook": "Webhook"
+    },
+    "category": {
+      "alerts": "Kritische Alarme",
+      "warnings": "Warnungen",
+      "tasks": "Fällige Aufgaben",
+      "plan": "Rückfragen des Plans",
+      "weekly_timelapse": "Video der Woche"
+    },
+    "short": {
+      "alerts": "Kritisches",
+      "warnings": "Warnungen",
+      "tasks": "fällige Aufgaben",
+      "plan": "Rückfragen des Plans",
+      "weekly_timelapse": "Wochenrückblick"
+    },
+    "push": {
+      "thisBrowser": "dieser Browser",
+      "notSubscribed": "dieser Browser ist nicht angemeldet",
+      "noKey": "diese Installation hat keinen Push-Schlüssel",
+      "unsupported": "dieser Browser kann keine Push-Nachrichten empfangen",
+      "denied": "Die Erlaubnis wurde nicht erteilt, also bekommt dieser Browser keine Push-Nachrichten.",
+      "asking": "Der Browser wird gefragt…"
+    },
+    "telegram": {
+      "linked": "verknüpft {{date}} · Alarme, Wochenrückblick, Tagebuch per Antwort",
+      "notLinked": "nicht verknüpft",
+      "noBot": "diese Installation hat keinen Telegram-Bot",
+      "waiting": "den Link in Telegram öffnen, um die Verknüpfung abzuschließen",
+      "open": "Telegram öffnen",
+      "validUntil": "gültig bis {{time}}",
+      "expired": "Der Link ist abgelaufen. Noch einmal einschalten für einen neuen.",
+      "ask": "Diesen Chat trennen? Bis wieder einer verknüpft ist, geht nichts an Telegram.",
+      "unlink": "Trennen"
+    },
+    "email": {
+      "address": "Adresse",
+      "addressNeeded": "Adresse eintragen, um einzuschalten"
+    },
+    "webhook": {
+      "url": "URL",
+      "method": "Methode",
+      "headers": "Header",
+      "headersHint": "Einer pro Zeile, als Name: Wert",
+      "urlNeeded": "URL eintragen, um einzuschalten",
+      "json": "JSON"
+    },
+    "grid": {
+      "cell": "{{category}} per {{channel}}",
+      "note": "Ein Kanal ist aus, bis er eingerichtet ist, und seine Spalte lässt sich bis dahin nicht schalten."
+    },
+    "quiet": {
+      "window": "{{from}} – {{to}}",
+      "critical": "Kritisches kommt trotzdem durch",
+      "offLine": "alles kommt, sobald es passiert",
+      "from": "Von",
+      "to": "Bis",
+      "zone": "in deiner Zeitzone ({{zone}})"
+    }
   }
 }
