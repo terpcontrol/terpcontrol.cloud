@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCaptureAnswer = exports.cameraUpdate = exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.media = exports.mediaRender = exports.mediaRenderStatus = exports.mediaOverlays = exports.mediaAspect = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryValuesDraft = exports.humanEntryKind = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.measurementEntryValues = exports.entryDose = exports.entryReading = void 0;
-exports.timelineOutputLane = exports.timelinePanel = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.cameraStill = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.person = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = void 0;
-exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growMeasurementSeries = exports.growSeriesPoint = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineAlarm = void 0;
+exports.testCaptureAnswer = exports.cameraUpdate = exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.exportAccepted = exports.media = exports.mediaExportJob = exports.exportScope = exports.mediaRender = exports.mediaRenderStatus = exports.mediaOverlays = exports.mediaAspect = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryValuesDraft = exports.humanEntryKind = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.measurementEntryValues = exports.entryDose = exports.entryReading = void 0;
+exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.cameraStill = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.person = exports.followedGrowCard = exports.homeSpaceCard = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardValue = exports.migrationPage = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = void 0;
+exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growWeekCardPage = exports.growWeekCard = exports.growWeekReading = exports.growWeekFeeding = exports.growWeekDay = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineAlarm = exports.timelineOutputLane = exports.timelinePanel = exports.timelineTargets = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -258,6 +258,26 @@ exports.mediaRender = (0, common_js_1.named)('MediaRender', zod_1.z.object({
     endedAt: (0, common_js_1.instant)().nullable(),
     error: zod_1.z.string().nullable(),
 }));
+/** What an export is of: one grow, or everything the account has. */
+exports.exportScope = (0, common_js_1.named)('ExportScope', zod_1.z.enum(['grow', 'account']));
+/**
+ * How far an export has got, on the media row that is the export.
+ *
+ * It carries the same four states a render does, because a zip is built by the
+ * same kind of worker and watched in the same way. What it is an export of is
+ * here rather than in the row's own `growId`, which stays null deliberately: an
+ * export is the account's private copy of everything it can see, so it must not
+ * hang off a grow that a link or a public address makes readable to somebody
+ * else.
+ */
+exports.mediaExportJob = (0, common_js_1.named)('MediaExportJob', zod_1.z.object({
+    status: exports.mediaRenderStatus,
+    scope: exports.exportScope,
+    growId: (0, common_js_1.id)().nullable().describe('The grow this is an export of; null for an export of the whole account.'),
+    startedAt: (0, common_js_1.instant)().nullable(),
+    endedAt: (0, common_js_1.instant)().nullable(),
+    error: zod_1.z.string().nullable(),
+}));
 /**
  * A picture or a film. The bytes stay in the GridFS bucket, whose file id is
  * this resource's id, and are served by `GET /media/{id}/content`.
@@ -280,7 +300,20 @@ exports.media = (0, common_js_1.named)('Media', zod_1.z.object({
     quality: exports.mediaQuality.nullable(),
     lengthSeconds: zod_1.z.number().int().nullable(),
     render: exports.mediaRender.nullable(),
+    exportJob: exports.mediaExportJob.nullable().describe('Set on an `export` row and on nothing else; it is what the export is polled by.'),
 }));
+/**
+ * What `GET /grows/{id}/export` and `GET /me/export` answer. A zip of a diary,
+ * its CSVs and its photos does not finish inside a request, so the media row
+ * comes back with `exportJob.status: queued` and is polled through
+ * `GET /media/{id}` until it is `ready`; its bytes then come from
+ * `GET /media/{id}/content` like any other file.
+ *
+ * `queued` says which of the two happened, and with it the 202 from the 200: an
+ * export asked for while one is still being built, or while a fresh one is
+ * still there, answers that one rather than starting a second.
+ */
+exports.exportAccepted = (0, common_js_1.named)('ExportAccepted', zod_1.z.object({ media: exports.media, queued: zod_1.z.boolean() }));
 /**
  * `GET /cameras/{id}/frames` and `GET /cameras/{id}/timelapses` answer this, each
  * filtered to its kind: a frame is a `still` of that camera and a timelapse a
@@ -1230,18 +1263,42 @@ exports.growMeasurementSeries = (0, common_js_1.named)('GrowMeasurementSeries', 
     points: zod_1.z.array(exports.growSeriesPoint),
 }));
 /**
- * `GET /grows/{id}/series`: what this grow measures beyond climate, which is the
- * readings its entries carry, keyed by its own definitions.
+ * What the Charts view is asked for as a range: the four chips the Timeline tab
+ * already has, and `custom` for two instants somebody picked, which is the one
+ * range no chip can name.
+ */
+exports.growSeriesRange = (0, common_js_1.named)('GrowSeriesRange', zod_1.z.enum(['24h', '7d', 'phase', 'grow', 'custom']));
+/**
+ * `GET /grows/{id}/series`: every line the Charts view draws over one range, in
+ * one answer, because a screen that asked for them separately would draw
+ * windows that disagree at their edges.
  *
- * The range is answered back because the server may have clamped it. There is
- * no step: readings are events somebody wrote down, so they are answered as they
- * were taken rather than bucketed the way a climate series has to be.
+ * Three kinds of line, and they are apart here because they are not the same
+ * kind of thing. `climate` and `outputs` are bucketed at `stepSeconds`, which
+ * the range decides, and are the same panels and lanes the Timeline tab draws -
+ * with the same band, so a client draws one the same way in both places.
+ * `measurements` are events somebody wrote down and are answered as they were
+ * taken, at no step at all.
+ *
+ * The third mode of the view - two grows plotted by day rather than by date -
+ * is arithmetic on `originAt`, which is the instant day 1 began: nothing about
+ * the answer changes, and two grows are two reads the client lays over each
+ * other.
  */
 exports.growSeries = (0, common_js_1.named)('GrowSeries', zod_1.z.object({
     growId: (0, common_js_1.id)(),
+    range: exports.growSeriesRange,
     startsAt: (0, common_js_1.instant)(),
     endsAt: (0, common_js_1.instant)(),
-    series: zod_1.z.array(exports.growMeasurementSeries),
+    stepSeconds: zod_1.z.number().int().describe('The window each climate and output point summarises; 0 where no device was read at all.'),
+    originAt: (0, common_js_1.instant)().describe('The instant day 1 of this grow began, which is what day-of-grow counts from.'),
+    dayFrom: zod_1.z.number().int().nullable(),
+    dayTo: zod_1.z.number().int().nullable(),
+    deviceIds: zod_1.z.array((0, common_js_1.id)()).describe('The devices the climate and the outputs were read from: whatever stood where the grow stood.'),
+    climate: zod_1.z.array(exports.timelinePanel),
+    outputs: zod_1.z.array(exports.timelineOutputLane),
+    nights: zod_1.z.array(exports.timelineSpan).describe('When the light was off, which is what every panel is shaded by.'),
+    measurements: zod_1.z.array(exports.growMeasurementSeries),
 }));
 /** Who a public page is by. A handle, a line of text and a picture - never a real name. */
 exports.publicAuthor = (0, common_js_1.named)('PublicAuthor', zod_1.z.object({

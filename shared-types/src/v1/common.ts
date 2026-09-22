@@ -221,7 +221,13 @@ export const seriesPoint = named('SeriesPoint', z.object({ measuredAt: instant()
  */
 export const cameraKind = named('CameraKind', z.enum(['terpcam_controller', 'terpcam_standalone', 'rtsp']));
 
-export const mediaKind = named('MediaKind', z.enum(['still', 'timelapse', 'photo', 'avatar']));
+/**
+ * `export` is the odd one: a zip rather than a picture. It is a media row all
+ * the same, because the bucket, the route that serves bytes and the sweep that
+ * removes what nothing points at are exactly what an export wants, and a
+ * collection of its own would be all three written a second time.
+ */
+export const mediaKind = named('MediaKind', z.enum(['still', 'timelapse', 'photo', 'avatar', 'export']));
 
 /**
  * Why a camera is entitled: `included` is the year a Terp Cam gets when it is

@@ -185,6 +185,13 @@ export class AccessService {
         const picture = await this.media.findOne({ id: ref.id }).lean();
         if (!picture) return null;
 
+        // An export is the one file that belongs to a person rather than to
+        // something people share: it is everything the account can see, in one
+        // zip, so it hangs off nobody's grow and nobody's space. Whoever asked
+        // for it owns it, and to everybody else - a member, a link, a public
+        // reader - it is not there at all.
+        if (picture.kind === 'export') return { ...this.blank(ref), ownerId: picture.uploadedBy };
+
         const subject = await this.ofAttachment(ref, need, picture.growId, picture.spaceId, null, picture.cameraId, picture.capturedAt);
         return { ...subject, ofACamera: picture.cameraId !== null };
       }

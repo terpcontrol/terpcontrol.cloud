@@ -729,6 +729,37 @@ export declare const mediaRender: z.ZodObject<{
     endedAt: z.ZodNullable<z.ZodISODateTime>;
     error: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;
+/** What an export is of: one grow, or everything the account has. */
+export declare const exportScope: z.ZodEnum<{
+    grow: "grow";
+    account: "account";
+}>;
+/**
+ * How far an export has got, on the media row that is the export.
+ *
+ * It carries the same four states a render does, because a zip is built by the
+ * same kind of worker and watched in the same way. What it is an export of is
+ * here rather than in the row's own `growId`, which stays null deliberately: an
+ * export is the account's private copy of everything it can see, so it must not
+ * hang off a grow that a link or a public address makes readable to somebody
+ * else.
+ */
+export declare const mediaExportJob: z.ZodObject<{
+    status: z.ZodEnum<{
+        failed: "failed";
+        ready: "ready";
+        queued: "queued";
+        rendering: "rendering";
+    }>;
+    scope: z.ZodEnum<{
+        grow: "grow";
+        account: "account";
+    }>;
+    growId: z.ZodNullable<z.ZodString>;
+    startedAt: z.ZodNullable<z.ZodISODateTime>;
+    endedAt: z.ZodNullable<z.ZodISODateTime>;
+    error: z.ZodNullable<z.ZodString>;
+}, z.core.$strip>;
 /**
  * A picture or a film. The bytes stay in the GridFS bucket, whose file id is
  * this resource's id, and are served by `GET /media/{id}/content`.
@@ -743,6 +774,7 @@ export declare const media: z.ZodObject<{
         still: "still";
         timelapse: "timelapse";
         avatar: "avatar";
+        export: "export";
     }>;
     mime: z.ZodString;
     bytes: z.ZodNumber;
@@ -790,14 +822,36 @@ export declare const media: z.ZodObject<{
         endedAt: z.ZodNullable<z.ZodISODateTime>;
         error: z.ZodNullable<z.ZodString>;
     }, z.core.$strip>>;
+    exportJob: z.ZodNullable<z.ZodObject<{
+        status: z.ZodEnum<{
+            failed: "failed";
+            ready: "ready";
+            queued: "queued";
+            rendering: "rendering";
+        }>;
+        scope: z.ZodEnum<{
+            grow: "grow";
+            account: "account";
+        }>;
+        growId: z.ZodNullable<z.ZodString>;
+        startedAt: z.ZodNullable<z.ZodISODateTime>;
+        endedAt: z.ZodNullable<z.ZodISODateTime>;
+        error: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
- * `GET /cameras/{id}/frames` and `GET /cameras/{id}/timelapses` answer this, each
- * filtered to its kind: a frame is a `still` of that camera and a timelapse a
- * film built from them, and both are media rows like any other.
+ * What `GET /grows/{id}/export` and `GET /me/export` answer. A zip of a diary,
+ * its CSVs and its photos does not finish inside a request, so the media row
+ * comes back with `exportJob.status: queued` and is polled through
+ * `GET /media/{id}` until it is `ready`; its bytes then come from
+ * `GET /media/{id}/content` like any other file.
+ *
+ * `queued` says which of the two happened, and with it the 202 from the 200: an
+ * export asked for while one is still being built, or while a fresh one is
+ * still there, answers that one rather than starting a second.
  */
-export declare const mediaPage: z.ZodObject<{
-    items: z.ZodArray<z.ZodObject<{
+export declare const exportAccepted: z.ZodObject<{
+    media: z.ZodObject<{
         id: z.ZodString;
         createdAt: z.ZodISODateTime;
         kind: z.ZodEnum<{
@@ -805,6 +859,7 @@ export declare const mediaPage: z.ZodObject<{
             still: "still";
             timelapse: "timelapse";
             avatar: "avatar";
+            export: "export";
         }>;
         mime: z.ZodString;
         bytes: z.ZodNumber;
@@ -848,6 +903,103 @@ export declare const mediaPage: z.ZodObject<{
             }, z.core.$strip>;
             includeLightsOff: z.ZodBoolean;
             secondCameraId: z.ZodNullable<z.ZodString>;
+            startedAt: z.ZodNullable<z.ZodISODateTime>;
+            endedAt: z.ZodNullable<z.ZodISODateTime>;
+            error: z.ZodNullable<z.ZodString>;
+        }, z.core.$strip>>;
+        exportJob: z.ZodNullable<z.ZodObject<{
+            status: z.ZodEnum<{
+                failed: "failed";
+                ready: "ready";
+                queued: "queued";
+                rendering: "rendering";
+            }>;
+            scope: z.ZodEnum<{
+                grow: "grow";
+                account: "account";
+            }>;
+            growId: z.ZodNullable<z.ZodString>;
+            startedAt: z.ZodNullable<z.ZodISODateTime>;
+            endedAt: z.ZodNullable<z.ZodISODateTime>;
+            error: z.ZodNullable<z.ZodString>;
+        }, z.core.$strip>>;
+    }, z.core.$strip>;
+    queued: z.ZodBoolean;
+}, z.core.$strip>;
+/**
+ * `GET /cameras/{id}/frames` and `GET /cameras/{id}/timelapses` answer this, each
+ * filtered to its kind: a frame is a `still` of that camera and a timelapse a
+ * film built from them, and both are media rows like any other.
+ */
+export declare const mediaPage: z.ZodObject<{
+    items: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        createdAt: z.ZodISODateTime;
+        kind: z.ZodEnum<{
+            photo: "photo";
+            still: "still";
+            timelapse: "timelapse";
+            avatar: "avatar";
+            export: "export";
+        }>;
+        mime: z.ZodString;
+        bytes: z.ZodNumber;
+        cameraId: z.ZodNullable<z.ZodString>;
+        growId: z.ZodNullable<z.ZodString>;
+        spaceId: z.ZodNullable<z.ZodString>;
+        uploadedBy: z.ZodNullable<z.ZodString>;
+        capturedAt: z.ZodISODateTime;
+        endsAt: z.ZodNullable<z.ZodISODateTime>;
+        window: z.ZodNullable<z.ZodEnum<{
+            custom: "custom";
+            day: "day";
+            month: "month";
+            week: "week";
+            phase: "phase";
+            grow: "grow";
+        }>>;
+        quality: z.ZodNullable<z.ZodEnum<{
+            sd: "sd";
+            hd: "hd";
+        }>>;
+        lengthSeconds: z.ZodNullable<z.ZodNumber>;
+        render: z.ZodNullable<z.ZodObject<{
+            status: z.ZodEnum<{
+                failed: "failed";
+                ready: "ready";
+                queued: "queued";
+                rendering: "rendering";
+            }>;
+            framesPerSecond: z.ZodNumber;
+            watermark: z.ZodBoolean;
+            aspect: z.ZodEnum<{
+                "16_9": "16_9";
+                "9_16": "9_16";
+                "1_1": "1_1";
+            }>;
+            overlays: z.ZodObject<{
+                dayCounter: z.ZodBoolean;
+                climate: z.ZodBoolean;
+                entries: z.ZodBoolean;
+            }, z.core.$strip>;
+            includeLightsOff: z.ZodBoolean;
+            secondCameraId: z.ZodNullable<z.ZodString>;
+            startedAt: z.ZodNullable<z.ZodISODateTime>;
+            endedAt: z.ZodNullable<z.ZodISODateTime>;
+            error: z.ZodNullable<z.ZodString>;
+        }, z.core.$strip>>;
+        exportJob: z.ZodNullable<z.ZodObject<{
+            status: z.ZodEnum<{
+                failed: "failed";
+                ready: "ready";
+                queued: "queued";
+                rendering: "rendering";
+            }>;
+            scope: z.ZodEnum<{
+                grow: "grow";
+                account: "account";
+            }>;
+            growId: z.ZodNullable<z.ZodString>;
             startedAt: z.ZodNullable<z.ZodISODateTime>;
             endedAt: z.ZodNullable<z.ZodISODateTime>;
             error: z.ZodNullable<z.ZodString>;
@@ -1286,6 +1438,7 @@ export declare const timelapseAccepted: z.ZodObject<{
             still: "still";
             timelapse: "timelapse";
             avatar: "avatar";
+            export: "export";
         }>;
         mime: z.ZodString;
         bytes: z.ZodNumber;
@@ -1329,6 +1482,22 @@ export declare const timelapseAccepted: z.ZodObject<{
             }, z.core.$strip>;
             includeLightsOff: z.ZodBoolean;
             secondCameraId: z.ZodNullable<z.ZodString>;
+            startedAt: z.ZodNullable<z.ZodISODateTime>;
+            endedAt: z.ZodNullable<z.ZodISODateTime>;
+            error: z.ZodNullable<z.ZodString>;
+        }, z.core.$strip>>;
+        exportJob: z.ZodNullable<z.ZodObject<{
+            status: z.ZodEnum<{
+                failed: "failed";
+                ready: "ready";
+                queued: "queued";
+                rendering: "rendering";
+            }>;
+            scope: z.ZodEnum<{
+                grow: "grow";
+                account: "account";
+            }>;
+            growId: z.ZodNullable<z.ZodString>;
             startedAt: z.ZodNullable<z.ZodISODateTime>;
             endedAt: z.ZodNullable<z.ZodISODateTime>;
             error: z.ZodNullable<z.ZodString>;
@@ -4650,18 +4819,116 @@ export declare const growMeasurementSeries: z.ZodObject<{
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
- * `GET /grows/{id}/series`: what this grow measures beyond climate, which is the
- * readings its entries carry, keyed by its own definitions.
+ * What the Charts view is asked for as a range: the four chips the Timeline tab
+ * already has, and `custom` for two instants somebody picked, which is the one
+ * range no chip can name.
+ */
+export declare const growSeriesRange: z.ZodEnum<{
+    custom: "custom";
+    phase: "phase";
+    grow: "grow";
+    "24h": "24h";
+    "7d": "7d";
+}>;
+/**
+ * `GET /grows/{id}/series`: every line the Charts view draws over one range, in
+ * one answer, because a screen that asked for them separately would draw
+ * windows that disagree at their edges.
  *
- * The range is answered back because the server may have clamped it. There is
- * no step: readings are events somebody wrote down, so they are answered as they
- * were taken rather than bucketed the way a climate series has to be.
+ * Three kinds of line, and they are apart here because they are not the same
+ * kind of thing. `climate` and `outputs` are bucketed at `stepSeconds`, which
+ * the range decides, and are the same panels and lanes the Timeline tab draws -
+ * with the same band, so a client draws one the same way in both places.
+ * `measurements` are events somebody wrote down and are answered as they were
+ * taken, at no step at all.
+ *
+ * The third mode of the view - two grows plotted by day rather than by date -
+ * is arithmetic on `originAt`, which is the instant day 1 began: nothing about
+ * the answer changes, and two grows are two reads the client lays over each
+ * other.
  */
 export declare const growSeries: z.ZodObject<{
     growId: z.ZodString;
+    range: z.ZodEnum<{
+        custom: "custom";
+        phase: "phase";
+        grow: "grow";
+        "24h": "24h";
+        "7d": "7d";
+    }>;
     startsAt: z.ZodISODateTime;
     endsAt: z.ZodISODateTime;
-    series: z.ZodArray<z.ZodObject<{
+    stepSeconds: z.ZodNumber;
+    originAt: z.ZodISODateTime;
+    dayFrom: z.ZodNullable<z.ZodNumber>;
+    dayTo: z.ZodNullable<z.ZodNumber>;
+    deviceIds: z.ZodArray<z.ZodString>;
+    climate: z.ZodArray<z.ZodObject<{
+        metric: z.ZodEnum<{
+            offline: "offline";
+            co2: "co2";
+            temperature: "temperature";
+            humidity: "humidity";
+            leafTemperature: "leafTemperature";
+            lux: "lux";
+            vpd: "vpd";
+            ppfd: "ppfd";
+        }>;
+        points: z.ZodArray<z.ZodObject<{
+            measuredAt: z.ZodISODateTime;
+            value: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>;
+        targets: z.ZodArray<z.ZodObject<{
+            startsAt: z.ZodISODateTime;
+            endsAt: z.ZodISODateTime;
+            phaseId: z.ZodNullable<z.ZodString>;
+            stage: z.ZodNullable<z.ZodEnum<{
+                germination: "germination";
+                seedling: "seedling";
+                vegetative: "vegetative";
+                flowering: "flowering";
+                drying: "drying";
+                curing: "curing";
+            }>>;
+            day: z.ZodNullable<z.ZodObject<{
+                setpoint: z.ZodNumber;
+                band: z.ZodObject<{
+                    low: z.ZodNumber;
+                    high: z.ZodNumber;
+                }, z.core.$strip>;
+            }, z.core.$strip>>;
+            night: z.ZodNullable<z.ZodObject<{
+                setpoint: z.ZodNumber;
+                band: z.ZodObject<{
+                    low: z.ZodNumber;
+                    high: z.ZodNumber;
+                }, z.core.$strip>;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    outputs: z.ZodArray<z.ZodObject<{
+        output: z.ZodEnum<{
+            dehumidifier: "dehumidifier";
+            heater: "heater";
+            light: "light";
+            co2: "co2";
+            fan: "fan";
+            relais: "relais";
+            fanInternal: "fanInternal";
+            fanExternal: "fanExternal";
+            fanBackwall: "fanBackwall";
+        }>;
+        deviceId: z.ZodString;
+        spans: z.ZodArray<z.ZodObject<{
+            startsAt: z.ZodISODateTime;
+            endsAt: z.ZodISODateTime;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    nights: z.ZodArray<z.ZodObject<{
+        startsAt: z.ZodISODateTime;
+        endsAt: z.ZodISODateTime;
+    }, z.core.$strip>>;
+    measurements: z.ZodArray<z.ZodObject<{
         key: z.ZodString;
         points: z.ZodArray<z.ZodObject<{
             measuredAt: z.ZodISODateTime;

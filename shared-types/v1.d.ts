@@ -39,7 +39,7 @@ export type ValueState = 'live' | 'stale' | 'offline';
 
 export type CameraKind = 'terpcam_controller' | 'terpcam_standalone' | 'rtsp';
 
-export type MediaKind = 'still' | 'timelapse' | 'photo' | 'avatar';
+export type MediaKind = 'still' | 'timelapse' | 'photo' | 'avatar' | 'export';
 
 export type GrantKind = 'included' | 'migration' | 'purchase';
 
@@ -191,6 +191,8 @@ export type MediaAspect = '16_9' | '9_16' | '1_1';
 
 export type MediaRenderStatus = 'queued' | 'rendering' | 'ready' | 'failed';
 
+export type ExportScope = 'grow' | 'account';
+
 export type UploadMediaKind = 'photo' | 'avatar';
 
 export type CameraTransport = 'tcp' | 'udp';
@@ -204,6 +206,8 @@ export type CameraCreate = ControllerCameraCreate | StandaloneCameraCreate | Rts
 export type VerdictRating = 'good' | 'watch' | 'poor';
 
 export type TimelineRange = '24h' | '7d' | 'phase' | 'grow';
+
+export type GrowSeriesRange = '24h' | '7d' | 'phase' | 'grow' | 'custom';
 
 export type SharedSubject = SharedGrow | SharedSpace;
 
@@ -2404,6 +2408,18 @@ export interface MediaRender {
   error: string | null;
 }
 
+export interface MediaExportJob {
+  status: MediaRenderStatus;
+  scope: ExportScope;
+  /**
+   * The grow this is an export of; null for an export of the whole account.
+   */
+  growId: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  error: string | null;
+}
+
 export interface Media {
   id: string;
   createdAt: string;
@@ -2429,6 +2445,15 @@ export interface Media {
   quality: MediaQuality | null;
   lengthSeconds: number | null;
   render: MediaRender | null;
+  /**
+   * Set on an `export` row and on nothing else; it is what the export is polled by.
+   */
+  exportJob: MediaExportJob | null;
+}
+
+export interface ExportAccepted {
+  media: Media;
+  queued: boolean;
 }
 
 export interface MediaPage {
@@ -3452,9 +3477,30 @@ export interface GrowMeasurementSeries {
 
 export interface GrowSeries {
   growId: string;
+  range: GrowSeriesRange;
   startsAt: string;
   endsAt: string;
-  series: GrowMeasurementSeries[];
+  /**
+   * The window each climate and output point summarises; 0 where no device was read at all.
+   */
+  stepSeconds: number;
+  /**
+   * The instant day 1 of this grow began, which is what day-of-grow counts from.
+   */
+  originAt: string;
+  dayFrom: number | null;
+  dayTo: number | null;
+  /**
+   * The devices the climate and the outputs were read from: whatever stood where the grow stood.
+   */
+  deviceIds: string[];
+  climate: TimelinePanel[];
+  outputs: TimelineOutputLane[];
+  /**
+   * When the light was off, which is what every panel is shaded by.
+   */
+  nights: TimelineSpan[];
+  measurements: GrowMeasurementSeries[];
 }
 
 export interface PublicAuthor {

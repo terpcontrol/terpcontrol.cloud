@@ -18,11 +18,10 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { DIARY_KINDS, authorIdsOf, peopleOf, serialiseDiaryEntry } from '../diary/diary-entries';
 import { NOTHING_HIDDEN, Redaction, redactionOf } from '../grow/grow-serialiser';
-import { targetsOf } from '../phase/phase-targets';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
-import { PANEL_METRICS, TargetStretch, lanesOf, nightsOf, panelsOf } from './timeline-series';
-import { TimelineWindow, spineOf, windowOf } from './timeline-window';
+import { PANEL_METRICS, lanesOf, nightsOf, panelsOf } from './timeline-series';
+import { TimelineWindow, stretchesOf, windowOf } from './timeline-window';
 
 /**
  * The Timeline tab, as one answer.
@@ -269,27 +268,6 @@ const stoodDuring = (grow: GrowDocument, spaceId: string, window: TimelineWindow
     placement =>
       placement.spaceId === spaceId && placement.startedAt <= window.endsAt && (placement.endedAt === null || placement.endedAt >= window.startsAt),
   );
-
-/**
- * The stretches the bands are drawn over: the grow's own phases, clipped to the
- * window, because a phase records the targets that were running when it began
- * and the store holds readings and never setpoints. A phase that recorded none,
- * and a tent with no grow in it, fall back to what the controller is configured
- * with now - which is the only other thing that can say what is being aimed at.
- */
-const stretchesOf = (grow: GrowDocument | null, devices: StoredDevice[], window: TimelineWindow): TargetStretch[] => {
-  const configured = devices.map(device => targetsOf(device.configuration)).find(targets => targets !== null) ?? null;
-  const spine = grow ? spineOf(grow) : [];
-  const stretches = spine.flatMap((phase, index) => {
-    const startsAt = new Date(Math.max(phase.startedAt.getTime(), window.startsAt.getTime()));
-    const endsAt = new Date(Math.min(spine[index + 1]?.startedAt.getTime() ?? window.endsAt.getTime(), window.endsAt.getTime()));
-    if (endsAt <= startsAt) return [];
-
-    return [{ startsAt, endsAt, phaseId: phase.id, stage: phase.stage, targets: phase.targets ?? configured }];
-  });
-
-  return stretches.length > 0 ? stretches : [{ startsAt: window.startsAt, endsAt: window.endsAt, phaseId: null, stage: null, targets: configured }];
-};
 
 const alarmOf = (alert: StoredAlert, metric: Metric | null): TimelineAlarm => ({
   alertId: alert.id,

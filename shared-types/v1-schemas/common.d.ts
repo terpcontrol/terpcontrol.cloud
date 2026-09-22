@@ -225,11 +225,18 @@ export declare const cameraKind: z.ZodEnum<{
     terpcam_standalone: "terpcam_standalone";
     rtsp: "rtsp";
 }>;
+/**
+ * `export` is the odd one: a zip rather than a picture. It is a media row all
+ * the same, because the bucket, the route that serves bytes and the sweep that
+ * removes what nothing points at are exactly what an export wants, and a
+ * collection of its own would be all three written a second time.
+ */
 export declare const mediaKind: z.ZodEnum<{
     photo: "photo";
     still: "still";
     timelapse: "timelapse";
     avatar: "avatar";
+    export: "export";
 }>;
 /**
  * Why a camera is entitled: `included` is the year a Terp Cam gets when it is

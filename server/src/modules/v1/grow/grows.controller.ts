@@ -5,6 +5,7 @@ import type {
   GrowCreate,
   GrowListItem,
   GrowPage,
+  GrowSeries,
   GrowUpdate,
   HarvestCreate,
   HarvestResult,
@@ -24,9 +25,13 @@ import {
   growCreate,
   growListItem,
   growPage,
+  growSeries,
+  growSeriesRange,
   growUpdate,
   harvestCreate,
   harvestResult,
+  metric,
+  outputMetric,
   phase as phaseShape,
   phaseCreate,
   phaseUpdate,
@@ -44,7 +49,9 @@ import { AccessGuard, Caller, CurrentGrant, Requires } from '@common/v1/access.g
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { V1Query, pageQuery } from '@common/v1/validation';
 import { V1Body } from '@common/zod-validation.pipe';
+import { OptionalSessionGuard } from '@modules/v1/camera/optional-session.guard';
 import { V1Answer } from '../answer-shape';
+import { GrowSeriesService } from './grow-series.service';
 import { GrowsService } from './grows.service';
 
 /**
@@ -62,10 +69,42 @@ import { GrowsService } from './grows.service';
  */
 const growListQuery = pageQuery.extend({ spaceId: z.string().optional().describe('Only the grows standing in this space.') });
 
+/** A repeated query parameter arrives as one value or as many; the shape below wants a list either way. */
+const many = <T>(value: T | T[]): T[] => (Array.isArray(value) ? value : [value]);
+
+/**
+ * What the Charts view asks for. Which lines it wants it names, one parameter
+ * per kind, because a client draws what was ticked and a series asked for and
+ * thrown away is a read of the store nobody looks at. The step is not among
+ * them: the range decides it, and a client that could ask for seconds over a
+ * season would only be answered a coarser one anyway.
+ */
+const growSeriesQuery = z.object({
+  range: growSeriesRange,
+  metrics: z
+    .union([metric, z.array(metric)])
+    .transform(many)
+    .optional(),
+  outputs: z
+    .union([outputMetric, z.array(outputMetric)])
+    .transform(many)
+    .optional(),
+  measurements: z
+    .union([z.string(), z.array(z.string())])
+    .transform(many)
+    .optional()
+    .describe('Keys of the grow´s own `measurements[]`.'),
+  from: z.coerce.date().optional().describe('The start of a `custom` range.'),
+  to: z.coerce.date().optional().describe('The end of a `custom` range, and the instant a rolling one counts back from.'),
+});
+
 @ApiTags('grows')
 @Controller('v1/grows')
 export class GrowsController {
-  constructor(private readonly grows: GrowsService) {}
+  constructor(
+    private readonly grows: GrowsService,
+    private readonly series: GrowSeriesService,
+  ) {}
 
   @Get()
   @UseGuards(AuthGuard)
@@ -110,6 +149,25 @@ export class GrowsController {
   @ApiNoContentResponse({ description: 'The grow is gone, plants included.' })
   public remove(@Param('id') id: string): Promise<void> {
     return this.grows.remove(id);
+  }
+
+  /**
+   * Every line the Charts view draws, over one range. It takes a session if
+   * there is one and nobody if there is not, like the grow's other reads: a
+   * link reaches it clamped to its own window, and a public diary answers it
+   * for as long as the grow ran.
+   */
+  @Get(':id/series')
+  @UseGuards(OptionalSessionGuard, AccessGuard)
+  @Requires('view', 'grow')
+  @ApiOperation({ summary: 'Climate, outputs and the grow´s own measurements over one range' })
+  @V1Answer(growSeries)
+  public async seriesOf(
+    @CurrentGrant() grant: Grant,
+    @Param('id') id: string,
+    @V1Query(growSeriesQuery) query: z.infer<typeof growSeriesQuery>,
+  ): Promise<GrowSeries> {
+    return this.series.read(grant, id, query, await this.grows.redaction(grant));
   }
 
   @Get(':id/plants')

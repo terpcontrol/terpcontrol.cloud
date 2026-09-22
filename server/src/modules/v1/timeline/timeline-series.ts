@@ -56,12 +56,20 @@ export interface TargetStretch {
  * nulls: a tent without a CO2 sensor reports no CO2, and that is what makes the
  * third panel appear only where there is something to draw in it.
  *
+ * Which metrics are stacked is the timeline's three unless a caller says
+ * otherwise. The Charts view says otherwise: it draws whatever was ticked,
+ * VPD included, and there is no second way of turning points into a panel.
+ *
  * Several controllers in one tent are several thermometers in the same air, so
  * the windows they share are averaged into one line rather than drawn as two -
  * the panel is what the tent read, not what each device did.
  */
-export const panelsOf = (series: readonly DeviceSeries[], stretches: readonly TargetStretch[]): TimelinePanel[] =>
-  PANEL_METRICS.flatMap(metric => {
+export const panelsOf = (
+  series: readonly DeviceSeries[],
+  stretches: readonly TargetStretch[],
+  metrics: readonly Metric[] = PANEL_METRICS,
+): TimelinePanel[] =>
+  metrics.flatMap(metric => {
     const points = pooled(series, metric);
 
     return points.some(point => point.value !== null) ? [{ metric, points, targets: targetsOf(metric, stretches) }] : [];

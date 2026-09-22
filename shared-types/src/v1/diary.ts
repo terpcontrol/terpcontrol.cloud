@@ -361,6 +361,31 @@ export const mediaRender = named(
   }),
 );
 
+/** What an export is of: one grow, or everything the account has. */
+export const exportScope = named('ExportScope', z.enum(['grow', 'account']));
+
+/**
+ * How far an export has got, on the media row that is the export.
+ *
+ * It carries the same four states a render does, because a zip is built by the
+ * same kind of worker and watched in the same way. What it is an export of is
+ * here rather than in the row's own `growId`, which stays null deliberately: an
+ * export is the account's private copy of everything it can see, so it must not
+ * hang off a grow that a link or a public address makes readable to somebody
+ * else.
+ */
+export const mediaExportJob = named(
+  'MediaExportJob',
+  z.object({
+    status: mediaRenderStatus,
+    scope: exportScope,
+    growId: id().nullable().describe('The grow this is an export of; null for an export of the whole account.'),
+    startedAt: instant().nullable(),
+    endedAt: instant().nullable(),
+    error: z.string().nullable(),
+  }),
+);
+
 /**
  * A picture or a film. The bytes stay in the GridFS bucket, whose file id is
  * this resource's id, and are served by `GET /media/{id}/content`.
@@ -385,8 +410,22 @@ export const media = named(
     quality: mediaQuality.nullable(),
     lengthSeconds: z.number().int().nullable(),
     render: mediaRender.nullable(),
+    exportJob: mediaExportJob.nullable().describe('Set on an `export` row and on nothing else; it is what the export is polled by.'),
   }),
 );
+
+/**
+ * What `GET /grows/{id}/export` and `GET /me/export` answer. A zip of a diary,
+ * its CSVs and its photos does not finish inside a request, so the media row
+ * comes back with `exportJob.status: queued` and is polled through
+ * `GET /media/{id}` until it is `ready`; its bytes then come from
+ * `GET /media/{id}/content` like any other file.
+ *
+ * `queued` says which of the two happened, and with it the 202 from the 200: an
+ * export asked for while one is still being built, or while a fresh one is
+ * still there, answers that one rather than starting a second.
+ */
+export const exportAccepted = named('ExportAccepted', z.object({ media: media, queued: z.boolean() }));
 
 /**
  * `GET /cameras/{id}/frames` and `GET /cameras/{id}/timelapses` answer this, each
@@ -1616,20 +1655,45 @@ export const growMeasurementSeries = named(
 );
 
 /**
- * `GET /grows/{id}/series`: what this grow measures beyond climate, which is the
- * readings its entries carry, keyed by its own definitions.
+ * What the Charts view is asked for as a range: the four chips the Timeline tab
+ * already has, and `custom` for two instants somebody picked, which is the one
+ * range no chip can name.
+ */
+export const growSeriesRange = named('GrowSeriesRange', z.enum(['24h', '7d', 'phase', 'grow', 'custom']));
+
+/**
+ * `GET /grows/{id}/series`: every line the Charts view draws over one range, in
+ * one answer, because a screen that asked for them separately would draw
+ * windows that disagree at their edges.
  *
- * The range is answered back because the server may have clamped it. There is
- * no step: readings are events somebody wrote down, so they are answered as they
- * were taken rather than bucketed the way a climate series has to be.
+ * Three kinds of line, and they are apart here because they are not the same
+ * kind of thing. `climate` and `outputs` are bucketed at `stepSeconds`, which
+ * the range decides, and are the same panels and lanes the Timeline tab draws -
+ * with the same band, so a client draws one the same way in both places.
+ * `measurements` are events somebody wrote down and are answered as they were
+ * taken, at no step at all.
+ *
+ * The third mode of the view - two grows plotted by day rather than by date -
+ * is arithmetic on `originAt`, which is the instant day 1 began: nothing about
+ * the answer changes, and two grows are two reads the client lays over each
+ * other.
  */
 export const growSeries = named(
   'GrowSeries',
   z.object({
     growId: id(),
+    range: growSeriesRange,
     startsAt: instant(),
     endsAt: instant(),
-    series: z.array(growMeasurementSeries),
+    stepSeconds: z.number().int().describe('The window each climate and output point summarises; 0 where no device was read at all.'),
+    originAt: instant().describe('The instant day 1 of this grow began, which is what day-of-grow counts from.'),
+    dayFrom: z.number().int().nullable(),
+    dayTo: z.number().int().nullable(),
+    deviceIds: z.array(id()).describe('The devices the climate and the outputs were read from: whatever stood where the grow stood.'),
+    climate: z.array(timelinePanel),
+    outputs: z.array(timelineOutputLane),
+    nights: z.array(timelineSpan).describe('When the light was off, which is what every panel is shaded by.'),
+    measurements: z.array(growMeasurementSeries),
   }),
 );
 

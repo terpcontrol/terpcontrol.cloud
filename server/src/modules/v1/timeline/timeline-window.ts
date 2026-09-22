@@ -1,8 +1,11 @@
 import type { TimelineRange } from '@fg2/shared-types/v1';
 import { Grant } from '@common/v1/access.types';
 import { clampRange } from '@common/v1/range';
+import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { dayNumberOf, horizonOf, originOf } from '../diary/grow-calendar';
+import { targetsOf } from '../phase/phase-targets';
+import { TargetStretch } from './timeline-series';
 
 /**
  * What a range chip means in instants.
@@ -64,7 +67,16 @@ export const spineOf = (grow: GrowDocument): GrowDocument['phases'] =>
 export const windowOf = (range: TimelineRange, grant: Grant, grow: GrowDocument | null, asOf: Date): TimelineWindow => {
   const granted = grant.range.endsAt;
   const at = granted && granted < asOf ? granted : asOf;
-  const asked = grow && (range === 'phase' || range === 'grow') ? stretchOf(range, grow, at) : rollingOf(range, at);
+
+  return narrowedTo(grow && (range === 'phase' || range === 'grow') ? stretchOf(range, grow, at) : rollingOf(range, at), grant, grow);
+};
+
+/**
+ * The same narrowing, for a window somebody named outright rather than by a
+ * chip. The two instants of a custom range are as much subject to the clamp as
+ * a chip's are, and the day counter is counted across them the same way.
+ */
+export const narrowedTo = (asked: { startsAt: Date; endsAt: Date }, grant: Grant, grow: GrowDocument | null): TimelineWindow => {
   const clamped = clampRange(grant, asked);
   const startsAt = clamped.startsAt ?? asked.startsAt;
   const endsAt = new Date(Math.max(startsAt.getTime(), (clamped.endsAt ?? asked.endsAt).getTime()));
@@ -100,4 +112,25 @@ const stepFor = (startsAt: Date, endsAt: Date): number => {
   const seconds = Math.max(1, Math.round((endsAt.getTime() - startsAt.getTime()) / 1000));
 
   return Math.max(MIN_STEP_SECONDS, Math.ceil(seconds / PANEL_WINDOWS));
+};
+
+/**
+ * The stretches the bands are drawn over: the grow's own phases, clipped to the
+ * window, because a phase records the targets that were running when it began
+ * and the store holds readings and never setpoints. A phase that recorded none,
+ * and a tent with no grow in it, fall back to what the controller is configured
+ * with now - which is the only other thing that can say what is being aimed at.
+ */
+export const stretchesOf = (grow: GrowDocument | null, devices: StoredDevice[], window: TimelineWindow): TargetStretch[] => {
+  const configured = devices.map(device => targetsOf(device.configuration)).find(targets => targets !== null) ?? null;
+  const spine = grow ? spineOf(grow) : [];
+  const stretches = spine.flatMap((phase, index) => {
+    const startsAt = new Date(Math.max(phase.startedAt.getTime(), window.startsAt.getTime()));
+    const endsAt = new Date(Math.min(spine[index + 1]?.startedAt.getTime() ?? window.endsAt.getTime(), window.endsAt.getTime()));
+    if (endsAt <= startsAt) return [];
+
+    return [{ startsAt, endsAt, phaseId: phase.id, stage: phase.stage, targets: phase.targets ?? configured }];
+  });
+
+  return stretches.length > 0 ? stretches : [{ startsAt: window.startsAt, endsAt: window.endsAt, phaseId: null, stage: null, targets: configured }];
 };

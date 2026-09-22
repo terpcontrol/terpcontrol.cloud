@@ -234,7 +234,8 @@
       "still",
       "timelapse",
       "photo",
-      "avatar"
+      "avatar",
+      "export"
     ]
   },
   "GrantKind": {
@@ -8138,6 +8139,74 @@
       "error"
     ]
   },
+  "ExportScope": {
+    "type": "string",
+    "enum": [
+      "grow",
+      "account"
+    ]
+  },
+  "MediaExportJob": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "$ref": "#/components/schemas/MediaRenderStatus"
+      },
+      "scope": {
+        "$ref": "#/components/schemas/ExportScope"
+      },
+      "growId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The grow this is an export of; null for an export of the whole account."
+      },
+      "startedAt": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "endedAt": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "error": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "status",
+      "scope",
+      "growId",
+      "startedAt",
+      "endedAt",
+      "error"
+    ]
+  },
   "Media": {
     "type": "object",
     "properties": {
@@ -8266,6 +8335,17 @@
             "type": "null"
           }
         ]
+      },
+      "exportJob": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/MediaExportJob"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Set on an `export` row and on nothing else; it is what the export is polled by."
       }
     },
     "required": [
@@ -8283,7 +8363,23 @@
       "window",
       "quality",
       "lengthSeconds",
-      "render"
+      "render",
+      "exportJob"
+    ]
+  },
+  "ExportAccepted": {
+    "type": "object",
+    "properties": {
+      "media": {
+        "$ref": "#/components/schemas/Media"
+      },
+      "queued": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "media",
+      "queued"
     ]
   },
   "MediaPage": {
@@ -12121,12 +12217,25 @@
       "points"
     ]
   },
+  "GrowSeriesRange": {
+    "type": "string",
+    "enum": [
+      "24h",
+      "7d",
+      "phase",
+      "grow",
+      "custom"
+    ]
+  },
   "GrowSeries": {
     "type": "object",
     "properties": {
       "growId": {
         "type": "string",
         "minLength": 1
+      },
+      "range": {
+        "$ref": "#/components/schemas/GrowSeriesRange"
       },
       "startsAt": {
         "type": "string",
@@ -12138,7 +12247,70 @@
         "format": "date-time",
         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
       },
-      "series": {
+      "stepSeconds": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991,
+        "description": "The window each climate and output point summarises; 0 where no device was read at all."
+      },
+      "originAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+        "description": "The instant day 1 of this grow began, which is what day-of-grow counts from."
+      },
+      "dayFrom": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "dayTo": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "deviceIds": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "The devices the climate and the outputs were read from: whatever stood where the grow stood."
+      },
+      "climate": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelinePanel"
+        }
+      },
+      "outputs": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineOutputLane"
+        }
+      },
+      "nights": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineSpan"
+        },
+        "description": "When the light was off, which is what every panel is shaded by."
+      },
+      "measurements": {
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/GrowMeasurementSeries"
@@ -12147,9 +12319,18 @@
     },
     "required": [
       "growId",
+      "range",
       "startsAt",
       "endsAt",
-      "series"
+      "stepSeconds",
+      "originAt",
+      "dayFrom",
+      "dayTo",
+      "deviceIds",
+      "climate",
+      "outputs",
+      "nights",
+      "measurements"
     ]
   },
   "PublicAuthor": {

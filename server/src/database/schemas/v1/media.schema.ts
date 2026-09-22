@@ -1,7 +1,7 @@
 import { Query, Schema } from 'mongoose';
-import { Media, MediaOverlays, MediaRender } from '@fg2/shared-types/v1';
+import { Media, MediaExportJob, MediaOverlays, MediaRender } from '@fg2/shared-types/v1';
 import { logger } from '@utils/logger';
-import { mediaAspect, mediaKind, mediaQuality, mediaRenderStatus, mediaWindow } from '@fg2/shared-types/v1-schemas';
+import { exportScope, mediaAspect, mediaKind, mediaQuality, mediaRenderStatus, mediaWindow } from '@fg2/shared-types/v1-schemas';
 import { deleteStoredImages } from '../../image-store';
 
 /**
@@ -18,11 +18,17 @@ type MediaRenderDocument = Omit<MediaRender, 'startedAt' | 'endedAt'> & {
   endedAt: Date | null;
 };
 
-export type MediaDocument = Omit<Media, 'createdAt' | 'capturedAt' | 'endsAt' | 'render'> & {
+type MediaExportDocument = Omit<MediaExportJob, 'startedAt' | 'endedAt'> & {
+  startedAt: Date | null;
+  endedAt: Date | null;
+};
+
+export type MediaDocument = Omit<Media, 'createdAt' | 'capturedAt' | 'endsAt' | 'render' | 'exportJob'> & {
   createdAt: Date;
   capturedAt: Date;
   endsAt: Date | null;
   render: MediaRenderDocument | null;
+  exportJob: MediaExportDocument | null;
 };
 
 const overlaysSchema = new Schema<MediaOverlays>(
@@ -58,6 +64,24 @@ const renderSchema = new Schema<MediaRenderDocument>(
   { _id: false },
 );
 
+/**
+ * An export, and how far it has got. It sits beside `render` rather than inside
+ * it because the two jobs have nothing in common but their four states: what a
+ * film is rendered at says nothing about a zip, and a zip of a grow would have
+ * to carry a frame rate to pretend otherwise.
+ */
+const exportSchema = new Schema<MediaExportDocument>(
+  {
+    status: { type: String, enum: mediaRenderStatus.options, required: true },
+    scope: { type: String, enum: exportScope.options, required: true },
+    growId: { type: String, default: null },
+    startedAt: { type: Date, default: null },
+    endedAt: { type: Date, default: null },
+    error: { type: String, default: null },
+  },
+  { _id: false },
+);
+
 export const mediaSchema = new Schema<MediaDocument>(
   {
     id: { type: String, required: true, unique: true },
@@ -75,6 +99,7 @@ export const mediaSchema = new Schema<MediaDocument>(
     quality: { type: String, enum: mediaQuality.options, default: null },
     lengthSeconds: { type: Number, default: null },
     render: { type: renderSchema, default: null },
+    exportJob: { type: exportSchema, default: null },
   },
   { collection: 'media', versionKey: false },
 );
@@ -92,6 +117,10 @@ mediaSchema.index({ growId: 1, capturedAt: -1 });
 mediaSchema.index({ spaceId: 1, capturedAt: -1 });
 // The composer's queue: the hourly builder drains what is queued, oldest first.
 mediaSchema.index({ 'render.status': 1, createdAt: 1 });
+// The same for the export worker, and what answers "is there one already?" -
+// the newest export of a scope belonging to the account that asked for it.
+mediaSchema.index({ uploadedBy: 1, kind: 1, createdAt: -1 });
+mediaSchema.index({ 'exportJob.status': 1, createdAt: 1 });
 
 /**
  * Pictures are deleted from half a dozen places - retention, thinning, the

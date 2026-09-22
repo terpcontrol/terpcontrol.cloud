@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Readable } from 'node:stream';
 import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { Media, MediaKind, MediaQuality, MediaWindow } from '@fg2/shared-types/v1';
+import { ExportScope, Media, MediaKind, MediaQuality, MediaWindow } from '@fg2/shared-types/v1';
 import { AccessRange } from '@common/v1/access.types';
 import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
@@ -39,6 +39,7 @@ export interface MediaDraft {
   quality?: MediaQuality | null;
   lengthSeconds?: number | null;
   render?: MediaDocument['render'];
+  exportJob?: MediaDocument['exportJob'];
 }
 
 /** Where a picture sits in its camera's history, which is all a sweep or a film needs of it. */
@@ -67,6 +68,11 @@ export class MediaService {
 
   public byId(id: string): Promise<MediaDocument | null> {
     return this.media.findOne({ id }).lean<MediaDocument>();
+  }
+
+  /** Every picture a grow carries, which is what an export of that grow takes with it. */
+  public ofGrow(growId: string): Promise<MediaDocument[]> {
+    return this.media.find({ growId }).sort({ capturedAt: 1 }).lean<MediaDocument[]>();
   }
 
   /** The newest row of a kind, which is what a card shows and what a film is built up to. */
@@ -133,6 +139,7 @@ export class MediaService {
       quality: draft.quality ?? null,
       lengthSeconds: draft.lengthSeconds ?? null,
       render: draft.render ?? null,
+      exportJob: draft.exportJob ?? null,
     };
 
     await this.media.create(row);
@@ -151,6 +158,27 @@ export class MediaService {
 
   public async setRender(id: string, render: MediaDocument['render']): Promise<void> {
     await this.media.updateOne({ id }, { $set: { render } });
+  }
+
+  /**
+   * The newest export of a scope that one account asked for. An export belongs
+   * to the person who asked and to nothing else, so `uploadedBy` is what it is
+   * found by - a second person asking about the same grow finds none of it.
+   */
+  public newestExport(uploadedBy: string, scope: ExportScope, growId: string | null): Promise<MediaDocument | null> {
+    return this.media
+      .findOne({ kind: 'export', uploadedBy, 'exportJob.scope': scope, 'exportJob.growId': growId })
+      .sort({ createdAt: -1 })
+      .lean<MediaDocument>();
+  }
+
+  /** The exports waiting to be built, oldest first, which is what the worker drains. */
+  public queuedExports(limit: number): Promise<MediaDocument[]> {
+    return this.media.find({ 'exportJob.status': 'queued' }).sort({ createdAt: 1 }).limit(limit).lean<MediaDocument[]>();
+  }
+
+  public async setExportJob(id: string, exportJob: MediaDocument['exportJob']): Promise<void> {
+    await this.media.updateOne({ id }, { $set: { exportJob } });
   }
 
   /** The whole picture in memory. A film is served and encoded from a stream instead. */
@@ -233,6 +261,9 @@ const serialise = (row: MediaDocument): Media => ({
   window: row.window,
   quality: row.quality,
   lengthSeconds: row.lengthSeconds,
+  exportJob: row.exportJob
+    ? { ...row.exportJob, startedAt: row.exportJob.startedAt?.toISOString() ?? null, endedAt: row.exportJob.endedAt?.toISOString() ?? null }
+    : null,
   render: row.render
     ? {
         ...row.render,
