@@ -2600,7 +2600,8 @@
         "see": "Zelt, Grows und Kameras sehen",
         "log": "Einträge, Aufgaben, Fotos",
         "steer": "Sollwerte, Plan, Alarme, Steckdosen",
-        "own": "Geräte, Teilen, Löschen"
+        "own": "Geräte, Teilen, Löschen",
+        "seeRoom": "Jedes Zelt im Raum, seine Grows und Kameras sehen"
       },
       "mark": {
         "yes": "ja",
@@ -2687,6 +2688,27 @@
         "copyLink": "Link kopieren",
         "copyFailed": "Kopieren ging nicht · von Hand kopieren",
         "done": "Fertig"
+      },
+      "room": {
+        "put": "In einen Raum stellen",
+        "in": "In {{room}}",
+        "change": "Ändern",
+        "sheetTitle": "Ein Raum für {{name}}",
+        "which": "Welcher Raum",
+        "none": "Du hast noch keinen Raum.",
+        "new": "Neuer Raum",
+        "newName": "Name des Raums",
+        "make": "Raum anlegen",
+        "making": "Legt den Raum an …",
+        "aRoom": "einen Raum",
+        "note": "Ein Raum fasst Zelte zum Teilen zusammen: Wer in den Raum gelassen wird, sieht jedes Zelt darin. Ein Raum steht nie in einem Raum, und ein Zelt steht in höchstens einem.",
+        "submit": "{{name}} in {{room}} stellen",
+        "moving": "Verschiebt …",
+        "takeOut": "Aus {{room}} herausnehmen",
+        "roomModel": "Teile den ganzen Raum: Wer hier hereingelassen wird, sieht jedes Zelt darin.",
+        "tentsIn_one": "{{count}} Zelt in diesem Raum",
+        "tentsIn_other": "{{count}} Zelte in diesem Raum",
+        "noTents": "Noch kein Zelt steht in diesem Raum. Ein Zelt kommt über seinen eigenen Mitglieder-Tab hinein."
       }
     }
   },

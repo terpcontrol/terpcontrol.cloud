@@ -1,0 +1,64 @@
+/* The room half of the sharing model: the line that says which room a tent
+   stands in, and the sheet that puts it in one. Layout only - every colour is
+   a token. */
+
+/* The second segment of the scope switch when there is no room yet: the same
+   shape as the address beside it, because to a thumb they are the same offer,
+   and a button rather than a link because it opens a sheet instead of going
+   somewhere. */
+.scopeAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  background: none;
+  border: 0;
+  font-family: inherit;
+}
+
+.roomLine {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/* The tents grouped under a room, on the room's own page. */
+.tents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-xs);
+}
+
+.tents a {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+}
+
+/* A room invented here, in the dashed box a new place is named in elsewhere. */
+.newRoom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--rule-dashed);
+  border-radius: var(--radius);
+}
+
+.sentence {
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+  color: var(--muted);
+}

@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Invite, InviteCreate, MembershipPage, Space, SpaceKind } from '@fg2/shared-types/v1';
+import type { Invite, InviteCreate, MembershipPage, Space, SpaceCreate, SpaceKind, SpaceUpdate } from '@fg2/shared-types/v1';
 import { Members } from '@/screens/space/members/Members';
 import { expiresAtFor, liveInvites } from '@/screens/space/members/invites';
 import { ThemeProvider } from '@/theme/ThemeProvider';
@@ -20,7 +20,8 @@ import { ThemeProvider } from '@/theme/ThemeProvider';
  * stopped on its own, because a card that showed the newest and stopped only
  * that one would tell a host a key was dead while another stayed live; that
  * the sheet sends exactly the role and the life chosen and then describes the
- * link from the server's answer rather than from what it asked for.
+ * link from the server's answer rather than from what it asked for; and that
+ * a tent can be put into a room at all, which nothing in the app could do.
  *
  * The fetch is stubbed by route rather than the hooks being mocked, so what is
  * asserted about a write is the body that went on the wire.
@@ -102,6 +103,18 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   if (method === 'PUT' && revocation) {
     server.invites = server.invites.map(row => (row.code === revocation[1] ? { ...row, revokedAt: NOW.toISO()! } : row));
     return json(server.invites.find(row => row.code === revocation[1]));
+  }
+
+  if (method === 'POST' && path === '/spaces') {
+    const asked = body as SpaceCreate;
+    const room = space({ id: 'room-9', kind: asked.kind, name: asked.name, createdAt: NOW.toISO()! });
+    server.spaces = [...server.spaces, room];
+    return json(room, 201);
+  }
+  if (method === 'PATCH' && path === '/spaces/space-1') {
+    const asked = body as SpaceUpdate;
+    server.spaces = server.spaces.map(row => (row.id === 'space-1' ? { ...row, ...asked } : row));
+    return json(server.spaces.find(row => row.id === 'space-1'));
   }
 
   return json(NOT_FOUND, 404);
@@ -243,5 +256,65 @@ describe('the invitation sheet', () => {
     fireEvent.click(within(sheet).getByRole('button', { name: 'Done' }));
     await waitFor(() => expect(linkRows()).toHaveLength(1));
     expect(within(linkRows()[0]).getByText(/never expires/)).toBeInTheDocument();
+  });
+});
+
+describe('the room a tent stands in', () => {
+  it('makes a room and puts the tent in it', async () => {
+    drawTab();
+    fireEvent.click(await screen.findByRole('button', { name: 'Put it in a room' }));
+
+    const sheet = screen.getByRole('dialog', { name: 'A room for Blue Dream tent' });
+    expect(within(sheet).getByText('You have no room yet.')).toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole('button', { name: '+ New room' }));
+    fireEvent.change(within(sheet).getByLabelText('Name of the room'), { target: { value: ' Grow room ' } });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Make the room' }));
+
+    await waitFor(() => expect(server.wrote).toHaveLength(1));
+    expect(server.wrote[0]).toMatchObject({ method: 'POST', path: '/spaces', body: { kind: 'room', name: 'Grow room' } });
+
+    const put = await within(sheet).findByRole('button', { name: 'Put Blue Dream tent in Grow room' });
+    await waitFor(() => expect(put).toBeEnabled());
+    fireEvent.click(put);
+
+    await waitFor(() => expect(server.wrote).toHaveLength(2));
+    expect(server.wrote[1]).toMatchObject({ method: 'PATCH', path: '/spaces/space-1', body: { roomId: 'room-9' } });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('offers the rooms the account already has, and takes the tent out of the one it is in', async () => {
+    server.spaces = [
+      space({ roomId: 'room-1' }),
+      space({ id: 'room-1', kind: 'room', name: 'Grow room' }),
+      space({ id: 'room-2', kind: 'room', name: 'Drying room' }),
+      space({ id: 'room-3', kind: 'room', name: "Mia's room", ownerId: 'user-mia', youMay: 'manage' }),
+    ];
+    drawTab('room-1');
+
+    expect(await screen.findByText('In Grow room')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+
+    const sheet = screen.getByRole('dialog', { name: 'A room for Blue Dream tent' });
+    expect(within(sheet).getByRole('button', { name: 'Drying room' })).toBeInTheDocument();
+    expect(within(sheet).queryByRole('button', { name: "Mia's room" })).not.toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Take it out of Grow room' }));
+
+    await waitFor(() => expect(server.wrote).toHaveLength(1));
+    expect(server.wrote[0]).toMatchObject({ method: 'PATCH', path: '/spaces/space-1', body: { roomId: null } });
+  });
+
+  it('describes itself as a room on the room’s own page and names the tents grouped under it', async () => {
+    server.spaces = [
+      space({ roomId: 'room-1' }),
+      space({ id: 'room-1', kind: 'room', name: 'Grow room' }),
+      space({ id: 'space-2', roomId: 'room-1', name: 'Mother tent' }),
+    ];
+    drawTab(null, 'room', 'room-1', 'Grow room');
+
+    expect(await screen.findByText(/Share the whole room/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Blue Dream tent' })).toHaveAttribute('href', '/spaces/space-1/members');
+    expect(screen.getByRole('link', { name: 'Mother tent' })).toBeInTheDocument();
+    expect(screen.getByText('See every tent in the room, its grows and cams')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Put it in a room' })).not.toBeInTheDocument();
   });
 });

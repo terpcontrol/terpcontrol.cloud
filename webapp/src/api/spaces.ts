@@ -60,3 +60,29 @@ export const useSetPresetPrompt = (spaceId: string) => {
     },
   });
 };
+
+/**
+ * Which room a place stands in, or none.
+ *
+ * A room is a space of kind `room` and the grouping is one level deep in both
+ * directions, so this is the whole of what grouping means to the client: one
+ * field on the tent, pointing at a room or at nothing. The server refuses the
+ * rest - a room in a room, a room of another account, a room that is not one -
+ * and its sentence is shown rather than guessed at here.
+ *
+ * The home and the space list are read again because both draw the grouping,
+ * and a membership held on the room reaches into every tent grouped under it,
+ * so the tent's own member list is stale the moment it moves.
+ */
+export const useSetRoom = (spaceId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (roomId: string | null) => api.patch<Space>(`/spaces/${spaceId}`, { roomId }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['spaces'] });
+      await queryClient.invalidateQueries({ queryKey: ['space', spaceId] });
+      await queryClient.invalidateQueries({ queryKey: ['home'] });
+    },
+  });
+};

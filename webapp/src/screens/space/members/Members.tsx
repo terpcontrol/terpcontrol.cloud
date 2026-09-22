@@ -1,6 +1,8 @@
+import { Plus } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { SpaceKind } from '@fg2/shared-types/v1';
+import type { Space, SpaceKind } from '@fg2/shared-types/v1';
 import { useMembers } from '@/api/members';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
@@ -13,7 +15,9 @@ import { InviteBlock } from './InviteBlock';
 import { guestsOf, lastLoggedOf, peopleCount, personOf, viaRoomCount } from './people';
 import { Permissions } from './Permissions';
 import { PersonRow } from './PersonRow';
+import { RoomSheet } from './RoomSheet';
 import styles from './Members.module.css';
+import roomStyles from './Room.module.css';
 
 /**
  * The Members tab: who is in this tent, and the two ways to put somebody else
@@ -23,7 +27,9 @@ import styles from './Members.module.css';
  * be shared on its own, or the room it stands in can be shared and then every
  * tent grouped under it comes with it - which is why a row that arrived through
  * the room is drawn here and changed there, and why the switch is an address
- * rather than a mode: the room's member list is the room's page.
+ * rather than a mode: the room's member list is the room's page. A tent that
+ * stands in no room yet has the switch's second segment as the way to put it
+ * in one, because this is the screen on which a grower first wants a room.
  *
  * Handing out the way in is the owner's alone. A member sees the same list,
  * because somebody who cannot tell who else is here cannot tell whose entry
@@ -39,22 +45,24 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
   const spaces = useSpaces();
   const members = useMembers(spaceId, !isDemo);
   const mayWrite = useMayManage();
+  const [roomSheet, setRoomSheet] = useState(false);
 
   if (isDemo) return <p className={`${ui.cardDashed} ${ui.note}`}>{t('space.members.demo')}</p>;
   if (members.isPending) return <Waiting lines={4} />;
   if (!members.data) return <LoadFailed retry={() => void members.refetch()} />;
 
   const page = members.data;
+  const listed = spaces.data?.items ?? [];
   // The room is in the space list only for somebody who is in the room as well;
   // a member of this tent alone knows it by the name the answer carries, and
   // has nothing there to switch to.
-  const room = (spaces.data?.items ?? []).find(one => one.id === roomId) ?? null;
+  const room = listed.find(one => one.id === roomId) ?? null;
   const roomName = room?.name ?? page.room?.name ?? null;
-  const tents = (spaces.data?.items ?? []).filter(one => one.roomId === roomId && one.archivedAt === null).length;
+  const tents = listed.filter(one => one.roomId === roomId && one.archivedAt === null).length;
   // Handing out the way in takes `own`, not `can_manage`, so the question here
   // is ownership rather than the role - a manager runs the tent and running it
   // is the one thing that does not include giving away a key to it.
-  const ownerId = spaces.data?.items.find(one => one.id === spaceId)?.ownerId ?? null;
+  const ownerId = listed.find(one => one.id === spaceId)?.ownerId ?? null;
   const isOwner = mayWrite && ownerId !== null && ownerId === user?.id;
   // The owner is named the way everybody else is, out of `people`, which the
   // server fills for the rows and for the owner. Until an answer names them,
@@ -66,17 +74,44 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
     <section className={styles.tab}>
       <RefreshFailed failedAt={members.isError ? members.dataUpdatedAt : null} now={now} />
 
-      {room ? (
-        <nav className={styles.scope} aria-label={t('space.members.scopeLabel')}>
-          <span className={`${styles.scopeOption} ${styles.scopeHere}`} aria-current="page">
-            {name}
-          </span>
-          <Link to={`/spaces/${room.id}/members`} className={styles.scopeOption}>
-            {t('space.members.roomWithTents', { room: room.name, count: tents })}
-          </Link>
-        </nav>
-      ) : null}
-      <p className={ui.note}>{t('space.members.oneModel')}</p>
+      {kind === 'room' ? (
+        <>
+          <p className={ui.note}>{t('space.members.room.roomModel')}</p>
+          <TentsInRoom tents={listed.filter(one => one.roomId === spaceId && one.archivedAt === null)} pending={spaces.isPending} />
+        </>
+      ) : (
+        <>
+          {room ? (
+            <nav className={styles.scope} aria-label={t('space.members.scopeLabel')}>
+              <span className={`${styles.scopeOption} ${styles.scopeHere}`} aria-current="page">
+                {name}
+              </span>
+              <Link to={`/spaces/${room.id}/members`} className={styles.scopeOption}>
+                {t('space.members.roomWithTents', { room: room.name, count: tents })}
+              </Link>
+            </nav>
+          ) : isOwner ? (
+            <nav className={styles.scope} aria-label={t('space.members.scopeLabel')}>
+              <span className={`${styles.scopeOption} ${styles.scopeHere}`} aria-current="page">
+                {name}
+              </span>
+              <button type="button" className={`${styles.scopeOption} ${roomStyles.scopeAction}`} onClick={() => setRoomSheet(true)}>
+                <Plus size={14} strokeWidth={2} aria-hidden />
+                {t('space.members.room.put')}
+              </button>
+            </nav>
+          ) : null}
+          <p className={ui.note}>{t('space.members.oneModel')}</p>
+          {room && isOwner ? (
+            <p className={`mono ${roomStyles.roomLine}`}>
+              <span>{t('space.members.room.in', { room: room.name })}</span>
+              <button type="button" className={ui.chip} onClick={() => setRoomSheet(true)}>
+                {t('space.members.room.change')}
+              </button>
+            </p>
+          ) : null}
+        </>
+      )}
 
       {isOwner ? <InviteBlock spaceId={spaceId} spaceName={name} kind={kind} /> : null}
 
@@ -105,8 +140,34 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
         ))}
       </ul>
 
-      <Permissions />
+      <Permissions kind={kind} />
+
+      {roomSheet ? <RoomSheet spaceId={spaceId} spaceName={name} roomId={roomId} roomName={roomName} onClose={() => setRoomSheet(false)} /> : null}
     </section>
+  );
+}
+
+/**
+ * The tents grouped under a room, on the room's own page: the list a room's
+ * member list is about. Each is a link to its own Members tab, which is where
+ * a tent is put into a room or taken out of one - a room has no control for
+ * that, because the pointer lives on the tent.
+ */
+function TentsInRoom({ tents, pending }: { tents: Space[]; pending: boolean }) {
+  const { t } = useTranslation();
+
+  if (pending) return null;
+  if (tents.length === 0) return <p className={`mono ${roomStyles.roomLine}`}>{t('space.members.room.noTents')}</p>;
+
+  return (
+    <ul className={`mono ${roomStyles.tents}`} aria-label={t('space.members.room.tentsIn', { count: tents.length })}>
+      <li>{t('space.members.room.tentsIn', { count: tents.length })}:</li>
+      {tents.map(tent => (
+        <li key={tent.id}>
+          <Link to={`/spaces/${tent.id}/members`}>{tent.name}</Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 

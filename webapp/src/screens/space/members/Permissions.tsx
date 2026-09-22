@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import type { SpaceKind } from '@fg2/shared-types/v1';
 import ui from '@/ui/ui.module.css';
 import styles from './Members.module.css';
 
@@ -22,8 +23,11 @@ const MAY: Record<(typeof ROWS)[number], { manage: boolean; log: boolean }> = {
  * for. The note under it is there because the table would otherwise invite a
  * fourth column: read-only viewing is a share link and not a role, and the
  * reasons are in the sentence rather than in a tooltip nobody opens.
+ *
+ * On a room the first row is about every tent grouped under it, which is what
+ * seeing a room comes to; the other three rows read the same in both places.
  */
-export function Permissions() {
+export function Permissions({ kind }: { kind: SpaceKind }) {
   const { t } = useTranslation();
 
   return (
@@ -47,7 +51,7 @@ export function Permissions() {
           {ROWS.map(row => (
             <tr key={row}>
               <th scope="row" className={styles.can}>
-                {t(`space.members.can.${row}`)}
+                {t(row === 'see' && kind === 'room' ? 'space.members.can.seeRoom' : `space.members.can.${row}`)}
               </th>
               <Mark yes />
               <Mark yes={MAY[row].manage} />

@@ -2604,7 +2604,8 @@
         "see": "See the tent, its grows and cams",
         "log": "Log entries, tick tasks, photos",
         "steer": "Targets, plan, alarms, sockets",
-        "own": "Devices, sharing, delete"
+        "own": "Devices, sharing, delete",
+        "seeRoom": "See every tent in the room, its grows and cams"
       },
       "mark": {
         "yes": "yes",
@@ -2691,6 +2692,27 @@
         "copyLink": "Copy the link",
         "copyFailed": "Could not copy · copy it by hand",
         "done": "Done"
+      },
+      "room": {
+        "put": "Put it in a room",
+        "in": "In {{room}}",
+        "change": "Change",
+        "sheetTitle": "A room for {{name}}",
+        "which": "Which room",
+        "none": "You have no room yet.",
+        "new": "New room",
+        "newName": "Name of the room",
+        "make": "Make the room",
+        "making": "Making the room …",
+        "aRoom": "a room",
+        "note": "A room groups tents for sharing: whoever is let into the room sees every tent in it. A room never stands in a room, and a tent stands in one room at most.",
+        "submit": "Put {{name}} in {{room}}",
+        "moving": "Moving …",
+        "takeOut": "Take it out of {{room}}",
+        "roomModel": "Share the whole room: whoever is let in here sees every tent grouped under it.",
+        "tentsIn_one": "{{count}} tent in this room",
+        "tentsIn_other": "{{count}} tents in this room",
+        "noTents": "No tent stands in this room yet. A tent is put in from its own Members tab."
       }
     }
   },

@@ -6,8 +6,9 @@ import { api } from '@/api/client';
  * A place invented while a grow is being started.
  *
  * It lives beside the sheet rather than with the tent page's reads because
- * inventing a place is part of starting a grow and nothing else does it: every
- * other place the app knows was made by a device being claimed into one. The
+ * inventing a place is part of starting a grow: every other place the app
+ * knows was made by a device being claimed into one, except a room, which the
+ * Members tab makes with this same hook because a room is a space too. The
  * place is written the moment it is named, so that what the sheet then offers
  * as somewhere to put the plants is a real space with a real id, and not a
  * promise the grow would have to be made before anybody could keep.
