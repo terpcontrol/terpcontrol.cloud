@@ -36,10 +36,10 @@ app. Round 8 is visual direction and needs no backend.
 | 11 Onboarding | done, server and app, after two rounds of criticism |
 | 12 Measurements and charts | done, server and app, after one round of criticism |
 | 13 Sharing | done, server and app, after one round of criticism and its fixes |
-| 14 Account, entitlement, admin | done, server and app; criticism running |
+| 14 Account, entitlement, admin | done, server and app, after one round of criticism and its fixes |
 
-The next piece of work is round 14's criticism and its fixes, and after it the consistency sweep and the
-end-to-end tests that close the phase.
+Every round is built and criticised. What is left of the phase is the migration verified against a restored
+backup with the app driven over the real data, then the consistency sweep and the end-to-end tests.
 
 ## What the checks are
 
@@ -57,7 +57,7 @@ cd webapp && npm run lint && npx vitest run && npm run build
 `--pretty false` is not optional. With pretty output on, `tsc` writes colour codes between "error" and "TS", so
 the grep prints 0 on a project that does not compile. Both of these are also in `AGENTS.md`.
 
-At the last full run: 887 server unit tests, 504 server integration tests, 654 app tests, everything else clean.
+At the last full run: 899 server unit tests, 517 server integration tests, 703 app tests, everything else clean.
 
 The integration suite needs the machine to itself. One run of it while five agents were driving a browser and a
 compose stack failed nineteen tests in three suites; three runs since, with nothing else going on, have been
