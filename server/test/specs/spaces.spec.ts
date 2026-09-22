@@ -128,7 +128,7 @@ describe('what stands in a space', () => {
    */
   it('refuses to end a space while somebody else is a member of it', async () => {
     const id = await makeSpace(owner, { kind: 'tent', name: 'The shared tent' });
-    await joinSpace(id, stranger.userId);
+    await joinSpace(owner, id, stranger);
 
     const refused = await owner.client.delete(`/v1/spaces/${id}`).expect(409);
 

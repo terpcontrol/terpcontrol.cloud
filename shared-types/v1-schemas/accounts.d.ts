@@ -300,6 +300,7 @@ export declare const me: z.ZodObject<{
         mutedUntil: z.ZodNullable<z.ZodISODateTime>;
     }, z.core.$strip>;
     email: z.ZodString;
+    handle: z.ZodString;
     privacy: z.ZodObject<{
         hideWeights: z.ZodBoolean;
         hideCounts: z.ZodBoolean;
@@ -328,7 +329,6 @@ export declare const me: z.ZodObject<{
     createdAt: z.ZodISODateTime;
     isAdmin: z.ZodBoolean;
     isActive: z.ZodBoolean;
-    handle: z.ZodString;
     bio: z.ZodNullable<z.ZodString>;
     avatarMediaId: z.ZodNullable<z.ZodString>;
     publicProfile: z.ZodBoolean;
@@ -383,6 +383,7 @@ export declare const meUpdate: z.ZodObject<{
         }, z.core.$strip>>;
         mutedUntil: z.ZodNullable<z.ZodISODateTime>;
     }, z.core.$strip>>;
+    handle: z.ZodOptional<z.ZodString>;
     privacy: z.ZodOptional<z.ZodObject<{
         hideWeights: z.ZodBoolean;
         hideCounts: z.ZodBoolean;
@@ -408,7 +409,6 @@ export declare const meUpdate: z.ZodObject<{
     retention: z.ZodOptional<z.ZodObject<{
         climateDays: z.ZodNullable<z.ZodNumber>;
     }, z.core.$strip>>;
-    handle: z.ZodOptional<z.ZodString>;
     bio: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     avatarMediaId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     publicProfile: z.ZodOptional<z.ZodBoolean>;
@@ -435,9 +435,9 @@ export declare const userCreate: z.ZodObject<{
 export declare const signupUser: z.ZodObject<{
     id: z.ZodString;
     email: z.ZodString;
+    handle: z.ZodString;
     createdAt: z.ZodISODateTime;
     isActive: z.ZodBoolean;
-    handle: z.ZodString;
 }, z.core.$strip>;
 /**
  * `POST /users/activations`. The code is the whole proof, so nothing else is

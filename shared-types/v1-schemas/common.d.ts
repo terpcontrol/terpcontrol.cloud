@@ -80,6 +80,16 @@ export declare const memberRole: z.ZodEnum<{
     can_log: "can_log";
     can_manage: "can_manage";
 }>;
+/**
+ * Somebody a card names: the author of an entry, the assignee of a task, a
+ * member of a tent. It lives here rather than with any one of them because an
+ * id on its own is not a name anybody can read, and every list that carries one
+ * has to carry the handle beside it.
+ */
+export declare const person: z.ZodObject<{
+    id: z.ZodString;
+    handle: z.ZodString;
+}, z.core.$strip>;
 export declare const entryKind: z.ZodEnum<{
     move: "move";
     water: "water";

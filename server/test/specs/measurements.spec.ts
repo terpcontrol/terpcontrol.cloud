@@ -54,7 +54,7 @@ beforeAll(async () => {
     .expect(201);
   tent = claimed.body.device.spaceId;
 
-  await joinSpace(tent, helper.userId, 'can_log');
+  await joinSpace(owner, tent, helper, 'can_log');
 });
 
 describe('defining what a grow measures', () => {

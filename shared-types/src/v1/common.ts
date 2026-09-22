@@ -95,6 +95,14 @@ export const growthStage = named('GrowthStage', z.enum(['germination', 'seedling
 /** The owner is `spaces.ownerId` and never a membership row, so there is no `owner` role. */
 export const memberRole = named('MemberRole', z.enum(['can_log', 'can_manage']));
 
+/**
+ * Somebody a card names: the author of an entry, the assignee of a task, a
+ * member of a tent. It lives here rather than with any one of them because an
+ * id on its own is not a name anybody can read, and every list that carries one
+ * has to carry the handle beside it.
+ */
+export const person = named('Person', z.object({ id: id(), handle: z.string() }));
+
 export const entryKind = named(
   'EntryKind',
   z.enum([

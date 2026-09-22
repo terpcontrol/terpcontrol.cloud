@@ -340,8 +340,8 @@ describe('who may read and who may change a plan', () => {
   it('lets a member read the plan and only a manager change it', async () => {
     const reader = await createAccount('plans-reader');
     const manager = await createAccount('plans-manager');
-    await joinSpace(tent, reader.userId, 'can_log');
-    await joinSpace(tent, manager.userId, 'can_manage');
+    await joinSpace(owner, tent, reader, 'can_log');
+    await joinSpace(owner, tent, manager, 'can_manage');
 
     const read = await reader.client.get(`/v1/devices/${device}/plan`).expect(200);
     expect(read.body.name).toBe('Two weeks of veg');
@@ -357,7 +357,7 @@ describe('who may read and who may change a plan', () => {
 
   it('keeps the address the plan mails to from anybody who may not manage the device', async () => {
     const reader = await createAccount('plans-mail-reader');
-    await joinSpace(tent, reader.userId, 'can_log');
+    await joinSpace(owner, tent, reader, 'can_log');
 
     // That the plan mails somewhere is not the secret; the address is, and it
     // is often somebody's own.

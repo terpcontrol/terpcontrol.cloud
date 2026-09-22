@@ -49,6 +49,8 @@ export interface Session {
   username: string;
   password: string;
   userId: string;
+  /** The only name others ever see, which is what a member is added by. */
+  handle: string;
   sessionId: string;
   userToken: string;
   refreshToken: string;
@@ -61,6 +63,7 @@ const sessionOf = (client: ApiClient, body: any, username: string, password: str
   username,
   password,
   userId: body.user.id,
+  handle: body.user.handle,
   sessionId: body.sessionId,
   userToken: body.userToken.token,
   refreshToken: body.refreshToken.token,

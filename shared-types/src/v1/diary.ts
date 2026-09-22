@@ -18,6 +18,7 @@ import {
   named,
   outputMetric,
   page,
+  person,
   planTransitionKind,
   reminderKind,
   schemeAmount,
@@ -1089,9 +1090,6 @@ export const followedGrowCard = named(
     updatedAt: instant(),
   }),
 );
-
-/** Somebody a card names: the author of an entry, the assignee of a task. */
-export const person = named('Person', z.object({ id: id(), handle: z.string() }));
 
 export const homeAnswer = named(
   'HomeAnswer',

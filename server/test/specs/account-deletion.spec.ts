@@ -302,10 +302,10 @@ describe('what belongs to somebody else', () => {
 
     // Each of them is let into the other's tent, which is what makes the two
     // cases below possible at all.
-    await joinSpace(home.spaceId, stranger.userId, 'can_manage');
+    await joinSpace(home.owner, home.spaceId, stranger, 'can_manage');
     const theirDevice = await provisionDevice(stranger, 'fridge');
     theirTent = (await stranger.client.get(`/v1/devices/${theirDevice.deviceId}`).expect(200)).body.spaceId;
-    await joinSpace(theirTent, home.owner.userId, 'can_log');
+    await joinSpace(stranger, theirTent, home.owner, 'can_log');
 
     theirLine = (
       await stranger.client

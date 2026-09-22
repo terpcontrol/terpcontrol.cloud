@@ -36,6 +36,7 @@ const TAGS: readonly { name: string; description: string }[] = [
   { name: 'cameras', description: 'The cameras of a tent, and the stills and films of one camera.' },
   { name: 'media', description: 'One picture or film: what is known about it, and its bytes.' },
   { name: 'alarms', description: 'The rules that watch a device, and the alerts they open.' },
+  { name: 'members', description: 'Who is in a space besides its owner, and the invite codes that let somebody become one.' },
   { name: 'sharing', description: 'The links a grower hands out, and the public diaries they follow.' },
   { name: 'public', description: 'What is readable without a session: a public diary, a public profile, and the card a link is drawn as.' },
   { name: 'admin', description: 'Accounts, the fleet and the builds it runs. Every route here needs an administrator.' },

@@ -2536,11 +2536,6 @@ export declare const followedGrowCard: z.ZodObject<{
     coverMediaId: z.ZodNullable<z.ZodString>;
     updatedAt: z.ZodISODateTime;
 }, z.core.$strip>;
-/** Somebody a card names: the author of an entry, the assignee of a task. */
-export declare const person: z.ZodObject<{
-    id: z.ZodString;
-    handle: z.ZodString;
-}, z.core.$strip>;
 export declare const homeAnswer: z.ZodObject<{
     spaces: z.ZodArray<z.ZodObject<{
         spaceId: z.ZodNullable<z.ZodString>;

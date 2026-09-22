@@ -35,6 +35,7 @@ import { PlanModule } from './modules/v1/plan/plan.module';
 import { SchemeModule } from './modules/v1/scheme/scheme.module';
 import { SessionsModule } from './modules/v1/sessions/sessions.module';
 import { SharingModule } from './modules/v1/sharing/sharing.module';
+import { MembersModule } from './modules/v1/members/members.module';
 import { SpaceModule } from './modules/v1/space/space.module';
 import { TimelineModule } from './modules/v1/timeline/timeline.module';
 import { WiringModule } from './wiring.module';
@@ -91,6 +92,7 @@ import { WiringModule } from './wiring.module';
     AdminUsersModule,
     DeviceModule,
     SpaceModule,
+    MembersModule,
     GrowModule,
     SchemeModule,
     ChartViewModule,

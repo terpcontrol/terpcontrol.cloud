@@ -2,7 +2,7 @@ import { GridFSBucket, MongoClient, ObjectId } from 'mongodb';
 import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { context } from './api';
+import { context, Session } from './api';
 
 /**
  * A few things the API cannot make, because only the server's own pollers or an
@@ -185,12 +185,19 @@ export const rowsIn = (collection: string, filter: Record<string, unknown>): Pro
   withDatabase(database => database.collection(collection).find(filter).toArray());
 
 /**
- * Somebody let into a space. There are no membership routes yet - they arrive
- * with the sharing round - and what a member may do to the space owner's things
- * is decided now.
+ * Somebody let into a space, the way one really is: the host cuts an invite and
+ * the guest takes it up. It was a seeded row while there were no membership
+ * routes, and going through them instead is what keeps every spec that merely
+ * needs a member from asserting a membership this server would never write.
+ *
+ * The invite rather than the member list, because a guest here is a stranger -
+ * adding by handle is only for somebody the host already grows with, and these
+ * two have never met.
  */
-export const joinSpace = (spaceId: string, userId: string, role: 'can_log' | 'can_manage' = 'can_log'): Promise<void> =>
-  seedRow('memberships', { id: randomUUID(), spaceId, userId, role, invitedBy: null, inviteId: null, createdAt: new Date() });
+export const joinSpace = async (host: Session, spaceId: string, guest: Session, role: 'can_log' | 'can_manage' = 'can_log'): Promise<void> => {
+  const invite = await host.client.post(`/v1/spaces/${spaceId}/invites`).send({ role }).expect(201);
+  await guest.client.post(`/v1/invites/${invite.body.code}/acceptances`).expect(201);
+};
 
 /**
  * An account whose deletion began and then stopped: the marker set and the

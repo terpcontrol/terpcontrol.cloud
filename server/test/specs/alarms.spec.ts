@@ -69,8 +69,8 @@ beforeAll(async () => {
   device = claimed.deviceId;
   tent = (await owner.client.get(`/v1/devices/${device}`).expect(200)).body.spaceId;
 
-  await joinSpace(tent, keeper.userId, 'can_manage');
-  await joinSpace(tent, helper.userId, 'can_log');
+  await joinSpace(owner, tent, keeper, 'can_manage');
+  await joinSpace(owner, tent, helper, 'can_log');
 
   simulator = await startSimulator(claimed);
   await settle();

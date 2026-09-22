@@ -794,16 +794,23 @@ export declare const presetApplication: z.ZodObject<{
     }>;
 }, z.core.$strip>;
 /**
- * `POST /spaces/{id}/members`. A member is named by id, which is what an invite
- * produces. There is no directory to search, so adding somebody by hand is for
- * an account that is already known; everybody else arrives through a code.
+ * `POST /spaces/{id}/members`. A member is named by handle, because a handle is
+ * the only name anybody ever gets and an id is not something a host can type.
+ *
+ * It is not a directory: the handle has to be somebody the caller already grows
+ * with - a person who shares a space with them, either as its owner or as a
+ * member of it - and any other handle is refused exactly as a handle nobody
+ * holds is, so that typing names here never answers whether an account exists.
+ * A stranger is invited with a code instead, which they accept themselves, and
+ * that is the difference: being added is something the people already in a tent
+ * do to each other, and joining a tent one has never heard of is not.
  */
 export declare const membershipCreate: z.ZodObject<{
+    handle: z.ZodString;
     role: z.ZodEnum<{
         can_log: "can_log";
         can_manage: "can_manage";
     }>;
-    userId: z.ZodString;
 }, z.core.$strip>;
 /**
  * `PATCH /spaces/{id}/members/{userId}`. The role is the only thing about a
@@ -836,21 +843,21 @@ export declare const inviteCreate: z.ZodObject<{
  * the inviter is named by handle, the only name others ever see.
  */
 export declare const invitePreview: z.ZodObject<{
-    spaceName: z.ZodString;
-    spaceKind: z.ZodEnum<{
+    isValid: z.ZodBoolean;
+    spaceName: z.ZodNullable<z.ZodString>;
+    spaceKind: z.ZodNullable<z.ZodEnum<{
         other: "other";
         tent: "tent";
         fridge: "fridge";
         room: "room";
         balcony: "balcony";
-    }>;
-    role: z.ZodEnum<{
+    }>>;
+    role: z.ZodNullable<z.ZodEnum<{
         can_log: "can_log";
         can_manage: "can_manage";
-    }>;
-    invitedByHandle: z.ZodString;
+    }>>;
+    invitedByHandle: z.ZodNullable<z.ZodString>;
     expiresAt: z.ZodNullable<z.ZodISODateTime>;
-    isValid: z.ZodBoolean;
 }, z.core.$strip>;
 /**
  * `POST /invites/{code}/acceptances`. The membership on its own would leave a
@@ -1292,6 +1299,17 @@ export declare const spacePage: z.ZodObject<{
     }, z.core.$strip>>;
     nextCursor: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;
+/**
+ * `GET /spaces/{id}/members`. The rows are the space's own and those of the room
+ * it stands in, because a membership on a room covers every space in it, and a
+ * row says which it is by the `spaceId` it names - so the list can tell somebody
+ * who is in this tent from somebody who is in the whole room.
+ *
+ * `room` is what that second sort of row is named after, since a member of the
+ * tent alone never sees the room in any other list and would otherwise have an
+ * id to draw. `people` is here for the reason every list of ids is: a membership
+ * names an account, and a handle is the only name anybody ever gets.
+ */
 export declare const membershipPage: z.ZodObject<{
     items: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -1306,6 +1324,14 @@ export declare const membershipPage: z.ZodObject<{
         createdAt: z.ZodISODateTime;
     }, z.core.$strip>>;
     nextCursor: z.ZodNullable<z.ZodString>;
+    people: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        handle: z.ZodString;
+    }, z.core.$strip>>;
+    room: z.ZodNullable<z.ZodObject<{
+        id: z.ZodString;
+        name: z.ZodString;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 export declare const invitePage: z.ZodObject<{
     items: z.ZodArray<z.ZodObject<{

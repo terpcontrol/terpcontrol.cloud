@@ -9,6 +9,7 @@ import {
   memberRole,
   named,
   page,
+  person,
   reminderKind,
   schemeWeek,
   spaceKind,
@@ -502,11 +503,18 @@ export const presetApplication = named(
 );
 
 /**
- * `POST /spaces/{id}/members`. A member is named by id, which is what an invite
- * produces. There is no directory to search, so adding somebody by hand is for
- * an account that is already known; everybody else arrives through a code.
+ * `POST /spaces/{id}/members`. A member is named by handle, because a handle is
+ * the only name anybody ever gets and an id is not something a host can type.
+ *
+ * It is not a directory: the handle has to be somebody the caller already grows
+ * with - a person who shares a space with them, either as its owner or as a
+ * member of it - and any other handle is refused exactly as a handle nobody
+ * holds is, so that typing names here never answers whether an account exists.
+ * A stranger is invited with a code instead, which they accept themselves, and
+ * that is the difference: being added is something the people already in a tent
+ * do to each other, and joining a tent one has never heard of is not.
  */
-export const membershipCreate = named('MembershipCreate', membership.pick({ userId: true, role: true }));
+export const membershipCreate = named('MembershipCreate', z.object({ handle: z.string(), role: memberRole }));
 
 /**
  * `PATCH /spaces/{id}/members/{userId}`. The role is the only thing about a
@@ -532,12 +540,12 @@ export const inviteCreate = named('InviteCreate', invite.pick({ role: true, expi
 export const invitePreview = named(
   'InvitePreview',
   z.object({
-    spaceName: z.string(),
-    spaceKind: spaceKind,
-    role: memberRole,
-    invitedByHandle: z.string(),
+    isValid: z.boolean().describe('The only field a dead code answers. Which of revoked, expired, archived or never-issued it was is not said, because the route is open.'),
+    spaceName: z.string().nullable(),
+    spaceKind: spaceKind.nullable(),
+    role: memberRole.nullable(),
+    invitedByHandle: z.string().nullable(),
     expiresAt: instant().nullable(),
-    isValid: z.boolean().describe('False once the invite is revoked, expired or its space archived. Which of the three is not said, because the route is open.'),
   }),
 );
 
@@ -750,7 +758,24 @@ export const taskCompletionCreate = named(
 );
 
 export const spacePage = named('SpacePage', page(space));
-export const membershipPage = named('MembershipPage', page(membership));
+/**
+ * `GET /spaces/{id}/members`. The rows are the space's own and those of the room
+ * it stands in, because a membership on a room covers every space in it, and a
+ * row says which it is by the `spaceId` it names - so the list can tell somebody
+ * who is in this tent from somebody who is in the whole room.
+ *
+ * `room` is what that second sort of row is named after, since a member of the
+ * tent alone never sees the room in any other list and would otherwise have an
+ * id to draw. `people` is here for the reason every list of ids is: a membership
+ * names an account, and a handle is the only name anybody ever gets.
+ */
+export const membershipPage = named(
+  'MembershipPage',
+  page(membership).extend({
+    people: z.array(person),
+    room: z.object({ id: id(), name: z.string() }).nullable(),
+  }),
+);
 export const invitePage = named('InvitePage', page(invite));
 export const growPage = named('GrowPage', page(growListItem));
 export const plantPage = named('PlantPage', page(plant));

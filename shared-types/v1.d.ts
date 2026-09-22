@@ -253,6 +253,11 @@ export interface Problem {
   errors: ProblemError[];
 }
 
+export interface Person {
+  id: string;
+  handle: string;
+}
+
 export interface MetricValue {
   /**
    * null when the device has never reported this metric.
@@ -1915,7 +1920,7 @@ export interface PresetApplication {
 }
 
 export interface MembershipCreate {
-  userId: string;
+  handle: string;
   role: MemberRole;
 }
 
@@ -1929,15 +1934,15 @@ export interface InviteCreate {
 }
 
 export interface InvitePreview {
-  spaceName: string;
-  spaceKind: SpaceKind;
-  role: MemberRole;
-  invitedByHandle: string;
-  expiresAt: string | null;
   /**
-   * False once the invite is revoked, expired or its space archived. Which of the three is not said, because the route is open.
+   * The only field a dead code answers. Which of revoked, expired, archived or never-issued it was is not said, because the route is open.
    */
   isValid: boolean;
+  spaceName: string | null;
+  spaceKind: SpaceKind | null;
+  role: MemberRole | null;
+  invitedByHandle: string | null;
+  expiresAt: string | null;
 }
 
 export interface InviteAcceptance {
@@ -2164,6 +2169,11 @@ export interface MembershipPage {
    * Pass back as `cursor` for the next page; null on the last one.
    */
   nextCursor: string | null;
+  people: Person[];
+  room: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 export interface InvitePage {
@@ -3020,11 +3030,6 @@ export interface FollowedGrowCard {
   stage: GrowthStage | null;
   coverMediaId: string | null;
   updatedAt: string;
-}
-
-export interface Person {
-  id: string;
-  handle: string;
 }
 
 export interface HomeAnswer {

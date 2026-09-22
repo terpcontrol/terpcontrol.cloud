@@ -240,7 +240,7 @@ describe('a plan step that is waiting for somebody', () => {
     const claimed = await provisionDevice(keeper, 'controller');
     controller = claimed.deviceId;
     const device = await keeper.client.get(`/v1/devices/${controller}`).expect(200);
-    await joinSpace(device.body.spaceId, helper.userId);
+    await joinSpace(keeper, device.body.spaceId, helper);
 
     await grid(keeper, KEEPER, ['email']);
     await grid(helper, HELPER, []);

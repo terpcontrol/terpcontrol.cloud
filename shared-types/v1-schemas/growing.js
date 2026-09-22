@@ -376,11 +376,18 @@ exports.presetApplication = (0, common_js_1.named)('PresetApplication', zod_1.z.
     planEffect: exports.presetPlanEffect,
 }));
 /**
- * `POST /spaces/{id}/members`. A member is named by id, which is what an invite
- * produces. There is no directory to search, so adding somebody by hand is for
- * an account that is already known; everybody else arrives through a code.
+ * `POST /spaces/{id}/members`. A member is named by handle, because a handle is
+ * the only name anybody ever gets and an id is not something a host can type.
+ *
+ * It is not a directory: the handle has to be somebody the caller already grows
+ * with - a person who shares a space with them, either as its owner or as a
+ * member of it - and any other handle is refused exactly as a handle nobody
+ * holds is, so that typing names here never answers whether an account exists.
+ * A stranger is invited with a code instead, which they accept themselves, and
+ * that is the difference: being added is something the people already in a tent
+ * do to each other, and joining a tent one has never heard of is not.
  */
-exports.membershipCreate = (0, common_js_1.named)('MembershipCreate', exports.membership.pick({ userId: true, role: true }));
+exports.membershipCreate = (0, common_js_1.named)('MembershipCreate', zod_1.z.object({ handle: zod_1.z.string(), role: common_js_1.memberRole }));
 /**
  * `PATCH /spaces/{id}/members/{userId}`. The role is the only thing about a
  * membership that changes, and a change naming none would say nothing, so this
@@ -401,12 +408,12 @@ exports.inviteCreate = (0, common_js_1.named)('InviteCreate', exports.invite.pic
  * the inviter is named by handle, the only name others ever see.
  */
 exports.invitePreview = (0, common_js_1.named)('InvitePreview', zod_1.z.object({
-    spaceName: zod_1.z.string(),
-    spaceKind: common_js_1.spaceKind,
-    role: common_js_1.memberRole,
-    invitedByHandle: zod_1.z.string(),
+    isValid: zod_1.z.boolean().describe('The only field a dead code answers. Which of revoked, expired, archived or never-issued it was is not said, because the route is open.'),
+    spaceName: zod_1.z.string().nullable(),
+    spaceKind: common_js_1.spaceKind.nullable(),
+    role: common_js_1.memberRole.nullable(),
+    invitedByHandle: zod_1.z.string().nullable(),
     expiresAt: (0, common_js_1.instant)().nullable(),
-    isValid: zod_1.z.boolean().describe('False once the invite is revoked, expired or its space archived. Which of the three is not said, because the route is open.'),
 }));
 /**
  * `POST /invites/{code}/acceptances`. The membership on its own would leave a
@@ -561,7 +568,21 @@ exports.taskCompletionCreate = (0, common_js_1.named)('TaskCompletionCreate', zo
     values: (0, common_js_1.anyValue)().optional().describe("The entry's values for this kind; absent takes the task's `defaults`."),
 }));
 exports.spacePage = (0, common_js_1.named)('SpacePage', (0, common_js_1.page)(exports.space));
-exports.membershipPage = (0, common_js_1.named)('MembershipPage', (0, common_js_1.page)(exports.membership));
+/**
+ * `GET /spaces/{id}/members`. The rows are the space's own and those of the room
+ * it stands in, because a membership on a room covers every space in it, and a
+ * row says which it is by the `spaceId` it names - so the list can tell somebody
+ * who is in this tent from somebody who is in the whole room.
+ *
+ * `room` is what that second sort of row is named after, since a member of the
+ * tent alone never sees the room in any other list and would otherwise have an
+ * id to draw. `people` is here for the reason every list of ids is: a membership
+ * names an account, and a handle is the only name anybody ever gets.
+ */
+exports.membershipPage = (0, common_js_1.named)('MembershipPage', (0, common_js_1.page)(exports.membership).extend({
+    people: zod_1.z.array(common_js_1.person),
+    room: zod_1.z.object({ id: (0, common_js_1.id)(), name: zod_1.z.string() }).nullable(),
+}));
 exports.invitePage = (0, common_js_1.named)('InvitePage', (0, common_js_1.page)(exports.invite));
 exports.growPage = (0, common_js_1.named)('GrowPage', (0, common_js_1.page)(exports.growListItem));
 exports.plantPage = (0, common_js_1.named)('PlantPage', (0, common_js_1.page)(exports.plant));
