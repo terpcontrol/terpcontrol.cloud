@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { anonymous, createAccount, demoSession, loginAsAdmin, Session, unique } from '../support/api';
 import { provisionDevice } from '../support/device';
-import { joinSpace, seedRow, shareLinkOnGrow } from '../support/fixtures';
+import { joinSpace, seedRow, setRow, shareLinkOnGrow } from '../support/fixtures';
 
 /**
  * The rhythms a place is kept to, and the work they put on somebody's list.
@@ -370,10 +370,13 @@ describe('the tasks a reminder derives', () => {
 
 describe('a plan step waiting to be confirmed', () => {
   let waiting: string;
+  let startedAt: Date;
+  const taskId = (): string => `plan:${waiting}:0:${startedAt.getTime()}`;
 
   beforeAll(async () => {
     const claimed = await provisionDevice(owner, 'fridge');
     waiting = claimed.deviceId;
+    startedAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
 
     // Seeded rather than driven: a step is only a task once its time is up, and
     // the shortest step the API takes is a day long.
@@ -400,7 +403,7 @@ describe('a plan step waiting to be confirmed', () => {
       state: {
         status: 'running',
         activeStepIndex: 0,
-        stepStartedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        stepStartedAt: startedAt,
         pausedElapsedMs: 0,
         pauseReason: null,
         lastAppliedAt: null,
@@ -411,17 +414,35 @@ describe('a plan step waiting to be confirmed', () => {
 
   it('is a task, named by what the step asks', async () => {
     const due = await tasksOf(owner);
-    const task = due.find((one: { id: string }) => one.id === `plan:${waiting}:0`);
+    const task = due.find((one: { id: string }) => one.id === taskId());
 
     expect(task).toMatchObject({ source: 'plan_step', sourceId: 'step-1', label: 'Are the buds dry?', kind: 'chore', done: false });
   });
 
   it('confirms the step when it is ticked off, and stops being a task', async () => {
-    await owner.client.post(`/v1/tasks/plan:${waiting}:0/completions`).send({}).expect(201);
+    await owner.client.post(`/v1/tasks/${taskId()}/completions`).send({}).expect(201);
 
     const plan = await owner.client.get(`/v1/devices/${waiting}/plan`).expect(200);
     expect(plan.body.state.status).toBe('completed');
 
-    expect((await tasksOf(owner)).map((one: { id: string }) => one.id)).not.toContain(`plan:${waiting}:0`);
+    expect((await tasksOf(owner)).map((one: { id: string }) => one.id)).not.toContain(taskId());
+  });
+
+  /**
+   * A plan that comes back to a step it was confirmed on - by looping, or by
+   * being stopped and started again - asks again, because the tick that
+   * answered the earlier turn answered that turn and not this one.
+   */
+  it('asks again when the step is entered a second time', async () => {
+    const again = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    await setRow(
+      'plans',
+      { deviceId: waiting },
+      { 'state.status': 'running', 'state.activeStepIndex': 0, 'state.stepStartedAt': again, 'state.confirmationNotifiedAt': null },
+    );
+    startedAt = again;
+
+    const due = await tasksOf(owner);
+    expect(due.map((one: { id: string }) => one.id)).toContain(taskId());
   });
 });

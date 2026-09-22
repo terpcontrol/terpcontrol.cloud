@@ -185,7 +185,7 @@ export class TasksService {
 
       return [
         {
-          id: planTaskId(plan.deviceId, plan.state.activeStepIndex),
+          id: planTaskId(plan.deviceId, plan.state.activeStepIndex, plan.state.stepStartedAt),
           source: 'plan_step' as const,
           sourceId: step.id,
           subject: place.subject,
@@ -201,9 +201,10 @@ export class TasksService {
       ];
     });
 
-    // A looping plan comes back to the same step, and with it to the same task
-    // id, so what was ticked off on an earlier turn is checked rather than
-    // assumed away by the plan having moved on.
+    // The turn is in the id, so a plan that comes back to a step is a task
+    // again; what is checked here is the tick that was taken back with Undo
+    // while the step is still standing, which leaves the entry gone and the
+    // task due - and the one that was not.
     const done = await this.entries.find({ taskId: { $in: waiting.map(task => task.id) } }, { taskId: 1 }).lean<Pick<EntryDocument, 'taskId'>[]>();
     const ticked = new Set(done.map(entry => entry.taskId));
 

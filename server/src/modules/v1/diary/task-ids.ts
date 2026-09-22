@@ -17,20 +17,36 @@ export type TaskRef =
 
 const PLAN_PREFIX = 'plan:';
 
-/** Deterministic, so that the task a card draws and the task a completion names are the same task. */
-export const planTaskId = (deviceId: string, stepIndex: number): string => `${PLAN_PREFIX}${deviceId}:${stepIndex}`;
+/**
+ * Deterministic, so that the task a card draws and the task a completion names
+ * are the same task - and different every time the step starts waiting again.
+ *
+ * The instant the step became active is what makes the second of those true.
+ * Without it a plan that came back to a step it had already been confirmed on -
+ * a loop, or a plan stopped and started again - would derive a task whose id an
+ * entry already carried, and the tick that answered it months ago would answer
+ * it for ever. The instant is written once when the step is entered and is the
+ * same for every reader of the plan, so two clients derive one id.
+ */
+export const planTaskId = (deviceId: string, stepIndex: number, stepStartedAt: Date | null): string =>
+  `${PLAN_PREFIX}${deviceId}:${stepIndex}:${stepStartedAt ? stepStartedAt.getTime() : 0}`;
 
 export const parseTaskId = (taskId: string): TaskRef => {
   if (taskId.startsWith(PLAN_PREFIX)) {
     const rest = taskId.slice(PLAN_PREFIX.length);
-    const cut = rest.lastIndexOf(':');
-    const stepIndex = Number(rest.slice(cut + 1));
+    // The turn the step is on is the last field and is not read back: what a
+    // completion has to find is the device and the step, and whether the plan
+    // is still standing there is asked of the plan itself.
+    const parts = rest.split(':');
+    const turn = parts.length > 2 ? parts.pop() : undefined;
+    const stepIndex = Number(parts.pop());
+    const deviceId = parts.join(':');
 
-    if (cut <= 0 || !Number.isInteger(stepIndex) || stepIndex < 0) {
+    if (!deviceId || !Number.isInteger(stepIndex) || stepIndex < 0 || (turn !== undefined && !/^\d+$/.test(turn))) {
       throw badRequest('unknown_task', 'That is not the id of a task anything derives.', [{ field: 'id', code: 'unknown', detail: taskId }]);
     }
 
-    return { source: 'plan_step', deviceId: rest.slice(0, cut), stepIndex };
+    return { source: 'plan_step', deviceId, stepIndex };
   }
 
   const cut = taskId.indexOf(':');

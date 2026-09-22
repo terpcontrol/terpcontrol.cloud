@@ -499,23 +499,26 @@ describe('ticking a plan step off', () => {
 
   it('confirms the step and writes the line that says who did', async () => {
     await aWaitingPlan();
-    const entry = await completions.complete(session(LOGGER), planTaskId(DEVICE, 0), {});
+    const entry = await completions.complete(session(LOGGER), planTaskId(DEVICE, 0, null), {});
 
-    expect(entry).toMatchObject({ kind: 'note', deviceId: DEVICE, taskId: planTaskId(DEVICE, 0), text: 'Soak' });
+    expect(entry).toMatchObject({ kind: 'note', deviceId: DEVICE, taskId: planTaskId(DEVICE, 0, null), text: 'Soak' });
     expect((await plans.forDevice(DEVICE))!.state.activeStepIndex).toBe(1);
   });
 
   it('moves nobody else´s plan on, and is refused before it would have', async () => {
     await aWaitingPlan();
 
-    expect(await problem(completions.complete(session(STRANGER), planTaskId(DEVICE, 0), {}))).toEqual({ status: 404, code: 'device_not_found' });
+    expect(await problem(completions.complete(session(STRANGER), planTaskId(DEVICE, 0, null), {}))).toEqual({
+      status: 404,
+      code: 'device_not_found',
+    });
     expect((await plans.forDevice(DEVICE))!.state.activeStepIndex).toBe(0);
   });
 
   it('says so rather than leaving a line behind when the plan has moved on already', async () => {
     await aWaitingPlan();
 
-    expect(await problem(completions.complete(session(OWNER), planTaskId(DEVICE, 1), {}))).toEqual({ status: 409, code: 'task_moved_on' });
+    expect(await problem(completions.complete(session(OWNER), planTaskId(DEVICE, 1, null), {}))).toEqual({ status: 409, code: 'task_moved_on' });
     expect(await db.entries.countDocuments()).toBe(0);
   });
 });

@@ -174,6 +174,12 @@ export const seedRow = (collection: string, document: Record<string, unknown>): 
     await database.collection(collection).insertOne({ ...document });
   });
 
+/** A row put into a state no route reaches, for the case that only arises over time. */
+export const setRow = (collection: string, where: Record<string, unknown>, set: Record<string, unknown>): Promise<void> =>
+  withDatabase(async database => {
+    await database.collection(collection).updateOne(where, { $set: set });
+  });
+
 /** What is in a collection, for asserting that something is really gone rather than only unlisted. */
 export const rowsIn = (collection: string, filter: Record<string, unknown>): Promise<Record<string, unknown>[]> =>
   withDatabase(database => database.collection(collection).find(filter).toArray());
