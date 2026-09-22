@@ -9,7 +9,7 @@ import { useSpaces } from '@/api/spaces';
 import { initials } from '@/app/shell/tabs';
 import { ageLabel } from '@/ui/age';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
-import { useMayManage } from '@/ui/session-access';
+import { useMayIn } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { InviteBlock } from './InviteBlock';
@@ -45,7 +45,9 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
   const isDemo = user?.isDemo === true;
   const spaces = useSpaces();
   const members = useMembers(spaceId, !isDemo);
-  const mayWrite = useMayManage();
+  // Everything this screen writes - a key, a role, showing somebody the door -
+  // is `own` on the space, which is the one need a manager does not have.
+  const mayWrite = useMayIn(spaceId, 'own');
   const [roomSheet, setRoomSheet] = useState(false);
 
   if (isDemo) return <p className={`${ui.cardDashed} ${ui.note}`}>{t('space.members.demo')}</p>;
@@ -60,15 +62,16 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
   const room = listed.find(one => one.id === roomId) ?? null;
   const roomName = room?.name ?? page.room?.name ?? null;
   const tents = listed.filter(one => one.roomId === roomId && one.archivedAt === null).length;
-  // Handing out the way in takes `own`, not `can_manage`, so the question here
-  // is ownership rather than the role - a manager runs the tent and running it
-  // is the one thing that does not include giving away a key to it.
   const ownerId = listed.find(one => one.id === spaceId)?.ownerId ?? null;
-  const isOwner = mayWrite && ownerId !== null && ownerId === user?.id;
+  // Two different questions that used to be one. What may be written here is
+  // the server's answer, which an administrator has as well; whether the row at
+  // the top is you is about who you are, and an administrator reading somebody
+  // else's tent is not its owner.
+  const isYou = ownerId !== null && ownerId === user?.id;
   // The owner is named the way everybody else is, out of `people`, which the
   // server fills for the rows and for the owner. Until an answer names them,
   // the one person who can still be named is the reader.
-  const ownerHandle = (ownerId ? personOf(page, ownerId)?.handle : null) ?? (isOwner ? (user?.handle ?? null) : null);
+  const ownerHandle = (ownerId ? personOf(page, ownerId)?.handle : null) ?? (isYou ? (user?.handle ?? null) : null);
   const viaRoom = viaRoomCount(page, spaceId);
 
   return (
@@ -91,7 +94,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
                 {t('space.members.roomWithTents', { room: room.name, count: tents })}
               </Link>
             </nav>
-          ) : isOwner ? (
+          ) : mayWrite ? (
             <nav className={styles.scope} aria-label={t('space.members.scopeLabel')}>
               <span className={`${styles.scopeOption} ${styles.scopeHere}`} aria-current="page">
                 {name}
@@ -103,7 +106,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
             </nav>
           ) : null}
           <p className={ui.note}>{t('space.members.oneModel')}</p>
-          {room && isOwner ? (
+          {room && mayWrite ? (
             <p className={`mono ${roomStyles.roomLine}`}>
               <span>{t('space.members.room.in', { room: room.name })}</span>
               <button type="button" className={ui.chip} onClick={() => setRoomSheet(true)}>
@@ -114,7 +117,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
         </>
       )}
 
-      {isOwner ? <InviteBlock spaceId={spaceId} spaceName={name} kind={kind} /> : null}
+      {mayWrite ? <InviteBlock spaceId={spaceId} spaceName={name} kind={kind} /> : null}
 
       <header className={styles.peopleHead}>
         <span className="label">{t('space.members.peopleIn', { name })}</span>
@@ -125,7 +128,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
       </header>
 
       <ul className={styles.people}>
-        <OwnerRow isYou={isOwner} handle={ownerHandle} name={name} lastLogged={ownerId ? lastLoggedOf(page, ownerId) : null} />
+        <OwnerRow isYou={isYou} handle={ownerHandle} name={name} lastLogged={ownerId ? lastLoggedOf(page, ownerId) : null} />
         {guestsOf(page, spaceId).map(guest => (
           <PersonRow
             key={guest.userId}
@@ -135,7 +138,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
             roomName={roomName}
             lastLogged={lastLoggedOf(page, guest.userId)}
             isYou={guest.userId === user?.id}
-            mayManage={isOwner}
+            mayManage={mayWrite}
             now={now}
           />
         ))}

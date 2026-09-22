@@ -390,6 +390,9 @@ describe('the Members tab as its owner', () => {
 describe('the Members tab as somebody who was let in', () => {
   beforeEach(() => {
     session.who = 'member';
+    // What they may do here is the server's answer, and everything this screen
+    // writes takes `own`: a guest sees the list and not one control on it.
+    server.spaces = server.spaces.map(one => ({ ...one, youMay: 'log' as const }));
   });
 
   it('shows the same list and hands out no keys', async () => {
