@@ -210,7 +210,10 @@ function RuleCard({ rule, device, me, mayManage, highlighted, busy, now, onOpen,
 
   const missing = missingSensor(rule.watch, device);
   const silenced = rule.silencedUntil !== null && DateTime.fromISO(rule.silencedUntil) > now;
-  const bound = rule.watch.kind === 'output_running' ? `› ${durationLabel(rule.forSeconds)}` : boundLabel(rule.watch);
+  // An output watched for running at all has no band, and a rule that trips on
+  // the first sample has no duration either, so there is nothing to draw beside
+  // its name rather than a line at nothing.
+  const bound = rule.watch.kind === 'output_running' ? (rule.forSeconds > 0 ? `› ${durationLabel(rule.forSeconds)}` : '') : boundLabel(rule.watch);
   const title = ruleTitle(t, rule, device);
 
   const summary = (

@@ -170,6 +170,20 @@ describe('the alarm rules page', () => {
     expect(screen.queryByRole('link', { name: '‹ back to the plan' })).not.toBeInTheDocument();
   });
 
+  it('draws no bound at all on an output watched for running at all with no duration', async () => {
+    const running = RULES.find(rule => rule.watch.kind === 'output_running')!;
+    vi.mocked(api.get).mockImplementation(
+      (path: string) =>
+        Promise.resolve(
+          path === '/devices/device-1/alarm-rules' ? { items: [{ ...running, forSeconds: 0 }], nextCursor: null } : answers(path),
+        ) as never,
+    );
+    draw();
+
+    const row = await card('Dehumidifier running non-stop');
+    expect(row.textContent).not.toMatch(/›\s*0/);
+  });
+
   it('groups the rules by where they came from, under the preset the grow stands on', async () => {
     draw();
 
