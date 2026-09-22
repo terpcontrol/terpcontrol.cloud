@@ -1,4 +1,4 @@
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Move, Scissors, Split } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -7,12 +7,17 @@ import type { Entry, GrowListItem, GrowSeries, MeasurementDefinition, Plant } fr
 import { growDayAt, growOriginOf } from '@fg2/shared-types/v1-schemas/feeding.js';
 import { useGrow, useGrowPlants, useGrowSeries, usePlantEntries } from '@/api/grows';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
+import { useSpaces } from '@/api/spaces';
+import { useLog, useMayLog, type LogTarget, type TileKind } from '@/log/log-context';
 import { authorOf, headlineOf, KIND_ICON, readingFigure } from '@/ui/entries';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { HarvestSheet } from '../HarvestSheet';
 import { withUnit } from '../measurements/definitions';
+import { MoveSheet } from '../MoveSheet';
+import { SplitSheet } from '../SplitSheet';
 import { PlantChart } from './PlantChart';
 import { RenameSheet } from './RenameSheet';
 import styles from './Plant.module.css';
@@ -47,8 +52,9 @@ function PlantScreen({ growId, plantId }: { growId: string; plantId: string }) {
     'grow',
     perPlant.map(definition => definition.key),
   );
+  const spaces = useSpaces();
   const mayManage = useMayManage();
-  const [renaming, setRenaming] = useState(false);
+  const [sheet, setSheet] = useState<PlantSheet | null>(null);
 
   if (grow.isPending || plants.isPending) {
     return (
@@ -95,6 +101,15 @@ function PlantScreen({ growId, plantId }: { growId: string; plantId: string }) {
 
       <RefreshFailed failedAt={grow.isError ? grow.dataUpdatedAt : null} now={now} />
 
+      {/* A read that failed is not an absence: the figures and the chart below
+          are missing because nothing could be read, which is a different thing
+          from this plant never having been measured. */}
+      {series.isError ? (
+        <p className={ui.problem} role="status">
+          {t('grow.plant.readingsUnread')}
+        </p>
+      ) : null}
+
       <Hero plant={plant} photos={photos} grow={grow.data} />
 
       <Figures grow={grow.data} plant={plant} entries={lines} definitions={perPlant} series={series.data} />
@@ -110,6 +125,7 @@ function PlantScreen({ growId, plantId }: { growId: string; plantId: string }) {
             series={drawn}
             plantId={plant.id}
             label={plant.label}
+            others={all.filter(one => one.id !== plant.id)}
             nights={series.data?.nights ?? []}
             from={new Date(series.data!.startsAt).getTime()}
             to={new Date(series.data!.endsAt).getTime()}
@@ -117,7 +133,9 @@ function PlantScreen({ growId, plantId }: { growId: string; plantId: string }) {
         );
       })}
 
-      {perPlant.length > 0 && !hasReadings(series.data, plant.id) ? <p className={ui.note}>{t('grow.plant.nothingMeasured')}</p> : null}
+      {perPlant.length > 0 && series.isSuccess && !hasReadings(series.data, plant.id) ? (
+        <p className={ui.note}>{t('grow.plant.nothingMeasured')}</p>
+      ) : null}
 
       <div className={styles.sectionHead}>
         <span className="label">{t('grow.plant.ownEntries')}</span>
@@ -131,23 +149,57 @@ function PlantScreen({ growId, plantId }: { growId: string; plantId: string }) {
       ) : (
         <ul className={styles.lines} aria-label={t('grow.plant.ownEntries')}>
           {lines.slice(0, LINES).map(entry => (
-            <Line key={entry.id} entry={entry} grow={grow.data!} measurements={grow.data!.measurements} />
+            <Line key={entry.id} entry={entry} grow={grow.data!} plant={plant} measurements={grow.data!.measurements} />
           ))}
         </ul>
       )}
 
       {mayManage ? (
-        <div className={styles.actions}>
-          <button type="button" className={ui.button} onClick={() => setRenaming(true)}>
+        <div className={styles.actions} role="group" aria-label={t('grow.plant.actionsLabel')}>
+          <button type="button" className={ui.button} onClick={() => setSheet('move')}>
+            <Move size={13} strokeWidth={1.75} aria-hidden />
+            {t('grow.plant.move')}
+          </button>
+          {/* Splitting every plant out of a grow splits nothing, and a plant
+              already down cannot come down again - the sheets refuse both, so
+              neither is offered. */}
+          {all.length > 1 ? (
+            <button type="button" className={ui.button} onClick={() => setSheet('split')}>
+              <Split size={13} strokeWidth={1.75} aria-hidden />
+              {t('grow.plant.split')}
+            </button>
+          ) : null}
+          {standing(plant) ? (
+            <button type="button" className={ui.button} onClick={() => setSheet('harvest')}>
+              <Scissors size={13} strokeWidth={1.75} aria-hidden />
+              {t('grow.plant.harvest')}
+            </button>
+          ) : null}
+          <button type="button" className={ui.button} onClick={() => setSheet('rename')}>
             {t('grow.plant.rename')}
           </button>
         </div>
       ) : null}
 
-      {renaming ? <RenameSheet growId={growId} plant={plant} onClose={() => setRenaming(false)} /> : null}
+      {/* The grow's own sheets, opened on this plant. What they do and what
+          they refuse is theirs; all this page says is which plant it is about. */}
+      {sheet === 'move' ? (
+        <MoveSheet grow={grow.data} plants={all} spaces={spaces.data?.items ?? []} preselect={[plant.id]} onClose={() => setSheet(null)} />
+      ) : null}
+      {sheet === 'split' ? (
+        <SplitSheet grow={grow.data} plants={all} spaces={spaces.data?.items ?? []} preselect={[plant.id]} onClose={() => setSheet(null)} />
+      ) : null}
+      {sheet === 'harvest' ? <HarvestSheet grow={grow.data} plants={all} preselect={[plant.id]} onClose={() => setSheet(null)} /> : null}
+      {sheet === 'rename' ? <RenameSheet growId={growId} plant={plant} onClose={() => setSheet(null)} /> : null}
     </section>
   );
 }
+
+/** What the plant's own actions row can open. */
+type PlantSheet = 'move' | 'split' | 'harvest' | 'rename';
+
+/** Still in the ground, which is what the harvest sheet means by a plant it can cut. */
+const standing = (plant: Plant): boolean => plant.status === 'active' && plant.harvest === null;
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
@@ -222,16 +274,35 @@ function Figure({ value, label }: { value: string; label: string }) {
   );
 }
 
-/** One line about this plant: the day of the grow it happened on, what it was, and who wrote it. */
-function Line({ entry, grow, measurements }: { entry: Entry; grow: GrowListItem; measurements: MeasurementDefinition[] }) {
+interface LineProps {
+  entry: Entry;
+  grow: GrowListItem;
+  plant: Plant;
+  measurements: MeasurementDefinition[];
+}
+
+/**
+ * One line about this plant: the day of the grow it happened on, what it was,
+ * and who wrote it.
+ *
+ * A line somebody wrote opens the sheet it was written in, because a figure
+ * read off a tape wrongly is read wrongly on this row and nowhere else - and
+ * the diary that carries a reading has to be able to carry the correction too.
+ * What a device or the server recorded is not ours to rewrite, so those lines
+ * stay what they are.
+ */
+function Line({ entry, grow, plant, measurements }: LineProps) {
   const { t, i18n } = useTranslation();
   const { user } = useSession();
+  const { openDetails } = useLog();
+  const mayLog = useMayLog();
   const Icon = KIND_ICON[entry.kind];
   const day = dayOfEntry(grow, entry);
   const readings = 'readings' in entry.values ? entry.values.readings : [];
+  const correctable = mayLog ? correctableKind(entry) : null;
 
-  return (
-    <li className={styles.line}>
+  const body = (
+    <>
       <span className={`mono ${styles.lineDay}`}>
         {day === null ? DateTime.fromISO(entry.occurredAt).toFormat('dd.MM') : t('grow.plant.dayShort', { day })}
       </span>
@@ -252,9 +323,46 @@ function Line({ entry, grow, measurements }: { entry: Entry; grow: GrowListItem;
         })}
       </span>
       {entry.source === 'human' ? <span className={styles.lineAuthor}>{authorOf(t, entry, [], user?.id)}</span> : null}
+    </>
+  );
+
+  if (correctable === null) return <li className={styles.line}>{body}</li>;
+
+  return (
+    <li>
+      <button
+        type="button"
+        className={`${styles.line} ${styles.lineOpen}`}
+        aria-label={t('grow.plant.correctLine')}
+        onClick={() => openDetails(correctable, targetOf(entry, grow, plant), entry)}
+      >
+        {body}
+      </button>
     </li>
   );
 }
+
+/** The kinds the details sheet holds - the same five the toast offers Details for. */
+const CORRECTABLE: TileKind[] = ['water', 'feed', 'note', 'measurement', 'training'];
+
+/** Which sheet this line would be corrected in, or null where it is not a person's line to correct. */
+const correctableKind = (entry: Entry): TileKind | null =>
+  entry.source === 'human' ? (CORRECTABLE.find(kind => kind === entry.kind) ?? null) : null;
+
+/**
+ * What the line is about, taken from the line rather than from the page: a
+ * correction must not quietly move a line onto the plant whose page it was
+ * opened from.
+ */
+const targetOf = (entry: Entry, grow: GrowListItem, plant: Plant): LogTarget => ({
+  key: `entry:${entry.id}`,
+  label: plant.label,
+  growId: entry.growId,
+  spaceId: entry.spaceId,
+  plantIds: entry.plantIds,
+  dayNumber: dayOfEntry(grow, entry),
+  standsIn: entry.spaceId,
+});
 
 const byPlant = (plant: Plant) => (point: { plantId: string | null }) => point.plantId === plant.id;
 

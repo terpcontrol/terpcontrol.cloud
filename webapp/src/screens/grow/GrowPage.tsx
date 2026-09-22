@@ -1,4 +1,4 @@
-import { ChevronLeft, Globe, Ruler, Share2 } from 'lucide-react';
+import { ChevronLeft, Globe, LineChart, Ruler, Share2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams } from 'react-router';
@@ -178,12 +178,22 @@ function Header({ grow, plants, spaces, now, onShare }: HeaderProps) {
 
       {/* What the grow measures is the grow's own, not a week's and not a
           plant's, so the way in is a row of the header rather than a tab. It is
-          drawn for everybody: reading what a grow measures is reading. */}
+          drawn for everybody: reading what a grow measures is reading.
+
+          Charts opens from the timeline and from a tent page. A grow that
+          stands in no tent has neither, and would otherwise be told its
+          measurements are drawn on a view it can never reach. */}
       <div className={styles.ways}>
         <Link to={`/grows/${grow.id}/measurements`} className={ui.chip}>
           <Ruler size={13} strokeWidth={1.75} aria-hidden />
           {t('grow.measurements.title')}
         </Link>
+        {places.every(place => place.spaceId === null) ? (
+          <Link to={`/charts?grow=${grow.id}`} className={ui.chip}>
+            <LineChart size={13} strokeWidth={1.75} aria-hidden />
+            {t('charts.title')}
+          </Link>
+        ) : null}
       </div>
     </header>
   );

@@ -10,6 +10,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, GrowListItem, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
+import { LogProvider } from '@/log/LogProvider';
 import { PlantPage } from '@/screens/grow/plant/PlantPage';
 
 /**
@@ -120,12 +121,18 @@ const lines = [
   entry({ id: 'e-5', kind: 'photo', occurredAt: at(5), mediaIds: ['media-1'], values: { kind: 'photo' } }),
 ];
 
-const state = { lines, series };
+const state = { lines, series, plants, seriesFails: false };
+
+const spaces = [{ id: 'space-2', name: 'Mother tent', kind: 'tent', archivedAt: null }];
 
 const answers = (path: string) => {
-  if (path.startsWith('/grows/grow-1/series')) return state.series;
-  if (path === '/grows/grow-1/plants') return { items: plants, nextCursor: null };
+  if (path.startsWith('/grows/grow-1/series')) {
+    if (state.seriesFails) throw new ApiError({ status: 500, code: 'boom', title: 'Server error', detail: 'Something broke.', errors: [] });
+    return state.series;
+  }
+  if (path === '/grows/grow-1/plants') return { items: state.plants, nextCursor: null };
   if (path === '/grows/grow-1') return grow;
+  if (path === '/spaces') return { items: spaces, nextCursor: null };
   if (path === '/entries') return { items: state.lines, nextCursor: null };
   throw new Error(`nothing mocked for ${path}`);
 };
@@ -134,9 +141,11 @@ const draw = () =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <MemoryRouter initialEntries={['/grows/grow-1/plants/plant-1']}>
-        <Routes>
-          <Route path="/grows/:growId/plants/:plantId" element={<PlantPage />} />
-        </Routes>
+        <LogProvider>
+          <Routes>
+            <Route path="/grows/:growId/plants/:plantId" element={<PlantPage />} />
+          </Routes>
+        </LogProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -158,6 +167,8 @@ beforeEach(() => {
   who.demo = false;
   state.lines = lines;
   state.series = series;
+  state.plants = plants;
+  state.seriesFails = false;
   vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);
   vi.mocked(api.patch).mockResolvedValue(plant('plant-1', 'Tall one') as never);
 });
@@ -184,7 +195,8 @@ describe('a plant of a grow', () => {
     await drawLoaded();
 
     expect(await screen.findByRole('img', { name: 'Height of Amnesia 1 over the grow' })).toBeInTheDocument();
-    expect(screen.getByText('other plants')).toBeInTheDocument();
+    // One line per plant, each named: a per-plant measurement is not one curve across all of them.
+    expect(screen.getByText('Amnesia 2')).toBeInTheDocument();
   });
 
   it('lists the lines that name this plant, by the day of the grow they happened on', async () => {
@@ -237,5 +249,52 @@ describe('a plant of a grow', () => {
     await drawLoaded();
 
     expect(screen.queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Move this plant' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Harvest this plant' })).not.toBeInTheDocument();
+    // Nor is a line of the diary its to correct.
+    expect(screen.queryByRole('button', { name: 'Correct this line' })).not.toBeInTheDocument();
+  });
+
+  it('opens the grow´s own sheets on this plant rather than sending the grower back to pick it again', async () => {
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move this plant' }));
+    const move = await screen.findByRole('dialog');
+    // The picker opens on this plant alone, and the rest of the grow is still there to widen it to.
+    expect(within(move).getByRole('button', { name: 'Amnesia 1' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(move).getByRole('button', { name: 'Amnesia 2' })).toHaveAttribute('aria-pressed', 'false');
+    expect(within(move).getByRole('button', { name: 'Mother tent' })).toBeInTheDocument();
+  });
+
+  it('will not offer a harvest for a plant that is already down', async () => {
+    state.plants = [{ ...plants[0], status: 'harvested', harvest: { harvestedAt: at(1), wetWeightG: 100, dryWeightG: null } }, plants[1]];
+    await drawLoaded();
+
+    expect(screen.queryByRole('button', { name: 'Harvest this plant' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Move this plant' })).toBeInTheDocument();
+  });
+
+  it('opens a line somebody wrote in the sheet it was written in, and takes it back from there', async () => {
+    await drawLoaded();
+
+    const own = within(screen.getByRole('list', { name: 'Own entries' })).getAllByRole('listitem');
+    fireEvent.click(within(own[0]).getByRole('button', { name: 'Correct this line' }));
+
+    const sheet = await screen.findByRole('dialog', { name: 'Measure' });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Take this line back' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Take it back' }));
+
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/entries/e-2'));
+  });
+
+  it('says the readings could not be read rather than that nothing was ever measured', async () => {
+    state.seriesFails = true;
+    draw();
+    await screen.findByRole('heading', { name: 'Amnesia 1' });
+
+    expect(await screen.findByText(/The readings could not be read just now/)).toBeInTheDocument();
+    expect(screen.queryByText('Nothing measured for this plant yet')).not.toBeInTheDocument();
+    // The lines are read separately and are still there to be read.
+    expect(within(screen.getByRole('list', { name: 'Own entries' })).getAllByRole('listitem')[0]).toHaveTextContent('Height 58 cm');
   });
 });

@@ -117,13 +117,16 @@
 
 .chartHead {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-2);
 }
 
 .chartName {
+  flex: none;
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
+  white-space: nowrap;
 }
 
 .chartUnit {
@@ -131,12 +134,24 @@
   font-weight: var(--weight-regular);
 }
 
+/* Each plant is named beside its own line, because a measurement taken per
+   plant drawn as one curve would be a zig-zag nobody measured. The names wrap
+   where a grow has more of them than a phone is wide. */
 .legend {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1);
   color: var(--muted);
   font-size: var(--text-xs);
+}
+
+.legendOther,
+.legendMine {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
 }
 
 .mineMark,
@@ -186,8 +201,22 @@
   font-size: var(--text-sm);
 }
 
-.line:last-child {
+.line:last-child,
+.lines > li:last-child > .line {
   border-bottom: 0;
+}
+
+/* A line that can be corrected is the same row made pressable, rather than a
+   control set beside it: the wrong figure is read on the row itself. */
+.lineOpen {
+  width: 100%;
+  background: none;
+  border: 0;
+  border-bottom: var(--rule-solid);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .lineDay {

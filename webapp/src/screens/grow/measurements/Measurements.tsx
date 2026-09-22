@@ -75,6 +75,15 @@ function MeasurementsScreen({ growId }: { growId: string }) {
 
       <RefreshFailed failedAt={grow.isError ? grow.dataUpdatedAt : null} now={now} />
 
+      {/* Without the readings the screen cannot say which definitions are
+          settled, so it says that rather than quietly dropping the delete and
+          the sentence that would explain its absence. */}
+      {series.isError ? (
+        <p className={ui.problem} role="status">
+          {t('grow.measurements.readingsUnread')}
+        </p>
+      ) : null}
+
       <div className={styles.sectionHead}>
         <span className="label">{t('grow.measurements.yours')}</span>
         <span className={`mono ${styles.aside}`}>{t('grow.measurements.chartHint')}</span>

@@ -22,13 +22,26 @@ import styles from './Lifecycle.module.css';
  * cannot be withdrawn - and that refusal is offered here as the move it really
  * asks for rather than as a sentence about a rule.
  */
-export function MoveSheet({ grow, plants, spaces, onClose }: { grow: GrowListItem; plants: Plant[]; spaces: Space[]; onClose: () => void }) {
+/** Which plants the sheet opens on, for a caller that is already about one of them; the grow page names none and the scope is the grow's. */
+export function MoveSheet({
+  grow,
+  plants,
+  spaces,
+  preselect,
+  onClose,
+}: {
+  grow: GrowListItem;
+  plants: Plant[];
+  spaces: Space[];
+  preselect?: string[];
+  onClose: () => void;
+}) {
   const { t } = useTranslation();
   const move = useMovePlants(grow.id);
 
   const open = spaces.filter(space => space.archivedAt === null && space.kind !== 'room');
   const [spaceId, setSpaceId] = useState<string | null>(() => open.find(space => !standsIn(grow, space.id))?.id ?? null);
-  const [chosen, setChosen] = useState<string[] | null>(null);
+  const [chosen, setChosen] = useState<string[] | null>(preselect ?? null);
   const [at, setAt] = useState(() => new Date());
   const [row, setRow] = useState<{ placementId: string; as: 'correct' | 'withdraw' } | null>(null);
 

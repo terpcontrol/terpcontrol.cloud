@@ -125,10 +125,13 @@ const measured: Entry = {
   undoUntil: null,
 };
 
-const state = { measurements: [height, ec, runoff] as MeasurementDefinition[] };
+const state = { measurements: [height, ec, runoff] as MeasurementDefinition[], seriesFails: false };
 
 const answers = (path: string) => {
-  if (path.startsWith('/grows/grow-1/series')) return series;
+  if (path.startsWith('/grows/grow-1/series')) {
+    if (state.seriesFails) throw new ApiError({ status: 500, code: 'boom', title: 'Server error', detail: 'Something broke.', errors: [] });
+    return series;
+  }
   if (path === '/grows/grow-1/plants') return { items: plants, nextCursor: null };
   if (path === '/grows/grow-1') return grow(state.measurements);
   if (path === '/entries') return { items: [measured], nextCursor: null };
@@ -171,6 +174,7 @@ beforeAll(async () => {
 beforeEach(() => {
   who.demo = false;
   state.measurements = [height, ec, runoff];
+  state.seriesFails = false;
   vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);
   vi.mocked(api.patch).mockImplementation(
     (_path: string, body: unknown) => Promise.resolve(grow((body as { measurements: MeasurementDefinition[] }).measurements)) as never,
@@ -249,6 +253,25 @@ describe('what a grow measures', () => {
     fireEvent.click(templates().getByRole('button', { name: /Leaf temp/ }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Two measurements of a grow cannot share a key.');
+  });
+
+  it('says the readings could not be read rather than quietly saying nothing about them', async () => {
+    state.seriesFails = true;
+    await drawScreen();
+
+    expect(await screen.findByText(/What has been measured could not be read just now/)).toBeInTheDocument();
+  });
+
+  it('offers the one template whose rule cannot be a band', async () => {
+    state.measurements = [];
+    await drawScreen();
+
+    fireEvent.click(templates().getByRole('button', { name: /Runoff EC/ }));
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalled());
+    expect(sent()[1]).toEqual({
+      measurements: [{ key: 'runoff_ec', name: 'Runoff EC', unit: 'mS/cm', perPlant: false, targetMin: null, targetMax: null, chart: true }],
+    });
   });
 
   it('offers a session that may only look nothing to change', async () => {
@@ -345,5 +368,25 @@ describe('the Measure sheet', () => {
     await openMeasure();
 
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  });
+
+  it('takes the figure from a keyboard as readily as from the keypad', async () => {
+    await openMeasure();
+
+    for (const key of ['8', '2', ',', '4']) fireEvent.keyDown(document, { key });
+    // The comma is a decimal point, because that is where a German keyboard puts one.
+    expect(screen.getByRole('status')).toHaveTextContent('82.4');
+
+    fireEvent.keyDown(document, { key: 'Backspace' });
+    expect(screen.getByRole('status')).toHaveTextContent('82.');
+  });
+
+  it('says a reading belongs to a grow where there is none, and offers to start one', async () => {
+    const tent = { ...target, key: 'space:space-1', label: 'Cutting fridge', growId: null, spaceId: 'space-1', dayNumber: null };
+    draw(<MeasureSheet target={tent} onClose={() => {}} />);
+
+    expect(await screen.findByText('A reading belongs to a grow, and nothing is growing here yet.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Start a grow here' })).toHaveAttribute('href', '/grows/new?space=space-1');
+    expect(screen.queryByText(/measures nothing beyond the climate/)).not.toBeInTheDocument();
   });
 });

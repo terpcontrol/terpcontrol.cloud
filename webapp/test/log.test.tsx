@@ -345,6 +345,17 @@ describe('the log sheet', () => {
     await waitFor(() => expect(screen.getByText('Watered · Spring run')).toBeInTheDocument());
   });
 
+  it('does not offer to measure a tent with nothing growing in it', async () => {
+    await openSheet();
+    const sheet = screen.getByRole('dialog', { name: 'Log' });
+    expect(within(sheet).getByRole('button', { name: /^Measure/ })).toBeInTheDocument();
+
+    // A reading is written against the grow's own measurements, and a tent by itself has none.
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Tent 1' }));
+    expect(within(sheet).queryByRole('button', { name: /^Measure/ })).not.toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: /^Water/ })).toBeInTheDocument();
+  });
+
   it('writes a line about one plant when a plant is the target', async () => {
     await openSheet();
     fireEvent.click(screen.getByRole('button', { name: 'Gelato 1' }));

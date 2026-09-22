@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Delete } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { EntryCreate, EntryReading, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
@@ -75,15 +75,39 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
   const slot = definition ? slotOf(definition.key, definition.perPlant ? plantId : null) : '';
   const draft = typed[slot] ?? '';
 
-  const press = (pressed: string) =>
-    setTyped(current => {
-      const before = current[slot] ?? '';
-      if (pressed === '.' && before.includes('.')) return current;
+  const press = useCallback(
+    (pressed: string) =>
+      setTyped(current => {
+        const before = current[slot] ?? '';
+        if (pressed === '.' && before.includes('.')) return current;
 
-      return { ...current, [slot]: before + pressed };
-    });
+        return { ...current, [slot]: before + pressed };
+      }),
+    [slot],
+  );
 
-  const rub = () => setTyped(current => ({ ...current, [slot]: (current[slot] ?? '').slice(0, -1) }));
+  const rub = useCallback(() => setTyped(current => ({ ...current, [slot]: (current[slot] ?? '').slice(0, -1) })), [slot]);
+
+  // Where there is a keyboard in front of the sheet, it presses the same keys.
+  // The keypad stays the control the board draws - it is what a thumb in a tent
+  // has - but a figure is the one thing a desk types faster than it taps, and
+  // dead physical keys are not a decision anybody made. The comma is the dot,
+  // because that is where a German keyboard puts the decimal point. Nothing
+  // else is taken: Escape, Tab and Enter stay the sheet's own.
+  useEffect(() => {
+    const typing = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey || event.altKey || isEditable(event.target)) return;
+      const pressed = event.key === ',' ? '.' : event.key;
+      if (/^[0-9.]$/.test(pressed)) press(pressed);
+      else if (event.key === 'Backspace') rub();
+      else return;
+      event.preventDefault();
+    };
+
+    document.addEventListener('keydown', typing);
+
+    return () => document.removeEventListener('keydown', typing);
+  }, [press, rub]);
 
   const readings = readingsOf(typed, definitions);
   const body = (): EntryCreate => ({ kind: 'measurement', ...about(target), values: { kind: 'measurement', readings } });
@@ -111,18 +135,7 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
     }
   };
 
-  if (definitions.length === 0) {
-    return (
-      <Sheet title={t('grow.measurements.measure.title')} onClose={onClose}>
-        <p className={ui.note}>{t('grow.measurements.measure.nothingYet')}</p>
-        {target.growId ? (
-          <Link className={`${ui.button} ${styles.away}`} to={`/grows/${target.growId}/measurements`} onClick={onClose}>
-            {t('grow.measurements.measure.setUp')}
-          </Link>
-        ) : null}
-      </Sheet>
-    );
-  }
+  if (definitions.length === 0) return <NothingToMeasure target={target} onClose={onClose} />;
 
   const roundOfPlants = plantId !== null && standing.length > 1;
 
@@ -160,12 +173,14 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
 
       {definition ? (
         <>
-          <div className={`${ui.card} ${styles.field}`}>
+          {/* The name labels the field; the figure carries none of its own,
+              because a label on it is read instead of the number it is on. */}
+          <div className={`${ui.card} ${styles.field}`} role="group" aria-label={fieldLabel(t, definition)}>
             <span className={styles.fieldName}>
               {definition.name}
               {definition.unit ? <span className={`mono ${styles.fieldUnit}`}> · {definition.unit}</span> : null}
             </span>
-            <span className={`figure ${styles.fieldValue}`} aria-label={definition.name} role="status">
+            <span className={`figure ${styles.fieldValue}`} role="status">
               {draft || '—'}
             </span>
           </div>
@@ -201,6 +216,32 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
   );
 }
 
+/**
+ * The sheet with nothing to type in, which is two different emptinesses.
+ *
+ * A grow that measures nothing yet is one tap from measuring something. A place
+ * with no grow in it has nothing a reading could belong to at all, so it says
+ * that rather than a sentence about a grow, and offers the thing that would
+ * actually help: starting one.
+ */
+function NothingToMeasure({ target, onClose }: MeasureSheetProps) {
+  const { t } = useTranslation();
+  const away = target.growId
+    ? { to: `/grows/${target.growId}/measurements`, label: t('grow.measurements.measure.setUp') }
+    : { to: `/grows/new?space=${target.spaceId}`, label: t('grow.measurements.measure.startGrow') };
+
+  return (
+    <Sheet title={t('grow.measurements.measure.title')} onClose={onClose}>
+      <p className={ui.note}>{t(target.growId ? 'grow.measurements.measure.nothingYet' : 'grow.measurements.measure.noGrow')}</p>
+      {target.growId || target.spaceId ? (
+        <Link className={`${ui.button} ${styles.away}`} to={away.to} onClick={onClose}>
+          {away.label}
+        </Link>
+      ) : null}
+    </Sheet>
+  );
+}
+
 function Chip({ chosen, onChoose, children }: { chosen: boolean; onChoose: () => void; children: React.ReactNode }) {
   return (
     <button type="button" className={`${ui.chip} ${styles.chip}`} data-chosen={chosen} aria-pressed={chosen} onClick={onChoose}>
@@ -227,6 +268,14 @@ const readingsOf = (typed: Record<string, string>, definitions: MeasurementDefin
   });
 
 const figureOf = (reading: { value: number } | undefined): string => (reading ? readingFigure(reading.value) : '');
+
+/** What the field is called, so the figure in it can be read as the figure it is. */
+const fieldLabel = (t: Translate, definition: MeasurementDefinition): string =>
+  definition.unit ? t('grow.measurements.measure.value', { name: definition.name, unit: definition.unit }) : definition.name;
+
+/** Somewhere a keystroke already means something, which the keypad must not take away. */
+const isEditable = (target: EventTarget | null): boolean =>
+  target instanceof HTMLElement && (target.isContentEditable || target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement);
 
 /** The plant after this one, wrapping round, so a round of measuring never ends in a dead end. */
 const nextPlant = (plants: Plant[], plantId: string | null): string | null => {

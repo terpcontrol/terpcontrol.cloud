@@ -28,12 +28,25 @@ import styles from './Lifecycle.module.css';
  * is why the button waits until one of them is chosen rather than asking the
  * server to say so.
  */
-export function SplitSheet({ grow, plants, spaces, onClose }: { grow: GrowListItem; plants: Plant[]; spaces: Space[]; onClose: () => void }) {
+/** Which plants the sheet opens on, for a caller that is already about one of them; the grow page names none and the scope is the grow's. */
+export function SplitSheet({
+  grow,
+  plants,
+  spaces,
+  preselect,
+  onClose,
+}: {
+  grow: GrowListItem;
+  plants: Plant[];
+  spaces: Space[];
+  preselect?: string[];
+  onClose: () => void;
+}) {
   const { t } = useTranslation();
   const split = useSplit(grow.id);
 
   const open = spaces.filter(space => space.archivedAt === null && space.kind !== 'room');
-  const [chosen, setChosen] = useState<string[]>([]);
+  const [chosen, setChosen] = useState<string[]>(preselect ?? []);
   const [stage, setStage] = useState<GrowthStage | null>(null);
   const [preset, setPreset] = useState<string | null>(null);
   const [spaceId, setSpaceId] = useState<string | null | undefined>(undefined);

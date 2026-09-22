@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { GrowMeasurementSeries, GrowSeriesPoint, MeasurementDefinition, TimelineSpan } from '@fg2/shared-types/v1';
+import type { GrowMeasurementSeries, GrowSeriesPoint, MeasurementDefinition, Plant, TimelineSpan } from '@fg2/shared-types/v1';
 import { Chart, type ChartOption } from '@/charts/Chart';
 import type { ChartPalette } from '@/charts/tokens';
 import ui from '@/ui/ui.module.css';
@@ -18,6 +18,8 @@ interface PlantChartProps {
   series: GrowMeasurementSeries;
   plantId: string;
   label: string;
+  /** The rest of the grow's plants, so that each faint line is a plant with a name. */
+  others: Plant[];
   nights: TimelineSpan[];
   from: number;
   to: number;
@@ -29,17 +31,19 @@ interface PlantChartProps {
  * faintly beside it.
  *
  * The siblings are there because that is the comparison a grower makes - this
- * one against the rest of the tent - and they are drawn thin and unmarked so
- * that the plant whose page this is stays the subject.
+ * one against the rest of the tent - and they are drawn thin so that the plant
+ * whose page this is stays the subject. Each of them is a line of its own and
+ * carries its name in the legend: a measurement taken per plant read as one
+ * curve across all of them would be a zig-zag nobody measured.
  */
-export function PlantChart({ definition, series, plantId, label, nights, from, to }: PlantChartProps) {
+export function PlantChart({ definition, series, plantId, label, others, nights, from, to }: PlantChartProps) {
   const { t } = useTranslation();
   const mine = useMemo(() => series.points.filter(point => point.plantId === plantId), [series.points, plantId]);
-  const others = useMemo(() => byPlant(series.points, plantId), [series.points, plantId]);
+  const beside = useMemo(() => byPlant(series.points, others), [series.points, others]);
   const scale = useMemo(() => scaleOf(series.points, definition), [series.points, definition]);
   const option = useMemo(
-    () => (palette: ChartPalette) => optionOf(palette, mine, others, definition, nights, scale, from, to),
-    [mine, others, definition, nights, scale, from, to],
+    () => (palette: ChartPalette) => optionOf(palette, mine, beside, definition, nights, scale, from, to),
+    [mine, beside, definition, nights, scale, from, to],
   );
 
   const band = bandOf(t, definition);
@@ -52,14 +56,16 @@ export function PlantChart({ definition, series, plantId, label, nights, from, t
           {definition.unit ? <span className={`mono ${styles.chartUnit}`}> · {definition.unit}</span> : null}
         </span>
         <span className={`mono ${styles.legend}`}>
-          <span className={styles.mineMark} aria-hidden />
-          <span>{label}</span>
-          {others.length > 0 ? (
-            <>
+          <span className={styles.legendMine}>
+            <span className={styles.mineMark} aria-hidden />
+            {label}
+          </span>
+          {beside.map(one => (
+            <span key={one.label} className={styles.legendOther}>
               <span className={styles.otherMark} aria-hidden />
-              <span>{t('grow.plant.otherPlants')}</span>
-            </>
-          ) : null}
+              {one.label}
+            </span>
+          ))}
         </span>
         {band ? <span className="label">{t('grow.measurements.target', { band })}</span> : null}
       </header>
@@ -68,16 +74,16 @@ export function PlantChart({ definition, series, plantId, label, nights, from, t
   );
 }
 
-/** The other plants' readings, each kept together so one faint line is one plant. */
-const byPlant = (points: GrowSeriesPoint[], plantId: string): GrowSeriesPoint[][] => {
-  const others = new Map<string, GrowSeriesPoint[]>();
-  for (const point of points) {
-    if (point.plantId === null || point.plantId === plantId) continue;
-    others.set(point.plantId, [...(others.get(point.plantId) ?? []), point]);
-  }
+/** The other plants' readings, each kept together and named, so one faint line is one plant. */
+const byPlant = (points: GrowSeriesPoint[], others: Plant[]): Sibling[] =>
+  others
+    .map(plant => ({ label: plant.label, points: points.filter(point => point.plantId === plant.id) }))
+    .filter(sibling => sibling.points.length > 0);
 
-  return [...others.values()];
-};
+interface Sibling {
+  label: string;
+  points: GrowSeriesPoint[];
+}
 
 /**
  * What the card is drawn between. Every plant's readings and both ends of the
@@ -111,7 +117,7 @@ const bandArea = (definition: MeasurementDefinition, scale: { low: number; high:
 const optionOf = (
   palette: ChartPalette,
   mine: GrowSeriesPoint[],
-  others: GrowSeriesPoint[][],
+  beside: Sibling[],
   definition: MeasurementDefinition,
   nights: TimelineSpan[],
   scale: { low: number; high: number },
@@ -123,9 +129,10 @@ const optionOf = (
   xAxis: { type: 'time', min: from, max: to, show: false },
   yAxis: { type: 'value', min: scale.low, max: scale.high, show: false },
   series: [
-    ...others.map(points => ({
+    ...beside.map(sibling => ({
       type: 'line' as const,
-      data: points.map(point => [at(point.measuredAt), point.value]),
+      name: sibling.label,
+      data: sibling.points.map(point => [at(point.measuredAt), point.value]),
       showSymbol: false,
       silent: true,
       lineStyle: { width: 1, type: 'dotted' as const, color: palette.muted },

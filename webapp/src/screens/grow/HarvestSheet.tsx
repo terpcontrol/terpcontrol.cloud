@@ -27,11 +27,22 @@ import styles from './Lifecycle.module.css';
  * back with another tap, so the sheet says it in the note and again on the
  * button before either is pressed.
  */
-export function HarvestSheet({ grow, plants, onClose }: { grow: GrowListItem; plants: Plant[]; onClose: () => void }) {
+/** Which plants the sheet opens on, for a caller that is already about one of them; the grow page names none and the scope is the grow's. */
+export function HarvestSheet({
+  grow,
+  plants,
+  preselect,
+  onClose,
+}: {
+  grow: GrowListItem;
+  plants: Plant[];
+  preselect?: string[];
+  onClose: () => void;
+}) {
   const { t } = useTranslation();
   const harvest = useHarvest(grow.id);
 
-  const [chosen, setChosen] = useState<string[] | null>(null);
+  const [chosen, setChosen] = useState<string[] | null>(preselect ?? null);
   const [at, setAt] = useState(() => new Date());
   const [wet, setWet] = useState('');
   const [dry, setDry] = useState('');

@@ -29,6 +29,7 @@ export const TEMPLATES: MeasurementTemplate[] = [
   { key: 'watering_volume', unit: 'L', perPlant: false, chart: true },
   { key: 'outside_temp', unit: '°C', perPlant: false, chart: true },
   { key: 'leaf_temp', unit: '°C', perPlant: false, chart: true },
+  { key: 'runoff_ec', unit: 'mS/cm', perPlant: false, chart: true },
 ];
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;

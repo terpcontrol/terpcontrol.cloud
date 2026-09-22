@@ -12,7 +12,7 @@ import type {
   GrowthStage,
   MeasurementDefinition,
 } from '@fg2/shared-types/v1';
-import { correctEntry, diaryChanged, startPhase, useRecentEntries, writeEntry } from '@/api/entries';
+import { correctEntry, diaryChanged, startPhase, takeEntryBack, useRecentEntries, writeEntry } from '@/api/entries';
 import { useGrow } from '@/api/grows';
 import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { dayOf, momentOn } from '@/ui/days';
@@ -87,7 +87,9 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
   const [text, setText] = useState(entry?.text ?? '');
   const [stage, setStage] = useState<GrowthStage | null>(nextStage(grow));
   const [saving, setSaving] = useState(false);
-  const [failed, setFailed] = useState(false);
+  /** Which of the two writes went wrong, so the line under the button says the right thing. */
+  const [failed, setFailed] = useState<'save' | 'back' | null>(null);
+  const [askingBack, setAskingBack] = useState(false);
 
   const today = dayOf(new Date());
   const step = schemeStep(grow, at);
@@ -119,21 +121,21 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
   const savePhase = async () => {
     if (!target.growId || !stage) return;
     setSaving(true);
-    setFailed(false);
+    setFailed(null);
     try {
       await startPhase(target.growId, { stage });
       diaryChanged(client);
       onClose();
     } catch {
       setSaving(false);
-      setFailed(true);
+      setFailed('save');
     }
   };
 
   const correct = async () => {
     if (!entry) return;
     setSaving(true);
-    setFailed(false);
+    setFailed(null);
     try {
       const body: EntryUpdate = { ...about(target), ...whenSaid(dated, at), text: showsText ? text : entry.text, values: values() };
       await correctEntry(entry.id, body);
@@ -141,7 +143,27 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
       onClose();
     } catch {
       setSaving(false);
-      setFailed(true);
+      setFailed('save');
+    }
+  };
+
+  /**
+   * Taking the line out of the diary altogether, which is what a reading typed
+   * against the wrong plant or a watering that never happened asks for. It is
+   * asked about first: the toast's Undo is a slip caught in five seconds, this
+   * is somebody deciding days later, and the two deserve different care.
+   */
+  const takeBack = async () => {
+    if (!entry) return;
+    setSaving(true);
+    setFailed(null);
+    try {
+      await takeEntryBack(entry.id);
+      diaryChanged(client);
+      onClose();
+    } catch {
+      setSaving(false);
+      setFailed('back');
     }
   };
 
@@ -261,13 +283,37 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
 
       {failed ? (
         <p className={ui.problem} role="alert">
-          {t('log.saveFailed')}
+          {t(failed === 'back' ? 'log.undoFailed' : 'log.saveFailed')}
         </p>
       ) : null}
 
       <button type="button" className={`${ui.button} ${ui.primary} ${styles.save}`} onClick={save} disabled={saving || (kind === 'phase' && !stage)}>
         {saveLabel(t, kind, entry, filed, step !== null)}
       </button>
+
+      {/* Only a line somebody wrote: what a device or the server recorded is
+          not theirs to take back, and the server refuses it. */}
+      {entry && entry.source === 'human' ? (
+        <div className={styles.takingBack}>
+          {askingBack ? (
+            <>
+              <p className={ui.note}>{t('log.takeBackAsk')}</p>
+              <div className={styles.takeBackRow}>
+                <button type="button" className={`${ui.button} ${styles.dangerButton}`} disabled={saving} onClick={() => void takeBack()}>
+                  {t('log.takeBackYes')}
+                </button>
+                <button type="button" className={ui.button} onClick={() => setAskingBack(false)}>
+                  {t('log.cancel')}
+                </button>
+              </div>
+            </>
+          ) : (
+            <button type="button" className={`${ui.button} ${styles.danger}`} disabled={saving} onClick={() => setAskingBack(true)}>
+              {t('log.takeBack')}
+            </button>
+          )}
+        </div>
+      ) : null}
     </Sheet>
   );
 }
