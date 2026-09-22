@@ -95,6 +95,15 @@ export class SessionsController {
     return this.sessions.list(accountOf(caller), query);
   }
 
+  @Delete()
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'End every other session of this account, keeping the one asking' })
+  @ApiNoContentResponse({ description: 'The other sessions are gone.' })
+  public async revokeOthers(@CurrentUser() caller: AuthContext): Promise<void> {
+    await this.sessions.revokeOthers(accountOf(caller), caller.sessionId);
+  }
+
   @Delete(':id')
   @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)

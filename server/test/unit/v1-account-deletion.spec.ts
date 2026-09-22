@@ -53,7 +53,7 @@ let accounts: AccountsService;
 let deletion: AccountDeletionService;
 
 const build = (): void => {
-  accounts = new AccountsService(db.users, db.pushSubscriptions, { ...AUTH }, { ...PREMIUM }, { ...NOTIFICATIONS });
+  accounts = new AccountsService(db.users, db.pushSubscriptions, db.sessions, { ...AUTH }, { ...PREMIUM }, { ...NOTIFICATIONS });
 
   const sessions = new SessionsService(db.sessions, accounts, { ...AUTH });
   const resets = new PasswordResetService(

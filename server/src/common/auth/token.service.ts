@@ -19,6 +19,13 @@ export interface AuthContext {
   userId: string;
   isAdmin: boolean;
   isDemo: boolean;
+  /**
+   * Which session this request came in on, so that the two things an account
+   * does to its own sessions - ending all the others, and changing the password
+   * - can spare the browser doing them. The install's automation token names
+   * none, because it is a script rather than somebody signed in.
+   */
+  sessionId: string | null;
 }
 
 /** Requests carrying an authenticated caller. */
@@ -133,7 +140,7 @@ export class TokenService {
     // person: it names neither a session nor an account, so there is no row
     // that could have stopped answering for it.
     if (!token.session_id && !token.user_id) {
-      return { userId: '', isAdmin: !!token.is_admin, isDemo: false };
+      return { userId: '', isAdmin: !!token.is_admin, isDemo: false, sessionId: null };
     }
     if (!token.session_id || !token.user_id) return null;
 
@@ -154,10 +161,10 @@ export class TokenService {
 
     // The demo is not an account: it has a session so that it can be listed and
     // ended, and no row of its own, and it is never privileged.
-    if (token.is_demo) return { userId: token.user_id, isAdmin: false, isDemo: true };
+    if (token.is_demo) return { userId: token.user_id, isAdmin: false, isDemo: true, sessionId: token.session_id };
 
     if (caller.isActive !== true || caller.deletionStartedAt != null) return null;
 
-    return { userId: token.user_id, isAdmin: caller.isAdmin === true, isDemo: false };
+    return { userId: token.user_id, isAdmin: caller.isAdmin === true, isDemo: false, sessionId: token.session_id };
   }
 }

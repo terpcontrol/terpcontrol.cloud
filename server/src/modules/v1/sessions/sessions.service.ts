@@ -171,6 +171,17 @@ export class SessionsService {
     await this.sessions.deleteMany({ userId });
   }
 
+  /**
+   * Every session of this account except the one asking - what somebody reaches
+   * for after a laptop is lost, and one act rather than a row at a time,
+   * because a list is read a page at a time and the sessions that matter are
+   * exactly the ones nobody can see from here. The deleting itself belongs to
+   * the account, which is also where changing a password reaches for it.
+   */
+  public async revokeOthers(userId: string, keep: string | null): Promise<number> {
+    return this.accounts.endOtherSessions(userId, keep);
+  }
+
   // ---------------------------------------------------------------------------
   // The shared half
   // ---------------------------------------------------------------------------

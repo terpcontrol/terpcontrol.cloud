@@ -128,5 +128,11 @@ export class AccountController {
     // A recovery link somebody asked for and then remembered their password
     // instead must not outlive the password it would have replaced.
     await this.resets.retire(user.id);
+    // Neither must a browser somebody else is holding. Changing a password is
+    // what people do when they think it has been seen, and a change that left
+    // every other session signed in would be the one thing they were sure it
+    // was not. This browser keeps its own session, because being signed out by
+    // the act of securing the account is how people learn not to bother.
+    await this.accounts.endOtherSessions(user.id, caller.sessionId);
   }
 }

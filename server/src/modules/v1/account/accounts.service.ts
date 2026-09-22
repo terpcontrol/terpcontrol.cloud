@@ -10,6 +10,7 @@ import { PageQuery } from '@common/v1/validation';
 import { conflict, notFound } from '@common/v1/problem';
 import { MODEL_V1 } from '@database/models';
 import { StoredPushSubscription } from '@database/schemas/v1/push-subscriptions.schema';
+import { StoredSession } from '@database/schemas/v1/sessions.schema';
 import { StoredNotificationSettings, StoredUser } from '@database/schemas/v1/users.schema';
 import { authConfig, notificationsConfig, premiumConfig } from '@config/configuration';
 import { freeTierOf } from '../camera/entitlement.service';
@@ -39,6 +40,7 @@ export class AccountsService implements OnModuleInit {
   constructor(
     @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
     @InjectModel(MODEL_V1.pushSubscription) private readonly pushSubscriptions: Model<StoredPushSubscription>,
+    @InjectModel(MODEL_V1.session) private readonly sessions: Model<StoredSession>,
     @Inject(authConfig.KEY) private readonly auth: ConfigType<typeof authConfig>,
     @Inject(premiumConfig.KEY) private readonly premium: ConfigType<typeof premiumConfig>,
     @Inject(notificationsConfig.KEY) private readonly notifications: ConfigType<typeof notificationsConfig>,
@@ -171,6 +173,24 @@ export class AccountsService implements OnModuleInit {
 
   public async setPassword(id: string, password: string): Promise<void> {
     await this.apply(id, { passwordHash: await hash(password, PASSWORD_ROUNDS) });
+  }
+
+  /**
+   * Every session of an account but the one asking. It lives here rather than
+   * with the sessions because the two things that reach for it are an account's
+   * own doing - changing a password, and saying so after a laptop is lost - and
+   * because the sessions already depend on this service, while the other way
+   * round would be a circle.
+   *
+   * A caller that names no session of its own ends nothing: signing yourself
+   * out along with everybody else would make this the control people avoid at
+   * the moment they need it.
+   */
+  public async endOtherSessions(userId: string, keep: string | null): Promise<number> {
+    if (keep === null) return 0;
+
+    const ended = await this.sessions.deleteMany({ userId, id: { $ne: keep } });
+    return ended.deletedCount;
   }
 
   /**

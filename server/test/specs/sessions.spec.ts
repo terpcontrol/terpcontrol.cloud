@@ -66,6 +66,49 @@ describe('a session that has been ended', () => {
   });
 });
 
+describe('signing every other browser out', () => {
+  it('ends the others and keeps the one asking', async () => {
+    const user = await createAccount('sweep');
+    const laptop = await login(user.username, user.password);
+    const phone = await login(user.username, user.password);
+
+    await user.client.delete('/v1/sessions').expect(204);
+
+    await user.client.get('/v1/me').expect(200);
+    await laptop.client.get('/v1/me').expect(401);
+    await phone.client.get('/v1/me').expect(401);
+    // Not merely refused: the rows are gone, so a renewal finds nothing either.
+    await anonymous().post('/v1/sessions/refresh').send({ refreshToken: laptop.refreshToken }).expect(401);
+  });
+
+  it('is nobody else´s doing, and reaches no other account', async () => {
+    const mine = await createAccount('sweep-mine');
+    const theirs = await createAccount('sweep-theirs');
+    const alsoTheirs = await login(theirs.username, theirs.password);
+
+    await mine.client.delete('/v1/sessions').expect(204);
+
+    await theirs.client.get('/v1/me').expect(200);
+    await alsoTheirs.client.get('/v1/me').expect(200);
+  });
+
+  /**
+   * Changing a password is what somebody does when they think it has been seen,
+   * so the browsers it was seen in have to stop. The one doing the changing
+   * keeps its session: being signed out by the act of securing the account is
+   * how people learn not to bother.
+   */
+  it('happens on its own when the password is changed', async () => {
+    const user = await createAccount('password-sweep');
+    const elsewhere = await login(user.username, user.password);
+
+    await user.client.put('/v1/me/password').send({ currentPassword: user.password, newPassword: 'Passw0rd!after' }).expect(204);
+
+    await user.client.get('/v1/me').expect(200);
+    await elsewhere.client.get('/v1/me').expect(401);
+  });
+});
+
 describe('an account an administrator changes underneath it', () => {
   it('is signed in for exactly as long as it is active', async () => {
     const user = await createAccount('deactivated');

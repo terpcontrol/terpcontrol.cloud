@@ -61,7 +61,7 @@ let resets: PasswordResetService;
 let sessions: SessionsService;
 
 const build = (): void => {
-  accounts = new AccountsService(database.users, database.pushSubscriptions, { ...auth }, { ...premium }, { ...notifications });
+  accounts = new AccountsService(database.users, database.pushSubscriptions, database.sessions, { ...auth }, { ...premium }, { ...notifications });
   resets = new PasswordResetService(database.passwordResets, accounts, mail as never, app as never);
   sessions = new SessionsService(database.sessions, accounts, { ...auth });
 };
@@ -127,6 +127,7 @@ describe('signing up', () => {
     accounts = new AccountsService(
       database.users,
       database.pushSubscriptions,
+      database.sessions,
       { ...auth, requireActivation: true },
       { ...premium },
       { ...notifications },
@@ -156,6 +157,7 @@ describe('what is serialised', () => {
     accounts = new AccountsService(
       database.users,
       database.pushSubscriptions,
+      database.sessions,
       { ...auth, requireActivation: true },
       { ...premium },
       { ...notifications },
@@ -258,6 +260,7 @@ describe('signing in', () => {
     accounts = new AccountsService(
       database.users,
       database.pushSubscriptions,
+      database.sessions,
       { ...auth, requireActivation: true },
       { ...premium },
       { ...notifications },
@@ -395,6 +398,7 @@ describe('the account the install seeds', () => {
     accounts = new AccountsService(
       database.users,
       database.pushSubscriptions,
+      database.sessions,
       { ...auth, adminPassword: NEW_PASSWORD },
       { ...premium },
       { ...notifications },
@@ -426,7 +430,14 @@ describe('who a token still answers for', () => {
     const user = await signUp('resolved');
     const opened = await sessions.logIn(user.email, PASSWORD, false, null);
 
-    expect(await tokens.resolve(claimsOf(opened.userToken.token))).toEqual({ userId: user.id, isAdmin: false, isDemo: false });
+    expect(await tokens.resolve(claimsOf(opened.userToken.token))).toEqual({
+      userId: user.id,
+      isAdmin: false,
+      isDemo: false,
+      // Which session asked, so that the two things an account does to its own
+      // sessions can spare the browser doing them.
+      sessionId: expect.any(String),
+    });
 
     await accounts.updateAsAdmin(user.id, { isAdmin: true });
     expect((await tokens.resolve(claimsOf(opened.userToken.token)))?.isAdmin).toBe(true);
@@ -464,12 +475,24 @@ describe('who a token still answers for', () => {
     const user = await signUp('the-three');
     const opened = await sessions.logIn(user.email, PASSWORD, false, null);
 
-    expect(await tokens.resolve(claimsOf(opened.mediaToken.token))).toEqual({ userId: user.id, isAdmin: false, isDemo: false });
+    expect(await tokens.resolve(claimsOf(opened.mediaToken.token))).toEqual({
+      userId: user.id,
+      isAdmin: false,
+      isDemo: false,
+      sessionId: expect.any(String),
+    });
 
     const demo = await sessions.openDemo(null);
-    expect(await tokens.resolve(claimsOf(demo.userToken.token))).toEqual({ userId: 'demo', isAdmin: false, isDemo: true });
+    expect(await tokens.resolve(claimsOf(demo.userToken.token))).toEqual({
+      userId: 'demo',
+      isAdmin: false,
+      isDemo: true,
+      sessionId: expect.any(String),
+    });
 
     const automation = sessions.automation(auth.automationToken);
-    expect(await tokens.resolve(claimsOf(automation.userToken.token))).toEqual({ userId: '', isAdmin: true, isDemo: false });
+    // The install's own token names no session, because it is a script rather
+    // than somebody signed in - and nothing it does can end anybody's browser.
+    expect(await tokens.resolve(claimsOf(automation.userToken.token))).toEqual({ userId: '', isAdmin: true, isDemo: false, sessionId: null });
   });
 });
