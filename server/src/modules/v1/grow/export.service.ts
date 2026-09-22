@@ -1,6 +1,6 @@
 import { Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { createWriteStream } from 'node:fs';
+import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -62,13 +62,29 @@ import { ZipWriter } from './export-zip';
 /** How long a finished export stands in for the next request for one. Long enough to survive a double tap, short enough that tomorrow's export is of today. */
 const FRESH_MS = 60 * 60 * 1000;
 
-/** The builder's own beat. A queued export wakes it; this is what catches one that was queued while the server was down. */
+/**
+ * The builder's own beat. A queued export wakes it; this is what catches one
+ * left behind while the server was down - which is rarely one still saying
+ * `queued` and usually one saying `rendering`, because a build that was
+ * interrupted had already started.
+ */
 const DRAIN_INTERVAL_MS = 5 * 60 * 1000;
 const QUEUE_WAKE_MS = 2000;
 const FIRST_PASS_MS = 60 * 1000;
 
+/**
+ * How long a row may say `rendering` before it is taken for a build that will
+ * never finish. Two passes: long enough that a season of photos is not given up
+ * on half way through, short enough that a restart costs one pass rather than
+ * the week it takes the sweep to remove the corpse.
+ */
+const STALE_BUILD_MS = 2 * DRAIN_INTERVAL_MS;
+
 /** One at a time: a zip is minutes of reading and writing, and two of them would only make each other slower. */
 const EXPORTS_PER_PASS = 1;
+
+/** Abandoned builds put back in the queue in one pass. More than the one it then builds, so a restart is not undone a pass at a time. */
+const REQUEUE_PER_PASS = 20;
 
 /**
  * How fine the climate file is. A device reports every thirty seconds and the
@@ -87,6 +103,9 @@ const EXPORTED_OUTPUTS: readonly OutputMetric[] = outputMetric.options;
 @Injectable()
 export class ExportService implements OnModuleInit, OnApplicationShutdown {
   private readonly work = new BackgroundWork();
+
+  /** The exports this process has in hand, so that a long build is not mistaken for an abandoned one and started a second time. */
+  private readonly building = new Set<string>();
 
   constructor(
     @InjectModel(MODEL_V1.grow) private readonly grows: Model<GrowDocument>,
@@ -136,9 +155,28 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
 
   /** One pass over the queue. Public so it can be run once, in a test or by hand. */
   public async drain(): Promise<void> {
+    await this.requeueAbandoned();
+
     for (const row of await this.media.queuedExports(EXPORTS_PER_PASS)) {
       if (this.work.isStopped) return;
+      if (this.building.has(row.id)) continue;
       await this.build(row);
+    }
+  }
+
+  /**
+   * The builds nobody is building any more. A server stopped mid-zip leaves its
+   * row saying `rendering` and no timer looks at those, so they are put back in
+   * the queue here rather than waiting for somebody to ask for the same export
+   * again - and a row this process is still writing is not one of them,
+   * however long it has been taking.
+   */
+  private async requeueAbandoned(): Promise<void> {
+    for (const row of await this.media.stalledExports(REQUEUE_PER_PASS, new Date(Date.now() - STALE_BUILD_MS))) {
+      if (!row.exportJob || this.building.has(row.id)) continue;
+
+      logger.warn(`Export ${row.id} was left half-built and is queued again`);
+      await this.media.setExportJob(row.id, { ...row.exportJob, status: 'queued', startedAt: null });
     }
   }
 
@@ -150,36 +188,66 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
     await this.media.setExportJob(row.id, { ...job, status: 'rendering', startedAt });
     const directory = await mkdtemp(join(tmpdir(), 'export-'));
     const path = join(directory, 'export.zip');
+    this.building.add(row.id);
 
     try {
-      await this.writeArchive(path, row);
+      await this.writeArchive(path, directory, row);
       await this.media.fill(row.id, path, { exportJob: { ...job, status: 'ready', startedAt, endedAt: new Date(), error: null } });
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       logger.error(`Building export ${row.id} failed: ${detail}`);
       await this.media.setExportJob(row.id, { ...job, status: 'failed', startedAt, endedAt: new Date(), error: detail });
     } finally {
+      this.building.delete(row.id);
       await rm(directory, { recursive: true, force: true });
     }
   }
 
-  private async writeArchive(path: string, row: MediaDocument): Promise<void> {
+  /**
+   * The archive itself, into a file the caller then hands to the bucket.
+   *
+   * A write that fails arrives twice: once at the callback the writer is
+   * waiting on, and once as an `error` event on the stream. The event is the
+   * dangerous half - nothing listens for it, so node raises it as an uncaught
+   * exception, and the process answers those by ending and takes every other
+   * request down with it. Listening for it and racing it against the writing is
+   * what turns a full disk into a job that says so.
+   *
+   * The listener stays on for the stream's whole life and both sides of the
+   * race are caught, because a failure is rarely the only one: the writing goes
+   * on for a moment after the stream is gone, and a second event with nobody
+   * left to hear it, or a rejection nobody observed, ends the process just as
+   * surely as the first would have.
+   */
+  private async writeArchive(path: string, directory: string, row: MediaDocument): Promise<void> {
     const out = createWriteStream(path);
     const zip = new ZipWriter(out);
 
-    if (row.exportJob?.scope === 'grow' && row.exportJob.growId) await this.writeGrow(zip, row.exportJob.growId, '');
-    else await this.writeAccount(zip, row.uploadedBy);
+    const failed = new Promise<never>((_, reject) => out.on('error', reject));
+    const written = (async () => {
+      if (row.exportJob?.scope === 'grow' && row.exportJob.growId) await this.writeGrow(zip, row.exportJob.growId, '', directory);
+      else await this.writeAccount(zip, row.uploadedBy, directory);
 
-    await zip.close();
-    out.end();
-    await finished(out);
+      await zip.close();
+      out.end();
+      await finished(out);
+    })();
+
+    failed.catch(() => undefined);
+    written.catch(() => undefined);
+
+    try {
+      await Promise.race([written, failed]);
+    } finally {
+      out.destroy();
+    }
   }
 
   /**
    * One grow, as a folder: what it was, its plants, its diary, its readings,
    * its climate and its pictures.
    */
-  private async writeGrow(zip: ZipWriter, growId: string, prefix: string): Promise<void> {
+  private async writeGrow(zip: ZipWriter, growId: string, prefix: string, directory: string): Promise<void> {
     const grow = await this.grows.findOne({ id: growId }).lean<GrowDocument>();
     if (!grow) return;
 
@@ -195,14 +263,14 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
     await zip.add(`${prefix}diary.csv`, grow.startedAt, Readable.from(this.diaryOf({ growId }, grow, people, labels)), true);
     await zip.add(`${prefix}measurements.csv`, grow.startedAt, await this.measurementsOf(grow, labels), true);
     await zip.add(`${prefix}climate.csv`, grow.startedAt, Readable.from(this.climateOf(grow)), true);
-    await this.writePictures(zip, prefix, grow);
+    await this.writePictures(zip, prefix, grow, directory);
   }
 
   /**
    * The whole account: its own row, the places and the hardware in it, every
    * line it wrote that belongs to no grow, and a folder per grow.
    */
-  private async writeAccount(zip: ZipWriter, userId: string | null): Promise<void> {
+  private async writeAccount(zip: ZipWriter, userId: string | null, directory: string): Promise<void> {
     const user = userId ? await this.users.findOne({ id: userId }).lean<StoredUser>() : null;
     if (!user) return;
 
@@ -248,7 +316,7 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
     };
     await zip.add('diary.csv', user.createdAt, Readable.from(this.diaryOf(elsewhere, null, people, new Map())), true);
 
-    for (const grow of grows) await this.writeGrow(zip, grow.id, `grows/${grow.slug}/`);
+    for (const grow of grows) await this.writeGrow(zip, grow.id, `grows/${grow.slug}/`, directory);
   }
 
   /**
@@ -322,20 +390,54 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
    * stills are not among them - a season of one is a hundred thousand files and
    * the films made from them are what anybody keeps - but a film the grow itself
    * names is, because it is the grow's own.
+   *
+   * Each picture is taken out of the bucket onto the disk before it goes into
+   * the archive, one at a time. An entry's header is written before its bytes,
+   * so a stream that died half way through would leave a truncated entry and an
+   * archive that will not open; copying first is what makes a picture whose
+   * bytes are gone one picture missing rather than the whole export lost.
    */
-  private async writePictures(zip: ZipWriter, prefix: string, grow: GrowDocument): Promise<void> {
+  private async writePictures(zip: ZipWriter, prefix: string, grow: GrowDocument, directory: string): Promise<void> {
     const named: string[] = await this.entries.distinct('mediaIds', { growId: grow.id });
     const own = await this.media.ofGrow(grow.id);
     const ids = new Set(
       [...own.map(row => row.id), ...named, grow.coverMediaId, grow.filmMediaId].filter((id): id is string => typeof id === 'string'),
     );
 
+    const unreadable: string[] = [];
     for (const id of ids) {
       const row = own.find(picture => picture.id === id) ?? (await this.media.byId(id));
       // An export of an export would be this week's zip inside next week's.
       if (!row || row.kind === 'export') continue;
 
-      await zip.add(`${prefix}photos/${fileNameOf(row)}`, row.capturedAt, this.media.read(row.id));
+      const scratch = join(directory, `picture-${row.id}`);
+      try {
+        await this.media.copyToFile(row.id, scratch);
+      } catch (error) {
+        logger.error(`Leaving picture ${row.id} out of the export of grow ${grow.id}: ${error}`);
+        unreadable.push(row.id);
+        continue;
+      }
+
+      try {
+        await zip.add(`${prefix}photos/${fileNameOf(row)}`, row.capturedAt, createReadStream(scratch));
+      } finally {
+        await rm(scratch, { force: true });
+      }
+    }
+
+    // What could not be read is named rather than quietly absent: somebody
+    // counting their photos back is owed the difference.
+    if (unreadable.length > 0) {
+      await zip.add(
+        `${prefix}photos/missing.csv`,
+        grow.startedAt,
+        csvOf(
+          ['mediaId'],
+          unreadable.map(id => [id]),
+        ),
+        true,
+      );
     }
   }
 
@@ -346,14 +448,19 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
 
 /**
  * Whether the export that is already there answers the next request for one. A
- * build in flight always does; a failed one never does; a finished one does
- * until it goes stale, counted from when the file was finished rather than from
- * when it was asked for - a build that took two hours would otherwise be stale
- * the moment it was ready.
+ * build in flight does while it is still running; a failed one never does; a
+ * finished one does until it goes stale, counted from when the file was
+ * finished rather than from when it was asked for - a build that took two hours
+ * would otherwise be stale the moment it was ready.
+ *
+ * A build that stopped being a build is the case worth naming: a row left
+ * saying `rendering` by a server that went down would otherwise answer every
+ * later request with a file of no bytes that nothing is writing.
  */
 const stillGood = (row: MediaDocument, now: Date): boolean => {
   const job = row.exportJob;
-  if (job?.status === 'queued' || job?.status === 'rendering') return true;
+  if (job?.status === 'queued') return true;
+  if (job?.status === 'rendering') return job.startedAt !== null && now.getTime() - job.startedAt.getTime() < STALE_BUILD_MS;
 
   return job?.status === 'ready' && now.getTime() - (job.endedAt ?? row.createdAt).getTime() < FRESH_MS;
 };

@@ -1,4 +1,9 @@
 import { jest } from '@jest/globals';
+import { execFileSync } from 'node:child_process';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { crc32, inflateRawSync } from 'node:zlib';
 import type { DeviceSeries } from '@fg2/shared-types/v1';
 import { media as mediaShape } from '@fg2/shared-types/v1-schemas';
@@ -7,20 +12,59 @@ import { AccessContext } from '@common/v1/access.types';
 import { ImageStore } from '@database/image-store';
 import { DataService, SeriesRequest } from '@modules/data/data.service';
 import { MediaService } from '@modules/v1/camera/media.service';
-import { ExportService } from '@modules/v1/grow/export.service';
 import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
 
 /**
  * Exporting: the job, the zip it leaves behind, and the fact that the zip is
  * nobody's but the person who asked for it.
  *
- * The archive is read back here rather than taken on trust. It is written by
+ * The archive is read back twice rather than taken on trust. It is written by
  * hand - there is no zip library in this server - so the spec walks the central
- * directory, inflates what was deflated and checks the checksum the archive
- * claims against the bytes that come out. A reader that disagreed with the
- * writer would otherwise only be discovered by a grower whose export will not
- * open.
+ * directory itself, inflates what was deflated and checks the checksum the
+ * archive claims against the bytes that come out; and then, where the machine
+ * has one, it hands the same file to a real `unzip`, which shares none of the
+ * writer's assumptions. A hand reader can only ever confirm that the spec and
+ * the writer agree, and what a grower has is an unzip.
  */
+
+/**
+ * Whether the archive can be handed to somebody else's reader. Skipping the
+ * second opinion where there is no `unzip` is only acceptable because
+ * everything it is a second opinion about is asserted by hand as well.
+ */
+const canUnzip = ((): boolean => {
+  try {
+    execFileSync('unzip', ['-v'], { stdio: 'ignore' });
+
+    return true;
+  } catch {
+    return false;
+  }
+})();
+
+/**
+ * A write of the archive that fails, armed by the one case that needs it. A
+ * full disk cannot be arranged in a spec, and what matters is the half of a
+ * failed write that used to end the server: the `error` event node raises on
+ * the stream beside the callback the writer is waiting on.
+ */
+let writeFails: Error | null = null;
+
+// The module itself, from outside jest's registry: importing it in the factory
+// below would be the factory asking for what the factory answers.
+const fs: typeof import('node:fs') = createRequire(import.meta.url)('node:fs');
+
+jest.unstable_mockModule('node:fs', () => ({
+  ...fs,
+  default: fs,
+  createWriteStream: (...args: Parameters<typeof fs.createWriteStream>) => {
+    const stream = fs.createWriteStream(...args);
+    const failure = writeFails;
+    if (failure) setImmediate(() => stream.emit('error', failure));
+
+    return stream;
+  },
+}));
 
 const OWNER = 'user-owner';
 const MEMBER = 'user-member';
@@ -43,8 +87,14 @@ const demo = (): AccessContext => ({ userId: null, isAdmin: false, isDemo: true,
 
 let db: V1TestDatabase;
 let access: AccessService;
+let store: ImageStore;
 let media: MediaService;
-let exports: ExportService;
+let exports: InstanceType<typeof ExportService>;
+
+// The builder is loaded after the mock above, because an ES module is linked
+// before the file importing it runs and a static import would take the real
+// `node:fs` with it.
+let ExportService: typeof import('@modules/v1/grow/export.service').ExportService;
 
 const fakeData = {
   series: async (deviceId: string, request: SeriesRequest): Promise<DeviceSeries> => {
@@ -208,6 +258,7 @@ const world = async (): Promise<void> => {
 };
 
 beforeAll(async () => {
+  ({ ExportService } = await import('@modules/v1/grow/export.service'));
   db = await startV1TestDatabase();
 });
 
@@ -216,6 +267,7 @@ afterAll(async () => {
 });
 
 afterEach(() => {
+  writeFails = null;
   // The builder wakes itself when an export is asked for; a spec that left that
   // timer behind would keep the run open after its last assertion.
   exports.onApplicationShutdown();
@@ -224,7 +276,8 @@ afterEach(() => {
 beforeEach(async () => {
   await db.reset();
   access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
-  media = new MediaService(db.media, new ImageStore(db.connection));
+  store = new ImageStore(db.connection);
+  media = new MediaService(db.media, store);
   exports = new ExportService(db.grows, db.plants, db.entries, db.spaces, db.devices, db.users, media, fakeData);
   await world();
 });
@@ -275,6 +328,57 @@ describe('the job', () => {
     expect(row?.exportJob).toMatchObject({ status: 'failed', error: 'the disk is full' });
     expect(row?.exportJob?.endedAt).toBeInstanceOf(Date);
   });
+
+  // The half of a failed write that arrives as an event on the stream rather
+  // than at the writer waiting on it. Nothing listened for that one, so a full
+  // disk under one grower's export ended the process and every other request
+  // with it; it belongs on the job, like every other reason a build failed.
+  it('keeps a failed write on the job rather than letting it end the server', async () => {
+    const asked = await exports.ask(OWNER, 'grow', GROW, NOW);
+    writeFails = new Error('ENOSPC: no space left on device');
+
+    await exports.drain();
+
+    const row = await media.byId(asked.media.id);
+    expect(row?.exportJob).toMatchObject({ status: 'failed', error: 'ENOSPC: no space left on device' });
+    expect(row?.bytes).toBe(0);
+    // The API is still there to answer the next person.
+    await expect(exports.ask(STRANGER, 'account', null, NOW)).resolves.toMatchObject({ queued: true });
+  });
+
+  it('waits on a build that is running and starts a new one where the build died', async () => {
+    const asked = await exports.ask(OWNER, 'grow', GROW, NOW);
+    const renderingSince = (startedAt: Date) =>
+      media.setExportJob(asked.media.id, { status: 'rendering', scope: 'grow', growId: GROW, startedAt, endedAt: null, error: null });
+
+    await renderingSince(new Date(NOW.getTime() - 60 * 1000));
+    expect(await exports.ask(OWNER, 'grow', GROW, NOW)).toMatchObject({ queued: false, media: { id: asked.media.id } });
+
+    // Nothing is writing this one any more: the server that was went down an
+    // hour ago and left the row saying it was.
+    await renderingSince(new Date(NOW.getTime() - 60 * 60 * 1000));
+    const again = await exports.ask(OWNER, 'grow', GROW, NOW);
+    expect(again.queued).toBe(true);
+    expect(again.media.id).not.toBe(asked.media.id);
+  });
+
+  it('builds an abandoned job again on the next pass rather than waiting to be asked', async () => {
+    const asked = await exports.ask(OWNER, 'grow', GROW, NOW);
+    await media.setExportJob(asked.media.id, {
+      status: 'rendering',
+      scope: 'grow',
+      growId: GROW,
+      startedAt: new Date(NOW.getTime() - 60 * 60 * 1000),
+      endedAt: null,
+      error: null,
+    });
+
+    await exports.drain();
+
+    const row = await media.byId(asked.media.id);
+    expect(row?.exportJob?.status).toBe('ready');
+    expect(row?.bytes).toBeGreaterThan(0);
+  });
 });
 
 describe('what is in the zip', () => {
@@ -305,6 +409,37 @@ describe('what is in the zip', () => {
     // The line written in the tent belongs to no grow and is in the account's
     // export rather than in this one.
     expect(diary).not.toContain('entry-in-the-tent');
+  });
+
+  it('leaves out a picture whose bytes are gone, and says which', async () => {
+    const picture = (await db.media.findOne({ kind: 'photo' }).lean())!;
+    await store.delete([picture.id]);
+
+    const asked = await exports.ask(OWNER, 'grow', GROW, NOW);
+    await exports.drain();
+
+    // One unreadable photo is one photo missing, not a season lost.
+    expect((await media.byId(asked.media.id))?.exportJob?.status).toBe('ready');
+    const files = await archiveOf(asked.media.id);
+    expect([...files.keys()].sort()).toEqual(['climate.csv', 'diary.csv', 'grow.csv', 'measurements.csv', 'photos/missing.csv', 'plants.csv'].sort());
+    expect(files.get('photos/missing.csv')!.toString('utf8')).toContain(picture.id);
+  });
+
+  (canUnzip ? it : it.skip)("opens in a reader that shares none of the writer's assumptions", async () => {
+    const asked = await exports.ask(OWNER, 'grow', GROW, NOW);
+    await exports.drain();
+
+    const directory = await mkdtemp(join(tmpdir(), 'export-spec-'));
+    const file = join(directory, 'export.zip');
+    try {
+      await writeFile(file, await media.download(asked.media.id));
+      execFileSync('unzip', ['-t', file], { stdio: 'ignore' });
+
+      const listed = execFileSync('unzip', ['-Z1', file], { encoding: 'utf8' }).split('\n').filter(Boolean);
+      expect(listed.sort()).toEqual([...(await archiveOf(asked.media.id)).keys()].sort());
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   it('exports the whole account as its own rows and a folder per grow', async () => {

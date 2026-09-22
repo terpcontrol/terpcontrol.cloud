@@ -22,6 +22,7 @@ import { MigrationRunner, RejectedRows, RunEvent, runProgress } from '@/migratio
 import { StaleMigrationRecord, TwoGenerationsOfOldData } from '@/migrations/preflight';
 import { MIGRATION_STEPS } from '@/migrations/steps';
 import { warningsRouting } from '@/migrations/steps/015-warnings-routing';
+import { measurementBand } from '@/migrations/steps/016-measurement-band';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 
 /**
@@ -851,6 +852,93 @@ describe('grows', () => {
     expect(running?.phases[0].startedAt.getTime()).toBe(fixture.grows.running.startedAt);
     expect(running?.endedAt).toBeNull();
     expect(day).toBe(41);
+  });
+});
+
+/**
+ * The step that widens a measurement's target into a band, run on its own over
+ * grows the app itself wrote.
+ *
+ * It is the one step whose input is not the old database: a grow the migration
+ * reconstructs carries the eight definitions with both ends already, and what
+ * this step is for is the grow somebody has been running since before a target
+ * was a range. So the grows are seeded here in the shape that release left
+ * behind, and every shape it could have left behind is one case: the single
+ * number, a definition with no target at all, a grow already carrying a band,
+ * and a grow measuring nothing.
+ */
+describe('the band a measurement is aimed at', () => {
+  const HEIGHT = { key: 'height', name: 'Height', unit: 'cm', perPlant: true, chart: true };
+  const ACIDITY = { key: 'ph_input', name: 'pH in', unit: '', perPlant: false, chart: true };
+
+  const seed = (id: string, measurements: Document[]): Promise<unknown> => collection<Document>('grows').insertOne({ id, name: id, measurements });
+
+  const measurementsOf = async (id: string): Promise<Document[]> => (await one<{ measurements: Document[] }>('grows', { id }))?.measurements ?? [];
+
+  const widen = async (dryRun = false): Promise<Record<string, number>> => {
+    const context = new MigrationContext(db(), dryRun, new Date(AT));
+    await measurementBand.run(context);
+
+    return context.stats;
+  };
+
+  it('spreads the number that was aimed at over both ends, and drops the key it came from', async () => {
+    await seed('grow-before-the-band', [
+      { ...HEIGHT, target: 60 },
+      { ...ACIDITY, target: null },
+    ]);
+
+    expect(await widen()).toMatchObject({ 'grows.measurementBandWidened': 1 });
+
+    const [height, acidity] = await measurementsOf('grow-before-the-band');
+    expect(height).toMatchObject({ key: 'height', targetMin: 60, targetMax: 60 });
+    expect(height).not.toHaveProperty('target');
+    // A definition nobody aimed anywhere keeps both ends open rather than
+    // gaining a band it never had.
+    expect(acidity).toMatchObject({ targetMin: null, targetMax: null });
+    expect(acidity).not.toHaveProperty('target');
+  });
+
+  it('leaves a grow that already carries a band, and one that measures nothing, as they are', async () => {
+    await seed('grow-with-a-band', [{ ...ACIDITY, targetMin: 6.2, targetMax: 6.5 }]);
+    await seed('grow-measuring-nothing', []);
+    await seed('grow-before-the-band', [{ ...HEIGHT, target: 60 }]);
+
+    expect(await widen()).toMatchObject({ 'grows.measurementBandWidened': 1 });
+
+    expect(await measurementsOf('grow-with-a-band')).toEqual([{ ...ACIDITY, targetMin: 6.2, targetMax: 6.5 }]);
+    expect(await measurementsOf('grow-measuring-nothing')).toEqual([]);
+  });
+
+  it('does not empty the band of the definition standing beside an old target', async () => {
+    await seed('grow-half-way', [
+      { ...HEIGHT, target: 60 },
+      { ...ACIDITY, targetMin: 6.2, targetMax: 6.5 },
+    ]);
+
+    await widen();
+
+    const [height, acidity] = await measurementsOf('grow-half-way');
+    expect(height).toMatchObject({ targetMin: 60, targetMax: 60 });
+    expect(acidity).toMatchObject({ targetMin: 6.2, targetMax: 6.5 });
+  });
+
+  it('counts what it would widen in a rehearsal and writes none of it', async () => {
+    await seed('grow-before-the-band', [{ ...HEIGHT, target: 60 }]);
+
+    expect(await widen(true)).toMatchObject({ 'grows.measurementBandWidened': 1 });
+
+    expect(await measurementsOf('grow-before-the-band')).toEqual([{ ...HEIGHT, target: 60 }]);
+  });
+
+  it('finds nothing left to do when it is run again', async () => {
+    await seed('grow-before-the-band', [{ ...HEIGHT, target: 60 }]);
+    await widen();
+    const widened = await measurementsOf('grow-before-the-band');
+
+    expect(await widen()).toMatchObject({ 'grows.measurementBandWidened': 0 });
+
+    expect(await measurementsOf('grow-before-the-band')).toEqual(widened);
   });
 });
 

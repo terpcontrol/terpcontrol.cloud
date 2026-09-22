@@ -20,8 +20,10 @@ const WITH_THE_OLD_TARGET = { [TARGET]: { $exists: true } };
  *
  * The number that was there becomes both ends, which is what it meant - a
  * target of 6.3 was aimed at exactly - and a definition that had none keeps
- * none. The old key is removed with the same write, so a later run of this step
- * finds nothing to do.
+ * none. Where a definition already carries a band it is left as it is, because
+ * one list can hold both shapes and a grower's 1.4 to 1.8 must not be emptied
+ * by the definition beside it. The old key is removed with the same write, so a
+ * later run of this step finds nothing to do.
  */
 export const measurementBand: MigrationStep = {
   name: '016-measurement-band',
@@ -42,7 +44,10 @@ export const measurementBand: MigrationStep = {
               in: {
                 $mergeObjects: [
                   '$$measurement',
-                  { targetMin: { $ifNull: ['$$measurement.target', null] }, targetMax: { $ifNull: ['$$measurement.target', null] } },
+                  {
+                    targetMin: { $ifNull: ['$$measurement.target', '$$measurement.targetMin', null] },
+                    targetMax: { $ifNull: ['$$measurement.target', '$$measurement.targetMax', null] },
+                  },
                 ],
               },
             },

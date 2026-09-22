@@ -177,6 +177,20 @@ export class MediaService {
     return this.media.find({ 'exportJob.status': 'queued' }).sort({ createdAt: 1 }).limit(limit).lean<MediaDocument[]>();
   }
 
+  /**
+   * The exports that say they are being built and have said so for too long,
+   * which is what a server stopped mid-zip leaves behind. A row that never
+   * recorded when it started counts as one of them: nothing is going to finish
+   * it either.
+   */
+  public stalledExports(limit: number, before: Date): Promise<MediaDocument[]> {
+    return this.media
+      .find({ 'exportJob.status': 'rendering', $or: [{ 'exportJob.startedAt': null }, { 'exportJob.startedAt': { $lt: before } }] })
+      .sort({ createdAt: 1 })
+      .limit(limit)
+      .lean<MediaDocument[]>();
+  }
+
   public async setExportJob(id: string, exportJob: MediaDocument['exportJob']): Promise<void> {
     await this.media.updateOne({ id }, { $set: { exportJob } });
   }
