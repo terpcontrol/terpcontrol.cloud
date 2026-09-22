@@ -21,6 +21,7 @@ export class AuthGuard implements CanActivate {
     }
 
     request.auth = caller;
+    request.authTokenType = token.token_type;
     return true;
   }
 }

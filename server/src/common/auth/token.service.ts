@@ -28,9 +28,17 @@ export interface AuthContext {
   sessionId: string | null;
 }
 
-/** Requests carrying an authenticated caller. */
+/**
+ * Requests carrying an authenticated caller.
+ *
+ * `authTokenType` is which credential proved it, which is thrown away almost
+ * everywhere and matters in one place: a route that accepts the URL-embeddable
+ * image token may still have something behind it that no <img> should ever be
+ * handed. Whoever reads it is saying "not with that key", not "not you".
+ */
 export interface AuthenticatedRequest extends FastifyRequest {
   auth?: AuthContext;
+  authTokenType?: TokenType;
 }
 
 // A picture is fetched by <img>, which cannot set headers, so those URLs may

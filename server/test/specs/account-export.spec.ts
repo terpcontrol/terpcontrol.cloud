@@ -1,4 +1,4 @@
-import { createAccount, Session } from '../support/api';
+import { anonymous, createAccount, Session } from '../support/api';
 import { provisionDevice } from '../support/device';
 import { everythingIn, unzip } from '../support/zip';
 
@@ -177,6 +177,28 @@ describe('GET /v1/me/export', () => {
     // something.
     expect([...files.keys()]).toEqual(expect.arrayContaining([`grows/${theirGrow.slug}/grow.csv`]));
     expect(everything).toContain('The neighbour´s cam');
+  });
+
+  /**
+   * An export is a media row and is served by the media route, which is the
+   * decision that spared it a collection of its own. The credential that route
+   * also accepts is not: the image token lives thirty days and is built to sit
+   * in a URL, and the URL of an account's whole data dump goes into download
+   * history, the clipboard and every proxy log on the way.
+   */
+  it('hands the zip to a session and refuses the picture token that any <img> URL carries', async () => {
+    const accepted = await owner.client.get('/v1/me/export');
+    expect([200, 202]).toContain(accepted.status);
+    const id = accepted.body.media.id;
+
+    // No Authorization header at all: the token in the query is the whole
+    // proof, which is exactly how the download link used to be built.
+    await anonymous().get(`/v1/media/${id}/content?token=${owner.imageToken}`).expect(404);
+    await anonymous().get(`/v1/media/${id}?token=${owner.imageToken}`).expect(404);
+
+    // The same id, asked for as the session it belongs to.
+    const row = await owner.client.get(`/v1/media/${id}`).expect(200);
+    expect(row.body.kind).toBe('export');
   });
 
   it('is the owner´s alone, and says nothing of the neighbour´s grow either', async () => {

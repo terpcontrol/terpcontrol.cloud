@@ -4,6 +4,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { Media, MediaUpload } from '@fg2/shared-types/v1';
 import { media as mediaShape, mediaUpload } from '@fg2/shared-types/v1-schemas';
 import { AuthGuard } from '@common/auth/auth.guard';
+import { AuthenticatedRequest } from '@common/auth/token.service';
 import { AccessGuard, Caller, Requires } from '@common/v1/access.guard';
 import { AccessService, needToEditEntry, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
@@ -110,8 +111,8 @@ export class MediaController {
   @Requires('view', 'media')
   @ApiOperation({ summary: 'What is known about one picture or film' })
   @V1Answer(mediaShape)
-  public async read(@Param('id') id: string): Promise<Media> {
-    return this.media.serialise(await this.require(id));
+  public async read(@Param('id') id: string, @Req() request: FastifyRequest): Promise<Media> {
+    return this.media.serialise(await this.require(id, request));
   }
 
   @Get(':id/content')
@@ -128,7 +129,7 @@ export class MediaController {
     @Req() request: FastifyRequest,
     @Res() reply: FastifyReply,
   ): Promise<void> {
-    const media = await this.require(id);
+    const media = await this.require(id, request);
     return this.delivery.deliver(request, reply, media, { width: parseDimension(query.width), height: parseDimension(query.height) });
   }
 
@@ -151,9 +152,32 @@ export class MediaController {
     await this.media.delete(id);
   }
 
-  private async require(id: string): Promise<MediaDocument> {
+  /**
+   * The row, and whether this credential may have it at all.
+   *
+   * An export is a `media` row like any other and is served by this route on
+   * purpose - that is the decision that let a zip need no collection and no
+   * lifecycle of its own. What it is not is a picture. The query token this
+   * route accepts exists because an `<img>` cannot set a header; it is minted
+   * for thirty days and it lives in a URL, which lands in download history, in
+   * the clipboard when somebody copies the link, and in every proxy log on the
+   * way. That is a fair trade for a still of a tent and no trade at all for a
+   * file holding the account's address, every diary line it ever wrote, the
+   * handles of everybody it shares with, and every device's whole climate.
+   *
+   * So an export is handed over to a session and to nothing else. It is refused
+   * as missing rather than as forbidden, in the same words an unknown id gets,
+   * because a refusal that said "that one exists but not like this" would tell
+   * a stranger holding a leaked URL that there is something there to go after.
+   */
+  private async require(id: string, request: FastifyRequest): Promise<MediaDocument> {
     const media = await this.media.byId(id);
     if (!media) throw notFound('media_not_found', 'There is no picture with that id.');
+
+    if (media.kind === 'export' && (request as AuthenticatedRequest).authTokenType !== 'user') {
+      throw notFound('media_not_found', 'There is no picture with that id.');
+    }
+
     return media;
   }
 }

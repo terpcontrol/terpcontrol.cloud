@@ -13,6 +13,11 @@ import { AuthenticatedRequest, TokenService } from '@common/auth/token.service';
  * session - whether it was never signed here, or its session has been revoked,
  * or the account it named is gone. The decision then has a share link to go on,
  * or refuses on its own.
+ *
+ * Which of the two kinds of token proved it is put on the request as well. The
+ * image token is minted for thirty days and is meant to sit in a URL; that is
+ * right for a picture and wrong for anything else served by this route, and the
+ * only way a handler can tell is to be told.
  */
 @Injectable()
 export class OptionalSessionGuard implements CanActivate {
@@ -23,7 +28,10 @@ export class OptionalSessionGuard implements CanActivate {
 
     const token = await this.tokens.verifyFirst(request, 'image');
     const caller = token && (await this.tokens.resolve(token));
-    if (caller) request.auth = caller;
+    if (caller && token) {
+      request.auth = caller;
+      request.authTokenType = token.token_type;
+    }
 
     return true;
   }
