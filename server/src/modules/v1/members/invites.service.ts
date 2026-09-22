@@ -183,12 +183,27 @@ export class InvitesService {
     return { membership, space: this.spacesService.serialise(space) };
   }
 
-  /** One invite, for somebody who owns the space it opens - owning the tent is what makes its keys yours. */
+  /**
+   * One invite, for somebody who owns the space it opens - owning the tent is
+   * what makes its keys yours.
+   *
+   * Anybody else is told the code leads nowhere, in the same words a code
+   * nobody ever issued gets, because these two routes are addressed by the code
+   * alone and so are reachable by anybody with an account and a guess. Asking
+   * the space's own refusal to answer would have said which: a live code on
+   * somebody else's tent refused one way and an invented one the other, and
+   * the difference is a yes or no on every string tried - which is the whole of
+   * what the preview refuses to give away, at the speed of the API.
+   */
   private async requireOwned(ctx: AccessContext, code: string): Promise<InviteDocument> {
-    const invite = await this.invites.findOne({ code }).lean<InviteDocument>();
-    if (!invite) throw notFound('invite_not_found', 'There is no invite with that code.');
+    const gone = notFound('invite_not_found', 'There is no invite with that code.');
 
-    await this.access.require(ctx, subjectRef('space', invite.spaceId), 'own');
+    const invite = await this.invites.findOne({ code }).lean<InviteDocument>();
+    if (!invite) throw gone;
+
+    const mine = await this.access.access(ctx, subjectRef('space', invite.spaceId), 'own');
+    if (!mine) throw gone;
+
     return invite;
   }
 

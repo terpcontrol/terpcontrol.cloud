@@ -24,7 +24,11 @@ import { MembersService } from './members.service';
  * handing out the way in is the one thing that is not running it. The exception
  * is a member removing themselves, which is why the delete asks the guard only
  * for `view` and the service makes the rest of that decision - somebody who was
- * let in has to be able to walk back out without asking.
+ * let in has to be able to walk back out without asking. That delete is handed
+ * the grant for the same reason the list is: `view` is what a share link says
+ * too, and a route that looked the row up first would answer a link holder one
+ * refusal for a member and another for a stranger, which is the guest list read
+ * one name at a time.
  */
 @ApiTags('members')
 @Controller('v1/spaces/:id/members')
@@ -62,7 +66,7 @@ export class MembersController {
   @Requires('view', 'space')
   @ApiOperation({ summary: 'Let somebody go, or leave' })
   @ApiNoContentResponse({ description: 'The space is gone from their lists; whatever they wrote in it stays and still carries their name.' })
-  public remove(@Caller() ctx: AccessContext, @Param('id') id: string, @Param('userId') userId: string): Promise<void> {
-    return this.members.remove(ctx, id, userId);
+  public remove(@Caller() ctx: AccessContext, @CurrentGrant() grant: Grant, @Param('id') id: string, @Param('userId') userId: string): Promise<void> {
+    return this.members.remove(ctx, grant, id, userId);
   }
 }

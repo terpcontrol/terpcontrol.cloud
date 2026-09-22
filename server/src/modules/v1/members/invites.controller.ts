@@ -22,15 +22,22 @@ import { InvitesService } from './invites.service';
  * accepting name the code - which is the whole proof of the invitation and is
  * only known once it has been read, so the service asks `access()` itself.
  *
- * The preview and the acceptance are the only routes here a stranger reaches.
- * Both are capped per address: a code is 8 characters out of an alphabet of 29,
- * which is only out of reach as long as guesses cannot be made quickly.
+ * All four routes addressed by the code are capped per address: a code is 8
+ * characters out of an alphabet of 29, which is only out of reach as long as
+ * guesses cannot be made quickly. The preview and the acceptance are the ones a
+ * stranger reaches without an account, but revoking and deleting are reachable
+ * by any account at all and answer about the same string, so an uncapped one of
+ * them would be the budget the other two are held to, handed back.
  */
 
 const MINUTE = 60 * 1000;
 
-/** Opening a link that was sent is one request; a page reloaded a few times is a handful. */
-const PREVIEWS_PER_MINUTE = 30;
+/**
+ * Opening a link that was sent is one request, a page reloaded a few times is a
+ * handful, and a host putting a key out of action is fewer still - so the three
+ * routes that answer about a code without redeeming it share one budget.
+ */
+const CODE_LOOKUPS_PER_MINUTE = 30;
 
 /** Joining is a deliberate act and happens once. What the budget is for is the guessing. */
 const ACCEPTANCES_PER_MINUTE = 10;
@@ -71,7 +78,7 @@ export class InvitesController {
    * whole of the request.
    */
   @Get(':code')
-  @RateLimited({ limit: PREVIEWS_PER_MINUTE, windowMs: MINUTE, message: 'Too many invite lookups, please try again later.' })
+  @RateLimited({ limit: CODE_LOOKUPS_PER_MINUTE, windowMs: MINUTE, message: 'Too many invite lookups, please try again later.' })
   @ApiOperation({ summary: 'What an invite code leads to', ...PUBLIC_OPERATION })
   @V1Answer(invitePreview)
   public preview(@Param('code') code: string): Promise<InvitePreview> {
@@ -90,6 +97,7 @@ export class InvitesController {
 
   @Put(':code/revocation')
   @UseGuards(AuthGuard)
+  @RateLimited({ limit: CODE_LOOKUPS_PER_MINUTE, windowMs: MINUTE, message: 'Too many invite lookups, please try again later.' })
   @ApiOperation({ summary: 'Stop an invite working' })
   @V1Answer(inviteShape)
   public revoke(@Caller() ctx: AccessContext, @Param('code') code: string): Promise<Invite> {
@@ -99,6 +107,7 @@ export class InvitesController {
   @Delete(':code')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AuthGuard)
+  @RateLimited({ limit: CODE_LOOKUPS_PER_MINUTE, windowMs: MINUTE, message: 'Too many invite lookups, please try again later.' })
   @ApiOperation({ summary: 'Forget an invite ever existed' })
   @ApiNoContentResponse({ description: 'The code is gone from the list and leads nowhere.' })
   public remove(@Caller() ctx: AccessContext, @Param('code') code: string): Promise<void> {

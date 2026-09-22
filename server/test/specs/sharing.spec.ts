@@ -461,12 +461,40 @@ describe('the people in a space', () => {
       expect((await anonymous().get(`/v1/invites/${made.code}`).expect(200)).body.isValid).toBe(false);
     });
 
-    it('is not there as far as anybody else is concerned', async () => {
+    /**
+     * Both of these are addressed by the code alone and reachable by anybody
+     * with an account, so they are asked the same question the preview is
+     * asked - does this string exist - and have to give the same non-answer.
+     */
+    it('is not there as far as anybody else is concerned, word for word as a code nobody ever issued', async () => {
       const made = await invite(host, inTheRoom);
 
-      await guest.client.put(`/v1/invites/${made.code}/revocation`).expect(404);
-      await guest.client.delete(`/v1/invites/${made.code}`).expect(404);
+      const live = await guest.client.put(`/v1/invites/${made.code}/revocation`).expect(404);
+      const invented = await guest.client.put('/v1/invites/NEVERMDE/revocation').expect(404);
+      expect(live.body).toEqual(invented.body);
+      expect(live.body.code).toBe('invite_not_found');
+
+      const deleted = await guest.client.delete(`/v1/invites/${made.code}`).expect(404);
+      const deletedInvented = await guest.client.delete('/v1/invites/NEVERMDE').expect(404);
+      expect(deleted.body).toEqual(deletedInvented.body);
+      expect(deleted.body.code).toBe('invite_not_found');
+
       await anonymous().put(`/v1/invites/${made.code}/revocation`).expect(401);
+
+      // Nothing was done to the code the stranger asked about.
+      expect((await anonymous().get(`/v1/invites/${made.code}`).expect(200)).body.isValid).toBe(true);
+    });
+
+    it('answers the two code-addressed writes under the cap the preview beside them is held to', async () => {
+      const preview = await guest.client.get('/v1/invites/NEVERMDE').expect(200);
+      const revocation = await guest.client.put('/v1/invites/NEVERMDE/revocation').expect(404);
+      const deletion = await guest.client.delete('/v1/invites/NEVERMDE').expect(404);
+
+      // One budget over the three, so that codes cannot be screened at full
+      // speed here and only the hits spent on the routes that are capped.
+      expect(preview.headers['ratelimit-limit']).toBe('30');
+      expect(revocation.headers['ratelimit-limit']).toBe('30');
+      expect(deletion.headers['ratelimit-limit']).toBe('30');
     });
   });
 
@@ -564,6 +592,35 @@ describe('the people in a space', () => {
 
       await holder.client.get(`/v1/spaces/${inTheRoom}/members`).expect(404);
       await holder.client.get(`/v1/spaces/${inTheRoom}/members?share=${link.token}`).expect(404);
+    });
+
+    /**
+     * The list refused whole is worth nothing if it can be read one name at a
+     * time. The delete is the route that takes a person's id, so it is the one
+     * that could answer differently for somebody who is here and somebody who
+     * is not - which is the guest list, asked as a question rather than read.
+     */
+    it('is not answered a name at a time either, to somebody holding a key to what stands in the tent', async () => {
+      const inside = await createAccount('members-probed');
+      await accept(inside, (await invite(host, inTheRoom)).code);
+
+      const link = (
+        await host.client
+          .post('/v1/share-links')
+          .send({ kind: 'view', subject: { type: 'space', id: inTheRoom } })
+          .expect(201)
+      ).body;
+      const holder = await createAccount('members-prober');
+
+      const aMember = await holder.client.delete(`/v1/spaces/${inTheRoom}/members/${inside.userId}?share=${link.token}`).expect(404);
+      const aStranger = await holder.client.delete(`/v1/spaces/${inTheRoom}/members/${stranger.userId}?share=${link.token}`).expect(404);
+
+      expect(aMember.body).toEqual(aStranger.body);
+      expect(aMember.body.code).toBe('space_not_found');
+
+      // Refused before anything was looked up, let alone written.
+      const listed = await host.client.get(`/v1/spaces/${inTheRoom}/members?limit=200`).expect(200);
+      expect(listed.body.items.map((row: { userId: string }) => row.userId)).toContain(inside.userId);
     });
 
     it('is continued page by page without widening past this tent and its room', async () => {

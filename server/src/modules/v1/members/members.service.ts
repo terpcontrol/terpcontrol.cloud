@@ -141,7 +141,12 @@ export class MembersService {
    *
    * Leaving needs nothing beyond being able to see the space. Somebody who was
    * let into a tent has to be able to walk back out of it without asking the
-   * person who let them in.
+   * person who let them in - being *in* the space, though, and not merely
+   * holding a key to what stands in it, which is why this is refused to an
+   * outsider before the row is looked up. Looked up first, the refusals
+   * themselves would answer the question the list refuses: a membership that
+   * exists is a `403` and one that does not is a `404`, so a link holder could
+   * read the guest list one account at a time.
    *
    * Being shown the door also closes the door. The row is deleted and, when it
    * was a code that wrote it, that code is revoked in the same breath: the link
@@ -149,7 +154,9 @@ export class MembersService {
    * taken out of a tent is exactly the person holding it - so without this the
    * sheet's promise lasts until they open their own history and tap Join again.
    */
-  public async remove(ctx: AccessContext, spaceId: string, userId: string): Promise<void> {
+  public async remove(ctx: AccessContext, grant: Grant, spaceId: string, userId: string): Promise<void> {
+    this.refuseAnOutsider(grant);
+
     const row = await this.requireOwnRow(spaceId, userId);
     const shownTheDoor = ctx.isDemo || userId !== ctx.userId;
 
