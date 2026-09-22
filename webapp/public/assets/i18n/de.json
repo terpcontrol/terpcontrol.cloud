@@ -2476,7 +2476,7 @@
     "bell_one": "Meldungen · {{count}} offen",
     "bell_other": "Meldungen · {{count}} offen",
     "muteAll": "Alles 1 h stumm",
-    "mutedUntil": "Stumm bis {{time}}",
+    "mutedUntil": "deine Kanäle stumm bis {{time}}",
     "unmute": "Wieder laut",
     "group": {
       "now": "Jetzt",
@@ -2486,9 +2486,8 @@
     "active_one": "{{count}} aktiv",
     "active_other": "{{count}} aktiv",
     "what": {
-      "running": "{{output}} läuft ohne Pause › {{for}}",
+      "running": "{{output}} läuft ohne Pause",
       "threshold": "Alarm",
-      "thresholdValue": "Alarm · {{value}}",
       "offline": "offline · kein Messwert seit {{age}}",
       "wasOffline": "war offline",
       "cameraStale": "{{camera}} · kein Bild seit {{time}}",
@@ -2498,9 +2497,8 @@
       "since": "seit {{time}} · schon {{age}}",
       "repeats": "meldet sich alle {{every}}, bis es behoben ist",
       "once": "meldet sich einmal",
-      "silenced": "stumm bis {{time}}",
-      "resolved": "behoben {{time}} · dauerte {{age}}",
-      "lowPriority": "niedrige Priorität"
+      "silenced": "für alle stumm bis {{time}}",
+      "resolved": "behoben {{time}} · dauerte {{age}}"
     },
     "action": {
       "silence": "1 h stumm",
@@ -2531,7 +2529,20 @@
       "leafTemperature": "Blatt",
       "lux": "Lux",
       "ppfd": "PPFD",
-      "offline": "offline"
+      "offline": "offline",
+      "temperature": "Temperatur",
+      "humidity": "Luftfeuchte",
+      "co2": "CO₂"
+    },
+    "bellMore_one": "Meldungen · mehr als {{count}} offen",
+    "bellMore_other": "Meldungen · mehr als {{count}} offen",
+    "earlier": "Früher",
+    "nothingWatching": "Noch schaut nichts hin. Meldungen kommen aus den Alarmregeln eines Controllers und von einer Cam.",
+    "demoNoInbox": "Die Demo hat keinen Posteingang; öffne ein Zelt, um seine Alarme zu sehen.",
+    "severity": {
+      "critical": "kritisch",
+      "warning": "Warnung",
+      "info": "Info"
     }
   }
 }

@@ -2,7 +2,7 @@ import { Bell, ChevronRight } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router';
-import { useOpenAlertCount } from '@/api/alerts';
+import { bellOf, useOpenAlertCount } from '@/api/alerts';
 import { useSession } from '@/api/session';
 import { useLog, useMayLog } from '@/log/log-context';
 import { TABS, initials } from './tabs';
@@ -20,7 +20,7 @@ export function Rail() {
   const { user } = useSession();
   const { openSheet } = useLog();
   const mayLog = useMayLog();
-  const open = useOpenAlertCount().data ?? 0;
+  const bell = bellOf(useOpenAlertCount().data);
 
   const log = mayLog ? TABS.find(tab => tab.raised) : undefined;
   const tabs = TABS.filter(tab => !tab.raised);
@@ -65,10 +65,10 @@ export function Rail() {
 
       <div className={styles.spacer} />
 
-      <NavLink to="/alerts" className={itemClass} aria-label={open > 0 ? t('alerts.bell', { count: open }) : t('shell.alerts')}>
+      <NavLink to="/alerts" className={itemClass} aria-label={bell ? t(bell.key, { count: bell.count }) : t('shell.alerts')}>
         <Bell size={18} strokeWidth={1.75} aria-hidden />
         <span>{t('shell.alerts')}</span>
-        {open > 0 ? <span className={`mono ${styles.badge}`}>{open}</span> : null}
+        {bell ? <span className={`mono ${styles.badge}`}>{bell.text}</span> : null}
       </NavLink>
 
       <NavLink to="/me" className={itemClass}>

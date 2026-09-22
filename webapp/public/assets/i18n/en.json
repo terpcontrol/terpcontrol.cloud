@@ -2480,7 +2480,7 @@
     "bell_one": "Alerts · {{count}} open",
     "bell_other": "Alerts · {{count}} open",
     "muteAll": "Mute all 1 h",
-    "mutedUntil": "Muted until {{time}}",
+    "mutedUntil": "your channels muted until {{time}}",
     "unmute": "Unmute",
     "group": {
       "now": "Now",
@@ -2490,9 +2490,8 @@
     "active_one": "{{count}} active",
     "active_other": "{{count}} active",
     "what": {
-      "running": "{{output}} running non-stop › {{for}}",
+      "running": "{{output}} running non-stop",
       "threshold": "alarm",
-      "thresholdValue": "alarm · {{value}}",
       "offline": "offline · no sample for {{age}}",
       "wasOffline": "was offline",
       "cameraStale": "{{camera}} · no image since {{time}}",
@@ -2501,10 +2500,9 @@
     "meta": {
       "since": "since {{time}} · for {{age}}",
       "repeats": "repeats every {{every}} until resolved",
-      "once": "says it once",
-      "silenced": "silenced until {{time}}",
-      "resolved": "resolved {{time}} · lasted {{age}}",
-      "lowPriority": "low priority"
+      "once": "announced once",
+      "silenced": "silenced for everyone until {{time}}",
+      "resolved": "resolved {{time}} · lasted {{age}}"
     },
     "action": {
       "silence": "Silence 1 h",
@@ -2535,7 +2533,20 @@
       "leafTemperature": "Leaf",
       "lux": "Lux",
       "ppfd": "PPFD",
-      "offline": "offline"
+      "offline": "offline",
+      "temperature": "temperature",
+      "humidity": "humidity",
+      "co2": "CO₂"
+    },
+    "bellMore_one": "Alerts · more than {{count}} open",
+    "bellMore_other": "Alerts · more than {{count}} open",
+    "earlier": "Earlier",
+    "nothingWatching": "Nothing is watching yet. Alerts come from a controller's alarm rules and from a cam.",
+    "demoNoInbox": "The demo has no inbox; open a tent to see its alarms.",
+    "severity": {
+      "critical": "critical",
+      "warning": "warning",
+      "info": "info"
     }
   }
 }

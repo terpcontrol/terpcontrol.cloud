@@ -86,7 +86,11 @@
   align-items: start;
 }
 
+/* Two lines' worth of room from the start. The figures in a title are re-read
+   on the refresh beat and a longer one wraps a line further, and a card that
+   grows while it is being read moves every card below it. */
 .what {
+  min-height: calc(2 * var(--text-md) * var(--line-tight));
   font-size: var(--text-md);
   font-weight: var(--weight-medium);
   line-height: var(--line-tight);
@@ -110,6 +114,9 @@
   color: var(--muted);
 }
 
-.nothing {
-  font-weight: var(--weight-medium);
+@media (min-width: 900px) {
+  .page {
+    max-width: 720px;
+    padding-top: 0;
+  }
 }

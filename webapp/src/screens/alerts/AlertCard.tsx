@@ -4,24 +4,18 @@ import { Link } from 'react-router';
 import type { Alert, AlarmRule, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
-import { ageAttribute } from '@/ui/age';
+import { ageAttribute, ageLabel } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { figure, targetFigure, UNIT } from '../home/units';
 import { isAhead } from '@/ui/age';
 import { clock, crossedBound, lastedLabel, spanLabel } from './inbox';
+import type { AlertNames, DeviceName } from './names';
 import styles from './Alerts.module.css';
 
 /** How long a silence from the card holds, and how long maintenance does. */
 export const SILENCE_SECONDS = 3600;
 export const MAINTENANCE_SECONDS = 900;
-
-/** Who and what an alert is about, looked up once for the whole inbox. */
-export interface AlertNames {
-  spaces: Map<string, string>;
-  devices: Map<string, string>;
-  cameras: Map<string, string>;
-}
 
 type Translate = ReturnType<typeof useTranslation>['t'];
 
@@ -48,14 +42,28 @@ interface AlertCardProps {
 export function AlertCard({ alert, rule, names, mayManage, now }: AlertCardProps) {
   const { t } = useTranslation();
   const open = alert.resolvedAt === null;
-  const place = placeOf(alert, names);
-  const what = whatOf(t, alert, rule, names, now);
+  const place = placeOf(t, alert, names);
+  const { label, figure: reading } = whatOf(t, alert, rule, names, now);
+  const severity = t(`alerts.severity.${alert.severity}`);
 
   return (
-    <li className={`${ui.card} ${styles.card}`} data-severity={alert.severity} {...(open ? {} : ageAttribute('stale'))}>
+    <li
+      className={`${ui.card} ${styles.card}`}
+      data-severity={alert.severity}
+      aria-label={[severity, place, label, reading].filter(Boolean).join(' · ')}
+      {...(open ? {} : ageAttribute('stale'))}
+    >
       <div className={styles.lines}>
-        <p className={styles.what}>{[place, what].filter(Boolean).join(' · ')}</p>
-        <p className={`mono ${styles.meta}`}>{metaOf(t, alert, rule, now)}</p>
+        <p className={styles.what}>
+          {[place, label].filter(Boolean).join(' · ')}
+          {reading ? (
+            <>
+              {' '}
+              <span className="mono">{reading}</span>
+            </>
+          ) : null}
+        </p>
+        <p className={`mono ${styles.meta}`}>{metaOf(t, alert, rule, now, severity)}</p>
       </div>
 
       {open && mayManage ? (
@@ -70,75 +78,111 @@ export function AlertCard({ alert, rule, names, mayManage, now }: AlertCardProps
 }
 
 /** The space the alert names, or the device or camera where it names no space. */
-const placeOf = (alert: Alert, names: AlertNames): string | null => {
+const placeOf = (t: Translate, alert: Alert, names: AlertNames): string | null => {
   if (alert.spaceId) return names.spaces.get(alert.spaceId) ?? null;
-  if (alert.deviceId) return names.devices.get(alert.deviceId) ?? null;
+  if (alert.deviceId) {
+    const device = names.devices.get(alert.deviceId);
+    return device ? deviceName(t, device) : null;
+  }
   if (alert.cameraId && alert.kind !== 'camera_stale') return names.cameras.get(alert.cameraId) ?? null;
   return null;
 };
 
+/** What a device is called, or what kind of thing it is where nobody has named it. */
+const deviceName = (t: Translate, device: DeviceName): string => device.name ?? t(`devices.type.${device.type}`, { defaultValue: device.type });
+
+// The inbox writes a metric out in full - "humidity" rather than "RH" - so its
+// own words come first and the short ones the dense cards elsewhere use stand
+// in only where it has none.
 const metricName = (t: Translate, metric: Metric): string =>
-  t(`home.metric.${metric}`, { defaultValue: t(`alerts.metric.${metric}`, { defaultValue: metric }) });
+  t(`alerts.metric.${metric}`, { defaultValue: t(`home.metric.${metric}`, { defaultValue: metric }) });
 
 const outputName = (t: Translate, output: OutputMetric): string => t(`alerts.output.${output}`, { defaultValue: output });
+
+/** What the card says, and the figures in it apart from it, because a figure is set in mono wherever it is drawn. */
+interface What {
+  label: string;
+  figure: string | null;
+}
 
 /**
  * The event in as few words as the board allows: the reading and the edge it
  * crossed where the rule is still there to say what it watched, the bare kind
  * where it is not.
+ *
+ * An offline alert is dated from the device's own last sample rather than from
+ * the alert's start, because what a reader wants to know is how long the tent
+ * has gone unwatched and not how long ago the cloud noticed. A device this
+ * account cannot see leaves the alert's own start as the only answer there is.
  */
-const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, names: AlertNames, now: DateTime): string => {
+const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, names: AlertNames, now: DateTime): What => {
   switch (alert.kind) {
-    case 'offline':
-      return alert.resolvedAt ? t('alerts.what.wasOffline') : t('alerts.what.offline', { age: lastedLabel(alert, now) });
+    case 'offline': {
+      if (alert.resolvedAt) return { label: t('alerts.what.wasOffline'), figure: null };
+      const quietSince = (alert.deviceId && names.devices.get(alert.deviceId)?.lastSeenAt) || alert.startedAt;
+      return { label: t('alerts.what.offline', { age: ageLabel(quietSince, now) }), figure: null };
+    }
     case 'camera_stale':
-      return t('alerts.what.cameraStale', {
-        camera: (alert.cameraId && names.cameras.get(alert.cameraId)) || t('alerts.what.camera'),
-        time: clock(alert.startedAt),
-      });
+      return {
+        label: t('alerts.what.cameraStale', {
+          camera: (alert.cameraId && names.cameras.get(alert.cameraId)) || t('alerts.what.camera'),
+          time: clock(alert.startedAt),
+        }),
+        figure: null,
+      };
     case 'threshold':
-      return rule
-        ? watched(t, alert, rule, now)
-        : alert.value === null
-          ? t('alerts.what.threshold')
-          : t('alerts.what.thresholdValue', { value: alert.value });
+      return rule ? watched(t, alert, rule, now) : { label: t('alerts.what.threshold'), figure: alert.value === null ? null : String(alert.value) };
   }
 };
 
-const watched = (t: Translate, alert: Alert, rule: AlarmRule, now: DateTime): string => {
+/** A figure and what belongs to it, held together so a narrow card wraps the pair rather than splitting it. */
+const tight = (part: string): string => part.replace(/ /g, '\u00a0');
+
+const watched = (t: Translate, alert: Alert, rule: AlarmRule, now: DateTime): What => {
   const { watch } = rule;
   if (watch.kind === 'output_running') {
-    return t('alerts.what.running', { output: outputName(t, watch.output), for: spanLabel(rule.forSeconds, now) });
+    return {
+      label: t('alerts.what.running', { output: outputName(t, watch.output) }),
+      // A rule that trips the moment its output starts has no span to name.
+      figure: rule.forSeconds > 0 ? tight(`› ${spanLabel(rule.forSeconds, now)}`) : null,
+    };
   }
 
   const value = alert.value ?? alert.extremeValue;
   const crossed = crossedBound(watch, value);
-  const name = watch.kind === 'reading' ? metricName(t, watch.metric) : outputName(t, watch.output);
   // A level is the output's own percent; a reading carries the metric's unit and decimals.
   const asFigure = (x: number) => (watch.kind === 'reading' ? figure(x, watch.metric) : String(Math.round(x)));
   const asEdge = (x: number) => (watch.kind === 'reading' ? targetFigure(x, watch.metric) : String(Math.round(x)));
   const unit = watch.kind === 'reading' ? UNIT[watch.metric] : '%';
 
-  return [
-    name,
+  const figures = [
     value === null ? null : [asFigure(value), unit].filter(Boolean).join(' '),
     crossed ? `${crossed.over ? '›' : '‹'} ${asEdge(crossed.bound)}` : null,
-  ]
-    .filter(Boolean)
-    .join(' ');
+  ].filter((part): part is string => part !== null);
+
+  return {
+    label: watch.kind === 'reading' ? metricName(t, watch.metric) : outputName(t, watch.output),
+    figure: figures.length ? figures.map(tight).join(' ') : null,
+  };
 };
 
-/** When it began and how long it stood, then what the rule will do about it and how much it matters. */
-const metaOf = (t: Translate, alert: Alert, rule: AlarmRule | null, now: DateTime): string => {
-  const parts = alert.resolvedAt
-    ? [t('alerts.meta.resolved', { time: clock(alert.resolvedAt), age: lastedLabel(alert, now) })]
-    : [t('alerts.meta.since', { time: clock(alert.startedAt), age: lastedLabel(alert, now) })];
+/**
+ * How much it matters, when it began and how long it stood, then what the rule
+ * will go on doing about it. The severity leads the line because the coloured
+ * edge beside it is the only other place it is said, and a colour is not a word.
+ */
+const metaOf = (t: Translate, alert: Alert, rule: AlarmRule | null, now: DateTime, severity: string): string => {
+  const parts = [
+    severity,
+    alert.resolvedAt
+      ? t('alerts.meta.resolved', { time: clock(alert.resolvedAt), age: lastedLabel(alert, now) })
+      : t('alerts.meta.since', { time: clock(alert.startedAt), age: lastedLabel(alert, now) }),
+  ];
 
   if (!alert.resolvedAt && rule) {
     parts.push(rule.repeatSeconds > 0 ? t('alerts.meta.repeats', { every: spanLabel(rule.repeatSeconds, now) }) : t('alerts.meta.once'));
     if (isAhead(rule.silencedUntil, now)) parts.push(t('alerts.meta.silenced', { time: clock(rule.silencedUntil!) }));
   }
-  if (alert.severity === 'info') parts.push(t('alerts.meta.lowPriority'));
 
   return parts.join(' · ');
 };

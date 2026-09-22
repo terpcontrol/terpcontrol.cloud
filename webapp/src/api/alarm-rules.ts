@@ -31,13 +31,22 @@ export const useDeviceAlarmRules = (deviceId: string) =>
     refetchInterval: RULES_REFRESH_MS,
   });
 
-/** The rules of several devices at once, for a list of alerts that names a rule by id and has to say what it watched. */
-export const useAlarmRulesOf = (deviceIds: string[]) =>
+/**
+ * The rules of several devices at once, for a list of alerts that names a rule
+ * by id and has to say what it watched.
+ *
+ * A screen that only quotes a rule may read it far more slowly than the one
+ * that edits it: what a rule watches changes when somebody changes it, not when
+ * a sample arrives, and one read per device on the live beat is most of the
+ * traffic such a screen makes. That is what the interval is for.
+ */
+export const useAlarmRulesOf = (deviceIds: string[], { refetchIntervalMs = RULES_REFRESH_MS }: { refetchIntervalMs?: number } = {}) =>
   useQueries({
     queries: deviceIds.map(deviceId => ({
       queryKey: rulesKey(deviceId),
       queryFn: ({ signal }: { signal?: AbortSignal }) => readRules(deviceId, signal),
-      refetchInterval: RULES_REFRESH_MS,
+      refetchInterval: refetchIntervalMs,
+      staleTime: refetchIntervalMs,
     })),
     combine: results => {
       const byId = new Map<string, AlarmRule>();
