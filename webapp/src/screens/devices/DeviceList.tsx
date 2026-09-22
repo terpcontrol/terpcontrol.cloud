@@ -18,6 +18,7 @@ import { cameraFreshness } from './cameras';
 import { Fact, Facts } from './Facts';
 import { isLightRole, lightOutputOf } from './lights';
 import { LightOutputRow } from './LightOutputRow';
+import { cameraTitle, deviceName, deviceTitle } from './naming';
 import { rowsOf, type SocketRowModel } from './sockets';
 import { SocketRow } from './SocketRow';
 import styles from './Devices.module.css';
@@ -133,7 +134,7 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
         // so that reason is kept apart from this one.
         const unheard = deviceLiveness(device.state.lastSeenAt, now) === 'offline' ? t('devices.socket.offline') : null;
         const refusal = !table.capabilities.socketOverride ? t('devices.socket.needsFirmware') : unheard;
-        const place = placeOf(device.spaceId) ?? device.name ?? device.type;
+        const place = placeOf(device.spaceId) ?? deviceTitle(device, t);
 
         const plugs = (list: SocketRowModel[]) =>
           list.map(row => (
@@ -234,7 +235,7 @@ function DeviceRow({ device, place, sockets, cameras, linked, now }: DeviceRowPr
       <div className={styles.rowHead}>
         <Cpu className={styles.rowIcon} size={18} strokeWidth={1.75} aria-hidden />
         <div className={styles.rowText}>
-          <span className={styles.rowTitle}>{device.name ?? t(`devices.type.${device.type}`, { defaultValue: device.type })}</span>
+          <span className={styles.rowTitle}>{deviceTitle(device, t)}</span>
           <span className={styles.rowNote}>{line}</span>
         </div>
         <span className={`mono ${styles.liveness}`} data-liveness={liveness}>
@@ -246,7 +247,7 @@ function DeviceRow({ device, place, sockets, cameras, linked, now }: DeviceRowPr
           type="button"
           className={styles.expand}
           aria-expanded={open}
-          aria-label={t('devices.details', { name: device.name ?? device.type })}
+          aria-label={t('devices.details', { name: deviceTitle(device, t) })}
           onClick={() => setOpen(!open)}
         >
           {open ? <ChevronDown size={16} strokeWidth={2} aria-hidden /> : <ChevronRight size={16} strokeWidth={2} aria-hidden />}
@@ -292,7 +293,8 @@ interface CameraRowProps {
 /** A camera opens its page; the row says how it is reached and when it last delivered. */
 function CameraRow({ camera, place, devices, stillId, now }: CameraRowProps) {
   const { t } = useTranslation();
-  const through = devices.find(device => device.id === camera.deviceId)?.name ?? null;
+  const carrier = devices.find(device => device.id === camera.deviceId) ?? null;
+  const through = carrier ? deviceName(carrier, t) : null;
   const freshness = cameraFreshness(camera, now);
 
   const line = [
@@ -310,7 +312,7 @@ function CameraRow({ camera, place, devices, stillId, now }: CameraRowProps) {
       <Link className={styles.rowHead} to={`/cameras/${camera.id}`}>
         <Thumb stillId={stillId} />
         <div className={styles.rowText}>
-          <span className={styles.rowTitle}>{camera.name}</span>
+          <span className={styles.rowTitle}>{cameraTitle(camera, carrier, t)}</span>
           <span className={styles.rowNote}>{line}</span>
           {camera.kind === 'rtsp' ? <span className={styles.premium}>{t('devices.premium')}</span> : null}
         </div>

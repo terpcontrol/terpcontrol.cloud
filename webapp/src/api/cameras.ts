@@ -143,6 +143,16 @@ export const useRemoveCamera = (cameraId: string) => {
   });
 };
 
+/** Taking one away again by an id the screen only learns while it is running, for the same reason `useAmendCamera` exists. */
+export const useDropCamera = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (cameraId: string) => api.delete(`/cameras/${cameraId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cameras'] }),
+  });
+};
+
 /**
  * One picture now. A camera that could not be read answers the reason it gave
  * rather than an error, because a wrong address is an ordinary outcome of this

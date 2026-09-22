@@ -8,6 +8,7 @@ import { useCameras, useLatestStills, useUpdateCamera } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
+import { cameraTag, deviceName } from '@/screens/devices/naming';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -57,8 +58,26 @@ function Watching({ opened }: { opened: UseQueryResult<CameraPage> }) {
   const found = before ? (cameras.data?.items ?? []).filter(one => !before.some(had => had.id === one.id)) : [];
   const stills = useLatestStills(found.map(one => one.id));
 
-  if (cameras.isPending || opened.isPending) return <Waiting lines={3} />;
-  if (!cameras.data || !opened.data) return <LoadFailed retry={() => void cameras.refetch()} />;
+  // Both reads are looked at here, in a list rather than in a chain that stops
+  // at the first answer: a query only wakes a reader that has touched the value
+  // that changed, and the line new is measured from is read by the screen
+  // above, so a render that never touched its state was never told it had
+  // failed and waited for ever on a read that was already over.
+  const waiting = [cameras.isPending, opened.isPending];
+  const answered = [cameras.data, opened.data];
+
+  if (waiting.includes(true)) return <Waiting lines={3} />;
+  // Both reads are asked again, because the line never re-asks on its own:
+  // retrying only the beating one leaves a healthy screen still saying it failed.
+  if (answered.includes(undefined))
+    return (
+      <LoadFailed
+        retry={() => {
+          void cameras.refetch();
+          void opened.refetch();
+        }}
+      />
+    );
 
   return (
     <>
@@ -136,7 +155,8 @@ function FoundCamera({ camera, devices, spaces, stillId }: { camera: Camera; dev
   /** What it has been called here, so the row stops naming the hardware once it has a name of its own. */
   const [called, setCalled] = useState<string | null>(null);
 
-  const through = devices.find(device => device.id === camera.deviceId)?.name ?? null;
+  const carrier = devices.find(device => device.id === camera.deviceId) ?? null;
+  const through = carrier ? deviceName(carrier, t) : null;
   const place = spaces.find(space => space.id === camera.spaceId)?.name ?? null;
   const source = stillId ? mediaUrl(stillId, THUMBNAIL_WIDTH.still) : null;
 
@@ -172,7 +192,7 @@ function FoundCamera({ camera, devices, spaces, stillId }: { camera: Camera; dev
         )}
         <div className={styles.foundText}>
           <span className={styles.foundTitle}>
-            <span className={styles.foundName}>{called ?? t('cameras.add.found.title', { tag: tagOf(camera) })}</span>
+            <span className={styles.foundName}>{called ?? t('cameras.add.found.title', { tag: cameraTag(camera) })}</span>
             <span className={styles.pill}>{t('cameras.add.found.pill')}</span>
           </span>
           <span className={styles.foundNote}>{line}</span>
@@ -226,10 +246,3 @@ function FoundCamera({ camera, devices, spaces, stillId }: { camera: Camera; dev
     </li>
   );
 }
-
-/**
- * The few characters printed on the cam, which is what it is called before
- * anybody has called it anything. A camera the cloud reached without a pairing
- * id falls back to its own, which is no worse a label and is never empty.
- */
-const tagOf = (camera: Camera): string => (camera.did ?? camera.id).slice(-4).toUpperCase();

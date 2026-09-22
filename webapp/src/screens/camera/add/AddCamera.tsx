@@ -28,6 +28,9 @@ import styles from './AddCamera.module.css';
  *
  * Which of the three is meant is held here rather than in the address: they are
  * one question with three answers, and a tab is not a place to come back to.
+ * They are drawn as three chips saying which one is pressed rather than as an
+ * ARIA tab strip: a tab strip tells a screen reader to press an arrow key, and
+ * the app has no arrow-key handler anywhere to answer that promise.
  */
 export function AddCamera() {
   const { t } = useTranslation();
@@ -75,28 +78,19 @@ function Ways() {
 
   return (
     <>
-      <div className={styles.tabs} role="tablist" aria-label={t('cameras.add.which')}>
+      <div className={styles.tabs} role="group" aria-label={t('cameras.add.which')}>
         {KINDS.map(one => (
-          <button
-            key={one}
-            type="button"
-            role="tab"
-            id={`add-camera-${one}`}
-            className={styles.tab}
-            aria-selected={one === kind}
-            aria-controls="add-camera-panel"
-            onClick={() => setChosen(one)}
-          >
+          <button key={one} type="button" className={styles.tab} aria-pressed={one === kind} onClick={() => setChosen(one)}>
             {t(`cameras.add.tab.${one}`)}
           </button>
         ))}
       </div>
 
-      <div className={styles.panel} id="add-camera-panel" role="tabpanel" aria-labelledby={`add-camera-${kind}`}>
+      <section className={styles.panel} aria-label={t(`cameras.add.tab.${kind}`)}>
         {kind === 'controller' ? <PairTerpCam controllers={controllers} opened={opened} /> : null}
         {kind === 'standalone' ? <Standalone /> : null}
         {kind === 'rtsp' ? <RtspCamera devices={devices.data.items} /> : null}
-      </div>
+      </section>
     </>
   );
 }

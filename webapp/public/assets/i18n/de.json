@@ -878,7 +878,8 @@
       "isPlug": "smarte Steckdose",
       "numbered": "{{name}} {{number}}"
     },
-    "noDevicesHere": "Hier steht kein Gerät."
+    "noDevicesHere": "Hier steht kein Gerät.",
+    "unnamed": "{{type}} · {{tag}}"
   },
   "diary": {
     "title": "Tagebuch",
@@ -2383,13 +2384,13 @@
         "label": "RTSP-Kamera",
         "premium": "Eine RTSP-Kamera hat kein eigenes Freijahr: Premium wird für sie gekauft.",
         "premiumPriced": "Eine RTSP-Kamera hat kein eigenes Freijahr: Premium wird für sie gekauft, {{price}}.",
-        "gatesNothing": "Diese Installation schaltet nichts frei und sperrt nichts, hier steht das Siegel also vor keiner Tür.",
+        "gatesNothing": "Auf dieser Installation wird Premium nicht berechnet, eine RTSP-Kamera kostet hier also nichts.",
         "address": "Stream-Adresse",
         "placeholder": "rtsp://user:pass@192.168.1.40/stream1",
         "throughController": "Wird über {{controller}} in deinem Netz geholt; alle 30 s ein Bild wie bei einer Terp Cam.",
         "direct": "Dort steht kein Controller, die Cloud öffnet den Stream also selbst: eine Adresse aus deinem Heimnetz antwortet ihr nicht.",
         "where": "Wo schaut sie hin?",
-        "nowhere": "Es gibt noch keinen Bereich, in den eine Kamera passt.",
+        "nowhere": "Es gibt noch keinen Bereich, in den eine Kamera passt. Benenne den, auf den sie schaut, und er wird hier angelegt.",
         "name": "Name",
         "nameHint": "Zeltkamera",
         "test": "Test",
@@ -2405,7 +2406,26 @@
         "carrier": {
           "stale": "{{controller}} hat zuletzt vor {{age}} etwas gemeldet",
           "offline": "{{controller}} ist offline · zuletzt gemeldet vor {{age}}, der Stream antwortet also erst wieder, wenn er zurück ist"
-        }
+        },
+        "placeName": "Name des Bereichs",
+        "placeKind": "Art des Bereichs",
+        "kind": {
+          "tent": "Zelt",
+          "room": "Raum",
+          "balcony": "Balkon",
+          "other": "Woanders"
+        },
+        "makePlace": "Bereich anlegen",
+        "makingPlace": "Wird angelegt …",
+        "needAddress": "Trag zuerst die Stream-Adresse ein.",
+        "needPlace": "Sag zuerst, wohin sie schaut.",
+        "needName": "Gib ihr zuerst einen Namen.",
+        "testAdds": "Der Test fügt die Kamera hinzu und holt dann ein Bild. Du kannst sie hier wieder entfernen.",
+        "made": "Zu {{place}} hinzugefügt. Sie steht jetzt im Tab Geräte, ein weiterer Test aktualisiert sie.",
+        "madeSomewhere": "Die Kamera wurde hinzugefügt. Sie steht jetzt im Tab Geräte, ein weiterer Test aktualisiert sie.",
+        "remove": "Wieder entfernen",
+        "removing": "Wird entfernt …",
+        "open": "Kamera öffnen"
       }
     }
   },

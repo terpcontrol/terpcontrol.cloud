@@ -882,7 +882,8 @@
       "isPlug": "smart plug",
       "numbered": "{{name}} {{number}}"
     },
-    "noDevicesHere": "No device here."
+    "noDevicesHere": "No device here.",
+    "unnamed": "{{type}} · {{tag}}"
   },
   "diary": {
     "title": "Diary",
@@ -2387,13 +2388,13 @@
         "label": "RTSP camera",
         "premium": "An RTSP camera has no included year of its own: Premium is bought for it.",
         "premiumPriced": "An RTSP camera has no included year of its own: Premium is bought for it, {{price}}.",
-        "gatesNothing": "This install enforces nothing, so the tag gates nothing here.",
+        "gatesNothing": "Premium is not charged on this installation, so an RTSP camera costs you nothing here.",
         "address": "Stream address",
         "placeholder": "rtsp://user:pass@192.168.1.40/stream1",
         "throughController": "Pulled through {{controller}} on your network; stills every 30 s like a Terp Cam.",
         "direct": "No controller stands there, so the cloud opens the stream itself: an address on your home network will not answer it.",
         "where": "Where does it look?",
-        "nowhere": "There is no space to put a camera in yet.",
+        "nowhere": "There is no place to put a camera in yet. Name the one it looks at and it is made here.",
         "name": "Name",
         "nameHint": "Tent camera",
         "test": "Test",
@@ -2409,7 +2410,26 @@
         "carrier": {
           "stale": "{{controller}} last said something {{age}} ago",
           "offline": "{{controller}} is offline · last heard {{age}} ago, so the stream will not answer until it is back"
-        }
+        },
+        "placeName": "Name of the place",
+        "placeKind": "Kind of place",
+        "kind": {
+          "tent": "Tent",
+          "room": "Room",
+          "balcony": "Balcony",
+          "other": "Somewhere else"
+        },
+        "makePlace": "Make the place",
+        "makingPlace": "Making the place …",
+        "needAddress": "Type the stream address first.",
+        "needPlace": "Say where it looks first.",
+        "needName": "Give it a name first.",
+        "testAdds": "Test adds the camera and then asks it for one picture. You can take it away again here.",
+        "made": "Added to {{place}}. It is on your Devices tab now, and testing again updates it.",
+        "madeSomewhere": "The camera has been added. It is on your Devices tab now, and testing again updates it.",
+        "remove": "Take it away again",
+        "removing": "Taking it away …",
+        "open": "Open the camera"
       }
     }
   },

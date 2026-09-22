@@ -85,18 +85,27 @@ const fridge = device({ id: 'device-4', name: 'Fridge module', type: 'fridge', s
 
 const spaces = [{ id: 'space-1', name: 'Tent 1' } as Space, { id: 'space-2', name: 'Balcony' } as Space];
 
+const madeSpace = { id: 'space-3', name: 'Attic', kind: 'room' } as Space;
+
 const me = (enforced: boolean): Me =>
   ({ id: 'user-1', premium: { enforced, extendUrl: null, priceLabel: '29 € a year' }, pushPublicKey: null }) as unknown as Me;
 
-const state = { cameras: [known], devices: [controller] as Device[], premium: true };
+const state = { cameras: [known], devices: [controller] as Device[], spaces, premium: true };
 
 const answers = (path: string) => {
   if (path === '/cameras') return { items: state.cameras, nextCursor: null };
   if (path === '/devices') return { items: state.devices, nextCursor: null };
-  if (path === '/spaces') return { items: spaces, nextCursor: null };
+  if (path === '/spaces') return { items: state.spaces, nextCursor: null };
   if (path === '/me') return me(state.premium);
   if (path.endsWith('/frames')) return { items: [], nextCursor: null };
   throw new Error(`nothing mocked for ${path}`);
+};
+
+const posts = (path: string) => {
+  if (path === '/cameras') return madeRtsp;
+  if (path === '/spaces') return madeSpace;
+
+  return { succeeded: false, mediaId: null, capturedAt: null, error: 'Connection refused' };
 };
 
 let client: QueryClient;
@@ -122,8 +131,8 @@ const drawPairing = async () => {
 /** The tabs are drawn once the devices are known, because which one opens is decided by them. */
 const openTab = async (name: string) => {
   draw();
-  fireEvent.click(await screen.findByRole('tab', { name }));
-  await screen.findByRole('tabpanel');
+  fireEvent.click(await screen.findByRole('button', { name }));
+  await screen.findByRole('region', { name });
 };
 
 /**
@@ -138,7 +147,15 @@ const paires = async (...items: Camera[]) => {
   });
 };
 
-const panel = () => within(screen.getByRole('tabpanel'));
+const panel = () => within(screen.getByRole('region'));
+
+/**
+ * Every read the screen starts, answered and drawn - including the ones a first
+ * answer sets off, which is why this is more than one turn of the loop.
+ */
+const settle = async () => {
+  for (let turn = 0; turn < 12; turn += 1) await act(async () => void (await new Promise(resolve => setTimeout(resolve, 0))));
+};
 
 beforeAll(async () => {
   const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
@@ -151,12 +168,11 @@ beforeEach(() => {
   who.demo = false;
   state.cameras = [known];
   state.devices = [controller];
+  state.spaces = spaces;
   state.premium = true;
   vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);
-  vi.mocked(api.post).mockImplementation(
-    (path: string) =>
-      Promise.resolve(path === '/cameras' ? madeRtsp : { succeeded: false, mediaId: null, capturedAt: null, error: 'Connection refused' }) as never,
-  );
+  vi.mocked(api.post).mockImplementation((path: string) => Promise.resolve(posts(path)) as never);
+  vi.mocked(api.delete).mockResolvedValue(undefined as never);
   vi.mocked(api.patch).mockImplementation((_path: string, body: unknown) => Promise.resolve({ ...paired, ...(body as object) }) as never);
 });
 
@@ -204,14 +220,40 @@ describe('pairing a Terp Cam at the controller', () => {
     await paires(known, paired);
     expect(await screen.findByText('Terp Cam · A41C')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'RTSP' }));
+    fireEvent.click(screen.getByRole('button', { name: 'RTSP' }));
     await screen.findByLabelText('Stream address');
-    fireEvent.click(screen.getByRole('tab', { name: 'Terp Cam' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Terp Cam' }));
 
     // The line "new" is measured from belongs to the screen, so looking away
     // and back does not re-take it with the camera already in it.
     expect(await screen.findByText('Terp Cam · A41C')).toBeInTheDocument();
     expect(screen.queryByText('Nothing new yet. This list fills itself for as long as it is open.')).not.toBeInTheDocument();
+  });
+
+  it('calls a controller nobody has named by its type as a word, not by the key a claim stored', async () => {
+    state.devices = [device({ name: 'controller' })];
+    await drawPairing();
+    await paires(known, paired);
+
+    expect(await screen.findByText('via Controller · Tent 1')).toBeInTheDocument();
+  });
+
+  it('says the read failed rather than waiting for ever, and gets the watch back on one tap', async () => {
+    const offline = (path: string) => (path === '/cameras' ? Promise.reject(new Error('offline')) : Promise.resolve(answers(path)));
+    vi.mocked(api.get).mockImplementation(offline as never);
+    draw();
+    await settle();
+
+    // Both reads have to be looked at for the screen to notice either of them
+    // is over; only one of them was, and the screen waited for ever.
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+
+    vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    });
+
+    expect(await screen.findByText('Nothing new yet. This list fills itself for as long as it is open.')).toBeInTheDocument();
   });
 
   it('says what the server said when the name was refused', async () => {
@@ -239,8 +281,8 @@ describe('an account with no controller', () => {
     draw();
 
     expect(await screen.findByLabelText('Stream address')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'RTSP' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tab', { name: 'Terp Cam' })).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByRole('button', { name: 'RTSP' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Terp Cam' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('names the missing part on the Terp Cam tab, and offers the way to one', async () => {
@@ -398,7 +440,7 @@ describe('a camera at a stream address', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Balcony' }));
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Add camera' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Open the camera' }));
     });
 
     // The tunnel is worked out again on every write, so the stored camera never
@@ -425,11 +467,80 @@ describe('a camera at a stream address', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('That tent is not yours to hang a camera in.');
   });
 
+  it('says what is still missing while the two buttons cannot be pressed', async () => {
+    await openRtsp();
+
+    expect(screen.getByText('Type the stream address first.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Test' })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText('Stream address'), { target: { value: 'rtsp://192.168.1.40/stream1' } });
+    expect(screen.getByText('Say where it looks first.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
+    expect(screen.getByText('Give it a name first.')).toBeInTheDocument();
+    // The reason reaches a screen reader through the button that cannot be pressed.
+    expect(screen.getByRole('button', { name: 'Add camera' })).toHaveAccessibleDescription('Give it a name first.');
+
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Balcony cam' } });
+    expect(screen.getByRole('button', { name: 'Add camera' })).toBeEnabled();
+  });
+
+  it('says beforehand that testing adds the camera, and afterwards where it went', async () => {
+    await openRtsp();
+    fill();
+
+    expect(screen.getByText(/Test adds the camera and then asks it for one picture/)).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+    });
+
+    // The camera exists from here on, so the screen stops drawing the primary
+    // button as the tap that would commit it.
+    expect(screen.getByText('Added to Tent 1. It is on your Devices tab now, and testing again updates it.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add camera' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open the camera' })).toBeInTheDocument();
+  });
+
+  it('takes the camera away again from the screen the address was mistyped on', async () => {
+    await openRtsp();
+    fill();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Take it away again' }));
+    });
+
+    expect(api.delete).toHaveBeenCalledWith('/cameras/camera-rtsp');
+    expect(screen.queryByText(/It is on your Devices tab now/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add camera' })).toBeInTheDocument();
+    // The next tap makes a camera rather than amending the one just removed.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('makes the place the camera looks at where the account has none', async () => {
+    state.spaces = [];
+    await openRtsp();
+
+    expect(screen.getByText(/There is no place to put a camera in yet/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Name of the place'), { target: { value: 'Attic' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Room' }));
+    state.spaces = [madeSpace];
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Make the place' }));
+    });
+
+    expect(api.post).toHaveBeenCalledWith('/spaces', { kind: 'room', name: 'Attic' });
+    // The place it just made is the chosen one, so nothing typed is lost.
+    expect(await screen.findByRole('button', { name: 'Attic' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('says that the Premium tag gates nothing where the install enforces nothing', async () => {
     state.premium = false;
     await openRtsp();
 
-    expect(await screen.findByText('This install enforces nothing, so the tag gates nothing here.')).toBeInTheDocument();
+    expect(await screen.findByText('Premium is not charged on this installation, so an RTSP camera costs you nothing here.')).toBeInTheDocument();
   });
 });
 
@@ -439,7 +550,7 @@ describe('a session that may only look', () => {
     draw();
 
     expect(await screen.findByText('The demo may look at everything and change nothing, so it cannot add a camera.')).toBeInTheDocument();
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Which camera' })).not.toBeInTheDocument();
     expect(screen.queryAllByRole('textbox')).toHaveLength(0);
   });
 });

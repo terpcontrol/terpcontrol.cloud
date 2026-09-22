@@ -254,6 +254,16 @@ describe('the hardware report', () => {
     expect(camera?.entitlement.validUntil?.getTime()).toBeGreaterThan(Date.now());
   });
 
+  it('names the camera after the controller it hangs on, and after the cam itself where nobody has named that', async () => {
+    // A claim stores the device's type where no name was given, and copying
+    // that onto the camera would head a camera row with a translation key.
+    await device({ spaceId: 'space-1', name: 'controller' });
+
+    await report('webcam_did=TCAM00A41C');
+
+    expect((await db.cameras.findOne({ deviceId: DEVICE }).lean())?.name).toBe('Terp Cam · 00A41C');
+  });
+
   it('retires the camera when the device says it has none, and gives it back its year when it is paired again', async () => {
     await device();
     await report('webcam_did=ABCD1234');

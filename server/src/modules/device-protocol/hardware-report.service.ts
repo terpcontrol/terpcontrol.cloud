@@ -155,7 +155,7 @@ export class HardwareReportService {
       kind: 'terpcam_controller',
       deviceId: device.id,
       spaceId: device.spaceId,
-      name: device.name ?? device.id,
+      name: cameraName(device, paired),
       did: paired,
       uid: notNone(device.state.hardware.webcam_uid),
       ip: notNone(device.state.hardware.webcam_ip),
@@ -243,6 +243,20 @@ export class HardwareReportService {
     );
   }
 }
+
+/**
+ * What the camera is called before anybody has called it anything.
+ *
+ * It hangs on a controller, so the controller's name is the one thing that says
+ * which of an account's cameras this is. A claim stores the device's type where
+ * nobody gave it a name, and a type is a key rather than a word - copied onto
+ * the camera it would put "controller" at the head of a camera row, in English
+ * whatever language the app is read in. So a device named only by its type
+ * hands the camera the few characters printed on the cam instead, which is what
+ * a person standing at the tent can read off it.
+ */
+const cameraName = (device: StoredDevice, did: string): string =>
+  device.name && device.name !== device.type ? device.name : `Terp Cam · ${did.slice(-6).toUpperCase()}`;
 
 const notNone = (value: string | undefined): string | null => {
   const text = (value ?? '').trim();

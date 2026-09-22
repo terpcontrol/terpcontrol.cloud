@@ -8,7 +8,9 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Camera, Device, DeviceCapabilities, DeviceConfiguration, Socket } from '@fg2/shared-types/v1';
+import type { Camera, Device, DeviceCapabilities, DeviceConfiguration, Socket, Space } from '@fg2/shared-types/v1';
+import { api } from '@/api/client';
+import { DeviceList } from '@/screens/devices/DeviceList';
 import { LightOutputRow } from '@/screens/devices/LightOutputRow';
 import { lightOutputOf, withLightLimit } from '@/screens/devices/lights';
 import { SocketRow } from '@/screens/devices/SocketRow';
@@ -26,6 +28,16 @@ import type { OutputLevel, OverrideRequest } from '@/api/devices';
  * of the configuration document, which is stored whether anybody is listening or
  * not. Neither control claims the device did what it was told.
  */
+
+vi.mock('@/api/client', () => ({
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn(), upload: vi.fn() },
+}));
+
+vi.mock('@/api/session', async importOriginal => {
+  const { SIGNED_IN } = await import('./session');
+
+  return { ...(await importOriginal<object>()), mediaUrl: (id: string) => `/media/${id}`, useSession: () => SIGNED_IN };
+});
 
 const sent: OverrideRequest[] = [];
 const saved: { deviceId: string; configuration: DeviceConfiguration }[] = [];
@@ -331,5 +343,91 @@ describe('how late a camera is', () => {
     expect(cameraFreshness(camera(NOW.minus({ seconds: 45 }).toISO()!, 10), NOW)).toBe('stale');
     expect(cameraFreshness(camera(NOW.minus({ minutes: 10 }).toISO()!), NOW)).toBe('offline');
     expect(cameraFreshness(camera(null), NOW)).toBe('offline');
+  });
+});
+
+/**
+ * What the tab calls the hardware on it.
+ *
+ * A claim stores the device's type where nobody has named it, so the list would
+ * otherwise be the lowercase English word "controller" repeated once per
+ * device - in the German app as well - and the camera the controller answers
+ * for would inherit it. These rows are what a grower reads first after
+ * onboarding, so what they print is worth asserting.
+ */
+describe('what the Devices tab calls a device', () => {
+  const standing = (over: Partial<Device>): Device =>
+    ({
+      id: 'device-aaaabbbb-c0ffee',
+      name: 'controller',
+      type: 'controller',
+      spaceId: 'space-1',
+      firmware: { channel: 'stable' },
+      state: { lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!, firmwareId: null },
+      ...over,
+    }) as Device;
+
+  const hanging = (over: Partial<Camera>): Camera =>
+    ({
+      id: 'camera-1',
+      kind: 'terpcam_controller',
+      deviceId: 'device-aaaabbbb-c0ffee',
+      spaceId: 'space-1',
+      name: 'Terp Cam · A41C',
+      looksAt: null,
+      stillIntervalSeconds: 30,
+      state: { lastStillAt: NOW.minus({ seconds: 10 }).toISO()!, lastError: null, firmwareVersion: null },
+      ...over,
+    }) as Camera;
+
+  const list = { devices: [] as Device[], cameras: [] as Camera[] };
+
+  const drawList = async () => {
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      if (path === '/devices') return Promise.resolve({ items: list.devices, nextCursor: null }) as never;
+      if (path === '/cameras') return Promise.resolve({ items: list.cameras, nextCursor: null }) as never;
+      if (path === '/spaces') return Promise.resolve({ items: [{ id: 'space-1', name: 'Tent 1' } as Space], nextCursor: null }) as never;
+      if (path.endsWith('/series')) return Promise.resolve({ readings: [], outputs: [] }) as never;
+      if (path.endsWith('/sockets')) return Promise.resolve({ items: [], capabilities: CAPABILITIES }) as never;
+
+      return Promise.resolve({ items: [], nextCursor: null }) as never;
+    });
+    wrap(<DeviceList />);
+    await screen.findByText('Cameras');
+  };
+
+  it('draws a device nobody has named by its type as a word, with enough of its id to tell two apart', async () => {
+    list.devices = [standing({})];
+    list.cameras = [];
+    await drawList();
+
+    expect(await screen.findByText('Controller · C0FFEE')).toBeInTheDocument();
+    expect(screen.queryByText('controller')).not.toBeInTheDocument();
+  });
+
+  it('keeps the name a grower gave, and says which device a camera hangs on by that name', async () => {
+    list.devices = [standing({ name: 'Blue Dream tent' })];
+    list.cameras = [hanging({})];
+    await drawList();
+
+    expect(await screen.findByText('Blue Dream tent')).toBeInTheDocument();
+    expect(screen.getByText('via Blue Dream tent · Tent 1')).toBeInTheDocument();
+  });
+
+  it('says a camera hangs on a Controller rather than on the key a claim stored', async () => {
+    list.devices = [standing({})];
+    list.cameras = [hanging({})];
+    await drawList();
+
+    expect(await screen.findByText('via Controller · Tent 1')).toBeInTheDocument();
+  });
+
+  it('draws a camera that inherited its controller´s type key by what is printed on the cam', async () => {
+    list.devices = [standing({})];
+    list.cameras = [hanging({ name: 'controller', did: 'TCAM00A41C' })];
+    await drawList();
+
+    expect(await screen.findByText('Terp Cam · A41C')).toBeInTheDocument();
+    expect(screen.queryByText('controller')).not.toBeInTheDocument();
   });
 });
