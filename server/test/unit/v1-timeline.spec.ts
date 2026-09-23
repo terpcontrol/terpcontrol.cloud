@@ -1065,6 +1065,83 @@ describe('the night and the lanes over a window wider than the cycle', () => {
 });
 
 /**
+ * One lamp run, one device, one end instant, read at every width the chips come
+ * to.
+ *
+ * The five ranges are five steps over the same record, and what a range decides
+ * is how coarsely it is drawn and nothing else. A device whose last burst lands
+ * inside a single window after a long silence is the case that put that in
+ * doubt: at one step the burst merged with what came before it, at another it
+ * stood alone as a point, and a point of no width is a stretch nothing can
+ * overlap - so the run, the lane and the chip that offers it vanished at one
+ * range and were drawn at the four either side of it.
+ */
+describe('the same lamp run at every range', () => {
+  /** Where the record stops, which is the instant this grow ended. */
+  const CLOSES = new Date('2026-08-24T15:31:56.000Z');
+  /** The last thing the tent ever switched: the lamp came on six minutes before the end. */
+  const LIT_FROM = new Date('2026-08-24T15:25:00.000Z');
+  /** The controller reported all through the window until here, and then said nothing all afternoon. */
+  const QUIET_FROM = new Date('2026-08-24T07:36:00.000Z');
+  /** The burst that closed the record, which is all anybody heard of the lamp running. */
+  const SPOKE_AGAIN = new Date('2026-08-24T15:20:00.000Z');
+
+  /** What 480 windows come to over a day, a week, a phase and a whole season, which is what the four chips ask for. */
+  const STEPS = [180, 1260, 13110, 39075];
+
+  const windowFor = (stepSeconds: number) => ({ startsAt: new Date(CLOSES.getTime() - stepSeconds * 480 * 1000), endsAt: CLOSES });
+
+  /** Whether the device said anything at all inside one aggregation window. */
+  const spokeIn = (opens: number, closes: number): boolean =>
+    opens < QUIET_FROM.getTime() || (closes > SPOKE_AGAIN.getTime() && opens < CLOSES.getTime());
+
+  /**
+   * One read of one device, stamped the way the store stamps it: an aggregation
+   * window carries its own stop instant, so a point at t stands for the stretch
+   * of a step ending there and a window nothing was said in comes back null.
+   */
+  const history = (stepSeconds: number): DeviceHistory => {
+    const window = windowFor(stepSeconds);
+    const step = stepSeconds * 1000;
+    const points = [];
+    for (let closes = window.startsAt.getTime() + step; closes <= CLOSES.getTime(); closes += step) {
+      points.push({ measuredAt: new Date(closes).toISOString(), value: spokeIn(closes - step, closes) ? 60 : null });
+    }
+
+    return {
+      series: {
+        deviceId: CONTROLLER,
+        startsAt: window.startsAt.toISOString(),
+        endsAt: CLOSES.toISOString(),
+        stepSeconds,
+        metrics: [],
+        outputs: [{ output: 'light' as const, points }],
+      },
+      outputs: [
+        {
+          output: 'light' as const,
+          switchings: [
+            { at: window.startsAt.toISOString(), on: false },
+            { at: LIT_FROM.toISOString(), on: true },
+          ],
+        },
+      ],
+    };
+  };
+
+  it.each(STEPS)('draws the run the device really kept when the window is read at %i seconds', step => {
+    expect(lanesOf([history(step)], windowFor(step))).toEqual([
+      {
+        output: 'light',
+        deviceId: CONTROLLER,
+        spans: [{ startsAt: LIT_FROM.toISOString(), endsAt: CLOSES.toISOString() }],
+        heardUntil: CLOSES.toISOString(),
+      },
+    ]);
+  });
+});
+
+/**
  * The rows that read comes back as. One query answers two things - the state
  * each field is found in and every switching after it - and both carry the same
  * sign, so the reader has only to put them in order per field.
