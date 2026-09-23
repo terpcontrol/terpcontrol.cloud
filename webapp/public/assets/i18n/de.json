@@ -3429,6 +3429,7 @@
       "forOfflineNote": "Zusätzlich zu den zehn Minuten, nach denen ein Gerät als offline gilt."
     },
     "offlineRule": "{{device}} offline",
+    "watchRunning": "{{output}} läuft",
     "presetRule": {
       "tooHot": "Zu warm",
       "tooCold": "Zu kalt",

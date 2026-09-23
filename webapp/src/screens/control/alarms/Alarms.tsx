@@ -14,7 +14,18 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { clock, zoneOf } from '@/ui/zone';
 import { RuleSheet } from './RuleSheet';
-import { boundLabel, channelsLabel, groupRules, heldBackBy, missingSensor, routedChannels, ruleTitle, type Translate, watchable } from './rules';
+import {
+  boundLabel,
+  channelsLabel,
+  groupRules,
+  heldBackBy,
+  missingSensor,
+  routedChannels,
+  ruleTitle,
+  type Translate,
+  watchable,
+  watchLabel,
+} from './rules';
 import styles from './Alarms.module.css';
 
 /**
@@ -235,10 +246,11 @@ function RuleCard({ rule, device, me, mayManage, highlighted, busy, now, onOpen,
 
   const missing = missingSensor(rule.watch, device);
   const silenced = rule.silencedUntil !== null && DateTime.fromISO(rule.silencedUntil) > now;
-  // An output watched for running at all has no band, and a rule that trips on
-  // the first sample has no duration either, so there is nothing to draw beside
-  // its name rather than a line at nothing.
+  // An output watched for running at all crosses no line, so what it watches is
+  // said in words and only the duration it has to run for is a figure; a rule
+  // that trips on the first sample has not even that.
   const bound = rule.watch.kind === 'output_running' ? (rule.forSeconds > 0 ? `› ${durationLabel(rule.forSeconds)}` : '') : boundLabel(rule.watch);
+  const watching = watchLabel(t, rule.watch);
   const title = ruleTitle(t, rule, device);
 
   const summary = (
@@ -246,6 +258,7 @@ function RuleCard({ rule, device, me, mayManage, highlighted, busy, now, onOpen,
       <span className={styles.top}>
         {rule.state.triggered ? <span className={styles.dot} role="img" aria-label={t('alarms.triggered')} /> : null}
         <span className={styles.name}>{title}</span>
+        {watching ? <span className={styles.watching}>{watching}</span> : null}
         {bound ? <span className={`mono ${styles.bound}`}>{bound}</span> : null}
       </span>
       <span className={`mono ${styles.meta}`}>{metaLine(t, rule, me, now)}</span>

@@ -127,6 +127,14 @@
   color: var(--ink);
 }
 
+/* What the rule watches, where no line is crossed and so there is no figure to
+   set in mono - the output's name and the fact that it is running, read as the
+   words they are, with whatever duration applies in mono after them. */
+.watching {
+  font-size: var(--text-md);
+  color: var(--ink);
+}
+
 .meta {
   font-size: var(--text-xs);
   color: var(--muted);

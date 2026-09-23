@@ -12,7 +12,7 @@ import type { AlarmRule, AlarmRuleCreate, Device, Me, SpaceOverview } from '@fg2
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { Alarms } from '@/screens/control/alarms/Alarms';
-import { boundLabel, channelsLabel, routedChannels } from '@/screens/control/alarms/rules';
+import { boundLabel, channelsLabel, routedChannels, type Translate, watchLabel } from '@/screens/control/alarms/rules';
 import { headersOf } from '@/ui/headers';
 
 /**
@@ -216,6 +216,25 @@ describe('the alarm rules page', () => {
 
     const row = await card('Dehumidifier running non-stop');
     expect(row.textContent).not.toMatch(/›\s*0/);
+    // No duration is not no condition: the card still has to say what it watches.
+    expect(within(row).getByText('Dehumidifier running')).toBeInTheDocument();
+  });
+
+  /**
+   * A rule on an output is titled from whatever its author typed, which may
+   * name nothing - the webhook rule here is called "My Webhook" - so the watch
+   * itself is the only thing that can tell the grower what the rule is for.
+   */
+  it('states what an output rule watches, whatever its author called it', async () => {
+    draw();
+
+    const running = await card('Dehumidifier running non-stop');
+    expect(within(running).getByText('Dehumidifier running')).toBeInTheDocument();
+    expect(within(running).getByText('› 2 h')).toBeInTheDocument();
+
+    // A reading rule is titled from its metric already, so it is not said twice.
+    const hot = await card('Too hot');
+    expect(within(hot).queryByText(/running/)).not.toBeInTheDocument();
   });
 
   it('groups the rules by where they came from, under the preset the grow stands on', async () => {
@@ -734,6 +753,15 @@ describe('what a rule is called', () => {
     expect(boundLabel({ kind: 'output_level', output: 'light', upper: 80, lower: null })).toBe('› 80 %');
     expect(boundLabel({ kind: 'output_level', output: 'fan', upper: null, lower: 0.2 })).toBe('‹ 0.2');
     expect(boundLabel({ kind: 'output_running', output: 'co2' })).toBe('');
+  });
+
+  it('names what an output rule watches, and leaves a reading rule to its own title', () => {
+    const t = ((key: string, options?: Record<string, unknown>) =>
+      key === 'alarms.watchRunning' ? `${String(options?.output)} running` : key.replace('alarms.output.', '')) as Translate;
+
+    expect(watchLabel(t, { kind: 'output_running', output: 'dehumidifier' })).toBe('dehumidifier running');
+    expect(watchLabel(t, { kind: 'reading', metric: 'temperature', upper: 30, lower: null })).toBeNull();
+    expect(watchLabel(t, { kind: 'output_level', output: 'light', upper: 80, lower: null })).toBeNull();
   });
 
   it('names the channels the grid routes that severity to, in one order, and says which of them go nowhere', () => {

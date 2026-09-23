@@ -239,6 +239,18 @@ const inQuietHours = (quiet: QuietHours | null, zone: string | null, now: DateTi
 
 export type Translate = (key: string, options?: Record<string, unknown>) => string;
 
+/**
+ * What a rule watches, where its title does not already say it.
+ *
+ * A rule on a reading is titled from that reading, so the metric is on the card
+ * twice if this answers as well. A rule on an output running is titled from
+ * whatever its author typed - or from nothing at all, for one the firmware
+ * wrote - so without this the card states no condition and the duration beside
+ * it hangs off nothing. The inbox names the same watch the same way.
+ */
+export const watchLabel = (t: Translate, watch: AlarmWatch): string | null =>
+  watch.kind === 'output_running' ? t('alarms.watchRunning', { output: t(`alarms.output.${watch.output}`, { defaultValue: watch.output }) }) : null;
+
 /** "push + e-mail", with a channel the account has not set up marked as the dead end it is. */
 export const channelsLabel = (t: Translate, channels: RoutedChannel[]): string =>
   channels
