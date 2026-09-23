@@ -248,9 +248,10 @@ const millis = (instant: string): number => new Date(instant).getTime();
  * share a window and a step, so the instant is what joins them.
  *
  * Only the windows something was read in are answered, with a break written
- * between two of them the space fell silent across. A window with no reading is
- * not a hole in the measurement: a device sampling every hour into windows of
- * three minutes leaves nineteen empty ones between every sample, and a series of
+ * between two of them the space fell silent across, and one after the last of
+ * them where the space has been silent since. A window with no reading is not a
+ * hole in the measurement: a device sampling every hour into windows of three
+ * minutes leaves nineteen empty ones between every sample, and a series of
  * holes with a lone reading between them is a line that cannot be drawn at all.
  * What the curve has to break at is the silence, which is the same thing the
  * lanes under it break at.
@@ -269,7 +270,8 @@ const pooled = (series: readonly DeviceSeries[], metric: Metric): SeriesPoint[] 
     .sort(([one], [other]) => one.localeCompare(other))
     .map(([measuredAt, values]) => ({ measuredAt, value: rounded(mean(values), metric) }));
 
-  return broken(heard, silenceOf(heard, series[0]?.stepSeconds ?? 0));
+  const silence = silenceOf(heard, series[0]?.stepSeconds ?? 0);
+  return closed(broken(heard, silence), series[0] ? millis(series[0].endsAt) : null, silence);
 };
 
 /** The readings with a null between the two the space went quiet between, which is where the line stops and starts again. */
@@ -282,6 +284,24 @@ const broken = (points: readonly SeriesPoint[], silence: number): SeriesPoint[] 
     // halfway across the silence, which would claim a reading was due there.
     return [{ measuredAt: new Date(millis(before.measuredAt) + 1).toISOString(), value: null }, point];
   });
+
+/**
+ * The same break after the last reading, where the window runs on past it.
+ *
+ * A silence at the end of a window is the one nobody closed, and it is the one
+ * a reader is most likely to be looking at: both screens read a line at the
+ * cursor as the last point at or before it, so a tent that fell quiet on
+ * Saturday went on printing Saturday's figures under Wednesday's clock,
+ * undimmed and undated. Closing it here says the same thing an interior gap
+ * already says - nothing was measured here - and says it on the Charts header,
+ * the Timeline header and the cursor's dot at once.
+ */
+const closed = (points: readonly SeriesPoint[], endsAt: number | null, silence: number): SeriesPoint[] => {
+  const last = points[points.length - 1];
+  if (!last || last.value === null || endsAt === null || endsAt - millis(last.measuredAt) <= silence) return [...points];
+
+  return [...points, { measuredAt: new Date(millis(last.measuredAt) + 1).toISOString(), value: null }];
+};
 
 const setpointIn = (targets: PhaseTargets | null, metric: Metric, half: 'day' | 'night'): number | null => {
   if (targets === null) return null;

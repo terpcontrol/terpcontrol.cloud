@@ -517,6 +517,27 @@ describe('the stacked panels', () => {
     // rather than twenty-four readings no two of which are neighbours.
     expect(points.every(point => point.value !== null)).toBe(true);
   });
+
+  it('breaks the curve after the last reading where the tent has been quiet since, rather than carrying it to the edge', async () => {
+    quietFrom = new Date('2026-06-10T02:00:00.000Z');
+    quietUntil = new Date('2026-06-11T00:00:00.000Z');
+    const points = (await readAs(session(OWNER))).panels[0].points;
+    const lastHeard = new Date(quietFrom.getTime() - DAY_STEP_SECONDS * 1000);
+
+    // Both screens read a line at the cursor as the last point at or before it,
+    // so without this the ten silent hours print the last reading under every
+    // clock in them.
+    expect(points[points.length - 2]).toEqual({ measuredAt: lastHeard.toISOString(), value: 20 });
+    expect(points[points.length - 1]).toEqual({ measuredAt: new Date(lastHeard.getTime() + 1).toISOString(), value: null });
+  });
+
+  it('carries the curve to the edge of the window where the tent is still reporting', async () => {
+    const points = (await readAs(session(OWNER))).panels[0].points;
+
+    // A device heard from a step ago is not a silence, and a break there would
+    // read as one.
+    expect(points[points.length - 1].value).not.toBeNull();
+  });
 });
 
 describe('the band that applied', () => {

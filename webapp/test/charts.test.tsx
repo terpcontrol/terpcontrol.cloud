@@ -269,6 +269,21 @@ describe('the Charts view', () => {
     for (const figure of ['27', '21', '65', '50']) expect(pair).toHaveTextContent(figure);
   });
 
+  it('prints a dash rather than the last figure it heard where the series stops before the window does', async () => {
+    // The tent fell quiet half way through the window, which the answer says by
+    // breaking every line after the last reading. The cursor rests at the right
+    // edge, so this is the reading somebody opening the screen is shown.
+    state.series = {
+      ...series,
+      climate: series.climate.map(panel => ({ ...panel, points: [...panel.points.slice(0, 3), { measuredAt: at(13), value: null }] })),
+    };
+    draw();
+
+    const reading = await screen.findByRole('status');
+    for (const line of ['Temp —', 'RH —', 'VPD —']) expect(reading).toHaveTextContent(line);
+    expect(reading).not.toHaveTextContent('26 °C');
+  });
+
   it('adds a measurement as a panel of its own, one line per plant rather than one across all of them', async () => {
     draw();
     fireEvent.click(await screen.findByRole('button', { name: 'Height' }));
