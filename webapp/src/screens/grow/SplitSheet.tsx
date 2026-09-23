@@ -28,6 +28,14 @@ import styles from './Lifecycle.module.css';
  * A split that names neither a stage nor a place has not split anything, which
  * is why the button waits until one of them is chosen rather than asking the
  * server to say so.
+ *
+ * A grow whose record carries no plants has nothing to split off, and the whole
+ * sheet is then one sentence. Everything on it leads somewhere the server
+ * refuses - a split names at least one plant - so drawing the picker, the phase
+ * chips, the place chips and a dead "Split off 0 plants" is four choices ending
+ * in a refusal, where the rule is that a control somebody may not use is absent
+ * rather than refused after the tap. Harvest, given the same record, says the
+ * same thing and offers nothing.
  */
 /** Which plants the sheet opens on, for a caller that is already about one of them; the grow page names none and the scope is the grow's. */
 export function SplitSheet({
@@ -57,6 +65,16 @@ export function SplitSheet({
 
   const staying = plants.length - chosen.length;
   const ready = chosen.length > 0 && (stage !== null || spaceId !== undefined);
+
+  if (plants.length === 0) {
+    return (
+      <Sheet title={t('grow.lifecycle.split.title', { name: grow.name })} onClose={onClose}>
+        <div className={styles.body}>
+          <p className={ui.note}>{t('grow.lifecycle.split.noPlantsRecorded')}</p>
+        </div>
+      </Sheet>
+    );
+  }
 
   return (
     <Sheet title={t('grow.lifecycle.split.title', { name: grow.name })} onClose={onClose}>

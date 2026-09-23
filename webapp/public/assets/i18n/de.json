@@ -2146,6 +2146,7 @@
       "split": {
         "title": "Aufteilen · {{name}}",
         "what": "Einige Pflanzen gehen ihren eigenen Weg, während der Rest des Grows weiterläuft.",
+        "noPlantsRecorded": "In diesem Grow sind keine Pflanzen erfasst, hier lässt sich also nichts abtrennen. Ein aus der alten App übernommener Grow wurde nie Pflanze für Pflanze aufgeschrieben.",
         "whichGoTheirOwnWay": "Welche Pflanzen ihren eigenen Weg gehen",
         "staying_one": "{{count}} bleibt zurück",
         "staying_other": "{{count}} bleiben zurück",

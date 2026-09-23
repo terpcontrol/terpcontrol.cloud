@@ -2150,6 +2150,7 @@
       "split": {
         "title": "Split · {{name}}",
         "what": "Some plants go their own way while the rest of the grow carries on.",
+        "noPlantsRecorded": "No plants are recorded in this grow, so there is nothing here to split off. A grow brought over from the old app was never written down plant by plant.",
         "whichGoTheirOwnWay": "Which plants go their own way",
         "staying_one": "{{count}} stays behind",
         "staying_other": "{{count}} stay behind",

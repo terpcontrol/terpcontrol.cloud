@@ -11,6 +11,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { GrowListItem, Plant, SpaceOverview } from '@fg2/shared-types/v1';
 import { HarvestSheet } from '@/screens/grow/HarvestSheet';
 import { MoveSheet } from '@/screens/grow/MoveSheet';
+import { SplitSheet } from '@/screens/grow/SplitSheet';
 import { PhaseSheet } from '@/screens/grow/PhaseSheet';
 import { correctionEffect, withdrawalEffect } from '@/screens/grow/phase-effect';
 import { PresetSheet } from '@/screens/space/PresetSheet';
@@ -280,6 +281,33 @@ describe('the harvest sheet over a grow whose record carries no plants', () => {
 
     expect(screen.getByText('It ended on 16 Sep 2026.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'End the grow' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * A split of a grow with no plants in its record, which every grow brought over
+ * from the old app is. There is nothing to split off, and the sheet used to
+ * draw the whole machinery over it and refuse at the end.
+ */
+describe('the split sheet over a grow whose record carries no plants', () => {
+  const tent = spaceWhere('own', { name: 'Blue Dream tent' });
+
+  it('says so and offers nothing, the way the harvest sheet does over the same record', () => {
+    draw(<SplitSheet grow={grow} plants={[]} spaces={[tent]} onClose={() => {}} />);
+
+    expect(screen.getByText(/No plants are recorded in this grow, so there is nothing here to split off/)).toBeInTheDocument();
+    // Not the picker, not the phase or place chips, and no button that leads to
+    // a refusal: the server wants at least one plant.
+    expect(screen.queryByRole('button', { name: /Split off/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Keep the phase' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Blue Dream tent' })).not.toBeInTheDocument();
+  });
+
+  it('is the whole sheet for a grow that does have plants', () => {
+    draw(<SplitSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />);
+
+    expect(screen.getByRole('button', { name: /Split off/ })).toBeInTheDocument();
+    expect(screen.queryByText(/No plants are recorded/)).not.toBeInTheDocument();
   });
 });
 
