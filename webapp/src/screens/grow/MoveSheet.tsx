@@ -10,6 +10,7 @@ import { Refused } from '@/ui/PageState';
 import { enough } from '@/ui/session-access';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
+import { calendarDay, useZone } from '@/ui/zone';
 import { lastPlaceOf } from './placement';
 import { PlantPicker } from './PlantPicker';
 import styles from './Lifecycle.module.css';
@@ -144,7 +145,8 @@ function PlacementRow({
   onOpen: (as: 'correct' | 'withdraw' | null) => void;
 }) {
   const { t } = useTranslation();
-  const day = (at: string) => DateTime.fromISO(at).toFormat('d LLL yyyy');
+  const zone = useZone();
+  const day = (at: string) => calendarDay(at, zone);
 
   return (
     <li className={styles.row} data-dim={placement.endedAt !== null}>

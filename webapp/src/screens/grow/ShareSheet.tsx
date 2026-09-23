@@ -11,6 +11,7 @@ import { CopyButton } from '@/ui/CopyButton';
 import { Refused } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
 import ui from '@/ui/ui.module.css';
+import { calendarDay, useZone } from '@/ui/zone';
 import styles from './ShareSheet.module.css';
 
 /**
@@ -124,6 +125,7 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
 /** One link: where it points, what it lets through, how often it has been opened, and what can still be done to it. */
 function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const [narrowing, setNarrowing] = useState(false);
   const update = useUpdateShareLink();
   const revoke = useRevokeShareLink();
@@ -139,7 +141,7 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
         {dead ? null : <CopyButton value={address} label={t('sharing.copyLink')} />}
       </div>
 
-      <p className={`mono ${styles.linkMeta}`}>{describe(t, link, now)}</p>
+      <p className={`mono ${styles.linkMeta}`}>{describe(t, link, now, zone)}</p>
 
       {narrowing ? (
         <Editor
@@ -273,8 +275,8 @@ function Field({ label, value, hint, onChange }: { label: string; value: string;
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** "1 Sep → open end · with pictures · opened 3× · last 2 h ago", and what stopped it where something did. */
-const describe = (t: Translate, link: ShareLink, now: DateTime): string => {
-  const day = (at: string) => DateTime.fromISO(at).toFormat('d LLL yyyy');
+const describe = (t: Translate, link: ShareLink, now: DateTime, zone: string | null): string => {
+  const day = (at: string) => calendarDay(at, zone);
   const parts = [
     link.range.startsAt === null
       ? link.range.endsAt === null
@@ -295,7 +297,13 @@ const describe = (t: Translate, link: ShareLink, now: DateTime): string => {
   return parts.join(' · ');
 };
 
-/** A date the field holds, as the instant the contract takes: the whole of that day, in UTC. */
+/**
+ * A date the field holds, as the instant the contract takes: the whole of that
+ * day, in UTC. The field speaks the browser's day and this reads it back the
+ * same way, which is why `dayOf` below stays on the browser's zone as well: the
+ * two are one round trip through one clock, and zoning half of it would put a
+ * day in the field that the reader never chose.
+ */
 const instantOf = (day: string, edge: 'start' | 'end'): string | null =>
   day ? (edge === 'start' ? DateTime.fromISO(day).startOf('day') : DateTime.fromISO(day).endOf('day')).toUTC().toISO() : null;
 

@@ -26,6 +26,16 @@ import { useSession } from '@/api/session';
  * app's language; a reader comparing the two had no way of knowing it was one
  * moment. So a clock time is written one way everywhere, and `clock` is that
  * way.
+ *
+ * All of that was written for hours and only ever enforced for hours, which
+ * left the dates behind. A grow's start and end were read straight off the
+ * instant in whatever zone the browser was in, so an account in UTC whose
+ * owner opened the archive from Tokyo was told the grow ended a day later than
+ * it did; and the sessions list on Me reached for a locale preset and printed
+ * "Oct 23, 2026" two taps from an archive printing "24 Aug 2026". A date is a
+ * day boundary read off an instant, which is exactly what the rule above
+ * already claims, so `DAY` and `calendarDay` are to a date what `CLOCK` and
+ * `clock` are to an hour.
  */
 
 /**
@@ -117,9 +127,36 @@ export const CLOCK = 'HH:mm';
 /** The day a clock time fell on, for an instant that is not today's. */
 export const DATED_CLOCK = 'd MMM HH:mm';
 
+/**
+ * How a date is written: the day, the month in the reader's own three letters,
+ * then the year.
+ *
+ * Not a locale preset, for the same reason `CLOCK` is not one. Luxon's
+ * `DATE_MED` resolves through the language the app is being read in, and its
+ * English resolves to the American order, so the sessions list on Me said
+ * "Oct 23, 2026" while the archive one screen away said "24 Aug 2026" about
+ * the same kind of thing. The month stays in words rather than becoming a
+ * number because a date written in digits is read in a different order on
+ * either side of an ocean and there is no way for the reader to tell which one
+ * they are looking at.
+ */
+export const DAY = 'd LLL yyyy';
+
+/**
+ * The same day with the year left off, for the places that have already said
+ * which year they are talking about - an invitation that expires this week, a
+ * backdated start a fortnight ago. It is the one abbreviation of `DAY` there
+ * is, so that a screen wanting a shorter date has somewhere to go other than a
+ * format of its own.
+ */
+export const DAY_IN_YEAR = 'd LLL';
+
 export const clock = (instant: string, zone: string | null): string => zoned(instant, zone).toFormat(CLOCK);
 
 export const datedClock = (instant: string, zone: string | null): string => zoned(instant, zone).toFormat(DATED_CLOCK);
+
+/** The day an instant fell on, where the account is - because which day that is depends on the zone it is asked in. */
+export const calendarDay = (instant: string, zone: string | null): string => zoned(instant, zone).toFormat(DAY);
 
 /** Now, where the account is, so that "today" and the day a thing falls on are decided in one zone rather than two. */
 export const nowThere = (now: DateTime, zone: string | null): DateTime => (zone ? now.setZone(zone) : now);

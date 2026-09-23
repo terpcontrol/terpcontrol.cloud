@@ -10,6 +10,7 @@ import { readingFigure } from '@/ui/entries';
 import { Refused } from '@/ui/PageState';
 import { Block, WhenField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
+import { calendarDay, DAY, useZone } from '@/ui/zone';
 import { PlantPicker } from './PlantPicker';
 import styles from './Lifecycle.module.css';
 
@@ -51,6 +52,7 @@ export function HarvestSheet({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const harvest = useHarvest(grow.id);
 
   const [chosen, setChosen] = useState<string[] | null>(preselect ?? null);
@@ -110,7 +112,7 @@ export function HarvestSheet({
 
         {endsTheGrow ? (
           <p className={`${ui.cardDashed} ${styles.warning}`}>
-            {t('grow.lifecycle.harvest.endsTheGrow', { date: DateTime.fromJSDate(at).toFormat('d LLL yyyy') })}
+            {t('grow.lifecycle.harvest.endsTheGrow', { date: DateTime.fromJSDate(at).toFormat(DAY) })}
           </p>
         ) : null}
 
@@ -163,7 +165,7 @@ export function HarvestSheet({
                   <div className={styles.rowHead}>
                     <span className={styles.rowTitle}>{plant.label}</span>
                     <span className={`mono ${styles.rowMeta}`}>
-                      {plant.harvest ? DateTime.fromISO(plant.harvest.harvestedAt).toFormat('d LLL yyyy') : ''} · {weightLine(t, plant)}
+                      {plant.harvest ? calendarDay(plant.harvest.harvestedAt, zone) : ''} · {weightLine(t, plant)}
                     </span>
                   </div>
                 </li>
@@ -196,6 +198,7 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  */
 function NothingPlanted({ grow, onClose }: { grow: GrowListItem; onClose: () => void }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const update = useUpdateGrow(grow.id);
   const [at, setAt] = useState(() => new Date());
 
@@ -204,7 +207,7 @@ function NothingPlanted({ grow, onClose }: { grow: GrowListItem; onClose: () => 
       <p className={ui.note}>{t('grow.lifecycle.harvest.noPlantsRecorded')}</p>
 
       {grow.endedAt !== null ? (
-        <p className={ui.note}>{t('grow.lifecycle.harvest.alreadyEnded', { date: DateTime.fromISO(grow.endedAt).toFormat('d LLL yyyy') })}</p>
+        <p className={ui.note}>{t('grow.lifecycle.harvest.alreadyEnded', { date: calendarDay(grow.endedAt, zone) })}</p>
       ) : (
         <Block label={t('grow.lifecycle.harvest.endInstead')}>
           <WhenField label={t('grow.lifecycle.when')} at={at} onChange={setAt} />

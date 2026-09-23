@@ -278,10 +278,13 @@ describe('the harvest sheet over a grow whose record carries no plants', () => {
 
     // The server refuses a harvest with nothing in it, so this goes to the grow
     // itself - the same `endedAt` the last plant's harvest would have written.
-    await waitFor(() => expect(asked).toHaveLength(1));
-    expect(asked[0].method).toBe('PATCH');
-    expect(asked[0].path).toBe('/v1/grows/grow-1');
-    expect(Object.keys(asked[0].body as object)).toEqual(['endedAt']);
+    // Only the writes are counted: the sheet dates the grow's end where the
+    // account is, and reading the account for its zone is a GET like any other.
+    const wrote = () => asked.filter(call => call.method !== 'GET');
+    await waitFor(() => expect(wrote()).toHaveLength(1));
+    expect(wrote()[0].method).toBe('PATCH');
+    expect(wrote()[0].path).toBe('/v1/grows/grow-1');
+    expect(Object.keys(wrote()[0].body as object)).toEqual(['endedAt']);
   });
 
   it('says when a grow that is already over ended, rather than offering to end it a second time', () => {

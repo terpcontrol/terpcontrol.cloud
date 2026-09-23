@@ -1,5 +1,4 @@
 import { Archive, ChevronLeft, ChevronRight, Leaf } from 'lucide-react';
-import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowListItem, Space } from '@fg2/shared-types/v1';
@@ -9,6 +8,7 @@ import { useSpaces } from '@/api/spaces';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { calendarDay, useZone } from '@/ui/zone';
 import styles from './Archive.module.css';
 
 /**
@@ -89,8 +89,13 @@ export function GrowArchive() {
  */
 function ArchiveRow({ grow, spaces }: { grow: GrowListItem & { endedAt: string }; spaces: Space[] }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const cover = grow.coverMediaId ? mediaUrl(grow.coverMediaId, THUMBNAIL_WIDTH.cover) : null;
-  const day = (at: string) => DateTime.fromISO(at).toFormat('d LLL yyyy');
+  // Where the account is, because the day a grow started on is a day boundary
+  // read off an instant: a grow begun late in the evening in UTC is already
+  // tomorrow to a browser nine hours east, and the archive was dating it a day
+  // out for anybody reading from there.
+  const day = (at: string) => calendarDay(at, zone);
   const where = [...new Set(grow.placements.map(placement => placement.spaceId))]
     .map(spaceId => (spaceId === null ? t('grow.noFixedPlace') : (spaces.find(space => space.id === spaceId)?.name ?? null)))
     .filter((name): name is string => name !== null);

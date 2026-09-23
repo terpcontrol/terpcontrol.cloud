@@ -1,5 +1,4 @@
 import { ChevronLeft, CircleCheck, Globe, LineChart, Ruler, Share2 } from 'lucide-react';
-import { DateTime } from 'luxon';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams } from 'react-router';
@@ -13,6 +12,7 @@ import { enough, standsIn, useMayWith } from '@/ui/session-access';
 import { Tabs } from '@/ui/Tabs';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { calendarDay, useZone } from '@/ui/zone';
 import { Feeding } from './Feeding';
 import { GrowLifecycle } from './Lifecycle';
 import { PhaseBar } from './PhaseBar';
@@ -126,8 +126,12 @@ interface HeaderProps {
  */
 export function GrowHeader({ grow, plants, spaces, now, onShare }: HeaderProps) {
   const { t } = useTranslation();
+  const zone = useZone();
   const { summary } = grow;
-  const endedAt = grow.endedAt ? DateTime.fromISO(grow.endedAt) : null;
+  // The date is read where the account is and the comparison is not, because
+  // the day a grow ended on moves with the zone while the fact that it ended
+  // does not.
+  const endedOn = grow.endedAt ? calendarDay(grow.endedAt, zone) : null;
   const nameOf = (spaceId: string | null) => (spaceId ? (spaces.find(space => space.id === spaceId)?.name ?? '…') : t('grow.noFixedPlace'));
   // Where the plants are now, which a grow whose placements have all been
   // closed no longer has. Its report names the tent on every chapter and the
@@ -168,10 +172,10 @@ export function GrowHeader({ grow, plants, spaces, now, onShare }: HeaderProps) 
                 {part}
               </span>
             ))}
-            {endedAt ? (
+            {endedOn ? (
               <span className={`mono ${styles.endedChip}`}>
                 <CircleCheck size={12} strokeWidth={1.75} aria-hidden />
-                {t('grow.ended', { date: endedAt.toFormat('d LLL yyyy') })}
+                {t('grow.ended', { date: endedOn })}
               </span>
             ) : null}
             {grow.visibility === 'public' ? (
@@ -191,7 +195,7 @@ export function GrowHeader({ grow, plants, spaces, now, onShare }: HeaderProps) 
         {summary.dayNumber !== null ? (
           <div className={styles.day}>
             <span className={`figure ${styles.dayFigure}`}>{summary.dayNumber}</span>
-            <span className="label">{t(endedAt ? 'grow.finalDay' : 'home.card.day')}</span>
+            <span className="label">{t(endedOn ? 'grow.finalDay' : 'home.card.day')}</span>
           </div>
         ) : null}
       </div>

@@ -1,4 +1,3 @@
-import { DateTime } from 'luxon';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
@@ -9,6 +8,7 @@ import { Nothing } from '@/screens/public/Nothing';
 import { PublicShell } from '@/screens/public/PublicShell';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
+import { calendarDay, useZone } from '@/ui/zone';
 import styles from './Join.module.css';
 
 /**
@@ -57,6 +57,7 @@ function Invitation({ preview, code, signedIn, isDemo }: { preview: InvitePrevie
   const navigate = useNavigate();
   const location = useLocation();
   const accept = useAcceptInvite();
+  const zone = useZone();
   const name = preview.spaceName ?? '';
   const here = `/join/${code}`;
 
@@ -86,9 +87,7 @@ function Invitation({ preview, code, signedIn, isDemo }: { preview: InvitePrevie
         <p className={styles.term}>{t('space.members.join.sees', { name })}</p>
         <p className={styles.term}>{t('space.members.join.doesNotSee')}</p>
         {preview.expiresAt ? (
-          <p className={`mono ${styles.until}`}>
-            {t('space.members.join.until', { date: DateTime.fromISO(preview.expiresAt).toFormat('d LLL yyyy') })}
-          </p>
+          <p className={`mono ${styles.until}`}>{t('space.members.join.until', { date: calendarDay(preview.expiresAt, zone) })}</p>
         ) : null}
       </div>
 

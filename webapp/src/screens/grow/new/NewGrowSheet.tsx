@@ -18,6 +18,7 @@ import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import { enough, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { DAY_IN_YEAR } from '@/ui/zone';
 import { useCreateSpace } from './create-space';
 import { dayNumber, growBody, growIn, presetFor, START_STAGES, suggestedName, tells, type Draft, type PlantRow } from './new-grow';
 import styles from './NewGrow.module.css';
@@ -391,7 +392,7 @@ function Form({
             {START_STAGES.map(one => (
               <Choice key={one} chosen={draft.stage === one} onChoose={() => change({ stage: one })}>
                 {t(`home.stage.${one}`)}
-                {draft.stage === one ? ` · ${backdating ? DateTime.fromJSDate(draft.startedAt).toFormat('d LLL') : t('grow.new.today')}` : ''}
+                {draft.stage === one ? ` · ${backdating ? DateTime.fromJSDate(draft.startedAt).toFormat(DAY_IN_YEAR) : t('grow.new.today')}` : ''}
               </Choice>
             ))}
             <Choice

@@ -11,6 +11,7 @@ import { presetsOf, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import { STAGES, weekOfGrowDay } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
+import { calendarDay, useZone } from '@/ui/zone';
 import { correctionEffect, phasesInOrder, withdrawalEffect, type PhaseEffect } from './phase-effect';
 import styles from './Lifecycle.module.css';
 
@@ -38,6 +39,7 @@ import styles from './Lifecycle.module.css';
  */
 export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () => void }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const add = useAddPhase(grow.id);
 
   const ended = grow.endedAt !== null;
@@ -65,7 +67,7 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
   return (
     <Sheet title={t('grow.lifecycle.phase.title', { name: grow.name })} onClose={onClose}>
       <div className={styles.body}>
-        <p className={`mono ${styles.now}`}>{nowLine(t, grow)}</p>
+        <p className={`mono ${styles.now}`}>{nowLine(t, grow, zone)}</p>
 
         <Block label={t(ended ? 'grow.lifecycle.phase.record' : 'grow.lifecycle.phase.enter')}>
           <Choices label={t('grow.lifecycle.phase.stageLabel')}>
@@ -134,7 +136,7 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  * frozen at the day it came down, so the present tense would make them a claim
  * about today, and the day it ended is what says which day they stopped on.
  */
-const nowLine = (t: Translate, grow: GrowListItem): string => {
+const nowLine = (t: Translate, grow: GrowListItem, zone: string | null): string => {
   const { stage, preset, phaseDay, dayNumber } = grow.summary;
   if (!stage || dayNumber === null) return t('grow.lifecycle.phase.noPhaseYet');
 
@@ -142,7 +144,7 @@ const nowLine = (t: Translate, grow: GrowListItem): string => {
     return t('grow.lifecycle.phase.endedLine', {
       stage: label(t, stage, preset),
       growDay: dayNumber,
-      date: DateTime.fromISO(grow.endedAt).toFormat('d LLL yyyy'),
+      date: calendarDay(grow.endedAt, zone),
     });
   }
 
@@ -191,13 +193,14 @@ function PhaseRow({
   onOpen: (as: 'correct' | 'withdraw' | null) => void;
 }) {
   const { t } = useTranslation();
+  const zone = useZone();
 
   return (
     <li className={styles.row}>
       <div className={styles.rowHead}>
         <span className={styles.rowTitle}>{label(t, phase.stage, phase.preset)}</span>
         <span className={`mono ${styles.rowMeta}`}>
-          {DateTime.fromISO(phase.startedAt).toFormat('d LLL yyyy')} · {t(`grow.lifecycle.phase.source.${phase.source}`)}
+          {calendarDay(phase.startedAt, zone)} · {t(`grow.lifecycle.phase.source.${phase.source}`)}
         </span>
       </div>
 
