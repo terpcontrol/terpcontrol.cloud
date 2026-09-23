@@ -247,6 +247,21 @@ describe('the tent overview', () => {
     expect(screen.queryByText(/24 h to/)).not.toBeInTheDocument();
   });
 
+  /**
+   * The strip is the last eight lines whatever their age and the link opens the
+   * Timeline on a fixed 24 hours, so on a quiet tent "All" landed on a window
+   * holding two of the eight lines it was pressed from. The link names the
+   * screen it opens, the way the same link three sections above already does.
+   */
+  it('names the screen the latest strip opens rather than promising the whole record', () => {
+    draw(<Overview overview={overview} now={NOW} />);
+
+    const ways = screen.getAllByRole('link', { name: 'Timeline' });
+    expect(ways.length).toBeGreaterThanOrEqual(2);
+    expect(ways.every(way => way.getAttribute('href') === `/spaces/${overview.spaceId}/timeline`)).toBe(true);
+    expect(screen.queryByRole('link', { name: 'All' })).not.toBeInTheDocument();
+  });
+
   it('says there is nothing to judge where nothing is steered', () => {
     const unsteered: SpaceOverview = {
       ...overview,

@@ -2650,7 +2650,6 @@
       "relais": "relay"
     },
     "latest": "Latest",
-    "all": "All",
     "moveHereTitle": "Move a grow into {{name}}",
     "presets": {
       "title": "Climate preset · {{name}}",

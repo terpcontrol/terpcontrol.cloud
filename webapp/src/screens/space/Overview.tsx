@@ -146,7 +146,12 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
         </Section>
       ) : null}
 
-      <Section label={t('space.latest')} link={{ to: `/spaces/${overview.spaceId}/timeline`, label: t('space.all') }}>
+      {/* Named for where it goes rather than for what it promises: the strip is
+          the last eight lines whatever their age, while the Timeline opens on a
+          fixed 24 hours, so on a quiet tent "All" led to a window holding two of
+          the eight lines it was pressed from. The climate section three above
+          links to the same screen and already calls it by its name. */}
+      <Section label={t('space.latest')} link={{ to: `/spaces/${overview.spaceId}/timeline`, label: t('space.tabs.timeline') }}>
         {overview.entries.length === 0 ? (
           <p className={ui.note}>{t('home.card.noEntries')}</p>
         ) : (

@@ -2646,7 +2646,6 @@
       "relais": "Relais"
     },
     "latest": "Zuletzt",
-    "all": "Alle",
     "moveHereTitle": "Grow nach {{name}} umziehen",
     "presets": {
       "title": "Klima-Preset · {{name}}",
