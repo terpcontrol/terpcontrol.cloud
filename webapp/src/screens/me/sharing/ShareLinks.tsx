@@ -14,6 +14,7 @@ import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { useZone } from '@/ui/zone';
 import { dayLabel, isDead, lifetimeDays, linkAddress } from './links';
 import { NewLinkSheet } from './NewLinkSheet';
 import { Page, SectionHead } from './Page';
@@ -79,6 +80,7 @@ type Stripping = { known: true; hideWeights: boolean; hideCounts: boolean } | { 
 function Links({ userId }: { userId: string | null }) {
   const { t, i18n } = useTranslation();
   const now = useNow();
+  const zone = useZone();
   const links = useShareLinks();
   const grows = useEveryGrow();
   const spaces = useEverySpace();
@@ -128,7 +130,7 @@ function Links({ userId }: { userId: string | null }) {
     const subject = subjectOf(link);
     return {
       title: titleOf(t, link, subject),
-      parts: isDead(link, now) ? deadParts(t, link, now, i18n.language) : grantParts(t, link, subject, privacy, now, i18n.language),
+      parts: isDead(link, now) ? deadParts(t, link, now, i18n.language, zone) : grantParts(t, link, subject, privacy, now, i18n.language, zone),
     };
   };
 
@@ -300,12 +302,12 @@ const titleOf = (t: Translate, link: ShareLink, subject: Subject): string => {
 };
 
 /** The link's window, in the words the grow's share sheet uses, where it has one. */
-const windowOf = (t: Translate, link: ShareLink, now: DateTime, locale: string): string | null => {
+const windowOf = (t: Translate, link: ShareLink, now: DateTime, locale: string, zone: string | null): string | null => {
   const { startsAt, endsAt } = link.range;
   if (startsAt === null && endsAt === null) return null;
-  if (startsAt === null) return t('sharing.window.until', { to: dayLabel(endsAt!, now, locale) });
-  if (endsAt === null) return t('sharing.window.since', { from: dayLabel(startsAt, now, locale) });
-  return t('sharing.window.between', { from: dayLabel(startsAt, now, locale), to: dayLabel(endsAt, now, locale) });
+  if (startsAt === null) return t('sharing.window.until', { to: dayLabel(endsAt!, now, locale, zone) });
+  if (endsAt === null) return t('sharing.window.since', { from: dayLabel(startsAt, now, locale, zone) });
+  return t('sharing.window.between', { from: dayLabel(startsAt, now, locale, zone), to: dayLabel(endsAt, now, locale, zone) });
 };
 
 /** "41 opens · last 2 h ago", or that nobody has opened it, which is a fact and not a zero. */
@@ -328,7 +330,15 @@ const opensOf = (t: Translate, link: ShareLink, now: DateTime): Part[] => {
  * that its name is still coming, and "the grow's permanent link" would promise
  * that a link opens something nobody has looked up yet.
  */
-const grantParts = (t: Translate, link: ShareLink, subject: Subject, privacy: Stripping, now: DateTime, locale: string): Part[] => {
+const grantParts = (
+  t: Translate,
+  link: ShareLink,
+  subject: Subject,
+  privacy: Stripping,
+  now: DateTime,
+  locale: string,
+  zone: string | null,
+): Part[] => {
   const parts: Part[] = [];
 
   if (link.kind === 'public_page') {
@@ -339,10 +349,12 @@ const grantParts = (t: Translate, link: ShareLink, subject: Subject, privacy: St
     parts.push({ text: t('me.shareLinks.readOnly') });
   }
 
-  const window = windowOf(t, link, now, locale);
+  const window = windowOf(t, link, now, locale, zone);
   if (window) parts.push({ text: window });
   if (link.kind === 'view') {
-    parts.push({ text: link.expiresAt ? t('me.shareLinks.expires', { date: dayLabel(link.expiresAt, now, locale) }) : t('me.shareLinks.permanent') });
+    parts.push({
+      text: link.expiresAt ? t('me.shareLinks.expires', { date: dayLabel(link.expiresAt, now, locale, zone) }) : t('me.shareLinks.permanent'),
+    });
   }
 
   parts.push({ text: t(link.includeCameras ? 'me.shareLinks.camsOn' : 'me.shareLinks.camsOff') });
@@ -357,11 +369,11 @@ const grantParts = (t: Translate, link: ShareLink, subject: Subject, privacy: St
 };
 
 /** Which of the two ends a dead link met, on which day, and whether anybody read it while it lived. */
-const deadParts = (t: Translate, link: ShareLink, now: DateTime, locale: string): Part[] => [
+const deadParts = (t: Translate, link: ShareLink, now: DateTime, locale: string, zone: string | null): Part[] => [
   {
     text: link.revokedAt
-      ? t('me.shareLinks.revoked', { date: dayLabel(link.revokedAt, now, locale) })
-      : t('me.shareLinks.expired', { date: dayLabel(link.expiresAt!, now, locale) }),
+      ? t('me.shareLinks.revoked', { date: dayLabel(link.revokedAt, now, locale, zone) })
+      : t('me.shareLinks.expired', { date: dayLabel(link.expiresAt!, now, locale, zone) }),
   },
   ...opensOf(t, link, now),
 ];

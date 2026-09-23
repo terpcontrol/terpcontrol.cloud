@@ -1,5 +1,4 @@
 import { ChevronRight } from 'lucide-react';
-import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Scheme, SchemeWeek } from '@fg2/shared-types/v1';
@@ -10,6 +9,7 @@ import { GridEditor } from '@/screens/grow/scheme/GridEditor';
 import { SchemeGrid } from '@/screens/grow/scheme/SchemeGrid';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
+import { calendarDay, useZone } from '@/ui/zone';
 import { joined } from '../doors';
 import { MePage } from '../parts';
 import styles from './Schemes.module.css';
@@ -116,6 +116,7 @@ function SchemeRow({ title, line, onOpen }: { title: string; line: string; onOpe
  */
 function AssetSheet({ id, onClose }: { id: string; onClose: () => void }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const asset = useScheme(id);
 
   return (
@@ -151,8 +152,7 @@ function AssetSheet({ id, onClose }: { id: string; onClose: () => void }) {
             <a href={asset.data.source.url} target="_blank" rel="noreferrer">
               {asset.data.source.title}
             </a>{' '}
-            · {t('me.schemes.readAt', { date: DateTime.fromISO(asset.data.source.readAt).toLocaleString(DateTime.DATE_MED) })} ·{' '}
-            {t('grow.scheme.chartCaption')}
+            · {t('me.schemes.readAt', { date: calendarDay(asset.data.source.readAt, zone) })} · {t('grow.scheme.chartCaption')}
           </p>
         </div>
       )}

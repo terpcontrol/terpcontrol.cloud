@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import type { ShareLink } from '@fg2/shared-types/v1';
+import { DAY, DAY_IN_YEAR, nowThere, zoned } from '@/ui/zone';
 import { appUrl } from '@/ui/clipboard';
 
 /**
@@ -29,11 +30,20 @@ export const lifetimeDays = (link: ShareLink): number | null => {
   return days >= 1 ? days : null;
 };
 
-/** "22 Sep", and the year only where it is not this one. */
-export const dayLabel = (at: string, now: DateTime, locale: string): string => {
-  const day = DateTime.fromISO(at).setLocale(locale);
+/**
+ * "22 Sep", and the year only where it is not this one - read where the
+ * account is, because which day a link began or expired on is a day boundary
+ * and moves with the zone it is asked in.
+ *
+ * Now is moved into that zone before the two years are compared, because a
+ * year is a day boundary as well: on New Year's Eve a browser and an account on
+ * either side of midnight are in different years, and the label would drop the
+ * year from a date that needs it or add one to a date that does not.
+ */
+export const dayLabel = (at: string, now: DateTime, locale: string, zone: string | null): string => {
+  const day = zoned(at, zone).setLocale(locale);
 
-  return day.toFormat(day.year === now.year ? 'd LLL' : 'd LLL yyyy');
+  return day.toFormat(day.year === nowThere(now, zone).year ? DAY_IN_YEAR : DAY);
 };
 
 /** The address handed out: the token's, for both kinds, because opening it is what the server counts. */

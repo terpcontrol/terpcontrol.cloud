@@ -1,8 +1,9 @@
 import type { TFunction } from 'i18next';
-import { DateTime } from 'luxon';
+import { type DateTime } from 'luxon';
 import type { Camera, GrowListItem, Me, Scheme, ShareLink, UnitPreference } from '@fg2/shared-types/v1';
 import { growSchemeLabel, type SchemeSummary } from '@/api/schemes';
 import { isAhead } from '@/ui/age';
+import { calendarDay } from '@/ui/zone';
 import type { ThemeChoice } from '@/theme/theme-context';
 import { timeOf } from '@/screens/notifications/settings';
 
@@ -22,7 +23,13 @@ import { timeOf } from '@/screens/notifications/settings';
 /** The parts of a line, in the board's spelling: a middle dot between each. */
 export const joined = (parts: (string | null)[]): string => parts.filter((part): part is string => part !== null && part !== '').join(' · ');
 
-const shortDate = (instant: string): string => DateTime.fromISO(instant).toLocaleString(DateTime.DATE_MED);
+/**
+ * The date a door's line carries, in the one shape the app writes a date in and
+ * where the account is. It used to be Luxon's medium preset, which resolves
+ * through the reader's language and put the American order under a board whose
+ * every other date is written day first.
+ */
+const shortDate = (instant: string, zone: string | null): string => calendarDay(instant, zone);
 
 /** "1 public · 2 private · terpcontrol.cloud/@chrisgrows", or that there is nothing to count yet. */
 export const publicLine = (t: TFunction, grows: GrowListItem[], me: Me, host: string): string => {
@@ -71,7 +78,13 @@ export const shareLinksLine = (t: TFunction, links: ShareLink[], now: DateTime):
  * Every camera does read as entitled there, but calling that Premium would
  * promise a self-hosted grower something they have not got and could not lose.
  */
-export const premiumLine = (t: TFunction, cameras: Camera[], now: DateTime, enforced: boolean): { text: string; aside: string | null } => {
+export const premiumLine = (
+  t: TFunction,
+  cameras: Camera[],
+  now: DateTime,
+  enforced: boolean,
+  zone: string | null,
+): { text: string; aside: string | null } => {
   const owned = cameras.filter(camera => camera.removedAt === null && !camera.isDemo);
   if (owned.length === 0) return { text: t('me.door.premium.none'), aside: null };
   if (!enforced) return { text: t('me.door.premium.ungated', { count: owned.length }), aside: null };
@@ -80,7 +93,8 @@ export const premiumLine = (t: TFunction, cameras: Camera[], now: DateTime, enfo
   if (owned.length === 1) {
     const [camera] = owned;
     const { validUntil, grant } = camera.entitlement;
-    const until = validUntil && grant ? t(`me.door.premium.grant.${grant}`, { date: shortDate(validUntil) }) : t('me.door.premium.noEntitlement');
+    const until =
+      validUntil && grant ? t(`me.door.premium.grant.${grant}`, { date: shortDate(validUntil, zone) }) : t('me.door.premium.noEntitlement');
 
     return { text: joined([camera.name, until]), aside: stateWord(t, camera, now) };
   }

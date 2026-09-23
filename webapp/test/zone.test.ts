@@ -46,7 +46,7 @@ describe('the zone an instant is read in', () => {
 });
 
 /**
- * Every file that writes an hour of the day, and the one way in.
+ * Every file that writes an hour of the day or a date, and the one way in.
  *
  * A format holding an hour token is a clock time whoever wrote it; Luxon's
  * `TIME_SIMPLE` and its relatives are one as well, and follow the language the
@@ -55,13 +55,23 @@ describe('the zone an instant is read in', () => {
  * file has to go through `ui/zone`, which is where both the zone and the shape
  * are decided.
  *
+ * A date is the same thing and was left out of this for a whole pass. Which
+ * day an instant falls on is a day boundary read off it, and a grow that ended
+ * at 22:31 UTC ended on the following day to a reader nine hours east - so the
+ * archive dated two of this account's grows a day out for anybody reading from
+ * Tokyo, and nothing here objected because the format held no hour. The shape
+ * went the same way: four screens under Me reached for `DATE_MED`, which
+ * resolves through the language and printed the American order beside an
+ * archive printing the British one. So a day or month token counts exactly as
+ * an hour token does, and so does a locale preset of either kind.
+ *
  * The check is deliberately blunt: it does not prove the zone reaches the
- * right instant, only that a file cannot have drawn an hour without meeting
- * the rule. That is enough to stop the thing that actually happens, which is a
- * new screen reaching for `DateTime.fromISO(x).toFormat('HH:mm')` because it
- * reads like the obvious way to write one.
+ * right instant, only that a file cannot have drawn an hour or a date without
+ * meeting the rule. That is enough to stop the thing that actually happens,
+ * which is a new screen reaching for `DateTime.fromISO(x).toFormat('HH:mm')`
+ * because it reads like the obvious way to write one.
  */
-describe('every clock time the app writes', () => {
+describe('every clock time and every date the app writes', () => {
   /** Only a format string: letters, digits and the punctuation a Luxon format is built from. */
   const FORMAT = /^[A-Za-z0-9\s:.,/'-]+$/;
 
@@ -72,8 +82,33 @@ describe('every clock time the app writes', () => {
    */
   const HOUR = /(?<![A-Za-z])(HH|hh|[Hh]:mm)(?![A-Za-z])/;
 
-  /** Luxon's own time formats, which are the reader's language and not the account's zone. */
-  const PRESET = /DateTime\.(TIME_|DATETIME_)[A-Z_]+/;
+  /**
+   * A day, month, year or weekday token, standing on its own rather than
+   * inside a word.
+   *
+   * A single `d`, `M` or `L` is left out on purpose and for the same reason a
+   * single `h` is: those three letters are an SVG path's move-and-line
+   * commands and the tail of a window named "7d", and every one of those
+   * appears in this app as a plain string. Every real date format here spells
+   * at least one token in full - "d LLL yyyy", "dd.MM", "ccc d LLL" - so the
+   * two-letter and three-letter forms are enough to find one without calling
+   * a chart's path a date.
+   */
+  const DATE = /(?<![A-Za-z])(yyyy|yy|LLLL|LLL|LL|MMMM|MMM|MM|dd|EEEE|EEE|cccc|ccc)(?![A-Za-z])/;
+
+  /**
+   * Luxon's own formats, which are the reader's language and not the account's
+   * zone. `TIME_SIMPLE` put an "11:38 AM" beside another screen's "11:38";
+   * `DATE_MED` put an "Oct 23, 2026" beside another screen's "24 Aug 2026",
+   * because Luxon's English resolves to the American order.
+   */
+  const PRESET = /DateTime\.(TIME_|DATE_|DATETIME_)[A-Z_]+/;
+
+  /**
+   * Writing a date through the reader's locale without naming a preset, which
+   * is the same bypass with the shape spelled out by hand.
+   */
+  const LOCALE_SHAPED = /\.toLocaleString\(/;
 
   /**
    * Writing an hour without spelling one, which is how the whole Charts screen
@@ -91,7 +126,7 @@ describe('every clock time the app writes', () => {
    * and a chart's x in - a number of milliseconds is always an instant here,
    * never a bare date, so there is no zone-free reason to reach for one.
    */
-  const BORROWED = /\b(STAMPS|CLOCK|DATED_CLOCK)\b|DateTime\.fromMillis\(/;
+  const BORROWED = /\b(STAMPS|CLOCK|DATED_CLOCK|DAY|DAY_IN_YEAR|NARROW_DAY)\b|DateTime\.fromMillis\(/;
 
   const ZONE_IMPORT = /from '(@\/ui\/zone|\.\/zone|\.\.\/zone|\.\.\/\.\.\/ui\/zone)'/;
 
@@ -108,6 +143,20 @@ describe('every clock time the app writes', () => {
    */
   const EXEMPT = ['src/ui/zone.ts', 'src/screens/public/', 'src/api/clock.ts'];
 
+  /**
+   * Two files that write a date in the browser's zone and are not fixed here.
+   *
+   * Both are the plain bypass this sweep exists to catch - `CameraSettings`
+   * dates a camera's entitlement and `members/invites` an invitation's expiry,
+   * each with `DateTime.fromISO(...).toFormat(...)` and no zone - and both are
+   * open in front of another pass over the same defect, where two passes
+   * editing one file is a conflict rather than a fix. This is a debt and not a
+   * reason, which is why the check below insists each entry is still an
+   * offender: the entry has to be deleted by whoever fixes the file, or the
+   * suite fails asking why it is still here.
+   */
+  const NOT_YET = ['src/screens/camera/CameraSettings.tsx', 'src/screens/space/members/invites.ts'];
+
   const files = (from: string): string[] =>
     readdirSync(resolve(process.cwd(), from), { withFileTypes: true }).flatMap(entry =>
       entry.isDirectory() ? files(`${from}/${entry.name}`) : /\.tsx?$/.test(entry.name) ? [`${from}/${entry.name}`] : [],
@@ -117,20 +166,32 @@ describe('every clock time the app writes', () => {
   const formatsIn = (source: string): string[] =>
     [...source.matchAll(/'([^'\n\\]*)'/g)].map(match => match[1]).filter(literal => FORMAT.test(literal));
 
+  /** Whether this file writes a moment at all - an hour, a date, or one of the shared formats that carry either. */
+  const writesAMoment = (source: string): boolean =>
+    PRESET.test(source) ||
+    LOCALE_SHAPED.test(source) ||
+    BORROWED.test(source) ||
+    formatsIn(source).some(literal => HOUR.test(literal) || DATE.test(literal));
+
+  const bypasses = (path: string): boolean => {
+    const source = readFileSync(resolve(process.cwd(), path), 'utf8');
+
+    return writesAMoment(source) && !ZONE_IMPORT.test(source);
+  };
+
   it('goes through the account´s zone, or says in the list here why it does not', () => {
     const offenders = files('src')
-      .filter(path => !EXEMPT.some(exempt => path.startsWith(exempt)))
-      .filter(path => {
-        const source = readFileSync(resolve(process.cwd(), path), 'utf8');
-        const writesAnHour = PRESET.test(source) || BORROWED.test(source) || formatsIn(source).some(literal => HOUR.test(literal));
-
-        return writesAnHour && !ZONE_IMPORT.test(source);
-      });
+      .filter(path => !EXEMPT.some(exempt => path.startsWith(exempt)) && !NOT_YET.includes(path))
+      .filter(bypasses);
 
     expect(offenders).toEqual([]);
   });
 
-  it('never reaches for a locale preset, which writes "11:38 AM" beside another screen´s "11:38"', () => {
+  it('still owes the zone to the two files another pass is holding, and will say so until they are fixed', () => {
+    expect(NOT_YET.filter(bypasses)).toEqual(NOT_YET);
+  });
+
+  it('never reaches for a locale preset, which writes "11:38 AM" and "Oct 23, 2026" beside another screen´s "11:38" and "24 Aug 2026"', () => {
     const using = files('src').filter(path => PRESET.test(readFileSync(resolve(process.cwd(), path), 'utf8')));
 
     expect(using).toEqual([]);

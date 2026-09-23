@@ -151,6 +151,15 @@ export const DAY = 'd LLL yyyy';
  */
 export const DAY_IN_YEAR = 'd LLL';
 
+/**
+ * A day in digits, for the one column too narrow to hold a month in words: the
+ * plant's diary gives each line a five-character slot, which holds "D 218" and
+ * would not hold "18 Sep 2026". The day still comes first, as it does in `DAY`,
+ * so that the short form and the long one cannot be read in two different
+ * orders by the same person.
+ */
+export const NARROW_DAY = 'dd.MM';
+
 export const clock = (instant: string, zone: string | null): string => zoned(instant, zone).toFormat(CLOCK);
 
 export const datedClock = (instant: string, zone: string | null): string => zoned(instant, zone).toFormat(DATED_CLOCK);

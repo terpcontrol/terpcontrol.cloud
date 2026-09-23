@@ -1,4 +1,3 @@
-import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -8,6 +7,7 @@ import { useSession } from '@/api/session';
 import { Sheet } from '@/log/Sheet';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
+import { calendarDay, useZone } from '@/ui/zone';
 import { NoMatch } from './NoMatch';
 import { useFollowCursor } from './pages';
 import styles from './Admin.module.css';
@@ -159,6 +159,7 @@ export function Users() {
 
 function AccountRow({ account, isMe, lastAdmin }: { account: User; isMe: boolean; lastAdmin: boolean }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const [open, setOpen] = useState<'change' | 'delete' | null>(null);
 
   const state = [
@@ -173,7 +174,11 @@ function AccountRow({ account, isMe, lastAdmin }: { account: User; isMe: boolean
       <td className="mono">@{account.handle}</td>
       <td className={`mono ${styles.address}`}>{account.email}</td>
       <td>{state.join(' · ')}</td>
-      <td className="mono">{DateTime.fromISO(account.createdAt).toFormat('yyyy-LL-dd')}</td>
+      {/* The date the app writes everywhere else rather than a sortable one of
+          its own: the table is ordered by the server's cursor and not by this
+          column, so the shape was costing a reader the one date shape they
+          know and buying nothing. */}
+      <td className="mono">{calendarDay(account.createdAt, zone)}</td>
       <td>
         <span className={styles.actions}>
           <button type="button" className={ui.chip} onClick={() => setOpen('change')}>

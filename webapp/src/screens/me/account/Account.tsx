@@ -1,4 +1,4 @@
-import { DateTime } from 'luxon';
+import { type DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Me } from '@fg2/shared-types/v1';
@@ -10,6 +10,7 @@ import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { calendarDay, useZone } from '@/ui/zone';
 import { ExportRow, MePage, Row } from '../parts';
 import { DeleteRow } from '../privacy/DeleteRow';
 import { deviceLabel, sortedSessions } from './sessions';
@@ -220,6 +221,7 @@ const SESSIONS_SHOWN = 6;
  */
 function Sessions({ currentId, now, held }: { currentId: string | null; now: DateTime; held: boolean }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const sessions = useSessions();
   const revoke = useRevokeSession();
   const others = useRevokeOtherSessions();
@@ -246,7 +248,7 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
               <span className={styles.sessionDevice}>{deviceLabel(row.userAgent) ?? t('me.account.sessions.unknownDevice')}</span>
               <span className={`mono ${styles.sessionMeta}`}>
                 {t('me.account.sessions.lastSeen', { age: ageLabel(row.lastSeenAt, now) })} ·{' '}
-                {t('me.account.sessions.until', { date: DateTime.fromISO(row.expiresAt).toLocaleString(DateTime.DATE_MED) })}
+                {t('me.account.sessions.until', { date: calendarDay(row.expiresAt, zone) })}
               </span>
             </div>
             {row.id === currentId ? (

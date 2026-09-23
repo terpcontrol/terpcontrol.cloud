@@ -200,7 +200,7 @@ describe('how long anything is kept', () => {
     expect(server.patched).toHaveLength(0);
     expect(
       sheet.getByText(
-        'Climate readings older than 90 days become one figure a day: everything before Jun 24, 2026, and from now on each day that leaves the window. The daily figure stays in the charts and in your export; the readings themselves are deleted and cannot come back.',
+        'Climate readings older than 90 days become one figure a day: everything before 24 Jun 2026, and from now on each day that leaves the window. The daily figure stays in the charts and in your export; the readings themselves are deleted and cannot come back.',
       ),
     ).toBeInTheDocument();
 

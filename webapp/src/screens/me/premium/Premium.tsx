@@ -11,6 +11,7 @@ import { cameraTitle } from '@/screens/devices/naming';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { useZone } from '@/ui/zone';
 import { MePage } from '../parts';
 import { countdownDays, dayLabel, RENEWAL_NOTICE_DAYS, renewalDue } from './entitlement';
 import { missingLine, servedWidthCell, stillsKeptCell } from './free-tier';
@@ -180,6 +181,7 @@ function CameraCard({
   now: DateTime;
 }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const { enforced } = premium;
   const { tier, validUntil } = camera.entitlement;
   const entitled = tier === 'premium';
@@ -199,11 +201,11 @@ function CameraCard({
         </span>
         {enforced ? (
           <span className={`mono ${styles.until}`} data-tier={tier}>
-            {entitled ? (validUntil ? t('me.premium.until', { date: dayLabel(validUntil) }) : '') : t('me.premium.tier.free')}
+            {entitled ? (validUntil ? t('me.premium.until', { date: dayLabel(validUntil, zone) }) : '') : t('me.premium.tier.free')}
           </span>
         ) : null}
       </div>
-      <p className={`${ui.note} ${styles.line}`}>{lineOf(t, camera, premium)}</p>
+      <p className={`${ui.note} ${styles.line}`}>{lineOf(t, camera, premium, zone)}</p>
       {days !== null ? (
         <p className={`mono ${styles.ending}`} role="status">
           {days === 0 ? t('me.premium.endsToday') : t('me.premium.endsIn', { count: days })}
@@ -224,13 +226,13 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  * it is missing in the install's figures, which is the same clause the table
  * reads, so the card and the table cannot disagree.
  */
-const lineOf = (t: Translate, camera: Camera, premium: Me['premium']): string => {
+const lineOf = (t: Translate, camera: Camera, premium: Me['premium'], zone: string | null): string => {
   const { grant, tier, validUntil } = camera.entitlement;
   if (!premium.enforced) return t('me.premium.everything');
   if (tier === 'premium') return t(`me.premium.grant.${grant ?? 'granted'}`);
 
   const missing = missingLine(t, premium.free);
-  if (grant && validUntil) return t('me.premium.ranOut', { date: dayLabel(validUntil), missing });
+  if (grant && validUntil) return t('me.premium.ranOut', { date: dayLabel(validUntil, zone), missing });
   if (camera.kind === 'rtsp') return t('me.premium.rtspFree', { seconds: camera.stillIntervalSeconds, missing });
 
   return t('me.premium.free', { missing });

@@ -8,7 +8,7 @@ import { ApiError } from '@/api/problem';
 import { Refused } from '@/ui/PageState';
 import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
-import { clock, zoneOf } from '@/ui/zone';
+import { calendarDay, clock, zoneOf } from '@/ui/zone';
 import { useNow } from '@/ui/useNow';
 import { forgetId, pushKey, pushSupported, rememberedId, rememberId, subscribe, usePushSubscription } from './push';
 import { ChannelCard } from './parts';
@@ -216,7 +216,7 @@ export function TelegramCard({ me, held }: CardProps) {
         cannot
           ? t('notifications.telegram.noBot')
           : linked
-            ? t('notifications.telegram.linked', { date: DateTime.fromISO(linked.linkedAt).toLocaleString(DateTime.DATE_MED) })
+            ? t('notifications.telegram.linked', { date: calendarDay(linked.linkedAt, zone) })
             : waiting
               ? t('notifications.telegram.waiting')
               : `${t('notifications.off')} · ${t('notifications.telegram.notLinked')}`

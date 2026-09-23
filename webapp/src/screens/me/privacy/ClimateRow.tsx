@@ -1,9 +1,10 @@
-import { DateTime } from 'luxon';
+import { type DateTime } from 'luxon';
 import { useState } from 'react';
 import type { Me } from '@fg2/shared-types/v1';
 import { useTranslation } from 'react-i18next';
 import { Sheet } from '@/log/Sheet';
 import ui from '@/ui/ui.module.css';
+import { DAY } from '@/ui/zone';
 import { Menu, Row } from '../parts';
 import { cutoffDay, KEEP, narrows } from './climate';
 import styles from './Privacy.module.css';
@@ -92,7 +93,10 @@ function ClimateSheet({ days, now, onClose, onKeep }: { days: number; now: DateT
   const { t, i18n } = useTranslation();
   const option = KEEP.find(candidate => candidate.days === days);
   const keep = option ? t(`me.privacy.keep.${option.key}`) : t('me.door.privacy.days', { count: days });
-  const date = cutoffDay(days, now).setLocale(i18n.language).toLocaleString(DateTime.DATE_MED);
+  // The cutoff is worked out in UTC because that is where the server cuts, so
+  // only the shape is decided here: the app's one date shape rather than
+  // Luxon's medium preset, which followed the language into "Oct 23, 2026".
+  const date = cutoffDay(days, now).setLocale(i18n.language).toFormat(DAY);
 
   return (
     <Sheet

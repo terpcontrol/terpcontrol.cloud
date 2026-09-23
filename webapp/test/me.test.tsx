@@ -283,8 +283,7 @@ describe('what each door says', () => {
   it('names the one camera with its year and sets the state word at the right', async () => {
     draw();
 
-    const until = DateTime.fromISO('2027-10-14T12:00:00.000Z').toLocaleString(DateTime.DATE_MED);
-    expect(await lineUnder('Premium')).toBe(`Terp Cam 1 · included until ${until}active`);
+    expect(await lineUnder('Premium')).toBe('Terp Cam 1 · included until 14 Oct 2027active');
   });
 
   it('lists the channels that are on and the quiet hours', async () => {
@@ -370,8 +369,7 @@ describe('one read that fails', () => {
     expect(screen.getByRole('link', { name: /^Premium/ })).toHaveTextContent('loading');
 
     answerMe(json(server.me));
-    const until = DateTime.fromISO('2027-10-14T12:00:00.000Z').toLocaleString(DateTime.DATE_MED);
-    expect(await lineUnder('Premium')).toBe(`Terp Cam 1 · included until ${until}active`);
+    expect(await lineUnder('Premium')).toBe('Terp Cam 1 · included until 14 Oct 2027active');
   });
 });
 
@@ -411,13 +409,13 @@ describe('the lines on their own', () => {
       entitlement: { validUntil: '2025-01-01T00:00:00.000Z', grant: 'migration', tier: 'free', renewalVisible: true },
     });
 
-    expect(premiumLine(t, [active, active], now, true)).toEqual({ text: '2 cameras · 2 premium', aside: 'active' });
-    expect(premiumLine(t, [active, runOut], now, true)).toEqual({ text: '2 cameras · 1 premium', aside: 'partly' });
-    expect(premiumLine(t, [runOut], now, true)).toEqual({ text: expect.stringMatching(/^Old cam · carried over until /), aside: 'expired' });
-    expect(premiumLine(t, [camera({ removedAt: '2026-01-01T00:00:00.000Z' })], now, true)).toEqual({ text: 'no cameras', aside: null });
+    expect(premiumLine(t, [active, active], now, true, 'UTC')).toEqual({ text: '2 cameras · 2 premium', aside: 'active' });
+    expect(premiumLine(t, [active, runOut], now, true, 'UTC')).toEqual({ text: '2 cameras · 1 premium', aside: 'partly' });
+    expect(premiumLine(t, [runOut], now, true, 'UTC')).toEqual({ text: expect.stringMatching(/^Old cam · carried over until /), aside: 'expired' });
+    expect(premiumLine(t, [camera({ removedAt: '2026-01-01T00:00:00.000Z' })], now, true, 'UTC')).toEqual({ text: 'no cameras', aside: null });
     // A self-hosted install gates nothing, and every camera reads as entitled
     // there - which is exactly why the row must not call it Premium.
-    expect(premiumLine(t, [active, active], now, false)).toEqual({ text: '2 cameras · nothing is gated on this install', aside: null });
+    expect(premiumLine(t, [active, active], now, false, 'UTC')).toEqual({ text: '2 cameras · nothing is gated on this install', aside: null });
   });
 
   it('does not count a revoked link as expired, whatever its date says', () => {

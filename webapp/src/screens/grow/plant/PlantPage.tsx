@@ -15,6 +15,7 @@ import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState
 import { enough, standsIn, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { zoned, NARROW_DAY, useZone } from '@/ui/zone';
 import { HarvestSheet } from '../HarvestSheet';
 import { withUnit } from '../measurements/definitions';
 import { MoveSheet } from '../MoveSheet';
@@ -305,6 +306,7 @@ interface LineProps {
  */
 function Line({ entry, grow, plant, measurements }: LineProps) {
   const { t, i18n } = useTranslation();
+  const zone = useZone();
   const { user } = useSession();
   const correcting = useCorrecting();
   const Icon = KIND_ICON[entry.kind];
@@ -317,7 +319,7 @@ function Line({ entry, grow, plant, measurements }: LineProps) {
   const body = (
     <>
       <span className={`mono ${styles.lineDay}`}>
-        {day === null ? DateTime.fromISO(entry.occurredAt).toFormat('dd.MM') : t('grow.dayShort', { day })}
+        {day === null ? zoned(entry.occurredAt, zone).toFormat(NARROW_DAY) : t('grow.dayShort', { day })}
       </span>
       <span className={styles.lineKind} aria-label={t(`home.entryKind.${entry.kind}`)}>
         <Icon size={13} strokeWidth={1.75} aria-hidden />

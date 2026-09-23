@@ -13,6 +13,7 @@ import { initials } from '@/app/shell/tabs';
 import { useTheme } from '@/theme/theme-context';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { useZone } from '@/ui/zone';
 import {
   appearanceLine,
   followingLine,
@@ -75,6 +76,7 @@ export function Me() {
 function AccountDoors({ handle }: { handle: string }) {
   const { t } = useTranslation();
   const now = useNow();
+  const zone = useZone();
   const me = useMe();
   const grows = useGrows();
   const follows = useFollows(true);
@@ -98,7 +100,8 @@ function AccountDoors({ handle }: { handle: string }) {
     queries.every(query => query.data !== undefined) ? text() : queries.some(query => query.isPending) ? t('home.waiting') : t('shell.loadFailed');
 
   // Gated exactly as `line` gates, so that the two cannot disagree about whether this is safe to read.
-  const premium = cameras.data !== undefined && me.data !== undefined ? premiumLine(t, cameras.data.items, now, me.data.premium.enforced) : null;
+  const premium =
+    cameras.data !== undefined && me.data !== undefined ? premiumLine(t, cameras.data.items, now, me.data.premium.enforced, zone) : null;
 
   return (
     <>

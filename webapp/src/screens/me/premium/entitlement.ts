@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon';
+import { calendarDay } from '@/ui/zone';
 import type { Camera } from '@fg2/shared-types/v1';
 
 /**
@@ -48,5 +49,9 @@ export const countdownDays = (camera: Pick<Camera, 'entitlement'>, now: DateTime
   return left !== null && left >= 0 ? left : null;
 };
 
-/** A day as the board writes one beside a camera: "14 Oct 2027". */
-export const dayLabel = (instant: string): string => DateTime.fromISO(instant).toFormat('d LLL yyyy');
+/**
+ * A day as the board writes one beside a camera: "14 Oct 2027", read where the
+ * account is - a year that runs out at midnight runs out on a different date
+ * to a reader in another zone, and this is the date somebody pays against.
+ */
+export const dayLabel = (instant: string, zone: string | null): string => calendarDay(instant, zone);
