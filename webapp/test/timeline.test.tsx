@@ -248,6 +248,38 @@ describe('the timeline', () => {
     expect(screen.queryByText(/everything off/)).not.toBeInTheDocument();
   });
 
+  /**
+   * A lane carries how far it was heard, because a run that stops where the
+   * device stopped reporting looks exactly like one that stops because the
+   * output was switched off. The restored fridge's seven lanes all end four days
+   * before the window does.
+   */
+  it('says nothing about the outputs of a device nothing has heard from, rather than that they are off', () => {
+    state.answer = {
+      ...answer,
+      outputs: answer.outputs.map(lane => ({ ...lane, spans: [{ startsAt: at(0), endsAt: at(2) }], heardUntil: at(4) })),
+    };
+    draw();
+
+    // The end of the window, four hours after the last thing the device said.
+    expect(header()).toHaveTextContent(clock(24));
+    expect(screen.queryByText(/everything off/)).not.toBeInTheDocument();
+
+    // Inside the stretch it was still reporting, both answers are honest again.
+    scrubTo(1);
+    expect(header()).toHaveTextContent(/Light on/);
+    scrubTo(3);
+    expect(header()).toHaveTextContent(/everything off/);
+  });
+
+  /** The other way round: a device still reporting whose outputs have all been off for hours has been heard, and "off" is the truth about it. */
+  it('still says everything is off where the device is being heard and nothing is running', () => {
+    state.answer = { ...answer, outputs: answer.outputs.map(lane => ({ ...lane, spans: [{ startsAt: at(0), endsAt: at(2) }] })) };
+    draw();
+
+    expect(header()).toHaveTextContent(/everything off/);
+  });
+
   it('offers nothing that writes', () => {
     draw();
 

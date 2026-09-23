@@ -157,7 +157,22 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
  */
 function ScrubHeader({ timeline, cursor }: { timeline: SpaceTimeline; cursor: number }) {
   const { t } = useTranslation();
-  const running = timeline.outputs.filter(lane => spans(lane.spans, cursor));
+  /**
+   * The lanes anything is known about at the cursor. A lane carries how far it
+   * was heard precisely because a run that stops where the device stopped
+   * reporting looks exactly like one that stops because the output was switched
+   * off - and a cursor past that instant is the second case for every lane at
+   * once. Reading the spans alone said "everything off" about a fridge nothing
+   * had heard from for four days, on the same line whose readings it had just
+   * dashed, which is the claim about hardware this header is meant not to make.
+   *
+   * It is `heardUntil` and not the newest span's end: a live device whose
+   * outputs have all been off for an hour has a newest span an hour old and is
+   * still being heard, and saying nothing about it would be the same mistake
+   * the other way round.
+   */
+  const heard = timeline.outputs.filter(lane => at(lane.heardUntil) >= cursor);
+  const running = heard.filter(lane => spans(lane.spans, cursor));
 
   return (
     <p className={`mono ${styles.scrubHead}`} role="status">
@@ -170,8 +185,8 @@ function ScrubHeader({ timeline, cursor }: { timeline: SpaceTimeline; cursor: nu
           </span>
         );
       })}
-      {/* A place with no outputs says nothing here rather than "everything off", which would be a claim about hardware it has not got. */}
-      {timeline.outputs.length === 0 ? null : (
+      {/* A place with no outputs says nothing here rather than "everything off", which would be a claim about hardware it has not got - and neither does one whose outputs nobody has heard from at the cursor. */}
+      {heard.length === 0 ? null : (
         <span className={styles.scrubOutputs}>
           {running.length === 0
             ? t('timeline.allOff')
