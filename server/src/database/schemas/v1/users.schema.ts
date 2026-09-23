@@ -44,7 +44,12 @@ const webhookChannelSchema = new Schema<NonNullable<NotificationChannels['webhoo
     // authorisation header, so they are read for their owner alone.
     headers: { type: Schema.Types.Mixed, required: true, default: () => ({}) },
   },
-  { _id: false },
+  // A webhook with no headers of its own is the ordinary one, and its empty map
+  // has to survive the write: mongoose drops an empty object on its way into the
+  // database unless it is told not to, and the contract declares the key
+  // required, so what came back was a webhook a client could not read. The
+  // alarm rule's webhook already says this, and so does the migrations record.
+  { _id: false, minimize: false },
 );
 
 const quietHoursSchema = new Schema<NonNullable<NotificationSettings['quietHours']>>(

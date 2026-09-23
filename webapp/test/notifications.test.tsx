@@ -9,7 +9,7 @@ import type { ReactNode } from 'react';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Me, MeUpdate, NotificationRouting, NotificationSettings, Problem } from '@fg2/shared-types/v1';
+import type { Me, MeUpdate, NotificationChannels, NotificationRouting, NotificationSettings, Problem } from '@fg2/shared-types/v1';
 import { LogProvider } from '@/log/LogProvider';
 import { Me as MeScreen } from '@/screens/Me';
 import { Notifications } from '@/screens/notifications/Notifications';
@@ -457,6 +457,28 @@ describe('the webhook', () => {
     await waitFor(() => expect(server.patched).toHaveLength(1));
     expect(lastPatch().channels.webhook).toEqual({ url: 'https://ha.local/api/webhook/terp', method: 'PUT', headers: { Authorization: 'Bearer x' } });
     expect(await screen.findByText('ha.local · JSON')).toBeInTheDocument();
+  });
+
+  /**
+   * The row an ordinary grower ends up with: a webhook saved with the Headers
+   * box left empty, stored without the key at all, and read back as a webhook
+   * whose headers are nothing. The screen has to draw over it, because it is
+   * the whole of what the account can reach - the channels, the routing grid,
+   * quiet hours and the mute line are one screen, and the switch that turns
+   * this webhook off again is on it, so a screen that will not draw is an
+   * account that cannot undo what it saved.
+   */
+  it('draws over a stored webhook whose headers the database dropped', async () => {
+    const headerless = { url: 'https://ha.local/api/webhook/terp', method: 'POST' } as NotificationChannels['webhook'];
+    server.me = me({ channels: { email: null, telegram: null, webhook: headerless } });
+    await drawLoaded();
+
+    expect(screen.getByText('ha.local · JSON')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Webhook' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('switch', { name: 'Quiet hours' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByLabelText('Headers')).toHaveValue('');
   });
 });
 

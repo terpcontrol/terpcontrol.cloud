@@ -263,7 +263,18 @@ export class AccountsService implements OnModuleInit {
             chatId: user.notifications.channels.telegram.chatId,
             linkedAt: user.notifications.channels.telegram.linkedAt.toISOString(),
           },
-          webhook: user.notifications.channels.webhook && { ...user.notifications.channels.webhook },
+          // The headers are restated rather than spread along with the rest,
+          // because a row written before the schema kept an empty map has no
+          // such key and the reads here are lean ones, which carry what the
+          // document carries and not what the schema would have defaulted. The
+          // contract declares the map required, so it is this answer that owes
+          // every client a complete webhook, whatever the row it was read from
+          // is missing.
+          webhook: user.notifications.channels.webhook && {
+            url: user.notifications.channels.webhook.url,
+            method: user.notifications.channels.webhook.method,
+            headers: { ...user.notifications.channels.webhook.headers },
+          },
         },
         routing: { ...user.notifications.routing },
         quietHours: user.notifications.quietHours && { ...user.notifications.quietHours },

@@ -306,6 +306,58 @@ describe('changing an account', () => {
   });
 });
 
+/**
+ * A webhook with no headers of its own is the ordinary one - somebody pastes a
+ * URL from their home automation and types nothing else - and its empty map has
+ * to survive both the write and the read. Mongoose leaves an empty object out
+ * of the document unless the schema says otherwise, and every read of an
+ * account here is a lean one, which carries what the row carries rather than
+ * what the schema would have defaulted; the contract meanwhile declares the map
+ * required. The account that saved such a webhook was handed back a shape its
+ * own app could not read, and lost the screen that holds the switch for turning
+ * the webhook off again.
+ */
+describe('a webhook saved with no headers of its own', () => {
+  const hook = { url: 'https://home.test.invalid/hook', method: 'POST' } as const;
+
+  const save = (id: string, headers: Record<string, string>) =>
+    accounts.updateOwn(id, {
+      notifications: {
+        channels: { email: null, telegram: null, webhook: { ...hook, headers } },
+        routing: { alerts: [], warnings: [], tasks: [], plan: [], weekly_timelapse: [] },
+        quietHours: null,
+        mutedUntil: null,
+      },
+    });
+
+  it('is stored with the empty map rather than with no headers at all', async () => {
+    const user = await signUp('webhook-empty');
+    await save(user.id, {});
+
+    const stored = await database.users.findOne({ id: user.id }).lean();
+    expect(stored?.notifications.channels.webhook).toEqual({ ...hook, headers: {} });
+  });
+
+  it('keeps the headers that were typed, which is the same write', async () => {
+    const user = await signUp('webhook-headers');
+    await save(user.id, { Authorization: 'Bearer x' });
+
+    const stored = await database.users.findOne({ id: user.id }).lean();
+    expect(stored?.notifications.channels.webhook).toEqual({ ...hook, headers: { Authorization: 'Bearer x' } });
+  });
+
+  it('is answered whole although the row it was read from has no headers', async () => {
+    const user = await signUp('webhook-headerless');
+    // Written through the driver rather than through the model, because that is
+    // the shape of every row stored before the schema was told to keep the map,
+    // and those rows are not rewritten by anything.
+    await database.users.collection.updateOne({ id: user.id }, { $set: { 'notifications.channels.webhook': hook } });
+
+    const read = (await accounts.byId(user.id)) as StoredUser;
+    expect(accounts.serialise(read).notifications.channels.webhook).toEqual({ ...hook, headers: {} });
+  });
+});
+
 describe('signing in', () => {
   it('answers the same nothing for a wrong password and for an address with no account', async () => {
     const user = await signUp('verify');
