@@ -1405,6 +1405,13 @@
       "text": "Beide Türen führen an denselben Ort: einen Bereich mit Tagebuch und, wenn du einen hast, einem Controller.",
       "following": "Folgst du jemandem? Öffne den geteilten Link und tippe auf Folgen; der Grow erscheint hier."
     },
+    "demoEmpty": {
+      "title": "Die Demo ist leer.",
+      "text": "Eine Demo ist ein Grow, den jemand hier zum Anschauen hinterlegt hat, und in dieser liegt nichts. Deinem eigenen Konto fehlt nichts: Die Demo ist eine eigene Sitzung und enthält nur das, was diese Installation hineingelegt hat.",
+      "ownTitle": "Dein eigenes Konto",
+      "ownText": "Melde dich an, dann füllt sich diese Seite mit deinen Bereichen, ihren Tagebüchern und dem, was deine Controller melden.",
+      "signIn": "Mit meinem eigenen Konto anmelden"
+    },
     "startGrow": {
       "title": "Grow starten",
       "text": "Ein Tagebuch für Pflanzen überall: Balkon, Fensterbank, ein Zelt ohne Controller. Gerät später hinzufügen.",

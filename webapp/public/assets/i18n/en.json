@@ -1409,6 +1409,13 @@
       "text": "Both doors lead to the same place: a space with a diary and, if you have one, a controller.",
       "following": "Following someone? Open their share link and tap Follow; their grow appears here."
     },
+    "demoEmpty": {
+      "title": "The demo is empty.",
+      "text": "A demo is a grow somebody has left here to be looked at, and nothing has been left in this one. Your own account is missing nothing: the demo is a session of its own, and it holds only what this install has put in it.",
+      "ownTitle": "Your own account",
+      "ownText": "Sign in and this page fills with your spaces, their diaries and whatever your controllers report.",
+      "signIn": "Sign in with my own account"
+    },
     "startGrow": {
       "title": "Start a grow",
       "text": "A diary for plants anywhere: balcony, windowsill, a tent without a controller. Add a device later.",

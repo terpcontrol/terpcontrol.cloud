@@ -10,14 +10,17 @@ import { session } from '@/api/session';
 import { EmptyHome } from '@/screens/EmptyHome';
 
 // Every door here depends on who is looking, so there has to be somebody: the
-// demo may read the whole account and write nothing to it, and a door that
-// ended in a refusal would be a door drawn for nobody.
-const who = vi.hoisted(() => ({ demo: false }));
+// demo has nothing of its own to be shown, and a session on its way out may
+// write nothing, so a door that ended in a refusal would be a door drawn for
+// nobody. Nobody at all is what a session being ended under the screen looks
+// like for the render that still happens before the wall sends it away.
+const who = vi.hoisted(() => ({ is: 'you' as 'you' | 'demo' | 'nobody' }));
 
 vi.mock('@/api/session', async importOriginal => {
-  const { SIGNED_IN, ON_THE_DEMO } = await import('./session');
+  const { SIGNED_IN, ON_THE_DEMO, SIGNED_OUT } = await import('./session');
+  const of = { you: SIGNED_IN, demo: ON_THE_DEMO, nobody: SIGNED_OUT };
 
-  return { ...(await importOriginal<object>()), useSession: () => (who.demo ? ON_THE_DEMO : SIGNED_IN) };
+  return { ...(await importOriginal<object>()), useSession: () => of[who.is] };
 });
 
 /**
@@ -33,7 +36,7 @@ describe('the empty home', () => {
   });
 
   beforeEach(() => {
-    who.demo = false;
+    who.is = 'you';
   });
 
   const draw = (onStartGrow: () => void = () => undefined) =>
@@ -75,8 +78,35 @@ describe('the empty home', () => {
     expect(within(card).getByRole('button', { name: 'scan QR' })).toBeInTheDocument();
   });
 
-  it('shows the demo why it cannot add hardware instead of a field it would be refused', () => {
-    who.demo = true;
+  /**
+   * A demo session owns whatever an operator has put in the demo, so a demo
+   * that owns no space is a demo with nothing in it. It used to be handed the
+   * first-run copy written for somebody's own brand-new account and told to set
+   * up hardware it may not claim.
+   */
+  it('tells the demo that the demo is empty rather than offering it a grower first run', () => {
+    who.is = 'demo';
+    draw();
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('The demo is empty.');
+    expect(screen.queryByText('Nothing here yet.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Start a grow' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Add a device' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Claim code' })).not.toBeInTheDocument();
+  });
+
+  /** /sign-in sends a session that already exists straight back, so the one door out has to end this one first. */
+  it('offers the demo its own account, and ends the demo session to get there', async () => {
+    who.is = 'demo';
+    const out = vi.spyOn(session, 'logOut').mockResolvedValue(undefined as never);
+    draw();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in with my own account' }));
+    await waitFor(() => expect(out).toHaveBeenCalledTimes(1));
+  });
+
+  it('shows a session that may not write why it cannot add hardware, instead of a field it would be refused', () => {
+    who.is = 'nobody';
     draw();
     const card = screen.getByRole('heading', { name: 'Add a device' }).closest('article')!;
 
@@ -115,7 +145,7 @@ describe('the empty home', () => {
   });
 
   it('does not offer the demo a second demo to open', () => {
-    who.demo = true;
+    who.is = 'demo';
     draw();
 
     expect(screen.queryByRole('heading', { name: 'Try the demo' })).not.toBeInTheDocument();
