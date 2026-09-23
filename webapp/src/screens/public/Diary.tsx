@@ -62,7 +62,14 @@ export function Diary({ page, picture, now, banner, aside, earlier }: DiaryProps
           {page.dayNumber !== null ? (
             <div className={styles.day}>
               <span className={`figure ${styles.dayFigure}`}>{page.dayNumber}</span>
-              <span className="label">{t('home.card.day')}</span>
+              {/* A grow that is over stopped counting on the day it ended, and
+                  the figure beside this word is frozen there - so "day" reads
+                  as a count still running on a diary the line underneath
+                  already dates to last August. The end is the reader's own:
+                  a link whose window closed before the grow did is inside a
+                  diary that had not ended, exactly as the week cards on this
+                  page are. */}
+              <span className="label">{t(page.endedAt ? 'grow.finalDay' : 'home.card.day')}</span>
             </div>
           ) : null}
         </div>

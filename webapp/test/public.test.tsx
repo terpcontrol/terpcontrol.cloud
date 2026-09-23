@@ -264,6 +264,21 @@ describe('a public diary', () => {
     expect(asked).toHaveBeenCalledTimes(1);
   });
 
+  it('calls the last day of a grow that is over its final day, as the owner´s own page does', () => {
+    // The figure is frozen at the day the grow ended, and the facts line right
+    // under it already says the diary ran to August: "day" there reads as a
+    // count still going up.
+    const { unmount } = draw(<Diary page={{ ...page, endedAt: at(0) }} picture={publicPicture(page.slug)} now={NOW} />);
+    expect(screen.getByText('final day')).toBeInTheDocument();
+    unmount();
+
+    // A link whose window closed before the grow did is inside a diary that has
+    // not ended, which is the same end the week cards on the page are drawn to.
+    draw(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} />);
+    expect(screen.getByText('day')).toBeInTheDocument();
+    expect(screen.queryByText('final day')).not.toBeInTheDocument();
+  });
+
   it('counts the week of the stage it has just named, not the week of the whole grow', () => {
     // The line reads "<stage> · week N", and the card two hundred pixels below
     // it repeats the stage week in its own pill: a reader given the grow week
