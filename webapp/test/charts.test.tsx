@@ -298,6 +298,20 @@ describe('the Charts view', () => {
     expect(screen.getByRole('link', { name: 'Spring run' })).toHaveAttribute('href', '/grows/grow-1');
   });
 
+  it('says nothing about rows where the tent was read and had nothing to say either', async () => {
+    // The commoner of the two empty screens: the controller was found and
+    // asked, so a step comes back, and it answered nothing for this window.
+    // The sentence describes the table the CSV button offers, and that button
+    // is dead here, so a rate under it names a file nobody can have.
+    state.series = { ...series, climate: [], outputs: [], measurements: [], nights: [] };
+    draw();
+
+    expect(await screen.findByText(/No measurements in this period/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'CSV' })).toBeDisabled();
+    expect(screen.queryByText(/one row per/)).not.toBeInTheDocument();
+    expect(screen.getByText(/is under Export on/)).toBeInTheDocument();
+  });
+
   it('reads out every line at the cursor and prints both ends of every scale', async () => {
     draw();
 

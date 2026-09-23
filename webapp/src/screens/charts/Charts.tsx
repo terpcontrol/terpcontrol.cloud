@@ -457,12 +457,15 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
           step is on the wire, so the note says it rather than leaving somebody
           to work out why their million readings came back as four hundred.
 
-          A window the grow has no readings in is answered with a step of zero,
-          which is the server saying there is no series rather than naming a
-          rate - so the sentence about the table goes with the table, and the
-          way on to the whole grow stays where it was. */}
+          The sentence belongs to the table and goes wherever the table goes, so
+          it is drawn on exactly the condition the CSV button is enabled on.
+          Naming a rate under a screen that drew nothing, beside a button that
+          refuses to be pressed, describes a file nobody can have: the step is
+          answered as zero only where no device was read at all, and a tent that
+          was read and had nothing to say is the commoner of the two empty
+          screens by far. The way on to the whole grow stays where it was. */}
       <p className={`${ui.note} ${styles.csvNote}`}>
-        {data.stepSeconds > 0 ? `${t('charts.csvNote', { step: stepLabel(data.stepSeconds) })} ` : null}
+        {cards.length > 0 && data.stepSeconds > 0 ? `${t('charts.csvNote', { step: stepLabel(data.stepSeconds) })} ` : null}
         {t('charts.exportOn')} <Link to={`/grows/${grow.id}`}>{grow.name}</Link>
       </p>
       <p className={`${ui.note} ${styles.note}`}>{t('charts.note')}</p>
