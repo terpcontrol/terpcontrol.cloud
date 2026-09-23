@@ -3,7 +3,7 @@ import type { AlarmRule, Alert, Me, OutputLevelWatch, ReadingWatch, Severity } f
 import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { routedChannels } from '@/screens/control/alarms/rules';
 import { ageLabel } from '@/ui/age';
-import { zoned } from '@/ui/zone';
+import { nowThere, zoned } from '@/ui/zone';
 
 /**
  * How the inbox is cut up, which bound a reading crossed, and whether anybody
@@ -42,7 +42,7 @@ export const groupsOf = (alerts: Alert[], now: DateTime, zone: string | null): A
     .sort((a, b) => WORST_FIRST[a.severity] - WORST_FIRST[b.severity] || startedMillis(b) - startedMillis(a));
   const groups: AlertGroup[] = open.length ? [{ key: 'now', heading: { kind: 'now' }, alerts: open }] : [];
 
-  const here = zone ? now.setZone(zone) : now;
+  const here = nowThere(now, zone);
   const today = here.startOf('day').toISODate();
   const yesterday = here.startOf('day').minus({ days: 1 }).toISODate();
   const days = new Map<string, AlertGroup>();
@@ -82,9 +82,6 @@ export const crossedBound = (
 /** How long an alert has stood: until now while it is open, until it resolved once it has. */
 export const lastedLabel = (alert: Alert, now: DateTime): string =>
   ageLabel(alert.startedAt, alert.resolvedAt ? DateTime.fromISO(alert.resolvedAt) : now);
-
-/** The hour an instant fell on, in the zone the account keeps - the one the server holds its alarms back by. */
-export const clock = (instant: string, zone: string | null): string => zoned(instant, zone).toFormat('HH:mm');
 
 /** What the card says will happen about this alert, as the key it is said in. */
 export type Delivery = 'notAnnounced' | 'unheard' | 'once' | 'repeats';

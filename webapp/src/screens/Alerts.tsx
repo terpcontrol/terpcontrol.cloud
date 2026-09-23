@@ -12,10 +12,10 @@ import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { enough, useMayInEach, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { zoneOf } from '@/ui/zone';
+import { clock, zoneOf } from '@/ui/zone';
 import { AlertCard } from './alerts/AlertCard';
 import { isAhead } from '@/ui/age';
-import { clock, groupsOf, type GroupHeading } from './alerts/inbox';
+import { groupsOf, type GroupHeading } from './alerts/inbox';
 import { useInboxNames } from './alerts/names';
 import styles from './alerts/Alerts.module.css';
 

@@ -13,7 +13,7 @@ import { Rail } from '@/app/shell/Rail';
 import { TopBar } from '@/app/shell/TopBar';
 import { LogProvider } from '@/log/LogProvider';
 import { Alerts } from '@/screens/Alerts';
-import { clock as inboxClock, crossedBound, groupsOf } from '@/screens/alerts/inbox';
+import { crossedBound, groupsOf } from '@/screens/alerts/inbox';
 import { alertLabel } from '@/screens/home/units';
 import { spaceWhere } from './session';
 
@@ -737,11 +737,5 @@ describe('the arithmetic behind the cards', () => {
 
     expect(inTokyo[0].key).toBe('2026-05-05');
     expect(inBerlin[0].key).toBe('2026-05-04');
-  });
-
-  it('draws a clock time in the zone the account keeps, which is the one the server holds an alarm back by', () => {
-    expect(inboxClock('2026-09-23T00:07:59.159Z', 'UTC')).toBe('00:07');
-    expect(inboxClock('2026-09-23T00:07:59.159Z', 'Europe/Berlin')).toBe('02:07');
-    expect(inboxClock('2026-09-23T00:07:59.159Z', null)).toBe(DateTime.fromISO('2026-09-23T00:07:59.159Z').toFormat('HH:mm'));
   });
 });
