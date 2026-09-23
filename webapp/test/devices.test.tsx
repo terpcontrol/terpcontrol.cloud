@@ -331,6 +331,33 @@ describe("the controller's own light output", () => {
     expect(screen.getByText(/has not sent its settings yet/)).toBeInTheDocument();
   });
 
+  it('states no brightness where none is stored, rather than the top of the slider´s scale', () => {
+    // The slider has to stand somewhere; 100 % printed beside it in the same
+    // weight as a real setting read as a ceiling the lamp was running at.
+    drawOutput(null);
+
+    expect(screen.getAllByText('not stated').length).toBeGreaterThan(0);
+    expect(screen.queryByText('100 %')).toBeNull();
+    // The spoken value agrees with the drawn one.
+    expect(screen.getByRole('slider', { name: 'Brightness' })).toHaveAttribute('aria-valuetext', 'not stated');
+  });
+
+  it('says nothing either where a configuration exists but names no brightness', () => {
+    // Sixty-four of the restored devices are like this: a document, no limit in
+    // it, and a slider that is enabled - so the figure was invented beside a
+    // control that works.
+    drawOutput({ lights: { sunrise: 15, sunset: 15 } });
+
+    const slider = screen.getByRole('slider', { name: 'Brightness' });
+    expect(slider).toBeEnabled();
+    expect(slider).toHaveAttribute('aria-valuetext', 'not stated');
+
+    // Until somebody drags it, and then it says what they asked for.
+    fireEvent.change(slider, { target: { value: '45' } });
+
+    expect(screen.getByRole('slider', { name: 'Brightness' })).toHaveAttribute('aria-valuetext', '45 %');
+  });
+
   it('is there for a build that announced the override, for one that states a brightness, and for a lamp that reported one', () => {
     const none: DeviceCapabilities = { ...CAPABILITIES, lightOverride: false };
 

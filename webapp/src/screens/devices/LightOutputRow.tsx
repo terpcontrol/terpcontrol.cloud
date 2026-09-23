@@ -58,7 +58,15 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
   // takes the slider over as soon as it arrives.
   const stored = output.limitPercent;
   const [draft, setDraft] = useState<{ percent: number; against: number | null } | null>(null);
-  const level = draft && draft.against === stored ? draft.percent : (stored ?? 100);
+  const dragged = draft !== null && draft.against === stored;
+  const level = dragged ? draft.percent : (stored ?? 100);
+  // A range input has to stand somewhere, so it stands at the top of its scale
+  // where nothing is stored - but that position is the control's mechanics and
+  // not a fact about the lamp, and printed beside it in the same weight as a
+  // real 40 % it read as a ceiling the device was running at. So the figure is
+  // said only once there is one to say, and the slider speaks the same words it
+  // is drawn with. The panel behind the chevron has always said it this way.
+  const stated = dragged || stored !== null ? percentLabel(level) : t('devices.lightOutput.noLimit');
 
   const cannotSetLevel = output.configuration === null ? t('devices.lightOutput.noSettings') : null;
   const cannotForce = !output.takesOverride ? t('devices.lightOutput.needsFirmware') : unheard;
@@ -118,13 +126,13 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
             step={LEVEL_STEP}
             value={level}
             disabled={cannotSetLevel !== null}
-            aria-valuetext={percentLabel(level)}
+            aria-valuetext={stated}
             onChange={event => setDraft({ percent: Number(event.target.value), against: stored })}
             onPointerUp={commit}
             onKeyUp={commit}
             onBlur={commit}
           />
-          <span className={`mono ${styles.level}`}>{percentLabel(level)}</span>
+          <span className={`mono ${styles.level}`}>{stated}</span>
           <span className={styles.forces} role="group" aria-label={t('devices.lightOutput.force')}>
             {(['auto', 'on', 'off'] as const).map(state => (
               <button key={state} type="button" className={styles.forceOption} disabled={cannotForce !== null} onClick={() => force(state)}>
