@@ -11,6 +11,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Camera, GrowListItem, TimelapseCreate } from '@fg2/shared-types/v1';
 import { CameraScreen } from '@/screens/camera/CameraPage';
 import { Composer } from '@/screens/camera/Composer';
+import { CameraSettings } from '@/screens/camera/CameraSettings';
 import { Film } from '@/screens/camera/Film';
 import { THE_HOST, YOU } from './session';
 
@@ -251,6 +252,52 @@ describe('the camera page, by who is reading', () => {
     expect(screen.getByRole('textbox', { name: 'Name' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Test image' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Unpair' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Every switch the contract lets a camera carry, on the card that is the only
+ * screen a grower can undo one from. `maintenanceOff` came through the
+ * migration already on for some accounts, and `logErrors` is off until somebody
+ * turns it on, so a card that draws neither leaves both where they are for good.
+ */
+describe('what the camera is set to', () => {
+  const drawSettings = (over: Partial<Camera> = {}, mayManage = true) =>
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <CameraSettings camera={{ ...camera, ...over }} mayManage={mayManage} mayOwn={mayManage} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+  it('draws every switch the camera carries, in the state the server gave', () => {
+    drawSettings({ maintenanceOff: true, staleWarning: true, logErrors: false, nightOff: false });
+
+    expect(screen.getByRole('checkbox', { name: 'off during maintenance' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'warn when it stops delivering' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'log failed captures to the diary' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'night off' })).not.toBeChecked();
+  });
+
+  it('offers a reader who may not manage the same facts as words and no switch at all', () => {
+    drawSettings({ maintenanceOff: true, staleWarning: true, logErrors: false }, false);
+
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+    expect(screen.getByText(/off during maintenance/)).toBeInTheDocument();
+    expect(screen.getByText(/warn when it stops delivering/)).toBeInTheDocument();
+  });
+
+  /** Nothing is saved until Save, and with nothing changed there is nothing to offer. */
+  it('turns the save on once a switch has been moved', () => {
+    drawSettings({ maintenanceOff: true });
+
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'off during maintenance' }));
+
+    expect(screen.getByRole('checkbox', { name: 'off during maintenance' })).not.toBeChecked();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
   });
 });
 

@@ -16,12 +16,21 @@ import styles from './CameraPage.module.css';
 
 /**
  * What the camera itself is set to: how it is reached, what it is pointed at,
- * how long its Premium runs and how often it takes a picture.
+ * how long its Premium runs, when it takes a picture and what it says when it
+ * stops.
  *
  * How it is reached is what the camera *is* and is stated rather than offered:
  * a Terp Cam is paired at its controller and an RTSP camera is an address, and
  * neither is something this form turns into the other. Somebody who may only
  * look is shown the same facts with no fields at all.
+ *
+ * Everything the contract lets a camera be set to is on this card, because a
+ * setting with no screen is one nobody can undo: a grower who once turned
+ * captures off during maintenance carried that preference through the migration
+ * and had no way to find it, and the diary log of failed captures is off unless
+ * somebody turns it on, which with no switch is never. The stale warning is the
+ * one silence the alert inbox cannot be told to stop on its own, so its opt-out
+ * belongs here beside the camera it is about.
  *
  * The two questions are asked apart because the routes ask them apart: the
  * fields are `manage` where the camera stands, which a co-manager of the tent
@@ -50,6 +59,9 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
   const value = <K extends keyof CameraUpdate>(key: K): CameraUpdate[K] =>
     key in draft ? draft[key] : (camera[key as keyof Camera] as CameraUpdate[K]);
   const set = <K extends keyof CameraUpdate>(key: K, next: CameraUpdate[K]) => setDraft(current => ({ ...current, [key]: next }));
+  // The serialiser answers every one of these as a plain boolean, the stale
+  // warning included, so a switch reads what it is given and decides nothing.
+  const flag = (key: 'nightOff' | 'maintenanceOff' | 'logErrors' | 'staleWarning'): boolean => (key in draft ? draft[key] : camera[key]) === true;
   const changed = Object.keys(draft).length > 0;
 
   const place = spaces.data?.items.find(space => space.id === camera.spaceId)?.name ?? null;
@@ -126,18 +138,28 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
                 aria-label={t('camera.stillEvery')}
               />
               <span className="mono">s</span>
-              <label className={`mono ${styles.check}`}>
-                <input
-                  type="checkbox"
-                  checked={(value('nightOff') as boolean | undefined) ?? camera.nightOff}
-                  onChange={event => set('nightOff', event.target.checked)}
-                />
-                {t('camera.nightOff')}
-              </label>
+              <Check label={t('camera.nightOff')} on={flag('nightOff')} onChange={next => set('nightOff', next)} />
+              <Check label={t('camera.maintenanceOff')} on={flag('maintenanceOff')} onChange={next => set('maintenanceOff', next)} />
             </span>
           ) : (
             <span className={`mono ${styles.settingValue}`}>
-              {camera.stillIntervalSeconds} s{camera.nightOff ? ` · ${t('camera.nightOff')}` : ''}
+              {[`${camera.stillIntervalSeconds} s`, camera.nightOff ? t('camera.nightOff') : null, camera.maintenanceOff ? t('camera.maintenanceOff') : null]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+          )}
+        </Row>
+
+        <Row label={t('camera.tellsYou')}>
+          {mayManage ? (
+            <span className={styles.interval}>
+              <Check label={t('camera.staleWarning')} on={flag('staleWarning')} onChange={next => set('staleWarning', next)} />
+              <Check label={t('camera.logErrors')} on={flag('logErrors')} onChange={next => set('logErrors', next)} />
+            </span>
+          ) : (
+            <span className={`mono ${styles.settingValue}`}>
+              {[camera.staleWarning ? t('camera.staleWarning') : null, camera.logErrors ? t('camera.logErrors') : null].filter(Boolean).join(' · ') ||
+                t('camera.saysNothing')}
             </span>
           )}
         </Row>
@@ -179,6 +201,16 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
       ) : null}
       {mayOwn ? <p className={ui.note}>{t('camera.unpairNote')}</p> : null}
     </section>
+  );
+}
+
+/** One of the camera's switches, labelled by what it does rather than by the field it writes. */
+function Check({ label, on, onChange }: { label: string; on: boolean; onChange: (next: boolean) => void }) {
+  return (
+    <label className={`mono ${styles.check}`}>
+      <input type="checkbox" checked={on} onChange={event => onChange(event.target.checked)} />
+      {label}
+    </label>
   );
 }
 
