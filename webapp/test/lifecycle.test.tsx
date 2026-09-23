@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { GrowListItem, Plant, SpaceOverview } from '@fg2/shared-types/v1';
+import type { Device, GrowListItem, Plant, SpaceOverview } from '@fg2/shared-types/v1';
 import { HarvestSheet } from '@/screens/grow/HarvestSheet';
 import { MoveSheet } from '@/screens/grow/MoveSheet';
 import { SplitSheet } from '@/screens/grow/SplitSheet';
@@ -22,6 +22,14 @@ vi.mock('@/api/session', async importOriginal => {
 
   return { ...(await importOriginal<object>()), mediaUrl: (id: string) => `/media/${id}`, useSession: () => SIGNED_IN };
 });
+
+/** What stands in the tent, which is what a preset can reach - the sheet reads the same list the Control tab does. */
+const hardware = vi.hoisted(() => ({ devices: [] as unknown[] }));
+
+vi.mock('@/api/devices', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useDevices: () => ({ data: { items: hardware.devices, nextCursor: null }, isPending: false, refetch: () => {} }),
+}));
 
 /**
  * What the lifecycle sheets promise before anything is sent.
@@ -382,8 +390,36 @@ describe('the phase sheet over a grow that has ended', () => {
   });
 });
 
+const standing = (over: Partial<Device> = {}): Device => ({
+  id: 'device-1',
+  createdAt: at(60),
+  type: 'controller',
+  classId: null,
+  serialNumber: 42,
+  ownerId: 'user-1',
+  spaceId: 'space-1',
+  name: 'Blue Dream controller',
+  firmware: { channel: 'stable', targetId: null },
+  configuration: { day: { temperature: 25, humidity: 60 }, night: { temperature: 21, humidity: 55 } },
+  settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
+  isDemo: false,
+  state: {
+    lastSeenAt: at(0),
+    claimedAt: at(60),
+    firmwareId: 'build-1',
+    updateStartedAt: null,
+    updateEndedAt: null,
+    maintenanceUntil: null,
+    hardware: {},
+    socketStateChangedAt: {},
+    socketsReportedAt: null,
+  },
+  ...over,
+});
+
 describe('the climate preset sheet', () => {
   it('says a preset writes the target climate and nothing else, and which grow follows it', () => {
+    hardware.devices = [standing()];
     draw(<PresetSheet overview={overview} onClose={() => {}} />);
 
     expect(screen.getByText(/A preset writes the target climate and nothing else/)).toHaveTextContent('stay as they are');
@@ -391,11 +427,43 @@ describe('the climate preset sheet', () => {
   });
 
   it('says curing writes nothing at all rather than offering a climate it has not got', () => {
+    hardware.devices = [standing()];
     draw(<PresetSheet overview={overview} onClose={() => {}} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Curing' }));
 
     expect(screen.getByText(/Curing has no climate of its own/)).toHaveTextContent('writes nothing to anything standing here');
     expect(screen.queryByRole('button', { name: 'Late flower' })).not.toBeInTheDocument();
+  });
+
+  // A tent is not its device count: a plug is a device and holds no climate,
+  // which is what the Manual targets tab of the same tent has always said.
+  it('says there is nothing to write to when the only thing standing here states no climate', () => {
+    hardware.devices = [standing({ type: 'plug', configuration: null })];
+    draw(<PresetSheet overview={overview} onClose={() => {}} />);
+
+    expect(screen.getByText('Nothing standing here states a climate, so there is nothing to write one to.')).toBeInTheDocument();
+  });
+
+  it('says a controller whose settings have not arrived is waited on, rather than promising a write into nothing', () => {
+    hardware.devices = [standing({ configuration: null })];
+    draw(<PresetSheet overview={overview} onClose={() => {}} />);
+
+    expect(screen.getByText(/has sent its settings yet/)).toHaveTextContent('written when the hardware next connects');
+  });
+
+  it('keeps quiet about the hardware for a reader who was never told what stands here', () => {
+    hardware.devices = [];
+    draw(<PresetSheet overview={{ ...overview, deviceIds: null }} onClose={() => {}} />);
+
+    expect(screen.queryByText(/nothing to write/i)).not.toBeInTheDocument();
+  });
+
+  it('drops the promise that the climate is written anyway when there is nowhere for it to go', () => {
+    hardware.devices = [standing({ type: 'plug', configuration: null })];
+    draw(<PresetSheet overview={{ ...overview, grows: [] }} onClose={() => {}} />);
+
+    expect(screen.getByText(/nothing to write a climate into either/)).toHaveTextContent('no phase is written');
+    expect(screen.queryByText(/The climate is written either way/)).not.toBeInTheDocument();
   });
 });

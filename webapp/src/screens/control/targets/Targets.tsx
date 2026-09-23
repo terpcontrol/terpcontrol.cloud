@@ -7,6 +7,7 @@ import { serverNow } from '@/api/clock';
 import { useSaveConfiguration } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
+import { awaitingClimate, statesTargets } from '@/ui/climate-hardware';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -24,24 +25,12 @@ import {
   PRESET_CHIPS,
   presetOf,
   sameDraft,
-  statesTargets,
   vpdOf,
   withDraft,
   type PresetChip,
   type TargetsDraft,
 } from './targets-draft';
 import styles from './Targets.module.css';
-
-/**
- * The hardware whose document states a climate at all, by type rather than by
- * what is in the document: a device that has sent nothing yet cannot be asked
- * what it would hold, and this is the only thing left to tell a controller
- * whose settings are still on their way from a plug that will never have any.
- * A type nobody here knows is left out, which is how this read before: an
- * unknown one that does state a climate gets its panel the moment its document
- * arrives, and until then this page promises nothing on its behalf.
- */
-const HOLDS_A_CLIMATE = ['controller', 'fridge', 'fan'];
 
 /**
  * The targets a tent is held at, set by hand.
@@ -73,7 +62,7 @@ export function Targets({ spaceId, devices, mayManage }: { spaceId: string; devi
   // document has simply not arrived yet, was told that nothing standing here
   // states a climate and offered a second device it has no use for. The
   // Devices tab of the same tent has always said this correctly.
-  const waiting = devices.filter(device => device.configuration === null && HOLDS_A_CLIMATE.includes(device.type));
+  const waiting = devices.filter(awaitingClimate);
 
   if (controllers.length === 0) {
     return (

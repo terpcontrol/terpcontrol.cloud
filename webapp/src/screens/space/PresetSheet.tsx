@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowthStage, PresetApplication, SpaceOverview } from '@fg2/shared-types/v1';
 import { useApplyPreset } from '@/api/lifecycle';
+import { useDevices } from '@/api/devices';
 import { useSetPresetPrompt } from '@/api/spaces';
 import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
 import { Sheet } from '@/log/Sheet';
+import { awaitingClimate, statesTargets } from '@/ui/climate-hardware';
 import { Refused } from '@/ui/PageState';
 import { presetsOf, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
@@ -34,6 +36,11 @@ import styles from './PresetSheet.module.css';
 export function PresetSheet({ overview, onClose }: { overview: SpaceOverview; onClose: () => void }) {
   const { t } = useTranslation();
   const apply = useApplyPreset(overview.spaceId);
+  // The overview names the hardware but does not describe it, and what a
+  // preset can reach is a question about the documents: the same read the
+  // Control tab makes answers it, and until it lands the sheet promises
+  // nothing either way.
+  const devices = useDevices();
 
   const here = overview.grows[0] ?? null;
   const [stage, setStage] = useState<GrowthStage>(() => here?.stage ?? 'vegetative');
@@ -48,7 +55,12 @@ export function PresetSheet({ overview, onClose }: { overview: SpaceOverview; on
   /** The question the server asked, once somebody has answered it here. */
   const [answered, setAnswered] = useState(false);
 
-  const noController = overview.deviceIds !== null && overview.deviceIds.length === 0;
+  // What stands here, but only where this reader was told: `deviceIds` is null
+  // for a shared or public read, and a sheet that knows nothing about the
+  // hardware says nothing about it rather than guessing at the empty case.
+  const hardware = overview.deviceIds === null ? null : (devices.data?.items.filter(device => device.spaceId === overview.spaceId) ?? null);
+  const nothingToWriteTo = hardware !== null && !hardware.some(device => statesTargets(device.configuration));
+  const willStateOne = hardware !== null && hardware.some(awaitingClimate);
   const offered = presetsOf(stage);
 
   const pickStage = (next: GrowthStage) => {
@@ -94,8 +106,14 @@ export function PresetSheet({ overview, onClose }: { overview: SpaceOverview; on
 
         <ul className={styles.says}>
           <li>{t(writesClimate(stage) ? 'space.presets.writesClimateOnly' : 'space.presets.noClimateRow')}</li>
-          {writesClimate(stage) && noController ? <li>{t('space.presets.nothingToWriteTo')}</li> : null}
-          <li>{here ? t('space.presets.phaseFollows', { name: here.name }) : t('space.presets.noPhaseFollows')}</li>
+          {writesClimate(stage) && nothingToWriteTo ? (
+            <li>{t(willStateOne ? 'space.presets.waitingToWriteTo' : 'space.presets.nothingToWriteTo')}</li>
+          ) : null}
+          <li>
+            {here
+              ? t('space.presets.phaseFollows', { name: here.name })
+              : t(writesClimate(stage) && nothingToWriteTo ? 'space.presets.noPhaseFollowsNoClimate' : 'space.presets.noPhaseFollows')}
+          </li>
         </ul>
 
         <Refused error={apply.error} />

@@ -3,6 +3,7 @@ import type { Device, DeviceConfiguration, DeviceSettings, GrowthStage } from '@
 import { climatePreset, PRESETS_OF_STAGE, STAGES_WITH_CLIMATE, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { serverNow } from '@/api/clock';
+import { figureOf, sectionOf } from '@/ui/climate-hardware';
 import { CLOCK } from '@/ui/zone';
 
 /**
@@ -48,33 +49,11 @@ const DEFAULTS: TargetsDraft = {
   co2: 400,
 };
 
-const sectionOf = (configuration: DeviceConfiguration, name: string): Record<string, unknown> => {
-  const value = configuration[name];
-  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-};
-
-/** One figure, nested or flat, as the server reads a setpoint out of the same document. */
-const figureOf = (configuration: DeviceConfiguration, section: string, field: string): number | null => {
-  const value = sectionOf(configuration, section)[field] ?? configuration[`${section}.${field}`];
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
-};
-
 /** How long the light is on from when it comes on and goes off. Off at the same second it comes on is a day-long light. */
 const hoursBetween = (on: number, off: number): number => {
   const seconds = (((off - on) % DAY_SECONDS) + DAY_SECONDS) % DAY_SECONDS;
   return (seconds === 0 ? DAY_SECONDS : seconds) / HOUR_SECONDS;
 };
-
-/**
- * Whether a document is one a climate could be written to. A plug, a fan or a
- * light states none of the day and night targets, and writing a temperature
- * into a socket's document would be a figure nobody reads.
- */
-export const statesTargets = (configuration: DeviceConfiguration | null): boolean =>
-  configuration !== null &&
-  (['temperature', 'humidity'] as const).some(
-    field => figureOf(configuration, 'day', field) !== null || figureOf(configuration, 'night', field) !== null,
-  );
 
 export const draftOf = (configuration: DeviceConfiguration): TargetsDraft => {
   const lightsOn = figureOf(configuration, 'daynight', 'day') ?? DEFAULTS.lightsOn;
