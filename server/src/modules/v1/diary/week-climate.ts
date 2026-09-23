@@ -49,7 +49,10 @@ export interface ClimateSummary {
 /** One window of one controller: what was measured, and whether the light was on. */
 interface Window {
   values: Map<Metric, number>;
+  /** Which half of the cycle it was in; null where nothing is known about the lamp, and where it switched inside the window. */
   isDay: boolean | null;
+  /** Whether the lamp switched inside the window, so its air is a mean of both halves and belongs to neither. */
+  mixed: boolean;
 }
 
 /**
@@ -115,7 +118,7 @@ const windowsOf = (history: DeviceHistory): Window[] => {
           return value === null ? [] : [[one.metric, value] as const];
         }),
       ),
-      isDay: heard === null || lamp.knownFrom === null || ends <= lamp.knownFrom ? null : litThrough(lamp, ends - step, ends),
+      ...halfOf(heard === null ? null : lamp, ends - step, ends),
     };
   });
 };
@@ -128,12 +131,21 @@ const windowsOf = (history: DeviceHistory): Window[] => {
  * during holds air from both halves of the cycle and is an average of neither.
  * There are two such windows a day at most, and putting them in the half they
  * were in for the greater part would drag that half's average towards the other
- * one - which is exactly the figure the two halves exist to keep apart.
+ * one - which is exactly the figure the two halves exist to keep apart. It is
+ * not judged against a band either: neither band was what the tent was being
+ * held to for the whole of it.
+ *
+ * A window with no lamp behind it at all - a device that drives no light, or a
+ * stretch whose raw samples have been summarised away - is a third case and not
+ * that one: nothing is known about its half, rather than both being true of it.
  */
-const litThrough = (lamp: Lamp, from: number, to: number): boolean | null => {
-  const ran = runningFor(lamp.spans, from, to);
+const halfOf = (lamp: Lamp | null, from: number, to: number): { isDay: boolean | null; mixed: boolean } => {
+  if (lamp === null || lamp.knownFrom === null || to <= lamp.knownFrom) return { isDay: null, mixed: false };
 
-  return ran === 0 ? false : ran >= to - from ? true : null;
+  const ran = runningFor(lamp.spans, from, to);
+  if (ran === 0) return { isDay: false, mixed: false };
+
+  return ran >= to - from ? { isDay: true, mixed: false } : { isDay: null, mixed: true };
 };
 
 const climateOf = (metric: Metric, windows: Window[]): WeekClimate[] => {
@@ -213,6 +225,10 @@ const inBandPercentOf = (windows: Window[], targets: PhaseTargets | null): numbe
 
 /** What can be judged in this window: a metric the controller holds a target for, in the half of the cycle it is in. */
 const bandsFor = (window: Window, targets: PhaseTargets): { value: number; target: number; width: number }[] => {
+  // A window the lamp switched inside was held to the day's band for part of
+  // itself and the night's for the rest, and its readings are a mean of both.
+  if (window.mixed) return [];
+
   const half = window.isDay === false ? targets.night : targets.day;
 
   return (['temperature', 'humidity'] as const).flatMap(metric => {

@@ -137,6 +137,10 @@ describe('the day and the night', () => {
     };
 
     expect(summariseClimate([switched], null).climate[0]).toMatchObject({ dayAverage: 25, nightAverage: null, averageValue: 23.5 });
+    // Nor is it judged: the tent was held to the day's band for part of it and
+    // the night's for the rest, so neither band is the one it missed.
+    const targets = { day: { temperature: 25, humidity: 55 }, night: { temperature: 20, humidity: 55 }, co2: null };
+    expect(summariseClimate([switched], targets).inBandPercent).toBe(100);
   });
 
   it('leave out a window the device said nothing about the light in', () => {
