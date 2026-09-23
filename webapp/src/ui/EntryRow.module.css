@@ -50,6 +50,11 @@
   font-weight: var(--weight-semibold);
 }
 
+/* What a grower typed keeps the lines they typed it in; runs of spaces are still collapsed, as anywhere else. */
+.headline {
+  white-space: pre-line;
+}
+
 .readings {
   font-size: var(--text-xs);
   color: var(--muted);

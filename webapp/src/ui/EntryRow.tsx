@@ -41,7 +41,8 @@ export function EntryRow({ entry, people, measurements = [], withDay = false, by
       <span className={styles.text}>
         {/* A device, the plan or an alarm is named by its mark; a person by name. */}
         {byline && entry.source === 'human' ? <span className={styles.author}>{authorOf(t, entry, people, user?.id)} </span> : null}
-        {headlineOf(t, i18n, entry)}
+        {/* A person writes in lines, so the breaks they typed are kept rather than collapsed into one run-on sentence. */}
+        <span className={styles.headline}>{headlineOf(t, i18n, entry)}</span>
         {readings.length > 0 ? (
           <span className={`mono ${styles.readings}`}>
             {readings.map(reading => {

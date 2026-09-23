@@ -27,12 +27,27 @@ export const resolveDeviceMessage = (i18n: I18n, message: EntryMessage, part: Me
   return value ? `${message.key}:${value}` : message.key;
 };
 
+/** As much of an entry as it takes to say what it says. */
+type EntryWords = Pick<Entry, 'source' | 'text' | 'message'>;
+
+/**
+ * What somebody wrote themselves, where they wrote anything.
+ *
+ * A line can carry both: the migration keeps the old app's own label for a
+ * diary line in `message` and whatever was typed under it in `text`, because
+ * neither can be recovered from the other afterwards. The words win. A slug
+ * title says the kind of thing that was done, which the row's own mark already
+ * says, while the sentence a grower typed about their grow exists nowhere else
+ * and is the reason the line was written at all.
+ */
+const ownWords = (entry: EntryWords): string | null => (entry.source === 'human' && entry.text ? entry.text : null);
+
 /**
  * What a timeline row says. A person's own words are never translated; a
  * device's, a plan's and an alarm's always are.
  */
-export const entryHeadline = (i18n: I18n, entry: Pick<Entry, 'text' | 'message'>): string =>
-  entry.message ? resolveDeviceMessage(i18n, entry.message, 'title') : (entry.text ?? '');
+export const entryHeadline = (i18n: I18n, entry: EntryWords): string =>
+  ownWords(entry) ?? (entry.message ? resolveDeviceMessage(i18n, entry.message, 'title') : (entry.text ?? ''));
 
-export const entryBody = (i18n: I18n, entry: Pick<Entry, 'text' | 'message'>): string =>
-  entry.message ? resolveDeviceMessage(i18n, entry.message, 'text') : (entry.text ?? '');
+export const entryBody = (i18n: I18n, entry: EntryWords): string =>
+  ownWords(entry) ?? (entry.message ? resolveDeviceMessage(i18n, entry.message, 'text') : (entry.text ?? ''));
