@@ -364,8 +364,15 @@ const seconds = (minutes: number): number => Math.max(0, Math.round(minutes * 60
  * The body a new rule is created with. It starts enabled - a rule written and
  * switched off is two taps for one - and with no cooldown: what keeps a bad
  * hour from being a message a minute is that a rule says so once and then only
- * on the repeat it was given. Only a critical rule carries a repeat at all, so
- * one saved at any other severity goes out with none whatever it used to hold.
+ * on the repeat it was given.
+ *
+ * That repeat goes out as the draft holds it, at every severity. Whether a
+ * quieter rule repeats at all is decided where somebody decides it - in
+ * `withSeverity`, which clears the repeat as the severity is lowered - and not
+ * again here, where the draft has only been read back. A warning rule that
+ * arrived carrying an interval, from the migration or from an older client,
+ * has it drawn on its card and honoured by the engine, so saving that rule
+ * with nothing changed must give it back unchanged rather than silence it.
  */
 export const createBody = (draft: RuleDraft): AlarmRuleCreate => ({
   name: draft.name.trim(),
@@ -374,7 +381,7 @@ export const createBody = (draft: RuleDraft): AlarmRuleCreate => ({
   severity: draft.severity,
   enabled: true,
   cooldownSeconds: 0,
-  repeatSeconds: draft.severity === 'critical' ? seconds(draft.repeatMinutes) : 0,
+  repeatSeconds: seconds(draft.repeatMinutes),
   delivery: deliveryOf(draft),
 });
 

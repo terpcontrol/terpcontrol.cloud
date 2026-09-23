@@ -479,6 +479,47 @@ describe('the rule sheet', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/device-1/alarm-rules', expect.objectContaining({ repeatSeconds: 2700 })));
   });
 
+  /**
+   * The sheet asks about repeating only where the question is offered, so a
+   * quieter rule that already repeats is edited without ever seeing that
+   * field. Saving it must therefore hand the interval back untouched: the
+   * rules the migration wrote carry one at every severity, and a save that
+   * zeroed it would silence a rule nobody meant to change.
+   */
+  it('gives a warning rule its repeat back when it is saved with nothing changed', async () => {
+    const carried = rule({
+      id: 'rule-carried',
+      name: 'Fridge running non-stop',
+      origin: 'human',
+      watch: { kind: 'reading', metric: 'humidity', upper: 80, lower: null },
+      forSeconds: 900,
+      severity: 'warning',
+      repeatSeconds: 600,
+      delivery: { mode: 'custom', custom: { channel: 'email', target: 'you@example.invalid', includeDetails: true, webhook: null } },
+    });
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? { items: [carried], nextCursor: null } : answers(path)) as never,
+    );
+    draw();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Fridge running non-stop/ }));
+    const sheet = screen.getByRole('dialog', { name: 'Edit the alarm' });
+    expect(within(sheet).queryByRole('spinbutton', { name: 'every' })).not.toBeInTheDocument();
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save the alarm' }));
+
+    await waitFor(() =>
+      expect(api.patch).toHaveBeenCalledWith('/alarm-rules/rule-carried', {
+        name: 'Fridge running non-stop',
+        watch: { kind: 'reading', metric: 'humidity', upper: 80, lower: null },
+        forSeconds: 900,
+        severity: 'warning',
+        repeatSeconds: 600,
+        delivery: { mode: 'custom', custom: { channel: 'email', target: 'you@example.invalid', includeDetails: true, webhook: null } },
+      }),
+    );
+  });
+
   it('asks the offline rule none of the questions it has no answer to, and saves it', async () => {
     draw();
 
