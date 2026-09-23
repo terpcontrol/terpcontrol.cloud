@@ -1496,6 +1496,11 @@ export const spaceTimeline = named(
     stepSeconds: z.number().int().describe('The window each point summarises; 0 in a space with no device to read, where there are no points at all.'),
     deviceIds: z.array(id()),
     panels: z.array(timelinePanel),
+    lastReadingAt: instant()
+      .nullable()
+      .describe(
+        'When a device standing here last measured one of the panels´ metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `panels` is empty in both. Answered only where `panels` is empty, because that is the one question it settles; null there where nothing standing here has ever measured, and null beside panels that speak for themselves.',
+      ),
     nights: z.array(timelineSpan).describe('When the light was off, from the light output rather than from the clock; empty where no device reports one.'),
     alarms: z.array(timelineAlarm),
     outputs: z.array(timelineOutputLane),

@@ -81,6 +81,7 @@ const answer: SpaceTimeline = {
   endsAt: TO.toISO()!,
   stepSeconds: 3600,
   deviceIds: ['device-1'],
+  lastReadingAt: null,
   panels: [
     {
       metric: 'temperature',
@@ -239,13 +240,27 @@ describe('the timeline', () => {
   });
 
   it('says why there are no curves where nothing measures, and still draws the rail', () => {
-    state.answer = { ...answer, deviceIds: [], panels: [], outputs: [], nights: [], alarms: [], cameras: [] };
+    state.answer = { ...answer, deviceIds: [], panels: [], outputs: [], nights: [], alarms: [], cameras: [], lastReadingAt: null };
     draw();
 
     expect(screen.getByText(/Nothing measures here/)).toBeInTheDocument();
     expect(screen.getByText('Events')).toBeInTheDocument();
     // "Everything off" would be a claim about hardware this place has not got.
     expect(screen.queryByText(/everything off/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * A metric with no reading in the window has no panel, so an empty stack is
+   * the answer both for a tent nothing is installed in and for one whose
+   * controller has been quiet for three days - and the second was being told
+   * their hardware had never been there.
+   */
+  it('blames the window rather than the room where the place does measure but has been quiet', () => {
+    state.answer = { ...answer, panels: [], lastReadingAt: FROM.minus({ days: 3 }).toISO()! };
+    draw();
+
+    expect(screen.getByText(/Nothing heard in this window/)).toBeInTheDocument();
+    expect(screen.queryByText(/Nothing measures here/)).not.toBeInTheDocument();
   });
 
   /**

@@ -2964,6 +2964,7 @@
     "events": "Events",
     "noEvents": "Nothing written in this window",
     "noPanels": "Nothing measures here, so there are no curves to draw",
+    "quietWindow": "Nothing heard in this window · last measured {{age}} ago",
     "noSpaces": "Nothing to draw yet. Add a device or start a grow on the"
   },
   "camera": {

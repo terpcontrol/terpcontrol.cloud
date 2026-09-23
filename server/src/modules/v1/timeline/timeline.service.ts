@@ -39,7 +39,9 @@ import { TimelineWindow, stretchesOf, windowOf } from './timeline-window';
  * for the frames, and the people the rail names - and two time-series reads per
  * device in the space, the curve and the switchings behind it. The last two of
  * the Mongo reads are skipped where there is nothing to look up, and a redacted
- * reader reads the diary alone.
+ * reader reads the diary alone. A third time-series read per device is paid by
+ * a window with no curves in it at all, and by no other: it is the one window
+ * that cannot say for itself whether this place measures - see `lastReadingOf`.
  *
  * A long range costs no more than a short one, because the step follows from
  * the width of the window: `24 h` and a four-month grow are both one read of a
@@ -135,6 +137,10 @@ export class TimelineService {
     const [watched, frames, hide] = await Promise.all([this.metricsOf(alerts), this.framesOf(cameras, window), this.redactionFor(grant)]);
     const told = entries.map(entry => serialiseDiaryEntry(entry, hide, grant.includeCameras));
     const people = await this.users.find({ id: { $in: authorIdsOf(told) } }, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>();
+    const panels = panelsOf(
+      series.map(one => one.series),
+      stretchesOf(grow, devices, window),
+    );
 
     return {
       spaceId: space.id,
@@ -148,10 +154,8 @@ export class TimelineService {
       endsAt: window.endsAt.toISOString(),
       stepSeconds: series.length === 0 ? 0 : window.stepSeconds,
       deviceIds: devices.map(device => device.id),
-      panels: panelsOf(
-        series.map(one => one.series),
-        stretchesOf(grow, devices, window),
-      ),
+      panels,
+      lastReadingAt: panels.length > 0 ? null : await this.lastReadingOf(devices),
       nights: nightsOf(series, window),
       alarms: alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
       outputs: lanesOf(series, window),
@@ -222,6 +226,39 @@ export class TimelineService {
     if (!named) throw notFound('grow_not_found', 'There is no grow with that id standing in this space.');
 
     return named;
+  }
+
+  /**
+   * When anything standing here last measured one of the panels' metrics,
+   * whenever that was - inside the window, or months before it.
+   *
+   * A screen with no curves has two sentences to choose between and no way of
+   * its own to choose: a place where nothing measures, and a place that
+   * measures and has been quiet across this window. `panels` is empty in both
+   * cases, by design - a metric every point of which is null has no panel - and
+   * the window holds nothing that could tell them apart, because the fact that
+   * decides it lies outside the window. So the store is asked, and asked only
+   * where there is nothing to draw: a window with curves in it has already
+   * answered the question by having them, and this costs a read per device that
+   * a timeline would otherwise not pay.
+   *
+   * A space holding only a plug, a light or a fan measures none of these
+   * metrics in any window and answers null, which is what keeps "nothing
+   * measures here" the right sentence for the 84 such spaces of the restored
+   * database rather than telling their owners the hardware went quiet.
+   */
+  private async lastReadingOf(devices: StoredDevice[]): Promise<string | null> {
+    if (devices.length === 0) return null;
+
+    const live = await Promise.all(devices.map(device => this.data.live(device.id)));
+    const measured = live.flatMap(one =>
+      PANEL_METRICS.flatMap(metric => {
+        const measuredAt = one.metrics[metric]?.measuredAt;
+        return measuredAt ? [measuredAt] : [];
+      }),
+    );
+
+    return measured.length === 0 ? null : measured.reduce((newest, one) => (new Date(one) > new Date(newest) ? one : newest));
   }
 
   /**

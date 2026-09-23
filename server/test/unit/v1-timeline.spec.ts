@@ -1,4 +1,4 @@
-import type { DeviceSeries, Metric, OutputMetric, TimelineRange, TimelineSpan } from '@fg2/shared-types/v1';
+import type { DeviceLive, DeviceSeries, Metric, OutputMetric, TimelineRange, TimelineSpan } from '@fg2/shared-types/v1';
 import { spaceTimeline } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
@@ -76,6 +76,14 @@ let sampleEverySeconds = 0;
 
 /** What the tent measures. A test takes CO2 away to make the third panel disappear. */
 let sensed: Metric[] = ['temperature', 'humidity', 'co2'];
+
+/**
+ * The newest thing the store holds about a device, whenever it was measured -
+ * which is what a window with no curves in it has to be told apart by. Empty
+ * stands for a device that has never measured one of the panels' metrics, such
+ * as a plug or a fan.
+ */
+let lastReading: DeviceLive['metrics'] = {};
 
 const controllerReport = (at: Date): Reading | null => {
   if (quietFrom && quietUntil && at >= quietFrom && at < quietUntil) return null;
@@ -157,7 +165,7 @@ const fakeData = {
       })),
     };
   },
-  live: async () => ({ metrics: {}, outputs: {}, isDay: null, lightOn: null }),
+  live: async (deviceId: string) => ({ metrics: reports[deviceId] ? lastReading : {}, outputs: {}, isDay: null, lightOn: null }),
 } as unknown as DataService;
 
 const build = (): TimelineService => {
@@ -389,6 +397,7 @@ beforeEach(async () => {
   quietFrom = null;
   quietUntil = null;
   sampleEverySeconds = 0;
+  lastReading = {};
   timeline = build();
   await world();
 });
@@ -537,6 +546,39 @@ describe('the stacked panels', () => {
     // A device heard from a step ago is not a silence, and a break there would
     // read as one.
     expect(points[points.length - 1].value).not.toBeNull();
+  });
+
+  /**
+   * A metric with no reading in the window has no panel, which makes an empty
+   * stack the answer both for a tent nothing measures in and for one whose
+   * controller has been quiet across the window. Only the store knows which,
+   * because the fact that settles it lies outside the window.
+   */
+  describe('what tells an empty stack from a place that does not measure', () => {
+    it('answers when the tent last measured, where the window holds no curve at all', async () => {
+      const measuredAt = '2026-06-07T09:00:00.000Z';
+      // A device that is still standing here and has simply said nothing for days.
+      reports = { [CONTROLLER]: () => null };
+      lastReading = { temperature: { value: 24, measuredAt, state: 'offline' } };
+
+      const page = await readAs(session(OWNER));
+      expect(page.panels).toEqual([]);
+      expect(page.lastReadingAt).toBe(measuredAt);
+    });
+
+    it('answers nothing for a tent whose devices measure none of these metrics', async () => {
+      reports = { [CONTROLLER]: () => null };
+
+      expect((await readAs(session(OWNER))).lastReadingAt).toBeNull();
+    });
+
+    it('does not pay the read where the window already has curves to draw', async () => {
+      lastReading = { temperature: { value: 24, measuredAt: '2026-06-07T09:00:00.000Z', state: 'offline' } };
+
+      const page = await readAs(session(OWNER));
+      expect(page.panels.length).toBeGreaterThan(0);
+      expect(page.lastReadingAt).toBeNull();
+    });
   });
 });
 

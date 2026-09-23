@@ -3934,6 +3934,7 @@ export declare const spaceTimeline: z.ZodObject<{
             }, z.core.$strip>>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    lastReadingAt: z.ZodNullable<z.ZodISODateTime>;
     nights: z.ZodArray<z.ZodObject<{
         startsAt: z.ZodISODateTime;
         endsAt: z.ZodISODateTime;

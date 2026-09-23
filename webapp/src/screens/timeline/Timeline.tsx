@@ -7,6 +7,7 @@ import { fetchedAt } from '@/api/clock';
 import { useGrow } from '@/api/grows';
 import { rangeNeedsGrow, useTimeline } from '@/api/timeline';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
+import { ageLabel } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -139,7 +140,16 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
 
       <ScrubHeader timeline={data} cursor={here} />
 
-      {data.panels.length === 0 ? <p className={`${ui.cardDashed} ${ui.note}`}>{t('timeline.noPanels')}</p> : null}
+      {/* Two different states, and only the payload can tell them apart: a
+          metric whose every point in the window is null has no panel, so an
+          empty stack means "nothing was heard here" as often as it means
+          "nothing measures here". `lastReadingAt` is the last time anything
+          standing here measured at all, whenever that was. */}
+      {data.panels.length === 0 ? (
+        <p className={`${ui.cardDashed} ${ui.note}`}>
+          {data.lastReadingAt === null ? t('timeline.noPanels') : t('timeline.quietWindow', { age: ageLabel(data.lastReadingAt, now) })}
+        </p>
+      ) : null}
       {data.panels.map(panel => (
         <Panel key={panel.metric} panel={panel} nights={data.nights} alarms={data.alarms} from={from} to={to} cursor={here} scrub={scrub} />
       ))}

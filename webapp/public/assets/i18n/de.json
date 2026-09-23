@@ -2960,6 +2960,7 @@
     "events": "Einträge",
     "noEvents": "Nichts geschrieben in diesem Zeitraum",
     "noPanels": "Hier misst nichts, also gibt es keine Kurven zu zeichnen",
+    "quietWindow": "In diesem Zeitraum nichts gehört · zuletzt gemessen vor {{age}}",
     "noSpaces": "Noch nichts zu zeichnen. Gerät hinzufügen oder Grow starten auf der"
   },
   "camera": {
