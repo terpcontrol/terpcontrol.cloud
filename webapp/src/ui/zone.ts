@@ -17,8 +17,17 @@ import type { Me } from '@fg2/shared-types/v1';
  * of time in every zone, and `age.ts` keeps saying it.
  */
 
-/** The account's zone, or null while nothing has answered yet - which leaves Luxon on the browser's. */
-export const zoneOf = (me: Me | undefined): string | null => me?.preferences.timezone || null;
+/**
+ * The account's zone, or null while nothing has answered yet - which leaves
+ * Luxon on the browser's.
+ *
+ * Every step of the way in is optional, because this is read on screens that
+ * draw before their reads have landed and an account is answered in pieces on a
+ * slow connection: reaching through a half-arrived answer took the whole alerts
+ * inbox down to the router's error screen once, which is a stiff price for a
+ * clock's zone.
+ */
+export const zoneOf = (me: Me | undefined): string | null => me?.preferences?.timezone || null;
 
 /** An instant to read in the account's zone. */
 export const zoned = (instant: string, zone: string | null): DateTime => {

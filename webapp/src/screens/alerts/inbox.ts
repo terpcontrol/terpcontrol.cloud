@@ -2,7 +2,7 @@ import { DateTime } from 'luxon';
 import type { AlarmRule, Alert, Me, OutputLevelWatch, ReadingWatch, Severity } from '@fg2/shared-types/v1';
 import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { routedChannels } from '@/screens/control/alarms/rules';
-import { ageLabel, instantOf } from '@/ui/age';
+import { ageLabel } from '@/ui/age';
 import { zoned } from '@/ui/zone';
 
 /**
