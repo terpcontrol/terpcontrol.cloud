@@ -195,9 +195,11 @@ export { VALUE_AGE } from './value-age.js';
 
 /**
  * A measured value with its age. `state` is decided by the server from
- * `VALUE_AGE` and its own clock, so no client does the arithmetic; a value is
- * dimmed by its state, never hidden, which is why the value and its instant stay
- * in the answer when the device has been quiet for days.
+ * `VALUE_AGE` and its own clock, and is what anything acting on the value goes
+ * by; a client repeats that arithmetic only to age a figure it is still drawing,
+ * against the same constant and never in the direction of calling it fresher. A
+ * value is dimmed by its state, never hidden, which is why the value and its
+ * instant stay in the answer when the device has been quiet for days.
  *
  * It sits here rather than with the device routes because the device reads and
  * the cards of the home and space screens answer the same triple, and one fact

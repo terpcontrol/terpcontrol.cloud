@@ -15,7 +15,7 @@ import type {
 } from '@fg2/shared-types/v1';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { useLog, useMayLog } from '@/log/log-context';
-import { ageAttribute, ageLabel } from '@/ui/age';
+import { ageAttribute, ageLabel, valueAge } from '@/ui/age';
 import type { Liveness } from '../home/attention';
 import { EntryRow } from '@/ui/EntryRow';
 import { readingFigure, readingNamesOf } from '@/ui/entries';
@@ -51,12 +51,12 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
   const mayManage = useMayManage(overview.spaceId);
   const mayLog = useMayLogIn(overview.spaceId);
   const hasDevice = overview.deviceIds === null || overview.deviceIds.length > 0;
-  const liveness = livenessOf(overview);
+  const liveness = livenessOf(overview, now);
   const [sheet, setSheet] = useState<'preset' | 'move' | null>(null);
 
   return (
     <div className={styles.overview}>
-      {hasDevice ? <Values overview={overview} /> : <p className={`${ui.cardDashed} ${ui.note}`}>{t('home.invite.noSensor')}</p>}
+      {hasDevice ? <Values overview={overview} now={now} /> : <p className={`${ui.cardDashed} ${ui.note}`}>{t('home.invite.noSensor')}</p>}
       {overview.targets ? <TargetsLine overview={overview} /> : null}
 
       {/* The phase tiles, as one sheet: what a tent is put on is a stage with a
@@ -207,7 +207,7 @@ function Section({
 }
 
 /** The tiles: each value large, its target and where it stands against it, dimmed by its age and never hidden. */
-function Values({ overview }: { overview: SpaceOverview }) {
+function Values({ overview, now }: { overview: SpaceOverview; now: DateTime }) {
   const { t } = useTranslation();
   const shown = TILES.flatMap(metric => overview.values.filter(value => value.metric === metric));
   const setpointOf = (metric: Metric): CardSetpoint | null => overview.setpoints.find(setpoint => setpoint.metric === metric) ?? null;
@@ -217,20 +217,20 @@ function Values({ overview }: { overview: SpaceOverview }) {
   return (
     <div className={styles.tiles}>
       {shown.map(value => (
-        <Tile key={value.metric} value={value} setpoint={setpointOf(value.metric)} />
+        <Tile key={value.metric} value={value} setpoint={setpointOf(value.metric)} now={now} />
       ))}
     </div>
   );
 }
 
-function Tile({ value, setpoint }: { value: CardValue; setpoint: CardSetpoint | null }) {
+function Tile({ value, setpoint, now }: { value: CardValue; setpoint: CardSetpoint | null; now: DateTime }) {
   const { t } = useTranslation();
   // The band is the server's, the same width the verdict below judges by.
   const band = setpoint?.band ?? null;
   const delta = value.value !== null && setpoint?.value != null ? value.value - setpoint.value : null;
 
   return (
-    <div className={`${ui.card} ${styles.tile}`} {...ageAttribute(value.state)}>
+    <div className={`${ui.card} ${styles.tile}`} {...ageAttribute(valueAge(value, now))}>
       <div className={styles.tileFigure}>
         <span className="figure">{value.value === null ? t('home.card.noReading') : figure(value.value, value.metric)}</span>
         <span className={`mono ${styles.tileUnit}`}>{UNIT[value.metric] ?? value.metric}</span>

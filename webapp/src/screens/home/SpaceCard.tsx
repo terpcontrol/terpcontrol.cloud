@@ -58,7 +58,7 @@ const dismiss = (key: string) => {
 export function SpaceCard({ card, people, now, compact }: SpaceCardProps) {
   const { t } = useTranslation();
   const [hidden, setHidden] = useState(() => dismissed().includes(keyOf(card)));
-  const liveness = livenessOf(card);
+  const liveness = livenessOf(card, now);
   const alert = worstAlertOf(card);
   const growHeads = liveness === 'none' && card.grow !== null;
   const Icon = card.kind === null ? Leaf : KIND_ICON[card.kind];
@@ -109,7 +109,7 @@ export function SpaceCard({ card, people, now, compact }: SpaceCardProps) {
         </p>
       ) : null}
 
-      {liveness === 'none' ? growHeads ? null : <NoSensor /> : <ClimateHalf card={card} />}
+      {liveness === 'none' ? growHeads ? null : <NoSensor /> : <ClimateHalf card={card} now={now} />}
 
       {card.latestStill && !compact ? <Still card={card} now={now} /> : null}
 

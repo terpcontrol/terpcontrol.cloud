@@ -1,6 +1,7 @@
+import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import type { CardSetpoint, CardValue, HomeSpaceCard, Metric } from '@fg2/shared-types/v1';
-import { ageAttribute } from '@/ui/age';
+import { ageAttribute, valueAge } from '@/ui/age';
 import { livenessOf } from './attention';
 import { Sparkline } from './Sparkline';
 import styles from './SpaceCard.module.css';
@@ -15,21 +16,23 @@ const target = (value: number, metric: Metric): string => (Number.isInteger(valu
 
 /**
  * The climate half: each value large, its target as the small grey figure
- * beside it, and a day of temperature at the right. Dimmed by the age the
- * server gave the value - never hidden, never a dash - so an old figure is
- * still the last thing that was known.
+ * beside it, and a day of temperature at the right. Dimmed by the age the value
+ * has at the moment it is drawn - never hidden, never a dash - so an old figure
+ * is still the last thing that was known, and a card the screen has stopped
+ * being able to refresh goes grey rather than staying bright on a verdict that
+ * has outlived its reading.
  */
-export function ClimateHalf({ card }: { card: HomeSpaceCard }) {
+export function ClimateHalf({ card, now }: { card: HomeSpaceCard; now: DateTime }) {
   const { t } = useTranslation();
   const shown = SHOWN.flatMap(metric => card.values.filter(value => value.metric === metric)).slice(0, FIGURES);
   const setpointOf = (metric: Metric): CardSetpoint | undefined => card.setpoints.find(setpoint => setpoint.metric === metric);
   const temperatureTarget = setpointOf('temperature')?.value ?? null;
 
   return (
-    <div className={styles.climate} data-liveness={livenessOf(card)}>
+    <div className={styles.climate} data-liveness={livenessOf(card, now)}>
       <div className={styles.values}>
         {shown.map(value => (
-          <Figure key={value.metric} value={value} setpoint={setpointOf(value.metric) ?? null} />
+          <Figure key={value.metric} value={value} setpoint={setpointOf(value.metric) ?? null} now={now} />
         ))}
       </div>
       <Sparkline trend={card.trend} setpoint={temperatureTarget} label={t('home.card.sparkline', { name: card.name })} />
@@ -37,14 +40,14 @@ export function ClimateHalf({ card }: { card: HomeSpaceCard }) {
   );
 }
 
-function Figure({ value, setpoint }: { value: CardValue; setpoint: CardSetpoint | null }) {
+function Figure({ value, setpoint, now }: { value: CardValue; setpoint: CardSetpoint | null; now: DateTime }) {
   const { t } = useTranslation();
   // The band is the server's, the same width the verdict judges by.
   const band = setpoint?.band ?? null;
   const delta = value.value !== null && setpoint?.value != null ? value.value - setpoint.value : null;
 
   return (
-    <div className={styles.value} {...ageAttribute(value.state)}>
+    <div className={styles.value} {...ageAttribute(valueAge(value, now))}>
       <div className={styles.figureLine}>
         <span className={`figure ${styles.figure}`}>{value.value === null ? t('home.card.noReading') : figure(value.value, value.metric)}</span>
         <span className={`mono ${styles.unit}`}>{UNIT[value.metric] ?? value.metric}</span>

@@ -136,6 +136,24 @@ describe('the climate half', () => {
     expect(screen.getByText(/no reading · 3 h/)).toBeInTheDocument();
   });
 
+  // The card the home failed to refresh is the card it already had: every
+  // value on it still says "live", because it did when the answer was made.
+  it('dims and renames a value the screen has gone on drawing past its own age', () => {
+    const answered = card({ values: [{ metric: 'temperature', value: 23.8, measuredAt: at(20), state: 'live' }] });
+
+    draw(<SpaceCard card={answered} people={people} now={NOW} compact={false} />);
+    expect(screen.getByText('23.8').closest('[data-age]')).toHaveAttribute('data-age', 'live');
+    expect(screen.getByText(/^live · 20 s$/)).toBeInTheDocument();
+
+    // Twelve minutes on with nothing new to draw, the app's own constant calls
+    // that reading offline, so the figure dims and the pill stops saying live.
+    draw(<SpaceCard card={answered} people={people} now={NOW.plus({ minutes: 12 })} compact={false} />);
+    const frozen = screen.getAllByText('23.8').at(-1)!.closest('[data-age]')!;
+    expect(frozen).toHaveAttribute('data-age', 'offline');
+    expect(screen.getByText(/^no reading · 12 min$/)).toBeInTheDocument();
+    expect(screen.queryByText(/^live · 12 min$/)).not.toBeInTheDocument();
+  });
+
   it('ages the newest reading and leaves the word "offline" to the device itself', () => {
     // The two are different instants - a device is heard on every status, and
     // its newest stored sample is something else again - so the same word for
@@ -403,9 +421,20 @@ describe('what needs a person', () => {
 
 describe('liveness', () => {
   it('is the best of the values, offline for a device that has said nothing, and none without a device', () => {
-    expect(livenessOf(card({}))).toBe('live');
-    expect(livenessOf(card({ values: [{ metric: 'temperature', value: 1, measuredAt: at(300), state: 'stale' }] }))).toBe('stale');
-    expect(livenessOf(card({ values: [] }))).toBe('offline');
-    expect(livenessOf(card({ deviceIds: [], values: [] }))).toBe('none');
+    expect(livenessOf(card({}), NOW)).toBe('live');
+    expect(livenessOf(card({ values: [{ metric: 'temperature', value: 1, measuredAt: at(300), state: 'stale' }] }), NOW)).toBe('stale');
+    expect(livenessOf(card({ values: [] }), NOW)).toBe('offline');
+    expect(livenessOf(card({ deviceIds: [], values: [] }), NOW)).toBe('none');
+  });
+
+  // The dot is a card's one word about whether the place is alive, so it is
+  // read at the moment somebody is looking rather than at the moment the home
+  // last managed to ask.
+  it('falls with the values when the card has gone on being drawn without a new answer', () => {
+    const answered = card({ values: [{ metric: 'temperature', value: 1, measuredAt: at(20), state: 'live' }] });
+
+    expect(livenessOf(answered, NOW)).toBe('live');
+    expect(livenessOf(answered, NOW.plus({ minutes: 4 }))).toBe('stale');
+    expect(livenessOf(answered, NOW.plus({ minutes: 12 }))).toBe('offline');
   });
 });

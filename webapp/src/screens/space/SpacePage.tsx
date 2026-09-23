@@ -89,7 +89,7 @@ function SpaceScreen({ spaceId, tab, sub }: { spaceId: string; tab: SpaceTab; su
           <Icon size={18} strokeWidth={1.75} aria-hidden />
           {current.name}
         </h1>
-        <LivenessPill liveness={livenessOf(current)} measuredAt={measuredAtOf(current.values)} now={now} />
+        <LivenessPill liveness={livenessOf(current, now)} measuredAt={measuredAtOf(current.values)} now={now} />
       </header>
       <RefreshFailed failedAt={failedAt} now={now} />
       <Tabs items={tabs} label={t('space.tabsLabel')} />

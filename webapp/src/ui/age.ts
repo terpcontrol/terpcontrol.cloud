@@ -4,10 +4,19 @@ import { VALUE_AGE } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { serverNow } from '@/api/clock';
 
 /**
- * Every value on a screen carries its age. Whether it is live, stale or offline
- * is the server's answer - it has the clock and the one constant - so nothing
- * here decides that; this only puts the age into words and says how far the
- * value is dimmed.
+ * Every value on a screen carries its age: this puts that age into words, says
+ * how far the value is dimmed, and re-judges the verdict that came with it
+ * against the clock it is still being drawn under.
+ *
+ * Whether a value is live, stale or offline is the server's answer on the
+ * normal path - it has the clock and the one constant, and it is the only side
+ * that decides anything a device or another client is told. But a screen goes
+ * on drawing the answer it last got, and a refresh that fails leaves it drawing
+ * that answer for as long as the reader looks: a verdict of "live" then outlives
+ * the reading it was computed from and asserts the opposite of `VALUE_AGE`. So
+ * the verdict is recomputed here from the same shared constant, exactly as
+ * `deviceLiveness` already does for hardware, and never overrules the server in
+ * the kind direction - the answer can only be aged further, never freshened.
  *
  * The instants being aged are the server's, so the "now" they are measured
  * against is the server's too: `useNow` hands it to a screen on a beat, and the
@@ -46,7 +55,41 @@ export const spanLabel = (seconds: number): string => {
  */
 export const ageAttribute = (state: ValueState): { 'data-age': ValueState } => ({ 'data-age': state });
 
-export const isStale = (value: Pick<MetricValue, 'state'>): boolean => value.state !== 'live';
+const RANK: Record<ValueState, number> = { live: 0, stale: 1, offline: 2 };
+
+/**
+ * The arithmetic the server does in `valueStateAt`, said once here in the
+ * client's own terms, so that a screen judging a reading it is still drawing
+ * uses the shared seconds and not a second copy of them.
+ */
+const stateAt = (measuredAt: string | null, now: DateTime): ValueState => {
+  if (!measuredAt) return 'offline';
+  const seconds = (now.toMillis() - DateTime.fromISO(measuredAt).toMillis()) / 1000;
+  if (seconds < VALUE_AGE.liveSeconds) return 'live';
+  return seconds < VALUE_AGE.staleSeconds ? 'stale' : 'offline';
+};
+
+/**
+ * How old a value is *now*, which is what a screen draws it by.
+ *
+ * The state the answer carries was true when the answer was made. A card that
+ * cannot refresh - the network is gone, the server is restarting - keeps that
+ * state while its age counts on beside it, so a reading the app's own constant
+ * calls offline goes on wearing the word "live" at full brightness. The reader
+ * is told the age three times over and the badge contradicts all three.
+ *
+ * So the verdict is the older of the two: the server's, which knows things the
+ * client does not, and the clock's. `serverNow` is never earlier than the
+ * instant the answer was stamped, so the recomputation can only agree with the
+ * server or age the value further; taking the worse of the pair is what makes
+ * that a guarantee rather than an assumption about clock offset.
+ */
+export const valueAge = (value: Pick<MetricValue, 'state' | 'measuredAt'>, now: DateTime = serverNow()): ValueState => {
+  const drawn = stateAt(value.measuredAt, now);
+  return RANK[drawn] > RANK[value.state] ? drawn : value.state;
+};
+
+export const isStale = (value: Pick<MetricValue, 'state' | 'measuredAt'>, now: DateTime = serverNow()): boolean => valueAge(value, now) !== 'live';
 
 /**
  * How alive a device is, from the last thing it said.

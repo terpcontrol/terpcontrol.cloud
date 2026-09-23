@@ -4,9 +4,12 @@ import { VALUE_AGE } from '@fg2/shared-types/v1-schemas';
 /**
  * How old a value is, decided in one place from the shared constant and the
  * server's clock. Every answer carries the verdict rather than the arithmetic,
- * so no client and no other module works it out again - and a value is dimmed
- * by its state, never hidden, which is why the instant stays in the answer when
- * the device has been quiet for days.
+ * so no other module here works it out again, and nothing a client sends back
+ * is a state. A screen does re-read the constant to age a value it is still
+ * drawing after this answer has gone stale in its hands - that is the same
+ * seconds applied to the same instant, not a second verdict - and a value is
+ * dimmed by its state, never hidden, which is why the instant stays in the
+ * answer when the device has been quiet for days.
  *
  * A value from the future is `live`: a device's clock running ahead is not a
  * reason to call the reading it just sent stale.

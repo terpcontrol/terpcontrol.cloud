@@ -1,10 +1,13 @@
+import type { DateTime } from 'luxon';
 import type { CardValue, HomeSpaceCard, Severity, ValueState } from '@fg2/shared-types/v1';
+import { valueAge } from '@/ui/age';
 
 /**
  * What the home decides about a card before it is drawn: how alive it is, how
  * much it needs a person, and how it should be ordered among the others. The
- * server has already decided the age of every value; this only reads those
- * verdicts off the card.
+ * server decides the age of every value when it answers; a card is drawn for as
+ * long as the reader keeps it open, so each verdict is taken through `valueAge`
+ * against the moment it is being read at rather than off the card unchanged.
  */
 
 /** A card's liveness: `none` is a place with nothing measuring in it, which shows no dot at all. */
@@ -21,10 +24,13 @@ const RANK: Record<ValueState, number> = { live: 0, stale: 1, offline: 2 };
  * of what is known: some means something is reporting, none means there is
  * nothing to show a dot for.
  */
-export const livenessOf = (card: { values: CardValue[]; deviceIds: string[] | null }): Liveness => {
+export const livenessOf = (card: { values: CardValue[]; deviceIds: string[] | null }, now?: DateTime): Liveness => {
   if (card.deviceIds?.length === 0) return 'none';
   if (card.values.length === 0) return card.deviceIds === null ? 'none' : 'offline';
-  return card.values.reduce<ValueState>((best, value) => (RANK[value.state] < RANK[best] ? value.state : best), 'offline');
+  return card.values.reduce<ValueState>((best, value) => {
+    const state = valueAge(value, now);
+    return RANK[state] < RANK[best] ? state : best;
+  }, 'offline');
 };
 
 /** The newest instant on the card, which is what its age reads from. */
