@@ -2,6 +2,7 @@ import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, HarvestResult, Plant } from '@fg2/shared-types/v1';
+import { useUpdateGrow } from '@/api/grows';
 import { useHarvest } from '@/api/lifecycle';
 import { Sheet } from '@/log/Sheet';
 import { instantOf } from '@/ui/age';
@@ -26,6 +27,16 @@ import styles from './Lifecycle.module.css';
  * than the day it was typed in. That is the one thing here that cannot be taken
  * back with another tap, so the sheet says it in the note and again on the
  * button before either is pressed.
+ *
+ * A grow whose record carries no plants is the third case and not the second.
+ * "Every plant has already come down" is drawn from an empty list of standing
+ * plants, and a migrated grow has an empty list because it never had plants at
+ * all - so a grow in its fourth week of flower was being told its harvest was
+ * over. It is also the one sheet that can end a grow, because the server ends
+ * one when its last plant is cut, so saying the false thing here left those
+ * grows with no way to be finished anywhere in the app. Such a grow therefore
+ * says what its Plants tab says, and is offered the end itself: a date and the
+ * grow's `endedAt`, which is what a harvest would have written anyway.
  */
 /** Which plants the sheet opens on, for a caller that is already about one of them; the grow page names none and the scope is the grow's. */
 export function HarvestSheet({
@@ -66,7 +77,9 @@ export function HarvestSheet({
   return (
     <Sheet title={t('grow.lifecycle.harvest.title', { name: grow.name })} onClose={onClose}>
       <div className={styles.body}>
-        {standing.length === 0 ? (
+        {plants.length === 0 ? (
+          <NothingPlanted grow={grow} onClose={onClose} />
+        ) : standing.length === 0 ? (
           <p className={ui.note}>{t('grow.lifecycle.harvest.nothingStanding')}</p>
         ) : (
           <Block
@@ -165,6 +178,51 @@ export function HarvestSheet({
 }
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+/**
+ * The sheet over a grow whose record holds no plants: everything brought over
+ * from the old app, which kept no plant list, and anything started without one.
+ *
+ * There is nothing to cut down and nothing to weigh, so the sheet offers the
+ * only thing that is left of a harvest for such a grow - the day it came down.
+ * That goes through the grow itself rather than through a harvest, because the
+ * server refuses a harvest of nothing and would only answer 409; `endedAt` is
+ * the same field the last plant's harvest would have set, and the day counter
+ * stops on it either way.
+ *
+ * A grow that has already been ended is told when, rather than offered the
+ * button a second time. Nothing here can take an end back, which is why the
+ * date is asked for before it is written rather than corrected afterwards.
+ */
+function NothingPlanted({ grow, onClose }: { grow: GrowListItem; onClose: () => void }) {
+  const { t } = useTranslation();
+  const update = useUpdateGrow(grow.id);
+  const [at, setAt] = useState(() => new Date());
+
+  return (
+    <>
+      <p className={ui.note}>{t('grow.lifecycle.harvest.noPlantsRecorded')}</p>
+
+      {grow.endedAt !== null ? (
+        <p className={ui.note}>{t('grow.lifecycle.harvest.alreadyEnded', { date: DateTime.fromISO(grow.endedAt).toFormat('d LLL yyyy') })}</p>
+      ) : (
+        <Block label={t('grow.lifecycle.harvest.endInstead')}>
+          <WhenField label={t('grow.lifecycle.when')} at={at} onChange={setAt} />
+          <p className={ui.note}>{t('grow.lifecycle.harvest.endNote')}</p>
+          <Refused error={update.error} />
+          <button
+            type="button"
+            className={`${ui.button} ${ui.primary} ${styles.submit}`}
+            disabled={update.isPending}
+            onClick={() => update.mutate({ endedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: () => onClose() })}
+          >
+            {update.isPending ? t('grow.lifecycle.saving') : t('grow.lifecycle.harvest.endTheGrow')}
+          </button>
+        </Block>
+      )}
+    </>
+  );
+}
 
 function Weight({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (

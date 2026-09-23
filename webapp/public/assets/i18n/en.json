@@ -2089,6 +2089,11 @@
       "harvest": {
         "title": "Harvest · {{name}}",
         "nothingStanding": "Every plant of this grow has already come down.",
+        "noPlantsRecorded": "No plants are recorded in this grow, so there is nothing here to cut down. A grow brought over from the old app was never written down plant by plant.",
+        "alreadyEnded": "It ended on {{date}}.",
+        "endInstead": "The day it came down",
+        "endNote": "Nothing is cut down and no weight is written: this records the day the grow came down, and its day counter stops there.",
+        "endTheGrow": "End the grow",
         "whatComesDown": "What comes down",
         "standing_one": "{{count}} still standing",
         "standing_other": "{{count}} still standing",

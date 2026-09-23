@@ -2085,6 +2085,11 @@
       "harvest": {
         "title": "Ernte · {{name}}",
         "nothingStanding": "Alle Pflanzen dieses Grows sind bereits geerntet.",
+        "noPlantsRecorded": "In diesem Grow sind keine Pflanzen erfasst, hier lässt sich also nichts ernten. Ein aus der alten App übernommener Grow wurde nie Pflanze für Pflanze aufgeschrieben.",
+        "alreadyEnded": "Er ist am {{date}} beendet worden.",
+        "endInstead": "Der Tag, an dem er herunterkam",
+        "endNote": "Es wird nichts geerntet und kein Gewicht geschrieben: Festgehalten wird der Tag, an dem der Grow herunterkam, und sein Tageszähler bleibt dort stehen.",
+        "endTheGrow": "Grow beenden",
         "whatComesDown": "Was geerntet wird",
         "standing_one": "{{count}} steht noch",
         "standing_other": "{{count}} stehen noch",

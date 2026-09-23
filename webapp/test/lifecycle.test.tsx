@@ -1,13 +1,13 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { GrowListItem, Plant, SpaceOverview } from '@fg2/shared-types/v1';
 import { HarvestSheet } from '@/screens/grow/HarvestSheet';
 import { correctionEffect, withdrawalEffect } from '@/screens/grow/phase-effect';
@@ -225,6 +225,58 @@ describe('the harvest sheet', () => {
     draw(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
 
     expect(screen.getByText('grams, as a total').className).toMatch(/mono/);
+  });
+});
+
+/**
+ * The sheet over a grow that holds no plant list at all, which is every grow
+ * brought over from the old app. An empty list of standing plants used to be
+ * read as "they have all come down", so a grow in its fourth week of flower was
+ * told its harvest was over - and because ending a grow is what the last
+ * harvest does, that sentence was also the end of every route to finishing it.
+ */
+describe('the harvest sheet over a grow whose record carries no plants', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('does not tell a running grow that every plant has already come down', () => {
+    draw(<HarvestSheet grow={grow} plants={[]} onClose={() => {}} />);
+
+    expect(screen.queryByText('Every plant of this grow has already come down.')).not.toBeInTheDocument();
+    expect(screen.getByText(/No plants are recorded in this grow/)).toBeInTheDocument();
+  });
+
+  it('offers the end of the grow itself, and writes it on the grow rather than as a harvest of nothing', async () => {
+    const asked: { method: string; path: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        asked.push({
+          method: init?.method ?? 'GET',
+          path: new URL(String(input), 'http://localhost').pathname,
+          body: init?.body === undefined ? null : JSON.parse(String(init.body)),
+        });
+        return new Response(JSON.stringify(grow), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }),
+    );
+
+    draw(<HarvestSheet grow={grow} plants={[]} onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'End the grow' }));
+
+    // The server refuses a harvest with nothing in it, so this goes to the grow
+    // itself - the same `endedAt` the last plant's harvest would have written.
+    await waitFor(() => expect(asked).toHaveLength(1));
+    expect(asked[0].method).toBe('PATCH');
+    expect(asked[0].path).toBe('/v1/grows/grow-1');
+    expect(Object.keys(asked[0].body as object)).toEqual(['endedAt']);
+  });
+
+  it('says when a grow that is already over ended, rather than offering to end it a second time', () => {
+    draw(<HarvestSheet grow={{ ...grow, endedAt: at(2) }} plants={[]} onClose={() => {}} />);
+
+    expect(screen.getByText('It ended on 16 Sep 2026.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'End the grow' })).not.toBeInTheDocument();
   });
 });
 
