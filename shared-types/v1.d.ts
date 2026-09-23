@@ -3098,6 +3098,9 @@ export interface FollowedGrowCard {
   dayNumber: number | null;
   stage: GrowthStage | null;
   coverMediaId: string | null;
+  /**
+   * When the diary last moved: the newest line in it, or the day the grow started where nobody has written one yet.
+   */
   updatedAt: string;
 }
 

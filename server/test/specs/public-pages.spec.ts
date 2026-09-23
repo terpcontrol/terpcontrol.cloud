@@ -253,6 +253,28 @@ describe('a public profile', () => {
     const card = await anonymous().get(`/v1/public/users/${handle}/card.png`).expect(200);
     expect(card.headers['content-type']).toBe('image/png');
   });
+
+  it('dates a card by the newest line in its diary, and opens on the diary with the newest one', async () => {
+    const quiet = (await author.client.post('/v1/grows').send({ name: 'Quiet', type: 'autoflower', plants: [] }).expect(201)).body;
+    await author.client.patch(`/v1/grows/${quiet.id}`).send({ visibility: 'public' }).expect(200);
+
+    const shown = (await anonymous().get(`/v1/public/users/${handle}`).expect(200)).body.grows.find(
+      (card: { name: string }) => card.name === 'Shown',
+    );
+    const written = (
+      await author.client
+        .post('/v1/entries')
+        .send({ kind: 'note', growId: shown.growId, text: 'Topped', values: { kind: 'note' } })
+        .expect(201)
+    ).body;
+
+    const page = await anonymous().get(`/v1/public/users/${handle}`).expect(200);
+
+    // The line, not the moment either grow's row was last saved - both were
+    // written after it, and the quiet one was written last.
+    expect(page.body.grows[0]).toMatchObject({ name: 'Shown', updatedAt: written.occurredAt });
+    expect(page.body.grows.map((card: { name: string }) => card.name)).toEqual(['Shown', 'Quiet']);
+  });
 });
 
 describe('opening a share link', () => {

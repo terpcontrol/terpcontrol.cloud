@@ -30,6 +30,7 @@ import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
+import { diaryMovedAt } from '../diary/diary-entries';
 import { NOTHING_HIDDEN, Redaction, redactionOf, serialisePublicCard, summaryOf } from '../grow/grow-serialiser';
 import { mergeLive } from '../space/space-live';
 import { SpaceLiveService } from '../space/space-live.service';
@@ -265,9 +266,13 @@ export class HomeService {
     if (follows.length === 0) return [];
 
     const grows = await this.grows.find({ id: { $in: follows.map(follow => follow.growId) }, visibility: 'public' }).lean<GrowDocument[]>();
-    const [plants, owners] = await Promise.all([
+    const [plants, owners, moved] = await Promise.all([
       this.plants.find({ growId: { $in: grows.map(grow => grow.id) } }).lean<PlantDocument[]>(),
       this.users.find({ id: { $in: grows.map(grow => grow.ownerId) } }, { id: 1, handle: 1, privacy: 1 }).lean<StoredUser[]>(),
+      diaryMovedAt(
+        this.entries,
+        grows.map(grow => grow.id),
+      ),
     ]);
 
     return follows.flatMap(follow => {
@@ -281,6 +286,7 @@ export class HomeService {
           plants.filter(plant => plant.growId === grow.id),
           owner.handle,
           redactionOf(true, owner.privacy),
+          moved.get(grow.id) ?? null,
           now,
         ),
       ];

@@ -1,3 +1,4 @@
+import { Model } from 'mongoose';
 import type { Entry, Person } from '@fg2/shared-types/v1';
 import { entryKind } from '@fg2/shared-types/v1-schemas';
 import { serialiseEntry } from '@common/v1/entries';
@@ -67,6 +68,28 @@ const valuesOf = (values: Entry['values'], hide: Redaction): Entry['values'] => 
  * or a chapter is about.
  */
 export const DIARY_KINDS = entryKind.options.filter(kind => kind !== 'system' && kind !== 'plan');
+
+/**
+ * When each of these grows was last written in, by its id.
+ *
+ * What a reader of a diary means by "updated" is that there is something new to
+ * read, which is a line somebody wrote - not the moment the grow's own row was
+ * last saved. The two are far apart: a diary write never touches the grow
+ * document, so its `updatedAt` is whatever last changed the grow itself, and
+ * after a migration that is the migration. A device's own lines are left out
+ * for the same reason: an alarm every ten minutes would make every silent grow
+ * look freshly written.
+ */
+export const diaryMovedAt = async (entries: Model<EntryDocument>, growIds: string[]): Promise<Map<string, Date>> => {
+  if (growIds.length === 0) return new Map();
+
+  const rows = await entries.aggregate<{ _id: string; at: Date }>([
+    { $match: { growId: { $in: growIds }, source: 'human', kind: { $in: DIARY_KINDS } } },
+    { $group: { _id: '$growId', at: { $max: '$occurredAt' } } },
+  ]);
+
+  return new Map(rows.map(row => [row._id, row.at]));
+};
 
 /** The kinds that carry readings of the grow's own measurements. */
 export const READING_KINDS = ['water', 'feed', 'measurement'] as const;

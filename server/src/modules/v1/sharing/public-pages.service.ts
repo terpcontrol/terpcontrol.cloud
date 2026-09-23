@@ -8,12 +8,14 @@ import { clampRange } from '@common/v1/range';
 import { notFound } from '@common/v1/problem';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
+import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { MediaService } from '../camera/media.service';
+import { diaryMovedAt } from '../diary/diary-entries';
 import { spacesDuring } from '../diary/grow-places';
 import { GrowReportService, harvestOf } from '../diary/report.service';
 import { GrowWeeksService } from '../diary/weeks.service';
@@ -50,6 +52,7 @@ const WEEKS_ON_A_PUBLIC_PAGE = 26;
 export class PublicPagesService {
   constructor(
     @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
+    @InjectModel(MODEL_V1.entry) private readonly entries: Model<EntryDocument>,
     @InjectModel(MODEL_V1.grow) private readonly growRows: Model<GrowDocument>,
     @InjectModel(MODEL_V1.plant) private readonly plants: Model<PlantDocument>,
     @InjectModel(MODEL_V1.camera) private readonly cameras: Model<CameraDocument>,
@@ -156,22 +159,39 @@ export class PublicPagesService {
     return { author: authorOf(author), grows: await this.cardsOf(author, grows, now) };
   }
 
-  /** The same card the home screen draws for a grow somebody follows: a public grow reads one way wherever it is listed. */
+  /**
+   * The same card the home screen draws for a grow somebody follows: a public
+   * grow reads one way wherever it is listed.
+   *
+   * The cards are ordered by the same figure they are dated with, rather than by
+   * the order the grows were read in: a profile opens on the diary with the
+   * newest line in it, and a page whose top card is dated older than the one
+   * below it would be a list sorted by something it does not show.
+   */
   private async cardsOf(author: StoredUser, grows: GrowDocument[], now: Date): Promise<FollowedGrowCard[]> {
     if (grows.length === 0) return [];
 
-    const plants = await this.plants.find({ growId: { $in: grows.map(grow => grow.id) } }).lean<PlantDocument[]>();
+    const [plants, moved] = await Promise.all([
+      this.plants.find({ growId: { $in: grows.map(grow => grow.id) } }).lean<PlantDocument[]>(),
+      diaryMovedAt(
+        this.entries,
+        grows.map(grow => grow.id),
+      ),
+    ]);
     const hide = redactionOf(true, author.privacy);
 
-    return grows.map(grow =>
-      serialisePublicCard(
-        grow,
-        plants.filter(plant => plant.growId === grow.id),
-        author.handle,
-        hide,
-        now,
-      ),
-    );
+    return grows
+      .map(grow =>
+        serialisePublicCard(
+          grow,
+          plants.filter(plant => plant.growId === grow.id),
+          author.handle,
+          hide,
+          moved.get(grow.id) ?? null,
+          now,
+        ),
+      )
+      .sort((one, other) => other.updatedAt.localeCompare(one.updatedAt));
   }
 
   // -------------------------------------------------------------------------

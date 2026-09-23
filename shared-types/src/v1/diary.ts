@@ -1087,7 +1087,9 @@ export const followedGrowCard = named(
     dayNumber: z.number().int().nullable(),
     stage: growthStage.nullable(),
     coverMediaId: id().nullable(),
-    updatedAt: instant(),
+    updatedAt: instant().describe(
+      'When the diary last moved: the newest line in it, or the day the grow started where nobody has written one yet.',
+    ),
   }),
 );
 

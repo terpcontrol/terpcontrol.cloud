@@ -194,12 +194,20 @@ export const summaryOf = (grow: GrowDocument, plants: PlantDocument[], hide: Red
  * follows on the home screen, and among the diaries on its author's public page.
  * One card either way, because a grow that has been made public reads the same
  * wherever it is listed - and the handle is the only name its author ever has.
+ *
+ * `movedAt` is when its diary last had something written in it, which is what a
+ * card saying "3 d ago" is read as. The grow's own `updatedAt` is not that: it
+ * is the row's write time, which a diary entry never touches and a migration
+ * touches for every grow at once, so a card drawn from it says that sixteen
+ * diaries were all written the same minute. A grow nobody has written in yet is
+ * dated from the day it started rather than from whenever its row was saved.
  */
 export const serialisePublicCard = (
   grow: GrowDocument,
   plants: PlantDocument[],
   handle: string,
   hide: Redaction,
+  movedAt: Date | null,
   now: Date = new Date(),
 ): FollowedGrowCard => {
   const summary = summaryOf(grow, plants, hide, now);
@@ -212,7 +220,7 @@ export const serialisePublicCard = (
     dayNumber: summary.dayNumber,
     stage: summary.stage,
     coverMediaId: grow.coverMediaId,
-    updatedAt: grow.updatedAt.toISOString(),
+    updatedAt: (movedAt ?? grow.startedAt).toISOString(),
   };
 };
 

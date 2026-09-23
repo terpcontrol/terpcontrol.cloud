@@ -491,6 +491,28 @@ describe('following', () => {
     ]);
   });
 
+  it('dates the card by the newest line in the diary and not by the moment the grow´s row was written', async () => {
+    const written = new Date('2026-06-05T09:30:00.000Z');
+    await db.entries.create([
+      entry({ id: 'entry-public-note', growId: PUBLIC_GROW, authorId: STRANGER, occurredAt: written, text: 'Topped' }),
+      // A machine's own line is not somebody writing in the diary, and an alarm
+      // every ten minutes would make every silent grow look freshly written.
+      entry({ id: 'entry-public-alarm', growId: PUBLIC_GROW, kind: 'alarm', source: 'device', authorId: null, occurredAt: NOW }),
+    ]);
+    // What the row's own write time says, which is what the card used to draw.
+    await db.grows.updateOne({ id: PUBLIC_GROW }, { $set: { name: 'Autoflower run' } });
+
+    const [card] = (await home.read(session(OWNER), NOW)).followedGrows;
+
+    expect(card.updatedAt).toBe(written.toISOString());
+  });
+
+  it('dates a diary nobody has written in yet from the day the grow started', async () => {
+    const [card] = (await home.read(session(OWNER), NOW)).followedGrows;
+
+    expect(card.updatedAt).toBe(STARTED_AT.toISOString());
+  });
+
   it('drops a grow that has been made private since', async () => {
     await db.grows.updateOne({ id: PUBLIC_GROW }, { $set: { visibility: 'private' } });
 

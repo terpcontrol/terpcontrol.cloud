@@ -821,7 +821,7 @@ exports.followedGrowCard = (0, common_js_1.named)('FollowedGrowCard', zod_1.z.ob
     dayNumber: zod_1.z.number().int().nullable(),
     stage: common_js_1.growthStage.nullable(),
     coverMediaId: (0, common_js_1.id)().nullable(),
-    updatedAt: (0, common_js_1.instant)(),
+    updatedAt: (0, common_js_1.instant)().describe('When the diary last moved: the newest line in it, or the day the grow started where nobody has written one yet.'),
 }));
 exports.homeAnswer = (0, common_js_1.named)('HomeAnswer', zod_1.z.object({
     spaces: zod_1.z.array(exports.homeSpaceCard),
