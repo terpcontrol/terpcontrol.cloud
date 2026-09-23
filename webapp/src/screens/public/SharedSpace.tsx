@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CardValue, Metric, OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, type Picture } from '@/api/public';
-import { ageAttribute, ageLabel } from '@/ui/age';
+import { ageAttribute, ageLabel, valueAge } from '@/ui/age';
 import { EntryRow } from '@/ui/EntryRow';
 import { readingNamesOf } from '@/ui/entries';
 import ui from '@/ui/ui.module.css';
@@ -27,7 +27,7 @@ const TILES: Metric[] = ['temperature', 'humidity', 'vpd', 'co2'];
  */
 export function SharedSpace({ space, picture, now, banner }: { space: SpaceOverview; picture: Picture; now: DateTime; banner?: ReactNode }) {
   const { t } = useTranslation();
-  const liveness = livenessOf(space);
+  const liveness = livenessOf(space, now);
   const shown = TILES.flatMap(metric => space.values.filter(value => value.metric === metric));
 
   return (
@@ -49,7 +49,12 @@ export function SharedSpace({ space, picture, now, banner }: { space: SpaceOverv
       ) : (
         <div className={styles.tiles}>
           {shown.map(value => (
-            <Tile key={value.metric} value={value} setpoint={space.setpoints.find(row => row.metric === value.metric)?.value ?? null} />
+            <Tile
+              key={value.metric}
+              value={value}
+              setpoint={space.setpoints.find(row => row.metric === value.metric)?.value ?? null}
+              now={now}
+            />
           ))}
         </div>
       )}
@@ -112,12 +117,22 @@ export function SharedSpace({ space, picture, now, banner }: { space: SpaceOverv
   );
 }
 
-/** One reading, as large as it is on the owner's own page, dimmed by the age the server gave it and never hidden. */
-function Tile({ value, setpoint }: { value: CardValue; setpoint: number | null }) {
+/**
+ * One reading, as large as it is on the owner's own page, dimmed by the age it
+ * has at the moment it is drawn and never hidden.
+ *
+ * A shared page is the one screen in the app that is left open: it is a link
+ * somebody keeps in a tab, and it does not sign anybody out when the readings
+ * stop arriving. The state the answer carried was the truth when the answer was
+ * made, so a tile drawing it unjudged kept a frozen figure at full brightness
+ * for as long as the tab stayed open, under a pill that had already gone grey -
+ * the pill judges again because `livenessOf` does, and these tiles did not.
+ */
+function Tile({ value, setpoint, now }: { value: CardValue; setpoint: number | null; now: DateTime }) {
   const { t } = useTranslation();
 
   return (
-    <div className={`${ui.card} ${styles.tile}`} {...ageAttribute(value.state)}>
+    <div className={`${ui.card} ${styles.tile}`} {...ageAttribute(valueAge(value, now))}>
       <div className={styles.tileFigure}>
         <span className="figure">{value.value === null ? t('home.card.noReading') : figure(value.value, value.metric)}</span>
         <span className={`mono ${styles.tileUnit}`}>{UNIT[value.metric] ?? value.metric}</span>

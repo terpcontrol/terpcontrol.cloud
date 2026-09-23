@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import type { Entry, GrowWeekCard, PublicGrowPage } from '@fg2/shared-types/v1';
+import type { Entry, GrowWeekCard, PublicGrowPage, SpaceOverview } from '@fg2/shared-types/v1';
 import { publicPicture } from '@/api/public';
 import { session } from '@/api/session';
 import { Diary } from '@/screens/public/Diary';
@@ -17,6 +17,7 @@ import { FollowButton } from '@/screens/public/FollowButton';
 import { PublicGrowRoute } from '@/screens/public/PublicGrowRoute';
 import { PublicProfileRoute } from '@/screens/public/PublicProfileRoute';
 import { SharedRoute } from '@/screens/public/SharedRoute';
+import { SharedSpace } from '@/screens/public/SharedSpace';
 import { windowIsCurrent } from '@/screens/public/window';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 
@@ -426,6 +427,58 @@ describe('how old a page says it is', () => {
     draw(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current={false} ended={false} asOf={null} />);
 
     expect(screen.getByText(/day 29–35/)).not.toHaveTextContent('as of');
+  });
+});
+
+/**
+ * A tent behind a link is the page most likely to be left open in a tab: it
+ * signs nobody in, refreshes nothing on its own and outlives the answer it was
+ * drawn from, so what it says about the age of a reading has to be judged each
+ * time it is drawn rather than taken from the answer once.
+ */
+describe('a tent behind a link', () => {
+  const sharedSpace = (measuredAt: string): SpaceOverview => ({
+    spaceId: 'space-1',
+    name: 'Tent 1',
+    kind: 'tent',
+    roomId: null,
+    deviceIds: null,
+    // The server called it live when it answered, which is what a page held
+    // open for an hour goes on carrying.
+    values: [{ metric: 'temperature', value: 25.1, measuredAt, state: 'live' }],
+    setpoints: [{ metric: 'temperature', value: 25, band: 1 }],
+    targets: null,
+    verdict: {
+      deviceId: null,
+      startsAt: at(1),
+      endsAt: at(0),
+      forSeconds: 86_400,
+      stepSeconds: 120,
+      rating: null,
+      inBandFraction: null,
+      metrics: [],
+      actuators: [],
+      trend: null,
+    },
+    grows: [],
+    cameras: [],
+    entries: [],
+    readingNames: [],
+    dueTasks: [],
+    openAlerts: [],
+    people: [],
+  });
+
+  it('dims a reading that has stopped moving, however fresh the answer said it was', () => {
+    const { unmount } = draw(<SharedSpace space={sharedSpace(NOW.minus({ minutes: 1 }).toISO()!)} picture={publicPicture('spring-run')} now={NOW} />);
+
+    expect(screen.getByText('25.1').closest('[data-age]')).toHaveAttribute('data-age', 'live');
+    unmount();
+
+    draw(<SharedSpace space={sharedSpace(at(4))} picture={publicPicture('spring-run')} now={NOW} />);
+
+    // The pill above the tiles already aged it; the tiles under it kept saying live.
+    expect(screen.getByText('25.1').closest('[data-age]')).toHaveAttribute('data-age', 'offline');
   });
 });
 
