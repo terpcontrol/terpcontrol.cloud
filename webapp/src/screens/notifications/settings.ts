@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 import type { NotificationCategory, NotificationChannel, NotificationRouting, QuietHours } from '@fg2/shared-types/v1';
-import { zoned } from '@/ui/zone';
+import { CLOCK, DATED_CLOCK, nowThere, zoned } from '@/ui/zone';
 
 /**
  * The arithmetic of the notification settings, kept apart from the screen so
@@ -78,10 +78,16 @@ export const isMuted = (mutedUntil: string | null, now: DateTime): boolean => mu
  * A clock time for a line, or the date with it when the instant is not today's
  * - both in the account's own zone, which is the zone the window above them is
  * read in and the only one in which "until 07:00" means what it says.
+ *
+ * The day is kept and only the shape changed: a mute started at half past
+ * eleven at night runs an hour and ends tomorrow, which as a bare clock time
+ * would read as a moment already past. The hours are the app's own 24-hour
+ * ones, not the locale's, so this line and the quiet-hours window beside it
+ * are written alike - they were "11:38 AM" and "23:00-07:00" on one screen.
  */
 export const clockLabel = (instant: string, now: DateTime, zone: string | null): string => {
   const at = zoned(instant, zone);
-  const here = zone ? now.setZone(zone) : now;
+  const here = nowThere(now, zone);
 
-  return at.hasSame(here, 'day') ? at.toLocaleString(DateTime.TIME_SIMPLE) : at.toLocaleString(DateTime.DATETIME_SHORT);
+  return at.hasSame(here, 'day') ? at.toFormat(CLOCK) : at.toFormat(DATED_CLOCK);
 };

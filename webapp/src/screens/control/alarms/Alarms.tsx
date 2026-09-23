@@ -10,7 +10,7 @@ import { durationLabel } from '@/screens/devices/sockets';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { zoneOf, zoned } from '@/ui/zone';
+import { clock, zoneOf } from '@/ui/zone';
 import { RuleSheet } from './RuleSheet';
 import { boundLabel, channelsLabel, groupRules, missingSensor, routedChannels, ruleTitle, type Translate, watchable } from './rules';
 import styles from './Alarms.module.css';
@@ -240,7 +240,7 @@ function RuleCard({ rule, device, me, mayManage, highlighted, busy, now, onOpen,
       <span className={`mono ${styles.meta}`}>{metaLine(t, rule, me)}</span>
       {silenced ? (
         <span className={`mono ${styles.meta}`}>
-          {t('alarms.meta.silencedUntil', { time: zoned(rule.silencedUntil!, zoneOf(me)).toLocaleString(DateTime.TIME_SIMPLE) })}
+          {t('alarms.meta.silencedUntil', { time: clock(rule.silencedUntil!, zoneOf(me)) })}
         </span>
       ) : null}
       {missing ? <span className={`mono ${styles.reason}`}>{t(`alarms.needs.${missing}`)}</span> : null}

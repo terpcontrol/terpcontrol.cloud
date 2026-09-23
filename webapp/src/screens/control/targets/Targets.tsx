@@ -1,4 +1,4 @@
-import { DateTime } from 'luxon';
+import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -11,6 +11,7 @@ import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { nowThere, CLOCK, useZone } from '@/ui/zone';
 import { TargetRow } from './TargetRow';
 import {
   draftOf,
@@ -109,6 +110,10 @@ interface Sent {
 function Panel({ device, stored, mayManage, titled }: { device: Device; stored: DeviceConfiguration; mayManage: boolean; titled: boolean }) {
   const { t } = useTranslation();
   const now = useNow();
+  // When the save went out is a clock time the grower reads against the hours
+  // on their own screens, so it is their account's - and written the app's one
+  // way, which the locale preset here was not.
+  const zone = useZone();
   const plan = useDevicePlan(device.id);
   const save = useSaveConfiguration();
   const move = usePlanTransition(device.id);
@@ -323,7 +328,7 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
 
       {sent ? (
         <p className={`mono ${styles.sent}`} role="status">
-          {t('targets.sentAt', { time: sent.at.toLocaleString(DateTime.TIME_SIMPLE) })}
+          {t('targets.sentAt', { time: nowThere(sent.at, zone).toFormat(CLOCK) })}
           <span className={styles.sentNote}>{t('targets.sentNote')}</span>
         </p>
       ) : null}

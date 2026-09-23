@@ -8,6 +8,7 @@ import { ApiError } from '@/api/problem';
 import { Refused } from '@/ui/PageState';
 import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
+import { clock, zoneOf } from '@/ui/zone';
 import { useNow } from '@/ui/useNow';
 import { forgetId, pushKey, pushSupported, rememberedId, rememberId, subscribe, usePushSubscription } from './push';
 import { ChannelCard } from './parts';
@@ -177,6 +178,10 @@ export function PushCard({ me, held }: CardProps) {
  */
 export function TelegramCard({ me, held }: CardProps) {
   const { t } = useTranslation();
+  // When the link runs out is a clock time like every other the app draws, so
+  // it is the account's hour in the account's 24-hour shape rather than the
+  // locale's, which put an "AM" on this line alone.
+  const zone = zoneOf(me);
   const { write, error } = useWriteNotifications(me);
   const link = useTelegramLink();
   const [offered, setOffered] = useState<TelegramLink | null>(null);
@@ -226,7 +231,7 @@ export function TelegramCard({ me, held }: CardProps) {
             {t('notifications.telegram.open')}
           </a>
           <span className={`mono ${ui.note}`}>
-            {t('notifications.telegram.validUntil', { time: DateTime.fromISO(offered.validUntil).toLocaleString(DateTime.TIME_SIMPLE) })}
+            {t('notifications.telegram.validUntil', { time: clock(offered.validUntil, zone) })}
           </span>
         </p>
       ) : null}

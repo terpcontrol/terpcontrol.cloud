@@ -317,7 +317,7 @@ describe('the alarm rules page', () => {
     draw();
 
     const hot = await card('Too hot');
-    expect(within(hot).getByText(`silenced until ${until.setZone('Europe/Berlin').toLocaleString(DateTime.TIME_SIMPLE)}`)).toBeInTheDocument();
+    expect(within(hot).getByText(`silenced until ${until.setZone('Europe/Berlin').toFormat('HH:mm')}`)).toBeInTheDocument();
     fireEvent.click(within(hot).getByRole('button', { name: 'unsilence' }));
 
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/alarm-rules/rule-hot/silence'));

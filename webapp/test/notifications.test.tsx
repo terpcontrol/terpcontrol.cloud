@@ -382,6 +382,30 @@ describe('the mute', () => {
     expect(lastPatch().mutedUntil).toBeNull();
   });
 
+  /**
+   * The alerts inbox said "muted until 11:38" while this screen said "11:38
+   * AM" about the same instant, because a locale preset follows the app's
+   * language and not the account's zone.
+   */
+  it('names the hour it runs to the way the rest of the app names one', async () => {
+    // Read where the account is kept, both ends of it, so that the two hours
+    // compared here are the two hours the screen compared.
+    const until = DateTime.now().plus({ hours: 2 }).setZone('Europe/Berlin');
+    const today = until.hasSame(DateTime.now().setZone('Europe/Berlin'), 'day');
+    server.me = me({ mutedUntil: until.toISO()! });
+    await drawLoaded();
+
+    expect(screen.getByRole('status')).toHaveTextContent(`Your channels are muted until ${until.toFormat(today ? 'HH:mm' : 'd MMM HH:mm')}`);
+  });
+
+  it('keeps the day on a mute that runs past midnight, which a bare hour would read as already past', async () => {
+    const until = DateTime.now().plus({ days: 1, hours: 2 });
+    server.me = me({ mutedUntil: until.toISO()! });
+    await drawLoaded();
+
+    expect(screen.getByRole('status')).toHaveTextContent(`Your channels are muted until ${until.setZone('Europe/Berlin').toFormat('d MMM HH:mm')}`);
+  });
+
   it('is not mentioned once it is over', async () => {
     server.me = me({ mutedUntil: DateTime.now().minus({ hours: 2 }).toISO()! });
     await drawLoaded();
