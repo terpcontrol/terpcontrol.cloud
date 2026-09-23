@@ -2971,7 +2971,7 @@
   "camera": {
     "never": "never",
     "lastError": "Last try failed: {{reason}}",
-    "frameAlt": "{{name}} just now",
+    "frameAlt": "{{name}} at {{time}}",
     "noFramesToday": "No picture today yet",
     "live": "live",
     "now": "now",

@@ -436,6 +436,33 @@ describe('the films and the pictures behind the first page', () => {
     expect(container.textContent).toContain('0 pictures today');
   });
 
+  it('names a picture in its alt text by the instant it was taken, not "just now"', () => {
+    // A reader who only gets the alt text was told a four-day-old picture was
+    // taken just now, under a label that said 19 Sep and a frame drawn dimmed.
+    state.frames = { items: [], partial: false };
+    state.lastStill = 'still-old';
+    const stale = render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: '2026-09-19T02:28:17.000Z' } }} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(stale.container.querySelector('img[src="/media/still-old"]')).toHaveAttribute('alt', 'Terp Cam 1 at 19 Sep 02:28');
+    stale.unmount();
+
+    // Today's frame is named by its own hour, in the same stamp the label
+    // beside it carries - which widens with the window, so the hour is what is
+    // asserted rather than the width.
+    state.lastStill = null;
+    state.frames = { items: [{ id: 'still-1', capturedAt: '2026-09-19T08:03:00.000Z' }], partial: false };
+    const alt = drawPage().container.querySelector('img[src="/media/still-1"]')!.getAttribute('alt')!;
+
+    expect(alt).toContain('Terp Cam 1 at ');
+    expect(alt).toContain('08:03');
+  });
+
   it('stamps a frame in the account´s zone rather than the browser´s', () => {
     // The camera burns the instant into the picture, so a label read in the
     // browser's zone is one the picture beside it contradicts. The account here

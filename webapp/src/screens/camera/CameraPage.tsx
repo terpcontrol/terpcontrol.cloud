@@ -15,7 +15,7 @@ import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
 import { enough, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { zoneOf } from '@/ui/zone';
+import { CLOCK, DATED_CLOCK, zonedAt, zoneOf } from '@/ui/zone';
 import { cameraFreshness } from '../devices/cameras';
 import { at, STAMPS, stampFor } from '../timeline/window';
 import { Slider } from '../timeline/CameraFrame';
@@ -28,8 +28,6 @@ import styles from './CameraPage.module.css';
 /** How many films the section rests at before somebody asks for the rest. */
 const FILMS_AT_REST = 3;
 
-/** A picture from before today says which day it is of, because the clock alone would not. */
-const DATED_STAMP = 'd MMM HH:mm';
 
 /**
  * One camera: the picture it is taking, the day behind it, the four films it
@@ -150,21 +148,27 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
           <img
             className={styles.still}
             src={mediaUrl(shown.id, THUMBNAIL_WIDTH.frame) ?? undefined}
-            alt={t('camera.frameAlt', { name: camera.name })}
+            // The same instant the label under the frame carries. A reader who
+            // gets the picture through its alt text alone was told "just now"
+            // about a still four days old, which is the one thing the frame's
+            // own dimming and dated label were there to stop it saying.
+            alt={t('camera.frameAlt', { name: camera.name, time: zonedAt(at(shown.capturedAt), zone).toFormat(STAMPS[stampFor(to - from)]) })}
           />
-        ) : older ? (
+        ) : older && camera.state.lastStillAt ? (
           <img
             className={styles.still}
             data-age="offline"
             src={mediaUrl(older, THUMBNAIL_WIDTH.frame) ?? undefined}
-            alt={t('camera.frameAlt', { name: camera.name })}
+            // Its day, not just its hour: a picture from four days ago named by
+            // the clock alone reads as this morning's.
+            alt={t('camera.frameAlt', { name: camera.name, time: zonedAt(at(camera.state.lastStillAt), zone).toFormat(DATED_CLOCK) })}
           />
         ) : (
           <p className={`mono ${styles.noFrame}`}>{frames.isPending ? t('home.waiting') : t('camera.noFramesToday')}</p>
         )}
         {shown ? (
           <span className={`mono ${styles.frameLabel}`}>
-            {inZone(at(shown.capturedAt), zone).toFormat(STAMPS[stampFor(to - from)])}
+            {zonedAt(at(shown.capturedAt), zone).toFormat(STAMPS[stampFor(to - from)])}
             {newest && shown.id === newest.id ? ` · ${t('camera.live')}` : ''}
           </span>
         ) : older && camera.state.lastStillAt ? (
@@ -173,14 +177,14 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
           // clock alone. This one names its day and says how long ago it was,
           // exactly as the tent's card says it.
           <span className={`mono ${styles.frameLabel}`} data-age="offline">
-            {inZone(at(camera.state.lastStillAt), zone).toFormat(DATED_STAMP)} · {t('devices.ago', { age: ageLabel(camera.state.lastStillAt, now) })}
+            {zonedAt(at(camera.state.lastStillAt), zone).toFormat(DATED_CLOCK)} · {t('devices.ago', { age: ageLabel(camera.state.lastStillAt, now) })}
           </span>
         ) : null}
         {mayManage ? <TestImage cameraId={camera.id} /> : null}
       </div>
 
       <div className={`${timeline.bareSlider} ${styles.transport}`}>
-        <span className={`mono ${styles.edge}`}>{inZone(from, zone).toFormat('HH:mm')}</span>
+        <span className={`mono ${styles.edge}`}>{zonedAt(from, zone).toFormat(CLOCK)}</span>
         <Slider from={from} to={to} cursor={Math.min(Math.max(time, from), to)} onScrub={setCursor} />
         <span className={`mono ${styles.edge}`}>{t('camera.now')}</span>
       </div>
@@ -341,16 +345,9 @@ const phaseStart = (grow: GrowListItem | null): string | null => grow?.phases.at
 
 /** The account's own day around an instant, as the frames read asks for one. */
 const dayOf = (now: DateTime, zone: string | null): { startsAt: string; endsAt: string } => {
-  const start = inZone(now.toMillis(), zone).startOf('day');
+  const start = zonedAt(now.toMillis(), zone).startOf('day');
 
   return { startsAt: instantOf(start), endsAt: instantOf(start.endOf('day')) };
-};
-
-/** A moment of the day read where the account is rather than where the browser is. */
-const inZone = (time: number, zone: string | null): DateTime => {
-  const at = DateTime.fromMillis(time);
-
-  return zone ? at.setZone(zone) : at;
 };
 
 /** The newest picture taken by the cursor, and the oldest there is before the first one. */
