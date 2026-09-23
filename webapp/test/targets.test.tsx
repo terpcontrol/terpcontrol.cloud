@@ -187,6 +187,29 @@ describe('the manual targets page', () => {
     expect(screen.queryByRole('link', { name: 'sockets' })).not.toBeInTheDocument();
   });
 
+  /**
+   * A controller reporting live values a tab away, whose document has simply
+   * not arrived, was told that nothing standing here states a climate and
+   * offered a second device it has no use for. Both halves were false, and the
+   * Devices tab of the same tent has always said the true one.
+   */
+  it('says a controller’s settings are still on their way rather than asking for another device', () => {
+    draw([device({ id: 'controller-1', name: null, configuration: null })]);
+
+    expect(screen.getByText(/Controller · LLER-1 has not sent its settings yet/)).toBeInTheDocument();
+    expect(screen.getByText(/It sends them when it next connects/)).toBeInTheDocument();
+    expect(screen.queryByText(/Nothing standing here states a climate/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Add a device' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+  });
+
+  it('keeps asking for a device where the only thing standing here is a plug that has sent nothing', () => {
+    draw([device({ id: 'plug-1', type: 'plug', configuration: null })]);
+
+    expect(screen.getByText(/Nothing standing here states a climate/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Add a device' })).toBeInTheDocument();
+  });
+
   it('draws the targets the controller is running, with the VPD and the light window beside them', async () => {
     await drawn();
 

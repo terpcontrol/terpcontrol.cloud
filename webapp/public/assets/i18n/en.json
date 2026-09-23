@@ -3484,6 +3484,7 @@
     "title": "Manual targets",
     "backToPlan": "‹ back to the plan",
     "nothing": "Nothing standing here states a climate, so there is nothing to set.",
+    "waiting": "{{device}} has not sent its settings yet, so there is nothing to write a climate into. It sends them when it next connects.",
     "prefill": "Prefill from a preset, then adjust anything:",
     "presets": "Presets",
     "day": "Targets · Day",

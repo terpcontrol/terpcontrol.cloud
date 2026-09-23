@@ -3480,6 +3480,7 @@
     "title": "Manuelle Zielwerte",
     "backToPlan": "‹ zurück zum Plan",
     "nothing": "Nichts, was hier steht, nennt ein Klima — es gibt also nichts einzustellen.",
+    "waiting": "{{device}} hat seine Einstellungen noch nicht geschickt; es gibt also nichts, worin ein Klima stehen könnte. Es schickt sie, sobald es sich wieder verbindet.",
     "prefill": "Mit einer Vorlage vorbelegen, dann alles anpassen:",
     "presets": "Vorlagen",
     "day": "Zielwerte · Tag",

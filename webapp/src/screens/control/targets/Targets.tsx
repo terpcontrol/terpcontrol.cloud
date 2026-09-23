@@ -12,6 +12,7 @@ import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { nowThere, CLOCK, useZone } from '@/ui/zone';
+import { deviceTitle } from '../../devices/naming';
 import { TargetRow } from './TargetRow';
 import {
   draftOf,
@@ -32,6 +33,17 @@ import {
 import styles from './Targets.module.css';
 
 /**
+ * The hardware whose document states a climate at all, by type rather than by
+ * what is in the document: a device that has sent nothing yet cannot be asked
+ * what it would hold, and this is the only thing left to tell a controller
+ * whose settings are still on their way from a plug that will never have any.
+ * A type nobody here knows is left out, which is how this read before: an
+ * unknown one that does state a climate gets its panel the moment its document
+ * arrives, and until then this page promises nothing on its behalf.
+ */
+const HOLDS_A_CLIMATE = ['controller', 'fridge', 'fan'];
+
+/**
  * The targets a tent is held at, set by hand.
  *
  * This is the page a plan is walked away from: a stage's figures are only a
@@ -45,16 +57,23 @@ import styles from './Targets.module.css';
  *
  * A tent with nothing to set is a page with nowhere to go: the crumb back to
  * the plan and the row under Advanced would both lead somewhere as empty as
- * this, so neither is drawn and the note offers the one thing that helps,
- * which is claiming a device into the tent.
+ * this, so neither is drawn and the note says which of the two reasons this
+ * tent has - a place with no climate-holding hardware in it is offered the one
+ * thing that helps, which is claiming a device into it.
  */
 export function Targets({ spaceId, devices, mayManage }: { spaceId: string; devices: Device[]; mayManage: boolean }) {
   const { t } = useTranslation();
   // A device that has never sent its document, or whose document states no
-  // climate - a plug, a fan - has nothing a target could be written into.
+  // climate - a plug, a light - has nothing a target could be written into.
   const controllers = devices.flatMap(device =>
     device.configuration && statesTargets(device.configuration) ? [{ device, configuration: device.configuration }] : [],
   );
+  // Which of those two it is matters, because only one of them is anybody's to
+  // do something about: a controller reporting 25.1 °C a tab away, whose
+  // document has simply not arrived yet, was told that nothing standing here
+  // states a climate and offered a second device it has no use for. The
+  // Devices tab of the same tent has always said this correctly.
+  const waiting = devices.filter(device => device.configuration === null && HOLDS_A_CLIMATE.includes(device.type));
 
   if (controllers.length === 0) {
     return (
@@ -62,12 +81,20 @@ export function Targets({ spaceId, devices, mayManage }: { spaceId: string; devi
         <header className={styles.head}>
           <span className="label">{t('targets.title')}</span>
         </header>
-        <p className={`${ui.cardDashed} ${ui.note}`}>
-          {t('targets.nothing')}{' '}
-          <Link to={`/spaces/${spaceId}/devices`} className={styles.addDevice}>
-            {t('space.control.noControllerAdd')}
-          </Link>
-        </p>
+        {waiting.length > 0 ? (
+          waiting.map(device => (
+            <p key={device.id} className={`${ui.cardDashed} ${ui.note}`}>
+              {t('targets.waiting', { device: deviceTitle(device, t) })}
+            </p>
+          ))
+        ) : (
+          <p className={`${ui.cardDashed} ${ui.note}`}>
+            {t('targets.nothing')}{' '}
+            <Link to={`/spaces/${spaceId}/devices`} className={styles.addDevice}>
+              {t('space.control.noControllerAdd')}
+            </Link>
+          </p>
+        )}
       </div>
     );
   }
