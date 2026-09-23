@@ -6,7 +6,6 @@ import type { AlarmRule, Device, Me, OverviewGrow } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { useAlarmRulesOf, useDeviceAlarmRules, useUnsilenceAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
 import { useSpaceOverview } from '@/api/spaces';
-import { clock } from '@/screens/alerts/inbox';
 import { durationLabel } from '@/screens/devices/sockets';
 import { timeOf } from '@/screens/notifications/settings';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';

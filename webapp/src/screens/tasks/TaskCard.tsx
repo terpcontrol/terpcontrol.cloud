@@ -1,5 +1,5 @@
 import { UserRound } from 'lucide-react';
-import type { DateTime } from 'luxon';
+import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Reminder, SessionUser, Task } from '@fg2/shared-types/v1';
