@@ -10,9 +10,11 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { GrowListItem, Plant, SpaceOverview } from '@fg2/shared-types/v1';
 import { HarvestSheet } from '@/screens/grow/HarvestSheet';
+import { MoveSheet } from '@/screens/grow/MoveSheet';
 import { PhaseSheet } from '@/screens/grow/PhaseSheet';
 import { correctionEffect, withdrawalEffect } from '@/screens/grow/phase-effect';
 import { PresetSheet } from '@/screens/space/PresetSheet';
+import { spaceWhere } from './session';
 
 vi.mock('@/api/session', async importOriginal => {
   const { SIGNED_IN } = await import('./session');
@@ -278,6 +280,40 @@ describe('the harvest sheet over a grow whose record carries no plants', () => {
 
     expect(screen.getByText('It ended on 16 Sep 2026.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'End the grow' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Where a grow that stands nowhere any more stood. `summary.locations` is empty
+ * once the last placement is closed, and the sheet read that as a present fact.
+ */
+describe('the move sheet of a grow that has ended', () => {
+  const tent = spaceWhere('own', { name: 'Blue Dream tent' });
+  const finished: GrowListItem = {
+    ...grow,
+    endedAt: at(0),
+    placements: [{ id: 'pl1', spaceId: 'space-1', startedAt: at(34), endedAt: at(0), plantIds: null }],
+    summary: { ...grow.summary, locations: [] },
+  };
+
+  it('names the place it stood in, as the header behind it and its own history do', () => {
+    draw(<MoveSheet grow={finished} plants={plants} spaces={[tent]} onClose={() => {}} />);
+
+    expect(screen.getByText('stood in Blue Dream tent')).toBeInTheDocument();
+    expect(screen.queryByText('Standing in No fixed place')).not.toBeInTheDocument();
+  });
+
+  it('still says in the present where a running grow stands', () => {
+    draw(<MoveSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />);
+
+    expect(screen.getByText('Standing in Blue Dream tent')).toBeInTheDocument();
+  });
+
+  /** "No fixed place" is a place a grow can be in, and a running grow that is in it says so. */
+  it('says a running grow stands in no fixed place where that is what it does', () => {
+    draw(<MoveSheet grow={{ ...grow, summary: { ...grow.summary, locations: [] } }} plants={plants} spaces={[tent]} onClose={() => {}} />);
+
+    expect(screen.getByText('Standing in No fixed place')).toBeInTheDocument();
   });
 });
 

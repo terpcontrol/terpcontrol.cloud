@@ -16,6 +16,7 @@ import { useNow } from '@/ui/useNow';
 import { Feeding } from './Feeding';
 import { GrowLifecycle } from './Lifecycle';
 import { PhaseBar } from './PhaseBar';
+import { lastPlaceOf } from './placement';
 import { Plants } from './Plants';
 import { Report } from './Report';
 import { ShareSheet } from './ShareSheet';
@@ -93,20 +94,6 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
     </section>
   );
 }
-
-/**
- * The last place the grow stood, for a grow that stands nowhere any more.
- *
- * The newest placement by the day it was closed, which for an ended grow is the
- * tent it came down in. It is the header's label and nothing else: where a grow
- * may be logged or managed is still its *open* placements, which is what the
- * serialiser answers and what the access decision reads.
- */
-const lastPlaceOf = (grow: GrowListItem): { spaceId: string | null } | null =>
-  grow.placements.reduce<GrowListItem['placements'][number] | null>(
-    (latest, placement) => (latest && (latest.endedAt ?? '') >= (placement.endedAt ?? '') ? latest : placement),
-    null,
-  );
 
 /** "Amnesia ×2 · Gelato": each strain once, with its count where there is more than one. */
 const strainsOf = (plants: Plant[]): string =>

@@ -10,6 +10,7 @@ import { Refused } from '@/ui/PageState';
 import { enough } from '@/ui/session-access';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
+import { lastPlaceOf } from './placement';
 import { PlantPicker } from './PlantPicker';
 import styles from './Lifecycle.module.css';
 
@@ -49,14 +50,21 @@ export function MoveSheet({
   const [row, setRow] = useState<{ placementId: string; as: 'correct' | 'withdraw' } | null>(null);
 
   const placements = [...grow.placements].sort((one, other) => other.startedAt.localeCompare(one.startedAt));
+  // A grow whose last placement is closed stands nowhere, and the header of the
+  // screen behind this sheet says so in the past tense. Said as a present fact
+  // it read "Standing in No fixed place" of a grow that spent seven months in a
+  // fridge and is named after it three lines further down.
+  const stood = grow.summary.locations.length === 0 && grow.endedAt !== null ? lastPlaceOf(grow) : null;
 
   return (
     <Sheet title={t('grow.lifecycle.move.title', { name: grow.name })} onClose={onClose}>
       <div className={styles.body}>
         <p className={`mono ${styles.now}`}>
-          {t('grow.lifecycle.move.standsIn', {
-            places: grow.summary.locations.map(location => placeName(t, spaces, location.spaceId)).join(' · ') || t('grow.noFixedPlace'),
-          })}
+          {stood
+            ? t('grow.stoodIn', { name: placeName(t, spaces, stood.spaceId) })
+            : t('grow.lifecycle.move.standsIn', {
+                places: grow.summary.locations.map(location => placeName(t, spaces, location.spaceId)).join(' · ') || t('grow.noFixedPlace'),
+              })}
         </p>
 
         <Block label={t('grow.lifecycle.move.moveTo')}>
