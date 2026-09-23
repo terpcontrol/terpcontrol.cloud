@@ -7,6 +7,7 @@ import { useWeekEntries } from '@/api/grows';
 import { useCorrecting } from '@/log/corrections';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { EntryRow } from '@/ui/EntryRow';
+import { decimalFigure } from '@/ui/figures';
 import { readingFigure, weekDayOf } from '@/ui/entries';
 import { standsIn } from '@/ui/session-access';
 import { amountLabel, schemeName } from './scheme';
@@ -21,7 +22,7 @@ interface WeekCardProps {
   current: boolean;
 }
 
-const figure = (value: number | null, decimals: number): string => (value === null ? '–' : value.toFixed(decimals));
+const figure = (value: number | null, decimals: number): string => (value === null ? '–' : decimalFigure(value, decimals));
 
 /**
  * One week of the grow: its number and day range, the seven thumbnails, the

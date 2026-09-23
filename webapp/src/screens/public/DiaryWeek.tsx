@@ -6,6 +6,7 @@ import type { GrowWeekCard, WeekClimate } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, type Picture } from '@/api/public';
 import { ageLabel } from '@/ui/age';
 import { EntryRow } from '@/ui/EntryRow';
+import { decimalFigure } from '@/ui/figures';
 import { readingFigure, weekDayOf } from '@/ui/entries';
 import ui from '@/ui/ui.module.css';
 import { Photo } from '@/ui/Photo';
@@ -30,7 +31,7 @@ interface DiaryWeekProps {
   asOf: string | null;
 }
 
-const figure = (value: number | null, decimals: number): string => (value === null ? '–' : value.toFixed(decimals));
+const figure = (value: number | null, decimals: number): string => (value === null ? '–' : decimalFigure(value, decimals));
 
 /** "25.5 / 20.7" where the controller told day from night; the plain mean where it did not. */
 const dayNight = (row: WeekClimate | undefined, decimals: number): string =>

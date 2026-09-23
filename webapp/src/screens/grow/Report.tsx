@@ -8,6 +8,7 @@ import { useGrowReport } from '@/api/grows';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { EntryRow } from '@/ui/EntryRow';
 import { useCorrecting } from '@/log/corrections';
+import { decimalFigure } from '@/ui/figures';
 import { growDayOf } from '@/ui/entries';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { standsIn } from '@/ui/session-access';
@@ -177,9 +178,9 @@ function Chapter({
         {temperature ? (
           <p className={`mono ${styles.chapterMeta}`}>
             {temperature.dayAverage !== null
-              ? `${temperature.dayAverage.toFixed(1)} / ${temperature.nightAverage?.toFixed(1) ?? '–'} °C`
-              : `${temperature.averageValue?.toFixed(1) ?? '–'} °C`}
-            {humidity?.averageValue !== null && humidity !== undefined ? ` · ${humidity.averageValue.toFixed(0)} %` : ''}
+              ? `${decimalFigure(temperature.dayAverage, 1)} / ${temperature.nightAverage === null ? '–' : decimalFigure(temperature.nightAverage, 1)} °C`
+              : `${temperature.averageValue === null ? '–' : decimalFigure(temperature.averageValue, 1)} °C`}
+            {humidity?.averageValue !== null && humidity !== undefined ? ` · ${decimalFigure(humidity.averageValue, 0)} %` : ''}
             {chapter.inBandPercent !== null ? ` · ${t('space.inBand', { percent: Math.round(chapter.inBandPercent) })}` : ''}
           </p>
         ) : null}

@@ -1,5 +1,6 @@
 import type { Metric, OpenAlert } from '@fg2/shared-types/v1';
 import { spanLabel } from '@/ui/age';
+import { decimalFigure } from '@/ui/figures';
 
 /** How a card writes a figure: the unit beside it, and as many decimals as the sensor is good for. */
 export const UNIT: Partial<Record<Metric, string>> = { temperature: '°C', humidity: '%', co2: 'ppm', vpd: 'kPa' };
@@ -13,12 +14,16 @@ const DECIMALS: Partial<Record<Metric, number>> = { temperature: 1, humidity: 0,
  * zero on every sample - puts its low corner a hairsbreadth below, and rounding
  * that to the decimals the sensor is good for kept the minus sign in front of a
  * zero. Nothing ever measured minus nothing.
+ *
+ * The rounding happens on the number and the writing happens after it, because
+ * the written form is the reader's and a German one has a comma in the middle
+ * that no arithmetic here could read back.
  */
 export const figure = (value: number, metric: Metric): string => {
   const decimals = DECIMALS[metric] ?? 0;
-  const written = value.toFixed(decimals);
+  const rounded = Number(value.toFixed(decimals));
 
-  return Number(written) === 0 ? (0).toFixed(decimals) : written;
+  return decimalFigure(rounded === 0 ? 0 : rounded, decimals);
 };
 
 /** A target, a band edge and the corner of an axis are round numbers more often than not, and read as one. */

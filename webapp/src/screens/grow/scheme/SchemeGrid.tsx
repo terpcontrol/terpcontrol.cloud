@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SchemeWeek } from '@fg2/shared-types/v1';
+import { decimalFigure } from '@/ui/figures';
 import { ecTargetAt, hasEcTargets, productsOf, valueAt, type Product } from './grid';
 import styles from './Scheme.module.css';
 
@@ -132,7 +133,7 @@ export function SchemeGrid({ grid, currentWeek, mayEdit, waterEc, picked, onPick
 
                 return (
                   <td key={week.week} className={styles.cell} data-current={week.week === currentWeek}>
-                    <span className={target === null ? styles.empty : undefined}>{target === null ? '–' : target.toFixed(1)}</span>
+                    <span className={target === null ? styles.empty : undefined}>{target === null ? '–' : decimalFigure(target, 1)}</span>
                   </td>
                 );
               })}

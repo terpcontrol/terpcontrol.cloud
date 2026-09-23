@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { Entry, EntryKind, GrowListItem, GrowReadingNames, GrowWeekCard, Person, ReadingName } from '@fg2/shared-types/v1';
 import { growDayAt, growOriginOf } from '@fg2/shared-types/v1-schemas/feeding.js';
+import { looseFigure } from '@/ui/figures';
 import { entryHeadline, machineLineParts } from '@/i18n/device-message';
 
 /**
@@ -127,7 +128,7 @@ export const headlineOf = (t: Translate, i18n: I18n, entry: Entry): string => {
  * trailing keeps every reading anybody takes - a pH to two, an EC to two, a
  * height to none - and never shows the arithmetic.
  */
-export const readingFigure = (value: number): string => String(Number(value.toFixed(3)));
+export const readingFigure = (value: number): string => looseFigure(value);
 
 /** Twenty-four hours, which is how long one of the grow's days is wherever it begins. */
 const DAY_MS = 24 * 60 * 60 * 1000;
