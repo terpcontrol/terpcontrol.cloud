@@ -135,7 +135,7 @@ export function Menu({
  * handed over as the thing that was just asked for.
  */
 export function ExportRow({ title, line, ask }: { title: string; line: ReactNode; ask: string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const now = useNow();
   const request = useAskAccountExport();
   const mediaId = useAskedExport();
@@ -179,8 +179,8 @@ export function ExportRow({ title, line, ask }: { title: string; line: ReactNode
         >
           <Download size={14} strokeWidth={1.75} aria-hidden />
           {built
-            ? t('me.account.export.downloadAged', { size: fileSize(ready.bytes), age: ageLabel(built, now) })
-            : t('me.account.export.download', { size: fileSize(ready.bytes) })}
+            ? t('me.account.export.downloadAged', { size: fileSize(ready.bytes, i18n.language), age: ageLabel(built, now) })
+            : t('me.account.export.download', { size: fileSize(ready.bytes, i18n.language) })}
         </button>
       ) : (
         <button type="button" className={ui.chip} disabled={request.isPending || isBuilding(row)} onClick={() => request.mutate()}>

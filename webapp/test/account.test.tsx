@@ -9,6 +9,7 @@ import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Me, Media, PasswordChange, Session } from '@fg2/shared-types/v1';
+import { fileSize } from '@/api/exports';
 import { Account } from '@/screens/me/account/Account';
 import { deviceLabel, sortedSessions } from '@/screens/me/account/sessions';
 
@@ -83,7 +84,7 @@ const exportRow = (status: 'queued' | 'ready'): Media =>
     id: 'media-export',
     kind: 'export',
     mime: 'application/zip',
-    bytes: 13_000_000,
+    bytes: server.exportBytes,
     exportJob: { status, scope: 'account', growId: null, startedAt: null, endedAt: status === 'ready' ? server.builtAt : null, error: null },
   }) as unknown as Media;
 
@@ -96,6 +97,8 @@ const server = {
   sweptOthers: 0,
   exportsAsked: 0,
   mediaAsked: 0,
+  /** What the finished zip weighs. An account's is the one file in this app that reaches a gigabyte. */
+  exportBytes: 13_000_000,
   /** When the server says the zip was written. The route hands back a standing export for an hour, so this is not always now. */
   builtAt: null as string | null,
 };
@@ -176,6 +179,7 @@ beforeEach(() => {
   server.sweptOthers = 0;
   server.exportsAsked = 0;
   server.mediaAsked = 0;
+  server.exportBytes = 13_000_000;
   server.builtAt = null;
 });
 
@@ -393,6 +397,30 @@ describe('taking everything away', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Build the zip' }));
 
     expect(await screen.findByRole('button', { name: /Download · 12\.4 MB · built 40 min ago/ })).toBeInTheDocument();
+  });
+
+  /**
+   * A whole account of a year's growing is the one file this app builds that
+   * leaves the megabytes behind, and it is the figure somebody decides whether
+   * to start the download on: four digits of megabytes is not something anybody
+   * can weigh against the room on their disk.
+   */
+  it('states a zip of more than a gigabyte in gigabytes', async () => {
+    server.exportBytes = 1_317_277_368;
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Build the zip' }));
+
+    expect(await screen.findByRole('button', { name: /Download · 1\.2 GB/ })).toBeInTheDocument();
+  });
+
+  it('weighs a file in the unit it is felt in, with the decimal the language writes', () => {
+    expect(fileSize(1_317_277_368)).toBe('1.2 GB');
+    expect(fileSize(1024 ** 3)).toBe('1.0 GB');
+    expect(fileSize(13_000_000)).toBe('12.4 MB');
+    // A diary of a fortnight, which would round to 0.0 MB and read as a file that went wrong.
+    expect(fileSize(45_000)).toBe('44 kB');
+    expect(fileSize(1_317_277_368, 'de')).toBe('1,2 GB');
   });
 
   it('carries the same door to deleting the account that the privacy page has', async () => {

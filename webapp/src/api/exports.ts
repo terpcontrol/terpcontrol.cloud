@@ -84,12 +84,30 @@ export const useExport = (mediaId: string | null) =>
 export const isBuilding = (media: Media | undefined): boolean => media?.exportJob?.status === 'queued' || media?.exportJob?.status === 'rendering';
 
 /**
- * "12.4 MB", or "44 kB" for a grow with no pictures in it yet. The unit changes
- * because it has to: a diary of a fortnight rounds to 0.0 MB, and a download
- * that says it is nothing reads as an export that went wrong.
+ * "1.2 GB", "12.4 MB", or "44 kB" for a grow with no pictures in it yet. The
+ * unit changes because it has to at both ends: a diary of a fortnight rounds
+ * to 0.0 MB, and a download that says it is nothing reads as an export that
+ * went wrong - while a whole account with a year of diary photos and films in
+ * it is a gigabyte and more, and four digits of megabytes is a figure nobody
+ * can weigh against the room on their disk.
+ *
+ * The steps are the binary ones under the SI labels, which is what this app
+ * writes a size in everywhere, so the same zip reads the same on the account
+ * page and on the administrator's health card. The decimal is always written
+ * where there is room for one, because "1 GB" beside "1.2 GB" reads as the
+ * rounder of two answers rather than as the same kind of figure, and it is
+ * written the way the language writes a decimal rather than the way the
+ * browser does; a caller with no language to hand gets the browser's.
  */
-export const fileSize = (bytes: number): string =>
-  bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} kB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+export const fileSize = (bytes: number, language?: string): string => {
+  const figure = (value: number, digits: number) =>
+    new Intl.NumberFormat(language, { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value);
+
+  if (bytes >= 1024 ** 3) return `${figure(bytes / 1024 ** 3, 1)} GB`;
+  if (bytes >= 1024 ** 2) return `${figure(bytes / 1024 ** 2, 1)} MB`;
+
+  return `${figure(Math.round(bytes / 1024), 0)} kB`;
+};
 
 /**
  * What the zip is called once it is on somebody's disk. The server names no

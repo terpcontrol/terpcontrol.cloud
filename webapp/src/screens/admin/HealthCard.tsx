@@ -3,6 +3,7 @@ import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { AdminRetentionRun, AdminStats, Device, Fleet } from '@fg2/shared-types/v1';
+import { fileSize } from '@/api/exports';
 import { ApiError } from '@/api/problem';
 import { ageLabel, deviceLiveness } from '@/ui/age';
 import ui from '@/ui/ui.module.css';
@@ -159,15 +160,11 @@ function RetentionLine({ run, now }: { run: AdminRetentionRun; now: DateTime }) 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
- * What a bucket weighs, in the unit it is felt in. A picture bucket is measured
- * in gigabytes, which the export's own formatter never reaches, and the decimal
- * is written the way the language writes one.
+ * What a bucket weighs, in the unit it is felt in. It is the export chip's own
+ * formatter, so that one zip weighs the same on this card as on the account
+ * page that offers it; what is added here is the bottom of the scale, because
+ * an install with no picture in it yet holds bytes rather than a rounded
+ * nothing, and a fresh one should read as empty rather than as broken.
  */
-const sizeLabel = (bytes: number, language: string, t: Translate): string => {
-  const figure = (value: number) => new Intl.NumberFormat(language, { maximumFractionDigits: 1 }).format(value);
-  if (bytes >= 1024 ** 3) return `${figure(bytes / 1024 ** 3)} GB`;
-  if (bytes >= 1024 ** 2) return `${figure(bytes / 1024 ** 2)} MB`;
-  if (bytes >= 1024) return `${figure(bytes / 1024)} kB`;
-
-  return t('admin.count.bytes', { count: bytes });
-};
+const sizeLabel = (bytes: number, language: string, t: Translate): string =>
+  bytes < 1024 ? t('admin.count.bytes', { count: bytes }) : fileSize(bytes, language);
