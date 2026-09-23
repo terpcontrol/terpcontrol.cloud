@@ -55,6 +55,9 @@ const heard = (windows: Window[], knownFromIndex = 0): DeviceHistory => {
         ),
       },
     ],
+    // The store's own answer for when the device last spoke, which is the end
+    // of the stretch it was heard over.
+    lastSampleAt: new Date(FROM + windows.length * STEP_MS).toISOString(),
   };
 };
 

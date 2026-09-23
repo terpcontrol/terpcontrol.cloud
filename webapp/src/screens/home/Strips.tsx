@@ -1,5 +1,5 @@
 import { Circle, Leaf } from 'lucide-react';
-import { type DateTime } from 'luxon';
+import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { DueTask, FollowedGrowCard, HomeSpaceCard } from '@fg2/shared-types/v1';

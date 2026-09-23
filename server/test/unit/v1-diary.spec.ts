@@ -136,6 +136,9 @@ const fakeData = {
         index === 0 || window.isDay !== all[index - 1].isDay ? [{ at: new Date(window.startsAt).toISOString(), on: window.isDay }] : [],
       ),
     })),
+    // What the store answers for when the device last spoke; the fake is heard
+    // to the end of the window it was asked about.
+    lastSampleAt: new Date(request.endsAt).toISOString(),
   }),
 } as unknown as DataService;
 
