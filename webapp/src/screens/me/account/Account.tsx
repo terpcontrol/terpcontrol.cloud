@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Me } from '@fg2/shared-types/v1';
 import { useChangePassword, useMe, useRevokeOtherSessions, useRevokeSession, useSessions, useUpdatingMe } from '@/api/account';
 import { useSession } from '@/api/session';
+import { Sheet } from '@/log/Sheet';
 import { ageLabel } from '@/ui/age';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
@@ -223,6 +224,7 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
   const revoke = useRevokeSession();
   const others = useRevokeOtherSessions();
   const [all, setAll] = useState(false);
+  const [sweeping, setSweeping] = useState(false);
 
   if (sessions.isPending) return <Waiting lines={2} />;
   if (!sessions.data) return <LoadFailed retry={() => void sessions.refetch()} />;
@@ -271,20 +273,68 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
         One act rather than a row at a time, because the sessions worth ending
         are the ones nobody can see from here: a browser left signed in
         somewhere is not on the first page of anything. It spares this one.
+
+        It asks first. Every other control on this card ends the one row it
+        sits on, and this one sits among them while reaching every device the
+        account is signed in on - a tap meant for the row above it would sign
+        somebody's phone, their partner's tablet and whatever script they run
+        out at once, and nothing about that can be taken back from here.
       */}
       {rows.length > 1 ? (
         <button
           type="button"
           className={`${ui.chip} ${styles.signOutEverywhere}`}
           disabled={held || others.isPending}
-          onClick={() => others.mutate()}
+          onClick={() => setSweeping(true)}
         >
           {t('me.account.sessions.signOutOthers')}
         </button>
       ) : null}
       <Refused error={revoke.error} />
-      <Refused error={others.error} />
+      {sweeping ? <SweepSheet sweep={others} onClose={() => setSweeping(false)} /> : null}
     </section>
+  );
+}
+
+/**
+ * The question in front of the sweep: what it ends, whom it reaches, and what
+ * it leaves standing.
+ *
+ * It says the effect and not a number. What this browser has loaded is not
+ * what the account has - the list is paged and the cursor may still have
+ * pages behind it - so a figure here would be an answer to a different
+ * question, and one that reads as a promise about how much is being ended.
+ *
+ * A tap is the whole gate, without the typed word the account's deletion asks
+ * for: what is lost here is convenience rather than anything of the grower's,
+ * and every session ended this way can be signed back in with the password
+ * they already have. The sheet closes only once the server has answered, so a
+ * refusal is read where the tap was rather than on the card behind it.
+ */
+function SweepSheet({ sweep, onClose }: { sweep: ReturnType<typeof useRevokeOtherSessions>; onClose: () => void }) {
+  const { t } = useTranslation();
+
+  return (
+    <Sheet
+      title={t('me.account.sessions.sweep.title')}
+      onClose={onClose}
+      actions={
+        <button
+          type="button"
+          className={`${ui.button} ${ui.primary}`}
+          disabled={sweep.isPending}
+          onClick={() => sweep.mutate(undefined, { onSuccess: onClose })}
+        >
+          {sweep.isPending ? t('me.account.sessions.sweep.signingOut') : t('me.account.sessions.sweep.yes')}
+        </button>
+      }
+    >
+      <div className={styles.sweepSheet}>
+        <p>{t('me.account.sessions.sweep.what')}</p>
+        <p>{t('me.account.sessions.sweep.thisOne')}</p>
+        <Refused error={sweep.error} />
+      </div>
+    </Sheet>
   );
 }
 

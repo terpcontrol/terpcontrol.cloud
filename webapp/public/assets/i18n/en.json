@@ -1891,7 +1891,14 @@
         "unknownDevice": "unknown device",
         "showAll": "Show the rest",
         "more": "More",
-        "signOutOthers": "Sign every other browser out"
+        "signOutOthers": "Sign every other browser out",
+        "sweep": {
+          "title": "Sign every other browser out?",
+          "what": "Every other browser and script signed in as you is signed out at once - the ones listed here and the ones that are not, wherever they are. Whoever holds one has to sign in again with your e-mail and password.",
+          "thisOne": "This browser stays signed in, and nothing else about the account changes. A session that ends this way cannot be brought back; signing in again makes a new one.",
+          "yes": "Sign the others out",
+          "signingOut": "Signing them out …"
+        }
       },
       "data": "Data",
       "export": {

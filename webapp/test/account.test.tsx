@@ -260,11 +260,44 @@ describe('where this person is signed in', () => {
     await drawLoaded();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Sign every other browser out' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign the others out' }));
 
     await waitFor(() => expect(server.sweptOthers).toBe(1));
     // The list is read again, and what is left is the browser doing the asking.
     await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1));
     expect(screen.getByText('this device')).toBeInTheDocument();
+    // The question goes with the act it asked about.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  /**
+   * The sweep sits among the per-row Sign outs and reaches every device the
+   * account is signed in on, so the tap that opens it must end nothing - and
+   * what it then says has to be the effect rather than a count, because what
+   * this browser has loaded is not what the account has.
+   */
+  it('asks before the sweep, ends nothing while it asks, and says what it will do', async () => {
+    await drawLoaded();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign every other browser out' }));
+
+    const sheet = await screen.findByRole('dialog');
+    expect(within(sheet).getByText(/is signed out at once/)).toBeInTheDocument();
+    expect(within(sheet).getByText(/This browser stays signed in/)).toBeInTheDocument();
+    expect(within(sheet).getByText(/cannot be brought back/)).toBeInTheDocument();
+    expect(sheet.textContent).not.toMatch(/\d/);
+    expect(server.sweptOthers).toBe(0);
+  });
+
+  it('leaves every session standing when the question is closed', async () => {
+    await drawLoaded();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign every other browser out' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Close' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(server.sweptOthers).toBe(0);
+    expect(screen.getAllByRole('listitem')).toHaveLength(3);
   });
 
   it('offers no sweep to somebody signed in nowhere else', async () => {

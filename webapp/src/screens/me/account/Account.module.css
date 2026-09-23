@@ -92,3 +92,14 @@
   margin-top: var(--space-2);
   border-color: var(--rule);
 }
+
+/* The sweep's question: prose in the sheet's own measure, with the sentences
+   apart, because a paragraph is reset to no margin at all and two of them
+   would otherwise run into one block nobody reads the second half of. */
+.sweepSheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  line-height: var(--line-body);
+}

@@ -1887,7 +1887,14 @@
         "unknownDevice": "unbekanntes Gerät",
         "showAll": "Die übrigen anzeigen",
         "more": "Mehr",
-        "signOutOthers": "Alle anderen Browser abmelden"
+        "signOutOthers": "Alle anderen Browser abmelden",
+        "sweep": {
+          "title": "Alle anderen Browser abmelden?",
+          "what": "Jeder andere Browser und jedes Skript, das als du angemeldet ist, wird sofort abgemeldet - die hier aufgeführten und die übrigen, wo immer sie stehen. Wer eine dieser Sitzungen hat, muss sich mit deiner E-Mail und deinem Passwort neu anmelden.",
+          "thisOne": "Dieser Browser bleibt angemeldet, und sonst ändert sich nichts am Konto. Eine so beendete Sitzung lässt sich nicht zurückholen; wer sich neu anmeldet, bekommt eine neue.",
+          "yes": "Die anderen abmelden",
+          "signingOut": "Meldet ab …"
+        }
       },
       "data": "Daten",
       "export": {
