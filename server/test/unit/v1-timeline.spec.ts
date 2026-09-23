@@ -133,11 +133,24 @@ const fakeSwitchings = (deviceId: string, request: SeriesRequest): OutputHistory
   });
 };
 
+/**
+ * The newest raw sample the fake device wrote, which the store answers from a
+ * read of its own. Here it is the newest window anything was reported in: the
+ * fake stamps a window at the instant it opens, so the two are the same and the
+ * lane is cut exactly where it always was.
+ */
+const lastSampleOf = (series: DeviceSeries): string | null =>
+  [...series.metrics, ...series.outputs]
+    .flatMap(one => one.points.flatMap(point => (point.value === null ? [] : [point.measuredAt])))
+    .sort()
+    .at(-1) ?? null;
+
 const fakeData = {
-  history: async (deviceId: string, request: SeriesRequest): Promise<DeviceHistory> => ({
-    series: await fakeData.series(deviceId, request),
-    outputs: fakeSwitchings(deviceId, request),
-  }),
+  history: async (deviceId: string, request: SeriesRequest): Promise<DeviceHistory> => {
+    const series = await fakeData.series(deviceId, request);
+
+    return { series, outputs: fakeSwitchings(deviceId, request), lastSampleAt: lastSampleOf(series) };
+  },
   series: async (deviceId: string, request: SeriesRequest): Promise<DeviceSeries> => {
     reads.push(request);
     const step = (request.stepSeconds ?? 60) * 1000;
@@ -1042,6 +1055,8 @@ describe('the night and the lanes over a window wider than the cycle', () => {
         outputs: [{ output: 'light', points }],
       },
       outputs: [{ output: 'light', switchings }],
+      // Still reporting when the window closed, one grain short of its edge.
+      lastSampleAt: new Date(CLOSES.getTime() - GRAIN_MS).toISOString(),
     };
   };
 
@@ -1126,6 +1141,7 @@ describe('the same lamp run at every range', () => {
           ],
         },
       ],
+      lastSampleAt: CLOSES.toISOString(),
     };
   };
 
@@ -1138,6 +1154,85 @@ describe('the same lamp run at every range', () => {
         heardUntil: CLOSES.toISOString(),
       },
     ]);
+  });
+});
+
+/**
+ * How far a wave may be drawn once the tent has stopped talking.
+ *
+ * A bucketed series cannot answer this by itself. Its points carry the instant
+ * their window closed rather than the instant of the sample inside it, so the
+ * last point of a tent that fell silent mid-window stands up to a whole step
+ * after the last thing it ever said - an hour and a half at a month to the
+ * chart, most of half a day at a season. Drawn to that stamp, the lane claims a
+ * lamp state for a stretch nothing was heard across, which is the very claim
+ * `heardUntil` exists to prevent.
+ */
+describe('a lane of a tent that has gone quiet', () => {
+  const CLOSES = new Date('2026-09-23T12:00:00.000Z');
+  /** A month to 480 windows, which is what the Grow chip of a running grow comes to. */
+  const STEP_SECONDS = 5366;
+  const OPENS = new Date(CLOSES.getTime() - STEP_SECONDS * 480 * 1000);
+  const WINDOW = { startsAt: OPENS, endsAt: CLOSES };
+
+  /** The last thing this tent ever wrote, four days before anybody looked. */
+  const LAST_SAMPLE = new Date('2026-09-19T14:07:09.000Z');
+  const LIT_FROM = new Date('2026-09-19T06:00:00.000Z');
+
+  const history = (lastSampleAt: string | null): DeviceHistory => {
+    const step = STEP_SECONDS * 1000;
+    const points = [];
+    for (let closes = OPENS.getTime() + step; closes <= CLOSES.getTime(); closes += step) {
+      points.push({ measuredAt: new Date(closes).toISOString(), value: closes - step < LAST_SAMPLE.getTime() ? 60 : null });
+    }
+
+    return {
+      series: {
+        deviceId: CONTROLLER,
+        startsAt: OPENS.toISOString(),
+        endsAt: CLOSES.toISOString(),
+        stepSeconds: STEP_SECONDS,
+        metrics: [],
+        outputs: [{ output: 'light' as const, points }],
+      },
+      outputs: [
+        {
+          output: 'light' as const,
+          switchings: [
+            { at: OPENS.toISOString(), on: false },
+            { at: LIT_FROM.toISOString(), on: true },
+          ],
+        },
+      ],
+      lastSampleAt,
+    };
+  };
+
+  it('stops at the last thing the device said rather than at the end of the window that held it', () => {
+    const stamped = history(null)
+      .series.outputs[0].points.filter(point => point.value !== null)
+      .at(-1)!.measuredAt;
+    // The bucket the last sample fell in closes well after the sample itself,
+    // which is the whole of the error being corrected here.
+    expect(new Date(stamped).getTime()).toBeGreaterThan(LAST_SAMPLE.getTime());
+
+    expect(lanesOf([history(LAST_SAMPLE.toISOString())], WINDOW)).toEqual([
+      {
+        output: 'light',
+        deviceId: CONTROLLER,
+        spans: [{ startsAt: LIT_FROM.toISOString(), endsAt: LAST_SAMPLE.toISOString() }],
+        heardUntil: LAST_SAMPLE.toISOString(),
+      },
+    ]);
+  });
+
+  it('still runs to the edge of the window for a tent that is reporting now', () => {
+    const live = history(new Date(CLOSES.getTime() - 30 * 1000).toISOString());
+    live.series.outputs[0].points = live.series.outputs[0].points.map(point => ({ ...point, value: 60 }));
+
+    // A live tent must keep the edge it has: cutting at the last sample would
+    // open a fresh gap at the right-hand end of every chart being watched.
+    expect(lanesOf([live], WINDOW)[0].heardUntil).toBe(CLOSES.toISOString());
   });
 });
 

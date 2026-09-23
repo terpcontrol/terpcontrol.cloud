@@ -297,6 +297,21 @@ export const oldestSampleQuery = (bucket: string, deviceId: string, before: Date
     |> first()`;
 
 /**
+ * The newest raw sample a device wrote inside a window, whatever field it was
+ * of, which is the last instant it was heard from at all.
+ *
+ * It is asked for separately because the windowed read cannot answer it: an
+ * aggregation window carries the instant it closes rather than the instant the
+ * sample inside it was taken, so the last point of a series stands up to a
+ * whole step later than anything the device really said. `last()` answers one
+ * row per field and the latest of them is the answer, in the same shape and at
+ * the same cost as a live read.
+ */
+export const newestSampleQuery = (bucket: string, deviceId: string, window: Omit<FluxWindow, 'stepSeconds'>): string =>
+  `${head(bucket, deviceId, rangeOf(window))}
+    |> last()`;
+
+/**
  * A stretch of a device's raw samples as one figure a day.
  *
  * The store does the arithmetic. A year of thirty-second samples is a million

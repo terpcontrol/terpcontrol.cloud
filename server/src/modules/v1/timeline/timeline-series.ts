@@ -101,7 +101,7 @@ export const targetsOf = (metric: Metric, stretches: readonly TargetStretch[]): 
 export const nightsOf = (histories: readonly DeviceHistory[], window: SeriesWindow): TimelineSpan[] => {
   const lit = histories.find(one => outputIn(one, 'light').switchings.length > 0);
 
-  return lit ? spansOf(outputIn(lit, 'light'), false, lit.series, window) : [];
+  return lit ? spansOf(outputIn(lit, 'light'), false, lit.series, window, heardAt(lit)) : [];
 };
 
 /**
@@ -122,8 +122,8 @@ export const lanesOf = (histories: readonly DeviceHistory[], window: SeriesWindo
             {
               output: output.output,
               deviceId: one.series.deviceId,
-              spans: spansOf(output, true, one.series, window),
-              heardUntil: heardUntilOf(output, one.series, window),
+              spans: spansOf(output, true, one.series, window, heardAt(one)),
+              heardUntil: heardUntilOf(output, one.series, window, heardAt(one)),
             },
           ]
         : [],
@@ -131,12 +131,15 @@ export const lanesOf = (histories: readonly DeviceHistory[], window: SeriesWindo
   );
 
 /** The last instant the device was heard about one output, which is the window's own end while it is still reporting. */
-const heardUntilOf = (output: OutputHistory, series: DeviceSeries, window: SeriesWindow): string => {
+const heardUntilOf = (output: OutputHistory, series: DeviceSeries, window: SeriesWindow, sampled: number | null): string => {
   const points = series.outputs.find(one => one.output === output.output)?.points ?? [];
-  const heard = heardStretches(points, window, series.stepSeconds);
+  const heard = heardStretches(points, window, series.stepSeconds, sampled);
 
   return new Date(heard[heard.length - 1]?.to ?? window.startsAt.getTime()).toISOString();
 };
+
+/** When the device last wrote anything inside this window, as an instant the arithmetic can use, or nothing where the read could not say. */
+const heardAt = (history: DeviceHistory): number | null => (history.lastSampleAt === null ? null : millis(history.lastSampleAt));
 
 /** What one device said about one output, or nothing where it was not asked about it or never reported it. */
 const outputIn = (history: DeviceHistory, output: OutputMetric): OutputHistory =>
@@ -189,10 +192,10 @@ const silenceOf = (points: readonly SeriesPoint[], stepSeconds: number): number 
  * not at the edge of the window - a device that has said nothing for three days
  * is not three days of "off".
  */
-const spansOf = (output: OutputHistory, on: boolean, series: DeviceSeries, window: SeriesWindow): TimelineSpan[] => {
+const spansOf = (output: OutputHistory, on: boolean, series: DeviceSeries, window: SeriesWindow, sampled: number | null): TimelineSpan[] => {
   const points = series.outputs.find(one => one.output === output.output)?.points ?? [];
 
-  return overlapping(stateStretches(output.switchings, on), heardStretches(points, window, series.stepSeconds)).map(stretch => ({
+  return overlapping(stateStretches(output.switchings, on), heardStretches(points, window, series.stepSeconds, sampled)).map(stretch => ({
     startsAt: new Date(stretch.from).toISOString(),
     endsAt: new Date(stretch.to).toISOString(),
   }));
@@ -234,8 +237,16 @@ const stateStretches = (switchings: readonly OutputSwitching[], on: boolean): St
  * output state inside it is lost. It is widened backwards and never forwards,
  * because forwards is past the last thing the device said - and past the end of
  * the window, where the window closes on a grow that has ended.
+ *
+ * The same stamping is why the far end is cut to the newest sample the device
+ * really wrote. The last point of a series stands for a window that ends up to
+ * a step after the sample inside it, and drawing to that stamp was drawing an
+ * hour of lamp state for a stretch nothing was heard across - at a season's
+ * step it would be most of half a day. A device that is still reporting keeps
+ * the edge it already had: the closing stretch is snapped to the end of the
+ * window, so a live tent has no gap at the right-hand edge of its own chart.
  */
-const heardStretches = (points: readonly SeriesPoint[], window: SeriesWindow, stepSeconds: number): Stretch[] => {
+const heardStretches = (points: readonly SeriesPoint[], window: SeriesWindow, stepSeconds: number, sampled: number | null): Stretch[] => {
   const heard = points.flatMap(point => (point.value === null ? [] : [millis(point.measuredAt)]));
   if (heard.length === 0) return [];
 
@@ -255,6 +266,7 @@ const heardStretches = (points: readonly SeriesPoint[], window: SeriesWindow, st
 
   const opens = stretches[0];
   const closes = stretches[stretches.length - 1];
+  if (sampled !== null) closes.to = Math.max(closes.from, Math.min(closes.to, sampled));
   if (opens.from - window.startsAt.getTime() <= silence) opens.from = window.startsAt.getTime();
   if (window.endsAt.getTime() - closes.to <= silence) closes.to = window.endsAt.getTime();
 

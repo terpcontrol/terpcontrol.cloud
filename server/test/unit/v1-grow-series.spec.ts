@@ -73,11 +73,24 @@ const fakeSwitchings = (deviceId: string, request: SeriesRequest): OutputHistory
   });
 
 /** Both devices report; only the controller drives a lamp. */
+/**
+ * The newest raw sample the fake device wrote, which the store answers from a
+ * read of its own. Here it is the newest window anything was reported in: the
+ * fake stamps a window at the instant it opens, so the two are the same and the
+ * lane is cut exactly where it always was.
+ */
+const lastSampleOf = (series: DeviceSeries): string | null =>
+  [...series.metrics, ...series.outputs]
+    .flatMap(one => one.points.flatMap(point => (point.value === null ? [] : [point.measuredAt])))
+    .sort()
+    .at(-1) ?? null;
+
 const fakeData = {
-  history: async (deviceId: string, request: SeriesRequest): Promise<DeviceHistory> => ({
-    series: await fakeData.series(deviceId, request),
-    outputs: fakeSwitchings(deviceId, request),
-  }),
+  history: async (deviceId: string, request: SeriesRequest): Promise<DeviceHistory> => {
+    const series = await fakeData.series(deviceId, request);
+
+    return { series, outputs: fakeSwitchings(deviceId, request), lastSampleAt: lastSampleOf(series) };
+  },
   series: async (deviceId: string, request: SeriesRequest): Promise<DeviceSeries> => {
     reads.push(request);
     const step = (request.stepSeconds ?? 60) * 1000;

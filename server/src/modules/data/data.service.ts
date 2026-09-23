@@ -25,6 +25,7 @@ import {
   gridOf,
   latestByField,
   liveQuery,
+  newestSampleQuery,
   oldestSampleQuery,
   OutputSwitching,
   pointsOf,
@@ -128,6 +129,14 @@ export interface OutputHistory {
 export interface DeviceHistory {
   series: DeviceSeries;
   outputs: OutputHistory[];
+  /**
+   * The last instant the device wrote anything at all inside the window, or
+   * null where it wrote nothing. A bucketed series cannot say this: its points
+   * carry the instant their window closed, which is up to a step later than the
+   * sample inside it, and a lane drawn to that stamp claims a state for a
+   * stretch nothing was heard across.
+   */
+  lastSampleAt: string | null;
 }
 
 /** What the device schema fills in, reached only for a device that is not in the database at all. */
@@ -311,9 +320,17 @@ export class DataService implements LightStateReader {
    */
   public async history(deviceId: string, request: SeriesRequest): Promise<DeviceHistory> {
     const outputs = request.outputs ?? [];
-    const [series, switchings] = await Promise.all([this.series(deviceId, request), this.switchingsOf(deviceId, outputs, request)]);
+    const [series, switchings, lastSampleAt] = await Promise.all([
+      this.series(deviceId, request),
+      this.switchingsOf(deviceId, outputs, request),
+      this.newestSampleIn(deviceId, outputs, request),
+    ]);
 
-    return { series, outputs: outputs.map(output => ({ output, switchings: switchings.get(fieldOfOutputMetric(output)) ?? [] })) };
+    return {
+      series,
+      outputs: outputs.map(output => ({ output, switchings: switchings.get(fieldOfOutputMetric(output)) ?? [] })),
+      lastSampleAt,
+    };
   }
 
   /**
@@ -452,6 +469,25 @@ export class DataService implements LightStateReader {
     const switchings = await this.switchingsOf(deviceId, ['light'], window);
 
     return switchings.get(fieldOfOutputMetric('light')) ?? [];
+  }
+
+  /**
+   * The newest raw sample the device wrote inside the window, which is how far a
+   * lane may be drawn. `last()` answers one row per field, so the latest of them
+   * is the last thing the device said about anything - the question is about the
+   * device and not about one of its fields, and a lane whose own field fell
+   * silent first is cut by its own points anyway.
+   *
+   * Only a caller that asked about an output pays for it. Nothing else reads it,
+   * so a chart of the climate alone is the read it always was.
+   */
+  private async newestSampleIn(deviceId: string, outputs: readonly OutputMetric[], window: { startsAt: Date; endsAt: Date }): Promise<string | null> {
+    if (outputs.length === 0 || window.endsAt <= window.startsAt) return null;
+
+    const rows = await this.read(newestSampleQuery(this.bucket, deviceId, window));
+    const instants = rows.flatMap(row => (row._time ? [new Date(row._time).getTime()] : [])).filter(at => Number.isFinite(at));
+
+    return instants.length === 0 ? null : new Date(Math.max(...instants)).toISOString();
   }
 
   /** The switchings of the outputs that were asked for, by the field they are stored under. A window of no width holds none. */
