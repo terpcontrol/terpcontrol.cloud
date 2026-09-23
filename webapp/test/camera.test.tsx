@@ -436,6 +436,39 @@ describe('the films and the pictures behind the first page', () => {
     expect(container.textContent).toContain('0 pictures today');
   });
 
+  it('calls the newest frame live only while the header pill calls the camera live', () => {
+    // This camera fails most of its captures, so the gap is routinely minutes:
+    // the pill read "4 min · stale" while the label four lines below the same
+    // picture read "live". Whichever of the two is true, the page may only say
+    // it once. The ages are measured against the clock the page itself reads,
+    // so they are taken from there rather than from the fixture's own hour.
+    const drawTaken = (minutesAgo: number) => {
+      const taken = serverNow().minus({ minutes: minutesAgo }).toISO()!;
+      state.frames = { items: [{ id: 'still-1', capturedAt: taken }], partial: false };
+
+      return render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <MemoryRouter>
+            <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: taken } }} />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+    };
+
+    // Inside two of its 30 s intervals, which is what the pill calls live.
+    const live = drawTaken(0);
+    expect(live.container.querySelector('[data-liveness="live"]')).toBeInTheDocument();
+    expect(live.container.textContent).toContain('· live');
+    live.unmount();
+
+    // Four intervals missed: the pill says stale, so the label says how old the
+    // picture is instead, in the words this page uses for an old picture.
+    const stale = drawTaken(2);
+    expect(stale.container.querySelector('[data-liveness="stale"]')).toBeInTheDocument();
+    expect(stale.container.textContent).not.toContain('· live');
+    expect(stale.container.textContent).toContain('2 min ago');
+  });
+
   it('names a picture in its alt text by the instant it was taken, not "just now"', () => {
     // A reader who only gets the alt text was told a four-day-old picture was
     // taken just now, under a label that said 19 Sep and a frame drawn dimmed.

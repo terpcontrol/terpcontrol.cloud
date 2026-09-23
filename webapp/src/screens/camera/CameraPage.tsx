@@ -59,6 +59,9 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   // to ask, and until the answer lands the browser's zone stands in.
   const me = useMe(false, user?.isDemo !== true);
   const zone = zoneOf(me.data);
+  // How late the camera's newest picture is. The header pill says it, and the
+  // frame label reads it from here rather than deciding a second time.
+  const liveness = cameraFreshness(camera, now);
   // A camera belongs to whoever claimed it and stands in a place, and the two
   // answer different halves: its settings and the films it renders are `manage`
   // where it stands, unpairing it is `own` and reaches nobody else at all.
@@ -121,7 +124,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
           <ChevronLeft size={22} strokeWidth={1.75} aria-hidden />
         </Link>
         <h1 className={styles.name}>{camera.name}</h1>
-        <span className={`mono ${styles.pill}`} data-liveness={cameraFreshness(camera, now)}>
+        <span className={`mono ${styles.pill}`} data-liveness={liveness}>
           <span className={styles.dot} aria-hidden />
           {camera.state.lastStillAt ? ageLabel(camera.state.lastStillAt, now) : t('camera.never')}
         </span>
@@ -169,7 +172,15 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
         {shown ? (
           <span className={`mono ${styles.frameLabel}`}>
             {zonedAt(at(shown.capturedAt), zone).toFormat(STAMPS[stampFor(to - from)])}
-            {newest && shown.id === newest.id ? ` · ${t('camera.live')}` : ''}
+            {/* "live" is a claim about how late the picture is, so it is the
+                pill's own verdict that decides it and not the frame's position
+                in the day. This camera misses most of its captures, and the
+                header read "4 min · stale" over a frame that called itself
+                live. Where the newest frame is not live it says how old it is,
+                in the words the stale label four lines below uses - and from
+                the instant of the picture actually on screen, which can be
+                older than the camera row while that read is cached. */}
+            {newest && shown.id === newest.id ? ` · ${liveness === 'live' ? t('camera.live') : t('devices.ago', { age: ageLabel(shown.capturedAt, now) })}` : ''}
           </span>
         ) : older && camera.state.lastStillAt ? (
           // Its own label rather than the one above: that stamp is scaled to
