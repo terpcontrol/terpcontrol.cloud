@@ -133,7 +133,19 @@ describe('the climate half', () => {
     draw(<SpaceCard card={stale} people={people} now={NOW} compact={false} />);
 
     expect(screen.getByText('24.2').closest('[data-age]')).toHaveAttribute('data-age', 'offline');
-    expect(screen.getByText(/offline · 3 h/)).toBeInTheDocument();
+    expect(screen.getByText(/no reading · 3 h/)).toBeInTheDocument();
+  });
+
+  it('ages the newest reading and leaves the word "offline" to the device itself', () => {
+    // The two are different instants - a device is heard on every status, and
+    // its newest stored sample is something else again - so the same word for
+    // both put two ages for one silence on one screen. The pill is about the
+    // place's readings, which is all a shared or public reader is told about.
+    const quiet = card({ values: [{ metric: 'temperature', value: 24.2, measuredAt: at(4 * 86_400), state: 'offline' }] });
+    draw(<SpaceCard card={quiet} people={people} now={NOW} compact={false} />);
+
+    expect(screen.getByText(/no reading · 4 d/)).toBeInTheDocument();
+    expect(screen.queryByText(/offline · 4 d/)).not.toBeInTheDocument();
   });
 
   it('draws the day of temperature the card came with, and asks for nothing more', () => {

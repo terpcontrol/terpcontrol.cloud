@@ -1432,6 +1432,11 @@
       "stale": "veraltet",
       "offline": "offline"
     },
+    "reading": {
+      "live": "live",
+      "stale": "veraltet",
+      "offline": "keine Messung"
+    },
     "card": {
       "sparkline": "Temperatur in {{name}} über die letzten 24 Stunden",
       "noReading": "–",

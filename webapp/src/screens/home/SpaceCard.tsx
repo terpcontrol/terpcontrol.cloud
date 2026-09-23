@@ -127,7 +127,20 @@ export function SpaceCard({ card, people, now, compact }: SpaceCardProps) {
   );
 }
 
-/** "● live · 20 s" - the dot is the state, the age is the newest reading on the card. */
+/**
+ * "● live · 20 s" - the dot is the state, the age is the newest reading on the
+ * card.
+ *
+ * It says "no reading" and never "offline", because it is about the reading and
+ * not about the hardware. A place is not one device: a shared or public reader
+ * is told the tent and never what stands in it, and a tent may hold three
+ * devices with three different silences, so the only thing this pill can
+ * honestly age is the newest figure the place produced. "Offline · 4 d" is the
+ * device's own word, said on the device row, by the offline alert and by the
+ * note on a socket nobody is listening for - and it is counted from when the
+ * device was last heard, which is a different instant from its last sample.
+ * Saying both with the same word put two ages for one silence on one screen.
+ */
 export function LivenessPill({ liveness, measuredAt, now }: { liveness: Liveness; measuredAt: string | null; now: DateTime }) {
   const { t } = useTranslation();
   if (liveness === 'none') return null;
@@ -135,7 +148,7 @@ export function LivenessPill({ liveness, measuredAt, now }: { liveness: Liveness
   return (
     <span className={`mono ${styles.pill}`} data-liveness={liveness}>
       <span className={styles.dot} aria-hidden />
-      {t(`home.liveness.${liveness}`)}
+      {t(`home.reading.${liveness}`)}
       {measuredAt ? ` · ${ageLabel(measuredAt, now)}` : ''}
     </span>
   );
