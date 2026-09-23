@@ -1581,6 +1581,11 @@ export const growWeekDay = named(
   z.object({
     dayNumber: z.number().int(),
     startsAt: instant(),
+    stage: growthStage
+      .nullable()
+      .describe(
+        'The stage the grow entered on this day, where it entered one; null on a day it carried on in the stage before. A week is named after the stage it ended in, so this is the only place a card records a stage that began and was over inside it.',
+      ),
     mediaId: id().nullable(),
     cameraId: id().nullable(),
     capturedAt: instant().nullable(),

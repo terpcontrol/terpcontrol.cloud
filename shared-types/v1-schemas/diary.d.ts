@@ -4195,6 +4195,14 @@ export declare const weekClimate: z.ZodObject<{
 export declare const growWeekDay: z.ZodObject<{
     dayNumber: z.ZodNumber;
     startsAt: z.ZodISODateTime;
+    stage: z.ZodNullable<z.ZodEnum<{
+        germination: "germination";
+        seedling: "seedling";
+        vegetative: "vegetative";
+        flowering: "flowering";
+        drying: "drying";
+        curing: "curing";
+    }>>;
     mediaId: z.ZodNullable<z.ZodString>;
     cameraId: z.ZodNullable<z.ZodString>;
     capturedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -4281,6 +4289,14 @@ export declare const growWeekCard: z.ZodObject<{
     days: z.ZodArray<z.ZodObject<{
         dayNumber: z.ZodNumber;
         startsAt: z.ZodISODateTime;
+        stage: z.ZodNullable<z.ZodEnum<{
+            germination: "germination";
+            seedling: "seedling";
+            vegetative: "vegetative";
+            flowering: "flowering";
+            drying: "drying";
+            curing: "curing";
+        }>>;
         mediaId: z.ZodNullable<z.ZodString>;
         cameraId: z.ZodNullable<z.ZodString>;
         capturedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -4470,6 +4486,14 @@ export declare const growWeekCardPage: z.ZodObject<{
         days: z.ZodArray<z.ZodObject<{
             dayNumber: z.ZodNumber;
             startsAt: z.ZodISODateTime;
+            stage: z.ZodNullable<z.ZodEnum<{
+                germination: "germination";
+                seedling: "seedling";
+                vegetative: "vegetative";
+                flowering: "flowering";
+                drying: "drying";
+                curing: "curing";
+            }>>;
             mediaId: z.ZodNullable<z.ZodString>;
             cameraId: z.ZodNullable<z.ZodString>;
             capturedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -5230,6 +5254,14 @@ export declare const publicGrowPage: z.ZodObject<{
         days: z.ZodArray<z.ZodObject<{
             dayNumber: z.ZodNumber;
             startsAt: z.ZodISODateTime;
+            stage: z.ZodNullable<z.ZodEnum<{
+                germination: "germination";
+                seedling: "seedling";
+                vegetative: "vegetative";
+                flowering: "flowering";
+                drying: "drying";
+                curing: "curing";
+            }>>;
             mediaId: z.ZodNullable<z.ZodString>;
             cameraId: z.ZodNullable<z.ZodString>;
             capturedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -5436,6 +5468,14 @@ export declare const publicWeekPage: z.ZodObject<{
         days: z.ZodArray<z.ZodObject<{
             dayNumber: z.ZodNumber;
             startsAt: z.ZodISODateTime;
+            stage: z.ZodNullable<z.ZodEnum<{
+                germination: "germination";
+                seedling: "seedling";
+                vegetative: "vegetative";
+                flowering: "flowering";
+                drying: "drying";
+                curing: "curing";
+            }>>;
             mediaId: z.ZodNullable<z.ZodString>;
             cameraId: z.ZodNullable<z.ZodString>;
             capturedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -5690,6 +5730,14 @@ export declare const sharedGrow: z.ZodObject<{
             days: z.ZodArray<z.ZodObject<{
                 dayNumber: z.ZodNumber;
                 startsAt: z.ZodISODateTime;
+                stage: z.ZodNullable<z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>>;
                 mediaId: z.ZodNullable<z.ZodString>;
                 cameraId: z.ZodNullable<z.ZodString>;
                 capturedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -6312,6 +6360,14 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             days: z.ZodArray<z.ZodObject<{
                 dayNumber: z.ZodNumber;
                 startsAt: z.ZodISODateTime;
+                stage: z.ZodNullable<z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>>;
                 mediaId: z.ZodNullable<z.ZodString>;
                 cameraId: z.ZodNullable<z.ZodString>;
                 capturedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -6945,6 +7001,14 @@ export declare const sharedResolution: z.ZodObject<{
                 days: z.ZodArray<z.ZodObject<{
                     dayNumber: z.ZodNumber;
                     startsAt: z.ZodISODateTime;
+                    stage: z.ZodNullable<z.ZodEnum<{
+                        germination: "germination";
+                        seedling: "seedling";
+                        vegetative: "vegetative";
+                        flowering: "flowering";
+                        drying: "drying";
+                        curing: "curing";
+                    }>>;
                     mediaId: z.ZodNullable<z.ZodString>;
                     cameraId: z.ZodNullable<z.ZodString>;
                     capturedAt: z.ZodNullable<z.ZodISODateTime>;

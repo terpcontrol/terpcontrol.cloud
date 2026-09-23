@@ -175,7 +175,7 @@ export class GrowWeeksService {
       // a band, and the band belongs to the phase, which is what the report's
       // chapters are told against.
       this.climate.summarise(deviceIds, seen, null),
-      this.daysOf(week, seen, world.cameraIds),
+      this.daysOf(week, seen, world.cameraIds, spineOf(grow)),
     ]);
 
     const counted = (kind: EntryKind): number => entries.filter(entry => entry.kind === kind).length;
@@ -217,12 +217,18 @@ export class GrowWeeksService {
    * picture, and the search itself is bounded by the window, so a thumbnail can
    * never be a still taken outside it.
    */
-  private async daysOf(week: GrowWeekSpan, seen: Span, cameraIds: string[]): Promise<GrowWeekDay[]> {
+  private async daysOf(week: GrowWeekSpan, seen: Span, cameraIds: string[], spine: GrowDocument['phases']): Promise<GrowWeekDay[]> {
     const days = Array.from({ length: week.dayTo - week.dayFrom + 1 }, (_, index) => {
       const startsAt = new Date(week.startsAt.getTime() + index * DAY_MS);
       const endsAt = new Date(startsAt.getTime() + DAY_MS);
 
-      return { dayNumber: week.dayFrom + index, startsAt, nearest: pictureHourIn(startsAt), seen: startsAt < seen.endsAt && endsAt > seen.startsAt };
+      return {
+        dayNumber: week.dayFrom + index,
+        startsAt,
+        endsAt,
+        nearest: pictureHourIn(startsAt),
+        seen: startsAt < seen.endsAt && endsAt > seen.startsAt,
+      };
     });
     const pictured = days.filter(day => day.seen);
 
@@ -255,6 +261,9 @@ export class GrowWeeksService {
       return {
         dayNumber: day.dayNumber,
         startsAt: day.startsAt.toISOString(),
+        // A day outside the window is not told what happened on it, any more
+        // than it is given a picture of it.
+        stage: day.seen ? (begunOn(spine, day.startsAt, day.endsAt)?.stage ?? null) : null,
         mediaId: closest?.id ?? null,
         cameraId: closest?.cameraId ?? null,
         capturedAt: closest?.capturedAt.toISOString() ?? null,
@@ -351,6 +360,34 @@ const nearestTo = <T extends { capturedAt: Date }>(rows: readonly T[], instant: 
 
 const filmOf = (films: readonly Pick<MediaDocument, 'id' | 'capturedAt'>[], week: GrowWeekSpan): string | null =>
   films.find(film => film.capturedAt >= week.startsAt && film.capturedAt < week.endsAt)?.id ?? null;
+
+/**
+ * The phases that speak for the grow as a whole. A phase scoped to some of the
+ * plants is a split, and a split is told in the timeline rather than by renaming
+ * the week everybody else is still in - unless every phase is one, in which case
+ * they are all the grow has to be named after.
+ */
+const spineOf = (grow: GrowDocument): GrowDocument['phases'] => {
+  const spine = grow.phases.filter(phase => phase.plantIds === null);
+
+  return spine.length > 0 ? spine : grow.phases;
+};
+
+/**
+ * The stage a grow entered on one day, where it entered one.
+ *
+ * A card is named after the stage its week *ended* in, which is right for a
+ * boundary and silent about a week that held two or three. Seven days of
+ * germination, seedling and veg were drawn as "Veg wk 1" with nothing saying
+ * that the first two ever happened, and a week that began in veg and flipped on
+ * its fifth day was pilled "Flower wk 1" over four days of veg. The day strip is
+ * where the change has a home, because the day is what a stage begins on.
+ *
+ * Where two began on one day the later one is answered: the tile says what the
+ * day left the grow in, as the week's own pill does for the week.
+ */
+const begunOn = (phases: GrowDocument['phases'], from: Date, until: Date): GrowDocument['phases'][number] | null =>
+  latest(phases.filter(phase => phase.startedAt >= from && phase.startedAt < until));
 
 /**
  * The phase the grow as a whole was in when the week ended, which is what the

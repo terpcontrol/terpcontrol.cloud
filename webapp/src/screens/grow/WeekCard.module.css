@@ -109,6 +109,20 @@
   opacity: var(--age-offline);
 }
 
+/* The day a stage began. Under the weekday rather than over the picture: a
+   thumbnail is the day itself, and a label on it would be read as part of it. */
+.dayStage {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0 4px;
+  border: var(--rule-solid);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .stats {
   display: flex;
   gap: var(--space-5);

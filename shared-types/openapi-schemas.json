@@ -12106,6 +12106,17 @@
         "format": "date-time",
         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
       },
+      "stage": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/GrowthStage"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The stage the grow entered on this day, where it entered one; null on a day it carried on in the stage before. A week is named after the stage it ended in, so this is the only place a card records a stage that began and was over inside it."
+      },
       "mediaId": {
         "anyOf": [
           {
@@ -12144,6 +12155,7 @@
     "required": [
       "dayNumber",
       "startsAt",
+      "stage",
       "mediaId",
       "cameraId",
       "capturedAt"

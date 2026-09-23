@@ -76,6 +76,11 @@ export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
                 {src ? <img src={src} alt={t('grow.dayStillAlt', { day: day.dayNumber })} loading="lazy" /> : null}
               </span>
               <span className={`mono ${styles.dayName}`}>{at.toFormat('ccc')}</span>
+              {/* The card is named after the stage its week ended in, which says
+                  nothing about a week that held two or three of them. The day a
+                  stage began is where that belongs, and it is the only place a
+                  stage the grow passed through inside one week is recorded. */}
+              {day.stage ? <span className={`mono ${styles.dayStage}`}>{t(`grow.stageShort.${day.stage}`)}</span> : null}
             </li>
           );
         })}

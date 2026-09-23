@@ -145,6 +145,8 @@ const week: GrowWeekCard = {
   days: Array.from({ length: 7 }, (_, index) => ({
     dayNumber: 29 + index,
     startsAt: at(6 - index, 0),
+    // The grow flipped to flower on the third day of this week.
+    stage: index === 2 ? ('flowering' as const) : null,
     mediaId: index === 6 ? 'media-1' : null,
     cameraId: index === 6 ? 'cam-1' : null,
     capturedAt: index === 6 ? at(0) : null,
@@ -402,6 +404,17 @@ describe('the last card of a grow that has ended', () => {
 
     const lived = [...container.querySelectorAll('[data-future]')].map(tile => tile.getAttribute('data-future'));
     expect(lived).toEqual(['false', 'false', 'false', 'true', 'true', 'true', 'true']);
+  });
+
+  it('marks on the day strip the stage the grow entered inside the week, which the pill cannot say', () => {
+    // The pill names the stage the week ended in. A week that held two - three
+    // for a grow that germinated, sprouted and went to veg in seven days - said
+    // nothing about the ones before the last.
+    draw(<WeekCard week={week} grow={grow} people={people} now={NOW} current />);
+
+    const marks = screen.getAllByRole('listitem').map(tile => tile.textContent);
+    expect(marks.filter(text => text?.includes('Flower'))).toHaveLength(1);
+    expect(marks[2]).toContain('Flower');
   });
 
   it('says of an empty week that nothing was logged, rather than that nothing has been yet', () => {

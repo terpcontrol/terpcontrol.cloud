@@ -408,6 +408,20 @@
   text-align: center;
 }
 
+/* The day a stage began, under the weekday it began on. */
+.dayStage {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0 4px;
+  border: var(--rule-solid);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .stats {
   display: flex;
   gap: var(--space-5);

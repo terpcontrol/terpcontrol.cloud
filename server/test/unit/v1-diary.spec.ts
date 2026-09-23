@@ -580,6 +580,32 @@ describe('a week card', () => {
     expect(summaryOf(grow, [], NOTHING_HIDDEN, NOW).stageWeek).toBe(card.stageWeek);
   });
 
+  /**
+   * A card is named after the stage its week ended in, which says nothing about
+   * a week that held two or three: seven days of germination, seedling and veg
+   * were drawn as one veg week with the first two nowhere on the screen.
+   */
+  it('marks the day a stage began on the strip, and leaves the week named after the one it ended in', async () => {
+    const page = await weeks.page(GROW, await grantFor(session(OWNER)), {}, NOW);
+    const week4 = page.items.find(week => week.weekNumber === 4)!;
+
+    // Flower began on day 23, the second day of the week.
+    expect(week4.days.map(day => day.stage)).toEqual([null, 'flowering', null, null, null, null, null]);
+    expect(week4).toMatchObject({ stage: 'flowering', dayFrom: 22, dayTo: 28 });
+    expect(page.items.find(week => week.weekNumber === 1)!.days[0].stage).toBe('seedling');
+  });
+
+  it('marks no split on the strip, because a split is told in the timeline rather than as the grow´s own stage', async () => {
+    await db.grows.updateOne(
+      { id: GROW },
+      { $push: { phases: { ...phase('phase-split', 'drying', 30, { plantIds: [PLANT] }) } } as Record<string, unknown> },
+    );
+
+    const week5 = (await weeks.page(GROW, await grantFor(session(OWNER)), { limit: 1 }, NOW)).items[0];
+
+    expect(week5.days.every(day => day.stage === null)).toBe(true);
+  });
+
   it('tells the day and the night apart by the light, and says how long it was on', async () => {
     const page = await weeks.page(GROW, await grantFor(session(OWNER)), {}, NOW);
 

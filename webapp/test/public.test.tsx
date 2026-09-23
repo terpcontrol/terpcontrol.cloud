@@ -82,6 +82,8 @@ const week: GrowWeekCard = {
   days: Array.from({ length: 7 }, (_, index) => ({
     dayNumber: 29 + index,
     startsAt: at(6 - index, 0),
+    // The grow flipped to flower on the third day of this week.
+    stage: index === 2 ? ('flowering' as const) : null,
     mediaId: index === 6 ? 'media-1' : null,
     cameraId: index === 6 ? 'cam-1' : null,
     capturedAt: index === 6 ? at(0) : null,
@@ -265,6 +267,16 @@ describe('a public diary', () => {
     // comes to; a card that said nothing would read as a quiet week.
     draw(<DiaryWeek week={{ ...week, entryCount: 25 }} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
     expect(screen.getByText('+ 23 more')).toBeInTheDocument();
+  });
+
+  it('marks on the day strip the stage the grow entered inside the week', () => {
+    draw(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
+
+    // The pill names the stage the week ended in, so a week that held two of
+    // them says the earlier one here or nowhere.
+    const tiles = screen.getAllByRole('listitem').map(tile => tile.textContent);
+    expect(tiles[2]).toContain('Flower');
+    expect(tiles.filter(text => text?.includes('Flower'))).toHaveLength(1);
   });
 
   it('says of an empty week of a diary that is over that nothing was logged, not that nothing has been yet', () => {

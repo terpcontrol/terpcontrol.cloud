@@ -81,6 +81,9 @@ export function DiaryWeek({ week, picture, now, current, ended, asOf }: DiaryWee
             <li key={day.dayNumber} className={styles.dayTile} data-future={at > now}>
               <Photo src={src} alt={t('grow.dayStillAlt', { day: day.dayNumber })} className={styles.thumb} />
               <span className={`mono ${styles.dayName}`}>{at.toFormat('ccc')}</span>
+              {/* Where the grow changed stage inside the week, which the pill
+                  above cannot say: it names the stage the week ended in. */}
+              {day.stage ? <span className={`mono ${styles.dayStage}`}>{t(`grow.stageShort.${day.stage}`)}</span> : null}
             </li>
           );
         })}

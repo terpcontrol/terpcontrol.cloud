@@ -3512,6 +3512,10 @@ export interface WeekClimate {
 export interface GrowWeekDay {
   dayNumber: number;
   startsAt: string;
+  /**
+   * The stage the grow entered on this day, where it entered one; null on a day it carried on in the stage before. A week is named after the stage it ended in, so this is the only place a card records a stage that began and was over inside it.
+   */
+  stage: GrowthStage | null;
   mediaId: string | null;
   cameraId: string | null;
   capturedAt: string | null;

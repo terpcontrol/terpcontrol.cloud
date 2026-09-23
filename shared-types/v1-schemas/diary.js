@@ -1201,6 +1201,9 @@ exports.weekClimate = (0, common_js_1.named)('WeekClimate', zod_1.z.object({
 exports.growWeekDay = (0, common_js_1.named)('GrowWeekDay', zod_1.z.object({
     dayNumber: zod_1.z.number().int(),
     startsAt: (0, common_js_1.instant)(),
+    stage: common_js_1.growthStage
+        .nullable()
+        .describe('The stage the grow entered on this day, where it entered one; null on a day it carried on in the stage before. A week is named after the stage it ended in, so this is the only place a card records a stage that began and was over inside it.'),
     mediaId: (0, common_js_1.id)().nullable(),
     cameraId: (0, common_js_1.id)().nullable(),
     capturedAt: (0, common_js_1.instant)().nullable(),
