@@ -1556,6 +1556,29 @@ export interface AdminRetentionRun {
   errors: number;
 }
 
+export interface AdminAlarmWatch {
+  /**
+   * When the last pass that completed finished; null when none has since this server started.
+   */
+  ranAt: string | null;
+  /**
+   * Claimed devices that pass went round.
+   */
+  devices: number;
+  /**
+   * Devices it could not decide about, because the measurement store did not say whether they had written anything since.
+   */
+  unjudged: number;
+  /**
+   * Passes that have failed since the last one that completed.
+   */
+  failures: number;
+  /**
+   * When the most recent failure was, so a run that has stopped can be told from one that has not.
+   */
+  failedAt: string | null;
+}
+
 export interface AdminStats {
   collectedAt: string;
   users: AdminUserStats;
@@ -1567,6 +1590,7 @@ export interface AdminStats {
    * Null when this server has not run a retention pass since it started.
    */
   retention: AdminRetentionRun | null;
+  alarmWatch: AdminAlarmWatch;
 }
 
 export interface AdminLogLine {

@@ -2,7 +2,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { type DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { AdminRetentionRun, AdminStats, Device, Fleet } from '@fg2/shared-types/v1';
+import type { AdminAlarmWatch, AdminRetentionRun, AdminStats, Device, Fleet } from '@fg2/shared-types/v1';
 import { fileSize } from '@/api/exports';
 import { ApiError } from '@/api/problem';
 import { ageLabel, deviceLiveness } from '@/ui/age';
@@ -99,6 +99,11 @@ export function HealthCard({ fleet, devices, stats, now }: { fleet: Fleet; devic
         {answer ? (
           <li className="mono">{answer.retention ? <RetentionLine run={answer.retention} now={now} /> : t('admin.health.noRetention')}</li>
         ) : null}
+        {answer ? (
+          <li className="mono">
+            <AlarmWatchLine watch={answer.alarmWatch} now={now} />
+          </li>
+        ) : null}
         <li className="mono">
           {demo.length === 0
             ? t('admin.health.noDemo')
@@ -155,6 +160,43 @@ function RetentionLine({ run, now }: { run: AdminRetentionRun; now: DateTime }) 
       })}
       {' · '}
       <span className={run.errors > 0 ? styles.trouble : undefined}>{t('admin.count.errors', { count: run.errors })}</span>
+    </>
+  );
+}
+
+/**
+ * The offline watchdog's last pass, which is the one line on this card that is
+ * about whether an alarm would be raised at all.
+ *
+ * The loop that writes it raises "device offline" and "camera not delivering",
+ * and those are the only alarms on the install that nothing else can raise: a
+ * threshold is answered by a reading arriving, and silence is not a reading. A
+ * loop that cannot finish a pass therefore leaves every device without the rule
+ * the cloud keeps for it, and every alerts inbox on the install saying that
+ * nothing has gone wrong - which is exactly what a healthy fleet looks like
+ * from every other screen. So the failures are drawn even when there is no pass
+ * to date, and they and the devices the pass could not vouch for are what
+ * changes colour, because either of them means a part of the fleet is not being
+ * watched at this moment.
+ */
+function AlarmWatchLine({ watch, now }: { watch: AdminAlarmWatch; now: DateTime }) {
+  const { t } = useTranslation();
+  const zone = useZone();
+  const trouble = watch.failures > 0 || watch.unjudged > 0 || watch.ranAt === null;
+
+  return (
+    <>
+      {watch.ranAt
+        ? t('admin.health.alarmWatch', {
+            time: clock(watch.ranAt, zone),
+            age: ageLabel(watch.ranAt, now),
+            watched: t('admin.count.watched', { count: watch.devices }),
+          })
+        : t('admin.health.noAlarmWatch')}
+      {' · '}
+      <span className={trouble ? styles.trouble : undefined}>
+        {[t('admin.count.unjudged', { count: watch.unjudged }), t('admin.count.failedPasses', { count: watch.failures })].join(' · ')}
+      </span>
     </>
   );
 }

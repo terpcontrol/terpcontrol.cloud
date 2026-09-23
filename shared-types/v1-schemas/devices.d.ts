@@ -2168,6 +2168,28 @@ export declare const adminRetentionRun: z.ZodObject<{
     errors: z.ZodNumber;
 }, z.core.$strip>;
 /**
+ * How the alarm health loop itself is doing.
+ *
+ * It is the loop that raises "device offline" and "camera not delivering",
+ * which are the alarms nothing else on the install can raise: every other rule
+ * is answered by a reading arriving, and silence is not a reading. While it
+ * cannot complete a pass there is no offline rule, no offline alert and no
+ * camera-stale alert anywhere, and every alerts inbox on the install reads
+ * "nothing has gone wrong" - which is indistinguishable, from every screen,
+ * from a fleet where nothing is the matter. So the loop reports itself here
+ * rather than only into the log, and it reports failures as well as passes:
+ * `ranAt` is null on a server that has completed none, and `failures` is what
+ * says whether that is because it has just started or because it has been
+ * failing since it did.
+ */
+export declare const adminAlarmWatch: z.ZodObject<{
+    ranAt: z.ZodNullable<z.ZodISODateTime>;
+    devices: z.ZodNumber;
+    unjudged: z.ZodNumber;
+    failures: z.ZodNumber;
+    failedAt: z.ZodNullable<z.ZodISODateTime>;
+}, z.core.$strip>;
+/**
  * `GET /admin/stats`. Counting every collection is not free, so the answer may
  * be a cached pass and says when it was taken rather than implying "now".
  */
@@ -2210,6 +2232,13 @@ export declare const adminStats: z.ZodObject<{
         days: z.ZodNumber;
         errors: z.ZodNumber;
     }, z.core.$strip>>;
+    alarmWatch: z.ZodObject<{
+        ranAt: z.ZodNullable<z.ZodISODateTime>;
+        devices: z.ZodNumber;
+        unjudged: z.ZodNumber;
+        failures: z.ZodNumber;
+        failedAt: z.ZodNullable<z.ZodISODateTime>;
+    }, z.core.$strip>;
 }, z.core.$strip>;
 export declare const adminLogLevel: z.ZodEnum<{
     error: "error";

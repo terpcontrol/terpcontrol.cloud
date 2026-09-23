@@ -204,6 +204,7 @@ const STATS: AdminStats = {
   content: { spaces: 3, grows: 5, publicGrows: 1, plants: 12, entries: 400, media: 9000, mediaBytes: 2_254_857_830 },
   renders: { queued: 3, rendering: 1, failed: 0 },
   retention: { ranAt: LAST_NIGHT.toISO()!, reached: 143, devices: 96, days: 12, errors: 0 },
+  alarmWatch: { ranAt: NOW.minus({ seconds: 30 }).toISO()!, devices: 223, unjudged: 0, failures: 0, failedAt: null },
 };
 
 function json(body: unknown, status = 200) {
@@ -507,6 +508,10 @@ describe('the health card', () => {
     expect(screen.getByText(/^Retention ran 03:00 · \d+ (h|d) ago · 143 devices reached ·$/)).toBeInTheDocument();
     expect(screen.getByText('0 errors')).toBeInTheDocument();
 
+    // And the watchdog's own pass beside it, which is the line that says whether an offline alarm would be raised at all.
+    expect(screen.getByText(/^Offline watch ran \d\d:\d\d · \d+ s ago · 223 devices watched ·$/)).toBeInTheDocument();
+    expect(screen.getByText('0 not judged · 0 failed passes')).toBeInTheDocument();
+
     // The camera count is the install's total, not the length of the loaded list, which is empty here.
     expect(screen.getByText('11 cameras · 4 delivering nothing')).toBeInTheDocument();
     expect(screen.getByText(/figures as of \d+ s ago/)).toBeInTheDocument();
@@ -526,6 +531,30 @@ describe('the health card', () => {
     expect(await screen.findByText('No retention pass since this server started')).toBeInTheDocument();
     expect(screen.queryByText(/0 errors/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Retention ran/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * The state pass 7 found the restored install in: the watchdog had failed
+   * every one of a hundred and seventy-five passes and nothing on any screen
+   * said so, while the alerts inbox reported that nothing had gone wrong. The
+   * card is what has to say it, so it draws the failures with no pass to date
+   * rather than falling silent along with the loop.
+   */
+  it('says the offline watch has completed no pass, and counts the ones that failed', async () => {
+    server.stats = () => json({ ...STATS, alarmWatch: { ranAt: null, devices: 0, unjudged: 0, failures: 175, failedAt: NOW.toISO()! } });
+    await drawFleet();
+
+    expect(await screen.findByText('No offline-alarm pass has completed since this server started ·')).toBeInTheDocument();
+    expect(screen.getByText('0 not judged · 175 failed passes')).toBeInTheDocument();
+    expect(screen.queryByText(/Offline watch ran/)).not.toBeInTheDocument();
+  });
+
+  /** A pass that completed over a store that would not answer for part of the fleet: those devices are named, not counted as calm. */
+  it('counts the devices a completed pass could not vouch for', async () => {
+    server.stats = () => json({ ...STATS, alarmWatch: { ...STATS.alarmWatch, devices: 223, unjudged: 218 } });
+    await drawFleet();
+
+    expect(await screen.findByText('218 not judged · 0 failed passes')).toBeInTheDocument();
   });
 
   it("keeps the table and the lines counted from the fleet when the install's figures cannot be read, and names what is missing with them", async () => {

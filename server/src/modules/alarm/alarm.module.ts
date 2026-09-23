@@ -25,6 +25,9 @@ import { StageAlarmsService } from './stage-alarms.service';
   imports: [ModelsModule, V1CommonModule, MailModule, TunnelModule, DataModule],
   controllers: [DeviceAlarmRulesController, AlarmRulesController, AlertsController],
   providers: [AlarmEngineService, AlarmHealthService, AlarmDeliveryService, AlarmRuleService, AlertService, AlertInboxService, StageAlarmsService],
-  exports: [AlarmEngineService, StageAlarmsService],
+  // The health loop is exported for its own state and not for its work: the
+  // install's health card says whether it is completing its passes, because
+  // nothing else on any screen would show that it had stopped.
+  exports: [AlarmEngineService, StageAlarmsService, AlarmHealthService],
 })
 export class AlarmModule {}

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { V1CommonModule } from '@common/v1/v1.module';
 import { ModelsModule } from '@database/models.module';
+import { AlarmModule } from '@modules/alarm/alarm.module';
 import { DeviceProtocolModule } from '@modules/device-protocol/device-protocol.module';
 import { RetentionModule } from '@modules/retention/retention.module';
 import { AdminFleetController } from './admin-fleet.controller';
@@ -18,11 +19,12 @@ import { FleetService } from './fleet.service';
  * bound where the modules are wired together.
  *
  * The install's own health hangs here too, because the screen it is drawn on is
- * this one. That is what the retention module is imported for: the sweep runs
- * on its own and answers one question, what its last pass did.
+ * this one. That is what the retention and alarm modules are imported for: each
+ * runs a loop of its own and answers one question about it, what its last pass
+ * did and whether it is still completing them.
  */
 @Module({
-  imports: [ModelsModule, V1CommonModule, DeviceProtocolModule, RetentionModule],
+  imports: [ModelsModule, V1CommonModule, DeviceProtocolModule, RetentionModule, AlarmModule],
   controllers: [AdminFleetController],
   providers: [FleetService, FirmwareRolloutService, AdminStatsService],
   exports: [FleetService, FirmwareRolloutService],

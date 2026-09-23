@@ -3872,7 +3872,13 @@
       "reached_one": "{{count}} Gerät erreicht",
       "reached_other": "{{count}} Geräte erreicht",
       "errors_one": "{{count}} Fehler",
-      "errors_other": "{{count}} Fehler"
+      "errors_other": "{{count}} Fehler",
+      "watched_one": "{{count}} Gerät geprüft",
+      "watched_other": "{{count}} Geräte geprüft",
+      "unjudged_one": "{{count}} unbeurteilt",
+      "unjudged_other": "{{count}} unbeurteilt",
+      "failedPasses_one": "{{count}} fehlgeschlagener Lauf",
+      "failedPasses_other": "{{count}} fehlgeschlagene Läufe"
     },
     "refused": {
       "title": "Nicht für dieses Konto",
@@ -3939,6 +3945,8 @@
       "pictures": "Bilder {{size}}",
       "retention": "Aufräumlauf um {{time}} · vor {{age}} · {{reached}}",
       "noRetention": "Kein Aufräumlauf, seit dieser Server gestartet ist",
+      "alarmWatch": "Offline-Wache um {{time}} · vor {{age}} · {{watched}}",
+      "noAlarmWatch": "Kein Offline-Alarmlauf abgeschlossen, seit dieser Server gestartet ist",
       "updates": "{{installing}} · {{gaveUp}}",
       "statsFailed": "Die Zahlen der Installation ließen sich nicht lesen.",
       "statsMissing": "Dieser Server liefert seine eigenen Zahlen noch nicht: Er hat keine Route /admin/stats.",

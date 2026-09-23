@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { AdminRetentionRun, AdminStats } from '@fg2/shared-types/v1';
+import { AdminAlarmWatch, AdminRetentionRun, AdminStats } from '@fg2/shared-types/v1';
 import { onlineSince } from '@common/v1/value-age';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -12,6 +12,7 @@ import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
+import { AlarmHealthService } from '@modules/alarm/alarm-health.service';
 import { ClimateRetentionService } from '@modules/retention/climate-retention.service';
 import { UPGRADE_TIMEOUT_MS } from './firmware-rollout.service';
 
@@ -35,6 +36,11 @@ import { UPGRADE_TIMEOUT_MS } from './firmware-rollout.service';
  * run one, because the pass is the running process's own memory of its night;
  * a screen says so rather than printing an hour nothing happened at.
  *
+ * `alarmWatch` is the same for the loop that raises the offline and
+ * camera-stale alarms, and it is never null: a loop that has completed no pass
+ * at all is the case it exists to report, because the fleet then has no offline
+ * alarm on it and every inbox on the install says that nothing is wrong.
+ *
  * The answer carries `collectedAt` because it is a dozen counts and not an
  * instant, and a card that says "now" about figures gathered over a second is
  * the sort of small lie the rest of this app refuses.
@@ -55,6 +61,7 @@ export class AdminStatsService {
     @InjectModel(MODEL_V1.entry) private readonly entries: Model<EntryDocument>,
     @InjectModel(MODEL_V1.media) private readonly media: Model<MediaDocument>,
     private readonly retention: ClimateRetentionService,
+    private readonly alarmHealth: AlarmHealthService,
   ) {}
 
   public async stats(now: Date = new Date()): Promise<AdminStats> {
@@ -66,7 +73,16 @@ export class AdminStatsService {
       this.renderStats(),
     ]);
 
-    return { collectedAt: now.toISOString(), users, devices, cameras, content, renders, retention: lastRunOf(this.retention) };
+    return {
+      collectedAt: now.toISOString(),
+      users,
+      devices,
+      cameras,
+      content,
+      renders,
+      retention: lastRunOf(this.retention),
+      alarmWatch: watchOf(this.alarmHealth),
+    };
   }
 
   private async userStats(): Promise<AdminStats['users']> {
@@ -164,4 +180,21 @@ const lastRunOf = (retention: ClimateRetentionService): AdminRetentionRun | null
   const run = retention.lastRun;
 
   return run ? { ranAt: run.ranAt.toISOString(), reached: run.reached, devices: run.devices, days: run.days, errors: run.errors } : null;
+};
+
+/**
+ * The alarm watchdog's own state. A server that has completed no pass answers
+ * the figures of no pass rather than nothing at all, because the failures
+ * beside them are the whole point of the line.
+ */
+const watchOf = (health: AlarmHealthService): AdminAlarmWatch => {
+  const { last, failures, failedAt } = health.health;
+
+  return {
+    ranAt: last?.ranAt.toISOString() ?? null,
+    devices: last?.devices ?? 0,
+    unjudged: last?.unjudged ?? 0,
+    failures,
+    failedAt: failedAt?.toISOString() ?? null,
+  };
 };

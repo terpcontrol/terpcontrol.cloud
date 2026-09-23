@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = exports.durationUnit = exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = exports.deviceCommand = exports.socketSetCommand = exports.socketCredentials = exports.socketOverrideCommand = exports.captureStillCommand = exports.stopTestCommand = exports.testCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.adminDeviceCreate = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.devicePage = exports.device = exports.deviceState = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
-exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = void 0;
+exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.alertPage = exports.alert = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 const socket_report_js_1 = require("./socket-report.js");
@@ -749,6 +749,31 @@ exports.adminRetentionRun = (0, common_js_1.named)('AdminRetentionRun', zod_1.z.
     errors: zod_1.z.number().int().describe('Devices the pass left exactly as they were. It goes on to the next one.'),
 }));
 /**
+ * How the alarm health loop itself is doing.
+ *
+ * It is the loop that raises "device offline" and "camera not delivering",
+ * which are the alarms nothing else on the install can raise: every other rule
+ * is answered by a reading arriving, and silence is not a reading. While it
+ * cannot complete a pass there is no offline rule, no offline alert and no
+ * camera-stale alert anywhere, and every alerts inbox on the install reads
+ * "nothing has gone wrong" - which is indistinguishable, from every screen,
+ * from a fleet where nothing is the matter. So the loop reports itself here
+ * rather than only into the log, and it reports failures as well as passes:
+ * `ranAt` is null on a server that has completed none, and `failures` is what
+ * says whether that is because it has just started or because it has been
+ * failing since it did.
+ */
+exports.adminAlarmWatch = (0, common_js_1.named)('AdminAlarmWatch', zod_1.z.object({
+    ranAt: (0, common_js_1.instant)().nullable().describe('When the last pass that completed finished; null when none has since this server started.'),
+    devices: zod_1.z.number().int().describe('Claimed devices that pass went round.'),
+    unjudged: zod_1.z
+        .number()
+        .int()
+        .describe('Devices it could not decide about, because the measurement store did not say whether they had written anything since.'),
+    failures: zod_1.z.number().int().describe('Passes that have failed since the last one that completed.'),
+    failedAt: (0, common_js_1.instant)().nullable().describe('When the most recent failure was, so a run that has stopped can be told from one that has not.'),
+}));
+/**
  * `GET /admin/stats`. Counting every collection is not free, so the answer may
  * be a cached pass and says when it was taken rather than implying "now".
  */
@@ -760,6 +785,9 @@ exports.adminStats = (0, common_js_1.named)('AdminStats', zod_1.z.object({
     content: exports.adminContentStats,
     renders: exports.adminRenderStats,
     retention: exports.adminRetentionRun.nullable().describe('Null when this server has not run a retention pass since it started.'),
+    // Not nullable, unlike the retention pass: a loop that has never completed
+    // one still has something to report, and it is the figure that matters most.
+    alarmWatch: exports.adminAlarmWatch,
 }));
 exports.adminLogLevel = (0, common_js_1.named)('AdminLogLevel', zod_1.z.enum(['error', 'warn', 'info']));
 /**

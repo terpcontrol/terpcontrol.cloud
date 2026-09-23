@@ -3876,7 +3876,13 @@
       "reached_one": "{{count}} device reached",
       "reached_other": "{{count}} devices reached",
       "errors_one": "{{count}} error",
-      "errors_other": "{{count}} errors"
+      "errors_other": "{{count}} errors",
+      "watched_one": "{{count}} device watched",
+      "watched_other": "{{count}} devices watched",
+      "unjudged_one": "{{count}} not judged",
+      "unjudged_other": "{{count}} not judged",
+      "failedPasses_one": "{{count}} failed pass",
+      "failedPasses_other": "{{count}} failed passes"
     },
     "refused": {
       "title": "Not for this account",
@@ -3943,6 +3949,8 @@
       "pictures": "pictures {{size}}",
       "retention": "Retention ran {{time}} · {{age}} ago · {{reached}}",
       "noRetention": "No retention pass since this server started",
+      "alarmWatch": "Offline watch ran {{time}} · {{age}} ago · {{watched}}",
+      "noAlarmWatch": "No offline-alarm pass has completed since this server started",
       "updates": "{{installing}} · {{gaveUp}}",
       "statsFailed": "Could not read the install's own figures.",
       "statsMissing": "This server does not answer its own figures yet: it has no /admin/stats route.",

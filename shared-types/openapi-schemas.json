@@ -4740,6 +4740,62 @@
       "errors"
     ]
   },
+  "AdminAlarmWatch": {
+    "type": "object",
+    "properties": {
+      "ranAt": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "When the last pass that completed finished; null when none has since this server started."
+      },
+      "devices": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991,
+        "description": "Claimed devices that pass went round."
+      },
+      "unjudged": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991,
+        "description": "Devices it could not decide about, because the measurement store did not say whether they had written anything since."
+      },
+      "failures": {
+        "type": "integer",
+        "minimum": -9007199254740991,
+        "maximum": 9007199254740991,
+        "description": "Passes that have failed since the last one that completed."
+      },
+      "failedAt": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "When the most recent failure was, so a run that has stopped can be told from one that has not."
+      }
+    },
+    "required": [
+      "ranAt",
+      "devices",
+      "unjudged",
+      "failures",
+      "failedAt"
+    ]
+  },
   "AdminStats": {
     "type": "object",
     "properties": {
@@ -4773,6 +4829,9 @@
           }
         ],
         "description": "Null when this server has not run a retention pass since it started."
+      },
+      "alarmWatch": {
+        "$ref": "#/components/schemas/AdminAlarmWatch"
       }
     },
     "required": [
@@ -4782,7 +4841,8 @@
       "cameras",
       "content",
       "renders",
-      "retention"
+      "retention",
+      "alarmWatch"
     ]
   },
   "AdminLogLevel": {
