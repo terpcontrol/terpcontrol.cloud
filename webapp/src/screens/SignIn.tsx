@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -17,9 +18,9 @@ import styles from './SignIn.module.css';
  *
  * A phone is where the app lives, so a session stays until it is signed out.
  *
- * An account that is not yet activated is refused with a sentence that says
- * so, and that sentence is shown as it came: the stock "check your e-mail and
- * password" would send somebody to retype a password that was right.
+ * What a refusal is reported as is `refusalOf` below: the stock "check your
+ * e-mail and password" is only ever said where it is true, because it would
+ * otherwise send somebody to retype a password that was right.
  */
 export function SignIn() {
   const { t } = useTranslation();
@@ -43,8 +44,7 @@ export function SignIn() {
       if (error instanceof ApiError) {
         for (const [field, detail] of Object.entries(error.fieldErrors)) form.setError(field as keyof SessionCreate, { message: detail });
       }
-      const notActivated = error instanceof ApiError && error.problem.code === 'account_not_activated';
-      setProblem(notActivated ? error.problem.detail || error.problem.title : t('shell.signInFailed'));
+      setProblem(refusalOf(error, t));
     }
   });
 
@@ -118,3 +118,31 @@ export function SignIn() {
     </main>
   );
 }
+
+/**
+ * What the card says when the sign-in was refused.
+ *
+ * The stock sentence names the two fields, which is the truth for the refusal
+ * that is about them and a lie for the ones that are not. Two are not. An
+ * account still waiting for its activation is refused in the server's own
+ * words, which name the address the code went to and say more than this screen
+ * could without them. And the server counts sign-in attempts per address and
+ * refuses the eleventh within a minute with 429 whoever it came from, so a
+ * household, an office or a phone on a carrier's shared address can be turned
+ * away while the password in the field is correct - and telling that person to
+ * check their password sends them to change one that was never the problem.
+ * The wait is said in the app's own words rather than the server's, because
+ * the server phrases its details in English alone and the card around them is
+ * in the grower's language.
+ *
+ * Everything else keeps the stock sentence: the wrong password itself, which
+ * is deliberately not told apart from an address that has no account here, and
+ * a server or a connection that failed, whose own words are written for
+ * whoever runs the install rather than for whoever is standing at the form.
+ */
+const refusalOf = (error: unknown, t: TFunction): string => {
+  if (!(error instanceof ApiError)) return t('shell.signInFailed');
+  if (error.problem.code === 'account_not_activated') return error.problem.detail || error.problem.title;
+
+  return error.status === 429 ? t('shell.signInTooMany') : t('shell.signInFailed');
+};

@@ -1363,6 +1363,7 @@
     "account": "Ich",
     "notYet": "Noch nicht gebaut",
     "signInFailed": "Anmeldung nicht möglich. Bitte E-Mail und Passwort prüfen.",
+    "signInTooMany": "Zu viele Anmeldeversuche. Bitte einen Moment warten und es erneut versuchen.",
     "tabs": {
       "home": "Start",
       "timeline": "Verlauf",
