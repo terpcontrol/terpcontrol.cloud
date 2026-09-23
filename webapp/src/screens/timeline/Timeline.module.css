@@ -455,10 +455,18 @@
   gap: 0;
 }
 
+/*
+ * The label keeps the mark's own overhang clear of itself. A mark is centred on
+ * the moment it stands for, which for one at the very start of the window puts
+ * half of it - the 10px `.mark` pulls itself left by - outside the rail and over
+ * the label: the grow range's first mark covered the last pixels of "EVENTS".
+ * The room comes out of the gutter the label already has to itself, so nothing
+ * else on the stack moves.
+ */
 .laneName {
   flex-shrink: 0;
   width: var(--gutter);
-  padding-right: var(--space-2);
+  padding-right: 10px;
   overflow: hidden;
   text-align: right;
   text-overflow: ellipsis;
@@ -522,10 +530,17 @@
   color: var(--alarm);
 }
 
+/*
+ * How many lines the mark stands for, beside the kind it stands for rather than
+ * over it. The badge is opaque and the glyph is 12px, so sitting inside the
+ * circle it covered almost all of it: a mark of 28 notes drew a "28" and no note
+ * at all, and the mark's own hit test answered the badge. Pushed off the corner
+ * it clears the glyph, and the card's own padding leaves it the room.
+ */
 .markCount {
   position: absolute;
-  right: 0;
-  bottom: -1px;
+  right: -5px;
+  bottom: -6px;
   padding: 0 2px;
   background: var(--card);
   border-radius: var(--radius-pill);

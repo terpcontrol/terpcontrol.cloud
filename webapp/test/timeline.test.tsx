@@ -364,6 +364,35 @@ describe('the timeline', () => {
   });
 });
 
+/**
+ * The rail is the one control the screen has, and jsdom lays nothing out, so
+ * the two facts that decide whether its marks can be read are asserted against
+ * the stylesheet itself: a mark hangs half of itself off the left edge of the
+ * rail, and its count badge is opaque and sits over a 12px glyph.
+ */
+describe('the geometry of a mark on the rail', () => {
+  let css: string;
+  const pixels = (rule: string, property: string) => Number(new RegExp(`\\.${rule}\\s*\\{[^}]*?${property}:\\s*(-?[\\d.]+)px`, 's').exec(css)?.[1]);
+
+  beforeAll(async () => {
+    css = await readFile(resolve(process.cwd(), 'src/screens/timeline/Timeline.module.css'), 'utf8');
+  });
+
+  it('keeps the lane´s label clear of the overhang of a mark at the start of the window', () => {
+    // A mark is centred on its moment by pulling itself half its width left, so
+    // one at the very start of the window puts that much of itself over the
+    // label of the lane beside the rail.
+    expect(pixels('laneName', 'padding-right')).toBeGreaterThanOrEqual(pixels('mark', 'width') / 2);
+  });
+
+  it('lays the count beside the kind rather than over it', () => {
+    // Anything but a negative offset puts the opaque badge back inside the 20px
+    // circle, where it covers the glyph that says what kind of line this is.
+    expect(pixels('markCount', 'right')).toBeLessThan(0);
+    expect(pixels('markCount', 'bottom')).toBeLessThan(0);
+  });
+});
+
 describe('what a panel is drawn against', () => {
   const [temperature] = answer.panels;
   const from = FROM.toMillis();
