@@ -443,12 +443,14 @@ describe('the inbox', () => {
     expect(readsOf('/v1/alerts').filter(one => one.path.includes('open=false'))).toHaveLength(1);
   });
 
-  it('dates an offline alert from the device’s own last sample rather than from when the cloud noticed', async () => {
+  it('dates an offline alert from when the device was last heard rather than from when the cloud noticed', async () => {
     server.alerts = [alert({ id: 'off', kind: 'offline', ruleId: null, severity: 'warning', value: null, startedAt: iso(NOW.minus({ hours: 3 })) })];
     server.devices = [deviceRow({ state: { lastSeenAt: iso(NOW.minus({ minutes: 25 })) } })];
     draw();
 
-    expect(await screen.findByText('Flower room B · offline · no sample for 25 min')).toBeInTheDocument();
+    // Heard, not sampled: the two are different beats and the app draws both,
+    // so the word has to name the one this figure is counted from.
+    expect(await screen.findByText('Flower room B · offline · last heard 25 min ago')).toBeInTheDocument();
   });
 
   /**

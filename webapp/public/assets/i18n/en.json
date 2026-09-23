@@ -3632,7 +3632,7 @@
     "what": {
       "running": "{{output}} running non-stop",
       "threshold": "alarm",
-      "offline": "offline · no sample for {{age}}",
+      "offline": "offline · last heard {{age}} ago",
       "wasOffline": "was offline",
       "cameraSince": "no image since {{time}}"
     },

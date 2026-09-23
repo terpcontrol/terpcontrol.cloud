@@ -146,10 +146,17 @@ interface What {
  * crossed where the rule is still there to say what it watched, the bare kind
  * where it is not.
  *
- * An offline alert is dated from the device's own last sample rather than from
- * the alert's start, because what a reader wants to know is how long the tent
- * has gone unwatched and not how long ago the cloud noticed. A device this
+ * An offline alert is dated from when the device was last heard rather than
+ * from the alert's start, because what a reader wants to know is how long the
+ * tent has gone unwatched and not how long ago the cloud noticed. A device this
  * account cannot see leaves the alert's own start as the only answer there is.
+ *
+ * Last heard is not last sample, and the words say so. A device reports its
+ * presence and its readings on different beats, and a migrated one can carry a
+ * connect stamped hours before the last figure it stored - so this card said
+ * "no sample for 4 d" about a tent whose newest reading the header of its own
+ * page dates three days back. The two ages are meant to differ; describing one
+ * of them as the other is what made them look like a contradiction.
  * Both instants are the server's, and so is the now they are taken from: a
  * silence is the whole of what such a card says, and a browser an hour out
  * would add that hour to it while the "since" beside it stayed put.

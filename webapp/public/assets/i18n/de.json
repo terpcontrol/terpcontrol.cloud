@@ -3628,7 +3628,7 @@
     "what": {
       "running": "{{output}} läuft ohne Pause",
       "threshold": "Alarm",
-      "offline": "offline · kein Messwert seit {{age}}",
+      "offline": "offline · zuletzt gemeldet vor {{age}}",
       "wasOffline": "war offline",
       "cameraSince": "kein Bild seit {{time}}"
     },
