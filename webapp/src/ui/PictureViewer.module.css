@@ -1,0 +1,95 @@
+/* The pictures of one diary line, over the screen the line was read on. */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3);
+  background: var(--scrim);
+}
+
+.viewer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 720px;
+  max-height: 94dvh;
+  padding: var(--space-3);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.viewer:focus {
+  outline: none;
+}
+
+.header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.counter {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.close {
+  display: inline-grid;
+  place-items: center;
+  padding: var(--space-1);
+  background: none;
+  border: 0;
+  color: var(--muted);
+}
+
+/*
+ * The picture takes whatever the dialog has left, and is never cropped: a
+ * grower looking at the twelfth picture of a line wants the whole frame they
+ * took, which is why they opened it rather than reading the thumbnail.
+ */
+.frame {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  background: var(--card-2);
+  border-radius: var(--radius);
+}
+
+.frame img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.steps {
+  display: flex;
+  flex: none;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.step {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: var(--card-2);
+  border: var(--rule-solid);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+}
+
+.step:disabled {
+  color: var(--muted);
+  opacity: 0.5;
+}

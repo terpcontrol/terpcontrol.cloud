@@ -1,10 +1,12 @@
 import { DateTime } from 'luxon';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Entry, Person, ReadingName } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { entryDetail } from '@/i18n/device-message';
 import { authorOf, headlineOf, KIND_ICON, readingFigure } from './entries';
 import { Photo } from './Photo';
+import { PictureViewer } from './PictureViewer';
 import styles from './EntryRow.module.css';
 
 /**
@@ -20,6 +22,11 @@ export type EntryPicture = (mediaId: string, width?: number) => string | null;
  * How many pictures a line draws before it says how many more it carries. One
  * migrated phase line holds seventeen, which would otherwise be the whole card
  * the line was meant to be one row of.
+ *
+ * It is how many are drawn, not how many can be looked at: the thumbnails and
+ * the "+13" beside them open a viewer over every picture the line carries, so
+ * the cap is a decision about the height of a row and not about which of a
+ * grower's pictures they are allowed to see again.
  */
 const THUMBNAILS_PER_ROW = 4;
 
@@ -96,6 +103,15 @@ export function EntryRow({
   const at = DateTime.fromISO(entry.occurredAt);
   const readings = 'readings' in entry.values ? entry.values.readings : [];
   const detail = entryDetail(i18n, entry);
+  const [opened, setOpened] = useState<number | null>(null);
+  /**
+   * The pictures of this line this surface may actually show. A share link
+   * narrowed to a few days refuses the ones taken outside it, picture by
+   * picture, and the strip leaves their frames out - so the viewer steps over
+   * the same ones rather than opening on a frame that cannot be filled.
+   */
+  const shown = entry.mediaIds.filter(mediaId => picture(mediaId, THUMBNAIL_WIDTH.strip) !== null);
+  const frames = shown.map(mediaId => picture(mediaId, THUMBNAIL_WIDTH.frame) ?? '');
 
   return (
     <li className={styles.row} data-severity={entry.severity ?? undefined}>
@@ -130,20 +146,34 @@ export function EntryRow({
           <span className={styles.photos}>
             {/* Numbered, because a screen reader meeting four pictures in a row
                 has no other way to tell one from the next. */}
-            {entry.mediaIds.slice(0, THUMBNAILS_PER_ROW).map((mediaId, index) => (
-              <Photo
-                key={mediaId}
-                className={styles.photo}
-                src={picture(mediaId, THUMBNAIL_WIDTH.strip)}
-                alt={t('home.entryPhotos.alt', { n: index + 1, count: entry.mediaIds.length })}
-              />
-            ))}
+            {entry.mediaIds.slice(0, THUMBNAILS_PER_ROW).map((mediaId, index) => {
+              const src = picture(mediaId, THUMBNAIL_WIDTH.strip);
+              const alt = t('home.entryPhotos.alt', { n: index + 1, count: entry.mediaIds.length });
+              // A picture this surface may not show keeps the frame it has
+              // always had, which the strip hides: there is nothing to open.
+              if (src === null) return <Photo key={mediaId} className={styles.photo} src={null} alt={alt} />;
+
+              return (
+                <button key={mediaId} type="button" className={styles.openPhoto} onClick={() => setOpened(shown.indexOf(mediaId))}>
+                  <Photo className={styles.photo} src={src} alt={alt} />
+                </button>
+              );
+            })}
+            {/* The count is of everything the line carries; what it opens on is
+                the first picture past the four the row had room for. */}
             {entry.mediaIds.length > THUMBNAILS_PER_ROW ? (
-              <span className={`mono ${styles.morePhotos}`}>{t('home.entryPhotos.more', { count: entry.mediaIds.length - THUMBNAILS_PER_ROW })}</span>
+              <button
+                type="button"
+                className={`mono ${styles.morePhotos}`}
+                onClick={() => setOpened(Math.min(THUMBNAILS_PER_ROW, Math.max(0, shown.length - 1)))}
+              >
+                {t('home.entryPhotos.more', { count: entry.mediaIds.length - THUMBNAILS_PER_ROW })}
+              </button>
             ) : null}
           </span>
         ) : null}
       </span>
+      {opened === null || shown.length === 0 ? null : <PictureViewer pictures={frames} from={opened} onClose={() => setOpened(null)} />}
     </li>
   );
 }

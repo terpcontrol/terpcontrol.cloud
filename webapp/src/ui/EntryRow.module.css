@@ -88,6 +88,14 @@
   margin-top: var(--space-1);
 }
 
+/* The thumbnail is the way into the rest of them, so it is a button; the frame inside it keeps its own size. */
+.openPhoto {
+  display: block;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
 .photo {
   display: block;
   width: 56px;
@@ -113,8 +121,14 @@
   display: none;
 }
 
+/* "+13" says the rest are there; it is the button that gets to them. */
 .morePhotos {
   align-self: center;
+  padding: 0 var(--space-1);
+  background: none;
+  border: 0;
   font-size: var(--text-xs);
   color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }

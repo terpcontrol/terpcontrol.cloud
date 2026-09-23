@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import i18next from 'i18next';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -253,5 +253,76 @@ describe('what a machine´s line says under its headline', () => {
     );
 
     expect(screen.getAllByText(/Alles abgeerntet und aufgehängt/)).toHaveLength(1);
+  });
+});
+
+/**
+ * A row draws four thumbnails and says how many more it carries. One migrated
+ * phase line of the restored production database carries seventeen, and until
+ * the "+13" opened something the other thirteen were in the export zip and
+ * nowhere else - while the grow's own Report counted all of them.
+ */
+describe('the pictures past the fourth', () => {
+  const SEVENTEEN = Array.from({ length: 17 }, (_, index) => `media-${index + 1}`);
+  const withPictures = (over: Parameters<typeof entryOf>[0] = {}) =>
+    render(
+      <ul>
+        <EntryRow entry={entryOf({ text: 'Entered Drying', mediaIds: SEVENTEEN, ...over })} people={[]} />
+      </ul>,
+    );
+
+  it('opens a viewer on the picture whose thumbnail was pressed', () => {
+    withPictures();
+    fireEvent.click(screen.getAllByRole('img')[1]);
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAccessibleName('Picture 2 of 17');
+    expect(dialog.querySelector('img')).toHaveAttribute('src', '/media/media-2');
+  });
+
+  it('opens on the first picture the row had no room for when the count is pressed', () => {
+    withPictures();
+    fireEvent.click(screen.getByText('+13'));
+
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('Picture 5 of 17');
+  });
+
+  it('steps through to the seventeenth, which is what the row could not draw', () => {
+    withPictures();
+    fireEvent.click(screen.getByText('+13'));
+    for (let step = 0; step < 12; step += 1) fireEvent.click(screen.getByRole('button', { name: 'Next picture' }));
+
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('Picture 17 of 17');
+    expect(screen.getByRole('button', { name: 'Next picture' })).toBeDisabled();
+  });
+
+  it('closes on Escape and leaves the row as it found it', () => {
+    withPictures();
+    fireEvent.click(screen.getByText('+13'));
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  /**
+   * A share link narrowed to a few days refuses the pictures taken outside it,
+   * picture by picture, and the strip leaves their frames out. The viewer steps
+   * over exactly those rather than opening on a frame it cannot fill.
+   */
+  it('steps over the pictures the surface refuses, and numbers what is left', () => {
+    render(
+      <ul>
+        <EntryRow
+          entry={entryOf({ mediaIds: ['one', 'two', 'three'] })}
+          people={[]}
+          picture={mediaId => (mediaId === 'two' ? null : `/link/${mediaId}`)}
+        />
+      </ul>,
+    );
+
+    fireEvent.click(screen.getByAltText('Picture 3 of 3'));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAccessibleName('Picture 2 of 2');
+    expect(dialog.querySelector('img')).toHaveAttribute('src', '/link/three');
   });
 });
