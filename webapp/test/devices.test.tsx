@@ -380,6 +380,7 @@ describe('what the sockets offer, by who is reading', () => {
       if (path === '/devices') return Promise.resolve({ items: [standing], nextCursor: null }) as never;
       if (path === '/cameras') return Promise.resolve({ items: [], nextCursor: null }) as never;
       if (path === '/spaces') return Promise.resolve({ items: [spaceWhere(youMay)], nextCursor: null }) as never;
+      if (path === '/me') return Promise.resolve({ premium: { enforced: true } }) as never;
       if (path.endsWith('/sockets')) return Promise.resolve({ items: [socket({ role: 'light' })], capabilities: CAPABILITIES }) as never;
       if (path.endsWith('/series')) return Promise.resolve({ readings: [], outputs: [] }) as never;
 
@@ -432,13 +433,16 @@ describe('what the Devices tab calls a device', () => {
       ...over,
     }) as Camera;
 
-  const list = { devices: [] as Device[], cameras: [] as Camera[] };
+  // `enforced` is what `/me` says about this install, which is the only thing
+  // that makes a feature tag worth drawing on a row.
+  const list = { devices: [] as Device[], cameras: [] as Camera[], enforced: true };
 
   const drawList = async () => {
     vi.mocked(api.get).mockImplementation((path: string) => {
       if (path === '/devices') return Promise.resolve({ items: list.devices, nextCursor: null }) as never;
       if (path === '/cameras') return Promise.resolve({ items: list.cameras, nextCursor: null }) as never;
       if (path === '/spaces') return Promise.resolve({ items: [{ id: 'space-1', name: 'Tent 1' } as Space], nextCursor: null }) as never;
+      if (path === '/me') return Promise.resolve({ premium: { enforced: list.enforced } }) as never;
       if (path.endsWith('/series')) return Promise.resolve({ readings: [], outputs: [] }) as never;
       if (path.endsWith('/sockets')) return Promise.resolve({ items: [], capabilities: CAPABILITIES }) as never;
 
@@ -447,6 +451,31 @@ describe('what the Devices tab calls a device', () => {
     wrap(<DeviceList />);
     await screen.findByText('Cameras');
   };
+
+  /**
+   * The tag says a stream the cloud pulls is a Premium feature, and an install
+   * that charges nothing has no such feature to point at - the camera's own page
+   * one tap away calls the same camera "everything included on this install", so
+   * the word on the row would be the list contradicting it.
+   */
+  it('tags a pulled stream as Premium where the install charges for it', async () => {
+    list.devices = [standing({})];
+    list.cameras = [hanging({ kind: 'rtsp', name: 'Side cam' })];
+    list.enforced = true;
+    await drawList();
+
+    expect(await screen.findByText('Premium')).toBeInTheDocument();
+  });
+
+  it('draws no such tag where the install gates nothing', async () => {
+    list.devices = [standing({})];
+    list.cameras = [hanging({ kind: 'rtsp', name: 'Side cam' })];
+    list.enforced = false;
+    await drawList();
+
+    expect(await screen.findByText('Side cam')).toBeInTheDocument();
+    expect(screen.queryByText('Premium')).toBeNull();
+  });
 
   it('draws a device nobody has named by its type as a word, with enough of its id to tell two apart', async () => {
     list.devices = [standing({})];
