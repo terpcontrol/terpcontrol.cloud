@@ -9,6 +9,7 @@ import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, GrowListItem, GrowWeekCard, Media, MediaRenderStatus } from '@fg2/shared-types/v1';
+import { exportFilename } from '@/api/exports';
 import { GrowArchive } from '@/screens/grow/Archive';
 import { GrowHeader } from '@/screens/grow/GrowPage';
 import { PhaseBar } from '@/screens/grow/PhaseBar';
@@ -245,6 +246,22 @@ describe('the report tab', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('building the file');
     expect(wire.calls).toContain('/grows/grow-1/export');
     expect(screen.queryByRole('button', { name: /Download/ })).not.toBeInTheDocument();
+  });
+
+  /**
+   * The row an export lives on names no grow: an export is the account's own
+   * copy of what it can see, and hanging it off a grow would put a zip among
+   * that grow's pictures. So the name is read from the job, and reading it from
+   * the row called every grow export an export of the whole account - two of
+   * them on one day overwriting each other in the download folder.
+   */
+  it('names the saved file after what was exported', () => {
+    const ofTheGrow = EXPORT_ROW('ready');
+    expect(ofTheGrow.growId).toBeUndefined();
+    expect(exportFilename(ofTheGrow)).toBe(`terp-control-grow-${at(0).slice(0, 10)}.zip`);
+
+    const ofTheAccount = { ...ofTheGrow, exportJob: { ...ofTheGrow.exportJob!, scope: 'account' as const, growId: null } };
+    expect(exportFilename(ofTheAccount)).toBe(`terp-control-account-${at(0).slice(0, 10)}.zip`);
   });
 
   it('offers the file itself once the job is ready, at the size it will cost', async () => {

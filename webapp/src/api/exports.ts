@@ -113,8 +113,15 @@ export const fileSize = (bytes: number, language?: string): string => {
  * What the zip is called once it is on somebody's disk. The server names no
  * file, and a browser left to itself would call it after the media id - which
  * is nothing anybody could find again among a year of downloads.
+ *
+ * What it is an export of is read from the job rather than from the row's own
+ * `growId`, which an export leaves null on purpose: an export is the account's
+ * private copy of what it can see, and hanging it off a grow would put a zip
+ * among that grow's pictures. Read from there, every grow export was called an
+ * export of the whole account.
  */
-export const exportFilename = (row: Media): string => `terp-control-${row.growId ? 'grow' : 'account'}-${row.createdAt.slice(0, 10)}.zip`;
+export const exportFilename = (row: Media): string =>
+  `terp-control-${row.exportJob?.scope === 'grow' ? 'grow' : 'account'}-${row.createdAt.slice(0, 10)}.zip`;
 
 /**
  * Handing the finished zip over. The route wants a session rather than the
