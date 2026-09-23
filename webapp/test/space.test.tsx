@@ -37,13 +37,23 @@ vi.mock('@/api/account', async importOriginal => ({
 
 beforeEach(() => {
   account.zone = null;
+  read.overview = null;
+  read.live = null;
 });
 
 /** What the reader may do in Tent 1, which is the other half of "what does this screen offer". */
 const may = vi.hoisted(() => ({ youMay: 'own' as AccessNeed }));
 
-/** What the tent page's own read answers, so that a failure can be given its real shape. */
-const read = vi.hoisted(() => ({ error: null as unknown }));
+/**
+ * What the tent page's own two reads answer, so that a failure can be given its
+ * real shape - and so that the two halves can be made to disagree, which is
+ * what a recovery looks like from inside the page.
+ */
+const read = vi.hoisted(() => ({
+  error: null as unknown,
+  overview: null as Record<string, unknown> | null,
+  live: null as Record<string, unknown> | null,
+}));
 
 vi.mock('@/api/spaces', async importOriginal => {
   const { spaceWhere, spacesAnswering } = await import('./session');
@@ -51,8 +61,8 @@ vi.mock('@/api/spaces', async importOriginal => {
   return {
     ...(await importOriginal<object>()),
     useSpaces: () => spacesAnswering(spaceWhere(may.youMay)),
-    useSpaceOverview: () => ({ data: undefined, error: read.error, isPending: false, isError: true, dataUpdatedAt: 0, refetch: () => {} }),
-    useSpaceLive: () => ({ data: undefined, isError: false, dataUpdatedAt: 0 }),
+    useSpaceOverview: () => read.overview ?? { data: undefined, error: read.error, isPending: false, isError: true, dataUpdatedAt: 0, refetch: () => {} },
+    useSpaceLive: () => read.live ?? { data: undefined, isError: false, dataUpdatedAt: 0 },
   };
 });
 
@@ -370,6 +380,46 @@ describe('a tent that is no longer shared with the reader', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Could not load. Try again.');
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+  });
+});
+
+/**
+ * A refresh that failed, while the page goes on showing what it knew.
+ *
+ * The two reads come round at different rates, so for up to a minute after the
+ * network is back one of them has succeeded and the other has not.
+ */
+describe('the banner over a page that could not refresh', () => {
+  const drawPage = () =>
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/spaces/space-1/overview']}>
+          <LogProvider>
+            <Routes>
+              <Route path="/spaces/:spaceId/:tab" element={<SpacePage />} />
+            </Routes>
+          </LogProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+  it('dates itself by the half that failed, not by the half that has already come back', () => {
+    // The live read is on half the overview's interval, so it recovers first.
+    // Dated by the freshest of the two, the line read "could not refresh ·
+    // showing what was known 0 s ago", which says both things at once.
+    read.overview = { data: overview, error: null, isPending: false, isError: true, dataUpdatedAt: Date.now() - 120_000, refetch: () => {} };
+    read.live = { data: undefined, isError: false, dataUpdatedAt: Date.now() };
+    drawPage();
+
+    expect(screen.getByText('Could not refresh · showing what was known 2 min ago')).toBeInTheDocument();
+  });
+
+  it('says nothing at all once every half has answered again', () => {
+    read.overview = { data: overview, error: null, isPending: false, isError: false, dataUpdatedAt: Date.now(), refetch: () => {} };
+    read.live = { data: undefined, isError: false, dataUpdatedAt: Date.now() };
+    drawPage();
+
+    expect(screen.queryByText(/Could not refresh/)).not.toBeInTheDocument();
   });
 });
 

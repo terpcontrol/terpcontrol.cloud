@@ -68,7 +68,14 @@ function SpaceScreen({ spaceId, tab, sub }: { spaceId: string; tab: SpaceTab; su
     live.data && live.dataUpdatedAt > overview.dataUpdatedAt
       ? { ...overview.data, values: live.data.values, setpoints: live.data.setpoints }
       : overview.data;
-  const failedAt = overview.isError || live.isError ? freshestAt : null;
+  // Dated by the half that failed, not by the freshest of the two. The live
+  // read comes round twice as often as the overview, so after the network was
+  // back it had already succeeded while the overview's failure still stood -
+  // and the banner said "could not refresh · showing what was known 0 s ago",
+  // which is two things at once. Of two failed halves it is the older, the way
+  // the alerts inbox puts it: what is on screen is as old as its older half.
+  const staleAt = Math.min(overview.isError ? overview.dataUpdatedAt : Infinity, live.isError ? live.dataUpdatedAt : Infinity);
+  const failedAt = Number.isFinite(staleAt) ? staleAt : null;
   const tabs = TABS.map(key => ({ key, label: t(`space.tabs.${key}`), to: `/spaces/${spaceId}/${key}` }));
   const Icon = KIND_ICON[current.kind];
 
