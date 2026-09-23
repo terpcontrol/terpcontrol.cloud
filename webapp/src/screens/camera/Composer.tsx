@@ -7,7 +7,7 @@ import { useCameras, useLatestStills } from '@/api/cameras';
 import { serverNow } from '@/api/clock';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { Sheet } from '@/log/Sheet';
-import { instantOf } from '@/ui/age';
+import { ageLabel, instantOf } from '@/ui/age';
 import ui from '@/ui/ui.module.css';
 import { zoneOf } from '@/ui/zone';
 import styles from './CameraPage.module.css';
@@ -86,9 +86,17 @@ export function Composer({ camera, grow, pending, onRender, onClose }: ComposerP
           {preview ? (
             <img className={styles.still} src={mediaUrl(preview, THUMBNAIL_WIDTH.frame) ?? undefined} alt="" />
           ) : (
-            <p className={`mono ${styles.noFrame}`}>{t('camera.noFramesToday')}</p>
+            // A preview that is missing means this camera has never delivered a
+            // picture at all, which is not the same as today holding none.
+            <p className={`mono ${styles.noFrame}`}>{t('composer.noPictureYet')}</p>
           )}
-          <span className={`mono ${styles.frameLabel}`}>{t('composer.previewOf', { range: t(`camera.window.${range}`) })}</span>
+          {/* The picture is the camera's newest still and not a frame of the
+              range, which has no picture of its own until it is rendered - so
+              the caption says which picture it is and how old, rather than
+              naming a range it may be days outside of. */}
+          {preview && camera.state.lastStillAt ? (
+            <span className={`mono ${styles.frameLabel}`}>{t('composer.latestPicture', { age: ageLabel(camera.state.lastStillAt) })}</span>
+          ) : null}
         </div>
 
         <Group label={t('composer.range')}>

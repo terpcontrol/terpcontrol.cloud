@@ -9,6 +9,7 @@ import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Camera, GrowListItem, TimelapseCreate } from '@fg2/shared-types/v1';
+import { serverNow } from '@/api/clock';
 import { CameraScreen } from '@/screens/camera/CameraPage';
 import { Composer } from '@/screens/camera/Composer';
 import { CameraSettings } from '@/screens/camera/CameraSettings';
@@ -167,6 +168,25 @@ describe('the composer', () => {
     expect(asked[0].window).toBe('day');
     expect(asked[0].endsAt).toBeUndefined();
     expect(asked[0].quality).toBe('sd');
+  });
+
+  it('says which picture the preview is and how old, not which range was chosen', () => {
+    // The preview is the camera's newest still, because a range has no picture
+    // of its own until it is rendered - so on a camera that stopped delivering
+    // days ago the old caption called a four-day-old frame a preview of today.
+    // Aged against the clock the app ages everything by, which is the server's.
+    state.lastStill = 'still-old';
+    draw(grow, { state: { ...camera.state, lastStillAt: serverNow().minus({ days: 4 }).toISO()! } });
+
+    expect(screen.getByText('latest picture · 4 d ago')).toBeInTheDocument();
+    expect(screen.queryByText(/preview · Today/)).not.toBeInTheDocument();
+  });
+
+  it('says a camera has never delivered a picture rather than that today holds none', () => {
+    state.lastStill = null;
+    draw(grow);
+
+    expect(screen.getByText('This camera has never delivered a picture')).toBeInTheDocument();
   });
 
   it('names both ends of a phase from the grow´s own record', () => {

@@ -3137,7 +3137,8 @@
   },
   "composer": {
     "title": "Timelapse",
-    "previewOf": "preview · {{range}}",
+    "latestPicture": "latest picture · {{age}} ago",
+    "noPictureYet": "This camera has never delivered a picture",
     "range": "Range",
     "from": "From",
     "to": "To",

@@ -3133,7 +3133,8 @@
   },
   "composer": {
     "title": "Zeitraffer",
-    "previewOf": "Vorschau · {{range}}",
+    "latestPicture": "neuestes Bild · vor {{age}}",
+    "noPictureYet": "Diese Kamera hat noch nie ein Bild geliefert",
     "range": "Zeitraum",
     "from": "Von",
     "to": "Bis",
