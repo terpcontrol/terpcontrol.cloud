@@ -116,6 +116,13 @@ function Links({ userId }: { userId: string | null }) {
     : { known: false, word: me.isPending ? t('home.waiting') : t('shell.loadFailed') };
   const opened = links.data.items.find(link => link.id === openId) ?? null;
   const own = <T extends GrowListItem | Space>(rows: T[] | undefined): T[] => (rows ?? []).filter(row => row.ownerId === userId);
+  /**
+   * Whether there is anything of this account's own to hand out. Only once
+   * both lists have answered: a list still on its way is not an account with
+   * nothing in it, and a link is made onto what somebody owns, so a tent
+   * somebody else let them into is not a subject either.
+   */
+  const nothingToShare = Boolean(grows.data && spaces.data && own(grows.data.items).length + own(spaces.data.items).length === 0);
 
   const describe = (link: ShareLink) => {
     const subject = subjectOf(link);
@@ -153,15 +160,25 @@ function Links({ userId }: { userId: string | null }) {
 
       <p className={`${ui.note} ${styles.closing}`}>{t('me.shareLinks.closing')}</p>
 
-      {/* A picker built from half a list offers half the tents, so the sheet waits for both lists rather than opening onto what happened to arrive. */}
-      <button
-        type="button"
-        className={`${ui.cardDashed} ${styles.new}`}
-        disabled={!mayManage || !grows.data || !spaces.data}
-        onClick={() => setDrafting(true)}
-      >
-        {t('me.shareLinks.new')}
-      </button>
+      {/* A picker built from half a list offers half the tents, so the sheet
+          waits for both lists rather than opening onto what happened to
+          arrive - and where both have arrived empty there is nothing to hand
+          out at all. An account in that state was given the card, four
+          choices and a refusal at the last step; it is now told why there is
+          no card, once both lists have actually answered. Two accounts in five
+          of the restored database own neither a tent nor a grow. */}
+      {nothingToShare ? (
+        <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.shareLinks.noSubjects')}</p>
+      ) : (
+        <button
+          type="button"
+          className={`${ui.cardDashed} ${styles.new}`}
+          disabled={!mayManage || !grows.data || !spaces.data}
+          onClick={() => setDrafting(true)}
+        >
+          {t('me.shareLinks.new')}
+        </button>
+      )}
 
       {drafting ? <NewLinkSheet grows={own(grows.data?.items)} spaces={own(spaces.data?.items)} onClose={() => setDrafting(false)} /> : null}
       {opened ? <LinkSheet link={opened} {...describe(opened)} dead={isDead(opened, now)} onClose={() => setOpenId(null)} /> : null}

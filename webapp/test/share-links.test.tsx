@@ -95,6 +95,8 @@ const server = {
   forgotten: [] as string[],
   /** Rows per page of `/grows` and `/spaces`; nought answers the whole list at once, as this install's does today. */
   pageSize: 0,
+  /** Whether this account owns anything at all: two in five of the restored database own neither a tent nor a grow. */
+  owns: true,
   failing: [] as string[],
   asked: [] as string[],
 };
@@ -138,8 +140,8 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     server.links = server.links.filter(row => row.id !== one[1]);
     return new Response(null, { status: 204 });
   }
-  if (path === '/grows') return json(pageOf(grows, url));
-  if (path === '/spaces') return json(pageOf(spaces, url));
+  if (path === '/grows') return json(pageOf(server.owns ? grows : [], url));
+  if (path === '/spaces') return json(pageOf(server.owns ? spaces : [], url));
   if (path === '/me') return json(me);
   return json({ status: 404, code: 'not_found', title: 'Not found', detail: '', errors: [] }, 404);
 }) as unknown as typeof fetch;
@@ -177,6 +179,7 @@ beforeEach(() => {
   server.revoked = [];
   server.forgotten = [];
   server.pageSize = 0;
+  server.owns = true;
   server.failing = [];
   server.asked = [];
 });
@@ -365,6 +368,32 @@ describe('copying', () => {
     writeText.mockRejectedValueOnce(new Error('refused'));
     fireEvent.click(within(card('Tent 1 · timeline · 7 days')).getByRole('button', { name: 'Copy the link' }));
     await screen.findByText('Copy it by hand');
+  });
+});
+
+/**
+ * A link is made onto something this account owns, so an account that owns
+ * nothing has nothing to make one from. The card was live all the same: it
+ * opened the whole sheet, let four choices be made, and refused at the last
+ * step with a dead Create link - where the rule is that a control somebody
+ * cannot use is absent rather than refused after the tap.
+ */
+describe('an account with nothing of its own', () => {
+  it('is told why there is no new link to make, rather than offered one that refuses', async () => {
+    server.owns = false;
+    server.links = [];
+    await drawLoaded();
+
+    expect(screen.getByText('Nothing of your own to share yet')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^\+ New link/ })).not.toBeInTheDocument();
+  });
+
+  it('keeps the card while the lists are still on their way, since a list that has not answered is not an empty account', async () => {
+    server.failing = ['/spaces'];
+    await drawLoaded();
+
+    expect(screen.getByRole('button', { name: /^\+ New link/ })).toBeDisabled();
+    expect(screen.queryByText('Nothing of your own to share yet')).not.toBeInTheDocument();
   });
 });
 

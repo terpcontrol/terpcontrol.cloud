@@ -84,7 +84,10 @@ export function NewLinkSheet({ grows, spaces, onClose }: { grows: GrowListItem[]
       <div className={styles.sheetBody}>
         <Block label={t('me.shareLinks.sheet.subject')}>
           {grows.length + spaces.length === 0 ? (
-            <p className={ui.note}>{t('me.shareLinks.sheet.nothing')}</p>
+            /* The screen no longer offers the card at all where there is
+               nothing to hand out, so this is only what a list emptied under
+               an open sheet falls back to - and it says the same thing. */
+            <p className={ui.note}>{t('me.shareLinks.noSubjects')}</p>
           ) : (
             <Choices label={t('me.shareLinks.sheet.subject')}>
               {grows.map(row => (
