@@ -300,6 +300,29 @@ describe('what the camera is set to', () => {
     expect(screen.getByRole('checkbox', { name: 'night off' })).not.toBeChecked();
   });
 
+  it('states the stream it pulls, how, and whether it goes through the tunnel', () => {
+    drawSettings({ kind: 'rtsp', did: null, model: null, url: 'rtsp://192.168.144.77:554/stream1', transport: 'tcp', tunnel: true });
+
+    expect(screen.getByText('rtsp://192.168.144.77:554/stream1 · TCP · through the tunnel')).toBeInTheDocument();
+    // Stated and not a field: what was served has had its credentials stripped
+    // out, so saving it back would be saving over them.
+    expect(screen.queryByRole('textbox', { name: 'Reached at' })).not.toBeInTheDocument();
+  });
+
+  it('states the identity and address a Terp Cam answers on', () => {
+    drawSettings({ did: 'AAC2851962SPLP', ip: '192.168.144.145', model: 'terp_cam' });
+
+    expect(screen.getByText('AAC2851962SPLP · 192.168.144.145 · terp_cam')).toBeInTheDocument();
+  });
+
+  it('draws no address at all where the server kept it from this reader', () => {
+    // A co-manager or a guest is answered every one of these as null, so the
+    // row is absent rather than a row of dashes.
+    drawSettings({ did: null, uid: null, ip: null, url: null, model: null });
+
+    expect(screen.queryByText('Reached at')).not.toBeInTheDocument();
+  });
+
   it('offers a reader who may not manage the same facts as words and no switch at all', () => {
     drawSettings({ maintenanceOff: true, staleWarning: true, logErrors: false }, false);
 

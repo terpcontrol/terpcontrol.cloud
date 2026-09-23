@@ -81,6 +81,19 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
           <span className={`mono ${styles.settingValue}`}>{[connection(t, camera, through), place].filter(Boolean).join(' · ')}</span>
         </Row>
 
+        {/* Only where the answer carries it: the server keeps a camera's
+            address for its owner and nulls every field of it for everybody
+            else, so a co-manager or a guest is shown no row at all rather than
+            a row of dashes. */}
+        {reachedAt(t, camera) ? (
+          <Row label={t('camera.reachedAt')}>
+            <span className={styles.settingStack}>
+              <span className={`mono ${styles.settingValue}`}>{reachedAt(t, camera)}</span>
+              {camera.kind === 'rtsp' ? <span className={`${ui.note} ${styles.settingNote}`}>{t('camera.addressNote')}</span> : null}
+            </span>
+          </Row>
+        ) : null}
+
         <Row label={t('camera.name')}>
           {mayManage ? (
             <input
@@ -228,6 +241,29 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+/**
+ * Where the cloud reaches this camera: the stream it pulls and how, or the P2P
+ * identity and address a Terp Cam answers on.
+ *
+ * It is stated and not offered as a field, although the contract would take a
+ * new one. The URL is answered with its credentials stripped out - they are the
+ * server's to keep - so a field prefilled with what was served would write the
+ * stripped value back the first time somebody pressed Save, and the stream
+ * would stop opening. Correcting an address that has moved wants a field that
+ * starts empty and asks for the whole URL, which is what the add tab already
+ * is; until there is one here, saying what the server is trying is worth far
+ * more than saying nothing, because the failure this page reports a line above
+ * is usually a failure to reach exactly this.
+ */
+const reachedAt = (t: Translate, camera: Camera): string | null => {
+  const said =
+    camera.kind === 'rtsp'
+      ? [camera.url, camera.transport?.toUpperCase() ?? null, camera.tunnel ? t('camera.tunnelled') : null]
+      : [camera.did, camera.ip, camera.model];
+
+  return said.filter(Boolean).join(' · ') || null;
+};
 
 /** How the cloud reaches this camera, in the words the board uses for each kind. */
 const connection = (t: Translate, camera: Camera, through: string | null): string => {
