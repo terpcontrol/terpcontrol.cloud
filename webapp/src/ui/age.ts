@@ -1,16 +1,23 @@
 import { DateTime, Duration } from 'luxon';
 import type { MetricValue, ValueState } from '@fg2/shared-types/v1';
 import { VALUE_AGE } from '@fg2/shared-types/v1-schemas/value-age.js';
+import { serverNow } from '@/api/clock';
 
 /**
  * Every value on a screen carries its age. Whether it is live, stale or offline
  * is the server's answer - it has the clock and the one constant - so nothing
  * here decides that; this only puts the age into words and says how far the
  * value is dimmed.
+ *
+ * The instants being aged are the server's, so the "now" they are measured
+ * against is the server's too: `useNow` hands it to a screen on a beat, and the
+ * few callers with no beat of their own take it from `serverNow` here. Neither
+ * reads the browser's clock, which can be an hour out and would age everything
+ * on the screen by that hour.
  */
 
 /** "20 s", "4 min", "2 h", "3 d" - short, so it fits beside the figure it belongs to. */
-export const ageLabel = (measuredAt: string | null, now: DateTime = DateTime.now()): string => {
+export const ageLabel = (measuredAt: string | null, now: DateTime = serverNow()): string => {
   if (!measuredAt) return '—';
   const elapsed = Duration.fromMillis(Math.max(0, now.toMillis() - DateTime.fromISO(measuredAt).toMillis()));
   const seconds = Math.floor(elapsed.as('seconds'));
@@ -46,7 +53,11 @@ export const isStale = (value: Pick<MetricValue, 'state'>): boolean => value.sta
  *
  * The server decides the state of a *value* and answers it; a device's own
  * liveness is in no answer, so it is worked out here - against the contract's
- * one constant rather than a second copy of those seconds.
+ * one constant rather than a second copy of those seconds, and against the
+ * clock that stamped `lastSeenAt` rather than the one the reader's laptop
+ * keeps. A verdict is the whole of what a row says about a device, so a browser
+ * an hour fast would otherwise call four live devices dead and sort them to the
+ * top of the list for it.
  */
 export const deviceLiveness = (lastSeenAt: string | null, now: DateTime): ValueState => {
   if (!lastSeenAt) return 'offline';

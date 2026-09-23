@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import type { SessionCreate, SessionResult, SessionTokens, SessionUser } from '@fg2/shared-types/v1';
+import { serverNow } from './clock';
 import { v1 } from './config';
 import { ApiError, readProblem } from './problem';
 
@@ -108,8 +109,10 @@ const writeStored = (value: Stored | null) => {
  */
 const tokensOf = (result: SessionTokens, held: Tokens | null): Tokens => {
   // An unparsable date leaves `keep` false, so a token nobody can date is
-  // replaced rather than trusted.
-  const keep = held !== null && held.mediaTokenUntil - MEDIA_MARGIN_MS > Date.now();
+  // replaced rather than trusted. Every `validUntil` here was written by the
+  // server, and the server is what will refuse the token, so how long is left
+  // is asked of its clock rather than of this browser's.
+  const keep = held !== null && held.mediaTokenUntil - MEDIA_MARGIN_MS > serverNow().toMillis();
 
   return {
     userToken: result.userToken.token,
@@ -193,7 +196,7 @@ class SessionStore {
   public async restore(): Promise<void> {
     if (this.state.restored) return;
     const stored = readStored();
-    if (!stored || stored.refreshTokenUntil <= Date.now()) {
+    if (!stored || stored.refreshTokenUntil <= serverNow().toMillis()) {
       this.publish({ restored: true });
       return;
     }
@@ -206,7 +209,7 @@ class SessionStore {
   /** A token good for the next call, refreshing first when the one in hand is about to die. */
   public async validToken(): Promise<string | null> {
     const tokens = this.state.tokens;
-    if (tokens && tokens.userTokenUntil - REFRESH_MARGIN_MS > Date.now()) return tokens.userToken;
+    if (tokens && tokens.userTokenUntil - REFRESH_MARGIN_MS > serverNow().toMillis()) return tokens.userToken;
     const refreshed = await this.refresh(tokens?.refreshToken ?? readStored()?.refreshToken);
     return refreshed?.userToken ?? null;
   }

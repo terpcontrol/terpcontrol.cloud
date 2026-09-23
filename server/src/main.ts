@@ -50,6 +50,16 @@ const STOP_SIGNALS: NodeJS.Signals[] = ['SIGTERM', 'SIGINT'];
 const ALLOWED_METHODS = ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'];
 
 /**
+ * Every response already carries the instant it was written, and the webapp
+ * draws every age on a screen against that instant rather than against the
+ * browser's own clock - which can be an hour out, and would then age a sample
+ * taken a second ago by an hour. The browser is only allowed to read a response
+ * header from another origin when the answer says so, and `Date` is not one of
+ * the handful it may read without being told.
+ */
+const EXPOSED_HEADERS = ['Date'];
+
+/**
  * What is worth compressing: the plugin's own default pattern with
  * `octet-stream` removed from the end of it.
  *
@@ -145,7 +155,7 @@ const bootstrap = async (): Promise<void> => {
   // shown whether the result still fits in its document.
   await app.register(fastifyMultipart, { attachFieldsToBody: 'keyValues', limits: { fileSize: MAX_UPLOAD_BYTES } });
   await app.register(fastifyCookie);
-  await app.register(fastifyCors, { methods: ALLOWED_METHODS });
+  await app.register(fastifyCors, { methods: ALLOWED_METHODS, exposedHeaders: EXPOSED_HEADERS });
   await app.register(fastifyHelmet, {
     // Pictures are loaded straight into <img> tags on the webapp's origin, so
     // they must stay readable across origins.

@@ -1,3 +1,4 @@
+import { noteServerDate } from './clock';
 import { v1 } from './config';
 import { ApiError, readProblem } from './problem';
 import { session } from './session';
@@ -43,12 +44,20 @@ const send = async (path: string, options: RequestOptions, token: string | null)
   const form = options.body instanceof FormData;
   if (options.body !== undefined && !form) headers['Content-Type'] = 'application/json';
 
-  return fetch(v1(withQuery(path, options.query)), {
+  // Every answer says what the server's clock read as it was written, and the
+  // ages the screens draw are measured against that rather than against this
+  // browser's own clock. It costs a pair of local readings around a call that
+  // is being made anyway.
+  const sentAt = Date.now();
+  const response = await fetch(v1(withQuery(path, options.query)), {
     method: options.method ?? 'GET',
     headers,
     body: options.body === undefined ? undefined : form ? (options.body as FormData) : JSON.stringify(options.body),
     signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]) : AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
+  noteServerDate(response.headers.get('date'), sentAt, Date.now());
+
+  return response;
 };
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
