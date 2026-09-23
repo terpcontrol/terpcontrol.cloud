@@ -796,6 +796,32 @@ describe('cameras', () => {
       expect((await one<Record<string, any>>('media', { id: imageId }))?.cameraId).toBe(retired?.id);
     }
   });
+
+  it('dates a camera by the newest picture it delivered, so a quiet one does not read as one that never worked', async () => {
+    await migrate();
+
+    // The tent's newest still is a day old; the fridge has a stream and has
+    // never delivered anything; the fan's camera is gone and its last picture is
+    // thirty-nine days old. All three are quiet, and only one of them is a
+    // camera nobody ever got a picture out of.
+    const dated = async (deviceId: string) => (await one<Record<string, any>>('cameras', { id: cameraIdOf(deviceId) }))?.state.lastStillAt;
+
+    expect(await dated(LEGACY_DEVICE_IDS.controller)).toEqual(new Date(AT - DAY));
+    expect(await dated(LEGACY_DEVICE_IDS.fridge)).toBeNull();
+    expect(await dated(LEGACY_DEVICE_IDS.fan)).toEqual(new Date(AT - 39 * DAY));
+  });
+
+  it('dates it by a picture and not by a film, which covers the hours after the last one', async () => {
+    await migrate();
+
+    const camera = await one<Record<string, any>>('cameras', { id: cameraIdOf(LEGACY_DEVICE_IDS.controller) });
+    const film = await one<Record<string, any>>('media', { id: fixture.images.timelapses['1d'] });
+
+    // The day's film runs on past the still the camera is dated by, so dating a
+    // camera by everything its pipeline produced would claim it was delivering
+    // twelve hours longer than it was.
+    expect(film?.endsAt.getTime()).toBeGreaterThan(camera?.state.lastStillAt.getTime());
+  });
 });
 
 describe('plan templates', () => {

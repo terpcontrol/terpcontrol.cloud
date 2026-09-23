@@ -18,9 +18,16 @@ import { loadDeviceFacts } from '../device-facts';
  *   at; it was a constant, not a setting, so every migrated camera starts at it.
  * - **`nightOff` is false.** There was no such switch, and turning it on for
  *   somebody would stop pictures they have been getting.
- * - **`state.lastStillAt` is null**, rather than the newest still's instant. The
- *   poller fills it within one interval, and reading the whole picture
- *   collection to pre-fill a value that is about to be overwritten buys nothing.
+ * - **`state.lastStillAt` is the newest still the device ever delivered.** The
+ *   poller does overwrite it within one interval - but only for a camera the
+ *   poller reaches, and a camera behind a controller that has gone quiet is
+ *   never reached again. Left null it would stand for ever, and null is read
+ *   everywhere as "this camera has never taken a picture": the screens spell it
+ *   "never" beside a thumbnail of the picture it took, and the health loop skips
+ *   the camera entirely because it takes the null for a setup nobody finished.
+ *   The pictures are the only record of when the stream last worked, so they are
+ *   what it is filled from, and the aggregate that finds the devices with
+ *   pictures at all is already reading them.
  * - **Entitlement.** Twelve months from migration day with `grant: migration`,
  *   for every camera that exists, RTSP cameras included, as the record decides.
  * - **`secret`** is the camera password the controller reported as
@@ -102,7 +109,7 @@ export const cameras: MigrationStep = {
         // A camera nothing streams from any more is a tombstone its pictures
         // still point at, and is no longer listed.
         removedAt: fact.cameraRetired ? context.at : null,
-        state: { lastStillAt: null, lastError: null, firmwareVersion: null },
+        state: { lastStillAt: fact.lastStillAt, lastError: null, firmwareVersion: null },
       });
 
       if (fact.cameraRetired) context.count('cameras.retired');
