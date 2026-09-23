@@ -18,18 +18,24 @@ import styles from './GrowPage.module.css';
  * starts. The two sat a few centimetres apart on the Report tab and disagreed
  * about four phases of six, because a phase almost never begins on a grow-day
  * boundary and only one of them counted in whole days.
+ *
+ * A grow that has ended is in no stage. Its last segment is drawn as the stage
+ * it finished in, with the days that stage lasted like every other one, and the
+ * bar says so to a screen reader as well - "now in Curing" over a grow that came
+ * down in August is the page asserting a present it does not have.
  */
 export function PhaseBar({ grow, now }: { grow: GrowListItem; now: DateTime }) {
   const { t } = useTranslation();
+  const ended = grow.endedAt !== null;
   const stage = grow.summary.stage;
-  const current = stage ? STAGES.indexOf(stage) : -1;
+  const current = ended || !stage ? -1 : STAGES.indexOf(stage);
   const days = daysPerStageOf(stageSpansOf(grow, grow.endedAt ? new Date(grow.endedAt) : now.toJSDate()));
 
   return (
     <div
       className={styles.phaseBar}
       role="img"
-      aria-label={stage ? t('grow.phaseBarLabel', { stage: t(`home.stage.${stage}`) }) : t('home.card.noPhase')}
+      aria-label={stage ? t(ended ? 'grow.phaseBarEndedLabel' : 'grow.phaseBarLabel', { stage: t(`home.stage.${stage}`) }) : t('home.card.noPhase')}
     >
       {STAGES.map((name, index) => {
         const isCurrent = index === current;

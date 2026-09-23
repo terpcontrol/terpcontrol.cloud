@@ -236,6 +236,22 @@
   align-self: center;
 }
 
+/* "ended 24 Aug 2026", beside the name of a grow that is over. It carries no
+   colour of its own: a finished grow is not a warning, it is a record, and the
+   chip is there to date the frozen figures rather than to draw the eye. */
+.endedChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: var(--space-2);
+  padding: 1px var(--space-2);
+  border: var(--rule-solid);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  vertical-align: middle;
+}
+
 .publicChip {
   display: inline-flex;
   align-items: center;

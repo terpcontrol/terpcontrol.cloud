@@ -9,6 +9,7 @@ import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, GrowListItem, GrowWeekCard, Media, MediaRenderStatus } from '@fg2/shared-types/v1';
+import { GrowHeader } from '@/screens/grow/GrowPage';
 import { PhaseBar } from '@/screens/grow/PhaseBar';
 import { Report } from '@/screens/grow/Report';
 import { WeekCard } from '@/screens/grow/WeekCard';
@@ -298,7 +299,6 @@ describe('the phase bar', () => {
     const flipped: GrowListItem = {
       ...grow,
       phases: [grow.phases[0], { ...grow.phases[1], startedAt: at(10, 2) }],
-      endedAt: at(0, 10),
       summary: { ...grow.summary, phaseDay: 10 },
     };
 
@@ -308,6 +308,39 @@ describe('the phase bar', () => {
     // is days 1 to 23 and flowering begins on day 24.
     expect(container).toHaveTextContent('Veg23 d');
     expect(container).toHaveTextContent('Flowerday 10');
+  });
+});
+
+describe('a grow that has ended', () => {
+  const finished: GrowListItem = {
+    ...grow,
+    endedAt: at(0, 15),
+    summary: { ...grow.summary, dayNumber: 35, stageWeek: 2, phaseDay: 11 },
+  };
+
+  it('says on its own page that it is over, and dates the figures it froze', () => {
+    draw(<GrowHeader grow={finished} plants={[]} spaces={[]} now={NOW} onShare={null} />);
+
+    expect(screen.getByText('ended 18 Sep 2026')).toBeInTheDocument();
+    // The counter is the same 35 a running grow would draw, so the label is what
+    // says it stopped there rather than carrying on today.
+    expect(screen.getByText('final day')).toBeInTheDocument();
+  });
+
+  it('is drawn as standing in no stage, so the bar claims no present it does not have', () => {
+    const { container } = draw(<PhaseBar grow={finished} now={NOW} />);
+
+    expect(container.querySelectorAll('[data-current="true"]')).toHaveLength(0);
+    expect(screen.getByRole('img')).toHaveAccessibleName('Phase progress, ended in Flower');
+    // The stage it finished in says how long it lasted, like every stage before it.
+    expect(container).toHaveTextContent('Flower11 d');
+  });
+
+  it('draws a running grow as being in one, which is what the ended state is told against', () => {
+    const { container } = draw(<PhaseBar grow={grow} now={NOW} />);
+
+    expect(container.querySelectorAll('[data-current="true"]')).toHaveLength(1);
+    expect(screen.getByRole('img')).toHaveAccessibleName('Phase progress, now in Flower');
   });
 });
 

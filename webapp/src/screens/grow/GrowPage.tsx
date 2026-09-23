@@ -1,4 +1,5 @@
-import { ChevronLeft, Globe, LineChart, Ruler, Share2 } from 'lucide-react';
+import { ChevronLeft, CircleCheck, Globe, LineChart, Ruler, Share2 } from 'lucide-react';
+import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams } from 'react-router';
@@ -70,7 +71,7 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
 
   return (
     <section className={styles.page}>
-      <Header
+      <GrowHeader
         grow={grow.data}
         plants={plants.data?.items ?? []}
         spaces={spaces.data?.items ?? []}
@@ -111,9 +112,21 @@ interface HeaderProps {
   onShare: (() => void) | null;
 }
 
-function Header({ grow, plants, spaces, now, onShare }: HeaderProps) {
+/**
+ * The head of the page: what the grow is called, where it stands, how far it
+ * has come and how to share it.
+ *
+ * A grow that has ended says so here rather than drawing the shape of a running
+ * one. Its counters are frozen at the day it ended, which is honest only while
+ * the reader is told which day that was - undated, "218 DAY" beside a phase bar
+ * reads as a grow that is still curing today. So the date it ended stands beside
+ * the name and the figure is labelled as the last day rather than as the count
+ * so far.
+ */
+export function GrowHeader({ grow, plants, spaces, now, onShare }: HeaderProps) {
   const { t } = useTranslation();
   const { summary } = grow;
+  const endedAt = grow.endedAt ? DateTime.fromISO(grow.endedAt) : null;
   const places = summary.locations.map(location => ({
     spaceId: location.spaceId,
     name: location.spaceId ? (spaces.find(space => space.id === location.spaceId)?.name ?? '…') : t('grow.noFixedPlace'),
@@ -141,6 +154,12 @@ function Header({ grow, plants, spaces, now, onShare }: HeaderProps) {
                 )}
               </span>
             ))}
+            {endedAt ? (
+              <span className={`mono ${styles.endedChip}`}>
+                <CircleCheck size={12} strokeWidth={1.75} aria-hidden />
+                {t('grow.ended', { date: endedAt.toFormat('d LLL yyyy') })}
+              </span>
+            ) : null}
             {grow.visibility === 'public' ? (
               <Link to={`/g/${grow.slug}`} className={`mono ${styles.publicChip}`}>
                 <Globe size={12} strokeWidth={1.75} aria-hidden />
@@ -158,7 +177,7 @@ function Header({ grow, plants, spaces, now, onShare }: HeaderProps) {
         {summary.dayNumber !== null ? (
           <div className={styles.day}>
             <span className={`figure ${styles.dayFigure}`}>{summary.dayNumber}</span>
-            <span className="label">{t('home.card.day')}</span>
+            <span className="label">{t(endedAt ? 'grow.finalDay' : 'home.card.day')}</span>
           </div>
         ) : null}
       </div>
