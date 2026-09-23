@@ -60,7 +60,14 @@ function Figure({ value, setpoint, now }: { value: CardValue; setpoint: CardSetp
               Math.abs(delta) <= band ? (
                 <span className={styles.inBand}>{t('home.card.inBand')}</span>
               ) : (
-                <span className={styles.offBand}>{`${delta > 0 ? '+' : '−'}${figure(Math.abs(delta), value.metric)}`}</span>
+                // The word, not only the sign: "in band" beside it is a phrase,
+                // and a slot that holds a phrase in three cases out of four and
+                // a bare signed figure in the fourth leaves the one reading that
+                // is out of band as the only one nothing is said about. It is
+                // also the whole of what a screen reader would announce there.
+                <span
+                  className={styles.offBand}
+                >{`${delta > 0 ? '+' : '−'}${figure(Math.abs(delta), value.metric)} ${t(delta > 0 ? 'space.high' : 'space.low')}`}</span>
               )
             ) : null}
           </>

@@ -121,9 +121,10 @@ describe('the climate half', () => {
     expect(temperature).toHaveTextContent('in band');
 
     // Judged by the band the server put on the setpoint: 5 either side, so 57 is out and 55 would not be.
+    // A reading out of band says which way in words, as its in-band siblings say theirs.
     const humidity = screen.getByText('57').closest('[data-age]')!;
     expect(humidity).toHaveTextContent('→ 50');
-    expect(humidity).toHaveTextContent('+7');
+    expect(humidity).toHaveTextContent('+7 high');
   });
 
   it('dims an old value by its age and never hides it', () => {
