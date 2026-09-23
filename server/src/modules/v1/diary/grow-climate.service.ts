@@ -29,7 +29,15 @@ import { ClimateSummary, CLIMATE_METRICS, summariseClimate } from './week-climat
 /** Narrow enough that a week is a readable curve, wide enough that a week is one query; a longer stretch widens it. */
 const CLIMATE_STEP_SECONDS = 900;
 
-/** A device that steers a climate, and the targets it holds when a phase recorded none. */
+/**
+ * A device that steers a climate, and the targets it is running now.
+ *
+ * "Now" is the whole of what they are: the device document holds today's
+ * configuration, so these figures say nothing about any stretch of a grow that
+ * is over and are not a stand-in for a phase's own snapshot. What reads them is
+ * what asks about the present - the timeline's window, and what a preset
+ * application wrote.
+ */
 export interface Controller {
   deviceId: string;
   spaceId: string | null;
@@ -68,7 +76,9 @@ export class GrowClimateService {
    * One stretch, summarised. `targets` is the band the stretch is judged against
    * - the phase's own snapshot, which is the only thing that can draw a band
    * over a phase that is over, because the store holds readings and never
-   * setpoints.
+   * setpoints. Null is a stretch with no band, which is summarised and left
+   * ungraded rather than judged against whatever a controller happens to run
+   * today.
    */
   public async summarise(
     deviceIds: readonly string[],

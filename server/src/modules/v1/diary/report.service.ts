@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import type { EntryKind, GrowHarvest, GrowReport, GrowReportPhase, GrowTotals } from '@fg2/shared-types/v1';
-import { type StageSpan, stageSpansOf } from '@fg2/shared-types/v1-schemas';
+import type { EntryKind, GrowHarvest, GrowReport, GrowReportPhase, GrowTotals, PhaseTargets } from '@fg2/shared-types/v1';
+import { STAGES_WITH_CLIMATE, type StageSpan, stageSpansOf } from '@fg2/shared-types/v1-schemas';
 import { AccessRange, Grant } from '@common/v1/access.types';
 import { clampRange, overlapsRange, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
@@ -108,12 +108,10 @@ export class GrowReportService {
 
     const controllers = await this.climate.controllersIn(spaceIds);
     const [climate, coverMediaId] = await Promise.all([
-      // The phase's own snapshot is the band: the store holds readings and never
-      // setpoints, so a phase that is over has nothing else to be judged against.
       this.climate.summarise(
         controllers.map(controller => controller.deviceId),
         { startsAt: chapter.startsAt, endsAt },
-        chapter.phase.targets ?? controllers[0]?.targets ?? null,
+        bandOf(chapter),
       ),
       this.coverOf(spaceIds, new Date((chapter.startsAt.getTime() + endsAt.getTime()) / 2), world.grant, world.range),
     ]);
@@ -245,6 +243,28 @@ export class GrowReportService {
     };
   }
 }
+
+/**
+ * The band a chapter is graded against, or nothing - in which case the report
+ * states how the tent was kept and says nothing about how well.
+ *
+ * It is the phase's own snapshot and never a controller's present setpoints.
+ * The store holds readings and never setpoints, so the snapshot taken when a
+ * phase began is the only band that belongs to the stretch being judged: a
+ * fridge set for a flowering run in September is not what a January seedling
+ * week was aimed at, and grading one against the other states as a fact about
+ * how somebody kept their tent a verdict that is really about a number they
+ * changed last week. A phase that recorded no band - every migrated one, and
+ * one entered while no controller stood in the space - has no grade rather than
+ * a borrowed one; entering a phase snapshots the controller's targets into it,
+ * so a grow written in this app loses nothing.
+ *
+ * A stage with no climate of its own is left ungraded for a second reason: it
+ * was never steered. Jars in a cupboard are not a tent held off target, and the
+ * app's own phase sheet says so when the stage is picked.
+ */
+const bandOf = (chapter: Chapter): PhaseTargets | null =>
+  STAGES_WITH_CLIMATE.includes(chapter.phase.stage) ? (chapter.phase.targets ?? null) : null;
 
 interface ReportWorld {
   grow: GrowDocument;

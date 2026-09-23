@@ -879,6 +879,36 @@ describe('the report', () => {
     expect(humid.phases[0].inBandPercent).toBe(0);
   });
 
+  it('grades no phase that recorded no band, rather than against what the controller runs today', async () => {
+    // Every phase of a migrated grow carries `targets: null`, and the fridge
+    // they stood in is set for whatever is growing in it now. Judging a
+    // January seedling week against a September flowering setpoint states a
+    // verdict about how a tent was kept that is really about a number changed
+    // last week, so such a phase says how it was kept and nothing about how
+    // well.
+    await db.grows.updateOne({ id: GROW }, { $set: { 'phases.$[each].targets': null } }, { arrayFilters: [{ 'each.id': { $exists: true } }] });
+
+    const answer = await report.read(GROW, await grantFor(session(OWNER)), NOW);
+
+    expect(answer.phases.map(chapter => chapter.inBandPercent)).toEqual([null, null, null]);
+    // What it was kept at is still answered: only the grade goes.
+    expect(answer.phases[0].climate.length).toBeGreaterThan(0);
+  });
+
+  it('grades no stage that is not steered, however the phase was recorded', async () => {
+    // Curing happens in a jar. The app's own phase sheet says so when the stage
+    // is picked, and a phase entered by hand still snapshots the tent it was
+    // entered from - so without this a grow would be marked down for keeping
+    // its jars off a flowering band.
+    await db.grows.updateOne({ id: GROW }, { $push: { phases: phase('phase-curing', 'curing', 30) } });
+
+    const answer = await report.read(GROW, await grantFor(session(OWNER)), NOW);
+    const curing = answer.phases.find(chapter => chapter.stage === 'curing');
+
+    expect(curing?.inBandPercent).toBeNull();
+    expect(answer.phases.find(chapter => chapter.stage === 'flowering')?.inBandPercent).toBe(100);
+  });
+
   it('counts what was done to the plants in each chapter and carries the training itself', async () => {
     const answer = await report.read(GROW, await grantFor(session(OWNER)), NOW);
     const [flowering, vegetative] = answer.phases;
