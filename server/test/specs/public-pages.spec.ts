@@ -107,6 +107,21 @@ describe('a public grow at its own address', () => {
     expect(mine.body.items[0].entries[0].authorId).toBe(owner.userId);
   });
 
+  it('names the grow itself, which is what a reader follows, and never a diary that has no public page', async () => {
+    const page = await anonymous().get(`/v1/public/grows/${diary.slug}`).expect(200);
+    // The same id the author's own profile already lists for a public diary.
+    expect(page.body.growId).toBe(diary.id);
+
+    // A link onto a diary its owner never published is a window and nothing
+    // more: there is no page behind it to follow, so there is no id either.
+    const unpublished = await startAGrow({ name: 'Sent to one person' });
+    const link = await linkOnto({ type: 'grow', id: unpublished.id });
+
+    const opened = await anonymous().get(`/v1/shared/${link.token}`).expect(200);
+    expect(opened.body.subject.grow.growId).toBeNull();
+    expect(JSON.stringify(opened.body)).not.toContain(unpublished.id);
+  });
+
   it('names no device the diary was not kept with', async () => {
     // A second tent of the same account, which this grow never stood in.
     const elsewhere = await provisionDevice(owner, 'fridge');

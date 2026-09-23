@@ -6,14 +6,18 @@ import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Entry, GrowWeekCard, PublicGrowPage } from '@fg2/shared-types/v1';
 import { publicPicture } from '@/api/public';
+import { session } from '@/api/session';
 import { Diary } from '@/screens/public/Diary';
 import { DiaryWeek } from '@/screens/public/DiaryWeek';
 import { FollowButton } from '@/screens/public/FollowButton';
+import { PublicGrowRoute } from '@/screens/public/PublicGrowRoute';
+import { SharedRoute } from '@/screens/public/SharedRoute';
 import { windowIsCurrent } from '@/screens/public/window';
+import { ThemeProvider } from '@/theme/ThemeProvider';
 
 /**
  * A diary read by somebody who is not in it.
@@ -92,6 +96,7 @@ const week: GrowWeekCard = {
 
 const page: PublicGrowPage = {
   slug: 'spring-run',
+  growId: 'grow-1',
   name: 'Spring run',
   description: 'Three plants under 400 W.',
   type: 'photoperiod',
@@ -111,6 +116,47 @@ const page: PublicGrowPage = {
   weeksCursor: null,
   harvest: null,
   totals: { entryCount: 37, waterCount: 9, feedCount: 9, photoCount: 2 },
+};
+
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+
+/**
+ * The two public addresses as a browser meets them: the diary at its own, where
+ * a reader may follow it, and a link onto the same diary, which carries no id
+ * and therefore nothing to follow.
+ */
+const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+  const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
+
+  if (path === `/public/grows/${page.slug}`) return json(page);
+  if (path === '/shared/a-token') {
+    return json({
+      kind: 'view',
+      range: page.range,
+      includeCameras: true,
+      expiresAt: null,
+      subject: { type: 'grow', grow: page },
+    });
+  }
+  if (path === '/follows') return json({ items: [], nextCursor: null });
+
+  return json({ code: 'not_found' }, 404);
+});
+
+const drawRoute = (at: string, path: string, element: React.ReactNode) => {
+  vi.stubGlobal('fetch', fetchStub);
+
+  return render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <ThemeProvider>
+        <MemoryRouter initialEntries={[at]}>
+          <Routes>
+            <Route path={path} element={element} />
+          </Routes>
+        </MemoryRouter>
+      </ThemeProvider>
+    </QueryClientProvider>,
+  );
 };
 
 const draw = (node: React.ReactNode) =>
@@ -245,6 +291,50 @@ describe('following a diary', () => {
     draw(<FollowButton growId="grow-1" />);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
 
+    state.session = SIGNED_OUT;
+  });
+
+  it('decides nothing until the stored session has been tried', async () => {
+    const { SIGNED_IN, SIGNED_OUT } = await import('./session');
+
+    // A public address restores the session as it loads; a button that decided
+    // before that finished would tell a signed-in reader they cannot follow.
+    state.session = { ...SIGNED_IN, restored: false };
+    const { unmount } = draw(<FollowButton growId="grow-1" />);
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    unmount();
+
+    state.session = SIGNED_IN;
+    draw(<FollowButton growId="grow-1" />);
+    expect(screen.getByRole('button', { name: 'Follow' })).toBeInTheDocument();
+
+    state.session = SIGNED_OUT;
+  });
+
+  it('is on the diary itself for a reader who is signed in, which is where every screen says it is', async () => {
+    const { SIGNED_IN, SIGNED_OUT } = await import('./session');
+    state.session = SIGNED_IN;
+    // Nothing else on a public address restores the stored session, and without
+    // it the page has no reader to offer anything to.
+    const restore = vi.spyOn(session, 'restore').mockResolvedValue();
+
+    drawRoute('/g/spring-run', '/g/:slug', <PublicGrowRoute />);
+
+    expect(await screen.findByRole('button', { name: 'Follow' })).toBeInTheDocument();
+    expect(restore).toHaveBeenCalled();
+
+    restore.mockRestore();
+    state.session = SIGNED_OUT;
+  });
+
+  it('is on no diary a link leads to, even a public one: a window onto somebody´s grow is not a subscription', async () => {
+    const { SIGNED_IN, SIGNED_OUT } = await import('./session');
+    state.session = SIGNED_IN;
+
+    drawRoute('/shared/a-token', '/shared/:token', <SharedRoute />);
+
+    expect(await screen.findByRole('heading', { name: 'Spring run' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Follow/ })).not.toBeInTheDocument();
     state.session = SIGNED_OUT;
   });
 });

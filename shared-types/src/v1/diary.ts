@@ -1846,6 +1846,11 @@ export const publicGrowPage = named(
   'PublicGrowPage',
   z.object({
     slug: z.string(),
+    growId: id()
+      .nullable()
+      .describe(
+        'The grow itself, which is what a reader follows. Only a diary at its own public address carries it - the same id its author’s profile already lists - and a link onto a diary that is not public carries none, because a link is a window and not a subscription.',
+      ),
     name: z.string(),
     description: z.string().nullable(),
     type: growType,

@@ -12922,6 +12922,18 @@
       "slug": {
         "type": "string"
       },
+      "growId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The grow itself, which is what a reader follows. Only a diary at its own public address carries it - the same id its author’s profile already lists - and a link onto a diary that is not public carries none, because a link is a window and not a subscription."
+      },
       "name": {
         "type": "string"
       },
@@ -13057,6 +13069,7 @@
     },
     "required": [
       "slug",
+      "growId",
       "name",
       "description",
       "type",

@@ -3705,6 +3705,10 @@ export interface PublicAuthor {
 
 export interface PublicGrowPage {
   slug: string;
+  /**
+   * The grow itself, which is what a reader follows. Only a diary at its own public address carries it - the same id its author’s profile already lists - and a link onto a diary that is not public carries none, because a link is a window and not a subscription.
+   */
+  growId: string | null;
   name: string;
   description: string | null;
   type: GrowType;

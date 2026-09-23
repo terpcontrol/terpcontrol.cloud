@@ -13,11 +13,16 @@ import styles from './Public.module.css';
  * follow against - so neither is offered a button that would be refused.
  * Following is a state rather than an event, which is why one button says both
  * what is true and what tapping it does.
+ *
+ * Nothing is drawn until the stored session has been tried. On a public address
+ * that happens as the page loads, and a button that decided before it was
+ * finished would be the wrong one for a beat - a reader who is signed in would
+ * see no Follow at all and reach for the browser's back button instead.
  */
 export function FollowButton({ growId }: { growId: string }) {
   const { t } = useTranslation();
-  const { user } = useSession();
-  const mayFollow = user !== null && !user.isDemo;
+  const { user, restored } = useSession();
+  const mayFollow = restored && user !== null && !user.isDemo;
   const follows = useFollows(mayFollow);
   const follow = useFollowGrow();
   const unfollow = useUnfollowGrow();

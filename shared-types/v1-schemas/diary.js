@@ -1412,6 +1412,9 @@ exports.publicAuthor = (0, common_js_1.named)('PublicAuthor', zod_1.z.object({
  */
 exports.publicGrowPage = (0, common_js_1.named)('PublicGrowPage', zod_1.z.object({
     slug: zod_1.z.string(),
+    growId: (0, common_js_1.id)()
+        .nullable()
+        .describe('The grow itself, which is what a reader follows. Only a diary at its own public address carries it - the same id its author’s profile already lists - and a link onto a diary that is not public carries none, because a link is a window and not a subscription.'),
     name: zod_1.z.string(),
     description: zod_1.z.string().nullable(),
     type: common_js_1.growType,

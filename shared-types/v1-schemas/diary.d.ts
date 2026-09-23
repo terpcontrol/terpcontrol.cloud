@@ -5157,6 +5157,7 @@ export declare const publicAuthor: z.ZodObject<{
  */
 export declare const publicGrowPage: z.ZodObject<{
     slug: z.ZodString;
+    growId: z.ZodNullable<z.ZodString>;
     name: z.ZodString;
     description: z.ZodNullable<z.ZodString>;
     type: z.ZodEnum<{
@@ -5615,6 +5616,7 @@ export declare const sharedGrow: z.ZodObject<{
     type: z.ZodLiteral<"grow">;
     grow: z.ZodObject<{
         slug: z.ZodString;
+        growId: z.ZodNullable<z.ZodString>;
         name: z.ZodString;
         description: z.ZodNullable<z.ZodString>;
         type: z.ZodEnum<{
@@ -6236,6 +6238,7 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
     type: z.ZodLiteral<"grow">;
     grow: z.ZodObject<{
         slug: z.ZodString;
+        growId: z.ZodNullable<z.ZodString>;
         name: z.ZodString;
         description: z.ZodNullable<z.ZodString>;
         type: z.ZodEnum<{
@@ -6868,6 +6871,7 @@ export declare const sharedResolution: z.ZodObject<{
         type: z.ZodLiteral<"grow">;
         grow: z.ZodObject<{
             slug: z.ZodString;
+            growId: z.ZodNullable<z.ZodString>;
             name: z.ZodString;
             description: z.ZodNullable<z.ZodString>;
             type: z.ZodEnum<{

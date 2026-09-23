@@ -1,11 +1,12 @@
 import { Leaf } from 'lucide-react';
 import type { DateTime } from 'luxon';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import type { FollowedGrowCard, PublicUserPage } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, publicPicture, usePublicUser } from '@/api/public';
 import { ApiError } from '@/api/problem';
-import { useSession } from '@/api/session';
+import { session, useSession } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
@@ -40,6 +41,13 @@ export function PublicProfileRoute() {
 function Profile({ handle }: { handle: string }) {
   const now = useNow();
   const page = usePublicUser(handle);
+
+  // A public address is outside the session gate, so nothing else here has
+  // restored the stored session; without it every reader is a stranger and the
+  // Follow button on somebody else's diary is drawn for nobody.
+  useEffect(() => {
+    void session.restore();
+  }, []);
 
   if (page.isPending) {
     return (

@@ -113,6 +113,10 @@ export class PublicPagesService {
 
     return {
       slug: grow.slug,
+      // What a reader follows is the grow, and only a diary with a public page
+      // of its own can be followed at all - so a link onto a private diary
+      // hands over no id, exactly as it hands over no handle to look one up by.
+      growId: grow.visibility === 'public' ? grow.id : null,
       name: grow.name,
       description: grow.description,
       type: grow.type,
