@@ -47,8 +47,18 @@ function SpaceScreen({ spaceId, tab, sub }: { spaceId: string; tab: SpaceTab; su
   const overview = useSpaceOverview(spaceId);
   const live = useSpaceLive(spaceId, (overview.data?.deviceIds?.length ?? 0) > 0);
 
+  // The live read is the newer of the two more often than not; the overview's own values stand in until it answers.
+  const fresher = live.data && live.dataUpdatedAt > overview.dataUpdatedAt ? live.data : null;
+  // How old what is on the screen is, which is the age of the readings and not
+  // the age of the answer that carried them. A tent that has said nothing for
+  // four days answers every poll with the same four-day-old figures, and dating
+  // the screen by the fetch put "updated 0 s ago" over a header pill reading
+  // "no reading · 4 d" - the one screen somebody opens to ask whether the tent
+  // is still being heard from, answering that it is. The fetch stands in only
+  // while there is no reading to date the screen by at all.
   const freshestAt = Math.max(overview.dataUpdatedAt, live.dataUpdatedAt);
-  useReportFreshness(freshestAt ? fetchedAt(freshestAt) : null);
+  const measuredAt = measuredAtOf((fresher ?? overview.data)?.values ?? []);
+  useReportFreshness(measuredAt ?? (freshestAt ? fetchedAt(freshestAt) : null));
 
   if (overview.isPending) {
     return (
@@ -63,11 +73,7 @@ function SpaceScreen({ spaceId, tab, sub }: { spaceId: string; tab: SpaceTab; su
   // from then on.
   if (!overview.data) return noLongerThere(overview.error) ? <NoLongerHere what="space" /> : <LoadFailed retry={() => void overview.refetch()} />;
 
-  // The live read is the newer of the two more often than not; the overview's own values stand in until it answers.
-  const current: SpaceOverview =
-    live.data && live.dataUpdatedAt > overview.dataUpdatedAt
-      ? { ...overview.data, values: live.data.values, setpoints: live.data.setpoints }
-      : overview.data;
+  const current: SpaceOverview = fresher ? { ...overview.data, values: fresher.values, setpoints: fresher.setpoints } : overview.data;
   // Dated by the half that failed, not by the freshest of the two. The live
   // read comes round twice as often as the overview, so after the network was
   // back it had already succeeded while the overview's failure still stood -

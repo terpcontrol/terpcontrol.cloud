@@ -9,9 +9,11 @@ import { initReactI18next } from 'react-i18next';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, SpaceOverview } from '@fg2/shared-types/v1';
+import { fetchedAt } from '@/api/clock';
 import { ApiError } from '@/api/problem';
 import { Overview } from '@/screens/space/Overview';
 import { SpacePage } from '@/screens/space/SpacePage';
+import { useFreshness } from '@/ui/freshness';
 import { LaterRound } from '@/ui/LaterRound';
 import { LogProvider } from '@/log/LogProvider';
 
@@ -524,6 +526,71 @@ describe('the banner over a page that could not refresh', () => {
     drawPage();
 
     expect(screen.queryByText(/Could not refresh/)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The line under the wordmark, which says how old what is on the screen is.
+ *
+ * A tent that has gone quiet answers every poll with the same readings it gave
+ * four days ago, so dating the screen by the answer that carried them puts
+ * "updated 0 s ago" over a header pill reading "no reading · 4 d" - and this is
+ * the screen somebody opens to ask exactly that question.
+ */
+describe('how old the tent page says it is', () => {
+  /** Stands where the shell's own freshness line does, and shows the instant it was handed. */
+  function Reported() {
+    return <p data-testid="freshness">{useFreshness() ?? 'nothing'}</p>;
+  }
+
+  const drawPage = () =>
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/spaces/space-1/overview']}>
+          <LogProvider>
+            <Routes>
+              <Route path="/spaces/:spaceId/:tab" element={<SpacePage />} />
+            </Routes>
+            <Reported />
+          </LogProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+  it('reports the newest reading it draws, not the fetch that carried it', () => {
+    read.overview = { data: overview, error: null, isPending: false, isError: false, dataUpdatedAt: Date.now(), refetch: () => {} };
+    read.live = { data: undefined, isError: false, dataUpdatedAt: 0 };
+    drawPage();
+
+    expect(screen.getByTestId('freshness')).toHaveTextContent(at(20));
+  });
+
+  it('follows the live half once that is the newer of the two', () => {
+    read.overview = { data: overview, error: null, isPending: false, isError: false, dataUpdatedAt: Date.now() - 30_000, refetch: () => {} };
+    read.live = {
+      data: { values: [{ metric: 'temperature', value: 25.4, measuredAt: at(5), state: 'live' }], setpoints: [] },
+      isError: false,
+      dataUpdatedAt: Date.now(),
+    };
+    drawPage();
+
+    expect(screen.getByTestId('freshness')).toHaveTextContent(at(5));
+  });
+
+  it('falls back to the fetch while the place has no reading at all to be dated by', () => {
+    const answered = Date.now() - 5_000;
+    read.overview = {
+      data: { ...overview, values: [], deviceIds: [] },
+      error: null,
+      isPending: false,
+      isError: false,
+      dataUpdatedAt: answered,
+      refetch: () => {},
+    };
+    read.live = { data: undefined, isError: false, dataUpdatedAt: 0 };
+    drawPage();
+
+    expect(screen.getByTestId('freshness')).toHaveTextContent(fetchedAt(answered));
   });
 });
 
