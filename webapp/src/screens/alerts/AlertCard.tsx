@@ -6,6 +6,7 @@ import type { Alert, AlarmRule, Device, Me, Metric, OutputMetric } from '@fg2/sh
 import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
 import { clockLabel } from '@/screens/notifications/settings';
+import { parkedLabel, parksAnything } from '@/ui/maintenance';
 import { ruleTitle } from '@/screens/control/alarms/rules';
 import { ageAttribute, ageLabel, isAhead, spanLabel } from '@/ui/age';
 import { clock, zoned, zoneOf } from '@/ui/zone';
@@ -79,7 +80,7 @@ export function AlertCard({ alert, rule, names, me, mayManage, now }: AlertCardP
       </div>
 
       {open && mayManage ? (
-        <OpenChips alert={alert} rule={rule} now={now} />
+        <OpenChips alert={alert} rule={rule} device={device} now={now} />
       ) : !open && alert.spaceId ? (
         <div className={styles.chips}>
           <TimelineChip spaceId={alert.spaceId} />
@@ -299,12 +300,19 @@ function TimelineChip({ spaceId }: { spaceId: string }) {
  * rather than silenced, so it gets its own page instead of the rule's actions.
  *
  * Maintenance asks before it sends. It is not the quiet version of a silence:
- * the device parks its heater, its dehumidifier and its CO2 valve as well, so
- * for a quarter of an hour the tent is holding nothing, and a chip on a card
+ * where the hardware honours it, the device parks the loops it regulates with
+ * as well, so for a quarter of an hour the tent is holding nothing, and a chip
  * that names a duration alone does not say that. The question stands in the
  * place the tap was, the way the plan's own moves ask theirs.
+ *
+ * What the question promises is read off the device the alert came from. Only a
+ * controller and a fridge park anything; the other types have empty command
+ * handlers and drop the order silently, so a fan was being told its heater, its
+ * dehumidifier and its CO2 valve would stop - none of which it has. On that
+ * hardware the fifteen minutes are the cloud's alone, and the question says so
+ * rather than describing somebody else's tent.
  */
-function OpenChips({ alert, rule, now }: { alert: Alert; rule: AlarmRule | null; now: DateTime }) {
+function OpenChips({ alert, rule, device, now }: { alert: Alert; rule: AlarmRule | null; device: Device | null; now: DateTime }) {
   const { t } = useTranslation();
   // A chip that writes is drawn only where the alert names a device, so the empty id is never sent.
   const deviceId = alert.deviceId ?? '';
@@ -334,7 +342,11 @@ function OpenChips({ alert, rule, now }: { alert: Alert; rule: AlarmRule | null;
             {t(silenced ? 'alerts.action.unsilence' : 'alerts.action.silence')}
           </button>
         ) : null}
-        {!camera && alert.deviceId ? (
+        {/* The chip waits for the device's own row. What maintenance does here
+            is a different sentence on a controller and on a fan, so a card that
+            cannot yet say which would have to guess, and guessing is what put a
+            heater, a dehumidifier and a CO2 valve on a fan in the first place. */}
+        {!camera && device && alert.deviceId ? (
           <button type="button" className={ui.chip} disabled={busy} aria-expanded={asking} onClick={() => setAsking(!asking)}>
             {t('alerts.action.maintenance')}
           </button>
@@ -347,9 +359,9 @@ function OpenChips({ alert, rule, now }: { alert: Alert; rule: AlarmRule | null;
         ) : null}
       </div>
 
-      {asking ? (
+      {asking && device ? (
         <div className={ask.asking}>
-          <p className={ui.note}>{t('alerts.maintenance.ask')}</p>
+          <p className={ui.note}>{maintenanceAsk(t, device)}</p>
           <div className={ask.actions}>
             <button
               type="button"
@@ -371,12 +383,32 @@ function OpenChips({ alert, rule, now }: { alert: Alert; rule: AlarmRule | null;
         </div>
       ) : null}
 
-      {maintenance.data ? (
+      {maintenance.data && device ? (
         <p className={`mono ${styles.answer}`} role="status">
-          {t(maintenance.data.deviceOnline ? 'alerts.maintenance.sent' : 'alerts.maintenance.unheard')}
+          {maintenanceReceipt(t, device, maintenance.data.deviceOnline)}
         </p>
       ) : null}
       <Refused error={silence.error ?? unsilence.error ?? maintenance.error} />
     </>
   );
 }
+
+/**
+ * What maintenance is about to do here, before it is asked for. A device that
+ * parks something names what it parks; one whose firmware drops the order says
+ * that instead of borrowing a controller's promise.
+ */
+const maintenanceAsk = (t: Translate, device: Device): string =>
+  parksAnything(device) ? t('alerts.maintenance.ask', { outputs: parkedLabel(t, device) }) : t('alerts.maintenance.askQuietOnly');
+
+/**
+ * The receipt. Whether anybody was listening only matters where the device has
+ * something to do about it: on hardware that drops the order, "the command
+ * waits for it" would be a second thing that never happens, so that case is
+ * answered the same way whether or not the device was there to hear it.
+ */
+const maintenanceReceipt = (t: Translate, device: Device, online: boolean): string => {
+  if (!parksAnything(device)) return t('alerts.maintenance.sentQuietOnly');
+
+  return online ? t('alerts.maintenance.sent', { outputs: parkedLabel(t, device) }) : t('alerts.maintenance.unheard');
+};

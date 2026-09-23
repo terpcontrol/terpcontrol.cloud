@@ -2902,8 +2902,10 @@
     "visit": {
       "hereFallback": "this place",
       "reading": "Reading what stands in {{name}} …",
-      "parks_one": "Saving this puts the device standing in {{name}} into maintenance mode for {{minutes}} minutes: no heating, no dehumidifying, no CO₂, and no alarm while it lasts.",
-      "parks_other": "Saving this puts all {{count}} devices standing in {{name}} into maintenance mode for {{minutes}} minutes: no heating, no dehumidifying, no CO₂, and no alarm while it lasts.",
+      "parks_one": "Saving this puts the device standing in {{name}} into maintenance mode for {{minutes}} minutes, and no alarm of its own is raised while that lasts. What it stops driving meanwhile is beside its name.",
+    "parksOutputs": "stops {{outputs}}",
+    "parksNothing": "stops nothing: this hardware takes no maintenance command",
+      "parks_other": "Saving this puts all {{count}} devices standing in {{name}} into maintenance mode for {{minutes}} minutes, and no alarm of their own is raised while that lasts. What each one stops driving meanwhile is beside its name.",
       "nothingThere": "Nothing stands in {{name}}, so this is a line in the diary and nothing else.",
       "unreadable": "What stands in {{name}} could not be read, so nothing can be named here. Every device there is put into maintenance mode for {{minutes}} minutes all the same.",
       "notUndone": "The line can be taken back afterwards. The {{minutes}} minutes of quiet cannot: they run out by themselves and the devices pick up where they left off.",
@@ -3315,6 +3317,14 @@
       "between": "{{from}} → {{to}}"
     }
   },
+  "maintenance": {
+    "and": "and",
+    "output": {
+      "heater": "the heater",
+      "dehumidifier": "the dehumidifier",
+      "co2": "the CO₂ valve"
+    }
+  },
   "alarms": {
     "title": "Alarms",
     "backToPlan": "‹ back to the plan",
@@ -3703,9 +3713,11 @@
       "checkCam": "Check cam"
     },
     "maintenance": {
-      "sent": "Asked. Once it hears, the device parks its heater, dehumidifier and CO₂ valve and holds its alarms for 15 min.",
+      "sent": "Asked. Once it hears, the device stops {{outputs}}, and its alarms are held for 15 min.",
+      "sentQuietOnly": "Asked. This device drops the order, so nothing it drives will stop; its alarms are held for 15 min all the same.",
       "unheard": "Nobody was listening: the device has not been heard from, so the command waits for it.",
-      "ask": "Maintenance mode stops the heater, the dehumidifier and the CO₂ valve for fifteen minutes, and quietens every alarm on this device while it lasts.",
+      "ask": "Maintenance mode stops {{outputs}} for fifteen minutes, and quietens every alarm on this device while it lasts.",
+      "askQuietOnly": "This device takes no maintenance command, so nothing it drives will stop. What the fifteen minutes do here is quieten every alarm on it.",
       "yes": "Start maintenance",
       "cancel": "Cancel"
     },

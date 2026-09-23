@@ -362,3 +362,12 @@
   line-height: 1.7;
   list-style: disc;
 }
+
+/* What that one device will stop, beside the name of that one device. The list
+   is set in the face the app keeps for figures, because a device is known by an
+   id; this half is a sentence about it and reads in the text face, dimmed, so
+   that the eye still finds the name first. */
+.quietensParks {
+  font-family: var(--font-text);
+  color: var(--muted);
+}

@@ -454,6 +454,27 @@ describe('the log sheet', () => {
     expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
   });
 
+  /**
+   * The sentence over the list used to promise a heater, a dehumidifier and a
+   * CO2 valve for every place, above a list that may hold a plug, a fan or a
+   * lamp - hardware with none of the three, whose firmware drops the order
+   * without a word. Two devices stand in Tent 1 and only one of them parks
+   * anything, so the panel has to say which.
+   */
+  it('names what each device will stop, and says so where the hardware stops nothing', async () => {
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Step in/ }));
+
+    const asked = await screen.findByRole('dialog', { name: 'Step in' });
+    const controller = (await within(asked).findByText('Big tent controller')).closest('li')!;
+    expect(controller).toHaveTextContent('stops the heater, the dehumidifier and the CO₂ valve');
+
+    const plug = within(asked).getByText('Plug · VICE-2').closest('li')!;
+    expect(plug).toHaveTextContent('stops nothing: this hardware takes no maintenance command');
+    expect(plug).not.toHaveTextContent('heater');
+  });
+
   it('says so where nothing stands to be quietened, rather than promising an effect it will not have', async () => {
     vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/devices' ? { items: [], nextCursor: null } : answers(path)));
 

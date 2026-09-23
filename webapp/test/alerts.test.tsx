@@ -639,6 +639,28 @@ describe('the inbox', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Asked.');
   });
 
+  /**
+   * A fan has no heater, no dehumidifier and no CO2 valve, and its firmware has
+   * no maintenance branch at all - the order is dropped without a word. The
+   * question over that device has to be about that device: the fifteen minutes
+   * are the cloud's alone, and nothing it drives will stop.
+   */
+  it('promises a fan only the quiet, because its hardware takes no maintenance command', async () => {
+    server.devices = [deviceRow({ type: 'fan', name: 'Exhaust fan' })];
+    server.alerts = [alert({})];
+    server.rules = [rule()];
+    draw();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Maintenance 15 min' }));
+    expect(screen.getByText(/takes no maintenance command, so nothing it drives will stop/)).toBeInTheDocument();
+    expect(screen.queryByText(/the heater/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start maintenance' }));
+
+    await waitFor(() => expect(sentTo('POST', '/v1/devices/device-1/commands')).toHaveLength(1));
+    expect(await screen.findByRole('status')).toHaveTextContent('drops the order, so nothing it drives will stop');
+  });
+
   it('sends nothing when the maintenance question is cancelled', async () => {
     server.alerts = [alert({})];
     server.rules = [rule()];

@@ -2898,8 +2898,10 @@
     "visit": {
       "hereFallback": "diesem Ort",
       "reading": "Lese, was in {{name}} steht …",
-      "parks_one": "Speichern setzt das Gerät in {{name}} für {{minutes}} Minuten in den Wartungsmodus: kein Heizen, kein Entfeuchten, kein CO₂ und in dieser Zeit kein Alarm.",
-      "parks_other": "Speichern setzt alle {{count}} Geräte in {{name}} für {{minutes}} Minuten in den Wartungsmodus: kein Heizen, kein Entfeuchten, kein CO₂ und in dieser Zeit kein Alarm.",
+      "parks_one": "Speichern setzt das Gerät in {{name}} für {{minutes}} Minuten in den Wartungsmodus, und in dieser Zeit löst es keinen eigenen Alarm aus. Was es dabei abstellt, steht neben seinem Namen.",
+    "parksOutputs": "stellt {{outputs}} ab",
+    "parksNothing": "stellt nichts ab: Diese Hardware kennt den Wartungsbefehl nicht",
+      "parks_other": "Speichern setzt alle {{count}} Geräte in {{name}} für {{minutes}} Minuten in den Wartungsmodus, und in dieser Zeit löst keines von ihnen einen eigenen Alarm aus. Was jedes dabei abstellt, steht neben seinem Namen.",
       "nothingThere": "In {{name}} steht nichts, das ist also eine Zeile im Tagebuch und sonst nichts.",
       "unreadable": "Was in {{name}} steht, ließ sich nicht lesen, hier lässt sich also nichts benennen. In den Wartungsmodus für {{minutes}} Minuten geht trotzdem jedes Gerät dort.",
       "notUndone": "Die Zeile lässt sich danach zurücknehmen. Die {{minutes}} Minuten Ruhe nicht: Sie laufen von selbst ab, und die Geräte machen dort weiter, wo sie aufgehört haben.",
@@ -3311,6 +3313,14 @@
       "between": "{{from}} → {{to}}"
     }
   },
+  "maintenance": {
+    "and": "und",
+    "output": {
+      "heater": "die Heizung",
+      "dehumidifier": "den Entfeuchter",
+      "co2": "das CO₂-Ventil"
+    }
+  },
   "alarms": {
     "title": "Alarme",
     "backToPlan": "‹ zurück zum Plan",
@@ -3699,9 +3709,11 @@
       "checkCam": "Cam prüfen"
     },
     "maintenance": {
-      "sent": "Angefragt. Sobald es zuhört, stellt das Gerät Heizung, Entfeuchter und CO₂-Ventil ab und hält seine Alarme 15 min lang zurück.",
+      "sent": "Angefragt. Sobald es zuhört, stellt das Gerät {{outputs}} ab, und seine Alarme werden 15 min lang zurückgehalten.",
+      "sentQuietOnly": "Angefragt. Dieses Gerät verwirft den Befehl, es stellt also nichts ab; seine Alarme werden trotzdem 15 min lang zurückgehalten.",
       "unheard": "Niemand hat zugehört: Das Gerät hat sich nicht gemeldet, der Befehl wartet auf es.",
-      "ask": "Der Wartungsmodus stoppt Heizung, Entfeuchter und CO₂-Ventil fünfzehn Minuten lang und hält währenddessen jeden Alarm dieses Geräts ruhig.",
+      "ask": "Der Wartungsmodus stoppt fünfzehn Minuten lang {{outputs}} und hält währenddessen jeden Alarm dieses Geräts ruhig.",
+      "askQuietOnly": "Dieses Gerät kennt den Wartungsbefehl nicht, es stellt also nichts ab. Die fünfzehn Minuten halten hier nur jeden Alarm dieses Geräts ruhig.",
       "yes": "Wartung starten",
       "cancel": "Abbrechen"
     },

@@ -23,6 +23,7 @@ import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
 import { dayOf, momentOn } from '@/ui/days';
 import { readingFigure } from '@/ui/entries';
+import { parkedLabel, parksAnything } from '@/ui/maintenance';
 import { useMayManage } from '@/ui/session-access';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
@@ -414,6 +415,13 @@ const useQuietened = (spaceId: string | null): Quietened => {
  * will not have, and a list that could not be read says that too - the rule
  * still holds for whatever stands there, and a panel that stayed silent would be
  * the very thing this replaces.
+ *
+ * What each device stops is said of that device and not of the place. The
+ * sentence over the list used to promise a heater, a dehumidifier and a CO2
+ * valve wherever the tile was opened, and the list directly under it read "Fan ·
+ * 520107" - hardware with none of the three, whose firmware drops the order
+ * without a word. Only a controller and a fridge park anything; everything else
+ * goes quiet in the cloud and goes on driving exactly as it was.
  */
 function WhatItQuietens({ quietens }: { quietens: Quietened }) {
   const { t } = useTranslation();
@@ -429,7 +437,13 @@ function WhatItQuietens({ quietens }: { quietens: Quietened }) {
       <p className={ui.note}>{t('log.visit.parks', { ...where, count: devices.length })}</p>
       <ul className={`mono ${styles.quietensList}`}>
         {devices.map(device => (
-          <li key={device.id}>{deviceTitle(device, t)}</li>
+          <li key={device.id}>
+            <span>{deviceTitle(device, t)}</span>
+            <span className={styles.quietensParks}>
+              {' — '}
+              {parksAnything(device) ? t('log.visit.parksOutputs', { outputs: parkedLabel(t, device) }) : t('log.visit.parksNothing')}
+            </span>
+          </li>
         ))}
       </ul>
       <p className={ui.note}>{t('log.visit.notUndone', where)}</p>
