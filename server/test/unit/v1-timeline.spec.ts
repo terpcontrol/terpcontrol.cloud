@@ -1,11 +1,13 @@
-import type { DeviceSeries, Metric, OutputMetric, TimelineRange } from '@fg2/shared-types/v1';
+import type { DeviceSeries, Metric, OutputMetric, TimelineRange, TimelineSpan } from '@fg2/shared-types/v1';
 import { spaceTimeline } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
-import { DataService, SeriesRequest } from '@modules/data/data.service';
+import { DataService, DeviceHistory, OutputHistory, SeriesRequest } from '@modules/data/data.service';
+import { FluxRow, switchingsByField } from '@modules/data/flux';
 import { DevicesService } from '@modules/v1/device/devices.service';
 import { SpaceLiveService } from '@modules/v1/space/space-live.service';
 import { SpacesService } from '@modules/v1/space/spaces.service';
+import { lanesOf, nightsOf } from '@modules/v1/timeline/timeline-series';
 import { TimelineService } from '@modules/v1/timeline/timeline.service';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
@@ -94,7 +96,40 @@ const controllerReport = (at: Date): Reading | null => {
   };
 };
 
+/**
+ * How finely the store is taken to look for a switching, which is a grain of
+ * its own and not the step the curve is drawn with. The fake keeps them apart
+ * because that is the whole of what the second read buys: a window wider than
+ * the cycle still answers the cycle.
+ */
+const SWITCHING_GRAIN_MS = 300 * 1000;
+
+/** What the store answers about the outputs: the state the window opens in, then every switching. */
+const fakeSwitchings = (deviceId: string, request: SeriesRequest): OutputHistory[] => {
+  const report = reports[deviceId];
+
+  return (request.outputs ?? []).map(output => {
+    const switchings: { at: string; on: boolean }[] = [];
+    let last: boolean | null = null;
+
+    for (let at = request.startsAt.getTime(); at < request.endsAt.getTime(); at += SWITCHING_GRAIN_MS) {
+      const value = report ? report(new Date(at))?.outputs?.[output] : undefined;
+      if (value === undefined || value === null) continue;
+
+      const on = value > 0;
+      if (on !== last) switchings.push({ at: new Date(at).toISOString(), on });
+      last = on;
+    }
+
+    return { output, switchings };
+  });
+};
+
 const fakeData = {
+  history: async (deviceId: string, request: SeriesRequest): Promise<DeviceHistory> => ({
+    series: await fakeData.series(deviceId, request),
+    outputs: fakeSwitchings(deviceId, request),
+  }),
   series: async (deviceId: string, request: SeriesRequest): Promise<DeviceSeries> => {
     reads.push(request);
     const step = (request.stepSeconds ?? 60) * 1000;
@@ -794,5 +829,143 @@ describe('who may read it', () => {
 
     expect(page.events.map(line => line.id)).toEqual(['entry-water', 'entry-training', 'entry-space']);
     expect(page.events.some(line => line.kind === 'system' || line.kind === 'plan')).toBe(false);
+  });
+});
+
+/**
+ * The shading of a window wider than the cycle it is shading.
+ *
+ * A season is read at hours to the window, and a mean of an eighteen-hour lamp
+ * over eleven of them never falls low enough to be called off: shaded from the
+ * curve, a whole season of nights disappears into one long day. So the shading
+ * is not drawn from the curve at all - it is drawn from the switchings the
+ * store answers separately, and these are the assertions that what is drawn
+ * agrees with the states the device actually kept.
+ *
+ * The lamp is written as a percentage rather than as a flag, because that is
+ * what the firmware sends and it is the other half of the same mistake: half of
+ * a scale that runs to a hundred is not half of the time.
+ */
+describe('the night and the lanes over a window wider than the cycle', () => {
+  const OPENS = new Date('2026-01-19T00:00:00.000Z');
+  const CLOSES = new Date('2026-08-24T00:00:00.000Z');
+  const WINDOW = { startsAt: OPENS, endsAt: CLOSES };
+
+  /** Five minutes, which is the grain the store looks for a switching at. */
+  const GRAIN_MS = 300 * 1000;
+  /** What 480 windows of a 218-day season comes to: eleven hours to the window, with a whole cycle inside one of them. */
+  const STEP_SECONDS = Math.ceil((CLOSES.getTime() - OPENS.getTime()) / 1000 / 480);
+
+  /** Eighteen hours on from five in the morning, at the twenty percent the fixture´s lamp is driven at. */
+  const litAt = (at: number): number => (new Date(at).getUTCHours() >= 5 && new Date(at).getUTCHours() < 23 ? 20 : 0);
+
+  const walk = (every: number): number[] => {
+    const instants: number[] = [];
+    for (let at = OPENS.getTime(); at < CLOSES.getTime(); at += every) instants.push(at);
+
+    return instants;
+  };
+
+  /** The stretches the lamp really held a state for, read straight off the same fixture. */
+  const stretches = (on: boolean): TimelineSpan[] => {
+    const spans: TimelineSpan[] = [];
+    let from: number | null = null;
+
+    for (const at of walk(GRAIN_MS)) {
+      const holds = litAt(at) > 0 === on;
+      if (holds && from === null) from = at;
+      if (!holds && from !== null) {
+        spans.push({ startsAt: new Date(from).toISOString(), endsAt: new Date(at).toISOString() });
+        from = null;
+      }
+    }
+    if (from !== null) spans.push({ startsAt: new Date(from).toISOString(), endsAt: CLOSES.toISOString() });
+
+    return spans;
+  };
+
+  /** One device, read the way the route reads it: the curve as means of the window, the states as the switchings behind them. */
+  const history = (): DeviceHistory => {
+    const step = STEP_SECONDS * 1000;
+    const points = walk(step).map(at => {
+      const closes = Math.min(at + step, CLOSES.getTime());
+      const inside: number[] = [];
+      for (let raw = at; raw < closes; raw += GRAIN_MS) inside.push(litAt(raw));
+
+      // Stamped at the end of its window, as `aggregateWindow` stamps a mean.
+      return { measuredAt: new Date(closes).toISOString(), value: inside.reduce((sum, one) => sum + one, 0) / inside.length };
+    });
+
+    const switchings: { at: string; on: boolean }[] = [];
+    for (const at of walk(GRAIN_MS)) {
+      const on = litAt(at) > 0;
+      if (switchings.length === 0 || switchings[switchings.length - 1].on !== on) switchings.push({ at: new Date(at).toISOString(), on });
+    }
+
+    return {
+      series: {
+        deviceId: CONTROLLER,
+        startsAt: OPENS.toISOString(),
+        endsAt: CLOSES.toISOString(),
+        stepSeconds: STEP_SECONDS,
+        metrics: [],
+        outputs: [{ output: 'light', points }],
+      },
+      outputs: [{ output: 'light', switchings }],
+    };
+  };
+
+  it('shades every night the device kept, and not the one long day a mean of the window would have said', () => {
+    const dark = stretches(false);
+
+    // The fixture is exactly the case a mean cannot answer: every window of the
+    // curve is a mean of mostly-lit hours, so a threshold low enough to be
+    // crossed at all reads the whole season as lit.
+    expect(history().series.outputs[0].points.every(point => (point.value ?? 0) > 0.5)).toBe(true);
+    expect(dark.length).toBeGreaterThan(200);
+
+    expect(nightsOf([history()], WINDOW)).toEqual(dark);
+  });
+
+  it('draws the lamp´s lane as the stretches it ran for, at the same resolution', () => {
+    expect(lanesOf([history()], WINDOW)).toEqual([{ output: 'light', deviceId: CONTROLLER, spans: stretches(true) }]);
+  });
+});
+
+/**
+ * The rows that read comes back as. One query answers two things - the state
+ * each field is found in and every switching after it - and both carry the same
+ * sign, so the reader has only to put them in order per field.
+ */
+describe('what the store says an output did', () => {
+  it('gathers the opening state and the switchings of each field into one ordered list', () => {
+    const rows: FluxRow[] = [
+      { _time: '2026-02-01T23:00:00Z', _value: -1, _field: 'out_light' },
+      { _time: '2026-02-01T00:00:00Z', _value: 0, _field: 'out_light' },
+      { _time: '2026-02-01T05:00:00Z', _value: 1, _field: 'out_light' },
+      { _time: '2026-02-01T00:00:00Z', _value: 1, _field: 'out_heater' },
+    ];
+
+    expect(switchingsByField(rows).get('out_light')).toEqual([
+      { at: '2026-02-01T00:00:00Z', on: false },
+      { at: '2026-02-01T05:00:00Z', on: true },
+      { at: '2026-02-01T23:00:00Z', on: false },
+    ]);
+    expect(switchingsByField(rows).get('out_heater')).toEqual([{ at: '2026-02-01T00:00:00Z', on: true }]);
+  });
+
+  it('drops a state said twice, which a device whose points carry two owners answers one of per table', () => {
+    const rows: FluxRow[] = [
+      { _time: '2026-02-01T00:00:00Z', _value: 0, _field: 'out_light' },
+      { _time: '2026-02-01T00:00:00Z', _value: 0, _field: 'out_light' },
+      { _time: '2026-02-01T05:00:00Z', _value: 1, _field: 'out_light' },
+    ];
+
+    // Saying "off" twice would cut the dark stretch into two that touch, which
+    // a lane would draw as a switching that never happened.
+    expect(switchingsByField(rows).get('out_light')).toEqual([
+      { at: '2026-02-01T00:00:00Z', on: false },
+      { at: '2026-02-01T05:00:00Z', on: true },
+    ]);
   });
 });

@@ -36,14 +36,17 @@ import { TimelineWindow, stretchesOf, windowOf } from './timeline-window';
  * the space, the devices standing in it, the grows that have stood in it, the
  * alerts overlapping the window, the metrics their rules watch, the diary over
  * the window and the machines' own lines over it, the cameras, one aggregation
- * for the frames, and the people the rail names - and one time-series read per
- * device in the space. The last two of the Mongo reads are skipped where there
- * is nothing to look up, and a redacted reader reads the diary alone.
+ * for the frames, and the people the rail names - and two time-series reads per
+ * device in the space, the curve and the switchings behind it. The last two of
+ * the Mongo reads are skipped where there is nothing to look up, and a redacted
+ * reader reads the diary alone.
  *
  * A long range costs no more than a short one, because the step follows from
  * the width of the window: `24 h` and a four-month grow are both one read of a
  * few hundred windows per device. What a long range costs instead is resolution
- * - see `timeline-window.ts`.
+ * - see `timeline-window.ts`. The second read is the outputs, and it is not
+ * windowed at all: it answers the instants they switched at, which is a few
+ * hundred rows over a season and the only thing a coarse window cannot say.
  *
  * Nothing here writes, and nothing it answers is a handle to write with: the
  * rail carries lines to open, never a task to tick off, so the answer a
@@ -110,7 +113,7 @@ export class TimelineService {
     const [series, alerts, entries, cameras] = await Promise.all([
       Promise.all(
         devices.map(device =>
-          this.data.series(device.id, {
+          this.data.history(device.id, {
             ...spanOf(window),
             metrics: PANEL_METRICS,
             // Every output in the same read: a lane is whatever the device
@@ -145,7 +148,10 @@ export class TimelineService {
       endsAt: window.endsAt.toISOString(),
       stepSeconds: series.length === 0 ? 0 : window.stepSeconds,
       deviceIds: devices.map(device => device.id),
-      panels: panelsOf(series, stretchesOf(grow, devices, window)),
+      panels: panelsOf(
+        series.map(one => one.series),
+        stretchesOf(grow, devices, window),
+      ),
       nights: nightsOf(series, window),
       alarms: alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
       outputs: lanesOf(series, window),

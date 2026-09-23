@@ -2,6 +2,7 @@ import type {
   DeviceSeries,
   GrowthStage,
   Metric,
+  OutputMetric,
   PhaseTargets,
   SeriesPoint,
   TimelineOutputLane,
@@ -11,15 +12,19 @@ import type {
   TimelineTargets,
 } from '@fg2/shared-types/v1';
 import { METRIC_DECIMALS, TARGET_BAND, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
+import type { DeviceHistory, OutputHistory } from '@modules/data/data.service';
+import type { OutputSwitching } from '@modules/data/flux';
 
 /**
  * What the windows of a read mean once they are on the screen: the stacked
  * panels, the band that applied across each of them, the night, and the lanes
  * under them.
  *
- * Nothing here reaches for a database, so what the timeline says about a set of
- * points can be read - and tested - as arithmetic. One read per controller
- * happens above; this is what its points come to.
+ * Nothing here reaches for a database, so what the timeline says about a read
+ * can be read - and tested - as arithmetic. What comes in is what one read per
+ * controller answered: the curve, window by window, and the switchings of the
+ * outputs, which are instants rather than windows because a state is not a
+ * measurement and averaging one loses the very thing a lane is about.
  */
 
 /**
@@ -35,9 +40,6 @@ export const PANEL_METRICS: readonly Metric[] = ['temperature', 'humidity', 'co2
  * night is the plants breathing and not a miss.
  */
 const DAY_ONLY: readonly Metric[] = ['co2'];
-
-/** A window counts as on when the output ran for more than half of it, which is what a mean of ones and zeroes says. */
-const ON = 0.5;
 
 /** One stretch of the window over which the same targets applied, before it is stated per metric. */
 export interface TargetStretch {
@@ -102,22 +104,25 @@ export const targetsOf = (metric: Metric, stretches: readonly TargetStretch[]): 
  * The controllers of one tent switch one lamp, so the first that reports the
  * output answers for the space rather than two of them shading it twice.
  */
-export const nightsOf = (series: readonly DeviceSeries[], window: SeriesWindow): TimelineSpan[] => {
-  const lit = series.find(one => one.outputs.some(output => output.output === 'light' && output.points.some(point => point.value !== null)));
-  const light = lit?.outputs.find(output => output.output === 'light');
+export const nightsOf = (histories: readonly DeviceHistory[], window: SeriesWindow): TimelineSpan[] => {
+  const lit = histories.find(one => outputIn(one, 'light').switchings.length > 0);
 
-  return lit && light ? spansOf(light.points, value => value <= ON, window, lit.stepSeconds) : [];
+  return lit ? spansOf(outputIn(lit, 'light'), false, lit.series, window) : [];
 };
 
 /** One lane per output a device reported, as the stretches it ran for. A device that said nothing about an output has no lane. */
-export const lanesOf = (series: readonly DeviceSeries[], window: SeriesWindow): TimelineOutputLane[] =>
-  series.flatMap(one =>
+export const lanesOf = (histories: readonly DeviceHistory[], window: SeriesWindow): TimelineOutputLane[] =>
+  histories.flatMap(one =>
     one.outputs.flatMap(output =>
-      output.points.some(point => point.value !== null)
-        ? [{ output: output.output, deviceId: one.deviceId, spans: spansOf(output.points, value => value > ON, window, one.stepSeconds) }]
+      output.switchings.length > 0
+        ? [{ output: output.output, deviceId: one.series.deviceId, spans: spansOf(output, true, one.series, window) }]
         : [],
     ),
   );
+
+/** What one device said about one output, or nothing where it was not asked about it or never reported it. */
+const outputIn = (history: DeviceHistory, output: OutputMetric): OutputHistory =>
+  history.outputs.find(one => one.output === output) ?? { output, switchings: [] };
 
 /** The window the lanes and the night are read against. */
 export interface SeriesWindow {
@@ -151,59 +156,90 @@ const silenceOf = (points: readonly SeriesPoint[], stepSeconds: number): number 
 };
 
 /**
- * A run of windows in which something held, as one span.
+ * The stretches of the window one output held a state for.
  *
- * A window with no reading neither starts nor ends a run: an output is what it
- * was last reported to be until something reports otherwise, and a device
- * reporting every five minutes into one-minute windows leaves four empty ones
- * between every sample.
+ * Two things decide a span, and they are two different facts. The switchings
+ * say what the output was doing - they are the instants the store found it
+ * changing, so a span is as long as the output really ran and not as long as
+ * the windows the curve happens to be drawn with. What was heard says how far
+ * that may be carried: nothing is known about the lamp while nobody was
+ * reporting, so a run is cut where the device was last heard and picked up
+ * where it came back, which is the same break the curve above it draws rather
+ * than a lane running straight through the hole in the line.
  *
- * A silence long enough to call the device gone is different. Nothing is known
- * about the lamp while nobody was reporting, so the run ends where the device
- * was last heard and a new one begins where it came back - the same break the
- * curve above it draws, rather than a lane that runs straight through the hole
- * in the line.
+ * A run still going where the device was last heard therefore ends there and
+ * not at the edge of the window - a device that has said nothing for three days
+ * is not three days of "off".
  */
-const spansOf = (points: readonly SeriesPoint[], holds: (value: number) => boolean, window: SeriesWindow, stepSeconds: number): TimelineSpan[] => {
-  const silence = silenceOf(points, stepSeconds);
-  const spans: TimelineSpan[] = [];
-  // The instants are the ones the points carry, so a span lines up with the
-  // curve above it rather than with a second idea of where a window began.
-  let from: string | null = null;
-  let heard: { at: string; held: boolean } | null = null;
-  const close = (at: string) => {
-    if (from !== null) spans.push({ startsAt: from, endsAt: at });
-    from = null;
-  };
+const spansOf = (output: OutputHistory, on: boolean, series: DeviceSeries, window: SeriesWindow): TimelineSpan[] => {
+  const points = series.outputs.find(one => one.output === output.output)?.points ?? [];
 
-  for (const point of points) {
-    if (point.value === null) continue;
-
-    const held = holds(point.value);
-    if (heard === null || millis(point.measuredAt) - millis(heard.at) > silence) {
-      // The first thing the device said in this window, or the first after it
-      // came back. A device that was already reporting when the window opened
-      // was running before it, so its state is drawn from the edge; one that
-      // only turned up later is drawn from where it turned up.
-      close(heard?.at ?? point.measuredAt);
-      if (held) from = opensAt(point.measuredAt, heard === null ? window.startsAt : null, silence);
-    } else if (held !== heard.held) {
-      if (held) from = point.measuredAt;
-      else close(point.measuredAt);
-    }
-    heard = { at: point.measuredAt, held };
-  }
-
-  // A run still going where the device was last heard is closed at the end of
-  // the window, unless the device has been quiet for long enough since.
-  if (heard !== null) close(window.endsAt.getTime() - millis(heard.at) > silence ? heard.at : window.endsAt.toISOString());
-
-  return spans;
+  return overlapping(stateStretches(output.switchings, on), heardStretches(points, window, series.stepSeconds)).map(stretch => ({
+    startsAt: new Date(stretch.from).toISOString(),
+    endsAt: new Date(stretch.to).toISOString(),
+  }));
 };
 
-/** Where the first run of the window begins: at its edge where the device was already there, and at the first sample where it was not. */
-const opensAt = (measuredAt: string, startsAt: Date | null, silence: number): string =>
-  startsAt && millis(measuredAt) - startsAt.getTime() <= silence ? startsAt.toISOString() : measuredAt;
+/** A stretch of the window in instants, before it is written as a span. */
+interface Stretch {
+  from: number;
+  to: number;
+}
+
+/**
+ * The stretches the state was the one asked about. The last switching runs on
+ * for ever, because nothing after it says otherwise; how far it is actually
+ * drawn is decided by what was heard.
+ */
+const stateStretches = (switchings: readonly OutputSwitching[], on: boolean): Stretch[] =>
+  switchings.flatMap((switching, index) => {
+    if (switching.on !== on) return [];
+    const next = switchings[index + 1];
+
+    return [{ from: millis(switching.at), to: next ? millis(next.at) : Number.POSITIVE_INFINITY }];
+  });
+
+/**
+ * The stretches the device was reporting across, which is all anything can be
+ * known about.
+ *
+ * A device that was already reporting when the window opened was running before
+ * it, so the first stretch is drawn from the edge rather than from its first
+ * sample; one that only turned up later is drawn from where it turned up, and
+ * the same rule closes the far end.
+ */
+const heardStretches = (points: readonly SeriesPoint[], window: SeriesWindow, stepSeconds: number): Stretch[] => {
+  const heard = points.flatMap(point => (point.value === null ? [] : [millis(point.measuredAt)]));
+  if (heard.length === 0) return [];
+
+  const silence = silenceOf(points, stepSeconds);
+  const stretches: Stretch[] = [{ from: heard[0], to: heard[0] }];
+  for (const at of heard.slice(1)) {
+    const last = stretches[stretches.length - 1];
+    if (at - last.to > silence) stretches.push({ from: at, to: at });
+    else last.to = at;
+  }
+
+  const opens = stretches[0];
+  const closes = stretches[stretches.length - 1];
+  if (opens.from - window.startsAt.getTime() <= silence) opens.from = window.startsAt.getTime();
+  if (window.endsAt.getTime() - closes.to <= silence) closes.to = window.endsAt.getTime();
+
+  return stretches;
+};
+
+/** Where two lists of stretches are both true, in order. Neither list overlaps itself, so the answer does not either. */
+const overlapping = (one: readonly Stretch[], other: readonly Stretch[]): Stretch[] =>
+  one
+    .flatMap(mine =>
+      other.flatMap(theirs => {
+        const from = Math.max(mine.from, theirs.from);
+        const to = Math.min(mine.to, theirs.to);
+
+        return to > from ? [{ from, to }] : [];
+      }),
+    )
+    .sort((mine, theirs) => mine.from - theirs.from);
 
 const millis = (instant: string): number => new Date(instant).getTime();
 

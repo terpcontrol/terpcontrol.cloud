@@ -121,6 +121,103 @@ export const seriesQuery = (bucket: string, deviceId: string, fields: readonly s
 };
 
 /**
+ * How finely an output's switchings are looked for, at every width of window.
+ *
+ * It is a fixed grain and not the display step on purpose. An output is a state
+ * and not a measurement: averaging it says what share of a window it ran for,
+ * which at hours to the window is a duty cycle and never a cycle - an 18/6 lamp
+ * read at eleven hours to the window never falls low enough to be called off,
+ * and a whole season of nights disappears. So the store is asked for the
+ * switchings themselves, and a grow answers the same lamp a day answers.
+ *
+ * Five minutes is finer than any run a grower can see or act on, and it is what
+ * keeps the read cheap: a duty-cycled PID crosses zero hundreds of thousands of
+ * times a season, and `max` over the grain collapses that chatter in the store
+ * rather than in this process. A run is therefore never reported shorter than it
+ * was, and may be reported up to one grain longer at either end.
+ */
+const SWITCHING_GRAIN_SECONDS = 300;
+
+/**
+ * A safety net, not a page size. Every output of a real 218-day season answers
+ * a few hundred to a few thousand switchings; a device stuck flapping must not
+ * become a read of everything.
+ */
+const MAX_SWITCHINGS = 10000;
+
+/** The two answers `switchingsQuery` yields, which is what tells the state a window opens in from a switching inside it. */
+export const SWITCHING_RESULT = { opening: 'opening', switching: 'switching' } as const;
+
+/** One thing an output did: the instant it was first reported doing it, and whether it was running. */
+export interface OutputSwitching {
+  at: string;
+  on: boolean;
+}
+
+/**
+ * When each output started and stopped running, rather than what it averaged.
+ *
+ * Two answers come back from one scan. `opening` is the state the window is
+ * found in, without which a lamp that never switched inside the window could be
+ * either lit throughout or dark throughout; `switching` is every crossing after
+ * it, as `+1` and `-1`, so the rows are as many as the output really switched
+ * and not as many as the window has steps.
+ *
+ * "Running" is anything above zero rather than a share of the scale. The scales
+ * differ per output and per hardware - `light` is a percentage, `heater` a 0..1
+ * PID, `dehumidifier` and `relais` are 0 or 1 - so a threshold in the middle
+ * means a different thing on every one of them, while "the device was driving
+ * it" means the same thing on all of them.
+ *
+ * The tables are left grouped as the store grouped them: a `group()` here would
+ * stop InfluxDB pushing the aggregate down into the storage engine, which is the
+ * difference between half a second and half a minute over a season.
+ */
+export const switchingsQuery = (bucket: string, deviceId: string, fields: readonly string[], window: Omit<FluxWindow, 'stepSeconds'>): string => {
+  const filter = fields.map(field => `r["_field"] == "${safe(field, FIELD_NAME, 'field name')}"`).join(' or ');
+
+  return `runs = ${head(bucket, deviceId, rangeOf(window))}
+    |> filter(fn: (r) => ${filter})
+    |> aggregateWindow(every: ${SWITCHING_GRAIN_SECONDS}s, fn: max, createEmpty: false, timeSrc: "_start")
+    |> map(fn: (r) => ({ r with _value: if r._value > 0.0 then 1.0 else 0.0 }))
+runs |> first() |> yield(name: "${SWITCHING_RESULT.opening}")
+runs
+    |> difference(nonNegative: false, columns: ["_value"])
+    |> filter(fn: (r) => r._value != 0.0)
+    |> limit(n: ${MAX_SWITCHINGS})
+    |> yield(name: "${SWITCHING_RESULT.switching}")`;
+};
+
+/**
+ * The rows of that read, gathered per field and in order.
+ *
+ * Both yields carry the same sign convention - above zero is running - so the
+ * opening state and a switching are read the same way. A device whose points
+ * were once tagged with an owner answers one table per tag as well as per
+ * field, so the rows are merged by instant and a state repeated is dropped:
+ * what a lane draws is when the output changed, and saying it twice would cut a
+ * run into two that touch.
+ */
+export const switchingsByField = (rows: FluxRow[]): Map<string, OutputSwitching[]> => {
+  const byField = new Map<string, OutputSwitching[]>();
+
+  for (const row of rows) {
+    const value = numberOf(row._value);
+    if (!row._field || !row._time || value === null) continue;
+    byField.set(row._field, [...(byField.get(row._field) ?? []), { at: row._time, on: value > 0 }]);
+  }
+
+  return new Map(
+    [...byField].map(([field, switchings]) => [
+      field,
+      switchings
+        .sort((one, other) => one.at.localeCompare(other.at))
+        .filter((switching, index, all) => index === 0 || switching.on !== all[index - 1].on),
+    ]),
+  );
+};
+
+/**
  * The days that have already been summarised, read back as they were stored.
  *
  * They are not aggregated a second time. A summary is one point a day and the

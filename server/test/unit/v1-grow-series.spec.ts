@@ -2,7 +2,7 @@ import type { DeviceSeries, Metric } from '@fg2/shared-types/v1';
 import { growSeries } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
-import { DataService, SeriesRequest } from '@modules/data/data.service';
+import { DataService, DeviceHistory, OutputHistory, SeriesRequest } from '@modules/data/data.service';
 import { GrowSeriesQuery, GrowSeriesService } from '@modules/v1/grow/grow-series.service';
 import { GrowsService } from '@modules/v1/grow/grows.service';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
@@ -53,8 +53,31 @@ let reads: SeriesRequest[];
 
 const isLit = (at: Date): boolean => at.getUTCHours() >= 6 && at.getUTCHours() < 18;
 
+/** The store looks for a switching at a grain of its own, far finer than the step a wide window is drawn with. */
+const SWITCHING_GRAIN_MS = 300 * 1000;
+
+/** What the store answers about the outputs: the state the window opens in, then every switching. */
+const fakeSwitchings = (deviceId: string, request: SeriesRequest): OutputHistory[] =>
+  (request.outputs ?? []).map(output => {
+    if (deviceId !== CONTROLLER || output !== 'light') return { output, switchings: [] };
+
+    const switchings: { at: string; on: boolean }[] = [];
+    let last: boolean | null = null;
+    for (let at = request.startsAt.getTime(); at < request.endsAt.getTime(); at += SWITCHING_GRAIN_MS) {
+      const on = isLit(new Date(at));
+      if (on !== last) switchings.push({ at: new Date(at).toISOString(), on });
+      last = on;
+    }
+
+    return { output, switchings };
+  });
+
 /** Both devices report; only the controller drives a lamp. */
 const fakeData = {
+  history: async (deviceId: string, request: SeriesRequest): Promise<DeviceHistory> => ({
+    series: await fakeData.series(deviceId, request),
+    outputs: fakeSwitchings(deviceId, request),
+  }),
   series: async (deviceId: string, request: SeriesRequest): Promise<DeviceSeries> => {
     reads.push(request);
     const step = (request.stepSeconds ?? 60) * 1000;

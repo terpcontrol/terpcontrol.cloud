@@ -36,9 +36,11 @@ import { GrowsService } from './grows.service';
  * measurement store.
  *
  * **What the whole answer costs.** One read of the grow, one of the devices
- * standing where it stood, one of the diary over the window, and one
- * time-series read per device. A long range costs no more than a short one,
- * because the step follows from the width of the window.
+ * standing where it stood, one of the diary over the window, and two
+ * time-series reads per device - the windowed curve, and the switchings of the
+ * outputs that were ticked. A long range costs no more than a short one,
+ * because the step follows from the width of the window and the switchings are
+ * as many as the tent really switched.
  */
 
 /**
@@ -79,7 +81,7 @@ export class GrowSeriesService {
     const [series, readings] = await Promise.all([
       Promise.all(
         devices.map(device =>
-          this.data.series(device.id, {
+          this.data.history(device.id, {
             startsAt: window.startsAt,
             endsAt: window.endsAt,
             stepSeconds: window.stepSeconds,
@@ -101,7 +103,11 @@ export class GrowSeriesService {
       dayFrom: window.dayFrom,
       dayTo: window.dayTo,
       deviceIds: devices.map(device => device.id),
-      climate: panelsOf(series, stretchesOf(grow, devices, window), asked.metrics ?? []),
+      climate: panelsOf(
+        series.map(one => one.series),
+        stretchesOf(grow, devices, window),
+        asked.metrics ?? [],
+      ),
       outputs: lanesOf(series, window),
       nights: nightsOf(series, window),
       measurements: measurementsOf(keys, readings, hide),

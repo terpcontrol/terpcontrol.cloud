@@ -24,6 +24,7 @@ import {
   latestByField,
   liveQuery,
   oldestSampleQuery,
+  OutputSwitching,
   pointsOf,
   rawSamplePredicate,
   readingsOf,
@@ -31,6 +32,8 @@ import {
   stepFor,
   summaryQuery,
   SUMMARY_MEASUREMENT,
+  switchingsByField,
+  switchingsQuery,
   trendQuery,
 } from './flux';
 
@@ -91,6 +94,29 @@ export interface SeriesRequest {
   endsAt: Date;
   /** Left out, the server picks a step from the range; too narrow a one for the range is widened. */
   stepSeconds?: number;
+}
+
+/** One output over a window, as something that switches rather than as something that averages. */
+export interface OutputHistory {
+  output: OutputMetric;
+  /** In order: the state the window is found in, then every switching after it. Empty where the device reported that output not at all. */
+  switchings: OutputSwitching[];
+}
+
+/**
+ * A device's window as a screen that draws both a curve and a state needs it:
+ * the aggregated series, and beside it the switchings the series cannot carry.
+ *
+ * They are two reads of the same window because they are two questions. What the
+ * air was doing is a mean, and a mean of a window is a fair answer at any width.
+ * What a lamp was doing is not: averaged, an output says what share of a window
+ * it ran for, and a window wider than the cycle averages the cycle away. So the
+ * curve keeps the step the window decides and the states are read at a grain of
+ * their own - see `switchingsQuery`.
+ */
+export interface DeviceHistory {
+  series: DeviceSeries;
+  outputs: OutputHistory[];
 }
 
 /** What the device schema fills in, reached only for a device that is not in the database at all. */
@@ -233,6 +259,22 @@ export class DataService implements LightStateReader {
   }
 
   /**
+   * The same window, with the outputs answered as the states they are.
+   *
+   * Two reads rather than one, and they run together. The second costs a scan of
+   * the outputs alone and comes back with as many rows as the device switched
+   * something, so a season of one lamp is a few hundred rows where the curve
+   * beside it is a few hundred windows - the promise that a long range costs
+   * what a short one costs still holds.
+   */
+  public async history(deviceId: string, request: SeriesRequest): Promise<DeviceHistory> {
+    const outputs = request.outputs ?? [];
+    const [series, switchings] = await Promise.all([this.series(deviceId, request), this.switchingsOf(deviceId, outputs, request)]);
+
+    return { series, outputs: outputs.map(output => ({ output, switchings: switchings.get(fieldOfOutputMetric(output)) ?? [] })) };
+  }
+
+  /**
    * One stored metric over a window for several devices at once, keyed by
    * device: the points a sparkline draws, in one query for all of them. A device
    * that wrote nothing in the window has no entry rather than an empty one.
@@ -349,6 +391,18 @@ export class DataService implements LightStateReader {
 
   private read(query: string): Promise<FluxRow[]> {
     return this.influx.getQueryApi(this.config.org!).collectRows<FluxRow>(query);
+  }
+
+  /** The switchings of the outputs that were asked for, by the field they are stored under. A window of no width holds none. */
+  private async switchingsOf(
+    deviceId: string,
+    outputs: readonly OutputMetric[],
+    window: { startsAt: Date; endsAt: Date },
+  ): Promise<Map<string, OutputSwitching[]>> {
+    if (outputs.length === 0 || window.endsAt <= window.startsAt) return new Map();
+
+    const fields = [...new Set(outputs.map(fieldOfOutputMetric))];
+    return switchingsByField(await this.read(switchingsQuery(this.bucket, deviceId, fields, window)));
   }
 
   /** A device's own VPD offsets and lux factor; the defaults for a device that is no longer there. */
