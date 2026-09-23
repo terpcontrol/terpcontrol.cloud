@@ -35,4 +35,39 @@ describe('device messages against the shipped catalogue', () => {
   it('shows an unknown key as it came rather than as a blank', () => {
     expect(resolveDeviceMessage(i18n, { key: 'message-something-new', params: ['7'] }, 'title')).toBe('message-something-new:7');
   });
+
+  it('says a whole picture is missing without reciting the telemetry in the headline', () => {
+    const message = { key: 'message-cam-capture', params: ['incomplete res=2 bytes=14328 got=22/22 soi=2 eoi=-1'] };
+
+    expect(resolveDeviceMessage(i18n, message, 'title')).toBe('Camera picture incomplete');
+    expect(resolveDeviceMessage(i18n, message, 'text')).toContain('res=2');
+  });
+});
+
+/**
+ * Showing a key as it came is the net under a firmware newer than the app, not
+ * a resting state: the fallback fired on the home card and fourteen times on a
+ * tent page of the restored production data, because three keys the shipped
+ * firmware sends had never been written down.
+ *
+ * The server's table is the list of what firmware sends, so it is read here
+ * rather than copied - a key added to it without words in both catalogues fails
+ * the build instead of reaching somebody's home screen as a slug. It is read as
+ * text because a test of the webapp cannot import from the server's build.
+ */
+describe('every key the firmware sends', () => {
+  const both = ['en', 'de'] as const;
+
+  it('has a title and a body in every language the app ships', async () => {
+    const table = await readFile(resolve(process.cwd(), '../server/src/common/v1/device-messages.ts'), 'utf8');
+    const keys = [...table.matchAll(/'(message-[a-z0-9-]+)': OF_THE_/g)].map(found => found[1]);
+    expect(keys.length).toBeGreaterThan(10);
+
+    for (const language of both) {
+      const catalogue = JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8')) as Record<string, unknown>;
+      const missing = keys.flatMap(key => ['title', 'text'].filter(part => typeof catalogue[`${key}-${part}`] !== 'string').map(part => `${key}-${part}`));
+
+      expect({ language, missing }).toEqual({ language, missing: [] });
+    }
+  });
 });
