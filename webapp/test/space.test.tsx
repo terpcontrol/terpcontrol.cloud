@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
@@ -371,6 +371,49 @@ describe('the tent overview', () => {
     draw(<Overview overview={unsteered} now={NOW} />);
 
     expect(screen.getByText(/nothing to judge/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * A line is put right where it is read, and this strip is where most of a
+ * tent's diary is read. Who may open which line is the one rule the five other
+ * diary surfaces already ask for, so what is asserted here is that this strip
+ * asks it too: a person's line opens, a machine's stays words.
+ */
+describe('correcting a line the latest strip is drawing', () => {
+  beforeEach(() => {
+    may.youMay = 'own';
+  });
+
+  it('opens the line in the sheet it was written in', async () => {
+    draw(<Overview overview={overview} now={NOW} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Defoliated/ }));
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('leaves what a device recorded inert, because that is not ours to rewrite', () => {
+    const alarm: SpaceOverview = {
+      ...overview,
+      entries: [
+        {
+          ...overview.entries[0],
+          id: 'e2',
+          kind: 'alarm',
+          source: 'device',
+          authorId: null,
+          deviceId: 'device-1',
+          text: null,
+          message: { key: 'message-alarm-triggered', params: ['Temperature (temperature), value=31.2'] },
+          values: { kind: 'alarm' },
+        },
+      ],
+    };
+    draw(<Overview overview={alarm} now={NOW} />);
+
+    expect(screen.getByText('Alarm triggered')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Alarm triggered/ })).not.toBeInTheDocument();
   });
 });
 

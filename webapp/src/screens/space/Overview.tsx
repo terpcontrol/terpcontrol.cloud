@@ -14,6 +14,7 @@ import type {
   SpaceOverview,
 } from '@fg2/shared-types/v1';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
+import { useCorrecting } from '@/log/corrections';
 import { useLog, useMayLog } from '@/log/log-context';
 import { ageAttribute, ageLabel, valueAge } from '@/ui/age';
 import type { Liveness } from '../home/attention';
@@ -52,6 +53,13 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
   const mayLog = useMayLogIn(overview.spaceId);
   const hasDevice = overview.deviceIds === null || overview.deviceIds.length > 0;
   const liveness = livenessOf(overview, now);
+  // The last few lines of this tent are the diary a grower reads oftenest, and
+  // they were the one diary in the app that could only be read: the five other
+  // surfaces open a line somebody wrote in the sheet it was written in, and a
+  // reading typed wrongly here had no way back into it at all. The place that
+  // decides who may is this tent, because a line is drawn here for happening
+  // here.
+  const correcting = useCorrecting();
   const [sheet, setSheet] = useState<'preset' | 'move' | null>(null);
 
   return (
@@ -166,6 +174,7 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
                 people={overview.people}
                 measurements={readingNamesOf(overview.readingNames, entry.growId)}
                 now={now}
+                onOpen={correcting(entry, { label: overview.name, spaceId: overview.spaceId })}
               />
             ))}
           </ul>
