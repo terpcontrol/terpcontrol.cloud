@@ -1,3 +1,4 @@
+import type { Metric } from '@fg2/shared-types/v1';
 import { growDayAt } from '@fg2/shared-types/v1-schemas/feeding.js';
 import { zonedAt } from '@/ui/zone';
 import type { ChartOption } from './Chart';
@@ -39,6 +40,15 @@ export interface PlotLine {
   /** What the pinned readout calls this line. A line without one is drawn and never read out, which is what a setpoint is. */
   label?: string;
   unit?: string;
+  /**
+   * Which of the contract's metrics the line is a reading of, where it is one of
+   * them at all. It decides nothing about the picture and everything about the
+   * figure the cursor reads out of it: a temperature is written to a tenth and a
+   * humidity to none, here as on every other screen that carries that reading. A
+   * line a grower measured by hand belongs to no metric, and is written as
+   * exactly as it was taken instead.
+   */
+  metric?: Metric;
   /** A reading is a curve, an output is a square wave, and something written down is the dots it was written at. */
   shape: 'line' | 'step' | 'points';
   colour: ChartToken;

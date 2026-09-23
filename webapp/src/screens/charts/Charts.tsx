@@ -11,13 +11,15 @@ import { useGrow, useGrowPlants, useGrows, useGrowsEverIn, useSpaceGrows } from 
 import { noLongerThere } from '@/api/problem';
 import { useSpaces } from '@/api/spaces';
 import { useScrub } from '@/charts/scrub';
-import { axisFigure, dayOfGrow, downloadCsv, readAt, type PlotLine } from '@/charts/series';
+import { dayOfGrow, downloadCsv, readAt, type PlotLine } from '@/charts/series';
 import { ageLabel } from '@/ui/age';
+import { looseFigure } from '@/ui/figures';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { stoodIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone, zoned, zonedAt } from '@/ui/zone';
+import { figure } from '../home/units';
 import { MoveHereSheet } from '../space/MoveHereSheet';
 import { at, stampForEnds, stampOf, STAMPS } from '../timeline/window';
 import {
@@ -586,13 +588,37 @@ function ScrubHeader({ cards, cursor, stamp }: { cards: Card[]; cursor: number; 
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
-/** What one line says at the cursor: a figure and its unit, on or off for an output, and a dash where it says nothing. */
+/**
+ * What one line says at the cursor: a figure and its unit, on or off for an
+ * output, and a dash where it says nothing.
+ *
+ * The figure is written the way the rest of the app writes that same reading,
+ * which is the claim the header above makes about itself. It used to be written
+ * the way a corner of a scale is - rounded to two decimals and stripped of the
+ * noughts a round number does not need - and a corner is the one place that is
+ * right, because a corner is a round number and reads as one. A reading is not:
+ * the same line said "Temp 23 °C" at one position of the cursor and "Temp
+ * 23.1 °C" at the next, so the figure changed width as the thumb moved and the
+ * column under it could not be read down at all. A metric is written to the
+ * decimals that metric is written to everywhere else instead - a temperature
+ * always carries its tenth, a humidity never carries one - which is also how
+ * the Timeline's own pinned reading is written, one tap away.
+ *
+ * That writer knows what language it is being read in and the old one knew
+ * nothing about it, so the German screen wrote "VPD 0.75 kPa" beside a date it
+ * had just written "29 Aug." - the app's own tent read back in somebody else's
+ * numbers.
+ *
+ * A line a grower measured by hand is none of the contract's metrics and has no
+ * such rule to follow: it is written as exactly as it was taken, which is how
+ * the diary writes the very same reading.
+ */
 const readingOf = (t: Translate, line: PlotLine, cursor: number, span: number): string => {
   const value = readAt(line, cursor, span);
   if (value === null) return '—';
   if (line.shape === 'step') return t(value > 0 ? 'charts.on' : 'charts.off');
 
-  return [axisFigure(value), line.unit].filter(Boolean).join(' ');
+  return [line.metric ? figure(value, line.metric) : looseFigure(value), line.unit].filter(Boolean).join(' ');
 };
 
 /** The title, and in the corner the place and the grow it is about. */

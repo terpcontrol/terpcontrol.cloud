@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChartViewSpan, GrowListItem, GrowSeries, TimelineTargets } from '@fg2/shared-types/v1';
 import { chartViewCreate } from '@fg2/shared-types/v1-schemas/diary.js';
 import { Charts } from '@/screens/charts/Charts';
@@ -217,10 +217,19 @@ const drawAt = (entry: string) =>
 const draw = () => drawAt('/charts?grow=grow-1');
 
 beforeAll(async () => {
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
+  const [en, de] = await Promise.all(
+    ['en', 'de'].map(async language => JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'))),
+  );
+  await i18next.use(initReactI18next).init({
+    lng: 'en',
+    resources: { en: { translation: en }, de: { translation: de } },
+    nsSeparator: false,
+    interpolation: { escapeValue: false },
+  });
+});
+
+afterEach(async () => {
+  await i18next.changeLanguage('en');
 });
 
 beforeEach(() => {
@@ -326,15 +335,36 @@ describe('the Charts view', () => {
     draw();
 
     // The cursor rests at the end of the window until it is moved, so what is
-    // pinned is the newest reading of each line, in its own unit.
+    // pinned is the newest reading of each line, in its own unit - and to the
+    // decimals that metric is written to everywhere else, so a temperature of
+    // exactly 26 still carries its tenth and the figure keeps its width as the
+    // cursor moves.
     const reading = await screen.findByRole('status');
-    expect(reading).toHaveTextContent('Temp 26 °C');
+    expect(reading).toHaveTextContent('Temp 26.0 °C');
     expect(reading).toHaveTextContent('RH 56 %');
     expect(reading).toHaveTextContent('VPD 1.34 kPa');
 
     // And the panel itself carries its scales: temperature on the left, humidity on the right.
     const pair = screen.getByText('Temp + RH').closest('section')!;
     for (const figure of ['27', '21', '65', '50']) expect(pair).toHaveTextContent(figure);
+  });
+
+  /**
+   * A decimal point is not punctuation: the German app writes a comma there,
+   * and this readout wrote the English one because it went through a writer
+   * that knew no language at all. It put "VPD 0.75 kPa" beside a date the same
+   * line had just written "29 Aug.", on the one screen a grower reads a season
+   * off.
+   */
+  it('writes the reading in the reader´s own language, beside the date it already writes there', async () => {
+    await i18next.changeLanguage('de');
+    draw();
+
+    const reading = await screen.findByRole('status');
+    expect(reading).toHaveTextContent('Temp 26,0 °C');
+    expect(reading).toHaveTextContent('rF 56 %');
+    expect(reading).toHaveTextContent('VPD 1,34 kPa');
+    expect(reading).not.toHaveTextContent('26.0');
   });
 
   it('prints a dash rather than the last figure it heard where the series stops before the window does', async () => {
@@ -381,7 +411,7 @@ describe('the Charts view', () => {
     expect(reading).toHaveTextContent('Height · Amnesia 1 —');
     expect(reading).toHaveTextContent('Height · Amnesia 2 —');
     // The curves beside it still read, because a mean does stand for its window.
-    expect(reading).toHaveTextContent('Temp 26 °C');
+    expect(reading).toHaveTextContent('Temp 26.0 °C');
   });
 
   it('works the VPD band out of the pair the tent is steered by when the answer carries none', async () => {
@@ -582,7 +612,7 @@ describe('the Charts view', () => {
 
     // Its readings are a hundred days older and land on the same day of grow.
     const reading = await screen.findByRole('status');
-    await waitFor(() => expect(reading).toHaveTextContent('Temp · Autumn run 21 °C'));
+    await waitFor(() => expect(reading).toHaveTextContent('Temp · Autumn run 21.0 °C'));
     expect(reading).toHaveTextContent('day 35');
   });
 

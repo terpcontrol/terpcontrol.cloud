@@ -349,6 +349,7 @@ const metricDrawn = (t: Translate, metric: Metric, panel: TimelinePanel, series:
         key: metric,
         label: title,
         unit,
+        metric,
         shape: 'line',
         colour: METRIC_COLOUR[metric] ?? 'ink',
         axis: 0,
