@@ -2896,6 +2896,8 @@
     "now": "now",
     "framesToday_one": "{{count}} picture today",
     "framesToday_other": "{{count}} pictures today",
+    "framesTodayAtLeast_one": "at least {{count}} picture today",
+    "framesTodayAtLeast_other": "at least {{count}} pictures today",
     "timelapses": "Timelapses",
     "window": {
       "day": "Today",

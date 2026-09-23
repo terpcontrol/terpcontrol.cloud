@@ -60,15 +60,51 @@ export const useCamera = (cameraId: string) =>
     refetchInterval: CAMERAS_REFRESH_MS,
   });
 
+/** The largest page the route will answer, whatever a client asks for (`MAX_PAGE_LIMIT` on the server). */
+const FRAMES_PER_PAGE = 200;
+
+/**
+ * How many of those pages one day is walked over before the walk gives up. A
+ * camera asked for a picture every thirty seconds delivers 2,880 a day, so this
+ * reaches the end of any ordinary day in a handful of reads; the cap is there
+ * only so that a day nobody expected - two cameras writing into one, a shorter
+ * interval than the pipeline promises - cannot turn one screen into an
+ * unbounded run of requests.
+ */
+export const MAX_FRAME_PAGES = 15;
+
+/** A day of stills, and whether the walk reached the end of it. */
+export interface CameraDay {
+  items: Media[];
+  /** The cap stopped the walk with rows still to come, so the count is a floor and not the day's total. */
+  partial: boolean;
+}
+
 /**
  * The stills of one camera inside a span, newest first as the route answers
- * them. The day scrubber walks this list rather than asking per position: the
- * frames of a day are a few hundred rows and one read.
+ * them. The scrubber walks this list rather than asking per position, so it has
+ * to be the whole day and not the first page of it: the route caps a page at two
+ * hundred rows and says with a cursor that there are more, and a day of a camera
+ * on the pipeline's own interval is ten times that. Asking once and drawing what
+ * came back left the morning unreachable and printed the page size as the day's
+ * count.
  */
-export const useCameraFrames = (cameraId: string, span: { startsAt: string; endsAt: string }, limit = 400) =>
+export const useCameraFrames = (cameraId: string, span: { startsAt: string; endsAt: string }) =>
   useQuery({
-    queryKey: ['camera', cameraId, 'frames', span.startsAt, span.endsAt, limit],
-    queryFn: ({ signal }) => api.get<MediaPage>(`/cameras/${cameraId}/frames`, { ...span, limit }, signal),
+    queryKey: ['camera', cameraId, 'frames', span.startsAt, span.endsAt],
+    queryFn: async ({ signal }): Promise<CameraDay> => {
+      const items: Media[] = [];
+      let cursor: string | null = null;
+
+      for (let page = 0; page < MAX_FRAME_PAGES; page += 1) {
+        const answer: MediaPage = await api.get<MediaPage>(`/cameras/${cameraId}/frames`, { ...span, limit: FRAMES_PER_PAGE, cursor }, signal);
+        items.push(...answer.items);
+        cursor = answer.nextCursor;
+        if (!cursor) break;
+      }
+
+      return { items, partial: cursor !== null };
+    },
   });
 
 /** A screenful of films, which is also the largest page the composer's own list needs. */

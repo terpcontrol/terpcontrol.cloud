@@ -150,7 +150,9 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
         <span className={`mono ${styles.edge}`}>{t('camera.now')}</span>
       </div>
       <p className={`mono ${styles.count}`}>
-        {t('camera.framesToday', { count: shots.length })}
+        {/* A count the walk stopped short of is said as the floor it is, because
+            a page size drawn as the day's total is a figure that is simply wrong. */}
+        {t(frames.data?.partial ? 'camera.framesTodayAtLeast' : 'camera.framesToday', { count: shots.length })}
         {/* A free camera's picture is smaller than the one stored, and the line under it says so rather than leaving the blur unexplained. */}
         {camera.entitlement.tier === 'free' ? ` · ${t('camera.reduced')}` : ''}
       </p>

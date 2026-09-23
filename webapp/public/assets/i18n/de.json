@@ -2892,6 +2892,8 @@
     "now": "jetzt",
     "framesToday_one": "{{count}} Bild heute",
     "framesToday_other": "{{count}} Bilder heute",
+    "framesTodayAtLeast_one": "mindestens {{count}} Bild heute",
+    "framesTodayAtLeast_other": "mindestens {{count}} Bilder heute",
     "timelapses": "Zeitraffer",
     "window": {
       "day": "Heute",

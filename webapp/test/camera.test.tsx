@@ -31,6 +31,7 @@ const state = vi.hoisted(() => ({
   films: [] as { id: string }[],
   moreFilms: false,
   askedForMore: 0,
+  frames: { items: [] as { id: string; capturedAt: string }[], partial: false },
 }));
 
 vi.mock('@/api/cameras', async importOriginal => ({
@@ -38,6 +39,7 @@ vi.mock('@/api/cameras', async importOriginal => ({
   useCameras: () => ({ data: { items: [], nextCursor: null } }),
   useLatestStills: () => new Map<string, string | null>(),
   useMedia: () => ({ data: state.film, isError: false }),
+  useCameraFrames: () => ({ data: state.frames, isPending: false }),
   useTimelapses: () => ({
     data: { pages: [{ items: state.films, nextCursor: state.moreFilms ? 'cursor' : null }] },
     hasNextPage: state.moreFilms,
@@ -131,6 +133,7 @@ beforeEach(() => {
   state.films = [];
   state.moreFilms = false;
   state.askedForMore = 0;
+  state.frames = { items: [], partial: false };
 });
 
 describe('the composer', () => {
@@ -252,10 +255,12 @@ describe('the camera page, by who is reading', () => {
 });
 
 /**
- * A season of films, which does not fit in the page the route answers with.
- * What the section rests at is a height, not the whole of what there is.
+ * A season of films and a full day of pictures, neither of which fits in the
+ * page the route answers with. What the section rests at is a height, not the
+ * whole of what there is, and a count the walk stopped short of is said as a
+ * floor rather than drawn as the day's total.
  */
-describe('the films behind the first page', () => {
+describe('the films and the pictures behind the first page', () => {
   const drawPage = () =>
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
@@ -296,6 +301,18 @@ describe('the films behind the first page', () => {
 
     expect(drawn()).toHaveLength(2);
     expect(screen.queryByRole('button', { name: 'More films' })).not.toBeInTheDocument();
+  });
+
+  it('counts the day it walked, and calls a count it stopped short of a floor', () => {
+    const shot = (index: number) => ({ id: `still-${index}`, capturedAt: NOW.minus({ minutes: index }).toISO()! });
+
+    state.frames = { items: [shot(1), shot(2), shot(3)], partial: false };
+    const whole = drawPage();
+    expect(whole.container.textContent).toContain('3 pictures today');
+    whole.unmount();
+
+    state.frames = { items: [shot(1), shot(2), shot(3)], partial: true };
+    expect(drawPage().container.textContent).toContain('at least 3 pictures today');
   });
 });
 
