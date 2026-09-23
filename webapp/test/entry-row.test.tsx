@@ -189,3 +189,69 @@ describe('a diary row', () => {
     expect(screen.getByText(/Low CO2/)).toBeInTheDocument();
   });
 });
+
+/**
+ * A machine writes a key and the parameters that make it one event rather than
+ * a category. The restored production database holds 33,059 lines keyed
+ * `message-alarm-triggered` and 49,971 keyed `message-alarm-resolved`, every one
+ * of which draws the same two words until the parameters are drawn with them.
+ */
+describe('what a machine´s line says under its headline', () => {
+  const said = (over: Partial<Entry>) =>
+    render(
+      <ul>
+        <EntryRow entry={entryOf({ kind: 'alarm', source: 'device', authorId: null, text: null, ...over })} people={[]} />
+      </ul>,
+    );
+
+  it('draws the reading and the thresholds an alarm tripped on, not only that an alarm was raised', () => {
+    said({ message: { key: 'message-alarm-triggered', params: ['Temperatur (temperature), value=16.87, lower threshold=20'] } });
+
+    expect(screen.getByText('Alarm triggered')).toBeInTheDocument();
+    expect(screen.getByText(/lower threshold=20/)).toBeInTheDocument();
+  });
+
+  it('tells two alarms of one night apart, which the headline alone cannot', () => {
+    const first = said({ message: { key: 'message-alarm-triggered', params: ['Temperatur (temperature), lower threshold=20'] } });
+    const second = said({ message: { key: 'message-alarm-triggered', params: ['Temperatur (temperature), lower threshold=15'] } });
+
+    expect(first.container.textContent).not.toBe(second.container.textContent);
+  });
+
+  it('names the step a recipe advanced to', () => {
+    said({ kind: 'plan', source: 'plan', message: { key: 'message-recipe-advanced', params: ['10 (Blütewoche 4)'] } });
+
+    expect(screen.getByText(/step 10 \(Blütewoche 4\)/)).toBeInTheDocument();
+  });
+
+  it('keeps the settings a saved configuration changed on the lines they arrived in', () => {
+    said({ kind: 'system', message: { key: 'message-device-configuration-updated', params: ['day.humidity: 60 -> 58\nlights.limit: 55 -> 60'] } });
+
+    expect(screen.getByText(/day\.humidity: 60 -> 58/).textContent).toContain('lights.limit: 55 -> 60');
+  });
+
+  it('says nothing more where the key carries no parameters, because its text only restates its title', () => {
+    const { container } = said({ kind: 'system', message: { key: 'message-diary-plant-log', params: [] } });
+
+    expect(container.textContent).toContain('Plant log entry');
+    expect(container.textContent).not.toContain('A line written in the diary of the plants.');
+  });
+
+  it('does not print a grower´s own paragraph a second time under itself', () => {
+    render(
+      <ul>
+        <EntryRow
+          entry={entryOf({
+            kind: 'phase',
+            values: { kind: 'phase', stage: 'drying', phaseId: 'phase-1', preset: null },
+            text: 'Alles abgeerntet und aufgehängt',
+            message: { key: 'message-diary-plant-lifecycle', params: ['drying'] },
+          })}
+          people={[]}
+        />
+      </ul>,
+    );
+
+    expect(screen.getAllByText(/Alles abgeerntet und aufgehängt/)).toHaveLength(1);
+  });
+});

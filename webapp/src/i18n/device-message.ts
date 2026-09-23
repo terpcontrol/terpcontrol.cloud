@@ -51,3 +51,30 @@ export const entryHeadline = (i18n: I18n, entry: EntryWords): string =>
 
 export const entryBody = (i18n: I18n, entry: EntryWords): string =>
   ownWords(entry) ?? (entry.message ? resolveDeviceMessage(i18n, entry.message, 'text') : (entry.text ?? ''));
+
+/**
+ * What a machine's line actually said, under the kind of thing it was - or
+ * nothing, where the headline is already the whole of it.
+ *
+ * A device, the plan and an alarm write a key and the parameters that make it
+ * one event rather than a category, and the catalogue words both halves: the
+ * title of `message-alarm-triggered` is "Alarm triggered" for every alarm ever
+ * raised, while its text is the reading, both thresholds and the extreme that
+ * tripped it. Drawing the title alone turns four different alarms of one night
+ * into one label repeated four times, and there is no screen behind the line to
+ * ask - so the parameters are drawn here rather than thrown away.
+ *
+ * Three things keep this from being noise rather than detail. A line somebody
+ * typed has none: their words are already the headline, `entryBody` falls back
+ * to the same words, and a phase line carrying a typed paragraph would print it
+ * twice. A message with no parameters has none either - its text is its title
+ * said again at greater length, which is all `message-diary-plant-log-text`
+ * ("A line written in the diary of the plants.") has to add to a mark that
+ * already says so. And a key whose two halves resolve alike says it once.
+ */
+export const entryDetail = (i18n: I18n, entry: EntryWords): string | null => {
+  if (ownWords(entry) || !entry.message || entry.message.params.length === 0) return null;
+
+  const detail = entryBody(i18n, entry);
+  return detail === entryHeadline(i18n, entry) ? null : detail;
+};

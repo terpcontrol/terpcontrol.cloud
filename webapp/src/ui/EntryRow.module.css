@@ -66,6 +66,20 @@
   color: var(--muted);
 }
 
+/*
+ * What a device, the plan or an alarm actually said, on a line of its own under
+ * the headline. Quieter than the headline, because the headline is what the row
+ * is scanned by and this is what it is read for; the breaks are kept because a
+ * saved configuration arrives as one setting per line.
+ */
+.detail {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
 /* The pictures the line carries, small enough that the row is still a row. */
 .photos {
   display: flex;

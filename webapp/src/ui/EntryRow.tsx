@@ -2,6 +2,7 @@ import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import type { Entry, Person, ReadingName } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
+import { entryDetail } from '@/i18n/device-message';
 import { authorOf, headlineOf, KIND_ICON, readingFigure } from './entries';
 import { Photo } from './Photo';
 import styles from './EntryRow.module.css';
@@ -94,6 +95,7 @@ export function EntryRow({
   const Icon = KIND_ICON[entry.kind];
   const at = DateTime.fromISO(entry.occurredAt);
   const readings = 'readings' in entry.values ? entry.values.readings : [];
+  const detail = entryDetail(i18n, entry);
 
   return (
     <li className={styles.row} data-severity={entry.severity ?? undefined}>
@@ -120,6 +122,10 @@ export function EntryRow({
             })}
           </span>
         ) : null}
+        {/* What the machine's line said, under the kind of thing it was: the
+            reading an alarm tripped on, the settings a save changed, the reason
+            a device rebooted. */}
+        {detail === null ? null : <span className={styles.detail}>{detail}</span>}
         {entry.mediaIds.length > 0 ? (
           <span className={styles.photos}>
             {/* Numbered, because a screen reader meeting four pictures in a row
