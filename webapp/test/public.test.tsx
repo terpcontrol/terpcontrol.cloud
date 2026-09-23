@@ -241,6 +241,18 @@ describe('a public diary', () => {
     expect(asked).toHaveBeenCalledTimes(1);
   });
 
+  it('says how many lines of a week it is not drawing, because a card carries only the first of them', () => {
+    // Twenty-five lines and ten on the card is what a busy week of a real grow
+    // comes to; a card that said nothing would read as a quiet week.
+    draw(<DiaryWeek week={{ ...week, entryCount: 25 }} picture={publicPicture('spring-run')} now={NOW} current asOf={null} />);
+    expect(screen.getByText('+ 23 more')).toBeInTheDocument();
+  });
+
+  it('says nothing where the card carries the whole week', () => {
+    draw(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current asOf={null} />);
+    expect(screen.queryByText(/more$/)).not.toBeInTheDocument();
+  });
+
   it('links to the author only where they published a profile, because a handle with none leads nowhere', () => {
     const { rerender } = draw(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} />);
     expect(screen.getByRole('link', { name: /@mia/ })).toHaveAttribute('href', '/@mia');

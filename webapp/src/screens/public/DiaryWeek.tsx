@@ -128,14 +128,26 @@ export function DiaryWeek({ week, picture, now, current, asOf }: DiaryWeekProps)
           ) : null}
 
           {week.entries.length > 0 ? (
-            <ul className={styles.entries}>
-              {week.entries.map(entry => (
-                // A stranger reads a public diary on their own clock: the
-                // zone it was written in is not part of what the public API
-                // answers about somebody else's account.
-                <EntryRow key={entry.id} entry={entry} people={[]} withDay byline={false} picture={picture} zone={null} />
-              ))}
-            </ul>
+            <>
+              <ul className={styles.entries}>
+                {week.entries.map(entry => (
+                  // A stranger reads a public diary on their own clock: the
+                  // zone it was written in is not part of what the public API
+                  // answers about somebody else's account.
+                  <EntryRow key={entry.id} entry={entry} people={[]} withDay byline={false} picture={picture} zone={null} />
+                ))}
+              </ul>
+              {/* A card carries the first handful of a week's lines, and a week
+                  with an alarm storm or a busy fortnight in it has many more.
+                  Said rather than offered: the owner's card fetches the rest,
+                  and a public page has no id to ask with and no route to ask -
+                  but a reader shown ten of twenty-five lines is owed the count,
+                  or the week reads as a week in which that was all that
+                  happened. */}
+              {week.entryCount > week.entries.length ? (
+                <p className={`mono ${styles.quiet}`}>{t('grow.moreEntries', { count: week.entryCount - week.entries.length })}</p>
+              ) : null}
+            </>
           ) : (
             <p className={styles.quiet}>{t('grow.noEntriesThisWeek')}</p>
           )}
