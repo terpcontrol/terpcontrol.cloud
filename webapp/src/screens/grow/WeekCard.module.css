@@ -209,6 +209,19 @@
   color: var(--muted);
 }
 
+/* "+ 87 more": a control rather than a sentence, because the lines it counts
+   are drawn on no other screen and a week that has ended can be pointed at from
+   nowhere else. */
 .more {
+  align-self: flex-start;
+  padding: var(--space-1) 0;
   font-size: var(--text-xs);
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.more:disabled {
+  text-decoration: none;
+  color: var(--label);
 }

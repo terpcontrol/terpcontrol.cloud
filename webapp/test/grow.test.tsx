@@ -200,7 +200,7 @@ const EXPORT_ROW = (status: MediaRenderStatus, error: string | null = null): Med
     render: null,
   }) as unknown as Media;
 
-const wire = { calls: [] as string[], job: EXPORT_ROW('queued'), grows: [] as GrowListItem[] };
+const wire = { calls: [] as string[], job: EXPORT_ROW('queued'), grows: [] as GrowListItem[], entries: [] as Entry[] };
 
 const jsonOf = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -214,6 +214,7 @@ vi.stubGlobal(
       return jsonOf({ dayCount: 35, totals: { entryCount: 4, waterCount: 1, feedCount: 2, photoCount: 1 }, harvest: null, phases: [], people: [] });
     }
     if (path === '/grows') return jsonOf({ items: wire.grows, nextCursor: null });
+    if (path === '/entries') return jsonOf({ items: wire.entries, nextCursor: null });
     if (path === '/spaces') return jsonOf({ items: [{ id: 'space-1', name: 'Tent 1', kind: 'tent', roomId: null }], nextCursor: null });
     if (path === '/grows/grow-1/export') return jsonOf({ media: wire.job, queued: true }, 202);
     if (path === '/media/media-export') return jsonOf(wire.job);
@@ -226,6 +227,7 @@ beforeEach(() => {
   wire.calls = [];
   wire.job = EXPORT_ROW('queued');
   wire.grows = [];
+  wire.entries = [];
   session.user = SIGNED_IN;
 });
 
@@ -348,6 +350,27 @@ describe('a grow that has ended', () => {
   });
 });
 
+describe('a week with more lines than the card carries', () => {
+  it('reads the rest into the card itself, because no other screen can be pointed at them', async () => {
+    wire.entries = [
+      ...week.entries,
+      entry({ id: 'e-hidden', kind: 'note', text: 'Runtergebunden', occurredAt: at(3), values: { kind: 'note' } }),
+      entry({ id: 'e-hidden-2', kind: 'note', text: '1. Mal getoppt', occurredAt: at(4), values: { kind: 'note' } }),
+    ];
+    draw(<WeekCard week={week} grow={grow} people={people} now={NOW} current />);
+
+    const more = screen.getByRole('button', { name: '+ 2 more' });
+    fireEvent.click(more);
+
+    expect(await screen.findByText('Runtergebunden')).toBeInTheDocument();
+    expect(screen.getByText('1. Mal getoppt')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /more/ })).not.toBeInTheDocument();
+    // Asked for the week's own window and the diary's own kinds, so what comes
+    // back is exactly what the card said was missing.
+    expect(wire.calls).toContain('/entries');
+  });
+});
+
 describe('the pictures a diary line carries', () => {
   it('draws them on the week card, whatever kind of line they hang on', () => {
     // A migrated diary hangs its pictures on the note or the phase line they
@@ -410,7 +433,7 @@ describe('a week card', () => {
 
     expect(screen.getAllByText('anna')).toHaveLength(2);
     expect(screen.getByText('Defoliated')).toBeInTheDocument();
-    expect(screen.getByText('+ 2 more in the timeline')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '+ 2 more' })).toBeInTheDocument();
   });
 
   it('says why there is nothing to average where no controller stands, rather than drawing dashes', () => {

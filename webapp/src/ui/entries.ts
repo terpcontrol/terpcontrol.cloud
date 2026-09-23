@@ -48,6 +48,16 @@ export const KIND_ICON: Record<EntryKind, LucideIcon> = {
   system: Cpu,
 };
 
+/**
+ * The kinds a diary is made of: every kind but the two a machine keeps for
+ * itself. It is the same list the server calls `DIARY_KINDS` and counts a week
+ * card's lines by, so a screen that asks for the rest of a week's diary asks for
+ * exactly what the card said there was more of. Taken from the icons rather than
+ * written out again, because that map is over every kind of the contract and a
+ * kind added to it cannot be forgotten here.
+ */
+export const DIARY_KINDS: EntryKind[] = (Object.keys(KIND_ICON) as EntryKind[]).filter(kind => kind !== 'system' && kind !== 'plan');
+
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**

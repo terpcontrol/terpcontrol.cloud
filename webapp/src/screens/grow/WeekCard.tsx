@@ -3,6 +3,7 @@ import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowWeekCard, Person, WeekClimate } from '@fg2/shared-types/v1';
+import { useWeekEntries } from '@/api/grows';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { EntryRow } from '@/ui/EntryRow';
 import { readingFigure } from '@/ui/entries';
@@ -29,6 +30,14 @@ const figure = (value: number | null, decimals: number): string => (value === nu
 export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(current);
+  // The rest of the week's lines, asked for only once somebody asks to read
+  // them: a card carries the first ten and a week with an alarm storm in it
+  // spends all ten on the machine, so the note the grower wrote falls off the
+  // one screen it was ever drawn on.
+  const [all, setAll] = useState(false);
+  const rest = useWeekEntries(grow.id, all ? week : null);
+  const shown = rest.data ? rest.data.items : week.entries;
+  const missing = week.entryCount - shown.length;
   const temperature = week.climate.find(row => row.metric === 'temperature');
   const humidity = week.climate.find(row => row.metric === 'humidity');
   const readingName = (key: string) => grow.measurements.find(definition => definition.key === key);
@@ -123,17 +132,24 @@ export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
             </p>
           ) : null}
 
-          {week.entries.length > 0 ? (
+          {shown.length > 0 ? (
             <ul className={styles.entries}>
-              {week.entries.map(entry => (
+              {shown.map(entry => (
                 <EntryRow key={entry.id} entry={entry} people={people} picture={mediaUrl} measurements={grow.measurements} withDay />
               ))}
             </ul>
           ) : (
             <p className={styles.noEntries}>{t('grow.noEntriesThisWeek')}</p>
           )}
-          {week.entryCount > week.entries.length ? (
-            <p className={`mono ${styles.more}`}>{t('grow.moreEntries', { count: week.entryCount - week.entries.length })}</p>
+          {missing > 0 ? (
+            <button type="button" className={`mono ${styles.more}`} disabled={rest.isFetching} onClick={() => setAll(true)}>
+              {rest.isFetching ? t('home.waiting') : t('grow.moreEntries', { count: missing })}
+            </button>
+          ) : null}
+          {rest.isError ? (
+            <p className={`mono ${styles.more}`} role="alert">
+              {t('shell.loadFailed')}
+            </p>
           ) : null}
         </>
       ) : null}

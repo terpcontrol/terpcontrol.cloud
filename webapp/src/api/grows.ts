@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  Entry,
   EntryPage,
   GrowCreate,
   GrowListItem,
@@ -15,6 +16,7 @@ import type {
   PlantPage,
   PlantUpdate,
 } from '@fg2/shared-types/v1';
+import { DIARY_KINDS } from '@/ui/entries';
 import { api } from './client';
 import { growChanged } from './lifecycle';
 import { readEvery } from './pages';
@@ -53,6 +55,28 @@ export const useGrowWeeks = (growId: string) =>
     queryFn: ({ pageParam, signal }) => api.get<GrowWeekCardPage>(`/grows/${growId}/weeks`, { cursor: pageParam }, signal),
     initialPageParam: null as string | null,
     getNextPageParam: last => last.nextCursor,
+  });
+
+/**
+ * The rest of a week's diary, asked for only when somebody asks to see it.
+ *
+ * A week card carries the first ten of its lines and says how many more there
+ * are; on a busy week - an alarm that resolved itself nine times in a minute -
+ * that leaves the grower's own note off the card. The line that said so named
+ * the timeline, which cannot be pointed at a grow that has ended or moved out,
+ * so 135 lines of one finished grow were drawn on no screen at all.
+ *
+ * It is the same route and the same kinds the card's own count is over, bounded
+ * by the week's own window, so what arrives is exactly what the card said was
+ * missing. The cursor is followed to its end because a week is a handful of
+ * rows and half of them would otherwise be a second "there is more".
+ */
+export const useWeekEntries = (growId: string, week: { startsAt: string; endsAt: string } | null) =>
+  useQuery({
+    queryKey: ['entries', 'week', growId, week?.startsAt ?? null],
+    queryFn: ({ signal }) =>
+      readEvery<Entry>('/entries', signal, { growId, startsAt: week!.startsAt, endsAt: week!.endsAt, kinds: DIARY_KINDS.join(',') }),
+    enabled: week !== null,
   });
 
 export const useGrowReport = (growId: string) =>
