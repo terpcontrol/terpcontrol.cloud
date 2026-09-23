@@ -252,13 +252,13 @@ export const runningSpansOf = (switchings: readonly OutputSwitching[]): RunningS
       : [],
   );
 
-/** Whether those stretches cover more than half of one window, which is what makes a bucket a lit one or a dark one. */
-export const runningMostOf = (spans: readonly RunningSpan[], from: number, to: number): boolean => {
-  if (to <= from) return false;
-  const ran = spans.reduce((sum, span) => sum + Math.max(0, Math.min(to, span.to) - Math.max(from, span.from)), 0);
+/** How long those stretches cover of one window, in milliseconds: what an output really ran for inside it. */
+export const runningFor = (spans: readonly RunningSpan[], from: number, to: number): number =>
+  spans.reduce((sum, span) => sum + Math.max(0, Math.min(to, span.to) - Math.max(from, span.from)), 0);
 
-  return ran * 2 > to - from;
-};
+/** Whether those stretches cover more than half of one window, which is what makes a bucket a lit one or a dark one. */
+export const runningMostOf = (spans: readonly RunningSpan[], from: number, to: number): boolean =>
+  to > from && runningFor(spans, from, to) * 2 > to - from;
 
 /**
  * The days that have already been summarised, read back as they were stored.

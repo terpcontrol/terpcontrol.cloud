@@ -3,7 +3,7 @@ import { AccessService } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { ProblemException } from '@common/v1/problem';
-import { DataService } from '@modules/data/data.service';
+import { DataService, DeviceHistory } from '@modules/data/data.service';
 import { EntriesService } from '@modules/v1/diary/entries.service';
 import { GrowClimateService } from '@modules/v1/diary/grow-climate.service';
 import { GrowReportService } from '@modules/v1/diary/report.service';
@@ -72,26 +72,42 @@ let readWindows: { deviceId: string; startsAt: Date; endsAt: Date }[];
 const STEP_SECONDS = 900;
 const WINDOWS_PER_DAY = DAY_MS / 1000 / STEP_SECONDS;
 
+interface FakeRequest {
+  startsAt: Date;
+  endsAt: Date;
+  metrics: readonly Metric[];
+  outputs?: readonly OutputMetric[];
+}
+
+/** Which windows a stretch is made of, and which half of the cycle each of them is in. */
+const windowsIn = (request: FakeRequest): { startsAt: number; isDay: boolean }[] => {
+  const count = Math.max(0, Math.round((request.endsAt.getTime() - request.startsAt.getTime()) / 1000 / STEP_SECONDS));
+
+  return Array.from({ length: count }, (_, index) => ({
+    startsAt: request.startsAt.getTime() + index * STEP_SECONDS * 1000,
+    isDay: index % WINDOWS_PER_DAY < WINDOWS_PER_DAY / 2,
+  }));
+};
+
 /**
  * A controller that runs twelve hours of light a day: the first half of every
  * day lit and the second dark, measured every fifteen minutes. That is what
  * makes the day and the night halves of the answer two different figures.
+ *
+ * The two answers are stamped the way the store stamps them: an aggregated
+ * window carries the instant it ends at, and a switching the instant its state
+ * began. Whatever reads them has to lay one over the other, so a fake that
+ * stamped both alike would hide the one mistake worth making here.
  */
 const fakeData = {
-  series: async (deviceId: string, request: { startsAt: Date; endsAt: Date; metrics: readonly Metric[]; outputs?: readonly OutputMetric[] }) => {
+  series: async (deviceId: string, request: FakeRequest) => {
     readWindows.push({ deviceId, startsAt: request.startsAt, endsAt: request.endsAt });
 
-    const count = Math.max(0, Math.round((request.endsAt.getTime() - request.startsAt.getTime()) / 1000 / STEP_SECONDS));
-    const at = (index: number): { measuredAt: string; isDay: boolean } => ({
-      measuredAt: new Date(request.startsAt.getTime() + index * STEP_SECONDS * 1000).toISOString(),
-      isDay: index % WINDOWS_PER_DAY < WINDOWS_PER_DAY / 2,
-    });
-
     const points = (value: (isDay: boolean) => number | null): SeriesPoint[] =>
-      Array.from({ length: count }, (_, index) => {
-        const window = at(index);
-        return { measuredAt: window.measuredAt, value: value(window.isDay) };
-      });
+      windowsIn(request).map(window => ({
+        measuredAt: new Date(window.startsAt + STEP_SECONDS * 1000).toISOString(),
+        value: value(window.isDay),
+      }));
 
     const reading = canned(deviceId, request.startsAt, request.endsAt);
 
@@ -111,6 +127,16 @@ const fakeData = {
       outputs: (request.outputs ?? []).map(output => ({ output, points: points(isDay => (isDay ? 1 : 0)) })),
     } as DeviceSeries;
   },
+
+  history: async (deviceId: string, request: FakeRequest): Promise<DeviceHistory> => ({
+    series: await fakeData.series(deviceId, request),
+    outputs: (request.outputs ?? []).map(output => ({
+      output,
+      switchings: windowsIn(request).flatMap((window, index, all) =>
+        index === 0 || window.isDay !== all[index - 1].isDay ? [{ at: new Date(window.startsAt).toISOString(), on: window.isDay }] : [],
+      ),
+    })),
+  }),
 } as unknown as DataService;
 
 const build = (): void => {

@@ -16,14 +16,17 @@ import { ClimateSummary, CLIMATE_METRICS, summariseClimate } from './week-climat
  * this walks from the spaces the plants were in to the devices that steer them,
  * and reads one window per device.
  *
- * **What the whole answer costs.** One time-series read per stretch per
- * controller, and nothing is cached. A week card of a tent with one controller
- * is one read; a page of eight weeks is eight. A grow that ran twenty-six weeks
- * is four pages of the grow screen, twenty-six reads altogether, and a second
- * controller in the tent doubles that. The report reads one window per phase
- * instead - five or six for a whole grow - which is why it carries no week
- * cards of its own. The reads of one page run together, so the page is as slow
- * as its slowest week rather than as the sum of them.
+ * **What the whole answer costs.** Two time-series reads per stretch per
+ * controller, and nothing is cached. They are two because they are two
+ * questions: what the air did is a mean, which is a fair answer at any width,
+ * and what the lamp did is not - averaged, an output says what share of a window
+ * it ran for, on a scale that differs per output. A week card of a tent with one
+ * controller is two reads; a page of eight weeks is sixteen, and the second read
+ * is a scan of one field that comes back with as many rows as the lamp switched.
+ * The report reads one window per phase instead - five or six for a whole grow -
+ * which is why it carries no week cards of its own. The reads of one page run
+ * together, so the page is as slow as its slowest week rather than as the sum of
+ * them.
  */
 
 /** Narrow enough that a week is a readable curve, wide enough that a week is one query; a longer stretch widens it. */
@@ -85,12 +88,12 @@ export class GrowClimateService {
     window: { startsAt: Date; endsAt: Date },
     targets: PhaseTargets | null,
   ): Promise<ClimateSummary> {
-    const series = await Promise.all(
+    const histories = await Promise.all(
       deviceIds.map(deviceId =>
-        this.data.series(deviceId, { ...window, metrics: CLIMATE_METRICS, outputs: ['light'], stepSeconds: CLIMATE_STEP_SECONDS }),
+        this.data.history(deviceId, { ...window, metrics: CLIMATE_METRICS, outputs: ['light'], stepSeconds: CLIMATE_STEP_SECONDS }),
       ),
     );
 
-    return summariseClimate(series, targets);
+    return summariseClimate(histories, targets);
   }
 }

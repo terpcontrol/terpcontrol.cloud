@@ -30,11 +30,12 @@ import { spacesDuring } from './grow-places';
  *
  * **What a page costs.** Once per page: the grow, its diary over the page, its
  * recent readings, its reminders, its cameras, its controllers, the week films
- * and the people it names - eight Mongo reads. Once per week in the page: one
- * time-series read per controller and one Mongo read for the seven thumbnails.
- * A page of eight weeks of a tent with one controller is eight Mongo reads and
- * sixteen more, and the sixteen run together, so the page takes as long as its
- * slowest week rather than as long as all of them.
+ * and the people it names - eight Mongo reads. Once per week in the page: two
+ * time-series reads per controller - the curve and what its lamp switched - and
+ * one Mongo read for the seven thumbnails. A page of eight weeks of a tent with
+ * one controller is eight Mongo reads and twenty-four more, and those run
+ * together, so the page takes as long as its slowest week rather than as long as
+ * all of them.
  *
  * A grow that ran half a year is four such pages. Nothing is cached: the newest
  * week changes every time a device reports, and a cache that had to be right
