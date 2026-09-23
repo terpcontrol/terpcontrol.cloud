@@ -572,6 +572,25 @@ describe('spaces', () => {
   });
 });
 
+describe('the old app´s own heading', () => {
+  /**
+   * A client that had resolved the key wrote the English sentence in its place,
+   * so the heading came over as though the grower had typed it - and a German
+   * diary read "Plant log entry" above "Wurzel sichtbar, umgetopft in Jiffy".
+   * It is the app's label, the same sentence on every line of that kind, and it
+   * goes the way a lifecycle line's heading goes.
+   */
+  it('is dropped, and what somebody typed under it is kept', async () => {
+    await migrate();
+
+    const line = await one<Record<string, any>>('entries', { text: /Wurzel sichtbar/u });
+
+    expect(line?.text).toBe('Wurzel sichtbar, umgetopft in Jiffy');
+    expect(line?.text).not.toContain('Plant log entry');
+    expect(await one('entries', { text: 'Plant log entry' })).toBeNull();
+  });
+});
+
 describe('what a migrated grow measures', () => {
   /**
    * A name is its grower's own words from the moment it is written, and nothing

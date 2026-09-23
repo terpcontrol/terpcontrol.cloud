@@ -61,6 +61,26 @@ const DIARY_KIND: Record<string, string> = {
 
 const STAGES = ['germination', 'seedling', 'vegetative', 'flowering', 'drying', 'curing'];
 
+/**
+ * The English sentences the old app put at the head of a diary line, which it
+ * wrote in place of the key whenever the line was made by a client that had
+ * already resolved it.
+ *
+ * They are the app's own label and never a grower's words - the same sentence
+ * on every line of that kind - so they are dropped for the reason a lifecycle
+ * line's heading is: kept, they would put "Plant log entry" above somebody's
+ * note in every language, and a German diary would read half in English.
+ * Thirty-three of them came over in the real database, above notes that say
+ * "Wurzel sichtbar, umgetopft in Jiffy".
+ */
+const RENDERED_TITLES = new Set(['Plant log entry', 'Fridge log entry', 'Plant phase change', 'User measurement', 'CO2 cylinder was refilled']);
+
+/** What somebody typed, with the old app's own heading taken off the front of it. */
+const ownTitle = (title: string | undefined): string | null => {
+  const said = freeText(title);
+  return said !== null && RENDERED_TITLES.has(said) ? null : said;
+};
+
 /** The two lines a controller repeats until the fault behind them is fixed. */
 const REPEATED = ['message-ext-sensor-fail', 'message-ext-sensor-deviate'];
 
@@ -128,7 +148,7 @@ const migrateEntry = async (
   // rendering, the same sentence for every stage - while what somebody typed
   // went into the body. Keeping it would put "Plant phase change" in front of
   // the stage on every migrated phase row, in every language.
-  const said = kind === 'phase' ? [freeText(log.message)] : [freeText(log.title), freeText(log.message)];
+  const said = kind === 'phase' ? [freeText(log.message)] : [ownTitle(log.title), freeText(log.message)];
   const message = kind === 'phase' ? null : (messageOf(log.message) ?? messageOf(log.title));
   const text = said.filter(part => part !== null).join('\n\n');
 

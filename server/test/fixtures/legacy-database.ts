@@ -913,6 +913,17 @@ export async function seedLegacyDatabase(target: Connection | mongo.Db, at: numb
     lifecycle(fridge, 35, 'drying', 'Northern Lights', true),
     lifecycle(fridge, 28, 'curing', 'Northern Lights', true),
 
+    // A client that had already resolved the key wrote the English sentence in
+    // its place. Thirty-three lines of the real database look like this.
+    {
+      device_id: tent,
+      title: 'Plant log entry',
+      message: 'Wurzel sichtbar, umgetopft in Jiffy',
+      severity: 0,
+      time: new Date(ago(23)),
+      categories: ['diary', 'plant-log'],
+      __v: 0,
+    },
     // The other four diary slugs a client writes.
     {
       device_id: tent,
