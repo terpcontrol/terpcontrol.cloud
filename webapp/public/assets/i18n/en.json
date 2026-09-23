@@ -3005,6 +3005,7 @@
     },
     "frameAlt": "{{name}} at {{time}}",
     "noFramesToday": "No picture today yet",
+    "framesUnread": "Today's pictures could not be read just now, so this page says nothing about them.",
     "live": "live",
     "now": "now",
     "framesToday_one": "{{count}} picture today",

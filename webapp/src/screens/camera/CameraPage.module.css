@@ -190,6 +190,19 @@
   color: var(--label);
 }
 
+/* The read again, where the day's count stands when the day could not be read.
+   It reads as the sentence it ends rather than as a button, because it is one
+   offer inside one line and a chip there would weigh more than the pictures. */
+.retryFrames {
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: inherit;
+  text-decoration: underline;
+}
+
 .section {
   display: flex;
   flex-direction: column;

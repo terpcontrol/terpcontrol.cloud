@@ -35,6 +35,9 @@ const state = vi.hoisted(() => ({
   moreFilms: false,
   askedForMore: 0,
   frames: { items: [] as { id: string; capturedAt: string }[], partial: false },
+  /** The day's read failing, which is not the same as a day the camera took nothing in. */
+  framesFailed: false,
+  readAgain: 0,
   zone: 'UTC' as string | null,
   lastStill: null as string | null,
   /** The day the page asked the camera for, which is the account's and not this machine's. */
@@ -58,7 +61,9 @@ vi.mock('@/api/cameras', async importOriginal => ({
   useMedia: () => ({ data: state.film, isError: false }),
   useCameraFrames: (_id: string, day: { startsAt: string; endsAt: string }) => {
     state.askedForDay = day;
-    return { data: state.frames, isPending: false };
+    if (state.framesFailed) return { data: undefined, isPending: false, isError: true, refetch: () => (state.readAgain += 1) };
+
+    return { data: state.frames, isPending: false, isError: false, refetch: () => (state.readAgain += 1) };
   },
   useTimelapses: () => ({
     data: { pages: [{ items: state.films, nextCursor: state.moreFilms ? 'cursor' : null }] },
@@ -154,6 +159,8 @@ beforeEach(() => {
   state.moreFilms = false;
   state.askedForMore = 0;
   state.frames = { items: [], partial: false };
+  state.framesFailed = false;
+  state.readAgain = 0;
   state.zone = 'UTC';
   state.askedForDay = null;
   state.lastStill = null;
@@ -616,6 +623,25 @@ describe('the films and the pictures behind the first page', () => {
     const asked = state.askedForDay!;
     expect(DateTime.fromISO(asked.startsAt).setZone('Pacific/Auckland').toFormat('HH:mm')).toBe('00:00');
     expect(DateTime.fromISO(asked.endsAt).setZone('Pacific/Auckland').toFormat('HH:mm')).toBe('23:59');
+  });
+
+  /**
+   * A read that did not arrive is not a day with nothing in it. The page said
+   * "No picture today yet" and "0 pictures today" as facts, on a camera that
+   * had taken thirty-three pictures that morning, with nothing to press.
+   */
+  it('says the pictures could not be read rather than that the day holds none', () => {
+    state.framesFailed = true;
+    const { container } = drawPage();
+
+    // Once: the frame has the room for it, so the line that lost its count
+    // carries the way out rather than the sentence a second time.
+    expect(container.textContent?.match(/could not be read just now/g)).toHaveLength(1);
+    expect(container.textContent).not.toContain('No picture today yet');
+    expect(container.textContent).not.toContain('0 pictures today');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(state.readAgain).toBe(1);
   });
 
   it('counts the day it walked, and calls a count it stopped short of a floor', () => {

@@ -178,7 +178,14 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
             alt={t('camera.frameAlt', { name: camera.name, time: zonedAt(at(camera.state.lastStillAt), zone).toFormat(DATED_CLOCK) })}
           />
         ) : (
-          <p className={`mono ${styles.noFrame}`}>{frames.isPending ? t('home.waiting') : t('camera.noFramesToday')}</p>
+          // A read that failed is not a day with no picture in it. Told apart,
+          // because the two ask for different things of whoever is reading:
+          // one is a camera to go and look at, the other is this page to try
+          // again - and a day the camera filled can be behind a read that
+          // simply did not arrive.
+          <p className={`mono ${styles.noFrame}`}>
+            {frames.isPending ? t('home.waiting') : frames.isError ? t('camera.framesUnread') : t('camera.noFramesToday')}
+          </p>
         )}
         {shown ? (
           <span className={`mono ${styles.frameLabel}`}>
@@ -212,13 +219,28 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
         <Slider from={from} to={to} cursor={Math.min(Math.max(time, from), to)} onScrub={setCursor} />
         <span className={`mono ${styles.edge}`}>{t('camera.now')}</span>
       </div>
-      <p className={`mono ${styles.count}`}>
-        {/* A count the walk stopped short of is said as the floor it is, because
-            a page size drawn as the day's total is a figure that is simply wrong. */}
-        {t(frames.data?.partial ? 'camera.framesTodayAtLeast' : 'camera.framesToday', { count: shots.length })}
-        {/* A free camera's picture is smaller than the one stored, and the line under it says so rather than leaving the blur unexplained. */}
-        {camera.entitlement.tier === 'free' ? ` · ${t('camera.reduced')}` : ''}
-      </p>
+      {frames.isError ? (
+        // "0 pictures today" is a figure taken from a read that never arrived,
+        // and a camera that has been filling the day all morning is the likeliest
+        // thing behind it. So the day's count gives way to the read again, which
+        // is the one move that gets the day back. The reason is said once: the
+        // frame above carries it where it has the room, and this line takes it
+        // over where an older picture is standing in that space instead.
+        <p className={`mono ${styles.count}`} role="status">
+          {shown || older ? `${t('camera.framesUnread')} ` : ''}
+          <button type="button" className={styles.retryFrames} onClick={() => void frames.refetch()}>
+            {t('home.retry')}
+          </button>
+        </p>
+      ) : (
+        <p className={`mono ${styles.count}`}>
+          {/* A count the walk stopped short of is said as the floor it is, because
+              a page size drawn as the day's total is a figure that is simply wrong. */}
+          {t(frames.data?.partial ? 'camera.framesTodayAtLeast' : 'camera.framesToday', { count: shots.length })}
+          {/* A free camera's picture is smaller than the one stored, and the line under it says so rather than leaving the blur unexplained. */}
+          {camera.entitlement.tier === 'free' ? ` · ${t('camera.reduced')}` : ''}
+        </p>
+      )}
 
       <section className={styles.section}>
         <span className="label">{t('camera.timelapses')}</span>

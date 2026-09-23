@@ -3001,6 +3001,7 @@
     },
     "frameAlt": "{{name}} um {{time}}",
     "noFramesToday": "Heute noch kein Bild",
+    "framesUnread": "Die Bilder von heute konnten gerade nicht gelesen werden, deshalb sagt diese Seite nichts über sie.",
     "live": "live",
     "now": "jetzt",
     "framesToday_one": "{{count}} Bild heute",
