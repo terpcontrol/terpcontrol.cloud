@@ -11,7 +11,7 @@ import { CopyButton } from '@/ui/CopyButton';
 import { Refused } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
 import ui from '@/ui/ui.module.css';
-import { calendarDay, useZone } from '@/ui/zone';
+import { calendarDay, useZone, zoned } from '@/ui/zone';
 import styles from './ShareSheet.module.css';
 
 /**
@@ -31,6 +31,7 @@ import styles from './ShareSheet.module.css';
 export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () => void }) {
   const { t } = useTranslation();
   const now = useNow();
+  const zone = useZone();
   const links = useShareLinks();
   const update = useUpdateGrow(grow.id);
   const create = useCreateShareLink();
@@ -98,9 +99,9 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
                     // grow's own visibility rather than something handed out.
                     kind: 'view',
                     subject: { type: 'grow', id: grow.id },
-                    range: rangeOf(draft),
+                    range: rangeOf(draft, zone),
                     includeCameras: draft.includeCameras,
-                    expiresAt: instantOf(draft.expires, 'end'),
+                    expiresAt: instantOf(draft.expires, 'end', zone),
                   },
                   { onSuccess: () => setDrafting(false) },
                 )
@@ -148,9 +149,9 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
           busy={update.isPending}
           error={update.error}
           initial={{
-            from: dayOf(link.range.startsAt),
-            to: dayOf(link.range.endsAt),
-            expires: dayOf(link.expiresAt),
+            from: dayOf(link.range.startsAt, zone),
+            to: dayOf(link.range.endsAt, zone),
+            expires: dayOf(link.expiresAt, zone),
             includeCameras: link.includeCameras,
           }}
           submitLabel={t('sharing.save')}
@@ -159,7 +160,7 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
             update.mutate(
               {
                 id: link.id,
-                body: { range: rangeOf(draft), includeCameras: draft.includeCameras, expiresAt: instantOf(draft.expires, 'end') },
+                body: { range: rangeOf(draft, zone), includeCameras: draft.includeCameras, expiresAt: instantOf(draft.expires, 'end', zone) },
               },
               { onSuccess: () => setNarrowing(false) },
             )
@@ -299,15 +300,28 @@ const describe = (t: Translate, link: ShareLink, now: DateTime, zone: string | n
 
 /**
  * A date the field holds, as the instant the contract takes: the whole of that
- * day, in UTC. The field speaks the browser's day and this reads it back the
- * same way, which is why `dayOf` below stays on the browser's zone as well: the
- * two are one round trip through one clock, and zoning half of it would put a
- * day in the field that the reader never chose.
+ * day where the account is.
+ *
+ * The day is the grower's, so its edges are the grower's midnights. Cut at the
+ * browser's instead, a window typed as 1 September to 23 September left on the
+ * wire as 31 August 22:00 to 23 September 21:59 - it carried the last two hours
+ * of a day that was excluded, including a diary line standing in them, and
+ * dropped the last two hours of a day that was included. `dayOf` reads the
+ * stored instant back in the same zone, so the field shows the day that was
+ * typed, and `describe` above already names the window with `calendarDay`
+ * there: one sheet cannot hold two answers to which day a link begins on.
  */
-const instantOf = (day: string, edge: 'start' | 'end'): string | null =>
-  day ? (edge === 'start' ? DateTime.fromISO(day).startOf('day') : DateTime.fromISO(day).endOf('day')).toUTC().toISO() : null;
+const instantOf = (day: string, edge: 'start' | 'end', zone: string | null): string | null => {
+  if (!day) return null;
+  const at = DateTime.fromISO(day, { zone: zone ?? undefined });
 
-const dayOf = (at: string | null): string => (at ? DateTime.fromISO(at).toFormat('yyyy-MM-dd') : '');
+  return (edge === 'start' ? at.startOf('day') : at.endOf('day')).toUTC().toISO();
+};
+
+const dayOf = (at: string | null, zone: string | null): string => (at ? zoned(at, zone).toFormat('yyyy-MM-dd') : '');
 
 /** An open end is a link that keeps up with the diary as it goes on, which is what sharing a running grow means. */
-const rangeOf = (draft: Draft): TimeRange => ({ startsAt: instantOf(draft.from, 'start'), endsAt: instantOf(draft.to, 'end') });
+const rangeOf = (draft: Draft, zone: string | null): TimeRange => ({
+  startsAt: instantOf(draft.from, 'start', zone),
+  endsAt: instantOf(draft.to, 'end', zone),
+});

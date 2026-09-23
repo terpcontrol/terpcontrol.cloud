@@ -25,6 +25,15 @@ const calls = vi.hoisted(() => ({
   visibility: [] as unknown[],
   revoked: [] as string[],
   removed: [] as string[],
+  created: [] as { range: { startsAt: string | null; endsAt: string | null } }[],
+}));
+
+/** The zone the account keeps, which is the zone a day the grower types is read in. */
+const account = vi.hoisted(() => ({ zone: null as string | null }));
+
+vi.mock('@/api/account', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useMe: () => ({ data: account.zone === null ? undefined : { preferences: { timezone: account.zone } } }),
 }));
 
 const mutation = (record?: (value: never) => void) => ({
@@ -37,7 +46,7 @@ const links = vi.hoisted(() => ({ items: [] as unknown[] }));
 
 vi.mock('@/api/sharing', () => ({
   useShareLinks: () => ({ data: { items: links.items, nextCursor: null }, isPending: false }),
-  useCreateShareLink: () => mutation(),
+  useCreateShareLink: () => mutation(body => calls.created.push(body)),
   useUpdateShareLink: () => mutation(),
   useRevokeShareLink: () => mutation(id => calls.revoked.push(id)),
   useDeleteShareLink: () => mutation(id => calls.removed.push(id)),
@@ -97,6 +106,8 @@ beforeEach(() => {
   calls.visibility = [];
   calls.revoked = [];
   calls.removed = [];
+  calls.created = [];
+  account.zone = null;
   links.items = [link({})];
 });
 
@@ -141,6 +152,53 @@ describe('the share sheet', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Forget' }));
     expect(calls.removed).toEqual(['link-1']);
+  });
+
+  /**
+   * A window typed as two days is two of the grower's days. Cut at the
+   * browser's midnight instead, a link asked for 1 to 23 September went out as
+   * 31 August 22:00 to 23 September 21:59 - it carried the tail of a day that
+   * was left out, diary lines and all, and dropped the tail of one that was
+   * put in, while the row above it named the window in the account's zone and
+   * so disagreed with the link it described.
+   */
+  const typeAWindow = (from: string, to: string) => {
+    fireEvent.click(screen.getByRole('button', { name: 'New link' }));
+    fireEvent.change(screen.getByLabelText(/^From/), { target: { value: from } });
+    fireEvent.change(screen.getByLabelText(/^To/), { target: { value: to } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create link' }));
+  };
+
+  it('cuts a link´s window at the account´s own midnights', () => {
+    account.zone = 'UTC';
+    draw();
+
+    typeAWindow('2026-09-01', '2026-09-23');
+
+    expect(calls.created).toHaveLength(1);
+    expect(calls.created[0].range).toEqual({ startsAt: '2026-09-01T00:00:00.000Z', endsAt: '2026-09-23T23:59:59.999Z' });
+  });
+
+  it('follows the account east as well, rather than the browser it is typed on', () => {
+    account.zone = 'Europe/Berlin';
+    draw();
+
+    typeAWindow('2026-09-01', '2026-09-23');
+
+    // Two hours ahead of UTC in September, so the grower's first midnight is
+    // 22:00 the evening before it - which is right, because it is their day.
+    expect(calls.created[0].range).toEqual({ startsAt: '2026-08-31T22:00:00.000Z', endsAt: '2026-09-23T21:59:59.999Z' });
+  });
+
+  it('shows a link´s stored window back as the days it was typed as', () => {
+    account.zone = 'Europe/Berlin';
+    links.items = [link({ range: { startsAt: '2026-08-31T22:00:00.000Z', endsAt: '2026-09-23T21:59:59.999Z' } })];
+    draw();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Narrow' }));
+
+    expect((screen.getByLabelText(/^From/) as HTMLInputElement).value).toBe('2026-09-01');
+    expect((screen.getByLabelText(/^To/) as HTMLInputElement).value).toBe('2026-09-23');
   });
 
   it('narrows a link by its window and its pictures, and never by what it points at', () => {
