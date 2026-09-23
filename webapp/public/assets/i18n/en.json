@@ -3003,6 +3003,7 @@
     },
     "hd": "HD",
     "noGrowHere": "Nothing grows here, so there is no phase and no grow to film.",
+    "noPictureToFilm": "No picture today, so there is nothing to film yet.",
     "needsPremium": "HD and a film of a whole grow are part of Premium.",
     "seePremium": "What Premium covers",
     "reduced": "served reduced",

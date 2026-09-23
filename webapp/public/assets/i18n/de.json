@@ -2999,6 +2999,7 @@
     },
     "hd": "HD",
     "noGrowHere": "Hier wächst nichts, also gibt es weder Phase noch Grow zum Filmen.",
+    "noPictureToFilm": "Heute gibt es kein Bild, also noch nichts zu filmen.",
     "needsPremium": "HD und der Film eines ganzen Grows gehören zu Premium.",
     "seePremium": "Was Premium umfasst",
     "reduced": "verkleinert ausgeliefert",

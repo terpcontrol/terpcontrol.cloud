@@ -413,6 +413,40 @@ describe('the films and the pictures behind the first page', () => {
     expect(screen.queryByRole('button', { name: 'More films' })).not.toBeInTheDocument();
   });
 
+  /**
+   * The Phase and Whole grow chips beside it are already drawn refused with
+   * their reason, so the pattern for a film that cannot be made exists on this
+   * very row. The day chip was the one that did not use it: a tap on a camera
+   * that had taken nothing was answered, queued and left a permanent failed row
+   * in the list that no screen can remove.
+   */
+  it('refuses a day film on a camera that has taken no picture in the last day', () => {
+    state.frames = { items: [], partial: false };
+    const dark = render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: serverNow().minus({ days: 4 }).toISO()! } }} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByRole('button', { name: /Today/ })).toBeDisabled();
+    expect(dark.container.textContent).toContain('No picture today, so there is nothing to film yet.');
+    dark.unmount();
+
+    // Still delivering: the bucket the server works out cannot start earlier
+    // than a day ago, so a picture inside that day is proof it holds frames.
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: serverNow().minus({ minutes: 5 }).toISO()! } }} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByRole('button', { name: /Today/ })).toBeEnabled();
+  });
+
   it('shows the last picture the camera took on a day it has taken none, dimmed and dated', () => {
     // The tent's card and the camera's own row both draw this picture; the page
     // with the most room for it drew a grey box. A value that is old is dimmed

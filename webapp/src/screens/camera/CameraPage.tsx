@@ -302,13 +302,25 @@ function Quick({ buttons, onPick }: { buttons: QuickFilm[]; onPick: (body: Timel
  * What each of the four asks for. The two rolling spans carry only the instant
  * the server works its bucket out around; a phase and a whole grow name both of
  * their own ends, because where either began is the grow's record.
+ *
+ * A day film of a camera that has taken nothing is refused here rather than
+ * rendered and failed. The server buckets the day itself and never starts that
+ * bucket earlier than a day before the instant it is handed, so a newest
+ * picture older than that proves the span is empty whatever zone anybody is in
+ * - which is the one test that can be made on this side without repeating the
+ * server's arithmetic. It is the conservative half of the rule: a camera that
+ * stopped after the bucket opened can still produce an empty film. The page's
+ * own count of today's pictures is the wrong test, because that is the
+ * account's day and the bucket is the server's.
  */
 const quickFilms = (t: Translate, camera: Camera, grow: GrowListItem | null, now: DateTime): QuickFilm[] => {
   const free = camera.entitlement.tier === 'free';
   const noGrow = grow ? null : t('camera.noGrowHere');
+  const lastStill = camera.state.lastStillAt;
+  const nothingToFilm = lastStill === null || DateTime.fromISO(lastStill) < now.minus({ hours: 24 }) ? t('camera.noPictureToFilm') : null;
 
   return [
-    { label: t('camera.window.day'), body: { window: 'day', startsAt: instantOf(now) }, reason: null, premium: false },
+    { label: t('camera.window.day'), body: { window: 'day', startsAt: instantOf(now) }, reason: nothingToFilm, premium: false },
     { label: t('camera.window.week'), body: { window: 'week', startsAt: instantOf(now) }, reason: null, premium: false },
     {
       label: t('camera.window.phase'),
