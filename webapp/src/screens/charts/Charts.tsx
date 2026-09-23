@@ -17,7 +17,7 @@ import { standsIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { MoveHereSheet } from '../space/MoveHereSheet';
-import { at, stampOf } from '../timeline/window';
+import { at, stampFor, stampOf, STAMPS } from '../timeline/window';
 import {
   cardsOf,
   csvForCards,
@@ -531,14 +531,23 @@ const dayLabel = (t: Translate, series: GrowSeries): string => {
 /**
  * Both ends of the window as the axis writes them.
  *
- * A rolling window begins and ends at the same time of day, and a week of one
- * begins and ends on the same weekday as well, so a clock at either end would
- * label the two ends of the chart identically and say nothing about how wide it
- * is. The label widens until the two cannot be read as the same moment.
+ * Two things have to be true of them and only one used to be. They have to
+ * differ - a rolling window begins and ends at the same time of day, and a week
+ * of one on the same weekday as well, so a clock at either end would label the
+ * chart identically and say nothing about how wide it is. But they also have to
+ * say which moment they are, and widening from the clock until the strings
+ * happened to differ stopped at the first rung on every window that does not
+ * begin and end at the same minute: a 218-day grow was labelled "14:39" and
+ * "17:31", and five days of September as "00:00" and "23:59".
+ *
+ * So the ladder is climbed from the rung the width itself asks for - the same
+ * one the pinned reading above the cards is written with, so the axis and the
+ * header cannot drift apart - and only then widened until the two differ.
  */
 const edgesOf = (from: number, to: number): [string, string] => {
-  const formats = ['HH:mm', 'ccc HH:mm', 'd MMM HH:mm', 'd MMM yyyy HH:mm'];
-  const written = formats.map(format => [DateTime.fromMillis(from).toFormat(format), DateTime.fromMillis(to).toFormat(format)] as [string, string]);
+  const written = STAMPS.slice(stampFor(to - from)).map(
+    format => [DateTime.fromMillis(from).toFormat(format), DateTime.fromMillis(to).toFormat(format)] as [string, string],
+  );
 
   return written.find(([one, other]) => one !== other) ?? written[written.length - 1];
 };

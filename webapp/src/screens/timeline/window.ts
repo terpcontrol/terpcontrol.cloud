@@ -12,16 +12,26 @@ export const at = (iso: string): number => new Date(iso).getTime();
 const HOUR_MS = 60 * 60 * 1000;
 
 /**
- * How a moment inside the window is written. A window of a day needs the clock
- * and nothing else; over a week the hour alone would not say which day, and
- * over a grow not even the weekday would.
+ * How a moment inside a window is written, from the narrowest that still says
+ * which moment it is to the widest. Each entry says strictly more than the one
+ * before it, which is what lets a label be widened from the one a span picked
+ * until two of them can no longer be read as the same instant.
  */
-export const stampOf = (time: number, span: number): string => {
-  const stamp = DateTime.fromMillis(time);
-  if (span <= 36 * HOUR_MS) return stamp.toFormat('HH:mm');
-  if (span <= 10 * 24 * HOUR_MS) return stamp.toFormat('ccc HH:mm');
-  return stamp.toFormat('d MMM HH:mm');
+export const STAMPS = ['HH:mm', 'ccc HH:mm', 'd MMM HH:mm', 'd MMM yyyy HH:mm'] as const;
+
+/**
+ * Which of them a window of this width is written with. A window of a day needs
+ * the clock and nothing else; over a week the hour alone would not say which
+ * day, over a grow not even the weekday would, and over more than a year the
+ * month would not say which year.
+ */
+export const stampFor = (span: number): number => {
+  if (span <= 36 * HOUR_MS) return 0;
+  if (span <= 10 * 24 * HOUR_MS) return 1;
+  return span <= 400 * 24 * HOUR_MS ? 2 : 3;
 };
+
+export const stampOf = (time: number, span: number): string => DateTime.fromMillis(time).toFormat(STAMPS[stampFor(span)]);
 
 /** A picture says which day it was taken whatever the window is: it is a thing from a moment rather than the moment itself. */
 export const captureOf = (time: number, span: number): string =>

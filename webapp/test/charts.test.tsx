@@ -306,6 +306,30 @@ describe('the Charts view', () => {
     expect(await screen.findByText('· band moves with the phase · leaf −2 °C')).toBeInTheDocument();
   });
 
+  it('labels the two ends of a season with dates, and the two ends of a rolling day with weekdays', async () => {
+    draw();
+    await screen.findByText('Temp + RH');
+
+    // A day begins and ends at the same minute, so the clock alone would label
+    // both ends of the chart identically: the weekday is what tells them apart.
+    for (const hour of [0, 24]) {
+      expect(screen.getAllByText(DateTime.fromISO(at(hour)).toFormat('ccc HH:mm')).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('keeps the date on the axis of a window wider than a week', async () => {
+    const opens = DateTime.fromISO('2026-01-19T13:39:00.000Z');
+    const closes = DateTime.fromISO('2026-08-24T15:31:00.000Z');
+    state.series = { ...series, startsAt: opens.toISO()!, endsAt: closes.toISO()! };
+    draw();
+    await screen.findByText('Temp + RH');
+
+    // Seven months of chart used to be labelled "14:39" and "17:31", because
+    // widening from the clock stops as soon as the two strings differ.
+    expect(screen.getAllByText(opens.toFormat('d MMM HH:mm')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(closes.toFormat('d MMM HH:mm')).length).toBeGreaterThan(0);
+  });
+
   it('keeps counting in days out of reach where no stretch of a grow is being drawn', async () => {
     draw();
 
