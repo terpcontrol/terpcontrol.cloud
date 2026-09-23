@@ -488,6 +488,17 @@ describe('what the Devices tab calls a device', () => {
     expect(screen.queryByText('Premium')).toBeNull();
   });
 
+  it('heads the list with what it holds rather than calling a socket a controller', async () => {
+    // The section covers whatever the account has claimed - a light, a fan and
+    // a plug among them - and "Smart sockets" further down is a different list.
+    list.devices = [standing({ type: 'plug' }), standing({ id: 'device-2', type: 'fan' })];
+    list.cameras = [];
+    await drawList();
+
+    expect(screen.getByText('Devices')).toBeInTheDocument();
+    expect(screen.queryByText('Controllers')).toBeNull();
+  });
+
   it('draws a device nobody has named by its type as a word, with enough of its id to tell two apart', async () => {
     list.devices = [standing({})];
     list.cameras = [];

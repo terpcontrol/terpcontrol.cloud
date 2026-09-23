@@ -794,7 +794,7 @@
     "claimLabel": "The code on the display",
     "claimFailed": "That code was not taken.",
     "addCameraLater": "A camera is added on a screen of its own: a Terp Cam pairs at the controller, a standalone one joins Wi-Fi from your phone, and any other camera takes a stream address. Add one from the camera list on this tab.",
-    "controllers": "Controllers",
+    "controllers": "Devices",
     "cameras": "Cameras",
     "sockets": "Smart sockets",
     "lights": "Light",

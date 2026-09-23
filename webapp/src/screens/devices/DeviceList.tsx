@@ -87,6 +87,11 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
           the kind of absence that reads as a fault. */}
       {spaceId !== undefined && mayLogHere && !mayManageHere ? <p className={`mono ${styles.role}`}>{t('devices.youMayLog')}</p> : null}
 
+      {/* "Devices" and not "Controllers": this list holds whatever the account
+          has claimed - a light, a fan and a smart socket among them - and each
+          row says what it is on its own title. Calling a socket a controller
+          also collided with the Smart sockets sections further down, which hold
+          something else. */}
       <Section label={t('devices.controllers')} empty={mine.length === 0 ? t(maySetUp ? 'devices.noDevices' : 'devices.noDevicesHere') : null}>
         {mine.map(device => (
           <DeviceRow

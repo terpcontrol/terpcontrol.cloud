@@ -790,7 +790,7 @@
     "claimLabel": "Der Code auf dem Display",
     "claimFailed": "Dieser Code wurde nicht angenommen.",
     "addCameraLater": "Eine Kamera wird auf einem eigenen Bildschirm hinzugefügt: eine Terp Cam koppelt am Controller, eine eigenständige kommt per Handy ins WLAN, jede andere bekommt eine Stream-Adresse. Los geht es über der Kameraliste in diesem Tab.",
-    "controllers": "Controller",
+    "controllers": "Geräte",
     "cameras": "Kameras",
     "sockets": "Smarte Steckdosen",
     "lights": "Licht",
