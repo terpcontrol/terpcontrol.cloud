@@ -161,19 +161,30 @@ describe('a diary row', () => {
   /**
    * A week card and a report chapter run on the grow's own calendar, whose days
    * begin at the hour the grow did. A weekday there names two rows of one card
-   * the same thing, so those surfaces hand the row the day instead.
+   * the same thing, so those surfaces hand the row the day instead - and
+   * because one of those days holds the end of one date and the start of the
+   * next, the hour alone is not enough either: day 1 of a grow that began at
+   * half past three put 08:10 above 15:31 in a list that is newest first.
    */
   describe('the stamp on a surface that draws a stretch of a grow', () => {
-    const stampedDay = (day: number | null) =>
+    const stampedDay = (day: number | null, occurredAt = '2026-01-26T13:36:00.000Z') =>
       render(
         <ul>
-          <EntryRow entry={entryOf({ occurredAt: '2026-01-26T13:36:00.000Z' })} people={[]} day={day} />
+          <EntryRow entry={entryOf({ occurredAt })} people={[]} day={day} />
         </ul>,
       ).container.querySelector('span')!.textContent;
 
-    it('says the grow´s day and the hour, which is unique inside the card', () => {
+    it('says the grow´s day, the date and the hour, because one of those days holds two dates', () => {
       account.zone = 'UTC';
-      expect(stampedDay(7)).toBe('D 7 · 13:36');
+      expect(stampedDay(7)).toBe('D 7 · 26 Jan 13:36');
+    });
+
+    it('tells two lines of one day apart by their dates, where the hour alone reads as out of order', () => {
+      account.zone = 'UTC';
+      // Day 1 of a grow that began at 15:31 on 24 August: the later line is the
+      // one on the following morning, and only the date says so.
+      expect(stampedDay(1, '2026-08-25T08:10:23.000Z')).toBe('D 1 · 25 Aug 08:10');
+      expect(stampedDay(1, '2026-08-24T15:31:56.000Z')).toBe('D 1 · 24 Aug 15:31');
     });
 
     it('says the hour alone where the surface knows no day, which is a grow that has not begun', () => {

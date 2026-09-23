@@ -5,7 +5,7 @@ import type { Entry, Person, ReadingName } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { entryDetail } from '@/i18n/device-message';
 import { authorOf, headlineOf, KIND_ICON, readingFigure } from './entries';
-import { nowThere, useZone, zoned } from './zone';
+import { CLOCK, DATED_CLOCK, nowThere, useZone, zoned } from './zone';
 import { Photo } from './Photo';
 import { PictureViewer } from './PictureViewer';
 import styles from './EntryRow.module.css';
@@ -182,8 +182,16 @@ export function EntryRow({
 
   return (
     <li className={styles.row} data-severity={entry.severity ?? undefined}>
+      {/* Under a day of the grow the stamp names the date as well as the hour.
+          One of the grow's days begins when the grow did rather than at
+          midnight, so it straddles two dates and holds both sides of one - a
+          card whose day 1 ran from half past three in the afternoon put
+          "D 1 · 08:10" directly above "D 1 · 15:31" in a list that is newest
+          first, and the two lines read as though the list had them the wrong
+          way round. The date is what tells them apart, and nothing else on
+          either row carries it. */}
       <span className={`mono ${styles.stamp}`}>
-        {day === null ? at.toFormat(now ? stampOf(at, nowThere(now, zone)) : 'HH:mm') : `${t('grow.dayShort', { day })} · ${at.toFormat('HH:mm')}`}
+        {day === null ? at.toFormat(now ? stampOf(at, nowThere(now, zone)) : CLOCK) : `${t('grow.dayShort', { day })} · ${at.toFormat(DATED_CLOCK)}`}
       </span>
       <span className={styles.kind} aria-label={t(`home.entryKind.${entry.kind}`)}>
         <Icon size={13} strokeWidth={1.75} aria-hidden />

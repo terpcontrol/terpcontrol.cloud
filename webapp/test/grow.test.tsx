@@ -461,8 +461,11 @@ describe('the last card of a grow that has ended', () => {
 
     draw(<WeekCard week={twice} grow={grow} people={people} now={NOW} current />);
 
-    expect(screen.getByText('D 35 · 09:00')).toBeInTheDocument();
-    expect(screen.getByText('D 29 · 11:00')).toBeInTheDocument();
+    // With the date, because the grow-day the stamp names straddles two of
+    // them: two lines either side of that boundary carry hours that run
+    // backwards against the order the card lists them in.
+    expect(screen.getByText('D 35 · 19 Sep 09:00')).toBeInTheDocument();
+    expect(screen.getByText('D 29 · 12 Sep 11:00')).toBeInTheDocument();
   });
 
   it('names each tile after the grow-day it is rather than after the weekday it opens on', () => {

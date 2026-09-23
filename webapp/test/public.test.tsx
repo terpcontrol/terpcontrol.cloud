@@ -314,8 +314,11 @@ describe('a public diary', () => {
 
     draw(<DiaryWeek week={twice} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
 
-    expect(screen.getByText('D 35 · 09:00')).toBeInTheDocument();
-    expect(screen.getByText('D 29 · 11:00')).toBeInTheDocument();
+    // The date comes with it, because one of the grow's days holds the end of
+    // one date and the start of the next, and two lines either side of that
+    // boundary would otherwise read as out of order under one day.
+    expect(screen.getByText('D 35 · 20 Sep 09:00')).toBeInTheDocument();
+    expect(screen.getByText('D 29 · 13 Sep 11:00')).toBeInTheDocument();
   });
 
   it('names each tile after the grow-day it is rather than after the weekday it opens on', () => {
