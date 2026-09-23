@@ -20,10 +20,18 @@ import styles from './RouteError.module.css';
  * and offers to ask again, which after a deploy or a tunnel is all that is
  * needed. The door to the form stays open beside it for whoever would rather
  * type a password than wait.
+ *
+ * Where that door leads back to is the whole address and not the path alone.
+ * What a deep link is about lives in its query - the grow a chart is drawn of,
+ * the rule an alert's "Edit rule" chip marks, the tent a grow is to be started
+ * in - so carrying the path by itself lands the round trip on the right screen
+ * with its subject stripped off, and a link somebody was sent opens on an empty
+ * version of what they were sent.
  */
 export function RequireSession({ children }: { children: ReactNode }) {
   const { user, restored, unreachable } = useSession();
   const location = useLocation();
+  const from = `${location.pathname}${location.search}${location.hash}`;
   const [asking, setAsking] = useState(false);
 
   useEffect(() => {
@@ -39,9 +47,9 @@ export function RequireSession({ children }: { children: ReactNode }) {
   // stored account before it knows whether the session is live, and rendering
   // the shell on that would send every screen behind it to an API that has just
   // refused to answer.
-  if (asking || (restored && !user && unreachable)) return <CannotReach asking={asking} onAskAgain={askAgain} from={location.pathname} />;
+  if (asking || (restored && !user && unreachable)) return <CannotReach asking={asking} onAskAgain={askAgain} from={from} />;
   if (!restored) return null;
-  if (!user) return <Navigate to="/sign-in" replace state={{ from: location.pathname }} />;
+  if (!user) return <Navigate to="/sign-in" replace state={{ from }} />;
   return children;
 }
 
