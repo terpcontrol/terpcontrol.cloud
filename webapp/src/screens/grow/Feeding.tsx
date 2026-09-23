@@ -149,7 +149,12 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
   const label = growSchemeLabel(draft.origin, shipped.data ?? [], own.data?.items ?? [], t('grow.ownScheme'));
   const version = fromAsset ? schemeVersionLabel(fromAsset.version) : null;
   const plantTypes = fromAsset ? (shipped.data?.find(summary => summary.id === fromAsset.assetId)?.plantTypes ?? []) : [];
-  const currentWeek = grow.summary.weekNumber;
+  // A grow that has ended is in no week: the server freezes the summary at the
+  // day it finished, so `weekNumber` is its last week rather than this one. Said
+  // as "week 32 is this week" under a header that reads "ended 24 Aug 2026", it
+  // also pointed at a column the grid does not draw, because a scheme is fifteen
+  // weeks long and a grow can run thirty-two.
+  const currentWeek = grow.endedAt === null ? grow.summary.weekNumber : null;
   const strengths = [...new Set([...STRENGTHS, draft.strength])].sort((a, b) => a - b);
 
   return (

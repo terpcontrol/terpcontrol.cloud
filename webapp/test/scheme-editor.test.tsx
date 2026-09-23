@@ -61,6 +61,7 @@ const growOn = (scheme: GrowScheme | null): GrowListItem =>
     type: 'photoperiod',
     scheme,
     measurements: [],
+    endedAt: null,
     summary: { dayNumber: 35, stage: 'flowering', preset: 'flower', phaseDay: 11, weekNumber: 5, isAuto: false, groups: [], locations: [] },
   }) as unknown as GrowListItem;
 
@@ -204,6 +205,18 @@ describe('the feeding tab', () => {
 
     expect(screen.getByText(/Week 5 is this week/)).toHaveTextContent('The flip to flower is week 4');
     expect(screen.getByText(/A scheme kept on your own shelf is a copy/)).toBeInTheDocument();
+  });
+
+  it('marks no week as this week on a grow that has ended, because its last week is not this one', async () => {
+    // The summary is frozen at the day the grow finished, so its week number is
+    // its final week - and on a scheme fifteen columns wide, week 32 of a real
+    // grow is not even a column that is drawn.
+    await drawn({ ...growOn(SCHEME), endedAt: '2026-08-24T15:31:56.000Z' });
+
+    expect(screen.queryByText(/is this week/)).not.toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'w5' })).not.toHaveAttribute('data-current', 'true');
+    // What the grid is for is still said: the flip and how to fill it in.
+    expect(screen.getByText(/The flip to flower is week 4/)).toBeInTheDocument();
   });
 
   it('sends the whole grid with the one figure changed, and nothing else moved', async () => {
