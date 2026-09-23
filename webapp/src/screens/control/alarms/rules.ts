@@ -1,3 +1,4 @@
+import type { DateTime } from 'luxon';
 import { headersOf } from '@/ui/headers';
 import type {
   AlarmDelivery,
@@ -10,11 +11,14 @@ import type {
   Metric,
   NotificationChannel,
   OutputMetric,
+  QuietHours,
   Severity,
   WebhookMethod,
 } from '@fg2/shared-types/v1';
 import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { UNIT, targetFigure } from '@/screens/home/units';
+import { isAhead } from '@/ui/age';
+import { zoneOf } from '@/ui/zone';
 
 /**
  * What the alarm screen knows about a rule that the contract does not say in so
@@ -186,6 +190,47 @@ export const routedChannels = (me: Me | undefined, severity: Severity): RoutedCh
   const named = me && category ? (me.notifications.routing[category] ?? []) : [];
 
   return CHANNELS.filter(channel => named.includes(channel)).map(channel => ({ channel, configured: me !== undefined && isConfigured(me, channel) }));
+};
+
+/**
+ * Why nothing at all would be said right now, or null while the account is
+ * being listened to.
+ *
+ * Routing is only half of what decides whether a rule reaches anybody: the
+ * server holds every message back while the account is muted, whatever the
+ * severity and whatever the grid says, and holds back everything short of
+ * critical during quiet hours. A rules page that reads only the grid therefore
+ * promised "goes to you by e-mail · repeats every 30 min" for an account that
+ * had muted itself a tab away and would have been sent nothing at all.
+ *
+ * It mirrors `heldBack` in the server's NotificationService, down to a mute
+ * being absolute and a critical alarm being worth waking somebody for, and is
+ * read in the account's own zone because that is the zone the window was set
+ * in and the one the server reads it in. Only a rule routed through the
+ * account's grid is subject to it: a rule delivering to a target of its own
+ * goes out through the alarm's own delivery and is unaffected by either.
+ */
+export const heldBackBy = (me: Me | undefined, severity: Severity, now: DateTime): 'muted' | 'quiet' | null => {
+  if (!me) return null;
+  if (isAhead(me.notifications.mutedUntil ?? null, now)) return 'muted';
+  if (severity === 'critical') return null;
+
+  return inQuietHours(me.notifications.quietHours ?? null, zoneOf(me), now) ? 'quiet' : null;
+};
+
+/**
+ * Quiet hours are minutes from the account's own midnight, so the window is
+ * read on that clock and not on the browser's. A window that runs past
+ * midnight has its start after its end, which is what the two branches are.
+ */
+const inQuietHours = (quiet: QuietHours | null, zone: string | null, now: DateTime): boolean => {
+  if (!quiet) return false;
+  const local = zone ? now.setZone(zone) : now;
+  const minute = local.hour * 60 + local.minute;
+
+  return quiet.fromMinute <= quiet.toMinute
+    ? minute >= quiet.fromMinute && minute < quiet.toMinute
+    : minute >= quiet.fromMinute || minute < quiet.toMinute;
 };
 
 export type Translate = (key: string, options?: Record<string, unknown>) => string;

@@ -3294,6 +3294,8 @@
       "ownTarget": "its own target",
       "repeatsEvery": "repeats every {{length}}",
       "silencedUntil": "silenced until {{time}}",
+      "mutedUntil": "your channels muted until {{time}}",
+      "quietUntil": "your quiet hours until {{time}}",
       "switchedOff": "switched off",
       "announcedOnce": "announced once",
       "toYou": "goes to you by {{channels}}"

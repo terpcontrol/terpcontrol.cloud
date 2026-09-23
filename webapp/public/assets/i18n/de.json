@@ -3290,6 +3290,8 @@
       "ownTarget": "eigenes Ziel",
       "repeatsEvery": "wiederholt sich alle {{length}}",
       "silencedUntil": "stumm bis {{time}}",
+      "mutedUntil": "deine Kanäle stumm bis {{time}}",
+      "quietUntil": "deine Ruhezeit bis {{time}}",
       "switchedOff": "ausgeschaltet",
       "announcedOnce": "wird einmal gemeldet",
       "toYou": "geht an dich per {{channels}}"

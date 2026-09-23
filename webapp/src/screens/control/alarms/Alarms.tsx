@@ -6,13 +6,15 @@ import type { AlarmRule, Device, Me, OverviewGrow } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { useAlarmRulesOf, useDeviceAlarmRules, useUnsilenceAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
 import { useSpaceOverview } from '@/api/spaces';
+import { clock } from '@/screens/alerts/inbox';
 import { durationLabel } from '@/screens/devices/sockets';
+import { timeOf } from '@/screens/notifications/settings';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { clock, zoneOf } from '@/ui/zone';
 import { RuleSheet } from './RuleSheet';
-import { boundLabel, channelsLabel, groupRules, missingSensor, routedChannels, ruleTitle, type Translate, watchable } from './rules';
+import { boundLabel, channelsLabel, groupRules, heldBackBy, missingSensor, routedChannels, ruleTitle, type Translate, watchable } from './rules';
 import styles from './Alarms.module.css';
 
 /**
@@ -237,7 +239,7 @@ function RuleCard({ rule, device, me, mayManage, highlighted, busy, now, onOpen,
         <span className={styles.name}>{title}</span>
         {bound ? <span className={`mono ${styles.bound}`}>{bound}</span> : null}
       </span>
-      <span className={`mono ${styles.meta}`}>{metaLine(t, rule, me)}</span>
+      <span className={`mono ${styles.meta}`}>{metaLine(t, rule, me, now)}</span>
       {silenced ? (
         <span className={`mono ${styles.meta}`}>{t('alarms.meta.silencedUntil', { time: clock(rule.silencedUntil!, zoneOf(me)) })}</span>
       ) : null}
@@ -309,20 +311,33 @@ function RuleCard({ rule, device, me, mayManage, highlighted, busy, now, onOpen,
  * state rather than going on to promise a delivery and a half hour that only
  * hold once somebody throws the switch beside it. What the rule is set to do
  * is not lost with it - it is all in the sheet the card opens.
+ *
+ * An account that has muted itself, or that is inside its own quiet hours, is
+ * the same case: the server sends nothing at all while either holds, so a
+ * routed rule ends at the silence rather than going on to name channels and a
+ * half hour that nothing would come out of. Which silence it is, is said, and
+ * until when - the inbox says it in those words two taps away, and the way out
+ * is there rather than here. A rule delivering to a target of its own is not
+ * qualified: it goes out through the alarm's own delivery and really does
+ * still send while the account is quiet, so saying otherwise would be the same
+ * lie told the other way round.
  */
-const metaLine = (t: Translate, rule: AlarmRule, me: Me | undefined): string => {
+const metaLine = (t: Translate, rule: AlarmRule, me: Me | undefined, now: DateTime): string => {
   const parts: string[] = [t(`alarms.origin.${rule.origin}`)];
   if (rule.forSeconds > 0 && rule.watch.kind !== 'output_running') parts.push(t('alarms.meta.for', { length: durationLabel(rule.forSeconds) }));
   parts.push(t(`alarms.severity.${rule.severity}`));
 
   const routed = rule.delivery.mode === 'routing' ? routedChannels(me, rule.severity) : null;
+  const held = routed === null ? null : heldBackBy(me, rule.severity, now);
   const announced = routed === null || me === undefined || routed.length > 0;
 
   if (routed === null) parts.push(rule.delivery.custom ? t(`alarms.channel.${rule.delivery.custom.channel}`) : t('alarms.meta.ownTarget'));
+  else if (me && rule.enabled && held === 'muted') parts.push(t('alarms.meta.mutedUntil', { time: clock(me.notifications.mutedUntil!, zoneOf(me)) }));
+  else if (me && rule.enabled && held === 'quiet') parts.push(t('alarms.meta.quietUntil', { time: timeOf(me.notifications.quietHours!.toMinute) }));
   else if (me && rule.enabled) parts.push(announced ? t('alarms.meta.toYou', { channels: channelsLabel(t, routed) }) : t('alarms.meta.notAnnounced'));
 
   if (!rule.enabled) parts.push(t('alarms.meta.switchedOff'));
-  else if (announced) {
+  else if (announced && held === null) {
     parts.push(
       rule.repeatSeconds > 0 ? t('alarms.meta.repeatsEvery', { length: durationLabel(rule.repeatSeconds) }) : t('alarms.meta.announcedOnce'),
     );

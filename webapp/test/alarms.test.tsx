@@ -250,6 +250,46 @@ describe('the alarm rules page', () => {
     expect(within(hook).getByText('custom · for 5 min · warning · webhook · announced once')).toBeInTheDocument();
   });
 
+  /**
+   * A mute is absolute on the server: nothing at all goes out while it holds,
+   * critical included, so a line promising an e-mail and a repeat every half
+   * hour was a promise the account had itself cancelled a tab away. A rule that
+   * delivers to a target of its own does not go through the account's channels
+   * and really does still send, so it keeps its line.
+   */
+  it('says the account’s channels are muted instead of promising a delivery and a repeat', async () => {
+    const mutedUntil = NOW.plus({ hours: 1 });
+    vi.mocked(api.get).mockImplementation(
+      (path: string) =>
+        Promise.resolve(path === '/me' ? { ...me, notifications: { ...me.notifications, mutedUntil: mutedUntil.toISO() } } : answers(path)) as never,
+    );
+    draw();
+
+    const until = mutedUntil.setZone('Europe/Berlin').toFormat('HH:mm');
+    const offline = await card('Controller offline');
+    expect(within(offline).getByText(`always · for 10 min · critical · your channels muted until ${until}`)).toBeInTheDocument();
+    expect(offline.textContent).not.toMatch(/goes to you|repeats every/);
+
+    // Its own webhook is not the account's channel, and is not held back with them.
+    expect(within(await card('Pump watchdog')).getByText('custom · for 5 min · warning · webhook · announced once')).toBeInTheDocument();
+  });
+
+  it('holds a warning back inside the account’s quiet hours and lets a critical rule through, as the server does', async () => {
+    const here = NOW.setZone('Europe/Berlin');
+    const minute = here.hour * 60 + here.minute;
+    const quietHours = { fromMinute: (minute + 1440 - 60) % 1440, toMinute: (minute + 60) % 1440 };
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/me' ? { ...me, notifications: { ...me.notifications, quietHours } } : answers(path)) as never,
+    );
+    draw();
+
+    const until = `${String(Math.floor(quietHours.toMinute / 60)).padStart(2, '0')}:${String(quietHours.toMinute % 60).padStart(2, '0')}`;
+    expect(within(await card('Dehumidifier running non-stop')).getByText(`device · warning · your quiet hours until ${until}`)).toBeInTheDocument();
+    expect(
+      within(await card('Too hot')).getByText('preset · for 10 min · critical · goes to you by push + Telegram · announced once'),
+    ).toBeInTheDocument();
+  });
+
   it('names the two rules nobody here wrote by what they watch, so they read in the language of the page', async () => {
     draw();
 
