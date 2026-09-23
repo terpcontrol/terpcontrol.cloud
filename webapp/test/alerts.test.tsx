@@ -451,9 +451,53 @@ describe('the inbox', () => {
     expect(await screen.findByText('Flower room B · offline · no sample for 25 min')).toBeInTheDocument();
   });
 
+  /**
+   * The one figure that answers the reader's question. A camera that had been
+   * dark for 3 d 22 h when the cloud noticed used to be drawn as "no image
+   * since 13:19 … resolved 13:20 · lasted 1 min", which reads as a blink: the
+   * card printed the moment it was raised and threw the staleness away.
+   */
+  it('dates a stale camera from the last picture it took, not from when the cloud noticed', async () => {
+    const dark = { days: 3, hours: 22, minutes: 15 };
+    const raised = NOW.minus({ minutes: 30 });
+    server.alerts = [
+      alert({
+        id: 'cam',
+        kind: 'camera_stale',
+        ruleId: null,
+        deviceId: null,
+        spaceId: null,
+        cameraId: 'cam-2',
+        severity: 'warning',
+        startedAt: iso(raised),
+        resolvedAt: iso(NOW.minus({ minutes: 29 })),
+        value: raised.diff(raised.minus(dark)).as('seconds'),
+        extremeValue: raised.diff(raised.minus(dark)).as('seconds'),
+      }),
+    ];
+    draw();
+
+    // Four days back is not today, so the day is named beside the hour rather
+    // than a bare time that reads as this morning.
+    const lastStill = raised.minus(dark).setZone(ACCOUNT_ZONE).toFormat('d MMM HH:mm');
+    expect(await screen.findByText(new RegExp(`no image since ${lastStill}`))).toBeInTheDocument();
+  });
+
   it('names the camera for a stale one and offers a look rather than a silence', async () => {
     server.alerts = [
-      alert({ id: 'cam', kind: 'camera_stale', ruleId: null, deviceId: null, spaceId: null, cameraId: 'cam-2', severity: 'info', value: null }),
+      // An alert the health loop raised without a staleness to carry, which is
+      // the one case where the moment it was raised is all there is to date it by.
+      alert({
+        id: 'cam',
+        kind: 'camera_stale',
+        ruleId: null,
+        deviceId: null,
+        spaceId: null,
+        cameraId: 'cam-2',
+        severity: 'info',
+        value: null,
+        extremeValue: null,
+      }),
     ];
     draw();
 

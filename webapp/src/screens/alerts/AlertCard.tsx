@@ -5,9 +5,10 @@ import { Link } from 'react-router';
 import type { Alert, AlarmRule, Device, Me, Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
+import { clockLabel } from '@/screens/notifications/settings';
 import { ruleTitle } from '@/screens/control/alarms/rules';
 import { ageAttribute, ageLabel, isAhead, spanLabel } from '@/ui/age';
-import { clock, zoneOf } from '@/ui/zone';
+import { clock, zoned, zoneOf } from '@/ui/zone';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { figure, targetFigure, UNIT } from '../home/units';
@@ -152,6 +153,14 @@ interface What {
  * Both instants are the server's, and so is the now they are taken from: a
  * silence is the whole of what such a card says, and a browser an hour out
  * would add that hour to it while the "since" beside it stayed put.
+ *
+ * A camera alert is dated the same way and for the same reason. It used to
+ * print the moment the cloud noticed, which on a real blackout of three days
+ * and twenty-two hours read "no image since 13:19 … resolved 13:20 · lasted
+ * 1 min" - a camera that looked to have blinked. The staleness is on the alert
+ * itself, so the last picture is that many seconds before it was raised, and
+ * the date is written beside the hour whenever it is not today's: a gap that
+ * began late one night is otherwise moved onto the wrong day by a bare clock.
  */
 const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Device | null, now: DateTime, zone: string | null): What => {
   switch (alert.kind) {
@@ -160,8 +169,18 @@ const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Devi
       const quietSince = device?.state.lastSeenAt || alert.startedAt;
       return { label: t('alerts.what.offline', { age: ageLabel(quietSince, now) }), figure: null };
     }
-    case 'camera_stale':
-      return { label: t('alerts.what.cameraSince', { time: clock(alert.startedAt, zone) }), figure: null };
+    case 'camera_stale': {
+      // The alert carries how long the camera had been dark when it was
+      // raised, so the picture it was dark since is that many seconds before
+      // the raise. Both an open and a resolved alert are dated this way: an
+      // open one has no newer picture by definition, and a resolved one's
+      // camera now holds the still that ended the gap, so its live state is
+      // the wrong thing to read.
+      const quiet = alert.value ?? alert.extremeValue;
+      const since = quiet === null ? alert.startedAt : (zoned(alert.startedAt, zone).minus({ seconds: quiet }).toISO() ?? alert.startedAt);
+
+      return { label: t('alerts.what.cameraSince', { time: clockLabel(since, now, zone) }), figure: null };
+    }
     case 'threshold':
       return rule ? watched(t, alert, rule) : { label: t('alerts.what.threshold'), figure: alert.value === null ? null : String(alert.value) };
   }
