@@ -186,7 +186,9 @@ describe('the migration command', () => {
     expect(first.output).toMatch(/dropped claimcodes\/CLAIM-ORPHAN-01/u);
     expect(first.output).toMatch(new RegExp(`kept devices/${fixture.devices.fan}`, 'u'));
 
-    expect(await database.collection('spaces').countDocuments()).toBe(5);
+    // One per claimed device, the unnamed one included; the device nobody has
+    // ever seen gets none.
+    expect(await database.collection('spaces').countDocuments()).toBe(6);
     expect(await database.collection('entries').countDocuments()).toBe(fixture.counts.devicelogs);
     expect(await database.collection('legacy_devicelogs').countDocuments()).toBe(fixture.counts.devicelogs);
 
