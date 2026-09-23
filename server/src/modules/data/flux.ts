@@ -217,6 +217,34 @@ export const switchingsByField = (rows: FluxRow[]): Map<string, OutputSwitching[
   );
 };
 
+/** A stretch an output ran for, in milliseconds, which is what a bucket can be laid over. */
+export interface RunningSpan {
+  from: number;
+  to: number;
+}
+
+/**
+ * The stretches an output was running for, out of the switchings the store
+ * answered for it. The first row is the state the window opened in and the rest
+ * are the crossings after it, so a stretch runs from the switching that started
+ * it to the next one; the last runs on without end, because nothing after it
+ * says otherwise.
+ */
+export const runningSpansOf = (switchings: readonly OutputSwitching[]): RunningSpan[] =>
+  switchings.flatMap((switching, index) =>
+    switching.on
+      ? [{ from: Date.parse(switching.at), to: switchings[index + 1] ? Date.parse(switchings[index + 1].at) : Number.POSITIVE_INFINITY }]
+      : [],
+  );
+
+/** Whether those stretches cover more than half of one window, which is what makes a bucket a lit one or a dark one. */
+export const runningMostOf = (spans: readonly RunningSpan[], from: number, to: number): boolean => {
+  if (to <= from) return false;
+  const ran = spans.reduce((sum, span) => sum + Math.max(0, Math.min(to, span.to) - Math.max(from, span.from)), 0);
+
+  return ran * 2 > to - from;
+};
+
 /**
  * The days that have already been summarised, read back as they were stored.
  *
@@ -372,14 +400,17 @@ export interface Readings {
   leafTemperature: number | null;
   lux: number | null;
   light: number | null;
+  /** Which half of the cycle this reading belongs to, where the caller knows; null leaves it to be read off `light`. */
+  isDay: boolean | null;
 }
 
-export const readingsOf = (at: (field: string) => number | null): Readings => ({
+export const readingsOf = (at: (field: string) => number | null, isDay: boolean | null = null): Readings => ({
   temperature: at(storedField('temperature')),
   humidity: at(storedField('humidity')),
   leafTemperature: at(storedField('leafTemperature')),
   lux: at(storedField('lux')),
   light: at(fieldOfOutputMetric('light')),
+  isDay,
 });
 
 /** What each computed metric is built from, so one query fetches those fields with the rest. */
@@ -392,11 +423,23 @@ const FIELDS_OF_COMPUTED: Partial<Record<Metric, readonly string[]>> = {
  * VPD, leaf-corrected. A measured leaf temperature wins; without one the air
  * temperature carries the device's own offset, which differs between day and
  * night because a leaf under a lamp is warmer than the air and a dark one is not.
+ *
+ * Which of the two applies is the caller's to say wherever the caller can say
+ * it. A reading of a *window* only carries what `out_light` averaged over that
+ * window, and that average is a duty cycle rather than a state: a lamp dimmed
+ * to 15 % for an hour and a lamp at 100 % for nine minutes of it come to the
+ * same figure, and any threshold on it means something different on every
+ * output - which is the argument `switchingsQuery` already makes. Read that
+ * way, a bucket 93 % of which was dark took the day offset because the lamp
+ * came on for its last few minutes, and the deficit it answered was a third
+ * too low under a night the same answer shades. A single sample has no window
+ * to average over, so there the reported level does answer for itself and the
+ * caller says nothing.
  */
 export const vpdOf = (readings: Readings, factors: DeviceFactors): number | null => {
   if (readings.temperature === null || readings.humidity === null) return null;
 
-  const isDay = (readings.light ?? 0) > 0.5;
+  const isDay = readings.isDay ?? (readings.light ?? 0) > 0.5;
   const leaf = readings.leafTemperature ?? readings.temperature + (isDay ? factors.vpdLeafOffsetDay : factors.vpdLeafOffsetNight);
 
   return calculateVpd(readings.temperature, leaf, readings.humidity);

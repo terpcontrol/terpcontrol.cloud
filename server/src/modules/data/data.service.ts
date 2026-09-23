@@ -20,6 +20,7 @@ import {
   DeviceFactors,
   fieldsFor,
   FluxRow,
+  FluxWindow,
   gridOf,
   latestByField,
   liveQuery,
@@ -28,6 +29,8 @@ import {
   pointsOf,
   rawSamplePredicate,
   readingsOf,
+  runningMostOf,
+  runningSpansOf,
   seriesQuery,
   stepFor,
   summaryQuery,
@@ -223,16 +226,18 @@ export class DataService implements LightStateReader {
     // shorter window, and the readings are not gone - they are a day apart.
     // They never overlap, because a day is summarised and dropped in one act,
     // so the two sets of points go into one grid at the instants they carry.
-    const [rows, summaries, factors] = fields.length
+    const [rows, summaries, factors, lamp] = fields.length
       ? await Promise.all([
           this.read(seriesQuery(this.bucket, deviceId, fields, window)),
           this.read(summaryQuery(this.bucket, deviceId, fields, window)),
           this.factorsOf(deviceId),
+          this.lampOf(deviceId, request.metrics, window),
         ])
-      : [[] as FluxRow[], [] as FluxRow[], DEFAULT_FACTORS];
+      : [[] as FluxRow[], [] as FluxRow[], DEFAULT_FACTORS, [] as OutputSwitching[]];
 
     const grid = gridOf([...summaries, ...rows]);
     const valueAt = (field: string, instant: string): number | null => grid.valuesByField.get(field)?.get(instant) ?? null;
+    const isDayAt = dayOfCycleIn(lamp, window);
 
     return {
       deviceId,
@@ -245,7 +250,7 @@ export class DataService implements LightStateReader {
           field === null
             ? computedValue(
                 name,
-                readingsOf(input => valueAt(input, instant)),
+                readingsOf(input => valueAt(input, instant), isDayAt(instant)),
                 factors,
               )
             : valueAt(field, instant);
@@ -393,6 +398,25 @@ export class DataService implements LightStateReader {
     return this.influx.getQueryApi(this.config.org!).collectRows<FluxRow>(query);
   }
 
+  /**
+   * When the lamp ran over this window, for the sake of the metrics that are
+   * computed per bucket rather than per sample.
+   *
+   * VPD is the only one so far: which half of the cycle a bucket belongs to
+   * cannot be read off what `out_light` averaged across it, and the switchings
+   * are the one thing in the store that says it. The read is the same
+   * five-minute-grain scan `history` makes of the outputs that were ticked, so
+   * a caller that ticked the light as well pays for one field twice; that is a
+   * scan of one field against a wrong figure on a panel the screen draws by
+   * default, and the alternative is to make the two reads wait for each other.
+   */
+  private async lampOf(deviceId: string, metrics: readonly Metric[], window: { startsAt: Date; endsAt: Date }): Promise<OutputSwitching[]> {
+    if (!metrics.includes('vpd')) return [];
+    const switchings = await this.switchingsOf(deviceId, ['light'], window);
+
+    return switchings.get(fieldOfOutputMetric('light')) ?? [];
+  }
+
   /** The switchings of the outputs that were asked for, by the field they are stored under. A window of no width holds none. */
   private async switchingsOf(
     deviceId: string,
@@ -411,6 +435,28 @@ export class DataService implements LightStateReader {
     return device ? device.settings : DEFAULT_FACTORS;
   }
 }
+
+/**
+ * Which half of the cycle each bucket of a window belongs to: lit for more than
+ * half of itself, or dark.
+ *
+ * `aggregateWindow` stamps a bucket at its end, so the bucket an instant names
+ * is the step before it. Anything before the first switching is left unanswered
+ * rather than guessed: the switchings are read from the raw samples, and a day
+ * old enough to have been summarised away has none - its own averaged light is
+ * then the only thing left to read it by, which is what a null falls back to.
+ */
+const dayOfCycleIn = (lamp: readonly OutputSwitching[], window: FluxWindow): ((instant: string) => boolean | null) => {
+  const spans = runningSpansOf(lamp);
+  const knownFrom = lamp.length > 0 ? Date.parse(lamp[0].at) : null;
+  const step = window.stepSeconds * 1000;
+
+  return instant => {
+    const ends = Date.parse(instant);
+
+    return knownFrom === null || ends <= knownFrom ? null : runningMostOf(spans, ends - step, ends);
+  };
+};
 
 /**
  * How old a computed value is: as old as the stalest reading it was built from.

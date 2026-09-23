@@ -3,13 +3,18 @@ import {
   DEFAULT_PPFD_LUX_FACTOR,
   DeviceFactors,
   fieldsFor,
+  FluxRow,
   gridOf,
   latestByField,
   liveQuery,
+  OutputSwitching,
   readingsOf,
+  runningMostOf,
+  runningSpansOf,
   seriesQuery,
   stepFor,
 } from '@modules/data/flux';
+import { DataService } from '@modules/data/data.service';
 
 /**
  * What goes to InfluxDB and what is made of what comes back. The store itself
@@ -138,5 +143,134 @@ describe('the metrics the cloud computes', () => {
   it('turns lux into ppfd with the device´s own factor', () => {
     expect(computedValue('ppfd', readings({ lux: 20_000 }), FACTORS)).toBeCloseTo(300, 5);
     expect(computedValue('ppfd', readings({ lux: 20_000 }), { ...FACTORS, ppfdLuxFactor: 0.03 })).toBeCloseTo(600, 5);
+  });
+
+  it('takes the half of the cycle from the caller where the caller knows it', () => {
+    // The same reading, computed both ways: the offset is the whole of the
+    // difference, and it is a third of the figure.
+    const lit = readingsOf(field => ({ temperature: 25, humidity: 60 })[field] ?? null, true);
+    const dark = readingsOf(field => ({ temperature: 25, humidity: 60 })[field] ?? null, false);
+
+    expect(computedValue('vpd', lit, FACTORS)).toBeCloseTo(0.91, 2);
+    expect(computedValue('vpd', dark, FACTORS)).toBeCloseTo(1.27, 2);
+
+    // A bucket 93 % of which was dark carries a mean `out_light` of a percent
+    // or two, which the old rule read as "the lamp was on".
+    expect(
+      computedValue(
+        'vpd',
+        readingsOf(field => ({ temperature: 25, humidity: 60, out_light: 1.64 })[field] ?? null, false),
+        FACTORS,
+      ),
+    ).toBeCloseTo(1.27, 2);
+  });
+});
+
+describe('which half of the cycle a window was in', () => {
+  const at = (minutes: number) => new Date(Date.parse('2026-01-20T10:00:00.000Z') + minutes * 60_000).toISOString();
+
+  /** The window opens dark, the lamp comes on at 10:20 and is still on at the end. */
+  const switchings: OutputSwitching[] = [
+    { at: at(0), on: false },
+    { at: at(20), on: true },
+  ];
+
+  it('reads the switchings as the stretches the lamp ran for, the last of them open-ended', () => {
+    expect(runningSpansOf(switchings)).toEqual([{ from: Date.parse(at(20)), to: Number.POSITIVE_INFINITY }]);
+    expect(runningSpansOf([{ at: at(0), on: false }])).toEqual([]);
+  });
+
+  it('calls a bucket lit only where the lamp ran for more than half of it', () => {
+    const spans = runningSpansOf(switchings);
+
+    // The bucket that ends at 10:29 is dark for two thirds of itself although
+    // the lamp is on when it closes - which is the bucket the averaged field
+    // used to call a day.
+    expect(runningMostOf(spans, Date.parse(at(0)), Date.parse(at(29)))).toBe(false);
+    expect(runningMostOf(spans, Date.parse(at(29)), Date.parse(at(58)))).toBe(true);
+    expect(runningMostOf(spans, Date.parse(at(10)), Date.parse(at(30)))).toBe(false);
+    expect(runningMostOf(spans, Date.parse(at(30)), Date.parse(at(30)))).toBe(false);
+  });
+});
+
+/**
+ * VPD over a window, through the service that reads it.
+ *
+ * The store is stood in for: what is worth checking is that the deficit of a
+ * bucket follows the lamp's own switchings rather than what its `out_light`
+ * averaged to, because those two disagree on every bucket a lamp switched
+ * inside - and the shading the same answer carries is drawn from the
+ * switchings.
+ */
+describe('the deficit of a window', () => {
+  const DEVICE = 'device-1';
+  const STEP_SECONDS = 1800;
+  const startsAt = new Date('2026-01-20T10:00:00.000Z');
+  const endsAt = new Date('2026-01-20T11:00:00.000Z');
+  const buckets = [new Date('2026-01-20T10:30:00.000Z'), new Date('2026-01-20T11:00:00.000Z')];
+
+  /** The lamp comes on three minutes before the end of the second bucket, and nothing else changes all hour. */
+  const LIT_FROM = new Date('2026-01-20T10:57:00.000Z');
+
+  const rowsFor = (query: string): FluxRow[] => {
+    if (query.includes('difference(')) {
+      return [
+        { _time: startsAt.toISOString(), _field: 'out_light', _value: 0 },
+        { _time: LIT_FROM.toISOString(), _field: 'out_light', _value: 1 },
+      ];
+    }
+    if (query.includes('status_daily')) return [];
+
+    return buckets.flatMap(bucket => [
+      { _time: bucket.toISOString(), _field: 'temperature', _value: 25 },
+      { _time: bucket.toISOString(), _field: 'humidity', _value: 60 },
+      // The mean of a bucket the lamp ran three minutes of: enough to clear any
+      // threshold on the field, nowhere near enough to be a day.
+      { _time: bucket.toISOString(), _field: 'out_light', _value: bucket.getTime() === buckets[1].getTime() ? 1.64 : 0 },
+    ]);
+  };
+
+  /**
+   * The service with the store stood in for. `read` is private, which is as it
+   * should be - what a query comes back as is the store's business - so the
+   * stub is put in from outside the type rather than by widening it.
+   */
+  const reading = (rows: (query: string) => FluxRow[] = rowsFor): DataService => {
+    const devices = { findOne: () => ({ lean: () => Promise.resolve({ settings: FACTORS }) }) };
+    const data = new DataService(devices as never, { url: 'http://influx.invalid', token: 'x', org: 'org', bucket: BUCKET } as never);
+    (data as unknown as { read: (query: string) => Promise<FluxRow[]> }).read = query => Promise.resolve(rows(query));
+
+    return data;
+  };
+
+  it('computes each bucket against the half of the cycle the lamp says it was in', async () => {
+    const answer = await reading().series(DEVICE, { metrics: ['vpd'], startsAt, endsAt, stepSeconds: STEP_SECONDS });
+
+    // Both buckets are night: the lamp came on for the last three minutes of
+    // the second, which is a duty cycle and not a day. Read off the averaged
+    // field, the second answered 0.91 - a third low, under a night the same
+    // answer shades.
+    expect(answer.metrics[0].points.map(point => point.value)).toEqual([expect.closeTo(1.27, 2), expect.closeTo(1.27, 2)]);
+  });
+
+  it('reads a bucket the lamp ran through as a day', async () => {
+    const lit = reading(query =>
+      query.includes('difference(') ? [{ _time: startsAt.toISOString(), _field: 'out_light', _value: 1 }] : rowsFor(query),
+    );
+
+    const answer = await lit.series(DEVICE, { metrics: ['vpd'], startsAt, endsAt, stepSeconds: STEP_SECONDS });
+
+    expect(answer.metrics[0].points.map(point => point.value)).toEqual([expect.closeTo(0.91, 2), expect.closeTo(0.91, 2)]);
+  });
+
+  it('falls back to the averaged field where the store knows of no switching at all', async () => {
+    // A day old enough to have been summarised away has no raw samples behind
+    // it and therefore no switchings, and its own averaged light is then the
+    // only thing left to read it by.
+    const quiet = reading(query => (query.includes('difference(') ? [] : rowsFor(query)));
+
+    const answer = await quiet.series(DEVICE, { metrics: ['vpd'], startsAt, endsAt, stepSeconds: STEP_SECONDS });
+
+    expect(answer.metrics[0].points.map(point => point.value)).toEqual([expect.closeTo(1.27, 2), expect.closeTo(0.91, 2)]);
   });
 });
