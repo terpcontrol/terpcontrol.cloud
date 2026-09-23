@@ -88,3 +88,27 @@ describe('every key the firmware sends', () => {
     }
   });
 });
+
+/**
+ * A headline is a label, and the strips it is read in set the labels of a tent
+ * beside one another: "Verbindungsproblem. · vor 3 d · Gerät" reads as a
+ * sentence gone wrong next to "Gerät hat neu gestartet" and "Alarm ausgelöst".
+ * Which titles end in a stop is a decision the English catalogue already made,
+ * one key at a time, and the German is a translation of those labels rather than
+ * a second set of them - so the one that disagreed disagreed by accident.
+ */
+describe('the punctuation of a title, across the two catalogues', () => {
+  const terminal = (wording: string): string => (/[.!?]$/.test(wording) ? wording.slice(-1) : '');
+
+  it('ends a German title wherever its English twin ends, and nowhere else', async () => {
+    const read = async (language: string) =>
+      JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8')) as Record<string, unknown>;
+    const [english, german] = await Promise.all([read('en'), read('de')]);
+
+    const titles = Object.keys(english).filter(key => key.startsWith('message-') && key.endsWith('-title'));
+    expect(titles.length).toBeGreaterThan(20);
+
+    const differing = titles.filter(key => typeof german[key] === 'string' && terminal(german[key] as string) !== terminal(english[key] as string));
+    expect(differing).toEqual([]);
+  });
+});
