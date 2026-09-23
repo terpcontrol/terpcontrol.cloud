@@ -36,6 +36,7 @@ let rules: Model<StoredAlarmRule>;
 let alerts: Model<StoredAlert>;
 let engine: AlarmEngineService;
 let health: AlarmHealthService;
+let episodes: AlertService;
 let mailed: string[];
 
 /** What the measurement store answers a rule reading its own past back: set per case. */
@@ -104,6 +105,7 @@ beforeEach(async () => {
   };
   const data = { points: jest.fn(answer), outputPoints: jest.fn(answer) } as unknown as DataService;
   const alertService = new AlertService(alerts, entries, delivery, null);
+  episodes = alertService;
 
   engine = new AlarmEngineService(rules, db.devices, data, alertService);
   health = new AlarmHealthService(db.devices, rules, db.cameras, engine, alertService);
@@ -449,5 +451,72 @@ describe('the health loop', () => {
     await health.run(new Date());
 
     expect(await alerts.countDocuments({ kind: 'camera_stale' })).toBe(0);
+  });
+});
+
+/**
+ * The words the diary gets. An alarm's line is composed here rather than in the
+ * catalogue, so what it says about silence is only ever as good as this - and
+ * the seconds the health loop measures a silence in are not a figure anybody
+ * reads, while the same number is drawn on the alert card as "quiet for 4 d".
+ */
+describe('the line an alarm writes into the diary', () => {
+  const said = async (): Promise<string[]> => (await db.entries.find({}).sort({ createdAt: 1 }).lean()).map(entry => entry.message?.params[0] ?? '');
+
+  it('says how long a device has been quiet rather than how many seconds that is', async () => {
+    const quietSince = new Date(Date.now() - 374_021_218);
+    await device({ state: { lastSeenAt: quietSince } });
+
+    await health.run(new Date());
+
+    expect(await said()).toEqual(['Device offline, quiet for 4 d 7 h']);
+  });
+
+  it('says the same for a camera that has stopped delivering stills, which has no rule to name it', async () => {
+    await device();
+    await db.cameras.create({
+      id: 'camera-1',
+      ownerId: OWNER,
+      kind: 'terpcam_controller',
+      name: 'Fridgegrow',
+      deviceId: DEVICE,
+      spaceId: SPACE,
+      stillIntervalSeconds: 30,
+      state: { lastStillAt: new Date(Date.now() - 2 * 60 * 60 * 1000) },
+    });
+
+    await health.run(new Date());
+
+    expect(await said()).toEqual(['Fridgegrow, quiet for 2 h']);
+  });
+
+  it('dates the end of an absence from the episode rather than from the silence it was resolved on', async () => {
+    const subject = {
+      name: 'Device offline',
+      kind: 'offline' as const,
+      severity: 'critical' as const,
+      rule: null,
+      deviceId: DEVICE,
+      cameraId: null,
+      spaceId: SPACE,
+    };
+    const startedAt = new Date(Date.now() - 90 * 60 * 1000);
+
+    const alert = await episodes.raise(subject, 660, startedAt);
+    // What the loop hands the resolution is a fresh reading of the silence, and
+    // by then the device has just spoken: the episode is the hour and a half,
+    // not the twelve seconds that ended it.
+    await episodes.settle(subject, alert, 12, new Date());
+
+    expect(await said()).toEqual(['Device offline, quiet for 11 min', 'Device offline, back after 1 h 30 min']);
+  });
+
+  it('leaves a threshold alarm in the words it has always used', async () => {
+    await device();
+    await rules.create(ruleFor());
+
+    await reads(32, new Date());
+
+    expect(await said()).toEqual(['Too warm (temperature), value=32, upper threshold=30, lower threshold=n/a']);
   });
 });

@@ -129,8 +129,21 @@ export class AlertService {
   }
 }
 
-/** The line the timeline shows, in the words it has always shown it in. */
+/**
+ * The line the timeline shows, in the words it has always shown it in.
+ *
+ * Those words are a reading against its thresholds, which is what every alarm
+ * the old app could raise was. Silence is not a reading: the health loop hands
+ * `offline` and `camera_stale` the seconds since the device or the camera was
+ * last heard from, and printing that as `value=374021.218` puts a figure on the
+ * grow's own diary that means nothing to the person reading it - while the
+ * alert beside it, from the same number, says "quiet for 4 d". It is written
+ * here as a span for that reason, and here rather than in the catalogue because
+ * the whole line is already composed on this side.
+ */
 const summary = (subject: AlertSubject, alert: StoredAlert, value: number | null, event: AlarmEvent): string => {
+  if (alert.kind === 'offline' || alert.kind === 'camera_stale') return silence(subject, alert, value, event);
+
   const rule = subject.rule;
   const watched = rule ? bandOf(rule.watch) : null;
   const band = watched && (watched.upper !== null || watched.lower !== null) ? watched : null;
@@ -141,3 +154,55 @@ const summary = (subject: AlertSubject, alert: StoredAlert, value: number | null
     (event === 'resolved' && band ? `, extreme value=${alert.extremeValue ?? 'n/a'}` : '')
   );
 };
+
+/**
+ * How long it was quiet, for the two alarms that are about nothing arriving.
+ *
+ * A device that has gone away and a camera that has stopped delivering stills
+ * are both raised by the health loop with the silence in seconds, so there is no
+ * band to state and no reading to name: what the line has to say is how long it
+ * had been quiet when the alarm was raised, and how long the episode ran once it
+ * was over. The name in front of it is the rule's - "Device offline" - or the
+ * camera's, so neither line repeats the metric after it the way a threshold
+ * alarm names the reading it watched.
+ *
+ * The end of it is dated from the alert rather than from the value it is handed:
+ * the loop resolves an episode from a fresh measurement of the silence, which is
+ * a few seconds by the time anything has been heard again, and "quiet for 12 s"
+ * is not what a four-day absence should be remembered as.
+ */
+const silence = (subject: AlertSubject, alert: StoredAlert, value: number | null, event: AlarmEvent): string => {
+  if (event === 'resolved') {
+    const episode = alert.resolvedAt ? (alert.resolvedAt.getTime() - alert.startedAt.getTime()) / 1000 : null;
+    return episode === null ? `${subject.name}, back` : `${subject.name}, back after ${spanWords(episode)}`;
+  }
+
+  return value === null ? subject.name : `${subject.name}, quiet for ${spanWords(value)}`;
+};
+
+const MINUTE = 60;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+
+/**
+ * A span in the words somebody reads it in: "40 s", "12 min", "3 h 20 min",
+ * "4 d 7 h". Two units above an hour, because the difference between four days
+ * and four and a half is most of what anybody wants from the line, and never
+ * more than two, because the third is noise on a figure this rough.
+ *
+ * It is not the app's `spanLabel`. That one floors to a single unit and is
+ * written in the browser, in the reader's language; this goes into
+ * `message.params` as the line is composed and is read in whatever language the
+ * reader has chosen, exactly as the "upper threshold=" beside it always has.
+ */
+const spanWords = (seconds: number): string => {
+  const whole = Math.max(0, Math.floor(seconds));
+  if (whole < MINUTE) return `${whole} s`;
+  if (whole < HOUR) return `${Math.floor(whole / MINUTE)} min`;
+  if (whole < DAY) return withRest(Math.floor(whole / HOUR), 'h', Math.floor((whole % HOUR) / MINUTE), 'min');
+
+  return withRest(Math.floor(whole / DAY), 'd', Math.floor((whole % DAY) / HOUR), 'h');
+};
+
+const withRest = (count: number, unit: string, rest: number, restUnit: string): string =>
+  rest === 0 ? `${count} ${unit}` : `${count} ${unit} ${rest} ${restUnit}`;
