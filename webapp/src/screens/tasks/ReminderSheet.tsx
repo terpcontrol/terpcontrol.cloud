@@ -163,13 +163,17 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
           ) : (
             // Its own date field rather than the sheets' shared one: that one
             // records what has already been done and refuses the future, and
-            // a reminder is for nothing else.
+            // a reminder is for nothing else. The floor is the reader's own
+            // calendar - null - and deliberately not the account's: what it
+            // refuses is a day already behind the person setting it, which is
+            // a fact about where they are. Where the day then falls due is the
+            // account's business, and `bodyOf` zones it there.
             <label className={`${ui.card} ${styles.field}`}>
               <span className={styles.fieldLabel}>{t('tasks.sheet.onceOn')}</span>
               <input
                 className={`mono ${styles.fieldInput}`}
                 type="date"
-                min={dayOf(serverNow().toJSDate())}
+                min={dayOf(serverNow().toJSDate(), null)}
                 value={draft.onceOn}
                 onChange={event => change({ onceOn: event.target.value })}
               />
@@ -290,7 +294,11 @@ const draftOf = (reminder: Reminder | null, userId: string): Draft => {
     subject: reminder?.subject ?? null,
     rhythm: reminder?.onceAt ? 'once' : 'every',
     everyDays: reminder?.everyDays ?? DEFAULT_EVERY_DAYS,
-    onceOn: reminder?.onceAt ? dayOf(new Date(reminder.onceAt)) : dayOf(serverNow().toJSDate()),
+    // The reader's own calendar, for the same reason the field's floor is: the
+    // day it offers is the day it is where the person setting the reminder is
+    // sitting, and what that day means to the account is worked out on the way
+    // out in `bodyOf`.
+    onceOn: reminder?.onceAt ? dayOf(new Date(reminder.onceAt), null) : dayOf(serverNow().toJSDate(), null),
     forWhom: !reminder || reminder.assigneeId === null ? 'everyone' : reminder.assigneeId === userId ? 'me' : 'other',
     litres: litres === null ? '' : String(litres),
   };

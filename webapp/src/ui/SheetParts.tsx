@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { serverNow } from '@/api/clock';
 import { dayOf, momentOn } from './days';
 import ui from './ui.module.css';
+import { useZone } from './zone';
 import styles from './SheetParts.module.css';
 
 /**
@@ -37,17 +38,25 @@ export function Choice({ chosen, onChoose, disabled, children }: { chosen: boole
  * Tuesday would run the day counter into the future. Which day is today is the
  * server's answer, because it is the server that will refuse an instant in its
  * own future.
+ *
+ * Which day that is, is the account's answer: a grow day is a day where the
+ * tent stands, so a reader whose browser has already turned over picks from
+ * their own tomorrow and dates a phase a day before the one they meant. The
+ * zone is read here rather than handed down, because six sheets draw this one
+ * field and two answers to "which day is it" is exactly what that would buy.
  */
 export function WhenField({ label, at, onChange }: { label: string; at: Date; onChange: (at: Date) => void }) {
+  const zone = useZone();
+
   return (
     <label className={`${ui.card} ${styles.when}`}>
       <span className={styles.whenLabel}>{label}</span>
       <input
         className={`mono ${styles.whenInput}`}
         type="date"
-        max={dayOf(serverNow().toJSDate())}
-        value={dayOf(at)}
-        onChange={event => event.target.value && onChange(momentOn(event.target.value, at))}
+        max={dayOf(serverNow().toJSDate(), zone)}
+        value={dayOf(at, zone)}
+        onChange={event => event.target.value && onChange(momentOn(event.target.value, at, zone))}
       />
     </label>
   );

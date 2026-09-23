@@ -26,6 +26,7 @@ import { readingFigure } from '@/ui/entries';
 import { useMayManage } from '@/ui/session-access';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
+import { useZone } from '@/ui/zone';
 import { dayAt, dosesOf, lastCan, litresOf, nextStage, readingsOf, schemeStep, stoppedAfter } from './defaults';
 import { about, lineLabel } from './lines';
 import { useLog, type LogTarget, type TileKind } from './log-context';
@@ -108,7 +109,12 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
   /** The new-grow sheet takes this one's place once it is opened, rather than standing over it. */
   const [startingGrow, setStartingGrow] = useState(false);
 
-  const today = dayOf(serverNow().toJSDate());
+  // Today, and the day this line is dated to, are read where the account is:
+  // the grow day a line is filed under begins where the tent stands, so a
+  // reader whose own calendar has already turned over would otherwise pick the
+  // account's today and have it written down as yesterday.
+  const zone = useZone();
+  const today = dayOf(serverNow().toJSDate(), zone);
   const step = schemeStep(grow, at);
   // What the line will say it is: the day it is dated to, not the day it is being written on.
   const filed = { ...target, dayNumber: dayAt(grow, target, at) };
@@ -222,10 +228,10 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
             type="date"
             /* An entry records something that has happened, so tomorrow is not on offer. */
             max={today}
-            value={dayOf(at)}
+            value={dayOf(at, zone)}
             onChange={event => {
               if (!event.target.value) return;
-              setAt(momentOn(event.target.value, at));
+              setAt(momentOn(event.target.value, at, zone));
               setDated(true);
             }}
           />
