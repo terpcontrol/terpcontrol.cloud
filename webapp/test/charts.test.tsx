@@ -275,7 +275,7 @@ describe('the Charts view', () => {
     // The CSV is the answer already on the screen, which is a mean per window
     // and not what the devices reported at: a grow-wide window is a few hundred
     // rows over hundreds of thousands of readings.
-    expect(await screen.findByText(/CSV takes what is on the screen/)).toHaveTextContent('one row per 5 min');
+    expect(await screen.findByText(/CSV takes every line chosen above/)).toHaveTextContent('one row per 5 min');
     expect(screen.queryByText(/native rate/)).not.toBeInTheDocument();
   });
 
@@ -286,7 +286,7 @@ describe('the Charts view', () => {
     state.series = { ...series, stepSeconds: 5344 };
     draw();
 
-    expect(await screen.findByText(/CSV takes what is on the screen/)).toHaveTextContent('one row per 1 h 29 min');
+    expect(await screen.findByText(/CSV takes every line chosen above/)).toHaveTextContent('one row per 1 h 29 min');
   });
 
   it('says nothing about rows for a window that has none, and still offers the way on to the whole grow', async () => {
@@ -297,7 +297,7 @@ describe('the Charts view', () => {
     draw();
 
     expect(await screen.findByText(/No measurements in this period/)).toBeInTheDocument();
-    expect(screen.queryByText(/CSV takes what is on the screen/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/CSV takes every line chosen above/)).not.toBeInTheDocument();
     expect(screen.queryByText(/one row per/)).not.toBeInTheDocument();
     expect(screen.getByText(/is under Export on/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Spring run' })).toHaveAttribute('href', '/grows/grow-1');

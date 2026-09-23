@@ -555,7 +555,7 @@
     "saveView": "Save view",
     "csv": "CSV",
     "csvOutput": "{{output}} (on/off)",
-    "csvNote": "CSV takes what is on the screen: one row per {{step}}, plus one wherever an output switched or a reading was written down.",
+    "csvNote": "CSV takes every line chosen above, including the ones a layout leaves off the panel: one row per {{step}}, plus one wherever an output switched or a reading was written down.",
     "exportOn": "The whole grow, pictures and diary included, is under Export on",
     "note": "The nerd's room: any series, any range, saved views, export with the actuator state in every row. Two units on one panel only when they belong together.",
     "nothingPicked": "Nothing picked yet — tap a series above.",

@@ -559,8 +559,16 @@ const leafAbout = (t: Translate, leaf: LeafOffsets): string =>
 const signed = (value: number): string => (value === 0 ? '0' : value < 0 ? `−${Math.abs(value)}` : `+${value}`);
 
 /**
- * The table behind the CSV button: exactly the lines that are on the screen, in
- * the order they are drawn.
+ * The table behind the CSV button: every line the chips have chosen that this
+ * window has anything to say about, in the order they are drawn.
+ *
+ * Not what the cards happen to show, which is what this used to claim. The
+ * Overlay puts one panel up and names the units it could not take underneath,
+ * and those lines are in the file all the same - `drawnOf` never sees the
+ * layout. That is the right way round: a layout button decides how a window is
+ * looked at, and a file that quietly lost a series because of which of three
+ * buttons was pressed would be a worse surprise than a column nobody wanted.
+ * The sentence beside the button says so now.
  *
  * The instants are written where the account is, because every clock time on
  * the screen above the button is, and a row a grower reads back against the
