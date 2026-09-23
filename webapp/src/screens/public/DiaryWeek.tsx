@@ -6,7 +6,7 @@ import type { GrowWeekCard, WeekClimate } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, type Picture } from '@/api/public';
 import { ageLabel } from '@/ui/age';
 import { EntryRow } from '@/ui/EntryRow';
-import { readingFigure } from '@/ui/entries';
+import { readingFigure, weekDayOf } from '@/ui/entries';
 import ui from '@/ui/ui.module.css';
 import { Photo } from '@/ui/Photo';
 import { windowIsCurrent } from './window';
@@ -144,7 +144,15 @@ export function DiaryWeek({ week, picture, now, current, ended, asOf }: DiaryWee
                   // A stranger reads a public diary on their own clock: the
                   // zone it was written in is not part of what the public API
                   // answers about somebody else's account.
-                  <EntryRow key={entry.id} entry={entry} people={[]} withDay byline={false} picture={picture} zone={null} />
+                  <EntryRow
+                    key={entry.id}
+                    entry={entry}
+                    people={[]}
+                    day={weekDayOf(week, entry.occurredAt)}
+                    byline={false}
+                    picture={picture}
+                    zone={null}
+                  />
                 ))}
               </ul>
               {/* A card carries the first handful of a week's lines, and a week

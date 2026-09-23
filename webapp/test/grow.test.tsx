@@ -406,6 +406,22 @@ describe('the last card of a grow that has ended', () => {
     expect(lived).toEqual(['false', 'false', 'false', 'true', 'true', 'true', 'true']);
   });
 
+  it('stamps its lines with the grow-day, because a card seven days wide holds one weekday twice', () => {
+    // The week opens at ten on a Saturday morning and closes at ten on the
+    // Saturday after, so its first and its last day are the same weekday and a
+    // bare one told the two rows apart in no way at all.
+    const twice = {
+      ...week,
+      entries: [entry({ id: 'last', occurredAt: at(-1, 9) }), entry({ id: 'first', occurredAt: at(6, 11) })],
+      entryCount: 2,
+    };
+
+    draw(<WeekCard week={twice} grow={grow} people={people} now={NOW} current />);
+
+    expect(screen.getByText('D 35 · 09:00')).toBeInTheDocument();
+    expect(screen.getByText('D 29 · 11:00')).toBeInTheDocument();
+  });
+
   it('names each tile after the grow-day it is rather than after the weekday it opens on', () => {
     // A grow-day begins at the hour the grow began, so a tile covers the tail
     // of one date and the head of the next and belongs to neither. Named after

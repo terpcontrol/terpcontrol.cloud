@@ -66,8 +66,19 @@ interface EntryRowProps {
   people: Person[];
   /** The grow's own measurements, which is where a reading's name and unit are; without them a reading shows its key. */
   measurements?: readonly ReadingName[];
-  /** Whether the stamp names the day as well as the hour; a week's rows need the day, today's do not. */
-  withDay?: boolean;
+  /**
+   * The grow's day this line falls on, for the surfaces that draw a stretch of
+   * a grow rather than a stretch of the calendar - a week card, a report
+   * chapter, the same card on a public diary.
+   *
+   * It is the day rather than the weekday because a grow's week is seven of the
+   * grow's own days and those begin when the grow did: a card that runs from
+   * Monday afternoon to the Monday after holds two Mondays and nothing tells
+   * them apart, and a report chapter of forty days holds six of each. The day
+   * number is unique inside every one of them, and it is what the tiles above
+   * the rows are named after.
+   */
+  day?: number | null;
   /**
    * The moment the list is read at, for rows that sit under no heading naming
    * the week they are of. A tent's latest lines and a mark opened on the rail
@@ -108,7 +119,7 @@ export function EntryRow({
   entry,
   people,
   measurements = [],
-  withDay = false,
+  day = null,
   now,
   byline = true,
   picture = (mediaId, width) => mediaUrl(mediaId, width),
@@ -134,7 +145,9 @@ export function EntryRow({
 
   return (
     <li className={styles.row} data-severity={entry.severity ?? undefined}>
-      <span className={`mono ${styles.stamp}`}>{at.toFormat(now ? stampOf(at, nowThere(now, zone)) : withDay ? 'ccc HH:mm' : 'HH:mm')}</span>
+      <span className={`mono ${styles.stamp}`}>
+        {day === null ? at.toFormat(now ? stampOf(at, nowThere(now, zone)) : 'HH:mm') : `${t('grow.dayShort', { day })} · ${at.toFormat('HH:mm')}`}
+      </span>
       <span className={styles.kind} aria-label={t(`home.entryKind.${entry.kind}`)}>
         <Icon size={13} strokeWidth={1.75} aria-hidden />
       </span>

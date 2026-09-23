@@ -6,7 +6,7 @@ import type { GrowListItem, GrowWeekCard, Person, WeekClimate } from '@fg2/share
 import { useWeekEntries } from '@/api/grows';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { EntryRow } from '@/ui/EntryRow';
-import { readingFigure } from '@/ui/entries';
+import { readingFigure, weekDayOf } from '@/ui/entries';
 import { amountLabel, schemeName } from './scheme';
 import styles from './WeekCard.module.css';
 
@@ -155,7 +155,14 @@ export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
           {shown.length > 0 ? (
             <ul className={styles.entries}>
               {shown.map(entry => (
-                <EntryRow key={entry.id} entry={entry} people={people} picture={mediaUrl} measurements={grow.measurements} withDay />
+                <EntryRow
+                  key={entry.id}
+                  entry={entry}
+                  people={people}
+                  picture={mediaUrl}
+                  measurements={grow.measurements}
+                  day={weekDayOf(week, entry.occurredAt)}
+                />
               ))}
             </ul>
           ) : (

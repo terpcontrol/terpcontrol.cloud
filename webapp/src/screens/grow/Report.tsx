@@ -7,6 +7,7 @@ import { exportFilename, fileSize, isBuilding, useAskExport, useDownloadExport, 
 import { useGrowReport } from '@/api/grows';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { EntryRow } from '@/ui/EntryRow';
+import { growDayOf } from '@/ui/entries';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import styles from './Report.module.css';
@@ -52,7 +53,7 @@ export function Report({ grow, spaces, mayOwn, now }: { grow: GrowListItem; spac
       {report.data.phases.length === 0 ? <p className={styles.empty}>{t('grow.noWeeks')}</p> : null}
 
       {report.data.phases.map(chapter => (
-        <Chapter key={chapter.phaseId} chapter={chapter} people={report.data.people} spaces={spaces} measurements={grow.measurements} />
+        <Chapter key={chapter.phaseId} chapter={chapter} grow={grow} people={report.data.people} spaces={spaces} measurements={grow.measurements} />
       ))}
 
       <Export growId={grow.id} mayOwn={mayOwn} />
@@ -141,11 +142,13 @@ function Total({ value, label }: { value: number; label: string }) {
 
 function Chapter({
   chapter,
+  grow,
   people,
   spaces,
   measurements,
 }: {
   chapter: GrowReportPhase;
+  grow: GrowListItem;
   people: { id: string; handle: string }[];
   spaces: Space[];
   measurements: GrowListItem['measurements'];
@@ -183,7 +186,14 @@ function Chapter({
         {chapter.training.length > 0 ? (
           <ul className={styles.training}>
             {chapter.training.map(entry => (
-              <EntryRow key={entry.id} entry={entry} people={people} picture={mediaUrl} measurements={measurements} withDay />
+              <EntryRow
+                key={entry.id}
+                entry={entry}
+                people={people}
+                picture={mediaUrl}
+                measurements={measurements}
+                day={growDayOf(grow, entry.occurredAt)}
+              />
             ))}
           </ul>
         ) : null}

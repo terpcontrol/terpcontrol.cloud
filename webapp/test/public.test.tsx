@@ -269,6 +269,21 @@ describe('a public diary', () => {
     expect(screen.getByText('+ 23 more')).toBeInTheDocument();
   });
 
+  it('stamps its lines with the grow-day, exactly as the owner´s own card does', () => {
+    // A public week is the same seven of the grow's days, so it holds the same
+    // weekday twice and owes its reader the same way of telling them apart.
+    const twice = {
+      ...week,
+      entries: [entry({ id: 'last', occurredAt: at(-1, 9) }), entry({ id: 'first', occurredAt: at(6, 11) })],
+      entryCount: 2,
+    };
+
+    draw(<DiaryWeek week={twice} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
+
+    expect(screen.getByText('D 35 · 09:00')).toBeInTheDocument();
+    expect(screen.getByText('D 29 · 11:00')).toBeInTheDocument();
+  });
+
   it('names each tile after the grow-day it is rather than after the weekday it opens on', () => {
     // The same rule the owner's card follows: a week of a public diary is seven
     // of the grow's own days, and a weekday on a window that straddles two

@@ -15,7 +15,8 @@ import {
   Timer,
   type LucideIcon,
 } from 'lucide-react';
-import type { Entry, EntryKind, GrowReadingNames, Person, ReadingName } from '@fg2/shared-types/v1';
+import type { Entry, EntryKind, GrowListItem, GrowReadingNames, GrowWeekCard, Person, ReadingName } from '@fg2/shared-types/v1';
+import { growDayAt, growOriginOf } from '@fg2/shared-types/v1-schemas/feeding.js';
 import { entryHeadline, machineLineParts } from '@/i18n/device-message';
 
 /**
@@ -127,3 +128,26 @@ export const headlineOf = (t: Translate, i18n: I18n, entry: Entry): string => {
  * height to none - and never shows the arithmetic.
  */
 export const readingFigure = (value: number): string => String(Number(value.toFixed(3)));
+
+/** Twenty-four hours, which is how long one of the grow's days is wherever it begins. */
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Which of the grow's own days a line falls on, counted from the grow's origin
+ * with the contract's own arithmetic - the same the server's week calendar
+ * counts by, so a row and the card around it cannot drift apart.
+ *
+ * Null before the first phase: a grow that has not begun has no day 1 to count
+ * from, and a line written against it is dated and nothing more.
+ */
+export const growDayOf = (grow: GrowListItem, occurredAt: string): number | null =>
+  grow.summary.dayNumber === null ? null : growDayAt(growOriginOf(grow), occurredAt);
+
+/**
+ * The same figure where only a week card is at hand, which is all a public
+ * diary is answered: a card begins on a day boundary of the grow and its seven
+ * days are the grow's own, so the day is a subtraction. Clamped to the card,
+ * because a line is only ever drawn on the card whose week it falls in.
+ */
+export const weekDayOf = (week: Pick<GrowWeekCard, 'dayFrom' | 'dayTo' | 'startsAt'>, occurredAt: string): number =>
+  Math.min(week.dayTo, Math.max(week.dayFrom, week.dayFrom + Math.floor((Date.parse(occurredAt) - Date.parse(week.startsAt)) / DAY_MS)));

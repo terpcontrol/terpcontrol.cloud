@@ -159,6 +159,30 @@ describe('a diary row', () => {
   });
 
   /**
+   * A week card and a report chapter run on the grow's own calendar, whose days
+   * begin at the hour the grow did. A weekday there names two rows of one card
+   * the same thing, so those surfaces hand the row the day instead.
+   */
+  describe('the stamp on a surface that draws a stretch of a grow', () => {
+    const stampedDay = (day: number | null) =>
+      render(
+        <ul>
+          <EntryRow entry={entryOf({ occurredAt: '2026-01-26T13:36:00.000Z' })} people={[]} day={day} />
+        </ul>,
+      ).container.querySelector('span')!.textContent;
+
+    it('says the grow´s day and the hour, which is unique inside the card', () => {
+      account.zone = 'UTC';
+      expect(stampedDay(7)).toBe('D 7 · 13:36');
+    });
+
+    it('says the hour alone where the surface knows no day, which is a grow that has not begun', () => {
+      account.zone = 'UTC';
+      expect(stampedDay(null)).toBe('13:36');
+    });
+  });
+
+  /**
    * The hour a line is stamped with is the account's hour. An account kept in
    * one zone and read in another is the ordinary case - a grower on holiday,
    * a hosted tent - and the alerts inbox beside this row has always said the
