@@ -146,6 +146,44 @@ export const valueAt = (points: readonly [number, number | null][], x: number): 
   return found;
 };
 
+/**
+ * How near a mark the cursor has to stand for that mark to be read out, as a
+ * share of the window on the screen. A few pixels of a plot six hundred wide:
+ * near enough to be reached by hand at any range, far too near to carry a
+ * reading across the weeks between two of them.
+ */
+const NEAR_ENOUGH = 1 / 200;
+
+/**
+ * What one line says at the cursor, which depends on what kind of line it is.
+ *
+ * A curve and a state both hold: a mean stands for the window it was taken over
+ * and an output that came on at six was still on at seven, so both are read as
+ * the last point at or before the cursor. A reading somebody wrote down holds
+ * nothing. It happened once, at the instant it was written, and the table this
+ * screen exports says so - it leaves every other row of that column empty, on
+ * the rule that there was no measurement at that instant and the cell is empty
+ * rather than invented. Carried forward the same way as a curve, one reading
+ * taken in August was pinned under every position of the cursor for the month
+ * that followed, four days after the tent had stopped talking at all.
+ *
+ * So a written reading is answered only where the cursor is actually on it, and
+ * the tolerance is a share of the window rather than a step: at a whole grow the
+ * step is a pixel and a half, which would make a ticked line unreadable.
+ */
+export const readAt = (line: Pick<PlotLine, 'shape' | 'points'>, x: number, span: number): number | null => {
+  if (line.shape !== 'points') return valueAt(line.points, x);
+
+  const near = Math.abs(span) * NEAR_ENOUGH;
+  let found: [number, number | null] | null = null;
+  for (const point of line.points) {
+    if (point[1] === null || Math.abs(point[0] - x) > near) continue;
+    if (!found || Math.abs(point[0] - x) < Math.abs(found[0] - x)) found = point;
+  }
+
+  return found?.[1] ?? null;
+};
+
 /** A figure beside an axis or under a cursor: round where the scale came out round, and never longer than it is worth. */
 export const axisFigure = (value: number): string => (Number.isInteger(value) ? String(value) : String(Math.round(value * 100) / 100));
 

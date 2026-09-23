@@ -11,7 +11,7 @@ import { useGrow, useGrowPlants, useGrowsEverIn, useSpaceGrows } from '@/api/gro
 import { noLongerThere } from '@/api/problem';
 import { useSpaces } from '@/api/spaces';
 import { useScrub } from '@/charts/scrub';
-import { axisFigure, dayOfGrow, downloadCsv, valueAt, type PlotLine } from '@/charts/series';
+import { axisFigure, dayOfGrow, downloadCsv, readAt, type PlotLine } from '@/charts/series';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { stoodIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -506,7 +506,7 @@ function ScrubHeader({ cards, cursor, stamp }: { cards: Card[]; cursor: number; 
           .filter(line => line.label !== undefined)
           .map(line => (
             <span key={`${card.key}-${line.key}`} className={styles.scrubValue} data-colour={line.colour}>
-              <span className={styles.scrubName}>{line.label}</span> {readingOf(t, line, cursor)}
+              <span className={styles.scrubName}>{line.label}</span> {readingOf(t, line, cursor, card.plot.to - card.plot.from)}
             </span>
           )),
       )}
@@ -517,8 +517,8 @@ function ScrubHeader({ cards, cursor, stamp }: { cards: Card[]; cursor: number; 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** What one line says at the cursor: a figure and its unit, on or off for an output, and a dash where it says nothing. */
-const readingOf = (t: Translate, line: PlotLine, cursor: number): string => {
-  const value = valueAt(line.points, cursor);
+const readingOf = (t: Translate, line: PlotLine, cursor: number, span: number): string => {
+  const value = readAt(line, cursor, span);
   if (value === null) return '—';
   if (line.shape === 'step') return t(value > 0 ? 'charts.on' : 'charts.off');
 

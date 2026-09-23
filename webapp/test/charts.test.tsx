@@ -12,7 +12,7 @@ import type { ChartViewSpan, GrowListItem, GrowSeries, TimelineTargets } from '@
 import { chartViewCreate } from '@fg2/shared-types/v1-schemas/diary.js';
 import { Charts } from '@/screens/charts/Charts';
 import { cardsOf, csvForCards, offeredBy, type Offered } from '@/screens/charts/cards';
-import { csvOf, niceScale, stepPoints } from '@/charts/series';
+import { csvOf, DAY_MS, niceScale, readAt, stepPoints } from '@/charts/series';
 
 const state = vi.hoisted(() => ({
   series: null as GrowSeries | null,
@@ -353,8 +353,25 @@ describe('the Charts view', () => {
 
     // Two plants were measured, so the card carries two lines and says which is which.
     const reading = screen.getByRole('status');
-    expect(reading).toHaveTextContent('Height · Amnesia 1 54 cm');
-    expect(reading).toHaveTextContent('Height · Amnesia 2 61 cm');
+    expect(reading).toHaveTextContent('Height · Amnesia 1');
+    expect(reading).toHaveTextContent('Height · Amnesia 2');
+  });
+
+  it('does not carry a reading somebody wrote down across the window it was not taken in', async () => {
+    draw();
+    fireEvent.click(await screen.findByRole('button', { name: 'Height' }));
+
+    // Both readings were written in the small hours; the cursor rests at the
+    // right-hand edge, nineteen hours later. A curve holds - a mean stands for
+    // its window - but a reading happened once, and the table this screen
+    // exports leaves every other row of that column empty for exactly that
+    // reason. Held forward, one August reading was pinned under the cursor for
+    // the month that followed.
+    const reading = screen.getByRole('status');
+    expect(reading).toHaveTextContent('Height · Amnesia 1 —');
+    expect(reading).toHaveTextContent('Height · Amnesia 2 —');
+    // The curves beside it still read, because a mean does stand for its window.
+    expect(reading).toHaveTextContent('Temp 26 °C');
   });
 
   it('works the VPD band out of the pair the tent is steered by when the answer carries none', async () => {
@@ -683,6 +700,31 @@ describe('what a plot is made of', () => {
     }
 
     expect(checked).toBeGreaterThan(50_000);
+  });
+
+  it('reads a line at the cursor the way its own column is written into the table', () => {
+    const written = [
+      [FROM.plus({ hours: 4 }).toMillis(), 54],
+      [FROM.plus({ hours: 20 }).toMillis(), 61],
+    ] as [number, number | null][];
+    const span = DAY_MS;
+
+    // A curve and a state hold: a mean stands for the window it was taken over
+    // and a lamp switched on at six is still on at seven.
+    expect(readAt({ shape: 'line', points: written }, FROM.plus({ hours: 12 }).toMillis(), span)).toBe(54);
+    expect(readAt({ shape: 'step', points: written }, FROM.plus({ hours: 12 }).toMillis(), span)).toBe(54);
+
+    // A reading somebody wrote down holds nothing. It is answered where the
+    // cursor is on it, and nowhere else - which is what the CSV of the same
+    // screen says by leaving every other row of that column empty.
+    expect(readAt({ shape: 'points', points: written }, FROM.plus({ hours: 4 }).toMillis(), span)).toBe(54);
+    expect(readAt({ shape: 'points', points: written }, FROM.plus({ hours: 12 }).toMillis(), span)).toBeNull();
+    expect(readAt({ shape: 'points', points: written }, FROM.plus({ hours: 24 }).toMillis(), span)).toBeNull();
+
+    // Near enough to be reached by hand, whatever the window: a few pixels of
+    // it either side, and the nearer of two marks where both are in reach.
+    expect(readAt({ shape: 'points', points: written }, FROM.plus({ hours: 4, minutes: 5 }).toMillis(), span)).toBe(54);
+    expect(readAt({ shape: 'points', points: written }, FROM.plus({ hours: 4, minutes: 30 }).toMillis(), span)).toBeNull();
   });
 
   it('counts a reading taken before day 1 as day 1, the way the grow´s own counter does', () => {

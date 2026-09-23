@@ -1,7 +1,7 @@
 import { Fragment, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Chart } from '@/charts/Chart';
-import { AXIS_GUTTER, plotOption, valueAt } from '@/charts/series';
+import { AXIS_GUTTER, plotOption, readAt } from '@/charts/series';
 import type { ChartPalette } from '@/charts/tokens';
 import ui from '@/ui/ui.module.css';
 import { fractionOf } from '../timeline/window';
@@ -61,7 +61,7 @@ export function ChartCard({ card, cursor, scrub, ends }: ChartCardProps) {
         <div className={styles.overlay} {...scrub}>
           <span className={styles.cursor} style={{ left }} />
           {lines.map(line => {
-            const value = line.label === undefined ? null : valueAt(line.points, cursor);
+            const value = line.label === undefined ? null : readAt(line, cursor, to - from);
             const scale = scales[line.axis] ?? scales[0];
             if (value === null || !scale || scale.high === scale.low) return null;
 
