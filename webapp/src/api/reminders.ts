@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import type { Reminder, ReminderCreate, ReminderPage, ReminderUpdate } from '@fg2/shared-types/v1';
+import type { Reminder, ReminderCreate, ReminderUpdate } from '@fg2/shared-types/v1';
 import { api } from './client';
+import { readEvery } from './pages';
 
 /**
  * The rhythms behind the task list: a reminder is what says a tent is watered
@@ -11,11 +12,20 @@ import { api } from './client';
 
 export const remindersKey = ['reminders'];
 
-/** Everything this account keeps; one page is every reminder anybody has, so there is no cursor to follow. */
+/**
+ * Every rhythm this account keeps, read to the end of the list rather than to
+ * its first page.
+ *
+ * One page was enough while this only annotated task cards - a rhythm with no
+ * task on the screen was nothing the screen had to say anything about. It is
+ * not enough now that the rhythms are a list of their own: a club whose rows
+ * run past one page would simply not be shown the rest of its own
+ * arrangements, and nothing on the screen would say so.
+ */
 export const useReminders = () =>
   useQuery({
     queryKey: remindersKey,
-    queryFn: ({ signal }) => api.get<ReminderPage>('/reminders', { limit: 100 }, signal),
+    queryFn: ({ signal }) => readEvery<Reminder>('/reminders', signal),
   });
 
 /**

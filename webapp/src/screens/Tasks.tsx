@@ -17,7 +17,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { nowThere, useZone } from '@/ui/zone';
 import { ReminderSheet } from './tasks/ReminderSheet';
-import { DoneCard, TaskCard } from './tasks/TaskCard';
+import { DoneCard, RhythmCard, TaskCard } from './tasks/TaskCard';
 import {
   dateLabel,
   dayLabel,
@@ -206,6 +206,21 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
   const reminderSpaces = (spaces.data?.items ?? []).filter(space => enough(space.youMay, 'manage'));
 
   /**
+   * Where a rhythm hangs, which decides whether it may be changed from here.
+   * The same question the cards ask of a task, asked of the reminder itself,
+   * because the list reaches rhythms no card is drawing: a member may see the
+   * arrangements of the tent they were let into and may not rewrite them.
+   */
+  const mayEditRhythm = (reminder: Reminder): boolean => {
+    if (reminder.subject.type === 'space') return enough(mayWith({ ownerId: null, spaceId: reminder.subject.id }), 'manage');
+    const grow = (grows.data?.items ?? []).find(one => one.id === reminder.subject.id);
+
+    return grow !== undefined && enough(mayWith({ ownerId: grow.ownerId, spaceId: standsIn(grow) }), 'manage');
+  };
+
+  const rhythms = [...(reminders.data?.items ?? [])].sort((one, other) => one.label.localeCompare(other.label));
+
+  /**
    * The controller whose plan a step belongs to, so that the card can say what
    * confirming it will start. The task names the space, and the plan is the
    * device's, so the device standing there is the one to ask; where a place
@@ -291,6 +306,32 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
           <ul className={styles.cards}>
             {ticked.map(task => (
               <DoneCard key={task.id} task={task} name={nameOf(task)} me={user} now={now} />
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {/* The rhythms themselves, and not only the turns of them that fall
+          inside the week the list looks over. A reminder set to every thirty
+          days produced no task for twenty-three of them and was on no screen
+          at all in between: it could not be read, corrected or stopped, and
+          the sheet that exists to correct one was reachable only through a
+          card the rhythm was not producing. */}
+      {rhythms.length > 0 ? (
+        <section className={styles.group} aria-label={t('tasks.group.rhythms')}>
+          <header className={styles.groupHead}>
+            <span className="label">{t('tasks.group.rhythms')}</span>
+            <span className={`mono ${styles.groupAside}`}>{t('tasks.rhythmsAside')}</span>
+          </header>
+          <ul className={styles.cards}>
+            {rhythms.map(reminder => (
+              <RhythmCard
+                key={reminder.id}
+                reminder={reminder}
+                name={subjectName(reminder.subject, grows.data?.items, spaces.data?.items)}
+                language={i18n.language}
+                onEdit={mayEditRhythm(reminder) ? () => setEditing({ reminder }) : null}
+              />
             ))}
           </ul>
         </section>

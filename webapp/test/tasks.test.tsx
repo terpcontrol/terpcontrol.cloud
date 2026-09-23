@@ -106,7 +106,7 @@ const reminder = (over: Partial<Reminder>): Reminder => ({
   ...over,
 });
 
-const reminders = [
+const REMINDERS = [
   reminder({}),
   reminder({
     id: 'rem-2',
@@ -122,11 +122,18 @@ const reminders = [
 
 /**
  * What the reader may do in Tent 1, which is what decides every control on this
- * screen - and the zone the account is kept in, which is the calendar its days
- * are counted on. No zone is an account still on its way, and leaves the screen
- * on the browser's, which is what every expectation but the zone's own assumes.
+ * screen - the rhythms behind its tasks, and the zone the account is kept in,
+ * which is the calendar its days are counted on. No zone is an account still on
+ * its way, and leaves the screen on the browser's, which is what every
+ * expectation but the zone's own assumes.
  */
-const state = { waiting: [] as Task[], done: [] as Task[], youMay: 'own' as AccessNeed, zone: null as string | null };
+const state = {
+  waiting: [] as Task[],
+  done: [] as Task[],
+  rhythms: [] as Reminder[],
+  youMay: 'own' as AccessNeed,
+  zone: null as string | null,
+};
 
 const spaces = () => [spaceWhere(state.youMay)];
 
@@ -158,7 +165,7 @@ const plan = {
 
 const answers = (path: string, query?: Record<string, unknown>) => {
   if (path === '/tasks') return { items: query?.done ? state.done : state.waiting, nextCursor: null };
-  if (path === '/reminders') return { items: reminders, nextCursor: null };
+  if (path === '/reminders') return { items: state.rhythms, nextCursor: null };
   if (path === '/grows') return { items: grows(), nextCursor: null };
   if (path === '/spaces') return { items: spaces(), nextCursor: null };
   if (path === '/devices') return { items: devices, nextCursor: null };
@@ -210,9 +217,10 @@ beforeEach(() => {
   state.zone = null;
   state.waiting = [water, chore, planStep, mias, overdue];
   state.done = [ticked];
+  state.rhythms = [...REMINDERS];
   vi.mocked(api.get).mockImplementation((path: string, query?: Record<string, unknown>) => Promise.resolve(answers(path, query)) as never);
   vi.mocked(api.post).mockResolvedValue(written as never);
-  vi.mocked(api.patch).mockResolvedValue(reminders[0] as never);
+  vi.mocked(api.patch).mockResolvedValue(REMINDERS[0] as never);
   vi.mocked(api.delete).mockResolvedValue(undefined as never);
 });
 
@@ -273,9 +281,11 @@ describe('the groups', () => {
     await drawLoaded();
     fireEvent.click(screen.getByRole('radio', { name: 'All' }));
 
-    expect(within(screen.getByText('Water').closest('li')!).getByRole('img', { name: 'assigned to you' })).toHaveTextContent('YO');
-    expect(within(screen.getByText('Feed').closest('li')!).getByRole('img', { name: 'assigned to somebody else' })).toBeInTheDocument();
-    expect(within(screen.getByText('Clean the carbon filter').closest('li')!).queryByRole('img')).not.toBeInTheDocument();
+    // Scoped to the group the card is in: the rhythm behind each of these is
+    // listed under Rhythms as well, where it is an arrangement and not a mark.
+    expect(within(section('Today').getByText('Water').closest('li')!).getByRole('img', { name: 'assigned to you' })).toHaveTextContent('YO');
+    expect(within(section('Today').getByText('Feed').closest('li')!).getByRole('img', { name: 'assigned to somebody else' })).toBeInTheDocument();
+    expect(within(section('Tomorrow').getByText('Clean the carbon filter').closest('li')!).queryByRole('img')).not.toBeInTheDocument();
   });
 
   it('says so when nothing is due', async () => {
@@ -288,17 +298,74 @@ describe('the groups', () => {
   });
 });
 
+/**
+ * A rhythm only produces a task within the week the list looks over, so one
+ * set to every thirty days was on no screen at all for twenty-three of them -
+ * it could not be read, corrected or stopped, and the sheet that exists to
+ * correct one was reachable only through a card it was not producing.
+ */
+describe('the rhythms', () => {
+  const rare = reminder({
+    id: 'rem-9',
+    subject: { type: 'space', id: 'space-1' },
+    kind: 'chore',
+    label: 'Check the inline filter',
+    everyDays: 90,
+    assigneeId: null,
+    defaults: null,
+  });
+
+  it('lists a rhythm that is due long after this week, with the way into it', async () => {
+    state.rhythms = [...REMINDERS, rare];
+    await drawLoaded();
+
+    const row = section('Rhythms').getByText('Check the inline filter').closest('li')!;
+    expect(within(row).getByText('every 90 d · Tent 1 · chore')).toBeInTheDocument();
+    // Nothing is due of it, so it is on the screen once and only here.
+    expect(screen.getAllByText('Check the inline filter')).toHaveLength(1);
+
+    fireEvent.click(within(row).getByRole('button', { name: 'Edit' }));
+    expect(within(screen.getByRole('dialog', { name: 'Reminder' })).getByLabelText('Every … days')).toHaveValue(90);
+  });
+
+  it('lists a one-off falling after the horizon by the day it falls on', async () => {
+    state.rhythms = [reminder({ id: 'rem-8', label: 'Repot', everyDays: null, onceAt: daysFromNow(40), defaults: null })];
+    await drawLoaded();
+
+    expect(section('Rhythms').getByText(/^once on 26 Oct 2026 · Spring run · water$/)).toBeInTheDocument();
+  });
+
+  it('is still there on a week with nothing due at all, which is the week a rhythm disappeared in', async () => {
+    state.waiting = [];
+    state.done = [];
+    state.rhythms = [rare];
+    await drawLoaded();
+
+    expect(screen.getByText('Nothing is due.')).toBeInTheDocument();
+    expect(section('Rhythms').getByText('Check the inline filter')).toBeInTheDocument();
+  });
+
+  it('offers a member who may only log the rhythms of the tent without the way to rewrite them', async () => {
+    state.youMay = 'log';
+    state.rhythms = [rare];
+    await drawLoaded();
+
+    expect(section('Rhythms').getByText('Check the inline filter')).toBeInTheDocument();
+    expect(section('Rhythms').queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+  });
+});
+
 describe('mine and all', () => {
   it("hides a task with somebody else's name on it under Mine and shows it under All, and remembers the choice", async () => {
     await drawLoaded();
 
     expect(screen.getByRole('radio', { name: 'Mine' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.queryByText('Feed')).not.toBeInTheDocument();
-    expect(screen.getByText('Clean the carbon filter')).toBeInTheDocument();
+    expect(section('Today').queryByText('Feed')).not.toBeInTheDocument();
+    expect(section('Tomorrow').getByText('Clean the carbon filter')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('radio', { name: 'All' }));
 
-    expect(screen.getByText('Feed')).toBeInTheDocument();
+    expect(section('Today').getByText('Feed')).toBeInTheDocument();
     expect(localStorage.getItem('terp.tasks.scope')).toBe('all');
   });
 
@@ -311,7 +378,7 @@ describe('mine and all', () => {
     expect(screen.queryByText('Nothing is due.')).not.toBeInTheDocument();
 
     expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByText('Feed')).toBeInTheDocument();
+    expect(section('Today').getByText('Feed')).toBeInTheDocument();
   });
 });
 
@@ -498,7 +565,7 @@ describe('a reminder', () => {
 
   it('opens filled in from the card it made, and deletes only after asking', async () => {
     await drawLoaded();
-    const card = screen.getByText('Water').closest('li')!;
+    const card = section('Today').getByText('Water').closest('li')!;
     fireEvent.click(within(card).getByRole('button', { name: 'Edit' }));
     const sheet = screen.getByRole('dialog', { name: 'Reminder' });
 
@@ -527,7 +594,7 @@ describe('a reminder', () => {
   it('keeps somebody else´s name on it when the rhythm is changed', async () => {
     await drawLoaded();
     fireEvent.click(screen.getByRole('radio', { name: 'All' }));
-    fireEvent.click(within(screen.getByText('Feed').closest('li')!).getByRole('button', { name: 'Edit' }));
+    fireEvent.click(within(section('Today').getByText('Feed').closest('li')!).getByRole('button', { name: 'Edit' }));
     const sheet = screen.getByRole('dialog', { name: 'Reminder' });
 
     const kept = within(sheet).getByRole('button', { name: 'somebody else · kept' });
@@ -545,7 +612,7 @@ describe('a reminder', () => {
 
   it('is offered no third choice when it is everyone´s', async () => {
     await drawLoaded();
-    fireEvent.click(within(screen.getByText('Clean the carbon filter').closest('li')!).getByRole('button', { name: 'Edit' }));
+    fireEvent.click(within(section('Tomorrow').getByText('Clean the carbon filter').closest('li')!).getByRole('button', { name: 'Edit' }));
 
     expect(within(screen.getByRole('dialog', { name: 'Reminder' })).queryByRole('button', { name: 'somebody else · kept' })).not.toBeInTheDocument();
   });

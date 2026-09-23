@@ -3400,7 +3400,8 @@
       "today": "Heute",
       "tomorrow": "Morgen",
       "week": "Diese Woche",
-      "done": "Erledigt"
+      "done": "Erledigt",
+      "rhythms": "Rhythmen"
     },
     "nothingDue": "Nichts ist fällig.",
     "nothingForYou_one": "Nichts für dich · {{count}} wartet auf andere",
@@ -3409,6 +3410,8 @@
     "doneAria": "Erledigt: {{label}}",
     "every": "alle {{count}} T",
     "once": "einmalig",
+    "onceOn": "einmalig am {{date}}",
+    "rhythmsAside": "alle Erinnerungen, fällig oder nicht",
     "planStep": "Grow-Plan",
     "planStepTitle": "Bestätigen: {{label}}",
     "stepConfirmed": "Schritt bestätigt",

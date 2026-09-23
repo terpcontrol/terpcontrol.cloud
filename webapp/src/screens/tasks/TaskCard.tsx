@@ -161,6 +161,54 @@ export function DoneCard({ task, name, me, now }: { task: Task; name: string | n
 }
 
 /**
+ * One rhythm as an arrangement rather than as something to do: what it is
+ * about, how often it comes round, and the way into the sheet that changes or
+ * stops it.
+ *
+ * It says nothing about when the next turn falls. That is counted from the
+ * last time the rhythm was ticked off, which the server works out on every
+ * read of the task list and this row has not got - and a date worked out here
+ * from the day the rhythm was written would disagree with the card above it
+ * the first time anybody did the chore early.
+ */
+export function RhythmCard({
+  reminder,
+  name,
+  language,
+  onEdit,
+}: {
+  reminder: Reminder;
+  name: string | null;
+  language: string;
+  onEdit: (() => void) | null;
+}) {
+  const { t } = useTranslation();
+  const parts = [
+    reminder.everyDays
+      ? t('tasks.every', { count: reminder.everyDays })
+      : t('tasks.onceOn', { date: DateTime.fromISO(reminder.onceAt!).setLocale(language).toFormat('d LLL yyyy') }),
+    name,
+    reminder.kind === 'custom' ? null : t(`tasks.kindMeta.${reminder.kind}`),
+  ];
+
+  return (
+    <li className={`${ui.card} ${styles.card}`}>
+      <div className={styles.row}>
+        <span className={styles.text}>
+          <span className={styles.cardTitle}>{reminder.label}</span>
+          <span className={`mono ${styles.meta}`}>{parts.filter(part => part !== null).join(' · ')}</span>
+        </span>
+        {onEdit ? (
+          <button type="button" className={`${ui.chip} ${styles.edit}`} onClick={onEdit}>
+            {t('tasks.edit')}
+          </button>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
+/**
  * Whose the task is: my initials when it is mine, a plain mark when it is
  * somebody else's, nothing when it is everyone's. The handles of the other
  * people who work in a place do not travel with a task yet, so somebody else

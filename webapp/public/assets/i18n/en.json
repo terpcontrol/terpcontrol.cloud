@@ -3404,7 +3404,8 @@
       "today": "Today",
       "tomorrow": "Tomorrow",
       "week": "This week",
-      "done": "Done"
+      "done": "Done",
+      "rhythms": "Rhythms"
     },
     "nothingDue": "Nothing is due.",
     "nothingForYou_one": "Nothing for you · {{count}} waiting for others",
@@ -3413,6 +3414,8 @@
     "doneAria": "Done: {{label}}",
     "every": "every {{count}} d",
     "once": "once",
+    "onceOn": "once on {{date}}",
+    "rhythmsAside": "every reminder you keep, due or not",
     "planStep": "grow plan",
     "planStepTitle": "Confirm: {{label}}",
     "stepConfirmed": "Step confirmed",
