@@ -2997,7 +2997,8 @@
     "machineCapped": "Die neuesten {{shown}} von {{total}} Zeilen, die Geräte und Plan geschrieben haben",
     "noPanels": "Hier misst nichts, also gibt es keine Kurven zu zeichnen",
     "quietWindow": "In diesem Zeitraum nichts gehört · zuletzt gemessen vor {{age}}",
-    "noSpaces": "Noch nichts zu zeichnen. Gerät hinzufügen oder Grow starten auf der"
+    "noSpaces": "Noch nichts zu zeichnen. Gerät hinzufügen oder Grow starten auf der",
+    "demoNoSpaces": "Die Demo hat nichts zu zeichnen; in dieser wurde nichts zum Anschauen hinterlegt."
   },
   "camera": {
     "never": "nie",

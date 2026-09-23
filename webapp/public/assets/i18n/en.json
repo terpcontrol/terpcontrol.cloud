@@ -3001,7 +3001,8 @@
     "machineCapped": "The newest {{shown}} of {{total}} lines the devices and the plan wrote",
     "noPanels": "Nothing measures here, so there are no curves to draw",
     "quietWindow": "Nothing heard in this window · last measured {{age}} ago",
-    "noSpaces": "Nothing to draw yet. Add a device or start a grow on the"
+    "noSpaces": "Nothing to draw yet. Add a device or start a grow on the",
+    "demoNoSpaces": "The demo has nothing to draw; nothing has been left in this one to look at."
   },
   "camera": {
     "never": "never",

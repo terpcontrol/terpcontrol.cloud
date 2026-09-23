@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { HomeSpaceCard } from '@fg2/shared-types/v1';
 import { useHome } from '@/api/home';
+import { useSession } from '@/api/session';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -23,6 +24,7 @@ export function Timeline() {
   const { t } = useTranslation();
   const now = useNow();
   const home = useHome();
+  const { user } = useSession();
   const [picked, setPicked] = useState<string | null>(() => lastSpace());
 
   if (home.isPending) return <Waiting lines={3} />;
@@ -35,8 +37,18 @@ export function Timeline() {
     return (
       <section className={styles.screen}>
         <h1 className={styles.title}>{t('shell.tabs.timeline')}</h1>
+        {/* The demo is a session that owns nothing and is refused every write,
+            so sending it to the Home to add a device or start a grow names two
+            things it may not do. It is told what it is looking at instead, the
+            way the demo's own inbox and task list already are. */}
         <p className={`${ui.cardDashed} ${ui.note}`}>
-          {t('timeline.noSpaces')} <Link to="/">{t('shell.tabs.home')}</Link>
+          {user?.isDemo === true ? (
+            t('timeline.demoNoSpaces')
+          ) : (
+            <>
+              {t('timeline.noSpaces')} <Link to="/">{t('shell.tabs.home')}</Link>
+            </>
+          )}
         </p>
       </section>
     );
