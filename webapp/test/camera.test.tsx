@@ -289,7 +289,7 @@ describe('the camera page, by who is reading', () => {
     expect(screen.queryByRole('textbox', { name: 'Name' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Unpair' })).not.toBeInTheDocument();
     expect(screen.queryByText(/192\.168\.1\.40/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Its settings, its test image and its timelapses are for whoever steers the tent/)).toBeInTheDocument();
+    expect(screen.getByText(/Its settings, its test image and its timelapses are for whoever steers the space/)).toBeInTheDocument();
   });
 
   /**

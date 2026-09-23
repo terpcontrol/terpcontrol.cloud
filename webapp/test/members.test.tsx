@@ -291,8 +291,8 @@ describe('the Members tab as its owner', () => {
     drawTab();
     await screen.findByText('@lea');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Take lea out of this tent' }));
-    expect(screen.getByText(/keep this tent through Grow room/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Take lea out of this space' }));
+    expect(screen.getByText(/keep this space through Grow room/)).toBeInTheDocument();
   });
 
   it('draws a handle with nowhere to break whole, in its own row', async () => {
@@ -320,7 +320,7 @@ describe('the Members tab as its owner', () => {
   it('offers the room beside the tent, as an address of its own', async () => {
     await drawnPeople();
 
-    expect(screen.getByRole('link', { name: 'Grow room · 2 tents' })).toHaveAttribute('href', '/spaces/room-1/members');
+    expect(screen.getByRole('link', { name: 'Grow room · 2 spaces' })).toHaveAttribute('href', '/spaces/room-1/members');
   });
 
   it('leaves a row held on the room alone, because ending it there would empty every tent in it', async () => {
@@ -381,7 +381,7 @@ describe('the Members tab as its owner', () => {
   it('asks before taking somebody out, and says that what they wrote stays', async () => {
     const rows = await drawnPeople();
 
-    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Take lea out of this tent' }));
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Take lea out of this space' }));
     expect(screen.getByText(/goes on carrying their name/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Take them out' }));
 
@@ -402,7 +402,7 @@ describe('the Members tab as its owner', () => {
     server.invites = [invite()];
     const rows = await drawnPeople();
 
-    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Take lea out of this tent' }));
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Take lea out of this space' }));
     const sheet = screen.getByRole('dialog');
     expect(within(sheet).getByText(/came in on the link K7QZ4M2P/)).toBeInTheDocument();
     expect(within(sheet).getByText(/Whoever is already in stays in/)).toBeInTheDocument();
@@ -417,7 +417,7 @@ describe('the Members tab as its owner', () => {
     server.invites = [invite({ revokedAt: NOW.minus({ days: 1 }).toISO()! })];
     const rows = await drawnPeople();
 
-    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Take lea out of this tent' }));
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Take lea out of this space' }));
 
     expect(screen.getByText(/goes on carrying their name/)).toBeInTheDocument();
     expect(screen.queryByText(/K7QZ4M2P/)).not.toBeInTheDocument();
@@ -428,7 +428,7 @@ describe('the Members tab as its owner', () => {
     server.members = { ...MEMBERS, items: [membership({ inviteId: null }), MEMBERS.items[1]] };
     const rows = await drawnPeople();
 
-    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Take lea out of this tent' }));
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Take lea out of this space' }));
 
     // The block behind the sheet still lists that live link; the sheet says nothing of it.
     expect(within(screen.getByRole('dialog')).queryByText(/K7QZ4M2P/)).not.toBeInTheDocument();
@@ -476,7 +476,7 @@ describe('the Members tab as somebody who was let in', () => {
     server.invites = [invite()];
     const rows = await drawnPeople();
 
-    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Leave this tent' }));
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Leave this space' }));
 
     expect(screen.getByText(/goes on carrying your name/)).toBeInTheDocument();
     expect(screen.queryByText(/K7QZ4M2P/)).not.toBeInTheDocument();
@@ -485,12 +485,12 @@ describe('the Members tab as somebody who was let in', () => {
   it('leaves the one control that lets them out, on their own row alone, named as leaving', async () => {
     const rows = await drawnPeople();
 
-    expect(within(rows[1]).getByRole('button', { name: 'Leave this tent' })).toBeInTheDocument();
+    expect(within(rows[1]).getByRole('button', { name: 'Leave this space' })).toBeInTheDocument();
     expect(within(rows[2]).queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Take lea out/ })).not.toBeInTheDocument();
 
-    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Leave this tent' }));
-    expect(screen.getByRole('button', { name: 'Leave the tent' })).toBeInTheDocument();
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Leave this space' }));
+    expect(screen.getByRole('button', { name: 'Leave the space' })).toBeInTheDocument();
   });
 
   it('tells them, when they are also in the room, that leaving here keeps the tent', async () => {
@@ -498,8 +498,8 @@ describe('the Members tab as somebody who was let in', () => {
     drawTab();
     await screen.findByText('You');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Leave this tent' }));
-    expect(screen.getByText(/You keep this tent through Grow room/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Leave this space' }));
+    expect(screen.getByText(/You keep this space through Grow room/)).toBeInTheDocument();
   });
 });
 
@@ -538,7 +538,7 @@ describe('an invitation somebody was sent', () => {
 
     expect(await screen.findByText('You are invited to Blue Dream tent')).toBeInTheDocument();
     expect(screen.getByText('from @chris')).toBeInTheDocument();
-    expect(screen.getByText(/You do not see: their other tents/)).toBeInTheDocument();
+    expect(screen.getByText(/You do not see: their other spaces/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Sign in to join' })).toHaveAttribute('href', '/sign-in');
   });
 

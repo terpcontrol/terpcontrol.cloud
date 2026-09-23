@@ -204,14 +204,14 @@ describe('what the Control tab offers, by who is reading', () => {
 
     expect(await screen.findByRole('button', { name: 'Pause' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Manual targets' })).toBeInTheDocument();
-    expect(screen.queryByText(/You may log in this tent, not steer it/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/You may log in this space, not steer it/)).not.toBeInTheDocument();
   });
 
   it('gives a member the plan to read, no move at all, and the reason', async () => {
     may.youMay = 'log';
     drawTab();
 
-    expect(await screen.findByText(/You may log in this tent, not steer it/)).toBeInTheDocument();
+    expect(await screen.findByText(/You may log in this space, not steer it/)).toBeInTheDocument();
     for (const move of ['Pause', 'Extend', 'Skip', 'Stop', 'Confirm the step'])
       expect(screen.queryByRole('button', { name: move })).not.toBeInTheDocument();
     // The two pages below still open: what the tent is set to is worth reading.

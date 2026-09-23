@@ -910,7 +910,7 @@
     },
     "noDevicesHere": "Hier steht kein Gerät.",
     "unnamed": "{{type}} · {{tag}}",
-    "youMayLog": "Was die Geräte hier tun, steht hier. Eine Steckdose oder die Lampe schaltet nur, wer dieses Zelt steuert."
+    "youMayLog": "Was die Geräte hier tun, steht hier. Eine Steckdose oder die Lampe schaltet nur, wer diesen Bereich steuert."
   },
   "diary": {
     "title": "Tagebuch",
@@ -1197,7 +1197,7 @@
       "confirm": "Ausschalten"
     },
     "maintenance": {
-      "title": "Kurz ins Zelt",
+      "title": "Kurz in den Bereich",
       "text": "Der Pflegemodus pausiert die Regelung für eine gewählte Zeit, damit Gießen oder Umtopfen keine Alarme auslöst. Danach läuft alles automatisch weiter.",
       "button": "Pflegemodus starten"
     }
@@ -1387,7 +1387,7 @@
       "signIn": "Stattdessen anmelden"
     },
     "gone": {
-      "space": "Dieses Zelt ist nicht mit dir geteilt.",
+      "space": "Dieser Bereich ist nicht mit dir geteilt.",
       "grow": "Dieser Grow ist nicht mit dir geteilt.",
       "camera": "Diese Kamera ist nicht mit dir geteilt.",
       "device": "Dieses Gerät ist nicht mit dir geteilt.",
@@ -1716,7 +1716,7 @@
         "title": "Mein Konto löschen",
         "line": "wirklich gelöscht, nicht versteckt · Geräte lassen sich neu beanspruchen",
         "open": "…",
-        "what": "Alles, was diesem Konto gehört, ist weg: die Zelte, die Grows, die Einträge, die Fotos, die Pläne und die Alarme. Es wird gelöscht und nicht versteckt, und es gibt keinen Weg zurück.",
+        "what": "Alles, was diesem Konto gehört, ist weg: die Bereiche, die Grows, die Einträge, die Fotos, die Pläne und die Alarme. Es wird gelöscht und nicht versteckt, und es gibt keinen Weg zurück.",
         "grows": "Geräte, die du beansprucht hast, kann danach wieder beanspruchen, wer sie in der Hand hat. Einen einzelnen Grow löschst du auf seiner eigenen Seite.",
         "typeHandle": "Tippe {{handle}} zur Bestätigung",
         "notHandle": "Das ist nicht dein Handle.",
@@ -1743,7 +1743,7 @@
       "links_other": "{{count}} Links öffnen ihn",
       "switch": "Öffentliche Seite von {{name}}",
       "none": "Noch keine eigenen Grows",
-      "stranger": "Ein öffentlicher Grow zeigt einem Fremden das Tagebuch vom ersten Tag an: die Phasen, die Wochenkarten mit ihren Fotos und den Bildern der Kamera, die Klimamittelwerte, die Sorten und deinen Handle. Erntegewichte und Pflanzenzahlen richten sich nach deinen Privatsphäre-Einstellungen. Nie zu sehen sind die Live-Werte des Zelts, seine Geräte, seine Alarme oder seine Aufgaben, und nie deine E-Mail. Wer folgt, sieht dieselbe Seite, und schreiben kann niemand."
+      "stranger": "Ein öffentlicher Grow zeigt einem Fremden das Tagebuch vom ersten Tag an: die Phasen, die Wochenkarten mit ihren Fotos und den Bildern der Kamera, die Klimamittelwerte, die Sorten und deinen Handle. Erntegewichte und Pflanzenzahlen richten sich nach deinen Privatsphäre-Einstellungen. Nie zu sehen sind die Live-Werte des Bereichs, seine Geräte, seine Alarme oder seine Aufgaben, und nie deine E-Mail. Wer folgt, sieht dieselbe Seite, und schreiben kann niemand."
     },
     "following": {
       "title": "Abonniert",
@@ -1780,15 +1780,15 @@
       "opens_other": "{{count}} Aufrufe",
       "notOpened": "noch nie geöffnet",
       "gone": "nicht mehr da",
-      "closing": "Zwei Arten: die öffentliche Seite eines Grows (dauerhaft, bis du den Grow privat stellst) und eine Nur-Lesen-Ansicht eines Zelts oder eines Zeitraums mit Ablaufdatum. Beide können die Cams enthalten oder nicht. Wer folgt, sieht die öffentliche Seite; ein Link erlaubt nie das Schreiben.",
-      "new": "+ Neuer Link · Grow oder Zelt · Cams · Ablauf",
+      "closing": "Zwei Arten: die öffentliche Seite eines Grows (dauerhaft, bis du den Grow privat stellst) und eine Nur-Lesen-Ansicht eines Bereichs oder eines Zeitraums mit Ablaufdatum. Beide können die Cams enthalten oder nicht. Wer folgt, sieht die öffentliche Seite; ein Link erlaubt nie das Schreiben.",
+      "new": "+ Neuer Link · Grow oder Bereich · Cams · Ablauf",
       "noSubjects": "Noch nichts Eigenes zum Teilen",
       "address": "Adresse",
       "revokeNote": "Zurückziehen beendet den Link sofort. Wer ihn hat, sieht ab dann genau das, was ein nie vergebener Link zeigt: nichts. Er bleibt hier mit dem Datum stehen und lässt sich nicht wieder aktivieren - wer den Grow noch einmal weitergibt, braucht einen neuen Link.",
       "forgetNote": "Löschen nimmt den Link aus dieser Liste. Er hat schon aufgehört zu funktionieren.",
       "sheet": {
         "title": "Neuer Link",
-        "subject": "Grow oder Zelt",
+        "subject": "Grow oder Bereich",
         "kind": "Art",
         "publicPage": "Öffentliche Seite",
         "view": "Nur-Lesen-Ansicht",
@@ -2418,7 +2418,7 @@
       "keepMine": "Meines behalten",
       "takeTheirs": "Deren übernehmen"
     },
-    "youMayLog": "Du darfst in das Tagebuch dieses Grows schreiben. Umziehen, teilen und ernten kann nur, wer das Zelt steuert, in dem er steht."
+    "youMayLog": "Du darfst in das Tagebuch dieses Grows schreiben. Umziehen, teilen und ernten kann nur, wer den Bereich steuert, in dem er steht."
   },
   "space": {
     "tabsLabel": "Bereichsseite",
@@ -2435,10 +2435,10 @@
     },
     "control": {
       "title": "Grow-Plan",
-      "noController": "Hier steht nichts, worauf ein Plan laufen könnte. Ein Plan schreibt seine Schritte an einen Controller, es muss also erst einer in dieses Zelt geholt werden.",
+      "noController": "Hier steht nichts, worauf ein Plan laufen könnte. Ein Plan schreibt seine Schritte an einen Controller, es muss also erst einer in diesen Bereich geholt werden.",
       "noControllerAdd": "Gerät hinzufügen",
       "none": "Dieser Controller wird von keinem Plan gesteuert.",
-      "noneNote": "Ein Plan ist eine Liste von Schritten: ein Stadium, wie lange es dauert und was das Zelt währenddessen halten soll. Ihn zu speichern startet ihn nicht.",
+      "noneNote": "Ein Plan ist eine Liste von Schritten: ein Stadium, wie lange es dauert und was der Bereich währenddessen halten soll. Ihn zu speichern startet ihn nicht.",
       "write": "Plan schreiben",
       "edit": "Plan bearbeiten",
       "keepAsTemplate": "Als Vorlage sichern",
@@ -2487,12 +2487,12 @@
         "stop": "Stoppen"
       },
       "ask": {
-        "extend": "Mehr Zeit für den Schritt, in dem das Zelt steht. Der Schritt behält die Länge, mit der er geschrieben wurde, nur seine Uhr wird zurückgestellt — ein Schritt, der schon um Bestätigung gebeten hat, fragt erneut, wenn die längere Zeit um ist.",
+        "extend": "Mehr Zeit für den Schritt, in dem der Bereich steht. Der Schritt behält die Länge, mit der er geschrieben wurde, nur seine Uhr wird zurückgestellt — ein Schritt, der schon um Bestätigung gebeten hat, fragt erneut, wenn die längere Zeit um ist.",
         "extendYes": "{{length}} draufgeben",
         "skip": "Der Plan geht weiter zu Schritt {{number}}, {{name}}, und startet dessen Uhr. Was dieser Schritt noch vor sich hatte, bleibt nicht erhalten.",
         "skipEnds": "Das ist der letzte Schritt, ihn zu überspringen schließt den Plan also ab. Der Controller behält die Einstellungen, die dieser Schritt ihm gegeben hat.",
         "skipYes": "Schritt überspringen",
-        "stop": "Der Plan behält seine Schritte und steht wieder beim ersten, bereit zum Start. Der Controller behält die Einstellungen des letzten Schritts: Stoppen sagt nichts darüber, was das Zelt stattdessen tun soll.",
+        "stop": "Der Plan behält seine Schritte und steht wieder beim ersten, bereit zum Start. Der Controller behält die Einstellungen des letzten Schritts: Stoppen sagt nichts darüber, was der Bereich stattdessen tun soll.",
         "stopYes": "Plan stoppen"
       },
       "unit": {
@@ -2578,16 +2578,16 @@
         "ownAddress": "deine eigene Adresse",
         "emailNote": "Leer gelassen schreibt der Plan an die Adresse, mit der sich dieses Konto anmeldet.",
         "writeEntries": "Ins Tagebuch schreiben",
-        "writeEntriesNote": "Ein Schrittwechsel hinterlässt eine Zeile auf der Zeitleiste des Zelts, ob eine Mail rausgeht oder nicht."
+        "writeEntriesNote": "Ein Schrittwechsel hinterlässt eine Zeile auf der Zeitleiste des Bereichs, ob eine Mail rausgeht oder nicht."
       },
       "effect": {
         "newPlan": "Dieser Controller wird von nichts gesteuert, der Plan wird also in Ruhe gespeichert. Ihn zu starten ist ein eigener Schritt.",
         "atRest": "Dieser Plan läuft nicht, Speichern verschiebt also nichts: Gestartet beginnt er bei Schritt 1.",
         "empties": "Ein Plan ohne Schritte hat nichts zu laufen, also stoppt er, und der Controller behält, was der letzte Schritt ihm gegeben hat.",
-        "stays": "Das Zelt läuft weiter mit {{name}} als Schritt {{number}}, mit der bereits gelaufenen Zeit.",
-        "moves": "{{name}} ist der Schritt, in dem das Zelt steht: Er rückt von {{from}} auf {{to}} und behält die bereits gelaufene Zeit.",
+        "stays": "Der Bereich läuft weiter mit {{name}} als Schritt {{number}}, mit der bereits gelaufenen Zeit.",
+        "moves": "{{name}} ist der Schritt, in dem der Bereich steht: Er rückt von {{from}} auf {{to}} und behält die bereits gelaufene Zeit.",
         "relength": "Die neue Länge wird an dieser Zeit gemessen — ein Schritt, der schon länger gelaufen ist, als er jetzt dauert, ist damit sofort vorbei.",
-        "restarts": "{{gone}} ist der Schritt, in dem das Zelt steht, und er fehlt in der Liste: {{starts}} nimmt als Schritt {{number}} seinen Platz ein und beginnt bei null. Eine Bestätigung, auf die gewartet wurde, ist damit vergessen.",
+        "restarts": "{{gone}} ist der Schritt, in dem der Bereich steht, und er fehlt in der Liste: {{starts}} nimmt als Schritt {{number}} seinen Platz ein und beginnt bei null. Eine Bestätigung, auf die gewartet wurde, ist damit vergessen.",
         "resends": "Die Einstellungen des Schritts gehen innerhalb der nächsten Minute erneut an den Controller statt erst zur nächsten vollen Stunde."
       },
       "refused": {
@@ -2610,8 +2610,8 @@
         "publish": "Alle damit beginnen lassen",
         "publishNote": "Eine veröffentlichte Vorlage kann jedes Konto lesen und kopieren; ändern und wegwerfen kannst nur du sie.",
         "keep": "Vorlage sichern",
-        "startNote": "Eine auszuwählen öffnet den Plan mit ihren Schritten. Geschrieben wird erst beim Speichern, und was ein Speichern mit einem bereits laufenden Zelt macht, steht dort.",
-        "none": "Noch keine Vorlagen. Den Plan eines Zelts als eine zu sichern ist der Weg zur ersten.",
+        "startNote": "Eine auszuwählen öffnet den Plan mit ihren Schritten. Geschrieben wird erst beim Speichern, und was ein Speichern mit einem bereits laufenden Bereich macht, steht dort.",
+        "none": "Noch keine Vorlagen. Den Plan eines Bereichs als eine zu sichern ist der Weg zur ersten.",
         "steps_one": "{{count}} Schritt",
         "steps_other": "{{count}} Schritte",
         "yours": "deine",
@@ -2622,7 +2622,7 @@
       "advanced": "Erweitert",
       "advancedAlarms": "Alarme",
       "advancedSockets": "Steckdosen, im Reiter Geräte",
-      "youMayLog": "Du darfst in diesem Zelt loggen, es aber nicht steuern. Plan, Sollwerte und Alarmregeln stehen hier so, wie sie eingestellt sind; ändern kann sie nur, wer das Zelt steuert."
+      "youMayLog": "Du darfst in diesem Bereich loggen, ihn aber nicht steuern. Plan, Sollwerte und Alarmregeln stehen hier so, wie sie eingestellt sind; ändern kann sie nur, wer den Bereich steuert."
     },
     "noReadingsYet": "Noch nichts gemeldet",
     "high": "zu hoch",
@@ -2674,14 +2674,14 @@
       "preset": "Preset",
       "growHere": "Hier wächst {{name}} · {{stage}}",
       "noGrowHere": "Hier steht kein Grow.",
-      "writesClimateOnly": "Ein Preset schreibt das Zielklima und sonst nichts: Temperatur und Luftfeuchte für Tag und Nacht, das CO₂-Ziel und wie lange das Licht anbleibt. Betriebsart, Heiz- und Entfeuchtungsverhalten, Lüfter und Dimmrampen sind die Abstimmung dieses Zelts und bleiben, wie sie sind.",
+      "writesClimateOnly": "Ein Preset schreibt das Zielklima und sonst nichts: Temperatur und Luftfeuchte für Tag und Nacht, das CO₂-Ziel und wie lange das Licht anbleibt. Betriebsart, Heiz- und Entfeuchtungsverhalten, Lüfter und Dimmrampen sind die Abstimmung dieses Bereichs und bleiben, wie sie sind.",
       "noClimateRow": "Reifung hat kein eigenes Klima – Gläser werden nicht geregelt –, also wird hier an nichts etwas geschrieben.",
       "nothingToWriteTo": "Hier steht nichts, das ein Klima angibt, also gibt es auch nichts zu beschreiben.",
       "waitingToWriteTo": "Hier hat noch nichts seine Einstellungen geschickt, es gibt also nichts, worin ein Klima stehen könnte. Es wird geschrieben, sobald sich die Hardware das nächste Mal verbindet.",
       "phaseFollows": "{{name}} geht damit in dieses Stadium.",
       "noPhaseFollows": "Hier steht kein Grow, also wird keine Phase geschrieben. Das Klima wird trotzdem geschrieben, und danach wirst du gefragt, was mit dem Grow geschehen soll.",
       "noPhaseFollowsNoClimate": "Hier steht kein Grow, also wird keine Phase geschrieben – und es gibt auch nichts, worin ein Klima stehen könnte. Danach wirst du gefragt, was mit dem Grow geschehen soll.",
-      "submit": "Zelt auf {{stage}} stellen",
+      "submit": "Bereich auf {{stage}} stellen",
       "whatHappened": "Was passiert ist",
       "wroteTo_one": "An {{count}} Controller geschrieben.",
       "wroteTo_other": "An {{count}} Controller geschrieben.",
@@ -2706,10 +2706,10 @@
     },
     "members": {
       "scopeLabel": "Was geteilt wird",
-      "roomWithTents_one": "{{room}} · {{count}} Zelt",
-      "roomWithTents_other": "{{room}} · {{count}} Zelte",
-      "oneModel": "Teile ein einzelnes Zelt oder den Raum, zu dem es gehört. Wer im Raum ist, sieht jedes Zelt darin; wer nur im Zelt ist, sieht dieses eine.",
-      "demo": "Die Demo schaut in ein fremdes Zelt und besitzt nichts — es gibt also niemanden hereinzulassen und niemanden hinauszuschicken.",
+      "roomWithTents_one": "{{room}} · {{count}} Bereich",
+      "roomWithTents_other": "{{room}} · {{count}} Bereiche",
+      "oneModel": "Teile einen einzelnen Bereich oder den Raum, zu dem er gehört. Wer im Raum ist, sieht jeden Bereich darin; wer nur im Bereich ist, sieht diesen einen.",
+      "demo": "Die Demo schaut in einen fremden Bereich und besitzt nichts — es gibt also niemanden hereinzulassen und niemanden hinauszuschicken.",
       "invite": "Einladen",
       "noLink": "Kein Link unterwegs",
       "makeLink": "Link erzeugen",
@@ -2733,8 +2733,8 @@
       "neverLogged": "noch nichts geloggt",
       "owns": "Besitzer:in von {{name}}",
       "roleOf": "Was {{name}} hier darf",
-      "removeOf": "{{name}} aus diesem Zelt nehmen",
-      "leaveThis": "Dieses Zelt verlassen",
+      "removeOf": "{{name}} aus diesem Bereich nehmen",
+      "leaveThis": "Diesen Bereich verlassen",
       "role": {
         "owner": "Besitzer:in",
         "can_log": "darf loggen",
@@ -2746,11 +2746,11 @@
         "can_manage": "steuern"
       },
       "can": {
-        "see": "Zelt, Grows und Kameras sehen",
+        "see": "Bereich, Grows und Kameras sehen",
         "log": "Einträge, Aufgaben, Fotos",
         "steer": "Sollwerte, Plan, Alarme, Steckdosen",
         "own": "Geräte, Teilen, Löschen",
-        "seeRoom": "Jedes Zelt im Raum, seine Grows und Kameras sehen"
+        "seeRoom": "Jeden Bereich im Raum, seine Grows und Kameras sehen"
       },
       "mark": {
         "yes": "ja",
@@ -2758,17 +2758,17 @@
       },
       "noViewerRole": "Zum bloßen Mitlesen gibt es Freigabelinks; eine Zuschauer-Rolle gibt es nicht. Jeder Eintrag zeigt, wer ihn geschrieben hat. Aufgaben lassen sich nach Meine / Alle filtern, Benachrichtigungen gibt es pro Person.",
       "remove": {
-        "title": "@{{name}} aus dem Zelt nehmen?",
-        "body": "Damit ist dieses Zelt für sie weg, samt allem, was darin steht. Was sie hier geschrieben haben, bleibt hier und trägt weiter ihren Namen.",
-        "bodyKeepsRoom": "Dieses Zelt bleibt ihnen über {{room}} erhalten; sie verlieren nur die Rolle, die sie hier hatten. Was sie hier geschrieben haben, bleibt hier und trägt weiter ihren Namen.",
-        "yes": "Aus dem Zelt nehmen",
+        "title": "@{{name}} aus dem Bereich nehmen?",
+        "body": "Damit ist dieser Bereich für sie weg, samt allem, was darin steht. Was sie hier geschrieben haben, bleibt hier und trägt weiter ihren Namen.",
+        "bodyKeepsRoom": "Dieser Bereich bleibt ihnen über {{room}} erhalten; sie verlieren nur die Rolle, die sie hier hatten. Was sie hier geschrieben haben, bleibt hier und trägt weiter ihren Namen.",
+        "yes": "Aus dem Bereich nehmen",
         "alsoTheLink": "Sie sind über den Link {{code}} hereingekommen, und mit ihnen hört der Link auf zu funktionieren: Wer genau diesen Link sonst noch bekommen hat, kommt damit nicht mehr herein. Wer schon drin ist, bleibt drin, deine anderen Links bleiben unberührt, und ein neuer ist einen Tipp entfernt."
       },
       "leave": {
-        "title": "Dieses Zelt verlassen?",
+        "title": "Diesen Bereich verlassen?",
         "body": "Es verschwindet von deiner Startseite, und zurück kommst du nur, wenn du wieder hereingelassen wirst. Was du hier geschrieben hast, bleibt hier und trägt weiter deinen Namen.",
-        "bodyKeepsRoom": "Dieses Zelt bleibt dir über {{room}} erhalten; du gibst nur die Rolle auf, die du hier hattest. Was du hier geschrieben hast, bleibt hier und trägt weiter deinen Namen.",
-        "yes": "Zelt verlassen"
+        "bodyKeepsRoom": "Dieser Bereich bleibt dir über {{room}} erhalten; du gibst nur die Rolle auf, die du hier hattest. Was du hier geschrieben hast, bleibt hier und trägt weiter deinen Namen.",
+        "yes": "Bereich verlassen"
       },
       "join": {
         "label": "Einladung",
@@ -2780,7 +2780,7 @@
           "can_manage": "Du könntest hier loggen und außerdem Sollwerte, Plan, Alarme und Steckdosen ändern."
         },
         "sees": "Du siehst: {{name}}, was darin wächst, und die Kameras.",
-        "doesNotSee": "Du siehst nicht: die anderen Zelte, die privaten Grows und auch nicht, wer sonst noch einen Link hat.",
+        "doesNotSee": "Du siehst nicht: die anderen Bereiche, die privaten Grows und auch nicht, wer sonst noch einen Link hat.",
         "until": "Dieser Link gilt bis {{date}}",
         "accept": "{{name}} beitreten",
         "signIn": "Zum Beitreten anmelden",
@@ -2815,7 +2815,7 @@
         "title": "Einladen in {{name}}",
         "role": "Rolle",
         "roleNote": {
-          "can_log": "sieht das Zelt und seine Grows, loggt Einträge, hakt Aufgaben ab",
+          "can_log": "sieht den Bereich und seine Grows, loggt Einträge, hakt Aufgaben ab",
           "can_manage": "darf loggen, dazu Sollwerte, Plan und Alarme"
         },
         "valid": "Gültig",
@@ -2826,10 +2826,10 @@
         },
         "needAccount": "Sie brauchen ein eigenes Konto (E-Mail und Passwort, kein Name nötig).",
         "sees": "Sie sehen: {{what}}.",
-        "seesRoom": "Sie sehen: jedes Zelt in {{name}}, was darin wächst, und die Kameras.",
+        "seesRoom": "Sie sehen: jeden Bereich in {{name}}, was darin wächst, und die Kameras.",
         "whatGrows": "was darin wächst",
         "theCams": "die Kameras",
-        "doesNotSee": "Sie sehen nicht: deine anderen Zelte, deine privaten Grows.",
+        "doesNotSee": "Sie sehen nicht: deine anderen Bereiche, deine privaten Grows.",
         "make": "Link erzeugen",
         "making": "Erzeugt den Link …",
         "waysLabel": "Wie du ihn weitergibst",
@@ -2859,18 +2859,18 @@
         "make": "Raum anlegen",
         "making": "Legt den Raum an …",
         "aRoom": "einen Raum",
-        "note": "Ein Raum fasst Zelte zum Teilen zusammen: Wer in den Raum gelassen wird, sieht jedes Zelt darin. Ein Raum steht nie in einem Raum, und ein Zelt steht in höchstens einem.",
+        "note": "Ein Raum fasst Bereiche zum Teilen zusammen: Wer in den Raum gelassen wird, sieht jeden Bereich darin. Ein Raum steht nie in einem Raum, und ein Bereich steht in höchstens einem.",
         "submit": "{{name}} in {{room}} stellen",
         "moving": "Verschiebt …",
         "takeOut": "Aus {{room}} herausnehmen",
-        "roomModel": "Teile den ganzen Raum: Wer hier hereingelassen wird, sieht jedes Zelt darin.",
-        "tentsIn_one": "{{count}} Zelt in diesem Raum",
-        "tentsIn_other": "{{count}} Zelte in diesem Raum",
-        "noTents": "Noch kein Zelt steht in diesem Raum. Ein Zelt kommt über seinen eigenen Mitglieder-Tab hinein."
+        "roomModel": "Teile den ganzen Raum: Wer hier hereingelassen wird, sieht jeden Bereich darin.",
+        "tentsIn_one": "{{count}} Bereich in diesem Raum",
+        "tentsIn_other": "{{count}} Bereiche in diesem Raum",
+        "noTents": "Noch kein Bereich steht in diesem Raum. Ein Bereich kommt über seinen eigenen Mitglieder-Tab hinein."
       },
-      "linkStopped": "Der Link {{code}} wurde zurückgezogen, als @{{name}} aus dem Zelt genommen wurde."
+      "linkStopped": "Der Link {{code}} wurde zurückgezogen, als @{{name}} aus dem Bereich genommen wurde."
     },
-    "youMayLog": "Du darfst hier loggen: Einträge, Aufgaben und Fotos. Sollwerte, Plan, Alarme und Steckdosen ändert nur, wer dieses Zelt steuert."
+    "youMayLog": "Du darfst hier loggen: Einträge, Aufgaben und Fotos. Sollwerte, Plan, Alarme und Steckdosen ändert nur, wer diesen Bereich steuert."
   },
   "log": {
     "title": "Eintrag",
@@ -3086,7 +3086,7 @@
     },
     "noFilms": "Von dieser Kamera gibt es noch keinen Film.",
     "moreFilms": "Weitere Filme",
-    "youMayLog": "Du siehst, was diese Kamera sieht. Einstellungen, Testbild und Zeitraffer sind Sache derer, die das Zelt steuern, in dem sie steht."
+    "youMayLog": "Du siehst, was diese Kamera sieht. Einstellungen, Testbild und Zeitraffer sind Sache derer, die den Bereich steuern, in dem sie steht."
   },
   "cameras": {
     "add": {
@@ -3155,7 +3155,7 @@
         "failed": "Kein Bild: {{reason}}",
         "noReason": "die Kamera nannte keinen Grund",
         "shotAlt": "Das Bild aus dem Test",
-        "pickAPlace": "Wähle unten den Ort, auf den sie schaut: ein Zelt mit Controller wird über diesen Controller erreicht, eines ohne nicht.",
+        "pickAPlace": "Wähle unten den Ort, auf den sie schaut: ein Bereich mit Controller wird über diesen Controller erreicht, einer ohne nicht.",
         "throughWhich": "Über welchen Controller?",
         "carrier": {
           "stale": "{{controller}} hat zuletzt vor {{age}} etwas gemeldet",
@@ -3292,7 +3292,7 @@
     "toOpen": "offenes Ende",
     "never": "nie",
     "cameras": "Kamerabilder",
-    "camerasNote": "Ohne das trägt der Link das Tagebuch und seine Fotos, aber kein Bild aus dem Zelt.",
+    "camerasNote": "Ohne das trägt der Link das Tagebuch und seine Fotos, aber kein Bild aus dem Bereich.",
     "withPictures": "mit Bildern",
     "withoutPictures": "ohne Bilder",
     "opened_one": "{{count}}× geöffnet",
@@ -3311,7 +3311,7 @@
   "alarms": {
     "title": "Alarme",
     "backToPlan": "‹ zurück zum Plan",
-    "noController": "Hier steht nichts, das Alarmregeln hat. Erst muss ein Gerät in dieses Zelt geholt werden.",
+    "noController": "Hier steht nichts, das Alarmregeln hat. Erst muss ein Gerät in diesen Bereich geholt werden.",
     "footer": "Stummschalten und Wartungsmodus pausieren alle; „Reingehen“ aus dem Log-Blatt tut dasselbe für 15 Minuten.",
     "add": "+ Alarm · Schwelle · Dauer · Stufe · Webhook",
     "group": {
@@ -3453,7 +3453,7 @@
     "nothingDue": "Nichts ist fällig.",
     "nothingForYou_one": "Nichts für dich · {{count}} wartet auf andere",
     "nothingForYou_other": "Nichts für dich · {{count}} warten auf andere",
-    "demoNoList": "Die Demo hat keine Aufgabenliste; öffne ein Zelt, um zu sehen, was dort ansteht.",
+    "demoNoList": "Die Demo hat keine Aufgabenliste; öffne einen Bereich, um zu sehen, was dort ansteht.",
     "doneAria": "Erledigt: {{label}}",
     "every": "alle {{count}} T",
     "once": "einmalig",
@@ -3526,7 +3526,7 @@
       "yes": "Schritt bestätigen",
       "cancel": "Abbrechen"
     },
-    "stepIsManaged": "Einen Schritt zu bestätigen, rückt den Plan weiter und schickt die Sollwerte des nächsten Schritts an den Controller. Das kann nur, wer das Zelt steuert."
+    "stepIsManaged": "Einen Schritt zu bestätigen, rückt den Plan weiter und schickt die Sollwerte des nächsten Schritts an den Controller. Das kann nur, wer den Bereich steuert."
   },
   "targets": {
     "title": "Manuelle Zielwerte",
@@ -3727,13 +3727,13 @@
     "bellMore_other": "Meldungen · mehr als {{count}} offen",
     "earlier": "Früher",
     "nothingWatching": "Noch schaut nichts hin. Meldungen kommen aus den Alarmregeln eines Controllers und von einer Cam.",
-    "demoNoInbox": "Die Demo hat keinen Posteingang; öffne ein Zelt, um seine Alarme zu sehen.",
+    "demoNoInbox": "Die Demo hat keinen Posteingang; öffne einen Bereich, um seine Alarme zu sehen.",
     "severity": {
       "critical": "Kritisch",
       "warning": "Warnung",
       "info": "Info"
     },
-    "namesFailed": "Namen nicht lesbar · Zelte, Geräte und Cams stehen mit ihrer Id"
+    "namesFailed": "Namen nicht lesbar · Bereiche, Geräte und Cams stehen mit ihrer Id"
   },
   "claim": {
     "title": "Gerät hinzufügen · {{step}} von {{of}}",
@@ -3962,7 +3962,7 @@
       "willStage": "Die Stufe geht von {{from}} % auf {{to}} %, also etwa {{after}} statt {{before}} {{ofDevices}}.",
       "willPace": "Höchstens {{devices}} gleichzeitig in der Installation, und nach {{failures}} stoppt die Ausrollung von selbst.",
       "confirmTitle": "Ausrollung für {{name}} ändern?",
-      "confirmBody": "Das erreicht innerhalb von Minuten Hardware, die in jemandes Zelt steht:",
+      "confirmBody": "Das erreicht innerhalb von Minuten Hardware, die in jemandes Bereich steht:",
       "confirmYes": "Änderung übernehmen",
       "register": "Build anlegen",
       "registerHow": "Ein Build wird angelegt, bevor er Bytes hat; seine Dateien werden danach dazu hochgeladen. Die Version ist die UUID, die der Build-Container gestempelt hat, und wird nie mit einer anderen verglichen.",
@@ -4030,7 +4030,7 @@
       "save": "Speichern",
       "activationCode": "Aktivierungscode · {{code}}",
       "deleteTitle": "@{{handle}} löschen",
-      "deleteBody": "Alles, was @{{handle}} gehört, geht mit dem Konto: die eigenen Zelte, Grows, Einträge, Bilder und Filme. Was die Person in fremden Zelten geschrieben hat, bleibt dort und verliert ihren Namen. Das lässt sich nicht zurückholen.",
+      "deleteBody": "Alles, was @{{handle}} gehört, geht mit dem Konto: die eigenen Bereiche, Grows, Einträge, Bilder und Filme. Was die Person in fremden Bereichen geschrieben hat, bleibt dort und verliert ihren Namen. Das lässt sich nicht zurückholen.",
       "deleteAdmin": "Ist das das Konto, mit dem die Installation konfiguriert ist, behält der Server es: Dieses Konto wird bei jedem Start über seine Adresse gesucht und hier nicht gelöscht.",
       "deleteDevices": "Die beanspruchten Geräte kann danach wieder beanspruchen, wer sie in Händen hält.",
       "deleteMine": "Das ist dein eigenes Konto. Löschen meldet dich ab und lässt diese Installation ohne dich zurück.",

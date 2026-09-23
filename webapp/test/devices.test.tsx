@@ -433,13 +433,13 @@ describe('what the sockets offer, by who is reading', () => {
 
     expect(await screen.findByRole('slider', { name: 'Brightness' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'auto' }).length).toBeGreaterThan(0);
-    expect(screen.queryByText(/A socket or the lamp is switched by whoever steers this tent\./)).not.toBeInTheDocument();
+    expect(screen.queryByText(/A socket or the lamp is switched by whoever steers this space\./)).not.toBeInTheDocument();
   });
 
   it('gives a member the readings, no switch at all, and the reason once', async () => {
     await drawTab('log');
 
-    expect(await screen.findByText(/A socket or the lamp is switched by whoever steers this tent\./)).toBeInTheDocument();
+    expect(await screen.findByText(/A socket or the lamp is switched by whoever steers this space\./)).toBeInTheDocument();
     expect(screen.queryByRole('slider', { name: 'Brightness' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'auto' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'on' })).not.toBeInTheDocument();

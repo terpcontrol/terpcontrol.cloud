@@ -506,7 +506,7 @@ describe('the inbox', () => {
     draw();
 
     expect(await screen.findByText(title('space-1 · humidity 68 % › 60'))).toBeInTheDocument();
-    expect(screen.getByText('Could not read the names · tents, devices and cams are shown by their id')).toBeInTheDocument();
+    expect(screen.getByText('Could not read the names · spaces, devices and cams are shown by their id')).toBeInTheDocument();
   });
 
   it('reads what is open once for the bell and the list together', async () => {
@@ -685,7 +685,7 @@ describe('the inbox', () => {
     server.rules = [rule()];
     draw();
 
-    expect(await screen.findByText('The demo has no inbox; open a tent to see its alarms.')).toBeInTheDocument();
+    expect(await screen.findByText('The demo has no inbox; open a space to see its alarms.')).toBeInTheDocument();
     expect(screen.queryByText('Nothing has gone wrong.')).not.toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByRole('list')).not.toBeInTheDocument();

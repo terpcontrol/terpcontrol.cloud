@@ -627,7 +627,7 @@ describe('the demo', () => {
     state.done = [];
     await drawLoaded();
 
-    expect(screen.getByText('The demo has no task list; open a tent to see what is due there.')).toBeInTheDocument();
+    expect(screen.getByText('The demo has no task list; open a space to see what is due there.')).toBeInTheDocument();
     expect(screen.queryByText('Nothing is due.')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Done:/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^\+ Reminder/ })).not.toBeInTheDocument();
@@ -660,7 +660,7 @@ describe('a member who may only log', () => {
 
     expect(section('This week').getByText('Confirm: Late flower on day 36?')).toBeInTheDocument();
     expect(section('This week').queryByRole('button', { name: /^Done:/ })).not.toBeInTheDocument();
-    expect(section('This week').getByText(/Only whoever steers the tent can do that\./)).toBeInTheDocument();
+    expect(section('This week').getByText(/Only whoever steers the space can do that\./)).toBeInTheDocument();
   });
 
   it('is offered neither the Edit on somebody else’s rhythm nor a new one', async () => {

@@ -314,7 +314,7 @@ describe('the room a tent stands in', () => {
     expect(await screen.findByText(/Share the whole room/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Blue Dream tent' })).toHaveAttribute('href', '/spaces/space-1/members');
     expect(screen.getByRole('link', { name: 'Mother tent' })).toBeInTheDocument();
-    expect(screen.getByText('See every tent in the room, its grows and cams')).toBeInTheDocument();
+    expect(screen.getByText('See every space in the room, its grows and cams')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Put it in a room' })).not.toBeInTheDocument();
   });
 });

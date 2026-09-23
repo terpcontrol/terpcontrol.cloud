@@ -277,7 +277,7 @@ describe('the active list', () => {
 
     expect(
       screen.getByText(
-        'Two kinds: the public page of a grow (permanent until you make the grow private) and a read-only view of a tent or a time range with an expiry. Both can include the cams or not. Followers see the public page; a link never grants writing.',
+        'Two kinds: the public page of a grow (permanent until you make the grow private) and a read-only view of a space or a time range with an expiry. Both can include the cams or not. Followers see the public page; a link never grants writing.',
       ),
     ).toBeInTheDocument();
   });
@@ -400,14 +400,14 @@ describe('an account with nothing of its own', () => {
 describe('the new-link sheet', () => {
   const open = async () => {
     await drawLoaded();
-    fireEvent.click(screen.getByRole('button', { name: '+ New link · grow or tent · cams · expiry' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ New link · grow or space · cams · expiry' }));
     return screen.getByRole('dialog', { name: 'New link' });
   };
 
   it('offers only what this account owns, and starts on a read-only view for a week', async () => {
     const sheet = await open();
 
-    const subjects = within(sheet).getByRole('group', { name: 'Grow or tent' });
+    const subjects = within(sheet).getByRole('group', { name: 'Grow or space' });
     expect(
       within(subjects)
         .getAllByRole('button')

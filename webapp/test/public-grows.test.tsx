@@ -136,7 +136,7 @@ describe('the grows', () => {
 
     const statement = screen.getByText(/A public grow shows a stranger/);
     expect(statement).toHaveTextContent("the camera's pictures");
-    expect(statement).toHaveTextContent("It never shows the tent's live values, its devices, its alarms or its tasks, and never your e-mail");
+    expect(statement).toHaveTextContent("It never shows the space's live values, its devices, its alarms or its tasks, and never your e-mail");
     expect(statement).toHaveTextContent('nobody can write');
   });
 
