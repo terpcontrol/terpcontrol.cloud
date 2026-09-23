@@ -4,18 +4,20 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import type { Camera, GrowListItem, Media, TimelapseCreate } from '@fg2/shared-types/v1';
+import { useMe } from '@/api/account';
 import { useCamera, useCameraFrames, useRequestTimelapse, useTestCapture, useTimelapses } from '@/api/cameras';
 import { useSpaceGrows } from '@/api/grows';
 import { ApiError, noLongerThere } from '@/api/problem';
-import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
+import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { ageLabel, instantOf } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
 import { enough, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { zoneOf } from '@/ui/zone';
 import { cameraFreshness } from '../devices/cameras';
-import { at, stampOf } from '../timeline/window';
+import { at, STAMPS, stampFor } from '../timeline/window';
 import { Slider } from '../timeline/CameraFrame';
 import timeline from '../timeline/Timeline.module.css';
 import { Composer } from './Composer';
@@ -47,6 +49,15 @@ export function CameraPage() {
 export function CameraScreen({ camera, refetching = null }: { camera: Camera; refetching?: string | null }) {
   const { t } = useTranslation();
   const now = useNow();
+  const { user } = useSession();
+  // Every clock time on this screen is the account's, which is what the server
+  // means by one: quiet hours are read in that zone and the Appearance page
+  // promises it of every hour the app draws. A camera stamps its own pictures
+  // and burns the instant into them, so a label an hour or two off is one this
+  // page can be caught out on by the picture beside it. The demo has no account
+  // to ask, and until the answer lands the browser's zone stands in.
+  const me = useMe(false, user?.isDemo !== true);
+  const zone = zoneOf(me.data);
   // A camera belongs to whoever claimed it and stands in a place, and the two
   // answer different halves: its settings and the films it renders are `manage`
   // where it stands, unpairing it is `own` and reaches nobody else at all.
@@ -56,14 +67,12 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   const [composing, setComposing] = useState(false);
   const [job, setJob] = useState<Media | null>(null);
 
-  // The day the scrubber walks. Its ends are fixed for as long as the day is,
-  // so the frames are read once rather than on every tick of the clock.
-  const today = now.toISODate();
-  const day = useMemo(() => {
-    const start = DateTime.fromISO(today!).startOf('day');
-    return { startsAt: instantOf(start), endsAt: instantOf(start.endOf('day')) };
-  }, [today]);
-
+  // The day the scrubber walks, which is the account's day and not the
+  // browser's: a grower in Berlin reading a UTC account is two hours into
+  // tomorrow at ten in the evening, and "today" would then be a day the camera
+  // has taken no picture in. Its ends are fixed for as long as the day is - the
+  // read is keyed on them, so the clock ticking is not a second read.
+  const day = dayOf(now, zone);
   const frames = useCameraFrames(camera.id, day);
   const grows = useSpaceGrows(camera.spaceId);
   const films = useTimelapses(camera.id);
@@ -137,7 +146,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
         )}
         {shown ? (
           <span className={`mono ${styles.frameLabel}`}>
-            {stampOf(at(shown.capturedAt), to - from)}
+            {inZone(at(shown.capturedAt), zone).toFormat(STAMPS[stampFor(to - from)])}
             {newest && shown.id === newest.id ? ` · ${t('camera.live')}` : ''}
           </span>
         ) : null}
@@ -145,7 +154,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
       </div>
 
       <div className={`${timeline.bareSlider} ${styles.transport}`}>
-        <span className={`mono ${styles.edge}`}>{DateTime.fromMillis(from).toFormat('HH:mm')}</span>
+        <span className={`mono ${styles.edge}`}>{inZone(from, zone).toFormat('HH:mm')}</span>
         <Slider from={from} to={to} cursor={Math.min(Math.max(time, from), to)} onScrub={setCursor} />
         <span className={`mono ${styles.edge}`}>{t('camera.now')}</span>
       </div>
@@ -303,6 +312,20 @@ const growOf = (grows: GrowListItem[]): GrowListItem | null => grows.find(grow =
 
 /** Where the phase being filmed began, which is the grow's own record and never a day counter read backwards. */
 const phaseStart = (grow: GrowListItem | null): string | null => grow?.phases.at(-1)?.startedAt ?? null;
+
+/** The account's own day around an instant, as the frames read asks for one. */
+const dayOf = (now: DateTime, zone: string | null): { startsAt: string; endsAt: string } => {
+  const start = inZone(now.toMillis(), zone).startOf('day');
+
+  return { startsAt: instantOf(start), endsAt: instantOf(start.endOf('day')) };
+};
+
+/** A moment of the day read where the account is rather than where the browser is. */
+const inZone = (time: number, zone: string | null): DateTime => {
+  const at = DateTime.fromMillis(time);
+
+  return zone ? at.setZone(zone) : at;
+};
 
 /** The newest picture taken by the cursor, and the oldest there is before the first one. */
 const frameAt = (shots: Media[], time: number): Media | null => {

@@ -1,9 +1,10 @@
-import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import type { Media } from '@fg2/shared-types/v1';
+import { useMe } from '@/api/account';
 import { useMedia } from '@/api/cameras';
-import { mediaUrl } from '@/api/session';
+import { mediaUrl, useSession } from '@/api/session';
 import ui from '@/ui/ui.module.css';
+import { zoned, zoneOf } from '@/ui/zone';
 import styles from './CameraPage.module.css';
 
 /**
@@ -16,6 +17,8 @@ import styles from './CameraPage.module.css';
  */
 export function Film({ mediaId, collapsed }: { mediaId: string; collapsed?: boolean }) {
   const { t } = useTranslation();
+  const { user } = useSession();
+  const me = useMe(false, user?.isDemo !== true);
   const media = useMedia(mediaId);
 
   if (!media.data) {
@@ -33,7 +36,7 @@ export function Film({ mediaId, collapsed }: { mediaId: string; collapsed?: bool
   return (
     <div className={`${ui.card} ${styles.film}`}>
       <div className={styles.filmHead}>
-        <span className={styles.filmTitle}>{spanLabel(film)}</span>
+        <span className={styles.filmTitle}>{spanLabel(film, zoneOf(me.data))}</span>
         <span className={`mono ${styles.filmStatus}`} data-status={status}>
           {t(`camera.film.${status}`)}
           {film.lengthSeconds ? ` · ${lengthLabel(film.lengthSeconds)}` : ''}
@@ -59,10 +62,17 @@ export function Film({ mediaId, collapsed }: { mediaId: string; collapsed?: bool
   );
 }
 
-/** What the film is of: both ends of its span, in the reader's own zone. */
-const spanLabel = (film: Media): string => {
-  const from = DateTime.fromISO(film.capturedAt);
-  const to = film.endsAt ? DateTime.fromISO(film.endsAt) : null;
+/**
+ * What the film is of: both ends of its span, in the account's own zone.
+ *
+ * Not the browser's. A film of a single day ending a minute before midnight is
+ * drawn as running into the next one for a reader sitting east of the account
+ * they are reading, which is the film saying it covers a day it holds no frame
+ * of.
+ */
+const spanLabel = (film: Media, zone: string | null): string => {
+  const from = zoned(film.capturedAt, zone);
+  const to = film.endsAt ? zoned(film.endsAt, zone) : null;
   const format = from.hasSame(to ?? from, 'day') ? 'd MMM HH:mm' : 'd MMM';
 
   return to ? `${from.toFormat(format)} → ${to.toFormat(format)}` : from.toFormat(format);

@@ -2,12 +2,14 @@ import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Camera, GrowListItem, MediaAspect, MediaOverlays, MediaQuality, MediaWindow, TimelapseCreate } from '@fg2/shared-types/v1';
+import { useMe } from '@/api/account';
 import { useCameras, useLatestStills } from '@/api/cameras';
 import { serverNow } from '@/api/clock';
-import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
+import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { Sheet } from '@/log/Sheet';
 import { instantOf } from '@/ui/age';
 import ui from '@/ui/ui.module.css';
+import { zoneOf } from '@/ui/zone';
 import styles from './CameraPage.module.css';
 
 /** The ranges the composer offers, in the order the board draws them. */
@@ -36,9 +38,16 @@ interface ComposerProps {
  */
 export function Composer({ camera, grow, pending, onRender, onClose }: ComposerProps) {
   const { t } = useTranslation();
+  const { user } = useSession();
+  // A date somebody picks here is a day of theirs, so the days the fields open
+  // on and the instants they are turned into are the account's - the same zone
+  // the rest of the app draws its clocks in. Read from the cache the camera
+  // page has already filled; until it answers, the browser's zone stands in.
+  const me = useMe(false, user?.isDemo !== true);
+  const zone = zoneOf(me.data);
   const [range, setRange] = useState<MediaWindow>('day');
-  const [from, setFrom] = useState(serverNow().minus({ days: 7 }).toISODate()!);
-  const [to, setTo] = useState(serverNow().toISODate()!);
+  const [from, setFrom] = useState(today(zone, 7));
+  const [to, setTo] = useState(today(zone, 0));
   const [secondCameraId, setSecondCameraId] = useState<string | null>(null);
   const [overlays, setOverlays] = useState<MediaOverlays>({ dayCounter: true, climate: true, entries: true });
   const [includeLightsOff, setIncludeLightsOff] = useState(false);
@@ -52,7 +61,7 @@ export function Composer({ camera, grow, pending, onRender, onClose }: ComposerP
   const preview = useLatestStills([camera.id]).get(camera.id) ?? null;
 
   const free = camera.entitlement.tier === 'free';
-  const span = spanOf(range, grow, from, to);
+  const span = spanOf(range, grow, from, to, zone);
   // A film of a whole grow is Premium whatever it is rendered at, so the range
   // is refused rather than only the HD button: SD would be offered and then
   // turned down by the server.
@@ -174,6 +183,13 @@ export function Composer({ camera, grow, pending, onRender, onClose }: ComposerP
   );
 }
 
+/** A day the account is in, some days back, as the date fields spell one. */
+const today = (zone: string | null, daysAgo: number): string => {
+  const at = serverNow().minus({ days: daysAgo });
+
+  return (zone ? at.setZone(zone) : at).toISODate()!;
+};
+
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className={styles.group}>
@@ -207,6 +223,7 @@ const spanOf = (
   grow: GrowListItem | null,
   from: string,
   to: string,
+  zone: string | null,
 ): { startsAt?: string; endsAt?: string; reason: string | null } => {
   // The instant a rolling window is worked out around is the server's, so that
   // the film covers the day the frames were taken on rather than the day this
@@ -224,8 +241,11 @@ const spanOf = (
     return grow ? { startsAt: grow.startedAt, endsAt: grow.endedAt ?? instantOf(now), reason: null } : { reason: 'camera.noGrowHere' };
   }
 
-  const startsAt = DateTime.fromISO(from).startOf('day');
-  const endsAt = DateTime.fromISO(to).endOf('day');
+  // A day is a day where the account is: asked for in the browser's zone, a
+  // film of "18 September" would start and end a couple of hours out of the day
+  // every other screen calls the 18th.
+  const startsAt = DateTime.fromISO(from, { zone: zone ?? undefined }).startOf('day');
+  const endsAt = DateTime.fromISO(to, { zone: zone ?? undefined }).endOf('day');
 
   return endsAt > startsAt ? { startsAt: instantOf(startsAt), endsAt: instantOf(endsAt), reason: null } : { reason: 'composer.backwards' };
 };

@@ -33,6 +33,19 @@ const state = vi.hoisted(() => ({
   moreFilms: false,
   askedForMore: 0,
   frames: { items: [] as { id: string; capturedAt: string }[], partial: false },
+  zone: 'UTC' as string | null,
+  /** The day the page asked the camera for, which is the account's and not this machine's. */
+  askedForDay: null as { startsAt: string; endsAt: string } | null,
+}));
+
+/**
+ * The account's own zone, which is what every clock time on these screens is
+ * drawn in. The tests read a UTC account from a machine that is not on UTC, so
+ * a label that slipped back onto the browser's zone shows up as an hour out.
+ */
+vi.mock('@/api/account', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useMe: () => ({ data: { preferences: { timezone: state.zone }, premium: { enforced: true } } }),
 }));
 
 vi.mock('@/api/cameras', async importOriginal => ({
@@ -40,7 +53,10 @@ vi.mock('@/api/cameras', async importOriginal => ({
   useCameras: () => ({ data: { items: [], nextCursor: null } }),
   useLatestStills: () => new Map<string, string | null>(),
   useMedia: () => ({ data: state.film, isError: false }),
-  useCameraFrames: () => ({ data: state.frames, isPending: false }),
+  useCameraFrames: (_id: string, day: { startsAt: string; endsAt: string }) => {
+    state.askedForDay = day;
+    return { data: state.frames, isPending: false };
+  },
   useTimelapses: () => ({
     data: { pages: [{ items: state.films, nextCursor: state.moreFilms ? 'cursor' : null }] },
     hasNextPage: state.moreFilms,
@@ -135,6 +151,8 @@ beforeEach(() => {
   state.moreFilms = false;
   state.askedForMore = 0;
   state.frames = { items: [], partial: false };
+  state.zone = 'UTC';
+  state.askedForDay = null;
 });
 
 describe('the composer', () => {
@@ -350,6 +368,33 @@ describe('the films and the pictures behind the first page', () => {
     expect(screen.queryByRole('button', { name: 'More films' })).not.toBeInTheDocument();
   });
 
+  it('stamps a frame in the account´s zone rather than the browser´s', () => {
+    // The camera burns the instant into the picture, so a label read in the
+    // browser's zone is one the picture beside it contradicts. The account here
+    // is on UTC and the frame was taken at 08:03 UTC.
+    state.frames = { items: [{ id: 'still-1', capturedAt: '2026-09-19T08:03:00.000Z' }], partial: false };
+    const utc = drawPage();
+    expect(utc.container.textContent).toContain('08:03');
+    utc.unmount();
+
+    // The same instant for an account kept in Berlin, which is two hours on.
+    state.zone = 'Europe/Berlin';
+    expect(drawPage().container.textContent).toContain('10:03');
+  });
+
+  it('walks the account´s day, so "today" is the day the account is having', () => {
+    // A browser east or west of the account is in a different day for part of
+    // every one of them, and the day asked for has to be the account's or the
+    // page walks a day the camera took no picture in.
+    state.zone = 'Pacific/Auckland';
+    state.frames = { items: [], partial: false };
+    drawPage();
+
+    const asked = state.askedForDay!;
+    expect(DateTime.fromISO(asked.startsAt).setZone('Pacific/Auckland').toFormat('HH:mm')).toBe('00:00');
+    expect(DateTime.fromISO(asked.endsAt).setZone('Pacific/Auckland').toFormat('HH:mm')).toBe('23:59');
+  });
+
   it('counts the day it walked, and calls a count it stopped short of a floor', () => {
     const shot = (index: number) => ({ id: `still-${index}`, capturedAt: NOW.minus({ minutes: index }).toISO()! });
 
@@ -379,6 +424,19 @@ describe('the job it starts', () => {
 
     expect(screen.getByText(/rendering/)).toBeInTheDocument();
     expect(container.querySelector('video')).toBeNull();
+  });
+
+  it('names both ends of a film´s span in the account´s zone', () => {
+    // A one-day film ending a minute before midnight reads as running into the
+    // next day for anybody east of the account, which is the row claiming a day
+    // the film holds no frame of.
+    state.film = { ...(film('ready') as object), capturedAt: '2026-09-18T00:00:00.000Z', endsAt: '2026-09-18T23:58:36.000Z' };
+    const utc = render(<Film mediaId="media-1" />);
+    expect(utc.container.textContent).toContain('18 Sep 00:00 → 18 Sep 23:58');
+    utc.unmount();
+
+    state.zone = 'Europe/Berlin';
+    expect(render(<Film mediaId="media-1" />).container.textContent).toContain('18 Sep → 19 Sep');
   });
 
   it('plays the film once it is done, with the length it came out at', () => {
