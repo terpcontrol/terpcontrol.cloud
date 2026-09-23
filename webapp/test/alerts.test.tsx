@@ -696,7 +696,7 @@ describe('the inbox', () => {
     state.who = 'demo';
     draw();
 
-    expect(await screen.findByText('The demo has no inbox; open a tent to see its alarms.')).toBeInTheDocument();
+    expect(await screen.findByText('The demo has no inbox; open a space to see its alarms.')).toBeInTheDocument();
     expect(readsOf('/v1/me')).toHaveLength(0);
   });
 
