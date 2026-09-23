@@ -553,8 +553,8 @@
     "saveView": "Save view",
     "csv": "CSV",
     "csvOutput": "{{output}} (on/off)",
-    "csvNote": "CSV takes what is on the screen. The whole grow, pictures and diary included, is under Export on",
-    "note": "The nerd's room: any series, any range, saved views, export with actuator state at native rate. Two units on one panel only when they belong together.",
+    "csvNote": "CSV takes what is on the screen, one row per {{step}}. The whole grow, pictures and diary included, is under Export on",
+    "note": "The nerd's room: any series, any range, saved views, export with actuator state at the step the chart is drawn at. Two units on one panel only when they belong together.",
     "nothingPicked": "Nothing picked yet — tap a series above.",
     "noGrow": "Nothing grows here yet, and a chart is drawn about a grow.",
     "views": {

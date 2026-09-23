@@ -261,6 +261,16 @@ describe('the Charts view', () => {
     expect(screen.getByText(/The nerd's room/)).toHaveTextContent('Two units on one panel only when they belong together.');
   });
 
+  it('says what step the table it offers is written at, rather than promising a rate it cannot give', async () => {
+    draw();
+
+    // The CSV is the answer already on the screen, which is a mean per window
+    // and not what the devices reported at: a grow-wide window is a few hundred
+    // rows over hundreds of thousands of readings.
+    expect(await screen.findByText(/CSV takes what is on the screen/)).toHaveTextContent('one row per 5 min');
+    expect(screen.queryByText(/native rate/)).not.toBeInTheDocument();
+  });
+
   it('reads out every line at the cursor and prints both ends of every scale', async () => {
     draw();
 

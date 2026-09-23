@@ -123,12 +123,13 @@ export const standsIn = (grow: { placements: Placement[] }): string | null =>
  * placement that named a place, open or closed. It decides nothing about
  * access - only what a finished grow is shown beside.
  */
-export const stoodIn = (grow: { placements: Placement[] }): string | null =>
-  standsIn(grow) ??
-  [...grow.placements]
+export const stoodIn = (grow: { placements: Placement[] }): string | null => {
+  const newest = [...grow.placements]
     .filter(placement => placement.spaceId !== null)
-    .sort((one, other) => other.startedAt.localeCompare(one.startedAt))[0]?.spaceId ??
-  null;
+    .sort((one, other) => other.startedAt.localeCompare(one.startedAt))[0];
+
+  return standsIn(grow) ?? newest?.spaceId ?? null;
+};
 
 /**
  * Whether this session reaches a given need in a given place.

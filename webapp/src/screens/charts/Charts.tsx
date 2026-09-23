@@ -12,6 +12,7 @@ import { noLongerThere } from '@/api/problem';
 import { useSpaces } from '@/api/spaces';
 import { useScrub } from '@/charts/scrub';
 import { axisFigure, dayOfGrow, downloadCsv, valueAt, type PlotLine } from '@/charts/series';
+import { spanLabel } from '@/ui/age';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { stoodIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -452,8 +453,12 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
         </div>
       </div>
 
+      {/* The table is the answer already in hand, so it is written at the step
+          the window decided and not at the rate the devices reported at. That
+          step is on the wire, so the note says it rather than leaving somebody
+          to work out why their million readings came back as four hundred. */}
       <p className={`${ui.note} ${styles.csvNote}`}>
-        {t('charts.csvNote')} <Link to={`/grows/${grow.id}`}>{grow.name}</Link>
+        {t('charts.csvNote', { step: spanLabel(data.stepSeconds) })} <Link to={`/grows/${grow.id}`}>{grow.name}</Link>
       </p>
       <p className={`${ui.note} ${styles.note}`}>{t('charts.note')}</p>
 
