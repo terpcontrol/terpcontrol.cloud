@@ -36,6 +36,21 @@ describe('device messages against the shipped catalogue', () => {
     expect(resolveDeviceMessage(i18n, { key: 'message-something-new', params: ['7'] }, 'title')).toBe('message-something-new:7');
   });
 
+  /**
+   * A key 506 restored entries carry, 77 of them on one grower's fridge. The
+   * firmware of today closes an update with the `-with-ids` key beside it, so
+   * the bare one is migrated wording and nothing was going to rewrite it.
+   */
+  it('spells a finished firmware update the way its own sibling key spells it', () => {
+    const message = { key: 'message-firmware-update-complete', params: [] };
+
+    expect(resolveDeviceMessage(i18n, message, 'title')).toBe(
+      resolveDeviceMessage(i18n, { key: 'message-firmware-update-complete-with-ids', params: [] }, 'title'),
+    );
+    expect(resolveDeviceMessage(i18n, message, 'title')).toBe('Firmware update complete');
+    expect(resolveDeviceMessage(i18n, message, 'text')).toBe("Your device's firmware update was completed");
+  });
+
   it('says a whole picture is missing without reciting the telemetry in the headline', () => {
     const message = { key: 'message-cam-capture', params: ['incomplete res=2 bytes=14328 got=22/22 soi=2 eoi=-1'] };
 
