@@ -136,7 +136,7 @@ function Facts({ page }: { page: PublicGrowPage }) {
     page.stage ? (page.preset === 'late_flowering' ? t('grow.lateFlower') : t(`home.stage.${page.stage}`)) : t('home.card.noPhase'),
     week !== null ? t('grow.week', { week }) : null,
     page.strains.length > 0 ? page.strains.join(', ') : null,
-    page.plantCount !== null ? t('home.card.plants', { count: page.plantCount }) : null,
+    page.plantCount ? t('home.card.plants', { count: page.plantCount }) : null,
     t(`publicPage.type.${page.type}`),
     until
       ? t('publicPage.ran', { from: from.toFormat('d LLL yyyy'), to: until.toFormat('d LLL yyyy') })

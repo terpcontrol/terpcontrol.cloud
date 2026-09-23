@@ -78,7 +78,10 @@ export function PhaseLine({ grow }: { grow: GrowCard }) {
       )}
       {grow.isAuto ? <span className={`mono ${styles.auto}`}>{t('home.card.auto')}</span> : null}
       {grow.strains.length > 0 ? <span className={styles.strains}> · {grow.strains.join(', ')}</span> : null}
-      {grow.plantCount !== null ? <span className={styles.strains}> · {t('home.card.plants', { count: grow.plantCount })}</span> : null}
+      {/* Null is a count the owner hides and zero is a record that carries no
+          plants at all - a migrated diary has none by decision - so neither is
+          drawn. "0 plants" reads as a grow whose plants all died. */}
+      {grow.plantCount ? <span className={styles.strains}> · {t('home.card.plants', { count: grow.plantCount })}</span> : null}
     </>
   );
 }

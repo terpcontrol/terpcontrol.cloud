@@ -228,7 +228,10 @@ export function GrowHeader({ grow, plants, spaces, now, onShare }: HeaderProps) 
             {summary.groups.map(group => `${group.plantIds.length} ${t(`home.stage.${group.stage}`).toLowerCase()}`).join(', ')}
           </span>
         ) : null}
-        <span className={styles.muted}> · {t('home.card.plants', { count: plants.length })}</span>
+        {/* A grow whose record carries no plants says so on its Plants tab, in
+            words. A count of zero in the header says something else: that the
+            plants were entered and are all gone. */}
+        {plants.length > 0 ? <span className={styles.muted}> · {t('home.card.plants', { count: plants.length })}</span> : null}
       </p>
 
       {/* What the grow measures is the grow's own, not a week's and not a

@@ -333,6 +333,15 @@ describe('a grow that has ended', () => {
     expect(screen.getByText('final day')).toBeInTheDocument();
   });
 
+  it('says nothing about plants where the record carries none, rather than counting zero of them', () => {
+    // A migrated grow holds no plants by decision and its Plants tab says so in
+    // words. "0 plants" in the header says something else: that they were
+    // entered and are all gone.
+    draw(<GrowHeader grow={finished} plants={[]} spaces={[]} now={NOW} onShare={null} />);
+
+    expect(screen.queryByText(/0 plants/)).not.toBeInTheDocument();
+  });
+
   it('names the tent it stood in, which its own report names on every chapter', () => {
     // An ended grow has no open placement, so "where the plants are" is empty
     // and the slot the header draws a place in was left blank.

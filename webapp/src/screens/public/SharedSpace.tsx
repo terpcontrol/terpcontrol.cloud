@@ -74,7 +74,7 @@ export function SharedSpace({ space, picture, now, banner }: { space: SpaceOverv
                   grow.dayNumber !== null ? t('home.card.dayN', { day: grow.dayNumber }) : null,
                   grow.stage ? t(`home.stage.${grow.stage}`) : null,
                   grow.strains.join(', ') || null,
-                  grow.plantCount !== null ? t('home.card.plants', { count: grow.plantCount }) : null,
+                  grow.plantCount ? t('home.card.plants', { count: grow.plantCount }) : null,
                 ]
                   .filter(Boolean)
                   .join(' · ')}
