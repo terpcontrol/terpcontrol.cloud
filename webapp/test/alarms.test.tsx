@@ -379,7 +379,13 @@ describe('the alarm rules page', () => {
     expect(await card('Too hot')).not.toHaveAttribute('data-highlight');
   });
 
-  it('offers the demo everything to read and nothing to move, and claims no delivery it cannot read', async () => {
+  /**
+   * The demo tours somebody else's space and has no account of its own, so the
+   * server refuses `/me` for it. The refusal stands in the mock to say so: the
+   * page must never reach it, because a screen that drew its whole list on the
+   * back of a 403 would be one refusal away from drawing nothing.
+   */
+  it('offers the demo everything to read and nothing to move, and never asks for an account it has not got', async () => {
     session.demo = true;
     vi.mocked(api.get).mockImplementation(
       (path: string) =>
@@ -396,6 +402,14 @@ describe('the alarm rules page', () => {
     expect(within(hot as HTMLElement).getByText('On')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /\+ Alarm/ })).not.toBeInTheDocument();
     expect(screen.getAllByText('preset · for 10 min · critical · announced once')).toHaveLength(1);
+    expect(vi.mocked(api.get).mock.calls.map(([path]) => path)).not.toContain('/me');
+  });
+
+  it('asks for the account where there is one, because the routing verdict is read off it', async () => {
+    draw([device()], false);
+
+    await card('Too hot');
+    expect(vi.mocked(api.get).mock.calls.map(([path]) => path)).toContain('/me');
   });
 
   it('says a switched-off rule is off rather than how often it would announce itself', async () => {

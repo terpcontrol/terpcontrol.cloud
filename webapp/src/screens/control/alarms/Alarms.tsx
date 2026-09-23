@@ -5,6 +5,7 @@ import { Link, useSearchParams } from 'react-router';
 import type { AlarmRule, Device, Me, OverviewGrow } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { useAlarmRulesOf, useDeviceAlarmRules, useUnsilenceAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
+import { useSession } from '@/api/session';
 import { useSpaceOverview } from '@/api/spaces';
 import { durationLabel } from '@/screens/devices/sockets';
 import { timeOf } from '@/screens/notifications/settings';
@@ -39,12 +40,21 @@ import styles from './Alarms.module.css';
  * do with the rule, read off the grid the notification settings hold - and
  * only once they have been read, because a rule is not "not announced" merely
  * because the account has yet to answer for itself.
+ *
+ * The account is asked for only where there is one to ask about. The demo tours
+ * somebody else's space and has no account of its own, so the server refuses
+ * `/me` for it: a screen that asked anyway would draw its whole list on the back
+ * of a 403, which is the rule `useZone` states for the same read. What the
+ * refusal would have cost is a routing verdict and a zone, and both already have
+ * an answer for an account that has not spoken - the browser's zone, and no
+ * verdict at all.
  */
 export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devices: Device[]; mayManage: boolean }) {
   const { t } = useTranslation();
+  const { user } = useSession();
   const now = useNow();
   const overview = useSpaceOverview(spaceId);
-  const me = useMe();
+  const me = useMe(false, user !== null && user.isDemo !== true);
   const [params] = useSearchParams();
 
   // The same reads the lists below make, asked once here so that a device
