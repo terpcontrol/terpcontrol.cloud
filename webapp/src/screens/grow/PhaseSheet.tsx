@@ -2,6 +2,7 @@ import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowthStage, Phase } from '@fg2/shared-types/v1';
+import { serverNow } from '@/api/clock';
 import { useAddPhase, useCorrectPhase, useWithdrawPhase } from '@/api/lifecycle';
 import { Sheet } from '@/log/Sheet';
 import { nextStage } from '@/log/defaults';
@@ -45,7 +46,10 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
   const ended = grow.endedAt !== null;
   const [stage, setStage] = useState<GrowthStage>(() => nextStage(grow) ?? grow.summary.stage ?? STAGES[0]);
   const [preset, setPreset] = useState<string | null>(null);
-  const [at, setAt] = useState(() => (grow.endedAt ? new Date(grow.endedAt) : new Date()));
+  // A grow that is over opens on the day it ended; one still running opens on
+  // now as the server reckons it, which is what the field's cap is measured
+  // against as well.
+  const [at, setAt] = useState(() => (grow.endedAt ? new Date(grow.endedAt) : serverNow().toJSDate()));
   /** Which row of the history is open, and for what. One at a time: two open editors would be two answers. */
   const [open, setOpen] = useState<{ phaseId: string; as: 'correct' | 'withdraw' } | null>(null);
 

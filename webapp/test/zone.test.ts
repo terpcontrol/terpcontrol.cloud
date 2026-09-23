@@ -16,6 +16,12 @@ import { clock, CLOCK, datedClock, nowThere, zoned, zonedAt } from '@/ui/zone';
  * because the next screen will be written by somebody who never read this.
  */
 
+/** Every source file of the app, which is what each of the sweeps below reads. */
+const files = (from: string): string[] =>
+  readdirSync(resolve(process.cwd(), from), { withFileTypes: true }).flatMap(entry =>
+    entry.isDirectory() ? files(`${from}/${entry.name}`) : /\.tsx?$/.test(entry.name) ? [`${from}/${entry.name}`] : [],
+  );
+
 describe('the zone an instant is read in', () => {
   it('reads an instant where the account is, and leaves it where the browser is until the account answers', () => {
     expect(clock('2026-09-23T00:07:59.159Z', 'UTC')).toBe('00:07');
@@ -126,7 +132,7 @@ describe('every clock time and every date the app writes', () => {
    * and a chart's x in - a number of milliseconds is always an instant here,
    * never a bare date, so there is no zone-free reason to reach for one.
    */
-  const BORROWED = /\b(STAMPS|CLOCK|DATED_CLOCK|DAY|DAY_IN_YEAR|NARROW_DAY)\b|DateTime\.fromMillis\(/;
+  const BORROWED = /\b(STAMPS|CLOCK|DATED_CLOCK|DAY|DAY_IN_YEAR|NARROW_DAY|WEEKDAY_DAY)\b|DateTime\.fromMillis\(/;
 
   const ZONE_IMPORT = /from '(@\/ui\/zone|\.\/zone|\.\.\/zone|\.\.\/\.\.\/ui\/zone)'/;
 
@@ -156,11 +162,6 @@ describe('every clock time and every date the app writes', () => {
    * suite fails asking why it is still here.
    */
   const NOT_YET = ['src/screens/camera/CameraSettings.tsx', 'src/screens/space/members/invites.ts'];
-
-  const files = (from: string): string[] =>
-    readdirSync(resolve(process.cwd(), from), { withFileTypes: true }).flatMap(entry =>
-      entry.isDirectory() ? files(`${from}/${entry.name}`) : /\.tsx?$/.test(entry.name) ? [`${from}/${entry.name}`] : [],
-    );
 
   /** Every single-quoted literal in a file that could be a Luxon format. */
   const formatsIn = (source: string): string[] =>
@@ -195,5 +196,101 @@ describe('every clock time and every date the app writes', () => {
     const using = files('src').filter(path => PRESET.test(readFileSync(resolve(process.cwd(), path), 'utf8')));
 
     expect(using).toEqual([]);
+  });
+});
+
+/**
+ * The two bypasses that are not a format string at all.
+ *
+ * Everything above looks for a shape being written, which is why a whole pass
+ * of both rules went by with five screens still breaking them: what those five
+ * reached for was the browser's `Date`, and a `Date` spells nothing. The grow
+ * page aged its freshness line off `new Date(query.dataUpdatedAt)`, which is a
+ * millisecond this browser noted measured against the server's now - a laptop
+ * three quarters of an hour slow was told a read that had just landed was
+ * three quarters of an hour old, and one running fast was told "0 s ago" for
+ * ever, because an age below zero is clamped. And the sheets that record
+ * something after the fact read their day with `getFullYear`/`getMonth`/
+ * `getDate` and wrote it back with `setFullYear`, which is the browser's
+ * calendar and not the account's: a grower east of their account picked the day
+ * their tent stood through and filed the line a grow day early.
+ *
+ * So there are two more sweeps here. Neither can see what a file means by the
+ * instant it makes, and neither tries to: the first says that a file minting an
+ * instant of its own has to have met `api/clock`, and the second that nothing
+ * reads a calendar field off a `Date`, because Luxon and `ui/zone` are how a
+ * day boundary is asked for.
+ */
+describe('every instant the app makes for itself', () => {
+  /**
+   * The browser's own clock, and the two ways an instant is minted from it: a
+   * `Date` or a `Date.now()` with nothing to read but the machine's idea of the
+   * hour, and an ISO instant written out of one. `new Date(someInstant)` is not
+   * here - parsing an instant the server sent is not reading a clock.
+   */
+  const BROWSER_CLOCK = /new Date\(\s*\)|Date\.now\(\s*\)|\.toISOString\(\)/;
+
+  const CLOCK_IMPORT = /from '(@\/api\/clock|\.\/clock|\.\.\/clock|\.\.\/api\/clock)'/;
+
+  /**
+   * Where the browser's clock is the right answer, with the reason.
+   *
+   * `api/clock.ts` is the rule itself, and `api/client.ts` is where the offset
+   * is learned - both hold a pair of the browser's own instants on purpose. The
+   * undo window is the same thing: the queue stamps `Date.now() + 5s` and the
+   * toast counts down to it, so the two are a stopwatch measured wholly on one
+   * clock, and the server's opinion of the hour would not improve it.
+   */
+  const EXEMPT = ['src/api/clock.ts', 'src/api/client.ts', 'src/log/LogProvider.tsx', 'src/log/Toasts.tsx'];
+
+  /**
+   * One sheet that opens its backdating field on the browser's own now, and is
+   * not fixed here: the new-grow sheet is open in front of another pass, where
+   * two passes editing one file is a conflict rather than a fix. A debt and not
+   * a reason, so the check below insists it is still an offender - whoever
+   * fixes the file deletes the entry, or the suite fails asking why it is here.
+   */
+  const NOT_YET = ['src/screens/grow/new/NewGrowSheet.tsx'];
+
+  const mintsAnInstant = (path: string): boolean => {
+    const source = readFileSync(resolve(process.cwd(), path), 'utf8');
+
+    return BROWSER_CLOCK.test(source) && !CLOCK_IMPORT.test(source);
+  };
+
+  it('reads the server´s clock for it, or says in the list here why the browser´s is the right one', () => {
+    const offenders = files('src')
+      .filter(path => !EXEMPT.includes(path) && !NOT_YET.includes(path))
+      .filter(mintsAnInstant);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('still owes the clock to the sheet another pass is holding, and will say so until it is fixed', () => {
+    expect(NOT_YET.filter(mintsAnInstant)).toEqual(NOT_YET);
+  });
+});
+
+describe('every day the app reads off a Date', () => {
+  /**
+   * A calendar field of a `Date`, read or written. Every one of these is the
+   * browser's own zone with no way to ask for another, so a day, a month or an
+   * hour taken off one is a day boundary decided where the reader happens to be
+   * sitting. `getTime` is not among them: milliseconds are an instant, and an
+   * instant is the same everywhere.
+   */
+  const BROWSER_CALENDAR = /\.(get|set)(FullYear|Month|Date|Day|Hours|Minutes|Seconds|Milliseconds)\(/;
+
+  /** Nothing yet. A day is asked for through `ui/zone`, which is told which zone to read it in. */
+  const EXEMPT: string[] = [];
+
+  const readsTheBrowsersCalendar = (path: string): boolean => BROWSER_CALENDAR.test(readFileSync(resolve(process.cwd(), path), 'utf8'));
+
+  it('asks Luxon and the account´s zone for it, because a day begins where the account is', () => {
+    const offenders = files('src')
+      .filter(path => !EXEMPT.includes(path))
+      .filter(readsTheBrowsersCalendar);
+
+    expect(offenders).toEqual([]);
   });
 });

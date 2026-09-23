@@ -2,6 +2,7 @@ import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowthStage, Plant, Space } from '@fg2/shared-types/v1';
+import { serverNow } from '@/api/clock';
 import { useSplit } from '@/api/lifecycle';
 import { Sheet } from '@/log/Sheet';
 import { instantOf } from '@/ui/age';
@@ -61,7 +62,8 @@ export function SplitSheet({
   const [stage, setStage] = useState<GrowthStage | null>(null);
   const [preset, setPreset] = useState<string | null>(null);
   const [spaceId, setSpaceId] = useState<string | null | undefined>(undefined);
-  const [at, setAt] = useState(() => new Date());
+  // Now as the server reckons it, which is the clock the day field's cap is on.
+  const [at, setAt] = useState(() => serverNow().toJSDate());
 
   const staying = plants.length - chosen.length;
   const ready = chosen.length > 0 && (stage !== null || spaceId !== undefined);

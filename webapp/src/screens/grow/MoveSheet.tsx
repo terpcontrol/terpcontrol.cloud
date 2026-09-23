@@ -2,6 +2,7 @@ import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, Placement, Plant, Space } from '@fg2/shared-types/v1';
+import { serverNow } from '@/api/clock';
 import { ApiError } from '@/api/problem';
 import { useCorrectPlacement, useMovePlants, useWithdrawPlacement } from '@/api/lifecycle';
 import { Sheet } from '@/log/Sheet';
@@ -47,7 +48,10 @@ export function MoveSheet({
   const open = spaces.filter(space => space.archivedAt === null && space.kind !== 'room' && enough(space.youMay, 'manage'));
   const [spaceId, setSpaceId] = useState<string | null>(() => open.find(space => !standsIn(grow, space.id))?.id ?? null);
   const [chosen, setChosen] = useState<string[] | null>(preselect ?? null);
-  const [at, setAt] = useState(() => new Date());
+  // Now as the server reckons it. The day field below caps at the server's
+  // today, so a browser running fast would open this sheet on a day its own
+  // control already refuses.
+  const [at, setAt] = useState(() => serverNow().toJSDate());
   const [row, setRow] = useState<{ placementId: string; as: 'correct' | 'withdraw' } | null>(null);
 
   const placements = [...grow.placements].sort((one, other) => other.startedAt.localeCompare(one.startedAt));

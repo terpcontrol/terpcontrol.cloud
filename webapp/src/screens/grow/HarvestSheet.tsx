@@ -2,6 +2,7 @@ import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, HarvestResult, Plant } from '@fg2/shared-types/v1';
+import { serverNow } from '@/api/clock';
 import { useUpdateGrow } from '@/api/grows';
 import { useHarvest } from '@/api/lifecycle';
 import { Sheet } from '@/log/Sheet';
@@ -56,7 +57,8 @@ export function HarvestSheet({
   const harvest = useHarvest(grow.id);
 
   const [chosen, setChosen] = useState<string[] | null>(preselect ?? null);
-  const [at, setAt] = useState(() => new Date());
+  // Now as the server reckons it, which is the clock the day field's cap is on.
+  const [at, setAt] = useState(() => serverNow().toJSDate());
   const [wet, setWet] = useState('');
   const [dry, setDry] = useState('');
   const [done, setDone] = useState<HarvestResult | null>(null);
@@ -200,7 +202,7 @@ function NothingPlanted({ grow, onClose }: { grow: GrowListItem; onClose: () => 
   const { t } = useTranslation();
   const zone = useZone();
   const update = useUpdateGrow(grow.id);
-  const [at, setAt] = useState(() => new Date());
+  const [at, setAt] = useState(() => serverNow().toJSDate());
 
   return (
     <>
