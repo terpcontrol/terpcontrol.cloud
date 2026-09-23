@@ -31,10 +31,13 @@ __exportStar(require("./growing.js"), exports);
 __exportStar(require("./diary.js"), exports);
 // No schema, so nothing of it reaches `v1.d.ts` or the API document: constants
 // the server and the simulator both decode a device's socket report with, the
-// arithmetic the feed sheet and the entry writer both read a grid with, and the
-// curve the charts and the targets screen both work a VPD out along.
+// arithmetic the feed sheet and the entry writer both read a grid with, the days
+// and weeks a stage covers that the phase bar, the week cards and the report's
+// chapters all state, and the curve the charts and the targets screen both work
+// a VPD out along.
 __exportStar(require("./socket-report.js"), exports);
 __exportStar(require("./feeding.js"), exports);
+__exportStar(require("./grow-days.js"), exports);
 __exportStar(require("./climate-presets.js"), exports);
 __exportStar(require("./alert-routing.js"), exports);
 __exportStar(require("./vpd.js"), exports);

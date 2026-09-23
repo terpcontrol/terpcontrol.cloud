@@ -289,6 +289,25 @@ describe('the phase bar', () => {
     expect(container).toHaveTextContent('Flowerday 11');
     expect(container).toHaveTextContent('Cure');
   });
+
+  it('counts a stage in the grow´s own whole days, the same days the report´s chapters are told in', () => {
+    // The flip was pressed at two in the morning rather than on the hour the
+    // grow's own day turns over. Rounding the elapsed milliseconds made veg a
+    // day longer than the chapter beneath it on the same screen said.
+    const flipped: GrowListItem = {
+      ...grow,
+      phases: [grow.phases[0], { ...grow.phases[1], startedAt: at(10, 2) }],
+      endedAt: at(0, 10),
+      summary: { ...grow.summary, phaseDay: 10 },
+    };
+
+    const { container } = draw(<PhaseBar grow={flipped} now={NOW} />);
+
+    // Day 1 begins with the veg phase and the flip falls inside day 24, so veg
+    // is days 1 to 23 and flowering begins on day 24.
+    expect(container).toHaveTextContent('Veg23 d');
+    expect(container).toHaveTextContent('Flowerday 10');
+  });
 });
 
 describe('a week card', () => {

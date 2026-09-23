@@ -15,6 +15,7 @@ export * from './growing.js';
 export * from './diary.js';
 export * from './socket-report.js';
 export * from './feeding.js';
+export * from './grow-days.js';
 export * from './climate-presets.js';
 export * from './alert-routing.js';
 export * from './vpd.js';

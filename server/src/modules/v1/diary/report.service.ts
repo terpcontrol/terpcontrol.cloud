@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { EntryKind, GrowHarvest, GrowReport, GrowReportPhase, GrowTotals } from '@fg2/shared-types/v1';
+import { type StageSpan, stageSpansOf } from '@fg2/shared-types/v1-schemas';
 import { AccessRange, Grant } from '@common/v1/access.types';
 import { clampRange, overlapsRange, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
@@ -46,13 +47,8 @@ const COVER_WINDOW_MS = 12 * 60 * 60 * 1000;
 /** A safety net. A grow's human diary is hundreds of lines, not hundreds of thousands. */
 const MAX_ENTRIES = 5000;
 
-/** One stretch of the grow at one stage, before it is answered. */
-interface Chapter {
-  phase: GrowDocument['phases'][number];
-  startsAt: Date;
-  /** Where the next phase took over, or null while this is the phase the grow is in. */
-  endsAt: Date | null;
-}
+/** One stretch of the grow at one stage, before it is answered: the shared span with its phase. */
+type Chapter = StageSpan<GrowDocument['phases'][number]>;
 
 @Injectable()
 export class GrowReportService {
@@ -78,8 +74,8 @@ export class GrowReportService {
       this.totalsOf(growId, grant),
     ]);
 
-    const chapters = chaptersOf(grow, horizon).filter(chapter => overlapsRange(range, chapter.startsAt, chapter.endsAt ?? horizon));
-    const told = await Promise.all(chapters.map(chapter => this.chapterOf(chapter, { grow, hide, grant, range, origin, horizon, diary })));
+    const chapters = stageSpansOf(grow, horizon).filter(chapter => overlapsRange(range, chapter.startsAt, chapter.endsAt ?? horizon));
+    const told = await Promise.all(chapters.map(chapter => this.chapterOf(chapter, { grow, hide, grant, range, horizon, diary })));
 
     const named = told.flatMap(chapter => chapter.training);
     const rows = await this.users.find({ id: { $in: authorIdsOf(named) } }, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>();
@@ -105,7 +101,7 @@ export class GrowReportService {
   }
 
   private async chapterOf(chapter: Chapter, world: ReportWorld): Promise<GrowReportPhase> {
-    const { grow, origin, horizon } = world;
+    const { grow, horizon } = world;
     const endsAt = chapter.endsAt ?? horizon;
     const spaceIds = spacesDuring(grow, chapter.startsAt, endsAt);
     const entries = world.diary.filter(entry => entry.occurredAt >= chapter.startsAt && entry.occurredAt < endsAt);
@@ -130,11 +126,12 @@ export class GrowReportService {
       preset: chapter.phase.preset,
       startedAt: chapter.startsAt.toISOString(),
       endedAt: chapter.endsAt?.toISOString() ?? null,
-      dayFrom: dayNumberOf(origin, chapter.startsAt),
-      // A chapter ends where the next one begins, so its last day is the day
-      // before that instant rather than the day the next phase started on.
-      dayTo: chapter.endsAt ? dayNumberOf(origin, new Date(chapter.endsAt.getTime() - 1)) : null,
-      dayCount: dayNumberOf(origin, new Date(endsAt.getTime() - 1)) - dayNumberOf(origin, chapter.startsAt) + 1,
+      dayFrom: chapter.dayFrom,
+      // The day before the next chapter's first, so the chapters are a partition
+      // of the grow and add up to the day count above them. Null while the phase
+      // is the one the grow is in, which is what "\u2192 today" says.
+      dayTo: chapter.endsAt ? chapter.dayTo : null,
+      dayCount: chapter.dayCount,
       // A chapter tells where the plants stood only to somebody who keeps them:
       // a public diary is a story, and the spaces it names are addresses in
       // somebody's flat that tie it to the rest of their account.
@@ -255,28 +252,12 @@ interface ReportWorld {
   grant: Grant;
   /** The window the chapters and everything they are built from are clamped to. */
   range: AccessRange;
-  origin: Date;
   horizon: Date;
   diary: EntryDocument[];
 }
 
 const latestOf = (one: Date, other: Date | null): Date => (other && other > one ? other : one);
 const earliestOf = (one: Date, other: Date | null): Date => (other && other < one ? other : one);
-
-/**
- * The grow's spine: the phases the whole grow went through, each ending where
- * the next begins. A phase scoped to some of the plants is a split and gets no
- * chapter of its own - "4 drying in the fridge" is told in the timeline, and a
- * chapter that covered half the plants would say the grow was drying when most
- * of it was still in flower.
- */
-const chaptersOf = (grow: GrowDocument, horizon: Date): Chapter[] => {
-  const spine = grow.phases
-    .filter(phase => phase.plantIds === null && phase.startedAt <= horizon)
-    .sort((one, other) => one.startedAt.getTime() - other.startedAt.getTime());
-
-  return spine.map((phase, index) => ({ phase, startsAt: phase.startedAt, endsAt: spine[index + 1]?.startedAt ?? grow.endedAt ?? null }));
-};
 
 /**
  * One harvest for the whole grow: when the first plant came down, and what the

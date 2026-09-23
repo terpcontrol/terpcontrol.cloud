@@ -819,6 +819,23 @@ describe('the report', () => {
     expect(answer.dayCount).toBe(34);
   });
 
+  it('gives the chapters day ranges that tile the grow, whatever hour of the day a phase began at', async () => {
+    // A phase begins at whatever minute somebody pressed the button, which is
+    // almost never the hour the grow's own day turns over. A chapter that ended
+    // on the day the next one started counted that day twice, and six phases
+    // then added up to five days more than the grow they belonged to.
+    await db.grows.updateOne({ id: GROW }, { $set: { 'phases.1.startedAt': onDay(8, -1), 'phases.2.startedAt': onDay(23, -1) } });
+
+    const answer = await report.read(GROW, await grantFor(session(OWNER)), NOW);
+
+    expect(answer.phases.map(chapter => [chapter.dayFrom, chapter.dayTo])).toEqual([
+      [22, null],
+      [7, 21],
+      [1, 6],
+    ]);
+    expect(answer.phases.reduce((sum, chapter) => sum + chapter.dayCount, 0)).toBe(answer.dayCount);
+  });
+
   it('leaves a split out of the chapters, because it is not what the grow did', async () => {
     await db.grows.updateOne({ id: GROW }, { $push: { phases: { ...phase('phase-drying', 'drying', 30), plantIds: [PLANT] } } });
 

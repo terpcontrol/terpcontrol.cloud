@@ -1,29 +1,9 @@
-import { DateTime } from 'luxon';
+import { daysPerStageOf, stageSpansOf } from '@fg2/shared-types/v1-schemas/grow-days.js';
+import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
-import type { GrowListItem, GrowthStage } from '@fg2/shared-types/v1';
+import type { GrowListItem } from '@fg2/shared-types/v1';
 import { STAGES } from '@/ui/stages';
 import styles from './GrowPage.module.css';
-
-const DAY_MS = 86_400_000;
-
-/**
- * How long the grow spent in each stage, from its own phases: a phase lasts
- * until the next one begins, and the one it is in lasts until now. A phase
- * scoped to some of the plants is a split and is not counted here - the bar
- * is the grow's spine, and a split is told in the timeline.
- */
-const daysInStage = (grow: GrowListItem, now: DateTime): Partial<Record<GrowthStage, number>> => {
-  const spine = grow.phases.filter(phase => phase.plantIds === null).sort((one, other) => one.startedAt.localeCompare(other.startedAt));
-  const days: Partial<Record<GrowthStage, number>> = {};
-
-  spine.forEach((phase, index) => {
-    const from = DateTime.fromISO(phase.startedAt);
-    const until = spine[index + 1] ? DateTime.fromISO(spine[index + 1].startedAt) : grow.endedAt ? DateTime.fromISO(grow.endedAt) : now;
-    days[phase.stage] = (days[phase.stage] ?? 0) + Math.max(0, Math.round((until.toMillis() - from.toMillis()) / DAY_MS));
-  });
-
-  return days;
-};
 
 /**
  * The six stages as segments, each named under its segment: a past one with
@@ -32,12 +12,18 @@ const daysInStage = (grow: GrowListItem, now: DateTime): Partial<Record<GrowthSt
  * germinate here, and a bar filled up to its stage would say it had. No
  * durations are planned here - the plan is what would give the segments their
  * length - so the segments are equal and the words carry the time.
+ *
+ * How long each stage took is the shared arithmetic the report's chapters are
+ * counted with, rather than a rounding of the milliseconds between two phase
+ * starts. The two sat a few centimetres apart on the Report tab and disagreed
+ * about four phases of six, because a phase almost never begins on a grow-day
+ * boundary and only one of them counted in whole days.
  */
 export function PhaseBar({ grow, now }: { grow: GrowListItem; now: DateTime }) {
   const { t } = useTranslation();
   const stage = grow.summary.stage;
   const current = stage ? STAGES.indexOf(stage) : -1;
-  const days = daysInStage(grow, now);
+  const days = daysPerStageOf(stageSpansOf(grow, grow.endedAt ? new Date(grow.endedAt) : now.toJSDate()));
 
   return (
     <div

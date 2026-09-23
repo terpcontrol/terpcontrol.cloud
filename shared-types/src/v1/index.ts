@@ -16,10 +16,13 @@ export * from './diary.js';
 
 // No schema, so nothing of it reaches `v1.d.ts` or the API document: constants
 // the server and the simulator both decode a device's socket report with, the
-// arithmetic the feed sheet and the entry writer both read a grid with, and the
-// curve the charts and the targets screen both work a VPD out along.
+// arithmetic the feed sheet and the entry writer both read a grid with, the days
+// and weeks a stage covers that the phase bar, the week cards and the report's
+// chapters all state, and the curve the charts and the targets screen both work
+// a VPD out along.
 export * from './socket-report.js';
 export * from './feeding.js';
+export * from './grow-days.js';
 export * from './climate-presets.js';
 export * from './alert-routing.js';
 export * from './vpd.js';
