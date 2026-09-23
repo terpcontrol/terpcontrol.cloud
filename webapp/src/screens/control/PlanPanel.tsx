@@ -198,11 +198,11 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
 
           {going ? (
             <p className={`mono ${styles.clock}`}>
-              {t('space.control.served', { age: spanLabel(elapsedMs(plan.state, now), now) })}
+              {t('space.control.served', { age: spanLabel(elapsedMs(plan.state, now)) })}
               {isOpenEnded(step.duration)
                 ? ` · ${t('space.control.openEnded')}`
                 : left !== null
-                  ? ` · ${t('space.control.left', { age: spanLabel(left, now) })}`
+                  ? ` · ${t('space.control.left', { age: spanLabel(left) })}`
                   : ` · ${t('space.control.over')}`}
             </p>
           ) : null}
@@ -215,7 +215,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
         <div className={`${ui.cardDashed} ${styles.waiting}`} role="status">
           <span className="label">{t('space.control.waiting.title')}</span>
           <p className={styles.waitingWhat}>{step.confirmationMessage || t('space.control.waiting.noMessage')}</p>
-          <p className={ui.note}>{t('space.control.waiting.since', { age: spanLabel(overdueMs(plan, now) ?? 0, now) })}</p>
+          <p className={ui.note}>{t('space.control.waiting.since', { age: spanLabel(overdueMs(plan, now) ?? 0) })}</p>
         </div>
       ) : null}
 

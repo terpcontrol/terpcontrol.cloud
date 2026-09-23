@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { serverNow } from '@/api/clock';
 import { useMoveGrowHere } from '@/api/lifecycle';
 import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
 import { Sheet } from '@/log/Sheet';
@@ -33,7 +34,7 @@ export function MoveHereSheet({ spaceId, spaceName, onClose }: { spaceId: string
   const mayManage = useMayManage(spaceId);
 
   const [growId, setGrowId] = useState<string | null>(null);
-  const [at, setAt] = useState(() => new Date());
+  const [at, setAt] = useState(() => serverNow().toJSDate());
   const [starting, setStarting] = useState(false);
 
   if (starting) return <NewGrowSheet spaceId={spaceId} onClose={onClose} />;

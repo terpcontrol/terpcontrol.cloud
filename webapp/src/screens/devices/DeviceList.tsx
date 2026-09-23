@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { ActuatorRuns, Camera, ClimateVerdict, Device, OutputMetric, SocketPage, SocketRole, ValueState } from '@fg2/shared-types/v1';
 import { useCameras, useLatestStills } from '@/api/cameras';
+import { fetchedAt } from '@/api/clock';
 import { useDeviceFirmwares, useDevices, useLightLevels, useSocketTables } from '@/api/devices';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
@@ -59,7 +60,7 @@ export function DeviceList({ spaceId, verdict }: { spaceId?: string; verdict?: C
   const levels = useLightLevels(mine.map(device => device.id));
   const stills = useLatestStills(shown.map(camera => camera.id));
 
-  useReportFreshness(devices.dataUpdatedAt ? new Date(devices.dataUpdatedAt).toISOString() : null);
+  useReportFreshness(devices.dataUpdatedAt ? fetchedAt(devices.dataUpdatedAt) : null);
 
   if (devices.isPending || cameras.isPending) return <Waiting lines={3} />;
   if (!devices.data || !cameras.data) return <LoadFailed retry={() => void devices.refetch()} />;

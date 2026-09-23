@@ -1,7 +1,8 @@
-import { DateTime } from 'luxon';
+import type { DateTime } from 'luxon';
 import type { Device, DeviceConfiguration, DeviceSettings, GrowthStage } from '@fg2/shared-types/v1';
 import { climatePreset, PRESETS_OF_STAGE, STAGES_WITH_CLIMATE, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
+import { serverNow } from '@/api/clock';
 
 /**
  * The targets a controller holds by hand, read out of its configuration
@@ -206,7 +207,7 @@ export const leafOffset = (settings: DeviceSettings, when: 'day' | 'night'): num
  * lights at six is stored as four; the label says what the clock on the wall
  * will say. Minutes are shown only where a window does not fall on the hour.
  */
-export const lightWindowLabel = (draft: TargetsDraft, now: DateTime = DateTime.now()): string => {
+export const lightWindowLabel = (draft: TargetsDraft, now: DateTime = serverNow()): string => {
   const midnight = now.toUTC().startOf('day');
   const on = midnight.plus({ seconds: draft.lightsOn }).toLocal();
   const off = midnight.plus({ seconds: draft.lightsOn + Math.round(draft.lightHours * HOUR_SECONDS) }).toLocal();

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Camera, GrowListItem, MediaAspect, MediaOverlays, MediaQuality, MediaWindow, TimelapseCreate } from '@fg2/shared-types/v1';
 import { useCameras, useLatestStills } from '@/api/cameras';
+import { serverNow } from '@/api/clock';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { Sheet } from '@/log/Sheet';
 import { instantOf } from '@/ui/age';
@@ -36,8 +37,8 @@ interface ComposerProps {
 export function Composer({ camera, grow, pending, onRender, onClose }: ComposerProps) {
   const { t } = useTranslation();
   const [range, setRange] = useState<MediaWindow>('day');
-  const [from, setFrom] = useState(DateTime.now().minus({ days: 7 }).toISODate()!);
-  const [to, setTo] = useState(DateTime.now().toISODate()!);
+  const [from, setFrom] = useState(serverNow().minus({ days: 7 }).toISODate()!);
+  const [to, setTo] = useState(serverNow().toISODate()!);
   const [secondCameraId, setSecondCameraId] = useState<string | null>(null);
   const [overlays, setOverlays] = useState<MediaOverlays>({ dayCounter: true, climate: true, entries: true });
   const [includeLightsOff, setIncludeLightsOff] = useState(false);
@@ -207,7 +208,10 @@ const spanOf = (
   from: string,
   to: string,
 ): { startsAt?: string; endsAt?: string; reason: string | null } => {
-  const now = DateTime.now();
+  // The instant a rolling window is worked out around is the server's, so that
+  // the film covers the day the frames were taken on rather than the day this
+  // browser thinks it is.
+  const now = serverNow();
 
   if (range === 'day' || range === 'week' || range === 'month') return { startsAt: instantOf(now), reason: null };
 

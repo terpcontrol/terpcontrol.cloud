@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { User } from '@fg2/shared-types/v1';
 import { useAdminCameras, useAdminDevices, useAdminStats, useAdminUsers, useDeviceClasses, useFirmwares, useFleet } from '@/api/admin';
+import { fetchedAt } from '@/api/clock';
 import { useSession } from '@/api/session';
 import { ageLabel, deviceLiveness } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
@@ -63,7 +64,7 @@ export function Fleet() {
   useFollowCursor(people);
   useFollowCursor(cameras);
   useFollowCursor(firmwares);
-  useReportFreshness(fleet.dataUpdatedAt ? new Date(fleet.dataUpdatedAt).toISOString() : null);
+  useReportFreshness(fleet.dataUpdatedAt ? fetchedAt(fleet.dataUpdatedAt) : null);
 
   const header = (
     <header className={styles.head}>

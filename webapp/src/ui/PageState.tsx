@@ -1,6 +1,7 @@
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { fetchedAt } from '@/api/clock';
 import { ApiError } from '@/api/problem';
 import { ageLabel } from './age';
 import ui from './ui.module.css';
@@ -81,14 +82,22 @@ export function NoLongerHere({ what }: { what: Subject }) {
   );
 }
 
-/** A refresh that failed while the page still shows what it knew: one line, and nothing removed. */
+/**
+ * A refresh that failed while the page still shows what it knew: one line, and
+ * nothing removed.
+ *
+ * The instant is the one this browser noted as the read came back, while `now`
+ * is the server's, so it is restated on the server's clock before the two are
+ * subtracted. The age itself is the same either way - the offset cancels - but
+ * mixing the two clocks would date the failure by however far they differ.
+ */
 export function RefreshFailed({ failedAt, now }: { failedAt: number | null; now: DateTime }) {
   const { t } = useTranslation();
   if (!failedAt) return null;
 
   return (
     <p className={`mono ${styles.refreshFailed}`} role="status">
-      {t('home.refreshFailed', { age: ageLabel(new Date(failedAt).toISOString(), now) })}
+      {t('home.refreshFailed', { age: ageLabel(fetchedAt(failedAt), now) })}
     </p>
   );
 }

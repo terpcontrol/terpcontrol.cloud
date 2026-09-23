@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 import type { DurationUnit, Plan, PlanStep, PlanState, StepDuration } from '@fg2/shared-types/v1';
-import { ageLabel } from '@/ui/age';
+import { spanLabel as wordsFor } from '@/ui/age';
 
 /**
  * Where a plan stands, read the way the server reads it.
@@ -120,6 +120,7 @@ export const overdueMs = (plan: Plan, now: DateTime): number | null => {
 /**
  * A span of milliseconds in the words every other age on a screen is put in.
  * The app has one way of saying "4 min" and this borrows it rather than
- * rounding a second time.
+ * rounding a second time. A span is a length and not an instant, so no clock
+ * comes into it.
  */
-export const spanLabel = (ms: number, now: DateTime): string => (Number.isFinite(ms) ? ageLabel(now.minus(ms).toISO()!, now) : '—');
+export const spanLabel = (ms: number): string => (Number.isFinite(ms) ? wordsFor(ms / 1000) : '—');

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { serverNow } from '@/api/clock';
 import { dayOf, momentOn } from './days';
 import ui from './ui.module.css';
 import styles from './SheetParts.module.css';
@@ -33,7 +34,9 @@ export function Choice({ chosen, onChoose, disabled, children }: { chosen: boole
 /**
  * When it happened. Dated rather than timed, and never later than today: these
  * sheets record what has already been done, and a phase entered for next
- * Tuesday would run the day counter into the future.
+ * Tuesday would run the day counter into the future. Which day is today is the
+ * server's answer, because it is the server that will refuse an instant in its
+ * own future.
  */
 export function WhenField({ label, at, onChange }: { label: string; at: Date; onChange: (at: Date) => void }) {
   return (
@@ -42,7 +45,7 @@ export function WhenField({ label, at, onChange }: { label: string; at: Date; on
       <input
         className={`mono ${styles.whenInput}`}
         type="date"
-        max={dayOf(new Date())}
+        max={dayOf(serverNow().toJSDate())}
         value={dayOf(at)}
         onChange={event => event.target.value && onChange(momentOn(event.target.value, at))}
       />

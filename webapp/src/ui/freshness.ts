@@ -26,7 +26,12 @@ const report = (at: string | null) => {
 
 export const useFreshness = (): string | null => useSyncExternalStore(subscribe, read, read);
 
-/** Reported while the screen is mounted; a screen with nothing to report leaves the line blank. */
+/**
+ * Reported while the screen is mounted; a screen with nothing to report leaves
+ * the line blank. The instant is one the server stamped, or one this browser
+ * noted restated on the server's clock with `fetchedAt`, because the line under
+ * the wordmark ages it against the server's now like every other age.
+ */
 export const useReportFreshness = (at: string | null) => {
   useEffect(() => {
     report(at);

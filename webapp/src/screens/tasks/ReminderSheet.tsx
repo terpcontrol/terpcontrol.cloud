@@ -2,6 +2,7 @@ import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowOrSpaceRef, Reminder, ReminderCreate, ReminderKind, Space } from '@fg2/shared-types/v1';
+import { serverNow } from '@/api/clock';
 import { useCreateReminder, useDeleteReminder, useUpdateReminder } from '@/api/reminders';
 import { Sheet } from '@/log/Sheet';
 import { instantOf } from '@/ui/age';
@@ -166,7 +167,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
               <input
                 className={`mono ${styles.fieldInput}`}
                 type="date"
-                min={dayOf(new Date())}
+                min={dayOf(serverNow().toJSDate())}
                 value={draft.onceOn}
                 onChange={event => change({ onceOn: event.target.value })}
               />
@@ -287,7 +288,7 @@ const draftOf = (reminder: Reminder | null, userId: string): Draft => {
     subject: reminder?.subject ?? null,
     rhythm: reminder?.onceAt ? 'once' : 'every',
     everyDays: reminder?.everyDays ?? DEFAULT_EVERY_DAYS,
-    onceOn: reminder?.onceAt ? dayOf(new Date(reminder.onceAt)) : dayOf(new Date()),
+    onceOn: reminder?.onceAt ? dayOf(new Date(reminder.onceAt)) : dayOf(serverNow().toJSDate()),
     forWhom: !reminder || reminder.assigneeId === null ? 'everyone' : reminder.assigneeId === userId ? 'me' : 'other',
     litres: litres === null ? '' : String(litres),
   };

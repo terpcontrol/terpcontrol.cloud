@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { HomeAnswer } from '@fg2/shared-types/v1';
+import { fetchedAt } from '@/api/clock';
 import { useHome } from '@/api/home';
 import { ageLabel } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
@@ -30,7 +31,7 @@ export function Home() {
   // its own first answer.
   const [starting, setStarting] = useState(false);
 
-  useReportFreshness(home.dataUpdatedAt ? new Date(home.dataUpdatedAt).toISOString() : null);
+  useReportFreshness(home.dataUpdatedAt ? fetchedAt(home.dataUpdatedAt) : null);
 
   if (home.isPending) return <Waiting />;
   if (home.isError && !home.data) {
@@ -94,7 +95,7 @@ function Cards({ answer, failedAt, onStartGrow }: { answer: HomeAnswer; failedAt
 
       {failedAt ? (
         <p className={`mono ${styles.failed}`} role="status">
-          {t('home.refreshFailed', { age: ageLabel(new Date(failedAt).toISOString(), now) })}
+          {t('home.refreshFailed', { age: ageLabel(fetchedAt(failedAt), now) })}
         </p>
       ) : null}
 

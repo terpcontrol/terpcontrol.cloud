@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { SpaceTimeline, TimelineRange } from '@fg2/shared-types/v1';
+import { fetchedAt } from '@/api/clock';
 import { useGrow } from '@/api/grows';
 import { rangeNeedsGrow, useTimeline } from '@/api/timeline';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
@@ -54,7 +55,7 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
   const growId = pinned ?? data?.growId ?? null;
   const grow = useGrow(growId);
 
-  useReportFreshness(reportsAge && timeline.dataUpdatedAt ? new Date(timeline.dataUpdatedAt).toISOString() : null);
+  useReportFreshness(reportsAge && timeline.dataUpdatedAt ? fetchedAt(timeline.dataUpdatedAt) : null);
 
   const scrub = useScrub(fraction => {
     if (data) setCursor(at(data.startsAt) + fraction * (at(data.endsAt) - at(data.startsAt)));

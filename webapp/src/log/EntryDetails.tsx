@@ -12,6 +12,7 @@ import type {
   GrowthStage,
   MeasurementDefinition,
 } from '@fg2/shared-types/v1';
+import { serverNow } from '@/api/clock';
 import { correctEntry, diaryChanged, startPhase, takeEntryBack, useRecentEntries, writeEntry } from '@/api/entries';
 import { useGrow } from '@/api/grows';
 import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
@@ -79,7 +80,7 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
   // When the line says it happened, and whether anybody said so: a new line
   // left alone is "now", which is the server's own default, and a correction
   // that did not touch the day keeps the instant it already had.
-  const [at, setAt] = useState<Date>(() => (entry ? new Date(entry.occurredAt) : new Date()));
+  const [at, setAt] = useState<Date>(() => (entry ? new Date(entry.occurredAt) : serverNow().toJSDate()));
   const [dated, setDated] = useState(false);
   const [litres, setLitres] = useState<number | null>(entry ? litresOf(entry) : opensOn);
   const [readings, setReadings] = useState<Record<string, string>>(() => typed(readingsOf(entry)));
@@ -91,7 +92,7 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
   const [failed, setFailed] = useState<'save' | 'back' | null>(null);
   const [askingBack, setAskingBack] = useState(false);
 
-  const today = dayOf(new Date());
+  const today = dayOf(serverNow().toJSDate());
   const step = schemeStep(grow, at);
   // What the line will say it is: the day it is dated to, not the day it is being written on.
   const filed = { ...target, dayNumber: dayAt(grow, target, at) };

@@ -2,7 +2,7 @@ import { DateTime } from 'luxon';
 import type { AlarmRule, Alert, Me, OutputLevelWatch, ReadingWatch, Severity } from '@fg2/shared-types/v1';
 import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { routedChannels } from '@/screens/control/alarms/rules';
-import { ageLabel, instantOf } from '@/ui/age';
+import { ageLabel } from '@/ui/age';
 
 /**
  * How the inbox is cut up, which bound a reading crossed, and whether anybody
@@ -76,9 +76,6 @@ export const crossedBound = (
   if (lower !== null) return { over: false, bound: lower };
   return null;
 };
-
-/** A length of time in the words an age is put in: "20 s", "4 min", "2 h", "3 d". */
-export const spanLabel = (seconds: number, now: DateTime): string => ageLabel(instantOf(now.minus({ seconds })), now);
 
 /** How long an alert has stood: until now while it is open, until it resolved once it has. */
 export const lastedLabel = (alert: Alert, now: DateTime): string =>

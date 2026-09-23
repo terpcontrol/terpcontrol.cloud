@@ -2,6 +2,7 @@ import type { DateTime } from 'luxon';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Reminder, Task } from '@fg2/shared-types/v1';
+import { fetchedAt } from '@/api/clock';
 import { useDevices } from '@/api/devices';
 import { useGrows } from '@/api/grows';
 import { useReminders } from '@/api/reminders';
@@ -52,7 +53,7 @@ export function Tasks() {
   const now = useNow();
   const waiting = useTasks(false);
 
-  useReportFreshness(waiting.dataUpdatedAt ? new Date(waiting.dataUpdatedAt).toISOString() : null);
+  useReportFreshness(waiting.dataUpdatedAt ? fetchedAt(waiting.dataUpdatedAt) : null);
 
   if (waiting.isPending) {
     return (

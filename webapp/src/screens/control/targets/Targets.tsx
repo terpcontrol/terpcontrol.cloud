@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Device, DeviceConfiguration } from '@fg2/shared-types/v1';
+import { serverNow } from '@/api/clock';
 import { useSaveConfiguration } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
@@ -135,7 +136,7 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
     try {
       if (status === 'running') await move.mutateAsync({ kind: 'pause', reason: t('targets.pauseReason') });
       await save.mutateAsync({ deviceId: device.id, configuration: withDraft(stored, draft) });
-      setSent({ draft, at: DateTime.now() });
+      setSent({ draft, at: serverNow() });
     } catch {
       // Shown under the bar, from the mutation that refused.
     }

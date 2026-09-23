@@ -1,8 +1,8 @@
-import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowListItem, GrowOrSpaceRef, ShareKind, Space } from '@fg2/shared-types/v1';
+import { serverNow } from '@/api/clock';
 import { useCreateShareLink } from '@/api/sharing';
 import { Sheet } from '@/log/Sheet';
 import { instantOf } from '@/ui/age';
@@ -60,7 +60,7 @@ export function NewLinkSheet({ grows, spaces, onClose }: { grows: GrowListItem[]
         kind,
         subject,
         includeCameras: cams,
-        expiresAt: kind === 'public_page' || days === null ? null : instantOf(DateTime.now().plus({ days })),
+        expiresAt: kind === 'public_page' || days === null ? null : instantOf(serverNow().plus({ days })),
       },
       { onSuccess: onClose },
     );

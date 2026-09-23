@@ -6,12 +6,11 @@ import type { Alert, AlarmRule, Device, Me, Metric, OutputMetric } from '@fg2/sh
 import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
 import { ruleTitle } from '@/screens/control/alarms/rules';
-import { ageAttribute, ageLabel } from '@/ui/age';
+import { ageAttribute, ageLabel, isAhead, spanLabel } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { figure, targetFigure, UNIT } from '../home/units';
-import { isAhead } from '@/ui/age';
-import { clock, crossedBound, deliveryOf, lastedLabel, spanLabel } from './inbox';
+import { clock, crossedBound, deliveryOf, lastedLabel } from './inbox';
 import type { AlertNames } from './names';
 import ask from './AlertCard.module.css';
 import styles from './Alerts.module.css';
@@ -149,6 +148,9 @@ interface What {
  * the alert's start, because what a reader wants to know is how long the tent
  * has gone unwatched and not how long ago the cloud noticed. A device this
  * account cannot see leaves the alert's own start as the only answer there is.
+ * Both instants are the server's, and so is the now they are taken from: a
+ * silence is the whole of what such a card says, and a browser an hour out
+ * would add that hour to it while the "since" beside it stayed put.
  */
 const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Device | null, now: DateTime): What => {
   switch (alert.kind) {
@@ -160,20 +162,20 @@ const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Devi
     case 'camera_stale':
       return { label: t('alerts.what.cameraSince', { time: clock(alert.startedAt) }), figure: null };
     case 'threshold':
-      return rule ? watched(t, alert, rule, now) : { label: t('alerts.what.threshold'), figure: alert.value === null ? null : String(alert.value) };
+      return rule ? watched(t, alert, rule) : { label: t('alerts.what.threshold'), figure: alert.value === null ? null : String(alert.value) };
   }
 };
 
 /** A figure and what belongs to it, held together so a narrow card wraps the pair rather than splitting it. */
 const tight = (part: string): string => part.replace(/ /g, ' ');
 
-const watched = (t: Translate, alert: Alert, rule: AlarmRule, now: DateTime): What => {
+const watched = (t: Translate, alert: Alert, rule: AlarmRule): What => {
   const { watch } = rule;
   if (watch.kind === 'output_running') {
     return {
       label: t('alerts.what.running', { output: outputName(t, watch.output) }),
       // A rule that trips the moment its output starts has no span to name.
-      figure: rule.forSeconds > 0 ? tight(`› ${spanLabel(rule.forSeconds, now)}`) : null,
+      figure: rule.forSeconds > 0 ? tight(`› ${spanLabel(rule.forSeconds)}`) : null,
     };
   }
 
@@ -231,7 +233,7 @@ const metaOf = (
     if (rule.severity !== alert.severity) parts.push(t('alerts.meta.ruleNow', { severity: t(`alerts.severity.${rule.severity}`) }));
 
     const delivery = deliveryOf(alert, rule, me);
-    if (delivery === 'repeats') parts.push(t('alerts.meta.repeats', { every: spanLabel(rule.repeatSeconds, now) }));
+    if (delivery === 'repeats') parts.push(t('alerts.meta.repeats', { every: spanLabel(rule.repeatSeconds) }));
     else if (delivery) parts.push(t(`alerts.meta.${delivery}`));
 
     if (isAhead(rule.silencedUntil, now)) parts.push(t('alerts.meta.silenced', { time: clock(rule.silencedUntil!) }));

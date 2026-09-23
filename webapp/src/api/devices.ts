@@ -12,6 +12,7 @@ import type {
   SocketPage,
 } from '@fg2/shared-types/v1';
 import { api, apiRequest } from './client';
+import { serverNow } from './clock';
 
 /**
  * The first read, and the pattern for every one after it: a key, a route, and a
@@ -77,13 +78,16 @@ export const useLightLevels = (deviceIds: string[]) =>
       // The window is worked out per fetch rather than in the key: a key that
       // carried the current instant would be a new query every render.
       queryFn: ({ signal }: { signal: AbortSignal }) => {
-        const endsAt = new Date();
+        // The window is the server's own quarter of an hour: asked for from a
+        // browser whose clock is out, it would name a stretch of the series the
+        // device has not reached yet and come back empty.
+        const endsAt = serverNow();
         return api.get<DeviceSeries>(
           `/devices/${deviceId}/series`,
           {
             outputs: 'light',
-            startsAt: new Date(endsAt.getTime() - LEVEL_WINDOW_MINUTES * 60_000).toISOString(),
-            endsAt: endsAt.toISOString(),
+            startsAt: endsAt.minus({ minutes: LEVEL_WINDOW_MINUTES }).toUTC().toISO()!,
+            endsAt: endsAt.toUTC().toISO()!,
             stepSeconds: LEVEL_STEP_SECONDS,
           },
           signal,

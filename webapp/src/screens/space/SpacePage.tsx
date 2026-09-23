@@ -2,6 +2,7 @@ import { Box, ChevronLeft, Fan, Leaf, Refrigerator, Sun, type LucideIcon } from 
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams } from 'react-router';
 import type { SpaceKind, SpaceOverview } from '@fg2/shared-types/v1';
+import { fetchedAt } from '@/api/clock';
 import { noLongerThere } from '@/api/problem';
 import { useSpaceLive, useSpaceOverview } from '@/api/spaces';
 import { useReportFreshness } from '@/ui/freshness';
@@ -47,7 +48,7 @@ function SpaceScreen({ spaceId, tab, sub }: { spaceId: string; tab: SpaceTab; su
   const live = useSpaceLive(spaceId, (overview.data?.deviceIds?.length ?? 0) > 0);
 
   const freshestAt = Math.max(overview.dataUpdatedAt, live.dataUpdatedAt);
-  useReportFreshness(freshestAt ? new Date(freshestAt).toISOString() : null);
+  useReportFreshness(freshestAt ? fetchedAt(freshestAt) : null);
 
   if (overview.isPending) {
     return (

@@ -1,9 +1,10 @@
-import { DateTime } from 'luxon';
+import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import type { Alert } from '@fg2/shared-types/v1';
 import { notificationsWith, useMe, useUpdateMe } from '@/api/account';
 import { useAlarmRulesOf } from '@/api/alarm-rules';
 import { useOpenAlerts, useResolvedAlerts } from '@/api/alerts';
+import { fetchedAt } from '@/api/clock';
 import { useSession } from '@/api/session';
 import { instantOf } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
@@ -67,7 +68,7 @@ export function Alerts() {
   const rules = useAlarmRulesOf(ruleDevices, { refetchIntervalMs: RULES_BEAT_MS });
 
   const readAt = Math.min(open.dataUpdatedAt || Infinity, resolved.dataUpdatedAt || Infinity);
-  useReportFreshness(Number.isFinite(readAt) ? new Date(readAt).toISOString() : null);
+  useReportFreshness(Number.isFinite(readAt) ? fetchedAt(readAt) : null);
 
   const head = (
     <header className={styles.head}>
@@ -203,12 +204,7 @@ function MuteCorner({ now }: { now: DateTime }) {
           </button>
         </>
       ) : (
-        <button
-          type="button"
-          className={ui.chip}
-          disabled={update.isPending}
-          onClick={() => set(instantOf(DateTime.now().plus({ seconds: MUTE_SECONDS })))}
-        >
+        <button type="button" className={ui.chip} disabled={update.isPending} onClick={() => set(instantOf(now.plus({ seconds: MUTE_SECONDS })))}>
           {t('alerts.muteAll')}
         </button>
       )}
