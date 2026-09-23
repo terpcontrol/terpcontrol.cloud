@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Entry, SpaceTimeline } from '@fg2/shared-types/v1';
 import { EntryRow } from '@/ui/EntryRow';
 import { KIND_ICON, readingNamesOf } from '@/ui/entries';
+import { useZone } from '@/ui/zone';
 import { at, fractionOf, stampOf, stopOf } from './window';
 import styles from './Timeline.module.css';
 
@@ -36,6 +37,10 @@ interface LanesProps {
  */
 export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onScrub, scrub }: LanesProps) {
   const { t } = useTranslation();
+  // The axis is cut at midnight and the marks are titled with the hour, both
+  // of which are the account's and not this browser's: a window of a week read
+  // two zones away otherwise labels its stops with the wrong days.
+  const zone = useZone();
   // How many lines fit on the rail is a question about pixels, so the rail is
   // measured: a desktop's rail carries three times a phone's marks.
   const rail = useRef<HTMLDivElement>(null);
@@ -85,7 +90,7 @@ export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onS
                 data-severity={mark.entries.find(entry => entry.severity)?.severity ?? undefined}
                 aria-pressed={mark.key === selected}
                 style={{ left: `${fractionOf(mark.time, from, to) * 100}%` }}
-                title={stampOf(mark.time, to - from)}
+                title={stampOf(mark.time, to - from, zone)}
                 onClick={() => {
                   onSelect(mark.key === selected ? null : mark.key);
                   onScrub(mark.time);
@@ -105,7 +110,7 @@ export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onS
           const time = from + ((to - from) * index) / (AXIS_STOPS - 1);
           return (
             <span key={index} className={`mono ${styles.stop}`}>
-              {index === AXIS_STOPS - 1 && now.diff(DateTime.fromMillis(to)).as('minutes') < 2 ? t('timeline.now') : stopOf(time, to - from)}
+              {index === AXIS_STOPS - 1 && now.diff(DateTime.fromMillis(to)).as('minutes') < 2 ? t('timeline.now') : stopOf(time, to - from, zone)}
             </span>
           );
         })}

@@ -11,6 +11,7 @@ import { ageLabel } from '@/ui/age';
 import { useReportFreshness } from '@/ui/freshness';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { useZone } from '@/ui/zone';
 import { figure, UNIT } from '../home/units';
 import { CameraFrame, Slider } from './CameraFrame';
 import { Lanes } from './Lanes';
@@ -196,6 +197,7 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
  */
 function ScrubHeader({ timeline, cursor }: { timeline: SpaceTimeline; cursor: number }) {
   const { t } = useTranslation();
+  const zone = useZone();
   /**
    * The lanes anything is known about at the cursor. A lane carries how far it
    * was heard precisely because a run that stops where the device stopped
@@ -215,7 +217,7 @@ function ScrubHeader({ timeline, cursor }: { timeline: SpaceTimeline; cursor: nu
 
   return (
     <p className={`mono ${styles.scrubHead}`} role="status">
-      <span className={styles.scrubTime}>{stampOf(cursor, at(timeline.endsAt) - at(timeline.startsAt))}</span>
+      <span className={styles.scrubTime}>{stampOf(cursor, at(timeline.endsAt) - at(timeline.startsAt), zone)}</span>
       {timeline.panels.map(panel => {
         const value = pointAt(panel, cursor);
         return (

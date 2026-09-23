@@ -130,7 +130,10 @@ export function DiaryWeek({ week, picture, now, current, asOf }: DiaryWeekProps)
           {week.entries.length > 0 ? (
             <ul className={styles.entries}>
               {week.entries.map(entry => (
-                <EntryRow key={entry.id} entry={entry} people={[]} withDay byline={false} picture={picture} />
+                // A stranger reads a public diary on their own clock: the
+                // zone it was written in is not part of what the public API
+                // answers about somebody else's account.
+                <EntryRow key={entry.id} entry={entry} people={[]} withDay byline={false} picture={picture} zone={null} />
               ))}
             </ul>
           ) : (

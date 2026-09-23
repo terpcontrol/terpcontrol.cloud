@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SpaceTimeline } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
+import { useZone } from '@/ui/zone';
 import { at, captureOf, fractionOf, frameAt, stampOf } from './window';
 import styles from './Timeline.module.css';
 
@@ -30,12 +31,13 @@ interface CameraFrameProps {
  */
 export function CameraFrame({ cameras, from, to, cursor, day, onScrub }: CameraFrameProps) {
   const { t } = useTranslation();
+  const zone = useZone();
   const [shown, setShown] = useState(0);
   const camera = cameras[Math.min(shown, cameras.length - 1)];
   const frame = frameAt(camera, cursor);
   const playing = usePlay(camera.frames, cursor, onScrub);
   const source = frame ? mediaUrl(frame.mediaId, THUMBNAIL_WIDTH.frame) : null;
-  const caption = frame ? captureOf(at(frame.capturedAt), to - from) : null;
+  const caption = frame ? captureOf(at(frame.capturedAt), to - from, zone) : null;
   useReadAhead(camera.frames, cursor, playing.on);
 
   return (
@@ -69,7 +71,7 @@ export function CameraFrame({ cameras, from, to, cursor, day, onScrub }: CameraF
           {playing.on ? <Pause size={15} fill="currentColor" aria-hidden /> : <Play size={15} fill="currentColor" aria-hidden />}
         </button>
         <Slider from={from} to={to} cursor={cursor} onScrub={onScrub} />
-        <span className={`mono ${styles.transportTime}`}>{stampOf(cursor, to - from)}</span>
+        <span className={`mono ${styles.transportTime}`}>{stampOf(cursor, to - from, zone)}</span>
       </div>
     </section>
   );
@@ -82,6 +84,9 @@ export function CameraFrame({ cameras, from, to, cursor, day, onScrub }: CameraF
  */
 export function Slider({ from, to, cursor, onScrub }: { from: number; to: number; cursor: number; onScrub: (time: number) => void }) {
   const { t } = useTranslation();
+  // The one thing a screen reader is told the cursor stands at, so it is the
+  // same hour the sighted label beside it carries: the account's.
+  const zone = useZone();
 
   return (
     <input
@@ -94,7 +99,7 @@ export function Slider({ from, to, cursor, onScrub }: { from: number; to: number
       value={cursor}
       onChange={event => onScrub(Number(event.target.value))}
       aria-label={t('timeline.scrubber')}
-      aria-valuetext={stampOf(cursor, to - from)}
+      aria-valuetext={stampOf(cursor, to - from, zone)}
     />
   );
 }

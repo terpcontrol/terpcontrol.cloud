@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { DateTime } from 'luxon';
 import { initReactI18next } from 'react-i18next';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry } from '@fg2/shared-types/v1';
 import { EntryRow } from '@/ui/EntryRow';
 
@@ -14,6 +14,19 @@ vi.mock('@/api/session', async importOriginal => {
 
   return { ...(await importOriginal<object>()), mediaUrl: (id: string) => `/media/${id}`, useSession: () => SIGNED_IN };
 });
+
+/**
+ * The zone the account keeps, which is the zone a row stamps its line in. It
+ * is nothing by default, which is the account still on its way and leaves the
+ * row on the browser's - the state the expectations below are written for, so
+ * that they read the same wherever the suite is run.
+ */
+const account = vi.hoisted(() => ({ zone: null as string | null }));
+
+vi.mock('@/api/account', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useMe: () => ({ data: account.zone === null ? undefined : { preferences: { timezone: account.zone } } }),
+}));
 
 /**
  * One line of a diary, wherever it is drawn.
@@ -55,6 +68,10 @@ beforeAll(async () => {
   await i18next
     .use(initReactI18next)
     .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
+});
+
+beforeEach(() => {
+  account.zone = null;
 });
 
 describe('a diary row', () => {
@@ -138,6 +155,51 @@ describe('a diary row', () => {
 
     it('says the year as well once the line is not of this one', () => {
       expect(drawnAt(NOW.minus({ years: 1 }))).toBe('23 Sep 2025 12:00');
+    });
+  });
+
+  /**
+   * The hour a line is stamped with is the account's hour. An account kept in
+   * one zone and read in another is the ordinary case - a grower on holiday,
+   * a hosted tent - and the alerts inbox beside this row has always said the
+   * account's hour, so a diary saying the browser's dated one instant two ways
+   * on two screens of the same app.
+   */
+  describe('the zone a line is stamped in', () => {
+    /** Nine in the morning UTC, which is late the same evening where the far-eastern account below is kept. */
+    const AT = '2026-09-23T09:00:00.000Z';
+    const stamp = (now: string, props: { zone?: string | null } = {}) =>
+      render(
+        <ul>
+          <EntryRow entry={entryOf({ occurredAt: AT })} people={[]} now={DateTime.fromISO(now)} {...props} />
+        </ul>,
+      ).container.querySelector('span')!.textContent;
+
+    it('draws the hour where the account is, not where the browser is', () => {
+      account.zone = 'UTC';
+      expect(stamp('2026-09-23T12:00:00.000Z')).toBe('09:00');
+
+      account.zone = 'Asia/Tokyo';
+      expect(stamp('2026-09-23T12:00:00.000Z')).toBe('18:00');
+    });
+
+    it('decides the day the line fell on in the same zone, so a line is not filed under the browser´s yesterday', () => {
+      // Eleven at night on the 23rd where this account is kept, while its own
+      // "now" is already the afternoon of the 24th - so the line is a day old
+      // and is named by its weekday, where UTC has both on one day and needs
+      // only the hour.
+      account.zone = 'Pacific/Kiritimati';
+      expect(stamp('2026-09-23T23:40:00.000Z')).toBe('Wed 23:00');
+
+      account.zone = 'UTC';
+      expect(stamp('2026-09-23T23:40:00.000Z')).toBe('09:00');
+    });
+
+    it('keeps the browser´s zone where the surface says so, which is what a public diary is read on', () => {
+      account.zone = 'Asia/Tokyo';
+      // Ten minutes later, so the line is of the same day in every zone there
+      // is and the stamp is the bare hour whatever machine reads it.
+      expect(stamp('2026-09-23T09:10:00.000Z', { zone: null })).toBe(DateTime.fromISO(AT).toFormat('HH:mm'));
     });
   });
 

@@ -91,7 +91,19 @@ export function SharedSpace({ space, picture, now, banner }: { space: SpaceOverv
         ) : (
           <ul className={styles.entries}>
             {space.entries.map(entry => (
-              <EntryRow key={entry.id} entry={entry} people={[]} measurements={readingNamesOf(space.readingNames, entry.growId)} now={now} byline={false} picture={picture} />
+              // The browser's zone, said out loud: a share link answers what
+              // the pictures and the lines are, and not where the grower who
+              // wrote them keeps their clock.
+              <EntryRow
+                key={entry.id}
+                entry={entry}
+                people={[]}
+                measurements={readingNamesOf(space.readingNames, entry.growId)}
+                now={now}
+                byline={false}
+                picture={picture}
+                zone={null}
+              />
             ))}
           </ul>
         )}

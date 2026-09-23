@@ -1,11 +1,16 @@
-import { DateTime } from 'luxon';
 import type { Metric, SpaceTimeline, TimelineAlarm, TimelinePanel, TimelineSpan, TimelineTarget, TimelineTargets } from '@fg2/shared-types/v1';
 import { niceScale } from '@/charts/series';
+import { zonedAt } from '@/ui/zone';
 
 /**
  * The arithmetic the stacked panels share: where an instant sits in the window,
  * what was true there, and what a panel's y scale is. All of it is pure, so the
  * cursor can be moved a hundred times a second without touching the chart.
+ *
+ * Everything that writes a moment down takes the zone to write it in, because
+ * the axis stops of a week-long window are cut at midnight and midnight is
+ * where the account is. A caller with no account to ask - a public window -
+ * passes nothing and keeps the browser's.
  */
 
 export const at = (iso: string): number => new Date(iso).getTime();
@@ -32,7 +37,8 @@ export const stampFor = (span: number): number => {
   return span <= 400 * 24 * HOUR_MS ? 2 : 3;
 };
 
-export const stampOf = (time: number, span: number): string => DateTime.fromMillis(time).toFormat(STAMPS[stampFor(span)]);
+export const stampOf = (time: number, span: number, zone: string | null = null): string =>
+  zonedAt(time, zone).toFormat(STAMPS[stampFor(span)]);
 
 /**
  * The rung the two ends of a window start at, which is one further on than the
@@ -48,12 +54,12 @@ export const stampOf = (time: number, span: number): string => DateTime.fromMill
 export const stampForEnds = (span: number): number => (span <= 36 * HOUR_MS ? 0 : Math.max(2, stampFor(span)));
 
 /** A picture says which day it was taken whatever the window is: it is a thing from a moment rather than the moment itself. */
-export const captureOf = (time: number, span: number): string =>
-  DateTime.fromMillis(time).toFormat(span <= 10 * 24 * HOUR_MS ? 'ccc HH:mm' : 'd MMM HH:mm');
+export const captureOf = (time: number, span: number, zone: string | null = null): string =>
+  zonedAt(time, zone).toFormat(span <= 10 * 24 * HOUR_MS ? 'ccc HH:mm' : 'd MMM HH:mm');
 
 /** The same rule for the axis, where the clock stops being worth the room a wide window gives it. */
-export const stopOf = (time: number, span: number): string => {
-  const stamp = DateTime.fromMillis(time);
+export const stopOf = (time: number, span: number, zone: string | null = null): string => {
+  const stamp = zonedAt(time, zone);
   if (span <= 36 * HOUR_MS) return stamp.toFormat('HH:mm');
   if (span <= 10 * 24 * HOUR_MS) return stamp.toFormat('ccc');
   return stamp.toFormat('d MMM');

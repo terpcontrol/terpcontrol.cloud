@@ -1,10 +1,11 @@
-import { DateTime } from 'luxon';
+import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Entry, Person, ReadingName } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { entryDetail } from '@/i18n/device-message';
 import { authorOf, headlineOf, KIND_ICON, readingFigure } from './entries';
+import { nowThere, useZone, zoned } from './zone';
 import { Photo } from './Photo';
 import { PictureViewer } from './PictureViewer';
 import styles from './EntryRow.module.css';
@@ -46,6 +47,12 @@ const WEEKDAY_DAYS = 6;
  * list of latest lines has no lower bound on age - a tent nobody has touched
  * since spring still shows its last eight - so the stamp says how far back the
  * reader is looking rather than leaving them to assume it is this week.
+ *
+ * Both instants have to be in the same zone before they are compared: Luxon
+ * reads `hasSame` in the zone of the argument, and the day a line falls on is
+ * the account's day. A line written just after midnight where the account is
+ * otherwise kept its stamp on the browser's calendar and came out under
+ * yesterday's weekday.
  */
 const stampOf = (at: DateTime, now: DateTime): string => {
   if (at.hasSame(now, 'day')) return 'HH:mm';
@@ -76,6 +83,15 @@ interface EntryRowProps {
   byline?: boolean;
   /** Where this surface's pictures live; the session's own by default. */
   picture?: EntryPicture;
+  /**
+   * The zone the stamp is read in, for a surface that is not the account's:
+   * null leaves it on the browser's, which is what a public diary and a share
+   * link get, because the zone the diary was written in is not in what a
+   * stranger is answered. Left out, the line is stamped where the account is,
+   * which is what every signed-in screen wants and what the rest of the app
+   * already does.
+   */
+  zone?: string | null;
 }
 
 /**
@@ -96,11 +112,14 @@ export function EntryRow({
   now,
   byline = true,
   picture = (mediaId, width) => mediaUrl(mediaId, width),
+  zone: given,
 }: EntryRowProps) {
   const { t, i18n } = useTranslation();
   const { user } = useSession();
+  const own = useZone();
+  const zone = given === undefined ? own : given;
   const Icon = KIND_ICON[entry.kind];
-  const at = DateTime.fromISO(entry.occurredAt);
+  const at = zoned(entry.occurredAt, zone);
   const readings = 'readings' in entry.values ? entry.values.readings : [];
   const detail = entryDetail(i18n, entry);
   const [opened, setOpened] = useState<number | null>(null);
@@ -115,7 +134,7 @@ export function EntryRow({
 
   return (
     <li className={styles.row} data-severity={entry.severity ?? undefined}>
-      <span className={`mono ${styles.stamp}`}>{at.toFormat(now ? stampOf(at, now) : withDay ? 'ccc HH:mm' : 'HH:mm')}</span>
+      <span className={`mono ${styles.stamp}`}>{at.toFormat(now ? stampOf(at, nowThere(now, zone)) : withDay ? 'ccc HH:mm' : 'HH:mm')}</span>
       <span className={styles.kind} aria-label={t(`home.entryKind.${entry.kind}`)}>
         <Icon size={13} strokeWidth={1.75} aria-hidden />
       </span>
