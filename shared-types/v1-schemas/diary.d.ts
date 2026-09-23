@@ -23,6 +23,39 @@ export declare const entryReading: z.ZodObject<{
     plantId: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;
 /**
+ * What a grow calls one of its measurements, as far as saying a reading out
+ * loud needs: its key, the name it goes by and the unit it is in.
+ *
+ * Deliberately not the whole definition. The band a measurement is aimed at is
+ * the grower's own business, and both answers that carry these are read through
+ * share links and public pages as well, so what rides along is the wording and
+ * nothing that was not already on the screen.
+ */
+export declare const readingName: z.ZodObject<{
+    key: z.ZodString;
+    name: z.ZodString;
+    unit: z.ZodString;
+}, z.core.$strip>;
+/**
+ * The names one grow's readings go by, on an answer whose lines may belong to
+ * several grows.
+ *
+ * A reading names its measurement by key alone, and the definition lives on the
+ * grow - so a tent's latest lines and a tent's rail, which both carry the diary
+ * of every grow that has stood there, would need a read per grow to put a name
+ * and a unit on a figure. They ride on the same answer instead, keyed by the
+ * grow each line belongs to, so one reading reads the same on the week card it
+ * was written on and on the rail it shows up on.
+ */
+export declare const growReadingNames: z.ZodObject<{
+    growId: z.ZodString;
+    readings: z.ZodArray<z.ZodObject<{
+        key: z.ZodString;
+        name: z.ZodString;
+        unit: z.ZodString;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+/**
  * One dose of one product, as it was actually given.
  *
  * Absolute, not per litre: the grid says `2 ml/l` and this says the 8 ml that
@@ -3449,6 +3482,14 @@ export declare const spaceOverview: z.ZodObject<{
         mediaIds: z.ZodArray<z.ZodString>;
         undoUntil: z.ZodNullable<z.ZodISODateTime>;
     }, z.core.$strip>>;
+    readingNames: z.ZodArray<z.ZodObject<{
+        growId: z.ZodString;
+        readings: z.ZodArray<z.ZodObject<{
+            key: z.ZodString;
+            name: z.ZodString;
+            unit: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>;
     dueTasks: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         kind: z.ZodEnum<{
@@ -4056,6 +4097,14 @@ export declare const spaceTimeline: z.ZodObject<{
         }, z.core.$strip>], "kind">;
         mediaIds: z.ZodArray<z.ZodString>;
         undoUntil: z.ZodNullable<z.ZodISODateTime>;
+    }, z.core.$strip>>;
+    readingNames: z.ZodArray<z.ZodObject<{
+        growId: z.ZodString;
+        readings: z.ZodArray<z.ZodObject<{
+            key: z.ZodString;
+            name: z.ZodString;
+            unit: z.ZodString;
+        }, z.core.$strip>>;
     }, z.core.$strip>>;
     cameras: z.ZodArray<z.ZodObject<{
         cameraId: z.ZodString;
@@ -5885,6 +5934,14 @@ export declare const sharedSpace: z.ZodObject<{
             mediaIds: z.ZodArray<z.ZodString>;
             undoUntil: z.ZodNullable<z.ZodISODateTime>;
         }, z.core.$strip>>;
+        readingNames: z.ZodArray<z.ZodObject<{
+            growId: z.ZodString;
+            readings: z.ZodArray<z.ZodObject<{
+                key: z.ZodString;
+                name: z.ZodString;
+                unit: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>;
         dueTasks: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             kind: z.ZodEnum<{
@@ -6489,6 +6546,14 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             }, z.core.$strip>], "kind">;
             mediaIds: z.ZodArray<z.ZodString>;
             undoUntil: z.ZodNullable<z.ZodISODateTime>;
+        }, z.core.$strip>>;
+        readingNames: z.ZodArray<z.ZodObject<{
+            growId: z.ZodString;
+            readings: z.ZodArray<z.ZodObject<{
+                key: z.ZodString;
+                name: z.ZodString;
+                unit: z.ZodString;
+            }, z.core.$strip>>;
         }, z.core.$strip>>;
         dueTasks: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
@@ -7111,6 +7176,14 @@ export declare const sharedResolution: z.ZodObject<{
                 }, z.core.$strip>], "kind">;
                 mediaIds: z.ZodArray<z.ZodString>;
                 undoUntil: z.ZodNullable<z.ZodISODateTime>;
+            }, z.core.$strip>>;
+            readingNames: z.ZodArray<z.ZodObject<{
+                growId: z.ZodString;
+                readings: z.ZodArray<z.ZodObject<{
+                    key: z.ZodString;
+                    name: z.ZodString;
+                    unit: z.ZodString;
+                }, z.core.$strip>>;
             }, z.core.$strip>>;
             dueTasks: z.ZodArray<z.ZodObject<{
                 id: z.ZodString;

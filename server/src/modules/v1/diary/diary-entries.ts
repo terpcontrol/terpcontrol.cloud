@@ -1,8 +1,9 @@
 import { Model } from 'mongoose';
-import type { Entry, EntryKind, Person } from '@fg2/shared-types/v1';
+import type { Entry, EntryKind, GrowReadingNames, Person } from '@fg2/shared-types/v1';
 import { entryKind } from '@fg2/shared-types/v1-schemas';
 import { serialiseEntry } from '@common/v1/entries';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
+import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { Redaction } from '../grow/grow-serialiser';
 
@@ -102,6 +103,23 @@ export const diaryMovedAt = async (entries: Model<EntryDocument>, growIds: strin
 
 /** The kinds that carry readings of the grow's own measurements. */
 export const READING_KINDS = ['water', 'feed', 'measurement'] as const;
+
+/**
+ * What each grow calls its own measurements, for the answers whose lines belong
+ * to several grows at once.
+ *
+ * A reading names its measurement by key, and the definition of that key lives
+ * on the grow, so a tent's latest lines and a tent's rail would otherwise have
+ * to be read grow by grow before a figure could be given a name and a unit -
+ * and are drawn with the raw key instead. Only the wording travels: the band a
+ * measurement is aimed at stays on the grow, because both answers are read
+ * through share links as well.
+ */
+export const readingNamesOf = (grows: readonly Pick<GrowDocument, 'id' | 'measurements'>[]): GrowReadingNames[] =>
+  grows.map(grow => ({
+    growId: grow.id,
+    readings: grow.measurements.map(measurement => ({ key: measurement.key, name: measurement.name, unit: measurement.unit })),
+  }));
 
 /** Everyone a set of entries names, so a card can say who watered without a read of its own. */
 export const peopleOf = (entries: readonly Entry[], users: readonly Pick<StoredUser, 'id' | 'handle'>[]): Person[] => {

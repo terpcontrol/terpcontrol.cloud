@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
-import type { Entry, MeasurementDefinition, Person } from '@fg2/shared-types/v1';
+import type { Entry, Person, ReadingName } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { authorOf, headlineOf, KIND_ICON, readingFigure } from './entries';
 import { Photo } from './Photo';
@@ -50,7 +50,7 @@ interface EntryRowProps {
   entry: Entry;
   people: Person[];
   /** The grow's own measurements, which is where a reading's name and unit are; without them a reading shows its key. */
-  measurements?: MeasurementDefinition[];
+  measurements?: readonly ReadingName[];
   /** Whether the stamp names the day as well as the hour; a week's rows need the day, today's do not. */
   withDay?: boolean;
   /**

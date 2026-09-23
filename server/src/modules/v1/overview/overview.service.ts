@@ -31,7 +31,7 @@ import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { setpointsOf } from '../device/setpoints';
-import { serialiseDiaryEntry } from '../diary/diary-entries';
+import { readingNamesOf, serialiseDiaryEntry } from '../diary/diary-entries';
 import { NOTHING_HIDDEN, Redaction, growUpTo, redactionOf, summaryOf } from '../grow/grow-serialiser';
 import { dueTasksOf, occurrencePrefix } from '../home/due-tasks';
 import { liveOfDevice, mergeLive, setpointOf } from '../space/space-live';
@@ -222,6 +222,7 @@ export class OverviewService {
       ),
       cameras: cameras.map(camera => cameraHere(camera, stills.get(camera.id) ?? [], closed)),
       entries: told,
+      readingNames: readingNamesOf(grows),
       dueTasks,
       openAlerts: forKeepers ? alerts.map(alert => openAlertOf(alert, watched.get(alert.ruleId ?? '') ?? null)) : [],
       people: await this.peopleIn(told, dueTasks),

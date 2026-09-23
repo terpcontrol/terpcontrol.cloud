@@ -62,6 +62,43 @@ export const entryReading = named(
 );
 
 /**
+ * What a grow calls one of its measurements, as far as saying a reading out
+ * loud needs: its key, the name it goes by and the unit it is in.
+ *
+ * Deliberately not the whole definition. The band a measurement is aimed at is
+ * the grower's own business, and both answers that carry these are read through
+ * share links and public pages as well, so what rides along is the wording and
+ * nothing that was not already on the screen.
+ */
+export const readingName = named(
+  'ReadingName',
+  z.object({
+    key: z.string(),
+    name: z.string(),
+    unit: z.string(),
+  }),
+);
+
+/**
+ * The names one grow's readings go by, on an answer whose lines may belong to
+ * several grows.
+ *
+ * A reading names its measurement by key alone, and the definition lives on the
+ * grow - so a tent's latest lines and a tent's rail, which both carry the diary
+ * of every grow that has stood there, would need a read per grow to put a name
+ * and a unit on a figure. They ride on the same answer instead, keyed by the
+ * grow each line belongs to, so one reading reads the same on the week card it
+ * was written on and on the rail it shows up on.
+ */
+export const growReadingNames = named(
+  'GrowReadingNames',
+  z.object({
+    growId: id(),
+    readings: z.array(readingName),
+  }),
+);
+
+/**
  * `values` is typed per kind and carries the entry's own `kind` again as its
  * discriminator, so that the object narrows on its own - a client that holds a
  * `values` narrows it without reaching back to the entry, and the server
@@ -1274,6 +1311,7 @@ export const spaceOverview = named(
     grows: z.array(overviewGrow).describe('Every grow with open plants here, newest first.'),
     cameras: z.array(overviewCamera),
     entries: z.array(entry).describe('The newest lines of this space and of the grows standing in it, newest first.'),
+    readingNames: z.array(growReadingNames).describe('What the grows those lines belong to call their measurements, so a reading is named rather than keyed.'),
     dueTasks: z.array(overviewTask),
     openAlerts: z.array(openAlert),
     people: z.array(person).describe('Everyone the answer names, so an entry can say who wrote it without another read.'),
@@ -1454,6 +1492,7 @@ export const spaceTimeline = named(
     alarms: z.array(timelineAlarm),
     outputs: z.array(timelineOutputLane),
     events: z.array(entry).describe('The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.'),
+    readingNames: z.array(growReadingNames).describe('What the grows those lines belong to call their measurements, so a reading is named rather than keyed.'),
     cameras: z.array(timelineCamera),
     people: z.array(person).describe('Everyone the rail names, so a mark can say who wrote it without another read.'),
   }),

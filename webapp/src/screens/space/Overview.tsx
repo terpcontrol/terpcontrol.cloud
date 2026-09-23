@@ -18,7 +18,7 @@ import { useLog, useMayLog } from '@/log/log-context';
 import { ageAttribute, ageLabel } from '@/ui/age';
 import type { Liveness } from '../home/attention';
 import { EntryRow } from '@/ui/EntryRow';
-import { readingFigure } from '@/ui/entries';
+import { readingFigure, readingNamesOf } from '@/ui/entries';
 import { useMayLogIn, useMayManage } from '@/ui/session-access';
 import { weekOfPhase } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
@@ -146,7 +146,13 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
         ) : (
           <ul className={styles.entries}>
             {overview.entries.map(entry => (
-              <EntryRow key={entry.id} entry={entry} people={overview.people} now={now} />
+              <EntryRow
+                key={entry.id}
+                entry={entry}
+                people={overview.people}
+                measurements={readingNamesOf(overview.readingNames, entry.growId)}
+                now={now}
+              />
             ))}
           </ul>
         )}

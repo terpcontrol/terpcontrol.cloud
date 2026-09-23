@@ -16,7 +16,7 @@ import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
-import { DIARY_KINDS, MACHINE_KINDS, authorIdsOf, peopleOf, serialiseDiaryEntry } from '../diary/diary-entries';
+import { DIARY_KINDS, MACHINE_KINDS, authorIdsOf, peopleOf, readingNamesOf, serialiseDiaryEntry } from '../diary/diary-entries';
 import { NOTHING_HIDDEN, Redaction, redactionOf } from '../grow/grow-serialiser';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
@@ -150,6 +150,7 @@ export class TimelineService {
       alarms: alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
       outputs: lanesOf(series, window),
       events: told,
+      readingNames: readingNamesOf(stood),
       cameras: cameras.map(camera => ({ cameraId: camera.id, name: camera.name, frames: frames.get(camera.id) ?? [] })),
       people: peopleOf(told, people),
     };
@@ -188,9 +189,7 @@ export class TimelineService {
     if (grant.redacted) return (await newest(DIARY_KINDS, MAX_EVENTS)).reverse();
 
     const [diary, machine] = await Promise.all([newest(DIARY_KINDS, MAX_EVENTS), newest(MACHINE_KINDS, MAX_MACHINE_EVENTS)]);
-    return [...diary, ...machine].sort(
-      (one, other) => one.occurredAt.getTime() - other.occurredAt.getTime() || one.id.localeCompare(other.id),
-    );
+    return [...diary, ...machine].sort((one, other) => one.occurredAt.getTime() - other.occurredAt.getTime() || one.id.localeCompare(other.id));
   }
 
   /**

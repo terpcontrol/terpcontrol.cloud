@@ -2299,6 +2299,17 @@ export interface EntryReading {
   plantId: string | null;
 }
 
+export interface ReadingName {
+  key: string;
+  name: string;
+  unit: string;
+}
+
+export interface GrowReadingNames {
+  growId: string;
+  readings: ReadingName[];
+}
+
 export interface EntryDose {
   productKey: string;
   name: string;
@@ -3284,6 +3295,10 @@ export interface SpaceOverview {
    * The newest lines of this space and of the grows standing in it, newest first.
    */
   entries: Entry[];
+  /**
+   * What the grows those lines belong to call their measurements, so a reading is named rather than keyed.
+   */
+  readingNames: GrowReadingNames[];
   dueTasks: OverviewTask[];
   openAlerts: OpenAlert[];
   /**
@@ -3409,6 +3424,10 @@ export interface SpaceTimeline {
    * The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.
    */
   events: Entry[];
+  /**
+   * What the grows those lines belong to call their measurements, so a reading is named rather than keyed.
+   */
+  readingNames: GrowReadingNames[];
   cameras: TimelineCamera[];
   /**
    * Everyone the rail names, so a mark can say who wrote it without another read.

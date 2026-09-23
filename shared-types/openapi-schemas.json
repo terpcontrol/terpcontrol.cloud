@@ -7419,6 +7419,44 @@
       "plantId"
     ]
   },
+  "ReadingName": {
+    "type": "object",
+    "properties": {
+      "key": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "unit": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "key",
+      "name",
+      "unit"
+    ]
+  },
+  "GrowReadingNames": {
+    "type": "object",
+    "properties": {
+      "growId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "readings": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ReadingName"
+        }
+      }
+    },
+    "required": [
+      "growId",
+      "readings"
+    ]
+  },
   "EntryDose": {
     "type": "object",
     "properties": {
@@ -11313,6 +11351,13 @@
         },
         "description": "The newest lines of this space and of the grows standing in it, newest first."
       },
+      "readingNames": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GrowReadingNames"
+        },
+        "description": "What the grows those lines belong to call their measurements, so a reading is named rather than keyed."
+      },
       "dueTasks": {
         "type": "array",
         "items": {
@@ -11346,6 +11391,7 @@
       "grows",
       "cameras",
       "entries",
+      "readingNames",
       "dueTasks",
       "openAlerts",
       "people"
@@ -11798,6 +11844,13 @@
         },
         "description": "The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn."
       },
+      "readingNames": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GrowReadingNames"
+        },
+        "description": "What the grows those lines belong to call their measurements, so a reading is named rather than keyed."
+      },
       "cameras": {
         "type": "array",
         "items": {
@@ -11829,6 +11882,7 @@
       "alarms",
       "outputs",
       "events",
+      "readingNames",
       "cameras",
       "people"
     ]

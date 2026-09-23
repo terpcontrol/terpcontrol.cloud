@@ -130,6 +130,7 @@ const overview: SpaceOverview = {
   ],
   cameras: [],
   entries: [],
+  readingNames: [],
   dueTasks: [],
   openAlerts: [],
   people: [],

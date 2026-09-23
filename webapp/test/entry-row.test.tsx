@@ -147,7 +147,7 @@ describe('a diary row', () => {
         <EntryRow
           entry={entryOf({
             kind: 'phase',
-            values: { kind: 'phase', stage: 'vegetative', phaseId: 'phase-1' },
+            values: { kind: 'phase', stage: 'vegetative', phaseId: 'phase-1', preset: null },
             message: { key: 'message-diary-plant-lifecycle', params: [] },
           })}
           people={[]}
@@ -165,7 +165,7 @@ describe('a diary row', () => {
         <EntryRow
           entry={entryOf({
             kind: 'phase',
-            values: { kind: 'phase', stage: 'germination', phaseId: 'phase-1' },
+            values: { kind: 'phase', stage: 'germination', phaseId: 'phase-1', preset: null },
             text: 'Steckling von Sensi Seeds',
           })}
           people={[]}

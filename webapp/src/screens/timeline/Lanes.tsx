@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Entry, SpaceTimeline } from '@fg2/shared-types/v1';
 import { EntryRow } from '@/ui/EntryRow';
-import { KIND_ICON } from '@/ui/entries';
+import { KIND_ICON, readingNamesOf } from '@/ui/entries';
 import { at, fractionOf, stampOf, stopOf } from './window';
 import styles from './Timeline.module.css';
 
@@ -114,7 +114,13 @@ export function Lanes({ timeline, from, to, cursor, now, selected, onSelect, onS
       {open ? (
         <ul className={styles.opened}>
           {open.entries.map(entry => (
-            <EntryRow key={entry.id} entry={entry} people={timeline.people} now={now} />
+            <EntryRow
+              key={entry.id}
+              entry={entry}
+              people={timeline.people}
+              measurements={readingNamesOf(timeline.readingNames, entry.growId)}
+              now={now}
+            />
           ))}
         </ul>
       ) : null}

@@ -268,6 +268,9 @@ const world = async (): Promise<void> => {
       },
     ],
     placements: [{ id: 'placement-here', spaceId: TENT, startedAt: ORIGIN, endedAt: null, plantIds: null }],
+    // What this grow calls the readings its lines carry, which is the only place
+    // the name and the unit of a key exist.
+    measurements: [{ key: 'height', name: 'Height', unit: 'cm', perPlant: false, targetMin: null, targetMax: 90, chart: true }],
     slug: 'spring-run-3',
     startedAt: ORIGIN,
     endedAt: null,
@@ -663,6 +666,19 @@ describe('the rail and the frames', () => {
       'entry-space',
     ]);
     expect(page.events.filter(line => line.kind === 'system' || line.kind === 'plan')).toHaveLength(200);
+  });
+
+  /**
+   * A rail carries the lines of every grow that has stood here, so naming a
+   * reading cannot be a read of "the" grow. The names ride on the answer, keyed
+   * by the grow each line belongs to, and the band the measurement is aimed at
+   * stays behind - a link is served this answer too.
+   */
+  it('says what each grow here calls its readings, and nothing else about them', async () => {
+    const page = await readAs(session(OWNER));
+
+    expect(page.readingNames).toEqual([{ growId: GROW, readings: [{ key: 'height', name: 'Height', unit: 'cm' }] }]);
+    expect(JSON.stringify(page.readingNames)).not.toContain('targetMax');
   });
 
   it('thins the frames to what a slider can step through rather than answering every still', async () => {

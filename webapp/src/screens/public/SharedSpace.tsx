@@ -5,6 +5,7 @@ import type { CardValue, Metric, OverviewCamera, SpaceOverview } from '@fg2/shar
 import { PUBLIC_WIDTH, type Picture } from '@/api/public';
 import { ageAttribute, ageLabel } from '@/ui/age';
 import { EntryRow } from '@/ui/EntryRow';
+import { readingNamesOf } from '@/ui/entries';
 import ui from '@/ui/ui.module.css';
 import { livenessOf, measuredAtOf } from '../home/attention';
 import { LivenessPill } from '../home/SpaceCard';
@@ -90,7 +91,7 @@ export function SharedSpace({ space, picture, now, banner }: { space: SpaceOverv
         ) : (
           <ul className={styles.entries}>
             {space.entries.map(entry => (
-              <EntryRow key={entry.id} entry={entry} people={[]} now={now} byline={false} picture={picture} />
+              <EntryRow key={entry.id} entry={entry} people={[]} measurements={readingNamesOf(space.readingNames, entry.growId)} now={now} byline={false} picture={picture} />
             ))}
           </ul>
         )}

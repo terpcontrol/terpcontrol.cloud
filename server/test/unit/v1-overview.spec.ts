@@ -202,6 +202,9 @@ const world = async (): Promise<void> => {
         { id: 'placement-elsewhere', spaceId: 'tent-2', startedAt: STARTED_AT, endedAt: PLACED_AT, plantIds: null },
         { id: 'placement-here', spaceId: TENT, startedAt: PLACED_AT, endedAt: null, plantIds: null },
       ],
+      // What this grow calls the readings its lines carry, which is the only
+      // place the name and the unit of a key exist.
+      measurements: [{ key: 'height', name: 'Height', unit: 'cm', perPlant: false, targetMin: null, targetMax: 90, chart: true }],
       slug: 'spring-run-3',
       startedAt: STARTED_AT,
       endedAt: null,
@@ -335,6 +338,18 @@ describe('what grows here', () => {
     const page = await readAs(session(OWNER));
 
     expect(page.grows.map(grow => grow.growId)).toEqual([SECOND_GROW, GROW]);
+  });
+
+  /**
+   * The latest lines under the cards carry readings of these grows' own
+   * measurements, and a key is not a name: the wording travels with the answer
+   * so the tent says what the week card the reading was written on says.
+   */
+  it('says what each grow here calls its readings, and nothing else about them', async () => {
+    const page = await readAs(session(OWNER));
+
+    expect(page.readingNames).toContainEqual({ growId: GROW, readings: [{ key: 'height', name: 'Height', unit: 'cm' }] });
+    expect(JSON.stringify(page.readingNames)).not.toContain('targetMax');
   });
 
   it('counts the days of the grow and the days it has stood in this tent', async () => {

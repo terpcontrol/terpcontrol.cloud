@@ -138,6 +138,7 @@ const answer: SpaceTimeline = {
       ],
     },
   ],
+  readingNames: [{ growId: 'grow-1', readings: [{ key: 'height', name: 'Height', unit: 'cm' }] }],
   people: [{ id: 'user-1', handle: 'you' }],
 };
 
@@ -205,6 +206,25 @@ describe('the timeline', () => {
     expect(screen.getByText('Watered')).toBeInTheDocument();
     expect(screen.getByText('Measured')).toBeInTheDocument();
     expect(header()).toHaveTextContent(clock(16));
+  });
+
+  /**
+   * The same reading is written on a week card and shows up again on the rail,
+   * and a key is not a name: the answer carries what each grow calls its own
+   * measurements so that both places say the same words.
+   */
+  it('names a reading the way the grow it belongs to names it, rather than by its key', () => {
+    const measured = {
+      ...entry('e4', 16.4, 'measurement', 'Measured'),
+      values: { kind: 'measurement' as const, readings: [{ key: 'height', value: 58, plantId: null }] },
+    };
+    state.answer = { ...answer, events: [measured] };
+    draw();
+
+    fireEvent.click(screen.getAllByRole('button', { pressed: false }).filter(button => button.getAttribute('title'))[0]);
+
+    expect(screen.getByText(/Height 58 cm/)).toBeInTheDocument();
+    expect(screen.queryByText(/height 58/)).not.toBeInTheDocument();
   });
 
   it('keeps the panels and loses the frame where nothing takes pictures', () => {

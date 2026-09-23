@@ -15,8 +15,21 @@ import {
   Timer,
   type LucideIcon,
 } from 'lucide-react';
-import type { Entry, EntryKind, Person } from '@fg2/shared-types/v1';
+import type { Entry, EntryKind, GrowReadingNames, Person, ReadingName } from '@fg2/shared-types/v1';
 import { entryHeadline } from '@/i18n/device-message';
+
+/**
+ * What the grow a line belongs to calls its measurements, out of the table an
+ * answer carries for every grow it draws lines of.
+ *
+ * Keyed by the line's own grow rather than by the screen's: a tent holds the
+ * diary of every grow that has stood in it, so the grow the bands are of is not
+ * the grow each line was written in. A line of no grow, and one of a grow the
+ * answer does not name, get no names - which is what leaves a reading showing
+ * its key, exactly as it did before.
+ */
+export const readingNamesOf = (named: GrowReadingNames[], growId: string | null): ReadingName[] =>
+  (growId === null ? undefined : named.find(one => one.growId === growId)?.readings) ?? [];
 
 /** One mark per kind of line, so a diary row and a mark on the timeline's rail draw the same thing the same way. */
 export const KIND_ICON: Record<EntryKind, LucideIcon> = {

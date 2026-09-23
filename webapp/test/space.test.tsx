@@ -162,6 +162,7 @@ const overview: SpaceOverview = {
     },
   ],
   openAlerts: [],
+  readingNames: [{ growId: 'grow-1', readings: [{ key: 'water_l', name: 'Water', unit: 'l' }] }],
   people: [{ id: 'user-anna', handle: 'anna' }],
 };
 
