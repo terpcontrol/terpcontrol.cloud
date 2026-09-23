@@ -74,13 +74,18 @@ export function DiaryWeek({ week, picture, now, current, ended, asOf }: DiaryWee
       </button>
 
       <ul className={styles.days}>
+        {/* The grow's own days, which begin at the hour the grow did: a tile
+            covers the tail of one date and the head of the next and is named
+            after neither. A weekday there disagreed with the stage marker
+            beside it and with the lines below, which are stamped with the day
+            number the tile now carries. */}
         {week.days.map(day => {
           const src = day.mediaId ? picture(day.mediaId, PUBLIC_WIDTH.dayTile) : null;
           const at = DateTime.fromISO(day.startsAt);
           return (
             <li key={day.dayNumber} className={styles.dayTile} data-future={at > now}>
               <Photo src={src} alt={t('grow.dayStillAlt', { day: day.dayNumber })} className={styles.thumb} />
-              <span className={`mono ${styles.dayName}`}>{at.toFormat('ccc')}</span>
+              <span className={`mono ${styles.dayName}`}>{t('grow.dayShort', { day: day.dayNumber })}</span>
               {/* Where the grow changed stage inside the week, which the pill
                   above cannot say: it names the stage the week ended in. */}
               {day.stage ? <span className={`mono ${styles.dayStage}`}>{t(`grow.stageShort.${day.stage}`)}</span> : null}

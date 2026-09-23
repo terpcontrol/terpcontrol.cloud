@@ -406,6 +406,22 @@ describe('the last card of a grow that has ended', () => {
     expect(lived).toEqual(['false', 'false', 'false', 'true', 'true', 'true', 'true']);
   });
 
+  it('names each tile after the grow-day it is rather than after the weekday it opens on', () => {
+    // A grow-day begins at the hour the grow began, so a tile covers the tail
+    // of one date and the head of the next and belongs to neither. Named after
+    // the date it opened on, the tile carrying a stage marker was the day
+    // before the line on this same card that announces that stage.
+    const evening = { ...week, days: week.days.map((day, index) => ({ ...day, startsAt: at(6 - index, 22) })) };
+
+    draw(<WeekCard week={evening} grow={grow} people={people} now={NOW} current />);
+
+    const tiles = screen
+      .getAllByRole('listitem')
+      .slice(0, 7)
+      .map(tile => tile.textContent ?? '');
+    expect(tiles.map(text => text.replace('Flower', ''))).toEqual(['D 29', 'D 30', 'D 31', 'D 32', 'D 33', 'D 34', 'D 35']);
+  });
+
   it('marks on the day strip the stage the grow entered inside the week, which the pill cannot say', () => {
     // The pill names the stage the week ended in. A week that held two - three
     // for a grow that germinated, sprouted and went to veg in seven days - said

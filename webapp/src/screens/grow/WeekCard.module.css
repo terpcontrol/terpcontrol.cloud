@@ -109,7 +109,7 @@
   opacity: var(--age-offline);
 }
 
-/* The day a stage began. Under the weekday rather than over the picture: a
+/* The day a stage began. Under the day number rather than over the picture: a
    thumbnail is the day itself, and a label on it would be read as part of it. */
 .dayStage {
   max-width: 100%;

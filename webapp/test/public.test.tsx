@@ -269,6 +269,21 @@ describe('a public diary', () => {
     expect(screen.getByText('+ 23 more')).toBeInTheDocument();
   });
 
+  it('names each tile after the grow-day it is rather than after the weekday it opens on', () => {
+    // The same rule the owner's card follows: a week of a public diary is seven
+    // of the grow's own days, and a weekday on a window that straddles two
+    // dates disagrees with the stage marker beside it.
+    const evening = { ...week, days: week.days.map((day, index) => ({ ...day, startsAt: at(6 - index, 22) })) };
+
+    draw(<DiaryWeek week={evening} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
+
+    const tiles = screen
+      .getAllByRole('listitem')
+      .slice(0, 7)
+      .map(tile => tile.textContent ?? '');
+    expect(tiles.map(text => text.replace('Flower', ''))).toEqual(['D 29', 'D 30', 'D 31', 'D 32', 'D 33', 'D 34', 'D 35']);
+  });
+
   it('marks on the day strip the stage the grow entered inside the week', () => {
     draw(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
 

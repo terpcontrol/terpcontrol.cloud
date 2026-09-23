@@ -408,7 +408,7 @@
   text-align: center;
 }
 
-/* The day a stage began, under the weekday it began on. */
+/* The day a stage began, under the number of the grow-day it began on. */
 .dayStage {
   max-width: 100%;
   overflow: hidden;

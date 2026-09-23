@@ -317,7 +317,7 @@ function Line({ entry, grow, plant, measurements }: LineProps) {
   const body = (
     <>
       <span className={`mono ${styles.lineDay}`}>
-        {day === null ? DateTime.fromISO(entry.occurredAt).toFormat('dd.MM') : t('grow.plant.dayShort', { day })}
+        {day === null ? DateTime.fromISO(entry.occurredAt).toFormat('dd.MM') : t('grow.dayShort', { day })}
       </span>
       <span className={styles.lineKind} aria-label={t(`home.entryKind.${entry.kind}`)}>
         <Icon size={13} strokeWidth={1.75} aria-hidden />

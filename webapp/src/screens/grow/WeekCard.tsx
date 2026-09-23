@@ -67,6 +67,13 @@ export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
       </button>
 
       <ul className={styles.days}>
+        {/* A tile is one of the grow's own days, and those begin when the grow
+            began rather than at midnight - so a tile straddles two dates and is
+            named after neither. Called after the weekday it opens on, it put
+            the stage marker a day before the line on this very card that
+            announces that stage, and dimmed as unlived a day whose lines the
+            card was already drawing. The day number is what the tile is, it is
+            unique inside the card, and the lines below are stamped with it. */}
         {week.days.map(day => {
           const at = DateTime.fromISO(day.startsAt);
           const src = day.mediaId ? mediaUrl(day.mediaId, THUMBNAIL_WIDTH.dayTile) : null;
@@ -75,11 +82,14 @@ export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
               <span className={styles.thumb} title={t('home.card.dayN', { day: day.dayNumber })}>
                 {src ? <img src={src} alt={t('grow.dayStillAlt', { day: day.dayNumber })} loading="lazy" /> : null}
               </span>
-              <span className={`mono ${styles.dayName}`}>{at.toFormat('ccc')}</span>
+              <span className={`mono ${styles.dayName}`}>{t('grow.dayShort', { day: day.dayNumber })}</span>
               {/* The card is named after the stage its week ended in, which says
                   nothing about a week that held two or three of them. The day a
                   stage began is where that belongs, and it is the only place a
-                  stage the grow passed through inside one week is recorded. */}
+                  stage the grow passed through inside one week is recorded. The
+                  day it began is the grow's day, not the calendar's: a stage
+                  entered at four in the morning belongs to the day that was
+                  running at four in the morning. */}
               {day.stage ? <span className={`mono ${styles.dayStage}`}>{t(`grow.stageShort.${day.stage}`)}</span> : null}
             </li>
           );
