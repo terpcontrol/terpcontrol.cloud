@@ -296,7 +296,12 @@ function DeviceRow({ device, place, sockets, cameras, linked, now }: DeviceRowPr
       {open ? (
         <Facts>
           <Fact label={t('devices.fact.id')} value={device.id} />
-          <Fact label={t('devices.fact.type')} value={device.type} />
+          {/* Through the catalogue, like the thirteen other places that print a
+              type: it is a contract key and not a word, so drawn as it stands
+              it reads as lowercase English under a row title the German app has
+              already translated. A type from a newer contract than this build
+              still prints, rather than showing a missing key. */}
+          <Fact label={t('devices.fact.type')} value={t(`devices.type.${device.type}`, { defaultValue: device.type })} />
           <Fact label={t('devices.fact.build')} value={buildLabel(build) ?? (firmwares.isPending ? t('home.waiting') : '—')} />
           <Fact label={t('devices.fact.channel')} value={t(`devices.channel.${device.firmware.channel}`)} />
           {sockets ? <Fact label={t('devices.fact.can')} value={capabilityLine(t, sockets)} /> : null}

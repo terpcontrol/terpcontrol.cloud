@@ -515,6 +515,29 @@ describe('what the Devices tab calls a device', () => {
     expect(screen.queryByText('Premium')).toBeNull();
   });
 
+  it('names a device´s type in the catalogue rather than printing the contract´s key', async () => {
+    list.devices = [standing({ type: 'fridge', name: null })];
+    list.cameras = [];
+    await drawList();
+
+    fireEvent.click(await screen.findByRole('button', { name: /What Fridge module · C0FFEE is/ }));
+
+    expect(await screen.findByText('Fridge module')).toBeInTheDocument();
+    // The raw key would read as lowercase English under a translated title.
+    expect(screen.queryByText('fridge')).toBeNull();
+  });
+
+  it('prints a type from a newer contract rather than a missing key', async () => {
+    list.devices = [standing({ type: 'hydro' as Device['type'], name: null })];
+    list.cameras = [];
+    await drawList();
+
+    fireEvent.click(await screen.findByRole('button', { name: /C0FFEE is/ }));
+
+    expect(await screen.findByText('hydro')).toBeInTheDocument();
+    expect(screen.queryByText('devices.type.hydro')).toBeNull();
+  });
+
   it('heads the list with what it holds rather than calling a socket a controller', async () => {
     // The section covers whatever the account has claimed - a light, a fan and
     // a plug among them - and "Smart sockets" further down is a different list.
