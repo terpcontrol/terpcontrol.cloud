@@ -419,6 +419,11 @@ namespace fg {
       state.out_heater = heater_night_pid.tick(state.temperature, settings.night.temperature);
     }
 
+    float target_temperature = state.is_day ? settings.day.temperature : settings.night.temperature;
+    if(state.temperature > target_temperature + HEATER_OVERTEMP_MARGIN) {
+      state.out_heater = 0;
+    }
+
   }
   
   ControllerController::ControllerController(Fridgecloud& cloud) :
