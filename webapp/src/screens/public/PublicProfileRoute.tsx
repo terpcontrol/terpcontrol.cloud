@@ -11,7 +11,7 @@ import { LoadFailed, Waiting } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
 import { FollowButton } from './FollowButton';
 import { Nothing } from './Nothing';
-import { Photo } from './Photo';
+import { Photo } from '@/ui/Photo';
 import { PublicShell } from './PublicShell';
 import styles from './Public.module.css';
 

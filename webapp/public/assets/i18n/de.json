@@ -1463,6 +1463,10 @@
       "alarm": "Alarm",
       "someone": "jemand"
     },
+    "entryPhotos": {
+      "alt": "Ein Bild an dieser Zeile",
+      "more": "+{{count}}"
+    },
     "entryKind": {
       "water": "Gegossen",
       "feed": "Gedüngt",

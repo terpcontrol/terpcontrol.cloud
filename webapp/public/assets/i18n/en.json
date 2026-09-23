@@ -1467,6 +1467,10 @@
       "alarm": "alarm",
       "someone": "someone"
     },
+    "entryPhotos": {
+      "alt": "A picture on this line",
+      "more": "+{{count}}"
+    },
     "entryKind": {
       "water": "Watered",
       "feed": "Fed",

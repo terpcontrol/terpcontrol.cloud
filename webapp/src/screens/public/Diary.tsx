@@ -8,7 +8,7 @@ import { PUBLIC_WIDTH, type Picture } from '@/api/public';
 import { weekOfPhase } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { DiaryWeek } from './DiaryWeek';
-import { Photo } from './Photo';
+import { Photo } from '@/ui/Photo';
 import styles from './Public.module.css';
 
 interface DiaryProps {

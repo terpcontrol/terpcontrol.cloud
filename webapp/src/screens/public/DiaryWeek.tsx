@@ -8,7 +8,7 @@ import { ageLabel } from '@/ui/age';
 import { EntryRow } from '@/ui/EntryRow';
 import { readingFigure } from '@/ui/entries';
 import ui from '@/ui/ui.module.css';
-import { Photo } from './Photo';
+import { Photo } from '@/ui/Photo';
 import { windowIsCurrent } from './window';
 import styles from './Public.module.css';
 
@@ -130,7 +130,7 @@ export function DiaryWeek({ week, picture, now, current, asOf }: DiaryWeekProps)
           {week.entries.length > 0 ? (
             <ul className={styles.entries}>
               {week.entries.map(entry => (
-                <EntryRow key={entry.id} entry={entry} people={[]} withDay byline={false} />
+                <EntryRow key={entry.id} entry={entry} people={[]} withDay byline={false} picture={picture} />
               ))}
             </ul>
           ) : (

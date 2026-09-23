@@ -6,7 +6,7 @@ import type { DueTask, FollowedGrowCard, HomeSpaceCard } from '@fg2/shared-types
 import { PUBLIC_WIDTH, publicPicture } from '@/api/public';
 import { useLog, useMayLog } from '@/log/log-context';
 import { FollowButton } from '@/screens/public/FollowButton';
-import { Photo } from '@/screens/public/Photo';
+import { Photo } from '@/ui/Photo';
 import { ageLabel } from '@/ui/age';
 import styles from './Strips.module.css';
 import { alertLabel } from './units';

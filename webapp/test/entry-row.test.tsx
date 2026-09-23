@@ -85,6 +85,30 @@ describe('a diary row', () => {
     expect(said.textContent).toBe('Scrog-Netz eingesetzt\n2. Ventilator eingeschaltet');
   });
 
+  it('draws the pictures the line carries, and says how many more it has than it drew', () => {
+    render(
+      <ul>
+        <EntryRow
+          entry={entryOf({ text: 'Steckling von Sensi Seeds', mediaIds: ['one', 'two', 'three', 'four', 'five', 'six'] })}
+          people={[]}
+        />
+      </ul>,
+    );
+
+    expect(screen.getAllByRole('img')).toHaveLength(4);
+    expect(screen.getByText('+2')).toBeInTheDocument();
+  });
+
+  it('asks the surface it is drawn on for the address of a picture, rather than assuming a session', () => {
+    render(
+      <ul>
+        <EntryRow entry={entryOf({ mediaIds: ['one'] })} people={[]} picture={mediaId => `/v1/public/grows/mimosa/media/${mediaId}`} />
+      </ul>,
+    );
+
+    expect(screen.getByRole('img')).toHaveAttribute('src', '/v1/public/grows/mimosa/media/one');
+  });
+
   it('still translates what a device wrote, which is a key and not words', () => {
     render(
       <ul>

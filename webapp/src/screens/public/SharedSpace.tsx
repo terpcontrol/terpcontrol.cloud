@@ -9,7 +9,7 @@ import ui from '@/ui/ui.module.css';
 import { livenessOf, measuredAtOf } from '../home/attention';
 import { LivenessPill } from '../home/SpaceCard';
 import { figure, targetFigure, UNIT } from '../home/units';
-import { Photo } from './Photo';
+import { Photo } from '@/ui/Photo';
 import styles from './Public.module.css';
 
 /** The four the tent page shows: the three a controller steers and the one it derives. */
@@ -90,7 +90,7 @@ export function SharedSpace({ space, picture, now, banner }: { space: SpaceOverv
         ) : (
           <ul className={styles.entries}>
             {space.entries.map(entry => (
-              <EntryRow key={entry.id} entry={entry} people={[]} withDay byline={false} />
+              <EntryRow key={entry.id} entry={entry} people={[]} withDay byline={false} picture={picture} />
             ))}
           </ul>
         )}
