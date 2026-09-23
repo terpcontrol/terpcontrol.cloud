@@ -340,10 +340,14 @@ describe('what a panel is drawn against', () => {
     // A device whose CO2 sensor answers zero on every sample gives a flat line,
     // and the scale is stretched a hairsbreadth either side of it: the low
     // corner was drawn as "-0", which is not a reading anything ever took.
+    // Nothing a tent can measure is below zero ppm, so the floor is now zero
+    // itself - and the figure still has to be written without the sign
+    // wherever a metric that can go below it rounds away to nothing.
     const flat = { ...answer.panels[0], metric: 'co2' as const, points: answer.panels[0].points.map(point => ({ ...point, value: 0 })) };
     const scale = scaleOf(flat, []);
 
-    expect(scale.low).toBeLessThan(0);
+    expect(scale.low).toBe(0);
+    expect(scale.high).toBeGreaterThan(0);
     expect(targetFigure(scale.low, 'co2')).toBe('0');
     expect(figure(-0.04, 'temperature')).toBe('0.0');
     // And a figure that does not round away keeps its sign.

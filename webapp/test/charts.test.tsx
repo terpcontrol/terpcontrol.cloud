@@ -628,6 +628,23 @@ describe('what a plot is made of', () => {
     expect(card.scaleEnds).toEqual([null]);
   });
 
+  it('gives a concentration no room below zero, and a fridge the cold half it really ran in', () => {
+    // Seriotica's CO2 ran 366 to 6132 ppm against a band of 1000-1400, which
+    // rounded outwards to a step of 2000 and a floor of -2000: a fifth of the
+    // card was a concentration nothing can be in, and the curve was squeezed
+    // into what was left of it.
+    expect(niceScale([366, 6132, 1000, 1400])).toEqual({ low: 0, high: 8000 });
+
+    // Nothing handed in is below zero in the first, and something is in the
+    // second - which is the whole of the rule.
+    expect(niceScale([20, 24])).toEqual({ low: 19, high: 25 });
+    expect(niceScale([-4, 2])).toEqual({ low: -6, high: 4 });
+
+    // And a sensor answering zero on every sample still gets a scale to lie
+    // in rather than a line along its own edge.
+    expect(niceScale([0, 0, 0])).toEqual({ low: 0, high: 0.05 });
+  });
+
   it('writes both corners of every one-decimal window as the figures they mean', () => {
     // Every corner is a whole number of steps, and a step is 1, 2, 5 or 10 of
     // some power of ten - so every corner is a figure with few enough decimals

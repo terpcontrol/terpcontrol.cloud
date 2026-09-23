@@ -182,6 +182,14 @@ export const setpointPoints = (stretches: readonly (PlotSpan & { value: number }
  * What a plot is drawn between: everything on it and everything aimed at, with
  * a little air, rounded outwards to a figure worth printing. A plot of one flat
  * value still gets a scale, rather than a line lying on its own edge.
+ *
+ * The air below is only added where there is room for it. Rounding a spread of
+ * 366 to 6132 ppm outwards gives a step of 2000 and a floor of -2000, and a
+ * fifth of that card was then a concentration nothing can be in, with the
+ * curve squeezed into what was left. Nothing measured or aimed at being below
+ * zero is what says the metric has no negative half - a CO2 reading, a
+ * humidity, a length - and the floor is zero for those. A fridge that really
+ * ran at -4 keeps its cold half, because it handed one in.
  */
 export const niceScale = (values: readonly number[]): PlotScale => {
   const real = values.filter(value => Number.isFinite(value));
@@ -190,8 +198,11 @@ export const niceScale = (values: readonly number[]): PlotScale => {
   const low = Math.min(...real);
   const high = Math.max(...real);
   const step = niceStep(Math.max(high - low, Math.abs(high) * 0.02, 0.1) / 4);
+  const floor = snapped(Math.floor(low / step - 0.4) * step, step);
 
-  return { low: snapped(Math.floor(low / step - 0.4) * step, step), high: snapped(Math.ceil(high / step + 0.4) * step, step) };
+  // The ceiling is untouched by this, so a series of nothing but zeroes still
+  // spans a step rather than collapsing onto one line.
+  return { low: low < 0 ? floor : Math.max(0, floor), high: snapped(Math.ceil(high / step + 0.4) * step, step) };
 };
 
 /**
