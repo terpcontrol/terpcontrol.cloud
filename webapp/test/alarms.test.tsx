@@ -382,6 +382,22 @@ describe('the alarm rules page', () => {
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/alarm-rules/rule-hot/silence'));
   });
 
+  /**
+   * The footer under the list used to put a silence and a maintenance window
+   * behind the one word "pause". Only maintenance reaches the engine; a silence
+   * is read by the delivery alone, so the rule goes on tripping and the grower
+   * who silenced it for an hour is alarmed by it anyway. The page has to say
+   * which of the two it is offering.
+   */
+  it('says that a silenced rule keeps watching, and that maintenance is the one that holds the alarm', async () => {
+    draw();
+
+    const footer = await screen.findByText(/A silenced rule goes on watching/);
+    expect(footer).toHaveTextContent('it only stops telling anybody');
+    expect(footer).toHaveTextContent('Maintenance mode holds the alarm itself back');
+    expect(footer.textContent).not.toMatch(/Silence and maintenance mode pause/);
+  });
+
   it('calls the stage group by the stage alone where nothing grows here yet', async () => {
     vi.mocked(api.get).mockImplementation(
       (path: string) => Promise.resolve(path === '/spaces/space-1/overview' ? { ...overview, grows: [] } : answers(path)) as never,

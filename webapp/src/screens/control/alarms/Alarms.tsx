@@ -110,6 +110,14 @@ export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devic
         ))
       )}
 
+      {/* Silencing a rule and quietening a device are not the same thing, and
+          the footer used to put both behind the word "pause". Only maintenance
+          reaches the engine: `alarm-engine.service.ts` skips a device that is
+          being worked on, so no alert is opened at all. A silence is read by
+          the delivery alone, so the rule goes on tripping, the episode goes on
+          being written and Home goes on carrying the chip - the one thing that
+          stops is the announcement. A grower who silenced a noisy rule for an
+          hour and was then alarmed by it anyway had been told otherwise here. */}
       <p className={ui.note}>{t('alarms.footer')}</p>
     </div>
   );

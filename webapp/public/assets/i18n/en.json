@@ -3319,7 +3319,7 @@
     "title": "Alarms",
     "backToPlan": "‹ back to the plan",
     "noController": "Nothing stands here that has alarm rules. A device has to be claimed into this space first.",
-    "footer": "Silence and maintenance mode pause all of them; \"Step in\" from the Log sheet does the same for 15 minutes.",
+    "footer": "A silenced rule goes on watching: it still opens an alert, still writes the diary line and still marks the place on Home, it only stops telling anybody. Maintenance mode holds the alarm itself back, and so does \"Step in\" from the Log sheet.",
     "add": "+ Alarm · threshold · duration · severity · webhook",
     "group": {
       "presetOf": "From the {{name}} preset",

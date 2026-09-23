@@ -3315,7 +3315,7 @@
     "title": "Alarme",
     "backToPlan": "‹ zurück zum Plan",
     "noController": "Hier steht nichts, das Alarmregeln hat. Erst muss ein Gerät in diesen Bereich geholt werden.",
-    "footer": "Stummschalten und Wartungsmodus pausieren alle; „Reingehen“ aus dem Log-Blatt tut dasselbe für 15 Minuten.",
+    "footer": "Eine stummgeschaltete Regel beobachtet weiter: Sie öffnet weiterhin eine Meldung, schreibt weiterhin die Tagebuchzeile und markiert weiterhin den Ort auf der Startseite, sie sagt nur niemandem mehr Bescheid. Der Wartungsmodus hält den Alarm selbst zurück, und „Reingehen“ aus dem Log-Blatt ebenso.",
     "add": "+ Alarm · Schwelle · Dauer · Stufe · Webhook",
     "group": {
       "presetOf": "Aus dem Preset {{name}}",
