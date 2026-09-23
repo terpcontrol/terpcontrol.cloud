@@ -557,6 +557,47 @@ describe('the Charts view', () => {
     expect(screen.queryByRole('link', { name: 'Spring run' })).not.toBeInTheDocument();
   });
 
+  /**
+   * The neighbouring case: two ends that read perfectly well and name no
+   * stretch of time, because the later of them is in the earlier field. The
+   * route refuses that pair for good, so a read of it came back as a window
+   * that could not be refreshed - a transient fault, with a Try again there was
+   * nothing to try - and the chart of the range before it stayed drawn under
+   * two fields that no longer described it.
+   */
+  it('says a custom range whose ends are the wrong way round, and takes the chart of the other range down', async () => {
+    drawAt('/charts?grow=grow-1&range=custom&from=2026-09-20&to=2026-09-22');
+    await screen.findByText('Temp + RH');
+    expect(state.asked.filter(read => read.path.includes('/series'))).toHaveLength(1);
+
+    // A From typed after the To, which is what the fields allow: `max` on a
+    // date field raises a validity flag and refuses nothing.
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-09-26' } });
+
+    expect(await screen.findByText('That range ends before it begins — pick a From that is earlier than the To.')).toBeInTheDocument();
+    expect(screen.queryByText('Temp + RH')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Could not refresh/)).not.toBeInTheDocument();
+    // Nor the days of the window that is no longer being asked about.
+    expect(screen.queryByText('day 35')).not.toBeInTheDocument();
+    expect(state.asked.filter(read => read.path.includes('/series'))).toHaveLength(1);
+  });
+
+  it('says the same of an inverted range that arrives in the address, and asks nothing of the route', async () => {
+    drawAt('/charts?grow=grow-1&range=custom&from=2026-09-22&to=2026-01-19');
+
+    expect(await screen.findByText('That range ends before it begins — pick a From that is earlier than the To.')).toBeInTheDocument();
+    expect(screen.queryByText('loading')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+    expect(state.asked.filter(read => read.path.includes('/series'))).toHaveLength(0);
+  });
+
+  it('draws a range of one day, which begins and ends on the same date and is not backwards', async () => {
+    drawAt('/charts?grow=grow-1&range=custom&from=2026-09-21&to=2026-09-21');
+
+    expect(await screen.findByText('Temp + RH')).toBeInTheDocument();
+    expect(screen.queryByText(/ends before it begins/)).not.toBeInTheDocument();
+  });
+
   it('says it for the other end too, and keeps the plain sentence for an end nobody has picked yet', async () => {
     drawAt('/charts?grow=grow-1&range=custom&from=2026-09-20&to=nonsense');
 

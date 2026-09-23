@@ -39,8 +39,17 @@ export interface SeriesWindow {
   measurements: string[];
 }
 
-/** A custom range is the one window the chips cannot name, so it is the one that can be asked for incomplete. */
-const askable = (window: SeriesWindow): boolean => window.range !== 'custom' || (!!window.from && !!window.to);
+/**
+ * A custom range is the one window the chips cannot name, so it is the one that
+ * can be asked for incomplete - or backwards, which is the same thing twice
+ * over: the route names both ends and ends after it begins, and refuses
+ * anything else for good. A refusal that will never change on a retry is not a
+ * read to make and then report, so it is not made.
+ *
+ * Both ends are written the one way the contract spells an instant, which is
+ * UTC to the millisecond, so the two sort in the order they run.
+ */
+export const askable = (window: SeriesWindow): boolean => window.range !== 'custom' || (!!window.from && !!window.to && window.from < window.to);
 
 export const useGrowSeries = (growId: string | null, window: SeriesWindow) => {
   const client = useQueryClient();

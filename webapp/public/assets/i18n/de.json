@@ -521,7 +521,8 @@
       "from": "Von",
       "to": "Bis",
       "need": "Beide Enden wählen, dann wird dazwischen gezeichnet.",
-      "unreadable": "Das ist kein lesbares Datum — bitte beide Enden neu wählen."
+      "unreadable": "Das ist kein lesbares Datum — bitte beide Enden neu wählen.",
+      "backwards": "Dieser Zeitraum endet vor seinem Anfang — bitte ein Von wählen, das vor dem Bis liegt."
     },
     "seriesLabel": "Kurven",
     "metric": {

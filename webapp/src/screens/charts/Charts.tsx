@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import type { ChartView, ChartViewDefinition, ChartViewSpan, GrowListItem, GrowSeries, GrowSeriesRange } from '@fg2/shared-types/v1';
 import { useChartViews } from '@/api/chart-views';
-import { useGrowSeries } from '@/api/charts';
+import { askable, useGrowSeries } from '@/api/charts';
 import { useDevices } from '@/api/devices';
 import { useGrow, useGrowPlants, useGrows, useGrowsEverIn, useSpaceGrows } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
@@ -200,6 +200,17 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
   // different sentence from an end nobody has picked yet.
   const incomplete = range === 'custom' && !(bounds.from && bounds.to);
   const unreadable = incomplete && !!from && !!to;
+  // Two ends that read perfectly well and still name no stretch of time,
+  // because the later of the two was put in the earlier field. The route
+  // refuses that pair for good - a custom range names both of its ends, and
+  // ends after it begins - so asking it turns a sentence this screen could
+  // write itself into a read that failed, reported as a window that could not
+  // be refreshed and offered with a Try again there is nothing to try. The
+  // `max` and `min` on the two fields do not prevent it: on a date field those
+  // raise a validity flag and refuse no input at all.
+  const backwards = range === 'custom' && !incomplete && !askable(window);
+  /** Either way, a question nobody has finished asking: no read goes out, and the fields say which of the three it is. */
+  const unasked = incomplete || backwards;
   const series = useGrowSeries(grow.id, window);
 
   const spaces = useSpaces();
@@ -303,7 +314,12 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
             {one === 'custom' ? t('charts.range.custom') : t(`timeline.range.${one}`)}
           </button>
         ))}
-        {data ? <span className={`mono ${styles.days}`}>{dayLabel(t, data)}</span> : null}
+        {/* Which days the chart covers, and it covers none while the question
+            is unfinished: the answer still in hand is of the window before the
+            fields were touched, and naming its days beside two fields that no
+            longer describe it is the last thing on the screen still claiming
+            the old range is what is being looked at. */}
+        {!unasked && data ? <span className={`mono ${styles.days}`}>{dayLabel(t, data)}</span> : null}
       </div>
 
       {range === 'custom' ? (
@@ -328,8 +344,10 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
               onChange={event => setQuery({ to: event.target.value })}
             />
           </label>
-          {incomplete ? (
-            <p className={`${ui.note} ${styles.customNote}`}>{t(unreadable ? 'charts.custom.unreadable' : 'charts.custom.need')}</p>
+          {unasked ? (
+            <p className={`${ui.note} ${styles.customNote}`}>
+              {t(backwards ? 'charts.custom.backwards' : unreadable ? 'charts.custom.unreadable' : 'charts.custom.need')}
+            </p>
           ) : null}
         </div>
       ) : null}
@@ -422,9 +440,13 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
 
   const head = <Header spaceId={spaceId} growId={grow.id} subject={subject} />;
 
-  // A custom range with one end still to be picked is not a read that is on its
-  // way: it is a question nobody has finished asking, and the fields say so.
-  if (incomplete) {
+  // A custom range with an end still to be picked, or with its two ends the
+  // wrong way round, is not a read that is on its way: it is a question nobody
+  // has finished asking, and the fields say so. The chart drawn before it goes
+  // with it, because it is of a window the two fields no longer show - left up
+  // under a sentence about the network, it was the strongest thing on the
+  // screen saying the old range was still what was being looked at.
+  if (unasked) {
     return (
       <div className={styles.screen}>
         {head}

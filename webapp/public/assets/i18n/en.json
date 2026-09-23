@@ -521,7 +521,8 @@
       "from": "From",
       "to": "To",
       "need": "Pick both ends and the chart is drawn between them.",
-      "unreadable": "That is not a date this can read — pick both ends again."
+      "unreadable": "That is not a date this can read — pick both ends again.",
+      "backwards": "That range ends before it begins — pick a From that is earlier than the To."
     },
     "seriesLabel": "Series",
     "metric": {
