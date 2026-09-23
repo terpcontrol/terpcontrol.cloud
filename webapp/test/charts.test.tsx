@@ -367,6 +367,29 @@ describe('the Charts view', () => {
     expect(reading).not.toHaveTextContent('26.0');
   });
 
+  /**
+   * The two corner figures are written in the gutter beside the plot rather
+   * than on it, so that they can be read in the app's own face - and they were
+   * written by string arithmetic that knew no language, which put an English
+   * point in the German gutter of a panel whose reading above it had a comma.
+   */
+  it('writes the corners of a scale in the reader´s language as well', async () => {
+    // A window of a tenth of a degree either way: the scale is stretched to
+    // ends that do not land on whole numbers, which is where a decimal shows.
+    state.series = {
+      ...series,
+      climate: [{ metric: 'temperature', points: [0, 6, 12, 18, 24].map(hour => ({ measuredAt: at(hour), value: 24 + hour / 60 })), targets: [] }],
+      outputs: [],
+      measurements: [],
+    };
+    await i18next.changeLanguage('de');
+    draw();
+
+    expect(await screen.findByText('24,6')).toBeInTheDocument();
+    expect(screen.getByText('23,8')).toBeInTheDocument();
+    expect(screen.queryByText('24.6')).not.toBeInTheDocument();
+  });
+
   it('prints a dash rather than the last figure it heard where the series stops before the window does', async () => {
     // The tent fell quiet half way through the window, which the answer says by
     // breaking every line after the last reading. The cursor rests at the right

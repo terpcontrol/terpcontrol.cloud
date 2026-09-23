@@ -1,20 +1,10 @@
 import type { GrowSeries, MeasurementDefinition, Metric, OutputMetric, TimelinePanel, TimelineTarget, TimelineTargets } from '@fg2/shared-types/v1';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { CHART_METRICS, CHART_OUTPUTS } from '@/api/charts';
-import {
-  axisFigure,
-  csvOf,
-  dayOfGrow,
-  niceScale,
-  setpointPoints,
-  stepPoints,
-  type CsvColumn,
-  type Plot,
-  type PlotLine,
-  type PlotSpan,
-} from '@/charts/series';
+import { csvOf, dayOfGrow, niceScale, setpointPoints, stepPoints, type CsvColumn, type Plot, type PlotLine, type PlotSpan } from '@/charts/series';
 import type { ChartToken } from '@/charts/tokens';
-import { UNIT } from '../home/units';
+import { looseFigure } from '@/ui/figures';
+import { targetFigure, UNIT } from '../home/units';
 import { at, stretchesOf } from '../timeline/window';
 
 /**
@@ -134,6 +124,8 @@ interface Drawn {
   title: string;
   about: string;
   unit: string;
+  /** Which of the contract's metrics this is, where it is one: a grower's own measurement is none of them. */
+  metric?: Metric;
   lines: PlotLine[];
   /** Everything the scale of this line's unit has to hold: what was measured, and what was aimed at. */
   values: number[];
@@ -223,12 +215,28 @@ const cardOf = (key: string, title: string, about: string, unit: string, drawn: 
     // A square wave runs between off and on, and the round figures a scale is
     // stretched to - -0.5 and 1.5 - are not states anything was ever in.
     scaleEnds: scales.map((scale, index) =>
-      on[index].every(one => one.lines.every(line => line.shape === 'step')) ? null : { low: axisFigure(scale.low), high: axisFigure(scale.high) },
+      on[index].every(one => one.lines.every(line => line.shape === 'step'))
+        ? null
+        : { low: cornerFigure(scale.low, on[index][0]?.metric), high: cornerFigure(scale.high, on[index][0]?.metric) },
     ),
     plot: { axis: 'time', from: 0, to: 0, scales, nights: [], lines },
     left,
   };
 };
+
+/**
+ * A corner of a scale, as it is written in the gutter beside the plot.
+ *
+ * It is a figure in front of a reader like any other on the card, and it used to
+ * be written by plain string arithmetic that knew no language: the German screen
+ * put "0.85" in the gutter of a panel whose own reading above it said "0,85".
+ * A corner is also a round number - that is what `niceScale` stretches the two
+ * ends out to - so it is written the way every other round figure in the app is,
+ * which leaves a whole number whole and gives a fraction the decimals its metric
+ * is written to. A grower's own measurement is none of the contract's metrics
+ * and has no such rule, so its corner is written as exactly as the number is.
+ */
+const cornerFigure = (value: number, metric: Metric | undefined): string => (metric === undefined ? looseFigure(value) : targetFigure(value, metric));
 
 /** The window, the nights and the axis, which are the same for every card on the screen. */
 const framed = (card: Card, series: GrowSeries, layout: Layout): Card => {
@@ -340,6 +348,7 @@ const metricDrawn = (t: Translate, metric: Metric, panel: TimelinePanel, series:
     title,
     about: aboutMetric(t, metric, stretches.length > 0, leaf),
     unit,
+    metric,
     values: [
       ...panel.points.flatMap(point => (point.value === null ? [] : [point.value])),
       ...stretches.flatMap(stretch => [stretch.target.band.low, stretch.target.band.high]),

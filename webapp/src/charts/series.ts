@@ -200,9 +200,6 @@ export const readAt = (line: Pick<PlotLine, 'shape' | 'points'>, x: number, span
   return found?.[1] ?? null;
 };
 
-/** A figure beside an axis or under a cursor: round where the scale came out round, and never longer than it is worth. */
-export const axisFigure = (value: number): string => (Number.isInteger(value) ? String(value) : String(Math.round(value * 100) / 100));
-
 /**
  * An output is spans and not points, so it is drawn as the square wave those
  * spans describe: up where it ran, down where it did not, and flat along the
