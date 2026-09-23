@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DeviceConfiguration, Plan } from '@fg2/shared-types/v1';
 import { Targets } from '@/screens/control/targets/Targets';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
@@ -158,10 +158,19 @@ const slide = (name: string, to: number) => fireEvent.change(slider(name), { tar
 beforeAll(async () => {
   // The light window is said in the reader's own time; the document holds UTC, so the test reads in UTC.
   Settings.defaultZone = 'utc';
-  const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
-  await i18next
-    .use(initReactI18next)
-    .init({ lng: 'en', resources: { en: { translation } }, nsSeparator: false, interpolation: { escapeValue: false } });
+  const [en, de] = await Promise.all(
+    ['en', 'de'].map(async language => JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'))),
+  );
+  await i18next.use(initReactI18next).init({
+    lng: 'en',
+    resources: { en: { translation: en }, de: { translation: de } },
+    nsSeparator: false,
+    interpolation: { escapeValue: false },
+  });
+});
+
+afterEach(async () => {
+  await i18next.changeLanguage('en');
 });
 
 afterAll(() => {
@@ -224,11 +233,28 @@ describe('the manual targets page', () => {
     expect(slider('Light on for').value).toBe('12');
     expect(slider('CO₂ target').value).toBe('800');
     expect(screen.getByText('06–18 h')).toBeInTheDocument();
-    // 25 °C at 60 % with the leaf two degrees cooler, worked out as the server works a reading's.
-    expect(screen.getByText('VPD 0.9')).toBeInTheDocument();
+    // 25 °C at 60 % with the leaf two degrees cooler, worked out as the server
+    // works a reading's, and written to the two decimals a deficit is written
+    // to wherever else the app prints one.
+    expect(screen.getByText('VPD 0.91')).toBeInTheDocument();
     expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'alarms' })).toHaveAttribute('href', '/spaces/space-1/control/alarms');
     expect(screen.getByRole('link', { name: 'sockets' })).toHaveAttribute('href', '/spaces/space-1/devices');
+  });
+
+  /**
+   * The one reading on this page that is written rather than typed into a
+   * field, and it was the last one in the app written in English whatever
+   * language the page was in: a German grower moved "Luftfeuchte" and was
+   * answered "VPD 1.0" beside it, on an account whose home card writes
+   * "0,98 kPa" for the very same quantity.
+   */
+  it('writes the deficit in the reader´s own language', async () => {
+    await i18next.changeLanguage('de');
+    draw();
+
+    expect(await screen.findByText('VPD 0,91')).toBeInTheDocument();
+    expect(screen.queryByText('VPD 0.91')).not.toBeInTheDocument();
   });
 
   it('prefills the sliders from a preset and writes nothing', async () => {

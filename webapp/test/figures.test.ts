@@ -124,8 +124,7 @@ describe('the figures that must stay English', () => {
 
     // `screens/home/units.ts` rounds with `toFixed` and writes with the shared
     // writer, which is the order that keeps the arithmetic out of the reader's
-    // hands; `control/targets` is the one reading still written straight and is
-    // held open by another pass over this same defect.
-    expect(own).toEqual(['src/screens/control/targets/Targets.tsx', 'src/screens/home/units.ts']);
+    // hands, and it is the only place left that may round at all.
+    expect(own).toEqual(['src/screens/home/units.ts']);
   });
 });

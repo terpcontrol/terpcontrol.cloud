@@ -14,6 +14,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { nowThere, CLOCK, useZone } from '@/ui/zone';
 import { deviceTitle } from '../../devices/naming';
+import { figure } from '../../home/units';
 import { TargetRow } from './TargetRow';
 import {
   draftOf,
@@ -174,8 +175,17 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
     return chip.preset === 'autoflower' ? `${preset} · ${t(`home.stage.${chip.stage}`)}` : preset;
   };
 
+  /**
+   * The deficit the pair of sliders beside it amounts to. It is a reading like
+   * any other the app writes, so it goes through the writer every other reading
+   * goes through: written straight it was decimated in English whatever
+   * language the panel was in, so a German grower set "Luftfeuchte 58 %" and
+   * was answered "VPD 1.0" on a screen that writes "0,98 kPa" for the same
+   * quantity on the card they came from. The decimals are the metric's own, and
+   * a deficit is written to two of them everywhere else in the app.
+   */
   const vpd = (temperature: number, humidity: number, when: 'day' | 'night') =>
-    t('targets.vpd', { value: vpdOf(temperature, humidity, leafOffset(device.settings, when)).toFixed(1) });
+    t('targets.vpd', { value: figure(vpdOf(temperature, humidity, leafOffset(device.settings, when)), 'vpd') });
 
   if (plan.isPending) {
     return (
