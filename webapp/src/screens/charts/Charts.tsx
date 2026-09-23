@@ -12,7 +12,6 @@ import { noLongerThere } from '@/api/problem';
 import { useSpaces } from '@/api/spaces';
 import { useScrub } from '@/charts/scrub';
 import { axisFigure, dayOfGrow, downloadCsv, valueAt, type PlotLine } from '@/charts/series';
-import { spanLabel } from '@/ui/age';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { stoodIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -456,9 +455,15 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
       {/* The table is the answer already in hand, so it is written at the step
           the window decided and not at the rate the devices reported at. That
           step is on the wire, so the note says it rather than leaving somebody
-          to work out why their million readings came back as four hundred. */}
+          to work out why their million readings came back as four hundred.
+
+          A window the grow has no readings in is answered with a step of zero,
+          which is the server saying there is no series rather than naming a
+          rate - so the sentence about the table goes with the table, and the
+          way on to the whole grow stays where it was. */}
       <p className={`${ui.note} ${styles.csvNote}`}>
-        {t('charts.csvNote', { step: spanLabel(data.stepSeconds) })} <Link to={`/grows/${grow.id}`}>{grow.name}</Link>
+        {data.stepSeconds > 0 ? `${t('charts.csvNote', { step: stepLabel(data.stepSeconds) })} ` : null}
+        {t('charts.exportOn')} <Link to={`/grows/${grow.id}`}>{grow.name}</Link>
       </p>
       <p className={`${ui.note} ${styles.note}`}>{t('charts.note')}</p>
 
@@ -644,6 +649,44 @@ const leafOffsetsOf = (
   )
     ? { day: first.settings.vpdLeafOffsetDay, night: first.settings.vpdLeafOffsetNight }
     : null;
+};
+
+/** The units a step is written in, widest first. They are not translated, because neither is any other span the app prints. */
+const STEP_UNITS = [
+  { unit: 'd', seconds: 24 * 60 * 60 },
+  { unit: 'h', seconds: 60 * 60 },
+  { unit: 'min', seconds: 60 },
+  { unit: 's', seconds: 1 },
+];
+
+/**
+ * How far apart the rows of the table are, in words.
+ *
+ * Not `spanLabel`, which floors to a single unit. That is right for an age - a
+ * value an hour and a half old is "1 h ago", and saying "1 h 30 min ago" of it
+ * would be precision nobody asked for - and wrong for a figure somebody is
+ * about to count rows by: the step of a whole grow is whatever the window
+ * divided by the number of panels comes to, 1 h 29 min on one of the restored
+ * seasons, and floored to "1 h" the note was a third short of the truth.
+ *
+ * So the next unit down is named where there is one worth naming, and left off
+ * where the step lands on a whole one of the first - which is every rolling
+ * window, the two the chips offer included.
+ */
+const stepLabel = (seconds: number): string => {
+  const whole = Math.max(0, Math.round(seconds));
+  const index = Math.max(
+    0,
+    STEP_UNITS.findIndex(one => whole >= one.seconds),
+  );
+  const big = STEP_UNITS[index];
+  const small = STEP_UNITS[index + 1];
+  const count = Math.floor(whole / big.seconds);
+  const rest = small ? Math.round((whole - count * big.seconds) / small.seconds) : 0;
+  // A remainder that rounds up to a whole one of the unit above is that unit.
+  if (small && rest * small.seconds >= big.seconds) return `${count + 1} ${big.unit}`;
+
+  return rest > 0 ? `${count} ${big.unit} ${rest} ${small.unit}` : `${count} ${big.unit}`;
 };
 
 /** A file a grower can find again: what it is of, and over what. */

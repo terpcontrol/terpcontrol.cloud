@@ -274,6 +274,30 @@ describe('the Charts view', () => {
     expect(screen.queryByText(/native rate/)).not.toBeInTheDocument();
   });
 
+  it('states a step that is not a whole hour as the hour and a half it is', async () => {
+    // What a season comes out at: the window divided by the number of panels,
+    // which lands wherever it lands. Floored to a single unit this read "one
+    // row per 1 h" over rows an hour and a half apart.
+    state.series = { ...series, stepSeconds: 5344 };
+    draw();
+
+    expect(await screen.findByText(/CSV takes what is on the screen/)).toHaveTextContent('one row per 1 h 29 min');
+  });
+
+  it('says nothing about rows for a window that has none, and still offers the way on to the whole grow', async () => {
+    // A window the grow has no readings in is answered with no devices and a
+    // step of zero, which is the server saying there is no series - not a rate
+    // of one row per nothing.
+    state.series = { ...series, stepSeconds: 0, deviceIds: [], climate: [], outputs: [], measurements: [], nights: [] };
+    draw();
+
+    expect(await screen.findByText(/No measurements in this period/)).toBeInTheDocument();
+    expect(screen.queryByText(/CSV takes what is on the screen/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/one row per/)).not.toBeInTheDocument();
+    expect(screen.getByText(/is under Export on/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Spring run' })).toHaveAttribute('href', '/grows/grow-1');
+  });
+
   it('reads out every line at the cursor and prints both ends of every scale', async () => {
     draw();
 
