@@ -1464,7 +1464,8 @@
     "alert": {
       "threshold": "Alarm",
       "offline": "Offline",
-      "camera_stale": "Cam not delivering"
+      "camera_stale": "Cam not delivering",
+      "quietFor": "quiet for {{age}}"
     },
     "actions": {
       "water": "Water",

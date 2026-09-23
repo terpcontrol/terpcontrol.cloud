@@ -1460,7 +1460,8 @@
     "alert": {
       "threshold": "Alarm",
       "offline": "Offline",
-      "camera_stale": "Cam liefert nicht"
+      "camera_stale": "Cam liefert nicht",
+      "quietFor": "still seit {{age}}"
     },
     "actions": {
       "water": "Gießen",

@@ -383,7 +383,7 @@ describe('what the migration wrote', () => {
       // The code that names no device claims nothing.
       claimCodes: fixture.counts.claimcodes - 1,
       // One per claimed device; the device nobody has ever seen gets none.
-      spaces: 5,
+      spaces: 6,
       // The three devices whose plan has steps, running or not.
       plans: 3,
       // Three on the tent's readings and one per output an alarm can watch.
@@ -553,6 +553,21 @@ describe('spaces', () => {
     });
     expect(await one<Record<string, any>>('spaces', { id: spaceIdOf(LEGACY_DEVICE_IDS.fridge) })).toMatchObject({ kind: 'fridge' });
     expect(await one<Record<string, any>>('spaces', { id: spaceIdOf(LEGACY_DEVICE_IDS.demo) })).toMatchObject({ isDemo: true });
+  });
+
+  /**
+   * Two thirds of the fleet was never named, and the old screens showed the
+   * device's id wherever a name belonged. An id is a name for a device and this
+   * is a place: carrying it over would open the app, on the morning after the
+   * upgrade, on a home screen of hex.
+   */
+  it('calls an unnamed device´s place what this app calls a new one', async () => {
+    await migrate();
+
+    const made = await one<Record<string, any>>('spaces', { id: spaceIdOf(LEGACY_DEVICE_IDS.unnamed) });
+
+    expect(made).toMatchObject({ kind: 'tent', name: 'Tent 1', ownerId: LEGACY_USER_IDS.ada });
+    expect(made?.name).not.toContain(LEGACY_DEVICE_IDS.unnamed);
   });
 });
 

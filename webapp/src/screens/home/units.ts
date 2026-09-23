@@ -1,4 +1,5 @@
 import type { Metric, OpenAlert } from '@fg2/shared-types/v1';
+import { spanLabel } from '@/ui/age';
 
 /** How a card writes a figure: the unit beside it, and as many decimals as the sensor is good for. */
 export const UNIT: Partial<Record<Metric, string>> = { temperature: '°C', humidity: '%', co2: 'ppm', vpd: 'kPa' };
@@ -21,8 +22,20 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
  * name to put it in - and a bare "1" beside the word Alarm reads as a count of
  * something. Those say what kind of thing happened and stop there, which is the
  * whole of what the card knows.
+ *
+ * Silence is the exception the contract makes: `offline` is a metric so that the
+ * health loop's rule can be an ordinary reading rule, and the reading it carries
+ * is a number of seconds. Printed as a figure it read "337256 offline", which is
+ * the least useful true thing a card could say about a tent nobody has heard
+ * from - so it is said as a span, in the same words every other age on the
+ * screen uses.
  */
 export const alertLabel = (t: Translate, alert: OpenAlert): string => {
+  if (alert.metric === 'offline') {
+    const quiet = alert.value === null ? null : t('home.alert.quietFor', { age: spanLabel(alert.value) });
+    return [t(`home.alert.${alert.kind}`), quiet].filter(Boolean).join(' · ');
+  }
+
   const reading =
     alert.value !== null && alert.metric
       ? [figure(alert.value, alert.metric), UNIT[alert.metric], t(`home.metric.${alert.metric}`, { defaultValue: alert.metric })]

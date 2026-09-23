@@ -21,6 +21,19 @@ export const ageLabel = (measuredAt: string | null, now: DateTime = DateTime.now
 };
 
 /**
+ * The same words for a span somebody hands us in seconds rather than as an
+ * instant - how long a device has been quiet, how long an output has run - so
+ * that "3 d" means the same thing wherever it is read.
+ */
+export const spanLabel = (seconds: number): string => {
+  const whole = Math.max(0, Math.floor(seconds));
+  if (whole < 60) return `${whole} s`;
+  if (whole < 3600) return `${Math.floor(whole / 60)} min`;
+  if (whole < 86_400) return `${Math.floor(whole / 3600)} h`;
+  return `${Math.floor(whole / 86_400)} d`;
+};
+
+/**
  * What `global.css` dims by. It is an attribute rather than a class so a row can
  * pass it straight through to whatever it wraps.
  */

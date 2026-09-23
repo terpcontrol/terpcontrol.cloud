@@ -96,7 +96,7 @@ describe('the two the migration died on', () => {
     expect(report).toContain('"ada@example.test"');
     // What the decision turns on: the addresses, the dates, and how much each
     // account answers for.
-    expect(report).toMatch(/owns 3 devices/u);
+    expect(report).toMatch(/owns 4 devices/u);
   });
 
   it('names accounts that share an address even where only the case or the spaces differ', async () => {

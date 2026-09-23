@@ -700,6 +700,11 @@ describe('the arithmetic behind the cards', () => {
     // "Alarm · 1" reads as a count of something.
     expect(alertLabel(i18next.t, open({ metric: null, value: 1 }))).toBe('Alarm');
     expect(alertLabel(i18next.t, open({ kind: 'offline', metric: null, value: null }))).toBe('Offline');
+    // `offline` is a metric so the health loop's rule can be an ordinary
+    // reading rule, and the reading is a number of seconds. Drawn as a figure
+    // it said "337256 offline" on a real tent nobody had heard from in days.
+    expect(alertLabel(i18next.t, open({ kind: 'offline', metric: 'offline', value: 337_255.9 }))).toBe('Offline · quiet for 3 d');
+    expect(alertLabel(i18next.t, open({ kind: 'offline', metric: 'offline', value: 900 }))).toBe('Offline · quiet for 15 min');
   });
 
   it('keeps an open alert under NOW however long ago it began', () => {

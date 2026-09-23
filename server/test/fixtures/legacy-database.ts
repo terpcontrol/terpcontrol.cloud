@@ -64,6 +64,8 @@ export const LEGACY_USER_IDS = {
 
 export const LEGACY_DEVICE_IDS = {
   controller: 'dev-controller-tent',
+  /** Claimed and never named, which two thirds of the fleet turned out to be. */
+  unnamed: 'dev-controller-unnamed',
   fridge: 'dev-fridge-cellar',
   plug: 'dev-plug-balcony',
   fan: 'dev-fan-attic',
@@ -701,6 +703,26 @@ export async function seedLegacyDatabase(target: Connection | mongo.Db, at: numb
         ],
       },
       hardwareInfo: { firmware_version: '2.0.1', claimcode_auth: 'on', sockets: 'none', socket_ips: 'none', sockets_n: '0' },
+      __v: 0,
+    },
+    {
+      // Claimed, used, and never given a name. Most of the real fleet looks
+      // like this, and the old screens showed its id wherever a name belonged.
+      _id: idAt(ago(180), 7),
+      device_id: LEGACY_DEVICE_IDS.unnamed,
+      username: `mqtt-${LEGACY_DEVICE_IDS.unnamed}`,
+      password: PASSWORD_HASH,
+      class_id: LEGACY_CLASS_IDS.controller,
+      device_type: 'controller',
+      owner_id: LEGACY_USER_IDS.ada,
+      name: '',
+      configuration: configurationJson(24, 60),
+      serialnumber: 7,
+      lastseen: now - 9 * MINUTE,
+      current_firmware: 'fw-controller-1.4.2',
+      fwupdate_start: 0,
+      fwupdate_end: 0,
+      hardwareInfo: { firmware_version: '1.4.2', claimcode_auth: 'on', sockets: 'none', socket_ips: 'none', sockets_n: '0' },
       __v: 0,
     },
     {
