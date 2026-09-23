@@ -178,10 +178,16 @@ const standing = [
   { id: 'device-3', type: 'fan', name: 'Somewhere else', spaceId: 'space-2' },
 ] as unknown as Device[];
 
+/** A second place, with nothing growing in it: the one a "+ Grow" chip points the Phase tile at. */
+const emptyPlace = { ...home.spaces[0], spaceId: 'space-2', name: 'Place 2', kind: 'other' as const, deviceIds: [], grow: null };
+
 const answers = (path: string) => {
   if (path === '/home') return home;
   if (path === '/devices') return { items: standing, nextCursor: null };
-  if (path === '/spaces') return { items: [spaceWhere(may.youMay)], nextCursor: null };
+  if (path === '/grows') return { items: [grow], nextCursor: null };
+  if (path === '/cameras') return { items: [], nextCursor: null };
+  if (path === '/spaces')
+    return { items: [spaceWhere(may.youMay), spaceWhere('own', { id: 'space-2', name: 'Place 2', kind: 'other' })], nextCursor: null };
   // The grow belongs to whoever the tent it stands in does, so one reader's two
   // standings cannot contradict each other.
   if (path === '/grows/grow-1') return { ...grow, ownerId: may.youMay === 'own' ? YOU : THE_HOST };
@@ -197,6 +203,10 @@ function OpenLog() {
     <>
       <button type="button" onClick={() => openSheet()}>
         open
+      </button>
+      {/* What a "+ Grow" chip on a place with nothing growing links to: /log?kind=phase&space=<id>. */}
+      <button type="button" onClick={() => openSheet({ kind: 'phase', spaceId: 'space-2' })}>
+        open phase there
       </button>
       <button type="button" onClick={() => complete('task-1', 'Watered · Spring run')}>
         done
@@ -446,6 +456,38 @@ describe('the log sheet', () => {
     const asked = await screen.findByRole('dialog', { name: 'Step in' });
     expect(await within(asked).findByText('Nothing stands in Tent 1, so this is a line in the diary and nothing else.')).toBeInTheDocument();
     expect(within(asked).getByRole('button', { name: 'Save' })).toBeInTheDocument();
+  });
+
+  /**
+   * The Phase tile is where a place with nothing growing in it sends somebody who
+   * asked for a grow: the "+ Grow" chip on the space overview and on the charts
+   * links straight at it. A sheet that only says a phase needs a grow leaves them
+   * where they started, so it offers the grow.
+   */
+  it('offers to start a grow where a phase was asked for in a place that has none', async () => {
+    vi.mocked(api.get).mockImplementation((path: string) =>
+      Promise.resolve(path === '/home' ? { ...home, spaces: [...home.spaces, emptyPlace] } : answers(path)),
+    );
+    // The feeding schemes ship as assets rather than as a resource, so the sheet fetches them.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ schemes: [] }) })),
+    );
+
+    draw();
+    fireEvent.click(screen.getByRole('button', { name: 'open phase there' }));
+
+    const phase = await screen.findByRole('dialog', { name: 'Phase' });
+    expect(within(phase).getByText('A phase belongs to a grow, and this line is about a place.')).toBeInTheDocument();
+
+    fireEvent.click(await within(phase).findByRole('button', { name: 'Start a grow in Place 2' }));
+
+    // The new-grow sheet takes this one's place, already pointed at the place asked about.
+    expect(await screen.findByRole('button', { name: /^Place 2/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('dialog', { name: 'New grow' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Phase' })).not.toBeInTheDocument();
+
+    vi.unstubAllGlobals();
   });
 
   it('writes a line about one plant when a plant is the target', async () => {

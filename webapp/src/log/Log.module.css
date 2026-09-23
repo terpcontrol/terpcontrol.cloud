@@ -336,6 +336,15 @@
   color: var(--ink);
 }
 
+/* A phase asked for where nothing grows: the sentence, and under it the one
+   thing that would make the question answerable. */
+.noGrow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
 /* What stepping in is about to quieten: the sentence, the devices it names, and
    what Undo will and will not take back. The list is indented under the
    sentence so that it reads as that sentence's own enumeration. */

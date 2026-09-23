@@ -2920,6 +2920,7 @@
     "notePlaceholder": "What happened?",
     "trainingPlaceholder": "What did you do?",
     "phaseNeedsGrow": "A phase belongs to a grow, and this line is about a place.",
+    "startGrowHere": "Start a grow in {{name}}",
     "now": "now",
     "save": "Save",
     "saveDay": "Save · Day {{day}}",

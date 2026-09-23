@@ -2916,6 +2916,7 @@
     "notePlaceholder": "Was ist passiert?",
     "trainingPlaceholder": "Was hast du gemacht?",
     "phaseNeedsGrow": "Eine Phase gehört zu einem Grow, dieser Eintrag gehört zu einem Ort.",
+    "startGrowHere": "Grow in {{name}} starten",
     "now": "jetzt",
     "save": "Speichern",
     "saveDay": "Speichern · Tag {{day}}",

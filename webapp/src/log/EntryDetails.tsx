@@ -20,8 +20,10 @@ import { useGrow } from '@/api/grows';
 import { useHome } from '@/api/home';
 import { deviceTitle } from '@/screens/devices/naming';
 import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
+import { NewGrowSheet } from '@/screens/grow/new/NewGrowSheet';
 import { dayOf, momentOn } from '@/ui/days';
 import { readingFigure } from '@/ui/entries';
+import { useMayManage } from '@/ui/session-access';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { dayAt, dosesOf, lastCan, litresOf, nextStage, readingsOf, schemeStep, stoppedAfter } from './defaults';
@@ -103,6 +105,8 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
   /** Which of the two writes went wrong, so the line under the button says the right thing. */
   const [failed, setFailed] = useState<'save' | 'back' | null>(null);
   const [askingBack, setAskingBack] = useState(false);
+  /** The new-grow sheet takes this one's place once it is opened, rather than standing over it. */
+  const [startingGrow, setStartingGrow] = useState(false);
 
   const today = dayOf(serverNow().toJSDate());
   const step = schemeStep(grow, at);
@@ -200,6 +204,11 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
   };
 
   const add = (key: string) => setShown(current => [...current, key]);
+
+  // Starting a grow answers the question this sheet could not: one sheet at a
+  // time, in place, the way a preset that finds nothing growing opens the same
+  // one.
+  if (startingGrow) return <NewGrowSheet spaceId={target.spaceId ?? target.standsIn} onClose={onClose} />;
 
   return (
     <Sheet title={title(t, kind, step?.week ?? null)} aside={kind === 'feed' ? schemeLine(grow) : undefined} onClose={onClose}>
@@ -303,7 +312,9 @@ function Details({ kind, target, entry, onClose }: { kind: TileKind; target: Log
         />
       ) : null}
 
-      {kind === 'phase' ? <Stages grow={grow} stage={stage} onPick={setStage} /> : null}
+      {kind === 'phase' ? (
+        <Stages grow={grow} stage={stage} onPick={setStage} spaceId={target.spaceId ?? target.standsIn} onStartGrow={() => setStartingGrow(true)} />
+      ) : null}
 
       {kind === 'visit' && !entry ? <WhatItQuietens quietens={quietens} /> : null}
 
@@ -420,12 +431,51 @@ function WhatItQuietens({ quietens }: { quietens: Quietened }) {
   );
 }
 
-/** The six stages, with the one the grow is in named and the next one already picked. */
-function Stages({ grow, stage, onPick }: { grow: GrowListItem | undefined; stage: GrowthStage | null; onPick: (stage: GrowthStage) => void }) {
+/**
+ * The six stages, with the one the grow is in named and the next one already
+ * picked - and, where there is no grow to give a phase to, the way to the one
+ * thing that would make the question answerable.
+ *
+ * The screens that invite somebody here are the reason for that second half. A
+ * place with nothing growing in it draws a "+ Grow" chip, and the chip opens
+ * this tile: with only the sentence it is a door onto a wall, and the sentence
+ * is true but useless, because what the person asked for was a grow and this
+ * says they cannot have a phase. So the offer stands beside it whenever the
+ * place really has nothing growing and the reader may start one - not for a
+ * place that has a grow the line was simply not pointed at, where the way on is
+ * the grow's own chip a thumb's width away.
+ */
+function Stages({
+  grow,
+  stage,
+  onPick,
+  spaceId,
+  onStartGrow,
+}: {
+  grow: GrowListItem | undefined;
+  stage: GrowthStage | null;
+  onPick: (stage: GrowthStage) => void;
+  spaceId: string | null;
+  onStartGrow: () => void;
+}) {
   const { t } = useTranslation();
+  const home = useHome();
+  const mayManage = useMayManage(spaceId);
   const current = grow?.summary.stage ?? null;
+  const card = (home.data?.spaces ?? []).find(one => one.spaceId === spaceId) ?? null;
+  const nothingGrowsThere = card !== null && card.grow === null;
 
-  if (!grow) return <p className={ui.note}>{t('log.phaseNeedsGrow')}</p>;
+  if (!grow)
+    return (
+      <div className={styles.noGrow}>
+        <p className={ui.note}>{t('log.phaseNeedsGrow')}</p>
+        {nothingGrowsThere && mayManage ? (
+          <button type="button" className={ui.button} onClick={onStartGrow}>
+            {t('log.startGrowHere', { name: card.name })}
+          </button>
+        ) : null}
+      </div>
+    );
 
   return (
     <div className={styles.stages} role="group" aria-label={t('log.tile.phase')}>
