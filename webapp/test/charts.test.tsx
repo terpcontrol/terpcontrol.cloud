@@ -8,7 +8,8 @@ import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GrowListItem, GrowSeries, TimelineTargets } from '@fg2/shared-types/v1';
+import type { ChartViewSpan, GrowListItem, GrowSeries, TimelineTargets } from '@fg2/shared-types/v1';
+import { chartViewCreate } from '@fg2/shared-types/v1-schemas/diary.js';
 import { Charts } from '@/screens/charts/Charts';
 import { cardsOf, offeredBy, type Offered } from '@/screens/charts/cards';
 import { csvOf, niceScale, stepPoints } from '@/charts/series';
@@ -460,6 +461,39 @@ describe('the Charts view', () => {
         },
       },
     });
+  });
+
+  it('keeps a window somebody picked by hand, spelled the one way the contract takes an instant', async () => {
+    draw();
+    fireEvent.click(await screen.findByRole('button', { name: 'Custom …' }));
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-03-01' } });
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-03-07' } });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Save view' }));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'That week in March' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(state.posted).toHaveLength(1));
+    // The server takes the whole body or none of it, and `instant()` - the one
+    // scalar behind every ...At on the wire - reads a Z instant and nothing
+    // else. Written with the reader's own offset, as Luxon writes one by
+    // default, the two ends of the window were refused as "Invalid ISO
+    // datetime" and the one window that cannot be asked for again by tapping a
+    // chip was the one window that could not be kept.
+    expect(chartViewCreate.safeParse(state.posted[0].body).success).toBe(true);
+
+    const span = (state.posted[0].body as { definition: { span: ChartViewSpan } }).definition.span;
+    expect(span.kind).toBe('fixed');
+    const range = (span as { kind: 'fixed'; range: { startsAt: string; endsAt: string } }).range;
+    expect(range.startsAt).toMatch(/Z$/);
+    expect(range.endsAt).toMatch(/Z$/);
+
+    // And it is the same moment as before: the two days a grower picked, whole,
+    // in their own zone.
+    expect(DateTime.fromISO(range.startsAt).toISODate()).toBe('2026-03-01');
+    expect(DateTime.fromISO(range.startsAt).toFormat('HH:mm')).toBe('00:00');
+    expect(DateTime.fromISO(range.endsAt).toISODate()).toBe('2026-03-07');
+    expect(DateTime.fromISO(range.endsAt).toFormat('HH:mm')).toBe('23:59');
   });
 
   it('says what the server said when a view is refused, and keeps the sheet open', async () => {

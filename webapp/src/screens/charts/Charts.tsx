@@ -580,11 +580,22 @@ const edgesOf = (from: number, to: number): [string, string] => {
  * The two date fields are days and the route takes instants, so a custom range
  * runs from the first moment of one day to the last of the other, in the
  * reader's own time: a day chosen at either end is a day a grower means whole.
+ *
+ * Those two instants are then written the one way the contract spells an
+ * instant, which is UTC. The moment is not changed by that and the fields read
+ * back the same, since a Z instant is rendered in the reader's own zone again -
+ * but the local offset Luxon writes by default is a string `instant()` refuses,
+ * and it is the same pair of instants that goes into a saved view. So a window
+ * somebody picked by hand was the one window the server would not keep, and it
+ * is the only one that cannot be asked for again by tapping a chip.
  */
 const dayBounds = (range: GrowSeriesRange, from: string, to: string): { from?: string; to?: string } => {
   if (range !== 'custom' || !from || !to) return {};
 
-  return { from: DateTime.fromISO(from).startOf('day').toISO() ?? undefined, to: DateTime.fromISO(to).endOf('day').toISO() ?? undefined };
+  return {
+    from: DateTime.fromISO(from).startOf('day').toUTC().toISO() ?? undefined,
+    to: DateTime.fromISO(to).endOf('day').toUTC().toISO() ?? undefined,
+  };
 };
 
 /** What a saved view keeps instead of the chip: a rolling width, two instants, or a stretch read off the grow. */
