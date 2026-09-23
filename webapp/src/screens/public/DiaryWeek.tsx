@@ -18,6 +18,8 @@ interface DiaryWeekProps {
   now: DateTime;
   /** The week the diary is in opens by itself; every earlier one opens on a tap. */
   current: boolean;
+  /** Whether the grow is over, which decides whether an empty week is one that can still be written in. */
+  ended: boolean;
   /**
    * The instant this card is true as of, which only the newest one carries:
    * every earlier week ended when it ended, and dating those would be dating
@@ -46,7 +48,7 @@ const dayNight = (row: WeekClimate | undefined, decimals: number): string =>
  * things a stranger is not given and which the public answer therefore does not
  * carry. A card that took the owner's shape would have to invent all three.
  */
-export function DiaryWeek({ week, picture, now, current, asOf }: DiaryWeekProps) {
+export function DiaryWeek({ week, picture, now, current, ended, asOf }: DiaryWeekProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(current);
   const temperature = week.climate.find(row => row.metric === 'temperature');
@@ -149,7 +151,9 @@ export function DiaryWeek({ week, picture, now, current, asOf }: DiaryWeekProps)
               ) : null}
             </>
           ) : (
-            <p className={styles.quiet}>{t('grow.noEntriesThisWeek')}</p>
+            // A finished diary's empty week is not one that is waiting for a
+            // line: nothing can be logged into a grow that is over.
+            <p className={styles.quiet}>{t(ended ? 'grow.noEntriesThisWeekEnded' : 'grow.noEntriesThisWeek')}</p>
           )}
         </>
       ) : null}

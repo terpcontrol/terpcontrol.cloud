@@ -89,7 +89,15 @@ export function Diary({ page, picture, now, banner, aside, earlier }: DiaryProps
           // is still running is the week it is in; no clock of ours decides it.
           const current = index === 0 && page.endedAt === null;
           return (
-            <DiaryWeek key={week.weekNumber} week={week} picture={picture} now={now} current={current} asOf={current ? page.range.endsAt : null} />
+            <DiaryWeek
+              key={week.weekNumber}
+              week={week}
+              picture={picture}
+              now={now}
+              current={current}
+              ended={page.endedAt !== null}
+              asOf={current ? page.range.endsAt : null}
+            />
           );
         })}
         {earlier?.more ? (

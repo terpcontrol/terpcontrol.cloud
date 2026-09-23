@@ -144,7 +144,12 @@ export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
               ))}
             </ul>
           ) : (
-            <p className={styles.noEntries}>{t('grow.noEntriesThisWeek')}</p>
+            // "yet" is a promise that the week can still be written in. An
+            // earlier week of a running grow can - a line is filed against the
+            // day it is dated to - but a grow that has ended is on no Log
+            // sheet's list of targets at all, so nothing can ever be added to
+            // any week of it.
+            <p className={styles.noEntries}>{t(grow.endedAt ? 'grow.noEntriesThisWeekEnded' : 'grow.noEntriesThisWeek')}</p>
           )}
           {missing > 0 ? (
             <button type="button" className={`mono ${styles.more}`} disabled={rest.isFetching} onClick={() => setAll(true)}>

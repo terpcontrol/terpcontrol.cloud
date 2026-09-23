@@ -1976,6 +1976,7 @@
     "nothingThisWeek": "nothing this week",
     "feedsDone": "{{done}} / {{planned}} done",
     "noEntriesThisWeek": "Nothing logged this week yet",
+    "noEntriesThisWeekEnded": "Nothing was logged this week",
     "moreEntries_one": "+ {{count}} more",
     "moreEntries_other": "+ {{count}} more",
     "earlierWeeks": "Earlier weeks",

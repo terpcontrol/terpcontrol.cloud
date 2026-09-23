@@ -1972,6 +1972,7 @@
     "nothingThisWeek": "diese Woche nichts",
     "feedsDone": "{{done}} / {{planned}} erledigt",
     "noEntriesThisWeek": "Diese Woche noch nichts eingetragen",
+    "noEntriesThisWeekEnded": "In dieser Woche wurde nichts eingetragen",
     "moreEntries_one": "+ {{count}} weiterer",
     "moreEntries_other": "+ {{count}} weitere",
     "earlierWeeks": "Frühere Wochen",

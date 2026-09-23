@@ -263,12 +263,25 @@ describe('a public diary', () => {
   it('says how many lines of a week it is not drawing, because a card carries only the first of them', () => {
     // Twenty-five lines and ten on the card is what a busy week of a real grow
     // comes to; a card that said nothing would read as a quiet week.
-    draw(<DiaryWeek week={{ ...week, entryCount: 25 }} picture={publicPicture('spring-run')} now={NOW} current asOf={null} />);
+    draw(<DiaryWeek week={{ ...week, entryCount: 25 }} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
     expect(screen.getByText('+ 23 more')).toBeInTheDocument();
   });
 
+  it('says of an empty week of a diary that is over that nothing was logged, not that nothing has been yet', () => {
+    const empty = { ...week, entries: [], entryCount: 0 };
+
+    const { unmount } = draw(<DiaryWeek week={empty} picture={publicPicture('spring-run')} now={NOW} current ended asOf={null} />);
+    expect(screen.getByText('Nothing was logged this week')).toBeInTheDocument();
+    unmount();
+
+    // A past week of a running grow can still be written in - a line is filed
+    // against the day it is dated to - so there the promise is kept.
+    draw(<DiaryWeek week={empty} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
+    expect(screen.getByText('Nothing logged this week yet')).toBeInTheDocument();
+  });
+
   it('says nothing where the card carries the whole week', () => {
-    draw(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current asOf={null} />);
+    draw(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={null} />);
     expect(screen.queryByText(/more$/)).not.toBeInTheDocument();
   });
 
@@ -306,7 +319,7 @@ describe('how old a page says it is', () => {
   });
 
   it('dates and dims the newest card of a diary a link stopped short of', () => {
-    draw(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current asOf={at(7, 12)} />);
+    draw(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current ended={false} asOf={at(7, 12)} />);
 
     const range = screen.getByText(/day 29–35/);
     expect(range).toHaveTextContent('as of 7 d ago');
@@ -314,7 +327,7 @@ describe('how old a page says it is', () => {
   });
 
   it('says nothing about age on an earlier week, because dating those would be dating the past', () => {
-    draw(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current={false} asOf={null} />);
+    draw(<DiaryWeek week={week} picture={publicPicture('spring-run')} now={NOW} current={false} ended={false} asOf={null} />);
 
     expect(screen.getByText(/day 29–35/)).not.toHaveTextContent('as of');
   });

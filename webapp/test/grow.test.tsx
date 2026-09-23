@@ -404,6 +404,20 @@ describe('the last card of a grow that has ended', () => {
     expect(lived).toEqual(['false', 'false', 'false', 'true', 'true', 'true', 'true']);
   });
 
+  it('says of an empty week that nothing was logged, rather than that nothing has been yet', () => {
+    const finished: GrowListItem = { ...grow, endedAt: at(4, 15) };
+    const empty = { ...week, entries: [], entryCount: 0 };
+
+    const { unmount } = draw(<WeekCard week={empty} grow={finished} people={people} now={NOW} current />);
+    expect(screen.getByText('Nothing was logged this week')).toBeInTheDocument();
+    unmount();
+
+    // Nothing can be logged into a finished grow at all - it is on no Log
+    // sheet's targets - while an earlier week of a running one still can be.
+    draw(<WeekCard week={empty} grow={grow} people={people} now={NOW} current />);
+    expect(screen.getByText('Nothing logged this week yet')).toBeInTheDocument();
+  });
+
   it('draws a running grow´s days against now, which is what the ended case is told against', () => {
     const { container } = draw(<WeekCard week={week} grow={grow} people={people} now={NOW} current />);
 
