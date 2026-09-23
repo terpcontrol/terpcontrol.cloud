@@ -284,7 +284,9 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
         <section className={styles.group} aria-label={t('tasks.group.done')}>
           <header className={styles.groupHead}>
             <span className="label">{t('tasks.group.done')}</span>
-            <span className={`mono ${styles.groupAside}`}>{dayLabel(t, ticked[0].completion?.occurredAt ?? now.toISO()!, now, i18n.language, zone)}</span>
+            <span className={`mono ${styles.groupAside}`}>
+              {dayLabel(t, ticked[0].completion?.occurredAt ?? now.toISO()!, now, i18n.language, zone)}
+            </span>
           </header>
           <ul className={styles.cards}>
             {ticked.map(task => (

@@ -1,5 +1,5 @@
 import { ChevronRight, Circle, Leaf, Sliders } from 'lucide-react';
-import { DateTime } from 'luxon';
+import { type DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -402,13 +402,7 @@ function CameraStrip({ camera, now }: { camera: OverviewCamera; now: DateTime })
         const src = mediaUrl(still.mediaId, THUMBNAIL_WIDTH.still);
         return (
           <li key={still.mediaId} className={styles.stillTile}>
-            {src ? (
-              <img
-                src={src}
-                alt={t('space.stillAlt', { name: camera.name, time: clock(still.capturedAt, zone) })}
-                loading="lazy"
-              />
-            ) : null}
+            {src ? <img src={src} alt={t('space.stillAlt', { name: camera.name, time: clock(still.capturedAt, zone) })} loading="lazy" /> : null}
             <span className={`mono ${styles.stillTime}`}>{clock(still.capturedAt, zone)}</span>
           </li>
         );

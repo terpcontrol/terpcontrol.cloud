@@ -230,9 +230,7 @@ export function TelegramCard({ me, held }: CardProps) {
           <a className={`${ui.button} ${ui.primary}`} href={offered.url} target="_blank" rel="noreferrer">
             {t('notifications.telegram.open')}
           </a>
-          <span className={`mono ${ui.note}`}>
-            {t('notifications.telegram.validUntil', { time: clock(offered.validUntil, zone) })}
-          </span>
+          <span className={`mono ${ui.note}`}>{t('notifications.telegram.validUntil', { time: clock(offered.validUntil, zone) })}</span>
         </p>
       ) : null}
       {ran && !linked ? <p className={ui.note}>{t('notifications.telegram.expired')}</p> : null}

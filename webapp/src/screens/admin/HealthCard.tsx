@@ -1,5 +1,5 @@
 import type { UseQueryResult } from '@tanstack/react-query';
-import { DateTime } from 'luxon';
+import { type DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { AdminRetentionRun, AdminStats, Device, Fleet } from '@fg2/shared-types/v1';
@@ -7,6 +7,7 @@ import { fileSize } from '@/api/exports';
 import { ApiError } from '@/api/problem';
 import { ageLabel, deviceLiveness } from '@/ui/age';
 import ui from '@/ui/ui.module.css';
+import { clock, useZone } from '@/ui/zone';
 import styles from './Admin.module.css';
 
 /**
@@ -143,11 +144,12 @@ export function HealthCard({ fleet, devices, stats, now }: { fleet: Fleet; devic
  */
 function RetentionLine({ run, now }: { run: AdminRetentionRun; now: DateTime }) {
   const { t } = useTranslation();
+  const zone = useZone();
 
   return (
     <>
       {t('admin.health.retention', {
-        time: DateTime.fromISO(run.ranAt).toFormat('HH:mm'),
+        time: clock(run.ranAt, zone),
         age: ageLabel(run.ranAt, now),
         reached: t('admin.count.reached', { count: run.reached }),
       })}

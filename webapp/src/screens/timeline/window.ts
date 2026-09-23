@@ -37,8 +37,7 @@ export const stampFor = (span: number): number => {
   return span <= 400 * 24 * HOUR_MS ? 2 : 3;
 };
 
-export const stampOf = (time: number, span: number, zone: string | null = null): string =>
-  zonedAt(time, zone).toFormat(STAMPS[stampFor(span)]);
+export const stampOf = (time: number, span: number, zone: string | null = null): string => zonedAt(time, zone).toFormat(STAMPS[stampFor(span)]);
 
 /**
  * The rung the two ends of a window start at, which is one further on than the

@@ -1,5 +1,5 @@
 import { Box, Fan, Leaf, Refrigerator, Sun, type LucideIcon } from 'lucide-react';
-import { DateTime } from 'luxon';
+import { type DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';

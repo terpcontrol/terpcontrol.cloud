@@ -149,11 +149,7 @@ export function DoneCard({ task, name, me, now }: { task: Task; name: string | n
         <span className={styles.text}>
           <span className={styles.cardTitle}>{titleOf(t, task)}</span>
           <span className={`mono ${styles.meta}`}>
-            {[
-              who,
-              name,
-              completion ? `${dayLabel(t, completion.occurredAt, now, i18n.language, zone)} ${clock(completion.occurredAt, zone)}` : null,
-            ]
+            {[who, name, completion ? `${dayLabel(t, completion.occurredAt, now, i18n.language, zone)} ${clock(completion.occurredAt, zone)}` : null]
               .filter(part => part !== null)
               .join(' · ')}
           </span>

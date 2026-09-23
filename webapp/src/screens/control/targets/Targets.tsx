@@ -242,7 +242,7 @@ function Panel({ device, stored, mayManage, titled }: { device: Device; stored: 
           max={100}
           step={5}
           unit={t('targets.unit.percent')}
-          aside={lightWindowLabel(draft, now)}
+          aside={lightWindowLabel(draft, now, zone)}
           disabled={readOnly}
           onChange={lightLimit => set({ ...draft, lightLimit })}
         />

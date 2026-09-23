@@ -10,6 +10,7 @@ import { dayOf } from '@/ui/days';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
+import { useZone } from '@/ui/zone';
 import styles from './Tasks.module.css';
 
 const KINDS: ReminderKind[] = ['water', 'feed', 'chore', 'custom'];
@@ -68,6 +69,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
   const update = useUpdateReminder(reminder?.id ?? '');
   const remove = useDeleteReminder(reminder?.id ?? '');
   const [draft, setDraft] = useState<Draft>(() => draftOf(reminder, userId));
+  const zone = useZone();
   const [askingDelete, setAskingDelete] = useState(false);
 
   const change = (over: Partial<Draft>) => setDraft(current => ({ ...current, ...over }));
@@ -76,7 +78,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
   const asksForCan = draft.kind === 'water' || draft.kind === 'feed';
 
   const save = () => {
-    const body = bodyOf(draft, userId, reminder?.assigneeId ?? null);
+    const body = bodyOf(draft, userId, reminder?.assigneeId ?? null, zone);
     if (reminder) update.mutate(body, { onSuccess: onClose });
     else create.mutate(body, { onSuccess: onClose });
   };
@@ -301,15 +303,18 @@ const litresIn = (defaults: unknown): number | null => {
 
 /**
  * What goes on the wire. Exactly one of the two rhythms is set, which is the
- * contract's rule; a one-off falls due at the start of its day in the reader's
- * zone, so it is today's task from the morning on. The can is the entry's
+ * contract's rule; a one-off falls due at the start of its day in the account's
+ * zone, so it is today's task from the morning on - and it is the account's
+ * because that is the zone the Tasks tab sorts what is waiting into days by. A
+ * day picked on a browser two zones east of the account began there the
+ * evening before, and the task turned up a day early. The can is the entry's
  * default of the same shape the Log sheet writes, so a tick records it the
  * way a tap on the Water tile would.
  *
  * A reminder that is somebody else's is sent back with that person still on it:
  * whoever is editing it can only have come to change something else.
  */
-const bodyOf = (draft: Draft, userId: string, assigneeId: string | null): ReminderCreate => {
+const bodyOf = (draft: Draft, userId: string, assigneeId: string | null, zone: string | null): ReminderCreate => {
   const litres = Number(draft.litres);
   const asksForCan = draft.kind === 'water' || draft.kind === 'feed';
 
@@ -318,7 +323,7 @@ const bodyOf = (draft: Draft, userId: string, assigneeId: string | null): Remind
     kind: draft.kind,
     label: draft.label.trim(),
     everyDays: draft.rhythm === 'every' ? draft.everyDays : null,
-    onceAt: draft.rhythm === 'once' ? instantOf(DateTime.fromISO(draft.onceOn).startOf('day')) : null,
+    onceAt: draft.rhythm === 'once' ? instantOf(DateTime.fromISO(draft.onceOn, { zone: zone ?? undefined }).startOf('day')) : null,
     assigneeId: draft.forWhom === 'me' ? userId : draft.forWhom === 'other' ? assigneeId : null,
     defaults: asksForCan && draft.litres !== '' && litres > 0 ? { kind: draft.kind, litres } : null,
   };

@@ -239,9 +239,7 @@ function RuleCard({ rule, device, me, mayManage, highlighted, busy, now, onOpen,
       </span>
       <span className={`mono ${styles.meta}`}>{metaLine(t, rule, me)}</span>
       {silenced ? (
-        <span className={`mono ${styles.meta}`}>
-          {t('alarms.meta.silencedUntil', { time: clock(rule.silencedUntil!, zoneOf(me)) })}
-        </span>
+        <span className={`mono ${styles.meta}`}>{t('alarms.meta.silencedUntil', { time: clock(rule.silencedUntil!, zoneOf(me)) })}</span>
       ) : null}
       {missing ? <span className={`mono ${styles.reason}`}>{t(`alarms.needs.${missing}`)}</span> : null}
     </>

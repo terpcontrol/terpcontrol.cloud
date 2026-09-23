@@ -61,7 +61,8 @@ vi.mock('@/api/spaces', async importOriginal => {
   return {
     ...(await importOriginal<object>()),
     useSpaces: () => spacesAnswering(spaceWhere(may.youMay)),
-    useSpaceOverview: () => read.overview ?? { data: undefined, error: read.error, isPending: false, isError: true, dataUpdatedAt: 0, refetch: () => {} },
+    useSpaceOverview: () =>
+      read.overview ?? { data: undefined, error: read.error, isPending: false, isError: true, dataUpdatedAt: 0, refetch: () => {} },
     useSpaceLive: () => read.live ?? { data: undefined, isError: false, dataUpdatedAt: 0 },
   };
 });

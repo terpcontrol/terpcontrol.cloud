@@ -1,4 +1,3 @@
-import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -17,6 +16,7 @@ import { Sheet } from '@/log/Sheet';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { CLOCK, useZone, zoned } from '@/ui/zone';
 import { ClassRollout } from './ClassRollout';
 import { useFollowCursor } from './pages';
 import { pointedAtBy } from './rollout';
@@ -191,6 +191,7 @@ function Register({ classes }: { classes: DeviceClass[] }) {
 
 function BuildRow({ build, classes, fleet }: { build: Firmware; classes: DeviceClass[]; fleet: Fleet | undefined }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const [open, setOpen] = useState<'upload' | 'rename' | 'delete' | null>(null);
 
   const pointers = pointedAtBy(build.id, classes);
@@ -204,7 +205,7 @@ function BuildRow({ build, classes, fleet }: { build: Firmware; classes: DeviceC
         <div className="mono">{build.version}</div>
       </td>
       <td>{deviceClass?.name ?? <span className="mono">{build.classId}</span>}</td>
-      <td className="mono">{DateTime.fromISO(build.createdAt).toFormat('yyyy-LL-dd HH:mm')}</td>
+      <td className="mono">{zoned(build.createdAt, zone).toFormat(`yyyy-LL-dd ${CLOCK}`)}</td>
       <td className="mono">
         {pointers.length > 0 ? pointers.map(one => `${one.deviceClass.name} · ${t(`devices.channel.${one.channel}`)}`).join(', ') : '—'}
         {build.wasStable ? ` · ${t('admin.firmware.wasStable')}` : ''}

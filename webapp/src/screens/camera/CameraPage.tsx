@@ -28,7 +28,6 @@ import styles from './CameraPage.module.css';
 /** How many films the section rests at before somebody asks for the rest. */
 const FILMS_AT_REST = 3;
 
-
 /**
  * One camera: the picture it is taking, the day behind it, the four films it
  * makes in one tap, the composer, and what the camera itself is set to.
@@ -180,7 +179,9 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
                 in the words the stale label four lines below uses - and from
                 the instant of the picture actually on screen, which can be
                 older than the camera row while that read is cached. */}
-            {newest && shown.id === newest.id ? ` · ${liveness === 'live' ? t('camera.live') : t('devices.ago', { age: ageLabel(shown.capturedAt, now) })}` : ''}
+            {newest && shown.id === newest.id
+              ? ` · ${liveness === 'live' ? t('camera.live') : t('devices.ago', { age: ageLabel(shown.capturedAt, now) })}`
+              : ''}
           </span>
         ) : older && camera.state.lastStillAt ? (
           // Its own label rather than the one above: that stamp is scaled to

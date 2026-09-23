@@ -3,6 +3,7 @@ import type { Device, DeviceConfiguration, DeviceSettings, GrowthStage } from '@
 import { climatePreset, PRESETS_OF_STAGE, STAGES_WITH_CLIMATE, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 import { serverNow } from '@/api/clock';
+import { CLOCK } from '@/ui/zone';
 
 /**
  * The targets a controller holds by hand, read out of its configuration
@@ -202,16 +203,20 @@ export const leafOffset = (settings: DeviceSettings, when: 'day' | 'night'): num
   when === 'day' ? settings.vpdLeafOffsetDay : settings.vpdLeafOffsetNight;
 
 /**
- * "06–18 h": when the light comes on and goes off, in the reader's own time.
- * The document holds seconds past midnight UTC, so a tent in Berlin that
+ * "06-18 h": when the light comes on and goes off, on the clock beside the
+ * tent. The document holds seconds past midnight UTC, so a tent in Berlin that
  * lights at six is stored as four; the label says what the clock on the wall
- * will say. Minutes are shown only where a window does not fall on the hour.
+ * will say - that wall being where the account is kept, which is the zone the
+ * server reads the same account's quiet hours in, and not where the phone
+ * reading this happens to be. Minutes are shown only where a window does not
+ * fall on the hour.
  */
-export const lightWindowLabel = (draft: TargetsDraft, now: DateTime = serverNow()): string => {
+export const lightWindowLabel = (draft: TargetsDraft, now: DateTime = serverNow(), zone: string | null = null): string => {
   const midnight = now.toUTC().startOf('day');
-  const on = midnight.plus({ seconds: draft.lightsOn }).toLocal();
-  const off = midnight.plus({ seconds: draft.lightsOn + Math.round(draft.lightHours * HOUR_SECONDS) }).toLocal();
-  const format = on.minute === 0 && off.minute === 0 ? 'HH' : 'HH:mm';
+  const there = (at: DateTime) => (zone ? at.setZone(zone) : at.toLocal());
+  const on = there(midnight.plus({ seconds: draft.lightsOn }));
+  const off = there(midnight.plus({ seconds: draft.lightsOn + Math.round(draft.lightHours * HOUR_SECONDS) }));
+  const format = on.minute === 0 && off.minute === 0 ? 'HH' : CLOCK;
 
   return `${on.toFormat(format)}–${off.toFormat(format)} h`;
 };
