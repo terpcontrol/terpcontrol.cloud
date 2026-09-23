@@ -309,6 +309,19 @@ describe('what the tent reads right now', () => {
     ]);
   });
 
+  it('drops the CO2 target at night, which is when nothing is aiming at one', async () => {
+    await db.devices.updateOne({ id: CONTROLLER }, { $set: { 'configuration.co2': { target: 900 } } });
+
+    // The configuration holds one CO2 target and fills both halves of the cycle
+    // from it, faithfully; a controller raises CO2 only while the lamp is on.
+    // Saying "in band" against it at three in the morning contradicted the
+    // Timeline panel two taps away, which draws no night band for it at all.
+    expect((await readAs(session(OWNER))).setpoints.map(one => one.metric)).toEqual(['temperature', 'humidity', 'co2']);
+
+    readings[CONTROLLER] = reading({ temperature: [20.1, 20], humidity: [55, 20], co2: [430, 20] }, false);
+    expect((await readAs(session(OWNER))).setpoints.map(one => one.metric)).toEqual(['temperature', 'humidity']);
+  });
+
   it('states both halves of the cycle, which is what the header says and the verdict judges against', async () => {
     const page = await readAs(session(OWNER));
 

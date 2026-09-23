@@ -12,6 +12,7 @@ import type {
   VerdictRating,
 } from '@fg2/shared-types/v1';
 import { TARGET_BAND, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
+import { DAY_ONLY, STEERED } from '@common/v1/steering';
 
 /**
  * How the last day went, read out of one aggregation.
@@ -34,16 +35,10 @@ import { TARGET_BAND, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
 /**
  * The metrics a controller holds a target for, and therefore the only ones a
  * band can be drawn around. It is also what the window is read with, so nothing
- * is fetched that the verdict has nothing to say about.
+ * is fetched that the verdict has nothing to say about. Re-exported rather than
+ * restated: the same list decides the tent's live card and the timeline's bands.
  */
-export const STEERED: readonly Metric[] = ['temperature', 'humidity', 'co2'];
-
-/**
- * A controller only raises CO2 while the light is on, so its one target is a day
- * target. A dark tent falling back to fresh air is the plants breathing and not
- * an excursion, which is why the night has no band for it.
- */
-const DAY_ONLY: readonly Metric[] = ['co2'];
+export { STEERED };
 
 /** Where the rating turns over, as a share of the time inside the band. */
 const GOOD_ABOVE = 0.95;

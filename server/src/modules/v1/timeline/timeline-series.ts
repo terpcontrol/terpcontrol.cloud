@@ -12,6 +12,7 @@ import type {
   TimelineTargets,
 } from '@fg2/shared-types/v1';
 import { METRIC_DECIMALS, TARGET_BAND, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
+import { DAY_ONLY } from '@common/v1/steering';
 import type { DeviceHistory, OutputHistory } from '@modules/data/data.service';
 import type { OutputSwitching } from '@modules/data/flux';
 
@@ -33,13 +34,6 @@ import type { OutputSwitching } from '@modules/data/flux';
  * and its leaf offset explained, and it belongs to the charting view.
  */
 export const PANEL_METRICS: readonly Metric[] = ['temperature', 'humidity', 'co2'];
-
-/**
- * A controller only raises CO2 while the light is on, so its one target is a day
- * target and the dark half carries no band: a tent falling back to fresh air at
- * night is the plants breathing and not a miss.
- */
-const DAY_ONLY: readonly Metric[] = ['co2'];
 
 /** One stretch of the window over which the same targets applied, before it is stated per metric. */
 export interface TargetStretch {

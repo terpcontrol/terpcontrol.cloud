@@ -1,5 +1,6 @@
 import type { CardSetpoint, CardValue, Metric, SpaceLiveDevice } from '@fg2/shared-types/v1';
 import { TARGET_BAND, metric } from '@fg2/shared-types/v1-schemas';
+import { STEERED, steeredIn } from '@common/v1/steering';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { LiveReading } from '@modules/data/data.service';
 import { setpointsOf } from '../device/setpoints';
@@ -18,22 +19,29 @@ const CARD_ORDER: readonly Metric[] = [
   ...new Set<Metric>(['temperature', 'humidity', 'co2', 'vpd', ...metric.options.filter(name => name !== 'offline')]),
 ];
 
-/** The metrics a controller holds a target for. */
-const STEERED: readonly Metric[] = ['temperature', 'humidity', 'co2'];
-
 export interface DeviceReading {
   device: StoredDevice;
   reading: LiveReading;
 }
 
+/**
+ * What one device reads and what it is aiming at right now.
+ *
+ * The configuration fills both halves of the cycle from the controller's single
+ * CO2 target, which is a faithful reading of it - so it is here, where the half
+ * that is running is known, that the day-only rule applies. Without it a card
+ * called a tent's CO2 "in band" at three in the morning against a target the
+ * Timeline panel two taps away said it did not have.
+ */
 export const liveOfDevice = ({ device, reading }: DeviceReading): SpaceLiveDevice => {
   const targets = setpointsOf(device.configuration, reading.isDay);
   const active = targets ? targets[targets.active] : {};
+  const aimed = steeredIn(targets?.active ?? 'day');
 
   return {
     deviceId: device.id,
     values: orderValues(Object.entries(reading.metrics).map(([name, value]) => ({ metric: name as Metric, ...value }))),
-    setpoints: STEERED.filter(name => active[name] !== undefined).map(name => setpointOf(name, active[name] as number)),
+    setpoints: aimed.filter(name => active[name] !== undefined).map(name => setpointOf(name, active[name] as number)),
   };
 };
 
