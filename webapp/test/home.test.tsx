@@ -7,8 +7,8 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter } from 'react-router';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
-import type { HomeSpaceCard } from '@fg2/shared-types/v1';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AccessNeed, HomeSpaceCard } from '@fg2/shared-types/v1';
 import { attentionOf, isClub, livenessOf, sortedByAttention } from '@/screens/home/attention';
 import { SpaceCard } from '@/screens/home/SpaceCard';
 import { AttentionStrip, DueStrip, FollowingStrip } from '@/screens/home/Strips';
@@ -19,6 +19,26 @@ vi.mock('@/api/session', async importOriginal => {
   const { SIGNED_IN } = await import('./session');
 
   return { ...(await importOriginal<object>()), useSession: () => SIGNED_IN };
+});
+
+/**
+ * The other half of "who is looking": the same account owns one tent and is
+ * only let into the next, and what a card may offer is the place's standing
+ * rather than the session's. The home's own answer carries no such field, so
+ * the space list is where a card reads it - and every place a card here stands
+ * in answers the same, which is what makes one line in a test enough.
+ */
+const may = vi.hoisted(() => ({ youMay: 'own' as AccessNeed }));
+
+vi.mock('@/api/spaces', async importOriginal => {
+  const { spaceWhere, spacesAnswering } = await import('./session');
+  const places = ['space-1', 'space-2', 'space-3', 'space-4', 'space-5', 'space-empty', 'space-device-only'];
+
+  return { ...(await importOriginal<object>()), useSpaces: () => spacesAnswering(...places.map(id => spaceWhere(may.youMay, { id }))) };
+});
+
+beforeEach(() => {
+  may.youMay = 'own';
 });
 
 /**
@@ -233,6 +253,31 @@ describe('the grow half', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Move a grow here' }));
     expect(screen.getByRole('dialog', { name: 'Move a grow into Tent 1' })).toBeInTheDocument();
+  });
+
+  /**
+   * Starting a grow here and moving one in are both `manage` on this place, and
+   * the server refuses either from a membership that only logs. Offered on the
+   * card they are two dead ends: the New-grow sheet drops the very place the
+   * invitation names, and Move here opens a sheet whose primary the server will
+   * turn down. The tent's own Overview has hidden the same pair all along.
+   */
+  it('offers neither way into an empty place to somebody who may only write lines in it', () => {
+    may.youMay = 'log';
+    draw(<SpaceCard card={card({ spaceId: 'space-empty', grow: null, entries: [] })} people={people} now={NOW} compact={false} />);
+
+    expect(screen.getByText('Nothing growing here yet')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Start a grow' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Move a grow here' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Not now/ })).not.toBeInTheDocument();
+  });
+
+  it('keeps both ways in for somebody who steers the place', () => {
+    may.youMay = 'manage';
+    draw(<SpaceCard card={card({ spaceId: 'space-empty', grow: null, entries: [] })} people={people} now={NOW} compact={false} />);
+
+    expect(screen.getByRole('link', { name: 'Start a grow' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Move a grow here' })).toBeInTheDocument();
   });
 
   it('draws a grow with no place at all, and opens it at the grow because there is no place to open', () => {

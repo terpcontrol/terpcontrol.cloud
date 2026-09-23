@@ -10,6 +10,7 @@ import { authorOf, headlineOf } from '@/ui/entries';
 import { STAGES } from '@/ui/stages';
 import { useLog, useMayLog, type TileKind } from '@/log/log-context';
 import { MoveHereSheet } from '@/screens/space/MoveHereSheet';
+import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import styles from './SpaceCard.module.css';
 
@@ -149,10 +150,24 @@ export function NewestEntry({ entry, people, now }: { entry: Entry | null; peopl
  * tent, so the sheet it opens has to be about this tent too, and a sheet that
  * arrived with no subject would fall back to whatever grow the account has
  * running somewhere else.
+ *
+ * Both of them put a grow into this place, which is managing it: the server
+ * asks for `manage` on the space both for the grow that is started there and
+ * for the placement that moves one in, so below that the invitation is a
+ * control that exists only to be refused. Somebody who may write lines here and
+ * no more is left the plain line, which is the same thing this place's own
+ * Overview draws - and it is that page, not every card of a club, that says in
+ * words what they may do instead. "Not now" goes with the two: it is the answer
+ * to an invitation, and there is none here to put off.
  */
 export function NoGrow({ card, onNotNow }: { card: HomeSpaceCard; onNotNow: () => void }) {
   const { t } = useTranslation();
   const [moving, setMoving] = useState(false);
+  // What may be done here is a fact about this place and not about the session:
+  // the same account owns the tent above this one and only logs in this.
+  const mayManage = useMayManage(card.spaceId);
+
+  if (!mayManage) return <p className={styles.invite}>{t('home.invite.noGrow')}</p>;
 
   return (
     <>
