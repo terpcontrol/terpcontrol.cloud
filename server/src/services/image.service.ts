@@ -75,10 +75,19 @@ const IMAGE_THINNING_TIERS = [
 const TIMELAPSE_DAY_FRAMEINTERVAL_MS = 2 * 60 * 1000;
 const TIMELAPSE_FRAME_RATE = 25;
 
+// How far back the one-off catch-up sweep reaches on the first compression run
+// after a start. The ordinary walk stops at the first period that needs nothing,
+// so a single day without stills hides every older gap behind it - and the crash
+// loop this release fixes left plenty of them.
+const TIMELAPSE_BACKFILL_MS = 30 * MS_IN_A_DAY;
+
 class ImageService {
   private ffmpegLimit = pLimit(10);
   private deviceIdToLastRtspState = new Map<string, { lastTry: number; failureCount: number }>();
   private lastThinningRun = 0;
+  // Set once at construction and cleared after the first compression pass, so
+  // the expensive sweep runs once per process rather than every hour.
+  private backfillUntil: number | undefined = Date.now() - TIMELAPSE_BACKFILL_MS;
 
   constructor() {
     setTimeout(() => {
@@ -304,6 +313,9 @@ class ImageService {
   }
 
   private async compressRtspStreams(): Promise<void> {
+    // Read once, so every device in this pass sweeps the same window.
+    const backfillUntil = this.backfillUntil;
+
     try {
       const devices = await deviceModel.find({ 'cloudSettings.rtspStream': { $exists: true, $ne: '' } });
 
@@ -321,9 +333,23 @@ class ImageService {
           await imageModel.deleteOne({ image_id: oldImage.image_id });
         }
 
-        await this.compressRtspStreamRange(device, MS_IN_A_DAY, TIMELAPSE_DAY_FRAMEINTERVAL_MS, '1d', DAILY_COMPRESS_REFRESH_MS);
-        await this.compressRtspStreamRange(device, 7 * MS_IN_A_DAY, 7 * TIMELAPSE_DAY_FRAMEINTERVAL_MS, '1w', WEEKLY_COMPRESS_REFRESH_MS);
-        await this.compressRtspStreamRange(device, 30 * MS_IN_A_DAY, 30 * TIMELAPSE_DAY_FRAMEINTERVAL_MS, '1m', MONTHLY_COMPRESS_REFRESH_MS);
+        await this.compressRtspStreamRange(device, MS_IN_A_DAY, TIMELAPSE_DAY_FRAMEINTERVAL_MS, '1d', DAILY_COMPRESS_REFRESH_MS, backfillUntil);
+        await this.compressRtspStreamRange(
+          device,
+          7 * MS_IN_A_DAY,
+          7 * TIMELAPSE_DAY_FRAMEINTERVAL_MS,
+          '1w',
+          WEEKLY_COMPRESS_REFRESH_MS,
+          backfillUntil,
+        );
+        await this.compressRtspStreamRange(
+          device,
+          30 * MS_IN_A_DAY,
+          30 * TIMELAPSE_DAY_FRAMEINTERVAL_MS,
+          '1m',
+          MONTHLY_COMPRESS_REFRESH_MS,
+          backfillUntil,
+        );
 
         if (shouldThin) {
           await this.thinRtspStreamImages(device);
@@ -339,6 +365,11 @@ class ImageService {
       // round is not worth taking the server down for.
       console.log('Error compressing RTSP streams:', e);
     } finally {
+      // Spent whether or not the pass got through every device: the sweep is a
+      // one-off catch-up, and repeating it hourly is exactly the cost it exists
+      // to avoid.
+      this.backfillUntil = undefined;
+
       setTimeout(() => {
         void this.compressRtspStreams();
       }, COMPRESS_INTERVAL_MS);
@@ -351,6 +382,7 @@ class ImageService {
     minFrameIntervalMs: number,
     targetDuration: '1d' | '1w' | '1m',
     refreshIntervalMs: number,
+    backfillUntil?: number,
   ): Promise<void> {
     const currentPeriodEndTimestamp = Math.ceil(Date.now() / timeStep) * timeStep;
     let endTimestamp = currentPeriodEndTimestamp;
@@ -429,6 +461,12 @@ class ImageService {
           );
         });
 
+        endTimestamp -= timeStep;
+      } else if (backfillUntil !== undefined && startTimestamp > backfillUntil) {
+        // Nothing to do for this period - no stills at all, or a timelapse that
+        // already covers them. Ordinarily that ends the walk, but during the
+        // catch-up sweep it would leave every older gap unreachable behind the
+        // first quiet day, so step over it and keep going.
         endTimestamp -= timeStep;
       } else {
         return;
