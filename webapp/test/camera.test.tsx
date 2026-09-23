@@ -34,6 +34,7 @@ const state = vi.hoisted(() => ({
   askedForMore: 0,
   frames: { items: [] as { id: string; capturedAt: string }[], partial: false },
   zone: 'UTC' as string | null,
+  lastStill: null as string | null,
   /** The day the page asked the camera for, which is the account's and not this machine's. */
   askedForDay: null as { startsAt: string; endsAt: string } | null,
 }));
@@ -51,7 +52,7 @@ vi.mock('@/api/account', async importOriginal => ({
 vi.mock('@/api/cameras', async importOriginal => ({
   ...(await importOriginal<object>()),
   useCameras: () => ({ data: { items: [], nextCursor: null } }),
-  useLatestStills: () => new Map<string, string | null>(),
+  useLatestStills: () => new Map<string, string | null>(state.lastStill ? [['camera-1', state.lastStill]] : []),
   useMedia: () => ({ data: state.film, isError: false }),
   useCameraFrames: (_id: string, day: { startsAt: string; endsAt: string }) => {
     state.askedForDay = day;
@@ -153,6 +154,7 @@ beforeEach(() => {
   state.frames = { items: [], partial: false };
   state.zone = 'UTC';
   state.askedForDay = null;
+  state.lastStill = null;
 });
 
 describe('the composer', () => {
@@ -366,6 +368,29 @@ describe('the films and the pictures behind the first page', () => {
 
     expect(drawn()).toHaveLength(2);
     expect(screen.queryByRole('button', { name: 'More films' })).not.toBeInTheDocument();
+  });
+
+  it('shows the last picture the camera took on a day it has taken none, dimmed and dated', () => {
+    // The tent's card and the camera's own row both draw this picture; the page
+    // with the most room for it drew a grey box. A value that is old is dimmed
+    // and dated, never hidden.
+    state.frames = { items: [], partial: false };
+    state.lastStill = 'still-old';
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: '2026-09-19T02:28:17.000Z' } }} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const still = container.querySelector('img[src="/media/still-old"]')!;
+    expect(still).toBeInTheDocument();
+    expect(still).toHaveAttribute('data-age', 'offline');
+    expect(container.textContent).toContain('19 Sep 02:28');
+    expect(container.textContent).not.toContain('No picture today yet');
+    // The count is the day's and stays true.
+    expect(container.textContent).toContain('0 pictures today');
   });
 
   it('stamps a frame in the account´s zone rather than the browser´s', () => {

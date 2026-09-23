@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import type { Camera, GrowListItem, Media, TimelapseCreate } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
-import { useCamera, useCameraFrames, useRequestTimelapse, useTestCapture, useTimelapses } from '@/api/cameras';
+import { useCamera, useCameraFrames, useLatestStills, useRequestTimelapse, useTestCapture, useTimelapses } from '@/api/cameras';
 import { useSpaceGrows } from '@/api/grows';
 import { ApiError, noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
@@ -27,6 +27,9 @@ import styles from './CameraPage.module.css';
 
 /** How many films the section rests at before somebody asks for the rest. */
 const FILMS_AT_REST = 3;
+
+/** A picture from before today says which day it is of, because the clock alone would not. */
+const DATED_STAMP = 'd MMM HH:mm';
 
 /**
  * One camera: the picture it is taking, the day behind it, the four films it
@@ -86,6 +89,14 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   const time = cursor ?? to;
   const shown = frameAt(shots, time);
   const newest = shots.at(-1) ?? null;
+  // A day with no picture in it is not a camera with no picture. The tent's
+  // card and the camera's own row both draw this camera's newest still with its
+  // age, and this - the screen with the most room for it - is the one place
+  // that drew a grey box instead. So the last picture there is stands in,
+  // dimmed and dated, which is what an old value is owed. It is the same read
+  // the composer on this page already makes.
+  const lastStill = useLatestStills([camera.id]).get(camera.id) ?? null;
+  const older = shots.length === 0 && !frames.isPending ? lastStill : null;
 
   // Three films is the resting height of the section, not the whole of it: the
   // rest are behind the control below rather than dropped.
@@ -141,6 +152,13 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
             src={mediaUrl(shown.id, THUMBNAIL_WIDTH.frame) ?? undefined}
             alt={t('camera.frameAlt', { name: camera.name })}
           />
+        ) : older ? (
+          <img
+            className={styles.still}
+            data-age="offline"
+            src={mediaUrl(older, THUMBNAIL_WIDTH.frame) ?? undefined}
+            alt={t('camera.frameAlt', { name: camera.name })}
+          />
         ) : (
           <p className={`mono ${styles.noFrame}`}>{frames.isPending ? t('home.waiting') : t('camera.noFramesToday')}</p>
         )}
@@ -148,6 +166,14 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
           <span className={`mono ${styles.frameLabel}`}>
             {inZone(at(shown.capturedAt), zone).toFormat(STAMPS[stampFor(to - from)])}
             {newest && shown.id === newest.id ? ` · ${t('camera.live')}` : ''}
+          </span>
+        ) : older && camera.state.lastStillAt ? (
+          // Its own label rather than the one above: that stamp is scaled to
+          // today's window and would date a picture from four days ago by the
+          // clock alone. This one names its day and says how long ago it was,
+          // exactly as the tent's card says it.
+          <span className={`mono ${styles.frameLabel}`} data-age="offline">
+            {inZone(at(camera.state.lastStillAt), zone).toFormat(DATED_STAMP)} · {t('devices.ago', { age: ageLabel(camera.state.lastStillAt, now) })}
           </span>
         ) : null}
         {mayManage ? <TestImage cameraId={camera.id} /> : null}
