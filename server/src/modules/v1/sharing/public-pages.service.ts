@@ -3,9 +3,9 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { FollowedGrowCard, GrowWeekCard, LinkCard, PublicAuthor, PublicGrowPage, PublicUserPage, SharedResolution } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
-import { AccessContext, AccessRange, Grant } from '@common/v1/access.types';
+import { AccessContext, Grant } from '@common/v1/access.types';
 import { CursorPage } from '@common/v1/pages';
-import { clampRange } from '@common/v1/range';
+import { clampRange, outsideRange, storyEndsAt } from '@common/v1/range';
 import { notFound } from '@common/v1/problem';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -96,9 +96,9 @@ export class PublicPagesService {
     const range = clampRange(grant);
     // Where the story stops for this reader. Everything the page states about
     // the grow as a whole - the day it is on, the stage it is in, whether it is
-    // over - is worked out here rather than now, because a link whose window
-    // closed in August was not sent September.
-    const until = range.endsAt && range.endsAt < now ? range.endsAt : now;
+    // over - is worked out against that instant rather than now, which is what
+    // `storyEndsAt` is and why the report is built the same way.
+    const until = storyEndsAt(range, now);
     const seen = growUpTo(grow, until);
 
     const [hide, plants, owner, page, totals] = await Promise.all([
@@ -141,14 +141,7 @@ export class PublicPagesService {
       includeCameras: grant.includeCameras,
       weeks: page.items,
       weeksCursor: page.nextCursor,
-      // A harvest is dated, so it belongs to the window like any other line: a
-      // plant that came down after a link's window closed has not come down as
-      // far as that link is concerned, and a grow whose whole harvest is outside
-      // it has none to state.
-      harvest: harvestOf(
-        plants.filter(plant => harvestedWithin(plant, range)),
-        hide,
-      ),
+      harvest: harvestOf(plants, hide, range),
       totals,
     };
   }
@@ -384,13 +377,6 @@ export class PublicPagesService {
 }
 
 /** Whether a plant came down inside the window a reader holds. A plant that is still standing is not outside it. */
-const harvestedWithin = (plant: PlantDocument, range: AccessRange): boolean => {
-  if (!plant.harvest) return true;
-
-  const at = plant.harvest.harvestedAt;
-  return (!range.startsAt || at >= range.startsAt) && (!range.endsAt || at <= range.endsAt);
-};
-
 /**
  * Whether a picture is part of this grow's public page, which is the whole of
  * what makes it readable by a stranger.
@@ -417,9 +403,8 @@ export const belongsToGrow = (
 
   if (picture.cameraId === null || !grant.includeCameras || cameraSpaceId === null) return false;
 
-  const range = clampRange(grant);
   const takenAt = picture.capturedAt;
-  if ((range.startsAt && takenAt < range.startsAt) || (range.endsAt && takenAt > range.endsAt)) return false;
+  if (outsideRange(takenAt, clampRange(grant))) return false;
 
   // A camera that has since been removed keeps its pictures, so its tombstone
   // counts here exactly as a camera still hanging in the tent does.

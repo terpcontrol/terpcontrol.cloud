@@ -4,7 +4,7 @@ import { Model } from 'mongoose';
 import type { EntryKind, GrowWeekCard, GrowWeekCardPage, GrowWeekDay, GrowWeekFeeding, GrowWeekReading, SchemeAmount } from '@fg2/shared-types/v1';
 import { AccessRange, Grant } from '@common/v1/access.types';
 import { decodeCursor, pageOf } from '@common/v1/pages';
-import { clampRange, overlapsRange } from '@common/v1/range';
+import { Span, clampRange, overlapsRange, seenOf } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
@@ -70,12 +70,6 @@ const READING_LOOKBACK = 500;
 interface PageRequest {
   limit?: number;
   cursor?: string;
-}
-
-/** A stretch of time with both ends named, which is what a card is built over. */
-interface Span {
-  startsAt: Date;
-  endsAt: Date;
 }
 
 /** Everything a card is built from that was read once for the whole page. */
@@ -335,20 +329,6 @@ export class GrowWeeksService {
     return rhythm?.everyDays ? Math.max(1, Math.floor(7 / rhythm.everyDays)) : FEEDS_PER_WEEK_WITHOUT_A_REMINDER;
   }
 }
-
-/**
- * The part of a stretch of time a reader may see: the stretch itself, narrowed
- * to the window the grant carries.
- *
- * The window belongs to the link and not to the grow, and a week is seven days
- * whatever the link says - so a week that merely touches a narrow window would
- * otherwise hand out up to seven days on each side of it. Every figure on a card
- * is built over this rather than over the week.
- */
-const seenOf = (span: Span, range: AccessRange): Span => ({
-  startsAt: range.startsAt && range.startsAt > span.startsAt ? range.startsAt : span.startsAt,
-  endsAt: range.endsAt && range.endsAt < span.endsAt ? range.endsAt : span.endsAt,
-});
 
 const nearestTo = <T extends { capturedAt: Date }>(rows: readonly T[], instant: Date): T | null =>
   rows.reduce<T | null>((best, row) => {

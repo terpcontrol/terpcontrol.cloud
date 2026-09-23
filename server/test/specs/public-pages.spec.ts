@@ -1,4 +1,5 @@
 import { anonymous, createAccount, Session, unique } from '../support/api';
+import { seedMeasurements } from '../support/control';
 import { provisionDevice } from '../support/device';
 import { remindSpace, storeCameraStill } from '../support/fixtures';
 
@@ -738,6 +739,108 @@ describe('one line of a shared diary', () => {
     await owner.client.get(`/v1/entries/${outside}`).expect(200);
     const listed = await anonymous().get(`/v1/entries?growId=${kept.id}`).set('X-Share-Token', link.token).expect(200);
     expect(listed.body.items.map((one: { id: string }) => one.id)).not.toContain(outside);
+  });
+});
+
+/**
+ * The report is the one read of a grow that states the grow as a whole - when it
+ * ended, how many days that was, how each phase went - and it answered every one
+ * of those from the grow rather than from the window it was read through. A link
+ * sent one day of a flowering run was told the run's coldest night, the day the
+ * grow came down five months later, and the number of days it lasted.
+ */
+describe('the report a link reads', () => {
+  const daysAgo = (days: number): string => new Date(Date.now() - days * 24 * 3600 * 1000).toISOString();
+
+  it('stops where the window does, and states the climate of the window rather than of the phase', async () => {
+    const device = await provisionDevice(owner, 'controller');
+    // A controller with nothing to aim at is not what a chapter's climate is read
+    // from, so the tent is given targets before the run begins.
+    await owner.client
+      .put(`/v1/devices/${device.deviceId}/configuration`)
+      .send({ configuration: { day: { temperature: 25, humidity: 60 }, night: { temperature: 21, humidity: 60 } } })
+      .expect(200);
+    const tentOfIts = (await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.spaceId;
+
+    const run = await startAGrow({ name: 'Windowed report', startedAt: daysAgo(60), spaceId: tentOfIts });
+    await owner.client
+      .post(`/v1/grows/${run.id}/phases`)
+      .send({ stage: 'flowering', startedAt: daysAgo(60) })
+      .expect(201);
+    await owner.client
+      .patch(`/v1/grows/${run.id}`)
+      .send({ endedAt: daysAgo(5) })
+      .expect(200);
+
+    // Mild inside the fortnight the link carries, freezing and soaking outside
+    // it - the same phase either way, so only the window can tell them apart.
+    const reading = (days: number, temperature: number, humidity: number) => ({
+      time: Date.parse(daysAgo(days)),
+      device_id: device.deviceId,
+      fields: { temperature, humidity, out_light: 1 },
+    });
+    await seedMeasurements([reading(44, 24, 60), reading(40, 25, 62), reading(36, 24.5, 61), reading(20, 4, 95), reading(10, 39, 12)]);
+
+    const link = await linkOnto({ type: 'grow', id: run.id }, { range: { startsAt: daysAgo(45), endsAt: daysAgo(35) } });
+    const read = async (client: { get: (path: string) => any }, extra?: [string, string]) => {
+      const call = client.get(`/v1/grows/${run.id}/report`);
+      return (await (extra ? call.set(extra[0], extra[1]) : call).expect(200)).body;
+    };
+
+    const shared = await read(anonymous(), ['X-Share-Token', link.token]);
+    const mine = await read(owner.client);
+
+    // The grow as it stood when the fortnight closed: still running, and as many
+    // days old as it was then rather than as it is now.
+    expect(shared.endedAt).toBeNull();
+    expect(shared.dayCount).toBeLessThan(mine.dayCount);
+    expect(shared.dayCount).toBe(26);
+    expect(mine.endedAt).toEqual(expect.any(String));
+
+    // One chapter, and it has not ended either - the phase after it, and the day
+    // the grow came down, are both dated outside the window.
+    expect(shared.phases).toHaveLength(1);
+    expect(shared.phases[0]).toMatchObject({ stage: 'flowering', endedAt: null, dayTo: null });
+    expect(shared.phases[0].dayCount).toBeLessThan(mine.phases[0].dayCount);
+
+    // And the climate is the fortnight's. The 4 °C night and the 39 °C day are
+    // inside the same phase and outside the window, so they are not this
+    // reader's to be told about.
+    const temperature = shared.phases[0].climate.find((one: { metric: string }) => one.metric === 'temperature');
+    expect(temperature.minValue).toBeGreaterThan(20);
+    expect(temperature.maxValue).toBeLessThan(30);
+
+    const humidity = shared.phases[0].climate.find((one: { metric: string }) => one.metric === 'humidity');
+    expect(humidity.maxValue).toBeLessThan(90);
+
+    // The owner is still told the whole of their own run.
+    const ownTemperature = mine.phases[0].climate.find((one: { metric: string }) => one.metric === 'temperature');
+    expect(ownTemperature.minValue).toBeLessThan(10);
+    expect(ownTemperature.maxValue).toBeGreaterThan(35);
+  });
+
+  /**
+   * A harvest is dated like any other line. The public page has filtered it by
+   * the window since it was written; the report handed over the weight and the
+   * day whatever the window said.
+   */
+  it('has no harvest to state where the plants came down after the window closed', async () => {
+    const run = await startAGrow({ name: 'Harvested later', startedAt: daysAgo(60) });
+    await owner.client
+      .post(`/v1/grows/${run.id}/phases`)
+      .send({ stage: 'flowering', startedAt: daysAgo(60) })
+      .expect(201);
+
+    await owner.client
+      .post(`/v1/grows/${run.id}/harvests`)
+      .send({ harvestedAt: daysAgo(10), wetWeightG: 420, dryWeightG: 90 })
+      .expect(201);
+
+    const link = await linkOnto({ type: 'grow', id: run.id }, { range: { startsAt: daysAgo(45), endsAt: daysAgo(35) } });
+    const shared = (await anonymous().get(`/v1/grows/${run.id}/report`).set('X-Share-Token', link.token).expect(200)).body;
+
+    expect(shared.harvest).toBeNull();
+    expect((await owner.client.get(`/v1/grows/${run.id}/report`).expect(200)).body.harvest).toMatchObject({ dryWeightG: 90 });
   });
 });
 

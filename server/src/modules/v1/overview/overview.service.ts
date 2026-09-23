@@ -17,7 +17,7 @@ import type {
 } from '@fg2/shared-types/v1';
 import { metric as metricSchema, outputMetric } from '@fg2/shared-types/v1-schemas';
 import { AccessRange, Grant } from '@common/v1/access.types';
-import { clampRange, withinRange } from '@common/v1/range';
+import { clampRange, seenOf, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
@@ -146,7 +146,7 @@ export class OverviewService {
       );
       return targets ? [{ deviceId: device.id, targets }] : [];
     });
-    const window = clampedWindow(grant, { startsAt: new Date(until.getTime() - VERDICT_HOURS * 3600 * 1000), endsAt: until });
+    const window = seenOf({ startsAt: new Date(until.getTime() - VERDICT_HOURS * 3600 * 1000), endsAt: until }, range);
 
     const [plants, reminders, entries, stills, hide, series] = await Promise.all([
       this.plants
@@ -374,13 +374,6 @@ export class OverviewService {
     return people.map(person => ({ id: person.id, handle: person.handle }));
   }
 }
-
-/** A window with both ends named, narrowed to what the caller was granted. */
-const clampedWindow = (grant: Grant, asked: { startsAt: Date; endsAt: Date }): { startsAt: Date; endsAt: Date } => {
-  const range = clampRange(grant, asked);
-
-  return { startsAt: range.startsAt ?? asked.startsAt, endsAt: range.endsAt ?? asked.endsAt };
-};
 
 /**
  * Both halves of the cycle, in the order a card draws them. `/live` answers the

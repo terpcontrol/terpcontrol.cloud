@@ -4,7 +4,7 @@ import { Model } from 'mongoose';
 import type { EntryKind, GrowHarvest, GrowReport, GrowReportPhase, GrowTotals, PhaseTargets } from '@fg2/shared-types/v1';
 import { STAGES_WITH_CLIMATE, type StageSpan, stageSpansOf } from '@fg2/shared-types/v1-schemas';
 import { AccessRange, Grant } from '@common/v1/access.types';
-import { clampRange, overlapsRange, withinRange } from '@common/v1/range';
+import { clampRange, outsideRange, overlapsRange, seenOf, storyEndsAt, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
@@ -12,7 +12,7 @@ import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
-import { Redaction } from '../grow/grow-serialiser';
+import { Redaction, growUpTo } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
 import { DIARY_KINDS, authorIdsOf, peopleOf, serialiseDiaryEntry } from './diary-entries';
 import { dayNumberOf, horizonOf, originOf } from './grow-calendar';
@@ -61,11 +61,32 @@ export class GrowReportService {
     private readonly climate: GrowClimateService,
   ) {}
 
+  /**
+   * The report as the reader's own window makes it.
+   *
+   * A grow is read here twice over: once as a shape in time - when it began,
+   * when it ended, how many days that was, which stage covered which of them -
+   * and once as measurements taken inside that shape. Both halves belong to the
+   * window. The grow is therefore narrowed to `growUpTo` before a single figure
+   * is worked out, so that a grow that ended in August has not ended as far as a
+   * link whose fortnight closed in March is concerned and its day count stops
+   * where that fortnight did; and every chapter is summarised over `seenOf`
+   * rather than over the phase, so that one shared day states that day's climate
+   * and not the coldest night of the eleven weeks it sits in.
+   *
+   * What a reader is still told about time before their window is the grow's own
+   * `startedAt` and the day a chapter began - the two facts the day counter is
+   * relative to, which the public page states to the same reader in the same
+   * words ("day 56 of flowering"). The window governs how far the story runs
+   * forward and what may be measured inside it, not whether the reader may be
+   * told what day it is.
+   */
   public async read(growId: string, grant: Grant, now: Date = new Date()): Promise<GrowReport> {
-    const grow = await this.grows.require(growId);
-    const origin = originOf(grow);
-    const horizon = horizonOf(grow, now);
     const range = clampRange(grant);
+    const until = storyEndsAt(range, now);
+    const grow = growUpTo(await this.grows.require(growId), until);
+    const origin = originOf(grow);
+    const horizon = horizonOf(grow, until);
 
     const [hide, plants, diary, totals] = await Promise.all([
       this.grows.redaction(grant),
@@ -94,26 +115,36 @@ export class GrowReportService {
       filmMediaId: grow.filmMediaId,
       // Newest first, which is the order the chapters are read in.
       phases: told.reverse(),
-      harvest: harvestOf(plants, hide),
+      harvest: harvestOf(plants, hide, range),
       totals,
       people: peopleOf(named, rows),
     };
   }
 
+  /**
+   * One chapter, told over as much of it as the reader was sent.
+   *
+   * A phase overruns a window far more often than it fits inside one - it is
+   * weeks long and a link is usually days - so the stretch every figure below is
+   * read over is the phase intersected with the window, never the phase. The
+   * chapter still calls itself by the phase's own dates, because that is what it
+   * is a chapter of; what it states about the tent is only ever the part the
+   * reader holds.
+   */
   private async chapterOf(chapter: Chapter, world: ReportWorld): Promise<GrowReportPhase> {
     const { grow, horizon } = world;
-    const endsAt = chapter.endsAt ?? horizon;
-    const spaceIds = spacesDuring(grow, chapter.startsAt, endsAt);
-    const entries = world.diary.filter(entry => entry.occurredAt >= chapter.startsAt && entry.occurredAt < endsAt);
+    const seen = seenOf({ startsAt: chapter.startsAt, endsAt: chapter.endsAt ?? horizon }, world.range);
+    const spaceIds = spacesDuring(grow, seen.startsAt, seen.endsAt);
+    const entries = world.diary.filter(entry => entry.occurredAt >= seen.startsAt && entry.occurredAt < seen.endsAt);
 
     const controllers = await this.climate.controllersIn(spaceIds);
     const [climate, coverMediaId] = await Promise.all([
       this.climate.summarise(
         controllers.map(controller => controller.deviceId),
-        { startsAt: chapter.startsAt, endsAt },
+        seen,
         bandOf(chapter),
       ),
-      this.coverOf(spaceIds, new Date((chapter.startsAt.getTime() + endsAt.getTime()) / 2), world.grant, world.range),
+      this.coverOf(spaceIds, new Date((seen.startsAt.getTime() + seen.endsAt.getTime()) / 2), world.grant, world.range),
     ]);
 
     const counted = (kind: EntryKind): number => entries.filter(entry => entry.kind === kind).length;
@@ -166,10 +197,7 @@ export class GrowReportService {
     const cameras = await this.cameras.find({ spaceId: { $in: named } }, { id: 1 }).lean<CameraDocument[]>();
     if (cameras.length === 0) return null;
 
-    const searched = {
-      startsAt: latestOf(new Date(middle.getTime() - COVER_WINDOW_MS), range.startsAt),
-      endsAt: earliestOf(new Date(middle.getTime() + COVER_WINDOW_MS), range.endsAt),
-    };
+    const searched = seenOf({ startsAt: new Date(middle.getTime() - COVER_WINDOW_MS), endsAt: new Date(middle.getTime() + COVER_WINDOW_MS) }, range);
     if (searched.startsAt > searched.endsAt) return null;
 
     const stills = await this.media
@@ -276,16 +304,18 @@ interface ReportWorld {
   diary: EntryDocument[];
 }
 
-const latestOf = (one: Date, other: Date | null): Date => (other && other > one ? other : one);
-const earliestOf = (one: Date, other: Date | null): Date => (other && other < one ? other : one);
-
 /**
  * One harvest for the whole grow: when the first plant came down, and what the
  * lot weighed. The report and the public page both state it, and a weight that
  * two places worked out separately is a weight one of them could state wrongly.
+ *
+ * A harvest is dated, so it belongs to the window like any other line: a plant
+ * that came down after a link's window closed has not come down as far as that
+ * link is concerned, and a grow whose whole harvest falls outside it has none to
+ * state.
  */
-export const harvestOf = (plants: readonly PlantDocument[], hide: Redaction): GrowHarvest | null => {
-  const harvested = plants.flatMap(plant => (plant.harvest ? [plant.harvest] : []));
+export const harvestOf = (plants: readonly PlantDocument[], hide: Redaction, range: AccessRange): GrowHarvest | null => {
+  const harvested = plants.flatMap(plant => (plant.harvest && !outsideRange(plant.harvest.harvestedAt, range) ? [plant.harvest] : []));
   if (harvested.length === 0) return null;
 
   const total = (weights: (number | null)[]): number | null =>

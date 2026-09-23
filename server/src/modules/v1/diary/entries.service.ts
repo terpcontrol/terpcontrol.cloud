@@ -4,10 +4,10 @@ import { FilterQuery, Model } from 'mongoose';
 import type { Entry, EntryKind, EntryPage } from '@fg2/shared-types/v1';
 import { entryKind } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
-import { AccessContext, AccessRange, SubjectRef, SubjectType } from '@common/v1/access.types';
+import { AccessContext, SubjectRef, SubjectType } from '@common/v1/access.types';
 import { CursorPage, afterCursor, pageLimit, pageOf, readLimit } from '@common/v1/pages';
 import { badRequest, notFound } from '@common/v1/problem';
-import { clampRange, withinRange } from '@common/v1/range';
+import { clampRange, outsideRange, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
@@ -156,7 +156,3 @@ const kindsOf = (kinds: string | undefined): FilterQuery<EntryDocument> => {
 
 /** The query schema has already said it is an instant; this is only the boundary where the wire's string becomes one. */
 const instantOf = (value: string | undefined): Date | undefined => (value ? new Date(value) : undefined);
-
-/** Both ends count as inside, exactly as `withinRange` filters the list this line would have come out of. */
-const outsideRange = (at: Date, range: AccessRange): boolean =>
-  (range.startsAt !== null && at < range.startsAt) || (range.endsAt !== null && at > range.endsAt);
