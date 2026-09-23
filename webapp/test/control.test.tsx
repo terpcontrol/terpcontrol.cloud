@@ -14,6 +14,7 @@ import { Control } from '@/screens/control/Control';
 import { PlanPanel } from '@/screens/control/PlanPanel';
 import { movesOf } from '@/screens/control/plan-clock';
 import { CLIMATE_FIGURES, draftOf, editEffect, figureOf, moveStep, otherSections, withFigure } from '@/screens/control/plan-edit';
+import { holdsAClimate } from '@/ui/climate-hardware';
 
 /**
  * What the Control tab promises before anything is sent, and what it offers at
@@ -31,6 +32,7 @@ const NOW = DateTime.fromISO('2026-09-19T12:00:00.000Z');
 
 const state = vi.hoisted(() => ({
   plan: null as Plan | null,
+  planError: null as unknown,
   moveError: null as unknown,
   sent: [] as PlanTransition[],
   devices: [] as unknown[],
@@ -43,7 +45,14 @@ vi.mock('@/api/devices', async importOriginal => ({
 
 vi.mock('@/api/plans', async importOriginal => ({
   ...(await importOriginal<object>()),
-  useDevicePlan: () => ({ data: state.plan, isPending: false, isError: false, error: null, dataUpdatedAt: NOW.toMillis(), refetch: () => {} }),
+  useDevicePlan: () => ({
+    data: state.plan,
+    isPending: false,
+    isError: state.planError !== null,
+    error: state.planError,
+    dataUpdatedAt: NOW.toMillis(),
+    refetch: () => {},
+  }),
   usePlanTransition: () => ({
     mutate: (body: PlanTransition) => state.sent.push(body),
     error: state.moveError,
@@ -141,7 +150,7 @@ const draw = (one: Device = device()) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <MemoryRouter>
-        <PlanPanel device={one} mayManage />
+        <PlanPanel device={one} mayManage holdsClimate={holdsAClimate(one)} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -156,6 +165,7 @@ beforeAll(async () => {
 beforeEach(() => {
   may.youMay = 'own';
   state.plan = plan();
+  state.planError = null;
   state.moveError = null;
   state.sent = [];
   state.devices = [];
@@ -175,6 +185,61 @@ describe('the tab of a place with nothing standing in it', () => {
     expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/spaces/space-1/devices');
     expect(screen.queryByRole('link', { name: 'Manual targets' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Advanced/ })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * What the tab offers a lamp or a plug. A step writes a climate and nothing
+ * else, and a lamp's own document states its on and off times as plain seconds
+ * under the same `day` and `night` keys a step would put an object over - so the
+ * panel has to ask what the Manual targets page one tap below has always asked,
+ * rather than heading itself "this controller" and offering six climate fields.
+ */
+describe('the plan panel over hardware that states no climate', () => {
+  const lamp = (): Device => ({
+    ...device(),
+    id: 'device-2',
+    type: 'light',
+    name: 'Bar light',
+    configuration: { day: 68400, night: 25200, limit: 65 },
+  });
+
+  beforeEach(() => {
+    state.plan = null;
+    state.planError = new ApiError({
+      status: 404,
+      code: 'plan_not_found',
+      title: 'Not found',
+      detail: 'This device is not running a plan.',
+      errors: [],
+    });
+  });
+
+  it('says nothing here runs on a plan, and offers neither way to write one', () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <PlanPanel device={lamp()} mayManage holdsClimate={holdsAClimate(lamp())} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText('Nothing here runs on a plan.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Write a plan' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Start from a template' })).not.toBeInTheDocument();
+  });
+
+  it('still offers a controller whose document has not arrived both ways in', () => {
+    const waiting = { ...device(), configuration: null };
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <PlanPanel device={waiting} mayManage holdsClimate={holdsAClimate(waiting)} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Write a plan' })).toBeInTheDocument();
   });
 });
 

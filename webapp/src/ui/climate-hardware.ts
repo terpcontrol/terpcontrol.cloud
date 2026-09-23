@@ -69,3 +69,19 @@ export const HOLDS_A_CLIMATE = ['controller', 'fridge', 'fan'];
  * document and write nothing.
  */
 export const awaitingClimate = (device: Device): boolean => device.configuration === null && HOLDS_A_CLIMATE.includes(device.type);
+
+/**
+ * Whether a climate written for this device has anywhere at all to land: either
+ * its document states one already, or its kind says the document will when it
+ * arrives.
+ *
+ * This is the question the Control tab has to ask before offering a grow plan,
+ * because a plan step writes nothing but a climate. A plug or a lamp answers no,
+ * and the six fields a step offers - day and night temperature and humidity, the
+ * CO2 target, the light's limit - would be written into a document that states a
+ * lamp's on and off times as plain seconds, where `day` is an integer and the
+ * step would put an object over it. The Manual targets page one tap below has
+ * always asked this; the plan panel above it did not, so the two said opposite
+ * things about the same tent.
+ */
+export const holdsAClimate = (device: Device): boolean => statesTargets(device.configuration) || awaitingClimate(device);

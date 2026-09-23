@@ -146,6 +146,48 @@ describe('writing the plan', () => {
   });
 
   /**
+   * A step's settings are merged into the device's own document by top-level
+   * key, so a step carrying `day` writes that whole section over what was there.
+   * A lamp states its on and off times as plain seconds under exactly those
+   * keys, which is a schedule the step would put an object over and publish - so
+   * the write is refused here rather than left to the one screen that happened
+   * to ask the question.
+   */
+  it('refuses a climate step on a device whose own document states no climate', async () => {
+    const lamp = await provisionDevice(owner, 'light');
+    await owner.client
+      .put(`/v1/devices/${lamp.deviceId}/configuration`)
+      .send({ configuration: { day: 68400, night: 25200, limit: 65 } })
+      .expect(200);
+
+    const refused = await owner.client
+      .put(`/v1/devices/${lamp.deviceId}/plan`)
+      .send(aPlan({ steps: [climateOnly('Woche 1')] }))
+      .expect(422);
+
+    expect(refused.body.code).toBe('device_states_no_climate');
+    await owner.client.get(`/v1/devices/${lamp.deviceId}/plan`).expect(404);
+  });
+
+  /**
+   * The same lamp still takes a plan that writes nothing - a plan is also a
+   * sequence of stages and lengths, and a step with no settings asks the
+   * hardware for nothing at all.
+   */
+  it('takes a plan on that device when no step writes anything', async () => {
+    const lamp = await provisionDevice(owner, 'light');
+    await owner.client
+      .put(`/v1/devices/${lamp.deviceId}/configuration`)
+      .send({ configuration: { day: 68400, night: 25200, limit: 65 } })
+      .expect(200);
+
+    await owner.client
+      .put(`/v1/devices/${lamp.deviceId}/plan`)
+      .send(aPlan({ steps: [step('Veg')] }))
+      .expect(200);
+  });
+
+  /**
    * The recipe every device in the field is running: steps that name a climate
    * and say nothing at all about a growth stage. Every plan the migration
    * carried over has that shape, so opening one and pressing save is the most

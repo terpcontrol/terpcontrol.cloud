@@ -3,9 +3,11 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { PlanReplace, PlanTransition, StepDuration } from '@fg2/shared-types/v1';
-import { badRequest, conflict, notFound } from '@common/v1/problem';
+import { badRequest, conflict, notFound, unprocessable } from '@common/v1/problem';
 import { MODEL_V1 } from '@database/models';
+import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { StoredPlan } from '@database/schemas/v1/plans.schema';
+import { targetsOf } from '../phase/phase-targets';
 import { PlanProgressService } from './plan-progress.service';
 import { activeStep, durationMs, elapsedMs, isOver, positionIn, stepsOf, stopped } from './plan-steps';
 
@@ -22,12 +24,15 @@ import { activeStep, durationMs, elapsedMs, isOver, positionIn, stepsOf, stopped
  * of that firmware's own configuration document, and it reaches the hardware
  * through the engine's hourly pass and the one module that speaks the protocol -
  * so writing a plan changes what the device will be told, never what it is told
- * in this request.
+ * in this request. The device is read once all the same, before a plan is
+ * stored: a fragment that would land in a document with no climate in it is
+ * refused rather than carried around until the engine publishes it.
  */
 @Injectable()
 export class PlanService {
   constructor(
     @InjectModel(MODEL_V1.plan) private readonly plans: Model<StoredPlan>,
+    @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     private readonly progress: PlanProgressService,
   ) {}
 
@@ -57,6 +62,7 @@ export class PlanService {
   public async replace(deviceId: string, body: PlanReplace): Promise<StoredPlan> {
     const existing = await this.forDevice(deviceId);
     const steps = stepsOf(body.steps);
+    await this.mustHaveSomewhereToWrite(deviceId, steps);
     const now = new Date();
 
     const written = {
@@ -74,6 +80,37 @@ export class PlanService {
     await this.plans.updateOne({ deviceId }, { $setOnInsert: { id: uuidv4(), createdAt: now }, $set: written }, { upsert: true }).exec();
 
     return this.require(deviceId);
+  }
+
+  /**
+   * A step's settings are merged into the device's own configuration document by
+   * top-level key, so a step that carries `day` writes that whole section over
+   * whatever the section held. On a device whose document states no climate that
+   * is not a figure nobody reads: a lamp states its on and off times as plain
+   * seconds under the same `day` and `night` keys, and the step would put an
+   * object over a schedule and publish it.
+   *
+   * The question is asked of the document rather than of the device's type,
+   * because the type table that says which hardware states a climate lives in
+   * the app, where it is what draws the screen, and stating it a second time here
+   * is how the two would come to disagree. A device that has never sent a
+   * document says nothing either way and is let through - that is the case the
+   * app's own type test is for, and the one this side has no evidence about.
+   */
+  private async mustHaveSomewhereToWrite(deviceId: string, steps: StoredPlan['steps']): Promise<void> {
+    if (!steps.some(step => Object.keys(step.settings ?? {}).length > 0)) return;
+
+    const device = await this.devices.findOne({ id: deviceId }, { configuration: 1 }).lean<Pick<StoredDevice, 'configuration'> | null>();
+    const configuration = device?.configuration ?? null;
+    if (configuration === null || Object.keys(configuration).length === 0 || targetsOf(configuration) !== null) return;
+
+    throw unprocessable('device_states_no_climate', 'This device states no climate, so a step has nowhere to write one.', [
+      {
+        field: 'steps',
+        code: 'no_climate',
+        detail: 'The settings of a step are written over the sections of this device’s own document, which states no targets.',
+      },
+    ]);
   }
 
   /**

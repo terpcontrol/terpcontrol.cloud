@@ -2,6 +2,7 @@ import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate } from 'react-router';
 import { useDevices } from '@/api/devices';
+import { holdsAClimate } from '@/ui/climate-hardware';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import { useMayLogIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -61,7 +62,11 @@ export function Control({ spaceId, sub }: { spaceId: string; sub: string | null 
           </Link>
         </p>
       ) : (
-        here.map(device => <PlanPanel key={device.id} device={device} mayManage={mayManage} />)
+        // Whether a plan has anywhere to write is the device's question and not
+        // the tent's, so it is asked here per device and handed down: a tent
+        // holding a controller and a lamp draws a plan for the one and says so
+        // about the other.
+        here.map(device => <PlanPanel key={device.id} device={device} mayManage={mayManage} holdsClimate={holdsAClimate(device)} />)
       )}
 
       {/* The moves, the manual targets and the alarm rules are all absent for

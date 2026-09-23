@@ -40,8 +40,15 @@ import styles from './Control.module.css';
  * a separate question again, and the line that says when the step last reached
  * the controller is dimmed by how long the controller has been quiet, because a
  * device that says nothing may have been running something else for an hour.
+ *
+ * A step writes a climate and nothing else, so hardware with nowhere for one to
+ * land - a plug, a lamp - is told that rather than offered a plan: `holdsClimate`
+ * is the same question the Manual targets page one tap below asks, and the two
+ * screens used to answer it differently about the same tent. A plan that is
+ * already on such a device is still drawn in full, because a plan nobody can see
+ * is a plan nobody can stop.
  */
-export function PlanPanel({ device, mayManage }: { device: Device; mayManage: boolean }) {
+export function PlanPanel({ device, mayManage, holdsClimate }: { device: Device; mayManage: boolean; holdsClimate: boolean }) {
   const { t } = useTranslation();
   const now = useNow();
   const plan = useDevicePlan(device.id);
@@ -73,9 +80,9 @@ export function PlanPanel({ device, mayManage }: { device: Device; mayManage: bo
         {title}
         {isMissing(plan.error) ? (
           <div className={`${ui.cardDashed} ${styles.none}`}>
-            <p className={styles.noneWhat}>{t('space.control.none')}</p>
-            <p className={ui.note}>{t('space.control.noneNote')}</p>
-            {mayManage ? (
+            <p className={styles.noneWhat}>{t(holdsClimate ? 'space.control.none' : 'space.control.noClimate')}</p>
+            <p className={ui.note}>{t(holdsClimate ? 'space.control.noneNote' : 'space.control.noClimateNote')}</p>
+            {mayManage && holdsClimate ? (
               <div className={styles.actions}>
                 <button type="button" className={`${ui.button} ${ui.primary}`} onClick={() => setEditing(emptyDraft(name, DEFAULT_NOTIFY))}>
                   {t('space.control.write')}
@@ -110,6 +117,11 @@ export function PlanPanel({ device, mayManage }: { device: Device; mayManage: bo
       {title}
       <RefreshFailed failedAt={plan.isError ? plan.dataUpdatedAt : null} now={now} />
 
+      {/* A plan that is already on hardware with no climate is shown whole, so
+          it can be looked at and stopped, with the fact said once above it: the
+          steps are writing a climate into a document that states none. */}
+      {holdsClimate ? null : <p className={`${ui.cardDashed} ${ui.note}`}>{t('space.control.noClimateHasPlan')}</p>}
+
       <div className={`${ui.card} ${styles.plan}`}>
         <Standing plan={plan.data} device={device} now={now} />
         {mayManage ? <Moves plan={plan.data} device={device} now={now} onRefresh={() => void plan.refetch()} /> : null}
@@ -125,9 +137,14 @@ export function PlanPanel({ device, mayManage }: { device: Device; mayManage: bo
           <button type="button" className={ui.button} onClick={() => setKeeping(true)}>
             {t('space.control.keepAsTemplate')}
           </button>
-          <button type="button" className={ui.button} onClick={() => setPicking(true)}>
-            {t('space.control.fromTemplate')}
-          </button>
+          {/* Editing stays, because emptying the steps is how a plan that should
+              never have been written here is taken off. Starting a fresh one
+              from a template would only write the same climate again. */}
+          {holdsClimate ? (
+            <button type="button" className={ui.button} onClick={() => setPicking(true)}>
+              {t('space.control.fromTemplate')}
+            </button>
+          ) : null}
         </div>
       ) : null}
 
