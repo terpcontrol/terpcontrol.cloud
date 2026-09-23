@@ -187,6 +187,21 @@ describe('the timeline', () => {
     expect(screen.getByText('day 34')).toBeInTheDocument();
   });
 
+  /**
+   * Six chips do not fit a phone, so the row that holds them scrolls sideways
+   * with nothing on screen to say that it does. Anything parked past its end is
+   * therefore out of reach in practice, and the range is the only thing on this
+   * screen that names the window the panels and their "nothing heard in this
+   * window" line are about.
+   */
+  it('keeps the range out of the row the chips scroll in', () => {
+    draw();
+
+    const chips = screen.getByRole('group', { name: 'Range' });
+    expect(chips).toContainElement(screen.getByRole('button', { name: '24 h' }));
+    expect(chips).not.toContainElement(screen.getByText('day 34'));
+  });
+
   it('moves every part of the window with one cursor, into a header that stays put', () => {
     draw();
 

@@ -71,10 +71,23 @@
   color: var(--muted);
 }
 
-.chips {
+/* The chips and, beside them, the days they asked for. The chips scroll because
+   six of them do not fit a phone; the range must not, because it is the only
+   place on this screen that names the window the panels are about - and a
+   sentence like "nothing heard in this window" is unreadable without it. So the
+   range is held out of the scroller and given the room it needs first. */
+.rangeBar {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+
+.chips {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -126,6 +139,7 @@
 }
 
 .days {
+  flex-shrink: 0;
   margin-left: auto;
   padding-left: var(--space-2);
   font-size: var(--text-xs);

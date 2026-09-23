@@ -64,60 +64,68 @@ function TimelineFor({ spaceId, heading, reportsAge = false }: TimelineProps) {
   });
 
   const chips = (
-    <div className={styles.chips} role="group" aria-label={t('timeline.rangeLabel')}>
-      {RANGES.map(one => (
-        <button
-          key={one}
-          type="button"
-          className={`${ui.chip} ${styles.chip}`}
-          aria-pressed={one === range}
-          // A stretch of a grow cannot be asked for where nothing is growing, so it is not offered there.
-          disabled={rangeNeedsGrow(one) && growId === null}
-          onClick={() => {
-            setRange(one);
-            setPinned(rangeNeedsGrow(one) ? growId : null);
-            setCursor(null);
-            setOpened(null);
-          }}
-        >
-          {t(`timeline.range.${one}`)}
-        </button>
-      ))}
-      {/* Which grow the two stretch chips are about, where more than one has
-          stood here. A grow that moved out in spring left its whole record
-          behind it and this rail is the only screen that draws it, so without
-          this those months have no address at all: every other way in names the
-          grow standing here now. */}
-      {data && data.grows.length > 1 ? (
-        <span className={`${ui.chip} ${styles.chip} ${styles.growChip}`}>
-          <span className={styles.growName}>{data.grows.find(one => one.growId === growId)?.name ?? t('timeline.pickGrow')}</span>
-          <ChevronDown size={13} strokeWidth={1.75} aria-hidden />
-          <select
-            value={growId ?? ''}
-            aria-label={t('timeline.pickGrow')}
-            onChange={event => {
-              setPinned(event.target.value);
-              setRange(one => (rangeNeedsGrow(one) ? one : 'grow'));
+    // Which days are drawn is the answer to the chips, not one of them, so it
+    // stands beside the row rather than inside it: a phone cannot fit six chips
+    // and would otherwise park the range past the end of a scroller that
+    // advertises nothing, on the one screen where the window is not named
+    // anywhere else.
+    <div className={styles.rangeBar}>
+      <div className={styles.chips} role="group" aria-label={t('timeline.rangeLabel')}>
+        {RANGES.map(one => (
+          <button
+            key={one}
+            type="button"
+            className={`${ui.chip} ${styles.chip}`}
+            aria-pressed={one === range}
+            // A stretch of a grow cannot be asked for where nothing is growing, so it is not offered there.
+            disabled={rangeNeedsGrow(one) && growId === null}
+            onClick={() => {
+              setRange(one);
+              setPinned(rangeNeedsGrow(one) ? growId : null);
               setCursor(null);
               setOpened(null);
             }}
           >
-            {/* Nothing is growing here now, so the chips name no grow until one is chosen. */}
-            {growId === null ? <option value="">{t('timeline.pickGrow')}</option> : null}
-            {data.grows.map(one => (
-              <option key={one.growId} value={one.growId}>
-                {one.name}
-              </option>
-            ))}
-          </select>
-        </span>
-      ) : null}
-      {/* The way into the Charts view. It is not a tab of its own - it opens on
-          the grow standing here, and this row is where the window is chosen. */}
-      <Link to={`/charts?space=${spaceId}`} className={`${ui.chip} ${styles.chip}`}>
-        <LineChart size={13} strokeWidth={1.75} aria-hidden />
-        {t('charts.title')}
-      </Link>
+            {t(`timeline.range.${one}`)}
+          </button>
+        ))}
+        {/* Which grow the two stretch chips are about, where more than one has
+            stood here. A grow that moved out in spring left its whole record
+            behind it and this rail is the only screen that draws it, so without
+            this those months have no address at all: every other way in names
+            the grow standing here now. */}
+        {data && data.grows.length > 1 ? (
+          <span className={`${ui.chip} ${styles.chip} ${styles.growChip}`}>
+            <span className={styles.growName}>{data.grows.find(one => one.growId === growId)?.name ?? t('timeline.pickGrow')}</span>
+            <ChevronDown size={13} strokeWidth={1.75} aria-hidden />
+            <select
+              value={growId ?? ''}
+              aria-label={t('timeline.pickGrow')}
+              onChange={event => {
+                setPinned(event.target.value);
+                setRange(one => (rangeNeedsGrow(one) ? one : 'grow'));
+                setCursor(null);
+                setOpened(null);
+              }}
+            >
+              {/* Nothing is growing here now, so the chips name no grow until one is chosen. */}
+              {growId === null ? <option value="">{t('timeline.pickGrow')}</option> : null}
+              {data.grows.map(one => (
+                <option key={one.growId} value={one.growId}>
+                  {one.name}
+                </option>
+              ))}
+            </select>
+          </span>
+        ) : null}
+        {/* The way into the Charts view. It is not a tab of its own - it opens
+            on the grow standing here, and this row is where the window is
+            chosen. */}
+        <Link to={`/charts?space=${spaceId}`} className={`${ui.chip} ${styles.chip}`}>
+          <LineChart size={13} strokeWidth={1.75} aria-hidden />
+          {t('charts.title')}
+        </Link>
+      </div>
       {data ? <span className={`mono ${styles.days}`}>{dayLabel(t, data)}</span> : null}
     </div>
   );
