@@ -2241,7 +2241,9 @@
         "deleteAsk": "Diesen Messwert löschen? Es wurde noch nichts darunter eingetragen.",
         "deleteYes": "Ja, löschen",
         "keptForReadings_one": "{{count}} Messwert steht darunter, also bleibt er. Nimm ihn stattdessen aus dem Diagramm.",
-        "keptForReadings_other": "{{count}} Messwerte stehen darunter, also bleibt er. Nimm ihn stattdessen aus dem Diagramm."
+        "keptForReadings_other": "{{count}} Messwerte stehen darunter, also bleibt er. Nimm ihn stattdessen aus dem Diagramm.",
+        "keptForReadingsOffChart_one": "{{count}} Messwert steht darunter, also bleibt er.",
+        "keptForReadingsOffChart_other": "{{count}} Messwerte stehen darunter, also bleibt er."
       },
       "measure": {
         "title": "Messen",

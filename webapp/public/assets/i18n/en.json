@@ -2245,7 +2245,9 @@
         "deleteAsk": "Delete this measurement? Nothing has been written under it.",
         "deleteYes": "Delete it",
         "keptForReadings_one": "{{count}} reading is written under this one, so it stays. Turn it off the chart instead.",
-        "keptForReadings_other": "{{count}} readings are written under this one, so it stays. Turn it off the chart instead."
+        "keptForReadings_other": "{{count}} readings are written under this one, so it stays. Turn it off the chart instead.",
+        "keptForReadingsOffChart_one": "{{count}} reading is written under this one, so it stays.",
+        "keptForReadingsOffChart_other": "{{count}} readings are written under this one, so it stays."
       },
       "measure": {
         "title": "Measure",
