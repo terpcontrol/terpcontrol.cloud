@@ -7,7 +7,7 @@ import type { ChartView, ChartViewDefinition, ChartViewSpan, GrowListItem, GrowS
 import { useChartViews } from '@/api/chart-views';
 import { useGrowSeries } from '@/api/charts';
 import { useDevices } from '@/api/devices';
-import { useGrow, useGrowPlants, useGrowsEverIn, useSpaceGrows } from '@/api/grows';
+import { useGrow, useGrowPlants, useGrows, useGrowsEverIn, useSpaceGrows } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { useSpaces } from '@/api/spaces';
 import { useScrub } from '@/charts/scrub';
@@ -84,8 +84,11 @@ export function Charts() {
     );
   }
 
+  // Nothing named at all is a different absence from a tent with nothing in it:
+  // the screen has not been told which grow rather than been told about a place
+  // that has none, and the account's own grows are the answer to that.
   if (growId === null) {
-    return <NoGrow spaceId={spaceId} />;
+    return spaceId === null ? <PickGrow /> : <NoGrow spaceId={spaceId} />;
   }
 
   if (!grow.data) return noLongerThere(grow.error) ? <NoLongerHere what="grow" /> : <LoadFailed retry={() => void grow.refetch()} />;
@@ -99,7 +102,7 @@ export function Charts() {
  * on that the tent's own page offers stand here as well, so the link the app
  * drew itself does not end in a room with one door.
  */
-function NoGrow({ spaceId }: { spaceId: string | null }) {
+function NoGrow({ spaceId }: { spaceId: string }) {
   const { t } = useTranslation();
   // Both ways on put a grow into this place, which is managing it - so the
   // question is about the tent named in the query rather than about the session.
@@ -112,21 +115,56 @@ function NoGrow({ spaceId }: { spaceId: string | null }) {
     <div className={styles.screen}>
       <Header spaceId={spaceId} growId={null} subject={space?.name ?? ''} />
       <p className={`${ui.cardDashed} ${ui.note}`}>{t('charts.noGrow')}</p>
-      {spaceId === null ? null : (
-        <div className={styles.chips}>
-          {mayManage ? (
-            <Link to={`/log?kind=phase&space=${spaceId}`} className={`${ui.chip} ${styles.chip}`}>
-              + {t('space.newGrow')}
-            </Link>
-          ) : null}
-          {mayManage && space ? (
-            <button type="button" className={`${ui.chip} ${styles.chip}`} onClick={() => setMoving(true)}>
-              {t('space.moveHere')}
-            </button>
-          ) : null}
-        </div>
-      )}
+      <div className={styles.chips}>
+        {mayManage ? (
+          <Link to={`/log?kind=phase&space=${spaceId}`} className={`${ui.chip} ${styles.chip}`}>
+            + {t('space.newGrow')}
+          </Link>
+        ) : null}
+        {mayManage && space ? (
+          <button type="button" className={`${ui.chip} ${styles.chip}`} onClick={() => setMoving(true)}>
+            {t('space.moveHere')}
+          </button>
+        ) : null}
+      </div>
       {moving && space ? <MoveHereSheet spaceId={space.id} spaceName={space.name} onClose={() => setMoving(false)} /> : null}
+    </div>
+  );
+}
+
+/**
+ * The bare address, which is where a bookmark on this screen and a link that
+ * lost its query both land. It knows nothing about a tent, so the sentence the
+ * tent's own empty state carries would be about a place nobody named - and it
+ * would stand there alone, since both ways on need an id this screen has not
+ * got. What it does have is the account's grows, and a chart is drawn about
+ * one, so they are the way on: whichever is picked, the screen is the same
+ * screen the link would have opened.
+ */
+function PickGrow() {
+  const { t } = useTranslation();
+  const grows = useGrows();
+  const items = grows.data?.items ?? [];
+
+  return (
+    <div className={styles.screen}>
+      <Header spaceId={null} growId={null} subject="" />
+      {grows.isPending ? (
+        <Waiting lines={2} />
+      ) : !grows.data ? (
+        <LoadFailed retry={() => void grows.refetch()} />
+      ) : (
+        <>
+          <p className={`${ui.cardDashed} ${ui.note}`}>{t(items.length > 0 ? 'charts.whichGrow' : 'charts.noGrow')}</p>
+          <div className={styles.chips}>
+            {items.map(one => (
+              <Link key={one.id} to={`/charts?grow=${one.id}`} className={`${ui.chip} ${styles.chip}`}>
+                {one.name}
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

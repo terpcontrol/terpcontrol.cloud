@@ -561,6 +561,7 @@
     "note": "The nerd's room: any series, any range, saved views, export with the actuator state in every row. Two units on one panel only when they belong together.",
     "nothingPicked": "Nothing picked yet — tap a series above.",
     "noGrow": "Nothing grows here yet, and a chart is drawn about a grow.",
+    "whichGrow": "A chart is drawn about a grow — pick the one to draw.",
     "views": {
       "newTitle": "Save this view",
       "editTitle": "Saved view",

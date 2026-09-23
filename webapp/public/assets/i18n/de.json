@@ -561,6 +561,7 @@
     "note": "Die Messwarte: jede Kurve, jeder Zeitraum, gesicherte Ansichten, Export mit dem Aktorzustand in jeder Zeile. Zwei Einheiten in einem Feld nur, wenn sie zusammengehören.",
     "nothingPicked": "Noch nichts gewählt — oben eine Kurve antippen.",
     "noGrow": "Hier wächst noch nichts, und ein Chart handelt von einem Grow.",
+    "whichGrow": "Ein Chart handelt von einem Grow — wähle den, der gezeichnet werden soll.",
     "views": {
       "newTitle": "Diese Ansicht sichern",
       "editTitle": "Gesicherte Ansicht",

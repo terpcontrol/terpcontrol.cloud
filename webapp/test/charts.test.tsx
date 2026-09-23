@@ -27,6 +27,8 @@ const state = vi.hoisted(() => ({
   breaks: false,
   /** The zone the account names, which is the one every clock time on this screen is written in. */
   zone: null as string | null,
+  /** Every grow the account has, which is what the bare address has to offer instead of a chart. */
+  grows: null as unknown[] | null,
 }));
 
 // Every read the screen makes goes through the one client, so the hooks under
@@ -46,7 +48,7 @@ vi.mock('@/api/client', async () => {
         if (path.startsWith('/grows/grow-2/series')) return Promise.resolve(earlier);
         if (path === '/grows/grow-1/plants') return Promise.resolve({ items: plants, nextCursor: null });
         if (path === '/grows/grow-1') return Promise.resolve(state.grow);
-        if (path === '/grows') return Promise.resolve({ items: [state.grow, { ...grow, id: 'grow-2', name: 'Autumn run' }], nextCursor: null });
+        if (path === '/grows') return Promise.resolve({ items: state.grows ?? [], nextCursor: null });
         if (path === '/spaces') return Promise.resolve({ items: [{ id: 'space-1', name: 'Tent 1' }], nextCursor: null });
         if (path === '/devices') {
           return Promise.resolve({ items: [{ id: 'device-1', settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0 } }], nextCursor: null });
@@ -230,6 +232,7 @@ beforeEach(() => {
   state.breaks = false;
   state.views = [];
   state.zone = null;
+  state.grows = [grow, { ...grow, id: 'grow-2', name: 'Autumn run' }];
   session.demo = false;
 });
 
@@ -476,6 +479,29 @@ describe('the Charts view', () => {
     expect(await screen.findByText('That is not a date this can read — pick both ends again.')).toBeInTheDocument();
     expect(screen.queryByText('loading')).not.toBeInTheDocument();
     expect(state.asked.filter(read => read.path.includes('/series'))).toHaveLength(0);
+  });
+
+  /**
+   * The bare address: a bookmark on this screen, or a link that arrived without
+   * its query. It names neither a grow nor a tent, so neither of the tent's two
+   * ways on can be drawn - and an account with grows in it is owed the one way
+   * on that needs no id at all.
+   */
+  it('offers the account´s grows when the address names neither a grow nor a tent', async () => {
+    drawAt('/charts');
+
+    expect(await screen.findByText('A chart is drawn about a grow — pick the one to draw.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Spring run' })).toHaveAttribute('href', '/charts?grow=grow-1');
+    expect(screen.getByRole('link', { name: 'Autumn run' })).toHaveAttribute('href', '/charts?grow=grow-2');
+    expect(screen.queryByText(/Nothing grows here yet/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the plain sentence for an account that has no grow anywhere yet', async () => {
+    state.grows = [];
+    drawAt('/charts');
+
+    expect(await screen.findByText('Nothing grows here yet, and a chart is drawn about a grow.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Spring run' })).not.toBeInTheDocument();
   });
 
   it('says it for the other end too, and keeps the plain sentence for an end nobody has picked yet', async () => {
