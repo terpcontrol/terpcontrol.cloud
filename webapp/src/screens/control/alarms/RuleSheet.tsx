@@ -9,8 +9,10 @@ import ui from '@/ui/ui.module.css';
 import {
   channelsLabel,
   createBody,
+  DEFAULT_WATCH,
   draftOf,
   emptyDraft,
+  firstWatch,
   hasBound,
   outputsOf,
   readingsOf,
@@ -54,7 +56,7 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
   const update = useUpdateAlarmRule(device.id);
   const remove = useRemoveAlarmRule(device.id);
   const readings = readingsOf(device);
-  const [draft, setDraft] = useState<RuleDraft>(() => (rule ? draftOf(rule) : emptyDraft(readings[0])));
+  const [draft, setDraft] = useState<RuleDraft>(() => (rule ? draftOf(rule) : emptyDraft(firstWatch(device) ?? DEFAULT_WATCH)));
   const [askingDelete, setAskingDelete] = useState(false);
   const [refusedBound, setRefusedBound] = useState(false);
 

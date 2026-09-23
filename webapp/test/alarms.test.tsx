@@ -162,12 +162,45 @@ beforeEach(() => {
 
 describe('the alarm rules page', () => {
   it('says so when nothing here has rules, and offers the one thing there is to do', async () => {
-    draw([device({ id: 'plug-1', type: 'plug' })]);
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices/mystery-1/alarm-rules' ? { items: [], nextCursor: null } : answers(path)) as never,
+    );
+    draw([device({ id: 'mystery-1', type: 'watering-computer' })]);
 
-    expect(screen.getByText(/Nothing stands here that has alarm rules/)).toBeInTheDocument();
+    expect(await screen.findByText(/Nothing stands here that has alarm rules/)).toBeInTheDocument();
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/spaces/space-1/devices');
     expect(screen.queryByRole('link', { name: '‹ back to the plan' })).not.toBeInTheDocument();
+  });
+
+  it('lists the rules of a plug, which measures no climate and is given one all the same', async () => {
+    const offline = rule({
+      id: 'rule-plug',
+      deviceId: 'plug-1',
+      name: 'Device offline',
+      origin: 'always',
+      watch: { kind: 'reading', metric: 'offline', upper: null, lower: null },
+      repeatSeconds: 1800,
+    });
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? { items: [offline], nextCursor: null } : answers(path)) as never,
+    );
+    draw([device({ id: 'plug-1', type: 'plug', name: 'Pump socket' })]);
+
+    expect(await screen.findByText('Plug offline')).toBeInTheDocument();
+    expect(screen.queryByText(/Nothing stands here that has alarm rules/)).not.toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Plug offline on or off' })).toBeEnabled();
+  });
+
+  it('lists a device this build knows nothing about as long as it holds a rule, and offers it no new one', async () => {
+    const mystery = rule({ id: 'rule-mystery', deviceId: 'mystery-1', name: 'Tank empty', origin: 'device' });
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices/mystery-1/alarm-rules' ? { items: [mystery], nextCursor: null } : answers(path)) as never,
+    );
+    draw([device({ id: 'mystery-1', type: 'watering-computer' })]);
+
+    expect(await screen.findByText('Tank empty')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /\+ Alarm/ })).not.toBeInTheDocument();
   });
 
   it('draws no bound at all on an output watched for running at all with no duration', async () => {
@@ -343,6 +376,20 @@ describe('the rule sheet', () => {
     expect(within(watch).getByRole('button', { name: 'Dehumidifier' })).toBeInTheDocument();
     expect(within(watch).queryByRole('button', { name: 'Internal fan' })).not.toBeInTheDocument();
     expect(within(watch).queryByRole('button', { name: 'Relay' })).not.toBeInTheDocument();
+  });
+
+  it('offers a plug the one output it drives and none of the climate it cannot measure', async () => {
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? { items: [], nextCursor: null } : answers(path)) as never,
+    );
+    draw([device({ id: 'plug-1', type: 'plug', name: 'Pump socket' })]);
+
+    fireEvent.click(await screen.findByRole('button', { name: /\+ Alarm/ }));
+    const watch = within(screen.getByRole('dialog', { name: 'New alarm' })).getByRole('group', { name: 'Watch' });
+
+    expect(within(watch).getByRole('button', { name: 'Relay' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(watch).queryByRole('button', { name: 'Temp' })).not.toBeInTheDocument();
+    expect(within(watch).queryByRole('button', { name: 'VPD' })).not.toBeInTheDocument();
   });
 
   it('keeps an output the hardware does not report where a rule already watches it', async () => {

@@ -3183,7 +3183,7 @@
   "alarms": {
     "title": "Alarms",
     "backToPlan": "‹ back to the plan",
-    "noController": "Nothing stands here that has alarm rules. A controller or a fridge module has to be claimed into this tent first.",
+    "noController": "Nothing stands here that has alarm rules. A device has to be claimed into this tent first.",
     "footer": "Silence and maintenance mode pause all of them; \"in the tent\" from the Log sheet does the same for 15 minutes.",
     "add": "+ Alarm · threshold · duration · severity · webhook",
     "group": {

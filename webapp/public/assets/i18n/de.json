@@ -3179,7 +3179,7 @@
   "alarms": {
     "title": "Alarme",
     "backToPlan": "‹ zurück zum Plan",
-    "noController": "Hier steht nichts, das Alarmregeln hat. Ein Controller oder ein Kühlschrankmodul muss erst in dieses Zelt geholt werden.",
+    "noController": "Hier steht nichts, das Alarmregeln hat. Erst muss ein Gerät in dieses Zelt geholt werden.",
     "footer": "Stummschalten und Wartungsmodus pausieren alle; „Im Zelt“ aus dem Log-Blatt tut dasselbe für 15 Minuten.",
     "add": "+ Alarm · Schwelle · Dauer · Stufe · Webhook",
     "group": {

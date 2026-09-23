@@ -23,8 +23,14 @@ import { UNIT, targetFigure } from '@/screens/home/units';
  * body the server takes. Pure, so a test can ask each question on its own.
  */
 
-/** A rule watches a device that measures a climate; a plug, a fan and a lamp have none. */
-export const hasRules = (device: Device): boolean => device.type === 'controller' || device.type === 'fridge';
+/**
+ * Whether this screen knows what a device has to watch, and so whether a new
+ * rule can be written for it here. A device's type is an open string - the set
+ * grows with the hardware - so nothing is decided by type alone beyond what the
+ * sheet has to offer: a device whose type is newer than this build still keeps
+ * every rule it has, which is read and switched from the list like any other.
+ */
+export const watchable = (device: Device): boolean => readingsOf(device).length > 0 || outputsOf(device).length > 0;
 
 /** The order the groups are drawn in: what the stage wrote, what the cloud keeps, what the firmware asked for, and what was written here. */
 export const ORIGINS: AlarmOrigin[] = ['preset', 'always', 'device', 'human'];
@@ -113,11 +119,20 @@ export const missingSensor = (watch: AlarmWatch, device: Device): Sensor | null 
 
 const OFFERED: Metric[] = ['temperature', 'humidity', 'vpd', 'co2', 'leafTemperature', 'lux', 'ppfd'];
 
+/**
+ * The two kinds of hardware that measure a climate at all. A plug, a fan and a
+ * lamp report nothing but what they are driving, so offering them a temperature
+ * would be a rule that could never be evaluated.
+ */
+const MEASURES_CLIMATE = ['controller', 'fridge'];
+
 export const readingsOf = (device: Device): Metric[] =>
-  OFFERED.filter(metric => {
-    const sensor = SENSOR_OF[metric];
-    return sensor === undefined || isFitted(device, sensor);
-  });
+  MEASURES_CLIMATE.includes(device.type)
+    ? OFFERED.filter(metric => {
+        const sensor = SENSOR_OF[metric];
+        return sensor === undefined || isFitted(device, sensor);
+      })
+    : [];
 
 /**
  * The unit a bound is written in: the card's own for the readings it draws,
@@ -228,10 +243,29 @@ const CRITICAL_REPEAT_MINUTES = 30;
 export const withSeverity = (draft: RuleDraft, severity: Severity): RuleDraft =>
   severity === draft.severity ? draft : { ...draft, severity, repeatMinutes: severity === 'critical' ? CRITICAL_REPEAT_MINUTES : 0 };
 
+/**
+ * What a new rule starts out watching: the first reading the device measures,
+ * or, on hardware that measures nothing, the first output it drives - watched
+ * for running at all, because that is the one rule that is complete before a
+ * line has been typed into it. Null where this build knows neither, which is
+ * hardware newer than itself and is why the sheet is not offered for it.
+ */
+export const firstWatch = (device: Device): RuleDraft['watch'] | null => {
+  const [metric] = readingsOf(device);
+  if (metric) return { kind: 'reading', metric };
+
+  const [output] = outputsOf(device);
+
+  return output ? { kind: 'output_running', output } : null;
+};
+
+/** What a draft watches before anything is known about the device: the reading every climate rule is about. */
+export const DEFAULT_WATCH: RuleDraft['watch'] = { kind: 'reading', metric: 'temperature' };
+
 /** A rule as most of them start: ten minutes over the line, announced the way the account is, and repeated while it lasts. */
-export const emptyDraft = (metric: Metric): RuleDraft => ({
+export const emptyDraft = (watch: RuleDraft['watch']): RuleDraft => ({
   name: '',
-  watch: { kind: 'reading', metric },
+  watch,
   upper: '',
   lower: '',
   forMinutes: 10,
@@ -258,7 +292,7 @@ export const draftOf = (rule: AlarmRule): RuleDraft => {
   const band = rule.watch.kind === 'output_running' ? null : rule.watch;
 
   return {
-    ...emptyDraft('temperature'),
+    ...emptyDraft(DEFAULT_WATCH),
     name: rule.name,
     watch: rule.watch.kind === 'reading' ? { kind: 'reading', metric: rule.watch.metric } : { kind: rule.watch.kind, output: rule.watch.output },
     upper: bound(band?.upper ?? null),

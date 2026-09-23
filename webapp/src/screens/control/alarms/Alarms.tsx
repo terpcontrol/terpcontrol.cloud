@@ -4,14 +4,14 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import type { AlarmRule, Device, Me, OverviewGrow } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
-import { useDeviceAlarmRules, useUnsilenceAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
+import { useAlarmRulesOf, useDeviceAlarmRules, useUnsilenceAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
 import { useSpaceOverview } from '@/api/spaces';
 import { durationLabel } from '@/screens/devices/sockets';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { RuleSheet } from './RuleSheet';
-import { boundLabel, channelsLabel, groupRules, hasRules, missingSensor, routedChannels, ruleTitle, type Translate } from './rules';
+import { boundLabel, channelsLabel, groupRules, missingSensor, routedChannels, ruleTitle, type Translate, watchable } from './rules';
 import styles from './Alarms.module.css';
 
 /**
@@ -23,6 +23,13 @@ import styles from './Alarms.module.css';
  * person can expect of each group: the stage's rules are rewritten at the next
  * stage, the cloud's own are there for every device, the firmware's were asked
  * for by the hardware, and the last group is what was written here.
+ *
+ * Which devices get a list is the server's answer and not this screen's guess:
+ * the cloud keeps an offline rule for everything that is claimed, and the
+ * firmware asks for rules of its own, so a plug, a fan and a lamp all carry
+ * rules although none of them measures a climate. A device is therefore listed
+ * when it holds a rule or when a rule could be written for it, and the type is
+ * asked about once only - for what the sheet has to offer somebody writing one.
  *
  * Nothing is decided on this side. Whether a rule stands triggered, whether it
  * is silenced and until when, are the server's answers and are drawn with the
@@ -38,7 +45,11 @@ export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devic
   const me = useMe();
   const [params] = useSearchParams();
 
-  const watched = devices.filter(hasRules);
+  // The same reads the lists below make, asked once here so that a device
+  // nobody could write a rule for is still listed while it holds one.
+  const held = useAlarmRulesOf(devices.map(device => device.id));
+  const holding = new Set([...held.rules.values()].map(rule => rule.deviceId));
+  const watched = devices.filter(device => watchable(device) || holding.has(device.id));
   const grow = overview.data?.grows[0] ?? null;
 
   return (
@@ -52,7 +63,9 @@ export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devic
         ) : null}
       </header>
 
-      {watched.length === 0 ? (
+      {watched.length === 0 && held.isPending ? (
+        <Waiting lines={3} />
+      ) : watched.length === 0 ? (
         <p className={`${ui.cardDashed} ${ui.note}`}>
           {t('alarms.noController')}{' '}
           <Link to={`/spaces/${spaceId}/devices`} className={styles.addDevice}>
@@ -166,7 +179,7 @@ function DeviceRules({ device, grow, me, mayManage, highlighted, named, now }: D
 
       <Refused error={update.error ?? unsilence.error} />
 
-      {mayManage ? (
+      {mayManage && watchable(device) ? (
         <button type="button" className={`${ui.cardDashed} ${styles.add}`} onClick={() => setOpen('new')}>
           {t('alarms.add')}
         </button>
