@@ -18,7 +18,7 @@ import { stoodIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { MoveHereSheet } from '../space/MoveHereSheet';
-import { at, stampFor, stampOf, STAMPS } from '../timeline/window';
+import { at, stampForEnds, stampOf, STAMPS } from '../timeline/window';
 import {
   cardsOf,
   csvForCards,
@@ -565,11 +565,11 @@ const dayLabel = (t: Translate, series: GrowSeries): string => {
  * "17:31", and five days of September as "00:00" and "23:59".
  *
  * So the ladder is climbed from the rung the width itself asks for - the same
- * one the pinned reading above the cards is written with, so the axis and the
- * header cannot drift apart - and only then widened until the two differ.
+ * ladder the pinned reading above the cards is written from, so the axis and
+ * the header cannot drift apart - and only then widened until the two differ.
  */
 const edgesOf = (from: number, to: number): [string, string] => {
-  const written = STAMPS.slice(stampFor(to - from)).map(
+  const written = STAMPS.slice(stampForEnds(to - from)).map(
     format => [DateTime.fromMillis(from).toFormat(format), DateTime.fromMillis(to).toFormat(format)] as [string, string],
   );
 

@@ -33,6 +33,19 @@ export const stampFor = (span: number): number => {
 
 export const stampOf = (time: number, span: number): string => DateTime.fromMillis(time).toFormat(STAMPS[stampFor(span)]);
 
+/**
+ * The rung the two ends of a window start at, which is one further on than the
+ * rung a moment inside it starts at.
+ *
+ * A stamp inside a window is read beside everything else on the screen - the
+ * range chip, the day counter, the other end of the axis - so the weekday
+ * places it. The two ends have nothing beside them and are the only thing on
+ * the card that says when it is of, so anything wider than a day and a half
+ * names its date: "Tue" to "Sat" says which days of some week and not which
+ * week.
+ */
+export const stampForEnds = (span: number): number => (span <= 36 * HOUR_MS ? 0 : Math.max(2, stampFor(span)));
+
 /** A picture says which day it was taken whatever the window is: it is a thing from a moment rather than the moment itself. */
 export const captureOf = (time: number, span: number): string =>
   DateTime.fromMillis(time).toFormat(span <= 10 * 24 * HOUR_MS ? 'ccc HH:mm' : 'd MMM HH:mm');

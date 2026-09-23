@@ -336,15 +336,20 @@ describe('the Charts view', () => {
     }
   });
 
-  it('keeps the date on the axis of a window wider than a week', async () => {
-    const opens = DateTime.fromISO('2026-01-19T13:39:00.000Z');
-    const closes = DateTime.fromISO('2026-08-24T15:31:00.000Z');
+  it.each([
+    ['a season', '2026-01-19T13:39:00.000Z', '2026-08-24T15:31:00.000Z'],
+    ['five days somebody picked', '2026-09-01T00:00:00.000Z', '2026-09-05T23:59:00.000Z'],
+  ])('keeps the date on the axis of %s', async (_what, from, to) => {
+    const opens = DateTime.fromISO(from);
+    const closes = DateTime.fromISO(to);
     state.series = { ...series, startsAt: opens.toISO()!, endsAt: closes.toISO()! };
     draw();
     await screen.findByText('Temp + RH');
 
-    // Seven months of chart used to be labelled "14:39" and "17:31", because
-    // widening from the clock stops as soon as the two strings differ.
+    // Seven months of chart used to be labelled "14:39" and "17:31", and five
+    // days of September "00:00" and "23:59": widening from the clock stops as
+    // soon as the two strings differ, which they do at once on any window that
+    // does not begin and end at the same minute.
     expect(screen.getAllByText(opens.toFormat('d MMM HH:mm')).length).toBeGreaterThan(0);
     expect(screen.getAllByText(closes.toFormat('d MMM HH:mm')).length).toBeGreaterThan(0);
   });
