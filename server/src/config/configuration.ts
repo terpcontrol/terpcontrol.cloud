@@ -180,6 +180,16 @@ export const retentionConfig = registerAs('retention', () => ({
   climateDays: number(process.env.RETENTION_CLIMATE_DAYS, 0),
 }));
 
+/**
+ * What the one-off move from the old shapes needs to be told. The language is
+ * the only thing the old database cannot answer for itself, and it decides what
+ * a migrated grow's measurements are called and what each account's own
+ * preference starts as.
+ */
+export const migrationConfig = registerAs('migration', () => ({
+  locale: (process.env.MIGRATION_LOCALE ?? 'en').trim() || 'en',
+}));
+
 export const configNamespaces = [
   appConfig,
   databaseConfig,
@@ -189,6 +199,7 @@ export const configNamespaces = [
   authConfig,
   terpCamConfig,
   premiumConfig,
+  migrationConfig,
   retentionConfig,
   notificationsConfig,
 ];

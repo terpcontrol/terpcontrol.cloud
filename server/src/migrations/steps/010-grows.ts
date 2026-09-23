@@ -3,7 +3,7 @@ import { LEGACY } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 import { loadDeviceFacts } from '../device-facts';
 import { reconstructGrows, slugOf } from '../grow-cycles';
-import { MIGRATED_MEASUREMENTS } from '../measurements';
+import { measurementNamesIn } from '../measurements';
 
 /**
  * The grows, read back out of the lifecycle entries by the rule the grow report
@@ -78,7 +78,7 @@ export const grows: MigrationStep = {
             },
           ],
           scheme: null,
-          measurements: MIGRATED_MEASUREMENTS,
+          measurements: measurementNamesIn(context.locale),
           visibility: 'private',
           slug: slugOf(grow),
           coverMediaId: null,

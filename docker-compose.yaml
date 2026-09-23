@@ -187,6 +187,7 @@ services:
       # be left behind, since nobody types a flag when a container starts - and
       # it has to be passed in here to reach the process at all.
       MIGRATION_ALLOW_REJECTS: ${MIGRATION_ALLOW_REJECTS:-}
+      MIGRATION_LOCALE: ${MIGRATION_LOCALE:-}
     # /readyz answers 200 only once the database is reachable and the admin
     # account has been seeded, which is what this stack means by ready to serve;
     # /healthz would answer while the server is still no use to anybody. node

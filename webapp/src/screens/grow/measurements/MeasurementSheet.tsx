@@ -145,7 +145,11 @@ export function MeasurementSheet({ grow, definition, readings, onClose }: Measur
         {definition ? (
           <div className={styles.asking}>
             {readings === null ? null : readings > 0 ? (
-              <p className={ui.note}>{t('grow.measurements.sheet.keptForReadings', { count: readings })}</p>
+              <p className={ui.note}>
+                {/* Offering to take it off the chart is no offer at all where it is
+                    already off it, so the sentence says the other half instead. */}
+                {t(definition.chart ? 'grow.measurements.sheet.keptForReadings' : 'grow.measurements.sheet.keptForReadingsOffChart', { count: readings })}
+              </p>
             ) : askingDelete ? (
               <>
                 <p className={ui.note}>{t('grow.measurements.sheet.deleteAsk')}</p>

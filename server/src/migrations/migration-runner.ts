@@ -383,7 +383,7 @@ export class MigrationRunner {
 
   private async apply(step: MigrationStep, dryRun: boolean, allowRejects: boolean): Promise<MigrationOutcome> {
     const startedAt = Date.now();
-    const context = new MigrationContext(this.db, dryRun, new Date());
+    const context = new MigrationContext(this.db, dryRun, new Date(), process.env.MIGRATION_LOCALE?.trim() || 'en');
 
     try {
       // The step's own sources, moved out of the way before it reads them. Here

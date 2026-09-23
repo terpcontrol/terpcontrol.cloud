@@ -127,6 +127,7 @@ is (`ids.ts`), so a repeated run rewrites the same documents rather than making 
 ## Running one by hand
 
 ```sh
+MIGRATION_LOCALE=de npm run migrate      # the same, told what language this install's growers speak
 npm run migrate:check                    # only what a run refuses to start on; writes nothing (same as `--check`)
 npm run migrate -- --dry-run             # every transform, counts and rejects, writes nothing at all
 npm run migrate                          # the steps the server runs at boot, over the same indexes, without the server
@@ -137,6 +138,12 @@ npm run migrate -- --allow-rejects       # the same, told that the rows it canno
 a few aggregations rather than a whole rehearsal, and it exits non-zero with the report on stderr. The dry run is
 the rehearsal: it reads the whole database, runs every transform and writes nothing, not even the rename. Take it
 against a copy of the database that is about to be migrated and read the rejects before the real run.
+
+`MIGRATION_LOCALE` is the one thing the old database cannot be asked: an old account records no language at
+all, and the eight measurement definitions a reconstructed grow is given - along with each account's own
+language preference - are written once and are then that person's own words, which nothing translates again. A
+shop whose growers are German sets it to `de` before the run rather than having every one of them rename the
+same eight rows. `en` unless set.
 
 **A rehearsal's duration is not the outage.** It is the one number anybody has for how long the server is down
 during an upgrade, and it is not that number: the rehearsal reads every row and runs every transform and then

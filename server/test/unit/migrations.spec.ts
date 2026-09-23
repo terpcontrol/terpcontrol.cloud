@@ -17,6 +17,7 @@ import { plansSchema } from '@database/schemas/v1/plans.schema';
 import { spacesSchema } from '@database/schemas/v1/spaces.schema';
 import { usersSchema } from '@database/schemas/v1/users.schema';
 import { cameraIdOf, planIdOf, spaceIdOf } from '@/migrations/ids';
+import { grows } from '@/migrations/steps/010-grows';
 import { MigrationContext } from '@/migrations/migration';
 import { MigrationRunner, RejectedRows, RunEvent, runProgress } from '@/migrations/migration-runner';
 import { StaleMigrationRecord, TwoGenerationsOfOldData } from '@/migrations/preflight';
@@ -568,6 +569,35 @@ describe('spaces', () => {
 
     expect(made).toMatchObject({ kind: 'tent', name: 'Tent 1', ownerId: LEGACY_USER_IDS.ada });
     expect(made?.name).not.toContain(LEGACY_DEVICE_IDS.unnamed);
+  });
+});
+
+describe('what a migrated grow measures', () => {
+  /**
+   * A name is its grower's own words from the moment it is written, and nothing
+   * afterwards can tell a seeded one from a typed one - so the run has to be
+   * told which language to write them in. The old account records none.
+   */
+  it('names the eight definitions in the language the run was given', async () => {
+    await migrate();
+
+    const grow = await one<Record<string, any>>('grows', {});
+    const names = (grow?.measurements ?? []).map((measurement: { name: string }) => measurement.name);
+
+    expect(names).toContain('Light measurement');
+    expect(names).not.toContain('Lichtmessung');
+  });
+
+  it('writes the German names where the install says its growers are German', async () => {
+    const context = new MigrationContext(db(), false, new Date(AT), 'de');
+    await grows.run(context);
+    await context.flushAll();
+
+    const grow = await one<Record<string, any>>('grows', {});
+    const measurements = (grow?.measurements ?? []) as { key: string; name: string; unit: string }[];
+
+    expect(measurements.find(one => one.key === 'lightMeasurement')).toMatchObject({ name: 'Lichtmessung', unit: 'µmol' });
+    expect(measurements.find(one => one.key === 'outsideTemperatureMeasurement')?.name).toBe('Außentemperatur');
   });
 });
 

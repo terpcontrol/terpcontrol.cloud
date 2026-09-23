@@ -69,7 +69,7 @@ export const users: MigrationStep = {
         avatarMediaId: null,
         publicProfile: false,
         privacy: { hideWeights: false, hideCounts: false },
-        preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'UTC' },
+        preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: context.locale, timezone: 'UTC' },
         retention: { climateDays: null },
         notifications: {
           channels: { email: null, telegram: null, webhook: null },

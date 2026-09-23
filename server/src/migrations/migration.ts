@@ -72,6 +72,14 @@ export class MigrationContext {
     public readonly dryRun: boolean,
     /** One clock for the whole run, so every document a migration dates carries the same instant. */
     public readonly at: Date,
+    /**
+     * The language this install's growers speak, which is the one thing the old
+     * database cannot be asked: an old account records no language at all. It
+     * names the eight measurement definitions a reconstructed grow is given and
+     * seeds each account's own preference, both of which are a person's own the
+     * moment they are written and are never translated again.
+     */
+    public readonly locale: string = 'en',
   ) {}
 
   /**
