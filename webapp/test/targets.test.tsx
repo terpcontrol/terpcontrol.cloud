@@ -236,7 +236,9 @@ describe('the manual targets page', () => {
     // 25 °C at 60 % with the leaf two degrees cooler, worked out as the server
     // works a reading's, and written to the two decimals a deficit is written
     // to wherever else the app prints one.
-    expect(screen.getByText('VPD 0.91')).toBeInTheDocument();
+    // With its unit: every other figure in these four rows carries one, and
+    // every other VPD in the app is a kPa.
+    expect(screen.getByText('VPD 0.91 kPa')).toBeInTheDocument();
     expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'alarms' })).toHaveAttribute('href', '/spaces/space-1/control/alarms');
     expect(screen.getByRole('link', { name: 'sockets' })).toHaveAttribute('href', '/spaces/space-1/devices');
@@ -253,8 +255,8 @@ describe('the manual targets page', () => {
     await i18next.changeLanguage('de');
     draw();
 
-    expect(await screen.findByText('VPD 0,91')).toBeInTheDocument();
-    expect(screen.queryByText('VPD 0.91')).not.toBeInTheDocument();
+    expect(await screen.findByText('VPD 0,91 kPa')).toBeInTheDocument();
+    expect(screen.queryByText('VPD 0.91 kPa')).not.toBeInTheDocument();
   });
 
   it('prefills the sliders from a preset and writes nothing', async () => {

@@ -3550,7 +3550,7 @@
     "light": "Light",
     "lightHours": "Light on for",
     "co2": "CO₂ target",
-    "vpd": "VPD {{value}}",
+    "vpd": "VPD {{value}} kPa",
     "needsCo2": "needs a CO₂ sensor",
     "typed": "{{name}}, typed",
     "aria": {

@@ -3546,7 +3546,7 @@
     "light": "Licht",
     "lightHours": "Licht an für",
     "co2": "CO₂-Ziel",
-    "vpd": "VPD {{value}}",
+    "vpd": "VPD {{value}} kPa",
     "needsCo2": "braucht einen CO₂-Sensor",
     "typed": "{{name}}, eingetippt",
     "aria": {
