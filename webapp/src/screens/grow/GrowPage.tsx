@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams } from 'react-router';
 import type { GrowListItem, Plant, Space } from '@fg2/shared-types/v1';
+import { fetchedAt } from '@/api/clock';
 import { useGrow, useGrowPlants } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { useSpaces } from '@/api/spaces';
@@ -50,7 +51,12 @@ function GrowScreen({ growId, tab }: { growId: string; tab: GrowTab }) {
   const mayWith = useMayWith();
   const [sharing, setSharing] = useState(false);
 
-  useReportFreshness(grow.dataUpdatedAt ? new Date(grow.dataUpdatedAt).toISOString() : null);
+  // The instant this read answered is a millisecond this browser noted, so it
+  // is restated on the server's clock before the shell ages it: the line under
+  // the wordmark subtracts it from the server's now, and a browser three
+  // quarters of an hour out otherwise has that gap read back to it as the age
+  // of a read that had just landed.
+  useReportFreshness(grow.dataUpdatedAt ? fetchedAt(grow.dataUpdatedAt) : null);
 
   if (grow.isPending) {
     return (
