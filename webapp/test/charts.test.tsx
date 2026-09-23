@@ -12,7 +12,7 @@ import type { ChartViewSpan, GrowListItem, GrowSeries, TimelineTargets } from '@
 import { chartViewCreate } from '@fg2/shared-types/v1-schemas/diary.js';
 import { Charts } from '@/screens/charts/Charts';
 import { cardsOf, csvForCards, offeredBy, type Offered } from '@/screens/charts/cards';
-import { csvOf, DAY_MS, niceScale, readAt, stepPoints } from '@/charts/series';
+import { csvOf, DAY_MS, niceScale, plotOption, readAt, stepPoints } from '@/charts/series';
 
 const state = vi.hoisted(() => ({
   series: null as GrowSeries | null,
@@ -460,6 +460,24 @@ describe('the Charts view', () => {
     expect(window.get('to')).toBe('2026-08-20T09:59:59.999Z');
   });
 
+  /**
+   * One cursor is only one cursor while every card draws the window across the
+   * same width. The Temp + RH card carries two scales and reserves a gutter for
+   * the second one's corner figures; the VPD card below it carries one and used
+   * to reserve nothing, so the two stretched the same window across drawn areas
+   * 38 px apart and the shared cursor stood at two different instants on one
+   * screen.
+   */
+  it('reserves the same drawn area on every card, so one cursor is one instant', async () => {
+    draw();
+    await screen.findByText('Temp + RH');
+
+    const cards = [...document.querySelectorAll('section[style]')].map(card => card.getAttribute('style'));
+    expect(cards.length).toBeGreaterThan(1);
+    expect(new Set(cards)).toHaveProperty('size', 1);
+    expect(cards[0]).toContain('--gutter-right: 38px');
+  });
+
   it('keeps counting in days out of reach where no stretch of a grow is being drawn', async () => {
     draw();
 
@@ -879,6 +897,22 @@ describe('what a plot is made of', () => {
  * nothing out, so both are asserted against the stylesheet and the catalogues
  * themselves.
  */
+describe('the room the plot leaves beside it', () => {
+  it('is the same on both sides whether a plot has one scale or two, which is what lines the cards up', () => {
+    const palette = { card: '#000', muted: '#111' } as unknown as Parameters<typeof plotOption>[0];
+    const plot = (scales: number) => ({
+      axis: 'time' as const,
+      from: 0,
+      to: 10,
+      scales: Array.from({ length: scales }, () => ({ low: 0, high: 1 })),
+      nights: [],
+      lines: [],
+    });
+
+    expect(plotOption(palette, plot(1)).grid).toEqual(plotOption(palette, plot(2)).grid);
+  });
+});
+
 describe('the leaf offset the VPD band rests on', () => {
   let css: string;
 

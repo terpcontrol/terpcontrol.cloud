@@ -35,9 +35,19 @@ export function ChartCard({ card, cursor, scrub, ends }: ChartCardProps) {
   const left = `${fractionOf(cursor, from, to) * 100}%`;
 
   return (
+    // The same gutter on both sides of every card, whether this one has a
+    // second scale to write in the right-hand one or not. The screen has one
+    // cursor and stretches each plot across its own drawn area, so a card that
+    // reserved nothing on the right drew the same instant 38 px further along
+    // than the card above it - six per cent of a 1280 px window, which over a
+    // 218-day grow is thirteen days, and on a phone nearer thirty. Reading the
+    // VPD panel against the Temp + RH panel is the whole reason the cursor is
+    // shared, and it cannot be done while the two disagree about where a
+    // moment is. The cost is the width of one gutter on a single-scale card,
+    // which is what the Timeline already pays for the same reason.
     <section
       className={`${ui.card} ${styles.card}`}
-      style={{ '--gutter': `${AXIS_GUTTER}px`, '--gutter-right': scales.length > 1 ? `${AXIS_GUTTER}px` : '0px' } as React.CSSProperties}
+      style={{ '--gutter': `${AXIS_GUTTER}px`, '--gutter-right': `${AXIS_GUTTER}px` } as React.CSSProperties}
     >
       <header className={styles.cardHead}>
         <span className={styles.cardTitle}>{card.title}</span>

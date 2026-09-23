@@ -65,7 +65,13 @@ export interface Plot {
 /** A token at a fraction of itself; the areas behind a line are all washes of one, as on the Timeline. */
 const wash = (colour: string, alpha: string): string => `${colour}${alpha}`;
 
-/** The room a scale's two corner figures need beside the plot, at the width the Timeline gives its own. */
+/**
+ * The room a scale's two corner figures need beside the plot, at the width the
+ * Timeline gives its own. It is kept on both sides of every plot even where
+ * there is no second scale to write in the right-hand one, because the cards of
+ * a screen are read against one another at one cursor and a plot that borrowed
+ * the spare gutter would put the same instant somewhere else.
+ */
 export const AXIS_GUTTER = 38;
 
 /**
@@ -86,7 +92,7 @@ export const plotOption = (palette: ChartPalette, plot: Plot): ChartOption => {
 
   return {
     animation: false,
-    grid: { left: AXIS_GUTTER, right: plot.scales.length > 1 ? AXIS_GUTTER : 0, top: 2, bottom: 2 },
+    grid: { left: AXIS_GUTTER, right: AXIS_GUTTER, top: 2, bottom: 2 },
     xAxis: { type: plot.axis === 'time' ? 'time' : 'value', min: plot.from, max: plot.to, show: false },
     yAxis: plot.scales.map(scale => ({ type: 'value' as const, min: scale.low, max: scale.high, show: false })),
     series: plot.lines.map((line, index) => ({
