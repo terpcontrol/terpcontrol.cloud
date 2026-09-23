@@ -115,6 +115,7 @@ whatsoever about the transforms after it.
 | `014-one-line-per-task` | Drops the non-unique `taskId` index on `entries`, so the schema's unique one is built on the next boot. |
 | `015-warnings-routing` | Writes `notifications.routing.warnings: []` into every account that has no such row, because a lean read answers what the document holds and not what the schema would default. Reads the new `users` and moves nothing aside. |
 | `016-measurement-band` | Spreads every grow's single measurement `target` over `targetMin` and `targetMax` and drops the old key, for the same reason: a lean read answers what the document holds, and a definition stored before the band would reach a client with neither end. Reads the new `grows` and moves nothing aside. |
+| `017-entry-credentials` | Strikes the `user:password@` out of every diary line that carries one. An RTSP camera is opened with its credentials in the address, and a capture that failed quoted the whole ffmpeg command line into the line it wrote - so the migrated diary holds the password of every stream that ever failed, and the diary is exported, shown on the rail and printed on a week card. What is written from here on is redacted as it is written; this is for what is already stored. Reads the new `entries` and moves nothing aside. |
 
 Each step declares the collections it reads as `moves` and the runner moves them aside before calling it; the move
 is skipped when it has already happened, so a step that shares a source with an earlier one finds it already moved,

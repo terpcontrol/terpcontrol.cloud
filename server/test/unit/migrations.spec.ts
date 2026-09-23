@@ -24,6 +24,7 @@ import { StaleMigrationRecord, TwoGenerationsOfOldData } from '@/migrations/pref
 import { MIGRATION_STEPS } from '@/migrations/steps';
 import { warningsRouting } from '@/migrations/steps/015-warnings-routing';
 import { measurementBand } from '@/migrations/steps/016-measurement-band';
+import { entryCredentials } from '@/migrations/steps/017-entry-credentials';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 
 /**
@@ -1029,6 +1030,123 @@ describe('the band a measurement is aimed at', () => {
     expect(await widen()).toMatchObject({ 'grows.measurementBandWidened': 0 });
 
     expect(await measurementsOf('grow-before-the-band')).toEqual(widened);
+  });
+});
+
+/**
+ * The camera passwords in the diary.
+ *
+ * An RTSP camera is opened with its credentials in the address, and a capture
+ * that failed wrote ffmpeg's whole command line into the line about it - so a
+ * migrated diary holds the password of every stream that ever failed, in the
+ * parameter of a keyed line and in the free text of an unkeyed one alike. The
+ * credentials here are invented; what is asserted is that none of that shape
+ * survives, because the stored line is read on the rail, on a week card and in
+ * the export's `diary.csv`.
+ */
+describe('the credentials a camera line carried', () => {
+  const PASSWORD = 'sup3r-s3cret';
+  // The shape, as a reader of the database would look for it rather than as the
+  // redaction spells it, so this fails if the two ever drift apart.
+  const CREDENTIALS = /[a-z][a-z0-9+.-]*:\/\/[^/\s:@]+:[^/\s@]*@/i;
+
+  const carrying = () =>
+    collection<Document>('entries').countDocuments({
+      $or: [{ text: { $regex: CREDENTIALS } }, { 'message.params': { $elemMatch: { $regex: CREDENTIALS } } }],
+    });
+
+  const strike = async (dryRun = false): Promise<Record<string, number>> => {
+    const context = new MigrationContext(db(), dryRun, new Date(AT));
+    await entryCredentials.run(context);
+
+    return context.stats;
+  };
+
+  const seed = (id: string, line: Document): Promise<unknown> => collection<Document>('entries').insertOne({ id, kind: 'system', ...line });
+
+  it('leaves no line of the whole migrated diary carrying a password', async () => {
+    await migrate();
+
+    expect(await collection('entries').countDocuments()).toBeGreaterThan(0);
+    expect(await carrying()).toBe(0);
+    expect(await collection<Document>('entries').countDocuments({ text: { $regex: PASSWORD } })).toBe(0);
+    expect(await collection<Document>('entries').countDocuments({ 'message.params': { $elemMatch: { $regex: PASSWORD } } })).toBe(0);
+  });
+
+  it('keeps everything the line said apart from the password', async () => {
+    await migrate();
+
+    const keyed = await one<Document>('entries', {
+      'message.key': 'message-rtsp-stream-error',
+      'message.params': { $elemMatch: { $regex: /ffmpeg|refused/ } },
+    });
+    expect((keyed?.message as { params: string[] }).params[0]).toBe(
+      'Error opening input rtsp://<credentials>@10.0.0.60:554/stream1: Connection refused',
+    );
+
+    const free = await one<Document>('entries', { text: { $regex: /ffmpeg failed/ } });
+    expect(free?.text).toBe('Webcam error\n\nffmpeg failed on rtsp://<credentials>@10.0.0.60:554/stream1');
+  });
+
+  it('rewrites a line in either of the two fields that hold words, and invents no message for one that has none', async () => {
+    await seed('line-with-a-key', {
+      text: null,
+      message: { key: 'message-rtsp-stream-error', params: [`opening rtsp://cam:${PASSWORD}@10.0.0.60:554/s1`] },
+    });
+    await seed('line-with-words', { text: `ffmpeg failed on rtsp://cam:${PASSWORD}@10.0.0.60:554/s1`, message: null });
+
+    expect(await strike()).toMatchObject({ 'entries.credentialsRedacted': 2 });
+
+    const keyed = await one<Document>('entries', { id: 'line-with-a-key' });
+    expect((keyed?.message as { params: string[] }).params).toEqual(['opening rtsp://<credentials>@10.0.0.60:554/s1']);
+    expect(keyed?.text).toBeNull();
+
+    const words = await one<Document>('entries', { id: 'line-with-words' });
+    expect(words?.text).toBe('ffmpeg failed on rtsp://<credentials>@10.0.0.60:554/s1');
+    expect(words?.message).toBeNull();
+  });
+
+  it('leaves a line that carries no credential exactly as it is', async () => {
+    const innocent = { text: 'Watered 2 l, rtsp://10.0.0.60:554/stream1 is fine', message: null };
+    await seed('line-with-none', innocent);
+
+    expect(await strike()).toMatchObject({ 'entries.credentialsRedacted': 0 });
+
+    expect(await one<Document>('entries', { id: 'line-with-none' })).toMatchObject(innocent);
+  });
+
+  it('counts what it would strike in a rehearsal and writes none of it', async () => {
+    const said = `opening rtsp://cam:${PASSWORD}@10.0.0.60:554/s1`;
+    await seed('line-with-a-key', { text: null, message: { key: 'message-rtsp-stream-error', params: [said] } });
+
+    expect(await strike(true)).toMatchObject({ 'entries.credentialsRedacted': 1 });
+
+    expect(((await one<Document>('entries', { id: 'line-with-a-key' }))?.message as { params: string[] }).params).toEqual([said]);
+  });
+
+  it('finds nothing left to do when it is run again', async () => {
+    await seed('line-with-words', { text: `ffmpeg failed on rtsp://cam:${PASSWORD}@10.0.0.60:554/s1`, message: null });
+    await strike();
+    const struck = await one<Document>('entries', { id: 'line-with-words' });
+
+    expect(await strike()).toMatchObject({ 'entries.credentialsRedacted': 0 });
+
+    expect(await one<Document>('entries', { id: 'line-with-words' })).toEqual(struck);
+  });
+
+  /** More rows than one batch holds, so the loop that ends when nothing matches is the thing under test. */
+  it('rewrites every line of a diary larger than one batch', async () => {
+    const many = Array.from({ length: 1200 }, (unused, index) => ({
+      id: `line-${index}`,
+      kind: 'system',
+      text: `ffmpeg failed on rtsp://cam:${PASSWORD}@10.0.0.60:554/s${index}`,
+      message: null,
+    }));
+    await collection<Document>('entries').insertMany(many);
+
+    expect(await strike()).toMatchObject({ 'entries.credentialsRedacted': 1200 });
+
+    expect(await carrying()).toBe(0);
   });
 });
 

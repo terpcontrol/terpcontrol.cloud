@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { EntryMessage, EntrySource, EntryValues, Severity } from '@fg2/shared-types/v1';
 import { MODEL_V1 } from '@database/models';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
+import { withoutCredentials } from '@common/log-path';
 import { deviceEntryValues, deviceMessageFact, isHardwareInfo, parseDeviceMessage, severityOf } from './device-messages';
 
 /**
@@ -85,8 +86,8 @@ export class EntryWriterService {
       taskId: draft.taskId ?? null,
       alertId: draft.alertId ?? null,
       severity: draft.severity ?? null,
-      text: draft.text ?? null,
-      message: draft.message ?? null,
+      text: draft.text === null || draft.text === undefined ? null : withoutCredentials(draft.text),
+      message: saidWithoutCredentials(draft.message ?? null),
       values: draft.values,
       mediaIds: draft.mediaIds ?? [],
       undoUntil: undoUntil(draft, createdAt),
@@ -130,3 +131,26 @@ export class EntryWriterService {
 
 const undoUntil = (draft: EntryDraft, createdAt: Date): Date | null =>
   draft.source === 'human' && draft.authorId ? new Date(createdAt.getTime() + UNDO_WINDOW_SECONDS * 1000) : null;
+
+/**
+ * A password never becomes a diary line.
+ *
+ * Three of the things written on one arrive with a whole URL inside them: the
+ * reason ffmpeg gives for a stream it could not open, which quotes the command
+ * line back with the camera's `user:password@` still in it; the error a webhook
+ * that could not be reached reports; and whatever a device chooses to log about
+ * itself. The camera row already refuses to answer its own address with the
+ * credentials on it - "the credentials it is opened with are the server's to
+ * keep, and the owner is no more entitled to read them back than anybody else"
+ * - and a diary that keeps them hands back in the rail, the week card and the
+ * export exactly what that refusal is about.
+ *
+ * It is done here rather than on the way out because this is the one place a
+ * row of `entries` is written and there are a dozen places one is read, and
+ * because a secret that is never stored cannot be leaked by the next reader
+ * somebody adds. A person's own words go through it too: a grower who pastes
+ * their camera's address into a note has written a password into their own
+ * export, and nothing but a credential has this shape.
+ */
+const saidWithoutCredentials = (message: EntryMessage | null): EntryMessage | null =>
+  message === null ? null : { key: message.key, params: message.params.map(parameter => withoutCredentials(parameter)) };

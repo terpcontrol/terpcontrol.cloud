@@ -1180,6 +1180,30 @@ export async function seedLegacyDatabase(target: Connection | mongo.Db, at: numb
       categories: ['webcam', 'error'],
       __v: 0,
     },
+    // The same poller quoting ffmpeg's command line back, which carries the
+    // stream's address and therefore the camera's password. The credentials
+    // here are invented; what matters is the shape, because that is what the
+    // diary kept and what a migration has to take back out.
+    {
+      device_id: fridge,
+      title: 'message-rtsp-stream-error',
+      message: 'message-rtsp-stream-error:Error opening input rtsp://cam:sup3r-s3cret@10.0.0.60:554/stream1: Connection refused',
+      severity: 1,
+      time: new Date(ago(9) + HOUR),
+      categories: ['webcam', 'error'],
+      __v: 0,
+    },
+    // The same failure as the old app wrote it before it had a key for it: free
+    // text, which is where the other half of these lines keep their password.
+    {
+      device_id: fridge,
+      title: 'Webcam error',
+      message: 'ffmpeg failed on rtsp://cam:sup3r-s3cret@10.0.0.60:554/stream1',
+      severity: 1,
+      time: new Date(ago(9) + 2 * HOUR),
+      categories: ['webcam', 'error'],
+      __v: 0,
+    },
     {
       device_id: tent,
       title: 'message-cam-reset',

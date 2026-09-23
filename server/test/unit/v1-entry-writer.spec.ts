@@ -156,3 +156,56 @@ describe('what the four writers have in common', () => {
     expect(entry.createdAt.getTime()).toBeGreaterThan(occurredAt.getTime());
   });
 });
+
+/**
+ * A camera is opened with its password in the address, and everything that
+ * fails on the way quotes the address back: ffmpeg's command line, a webhook's
+ * error, a device's own log line. The camera row refuses to answer its own URL
+ * with the credentials on it, and a diary line that kept them would hand the
+ * same password back through the rail, a week card and the export - so nothing
+ * with that shape is stored, whoever wrote it. The credentials below are
+ * invented.
+ */
+describe('a credential in a line', () => {
+  const ADDRESS = 'rtsp://cam:sup3r-s3cret@10.0.0.60:554/stream1';
+  const STRUCK = 'rtsp://<credentials>@10.0.0.60:554/stream1';
+
+  it('is struck out of the parameter of a key', async () => {
+    const entry = await deviceLine(`message-rtsp-stream-error:Error opening input ${ADDRESS}: Connection refused`);
+
+    expect(entry?.message?.params).toEqual([`Error opening input ${STRUCK}: Connection refused`]);
+  });
+
+  it('is struck out of a line nobody has a key for', async () => {
+    const entry = await deviceLine(`ffmpeg failed on ${ADDRESS}`);
+
+    expect(entry?.text).toBe(`ffmpeg failed on ${STRUCK}`);
+  });
+
+  it('is struck out of what a person typed, and out of what the alarm engine composed', async () => {
+    const note = await writer.write({ source: 'human', authorId: 'user-1', values: { kind: 'note' }, text: `Camera is at ${ADDRESS}` });
+    const webhook = await writer.write({
+      source: 'alarm',
+      authorId: null,
+      values: { kind: 'alarm' },
+      message: { key: 'message-alarm-webhook-error', params: [`Too warm - connect failed to https://bot:t0ken@example.test/hook`] },
+    });
+
+    expect(note.text).toBe(`Camera is at ${STRUCK}`);
+    expect(webhook.message?.params).toEqual(['Too warm - connect failed to https://<credentials>@example.test/hook']);
+  });
+
+  it('is struck out of the stored row and not only out of the one that is handed back', async () => {
+    const entry = await deviceLine(`ffmpeg failed on ${ADDRESS}`);
+    const stored = await db.entries.findOne({ id: entry?.id }).lean();
+
+    expect(stored?.text).toBe(`ffmpeg failed on ${STRUCK}`);
+    expect(stored?.text).not.toContain('sup3r-s3cret');
+  });
+
+  it('leaves an address that carries none exactly as it came', async () => {
+    const entry = await deviceLine('ffmpeg failed on rtsp://10.0.0.60:554/stream1');
+
+    expect(entry?.text).toBe('ffmpeg failed on rtsp://10.0.0.60:554/stream1');
+  });
+});

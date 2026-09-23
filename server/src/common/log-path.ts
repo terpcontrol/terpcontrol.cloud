@@ -16,5 +16,13 @@ export const loggablePath = (url: string | undefined): string => (url ?? '').spl
 // stores it, and an ffmpeg failure quotes the whole command line back.
 const URL_CREDENTIALS = /([a-z][a-z0-9+.-]*:\/\/)[^/\s:@]+:[^/\s@]*@/gi;
 
+/**
+ * The same shape as a pattern a database can be asked for, so that a query
+ * looking for what this redacts and the redaction itself cannot drift apart.
+ * The migration over the stored diary is the one caller: it has to find the
+ * rows before it can rewrite them.
+ */
+export const URL_CREDENTIALS_PATTERN = URL_CREDENTIALS.source;
+
 /** The same text with any `user:password@` in it replaced. */
 export const withoutCredentials = (text: string): string => text.replace(URL_CREDENTIALS, '$1<credentials>@');
