@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryKey, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Membership, MembershipCreate, MembershipPage, MembershipUpdate } from '@fg2/shared-types/v1';
 import { api } from './client';
+import { invitesKey } from './invites';
 
 /**
  * Who is in a tent besides its owner.
@@ -29,15 +30,15 @@ export const useMembers = (spaceId: string, enabled = true) =>
  * home and out of the space list - so a write here invalidates those too rather
  * than leaving a tent on the screen that the next tap cannot open.
  */
-const useMembersMutation = <T, V>(spaceId: string, mutationFn: (variables: V) => Promise<T>) => {
+const useMembersMutation = <T, V>(spaceId: string, mutationFn: (variables: V) => Promise<T>, also: QueryKey[] = []) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: membersKey(spaceId) });
-      await queryClient.invalidateQueries({ queryKey: ['spaces'] });
-      await queryClient.invalidateQueries({ queryKey: ['home'] });
+      for (const key of [membersKey(spaceId), ['spaces'], ['home'], ...also]) {
+        await queryClient.invalidateQueries({ queryKey: key });
+      }
     },
   });
 };
@@ -50,5 +51,10 @@ export const useSetMemberRole = (spaceId: string) =>
     api.patch<Membership>(`/spaces/${spaceId}/members/${userId}`, { role }),
   );
 
+/**
+ * Being shown the door also closes the door: the server revokes the code the
+ * person came in on. So the keys are read again with the member list, or the
+ * tent would go on offering a link that has just stopped opening anything.
+ */
 export const useRemoveMember = (spaceId: string) =>
-  useMembersMutation(spaceId, (userId: string) => api.delete(`/spaces/${spaceId}/members/${userId}`));
+  useMembersMutation(spaceId, (userId: string) => api.delete(`/spaces/${spaceId}/members/${userId}`), [invitesKey(spaceId)]);

@@ -1,15 +1,14 @@
 import { UserMinus } from 'lucide-react';
 import type { DateTime } from 'luxon';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { MemberRole } from '@fg2/shared-types/v1';
-import { useRemoveMember, useSetMemberRole } from '@/api/members';
+import { useSetMemberRole } from '@/api/members';
 import { initials } from '@/app/shell/tabs';
-import { Sheet } from '@/log/Sheet';
 import { ageLabel } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { decidesHere, type Guest } from './people';
+import type { Leaving } from './RemoveSheet';
 import styles from './Members.module.css';
 
 const ROLES: MemberRole[] = ['can_log', 'can_manage'];
@@ -43,6 +42,7 @@ export function PersonRow({
   isYou,
   mayManage,
   now,
+  onAskToRemove,
 }: {
   spaceId: string;
   guest: Guest;
@@ -54,10 +54,11 @@ export function PersonRow({
   /** Whether this session owns the space, which is what changing and ending a membership takes. */
   mayManage: boolean;
   now: DateTime;
+  /** Asks the screen for the sheet: this row is the first thing a removal takes away, so it cannot hold one. */
+  onAskToRemove: (leaving: Leaving) => void;
 }) {
   const { t } = useTranslation();
   const setRole = useSetMemberRole(spaceId);
-  const [leaving, setLeaving] = useState(false);
   const name = handle ?? t('space.members.someone');
   const room = roomName ?? t('space.members.theRoom');
   const { here, viaRoom } = guest;
@@ -102,76 +103,21 @@ export function PersonRow({
           type="button"
           className={styles.remove}
           aria-label={isYou ? t('space.members.leaveThis') : t('space.members.removeOf', { name })}
-          onClick={() => setLeaving(true)}
+          onClick={() =>
+            onAskToRemove({
+              userId: guest.userId,
+              name,
+              room: viaRoom ? room : null,
+              inviteId: isYou ? null : (here?.inviteId ?? null),
+              isYou,
+            })
+          }
         >
           <UserMinus size={16} strokeWidth={1.75} aria-hidden />
         </button>
       ) : null}
 
       <Refused error={setRole.error} />
-      {leaving ? (
-        <RemoveSheet
-          spaceId={spaceId}
-          userId={guest.userId}
-          name={name}
-          room={viaRoom ? room : null}
-          isYou={isYou}
-          onClose={() => setLeaving(false)}
-        />
-      ) : null}
     </li>
-  );
-}
-
-/**
- * Being shown the door, and walking out of it. They are the same row and the
- * same route, and they read entirely differently to the person tapping, so the
- * sheet says which of the two this is - and says the part that surprises
- * people either way: what somebody wrote in the tent stays in it and goes on
- * carrying their name. Somebody who is also in the room does not leave the
- * tent at all by this; they give up the role they held here and keep the tent
- * through the room, and the sheet says exactly that rather than promising a
- * door that stays open.
- */
-function RemoveSheet({
-  spaceId,
-  userId,
-  name,
-  room,
-  isYou,
-  onClose,
-}: {
-  spaceId: string;
-  userId: string;
-  name: string;
-  /** The room they stay in the tent through, or nothing when this row is their only way in. */
-  room: string | null;
-  isYou: boolean;
-  onClose: () => void;
-}) {
-  const { t } = useTranslation();
-  const remove = useRemoveMember(spaceId);
-  const what = isYou ? 'leave' : 'remove';
-
-  return (
-    <Sheet
-      title={t(`space.members.${what}.title`, { name })}
-      onClose={onClose}
-      actions={
-        <button
-          type="button"
-          className={`${ui.button} ${ui.primary}`}
-          disabled={remove.isPending}
-          onClick={() => remove.mutate(userId, { onSuccess: onClose })}
-        >
-          {t(`space.members.${what}.yes`)}
-        </button>
-      }
-    >
-      <p className={styles.sheetBody}>
-        {room ? t(`space.members.${what}.bodyKeepsRoom`, { name, room }) : t(`space.members.${what}.body`, { name })}
-      </p>
-      <Refused error={remove.error} />
-    </Sheet>
   );
 }

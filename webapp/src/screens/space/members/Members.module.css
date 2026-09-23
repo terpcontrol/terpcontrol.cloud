@@ -151,6 +151,19 @@
   line-height: var(--line-body);
 }
 
+/* A paragraph carries no margin of its own anywhere in this app, so a sheet
+   that says a second thing has to put the air in itself. */
+.sheetBody + .sheetBody {
+  margin-top: var(--space-3);
+}
+
+/* What the removal cost besides the row: it stands where the keys are, because
+   that is the block whose one live link has just gone. */
+.linkStopped {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
 .permissions {
   display: flex;
   flex-direction: column;

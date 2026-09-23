@@ -2731,7 +2731,8 @@
         "title": "Take @{{name}} out?",
         "body": "They lose this tent and everything standing in it. What they wrote here stays here and goes on carrying their name.",
         "bodyKeepsRoom": "They keep this tent through {{room}} and lose only what they held here. What they wrote here stays here and goes on carrying their name.",
-        "yes": "Take them out"
+        "yes": "Take them out",
+        "alsoTheLink": "They came in on the link {{code}}, and taking them out stops it: anybody else you sent that one to can no longer join. Whoever is already in stays in, your other links are untouched, and a new link is one tap away."
       },
       "leave": {
         "title": "Leave this tent?",
@@ -2836,7 +2837,8 @@
         "tentsIn_one": "{{count}} tent in this room",
         "tentsIn_other": "{{count}} tents in this room",
         "noTents": "No tent stands in this room yet. A tent is put in from its own Members tab."
-      }
+      },
+      "linkStopped": "The link {{code}} was stopped when @{{name}} was taken out."
     },
     "youMayLog": "You may log here: entries, tasks and photos. Targets, plan, alarms and sockets are changed by whoever steers this tent."
   },

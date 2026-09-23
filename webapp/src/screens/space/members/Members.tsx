@@ -16,6 +16,7 @@ import { InviteBlock } from './InviteBlock';
 import { guestsOf, lastLoggedOf, peopleCount, personOf, viaRoomCount } from './people';
 import { Permissions } from './Permissions';
 import { PersonRow } from './PersonRow';
+import { type Leaving, RemoveSheet } from './RemoveSheet';
 import { RoomSheet } from './RoomSheet';
 import styles from './Members.module.css';
 import roomStyles from './Room.module.css';
@@ -49,6 +50,11 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
   // is `own` on the space, which is the one need a manager does not have.
   const mayWrite = useMayIn(spaceId, 'own');
   const [roomSheet, setRoomSheet] = useState(false);
+  // Both of these belong to the screen rather than to a row: the row is the
+  // first thing a removal takes away, and it would carry the question and what
+  // is to be said about the answer off the page with it.
+  const [leaving, setLeaving] = useState<Leaving | null>(null);
+  const [stoppedLink, setStoppedLink] = useState<{ code: string; name: string } | null>(null);
 
   if (isDemo) return <p className={`${ui.cardDashed} ${ui.note}`}>{t('space.members.demo')}</p>;
   if (members.isPending) return <Waiting lines={4} />;
@@ -118,6 +124,16 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
       )}
 
       {mayWrite ? <InviteBlock spaceId={spaceId} spaceName={name} kind={kind} /> : null}
+      {/*
+        The removal that revoked it has already happened, so this is a report
+        and not a warning: without it the live link simply vanishes from the
+        block above and a host is left to work out which of the two taps did it.
+      */}
+      {stoppedLink ? (
+        <p className={`mono ${styles.linkStopped}`} role="status">
+          {t('space.members.linkStopped', stoppedLink)}
+        </p>
+      ) : null}
 
       <header className={styles.peopleHead}>
         <span className="label">{t('space.members.peopleIn', { name })}</span>
@@ -140,12 +156,22 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
             isYou={guest.userId === user?.id}
             mayManage={mayWrite}
             now={now}
+            onAskToRemove={setLeaving}
           />
         ))}
       </ul>
 
       <Permissions kind={kind} />
 
+      {leaving ? (
+        <RemoveSheet
+          spaceId={spaceId}
+          leaving={leaving}
+          now={now}
+          onClose={() => setLeaving(null)}
+          onLinkStopped={code => setStoppedLink({ code, name: leaving.name })}
+        />
+      ) : null}
       {roomSheet ? <RoomSheet spaceId={spaceId} spaceName={name} roomId={roomId} roomName={roomName} onClose={() => setRoomSheet(false)} /> : null}
     </section>
   );

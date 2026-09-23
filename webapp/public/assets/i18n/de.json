@@ -2727,7 +2727,8 @@
         "title": "@{{name}} aus dem Zelt nehmen?",
         "body": "Damit ist dieses Zelt für sie weg, samt allem, was darin steht. Was sie hier geschrieben haben, bleibt hier und trägt weiter ihren Namen.",
         "bodyKeepsRoom": "Dieses Zelt bleibt ihnen über {{room}} erhalten; sie verlieren nur die Rolle, die sie hier hatten. Was sie hier geschrieben haben, bleibt hier und trägt weiter ihren Namen.",
-        "yes": "Aus dem Zelt nehmen"
+        "yes": "Aus dem Zelt nehmen",
+        "alsoTheLink": "Sie sind über den Link {{code}} hereingekommen, und mit ihnen hört der Link auf zu funktionieren: Wer genau diesen Link sonst noch bekommen hat, kommt damit nicht mehr herein. Wer schon drin ist, bleibt drin, deine anderen Links bleiben unberührt, und ein neuer ist einen Tipp entfernt."
       },
       "leave": {
         "title": "Dieses Zelt verlassen?",
@@ -2832,7 +2833,8 @@
         "tentsIn_one": "{{count}} Zelt in diesem Raum",
         "tentsIn_other": "{{count}} Zelte in diesem Raum",
         "noTents": "Noch kein Zelt steht in diesem Raum. Ein Zelt kommt über seinen eigenen Mitglieder-Tab hinein."
-      }
+      },
+      "linkStopped": "Der Link {{code}} wurde zurückgezogen, als @{{name}} aus dem Zelt genommen wurde."
     },
     "youMayLog": "Du darfst hier loggen: Einträge, Aufgaben und Fotos. Sollwerte, Plan, Alarme und Steckdosen ändert nur, wer dieses Zelt steuert."
   },

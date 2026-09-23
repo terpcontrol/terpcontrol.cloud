@@ -142,7 +142,16 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   }
   if (method === 'POST' && path === '/spaces/space-1/members') return json(membership({ id: 'membership-3', userId: 'user-9' }), 201);
   if (method === 'PATCH' && path.startsWith('/spaces/space-1/members/')) return json(membership({ role: 'can_manage' }));
-  if (method === 'DELETE' && path.startsWith('/spaces/space-1/members/')) return new Response(null, { status: 204 });
+  // As the server does it: the row goes, and the code it came in on is revoked
+  // with it - which is what takes the person's card, and the sheet on it, off
+  // the screen mid-act.
+  if (method === 'DELETE' && path.startsWith('/spaces/space-1/members/')) {
+    const userId = path.slice('/spaces/space-1/members/'.length);
+    const row = server.members.items.find(one => one.userId === userId && one.spaceId === 'space-1');
+    server.members = { ...server.members, items: server.members.items.filter(one => one !== row) };
+    server.invites = server.invites.map(one => (one.id === row?.inviteId ? { ...one, revokedAt: NOW.toISO()! } : one));
+    return new Response(null, { status: 204 });
+  }
   if (method === 'PUT' && path.endsWith('/revocation')) return json(invite({ revokedAt: NOW.toISO()! }));
   if (method === 'GET' && path.startsWith('/invites/')) return json(server.preview);
   if (method === 'POST' && path.endsWith('/acceptances')) return json({ membership: membership({}), space: space({ id: 'space-9' }) }, 201);
@@ -380,6 +389,51 @@ describe('the Members tab as its owner', () => {
     expect(server.wrote[0]).toMatchObject({ method: 'DELETE', path: '/spaces/space-1/members/user-2' });
   });
 
+  /**
+   * The removal takes the key with it, which is right and is the part nobody
+   * expects: one link may have been sent to a whole club, and the host who cut
+   * it spends it on the first person they take out. So it is said before the
+   * tap, named by the code so it can be told from the other keys out, and said
+   * again afterwards - the live link simply disappears from the block above,
+   * and a host left to work that out for themselves learns it from the next
+   * person who cannot get in.
+   */
+  it('says which link taking somebody out will stop, and reports it once it has', async () => {
+    server.invites = [invite()];
+    const rows = await drawnPeople();
+
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Take lea out of this tent' }));
+    const sheet = screen.getByRole('dialog');
+    expect(within(sheet).getByText(/came in on the link K7QZ4M2P/)).toBeInTheDocument();
+    expect(within(sheet).getByText(/Whoever is already in stays in/)).toBeInTheDocument();
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Take them out' }));
+
+    expect(await screen.findByText(/The link K7QZ4M2P was stopped when @lea was taken out/)).toBeInTheDocument();
+    expect(server.wrote).toHaveLength(1);
+  });
+
+  it('promises nothing about a code that had already been revoked, because that removal stops nothing further', async () => {
+    server.invites = [invite({ revokedAt: NOW.minus({ days: 1 }).toISO()! })];
+    const rows = await drawnPeople();
+
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Take lea out of this tent' }));
+
+    expect(screen.getByText(/goes on carrying their name/)).toBeInTheDocument();
+    expect(screen.queryByText(/K7QZ4M2P/)).not.toBeInTheDocument();
+  });
+
+  it('says nothing about a link for somebody who was added by hand', async () => {
+    server.invites = [invite()];
+    server.members = { ...MEMBERS, items: [membership({ inviteId: null }), MEMBERS.items[1]] };
+    const rows = await drawnPeople();
+
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Take lea out of this tent' }));
+
+    // The block behind the sheet still lists that live link; the sheet says nothing of it.
+    expect(within(screen.getByRole('dialog')).queryByText(/K7QZ4M2P/)).not.toBeInTheDocument();
+  });
+
   it('closes with the note that says why there is no fourth role', async () => {
     await drawnPeople();
 
@@ -411,6 +465,21 @@ describe('the Members tab as somebody who was let in', () => {
 
     expect(within(rows[0]).getByText('@chris')).toBeInTheDocument();
     expect(within(rows[0]).getByText('owner of Blue Dream tent')).toBeInTheDocument();
+  });
+
+  /**
+   * Walking out of your own accord takes no key with it - the key is the
+   * host's, and a guest who could kill it by leaving would be revoking on
+   * their behalf - so the sheet that says so must not claim otherwise.
+   */
+  it('promises nothing about the link to somebody leaving of their own accord', async () => {
+    server.invites = [invite()];
+    const rows = await drawnPeople();
+
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Leave this tent' }));
+
+    expect(screen.getByText(/goes on carrying your name/)).toBeInTheDocument();
+    expect(screen.queryByText(/K7QZ4M2P/)).not.toBeInTheDocument();
   });
 
   it('leaves the one control that lets them out, on their own row alone, named as leaving', async () => {
