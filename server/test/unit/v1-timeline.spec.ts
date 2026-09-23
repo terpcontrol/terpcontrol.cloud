@@ -617,6 +617,21 @@ describe('the band that applied', () => {
     ]);
   });
 
+  it('lends the controller´s configuration only to the stretch it is still steering', async () => {
+    await db.grows.updateOne({ id: GROW }, { $set: { 'phases.0.targets': null, 'phases.1.targets': null } });
+
+    // The phase that runs to the present borrows what the fridge is set to now,
+    // because now and then are the same instant there; the vegetative weeks it
+    // handed over to are over, and nothing says what they were aimed at.
+    expect((await bandsOf('temperature')).map(one => [one.phaseId, one.day?.setpoint])).toEqual([['phase-flower', 27]]);
+  });
+
+  it('draws a grow that has ended against its own snapshots and against nothing else', async () => {
+    await db.grows.updateOne({ id: GROW }, { $set: { 'phases.1.targets': null, endedAt: NOW } });
+
+    expect((await bandsOf('temperature')).map(one => [one.phaseId, one.day?.setpoint])).toEqual([['phase-veg', 24]]);
+  });
+
   it('falls back to what the controller is configured with where nothing grows here', async () => {
     await db.grows.deleteMany({});
     const page = await readAs(session(OWNER));

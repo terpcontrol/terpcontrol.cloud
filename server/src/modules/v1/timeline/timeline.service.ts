@@ -139,7 +139,7 @@ export class TimelineService {
     const people = await this.users.find({ id: { $in: authorIdsOf(told) } }, { id: 1, handle: 1 }).lean<Pick<StoredUser, 'id' | 'handle'>[]>();
     const panels = panelsOf(
       series.map(one => one.series),
-      stretchesOf(grow, devices, window),
+      stretchesOf(grow, devices, window, at),
     );
 
     return {

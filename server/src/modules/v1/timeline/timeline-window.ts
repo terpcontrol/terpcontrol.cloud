@@ -135,19 +135,34 @@ const stepFor = (startsAt: Date, endsAt: Date): number => {
 /**
  * The stretches the bands are drawn over: the grow's own phases, clipped to the
  * window, because a phase records the targets that were running when it began
- * and the store holds readings and never setpoints. A phase that recorded none,
- * and a tent with no grow in it, fall back to what the controller is configured
- * with now - which is the only other thing that can say what is being aimed at.
+ * and the store holds readings and never setpoints.
+ *
+ * A band is a claim about what was being aimed at over the stretch it is drawn
+ * across, and the controller's configuration can only ever say what is being
+ * aimed at now. So a phase that recorded no snapshot borrows it for the one
+ * stretch where now and then are the same thing - a grow still running, drawn
+ * as far as the instant the read is about - and is drawn against nothing
+ * anywhere else. A fridge set for a flowering run in September is not what a
+ * January seedling week was aimed at, which is the same reason the report
+ * refuses to grade a chapter it has no snapshot for; shading 218 days of
+ * somebody's record green against a figure they changed last week says the
+ * opposite of what the report says about the same row.
+ *
+ * A tent with no grow in it is the other way round: there is no past to mistake
+ * the configuration for, the window is the tent's own present, and the live
+ * view would otherwise lose its band altogether.
  */
-export const stretchesOf = (grow: GrowDocument | null, devices: StoredDevice[], window: TimelineWindow): TargetStretch[] => {
+export const stretchesOf = (grow: GrowDocument | null, devices: StoredDevice[], window: TimelineWindow, asOf: Date): TargetStretch[] => {
   const configured = devices.map(device => targetsOf(device.configuration)).find(targets => targets !== null) ?? null;
   const spine = grow ? spineOf(grow) : [];
+  const running = grow !== null && grow.endedAt === null;
   const stretches = spine.flatMap((phase, index) => {
     const startsAt = new Date(Math.max(phase.startedAt.getTime(), window.startsAt.getTime()));
     const endsAt = new Date(Math.min(spine[index + 1]?.startedAt.getTime() ?? window.endsAt.getTime(), window.endsAt.getTime()));
     if (endsAt <= startsAt) return [];
 
-    return [{ startsAt, endsAt, phaseId: phase.id, stage: phase.stage, targets: phase.targets ?? configured }];
+    const steered = running && endsAt >= asOf;
+    return [{ startsAt, endsAt, phaseId: phase.id, stage: phase.stage, targets: phase.targets ?? (steered ? configured : null) }];
   });
 
   return stretches.length > 0 ? stretches : [{ startsAt: window.startsAt, endsAt: window.endsAt, phaseId: null, stage: null, targets: configured }];

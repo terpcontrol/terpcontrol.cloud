@@ -105,7 +105,7 @@ export class GrowSeriesService {
       deviceIds: devices.map(device => device.id),
       climate: panelsOf(
         series.map(one => one.series),
-        stretchesOf(grow, devices, window),
+        stretchesOf(grow, devices, window, now),
         asked.metrics ?? [],
       ),
       outputs: lanesOf(series, window),
