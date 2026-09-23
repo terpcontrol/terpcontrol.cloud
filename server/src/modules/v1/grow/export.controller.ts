@@ -69,7 +69,7 @@ export class ExportController {
  */
 const owner = (ctx: AccessContext): string => {
   if (ctx.isDemo || ctx.userId === null) {
-    throw forbidden('demo_session', 'A demo session is a tour of somebody else´s grow and has nothing of its own to export.');
+    throw forbidden('demo_session', "A demo session is a tour of somebody else's grow and has nothing of its own to export.");
   }
 
   return ctx.userId;

@@ -160,7 +160,7 @@ export class CamerasController {
   @Patch(':id')
   @UseGuards(AuthGuard, AccessGuard)
   @Requires('manage', 'camera')
-  @ApiOperation({ summary: 'Change a camera´s settings' })
+  @ApiOperation({ summary: "Change a camera's settings" })
   @V1Answer(camera)
   public async update(@Caller() ctx: AccessContext, @Param('id') id: string, @V1Body(cameraUpdate) body: CameraUpdate): Promise<Camera> {
     const current = await this.require(id);

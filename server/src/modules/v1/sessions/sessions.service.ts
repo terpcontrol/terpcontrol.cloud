@@ -107,7 +107,7 @@ export class SessionsService {
   public automation(token: string): AutomationSession {
     const expected = this.auth.automationToken;
     if (!expected || !sameSecret(token, expected)) {
-      throw unauthenticated('automation_token_wrong', 'That is not this install´s automation token.');
+      throw unauthenticated('automation_token_wrong', "That is not this install's automation token.");
     }
 
     return {

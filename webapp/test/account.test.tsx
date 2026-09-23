@@ -114,7 +114,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     server.passwords.push(JSON.parse(String(init?.body)) as PasswordChange);
     if (server.wrongPassword) {
       return json(
-        { status: 401, code: 'current_password_wrong', title: 'Unauthorized', detail: 'That is not this account´s current password.', errors: [] },
+        { status: 401, code: 'current_password_wrong', title: 'Unauthorized', detail: "That is not this account's current password.", errors: [] },
         401,
       );
     }
@@ -230,7 +230,7 @@ describe('how this person signs in', () => {
     fireEvent.change(screen.getByLabelText('New password again'), { target: { value: 'new-one' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('That is not this account´s current password.');
+    expect(await screen.findByRole('alert')).toHaveTextContent("That is not this account's current password.");
     expect(screen.getByLabelText('Current password')).toBeInTheDocument();
   });
 });

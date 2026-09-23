@@ -103,7 +103,7 @@ const growSeriesQuery = z.object({
     .union([z.string(), z.array(z.string())])
     .transform(many)
     .optional()
-    .describe('Keys of the grow´s own `measurements[]`.'),
+    .describe("Keys of the grow's own `measurements[]`."),
   from: z.coerce.date().optional().describe('The start of a `custom` range.'),
   to: z.coerce.date().optional().describe('The end of a `custom` range, and the instant a rolling one counts back from.'),
 });
@@ -188,7 +188,7 @@ export class GrowsController {
   @Get(':id/series')
   @UseGuards(OptionalSessionGuard, AccessGuard)
   @Requires('view', 'grow')
-  @ApiOperation({ summary: 'Climate, outputs and the grow´s own measurements over one range' })
+  @ApiOperation({ summary: "Climate, outputs and the grow's own measurements over one range" })
   @V1Answer(growSeries)
   public async seriesOf(
     @CurrentGrant() grant: Grant,
@@ -329,7 +329,7 @@ export class GrowsController {
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard, AccessGuard)
   @Requires('manage', 'grow')
-  @ApiOperation({ summary: 'Give some of a grow´s plants a phase or a place of their own' })
+  @ApiOperation({ summary: "Give some of a grow's plants a phase or a place of their own" })
   @V1Answer(splitResult, { status: HttpStatus.CREATED })
   public async split(
     @Caller() ctx: AccessContext,

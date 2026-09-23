@@ -115,13 +115,13 @@ export class AccountController {
   @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   @RateLimited({ limit: 10, windowMs: MINUTE, message: 'Too many password changes, please try again later.' })
-  @ApiOperation({ summary: 'Change this account´s password' })
+  @ApiOperation({ summary: "Change this account's password" })
   @ApiNoContentResponse({ description: 'The password is changed.' })
   public async changePassword(@CurrentUser() caller: AuthContext, @V1Body(passwordChange) body: PasswordChange): Promise<void> {
     const user = await this.accounts.require(accountOf(caller));
 
     if (!(await this.accounts.verify(user.email, body.currentPassword))) {
-      throw unauthenticated('current_password_wrong', 'That is not this account´s current password.');
+      throw unauthenticated('current_password_wrong', "That is not this account's current password.");
     }
 
     await this.accounts.setPassword(user.id, body.newPassword);

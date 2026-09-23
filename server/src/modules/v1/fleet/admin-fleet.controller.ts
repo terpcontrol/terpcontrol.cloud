@@ -67,7 +67,7 @@ export class AdminFleetController {
    * question: whether anything here has quietly stopped working.
    */
   @Get('stats')
-  @ApiOperation({ summary: 'The install´s own figures: its accounts, its hardware, its pictures and its background work' })
+  @ApiOperation({ summary: "The install's own figures: its accounts, its hardware, its pictures and its background work" })
   @V1Answer(adminStatsShape)
   public stats(): Promise<AdminStats> {
     return this.health.stats();

@@ -230,7 +230,7 @@ export class DevicesController {
   @Get(':id/series')
   @UseGuards(AuthGuard, AccessGuard)
   @Requires('view', 'device')
-  @ApiOperation({ summary: 'A window of one device´s series' })
+  @ApiOperation({ summary: "A window of one device's series" })
   @V1Answer(deviceSeries)
   public async series(@Param('id') id: string, @V1Query(seriesFromQuery) query: z.infer<typeof seriesFromQuery>): Promise<DeviceSeries> {
     await this.devices.require(id);
@@ -286,7 +286,7 @@ export class DevicesController {
   @HttpCode(HttpStatus.ACCEPTED)
   @UseGuards(AuthGuard, AccessGuard)
   @Requires('manage', 'device')
-  @ApiOperation({ summary: 'Remove a socket from the device´s table' })
+  @ApiOperation({ summary: "Remove a socket from the device's table" })
   @V1Answer(deviceCommandResult, { status: HttpStatus.ACCEPTED })
   public async removeSocket(@Param('id') id: string, @Param('slot') slot: string): Promise<DeviceCommandResult> {
     return published(await this.publisher.socketAction(id, 'socket_remove', numberOrRole(slot)));
@@ -311,7 +311,7 @@ export class DevicesController {
   @HttpCode(HttpStatus.ACCEPTED)
   @UseGuards(AuthGuard, AccessGuard)
   @Requires('manage', 'device')
-  @ApiOperation({ summary: 'Hand a socket back to its role´s control law' })
+  @ApiOperation({ summary: "Hand a socket back to its role's control law" })
   @V1Answer(deviceCommandResult, { status: HttpStatus.ACCEPTED })
   public async clearSocketOverride(@Param('id') id: string, @Param('slot') slot: string): Promise<DeviceCommandResult> {
     // `auto` is how the firmware is told to stop overriding; the seconds are

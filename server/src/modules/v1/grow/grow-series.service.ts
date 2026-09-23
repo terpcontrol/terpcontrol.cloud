@@ -164,7 +164,7 @@ export class GrowSeriesService {
     const unknown = asked.filter(key => !defined.has(key));
     if (unknown.length > 0) {
       throw badRequest('measurement_not_defined', `This grow measures nothing called ${unknown.join(', ')}.`, [
-        { field: 'measurements', code: 'unknown', detail: 'A series names one of the grow´s own `measurements[]`.' },
+        { field: 'measurements', code: 'unknown', detail: "A series names one of the grow's own `measurements[]`." },
       ]);
     }
 
