@@ -12,6 +12,7 @@ import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { enough, useMayInEach, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { zoneOf } from '@/ui/zone';
 import { AlertCard } from './alerts/AlertCard';
 import { isAhead } from '@/ui/age';
 import { clock, groupsOf, type GroupHeading } from './alerts/inbox';
@@ -73,7 +74,7 @@ export function Alerts() {
   const head = (
     <header className={styles.head}>
       <h1 className={styles.title}>{t('shell.alerts')}</h1>
-      {mayWriteAtAll ? <MuteCorner now={now} /> : null}
+      {mayWriteAtAll ? <MuteCorner now={now} zone={zoneOf(me.data)} /> : null}
     </header>
   );
 
@@ -103,7 +104,7 @@ export function Alerts() {
     );
   }
 
-  const groups = groupsOf(items, now);
+  const groups = groupsOf(items, now, zoneOf(me.data));
   // What is on screen is as old as its older half, whichever half failed.
   const failedAt = (open.isError || resolved.isError) && Number.isFinite(readAt) ? readAt : null;
   const more = open.hasNextPage || resolved.hasNextPage;
@@ -184,7 +185,7 @@ const emptyKey = (isDemo: boolean, watching: boolean): string =>
  * they were read; while the mute holds, the corner says until when and offers
  * the way out.
  */
-function MuteCorner({ now }: { now: DateTime }) {
+function MuteCorner({ now, zone }: { now: DateTime; zone: string | null }) {
   const { t } = useTranslation();
   const me = useMe();
   const update = useUpdateMe();
@@ -198,7 +199,7 @@ function MuteCorner({ now }: { now: DateTime }) {
     <div className={styles.corner}>
       {muted ? (
         <>
-          <span className={`mono ${styles.mutedUntil}`}>{t('alerts.mutedUntil', { time: clock(notifications.mutedUntil!) })}</span>
+          <span className={`mono ${styles.mutedUntil}`}>{t('alerts.mutedUntil', { time: clock(notifications.mutedUntil!, zone) })}</span>
           <button type="button" className={ui.chip} disabled={update.isPending} onClick={() => set(null)}>
             {t('alerts.unmute')}
           </button>

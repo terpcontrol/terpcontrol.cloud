@@ -119,6 +119,7 @@ const overview = {
 const me = {
   id: 'user-1',
   pushSubscribed: true,
+  preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'Europe/Berlin' },
   notifications: {
     routing: { alerts: ['telegram', 'push'], warnings: ['push'] },
     channels: { email: 'you@example.invalid', telegram: { chatId: '1', linkedAt: NOW.toISO() }, webhook: null },
@@ -316,7 +317,7 @@ describe('the alarm rules page', () => {
     draw();
 
     const hot = await card('Too hot');
-    expect(within(hot).getByText(`silenced until ${until.toLocaleString(DateTime.TIME_SIMPLE)}`)).toBeInTheDocument();
+    expect(within(hot).getByText(`silenced until ${until.setZone('Europe/Berlin').toLocaleString(DateTime.TIME_SIMPLE)}`)).toBeInTheDocument();
     fireEvent.click(within(hot).getByRole('button', { name: 'unsilence' }));
 
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/alarm-rules/rule-hot/silence'));

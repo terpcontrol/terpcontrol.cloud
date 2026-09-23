@@ -7,6 +7,7 @@ import { useSilenceAlarmRule, useUnsilenceAlarmRule } from '@/api/alarm-rules';
 import { useDeviceCommand } from '@/api/commands';
 import { ruleTitle } from '@/screens/control/alarms/rules';
 import { ageAttribute, ageLabel, isAhead, spanLabel } from '@/ui/age';
+import { zoneOf } from '@/ui/zone';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { figure, targetFigure, UNIT } from '../home/units';
@@ -47,7 +48,7 @@ export function AlertCard({ alert, rule, names, me, mayManage, now }: AlertCardP
   const { t } = useTranslation();
   const open = alert.resolvedAt === null;
   const device = (alert.deviceId && names.devices.get(alert.deviceId)) || null;
-  const { label, figure: reading } = whatOf(t, alert, rule, device, now);
+  const { label, figure: reading } = whatOf(t, alert, rule, device, now, zoneOf(me));
   const parts = [...placeOf(t, alert, names, device), { text: label, known: true }];
   const severity = t(`alerts.severity.${alert.severity}`);
 
@@ -152,7 +153,7 @@ interface What {
  * silence is the whole of what such a card says, and a browser an hour out
  * would add that hour to it while the "since" beside it stayed put.
  */
-const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Device | null, now: DateTime): What => {
+const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Device | null, now: DateTime, zone: string | null): What => {
   switch (alert.kind) {
     case 'offline': {
       if (alert.resolvedAt) return { label: t('alerts.what.wasOffline'), figure: null };
@@ -160,7 +161,7 @@ const whatOf = (t: Translate, alert: Alert, rule: AlarmRule | null, device: Devi
       return { label: t('alerts.what.offline', { age: ageLabel(quietSince, now) }), figure: null };
     }
     case 'camera_stale':
-      return { label: t('alerts.what.cameraSince', { time: clock(alert.startedAt) }), figure: null };
+      return { label: t('alerts.what.cameraSince', { time: clock(alert.startedAt, zone) }), figure: null };
     case 'threshold':
       return rule ? watched(t, alert, rule) : { label: t('alerts.what.threshold'), figure: alert.value === null ? null : String(alert.value) };
   }
@@ -221,12 +222,13 @@ const metaOf = (
   now: DateTime,
   severity: string,
 ): string => {
+  const zone = zoneOf(me);
   const parts = [
     rule ? ruleName(t, rule, device) : null,
     severity,
     alert.resolvedAt
-      ? t('alerts.meta.resolved', { time: clock(alert.resolvedAt), age: lastedLabel(alert, now) })
-      : t('alerts.meta.since', { time: clock(alert.startedAt), age: lastedLabel(alert, now) }),
+      ? t('alerts.meta.resolved', { time: clock(alert.resolvedAt, zone), age: lastedLabel(alert, now) })
+      : t('alerts.meta.since', { time: clock(alert.startedAt, zone), age: lastedLabel(alert, now) }),
   ].filter((part): part is string => part !== null);
 
   if (!alert.resolvedAt && rule) {
@@ -236,7 +238,7 @@ const metaOf = (
     if (delivery === 'repeats') parts.push(t('alerts.meta.repeats', { every: spanLabel(rule.repeatSeconds) }));
     else if (delivery) parts.push(t(`alerts.meta.${delivery}`));
 
-    if (isAhead(rule.silencedUntil, now)) parts.push(t('alerts.meta.silenced', { time: clock(rule.silencedUntil!) }));
+    if (isAhead(rule.silencedUntil, now)) parts.push(t('alerts.meta.silenced', { time: clock(rule.silencedUntil!, zone) }));
   }
 
   return parts.join(' · ');

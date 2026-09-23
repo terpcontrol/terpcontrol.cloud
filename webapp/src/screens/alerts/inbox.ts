@@ -2,7 +2,8 @@ import { DateTime } from 'luxon';
 import type { AlarmRule, Alert, Me, OutputLevelWatch, ReadingWatch, Severity } from '@fg2/shared-types/v1';
 import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { routedChannels } from '@/screens/control/alarms/rules';
-import { ageLabel } from '@/ui/age';
+import { ageLabel, instantOf } from '@/ui/age';
+import { zoned } from '@/ui/zone';
 
 /**
  * How the inbox is cut up, which bound a reading crossed, and whether anybody
@@ -30,23 +31,24 @@ const WORST_FIRST: Record<Severity, number> = { critical: 0, warning: 1, info: 2
  * between equals - a second critical tent below three warnings is off the
  * bottom of a phone, and the order a thing happened in is no help to somebody
  * deciding what to deal with. What has resolved is a record rather than a queue
- * and stays in the order it happened: filed under the local day it started,
- * today and yesterday by name and every earlier day by its date, newest first
- * inside each. Nothing is left out for being old.
+ * and stays in the order it happened: filed under the day it started on in the
+ * account's own zone, today and yesterday by name and every earlier day by its
+ * date, newest first inside each. Nothing is left out for being old.
  */
-export const groupsOf = (alerts: Alert[], now: DateTime): AlertGroup[] => {
+export const groupsOf = (alerts: Alert[], now: DateTime, zone: string | null): AlertGroup[] => {
   const newestFirst = [...alerts].sort((a, b) => startedMillis(b) - startedMillis(a));
   const open = newestFirst
     .filter(alert => alert.resolvedAt === null)
     .sort((a, b) => WORST_FIRST[a.severity] - WORST_FIRST[b.severity] || startedMillis(b) - startedMillis(a));
   const groups: AlertGroup[] = open.length ? [{ key: 'now', heading: { kind: 'now' }, alerts: open }] : [];
 
-  const today = now.startOf('day').toISODate();
-  const yesterday = now.startOf('day').minus({ days: 1 }).toISODate();
+  const here = zone ? now.setZone(zone) : now;
+  const today = here.startOf('day').toISODate();
+  const yesterday = here.startOf('day').minus({ days: 1 }).toISODate();
   const days = new Map<string, AlertGroup>();
   for (const alert of newestFirst) {
     if (alert.resolvedAt === null) continue;
-    const day = DateTime.fromISO(alert.startedAt).startOf('day');
+    const day = zoned(alert.startedAt, zone).startOf('day');
     const key = day.toISODate()!;
     let group = days.get(key);
     if (!group) {
@@ -81,8 +83,8 @@ export const crossedBound = (
 export const lastedLabel = (alert: Alert, now: DateTime): string =>
   ageLabel(alert.startedAt, alert.resolvedAt ? DateTime.fromISO(alert.resolvedAt) : now);
 
-/** The hour an instant fell on, in the reader's own zone. */
-export const clock = (instant: string): string => DateTime.fromISO(instant).toFormat('HH:mm');
+/** The hour an instant fell on, in the zone the account keeps - the one the server holds its alarms back by. */
+export const clock = (instant: string, zone: string | null): string => zoned(instant, zone).toFormat('HH:mm');
 
 /** What the card says will happen about this alert, as the key it is said in. */
 export type Delivery = 'notAnnounced' | 'unheard' | 'once' | 'repeats';

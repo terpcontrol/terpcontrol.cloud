@@ -92,18 +92,21 @@ export function Menu({
   name,
   value,
   disabled,
+  className,
   onChange,
   children,
 }: {
   name: string;
   value: string;
   disabled?: boolean;
+  /** A ceiling for a menu whose options are long enough to decide the row's width. */
+  className?: string;
   onChange: (value: string) => void;
   children: ReactNode;
 }) {
   return (
     <select
-      className={`mono ${ui.chip} ${styles.menu}`}
+      className={`mono ${ui.chip} ${styles.menu} ${className ?? ''}`}
       value={value}
       aria-label={name}
       disabled={disabled}

@@ -13,3 +13,14 @@
   border-color: var(--brand);
   color: var(--brand);
 }
+
+/* The zone menu holds four hundred place names, and a native select is as wide
+   as its longest option: left alone, "America/Argentina/Rio_Gallegos" decides
+   the row and squeezes the words beside it into a column one syllable wide on a
+   phone. The ceiling is the row's, and the name inside it is cut rather than the
+   line beside it. */
+.zone {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

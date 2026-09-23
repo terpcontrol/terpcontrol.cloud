@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import type { NotificationCategory, NotificationChannel, NotificationRouting, QuietHours } from '@fg2/shared-types/v1';
+import { zoned } from '@/ui/zone';
 
 /**
  * The arithmetic of the notification settings, kept apart from the screen so
@@ -73,8 +74,14 @@ export const hostOf = (url: string): string => {
 
 export const isMuted = (mutedUntil: string | null, now: DateTime): boolean => mutedUntil !== null && DateTime.fromISO(mutedUntil) > now;
 
-/** A clock time for a line, or the date with it when the instant is not today's. */
-export const clockLabel = (instant: string, now: DateTime): string => {
-  const at = DateTime.fromISO(instant);
-  return at.hasSame(now, 'day') ? at.toLocaleString(DateTime.TIME_SIMPLE) : at.toLocaleString(DateTime.DATETIME_SHORT);
+/**
+ * A clock time for a line, or the date with it when the instant is not today's
+ * - both in the account's own zone, which is the zone the window above them is
+ * read in and the only one in which "until 07:00" means what it says.
+ */
+export const clockLabel = (instant: string, now: DateTime, zone: string | null): string => {
+  const at = zoned(instant, zone);
+  const here = zone ? now.setZone(zone) : now;
+
+  return at.hasSame(here, 'day') ? at.toLocaleString(DateTime.TIME_SIMPLE) : at.toLocaleString(DateTime.DATETIME_SHORT);
 };

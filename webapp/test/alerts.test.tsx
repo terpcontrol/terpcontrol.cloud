@@ -13,7 +13,7 @@ import { Rail } from '@/app/shell/Rail';
 import { TopBar } from '@/app/shell/TopBar';
 import { LogProvider } from '@/log/LogProvider';
 import { Alerts } from '@/screens/Alerts';
-import { crossedBound, groupsOf } from '@/screens/alerts/inbox';
+import { clock as inboxClock, crossedBound, groupsOf } from '@/screens/alerts/inbox';
 import { alertLabel } from '@/screens/home/units';
 import { spaceWhere } from './session';
 
@@ -50,7 +50,9 @@ vi.mock('@/api/session', async importOriginal => {
 
 const NOW = DateTime.now();
 const iso = (at: DateTime) => at.toISO()!;
-const clock = (at: DateTime) => at.toFormat('HH:mm');
+/** The zone the account below keeps, which is the one every clock time on these cards is drawn in whatever zone the suite runs in. */
+const ACCOUNT_ZONE = 'Europe/Berlin';
+const clock = (at: DateTime) => at.setZone(ACCOUNT_ZONE).toFormat('HH:mm');
 
 /**
  * A card's whole first line. The figure in it is its own element, set in mono
@@ -106,7 +108,7 @@ const me: Me = {
   avatarMediaId: null,
   publicProfile: false,
   privacy: { showGrowsOnProfile: false },
-  preferences: { weightUnit: 'grams', volumeUnit: 'liters' },
+  preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: ACCOUNT_ZONE },
   retention: { entriesDays: null, mediaDays: null },
   notifications: {
     channels: { email: true, push: false, telegram: null, webhook: null },
@@ -709,7 +711,7 @@ describe('the arithmetic behind the cards', () => {
 
   it('keeps an open alert under NOW however long ago it began', () => {
     // Midday, not the actual clock: the resolved card below is grouped by the
-    // day it began in the reader's own zone, so a suite run in the small hours
+    // day it began in the account's own zone, so a suite run in the small hours
     // put a card two hours old under yesterday and failed a test about today.
     // The day boundary the app reads is the right one; the hour this test
     // picked was not.
@@ -717,8 +719,29 @@ describe('the arithmetic behind the cards', () => {
     const groups = groupsOf(
       [alert({ startedAt: iso(midday.minus({ days: 3 })) }), alert({ id: 'r', startedAt: iso(midday), resolvedAt: iso(midday) })],
       midday,
+      null,
     );
 
     expect(groups.map(group => group.heading.kind)).toEqual(['now', 'earlierToday']);
+  });
+
+  it('files a resolved alert under the day it began on where the account is, not where the browser is', () => {
+    // Half past ten at night in Berlin is already the next day in Tokyo, and
+    // an account that keeps its clock there is owed the day its own quiet
+    // hours are counted in.
+    const berlinNight = DateTime.fromISO('2026-05-04T22:30:00+02:00');
+    const resolved = alert({ id: 'r', startedAt: iso(berlinNight), resolvedAt: iso(berlinNight.plus({ minutes: 5 })) });
+
+    const inTokyo = groupsOf([resolved], berlinNight, 'Asia/Tokyo');
+    const inBerlin = groupsOf([resolved], berlinNight, 'Europe/Berlin');
+
+    expect(inTokyo[0].key).toBe('2026-05-05');
+    expect(inBerlin[0].key).toBe('2026-05-04');
+  });
+
+  it('draws a clock time in the zone the account keeps, which is the one the server holds an alarm back by', () => {
+    expect(inboxClock('2026-09-23T00:07:59.159Z', 'UTC')).toBe('00:07');
+    expect(inboxClock('2026-09-23T00:07:59.159Z', 'Europe/Berlin')).toBe('02:07');
+    expect(inboxClock('2026-09-23T00:07:59.159Z', null)).toBe(DateTime.fromISO('2026-09-23T00:07:59.159Z').toFormat('HH:mm'));
   });
 });

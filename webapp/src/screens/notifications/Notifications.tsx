@@ -6,6 +6,7 @@ import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { zoneOf } from '@/ui/zone';
 import { MePage } from '@/screens/me/parts';
 import { EmailCard, PushCard, TelegramCard, WebhookCard } from './Channels';
 import { useWriteNotifications } from './write';
@@ -94,7 +95,7 @@ function MutedLine({ me, held, until }: { me: Me; held: boolean; until: string }
 
   return (
     <div className={styles.muted} role="status">
-      <span className={`mono ${styles.mutedText}`}>{t('notifications.muted', { time: clockLabel(until, now) })}</span>
+      <span className={`mono ${styles.mutedText}`}>{t('notifications.muted', { time: clockLabel(until, now, zoneOf(me)) })}</span>
       <button type="button" className={ui.chip} disabled={held} onClick={() => write({ mutedUntil: null })}>
         {t('notifications.unmute')}
       </button>

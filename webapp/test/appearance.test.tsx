@@ -154,6 +154,38 @@ describe('the units', () => {
   });
 });
 
+describe('the time zone', () => {
+  it('draws the zone the account keeps and offers this device its own', async () => {
+    server.me = { ...me(), preferences: { ...me().preferences, timezone: 'UTC' } };
+    draw();
+
+    const menu = await screen.findByRole('combobox', { name: 'Time zone' });
+    expect(menu).toHaveValue('UTC');
+    expect(screen.getByText(/quiet hours and every clock time the app draws are read in it/)).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Europe/Berlin' })).toBeInTheDocument();
+  });
+
+  it('keeps UTC on offer, which the browser does not list and the migration left every account on', async () => {
+    draw();
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Time zone' }), { target: { value: 'Asia/Tokyo' } });
+    await waitFor(() => expect(server.patched).toHaveLength(1));
+
+    expect(await screen.findByRole('option', { name: 'UTC' })).toBeInTheDocument();
+  });
+
+  it('sends the whole preferences object with the zone changed, so the units are not turned back', async () => {
+    draw();
+
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Time zone' }), { target: { value: 'America/New_York' } });
+
+    await waitFor(() => expect(server.patched).toHaveLength(1));
+    expect(server.patched[0]).toEqual({
+      preferences: { units: { temperature: 'celsius', weight: 'grams', volume: 'liters' }, locale: 'en', timezone: 'America/New_York' },
+    });
+  });
+});
+
 describe('the language', () => {
   it('offers each language in its own name and switches the catalogue, remembering the choice in this browser', async () => {
     draw();

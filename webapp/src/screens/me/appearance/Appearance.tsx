@@ -8,6 +8,7 @@ import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { browserZone, zoneNames } from '@/ui/zone';
 import { languageName } from '../doors';
 import { MePage, Menu, Row } from '../parts';
 import styles from './Appearance.module.css';
@@ -27,11 +28,17 @@ const UNITS: { kind: keyof UnitPreference; choices: string[] }[] = [
  * The first two are the browser's and stay where they have always lived - the
  * theme is one attribute on <html> and the language one key in local storage -
  * because both have to be known before the first frame, long before any
- * account has answered. The units are the account's, so that a phone and a
- * laptop agree on what a weight is; they go to `PATCH /me` as the whole
- * preferences object with one field changed, since the route replaces what it
- * is given rather than merging into it. The demo has no account to keep units
- * on, and is told so under the two settings it can still change.
+ * account has answered. The units and the time zone are the account's, so that
+ * a phone and a laptop agree on what a weight is and on when the night begins;
+ * they go to `PATCH /me` as the whole preferences object with one field
+ * changed, since the route replaces what it is given rather than merging into
+ * it. The demo has no account to keep them on, and is told so under the two
+ * settings it can still change.
+ *
+ * The zone is the one setting here the server acts on rather than merely draws:
+ * quiet hours are read in it, so the browser's zone would be the wrong answer
+ * however convenient - what this device is in is offered as a suggestion and
+ * never written by itself.
  */
 export function Appearance() {
   const { t, i18n } = useTranslation();
@@ -72,13 +79,13 @@ export function Appearance() {
       </Row>
 
       <span className="label">{t('me.appearance.units')}</span>
-      {isDemo ? <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.demo')}</p> : <Units />}
+      {isDemo ? <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.demo')}</p> : <FromTheAccount />}
     </MePage>
   );
 }
 
-/** The units the account states, each a menu of its two answers, all held still while a change is on its way. */
-function Units() {
+/** What the account states rather than the browser: the units, each a menu of its two answers, and the zone every clock time is drawn in. All held still while a change is on its way. */
+function FromTheAccount() {
   const { t } = useTranslation();
   const now = useNow();
   const me = useMe();
@@ -112,7 +119,48 @@ function Units() {
           </Menu>
         </Row>
       ))}
+
+      <span className="label">{t('me.appearance.clock')}</span>
+      <Row title={t('me.appearance.timezone')} line={zoneLine(t, account.preferences.timezone)}>
+        <Menu
+          name={t('me.appearance.timezone')}
+          value={account.preferences.timezone}
+          className={styles.zone}
+          disabled={held}
+          onChange={value => update.mutate({ preferences: { ...account.preferences, timezone: value } })}
+        >
+          {offeredZones(account.preferences.timezone).map(zone => (
+            <option key={zone} value={zone}>
+              {zone}
+            </option>
+          ))}
+        </Menu>
+      </Row>
       <Refused error={update.error} />
     </>
   );
 }
+
+/**
+ * The zones the menu offers: everything this browser knows, plus UTC, the
+ * account's own and this device's. The three are added by hand because the
+ * browser's list is of places rather than of offsets and holds no UTC at all,
+ * and an account that keeps a zone it cannot be given back - which is every
+ * account the migration left on UTC - would be a menu that only goes one way.
+ */
+const offeredZones = (kept: string): string[] => {
+  const known = new Set(zoneNames());
+  known.add('UTC');
+  known.add(kept);
+  const here = browserZone();
+  if (here) known.add(here);
+
+  return [...known].sort();
+};
+
+/** Why the zone matters, and what this device is in where that is something else - the one hint an account still on the migration's UTC needs. */
+const zoneLine = (t: (key: string, options?: Record<string, unknown>) => string, kept: string): string => {
+  const here = browserZone();
+
+  return [t('me.appearance.timezoneLine'), here && here !== kept ? t('me.appearance.timezoneHere', { zone: here }) : null].filter(Boolean).join(' ');
+};
