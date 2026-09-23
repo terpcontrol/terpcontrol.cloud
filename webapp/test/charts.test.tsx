@@ -154,9 +154,9 @@ const series: GrowSeries = {
     { metric: 'vpd', points: [0, 6, 12, 18, 24].map(hour => ({ measuredAt: at(hour), value: 1.1 + hour / 100 })), targets: [targets(1.2, 1, 1.4)] },
   ],
   outputs: [
-    { output: 'light', deviceId: 'device-1', spans: [{ startsAt: at(6), endsAt: at(18) }] },
-    { output: 'dehumidifier', deviceId: 'device-1', spans: [{ startsAt: at(8), endsAt: at(9) }] },
-    { output: 'heater', deviceId: 'device-1', spans: [{ startsAt: at(2), endsAt: at(3) }] },
+    { output: 'light', deviceId: 'device-1', spans: [{ startsAt: at(6), endsAt: at(18) }], heardUntil: at(24) },
+    { output: 'dehumidifier', deviceId: 'device-1', spans: [{ startsAt: at(8), endsAt: at(9) }], heardUntil: at(24) },
+    { output: 'heater', deviceId: 'device-1', spans: [{ startsAt: at(2), endsAt: at(3) }], heardUntil: at(24) },
   ],
   nights: [{ startsAt: at(0), endsAt: at(6) }],
   measurements: [
@@ -438,10 +438,55 @@ describe('what a plot is made of', () => {
     ]);
   });
 
+  it('ends the wave where the device was last heard rather than lying flat along the bottom to the edge', () => {
+    // Off at 20, quiet from 25: the bottom between them is a claim about
+    // hardware nobody has heard from, so the wave stops and breaks instead.
+    expect(stepPoints([{ from: 10, to: 20 }], 0, 30, 25)).toEqual([
+      [0, 0],
+      [10, 0],
+      [10, 1],
+      [20, 1],
+      [20, 0],
+      [25, 0],
+      [26, null],
+    ]);
+  });
+
+  it('draws a device still reporting all the way to the edge', () => {
+    expect(stepPoints([{ from: 10, to: 20 }], 0, 30, 30)).toEqual([
+      [0, 0],
+      [10, 0],
+      [10, 1],
+      [20, 1],
+      [20, 0],
+      [30, 0],
+    ]);
+  });
+
+  it('cuts a pooled wave where the last of its controllers was heard, not the first', () => {
+    const lanes: GrowSeries['outputs'] = [
+      { output: 'light', deviceId: 'device-1', spans: [{ startsAt: at(2), endsAt: at(4) }], heardUntil: at(6) },
+      { output: 'light', deviceId: 'device-2', spans: [{ startsAt: at(8), endsAt: at(18) }], heardUntil: at(24) },
+    ];
+    const both = { ...series, outputs: lanes };
+    const [card] = cardsOf(key => key, both, {
+      picked: { metrics: [], outputs: ['light'], measurements: [] },
+      layout: 'stacked',
+      offered: offeredBy(both, []),
+      leaf: null,
+      plants: [],
+    });
+
+    // One controller went quiet at six and the other is still reporting: the
+    // tent's lamp is still known about, so the wave runs to the window's end.
+    const last = card.plot.lines[0].points[card.plot.lines[0].points.length - 1];
+    expect(last).toEqual([DateTime.fromISO(at(24)).toMillis(), 0]);
+  });
+
   it('pools two controllers into one wave that only ever steps forwards, and says it pooled them', () => {
     const lanes: GrowSeries['outputs'] = [
-      { output: 'light', deviceId: 'device-1', spans: [{ startsAt: at(10), endsAt: at(18) }] },
-      { output: 'light', deviceId: 'device-2', spans: [{ startsAt: at(9), endsAt: at(19) }] },
+      { output: 'light', deviceId: 'device-1', spans: [{ startsAt: at(10), endsAt: at(18) }], heardUntil: at(24) },
+      { output: 'light', deviceId: 'device-2', spans: [{ startsAt: at(9), endsAt: at(19) }], heardUntil: at(24) },
     ];
     const both = { ...series, outputs: lanes };
     const offered: Offered = offeredBy(both, []);

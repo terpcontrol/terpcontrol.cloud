@@ -124,8 +124,8 @@ const answer: SpaceTimeline = {
     },
   ],
   outputs: [
-    { output: 'light', deviceId: 'device-1', spans: [{ startsAt: at(6), endsAt: at(24) }] },
-    { output: 'heater', deviceId: 'device-1', spans: [{ startsAt: at(2), endsAt: at(3) }] },
+    { output: 'light', deviceId: 'device-1', spans: [{ startsAt: at(6), endsAt: at(24) }], heardUntil: at(24) },
+    { output: 'heater', deviceId: 'device-1', spans: [{ startsAt: at(2), endsAt: at(3) }], heardUntil: at(24) },
   ],
   events: [entry('e1', 3, 'note', 'Checked the trim'), entry('e2', 16, 'water', 'Watered'), entry('e3', 16.2, 'measurement', 'Measured')],
   cameras: [

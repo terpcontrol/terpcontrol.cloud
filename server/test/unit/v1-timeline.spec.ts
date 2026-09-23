@@ -611,6 +611,8 @@ describe('the night, the lanes and the alarms', () => {
       output: 'heater',
       deviceId: CONTROLLER,
       spans: [{ startsAt: '2026-06-09T18:00:00.000Z', endsAt: '2026-06-10T06:00:00.000Z' }],
+      // Still reporting, so everything up to the edge of the window is known.
+      heardUntil: '2026-06-10T12:00:00.000Z',
     });
     // Reported and never on: a lane of its own, with nothing in it.
     expect(page.outputs.find(lane => lane.output === 'dehumidifier')?.spans).toEqual([]);
@@ -628,6 +630,18 @@ describe('the night, the lanes and the alarms', () => {
     // again by the time anybody did: the night ends where it was last heard.
     expect(page.nights).toEqual([{ startsAt: '2026-06-09T18:00:00.000Z', endsAt: lastHeard }]);
     expect(page.outputs.find(lane => lane.output === 'heater')?.spans).toEqual([{ startsAt: '2026-06-09T18:00:00.000Z', endsAt: lastHeard }]);
+  });
+
+  it('says how far anything is known about each lane, so a silence is not drawn as a switched-off machine', async () => {
+    quietFrom = new Date('2026-06-10T02:00:00.000Z');
+    quietUntil = new Date('2026-06-11T00:00:00.000Z');
+    const lastHeard = new Date(quietFrom.getTime() - DAY_STEP_SECONDS * 1000).toISOString();
+    const page = await readAs(session(OWNER));
+
+    // Ten hours of the window are past the last thing the controller said. A
+    // square wave drawn from the spans alone would lie flat along the bottom
+    // across them, which reads as a heater somebody turned off.
+    expect(page.outputs.map(lane => lane.heardUntil)).toEqual([lastHeard, lastHeard, lastHeard]);
   });
 
   it('starts the first run where the device turned up, and at the edge of the window where it was already there', async () => {
@@ -949,7 +963,9 @@ describe('the night and the lanes over a window wider than the cycle', () => {
   });
 
   it('draws the lamp´s lane as the stretches it ran for, at the same resolution', () => {
-    expect(lanesOf([history()], WINDOW)).toEqual([{ output: 'light', deviceId: CONTROLLER, spans: stretches(true) }]);
+    expect(lanesOf([history()], WINDOW)).toEqual([
+      { output: 'light', deviceId: CONTROLLER, spans: stretches(true), heardUntil: CLOSES.toISOString() },
+    ]);
   });
 });
 

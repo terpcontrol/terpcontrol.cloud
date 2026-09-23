@@ -493,18 +493,24 @@ const plantLabel = (name: string, plantId: string | null, plants: readonly Plant
  * first, because a list sorted by start alone walks back across the panel the
  * moment one machine's window begins inside another's. The card says how many
  * were pooled rather than passing off two machines as one.
+ *
+ * The wave is drawn as far as the last of them was heard from, and no further.
+ * It is the latest and not the earliest of the lanes on purpose: where one
+ * controller of a tent has gone quiet and another is still reporting, the tent's
+ * lamp is still known about, and cutting at the first silence would erase what
+ * the second machine is saying.
  */
 const outputDrawn = (
   t: Translate,
   output: OutputMetric,
-  lanes: readonly { deviceId: string; spans: readonly { startsAt: string; endsAt: string }[] }[],
+  lanes: readonly { deviceId: string; spans: readonly { startsAt: string; endsAt: string }[]; heardUntil: string }[],
   from: number,
   to: number,
 ): Drawn => {
   const spans = joined(
     lanes.flatMap(lane => lane.spans.map(span => ({ from: at(span.startsAt), to: at(span.endsAt) }))).sort((one, other) => one.from - other.from),
   );
-  const points = stepPoints(spans, from, to);
+  const points = stepPoints(spans, from, to, Math.max(...lanes.map(lane => at(lane.heardUntil))));
   const title = t(`timeline.output.${output}`, { defaultValue: output });
   const devices = new Set(lanes.map(lane => lane.deviceId)).size;
 

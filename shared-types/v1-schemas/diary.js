@@ -1082,6 +1082,7 @@ exports.timelineOutputLane = (0, common_js_1.named)('TimelineOutputLane', zod_1.
     output: common_js_1.outputMetric,
     deviceId: (0, common_js_1.id)().describe('Two controllers in one tent each drive their own outputs, so a lane names the device it belongs to.'),
     spans: zod_1.z.array(exports.timelineSpan),
+    heardUntil: (0, common_js_1.instant)().describe('How far anything is known about this output: the last instant the device was heard from inside the window, or the window´s own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge.'),
 }));
 /**
  * One alarm as a span of the window. `endedAt` is null for an alert that is

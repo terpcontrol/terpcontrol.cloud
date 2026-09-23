@@ -1428,6 +1428,9 @@ export const timelineOutputLane = named(
     output: outputMetric,
     deviceId: id().describe('Two controllers in one tent each drive their own outputs, so a lane names the device it belongs to.'),
     spans: z.array(timelineSpan),
+    heardUntil: instant().describe(
+      'How far anything is known about this output: the last instant the device was heard from inside the window, or the window´s own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge.',
+    ),
   }),
 );
 

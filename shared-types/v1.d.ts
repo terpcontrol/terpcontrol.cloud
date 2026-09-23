@@ -3379,6 +3379,10 @@ export interface TimelineOutputLane {
    */
   deviceId: string;
   spans: TimelineSpan[];
+  /**
+   * How far anything is known about this output: the last instant the device was heard from inside the window, or the window´s own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge.
+   */
+  heardUntil: string;
 }
 
 export interface TimelineAlarm {

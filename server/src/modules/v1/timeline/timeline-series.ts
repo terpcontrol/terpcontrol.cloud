@@ -110,15 +110,39 @@ export const nightsOf = (histories: readonly DeviceHistory[], window: SeriesWind
   return lit ? spansOf(outputIn(lit, 'light'), false, lit.series, window) : [];
 };
 
-/** One lane per output a device reported, as the stretches it ran for. A device that said nothing about an output has no lane. */
+/**
+ * One lane per output a device reported, as the stretches it ran for. A device
+ * that said nothing about an output has no lane.
+ *
+ * Each lane also says how far anything is known about it. A run that stops
+ * because the device stopped reporting looks exactly like one that stops
+ * because the output was switched off, and a client drawing a square wave has
+ * to be able to tell them apart: three days of silence are not three days of
+ * "off".
+ */
 export const lanesOf = (histories: readonly DeviceHistory[], window: SeriesWindow): TimelineOutputLane[] =>
   histories.flatMap(one =>
     one.outputs.flatMap(output =>
       output.switchings.length > 0
-        ? [{ output: output.output, deviceId: one.series.deviceId, spans: spansOf(output, true, one.series, window) }]
+        ? [
+            {
+              output: output.output,
+              deviceId: one.series.deviceId,
+              spans: spansOf(output, true, one.series, window),
+              heardUntil: heardUntilOf(output, one.series, window),
+            },
+          ]
         : [],
     ),
   );
+
+/** The last instant the device was heard about one output, which is the window's own end while it is still reporting. */
+const heardUntilOf = (output: OutputHistory, series: DeviceSeries, window: SeriesWindow): string => {
+  const points = series.outputs.find(one => one.output === output.output)?.points ?? [];
+  const heard = heardStretches(points, window, series.stepSeconds);
+
+  return new Date(heard[heard.length - 1]?.to ?? window.startsAt.getTime()).toISOString();
+};
 
 /** What one device said about one output, or nothing where it was not asked about it or never reported it. */
 const outputIn = (history: DeviceHistory, output: OutputMetric): OutputHistory =>

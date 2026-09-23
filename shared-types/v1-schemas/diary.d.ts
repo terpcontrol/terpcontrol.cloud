@@ -3809,6 +3809,7 @@ export declare const timelineOutputLane: z.ZodObject<{
         startsAt: z.ZodISODateTime;
         endsAt: z.ZodISODateTime;
     }, z.core.$strip>>;
+    heardUntil: z.ZodISODateTime;
 }, z.core.$strip>;
 /**
  * One alarm as a span of the window. `endedAt` is null for an alert that is
@@ -3981,6 +3982,7 @@ export declare const spaceTimeline: z.ZodObject<{
             startsAt: z.ZodISODateTime;
             endsAt: z.ZodISODateTime;
         }, z.core.$strip>>;
+        heardUntil: z.ZodISODateTime;
     }, z.core.$strip>>;
     events: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -5090,6 +5092,7 @@ export declare const growSeries: z.ZodObject<{
             startsAt: z.ZodISODateTime;
             endsAt: z.ZodISODateTime;
         }, z.core.$strip>>;
+        heardUntil: z.ZodISODateTime;
     }, z.core.$strip>>;
     nights: z.ZodArray<z.ZodObject<{
         startsAt: z.ZodISODateTime;

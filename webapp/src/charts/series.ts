@@ -153,15 +153,23 @@ export const axisFigure = (value: number): string => (Number.isInteger(value) ? 
  * An output is spans and not points, so it is drawn as the square wave those
  * spans describe: up where it ran, down where it did not, and flat along the
  * bottom across the stretches of the window it was off for.
+ *
+ * The bottom is a claim about hardware, so it is only drawn as far as anything
+ * was heard from it. Past `heardUntil` the wave ends and a break follows, which
+ * leaves the rest of the panel empty and makes the pinned readout say nothing
+ * there rather than "off" - a device that has said nothing since Saturday was
+ * not switched off on Saturday.
  */
-export const stepPoints = (spans: readonly PlotSpan[], from: number, to: number): [number, number | null][] => {
+export const stepPoints = (spans: readonly PlotSpan[], from: number, to: number, heardUntil = to): [number, number | null][] => {
+  const known = Math.max(from, Math.min(to, heardUntil));
   const points: [number, number | null][] = [[from, 0]];
   for (const span of spans) {
     const left = Math.max(from, span.from);
-    const right = Math.min(to, span.to);
+    const right = Math.min(known, span.to);
     if (right > left) points.push([left, 0], [left, 1], [right, 1], [right, 0]);
   }
-  points.push([to, 0]);
+  points.push([known, 0]);
+  if (known < to) points.push([known + 1, null]);
 
   return points;
 };
