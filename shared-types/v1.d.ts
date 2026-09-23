@@ -837,9 +837,12 @@ export interface Firmware {
   id: string;
   createdAt: string;
   classId: string;
+  /**
+   * What the build was called when it was uploaded. Every build carried over from the old cloud is named after its device class, so it does not tell two builds of one class apart.
+   */
   name: string | null;
   /**
-   * The build's uuid; builds are not ordered and cannot be compared.
+   * What the build container stamped the build with - a commit and the branch it came from. Builds are not ordered and cannot be compared, but this is the one field that says which build a device is on.
    */
   version: string;
   /**
@@ -858,18 +861,24 @@ export interface FirmwarePage {
 
 export interface FirmwareCreate {
   classId: string;
+  /**
+   * What the build was called when it was uploaded. Every build carried over from the old cloud is named after its device class, so it does not tell two builds of one class apart.
+   */
   name: string | null;
   /**
-   * The build's uuid; builds are not ordered and cannot be compared.
+   * What the build container stamped the build with - a commit and the branch it came from. Builds are not ordered and cannot be compared, but this is the one field that says which build a device is on.
    */
   version: string;
 }
 
 export interface FirmwareUpdate {
   classId?: string;
+  /**
+   * What the build was called when it was uploaded. Every build carried over from the old cloud is named after its device class, so it does not tell two builds of one class apart.
+   */
   name?: string | null;
   /**
-   * The build's uuid; builds are not ordered and cannot be compared.
+   * What the build container stamped the build with - a commit and the branch it came from. Builds are not ordered and cannot be compared, but this is the one field that says which build a device is on.
    */
   version?: string;
 }

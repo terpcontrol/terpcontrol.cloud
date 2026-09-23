@@ -208,8 +208,11 @@ export const firmware = named(
     id: id(),
     createdAt: instant(),
     classId: id(),
-    name: z.string().nullable(),
-    version: z.string().describe("The build's uuid; builds are not ordered and cannot be compared."),
+    name: z
+      .string()
+      .nullable()
+      .describe('What the build was called when it was uploaded. Every build carried over from the old cloud is named after its device class, so it does not tell two builds of one class apart.'),
+    version: z.string().describe('What the build container stamped the build with - a commit and the branch it came from. Builds are not ordered and cannot be compared, but this is the one field that says which build a device is on.'),
     wasStable: z.boolean().describe('Once true it stays true, so a build can be rolled back to knowingly.'),
   }),
 );

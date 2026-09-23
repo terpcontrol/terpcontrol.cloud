@@ -514,6 +514,32 @@ describe('what the Devices tab calls a device', () => {
     expect(await screen.findByText('via Controller · Tent 1')).toBeInTheDocument();
   });
 
+  it('names the build a device runs and never prints the uuid it reports', async () => {
+    // Every build carried over from the old cloud is named after its class, so
+    // two fridges on two different builds both read "fridge"; the version is
+    // the one field that says which build a device is on.
+    const build = { id: 'eac2f377-729c-483c-ad31-0b41eba4276d', name: 'fridge', version: '082eda0-fix-smart-socket-wipe' };
+    list.devices = [standing({ state: { lastSeenAt: NOW.minus({ seconds: 20 }).toISO()!, firmwareId: build.id } } as Partial<Device>)];
+    list.cameras = [];
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      if (path === '/devices') return Promise.resolve({ items: list.devices, nextCursor: null }) as never;
+      if (path === '/cameras') return Promise.resolve({ items: [], nextCursor: null }) as never;
+      if (path === '/spaces') return Promise.resolve({ items: [{ id: 'space-1', name: 'Tent 1' } as Space], nextCursor: null }) as never;
+      if (path === '/me') return Promise.resolve({ premium: { enforced: true } }) as never;
+      if (path.endsWith('/firmwares')) return Promise.resolve({ items: [build], nextCursor: null }) as never;
+      if (path.endsWith('/sockets')) return Promise.resolve({ items: [], capabilities: CAPABILITIES }) as never;
+
+      return Promise.resolve({ items: [], nextCursor: null }) as never;
+    });
+    wrap(<DeviceList />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /What Controller · C0FFEE is/ }));
+
+    expect(await screen.findByText('082eda0-fix-smart-socket-wipe')).toBeInTheDocument();
+    expect(await screen.findByText(/firmware 082eda0-fix-smart-socket-wipe/)).toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(build.id))).toBeNull();
+  });
+
   it('draws a camera that inherited its controller´s type key by what is printed on the cam', async () => {
     list.devices = [standing({})];
     list.cameras = [hanging({ name: 'controller', did: 'TCAM00A41C' })];

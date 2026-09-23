@@ -76,7 +76,9 @@ const device: Device = {
 const space: Space = spaceWhere('own', { id: 'space-new', kind: 'other', name: 'Terp Controller' });
 
 /** The build the device reports, which is a uuid until the build list gives it a name. */
-const BUILD = { id: 'build-uuid', createdAt: NOW.toISO()!, classId: 'class-1', name: '2.4.1', version: 'build-uuid', wasStable: true };
+// As production holds them: the name is the device class, and the version is
+// what the build container stamped - which is the half that says which build.
+const BUILD = { id: 'build-uuid', createdAt: NOW.toISO()!, classId: 'class-1', name: 'controller', version: '082eda0-stable', wasStable: true };
 
 /** Day 35 of a flowering run in a tent of its own, which is what a move out of it would cost. */
 const spring: GrowListItem = {
@@ -191,7 +193,7 @@ describe('adding a device', () => {
     await drawClaimed();
 
     expect(screen.getByRole('heading', { level: 2, name: /Claimed/ })).toHaveTextContent('Claimed · Terp Controller · 7F3A');
-    expect(screen.getByText(/online 20 s ago/)).toHaveTextContent('online 20 s ago · firmware 2.4.1 · 0 sockets · Cam: none');
+    expect(screen.getByText(/online 20 s ago/)).toHaveTextContent('online 20 s ago · firmware 082eda0-stable · 0 sockets · Cam: none');
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add a device · 2 of 4');
     expect(screen.getByRole('button', { name: /Next/ })).toHaveTextContent('Next · what is it doing?');
   });
@@ -400,13 +402,18 @@ describe('adding a device', () => {
   it('names the build rather than printing the uuid the hardware reports', async () => {
     await drawClaimed();
 
-    expect(screen.getByText(/online 20 s ago/)).toHaveTextContent('firmware 2.4.1');
+    // The version and not the name: every build carried over from the old
+    // cloud is named after its class, so the name says "controller" about
+    // every controller build there has ever been.
+    expect(screen.getByText(/online 20 s ago/)).toHaveTextContent('firmware 082eda0-stable');
     expect(screen.getByText(/online 20 s ago/)).not.toHaveTextContent('build-uuid');
   });
 
   it('leaves the build out altogether rather than naming it after a uuid nobody named', async () => {
     vi.mocked(api.get).mockImplementation((path: string) =>
-      Promise.resolve(path === '/devices/sim-controller-7f3a/firmwares' ? { items: [{ ...BUILD, name: null }], nextCursor: null } : answers(path)),
+      Promise.resolve(
+        path === '/devices/sim-controller-7f3a/firmwares' ? { items: [{ ...BUILD, name: null, version: '' }], nextCursor: null } : answers(path),
+      ),
     );
 
     await drawClaimed();

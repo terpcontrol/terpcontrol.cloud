@@ -142,8 +142,11 @@ exports.firmware = (0, common_js_1.named)('Firmware', zod_1.z.object({
     id: (0, common_js_1.id)(),
     createdAt: (0, common_js_1.instant)(),
     classId: (0, common_js_1.id)(),
-    name: zod_1.z.string().nullable(),
-    version: zod_1.z.string().describe("The build's uuid; builds are not ordered and cannot be compared."),
+    name: zod_1.z
+        .string()
+        .nullable()
+        .describe('What the build was called when it was uploaded. Every build carried over from the old cloud is named after its device class, so it does not tell two builds of one class apart.'),
+    version: zod_1.z.string().describe('What the build container stamped the build with - a commit and the branch it came from. Builds are not ordered and cannot be compared, but this is the one field that says which build a device is on.'),
     wasStable: zod_1.z.boolean().describe('Once true it stays true, so a build can be rolled back to knowingly.'),
 }));
 exports.firmwarePage = (0, common_js_1.named)('FirmwarePage', (0, common_js_1.page)(exports.firmware));

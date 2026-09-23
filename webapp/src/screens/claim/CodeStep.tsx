@@ -168,8 +168,13 @@ export function ClaimedTitle({ device }: { device: Device }) {
  * The build is named rather than identified. What the hardware reports is the
  * uuid its build container stamped it with, which is three lines of hex to a
  * grower and cannot be compared with anything; so the build list is what turns
- * it into "2.4.1", and a build nobody has named is left out of the line
- * altogether rather than printed as the uuid it is.
+ * it into something readable, and a build with nothing readable about it is
+ * left out of the line altogether rather than printed as the uuid it is.
+ *
+ * What is readable is the version and not the name. Every build carried over
+ * from the old cloud is named after its device class, so "fridge" is what a
+ * name says about two fridges on two different builds; the version is what the
+ * build container stamped and is the only field that tells them apart.
  */
 export function ClaimedFacts({ device, sockets, now }: { device: Device; sockets: SocketPage | undefined; now: DateTime }) {
   const { t } = useTranslation();
@@ -182,7 +187,7 @@ export function ClaimedFacts({ device, sockets, now }: { device: Device; sockets
   return (
     <>
       {t(`claim.code.${deviceLiveness(seen, now)}`, { age: ageLabel(seen, now) })}
-      {build?.name ? ` · ${t('claim.code.firmware', { version: build.name })}` : ''}
+      {build?.version || build?.name ? ` · ${t('claim.code.firmware', { version: build.version || build.name })}` : ''}
       {sockets ? ` · ${t('claim.code.sockets', { count: sockets.items.length })}` : ''}
       {` · ${t('claim.code.camera', { name: cameraName(device, t) })}`}
     </>

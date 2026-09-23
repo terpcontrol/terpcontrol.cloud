@@ -2339,6 +2339,7 @@
         "minLength": 1
       },
       "name": {
+        "description": "What the build was called when it was uploaded. Every build carried over from the old cloud is named after its device class, so it does not tell two builds of one class apart.",
         "type": [
           "string",
           "null"
@@ -2346,7 +2347,7 @@
       },
       "version": {
         "type": "string",
-        "description": "The build's uuid; builds are not ordered and cannot be compared."
+        "description": "What the build container stamped the build with - a commit and the branch it came from. Builds are not ordered and cannot be compared, but this is the one field that says which build a device is on."
       },
       "wasStable": {
         "type": "boolean",
@@ -2392,6 +2393,7 @@
         "minLength": 1
       },
       "name": {
+        "description": "What the build was called when it was uploaded. Every build carried over from the old cloud is named after its device class, so it does not tell two builds of one class apart.",
         "type": [
           "string",
           "null"
@@ -2399,7 +2401,7 @@
       },
       "version": {
         "type": "string",
-        "description": "The build's uuid; builds are not ordered and cannot be compared."
+        "description": "What the build container stamped the build with - a commit and the branch it came from. Builds are not ordered and cannot be compared, but this is the one field that says which build a device is on."
       }
     },
     "required": [
@@ -2416,6 +2418,7 @@
         "minLength": 1
       },
       "name": {
+        "description": "What the build was called when it was uploaded. Every build carried over from the old cloud is named after its device class, so it does not tell two builds of one class apart.",
         "type": [
           "string",
           "null"
@@ -2423,7 +2426,7 @@
       },
       "version": {
         "type": "string",
-        "description": "The build's uuid; builds are not ordered and cannot be compared."
+        "description": "What the build container stamped the build with - a commit and the branch it came from. Builds are not ordered and cannot be compared, but this is the one field that says which build a device is on."
       }
     }
   },

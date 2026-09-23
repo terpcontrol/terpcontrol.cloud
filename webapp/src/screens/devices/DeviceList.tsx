@@ -3,7 +3,7 @@ import type { DateTime } from 'luxon';
 import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { ActuatorRuns, Camera, ClimateVerdict, Device, OutputMetric, SocketPage, SocketRole, ValueState } from '@fg2/shared-types/v1';
+import type { ActuatorRuns, Camera, ClimateVerdict, Device, Firmware, OutputMetric, SocketPage, SocketRole, ValueState } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { useCameras, useLatestStills } from '@/api/cameras';
 import { fetchedAt } from '@/api/clock';
@@ -242,20 +242,27 @@ function DeviceRow({ device, place, sockets, cameras, linked, now }: DeviceRowPr
   const liveness = deviceLiveness(device.state.lastSeenAt, now);
   const legacy = sockets ? !sockets.capabilities.socketOverride : false;
 
+  const build = firmwares.data?.items.find(one => one.id === device.state.firmwareId);
+
   // What the row says about the device, in the order it would be missed: the
   // line is one line, and what does not fit is in the panel behind the chevron.
-  // The build's id is last because it is the one fact that is an opaque uuid.
+  //
+  // The build is named and never identified. What the hardware reports is the
+  // uuid its build container stamped, which is three lines of hex to a grower
+  // and cannot be compared with anything, so the build list is what turns it
+  // into something readable - and until that list has been read, the segment is
+  // left out rather than printed as the uuid it is. The list is one request per
+  // class and is fetched when the panel opens, which is where this fact is
+  // wanted; asking for it on first paint would be one request per row.
   const line = [
     place,
     sockets && sockets.items.length > 0 ? t('devices.socketCount', { count: sockets.items.length }) : null,
     cameras > 0 ? t('devices.camCount', { count: cameras }) : null,
     legacy ? t('devices.legacy') : null,
-    device.state.firmwareId ? t('devices.firmware', { version: device.state.firmwareId }) : null,
+    buildLabel(build) ? t('devices.firmware', { version: buildLabel(build) }) : null,
   ]
     .filter(Boolean)
     .join(' · ');
-
-  const build = firmwares.data?.items.find(one => one.id === device.state.firmwareId);
 
   return (
     <li className={`${ui.card} ${styles.row}`}>
@@ -285,10 +292,7 @@ function DeviceRow({ device, place, sockets, cameras, linked, now }: DeviceRowPr
         <Facts>
           <Fact label={t('devices.fact.id')} value={device.id} />
           <Fact label={t('devices.fact.type')} value={device.type} />
-          <Fact
-            label={t('devices.fact.build')}
-            value={build ? (build.name ?? build.version) : firmwares.isPending ? t('home.waiting') : (device.state.firmwareId ?? '—')}
-          />
+          <Fact label={t('devices.fact.build')} value={buildLabel(build) ?? (firmwares.isPending ? t('home.waiting') : '—')} />
           <Fact label={t('devices.fact.channel')} value={t(`devices.channel.${device.firmware.channel}`)} />
           {sockets ? <Fact label={t('devices.fact.can')} value={capabilityLine(t, sockets)} /> : null}
           {place && linked && device.spaceId ? (
@@ -371,6 +375,19 @@ function Thumb({ stillId }: { stillId: string | null }) {
     </span>
   );
 }
+
+/**
+ * Which build a device is on, in the words that say which one.
+ *
+ * `version` comes first because it is the only field that tells two builds of
+ * one class apart: the build container stamps it with the commit and the branch
+ * it came from, while every build carried over from the old cloud is *named*
+ * after its class, so two fridges on two different builds both read "fridge".
+ * With neither there is nothing to say, and nothing is said - the uuid the
+ * device reports means nothing to a grower and cannot be compared with
+ * anything.
+ */
+const buildLabel = (build: Firmware | undefined): string | null => build?.version || build?.name || null;
 
 /** Live first, then the ones that have gone quiet; two of a kind keep the order the server gave them. */
 const RANK: Record<ValueState, number> = { live: 0, stale: 1, offline: 2 };
