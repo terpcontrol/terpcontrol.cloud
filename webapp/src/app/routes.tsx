@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate, Outlet } from 'react-router';
 import { AppShell } from './shell/AppShell';
 import { RequireSession } from './RequireSession';
+import { RouteError } from './RouteError';
 import { AddCamera } from '@/screens/camera/add/AddCamera';
 import { AdminOnly } from '@/screens/admin/AdminOnly';
 import { Users as AdminUsers } from '@/screens/admin/Users';
@@ -101,65 +102,84 @@ import { Timeline } from '@/screens/Timeline';
  * an account that may not read them, or a window too narrow to draw them, is
  * answered with the sentence that says which of the two it is rather than with
  * an empty page.
+ *
+ * Two of the routes below carry nothing but an error boundary, and they are
+ * where a screen that throws stops. The inner one stands between the shell and
+ * the screens, so a screen that fails is replaced while the tabs, the bell and
+ * the log button around it keep working - which is most of what "a way back"
+ * means on a phone. The outer one is under everything, including the sign-in
+ * page, the public addresses and the shell itself, because a failure there has
+ * no tabs to fall back on. Neither has a path of its own, so neither changes
+ * which address matches what.
  */
 export const router = createBrowserRouter([
-  { path: '/sign-in', element: <SignIn /> },
-  { path: '/sign-up', element: <SignUp /> },
-  { path: '/g/:slug', element: <PublicGrowRoute /> },
-  { path: '/shared/:token', element: <SharedRoute /> },
-  { path: '/join', element: <JoinRoute /> },
-  { path: '/join/:code', element: <JoinRoute /> },
-  { path: '/:handle', element: <PublicProfileRoute /> },
   {
-    element: (
-      <RequireSession>
-        <AppShell />
-      </RequireSession>
-    ),
+    errorElement: <RouteError />,
     children: [
-      { index: true, element: <Home /> },
-      { path: 'timeline', element: <Timeline /> },
-      { path: 'charts', element: <Charts /> },
-      { path: 'log', element: <LogRoute /> },
-      { path: 'devices', element: <Devices /> },
-      { path: 'claim', element: <Claim /> },
-      { path: 'cameras/add', element: <AddCamera /> },
-      { path: 'cameras/:cameraId', element: <CameraPage /> },
-      { path: 'tasks', element: <Tasks /> },
-      { path: 'me', element: <Me /> },
-      { path: 'me/notifications', element: <Notifications /> },
-      { path: 'me/privacy', element: <Privacy /> },
-      { path: 'me/public', element: <PublicGrows /> },
-      { path: 'me/following', element: <Following /> },
-      { path: 'me/share-links', element: <ShareLinks /> },
-      { path: 'me/premium', element: <Premium /> },
-      { path: 'me/schemes', element: <Schemes /> },
-      { path: 'me/appearance', element: <Appearance /> },
-      { path: 'me/account', element: <Account /> },
-      { path: 'me/about', element: <About /> },
+      { path: '/sign-in', element: <SignIn /> },
+      { path: '/sign-up', element: <SignUp /> },
+      { path: '/g/:slug', element: <PublicGrowRoute /> },
+      { path: '/shared/:token', element: <SharedRoute /> },
+      { path: '/join', element: <JoinRoute /> },
+      { path: '/join/:code', element: <JoinRoute /> },
+      { path: '/:handle', element: <PublicProfileRoute /> },
       {
-        path: 'admin',
         element: (
-          <AdminOnly>
-            <Outlet />
-          </AdminOnly>
+          <RequireSession>
+            <AppShell />
+          </RequireSession>
         ),
         children: [
-          { path: 'fleet', element: <Fleet /> },
-          { path: 'firmware', element: <FirmwareScreen /> },
-          { path: 'users', element: <AdminUsers /> },
-          { path: 'demo', element: <Demo /> },
+          {
+            errorElement: <RouteError />,
+            children: [
+              { index: true, element: <Home /> },
+              { path: 'timeline', element: <Timeline /> },
+              { path: 'charts', element: <Charts /> },
+              { path: 'log', element: <LogRoute /> },
+              { path: 'devices', element: <Devices /> },
+              { path: 'claim', element: <Claim /> },
+              { path: 'cameras/add', element: <AddCamera /> },
+              { path: 'cameras/:cameraId', element: <CameraPage /> },
+              { path: 'tasks', element: <Tasks /> },
+              { path: 'me', element: <Me /> },
+              { path: 'me/notifications', element: <Notifications /> },
+              { path: 'me/privacy', element: <Privacy /> },
+              { path: 'me/public', element: <PublicGrows /> },
+              { path: 'me/following', element: <Following /> },
+              { path: 'me/share-links', element: <ShareLinks /> },
+              { path: 'me/premium', element: <Premium /> },
+              { path: 'me/schemes', element: <Schemes /> },
+              { path: 'me/appearance', element: <Appearance /> },
+              { path: 'me/account', element: <Account /> },
+              { path: 'me/about', element: <About /> },
+              {
+                path: 'admin',
+                element: (
+                  <AdminOnly>
+                    <Outlet />
+                  </AdminOnly>
+                ),
+                children: [
+                  { path: 'fleet', element: <Fleet /> },
+                  { path: 'firmware', element: <FirmwareScreen /> },
+                  { path: 'users', element: <AdminUsers /> },
+                  { path: 'demo', element: <Demo /> },
+                ],
+              },
+              { path: 'alerts', element: <Alerts /> },
+              { path: 'grows/new', element: <NewGrowRoute /> },
+              { path: 'grows/archive', element: <GrowArchive /> },
+              { path: 'grows/:growId/measurements', element: <Measurements /> },
+              { path: 'grows/:growId/plants/:plantId', element: <PlantPage /> },
+              { path: 'grows/:growId/:tab?', element: <GrowPage /> },
+              { path: 'spaces/:spaceId/:tab?/:sub?', element: <SpacePage /> },
+              { path: 'index.html', element: <Navigate to="/" replace /> },
+              { path: '*', element: <NotFound /> },
+            ],
+          },
         ],
       },
-      { path: 'alerts', element: <Alerts /> },
-      { path: 'grows/new', element: <NewGrowRoute /> },
-      { path: 'grows/archive', element: <GrowArchive /> },
-      { path: 'grows/:growId/measurements', element: <Measurements /> },
-      { path: 'grows/:growId/plants/:plantId', element: <PlantPage /> },
-      { path: 'grows/:growId/:tab?', element: <GrowPage /> },
-      { path: 'spaces/:spaceId/:tab?/:sub?', element: <SpacePage /> },
-      { path: 'index.html', element: <Navigate to="/" replace /> },
-      { path: '*', element: <NotFound /> },
     ],
   },
 ]);

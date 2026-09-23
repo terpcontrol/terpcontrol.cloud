@@ -11,7 +11,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GrowListItem, GrowSeries, TimelineTargets } from '@fg2/shared-types/v1';
 import { Charts } from '@/screens/charts/Charts';
 import { cardsOf, offeredBy, type Offered } from '@/screens/charts/cards';
-import { csvOf, stepPoints } from '@/charts/series';
+import { csvOf, niceScale, stepPoints } from '@/charts/series';
 
 const state = vi.hoisted(() => ({
   series: null as GrowSeries | null,
@@ -568,6 +568,32 @@ describe('what a plot is made of', () => {
     expect(times).toEqual([...times].sort((one, other) => one - other));
     // A switch has no scale worth printing: it ran or it did not.
     expect(card.scaleEnds).toEqual([null]);
+  });
+
+  it('writes both corners of every one-decimal window as the figures they mean', () => {
+    // Every corner is a whole number of steps, and a step is 1, 2, 5 or 10 of
+    // some power of ten - so every corner is a figure with few enough decimals
+    // to be written out exactly. The multiplication that reaches it is not:
+    // 169 × 0.2 comes to 33.800000000000004, and a corner one unit in the last
+    // place above the round number ECharts re-derives is what threw the chart,
+    // and with it the application, out of a screen.
+    let checked = 0;
+    for (let low = 0; low <= 100; low += 0.1) {
+      for (let width = 0.1; width <= 5; width += 0.1) {
+        const high = low + width;
+        const scale = niceScale([Math.round(low * 10) / 10, Math.round(high * 10) / 10]);
+
+        expect(scale.low).toBe(Number(scale.low.toPrecision(12)));
+        expect(scale.high).toBe(Number(scale.high.toPrecision(12)));
+        // And the air around the data is still there: a corner is snapped to
+        // the figure it means, never inwards past what it has to hold.
+        expect(scale.low).toBeLessThanOrEqual(Math.round(low * 10) / 10);
+        expect(scale.high).toBeGreaterThanOrEqual(Math.round(high * 10) / 10);
+        checked += 1;
+      }
+    }
+
+    expect(checked).toBeGreaterThan(50_000);
   });
 
   it('counts a reading taken before day 1 as day 1, the way the grow´s own counter does', () => {

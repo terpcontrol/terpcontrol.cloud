@@ -1382,6 +1382,12 @@
       "device": "Dieses Gerät ist nicht mit dir geteilt.",
       "why": "Wer es teilt, hat dich herausgenommen. Ein erneuter Versuch bringt es nicht zurück.",
       "home": "Start"
+    },
+    "crashed": {
+      "title": "Dieser Bildschirm konnte nicht gezeichnet werden",
+      "why": "Mitten im Zeichnen ist etwas schiefgegangen. An Messwerten und Einträgen ändert das nichts, und der Rest der App läuft weiter.",
+      "again": "Noch einmal versuchen",
+      "home": "Start"
     }
   },
   "home": {

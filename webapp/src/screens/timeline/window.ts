@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import type { Metric, SpaceTimeline, TimelineAlarm, TimelinePanel, TimelineSpan, TimelineTarget, TimelineTargets } from '@fg2/shared-types/v1';
+import { niceScale } from '@/charts/series';
 
 /**
  * The arithmetic the stacked panels share: where an instant sits in the window,
@@ -121,28 +122,19 @@ export interface Scale {
 /**
  * What a panel is drawn between: everything measured and everything aimed at,
  * with a little air, rounded outwards to a figure worth printing in the corner.
+ *
+ * The arithmetic itself is the Charts view's, and is read from there rather
+ * than kept a second time here. Two copies of it is how one of them came to be
+ * left stopping at the corner the multiplication happened to reach, which
+ * ECharts throws on and which cost this screen its whole application; and both
+ * screens draw the same metric of the same tent from the same points, so a
+ * reader moving between them is owed the same two corner figures anyway.
  */
-export const scaleOf = (panel: TimelinePanel, stretches: Stretch[]): Scale => {
-  const values = [
+export const scaleOf = (panel: TimelinePanel, stretches: Stretch[]): Scale =>
+  niceScale([
     ...panel.points.flatMap(point => (point.value === null ? [] : [point.value])),
     ...stretches.flatMap(stretch => [stretch.target.band.low, stretch.target.band.high]),
-  ];
-  if (values.length === 0) return { low: 0, high: 1 };
-
-  const low = Math.min(...values);
-  const high = Math.max(...values);
-  const step = niceStep(Math.max(high - low, Math.abs(high) * 0.02, 0.1) / 4);
-
-  return { low: Math.floor(low / step - 0.4) * step, high: Math.ceil(high / step + 0.4) * step };
-};
-
-/** 1, 2, 5 or 10 of whatever size the span is, so both corners read as round numbers. */
-const niceStep = (rough: number): number => {
-  const magnitude = 10 ** Math.floor(Math.log10(rough));
-  const steps = [1, 2, 5, 10].map(one => one * magnitude);
-
-  return steps.find(one => one >= rough) ?? magnitude * 10;
-};
+  ]);
 
 /** The frame to show at the cursor: the newest picture taken by then, and the oldest there is before the first one was taken. */
 export const frameAt = (camera: SpaceTimeline['cameras'][number] | undefined, time: number) => {

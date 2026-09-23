@@ -317,6 +317,25 @@ describe('what a panel is drawn against', () => {
     expect(Number.isInteger(scale.high)).toBe(true);
   });
 
+  it('lands a corner on the round figure it means rather than a hairsbreadth above it', () => {
+    // Place 1's humidity read 33.9 to 34.3 one morning, and the low corner of
+    // that span is 169 steps of 0.2 - exactly 33.8 in decimal and
+    // 33.800000000000004 in binary. ECharts derives the same 33.8 from the
+    // extent it is handed and asserts, in its development build, that what it
+    // derived is not below what it was given: against the longer figure that
+    // assertion failed, and the exception replaced the whole application with
+    // a stack trace on any space whose readings happened to land there.
+    const damp = {
+      ...answer.panels[0],
+      metric: 'humidity' as const,
+      points: [33.9, 34.1, 34.3].map((value, hour) => ({ measuredAt: at(hour), value })),
+    };
+    const scale = scaleOf(damp, []);
+
+    expect(scale.low).toBe(33.8);
+    expect(scale.high).toBe(34.4);
+  });
+
   it('writes a corner that rounds away to nothing as nothing rather than as minus nothing', () => {
     // A device whose CO2 sensor answers zero on every sample gives a flat line,
     // and the scale is stretched a hairsbreadth either side of it: the low

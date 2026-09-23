@@ -191,8 +191,28 @@ export const niceScale = (values: readonly number[]): PlotScale => {
   const high = Math.max(...real);
   const step = niceStep(Math.max(high - low, Math.abs(high) * 0.02, 0.1) / 4);
 
-  return { low: Math.floor(low / step - 0.4) * step, high: Math.ceil(high / step + 0.4) * step };
+  return { low: snapped(Math.floor(low / step - 0.4) * step, step), high: snapped(Math.ceil(high / step + 0.4) * step, step) };
 };
+
+/**
+ * A corner as the round number it stands for rather than as the float the
+ * multiplication happened to come to.
+ *
+ * A step of 0.2 taken 169 times is 33.800000000000004 in binary floating point,
+ * one unit in the last place above the 33.8 it means. ECharts is handed the two
+ * corners as the extent of the axis and then works the same round figures out
+ * again itself, and its development build asserts that what it derived still
+ * lies inside what it was given: against a corner a hairsbreadth too high that
+ * assertion fails, the exception leaves the chart, and with no boundary above
+ * it the whole application goes with it - a blank screen over an error of
+ * 4e-15. Over one span of a humidity panel in a hundred this is the difference
+ * between a screen and a stack trace.
+ *
+ * The step is always 1, 2, 5 or 10 of some power of ten, so how many decimals
+ * it can carry is exact arithmetic rather than a guess, and a corner written
+ * out to that many is the round figure itself.
+ */
+const snapped = (value: number, step: number): number => Number(value.toFixed(Math.max(0, -Math.floor(Math.log10(step)))));
 
 /** 1, 2, 5 or 10 of whatever size the span is, so both ends read as round numbers. */
 const niceStep = (rough: number): number => {

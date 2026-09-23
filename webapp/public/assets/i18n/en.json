@@ -1386,6 +1386,12 @@
       "device": "This device is not shared with you.",
       "why": "Whoever shares it has taken you out. Trying again will not bring it back.",
       "home": "Home"
+    },
+    "crashed": {
+      "title": "This screen could not be drawn",
+      "why": "Something in it went wrong half way through. Nothing that was measured or written down is affected, and the rest of the app still works.",
+      "again": "Try it again",
+      "home": "Home"
     }
   },
   "home": {
