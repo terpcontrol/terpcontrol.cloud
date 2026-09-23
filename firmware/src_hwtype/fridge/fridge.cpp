@@ -121,7 +121,13 @@ namespace fg {
       state.temperature = temperature_sht;
     }
 
-    if(scd_valid) {
+    bool sht_failed = sht_fails >= MAX_SENSOR_FAILS;
+
+    if(scd_valid && sht_failed) {
+      state.humidity = humidity_scd;
+      state.temperature = temperature_scd;
+    }
+    else if(scd_valid) {
       if(temperature_scd > state.temperature + MAX_SENSOR_DEVIATION || temperature_scd < state.temperature - MAX_SENSOR_DEVIATION) {
         state.humidity = humidity_scd;
         state.temperature = temperature_scd;
@@ -135,20 +141,16 @@ namespace fg {
       }
     }
 
-    if(sht_fails >= 10 && !sensor_fail_logged) {
+    if(sht_failed && !sensor_fail_logged) {
       cloud.log("message-ext-sensor-fail");
       sensor_fail_logged = true;
     }
-    else {
+    else if(sht_valid) {
       sensor_fail_logged = false;
     }
 
-    if(co2_fails < 10) {
-      sensors_valid = true;
-    }
-    else {
-      sensors_valid = false;
-    }
+    // A failed SHT is covered by the SCD4x readings above, so only a failed SCD4x leaves nothing to regulate on.
+    sensors_valid = co2_fails < MAX_SENSOR_FAILS;
   }
 
   void FridgeController::checkDayCycle() {
