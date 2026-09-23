@@ -3685,6 +3685,10 @@ export interface GrowSeries {
    */
   deviceIds: string[];
   climate: TimelinePanel[];
+  /**
+   * When a device standing where this grow stood last measured one of the climate metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `climate` is empty in both. The Timeline of the tent answers the same question the same way. Answered only where `climate` is empty, because that is the one question it settles; null there where nothing standing with the grow has ever measured, and null beside curves that speak for themselves.
+   */
+  lastReadingAt: string | null;
   outputs: TimelineOutputLane[];
   /**
    * When the light was off, which is what every panel is shaded by.

@@ -5107,6 +5107,7 @@ export declare const growSeries: z.ZodObject<{
             }, z.core.$strip>>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    lastReadingAt: z.ZodNullable<z.ZodISODateTime>;
     outputs: z.ZodArray<z.ZodObject<{
         output: z.ZodEnum<{
             dehumidifier: "dehumidifier";

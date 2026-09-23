@@ -12,6 +12,7 @@ import { noLongerThere } from '@/api/problem';
 import { useSpaces } from '@/api/spaces';
 import { useScrub } from '@/charts/scrub';
 import { axisFigure, dayOfGrow, downloadCsv, readAt, type PlotLine } from '@/charts/series';
+import { ageLabel } from '@/ui/age';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { stoodIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -411,7 +412,18 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
       {chips}
       <RefreshFailed failedAt={series.isError ? series.dataUpdatedAt || (series.held?.at ?? null) : null} now={now} />
 
-      {nothingOffered ? <p className={`${ui.cardDashed} ${ui.note}`}>{t('charts.noData')}</p> : null}
+      {/* Two silences, told apart by the one fact the window cannot hold. A
+          grow whose places hold only a plug, a light or a fan has never
+          measured anything, and telling its grower the hardware went quiet
+          would be a fault invented out of nothing; a tent that measured until
+          Saturday and has said nothing since is dated, the way the tent's own
+          Timeline dates it one tap away. The advice stays in both: on the very
+          tent this was found on the next chip along does draw. */}
+      {nothingOffered ? (
+        <p className={`${ui.cardDashed} ${ui.note}`}>
+          {data.lastReadingAt === null ? t('charts.noData') : t('charts.quietWindow', { age: ageLabel(data.lastReadingAt, now) })}
+        </p>
+      ) : null}
       {!nothingOffered && isEmpty(chosen) ? <p className={`${ui.cardDashed} ${ui.note}`}>{t('charts.nothingPicked')}</p> : null}
 
       {cards.length > 0 ? <ScrubHeader cards={cards} cursor={cursor} stamp={day ? dayOf : x => stampOf(x, span)} /> : null}

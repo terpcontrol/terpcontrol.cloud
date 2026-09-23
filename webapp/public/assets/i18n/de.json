@@ -507,6 +507,7 @@
     "logsNoFilteredEntries": "Keine Log-Meldungen für die gewählten Filter",
     "moreHiddenMessages": "Es gibt {{count}} weitere Log-Meldungen. Bitte Auswahl reduzieren.",
     "noData": "In diesem Zeitraum liegen keine Messwerte vor — bitte den Zeitraum ändern.",
+    "quietWindow": "In diesem Zeitraum liegen keine Messwerte vor · zuletzt gemessen vor {{age}} — bitte den Zeitraum ändern.",
     "resetZoom": "Zoom zurücksetzen",
     "resetZoomTitle": "Zoom auf 1:1 zurücksetzen",
     "customRange": "Eigener Zeitraum",

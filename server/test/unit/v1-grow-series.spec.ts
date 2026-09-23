@@ -51,6 +51,16 @@ let access: AccessService;
 let series: GrowSeriesService;
 let reads: SeriesRequest[];
 
+/**
+ * The newest thing the store holds about a device, whenever it was measured,
+ * which is what a window with no curves in it has to be told apart by. Empty
+ * stands for a place that measures none of these metrics at all.
+ */
+let lastReading: Record<string, string | null>;
+
+/** Set to have the devices report nothing over the window asked for, which is a tent that has fallen quiet. */
+let silent = false;
+
 const isLit = (at: Date): boolean => at.getUTCHours() >= 6 && at.getUTCHours() < 18;
 
 /** The store looks for a switching at a grain of its own, far finer than the step a wide window is drawn with. */
@@ -97,8 +107,8 @@ const fakeData = {
     const instants: Date[] = [];
     for (let at = request.startsAt.getTime(); at < request.endsAt.getTime(); at += step) instants.push(new Date(at));
 
-    const metric = (name: Metric, at: Date): number =>
-      name === 'vpd' ? (isLit(at) ? 1.2 : 0.8) : name === 'humidity' ? 55 : name === 'co2' ? 900 : isLit(at) ? 24.8 : 20;
+    const metric = (name: Metric, at: Date): number | null =>
+      silent ? null : name === 'vpd' ? (isLit(at) ? 1.2 : 0.8) : name === 'humidity' ? 55 : name === 'co2' ? 900 : isLit(at) ? 24.8 : 20;
 
     return {
       deviceId,
@@ -113,11 +123,17 @@ const fakeData = {
         output,
         points: instants.map(at => ({
           measuredAt: at.toISOString(),
-          value: deviceId === CONTROLLER && output === 'light' ? (isLit(at) ? 1 : 0) : null,
+          value: !silent && deviceId === CONTROLLER && output === 'light' ? (isLit(at) ? 1 : 0) : null,
         })),
       })),
     };
   },
+  live: async (deviceId: string) => ({
+    metrics: lastReading[deviceId] ? { temperature: { value: 24, measuredAt: lastReading[deviceId], state: 'offline' } } : {},
+    outputs: {},
+    isDay: null,
+    lightOn: null,
+  }),
 } as unknown as DataService;
 
 /** Exactly what the route does: the guard decides, and the answer is built from what it decided. */
@@ -263,6 +279,8 @@ afterAll(async () => {
 beforeEach(async () => {
   await db.reset();
   reads = [];
+  silent = false;
+  lastReading = {};
   access = new AccessService(db.spaces, db.grows, db.plants, db.devices, db.cameras, db.entries, db.media, db.memberships, db.shareLinks);
   series = new GrowSeriesService(db.devices, db.entries, growsService(), fakeData);
   await world();
@@ -287,6 +305,37 @@ describe('what a chart is drawn from', () => {
     expect(bands[1].day).toEqual({ setpoint: 26, band: { low: 25, high: 27 } });
     // Nothing aims a controller at a VPD, so its panel carries no band at all.
     expect(answer.climate[1].targets).toEqual([]);
+  });
+
+  /**
+   * A metric every point of which is null has no panel, so an empty answer is
+   * what a grow standing among plugs and fans gets and what a grow whose tent
+   * fell quiet on Saturday gets. The window holds nothing that could tell them
+   * apart - the fact that decides it lies outside the window - and the tent's
+   * own Timeline, one tap away, already asks the store outright. Two screens
+   * about one silence must not give two accounts of it.
+   */
+  it('dates a silence the window cannot date for itself, and pays for the read only then', async () => {
+    silent = true;
+    lastReading = { [CONTROLLER]: '2026-06-06T14:07:09.000Z' };
+
+    const answer = await readAs(session(OWNER), { range: '24h', metrics: ['temperature', 'humidity'] });
+    expect(answer.climate).toEqual([]);
+    expect(answer.lastReadingAt).toBe('2026-06-06T14:07:09.000Z');
+  });
+
+  it('blames nothing on hardware where the places the grow stood in measure none of this', async () => {
+    silent = true;
+
+    expect((await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] })).lastReadingAt).toBeNull();
+  });
+
+  it('does not pay the read where the window already has curves to draw', async () => {
+    lastReading = { [CONTROLLER]: '2026-06-06T14:07:09.000Z' };
+
+    const answer = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] });
+    expect(answer.climate.length).toBeGreaterThan(0);
+    expect(answer.lastReadingAt).toBeNull();
   });
 
   it('shades the night from the lamp and lanes the outputs that were asked for', async () => {

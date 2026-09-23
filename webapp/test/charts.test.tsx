@@ -150,6 +150,7 @@ const series: GrowSeries = {
   dayFrom: 35,
   dayTo: 35,
   deviceIds: ['device-1'],
+  lastReadingAt: null,
   climate: [
     {
       metric: 'temperature',
@@ -578,6 +579,39 @@ describe('the Charts view', () => {
     expect(await screen.findByText('No measurements in this period — try a different range.')).toBeInTheDocument();
     expect(screen.queryByText('Temp + RH')).not.toBeInTheDocument();
   });
+
+  /**
+   * The same two silences the Timeline of the same tent tells apart, told apart
+   * the same way and dated the same way: a grower moving between the two
+   * screens one tap apart must not be given two accounts of one quiet tent.
+   */
+  it('dates the silence where the tent does measure and has simply stopped talking', async () => {
+    state.series = {
+      ...series,
+      climate: [],
+      outputs: [],
+      measurements: [],
+      nights: [],
+      lastReadingAt: DateTime.now().minus({ days: 3 }).toISO()!,
+    };
+    draw();
+
+    expect(await screen.findByText(/last measured 3 d ago/)).toBeInTheDocument();
+    // The advice stays: on the very tent this was found on the next chip along
+    // does draw, so a range really is worth trying.
+    expect(screen.getByText(/try a different range/)).toBeInTheDocument();
+  });
+
+  it('blames nothing on hardware a grow whose places hold none has never had', async () => {
+    // A grow standing where only a plug, a light or a fan stands has never
+    // measured a climate, and telling its grower the tent went quiet would be
+    // a fault invented out of nothing.
+    state.series = { ...series, climate: [], outputs: [], measurements: [], nights: [], lastReadingAt: null };
+    draw();
+
+    expect(await screen.findByText('No measurements in this period — try a different range.')).toBeInTheDocument();
+    expect(screen.queryByText(/last measured/)).not.toBeInTheDocument();
+  });
 });
 
 describe('what a plot is made of', () => {
@@ -812,7 +846,7 @@ describe('the leaf offset the VPD band rests on', () => {
       const catalogue = JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'));
       for (const key of ['leaf', 'leafHalves']) {
         expect(catalogue.charts.about[key]).not.toMatch(/}} °C/);
-        expect(catalogue.charts.about[key]).toMatch(/}} °C/);
+        expect(catalogue.charts.about[key]).toMatch(/}}\u00a0°C/);
       }
     }
   });

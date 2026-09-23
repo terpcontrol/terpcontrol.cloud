@@ -1389,6 +1389,9 @@ exports.growSeries = (0, common_js_1.named)('GrowSeries', zod_1.z.object({
     dayTo: zod_1.z.number().int().nullable(),
     deviceIds: zod_1.z.array((0, common_js_1.id)()).describe('The devices the climate and the outputs were read from: whatever stood where the grow stood.'),
     climate: zod_1.z.array(exports.timelinePanel),
+    lastReadingAt: (0, common_js_1.instant)()
+        .nullable()
+        .describe('When a device standing where this grow stood last measured one of the climate metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `climate` is empty in both. The Timeline of the tent answers the same question the same way. Answered only where `climate` is empty, because that is the one question it settles; null there where nothing standing with the grow has ever measured, and null beside curves that speak for themselves.'),
     outputs: zod_1.z.array(exports.timelineOutputLane),
     nights: zod_1.z.array(exports.timelineSpan).describe('When the light was off, which is what every panel is shaded by.'),
     measurements: zod_1.z.array(exports.growMeasurementSeries),

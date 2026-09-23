@@ -13,6 +13,7 @@ import { DataService } from '@modules/data/data.service';
 import { READING_KINDS } from '../diary/diary-entries';
 import { horizonOf, originOf } from '../diary/grow-calendar';
 import { spacesDuring } from '../diary/grow-places';
+import { lastReadingOf } from '../timeline/last-reading';
 import { lanesOf, nightsOf, panelsOf } from '../timeline/timeline-series';
 import { TimelineWindow, narrowedTo, stretchesOf, windowOf } from '../timeline/timeline-window';
 import { Redaction } from './grow-serialiser';
@@ -93,6 +94,12 @@ export class GrowSeriesService {
       keys.length > 0 ? this.readingsIn(grow.id, window) : Promise.resolve([] as EntryDocument[]),
     ]);
 
+    const climate = panelsOf(
+      series.map(one => one.series),
+      stretchesOf(grow, devices, window, now),
+      asked.metrics ?? [],
+    );
+
     return {
       growId: grow.id,
       range: asked.range,
@@ -103,11 +110,14 @@ export class GrowSeriesService {
       dayFrom: window.dayFrom,
       dayTo: window.dayTo,
       deviceIds: devices.map(device => device.id),
-      climate: panelsOf(
-        series.map(one => one.series),
-        stretchesOf(grow, devices, window, now),
-        asked.metrics ?? [],
-      ),
+      climate,
+      // The tent's own Timeline dates a silence and this screen did not, so the
+      // same grower was told twice about one quiet tent and once in a way that
+      // sounded like a fault in the range they had picked. It is the same read
+      // the Timeline pays, under the same guard: only a window that drew no
+      // curve has the question to answer, and only a caller that asked about
+      // the climate at all can have been wondering.
+      lastReadingAt: climate.length === 0 && asked.metrics?.length ? await lastReadingOf(this.data, devices) : null,
       outputs: lanesOf(series, window),
       nights: nightsOf(series, window),
       measurements: measurementsOf(keys, readings, hide),

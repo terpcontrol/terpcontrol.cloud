@@ -507,6 +507,7 @@
     "logsNoFilteredEntries": "No log messages for the selected filters",
     "moreHiddenMessages": "There are {{count}} more messages. Please reduce your selection.",
     "noData": "No measurements in this period — try a different range.",
+    "quietWindow": "No measurements in this period · last measured {{age}} ago — try a different range.",
     "resetZoom": "Reset zoom",
     "resetZoomTitle": "Reset zoom to 1:1",
     "customRange": "Custom range",

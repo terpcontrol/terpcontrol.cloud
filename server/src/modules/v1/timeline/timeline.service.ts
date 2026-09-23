@@ -20,6 +20,7 @@ import { DIARY_KINDS, MACHINE_KINDS, authorIdsOf, peopleOf, readingNamesOf, seri
 import { NOTHING_HIDDEN, Redaction, redactionOf } from '../grow/grow-serialiser';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
+import { lastReadingOf } from './last-reading';
 import { PANEL_METRICS, lanesOf, nightsOf, panelsOf } from './timeline-series';
 import { TimelineWindow, stretchesOf, windowOf } from './timeline-window';
 
@@ -155,7 +156,7 @@ export class TimelineService {
       stepSeconds: series.length === 0 ? 0 : window.stepSeconds,
       deviceIds: devices.map(device => device.id),
       panels,
-      lastReadingAt: panels.length > 0 ? null : await this.lastReadingOf(devices),
+      lastReadingAt: panels.length > 0 ? null : await lastReadingOf(this.data, devices),
       nights: nightsOf(series, window),
       alarms: alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
       outputs: lanesOf(series, window),
@@ -240,39 +241,6 @@ export class TimelineService {
     if (!named) throw notFound('grow_not_found', 'There is no grow with that id standing in this space.');
 
     return named;
-  }
-
-  /**
-   * When anything standing here last measured one of the panels' metrics,
-   * whenever that was - inside the window, or months before it.
-   *
-   * A screen with no curves has two sentences to choose between and no way of
-   * its own to choose: a place where nothing measures, and a place that
-   * measures and has been quiet across this window. `panels` is empty in both
-   * cases, by design - a metric every point of which is null has no panel - and
-   * the window holds nothing that could tell them apart, because the fact that
-   * decides it lies outside the window. So the store is asked, and asked only
-   * where there is nothing to draw: a window with curves in it has already
-   * answered the question by having them, and this costs a read per device that
-   * a timeline would otherwise not pay.
-   *
-   * A space holding only a plug, a light or a fan measures none of these
-   * metrics in any window and answers null, which is what keeps "nothing
-   * measures here" the right sentence for the 84 such spaces of the restored
-   * database rather than telling their owners the hardware went quiet.
-   */
-  private async lastReadingOf(devices: StoredDevice[]): Promise<string | null> {
-    if (devices.length === 0) return null;
-
-    const live = await Promise.all(devices.map(device => this.data.live(device.id)));
-    const measured = live.flatMap(one =>
-      PANEL_METRICS.flatMap(metric => {
-        const measuredAt = one.metrics[metric]?.measuredAt;
-        return measuredAt ? [measuredAt] : [];
-      }),
-    );
-
-    return measured.length === 0 ? null : measured.reduce((newest, one) => (new Date(one) > new Date(newest) ? one : newest));
   }
 
   /**
