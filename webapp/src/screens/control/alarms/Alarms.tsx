@@ -303,6 +303,13 @@ function RuleCard({ rule, device, me, mayManage, highlighted, busy, now, onOpen,
  * engine says an alarm again on `repeatSeconds` and never on anything else, so
  * the rule the cloud keeps is described by its own half hour like the rest.
  * How often something is said is left off where it is not said at all.
+ *
+ * Everything about being told is in the future tense, and a rule that is off
+ * has no future to speak of: it is watching nothing, so it will reach nobody
+ * and repeat nothing whatever it is set to. The line therefore ends at the
+ * state rather than going on to promise a delivery and a half hour that only
+ * hold once somebody throws the switch beside it. What the rule is set to do
+ * is not lost with it - it is all in the sheet the card opens.
  */
 const metaLine = (t: Translate, rule: AlarmRule, me: Me | undefined): string => {
   const parts: string[] = [t(`alarms.origin.${rule.origin}`)];
@@ -313,9 +320,10 @@ const metaLine = (t: Translate, rule: AlarmRule, me: Me | undefined): string => 
   const announced = routed === null || me === undefined || routed.length > 0;
 
   if (routed === null) parts.push(rule.delivery.custom ? t(`alarms.channel.${rule.delivery.custom.channel}`) : t('alarms.meta.ownTarget'));
-  else if (me) parts.push(announced ? t('alarms.meta.toYou', { channels: channelsLabel(t, routed) }) : t('alarms.meta.notAnnounced'));
+  else if (me && rule.enabled) parts.push(announced ? t('alarms.meta.toYou', { channels: channelsLabel(t, routed) }) : t('alarms.meta.notAnnounced'));
 
-  if (announced) {
+  if (!rule.enabled) parts.push(t('alarms.meta.switchedOff'));
+  else if (announced) {
     parts.push(
       rule.repeatSeconds > 0 ? t('alarms.meta.repeatsEvery', { length: durationLabel(rule.repeatSeconds) }) : t('alarms.meta.announcedOnce'),
     );

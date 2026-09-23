@@ -3209,6 +3209,7 @@
       "ownTarget": "its own target",
       "repeatsEvery": "repeats every {{length}}",
       "silencedUntil": "silenced until {{time}}",
+      "switchedOff": "switched off",
       "announcedOnce": "announced once",
       "toYou": "goes to you by {{channels}}"
     },

@@ -354,7 +354,19 @@ describe('the alarm rules page', () => {
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     expect(within(hot as HTMLElement).getByText('On')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /\+ Alarm/ })).not.toBeInTheDocument();
-    expect(screen.getAllByText('preset · for 10 min · critical · announced once')).toHaveLength(2);
+    expect(screen.getAllByText('preset · for 10 min · critical · announced once')).toHaveLength(1);
+  });
+
+  it('says a switched-off rule is off rather than how often it would announce itself', async () => {
+    draw();
+
+    const co2 = await card('CO₂ too high');
+    expect(within(co2).getByText('preset · for 10 min · critical · switched off')).toBeInTheDocument();
+    expect(within(co2).getByRole('switch')).toHaveAttribute('aria-checked', 'false');
+    expect(co2.textContent).not.toMatch(/goes to you|announced once|repeats every/);
+
+    const hot = await card('Too hot');
+    expect(within(hot).getByText('preset · for 10 min · critical · goes to you by push + Telegram · announced once')).toBeInTheDocument();
   });
 });
 
