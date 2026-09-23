@@ -144,7 +144,7 @@ const overview: SpaceOverview = {
       stageWeek: 2,
       weekNumber: 5,
       stage: 'flowering',
-      preset: 'flower',
+      preset: null,
       isAuto: true,
       plantCount: 3,
       strains: ['Amnesia', 'Gelato'],
@@ -226,7 +226,17 @@ describe('the tent overview', () => {
     expect(screen.getByText('1.32').closest('[data-age]')).toHaveTextContent('no target');
     expect(screen.getByText('980').closest('[data-age]')).toHaveAttribute('data-age', 'offline');
 
-    expect(screen.getByText(/Flower preset · day 25 \/ 50 · night 20 \/ 50/)).toBeInTheDocument();
+    // The figures are the controller's document, which a preset is only one of
+    // the things that ever wrote: the line names the phase the grow is in and
+    // leaves where they came from to the Control tab, which knows the step.
+    expect(screen.getByText(/^Flower · day 25 \/ 50 · night 20 \/ 50/)).toBeInTheDocument();
+  });
+
+  it('names the preset beside the stage where the phase records one', () => {
+    const refined: SpaceOverview = { ...overview, grows: [{ ...overview.grows[0], preset: 'late_flowering' }] };
+    draw(<Overview overview={refined} now={NOW} />);
+
+    expect(screen.getByText(/^Flower · Late flower · day 25 \/ 50/)).toBeInTheDocument();
   });
 
   it('says what Done will write, and what grows here since when', () => {

@@ -260,7 +260,28 @@ function Tile({ value, setpoint }: { value: CardValue; setpoint: CardSetpoint | 
   );
 }
 
-/** "Flower preset · day 26 / 62 · night 21 / 58 · CO₂ 1100": what the controller is aiming at in both halves. */
+/**
+ * The phase a grow is in, in the two halves the rest of the app says it in: the
+ * stage on its own where nothing refines it, and the stage with its preset
+ * where one does. The lifecycle sheet, the week cards and the report all name a
+ * phase this way, so a tent does too.
+ */
+const phaseLabel = (t: Translate, grow: OverviewGrow): string =>
+  grow.preset === null
+    ? t(`home.stage.${grow.stage}`)
+    : `${t(`home.stage.${grow.stage}`)} · ${t(`grow.presetName.${grow.preset}`, { defaultValue: grow.preset })}`;
+
+/**
+ * "Flower · day 26 / 62 · night 21 / 58 · CO₂ 1100": what the controller is
+ * aiming at in both halves, under the phase the grow standing here is in.
+ *
+ * The figures are the controller's own document and not a preset's: a plan
+ * writes them, a hand on the sliders writes them, and a preset is only one of
+ * the things that ever wrote them. Calling the line a preset said where they
+ * came from, and said it wrongly for every grow whose phase records none - all
+ * sixteen of the migrated ones - so the phase is named and the provenance is
+ * left to the Control tab, which knows the plan step that actually wrote them.
+ */
 function TargetsLine({ overview }: { overview: SpaceOverview }) {
   const { t } = useTranslation();
   const targets = overview.targets!;
@@ -272,11 +293,11 @@ function TargetsLine({ overview }: { overview: SpaceOverview }) {
       })
       .join(' / ');
   const co2 = targets.day.find(setpoint => setpoint.metric === 'co2')?.value ?? null;
-  const preset = overview.grows[0]?.preset ?? overview.grows[0]?.stage ?? null;
+  const here = overview.grows[0] ?? null;
 
   return (
     <p className={`mono ${styles.targetsLine}`}>
-      {preset ? `${t(`home.stage.${overview.grows[0].stage}`)} ${t('space.preset')} · ` : ''}
+      {here ? `${phaseLabel(t, here)} · ` : ''}
       {t('space.day')} {half(targets.day)} · {t('space.night')} {half(targets.night)}
       {co2 !== null ? ` · CO₂ ${co2}` : ''}
     </p>
