@@ -568,6 +568,9 @@ describe('the rule sheet', () => {
 
     expect(within(sheet).queryByRole('group', { name: 'Watch' })).not.toBeInTheDocument();
     expect(within(sheet).queryByLabelText('above')).not.toBeInTheDocument();
+    // Nor the name: this rule is titled from the hardware it watches, in the
+    // reader's language, so a name typed here changed nothing any screen drew.
+    expect(within(sheet).queryByRole('textbox', { name: 'Name' })).not.toBeInTheDocument();
     expect(within(sheet).getByText(/watches whether the device reports at all/)).toBeInTheDocument();
     expect(within(sheet).getByText(/On top of the ten minutes/)).toBeInTheDocument();
 

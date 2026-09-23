@@ -72,6 +72,10 @@ const presetTitle = (watch: AlarmWatch): string | null => {
  * four a stage applies - are titled from what they watch instead, and read in
  * the language the page is in. A rule somebody wrote, by hand or through the
  * firmware, keeps the name it was given.
+ *
+ * Because the cloud's own rule is never titled from its name, the sheet does
+ * not offer a field for one: a rule whose name no screen reads should not ask
+ * anybody to type it.
  */
 export const ruleTitle = (t: Translate, rule: AlarmRule, device: Device): string => {
   if (rule.origin === 'always') return t('alarms.offlineRule', { device: t(`devices.type.${device.type}`, { defaultValue: device.type }) });

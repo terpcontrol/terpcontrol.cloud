@@ -124,17 +124,26 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
   return (
     <Sheet title={t(rule ? 'alarms.sheet.title' : 'alarms.sheet.newTitle')} actions={actions} onClose={onClose}>
       <div className={styles.sheet}>
-        <Block label={t('alarms.sheet.name')}>
-          <input
-            className={ui.input}
-            value={draft.name}
-            placeholder={t('alarms.sheet.nameHint')}
-            aria-label={t('alarms.sheet.name')}
-            autoComplete="off"
-            onChange={event => change({ name: event.target.value })}
-          />
-          {rule?.origin === 'preset' ? <p className={ui.note}>{t('alarms.sheet.presetNote')}</p> : null}
-        </Block>
+        {/* The cloud's own offline rule is titled from the kind of hardware it
+            watches, in the language the page is being read in, and never from
+            the name it carries - so a name typed here moved nothing the grower
+            could see. It was not inert either: the server titles the message it
+            sends with it, so the one place the typed name surfaced was a push
+            that every screen then contradicted. The field goes, the way the
+            watch and the bounds already do for this rule. */}
+        {rule?.origin === 'always' ? null : (
+          <Block label={t('alarms.sheet.name')}>
+            <input
+              className={ui.input}
+              value={draft.name}
+              placeholder={t('alarms.sheet.nameHint')}
+              aria-label={t('alarms.sheet.name')}
+              autoComplete="off"
+              onChange={event => change({ name: event.target.value })}
+            />
+            {rule?.origin === 'preset' ? <p className={ui.note}>{t('alarms.sheet.presetNote')}</p> : null}
+          </Block>
+        )}
 
         <Block label={t('alarms.sheet.watch')}>
           {offline ? (
