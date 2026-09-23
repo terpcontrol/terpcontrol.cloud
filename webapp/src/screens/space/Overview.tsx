@@ -112,7 +112,14 @@ export function Overview({ overview, now }: { overview: SpaceOverview; now: Date
       </Section>
 
       {overview.cameras.map(camera => (
-        <Section key={camera.cameraId} label={`${camera.name} · ${t('space.today')}`}>
+        // The strip is one picture per slot of the day, so it spans the day
+        // rather than the last few minutes of it - which leaves everything
+        // between the tiles somewhere else, and the camera's own page is where.
+        <Section
+          key={camera.cameraId}
+          label={`${camera.name} · ${t('space.today')}`}
+          link={{ to: `/cameras/${camera.cameraId}`, label: t('space.everyPicture') }}
+        >
           <CameraStrip camera={camera} now={now} />
         </Section>
       ))}

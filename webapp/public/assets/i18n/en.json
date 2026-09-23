@@ -2546,6 +2546,7 @@
     "hereSince": "here since day {{day}}",
     "today": "today",
     "noStillsToday": "No pictures yet today",
+    "everyPicture": "Every picture",
     "lastStill": "last one {{age}} ago",
     "stillAlt": "{{name}} at {{time}}",
     "climate24h": "Climate · 24 h",

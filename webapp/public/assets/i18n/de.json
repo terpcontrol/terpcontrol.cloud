@@ -2542,6 +2542,7 @@
     "hereSince": "hier seit Tag {{day}}",
     "today": "heute",
     "noStillsToday": "Heute noch keine Bilder",
+    "everyPicture": "Alle Bilder",
     "lastStill": "letztes vor {{age}}",
     "stillAlt": "{{name}} um {{time}}",
     "climate24h": "Klima · 24 h",
