@@ -12461,7 +12461,8 @@
       "photoCount": {
         "type": "integer",
         "minimum": -9007199254740991,
-        "maximum": 9007199254740991
+        "maximum": 9007199254740991,
+        "description": "Pictures the diary’s lines point at, of whatever kind those lines are; a diary kept before there was a photo tile carries them on its notes."
       }
     },
     "required": [

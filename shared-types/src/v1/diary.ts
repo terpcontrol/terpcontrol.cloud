@@ -1673,7 +1673,7 @@ export const growTotals = named(
     entryCount: z.number().int(),
     waterCount: z.number().int(),
     feedCount: z.number().int(),
-    photoCount: z.number().int(),
+    photoCount: z.number().int().describe('Pictures the diary’s lines point at, of whatever kind those lines are; a diary kept before there was a photo tile carries them on its notes.'),
   }),
 );
 

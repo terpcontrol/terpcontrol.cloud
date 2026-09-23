@@ -183,7 +183,7 @@ function Chapter({
         {chapter.training.length > 0 ? (
           <ul className={styles.training}>
             {chapter.training.map(entry => (
-              <EntryRow key={entry.id} entry={entry} people={people} measurements={measurements} withDay />
+              <EntryRow key={entry.id} entry={entry} people={people} picture={mediaUrl} measurements={measurements} withDay />
             ))}
           </ul>
         ) : null}

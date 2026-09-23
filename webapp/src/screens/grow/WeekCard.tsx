@@ -126,7 +126,7 @@ export function WeekCard({ week, grow, people, now, current }: WeekCardProps) {
           {week.entries.length > 0 ? (
             <ul className={styles.entries}>
               {week.entries.map(entry => (
-                <EntryRow key={entry.id} entry={entry} people={people} measurements={grow.measurements} withDay />
+                <EntryRow key={entry.id} entry={entry} people={people} picture={mediaUrl} measurements={grow.measurements} withDay />
               ))}
             </ul>
           ) : (

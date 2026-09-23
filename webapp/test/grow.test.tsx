@@ -348,6 +348,20 @@ describe('a grow that has ended', () => {
   });
 });
 
+describe('the pictures a diary line carries', () => {
+  it('draws them on the week card, whatever kind of line they hang on', () => {
+    // A migrated diary hangs its pictures on the note or the phase line they
+    // belonged to; until the row drew them the only screen in the app reading
+    // `mediaIds` was a plant's own page, which a migrated grow has none of.
+    const pictured = { ...week, entries: [entry({ id: 'e-pics', kind: 'note', mediaIds: ['media-7', 'media-8'] })] };
+
+    draw(<WeekCard week={pictured} grow={grow} people={people} now={NOW} current />);
+
+    expect(screen.getByAltText('Picture 1 of 2')).toHaveAttribute('src', '/media/media-7');
+    expect(screen.getByAltText('Picture 2 of 2')).toHaveAttribute('src', '/media/media-8');
+  });
+});
+
 describe('the archive', () => {
   const finished: GrowListItem = { ...grow, id: 'grow-old', name: 'Autumn run', endedAt: at(20, 15), summary: { ...grow.summary, dayNumber: 14 } };
 

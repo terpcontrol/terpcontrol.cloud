@@ -1280,7 +1280,7 @@ exports.growTotals = (0, common_js_1.named)('GrowTotals', zod_1.z.object({
     entryCount: zod_1.z.number().int(),
     waterCount: zod_1.z.number().int(),
     feedCount: zod_1.z.number().int(),
-    photoCount: zod_1.z.number().int(),
+    photoCount: zod_1.z.number().int().describe('Pictures the diary’s lines point at, of whatever kind those lines are; a diary kept before there was a photo tile carries them on its notes.'),
 }));
 /**
  * `GET /grows/{id}/report`, the Report tab: the grow told as chapters, one per

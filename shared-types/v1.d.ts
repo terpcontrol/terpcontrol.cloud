@@ -3571,6 +3571,9 @@ export interface GrowTotals {
   entryCount: number;
   waterCount: number;
   feedCount: number;
+  /**
+   * Pictures the diary’s lines point at, of whatever kind those lines are; a diary kept before there was a photo tile carries them on its notes.
+   */
   photoCount: number;
 }
 

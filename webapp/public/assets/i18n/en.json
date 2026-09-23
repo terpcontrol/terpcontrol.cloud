@@ -1943,6 +1943,7 @@
     "dayRange": "day {{from}}–{{to}}",
     "thisWeek": "this week",
     "dayStillAlt": "Day {{day}}",
+    "entryPhoto": "Picture {{index}} of {{count}}",
     "dayNight": "day / night",
     "average": "average",
     "humidity": "humidity",
