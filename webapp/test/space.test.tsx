@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { initReactI18next } from 'react-i18next';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, SpaceOverview } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
 import { Overview } from '@/screens/space/Overview';
@@ -21,6 +21,22 @@ vi.mock('@/api/session', async importOriginal => {
   const { SIGNED_IN } = await import('./session');
 
   return { ...(await importOriginal<object>()), mediaUrl: (id: string) => `/media/${id}`, useSession: () => SIGNED_IN };
+});
+
+/**
+ * The zone the account is kept in, which is the zone every hour on this page
+ * is drawn in. Nothing by default - an account still on its way - which leaves
+ * the page on the browser's and is what the expectations below are written for.
+ */
+const account = vi.hoisted(() => ({ zone: null as string | null }));
+
+vi.mock('@/api/account', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useMe: () => ({ data: account.zone === null ? undefined : { preferences: { timezone: account.zone } } }),
+}));
+
+beforeEach(() => {
+  account.zone = null;
 });
 
 /** What the reader may do in Tent 1, which is the other half of "what does this screen offer". */
@@ -229,6 +245,19 @@ describe('the tent overview', () => {
     expect(screen.getByText('Defoliated lower fan leaves')).toBeInTheDocument();
     expect(screen.getByText('anna')).toBeInTheDocument();
     expect(screen.getByText(clock(at(7200)))).toBeInTheDocument();
+  });
+
+  it('draws a still´s hour and an excursion´s hours where the account is kept, not where the browser is', () => {
+    // The camera's own page reads these pictures in the account's zone, and
+    // this strip links straight to it, so the same still was labelled two
+    // hours apart on two screens one tap from each other.
+    account.zone = 'Asia/Tokyo';
+    const there = (iso: string) => DateTime.fromISO(iso).setZone('Asia/Tokyo').toFormat('HH:mm');
+    draw(<Overview overview={overview} now={NOW} />);
+
+    expect(screen.getByText(there(at(7200)))).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: `Cam 1 at ${there(at(7200))}` })).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`${there('2026-09-18T02:10:00.000Z')}–${there('2026-09-18T05:30:00.000Z')}`))).toBeInTheDocument();
   });
 
   it('heads the verdict with the window it was actually computed over, however quiet the tent has been', () => {

@@ -21,6 +21,7 @@ import { EntryRow } from '@/ui/EntryRow';
 import { readingFigure, readingNamesOf } from '@/ui/entries';
 import { useMayLogIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
+import { clock, useZone } from '@/ui/zone';
 import { livenessOf } from '../home/attention';
 import { figure, targetFigure, UNIT } from '../home/units';
 import { MoveHereSheet } from './MoveHereSheet';
@@ -376,6 +377,12 @@ function GrowRow({ grow, still }: { grow: OverviewGrow; still: string | null }) 
 /** The day's pictures of one camera, a handful spread over the day, each with the hour it was taken. */
 function CameraStrip({ camera, now }: { camera: OverviewCamera; now: DateTime }) {
   const { t } = useTranslation();
+  // The camera's own page stamps these pictures where the account is, and this
+  // strip links straight to it: two hours between the same picture's two
+  // labels is the tent telling a grower their lamp came on at a time it did
+  // not. The alt text carries the same hour, because the reader who only gets
+  // that one is owed the label, not a different one.
+  const zone = useZone();
   const stills = camera.stills.slice(-STILLS_SHOWN);
 
   if (stills.length === 0) {
@@ -396,11 +403,11 @@ function CameraStrip({ camera, now }: { camera: OverviewCamera; now: DateTime })
             {src ? (
               <img
                 src={src}
-                alt={t('space.stillAlt', { name: camera.name, time: DateTime.fromISO(still.capturedAt).toFormat('HH:mm') })}
+                alt={t('space.stillAlt', { name: camera.name, time: clock(still.capturedAt, zone) })}
                 loading="lazy"
               />
             ) : null}
-            <span className={`mono ${styles.stillTime}`}>{DateTime.fromISO(still.capturedAt).toFormat('HH:mm')}</span>
+            <span className={`mono ${styles.stillTime}`}>{clock(still.capturedAt, zone)}</span>
           </li>
         );
       })}
@@ -419,6 +426,10 @@ const HEIGHT = 48;
  */
 function Verdict({ verdict, liveness }: { verdict: ClimateVerdict; liveness: Liveness }) {
   const { t } = useTranslation();
+  // The sentence names the hours an excursion ran between, which is a clock
+  // time like any other on this page; the sentence itself is a plain function,
+  // so the zone is read here, where a hook may be called, and handed to it.
+  const zone = useZone();
   const temperature = verdict.metrics.find(row => row.metric === 'temperature');
 
   return (
@@ -428,7 +439,7 @@ function Verdict({ verdict, liveness }: { verdict: ClimateVerdict; liveness: Liv
       {...(liveness === 'none' ? {} : ageAttribute(liveness))}
     >
       <TrendLine verdict={verdict} bands={[temperature?.dayBand ?? null, temperature?.nightBand ?? null]} />
-      <p className={`mono ${styles.verdictText}`}>{verdictSentence(t, verdict)}</p>
+      <p className={`mono ${styles.verdictText}`}>{verdictSentence(t, verdict, zone)}</p>
     </div>
   );
 }
@@ -438,7 +449,7 @@ const OUTPUT_NAMES: Record<string, string> = { fanInternal: 'fan', fanExternal: 
 /** Whether any reading at all was heard in the window: a verdict with a band and no readings is a silent tent, not an unsteered one. */
 const heardAnything = (verdict: ClimateVerdict): boolean => verdict.metrics.some(row => row.minValue !== null);
 
-const verdictSentence = (t: Translate, verdict: ClimateVerdict): string => {
+const verdictSentence = (t: Translate, verdict: ClimateVerdict, zone: string | null): string => {
   if (verdict.rating === null || verdict.inBandFraction === null) {
     return t(heardAnything(verdict) || verdict.metrics.length === 0 ? 'space.verdict.noTarget' : 'space.verdict.noReadings');
   }
@@ -450,8 +461,8 @@ const verdictSentence = (t: Translate, verdict: ClimateVerdict): string => {
     const name = t(`space.verdict.metric.${metric.metric}`, { defaultValue: metric.metric });
     if (metric.excursions.length === 1) {
       const [one] = metric.excursions;
-      const from = DateTime.fromISO(one.startedAt).toFormat('HH:mm');
-      const to = one.endedAt ? DateTime.fromISO(one.endedAt).toFormat('HH:mm') : t('space.verdict.stillOut');
+      const from = clock(one.startedAt, zone);
+      const to = one.endedAt ? clock(one.endedAt, zone) : t('space.verdict.stillOut');
       parts.push(t('space.verdict.excursion', { metric: name, from, to }));
     } else {
       parts.push(t('space.verdict.excursions', { count: metric.excursions.length, metric: name }));

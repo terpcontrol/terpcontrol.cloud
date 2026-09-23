@@ -6,6 +6,7 @@ import { Link } from 'react-router';
 import type { HomeSpaceCard, Person, SpaceKind } from '@fg2/shared-types/v1';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
 import { ageLabel } from '@/ui/age';
+import { clock, useZone } from '@/ui/zone';
 import { livenessOf, measuredAtOf, worstAlertOf, type Liveness } from './attention';
 import { ClimateHalf } from './ClimateHalf';
 import { DayCounter, DeviceActions, GrowHalf, NewestEntry, NoGrow, NoSensor, PhaseLine } from './GrowHalf';
@@ -157,6 +158,10 @@ export function LivenessPill({ liveness, measuredAt, now }: { liveness: Liveness
 /** The newest picture, with when it was taken. */
 function Still({ card, now }: { card: HomeSpaceCard; now: DateTime }) {
   const { t } = useTranslation();
+  // The hour the camera burns into the picture is the hour this caption has to
+  // agree with, and the camera's own page already reads it where the account
+  // is; the two were two hours apart on one still.
+  const zone = useZone();
   const still = card.latestStill!;
   const src = mediaUrl(still.mediaId, THUMBNAIL_WIDTH.frame);
   if (!src) return null;
@@ -165,7 +170,7 @@ function Still({ card, now }: { card: HomeSpaceCard; now: DateTime }) {
     <figure className={styles.still}>
       <img src={src} alt={t('home.card.stillAlt', { name: card.name })} loading="lazy" />
       <figcaption className={`mono ${styles.stillCaption}`}>
-        {t('home.card.cam')} · {DateTime.fromISO(still.capturedAt).toFormat('HH:mm')} · {t('home.card.ago', { age: ageLabel(still.capturedAt, now) })}
+        {t('home.card.cam')} · {clock(still.capturedAt, zone)} · {t('home.card.ago', { age: ageLabel(still.capturedAt, now) })}
       </figcaption>
     </figure>
   );
