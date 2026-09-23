@@ -47,6 +47,7 @@ const card: HomeSpaceCard = {
     type: 'photoperiod',
     dayNumber: 34,
     phaseDay: 10,
+    stageWeek: 2,
     stage: 'flowering',
     preset: null,
     isAuto: false,

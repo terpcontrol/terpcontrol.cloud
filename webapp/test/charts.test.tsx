@@ -116,7 +116,17 @@ const grow: GrowListItem = {
   isDemo: false,
   createdAt: NOW.minus({ days: 34 }).toISO()!,
   updatedAt: at(24),
-  summary: { dayNumber: 35, stage: 'flowering', preset: 'flower', phaseDay: 11, weekNumber: 5, isAuto: false, groups: [], locations: [] },
+  summary: {
+    dayNumber: 35,
+    stage: 'flowering',
+    preset: 'flower',
+    phaseDay: 11,
+    stageWeek: 2,
+    weekNumber: 5,
+    isAuto: false,
+    groups: [],
+    locations: [],
+  },
 };
 
 const plants = [

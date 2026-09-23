@@ -1878,6 +1878,10 @@ export interface GrowSummary {
    */
   weekNumber: number | null;
   /**
+   * Which week of its stage the grow is in: 1 in the week the stage began, counted exactly as a week card’s own `stageWeek` is, so the header and the card beneath it state one figure. Null before the first phase.
+   */
+  stageWeek: number | null;
+  /**
    * The phase was set by a preset or by the plan rather than by hand.
    */
   isAuto: boolean;
@@ -3049,6 +3053,10 @@ export interface GrowCard {
    * How many days the grow has stood in its current phase.
    */
   phaseDay: number | null;
+  /**
+   * Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and week cards state.
+   */
+  stageWeek: number | null;
   stage: GrowthStage | null;
   preset: string | null;
   /**
@@ -3219,6 +3227,10 @@ export interface OverviewGrow {
    * How many days the grow has stood in its current phase.
    */
   phaseDay: number | null;
+  /**
+   * Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and week cards state.
+   */
+  stageWeek: number | null;
   stage: GrowthStage | null;
   preset: string | null;
   /**

@@ -66,14 +66,12 @@ export function GrowHalf({ card, people, now, headed, compact }: GrowHalfProps) 
 /** "Flower · wk 2 [auto] · Amnesia, Gelato · 3 plants" */
 export function PhaseLine({ grow }: { grow: GrowCard }) {
   const { t } = useTranslation();
-  const week = grow.phaseDay === null ? null : Math.floor((grow.phaseDay - 1) / 7) + 1;
-
   return (
     <>
       {grow.stage ? (
         <span className={styles.phase}>
           {t(`home.stage.${grow.stage}`)}
-          {week !== null ? ` · ${t('home.card.week', { week })}` : ''}
+          {grow.stageWeek !== null ? ` · ${t('home.card.week', { week: grow.stageWeek })}` : ''}
         </span>
       ) : (
         <span className={styles.phase}>{t('home.card.noPhase')}</span>

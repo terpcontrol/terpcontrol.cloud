@@ -114,6 +114,7 @@ const overview: SpaceOverview = {
       type: 'photoperiod',
       dayNumber: 34,
       phaseDay: 12,
+      stageWeek: 2,
       weekNumber: 5,
       stage: 'flowering',
       preset: 'flower',

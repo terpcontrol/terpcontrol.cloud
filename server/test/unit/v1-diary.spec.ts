@@ -8,9 +8,11 @@ import { EntriesService } from '@modules/v1/diary/entries.service';
 import { GrowClimateService } from '@modules/v1/diary/grow-climate.service';
 import { GrowReportService } from '@modules/v1/diary/report.service';
 import { GrowWeeksService } from '@modules/v1/diary/weeks.service';
+import { NOTHING_HIDDEN, summaryOf } from '@modules/v1/grow/grow-serialiser';
 import { GrowsService } from '@modules/v1/grow/grows.service';
 import { PhaseWriterService } from '@modules/v1/phase/phase-writer.service';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
+import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { startV1TestDatabase, V1TestDatabase } from './support/v1-database';
 
 /**
@@ -539,6 +541,19 @@ describe('a week card', () => {
   });
 
   /** Week 4 rather than week 5: a whole week divides evenly, and the week the grow is in stops part-way through a day. */
+  it('says which week of the stage it is in, and says it the figure the grow´s own header says', async () => {
+    // A stage begun in the middle of a grow week is where the two ways of
+    // counting parted company: dividing the phase's own days by seven called
+    // this week 3 while the card beside it called it 4.
+    await db.grows.updateOne({ id: GROW }, { $set: { 'phases.2.startedAt': onDay(14, 0) } });
+    const grow = (await db.grows.findOne({ id: GROW }).lean<GrowDocument>())!;
+
+    const card = (await weeks.page(GROW, await grantFor(session(OWNER)), { limit: 1 }, NOW)).items[0];
+
+    expect(card.stageWeek).toBe(4);
+    expect(summaryOf(grow, [], NOTHING_HIDDEN, NOW).stageWeek).toBe(card.stageWeek);
+  });
+
   it('tells the day and the night apart by the light, and says how long it was on', async () => {
     const page = await weeks.page(GROW, await grantFor(session(OWNER)), {}, NOW);
 

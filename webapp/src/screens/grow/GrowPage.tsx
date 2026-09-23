@@ -9,7 +9,6 @@ import { useSpaces } from '@/api/spaces';
 import { useReportFreshness } from '@/ui/freshness';
 import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, standsIn, useMayWith } from '@/ui/session-access';
-import { weekOfPhase } from '@/ui/stages';
 import { Tabs } from '@/ui/Tabs';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -115,7 +114,6 @@ interface HeaderProps {
 function Header({ grow, plants, spaces, now, onShare }: HeaderProps) {
   const { t } = useTranslation();
   const { summary } = grow;
-  const week = weekOfPhase(summary.phaseDay);
   const places = summary.locations.map(location => ({
     spaceId: location.spaceId,
     name: location.spaceId ? (spaces.find(space => space.id === location.spaceId)?.name ?? '…') : t('grow.noFixedPlace'),
@@ -171,7 +169,7 @@ function Header({ grow, plants, spaces, now, onShare }: HeaderProps) {
         {summary.stage ? (
           <span className={styles.phase}>
             {t(`home.stage.${summary.stage}`)}
-            {week !== null ? ` · ${t('grow.week', { week })}` : ''}
+            {summary.stageWeek !== null ? ` · ${t('grow.week', { week: summary.stageWeek })}` : ''}
             {summary.phaseDay !== null ? ` · ${t('grow.dayN', { day: summary.phaseDay })}` : ''}
           </span>
         ) : (

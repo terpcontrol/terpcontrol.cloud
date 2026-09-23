@@ -9,7 +9,7 @@ import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import { presetsOf, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
-import { STAGES, weekOfPhase } from '@/ui/stages';
+import { STAGES, weekOfGrowDay } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { correctionEffect, phasesInOrder, withdrawalEffect, type PhaseEffect } from './phase-effect';
 import styles from './Lifecycle.module.css';
@@ -119,7 +119,7 @@ const nowLine = (t: Translate, grow: GrowListItem): string => {
     stage: label(t, stage, preset),
     phaseDay: phaseDay ?? dayNumber,
     growDay: dayNumber,
-    week: weekOfPhase(dayNumber),
+    week: weekOfGrowDay(dayNumber),
   });
 };
 
@@ -284,8 +284,8 @@ function Effect({ effect, changed, entry }: { effect: PhaseEffect; changed: bool
       t('grow.lifecycle.phase.effect.growDay', {
         from: effect.growDay.from,
         to: effect.growDay.to,
-        weekFrom: weekOfPhase(effect.growDay.from),
-        weekTo: weekOfPhase(effect.growDay.to),
+        weekFrom: weekOfGrowDay(effect.growDay.from),
+        weekTo: weekOfGrowDay(effect.growDay.to),
       }),
     );
   }

@@ -1077,6 +1077,11 @@ export const growCard = named(
     type: growType,
     dayNumber: z.number().int().nullable(),
     phaseDay: z.number().int().nullable().describe('How many days the grow has stood in its current phase.'),
+    stageWeek: z
+      .number()
+      .int()
+      .nullable()
+      .describe('Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and week cards state.'),
     stage: growthStage.nullable(),
     preset: z.string().nullable(),
     isAuto: z.boolean().describe('The phase was set by a preset or the plan rather than by a person.'),

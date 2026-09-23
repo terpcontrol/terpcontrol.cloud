@@ -811,6 +811,11 @@ exports.growCard = (0, common_js_1.named)('GrowCard', zod_1.z.object({
     type: common_js_1.growType,
     dayNumber: zod_1.z.number().int().nullable(),
     phaseDay: zod_1.z.number().int().nullable().describe('How many days the grow has stood in its current phase.'),
+    stageWeek: zod_1.z
+        .number()
+        .int()
+        .nullable()
+        .describe('Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and week cards state.'),
     stage: common_js_1.growthStage.nullable(),
     preset: zod_1.z.string().nullable(),
     isAuto: zod_1.z.boolean().describe('The phase was set by a preset or the plan rather than by a person.'),

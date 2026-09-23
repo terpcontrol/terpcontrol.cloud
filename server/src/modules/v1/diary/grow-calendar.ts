@@ -1,4 +1,4 @@
-import { growDayAt, growOriginOf, growWeekAt } from '@fg2/shared-types/v1-schemas';
+import { growDayAt, growOriginOf, growWeekAt, stageWeekOf } from '@fg2/shared-types/v1-schemas';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 
 /**
@@ -42,6 +42,13 @@ export const dayNumberOf = growDayAt;
 
 /** Which row of a feeding grid the grow is on at that moment: week 1 is days 1 to 7. */
 export const weekNumberOf = growWeekAt;
+
+/**
+ * Which week of its stage one of those weeks is: 1 in the week the stage began.
+ * The grow serialiser answers the same figure for the grow as a whole, from the
+ * same function, so a week card's pill and the header above it cannot drift.
+ */
+export const stageWeekIn = stageWeekOf;
 
 /** Every week the grow has lived through, oldest first. The last one is as short as the grow is young. */
 export const weeksOf = (origin: Date, horizon: Date): GrowWeekSpan[] => {

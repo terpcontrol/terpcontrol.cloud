@@ -300,6 +300,11 @@ exports.growSummary = (0, common_js_1.named)('GrowSummary', zod_1.z.object({
     preset: zod_1.z.string().nullable(),
     phaseDay: zod_1.z.number().int().nullable(),
     weekNumber: zod_1.z.number().int().nullable().describe("Counted like `dayNumber`, so it lines up with the feeding scheme's grid."),
+    stageWeek: zod_1.z
+        .number()
+        .int()
+        .nullable()
+        .describe('Which week of its stage the grow is in: 1 in the week the stage began, counted exactly as a week card’s own `stageWeek` is, so the header and the card beneath it state one figure. Null before the first phase.'),
     isAuto: zod_1.z.boolean().describe('The phase was set by a preset or by the plan rather than by hand.'),
     groups: zod_1.z.array(exports.phaseGroup).describe('Empty while every plant shares the headline phase; otherwise every group, that one included.'),
     locations: zod_1.z.array(exports.growLocation),

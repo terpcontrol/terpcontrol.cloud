@@ -9,6 +9,7 @@ import type {
   Plant,
   UserPrivacy,
 } from '@fg2/shared-types/v1';
+import { growOriginOf, growWeekAt, stageWeekOf } from '@fg2/shared-types/v1-schemas';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 
@@ -159,6 +160,9 @@ export const growUpTo = (grow: GrowDocument, at: Date): GrowDocument => ({
 export const summaryOf = (grow: GrowDocument, plants: PlantDocument[], hide: Redaction, now: Date = new Date()): GrowSummary => {
   // A grow that has ended stopped counting on the day it ended.
   const asOf = grow.endedAt ?? now;
+  // The origin the week cards count from, which is what the stage week is read
+  // against; the day counter below keeps counting from the first phase.
+  const origin = growOriginOf(grow);
   const first = earliest(grow.phases);
   const groups = groupsOf(grow.phases, plants);
   const headline = groups[0]?.phase ?? latest(grow.phases);
@@ -177,6 +181,13 @@ export const summaryOf = (grow: GrowDocument, plants: PlantDocument[], hide: Red
     preset: headline?.preset ?? null,
     phaseDay: headline ? dayNumberOf(headline.startedAt, asOf) : null,
     weekNumber: dayNumber === null ? null : weekNumberOf(dayNumber),
+    // Which week of its stage, counted against the grow's own weeks rather than
+    // by dividing the phase's days by seven. The week cards count it that way,
+    // and the header sits directly above the first of them: a stage begun
+    // mid-week is in its second week on the Monday the grow's next week begins,
+    // and the two figures only ever coincided when a phase happened to start on
+    // a week boundary.
+    stageWeek: headline ? stageWeekOf(origin, headline.startedAt, growWeekAt(origin, asOf)) : null,
     // What the "auto" tag is drawn from: a preset or the plan put the grow here.
     isAuto: headline !== null && headline.source !== 'human',
     // One group is every plant in the same phase, which the headline already says.

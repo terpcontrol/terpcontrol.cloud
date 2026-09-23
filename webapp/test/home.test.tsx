@@ -53,6 +53,7 @@ const card = (over: Partial<HomeSpaceCard>): HomeSpaceCard => ({
     type: 'photoperiod',
     dayNumber: 34,
     phaseDay: 10,
+    stageWeek: 2,
     stage: 'flowering',
     preset: 'flower',
     isAuto: true,

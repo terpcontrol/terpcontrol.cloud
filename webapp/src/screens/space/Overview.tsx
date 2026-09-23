@@ -20,7 +20,6 @@ import type { Liveness } from '../home/attention';
 import { EntryRow } from '@/ui/EntryRow';
 import { readingFigure, readingNamesOf } from '@/ui/entries';
 import { useMayLogIn, useMayManage } from '@/ui/session-access';
-import { weekOfPhase } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { livenessOf, measuredAtOf } from '../home/attention';
 import { figure, targetFigure, UNIT } from '../home/units';
@@ -338,7 +337,6 @@ function GrowRow({ grow, still }: { grow: OverviewGrow; still: string | null }) 
   const { t } = useTranslation();
   const coverId = grow.coverMediaId ?? still;
   const cover = coverId ? mediaUrl(coverId, THUMBNAIL_WIDTH.cover) : null;
-  const week = weekOfPhase(grow.phaseDay);
 
   return (
     <li>
@@ -351,7 +349,7 @@ function GrowRow({ grow, still }: { grow: OverviewGrow; still: string | null }) 
           </span>
           <span className={styles.growLine}>
             {grow.stage ? t(`home.stage.${grow.stage}`) : t('home.card.noPhase')}
-            {week !== null ? ` · ${t('home.card.week', { week })}` : ''}
+            {grow.stageWeek !== null ? ` · ${t('home.card.week', { week: grow.stageWeek })}` : ''}
             {grow.isAuto ? <span className={`mono ${styles.auto}`}>{t('home.card.auto')}</span> : null}
             {grow.strains.length > 0 ? ` · ${grow.strains.join(', ')}` : ''}
             {grow.placedOnDay !== null && grow.placedOnDay > 1 ? ` · ${t('space.hereSince', { day: grow.placedOnDay })}` : ''}

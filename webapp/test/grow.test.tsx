@@ -92,6 +92,7 @@ const grow: GrowListItem = {
     stage: 'flowering',
     preset: 'flower',
     phaseDay: 11,
+    stageWeek: 2,
     weekNumber: 5,
     isAuto: true,
     groups: [],

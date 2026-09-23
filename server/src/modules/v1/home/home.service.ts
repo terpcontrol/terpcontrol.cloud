@@ -344,6 +344,7 @@ const growCardOf = (grow: GrowDocument, plants: PlantDocument[], hide: Redaction
     type: grow.type,
     dayNumber: summary.dayNumber,
     phaseDay: summary.phaseDay,
+    stageWeek: summary.stageWeek,
     stage: summary.stage,
     preset: summary.preset,
     isAuto: summary.isAuto,

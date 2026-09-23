@@ -2254,6 +2254,7 @@ export declare const growCard: z.ZodObject<{
     }>;
     dayNumber: z.ZodNullable<z.ZodNumber>;
     phaseDay: z.ZodNullable<z.ZodNumber>;
+    stageWeek: z.ZodNullable<z.ZodNumber>;
     stage: z.ZodNullable<z.ZodEnum<{
         germination: "germination";
         seedling: "seedling";
@@ -2355,6 +2356,7 @@ export declare const homeSpaceCard: z.ZodObject<{
         }>;
         dayNumber: z.ZodNullable<z.ZodNumber>;
         phaseDay: z.ZodNullable<z.ZodNumber>;
+        stageWeek: z.ZodNullable<z.ZodNumber>;
         stage: z.ZodNullable<z.ZodEnum<{
             germination: "germination";
             seedling: "seedling";
@@ -2639,6 +2641,7 @@ export declare const homeAnswer: z.ZodObject<{
             }>;
             dayNumber: z.ZodNullable<z.ZodNumber>;
             phaseDay: z.ZodNullable<z.ZodNumber>;
+            stageWeek: z.ZodNullable<z.ZodNumber>;
             stage: z.ZodNullable<z.ZodEnum<{
                 germination: "germination";
                 seedling: "seedling";
@@ -3062,6 +3065,7 @@ export declare const overviewGrow: z.ZodObject<{
     }>;
     dayNumber: z.ZodNullable<z.ZodNumber>;
     phaseDay: z.ZodNullable<z.ZodNumber>;
+    stageWeek: z.ZodNullable<z.ZodNumber>;
     stage: z.ZodNullable<z.ZodEnum<{
         germination: "germination";
         seedling: "seedling";
@@ -3324,6 +3328,7 @@ export declare const spaceOverview: z.ZodObject<{
         }>;
         dayNumber: z.ZodNullable<z.ZodNumber>;
         phaseDay: z.ZodNullable<z.ZodNumber>;
+        stageWeek: z.ZodNullable<z.ZodNumber>;
         stage: z.ZodNullable<z.ZodEnum<{
             germination: "germination";
             seedling: "seedling";
@@ -5776,6 +5781,7 @@ export declare const sharedSpace: z.ZodObject<{
             }>;
             dayNumber: z.ZodNullable<z.ZodNumber>;
             phaseDay: z.ZodNullable<z.ZodNumber>;
+            stageWeek: z.ZodNullable<z.ZodNumber>;
             stage: z.ZodNullable<z.ZodEnum<{
                 germination: "germination";
                 seedling: "seedling";
@@ -6389,6 +6395,7 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             }>;
             dayNumber: z.ZodNullable<z.ZodNumber>;
             phaseDay: z.ZodNullable<z.ZodNumber>;
+            stageWeek: z.ZodNullable<z.ZodNumber>;
             stage: z.ZodNullable<z.ZodEnum<{
                 germination: "germination";
                 seedling: "seedling";
@@ -7019,6 +7026,7 @@ export declare const sharedResolution: z.ZodObject<{
                 }>;
                 dayNumber: z.ZodNullable<z.ZodNumber>;
                 phaseDay: z.ZodNullable<z.ZodNumber>;
+                stageWeek: z.ZodNullable<z.ZodNumber>;
                 stage: z.ZodNullable<z.ZodEnum<{
                     germination: "germination";
                     seedling: "seedling";

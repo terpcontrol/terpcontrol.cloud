@@ -6026,6 +6026,19 @@
         ],
         "description": "Counted like `dayNumber`, so it lines up with the feeding scheme's grid."
       },
+      "stageWeek": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Which week of its stage the grow is in: 1 in the week the stage began, counted exactly as a week card’s own `stageWeek` is, so the header and the card beneath it state one figure. Null before the first phase."
+      },
       "isAuto": {
         "type": "boolean",
         "description": "The phase was set by a preset or by the plan rather than by hand."
@@ -6050,6 +6063,7 @@
       "preset",
       "phaseDay",
       "weekNumber",
+      "stageWeek",
       "isAuto",
       "groups",
       "locations"
@@ -10438,6 +10452,19 @@
         ],
         "description": "How many days the grow has stood in its current phase."
       },
+      "stageWeek": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and week cards state."
+      },
       "stage": {
         "anyOf": [
           {
@@ -10502,6 +10529,7 @@
       "type",
       "dayNumber",
       "phaseDay",
+      "stageWeek",
       "stage",
       "preset",
       "isAuto",
@@ -11090,6 +11118,19 @@
         ],
         "description": "How many days the grow has stood in its current phase."
       },
+      "stageWeek": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and week cards state."
+      },
       "stage": {
         "anyOf": [
           {
@@ -11185,6 +11226,7 @@
       "type",
       "dayNumber",
       "phaseDay",
+      "stageWeek",
       "stage",
       "preset",
       "isAuto",

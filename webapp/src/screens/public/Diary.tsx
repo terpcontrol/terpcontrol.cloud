@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowHarvest, PublicAuthor, PublicGrowPage } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, type Picture } from '@/api/public';
-import { weekOfPhase } from '@/ui/stages';
+import { weekOfGrowDay } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { DiaryWeek } from './DiaryWeek';
 import { Photo } from '@/ui/Photo';
@@ -128,7 +128,7 @@ function Author({ author, picture, aside }: { author: PublicAuthor; picture: Pic
 /** "Flowering · late flower · week 5 · Amnesia, Gelato · 3 plants · from 15 Aug" - what the diary is, in one line. */
 function Facts({ page }: { page: PublicGrowPage }) {
   const { t } = useTranslation();
-  const week = weekOfPhase(page.dayNumber);
+  const week = weekOfGrowDay(page.dayNumber);
   const from = DateTime.fromISO(page.startedAt);
   const until = page.endedAt ? DateTime.fromISO(page.endedAt) : null;
 
