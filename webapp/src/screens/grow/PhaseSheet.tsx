@@ -24,14 +24,26 @@ import styles from './Lifecycle.module.css';
  * entering a phase is an addition and a correction moves a date the day counter
  * is drawn from - so a correction says what it will move before it moves it,
  * and a withdrawal says what the grow is left with.
+ *
+ * Over a grow that has ended the whole sheet speaks in the past. The server
+ * freezes such a grow's summary at the day it came down, so "now Curing" and a
+ * stage chip marked "now" dress frozen figures as a present the grow does not
+ * have - which is what the phase bar above already refuses to say. The actions
+ * stay: this is the only route left to a finished grow's phase list, because
+ * the Log sheet needs an open placement and an ended grow has none, so a stage
+ * somebody forgot or one rebuilt after a withdrawal can be repaired nowhere
+ * else. They are worded as what they then are, an addition to a record rather
+ * than a move, and the date starts on the day the grow ended so that a tap
+ * cannot quietly file a phase a month after the plants came down.
  */
 export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () => void }) {
   const { t } = useTranslation();
   const add = useAddPhase(grow.id);
 
+  const ended = grow.endedAt !== null;
   const [stage, setStage] = useState<GrowthStage>(() => nextStage(grow) ?? grow.summary.stage ?? STAGES[0]);
   const [preset, setPreset] = useState<string | null>(null);
-  const [at, setAt] = useState(() => new Date());
+  const [at, setAt] = useState(() => (grow.endedAt ? new Date(grow.endedAt) : new Date()));
   /** Which row of the history is open, and for what. One at a time: two open editors would be two answers. */
   const [open, setOpen] = useState<{ phaseId: string; as: 'correct' | 'withdraw' } | null>(null);
 
@@ -55,12 +67,12 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
       <div className={styles.body}>
         <p className={`mono ${styles.now}`}>{nowLine(t, grow)}</p>
 
-        <Block label={t('grow.lifecycle.phase.enter')}>
+        <Block label={t(ended ? 'grow.lifecycle.phase.record' : 'grow.lifecycle.phase.enter')}>
           <Choices label={t('grow.lifecycle.phase.stageLabel')}>
             {STAGES.map(one => (
               <Choice key={one} chosen={one === stage} onChoose={() => pickStage(one)}>
                 {t(`home.stage.${one}`)}
-                {one === grow.summary.stage ? ` · ${t('log.now')}` : ''}
+                {!ended && one === grow.summary.stage ? ` · ${t('log.now')}` : ''}
               </Choice>
             ))}
           </Choices>
@@ -69,11 +81,13 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
           <WhenField label={t('grow.lifecycle.when')} at={at} onChange={setAt} />
 
           <ul className={styles.effect}>
-            <li className={ui.note}>{t('grow.lifecycle.phase.note')}</li>
+            <li className={ui.note}>{t(ended ? 'grow.lifecycle.phase.recordNote' : 'grow.lifecycle.phase.note')}</li>
             {preset === null ? null : <li className={ui.note}>{t('grow.lifecycle.phase.presetAlsoWrites')}</li>}
             {writesClimate(stage) ? null : <li className={ui.note}>{t('grow.lifecycle.phase.noClimateStage')}</li>}
           </ul>
-          {standsThere ? <p className={ui.note}>{t('grow.lifecycle.phase.alreadyThere')}</p> : null}
+          {standsThere ? (
+            <p className={ui.note}>{t(ended ? 'grow.lifecycle.phase.alreadyThereEnded' : 'grow.lifecycle.phase.alreadyThere')}</p>
+          ) : null}
           <Refused error={add.error} />
 
           <button
@@ -82,7 +96,9 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
             disabled={add.isPending}
             onClick={() => add.mutate({ stage, preset, startedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: () => onClose() })}
           >
-            {add.isPending ? t('grow.lifecycle.saving') : t('grow.lifecycle.phase.submit', { stage: label(t, stage, preset) })}
+            {add.isPending
+              ? t('grow.lifecycle.saving')
+              : t(ended ? 'grow.lifecycle.phase.submitEnded' : 'grow.lifecycle.phase.submit', { stage: label(t, stage, preset) })}
           </button>
         </Block>
 
@@ -110,10 +126,25 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
-/** What the server last said the grow reads as. Nothing here counts a day; the summary rides on the grow. */
+/**
+ * What the server last said the grow reads as. Nothing here counts a day; the
+ * summary rides on the grow.
+ *
+ * A grow that has ended is stated as what it finished as. Its figures are
+ * frozen at the day it came down, so the present tense would make them a claim
+ * about today, and the day it ended is what says which day they stopped on.
+ */
 const nowLine = (t: Translate, grow: GrowListItem): string => {
   const { stage, preset, phaseDay, dayNumber } = grow.summary;
   if (!stage || dayNumber === null) return t('grow.lifecycle.phase.noPhaseYet');
+
+  if (grow.endedAt !== null) {
+    return t('grow.lifecycle.phase.endedLine', {
+      stage: label(t, stage, preset),
+      growDay: dayNumber,
+      date: DateTime.fromISO(grow.endedAt).toFormat('d LLL yyyy'),
+    });
+  }
 
   return t('grow.lifecycle.phase.nowLine', {
     stage: label(t, stage, preset),

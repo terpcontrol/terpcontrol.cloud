@@ -113,7 +113,12 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
       <div className={styles.page}>
         <section className={ui.cardDashed}>
           <span className="label">{t('grow.noScheme')}</span>
-          <p className={ui.note}>{t('grow.noSchemeNote')}</p>
+          {/* A finished grow is not being fed anything, so it is told what it
+              was fed and why the grid is still worth filling in, rather than
+              being advised how to start. The action itself stays: this grid is
+              the record the report and the export read, and filling in what a
+              grow really got is a legitimate repair of it long afterwards. */}
+          <p className={ui.note}>{t(grow.endedAt ? 'grow.noSchemeNoteEnded' : 'grow.noSchemeNote')}</p>
         </section>
         {mayManage ? (
           <div className={styles.chips}>

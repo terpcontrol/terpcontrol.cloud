@@ -169,6 +169,17 @@ describe('the feeding tab', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
+  it('says of a grow that is over what it was fed, and still offers the grid, which is its record', () => {
+    // The grid a finished grow carries is what it really got: its report and
+    // its export read it, so filling one in afterwards is a repair rather than
+    // advice about a grow that is still going.
+    draw({ ...growOn(null), endedAt: '2026-08-24T15:31:56.000Z' });
+
+    expect(screen.getByText(/This grow was fed no scheme/)).toBeInTheDocument();
+    expect(screen.queryByText(/This grow is fed no scheme/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Choose a scheme' })).toBeInTheDocument();
+  });
+
   it('draws where the grid came from, what the grow decided for itself, and the week grid with this week marked', async () => {
     await drawn();
 

@@ -10,6 +10,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { GrowListItem, Plant, SpaceOverview } from '@fg2/shared-types/v1';
 import { HarvestSheet } from '@/screens/grow/HarvestSheet';
+import { PhaseSheet } from '@/screens/grow/PhaseSheet';
 import { correctionEffect, withdrawalEffect } from '@/screens/grow/phase-effect';
 import { PresetSheet } from '@/screens/space/PresetSheet';
 
@@ -277,6 +278,43 @@ describe('the harvest sheet over a grow whose record carries no plants', () => {
 
     expect(screen.getByText('It ended on 16 Sep 2026.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'End the grow' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * A finished grow's phase sheet. Its figures are frozen at the day it came
+ * down, so every present tense on it is a claim about today that the grow
+ * cannot make - which is what the phase bar above it already refuses to say.
+ * The actions stay, because this is the only way left to repair a finished
+ * grow's phase list.
+ */
+describe('the phase sheet over a grow that has ended', () => {
+  const finished: GrowListItem = { ...grow, endedAt: at(0) };
+
+  it('says what the grow finished as and when, rather than what it is doing now', () => {
+    draw(<PhaseSheet grow={finished} onClose={() => {}} />);
+
+    expect(screen.getByText('Ended in Flower on day 35 of the grow · 18 Sep 2026')).toBeInTheDocument();
+    expect(screen.queryByText(/^Now /)).not.toBeInTheDocument();
+    // A grow that is over is in no stage, so no stage is marked as the one it is in.
+    expect(screen.queryByRole('button', { name: /· now/ })).not.toBeInTheDocument();
+  });
+
+  it('keeps the phase list repairable, worded as a record rather than a move, dated to the day it ended', () => {
+    draw(<PhaseSheet grow={finished} onClose={() => {}} />);
+
+    expect(screen.getByRole('button', { name: 'Record Drying' })).toBeEnabled();
+    expect(screen.getByText(/This grow is over/)).toBeInTheDocument();
+    // Not today: a phase filed a month after the plants came down would be a
+    // stage the grow never stood in.
+    expect(screen.getByLabelText('On')).toHaveValue('2026-09-18');
+  });
+
+  it('speaks in the present over a grow that is still running, which is what the ended wording is told against', () => {
+    draw(<PhaseSheet grow={grow} onClose={() => {}} />);
+
+    expect(screen.getByText('Now Flower · day 11 of the phase · day 35, week 5 of the grow')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Enter Drying' })).toBeInTheDocument();
   });
 });
 
