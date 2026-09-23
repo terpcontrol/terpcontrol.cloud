@@ -1,6 +1,7 @@
 import { Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
 import { calculateVpd } from '@utils/calculateVpd';
 import { fieldOfMetric, fieldOfOutputMetric } from '@common/v1/metrics';
+import { isSentinel } from '@common/v1/sentinels';
 
 /**
  * What is sent to InfluxDB and what comes back, kept apart from the service so
@@ -338,7 +339,14 @@ export interface FluxRow {
 
 const numberOf = (value: number | null | undefined): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
 
-/** The newest reading of each field, by field name. */
+/**
+ * The newest reading of each field, by field name.
+ *
+ * A sentinel is passed over rather than answered as the newest point. Years of
+ * stored samples were written before the ingest knew to drop them, and the live
+ * read looks a month back, so a controller with no CO2 sensor would otherwise go
+ * on reporting its "no sensor" figure as the freshest thing it measured.
+ */
 export const latestByField = (rows: FluxRow[]): Map<string, { value: number; measuredAt: Date }> => {
   const latest = new Map<string, { value: number; measuredAt: Date }>();
 
@@ -346,6 +354,7 @@ export const latestByField = (rows: FluxRow[]): Map<string, { value: number; mea
     const value = numberOf(row._value);
     const measuredAt = row._time ? new Date(row._time) : null;
     if (!row._field || value === null || !measuredAt || Number.isNaN(measuredAt.getTime())) continue;
+    if (isSentinel(row._field, value)) continue;
 
     const known = latest.get(row._field);
     if (!known || known.measuredAt < measuredAt) latest.set(row._field, { value, measuredAt });
@@ -358,6 +367,10 @@ export const latestByField = (rows: FluxRow[]): Map<string, { value: number; mea
  * The windows of a series read, as a grid: the instants in order, and each
  * field's value at each of them. `aggregateWindow` stamps every field's windows
  * identically, so the instant is what joins the fields a computed metric needs.
+ *
+ * A window whose figure is a sentinel is a window with no reading in it, and is
+ * kept as the gap it is rather than dropped: a chart draws the hole rather than
+ * joining across it, which is what an unfitted sensor really leaves behind.
  */
 export interface SeriesGrid {
   instants: string[];
@@ -378,7 +391,8 @@ export const gridOf = (rows: FluxRow[]): SeriesGrid => {
     // and an empty window of the one falls on the start of a day the other has
     // a figure for, which would otherwise blank it.
     const known = values.get(row._time);
-    const value = numberOf(row._value);
+    const read = numberOf(row._value);
+    const value = read !== null && isSentinel(row._field, read) ? null : read;
     if (!(value === null && known !== null && known !== undefined)) values.set(row._time, value);
     valuesByField.set(row._field, values);
   }

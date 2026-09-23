@@ -6,6 +6,7 @@ import { InfluxDB, Point } from '@influxdata/influxdb-client';
 import { DeviceLive, DeviceSeries, Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
 import { logger } from '@utils/logger';
 import { fieldOfMetric, fieldOfOutputMetric, metricOfField, OUTPUT_FIELDS, STORED_FIELDS } from '@common/v1/metrics';
+import { reportsNoSensor } from '@common/v1/sentinels';
 import { metricValueOf } from '@common/v1/value-age';
 import { LightStateReader } from '@modules/v1/camera/light-state';
 import { MODEL_V1 } from '@database/models';
@@ -129,6 +130,22 @@ const DEFAULT_FACTORS: DeviceFactors = {
   ppfdLuxFactor: DEFAULT_PPFD_LUX_FACTOR,
 };
 
+/**
+ * What a device says about itself that a read of its points cannot do without:
+ * the factors its computed metrics are worked out with, and the hardware report
+ * that says which of the sensors it writes a field for are fitted at all.
+ *
+ * They are read together because they come out of the same document, so
+ * knowing both costs what knowing one used to.
+ */
+interface DeviceSelf {
+  factors: DeviceFactors;
+  /** The flat `hardware-info` report. An absent key is "the firmware did not say", which is not "not fitted". */
+  hardware: Record<string, string>;
+}
+
+const UNKNOWN_DEVICE: DeviceSelf = { factors: DEFAULT_FACTORS, hardware: {} };
+
 @Injectable()
 export class DataService implements LightStateReader {
   private readonly influx: InfluxDB;
@@ -170,19 +187,20 @@ export class DataService implements LightStateReader {
    * included: they are worked out from the same rows.
    */
   public async live(deviceId: string): Promise<LiveReading> {
-    const [rows, factors] = await Promise.all([this.read(liveQuery(this.bucket, deviceId)), this.factorsOf(deviceId)]);
+    const [rows, self] = await Promise.all([this.read(liveQuery(this.bucket, deviceId)), this.selfOf(deviceId)]);
     const latest = latestByField(rows);
 
     const metrics: DeviceLive['metrics'] = {};
     for (const [field, reading] of latest) {
-      // A diagnostic field the API names no metric for is simply not answered.
+      // A diagnostic field the API names no metric for is simply not answered,
+      // and neither is one whose sensor the device says it does not have.
       const name = metricOfField(field);
-      if (name) metrics[name] = metricValueOf(reading.value, reading.measuredAt);
+      if (name && !reportsNoSensor(self.hardware, name)) metrics[name] = metricValueOf(reading.value, reading.measuredAt);
     }
 
     const readings = readingsOf(field => latest.get(field)?.value ?? null);
     for (const name of ['vpd', 'ppfd'] as const) {
-      const value = computedValue(name, readings, factors);
+      const value = computedValue(name, readings, self.factors);
       if (value !== null) metrics[name] = metricValueOf(value, computedAt(name, latest));
     }
 
@@ -226,14 +244,18 @@ export class DataService implements LightStateReader {
     // shorter window, and the readings are not gone - they are a day apart.
     // They never overlap, because a day is summarised and dropped in one act,
     // so the two sets of points go into one grid at the instants they carry.
-    const [rows, summaries, factors, lamp] = fields.length
+    // The device itself is read once for both halves: its own factors, which
+    // every reading is scaled by, and what its firmware says is fitted, which
+    // decides whether a sentinel is a reading at all. The lamp is a read of its
+    // own because only VPD asks for it.
+    const [rows, summaries, self, lamp] = fields.length
       ? await Promise.all([
           this.read(seriesQuery(this.bucket, deviceId, fields, window)),
           this.read(summaryQuery(this.bucket, deviceId, fields, window)),
-          this.factorsOf(deviceId),
+          this.selfOf(deviceId),
           this.lampOf(deviceId, request.metrics, window),
         ])
-      : [[] as FluxRow[], [] as FluxRow[], DEFAULT_FACTORS, [] as OutputSwitching[]];
+      : [[] as FluxRow[], [] as FluxRow[], UNKNOWN_DEVICE, [] as OutputSwitching[]];
 
     const grid = gridOf([...summaries, ...rows]);
     const valueAt = (field: string, instant: string): number | null => grid.valuesByField.get(field)?.get(instant) ?? null;
@@ -251,10 +273,14 @@ export class DataService implements LightStateReader {
             ? computedValue(
                 name,
                 readingsOf(input => valueAt(input, instant), isDayAt(instant)),
-                factors,
+                self.factors,
               )
             : valueAt(field, instant);
-        return { metric: name, points: pointsOf(grid.instants, at) };
+        // A metric the device has no sensor for is answered as the empty series
+        // it is, rather than as whatever the store kept before the sensor came
+        // out - a panel is built from the points, and a chart of nothing is the
+        // honest one.
+        return { metric: name, points: pointsOf(grid.instants, reportsNoSensor(self.hardware, name) ? () => null : at) };
       }),
       outputs: outputs.map(name => ({
         output: name,
@@ -429,10 +455,10 @@ export class DataService implements LightStateReader {
     return switchingsByField(await this.read(switchingsQuery(this.bucket, deviceId, fields, window)));
   }
 
-  /** A device's own VPD offsets and lux factor; the defaults for a device that is no longer there. */
-  private async factorsOf(deviceId: string): Promise<DeviceFactors> {
-    const device = await this.devices.findOne({ id: deviceId }, { settings: 1 }).lean();
-    return device ? device.settings : DEFAULT_FACTORS;
+  /** A device's own VPD offsets, lux factor and hardware report; the defaults for a device that is no longer there. */
+  private async selfOf(deviceId: string): Promise<DeviceSelf> {
+    const device = await this.devices.findOne({ id: deviceId }, { settings: 1, 'state.hardware': 1 }).lean();
+    return device ? { factors: device.settings, hardware: device.state?.hardware ?? {} } : UNKNOWN_DEVICE;
   }
 }
 

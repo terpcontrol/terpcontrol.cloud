@@ -6,6 +6,7 @@ import { Metric, OutputMetric } from '@fg2/shared-types/v1';
 import { HARDWARE_INFO_PREFIX, deviceMessageFact, parseDeviceMessage } from '@common/v1/device-messages';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { metricOfField, outputMetricOfField } from '@common/v1/metrics';
+import { isSentinel } from '@common/v1/sentinels';
 import { BackgroundWork } from '@common/background-work';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -342,6 +343,15 @@ const numbers = (value: unknown): Record<string, number> => {
 };
 
 /**
+ * The same readings with the firmware's "there is no sensor here" figures taken
+ * out, so that nothing the store keeps from here on has to be recognised as a
+ * sentinel on the way back out. What is already behind them is dropped where it
+ * is read instead, which is the same rule stated in the same place.
+ */
+const measurements = (sensors: Record<string, number>): Record<string, number> =>
+  Object.fromEntries(Object.entries(sensors).filter(([field, value]) => !isSentinel(field, value)));
+
+/**
  * One reading document. `dated` is what tells the two ways of sending one apart:
  * a `bulk` message carries the epoch seconds the device measured at, and a
  * reading that arrives on `status` is recorded at server time.
@@ -350,7 +360,7 @@ const sampleOf = (payload: string, dated: boolean): DeviceSample | null => {
   const document = asRecord(parsed(payload));
   if (!document) return null;
 
-  const sensors = numbers(document.sensors);
+  const sensors = measurements(numbers(document.sensors));
   const outputs = numbers(document.outputs);
   if (Object.keys(sensors).length === 0 && Object.keys(outputs).length === 0) return null;
 

@@ -116,6 +116,33 @@ describe('reading the rows back', () => {
     expect(grid.valuesByField.get('humidity')?.get('2026-01-20T10:00:00Z')).toBeUndefined();
     expect(grid.valuesByField.get('temperature')?.get('2026-01-20T10:00:00Z')).toBe(24);
   });
+
+  it('passes over the CO2 a device writes to say it has no sensor', () => {
+    // Years of these were stored before the ingest knew to drop them, and the
+    // live read looks a month back - so the newest real reading is the answer,
+    // and a device that has only ever written the sentinel answers nothing.
+    const latest = latestByField([
+      { _field: 'co2', _time: '2026-01-20T10:00:00Z', _value: 900 },
+      { _field: 'co2', _time: '2026-01-20T10:05:00Z', _value: -1 },
+      { _field: 'temperature', _time: '2026-01-20T10:05:00Z', _value: 22 },
+    ]);
+
+    expect(latest.get('co2')).toEqual({ value: 900, measuredAt: new Date('2026-01-20T10:00:00Z') });
+    expect(latestByField([{ _field: 'co2', _time: '2026-01-20T10:05:00Z', _value: 0 }]).has('co2')).toBe(false);
+  });
+
+  it('leaves a window of that sentinel as the gap it is', () => {
+    const grid = gridOf([
+      { _field: 'co2', _time: '2026-01-20T10:00:00Z', _value: -1 },
+      { _field: 'co2', _time: '2026-01-20T10:05:00Z', _value: 1200 },
+    ]);
+
+    // Still an instant in the grid, so a chart draws the hole rather than
+    // joining across it - which is what a sensor that is not there leaves.
+    expect(grid.instants).toEqual(['2026-01-20T10:00:00Z', '2026-01-20T10:05:00Z']);
+    expect(grid.valuesByField.get('co2')?.get('2026-01-20T10:00:00Z')).toBeNull();
+    expect(grid.valuesByField.get('co2')?.get('2026-01-20T10:05:00Z')).toBe(1200);
+  });
 });
 
 describe('the metrics the cloud computes', () => {

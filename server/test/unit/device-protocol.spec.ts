@@ -119,6 +119,30 @@ describe('what a device reports', () => {
     expect(seen).toEqual([DEVICE]);
   });
 
+  it('keeps a controller´s "no CO2 sensor fitted" figure out of the store', async () => {
+    await device();
+
+    // The protocol says -1 is how a controller with no SCD sensor says there is
+    // none, and a plug with no CO2 hardware at all writes a flat zero. Neither
+    // is a concentration, so neither is stored or evaluated - while the
+    // temperature that came in the same message is both.
+    await messageOn('bulk', { sensors: { temperature: 24.6, co2: -1 }, outputs: {}, timestamp: 1758100000 });
+    await messageOn('bulk', { sensors: { temperature: 24.7, co2: 0 }, outputs: {}, timestamp: 1758100030 });
+
+    expect(samples[0].sample.sensors).toEqual({ temperature: 24.6 });
+    expect(samples[1].sample.sensors).toEqual({ temperature: 24.7 });
+    expect(metrics.map(sample => sample.values)).toEqual([{ temperature: 24.6 }, { temperature: 24.7 }]);
+  });
+
+  it('stores the CO2 a fitted sensor really measured', async () => {
+    await device();
+
+    await messageOn('bulk', { sensors: { co2: 412 }, outputs: {}, timestamp: 1758100000 });
+
+    expect(samples[0].sample.sensors).toEqual({ co2: 412 });
+    expect(metrics[0].values).toEqual({ co2: 412 });
+  });
+
   it('records a reading that arrives on status at server time', async () => {
     await device();
     const before = Date.now();
