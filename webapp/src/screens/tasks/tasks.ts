@@ -1,15 +1,18 @@
-import { DateTime } from 'luxon';
+import type { DateTime } from 'luxon';
 import type { GrowListItem, GrowOrSpaceRef, Reminder, Space, Task } from '@fg2/shared-types/v1';
+import { nowThere, zoned } from '@/ui/zone';
 
 /**
  * The arithmetic of the Tasks tab, kept apart from the drawing so it can be
  * checked on its own: which group a task falls into, whose it is, and what its
  * meta line says.
  *
- * Days are counted in the reader's own zone. A task due at any hour of today is
- * today's, however early; one that was due yesterday is today's as well, because
- * the list is what is waiting rather than a calendar, and the most overdue task
- * is the one at the top.
+ * Days are counted in the account's own zone, which is where the grower's day
+ * begins and where the server reads their quiet hours: a reader two zones from
+ * their account otherwise files the evening's work under tomorrow. A task due
+ * at any hour of today is today's, however early; one that was due yesterday is
+ * today's as well, because the list is what is waiting rather than a calendar,
+ * and the most overdue task is the one at the top.
  */
 
 export type Translate = (key: string, options?: Record<string, unknown>) => string;
@@ -21,12 +24,16 @@ export type Group = 'today' | 'tomorrow' | 'week';
 
 export const GROUPS: Group[] = ['today', 'tomorrow', 'week'];
 
-/** Whole calendar days from today to the day a task falls due; negative is overdue. */
-export const daysUntil = (dueAt: string, now: DateTime): number =>
-  Math.floor(DateTime.fromISO(dueAt).startOf('day').diff(now.startOf('day'), 'days').days);
+/**
+ * Whole calendar days from today to the day a task falls due; negative is
+ * overdue. Both ends move into the account's zone together - a due date read
+ * there against a today read here counts a day that is neither.
+ */
+export const daysUntil = (dueAt: string, now: DateTime, zone: string | null): number =>
+  Math.floor(zoned(dueAt, zone).startOf('day').diff(nowThere(now, zone).startOf('day'), 'days').days);
 
-export const groupOf = (task: Task, now: DateTime): Group => {
-  const days = daysUntil(task.dueAt, now);
+export const groupOf = (task: Task, now: DateTime, zone: string | null): Group => {
+  const days = daysUntil(task.dueAt, now, zone);
   return days <= 0 ? 'today' : days === 1 ? 'tomorrow' : 'week';
 };
 
@@ -81,9 +88,9 @@ export const dateLabel = (at: DateTime, language: string): string =>
   at.setLocale(language).toLocaleString({ weekday: 'short', day: 'numeric', month: 'short' });
 
 /** "today", "yesterday", or the day itself for a tick older than that. */
-export const dayLabel = (t: Translate, at: string, now: DateTime, language: string): string => {
-  const days = daysUntil(at, now);
+export const dayLabel = (t: Translate, at: string, now: DateTime, language: string, zone: string | null): string => {
+  const days = daysUntil(at, now, zone);
   if (days === 0) return t('tasks.ticked.today');
   if (days === -1) return t('tasks.ticked.yesterday');
-  return dateLabel(DateTime.fromISO(at), language);
+  return dateLabel(zoned(at, zone), language);
 };

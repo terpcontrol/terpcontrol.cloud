@@ -1,5 +1,5 @@
 import { UserRound } from 'lucide-react';
-import { DateTime } from 'luxon';
+import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Reminder, SessionUser, Task } from '@fg2/shared-types/v1';
@@ -7,6 +7,7 @@ import { useDevicePlan } from '@/api/plans';
 import { initials } from '@/app/shell/tabs';
 import { nextStepIndex } from '@/screens/control/plan-clock';
 import ui from '@/ui/ui.module.css';
+import { clock, useZone } from '@/ui/zone';
 import { dayLabel, daysUntil, litresOf, type Translate } from './tasks';
 import styles from './Tasks.module.css';
 
@@ -50,6 +51,7 @@ interface TaskCardProps {
  */
 export function TaskCard({ task, name, reminder, deviceId, me, now, onDone, onEdit, why = null }: TaskCardProps) {
   const { t } = useTranslation();
+  const zone = useZone();
   const [asking, setAsking] = useState(false);
   const title = titleOf(t, task);
   const asks = task.source === 'plan_step';
@@ -70,7 +72,7 @@ export function TaskCard({ task, name, reminder, deviceId, me, now, onDone, onEd
         )}
         <span className={styles.text}>
           <span className={styles.cardTitle}>{title}</span>
-          <span className={`mono ${styles.meta}`}>{metaLine(t, task, name, reminder, now)}</span>
+          <span className={`mono ${styles.meta}`}>{metaLine(t, task, name, reminder, now, zone)}</span>
         </span>
         {onEdit ? (
           <button type="button" className={`${ui.chip} ${styles.edit}`} onClick={onEdit}>
@@ -133,6 +135,10 @@ function NextStep({ deviceId }: { deviceId: string }) {
  */
 export function DoneCard({ task, name, me, now }: { task: Task; name: string | null; me: SessionUser | null; now: DateTime }) {
   const { t, i18n } = useTranslation();
+  // The hour a task was ticked off at, in the account's zone: the alerts inbox
+  // beside this list has always drawn its instants there, and the same tick
+  // read 10:39 on one screen and 12:39 here.
+  const zone = useZone();
   const completion = task.completion;
   const who = t(completion?.authorId && completion.authorId === me?.id ? 'tasks.ticked.you' : 'tasks.ticked.somebody');
 
@@ -146,9 +152,7 @@ export function DoneCard({ task, name, me, now }: { task: Task; name: string | n
             {[
               who,
               name,
-              completion
-                ? `${dayLabel(t, completion.occurredAt, now, i18n.language)} ${DateTime.fromISO(completion.occurredAt).toFormat('HH:mm')}`
-                : null,
+              completion ? `${dayLabel(t, completion.occurredAt, now, i18n.language, zone)} ${clock(completion.occurredAt, zone)}` : null,
             ]
               .filter(part => part !== null)
               .join(' · ')}
@@ -194,7 +198,7 @@ function Assignee({ task, me }: { task: Task; me: SessionUser | null }) {
 const titleOf = (t: Translate, task: Task): string => (task.source === 'plan_step' ? t('tasks.planStepTitle', { label: task.label }) : task.label);
 
 /** "every 3 d · Spring run · water · 2 L · today", or "grow plan · Tent 1 · in 2 d": where the task came from, which place it is about, then when it is due. */
-const metaLine = (t: Translate, task: Task, name: string | null, reminder: Reminder | null, now: DateTime): string => {
+const metaLine = (t: Translate, task: Task, name: string | null, reminder: Reminder | null, now: DateTime, zone: string | null): string => {
   const parts: string[] = [];
 
   if (task.source === 'plan_step') {
@@ -210,12 +214,12 @@ const metaLine = (t: Translate, task: Task, name: string | null, reminder: Remin
     if (litres !== null) parts.push(t('log.litres', { litres }));
   }
 
-  parts.push(dueLabel(t, task, now));
+  parts.push(dueLabel(t, task, now, zone));
   return parts.join(' · ');
 };
 
-const dueLabel = (t: Translate, task: Task, now: DateTime): string => {
-  const days = daysUntil(task.dueAt, now);
+const dueLabel = (t: Translate, task: Task, now: DateTime, zone: string | null): string => {
+  const days = daysUntil(task.dueAt, now, zone);
   if (days < 0) return t('tasks.due.overdue', { count: -days });
   if (days === 0) return t('tasks.due.today');
   if (days === 1) return t('tasks.due.tomorrow');

@@ -13,6 +13,7 @@ import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { LogProvider } from '@/log/LogProvider';
 import { Tasks } from '@/screens/Tasks';
+import { groupOf } from '@/screens/tasks/tasks';
 import { spaceWhere, THE_HOST, YOU } from './session';
 
 /**
@@ -119,8 +120,13 @@ const reminders = [
   reminder({ id: 'rem-3', kind: 'feed', label: 'Feed', everyDays: 7, assigneeId: 'user-mia', defaults: null }),
 ];
 
-/** What the reader may do in Tent 1, which is what decides every control on this screen. */
-const state = { waiting: [] as Task[], done: [] as Task[], youMay: 'own' as AccessNeed };
+/**
+ * What the reader may do in Tent 1, which is what decides every control on this
+ * screen - and the zone the account is kept in, which is the calendar its days
+ * are counted on. No zone is an account still on its way, and leaves the screen
+ * on the browser's, which is what every expectation but the zone's own assumes.
+ */
+const state = { waiting: [] as Task[], done: [] as Task[], youMay: 'own' as AccessNeed, zone: null as string | null };
 
 const spaces = () => [spaceWhere(state.youMay)];
 
@@ -157,6 +163,7 @@ const answers = (path: string, query?: Record<string, unknown>) => {
   if (path === '/spaces') return { items: spaces(), nextCursor: null };
   if (path === '/devices') return { items: devices, nextCursor: null };
   if (path === '/devices/device-1/plan') return plan;
+  if (path === '/me') return { preferences: { timezone: state.zone } };
   throw new Error(`nothing mocked for ${path}`);
 };
 
@@ -200,6 +207,7 @@ beforeEach(() => {
   who.demo = false;
   localStorage.clear();
   state.youMay = 'own';
+  state.zone = null;
   state.waiting = [water, chore, planStep, mias, overdue];
   state.done = [ticked];
   vi.mocked(api.get).mockImplementation((path: string, query?: Record<string, unknown>) => Promise.resolve(answers(path, query)) as never);
@@ -237,6 +245,28 @@ describe('the groups', () => {
     expect(screen.getByText('grow plan · Tent 1 · in 2 d')).toBeInTheDocument();
     expect(screen.getByText('every 3 d · Spring run · water · 2 L · overdue 2 d')).toBeInTheDocument();
     expect(screen.getByText('you · Spring run · yesterday 19:40')).toBeInTheDocument();
+  });
+
+  it('dates a tick by the account´s clock, which is the one the alerts beside it are dated by', async () => {
+    // The same tick read 10:39 on the alerts screen and 12:39 here, because
+    // only this one asked the browser what the hour was.
+    state.zone = 'Pacific/Kiritimati';
+    await drawLoaded();
+
+    const there = DateTime.fromISO(ticked.completion!.occurredAt).setZone('Pacific/Kiritimati');
+    expect(await screen.findByText(new RegExp(`you · Spring run · .+ ${there.toFormat('HH:mm')}$`))).toBeInTheDocument();
+    expect(screen.queryByText('you · Spring run · yesterday 19:40')).not.toBeInTheDocument();
+  });
+
+  it('counts the days to a task in the account´s zone, so the same task is not waiting on two different days', () => {
+    // Noon UTC is two in the morning of the next day where this account is
+    // kept, while its own "now" is still the evening before: one instant, one
+    // task, and the answer is not the same in the two zones.
+    const soon = task({ dueAt: '2026-09-16T12:00:00.000Z' });
+    const at = DateTime.fromISO('2026-09-16T09:00:00.000Z');
+
+    expect(groupOf(soon, at, 'UTC')).toBe('today');
+    expect(groupOf(soon, at, 'Pacific/Kiritimati')).toBe('tomorrow');
   });
 
   it('marks whose a task is: my initials, a plain mark for somebody else, nothing for everyone', async () => {

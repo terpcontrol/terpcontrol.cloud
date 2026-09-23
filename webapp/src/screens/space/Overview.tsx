@@ -22,6 +22,7 @@ import { readingFigure, readingNamesOf } from '@/ui/entries';
 import { useMayLogIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
+import { daysUntil } from '../tasks/tasks';
 import { livenessOf } from '../home/attention';
 import { figure, targetFigure, UNIT } from '../home/units';
 import { MoveHereSheet } from './MoveHereSheet';
@@ -284,6 +285,7 @@ function TargetsLine({ overview }: { overview: SpaceOverview }) {
 /** A due task with its Done, which says what it is about to write. */
 function DueCard({ task, overview, now }: { task: OverviewTask; overview: SpaceOverview; now: DateTime }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const { complete } = useLog();
   const mayLog = useMayLog();
   const subject = task.subject.type === 'grow' ? (overview.grows.find(grow => grow.growId === task.subject.id)?.name ?? '') : overview.name;
@@ -300,7 +302,7 @@ function DueCard({ task, overview, now }: { task: OverviewTask; overview: SpaceO
           {defaults ? <span className={styles.muted}> · {defaults}</span> : null}
         </span>
         <span className={`mono ${styles.dueMeta}`}>
-          {dueLabel(t, task.dueAt, now)}
+          {dueLabel(t, task.dueAt, now, zone)}
           {assignee ? ` · @${assignee}` : ''}
           {' · '}
           {t('space.doneWrites', { what: writes, subject })}
@@ -336,9 +338,9 @@ const defaultsLabel = (defaults: unknown): string => {
     .join(' · ');
 };
 
-/** "today", "tomorrow", "in 3 d", or how overdue - the words the Tasks tab counts a task down in. */
-const dueLabel = (t: Translate, dueAt: string, now: DateTime): string => {
-  const days = Math.floor(DateTime.fromISO(dueAt).startOf('day').diff(now.startOf('day'), 'days').days);
+/** "today", "tomorrow", "in 3 d", or how overdue - the words the Tasks tab counts a task down in, counted the way that tab counts them. */
+const dueLabel = (t: Translate, dueAt: string, now: DateTime, zone: string | null): string => {
+  const days = daysUntil(dueAt, now, zone);
   if (days < 0) return t('home.strip.overdue', { count: -days });
   if (days === 0) return t('home.strip.today');
   if (days === 1) return t('home.strip.tomorrow');

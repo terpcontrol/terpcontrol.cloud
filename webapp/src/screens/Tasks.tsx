@@ -15,6 +15,7 @@ import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, standsIn, useMayManage, useMayWith, type Standing } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { nowThere, useZone } from '@/ui/zone';
 import { ReminderSheet } from './tasks/ReminderSheet';
 import { DoneCard, TaskCard } from './tasks/TaskCard';
 import {
@@ -132,6 +133,10 @@ function Nothing({ demo, waiting, onAll }: { demo: boolean; waiting: number; onA
 
 function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null; now: DateTime }) {
   const { t, i18n } = useTranslation();
+  // Which day a task falls on is decided where the account is: a list read two
+  // zones from it otherwise files this evening's work under tomorrow and heads
+  // the day with the browser's date.
+  const zone = useZone();
   const { user } = useSession();
   const { complete } = useLog();
   const mayLog = useMayLog();
@@ -243,14 +248,14 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
       {shown.length === 0 ? <Nothing demo={user?.isDemo === true} waiting={tasks.length} onAll={() => pickScope('all')} /> : null}
 
       {GROUPS.map(group => {
-        const members = shown.filter(task => groupOf(task, now) === group);
+        const members = shown.filter(task => groupOf(task, now, zone) === group);
         if (members.length === 0) return null;
 
         return (
           <section key={group} className={styles.group} aria-label={t(`tasks.group.${group}`)}>
             <header className={styles.groupHead}>
               <span className="label">{t(`tasks.group.${group}`)}</span>
-              {group === 'today' ? <span className={`mono ${styles.groupAside}`}>{dateLabel(now, i18n.language)}</span> : null}
+              {group === 'today' ? <span className={`mono ${styles.groupAside}`}>{dateLabel(nowThere(now, zone), i18n.language)}</span> : null}
             </header>
             <ul className={styles.cards}>
               {members.map(task => {
@@ -279,7 +284,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
         <section className={styles.group} aria-label={t('tasks.group.done')}>
           <header className={styles.groupHead}>
             <span className="label">{t('tasks.group.done')}</span>
-            <span className={`mono ${styles.groupAside}`}>{dayLabel(t, ticked[0].completion?.occurredAt ?? now.toISO()!, now, i18n.language)}</span>
+            <span className={`mono ${styles.groupAside}`}>{dayLabel(t, ticked[0].completion?.occurredAt ?? now.toISO()!, now, i18n.language, zone)}</span>
           </header>
           <ul className={styles.cards}>
             {ticked.map(task => (

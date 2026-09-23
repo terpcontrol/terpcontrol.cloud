@@ -8,6 +8,8 @@ import { useLog, useMayLog } from '@/log/log-context';
 import { FollowButton } from '@/screens/public/FollowButton';
 import { Photo } from '@/ui/Photo';
 import { ageLabel } from '@/ui/age';
+import { useZone } from '@/ui/zone';
+import { daysUntil } from '@/screens/tasks/tasks';
 import styles from './Strips.module.css';
 import { alertLabel } from './units';
 
@@ -41,6 +43,10 @@ export function AttentionStrip({ cards, now }: { cards: HomeSpaceCard[]; now: Da
 
 export function DueStrip({ cards, now }: { cards: HomeSpaceCard[]; now: DateTime }) {
   const { t } = useTranslation();
+  // "today" and "tomorrow" are the account's days, which is how the Tasks tab
+  // groups the same rows; counted on the browser's calendar the two screens
+  // disagree about what is waiting today.
+  const zone = useZone();
   const { complete } = useLog();
   const mayLog = useMayLog();
   const due = cards.flatMap(card => card.dueTasks.map(task => ({ card, task }))).sort((a, b) => a.task.dueAt.localeCompare(b.task.dueAt));
@@ -55,7 +61,7 @@ export function DueStrip({ cards, now }: { cards: HomeSpaceCard[]; now: DateTime
             <span className={styles.chipText}>
               <strong>{task.label}</strong> · {placeOf(task, card)}
             </span>
-            <span className={`mono ${styles.chipMeta}`}>{dueLabel(t, task, now)}</span>
+            <span className={`mono ${styles.chipMeta}`}>{dueLabel(t, task, now, zone)}</span>
             {/* Done writes the entry the task implies; the toast is where it can still be taken back. */}
             {mayLog ? (
               <button type="button" className={styles.done} onClick={() => complete(task.id, doneLabel(t, task, card))}>
@@ -81,9 +87,9 @@ const placeOf = (task: DueTask, card: HomeSpaceCard): string => (task.subject.ty
 const doneLabel = (t: Translate, task: DueTask, card: HomeSpaceCard): string =>
   `${t(`home.entryKind.${task.kind === 'chore' || task.kind === 'custom' ? 'note' : task.kind}`)} · ${placeOf(task, card)}`;
 
-/** "today", "tomorrow", "in 3 d", or how overdue - the words the Tasks tab counts a task down in. */
-const dueLabel = (t: Translate, task: DueTask, now: DateTime): string => {
-  const days = Math.floor(DateTime.fromISO(task.dueAt).startOf('day').diff(now.startOf('day'), 'days').days);
+/** "today", "tomorrow", "in 3 d", or how overdue - the words the Tasks tab counts a task down in, counted the way that tab counts them. */
+const dueLabel = (t: Translate, task: DueTask, now: DateTime, zone: string | null): string => {
+  const days = daysUntil(task.dueAt, now, zone);
   if (days < 0) return t('home.strip.overdue', { count: -days });
   if (days === 0) return t('home.strip.today');
   if (days === 1) return t('home.strip.tomorrow');
