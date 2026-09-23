@@ -867,6 +867,19 @@ describe('the rail and the frames', () => {
     expect(frames).toEqual(order);
   });
 
+  /**
+   * The rail draws the newest picture taken by the cursor, and a cursor left
+   * alone sits at the end of the window - so the last step has to be the newest
+   * picture there is, or the same tent's overview strip names a newer one and
+   * the two tabs disagree about what the camera last saw.
+   */
+  it('ends the walk on the newest picture in the window rather than on the oldest of the last step', async () => {
+    const frames = (await readAs(session(OWNER))).cameras[0].frames;
+    const newest = new Date(NOW.getTime() - 5 * 60 * 1000).toISOString();
+
+    expect(frames.at(-1)).toEqual({ mediaId: `still-${STILLS - 1}`, capturedAt: newest });
+  });
+
   it('has no cameras in a space with none', async () => {
     await db.cameras.deleteMany({});
 

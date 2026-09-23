@@ -260,6 +260,15 @@ export class TimelineService {
    * all of them in one aggregation. The slot a picture falls in is grouped in
    * the database, because the alternative is reading a day of stills out to keep
    * a hundred of them.
+   *
+   * The one a slot answers with is its newest, which is the picture the app
+   * promises: the rail draws the newest still taken by the cursor, and the
+   * cursor at rest sits at the end of the window. Taking the oldest of each slot
+   * instead left the last one - the slot the camera is still filling - answering
+   * with a picture up to a whole slot old, so the tent's rail and the same
+   * tent's overview strip named two different newest pictures, twelve minutes
+   * apart over a day and eighty-four over a week. Every frame still carries the
+   * instant of the picture it actually is, so nothing is dated by its slot.
    */
   private async framesOf(cameras: CameraDocument[], window: TimelineWindow): Promise<Map<string, TimelineCamera['frames']>> {
     if (cameras.length === 0) return new Map();
@@ -277,8 +286,8 @@ export class TimelineService {
       {
         $group: {
           _id: { cameraId: '$cameraId', slot: { $floor: { $divide: [{ $subtract: ['$capturedAt', window.startsAt] }, slotMs] } } },
-          mediaId: { $first: '$id' },
-          capturedAt: { $first: '$capturedAt' },
+          mediaId: { $last: '$id' },
+          capturedAt: { $last: '$capturedAt' },
         },
       },
       { $sort: { capturedAt: 1 } },
