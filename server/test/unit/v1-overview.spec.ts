@@ -66,12 +66,13 @@ const reading = (values: Record<string, [number, number]>, isDay: boolean | null
       { value, measuredAt: at(secondsAgo), state: secondsAgo < 120 ? 'live' : 'stale' },
     ]),
   ),
+  outputs: {},
   isDay,
   lightOn: isDay,
 });
 
 const fakeData = {
-  live: async (deviceId: string) => readings[deviceId] ?? { metrics: {}, isDay: null, lightOn: null },
+  live: async (deviceId: string) => readings[deviceId] ?? { metrics: {}, outputs: {}, isDay: null, lightOn: null },
   series: async () => series,
 } as unknown as DataService;
 

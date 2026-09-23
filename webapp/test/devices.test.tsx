@@ -103,7 +103,7 @@ const LIGHTS = { sunrise: 15, sunset: 15, limit: 80 };
 const drawOutput = (
   configuration: DeviceConfiguration | null = { lights: LIGHTS },
   capabilities = CAPABILITIES,
-  level: OutputLevel | null = { percent: 80, measuredAt: NOW.minus({ seconds: 20 }).toISO()! },
+  level: OutputLevel | null = { percent: 80, measuredAt: NOW.minus({ seconds: 20 }).toISO()!, state: 'live' },
   unheard: string | null = null,
   mayManage = true,
 ) => {
@@ -266,6 +266,17 @@ describe("the controller's own light output", () => {
     expect(screen.getByRole('slider', { name: 'Brightness' })).toHaveValue('80');
   });
 
+  it('still says what a lamp that fell silent four days ago was running at, dimmed and dated', () => {
+    // The honest-state rule: a value that is old is dimmed and dated, never
+    // hidden. The store holds this level and the device's own live answer
+    // carries it with the server's verdict on its age.
+    drawOutput({ lights: LIGHTS }, CAPABILITIES, { percent: 60, measuredAt: NOW.minus({ days: 4 }).toISO()!, state: 'offline' });
+
+    expect(screen.getByText(/60 % · 4 d ago/)).toBeInTheDocument();
+    expect(screen.getByText(/60 % · 4 d ago/)).toHaveAttribute('data-age', 'offline');
+    expect(screen.queryByText('nothing reported')).not.toBeInTheDocument();
+  });
+
   it('dims the lamp by writing the whole document back, keeping the ramps it was tuned with', () => {
     drawOutput();
 
@@ -325,7 +336,7 @@ describe("the controller's own light output", () => {
 
     expect(lightOutputOf(device(null), CAPABILITIES, null)).not.toBeNull();
     expect(lightOutputOf(device({ lights: LIGHTS }), none, null)?.limitPercent).toBe(80);
-    expect(lightOutputOf(device({}), none, { percent: 40, measuredAt: NOW.toISO()! })?.level?.percent).toBe(40);
+    expect(lightOutputOf(device({}), none, { percent: 40, measuredAt: NOW.toISO()!, state: 'live' })?.level?.percent).toBe(40);
     expect(lightOutputOf(device({}), none, null)).toBeNull();
   });
 

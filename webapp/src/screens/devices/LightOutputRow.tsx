@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import type { ActuatorRuns, SocketOverrideState } from '@fg2/shared-types/v1';
 import { useSaveConfiguration, useSetOverride } from '@/api/devices';
 import { ApiError } from '@/api/problem';
-import { ageLabel, deviceLiveness } from '@/ui/age';
+import { ageLabel } from '@/ui/age';
 import ui from '@/ui/ui.module.css';
 import { Fact, Facts } from './Facts';
 import { LEVEL_STEP, percentLabel, withLightLimit, type LightOutput } from './lights';
@@ -44,11 +44,12 @@ export function LightOutputRow({ output, unheard, mayManage, runs, now }: LightO
   const override = useSetOverride();
   const save = useSaveConfiguration();
 
-  // A level is a reading and is judged by the seconds a reading is judged by,
-  // so a lamp nobody has heard from in ten minutes is dimmed and dated rather
-  // than drawn as though it were still at that brightness.
+  // A level is a reading and carries the verdict the server passed on it, so a
+  // lamp nobody has heard from in ten minutes is dimmed and dated rather than
+  // drawn as though it were still at that brightness - and one silent for four
+  // days is still drawn, which is the whole of the rule.
   const measured = output.level;
-  const freshness = deviceLiveness(measured?.measuredAt ?? null, now);
+  const freshness = measured?.state ?? 'offline';
 
   // What the slider stands at, and what was stored when it was dragged there.
   // A drag holds the slider until the stored document moves - so a save in

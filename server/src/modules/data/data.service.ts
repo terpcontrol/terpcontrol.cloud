@@ -5,7 +5,7 @@ import { ConfigType } from '@nestjs/config';
 import { InfluxDB, Point } from '@influxdata/influxdb-client';
 import { DeviceLive, DeviceSeries, Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
 import { logger } from '@utils/logger';
-import { fieldOfMetric, fieldOfOutputMetric, metricOfField, OUTPUT_FIELDS, STORED_FIELDS } from '@common/v1/metrics';
+import { fieldOfMetric, fieldOfOutputMetric, metricOfField, outputMetricOfField, OUTPUT_FIELDS, STORED_FIELDS } from '@common/v1/metrics';
 import { reportsNoSensor } from '@common/v1/sentinels';
 import { metricValueOf } from '@common/v1/value-age';
 import { LightStateReader } from '@modules/v1/camera/light-state';
@@ -85,6 +85,13 @@ export interface DeviceSample {
  */
 export interface LiveReading {
   metrics: DeviceLive['metrics'];
+  /**
+   * The newest value of every output the device has reported driving, with the
+   * age and the state the same constant makes of a sensor's. A screen that draws
+   * an output needs both, and asking for them as the shortest series there is
+   * costs a read and answers nothing at all for a device that fell silent.
+   */
+  outputs: DeviceLive['outputs'];
   /** Null where the device does not report a day/night cycle at all. */
   isDay: boolean | null;
   /** Null where the device drives no light output. */
@@ -191,11 +198,15 @@ export class DataService implements LightStateReader {
     const latest = latestByField(rows);
 
     const metrics: DeviceLive['metrics'] = {};
+    const outputs: DeviceLive['outputs'] = {};
     for (const [field, reading] of latest) {
       // A diagnostic field the API names no metric for is simply not answered,
       // and neither is one whose sensor the device says it does not have.
       const name = metricOfField(field);
       if (name && !reportsNoSensor(self.hardware, name)) metrics[name] = metricValueOf(reading.value, reading.measuredAt);
+
+      const output = outputMetricOfField(field);
+      if (output) outputs[output] = metricValueOf(reading.value, reading.measuredAt);
     }
 
     const readings = readingsOf(field => latest.get(field)?.value ?? null);
@@ -208,7 +219,7 @@ export class DataService implements LightStateReader {
     // and a fridge switch their light by the same schedule, so the light says it
     // for them - which is what their day and night targets are held against.
     const lightOn = flag(latest, fieldOfOutputMetric('light'));
-    return { metrics, isDay: flag(latest, DAY_FIELD) ?? lightOn, lightOn };
+    return { metrics, outputs, isDay: flag(latest, DAY_FIELD) ?? lightOn, lightOn };
   }
 
   /**

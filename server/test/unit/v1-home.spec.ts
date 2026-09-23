@@ -57,6 +57,7 @@ const reading = (values: Record<string, [number, number]>, isDay: boolean | null
       { value, measuredAt: at(secondsAgo), state: secondsAgo < 120 ? 'live' : 'stale' },
     ]),
   ),
+  outputs: {},
   isDay,
   lightOn: null,
 });
@@ -64,7 +65,7 @@ const reading = (values: Record<string, [number, number]>, isDay: boolean | null
 let trends: Map<string, SeriesPoint[]>;
 
 const fakeData = {
-  live: async (deviceId: string) => readings[deviceId] ?? { metrics: {}, isDay: null, lightOn: null },
+  live: async (deviceId: string) => readings[deviceId] ?? { metrics: {}, outputs: {}, isDay: null, lightOn: null },
   trends: async () => trends,
 } as unknown as DataService;
 

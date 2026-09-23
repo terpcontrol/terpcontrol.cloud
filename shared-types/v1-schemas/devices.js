@@ -625,10 +625,21 @@ exports.setpoints = (0, common_js_1.named)('Setpoints', zod_1.z.object({
     night: zod_1.z.partialRecord(common_js_1.metric, zod_1.z.number()),
     active: zod_1.z.enum(['day', 'night']).describe('Which half of the cycle the device says it is in.'),
 }));
-/** One device's newest reading of everything it measures: one `last()` per device. */
+/**
+ * One device's newest reading of everything it measures: one `last()` per
+ * device.
+ *
+ * The outputs ride along with the metrics because they come out of the same
+ * read. What a lamp is running at is the only word a controller gives on its
+ * own light output - a brightness is never acknowledged and an override is
+ * never reported back - so a screen that draws the dimmer needs it, and needs
+ * it with the age and the state the server has already decided rather than as a
+ * series it has to pick a window for.
+ */
 exports.deviceLive = (0, common_js_1.named)('DeviceLive', zod_1.z.object({
     deviceId: (0, common_js_1.id)(),
     metrics: zod_1.z.partialRecord(common_js_1.metric, common_js_1.metricValue),
+    outputs: zod_1.z.partialRecord(common_js_1.outputMetric, common_js_1.metricValue).describe('The newest value of each output the device has reported driving.'),
     setpoints: exports.setpoints.nullable().describe('null for a device that holds no targets, such as a plug.'),
 }));
 exports.metricSeries = (0, common_js_1.named)('MetricSeries', zod_1.z.object({ metric: common_js_1.metric, points: zod_1.z.array(common_js_1.seriesPoint) }));

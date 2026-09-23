@@ -223,7 +223,7 @@ export class DevicesController {
     const device = await this.devices.require(id);
     const reading = await this.data.live(id);
 
-    return { deviceId: id, metrics: reading.metrics, setpoints: setpointsOf(device.configuration, reading.isDay) };
+    return { deviceId: id, metrics: reading.metrics, outputs: reading.outputs, setpoints: setpointsOf(device.configuration, reading.isDay) };
   }
 
   /** A window of history. The range and the step are answered back, because the server may have narrowed either. */

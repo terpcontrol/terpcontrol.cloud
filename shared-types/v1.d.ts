@@ -1404,6 +1404,12 @@ export interface DeviceLive {
     [k: string]: MetricValue;
   };
   /**
+   * The newest value of each output the device has reported driving.
+   */
+  outputs: {
+    [k: string]: MetricValue;
+  };
+  /**
    * null for a device that holds no targets, such as a plug.
    */
   setpoints: Setpoints | null;

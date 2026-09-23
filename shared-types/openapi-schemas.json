@@ -4248,6 +4248,16 @@
           "$ref": "#/components/schemas/MetricValue"
         }
       },
+      "outputs": {
+        "type": "object",
+        "propertyNames": {
+          "$ref": "#/components/schemas/OutputMetric"
+        },
+        "additionalProperties": {
+          "$ref": "#/components/schemas/MetricValue"
+        },
+        "description": "The newest value of each output the device has reported driving."
+      },
       "setpoints": {
         "anyOf": [
           {
@@ -4263,6 +4273,7 @@
     "required": [
       "deviceId",
       "metrics",
+      "outputs",
       "setpoints"
     ]
   },

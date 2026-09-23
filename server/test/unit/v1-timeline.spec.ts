@@ -157,7 +157,7 @@ const fakeData = {
       })),
     };
   },
-  live: async () => ({ metrics: {}, isDay: null, lightOn: null }),
+  live: async () => ({ metrics: {}, outputs: {}, isDay: null, lightOn: null }),
 } as unknown as DataService;
 
 const build = (): TimelineService => {

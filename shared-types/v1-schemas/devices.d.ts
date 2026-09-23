@@ -1870,7 +1870,17 @@ export declare const setpoints: z.ZodObject<{
         night: "night";
     }>;
 }, z.core.$strip>;
-/** One device's newest reading of everything it measures: one `last()` per device. */
+/**
+ * One device's newest reading of everything it measures: one `last()` per
+ * device.
+ *
+ * The outputs ride along with the metrics because they come out of the same
+ * read. What a lamp is running at is the only word a controller gives on its
+ * own light output - a brightness is never acknowledged and an override is
+ * never reported back - so a screen that draws the dimmer needs it, and needs
+ * it with the age and the state the server has already decided rather than as a
+ * series it has to pick a window for.
+ */
 export declare const deviceLive: z.ZodObject<{
     deviceId: z.ZodString;
     metrics: z.ZodRecord<z.ZodEnum<{
@@ -1882,6 +1892,25 @@ export declare const deviceLive: z.ZodObject<{
         lux: "lux";
         vpd: "vpd";
         ppfd: "ppfd";
+    }> & z.core.$partial, z.ZodObject<{
+        value: z.ZodNullable<z.ZodNumber>;
+        measuredAt: z.ZodNullable<z.ZodISODateTime>;
+        state: z.ZodEnum<{
+            offline: "offline";
+            live: "live";
+            stale: "stale";
+        }>;
+    }, z.core.$strip>>;
+    outputs: z.ZodRecord<z.ZodEnum<{
+        dehumidifier: "dehumidifier";
+        heater: "heater";
+        light: "light";
+        co2: "co2";
+        fan: "fan";
+        relais: "relais";
+        fanInternal: "fanInternal";
+        fanExternal: "fanExternal";
+        fanBackwall: "fanBackwall";
     }> & z.core.$partial, z.ZodObject<{
         value: z.ZodNullable<z.ZodNumber>;
         measuredAt: z.ZodNullable<z.ZodISODateTime>;

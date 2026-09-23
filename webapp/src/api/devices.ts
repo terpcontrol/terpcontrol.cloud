@@ -4,15 +4,14 @@ import type {
   DeviceCommandResult,
   DeviceConfiguration,
   DeviceConfigurationEnvelope,
+  DeviceLive,
   DevicePage,
-  DeviceSeries,
   FirmwarePage,
-  SeriesPoint,
   SocketOverrideUpdate,
   SocketPage,
+  ValueState,
 } from '@fg2/shared-types/v1';
 import { api, apiRequest } from './client';
-import { serverNow } from './clock';
 
 /**
  * The first read, and the pattern for every one after it: a key, a route, and a
@@ -57,56 +56,41 @@ export const useSocketTables = (deviceIds: string[]) =>
  * setting: the controller dims its own lamp, so the level is the one thing that
  * says whether the tent is dark, lit, or lit at two fifths.
  *
- * No read answers an output's newest value on its own, so it is read as the
- * shortest series there is and the last window that holds one is taken. The
- * window is a quarter of an hour because a device reports every five seconds and
- * one that fell silent should still be answered with its last level and its age
- * rather than with nothing at all.
+ * It is read from the device's live answer, beside every sensor it reports,
+ * because that is the one read that has no window to pick: it answers the newest
+ * value there is with the age and the state the server decided for it. A lamp
+ * that has been quiet for four days therefore comes back dimmed and dated - the
+ * rule this screen holds every other value to - where a series over the last
+ * quarter of an hour used to come back empty and the level vanished from a row
+ * that knew it perfectly well.
  */
-const LEVEL_WINDOW_MINUTES = 15;
-const LEVEL_STEP_SECONDS = 30;
-
 export interface OutputLevel {
   percent: number;
   measuredAt: string;
+  /** The server's verdict on that instant: live, stale or long offline. */
+  state: ValueState;
 }
 
 export const useLightLevels = (deviceIds: string[]) =>
   useQueries({
     queries: deviceIds.map(deviceId => ({
-      queryKey: ['devices', deviceId, 'light-level'],
-      // The window is worked out per fetch rather than in the key: a key that
-      // carried the current instant would be a new query every render.
-      queryFn: ({ signal }: { signal: AbortSignal }) => {
-        // The window is the server's own quarter of an hour: asked for from a
-        // browser whose clock is out, it would name a stretch of the series the
-        // device has not reached yet and come back empty.
-        const endsAt = serverNow();
-        return api.get<DeviceSeries>(
-          `/devices/${deviceId}/series`,
-          {
-            outputs: 'light',
-            startsAt: endsAt.minus({ minutes: LEVEL_WINDOW_MINUTES }).toUTC().toISO()!,
-            endsAt: endsAt.toUTC().toISO()!,
-            stepSeconds: LEVEL_STEP_SECONDS,
-          },
-          signal,
-        );
-      },
+      queryKey: ['devices', deviceId, 'live'],
+      queryFn: ({ signal }: { signal: AbortSignal }) => api.get<DeviceLive>(`/devices/${deviceId}/live`, undefined, signal),
       refetchInterval: DEVICES_REFRESH_MS,
     })),
     combine: results => ({
-      levels: new Map(deviceIds.map((deviceId, index) => [deviceId, newestLevel(results[index]?.data)])),
+      levels: new Map(deviceIds.map((deviceId, index) => [deviceId, lightLevel(results[index]?.data)])),
       isPending: results.some(result => result.isPending),
     }),
   });
 
-/** The last window that holds a reading. A window with none is a gap in the series and says nothing about the lamp. */
-const newestLevel = (series: DeviceSeries | undefined): OutputLevel | null => {
-  const points: SeriesPoint[] = series?.outputs.find(output => output.output === 'light')?.points ?? [];
-  const last = [...points].reverse().find(point => point.value !== null);
+/** A device that has never driven a light output answers none, which is not the same as one at nothing. */
+const lightLevel = (live: DeviceLive | undefined): OutputLevel | null => {
+  const light = live?.outputs?.light;
 
-  return last ? { percent: last.value as number, measuredAt: last.measuredAt } : null;
+  return light && light.value !== null && light.measuredAt !== null
+    ? { percent: light.value, measuredAt: light.measuredAt, state: light.state }
+    : null;
 };
 
 /**
