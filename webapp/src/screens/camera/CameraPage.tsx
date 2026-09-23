@@ -46,6 +46,29 @@ export function CameraPage() {
   return <CameraScreen camera={camera.data} refetching={camera.isError ? t('shell.loadFailed') : null} />;
 }
 
+/**
+ * What this page knows about today's pictures, which is one question and not
+ * three. The read can still be out, it can have come back unable to say, the
+ * day can genuinely hold nothing, or here they are - and the frame, the count
+ * under it and the scrubber between them are three views of that single answer.
+ *
+ * It is one value because the page was caught holding two answers at once: the
+ * frame said the pictures were still loading while the line beneath it said
+ * "0 pictures today" on a camera that had been filling the day since dawn. Each
+ * of those places had decided for itself what an empty list meant, and only one
+ * of them had remembered that a list is empty before it has been filled as well
+ * as when there was nothing to fill it with.
+ */
+type DayPictures =
+  /** The read has not answered yet, so the day's count is not known to be anything. */
+  | 'waiting'
+  /** The read answered that it could not say, which is a camera to look at and a page to try again. */
+  | 'unread'
+  /** The read answered, and the camera took nothing today. */
+  | 'empty'
+  /** The read answered with pictures, which are the ones the frame and the scrubber walk. */
+  | 'filled';
+
 /** Exported for the tests, which drive the page itself rather than the read above it. */
 export function CameraScreen({ camera, refetching = null }: { camera: Camera; refetching?: string | null }) {
   const { t } = useTranslation();
@@ -90,6 +113,11 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   const time = cursor ?? to;
   const shown = frameAt(shots, time);
   const newest = shots.at(-1) ?? null;
+  // Decided once, above everything that draws from it, so that no two lines on
+  // this screen can answer the same question differently. The read's own state
+  // comes first: an empty `shots` is what a pending read and a failed one both
+  // leave behind, and neither of them is the day being empty.
+  const dayPictures: DayPictures = frames.isPending ? 'waiting' : frames.isError ? 'unread' : shots.length > 0 ? 'filled' : 'empty';
   // A day with no picture in it is not a camera with no picture. The tent's
   // card and the camera's own row both draw this camera's newest still with its
   // age, and this - the screen with the most room for it - is the one place
@@ -97,7 +125,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   // dimmed and dated, which is what an old value is owed. It is the same read
   // the composer on this page already makes.
   const lastStill = useLatestStills([camera.id]).get(camera.id) ?? null;
-  const older = shots.length === 0 && !frames.isPending ? lastStill : null;
+  const older = dayPictures === 'empty' || dayPictures === 'unread' ? lastStill : null;
 
   // Three films is the resting height of the section, not the whole of it: the
   // rest are behind the control below rather than dropped.
@@ -184,7 +212,7 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
           // again - and a day the camera filled can be behind a read that
           // simply did not arrive.
           <p className={`mono ${styles.noFrame}`}>
-            {frames.isPending ? t('home.waiting') : frames.isError ? t('camera.framesUnread') : t('camera.noFramesToday')}
+            {dayPictures === 'waiting' ? t('home.waiting') : dayPictures === 'unread' ? t('camera.framesUnread') : t('camera.noFramesToday')}
           </p>
         )}
         {shown ? (
@@ -219,7 +247,14 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
         <Slider from={from} to={to} cursor={Math.min(Math.max(time, from), to)} onScrub={setCursor} />
         <span className={`mono ${styles.edge}`}>{t('camera.now')}</span>
       </div>
-      {frames.isError ? (
+      {/* A read still out has no count in it and nothing here may invent one:
+          "0 pictures today" under a frame still saying it is loading is the
+          page contradicting itself in two adjacent lines. Nor does this line
+          say "loading" a second time - by the same rule the failed read
+          follows below, the frame above has the room and is already saying it,
+          and while the read is out no older picture can be standing in that
+          space instead. */}
+      {dayPictures === 'waiting' ? null : dayPictures === 'unread' ? (
         // "0 pictures today" is a figure taken from a read that never arrived,
         // and a camera that has been filling the day all morning is the likeliest
         // thing behind it. So the day's count gives way to the read again, which

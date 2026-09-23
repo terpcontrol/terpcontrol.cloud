@@ -37,6 +37,8 @@ const state = vi.hoisted(() => ({
   frames: { items: [] as { id: string; capturedAt: string }[], partial: false },
   /** The day's read failing, which is not the same as a day the camera took nothing in. */
   framesFailed: false,
+  /** The day's read still out, which is not the same as either of those two. */
+  framesPending: false,
   readAgain: 0,
   zone: 'UTC' as string | null,
   lastStill: null as string | null,
@@ -61,6 +63,7 @@ vi.mock('@/api/cameras', async importOriginal => ({
   useMedia: () => ({ data: state.film, isError: false }),
   useCameraFrames: (_id: string, day: { startsAt: string; endsAt: string }) => {
     state.askedForDay = day;
+    if (state.framesPending) return { data: undefined, isPending: true, isError: false, refetch: () => (state.readAgain += 1) };
     if (state.framesFailed) return { data: undefined, isPending: false, isError: true, refetch: () => (state.readAgain += 1) };
 
     return { data: state.frames, isPending: false, isError: false, refetch: () => (state.readAgain += 1) };
@@ -160,6 +163,7 @@ beforeEach(() => {
   state.askedForMore = 0;
   state.frames = { items: [], partial: false };
   state.framesFailed = false;
+  state.framesPending = false;
   state.readAgain = 0;
   state.zone = 'UTC';
   state.askedForDay = null;
@@ -642,6 +646,29 @@ describe('the films and the pictures behind the first page', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(state.readAgain).toBe(1);
+  });
+
+  /**
+   * A read that has not answered yet is not an answer of zero. The page drew
+   * the frame as loading and, two lines under it, stated "0 pictures today" of
+   * a camera that had been filling the day since dawn - one screen holding
+   * both answers at once, until the read landed and it changed its mind.
+   */
+  it('says nothing about the day´s count while the read is still out', () => {
+    state.framesPending = true;
+    const waiting = drawPage();
+
+    expect(waiting.container.textContent).toContain('loading');
+    expect(waiting.container.textContent).not.toContain('0 pictures today');
+    expect(waiting.container.textContent).not.toContain('No picture today yet');
+    // The read is named once, by the frame that has the room for it.
+    expect(waiting.container.textContent?.match(/loading/g)).toHaveLength(1);
+    waiting.unmount();
+
+    // The same page once the read lands: now the count is an answer and is said.
+    state.framesPending = false;
+    state.frames = { items: [{ id: 'still-1', capturedAt: NOW.minus({ minutes: 4 }).toISO()! }], partial: false };
+    expect(drawPage().container.textContent).toContain('1 picture today');
   });
 
   it('counts the day it walked, and calls a count it stopped short of a floor', () => {
