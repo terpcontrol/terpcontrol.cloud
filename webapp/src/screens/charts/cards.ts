@@ -558,9 +558,17 @@ const leafAbout = (t: Translate, leaf: LeafOffsets): string =>
 /** "−2", with the minus a typesetter would use: the offset is a difference and reads as one. No leaf sits "+0" above the air. */
 const signed = (value: number): string => (value === 0 ? '0' : value < 0 ? `−${Math.abs(value)}` : `+${value}`);
 
-/** The table behind the CSV button: exactly the lines that are on the screen, in the order they are drawn. */
-export const csvForCards = (t: Translate, series: GrowSeries, input: CardsInput): string =>
+/**
+ * The table behind the CSV button: exactly the lines that are on the screen, in
+ * the order they are drawn.
+ *
+ * The instants are written where the account is, because every clock time on
+ * the screen above the button is, and a row a grower reads back against the
+ * chart has to be the same moment as the one they read off it.
+ */
+export const csvForCards = (t: Translate, series: GrowSeries, input: CardsInput, zone: string | null): string =>
   csvOf(
     drawnOf(t, series, input).map(one => one.csv),
     at(series.originAt),
+    zone,
   );

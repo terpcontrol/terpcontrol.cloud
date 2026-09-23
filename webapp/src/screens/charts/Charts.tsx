@@ -17,6 +17,7 @@ import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState
 import { stoodIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { useZone, zoned, zonedAt } from '@/ui/zone';
 import { MoveHereSheet } from '../space/MoveHereSheet';
 import { at, stampForEnds, stampOf, STAMPS } from '../timeline/window';
 import {
@@ -133,6 +134,7 @@ function NoGrow({ spaceId }: { spaceId: string | null }) {
 function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | null }) {
   const { t } = useTranslation();
   const now = useNow();
+  const zone = useZone();
   const mayManage = useMayManage();
   const [params, setParams] = useSearchParams();
 
@@ -143,7 +145,11 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
 
   const definitions = useMemo(() => grow.measurements.filter(definition => definition.chart), [grow.measurements]);
   const keys = useMemo(() => definitions.map(definition => definition.key), [definitions]);
-  const window = useMemo(() => ({ range, ...dayBounds(range, from, to), measurements: keys }), [range, from, to, keys]);
+  // The zone is in the list because it arrives after the first draw - the
+  // account is a read of its own - and the two ends of a custom range are cut
+  // at midnight where the account is. Left out, the window would stay frozen at
+  // the midnight the browser happened to be on when the screen first drew.
+  const window = useMemo(() => ({ range, ...dayBounds(range, from, to, zone), measurements: keys }), [range, from, to, keys, zone]);
   const series = useGrowSeries(grow.id, window);
 
   const spaces = useSpaces();
@@ -220,13 +226,13 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
     metrics: chosen.metrics,
     outputs: chosen.outputs,
     measurements: chosen.measurements,
-    span: spanOf(range, from, to),
+    span: spanOf(range, from, to, zone),
     layout,
     intervalSeconds: data?.stepSeconds ?? 0,
   };
 
   const apply = (view: ChartView) => {
-    const span = rangeOf(view.definition.span);
+    const span = rangeOf(view.definition.span, zone);
     setQuery({ range: span.range, from: span.from ?? null, to: span.to ?? null });
     setPicked({ metrics: [...view.definition.metrics], outputs: [...view.definition.outputs], measurements: [...view.definition.measurements] });
     setAsked(view.definition.layout);
@@ -401,7 +407,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
   const right = edge(at(data.endsAt));
   const cursor = left + (scrubbed ?? 1) * (right - left);
   const dayOf = (x: number) => t('timeline.dayN', { day: Math.max(1, Math.floor(x)) });
-  const ends: [string, string] = day ? [dayOf(left), dayOf(right)] : edgesOf(at(data.startsAt), at(data.endsAt));
+  const ends: [string, string] = day ? [dayOf(left), dayOf(right)] : edgesOf(at(data.startsAt), at(data.endsAt), zone);
 
   return (
     // Busy while a chip's window is still on its way, or while the one that was
@@ -426,7 +432,7 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
       ) : null}
       {!nothingOffered && isEmpty(chosen) ? <p className={`${ui.cardDashed} ${ui.note}`}>{t('charts.nothingPicked')}</p> : null}
 
-      {cards.length > 0 ? <ScrubHeader cards={cards} cursor={cursor} stamp={day ? dayOf : x => stampOf(x, span)} /> : null}
+      {cards.length > 0 ? <ScrubHeader cards={cards} cursor={cursor} stamp={day ? dayOf : x => stampOf(x, span, zone)} /> : null}
       {cards.map(card => (
         <ChartCard key={card.key} card={card} cursor={cursor} scrub={scrub} ends={ends} />
       ))}
@@ -457,7 +463,9 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
             type="button"
             className={`${ui.chip} ${styles.chip}`}
             disabled={cards.length === 0}
-            onClick={() => downloadCsv(csvName(grow.name, range), csvForCards(t, data, { picked: chosen, layout, offered, leaf, plants: named }))}
+            onClick={() =>
+              downloadCsv(csvName(grow.name, range), csvForCards(t, data, { picked: chosen, layout, offered, leaf, plants: named }, zone))
+            }
           >
             {t('charts.csv')}
           </button>
@@ -573,7 +581,7 @@ const dayLabel = (t: Translate, series: GrowSeries): string => {
 };
 
 /**
- * Both ends of the window as the axis writes them.
+ * Both ends of the window as the axis writes them, in the account's zone.
  *
  * Two things have to be true of them and only one used to be. They have to
  * differ - a rolling window begins and ends at the same time of day, and a week
@@ -588,9 +596,9 @@ const dayLabel = (t: Translate, series: GrowSeries): string => {
  * ladder the pinned reading above the cards is written from, so the axis and
  * the header cannot drift apart - and only then widened until the two differ.
  */
-const edgesOf = (from: number, to: number): [string, string] => {
+const edgesOf = (from: number, to: number, zone: string | null): [string, string] => {
   const written = STAMPS.slice(stampForEnds(to - from)).map(
-    format => [DateTime.fromMillis(from).toFormat(format), DateTime.fromMillis(to).toFormat(format)] as [string, string],
+    format => [zonedAt(from, zone).toFormat(format), zonedAt(to, zone).toFormat(format)] as [string, string],
   );
 
   return written.find(([one, other]) => one !== other) ?? written[written.length - 1];
@@ -598,31 +606,43 @@ const edgesOf = (from: number, to: number): [string, string] => {
 
 /**
  * The two date fields are days and the route takes instants, so a custom range
- * runs from the first moment of one day to the last of the other, in the
- * reader's own time: a day chosen at either end is a day a grower means whole.
+ * runs from the first moment of one day to the last of the other, in the zone
+ * the account names: a day chosen at either end is a day a grower means whole,
+ * and whole where their tent stands rather than where they happen to be
+ * reading. A browser two hours ahead of the account cut 20 August from 19 Aug
+ * 22:00Z and fetched a different twenty-four hours from the one the axis
+ * underneath went on labelling 00:00 to 23:59.
  *
  * Those two instants are then written the one way the contract spells an
  * instant, which is UTC. The moment is not changed by that and the fields read
- * back the same, since a Z instant is rendered in the reader's own zone again -
+ * back the same, since `rangeOf` reads a Z instant back where the account is -
  * but the local offset Luxon writes by default is a string `instant()` refuses,
  * and it is the same pair of instants that goes into a saved view. So a window
  * somebody picked by hand was the one window the server would not keep, and it
  * is the only one that cannot be asked for again by tapping a chip.
  */
-const dayBounds = (range: GrowSeriesRange, from: string, to: string): { from?: string; to?: string } => {
+const dayBounds = (range: GrowSeriesRange, from: string, to: string, zone: string | null): { from?: string; to?: string } => {
   if (range !== 'custom' || !from || !to) return {};
 
   return {
-    from: DateTime.fromISO(from).startOf('day').toUTC().toISO() ?? undefined,
-    to: DateTime.fromISO(to).endOf('day').toUTC().toISO() ?? undefined,
+    from:
+      DateTime.fromISO(from, { zone: zone ?? undefined })
+        .startOf('day')
+        .toUTC()
+        .toISO() ?? undefined,
+    to:
+      DateTime.fromISO(to, { zone: zone ?? undefined })
+        .endOf('day')
+        .toUTC()
+        .toISO() ?? undefined,
   };
 };
 
 /** What a saved view keeps instead of the chip: a rolling width, two instants, or a stretch read off the grow. */
-const spanOf = (range: GrowSeriesRange, from: string, to: string): ChartViewSpan => {
+const spanOf = (range: GrowSeriesRange, from: string, to: string, zone: string | null): ChartViewSpan => {
   if (range === 'phase' || range === 'grow') return { kind: range };
   if (range === 'custom') {
-    const bounds = dayBounds(range, from, to);
+    const bounds = dayBounds(range, from, to, zone);
 
     return { kind: 'fixed', range: { startsAt: bounds.from ?? null, endsAt: bounds.to ?? null } };
   }
@@ -630,15 +650,21 @@ const spanOf = (range: GrowSeriesRange, from: string, to: string): ChartViewSpan
   return { kind: 'last', forSeconds: range === '24h' ? DAY_SECONDS : 7 * DAY_SECONDS };
 };
 
-/** The chip a saved span comes back as. A width the chips cannot name is read as the nearest one that can. */
-const rangeOf = (span: ChartViewSpan): { range: GrowSeriesRange; from?: string; to?: string } => {
+/**
+ * The chip a saved span comes back as. A width the chips cannot name is read as
+ * the nearest one that can, and the two instants of a fixed one are read back
+ * into date fields where the account is, because they were cut there: read in
+ * the browser's zone instead, a view saved on the 20th reopens on the 19th for
+ * anybody sitting behind their own account.
+ */
+const rangeOf = (span: ChartViewSpan, zone: string | null): { range: GrowSeriesRange; from?: string; to?: string } => {
   if (span.kind === 'phase' || span.kind === 'grow') return { range: span.kind };
   if (span.kind === 'last') return { range: span.forSeconds <= DAY_SECONDS ? '24h' : '7d' };
 
   return {
     range: 'custom',
-    from: span.range.startsAt ? (DateTime.fromISO(span.range.startsAt).toISODate() ?? undefined) : undefined,
-    to: span.range.endsAt ? (DateTime.fromISO(span.range.endsAt).toISODate() ?? undefined) : undefined,
+    from: span.range.startsAt ? (zoned(span.range.startsAt, zone).toISODate() ?? undefined) : undefined,
+    to: span.range.endsAt ? (zoned(span.range.endsAt, zone).toISODate() ?? undefined) : undefined,
   };
 };
 

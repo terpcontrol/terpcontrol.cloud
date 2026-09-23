@@ -1,5 +1,5 @@
 import { growDayAt } from '@fg2/shared-types/v1-schemas/feeding.js';
-import { DateTime } from 'luxon';
+import { zonedAt } from '@/ui/zone';
 import type { ChartOption } from './Chart';
 import type { ChartPalette, ChartToken } from './tokens';
 
@@ -304,6 +304,13 @@ export const dayOfGrow = (time: number, originAt: number): number => (time - ori
  * The day column counts the way the grow's own counter counts, out of the
  * contract's arithmetic rather than a second copy of it, so a reading somebody
  * backdated before day 1 reads as day 1 in the table and on the chip alike.
+ *
+ * The time column is written where the account is, which is the zone every
+ * clock time on the screen the button sits on is read in. The zone is asked for
+ * rather than defaulted, because a file is read months later by somebody who
+ * cannot ask what the browser that wrote it was set to: an hour written in the
+ * wrong zone looks exactly like an hour, and the rows would quietly disagree
+ * with the chart they were exported from.
  */
 export interface CsvColumn {
   label: string;
@@ -312,14 +319,14 @@ export interface CsvColumn {
   holds?: boolean;
 }
 
-export const csvOf = (columns: readonly CsvColumn[], originAt: number | null): string => {
+export const csvOf = (columns: readonly CsvColumn[], originAt: number | null, zone: string | null): string => {
   const times = [...new Set(columns.flatMap(column => column.points.map(([time]) => time)))].sort((one, other) => one - other);
   const cells = columns.map(column => (column.holds ? carried(column.points, times) : measured(column.points, times)));
   const head = ['time', ...(originAt === null ? [] : ['day']), ...columns.map(column => column.label)];
 
   const rows = times.map((time, row) =>
     [
-      DateTime.fromMillis(time).toISO() ?? '',
+      zonedAt(time, zone).toISO() ?? '',
       ...(originAt === null ? [] : [String(growDayAt(new Date(originAt), new Date(time)))]),
       ...cells.map(column => column[row]),
     ].join(','),

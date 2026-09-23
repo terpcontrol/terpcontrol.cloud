@@ -75,6 +75,24 @@ describe('every clock time the app writes', () => {
   /** Luxon's own time formats, which are the reader's language and not the account's zone. */
   const PRESET = /DateTime\.(TIME_|DATETIME_)[A-Z_]+/;
 
+  /**
+   * Writing an hour without spelling one, which is how the whole Charts screen
+   * got past the check above.
+   *
+   * That screen contained no format string at all: it imported `STAMPS` from
+   * the timeline and handed each one to Luxon as a value, and wrote the export's
+   * instants with `DateTime.fromMillis(...).toISO()`. Every clock time on it was
+   * therefore the browser's, on an app that had moved onto the account's zone a
+   * screen at a time, and nothing here objected because the hour was spelled a
+   * directory away.
+   *
+   * So the shared formats that carry an hour count wherever they are used, and
+   * so does building a moment out of the milliseconds this app carries a cursor
+   * and a chart's x in - a number of milliseconds is always an instant here,
+   * never a bare date, so there is no zone-free reason to reach for one.
+   */
+  const BORROWED = /\b(STAMPS|CLOCK|DATED_CLOCK)\b|DateTime\.fromMillis\(/;
+
   const ZONE_IMPORT = /from '(@\/ui\/zone|\.\/zone|\.\.\/zone|\.\.\/\.\.\/ui\/zone)'/;
 
   /**
@@ -84,8 +102,11 @@ describe('every clock time the app writes', () => {
    * who have no account here at all, and the zone the diary they are reading
    * was written in is not part of what the public API answers about somebody
    * else's account - so those pages keep the clock of whoever is reading them.
+   * `api/clock.ts` writes no time for anybody to read: it stamps an instant the
+   * way the server would have, in UTC, so that an age is a subtraction of two
+   * instants on one clock.
    */
-  const EXEMPT = ['src/ui/zone.ts', 'src/screens/public/'];
+  const EXEMPT = ['src/ui/zone.ts', 'src/screens/public/', 'src/api/clock.ts'];
 
   const files = (from: string): string[] =>
     readdirSync(resolve(process.cwd(), from), { withFileTypes: true }).flatMap(entry =>
@@ -101,7 +122,7 @@ describe('every clock time the app writes', () => {
       .filter(path => !EXEMPT.some(exempt => path.startsWith(exempt)))
       .filter(path => {
         const source = readFileSync(resolve(process.cwd(), path), 'utf8');
-        const writesAnHour = PRESET.test(source) || formatsIn(source).some(literal => HOUR.test(literal));
+        const writesAnHour = PRESET.test(source) || BORROWED.test(source) || formatsIn(source).some(literal => HOUR.test(literal));
 
         return writesAnHour && !ZONE_IMPORT.test(source);
       });

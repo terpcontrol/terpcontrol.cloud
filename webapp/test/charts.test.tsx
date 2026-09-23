@@ -25,6 +25,8 @@ const state = vi.hoisted(() => ({
   asked: [] as { path: string; query: Record<string, unknown> | undefined }[],
   /** Set to have the next series read fail, which is how a chip is tapped against a server that cannot answer. */
   breaks: false,
+  /** The zone the account names, which is the one every clock time on this screen is written in. */
+  zone: null as string | null,
 }));
 
 // Every read the screen makes goes through the one client, so the hooks under
@@ -50,6 +52,7 @@ vi.mock('@/api/client', async () => {
           return Promise.resolve({ items: [{ id: 'device-1', settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0 } }], nextCursor: null });
         }
         if (path === '/chart-views') return Promise.resolve({ items: state.views, nextCursor: null });
+        if (path === '/me') return Promise.resolve({ id: 'user-1', handle: 'you', preferences: { timezone: state.zone } });
         return Promise.resolve({ items: [], nextCursor: null });
       },
       post: (path: string, body: unknown) => {
@@ -224,6 +227,7 @@ beforeEach(() => {
   state.refuse = false;
   state.breaks = false;
   state.views = [];
+  state.zone = null;
   session.demo = false;
 });
 
@@ -409,6 +413,51 @@ describe('the Charts view', () => {
     // does not begin and end at the same minute.
     expect(screen.getAllByText(opens.toFormat('d MMM HH:mm')).length).toBeGreaterThan(0);
     expect(screen.getAllByText(closes.toFormat('d MMM HH:mm')).length).toBeGreaterThan(0);
+  });
+
+  /**
+   * The zone every clock time on this screen is read in, which is the account's
+   * and not the browser's.
+   *
+   * This screen was the last one left on the browser's zone after the rest of
+   * the app moved onto the account's, and it drew a season that ended at
+   * 15:31 UTC as "17:31" to anybody reading it from Berlin - beside a Timeline
+   * of the same tent, one tap away, that said 15:31 to everybody. So the two
+   * ends are asserted against the account's zone rather than against whatever
+   * zone the machine running this happens to be in.
+   */
+  it('writes the two ends of the window where the account is, whatever zone the browser is in', async () => {
+    const opens = '2026-01-19T13:39:00.000Z';
+    const closes = '2026-08-24T15:31:00.000Z';
+    state.zone = 'Pacific/Kiritimati';
+    state.series = { ...series, startsAt: opens, endsAt: closes };
+    draw();
+    await screen.findByText('Temp + RH');
+
+    const there = (instant: string) => DateTime.fromISO(instant).setZone('Pacific/Kiritimati').toFormat('d MMM HH:mm');
+    await waitFor(() => expect(screen.getAllByText(there(opens)).length).toBeGreaterThan(0));
+    expect(screen.getAllByText(there(closes)).length).toBeGreaterThan(0);
+  });
+
+  /**
+   * And the window itself, not only its label. A day picked in the two date
+   * fields is a whole day where the tent stands, so a browser behind or ahead
+   * of the account asks the server for the same twenty-four hours it would.
+   */
+  it('cuts a day somebody picked at the account´s midnight rather than the browser´s', async () => {
+    state.zone = 'Pacific/Kiritimati';
+    draw();
+    fireEvent.click(await screen.findByRole('button', { name: 'Custom …' }));
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-08-20' } });
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-08-20' } });
+
+    const asked = () => state.asked.filter(read => read.path.includes('/series?') && read.path.includes('from=')).at(-1)?.path;
+    await waitFor(() => expect(asked()).toBeDefined());
+    const window = new URLSearchParams(asked()!.split('?')[1]);
+
+    // +14: the day the account means began fourteen hours before UTC midnight.
+    expect(window.get('from')).toBe('2026-08-19T10:00:00.000Z');
+    expect(window.get('to')).toBe('2026-08-20T09:59:59.999Z');
   });
 
   it('keeps counting in days out of reach where no stretch of a grow is being drawn', async () => {
@@ -766,7 +815,7 @@ describe('what a plot is made of', () => {
   });
 
   it('counts a reading taken before day 1 as day 1, the way the grow´s own counter does', () => {
-    const csv = csvOf([{ label: 'Temp (°C)', points: [[FROM.minus({ days: 3 }).toMillis(), 24]] }], FROM.toMillis());
+    const csv = csvOf([{ label: 'Temp (°C)', points: [[FROM.minus({ days: 3 }).toMillis(), 24]] }], FROM.toMillis(), null);
 
     expect(csv.split('\n')[1]).toContain(',1,24');
   });
@@ -778,6 +827,7 @@ describe('what a plot is made of', () => {
         { label: 'Height (cm)', points: [[FROM.plus({ hours: 4 }).toMillis(), 54]] },
       ],
       FROM.toMillis(),
+      null,
     );
     const rows = csv.split('\n');
 
@@ -794,13 +844,18 @@ describe('what a plot is made of', () => {
       ...series,
       outputs: [{ output: 'light', deviceId: 'device-1', spans: [{ startsAt: at(6.5), endsAt: at(17.5) }], heardUntil: at(24) }],
     };
-    const csv = csvForCards(key => key, switching, {
-      picked: { metrics: ['temperature'], outputs: ['light'], measurements: [] },
-      layout: 'stacked',
-      offered: offeredBy(switching, []),
-      leaf: null,
-      plants: [],
-    });
+    const csv = csvForCards(
+      key => key,
+      switching,
+      {
+        picked: { metrics: ['temperature'], outputs: ['light'], measurements: [] },
+        layout: 'stacked',
+        offered: offeredBy(switching, []),
+        leaf: null,
+        plants: [],
+      },
+      null,
+    );
     const rows = csv.split('\n').slice(1);
     const cells = rows.map(row => row.split(','));
 
