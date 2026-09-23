@@ -134,6 +134,28 @@ describe('what a device reports', () => {
     expect(metrics.map(sample => sample.values)).toEqual([{ temperature: 24.6 }, { temperature: 24.7 }]);
   });
 
+  it('keeps a controller´s "no CO2 valve" figure out of the store', async () => {
+    await device();
+
+    // The firmware writes -1 into an unsigned field, so absence arrives as
+    // 0xFFFFFFFF. The lamp beside it is a real output and stays.
+    await messageOn('bulk', { sensors: {}, outputs: { co2: 4294967295, light: 100 }, timestamp: 1758100000 });
+
+    expect(samples[0].sample.outputs).toEqual({ light: 100 });
+    expect(metrics[0].outputs).toEqual({ light: 100 });
+  });
+
+  it('stores a CO2 valve that really opened', async () => {
+    await device();
+
+    // The output is a count of open ticks since the last publish, so zero is a
+    // valve that stayed shut and is as much a state as any other.
+    await messageOn('bulk', { sensors: {}, outputs: { co2: 0 }, timestamp: 1758100000 });
+    await messageOn('bulk', { sensors: {}, outputs: { co2: 240 }, timestamp: 1758100030 });
+
+    expect(samples.map(one => one.sample.outputs)).toEqual([{ co2: 0 }, { co2: 240 }]);
+  });
+
   it('stores the CO2 a fitted sensor really measured', async () => {
     await device();
 

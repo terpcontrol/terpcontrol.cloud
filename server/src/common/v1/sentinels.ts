@@ -24,7 +24,24 @@
 /** The stored field a controller's CO2 sensor is written under. */
 const CO2_FIELD = 'co2';
 
-export const isSentinel = (field: string, value: number): boolean => field === CO2_FIELD && value <= 0;
+/** And the one its CO2 valve is written under, which carries the same "there is none" the same way. */
+export const CO2_OUTPUT_FIELD = 'out_co2';
+
+/**
+ * What that `-1` looks like once it has been through the wire.
+ *
+ * The firmware writes `status["outputs"]["co2"] = hasCo2Sensor() ? state.out_co2
+ * : -1` into a `uint32_t`, so the minus one is promoted and arrives as
+ * 0xFFFFFFFF. The valve's real value is a count of open ticks since the last
+ * publish, reset after every successful one, so a genuine figure is a few
+ * thousand at the very most and this one can be nothing else. A build that
+ * types the field differently would send the negative it means, so both forms
+ * are read as the same statement.
+ */
+export const NO_CO2_VALVE = 4294967295;
+
+export const isSentinel = (field: string, value: number): boolean =>
+  (field === CO2_FIELD && value <= 0) || (field === CO2_OUTPUT_FIELD && (value < 0 || value === NO_CO2_VALVE));
 
 /**
  * The other way a device says a sensor is not there: the `hardware-info` report

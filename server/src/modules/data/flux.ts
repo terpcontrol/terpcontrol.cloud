@@ -1,7 +1,7 @@
 import { Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
 import { calculateVpd } from '@utils/calculateVpd';
 import { fieldOfMetric, fieldOfOutputMetric } from '@common/v1/metrics';
-import { isSentinel } from '@common/v1/sentinels';
+import { CO2_OUTPUT_FIELD, isSentinel, NO_CO2_VALVE } from '@common/v1/sentinels';
 
 /**
  * What is sent to InfluxDB and what comes back, kept apart from the service so
@@ -146,6 +146,19 @@ const SWITCHING_GRAIN_SECONDS = 300;
  */
 const MAX_SWITCHINGS = 10000;
 
+/**
+ * The one sentinel that has to be excluded in the store rather than on the way
+ * back out, written in Flux.
+ *
+ * Everywhere else a sentinel can be recognised in this process, because the
+ * figure survives the read. Here it does not: the switchings are reduced to a
+ * `max` per grain and then mapped to "running" or "not" inside InfluxDB, so a
+ * controller's "there is no valve" figure would arrive as a plain 1.0 with
+ * nothing left to tell it from a valve that really ran. It says the same thing
+ * as `isSentinel` and is kept beside the constant it is built from.
+ */
+const NOT_A_SENTINEL = `r["_field"] != "${CO2_OUTPUT_FIELD}" or (r["_value"] >= 0.0 and r["_value"] != ${NO_CO2_VALVE}.0)`;
+
 /** The two answers `switchingsQuery` yields, which is what tells the state a window opens in from a switching inside it. */
 export const SWITCHING_RESULT = { opening: 'opening', switching: 'switching' } as const;
 
@@ -179,6 +192,7 @@ export const switchingsQuery = (bucket: string, deviceId: string, fields: readon
 
   return `runs = ${head(bucket, deviceId, rangeOf(window))}
     |> filter(fn: (r) => ${filter})
+    |> filter(fn: (r) => ${NOT_A_SENTINEL})
     |> aggregateWindow(every: ${SWITCHING_GRAIN_SECONDS}s, fn: max, createEmpty: false, timeSrc: "_start")
     |> map(fn: (r) => ({ r with _value: if r._value > 0.0 then 1.0 else 0.0 }))
 runs |> first() |> yield(name: "${SWITCHING_RESULT.opening}")

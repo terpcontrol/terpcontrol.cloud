@@ -343,13 +343,17 @@ const numbers = (value: unknown): Record<string, number> => {
 };
 
 /**
- * The same readings with the firmware's "there is no sensor here" figures taken
+ * The same readings with the firmware's "there is nothing here" figures taken
  * out, so that nothing the store keeps from here on has to be recognised as a
  * sentinel on the way back out. What is already behind them is dropped where it
  * is read instead, which is the same rule stated in the same place.
+ *
+ * A device names its outputs bare and the store writes them with the `out_`
+ * prefix, so the prefix goes on before the rule is asked - the rule is about the
+ * stored field, which is the one name both ends of the store agree on.
  */
-const measurements = (sensors: Record<string, number>): Record<string, number> =>
-  Object.fromEntries(Object.entries(sensors).filter(([field, value]) => !isSentinel(field, value)));
+const measurements = (reported: Record<string, number>, prefix = ''): Record<string, number> =>
+  Object.fromEntries(Object.entries(reported).filter(([name, value]) => !isSentinel(`${prefix}${name}`, value)));
 
 /**
  * One reading document. `dated` is what tells the two ways of sending one apart:
@@ -361,7 +365,7 @@ const sampleOf = (payload: string, dated: boolean): DeviceSample | null => {
   if (!document) return null;
 
   const sensors = measurements(numbers(document.sensors));
-  const outputs = numbers(document.outputs);
+  const outputs = measurements(numbers(document.outputs), 'out_');
   if (Object.keys(sensors).length === 0 && Object.keys(outputs).length === 0) return null;
 
   const timestamp = Number(document.timestamp);

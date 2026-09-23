@@ -28,6 +28,27 @@ describe('a CO2 figure that is not a measurement', () => {
   });
 });
 
+describe('a CO2 valve that is not there', () => {
+  it('reads the promoted -1 the firmware sends for an absent valve', () => {
+    // `uint32_t out_co2 = -1` arrives as 0xFFFFFFFF, and a build that typed the
+    // field differently would send the negative it means.
+    expect(isSentinel('out_co2', 4294967295)).toBe(true);
+    expect(isSentinel('out_co2', -1)).toBe(true);
+  });
+
+  it('leaves the tick counts a real valve reports', () => {
+    // Zero is a valve that stayed shut, which is a state and not an absence.
+    expect(isSentinel('out_co2', 0)).toBe(false);
+    expect(isSentinel('out_co2', 1)).toBe(false);
+    expect(isSentinel('out_co2', 2400)).toBe(false);
+  });
+
+  it('says nothing about the other outputs', () => {
+    expect(isSentinel('out_heater', 0)).toBe(false);
+    expect(isSentinel('out_light', 100)).toBe(false);
+  });
+});
+
 describe('the hardware report beside it', () => {
   it('takes `co2=off` as the device saying it has no CO2 sensor', () => {
     expect(reportsNoSensor({ co2: 'off' }, 'co2')).toBe(true);

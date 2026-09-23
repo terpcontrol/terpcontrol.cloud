@@ -13,6 +13,7 @@ import {
   runningSpansOf,
   seriesQuery,
   stepFor,
+  switchingsQuery,
 } from '@modules/data/flux';
 import { DataService } from '@modules/data/data.service';
 
@@ -63,6 +64,21 @@ describe('the series query', () => {
 
     expect(() => seriesQuery(BUCKET, injected, ['temperature'], window(60, 300))).toThrow();
     expect(() => seriesQuery(BUCKET, DEVICE, [injected], window(60, 300))).toThrow();
+  });
+});
+
+describe('the switchings query', () => {
+  it('excludes the "there is no valve" figure in the store', () => {
+    // The store reduces each grain to a max and maps it to running or not, so
+    // a sentinel left in would arrive as an ordinary lit bar with nothing left
+    // to tell it from a valve that really ran. It has to go before the max.
+    const query = switchingsQuery(BUCKET, DEVICE, fieldsFor([], ['co2', 'heater']), window(60, 0));
+    const excluded = query.indexOf('out_co2" or');
+    const reduced = query.indexOf('aggregateWindow');
+
+    expect(query).toContain('r["_field"] != "out_co2" or (r["_value"] >= 0.0 and r["_value"] != 4294967295.0)');
+    expect(excluded).toBeGreaterThan(-1);
+    expect(excluded).toBeLessThan(reduced);
   });
 });
 
