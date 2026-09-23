@@ -20,6 +20,14 @@ export interface ParsedFlux {
   createEmpty: boolean;
   /** A bare `|> last()`, which the live read uses instead of a window. */
   last: boolean;
+  /**
+   * The switchings read: a windowed `max` mapped to on-or-off and then run
+   * through `difference`, which answers the state each field is found in and
+   * every crossing after it rather than one row per window.
+   */
+  switchings: boolean;
+  /** `timeSrc: "_start"` stamps a window at its start rather than at its stop, which is what the switchings read asks for. */
+  timeAtStart: boolean;
 }
 
 export type AggregateFn = 'mean' | 'min' | 'max' | 'sum' | 'last' | 'first' | 'count';
@@ -83,6 +91,8 @@ export const parseFlux = (query: string): ParsedFlux => ({
   fn: (literal(query, /aggregateWindow\([^)]*fn:\s*([a-zA-Z]+)/) ?? 'mean') as AggregateFn,
   createEmpty: /createEmpty:\s*true/.test(query),
   last: /\|>\s*last\(\)/.test(query),
+  switchings: /\|>\s*difference\(/.test(query),
+  timeAtStart: /timeSrc:\s*"_start"/.test(query),
 });
 
 const aggregate = (values: number[], fn: AggregateFn): number | null => {
@@ -179,18 +189,19 @@ const fieldRows = (matching: InfluxPoint[], field: string, parsed: ParsedFlux, s
   const rows: ResultRow[] = [];
   // The first window is the one that ends strictly after the range start.
   const firstWindow = Math.floor(start / every) * every + every;
+  // Influx truncates the final window to the end of the range, and `timeSrc`
+  // decides which end of a window a row is stamped at.
+  const stamp = (windowStop: number): number => (parsed.timeAtStart ? Math.max(start, windowStop - every) : Math.min(windowStop, stop));
 
   if (parsed.createEmpty) {
     for (let windowStop = firstWindow; rows.length < MAX_ROWS; windowStop += every) {
-      // Influx truncates the final window to the end of the range.
-      const time = Math.min(windowStop, stop);
-      rows.push({ time, value: aggregate(buckets.get(windowStop) ?? [], parsed.fn), ...identity });
+      rows.push({ time: stamp(windowStop), value: aggregate(buckets.get(windowStop) ?? [], parsed.fn), ...identity });
       if (windowStop >= stop) break;
     }
   } else {
     for (const windowStop of [...buckets.keys()].sort((a, b) => a - b)) {
       rows.push({
-        time: Math.min(windowStop, stop),
+        time: stamp(windowStop),
         // The loop walks the buckets' own keys.
         value: aggregate(buckets.get(windowStop)!, parsed.fn),
         ...identity,
@@ -198,5 +209,25 @@ const fieldRows = (matching: InfluxPoint[], field: string, parsed: ParsedFlux, s
     }
   }
 
-  return rows;
+  return parsed.switchings ? crossings(rows) : rows;
+};
+
+/**
+ * What `difference()` over a mapped series leaves: the first row as the state
+ * the window opens in, and after it only the rows where the state changed,
+ * carrying the change itself. Both read the same way - above zero is running -
+ * which is what lets one query answer them together.
+ */
+const crossings = (rows: ResultRow[]): ResultRow[] => {
+  let last: boolean | null = null;
+
+  return rows.flatMap(row => {
+    const on = (row.value ?? 0) > 0;
+    if (on === last) return [];
+
+    const written = last === null ? (on ? 1 : 0) : on ? 1 : -1;
+    last = on;
+
+    return [{ ...row, value: written }];
+  });
 };
