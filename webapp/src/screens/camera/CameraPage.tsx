@@ -23,6 +23,9 @@ import { Film } from './Film';
 import { CameraSettings } from './CameraSettings';
 import styles from './CameraPage.module.css';
 
+/** How many films the section rests at before somebody asks for the rest. */
+const FILMS_AT_REST = 3;
+
 /**
  * One camera: the picture it is taking, the day behind it, the four films it
  * makes in one tap, the composer, and what the camera itself is set to.
@@ -75,7 +78,15 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
   const shown = frameAt(shots, time);
   const newest = shots.at(-1) ?? null;
 
-  const made = (films.data?.items ?? []).filter(film => film.id !== job?.id);
+  // Three films is the resting height of the section, not the whole of it: the
+  // rest are behind the control below rather than dropped.
+  const [everyFilm, setEveryFilm] = useState(false);
+  const made = (films.data?.pages.flatMap(page => page.items) ?? []).filter(film => film.id !== job?.id);
+  const shownFilms = everyFilm ? made : made.slice(0, FILMS_AT_REST);
+  const moreFilms = () => {
+    if (everyFilm && films.hasNextPage) void films.fetchNextPage();
+    setEveryFilm(true);
+  };
 
   const request = (body: TimelapseCreate) =>
     ask.mutate(body, {
@@ -158,14 +169,19 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
           </p>
         ) : null}
         {job ? <Film mediaId={job.id} /> : null}
-        {made.length > 0 ? (
-          <ul className={styles.films}>
-            {made.slice(0, 3).map(film => (
+        {shownFilms.length > 0 ? (
+          <ul className={styles.films} aria-label={t('camera.timelapses')}>
+            {shownFilms.map(film => (
               <li key={film.id}>
                 <Film mediaId={film.id} collapsed />
               </li>
             ))}
           </ul>
+        ) : null}
+        {made.length > shownFilms.length || films.hasNextPage ? (
+          <button type="button" className={`${ui.button} ${styles.moreFilms}`} disabled={films.isFetchingNextPage} onClick={moreFilms}>
+            {films.isFetchingNextPage ? t('home.waiting') : t('camera.moreFilms')}
+          </button>
         ) : null}
         {!mayManage && made.length === 0 && !job ? <p className={ui.note}>{t('camera.noFilms')}</p> : null}
       </section>

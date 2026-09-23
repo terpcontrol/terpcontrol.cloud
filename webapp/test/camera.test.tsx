@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { readFile } from 'node:fs/promises';
@@ -24,13 +24,28 @@ import { THE_HOST, YOU } from './session';
  */
 
 const asked: TimelapseCreate[] = [];
-const state = vi.hoisted(() => ({ film: null as unknown, youMay: 'own' as AccessNeed, lastError: null as string | null }));
+const state = vi.hoisted(() => ({
+  film: null as unknown,
+  youMay: 'own' as AccessNeed,
+  lastError: null as string | null,
+  films: [] as { id: string }[],
+  moreFilms: false,
+  askedForMore: 0,
+}));
 
 vi.mock('@/api/cameras', async importOriginal => ({
   ...(await importOriginal<object>()),
   useCameras: () => ({ data: { items: [], nextCursor: null } }),
   useLatestStills: () => new Map<string, string | null>(),
   useMedia: () => ({ data: state.film, isError: false }),
+  useTimelapses: () => ({
+    data: { pages: [{ items: state.films, nextCursor: state.moreFilms ? 'cursor' : null }] },
+    hasNextPage: state.moreFilms,
+    isFetchingNextPage: false,
+    fetchNextPage: () => {
+      state.askedForMore += 1;
+    },
+  }),
 }));
 
 vi.mock('@/api/session', async importOriginal => {
@@ -113,6 +128,9 @@ beforeEach(() => {
   state.film = null;
   state.youMay = 'own';
   state.lastError = null;
+  state.films = [];
+  state.moreFilms = false;
+  state.askedForMore = 0;
 });
 
 describe('the composer', () => {
@@ -230,6 +248,54 @@ describe('the camera page, by who is reading', () => {
     expect(screen.getByRole('textbox', { name: 'Name' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Test image' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Unpair' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * A season of films, which does not fit in the page the route answers with.
+ * What the section rests at is a height, not the whole of what there is.
+ */
+describe('the films behind the first page', () => {
+  const drawPage = () =>
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <CameraScreen camera={{ ...camera, ownerId: YOU }} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+  const filmsNumbering = (count: number) => Array.from({ length: count }, (_, index) => ({ id: `film-${index}` }));
+  const drawn = () => within(screen.getByRole('list', { name: 'Timelapses' })).getAllByRole('listitem');
+
+  it('rests at three films and opens the rest of the page rather than dropping them', () => {
+    state.films = filmsNumbering(20);
+    drawPage();
+
+    expect(drawn()).toHaveLength(3);
+
+    fireEvent.click(screen.getByRole('button', { name: 'More films' }));
+
+    expect(drawn()).toHaveLength(20);
+  });
+
+  it('follows the cursor for the films after those, and says nothing more once it is exhausted', () => {
+    state.films = filmsNumbering(20);
+    state.moreFilms = true;
+    drawPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'More films' }));
+    fireEvent.click(screen.getByRole('button', { name: 'More films' }));
+
+    expect(state.askedForMore).toBe(1);
+  });
+
+  it('offers nothing more where the films on the page are all there are', () => {
+    state.films = filmsNumbering(2);
+    drawPage();
+
+    expect(drawn()).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: 'More films' })).not.toBeInTheDocument();
   });
 });
 

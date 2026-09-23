@@ -2946,6 +2946,7 @@
       "queuedNote": "Wartet auf den Builder, der die Warteschlange beim nächsten Durchlauf abarbeitet. Diese Seite verfolgt das; beim Weggehen geht nichts verloren."
     },
     "noFilms": "Von dieser Kamera gibt es noch keinen Film.",
+    "moreFilms": "Weitere Filme",
     "youMayLog": "Du siehst, was diese Kamera sieht. Einstellungen, Testbild und Zeitraffer sind Sache derer, die das Zelt steuern, in dem sie steht."
   },
   "cameras": {

@@ -2950,6 +2950,7 @@
       "queuedNote": "Waiting for the builder, which takes the queue on its next pass. This page follows it; nothing is lost by leaving."
     },
     "noFilms": "No film of this camera yet.",
+    "moreFilms": "More films",
     "youMayLog": "You can see what this camera sees. Its settings, its test image and its timelapses are for whoever steers the tent it stands in."
   },
   "cameras": {

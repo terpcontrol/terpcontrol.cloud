@@ -226,6 +226,11 @@
   list-style: none;
 }
 
+/* The rest of the films, which sit behind this rather than being dropped. */
+.moreFilms {
+  align-self: flex-start;
+}
+
 .film {
   display: flex;
   flex-direction: column;

@@ -1,4 +1,4 @@
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   Camera,
   CameraCreate,
@@ -71,10 +71,21 @@ export const useCameraFrames = (cameraId: string, span: { startsAt: string; ends
     queryFn: ({ signal }) => api.get<MediaPage>(`/cameras/${cameraId}/frames`, { ...span, limit }, signal),
   });
 
+/** A screenful of films, which is also the largest page the composer's own list needs. */
+export const TIMELAPSES_PER_PAGE = 20;
+
+/**
+ * The films of one camera, newest first and continued by the cursor the route
+ * hands out. A camera that has been filming for a season has hundreds of them,
+ * and a list that read one page and drew three of it was a season of somebody's
+ * own timelapses with no route to them at all.
+ */
 export const useTimelapses = (cameraId: string) =>
-  useQuery({
+  useInfiniteQuery({
     queryKey: ['camera', cameraId, 'timelapses'],
-    queryFn: ({ signal }) => api.get<MediaPage>(`/cameras/${cameraId}/timelapses`, { limit: 20 }, signal),
+    queryFn: ({ pageParam, signal }) => api.get<MediaPage>(`/cameras/${cameraId}/timelapses`, { limit: TIMELAPSES_PER_PAGE, cursor: pageParam }, signal),
+    initialPageParam: null as string | null,
+    getNextPageParam: last => last.nextCursor,
   });
 
 /** One media row, polled while its render is still going and left alone once it is not. */
