@@ -22,10 +22,17 @@ export class SpaceLiveService {
     private readonly data: DataService,
   ) {}
 
-  /** In the order they were claimed, which is the order a card lists them in. */
+  /**
+   * In the order they were claimed, which is the order a card lists them in.
+   *
+   * The hardware report comes with them because a target is only a target where
+   * something can measure whether it is being held: the CO2 setpoint of a
+   * controller with no sensor fitted is a figure the tent cannot be judged on,
+   * and it is dropped where the device itself says there is none.
+   */
   public async devicesIn(spaceIds: string[]): Promise<StoredDevice[]> {
     return this.devices
-      .find({ spaceId: { $in: spaceIds } }, { id: 1, spaceId: 1, configuration: 1, createdAt: 1 })
+      .find({ spaceId: { $in: spaceIds } }, { id: 1, spaceId: 1, configuration: 1, createdAt: 1, 'state.hardware': 1 })
       .sort({ createdAt: 1, id: 1 })
       .lean<StoredDevice[]>();
   }

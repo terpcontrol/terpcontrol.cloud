@@ -139,7 +139,11 @@ export class OverviewService {
     // reading, so a window with no "now" in it still knows where to read the
     // series from - what is not answered through it is the targets themselves.
     const [steering = null] = devices.flatMap(device => {
-      const targets = setpointsOf(device.configuration, readings.find(one => one.device.id === device.id)?.reading.isDay ?? true);
+      const targets = setpointsOf(
+        device.configuration,
+        readings.find(one => one.device.id === device.id)?.reading.isDay ?? true,
+        device.state?.hardware,
+      );
       return targets ? [{ deviceId: device.id, targets }] : [];
     });
     const window = clampedWindow(grant, { startsAt: new Date(until.getTime() - VERDICT_HOURS * 3600 * 1000), endsAt: until });

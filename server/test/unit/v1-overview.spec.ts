@@ -323,6 +323,25 @@ describe('what the tent reads right now', () => {
     expect((await readAs(session(OWNER))).setpoints.map(one => one.metric)).toEqual(['temperature', 'humidity']);
   });
 
+  /**
+   * A controller keeps a CO2 target in its document whether or not an SCD was
+   * ever fitted, and the firmware forces the target to zero without one. The
+   * tent's targets line read "CO2 1200" over a fridge whose Manual targets tab
+   * said the row needed a sensor, so the figure is dropped where the device has
+   * said there is nothing to measure it against.
+   */
+  it('drops the CO2 target where the device reports no sensor for it', async () => {
+    await db.devices.updateOne({ id: CONTROLLER }, { $set: { 'configuration.co2': { target: 1200 } } });
+    expect((await readAs(session(OWNER))).setpoints.map(one => one.metric)).toEqual(['temperature', 'humidity', 'co2']);
+
+    await db.devices.updateOne({ id: CONTROLLER }, { $set: { state: { hardware: { co2: 'off' } } } });
+    const page = await readAs(session(OWNER));
+
+    expect(page.setpoints.map(one => one.metric)).toEqual(['temperature', 'humidity']);
+    expect(page.targets!.day.map(one => one.metric)).toEqual(['temperature', 'humidity']);
+    expect(page.targets!.night.map(one => one.metric)).toEqual(['temperature', 'humidity']);
+  });
+
   it('states both halves of the cycle, which is what the header says and the verdict judges against', async () => {
     const page = await readAs(session(OWNER));
 

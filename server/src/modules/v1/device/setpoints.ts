@@ -1,4 +1,5 @@
 import type { Metric, Setpoints } from '@fg2/shared-types/v1';
+import { reportsNoSensor } from '@common/v1/sentinels';
 
 /**
  * The targets a controller is holding, read out of its own configuration
@@ -23,19 +24,36 @@ const TARGETS: Readonly<Record<'day' | 'night', Partial<Record<Metric, string>>>
  * band nobody can say which half of belongs to is worse than none, so a device
  * that has not reported the flag answers no setpoints at all. Nor does one that
  * states no target - a plug, a light.
+ *
+ * `hardware` is the device's own report of what is fitted, and it is read for
+ * the same reason the readings read it: a controller keeps a CO2 target in its
+ * document whether or not an SCD was ever screwed into it, and a target with
+ * nothing to measure against is a figure the tent cannot be held to. The tent's
+ * own targets line said "CO2 1200" over a fridge whose Manual targets tab, two
+ * taps away, said the row needed a sensor. Answering the target here and not
+ * there was what let those two sentences stand on one account.
  */
-export const setpointsOf = (configuration: Record<string, unknown> | null, isDay: boolean | null): Setpoints | null => {
+export const setpointsOf = (
+  configuration: Record<string, unknown> | null,
+  isDay: boolean | null,
+  hardware: Record<string, string> = {},
+): Setpoints | null => {
   if (!configuration || isDay === null) return null;
 
-  const setpoints: Setpoints = { day: halfOf(configuration, 'day'), night: halfOf(configuration, 'night'), active: isDay ? 'day' : 'night' };
+  const setpoints: Setpoints = {
+    day: halfOf(configuration, 'day', hardware),
+    night: halfOf(configuration, 'night', hardware),
+    active: isDay ? 'day' : 'night',
+  };
 
   return Object.keys(setpoints.day).length + Object.keys(setpoints.night).length > 0 ? setpoints : null;
 };
 
-const halfOf = (configuration: Record<string, unknown>, half: 'day' | 'night'): Partial<Record<Metric, number>> => {
+const halfOf = (configuration: Record<string, unknown>, half: 'day' | 'night', hardware: Record<string, string>): Partial<Record<Metric, number>> => {
   const targets: Partial<Record<Metric, number>> = {};
 
   for (const [metric, path] of Object.entries(TARGETS[half]) as [Metric, string][]) {
+    if (reportsNoSensor(hardware, metric)) continue;
     const value = numberAt(configuration, path);
     if (value !== null) targets[metric] = value;
   }

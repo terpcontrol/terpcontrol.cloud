@@ -34,7 +34,7 @@ export interface DeviceReading {
  * Timeline panel two taps away said it did not have.
  */
 export const liveOfDevice = ({ device, reading }: DeviceReading): SpaceLiveDevice => {
-  const targets = setpointsOf(device.configuration, reading.isDay);
+  const targets = setpointsOf(device.configuration, reading.isDay, device.state?.hardware);
   const active = targets ? targets[targets.active] : {};
   const aimed = steeredIn(targets?.active ?? 'day');
 
