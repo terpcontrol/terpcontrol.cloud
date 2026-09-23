@@ -208,6 +208,14 @@ function OpenLog() {
       <button type="button" onClick={() => openSheet({ kind: 'phase', spaceId: 'space-2' })}>
         open phase there
       </button>
+      {/* What a bookmark or a notification written months ago carries: a grow
+          that has since been harvested, and a tent this account was let out of. */}
+      <button type="button" onClick={() => openSheet({ kind: 'note', growId: 'grow-harvested' })}>
+        open the finished grow
+      </button>
+      <button type="button" onClick={() => openSheet({ spaceId: 'space-gone' })}>
+        open the place that is gone
+      </button>
       <button type="button" onClick={() => complete('task-1', 'Watered · Spring run')}>
         done
       </button>
@@ -488,6 +496,42 @@ describe('the log sheet', () => {
     expect(screen.queryByRole('dialog', { name: 'Phase' })).not.toBeInTheDocument();
 
     vi.unstubAllGlobals();
+  });
+
+  /**
+   * The chips are the home's cards, and the home draws what stands in a place
+   * today: a grow that has been harvested is on none of them, and neither is a
+   * tent this account was let out of or an id that was never anything. The
+   * sheet used to fall through to the first card there is - a live Save button
+   * over a running grow, with nothing on screen saying the address had been
+   * dropped - so a line meant for last summer landed in this summer's diary.
+   */
+  it('says a link named a grow that is not here, and points at nothing until a chip is pressed', async () => {
+    draw();
+    fireEvent.click(screen.getByRole('button', { name: 'open the finished grow' }));
+
+    const sheet = await screen.findByRole('dialog', { name: 'Log' });
+    const chip = await within(sheet).findByRole('button', { name: /^Spring run/ });
+    expect(within(sheet).getByRole('alert')).toHaveTextContent('The grow or place this link names is not on your home');
+    expect(chip).toHaveAttribute('aria-pressed', 'false');
+    expect(within(sheet).getByRole('button', { name: /^Note/ })).toBeDisabled();
+    expect(screen.queryByRole('dialog', { name: 'Note' })).not.toBeInTheDocument();
+
+    // A chip pressed is a subject somebody chose, and the tile the link asked
+    // for opens on it - which is the whole of what the link was good for.
+    fireEvent.click(chip);
+    expect(await screen.findByRole('dialog', { name: 'Note' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('says the same of a place that is not here rather than standing in another one', async () => {
+    draw();
+    fireEvent.click(screen.getByRole('button', { name: 'open the place that is gone' }));
+
+    const sheet = await screen.findByRole('dialog', { name: 'Log' });
+    expect(await within(sheet).findByRole('button', { name: /^Spring run/ })).toHaveAttribute('aria-pressed', 'false');
+    expect(within(sheet).getByRole('alert')).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: /^Water/ })).toBeDisabled();
   });
 
   it('writes a line about one plant when a plant is the target', async () => {

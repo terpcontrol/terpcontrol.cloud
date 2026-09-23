@@ -2879,6 +2879,7 @@
     "targetLabel": "Worum es in dem Eintrag geht",
     "oneTap": "Ein Tipp schreibt den Eintrag mit sinnvollen Vorgaben, 5 s lang widerrufbar, Details optional. Foto öffnet den Fotoeintrag, und Reingehen fragt vorher, weil es die Geräte ruhigstellt.",
     "nowhere": "Noch nichts da, wofür sich ein Eintrag lohnt · zuerst einen Grow starten oder ein Gerät hinzufügen",
+    "notHere": "Der Grow oder Ort aus diesem Link steht nicht auf deiner Startseite · vielleicht ist er zu Ende, vielleicht darfst du dort nicht schreiben · wähle, wohin der Eintrag gehört",
     "litres": "{{litres}} l",
     "lastAgo": "zuletzt vor {{age}}",
     "tile": {

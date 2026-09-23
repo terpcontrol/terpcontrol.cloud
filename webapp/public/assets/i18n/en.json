@@ -2883,6 +2883,7 @@
     "targetLabel": "What the line is about",
     "oneTap": "One tap logs it now with sensible defaults, Undo for 5 s, details optional. Photo opens the photo entry, and stepping in asks first because it quietens the hardware.",
     "nowhere": "Nothing to log against yet · start a grow or add a device first",
+    "notHere": "The grow or place this link names is not on your home · it may have finished, or it may not be yours to write in · pick where the line should go",
     "litres": "{{litres}} L",
     "lastAgo": "last {{age}}",
     "tile": {

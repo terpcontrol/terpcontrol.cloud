@@ -80,10 +80,13 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
   const places = useMemo(() => targetsOf(home), [home]);
   const [placeKey, setPlaceKey] = useState<string | null>(null);
   const [narrowKey, setNarrowKey] = useState<string | null>(null);
-  const place = useMemo(
-    () => places.find(one => one.key === placeKey) ?? openingTarget(places, opening, lastKey),
-    [places, placeKey, opening, lastKey],
-  );
+  const aim = useMemo(() => openingTarget(places, opening, lastKey), [places, opening, lastKey]);
+  const place = useMemo(() => places.find(one => one.key === placeKey) ?? aim.target, [places, placeKey, aim]);
+  // A link that named a subject nothing here is leaves the sheet unaimed rather
+  // than aimed at somebody else's grow, so it has to say why it is unaimed: the
+  // tiles are dead until a chip is pressed, and an unexplained dead sheet is
+  // read as a broken one.
+  const missed = aim.missed && place === null;
 
   const { data: grow } = useGrow(place?.growId ?? null);
   const { data: plants } = useGrowPlants(place?.growId ?? null);
@@ -181,6 +184,11 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
         <p className={ui.note}>{isPending ? t('home.waiting') : t('log.nowhere')}</p>
       ) : (
         <>
+          {missed ? (
+            <p className={ui.problem} role="alert">
+              {t('log.notHere')}
+            </p>
+          ) : null}
           <div className={styles.targets} role="group" aria-label={t('log.targetLabel')}>
             {/* The place first, then what is inside it, then everywhere else:
                 the chips a thumb can reach are the ones about where you are. */}

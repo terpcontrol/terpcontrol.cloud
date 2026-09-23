@@ -61,14 +61,36 @@ export const narrowerTargets = (home: HomeAnswer | undefined, target: LogTarget 
   ];
 };
 
+/** Where a sheet opens, and whether the address it was opened with could be honoured. */
+export interface Aim {
+  /** The chip that starts chosen, or nothing at all where the sheet could not be pointed. */
+  target: LogTarget | null;
+  /** True where the opening named a grow or a place and none of the chips is it. */
+  missed: boolean;
+}
+
 /**
  * Which chip starts chosen: the grow or tent the screen underneath is about,
  * then whatever was chosen last time, then the first place there is. A sheet
  * opened on the grow page is already pointed at that grow.
+ *
+ * The fallback is for an opening that named nothing, and for that only. A link
+ * that did name a subject and missed is a different answer and not a smaller
+ * one: the chips are built from the home, which draws what stands in a place
+ * today, so a bookmark or a notification for a grow that has since been
+ * harvested - or for a tent this account was let out of - matches none of them.
+ * Falling through to the first card there is would hand the sheet a subject
+ * nobody asked for while its Save button still writes a line, and the line
+ * would land in a running grow's diary under somebody else's name. So the miss
+ * is carried out of here as a miss, and the sheet says it and waits.
  */
-export const openingTarget = (targets: LogTarget[], opening: LogOpening, last: string | null): LogTarget | null =>
-  targets.find(target => opening.growId && target.growId === opening.growId) ??
-  targets.find(target => opening.spaceId && target.standsIn === opening.spaceId) ??
-  targets.find(target => target.key === last) ??
-  targets[0] ??
-  null;
+export const openingTarget = (targets: LogTarget[], opening: LogOpening, last: string | null): Aim => {
+  const asked =
+    targets.find(target => opening.growId && target.growId === opening.growId) ??
+    targets.find(target => opening.spaceId && target.standsIn === opening.spaceId) ??
+    null;
+
+  if (opening.growId || opening.spaceId) return { target: asked, missed: asked === null };
+
+  return { target: targets.find(target => target.key === last) ?? targets[0] ?? null, missed: false };
+};
