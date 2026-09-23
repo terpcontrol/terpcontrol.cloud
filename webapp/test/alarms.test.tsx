@@ -706,13 +706,19 @@ describe('what a rule is called', () => {
     expect(headersOf('X-Token: abc\n\nAuthorization: Bearer a:b\nnothing')).toEqual({ 'X-Token': 'abc', Authorization: 'Bearer a:b' });
   });
 
-  /** The three stand next to each other in one row of chips, where one of them in another case reads as a mistake. */
-  it('writes the three severities in one case in each language', async () => {
+  /**
+   * The three stand next to each other in one row of chips, where one of them
+   * in another case reads as a mistake - and the inbox says the same word
+   * about the same rule one screen away, where the two spellings side by side
+   * read as two different things.
+   */
+  it('writes the three severities in one case in each language, and writes them the same way in the inbox', async () => {
     for (const language of ['en', 'de']) {
       const catalogue = JSON.parse(await readFile(resolve(process.cwd(), `public/assets/i18n/${language}.json`), 'utf8'));
       const cased = Object.values(catalogue.alarms.severity).map(label => /^\p{Lu}/u.test(String(label)));
 
       expect(new Set(cased).size).toBe(1);
+      expect(catalogue.alerts.severity).toEqual(catalogue.alarms.severity);
     }
   });
 });

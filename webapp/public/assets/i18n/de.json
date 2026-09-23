@@ -3636,7 +3636,7 @@
     "nothingWatching": "Noch schaut nichts hin. Meldungen kommen aus den Alarmregeln eines Controllers und von einer Cam.",
     "demoNoInbox": "Die Demo hat keinen Posteingang; öffne ein Zelt, um seine Alarme zu sehen.",
     "severity": {
-      "critical": "kritisch",
+      "critical": "Kritisch",
       "warning": "Warnung",
       "info": "Info"
     },
