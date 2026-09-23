@@ -17,6 +17,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { CLOCK, DATED_CLOCK, zonedAt, zoneOf } from '@/ui/zone';
 import { cameraFreshness } from '../devices/cameras';
+import { causeOf } from './capture-failure';
 import { at, STAMPS, stampFor } from '../timeline/window';
 import { Slider } from '../timeline/CameraFrame';
 import timeline from '../timeline/Timeline.module.css';
@@ -138,11 +139,22 @@ export function CameraScreen({ camera, refetching = null }: { camera: Camera; re
           paths of the process that reached for it - which the decision record
           keeps for the owner, like every other way of finding the hardware.
           Somebody who shares the tent is told it is not delivering, and that is
-          what the pill above already says. */}
+          what the pill above already says.
+
+          What the line states is the kind of failure it was, because a
+          paragraph of ffmpeg is the one thing a grower cannot act on and this
+          is all the page says about a camera that has been dark for days. The
+          words the server stored are the only way the one person who can fix
+          the camera finds out what is wrong with it, so they stay - a tap
+          below, selectable, rather than a line nobody can read. */}
       {mayOwn && camera.state.lastError ? (
-        <p className={`${ui.problem} ${styles.lastError}`} role="alert" title={camera.state.lastError}>
-          {t('camera.lastError', { reason: camera.state.lastError })}
-        </p>
+        <div className={styles.lastError} role="alert">
+          <p className={ui.problem}>{t('camera.lastError', { reason: t(causeOf(camera.state.lastError)) })}</p>
+          <details className={styles.rawError}>
+            <summary className="mono">{t('camera.whatItSaid')}</summary>
+            <p className="mono">{camera.state.lastError}</p>
+          </details>
+        </div>
       ) : null}
 
       <div className={styles.frame}>

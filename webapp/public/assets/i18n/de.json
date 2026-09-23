@@ -2987,6 +2987,18 @@
   "camera": {
     "never": "nie",
     "lastError": "Letzter Versuch fehlgeschlagen: {{reason}}",
+    "whatItSaid": "Was die Kamera gemeldet hat",
+    "failure": {
+      "damaged": "es kam kein vollständiges Bild an",
+      "aborted": "die Kamera hat die Aufnahme abgebrochen",
+      "stoppedEarly": "der Stream endete, bevor ein Bild ankam",
+      "refusedLogin": "die Kamera hat die hinterlegte Anmeldung abgelehnt",
+      "noAnswer": "die Kamera hat nicht geantwortet",
+      "noController": "der Controller, über den diese Kamera antwortet, war nicht erreichbar",
+      "noAddress": "es gibt keine Adresse, unter der diese Kamera erreichbar wäre",
+      "noStream": "was geantwortet hat, war kein Videostream",
+      "unknown": "die Kamera konnte nicht gelesen werden"
+    },
     "frameAlt": "{{name}} um {{time}}",
     "noFramesToday": "Heute noch kein Bild",
     "live": "live",

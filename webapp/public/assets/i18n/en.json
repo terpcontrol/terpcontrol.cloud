@@ -2991,6 +2991,18 @@
   "camera": {
     "never": "never",
     "lastError": "Last try failed: {{reason}}",
+    "whatItSaid": "What the camera said",
+    "failure": {
+      "damaged": "what arrived was not a whole picture",
+      "aborted": "the camera stopped the capture",
+      "stoppedEarly": "the stream ended before a picture arrived",
+      "refusedLogin": "the camera refused the login it is paired with",
+      "noAnswer": "the camera did not answer",
+      "noController": "the controller this camera answers through was not reachable",
+      "noAddress": "there is no address to reach this camera at",
+      "noStream": "what answered was not a video stream",
+      "unknown": "the camera could not be read"
+    },
     "frameAlt": "{{name}} at {{time}}",
     "noFramesToday": "No picture today yet",
     "live": "live",

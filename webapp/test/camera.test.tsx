@@ -11,6 +11,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Camera, GrowListItem, TimelapseCreate } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { CameraScreen } from '@/screens/camera/CameraPage';
+import { causeOf } from '@/screens/camera/capture-failure';
 import { Composer } from '@/screens/camera/Composer';
 import { CameraSettings } from '@/screens/camera/CameraSettings';
 import { Film } from '@/screens/camera/Film';
@@ -284,6 +285,31 @@ describe('the camera page, by who is reading', () => {
     expect(screen.getByText(/Its settings, its test image and its timelapses are for whoever steers the tent/)).toBeInTheDocument();
   });
 
+  /**
+   * A dark camera's only explanation was the paragraph ffmpeg wrote, heap
+   * addresses and the server's own loopback port and all, in English on a
+   * German screen. What the line says now is the kind of failure it was; the
+   * words themselves are still on the page, because they are how the one person
+   * who can fix the camera finds out what is wrong with it.
+   */
+  it('names the kind of failure a capture met, and keeps the camera´s own words under it', () => {
+    state.lastError =
+      '[rtsp @ 0xffffa6850350] Failed reading RTSP data: End of file [in#0 @ 0xffffa67ca520] Error opening input: Invalid data found rtsp://<credentials>@127.0.0.1:40763/stream1';
+    drawPage();
+
+    expect(screen.getByText('Last try failed: the stream ended before a picture arrived')).toBeInTheDocument();
+    expect(screen.getByText(/40763/)).toBeInTheDocument();
+    expect(screen.getByText('What the camera said')).toBeInTheDocument();
+  });
+
+  it('names a failure it cannot tell apart as the failure it is, rather than as ffmpeg´s account of it', () => {
+    state.lastError = 'ffmpeg exited with status 251';
+    drawPage();
+
+    expect(screen.getByText('Last try failed: the camera could not be read')).toBeInTheDocument();
+    expect(screen.getByText('ffmpeg exited with status 251')).toBeInTheDocument();
+  });
+
   /** A co-manager runs the tent and may set the camera up; ending it is still the owner's. */
   it('gives a co-manager the form and withholds the unpair', () => {
     state.youMay = 'manage';
@@ -292,6 +318,41 @@ describe('the camera page, by who is reading', () => {
     expect(screen.getByRole('textbox', { name: 'Name' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Test image' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Unpair' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The kinds of failure apart, because each of them is a different move: check
+ * the power and the network, check the login, check the address, or wait for
+ * the tent's controller to come back. What the server stores is whatever the
+ * process that reached for the camera said, so these are the wordings the
+ * server's own capture paths produce.
+ */
+describe('what a failed capture is called', () => {
+  const causes: [string, string][] = [
+    ['device aborted the capture', 'aborted'],
+    ['discarding corrupt frame ("no moov atom")', 'damaged'],
+    ['[rtsp @ 0x1] Failed reading RTSP data: End of file', 'stoppedEarly'],
+    ['Server returned 401 Unauthorized', 'refusedLogin'],
+    ['connect ECONNREFUSED 192.168.1.40:554', 'noAnswer'],
+    ['timed out waiting for the device to deliver an image', 'noAnswer'],
+    ['the device is not connected to the broker', 'noController'],
+    ['this camera has no stream address', 'noAddress'],
+    ['Error opening input: Invalid data found when processing input', 'noStream'],
+    ['ffmpeg exited with status 251', 'unknown'],
+  ];
+
+  it.each(causes)('reads %s as %s', (said, cause) => {
+    expect(causeOf(said)).toBe(`camera.failure.${cause}`);
+  });
+
+  /**
+   * A stream cut off mid-frame reports both the end of the file and, a line
+   * later, that what arrived was not a video. The first thing that went wrong
+   * is the one worth naming; the second is what it looked like afterwards.
+   */
+  it('names a failure by what it began as where one failure prints the wording of two', () => {
+    expect(causeOf('Failed reading RTSP data: End of file … Error opening input: Invalid data found')).toBe('camera.failure.stoppedEarly');
   });
 });
 
