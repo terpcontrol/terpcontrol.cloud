@@ -119,7 +119,8 @@ export const TIMELAPSES_PER_PAGE = 20;
 export const useTimelapses = (cameraId: string) =>
   useInfiniteQuery({
     queryKey: ['camera', cameraId, 'timelapses'],
-    queryFn: ({ pageParam, signal }) => api.get<MediaPage>(`/cameras/${cameraId}/timelapses`, { limit: TIMELAPSES_PER_PAGE, cursor: pageParam }, signal),
+    queryFn: ({ pageParam, signal }) =>
+      api.get<MediaPage>(`/cameras/${cameraId}/timelapses`, { limit: TIMELAPSES_PER_PAGE, cursor: pageParam }, signal),
     initialPageParam: null as string | null,
     getNextPageParam: last => last.nextCursor,
   });

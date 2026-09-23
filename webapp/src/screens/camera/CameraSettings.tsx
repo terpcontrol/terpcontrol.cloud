@@ -143,7 +143,11 @@ export function CameraSettings({ camera, mayManage, mayOwn }: { camera: Camera; 
             </span>
           ) : (
             <span className={`mono ${styles.settingValue}`}>
-              {[`${camera.stillIntervalSeconds} s`, camera.nightOff ? t('camera.nightOff') : null, camera.maintenanceOff ? t('camera.maintenanceOff') : null]
+              {[
+                `${camera.stillIntervalSeconds} s`,
+                camera.nightOff ? t('camera.nightOff') : null,
+                camera.maintenanceOff ? t('camera.maintenanceOff') : null,
+              ]
                 .filter(Boolean)
                 .join(' · ')}
             </span>
