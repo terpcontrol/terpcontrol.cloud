@@ -6,7 +6,20 @@ export const UNIT: Partial<Record<Metric, string>> = { temperature: '°C', humid
 
 const DECIMALS: Partial<Record<Metric, number>> = { temperature: 1, humidity: 0, co2: 0, vpd: 2 };
 
-export const figure = (value: number, metric: Metric): string => value.toFixed(DECIMALS[metric] ?? 0);
+/**
+ * A reading as a card writes it. A figure that rounds away to nothing is
+ * written as nothing rather than as "-0": a scale is stretched a little past
+ * what it holds, so a series flat at zero - a tent whose CO2 sensor answers
+ * zero on every sample - puts its low corner a hairsbreadth below, and rounding
+ * that to the decimals the sensor is good for kept the minus sign in front of a
+ * zero. Nothing ever measured minus nothing.
+ */
+export const figure = (value: number, metric: Metric): string => {
+  const decimals = DECIMALS[metric] ?? 0;
+  const written = value.toFixed(decimals);
+
+  return Number(written) === 0 ? (0).toFixed(decimals) : written;
+};
 
 /** A target, a band edge and the corner of an axis are round numbers more often than not, and read as one. */
 export const targetFigure = (value: number, metric: Metric): string => (Number.isInteger(value) ? String(value) : figure(value, metric));

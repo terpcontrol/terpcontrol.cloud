@@ -10,6 +10,7 @@ import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Entry, SpaceTimeline } from '@fg2/shared-types/v1';
 import { Timeline } from '@/screens/timeline/Timeline';
+import { figure, targetFigure } from '@/screens/home/units';
 import { scaleOf, stretchesOf } from '@/screens/timeline/window';
 
 const state = vi.hoisted(() => ({ answer: null as SpaceTimeline | null }));
@@ -314,5 +315,19 @@ describe('what a panel is drawn against', () => {
     expect(scale.high).toBeGreaterThanOrEqual(27);
     expect(Number.isInteger(scale.low)).toBe(true);
     expect(Number.isInteger(scale.high)).toBe(true);
+  });
+
+  it('writes a corner that rounds away to nothing as nothing rather than as minus nothing', () => {
+    // A device whose CO2 sensor answers zero on every sample gives a flat line,
+    // and the scale is stretched a hairsbreadth either side of it: the low
+    // corner was drawn as "-0", which is not a reading anything ever took.
+    const flat = { ...answer.panels[0], metric: 'co2' as const, points: answer.panels[0].points.map(point => ({ ...point, value: 0 })) };
+    const scale = scaleOf(flat, []);
+
+    expect(scale.low).toBeLessThan(0);
+    expect(targetFigure(scale.low, 'co2')).toBe('0');
+    expect(figure(-0.04, 'temperature')).toBe('0.0');
+    // And a figure that does not round away keeps its sign.
+    expect(figure(-0.4, 'temperature')).toBe('-0.4');
   });
 });
