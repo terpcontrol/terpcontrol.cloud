@@ -141,7 +141,6 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
   const range = RANGES.find(one => one === params.get('range')) ?? '24h';
   const from = params.get('from') ?? '';
   const to = params.get('to') ?? '';
-  const incomplete = range === 'custom' && !(from && to);
 
   const definitions = useMemo(() => grow.measurements.filter(definition => definition.chart), [grow.measurements]);
   const keys = useMemo(() => definitions.map(definition => definition.key), [definitions]);
@@ -149,7 +148,18 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
   // account is a read of its own - and the two ends of a custom range are cut
   // at midnight where the account is. Left out, the window would stay frozen at
   // the midnight the browser happened to be on when the screen first drew.
-  const window = useMemo(() => ({ range, ...dayBounds(range, from, to, zone), measurements: keys }), [range, from, to, keys, zone]);
+  const bounds = useMemo(() => dayBounds(range, from, to, zone), [range, from, to, zone]);
+  const window = useMemo(() => ({ range, ...bounds, measurements: keys }), [range, bounds, keys]);
+  // Whether the question has been finished is decided on the window that came
+  // out of the two fields and not on the two strings that went in. A range
+  // typed into the address rather than picked in the fields can name a day
+  // nothing can read, and that leaves a truthy string in front of an empty
+  // window: judged by the string the question looked asked, while the read
+  // stayed disabled behind it and the screen waited on nothing for ever. Two
+  // ends given and still no window is the way that shows itself, and it is a
+  // different sentence from an end nobody has picked yet.
+  const incomplete = range === 'custom' && !(bounds.from && bounds.to);
+  const unreadable = incomplete && !!from && !!to;
   const series = useGrowSeries(grow.id, window);
 
   const spaces = useSpaces();
@@ -278,7 +288,9 @@ function ChartsFor({ grow, spaceId }: { grow: GrowListItem; spaceId: string | nu
               onChange={event => setQuery({ to: event.target.value })}
             />
           </label>
-          {incomplete ? <p className={`${ui.note} ${styles.customNote}`}>{t('charts.custom.need')}</p> : null}
+          {incomplete ? (
+            <p className={`${ui.note} ${styles.customNote}`}>{t(unreadable ? 'charts.custom.unreadable' : 'charts.custom.need')}</p>
+          ) : null}
         </div>
       ) : null}
 

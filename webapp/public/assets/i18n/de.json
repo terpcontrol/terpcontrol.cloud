@@ -520,7 +520,8 @@
     "custom": {
       "from": "Von",
       "to": "Bis",
-      "need": "Beide Enden wählen, dann wird dazwischen gezeichnet."
+      "need": "Beide Enden wählen, dann wird dazwischen gezeichnet.",
+      "unreadable": "Das ist kein lesbares Datum — bitte beide Enden neu wählen."
     },
     "seriesLabel": "Kurven",
     "metric": {

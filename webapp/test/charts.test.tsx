@@ -203,14 +203,16 @@ const earlier: GrowSeries = {
   measurements: [],
 };
 
-const draw = () =>
+const drawAt = (entry: string) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={['/charts?grow=grow-1']}>
+      <MemoryRouter initialEntries={[entry]}>
         <Charts />
       </MemoryRouter>
     </QueryClientProvider>,
   );
+
+const draw = () => drawAt('/charts?grow=grow-1');
 
 beforeAll(async () => {
   const translation = JSON.parse(await readFile(resolve(process.cwd(), 'public/assets/i18n/en.json'), 'utf8'));
@@ -458,6 +460,32 @@ describe('the Charts view', () => {
     // +14: the day the account means began fourteen hours before UTC midnight.
     expect(window.get('from')).toBe('2026-08-19T10:00:00.000Z');
     expect(window.get('to')).toBe('2026-08-20T09:59:59.999Z');
+  });
+
+  /**
+   * A custom range that arrives in the address rather than out of the two date
+   * fields can carry anything at all - a stale link, a query typed by hand, a
+   * field something was pasted into. The window then cannot be built, the read
+   * is never made, and a screen that judged "have both ends been picked?" on
+   * the raw strings called the question finished and waited on nothing: two
+   * skeletons that never resolved, with no word about why.
+   */
+  it('says a custom range it cannot read, rather than waiting on a read it never makes', async () => {
+    drawAt('/charts?grow=grow-1&range=custom&from=banana&to=2026-09-22');
+
+    expect(await screen.findByText('That is not a date this can read — pick both ends again.')).toBeInTheDocument();
+    expect(screen.queryByText('loading')).not.toBeInTheDocument();
+    expect(state.asked.filter(read => read.path.includes('/series'))).toHaveLength(0);
+  });
+
+  it('says it for the other end too, and keeps the plain sentence for an end nobody has picked yet', async () => {
+    drawAt('/charts?grow=grow-1&range=custom&from=2026-09-20&to=nonsense');
+
+    expect(await screen.findByText('That is not a date this can read — pick both ends again.')).toBeInTheDocument();
+
+    drawAt('/charts?grow=grow-1&range=custom&from=2026-09-20');
+
+    expect(await screen.findByText('Pick both ends and the chart is drawn between them.')).toBeInTheDocument();
   });
 
   /**

@@ -520,7 +520,8 @@
     "custom": {
       "from": "From",
       "to": "To",
-      "need": "Pick both ends and the chart is drawn between them."
+      "need": "Pick both ends and the chart is drawn between them.",
+      "unreadable": "That is not a date this can read — pick both ends again."
     },
     "seriesLabel": "Series",
     "metric": {
